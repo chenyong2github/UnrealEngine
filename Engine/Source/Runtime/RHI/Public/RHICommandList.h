@@ -143,6 +143,13 @@ struct FRayTracingLocalShaderBindings
 	uint8* LooseParameterData = nullptr;
 };
 
+enum class ERayTracingBindingType : uint8
+{
+	HitGroup,
+	CallableShader,
+	MissShader,
+};
+
 // C++ counter-part of FBasicRayData declared in RayTracingCommon.ush
 struct FBasicRayData
 {
@@ -2281,16 +2288,8 @@ FRHICOMMAND_MACRO(FRHICommandRayTraceDispatch)
 
 FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 {
-	enum EBindingType
-	{
-		EBindingType_HitGroup,
-		EBindingType_CallableShader,
-		EBindingType_MissShader,
-		EBindingType_HitGroupBatch,
-	};
-
 	FRHIRayTracingScene* Scene = nullptr;
-	EBindingType BindingType = EBindingType_HitGroup;
+	ERayTracingBindingType BindingType = ERayTracingBindingType::HitGroup;
 	uint32 InstanceIndex = 0;
 	uint32 SegmentIndex = 0;
 	uint32 ShaderSlot = 0;
@@ -2303,7 +2302,7 @@ FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 	uint32 UserData = 0;
 
 	// Batched bindings
-	uint32 NumBindings = 0;
+	int32 NumBindings = -1;
 	const FRayTracingLocalShaderBindings* Bindings = nullptr;
 
 	// Hit group bindings
@@ -2312,7 +2311,7 @@ FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 		uint32 InLooseParameterDataSize, const void* InLooseParameterData,
 		uint32 InUserData)
 		: Scene(InScene)
-		, BindingType(EBindingType_HitGroup)
+		, BindingType(ERayTracingBindingType::HitGroup)
 		, InstanceIndex(InInstanceIndex)
 		, SegmentIndex(InSegmentIndex)
 		, ShaderSlot(InShaderSlot)
@@ -2326,21 +2325,11 @@ FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 	{
 	}
 
-	// Batched hit group bindings
-	FRHICommandSetRayTracingBindings(FRHIRayTracingScene* InScene, FRayTracingPipelineState* InPipeline, uint32 InNumBindings, const FRayTracingLocalShaderBindings* InBindings)
-		: Scene(InScene)
-		, BindingType(EBindingType_HitGroupBatch)
-		, Pipeline(InPipeline)
-		, NumBindings(InNumBindings)
-		, Bindings(InBindings)
-	{
-	}
-
 	// Callable and Miss shader bindings
 	FRHICommandSetRayTracingBindings(FRHIRayTracingScene* InScene, uint32 InShaderSlot,
 		FRayTracingPipelineState* InPipeline, uint32 InShaderIndex,
 		uint32 InNumUniformBuffers, FRHIUniformBuffer* const* InUniformBuffers,
-		uint32 InUserData, EBindingType InBindingType)
+		uint32 InUserData, ERayTracingBindingType InBindingType)
 		: Scene(InScene)
 		, BindingType(InBindingType)
 		, InstanceIndex(0)
@@ -2352,6 +2341,18 @@ FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 		, UniformBuffers(InUniformBuffers)
 		, UserData(InUserData)
 	{
+		checkf(InBindingType != ERayTracingBindingType::HitGroup, TEXT("Hit group bindings must specify Instance and Segment Index."));
+	}
+
+	// Bindings Batch
+	FRHICommandSetRayTracingBindings(FRHIRayTracingScene* InScene, FRayTracingPipelineState* InPipeline, uint32 InNumBindings, const FRayTracingLocalShaderBindings* InBindings, ERayTracingBindingType InBindingType)
+		: Scene(InScene)
+		, BindingType(InBindingType)
+		, Pipeline(InPipeline)
+		, NumBindings(InNumBindings)
+		, Bindings(InBindings)
+	{
+
 	}
 
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -3836,15 +3837,16 @@ public:
 		}
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetRayTracingHitGroups(
+	FORCEINLINE_DEBUGGABLE void SetRayTracingBindings(
 		FRHIRayTracingScene* Scene, FRayTracingPipelineState* Pipeline,
 		uint32 NumBindings, const FRayTracingLocalShaderBindings* Bindings,
+		ERayTracingBindingType BindingType,
 		bool bCopyDataToInlineStorage = true)
 	{
 		if (Bypass())
 		{
 			extern RHI_API FRHIRayTracingPipelineState* GetRHIRayTracingPipelineState(FRayTracingPipelineState*);
-			GetContext().RHISetRayTracingHitGroups(Scene, GetRHIRayTracingPipelineState(Pipeline), NumBindings, Bindings);
+			GetContext().RHISetRayTracingBindings(Scene, GetRHIRayTracingPipelineState(Pipeline), NumBindings, Bindings, BindingType);
 		}
 		else
 		{
@@ -3879,13 +3881,37 @@ public:
 					}
 				}
 
-				ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, Pipeline, NumBindings, InlineBindings);
+				ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, Pipeline, NumBindings, InlineBindings, BindingType);
 			}
 			else
 			{
-				ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, Pipeline, NumBindings, Bindings);
+				ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, Pipeline, NumBindings, Bindings, BindingType);
 			}
 		}
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetRayTracingHitGroups(
+		FRHIRayTracingScene* Scene, FRayTracingPipelineState* Pipeline,
+		uint32 NumBindings, const FRayTracingLocalShaderBindings* Bindings,
+		bool bCopyDataToInlineStorage = true)
+	{
+		SetRayTracingBindings(Scene, Pipeline, NumBindings, Bindings, ERayTracingBindingType::HitGroup, bCopyDataToInlineStorage);
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetRayTracingCallableShaders(
+		FRHIRayTracingScene* Scene, FRayTracingPipelineState* Pipeline,
+		uint32 NumBindings, const FRayTracingLocalShaderBindings* Bindings,
+		bool bCopyDataToInlineStorage = true)
+	{
+		SetRayTracingBindings(Scene, Pipeline, NumBindings, Bindings, ERayTracingBindingType::CallableShader, bCopyDataToInlineStorage);
+	}
+
+	FORCEINLINE_DEBUGGABLE void SetRayTracingMissShaders(
+		FRHIRayTracingScene* Scene, FRayTracingPipelineState* Pipeline,
+		uint32 NumBindings, const FRayTracingLocalShaderBindings* Bindings,
+		bool bCopyDataToInlineStorage = true)
+	{
+		SetRayTracingBindings(Scene, Pipeline, NumBindings, Bindings, ERayTracingBindingType::MissShader, bCopyDataToInlineStorage);
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetRayTracingHitGroup(
@@ -3952,7 +3978,7 @@ public:
 				}
 			}
 
-			ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, InlineUniformBuffers, UserData, FRHICommandSetRayTracingBindings::EBindingType::EBindingType_CallableShader);
+			ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, InlineUniformBuffers, UserData, ERayTracingBindingType::CallableShader);
 		}
 	}
 
@@ -3979,7 +4005,7 @@ public:
 				}
 			}
 
-			ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, InlineUniformBuffers, UserData, FRHICommandSetRayTracingBindings::EBindingType::EBindingType_MissShader);
+			ALLOC_COMMAND(FRHICommandSetRayTracingBindings)(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, InlineUniformBuffers, UserData, ERayTracingBindingType::MissShader);
 		}
 	}
 

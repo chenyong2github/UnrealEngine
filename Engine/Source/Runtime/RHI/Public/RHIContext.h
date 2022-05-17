@@ -29,6 +29,7 @@ struct FRayTracingGeometrySegment;
 struct FRayTracingGeometryBuildParams;
 struct FRayTracingSceneBuildParams;
 struct FRayTracingLocalShaderBindings;
+enum class ERayTracingBindingType : uint8;
 enum class EAsyncComputeBudget;
 
 #define VALIDATE_UNIFORM_BUFFER_STATIC_BINDINGS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
@@ -827,7 +828,7 @@ public:
 		checkNoEntry();
 	}
 
-	virtual void RHISetRayTracingHitGroups(FRHIRayTracingScene* Scene, FRHIRayTracingPipelineState* Pipeline, uint32 NumBindings, const FRayTracingLocalShaderBindings* Bindings)
+	virtual void RHISetRayTracingBindings(FRHIRayTracingScene* Scene, FRHIRayTracingPipelineState* Pipeline, uint32 NumBindings, const FRayTracingLocalShaderBindings* Bindings, ERayTracingBindingType BindingType)
 	{
 		checkNoEntry();
 	}
