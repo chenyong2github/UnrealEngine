@@ -225,7 +225,19 @@ namespace UnrealBuildTool
 			return OutputFile.ChangeExtension(DebugExtension);
 		}
 
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_WarningsAndErrors(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			base.GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
 
+			// fix for Xcode 8.3 enabling nonportable include checks, but p4 has some invalid cases in it
+			if (Settings.Value.IOSSDKVersionFloat >= 10.3)
+			{
+				Arguments.Add("-Wno-nonportable-include-path");
+			}
+		}
+
+		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
@@ -273,34 +285,10 @@ namespace UnrealBuildTool
 				Arguments.Add("-flto");
 			}
 
-			Arguments.Add("-Wall -Werror");
-			Arguments.Add("-Wdelete-non-virtual-dtor");
-
-			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
-			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
-			// See also MacToolChain.cs
 			if (GetClangVersion().Major >= 12)
 			{
-				Arguments.Add("-Wno-range-loop-analysis");
-
 				// We have 'this' vs nullptr comparisons that get optimized away for newer versions of Clang, which is undesirable until we refactor these checks.
 				Arguments.Add("-fno-delete-null-pointer-checks");
-			}
-
-			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
-			{
-				Arguments.Add("-Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow"));
-			}
-
-			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
-			{
-				Arguments.Add("-Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef"));
-			}
-
-			// fix for Xcode 8.3 enabling nonportable include checks, but p4 has some invalid cases in it
-			if (Settings.Value.IOSSDKVersionFloat >= 10.3)
-			{
-				Arguments.Add("-Wno-nonportable-include-path");
 			}
 
 			if (IsBitcodeCompilingEnabled(CompileEnvironment.Configuration))
