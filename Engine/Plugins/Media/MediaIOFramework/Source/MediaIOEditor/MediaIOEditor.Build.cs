@@ -18,6 +18,12 @@ namespace UnrealBuildTool.Rules
 					"TimeManagement",
 					"UnrealEd",
 				});
+
+			PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"MediaAssets"
+				});
 		}
 	}
 }

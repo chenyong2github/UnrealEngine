@@ -21,6 +21,11 @@ bool UTimeSynchronizableMediaSource::GetMediaOption(const FName& Key, bool Defau
 	{
 		return bUseTimeSynchronization;
 	}
+	
+	if (Key == TimeSynchronizableMedia::AutoDetect)
+	{
+		return bAutoDetectInput;
+	}
 
 	return Super::GetMediaOption(Key, DefaultValue);
 }
@@ -54,7 +59,8 @@ bool UTimeSynchronizableMediaSource::HasMediaOption(const FName& Key) const
 {
 	if (Key == TimeSynchronizableMedia::UseTimeSynchronizatioOption
 		|| Key == TimeSynchronizableMedia::FrameDelay
-		|| Key == TimeSynchronizableMedia::TimeDelay)
+		|| Key == TimeSynchronizableMedia::TimeDelay
+		|| Key == TimeSynchronizableMedia::AutoDetect)
 	{
 		return true;
 	}

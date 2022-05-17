@@ -235,6 +235,7 @@ public:
 				}
 
 				InOnAutoDetected.ExecuteIfBound(Configurations);
+				AutoDetectChannelPin->Uninitialize();
 			}
 		});
 	}

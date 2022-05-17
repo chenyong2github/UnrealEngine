@@ -84,6 +84,7 @@ FMediaIOCorePlayerBase::FMediaIOCorePlayerBase(IMediaEventSink& InEventSink)
 	, VideoFrameRate(30, 1)
 	, bUseTimeSynchronization(false)
 	, bWarnedIncompatibleFrameRate(false)
+	, bAutoDetect(false)
 	, FrameDelay(0)
 	, TimeDelay(0.0)
 	, PreviousFrameTimespan(FTimespan::Zero())
@@ -473,6 +474,7 @@ bool FMediaIOCorePlayerBase::ReadMediaOptions(const IMediaOptions* Options)
 	bUseTimeSynchronization = Options->GetMediaOption(TimeSynchronizableMedia::UseTimeSynchronizatioOption, false);
 	FrameDelay = Options->GetMediaOption(TimeSynchronizableMedia::FrameDelay, (int64)0);
 	TimeDelay = Options->GetMediaOption(TimeSynchronizableMedia::TimeDelay, 0.0);
+	bAutoDetect = Options->GetMediaOption(TimeSynchronizableMedia::AutoDetect, false);
 
 	{
 		int32 Numerator = Options->GetMediaOption(FMediaIOCoreMediaOption::FrameRateNumerator, (int64)30);

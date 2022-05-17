@@ -36,6 +36,7 @@ protected:
 			check(MediaValue);
 			return MediaValue;
 	}
+	
 	template<class T>
 	void AssignValue(const T& NewValue) const
 	{
@@ -45,6 +46,7 @@ protected:
 	virtual TAttribute<FText> GetContentText() = 0;
 	virtual TSharedRef<SWidget> HandleSourceComboButtonMenuContent() = 0;
 	TSharedPtr<IPropertyHandle> GetMediaProperty() const { return MediaProperty; };
+	TArray<UObject*> GetCustomizedObjects() const;
 
 	FName DeviceProviderName;
 

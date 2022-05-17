@@ -185,11 +185,23 @@ FString UAjaMediaSource::GetUrl() const
 bool UAjaMediaSource::Validate() const
 {
 	FString FailureReason;
-	if (!MediaConfiguration.IsValid())
+	if (bAutoDetectInput)
 	{
-		UE_LOG(LogAjaMedia, Warning, TEXT("The MediaConfiguration '%s' is invalid."), *GetName());
-		return false;
+		if (!MediaConfiguration.MediaConnection.IsValid())
+		{
+			UE_LOG(LogAjaMedia, Warning, TEXT("The MediaConfiguration '%s' is invalid."), *GetName());
+			return false;
+		}
 	}
+	else
+	{
+		if (!MediaConfiguration.IsValid())
+		{
+			UE_LOG(LogAjaMedia, Warning, TEXT("The MediaConfiguration '%s' is invalid."), *GetName());
+			return false;
+		}
+	}
+	
 
 	if (!FAja::IsInitialized())
 	{
@@ -205,7 +217,9 @@ bool UAjaMediaSource::Validate() const
 
 	TUniquePtr<AJA::AJADeviceScanner> Scanner = MakeUnique<AJA::AJADeviceScanner>();
 	AJA::AJADeviceScanner::DeviceInfo DeviceInfo;
-	if (!Scanner->GetDeviceInfo(MediaConfiguration.MediaConnection.Device.DeviceIdentifier, DeviceInfo))
+	FMediaIODevice Device = MediaConfiguration.MediaConnection.Device;
+
+	if (!Scanner->GetDeviceInfo(Device.DeviceIdentifier, DeviceInfo))
 	{
 		UE_LOG(LogAjaMedia, Warning, TEXT("The MediaSource '%s' use the device '%s' that doesn't exist on this machine."), *GetName(), *MediaConfiguration.MediaConnection.Device.DeviceName.ToString());
 		return false;

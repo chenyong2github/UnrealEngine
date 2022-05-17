@@ -117,6 +117,16 @@ void FMediaIOCustomizationBase::CustomizeChildren(TSharedRef<IPropertyHandle> In
 	}
 }
 
+TArray<UObject*> FMediaIOCustomizationBase::GetCustomizedObjects() const
+{
+	TArray<UObject*> Objects;
+	if (MediaProperty)
+	{
+		MediaProperty->GetOuterObjects(Objects);
+	}
+	return Objects;
+}
+
 void FMediaIOCustomizationBase::AssignValueImpl(const void* NewValue) const
 {
 	if (FStructProperty* StructProperty = CastField<FStructProperty>(MediaProperty->GetProperty()))

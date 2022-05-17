@@ -229,6 +229,9 @@ protected:
 	/** Warn when the video frame rate is not the same as the engine's frame rate. */
 	bool bWarnedIncompatibleFrameRate;
 
+	/** Whether we are using autodetection. */
+	bool bAutoDetect;
+
 	/** When using Time Synchronization (TC synchronization), how many frame back of a delay would you like. */
 	int32 FrameDelay;
 

@@ -75,6 +75,11 @@ public:
 	 */
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FIsColumnVisible, FName /*ColumnName*/, const TArray<ItemType>& /*UniquePermutationsForThisColumn */);
 
+	/**
+	 * A delegate called to add additional widgets to the left of the apply button.
+	 */
+	DECLARE_DELEGATE_OneParam(FOnGetExtensions, TArray<TSharedRef<SWidget>>& /*OutExtensions*/);
+
 public:
 	/** Describes a single column */
 	class FColumn
@@ -135,6 +140,8 @@ public:
 		SLATE_EVENT(FOnClicked, OnButtonClicked)
 		/** Delegate to invoke when selection changes. */
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
+		/** Delegate to invoke when gathering extensions. */
+		SLATE_EVENT(FOnGetExtensions, OnGetExtensions)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);

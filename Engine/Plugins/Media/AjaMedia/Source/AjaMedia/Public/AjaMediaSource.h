@@ -134,5 +134,7 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif //WITH_EDITOR
+
+	virtual bool SupportsFormatAutoDetection() const override { return true; }
 	//~ End UObject interface
 };

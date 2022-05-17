@@ -44,6 +44,22 @@ void SMediaPermutationsSelector<ItemType, ItemBuilder>::Construct(const FArgumen
 
 	SAssignNew(ColumnContainer, SHorizontalBox);
 
+	TArray<TSharedRef<SWidget>> Extensions;
+	InArgs._OnGetExtensions.ExecuteIfBound(Extensions);
+	const bool bIsVisible = Extensions.Num() != 0;
+
+	TSharedRef<SHorizontalBox> ExtensionWidgetContainer = SNew(SHorizontalBox)
+		.Visibility(bIsVisible ? EVisibility::Visible : EVisibility::Collapsed);
+
+	for (int32 Index = Extensions.Num() - 1; Index >= 0; Index--)
+	{
+		ExtensionWidgetContainer->AddSlot()
+			.AutoWidth()
+			[
+				Extensions[Index]
+			];
+	}
+
 	BuildColumns(0);
 
 	ChildSlot
@@ -65,6 +81,12 @@ void SMediaPermutationsSelector<ItemType, ItemBuilder>::Construct(const FArgumen
 				.FillWidth(1.f)
 				[
 					SNullWidget::NullWidget
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(4.f)
+				.AutoWidth()
+				[
+					ExtensionWidgetContainer
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(4.f)
@@ -151,12 +173,6 @@ void SMediaPermutationsSelector<ItemType, ItemBuilder>::BuildColumns(int32 Start
 			}
 		}
 
-		// Only show the column if the user desire it
-		if (!IsColumnVisible(Column, UniqueItemsForColumnIndexes))
-		{
-			continue;
-		}
-
 		// Sort the column items
 		UniqueItemsForColumnIndexes.Sort([this, ColumnName](int32 Left, int32 Right) { return Less(ColumnName, Left, Right); });
 
@@ -180,6 +196,7 @@ void SMediaPermutationsSelector<ItemType, ItemBuilder>::BuildColumns(int32 Start
 
 		// Create the widget
 		SAssignNew(Column.Widget, SVerticalBox)
+		.Visibility_Lambda([this, Column, UniqueItemsForColumnIndexes]() { return IsColumnVisible(Column, UniqueItemsForColumnIndexes) ? EVisibility::Visible : EVisibility::Collapsed; })
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.HAlign(HAlign_Left)

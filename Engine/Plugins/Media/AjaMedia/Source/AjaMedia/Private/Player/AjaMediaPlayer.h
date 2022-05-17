@@ -4,6 +4,7 @@
 
 #include "MediaIOCorePlayerBase.h"
 
+#include "AjaDeviceProvider.h"
 #include "AjaMediaPrivate.h"
 #include "AjaMediaSource.h"
 #include "HAL/CriticalSection.h"
@@ -117,6 +118,10 @@ protected:
 	virtual void AddVideoSample(const TSharedRef<FMediaIOCoreTextureSampleBase>& InSample) override;
 
 private:
+	bool Open_Internal(const FString& Url, const IMediaOptions* Options, AJA::AJAInputOutputChannelOptions AjaOptions);
+	void OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> Configurations, FString Url, const IMediaOptions* Options);
+
+private:
 
 	/** Audio, MetaData, Texture  sample object pool. */
 	TUniquePtr<FAjaMediaAudioSamplePool> AudioSamplePool;
@@ -186,4 +191,7 @@ private:
 	std::atomic<bool> bPauseRequested;
 
 	EAjaMediaSourceColorFormat AjaColorFormat = EAjaMediaSourceColorFormat::YUV2_8bit;
+
+	/** Device provider used to autodetect input format. */
+	TPimplPtr<class FAjaDeviceProvider> DeviceProvider;
 };

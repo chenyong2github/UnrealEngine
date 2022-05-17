@@ -13,6 +13,7 @@ namespace TimeSynchronizableMedia
 	static FName UseTimeSynchronizatioOption("UseTimeSynchronization");
 	static FName FrameDelay("FrameDelay");
 	static FName TimeDelay("TimeDelay");
+	static FName AutoDetect("AutoDetect");
 }
 
 /**
@@ -45,6 +46,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Synchronization, meta=(EditCondition="!bUseTimeSynchronization", ForceUnits=s))
 	double TimeDelay;
 
+	/** Whether to autodetect the input or not. */
+	UPROPERTY()
+	bool bAutoDetectInput = true;
+
 public:
 	//~ IMediaOptions interface
 	using Super::GetMediaOption;
@@ -53,4 +58,6 @@ public:
 	virtual double GetMediaOption(const FName& Key, double DefaultValue) const override;
 	virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
 	virtual bool HasMediaOption(const FName& Key) const override;
+
+	virtual bool SupportsFormatAutoDetection() const { return false; }
 };
