@@ -784,7 +784,7 @@ void GTAOHorizonSearchIntegralSpatialFilterCS(
 	, out uint LayerIndex : SV_RenderTargetArrayIndex
 #elif MOBILE_MULTI_VIEW
 	, in uint ViewId : SV_ViewID
-	, out float MultiViewIndex : VIEW_ID
+	, out nointerpolation uint MultiViewIndex : VIEW_ID
 #endif
 )
 {
@@ -793,14 +793,8 @@ void GTAOHorizonSearchIntegralSpatialFilterCS(
 	ResolvedView = ResolveView(EyeIndex);
 	LayerIndex = EyeIndex;
 #elif MOBILE_MULTI_VIEW
-#if COMPILER_GLSL_ES3_1
-	const int MultiViewId = int(ViewId);
-	ResolvedView = ResolveView(uint(MultiViewId));
-	MultiViewIndex = float(MultiViewId);
-#else
 	ResolvedView = ResolveView(ViewId);
-	MultiViewIndex = float(ViewId);
-#endif
+	MultiViewIndex = ViewId;
 #else
 	ResolvedView = ResolveView();
 #endif
@@ -855,7 +849,7 @@ void GTAOHorizonSearchIntegralCS(
 	, out uint LayerIndex : SV_RenderTargetArrayIndex
 #elif MOBILE_MULTI_VIEW
 	, in uint ViewId : SV_ViewID
-	, out float MultiViewIndex : VIEW_ID
+	, out nointerpolation uint MultiViewIndex : VIEW_ID
 #endif
 )
 {
@@ -864,14 +858,8 @@ void GTAOHorizonSearchIntegralCS(
 	ResolvedView = ResolveView(EyeIndex);
 	LayerIndex = EyeIndex;
 #elif MOBILE_MULTI_VIEW
-#if COMPILER_GLSL_ES3_1
-	const int MultiViewId = int(ViewId);
-	ResolvedView = ResolveView(uint(MultiViewId));
-	MultiViewIndex = float(MultiViewId);
-#else
 	ResolvedView = ResolveView(ViewId);
-	MultiViewIndex = float(ViewId);
-#endif
+	MultiViewIndex = ViewId;
 #else
 	ResolvedView = ResolveView();
 #endif

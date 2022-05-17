@@ -131,7 +131,7 @@ void ProjectionPassCS(
 	, out uint LayerIndex : SV_RenderTargetArrayIndex
 #elif MOBILE_MULTI_VIEW
 	, in uint ViewId : SV_ViewID
-	, out float MultiViewIndex : VIEW_ID
+	, out nointerpolation uint MultiViewIndex : VIEW_ID
 #endif
 )
 {
@@ -140,14 +140,8 @@ void ProjectionPassCS(
 	ResolvedView = ResolveView(EyeIndex);
 	LayerIndex = EyeIndex;
 #elif MOBILE_MULTI_VIEW
-#if COMPILER_GLSL_ES3_1
-	const int MultiViewId = int(ViewId);
-	ResolvedView = ResolveView(uint(MultiViewId));
-	MultiViewIndex = float(MultiViewId);
-#else
 	ResolvedView = ResolveView(ViewId);
-	MultiViewIndex = float(ViewId);
-#endif
+	MultiViewIndex = ViewId;
 #else
 	ResolvedView = ResolveView();
 #endif
@@ -198,7 +192,7 @@ void ReflectionPassVS(
 	, out uint LayerIndex : SV_RenderTargetArrayIndex
 #elif MOBILE_MULTI_VIEW
 	, in uint ViewId : SV_ViewID
-	, out float MultiViewIndex : VIEW_ID
+	, out nointerpolation uint MultiViewIndex : VIEW_ID
 #endif
 )
 {
@@ -207,14 +201,8 @@ void ReflectionPassVS(
 	ResolvedView = ResolveView(EyeIndex);
 	LayerIndex = EyeIndex;
 #elif MOBILE_MULTI_VIEW
-#if COMPILER_GLSL_ES3_1
-	const int MultiViewId = int(ViewId);
-	ResolvedView = ResolveView(uint(MultiViewId));
-	MultiViewIndex = float(MultiViewId);
-#else
 	ResolvedView = ResolveView(ViewId);
-	MultiViewIndex = float(ViewId);
-#endif
+	MultiViewIndex = ViewId;
 #else
 	ResolvedView = ResolveView();
 #endif
@@ -298,12 +286,12 @@ void ReflectionPassPS(
 	in float4 SvPosition : SV_Position,
 	in float4 PixelPosition : TEXCOORD0,
 #if MOBILE_MULTI_VIEW
-	in float MultiViewId : VIEW_ID,
+	in nointerpolation uint MultiViewId : VIEW_ID,
 #endif
 	out HALF4_TYPE OutColor : SV_Target0)
 {
 #if MOBILE_MULTI_VIEW
-	ResolvedView = ResolveView(uint(MultiViewId));
+	ResolvedView = ResolveView(MultiViewId);
 #else
 	ResolvedView = ResolveView();
 #endif

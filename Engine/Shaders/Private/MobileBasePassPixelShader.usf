@@ -219,7 +219,7 @@ void Main(
 #endif
 
 #if MOBILE_MULTI_VIEW
-	ResolvedView = ResolveView(uint(BasePassInterpolants.MultiViewId));
+	ResolvedView = ResolveView(BasePassInterpolants.MultiViewId);
 #else
 	ResolvedView = ResolveView();
 #endif
