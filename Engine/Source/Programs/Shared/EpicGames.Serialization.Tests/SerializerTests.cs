@@ -129,5 +129,37 @@ namespace EpicGames.Serialization.Tests
 			Assert.AreEqual(output.Value, 123);
 			Assert.AreEqual(output.Items, null);
 		}
+
+		class ObjectWithReadOnlyCollection
+		{
+			[CbField("s")]
+			public List<string> Strings { get; } = new List<string>();
+
+			[CbField("i")]
+			public List<int> Integers { get; } = new List<int>();
+		}
+
+		[TestMethod]
+		public void ObjectWithReadOnlyCollectionTest()
+		{
+			ObjectWithReadOnlyCollection input = new ObjectWithReadOnlyCollection();
+			input.Strings.Add("Hello");
+			input.Strings.Add("World");
+			input.Integers.Add(1);
+			input.Integers.Add(2);
+			input.Integers.Add(3);
+			input.Integers.Add(4);
+			CbObject obj = CbSerializer.Serialize(input);
+
+			ObjectWithReadOnlyCollection output = CbSerializer.Deserialize<ObjectWithReadOnlyCollection>(obj.AsField());
+			Assert.AreEqual(2, output.Strings.Count);
+			Assert.AreEqual("Hello", output.Strings[0]);
+			Assert.AreEqual("World", output.Strings[1]);
+			Assert.AreEqual(4, output.Integers.Count);
+			Assert.AreEqual(1, output.Integers[0]);
+			Assert.AreEqual(2, output.Integers[1]);
+			Assert.AreEqual(3, output.Integers[2]);
+			Assert.AreEqual(4, output.Integers[3]);
+		}
 	}
 }

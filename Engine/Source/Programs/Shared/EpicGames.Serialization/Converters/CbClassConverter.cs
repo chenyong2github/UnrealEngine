@@ -3,6 +3,7 @@
 using EpicGames.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -383,11 +384,28 @@ namespace EpicGames.Serialization.Converters
 				// FieldLocal = Stack.Pop()
 				generator.Emit(OpCodes.Stloc, fieldLocal);
 
-				// Property.SetMethod(NewObjectLocal, ReadMethod(FieldLocal))
-				generator.Emit(OpCodes.Ldloc, newObjectLocal);
-				generator.Emit(OpCodes.Ldloc, fieldLocal);
-				generator.EmitCall(OpCodes.Call, readMethod, null);
-				generator.EmitCall(OpCodes.Call, property.SetMethod!, null);
+				// Copy the collection over if necessary
+				if (property.SetMethod != null)
+				{
+					// Property.SetMethod(NewObjectLocal, ReadMethod(FieldLocal))
+					generator.Emit(OpCodes.Ldloc, newObjectLocal);
+					generator.Emit(OpCodes.Ldloc, fieldLocal);
+					generator.EmitCall(OpCodes.Call, readMethod, null);
+					generator.EmitCall(OpCodes.Call, property.SetMethod!, null);
+				}
+				else if (TryGetCollectionCopyMethod(property.PropertyType, out MethodInfo? copyMethod))
+				{
+					// CopyMethod(ReadMethod(FieldLocal), Property.GetMethod(NewObjectLocal))
+					generator.Emit(OpCodes.Ldloc, fieldLocal);
+					generator.EmitCall(OpCodes.Call, readMethod, null);
+					generator.Emit(OpCodes.Ldloc, newObjectLocal);
+					generator.EmitCall(OpCodes.Call, property.GetMethod!, null);
+					generator.EmitCall(OpCodes.Call, copyMethod, null);
+				}
+				else
+				{
+					throw new CbException($"Unable to write to property {property.Name}");
+				}
 
 				// if(!IteratorLocal.MoveNext()) goto ReturnLabel
 				generator.Emit(OpCodes.Ldloc, iteratorLocal);
@@ -422,6 +440,30 @@ namespace EpicGames.Serialization.Converters
 			generator.MarkLabel(returnLabel);
 			generator.Emit(OpCodes.Ldloc, newObjectLocal);
 			generator.Emit(OpCodes.Ret);
+		}
+
+		static bool TryGetCollectionCopyMethod(Type type, [NotNullWhen(true)] out MethodInfo? method)
+		{
+			foreach (Type interfaceType in type.GetInterfaces())
+			{
+				if (interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(ICollection<>))
+				{
+					MethodInfo genericMethod = typeof(CbClassConverterMethods).GetMethod(nameof(CopyCollection), BindingFlags.Static | BindingFlags.NonPublic)!;
+					method = genericMethod.MakeGenericMethod(interfaceType, interfaceType.GetGenericArguments()[0]);
+					return true;
+				}
+			}
+
+			method = null;
+			return false;
+		}
+
+		static void CopyCollection<TCollection, TElement>(TCollection source, TCollection target) where TCollection : ICollection<TElement>
+		{
+			foreach(TElement element in source)
+			{
+				target.Add(element);
+			}
 		}
 
 		static (Utf8String, PropertyInfo)[] GetProperties(Type type)
