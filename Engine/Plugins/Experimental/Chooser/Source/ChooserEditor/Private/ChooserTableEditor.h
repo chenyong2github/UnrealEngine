@@ -11,6 +11,7 @@
 #include "IDetailCustomization.h"
 #include "ChooserTableEditor.generated.h"
 
+class SEditableText;
 class IDetailsView;
 
 
