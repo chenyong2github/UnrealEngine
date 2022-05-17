@@ -57,6 +57,9 @@ class ENGINE_API UPointLightComponent : public ULocalLightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category=Light)
 	float SourceLength;
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetUseInverseSquaredFalloff(bool bNewValue);
+
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetLightFalloffExponent(float NewLightFalloffExponent);
 

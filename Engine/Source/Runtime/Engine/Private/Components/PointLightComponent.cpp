@@ -123,6 +123,16 @@ FLightSceneProxy* UPointLightComponent::CreateSceneProxy() const
 	return nullptr;
 }
 
+void UPointLightComponent::SetUseInverseSquaredFalloff(bool bNewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& bUseInverseSquaredFalloff != bNewValue)
+	{
+		bUseInverseSquaredFalloff = bNewValue;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPointLightComponent::SetLightFalloffExponent(float NewLightFalloffExponent)
 {
 	if (AreDynamicDataChangesAllowed()
