@@ -83,7 +83,15 @@ namespace UnrealBuildTool
 				Architecture = (WindowsArchitecture)Enum.Parse(typeof(WindowsArchitecture), Info.Architecture, true);
 			}
 		}
-    }
+
+		/// <summary>
+		/// Constructor - temporary #jira UE-149794
+		/// </summary>
+		public HoloLensTargetRules()
+		{
+			//#FIXME: need to set Architecture
+		}
+	}
 
 	/// <summary>
 	/// Read-only wrapper for HoloLens-specific target settings
@@ -148,6 +156,37 @@ namespace UnrealBuildTool
 		}
 #pragma warning restore CS1591
 		#endregion
+	}
+
+
+	abstract partial class TargetRules
+	{
+		/// <summary>
+		/// HoloLens-specific target settings.
+		/// </summary>
+		[ConfigSubObject]
+		public HoloLensTargetRules HoloLensPlatform = new HoloLensTargetRules();
+
+	}
+
+
+	public partial class ReadOnlyTargetRules
+	{
+		private ReadOnlyHoloLensTargetRules? _HoloLensPlatform = null;
+		/// <summary>
+		/// Singleton accessor for HoloLensPlatform
+		/// </summary>
+		public ReadOnlyHoloLensTargetRules HoloLensPlatform
+		{
+			get
+			{
+				if (_HoloLensPlatform == null)
+				{
+					_HoloLensPlatform = new ReadOnlyHoloLensTargetRules(Inner.HoloLensPlatform);
+				}
+				return _HoloLensPlatform;
+			}
+		}
 	}
 
 	[SupportedOSPlatform("windows")]

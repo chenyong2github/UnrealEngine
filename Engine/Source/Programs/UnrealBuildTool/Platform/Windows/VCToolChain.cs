@@ -1353,6 +1353,7 @@ namespace UnrealBuildTool
 					CompileAction.Arguments.Add(CompileEnvironment.AdditionalArguments);
 				}
 
+				/* FIXME: need to fix this #jira UE-149794
 				if (CompileEnvironment.Platform.IsInGroup(UnrealPlatformGroup.HoloLens) && Target.HoloLensPlatform.bRunNativeCodeAnalysis)
 				{
 					// Add the analysis log to the produced item list.
@@ -1377,7 +1378,7 @@ namespace UnrealBuildTool
 						// A non default ruleset was specified
 						CompileAction.Arguments.AddFormat("/analyze:ruleset \"{0}\"", rulesetFile);
 					}
-				}
+				}*/
 
 				if (SourceFile.HasExtension(".ixx"))
 				{

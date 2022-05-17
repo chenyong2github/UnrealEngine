@@ -1815,12 +1815,6 @@ namespace UnrealBuildTool
 		public WindowsTargetRules WindowsPlatform; // Requires 'this' parameter; initialized in constructor
 
 		/// <summary>
-		/// HoloLens-specific target settings.
-		/// </summary>
-		[ConfigSubObject]
-		public HoloLensTargetRules HoloLensPlatform;
-
-		/// <summary>
 		/// Constructor.
 		/// </summary>
 		/// <param name="Target">Information about the target being built</param>
@@ -1833,7 +1827,6 @@ namespace UnrealBuildTool
 			this.ProjectFile = Target.ProjectFile;
 			this.Version = Target.Version;
 			this.WindowsPlatform = new WindowsTargetRules(this);
-			this.HoloLensPlatform = new HoloLensTargetRules(Target);
 
 			// Read settings from config files
 			Dictionary<ConfigDependencyKey, IReadOnlyList<string>?> ConfigValues = new Dictionary<ConfigDependencyKey, IReadOnlyList<string>?>();
@@ -2179,7 +2172,6 @@ namespace UnrealBuildTool
 			LinuxPlatform = new ReadOnlyLinuxTargetRules(Inner.LinuxPlatform);
 			MacPlatform = new ReadOnlyMacTargetRules(Inner.MacPlatform);
 			WindowsPlatform = new ReadOnlyWindowsTargetRules(Inner.WindowsPlatform);
-			HoloLensPlatform = new ReadOnlyHoloLensTargetRules(Inner.HoloLensPlatform);
 		}
 
 		/// <summary>
@@ -3136,12 +3128,6 @@ namespace UnrealBuildTool
 		}
 
 		public ReadOnlyWindowsTargetRules WindowsPlatform
-		{
-			get;
-			private set;
-		}
-
-		public ReadOnlyHoloLensTargetRules HoloLensPlatform
 		{
 			get;
 			private set;
