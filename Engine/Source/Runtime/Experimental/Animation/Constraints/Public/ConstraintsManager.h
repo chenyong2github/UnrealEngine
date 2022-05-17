@@ -3,10 +3,12 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "Engine/EngineBaseTypes.h"
 
 #include "ConstraintsManager.generated.h"
 
 class UTickableConstraint;
+class ULevel;
 
 /** 
  * FConstraintTickFunction

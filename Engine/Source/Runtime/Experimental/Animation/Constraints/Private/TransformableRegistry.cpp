@@ -2,6 +2,8 @@
 
 #include "TransformableRegistry.h"
 
+#include "UObject/Class.h"
+
 FTransformableRegistry::~FTransformableRegistry() = default;
 
 FTransformableRegistry& FTransformableRegistry::Get()

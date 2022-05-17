@@ -3,6 +3,9 @@
 
 #include "TransformableHandle.h"
 
+#include "Components/SceneComponent.h"
+#include "GameFramework/Actor.h"
+
 /**
  * UTransformableHandle
  */

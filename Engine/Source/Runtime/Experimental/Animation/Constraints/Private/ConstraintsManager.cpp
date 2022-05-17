@@ -8,6 +8,7 @@
 #include "Algo/StableSort.h"
 
 #include "Engine/World.h"
+#include "Engine/Level.h"
 
 /** 
  * FConstraintTickFunction
