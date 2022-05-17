@@ -1545,8 +1545,8 @@ bool UContentBrowserFileDataSource::IsKnownFileMount(const FName InMountPath, FS
 		{
 			if (OutDiskPath)
 			{
-				*OutDiskPath = MountPathStrView;
-				OutDiskPath->ReplaceInline(*FileMountMountRootStr, *RegisteredFileMount.Value.DiskPath);
+					*OutDiskPath = MountPathStrView;
+					*OutDiskPath = FPaths::ConvertRelativePathToFull(*FileMountMountRootStr, *RegisteredFileMount.Value.DiskPath);
 			}
 
 			return true;
