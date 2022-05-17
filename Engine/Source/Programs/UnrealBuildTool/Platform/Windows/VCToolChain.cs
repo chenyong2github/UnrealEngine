@@ -1284,7 +1284,7 @@ namespace UnrealBuildTool
 					}
 
 					// Experimental: support for JSON output of timing data
-					if(Target.WindowsPlatform.Compiler.IsClang() && Target.WindowsPlatform.bClangTimeTrace)
+					if (Target.WindowsPlatform.Compiler.IsClang() && Target.WindowsPlatform.bClangTimeTrace)
 					{
 						CompileAction.Arguments.Add("-Xclang -ftime-trace");
 						CompileAction.AdditionalProducedItems.Add(FileItem.GetItemByFileReference(ObjectFile.Location.ChangeExtension(".json")));
@@ -1353,33 +1353,6 @@ namespace UnrealBuildTool
 					CompileAction.Arguments.Add(CompileEnvironment.AdditionalArguments);
 				}
 
-				/* FIXME: need to fix this #jira UE-149794
-				if (CompileEnvironment.Platform.IsInGroup(UnrealPlatformGroup.HoloLens) && Target.HoloLensPlatform.bRunNativeCodeAnalysis)
-				{
-					// Add the analysis log to the produced item list.
-					FileItem AnalysisLogFile = FileItem.GetItemByFileReference(
-						FileReference.Combine(
-							OutputDir,
-							Path.GetFileName(SourceFile.AbsolutePath) + ".nativecodeanalysis.xml"
-							)
-						); ;
-					CompileAction.AdditionalProducedItems.Add(AnalysisLogFile);
-					// Peform code analysis with results in a log file
-					CompileAction.Arguments.AddFormat("/analyze:log \"{0}\"", AnalysisLogFile.AbsolutePath);
-					// Suppress code analysis output
-					CompileAction.Arguments.Add("/analyze:quiet");
-					string? rulesetFile = Target.HoloLensPlatform.NativeCodeAnalysisRuleset;
-					if (!String.IsNullOrEmpty(rulesetFile))
-					{
-						if (!Path.IsPathRooted(rulesetFile))
-						{
-							rulesetFile = FileReference.Combine(Target.ProjectFile!.Directory, rulesetFile).FullName;
-						}
-						// A non default ruleset was specified
-						CompileAction.Arguments.AddFormat("/analyze:ruleset \"{0}\"", rulesetFile);
-					}
-				}*/
-
 				if (SourceFile.HasExtension(".ixx"))
 				{
 					FileItem IfcFile = FileItem.GetItemByFileReference(FileReference.Combine(GetModuleInterfaceDir(OutputDir), SourceFile.Location.ChangeExtension(".ifc").GetFileName()));
@@ -1436,6 +1409,9 @@ namespace UnrealBuildTool
 					}
 				}
 
+				// Allow derived toolchains to make further changes
+				ModifyFinalCompileAction(CompileAction, CompileEnvironment, SourceFile, OutputDir, ModuleName );
+
 				if (!ProjectFileGenerator.bGenerateProjectFiles)
 				{
 					CompileAction.WriteResponseFile(Graph);
@@ -1458,6 +1434,10 @@ namespace UnrealBuildTool
 			Result.CompiledModuleInterfaces.AddRange(Actions.Where(x => x.CompiledModuleInterfaceFile != null).Select(x => x.CompiledModuleInterfaceFile!));
 			Result.PrecompiledHeaderFile = Actions.Select(x => x.CreatePchFile).Where(x => x != null).FirstOrDefault();
 			return Result;
+		}
+
+		protected virtual void ModifyFinalCompileAction(VCCompileAction CompileAction, CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, string ModuleName)
+		{
 		}
 
 		private Action GenerateParseTimingInfoAction(FileItem SourceFile, FileItem TimingFile, IActionGraphBuilder Graph)

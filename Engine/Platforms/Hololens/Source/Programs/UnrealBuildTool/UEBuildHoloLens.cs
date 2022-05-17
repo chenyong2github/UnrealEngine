@@ -28,14 +28,6 @@ namespace UnrealBuildTool
 		public WindowsCompiler Compiler = WindowsCompiler.Default;
 
 		/// <summary>
-		/// Architecture of Target.
-		/// </summary>
-		public WindowsArchitecture Architecture
-		{
-			get;
-		}
-
-		/// <summary>
 		/// Enable PIX debugging (automatically disabled in Shipping and Test configs)
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bEnablePIXProfiling")]
@@ -71,26 +63,6 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "NativeCodeAnalysisRuleset")]
 		public string? NativeCodeAnalysisRuleset = null;
-		
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Info">Target information</param>
-		public HoloLensTargetRules(TargetInfo Info)
-		{
-			if (Info.Platform == UnrealTargetPlatform.HoloLens && !String.IsNullOrEmpty(Info.Architecture))
-			{
-				Architecture = (WindowsArchitecture)Enum.Parse(typeof(WindowsArchitecture), Info.Architecture, true);
-			}
-		}
-
-		/// <summary>
-		/// Constructor - temporary #jira UE-149794
-		/// </summary>
-		public HoloLensTargetRules()
-		{
-			//#FIXME: need to set Architecture
-		}
 	}
 
 	/// <summary>
@@ -120,11 +92,6 @@ namespace UnrealBuildTool
 		public WindowsCompiler Compiler
 		{
 			get { return Inner.Compiler; }
-		}
-
-		public WindowsArchitecture Architecture
-		{
-			get { return Inner.Architecture; }
 		}
 
 		public bool bPixProfilingEnabled
@@ -224,6 +191,12 @@ namespace UnrealBuildTool
 
 			ConfigCache.ReadSettings(IniDirRef, Platform, Target.HoloLensPlatform);
 
+			WindowsArchitecture Architecture = WindowsArchitecture.x64;
+			if( !String.IsNullOrEmpty(Target.Architecture))
+			{
+				Architecture = (WindowsArchitecture)Enum.Parse(typeof(WindowsArchitecture), Target.Architecture, true);
+			}
+
 			if (Target.HoloLensPlatform.Compiler == WindowsCompiler.Default)
 			{
 				if (CompilerBeforeReadSettings != WindowsCompiler.Default)
@@ -233,17 +206,17 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					Target.HoloLensPlatform.Compiler = WindowsPlatform.GetDefaultCompiler(Target.ProjectFile, Target.HoloLensPlatform.Architecture);
+					Target.HoloLensPlatform.Compiler = WindowsPlatform.GetDefaultCompiler(Target.ProjectFile, Architecture);
 				}
 			}
 
 			if (!Target.bGenerateProjectFiles)
 			{
-				Log.TraceInformationOnce("Using {0} architecture for deploying to HoloLens device", Target.HoloLensPlatform.Architecture);
+				Log.TraceInformationOnce("Using {0} architecture for deploying to HoloLens device", Architecture);
 			}
 
 			Target.WindowsPlatform.Compiler = Target.HoloLensPlatform.Compiler;
-			Target.WindowsPlatform.Architecture = Target.HoloLensPlatform.Architecture;
+			Target.WindowsPlatform.Architecture = Architecture;
 			Target.WindowsPlatform.bPixProfilingEnabled = Target.HoloLensPlatform.bPixProfilingEnabled;
 			Target.WindowsPlatform.bUseWindowsSDK10 = true;
 			Target.WindowsPlatform.bStrictConformanceMode = false;

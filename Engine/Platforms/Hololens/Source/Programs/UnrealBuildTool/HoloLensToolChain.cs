@@ -112,6 +112,39 @@ namespace UnrealBuildTool
 			Arguments.Add("/ignore:4264");
 		}
 
+		protected override void ModifyFinalCompileAction(VCCompileAction CompileAction, CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, string ModuleName)
+		{
+			base.ModifyFinalCompileAction(CompileAction, CompileEnvironment, SourceFile, OutputDir, ModuleName);
+
+			if (Target.HoloLensPlatform.bRunNativeCodeAnalysis)
+			{
+				// Add the analysis log to the produced item list.
+				FileItem AnalysisLogFile = FileItem.GetItemByFileReference(
+					FileReference.Combine(
+						OutputDir,
+						Path.GetFileName(SourceFile.AbsolutePath) + ".nativecodeanalysis.xml"
+						)
+					); ;
+				CompileAction.AdditionalProducedItems.Add(AnalysisLogFile);
+				// Peform code analysis with results in a log file
+				CompileAction.Arguments.AddFormat("/analyze:log \"{0}\"", AnalysisLogFile.AbsolutePath);
+				// Suppress code analysis output
+				CompileAction.Arguments.Add("/analyze:quiet");
+				string? rulesetFile = Target.HoloLensPlatform.NativeCodeAnalysisRuleset;
+				if (!String.IsNullOrEmpty(rulesetFile))
+				{
+					if (!Path.IsPathRooted(rulesetFile))
+					{
+						rulesetFile = FileReference.Combine(Target.ProjectFile!.Directory, rulesetFile).FullName;
+					}
+					// A non default ruleset was specified
+					CompileAction.Arguments.AddFormat("/analyze:ruleset \"{0}\"", rulesetFile);
+				}
+			}
+		}
+
+
+
 		private static DirectoryReference? CurrentWindowsSdkBinDir = null;
 		private static Version? CurrentWindowsSdkVersion;
 
