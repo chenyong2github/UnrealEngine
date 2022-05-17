@@ -74,37 +74,31 @@ FNiagaraSystemUpdateContext::~FNiagaraSystemUpdateContext()
 
 void FNiagaraSystemUpdateContext::CommitUpdate()
 {
-	// Sims that are sent for destruction will also get a recache
-	if (SystemSimsToDestroy.Num() > 0)
+	for (UNiagaraSystem* NiagaraSystem : SystemSimsToDestroy)
 	{
-		bool bAnyGpuSims = false;
-		for (UNiagaraSystem* NiagaraSystem : SystemSimsToDestroy)
+		if (NiagaraSystem)
 		{
-			if (NiagaraSystem)
-			{
-				bAnyGpuSims |= NiagaraSystem->HasAnyGPUEmitters();
-				FNiagaraWorldManager::DestroyAllSystemSimulations(NiagaraSystem);
-			}
+			FNiagaraWorldManager::DestroyAllSystemSimulations(NiagaraSystem);
 		}
-
-		if (bAnyGpuSims)
-		{
-			FlushRenderingCommands();
-		}
-
-		for (UNiagaraSystem* NiagaraSystem : SystemSimsToDestroy)
-		{
-			if (NiagaraSystem)
-			{
-				NiagaraSystem->ComputeEmittersExecutionOrder();
-				NiagaraSystem->ComputeRenderersDrawOrder();
-				NiagaraSystem->CacheFromCompiledData();
-			}
-		}
-
-		SystemSimsToDestroy.Empty();
 	}
 
+	bool bNeedsWaitOnGpu = true;
+	for (UNiagaraSystem* NiagaraSystem : SystemSimsToRecache)
+	{
+		if (NiagaraSystem)
+		{
+			if (bNeedsWaitOnGpu == true && NiagaraSystem->HasAnyGPUEmitters())
+			{
+				bNeedsWaitOnGpu = false;
+				FlushRenderingCommands();
+			}
+
+			NiagaraSystem->ComputeEmittersExecutionOrder();
+			NiagaraSystem->ComputeRenderersDrawOrder();
+			NiagaraSystem->CacheFromCompiledData();
+		}
+	}
+	
 	for (UNiagaraComponent* Comp : ComponentsToReInit)
 	{
 		if (Comp)
@@ -230,6 +224,11 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 		{
 			return;
 		}
+	}
+
+	if (bReInit || bDestroySystemSim)
+	{
+		SystemSimsToRecache.AddUnique(Comp->GetAsset());
 	}
 
 	if (bReInit && bDestroySystemSim)

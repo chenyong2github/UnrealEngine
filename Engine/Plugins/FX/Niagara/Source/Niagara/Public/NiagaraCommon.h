@@ -773,6 +773,8 @@ private:
 	TArray<TObjectPtr<UNiagaraComponent>> ComponentsToNotifySimDestroy;
 	UPROPERTY(transient)
 	TArray<TObjectPtr<UNiagaraSystem>> SystemSimsToDestroy;
+	UPROPERTY(transient)
+	TArray<TObjectPtr<UNiagaraSystem>> SystemSimsToRecache;
 
 	bool bDestroyOnAdd;
 	bool bOnlyActive;
