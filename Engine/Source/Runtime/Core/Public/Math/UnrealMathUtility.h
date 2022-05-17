@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "HAL/PlatformMath.h"
+#include "Math/MathFwd.h"
 #include "Templates/Decay.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
@@ -23,18 +24,7 @@
 -----------------------------------------------------------------------------*/
 
 // Forward declarations.
-UE_DECLARE_LWC_TYPE(Vector2,, FVector2D);
-UE_DECLARE_LWC_TYPE(Vector, 3);
-UE_DECLARE_LWC_TYPE(Vector4);
-UE_DECLARE_LWC_TYPE(Plane, 4);
-UE_DECLARE_LWC_TYPE(Box, 3);
-UE_DECLARE_LWC_TYPE(Rotator, 3);
-UE_DECLARE_LWC_TYPE(Matrix, 44);
-UE_DECLARE_LWC_TYPE(Quat, 4);
 struct  FTwoVectors;
-UE_DECLARE_LWC_TYPE(Transform, 3);
-UE_DECLARE_LWC_TYPE(Sphere, 3);
-
 struct FLinearColor;
 template<typename ElementType>
 class TRange;

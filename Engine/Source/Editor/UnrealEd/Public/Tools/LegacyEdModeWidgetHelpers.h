@@ -2,8 +2,9 @@
 
 #pragma once
 
-#include "Tools/LegacyEdModeInterfaces.h"
+#include "Math/MathFwd.h"
 #include "Math/Vector.h"
+#include "Tools/LegacyEdModeInterfaces.h"
 #include "Tools/UEdMode.h"
 
 #include "LegacyEdModeWidgetHelpers.generated.h"
@@ -16,7 +17,6 @@ class FPrimitiveDrawInterface;
 class FSceneView;
 class FViewport;
 struct FConvexVolume;
-UE_DECLARE_LWC_TYPE(Matrix, 44);
 
 enum EModeTools : int8;
 class HHitProxy;

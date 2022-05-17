@@ -12,7 +12,7 @@
 #else
 #include <array>
 
-struct FQuat
+struct _FQuat
 {
 public:
 	const Chaos::FReal operator[](const int32 i) const
@@ -26,11 +26,12 @@ public:
 	std::array<Chaos::FReal, 3> angles;
 	static MakeFromEuler(const Vector<Chaos::FReal, 3>& InAngles)
 	{
-		FQuat Quat;
+		_FQuat Quat;
 		Quat.angles = InAngles;
 		return Quat;
 	}
 };
+using FQuat = _FQuat;	// Work around include tool not understanding that this won't be compiled alongside MathFwd.h
 #endif
 
 namespace Chaos

@@ -60,7 +60,6 @@ struct FActiveSound;
 struct FAttenuationFocusData;
 struct FAudioComponentParam;
 struct FAudioQualitySettings;
-UE_DECLARE_LWC_TYPE(Rotator, 3);
 struct FWaveInstance;
 
 LLM_DECLARE_TAG_API(AudioSpatializationPlugins, ENGINE_API);

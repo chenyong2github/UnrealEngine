@@ -2,12 +2,12 @@
 
 #pragma once
 
+#include "Math/MathFwd.h"
 #include "LiveLinkControllerBase.h"
 #include "Engine/EngineTypes.h"
 #include "LiveLinkTransformController.generated.h"
 
 struct FLiveLinkTransformStaticData;
-UE_DECLARE_LWC_TYPE(Transform, 3);
 class USceneComponent;
 
 USTRUCT(BlueprintType)

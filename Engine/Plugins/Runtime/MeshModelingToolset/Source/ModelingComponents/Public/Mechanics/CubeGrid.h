@@ -8,8 +8,6 @@
 #include "FrameTypes.h"
 #include "InteractionMechanic.h"
 
-UE_DECLARE_LWC_TYPE(Ray, 3);
-
 namespace UE {
 namespace Geometry {
 

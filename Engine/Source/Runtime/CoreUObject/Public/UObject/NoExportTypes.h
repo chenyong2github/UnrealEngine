@@ -6,6 +6,11 @@
 
 #pragma once
 
+// Help intellisense to avoid interpreting this file's declaration of FVector etc as it assumes !CPP by default
+#ifndef CPP
+#define CPP 1
+#endif
+
 #if CPP
 
 // Include the real definitions of the noexport classes below to allow the generated cpp file to compile.

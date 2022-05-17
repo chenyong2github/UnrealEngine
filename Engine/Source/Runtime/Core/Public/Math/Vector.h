@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
+#include "Math/MathFwd.h"
 #include "Math/NumericLimits.h"
 #include "Misc/Crc.h"
 #include "Math/UnrealMathUtility.h"
@@ -39,8 +40,6 @@ namespace UE
 {
 namespace Math
 {
-
-template<typename T> struct TPlane;
 
 /**
  * A vector in 3-D space composed of components (X, Y, Z) with floating point precision.
@@ -2469,8 +2468,6 @@ FORCEINLINE uint32 GetTypeHash(const TVector<T>& Vector)
 
 } // namespace UE::Math
 } // namespace UE
-
-UE_DECLARE_LWC_TYPE(Vector, 3);
 
 template<> struct TCanBulkSerialize<FVector3f> { enum { Value = true }; };
 template<> struct TIsPODType<FVector3f> { enum { Value = true }; };

@@ -29,7 +29,6 @@ struct FAnimationCacheBonesContext;
 struct FPoseContext;
 struct FComponentSpacePoseContext;
 class FName;
-UE_DECLARE_LWC_TYPE(Rotator, 3);
 struct FAnimNode_SequencePlayerBase;
 struct FAnimNotifyEvent;
 struct FPassedMarker;

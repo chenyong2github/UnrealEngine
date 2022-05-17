@@ -10,16 +10,15 @@
 #include "Math/Transform.h"
 #else
 //TODO(mlentine): If we use this class in engine we need to make it more efficient.
-//TODO(mlentine): This should really be a class as there is a lot of functionality but static anlysis current forbids this.
-struct FTransform
+struct _FTransform
 {
 public:
-	FTransform() {}
-	FTransform(const Chaos::TRotation<Chaos::FReal, 3>& Rotation, const Chaos::TVector<Chaos::FReal, 3>& Translation)
+	_FTransform() {}
+	_FTransform(const Chaos::TRotation<Chaos::FReal, 3>& Rotation, const Chaos::TVector<Chaos::FReal, 3>& Translation)
 		: MRotation(Rotation), MTranslation(Translation)
 	{
 	}
-	FTransform(const FMatrix& Matrix)
+	_FTransform(const FMatrix& Matrix)
 	{
 		MTranslation[0] = Matrix.M[0][3];
 		MTranslation[1] = Matrix.M[1][3];
@@ -39,7 +38,7 @@ public:
 			MRotation[2] = 0;
 		}
 	}
-	FTransform(const FTransform& Transform)
+	_FTransform(const _FTransform& Transform)
 		: MRotation(Transform.MRotation), MTranslation(Transform.MTranslation)
 	{
 	}
@@ -106,6 +105,7 @@ private:
 	Chaos::TRotation<Chaos::FReal, 3> MRotation;
 	Chaos::TVector<Chaos::FReal, 3> MTranslation;
 };
+using FTransform = _FTransform;	// Work around include tool not understanding that this can't be compiled alongside MathFwd.h
 #endif
 
 namespace Chaos

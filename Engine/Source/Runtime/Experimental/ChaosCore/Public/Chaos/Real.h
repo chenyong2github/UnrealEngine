@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Templates/AreTypesEqual.h"
-#include "Misc/LargeWorldCoordinates.h"
 
 namespace Chaos
 {

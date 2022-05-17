@@ -6,7 +6,6 @@
 #include "GenericPlatform/GenericApplication.h"
 #include "HAL/IConsoleManager.h"
 
-UE_DECLARE_LWC_TYPE(Vector2,,FVector2D);
 class IPlatformInputDeviceMapper;
 
 /**
