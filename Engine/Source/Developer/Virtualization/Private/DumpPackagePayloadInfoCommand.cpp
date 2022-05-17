@@ -31,38 +31,38 @@ void DumpPackagePayloadInfo(const TArray<FString>& Args)
 
 		if (FPackagePath::TryFromMountedName(Arg, Path))
 		{
-			TArray<FIoHash> LocalPayloadIds;
-			TArray<FIoHash> VirtualizedPayloadIds;
-
-			if (!UE::FindPayloadsInPackageFile(Path, UE::EPayloadFilter::Local, LocalPayloadIds))
+			FPackageTrailer Trailer;
+			if (!FPackageTrailer::TryLoadFromPackage(Path, Trailer))
 			{
-				UE_LOG(LogVirtualization, Error, TEXT("Failed to find local payload information from package: '%s'"), *Path.GetDebugName());
+				UE_LOG(LogVirtualization, Error, TEXT("Failed to find load the package trailer from: '%s'"), *Path.GetDebugName());
 				continue;
 			}
 
-			if (!UE::FindPayloadsInPackageFile(Path, UE::EPayloadFilter::Virtualized, VirtualizedPayloadIds))
-			{
-				UE_LOG(LogVirtualization, Error, TEXT("Failed to find virtualized payload information from package: '%s'"), *Path.GetDebugName());
-				continue;
-			}
-
+			TArray<FIoHash> LocalPayloadIds = Trailer.GetPayloads(UE::EPayloadStorageType::Local);
+			TArray<FIoHash> VirtualizedPayloadIds = Trailer.GetPayloads(UE::EPayloadStorageType::Virtualized);
+			
+			UE_LOG(LogVirtualization, Display, TEXT("")); // Blank line to make the output easier to read
 			UE_LOG(LogVirtualization, Display, TEXT("Package: '%s' has %d local and %d virtualized payloads"), *Path.GetDebugName(), LocalPayloadIds.Num(), VirtualizedPayloadIds.Num());
 			
 			if (LocalPayloadIds.Num() > 0)
 			{
 				UE_LOG(LogVirtualization, Display, TEXT("LocalPayloads:"));
+				UE_LOG(LogVirtualization, Display, TEXT("Index|\t%-40s|\tFilterReason"), TEXT("PayloadIdentifier"));
 				for (int32 Index = 0; Index < LocalPayloadIds.Num(); ++Index)
 				{
-					UE_LOG(LogVirtualization, Display, TEXT("%02d: '%s'"), Index, *LexToString(LocalPayloadIds[Index]));
+					FPayloadInfo Info = Trailer.GetPayloadInfo(LocalPayloadIds[Index]);
+					UE_LOG(LogVirtualization, Display, TEXT("%02d:  |\t%s|\t%s"), Index, *LexToString(LocalPayloadIds[Index]), *LexToString(Info.FilterFlags));
 				}
 			}
 
 			if (VirtualizedPayloadIds.Num() > 0)
 			{
 				UE_LOG(LogVirtualization, Display, TEXT("VirtualizedPayloads:"));
+				UE_LOG(LogVirtualization, Display, TEXT("Index|\t%-40s|\tFilterReason"), TEXT("PayloadIdentifier"));
 				for (int32 Index = 0; Index < VirtualizedPayloadIds.Num(); ++Index)
 				{
-					UE_LOG(LogVirtualization, Display, TEXT("%02d: '%s'"), Index, *LexToString(VirtualizedPayloadIds[Index]));
+					FPayloadInfo Info = Trailer.GetPayloadInfo(VirtualizedPayloadIds[Index]);
+					UE_LOG(LogVirtualization, Display, TEXT("%02d:  |\t%s|\t%s"), Index, *LexToString(VirtualizedPayloadIds[Index]), *LexToString(Info.FilterFlags));
 				}
 			}
 		}

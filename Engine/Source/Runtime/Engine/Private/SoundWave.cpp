@@ -663,15 +663,6 @@ USoundWave::USoundWave(const FObjectInitializer& ObjectInitializer)
 	EnvelopeFollowerFrameSize = 1024;
 	EnvelopeFollowerAttackTime = 10;
 	EnvelopeFollowerReleaseTime = 100;
-
-#if UE_ENABLE_VIRTUALIZATION_TOGGLE
-	// Calling ::SetVirtualizationOptOut allows us to prevent the bulkdata from virtualizing if a project
-	// has that option enabled. This is not intended to be a shipping feature.
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RawData.SetVirtualizationOptOut(true);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif //UE_ENABLE_VIRTUALIZATION_TOGGLE
-
 #endif
 
 	bCachedSampleRateFromPlatformSettings = false;

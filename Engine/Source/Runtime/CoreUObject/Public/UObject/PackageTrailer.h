@@ -62,11 +62,11 @@ namespace UE
  * |____________________________________________________________________________________________________________________________________________|
  */
 
- /** Used to filter requests to a specific type of payload */
-enum class EPayloadFilter
+ /** Used to filter requests based on how a payload is stored*/
+enum class EPayloadStorageType : uint8
 {
-	/** All payload types. */
-	All,
+	/** All payload regardless of type. */
+	Any,
 	/** All payloads stored locally in the package trailer. */
 	Local,
 	/** All payloads that are a reference to payloads stored in the workspace domain trailer*/
@@ -74,6 +74,15 @@ enum class EPayloadFilter
 	/** All payloads stored in a virtualized backend. */
 	Virtualized
 };
+
+/** Used to filter requests based on how a payload can function */
+enum class EPayloadFilter
+{
+	/** All payloads that are stored locally and do not have virtualization disabled */
+	CanVirtualize
+};
+
+// TODO: Could consider merging EPayloadStorageType and EPayloadStatus, only difference is Any vs NotFound
 
 /** Used to show the status of a payload */
 enum class EPayloadStatus
@@ -100,11 +109,29 @@ enum class EPayloadAccessMode : uint8
 };
 
 /** Flags that can be set on payloads in a payload trailer */
-enum class EPayloadFlags : uint32
+enum class EPayloadFlags : uint16
 {
 	/** No flags are set */
-	None
+	None = 0,
 };
+
+ENUM_CLASS_FLAGS(EPayloadFlags);
+
+enum class EPayloadFilterReason : uint16
+{
+	/** Not filtered */
+	None				= 0,
+	/** Filtered due to the asset type of the owning UObject */
+	Asset				= 1 << 0,
+	/** Filtered due to the path of the owning UPackage */
+	Path				= 1 << 1,
+	/** Filtered because the payload size is below the minimum size for virtualization */
+	MinSize				= 1 << 2,
+	/** Filtered because the owning editor bulkdata had virtualization disabled programmatically */
+	EditorBulkDataCode	= 1 << 3
+};
+
+ENUM_CLASS_FLAGS(EPayloadFilterReason);
 
 enum class EPackageTrailerVersion : uint32;
 
@@ -126,6 +153,16 @@ struct FLookupTableEntry
 
 	void Serialize(FArchive& Ar, EPackageTrailerVersion PackageTrailerVersion);
 	
+	[[nodiscard]] bool IsLocal() const
+	{
+		return AccessMode == EPayloadAccessMode::Local;
+	}
+
+	[[nodiscard]] bool IsReferenced() const
+	{
+		return AccessMode == EPayloadAccessMode::Referenced;
+	}
+
 	[[nodiscard]] bool IsVirtualized() const
 	{
 		return AccessMode == EPayloadAccessMode::Virtualized;
@@ -141,11 +178,26 @@ struct FLookupTableEntry
 	uint64 RawSize = INDEX_NONE;
 	/** Bitfield of flags, see @UE::EPayloadFlags */
 	EPayloadFlags Flags = EPayloadFlags::None;
+	/** Bitfield of flags showing if the payload allowed to be virtualized or the reason why it cannot be virtualized, see @UE::EPayloadFilterReason */
+	EPayloadFilterReason FilterFlags = EPayloadFilterReason::None;
 
 	EPayloadAccessMode AccessMode = EPayloadAccessMode::Local;
 };
 
 } // namespace Private
+
+//** Info about a payload stored in the trailer
+struct FPayloadInfo
+{
+	int64 OffsetInFile = INDEX_NONE;
+
+	uint64 CompressedSize = INDEX_NONE;
+	uint64 RawSize = INDEX_NONE;
+
+	EPayloadAccessMode AccessMode = EPayloadAccessMode::Local;
+	EPayloadFlags Flags = EPayloadFlags::None;
+	EPayloadFilterReason FilterFlags = EPayloadFilterReason::None;
+};
 
 /** 
  * This class is used to build a FPackageTrailer and write it disk.
@@ -191,9 +243,10 @@ public:
 	 * 
 	 * @param Identifier	The identifier of the payload
 	 * @param Payload		The payload data
+	 * @param Flags			The custom flags to be applied to the payload
 	 * @param Callback		This callback will be invoked once the FPackageTrailer has been built and appended to disk.
 	 */
-	void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback);
+	void AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, EPayloadFilterReason Filter, AdditionalDataCallback&& Callback);
 
 	/**
 	 * Adds an already virtualized payload to the builder to be written to the trailer. When the trailer is written
@@ -236,14 +289,16 @@ private:
 	struct LocalEntry
 	{
 		LocalEntry() = default;
-		LocalEntry(FCompressedBuffer&& InPayload)
+		LocalEntry(FCompressedBuffer&& InPayload, EPayloadFilterReason InFilterFlags)
 			: Payload(InPayload)
+			, FilterFlags(InFilterFlags)
 		{
 
 		}
 		~LocalEntry() = default;
 
 		FCompressedBuffer Payload;
+		EPayloadFilterReason FilterFlags = EPayloadFilterReason::None;
 	};
 
 	/** All of the data required to add a reference to a payload stored in another trailer */
@@ -380,11 +435,19 @@ public:
 	/** Returns the total size of the of the trailer on disk in bytes */
 	[[nodiscard]] int64 GetTrailerLength() const;
 
-	/** Returns an array of the payloads that match the given filter type. @See EPayloadType */
-	[[nodiscard]] TArray<FIoHash> GetPayloads(EPayloadFilter Type) const;
+	[[nodiscard]] FPayloadInfo GetPayloadInfo(const FIoHash& Id) const;
 
-	/** Returns the number of payloads that the trailer owns that match the given filter type. @See EPayloadType */
-	[[nodiscard]] int32 GetNumPayloads(EPayloadFilter Type) const;
+	/** Returns an array of the payloads with the given storage type. @See EPayloadStoragetype */
+	[[nodiscard]] TArray<FIoHash> GetPayloads(EPayloadStorageType StorageType) const;
+
+	/** Returns the number of payloads that the trailer owns with the given storage type. @See EPayloadStoragetype */
+	[[nodiscard]] int32 GetNumPayloads(EPayloadStorageType Type) const;
+
+	/** Returns an array of the payloads that match the given filter type. @See EPayloadFilter */
+	[[nodiscard]] TArray<FIoHash> GetPayloads(EPayloadFilter Filter) const;
+
+	/** Returns the number of payloads that the trailer owns that match the given filter type. @See EPayloadFilter */
+	[[nodiscard]] int32 GetNumPayloads(EPayloadFilter Filter) const;
 
 	struct FHeader
 	{
@@ -463,6 +526,8 @@ private:
  *
  * @return 				True if the package was parsed successfully (although it might not have contained any payloads) and false if opening or parsing the package file failed.
  */
-[[nodiscard]] COREUOBJECT_API bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter Filter, TArray<FIoHash>& OutPayloadIds);
+[[nodiscard]] COREUOBJECT_API bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadStorageType Filter, TArray<FIoHash>& OutPayloadIds);
 
 } //namespace UE
+
+[[nodiscard]] COREUOBJECT_API FString LexToString(UE::EPayloadFilterReason FilterFlags);

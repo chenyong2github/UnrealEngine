@@ -296,7 +296,7 @@ bool FPackageReader::SerializePackageTrailer(FAssetPackageData& PackageData)
 		return true;
 	}
 
-	PackageData.SetHasVirtualizedPayloads(Trailer.GetNumPayloads(UE::EPayloadFilter::Virtualized) > 0);
+	PackageData.SetHasVirtualizedPayloads(Trailer.GetNumPayloads(UE::EPayloadStorageType::Virtualized) > 0);
 	return true;
 }
 

@@ -112,6 +112,8 @@ private:
 
 	virtual bool IsEnabled() const override;
 	virtual bool IsPushingEnabled(EStorageType StorageType) const override;
+
+	virtual bool IsDisabledForObject(const UObject* Owner) const override;
 	
 	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override;
 	virtual bool PushData(TArrayView<FPushRequest> Requests, EStorageType StorageType) override;
@@ -211,6 +213,9 @@ private:
 	
 	/** The name of the current project */
 	FString ProjectName;
+
+	/** The names of all asset types that should not virtualize. See @IsDisabledForObject */
+	TSet<FName> DisabledAssetTypes;
 
 	/** All of the backends that were mounted during graph creation */
 	TArray<TUniquePtr<IVirtualizationBackend>> AllBackends;

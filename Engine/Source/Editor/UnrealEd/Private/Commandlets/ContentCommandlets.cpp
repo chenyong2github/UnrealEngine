@@ -1509,7 +1509,7 @@ void UResavePackagesCommandlet::PerformPreloadOperations( FLinkerLoad* PackageLi
 	if (bOnlyVirtualized)
 	{
 		const UE::FPackageTrailer* Trailer = PackageLinker->GetPackageTrailer();
-		if (Trailer == nullptr || Trailer->GetNumPayloads(UE::EPayloadFilter::Virtualized) == 0)
+		if (Trailer == nullptr || Trailer->GetNumPayloads(UE::EPayloadStorageType::Virtualized) == 0)
 		{
 			bSavePackage = false;
 			return;

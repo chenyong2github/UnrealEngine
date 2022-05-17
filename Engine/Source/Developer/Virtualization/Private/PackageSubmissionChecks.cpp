@@ -320,8 +320,8 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 			if (FPackageTrailer::TryLoadFromPackage(PackagePath, Trailer))
 			{
 				// The following is not expected to ever happen, currently we give a user facing error but it generally means that the asset is broken somehow.
-				ensureMsgf(Trailer.GetNumPayloads(EPayloadFilter::Referenced) == 0, TEXT("Trying to virtualize a package that already contains payload references which the workspace file should not ever contain!"));
-				if (Trailer.GetNumPayloads(EPayloadFilter::Referenced) > 0)
+				ensureMsgf(Trailer.GetNumPayloads(EPayloadStorageType::Referenced) == 0, TEXT("Trying to virtualize a package that already contains payload references which the workspace file should not ever contain!"));
+				if (Trailer.GetNumPayloads(EPayloadStorageType::Referenced) > 0)
 				{
 					FText Message = FText::Format(	LOCTEXT("Virtualization_PkgHasReferences", "Cannot virtualize the package '{1}' as it has referenced payloads in the trailer"),
 													FText::FromString(PackagePath.GetDebugName()));
@@ -333,7 +333,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 
 				PkgInfo.Path = MoveTemp(PackagePath);
 				PkgInfo.Trailer = MoveTemp(Trailer);
-				PkgInfo.LocalPayloads = PkgInfo.Trailer.GetPayloads(EPayloadFilter::Local);
+				PkgInfo.LocalPayloads = PkgInfo.Trailer.GetPayloads(EPayloadFilter::CanVirtualize);
 
 				if (!PkgInfo.LocalPayloads.IsEmpty())
 				{	
@@ -390,7 +390,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 		// If we made changes we should recalculate the local payloads left
 		if (PackageInfo.bWasTrailerUpdated)
 		{
-			PackageInfo.LocalPayloads = PackageInfo.Trailer.GetPayloads(EPayloadFilter::Local);
+			PackageInfo.LocalPayloads = PackageInfo.Trailer.GetPayloads(EPayloadStorageType::Local);
 		}
 #endif
 

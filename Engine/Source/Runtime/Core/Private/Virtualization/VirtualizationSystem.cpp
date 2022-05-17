@@ -35,6 +35,11 @@ public:
 		return false;
 	}
 
+	virtual bool IsDisabledForObject(const UObject* Owner) const override
+	{
+		return false;
+	}
+
 	virtual bool PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context) override
 	{
 		return false;

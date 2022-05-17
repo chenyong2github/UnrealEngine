@@ -336,6 +336,24 @@ bool FVirtualizationManager::IsPushingEnabled(EStorageType StorageType) const
 	}
 }
 
+bool FVirtualizationManager::IsDisabledForObject(const UObject* OwnerObject) const
+{
+	if (OwnerObject == nullptr)
+	{
+		return false;
+	}
+
+	const UClass* OwnerClass = OwnerObject->GetClass();
+	if (OwnerClass == nullptr)
+	{
+		// TODO: Not actually sure if the class being nullptr is reasonable or if we should warn/error here?
+		return false;
+	}
+
+	FName ClassName = OwnerClass->GetFName();
+	return DisabledAssetTypes.Find(ClassName) != nullptr;
+}
+
 bool FVirtualizationManager::PushData(const FIoHash& Id, const FCompressedBuffer& Payload, EStorageType StorageType, const FString& Context)
 {
 	FPushRequest Request(Id, Payload, Context);
@@ -733,7 +751,19 @@ void FVirtualizationManager::ApplySettingsFromConfigFiles(const FConfigFile& Con
 	else
 	{
 		UE_LOG(LogVirtualization, Error, TEXT("Failed to load [Core.ContentVirtualization].FilterEnginePluginContent from config file!"));
-	}	
+	}
+
+	TArray<FString> DisabledAssetTypesFromIni;
+	if (ConfigFile.GetArray(TEXT("Core.ContentVirtualization"), TEXT("DisabledAsset"), DisabledAssetTypesFromIni) > 0)
+	{
+		UE_LOG(LogVirtualization, Display, TEXT("\tVirtualization is disabled for payloads of the following assets:"));
+		DisabledAssetTypes.Reserve(DisabledAssetTypesFromIni.Num());
+		for(const FString& AssetType : DisabledAssetTypesFromIni)
+		{ 
+			UE_LOG(LogVirtualization, Display, TEXT("\t\t%s"), *AssetType);
+			DisabledAssetTypes.Add(FName(AssetType));
+		}	
+	}
 }
 
 void FVirtualizationManager::ApplyDebugSettingsFromFromCmdline()

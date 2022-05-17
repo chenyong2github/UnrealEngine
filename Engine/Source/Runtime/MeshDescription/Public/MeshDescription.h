@@ -1297,14 +1297,6 @@ public:
 		: bBulkDataUpdated(false)
 		, bGuidIsHash(false)
 	{
-#if UE_ENABLE_VIRTUALIZATION_TOGGLE
-		// Currently FMeshDescriptionBulkData will cause a hard crash if the virtualized data cannot be found.
-		// Calling ::SetVirtualizationOptOut allows us to prevent the bulkdata from virtualizing if a project
-		// has that option enabled. This is not intended to be a shipping feature.
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS	
-		BulkData.SetVirtualizationOptOut(true);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif //UE_ENABLE_VIRTUALIZATION_TOGGLE
 	}
 
 	/** Serialization */

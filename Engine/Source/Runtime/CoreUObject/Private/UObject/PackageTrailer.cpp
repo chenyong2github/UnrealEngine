@@ -103,6 +103,7 @@ void FLookupTableEntry::Serialize(FArchive& Ar, EPackageTrailerVersion PackageTr
 	if (Ar.IsSaving() || PackageTrailerVersion >= EPackageTrailerVersion::PAYLOAD_FLAGS)
 	{
 		Ar << Flags;
+		Ar << FilterFlags;
 	}
 
 	if (Ar.IsSaving() || PackageTrailerVersion >= EPackageTrailerVersion::ACCESS_PER_PAYLOAD)
@@ -126,7 +127,7 @@ FPackageTrailerBuilder FPackageTrailerBuilder::CreateFromTrailer(const FPackageT
 			case EPayloadAccessMode::Local:
 			{
 				FCompressedBuffer Payload = Trailer.LoadLocalPayload(Entry.Identifier, Ar);
-				Builder.LocalEntries.Add(Entry.Identifier, LocalEntry(MoveTemp(Payload)));
+				Builder.LocalEntries.Add(Entry.Identifier, LocalEntry(MoveTemp(Payload), Entry.FilterFlags));
 			}
 			break;
 
@@ -199,13 +200,25 @@ FPackageTrailerBuilder::FPackageTrailerBuilder(const FName& InPackageName)
 {
 }
 
-void FPackageTrailerBuilder::AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, AdditionalDataCallback&& Callback)
+void FPackageTrailerBuilder::AddPayload(const FIoHash& Identifier, FCompressedBuffer Payload, EPayloadFilterReason FilterFlags, AdditionalDataCallback&& Callback)
 {
 	Callbacks.Emplace(MoveTemp(Callback));
 
 	if (!Identifier.IsZero())
 	{
-		LocalEntries.FindOrAdd(Identifier, LocalEntry(MoveTemp(Payload)));
+		// If the payload already exists and the DisableVirtualization flag has been passed in
+		// then we need to make sure that it is applied.
+		// TODO: This will have to be done here for every new flag added as we don't know what
+		// future flags will want to do in the case of a duplicate entry but we probably need
+		// a nicer way to handle this longer term.
+		if (LocalEntry* Entry = LocalEntries.Find(Identifier))
+		{
+			Entry->FilterFlags |= FilterFlags;
+		}
+		else
+		{
+			LocalEntries.Add(Identifier, LocalEntry(MoveTemp(Payload), FilterFlags));
+		}
 	}
 }
 
@@ -248,6 +261,8 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 		Entry.CompressedSize = It.Value.Payload.GetCompressedSize();
 		Entry.RawSize = It.Value.Payload.GetRawSize();
 		Entry.AccessMode = EPayloadAccessMode::Local;
+		Entry.Flags = EPayloadFlags::None;
+		Entry.FilterFlags = It.Value.FilterFlags;
 
 		Trailer.Header.PayloadsDataLength += It.Value.Payload.GetCompressedSize();
 	}
@@ -628,60 +643,83 @@ int64 FPackageTrailer::GetTrailerLength() const
 	return Header.HeaderLength + Header.PayloadsDataLength + FFooter::SizeOnDisk;
 }
 
-TArray<FIoHash> FPackageTrailer::GetPayloads(EPayloadFilter Type) const
+FPayloadInfo FPackageTrailer::GetPayloadInfo(const FIoHash& Id) const
+{
+	const Private::FLookupTableEntry* Entry = FindEntryInHeader(Header, Id);
+
+	if (Entry != nullptr)
+	{
+		FPayloadInfo Info;
+
+		Info.OffsetInFile = Entry->OffsetInFile;
+		Info.CompressedSize = Entry->CompressedSize;
+		Info.RawSize = Entry->RawSize;
+		Info.AccessMode = Entry->AccessMode;
+		Info.Flags = Entry->Flags;
+		Info.FilterFlags = Entry->FilterFlags;
+
+		return Info;
+	}
+	else
+	{
+		return FPayloadInfo();
+	}
+}
+
+TArray<FIoHash> FPackageTrailer::GetPayloads(EPayloadStorageType StorageType) const
 {
 	TArray<FIoHash> Identifiers;
 	Identifiers.Reserve(Header.PayloadLookupTable.Num());
 
 	for (const Private::FLookupTableEntry& Entry : Header.PayloadLookupTable)
 	{
-		switch (Type)
+		switch (StorageType)
 		{
-		case EPayloadFilter::All:
-			Identifiers.Add(Entry.Identifier);
-			break;
-
-		case EPayloadFilter::Local:
-			if (!Entry.IsVirtualized())
-			{
+			case EPayloadStorageType::Any:
 				Identifiers.Add(Entry.Identifier);
-			}
-			break;
+				break;
 
-		case EPayloadFilter::Virtualized:
-			if (Entry.IsVirtualized())
-			{
-				Identifiers.Add(Entry.Identifier);
-			}
-			break;
+			case EPayloadStorageType::Local:
+				if (Entry.IsLocal())
+				{
+					Identifiers.Add(Entry.Identifier);
+				}
+				break;
 
-		default:
-			checkNoEntry();
+			case EPayloadStorageType::Virtualized:
+				if (Entry.IsVirtualized())
+				{
+					Identifiers.Add(Entry.Identifier);
+				}
+				break;
+
+			default:
+				checkNoEntry();
 		}	
 	}
 
 	return Identifiers;
 }
 
-int32 FPackageTrailer::GetNumPayloads(EPayloadFilter Type) const
+int32 FPackageTrailer::GetNumPayloads(EPayloadStorageType Type) const
 {
 	int32 Count = 0;
 
 	switch (Type)
 	{
-		case EPayloadFilter::All:
+		case EPayloadStorageType::Any:
 			Count = Header.PayloadLookupTable.Num();
 			break;
 
-		case EPayloadFilter::Local:
+		case EPayloadStorageType::Local:
 			Count = (int32)Algo::CountIf(Header.PayloadLookupTable, [](const Private::FLookupTableEntry& Entry) { return Entry.AccessMode == EPayloadAccessMode::Local; });
 			break;
 
-		case EPayloadFilter::Referenced:
+		case EPayloadStorageType::Referenced:
 			Count = (int32)Algo::CountIf(Header.PayloadLookupTable, [](const Private::FLookupTableEntry& Entry) { return Entry.AccessMode == EPayloadAccessMode::Referenced; });
 			break;
 
-		case EPayloadFilter::Virtualized:
+		case EPayloadStorageType::Virtualized:
 			Count = (int32)Algo::CountIf(Header.PayloadLookupTable, [](const Private::FLookupTableEntry& Entry) { return Entry.AccessMode == EPayloadAccessMode::Virtualized; });
 			break;
 
@@ -692,6 +730,49 @@ int32 FPackageTrailer::GetNumPayloads(EPayloadFilter Type) const
 	return Count;
 }
 
+TArray<FIoHash> FPackageTrailer::GetPayloads(EPayloadFilter Filter) const
+{
+	TArray<FIoHash> Identifiers;
+	Identifiers.Reserve(Header.PayloadLookupTable.Num());
+
+	for (const Private::FLookupTableEntry& Entry : Header.PayloadLookupTable)
+	{
+		switch (Filter)
+		{
+			case EPayloadFilter::CanVirtualize:
+				if (Entry.IsLocal() && Entry.FilterFlags == EPayloadFilterReason::None)
+				{
+					Identifiers.Add(Entry.Identifier);
+				}
+				break;
+
+			default:
+				checkNoEntry();
+		}
+	}
+
+	return Identifiers;
+}
+
+int32 FPackageTrailer::GetNumPayloads(EPayloadFilter Filter) const
+{
+	int32 Count = 0;
+
+	switch (Filter)
+	{
+		case EPayloadFilter::CanVirtualize:
+			Count = (int32)Algo::CountIf(Header.PayloadLookupTable, [](const Private::FLookupTableEntry& Entry)
+				{
+					return Entry.AccessMode == EPayloadAccessMode::Local && Entry.FilterFlags == EPayloadFilterReason::None;
+				});
+			break;
+
+		default:
+			checkNoEntry();
+	}
+
+	return Count;
+}
 FPackageTrailer::FFooter FPackageTrailer::CreateFooter() const
 {
 	FFooter Footer;
@@ -733,7 +814,7 @@ FArchive& operator<<(FArchive& Ar, FPackageTrailer::FFooter& Footer)
 	return Ar;
 }
 
-bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter Filter, TArray<FIoHash>& OutPayloadIds)
+bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadStorageType Filter, TArray<FIoHash>& OutPayloadIds)
 {
 	if (FPackageName::IsTextPackageExtension(PackagePath.GetHeaderExtension()))
 	{
@@ -768,4 +849,65 @@ bool FindPayloadsInPackageFile(const FPackagePath& PackagePath, EPayloadFilter F
 }
 
 } //namespace UE
+
+FString LexToString(UE::EPayloadFilterReason FilterFlags)
+{
+	using namespace UE;
+
+	if (FilterFlags == EPayloadFilterReason::None)
+	{
+		return TEXT("None");
+	}
+	else
+	{
+		TStringBuilder<512> Builder;
+		auto AddSeparatorIfNeeded = [&Builder]()
+		{
+			if (Builder.Len() != 0)
+			{
+				Builder << TEXT("|");
+			}
+		};
+
+		if (EnumHasAllFlags(FilterFlags, EPayloadFilterReason::Asset))
+		{
+			Builder << TEXT("Asset");
+		}
+
+		if (EnumHasAllFlags(FilterFlags, EPayloadFilterReason::Path))
+		{
+			AddSeparatorIfNeeded();
+			Builder << TEXT("Path");
+		}
+
+		if (EnumHasAllFlags(FilterFlags, EPayloadFilterReason::MinSize))
+		{
+			AddSeparatorIfNeeded();
+			Builder << TEXT("MinSize");
+		}
+
+		if (EnumHasAllFlags(FilterFlags, EPayloadFilterReason::EditorBulkDataCode))
+		{
+			AddSeparatorIfNeeded();
+			Builder << TEXT("EditorBulkDataCode");
+		}
+
+		// In case a new entry was added to EPayloadFilterReason without this function being
+		// updated we need to check if any of the other bits are set and if they are print 
+		// and unknown entry.
+		// We don't want a Max or Count entry being added to EPayloadFilterReason as we'd then
+		// need to validate all places taking the enum to make sure that nobody is using it.
+		const uint16 Mask = ~uint16(EPayloadFilterReason::Asset | EPayloadFilterReason::Path |
+			EPayloadFilterReason::MinSize | EPayloadFilterReason::EditorBulkDataCode);
+
+		const bool bHasUnknownBits = ((uint16)FilterFlags & Mask) != 0;
+		if (bHasUnknownBits)
+		{
+			AddSeparatorIfNeeded();
+			Builder << TEXT("UnknownBits");
+		}
+
+		return Builder.ToString();
+	}
+}
 

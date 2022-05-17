@@ -319,6 +319,16 @@ public:
 	/** Poll to see if pushing virtualized content to the given backend storage type is enabled or not. */
 	virtual bool IsPushingEnabled(EStorageType StorageType) const = 0;
 
+	/** 
+	 * Poll to see if virtualization is disabled for the given asset type.
+	 * 
+	 * @param	Owner	The object to be tested, assumed to be an asset that 
+	 *					can own virtualized payloads.
+	 * 
+	 * @return	True if payloads owned by this object should never virtualized
+	 */
+	virtual bool IsDisabledForObject(const UObject* Owner) const = 0;
+
 	/**
 	 * Push a payload to the virtualization backends.
 	 *

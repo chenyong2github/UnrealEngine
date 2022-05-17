@@ -1652,7 +1652,13 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 		}
 	};
 
-	LinkerSave.PackageTrailerBuilder->AddPayload(PayloadContentId, MoveTemp(PayloadToSerialize), MoveTemp(OnPayloadWritten));
+	EPayloadFilterReason PayloadFilter = EPayloadFilterReason::None;
+	if (bSkipVirtualization || UE::Virtualization::IVirtualizationSystem::Get().IsDisabledForObject(Owner))
+	{
+		PayloadFilter = EPayloadFilterReason::Asset;
+	}
+
+	LinkerSave.PackageTrailerBuilder->AddPayload(PayloadContentId, MoveTemp(PayloadToSerialize), PayloadFilter, MoveTemp(OnPayloadWritten));
 }
 
 void FEditorBulkData::UpdatePayloadImpl(FSharedBuffer&& InPayload, FIoHash&& InPayloadID, UObject* Owner)
@@ -2090,13 +2096,6 @@ FText FEditorBulkData::GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) c
 
 bool FEditorBulkData::ShouldUseLegacySerialization(const FLinkerSave* LinkerSave) const
 {
-#if UE_ENABLE_VIRTUALIZATION_TOGGLE
-	if (bSkipVirtualization == true)
-	{
-		return true;
-	}
-#endif // UE_ENABLE_VIRTUALIZATION_TOGGLE 
-
 	if (LinkerSave == nullptr)
 	{
 		return true;
