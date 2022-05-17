@@ -2114,7 +2114,7 @@ void FPhysicsAssetEditor::OnCopyBodies()
 	int32 NumCopiedConstraints;
 	SharedData->CopySelectedBodiesAndConstraintsToClipboard(NumCopiedBodies, NumCopiedConstraints);
 
-	const FText MessageFormat = LOCTEXT("CopiedBodiesAndConstraintsToClipboard", "{0} bodies ans {1} constraints copied to clipboard");
+	const FText MessageFormat = LOCTEXT("CopiedBodiesAndConstraintsToClipboard", "{0} bodies and {1} constraints copied to clipboard");
 	ShowNotificationMessage(FText::Format(MessageFormat, NumCopiedBodies, NumCopiedConstraints), SNotificationItem::CS_Success);
 }
 
@@ -2139,7 +2139,7 @@ void FPhysicsAssetEditor::OnPasteBodies()
 	int32 NumPastedConstraints;
 	SharedData->PasteBodiesAndConstraintsFromClipboard(NumPastedBodies, NumPastedConstraints);
 
-	const FText MessageFormat = LOCTEXT("PastedBodiesAndConstraintsToClipboard", "{0} bodies ans {1} constraints pasted from clipboard");
+	const FText MessageFormat = LOCTEXT("PastedBodiesAndConstraintsToClipboard", "{0} bodies and {1} constraints pasted from clipboard");
 	ShowNotificationMessage(FText::Format(MessageFormat, NumPastedBodies, NumPastedConstraints), SNotificationItem::CS_Success);
 }
 

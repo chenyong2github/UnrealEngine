@@ -1469,6 +1469,8 @@ void FPhysicsAssetEditorSharedData::AutoNamePrimitive(int32 BodyIndex, EAggColli
 
 void FPhysicsAssetEditorSharedData::CopySelectedBodiesAndConstraintsToClipboard(int32& OutNumCopiedBodies, int32& OutNumCopiedConstraints)
 {
+	OutNumCopiedBodies = 0;
+	OutNumCopiedConstraints = 0;
 	if (PhysicsAsset)
 	{
 		// Clear the mark state for saving.
@@ -1563,6 +1565,8 @@ public:
 
 void FPhysicsAssetEditorSharedData::PasteBodiesAndConstraintsFromClipboard(int32& OutNumPastedBodies, int32& OutNumPastedConstraints)
 {
+	OutNumPastedBodies = 0;
+	OutNumPastedConstraints = 0;
 	if (PhysicsAsset)
 	{
 		FString TextToImport;
