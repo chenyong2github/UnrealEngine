@@ -2275,10 +2275,15 @@ void FControlRigParameterTrackEditor::SetUpEditModeIfNeeded(UControlRig* Control
 
 void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
 {
+	if(ControlElement == nullptr)
+	{
+		return;
+	}
+	
 	URigHierarchy* Hierarchy = Subject->GetHierarchy();
 	static bool bIsSelectingIndirectControl = false;
 
-	if(ControlElement && ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
+	if(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
 	{
 		const TArray<FRigElementKey>& DrivenControls = ControlElement->Settings.DrivenControls;
 		for(const FRigElementKey& DrivenKey : DrivenControls)
