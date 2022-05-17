@@ -32,6 +32,17 @@ void ALevelInstance::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 	Ar << LevelInstanceActorGuid;
+
+#if WITH_EDITORONLY_DATA
+	if (Ar.GetPortFlags() & PPF_DuplicateForPIE)
+	{
+		// Remove PIE Prefix in case the LevelInstance was part of the DuplicateWorldForPIE
+		// This can happen if the level (WorldAsset) is part of the world's levels.
+		// ULevelStreaming::RenameForPIE will call FSoftObjectPath::AddPIEPackageName which will
+		// force this softobjectpath to be processed by FSoftObjectPath::FixupForPIE (even one that comes from a level instance).
+		WorldAsset = FSoftObjectPath(UWorld::RemovePIEPrefix(WorldAsset.ToString()));
+	}
+#endif
 }
 
 void ALevelInstance::PostRegisterAllComponents()
