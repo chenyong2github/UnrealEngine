@@ -34,6 +34,7 @@ protected:
 
 	friend class ULevelInstanceSubsystem;
 
+	const FLevelInstanceID& GetLevelInstanceID() const { return LevelInstanceID; }
 private:
 #if WITH_EDITOR
 	void PrepareLevelInstanceLoadedActor(AActor& InActor, ILevelInstanceInterface* InLevelInstance);

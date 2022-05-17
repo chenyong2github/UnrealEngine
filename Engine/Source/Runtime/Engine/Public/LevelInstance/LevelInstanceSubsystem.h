@@ -188,7 +188,8 @@ private:
 
 	TMap<ILevelInstanceInterface*, bool> LevelInstancesToLoadOrUpdate;
 	TSet<FLevelInstanceID> LevelInstancesToUnload;
-	TMap<FLevelInstanceID, FLevelInstance> LevelInstances;
+	TSet<FLevelInstanceID> LoadingLevelInstances;
+	TMap<FLevelInstanceID, FLevelInstance> LoadedLevelInstances;
 	TMap<FLevelInstanceID, ILevelInstanceInterface*> RegisteredLevelInstances;
 
 #if WITH_EDITORONLY_DATA
