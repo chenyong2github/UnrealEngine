@@ -10,13 +10,23 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Utility
 {
-	class PerforceLogger : ILogger
+	/// <summary>
+	/// Logger which adds Perforce depot path and changelist information to file annotations
+	/// </summary>
+	public class PerforceLogger : ILogger
 	{
 		readonly ILogger _inner;
 		readonly DirectoryReference _baseDir;
 		readonly PerforceViewMap? _viewMap;
 		readonly int? _viewChange;
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="inner"></param>
+		/// <param name="baseDir"></param>
+		/// <param name="viewMap"></param>
+		/// <param name="viewChange"></param>
 		public PerforceLogger(ILogger inner, DirectoryReference baseDir, PerforceViewMap? viewMap, int? viewChange)
 		{
 			_inner = inner;

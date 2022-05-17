@@ -1054,11 +1054,6 @@ namespace Horde.Agent.Tests
 			PerforceViewMap viewMap = new PerforceViewMap();
 			viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", "//UE4/Main/..."));
 
-			LogParserContext context = new LogParserContext();
-			context.WorkspaceDir = workspaceDir;
-			context.PerforceStream = "//UE4/Main";
-			context.PerforceChange = 12345;
-
 			List<string> ignorePatterns = new List<string>();
 
 			byte[] textBytes = Encoding.UTF8.GetBytes(text);
@@ -1066,7 +1061,7 @@ namespace Horde.Agent.Tests
 			Random generator = new Random(0);
 
 			LoggerCapture logger = new LoggerCapture();
-			using (LogParser parser = new LogParser(new JsonPerforceLogger(logger, workspaceDir, viewMap, 12345), context, ignorePatterns))
+			using (LogParser parser = new LogParser(new PerforceLogger(logger, workspaceDir, viewMap, 12345), ignorePatterns))
 			{
 				int pos = 0;
 				while(pos < textBytes.Length)
