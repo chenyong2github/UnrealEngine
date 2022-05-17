@@ -62,8 +62,4 @@ public:
 
 	void EnableHardwareAcceleratedCodecRegistered();
 
-#if WITH_EDITOR
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
-#endif //WITH_EDITOR
-
 };

@@ -181,7 +181,9 @@ TComPtr<IMFTopology> FWmfMediaTracks::CreateTopology()
 
 	UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Created playback topology %p (media source %p)"), this, Topology.Get(), MediaSource.Get());
 
-	if (GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding)
+	const UWmfMediaSettings* WmfMediaSettings = GetDefault<UWmfMediaSettings>();
+	if (WmfMediaSettings->HardwareAcceleratedVideoDecoding ||
+		WmfMediaSettings->bAreHardwareAcceleratedCodecRegistered)
 	{
 		bool bHardwareAccelerated = false;
 		WmfMediaTopologyLoader MediaTopologyLoader;
@@ -1267,8 +1269,9 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 	// Hardware Acccelerated Stream Sink
 	TComPtr<FWmfMediaStreamSink> MediaStreamSink;
 
+	const UWmfMediaSettings* WmfMediaSettings = GetDefault<UWmfMediaSettings>();
 	if ((GEngine != nullptr) && 
-		GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding &&
+		(WmfMediaSettings->HardwareAcceleratedVideoDecoding || WmfMediaSettings->bAreHardwareAcceleratedCodecRegistered) &&
 		MajorType == MFMediaType_Video &&
 		FPlatformMisc::VerifyWindowsVersion(6, 2) && // Windows 8
 		FWmfMediaStreamSink::Create(MFMediaType_Video, MediaStreamSink))
@@ -1527,7 +1530,9 @@ bool FWmfMediaTracks::AddStreamToTracks(uint32 StreamIndex, bool IsVideoDevice, 
 	Track->SelectedFormat = INDEX_NONE;
 
 	// add track formats
-	const bool AllowNonStandardCodecs = GetDefault<UWmfMediaSettings>()->AllowNonStandardCodecs;
+	const UWmfMediaSettings* WmfMediaSettings = GetDefault<UWmfMediaSettings>();
+	const bool AllowNonStandardCodecs = WmfMediaSettings->AllowNonStandardCodecs ||
+		WmfMediaSettings->bAreHardwareAcceleratedCodecRegistered;
 
 	for (DWORD TypeIndex = 0; TypeIndex < NumMediaTypes; ++TypeIndex)
 	{
