@@ -55,7 +55,7 @@ namespace Horde.Agent.Commands.Parse
 				foreach (string line in lines)
 				{
 					string trimLine = line.Trim();
-					if (trimLine.Length > 0 && !trimLine.StartsWith("#"))
+					if (trimLine.Length > 0 && !trimLine.StartsWith("#", StringComparison.Ordinal))
 					{
 						ignorePatterns.Add(trimLine);
 					}

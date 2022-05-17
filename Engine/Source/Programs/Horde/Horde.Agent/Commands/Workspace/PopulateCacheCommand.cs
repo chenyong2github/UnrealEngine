@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
@@ -33,7 +34,7 @@ namespace Horde.Agent.Commands.Workspace
 			List<PopulateRequest> populateRequests = new List<PopulateRequest>();
 			foreach (string clientAndStreamParam in ClientAndStreamParams)
 			{
-				int idx = clientAndStreamParam.IndexOf(':');
+				int idx = clientAndStreamParam.IndexOf(':', StringComparison.Ordinal);
 				if (idx == -1)
 				{
 					throw new FatalErrorException("Expected -ClientAndStream=<ClientName>:<StreamName>");

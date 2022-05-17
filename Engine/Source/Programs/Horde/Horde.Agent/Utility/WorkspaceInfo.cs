@@ -150,7 +150,7 @@ namespace Horde.Agent.Utility
 				}
 				else
 				{
-					logger.LogInformation($"Using locally logged in session for {userName}");
+					logger.LogInformation("Using locally logged in session for {UserName}", userName);
 				}
 			}
 			return await SetupWorkspaceAsync(perforce, workspace.Stream, workspace.Identifier, workspace.View, !workspace.Incremental, rootDir, logger, cancellationToken);
@@ -253,7 +253,7 @@ namespace Horde.Agent.Utility
 		/// <param name="change">The current change being built</param>
 		/// <param name="preflightChange">The preflight changelist number</param>
 		/// <returns>Async task</returns>
-		public async Task UpdateLocalCacheMarker(FileReference cacheFile, int change, int preflightChange)
+		public static async Task UpdateLocalCacheMarker(FileReference cacheFile, int change, int preflightChange)
 		{
 			// Create the new cache file descriptor
 			string newDescriptor;
@@ -286,7 +286,7 @@ namespace Horde.Agent.Utility
 			}
 
 			// Write the new descriptor file
-			FileReference.WriteAllText(descriptorFile, newDescriptor);
+			await FileReference.WriteAllTextAsync(descriptorFile, newDescriptor);
 		}
 
 		/// <summary>
@@ -350,12 +350,12 @@ namespace Horde.Agent.Utility
 				List<DescribeRecord> records = await perforce.DescribeAsync(DescribeOptions.Shelved, -1, new int[] { pendingChange.Number }, cancellationToken);
 				if (records.Count > 0 && records[0].Files.Count > 0)
 				{
-					logger.LogInformation($"Deleting shelved files in changelist {pendingChange.Number}");
+					logger.LogInformation("Deleting shelved files in changelist {Change}", pendingChange.Number);
 					await perforce.DeleteChangeAsync(DeleteChangeOptions.None, pendingChange.Number, cancellationToken);
 				}
 
 				// delete the changelist
-				logger.LogInformation($"Deleting changelist {pendingChange.Number}");
+				logger.LogInformation("Deleting changelist {Change}", pendingChange.Number);
 				await perforce.DeleteChangeAsync(DeleteChangeOptions.None, pendingChange.Number, cancellationToken);
 			}
 		}

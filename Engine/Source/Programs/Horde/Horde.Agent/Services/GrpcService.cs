@@ -61,17 +61,19 @@ namespace Horde.Agent.Services
 		/// Create a GRPC channel with the given auth header value
 		/// </summary>
 		/// <returns>New grpc channel</returns>
-		public GrpcChannel CreateGrpcChannel(string address, AuthenticationHeaderValue? authHeaderValue)
+		public GrpcChannel CreateGrpcChannel(Uri address, AuthenticationHeaderValue? authHeaderValue)
 		{
 			HttpClientHandler customCertHandler = new HttpClientHandler();
 			customCertHandler.ServerCertificateCustomValidationCallback += (sender, cert, chain, errors) => CertificateHelper.CertificateValidationCallBack(_logger, sender, cert, chain, errors, _serverProfile);
 
 			TimeSpan[] retryDelay = { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10) };
 			IAsyncPolicy<HttpResponseMessage> policy = HttpPolicyExtensions.HandleTransientHttpError().WaitAndRetryAsync(retryDelay);
+#pragma warning disable CA2000 // Dispose objects before losing scope
 			PolicyHttpMessageHandler retryHandler = new PolicyHttpMessageHandler(policy);
+#pragma warning restore CA2000 // Dispose objects before losing scope
 			retryHandler.InnerHandler = customCertHandler;
 
-			HttpClient httpClient = new HttpClient(retryHandler);
+			HttpClient httpClient = new HttpClient(retryHandler, true);
 			httpClient.DefaultRequestHeaders.Add("Accept", "application/json");
 			if (authHeaderValue != null)
 			{

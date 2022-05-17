@@ -336,7 +336,7 @@ namespace Horde.Agent.Services
 						for (int idx = 10; idx > 0; idx--)
 						{
 							_logger.LogInformation("Waiting for shutdown ({Count})", idx);
-							await Task.Delay(TimeSpan.FromSeconds(60.0));
+							await Task.Delay(TimeSpan.FromSeconds(60.0), stoppingToken);
 						}
 						_logger.LogInformation("Shutdown aborted.");
 					}
@@ -345,7 +345,7 @@ namespace Horde.Agent.Services
 				else if (sessionTime.Elapsed < TimeSpan.FromSeconds(2.0))
 				{
 					_logger.LogInformation("Waiting 5 seconds before restarting session...");
-					await Task.Delay(TimeSpan.FromSeconds(5.0));
+					await Task.Delay(TimeSpan.FromSeconds(5.0), stoppingToken);
 				}
 			}
 		}
@@ -445,7 +445,7 @@ namespace Horde.Agent.Services
 			}
 			foreach (DeviceCapabilities device in capabilities.Devices)
 			{
-				_logger.LogInformation($"{device.Handle} Device:");
+				_logger.LogInformation("{DeviceName} Device:", device.Handle);
 				foreach (string property in device.Properties)
 				{
 					_logger.LogInformation("   {DeviceProperty}", property);
@@ -547,7 +547,7 @@ namespace Horde.Agent.Services
 						{
 							if (rpcClientRef == null)
 							{
-								await Task.WhenAny(Task.Delay(TimeSpan.FromSeconds(5.0)), waitTask);
+								await Task.WhenAny(Task.Delay(TimeSpan.FromSeconds(5.0), stoppingToken), waitTask);
 							}
 							else
 							{
@@ -581,7 +581,7 @@ namespace Horde.Agent.Services
 
 										_logger.LogInformation("Adding lease {LeaseId}", serverLease.Id);
 										LeaseInfo info = new LeaseInfo(serverLease);
-										info.Task = Task.Run(() => HandleLeaseAsync(rpcCon, createSessionResponse.AgentId, info));
+										info.Task = Task.Run(() => HandleLeaseAsync(rpcCon, createSessionResponse.AgentId, info), CancellationToken.None);
 										_activeLeases.Add(info);
 									}
 								}
@@ -608,7 +608,7 @@ namespace Horde.Agent.Services
 					if (updateTimes.Count > 60)
 					{
 						_logger.LogWarning("Agent is issuing large number of UpdateSession() calls. Delaying for 10 seconds.");
-						await Task.Delay(TimeSpan.FromSeconds(10.0));
+						await Task.Delay(TimeSpan.FromSeconds(10.0), stoppingToken);
 					}
 				}
 
@@ -1032,7 +1032,7 @@ namespace Horde.Agent.Services
 				}
 				else
 				{
-					logger.LogError(ex, "Exception while executing batch: {ex}", ex);
+					logger.LogError(ex, "Exception while executing batch: {Ex}", ex);
 				}
 			}
 
@@ -1144,6 +1144,7 @@ namespace Horde.Agent.Services
 					using (batchLogger.BeginIndentScope("  "))
 					{
 						// Start writing to the log file
+#pragma warning disable CA2000 // Dispose objects before losing scope
 						await using (JsonRpcLogger stepLogger = new JsonRpcLogger(rpcClient, step.LogId, executeTask.JobId, executeTask.BatchId, step.StepId, step.Warnings, _logger))
 						{
 							// Execute the task
@@ -1156,7 +1157,7 @@ namespace Horde.Agent.Services
 							using CancellationTokenSource stepPollCancelSource = new CancellationTokenSource();
 							using CancellationTokenSource stepAbortSource = new CancellationTokenSource();
 							TaskCompletionSource<bool> stepFinishedSource = new TaskCompletionSource<bool>();
-							Task stepPollTask = Task.Run(() => PollForStepAbort(rpcClient, executeTask.JobId, executeTask.BatchId, step.StepId, stepPollCancelSource.Token, stepAbortSource, stepFinishedSource.Task));
+							Task stepPollTask = Task.Run(() => PollForStepAbort(rpcClient, executeTask.JobId, executeTask.BatchId, step.StepId, stepAbortSource, stepFinishedSource.Task, stepPollCancelSource.Token), cancellationToken);
 
 							try
 							{
@@ -1181,6 +1182,7 @@ namespace Horde.Agent.Services
 								stepOutcome = stepLogger.Outcome;
 							}
 						}
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
 						// Update the server with the outcome from the step
 						batchLogger.LogInformation("Marking step as complete (Outcome={Outcome}, State={StepState})", stepOutcome, stepState);
@@ -1200,7 +1202,7 @@ namespace Horde.Agent.Services
 				}
 				else
 				{
-					_logger.LogError(ex, "Exception while executing batch: {ex}", ex);
+					_logger.LogError(ex, "Exception while executing batch: {Ex}", ex);
 				}
 			}
 
@@ -1222,7 +1224,7 @@ namespace Horde.Agent.Services
 		/// <param name="cancellationToken">Cancellation token to abort the batch</param>
 		/// <param name="stepCancellationToken">Cancellation token to abort only this individual step</param>
 		/// <returns>Async task</returns>
-		internal async Task<(JobStepOutcome, JobStepState)> ExecuteStepAsync(IExecutor executor, BeginStepResponse step, ILogger stepLogger, CancellationToken cancellationToken, CancellationToken stepCancellationToken)
+		internal static async Task<(JobStepOutcome, JobStepState)> ExecuteStepAsync(IExecutor executor, BeginStepResponse step, ILogger stepLogger, CancellationToken cancellationToken, CancellationToken stepCancellationToken)
 		{
 			using CancellationTokenSource combined = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, stepCancellationToken);
 			try
@@ -1244,12 +1246,12 @@ namespace Horde.Agent.Services
 					return (JobStepOutcome.Failure, JobStepState.Aborted);
 				}
 				
-				stepLogger.LogError(ex, "Exception while executing step: {ex}", ex);
+				stepLogger.LogError(ex, "Exception while executing step: {Ex}", ex);
 				return (JobStepOutcome.Failure, JobStepState.Completed);
 			}
 		}
 
-		internal async Task PollForStepAbort(IRpcConnection epcClient, string jobId, string batchId, string stepId, CancellationToken cancellationToken, CancellationTokenSource stepCancelSource, Task finishedTask)
+		internal async Task PollForStepAbort(IRpcConnection epcClient, string jobId, string batchId, string stepId, CancellationTokenSource stepCancelSource, Task finishedTask, CancellationToken cancellationToken)
 		{
 			Stopwatch timer = Stopwatch.StartNew();
 			while (!finishedTask.IsCompleted)
@@ -1271,7 +1273,7 @@ namespace Horde.Agent.Services
 					break;
 				}
 
-				await Task.WhenAny(Task.Delay(_stepAbortPollInterval), finishedTask);
+				await Task.WhenAny(Task.Delay(_stepAbortPollInterval, cancellationToken), finishedTask);
 			}
 		}
 
@@ -1372,7 +1374,7 @@ namespace Horde.Agent.Services
 					arguments.AppendArgument(newAssemblyFileName.FullName);
 					arguments.AppendArgument("Service");
 					arguments.AppendArgument("Upgrade");
-					arguments.AppendArgument("-ProcessId=", Process.GetCurrentProcess().Id.ToString());
+					arguments.AppendArgument("-ProcessId=", Environment.ProcessId.ToString());
 					arguments.AppendArgument("-TargetDir=", targetDir.FullName);
 					arguments.AppendArgument("-Arguments=", currentArguments.ToString());
 
@@ -1679,7 +1681,7 @@ namespace Horde.Agent.Services
 					process.StartInfo.UseShellExecute = false;
 					process.Start();
 
-					output = process.StandardOutput.ReadToEnd();
+					output = await process.StandardOutput.ReadToEndAsync();
 				}
 
 				XmlDocument xml = new XmlDocument();
@@ -1741,7 +1743,7 @@ namespace Horde.Agent.Services
 			// Get the IP addresses
 			try
 			{
-				IPHostEntry entry = Dns.GetHostEntry(Dns.GetHostName());
+				IPHostEntry entry = await Dns.GetHostEntryAsync(Dns.GetHostName());
 				foreach (IPAddress address in entry.AddressList)
 				{
 					if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
@@ -1834,7 +1836,7 @@ namespace Horde.Agent.Services
 					string? line;
 					while ((line = await reader.ReadLineAsync()) != null)
 					{
-						int idx = line.IndexOf(':');
+						int idx = line.IndexOf(':', StringComparison.Ordinal);
 						if (idx == -1)
 						{
 							if (record.Count > 0)

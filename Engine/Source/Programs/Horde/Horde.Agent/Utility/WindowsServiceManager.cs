@@ -306,7 +306,7 @@ namespace Horde.Agent.Utility
 				}
 				else
 				{
-					throw new Win32Exception(String.Format("Unable to open service manager (0x{0:X8)).", errorCode));
+					throw new Win32Exception(String.Format("Unable to open service manager (0x{0:X8}).", errorCode));
 				}
 			}
 		}

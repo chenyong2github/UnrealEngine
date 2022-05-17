@@ -52,14 +52,14 @@ namespace Horde.Agent.Execution
 		/// <param name="cancelToken">Cancellation token</param>
 		/// <returns>stdout and stderr data</returns>
 		/// <exception cref="RpcException">Raised for either timeout or cancel</exception>
-		private async Task<(byte[] stdOutData, byte[] stdOutErr)> ReadProcessStreams(ManagedProcess process, TimeSpan timeout, CancellationToken cancelToken)
+		private static async Task<(byte[] stdOutData, byte[] stdOutErr)> ReadProcessStreams(ManagedProcess process, TimeSpan timeout, CancellationToken cancelToken)
 		{
 			// Read stdout/stderr without cancellation token.
 			using MemoryStream stdOutStream = new MemoryStream();
-			Task stdOutReadTask = process.StdOut.CopyToAsync(stdOutStream);
+			Task stdOutReadTask = process.StdOut.CopyToAsync(stdOutStream, cancelToken);
 
 			using MemoryStream stdErrStream = new MemoryStream();
-			Task stdErrReadTask = process.StdErr.CopyToAsync(stdErrStream);
+			Task stdErrReadTask = process.StdErr.CopyToAsync(stdErrStream, cancelToken);
 
 			Task outputTask = Task.WhenAll(stdOutReadTask, stdErrReadTask);
 
@@ -101,14 +101,14 @@ namespace Horde.Agent.Execution
 			BucketId inputBucketId = new BucketId(computeTaskMessage.InputBucketId);
 			BucketId outputBucketId = new BucketId(computeTaskMessage.OutputBucketId);
 
-			ComputeTask task = await _storageClient.GetRefAsync<ComputeTask>(namespaceId, inputBucketId, computeTaskMessage.TaskRefId.AsRefId());
+			ComputeTask task = await _storageClient.GetRefAsync<ComputeTask>(namespaceId, inputBucketId, computeTaskMessage.TaskRefId.AsRefId(), cancellationToken);
 			_logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", computeTaskMessage.TaskRefId, leaseId);
 			stats.DownloadRefMs = GetMarkerTime(timer);
 
 			DirectoryReference.CreateDirectory(sandboxDir);
 			FileUtils.ForceDeleteDirectoryContents(sandboxDir);
 
-			DirectoryTree inputDirectory = await _storageClient.ReadBlobAsync<DirectoryTree>(namespaceId, task.SandboxHash);
+			DirectoryTree inputDirectory = await _storageClient.ReadBlobAsync<DirectoryTree>(namespaceId, task.SandboxHash, cancellationToken: cancellationToken);
 			await SetupSandboxAsync(namespaceId, inputDirectory, sandboxDir);
 			stats.DownloadInputMs = GetMarkerTime(timer);
 
@@ -150,8 +150,8 @@ namespace Horde.Agent.Execution
 					_logger.LogInformation("exit: {ExitCode}", process.ExitCode);
 
 					ComputeTaskResult result = new ComputeTaskResult(process.ExitCode);
-					result.StdOutHash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, stdOutData);
-					result.StdErrHash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, stdErrData);
+					result.StdOutHash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, stdOutData, cancellationToken);
+					result.StdErrHash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, stdErrData, cancellationToken);
 					stats.UploadLogMs = GetMarkerTime(timer);
 
 					FileReference[] outputFiles = ResolveOutputPaths(sandboxDir, task.OutputPaths.Select(x => x.ToString())).OrderBy(x => x.FullName, StringComparer.Ordinal).ToArray();
@@ -166,7 +166,7 @@ namespace Horde.Agent.Execution
 					stats.UploadOutputMs = GetMarkerTime(timer);
 
 					CbObject resultObject = CbSerializer.Serialize(result);
-					await _storageClient.SetRefAsync(namespaceId, outputBucketId, computeTaskMessage.TaskRefId, resultObject);
+					await _storageClient.SetRefAsync(namespaceId, outputBucketId, computeTaskMessage.TaskRefId, resultObject, cancellationToken);
 					stats.UploadRefMs = GetMarkerTime(timer);
 
 					return new ComputeTaskResultMessage(computeTaskMessage.TaskRefId, stats);
@@ -257,7 +257,7 @@ namespace Horde.Agent.Execution
 			return (tree, hash);
 		}
 
-		private void EnsureFileIsExecutable(string filePath)
+		private static void EnsureFileIsExecutable(string filePath)
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{

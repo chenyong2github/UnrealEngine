@@ -56,7 +56,7 @@ namespace Horde.Agent.Commands
 				HashSet<string> targetFiles = new HashSet<string>(targetDir.EnumerateFiles("*", SearchOption.AllDirectories).Select(x => x.FullName), StringComparer.OrdinalIgnoreCase);
 
 				// Find all the source files
-				DirectoryInfo sourceDir = new DirectoryInfo(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+				DirectoryInfo sourceDir = new DirectoryInfo(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!);
 				HashSet<string> sourceFiles = new HashSet<string>(sourceDir.EnumerateFiles("*", SearchOption.AllDirectories).Select(x => x.FullName), StringComparer.OrdinalIgnoreCase);
 
 				// Exclude all the source files from the list of target files, since we may be in a subdirectory
@@ -79,7 +79,7 @@ namespace Horde.Agent.Commands
 					}
 
 					string targetFile = targetDir.FullName + sourceFile.Substring(sourceDir.FullName.Length);
-					Directory.CreateDirectory(Path.GetDirectoryName(targetFile));
+					Directory.CreateDirectory(Path.GetDirectoryName(targetFile)!);
 
 					string targetFileBeforeRename = targetFile + ".new";
 					logger.LogDebug("Copying {SourceFile} to {TargetFileBeforeRename}", sourceFile, targetFileBeforeRename);
@@ -103,7 +103,7 @@ namespace Horde.Agent.Commands
 				}
 				else
 				{
-					logger.LogError("Agent is not running a platform that supports Upgrades. Platform: {0}", RuntimeInformation.OSDescription);
+					logger.LogError("Agent is not running a platform that supports Upgrades. Platform: {Platform}", RuntimeInformation.OSDescription);
 					return Task.FromResult(-1);
 				}
 			}
@@ -111,7 +111,7 @@ namespace Horde.Agent.Commands
 			return Task.FromResult(0);
 		}
 
-		void UpgradeFilesInPlace(ILogger logger, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
+		static void UpgradeFilesInPlace(ILogger logger, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
 		{
 			// Remove all the target files
 			foreach (string targetFile in targetFiles)
@@ -129,14 +129,14 @@ namespace Horde.Agent.Commands
 			}
 		}
 
-		void UpgradeMacService(ILogger logger, Process otherProcess, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
+		static void UpgradeMacService(ILogger logger, Process otherProcess, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
 		{
 			UpgradeFilesInPlace(logger, targetFiles, renameFiles);
 			logger.LogDebug("Upgrade completed, restarting...");
 			otherProcess.Kill();
 		}
 
-		void UpgradeLinuxService(ILogger logger, Process otherProcess, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
+		static void UpgradeLinuxService(ILogger logger, Process otherProcess, HashSet<string> targetFiles, List<Tuple<string, string>> renameFiles)
 		{
 			UpgradeFilesInPlace(logger, targetFiles, renameFiles);
 			logger.LogDebug("Upgrade completed, restarting...");

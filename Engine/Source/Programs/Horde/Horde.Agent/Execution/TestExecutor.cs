@@ -39,7 +39,7 @@ namespace Horde.Agent.Execution
 			updateGraph.JobId = _jobId;
 
 			CreateGroupRequest winEditorGroup = CreateGroup("Win64");
-			winEditorGroup.Nodes.Add(CreateNode("Update Version Files", new string[] { }, JobStepOutcome.Success));
+			winEditorGroup.Nodes.Add(CreateNode("Update Version Files", Array.Empty<string>(), JobStepOutcome.Success));
 			winEditorGroup.Nodes.Add(CreateNode("Compile UnrealHeaderTool Win64", new string[] { "Update Version Files" }, JobStepOutcome.Success));
 			winEditorGroup.Nodes.Add(CreateNode("Compile UE4Editor Win64", new string[] { "Compile UnrealHeaderTool Win64" }, JobStepOutcome.Success));
 			winEditorGroup.Nodes.Add(CreateNode("Compile FortniteEditor Win64", new string[] { "Compile UnrealHeaderTool Win64", "Compile UE4Editor Win64" }, JobStepOutcome.Success));

@@ -73,7 +73,7 @@ namespace Horde.Agent
 		/// Url of the server
 		/// </summary>
 		[Required]
-		public string Url { get; set; } = null!;
+		public Uri Url { get; set; } = null!;
 
 		/// <summary>
 		/// Bearer token to use to initiate the connection
@@ -88,7 +88,7 @@ namespace Horde.Agent
 		/// <summary>
 		/// Thumbprints of certificates to trust. Allows using self-signed certs for the server.
 		/// </summary>
-		public List<string> Thumbprints { get; set; } = new List<string>();
+		public List<string> Thumbprints { get; } = new List<string>();
 
 		/// <summary>
 		/// Storage settings for using this server
@@ -154,7 +154,7 @@ namespace Horde.Agent
 		/// <summary>
 		/// Known servers to connect to
 		/// </summary>
-		public List<ServerProfile> ServerProfiles { get; set; } = new List<ServerProfile>();
+		public List<ServerProfile> ServerProfiles { get; } = new List<ServerProfile>();
 
 		/// <summary>
 		/// The default server, unless overridden from the command line
@@ -195,12 +195,12 @@ namespace Horde.Agent
 		/// <summary>
 		/// List of network shares to mount
 		/// </summary>
-		public List<MountNetworkShare> Shares { get; set; } = new List<MountNetworkShare>();
+		public List<MountNetworkShare> Shares { get; } = new List<MountNetworkShare>();
 
 		/// <summary>
 		/// List of process names to terminate after a job
 		/// </summary>
-		public List<string> ProcessNamesToTerminate { get; set; } = new List<string>();
+		public List<string> ProcessNamesToTerminate { get; } = new List<string>();
 
 		/// <summary>
 		/// Whether to write step output to the logging device

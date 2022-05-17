@@ -132,7 +132,7 @@ namespace Horde.Agent.Parser.Matchers
 			return null;
 		}
 
-		bool TryMatchVisualCppEvent(LogEventBuilder builder, [NotNullWhen(true)] out LogEventMatch? outEvent)
+		static bool TryMatchVisualCppEvent(LogEventBuilder builder, [NotNullWhen(true)] out LogEventMatch? outEvent)
 		{
 			Match? match;
 			if(!builder.Current.TryMatch($"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:", out match) || !IsSourceFile(match))
@@ -220,7 +220,7 @@ namespace Horde.Agent.Parser.Matchers
 			}
 		}
 
-		bool IsSourceFile(Match match)
+		static bool IsSourceFile(Match match)
 		{
 			Group group = match.Groups["file"];
 			if (!group.Success)

@@ -104,13 +104,13 @@ namespace Horde.Agent.Utility
 					UploadArtifactRequest initialRequest = new UploadArtifactRequest();
 					initialRequest.Metadata = metadata;
 
-					await cursor.RequestStream.WriteAsync(initialRequest);
+					await cursor.RequestStream.WriteAsync(initialRequest, cancellationToken);
 
 					// Upload the data in chunks
 					byte[] buffer = new byte[4096];
 					for (int offset = 0; offset < metadata.Length; )
                     {
-                        int bytesRead = await artifactStream.ReadAsync(buffer, 0, buffer.Length);
+                        int bytesRead = await artifactStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
 						if(bytesRead == 0)
 						{
 							throw new InvalidDataException($"Unable to read data from {artifactFile} beyond offset {offset}; expected length to be {metadata.Length}");
@@ -118,7 +118,7 @@ namespace Horde.Agent.Utility
 
 						UploadArtifactRequest request = new UploadArtifactRequest();
 						request.Data = Google.Protobuf.ByteString.CopyFrom(buffer, 0, bytesRead);
-						await cursor.RequestStream.WriteAsync(request);
+						await cursor.RequestStream.WriteAsync(request, cancellationToken);
 
                         offset += bytesRead;
                     }

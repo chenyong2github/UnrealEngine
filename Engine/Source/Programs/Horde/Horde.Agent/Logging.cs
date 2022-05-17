@@ -45,7 +45,7 @@ namespace Horde.Agent
 			}
 		}
 		
-		public class HordeLoggerProvider : ILoggerProvider
+		public sealed class HordeLoggerProvider : ILoggerProvider
 		{
 			private readonly SerilogLoggerProvider _inner;
 

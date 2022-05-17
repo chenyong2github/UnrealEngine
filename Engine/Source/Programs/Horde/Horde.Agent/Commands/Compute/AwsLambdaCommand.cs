@@ -55,17 +55,17 @@ namespace Horde.Agent.Commands
 
 					AwsLambdaComputeTaskMessage computeTaskMessage;
 					// Detect if protobuf is binary or text-encoded JSON. The JSON format is used during testing/debugging.
-					bool isProtobufCompatibleJson = nextInvocationResponse.data.Length >= 1 && nextInvocationResponse.data[0] == '{';
+					bool isProtobufCompatibleJson = nextInvocationResponse.data.Length >= 1 && nextInvocationResponse.data.Span[0] == '{';
 					if (isProtobufCompatibleJson)
 					{
-						computeTaskMessage = AwsLambdaComputeTaskMessage.Parser.ParseJson(Encoding.UTF8.GetString(nextInvocationResponse.data));
+						computeTaskMessage = AwsLambdaComputeTaskMessage.Parser.ParseJson(Encoding.UTF8.GetString(nextInvocationResponse.data.Span));
 					}
 					else
 					{
-						computeTaskMessage = AwsLambdaComputeTaskMessage.Parser.ParseFrom(nextInvocationResponse.data);
+						computeTaskMessage = AwsLambdaComputeTaskMessage.Parser.ParseFrom(nextInvocationResponse.data.Span);
 					}
 
-					_logger.LogDebug("Invocation received. Lambda request ID {requestId}", nextInvocationResponse.requestId);
+					_logger.LogDebug("Invocation received. Lambda request ID {RequestId}", nextInvocationResponse.requestId);
 
 					// Lease ID is not relevant when executing under AWS Lambda, but one is generated to satisfy the ComputeTaskExecutor.
 					string leaseId = "aws-lambda-" + Guid.NewGuid();
@@ -75,8 +75,8 @@ namespace Horde.Agent.Commands
 					DirectoryReference.CreateDirectory(leaseDir);
 
 					ComputeTaskMessage task = computeTaskMessage.Task;
-					string msg = "clusterId={clusterId}\n" +
-					             "channelId={channelId}\n" +
+					const string msg = "clusterId={ClusterId}\n" +
+					             "channelId={ChannelId}\n" +
 					             "NamespaceId={NamespaceId}\n" +
 					             "DispatchedMs={DispatchedMs}\n" +
 					             "InputBucketId={InputBucketId}\n" +
@@ -88,7 +88,7 @@ namespace Horde.Agent.Commands
 						task.DispatchedMs, task.InputBucketId, task.OutputBucketId, task.RequirementsHash,
 						task.TaskRefId, task.QueuedAt);
 					
-					_logger.LogDebug("Lease dir {leaseDir}", leaseDir.ToString());
+					_logger.LogDebug("Lease dir {LeaseDir}", leaseDir.ToString());
 					ComputeTaskResultMessage result;
 					ComputeTaskExecutor executor = new ComputeTaskExecutor(_storageClient, _logger);
 					try
@@ -107,7 +107,7 @@ namespace Horde.Agent.Commands
 						}
 					}
 					
-					_logger.LogDebug("Execution completed. outcome={outcome} resultRefId={resultRefId} detail={detail}", result.Outcome, result.ResultRefId, result.Detail);
+					_logger.LogDebug("Execution completed. outcome={Outcome} resultRefId={ResultRefId} detail={Detail}", result.Outcome, result.ResultRefId, result.Detail);
 
 					AwsLambdaComputeTaskResultMessage taskResultMessage = new AwsLambdaComputeTaskResultMessage { TaskResult = result };
 					byte[] responseData;
@@ -135,7 +135,7 @@ namespace Horde.Agent.Commands
 						}
 						catch (AwsLambdaClientException sendErrorException)
 						{
-							_logger.LogError(sendErrorException, "Bad response when sending invocation error. isFatal={isFatal}", sendErrorException.isFatal);
+							_logger.LogError(sendErrorException, "Bad response when sending invocation error. isFatal={IsFatal}", sendErrorException.isFatal);
 							return 1;
 						}
 					}
@@ -154,12 +154,12 @@ namespace Horde.Agent.Commands
 	[Command("Compute", "AwsLambda", "Listen for AWS Lambda invocations")]
 	class AwsLambdaCommand : Command
 	{
-		private const string EnvVarHordeStorageUrl = "UE_HORDE_STORAGE_URL";
-		private const string EnvVarHordeStorageOAuthUrl = "UE_HORDE_STORAGE_OAUTH_URL";
-		private const string EnvVarHordeStorageOAuthGrantType = "UE_HORDE_STORAGE_OAUTH_GRANT_TYPE";
-		private const string EnvVarHordeStorageOAuthClientId = "UE_HORDE_STORAGE_OAUTH_CLIENT_ID";
+//		private const string EnvVarHordeStorageUrl = "UE_HORDE_STORAGE_URL";
+//		private const string EnvVarHordeStorageOAuthUrl = "UE_HORDE_STORAGE_OAUTH_URL";
+//		private const string EnvVarHordeStorageOAuthGrantType = "UE_HORDE_STORAGE_OAUTH_GRANT_TYPE";
+//		private const string EnvVarHordeStorageOAuthClientId = "UE_HORDE_STORAGE_OAUTH_CLIENT_ID";
 		private const string EnvVarHordeStorageOAuthClientSecretArn = "UE_HORDE_STORAGE_OAUTH_CLIENT_SECRET_ARN";
-		private const string EnvVarHordeStorageOAuthScope = "UE_HORDE_STORAGE_OAUTH_SCOPE";
+//		private const string EnvVarHordeStorageOAuthScope = "UE_HORDE_STORAGE_OAUTH_SCOPE";
 		
 		/// <inheritdoc/>
 		public override async Task<int> ExecuteAsync(ILogger logger)
@@ -175,15 +175,15 @@ namespace Horde.Agent.Commands
 			}
 			else
 			{
-				logger.LogError($"Unable to parse log level: {logLevelStr}");
+				logger.LogError("Unable to parse log level: {LogLevelStr}", logLevelStr);
 				return 1;
 			}
 
-			ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(logLevel));
+			using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole().SetMinimumLevel(logLevel));
 			ILogger<AwsLambdaClient> lambdaClientLogger = loggerFactory.CreateLogger<AwsLambdaClient>();
 			AwsLambdaClient lambdaClient = AwsLambdaClient.InitFromEnv(lambdaClientLogger);
 			AwsLambdaRunner lambdaRunner;
-			CancellationTokenSource cts = new CancellationTokenSource();
+			using CancellationTokenSource cts = new CancellationTokenSource();
 			
 			try
 			{
@@ -191,10 +191,10 @@ namespace Horde.Agent.Commands
 
 				string oAuthClientSecret = await GetOAuthClientSecretAsync(cts.Token);
 				HttpServiceClientOptions clientOptions = CreateHttpServiceClientOptionsFromEnv(oAuthClientSecret);
-				HttpClient httpClient = new HttpClient();
+				using HttpClient httpClient = new HttpClient();
 				OAuthHandlerFactory oAuthHandlerFactory = new OAuthHandlerFactory(httpClient);
 				OAuthHandler<HttpStorageClient> oAuthHandler = oAuthHandlerFactory.Create<HttpStorageClient>(clientOptions);
-				HttpClient client = new HttpClient(oAuthHandler);
+				using HttpClient client = new HttpClient(oAuthHandler);
 				client.BaseAddress = new Uri(clientOptions.Url);
 				IStorageClient storageClientManual = new HttpStorageClient(client);
 
@@ -216,7 +216,7 @@ namespace Horde.Agent.Commands
 				}
 				catch (AwsLambdaClientException initException)
 				{
-					logger.LogError(initException, "Bad response when sending init error. isFatal={isFatal}", initException.isFatal);
+					logger.LogError(initException, "Bad response when sending init error. isFatal={IsFatal}", initException.isFatal);
 				}
 				
 				return 1;
@@ -228,7 +228,7 @@ namespace Horde.Agent.Commands
 		private static async Task<string> GetOAuthClientSecretAsync(CancellationToken cancellationToken)
 		{
 			string oAuthClientSecret = GetEnvVar(EnvVarHordeStorageOAuthClientSecretArn);
-			AmazonSimpleSystemsManagementClient ssmClient = new AmazonSimpleSystemsManagementClient();
+			using AmazonSimpleSystemsManagementClient ssmClient = new AmazonSimpleSystemsManagementClient();
 			GetParameterRequest request = new GetParameterRequest { Name = oAuthClientSecret, WithDecryption = true };
 			GetParameterResponse response = await ssmClient.GetParameterAsync(request, cancellationToken);
 			return response.Parameter.Value;

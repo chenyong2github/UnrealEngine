@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -35,7 +36,7 @@ namespace Horde.Agent
 		/// <summary>
 		/// The launch arguments
 		/// </summary>
-		public static string[] Args { get; private set; } = null!;
+		public static IReadOnlyList<string> Args { get; private set; } = null!;
 
 		/// <summary>
 		/// The current application version
@@ -82,7 +83,7 @@ namespace Horde.Agent
 		{
 			try
 			{
-				return FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).ProductVersion;
+				return FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location).ProductVersion!;
 			}
 			catch
 			{

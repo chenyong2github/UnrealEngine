@@ -59,7 +59,8 @@ namespace Horde.Agent.Commands.Workspace
 			{
 				InfoRecord info = await perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken.None);
 
-				ILogger repoLogger = new Logging.HordeLoggerProvider().CreateLogger("Repository");
+				using Logging.HordeLoggerProvider loggerProvider = new Logging.HordeLoggerProvider();
+				ILogger repoLogger = loggerProvider.CreateLogger("Repository");
 				ManagedWorkspace repo = await ManagedWorkspace.LoadOrCreateAsync(info.ClientHost!, BaseDir, Overwrite, repoLogger, CancellationToken.None);
 				await ExecuteAsync(perforce, repo, logger);
 			}
@@ -87,7 +88,7 @@ namespace Horde.Agent.Commands.Workspace
 					return value * (1024 * 1024);
 				}
 			}
-			else if (size.EndsWith("kb"))
+			else if (size.EndsWith("kb", StringComparison.OrdinalIgnoreCase))
 			{
 				string sizeValue = size.Substring(0, size.Length - 2).TrimEnd();
 				if (Int64.TryParse(sizeValue, out value))

@@ -201,7 +201,7 @@ namespace Horde.Agent.Execution
 				{
 					foreach (string map in argument.Substring(RemapAgentTypesPrefix.Length).Split(','))
 					{
-						int colonIdx = map.IndexOf(':');
+						int colonIdx = map.IndexOf(':', StringComparison.Ordinal);
 						if (colonIdx != -1)
 						{
 							_remapAgentTypes[map.Substring(0, colonIdx)] = map.Substring(colonIdx + 1);
@@ -233,6 +233,11 @@ namespace Horde.Agent.Execution
 
 		public static bool IsUserAdministrator()
 		{
+			if (!OperatingSystem.IsWindows())
+			{
+				return false;
+			}
+
 			try
 			{
 				using(WindowsIdentity identity = WindowsIdentity.GetCurrent())
@@ -278,7 +283,7 @@ namespace Horde.Agent.Execution
 			return Task.CompletedTask;
 		}
 
-		DirectoryReference GetAutomationToolDir(DirectoryReference sharedStorageDir)
+		static DirectoryReference GetAutomationToolDir(DirectoryReference sharedStorageDir)
 		{
 			return DirectoryReference.Combine(sharedStorageDir, "UAT");
 		}
@@ -326,7 +331,7 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		private void FetchPreprocessedFile(FileReference localFile, DirectoryReference? sharedStorageDir, ILogger logger)
+		private static void FetchPreprocessedFile(FileReference localFile, DirectoryReference? sharedStorageDir, ILogger logger)
 		{
 			if (!FileReference.Exists(localFile))
 			{
@@ -393,7 +398,7 @@ namespace Horde.Agent.Execution
 			options.PropertyNameCaseInsensitive = true;
 			options.Converters.Add(new JsonStringEnumConverter());
 
-			ExportedGraph graph = JsonSerializer.Deserialize<ExportedGraph>(await FileReference.ReadAllBytesAsync(definitionFile), options)!;
+			ExportedGraph graph = JsonSerializer.Deserialize<ExportedGraph>(await FileReference.ReadAllBytesAsync(definitionFile, cancellationToken), options)!;
 
 			List<string> missingAgentTypes = new List<string>();
 
@@ -455,7 +460,7 @@ namespace Horde.Agent.Execution
 				logger.LogInformation("The following nodes cannot be executed in this stream due to missing agent types:");
 				foreach (string missingAgentType in missingAgentTypes)
 				{
-					logger.LogInformation(missingAgentType);
+					logger.LogInformation("{Node}", missingAgentType);
 				}
 			}
 
@@ -671,7 +676,7 @@ namespace Horde.Agent.Execution
 				FileReference ignorePatternFile = FileReference.Combine(baseDir, "Build", "Horde", "IgnorePatterns.txt");
 				if (FileReference.Exists(ignorePatternFile))
 				{
-					logger.LogInformation("Reading ignore patterns from {0}...", ignorePatternFile);
+					logger.LogInformation("Reading ignore patterns from {File}...", ignorePatternFile);
 					ignorePatternLines.AddRange(await FileReference.ReadAllLinesAsync(ignorePatternFile));
 				}
 			}
@@ -689,7 +694,7 @@ namespace Horde.Agent.Execution
 			return ignorePatterns.ToList();
 		}
 
-		FileReference GetCleanupScript(DirectoryReference workspaceDir)
+		static FileReference GetCleanupScript(DirectoryReference workspaceDir)
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
@@ -701,7 +706,7 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		async Task ExecuteCleanupScriptAsync(FileReference cleanupScript, LogParser filter, ILogger logger)
+		static async Task ExecuteCleanupScriptAsync(FileReference cleanupScript, LogParser filter, ILogger logger)
 		{
 			if (FileReference.Exists(cleanupScript))
 			{
@@ -736,9 +741,9 @@ namespace Horde.Agent.Execution
 			}
 		}
 
-		async Task<int> ExecuteProcessAsync(string fileName, string arguments, IReadOnlyDictionary<string, string>? newEnvironment, LogParser filter, ILogger logger, CancellationToken cancellationToken)
+		static async Task<int> ExecuteProcessAsync(string fileName, string arguments, IReadOnlyDictionary<string, string>? newEnvironment, LogParser filter, ILogger logger, CancellationToken cancellationToken)
 		{
-			logger.LogInformation("Executing {file} {arguments}", fileName.QuoteArgument(), arguments);
+			logger.LogInformation("Executing {File} {Arguments}", fileName.QuoteArgument(), arguments);
 			using (ManagedProcessGroup processGroup = new ManagedProcessGroup())
 			{
 				using (ManagedProcess process = new ManagedProcess(processGroup, fileName, arguments, null, newEnvironment, null, ProcessPriorityClass.Normal))
@@ -834,7 +839,7 @@ namespace Horde.Agent.Execution
 				foreach (FileReference telemetryFile in DirectoryReference.EnumerateFiles(telemetryDir, "*.json"))
 				{
 					logger.LogInformation("Reading telemetry from {File}", telemetryFile);
-					byte[] data = await FileReference.ReadAllBytesAsync(telemetryFile);
+					byte[] data = await FileReference.ReadAllBytesAsync(telemetryFile, cancellationToken);
 
 					TraceEventList telemetry = JsonSerializer.Deserialize<TraceEventList>(data.AsSpan())!;
 					if (telemetry.Spans.Count > 0)
@@ -907,14 +912,14 @@ namespace Horde.Agent.Execution
 						stack.Push(newSpan);
 					}
 
-					rootSpan.Start = rootSpan.Children.First().Start;
-					rootSpan.Finish = rootSpan.Children.Last().Finish;
+					rootSpan.Start = rootSpan.Children!.First().Start;
+					rootSpan.Finish = rootSpan.Children!.Last().Finish;
 
 					FileReference traceFile = FileReference.Combine(telemetryDir, "Trace.json");
 					using (FileStream stream = FileReference.Open(traceFile, FileMode.Create))
 					{
-						JsonSerializerOptions options = new JsonSerializerOptions { IgnoreNullValues = true };
-						await JsonSerializer.SerializeAsync(stream, rootSpan, options);
+						JsonSerializerOptions options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+						await JsonSerializer.SerializeAsync(stream, rootSpan, options, cancellationToken);
 					}
 					await ArtifactUploader.UploadAsync(_rpcConnection, _jobId, _batchId, step.StepId, "Trace.json", traceFile, logger, CancellationToken.None);
 
@@ -934,7 +939,7 @@ namespace Horde.Agent.Execution
 					using (FileStream stream = FileReference.Open(testDataFile, FileMode.Open))
 					{
 						JsonSerializerOptions options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-						testData = (await JsonSerializer.DeserializeAsync<TestData>(stream, options))!;
+						testData = (await JsonSerializer.DeserializeAsync<TestData>(stream, options, cancellationToken))!;
 					}
 
 					foreach (TestDataItem item in testData.Items)

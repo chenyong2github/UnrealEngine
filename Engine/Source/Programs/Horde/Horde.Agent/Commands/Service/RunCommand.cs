@@ -97,7 +97,7 @@ namespace Horde.Agent.Modes.Service
 
 					services.AddHttpClient(Program.HordeServerClientName, config =>
 					{
-						config.BaseAddress = new Uri(serverProfile.Url);
+						config.BaseAddress = serverProfile.Url;
 						config.DefaultRequestHeaders.Add("Accept", "application/json");
 						config.Timeout = TimeSpan.FromSeconds(300); // Need to make sure this doesn't cancel any long running gRPC streaming calls (eg. session update)
 					})

@@ -52,7 +52,7 @@ namespace Horde.Agent.Commands.Certs
 					settings.Server = Server;
 				}
 
-				DnsName = settings.GetCurrentServerProfile().Url;
+				DnsName = settings.GetCurrentServerProfile().Url.ToString();
 				DnsName = Regex.Replace(DnsName, @"^[a-zA-Z]+://", "");
 				DnsName = Regex.Replace(DnsName, "/.*$", "");
 			}

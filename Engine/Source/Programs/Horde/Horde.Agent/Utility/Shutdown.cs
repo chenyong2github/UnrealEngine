@@ -129,26 +129,24 @@ namespace Horde.Agent.Utility
                 {
 					shutdownArgs = "sudo shutdown +0 \"Horde Agent is shutting down\"";
 				}
- 
-				Process shutdownProcess = new Process()
+
+				using (Process shutdownProcess = new Process())
 				{
-					StartInfo = new ProcessStartInfo
+					shutdownProcess.StartInfo.FileName = "/bin/sh";
+					shutdownProcess.StartInfo.Arguments = String.Format("-c \"{0}\"", shutdownArgs);
+					shutdownProcess.StartInfo.UseShellExecute = false;
+					shutdownProcess.StartInfo.CreateNoWindow = true;
+					shutdownProcess.Start();
+					shutdownProcess.WaitForExit();
+
+					int exitCode = shutdownProcess.ExitCode;
+					if (exitCode != 0)
 					{
-						FileName = "/bin/sh",
-						Arguments = String.Format("-c \"{0}\"", shutdownArgs),
-						UseShellExecute = false,
-						CreateNoWindow = true
+						logger.LogError("Shutdown failed ({ExitCode})", exitCode);
+						return false;
 					}
-				};
- 
-				shutdownProcess.Start();
-				shutdownProcess.WaitForExit();
-				int exitCode = shutdownProcess.ExitCode;
-				if (exitCode != 0)
-				{
-					logger.LogError("Shutdown failed ({0})", exitCode);
-					return false;
 				}
+
 				return true;
 			}
 			else

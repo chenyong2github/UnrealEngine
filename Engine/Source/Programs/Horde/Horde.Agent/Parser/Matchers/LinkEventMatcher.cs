@@ -119,7 +119,7 @@ namespace Horde.Agent.Parser.Matchers
 		{
 			bool hasSymbols = false;
 
-			string? message = builder.Current.CurrentLine;
+			string message = builder.Current.CurrentLine ?? String.Empty;
 
 			// Mac link error:
 			//   Undefined symbols for architecture arm64:

@@ -19,7 +19,7 @@ namespace Horde.Agent.Parser
 	/// <summary>
 	/// Class to handle uploading log data to the server in the background
 	/// </summary>
-	class JsonRpcLogger : ILogger, IAsyncDisposable
+	sealed class JsonRpcLogger : ILogger, IAsyncDisposable
 	{
 		class QueueItem
 		{
@@ -100,7 +100,7 @@ namespace Horde.Agent.Parser
 		/// <inheritdoc/>
 		public IDisposable BeginScope<TState>(TState state) => _inner.BeginScope(state);
 
-		protected void WriteFormattedEvent(LogLevel level, byte[] line)
+		private void WriteFormattedEvent(LogLevel level, byte[] line)
 		{
 			// Update the state of this job if this is an error status
 			if (level == LogLevel.Error || level == LogLevel.Critical)

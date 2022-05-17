@@ -25,7 +25,7 @@ namespace Horde.Agent.Utility
 		/// <param name="sslPolicyErrors"></param>
 		/// <param name="serverProfile">The server profile</param>
 		/// <returns>True if the certificate is allowed, false otherwise</returns>
-		public static bool CertificateValidationCallBack(ILogger logger, object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors, ServerProfile serverProfile)
+		public static bool CertificateValidationCallBack(ILogger logger, object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors, ServerProfile serverProfile)
 		{
 			// If the certificate is a valid, signed certificate, return true.
 			if (sslPolicyErrors == SslPolicyErrors.None)
@@ -36,7 +36,7 @@ namespace Horde.Agent.Utility
 			// Trust the remote certificate if it has the right thumbprint
 			if (sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors)
 			{
-				if (chain.ChainElements.Count == 1)
+				if (chain != null && chain.ChainElements.Count == 1)
 				{
 					X509ChainElement element = chain.ChainElements[0];
 					if (element.ChainElementStatus.Length == 1 && (element.ChainElementStatus[0].Status == X509ChainStatusFlags.UntrustedRoot || element.ChainElementStatus[0].Status == X509ChainStatusFlags.PartialChain))

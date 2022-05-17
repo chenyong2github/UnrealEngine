@@ -20,22 +20,22 @@ namespace Horde.Agent.Commands.Compute
 		/// <summary>
 		/// Lambda request ID
 		/// </summary>
-		public readonly string requestId;
+		public string requestId { get; }
 		
 		/// <summary>
 		/// Name of the Lambda function being invoked
 		/// </summary>
-		public readonly string invokedFunctionArn;
+		public string invokedFunctionArn { get; }
 		
 		/// <summary>
 		/// Deadline in milliseconds for completing the function invocation
 		/// </summary>
-		public readonly long deadlineMs;
+		public long deadlineMs { get; }
 		
 		/// <summary>
 		/// Data
 		/// </summary>
-		public readonly byte[] data;
+		public ReadOnlyMemory<byte> data { get; }
 
 		/// <summary>
 		/// Constructor
@@ -61,12 +61,12 @@ namespace Horde.Agent.Commands.Compute
 		/// <summary>
 		/// Whether the exception is fatal and requires termination of the process (to adhere to Lambda specs)
 		/// </summary>
-		public readonly bool isFatal;
+		public bool isFatal { get; }
 		
 		/// <summary>
 		/// HTTP status code in response from AWS Lambda API
 		/// </summary>
-		public readonly HttpStatusCode? statusCode;
+		public HttpStatusCode? statusCode { get; }
 
 		/// <summary>
 		/// Constructor
@@ -117,7 +117,7 @@ namespace Horde.Agent.Commands.Compute
 		private string GetInitErrorUrl() => $"http://{_hostPort}/runtime/init/error";
 		private string GetInvocationErrorUrl(string awsRequestId) => $"http://{_hostPort}/2018-06-01/runtime/invocation/{awsRequestId}/error";
 
-		private HttpClient GetHttpClient()
+		private static HttpClient GetHttpClient()
 		{
 			return new HttpClient();
 		}
@@ -154,7 +154,7 @@ namespace Horde.Agent.Commands.Compute
 			long deadlineMs = Convert.ToInt64(response.Headers.GetValues(HeaderNameDeadlineMs).First());
 			string invokedFunctionArn = response.Headers.GetValues(HeaderNameInvokedFunctionArn).First();
 
-			byte[] data = await response.Content.ReadAsByteArrayAsync();
+			byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 			return new NextInvocationResponse(requestId, invokedFunctionArn, deadlineMs, data);
 		}
 		
@@ -168,7 +168,7 @@ namespace Horde.Agent.Commands.Compute
 			HttpResponseMessage response = await client.SendAsync(request);
 			if (response.StatusCode != HttpStatusCode.Accepted)
 			{
-				_logger.LogError("Failed sending invocation response! RequestId={awsRequestId} DataLen={dataLen}", awsRequestId, data.Length);
+				_logger.LogError("Failed sending invocation response! RequestId={AwsRequestId} DataLen={DataLen}", awsRequestId, data.Length);
 				throw new AwsLambdaClientException("Failed sending invocation response!");
 			}
 		}
@@ -183,7 +183,7 @@ namespace Horde.Agent.Commands.Compute
 			return SendErrorAsync(GetInvocationErrorUrl(awsRequestId), errorType, errorMessage, stackTrace);
 		}
 		
-		public async Task SendErrorAsync(string url, string errorType, string errorMessage, List<string>? stackTrace)
+		public static async Task SendErrorAsync(string url, string errorType, string errorMessage, List<string>? stackTrace)
 		{
 			using HttpClient client = new HttpClient();
 			client.Timeout = TimeSpan.FromHours(1);

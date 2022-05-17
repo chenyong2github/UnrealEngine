@@ -498,7 +498,7 @@ namespace Horde.Agent.Utility
 				}
 
 				// Wait before retrying
-				await Task.Delay(s_retryTimes[attempt]);
+				await Task.Delay(s_retryTimes[attempt], cancellationToken);
 			}
 		}
 
@@ -664,7 +664,7 @@ namespace Horde.Agent.Utility
 								await Task.WhenAny(_stoppingTaskSource.Task, Task.Delay(TimeSpan.FromSeconds(45.0)), moveNextTask);
 
 								// Update the response
-								if (moveNextTask.IsCompleted && moveNextTask.Result)
+								if (moveNextTask.IsCompleted && await moveNextTask)
 								{
 									response = call.ResponseStream.Current;
 								}

@@ -76,10 +76,10 @@ namespace Horde.Agent.Execution
 						FileReference.Delete(syncFile);
 
 						FileReference autoSdkCacheFile = FileReference.Combine(_autoSdkWorkspace.MetadataDir, "Contents.dat");
-						await _autoSdkWorkspace.UpdateLocalCacheMarker(autoSdkCacheFile, autoSdkChangeNumber, -1);
+						await WorkspaceInfo.UpdateLocalCacheMarker(autoSdkCacheFile, autoSdkChangeNumber, -1);
 						await _autoSdkWorkspace.SyncAsync(autoSdkChangeNumber, -1, autoSdkCacheFile, cancellationToken);
 
-						FileReference.WriteAllText(syncFile, syncText);
+						await FileReference.WriteAllTextAsync(syncFile, syncText);
 					}
 				}
 			}
@@ -180,7 +180,7 @@ namespace Horde.Agent.Execution
 				DirectoryReference settingsDir = DirectoryReference.Combine(baseDir, subDirName);
 				if (DirectoryReference.Exists(settingsDir))
 				{
-					logger.LogInformation($"Removing local settings directory ({settingsDir})...");
+					logger.LogInformation("Removing local settings directory ({SettingsDir})...", settingsDir);
 					try
 					{
 						FileUtils.ForceDeleteDirectory(settingsDir);

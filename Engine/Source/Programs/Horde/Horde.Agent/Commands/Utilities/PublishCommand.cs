@@ -93,12 +93,13 @@ namespace Horde.Agent.Commands.Utilities
 			ServerProfile serverProfile = settings.GetServerProfile(Server);
 
 			// Create the http message handler
-			HttpClientHandler handler = new HttpClientHandler();
+			using HttpClientHandler handler = new HttpClientHandler();
+			handler.CheckCertificateRevocationList = true;
 			handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, errors) => CertificateHelper.CertificateValidationCallBack(logger, sender, cert, chain, errors, serverProfile);
 
 			// Create a new http client for uploading
-			HttpClient httpClient = new HttpClient(handler);
-			httpClient.BaseAddress = new Uri(serverProfile.Url);
+			using HttpClient httpClient = new HttpClient(handler);
+			httpClient.BaseAddress = serverProfile.Url;
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", Token);
 
 			GrpcChannelOptions channelOptions = new GrpcChannelOptions

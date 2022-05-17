@@ -342,7 +342,7 @@ namespace Horde.Agent.Commands
 			}
 		}
 
-		async Task LogTaskOutputAsync(IStorageClient storageClient, string channel, NamespaceId namespaceId, IoHash? logHash, ILogger logger)
+		static async Task LogTaskOutputAsync(IStorageClient storageClient, string channel, NamespaceId namespaceId, IoHash? logHash, ILogger logger)
 		{
 			if (logHash != null)
 			{
