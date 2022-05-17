@@ -606,7 +606,7 @@ public:
 	{
 		using namespace UE::Tasks;
 
-		checkf(Priority >= EExtendedTaskPriority::GameThreadNormalPri && Priority <= EExtendedTaskPriority::RHIThreadHiPriLocalQueue, TEXT("only named threads can call this method: %d"), Priority);
+		checkf(Priority >= EExtendedTaskPriority::GameThreadNormalPri && Priority < EExtendedTaskPriority::Count, TEXT("only named threads can call this method: %d"), Priority);
 
 		int32 ConversionMap[] =
 		{

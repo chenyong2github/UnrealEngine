@@ -27,6 +27,8 @@
 namespace UE::Tasks
 {
 	using LowLevelTasks::ETaskPriority;
+	using LowLevelTasks::ToString;
+	using LowLevelTasks::ToTaskPriority;
 
 	// special task priorities for tasks that are never sent to the scheduler
 	enum class EExtendedTaskPriority
@@ -50,9 +52,14 @@ namespace UE::Tasks
 		RHIThreadNormalPri,
 		RHIThreadHiPri,
 		RHIThreadNormalPriLocalQueue,
-		RHIThreadHiPriLocalQueue
+		RHIThreadHiPriLocalQueue,
 #endif
+
+		Count
 	};
+
+	const TCHAR* ToString(EExtendedTaskPriority ExtendedPriority);
+	bool ToExtendedTaskPriority(const TCHAR* ExtendedPriorityStr, EExtendedTaskPriority& OutExtendedPriority);
 
 	class FPipe;
 

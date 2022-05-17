@@ -1281,6 +1281,45 @@ namespace UE { namespace TasksTests
 
 		return true;
 	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksPriorityCVarTest, "System.Core.Tasks.PriorityCVar", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTasksPriorityCVarTest::RunTest(const FString& Parameters)
+	{
+		// set every combination of task priority and extended task priority
+		const TCHAR* CVarName = TEXT("TasksPriorityTestCVar");
+		UE::Tasks::FTaskPriorityCVar CVar{ CVarName, TEXT("CVarHelp"), ETaskPriority::Normal, EExtendedTaskPriority::None };
+		IConsoleVariable* CVarPtr = IConsoleManager::Get().FindConsoleVariable(CVarName);
+		for (int Priority = 0; Priority != (int)ETaskPriority::Count; ++Priority)
+		{
+			for (int ExtendedPriority = 0; ExtendedPriority != (int)EExtendedTaskPriority::Count; ++ExtendedPriority)
+			{
+				TStringBuilder<1024> TaskPriorities;
+				TaskPriorities.Append(ToString((ETaskPriority)Priority));
+				TaskPriorities.Append(TEXT(" "));
+				TaskPriorities.Append(ToString((EExtendedTaskPriority)ExtendedPriority));
+
+				CVarPtr->Set(*TaskPriorities);
+
+				check(CVar.GetTaskPriority() == (ETaskPriority)Priority);
+				check(CVar.GetExtendedTaskPriority() == (EExtendedTaskPriority)ExtendedPriority);
+				check(CVarPtr->GetString() == *TaskPriorities);
+			}
+		}
+
+		// test setting only task priority
+		CVarPtr->Set(TEXT("High"));
+		check(CVar.GetTaskPriority() == ETaskPriority::High);
+		check(CVar.GetExtendedTaskPriority() == EExtendedTaskPriority::None);
+		CVarPtr->Set(TEXT("Normal"));
+		check(CVar.GetTaskPriority() == ETaskPriority::Normal);
+
+		// usage example
+		CVarPtr->Set(TEXT("Normal"));
+		Launch(UE_SOURCE_LOCATION, [] {}, CVar.GetTaskPriority(), CVar.GetExtendedTaskPriority()).Wait();
+
+		return true;
+	}
 }}
 
 #endif // WITH_DEV_AUTOMATION_TESTS

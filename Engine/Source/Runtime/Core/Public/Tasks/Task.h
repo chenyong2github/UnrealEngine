@@ -472,6 +472,45 @@ namespace UE::Tasks
 		check(Parent != nullptr);
 		Parent->AddNested(*Nested.Pimpl);
 	}
+
+	// Console variable for configuring task priorities
+	// Example:
+	//		FTaskPriorityCVar CVar{ TEXT("CVarName"), TEXT("CVarHelp"), ETaskPriority::Normal, EExtendedTaskPriority::None };
+	//		Launch(UE_SOURCE_LOCATION, [] {}, CVar.GetTaskPriority(), CVar.GetExtendedTaskPriority()).Wait();
+	class FTaskPriorityCVar
+	{
+	public:
+		FTaskPriorityCVar(const TCHAR* Name, const TCHAR* Help, ETaskPriority DefaultPriority, EExtendedTaskPriority DefaultExtendedPriority)
+			: RawSetting(ConfigStringFromPriorities(DefaultPriority, DefaultExtendedPriority))
+			, FullHelpText(CreateFullHelpText(Name, Help))
+			, Variable(Name, RawSetting, *FullHelpText, FConsoleVariableDelegate::CreateRaw(this, &FTaskPriorityCVar::OnSettingChanged), ECVF_Default)
+			, Priority(DefaultPriority)
+			, ExtendedPriority(DefaultExtendedPriority)
+		{
+		}
+
+		ETaskPriority GetTaskPriority() const
+		{
+			return Priority;
+		}
+
+		EExtendedTaskPriority GetExtendedTaskPriority() const
+		{
+			return ExtendedPriority;
+		}
+
+	private:
+		static FString CreateFullHelpText(const TCHAR* Name, const TCHAR* OriginalHelp);
+		static FString ConfigStringFromPriorities(ETaskPriority InPriority, EExtendedTaskPriority InExtendedPriority);
+		void OnSettingChanged(IConsoleVariable* Variable);
+
+	private:
+		FString RawSetting;
+		FString FullHelpText;
+		FAutoConsoleVariableRef Variable;
+		ETaskPriority Priority;
+		EExtendedTaskPriority ExtendedPriority;
+	};
 }
 
 template <typename... TaskTypes>
