@@ -119,6 +119,7 @@ public:
 	virtual void SelectNone() override;
 	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override;
 	virtual bool UsesTransformWidget() const override;
+	virtual bool GetPivotForOrbit(FVector& OutPivot) const override;
 	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const;
 	virtual FVector GetWidgetLocation() const override;
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& OutMatrix, void* InData) override;

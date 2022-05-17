@@ -1120,6 +1120,16 @@ FVector FControlRigEditMode::GetWidgetLocation() const
 	return FEdMode::GetWidgetLocation();
 }
 
+bool FControlRigEditMode::GetPivotForOrbit(FVector& OutPivot) const
+{
+	if (UsesTransformWidget())
+	{
+		OutPivot = GetWidgetLocation();
+		return true;
+	}
+	return FEdMode::GetPivotForOrbit(OutPivot);
+}
+
 bool FControlRigEditMode::GetCustomDrawingCoordinateSystem(FMatrix& OutMatrix, void* InData)
 {
 	//since we strip translation just want the first one
