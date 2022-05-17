@@ -4,6 +4,7 @@
 
 #include "MassProcessingTypes.h"
 #include "MassEntityTypes.h"
+#include "Containers/StaticArray.h"
 
 
 class UMassProcessor;
@@ -18,9 +19,28 @@ enum class EDependencyNodeType : uint8
 
 namespace EMassAccessOperation
 {
-	constexpr int Read = 0;
-	constexpr int Write = 1;
-	constexpr int MAX = 2;
+	constexpr uint32 Read = 0;
+	constexpr uint32 Write = 1;
+	constexpr uint32 MAX = 2;
+};
+
+template<typename T>
+struct MASSENTITY_API TMassExecutionAccess
+{
+	T Read;
+	T Write;
+
+	T& operator[](const uint32 OpIndex)
+	{
+		check(OpIndex <= EMassAccessOperation::MAX);
+		return OpIndex == EMassAccessOperation::Read ? Read : Write;
+	}
+
+	const T& operator[](const uint32 OpIndex) const
+	{
+		check(OpIndex <= EMassAccessOperation::MAX);
+		return OpIndex == EMassAccessOperation::Read ? Read : Write;
+	}
 };
 
 struct MASSENTITY_API FMassExecutionRequirements
@@ -37,10 +57,10 @@ struct MASSENTITY_API FMassExecutionRequirements
 		return *this;
 	}
 
-	FMassFragmentBitSet Fragments[EMassAccessOperation::MAX];
-	FMassChunkFragmentBitSet ChunkFragments[EMassAccessOperation::MAX];
-	FMassSharedFragmentBitSet SharedFragments[EMassAccessOperation::MAX];
-	FMassExternalSubystemBitSet RequiredSubsystems[EMassAccessOperation::MAX];
+	TMassExecutionAccess<FMassFragmentBitSet> Fragments;
+	TMassExecutionAccess<FMassChunkFragmentBitSet> ChunkFragments;
+	TMassExecutionAccess<FMassSharedFragmentBitSet> SharedFragments;
+	TMassExecutionAccess<FMassExternalSubystemBitSet> RequiredSubsystems;
 };
 
 struct MASSENTITY_API FProcessorDependencySolver
@@ -60,10 +80,43 @@ private:
 		TArray<int32> TransientDependencies;
 		TArray<FName> ExecuteBefore;
 		TArray<FName> ExecuteAfter;
+		FMassExecutionRequirements Requirements;
 
 		int32 FindOrAddGroupNodeIndex(const FString& GroupName);
 		int32 FindNodeIndex(FName InNodeName) const;
 		bool HasDependencies() const;
+	};
+
+	struct FResourceUsage
+	{
+		FResourceUsage();
+
+		bool CanAccessRequirements(const FMassExecutionRequirements& TestedRequirements) const;
+		void SubmitNode(const int32 NodeIndex, FNode& InOutNode);
+
+	private:
+		struct FResourceUsers
+		{
+			TArray<int32> Users;
+		};
+		
+		struct FResourceAccess
+		{
+			TArray<FResourceUsers> Access;
+		};
+		
+		FMassExecutionRequirements Requirements;
+		TMassExecutionAccess<FResourceAccess> FragmentsAccess;
+		TMassExecutionAccess<FResourceAccess> ChunkFragmentsAccess;
+		TMassExecutionAccess<FResourceAccess> SharedFragmentsAccess;
+		TMassExecutionAccess<FResourceAccess> RequiredSubsystemsAccess;
+
+		template<typename TBitSet>
+		static void HandleElementType(TMassExecutionAccess<FResourceAccess>& ElementAccess
+			, const TMassExecutionAccess<TBitSet>& TestedRequirements, FProcessorDependencySolver::FNode& InOutNode, const int32 NodeIndex);
+
+		template<typename TBitSet>
+		static bool CanAccess(const TMassExecutionAccess<TBitSet>& StoredElements, const TMassExecutionAccess<TBitSet>& TestedElements);
 	};
 
 public:
@@ -84,21 +137,12 @@ protected:
 	// note that internals are protected rather than private to support unit testing
 
 	/**
-	 * Traverses RootNode's child nodes indicated by InOutIndicesRemaining and appends to OutNodeIndices the ones that 
-	 * have no dependencies. The indices added to OutNodeIndices also get removed from remaining nodes' outstanding 
-	 * dependencies.
-	 * Note that the whole InOutIndicesRemaining gets tested in sequence, which means nodes can get their dependencies 
-	 * emptied and added to OutNodeIndices within one call (as opposed to PerformPrioritySolverStep).
-	 */
-	static int32 PerformSolverStep(FNode& RootNode, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices);
-	
-	/**
 	 * Traverses InOutIndicesRemaining in search of the first RootNode's node that has no dependencies left. Once found 
 	 * the node's index gets added to OutNodeIndices, removed from dependency lists from all other nodes and the function 
 	 * quits.
 	 * @return 'true' if a dependency-less node has been found and added to OutNodeIndices; 'false' otherwise.
 	 */
-	static bool PerformPrioritySolverStep(FNode& RootNode, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices);
+	static bool PerformSolverStep(FResourceUsage& ResourceUsage, FNode& RootNode, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices);
 	
 	static FString NameViewToString(TConstArrayView<FName> View);
 

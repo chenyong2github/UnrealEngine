@@ -39,6 +39,100 @@ bool FProcessorDependencySolver::FNode::HasDependencies() const
 }
 
 //----------------------------------------------------------------------//
+//  FProcessorDependencySolver::FResourceUsage
+//----------------------------------------------------------------------//
+FProcessorDependencySolver::FResourceUsage::FResourceUsage()
+{
+	for (int i = 0; i < EMassAccessOperation::MAX; ++i)
+	{
+		FragmentsAccess[i].Access.AddZeroed(FMassFragmentBitSet::GetMaxNum());
+		ChunkFragmentsAccess[i].Access.AddZeroed(FMassChunkFragmentBitSet::GetMaxNum());
+		SharedFragmentsAccess[i].Access.AddZeroed(FMassSharedFragmentBitSet::GetMaxNum());
+		RequiredSubsystemsAccess[i].Access.AddZeroed(FMassExternalSubystemBitSet::GetMaxNum());
+	}
+}
+
+template<typename TBitSet>
+void FProcessorDependencySolver::FResourceUsage::HandleElementType(TMassExecutionAccess<FResourceAccess>& ElementAccess
+	, const TMassExecutionAccess<TBitSet>& TestedRequirements, FProcessorDependencySolver::FNode& InOutNode, const int32 NodeIndex)
+{
+	// for every bit set in TestedRequirements we do the following
+	// 1. For every read only requirement we make InOutNode depend on the currently stored Writer of this resource
+	//    - note that this operation is not destructive, meaning we don't destructively consume the data, since all 
+	//      subsequent read access to the given resource will also depend on the Writer
+	// 2. For every read-write requirement we make InOutNode depend on all the readers and writers currently stored. 
+	//    - once that's done we clean currently stored Readers and Writers since every subsequent operation on this 
+	//      resource will be blocked by currently considered InOutNode (as the new Writer)
+	// 3. For all accessed resources we store information that InOutNode is accessing it
+
+	// 1. For every read only requirement we make InOutNode depend on the currently stored Writer of this resource
+	for (auto It = TestedRequirements.Read.GetIndexIterator(); It; ++It)
+	{
+		InOutNode.OriginalDependencies.Append(ElementAccess.Write.Access[*It].Users);
+	}
+
+	// 2. For every read-write requirement we make InOutNode depend on all the readers and writers currently stored. 
+	for (auto It = TestedRequirements.Write.GetIndexIterator(); It; ++It)
+	{
+		InOutNode.OriginalDependencies.Append(ElementAccess.Read.Access[*It].Users);
+		ElementAccess.Read.Access[*It].Users.Reset();
+
+		// with the algorithm described above we expect there to only ever be at most one Writer
+		ensure(ElementAccess.Write.Access[*It].Users.Num() <= 1);
+		InOutNode.OriginalDependencies.Append(ElementAccess.Write.Access[*It].Users);
+		ElementAccess.Write.Access[*It].Users.Reset();
+	}
+
+	// 3. For all accessed resources we store information that InOutNode is accessing it
+	for (auto It = TestedRequirements.Read.GetIndexIterator(); It; ++It)
+	{
+		// mark Element at index indicated by It as being used in mode EMassAccessOperation(i) by NodeIndex
+		ElementAccess.Read.Access[*It].Users.Add(NodeIndex);
+	}
+	for (auto It = TestedRequirements.Write.GetIndexIterator(); It; ++It)
+	{
+		// mark Element at index indicated by It as being used in mode EMassAccessOperation(i) by NodeIndex
+		ElementAccess.Write.Access[*It].Users.Add(NodeIndex);
+	}
+}
+
+template<typename TBitSet>
+bool FProcessorDependencySolver::FResourceUsage::CanAccess(const TMassExecutionAccess<TBitSet>& StoredElements, const TMassExecutionAccess<TBitSet>& TestedElements)
+{
+	// see if there's an overlap of tested write operations with existing read & write operations, as well as 
+	// tested read operations with existing write operations
+	
+	return !(
+		// if someone's already writing to what I want to write
+		TestedElements.Write.HasAny(StoredElements.Write)
+		// or if someone's already reading what I want to write
+		|| TestedElements.Write.HasAny(StoredElements.Read)
+		// or if someone's already writing what I want to read
+		|| TestedElements.Read.HasAny(StoredElements.Write)
+	);
+}
+
+bool FProcessorDependencySolver::FResourceUsage::CanAccessRequirements(const FMassExecutionRequirements& TestedRequirements) const
+{
+	bool bCanAccess = CanAccess<FMassFragmentBitSet>(Requirements.Fragments, TestedRequirements.Fragments)
+		&& CanAccess<FMassChunkFragmentBitSet>(Requirements.ChunkFragments, TestedRequirements.ChunkFragments)
+		&& CanAccess<FMassSharedFragmentBitSet>(Requirements.SharedFragments, TestedRequirements.SharedFragments)
+		&& CanAccess<FMassExternalSubystemBitSet>(Requirements.RequiredSubsystems, TestedRequirements.RequiredSubsystems);
+
+	return bCanAccess;
+}
+
+void FProcessorDependencySolver::FResourceUsage::SubmitNode(const int32 NodeIndex, FNode& InOutNode)
+{
+	HandleElementType<FMassFragmentBitSet>(FragmentsAccess, InOutNode.Requirements.Fragments, InOutNode, NodeIndex);
+	HandleElementType<FMassChunkFragmentBitSet>(ChunkFragmentsAccess, InOutNode.Requirements.ChunkFragments, InOutNode, NodeIndex);
+	HandleElementType<FMassSharedFragmentBitSet>(SharedFragmentsAccess, InOutNode.Requirements.SharedFragments, InOutNode, NodeIndex);
+	HandleElementType<FMassExternalSubystemBitSet>(RequiredSubsystemsAccess, InOutNode.Requirements.RequiredSubsystems, InOutNode, NodeIndex);
+
+	Requirements += InOutNode.Requirements;
+}
+
+//----------------------------------------------------------------------//
 //  FProcessorDependencySolver
 //----------------------------------------------------------------------//
 FProcessorDependencySolver::FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName /*= FString()*/)
@@ -61,48 +155,44 @@ FString FProcessorDependencySolver::NameViewToString(TConstArrayView<FName> View
 	return ReturnVal + TEXT("]");
 }
 
-int32 FProcessorDependencySolver::PerformSolverStep(FNode& RootNode, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices)
+bool FProcessorDependencySolver::PerformSolverStep(FResourceUsage& ResourceUsage, FNode& RootNode, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices)
 {
-	const int32 StartingCount = OutNodeIndices.Num();
-
-	for (int32 i = InOutIndicesRemaining.Num() - 1; i >= 0; --i)
+	int32 AcceptedNodeIndex = INDEX_NONE;
+	int32 FallbackAcceptedNodeIndex = INDEX_NONE;
+	// note that InOutIndicesRemaining contains indices valid for RootNode.SubNodes
+	// but that's ok, since in this step we only care about elements on this "level" (i.e. direct children of RootNode).
+	for (int32 i = 0; i < InOutIndicesRemaining.Num(); ++i)
 	{
 		const int32 NodeIndex = InOutIndicesRemaining[i];
 		if (RootNode.SubNodes[NodeIndex].TransientDependencies.Num() == 0)
 		{
-			InOutIndicesRemaining.RemoveAtSwap(i, 1, /*bAllowShrinking=*/false);
-			OutNodeIndices.Add(NodeIndex);
+			if (ResourceUsage.CanAccessRequirements(RootNode.SubNodes[NodeIndex].Requirements))
+			{
+				AcceptedNodeIndex = NodeIndex;
+				break;
+			}
+			else if (FallbackAcceptedNodeIndex == INDEX_NONE)
+			{
+				// if none of the nodes left can "cleanly" execute (i.e. without conflicting with already stored nodes)
+				// we'll just pick this one up and go with it. 
+				FallbackAcceptedNodeIndex = NodeIndex;
+			}
 		}
 	}
 
-	for (const int32 NodeIndex : OutNodeIndices)
+	if (AcceptedNodeIndex != INDEX_NONE || FallbackAcceptedNodeIndex != INDEX_NONE)
 	{
+		const int32 NodeIndex = AcceptedNodeIndex != INDEX_NONE ? AcceptedNodeIndex : FallbackAcceptedNodeIndex;
+		ResourceUsage.SubmitNode(NodeIndex, RootNode.SubNodes[NodeIndex]);
+		InOutIndicesRemaining.RemoveSingle(NodeIndex);
+		OutNodeIndices.Add(NodeIndex);
+
 		for (const int32 RemainingNodeIndex : InOutIndicesRemaining)
 		{
 			RootNode.SubNodes[RemainingNodeIndex].TransientDependencies.RemoveSingleSwap(NodeIndex, /*bAllowShrinking=*/false);
 		}
-	}
-
-	return OutNodeIndices.Num() - StartingCount;
-}
-
-bool FProcessorDependencySolver::PerformPrioritySolverStep(FNode& RootNode, TArray<int32>& InOutPriorityIndicesRemaining, TArray<int32>& OutNodeIndices)
-{
-	for (int32 i = 0; i < InOutPriorityIndicesRemaining.Num(); ++i)
-	{
-		const int32 NodeIndex = InOutPriorityIndicesRemaining[i];
-		if (RootNode.SubNodes[NodeIndex].TransientDependencies.Num() == 0)
-		{
-			InOutPriorityIndicesRemaining.RemoveAt(i, 1, /*bAllowShrinking=*/false);
-			OutNodeIndices.Add(NodeIndex);
-
-			for (const int32 RemainingNodeIndex : InOutPriorityIndicesRemaining)
-			{
-				RootNode.SubNodes[RemainingNodeIndex].TransientDependencies.RemoveSingleSwap(NodeIndex, /*bAllowShrinking=*/false);
-			}
-
-			return true;
-		}
+		
+		return true;
 	}
 
 	return false;
@@ -206,10 +296,13 @@ void FProcessorDependencySolver::BuildDependencies(FNode& RootNode)
 		{
 			ExecuteBefore = Node.Processor->GetExecutionOrder().ExecuteBefore;
 			ExecuteAfter = Node.Processor->GetExecutionOrder().ExecuteAfter;
+			Node.Processor->ExportRequirements(Node.Requirements);
+			RootNode.Requirements += Node.Requirements;
 		}
 		else
 		{
 			BuildDependencies(Node);
+			RootNode.Requirements += Node.Requirements;
 			ExecuteBefore = Node.ExecuteBefore;
 			ExecuteAfter = Node.ExecuteAfter;
 		}
@@ -744,17 +837,16 @@ void FProcessorDependencySolver::Solve(FNode& RootNode, TConstArrayView<const FN
 		}
 	}
 	
+	FResourceUsage ResourceUsage;
+	
 	TArray<int32> SortedNodeIndices;
 	SortedNodeIndices.Reserve(RootNode.SubNodes.Num());
 
-	bool bCyclesDetected = false;
-	int32 Steps = 0;
 	while (IndicesRemaining.Num())
 	{
-		bCyclesDetected = (PerformPrioritySolverStep(RootNode, IndicesRemaining, SortedNodeIndices) == false);
-		++Steps;
+		const bool bStepSuccessful = PerformSolverStep(ResourceUsage, RootNode, IndicesRemaining, SortedNodeIndices);
 
-		if (bCyclesDetected)
+		if (bStepSuccessful == false)
 		{
 			bAnyCyclesDetected = true;
 
@@ -792,7 +884,7 @@ void FProcessorDependencySolver::Solve(FNode& RootNode, TConstArrayView<const FN
 		TArray<FName> DependencyNames;
 		for (const int32 DependencyIndex : RootNode.SubNodes[NodeIndex].OriginalDependencies)
 		{
-			DependencyNames.Add(RootNode.SubNodes[DependencyIndex].Name);
+			DependencyNames.AddUnique(RootNode.SubNodes[DependencyIndex].Name);
 		}
 
 		if (RootNode.SubNodes[NodeIndex].Processor != nullptr)

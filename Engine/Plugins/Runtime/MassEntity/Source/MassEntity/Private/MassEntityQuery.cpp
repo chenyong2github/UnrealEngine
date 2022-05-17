@@ -18,7 +18,7 @@
 namespace UE::Mass::Private
 {
 	template<typename TContainer>
-	void ExportRequirements(TConstArrayView<FMassFragmentRequirement> Requirements, TContainer(&Out)[EMassAccessOperation::MAX])
+	void ExportRequirements(TConstArrayView<FMassFragmentRequirement> Requirements, TMassExecutionAccess<TContainer>& Out)
 	{
 		for (const FMassFragmentRequirement& Requirement : Requirements)
 		{
@@ -27,11 +27,11 @@ namespace UE::Mass::Private
 				check(Requirement.StructType);
 				if (Requirement.AccessMode == EMassFragmentAccess::ReadOnly)
 				{
-					Out[EMassAccessOperation::Read].Add(*Requirement.StructType);
+					Out.Read.Add(*Requirement.StructType);
 				}
 				else if (Requirement.AccessMode == EMassFragmentAccess::ReadWrite)
 				{
-					Out[EMassAccessOperation::Write].Add(*Requirement.StructType);
+					Out.Write.Add(*Requirement.StructType);
 				}
 			}
 		}
@@ -335,14 +335,14 @@ bool FMassEntityQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsyst
 
 void FMassEntityQuery::ExportRequirements(FMassExecutionRequirements& OutRequirements) const
 {
-	OutRequirements.RequiredSubsystems[EMassAccessOperation::Read] += RequiredConstSubsystems;
-	OutRequirements.RequiredSubsystems[EMassAccessOperation::Write] += RequiredMutableSubsystems;
+	OutRequirements.RequiredSubsystems.Read += RequiredConstSubsystems;
+	OutRequirements.RequiredSubsystems.Write += RequiredMutableSubsystems;
 
 	using UE::Mass::Private::ExportRequirements;
-	ExportRequirements(Requirements, OutRequirements.Fragments);
-	ExportRequirements(ChunkRequirements, OutRequirements.ChunkFragments);
-	ExportRequirements(ConstSharedRequirements, OutRequirements.SharedFragments);
-	ExportRequirements(SharedRequirements, OutRequirements.SharedFragments);
+	ExportRequirements<FMassFragmentBitSet>(Requirements, OutRequirements.Fragments);
+	ExportRequirements<FMassChunkFragmentBitSet>(ChunkRequirements, OutRequirements.ChunkFragments);
+	ExportRequirements<FMassSharedFragmentBitSet>(ConstSharedRequirements, OutRequirements.SharedFragments);
+	ExportRequirements<FMassSharedFragmentBitSet>(SharedRequirements, OutRequirements.SharedFragments);
 }
 
 FString FMassEntityQuery::DebugGetDescription() const
