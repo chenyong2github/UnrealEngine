@@ -491,13 +491,17 @@ void UDeviceProfileManager::ChangeTaggedFragmentState(FName FragmentTag, bool bN
 	}
 }
 
-void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile()
+void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSettings, bool bIsDeviceProfilePreview, bool bForceReload)
 {
 	FString ActiveProfileName;
 
 	if (DeviceProfileManagerSingleton)
 	{
 		ActiveProfileName = DeviceProfileManagerSingleton->ActiveDeviceProfile->GetName();
+		//Ensure we've loaded the device profiles for the active platform.
+		//This can be needed when overriding the device profile.
+		FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"), NULL, bForceReload);
+
 	}
 	else
 	{
@@ -553,7 +557,7 @@ bool UDeviceProfileManager::DoActiveProfilesReference(const TSet<FString>& Devic
 	return bDoActiveProfilesReferenceQuerySet;
 }
 
-void UDeviceProfileManager::ReapplyDeviceProfile()
+void UDeviceProfileManager::ReapplyDeviceProfile(bool bForceReload)
 {	
 	UDeviceProfile* OverrideProfile = DeviceProfileManagerSingleton->BaseDeviceProfile ? DeviceProfileManagerSingleton->GetActiveProfile() : nullptr;
 	UDeviceProfile* BaseProfile = DeviceProfileManagerSingleton->BaseDeviceProfile ? DeviceProfileManagerSingleton->BaseDeviceProfile : DeviceProfileManagerSingleton->GetActiveProfile();
@@ -574,7 +578,7 @@ void UDeviceProfileManager::ReapplyDeviceProfile()
 		RestorePushedState(PushedSettings);
 
 		// Apply the active DP. 
-		InitializeCVarsForActiveDeviceProfile();
+		InitializeCVarsForActiveDeviceProfile(false, false, bForceReload);
 
 		// broadcast cvar sinks now that we are done
 		IConsoleManager::Get().CallAllConsoleVariableSinks();

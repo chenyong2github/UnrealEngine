@@ -48,13 +48,13 @@ public:
 	 * Startup and select the active device profile
 	 * Then Init the CVars from this profile and it's Device profile parent tree.
 	 */
-	static void InitializeCVarsForActiveDeviceProfile();
+	static void InitializeCVarsForActiveDeviceProfile(bool bPushSettings = false, bool bIsDeviceProfilePreview = false, bool bForceReload = false);
 
 	/**
 	 * Reapplies the device profile. Useful when configs have changed (i.e. hotfix)
 	 * Applies base and then any overridden device profile.
 	 */
-	void ReapplyDeviceProfile();
+	void ReapplyDeviceProfile(bool bForceReload = false);
 
 	/**
 	 * Examine the currently active or overridden profile for references to entries in DeviceProfilesToQuery
