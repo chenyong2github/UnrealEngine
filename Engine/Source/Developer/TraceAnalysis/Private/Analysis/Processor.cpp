@@ -2,6 +2,7 @@
 
 #include "Processor.h"
 #include "HAL/Event.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/RunnableThread.h"
 #include "StreamReader.h"
