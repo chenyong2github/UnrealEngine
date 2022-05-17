@@ -228,7 +228,7 @@ void UWidgetBlueprintLibrary::DrawLines(FPaintContext& Context, const TArray<FVe
 		Context.OutDrawElements,
 		Context.MaxLayer,
 		Context.AllottedGeometry.ToPaintGeometry(),
-		ValidatedPoints,
+		MoveTemp(ValidatedPoints),
 		ESlateDrawEffect::None,
 		Tint,
 		bAntiAlias,
