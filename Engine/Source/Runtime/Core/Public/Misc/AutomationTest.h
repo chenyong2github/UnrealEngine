@@ -175,7 +175,7 @@ public:
 	/** Any errors that occurred during execution */
 	const TArray<FAutomationExecutionEntry>& GetEntries() const { return Entries; }
 
-	void AddEvent(const FAutomationEvent& Event, int StackOffset = 0);
+	void AddEvent(const FAutomationEvent& Event, int StackOffset = 0, bool bCaptureStack = true);
 
 	void AddWarning(const FString& WarningMessage);
 	void AddError(const FString& ErrorMessage);
@@ -1278,14 +1278,14 @@ public:
 	 *
 	 * @param	InLogItem	Log item to add to this test
 	 */
-	virtual void AddInfo( const FString& InLogItem, int32 StackOffset = 0);
+	virtual void AddInfo( const FString& InLogItem, int32 StackOffset = 0, bool bCaptureStack = false);
 
 	/**
 	 * Adds an automation event directly into the execution log.
 	 *
 	 * @param	InLogItem	Log item to add to this test
 	 */
-	virtual void AddEvent(const FAutomationEvent& InEvent, int32 StackOffset = 0);
+	virtual void AddEvent(const FAutomationEvent& InEvent, int32 StackOffset = 0, bool bCaptureStack = false);
 
 	/**
 	 * Adds a analytics string to parse later

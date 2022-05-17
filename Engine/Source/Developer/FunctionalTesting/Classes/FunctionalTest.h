@@ -7,6 +7,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "Math/RandomStream.h"
+#include "Stats/Stats2.h"
 #include "GameFramework/Actor.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
 #include "Math/StatisticalFloat.h"
@@ -16,6 +17,8 @@ class Error;
 class UBillboardComponent;
 class UTraceQueryTestResults;
 class UWorld;
+
+DECLARE_STATS_GROUP(TEXT("FunctionalTest"), STATGROUP_FunctionalTest, STATCAT_Advanced);
 
 #if UE_EXTERNAL_PROFILING_ENABLED
 //Experimental effort at automated cpu captures from the functional testing.

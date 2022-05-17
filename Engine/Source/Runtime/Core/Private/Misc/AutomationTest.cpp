@@ -936,7 +936,7 @@ int32 FAutomationTestExecutionInfo::RemoveAllEvents(TFunctionRef<bool(FAutomatio
 	return TotalRemoved;
 }
 
-void FAutomationTestExecutionInfo::AddEvent(const FAutomationEvent& Event, int StackOffset)
+void FAutomationTestExecutionInfo::AddEvent(const FAutomationEvent& Event, int StackOffset, bool bCaptureStack)
 {
 	switch (Event.Type)
 	{
@@ -949,7 +949,7 @@ void FAutomationTestExecutionInfo::AddEvent(const FAutomationEvent& Event, int S
 	}
 
 	int32 EntryIndex = -1;
-	if (FAutomationTestFramework::Get().GetCaptureStack())
+	if (FAutomationTestFramework::Get().GetCaptureStack() && bCaptureStack)
 	{
 		SAFE_GETSTACK(Stack, StackOffset + 1, 1);
 		if (Stack.Num())
@@ -1070,10 +1070,10 @@ void FAutomationTestBase::AddWarning( const FString& InWarning, int32 StackOffse
 	}
 }
 
-void FAutomationTestBase::AddInfo( const FString& InLogItem, int32 StackOffset )
+void FAutomationTestBase::AddInfo( const FString& InLogItem, int32 StackOffset, bool bCaptureStack )
 {
 	FScopeLock Lock(&ActionCS);
-	ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Info, InLogItem), StackOffset + 1);
+	ExecutionInfo.AddEvent(FAutomationEvent(EAutomationEventType::Info, InLogItem), StackOffset + 1, bCaptureStack);
 }
 
 void FAutomationTestBase::AddAnalyticsItem(const FString& InAnalyticsItem)
@@ -1102,10 +1102,10 @@ void FAutomationTestBase::SetTelemetryStorage(const FString& StorageName)
 	ExecutionInfo.TelemetryStorage = StorageName;
 }
 
-void FAutomationTestBase::AddEvent(const FAutomationEvent& InEvent, int32 StackOffset)
+void FAutomationTestBase::AddEvent(const FAutomationEvent& InEvent, int32 StackOffset, bool bCaptureStack)
 {
 	FScopeLock Lock(&ActionCS);
-	ExecutionInfo.AddEvent(InEvent, StackOffset + 1);
+	ExecutionInfo.AddEvent(InEvent, StackOffset + 1, bCaptureStack);
 }
 
 bool FAutomationTestBase::HasAnyErrors() const

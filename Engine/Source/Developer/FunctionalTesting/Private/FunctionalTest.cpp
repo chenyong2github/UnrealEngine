@@ -26,6 +26,12 @@
 #include "Misc/RuntimeErrors.h"
 #include "FunctionalTestBase.h"
 
+DECLARE_CYCLE_STAT(TEXT("FunctionalTest - RunTest"), STAT_FunctionalTest_RunTest, STATGROUP_FunctionalTest);
+DECLARE_CYCLE_STAT(TEXT("FunctionalTest - StartTest"), STAT_FunctionalTest_StartTest, STATGROUP_FunctionalTest);
+DECLARE_CYCLE_STAT(TEXT("FunctionalTest - PrepareTest"), STAT_FunctionalTest_PrepareTest, STATGROUP_FunctionalTest);
+DECLARE_CYCLE_STAT(TEXT("FunctionalTest - Tick"), STAT_FunctionalTest_TickTest, STATGROUP_FunctionalTest);
+DECLARE_CYCLE_STAT(TEXT("FunctionalTest - FinishTest"), STAT_FunctionalTest_FinishTest, STATGROUP_FunctionalTest);
+
 namespace
 {
 	template <typename T>
@@ -217,6 +223,7 @@ void AFunctionalTest::OnConstruction(const FTransform& Transform)
 
 bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 {
+	SCOPE_CYCLE_COUNTER(STAT_FunctionalTest_RunTest);
 	UWorld* World = GetWorld();
 	ensure(World->HasBegunPlay());
 
@@ -271,11 +278,13 @@ bool AFunctionalTest::RunTest(const TArray<FString>& Params)
 
 void AFunctionalTest::PrepareTest()
 {
+	SCOPE_CYCLE_COUNTER(STAT_FunctionalTest_PrepareTest);
 	ReceivePrepareTest();
 }
 
 void AFunctionalTest::StartTest()
 {
+	SCOPE_CYCLE_COUNTER(STAT_FunctionalTest_StartTest);
 	TotalTime = 0.f;
 	StartFrame = GFrameNumber;
 	StartTime = GetWorld()->GetTimeSeconds();
@@ -309,7 +318,8 @@ void AFunctionalTest::Tick(float DeltaSeconds)
 	{
 		return;
 	}
-
+	SCOPE_CYCLE_COUNTER(STAT_FunctionalTest_TickTest);
+	
 	//Do not collect garbage during the test. We force GC at the end.
 	GEngine->DelayGarbageCollection();
 
@@ -355,6 +365,7 @@ void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString
 		// ignore
 		return;
 	}
+	SCOPE_CYCLE_COUNTER(STAT_FunctionalTest_FinishTest);
 	
 	// Do reporting first. When we start cleaning things up internal states that capture results
 	// are reset.
@@ -373,12 +384,14 @@ void AFunctionalTest::FinishTest(EFunctionalTestResult TestResult, const FString
 			break;
 			
 		default:
-			LogStep(ELogVerbosity::Log, *Message);
+			if (!Message.IsEmpty())
+			{
+				LogStep(ELogVerbosity::Log, *Message);
+			}
 			break;
 	}
 	
-	FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest());
-	if (FunctionalTest)
+	if (FFunctionalTestBase* FunctionalTest = static_cast<FFunctionalTestBase*>(FAutomationTestFramework::Get().GetCurrentTest()))
 	{
 		FunctionalTest->SetFunctionalTestComplete(TestLabel);
 	}
