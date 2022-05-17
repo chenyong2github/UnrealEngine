@@ -190,7 +190,7 @@ public:
 	FD3D12Viewport* GetViewPort() { return Viewport; }
 	bool IsSDR() const { return bIsSDR; }
 
-	D3D12RHI_API FRHITexture* GetBackBufferTexture();
+	FRHITexture* GetBackBufferTexture();
 
 private:
 

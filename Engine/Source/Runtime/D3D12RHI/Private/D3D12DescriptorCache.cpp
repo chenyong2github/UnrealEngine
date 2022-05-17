@@ -258,7 +258,7 @@ bool FD3D12DescriptorCache::SetDescriptorHeaps()
 }
 
 
-D3D12RHI_API void FD3D12DescriptorCache::SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle)
+void FD3D12DescriptorCache::SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle)
 {
 	// Clear the previous heap pointers (since it's a new command list) and then set the current descriptor heaps.
 	pPreviousViewHeap = nullptr;
