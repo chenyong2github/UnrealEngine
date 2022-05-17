@@ -158,6 +158,10 @@ public:
     		PRAGMA_ENABLE_DEPRECATION_WARNINGS
     		);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FSkeletalMeshMerge(const FSkeletalMeshMerge&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/**
 	 * Merge/Composite skeleton and meshes together from the list of source meshes.
 	 * @param RefPoseOverrides - An optional override for the merged skeleton's reference pose.

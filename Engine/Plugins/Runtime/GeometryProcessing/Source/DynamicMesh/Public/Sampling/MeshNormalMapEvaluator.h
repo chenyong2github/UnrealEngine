@@ -19,6 +19,12 @@ namespace Geometry
 class DYNAMICMESH_API FMeshNormalMapEvaluator : public FMeshMapEvaluator
 {
 public:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FMeshNormalMapEvaluator() = default;
+	FMeshNormalMapEvaluator(const FMeshNormalMapEvaluator&) = default;
+	FMeshNormalMapEvaluator& operator=( const FMeshNormalMapEvaluator& ) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	// Begin FMeshMapEvaluator interface
 	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) override;
 

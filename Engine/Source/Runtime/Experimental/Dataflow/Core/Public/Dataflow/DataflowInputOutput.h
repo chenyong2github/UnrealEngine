@@ -29,7 +29,7 @@ namespace Dataflow
 	};
 
 	template<class T>
-	class DATAFLOWCORE_API TInput : public FConnection
+	class TInput : public FConnection
 	{
 		typedef FConnection Super;
 		friend class FConnection;

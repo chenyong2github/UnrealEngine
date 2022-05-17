@@ -55,7 +55,7 @@ struct TStructOpsTypeTraits<FNiagaraWorldManagerTickFunction> : public TStructOp
 
 using FNiagaraSystemSimulationRef = TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>;
 
-enum class NIAGARA_API ENiagaraScalabilityCullingMode : uint8
+enum class ENiagaraScalabilityCullingMode : uint8
 {
 	/* Scalability culling is enabled as normal. */
 	Enabled,

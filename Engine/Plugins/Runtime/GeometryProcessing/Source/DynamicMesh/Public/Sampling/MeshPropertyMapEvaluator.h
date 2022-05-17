@@ -32,6 +32,12 @@ public:
 	EMeshPropertyMapType Property = EMeshPropertyMapType::Normal;
 
 public:
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FMeshPropertyMapEvaluator() = default;
+	FMeshPropertyMapEvaluator(const FMeshPropertyMapEvaluator&) = default;
+	FMeshPropertyMapEvaluator& operator=(const FMeshPropertyMapEvaluator&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	// Begin FMeshMapEvaluator interface
 	virtual void Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context) override;
 
