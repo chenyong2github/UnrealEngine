@@ -91,8 +91,9 @@ struct FD3D12ShaderData
 #endif
 
 	FORCEINLINE bool UsesDiagnosticBuffer() const { return EnumHasAnyFlags(GetFeatures(), EShaderCodeFeatures::DiagnosticBuffer); }
-	FORCEINLINE bool UsesBindlessResources() const { return EnumHasAnyFlags(GetFeatures(), EShaderCodeFeatures::BindlessResources); }
-	FORCEINLINE bool UsesBindlessSamplers() const { return EnumHasAnyFlags(GetFeatures(), EShaderCodeFeatures::BindlessSamplers); }
+	FORCEINLINE bool UsesGlobalUniformBuffer() const { return EnumHasAnyFlags(ResourceCounts.UsageFlags, EShaderResourceUsageFlags::GlobalUniformBuffer); }
+	FORCEINLINE bool UsesBindlessResources() const { return EnumHasAnyFlags(ResourceCounts.UsageFlags, EShaderResourceUsageFlags::BindlessResources); }
+	FORCEINLINE bool UsesBindlessSamplers() const { return EnumHasAnyFlags(ResourceCounts.UsageFlags, EShaderResourceUsageFlags::BindlessSamplers); }
 
 	bool InitCommon(TArrayView<const uint8> InCode);
 };

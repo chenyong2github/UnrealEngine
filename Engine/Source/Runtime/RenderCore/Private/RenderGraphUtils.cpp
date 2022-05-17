@@ -20,8 +20,9 @@ void ClearUnusedGraphResourcesImpl(
 	const auto& GraphResources = ParametersMetadata->GetLayout().GraphResources;
 
 	int32 ShaderResourceIndex = 0;
+	int32 BindlessResourceIndex = 0;
 	int32 GraphUniformBufferId = 0;
-	auto Base = reinterpret_cast<uint8*>(InoutParameters);
+	uint8* const Base = reinterpret_cast<uint8*>(InoutParameters);
 
 	for (int32 GraphResourceIndex = 0, GraphResourceCount = GraphResources.Num(); GraphResourceIndex < GraphResourceCount; GraphResourceIndex++)
 	{
@@ -34,13 +35,24 @@ void ClearUnusedGraphResourcesImpl(
 			Type == UBMT_RDG_BUFFER_SRV ||
 			Type == UBMT_RDG_BUFFER_UAV)
 		{
-			const auto& ResourceParameters = ShaderBindings.ResourceParameters;
+			const TMemoryImageArray<FShaderParameterBindings::FResourceParameter>& ResourceParameters = ShaderBindings.ResourceParameters;
 			const int32 ShaderResourceCount = ResourceParameters.Num();
 			for (; ShaderResourceIndex < ShaderResourceCount && ResourceParameters[ShaderResourceIndex].ByteOffset < ByteOffset; ++ShaderResourceIndex)
 			{
 			}
 
 			if (ShaderResourceIndex < ShaderResourceCount && ResourceParameters[ShaderResourceIndex].ByteOffset == ByteOffset)
+			{
+				continue;
+			}
+
+			const TMemoryImageArray<FShaderParameterBindings::FBindlessResourceParameter>& BindlessResourceParameters = ShaderBindings.BindlessResourceParameters;
+			const int32 BindlessResourceCount = BindlessResourceParameters.Num();
+			for (; BindlessResourceIndex < BindlessResourceCount && BindlessResourceParameters[BindlessResourceIndex].ByteOffset < ByteOffset; BindlessResourceIndex++)
+			{
+			}
+
+			if (BindlessResourceIndex < BindlessResourceCount && BindlessResourceParameters[BindlessResourceIndex].ByteOffset == ByteOffset)
 			{
 				continue;
 			}

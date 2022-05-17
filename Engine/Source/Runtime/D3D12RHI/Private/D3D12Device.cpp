@@ -352,7 +352,7 @@ void FD3D12Device::SetupAfterDeviceCreation()
 		OfflineDescriptorManagers[Index].Init(static_cast<ERHIDescriptorHeapType>(Index));
 	}
 
-	GlobalSamplerHeap.Init(GGlobalSamplerHeapSize);
+	GlobalSamplerHeap.Init(GGlobalSamplerHeapSize - GBindlessSamplerDescriptorHeapSize);
 
 	OnlineDescriptorManager.Init(GOnlineDescriptorHeapSize, GOnlineDescriptorHeapBlockSize);
 

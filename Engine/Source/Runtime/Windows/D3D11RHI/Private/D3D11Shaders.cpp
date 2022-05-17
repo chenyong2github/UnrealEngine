@@ -23,7 +23,7 @@ static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 		OutShader.UAVMask = ResourceMasks->UAVMask;
 	}
 	
-	OutShader.bShaderNeedsGlobalConstantBuffer = PackedResourceCounts->bGlobalUniformBufferUsed;
+	OutShader.bShaderNeedsGlobalConstantBuffer = EnumHasAnyFlags(PackedResourceCounts->UsageFlags, EShaderResourceUsageFlags::GlobalUniformBuffer);
 #if RHI_INCLUDE_SHADER_DEBUG_DATA
 	OutShader.ShaderName = InShaderCode.FindOptionalData(FShaderCodeName::Key);
 
@@ -48,7 +48,7 @@ static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 		FBufferReader Ar((void*)VendorExtensionData, VendorExtensionTableSize, false);
 		Ar << OutShader.VendorExtensions;
 	}
-	OutShader.bShaderNeedsGlobalConstantBuffer = PackedResourceCounts->bGlobalUniformBufferUsed;
+	OutShader.bShaderNeedsGlobalConstantBuffer = EnumHasAnyFlags(PackedResourceCounts->UsageFlags, EShaderResourceUsageFlags::GlobalUniformBuffer);
 
 	int32 IsSm6ShaderSize = 1;
 	const uint8* IsSm6Shader = InShaderCode.FindOptionalData('6', IsSm6ShaderSize);

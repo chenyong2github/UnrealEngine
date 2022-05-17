@@ -199,24 +199,36 @@ struct FShaderParameterStructBindingContext
 				}
 				else if (bIsRHIResource || bIsRDGResource)
 				{
-					checkf(ParameterAllocation->BaseIndex < 256, TEXT("BaseIndex does not fit into uint8. Change FResourceParameter::BaseIndex type to uint16"));
-
-					FShaderParameterBindings::FResourceParameter Parameter;
-					Parameter.BaseIndex = (uint8)ParameterAllocation->BaseIndex;
-					Parameter.ByteOffset = ByteOffset + ArrayElementId * SHADER_PARAMETER_POINTER_ALIGNMENT;
-					Parameter.BaseType = BaseType;
-
-					if (ParameterAllocation->Size != 1)
+					if (ParameterAllocation->Type == EShaderParameterType::BindlessResourceIndex || ParameterAllocation->Type == EShaderParameterType::BindlessSamplerIndex)
 					{
-						UE_LOG(LogShaders, Fatal,
-							TEXT("Error with shader %s's (Permutation Id %d) parameter %s is %i bytes, cpp name = %s.")
-							TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
-							TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."),
-							Shader->GetTypeUnfrozen()->GetName(), PermutationId,
-							*ElementShaderBindingName, ParameterAllocation->Size, *CppName);
-					}
+						FShaderParameterBindings::FBindlessResourceParameter Parameter;
+						Parameter.GlobalConstantOffset = ParameterAllocation->BaseIndex;
+						Parameter.ByteOffset = ByteOffset + ArrayElementId * SHADER_PARAMETER_POINTER_ALIGNMENT;
+						Parameter.BaseType = BaseType;
 
-					Bindings->ResourceParameters.Add(Parameter);
+						Bindings->BindlessResourceParameters.Add(Parameter);
+					}
+					else
+					{
+						checkf(ParameterAllocation->BaseIndex < 256, TEXT("BaseIndex does not fit into uint8. Change FResourceParameter::BaseIndex type to uint16"));
+
+						FShaderParameterBindings::FResourceParameter Parameter;
+						Parameter.BaseIndex = (uint8)ParameterAllocation->BaseIndex;
+						Parameter.ByteOffset = ByteOffset + ArrayElementId * SHADER_PARAMETER_POINTER_ALIGNMENT;
+						Parameter.BaseType = BaseType;
+
+						if (ParameterAllocation->Size != 1)
+						{
+							UE_LOG(LogShaders, Fatal,
+								TEXT("Error with shader %s's (Permutation Id %d) parameter %s is %i bytes, cpp name = %s.")
+								TEXT("The shader compiler should give precisely which elements of an array did not get compiled out, ")
+								TEXT("for optimal automatic render graph pass dependency with ClearUnusedGraphResources()."),
+								Shader->GetTypeUnfrozen()->GetName(), PermutationId,
+								*ElementShaderBindingName, ParameterAllocation->Size, *CppName);
+						}
+
+						Bindings->ResourceParameters.Add(Parameter);
+					}
 				}
 				else
 				{
@@ -581,6 +593,74 @@ void ValidateShaderParameterResourcesRHI(const void* Contents, const FRHIUniform
 
 #endif // DO_CHECK
 
+inline FRHIDescriptorHandle GetBindlessParameterHandle(FShaderParameterReader Reader, const FShaderParameterBindings::FBindlessResourceParameter& Parameter)
+{
+	const EUniformBufferBaseType BaseType = static_cast<EUniformBufferBaseType>(Parameter.BaseType);
+	switch (BaseType)
+	{
+	case UBMT_TEXTURE:
+	{
+		FRHITexture* Texture = Reader.Read<FRHITexture*>(Parameter);
+		checkSlow(Texture);
+		return Texture ? Texture->GetDefaultBindlessHandle() : FRHIDescriptorHandle();
+	}
+	break;
+	case UBMT_SRV:
+	{
+		FRHIShaderResourceView* ShaderResourceView = Reader.Read<FRHIShaderResourceView*>(Parameter);
+		checkSlow(ShaderResourceView);
+		return ShaderResourceView->GetBindlessHandle();
+	}
+	break;
+	case UBMT_SAMPLER:
+	{
+		FRHISamplerState* SamplerState = Reader.Read<FRHISamplerState*>(Parameter);
+		checkSlow(SamplerState);
+		return SamplerState->GetBindlessHandle();
+	}
+	break;
+	case UBMT_RDG_TEXTURE:
+	{
+		FRDGTexture* RDGTexture = Reader.Read<FRDGTexture*>(Parameter);
+		checkSlow(RDGTexture);
+		FRHITexture* Texture = RDGTexture->GetRHI();
+		return Texture ? Texture->GetDefaultBindlessHandle() : FRHIDescriptorHandle();
+	}
+	break;
+	case UBMT_RDG_TEXTURE_SRV:
+	case UBMT_RDG_BUFFER_SRV:
+	{
+		FRDGShaderResourceView* RDGShaderResourceView = Reader.Read<FRDGShaderResourceView*>(Parameter);
+		checkSlow(RDGShaderResourceView);
+		RDGShaderResourceView->MarkResourceAsUsed();
+
+		FRHIShaderResourceView* ShaderResourceView = RDGShaderResourceView ? RDGShaderResourceView->GetRHI() : nullptr;
+		return ShaderResourceView ? ShaderResourceView->GetBindlessHandle() : FRHIDescriptorHandle();
+	}
+	break;
+	case UBMT_UAV:
+	{
+		FRHIUnorderedAccessView* UnorderedAccessView = Reader.Read<FRHIUnorderedAccessView*>(Parameter);
+		checkSlow(UnorderedAccessView);
+		return UnorderedAccessView->GetBindlessHandle();
+	}
+	case UBMT_RDG_TEXTURE_UAV:
+	case UBMT_RDG_BUFFER_UAV:
+	{
+		FRDGUnorderedAccessView* RDGUnorderedAccessView = Reader.Read<FRDGUnorderedAccessView*>(Parameter);
+		checkSlow(RDGUnorderedAccessView);
+
+		FRHIUnorderedAccessView* UnorderedAccessView = RDGUnorderedAccessView->GetRHI();
+		return UnorderedAccessView ? UnorderedAccessView->GetBindlessHandle() : FRHIDescriptorHandle();
+	}
+	break;
+	default:
+		checkf(false, TEXT("Unhandled resource type?"));
+		break;
+	}
+	return FRHIDescriptorHandle();
+}
+
 template<typename TRHICmdList>
 inline void SetShaderUAV(TRHICmdList& RHICmdList, FRHIGraphicsShader* ShaderRHI, FShaderParameterReader Reader, const FShaderParameterBindings::FResourceParameter& ParameterBinding)
 {
@@ -644,6 +724,16 @@ inline void SetShaderParametersInternal(
 	{
 		const void* DataPtr = Reader.GetRawPointer(Parameter);
 		RHICmdList.SetShaderParameter(ShaderRHI, Parameter.BufferIndex, Parameter.BaseIndex, Parameter.ByteSize, DataPtr);
+	}
+
+	for (const FShaderParameterBindings::FBindlessResourceParameter& BindlessResource : Bindings.BindlessResourceParameters)
+	{
+		const FRHIDescriptorHandle Handle = GetBindlessParameterHandle(Reader, BindlessResource);
+		if (Handle.IsValid())
+		{
+			const uint32 BindlessIndex = Handle.GetIndex();
+			RHICmdList.SetShaderParameter(ShaderRHI, 0, BindlessResource.GlobalConstantOffset, 4, &BindlessIndex);
+		}
 	}
 
 	TArray<FShaderParameterBindings::FResourceParameter, TInlineAllocator<16>> GraphSRVs;

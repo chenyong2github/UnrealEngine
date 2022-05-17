@@ -121,7 +121,7 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 		GetParentDevice()->RegisterGPUDispatch(FIntVector(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ));	
 	}
 
-	if (ComputeShader->ResourceCounts.bGlobalUniformBufferUsed)
+	if (ComputeShader->UsesGlobalUniformBuffer())
 	{
 		CommitComputeShaderConstants();
 	}
@@ -148,7 +148,7 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 	FD3D12ComputeShader* ComputeShader = nullptr;
 	StateCache.GetComputeShader(&ComputeShader);
 
-	if (ComputeShader->ResourceCounts.bGlobalUniformBufferUsed)
+	if (ComputeShader->UsesGlobalUniformBuffer())
 	{
 		CommitComputeShaderConstants();
 	}

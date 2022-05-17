@@ -597,16 +597,21 @@ public:
 		LAYOUT_FIELD(uint16, ByteOffset);
 		LAYOUT_FIELD(uint8, BaseIndex);
 		LAYOUT_FIELD(EUniformBufferBaseType, BaseType);
+	};
 
+	struct FBindlessResourceParameter
+	{
+		DECLARE_INLINE_TYPE_LAYOUT(FBindlessResourceParameter, NonVirtual);
+		LAYOUT_FIELD(uint16, ByteOffset);
+		LAYOUT_FIELD(uint16, GlobalConstantOffset);
+		LAYOUT_FIELD(EUniformBufferBaseType, BaseType);
 	};
 
 	struct FParameterStructReference
 	{
 		DECLARE_INLINE_TYPE_LAYOUT(FParameterStructReference, NonVirtual);
-
 		LAYOUT_FIELD(uint16, BufferIndex);
 		LAYOUT_FIELD(uint16, ByteOffset);
-
 	};
 
 	DECLARE_TYPE_LAYOUT(FShaderParameterBindings, NonVirtual);
@@ -618,6 +623,7 @@ public:
 
 	LAYOUT_FIELD(TMemoryImageArray<FParameter>, Parameters);
 	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, ResourceParameters);
+	LAYOUT_FIELD(TMemoryImageArray<FBindlessResourceParameter>, BindlessResourceParameters);
 	LAYOUT_FIELD(TMemoryImageArray<FParameterStructReference>, GraphUniformBuffers);
 	LAYOUT_FIELD(TMemoryImageArray<FParameterStructReference>, ParameterReferences);
 

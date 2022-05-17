@@ -1072,6 +1072,7 @@ FD3D12QuantizedBoundShaderState GetRayTracingGlobalRootSignatureDesc()
 
 	OutQBSS.RootSignatureType = RS_RayTracingGlobal;
 	OutQBSS.bUseDiagnosticBuffer = true;
+	OutQBSS.bUseDirectlyIndexedSamplerHeap = true;
 
 	QBSSRegisterCounts.SamplerCount = MAX_SAMPLERS;
 	QBSSRegisterCounts.ShaderResourceCount = MAX_SRVS;

@@ -11,6 +11,8 @@
 namespace UE::ShaderCompilerCommon
 {
 	static constexpr const TCHAR* kUniformBufferConstantBufferPrefix = TEXT("UniformBufferConstants_");
+	static constexpr const TCHAR* kBindlessResourcePrefix = TEXT("BindlessResource_");
+	static constexpr const TCHAR* kBindlessSamplerPrefix = TEXT("BindlessSampler_");
 }
 
 /**
@@ -58,11 +60,15 @@ public:
 		const FShaderParametersMetadata::FMember* Member = nullptr;
 
 		/** Information found about the member when parsing the preprocessed code. */
+		FString ParsedName;
 		FString ParsedType;
 		FString ParsedArraySize;
 
 		/** Offset the member should be in the constant buffer. */
 		int32 ConstantBufferOffset = 0;
+
+		/** Records if the parameter was fully moved. */
+		bool bOriginalParameterErased{};
 
 		/* Returns whether the shader parameter has been found when parsing. */
 		bool IsFound() const
@@ -146,7 +152,9 @@ private:
 
 namespace UE::ShaderCompilerCommon
 {
-	extern SHADERCOMPILERCOMMON_API FString RemoveConstantBufferPrefix(const FString& InName);
+	extern SHADERCOMPILERCOMMON_API FString              RemoveConstantBufferPrefix(const FString& InName);
+	extern SHADERCOMPILERCOMMON_API EShaderParameterType ParseAndRemoveBindlessParameterPrefix(FString& InName);
+	extern SHADERCOMPILERCOMMON_API bool                 RemoveBindlessParameterPrefix(FString& InName);
 }
 
 extern SHADERCOMPILERCOMMON_API void HandleReflectedGlobalConstantBufferMember(

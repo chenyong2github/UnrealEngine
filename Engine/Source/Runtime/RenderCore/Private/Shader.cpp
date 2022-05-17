@@ -611,9 +611,11 @@ void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& P
 		case EShaderParameterType::UniformBuffer:
 			UniformCount++;
 			break;
+		case EShaderParameterType::BindlessSamplerIndex:
 		case EShaderParameterType::Sampler:
 			SamplerCount++;
 			break;
+		case EShaderParameterType::BindlessResourceIndex:
 		case EShaderParameterType::SRV:
 			SRVCount++;
 			break;
@@ -634,6 +636,10 @@ void FShader::BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& P
 			return &ParameterMapInfo.TextureSamplers;
 		case EShaderParameterType::SRV:
 			return &ParameterMapInfo.SRVs;
+		case EShaderParameterType::BindlessResourceIndex:
+			return &ParameterMapInfo.SRVs;
+		case EShaderParameterType::BindlessSamplerIndex:
+			return &ParameterMapInfo.TextureSamplers;
 		default:
 			return nullptr;
 		}

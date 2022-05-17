@@ -183,6 +183,9 @@ enum class EShaderParameterType : uint8
 	SRV,
 	UAV,
 
+	BindlessResourceIndex,
+	BindlessSamplerIndex,
+
 	Num
 };
 
@@ -237,6 +240,9 @@ public:
 	RENDERCORE_API bool ContainsParameterAllocation(const TCHAR* ParameterName) const;
 	RENDERCORE_API void AddParameterAllocation(const TCHAR* ParameterName,uint16 BufferIndex,uint16 BaseIndex,uint16 Size,EShaderParameterType ParameterType);
 	RENDERCORE_API void RemoveParameterAllocation(const TCHAR* ParameterName);
+
+	/** Returns an array of all parameters with the given type. */
+	RENDERCORE_API TArray<FString> GetAllParameterNamesOfType(EShaderParameterType InType) const;
 
 	/** Checks that all parameters are bound and asserts if any aren't in a debug build
 	* @param InVertexFactoryType can be 0
@@ -595,13 +601,21 @@ struct FSharedShaderCompilerEnvironment final : public FShaderCompilerEnvironmen
 	virtual ~FSharedShaderCompilerEnvironment() = default;
 };
 
+enum class EShaderResourceUsageFlags : uint8
+{
+	GlobalUniformBuffer = 1 << 0,
+	BindlessResources   = 1 << 1,
+	BindlessSamplers    = 1 << 2,
+};
+ENUM_CLASS_FLAGS(EShaderResourceUsageFlags)
+
 // if this changes you need to make sure all shaders get invalidated
 struct FShaderCodePackedResourceCounts
 {
 	// for FindOptionalData() and AddOptionalData()
 	static const uint8 Key = 'p';
 
-	bool bGlobalUniformBufferUsed;
+	EShaderResourceUsageFlags UsageFlags;
 	uint8 NumSamplers;
 	uint8 NumSRVs;
 	uint8 NumCBs;

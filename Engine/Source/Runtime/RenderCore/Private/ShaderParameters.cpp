@@ -162,9 +162,36 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 		}
 		else if (IsShaderParameterTypeForUniformBufferLayout(Member.GetBaseType()))
 		{
-			// Skip resources, they will be replaced with padding by the next member in the constant buffer.
-			// This padding will cause gaps in the constant buffer.  Alternatively we could compact the constant buffer during RHICreateUniformBuffer.
-			continue;
+			// Generate the type dimensions for vectors and matrices.
+			uint32 HLSLMemberSize = 4;
+
+			const uint32 AbsoluteMemberOffset = StructOffset + Member.GetOffset();
+
+			// If the HLSL offset doesn't match the C++ offset, generate padding to fix it.
+			if (HLSLBaseOffset != AbsoluteMemberOffset)
+			{
+				check(HLSLBaseOffset < AbsoluteMemberOffset);
+				while (HLSLBaseOffset < AbsoluteMemberOffset)
+				{
+					Decl.ConstantBufferMembers += FString::Printf(TEXT("\t%s PrePadding_%s%u;\r\n"), *PreviousBaseTypeName, *NamePrefix, HLSLBaseOffset);
+					HLSLBaseOffset += 4;
+				};
+				check(HLSLBaseOffset == AbsoluteMemberOffset);
+			}
+			PreviousBaseTypeName = TEXT("uint");
+			HLSLBaseOffset = AbsoluteMemberOffset + HLSLMemberSize;
+
+			// Generate the member declaration.
+			const FString ParameterName = FString::Printf(TEXT("%s%s"), *NamePrefix, Member.GetName());
+
+			if (Member.GetBaseType() == UBMT_SAMPLER)
+			{
+				Decl.ConstantBufferMembers += FString::Printf(TEXT("\tDEFINE_SAMPLER_INDEX(%s);\r\n"), *ParameterName);
+			}
+			else
+			{
+				Decl.ConstantBufferMembers += FString::Printf(TEXT("\tDEFINE_RESOURCE_INDEX(%s);\r\n"), *ParameterName);
+			}
 		}
 		else 
 		{
@@ -243,22 +270,28 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 
 		if (IsShaderParameterTypeForUniformBufferLayout(Member.GetBaseType()))
 		{
+			// TODO: handle arrays?
 			checkf(!IsRDGResourceAccessType(Member.GetBaseType()), TEXT("RDG access parameter types (e.g. RDG_TEXTURE_ACCESS) are not allowed in uniform buffers."));
-			if (Member.GetBaseType() == UBMT_SRV)
+
+			const FString ParameterName = FString::Printf(TEXT("%s%s"), *NamePrefix, Member.GetName());
+
+			if (Member.GetBaseType() == UBMT_SAMPLER)
 			{
-				// TODO: handle arrays?
-				FString ParameterName = FString::Printf(TEXT("%s%s"),*NamePrefix,Member.GetName());
-				Decl.ResourceMembers += FString::Printf(TEXT("PLATFORM_SUPPORTS_SRV_UB_MACRO( %s %s; ) \r\n"), Member.GetShaderType(), *ParameterName);
+				Decl.ResourceMembers += FString::Printf(TEXT("DEFINE_SAMPLER_VARIABLE(%s, %s);\r\n"), Member.GetShaderType(), *ParameterName);
+				Decl.StructMembers += FString::Printf(TEXT("\t%s %s;\r\n"), Member.GetShaderType(), Member.GetName());
+				Decl.Initializer += FString::Printf(TEXT("GET_SAMPLER(%s),"), *ParameterName);
+			}
+			else if (Member.GetBaseType() == UBMT_SRV)
+			{
+				Decl.ResourceMembers += FString::Printf(TEXT("PLATFORM_SUPPORTS_SRV_UB_MACRO( DEFINE_RESOURCE_VARIABLE(%s, %s); ) \r\n"), Member.GetShaderType(), *ParameterName);
 				Decl.StructMembers += FString::Printf(TEXT("\tPLATFORM_SUPPORTS_SRV_UB_MACRO( %s %s; ) \r\n"), Member.GetShaderType(), Member.GetName());
-				Decl.Initializer += FString::Printf(TEXT(" PLATFORM_SUPPORTS_SRV_UB_MACRO( %s, ) "), *ParameterName);
+				Decl.Initializer += FString::Printf(TEXT(" PLATFORM_SUPPORTS_SRV_UB_MACRO( GET_RESOURCE(%s), ) "), *ParameterName);
 			}
 			else
 			{
-				// TODO: handle arrays?
-				FString ParameterName = FString::Printf(TEXT("%s%s"),*NamePrefix,Member.GetName());
-				Decl.ResourceMembers += FString::Printf(TEXT("%s %s;\r\n"), Member.GetShaderType(), *ParameterName);
+				Decl.ResourceMembers += FString::Printf(TEXT("DEFINE_RESOURCE_VARIABLE(%s, %s);\r\n"), Member.GetShaderType(), *ParameterName);
 				Decl.StructMembers += FString::Printf(TEXT("\t%s %s;\r\n"), Member.GetShaderType(), Member.GetName());
-				Decl.Initializer += FString::Printf(TEXT("%s,"), *ParameterName);
+				Decl.Initializer += FString::Printf(TEXT("GET_RESOURCE(%s),"), *ParameterName);
 			}
 		}
 	}

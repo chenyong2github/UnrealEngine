@@ -36,6 +36,7 @@
 	#include "Platform/D3D/D3DCommon.ush"
 #endif
 
+#include "/Engine/Public/BindlessResources.ush"
 
 // ---------------------------------------------------- DDC invalidation
 // to support the console command "r.InvalidateShaderCache"

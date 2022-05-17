@@ -539,6 +539,19 @@ void FShaderParameterMap::RemoveParameterAllocation(const TCHAR* ParameterName)
 	ParameterMap.Remove(ParameterName);
 }
 
+TArray<FString> FShaderParameterMap::GetAllParameterNamesOfType(EShaderParameterType InType) const
+{
+	TArray<FString> Result;
+	for (const TMap<FString, FParameterAllocation>::ElementType& Parameter : ParameterMap)
+	{
+		if (Parameter.Value.Type == InType)
+		{
+			Result.Emplace(Parameter.Key);
+		}
+	}
+	return Result;
+}
+
 void FShaderCompilerDefinitions::SetFloatDefine(const TCHAR* Name, float Value)
 {
 	// Make sure the printed value perfectly matches the given number

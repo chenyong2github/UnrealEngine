@@ -1136,7 +1136,17 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				Output.ShaderCode.AddOptionalData(ResourceMasks);
 			};
 
-			FShaderCodePackedResourceCounts PackedResourceCounts = { bGlobalUniformBufferUsed, static_cast<uint8>(NumSamplers), static_cast<uint8>(NumSRVs), static_cast<uint8>(NumCBs), static_cast<uint8>(NumUAVs) };
+			FShaderCodePackedResourceCounts PackedResourceCounts{};
+			if (bGlobalUniformBufferUsed)
+			{
+				PackedResourceCounts.UsageFlags |= EShaderResourceUsageFlags::GlobalUniformBuffer;
+			}
+
+			PackedResourceCounts.NumSamplers = static_cast<uint8>(NumSamplers);
+			PackedResourceCounts.NumSRVs = static_cast<uint8>(NumSRVs);
+			PackedResourceCounts.NumCBs = static_cast<uint8>(NumCBs);
+			PackedResourceCounts.NumUAVs = static_cast<uint8>(NumUAVs);
+
 			GenerateFinalOutput(CompressedData,
 				Input, VendorExtensions,
 				UsedUniformBufferSlots, UniformBufferNames,

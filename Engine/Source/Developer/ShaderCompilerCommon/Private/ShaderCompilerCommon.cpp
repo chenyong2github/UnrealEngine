@@ -476,32 +476,68 @@ FString UE::ShaderCompilerCommon::RemoveConstantBufferPrefix(const FString& InNa
 	return NewName;
 }
 
+EShaderParameterType UE::ShaderCompilerCommon::ParseAndRemoveBindlessParameterPrefix(FString& InName)
+{
+	if (InName.RemoveFromStart(UE::ShaderCompilerCommon::kBindlessResourcePrefix))
+	{
+		return EShaderParameterType::BindlessResourceIndex;
+	}
+
+	if (InName.RemoveFromStart(UE::ShaderCompilerCommon::kBindlessSamplerPrefix))
+	{
+		return EShaderParameterType::BindlessSamplerIndex;
+	}
+
+	return EShaderParameterType::LooseData;
+}
+
+bool UE::ShaderCompilerCommon::RemoveBindlessParameterPrefix(FString& InName)
+{
+	return ParseAndRemoveBindlessParameterPrefix(InName) != EShaderParameterType::LooseData;
+}
+
 void HandleReflectedGlobalConstantBufferMember(
-	const FString& MemberName,
+	const FString& InMemberName,
 	uint32 ConstantBufferIndex,
 	int32 ReflectionOffset,
 	int32 ReflectionSize,
 	FShaderCompilerOutput& Output
 )
 {
+	FString MemberName = InMemberName;
+	const EShaderParameterType ParameterType = UE::ShaderCompilerCommon::ParseAndRemoveBindlessParameterPrefix(MemberName);
+
 	Output.ParameterMap.AddParameterAllocation(
 		*MemberName,
 		ConstantBufferIndex,
 		ReflectionOffset,
 		ReflectionSize,
-		EShaderParameterType::LooseData);
+		ParameterType);
 }
 
 void HandleReflectedRootConstantBufferMember(
 	const FShaderCompilerInput& Input,
 	const FShaderParameterParser& ShaderParameterParser,
-	const FString& MemberName,
+	const FString& InMemberName,
 	int32 ReflectionOffset,
 	int32 ReflectionSize,
 	FShaderCompilerOutput& Output
 )
 {
-	ShaderParameterParser.ValidateShaderParameterType(Input, MemberName, ReflectionOffset, ReflectionSize, Output);
+	ShaderParameterParser.ValidateShaderParameterType(Input, InMemberName, ReflectionOffset, ReflectionSize, Output);
+
+	FString MemberName = InMemberName;
+	const EShaderParameterType ParameterType = UE::ShaderCompilerCommon::ParseAndRemoveBindlessParameterPrefix(MemberName);
+
+	if (ParameterType != EShaderParameterType::LooseData)
+	{
+		Output.ParameterMap.AddParameterAllocation(
+			*MemberName,
+			FShaderParametersMetadata::kRootCBufferBindingIndex,
+			ReflectionOffset,
+			1,
+			ParameterType);
+	}
 }
 
 void HandleReflectedRootConstantBuffer(
@@ -653,7 +689,12 @@ void AddUnboundShaderParameterError(
 inline bool MemberWasPotentiallyMoved(const FShaderParametersMetadata::FMember& InMember)
 {
 	const EUniformBufferBaseType BaseType = InMember.GetBaseType();
-	return BaseType == UBMT_INT32 || BaseType == UBMT_UINT32 || BaseType == UBMT_FLOAT32;
+	return BaseType == UBMT_INT32 || BaseType == UBMT_UINT32 || BaseType == UBMT_FLOAT32
+		|| BaseType == UBMT_TEXTURE || BaseType == UBMT_SRV || BaseType == UBMT_UAV
+		|| BaseType == UBMT_RDG_TEXTURE || BaseType == UBMT_RDG_TEXTURE_SRV || BaseType == UBMT_RDG_TEXTURE_UAV
+		|| BaseType == UBMT_RDG_BUFFER_SRV || BaseType == UBMT_RDG_BUFFER_UAV
+		|| BaseType == UBMT_SAMPLER
+		;
 }
 
 bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
@@ -774,6 +815,9 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 
 				FString Type = PreprocessedShaderSource.Mid(TypeStartPos, TypeEndPos - TypeStartPos + 1);
 				FString Name = PreprocessedShaderSource.Mid(NameStartPos, NameEndPos - NameStartPos + 1);
+				const FString ParsedName = Name;
+
+				const bool bBindlessParameter = UE::ShaderCompilerCommon::RemoveBindlessParameterPrefix(Name);
 
 				FParsedShaderParameter ParsedParameter;
 				bool bUpdateParsedParameters = false;
@@ -794,7 +838,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 						if (bMoveToRootConstantBuffer && ParsedParameter.IsBindable())
 						{
 							EUniformBufferBaseType BaseType = ParsedParameter.Member->GetBaseType();
-							bEraseOriginalParameter = BaseType == UBMT_INT32 || BaseType == UBMT_UINT32 || BaseType == UBMT_FLOAT32;
+							bEraseOriginalParameter = BaseType == UBMT_INT32 || BaseType == UBMT_UINT32 || BaseType == UBMT_FLOAT32 || bBindlessParameter;
 						}
 					}
 				}
@@ -807,9 +851,11 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 				// Update 
 				if (bUpdateParsedParameters)
 				{
+					ParsedParameter.ParsedName = ParsedName;
 					ParsedParameter.ParsedType = Type;
 					ParsedParameter.ParsedPragmaLineoffset = CurrentPragamLineoffset;
 					ParsedParameter.ParsedLineOffset = CurrentLineoffset;
+					ParsedParameter.bOriginalParameterErased = bEraseOriginalParameter;
 
 					if (ArrayStartPos != -1 && ArrayEndPos != -1)
 					{
@@ -1137,7 +1183,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 			if (MemberWasPotentiallyMoved(Member))
 			{
 				FParsedShaderParameter* ParsedParameter = ParsedParameters.Find(ShaderBindingName);
-				if (ParsedParameter && ParsedParameter->IsFound())
+				if (ParsedParameter && ParsedParameter->IsFound() && ParsedParameter->bOriginalParameterErased)
 				{
 					uint32 ConstantRegister = ByteOffset / 16;
 					const TCHAR* ConstantSwizzle = [ByteOffset]()
@@ -1157,7 +1203,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 						RootCBufferContent.Append(FString::Printf(
 							TEXT("%s %s[%s] : packoffset(c%d%s);\r\n"),
 							*ParsedParameter->ParsedType,
-							ShaderBindingName,
+							*ParsedParameter->ParsedName,
 							*ParsedParameter->ParsedArraySize,
 							ConstantRegister,
 							ConstantSwizzle));
@@ -1167,7 +1213,7 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 						RootCBufferContent.Append(FString::Printf(
 							TEXT("%s %s : packoffset(c%d%s);\r\n"),
 							*ParsedParameter->ParsedType,
-							ShaderBindingName,
+							*ParsedParameter->ParsedName,
 							ConstantRegister,
 							ConstantSwizzle));
 					}
@@ -1204,7 +1250,11 @@ void FShaderParameterParser::ValidateShaderParameterType(
 	bool bPlatformSupportsPrecisionModifier,
 	FShaderCompilerOutput& CompilerOutput) const
 {
-	const FShaderParameterParser::FParsedShaderParameter& ParsedParameter = FindParameterInfos(ShaderBindingName);
+	FString BindingName(ShaderBindingName);
+
+	const bool bBindlessHack = UE::ShaderCompilerCommon::RemoveBindlessParameterPrefix(BindingName);
+
+	const FShaderParameterParser::FParsedShaderParameter& ParsedParameter = FindParameterInfos(BindingName);
 
 	check(ParsedParameter.IsFound());
 	check(CompilerInput.RootParametersStructure);
@@ -1216,6 +1266,7 @@ void FShaderParameterParser::ValidateShaderParameterType(
 	}
 
 	// Validate the shader type.
+	if (!bBindlessHack)
 	{
 		FString ExpectedShaderType;
 		ParsedParameter.Member->GenerateShaderParameterType(ExpectedShaderType, bPlatformSupportsPrecisionModifier);
@@ -1289,7 +1340,7 @@ void FShaderParameterParser::ValidateShaderParameterType(
 	}
 
 	// Validate parameter size, in case this is an array.
-	if (ReflectionSize > int32(ParsedParameter.Member->GetMemberSize()))
+	if (!bBindlessHack && ReflectionSize > int32(ParsedParameter.Member->GetMemberSize()))
 	{
 		FString CppCodeName = CompilerInput.RootParametersStructure->GetFullMemberCodeName(ParsedParameter.ConstantBufferOffset);
 
