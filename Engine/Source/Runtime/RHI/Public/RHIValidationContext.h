@@ -944,7 +944,7 @@ public:
 		Tracker->Assert(SourceTexture->GetWholeResourceIdentity(), ERHIAccess::CopySrc);
 		Tracker->Assert(DestTexture->GetWholeResourceIdentity(), ERHIAccess::CopyDest);
 
-		FValidationRHIUtils::ValidateCopyTexture(SourceTexture, DestTexture, CopyInfo.Size, CopyInfo.SourcePosition, CopyInfo.DestPosition);
+		FValidationRHIUtils::ValidateCopyTexture(SourceTexture, DestTexture, CopyInfo);
 		RHIContext->RHICopyTexture(SourceTexture, DestTexture, CopyInfo);
 	}
 
