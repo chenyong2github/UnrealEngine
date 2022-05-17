@@ -833,12 +833,16 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		LocalDerivedDataKeySuffix = MoveTemp(FetchOrBuildKeySuffix);
 		GetTextureDerivedDataKeyFromSuffix(LocalDerivedDataKeySuffix, LocalDerivedDataKey);
 
-		FRequestOwner BlockingOwner(EPriority::Blocking);
-		GetCache().GetValue({{{TexturePathName}, ConvertLegacyCacheKey(LocalDerivedDataKey)}}, BlockingOwner, [&RawDerivedData](FCacheGetValueResponse&& Response)
+		if (bForceRebuild == false)
 		{
-			RawDerivedData = Response.Value.GetData().Decompress();
-		});
-		BlockingOwner.Wait();
+			FRequestOwner BlockingOwner(EPriority::Blocking);
+			GetCache().GetValue({{{TexturePathName}, ConvertLegacyCacheKey(LocalDerivedDataKey)}}, BlockingOwner, [&RawDerivedData](FCacheGetValueResponse&& Response)
+			{
+				RawDerivedData = Response.Value.GetData().Decompress();
+			});
+			BlockingOwner.Wait();
+		}
+
 		bLoadedFromDDC = !RawDerivedData.IsNull();
 	}
 
