@@ -904,7 +904,7 @@ class SwitchboardDialog(QtCore.QObject):
             return
 
         # Switch to the new config
-        CONFIG.replace(new_config_path)
+        CONFIG.save_as(new_config_path)
 
         # Update the settings
         SETTINGS.CONFIG = new_config_path
