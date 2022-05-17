@@ -7,6 +7,7 @@
 #include "Algo/Copy.h"
 #include "Algo/StableSort.h"
 
+#include "Engine/World.h"
 
 /** 
  * FConstraintTickFunction
