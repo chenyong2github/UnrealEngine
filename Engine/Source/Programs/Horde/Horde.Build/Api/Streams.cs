@@ -451,9 +451,19 @@ namespace Horde.Build.Api
 		public string? PausedByUserId { get; set; }
 
 		/// <summary>
+		/// The UTC time when the step was paused
+		/// </summary>
+		public DateTime? PauseTimeUtc { get; set; }
+
+		/// <summary>
 		/// User who quarantined the step
 		/// </summary>
 		public string? QuarantinedByUserId { get; set; }
+
+		/// <summary>
+		/// The UTC time when the step was quarantined
+		/// </summary>
+		public DateTime? QuarantineTimeUtc { get; set; }
 
 		/// <summary>
 		/// Default constructor for serialization
@@ -469,7 +479,9 @@ namespace Horde.Build.Api
 		{
 			Name = state.Name;
 			PausedByUserId = state.PausedByUserId?.ToString();
+			PauseTimeUtc = state.PauseTimeUtc;
 			QuarantinedByUserId = state.QuarantinedByUserId?.ToString();
+			QuarantineTimeUtc = state.QuarantineTimeUtc;
 		}
 
 	}

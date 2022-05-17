@@ -314,11 +314,30 @@ namespace Horde.Build.Collections.Impl
 							continue;
 						}
 
-						newStepStates.Add(new TemplateStepState(updateState.Name, PausedByUserId, QuarantinedByUserId));
+						newStepStates.Add(new TemplateStepState(updateState.Name, PausedByUserId, PausedByUserId != null ? DateTime.UtcNow : null, QuarantinedByUserId, QuarantinedByUserId != null ? DateTime.UtcNow : null));
 					}
 					else
 					{
+						if (PausedByUserId == null)
+						{
+							newState.PauseTimeUtc = null;
+						}
+						else if (newState.PauseTimeUtc == null)
+						{
+							newState.PauseTimeUtc = DateTime.UtcNow;
+						}
+
 						newState.PausedByUserId = PausedByUserId;
+
+						if (QuarantinedByUserId == null)
+						{
+							newState.QuarantineTimeUtc = null;
+						}
+						else if (newState.QuarantineTimeUtc == null)
+						{
+							newState.QuarantineTimeUtc = DateTime.UtcNow;
+						}
+
 						newState.QuarantinedByUserId = QuarantinedByUserId;
 					}
 				}

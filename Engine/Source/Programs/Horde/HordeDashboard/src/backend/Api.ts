@@ -1786,8 +1786,14 @@ export type GetTemplateStepStateResponse = {
 	/**User who paused the step */
 	pausedByUserId?: string;
 
+	/**The UTC time when the step was paused*/
+	pauseTimeUtc?: Date | string;
+
 	/**User who quarantined the step */
 	quarantinedByUserId?: string; 
+	
+	/**The UTC time when the step was quarantined */
+	quarantineTimeUtc?: Date | string;
 
 }
 
