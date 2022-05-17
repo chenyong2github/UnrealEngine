@@ -54,13 +54,28 @@ protected:
 	*/
 	struct FSampleConverterParameters
 	{
+		/** General file information including its header. */
 		FImgMediaFrameInfo FrameInfo;
+
+		/** Resolution of the highest quality mip. */
 		FIntPoint FullResolution;
+
+		/** Dimension of the tile including the overscan borders. */
 		FIntPoint TileDimWithBorders;
+
+		/** Used for rendering tiles in bulk regions. */
 		TMap<int32, FIntRect> Viewports;
+
+		/** Number of mip levels read. */
 		int32 NumMipLevels;
+
+		/** Pixel stride in bytes. I.e. 2 bytes per pixel x 3 channels = 6. */
 		int32 PixelSize;
+
+		/** Identifies this exr as custom, therefore all data should be swizzled. */
 		bool bCustomExr;
+
+		/** Indicates if mips stored in individual files.*/
 		bool bMipsInSeparateFiles;
 	};
 
@@ -77,7 +92,7 @@ protected:
 	 * Reads tiles from exr files in tile rows based on Tile region. If frame is pending for cancelation
 	 * stops reading tiles at the current tile row.
 	*/
-	EReadResult ReadTilesCustom(uint16* Buffer, const FString& ImagePath, int32 FrameId, const FIntRect& TileRegion, TSharedPtr<FSampleConverterParameters> ConverterParams, const int32 CurrentMipLevel);
+	EReadResult ReadTilesCustom(uint16* Buffer, int64 BufferSize, const FString& ImagePath, int32 FrameId, const FIntRect& TileRegion, TSharedPtr<FSampleConverterParameters> ConverterParams, const int32 CurrentMipLevel);
 
 	/**
 	 * Sets parameters of our custom format images.

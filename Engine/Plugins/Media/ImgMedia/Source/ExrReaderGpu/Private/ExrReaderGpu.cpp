@@ -251,8 +251,107 @@ bool FExrReader::GenerateTextureData(uint16* Buffer, int32 BufferSize, FString F
 	return true;
 }
 
-bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets, int32 NumLevels, bool bCustomExr)
+
+void FExrReader::CalculateTileOffsets
+	( TArray<int32>& OutNumTilesPerLevel
+	, TArray<TArray<int64>>& OutCustomOffsets
+	, const FIntPoint& FullTextureResolution
+	, const FIntPoint& FullResolutionInTiles
+	, const FIntPoint& TileDimWithBorders
+	, int32 NumMipLevels
+	, int64 PixelSize
+	, bool bCustomExr)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("CalculateTileOffsets")));
+
+	OutCustomOffsets.SetNum(NumMipLevels);
+	// Custom exr files don't have tile offsets, therefore we need to calculate these manually.
+	if (bCustomExr)
+	{
+		int64 CurrentPosition = 0;
+		for (int32 MipLevel = 0; MipLevel < NumMipLevels; MipLevel++)
+		{
+			int32 MipDiv = 1 << MipLevel;
+
+			// Dimension of the texture in tiles including partial tiles
+			FIntPoint DimensionInTiles_PartialTiles
+				( FMath::CeilToInt(float(FullResolutionInTiles.X) / MipDiv)
+				, FMath::CeilToInt(float(FullResolutionInTiles.Y) / MipDiv));
+
+			// Dimension of the texture in tiles excluding partial tiles.
+			FIntPoint DimensionInTiles_CompleteTiles
+				( FMath::FloorToInt(float(FullResolutionInTiles.X) / MipDiv)
+				, FMath::FloorToInt(float(FullResolutionInTiles.Y) / MipDiv));
+
+			// Total number of tiles for this mip level.
+			int32 NumActualTiles = DimensionInTiles_PartialTiles.X * DimensionInTiles_PartialTiles.Y;
+
+			// Custom exr has one Vanilla tile per mip level that contains custom tiles.
+			OutNumTilesPerLevel.Add(1);
+
+			// Resolution of the texture in pixels for this mip level.
+			FIntPoint MipResolution = FullTextureResolution / MipDiv;
+
+			// Resolution of the partial tile in the bottom right corner.
+			FIntPoint PartialTileResolution = FIntPoint(MipResolution.X % TileDimWithBorders.X, MipResolution.Y % TileDimWithBorders.Y);
+
+			bool bHasPartialTiles = DimensionInTiles_PartialTiles != DimensionInTiles_CompleteTiles;
+
+			TArray<int64>& CurrentMipOffsets = OutCustomOffsets[MipLevel];
+			CurrentMipOffsets.SetNum(NumActualTiles);
+			for (int TileIndex = 0; TileIndex < NumActualTiles; TileIndex++)
+			{
+				if (TileIndex == 0)
+				{
+					CurrentPosition += FExrReader::TILE_PADDING;
+				}
+
+				if (MipLevel == 0 && TileIndex == 0)
+				{
+					CurrentMipOffsets[TileIndex] = CurrentPosition;
+					continue;
+				}
+
+				FIntPoint TileDim(TileDimWithBorders);
+
+				if (bHasPartialTiles)
+				{
+					// If true - this is a partial tile in X dimension.
+					if (((TileIndex) % DimensionInTiles_PartialTiles.X) == 0)
+					{
+						TileDim.X = PartialTileResolution.X;
+					}
+
+					// If true - this is a partial tile in Y dimension.
+					if (TileIndex > (DimensionInTiles_PartialTiles.X * DimensionInTiles_CompleteTiles.Y))
+					{
+						TileDim.Y = PartialTileResolution.Y;
+					}
+				}
+
+				// Tile offset.
+				CurrentPosition += TileDim.X * TileDim.Y * PixelSize;
+
+				// First tile at each mip level contains padding.
+				CurrentMipOffsets[TileIndex] = CurrentPosition;
+			}
+		}
+	}
+	else
+	{
+		for (int32 MipLevel = 0; MipLevel < NumMipLevels; MipLevel++)
+		{
+			int32 MipDiv = 1 << MipLevel;
+			int32 DimX = FMath::Max(1, FMath::CeilToInt(float(FullResolutionInTiles.X) / MipDiv));
+			int32 DimY = FMath::Max(1, FMath::CeilToInt(float(FullResolutionInTiles.Y) / MipDiv));
+			OutNumTilesPerLevel.Add(DimX * DimY);
+		}
+	}
+}
+
+bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, const TArray<int32>& NumOffsetsPerLevel, TArray<TArray<int64>>&& CustomOffsets, bool bInCustomExr)
+{
+ 	bCustomExr = bInCustomExr;
 	if (FileHandle != nullptr)
 	{
 		UE_LOG(LogExrReaderGpu, Error, TEXT("The file has already been open for reading but never closed."));
@@ -266,6 +365,7 @@ bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOff
 		return false;
 	}
 
+
 	// Reading header (throwaway) and line offset data. We just need line offset data.
 	{
 		ReadMagicNumberAndVersionField(FileHandle);
@@ -273,21 +373,32 @@ bool FExrReader::OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOff
 		{
 			return false;
 		}
-		LineOrTileOffsetsPerLevel.SetNum(NumLevels);
+
+		LineOrTileOffsetsPerLevel.SetNum(NumOffsetsPerLevel.Num());
 
 		// At the moment we support only increasing Y.
 		ELineOrder LineOrder = INCREASING_Y;
-		for (int Level = 0; Level < NumLevels; Level++)
+		for (int Level = 0; Level < LineOrTileOffsetsPerLevel.Num(); Level++)
 		{
-			LineOrTileOffsetsPerLevel[Level].SetNum(bCustomExr ? 1 : NumOffsets >> (Level * 2));
-			ReadLineOrTileOffsets(FileHandle, LineOrder, LineOrTileOffsetsPerLevel[Level]);
+			TArray<int64>& OffsetsPerLevel = LineOrTileOffsetsPerLevel[Level];
+			OffsetsPerLevel.SetNum(NumOffsetsPerLevel[Level]);
+			ReadLineOrTileOffsets(FileHandle, LineOrder, OffsetsPerLevel);
+		}
+
+		if (bCustomExr)
+		{
+			PixelStartByteOffset = LineOrTileOffsetsPerLevel[0][0];
+			LineOrTileOffsetsPerLevel = MoveTemp(CustomOffsets);
 		}
 	}
 
+	fseek(FileHandle, 0, SEEK_END);
+	FileLength = ftell(FileHandle);
 	fseek(FileHandle, LineOrTileOffsetsPerLevel[0][0], SEEK_SET);
 
 	return true;
 }
+
 
 bool FExrReader::ReadExrImageChunk(void* Buffer, int64 ChunkSize)
 {
@@ -310,26 +421,46 @@ bool FExrReader::ReadExrImageChunk(void* Buffer, int64 ChunkSize)
 	return NumElementsRead == NumElements;
 }
 
-bool FExrReader::SeekTileWithinFile(const int32 StartTileIndex, const FIntPoint& TexDimInTiles, const int32 Level, int64& OutBufferOffset)
+bool FExrReader::SeekTileWithinFile(const int32 StartTileIndex, const int32 Level, int64& OutBufferOffset)
 {
 	if (StartTileIndex >= LineOrTileOffsetsPerLevel[Level].Num())
 	{
 		UE_LOG(LogExrReaderGpu, Error, TEXT("Tile index is invalid."));
 		return false;
 	}
+
 	int64 LineOffset = LineOrTileOffsetsPerLevel[Level][StartTileIndex];
 	OutBufferOffset = LineOffset - LineOrTileOffsetsPerLevel[Level][0];
-	return fseek(FileHandle, LineOffset, SEEK_SET) == 0;
+	return fseek(FileHandle, LineOffset + (bCustomExr ? PixelStartByteOffset : 0), SEEK_SET) == 0;
 }
 
-bool FExrReader::SeekTileWithinFileCustom(const int32 StartTileIndex, const int64 TileStride, const int32 Level, int64& OutBufferOffset)
+bool FExrReader::GetByteOffsetForTile(const int32 TileIndex, const int32 Level, int64& OutBufferOffset)
 {
-	// Our custom exr is written as one single tile. In Exr every tile starts with 20 byte padding.
-	// Therefore we want to ignore it, when we read custom tiles.
-	const int32 TilePadding = 20;
-	int64 LineOffset = TilePadding + LineOrTileOffsetsPerLevel[Level][0] + StartTileIndex * TileStride;
-	OutBufferOffset = StartTileIndex * TileStride;
-	return fseek(FileHandle, LineOffset, SEEK_SET) == 0;
+	if (LineOrTileOffsetsPerLevel.Num() <= Level || LineOrTileOffsetsPerLevel[Level].Num() < TileIndex)
+	{
+		return false;
+	}
+	else
+	{
+		// In some cases we'd like to know the position of the final byte of the last tile.
+		if (TileIndex == LineOrTileOffsetsPerLevel[Level].Num())
+		{
+			// If this is the last mip and the last tile that means that we don't have 
+			if (LineOrTileOffsetsPerLevel.Num() > Level + 1)
+			{
+				OutBufferOffset = LineOrTileOffsetsPerLevel[Level + 1][0] + (bCustomExr ? PixelStartByteOffset : 0);
+			}
+			else
+			{
+				OutBufferOffset = FileLength;
+			}
+		}
+		else
+		{
+			OutBufferOffset = LineOrTileOffsetsPerLevel[Level][TileIndex] + (bCustomExr ? PixelStartByteOffset : 0);
+		}
+		return true;
+	}
 }
 
 bool FExrReader::CloseExrFile()

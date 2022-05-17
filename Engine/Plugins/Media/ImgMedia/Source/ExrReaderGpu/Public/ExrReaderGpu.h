@@ -39,7 +39,13 @@ public:
 	static const int32	TILE_PADDING = 20;
 
 public:
-	FExrReader() :FileHandle(nullptr) {};
+	FExrReader() 
+		: FileHandle(nullptr)
+		, FileLength(0)
+		, bCustomExr(false)
+		, LineOrTileOffsetsPerLevel()
+		, PixelStartByteOffset(0)
+	{};
 private:
 
 	static bool ReadMagicNumberAndVersionField(FILE* FileHandle);
@@ -59,12 +65,25 @@ public:
 	/** Discards the header and fills the buffer with plain pixel data. */
 	static bool GenerateTextureData(uint16* Buffer, int32 BufferSize, FString FilePath, int32 NumberOfScanlines, int32 NumChannels);
 
+	/**
+	 * To be able to read tiles, especially in cases where tiles vary in sizes, we need to calculate offsets manually
+	 * for custom exr files, since we don't write out offsets.
+	*/
+	static void CalculateTileOffsets(TArray<int32>& OutNumTilesPerLevel
+		, TArray<TArray<int64>>& OutCustomOffsets
+		, const FIntPoint& FullTextureResolution
+		, const FIntPoint& FullResolutionInTiles
+		, const FIntPoint& TileDimWithBorders
+		, int32 NumMipLevels
+		, int64 PixelSize
+		, bool bCustomExr);
+
 	/** 
 	* This function is used to open file and keep a handle to it so the file can be read in chunks.
 	* Reading in chunks allows the process of reading to be canceled midway through reading. 
-	* This function reads and discards the header and keeps the pointers to the scanlines. 
+	* This function reads and discards the header and keeps the pointers to the scanlines or tiles. 
 	*/
-	bool OpenExrAndPrepareForPixelReading(FString FilePath, int32 NumOffsets, int32 NumLevels, bool bCustomExr = false);
+	bool OpenExrAndPrepareForPixelReading(FString FilePath, const TArray<int32>& NumOffsetsPerLevel, TArray<TArray<int64>>&& CustomOffsets, bool bInCustomExr = false);
 
 	/** 
 	* Read a chunk of an Exr file previously open via OpenExrAndPrepareForPixelReading.
@@ -75,12 +94,12 @@ public:
 	/**
 	* Moves to the specified tile position in the file in preparation for reading.
 	*/
-	bool SeekTileWithinFile(const int32 StartTileIndex, const FIntPoint& TexDimInTiles, const int32 Level, int64& OutBufferOffset);
+	bool SeekTileWithinFile(const int32 StartTileIndex, const int32 Level, int64& OutBufferOffset);
 
-	/** 
-	* Moves to the specified tile position in the file in preparation for reading.
+	/**
+	* Gets byte location of the requested tile for the requested mip level.
 	*/
-	bool SeekTileWithinFileCustom(const int32 StartTileIndex, const int64 TileStride, const int32 Level, int64& OutBufferOffset);
+	bool GetByteOffsetForTile(const int32 TileIndex, const int32 Level, int64& OutBufferOffset);
 
 	/**
 	* After we have finished reading the file that was open via OpenExrAndPrepareForPixelReading
@@ -97,8 +116,23 @@ private:
 	FILE* FileHandle;
 
 	/**
+	* The length of the file in question. Used to get the last tile.
+	*/
+	int64 FileLength;
+
+	/**
+	* Is this exr a custom exr with swizzled data.
+	*/
+	bool bCustomExr;
+
+	/**
 	* These are byte offsets pointing to scanlines or tiles from the begining of the file.
 	*/
 	TArray<TArray<int64>> LineOrTileOffsetsPerLevel;
+
+	/** 
+	* Byte offset of the first pixel in file. This is equal to the size of the header.
+	*/
+	int64 PixelStartByteOffset;
 };
 #endif

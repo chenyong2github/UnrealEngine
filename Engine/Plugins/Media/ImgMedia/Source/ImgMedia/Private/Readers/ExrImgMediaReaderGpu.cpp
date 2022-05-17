@@ -202,7 +202,7 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 					// read frame data
 					if (bHasTiles || ConverterParams->bCustomExr)
 					{
-						ReadResult = ReadTilesCustom(MipDataPtr, ImagePath, FrameId, TileRegion, ConverterParams, CurrentMipLevel);
+						ReadResult = ReadTilesCustom(MipDataPtr, BufferSize, ImagePath, FrameId, TileRegion, ConverterParams, CurrentMipLevel);
 					}
 					else
 					{
@@ -284,7 +284,9 @@ FExrImgMediaReaderGpu::EReadResult FExrImgMediaReaderGpu::ReadInChunks(uint16* B
 
 	// Since ReadInChunks is only utilized for exr files without tiles and mips, Num Mip levels is always 1.
 	const int32 NumLevels = 1;
-	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, Dim.Y, NumLevels))
+	TArray<int32> NumTOffsetsPerLevel;
+	NumTOffsetsPerLevel.Add(Dim.Y);
+	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, NumTOffsetsPerLevel, TArray<TArray<int64>>()))
 	{
 		return Fail;
 	}
