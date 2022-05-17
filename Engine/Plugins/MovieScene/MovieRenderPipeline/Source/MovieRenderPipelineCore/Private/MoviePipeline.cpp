@@ -212,8 +212,8 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 #if WITH_EDITOR
 			TargetSequence->GetMovieScene()->SetPlaybackRangeLocked(false);
 			TargetSequence->GetMovieScene()->SetReadOnly(false);
-			TargetSequence->GetMovieScene()->SetPlaybackRange(CustomPlaybackRange);
 #endif
+			TargetSequence->GetMovieScene()->SetPlaybackRange(CustomPlaybackRange);
 		}
 
 		// Warn about zero length playback ranges, often happens because they set the Start/End frame to the same frame.
