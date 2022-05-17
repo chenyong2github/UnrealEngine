@@ -8,21 +8,12 @@
 
 class FLoaderAdapterActor;
 
-/**
- * A world partition volume to allow loading cells inside (editor-only)
- */
-UCLASS()
-class ENGINE_API AWorldPartitionVolume : public AVolume, public IWorldPartitionActorLoaderInterface
+UCLASS(Deprecated, meta = (DeprecationMessage = "WorldPartitionVolume has been replaced by LocationVolume"))
+class ENGINE_API ADEPRECATED_WorldPartitionVolume : public AVolume
 {
-	GENERATED_BODY()
+	GENERATED_UCLASS_BODY()
 
 public:
-	AWorldPartitionVolume(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
-
-	//~ Begin UObject Interface
-	virtual void BeginDestroy() override;
-	//~ End UObject Interface
-
 	//~ Begin AActor Interface
 	virtual bool IsEditorOnly() const override { return true; }
 #if WITH_EDITOR
@@ -30,15 +21,4 @@ public:
 	virtual bool SupportsDataLayer() const override { return false; }
 #endif
 	//~ End AActor Interface
-
-#if WITH_EDITOR
-	//~ Begin IWorldPartitionActorLoaderInterface interface
-	virtual ILoaderAdapter* GetLoaderAdapter() override;
-	//~ End IWorldPartitionActorLoaderInterface interface
-#endif
-
-#if WITH_EDITOR
-private:
-	FLoaderAdapterActor* WorldPartitionActorLoader;
-#endif
 };
