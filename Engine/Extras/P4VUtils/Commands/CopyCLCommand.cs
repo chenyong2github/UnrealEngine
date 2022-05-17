@@ -37,12 +37,13 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
+#if IS_WINDOWS
 			// Jump through some hoops to make async & windows com happy and force STA on the clipboard call
 			var tcs = new TaskCompletionSource<int>();
 
 			var SetClipThread = new Thread(() => 
 				{ 
-					Clipboard.SetText(Change.ToString());
+					System.Windows.Forms.Clipboard.SetText(Change.ToString());
 					tcs.SetResult(0);
 				}
 			);
@@ -52,6 +53,10 @@ namespace P4VUtils.Commands
 			SetClipThread.Join();
 
 			await tcs.Task;
+
+#elif IS_MAC
+			System.Diagnostics.Process.Start("/bin/bash", $" -c \"osascript -e 'set the clipboard to \\\"{Change}\\\"'\"");
+#endif
 
 			return 0;
 		}

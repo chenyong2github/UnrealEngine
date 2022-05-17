@@ -5,22 +5,34 @@ using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
 using System.Linq;
+using System.IO;
+
+#if IS_WINDOWS
+using System.Windows.Forms;
+#endif
 
 namespace P4VUtils.Commands
 {
 	class PreflightCommand : Command
 	{
+#if IS_WINDOWS
+		[System.Runtime.InteropServices.DllImport("user32.dll")]
+		private static extern bool SetProcessDPIAware();
+
+		public static void SetupVisuals()
+		{
+			// make the form look good on modern displays!
+			SetProcessDPIAware();
+
+			Application.EnableVisualStyles();
+			Application.SetCompatibleTextRenderingDefault(false);
+		}
+#endif
 
 		static public string StripReviewFyiHashTags(string InString)
 		{
@@ -113,30 +125,57 @@ namespace P4VUtils.Commands
 
 				if (OpenedRecords.Count > 0 && IsSubmit())
 				{
-					MessageBoxResult result= MessageBox.Show(
-						"Your CL was just shelved however it still has files checked out\r\n" +
-						"If the files remain in the CL your preflight will fail to submit\r\n" +
-						"\r\n" +
-						"Click:\r\n" +
-						"[YES] - To revert local files and submit the preflight,\r\n" +
-						"[NO] - To start the preflight, and move the files manually\r\n" +
-						"[CANCEL] - To cancel the request", 
+					string Prompt = "Your CL was just shelved however it still has files checked out\r\n" +
+							"If the files remain in the CL your preflight will fail to submit\r\n" +
+							"\r\n" +
+							"Click:\r\n" +
+							"[YES] - To revert local files and submit the preflight,\r\n" +
+							"[NO] - To start the preflight, and move the files manually\r\n" +
+							"[CANCEL] - To cancel the request";
+					string Caption = "Your CL will fail to auto-submit unless fixed";
 
-						"Your CL will fail to auto-submit unless fixed", 
-						MessageBoxButton.YesNoCancel);
+					string Response = null;
 
-					if (result == MessageBoxResult.Cancel)
+					if (OperatingSystem.IsWindows())
 					{
-						Logger.LogInformation("User Opted to cancel");
-						return 0;
+#if IS_WINDOWS
+						SetupVisuals();
+
+						DialogResult result= MessageBox.Show(Prompt, Caption, MessageBoxButtons.YesNoCancel);
+						Response = DialogResult.ToString();
+#endif
 					}
-					else if(result == MessageBoxResult.Yes)
+					else if (OperatingSystem.IsMacOS())
 					{
-						await Perforce.RevertAsync(Change, null, RevertOptions.None, OpenedRecords.Select(x => x.ClientFile!).ToArray(), CancellationToken.None);
+						ProcessStartInfo SI = new ProcessStartInfo("/bin/bash", $"-c \" osascript -e 'display dialog \\\"{Prompt}\\\" buttons {{\\\"Yes\\\", \\\"No\\\", \\\"Cancel\\\"}} with icon caution'\"");
+						SI.RedirectStandardOutput = true;
+						using (Process Proc = Process.Start(SI)!)
+						{
+							StreamReader Reader = Proc.StandardOutput;
+							Response = Reader.ReadToEnd().Trim();
+							Response = Response.Replace("button returned:", "");
+						}
 					}
 					else
 					{
+						Logger.LogWarning("Your CL was just shelved however it still has files checked out\r\n" +
+							"If the files remain in the CL your preflight will fail to submit\r\n");
+					}
+
+
+					if (Response == "No")
+					{
 						// do nothing - user has been warned.
+					}
+					else if (Response == "Yes")
+					{
+						await Perforce.RevertAsync(Change, null, RevertOptions.None, OpenedRecords.Select(x => x.ClientFile!).ToArray(), CancellationToken.None);
+					}
+					// any other reply is Cancel (like on Mac, hitting Escape will return a weird string, not Cancel)
+					else
+					{
+						Logger.LogInformation("User Opted to cancel");
+						return 0;
 					}
 				}
 			}
