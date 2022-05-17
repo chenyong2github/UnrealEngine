@@ -1347,9 +1347,8 @@ typedef TArray<uint32, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > FAsyncMipHandle
 typedef TArray<uint32> FAsyncVTChunkHandles;
 
 /**
- * Executes async DDC gets for mips stored in the derived data cache.
- * @param Mip - Mips to retrieve.
- * @param FirstMipToLoad - Index of the first mip to retrieve.
+ * Executes DDC gets for mips stored in the derived data cache.
+ * @param FirstMipToLoad - Index of the first mip to retrieve - starting with this mip and all smaller mips.
  * @param Callback - Callback invoked for each mip as it loads.
  * 
  * This function must be called after the initial DDC fetch is complete,
@@ -1806,6 +1805,8 @@ TFuture<TTuple<uint64, uint64>> FTexturePlatformData::LaunchEstimateOnDiskSizeTa
 	return ResultFuture;
 }
 
+// Fills the mip's bulk data from the DDC starting with FirstMipToLoad.
+// "Inline" meaning "Load in to bulk data".
 bool FTexturePlatformData::TryInlineMipData(int32 FirstMipToLoad, FStringView DebugContext)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FTexturePlatformData::TryInlineMipData);
@@ -2565,6 +2566,42 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 /*------------------------------------------------------------------------------
 	Texture derived data interface.
 ------------------------------------------------------------------------------*/
+
+bool UTexture2DArray::GetMipData(int32 InFirstMipToLoad, TArray<FUniqueBuffer>& OutMipData)
+{
+	FTexturePlatformData* LocalPlatformData = GetPlatformDataOrWait();
+	int32 OutputMipCount = LocalPlatformData->Mips.Num() - InFirstMipToLoad;
+
+	check(OutputMipCount <= MAX_TEXTURE_MIP_COUNT);
+
+	void* MipData[MAX_TEXTURE_MIP_COUNT] = {};
+	int64 MipSizes[MAX_TEXTURE_MIP_COUNT];
+	if (LocalPlatformData->TryLoadMipsWithSizes(InFirstMipToLoad, MipData, MipSizes, GetPathName()) == false)
+	{
+		// Unable to load mips from the cache. Rebuild the texture and try again.
+		UE_LOG(LogTexture, Warning, TEXT("GetMipData failed for %s (%s)"),
+			*GetPathName(), GPixelFormats[GetPixelFormat()].Name);
+#if WITH_EDITOR
+		if (!GetOutermost()->bIsCookedForEditor)
+		{
+			ForceRebuildPlatformData();
+			if (LocalPlatformData->TryLoadMipsWithSizes(InFirstMipToLoad, MipData, MipSizes, GetPathName()) == false)
+			{
+				UE_LOG(LogTexture, Error, TEXT("TryLoadMipsWithSizes still failed after ForceRebuildPlatformData %s."), *GetPathName());
+				return false;
+			}
+		}
+#else // #if WITH_EDITOR
+		return false;
+#endif // WITH_EDITOR
+	}
+
+	for (int32 MipIndex = 0; MipIndex < OutputMipCount; MipIndex++)
+	{
+		OutMipData.Emplace(FUniqueBuffer::TakeOwnership(MipData[MipIndex], MipSizes[MipIndex], [](void* Ptr) {FMemory::Free(Ptr);} ));
+	}
+	return true;
+}
 
 void UTexture2D::GetMipData(int32 FirstMipToLoad, void** OutMipData)
 {

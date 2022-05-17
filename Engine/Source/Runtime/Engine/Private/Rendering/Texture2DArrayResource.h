@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Rendering/StreamableTextureResource.h"
 #include "Containers/ResourceArray.h"
+#include "Memory/SharedBuffer.h"
 
 class UTexture2DArray;
 
@@ -33,10 +34,9 @@ protected:
 
 	void GetData(uint32 SliceIndex, uint32 MipIndex, void* Dest, uint32 DestPitch);
 
-	/** The initial data for all mips of a single slice. */
+	/** The initial data for all mips of a single slice. This is all discarded once the texture has been uploaded. */
 	typedef TArray<TArrayView<uint8>, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > FSingleSliceMipDataView;
 	/** All slices initial data. */
 	TArray<FSingleSliceMipDataView> SliceMipDataViews;
-	/** The single allocation holding initial data. */
-	TUniquePtr<uint8[]> InitialMipData;
+	TArray<FUniqueBuffer> MipData;
 };
