@@ -2730,6 +2730,11 @@ void UObject::SaveConfig( uint64 Flags, const TCHAR* InFilename, FConfigCacheIni
 						Array->Inner->ExportTextItem_Direct( Buffer, ArrayHelper.GetRawPtr(i), ArrayHelper.GetRawPtr(i), this, PortFlags );
 						Sec->Add(*CompleteKey, *Buffer);
 					}
+					if (ArrayHelper.Num() == 0 && bIsADefaultIniWrite)
+					{
+						const FString EmptyKey = FString::Printf(TEXT("!%s"), *Key);
+						Sec->Add(*EmptyKey, TEXT("__ClearArray__"));
+					}
 				}
 			}
 			else

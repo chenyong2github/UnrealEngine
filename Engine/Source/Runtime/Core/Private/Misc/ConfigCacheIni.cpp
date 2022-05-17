@@ -2072,55 +2072,79 @@ void FConfigFile::ProcessSourceAndCheckAgainstBackup()
 	}
 }
 
+static TArray<FString> GetSourceProperties(const FConfigFileHierarchy& SourceIniHierarchy, int IniCombineThreshold, const FString& SectionName, const FString& PropertyName)
+{
+	// Build a config file out of this default configs hierarchy.
+	FConfigCacheIni Hierarchy(EConfigCacheType::Temporary);
+
+	int32 HighestFileIndex = 0;
+	TArray<int32> ExistingEntries;
+	SourceIniHierarchy.GetKeys(ExistingEntries);
+	for (const int32& NextEntry : ExistingEntries)
+	{
+		HighestFileIndex = NextEntry > HighestFileIndex ? NextEntry : HighestFileIndex;
+	}
+
+	const FString& LastFileInHierarchy = SourceIniHierarchy.FindChecked(HighestFileIndex);
+	FConfigFile& DefaultConfigFile = Hierarchy.Add(LastFileInHierarchy, FConfigFile());
+
+	for (const auto& HierarchyFileIt : SourceIniHierarchy)
+	{
+		// Combine everything up to the level we're writing, but not including it.
+		// Inclusion would result in a bad feedback loop where on subsequent writes 
+		// we would be diffing against the same config we've just written to.
+		if (HierarchyFileIt.Key < IniCombineThreshold)
+		{
+			DefaultConfigFile.Combine(HierarchyFileIt.Value);
+		}
+	}
+
+	// Remove any array elements from the default configs hierearchy, we will add these in below
+	// Note.	This compensates for an issue where strings in the hierarchy have a slightly different format
+	//			to how the config system wishes to serialize them.
+	TArray<FString> SourceArrayProperties;
+	Hierarchy.GetArray(*SectionName, *PropertyName, SourceArrayProperties, *LastFileInHierarchy);
+
+	return SourceArrayProperties;
+}
+
 void FConfigFile::ProcessPropertyAndWriteForDefaults(int IniCombineThreshold, const TArray<const FConfigValue*>& InCompletePropertyToProcess, FString& OutText, const FString& SectionName, const FString& PropertyName)
 {
 	// Only process against a hierarchy if this config file has one.
 	if (SourceIniHierarchy.Num() > 0)
 	{
-		// Handle array elements from the configs hierarchy.
-		if (PropertyName.StartsWith(TEXT("+")) || InCompletePropertyToProcess.Num() > 1)
+		FString CleanedPropertyName = PropertyName;
+		const bool bHadPlus = CleanedPropertyName.RemoveFromStart(TEXT("+"));
+		const bool bHadBang = CleanedPropertyName.RemoveFromStart(TEXT("!"));
+
+		const FString PropertyNameWithRemoveOp = TEXT("-") + CleanedPropertyName;
+
+		// look for pointless !Clear entries that the config system wrote out when it noticed the user didn't have any entries
+		if (bHadBang && InCompletePropertyToProcess.Num() == 1 && InCompletePropertyToProcess[0]->GetSavedValue() == TEXT("__ClearArray__"))
 		{
-			// Build a config file out of this default configs hierarchy.
-			FConfigCacheIni Hierarchy(EConfigCacheType::Temporary);
-
-			int32 HighestFileIndex = 0;
-			TArray<int32> ExistingEntries;
-			SourceIniHierarchy.GetKeys(ExistingEntries);
-			for (const int32& NextEntry : ExistingEntries)
+			const TArray<FString> SourceArrayProperties = GetSourceProperties(SourceIniHierarchy, IniCombineThreshold, SectionName, CleanedPropertyName);
+			for (const FString& NextElement : SourceArrayProperties)
 			{
-				HighestFileIndex = NextEntry > HighestFileIndex ? NextEntry : HighestFileIndex;
+				OutText.Append(GenerateExportedPropertyLine(PropertyNameWithRemoveOp, NextElement));
 			}
 
-			const FString& LastFileInHierarchy = SourceIniHierarchy.FindChecked(HighestFileIndex);
-			FConfigFile& DefaultConfigFile = Hierarchy.Add(LastFileInHierarchy, FConfigFile());
+			// We don't need to write out the ! entry so just leave now.
+			return;
+		}
 
-			for (const auto& HierarchyFileIt : SourceIniHierarchy)
+		// Handle array elements from the configs hierarchy.
+		if (bHadPlus || InCompletePropertyToProcess.Num() > 1)
+		{
+			const TArray<FString> SourceArrayProperties = GetSourceProperties(SourceIniHierarchy, IniCombineThreshold, SectionName, CleanedPropertyName);
+			for (const FString& NextElement : SourceArrayProperties)
 			{
-				// Combine everything up to the level we're writing, but not including it.
-				// Inclusion would result in a bad feedback loop where on subsequent writes 
-				// we would be diffing against the same config we've just written to.
-				if (HierarchyFileIt.Key < IniCombineThreshold)
-				{
-					DefaultConfigFile.Combine(HierarchyFileIt.Value);
-				}
-			}
-
-			// Remove any array elements from the default configs hierearchy, we will add these in below
-			// Note.	This compensates for an issue where strings in the hierarchy have a slightly different format
-			//			to how the config system wishes to serialize them.
-			TArray<FString> ArrayProperties;
-			Hierarchy.GetArray(*SectionName, *PropertyName.Replace(TEXT("+"), TEXT("")), ArrayProperties, *LastFileInHierarchy);
-
-			for (const FString& NextElement : ArrayProperties)
-			{
-				FString PropertyNameWithRemoveOp = PropertyName.Replace(TEXT("+"), TEXT("-"));
 				OutText.Append(GenerateExportedPropertyLine(PropertyNameWithRemoveOp, NextElement));
 			}
 		}
 	}
 
 	// Write the properties out to a file.
-	for ( const FConfigValue* PropertyIt : InCompletePropertyToProcess)
+	for (const FConfigValue* PropertyIt : InCompletePropertyToProcess)
 	{
 		OutText.Append(GenerateExportedPropertyLine(PropertyName, PropertyIt->GetSavedValue()));
 	}
