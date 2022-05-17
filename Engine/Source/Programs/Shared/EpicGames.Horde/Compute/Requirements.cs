@@ -22,7 +22,7 @@ namespace EpicGames.Horde.Compute
 		/// Resources used by the process
 		/// </summary>
 		[CbField("r")]
-		public Dictionary<string, int> Resources { get; set; } = new Dictionary<string, int>();
+		public Dictionary<string, int> Resources { get; } = new Dictionary<string, int>();
 
 		/// <summary>
 		/// Whether we require exclusive access to the device

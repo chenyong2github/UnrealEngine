@@ -75,7 +75,7 @@ namespace EpicGames.Horde.Storage.Impl
 			_logger.LogInformation("Writing {File} ({Size:n0} bytes)", file, stream.Length);
 			using (Stream outputStream = FileReference.Open(file, FileMode.Create, FileAccess.Write, FileShare.Read))
 			{
-				await stream.CopyToAsync(outputStream);
+				await stream.CopyToAsync(outputStream, cancellationToken);
 			}
 		}
 
@@ -85,7 +85,7 @@ namespace EpicGames.Horde.Storage.Impl
 			byte[] data;
 			using (MemoryStream memoryStream = new MemoryStream())
 			{
-				await stream.CopyToAsync(memoryStream);
+				await stream.CopyToAsync(memoryStream, cancellationToken);
 				data = memoryStream.ToArray();
 			}
 			return await this.WriteBlobFromMemoryAsync(namespaceId, data, cancellationToken);
@@ -131,7 +131,7 @@ namespace EpicGames.Horde.Storage.Impl
 		{
 			FileReference file = GetRefFile(namespaceId, bucketId, refId);
 			_logger.LogInformation("Reading {File} ({Size:n0} bytes)", file, new FileInfo(file.FullName).Length);
-			byte[] data = await FileReference.ReadAllBytesAsync(file);
+			byte[] data = await FileReference.ReadAllBytesAsync(file, cancellationToken);
 			return new Ref(namespaceId, bucketId, refId, new CbObject(data));
 		}
 

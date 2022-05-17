@@ -17,7 +17,7 @@ using System.Threading.Tasks;
 namespace EpicGames.Horde.Tests
 {
 	[TestClass]
-	public class BundleTests : IDisposable
+	public sealed class BundleTests : IDisposable
 	{
 		readonly MemoryCache _cache;
 		readonly MemoryStorageClient _storageClient = new MemoryStorageClient();
@@ -147,7 +147,7 @@ namespace EpicGames.Horde.Tests
 				Assert.AreEqual(oldExport.Packet.DecodedLength, newExport.Packet.DecodedLength);
 				Assert.AreEqual(oldExport.Offset, newExport.Offset);
 				Assert.AreEqual(oldExport.Length, newExport.Length);
-				Assert.IsTrue(oldExport.References.AsSpan().SequenceEqual(newExport.References.AsSpan()));
+				Assert.IsTrue(oldExport.References.SequenceEqual(newExport.References));
 			}
 		}
 
@@ -366,7 +366,7 @@ namespace EpicGames.Horde.Tests
 				data[idx] = (byte)idx;
 			}
 
-			Bundle<FileNode> newBundle = Bundle.Create<FileNode>(_storageClient, _namespaceId, new FileNode(), new BundleOptions(), _cache);
+			using Bundle<FileNode> newBundle = Bundle.Create<FileNode>(_storageClient, _namespaceId, new FileNode(), new BundleOptions(), _cache);
 			FileNode root = newBundle.Root;
 
 			const int NumIterations = 100;

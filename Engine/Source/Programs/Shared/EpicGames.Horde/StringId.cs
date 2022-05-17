@@ -40,7 +40,9 @@ namespace EpicGames.Horde
 				{
 					if (character >= 'A' && character <= 'Z')
 					{
+#pragma warning disable CA1308 // Normalize strings to uppercase
 						Text = Text.ToLowerInvariant();
+#pragma warning restore CA1308 // Normalize strings to uppercase
 					}
 					else
 					{

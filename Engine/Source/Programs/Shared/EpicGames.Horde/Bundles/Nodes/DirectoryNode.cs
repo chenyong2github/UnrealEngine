@@ -17,8 +17,14 @@ namespace EpicGames.Horde.Bundles.Nodes
 	/// <summary>
 	/// Flags for a directory entry
 	/// </summary>
-	public enum FileEntryFlags : byte
+	[Flags]
+	public enum FileEntryFlags
 	{
+		/// <summary>
+		/// No flags set
+		/// </summary>
+		None = 0,
+
 		/// <summary>
 		/// Indicates that the referenced file is executable
 		/// </summary>

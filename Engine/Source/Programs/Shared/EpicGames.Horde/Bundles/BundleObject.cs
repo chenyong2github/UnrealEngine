@@ -47,14 +47,14 @@ namespace EpicGames.Horde.Bundles
 		/// Other objects that are referenced.
 		/// </summary>
 		[CbField("imports")]
-		public List<BundleImportObject> ImportObjects { get; set; } = new List<BundleImportObject>();
+		public List<BundleImportObject> ImportObjects { get; } = new List<BundleImportObject>();
 
 		/// <summary>
 		/// Exported items in the data 
 		/// </summary>
 		[CbField("exports")]
 		[CbConverter(typeof(BundleExportListConverter))]
-		public List<BundleExport> Exports { get; set; } = new List<BundleExport>();
+		public List<BundleExport> Exports { get; } = new List<BundleExport>();
 
 		/// <summary>
 		/// Raw data for this exported entries in this blob.
@@ -86,7 +86,7 @@ namespace EpicGames.Horde.Bundles
 		/// </summary>
 		[CbField("imports")]
 		[CbConverter(typeof(BundleImportListConverter))]
-		public List<BundleImport> Imports { get; set; } = new List<BundleImport>();
+		public List<BundleImport> Imports { get; } = new List<BundleImport>();
 
 		/// <summary>
 		/// Default constructor, for serialization
@@ -236,12 +236,12 @@ namespace EpicGames.Horde.Bundles
 		/// <summary>
 		/// References to other nodes.
 		/// </summary>
-		public int[] References { get; }
+		public IReadOnlyList<int> References { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BundleExport(IoHash hash, int rank, BundleCompressionPacket packet, int offset, int length, int[] references)
+		public BundleExport(IoHash hash, int rank, BundleCompressionPacket packet, int offset, int length, IReadOnlyList<int> references)
 			: base(hash, rank, length)
 		{
 			Packet = packet;
@@ -338,7 +338,7 @@ namespace EpicGames.Horde.Bundles
 				int lengthBytes = VarInt.Write(span, export.Length);
 				span = span.Slice(lengthBytes);
 
-				int numReferencesBytes = VarInt.Write(span, export.References.Length);
+				int numReferencesBytes = VarInt.Write(span, export.References.Count);
 				span = span.Slice(numReferencesBytes);
 
 				foreach (int reference in export.References)
@@ -367,7 +367,7 @@ namespace EpicGames.Horde.Bundles
 					prevPacket = packet;
 				}
 
-				length += IoHash.NumBytes + VarInt.Measure(export.Rank) + VarInt.Measure(export.Length) + VarInt.Measure(export.References.Length) + export.References.Sum(x => VarInt.Measure(x));
+				length += IoHash.NumBytes + VarInt.Measure(export.Rank) + VarInt.Measure(export.Length) + VarInt.Measure(export.References.Count) + export.References.Sum(x => VarInt.Measure(x));
 			}
 
 			return length;

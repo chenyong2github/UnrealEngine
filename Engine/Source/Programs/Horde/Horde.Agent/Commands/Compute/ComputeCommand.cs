@@ -196,12 +196,18 @@ namespace Horde.Agent.Commands
 
 				JsonRequirements jsonRequirements = jsonComputeTask.Requirements;
 				Requirements requirements = new Requirements(jsonRequirements.Condition ?? String.Empty);
-				requirements.Resources = jsonRequirements.Resources.ToDictionary(x => x.Key, x => x.Value);
+				foreach ((string name, int count) in jsonRequirements.Resources)
+				{
+					requirements.Resources.Add(name, count);
+				}
 				requirements.Exclusive = jsonRequirements.Exclusive;
 				IoHash requirementsHash = AddCbObject(blobs, requirements);
 
 				ComputeTask task = new ComputeTask(jsonComputeTask.Executable, jsonComputeTask.Arguments.ConvertAll<Utf8String>(x => x), jsonComputeTask.WorkingDirectory, sandboxHash);
-				task.EnvVars = jsonComputeTask.EnvVars.ToDictionary(x => (Utf8String)x.Key, x => (Utf8String)x.Value);
+				foreach ((string name, string value) in jsonComputeTask.EnvVars)
+				{
+					task.EnvVars.Add(name, value);
+				}
 				task.OutputPaths.AddRange(jsonComputeTask.OutputPaths.Select(x => (Utf8String)x));
 				task.RequirementsHash = AddCbObject(blobs, requirements);
 

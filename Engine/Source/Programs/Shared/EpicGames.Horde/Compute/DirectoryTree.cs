@@ -15,13 +15,13 @@ namespace EpicGames.Horde.Compute
 		/// List of files within the directory, sorted by name
 		/// </summary>
 		[CbField("f")]
-		public List<FileNode> Files { get; set; } = new List<FileNode>();
+		public List<FileNode> Files { get; } = new List<FileNode>();
 
 		/// <summary>
 		/// Sub-directories within this directory, sorted by name
 		/// </summary>
 		[CbField("d")]
-		public List<DirectoryNode> Directories { get; set; } = new List<DirectoryNode>();
+		public List<DirectoryNode> Directories { get; } = new List<DirectoryNode>();
 	}
 
 	/// <summary>

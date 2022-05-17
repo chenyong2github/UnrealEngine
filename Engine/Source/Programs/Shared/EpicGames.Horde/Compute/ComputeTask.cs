@@ -21,13 +21,13 @@ namespace EpicGames.Horde.Compute
 		/// List of command line arguments for the process to run.
 		/// </summary>
 		[CbField("a")]
-		public List<Utf8String> Arguments { get; set; } = new List<Utf8String>();
+		public List<Utf8String> Arguments { get; } = new List<Utf8String>();
 
 		/// <summary>
 		/// Environment variables to set for the child process
 		/// </summary>
 		[CbField("v")]
-		public Dictionary<Utf8String, Utf8String> EnvVars { get; set; } = new Dictionary<Utf8String, Utf8String>();
+		public Dictionary<Utf8String, Utf8String> EnvVars { get; } = new Dictionary<Utf8String, Utf8String>();
 
 		/// <summary>
 		/// Path to the working directory within the workspace
@@ -51,7 +51,7 @@ namespace EpicGames.Horde.Compute
 		/// List of output paths to be captured on completion of the action. These may be files or directories.
 		/// </summary>
 		[CbField("o")]
-		public List<Utf8String> OutputPaths { get; set; } = new List<Utf8String>();
+		public List<Utf8String> OutputPaths { get; } = new List<Utf8String>();
 
 		/// <summary>
 		/// Default constructor for serialization

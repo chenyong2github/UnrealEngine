@@ -191,7 +191,9 @@ namespace EpicGames.Horde.Compute
 		/// If the order or meaning of fields in this array are changed, the field name should be changed.
 		/// </summary>
 		[CbField("s")]
+#pragma warning disable CA1819 // Properties should not return arrays
 		public int[] Scopes
+#pragma warning restore CA1819 // Properties should not return arrays
 		{
 			get => _scopes;
 			set => value.AsSpan(0, Math.Max(_scopes.Length, value.Length)).CopyTo(_scopes);
@@ -263,7 +265,9 @@ namespace EpicGames.Horde.Compute
 		/// Timing values measured sequentially starting from StartTime, in milliseconds. If the order or meaning of fields in this array are changed, the field name should be changed.
 		/// </summary>
 		[CbField("s")]
+#pragma warning disable CA1819 // Properties should not return arrays
 		public int[] Scopes
+#pragma warning restore CA1819 // Properties should not return arrays
 		{
 			get => _scopes;
 			set => value.AsSpan(0, Math.Max(_scopes.Length, value.Length)).CopyTo(_scopes);

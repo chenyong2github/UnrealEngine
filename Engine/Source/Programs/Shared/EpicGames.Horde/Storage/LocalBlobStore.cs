@@ -31,7 +31,7 @@ namespace EpicGames.Horde.Storage
 		/// <summary>
 		/// Handle to the first piece in this block
 		/// </summary>
-		public readonly CellHandle FirstCell;
+		public CellHandle FirstCell { get; }
 
 		/// <summary>
 		/// Accessor for this handle as a long value
@@ -1040,7 +1040,7 @@ namespace EpicGames.Horde.Storage
 			}
 		}
 
-		private void LinkPage(ref int firstPageIdx, Page? lastPage, int newPageIdx)
+		private static void LinkPage(ref int firstPageIdx, Page? lastPage, int newPageIdx)
 		{
 			if (lastPage == null)
 			{

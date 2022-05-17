@@ -296,7 +296,7 @@ namespace EpicGames.Horde.Bundles
 					writer.WriteLine($"- hash: {export.Hash}");
 					writer.WriteLine($"  packet-offset: {export.Packet.Offset}");
 					writer.WriteLine($"  size: {export.Length}");
-					if (export.References.Length > 0)
+					if (export.References.Count > 0)
 					{
 						writer.WriteLine($"  references:");
 						foreach (int reference in export.References)

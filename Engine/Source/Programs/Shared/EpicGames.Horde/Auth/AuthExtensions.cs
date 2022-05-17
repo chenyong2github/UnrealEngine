@@ -16,12 +16,12 @@ namespace EpicGames.Horde.Auth
 		/// Base address for http requests
 		/// </summary>
 		[Required]
-		public string Url { get; set; } = String.Empty;
+		public Uri Url { get; set; } = null!;
 
 		#region OAuth2
 
 		/// <inheritdoc/>
-		public string AuthUrl { get; set; } = String.Empty;
+		public Uri? AuthUrl { get; set; }
 
 		/// <inheritdoc/>
 		public string GrantType { get; set; } = String.Empty;
@@ -58,7 +58,7 @@ namespace EpicGames.Horde.Auth
 			services.AddHttpClient<TClient, TImplementation>((serviceProvider, client) =>
 				{
 					HttpServiceClientOptions options = getOptions(serviceProvider);
-					client.BaseAddress = new Uri(options.Url);
+					client.BaseAddress = options.Url;
 				})
 				.ConfigurePrimaryHttpMessageHandler(serviceProvider =>
 				{
@@ -69,7 +69,7 @@ namespace EpicGames.Horde.Auth
 
 		static HttpMessageHandler CreateMessageHandler<TImplementation>(IServiceProvider serviceProvider, HttpServiceClientOptions options)
 		{
-			if (!String.IsNullOrEmpty(options.AuthUrl))
+			if (options.AuthUrl != null)
 			{
 				return serviceProvider.GetRequiredService<OAuthHandler<TImplementation>>();
 			}

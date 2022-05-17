@@ -34,7 +34,7 @@ namespace EpicGames.Horde.Auth
 		/// <summary>
 		/// Url of the auth server
 		/// </summary>
-		string AuthUrl { get; }
+		Uri? AuthUrl { get; }
 
 		/// <summary>
 		/// Type of grant
@@ -124,7 +124,7 @@ namespace EpicGames.Horde.Auth
 					throw new AuthenticationException($"Authentication failed. Response: {response.Content}", null);
 				}
 
-				byte[] responseData = await response.Content.ReadAsByteArrayAsync();
+				byte[] responseData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 				ClientCredentialsResponse result = JsonSerializer.Deserialize<ClientCredentialsResponse>(responseData)!;
 
 				string? accessToken = result?.access_token;

@@ -50,7 +50,7 @@ namespace EpicGames.Horde.Storage.Impl
 		{
 			using (MemoryStream memoryStream = new MemoryStream())
 			{
-				await stream.CopyToAsync(memoryStream);
+				await stream.CopyToAsync(memoryStream, cancellationToken);
 				Blobs[(namespaceId, hash)] = memoryStream.ToArray();
 			}
 		}
@@ -60,7 +60,7 @@ namespace EpicGames.Horde.Storage.Impl
 		{
 			using (MemoryStream memoryStream = new MemoryStream())
 			{
-				await stream.CopyToAsync(memoryStream);
+				await stream.CopyToAsync(memoryStream, cancellationToken);
 
 				byte[] data = memoryStream.ToArray();
 				IoHash hash = IoHash.Compute(data);

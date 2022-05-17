@@ -24,7 +24,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <summary>
 		/// Set of missing hashes
 		/// </summary>
-		public HashSet<IoHash> Needs { get; set; } = new HashSet<IoHash>();
+		public HashSet<IoHash> Needs { get; } = new HashSet<IoHash>();
 	}
 
 	/// <summary>
@@ -35,7 +35,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <summary>
 		/// List of missing hashes
 		/// </summary>
-		public List<IoHash> Needs { get; set; } = new List<IoHash>();
+		public List<IoHash> Needs { get; } = new List<IoHash>();
 	}
 
 	/// <summary>
@@ -46,7 +46,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <summary>
 		/// List of hashes that the blob store needs.
 		/// </summary>
-		public List<RefId> Needs { get; set; } = new List<RefId>();
+		public List<RefId> Needs { get; } = new List<RefId>();
 	}
 
 	/// <summary>
@@ -74,7 +74,7 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		const string HashHeaderName = "X-Jupiter-IoHash";
-		const string LastAccessHeaderName = "X-Jupiter-LastAccess";
+//		const string LastAccessHeaderName = "X-Jupiter-LastAccess";
 
 		const string CompactBinaryMimeType = "application/x-ue-cb";
 
@@ -105,7 +105,7 @@ namespace EpicGames.Horde.Storage.Impl
 				}
 
 				response.EnsureSuccessStatusCode();
-				return await response.Content.ReadAsStreamAsync();
+				return await response.Content.ReadAsStreamAsync(cancellationToken);
 			}
 			catch
 			{
@@ -147,10 +147,10 @@ namespace EpicGames.Horde.Storage.Impl
 			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			response.EnsureSuccessStatusCode();
 
-			using (Stream responseStream = await response.Content.ReadAsStreamAsync())
+			using (Stream responseStream = await response.Content.ReadAsStreamAsync(cancellationToken))
 			{
-				WriteBlobResponse responseMessage = await JsonSerializer.DeserializeAsync<WriteBlobResponse>(responseStream, cancellationToken: cancellationToken);
-				return responseMessage.Identifier;
+				WriteBlobResponse? responseMessage = await JsonSerializer.DeserializeAsync<WriteBlobResponse>(responseStream, cancellationToken: cancellationToken);
+				return responseMessage!.Identifier;
 			}
 		}
 
@@ -210,7 +210,7 @@ namespace EpicGames.Horde.Storage.Impl
 			request.Headers.Accept.Clear();
 			request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue(CompactBinaryMimeType));
 
-			using HttpResponseMessage response = await _httpClient.SendAsync(request);
+			using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			if (!response.IsSuccessStatusCode)
 			{
 				if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -223,7 +223,7 @@ namespace EpicGames.Horde.Storage.Impl
 				}
 			}
 
-			byte[] data = await response.Content.ReadAsByteArrayAsync();
+			byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 			return new RefImpl(namespaceId, bucketId, refId, new CbObject(data));
 		}
 
@@ -242,7 +242,7 @@ namespace EpicGames.Horde.Storage.Impl
 			request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 			request.Content = content;
 
-			using HttpResponseMessage response = await _httpClient.SendAsync(request);
+			using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			if (!response.IsSuccessStatusCode)
 			{
 				throw new RefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
@@ -265,7 +265,7 @@ namespace EpicGames.Horde.Storage.Impl
 			request.Headers.Accept.Clear();
 			request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-			using HttpResponseMessage response = await _httpClient.SendAsync(request);
+			using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			if (!response.IsSuccessStatusCode)
 			{
 				throw new RefException(namespaceId, bucketId, refId, await GetMessageFromResponse(response));
@@ -357,7 +357,7 @@ namespace EpicGames.Horde.Storage.Impl
 		static async Task<T> ReadJsonResponse<T>(HttpContent content)
 		{
 			byte[] data = await content.ReadAsByteArrayAsync();
-			return JsonSerializer.Deserialize<T>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+			return JsonSerializer.Deserialize<T>(data, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 		}
 	}
 }

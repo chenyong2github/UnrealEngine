@@ -286,6 +286,16 @@ namespace EpicGames.Horde.Bundles
 		/// <inheritdoc/>
 		public void Dispose()
 		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+
+		/// <summary>
+		/// Dispose method
+		/// </summary>
+		/// <param name="disposing"></param>
+		protected virtual void Dispose(bool disposing)
+		{
 			_readSema.Dispose();
 		}
 
@@ -488,10 +498,9 @@ namespace EpicGames.Horde.Bundles
 					nodeState = node.State;
 				}
 
-				Debug.Assert(nodeState.Blob != null);
 				Debug.Assert(nodeState.Export != null);
 
-				BundleObject bundleObject = await GetObjectAsync(nodeState.Blob.Hash);
+				BundleObject bundleObject = await GetObjectAsync(nodeState.Blob!.Hash);
 				ReadOnlyMemory<byte> packetData = DecodePacket(nodeState.Blob.Hash, bundleObject.Data, nodeState.Export.Packet);
 				ReadOnlyMemory<byte> nodeData = packetData.Slice(nodeState.Export.Offset, nodeState.Export.Length);
 
@@ -804,7 +813,7 @@ namespace EpicGames.Horde.Bundles
 				// Figure out which blobs need to be repacked
 				foreach (BlobInfo liveBlob in liveBlobs)
 				{
-					int liveCost = liveBlob.LiveNodes.Sum(x => x.Length);
+					int liveCost = liveBlob.LiveNodes!.Sum(x => x.Length);
 					int minLiveCost = (int)(liveBlob.TotalCost * Options.RepackRatio);
 
 					if (liveCost < minLiveCost)
@@ -1017,7 +1026,7 @@ namespace EpicGames.Horde.Bundles
 				}
 
 				// Create the export for this node
-				int[] references = node.State.References.Select(x => nodeToIndex[x]).ToArray();
+				int[] references = node.State.References!.Select(x => nodeToIndex[x]).ToArray();
 				BundleExport export = new BundleExport(node.Hash, node.Rank, packet, blockSize, node.Length, references);
 				newObject.Exports.Add(export);
 
@@ -1063,7 +1072,7 @@ namespace EpicGames.Horde.Bundles
 			}
 		}
 
-		void CreateFreeSpace(ref byte[] buffer, int usedSize, int requiredSize)
+		static void CreateFreeSpace(ref byte[] buffer, int usedSize, int requiredSize)
 		{
 			if (requiredSize > buffer.Length)
 			{

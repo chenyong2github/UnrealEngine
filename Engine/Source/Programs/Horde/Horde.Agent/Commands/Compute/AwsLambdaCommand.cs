@@ -195,7 +195,7 @@ namespace Horde.Agent.Commands
 				OAuthHandlerFactory oAuthHandlerFactory = new OAuthHandlerFactory(httpClient);
 				OAuthHandler<HttpStorageClient> oAuthHandler = oAuthHandlerFactory.Create<HttpStorageClient>(clientOptions);
 				using HttpClient client = new HttpClient(oAuthHandler);
-				client.BaseAddress = new Uri(clientOptions.Url);
+				client.BaseAddress = clientOptions.Url;
 				IStorageClient storageClientManual = new HttpStorageClient(client);
 
 				AppDomain.CurrentDomain.ProcessExit += (s, e) => 
@@ -238,8 +238,8 @@ namespace Horde.Agent.Commands
 		{
 			return new HttpServiceClientOptions
 			{
-				Url = GetEnvVar("UE_HORDE_STORAGE_URL"),
-				AuthUrl = GetEnvVar("UE_HORDE_STORAGE_OAUTH_URL"),
+				Url = new Uri(GetEnvVar("UE_HORDE_STORAGE_URL")),
+				AuthUrl = new Uri(GetEnvVar("UE_HORDE_STORAGE_OAUTH_URL")),
 				GrantType = GetEnvVar("UE_HORDE_STORAGE_OAUTH_GRANT_TYPE"),
 				ClientId = GetEnvVar("UE_HORDE_STORAGE_OAUTH_CLIENT_ID"),
 				ClientSecret = clientSecret,

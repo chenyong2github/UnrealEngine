@@ -258,7 +258,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 	/// <summary>
 	/// Attribute used to define a factory for a particular node type
 	/// </summary>
-	public class BundleNodeDeserializerAttribute : Attribute
+	[AttributeUsage(AttributeTargets.Class)]
+	public sealed class BundleNodeDeserializerAttribute : Attribute
 	{
 		/// <summary>
 		/// The factory type. Should be derived from <see cref="BundleNodeDeserializer{T}"/>

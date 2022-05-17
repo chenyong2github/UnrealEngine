@@ -48,7 +48,7 @@ namespace EpicGames.Horde.Compute.Impl
 		/// Refs for tasks to be executed
 		/// </summary>
 		[Required, CbField("t")]
-		public List<RefId> TaskRefIds { get; set; } = new List<RefId>();
+		public List<RefId> TaskRefIds { get; } = new List<RefId>();
 
 		/// <summary>
 		/// Requirements for agents executing the tasks
@@ -72,7 +72,7 @@ namespace EpicGames.Horde.Compute.Impl
 		/// Task updates
 		/// </summary>
 		[CbField("u")]
-		public List<ComputeTaskStatus> Updates { get; set; } = new List<ComputeTaskStatus>();
+		public List<ComputeTaskStatus> Updates { get; } = new List<ComputeTaskStatus>();
 	}
 
 	#endregion
@@ -111,7 +111,7 @@ namespace EpicGames.Horde.Compute.Impl
 			ReadOnlyMemoryContent content = new ReadOnlyMemoryContent(CbSerializer.Serialize(addTasks).GetView());
 			content.Headers.Add("Content-Type", "application/x-ue-cb");
 
-			HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/compute/{clusterId}");
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/compute/{clusterId}");
 			request.Content = content;
 
 			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
@@ -129,7 +129,7 @@ namespace EpicGames.Horde.Compute.Impl
 				using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken);
 				response.EnsureSuccessStatusCode();
 
-				byte[] data = await response.Content.ReadAsByteArrayAsync();
+				byte[] data = await response.Content.ReadAsByteArrayAsync(cancellationToken);
 				GetTaskUpdatesResponse parsedResponse = CbSerializer.Deserialize<GetTaskUpdatesResponse>(new CbField(data));
 
 				foreach (ComputeTaskStatus update in parsedResponse.Updates)
