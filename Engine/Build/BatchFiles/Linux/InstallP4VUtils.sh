@@ -8,7 +8,7 @@ LibPath="$HOME/Library/Unreal Engine/P4VUtils"
 echo
 echo Copying P4VUtils files to '$LibPath'...
 mkdir -p "$LibPath"
-cp ../../../Extras/P4VUtils/Binaries/* "$LibPath"
+cp ../../../Extras/P4VUtils/Binaries/Linux/* "$LibPath"
 cp ../../../Extras/P4VUtils/P4VUtils.ini "$LibPath"
 cp ../../../Restricted/NotForLicensees/* "$LibPath" 2> /dev/null
 
