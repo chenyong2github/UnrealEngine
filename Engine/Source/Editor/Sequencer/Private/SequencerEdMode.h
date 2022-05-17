@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
+#include "EditorDragTools.h"
 #include "EditorModeTools.h"
 #include "EdMode.h"
 #include "Misc/FrameTime.h"
@@ -22,8 +23,6 @@ class UMovieScene3DTransformTrack;
 struct FMovieSceneEvaluationTrack;
 struct FMovieSceneInterrogationData;
 class USequencerSettings;
-
-#include "EditorDragTools.h"
 
 // This struct wraps up functionality for creating a marquee(frustum or box) selection drag tool
 // It does so based upon the type of viewport being drawn.
