@@ -28,7 +28,8 @@ public:
 NANITEDISPLACEDMESHEDITOR_API UNaniteDisplacedMesh* LinkDisplacedMeshAsset(
 	UNaniteDisplacedMesh* ExistingDisplacedMesh,
 	const FNaniteDisplacedMeshParams& InParameters,
-	const FString& DisplacedMeshFolder
+	const FString& DisplacedMeshFolder,
+	bool bCreateTransientAsset = false
 );
 
 NANITEDISPLACEDMESHEDITOR_API FGuid GetAggregatedId(const FNaniteDisplacedMeshParams& DisplacedMeshParams);

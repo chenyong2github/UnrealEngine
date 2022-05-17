@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NaniteDisplacedMeshFactory.h"
+
 #include "NaniteDisplacedMesh.h"
+#include "NaniteDisplacedMeshEditorModule.h"
 
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
@@ -14,6 +16,7 @@
 #include "Misc/StringBuilder.h"
 #include "Subsystems/EditorAssetSubsystem.h"
 #include "FileHelpers.h"
+#include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "NaniteDisplacedMeshEditor"
 
@@ -41,7 +44,7 @@ UObject* UNaniteDisplacedMeshFactory::FactoryCreateNew(UClass* Class, UObject* I
 	return NewNaniteDisplacedMesh;
 }
 
-UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDisplacedMesh, const FNaniteDisplacedMeshParams& InParameters, const FString& DisplacedMeshFolder)
+UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDisplacedMesh, const FNaniteDisplacedMeshParams& InParameters, const FString& DisplacedMeshFolder, bool bCreateTransientAsset)
 {
 	// We always need a valid base mesh for displacement, and non-zero magnitude on at least one displacement map
 	const bool bApplyDisplacement =
@@ -98,30 +101,70 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		ensure(bDeleteOK);
 	}
 
-	// We need to create a new asset
-	IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
-
-	TStrongObjectPtr<UNaniteDisplacedMeshFactory> DisplacedMeshFactory(NewObject<UNaniteDisplacedMeshFactory>());
-	DisplacedMeshFactory->bCreateReadOnlyAsset = true;
-	if (UObject* Asset = AssetTools.CreateAsset(DisplacedMeshName, DisplacedMeshFolder, UNaniteDisplacedMesh::StaticClass(), DisplacedMeshFactory.Get()))
+	if (bCreateTransientAsset)
 	{
-		UNaniteDisplacedMesh* NewDisplacedMesh = CastChecked<UNaniteDisplacedMesh>(Asset);
-		NewDisplacedMesh->Parameters = InParameters;
+		UPackage* NaniteDisplacedMeshTransientPackage = FNaniteDisplacedMeshEditorModule::GetModule().GetNaniteDisplacementMeshTransientPackage();
 
-		if (UEditorLoadingAndSavingUtils::SavePackages({ NewDisplacedMesh->GetPackage() }, /*bOnlyDirty=*/ false))
+		// First check if we already have a valid temp asset
 		{
-			return NewDisplacedMesh;
+			UObject* PotentialTempAsset = FindObject<UObject>(NaniteDisplacedMeshTransientPackage, *DisplacedMeshName);
+
+			if (IsValid(PotentialTempAsset))
+			{
+				if (UNaniteDisplacedMesh* TempNaniteDisplacedMesh = Cast<UNaniteDisplacedMesh>(PotentialTempAsset))
+				{
+					return TempNaniteDisplacedMesh;
+				}
+			}
+
+			// Remove the invalid asset of the way (We don't want to deal with recycled objects)
+			if (PotentialTempAsset)
+			{
+				PotentialTempAsset->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			}
 		}
+
+		// Create a temp asset
+		UNaniteDisplacedMesh* TempNaniteDisplacedMesh = UNaniteDisplacedMeshFactory::StaticFactoryCreateNew(
+			UNaniteDisplacedMesh::StaticClass(),
+			NaniteDisplacedMeshTransientPackage,
+			*DisplacedMeshName,
+			RF_Transactional | RF_Transient,
+			nullptr,
+			nullptr
+			);
+
+		TempNaniteDisplacedMesh->bIsEditable = false;
+
+		return TempNaniteDisplacedMesh;
 	}
 	else
 	{
-		UE_LOG(
-			LogNaniteDisplacedMesh,
-			Error,
-			TEXT("Failed to create asset for %s in folder %s. Consult log for more details"),
-			*DisplacedMeshName,
-			*DisplacedMeshFolder
-		);
+		// We need to create a new asset
+		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
+
+		TStrongObjectPtr<UNaniteDisplacedMeshFactory> DisplacedMeshFactory(NewObject<UNaniteDisplacedMeshFactory>());
+		DisplacedMeshFactory->bCreateReadOnlyAsset = true;
+		if (UObject* Asset = AssetTools.CreateAsset(DisplacedMeshName, DisplacedMeshFolder, UNaniteDisplacedMesh::StaticClass(), DisplacedMeshFactory.Get()))
+		{
+			UNaniteDisplacedMesh* NewDisplacedMesh = CastChecked<UNaniteDisplacedMesh>(Asset);
+			NewDisplacedMesh->Parameters = InParameters;
+
+			if (UEditorLoadingAndSavingUtils::SavePackages({ NewDisplacedMesh->GetPackage() }, /*bOnlyDirty=*/ false))
+			{
+				return NewDisplacedMesh;
+			}
+		}
+		else
+		{
+			UE_LOG(
+				LogNaniteDisplacedMesh,
+				Error,
+				TEXT("Failed to create asset for %s in folder %s. Consult log for more details"),
+				*DisplacedMeshName,
+				*DisplacedMeshFolder
+			);
+		}
 	}
 
 	return nullptr;
