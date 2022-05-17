@@ -387,7 +387,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		EditorHash->Initialize();
 
-		AlwaysLoadedActors = new FLoaderAdapterAlwaysLoadedActors(World);
+		AlwaysLoadedActors = new FLoaderAdapterAlwaysLoadedActors(OuterWorld);
 	}
 
 	check(RuntimeHash);
@@ -1310,19 +1310,22 @@ bool UWorldPartition::IsActorPinned(const FGuid& ActorGuid) const
 	return PinnedActors.Contains(ActorGuid);
 }
 
-void UWorldPartition::LoadLastLoadedRegions()
+void UWorldPartition::LoadLastLoadedRegions(const TArray<FBox>& EditorLastLoadedRegions)
 {
-	TArray<FBox> EditorLastLoadedRegions = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorLoadedRegions(World);
-
 	for (const FBox& EditorLastLoadedRegion : EditorLastLoadedRegions)
 	{
 		FLoaderAdapterShape* LoaderAdapter = CreateEditorLoaderAdapter<FLoaderAdapterShape>(World, EditorLastLoadedRegion, TEXT("Last Loaded Region"));
 		LoaderAdapter->SetUserCreated(true);
 		LoaderAdapter->Load();
 	}
+}
+
+void UWorldPartition::LoadLastLoadedRegions()
+{
+	TArray<FBox> EditorLastLoadedRegions = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorLoadedRegions(World);
+	LoadLastLoadedRegions(EditorLastLoadedRegions);
 
 	TArray<FName> EditorLoadedLocationVolumes = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorLoadedLocationVolumes(World);
-
 	for (const FName& EditorLoadedLocationVolume : EditorLoadedLocationVolumes)
 	{
 		if (ALocationVolume* LocationVolume = FindObject<ALocationVolume>(World->PersistentLevel, *EditorLoadedLocationVolume.ToString()))

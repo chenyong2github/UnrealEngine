@@ -901,7 +901,7 @@ static bool SaveWorld(UWorld* World,
 			{
 				// Save Snapshot of loaded Editor regions
 				GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorLoadedRegions(SaveWorld, LoadedEditorRegions);
-				RenamedWorldPartition->LoadLastLoadedRegions();
+				RenamedWorldPartition->LoadLastLoadedRegions(LoadedEditorRegions);
 			}
 		}
 

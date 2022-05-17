@@ -170,6 +170,7 @@ public:
 	void UnpinActor(const FGuid& ActorGuid);
 	bool IsActorPinned(const FGuid& ActorGuid) const;
 
+	void LoadLastLoadedRegions(const TArray<FBox>& EditorLastLoadedRegions);
 	void LoadLastLoadedRegions();
 #endif
 
