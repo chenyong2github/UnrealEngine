@@ -319,6 +319,8 @@ protected:
 		}
 	}
 
+	static void UpdateCStringSameValueAggregationRec(FTableColumn& Column, FTableTreeNode& GroupNode);
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
 

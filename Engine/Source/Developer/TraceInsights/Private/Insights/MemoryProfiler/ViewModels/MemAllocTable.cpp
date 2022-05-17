@@ -728,6 +728,8 @@ void FMemAllocTable::AddDefaultColumns()
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByCStringValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
+		Column.SetAggregation(ETableColumnAggregation::SameValue);
+
 		AddColumn(ColumnRef);
 	}
 	//////////////////////////////////////////////////
