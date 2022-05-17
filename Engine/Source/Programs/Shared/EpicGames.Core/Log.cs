@@ -94,14 +94,24 @@ namespace EpicGames.Core
 	public static class Log
 	{
 		/// <summary>
-		/// Singleton instance of the default logger
+		/// Singleton instance of the default output logger
 		/// </summary>
-		private static DefaultLogger DefaultLogger { get; } = new DefaultLogger();
+		private static readonly DefaultLogger DefaultLogger = new DefaultLogger();
 
 		/// <summary>
-		/// The public logging interface
+		/// Logger instance which parses events and forwards them to the main logger.
 		/// </summary>
-		public static ILogger Logger { get; set; } = DefaultLogger;
+		private static readonly LegacyEventLogger LegacyLogger = new LegacyEventLogger(DefaultLogger);
+
+		/// <summary>
+		/// Accessor for the global event parser from legacy events
+		/// </summary>
+		public static LogEventParser EventParser => LegacyLogger.Parser;
+
+		/// <summary>
+		/// Logger instance
+		/// </summary>
+		public static ILogger Logger => LegacyLogger;
 
 		/// <summary>
 		/// When true, verbose logging is enabled.
@@ -171,6 +181,15 @@ namespace EpicGames.Core
 		/// A collection of strings that have been already written once
 		/// </summary>
 		private static readonly HashSet<string> s_writeOnceSet = new HashSet<string>();
+
+		/// <summary>
+		/// Overrides the logger used for formatting output, after event parsing
+		/// </summary>
+		/// <param name="logger"></param>
+		public static void SetInnerLogger(ILogger logger)
+		{
+			LegacyLogger.SetInnerLogger(logger);
+		}
 
 		/// <summary>
 		/// Adds a trace listener that writes to a log file.
@@ -362,7 +381,14 @@ namespace EpicGames.Core
 				}
 
 				// Forward it on to the internal logger
-				Logger.Log((LogLevel)verbosity, new EventId(), message, null, (message, ex) => message.ToString());
+				if (verbosity < LogEventType.Console)
+				{
+					Logger.Log((LogLevel)verbosity, message.ToString());
+				}
+				else
+				{
+					EventParser.WriteLine(message.ToString());
+				}
 			}
 		}
 
@@ -750,6 +776,41 @@ namespace EpicGames.Core
 	}
 
 	/// <summary>
+	/// Wrapper around a custom logger interface which flushes the event parser when switching between legacy
+	/// and native structured logging
+	/// </summary>
+	class LegacyEventLogger : ILogger
+	{
+		private ILogger _inner;
+		private readonly LogEventParser _parser;
+
+		public LogEventParser Parser => _parser;
+
+		public LegacyEventLogger(ILogger inner)
+		{
+			_inner = inner;
+			_parser = new LogEventParser(inner);
+		}
+
+		public void SetInnerLogger(ILogger inner)
+		{
+			_parser.Flush();
+			_inner = inner;
+			_parser.Logger = inner;
+		}
+
+		public IDisposable BeginScope<TState>(TState state) => _inner.BeginScope(state);
+
+		public bool IsEnabled(LogLevel logLevel) => _inner.IsEnabled(logLevel);
+
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+		{
+			_parser.Flush();
+			_inner.Log(logLevel, eventId, state, exception, formatter);
+		}
+	}
+
+	/// <summary>
 	/// Default log output device
 	/// </summary>
 	class DefaultLogger : ILogger
@@ -860,6 +921,11 @@ namespace EpicGames.Core
 		private string _statusText = "";
 
 		/// <summary>
+		/// Parser for transforming legacy log output into structured events
+		/// </summary>
+		public LogEventParser EventParser { get; }
+
+		/// <summary>
 		/// Last time a status message was pushed to the stack
 		/// </summary>
 		private readonly Stopwatch _statusTimer = new Stopwatch();
@@ -874,6 +940,7 @@ namespace EpicGames.Core
 			OutputLevel = LogLevel.Debug;
 			ColorConsoleOutput = true;
 			IncludeStartingTimestamp = true;
+			EventParser = new LogEventParser(this);
 
 			string? envVar = Environment.GetEnvironmentVariable("UE_STDOUT_JSON");
 			if(envVar != null && Int32.TryParse(envVar, out int value) && value != 0)
@@ -981,7 +1048,7 @@ namespace EpicGames.Core
 			return logLevel >= OutputLevel;
 		}
 
-		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception?, string> formatter)
 		{
 			string[] lines = formatter(state, exception).Split('\n');
 			lock (_syncObject)
@@ -1033,7 +1100,7 @@ namespace EpicGames.Core
 							_jsonBufferWriter.Clear();
 							_jsonWriter.Reset();
 
-							LogEvent logEvent = new LogEvent(DateTime.UtcNow, logLevel, eventId, formatter(state, exception), null, null, LogException.FromException(exception));
+							LogEvent logEvent = LogEvent.FromState<TState>(logLevel, eventId, state, exception, formatter);
 							logEvent.Write(_jsonWriter);
 
 							_jsonWriter.Flush();

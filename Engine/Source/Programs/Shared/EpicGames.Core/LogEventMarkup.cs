@@ -6,12 +6,12 @@ using System.IO;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 
-namespace Horde.Agent.Parser
+namespace EpicGames.Core
 {
 	/// <summary>
 	/// Extension methods to allow adding markup to log event spans
 	/// </summary>
-	static class LogEventMarkup
+	public static class LogEventMarkup
 	{
 		public static readonly Utf8String Asset = new Utf8String("Asset");
 		public static readonly Utf8String SourceFile = new Utf8String("SourceFile");
@@ -26,6 +26,37 @@ namespace Horde.Agent.Parser
 		public static LogValue ToolName => new LogValue("ToolName", "");
 		public static LogValue ScreenshotTest => new LogValue("ScreenshotTest", "");
 
+		static readonly char[] s_pathChars = { '/', '\\' };
+
+		static string RemoveRelativeDirs(string path)
+		{
+			int idx0 = path.IndexOfAny(s_pathChars);
+			if (idx0 != -1)
+			{
+				int idx1 = path.IndexOfAny(s_pathChars, idx0 + 1);
+				while (idx1 != -1)
+				{
+					int idx2 = path.IndexOfAny(s_pathChars, idx1 + 1);
+					if (idx2 == -1)
+					{
+						break;
+					}
+
+					if (idx2 == idx1 + 3 && path[idx1 + 1] == '.' && path[idx1 + 2] == '.')
+					{
+						path = path.Remove(idx0, idx2 - idx0);
+						idx1 = path.IndexOfAny(s_pathChars, idx0 + 1);
+					}
+					else
+					{
+						idx0 = idx1;
+						idx1 = idx2;
+					}
+				}
+			}
+			return path;
+		}
+
 		/// <summary>
 		/// Marks a span of text as a source file
 		/// </summary>
@@ -37,8 +68,15 @@ namespace Horde.Agent.Parser
 				string file = group.Value;
 				if (!Path.IsPathRooted(file))
 				{
-					properties = new Dictionary<Utf8String, object>();
-					properties["file"] = Path.Combine(baseDir, file);
+					try
+					{
+						string combinedPath = RemoveRelativeDirs(Path.Combine(baseDir, file));
+						properties = new Dictionary<Utf8String, object>();
+						properties["file"] = combinedPath;
+					}
+					catch
+					{
+					}
 				}
 			}
 			builder.Annotate(group, new LogValue(SourceFile, group.Value, properties));

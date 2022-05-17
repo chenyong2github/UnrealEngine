@@ -439,6 +439,11 @@ namespace EpicGames.Core
 		/// </summary>
 		public static LogEvent FromState<TState>(LogLevel level, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
 		{
+			if(state is LogEvent logEvent)
+			{
+				return logEvent;
+			}
+
 			DateTime time = DateTime.UtcNow;
 
 			// Render the message

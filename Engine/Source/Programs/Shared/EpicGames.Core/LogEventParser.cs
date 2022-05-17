@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
@@ -89,7 +90,16 @@ namespace EpicGames.Core
 		/// <summary>
 		/// The inner logger
 		/// </summary>
-		readonly ILogger _logger;
+		ILogger _logger;
+
+		/// <summary>
+		/// Public accessor for the logger
+		/// </summary>
+		public ILogger Logger
+		{
+			get => _logger;
+			set => _logger = value;
+		}
 
 		/// <summary>
 		/// Constructor
@@ -105,12 +115,41 @@ namespace EpicGames.Core
 		public void Dispose() => Flush();
 
 		/// <summary>
+		/// Enumerate all the types that implement <see cref="ILogEventMatcher"/> in the given assembly, and create instances of them
+		/// </summary>
+		/// <param name="assembly">The assembly to enumerate matchers from</param>
+		public void AddMatchersFromAssembly(Assembly assembly)
+		{
+			foreach (Type type in assembly.GetTypes())
+			{
+				if (type.IsClass && typeof(ILogEventMatcher).IsAssignableFrom(type))
+				{
+					ILogEventMatcher matcher = (ILogEventMatcher)Activator.CreateInstance(type)!;
+					Matchers.Add(matcher);
+				}
+			}
+		}
+
+		/// <summary>
 		/// Writes a line to the event filter
 		/// </summary>
 		/// <param name="line">The line to output</param>
 		public void WriteLine(string line)
 		{
-			_buffer.AddLine(line);
+			if (line.Length > 0 && line[0] == '{')
+			{
+				byte[] data = Encoding.UTF8.GetBytes(line);
+
+				JsonLogEvent jsonEvent;
+				if (JsonLogEvent.TryParse(data, out jsonEvent))
+				{
+					ProcessData(true);
+					_logger.Log(jsonEvent.Level, jsonEvent.EventId, jsonEvent, null, JsonLogEvent.Format);
+					return;
+				}
+			}
+
+			_buffer.AddLine(StringUtils.ParseEscapeCodes(line));
 			ProcessData(false);
 		}
 
