@@ -423,7 +423,7 @@ public:
 			*Info.Resource->GetName().ToString(),
 			*GetRHIAccessName(Info.Access));
 
-		Tracker->SetTrackedAccess(Info.Resource->GetTrackerResource(), Info.Access);
+		Tracker->SetTrackedAccess(Info.Resource->GetValidationTrackerResource(), Info.Access);
 
 		RHIContext->SetTrackedAccess(Info);
 	}

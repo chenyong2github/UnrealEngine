@@ -1091,7 +1091,7 @@ public:
 	}
 
 #if ENABLE_RHI_VALIDATION
-	virtual RHIValidation::FResource* GetTrackerResource() = 0;
+	virtual RHIValidation::FResource* GetValidationTrackerResource() = 0;
 #endif
 
 protected:
@@ -1145,7 +1145,7 @@ public:
 	virtual uint32 GetParentGPUIndex() const { return 0; }
 
 #if ENABLE_RHI_VALIDATION
-	virtual RHIValidation::FResource* GetTrackerResource() final override
+	virtual RHIValidation::FResource* GetValidationTrackerResource() final override
 	{
 		return this;
 	}
@@ -1902,9 +1902,11 @@ public:
 	uint32 GetSize() const { check(GetDesc().IsTextureCube()); return GetDesc().Extent.X; }
 
 #if ENABLE_RHI_VALIDATION
-	virtual RHIValidation::FResource* GetTrackerResource() override
+	virtual RHIValidation::FResource* GetValidationTrackerResource() override
 	{
-		return RHIValidation::FTextureResource::GetTrackerResource();
+		// Use the method inherited from RHIValidation::FTextureResource, as that's already a virtual overridden
+		// by subclasses such as FRHITextureReference to return the correct storage for the tracker information.
+		return GetTrackerResource();
 	}
 #endif
 
@@ -1968,6 +1970,8 @@ public:
 	}
 
 #if ENABLE_RHI_VALIDATION
+	// Implement RHIValidation::FTextureResource::GetTrackerResource to use the tracker info
+	// for the referenced texture.
 	virtual RHIValidation::FResource* GetTrackerResource() final override
 	{
 		check(ReferencedTexture);

@@ -407,7 +407,7 @@ namespace RHIValidation
 
 		virtual ~FTextureResource() {}
 
-		FResource* GetTrackerResource() { return &PRIVATE_TrackerResource; }
+		virtual FResource* GetTrackerResource() { return &PRIVATE_TrackerResource; }
 
 		void InitBarrierTracking(FRHITextureCreateDesc const& CreateDesc);
 
