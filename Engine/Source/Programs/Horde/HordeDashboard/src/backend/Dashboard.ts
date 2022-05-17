@@ -384,7 +384,12 @@ export class Dashboard {
             this.updating = true;
 
             if (!this.config) {
-                this.config = await backend.getDashboardConfig();                
+                try {
+                    this.config = await backend.getDashboardConfig();
+                } catch (reason) {
+                    console.error("Error getting dashboard config, defaults used: " + reason);
+                    this.config = {};
+                }
             }
 
             if (this.polling || !this.available) {
