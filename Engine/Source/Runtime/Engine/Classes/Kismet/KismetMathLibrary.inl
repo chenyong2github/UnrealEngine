@@ -2342,7 +2342,7 @@ FTimespan UKismetMathLibrary::Subtract_DateTimeDateTime(FDateTime A, FDateTime B
 KISMET_MATH_FORCEINLINE
 FDateTime UKismetMathLibrary::Add_DateTimeDateTime(FDateTime A, FDateTime B)
 {
-	return A + B;
+	return A + FTimespan(B.GetTicks());
 }
 
 KISMET_MATH_FORCEINLINE

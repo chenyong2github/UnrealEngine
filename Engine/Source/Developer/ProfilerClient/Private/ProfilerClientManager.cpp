@@ -618,7 +618,7 @@ void FProfilerClientManager::HandleServicePingMessage(const FProfilerServicePing
 bool FProfilerClientManager::HandleTicker(float DeltaTime)
 {
 #if STATS
-	if (PendingInstances.Num() > 0 && FDateTime::Now() > LastPingTime + DeltaTime)
+	if (PendingInstances.Num() > 0 && FDateTime::Now() > LastPingTime + FTimespan(DeltaTime))
 	{
 		TArray<FGuid> Instances;
 		Instances.Append(PendingInstances);

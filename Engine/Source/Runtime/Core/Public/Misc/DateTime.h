@@ -127,17 +127,10 @@ public:
 		return *this;
 	}
 
-	/**
-	 * Adds the time from the given date to this date.
-	 *
-	 * @return This date.
-	 * @see FDateTime
-	 */
-	FDateTime& operator+(const FDateTime& Other)
+	UE_DEPRECATED(5.1, "Adding dates doesn't make sense. Please use FDateTime + FTimespan instead")
+	FDateTime operator+(const FDateTime& Other)
 	{
-		Ticks += Other.Ticks;
-
-		return *this;
+		return FDateTime(Ticks + Other.Ticks);
 	}
 
 	/**
