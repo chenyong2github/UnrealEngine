@@ -493,7 +493,7 @@ void BuildMetalShaderOutput(
 			SamplerMap.Add(SamplerState.Name, 1);
 		}
 		
-		HandleReflectedShaderResource(SamplerState.Name, SamplerState.Index, SamplerMap[SamplerState.Name], ShaderOutput);
+		HandleReflectedShaderSampler(SamplerState.Name, SamplerState.Index, SamplerMap[SamplerState.Name], ShaderOutput);
 	}
 
 	Header.NumThreadsX = CCHeader.NumThreads[0];
