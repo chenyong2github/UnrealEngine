@@ -99,8 +99,21 @@ bool FExtrudeOp::BooleanExtrude(FProgressCancel* Progress)
 
 	// We need a custom function here so that we can set the side groups based on the original mesh, not the submesh
 	Extruder.LoopEdgesShouldHaveSameGroup = [&Submesh, this](int32 Eid1, int32 Eid2) {
-		int32 EidToUse1 = Submesh->MapEdgeToBaseMesh(Eid1);
-		int32 EidToUse2 = Submesh->MapEdgeToBaseMesh(Eid2);
+
+		// Unfortunately, we can't just use Submesh->MapEdgeToBaseMesh() for the eids here because
+		// that does the mapping via the vertices, and as the extruder extrudes separate full
+		// regions, it ends up splitting bowties, which breaks that correspondence. 
+		// However, the triangles of the next regions to be extruded don't change, so we can get
+		// the corresponding edges via tid and edge sub index (in the triangle edge triplet).
+		const FDynamicMesh3& ExtrusionMesh = Submesh->GetSubmesh();
+		int32 Tid1 = ExtrusionMesh.GetEdgeT(Eid1).A;
+		int32 SubIdx1 = IndexUtil::FindTriIndex(Eid1, ExtrusionMesh.GetTriEdges(Tid1));
+		int32 EidToUse1 = ResultMesh->GetTriEdge(Submesh->MapTriangleToBaseMesh(Tid1), SubIdx1);
+
+		int32 Tid2 = ExtrusionMesh.GetEdgeT(Eid2).A;
+		int32 SubIdx2 = IndexUtil::FindTriIndex(Eid2, ExtrusionMesh.GetTriEdges(Tid2));
+		int32 EidToUse2 = ResultMesh->GetTriEdge(Submesh->MapTriangleToBaseMesh(Tid2), SubIdx2);
+
 		return FOffsetMeshRegion::EdgesSeparateSameGroupsAndAreColinearAtBorder(
 			ResultMesh.Get(), EidToUse1, EidToUse2, bUseColinearityForSettingBorderGroups);
 	};

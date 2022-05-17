@@ -100,6 +100,45 @@ public:
 
 
 	/**
+	 * Given a sequence of edges in the form given by ConvertLoopToTriVidPairSequence and a loop of vertices, 
+	 * stitch the two together. Edges are identified as (TriangleID, (0-2 subindex of vert1, 0-2 subindex of vert2)), 
+	 * and should match the number of vertex ids in the corresponding vertex loop (each i corresponds to the edge 
+	 * between vert i and i+1 in the vertex loop).
+	 * This works much like StitchVertexLoopsMinimal, but it can be used after one of the loops undergoes
+	 * vertex splits (to remove bowties) as long as the "loop" (which may now be broken) can still be
+	 * identified by the composing triangles. In particular, this is used in extrude and inset where the
+	 * base loop needs to remain as a sequence of Vids (since some of these may be free vertices, unattached
+	 * to a triangle) but the offset/inset loop is guaranteed to be attached to triangles yet may have its
+	 * Vids change due to bowtie splits.
+	 * 
+	 * If an entry of TriVidPairs1 resolves to verts [a,b] and the corresponding pair of verts in VertexLoop2
+	 * are [c,d], then tris added are [b,a,d] and [a,c,d].
+	 * @param TriVidPairs1 First loop, given as output of ConvertLoopToTriVidPairSequence()
+	 * @param VertexLoop2 Second loop, given as vertex IDs
+	 * @param ResultOut lists of newly created triangles/vertices/etc
+	 * @return true if operation succeeded. If a failure occurs, any added triangles are removed via RemoveTriangles
+	 */
+	bool StitchVertexLoopToTriVidPairSequence(
+		const TArray<TPair<int32, TPair<int8, int8>>>& TriVidPairs1,
+		const TArray<int>& VertexLoop2, FDynamicMeshEditResult& ResultOut);
+
+	/**
+	 * Converts a loop to a sequence of edge identifiers that are both Vid and Eid independent. The identifiers are
+	 * of the form (TriangleID, ([0,2] vert sub index, [0,2] vert sub index)), and they are used in some cases 
+	 * (extrude, inset) where we want to perform vertex splits along a region boundary (to remove bowties) but 
+	 * need to maintain a record of the original loop path. We don't use (TriangleID, Eid sub index) because that
+	 * makes it harder to keep track of individual edge directionality.
+	 * 
+	 * @param VidLoop Vertex IDs of loop to convert.
+	 * @param EdgeLoop Edge IDs of loop to convert, must match VidLoop.
+	 * @param TriVertPairsOut Output
+	 * @return false if not successful (usually due to a mismatch between VidLoop and EdgeLoop).
+	 */
+	static bool ConvertLoopToTriVidPairSequence(const FDynamicMesh3& Mesh,
+		const TArray<int32>& VidLoop, const TArray<int32>& EdgeLoop,
+		TArray<TPair<int32, TPair<int8, int8>>>& TriVertPairsOut);
+
+	/**
 	 * Stitch together two loops of vertices where vertices are only sparsely corresponded
 	 * @param VertexIDs1 first array of sequential vertices
 	 * @param MatchedIndices1 indices into the VertexIDs1 array of vertices that have a corresponding match in the VertexIDs2 array; Must be ordered
@@ -190,6 +229,11 @@ public:
 	 * Splits any bowties specifically on the given vertex, and updates (does not reset!) ResultOut with any added vertices
 	 */
 	void SplitBowties(int VertexID, FDynamicMeshEditResult& ResultOut);
+
+	/**
+	 * Splits bowties attached to any of the given triangles, and updates (does not reset!) ResultOut with any added vertices
+	 */
+	void SplitBowtiesAtTriangles(const TArray<int32>& TriangleIDs, FDynamicMeshEditResult& ResultOut);
 
 	/**
 	 * In ReinsertSubmesh, a problem can arise where the mesh we are 

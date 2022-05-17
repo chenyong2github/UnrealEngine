@@ -81,7 +81,13 @@ public:
 		TArray<int32> InitialTriangles;
 		/** Initial loops on the mesh */
 		TArray<FEdgeLoop> BaseLoops;
-		/** Inset loops on the mesh */
+		/** 
+		 * Inset loops on the mesh. If the region had bowtie vertices (in terms of selection, not
+		 * even necessarily in terms of original mesh topology), then the number of loops here may
+		 * no longer match number of loops in BaseLoops, StitchTriangles, etc (for example, imagine
+		 * a circular hole tangent inside a circular region; when the tangent bowtie is split, this
+		 * becomes one C-shaped loop instead of two nested ones)
+		 */
 		TArray<FEdgeLoop> InsetLoops;
 
 		/** Lists of triangle-strip "tubes" that connect each loop-pair */

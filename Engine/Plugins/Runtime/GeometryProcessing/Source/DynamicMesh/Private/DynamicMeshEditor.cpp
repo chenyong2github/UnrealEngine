@@ -48,35 +48,29 @@ bool FDynamicMeshEditor::RemoveIsolatedVertices()
 	return bSuccess;
 }
 
-
-bool FDynamicMeshEditor::StitchVertexLoopsMinimal(const TArray<int>& Loop1, const TArray<int>& Loop2, FDynamicMeshEditResult& ResultOut)
+namespace DynamicMeshEditorLocals
 {
-	int N = Loop1.Num();
-	checkf(N == Loop2.Num(), TEXT("FDynamicMeshEditor::StitchVertexLoopsMinimal: loops are not the same length!"));
-	if (N != Loop2.Num())
+// Does all the work of StitchVertexLoopsMinimal and StitchVertexLoopToTriVidPairSequence since they only differ in the way
+// that they pick verts per quad.
+template <typename FuncType>
+bool StitchLoopsInternal(FDynamicMeshEditor& Editor, int32 NumQuads, FuncType&& GetQuadVidsForIndex, FDynamicMeshEditResult& ResultOut)
+{
+	ResultOut.NewQuads.Reserve(NumQuads);
+	ResultOut.NewGroups.Reserve(NumQuads);
+
+	for (int i = 0; i < NumQuads; ++i)
 	{
-		return false;
-	}
+		int32 a, b, c, d;
+		GetQuadVidsForIndex(i, a, b, c, d);
 
-	ResultOut.NewQuads.Reserve(N);
-	ResultOut.NewGroups.Reserve(N);
-
-	int i = 0;
-	for (; i < N; ++i) 
-	{
-		int a = Loop1[i];
-		int b = Loop1[(i + 1) % N];
-		int c = Loop2[i];
-		int d = Loop2[(i + 1) % N];
-
-		int NewGroupID = Mesh->AllocateTriangleGroup();
+		int NewGroupID = Editor.Mesh->AllocateTriangleGroup();
 		ResultOut.NewGroups.Add(NewGroupID);
 
 		FIndex3i t1(b, a, d);
-		int tid1 = Mesh->AppendTriangle(t1, NewGroupID);
+		int tid1 = Editor.Mesh->AppendTriangle(t1, NewGroupID);
 
 		FIndex3i t2(a, c, d);
-		int tid2 = Mesh->AppendTriangle(t2, NewGroupID);
+		int tid2 = Editor.Mesh->AppendTriangle(t2, NewGroupID);
 
 		ResultOut.NewQuads.Add(FIndex2i(tid1, tid2));
 
@@ -90,7 +84,7 @@ bool FDynamicMeshEditor::StitchVertexLoopsMinimal(const TArray<int>& Loop1, cons
 
 operation_failed:
 	// remove what we added so far
-	if (ResultOut.NewQuads.Num()) 
+	if (ResultOut.NewQuads.Num())
 	{
 		TArray<int> Triangles; Triangles.Reserve(2*ResultOut.NewQuads.Num());
 		for (const FIndex2i& QuadTriIndices : ResultOut.NewQuads)
@@ -98,14 +92,81 @@ operation_failed:
 			Triangles.Add(QuadTriIndices.A);
 			Triangles.Add(QuadTriIndices.B);
 		}
-		if (!RemoveTriangles(Triangles, false))
+		if (!Editor.RemoveTriangles(Triangles, false))
 		{
-			checkf(false, TEXT("FDynamicMeshEditor::StitchVertexLoopsMinimal: failed to add all triangles, and also failed to back out changes."));
+			ensureMsgf(false, TEXT("FDynamicMeshEditor::StitchVertexLoopsMinimal: failed to add all triangles, and also failed to back out changes."));
 		}
 	}
 	return false;
 }
+}
 
+bool FDynamicMeshEditor::StitchVertexLoopsMinimal(const TArray<int>& Loop1, const TArray<int>& Loop2, FDynamicMeshEditResult& ResultOut)
+{
+	int N = Loop1.Num();
+	if (!ensureMsgf(N == Loop2.Num(), TEXT("FDynamicMeshEditor::StitchVertexLoopsMinimal: loops are not the same length!")))
+	{
+		return false;
+	}
+	return DynamicMeshEditorLocals::StitchLoopsInternal(*this, N, [N, &Loop1, &Loop2]
+	(int32 Index, int32& VertA, int32& VertB, int32& VertC, int32& VertD) {
+		VertA = Loop1[Index];
+		VertB = Loop1[(Index + 1) % N];
+		VertC = Loop2[Index];
+		VertD = Loop2[(Index + 1) % N];
+		}, ResultOut);
+}
+
+bool FDynamicMeshEditor::StitchVertexLoopToTriVidPairSequence(
+	const TArray<TPair<int32, TPair<int8, int8>>>& TriVidPairs,
+	const TArray<int>& VertexLoop, FDynamicMeshEditResult& ResultOut)
+{
+	int N = TriVidPairs.Num();
+	if (!ensureMsgf(N == VertexLoop.Num(), TEXT("FDynamicMeshEditor::StitchVertexLoopToEdgeSequence: sequences are not the same length!")))
+	{
+		return false;
+	}
+	return DynamicMeshEditorLocals::StitchLoopsInternal(*this, N, [this, N, &TriVidPairs, &VertexLoop]
+	(int32 Index, int32& VertA, int32& VertB, int32& VertC, int32& VertD) {
+		FIndex3i TriVids1 = Mesh->GetTriangle(TriVidPairs[Index].Key);
+		VertA = TriVids1[TriVidPairs[Index].Value.Key];
+		VertB = TriVids1[TriVidPairs[Index].Value.Value];
+
+		VertC = VertexLoop[Index];
+		VertD = VertexLoop[(Index + 1) % N];
+		}, ResultOut);
+}
+
+bool FDynamicMeshEditor::ConvertLoopToTriVidPairSequence(const FDynamicMesh3& Mesh, const TArray<int32>& VidLoop,
+	const TArray<int32>& EdgeLoop, TArray<TPair<int32, TPair<int8, int8>>>& TriVertPairsOut)
+{
+	if (!ensure(EdgeLoop.Num() == VidLoop.Num()))
+	{
+		return false;
+	}
+
+	for (int32 QuadIndex = 0; QuadIndex < EdgeLoop.Num(); ++QuadIndex)
+	{
+		int32 Tid = Mesh.GetEdgeT(EdgeLoop[QuadIndex]).A;
+		int32 FirstVid = VidLoop[QuadIndex];
+		int32 SecondVid = VidLoop[(QuadIndex + 1) % VidLoop.Num()];
+
+		FIndex3i TriVids = Mesh.GetTriangle(Tid);
+		int8 SubIdx1 = IndexUtil::FindTriIndex(FirstVid, TriVids);
+		int8 SubIdx2 = IndexUtil::FindTriIndex(SecondVid, TriVids);
+		if (ensure(SubIdx1 >= 0 && SubIdx2 >= 0))
+		{
+			TriVertPairsOut.Emplace(Tid,
+				TPair<int8, int8>(SubIdx1, SubIdx2));
+		}
+		else
+		{
+			return false;
+		}
+
+	}
+	return true;
+}
 
 
 
@@ -428,6 +489,7 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 	int NumLoops = Loops.Num();
 	LoopSetOut.SetNum(NumLoops);
 	TArray<int> FilteredTriangles;
+	TMap<int32, int32> OldVidsToNewVids; 
 	for ( int li = 0; li < NumLoops; ++li)
 	{
 		FEdgeLoop& Loop = Loops[li];
@@ -439,12 +501,40 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 
 		// duplicate the vertices
 		int NumVertices = Loop.Vertices.Num();
-		TMap<int, int> LoopVertexMap; LoopVertexMap.Reserve(NumVertices);
 		TArray<int> NewVertexLoop; NewVertexLoop.SetNum(NumVertices);
 		for (int vi = 0; vi < NumVertices; ++vi)
 		{
 			int VertID = Loop.Vertices[vi];
 
+			// See if we've processed this vertex already as part of a bowtie
+			int32* ExistingNewVertID = OldVidsToNewVids.Find(VertID);
+			if (ExistingNewVertID)
+			{
+				// We've already done the split, but we still need to update the loop pairs. The way we
+				// do this depends on whether the vert was originally a boundary vert or not, because
+				// we treat these cases differently when we perform splits.
+				// If it was originally a boundary vert, the new vertex ended up as an isolated
+				// vertex.
+				if (!Mesh->IsReferencedVertex(*ExistingNewVertID))
+				{
+					// The isolated vertex should be in the outer loop
+					LoopPair.OuterVertices[vi] = *ExistingNewVertID;
+					LoopPair.OuterEdges[vi] = FDynamicMesh3::InvalidID;
+					LoopPair.OuterEdges[(vi == 0) ? NumVertices - 1 : vi - 1] = FDynamicMesh3::InvalidID;
+					NewVertexLoop[vi] = VertID;
+				}
+				else
+				{
+					// Otherwise, the new vertex should end up in the inner loop (and not isolated, because
+					// it is attached to the selected triangles).
+					NewVertexLoop[vi] = *ExistingNewVertID;
+				}
+
+				continue;
+			}
+			// If we get here, we still need to split the vertex.
+
+			// See how many of the adjacent triangles are in our selection.
 			FilteredTriangles.Reset();
 			int TriRingCount = 0;
 			for (int RingTID : Mesh->VtxTrianglesItr(VertID))
@@ -455,16 +545,17 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 				}
 				TriRingCount++;
 			}
-			bool bIsSubset = (FilteredTriangles.Num() < TriRingCount);
-			if ( bIsSubset )
+
+			if (FilteredTriangles.Num() < TriRingCount)
 			{
+				// This is a non-mesh-boundary vert
 				checkSlow(!Mesh->SplitVertexWouldLeaveIsolated(VertID, FilteredTriangles));
 				DynamicMeshInfo::FVertexSplitInfo SplitInfo;
 				const EMeshResult MeshResult = Mesh->SplitVertex(VertID, FilteredTriangles, SplitInfo);
 				ensure(MeshResult == EMeshResult::Ok);
 
 				int NewVertID = SplitInfo.NewVertex;
-				LoopVertexMap.Add(Loop.Vertices[vi], NewVertID);
+				OldVidsToNewVids.Add(VertID, NewVertID);
 				NewVertexLoop[vi] = NewVertID;
 			}
 			else if (bHandleBoundaryVertices)
@@ -473,7 +564,7 @@ bool FDynamicMeshEditor::DisconnectTriangles(const TArray<int>& Triangles, TArra
 				// vertex as the "old" one, and just keep the existing one on the "inner" loop.
 				// This means we have to rewrite vertex in the "outer" loop, and that loop will no longer actually be an EdgeLoop, so we set those edges to invalid
 				int32 NewVertID = Mesh->AppendVertex(*Mesh, VertID);
-				LoopVertexMap.Add(NewVertID, VertID);
+				OldVidsToNewVids.Add(VertID, NewVertID);
 				LoopPair.OuterVertices[vi] = NewVertID;
 				LoopPair.OuterEdges[vi] = FDynamicMesh3::InvalidID;
 				LoopPair.OuterEdges[(vi == 0) ? NumVertices-1 : vi-1] = FDynamicMesh3::InvalidID;
@@ -603,6 +694,25 @@ void FDynamicMeshEditor::SplitBowties(int VertexID, FDynamicMeshEditResult& Resu
 			{
 				ensure(EMeshResult::Ok == Mesh->SplitVertex(VertexID, TArrayView<const int>(TrianglesOut.GetData() + GroupStartIdx, ContiguousGroupLengths[GroupIdx]), SplitInfo));
 				ResultOut.NewVertices.Add(SplitInfo.NewVertex);
+			}
+		}
+	}
+}
+
+void FDynamicMeshEditor::SplitBowtiesAtTriangles(const TArray<int32>& TriangleIDs, FDynamicMeshEditResult& ResultOut)
+{
+	TSet<int32> VidsProcessed;
+	for (int32 Tid : TriangleIDs)
+	{
+		FIndex3i TriVids = Mesh->GetTriangle(Tid);
+		for (int i = 0; i < 3; ++i)
+		{
+			int32 Vid = TriVids[i];
+			bool bWasAlreadyProcessed = false;
+			VidsProcessed.Add(Vid, &bWasAlreadyProcessed);
+			if (!bWasAlreadyProcessed)
+			{
+				SplitBowties(Vid, ResultOut);
 			}
 		}
 	}

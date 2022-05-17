@@ -61,15 +61,6 @@ bool FInsetMeshRegion::Apply()
 
 bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 {
-	FMeshRegionBoundaryLoops InitialLoops(Mesh, Region.InitialTriangles, false);
-	bool bOK = InitialLoops.Compute();
-	if (bOK == false)
-	{
-		return false;
-	}
-
-	int32 NumInitialLoops = InitialLoops.GetLoopCount();
-
 	if (ChangeTracker)
 	{
 		ChangeTracker->SaveTriangles(Region.InitialTriangles, true);
@@ -78,14 +69,32 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 	FDynamicMeshEditor Editor(Mesh);
 
 	TArray<FDynamicMeshEditor::FLoopPairSet> LoopPairs;
-	bOK = Editor.DisconnectTriangles(Region.InitialTriangles, LoopPairs, true);
+	bool bOK = Editor.DisconnectTriangles(Region.InitialTriangles, LoopPairs, true);
 	if (bOK == false)
 	{
 		return false;
 	}
 
+	// Before we start insetting, prep things for stitching. We might end up breaking bowties in the disconnected
+	// region, which will mess up the Vids on the inner loop. So convert the inner loop to a sequence of identifiers
+	// that won't change across vertex splits (tri and subindex pairs). Note that we don't need to do the same to the
+	// outer loop because we are not splitting bowties there, and in fact the outer loop may end up with detached verts
+	// (without a triangle), so we would have needed a slightly messier system to account for that there.
+	typedef TPair<int32, TPair<int8, int8>> TriVertPair;
+	TArray<TArray<TriVertPair>> InsetStitchSides;
+	InsetStitchSides.SetNum(LoopPairs.Num());
+	for (int32 i = 0; i < LoopPairs.Num(); ++i)
+	{
+		FDynamicMeshEditor::ConvertLoopToTriVidPairSequence(*Mesh, LoopPairs[i].InnerVertices, LoopPairs[i].InnerEdges, InsetStitchSides[i]);
+	}
+
+	// Now that we've stored information that we need for stitching, split bowties in the disconnected region.
+	FDynamicMeshEditResult SplitBowtiesResult;
+	Editor.SplitBowtiesAtTriangles(Region.InitialTriangles, SplitBowtiesResult);
+
 	// make copy of separated submesh for deformation
 	// (could we defer this copy until we know we need it?)
+	// This should happen after splitting bowties.
 	FDynamicSubmesh3 SubmeshCalc(Mesh, Region.InitialTriangles, (int)EMeshComponents::None, false);
 	FDynamicMesh3& Submesh = SubmeshCalc.GetSubmesh();
 	bool bHaveInteriorVerts = false;
@@ -98,38 +107,70 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 		}
 	}
 
-	// inset vertices
-	for (FDynamicMeshEditor::FLoopPairSet& LoopPair : LoopPairs)
+	// If we did split bowties, some of the inner loops are now broken/merged (think of a small circle tangent inside
+	// a large circle- now you have a thick C shape instead). We'll need to generate new loops there for doing the 
+	// inset.
+	bool bSomeLoopsBroken = SplitBowtiesResult.NewVertices.Num() > 0;
+
+	Region.InsetLoops.Reset(LoopPairs.Num());
+	auto InsetLoop = [this, &Region](const TArray<int32>& LoopVids, const TArray<int32>& LoopEids)
 	{
-		int32 NumEdges = LoopPair.InnerEdges.Num();
+		int32 NumEdges = LoopEids.Num();
 
 		TArray<FLine3d> InsetLines;
-		UE::Geometry::ComputeInsetLineSegmentsFromEdges(*Mesh, LoopPair.InnerEdges, InsetDistance, InsetLines);
+		UE::Geometry::ComputeInsetLineSegmentsFromEdges(*Mesh, LoopEids, InsetDistance, InsetLines);
 
 		TArray<FVector3d> NewPositions;
-		UE::Geometry::SolveInsetVertexPositionsFromInsetLines(*Mesh, InsetLines, LoopPair.InnerVertices, NewPositions, true);
+		UE::Geometry::SolveInsetVertexPositionsFromInsetLines(*Mesh, InsetLines, LoopVids, NewPositions, true);
 
-		if (NewPositions.Num() == LoopPair.InnerVertices.Num())
+		if (NewPositions.Num() == LoopVids.Num())
 		{
-			for (int32 k = 0; k < LoopPair.InnerVertices.Num(); ++k)
+			for (int32 k = 0; k < LoopVids.Num(); ++k)
 			{
-				Mesh->SetVertex(LoopPair.InnerVertices[k], NewPositions[k]);
+				Mesh->SetVertex(LoopVids[k], NewPositions[k]);
 			}
 		}
+
+		Region.InsetLoops.Emplace();
+		Region.InsetLoops.Last().InitializeFromVertices(Mesh, LoopVids);
 	};
 
-	// stitch each loop
+	if (bSomeLoopsBroken)
+	{
+		// Recalc the loops
+		FMeshRegionBoundaryLoops UpdatedInsetLoops(Mesh, Region.InitialTriangles, false);
+		bOK = UpdatedInsetLoops.Compute();
+		if (!bOK)
+		{
+			return false;
+		}
+
+		for (const FEdgeLoop& Loop : UpdatedInsetLoops.Loops)
+		{
+			InsetLoop(Loop.Vertices, Loop.Edges);
+		}
+	}
+	else
+	{
+		// Can use the original loops we got while disconnecting
+		for (const FDynamicMeshEditor::FLoopPairSet& LoopPair : LoopPairs)
+		{
+			InsetLoop(LoopPair.InnerVertices, LoopPair.InnerEdges);
+		}
+	}
+
+	// Stitch the bands we saved.
+	int32 NumInitialLoops = LoopPairs.Num();
 	Region.BaseLoops.SetNum(NumInitialLoops);
-	Region.InsetLoops.SetNum(NumInitialLoops);
 	Region.StitchTriangles.SetNum(NumInitialLoops);
 	Region.StitchPolygonIDs.SetNum(NumInitialLoops);
-	TArray<TArray<FIndex2i>> QuadLoops;
-	QuadLoops.Reserve(NumInitialLoops);
-	int32 LoopIndex = 0;
-	for (FDynamicMeshEditor::FLoopPairSet& LoopPair : LoopPairs)
+	TArray<TArray<FIndex2i>> QuadStrips;
+	QuadStrips.Reserve(NumInitialLoops);
+	for (int32 LoopIndex = 0; LoopIndex < NumInitialLoops; ++LoopIndex)
 	{
-		TArray<int32>& BaseLoopV = LoopPair.OuterVertices;
-		TArray<int32>& InsetLoopV = LoopPair.InnerVertices;
+		const FDynamicMeshEditor::FLoopPairSet& LoopPair = LoopPairs[LoopIndex];
+		const TArray<int32>& BaseLoopV = LoopPair.OuterVertices;
+
 		int32 NumLoopV = BaseLoopV.Num();
 
 		// allocate a new group ID for each pair of input group IDs, and build up list of new group IDs along loop
@@ -138,8 +179,7 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 		TMap<TPair<int32, int32>, int32> NewGroupsMap;
 		for (int32 k = 0; k < NumLoopV; ++k)
 		{
-			int32 InsetEdgeID = Mesh->FindEdge(InsetLoopV[k], InsetLoopV[(k + 1) % NumLoopV]);
-			int32 InsetGroupID = Mesh->GetTriangleGroup(Mesh->GetEdgeT(InsetEdgeID).A);
+			int32 InsetGroupID = Mesh->GetTriangleGroup(InsetStitchSides[LoopIndex][k].Key);
 
 			// base edge may not exist if we inset entire region. In that case just use single GroupID
 			int32 BaseEdgeID = Mesh->FindEdge(BaseLoopV[k], BaseLoopV[(k + 1) % NumLoopV]);
@@ -155,9 +195,10 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 			EdgeGroups.Add(NewGroupsMap[GroupPair]);
 		}
 
-		// stitch the loops
+		// Stitch the loops. In case of broken loops, we'll still end up stitching the proper things, just
+		// in bands that fill in the proper regions together.
 		FDynamicMeshEditResult StitchResult;
-		Editor.StitchVertexLoopsMinimal(InsetLoopV, BaseLoopV, StitchResult);
+		Editor.StitchVertexLoopToTriVidPairSequence(InsetStitchSides[LoopIndex], LoopPair.OuterVertices, StitchResult);
 
 		// set the groups of the new quads along the stitch
 		int32 NumNewQuads = StitchResult.NewQuads.Num();
@@ -171,11 +212,9 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 		StitchResult.GetAllTriangles(Region.StitchTriangles[LoopIndex]);
 		Region.StitchPolygonIDs[LoopIndex] = NewGroupIDs;
 
-		QuadLoops.Add(MoveTemp(StitchResult.NewQuads));
+		QuadStrips.Add(MoveTemp(StitchResult.NewQuads));
 
 		Region.BaseLoops[LoopIndex].InitializeFromVertices(Mesh, BaseLoopV);
-		Region.InsetLoops[LoopIndex].InitializeFromVertices(Mesh, InsetLoopV);
-		LoopIndex++;
 	}
 
 	// if we have interior vertices or just want to try to resolve foldovers we
@@ -209,18 +248,18 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 
 		// compute area of inserted quad-strip border
 		double TotalBorderQuadArea = 0;
-		int32 NumLoops = LoopPairs.Num();
-		for (int32 li = 0; li < NumLoops; ++li)
+		int32 NumStrips = QuadStrips.Num();
+		for (int32 StripIndex = 0; StripIndex < NumStrips; ++StripIndex)
 		{
-			int32 NumQuads = QuadLoops[li].Num();
+			int32 NumQuads = QuadStrips[StripIndex].Num();
 			for (int32 k = 0; k < NumQuads; k++)
 			{
-				TotalBorderQuadArea += Mesh->GetTriArea(QuadLoops[li][k].A);
-				TotalBorderQuadArea += Mesh->GetTriArea(QuadLoops[li][k].B);
+				TotalBorderQuadArea += Mesh->GetTriArea(QuadStrips[StripIndex][k].A);
+				TotalBorderQuadArea += Mesh->GetTriArea(QuadStrips[StripIndex][k].B);
 			}
 		}
 
-		// Figure how much area chnaged by subtracting area of quad-strip from original area.
+		// Figure how much area changed by subtracting area of quad-strip from original area.
 		// (quad-strip area seems implausibly high at larger distances, ie becomes larger than initial area. Possibly due to sawtooth-shaped profile
 		//  of non-planar quads - measure each quad in planar projection?)
 		FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(Submesh);
@@ -283,12 +322,11 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 	// calculate UVs/etc
 	if (Mesh->HasAttributes())
 	{
-		int32 NumLoops = LoopPairs.Num();
-		for ( int32 li = 0; li < NumLoops; ++li)
+		int32 NumStrips = QuadStrips.Num();
+		for ( int32 StripIndex = 0; StripIndex < NumStrips; ++StripIndex)
 		{
-			FDynamicMeshEditor::FLoopPairSet& LoopPair = LoopPairs[li];
-			TArray<int32>& BaseLoopV = LoopPair.OuterVertices;
-			TArray<int32>& InsetLoopV = LoopPair.InnerVertices;
+			FDynamicMeshEditor::FLoopPairSet& OriginalLoopPair = LoopPairs[StripIndex];
+			TArray<int32>& BaseLoopV = OriginalLoopPair.OuterVertices;
 
 			// for each polygon we created in stitch, set UVs and normals
 			// TODO copied from FExtrudeMesh, doesn't really make sense in this context...
@@ -296,10 +334,10 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 			FFrame3d FirstProjectFrame;
 			FVector3d FrameUp;
 
-			int32 NumQuads = QuadLoops[li].Num();
+			int32 NumQuads = QuadStrips[StripIndex].Num();
 			for (int32 k = 0; k < NumQuads; k++)
 			{
-				FVector3f Normal = Editor.ComputeAndSetQuadNormal( QuadLoops[li][k], true);
+				FVector3f Normal = Editor.ComputeAndSetQuadNormal( QuadStrips[StripIndex][k], true);
 
 				// align axis 0 of projection frame to first edge, then for further edges,
 				// rotate around 'up' axis to keep normal aligned and frame horizontal
@@ -326,7 +364,7 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 
 				// translate horizontally such that vertical spans are adjacent in UV space (so textures tile/wrap properly)
 				float TranslateU = UVScaleFactor * AccumUVTranslation;
-				Editor.SetQuadUVsFromProjection(QuadLoops[li][k], ProjectFrame, UVScaleFactor, FVector2f(TranslateU, 0));
+				Editor.SetQuadUVsFromProjection(QuadStrips[StripIndex][k], ProjectFrame, UVScaleFactor, FVector2f(TranslateU, 0));
 			}
 		}
 	}
