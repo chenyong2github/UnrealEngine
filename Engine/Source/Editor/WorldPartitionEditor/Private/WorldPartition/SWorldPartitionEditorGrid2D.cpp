@@ -572,8 +572,9 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 	TSet<FWorldPartitionActorDescViewBoundsProxy> ActorDescList;
 	
 	TArray<IWorldPartitionActorLoaderInterface::ILoaderAdapter*> AllLoaderAdapters;
-	for (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter: WorldPartition->GetRegisteredEditorLoaderAdapters())
+	for (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter : WorldPartition->GetRegisteredEditorLoaderAdapters())
 	{
+		check(LoaderAdapter);
 		AllLoaderAdapters.Add(LoaderAdapter);
 	}
 
@@ -592,8 +593,11 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 		if (ActorDesc->GetActorNativeClass()->ImplementsInterface(UWorldPartitionActorLoaderInterface::StaticClass()))
 		{
 			if (AActor* Actor = ActorDescViewProxy.GetActor())
-			{				
-				AllLoaderAdapters.Add(Cast<IWorldPartitionActorLoaderInterface>(Actor)->GetLoaderAdapter());
+			{
+				if (IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = Cast<IWorldPartitionActorLoaderInterface>(Actor)->GetLoaderAdapter())
+				{
+					AllLoaderAdapters.Add(LoaderAdapter);
+				}
 			}
 		}
 	});
@@ -696,8 +700,9 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 
 						// Outline
 						{
+							const FLinearColor LoaderColor = LoaderAdapter->GetColor().IsSet() ? *LoaderAdapter->GetColor() : FColor::White;
+							const FLinearColor OutlineColor(LoaderColor.R, LoaderColor.G, LoaderColor.B, LoaderColorGradient * FullScreenColorGradient);
 							const bool IsHighlighted = IsBoundsSelected(SelectBox, ActorBounds);
-							const FLinearColor OutlineColor(IsHighlighted ? 1.0f : 0.0f, IsHighlighted ? 1.0f : 0.0f, 0.0f, LoaderColorGradient * FullScreenColorGradient);
 
 							LinePoints[0] = TopLeft;
 							LinePoints[1] = TopRight;
@@ -714,7 +719,7 @@ uint32 SWorldPartitionEditorGrid2D::PaintActors(const FGeometry& AllottedGeometr
 								ESlateDrawEffect::None,
 								OutlineColor,
 								true,
-								2.0f
+								IsHighlighted ? 4.0f : 2.0f
 							);
 						}
 

@@ -20,7 +20,7 @@ public:
 	virtual bool Intersect(const FBox& Box) const override;
 	//~ End IWorldPartitionActorLoaderInterface::ILoaderAdapterSpatial interface
 
-private:
+protected:
 	AActor* Actor;
 };
 #endif

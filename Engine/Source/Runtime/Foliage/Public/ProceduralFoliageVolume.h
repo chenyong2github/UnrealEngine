@@ -20,6 +20,10 @@ class FOLIAGE_API AProceduralFoliageVolume: public AVolume, public IWorldPartiti
 	TObjectPtr<UProceduralFoliageComponent> ProceduralComponent;
 
 #if WITH_EDITOR
+	//~ Begin AActor Interface
+	virtual void PostRegisterAllComponents();
+	//~ End AActor Interface
+
 	//~ Begin UObject Interface
 	virtual void BeginDestroy() override;
 	virtual void PostEditImport() override;

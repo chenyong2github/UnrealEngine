@@ -26,7 +26,9 @@ IWorldPartitionActorLoaderInterface::ILoaderAdapter::ILoaderAdapter(UWorld* InWo
 	: World(InWorld)
 	, bLoaded(false)
 	, bUserCreated(false)
-{}
+{
+	check(!World->IsGameWorld());
+}
 
 IWorldPartitionActorLoaderInterface::ILoaderAdapter::~ILoaderAdapter()
 {

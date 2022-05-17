@@ -5,6 +5,23 @@
 #include "Components/BrushComponent.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterActor.h"
 
+#if WITH_EDITOR
+class ENGINE_API FLoaderAdapterLocationVolumeActor : public FLoaderAdapterActor
+{
+public:
+	FLoaderAdapterLocationVolumeActor(AActor* InActor)
+		: FLoaderAdapterActor(InActor)
+	{}
+
+	//~ Begin IWorldPartitionActorLoaderInterface::ILoader interface
+	virtual TOptional<FColor> GetColor() const override
+	{
+		return CastChecked<ALocationVolume>(Actor)->DebugColor;
+	}
+	//~ End IWorldPartitionActorLoaderInterface::ILoader interface
+};
+#endif
+
 ALocationVolume::ALocationVolume(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
@@ -12,43 +29,39 @@ ALocationVolume::ALocationVolume(const FObjectInitializer& ObjectInitializer)
 
 #if WITH_EDITORONLY_DATA
 	bIsSpatiallyLoaded = false;
-	bIsAutoLoad = false;
-#endif
-
-#if WITH_EDITOR
-	if (!IsTemplate() && GetWorld() && GetWorld()->GetWorldPartition())
-	{
-		WorldPartitionActorLoader = new FLoaderAdapterActor(this);
-	}
+	DebugColor = FColor::White;
+	bIsAutoLoad = false;	
 #endif
 }
 
+#if WITH_EDITOR
 void ALocationVolume::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
-#if WITH_EDITOR
-	if (WorldPartitionActorLoader && bIsAutoLoad)
+	if (!GetWorld()->IsGameWorld() && GetWorld()->IsPartitionedWorld() && !WorldPartitionActorLoader)
 	{
-		WorldPartitionActorLoader->Load();
+		WorldPartitionActorLoader = new FLoaderAdapterLocationVolumeActor(this);
+
+		if (bIsAutoLoad)
+		{
+			bIsAutoLoad = false;
+			WorldPartitionActorLoader->Load();
+		}
 	}
-#endif
 }
 
 void ALocationVolume::BeginDestroy()
 {
-#if WITH_EDITOR
 	if (WorldPartitionActorLoader)
 	{
 		delete WorldPartitionActorLoader;
 		WorldPartitionActorLoader = nullptr;
 	}
-#endif
 
 	Super::BeginDestroy();
 }
 
-#if WITH_EDITOR
 IWorldPartitionActorLoaderInterface::ILoaderAdapter* ALocationVolume::GetLoaderAdapter()
 {
 	return WorldPartitionActorLoader;

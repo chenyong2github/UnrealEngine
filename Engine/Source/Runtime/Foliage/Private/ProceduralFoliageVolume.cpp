@@ -21,16 +21,19 @@ AProceduralFoliageVolume::AProceduralFoliageVolume(const FObjectInitializer& Obj
 		// That means during streaming we'll get a huge hitch for UpdateOverlaps
 		MyBrushComponent->SetGenerateOverlapEvents(false);
 	}
-
-#if WITH_EDITOR
-	if (!IsTemplate() && GetWorld() && GetWorld()->GetWorldPartition())
-	{
-		WorldPartitionActorLoader = new FLoaderAdapterActor(this);
-	}
-#endif
 }
 
 #if WITH_EDITOR
+void AProceduralFoliageVolume::PostRegisterAllComponents()
+{
+	Super::PostRegisterAllComponents();
+
+	if (!GetWorld()->IsGameWorld() && GetWorld()->IsPartitionedWorld() && !WorldPartitionActorLoader)
+	{
+		WorldPartitionActorLoader = new FLoaderAdapterActor(this);
+	}
+}
+
 void AProceduralFoliageVolume::BeginDestroy()
 {
 	if (WorldPartitionActorLoader)

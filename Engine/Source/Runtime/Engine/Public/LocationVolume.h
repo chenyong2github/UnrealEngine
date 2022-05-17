@@ -20,19 +20,19 @@ class ENGINE_API ALocationVolume : public AVolume, public IWorldPartitionActorLo
 
 public:
 	//~ Begin UObject Interface
+#if WITH_EDITOR
 	virtual void BeginDestroy() override;
+#endif
 	//~ End UObject Interface
 
 	//~ Begin AActor Interface
 	virtual bool IsEditorOnly() const override { return !bIsRuntime; }
-	virtual void PostRegisterAllComponents();
 #if WITH_EDITOR
+	virtual void PostRegisterAllComponents();
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	virtual bool SupportsDataLayer() const override { return false; }
-#endif
 	//~ End AActor Interface
 
-#if WITH_EDITOR
 	//~ Begin IWorldPartitionActorLoaderInterface interface
 	virtual ILoaderAdapter* GetLoaderAdapter() override;
 	//~ End IWorldPartitionActorLoaderInterface interface

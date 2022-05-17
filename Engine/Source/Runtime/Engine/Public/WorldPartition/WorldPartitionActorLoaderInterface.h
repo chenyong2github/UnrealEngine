@@ -37,6 +37,7 @@ public:
 		// Interface
 		virtual TOptional<FBox> GetBoundingBox() const { return TOptional<FBox>(); }
 		virtual TOptional<FString> GetLabel() const { return TOptional<FString>(); }
+		virtual TOptional<FColor> GetColor() const { return TOptional<FColor>(); }
 
 	protected:
 		virtual bool Intersect(const FBox& Box) const =0;
