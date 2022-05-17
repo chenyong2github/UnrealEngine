@@ -19,7 +19,7 @@ namespace Electra
 	void Shutdown();
 
 	//! Waits until all player instances have terminated, which may happen asynchronously.
-	void WaitForAllPlayersToHaveTerminated();
+	bool WaitForAllPlayersToHaveTerminated();
 
 
 	void AddActivePlayerInstance();
@@ -28,6 +28,14 @@ namespace Electra
 	//! Check if an analytics event is enabled
 	bool IsAnalyticsEventEnabled(const FString& AnalyticsEventName);
 
+
+	//! Application termination
+	struct FApplicationTerminationHandler
+	{
+		TFunction<void()> Terminate;
+	};
+	void AddTerminationNotificationHandler(TSharedPtrTS<FApplicationTerminationHandler> InHandler);
+	void RemoveTerminationNotificationHandler(TSharedPtrTS<FApplicationTerminationHandler> InHandler);
 
 	//! Background / foreground handling
 	struct FFGBGNotificationHandlers

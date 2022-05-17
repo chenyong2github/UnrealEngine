@@ -101,14 +101,25 @@ public:
 	{
 		if (bInitialized)
 		{
-			Electra::WaitForAllPlayersToHaveTerminated();
-			IAudioDecoderAAC::Shutdown();
-			IVideoDecoderH265::Shutdown();
-			IVideoDecoderH264::Shutdown();
-			FElectraRendererAudio::Shutdown();
-			FElectraRendererVideo::Shutdown();
-			Electra::Shutdown();
-			Electra::PlatformShutdown();
+			// Wait for players to have terminated. If this fails then do not shutdown the sub components
+			// to avoid potential hangs in there.
+			if (Electra::WaitForAllPlayersToHaveTerminated())
+			{
+				IAudioDecoderAAC::Shutdown();
+				IVideoDecoderH265::Shutdown();
+				IVideoDecoderH264::Shutdown();
+				FElectraRendererAudio::Shutdown();
+				FElectraRendererVideo::Shutdown();
+				Electra::Shutdown();
+				Electra::PlatformShutdown();
+			}
+			else
+			{
+				UE_LOG(LogElectraPlayer, Warning, TEXT("Shutting down with active player instances. This could lead to problems."));
+
+				// At least unbind all the application notification handlers.
+				Electra::Shutdown();
+			}
 			bInitialized = false;
 		}
 	}

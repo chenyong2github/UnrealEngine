@@ -130,6 +130,10 @@ FElectraPlayer::FElectraPlayer(const TSharedPtr<IElectraPlayerAdapterDelegate, E
 	WaitForPlayerDestroyedEvent = FPlatformProcess::GetSynchEventFromPool(true);
 	WaitForPlayerDestroyedEvent->Trigger();
 
+	AppTerminationHandler = MakeSharedTS<Electra::FApplicationTerminationHandler>();
+	AppTerminationHandler->Terminate = [this]() { CloseInternal(false); };
+	Electra::AddTerminationNotificationHandler(AppTerminationHandler);
+
 	FString	OSMinor;
 	AnalyticsGPUType = InAdapterDelegate->GetVideoAdapterName().TrimStartAndEnd();
 	FPlatformMisc::GetOSVersions(AnalyticsOSVersion, OSMinor);
@@ -163,6 +167,9 @@ FElectraPlayer::FElectraPlayer(const TSharedPtr<IElectraPlayerAdapterDelegate, E
  */
 FElectraPlayer::~FElectraPlayer()
 {
+	Electra::RemoveTerminationNotificationHandler(AppTerminationHandler);
+	AppTerminationHandler.Reset();
+
 	CloseInternal(false);
 	WaitForPlayerDestroyedEvent->Wait();
 

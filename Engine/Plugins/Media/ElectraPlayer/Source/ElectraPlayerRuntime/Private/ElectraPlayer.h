@@ -12,6 +12,7 @@
 #include "IElectraPlayerInterface.h"
 
 #include "Player/AdaptiveStreamingPlayer.h"
+#include "PlayerRuntimeGlobal.h"
 
 class FVideoDecoderOutput;
 using FVideoDecoderOutputPtr = TSharedPtr<FVideoDecoderOutput, ESPMode::ThreadSafe>;
@@ -471,6 +472,7 @@ private:
 	mutable FCriticalSection										PlayerLock;
 	TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe>			CurrentPlayer;
 	FEvent*															WaitForPlayerDestroyedEvent;
+	TSharedPtr<Electra::FApplicationTerminationHandler, ESPMode::ThreadSafe> AppTerminationHandler;
 
 	TSharedPtr<IAsyncResourceReleaseNotifyContainer, ESPMode::ThreadSafe> AsyncResourceReleaseNotification;
 
