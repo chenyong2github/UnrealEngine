@@ -10,6 +10,7 @@ DEFINE_LOG_CATEGORY(LogStringTable);
 
 
 IStringTableEngineBridge* IStringTableEngineBridge::InstancePtr = nullptr;
+std::atomic<int8> IStringTableEngineBridge::DeferFindOrLoad(0);
 
 
 namespace StringTableRedirects

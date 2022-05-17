@@ -12,6 +12,7 @@
 #include "Misc/ScopeLock.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Serialization/LoadTimeTrace.h"
+#include "Internationalization/StringTableCore.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
@@ -481,6 +482,10 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 			TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("LoadModule - %s"), *InModuleName.ToString());
 #if USE_PER_MODULE_UOBJECT_BOOTSTRAP || WITH_VERSE
 			{
+				// Defer String Table find/load during CDO registration, as it may happen 
+				// before StartupModule has had a chance to load the String Table
+				IStringTableEngineBridge::FScopedDeferFindOrLoad DeferStringTableFindOrLoad;
+
 				ProcessLoadedObjectsCallback.Broadcast(InModuleName, bCanProcessNewlyLoadedObjects);
 			}
 #endif
@@ -525,6 +530,10 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 		// in the module being loaded.
 		if (bCanProcessNewlyLoadedObjects)
 		{
+			// Defer String Table find/load during CDO registration, as it may happen 
+			// before StartupModule has had a chance to load the String Table
+			IStringTableEngineBridge::FScopedDeferFindOrLoad DeferStringTableFindOrLoad;
+
 			ProcessLoadedObjectsCallback.Broadcast(NAME_None, bCanProcessNewlyLoadedObjects);
 		}
 
@@ -561,14 +570,20 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 			ModuleInfo->Handle = FPlatformProcess::GetDllHandle(*ModuleFileToLoad);
 			if (ModuleInfo->Handle != nullptr)
 			{
-				// First things first.  If the loaded DLL has UObjects in it, then their generated code's
-				// static initialization will have run during the DLL loading phase, and we'll need to
-				// go in and make sure those new UObject classes are properly registered.
-						// Sometimes modules are loaded before even the UObject systems are ready.  We need to assume
-						// these modules aren't using UObjects.
-							// OK, we've verified that loading the module caused new UObject classes to be
-							// registered, so we'll treat this module as a module with UObjects in it.
-				ProcessLoadedObjectsCallback.Broadcast(InModuleName, bCanProcessNewlyLoadedObjects);
+				{
+					// Defer String Table find/load during CDO registration, as it may happen 
+					// before StartupModule has had a chance to load the String Table
+					IStringTableEngineBridge::FScopedDeferFindOrLoad DeferStringTableFindOrLoad;
+
+					// First things first.  If the loaded DLL has UObjects in it, then their generated code's
+					// static initialization will have run during the DLL loading phase, and we'll need to
+					// go in and make sure those new UObject classes are properly registered.
+					// Sometimes modules are loaded before even the UObject systems are ready.  We need to assume
+					// these modules aren't using UObjects.
+					// OK, we've verified that loading the module caused new UObject classes to be
+					// registered, so we'll treat this module as a module with UObjects in it.
+					ProcessLoadedObjectsCallback.Broadcast(InModuleName, bCanProcessNewlyLoadedObjects);
+				}
 
 				// Find our "InitializeModule" global function, which must exist for all module DLLs
 				FInitializeModuleFunctionPtr InitializeModuleFunctionPtr =
