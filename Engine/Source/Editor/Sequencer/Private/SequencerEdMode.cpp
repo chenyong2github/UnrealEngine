@@ -246,10 +246,10 @@ bool FSequencerEdMode::IsDoingDrag(FViewport* InViewport) const
 	const USequencerSettings* SequencerSettings = GetSequencerSettings();
 	const bool LeftMouseButtonDown = InViewport->KeyState(EKeys::LeftMouseButton);
 	const bool bIsCtrlKeyDown = InViewport->KeyState(EKeys::LeftControl) || InViewport->KeyState(EKeys::RightControl);
-	const bool bIsShiftKeyDown = InViewport->KeyState(EKeys::LeftShift) || InViewport->KeyState(EKeys::RightShift);
 	const bool bIsAltKeyDown = InViewport->KeyState(EKeys::LeftAlt) || InViewport->KeyState(EKeys::RightAlt);
+	//if shfit is down we still want to drag
 
-	return LeftMouseButtonDown && !bIsCtrlKeyDown && !bIsShiftKeyDown && !bIsAltKeyDown && (SequencerSettings ? SequencerSettings->GetLeftMouseDragDoesMarquee() : false);
+	return LeftMouseButtonDown && !bIsCtrlKeyDown  && !bIsAltKeyDown && (SequencerSettings ? SequencerSettings->GetLeftMouseDragDoesMarquee() : false);
 }
 
 bool FSequencerEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
@@ -285,9 +285,9 @@ bool FSequencerEdMode::EndTracking(FEditorViewportClient* InViewportClient, FVie
 	{
 		return true;
 	}
-	else if (IsDoingDrag(InViewport))
+	else if (DragToolHandler.EndTracking(InViewportClient, InViewport))
 	{
-		return DragToolHandler.EndTracking(InViewportClient, InViewport);
+		return true;
 	}
 	return FEdMode::EndTracking(InViewportClient, InViewport);
 }
@@ -1002,11 +1002,11 @@ bool FMarqueeDragTool::EndTracking(FEditorViewportClient* InViewportClient, FVie
 				DragTool->EndDrag();
 			}
 			DragTool.Reset();
-			return false;
+			return true;
 		}
 	}
 	
-	return true;
+	return false;
 }
 
 bool FMarqueeDragTool::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
