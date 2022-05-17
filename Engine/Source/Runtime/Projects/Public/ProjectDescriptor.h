@@ -169,6 +169,10 @@ struct PROJECTS_API FProjectDescriptor
 	 */
 	bool RemoveRootDirectory(const FString& Dir);
 
+#if WITH_EDITOR
+	/** Returns whether the project has a module of the given name */
+	bool HasModule(FName ModuleName) const;
+#endif //if WITH_EDITOR
 
 private:
 	/** @return the path relative to this project if possible */
@@ -185,4 +189,9 @@ private:
 	 * Paths are in memory as absolute paths. Conversion to/from path relative happens during Save/Load
 	 */
 	TArray<FString> AdditionalRootDirectories;
+
+#if WITH_EDITOR
+	/** Set of project module names */
+	mutable TSet<FName> ModuleNamesCache;
+#endif //if WITH_EDITOR
 };

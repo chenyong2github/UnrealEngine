@@ -110,6 +110,10 @@ bool FProjectDescriptor::Read(const FJsonObject& Object, const FString& PathToPr
 	Object.TryGetBoolField(TEXT("Enterprise"), bIsEnterpriseProject);
 	Object.TryGetBoolField(TEXT("DisableEnginePluginsByDefault"), bDisableEnginePluginsByDefault);
 
+#if WITH_EDITOR
+	ModuleNamesCache.Reset();
+#endif
+
 	// Read the modules
 	if(!FModuleDescriptor::ReadArray(Object, TEXT("Modules"), Modules, OutFailReason))
 	{
@@ -389,5 +393,22 @@ bool FProjectDescriptor::RemoveRootDirectory(const FString& Dir)
 	checkf(!FPaths::IsRelative(Dir), TEXT("%s is not an absolute path"), *Dir);
 	return AdditionalRootDirectories.RemoveSingle(Dir) > 0;
 }
+
+#if WITH_EDITOR
+bool FProjectDescriptor::HasModule(FName ModuleName) const
+{
+	if (ModuleNamesCache.Num() != Modules.Num())
+	{
+		ModuleNamesCache.Reset();
+		ModuleNamesCache.Reserve(Modules.Num());
+		for (const FModuleDescriptor& Module : Modules)
+		{
+			ModuleNamesCache.Add(Module.Name);
+		}
+		ensure(ModuleNamesCache.Num() == Modules.Num());
+	}
+	return ModuleNamesCache.Contains(ModuleName);
+}
+#endif //if WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
