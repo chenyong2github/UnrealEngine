@@ -3,11 +3,13 @@
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/FileHelper.h"
 #include "HAL/IConsoleManager.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "Misc/App.h"
 #include "EngineGlobals.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/GameplayStatics.h"
 #include "Engine/GameViewportClient.h"
 #include "UnrealEngine.h"
 #include "Framework/Application/SlateApplication.h"
@@ -515,6 +517,17 @@ void UGameUserSettings::LoadSettings(bool bForceReload/*=false*/)
 
 	if (bForceReload)
 	{
+        if (OnUpdateGameUserSettingsFileFromCloud.IsBound())
+        {
+            FString IniFileLocation = FPaths::GeneratedConfigDir() + UGameplayStatics::GetPlatformName() + "/" +  GGameUserSettingsIni + ".ini";
+            UE_LOG(LogTemp, Verbose, TEXT("%s"), *IniFileLocation);
+
+            if (!OnUpdateGameUserSettingsFileFromCloud.Execute(FString(*IniFileLocation)))
+            {
+                UE_LOG(LogTemp, Warning, TEXT("Failed to read the ini file from the Cloud interface %s"), *IniFileLocation);
+            }
+        }
+        
 		LoadConfigIni(bForceReload);
 	}
 	LoadConfig(GetClass(), *GGameUserSettingsIni);
@@ -551,6 +564,20 @@ void UGameUserSettings::SaveSettings()
 	// Save the Scalability state to the same ini file as it was loaded from in FEngineLoop::Preinit
 	Scalability::SaveState(GIsEditor ? GEditorSettingsIni : GGameUserSettingsIni);
 	SaveConfig(CPF_Config, *GGameUserSettingsIni);
+    
+    if (OnUpdateCloudDataFromGameUserSettings.IsBound())
+    {
+        FString IniFileLocation = FPaths::GeneratedConfigDir() + UGameplayStatics::GetPlatformName() + "/" +  GGameUserSettingsIni + ".ini";
+        UE_LOG(LogTemp, Verbose, TEXT("%s"), *IniFileLocation);
+
+        bool bDidSucceed = false;
+        bDidSucceed = OnUpdateCloudDataFromGameUserSettings.Execute(FString(*IniFileLocation));
+        
+        if (!bDidSucceed)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("Failed to load the ini file from the Cloud interface %s"), *IniFileLocation);
+        }
+    }
 }
 
 void UGameUserSettings::LoadConfigIni(bool bForceReload/*=false*/)

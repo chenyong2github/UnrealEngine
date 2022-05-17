@@ -520,6 +520,19 @@ public:
 	{
 		OnGameUserSettingsUINeedsUpdate.Broadcast();
 	}
+    
+    /**
+     * We call this to refresh the config file from a listening Cloud subsystem, before we open it.
+     */
+    DECLARE_DELEGATE_RetVal_OneParam(bool, FUpdateGameUserSettingsFileFromCloud, const FString&);
+    FUpdateGameUserSettingsFileFromCloud OnUpdateGameUserSettingsFileFromCloud;
+        
+    /**
+     * We call this to notify any listening Cloud subsystem that we have updated the config file.
+     */
+    DECLARE_DELEGATE_RetVal_OneParam(bool, FUpdateCloudDataFromGameUserSettings, const FString&);
+    FUpdateCloudDataFromGameUserSettings OnUpdateCloudDataFromGameUserSettings;
+
 
 protected:
 	/**

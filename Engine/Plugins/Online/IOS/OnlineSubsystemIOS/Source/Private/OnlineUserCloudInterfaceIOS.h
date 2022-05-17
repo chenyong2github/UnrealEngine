@@ -143,13 +143,13 @@ private:
 	 *	Delegate in the iOS file save system
 	 * Called in SaveGame
 	 */
-	void OnWriteUserCloudFileBegin(const FString&  FileName, const TArray<uint8>& FileContents);
+	bool OnWriteUserCloudFileBegin(const FString&  FileName);
 
 	/**
 	 *	Delegate in the iOS file save system
 	 * Called in ReadGame
 	 */
-	void OnReadUserCloudFileBegin(const FString&  FileName, TArray<uint8>& FileContents);
+	bool OnReadUserCloudFileBegin(const FString & FileName);
 
 	/**
 	 *	Delegate in the iOS file save system
