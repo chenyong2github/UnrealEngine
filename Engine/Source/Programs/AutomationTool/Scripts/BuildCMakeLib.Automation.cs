@@ -421,6 +421,11 @@ public sealed class BuildCMakeLib : BuildCommand
 		public override string CMakeGeneratorName => "Visual Studio 16 2019";
 	}
 
+	public abstract class VS2022TargetPlatform : VSTargetPlatform
+	{
+		public override string CMakeGeneratorName => "Visual Studio 17 2022";
+	}
+
 	public abstract class XcodeTargetPlatform : TargetPlatform
 	{
 		public override bool SeparateProjectPerConfig => false;
@@ -469,7 +474,7 @@ public sealed class BuildCMakeLib : BuildCommand
 		// Grab all the non-abstract subclasses of TargetPlatform from the executing assembly.
 		var AvailablePlatformTypes = from Assembly in ScriptManager.AllScriptAssemblies
 									 from Type in Assembly.GetTypes()
-									 where !Type.IsAbstract && Type.IsSubclassOf(typeof(TargetPlatform))
+									 where !Type.IsAbstract && Type.IsAssignableTo(typeof(TargetPlatform))
 									 select Type;
 
 		var PlatformTypeMap = new Dictionary<string, Type>();
@@ -990,4 +995,11 @@ class MakefileTargetPlatform_Android : BuildCMakeLib.MakefileTargetPlatform
 	{
 		this.Architecture = Architecture;
 	}
+}
+
+class VS2019TargetPlatform_Android : BuildCMakeLib.VS2019TargetPlatform
+{
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Android);
+	public override string StaticLibraryExtension => "a";
+	public override bool IsPlatformExtension => false;
 }

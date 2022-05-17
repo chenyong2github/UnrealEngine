@@ -8,6 +8,8 @@
 #include "Serialization/BufferWriter.h"
 #include "TestHarness.h"
 
+#include <catch2/generators/catch_generators.hpp>
+
 TEST_CASE("Core::Serialization::VarInt::Measure", "[Core][Serialization][Smoke]")
 {
 	SECTION("Test MeasureVarInt at signed 32-bit encoding boundaries.")

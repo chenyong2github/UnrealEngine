@@ -8,6 +8,8 @@
 #include "String/Find.h"
 #include "TestHarness.h"
 
+#include <catch2/generators/catch_generators.hpp>
+
 TEST_CASE("Core::String::StringBuilder", "[Core][String][Smoke]")
 {
 	SECTION("Static")

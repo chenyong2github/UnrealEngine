@@ -10,6 +10,8 @@
 #include "Serialization/BufferReader.h"
 #include "TestHarness.h"
 
+#include <catch2/generators/catch_generators.hpp>
+
 TEST_CASE("Core::Compression::CompressedBuffer::Compress", "[Core][Compression][Smoke]")
 {
 	const uint8 ZeroBuffer[1024]{};

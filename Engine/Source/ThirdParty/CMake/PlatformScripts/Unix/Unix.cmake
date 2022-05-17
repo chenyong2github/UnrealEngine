@@ -4,6 +4,8 @@ set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_VERSION 1)
 set(CMAKE_CONFIGURATION_TYPES Debug Release CACHE STRING "" FORCE)
 
+option(BUILD_WITH_LIBCXX "Include LibCxx" OFF)
+
 if(NOT DEFINED ENV{LINUX_MULTIARCH_ROOT})
 	message(FATAL_ERROR "LINUX_MULTIARCH_ROOT environment variable is not set!")
 endif()
@@ -28,6 +30,8 @@ if(NOT EXISTS ${CMAKE_SYSROOT})
 	message(FATAL_ERROR "Target '${UE_LINUX_TARGET}' does not exist in '${LINUX_MULTIARCH_ROOT}'!")
 endif()
 
+SET(LIBCXX_PATH "${CMAKE_CURRENT_LIST_DIR}/../../../Unix/LibCxx")
+
 string(CONCAT UE_FLAGS
 	" -fPIC"
 	" -gdwarf-4"
@@ -51,6 +55,21 @@ string(CONCAT UE_FLAGS_RELEASE
 	" -O3"
 	" -DNDEBUG"
 	)
+
+if(BUILD_WITH_LIBCXX)
+	string(CONCAT UE_FLAGS_CXX
+		"${UE_FLAGS_CXX}"
+		" -I${LIBCXX_PATH}/include"
+		" -I${LIBCXX_PATH}/include/c++/v1"
+		)
+	string(CONCAT LIBCXX_FLAGS
+		" ${LIBCXX_PATH}/lib/Unix/${UE_LINUX_TARGET}/libc++.a"
+		" ${LIBCXX_PATH}/lib/Unix/${UE_LINUX_TARGET}/libc++abi.a"
+		)
+	set(CMAKE_MODULE_LINKER_FLAGS "${LIBCXX_FLAGS}")
+	set(CMAKE_EXE_LINKER_FLAGS "${LIBCXX_FLAGS}")
+	set(CMAKE_SHARED_LINKER_FLAGS "${LIBCXX_FLAGS}")
+endif()
 
 set(CMAKE_C_FLAGS           "${UE_FLAGS} ${UE_FLAGS_C}"   CACHE STRING "C Flags"           FORCE)
 set(CMAKE_CXX_FLAGS         "${UE_FLAGS} ${UE_FLAGS_CXX}" CACHE STRING "C++ Flags"         FORCE)

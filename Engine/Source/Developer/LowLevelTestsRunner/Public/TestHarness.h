@@ -69,7 +69,7 @@ THIRD_PARTY_INCLUDES_START
 #pragma warning(disable: 4582) // 'type': constructor is not implicitly called
 #pragma warning(disable: 4583) // 'type': destructor is not implicitly called
 #endif
-#include "catch.hpp"
+#include <catch2/catch_test_macros.hpp>
 #ifdef _MSC_VER
 #pragma warning(pop)
 #pragma pack(pop)

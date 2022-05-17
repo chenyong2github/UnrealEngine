@@ -123,6 +123,11 @@ namespace UnrealBuildTool
 				AdditionalPropertiesForReceipt.Add("ResourcesFolder", TestResourcesDir);
 			}
 
+			if (!PublicDependencyModuleNames.Contains("Catch2"))
+			{
+				PublicDependencyModuleNames.Add("Catch2");
+			}
+
 			if (!PrivateDependencyModuleNames.Contains("LowLevelTestsRunner"))
 			{
 				PrivateDependencyModuleNames.Add("LowLevelTestsRunner");

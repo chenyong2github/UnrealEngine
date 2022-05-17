@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#define CATCH_CONFIG_RUNNER
-
 #include "TestRunner.h"
 #include "TestHarness.h"
+
+#include <catch2/reporters/catch_reporter_event_listener.hpp>
+#include <catch2/catch_session.hpp>
+#include <catch2/reporters/catch_reporter_registrars.hpp>
+#include <catch2/catch_test_case_info.hpp>
 
 #include "CoreGlobals.h"
 #include "HAL/PlatformTLS.h"
@@ -16,6 +19,7 @@
 #include "TestCommon/CoreUtilities.h"
 
 #include <set>
+#include <iostream>
 
 bool bCatchIsRunning = false;
 bool bGAllowLogging = false;
@@ -23,22 +27,18 @@ bool bGMultithreaded = false;
 bool bGDebug = false;
 bool bGGlobalSetup = true;
 
-namespace Catch
-{
-	// Test run interceptor
-	struct TestRunListener : public TestEventListenerBase, public FOutputDevice
+namespace Catch {
+	class TestRunListener : public EventListenerBase, public FOutputDevice
 	{
-		using TestEventListenerBase::TestEventListenerBase; // inherit constructor
+		using EventListenerBase::EventListenerBase; // inherit constructor
 	private:
-		std::ostream& catchOut = getCurrentContext().getConfig()->stream();
-	public:
-		void testRunStarting(Catch::TestRunInfo const& testRunInfo) override {
+		void testRunStarting(TestRunInfo const& testRunInfo) override {
 			// Register this event listener as an output device to enable reporting of UE_LOG, ensure etc
 			// Note: For UE_LOG(...) reporting the user must pass the "--log" command line argument, but this is not required for ensure reporting
 			GLog->AddOutputDevice(this);
 		}
 
-		void testRunEnded(Catch::TestRunStats const& testRunStats) override {
+		void testRunEnded(TestRunStats const& testRunStats) override {
 			GLog->RemoveOutputDevice(this);
 		}
 
@@ -61,7 +61,7 @@ namespace Catch
 			// UPDATE: CanBeUsedOnMultipleThreads returns true
 			if (LogVerbosity <= DesiredLogVerbosity)
 			{
-				catchOut << *FText::FromName(Category).ToString() << "(" << ToString(LogVerbosity) << ")" << ": " << V << "\n";
+				std::cout << *FText::FromName(Category).ToString() << "(" << ToString(LogVerbosity) << ")" << ": " << V << "\n";
 			}
 		}
 
@@ -71,29 +71,26 @@ namespace Catch
 		}
 		// End of FOutputDevice interface
 
-		void testCaseStarting(Catch::TestCaseInfo  const& TestInfo) override {
+		void testCaseStarting(TestCaseInfo  const& TestInfo) override {
 			if (bGDebug)
 			{
-				catchOut << TestInfo.lineInfo.file << ":" << TestInfo.lineInfo.line << " with tags " << TestInfo.tagsAsString() << " \n";
+				std::cout << TestInfo.lineInfo.file << ":" << TestInfo.lineInfo.line << " with tags " << TestInfo.tagsAsString() << " \n";
 			}
 		}
 
-		void testCaseEnded(Catch::TestCaseStats const& testCaseStats) override {
+		void testCaseEnded(TestCaseStats const& testCaseStats) override {
 			if (testCaseStats.totals.testCases.failed > 0)
 			{
-				catchOut << "* Error: Test case \"" << testCaseStats.testInfo.name << "\" failed \n";
+				std::cout << "* Error: Test case \"" << testCaseStats.testInfo->name << "\" failed \n";
 			}
 		}
 
-		bool assertionEnded(Catch::AssertionStats const& assertionStats) override {
+		void assertionEnded(AssertionStats const& assertionStats) override {
 			if (!assertionStats.assertionResult.succeeded()) {
-				catchOut << "* Error: Assertion \"" << assertionStats.assertionResult.getExpression() << "\" failed at " << assertionStats.assertionResult.getSourceInfo().file << ": " << assertionStats.assertionResult.getSourceInfo().line << "\n";
+				std::cout << "* Error: Assertion \"" << assertionStats.assertionResult.getExpression() << "\" failed at " << assertionStats.assertionResult.getSourceInfo().file << ": " << assertionStats.assertionResult.getSourceInfo().line << "\n";
 			}
-			// true == clear message buffer
-			return true;
 		}
 	};
-
 	CATCH_REGISTER_LISTENER(TestRunListener);
 }
 

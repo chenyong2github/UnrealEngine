@@ -10,6 +10,8 @@
 #include "String/Join.h"
 #include "TestHarness.h"
 
+#include <catch2/generators/catch_generators.hpp>
+
 namespace UE::String
 {
 
