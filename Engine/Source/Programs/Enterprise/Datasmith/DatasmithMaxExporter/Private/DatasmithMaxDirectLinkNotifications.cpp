@@ -32,57 +32,6 @@ public:
 
 	virtual BOOL VerboseDeleted() { return TRUE; }
 
-	virtual void GeometryChanged(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"GeometryChanged", nodes);
-
-		InvalidateGeometry(nodes);
-	}
-
-	virtual void TopologyChanged(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"TopologyChanged", nodes);
-
-		InvalidateGeometry(nodes);
-	}
-
-
-	virtual void MappingChanged(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"MappingChanged", nodes);
-
-		InvalidateGeometry(nodes);
-	}
-
-	void InvalidateGeometry(NodeKeyTab& nodes)
-	{
-		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
-		{
-			SceneTracker.NodeGeometryChanged(nodes[NodeIndex]);
-		}
-	}
-
-	// Fired when node transform changes
-	virtual void ControllerOtherEvent(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"ControllerOtherEvent", nodes);
-
-		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
-		{
-			SceneTracker.NodeTransformChanged(nodes[NodeIndex]);
-		}
-	}
-
-	// Tracks material assignment on node
-	virtual void MaterialStructured(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"MaterialStructured", nodes);
-		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
-		{
-			SceneTracker.NodeMaterialAssignmentChanged(nodes[NodeIndex]);
-		}
-	}
-
 	// Tracks node's material parameter change(even if it's a submaterial of multimat that is assigned)
 	virtual void MaterialOtherEvent(NodeKeyTab& nodes) override
 	{
@@ -90,35 +39,6 @@ public:
 		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
 		{
 			SceneTracker.NodeMaterialGraphModified(nodes[NodeIndex]);
-		}
-	}
-
-	virtual void HideChanged(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"HideChanged", nodes);
-		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
-		{
-			SceneTracker.NodeHideChanged(nodes[NodeIndex]);
-		}
-	}
-
-	virtual void RenderPropertiesChanged(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"RenderPropertiesChanged", nodes);
-		// Handle Renderable flag change. mxs: box.setRenderable
-		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
-		{
-			SceneTracker.NodePropertiesChanged(nodes[NodeIndex]);
-		}
-	}
-
-	virtual void UserPropertiesChanged(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"UserPropertiesChanged", nodes);
-		// Handle user properties change for metadata update
-		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
-		{
-			SceneTracker.NodePropertiesChanged(nodes[NodeIndex]);
 		}
 	}
 
@@ -132,16 +52,6 @@ public:
 		}
 	}
 
-	virtual void LayerChanged(NodeKeyTab& nodes) override
-	{
-		LogNodeEvent(L"LayerChanged", nodes);
-
-		for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
-		{
-			SceneTracker.NodePropertiesChanged(nodes[NodeIndex]);
-		}
-	}
-
 	virtual void LinkChanged(NodeKeyTab& nodes) override
 	{
 		LogNodeEvent(L"LinkChanged", nodes);
@@ -152,6 +62,54 @@ public:
 	}
 
 	// Not used:
+
+	virtual void LayerChanged(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"LayerChanged", nodes);
+	}
+
+	virtual void UserPropertiesChanged(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"UserPropertiesChanged", nodes);
+	}
+
+	virtual void HideChanged(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"HideChanged", nodes);
+	}
+
+	virtual void RenderPropertiesChanged(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"RenderPropertiesChanged", nodes);
+	}
+
+	virtual void GeometryChanged(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"GeometryChanged", nodes);
+	}
+
+	virtual void TopologyChanged(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"TopologyChanged", nodes);
+	}
+
+
+	virtual void MappingChanged(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"MappingChanged", nodes);
+	}
+
+	// Fired when node transform changes
+	virtual void ControllerOtherEvent(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"ControllerOtherEvent", nodes);
+	}
+
+	// Tracks material assignment on node
+	virtual void MaterialStructured(NodeKeyTab& nodes) override
+	{
+		LogNodeEvent(L"MaterialStructured", nodes);
+	}
 
 	virtual void Added(NodeKeyTab& nodes) override
 	{
@@ -318,107 +276,200 @@ private:
 };
 
 
-class FNodeObserver : public ReferenceMaker
+// Every instance watches single node
+class FNodeNotifications: public ReferenceMaker
 {
-	typedef int FItemIndex;
-
 public:
-	~FNodeObserver()
+	ISceneTracker& SceneTracker;
+
+	FNodeNotifications(ISceneTracker& InSceneTracker, INode& Node)
+		: SceneTracker(InSceneTracker)
+		, Node(Node)
 	{
-		DeleteAllRefs(); // Required to be called in destructor
+		LogDebug(FString::Printf(TEXT("FNodeNotifications(%s - %p)::FNodeNotifications"), Node.GetName(), &Node));
+
+		// Don't record setting reference for Undo/Redo  - we control this ourselves(e.g. on ADDED_NODE event for addition)
+		HoldSuspend SuspendUndoRedoGuard; 
+		ReplaceReference(0, &Node);
 	}
 
-	void Reset()
+	void Delete()
 	{
-		IndexToReferencedItem.Reset();
-		ReferencedItemToIndex.Reset();
+		LogDebug(FString::Printf(TEXT("FNodeNotifications(%p)::Delete"), &Node));
+		
+		HoldSuspend SuspendUndoRedoGuard; 
+		DeleteMe(); //Instead of calling DeleteAllRefs() in destructor, calling DeleteMe under HoldSuspend to disable undo for this object
 	}
 
-	RefResult NotifyRefChanged(const Interval& ChangeInterval, RefTargetHandle TargetHandle, PartID& PartId, RefMessage Message, BOOL propagate) override
+	// Same INode pointer could be added to the scene - handle this in case notifier for this pointer still kept
+	void ReAdded()
 	{
-		// todo: remove material handling???
-		if (!ReferencedItemToIndex.Contains(TargetHandle))
+		ReplaceReference(0, &Node);
+	}
+
+protected:
+
+	virtual RefResult NotifyRefChanged(const Interval& ChangeInterval, RefTargetHandle TargetHandle, PartID& PartId, RefMessage Message, BOOL propagate) override
+	{
+		if (!bReferenceSet)
 		{
-			LogDebugNode(TEXT("FNodeObserver::NotifyRefChanged(MISSING)"), dynamic_cast<INode*>(TargetHandle));
+			LOG_DEBUG_HEAVY(FString::Printf(TEXT("FNodeNotifications(UNSET - %p)::NotifyRefChanged:  Target - %p, Message - %x"), &Node, TargetHandle, Message));
+			return REF_DONTCARE;
 		}
-		else
+		
+		LOG_DEBUG_HEAVY(FString::Printf(TEXT("FNodeNotifications(%s - %p)::NotifyRefChanged:  Target - %p, Message - %x"), Node.GetName(), &Node, TargetHandle, Message));
+		LogDebugNode(TEXT("     Node:"), &Node);
+
+		if (SceneTracker.IsUpdateInProgress())
 		{
-			LogDebugNode(TEXT("FNodeObserver::NotifyRefChanged"), dynamic_cast<INode*>(TargetHandle));
+			// Don't propagate ReferenceMaker events when Update is in progress - these events are result of accessing render geometry on some objects, including
+			// Smooth/TurboSmooth modifiers, VRay proxy and similar. Plugin retrieves render mesh from them and those objects fire geometry change events
+			// Plugin reverts settings back to previously set(i.e. viewport for smooth modifiers or whatever vray proxy had for display)
+			return REF_DONTCARE;
 		}
+
+		switch (Message)
+		{
+		case REFMSG_REF_DELETED:
+			// 
+		break;
+	    case REFMSG_CHANGE:
+			LOG_DEBUG_HEAVY(FString::Printf(TEXT("   REFMSG_CHANGE.PartId:  %llx"), PartId));
+
+            if (PartId & (PART_TOPO|PART_GEOM|PART_TEXMAP))
+            {
+				SceneTracker.NodeGeometryChanged(&Node);
+            }
+
+            if (PartId & PART_TM)
+            {
+				SceneTracker.NodeTransformChanged(&Node);
+            }
+
+		break;
+
+		case REFMSG_NODE_MATERIAL_CHANGED:
+			SceneTracker.NodeMaterialAssignmentChanged(&Node);
+		break;
+
+		case REFMSG_DISPLAY_MATERIAL_CHANGE:
+			SceneTracker.NodeMaterialGraphModified(&Node);
+		break;
+
+		case REFMSG_SUBANIM_STRUCTURE_CHANGED:
+			if (Node.GetMtl() == TargetHandle)
+			{
+				SceneTracker.NodeMaterialGraphModified(&Node);
+			}
+		break;
+
+		case REFMSG_NODE_RENDERING_PROP_CHANGED:
+			// Handle Renderable flag change. mxs: box.setRenderable
+			SceneTracker.NodePropertiesChanged(&Node);
+		break;
+
+		// todo: appears in Max SDK since 2020 
+		// case REFMSG_NODE_USER_PROPERTY_CHANGED:
+		// break;
+
+		// SceneTracker.NodeGeometryChanged(nodes[NodeIndex]);
+		default: 
+			break;
+		};
+
 
 		return REF_SUCCEED;
 	}
 
-	void AddItem(INode* Node)
+	virtual int NumRefs() override
 	{
-		if (!ReferencedItemToIndex.Contains(Node))
-		{
-			ReplaceReference(NumRefs(), Node);
-		}
+		return 1;
 	}
 
-	// todo: unused
-	// RECONSIDER: when this method is used - removed material reduces NumRefs result so adding new material will overwrite already existing reference 
-	// e.g. was two materials added, with index 0 and 1, material 0 removed, NumRefs becomes 1 so next call ReplaceReference(NumRefs(), Material) will replace material 1 in the map
-	void RemoveItem(Mtl* Node)
+	virtual RefTargetHandle GetReference(int ReferenceIndex) override
 	{
-		FItemIndex NodeIndex;
-		if (ReferencedItemToIndex.RemoveAndCopyValue(Node, NodeIndex))
+		if (bReferenceSet)
 		{
-			IndexToReferencedItem.Remove(NodeIndex);
-		}
-	}
-
-	int NumRefs() override
-	{
-		return IndexToReferencedItem.Num();
-	}
-
-	RefTargetHandle GetReference(int ReferenceIndex) override
-	{
-		RefTargetHandle TargetHandle = IndexToReferencedItem[ReferenceIndex];
-		LOG_DEBUG_HEAVY(FString::Printf(TEXT("FNodeObserver::GetReference: %d, %s"), ReferenceIndex, TargetHandle ? dynamic_cast<INode*>(TargetHandle)->GetName() : TEXT("<null>")));
-		return TargetHandle;
-	}
-
-	void SetReference(int ReferenceIndex, RefTargetHandle TargetHandle) override
-	{
-		LOG_DEBUG_HEAVY(FString::Printf(TEXT("FNodeObserver::SetReference: %d, %s"), ReferenceIndex, TargetHandle?dynamic_cast<INode*>(TargetHandle)->GetName():TEXT("<null>")));
-
-		// todo: investigate why NodeEventNamespace::GetNodeByKey may stil return NULL
-		// testcase - add XRef Material - this will immediately have this 
-		// even though NOTIFY_SCENE_ADDED_NODE was called for node and NOTIFY_SCENE_PRE_DELETED_NODE wasn't!
-		// BUT SeetReference with NULL handle is called
-		// also REFMSG_REF_DELETED and TARGETMSG_DELETING_NODE messages are sent to NotifyRefChanged
-
-		check(!ReferencedItemToIndex.Contains(TargetHandle)); // Not expecting to have same handle under two indices(back-indexing breaks)
-
-		if (TargetHandle)
-		{
-			ReferencedItemToIndex.Add(TargetHandle, ReferenceIndex);
-		}
-
-		if (RefTargetHandle* HandlePtr = IndexToReferencedItem.Find(ReferenceIndex))
-		{
-			if (*HandlePtr)
-			{
-				ReferencedItemToIndex.Remove(*HandlePtr);
-			}
-			*HandlePtr = TargetHandle;
+			LOG_DEBUG_HEAVY(FString::Printf(TEXT("FNodeNotifications(%s - %p)::GetReference: %d"), Node.GetName(), &Node, ReferenceIndex));
+			return &Node;
 		}
 		else
 		{
-			IndexToReferencedItem.Add(ReferenceIndex, TargetHandle);
+			LOG_DEBUG_HEAVY(FString::Printf(TEXT("FNodeNotifications(UNSET - %p)::GetReference: %d"), &Node, ReferenceIndex));
+			return nullptr;
 		}
 	}
+
+	virtual void SetReference(int ReferenceIndex, RefTargetHandle Handle) override
+	{
+		LOG_DEBUG_HEAVY(FString::Printf(TEXT("FNodeNotifications(%s - %p)::SetReference: %d, %p"), Node.GetName(), &Node, ReferenceIndex, Handle));
+
+		// Either clears reference or passes the same node
+		check((Handle == nullptr ) || (dynamic_cast<INode*>(Handle) == &Node));
+
+		bool bReferenceSetNew = Handle != nullptr;
+
+		if (bReferenceSet && !bReferenceSetNew)
+		{
+			// Sometimes node deleted without another notification event but with removing it from ReferenceMakers
+			// This is visible with Containers opening/closing them
+			SceneTracker.NodeDeleted(&Node);
+		}
+
+		bReferenceSet = bReferenceSetNew;
+	}
+
 private:
-	TMap<FItemIndex, RefTargetHandle> IndexToReferencedItem;
-	TMap<RefTargetHandle, FItemIndex> ReferencedItemToIndex;
+	INode& Node;
+	bool bReferenceSet = false;
+
+
+protected:
+	~FNodeNotifications(){} // Should call Delete
+};
+
+class FNodeObserver
+{
+public:
+	ISceneTracker& SceneTracker;
+
+	FNodeObserver(ISceneTracker& InSceneTracker) : SceneTracker(InSceneTracker)
+	{
+	}
+
+	~FNodeObserver()
+	{
+	}
+
+	void AddItem(INode* Node)
+	{
+		if (FNodeNotifications** NotifierPtr = Nodes.Find(Node))
+		{
+			(*NotifierPtr)->ReAdded();
+		}
+		else
+		{
+			Nodes.Add(Node, new FNodeNotifications(SceneTracker, *Node));
+		}
+	}
+
+	void Reset()
+	{
+		for (TPair<INode*, FNodeNotifications*> Node : Nodes)
+		{
+			Node.Value->Delete();
+		}
+		Nodes.Reset();
+	}
+
+private:
+	
+	TMap<INode*, FNodeNotifications*> Nodes;
 };
 
 FNotifications::FNotifications(IExporter& InExporter)
 	: Exporter(InExporter)
-	, NodeObserver(MakeUnique<FNodeObserver>())
+	, NodeObserver(MakeUnique<FNodeObserver>(InExporter.GetSceneTracker()))
 	, MaterialObserver(MakeUnique<FMaterialObserver>())
 {
 	RegisterForSystemNotifications(); // Always follow system events like file reset, new, open and others. But some system notifications also track changes within scene.
@@ -591,6 +642,15 @@ void FNotifications::On3dsMaxNotification(void* param, NotifyInfo* info)
 			LogDebugNode(NotificationsHandler.ConvertNotificationCodeToString(info->intcode), Node);
 			break;
 		}
+
+		case NOTIFY_NODE_HIDE:
+		case NOTIFY_NODE_UNHIDE:
+		{
+			INode* Node = reinterpret_cast<INode*>(info->callParam);
+			SceneTracker.NodeHideChanged(reinterpret_cast<INode*>(info->callParam));
+			break;
+		}
+
 		case NOTIFY_SCENE_POST_DELETED_NODE:
 		{
 			INode* Node = reinterpret_cast<INode*>(info->callParam);

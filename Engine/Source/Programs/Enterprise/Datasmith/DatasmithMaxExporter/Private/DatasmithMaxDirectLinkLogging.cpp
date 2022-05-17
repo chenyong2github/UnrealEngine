@@ -25,15 +25,14 @@ MAX_INCLUDES_START
 MAX_INCLUDES_END
 
 
-
 namespace DatasmithMaxDirectLink
 {
 
-void LogDebug(const TCHAR* Msg)
+void LogDebugImpl(const FString& Msg)
 {
 #ifdef LOG_DEBUG_ENABLE
-	mprintf(L"[%s]%s\n", *FDateTime::UtcNow().ToString(TEXT("%Y.%m.%d-%H.%M.%S:%s")), Msg);
-	UE_LOG(LogDatasmithMaxExporter, Error, TEXT("%s"), Msg);
+	// mprintf(L"[%s]%s\n", *FDateTime::UtcNow().ToString(TEXT("%Y.%m.%d-%H.%M.%S:%s")), *Msg);
+	UE_LOG(LogDatasmithMaxExporter, Error, TEXT("%s"), *Msg);
 	LogFlush();
 	LogDebugDialog(Msg);
 #endif
@@ -83,12 +82,6 @@ void LogInfo(const FString& Msg)
 	LogInfo(*Msg);
 }
 
-void LogDebug(const FString& Msg)
-{
-	LogDebug(*Msg);
-}
-
-
 void LogFlush()
 {
 	Async(EAsyncExecution::TaskGraphMainThread,
@@ -127,13 +120,13 @@ void LogDebugNode(const FString& Name, INode* Node)
 #endif
 }
 
-void LogNodeEvent(const MCHAR* Name, INodeEventCallback::NodeKeyTab& nodes)
+void LogNodeEvent(const MCHAR* Name, INodeEventCallback::NodeKeyTab& Nodes)
 {
 #ifdef LOG_DEBUG_HEAVY_ENABLE
 	LogDebug(FString::Printf(TEXT("NodeEventCallback:%s"), Name));
-	for (int NodeIndex = 0; NodeIndex < nodes.Count(); ++NodeIndex)
+	for (int NodeIndex = 0; NodeIndex < Nodes.Count(); ++NodeIndex)
 	{
-		FNodeKey NodeKey = nodes[NodeIndex];
+		FNodeKey NodeKey = Nodes[NodeIndex];
 
 		Animatable* anim = Animatable::GetAnimByHandle(NodeKey);
 		if (INode* Node = NodeEventNamespace::GetNodeByKey(NodeKey)) // Node sometimes is null. Not sure why

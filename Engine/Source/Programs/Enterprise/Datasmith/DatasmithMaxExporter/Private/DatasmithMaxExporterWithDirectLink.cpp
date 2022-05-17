@@ -916,7 +916,12 @@ public:
 	}
 
 	bool bParseXRefScenes = true;
-	bool bIncludeXRefWhileParsing = false; 
+	bool bIncludeXRefWhileParsing = false;
+
+	virtual bool IsUpdateInProgress() override
+	{
+		return bUpdateInProgress;
+	}
 
 	// Parse scene or XRef scene(in this case attach to parent datasmith actor)
 	bool ParseScene(INode* SceneRootNode, FXRefScene XRefScene=FXRefScene())
@@ -1090,9 +1095,8 @@ public:
 
 		DatasmithMaxLogger::Get().Purge();
 
-		NodesPreparer.Start(GetCOREInterface()->GetTime(), bRenderQuality);
-
 		bUpdateInProgress = true;
+		NodesPreparer.Start(GetCOREInterface()->GetTime(), bRenderQuality);
 
 		bool bResult = false;
 
@@ -1117,9 +1121,12 @@ public:
 			bResult = UpdateInternalSafe(ProgressStage.Stage);
 
 		}
-		bUpdateInProgress = false;
 
 		NodesPreparer.Finish();
+
+		// Revert Update flag after RenderEnd was called for all nodes. It fires change events too when
+		// switching from Render to Viewport geometry so we need to know to ignore those events.
+		bUpdateInProgress = false; 
 
 		UberSuspend.Resume();
 		GetCOREInterface()->EnableSceneRedraw();
@@ -1715,6 +1722,11 @@ public:
 		NodeTrackersNames.Add(*NodeTracker);
 		InvalidatedNodeTrackers.Add(*NodeTracker);
 		PromoteValidity(*NodeTracker, NodeTracker->Validity);
+
+		if (NotificationsHandler)
+		{
+			NotificationsHandler->AddNode(Node);
+		}
 
 		return NodeTracker;
 	}
@@ -2623,11 +2635,6 @@ public:
 			return;
 		}
 
-		if (NotificationsHandler)
-		{
-			NotificationsHandler->AddNode(Node);
-		}
-
 		FNodeKey NodeKey = NodeEventNamespace::GetKeyByNode(Node);
 
 		if (FNodeTracker* NodeTracker = GetNodeTracker(NodeKey))
@@ -2680,12 +2687,13 @@ public:
 		}
 	}
 
-	virtual void NodeTransformChanged(FNodeKey NodeKey) override
+	virtual void NodeTransformChanged(INode* Node) override
 	{
-		// todo: invalidate transform only
-
-		// todo: grouping makes this crash. Need to handle event before?
-		InvalidateNode(NodeKey);
+		if (FNodeTracker* NodeTracker =  GetNodeTracker(Node))
+		{
+			//todo: handle more precisely
+			InvalidateNode(*NodeTracker);
+		}
 	}
 
 	virtual void NodeMaterialAssignmentChanged(FNodeKey NodeKey) override
@@ -2694,44 +2702,61 @@ public:
 		InvalidateNode(NodeKey);
 	}
 
-	virtual void NodeMaterialGraphModified(FNodeKey NodeKey) override
+	virtual void NodeMaterialAssignmentChanged(INode* Node) override
 	{
-		//identify material tree and update all materials
-		//todo: possible to handle this more precisely(only refresh changed materials) - see FMaterialObserver
-
-		if (FNodeTracker* NodeTracker = GetNodeTracker(NodeKey))
+		if (FNodeTracker* NodeTracker =  GetNodeTracker(Node))
 		{
-			// todo: investigate why NodeEventNamespace::GetNodeByKey may stil return NULL
-			// testcase - add XRef Material - this will immediately have this
-			// even though NOTIFY_SCENE_ADDED_NODE was called for node and NOTIFY_SCENE_PRE_DELETED_NODE wasn't!
-			INode* Node = NodeEventNamespace::GetNodeByKey(NodeKey);
-			if (Node)
-			{
-				if (Mtl* Material = Node->GetMtl())
-				{
-					MaterialsCollectionTracker.InvalidateMaterial(Material);
-				}
-			}
+			//todo: handle more precisely
+			InvalidateNode(*NodeTracker);
 		}
-
-		InvalidateNode(NodeKey); // Invalidate node that has this material assigned. This is needed to trigger rebuild - exported geometry might change(e.g. multimaterial changed to slots will change on static mesh)
 	}
 
-	virtual void NodeGeometryChanged(FNodeKey NodeKey) override
+	virtual void NodeMaterialGraphModified(FNodeKey NodeKey) override
+	{
+		if (FNodeTracker* NodeTracker =  GetNodeTracker(NodeKey))
+		{
+			NodeMaterialGraphModified(*NodeTracker);
+		}
+	}
+
+	virtual void NodeMaterialGraphModified(INode* Node) override
+	{
+		if (FNodeTracker* NodeTracker =  GetNodeTracker(Node))
+		{
+			NodeMaterialGraphModified(*NodeTracker);
+		}
+	}
+
+	void NodeMaterialGraphModified(FNodeTracker& NodeTracker)
+	{
+		if (Mtl* Material = NodeTracker.Node->GetMtl())
+		{
+			MaterialsCollectionTracker.InvalidateMaterial(Material);
+		}
+		InvalidateNode(NodeTracker); // Invalidate node that has this material assigned. This is needed to trigger rebuild - exported geometry might change(e.g. multimaterial changed to slots will change on static mesh)
+	}
+
+	virtual void NodeGeometryChanged(INode* Node) override
 	{
 		// GeometryChanged is executed to handle:
 		// - actual geometry modification(in any way)
 		// - change of baseObject
 
-		InvalidateNode(NodeKey);
+		if (FNodeTracker* NodeTracker =  GetNodeTracker(Node))
+		{
+			InvalidateNode(*NodeTracker);
+		}
 	}
 
-	virtual void NodeHideChanged(FNodeKey NodeKey) override
+	virtual void NodeHideChanged(INode* Node) override
 	{
 		// todo: invalidate visibility only - note to handle this not enought add/remove
 		// actor. make sure to invalidate instances(in case geometry usage changed - like hidden node with multimat), materials
 
-		InvalidateNode(NodeKey);
+		if (FNodeTracker* NodeTracker =  GetNodeTracker(Node))
+		{
+			InvalidateNode(*NodeTracker);
+		}
 	}
 
 	virtual void NodeNameChanged(FNodeKey NodeKey) override
@@ -2743,12 +2768,15 @@ public:
 		}
 	}
 
-	virtual void NodePropertiesChanged(FNodeKey NodeKey) override
+	virtual void NodePropertiesChanged(INode* Node) override
 	{
 		// todo: invalidate visibility only - note to handle this not enought add/remove
 		// actor. make sure to invalidate instances(in case geometry usage changed - like hidden node with multimat), materials
 
-		InvalidateNode(NodeKey);
+		if (FNodeTracker* NodeTracker =  GetNodeTracker(Node))
+		{
+			InvalidateNode(*NodeTracker);
+		}
 	}
 
 	virtual void NodeLinkChanged(FNodeKey NodeKey) override
@@ -2965,7 +2993,7 @@ public:
 	{
 		FUpdateProgress ProgressManager(!bQuiet, 1);
 
-		bool bResult = SceneTracker.Update(ProgressManager.MainStage, false);
+		bool bResult = SceneTracker.Update(ProgressManager.MainStage, true);
 
 		ProgressManager.Finished();
 
@@ -2981,7 +3009,7 @@ public:
 		FUpdateProgress ProgressManager(!bQuiet, 1);
 		FUpdateProgress::FStage& MainStage = ProgressManager.MainStage;
 
-		if (SceneTracker.Update(MainStage, false))
+		if (SceneTracker.Update(MainStage, true))
 		{
 			PROGRESS_STAGE("Sync With DirectLink")
 			UpdateDirectLinkScene();
@@ -3006,7 +3034,7 @@ public:
 		FUpdateProgress ProgressManager(!bQuiet, 1);
 		FUpdateProgress::FStage& MainStage = ProgressManager.MainStage;
 
-		if (SceneTracker.Update(MainStage, false))  // Don't sent redundant update if scene change wasn't detected
+		if (SceneTracker.Update(MainStage, true))  // Don't sent redundant update if scene change wasn't detected
 		{
 			PROGRESS_STAGE("Sync With DirectLink")
 			UpdateDirectLinkScene();

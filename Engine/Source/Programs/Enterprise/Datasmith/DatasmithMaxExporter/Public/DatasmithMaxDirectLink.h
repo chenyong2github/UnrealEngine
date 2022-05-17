@@ -365,14 +365,18 @@ public:
 	// Change notifications
 	virtual void NodeAdded(INode* Node) = 0;
 	virtual void NodeDeleted(INode* Node) = 0;
-	virtual void NodeGeometryChanged(FNodeKey NodeKey) = 0;
-	virtual void NodeHideChanged(FNodeKey NodeKey) = 0;
+	virtual void NodeGeometryChanged(INode* Node) = 0;
+	virtual void NodeHideChanged(INode* Node) = 0;
 	virtual void NodeNameChanged(FNodeKey NodeKey) = 0;
-	virtual void NodePropertiesChanged(FNodeKey NodeKey) = 0;
+	virtual void NodePropertiesChanged(INode* Node) = 0;
 	virtual void NodeLinkChanged(FNodeKey NodeKey) = 0;
-	virtual void NodeTransformChanged(FNodeKey NodeKey) = 0;
+	virtual void NodeTransformChanged(INode* Node) = 0;
 	virtual void NodeMaterialAssignmentChanged(FNodeKey NodeKey) = 0;
+	virtual void NodeMaterialAssignmentChanged(INode* Node) = 0;
 	virtual void NodeMaterialGraphModified(FNodeKey NodeKey) = 0;
+	virtual void NodeMaterialGraphModified(INode* NodeKey) = 0;
+
+	virtual bool IsUpdateInProgress() = 0;
 
 	// Scene modification
 	virtual void AddMeshElement(TSharedPtr<IDatasmithMeshElement>& Mesh, FDatasmithMesh& DatasmithMesh, FDatasmithMesh* CollisionMesh) = 0;
@@ -614,6 +618,27 @@ public:
 
 //----
 
+void LogFlush();
+
+void LogError(const TCHAR* Msg);
+void LogWarning(const TCHAR* Msg);
+void LogCompletion(const TCHAR* Msg);
+void LogInfo(const TCHAR* Msg);
+
+void LogError(const FString& Msg);
+void LogWarning(const FString& Msg);
+void LogCompletion(const FString& Msg);
+void LogInfo(const FString& Msg);
+
+void LogErrorDialog(const FString& Msg);
+void LogWarningDialog(const FString& Msg);
+void LogCompletionDialog(const FString& Msg);
+void LogInfoDialog(const FString& Msg);
+
+// Debug logging
+void LogDebugImpl(const FString& Msg);
+void LogDebugDialog(const FString& Msg);
+
 #ifdef LOG_DEBUG_HEAVY_ENABLE
 	#define LOG_DEBUG_HEAVY(message) LogDebug(message)
 #else
@@ -621,28 +646,13 @@ public:
 #endif
 
 void LogDebugNode(const FString& Name, class INode* Node);
-void LogNodeEvent(const MCHAR* Name, INodeEventCallback::NodeKeyTab& nodes);
-void LogFlush();
-
-void LogError(const TCHAR* Msg);
-void LogWarning(const TCHAR* Msg);
-void LogCompletion(const TCHAR* Msg);
-void LogInfo(const TCHAR* Msg);
-void LogDebug(const TCHAR* Msg);
-
-void LogError(const FString& Msg);
-void LogWarning(const FString& Msg);
-void LogCompletion(const FString& Msg);
-void LogInfo(const FString& Msg);
-void LogDebug(const FString& Msg);
-
-void LogErrorDialog(const FString& Msg);
-void LogWarningDialog(const FString& Msg);
-void LogCompletionDialog(const FString& Msg);
-void LogInfoDialog(const FString& Msg);
-void LogDebugDialog(const FString& Msg);
+void LogNodeEvent(const MCHAR* Name, INodeEventCallback::NodeKeyTab& Nodes);
+#ifdef LOG_DEBUG_ENABLE
+	#define LogDebug(Msg) LogDebugImpl(Msg)
+#else
+	#define LogDebug(Msg)
+#endif 
 
 }
-
 
 #include "Windows/HideWindowsPlatformTypes.h"
