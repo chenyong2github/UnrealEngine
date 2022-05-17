@@ -3,6 +3,21 @@
 #include "Common.ush"
 #include "SceneData.ush"
 
+//
+// Functions to get instanced stereo properties from a VF. They have to be macros as hlslcc does not support member functions (as of May 2022 it is still used for a couple platforms),
+// whereas defining them as overloaded functions (taking VF as parameter) doesn't work as some VFs can be identical for typeless HLSL overloading rules.
+//
+#if INSTANCED_STEREO
+	#define GetInstanceIdFromVF(VFInput)				(VFInput.InstanceId)
+	#define GetEyeIndexFromVF(VFInput)					(IsInstancedStereo() ? (GetInstanceIdFromVF(VFInput) & 1) : 0)
+	#define ResolveViewFromVF(VFInput)					(ResolveView(GetEyeIndexFromVF(VFInput)))
+#else
+	#define GetInstanceIdFromVF(VFInput)				(0)
+	#define GetEyeIndexFromVF(VFInput)					(0)
+	#define ResolveViewFromVF(VFInput)					(ResolveView())
+#endif // INSTANCED_STEREO
+
+
 //  
 // Required VF inputs to support dynamic instancing 
 //
@@ -27,6 +42,10 @@
 		_VFInputOut_.InstanceIdOffset = (_PrimitiveId_) | VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG;	\
 		_VFInputOut_.DrawInstanceId = _DrawInstanceId_;
 
+	#define VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
+
+	#undef GetInstanceIdFromVF
+	#define GetInstanceIdFromVF(VFInput)				(VFInput.DrawInstanceId)
 
 #elif (VF_USE_PRIMITIVE_SCENE_DATA == 2)	
 	#define VF_GPUSCENE_DECLARE_INPUT_BLOCK(Attr0) \
@@ -54,12 +73,40 @@
 
 	#define VF_GPUSCENE_SET_INPUT_FOR_RT(_VFInputOut_, _PrimitiveId_, _DrawInstanceId_)
 
+	#undef GetInstanceIdFromVF
+	#define GetInstanceIdFromVF(VFInput)				(VFInput.DrawInstanceId)
+
 #else
 	#define VF_GPUSCENE_DECLARE_INPUT_BLOCK(Attr0) 
 	#define VF_GPUSCENE_GET_INTERMEDIATES(VFInput) GetSceneDataIntermediates()
 	#define VF_GPUSCENE_GET_LIGHTMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) PrecomputedLightingBuffer.LightMapCoordinateScaleBias
 	#define VF_GPUSCENE_GET_SHADOWMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) PrecomputedLightingBuffer.ShadowMapCoordinateScaleBias
 	#define VF_GPUSCENE_SET_INPUT_FOR_RT(_VFInputOut_, _PrimitiveId_, _DrawInstanceId_)
+
+	#if INSTANCED_STEREO
+		#define VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK() \
+			uint InstanceId : SV_InstanceID;
+	#else
+		#define VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
+	#endif 
+
+#endif
+
+// In case other paths in the above #if miss the declaration, catch this early
+#if !defined(VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK)
+	#error VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK() should be defined for a vertex factory
+#endif
+
+#if !defined(GetInstanceIdFromVF)
+	#error GetInstanceIdFromVF() should be defined.
+#endif
+
+#if !defined(GetEyeIndexFromVF)
+	#error GetEyeIndexFromVF() should be defined.
+#endif
+
+#if !defined(ResolveViewFromVF)
+	#error ResolveViewFromVF() should be defined.
 #endif
 
 
@@ -183,4 +230,3 @@ float3 OffsetODS(float3 WorldPosition, float3 WorldCameraPosition, float IPD)
 	return -A * D + B * T;
 }
 #endif
-

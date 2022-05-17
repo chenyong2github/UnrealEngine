@@ -84,6 +84,8 @@ struct FVertexFactoryInput
 /** Optional instance ID for vertex layered rendering */
 #if (PARTICLE_MESH_INSTANCED)
 	uint InstanceId	: SV_InstanceID;
+#else
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 #endif
 
 #if PASS_NEEDS_VERTEX_ID

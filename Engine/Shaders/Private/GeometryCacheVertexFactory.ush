@@ -71,6 +71,7 @@ struct FVertexFactoryInput
 #endif
 
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
 // RHI_RAYTRACING
@@ -117,6 +118,7 @@ struct FPositionOnlyVertexFactoryInput
 {
 	float4	Position	: ATTRIBUTE0;
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
 struct FPositionAndNormalOnlyVertexFactoryInput
@@ -124,6 +126,7 @@ struct FPositionAndNormalOnlyVertexFactoryInput
 	float4	Position	: ATTRIBUTE0;
 	float4	Normal		: ATTRIBUTE1;
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(2)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
 /** for depth-only pass */

@@ -33,6 +33,7 @@ struct FVertexFactoryInput
 #endif
 
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
 /** 
@@ -46,6 +47,7 @@ struct FPositionOnlyVertexFactoryInput
 	float4 InstanceData1 : ATTRIBUTE9; 
 
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
 /** 
@@ -60,6 +62,7 @@ struct FPositionAndNormalOnlyVertexFactoryInput
 	float4 InstanceData1 : ATTRIBUTE9; 
 
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
 /** 

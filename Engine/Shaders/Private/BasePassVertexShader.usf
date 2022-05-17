@@ -29,7 +29,6 @@ void Main(
 	, out float OutGlobalClipPlaneDistance : SV_ClipDistance
 #endif
 #if INSTANCED_STEREO
-	, uint InstanceId : SV_InstanceID
 	#if !MULTI_VIEW
 		, out float OutClipDistance : SV_ClipDistance1
 	#else
@@ -37,19 +36,16 @@ void Main(
 	#endif
 #endif
 	)
-{	
+{
 #if INSTANCED_STEREO
-	const uint EyeIndex = GetEyeIndex(InstanceId);
-	ResolvedView = ResolveView(EyeIndex);
+	const uint EyeIndex = GetEyeIndexFromVF(Input);
 	#if !MULTI_VIEW
 		OutClipDistance = 0.0;
 	#else
 		ViewportIndex = EyeIndex;
 	#endif
-#else
-	uint EyeIndex = 0;
-	ResolvedView = ResolveView();
 #endif
+	ResolvedView = ResolveViewFromVF(Input);
 
 	FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
 	float4 WorldPositionExcludingWPO = VertexFactoryGetWorldPosition(Input, VFIntermediates);

@@ -28,6 +28,8 @@ struct FVertexFactoryInput
 #endif	//USE_DYNAMIC_PARAMETERS
 	float2	TexCoord				: ATTRIBUTE4;
 	uint VertexId					: SV_VertexID;
+
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
 struct FVertexFactoryInterpolantsVSToPS

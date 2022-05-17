@@ -172,6 +172,7 @@ struct FVertexFactoryInput
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE1
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
 #endif
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
 // RHI_RAYTRACING

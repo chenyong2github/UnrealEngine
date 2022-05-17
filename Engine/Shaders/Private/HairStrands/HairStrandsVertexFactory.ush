@@ -93,6 +93,9 @@ struct FVertexFactoryInput
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE13
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
 
+	// Instanced stereo related params
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
+
 	uint VertexId : SV_VertexID;
 };
 

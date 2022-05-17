@@ -88,6 +88,7 @@ struct FVertexFactoryInput
 #endif
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE13
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 
 #if NEEDS_LIGHTMAP_COORDINATE && !MANUAL_VERTEX_FETCH
 	float2	LightMapCoordinate : ATTRIBUTE15;
@@ -110,6 +111,7 @@ struct FPositionOnlyVertexFactoryInput
 
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE1
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 
 #if MANUAL_VERTEX_FETCH
 	uint VertexId : SV_VertexID;
@@ -126,6 +128,7 @@ struct FPositionAndNormalOnlyVertexFactoryInput
 
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE1
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 
 #if MANUAL_VERTEX_FETCH
 	uint VertexId : SV_VertexID;

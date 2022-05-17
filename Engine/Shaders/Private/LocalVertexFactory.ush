@@ -161,6 +161,8 @@ struct FVertexFactoryInput
 
 #if USE_INSTANCING
 	uint InstanceId	: SV_InstanceID;
+#else
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 #endif
 
 #if GPUSKIN_PASS_THROUGH && !MANUAL_VERTEX_FETCH
@@ -259,6 +261,7 @@ struct FPositionOnlyVertexFactoryInput
 
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE1
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 
 #if (USE_INSTANCING || USE_INSTANCE_CULLING) && !MANUAL_VERTEX_FETCH && (VF_USE_PRIMITIVE_SCENE_DATA != 2)
 	float4 InstanceOrigin : ATTRIBUTE8;  // per-instance random in w 
@@ -286,6 +289,7 @@ struct FPositionAndNormalOnlyVertexFactoryInput
 
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE1
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 
 #if (USE_INSTANCING || USE_INSTANCE_CULLING) && !MANUAL_VERTEX_FETCH && (VF_USE_PRIMITIVE_SCENE_DATA != 2)
 	float4 InstanceOrigin : ATTRIBUTE8;  // per-instance random in w 

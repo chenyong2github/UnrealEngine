@@ -115,7 +115,10 @@ struct FVertexFactoryInput
 	// Optional instance ID for vertex layered rendering
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
 	uint InstanceId					: SV_InstanceID;
+#else
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 #endif
+
 };
 
 // The interpolation data required for an interp vertex.

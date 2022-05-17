@@ -118,6 +118,7 @@ struct FVertexFactoryInput
 
 	// Dynamic instancing related attributes with InstanceIdOffset : ATTRIBUTE16
 	VF_GPUSCENE_DECLARE_INPUT_BLOCK(16)
+	VF_INSTANCED_STEREO_DECLARE_INPUT_BLOCK()
 };
 
 #if !GPUSKIN_MORPH_BLEND && GPUSKIN_APEX_CLOTH
