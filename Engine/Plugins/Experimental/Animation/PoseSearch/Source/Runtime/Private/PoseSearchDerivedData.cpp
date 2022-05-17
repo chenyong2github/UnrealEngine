@@ -84,6 +84,9 @@ namespace UE::PoseSearch
 
 		if (bForceRebuild)
 		{
+			// when the build is forced, the derived data key is zeroed so the comparison with the pending key fails, 
+			// informing other systems that data is being rebuilt
+			DerivedData.DerivedDataKey.Hash = FIoHash::Zero;
 			BuildAndWrite({ Bucket, DerivedDataKey });
 		}
 		else

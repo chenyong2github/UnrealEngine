@@ -82,35 +82,38 @@ namespace UE::PoseSearch
 			MaxPreviewPlayLength = 0.0f;
 
 			const FPoseSearchIndex* SearchIndex = PoseSearchDatabase->GetSearchIndex();
-			for (const FPoseSearchIndexAsset& IndexAsset : SearchIndex->Assets)
+			if (SearchIndex)
 			{
-				const bool bIsAssociatedToSelection =
-					IndexAsset.Type == ESearchIndexAssetType::Sequence &&
-					AssociatedAssetIndices.Contains(IndexAsset.SourceAssetIdx);
-
-				const bool bSpawn =
-					bIsAssociatedToSelection &&
-					(AnimationPreviewMode == EAnimationPreviewMode::OriginalAndMirrored ||
-					 !IndexAsset.bMirrored);
-				
-				if (bSpawn)
+				for (const FPoseSearchIndexAsset& IndexAsset : SearchIndex->Assets)
 				{
-					FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAsset);
-					if (PreviewActor.IsValid())
-					{
-						const UAnimSequence* Sequence =
-							Cast<UAnimSequence>(PreviewActor.AnimInstance->GetAnimationAsset());
-						if (Sequence)
-						{
-							MaxPreviewPlayLength = FMath::Max(MaxPreviewPlayLength, Sequence->GetPlayLength());
-						}
+					const bool bIsAssociatedToSelection =
+						IndexAsset.Type == ESearchIndexAssetType::Sequence &&
+						AssociatedAssetIndices.Contains(IndexAsset.SourceAssetIdx);
 
-						PreviewActors.Add(PreviewActor);
+					const bool bSpawn =
+						bIsAssociatedToSelection &&
+						(AnimationPreviewMode == EAnimationPreviewMode::OriginalAndMirrored ||
+						 !IndexAsset.bMirrored);
+
+					if (bSpawn)
+					{
+						FDatabasePreviewActor PreviewActor = SpawnPreviewActor(IndexAsset);
+						if (PreviewActor.IsValid())
+						{
+							const UAnimSequence* Sequence =
+								Cast<UAnimSequence>(PreviewActor.AnimInstance->GetAnimationAsset());
+							if (Sequence)
+							{
+								MaxPreviewPlayLength = FMath::Max(MaxPreviewPlayLength, Sequence->GetPlayLength());
+							}
+
+							PreviewActors.Add(PreviewActor);
+						}
 					}
 				}
-			}
 
-			UpdatePreviewActors();
+				UpdatePreviewActors();
+			}
 		}
 
 		// todo: do blendspaces afterwards

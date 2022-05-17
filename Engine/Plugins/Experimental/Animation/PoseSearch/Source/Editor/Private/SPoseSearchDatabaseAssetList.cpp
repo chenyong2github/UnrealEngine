@@ -736,47 +736,15 @@ namespace UE::PoseSearch
 		const TArray<TSharedPtr<FDatabaseAssetTreeNode>> SelectedNodes = TreeView->GetSelectedItems();
 		if (!SelectedNodes.IsEmpty())
 		{
-			TSharedPtr<FDatabaseAssetTreeNode> SelectedNode = SelectedNodes[0];
-
-			if (SelectedNode->SourceAssetType != ESearchIndexAssetType::Invalid)
-			{
-				const int32 GroupIdx = SelectedNode->Parent->SourceAssetIdx;
-				if (GroupIdx == INDEX_NONE)
-				{
-					MenuBuilder.AddMenuEntry(
-						LOCTEXT("DeleteAsset", "Delete Asset"),
-						LOCTEXT("DeleteAssetTooltip", "Delete asset from database"),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnDeleteAsset, SelectedNode, true)),
-						NAME_None,
-						EUserInterfaceActionType::Button);
-				}
-				else
-				{
-					MenuBuilder.AddMenuEntry(
-						LOCTEXT("RemoveFromGroup", "Remove From Group"),
-						LOCTEXT("RemoveFromGroupTooltip", "Remove asset from group"),
-						FSlateIcon(),
-						FUIAction(
-							FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnRemoveFromGroup, SelectedNode, true)),
-						NAME_None,
-						EUserInterfaceActionType::Button);
-				}
-			}
-			else if (SelectedNode->SourceAssetIdx != INDEX_NONE)
-			{
-				// a group that's not default
-				MenuBuilder.AddMenuEntry(
-					LOCTEXT("DeleteGroup", "Delete Group"),
-					LOCTEXT("DeleteGroupTooltip", "Delete group and remove it from the sequences in it"),
-					FSlateIcon(),
-					FUIAction(
-						FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnDeleteGroup, SelectedNode, true)),
-					NAME_None,
-					EUserInterfaceActionType::Button);
-			}
-
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("DeleteUngroup", "Delete / Remove"),
+				LOCTEXT(
+					"DeleteUngroupTooltip", 
+					"Deletes groups and ungrouped assets; removes grouped assets from group."),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnDeleteNodes)),
+				NAME_None,
+				EUserInterfaceActionType::Button);
 		}
 
 		return MenuBuilder.MakeWidget();

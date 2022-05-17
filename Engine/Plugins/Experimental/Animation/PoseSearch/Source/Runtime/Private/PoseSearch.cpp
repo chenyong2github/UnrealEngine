@@ -1180,7 +1180,12 @@ int32 UPoseSearchDatabase::GetPoseIndexFromTime(float Time, const FPoseSearchInd
 {
 	FFloatInterval Range = SearchIndexAsset->SamplingInterval;
 
-	if (Range.Contains(Time))
+	const bool bHasPoseIndex =
+		SearchIndexAsset->FirstPoseIdx != INDEX_NONE &&
+		SearchIndexAsset->NumPoses > 0 &&
+		Range.Contains(Time);
+
+	if (bHasPoseIndex)
 	{
 		int32 PoseOffset = FMath::RoundToInt(Schema->SampleRate * (Time - Range.Min));
 		
@@ -1728,7 +1733,8 @@ void UPoseSearchDatabase::BeginCacheDerivedData()
 		const FIoHash ExistingDerivedDataHash = PrivateDerivedData->PendingDerivedDataKey;
 		if (!ExistingDerivedDataHash.IsZero())
 		{
-			if (ExistingDerivedDataHash == UE::PoseSearch::FPoseSearchDatabaseAsyncCacheTask::CreateKey(*this))
+			const FIoHash CurrentHash = UE::PoseSearch::FPoseSearchDatabaseAsyncCacheTask::CreateKey(*this);
+			if (ExistingDerivedDataHash == CurrentHash)
 			{
 				bPerformCache = false;
 			}
