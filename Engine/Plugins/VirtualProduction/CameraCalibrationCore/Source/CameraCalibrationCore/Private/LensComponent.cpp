@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LensDistortionComponent.h"
+#include "LensComponent.h"
 
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Engine/Engine.h"
 #include "LiveLinkComponentController.h"
 
-ULensDistortionComponent::ULensDistortionComponent()
+ULensComponent::ULensComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = true;
@@ -17,13 +17,13 @@ ULensDistortionComponent::ULensDistortionComponent()
 	if (!HasAnyFlags(RF_ArchetypeObject | RF_ClassDefaultObject))
 	{
 		//Hook up to PostActorTick to handle nodal offset
-		FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &ULensDistortionComponent::OnPostActorTick);
+		FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &ULensComponent::OnPostActorTick);
 
 		DistortionProducerID = FGuid::NewGuid();
 	}
 }
 
-void ULensDistortionComponent::OnRegister()
+void ULensComponent::OnRegister()
 {
 	Super::OnRegister();
 
@@ -36,7 +36,7 @@ void ULensDistortionComponent::OnRegister()
 	}
 }
 
-void ULensDistortionComponent::DestroyComponent(bool bPromoteChildren /*= false*/)
+void ULensComponent::DestroyComponent(bool bPromoteChildren /*= false*/)
 {
 	Super::DestroyComponent(bPromoteChildren);
 
@@ -55,7 +55,7 @@ void ULensDistortionComponent::DestroyComponent(bool bPromoteChildren /*= false*
 	}
 }
 
-void ULensDistortionComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void ULensComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
 	{
@@ -158,11 +158,11 @@ void ULensDistortionComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 }
 
 #if WITH_EDITOR
-void ULensDistortionComponent::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void ULensComponent::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
  	const FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
  
- 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensDistortionComponent, bApplyDistortion))
+ 	if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensComponent, bApplyDistortion))
  	{
  		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
  		{
@@ -172,7 +172,7 @@ void ULensDistortionComponent::PostEditChangeProperty(struct FPropertyChangedEve
  			}
  		}
  	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensDistortionComponent, bApplyNodalOffset))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensComponent, bApplyNodalOffset))
 	{
 		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner())))
 		{
@@ -188,7 +188,7 @@ void ULensDistortionComponent::PostEditChangeProperty(struct FPropertyChangedEve
 			}
 		}
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensDistortionComponent, bEvaluateLensFileForDistortion))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensComponent, bEvaluateLensFileForDistortion))
 	{
 		if (bEvaluateLensFileForDistortion)
 		{
@@ -226,7 +226,7 @@ void ULensDistortionComponent::PostEditChangeProperty(struct FPropertyChangedEve
 			}
 		}
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensDistortionComponent, TargetCameraComponent))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULensComponent, TargetCameraComponent))
 	{
 		// Clean up distortion on the last target camera
 		if (LastCameraComponent)
@@ -277,7 +277,7 @@ void ULensDistortionComponent::PostEditChangeProperty(struct FPropertyChangedEve
 }
 #endif //WITH_EDITOR
 
-void ULensDistortionComponent::PostDuplicate(bool bDuplicateForPIE)
+void ULensComponent::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
 
@@ -290,7 +290,7 @@ void ULensDistortionComponent::PostDuplicate(bool bDuplicateForPIE)
 	}
 }
 
-void ULensDistortionComponent::PostEditImport()
+void ULensComponent::PostEditImport()
 {
 	Super::PostEditImport();
 
@@ -303,7 +303,7 @@ void ULensDistortionComponent::PostEditImport()
 	}
 }
 
-void ULensDistortionComponent::PostLoad()
+void ULensComponent::PostLoad()
 {
 	Super::PostLoad();
 
@@ -317,7 +317,7 @@ void ULensDistortionComponent::PostLoad()
 	}
 }
 
-void ULensDistortionComponent::OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds)
+void ULensComponent::OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds)
 {
 	if (World == GetWorld())
 	{
@@ -331,7 +331,7 @@ void ULensDistortionComponent::OnPostActorTick(UWorld* World, ELevelTick TickTyp
 	}
 }
 
-void ULensDistortionComponent::CleanupDistortion(UCineCameraComponent* const CineCameraComponent)
+void ULensComponent::CleanupDistortion(UCineCameraComponent* const CineCameraComponent)
 {
 	if (bIsDistortionSetup)
 	{
@@ -360,7 +360,7 @@ void ULensDistortionComponent::CleanupDistortion(UCineCameraComponent* const Cin
 	bIsDistortionSetup = false;
 }
 
-void ULensDistortionComponent::InitDefaultCamera()
+void ULensComponent::InitDefaultCamera()
 {
 	UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(TargetCameraComponent.GetComponent(GetOwner()));
 	if (!CineCameraComponent)
@@ -379,7 +379,7 @@ void ULensDistortionComponent::InitDefaultCamera()
 	}
 }
 
-void ULensDistortionComponent::CreateDistortionHandlerForLensFile()
+void ULensComponent::CreateDistortionHandlerForLensFile()
 {
 	if (DistortionSource.TargetCameraComponent == nullptr)
 	{
@@ -402,7 +402,7 @@ void ULensDistortionComponent::CreateDistortionHandlerForLensFile()
 	}
 }
 
-void ULensDistortionComponent::ApplyNodalOffset(ULensFile* SelectedLensFile, UCineCameraComponent* CineCameraComponent)
+void ULensComponent::ApplyNodalOffset(ULensFile* SelectedLensFile, UCineCameraComponent* CineCameraComponent)
 {
 	if (CineCameraComponent)
 	{

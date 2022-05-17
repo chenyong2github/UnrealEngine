@@ -7,18 +7,18 @@
 #include "CameraCalibrationTypes.h"
 #include "LensFile.h"
 
-#include "LensDistortionComponent.generated.h"
+#include "LensComponent.generated.h"
 
 class UCineCameraComponent;
 
 /** Component for applying a post-process lens distortion effect to a CineCameraComponent on the same actor */
 UCLASS(HideCategories = (Tags, Activation, Cooking, AssetUserData, Collision), meta = (BlueprintSpawnableComponent))
-class CAMERACALIBRATION_API ULensDistortionComponent : public UActorComponent
+class CAMERACALIBRATIONCORE_API ULensComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	ULensDistortionComponent();
+	ULensComponent();
 
 	//~ Begin UActorComponent interface
 	virtual void OnRegister() override;
