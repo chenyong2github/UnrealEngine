@@ -544,12 +544,11 @@ int32 CutWithPlanarCells(
 	int32 RandomSeed,
 	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
-	float CheckDistanceAcrossOutsideCellForProximity,
 	bool bSetDefaultInternalMaterialsFromCollection
 )
 {
 	TArray<int32> TransformIndices { TransformIdx };
-	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, CollisionSampleSpacing, RandomSeed, TransformCollection, bIncludeOutsideCellInOutput, CheckDistanceAcrossOutsideCellForProximity, bSetDefaultInternalMaterialsFromCollection);
+	return CutMultipleWithPlanarCells(Cells, Source, TransformIndices, Grout, CollisionSampleSpacing, RandomSeed, TransformCollection, bIncludeOutsideCellInOutput, bSetDefaultInternalMaterialsFromCollection);
 }
 
 
@@ -573,12 +572,6 @@ int32 CutMultipleWithMultiplePlanes(
 		InternalSurfaceMaterials.SetUVScaleFromCollection(Collection);
 	}
 
-	if (!Collection.HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
-	{
-		const FManagedArrayCollection::FConstructionParameters GeometryDependency(FGeometryCollection::GeometryGroup);
-		Collection.AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup, GeometryDependency);
-	}
-
 	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
 
 	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CollectionToWorld);
@@ -600,16 +593,9 @@ int32 CutMultipleWithPlanarCells(
 	int32 RandomSeed,
 	const TOptional<FTransform>& TransformCollection,
 	bool bIncludeOutsideCellInOutput,
-	float CheckDistanceAcrossOutsideCellForProximity,
 	bool bSetDefaultInternalMaterialsFromCollection
 )
 {
-	if (!Source.HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
-	{
-		const FManagedArrayCollection::FConstructionParameters GeometryDependency(FGeometryCollection::GeometryGroup);
-		Source.AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup, GeometryDependency);
-	}
-
 	if (bSetDefaultInternalMaterialsFromCollection)
 	{
 		Cells.InternalSurfaceMaterials.SetUVScaleFromCollection(Source);
@@ -733,12 +719,6 @@ int32 CutWithMesh(
 				AugmentedDynamicMesh::SetVisibility(OutMesh, AddedTID, true);
 			}
 		}
-	}
-
-	if (!Collection.HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
-	{
-		const FManagedArrayCollection::FConstructionParameters GeometryDependency(FGeometryCollection::GeometryGroup);
-		Collection.AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup, GeometryDependency);
 	}
 
 	if (bSetDefaultInternalMaterialsFromCollection)
