@@ -293,7 +293,14 @@ struct FNiagaraSimCacheHelper
 
 	void ReadDataBufferGPU(FNiagaraEmitterInstance& EmitterInstance, const FNiagaraSimCacheDataBuffersLayout& InCacheLayout, const FNiagaraSimCacheDataBuffers& InCacheBuffer, FNiagaraDataSet& InDataSet, std::atomic<int32>& InPendingCommandsCounter)
 	{
+		if (EmitterInstance.IsDisabled())
+		{
+			return;
+		}
+
 		++InPendingCommandsCounter;
+
+		check(EmitterInstance.GetGPUContext());
 
 		FNiagaraGpuComputeDispatchInterface* DispathInterface = EmitterInstance.GetParentSystemInstance()->GetComputeDispatchInterface();
 		ENQUEUE_RENDER_COMMAND(NiagaraSimCacheGpuReadFrame)(
