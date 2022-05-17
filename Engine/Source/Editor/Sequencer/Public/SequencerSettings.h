@@ -214,10 +214,10 @@ public:
 	void SetShowSelectedNodesOnly(bool Visible);
 	FOnShowSelectedNodesOnlyChanged& GetOnShowSelectedNodesOnlyChanged() { return OnShowSelectedNodesOnlyChangedEvent; }
 
-	/** Gets whether to jump to the start of the sequence when we start a recording or not. */
-	bool ShouldRewindOnRecord() const;
-	/** Sets whether to jump to the start of the sequence when we start a recording. */
-	void SetRewindOnRecord(bool bInRewindOnRecord);
+	/** Gets whether left mouse drag does marquee select instead of camera orbit */
+	bool GetLeftMouseDragDoesMarquee() const;
+	/** Sets whether left mouse drag does marquee select instead of camera orbit */
+	void SetLeftMouseDragDoesMarque(bool bDoMarque);
 
 	/** Get zoom in/out position (mouse position or current time). */
 	ESequencerZoomPosition GetZoomPosition() const;
@@ -477,6 +477,10 @@ protected:
 	/** Defines whether to jump back to the start of the sequence when a recording is started */
 	UPROPERTY(config, EditAnywhere, Category=General)
 	bool bRewindOnRecord;
+
+	/** Defines whether left mouse drag does marquee select instead of camera orbit */
+	UPROPERTY(config, EditAnywhere, Category = General)
+	bool bLeftMouseDragDoesMarquee;
 
 	/** Whether to zoom in on the current position or the current time in the timeline. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )

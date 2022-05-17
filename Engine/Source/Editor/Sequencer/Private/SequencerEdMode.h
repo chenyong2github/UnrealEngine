@@ -21,6 +21,42 @@ class UMovieScene3DTransformSection;
 class UMovieScene3DTransformTrack;
 struct FMovieSceneEvaluationTrack;
 struct FMovieSceneInterrogationData;
+class USequencerSettings;
+
+#include "EditorDragTools.h"
+
+// This struct wraps up functionality for creating a marquee(frustum or box) selection drag tool
+// It does so based upon the type of viewport being drawn.
+// It's also agnostic to any key presses or mouse button type. 
+// If it's created it's assumed it will track.
+struct FMarqueeDragTool
+{
+	FMarqueeDragTool();
+	~FMarqueeDragTool() {};
+
+	bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
+	bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
+	void MakeDragTool(FEditorViewportClient* InViewportClient);
+	bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale);
+
+	bool UsingDragTool() const;
+	void Render3DDragTool(const FSceneView* View, FPrimitiveDrawInterface* PDI);
+	void RenderDragTool(const FSceneView* View, FCanvas* Canvas);
+
+
+private:
+	
+	/**
+	 * If there is a dragging tool being used, this will point to it.
+	 * Gets newed/deleted in StartTracking/EndTracking.
+	 */
+	TSharedPtr<FDragTool> DragTool;
+
+	/** Tracks whether the drag tool is in the process of being deleted (to protect against reentrancy) */
+	bool bIsDeletingDragTool = false;
+
+};
+
 
 /** Stores the transform track and associated mesh trail for each drawn track */
 struct FMeshTrailData
@@ -60,14 +96,16 @@ public:
 
 
 	virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
+	virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
 	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) override;
 	virtual bool ProcessCapturedMouseMoves(FEditorViewportClient* InViewportClient, FViewport* InViewport, const TArrayView<FIntPoint>& CapturedMouseMoves) override;
 	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override;
 
 	bool IsPressingMoveTimeSlider(FViewport* InViewport) const;
+	bool IsDoingDrag(FViewport* InViewport) const;
 	void AddSequencer(TWeakPtr<FSequencer> InSequencer) { Sequencers.AddUnique(InSequencer); }
 	void RemoveSequencer(TWeakPtr<FSequencer> InSequencer) { Sequencers.Remove(InSequencer); }
-
+	USequencerSettings* GetSequencerSettings() const;
 	void OnSequencerReceivedFocus(TWeakPtr<FSequencer> InSequencer) { Sequencers.Sort([=](TWeakPtr<FSequencer> A, TWeakPtr<FSequencer> B){ return A == InSequencer; }); }
 
 	void OnKeySelected(FViewport* Viewport, HMovieSceneKeyProxy* KeyProxy);
@@ -105,6 +143,9 @@ private:
 	TOptional<int32> StartXValue;
 	/** Starting Time Value*/
 	FFrameNumber StartFrameNumber;
+
+	FMarqueeDragTool DragToolHandler;
+
 };
 
 /**

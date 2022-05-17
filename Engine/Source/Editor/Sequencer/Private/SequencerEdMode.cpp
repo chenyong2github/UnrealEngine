@@ -32,7 +32,8 @@
 #include "MovieSceneToolHelpers.h"
 #include "Tools/MotionTrailOptions.h"
 #include "SequencerCommands.h"
-
+#include "SnappingUtils.h"
+#include "SequencerSettings.h"
 const FEditorModeID FSequencerEdMode::EM_SequencerMode(TEXT("EM_SequencerMode"));
 
 static TAutoConsoleVariable<bool> CVarDrawMeshTrails(
@@ -49,6 +50,8 @@ TAutoConsoleVariable<bool> CVarUseOldSequencerMotionTrails(
 
 namespace UE
 {
+
+
 namespace SequencerEdMode
 {
 
@@ -223,6 +226,32 @@ bool FSequencerEdMode::IsPressingMoveTimeSlider(FViewport* InViewport) const
 	return bIsMovingTimeSlider;
 }
 
+//just get the first one.
+USequencerSettings* FSequencerEdMode:: GetSequencerSettings() const
+{
+	TSharedPtr<FSequencer> ActiveSequencer;
+	for (TWeakPtr<FSequencer> WeakSequencer : Sequencers)
+	{
+		ActiveSequencer = WeakSequencer.Pin();
+		if (ActiveSequencer.IsValid())
+		{
+			return ActiveSequencer->GetSequencerSettings();
+		}
+	}
+	return nullptr;
+}
+
+bool FSequencerEdMode::IsDoingDrag(FViewport* InViewport) const
+{
+	const USequencerSettings* SequencerSettings = GetSequencerSettings();
+	const bool LeftMouseButtonDown = InViewport->KeyState(EKeys::LeftMouseButton);
+	const bool bIsCtrlKeyDown = InViewport->KeyState(EKeys::LeftControl) || InViewport->KeyState(EKeys::RightControl);
+	const bool bIsShiftKeyDown = InViewport->KeyState(EKeys::LeftShift) || InViewport->KeyState(EKeys::RightShift);
+	const bool bIsAltKeyDown = InViewport->KeyState(EKeys::LeftAlt) || InViewport->KeyState(EKeys::RightAlt);
+
+	return LeftMouseButtonDown && !bIsCtrlKeyDown && !bIsShiftKeyDown && !bIsAltKeyDown && (SequencerSettings ? SequencerSettings->GetLeftMouseDragDoesMarquee() : false);
+}
+
 bool FSequencerEdMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	if (IsPressingMoveTimeSlider(InViewport))
@@ -243,13 +272,29 @@ bool FSequencerEdMode::StartTracking(FEditorViewportClient* InViewportClient, FV
 		}
 		return true;
 	}
+	else if(IsDoingDrag(InViewport))
+	{
+		DragToolHandler.MakeDragTool(InViewportClient);
+		return DragToolHandler.StartTracking(InViewportClient, InViewport);
+	}
 	return false;
 }
-
+bool FSequencerEdMode::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+{
+	return DragToolHandler.EndTracking(InViewportClient, InViewport);
+}
 
 bool FSequencerEdMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
 {
-	return IsPressingMoveTimeSlider(InViewport);
+	if (IsPressingMoveTimeSlider(InViewport))
+	{
+		return true;
+	}
+	else if(IsDoingDrag(InViewport))
+	{
+		return DragToolHandler.InputDelta(InViewportClient, InViewport, InDrag, InRot, InScale);
+	}
+	return false;
 }
 
 static void SnapSequencerTime(TSharedPtr<FSequencer>& Sequencer, FFrameTime& ScrubTime)
@@ -378,6 +423,8 @@ void FSequencerEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrim
 {
 	FEdMode::Render(View, Viewport, PDI);
 
+	DragToolHandler.Render3DDragTool(View, PDI);
+
 #if WITH_EDITORONLY_DATA
 	if (PDI)
 	{
@@ -401,6 +448,8 @@ void FSequencerEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrim
 void FSequencerEdMode::DrawHUD(FEditorViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View,FCanvas* Canvas)
 {
 	FEdMode::DrawHUD(ViewportClient,Viewport,View,Canvas);
+
+	DragToolHandler.RenderDragTool(View, Canvas);
 
 	if( ViewportClient->AllowsCinematicControl() )
 	{
@@ -912,4 +961,110 @@ bool FSequencerEdModeTool::InputKey(FEditorViewportClient* ViewportClient, FView
 	}
 
 	return FModeTool::InputKey(ViewportClient, Viewport, Key, Event);
+}
+
+/*
+*
+*    Drag Tool Handler
+*
+*/
+
+FMarqueeDragTool::FMarqueeDragTool()
+	: bIsDeletingDragTool(false)
+{
+}
+
+bool FMarqueeDragTool::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+{
+	return (DragTool.IsValid() && InViewportClient->GetCurrentWidgetAxis() == EAxisList::None);
+}
+
+bool FMarqueeDragTool::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
+{
+	if (!bIsDeletingDragTool)
+	{
+		// Ending the drag tool may pop up a modal dialog which can cause unwanted reentrancy - protect against this.
+		TGuardValue<bool> RecursionGuard(bIsDeletingDragTool, true);
+
+		// Delete the drag tool if one exists.
+		if (DragTool.IsValid())
+		{
+			if (DragTool->IsDragging())
+			{
+				DragTool->EndDrag();
+			}
+			DragTool.Reset();
+			return false;
+		}
+	}
+	
+	return true;
+}
+
+bool FMarqueeDragTool::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
+{
+	if (DragTool.IsValid() == false || InViewportClient->GetCurrentWidgetAxis() != EAxisList::None)
+	{
+		return false;
+	}
+	if (DragTool->IsDragging() == false)
+	{
+		int32 InX = InViewport->GetMouseX();
+		int32 InY = InViewport->GetMouseY();
+		FVector2D Start(InX, InY);
+
+		DragTool->StartDrag(InViewportClient, GEditor->ClickLocation,Start);
+	}
+	const bool bUsingDragTool = UsingDragTool();
+	if (bUsingDragTool == false)
+	{
+		return false;
+	}
+
+	DragTool->AddDelta(InDrag);
+	return true;
+}
+
+/**
+ * @return		true if a drag tool is being used by the tracker, false otherwise.
+ */
+bool FMarqueeDragTool::UsingDragTool() const
+{
+	return DragTool.IsValid() && DragTool->IsDragging();
+}
+
+/**
+ * Renders the drag tool.  Does nothing if no drag tool exists.
+ */
+void FMarqueeDragTool::Render3DDragTool(const FSceneView* View, FPrimitiveDrawInterface* PDI)
+{
+	if (DragTool.IsValid())
+	{
+		DragTool->Render3D(View, PDI);
+	}
+}
+
+/**
+ * Renders the drag tool.  Does nothing if no drag tool exists.
+ */
+void FMarqueeDragTool::RenderDragTool(const FSceneView* View, FCanvas* Canvas)
+{
+	if (DragTool.IsValid())
+	{
+		DragTool->Render(View, Canvas);
+	}
+}
+
+void FMarqueeDragTool::MakeDragTool(FEditorViewportClient* InViewportClient)
+{
+	DragTool.Reset();
+	if (InViewportClient->IsOrtho())
+	{
+		DragTool = InViewportClient->MakeDragTool(EDragTool::BoxSelect);
+	}
+	else
+	{
+		DragTool = InViewportClient->MakeDragTool(EDragTool::FrustumSelect);
+	}
+
 }

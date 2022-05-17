@@ -41,6 +41,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bKeepCursorInPlayRangeWhileScrubbing = false;
 	bKeepPlayRangeInSectionBounds = true;
 	bCompileDirectorOnEvaluate = true;
+	bLeftMouseDragDoesMarquee = false;
 	ZeroPadFrames = 0;
 	JumpFrameIncrement = FFrameNumber(5);
 	bShowCombinedKeyframes = true;
@@ -203,6 +204,19 @@ void USequencerSettings::SetSnapKeyTimesToKeys(bool InbSnapKeyTimesToKeys)
 	if ( bSnapKeyTimesToKeys != InbSnapKeyTimesToKeys )
 	{
 		bSnapKeyTimesToKeys = InbSnapKeyTimesToKeys;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetLeftMouseDragDoesMarquee() const
+{
+	return bLeftMouseDragDoesMarquee;
+}
+void USequencerSettings::SetLeftMouseDragDoesMarque(bool bDoMarque)
+{
+	if (bLeftMouseDragDoesMarquee != bDoMarque)
+	{
+		bLeftMouseDragDoesMarquee = bDoMarque;
 		SaveConfig();
 	}
 }
