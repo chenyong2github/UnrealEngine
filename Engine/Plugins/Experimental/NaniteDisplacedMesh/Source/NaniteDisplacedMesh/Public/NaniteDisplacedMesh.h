@@ -2,12 +2,14 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Rendering/NaniteResources.h"
 #include "UObject/ObjectMacros.h"
-#include "GameFramework/Actor.h"
-#include "Async/Future.h"
+
 #include "NaniteDisplacedMesh.generated.h"
 
+class FNaniteBuildAsyncCacheTask;
+class UNaniteDisplacedMesh;
 class UTexture;
 
 UCLASS(config=Engine, defaultconfig)
@@ -140,12 +142,6 @@ struct FNaniteDisplacedMeshParams
 #endif // WITH_EDITORONLY_DATA
 };
 
-class FNaniteDisplacedMeshData
-{
-public:
-
-};
-
 UCLASS()
 class NANITEDISPLACEDMESH_API UNaniteDisplacedMesh : public UObject
 {
@@ -154,23 +150,22 @@ class NANITEDISPLACEDMESH_API UNaniteDisplacedMesh : public UObject
 public:
 	UNaniteDisplacedMesh(const FObjectInitializer& Init);
 
-	/** UObject Interface */
+	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
+
+	void InitResources();
+	void ReleaseResources();
+
 #if WITH_EDITOR
-	//virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	//virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
+	virtual void ClearAllCachedCookedPlatformData() override;
 #endif
-	//virtual void PostLoad() override;
-	//virtual void BeginDestroy() override;
-	/** End UObject Interface */
 
-	//virtual void Serialize(FArchive& Ar) override;
-
-	//void InitResources();
-	//void ReleaseResources();
-
-public:
-	/** Pointer to the data used to render this displaced mesh with Nanite. */
-	TUniquePtr<class FNaniteDisplacedMeshData> NaniteData;
+private:
+	// Data used to render this displaced mesh with Nanite.
+	Nanite::FResources Resources;
 
 public:
 #if WITH_EDITORONLY_DATA
@@ -185,4 +180,20 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Asset, AdvancedDisplay)
 	bool bIsEditable = true;
 #endif
+
+#if WITH_EDITOR
+private:
+	FIoHash CreateDerivedDataKeyHash(const ITargetPlatform* TargetPlatform);
+	FIoHash BeginCacheDerivedData(const ITargetPlatform* TargetPlatform);
+	bool PollCacheDerivedData(const FIoHash& KeyHash) const;
+	void EndCacheDerivedData(const FIoHash& KeyHash);
+
+	/** Synchronously cache and return derived data for the target platform. */
+	Nanite::FResources& CacheDerivedData(const ITargetPlatform* TargetPlatform);
+
+	FIoHash ResourcesKeyHash;
+	TMap<FIoHash, TUniquePtr<Nanite::FResources>> ResourcesByPlatformKeyHash;
+	TMap<FIoHash, TPimplPtr<FNaniteBuildAsyncCacheTask>> CacheTasksByKeyHash;
+#endif
 };
+
