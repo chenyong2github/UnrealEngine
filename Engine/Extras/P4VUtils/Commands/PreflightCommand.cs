@@ -142,7 +142,7 @@ namespace P4VUtils.Commands
 						SetupVisuals();
 
 						DialogResult result= MessageBox.Show(Prompt, Caption, MessageBoxButtons.YesNoCancel);
-						Response = DialogResult.ToString();
+						Response = result.ToString();
 #endif
 					}
 					else if (OperatingSystem.IsMacOS())

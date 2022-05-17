@@ -48,7 +48,9 @@ namespace P4VUtils
 		public static IReadOnlyDictionary<string, Command> RootHelperCommands { get; } = new Dictionary<string, Command>(StringComparer.OrdinalIgnoreCase)
 		{
 			["describe"] = new DescribeCommand(),
+#if !IS_LINUX
 			["copyclnum"] = new CopyCLCommand(),
+#endif
 		};
 
 		// UESubmit - commands that help with submitting files/changelists
@@ -295,7 +297,7 @@ namespace P4VUtils
 							Definition.AppendChild(Description);
 
 							XmlElement Command = Document.CreateElement("Command");
-							Command.InnerText = DotNetLocation.FullName;
+							Command.InnerText = DotNetLocation.FullName.QuoteArgument();
 							Definition.AppendChild(Command);
 
 							XmlElement Arguments = Document.CreateElement("Arguments");
@@ -414,16 +416,8 @@ namespace P4VUtils
 			}
 
 
-			FileReference DotNetLocation;
-			if (OperatingSystem.IsWindows())
-			{
-				DotNetLocation = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles)!, "dotnet", "dotnet.exe");
-			}
-			else
-			{
-				// so we don't need to run SetupDotnet.sh every time we run a tool, point to the executing dotnet, assuming it will be usable later
-				DotNetLocation = new FileReference(System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName);
-			}
+			// so we don't need to run SetupDotnet.sh every time we run a tool, point to the executing dotnet, assuming it will be usable later
+			FileReference DotNetLocation = new FileReference(Environment.ProcessPath!);
 			FileReference AssemblyLocation = new FileReference(Assembly.GetExecutingAssembly().GetOriginalLocation());
 
 			XmlElement? Root = Document.SelectSingleNode("CustomToolDefList") as XmlElement;
