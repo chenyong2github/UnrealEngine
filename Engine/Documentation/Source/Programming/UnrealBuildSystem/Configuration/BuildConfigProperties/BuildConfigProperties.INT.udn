@@ -358,10 +358,6 @@ $ bIncludeDebugConfigs : Whether we should include configurations for "Debug" an
 
 $ bIncludeDevelopmentConfigs : Whether we should include configurations for "Development" in generated projects. Pass "-NoDevelopmentConfigs" to disable this.
 
-### HoloLensPlatform
-
-$ Compiler : Version of the compiler toolchain to use on HoloLens. A value of "default" will be changed to a specific version at UBT startup.
-
 ### IOSToolChain
 
 $ IOSSDKVersion : The version of the iOS SDK to target at build time.
@@ -699,6 +695,10 @@ $ SshPrivateKey : If set, instead of looking for RemoteToolChainPrivate.key in t
 $ RsyncAuthentication : The authentication used for Rsync (for the -e rsync flag).
 
 $ SshAuthentication : The authentication used for SSH (probably similar to RsyncAuthentication).
+
+### HoloLensPlatform
+
+$ Compiler : Version of the compiler toolchain to use on HoloLens. A value of "default" will be changed to a specific version at UBT startup.
 
 ### Log
 
