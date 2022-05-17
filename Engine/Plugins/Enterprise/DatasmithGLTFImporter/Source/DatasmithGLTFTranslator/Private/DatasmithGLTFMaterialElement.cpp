@@ -48,6 +48,9 @@ void FDatasmithGLTFMaterialElement::SetShadingModel(GLTF::EGLTFMaterialShadingMo
 
 	switch (InShadingModel)
 	{
+		case GLTF::EGLTFMaterialShadingModel::Unlit: 
+			DatasmithShadingModel = EDatasmithShadingModel::Unlit; 
+			break;
 		case GLTF::EGLTFMaterialShadingModel::ClearCoat: 
 			DatasmithShadingModel = EDatasmithShadingModel::ClearCoat; 
 			break;

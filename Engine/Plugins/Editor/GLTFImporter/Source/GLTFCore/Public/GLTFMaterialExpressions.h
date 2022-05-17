@@ -27,7 +27,8 @@ namespace GLTF
 		DefaultLit,
 		Subsurface,
 		ClearCoat,
-		ThinTranslucent
+		ThinTranslucent,
+		Unlit
 	};
 
 	class GLTFCORE_API ITextureElement
