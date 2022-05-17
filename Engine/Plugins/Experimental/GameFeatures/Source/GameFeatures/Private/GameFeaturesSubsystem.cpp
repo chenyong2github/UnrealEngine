@@ -380,7 +380,7 @@ EGameFeaturePluginProtocol UGameFeaturesSubsystem::GetPluginURLProtocol(FStringV
 {
 	for (EGameFeaturePluginProtocol Protocol : TEnumRange<EGameFeaturePluginProtocol>())
 	{
-		if (PluginURL.StartsWith(GameFeaturePluginProtocolPrefix(Protocol)))
+		if (PluginURL.StartsWith(UE::GameFeatures::GameFeaturePluginProtocolPrefix(Protocol)))
 		{
 			return Protocol;
 		}
@@ -575,18 +575,36 @@ bool UGameFeaturesSubsystem::IsGameFeaturePluginLoaded(const FString& PluginURL)
 
 void UGameFeaturesSubsystem::LoadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate)
 {
-	if (IsGameFeaturePluginLoaded(PluginURL))
+	const bool bIsPluginAllowed = GameSpecificPolicies->IsPluginAllowed(PluginURL);
+	if (!bIsPluginAllowed)
 	{
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
-			{
-				CompleteDelegate.ExecuteIfBound(MakeValue());
-				return false;
-			}));
-
-		return; // Early out, we are already loaded.
+		CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.Plugin_Denied_By_GameSpecificPolicy")));
+		return;
 	}
 
-	ChangeGameFeatureTargetState(PluginURL, EGameFeatureTargetState::Loaded, CompleteDelegate);
+	UGameFeaturePluginStateMachine* StateMachine = FindOrCreateGameFeaturePluginStateMachine(PluginURL);
+	
+	if (!StateMachine->IsRunning() && StateMachine->GetCurrentState() == EGameFeaturePluginState::Active)
+	{
+		// TODO: Resolve the activated case here, this is needed because in a PIE environment the plugins
+		// are not sandboxed, and we need to do simulate a successful activate call in order run GFP systems 
+		// on whichever Role runs second between client and server.
+
+		// Refire the observer for Activated and do nothing else.
+		for (UObject* Observer : Observers)
+		{
+			CastChecked<IGameFeatureStateChangeObserver>(Observer)->OnGameFeatureActivating(StateMachine->GetGameFeatureDataForActivePlugin(), PluginURL);
+		}
+	}
+
+	const bool bSetDestination = StateMachine->SetDestination(
+		FGameFeaturePluginStateRange(EGameFeaturePluginState::Loaded, EGameFeaturePluginState::Active),
+		FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
+
+	if (!bSetDestination)
+	{
+		CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
+	}
 }
 
 void UGameFeaturesSubsystem::LoadAndActivateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate)
@@ -597,60 +615,65 @@ void UGameFeaturesSubsystem::LoadAndActivateGameFeaturePlugin(const FString& Plu
 void UGameFeaturesSubsystem::ChangeGameFeatureTargetState(const FString& PluginURL, EGameFeatureTargetState TargetState, const FGameFeaturePluginChangeStateComplete& CompleteDelegate)
 {
 	EGameFeaturePluginState TargetPluginState = EGameFeaturePluginState::MAX;
-	if (TargetState == EGameFeatureTargetState::Active)
+
+	switch (TargetState)
 	{
-		TargetPluginState = EGameFeaturePluginState::Active;
-	}
-	else if (TargetState == EGameFeatureTargetState::Loaded)
-	{
-		TargetPluginState = EGameFeaturePluginState::Loaded;
-	}
-	else if (TargetState == EGameFeatureTargetState::Registered)
-	{
-		TargetPluginState = EGameFeaturePluginState::Registered;
-	}
-	else if (TargetState == EGameFeatureTargetState::Installed)
-	{
-		TargetPluginState = EGameFeaturePluginState::Installed;
+	case EGameFeatureTargetState::Installed:	TargetPluginState = EGameFeaturePluginState::Installed;		break;
+	case EGameFeatureTargetState::Registered:	TargetPluginState = EGameFeaturePluginState::Registered;	break;
+	case EGameFeatureTargetState::Loaded:		TargetPluginState = EGameFeaturePluginState::Loaded;		break;
+	case EGameFeatureTargetState::Active:		TargetPluginState = EGameFeaturePluginState::Active;		break;
 	}
 
-	if (TargetPluginState != EGameFeaturePluginState::MAX)
+	// Make sure we have coverage on all values of EGameFeatureTargetState
+	static_assert(std::underlying_type<EGameFeatureTargetState>::type(EGameFeatureTargetState::Count) == 4, "");
+	check(TargetPluginState != EGameFeaturePluginState::MAX);
+
+	const bool bIsPluginAllowed = GameSpecificPolicies->IsPluginAllowed(PluginURL);
+
+	UGameFeaturePluginStateMachine* StateMachine = nullptr;
+	if (!bIsPluginAllowed)
 	{
-		if (UGameFeaturePluginStateMachine* StateMachine = FindOrCreateGameFeaturePluginStateMachine(PluginURL))
+		StateMachine = FindGameFeaturePluginStateMachine(PluginURL);
+		if (!StateMachine)
 		{
-			if (TargetState == EGameFeatureTargetState::Active
-				&& StateMachine->GetCurrentState() == TargetPluginState)
-			{
-				// TODO: Resolve the activated case here, this is needed because in a PIE environment the plugins
-				// are not sandboxed, and we need to do simulate a successful activate call in order run GFP systems 
-				// on whichever Role runs second between client and server.
-
-				// Refire the observer for Activated and do nothing else.
-				for (UObject* Observer : Observers)
-				{
-					CastChecked<IGameFeatureStateChangeObserver>(Observer)->OnGameFeatureActivating(StateMachine->GetGameFeatureDataForActivePlugin(), PluginURL);
-				}
-
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [CompleteDelegate](float)
-					{
-						CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
-						return false;
-					}));
-			}
-			else if (TargetPluginState > StateMachine->GetCurrentState()
-				&& !GameSpecificPolicies->IsPluginAllowed(PluginURL))
-			{
-				FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [CompleteDelegate](float)
-					{
-						CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.Plugin_Denied_By_GameSpecificPolicy")));
-						return false;
-					}));
-			}
-			else
-			{
-				StateMachine->SetDestinationState(TargetPluginState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
-			}
+			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.Plugin_Denied_By_GameSpecificPolicy")));
+			return;
 		}
+	}
+	else
+	{
+		StateMachine = FindOrCreateGameFeaturePluginStateMachine(PluginURL);
+	}
+	
+	check(StateMachine);
+
+	if (TargetPluginState > StateMachine->GetCurrentState() && !GameSpecificPolicies->IsPluginAllowed(PluginURL))
+	{
+		CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.Plugin_Denied_By_GameSpecificPolicy")));
+		return;
+	}
+
+	if (TargetState == EGameFeatureTargetState::Active &&
+		!StateMachine->IsRunning() && 
+		StateMachine->GetCurrentState() == TargetPluginState)
+	{
+		// TODO: Resolve the activated case here, this is needed because in a PIE environment the plugins
+		// are not sandboxed, and we need to do simulate a successful activate call in order run GFP systems 
+		// on whichever Role runs second between client and server.
+
+		// Refire the observer for Activated and do nothing else.
+		for (UObject* Observer : Observers)
+		{
+			CastChecked<IGameFeatureStateChangeObserver>(Observer)->OnGameFeatureActivating(StateMachine->GetGameFeatureDataForActivePlugin(), PluginURL);
+		}
+	}
+	
+	const bool bSetDestination = StateMachine->SetDestination(FGameFeaturePluginStateRange(TargetPluginState), 
+		FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
+
+	if (!bSetDestination)
+	{
+		CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
 	}
 }
 
@@ -665,7 +688,7 @@ bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& P
 			{
 				Install_Percent = StateInfo.Progress;
 			}
-			else if (StateMachine->GetDestinationState() >= EGameFeaturePluginState::Installed && StateInfo.State >= EGameFeaturePluginState::Installed)
+			else if (StateInfo.State >= EGameFeaturePluginState::Installed)
 			{
 				Install_Percent = 1.0f;
 			}
@@ -693,152 +716,99 @@ bool UGameFeaturesSubsystem::IsGameFeaturePluginActive(const FString& PluginURL,
 
 void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginURL)
 {
-	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
-	{
-		if (StateMachine->GetDestinationState() > EGameFeaturePluginState::Loaded)
-		{
-			FGameFeaturePluginDeactivateComplete Callback = FGameFeaturePluginDeactivateComplete();
-			DeactivateGameFeaturePlugin(PluginURL, Callback);
-		}
-	}
+	DeactivateGameFeaturePlugin(PluginURL, FGameFeaturePluginDeactivateComplete());
 }
 
 void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginDeactivateComplete& CompleteDelegate)
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		if (StateMachine->GetDestinationState() <= EGameFeaturePluginState::Loaded)
+		const bool bSetDestination = StateMachine->SetDestination(
+			FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal, EGameFeaturePluginState::Loaded), 
+			FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
+
+		if (!bSetDestination)
 		{
-			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [CompleteDelegate](float)
-				{
-					CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
-					return false;
-				}));
-		}
-		else
-		{
-			ChangeGameFeatureTargetState(PluginURL, EGameFeatureTargetState::Loaded, CompleteDelegate);
+			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
 		}
 	}
 	else
 	{
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [CompleteDelegate](float)
-			{
-				CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
-				return false;
-			}));
+		CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
 	}
 }
 
-void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, bool bKeepRegistered)
+void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, bool bKeepRegistered /*= false*/)
 {
-	ChangeGameFeatureTargetState(PluginURL,
-		bKeepRegistered ? EGameFeatureTargetState::Registered : EGameFeatureTargetState::Installed,
-		FGameFeaturePluginUnloadComplete());
+	UnloadGameFeaturePlugin(PluginURL, FGameFeaturePluginUnloadComplete(), bKeepRegistered);
 }
 
-void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUnloadComplete& CompleteDelegate, bool bKeepRegistered)
+void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUnloadComplete& CompleteDelegate, bool bKeepRegistered /*= false*/)
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		if (StateMachine->GetDestinationState() <= EGameFeaturePluginState::Loaded)
+		EGameFeaturePluginState TargetPluginState = bKeepRegistered ? EGameFeaturePluginState::Registered : EGameFeaturePluginState::Installed;
+
+		const bool bSetDestination = StateMachine->SetDestination(
+			FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal, TargetPluginState),
+			FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
+
+		if (!bSetDestination)
 		{
-			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [CompleteDelegate](float)
-				{
-					CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
-					return false;
-				}));
-		}
-		else
-		{
-			ChangeGameFeatureTargetState(PluginURL,
-				bKeepRegistered ? EGameFeatureTargetState::Registered : EGameFeatureTargetState::Installed,
-				CompleteDelegate);
+			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
 		}
 	}
 	else
 	{
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [CompleteDelegate](float)
-			{
-				CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
-				return false;
-			}));
+		CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
 	}
 }
 
 void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL)
 {
-	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
-	{
-		if (StateMachine->GetDestinationState() > EGameFeaturePluginState::StatusKnown)
-		{
-			FGameFeaturePluginUninstallComplete Callback = FGameFeaturePluginUninstallComplete();
-			UninstallGameFeaturePlugin(PluginURL, Callback);
-		}
-	}
+	UninstallGameFeaturePlugin(PluginURL, FGameFeaturePluginUninstallComplete());
 }
 
 void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate)
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		ensureAlwaysMsgf(StateMachine->GetCurrentState() == StateMachine->GetDestinationState(), TEXT("Setting a new destination state while state machine is running!"));
+		const bool bSetDestination = StateMachine->SetDestination(
+			FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal, EGameFeaturePluginState::StatusKnown),
+			FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
 
-		if (StateMachine->GetCurrentState() > EGameFeaturePluginState::StatusKnown)
+		if (!bSetDestination)
 		{
-			StateMachine->SetDestinationState(EGameFeaturePluginState::StatusKnown, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
-		}
-		else if (StateMachine->GetCurrentState() <= EGameFeaturePluginState::StatusKnown)
-		{
-			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
-			{
-				CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
-				return false;
-			}));
+			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
 		}
 	}
 	else
 	{
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
-		{
-			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
-			return false;
-		}));
+		CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
 	}
 }
 
 void UGameFeaturesSubsystem::TerminateGameFeaturePlugin(const FString& PluginURL)
 {
-	FGameFeaturePluginUninstallComplete Callback = FGameFeaturePluginUninstallComplete();
-	TerminateGameFeaturePlugin(PluginURL, Callback);
+	TerminateGameFeaturePlugin(PluginURL, FGameFeaturePluginUninstallComplete());
 }
 
 void UGameFeaturesSubsystem::TerminateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate)
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		ensureAlwaysMsgf(StateMachine->GetCurrentState() == StateMachine->GetDestinationState(), TEXT("Setting a new destination state while state machine is running!"));
+		const bool bSetDestination = StateMachine->SetDestination(
+			FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal),
+			FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::TerminateGameFeaturePluginComplete, CompleteDelegate));
 
-		if (StateMachine->GetCurrentState() > EGameFeaturePluginState::Terminal)
+		if (!bSetDestination)
 		{
-			StateMachine->SetDestinationState(EGameFeaturePluginState::Terminal, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::TerminateGameFeaturePluginComplete, CompleteDelegate));
-		}
-		else if (StateMachine->GetCurrentState() <= EGameFeaturePluginState::Terminal)
-		{
-			FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
-			{
-				CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
-				return false;
-			}));
+			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
 		}
 	}
 	else
 	{
-		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this, CompleteDelegate](float dts)
-		{
-			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
-			return false;
-		}));
+		CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
 	}
 }
 
@@ -867,15 +837,9 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 						
 					const EGameFeaturePluginState DestinationState = ConvertInitialFeatureStateToTargetState(InitialAutoState);
 
-					if (StateMachine->GetCurrentState() >= DestinationState)
-					{
-						// If we're already at the destination or beyond, don't transition back
-						LoadGameFeaturePluginComplete(StateMachine, MakeValue());
-					}
-					else
-					{
-						StateMachine->SetDestinationState(DestinationState, FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadGameFeaturePluginComplete));
-					}
+					// If we're already at the destination or beyond, don't transition back
+					verify(StateMachine->SetDestination(FGameFeaturePluginStateRange(DestinationState, EGameFeaturePluginState::Active), 
+						FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadGameFeaturePluginComplete)));
 				}
 			}
 		}
@@ -971,6 +935,10 @@ EGameFeaturePluginState UGameFeaturesSubsystem::GetPluginState(const FString& Pl
 
 bool UGameFeaturesSubsystem::GetGameFeaturePluginDetails(const FString& PluginDescriptorFilename, FGameFeaturePluginDetails& OutPluginDetails) const
 {
+	// @TODO: We load the descriptor 2-3 per plugin because FPluginReferenceDescriptor doesn't cache any of this info.
+	// GFPs are implemented with a plugin so FPluginReferenceDescriptor doesn't know anything about them.
+	// Need a better way of storing GFP specific plugin data...
+
 	// Read the file to a string
 	FString FileContents;
 	if (!FFileHelper::LoadFileToString(FileContents, *PluginDescriptorFilename))
@@ -1102,7 +1070,7 @@ UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindOrCreateGameFeatureP
 
 	UGameFeaturePluginStateMachine* NewStateMachine = NewObject<UGameFeaturePluginStateMachine>(this);
 	GameFeaturePluginStateMachines.Add(PluginURL, NewStateMachine);
-	NewStateMachine->InitStateMachine(PluginURL, FGameFeaturePluginRequestStateMachineDependencies::CreateUObject(this, &ThisClass::HandleRequestPluginDependencyStateMachines));
+	NewStateMachine->InitStateMachine(PluginURL);
 
 	return NewStateMachine;
 }
@@ -1140,7 +1108,7 @@ void UGameFeaturesSubsystem::TerminateGameFeaturePluginComplete(UGameFeaturePlug
 	CompleteDelegate.ExecuteIfBound(Result);
 }
 
-bool UGameFeaturesSubsystem::HandleRequestPluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines)
+bool UGameFeaturesSubsystem::FindOrCreatePluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines)
 {
 	FGameFeaturePluginDetails Details;
 	if (GetGameFeaturePluginDetails(PluginFilename, Details))
@@ -1215,7 +1183,7 @@ TSet<FString> UGameFeaturesSubsystem::GetActivePluginNames() const
 	{
 		UGameFeaturePluginStateMachine* StateMachine = Pair.Value;
 		if (StateMachine->GetCurrentState() == EGameFeaturePluginState::Active &&
-			StateMachine->GetDestinationState() == EGameFeaturePluginState::Active)
+			StateMachine->GetDestination().Contains(EGameFeaturePluginState::Active))
 		{
 			ActivePluginNames.Add(StateMachine->GetPluginName());
 		}

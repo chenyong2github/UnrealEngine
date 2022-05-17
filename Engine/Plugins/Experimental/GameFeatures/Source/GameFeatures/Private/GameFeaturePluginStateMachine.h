@@ -128,14 +128,79 @@ Transition states are expected to transition the machine to another state after 
                +------------+
 */
 
-// JMarcus TODO: move this stuff into UE::GameFeatures namespace
-
-const TCHAR* GameFeaturePluginProtocolPrefix(EGameFeaturePluginProtocol Protocol);
-
-struct FInstallBundlePluginProtocolMetaData
+namespace UE::GameFeatures
 {
-	TArray<FName> InstallBundles;
+	const TCHAR* GameFeaturePluginProtocolPrefix(EGameFeaturePluginProtocol Protocol);
+
+	struct FInstallBundlePluginProtocolMetaData
+	{
+		TArray<FName> InstallBundles;
+	};
+}
+
+struct FGameFeaturePluginStateRange
+{
+	EGameFeaturePluginState MinState = EGameFeaturePluginState::Uninitialized;
+	EGameFeaturePluginState MaxState = EGameFeaturePluginState::Uninitialized;
+
+	FGameFeaturePluginStateRange() = default;
+
+	FGameFeaturePluginStateRange(EGameFeaturePluginState InMinState, EGameFeaturePluginState InMaxState)
+		: MinState(InMinState), MaxState(InMaxState)
+	{}
+
+	explicit FGameFeaturePluginStateRange(EGameFeaturePluginState InState)
+		: MinState(InState), MaxState(InState)
+	{}
+
+	bool IsValid() const { return MinState <= MaxState; }
+
+	bool Contains(EGameFeaturePluginState InState) const
+	{
+		return InState >= MinState && InState <= MaxState;
+	}
+
+	bool Overlaps(const FGameFeaturePluginStateRange& Other) const
+	{
+		return Other.MinState <= MaxState && Other.MaxState >= MinState;
+	}
+
+	TOptional<FGameFeaturePluginStateRange> Intersect(const FGameFeaturePluginStateRange& Other) const
+	{
+		TOptional<FGameFeaturePluginStateRange> Intersection;
+
+		if (Overlaps(Other))
+		{
+			Intersection.Emplace(FMath::Max(Other.MinState, MinState), FMath::Min(Other.MaxState, MaxState));
+		}
+
+		return Intersection;
+	}
+
+	bool operator==(const FGameFeaturePluginStateRange& Other) const { return MinState == Other.MinState && MaxState == Other.MaxState; }
+	bool operator<(const FGameFeaturePluginStateRange& Other) const { return MaxState < Other.MinState; }
+	bool operator>(const FGameFeaturePluginStateRange& Other) const { return MinState < Other.MaxState; }
 };
+
+inline bool operator<(EGameFeaturePluginState State, const FGameFeaturePluginStateRange& StateRange)
+{
+	return State < StateRange.MinState;
+}
+
+inline bool operator<(const FGameFeaturePluginStateRange& StateRange, EGameFeaturePluginState State)
+{
+	return StateRange.MaxState < State;
+}
+
+inline bool operator>(EGameFeaturePluginState State, const FGameFeaturePluginStateRange& StateRange)
+{
+	return State > StateRange.MaxState;
+}
+
+inline bool operator>(const FGameFeaturePluginStateRange& StateRange, EGameFeaturePluginState State)
+{
+	return StateRange.MinState > State;
+}
 
 /** Notification that a state transition is complete */
 DECLARE_DELEGATE_TwoParams(FGameFeatureStateTransitionComplete, UGameFeaturePluginStateMachine* /*Machine*/, const UE::GameFeatures::FResult& /*Result*/);
@@ -169,23 +234,20 @@ struct FGameFeaturePluginStateMachineProperties
 	FString PluginName;
 
 	/** Meta data parsed from the URL for a specific protocol. */
-	TUnion<FInstallBundlePluginProtocolMetaData> ProtocolMetadata;
+	TUnion<UE::GameFeatures::FInstallBundlePluginProtocolMetaData> ProtocolMetadata;
 
 	/** Tracks whether or not this state machine added the pluging to the plugin manager. */
 	bool bAddedPluginToManager = false;
 
 	/** The desired state during a transition. */
-	EGameFeaturePluginState DestinationState = EGameFeaturePluginState::Uninitialized;
+	FGameFeaturePluginStateRange Destination;
 
 	/** The data asset describing this game feature */
 	UPROPERTY(Transient)
 	UGameFeatureData* GameFeatureData = nullptr;
 
 	/** Delegate for when a state transition request has completed. */
-	FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete;
-
-	/** Delegate for when this machine needs to request its dependency machines. */
-	FGameFeaturePluginRequestStateMachineDependencies OnRequestStateMachineDependencies;
+	FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete;	
 
 	/** Delegate to request the state machine be updated. */
 	FGameFeaturePluginRequestUpdateStateMachine OnRequestUpdateStateMachine;
@@ -196,8 +258,7 @@ struct FGameFeaturePluginStateMachineProperties
 	FGameFeaturePluginStateMachineProperties() = default;
 	FGameFeaturePluginStateMachineProperties(
 		const FString& InPluginURL,
-		EGameFeaturePluginState DesiredDestination,
-		const FGameFeaturePluginRequestStateMachineDependencies& RequestStateMachineDependenciesDelegate,
+		const FGameFeaturePluginStateRange& DesiredDestination,
 		const FGameFeaturePluginRequestUpdateStateMachine& RequestUpdateStateMachineDelegate,
 		const FGameFeatureStateProgressUpdate& FeatureStateProgressUpdateDelegate);
 
@@ -242,6 +303,9 @@ enum class EGameFeaturePluginStateType : uint8
 	Error
 };
 
+struct FDestinationGameFeaturePluginState;
+struct FErrorGameFeaturePluginState;
+
 /** Base class for all game feature plugin states */
 struct FGameFeaturePluginState
 {
@@ -260,6 +324,9 @@ struct FGameFeaturePluginState
 	/** Returns the type of state this is */
 	virtual EGameFeaturePluginStateType GetStateType() const { return EGameFeaturePluginStateType::Transition; }
 
+	FDestinationGameFeaturePluginState* AsDestinationState();
+	FErrorGameFeaturePluginState* AsErrorState();
+
 	/** The common properties that can be accessed by the states of the state machine */
 	FGameFeaturePluginStateMachineProperties& StateProperties;
 
@@ -273,6 +340,27 @@ private:
 	void CleanupDeferredUpdateCallbacks() const;
 
 	mutable FTSTicker::FDelegateHandle TickHandle;
+};
+
+/** Base class for destination game feature plugin states */
+struct FDestinationGameFeaturePluginState : public FGameFeaturePluginState
+{
+	FDestinationGameFeaturePluginState(FGameFeaturePluginStateMachineProperties& InStateProperties) : FGameFeaturePluginState(InStateProperties) {}
+
+	/** Returns the type of state this is */
+	virtual EGameFeaturePluginStateType GetStateType() const override { return EGameFeaturePluginStateType::Destination; }
+
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDestinationStateReached, UGameFeaturePluginStateMachine* /*Machine*/, const UE::GameFeatures::FResult& /*Result*/);
+	FOnDestinationStateReached OnDestinationStateReached;
+};
+
+/** Base class for error game feature plugin states */
+struct FErrorGameFeaturePluginState : public FDestinationGameFeaturePluginState
+{
+	FErrorGameFeaturePluginState(FGameFeaturePluginStateMachineProperties& InStateProperties) : FDestinationGameFeaturePluginState(InStateProperties) {}
+
+	/** Returns the type of state this is */
+	virtual EGameFeaturePluginStateType GetStateType() const override { return EGameFeaturePluginStateType::Error; }
 };
 
 /** Information about a given plugin state, used to expose information to external code */
@@ -298,10 +386,19 @@ public:
 	UGameFeaturePluginStateMachine(const FObjectInitializer& ObjectInitializer);
 
 	/** Initializes the state machine and assigns the URL for the plugin it manages. This sets the machine to the 'UnknownStatus' state. */
-	void InitStateMachine(const FString& InPluginURL, const FGameFeaturePluginRequestStateMachineDependencies& OnRequestStateMachineDependencies);
+	void InitStateMachine(const FString& InPluginURL);
 
-	/** Asynchronously transitions the state machine to the destination state and reports when it is done. DestinationState must not be a transition state like 'Downloading' */
-	void SetDestinationState(EGameFeaturePluginState InDestinationState, FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete);
+	/** Asynchronously transitions the state machine to the destination state range and reports when it is done. 
+	  * DestinationState must be of type EGameFeaturePluginStateType::Destination.
+	  * If returns true and OnFeatureStateTransitionComplete is not called immediately, OutCallbackHandle will be set
+	  * Returns false and does not callback if a transition is already in progress and the destination range is not compatible with the current range. */
+	bool SetDestination(FGameFeaturePluginStateRange InDestination, FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete, FDelegateHandle* OutCallbackHandle = nullptr);
+
+	/** Remove any pending callback from SetDestination */
+	void RemovePendingTransitionCallback(FDelegateHandle InHandle);
+
+	/** Remove any pending callback from SetDestination */
+	void RemovePendingTransitionCallback(void* DelegateObject);
 
 	/** Returns the name of the game feature. Before StatusKnown, this returns the URL. */
 	FString GetGameFeatureName() const;
@@ -318,11 +415,14 @@ public:
 	/** Returns the enum state for this machine */
 	EGameFeaturePluginState GetCurrentState() const;
 
-	/** Returns the state this machine is trying to move to */
-	EGameFeaturePluginState GetDestinationState() const;
+	/** Returns the state range this machine is trying to move to */
+	FGameFeaturePluginStateRange GetDestination() const;
 
 	/** Returns information about the current state */
 	const FGameFeaturePluginStateInfo& GetCurrentStateInfo() const;
+
+	/** Returns true if attempting to reach a new destination state */
+	bool IsRunning() const;
 
 	/** Returns true if the state is at least StatusKnown so we can query info about the game feature plugin */
 	bool IsStatusKnown() const;
@@ -335,10 +435,6 @@ public:
 
 	/** If the plugin is registered already, we will retrieve its game feature data */
 	UGameFeatureData* GetGameFeatureDataForRegisteredPlugin();
-
-	/** Delegate for the machine's state changed. */
-	DECLARE_EVENT_OneParam(UGameFeaturePluginStateMachine, FGameFeaturePluginStateChanged, UGameFeaturePluginStateMachine* /*Machine*/);
-	FGameFeaturePluginStateChanged& OnStateChanged() { return OnStateChangedEvent; }
 
 private:
 	/** Returns true if the specified state is not a transition state */
@@ -355,9 +451,6 @@ private:
 
 	/** Update Progress for current state */
 	void UpdateCurrentStateProgress(float Progress);
-
-	/** Delegate for the machine's state changed. */
-	FGameFeaturePluginStateChanged OnStateChangedEvent;
 
 	/** Information about the current state */
 	FGameFeaturePluginStateInfo CurrentStateInfo;

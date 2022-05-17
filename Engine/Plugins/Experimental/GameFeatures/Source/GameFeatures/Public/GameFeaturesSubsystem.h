@@ -124,7 +124,8 @@ enum class EGameFeatureTargetState : uint8
 	Installed,
 	Registered,
 	Loaded,
-	Active
+	Active,
+	Count	UMETA(Hidden)
 };
 
 struct FGameFeaturePluginDetails
@@ -375,7 +376,8 @@ private:
 	void ChangeGameFeatureTargetStateComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate);
 
 	/** Handler for when a state machine requests its dependencies. Returns false if the dependencies could not be read */
-	bool HandleRequestPluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines);
+	bool FindOrCreatePluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines);
+	friend struct FGameFeaturePluginState_WaitingForDependencies;
 
 	/** Handle 'ListGameFeaturePlugins' console command */
 	void ListGameFeaturePlugins(const TArray<FString>& Args, UWorld* InWorld, FOutputDevice& Ar);
