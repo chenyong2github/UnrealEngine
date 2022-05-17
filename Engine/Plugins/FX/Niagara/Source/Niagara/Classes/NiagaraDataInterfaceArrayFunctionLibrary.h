@@ -5,6 +5,8 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "NiagaraDataInterfaceArrayFunctionLibrary.generated.h"
 
+class UNiagaraComponent;
+
 /**
 * C++ and Blueprint library for accessing array types
 */
