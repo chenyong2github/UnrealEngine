@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "EditorSubsystem.h"
 #include "IActorEditorContextClient.h"
+#include "Engine/EngineTypes.h"
 
 #include "LevelEditorSubsystem.generated.h"
 
@@ -130,6 +131,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
 	UTypedElementSelectionSet* GetSelectionSet();
+
+	/**
+	 * Build Light Maps and optionally the reflection captures.
+	 * @param	Quality	One of the enum LightingBuildQuality value. Default is Quality_Production.
+	 * @param	bWithReflectionCaptures	Build the related reflection captures after building the light maps.
+	 * @return	True if build was successful.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	bool BuildLightMaps(ELightingBuildQuality Quality = ELightingBuildQuality::Quality_Production, bool bWithReflectionCaptures = false);
 
 	/**
 	 * Gets the global level editor mode manager, if we have one.

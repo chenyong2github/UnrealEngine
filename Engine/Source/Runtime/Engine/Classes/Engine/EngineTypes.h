@@ -795,14 +795,14 @@ enum EMaterialShadingRate
 
 
 /**	Lighting build quality enumeration */
-UENUM()
+UENUM(BlueprintType)
 enum ELightingBuildQuality
 {
-	Quality_Preview,
-	Quality_Medium,
-	Quality_High,
-	Quality_Production,
-	Quality_MAX,
+	Quality_Preview		UMETA(DisplayName = "Preview"),
+	Quality_Medium		UMETA(DisplayName = "Medium"),
+	Quality_High		UMETA(DisplayName = "High"),
+	Quality_Production	UMETA(DisplayName = "Production"),
+	Quality_MAX			UMETA(Hidden),
 };
 
 /** Movement modes for Characters. */

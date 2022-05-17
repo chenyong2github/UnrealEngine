@@ -23,6 +23,7 @@
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "ClassIconFinder.h"
+#include "LightingBuildOptions.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LevelEditorSubsystem, Log, All);
 
@@ -648,6 +649,56 @@ UTypedElementSelectionSet* ULevelEditorSubsystem::GetSelectionSet()
 	}
 
 	return nullptr;
+}
+
+bool ULevelEditorSubsystem::BuildLightMaps(ELightingBuildQuality Quality, bool bWithReflectionCaptures)
+{
+	FLightingBuildOptions LightingOptions;
+	LightingOptions.QualityLevel = Quality;
+
+	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
+	if (!UnrealEditorSubsystem)
+	{
+		return false;
+	}
+
+	UWorld* World = UnrealEditorSubsystem->GetEditorWorld();
+	if (!World)
+	{
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("BuildLightMaps. Can't build the light maps of the current level because there is no world."));
+		return false;
+	}
+
+	bool Success = false;
+
+	auto BuildFailedDelegate = [&World, &Success]() {
+		UE_LOG(LevelEditorSubsystem, Error, TEXT("BuildLightMaps. Failed building lighting for %s"), *World->GetOutermost()->GetName());
+		Success = false;
+	};
+	FDelegateHandle BuildFailedDelegateHandle = FEditorDelegates::OnLightingBuildFailed.AddLambda(BuildFailedDelegate);
+
+	auto BuildSucceededDelegate = [&World, &Success]() {
+		UE_LOG(LevelEditorSubsystem, Log, TEXT("BuildLightMaps. Successfully built lighting for %s"), *World->GetOutermost()->GetName());
+		Success = true;
+	};
+	FDelegateHandle BuildSucceededDelegateHandle = FEditorDelegates::OnLightingBuildSucceeded.AddLambda(BuildSucceededDelegate);
+
+	UE_LOG(LevelEditorSubsystem, Log, TEXT("BuildLightMaps. Start building lighting for %s"), *World->GetOutermost()->GetName());
+	GEditor->BuildLighting(LightingOptions);
+	while (GEditor->IsLightingBuildCurrentlyRunning())
+	{
+		GEditor->UpdateBuildLighting();
+	}
+
+	if (bWithReflectionCaptures)
+	{
+		GEditor->BuildReflectionCaptures();
+	}
+
+	FEditorDelegates::OnLightingBuildFailed.Remove(BuildFailedDelegateHandle);
+	FEditorDelegates::OnLightingBuildFailed.Remove(BuildSucceededDelegateHandle);
+
+	return Success;
 }
 
 FEditorModeTools* ULevelEditorSubsystem::GetLevelEditorModeManager()
