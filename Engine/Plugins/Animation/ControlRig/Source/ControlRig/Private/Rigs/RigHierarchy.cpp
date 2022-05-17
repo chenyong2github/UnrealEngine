@@ -4759,6 +4759,37 @@ bool URigHierarchy::IsAnimatable(const FRigControlElement* InControlElement) con
 	return false;
 }
 
+bool URigHierarchy::ShouldBeGrouped(const FRigElementKey& InKey) const
+{
+	if(const FRigControlElement* ControlElement = Find<FRigControlElement>(InKey))
+	{
+		return ShouldBeGrouped(ControlElement);
+	}
+	return false;
+}
+
+bool URigHierarchy::ShouldBeGrouped(const FRigControlElement* InControlElement) const
+{
+	if(InControlElement)
+	{
+		if(!InControlElement->Settings.ShouldBeGrouped())
+		{
+			return false;
+		}
+
+		if(!GetChildren(InControlElement).IsEmpty())
+		{
+			return false;
+		}
+
+		if(const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(GetFirstParent(InControlElement)))
+		{
+			return ParentControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationControl;
+		}
+	}
+	return false;
+}
+
 FTransform URigHierarchy::GetWorldTransformForReference(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial)
 {
 	if(const USceneComponent* OuterSceneComponent = GetTypedOuter<USceneComponent>())

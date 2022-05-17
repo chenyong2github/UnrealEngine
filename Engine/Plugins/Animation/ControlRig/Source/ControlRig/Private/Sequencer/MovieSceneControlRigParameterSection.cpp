@@ -1354,23 +1354,20 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 				continue;
 			}
 
-			FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement));
 			FName ParentControlName = NAME_None;
-			if(ParentControlElement)
-			{
-				ParentControlName = ParentControlElement->GetName();
-			}
-			bool bEnabled = ControlsMask[MaskIndex];
-
 			FText Group;
-			if(ParentControlElement && ControlElement->Settings.IsAnimatable() && ControlElement->Settings.bGroupWithParentControl)
+
+			if(ControlRig->GetHierarchy()->ShouldBeGrouped(ControlElement))
 			{
-				if(ParentControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationControl)
+				if(const FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement)))
 				{
+					ParentControlName = ParentControlElement->GetName();
 					Group = FText::FromName(ParentControlElement->GetDisplayName());
 				}
 			}
-			
+
+			bool bEnabled = ControlsMask[MaskIndex];
+
 #if WITH_EDITOR
 			switch (ControlElement->Settings.ControlType)
 			{

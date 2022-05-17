@@ -996,6 +996,11 @@ struct CONTROLRIG_API FRigControlSettings
 			(AnimationType == ERigControlAnimationType::AnimationChannel);
 	}
 
+	FORCEINLINE bool ShouldBeGrouped() const
+	{
+		return IsAnimatable() && bGroupWithParentControl;
+	}
+
 	FORCEINLINE bool SupportsShape() const
 	{
 		return (AnimationType != ERigControlAnimationType::AnimationChannel) &&

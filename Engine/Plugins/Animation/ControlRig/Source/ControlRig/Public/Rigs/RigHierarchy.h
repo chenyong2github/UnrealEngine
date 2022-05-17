@@ -2627,6 +2627,16 @@ public:
 	 */
 	bool IsAnimatable(const FRigControlElement* InControlElement) const;
 
+	/**
+	 * Returns true if the control should be grouped in editor
+	 */
+	bool ShouldBeGrouped(const FRigElementKey& InKey) const;
+
+	/**
+	 * Returns true if the control should be grouped in editor
+	 */
+	bool ShouldBeGrouped(const FRigControlElement* InControlElement) const;
+
 #if WITH_EDITOR
 
 	/**

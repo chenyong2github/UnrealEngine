@@ -2531,11 +2531,43 @@ void FRigControlElementDetails::CustomizeControl(IDetailLayoutBuilder& DetailBui
 	const bool bSupportsShape = !IsAnyControlOfAnimationType(ERigControlAnimationType::AnimationChannel) &&
 		!IsAnyControlOfAnimationType(ERigControlAnimationType::VisualCue);
 
-	if(IsAnyControlOfAnimationType(ERigControlAnimationType::AnimationControl) ||
-	IsAnyControlOfAnimationType(ERigControlAnimationType::AnimationChannel))
+	if (HierarchyBeingCustomized != nullptr)
 	{
-		const TSharedPtr<IPropertyHandle> GroupWithParentControlHandle = SettingsHandle->GetChildHandle(TEXT("bGroupWithParentControl"));
-		ControlCategory.AddProperty(GroupWithParentControlHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Group Channels")));
+		bool bEnableGroupWithParentControl = true;
+		for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+		{
+			if(ObjectBeingCustomized.IsValid())
+			{
+				if(ObjectBeingCustomized->IsChildOf<FRigControlElement>())
+				{
+					bool bSingleEnableGroupWithParentControl = false;
+					const FRigElementKey Key = ObjectBeingCustomized->GetContent<FRigControlElement>().GetKey();
+					if(const FRigControlElement* ControlElement = HierarchyBeingCustomized->Find<FRigControlElement>(Key))
+					{
+						if(const FRigControlElement* ParentElement =
+							Cast<FRigControlElement>(HierarchyBeingCustomized->GetFirstParent(ControlElement)))
+						{
+							if(ControlElement->Settings.IsAnimatable() &&
+								HierarchyBeingCustomized->GetChildren(ControlElement).IsEmpty())
+							{
+								bSingleEnableGroupWithParentControl = true;
+							}
+						}
+					}
+
+					if(!bSingleEnableGroupWithParentControl)
+					{
+						bEnableGroupWithParentControl = false;
+						break;
+					}
+				}
+			}
+		}
+		if(bEnableGroupWithParentControl)
+		{
+			const TSharedPtr<IPropertyHandle> GroupWithParentControlHandle = SettingsHandle->GetChildHandle(TEXT("bGroupWithParentControl"));
+			ControlCategory.AddProperty(GroupWithParentControlHandle.ToSharedRef()).DisplayName(FText::FromString(TEXT("Group Channels")));
+		}
 	}
 	
 	if(bSupportsShape &&
