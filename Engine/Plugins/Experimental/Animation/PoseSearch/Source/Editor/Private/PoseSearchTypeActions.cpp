@@ -8,14 +8,20 @@
 
 namespace UE::PoseSearch
 {
+	static const FText PoseSearchSubMenuName = LOCTEXT("PoseSearchSubMenuName", "Motion Matching");
+	static const FColor PoseSearchAssetColor(29, 96, 125);
+
+	//////////////////////////////////////////////////////////////////////////
+	// FDatabaseTypeActions
+
 	FText FDatabaseTypeActions::GetName() const
 	{
-		return LOCTEXT("PoseSearchDatabaseTypeActionsName", "Pose Search Database");
+		return LOCTEXT("PoseSearchDatabaseTypeActionsName", "Motion Database");
 	}
 
 	FColor FDatabaseTypeActions::GetTypeColor() const
 	{
-		return FColor(129, 196, 115);
+		return PoseSearchAssetColor;
 	}
 
 	UClass* FDatabaseTypeActions::GetSupportedClass() const
@@ -43,6 +49,47 @@ namespace UE::PoseSearch
 	uint32 FDatabaseTypeActions::GetCategories()
 	{
 		return EAssetTypeCategories::Animation;
+	}
+
+	const TArray<FText>& FDatabaseTypeActions::GetSubMenus() const
+	{
+		static const TArray<FText> SubMenus
+		{
+			PoseSearchSubMenuName
+		};
+		return SubMenus;
+	}
+
+	//////////////////////////////////////////////////////////////////////////
+	// FSchemaTypeActions
+
+	FText FSchemaTypeActions::GetName() const
+	{
+		return LOCTEXT("PoseSearchSchemaTypeActionsName", "Motion Database Config");
+	}
+
+	FColor FSchemaTypeActions::GetTypeColor() const
+	{
+		return PoseSearchAssetColor;
+	}
+
+	UClass* FSchemaTypeActions::GetSupportedClass() const
+	{
+		return UPoseSearchSchema::StaticClass();
+	}
+
+	uint32 FSchemaTypeActions::GetCategories()
+	{
+		return EAssetTypeCategories::Animation;
+	}
+
+	const TArray<FText>& FSchemaTypeActions::GetSubMenus() const
+	{
+		static const TArray<FText> SubMenus
+		{
+			PoseSearchSubMenuName
+		};
+		return SubMenus;
 	}
 }
 

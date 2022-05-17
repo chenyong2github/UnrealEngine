@@ -94,6 +94,7 @@ private:
 	TSet<FName> RegisteredPropertyTypes;
 
 	TSharedPtr<IAssetTypeActions> PoseSearchDatabaseActions;
+	TSharedPtr<IAssetTypeActions> PoseSearchSchemaActions;
 };
 
 void FEditorModule::StartupModule()
@@ -126,6 +127,10 @@ void FEditorModule::StartupModule()
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 		PoseSearchDatabaseActions = MakeShared<FDatabaseTypeActions>();
 		AssetTools.RegisterAssetTypeActions(PoseSearchDatabaseActions.ToSharedRef());
+
+		// Register UPoseSearchSchema Type Actions 
+		PoseSearchSchemaActions = MakeShared<FSchemaTypeActions>();
+		AssetTools.RegisterAssetTypeActions(PoseSearchSchemaActions.ToSharedRef());
 	}
 
 	RegisterPropertyTypeCustomizations();
@@ -148,6 +153,7 @@ void FEditorModule::ShutdownModule()
 	{
 		IAssetTools& AssetTools = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get();
 		AssetTools.UnregisterAssetTypeActions(PoseSearchDatabaseActions.ToSharedRef());
+		AssetTools.UnregisterAssetTypeActions(PoseSearchSchemaActions.ToSharedRef());
 	}
 
 	// Unregister Ed Mode
