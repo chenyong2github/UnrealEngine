@@ -158,14 +158,14 @@ namespace Horde.Agent.Tests
 
 		public override AsyncUnaryCall<Empty> WriteOutputAsync(WriteOutputRequest request, CallOptions options)
 		{
-			_logger.LogDebug("WriteOutputAsync: " + request.Data);
+			_logger.LogDebug("WriteOutputAsync: {Data}", request.Data);
 			Empty res = new Empty();
 			return Wrap(res);
 		}
 
 		public override AsyncUnaryCall<Empty> UpdateStepAsync(UpdateStepRequest request, CallOptions options)
 		{
-			_logger.LogDebug($"UpdateStepAsync(Request: {request})");
+			_logger.LogDebug("UpdateStepAsync(Request: {Request})", request);
 			UpdateStepRequests.Add(request);
 			Empty res = new Empty();
 			return Wrap(res);
@@ -173,7 +173,7 @@ namespace Horde.Agent.Tests
 
 		public override AsyncUnaryCall<Empty> CreateEventsAsync(CreateEventsRequest request, CallOptions options)
 		{
-			_logger.LogDebug("CreateEventsAsync: " + request);
+			_logger.LogDebug("CreateEventsAsync: {Request}", request);
 			Empty res = new Empty();
 			return Wrap(res);
 		}
@@ -193,7 +193,7 @@ namespace Horde.Agent.Tests
 			return Wrap(new GetStepResponse());
 		}
 
-		private AsyncUnaryCall<T> Wrap<T>(T res)
+		private static AsyncUnaryCall<T> Wrap<T>(T res)
 		{
 			return new AsyncUnaryCall<T>(Task.FromResult(res), Task.FromResult(Metadata.Empty),
 				() => Status.DefaultSuccess, () => Metadata.Empty, null!);
@@ -218,7 +218,7 @@ namespace Horde.Agent.Tests
 		public Task<JobStepOutcome> RunAsync(BeginStepResponse step, ILogger logger,
 			CancellationToken cancellationToken)
 		{
-			logger.LogDebug($"SimpleTestExecutor.RunAsync(Step: {step})");
+			logger.LogDebug("SimpleTestExecutor.RunAsync(Step: {Step})", step);
 			return _func(step, logger, cancellationToken);
 		}
 

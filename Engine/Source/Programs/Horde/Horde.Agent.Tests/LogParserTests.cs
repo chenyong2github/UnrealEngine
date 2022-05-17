@@ -66,12 +66,12 @@ namespace Horde.Agent.Tests
 		public void JsonLoggerTest()
 		{
 			JsonLoggerImpl impl = new JsonLoggerImpl(null, NullLogger.Instance);
-			impl.LogInformation("Hello {0}", "world");
+			impl.LogInformation("Hello {Text}", "world");
 			impl.LogInformation("Hello {Text}", "world");
 
 			Assert.AreEqual(impl._lines.Count, 2);
 			Assert.AreEqual(impl._lines[0].ToString(), "Hello world");
-			Assert.AreEqual(impl._lines[0].Properties!["0"].ToString()!, "world");
+			Assert.AreEqual(impl._lines[0].Properties!["Text"].ToString()!, "world");
 			Assert.AreEqual(impl._lines[1].ToString(), "Hello world");
 			Assert.AreEqual(impl._lines[1].Properties!["Text"].ToString(), "world");
 		}
@@ -152,7 +152,7 @@ namespace Horde.Agent.Tests
 			}
 
 			{
-				List<LogEvent> logEvents = Parse(String.Join("\n", lines).Replace("Error:", "Warning:"));
+				List<LogEvent> logEvents = Parse(String.Join("\n", lines).Replace("Error:", "Warning:", StringComparison.Ordinal));
 				CheckEventGroup(logEvents, 0, 14, LogLevel.Warning, KnownLogEvents.Engine_Crash);
 			}
 		}
@@ -1032,28 +1032,25 @@ namespace Horde.Agent.Tests
 			}
 
 			{
-				List<LogEvent> logEvents = Parse(String.Join("\n", lines).Replace("Error:", "Warning:"));
+				List<LogEvent> logEvents = Parse(String.Join("\n", lines).Replace("Error:", "Warning:", StringComparison.Ordinal));
 				Assert.AreEqual(4, logEvents.Count);
 				CheckEventGroup(logEvents.Slice(0, 3), 1, 3, LogLevel.Warning, KnownLogEvents.Engine_LogChannel);
 				CheckEventGroup(logEvents.Slice(3, 1), 4, 1, LogLevel.Information, KnownLogEvents.Engine_LogChannel);
 			}
 		}
 
-		List<LogEvent> Parse(IEnumerable<string> lines)
+		static List<LogEvent> Parse(IEnumerable<string> lines)
 		{
 			return Parse(String.Join("\n", lines));
 		}
 
-		List<LogEvent> Parse(string text)
+		static List<LogEvent> Parse(string text)
 		{
 			return Parse(text, new DirectoryReference("C:\\Horde".Replace('\\', Path.DirectorySeparatorChar)));
 		}
 
-		List<LogEvent> Parse(string text, DirectoryReference workspaceDir)
+		static List<LogEvent> Parse(string text, DirectoryReference workspaceDir)
 		{
-			PerforceViewMap viewMap = new PerforceViewMap();
-			viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", "//UE4/Main/..."));
-
 			List<string> ignorePatterns = new List<string>();
 
 			byte[] textBytes = Encoding.UTF8.GetBytes(text);
@@ -1061,7 +1058,11 @@ namespace Horde.Agent.Tests
 			Random generator = new Random(0);
 
 			LoggerCapture logger = new LoggerCapture();
-			using (LogParser parser = new LogParser(new PerforceLogger(logger, workspaceDir, viewMap, 12345), ignorePatterns))
+
+			PerforceLogger perforceLogger = new PerforceLogger(logger);
+			perforceLogger.AddClientView(workspaceDir, "//UE4/Main/...", 12345);
+
+			using (LogParser parser = new LogParser(perforceLogger, ignorePatterns))
 			{
 				int pos = 0;
 				while(pos < textBytes.Length)
@@ -1074,7 +1075,7 @@ namespace Horde.Agent.Tests
 			return logger._events;
 		}
 
-		void CheckEventGroup(IEnumerable<LogEvent> logEvents, int index, int count, LogLevel level, EventId eventId = default)
+		static void CheckEventGroup(IEnumerable<LogEvent> logEvents, int index, int count, LogLevel level, EventId eventId = default)
 		{
 			IEnumerator<LogEvent> enumerator = logEvents.GetEnumerator();
 			for (int idx = 0; idx < count; idx++)

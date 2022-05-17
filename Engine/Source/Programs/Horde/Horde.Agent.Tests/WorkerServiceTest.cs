@@ -37,7 +37,7 @@ namespace Horde.Agent.Tests
 			profile.Name = "test";
 			profile.Environment = "test-env";
 			profile.Token = "bogus-token";
-			profile.Url = "http://localhost";
+			profile.Url = new Uri("http://localhost");
 			settings.ServerProfiles.Add(profile);
 			settings.Server = "test";
 			settings.WorkingDir = Path.GetTempPath();
@@ -50,7 +50,7 @@ namespace Horde.Agent.Tests
 		[TestMethod]
 		public async Task AbortExecuteStepTest()
 		{
-			WorkerService ws = GetWorkerService();
+			using WorkerService ws = GetWorkerService();
 
 			{
 				using CancellationTokenSource cancelSource = new CancellationTokenSource();
@@ -62,7 +62,7 @@ namespace Horde.Agent.Tests
 					await Task.Delay(5000, cancelToken);
 					return JobStepOutcome.Success;
 				});
-				await Assert.ThrowsExceptionAsync<TaskCanceledException>(() => ws.ExecuteStepAsync(executor,
+				await Assert.ThrowsExceptionAsync<TaskCanceledException>(() => WorkerService.ExecuteStepAsync(executor,
 					new BeginStepResponse(), _workerLogger, cancelSource.Token, stepCancelSource.Token));
 			}
 
@@ -76,7 +76,7 @@ namespace Horde.Agent.Tests
 					await Task.Delay(5000, cancelToken);
 					return JobStepOutcome.Success;
 				});
-				(JobStepOutcome stepOutcome, JobStepState stepState) = await ws.ExecuteStepAsync(executor, new BeginStepResponse(), _workerLogger,
+				(JobStepOutcome stepOutcome, JobStepState stepState) = await WorkerService.ExecuteStepAsync(executor, new BeginStepResponse(), _workerLogger,
 					cancelSource.Token, stepCancelSource.Token);
 				Assert.AreEqual(JobStepOutcome.Failure, stepOutcome);
 				Assert.AreEqual(JobStepState.Aborted, stepState);
@@ -98,7 +98,7 @@ namespace Horde.Agent.Tests
 			executeJobTask.Workspace = new AgentWorkspace();
 
 			HordeRpcClientStub client = new HordeRpcClientStub(_workerLogger);
-			RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
+			await using RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
 
 			client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName1", StepId = "stepId1"});
 			client.BeginStepResponses.Enqueue(new BeginStepResponse {Name = "stepName2", StepId = "stepId2"});
@@ -114,7 +114,7 @@ namespace Horde.Agent.Tests
 				return JobStepOutcome.Success;
 			});
 
-			WorkerService ws = GetWorkerService((a, b, c) => executor);
+			using WorkerService ws = GetWorkerService((a, b, c) => executor);
 			ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(1);
 			LeaseOutcome outcome = (await ws.ExecuteJobAsync(rpcConnection, "leaseId1", executeJobTask,
 				_workerLogger, token)).Outcome;
@@ -142,11 +142,11 @@ namespace Horde.Agent.Tests
 				return JobStepOutcome.Success;
 			});
 
-			WorkerService ws = GetWorkerService((a, b, c) => executor);
+			using WorkerService ws = GetWorkerService((a, b, c) => executor);
 			ws._stepAbortPollInterval = TimeSpan.FromMilliseconds(5);
 			
 			HordeRpcClientStub client = new HordeRpcClientStub(_workerLogger);
-			RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
+			await using RpcConnectionStub rpcConnection = new RpcConnectionStub(null!, client);
 
 			int c = 0;
 			client._getStepFunc = (request) =>
@@ -164,7 +164,7 @@ namespace Horde.Agent.Tests
 			using CancellationTokenSource stepCancelSource = new CancellationTokenSource();
 			TaskCompletionSource<bool> stepFinishedSource = new TaskCompletionSource<bool>();
 
-			await ws.PollForStepAbort(rpcConnection, "jobId1", "batchId1", "logId1", stepPollCancelSource.Token, stepCancelSource, stepFinishedSource.Task);
+			await ws.PollForStepAbort(rpcConnection, "jobId1", "batchId1", "logId1", stepCancelSource, stepFinishedSource.Task, stepPollCancelSource.Token);
 			Assert.IsTrue(stepCancelSource.IsCancellationRequested);
 		}
 	}
