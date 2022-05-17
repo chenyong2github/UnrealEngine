@@ -270,6 +270,9 @@ FIntRect ComputeVisibleHairStrandsMacroGroupsRect(const FIntRect& ViewRect, cons
 		{
 			TotalRect.Union(Data.ScreenRect);
 		}
+
+		// In case bounds are not initialized correct for some reason, return view rect
+		if (TotalRect.Min.X >= TotalRect.Max.X || TotalRect.Min.Y >= TotalRect.Max.Y) TotalRect = ViewRect;
 	}
 	else
 	{
