@@ -997,6 +997,8 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 				PixelFormat,
 				MediaTextureSampleFormat);
 
+			if (!SharedTexture)
+				return;
 
 			D3D11_BOX SrcBox;
 			SrcBox.left = 0;

@@ -301,6 +301,9 @@ private:
 
 private:
 
+	/** HW accelerated or not. */
+	bool bHardwareAccelerated;
+
 	/** Audio sample object pool. */
 	FWmfMediaAudioSamplePool* AudioSamplePool;
 

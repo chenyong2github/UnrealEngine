@@ -16,6 +16,7 @@
 
 #if WITH_ENGINE
 	#include "Engine/Engine.h"
+	#include "HardwareInfo.h"
 #endif
 
 #include "Player/WmfMediaTextureSample.h"
@@ -44,7 +45,8 @@
  *****************************************************************************/
 
 FWmfMediaTracks::FWmfMediaTracks()
-	: AudioSamplePool(new FWmfMediaAudioSamplePool)
+	: bHardwareAccelerated(false)
+	, AudioSamplePool(new FWmfMediaAudioSamplePool)
 	, MediaSourceChanged(false)
 	, SelectedAudioTrack(INDEX_NONE)
 	, SelectedCaptionTrack(INDEX_NONE)
@@ -181,15 +183,22 @@ TComPtr<IMFTopology> FWmfMediaTracks::CreateTopology()
 
 	UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Created playback topology %p (media source %p)"), this, Topology.Get(), MediaSource.Get());
 
+	bHardwareAccelerated = false;
+
 	const UWmfMediaSettings* WmfMediaSettings = GetDefault<UWmfMediaSettings>();
 	if (WmfMediaSettings->HardwareAcceleratedVideoDecoding ||
 		WmfMediaSettings->bAreHardwareAcceleratedCodecRegistered)
 	{
-		bool bHardwareAccelerated = false;
-		WmfMediaTopologyLoader MediaTopologyLoader;
-		bHardwareAccelerated = MediaTopologyLoader.EnableHardwareAcceleration(Topology);
-		bHardwareAccelerated = bHardwareAccelerated || bVideoTrackRequestedHardwareAcceleration;
-
+#if WITH_ENGINE
+		if (FHardwareInfo::GetHardwareInfo(NAME_RHI) == "D3D11")
+#else
+		if (1)
+#endif
+		{
+			WmfMediaTopologyLoader MediaTopologyLoader;
+			bHardwareAccelerated = MediaTopologyLoader.EnableHardwareAcceleration(Topology);
+			bHardwareAccelerated = bHardwareAccelerated || bVideoTrackRequestedHardwareAcceleration;
+		}
 		UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Video (media source %p) will be decoded on %s"), this, MediaSource.Get(), bHardwareAccelerated ? TEXT("GPU") : TEXT("CPU"));
 		Info += FString::Printf(TEXT("Video decoded on %s\n"), bHardwareAccelerated ? TEXT("GPU") : TEXT("CPU"));
 	}
@@ -1271,7 +1280,7 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 
 	const UWmfMediaSettings* WmfMediaSettings = GetDefault<UWmfMediaSettings>();
 	if ((GEngine != nullptr) && 
-		(WmfMediaSettings->HardwareAcceleratedVideoDecoding || WmfMediaSettings->bAreHardwareAcceleratedCodecRegistered) &&
+		bHardwareAccelerated &&
 		MajorType == MFMediaType_Video &&
 		FPlatformMisc::VerifyWindowsVersion(6, 2) && // Windows 8
 		FWmfMediaStreamSink::Create(MFMediaType_Video, MediaStreamSink))

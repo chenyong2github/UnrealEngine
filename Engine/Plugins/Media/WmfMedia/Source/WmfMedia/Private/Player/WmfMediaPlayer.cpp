@@ -10,6 +10,7 @@
 #include "MediaPlayerOptions.h"
 #include "Misc/Optional.h"
 #include "UObject/Class.h"
+#include "HardwareInfo.h"
 
 #include "WmfMediaSession.h"
 #include "WmfMediaSettings.h"
@@ -183,7 +184,7 @@ void FWmfMediaPlayer::Tick()
 		// less than windows 10, seem to be a problem switching stream. The issue is also present when hardware acceleration is enabled.
 		// If the session is in the error state, we need to reinitialize it.
 		if (!FPlatformMisc::VerifyWindowsVersion(10, 0) /* Anything < Windows 10.0 */ ||
-			GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding ||
+			(GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding && FHardwareInfo::GetHardwareInfo(NAME_RHI) == "D3D11") ||
 			GetDefault<UWmfMediaSettings>()->bAreHardwareAcceleratedCodecRegistered ||
 			Session->GetState() == EMediaState::Error)
 		{
