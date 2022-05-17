@@ -11,6 +11,8 @@
 #include "Misc/Paths.h"
 #include "Algo/Find.h"
 
+#include "Windows/AllowWindowsPlatformTypes.h"
+
 #if WITH_ITOO_INTERFACE
 #pragma warning( push )
 #pragma warning( disable: 4238 )
@@ -21,7 +23,6 @@
 #include "ircinterface.H"
 #endif // WITH_ITOO_INTERFACE
 
-#include "Windows/AllowWindowsPlatformTypes.h"
 MAX_INCLUDES_START
 #include "lslights.h"
 #include "xref/iXrefObj.h"

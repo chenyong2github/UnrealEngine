@@ -140,6 +140,14 @@ bool ConvertForest(ISceneTracker& Scene, FNodeTracker& NodeTracker)
 
 	TimeValue CurrentTime = GetCOREInterface()->GetTime();
 
+	IForestPackInterface* ForestPackInterface = GetForestPackInterface();
+	ForestPackInterface->IForestRegisterEngine();
+
+	TForestEngineFeatures EngineFeatures;
+	EngineFeatures.edgeMode = FALSE;
+	EngineFeatures.meshesSupport = FALSE;
+	ForestPackInterface->IForestSetEngineFeatures((INT_PTR) &EngineFeatures);
+
 	ITreesInterface* ITrees = GetTreesInterface(ForestNode->GetObjectRef());
 	ITrees->IForestRenderBegin(CurrentTime);
 
