@@ -183,13 +183,7 @@ namespace UnrealBuildTool
 			if (ClangVersion == null)
 			{
 				FileReference ClangLocation = new FileReference("/usr/bin/clang");
-				ClangVersion = RunToolAndCaptureVersion(ClangLocation, "--version");
-			}
-			if (ClangVersionMajor == -1 || ClangVersionMinor == -1 || ClangVersionPatch == -1)
-			{
-				ClangVersionMajor = ClangVersion.Major;
-				ClangVersionMinor = ClangVersion.Minor;
-				ClangVersionPatch = ClangVersion.Build;
+				ClangVersion = RunToolAndCaptureVersion(ClangLocation, "--version");			
 			}
 			return ClangVersion;
 		}
@@ -249,25 +243,8 @@ namespace UnrealBuildTool
 			}
 		}
 
-		/// <inheritdoc/>
-		protected override void GetCompileArguments_WarningsAndErrors(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
-		{
-			base.GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
-
-			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
-			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
-			if (GetClangVersion().Major >= 12)
-			{
-				Arguments.Add("-Wno-range-loop-analysis");
-			}
-		}
-
-		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
-			// Ensure Clang version is set for base.GetCompileArguments_Global()
-			GetClangVersion();
-
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
 
 			Arguments.Add("-fmessage-length=0");

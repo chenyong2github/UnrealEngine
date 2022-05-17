@@ -191,18 +191,10 @@ namespace UnrealBuildTool
 			return ArchArg;
 		}
 
-		/// <inheritdoc/>
-		protected override void GetCompileArguments_WarningsAndErrors(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
-		{
-			base.GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
-
-			//Arguments.Add("-Wsign-compare"); // fed up of not seeing the signed/unsigned warnings we get on Windows - lets enable them here too.
-		}
-
-		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
+
 
 			Arguments.Add("-fexceptions");
 			Arguments.Add("-DPLATFORM_EXCEPTIONS_DISABLED=0");
@@ -225,7 +217,29 @@ namespace UnrealBuildTool
 			if (Options.HasFlag(MacToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
 				Arguments.Add("-fsanitize=undefined");
-			}					
+			}			
+
+			Arguments.Add("-Wall -Werror");
+			Arguments.Add("-Wdelete-non-virtual-dtor");
+
+			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
+			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
+			if (GetClangVersion().Major >= 12)
+			{
+				Arguments.Add("-Wno-range-loop-analysis ");
+			}			
+
+			//Arguments.Add("-Wsign-compare"); // fed up of not seeing the signed/unsigned warnings we get on Windows - lets enable them here too.
+
+			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
+			{
+				Arguments.Add("-Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow"));
+			}
+			
+			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
+			{
+				Arguments.Add("-Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef"));
+			}
 
 			if (CompileEnvironment.bEnableOSX109Support)
 			{
