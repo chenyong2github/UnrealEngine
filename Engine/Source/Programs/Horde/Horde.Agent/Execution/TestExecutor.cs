@@ -147,10 +147,9 @@ namespace Horde.Agent.Execution
 				logger.LogInformation("Credential: {CredentialName}={CredentialValue}", credential.Key, credential.Value);
 			}
 
-			PerforceViewMap viewMap = new PerforceViewMap();
-			viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", "//UE4/Main/..."));
-			
-			PerforceLogger perforceLogger = new PerforceLogger(logger, new DirectoryReference("D:\\Test"), viewMap, 12345);
+			PerforceLogger perforceLogger = new PerforceLogger(logger);
+			perforceLogger.AddClientView(new DirectoryReference("D:\\Test"), "//UE4/Main/...", 12345);
+
 			using (LogParser filter = new LogParser(perforceLogger, new List<string>()))
 			{
 				if(outcome == JobStepOutcome.Warnings)

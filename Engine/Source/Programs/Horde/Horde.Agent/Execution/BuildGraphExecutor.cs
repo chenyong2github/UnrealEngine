@@ -811,15 +811,10 @@ namespace Horde.Agent.Execution
 				FileUtils.ForceDeleteDirectoryContents(telemetryDir);
 			}
 
-			PerforceViewMap viewMap = new PerforceViewMap();
-			viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", $"{_stream.Name}/..."));
-
-			PerforceLogger perforceLogger = new PerforceLogger(logger, workspaceDir, viewMap, _job.Change);
-
 			List<string> ignorePatterns = await ReadIgnorePatternsAsync(workspaceDir, logger);
 
 			int exitCode;
-			using (LogParser filter = new LogParser(perforceLogger, ignorePatterns))
+			using (LogParser filter = new LogParser(logger, ignorePatterns))
 			{
 				await ExecuteCleanupScriptAsync(cleanupScript, filter, logger);
 				try

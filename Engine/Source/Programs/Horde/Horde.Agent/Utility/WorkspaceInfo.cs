@@ -53,6 +53,11 @@ namespace Horde.Agent.Utility
 		public string StreamName { get; }
 
 		/// <summary>
+		/// View for the stream
+		/// </summary>
+		public PerforceViewMap StreamView { get; }
+
+		/// <summary>
 		/// The directory containing metadata for this workspace
 		/// </summary>
 		public DirectoryReference MetadataDir { get; }
@@ -83,12 +88,13 @@ namespace Horde.Agent.Utility
 		/// <param name="perforce">The perforce connection</param>
 		/// <param name="hostName">Name of this host</param>
 		/// <param name="streamName">Name of the stream to sync</param>
+		/// <param name="streamView">Stream view onto the depot</param>
 		/// <param name="metadataDir">Path to the metadata directory</param>
 		/// <param name="workspaceDir">Path to the workspace directory</param>
 		/// <param name="view">View for files to be synced</param>
 		/// <param name="removeUntrackedFiles">Whether to remove untracked files when syncing</param>
 		/// <param name="repository">The repository instance</param>
-		public WorkspaceInfo(IPerforceConnection perforce, string hostName, string streamName, DirectoryReference metadataDir, DirectoryReference workspaceDir, IList<string>? view, bool removeUntrackedFiles, ManagedWorkspace repository)
+		public WorkspaceInfo(IPerforceConnection perforce, string hostName, string streamName, PerforceViewMap streamView, DirectoryReference metadataDir, DirectoryReference workspaceDir, IList<string>? view, bool removeUntrackedFiles, ManagedWorkspace repository)
 		{
 			PerforceClient = perforce;
 
@@ -99,6 +105,7 @@ namespace Horde.Agent.Utility
 
 			HostName = hostName;
 			StreamName = streamName;
+			StreamView = streamView;
 			MetadataDir = metadataDir;
 			WorkspaceDir = workspaceDir;
 			View = (view == null) ? new List<string>() : new List<string>(view);
@@ -195,6 +202,10 @@ namespace Horde.Agent.Utility
 			// Create the client Perforce connection
 			IPerforceConnection perforceClient = await perforce.WithClientAsync(clientName);
 
+			// Get the view for this stream
+			StreamRecord stream = await perforceClient.GetStreamAsync(streamName, true, cancellationToken);
+			PerforceViewMap streamView = PerforceViewMap.Parse(stream.View);
+
 			// get the workspace names
 			DirectoryReference metadataDir = DirectoryReference.Combine(rootDir, identifier);
 			DirectoryReference workspaceDir = DirectoryReference.Combine(metadataDir, "Sync");
@@ -211,7 +222,7 @@ namespace Horde.Agent.Utility
 			await newRepository.RevertAsync(perforceClient, cancellationToken);
 
 			// Create the workspace info
-			return new WorkspaceInfo(perforceClient, hostName, streamName, metadataDir, workspaceDir, view, removeUntrackedFiles, newRepository);
+			return new WorkspaceInfo(perforceClient, hostName, streamName, streamView, metadataDir, workspaceDir, view, removeUntrackedFiles, newRepository);
 		}
 
 		/// <summary>

@@ -54,6 +54,20 @@ namespace EpicGames.Perforce
 		}
 
 		/// <summary>
+		/// Gets the inverse of this mapping
+		/// </summary>
+		/// <returns></returns>
+		public PerforceViewMap Invert()
+		{
+			List<PerforceViewMapEntry> entries = new List<PerforceViewMapEntry>();
+			foreach (PerforceViewMapEntry entry in Entries)
+			{
+				entries.Add(new PerforceViewMapEntry(entry.Include, entry.Target, entry.Source));
+			}
+			return new PerforceViewMap(entries);
+		}
+
+		/// <summary>
 		/// Determines if a file is included in the view
 		/// </summary>
 		/// <param name="file">The file to test</param>

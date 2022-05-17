@@ -109,6 +109,7 @@ namespace Horde.Build.Tests
 		readonly UserId _timId;
 		readonly UserId _jerryId;
 		readonly UserId _bobId;
+		readonly DirectoryReference _autoSdkDir;
 		readonly DirectoryReference _workspaceDir;
 
 		async Task<IStream> CreateStreamAsync(ProjectId projectId, StreamId streamId, string streamName)
@@ -127,10 +128,12 @@ namespace Horde.Build.Tests
 		{
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
+				_autoSdkDir = new DirectoryReference("C:\\AutoSDK");
 				_workspaceDir = new DirectoryReference("C:\\Horde");
 			}
 			else
 			{
+				_autoSdkDir = new DirectoryReference("/AutoSdk");
 				_workspaceDir = new DirectoryReference("/Horde");
 			}
 
@@ -260,10 +263,10 @@ namespace Horde.Build.Tests
 
 			await using (TestJsonLogger logger = new TestJsonLogger(LogFileService, logId))
 			{
-				PerforceViewMap viewMap = new PerforceViewMap();
-				viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", "//UE4/Main/..."));
+				PerforceLogger perforceLogger = new PerforceLogger(logger);
+				perforceLogger.AddClientView(_autoSdkDir, "//depot/CarefullyRedist/...", 12345);
+				perforceLogger.AddClientView(_workspaceDir, "//UE4/Main/...", 12345);
 
-				PerforceLogger perforceLogger = new PerforceLogger(logger, _workspaceDir, viewMap, 12345);
 				using (LogParser parser = new LogParser(perforceLogger, new List<string>()))
 				{
 					for (int idx = 0; idx < lines.Length; idx++)
@@ -383,7 +386,6 @@ namespace Horde.Build.Tests
 			}
 		}
 
-		[Ignore]
 		[TestMethod]
 		public async Task AutoSdkWarningTest()
 		{
@@ -407,8 +409,8 @@ namespace Horde.Build.Tests
 			{
 				string[] lines =
 				{
-					@"  D:\build\AutoSDK\Sync\HostWin64\GDK\200604\Microsoft GDK\200604\GRDK\ExtensionLibraries\Xbox.Game.Chat.2.Cpp.API\DesignTime\CommonConfiguration\Neutral\Include\GameChat2Impl.h(90): warning C5043: 'xbox::services::game_chat_2::chat_manager::set_memory_callbacks': exception specification does not match previous declaration",
-					@"  D:\build\AutoSDK\Sync\HostWin64\GDK\200604\Microsoft GDK\200604\GRDK\ExtensionLibraries\Xbox.Game.Chat.2.Cpp.API\DesignTime\CommonConfiguration\Neutral\Include\GameChat2.h(2083): note: see declaration of 'xbox::services::game_chat_2::chat_manager::set_memory_callbacks'",
+					FileReference.Combine(_autoSdkDir, @"HostWin64\GDK\200604\Microsoft GDK\200604\GRDK\ExtensionLibraries\Xbox.Game.Chat.2.Cpp.API\DesignTime\CommonConfiguration\Neutral\Include\GameChat2Impl.h").FullName + @"(90): warning C5043: 'xbox::services::game_chat_2::chat_manager::set_memory_callbacks': exception specification does not match previous declaration",
+					FileReference.Combine(_autoSdkDir, @"HostWin64\GDK\200604\Microsoft GDK\200604\GRDK\ExtensionLibraries\Xbox.Game.Chat.2.Cpp.API\DesignTime\CommonConfiguration\Neutral\Include\GameChat2.h").FullName + @"(2083): note: see declaration of 'xbox::services::game_chat_2::chat_manager::set_memory_callbacks'",
 				};
 
 				IJob job = CreateJob(_mainStreamId, 120, "Test Build", _graph);
@@ -1520,7 +1522,6 @@ namespace Horde.Build.Tests
 			{
 				stream = Deref(await StreamService.TryUpdateTemplateRefAsync(stream, templateRefId, new List<UpdateStepStateRequest>() { new UpdateStepStateRequest() { Name = "Update Version Files", QuarantinedByUserId = UserId.GenerateNewId().ToString() } }));
 
-
 				IJob job = CreateJob(_mainStreamId, 105, "Test Build", _graph);
 				await AddEvent(job, 0, 0, new { level = nameof(LogLevel.Warning) }, EventSeverity.Warning);
 				await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Warnings);
@@ -1540,10 +1541,9 @@ namespace Horde.Build.Tests
 		{
 			await using (TestJsonLogger logger = new TestJsonLogger(LogFileService, logId))
 			{
-				PerforceViewMap viewMap = new PerforceViewMap();
-				viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", "//UE4/Main/..."));
+				PerforceLogger perforceLogger = new PerforceLogger(logger);
+				perforceLogger.AddClientView(DirectoryReference.GetCurrentDirectory(), "//UE4/Main/...", 12345);
 
-				PerforceLogger perforceLogger = new PerforceLogger(logger, DirectoryReference.GetCurrentDirectory(), viewMap, 12345);
 				using (LogParser parser = new LogParser(perforceLogger, new List<string>()))
 				{
 					for (int idx = 0; idx < lines.Length; idx++)

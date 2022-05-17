@@ -65,10 +65,9 @@ namespace Horde.Agent.Commands.Parse
 			// Read the file and pipe it through the event parser
 			using (FileStream inputStream = FileReference.Open(InputFile, FileMode.Open, FileAccess.Read))
 			{
-				PerforceViewMap viewMap = new PerforceViewMap();
-				viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", $"{Stream}/..."));
+				PerforceLogger jsonLogger = new PerforceLogger(logger);
+				jsonLogger.AddClientView(WorkspaceDir ?? DirectoryReference.GetCurrentDirectory(), $"{Stream}/...", Change ?? 1);
 
-				PerforceLogger jsonLogger = new PerforceLogger(logger, WorkspaceDir ?? DirectoryReference.GetCurrentDirectory(), viewMap, Change);
 				using (LogParser parser = new LogParser(jsonLogger, ignorePatterns))
 				{
 					byte[] data = new byte[1024];

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
@@ -15,24 +16,51 @@ namespace Horde.Agent.Utility
 	/// </summary>
 	public class PerforceLogger : ILogger
 	{
+		class ClientView
+		{
+			public readonly DirectoryReference BaseDir;
+			public readonly PerforceViewMap ViewMap;
+			public readonly int Change;
+
+			public ClientView(DirectoryReference baseDir, PerforceViewMap viewMap, int change)
+			{
+				BaseDir = baseDir;
+				ViewMap = viewMap;
+				Change = change;
+			}
+		}
+
 		readonly ILogger _inner;
-		readonly DirectoryReference _baseDir;
-		readonly PerforceViewMap? _viewMap;
-		readonly int? _viewChange;
+		readonly List<ClientView> _clients = new List<ClientView>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="inner"></param>
-		/// <param name="baseDir"></param>
-		/// <param name="viewMap"></param>
-		/// <param name="viewChange"></param>
-		public PerforceLogger(ILogger inner, DirectoryReference baseDir, PerforceViewMap? viewMap, int? viewChange)
+		public PerforceLogger(ILogger inner)
 		{
 			_inner = inner;
-			_baseDir = baseDir;
-			_viewMap = viewMap;
-			_viewChange = viewChange;
+		}
+
+		/// <summary>
+		/// Adds a new client to be included in the mapping
+		/// </summary>
+		/// <param name="baseDir">Base directory for the client</param>
+		/// <param name="depotPath">Depot path for the workspace mapping, in the form //foo/bar...</param>
+		/// <param name="change">Changelist for the client</param>
+		public void AddClientView(DirectoryReference baseDir, string depotPath, int change)
+		{
+			PerforceViewMap viewMap = new PerforceViewMap();
+			viewMap.Entries.Add(new PerforceViewMapEntry(true, "...", depotPath));
+			AddClientView(baseDir, viewMap, change);
+		}
+
+		/// <summary>
+		/// Adds a new client to be included in the mapping
+		/// </summary>
+		public void AddClientView(DirectoryReference baseDir, PerforceViewMap viewMap, int change)
+		{
+			_clients.Add(new ClientView(baseDir, viewMap, change));
 		}
 
 		/// <inheritdoc/>
@@ -182,19 +210,20 @@ namespace Horde.Agent.Utility
 
 				file ??= Encoding.UTF8.GetString(text);
 
-				FileReference location = FileReference.Combine(_baseDir, file.Replace('\\', Path.DirectorySeparatorChar));
-				if (location.IsUnderDirectory(_baseDir))
+				foreach (ClientView client in _clients)
 				{
-					string relativePath = location.MakeRelativeTo(_baseDir).Replace('\\', '/');
-					annotations.Append($",\"relativePath\":\"{JsonEncodedText.Encode(relativePath)}\"");
-
-					if (_viewMap != null && _viewMap.TryMapFile(relativePath, StringComparison.OrdinalIgnoreCase, out string depotFile))
+					FileReference location = FileReference.Combine(client.BaseDir, file.Replace('\\', Path.DirectorySeparatorChar));
+					if (location.IsUnderDirectory(client.BaseDir))
 					{
-						if (_viewChange != null)
+						string relativePath = location.MakeRelativeTo(client.BaseDir).Replace('\\', '/');
+						annotations.Append($",\"relativePath\":\"{JsonEncodedText.Encode(relativePath)}\"");
+
+						if (client.ViewMap.TryMapFile(relativePath, StringComparison.OrdinalIgnoreCase, out string depotFile))
 						{
-							depotFile = $"{depotFile}@{_viewChange}";
+							depotFile = $"{depotFile}@{client.Change}";
+							annotations.Append($",\"depotPath\":\"{JsonEncodedText.Encode(depotFile)}\"");
+							break;
 						}
-						annotations.Append($",\"depotPath\":\"{JsonEncodedText.Encode(depotFile)}\"");
 					}
 				}
 
