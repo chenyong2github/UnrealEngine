@@ -609,6 +609,13 @@ bool UWorldPartition::IsInitialized() const
 	return InitState == EWorldPartitionInitState::Initialized;
 }
 
+bool UWorldPartition::CanStream() const
+{
+	// WorldPartition can't stream if not initialized or it it's part of a partitioned 
+	// sub-level that was removed from its owning world.
+	return IsInitialized() && (GetTypedOuter<UWorld>()->PersistentLevel->GetWorld() != nullptr);
+}
+
 bool UWorldPartition::IsMainWorldPartition() const
 {
 	check(World);
@@ -662,13 +669,20 @@ void UWorldPartition::RegisterDelegates()
 	}
 #endif
 
-	if (IsMainWorldPartition() && World->IsGameWorld())
+	if (World->IsGameWorld())
 	{
-		World->OnWorldMatchStarting.AddUObject(this, &UWorldPartition::OnWorldMatchStarting);
+		if (IsMainWorldPartition())
+		{
+			World->OnWorldMatchStarting.AddUObject(this, &UWorldPartition::OnWorldMatchStarting);
 
 #if !UE_BUILD_SHIPPING
-		FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UWorldPartition::GetOnScreenMessages);
+			FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UWorldPartition::GetOnScreenMessages);
 #endif
+		}
+		else
+		{
+			FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UWorldPartition::OnLevelRemovedFromWorld);
+		}
 	}
 }
 
@@ -696,13 +710,30 @@ void UWorldPartition::UnregisterDelegates()
 	}
 #endif
 
-	if (IsMainWorldPartition() && World->IsGameWorld())
+	if (World->IsGameWorld())
 	{
-		World->OnWorldMatchStarting.RemoveAll(this);
+		if (IsMainWorldPartition())
+		{
+			World->OnWorldMatchStarting.RemoveAll(this);
 
 #if !UE_BUILD_SHIPPING
-		FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
+			FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
 #endif
+		}
+		else
+		{
+			FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
+		}
+	}
+}
+
+void UWorldPartition::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
+{
+	check(!IsMainWorldPartition());
+	if ((World == InWorld) && (InLevel == GetTypedOuter<UWorld>()->PersistentLevel))
+	{
+		check(!CanStream());
+		UpdateStreamingState();
 	}
 }
 

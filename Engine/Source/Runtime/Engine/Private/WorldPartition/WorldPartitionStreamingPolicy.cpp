@@ -88,7 +88,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 
 	StreamingSources.Reset();
 
-	if (!WorldPartition->IsInitialized())
+	if (!WorldPartition->CanStream())
 	{
 		return;
 	}
@@ -243,8 +243,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	bool bClient = NetMode == NM_Standalone || NetMode == NM_Client || AWorldPartitionReplay::IsEnabled(World);
 	if (bClient)
 	{
-		// When uninitializing, UpdateStreamingState is called, but we don't want any cells to be loaded
-		if (WorldPartition->IsInitialized())
+		// When world partition can't stream, all cells must be unloaded
+		if (WorldPartition->CanStream())
 		{
 			UWorldPartitionRuntimeCell::DirtyStreamingSourceCacheEpoch();
 			WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, FrameActivateCells, FrameLoadCells);

@@ -31,6 +31,7 @@ class IStreamingGenerationErrorHandler;
 class FLoaderAdapterAlwaysLoadedActors;
 class FHLODActorDesc;
 class UCanvas;
+class ULevel;
 
 struct IWorldPartitionStreamingSourceProvider;
 
@@ -181,13 +182,14 @@ public:
 	bool IsInitialized() const;
 	virtual void Uninitialize() override;
 
+	bool CanStream() const;
 	bool IsMainWorldPartition() const;
 	const FTransform& GetInstanceTransform() const;
 	const FTransform* GetInstanceTransformPtr() const;
 
 	void Tick(float DeltaSeconds);
 	void UpdateStreamingState();
-	bool CanAddLoadedLevelToWorld(class ULevel* InLevel) const;
+	bool CanAddLoadedLevelToWorld(ULevel* InLevel) const;
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const;
@@ -270,7 +272,7 @@ private:
 #endif
 
 	void OnWorldMatchStarting();
-
+	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
 	void OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot);
 
 	// Delegates registration

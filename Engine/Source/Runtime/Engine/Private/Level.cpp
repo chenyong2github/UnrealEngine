@@ -2553,7 +2553,17 @@ void ULevel::OnLevelLoaded()
 					Transform = LevelStreaming->LevelTransform;
 				}
 
-				WorldPartition->Initialize(GetWorld(), Transform);
+				// It is allowed for a WorldPartition to already be initialized in the case where a partitioned sub-level 
+				// was streamed-out and is streamed-in again, without a CleanupLevel (GC).
+				if (!WorldPartition->IsInitialized())
+				{
+					WorldPartition->Initialize(GetWorld(), Transform);
+				}
+				else
+				{
+					check(GetWorld()->IsGameWorld());
+					check(WorldPartition->GetInstanceTransform().Equals(Transform));
+				}
 			}
 		}
 	}
