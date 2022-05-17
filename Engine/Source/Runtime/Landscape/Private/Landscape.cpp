@@ -4128,14 +4128,14 @@ void ALandscapeProxy::BuildGIBakedTextures(struct FScopedSlowTask* InSlowTask /*
 		const bool bShouldMarkDirty = true;
 		UpdateGIBakedTextureData(bShouldMarkDirty);
 	}
-	}
+}
 
 int32 ALandscapeProxy::GetOutdatedGIBakedTextureComponentsCount() const
-	{
+{
 	int32 OutdatedGITextureComponentsCount = 0;
 	UpdateGIBakedTextureStatus(nullptr, nullptr, &OutdatedGITextureComponentsCount);
 	return OutdatedGITextureComponentsCount;
-	}
+}
 
 void ALandscapeProxy::UpdateGIBakedTextureStatus(bool* bOutGenerateLandscapeGIData, TMap<UTexture2D*, FGIBakedTextureState>* OutComponentsNeedBakingByHeightmap, int32* OutdatedComponentsCount) const
 {
@@ -4315,53 +4315,53 @@ void ALandscapeProxy::UpdateGIBakedTextures(bool bBakeAllGITextures)
 		{
 			// We throttle, baking only one atlas per frame if bBakeAllGITextures is false.
 			if (!bBakeAllGITextures && NumGenerated > 0)
-				{
-					NumComponentsNeedingTextureBaking += Info.Components.Num();
-				}
-				else
-				{
-					UTexture2D* HeightmapTexture = It.Key();
-					// 1/8 the res of the heightmap
-					FIntPoint AtlasSize(HeightmapTexture->GetSizeX() >> 3, HeightmapTexture->GetSizeY() >> 3);
+			{
+				NumComponentsNeedingTextureBaking += Info.Components.Num();
+			}
+			else
+			{
+				UTexture2D* HeightmapTexture = It.Key();
+				// 1/8 the res of the heightmap
+				FIntPoint AtlasSize(HeightmapTexture->Source.GetSizeX() >> 3, HeightmapTexture->Source.GetSizeY() >> 3);
 
-					TArray<FColor> AtlasSamples;
-					AtlasSamples.AddZeroed(AtlasSize.X * AtlasSize.Y);
+				TArray<FColor> AtlasSamples;
+				AtlasSamples.AddZeroed(AtlasSize.X * AtlasSize.Y);
 
-					for (ULandscapeComponent* Component : Info.Components)
+				for (ULandscapeComponent* Component : Info.Components)
+				{
+					// not registered; ignore this component
+					if (!Component->SceneProxy)
 					{
-						// not registered; ignore this component
-						if (!Component->SceneProxy)
-						{
-							continue;
-						}
-
-						int32 ComponentSamples = (SubsectionSizeQuads + 1) * NumSubsections;
-						check(FMath::IsPowerOfTwo(ComponentSamples));
-
-						int32 BakeSize = ComponentSamples >> 3;
-						TArray<FColor> Samples;
-						if (FMaterialUtilities::ExportBaseColor(Component, BakeSize, Samples))
-						{
-							int32 AtlasOffsetX = FMath::RoundToInt(Component->HeightmapScaleBias.Z * (float)HeightmapTexture->GetSizeX()) >> 3;
-							int32 AtlasOffsetY = FMath::RoundToInt(Component->HeightmapScaleBias.W * (float)HeightmapTexture->GetSizeY()) >> 3;
-							for (int32 y = 0; y < BakeSize; y++)
-							{
-								FMemory::Memcpy(&AtlasSamples[(y + AtlasOffsetY) * AtlasSize.X + AtlasOffsetX], &Samples[y * BakeSize], sizeof(FColor) * BakeSize);
-							}
-							NumGenerated++;
-						}
+						continue;
 					}
+
+					int32 ComponentSamples = (SubsectionSizeQuads + 1) * NumSubsections;
+					check(FMath::IsPowerOfTwo(ComponentSamples));
+
+					int32 BakeSize = ComponentSamples >> 3;
+					TArray<FColor> Samples;
+					if (FMaterialUtilities::ExportBaseColor(Component, BakeSize, Samples))
+					{
+						int32 AtlasOffsetX = FMath::RoundToInt(Component->HeightmapScaleBias.Z * (float)HeightmapTexture->Source.GetSizeX()) >> 3;
+						int32 AtlasOffsetY = FMath::RoundToInt(Component->HeightmapScaleBias.W * (float)HeightmapTexture->Source.GetSizeY()) >> 3;
+						for (int32 y = 0; y < BakeSize; y++)
+						{
+							FMemory::Memcpy(&AtlasSamples[(y + AtlasOffsetY) * AtlasSize.X + AtlasOffsetX], &Samples[y * BakeSize], sizeof(FColor) * BakeSize);
+						}
+						NumGenerated++;
+					}
+				}
 				UTexture2D* AtlasTexture = FMaterialUtilities::CreateTexture(GetOutermost(), HeightmapTexture->GetName() + TEXT("_BaseColor"), AtlasSize, AtlasSamples, TC_Default, TEXTUREGROUP_World, RF_NoFlags, true, Info.CombinedStateId);
 
-					for (ULandscapeComponent* Component : Info.Components)
-					{
+				for (ULandscapeComponent* Component : Info.Components)
+				{
 					Component->BakedTextureMaterialGuid = Info.CombinedStateId;
-						Component->GIBakedBaseColorTexture = AtlasTexture;
-						Component->MarkRenderStateDirty();
-					}
+					Component->GIBakedBaseColorTexture = AtlasTexture;
+					Component->MarkRenderStateDirty();
 				}
 			}
 		}
+	}
 
 	TotalComponentsNeedingTextureBaking += NumComponentsNeedingTextureBaking;
 

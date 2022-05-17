@@ -4866,10 +4866,10 @@ int32 ALandscape::RegenerateLayersHeightmaps(const FUpdateLayersContentContext& 
 			ALandscapeProxy* Proxy = Component->GetLandscapeProxy();
 			FLandscapeEditLayerReadback** CPUReadback = Proxy->HeightmapsCPUReadback.Find(ComponentHeightmap);
 			if (CPUReadback == nullptr)
-				{
+			{
 				FLandscapeEditLayerReadback* NewCPUReadback = new FLandscapeEditLayerReadback();
 				const uint8* LockedMip = ComponentHeightmap->Source.LockMip(0);
-				const uint32 Hash = FLandscapeEditLayerReadback::CalculateHash(LockedMip, ComponentHeightmap->GetSizeX() * ComponentHeightmap->GetSizeY() * sizeof(FColor));
+				const uint32 Hash = FLandscapeEditLayerReadback::CalculateHash(LockedMip, ComponentHeightmap->Source.GetSizeX() * ComponentHeightmap->Source.GetSizeY() * sizeof(FColor));
 				ComponentHeightmap->Source.UnlockMip(0);
 				NewCPUReadback->SetHash(Hash);
 				Proxy->HeightmapsCPUReadback.Add(ComponentHeightmap, NewCPUReadback);
@@ -6382,7 +6382,7 @@ void ALandscape::PrepareLayersWeightmapsLocalMergeRenderThreadData(const FUpdate
 							// Lazily create the readback objects as required (ReallocateLayersWeightmaps might have created new weightmaps)
 							FLandscapeEditLayerReadback* NewCPUReadback = new FLandscapeEditLayerReadback();
 							const uint8* LockedMip = ComponentWeightmap->Source.LockMipReadOnly(0);
-							const uint32 Hash = FLandscapeEditLayerReadback::CalculateHash(LockedMip, ComponentWeightmap->GetSizeX() * ComponentWeightmap->GetSizeY() * sizeof(FColor));
+							const uint32 Hash = FLandscapeEditLayerReadback::CalculateHash(LockedMip, ComponentWeightmap->Source.GetSizeX() * ComponentWeightmap->Source.GetSizeY() * sizeof(FColor));
 							NewCPUReadback->SetHash(Hash);
 							ComponentWeightmap->Source.UnlockMip(0);
 							CPUReadback = &Proxy->WeightmapsCPUReadback.Add(ComponentWeightmap, NewCPUReadback);
@@ -6814,7 +6814,7 @@ int32 ALandscape::PerformLayersWeightmapsGlobalMerge(FUpdateLayersContentContext
 					{
 						FLandscapeEditLayerReadback* NewCPUReadback = new FLandscapeEditLayerReadback();
 						const uint8* LockedMip = WeightmapTexture->Source.LockMipReadOnly(0);
-						const uint32 Hash = FLandscapeEditLayerReadback::CalculateHash(LockedMip, WeightmapTexture->GetSizeX() * WeightmapTexture->GetSizeY() * sizeof(FColor));
+						const uint32 Hash = FLandscapeEditLayerReadback::CalculateHash(LockedMip, WeightmapTexture->Source.GetSizeX() * WeightmapTexture->Source.GetSizeY() * sizeof(FColor));
 						NewCPUReadback->SetHash(Hash);
 						WeightmapTexture->Source.UnlockMip(0);
 						Proxy->WeightmapsCPUReadback.Add(WeightmapTexture, NewCPUReadback);
@@ -8771,7 +8771,7 @@ uint32 ULandscapeComponent::ComputeLayerHash(bool InReturnEditingHash) const
 {
 	UTexture2D* Heightmap = GetHeightmap(InReturnEditingHash);
 	const uint8* MipData = Heightmap->Source.LockMipReadOnly(0);
-	uint32 Hash = FCrc::MemCrc32(MipData, Heightmap->GetSizeX() * Heightmap->GetSizeY() * sizeof(FColor));
+	uint32 Hash = FCrc::MemCrc32(MipData, Heightmap->Source.GetSizeX() * Heightmap->Source.GetSizeY() * sizeof(FColor));
 	Heightmap->Source.UnlockMip(0);
 
 	// Copy to sort
@@ -8795,7 +8795,7 @@ uint32 ULandscapeComponent::ComputeLayerHash(bool InReturnEditingHash) const
 			UTexture2D* Weightmap = Weightmaps[AllocationInfo.WeightmapTextureIndex];
 			MipData = Weightmap->Source.LockMipReadOnly(0) + ChannelOffsets[AllocationInfo.WeightmapTextureChannel];
 			TArray<uint8> ChannelData;
-			ChannelData.AddDefaulted(Weightmap->GetSizeX() * Weightmap->GetSizeY());
+			ChannelData.AddDefaulted(Weightmap->Source.GetSizeX() * Weightmap->Source.GetSizeY());
 			int32 TexSize = (SubsectionSizeQuads + 1) * NumSubsections;
 			for (int32 TexY = 0; TexY < TexSize; TexY++)
 			{
