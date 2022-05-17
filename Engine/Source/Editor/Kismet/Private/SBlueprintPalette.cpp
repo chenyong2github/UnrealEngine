@@ -774,7 +774,7 @@ private:
 				.TargetPinType(this, &SPinTypeSelectorHelper::OnGetVarType)
 				.OnPinTypeChanged(this, &SPinTypeSelectorHelper::OnVarTypeChanged)
 				.TypeTreeFilter(ETypeTreeFilter::None)
-				.SelectorType(BlueprintEditorPtr.IsValid() && !bIsDelegate ? SPinTypeSelector::ESelectorType::Partial : SPinTypeSelector::ESelectorType::None)
+				.SelectorType(BlueprintEditorPtr.IsValid() ? SPinTypeSelector::ESelectorType::Partial : SPinTypeSelector::ESelectorType::None)
 				.CustomFilter(CustomPinTypeFilter)
 			];	
 		}
