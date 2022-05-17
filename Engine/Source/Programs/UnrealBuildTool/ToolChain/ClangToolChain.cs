@@ -3,6 +3,7 @@
 using EpicGames.Core;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using UnrealBuildBase;
 
@@ -63,14 +64,12 @@ namespace UnrealBuildTool
 		protected bool CompilerVersionGreaterOrEqual(int Major, int Minor, int Patch)
 		{
 			// TODO: Temporary verification check to ensure a clang version has been set until ClangVersion is standarized across all clang-based toolchains.
-			if (ClangVersionMajor == -1)
+			if (ClangVersionMajor == -1 || ClangVersionMinor == -1 || ClangVersionPatch == -1)
 			{
-				throw new BuildException($"ClangVersion not found, unable to check compiler version requirements");
+				throw new BuildException($"ClangVersion not valid ({ClangVersionMajor}.{ClangVersionMinor}.{ClangVersionPatch}), unable to check compiler version requirements");
 			}
 
-			return ClangVersionMajor > Major ||
-				(ClangVersionMajor == Major && ClangVersionMinor > Minor) ||
-				(ClangVersionMajor == Major && ClangVersionMinor == Minor && ClangVersionPatch >= Patch);
+			return new Version(ClangVersionMajor, ClangVersionMinor, ClangVersionPatch) >= new Version(Major, Minor, Patch);
 		}
 
 		/// <summary>
@@ -79,14 +78,12 @@ namespace UnrealBuildTool
 		protected bool CompilerVersionLessThan(int Major, int Minor, int Patch)
 		{
 			// TODO: Temporary verification check until ClangVersion is standarized across all clang-based toolchains to ensure a version has been set.
-			if (ClangVersionMajor == -1)
+			if (ClangVersionMajor == -1 || ClangVersionMinor == -1 || ClangVersionPatch == -1)
 			{
-				throw new BuildException($"ClangVersion not found, unable to check compiler version requirements");
+				throw new BuildException($"ClangVersion not valid ({ClangVersionMajor}.{ClangVersionMinor}.{ClangVersionPatch}), unable to check compiler version requirements");
 			}
 
-			return ClangVersionMajor < Major ||
-				(ClangVersionMajor == Major && ClangVersionMinor < Minor) ||
-				(ClangVersionMajor == Major && ClangVersionMinor == Minor && ClangVersionPatch < Patch);
+			return new Version(ClangVersionMajor, ClangVersionMinor, ClangVersionPatch) < new Version(Major, Minor, Patch);
 		}
 
 		protected virtual void GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -205,6 +202,39 @@ namespace UnrealBuildTool
 			Arguments.AddRange(CompileEnvironment.ForceIncludeFiles.Select(ForceIncludeFile => GetForceIncludeFileArgument(ForceIncludeFile)));
 		}
 
+		/// <summary>
+		/// Common compile arguments that control which warnings are enabled.
+		/// https://clang.llvm.org/docs/DiagnosticsReference.html
+		/// </summary>
+		/// <param name="CompileEnvironment"></param>
+		/// <param name="Arguments"></param>
+		protected virtual void GetCompileArguments_WarningsAndErrors(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			Arguments.Add("-Wall");                     // https://clang.llvm.org/docs/DiagnosticsReference.html#wall
+			Arguments.Add("-Werror");                   // https://clang.llvm.org/docs/UsersManual.html#cmdoption-werror
+
+			Arguments.Add("-Wdelete-non-virtual-dtor"); // https://clang.llvm.org/docs/DiagnosticsReference.html#wdelete-non-virtual-dtor
+
+			// https://clang.llvm.org/docs/DiagnosticsReference.html#wshadow
+			if (CompileEnvironment.ShadowVariableWarningLevel != WarningLevel.Off)
+			{
+				Arguments.Add("-Wshadow" + ((CompileEnvironment.ShadowVariableWarningLevel == WarningLevel.Error) ? "" : " -Wno-error=shadow"));
+			}
+
+			// https://clang.llvm.org/docs/DiagnosticsReference.html#wundef
+			if (CompileEnvironment.bEnableUndefinedIdentifierWarnings)
+			{
+				Arguments.Add("-Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef"));
+			}
+
+			if (CompilerVersionGreaterOrEqual(13, 0, 0))
+			{
+				Arguments.Add("-Wno-unused-but-set-variable");           // https://clang.llvm.org/docs/DiagnosticsReference.html#wunused-but-set-variable
+				Arguments.Add("-Wno-unused-but-set-parameter");          // https://clang.llvm.org/docs/DiagnosticsReference.html#wunused-but-set-parameter
+				Arguments.Add("-Wno-ordered-compare-function-pointers"); // https://clang.llvm.org/docs/DiagnosticsReference.html#wordered-compare-function-pointers
+			}
+		}
+
 
 		/// <summary>
 		/// Common compile arguments for all files in a module.
@@ -224,6 +254,9 @@ namespace UnrealBuildTool
 
 			// Add preprocessor definitions to the argument list.
 			GetCompileArguments_PreprocessorDefinitions(CompileEnvironment, Arguments);
+
+			// Add warning and error flags to the argument list.
+			GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
 		}
 	}
 }
