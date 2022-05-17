@@ -31,6 +31,7 @@ class IAssetRegistry;
 class ICookedPackageWriter;
 class IPlugin;
 class ITargetPlatform;
+enum class ODSCRecompileCommand;
 struct FBeginCookContext;
 struct FPropertyChangedEvent;
 
@@ -1084,7 +1085,7 @@ private:
 	*  
 	*  @param	Platforms		List of platforms to make global shader maps for
 	*/
-	void SaveGlobalShaderMapFiles(const TArrayView<const ITargetPlatform* const>& Platforms);
+	void SaveGlobalShaderMapFiles(const TArrayView<const ITargetPlatform* const>& Platforms, ODSCRecompileCommand RecompileCommand);
 
 
 	/** Create sandbox file in directory using current settings supplied */
