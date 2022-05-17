@@ -315,6 +315,10 @@ void UMassRepresentationSubsystem::Initialize(FSubsystemCollectionBase& Collecti
 			Visualizer = World->SpawnActor<AMassVisualizer>(SpawnInfo);
 			check(Visualizer);
 			VisualizationComponent = &Visualizer->GetVisualizationComponent();
+
+#if WITH_EDITOR
+			Visualizer->SetActorLabel(FString::Printf(TEXT("%sVisualizer"), *GetClass()->GetName()), /*bMarkDirty*/false);
+#endif
 		}
 
 		UMassSimulationSubsystem* SimSystem = World->GetSubsystem<UMassSimulationSubsystem>();
