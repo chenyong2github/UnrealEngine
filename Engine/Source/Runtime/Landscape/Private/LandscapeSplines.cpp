@@ -1634,7 +1634,7 @@ void ULandscapeSplineControlPoint::PostLoad()
 		if (LocalMeshComponent != nullptr) // ForeignMeshComponents didn't exist yet
 		{
 #if WITH_EDITORONLY_DATA
-			const FName DesiredCollisionProfileName = SplinesAlwaysUseBlockAll ? UCollisionProfile::BlockAll_ProfileName : CollisionProfileName;
+			const FName DesiredCollisionProfileName = SplinesAlwaysUseBlockAll ? UCollisionProfile::BlockAll_ProfileName : CollisionProfileName_DEPRECATED;
 			const FName CollisionProfile = bEnableCollision_DEPRECATED ? DesiredCollisionProfileName : UCollisionProfile::NoCollision_ProfileName;
 #else
 			const FName CollisionProfile = UCollisionProfile::BlockAll_ProfileName;
@@ -2259,6 +2259,15 @@ void ULandscapeSplineControlPoint::DeleteSplinePoints()
 	}
 }
 
+FName ULandscapeSplineControlPoint::GetCollisionProfileName() const
+{
+#if WITH_EDITORONLY_DATA
+	return BodyInstance.GetCollisionProfileName();
+#else
+	return UCollisionProfile::BlockAll_ProfileName;
+#endif
+}
+
 void ULandscapeSplineControlPoint::PostEditUndo()
 {
 	bHackIsUndoingSplines = true;
@@ -2551,7 +2560,7 @@ void ULandscapeSplineSegment::UpdateMeshCollisionProfile(USplineMeshComponent* M
 	ULandscapeSplinesComponent* OuterSplines = CastChecked<ULandscapeSplinesComponent>(GetOuter());
 	const bool bUsingEditorMesh = OuterSplines->IsUsingEditorMesh(MeshComponent);
 
-	const FName DesiredCollisionProfileName = SplinesAlwaysUseBlockAll ? UCollisionProfile::BlockAll_ProfileName : CollisionProfileName;
+	const FName DesiredCollisionProfileName = SplinesAlwaysUseBlockAll ? UCollisionProfile::BlockAll_ProfileName : GetCollisionProfileName();
 	const FName CollisionProfile = (bEnableCollision_DEPRECATED && !bUsingEditorMesh) ? DesiredCollisionProfileName : UCollisionProfile::NoCollision_ProfileName;
 #else
 	const FName CollisionProfile = UCollisionProfile::BlockAll_ProfileName;
@@ -3231,6 +3240,16 @@ void ULandscapeSplineSegment::DeleteSplinePoints()
 	ModificationKey.Invalidate();
 	ForeignWorlds.Empty();
 }
+
+FName ULandscapeSplineSegment::GetCollisionProfileName() const
+{
+#if WITH_EDITORONLY_DATA
+	return BodyInstance.GetCollisionProfileName();
+#else
+	return UCollisionProfile::BlockAll_ProfileName;
+#endif
+}
+
 #endif
 
 void ULandscapeSplineSegment::FindNearest( const FVector& InLocation, float& t, FVector& OutLocation, FVector& OutTangent )

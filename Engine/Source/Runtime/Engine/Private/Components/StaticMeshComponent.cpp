@@ -1299,7 +1299,7 @@ void UStaticMeshComponent::RemoveInstanceVertexColors()
 	}
 }
 
-void UStaticMeshComponent::CopyInstanceVertexColorsIfCompatible( UStaticMeshComponent* SourceComponent )
+void UStaticMeshComponent::CopyInstanceVertexColorsIfCompatible( const UStaticMeshComponent* SourceComponent )
 {
 	// The static mesh assets have to match, currently.
 	if (( GetStaticMesh()->GetPathName() == SourceComponent->GetStaticMesh()->GetPathName() ) &&
@@ -1327,7 +1327,7 @@ void UStaticMeshComponent::CopyInstanceVertexColorsIfCompatible( UStaticMeshComp
 			FStaticMeshLODResources& SourceLODModel = SourceComponent->GetStaticMesh()->GetRenderData()->LODResources[CurrentLOD];
 			if (SourceComponent->LODData.IsValidIndex(CurrentLOD))
 			{
-				FStaticMeshComponentLODInfo& SourceLODInfo = SourceComponent->LODData[CurrentLOD];
+				const FStaticMeshComponentLODInfo& SourceLODInfo = SourceComponent->LODData[CurrentLOD];
 
 				FStaticMeshLODResources& TargetLODModel = GetStaticMesh()->GetRenderData()->LODResources[CurrentLOD];
 				FStaticMeshComponentLODInfo& TargetLODInfo = LODData[CurrentLOD];
@@ -1335,7 +1335,7 @@ void UStaticMeshComponent::CopyInstanceVertexColorsIfCompatible( UStaticMeshComp
 				if ( SourceLODInfo.OverrideVertexColors != nullptr )
 				{
 					// Copy vertex colors from source to target.
-					FColorVertexBuffer* SourceColorBuffer = SourceLODInfo.OverrideVertexColors;
+					const FColorVertexBuffer* SourceColorBuffer = SourceLODInfo.OverrideVertexColors;
 
 					TArray< FColor > CopiedColors;
 					for ( uint32 ColorVertexIndex = 0; ColorVertexIndex < SourceColorBuffer->GetNumVertices(); ColorVertexIndex++ )

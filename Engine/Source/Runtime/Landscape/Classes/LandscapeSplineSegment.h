@@ -216,14 +216,8 @@ class ULandscapeSplineSegment : public UObject
 	UPROPERTY()
 	uint32 bEnableCollision_DEPRECATED:1;
 
-	/** Name of the collision profile to use for this spline */
-	//
-	// TODO: This field does not have proper Slate customization.
-	// Instead of a text field, this should be a dropdown with the
-	// default option.
-	//
-	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshes)
-	FName CollisionProfileName;
+	UPROPERTY()
+	FName CollisionProfileName_DEPRECATED;
 
 	/** Whether the Spline Meshes should cast a shadow. */
 	UPROPERTY(EditAnywhere, Category=LandscapeSplineMeshes)
@@ -354,6 +348,8 @@ public:
 
 	void UpdateSplineEditorMesh();
 	virtual void DeleteSplinePoints();
+
+	LANDSCAPE_API FName GetCollisionProfileName() const;
 
 	const TArray<TSoftObjectPtr<UWorld>>& GetForeignWorlds() const { return ForeignWorlds; }
 	FGuid GetModificationKey() const { return ModificationKey; }

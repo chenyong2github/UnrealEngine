@@ -663,7 +663,7 @@ public:
 	 * Copies instance vertex colors from the SourceComponent into this component
 	 * @param SourceComponent The component to copy vertex colors from
 	 */
-	void CopyInstanceVertexColorsIfCompatible( UStaticMeshComponent* SourceComponent );
+	void CopyInstanceVertexColorsIfCompatible( const UStaticMeshComponent* SourceComponent );
 #endif
 
 	/**

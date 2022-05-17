@@ -123,9 +123,8 @@ class ULandscapeSplineControlPoint : public UObject
 	UPROPERTY()
 	uint32 bEnableCollision_DEPRECATED:1;
 
-	/** Name of the collision profile to use for this spline */
-	UPROPERTY(EditAnywhere, Category=Mesh)
-	FName CollisionProfileName;
+	UPROPERTY()
+	FName CollisionProfileName_DEPRECATED;
 
 	/** Whether the Control Point Mesh should cast a shadow. */
 	UPROPERTY(EditAnywhere, Category=Mesh)
@@ -270,6 +269,8 @@ public:
 
 	const TSoftObjectPtr<UWorld>& GetForeignWorld() const { return ForeignWorld; }
 	FGuid GetModificationKey() const { return ModificationKey; }
+
+	LANDSCAPE_API FName GetCollisionProfileName() const;
 #endif // WITH_EDITOR
 
 	//~ Begin UObject Interface
