@@ -65,7 +65,7 @@ struct FMassRepresentationSubsystemSharedFragment : public FMassSharedFragment
 };
 
 template<>
-struct TMassExternalSubsystemTraits<FMassRepresentationSubsystemSharedFragment> final
+struct TMassSharedFragmentTraits<FMassRepresentationSubsystemSharedFragment> final
 {
 	enum
 	{
@@ -120,7 +120,7 @@ struct FMassRepresentationParameters : public FMassSharedFragment
 };
 
 template<>
-struct TMassExternalSubsystemTraits<FMassRepresentationParameters> final
+struct TMassSharedFragmentTraits<FMassRepresentationParameters> final
 {
 	enum
 	{

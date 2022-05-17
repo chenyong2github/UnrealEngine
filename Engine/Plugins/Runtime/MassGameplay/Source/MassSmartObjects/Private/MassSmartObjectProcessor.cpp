@@ -16,6 +16,7 @@
 #include "VisualLogger/VisualLogger.h"
 #include "ZoneGraphAnnotationSubsystem.h"
 #include "ZoneGraphSubsystem.h"
+#include "MassGameplayExternalTraits.h"
 
 //----------------------------------------------------------------------//
 // UMassSmartObjectCandidatesFinderProcessor

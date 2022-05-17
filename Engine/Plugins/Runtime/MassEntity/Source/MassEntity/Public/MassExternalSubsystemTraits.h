@@ -6,9 +6,8 @@
 #include "Subsystems/WorldSubsystem.h"
 
 /**
- * Traits describing how a given piece of code can be used by Mass. By default everything is treated as
- * needing to be accessed only on game thread (implying single-thread access). To change the behavior for a given
- * class just specialize this template, like so:
+ * Traits describing how a given piece of code can be used by Mass. We require author or user of a given subsystem to 
+ * define its traits. To do it add the following in an accessible location. 
  *
  * template<>
  * struct TMassExternalSubsystemTraits<UMyCustomManager>
@@ -26,7 +25,10 @@ struct TMassExternalSubsystemTraits final
 {
 	enum
 	{
-		GameThreadOnly = true,
+		// Note that we're not supplying a default value for this property to be able to statically catch code that tries
+		// to access given subsystem without including the appropriate headers. See the comment above if you want to use
+		// a USubsystem that has not had its traits defined before. 
+		// GameThreadOnly = true,
 		ThreadSafeRead = false,
 		ThreadSafeWrite = false,
 	};
@@ -47,3 +49,16 @@ namespace FMassExternalSubsystemTraits
 		return UWorld::GetSubsystem<T>(World);
 	}
 }
+
+/** 
+ * Shared Fragments' traits.
+ * @see TMassExternalSubsystemTraits
+ */
+template <typename T>
+struct TMassSharedFragmentTraits final
+{
+	enum
+	{
+		GameThreadOnly = false,
+	};
+};

@@ -18,6 +18,7 @@
 #include "Algo/RandomShuffle.h"
 #include "Engine/World.h"
 #include "MassLODFragments.h"
+#include "MassGameplayExternalTraits.h"
 
 #define UNSAFE_FOR_MT 1
 

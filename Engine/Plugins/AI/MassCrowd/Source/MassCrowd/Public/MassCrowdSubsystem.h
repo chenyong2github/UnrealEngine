@@ -243,3 +243,12 @@ protected:
 	/** Tag mask that represents all possible lane density tags. Built from MassCrowdSettings. */
 	FZoneGraphTagMask DensityMask;
 };
+
+template<>
+struct TMassExternalSubsystemTraits<UMassCrowdSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = false
+	};
+};

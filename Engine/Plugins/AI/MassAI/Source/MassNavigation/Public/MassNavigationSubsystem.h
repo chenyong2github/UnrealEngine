@@ -45,3 +45,12 @@ protected:
 
 	FNavigationObstacleHashGrid2D AvoidanceObstacleGrid;
 };
+
+template<>
+struct TMassExternalSubsystemTraits<UMassNavigationSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = false
+	};
+};

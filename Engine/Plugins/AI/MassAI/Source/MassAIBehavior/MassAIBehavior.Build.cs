@@ -44,7 +44,8 @@ namespace UnrealBuildTool.Rules
 					"StateTreeModule",
 					"StructUtils",
 					"ZoneGraph",
-					"ZoneGraphAnnotations"
+					"ZoneGraphAnnotations",
+					"MassGameplayExternalTraits"
 				}
 			);
 

@@ -68,6 +68,10 @@
 			"Name": "MassMovementEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
+		},
+		{
+			"Name": "MassGameplayExternalTraits",
+			"Type": "Runtime"
 		}
 	],
 	"Plugins": [

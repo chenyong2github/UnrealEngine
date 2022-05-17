@@ -338,3 +338,12 @@ protected:
 
 	FReplicationHashGrid2D ReplicationGrid;
 };
+
+template<>
+struct TMassExternalSubsystemTraits<UMassReplicationSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = false
+	};
+};

@@ -36,7 +36,8 @@ namespace UnrealBuildTool.Rules
 					"SmartObjectsModule",
 					"StructUtils",
 					"ZoneGraph",
-					"ZoneGraphAnnotations"
+					"ZoneGraphAnnotations",
+					"MassGameplayExternalTraits"
 				}
 			);
 		}

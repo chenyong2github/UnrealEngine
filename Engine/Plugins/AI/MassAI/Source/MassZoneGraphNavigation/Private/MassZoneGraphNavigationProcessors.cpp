@@ -10,6 +10,7 @@
 #include "MassSignalSubsystem.h"
 #include "ZoneGraphSubsystem.h"
 #include "ZoneGraphQuery.h"
+#include "MassGameplayExternalTraits.h"
 #include "VisualLogger/VisualLogger.h"
 #include "MassSimulationLOD.h"
 #include "Engine/World.h"

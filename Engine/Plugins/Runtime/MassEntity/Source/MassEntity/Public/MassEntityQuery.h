@@ -304,7 +304,7 @@ public:
 			SharedRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
 			if (AccessMode == EMassFragmentAccess::ReadWrite)
 			{
-				bRequiresGameThreadExecution |= TMassExternalSubsystemTraits<T>::GameThreadOnly;
+				bRequiresGameThreadExecution |= TMassSharedFragmentTraits<T>::GameThreadOnly;
 			}
 			break;
 		case EMassFragmentPresence::Optional:
@@ -312,7 +312,7 @@ public:
 			SharedRequirements.Emplace(T::StaticStruct(), AccessMode, Presence);
 			if (AccessMode == EMassFragmentAccess::ReadWrite)
 			{
-				bRequiresGameThreadExecution |= TMassExternalSubsystemTraits<T>::GameThreadOnly;
+				bRequiresGameThreadExecution |= TMassSharedFragmentTraits<T>::GameThreadOnly;
 			}
 			break;
 		case EMassFragmentPresence::None:

@@ -110,3 +110,12 @@ protected:
 	UPROPERTY()
 	UMassEntitySubsystem* EntitySystem;
 };
+
+template<>
+struct TMassExternalSubsystemTraits<UMassActorSubsystem> final
+{
+	enum
+	{
+		GameThreadOnly = false
+	};
+};
