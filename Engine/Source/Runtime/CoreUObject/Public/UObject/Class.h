@@ -2473,6 +2473,13 @@ public:
 		check(CppClassStaticFunctions.GetDeclareCustomVersions());
 		CppClassStaticFunctions.GetDeclareCustomVersions()(Ar, this);
 	}
+
+	/** Calls the c++ class's AppendToClassSchema static function */
+	void CallAppendToClassSchema(FBlake3& Hasher) const
+	{
+		check(CppClassStaticFunctions.GetAppendToClassSchema());
+		CppClassStaticFunctions.GetAppendToClassSchema()(Hasher);
+	}
 #endif
 
 	/** The class default object; used for delta serialization and object initialization */

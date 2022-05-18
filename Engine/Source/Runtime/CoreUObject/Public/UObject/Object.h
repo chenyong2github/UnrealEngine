@@ -15,6 +15,7 @@
 #include "UObject/PrimaryAssetId.h"
 
 struct FAssetData;
+class FBlake3;
 class FConfigCacheIni;
 class FCustomPropertyConditionState;
 class FEditPropertyChain;
@@ -372,6 +373,12 @@ public:
 	 * Used to track which customversions will be used by a package when it is resaved.
 	 * Not yet exhaustive; add CustomVersions as necessary to remove EditorDomain warnings about missing versions. */
 	static void DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass);
+	/**
+	 * Append config values or settings that can change how instances of the class are cooked, including especially
+	 * values that determine how version upgraded are conducted. Can also append a unique guid when necessary to
+	 * invalidate previous results because serialization changed and no custom version was udpated.
+	 */
+	static void AppendToClassSchema(FBlake3& Hasher);
 #endif
 
 	/** After a critical error, perform any mission-critical cleanup, such as restoring the video mode orreleasing hardware resources. */

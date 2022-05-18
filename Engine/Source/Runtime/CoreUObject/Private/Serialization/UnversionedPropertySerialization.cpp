@@ -316,6 +316,11 @@ struct FUnversionedStructSchema
 		FUnversionedStructSchema* Schema = reinterpret_cast<FUnversionedStructSchema*>(FMemory::Malloc(Bytes, alignof(FUnversionedPropertySerializer)));
 		
 #if WITH_EDITORONLY_DATA
+		const UClass* StructAsClass = Cast<const UClass>(Struct);
+		if (StructAsClass)
+		{
+			StructAsClass->CallAppendToClassSchema(HashBuilder);
+		}
 		Schema->SchemaHash = HashBuilder.Finalize();
 #endif
 		Schema->Num = Serializers.Num();

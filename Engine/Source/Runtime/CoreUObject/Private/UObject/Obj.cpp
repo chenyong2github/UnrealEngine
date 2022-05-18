@@ -1572,6 +1572,10 @@ void UObject::DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass
 		}
 	}
 }
+
+void UObject::AppendToClassSchema(FBlake3& Hasher)
+{
+}
 #endif
 
 void UObject::SerializeScriptProperties(FArchive& Ar) const

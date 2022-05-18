@@ -10,6 +10,7 @@
 #include "Misc/EnumClassFlags.h"
 #include "UObject/Script.h"
 
+class FBlake3;
 class FObjectInitializer;
 class FReferenceCollector;
 struct FFrame;
@@ -1846,7 +1847,8 @@ public: \
 
 #if WITH_EDITORONLY_DATA
 	#define UOBJECT_CPPCLASS_STATICFUNCTIONS_WITHEDITORONLYDATA(TClass) \
-		, &TClass::DeclareCustomVersions
+		, &TClass::DeclareCustomVersions \
+		, &TClass::AppendToClassSchema
 		/* UObjectCppClassStaticFunctions: Extend this macro with the address of your new static function, if it is editor-only. */ \
 		/* Order must match the order in the FUObjectCppClassStaticFunctions constructor. */ \
 #else
@@ -1876,23 +1878,27 @@ public:
 	typedef void (*AddReferencedObjectsType)	(UObject* ThisObject, FReferenceCollector& Ar);
 #if WITH_EDITORONLY_DATA
 	typedef void (*DeclareCustomVersionsType)   (FArchive& Ar, const UClass* SpecificSubclass);
+	typedef void (*AppendToClassSchemaType)   (FBlake3& Hasher);
 #endif
 	// UObjectCppClassStaticFunctions: Extend this list of types with the type of your new static function.
 
 	FUObjectCppClassStaticFunctions(AddReferencedObjectsType InAddReferencedObjects
 #if WITH_EDITORONLY_DATA
 		, DeclareCustomVersionsType InDeclareCustomVersions
+		, AppendToClassSchemaType InAppendToClassSchema
 #endif
 	)
 		: AddReferencedObjects(InAddReferencedObjects)
 #if WITH_EDITORONLY_DATA
 		, DeclareCustomVersions(InDeclareCustomVersions)
+		, AppendToClassSchema(InAppendToClassSchema)
 #endif
 	{
 		// Null elements are not valid in this constructor
 		check(InAddReferencedObjects);
 #if WITH_EDITORONLY_DATA
 		check(InDeclareCustomVersions);
+		check(InAppendToClassSchema);
 #endif
 		// UObjectCppClassStaticFunctions: Extend the constructor with initializers for your new static function member.
 		// Order must match the order in UOBJECT_CPPCLASS_STATICFUNCTIONS_FORCLASS.
@@ -1930,6 +1936,15 @@ public:
 		check(InDeclareCustomVersions != nullptr); // It is not valid to clear single elements (see IsInitialized). Call Reset to clear all elements.
 		DeclareCustomVersions = InDeclareCustomVersions;
 	}
+	AppendToClassSchemaType GetAppendToClassSchema() const
+	{
+		return AppendToClassSchema;
+	}
+	void SetAppendToClassSchema(AppendToClassSchemaType InAppendToClassSchema)
+	{
+		check(InAppendToClassSchema != nullptr); // It is not valid to clear single elements (see IsInitialized). Call Reset to clear all elements.
+		AppendToClassSchema = InAppendToClassSchema;
+	}
 #endif
 	// UObjectCppClassStaticFunctions: Extend the list of accessors for your new static function.
 
@@ -1937,6 +1952,7 @@ private:
 	AddReferencedObjectsType AddReferencedObjects = nullptr;
 #if WITH_EDITORONLY_DATA
 	DeclareCustomVersionsType DeclareCustomVersions = nullptr;
+	AppendToClassSchemaType AppendToClassSchema = nullptr;
 #endif
 	// UObjectCppClassStaticFunctions: Extend this list of members with the member for your new static function.
 

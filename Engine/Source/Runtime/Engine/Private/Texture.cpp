@@ -40,6 +40,7 @@
 #include "ImageCoreUtils.h"
 #include "ImageUtils.h"
 #include "Algo/Unique.h"
+#include "Hash/Blake3.h"
 
 #if WITH_EDITOR
 #include "DerivedDataBuildVersion.h"
@@ -711,6 +712,22 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 }
 #endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
+static bool IsEnableLegacyAlphaCoverageThresholdScaling()
+{
+	static struct ReadConfigOnce
+	{
+		bool bBool;
+		ReadConfigOnce()
+		{
+			bBool = false;
+			GConfig->GetBool(TEXT("Texture"), TEXT("EnableLegacyAlphaCoverageThresholdScaling"), bBool, GEditorIni);
+		}
+	} ConfigValue;
+	return ConfigValue.bBool;
+}
+#endif
+
 void UTexture::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
@@ -757,19 +774,8 @@ void UTexture::Serialize(FArchive& Ar)
 		{
 			// if value is (0,0,0,1)
 			//	that was previously incorrectly being set by default and enabling alpha coverage processing
-			// we don't want that, but to optionally preserve old behavior you can set a config option :
-
-			static struct ReadConfigOnce
-			{
-				bool bBool;
-				ReadConfigOnce()
-				{
-					bBool = false;
-					GConfig->GetBool(TEXT("Texture"), TEXT("EnableLegacyAlphaCoverageThresholdScaling"), bBool, GEditorIni);
-				}
-			} ConfigValue;
-
-			bDoScaleMipsForAlphaCoverage = ConfigValue.bBool;
+			// we don't want that, but to optionally preserve old behavior you can set a config option
+			bDoScaleMipsForAlphaCoverage = IsEnableLegacyAlphaCoverageThresholdScaling();
 		}
 	}
 
@@ -886,6 +892,18 @@ void UTexture::Serialize(FArchive& Ar)
 	}
 #endif // #if WITH_EDITORONLY_DATA
 }
+
+#if WITH_EDITORONLY_DATA
+void UTexture::AppendToClassSchema(FBlake3& Hasher)
+{
+	Super::AppendToClassSchema(Hasher);
+
+	// IsEnableLegacyAlphaCoverageThresholdScaling affects upgrades executed in Serialize, so include it in the ClassSchema
+	uint8 LegacyScalingBool = IsEnableLegacyAlphaCoverageThresholdScaling();
+	Hasher.Update(&LegacyScalingBool, sizeof(LegacyScalingBool));
+}
+#endif
+
 
 void UTexture::PostInitProperties()
 {
