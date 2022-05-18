@@ -4,6 +4,7 @@
 
 #if WITH_HTTP_CLIENT
 #include "DerivedDataLegacyCacheStore.h"
+#include "HAL/IConsoleManager.h"
 #include "Logging/LogMacros.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
