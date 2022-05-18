@@ -857,7 +857,7 @@ public:
 	class FTransientControlPoseScope
 	{
 	public:
-		FTransientControlPoseScope(TObjectPtr<UControlRig> InControlRig)
+		FORCEINLINE_DEBUGGABLE FTransientControlPoseScope(TObjectPtr<UControlRig> InControlRig)
 		{
 			ControlRig = InControlRig;
 
@@ -867,14 +867,20 @@ public:
 			{
 				Keys.Add(TransientControl->GetKey());
 			}
-	
-			CachedPose = ControlRig->GetHierarchy()->GetPose(false, ERigElementType::Control, TArrayView<FRigElementKey>(Keys));
+
+			if(Keys.Num() > 0)
+			{
+				CachedPose = ControlRig->GetHierarchy()->GetPose(false, ERigElementType::Control, TArrayView<FRigElementKey>(Keys));
+			}
 		}
-		~FTransientControlPoseScope()
+		FORCEINLINE_DEBUGGABLE ~FTransientControlPoseScope()
 		{
 			check(ControlRig);
 
-			ControlRig->GetHierarchy()->SetPose(CachedPose);
+			if(CachedPose.Num() > 0)
+			{
+				ControlRig->GetHierarchy()->SetPose(CachedPose);
+			}
 		}
 	
 	private:

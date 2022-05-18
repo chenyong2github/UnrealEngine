@@ -636,6 +636,7 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 				{
 					// compute the local offset if necessary
 					GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
+					GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
 				}
 			}
 		}
@@ -649,6 +650,7 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 				if(FRigControlElement* ControlElement = Cast<FRigControlElement>(TransformElement))
 				{
 					ControlElement->Offset.MarkDirty(ERigTransformType::CurrentGlobal);
+					ControlElement->Shape.MarkDirty(ERigTransformType::CurrentGlobal);
 				}
 			}
 		}
