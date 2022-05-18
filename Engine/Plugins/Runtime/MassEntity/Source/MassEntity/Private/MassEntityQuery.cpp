@@ -195,15 +195,19 @@ void FMassEntityQuery::ForEachEntityChunk(UMassEntitySubsystem& EntitySubsystem,
 	// if there's a chunk collection set by the external code - use that
 	if (ExecutionContext.GetEntityCollection().IsSet())
 	{
+		const FMassArchetypeHandle& ArchetypeHandle = ExecutionContext.GetEntityCollection().GetArchetype();
 		// verify the archetype matches requirements
-		if (DoesArchetypeMatchRequirements(ExecutionContext.GetEntityCollection().GetArchetype()) == false)
+		if (DoesArchetypeMatchRequirements(ArchetypeHandle) == false)
 		{
 			UE_VLOG_UELOG(&EntitySubsystem, LogMass, Log, TEXT("Attempted to execute FMassEntityQuery with an incompatible Archetype: %s")
-				, *DebugGetArchetypeCompatibilityDescription(ExecutionContext.GetEntityCollection().GetArchetype()));
+				, *DebugGetArchetypeCompatibilityDescription(ArchetypeHandle));
 			return;
 		}
 		ExecutionContext.SetRequirements(Requirements, ChunkRequirements, ConstSharedRequirements, SharedRequirements);
-		ExecutionContext.GetEntityCollection().GetArchetype().DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction, {}, ExecutionContext.GetEntityCollection().GetRanges());
+		
+		ArchetypeHandle.DataPtr->ExecuteFunction(ExecutionContext, ExecuteFunction
+			, GetFragmentMappingForArchetype(ArchetypeHandle)
+			, ExecutionContext.GetEntityCollection().GetRanges());
 #if WITH_MASSENTITY_DEBUG
 		NumEntitiesToProcess = ExecutionContext.GetNumEntities();
 #endif
@@ -331,6 +335,13 @@ bool FMassEntityQuery::HasMatchingEntities(UMassEntitySubsystem& InEntitySubsyst
 		}
 	}
 	return false;
+}
+
+const FMassQueryRequirementIndicesMapping& FMassEntityQuery::GetFragmentMappingForArchetype(const FMassArchetypeHandle ArchetypeHandle) const
+{
+	static const FMassQueryRequirementIndicesMapping FallbackEmptyMapping;
+	const int32 ArchetypeIndex = ValidArchetypes.Find(ArchetypeHandle);
+	return ArchetypeIndex != INDEX_NONE ? ArchetypeFragmentMapping[ArchetypeIndex] : FallbackEmptyMapping;
 }
 
 void FMassEntityQuery::ExportRequirements(FMassExecutionRequirements& OutRequirements) const
