@@ -393,8 +393,7 @@ void STakeRecorderSources::Construct(const FArguments& InArgs)
 	CommandList = MakeShared<FUICommandList>();
 	CommandList->MapAction(
 		FGenericCommands::Get().Delete,
-		FExecuteAction::CreateSP(this, &STakeRecorderSources::OnDeleteSelected),
-		FCanExecuteAction::CreateSP(this, &STakeRecorderSources::CanDeleteSelected)
+		FExecuteAction::CreateSP(this, &STakeRecorderSources::OnDeleteSelected)
 	);
 
 	ChildSlot
@@ -645,6 +644,12 @@ bool STakeRecorderSources::CanDragDropTarget(TSharedPtr<FDragDropOperation> InOp
 
 void STakeRecorderSources::OnDeleteSelected()
 {
+	// Still capture the delete so that it doesn't trickle through to delete selected actors for example
+	if (IsLocked())
+	{
+		return;
+	}
+
 	UTakeRecorderSources* Sources = WeakSources.Get();
 	if (Sources)
 	{
@@ -658,11 +663,6 @@ void STakeRecorderSources::OnDeleteSelected()
 			Item->Delete(Sources);
 		}
 	}
-}
-
-bool STakeRecorderSources::CanDeleteSelected() const
-{
-	return !IsLocked();
 }
 
 bool STakeRecorderSources::IsLocked() const

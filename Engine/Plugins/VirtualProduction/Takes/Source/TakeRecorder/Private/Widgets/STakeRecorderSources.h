@@ -58,8 +58,6 @@ private:
 
 	void OnDeleteSelected();
 
-	bool CanDeleteSelected() const;
-
 	bool IsLocked() const;
 
 private:
