@@ -159,8 +159,9 @@ void FRewindDebuggerModule::StartupModule()
 	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(
 		RewindDebuggerDetailsTabName,
     	FOnSpawnTab::CreateRaw(this, &FRewindDebuggerModule::SpawnRewindDebuggerDetailsTab))
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsDebugCategory())
 		.SetDisplayName(LOCTEXT("DetailsTabTitle", "Rewind Debugger Details"))
-		.SetIcon(FSlateIcon("RewindDebuggerStyle", "RewindDebugger.RewindIcon"))
+		.SetIcon(FSlateIcon("RewindDebuggerStyle", "RewindDebugger.RewindDetailsIcon"))
 		.SetTooltipText(LOCTEXT("TooltipText", "Opens Rewind Debugger Details Window."));
 
 	RewindDebuggerCameraExtension.Initialize();
