@@ -2186,10 +2186,7 @@ static void AddRasterPass(
 		[&MeshCommandPass, PassParameters, ViewRect](FRHICommandList& RHICmdList)
 		{
 			FRHIRenderPassInfo RPInfo;
-			RPInfo.ResolveParameters.DestRect.X1 = ViewRect.Min.X;
-			RPInfo.ResolveParameters.DestRect.Y1 = ViewRect.Min.Y;
-			RPInfo.ResolveParameters.DestRect.X2 = ViewRect.Max.X;
-			RPInfo.ResolveParameters.DestRect.Y2 = ViewRect.Max.Y;
+			RPInfo.ResolveRect = FResolveRect(ViewRect);
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("RasterizeVirtualShadowMaps(Non-Nanite)"));
 
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);

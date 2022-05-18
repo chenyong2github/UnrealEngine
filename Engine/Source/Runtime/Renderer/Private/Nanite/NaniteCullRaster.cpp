@@ -2193,10 +2193,7 @@ void AddPass_Rasterize(
 	}
 
 	FRHIRenderPassInfo RPInfo;
-	RPInfo.ResolveParameters.DestRect.X1 = ViewRect.Min.X;
-	RPInfo.ResolveParameters.DestRect.Y1 = ViewRect.Min.Y;
-	RPInfo.ResolveParameters.DestRect.X2 = ViewRect.Max.X;
-	RPInfo.ResolveParameters.DestRect.Y2 = ViewRect.Max.Y;
+	RPInfo.ResolveRect = FResolveRect(ViewRect);
 
 	const bool bUseMeshShader = UseMeshShader(ShaderPlatform, SharedContext.Pipeline);
 

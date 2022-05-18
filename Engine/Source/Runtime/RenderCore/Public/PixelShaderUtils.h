@@ -150,10 +150,10 @@ struct RENDERCORE_API FPixelShaderUtils
 			if (bSkipRenderPass)
 			{
 				FRHIRenderPassInfo RPInfo;
-				RPInfo.ResolveParameters.DestRect.X1 = 0;
-				RPInfo.ResolveParameters.DestRect.Y1 = 0;
-				RPInfo.ResolveParameters.DestRect.X2 = ViewportSize.X;
-				RPInfo.ResolveParameters.DestRect.Y2 = ViewportSize.Y;
+				RPInfo.ResolveRect.X1 = 0;
+				RPInfo.ResolveRect.Y1 = 0;
+				RPInfo.ResolveRect.X2 = ViewportSize.X;
+				RPInfo.ResolveRect.Y2 = ViewportSize.Y;
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("RasterizeToRects"));
 			}
 

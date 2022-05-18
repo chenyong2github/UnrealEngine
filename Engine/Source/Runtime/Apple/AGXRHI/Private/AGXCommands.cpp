@@ -445,8 +445,7 @@ void FAGXRHICommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsI
 			PassInfo.ColorRenderTargets[i].ArraySlice = RenderTargetsInfo.ColorRenderTarget[i].ArraySliceIndex;
 			PassInfo.ColorRenderTargets[i].MipIndex = RenderTargetsInfo.ColorRenderTarget[i].MipIndex;
 			PassInfo.ColorRenderTargets[i].Action = MakeRenderTargetActions(RenderTargetsInfo.ColorRenderTarget[i].LoadAction, RenderTargetsInfo.ColorRenderTarget[i].StoreAction);
-		bHasTarget = (RenderTargetsInfo.ColorRenderTarget[i].Texture != nullptr);
-			PassInfo.bIsMSAA |= PassInfo.ColorRenderTargets[i].RenderTarget->GetNumSamples() > 1;
+			bHasTarget = (RenderTargetsInfo.ColorRenderTarget[i].Texture != nullptr);
 		}
 	}
 		
@@ -455,11 +454,9 @@ void FAGXRHICommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsI
 		PassInfo.DepthStencilRenderTarget.DepthStencilTarget = RenderTargetsInfo.DepthStencilRenderTarget.Texture;
 		PassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = RenderTargetsInfo.DepthStencilRenderTarget.GetDepthStencilAccess();
 		PassInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(MakeRenderTargetActions(RenderTargetsInfo.DepthStencilRenderTarget.DepthLoadAction, RenderTargetsInfo.DepthStencilRenderTarget.DepthStoreAction), MakeRenderTargetActions(RenderTargetsInfo.DepthStencilRenderTarget.StencilLoadAction, RenderTargetsInfo.DepthStencilRenderTarget.GetStencilStoreAction()));
-		PassInfo.bIsMSAA |= RenderTargetsInfo.DepthStencilRenderTarget.Texture->GetNumSamples() > 1;
 	}
 		
 	PassInfo.NumOcclusionQueries = UINT16_MAX;
-	PassInfo.bOcclusionQueries = true;
 
 	// Ignore any attempt to "clear" the render-targets as that is senseless with the way AGXRHI has to try and coalesce passes.
 	if (bHasTarget)

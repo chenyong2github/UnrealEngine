@@ -27,6 +27,7 @@ THIRD_PARTY_INCLUDES_START
 THIRD_PARTY_INCLUDES_END
 
 #include "RHICoreShader.h"
+#include "RHICore.h"
 
 struct FRayTracingShaderBindings;
 
@@ -338,7 +339,7 @@ public:
 
 		RenderPassInfo = InInfo;
 
-		if (InInfo.bOcclusionQueries)
+		if (InInfo.NumOcclusionQueries > 0)
 		{
 			RHIBeginOcclusionQueryBatch(InInfo.NumOcclusionQueries);
 		}
@@ -346,27 +347,12 @@ public:
 
 	virtual void RHIEndRenderPass()
 	{
-		if (RenderPassInfo.bOcclusionQueries)
+		if (RenderPassInfo.NumOcclusionQueries > 0)
 		{
 			RHIEndOcclusionQueryBatch();
 		}
 
-		for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-		{
-			if (!RenderPassInfo.ColorRenderTargets[Index].RenderTarget)
-			{
-				break;
-			}
-			if (RenderPassInfo.ColorRenderTargets[Index].ResolveTarget)
-			{
-				RHICopyToResolveTarget(RenderPassInfo.ColorRenderTargets[Index].RenderTarget, RenderPassInfo.ColorRenderTargets[Index].ResolveTarget, RenderPassInfo.ResolveParameters);
-			}
-		}
-
-		if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget && RenderPassInfo.DepthStencilRenderTarget.ResolveTarget)
-		{
-			RHICopyToResolveTarget(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget, RenderPassInfo.DepthStencilRenderTarget.ResolveTarget, RenderPassInfo.ResolveParameters);
-		}
+		UE::RHICore::ResolveRenderPassTargets(*this, RenderPassInfo);
 
 		FRHIRenderTargetView RTV(nullptr, ERenderTargetLoadAction::ENoAction);
 		FRHIDepthRenderTargetView DepthRTV(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);

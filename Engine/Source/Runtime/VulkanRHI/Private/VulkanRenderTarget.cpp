@@ -865,7 +865,7 @@ void FVulkanCommandListContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InI
 
 	RenderPassInfo = InInfo;
 	RHIPushEvent(InName ? InName : TEXT("<unnamed RenderPass>"), FColor::Green);
-	if (InInfo.bOcclusionQueries)
+	if (InInfo.NumOcclusionQueries > 0)
 	{
 		BeginOcclusionQueryBatch(CmdBuffer, InInfo.NumOcclusionQueries);
 	}
@@ -897,7 +897,7 @@ void FVulkanCommandListContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InI
 void FVulkanCommandListContext::RHIEndRenderPass()
 {
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
-	if (RenderPassInfo.bOcclusionQueries)
+	if (RenderPassInfo.NumOcclusionQueries > 0)
 	{
 		EndOcclusionQueryBatch(CmdBuffer);
 	}
@@ -905,24 +905,7 @@ void FVulkanCommandListContext::RHIEndRenderPass()
 	{
 		LayoutManager.EndRenderPass(CmdBuffer);
 	}
-	if(!RenderPassInfo.bIsMSAA)
-	{
-		for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-		{
-			if (RenderPassInfo.ColorRenderTargets[Index].ResolveTarget)
-			{
-				RHICopyToResolveTarget(RenderPassInfo.ColorRenderTargets[Index].RenderTarget, RenderPassInfo.ColorRenderTargets[Index].ResolveTarget, RenderPassInfo.ResolveParameters);
-			}
-			else
-			{
-				break;
-			}
-		}
-		if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget && RenderPassInfo.DepthStencilRenderTarget.ResolveTarget)
-		{
-			RHICopyToResolveTarget(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget, RenderPassInfo.DepthStencilRenderTarget.ResolveTarget, RenderPassInfo.ResolveParameters);
-		}
-	}
+
 	RHIPopEvent();
 }
 
@@ -1440,13 +1423,13 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 	else if (NumColorRenderTargets == 0)
 	{
 		// No Depth and no color, it's a raster-only pass so make sure the renderArea will be set up properly
-		checkf(RPInfo.ResolveParameters.DestRect.IsValid(), TEXT("For raster-only passes without render targets, ResolveParameters.DestRect has to contain the render area"));
+		checkf(RPInfo.ResolveRect.IsValid(), TEXT("For raster-only passes without render targets, ResolveRect has to contain the render area"));
 		bSetExtent = true;
-		Offset.Offset3D.x = RPInfo.ResolveParameters.DestRect.X1;
-		Offset.Offset3D.y = RPInfo.ResolveParameters.DestRect.Y1;
+		Offset.Offset3D.x = RPInfo.ResolveRect.X1;
+		Offset.Offset3D.y = RPInfo.ResolveRect.Y1;
 		Offset.Offset3D.z = 0;
-		Extent.Extent3D.width = RPInfo.ResolveParameters.DestRect.X2 - RPInfo.ResolveParameters.DestRect.X1;
-		Extent.Extent3D.height = RPInfo.ResolveParameters.DestRect.Y2 - RPInfo.ResolveParameters.DestRect.Y1;
+		Extent.Extent3D.width = RPInfo.ResolveRect.X2 - RPInfo.ResolveRect.X1;
+		Extent.Extent3D.height = RPInfo.ResolveRect.Y2 - RPInfo.ResolveRect.Y1;
 		Extent.Extent3D.depth = 1;
 	}
 

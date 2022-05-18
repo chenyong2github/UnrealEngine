@@ -9,6 +9,7 @@
 #include "RHI.h"
 #include "OpenGLDrv.h"
 #include "OpenGLDrvPrivate.h"
+#include "RHICore.h"
 
 // gDEBugger is currently very buggy. For example, it cannot show render buffers correctly and doesn't
 // know what combined depth/stencil is. This define makes OpenGL render directly to textures and disables
@@ -1133,7 +1134,7 @@ void FOpenGLDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, con
 
 	RenderPassInfo = InInfo;
 
-	if (InInfo.bOcclusionQueries)
+	if (InInfo.NumOcclusionQueries > 0)
 	{
 		extern void BeginOcclusionQueryBatch(uint32);
 		BeginOcclusionQueryBatch(InInfo.NumOcclusionQueries);
@@ -1157,28 +1158,13 @@ void FOpenGLDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, con
 
 void FOpenGLDynamicRHI::RHIEndRenderPass()
 {
-	if (RenderPassInfo.bOcclusionQueries)
+	if (RenderPassInfo.NumOcclusionQueries > 0)
 	{
 		extern void EndOcclusionQueryBatch();
 		EndOcclusionQueryBatch();
 	}
 
-	for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-	{
-		const auto& RTV = RenderPassInfo.ColorRenderTargets[Index];
-
-		if (RTV.RenderTarget && RTV.ResolveTarget && RTV.RenderTarget != RTV.ResolveTarget)
-		{
-			RHICopyToResolveTarget(RTV.RenderTarget, RTV.ResolveTarget, RenderPassInfo.ResolveParameters);
-		}
-	}
-
-	const auto& DSV = RenderPassInfo.DepthStencilRenderTarget;
-
-	if (DSV.DepthStencilTarget && DSV.ResolveTarget && DSV.DepthStencilTarget != DSV.ResolveTarget)
-	{
-		RHICopyToResolveTarget(DSV.DepthStencilTarget, DSV.ResolveTarget, RenderPassInfo.ResolveParameters);
-	}
+	UE::RHICore::ResolveRenderPassTargets(*this, RenderPassInfo);
 
 	// Drop depth and stencil to avoid export
 	if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget)

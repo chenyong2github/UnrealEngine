@@ -3,6 +3,7 @@
 #include "AGXRHIPrivate.h"
 #include "AGXRHIRenderQuery.h"
 #include "AGXCommandBufferFence.h"
+#include "RHICore.h"
 
 TGlobalResource<TBoundShaderStateHistory<10000>> FAGXRHICommandContext::BoundShaderStateHistory;
 
@@ -120,7 +121,7 @@ void FAGXRHICommandContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo,
 	@autoreleasepool {
 	bool bHasTarget = (InInfo.DepthStencilRenderTarget.DepthStencilTarget != nullptr || InInfo.GetNumColorRenderTargets() > 0);
 	
-	if (InInfo.bOcclusionQueries)
+	if (InInfo.NumOcclusionQueries > 0)
 	{
 		Context->GetCommandList().SetParallelIndex(0, 0);
 	}
@@ -145,7 +146,7 @@ void FAGXRHICommandContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo,
 	}
 	
 	RenderPassInfo = InInfo;
-	if (InInfo.bOcclusionQueries)
+	if (InInfo.NumOcclusionQueries > 0)
 	{
 		RHIBeginOcclusionQueryBatch(InInfo.NumOcclusionQueries);
 	}
@@ -153,27 +154,12 @@ void FAGXRHICommandContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo,
 
 void FAGXRHICommandContext::RHIEndRenderPass()
 {
-	if (RenderPassInfo.bOcclusionQueries)
+	if (RenderPassInfo.NumOcclusionQueries > 0)
 	{
 		RHIEndOcclusionQueryBatch();
 	}
-	
-	for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-	{
-		if (!RenderPassInfo.ColorRenderTargets[Index].RenderTarget)
-		{
-			break;
-		}
-		if (RenderPassInfo.ColorRenderTargets[Index].ResolveTarget)
-		{
-			RHICopyToResolveTarget(RenderPassInfo.ColorRenderTargets[Index].RenderTarget, RenderPassInfo.ColorRenderTargets[Index].ResolveTarget, RenderPassInfo.ResolveParameters);
-		}
-	}
-	
-	if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget && RenderPassInfo.DepthStencilRenderTarget.ResolveTarget)
-	{
-		RHICopyToResolveTarget(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget, RenderPassInfo.DepthStencilRenderTarget.ResolveTarget, RenderPassInfo.ResolveParameters);
-	}
+
+	UE::RHICore::ResolveRenderPassTargets(*this, RenderPassInfo);
 }
 
 void FAGXRHICommandContext::RHINextSubpass()

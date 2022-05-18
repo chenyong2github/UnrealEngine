@@ -87,12 +87,8 @@ FRHIRenderPassInfo FRDGParameterStruct::GetRenderPassInfo() const
 		SampleCount |= DepthStencilTarget.DepthStencilTarget->GetNumSamples();
 	}
 
-	RenderPassInfo.bIsMSAA = SampleCount > 1;
-	RenderPassInfo.ResolveParameters = RenderTargets.ResolveRect;
-	RenderPassInfo.ResolveParameters.SourceAccessFinal = ERHIAccess::RTV;
-	RenderPassInfo.ResolveParameters.DestAccessFinal = ERHIAccess::ResolveDst;
+	RenderPassInfo.ResolveRect = RenderTargets.ResolveRect;
 	RenderPassInfo.NumOcclusionQueries = RenderTargets.NumOcclusionQueries;
-	RenderPassInfo.bOcclusionQueries = RenderTargets.NumOcclusionQueries > 0;
 	RenderPassInfo.SubpassHint = RenderTargets.SubpassHint;
 	RenderPassInfo.MultiViewCount = RenderTargets.MultiViewCount;
 	RenderPassInfo.ShadingRateTexture = RenderTargets.ShadingRateTexture ? RenderTargets.ShadingRateTexture->GetRHI() : nullptr;

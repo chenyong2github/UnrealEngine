@@ -3645,10 +3645,6 @@ public:
 		check(!IsInsideRenderPass());
 		check(!IsInsideComputePass());
 
-		if (InInfo.bTooManyUAVs)
-		{
-			UE_LOG(LogRHI, Warning, TEXT("RenderPass %s has too many UAVs"), Name);
-		}
 		InInfo.Validate();
 
 		if (Bypass())

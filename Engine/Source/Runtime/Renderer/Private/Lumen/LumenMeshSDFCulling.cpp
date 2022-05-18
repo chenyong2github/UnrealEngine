@@ -947,10 +947,10 @@ void CullObjectsToGrid(
 		[CullGridSize, bReverseCulling, VertexShader, PixelShader, PassParameters](FRHICommandList& RHICmdList)
 		{
 			FRHIRenderPassInfo RPInfo;
-			RPInfo.ResolveParameters.DestRect.X1 = 0;
-			RPInfo.ResolveParameters.DestRect.Y1 = 0;
-			RPInfo.ResolveParameters.DestRect.X2 = CullGridSize.X;
-			RPInfo.ResolveParameters.DestRect.Y2 = CullGridSize.Y;
+			RPInfo.ResolveRect.X1 = 0;
+			RPInfo.ResolveRect.Y1 = 0;
+			RPInfo.ResolveRect.X2 = CullGridSize.X;
+			RPInfo.ResolveRect.Y2 = CullGridSize.Y;
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("ScatterMeshSDFsToGrid"));
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;

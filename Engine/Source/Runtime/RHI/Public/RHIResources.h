@@ -3712,25 +3712,27 @@ struct FRHIRenderPassInfo
 {
 	struct FColorEntry
 	{
-		FRHITexture* RenderTarget;
-		FRHITexture* ResolveTarget;
-		int32 ArraySlice;
-		uint8 MipIndex;
-		ERenderTargetActions Action;
+		FRHITexture*         RenderTarget      = nullptr;
+		FRHITexture*         ResolveTarget     = nullptr;
+		int32                ArraySlice        = -1;
+		uint8                MipIndex          = 0;
+		ERenderTargetActions Action            = ERenderTargetActions::DontLoad_DontStore;
 	};
-	FColorEntry ColorRenderTargets[MaxSimultaneousRenderTargets];
+	TStaticArray<FColorEntry, MaxSimultaneousRenderTargets> ColorRenderTargets;
 
 	struct FDepthStencilEntry
 	{
-		FRHITexture* DepthStencilTarget;
-		FRHITexture* ResolveTarget;
-		EDepthStencilTargetActions Action;
+		FRHITexture*         DepthStencilTarget = nullptr;
+		FRHITexture*         ResolveTarget      = nullptr;
+		EDepthStencilTargetActions Action       = EDepthStencilTargetActions::DontLoad_DontStore;
 		FExclusiveDepthStencil ExclusiveDepthStencil;
 	};
 	FDepthStencilEntry DepthStencilRenderTarget;
 
-	// Parameters for resolving a multisampled image
-	// When doing raster-only passes with no render targets bound to the pass, use DestRect to describe render area
+	// Controls the area for a multisample resolve or raster UAV (i.e. no fixed-function targets) operation.
+	FResolveRect ResolveRect;
+
+	UE_DEPRECATED(5.1, "ResolveParameters is deprecated. Use ResolveRect")
 	FResolveParams ResolveParameters;
 
 	// Some RHIs can use a texture to control the sampling and/or shading resolution of different areas 
@@ -3741,18 +3743,17 @@ struct FRHIRenderPassInfo
 	uint32 NumOcclusionQueries = 0;
 	bool bOcclusionQueries = false;
 
-	// Some RHIs need to know if this render pass is going to be reading and writing to the same texture in the case of generating mip maps for partial resource transitions
-	bool bGeneratingMips = false;
-
 	// if this renderpass should be multiview, and if so how many views are required
 	uint8 MultiViewCount = 0;
 
 	// Hint for some RHI's that renderpass will have specific sub-passes 
 	ESubpassHint SubpassHint = ESubpassHint::None;
 
-	// TODO: Remove once FORT-162640 is solved
-	bool bTooManyUAVs = false;
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FRHIRenderPassInfo() = default;
+	FRHIRenderPassInfo(const FRHIRenderPassInfo&) = default;
+	FRHIRenderPassInfo& operator=(const FRHIRenderPassInfo&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Color, no depth, optional resolve, optional mip, optional array slice
 	explicit FRHIRenderPassInfo(FRHITexture* ColorRT, ERenderTargetActions ColorAction, FRHITexture* ResolveRT = nullptr, uint8 InMipIndex = 0, int32 InArraySlice = -1)
@@ -3763,12 +3764,6 @@ struct FRHIRenderPassInfo
 		ColorRenderTargets[0].ArraySlice = InArraySlice;
 		ColorRenderTargets[0].MipIndex = InMipIndex;
 		ColorRenderTargets[0].Action = ColorAction;
-		DepthStencilRenderTarget.DepthStencilTarget = nullptr;
-		DepthStencilRenderTarget.Action = EDepthStencilTargetActions::DontLoad_DontStore;
-		DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilNop;
-		DepthStencilRenderTarget.ResolveTarget = nullptr;
-		bIsMSAA = ColorRT->GetNumSamples() > 1;
-		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
 	}
 
 	// Color MRTs, no depth
@@ -3779,19 +3774,13 @@ struct FRHIRenderPassInfo
 		{
 			check(ColorRTs[Index]);
 			ColorRenderTargets[Index].RenderTarget = ColorRTs[Index];
-			ColorRenderTargets[Index].ResolveTarget = nullptr;
 			ColorRenderTargets[Index].ArraySlice = -1;
-			ColorRenderTargets[Index].MipIndex = 0;
 			ColorRenderTargets[Index].Action = ColorAction;
 		}
 		DepthStencilRenderTarget.DepthStencilTarget = nullptr;
 		DepthStencilRenderTarget.Action = EDepthStencilTargetActions::DontLoad_DontStore;
 		DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilNop;
 		DepthStencilRenderTarget.ResolveTarget = nullptr;
-		if (NumColorRTs < MaxSimultaneousRenderTargets)
-		{
-			FMemory::Memzero(&ColorRenderTargets[NumColorRTs], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - NumColorRTs));
-		}
 	}
 
 	// Color MRTs, no depth
@@ -3811,10 +3800,6 @@ struct FRHIRenderPassInfo
 		DepthStencilRenderTarget.Action = EDepthStencilTargetActions::DontLoad_DontStore;
 		DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthNop_StencilNop;
 		DepthStencilRenderTarget.ResolveTarget = nullptr;
-		if (NumColorRTs < MaxSimultaneousRenderTargets)
-		{
-			FMemory::Memzero(&ColorRenderTargets[NumColorRTs], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - NumColorRTs));
-		}
 	}
 
 	// Color MRTs and depth
@@ -3835,11 +3820,6 @@ struct FRHIRenderPassInfo
 		DepthStencilRenderTarget.ResolveTarget = nullptr;
 		DepthStencilRenderTarget.Action = DepthActions;
 		DepthStencilRenderTarget.ExclusiveDepthStencil = InEDS;
-		bIsMSAA = DepthRT->GetNumSamples() > 1;
-		if (NumColorRTs < MaxSimultaneousRenderTargets)
-		{
-			FMemory::Memzero(&ColorRenderTargets[NumColorRTs], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - NumColorRTs));
-		}
 	}
 
 	// Color MRTs and depth
@@ -3860,11 +3840,6 @@ struct FRHIRenderPassInfo
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
 		DepthStencilRenderTarget.Action = DepthActions;
 		DepthStencilRenderTarget.ExclusiveDepthStencil = InEDS;
-		bIsMSAA = DepthRT->GetNumSamples() > 1;
-		if (NumColorRTs < MaxSimultaneousRenderTargets)
-		{
-			FMemory::Memzero(&ColorRenderTargets[NumColorRTs], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - NumColorRTs));
-		}
 	}
 
 	// Depth, no color
@@ -3875,22 +3850,17 @@ struct FRHIRenderPassInfo
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
 		DepthStencilRenderTarget.Action = DepthActions;
 		DepthStencilRenderTarget.ExclusiveDepthStencil = InEDS;
-		bIsMSAA = DepthRT->GetNumSamples() > 1;
-		FMemory::Memzero(ColorRenderTargets, sizeof(FColorEntry) * MaxSimultaneousRenderTargets);
 	}
 
 	// Depth, no color, occlusion queries
 	explicit FRHIRenderPassInfo(FRHITexture* DepthRT, uint32 InNumOcclusionQueries, EDepthStencilTargetActions DepthActions, FRHITexture* ResolveDepthRT = nullptr, FExclusiveDepthStencil InEDS = FExclusiveDepthStencil::DepthWrite_StencilWrite)
 		: NumOcclusionQueries(InNumOcclusionQueries)
-		, bOcclusionQueries(true)
 	{
 		check(DepthRT);
 		DepthStencilRenderTarget.DepthStencilTarget = DepthRT;
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
 		DepthStencilRenderTarget.Action = DepthActions;
 		DepthStencilRenderTarget.ExclusiveDepthStencil = InEDS;
-		bIsMSAA = DepthRT->GetNumSamples() > 1;
-		FMemory::Memzero(ColorRenderTargets, sizeof(FColorEntry) * MaxSimultaneousRenderTargets);
 	}
 
 	// Color and depth
@@ -3902,7 +3872,6 @@ struct FRHIRenderPassInfo
 		ColorRenderTargets[0].ArraySlice = -1;
 		ColorRenderTargets[0].MipIndex = 0;
 		ColorRenderTargets[0].Action = ColorAction;
-		bIsMSAA = ColorRT->GetNumSamples() > 1;
 		check(DepthRT);
 		DepthStencilRenderTarget.DepthStencilTarget = DepthRT;
 		DepthStencilRenderTarget.ResolveTarget = nullptr;
@@ -3921,7 +3890,6 @@ struct FRHIRenderPassInfo
 		ColorRenderTargets[0].ArraySlice = -1;
 		ColorRenderTargets[0].MipIndex = 0;
 		ColorRenderTargets[0].Action = ColorAction;
-		bIsMSAA = ColorRT->GetNumSamples() > 1;
 		check(DepthRT);
 		DepthStencilRenderTarget.DepthStencilTarget = DepthRT;
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
@@ -3942,7 +3910,6 @@ struct FRHIRenderPassInfo
 		ColorRenderTargets[0].ArraySlice = -1;
 		ColorRenderTargets[0].MipIndex = 0;
 		ColorRenderTargets[0].Action = ColorAction;
-		bIsMSAA = ColorRT->GetNumSamples() > 1;
 		check(DepthRT);
 		DepthStencilRenderTarget.DepthStencilTarget = DepthRT;
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
@@ -3951,16 +3918,6 @@ struct FRHIRenderPassInfo
 		ShadingRateTexture = InShadingRateTexture;
 		ShadingRateTextureCombiner = InShadingRateTextureCombiner;
 		FMemory::Memzero(&ColorRenderTargets[1], sizeof(FColorEntry) * (MaxSimultaneousRenderTargets - 1));
-	}
-
-	enum ENoRenderTargets
-	{
-		NoRenderTargets,
-	};
-	explicit FRHIRenderPassInfo(ENoRenderTargets Dummy)
-	{
-		(void)Dummy;
-		FMemory::Memzero(*this);
 	}
 
 	inline int32 GetNumColorRenderTargets() const
@@ -3976,16 +3933,6 @@ struct FRHIRenderPassInfo
 		}
 
 		return ColorIndex;
-	}
-
-	explicit FRHIRenderPassInfo()
-	{
-		FMemory::Memzero(*this);
-	}
-
-	inline bool IsMSAA() const
-	{
-		return bIsMSAA;
 	}
 
 	FGraphicsPipelineRenderTargetsInfo ExtractRenderTargetsInfo() const
@@ -4046,18 +3993,21 @@ struct FRHIRenderPassInfo
 #endif
 	RHI_API void ConvertToRenderTargetsInfo(FRHISetRenderTargetsInfo& OutRTInfo) const;
 
-#if 0 // FORT-162640
-	FRHIRenderPassInfo& operator = (const FRHIRenderPassInfo& In)
-	{
-		FMemory::Memcpy(*this, In);
-		return *this;
-	}
-#endif
+	//////////////////////////////////////////////////////////////////////////
+	// Deprecated
+	//////////////////////////////////////////////////////////////////////////
 
+	UE_DEPRECATED(5.1, "IsMSAA is deprecated.")
+	inline bool IsMSAA() const { return false; }
+
+	UE_DEPRECATED(5.1, "bIsMSAA is deprecated")
 	bool bIsMSAA = false;
 
-private:
-	RHI_API void OnVerifyNumUAVsFailed(int32 InNumUAVs);
+	UE_DEPRECATED(5.1, "bTooManyUAVs is deprecated")
+	bool bTooManyUAVs = false;
+
+	UE_DEPRECATED(5.1, "bGeneratingMips is deprecated")
+	bool bGeneratingMips = false;
 };
 
 /** Used to specify a texture metadata plane when creating a view. */
