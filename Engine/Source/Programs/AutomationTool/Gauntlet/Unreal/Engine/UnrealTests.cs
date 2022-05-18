@@ -330,12 +330,6 @@ namespace Gauntlet
 			public virtual bool UseEditor { get; set; } = false;
 
 			/// <summary>
-			/// Enable the RHI validation layer.
-			/// </summary>
-			[AutoParam]
-			public virtual bool RHIValidation { get; set; } = false;
-
-			/// <summary>
 			/// Filter or groups of tests to apply (alias for RunTest) 
 			/// </summary>
 			[AutoParam]
@@ -355,11 +349,6 @@ namespace Gauntlet
 				}
 
 				base.ApplyToConfig(AppConfig, ConfigRole, OtherRoles);
-
-				if (RHIValidation)
-				{
-					AppConfig.CommandLine += " -rhivalidation";
-				}
 			}
 		}
 	}

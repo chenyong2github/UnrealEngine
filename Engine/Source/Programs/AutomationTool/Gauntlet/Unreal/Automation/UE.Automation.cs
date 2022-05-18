@@ -41,6 +41,12 @@ namespace UE
 		}
 
 		/// <summary>
+		/// Enable the RHI validation layer.
+		/// </summary>
+		[AutoParam]
+		public virtual bool RHIValidation { get; set; } = false;
+
+		/// <summary>
 		/// Run with Nvidia cards for raytracing support
 		/// </summary>
 		[AutoParam]
@@ -264,6 +270,11 @@ namespace UE
 						AppConfig.CommandLine += " -stompmalloc";
 					}
 				}
+			}
+
+			if (RHIValidation)
+			{
+				AppConfig.CommandLine += " -rhivalidation";
 			}
 
 			// Options specific to roles running under the editor
