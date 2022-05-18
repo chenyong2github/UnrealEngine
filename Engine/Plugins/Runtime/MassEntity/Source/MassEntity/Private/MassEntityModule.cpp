@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "IMassEntityModule.h"
+#include "MassEntityTypes.h"
 #if WITH_UNREAL_DEVELOPER_TOOLS
 #include "MessageLogModule.h"
 #include "Engine/World.h"
@@ -39,6 +40,12 @@ void FMassEntityModuleModule::StartupModule()
 		OnWorldCleanupHandle = FWorldDelegates::OnWorldCleanup.AddStatic(&FMassEntityModuleModule::OnWorldCleanup);
 	}
 #endif // WITH_UNREAL_DEVELOPER_TOOLS
+
+#if MASS_DO_PARALLEL
+	UE_LOG(LogMass, Log, TEXT("MassEntity running with MULTITHREADING support."));
+#else
+	UE_LOG(LogMass, Log, TEXT("MassEntity running in game thread."));
+#endif // MASS_DO_PARALLEL
 }
 
 

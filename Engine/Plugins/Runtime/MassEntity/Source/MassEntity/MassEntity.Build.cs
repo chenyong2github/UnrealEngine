@@ -35,6 +35,9 @@ namespace UnrealBuildTool.Rules
 			{
 				PrivateDependencyModuleNames.Add("MessageLog");
 			}
+
+			// @todo will be enables once we're confident in MASS_DO_PARALLEL implementation 
+			// PublicDefinitions.Add("MASS_DO_PARALLEL=" + ((Target.Type != TargetType.Server) ? 1 : 0));
 		}
 	}
 }
