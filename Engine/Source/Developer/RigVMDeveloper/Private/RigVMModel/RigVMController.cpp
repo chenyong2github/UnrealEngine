@@ -15717,10 +15717,11 @@ void URigVMController::InitializeFilteredPermutationsFromTemplateTypes()
 		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
 		{
 			TemplateNode->InitializeFilteredPermutationsFromTypes();
-			if (!TemplateNode->IsSingleton())
-			{
-				FullyResolveTemplateNode(TemplateNode, TemplateNode->FilteredPermutations[0], false);
-			}
+			// if (!TemplateNode->IsSingleton())
+			// {
+			// 	FullyResolveTemplateNode(TemplateNode, TemplateNode->FilteredPermutations[0], false);
+			// }
+			//
 		}
 	}
 }
