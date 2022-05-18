@@ -180,7 +180,7 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	/**
 	 * The strength of the ambient occlusion, higher value will block more light.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 1.0))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, interp, Category = AtmosphereAndCloud, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 1.0))
 	float CloudAmbientOcclusionStrength;
 	/**
 	 * The world space radius of the cloud ambient occlusion map around the camera in kilometers.
