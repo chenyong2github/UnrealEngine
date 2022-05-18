@@ -424,7 +424,7 @@ public:
 
 	~FSaveContext()
 	{
-		if (bNeedPreSaveCleanup && Asset)
+		if (bPostSaveRootRequired && Asset)
 		{
 			UE::SavePackageUtilities::CallPostSaveRoot(Asset, ObjectSaveContext, bNeedPreSaveCleanup);
 		}
@@ -628,6 +628,16 @@ public:
 	uint32 GetPortFlags() const
 	{
 		return PPF_DeepCompareInstances | PPF_DeepCompareDSOsOnly;
+	}
+
+	bool GetPostSaveRootRequired() const
+	{
+		return bPostSaveRootRequired;
+	}
+
+	void SetPostSaveRootRequired(bool bInPostSaveRootRequired)
+	{
+		bPostSaveRootRequired = bInPostSaveRootRequired;
 	}
 
 	bool GetPreSaveCleanup() const
@@ -991,6 +1001,7 @@ private:
 	bool bTextFormat = false;
 	bool bIsProcessingPrestreamPackages = false;
 	bool bIsFixupStandaloneFlags = false;
+	bool bPostSaveRootRequired = false;
 	bool bNeedPreSaveCleanup = false;
 	bool bGenerateFileStub = false;
 	bool bIgnoreHeaderDiffs = false;

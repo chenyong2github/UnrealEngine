@@ -2567,6 +2567,7 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 	{
 		FObjectSaveContextData& ObjectSaveContext = SaveContext.GetObjectSaveContext();
 		UE::SavePackageUtilities::CallPreSaveRoot(SaveContext.GetAsset(), ObjectSaveContext);
+		SaveContext.SetPostSaveRootRequired(true);
 		SaveContext.SetPreSaveCleanup(ObjectSaveContext.bCleanupRequired);
 	}
 
@@ -2601,10 +2602,10 @@ FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, 
 
 	// PostSave Asset
 	SlowTask.EnterProgressFrame();
-	if (SaveContext.GetAsset() && !SaveContext.IsConcurrent())
+	if (SaveContext.GetPostSaveRootRequired() && SaveContext.GetAsset())
 	{
 		UE::SavePackageUtilities::CallPostSaveRoot(SaveContext.GetAsset(), SaveContext.GetObjectSaveContext(), SaveContext.GetPreSaveCleanup());
-		SaveContext.SetPreSaveCleanup(false);
+		SaveContext.SetPostSaveRootRequired(false);
 	}
 
 	ClearCachedPlatformCookedData(SaveContext);
