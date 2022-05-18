@@ -137,7 +137,7 @@ private:
 	UPROPERTY()
 	FMemberReference BindingReference;
 	UPROPERTY()
-	EBindingKind BindingKind;
+	EBindingKind BindingKind = EBindingKind::Function;
 #endif
 
 public:
