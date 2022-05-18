@@ -1628,6 +1628,35 @@ namespace UnrealBuildTool
 			return AllTargetFiles;
 		}
 
+		/// <summary>
+		/// Returns a list of all sub-targets that are specialized for a given platform. 
+		/// </summary>
+		/// <param name="AllTargetFiles">List of target files to find sub-targets for</param>
+		/// <param name="AllSubTargetFiles">List of sub-targets in a flat list</param>
+		/// <param name="AllSubTargetFilesPerTarget">List of sub-targets bucketed by their parent target</param>
+		protected void GetPlatformSpecializationsSubTargetsForAllTargets(
+			List<FileReference> AllTargetFiles,
+			out HashSet<FileReference> AllSubTargetFiles,
+			out Dictionary<string, List<FileReference>> AllSubTargetFilesPerTarget)
+		{
+			AllSubTargetFilesPerTarget = new Dictionary<string, List<FileReference>>();
+			AllSubTargetFiles = new HashSet<FileReference>();
+			foreach (FileReference TargetFilePath in AllTargetFiles)
+			{
+				string[] TargetPathSplit = TargetFilePath.GetFileNameWithoutAnyExtensions().Split(new char[] { '_' }, StringSplitOptions.RemoveEmptyEntries);
+				if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last())))
+				{
+					string TargetName = TargetPathSplit.First();
+					if (!AllSubTargetFilesPerTarget.ContainsKey(TargetName))
+					{
+						AllSubTargetFilesPerTarget.Add(TargetName, new List<FileReference>());
+					}
+
+					AllSubTargetFilesPerTarget[TargetName].Add(TargetFilePath);
+					AllSubTargetFiles.Add(TargetFilePath);
+				}
+			}
+		}
 
 
 		/// <summary>
@@ -2298,23 +2327,9 @@ namespace UnrealBuildTool
 			Dictionary<RulesAssembly, DirectoryReference> RulesAssemblies)
 		{
 			// Separate the .target.cs files that are platform extension specializations, per target name. These will be added alongside their base target.cs
-			Dictionary<string, List<FileReference>> AllSubTargetFilesPerTarget = new Dictionary<string, List<FileReference>>();
-			HashSet<FileReference> AllSubTargetFiles = new HashSet<FileReference>();
-			foreach (FileReference TargetFilePath in AllTargetFiles)
-			{
-				string[] TargetPathSplit = TargetFilePath.GetFileNameWithoutAnyExtensions().Split(new char[] { '_' }, StringSplitOptions.RemoveEmptyEntries);
-				if (TargetPathSplit.Length > 1 && (UnrealTargetPlatform.IsValidName(TargetPathSplit.Last()) || UnrealPlatformGroup.IsValidName(TargetPathSplit.Last())))
-				{
-					string TargetName = TargetPathSplit.First();
-					if (!AllSubTargetFilesPerTarget.ContainsKey(TargetName))
-					{
-						AllSubTargetFilesPerTarget.Add(TargetName, new List<FileReference>());
-					}
-
-					AllSubTargetFilesPerTarget[TargetName].Add(TargetFilePath);
-					AllSubTargetFiles.Add(TargetFilePath);
-				}
-			}
+			HashSet<FileReference> AllSubTargetFiles;
+			Dictionary<string, List<FileReference>> AllSubTargetFilesPerTarget;
+			GetPlatformSpecializationsSubTargetsForAllTargets(AllTargetFiles, out AllSubTargetFiles, out AllSubTargetFilesPerTarget);
 
 			// Get some standard directories
 			//DirectoryReference EngineSourceProgramsDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs");

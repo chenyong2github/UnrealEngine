@@ -182,7 +182,12 @@ namespace UnrealBuildTool
 			// Sort the targets by name. When we have multiple targets of a given type for a project, we'll use the order to determine which goes in the primary project file (so that client names with a suffix will go into their own project).
 			AllTargetFiles = AllTargetFiles.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase).ToList();
 
-			foreach (FileReference TargetFilePath in AllTargetFiles)
+			// Separate the .target.cs files that are platform extension specializations, per target name. These will be added alongside their base target.cs
+			HashSet<FileReference> AllSubTargetFiles;
+			Dictionary<string, List<FileReference>> AllSubTargetFilesPerTarget;
+			GetPlatformSpecializationsSubTargetsForAllTargets(AllTargetFiles, out AllSubTargetFiles, out AllSubTargetFilesPerTarget);
+
+			foreach (FileReference TargetFilePath in AllTargetFiles.Except(AllSubTargetFiles))
 			{
 				string TargetName = TargetFilePath.GetFileNameWithoutAnyExtensions();
 
@@ -387,6 +392,12 @@ namespace UnrealBuildTool
 
 					// Make sure the *.Target.cs file is in the project.
 					ProjectFile.AddFileToProject(TargetFilePath, BaseFolder);
+
+					// Add all matching *_<platform>.Target.cs to the same folder
+					if (AllSubTargetFilesPerTarget.ContainsKey(TargetName))
+					{
+						ProjectFile.AddFilesToProject(AllSubTargetFilesPerTarget[TargetName], BaseFolder);
+					}
 
 					Log.TraceVerbose("Generating target {0} for {1}", TargetRulesObject.Type.ToString(),
 						ProjectFilePath);
