@@ -195,6 +195,11 @@ private:
 	void OnActorDeleted(AActor* Actor);
 
 	/**
+	 * Called when a world is destroyed.
+	 */
+	void OnWorldDestroyed(UWorld* World);
+
+	/**
 	 * Called when an untracked change to the actor list happens in the editor.
 	 */
 	void OnActorListChanged();
@@ -326,6 +331,9 @@ private:
 
 	/** Handle for when the list of actors changes. */
 	FDelegateHandle OnActorListChangedHandle;
+
+	/** Handle for when a world is destroyed. */
+	FDelegateHandle OnWorldDestroyedHandle;
 
 	/**
 	 * Actors that we are actively watching to send events to subscribers.
