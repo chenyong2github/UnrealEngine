@@ -6,6 +6,7 @@
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
 #include "Widgets/Browser/ConcertServerSessionBrowserController.h"
+#include "Widgets/Clients/ConcertClientsTabController.h"
 #include "Widgets/SessionTabs/Archived/ArchivedConcertSessionTab.h"
 #include "Widgets/SessionTabs/Live/LiveConcertSessionTab.h"
 
@@ -26,9 +27,11 @@ FConcertServerWindowController::FConcertServerWindowController(const FConcertSer
 	: MultiUserServerLayoutIni(Params.MultiUserServerLayoutIni)
 	, ServerInstance(Params.Server)
 	, SessionBrowserController(MakeShared<FConcertServerSessionBrowserController>())
+	, ClientsController(MakeShared<FConcertClientsTabController>())
 	, ConcertComponents(Params.AdditionalConcertComponents)
 {
 	ConcertComponents.Add(SessionBrowserController);
+	ConcertComponents.Add(ClientsController);
 }
 
 FConcertServerWindowController::~FConcertServerWindowController()
@@ -104,7 +107,7 @@ TSharedPtr<FConcertSessionTabBase> FConcertServerWindowController::GetOrRegister
 		return *FoundId;
 	}
 	
-	if (TSharedPtr<IConcertServerSession> Session = ServerInstance->GetConcertServer()->GetLiveSession(SessionId))
+	if (const TSharedPtr<IConcertServerSession> Session = ServerInstance->GetConcertServer()->GetLiveSession(SessionId))
 	{
 		const TSharedRef<FLiveConcertSessionTab> SessionTab = MakeShared<FLiveConcertSessionTab>(Session.ToSharedRef(), ServerInstance, RootWindow.ToSharedRef());
 		RegisteredSessions.Add(SessionId, SessionTab);

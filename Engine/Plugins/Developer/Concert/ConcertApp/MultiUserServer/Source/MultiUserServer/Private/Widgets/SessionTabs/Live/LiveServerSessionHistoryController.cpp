@@ -5,17 +5,17 @@
 #include "ConcertSyncSessionDatabase.h"
 #include "IConcertSession.h"
 #include "IConcertSyncServer.h"
-#include "MultiUserServerUserSettings.h"
+#include "Settings/MultiUserServerColumnVisibilitySettings.h"
 
 namespace UE::MultiUserServer::Private
 {
 	static SSessionHistory::FArguments MakeLiveTabSessionHistoryArguments()
 	{
 		return SSessionHistory::FArguments()
-			.ColumnVisibilitySnapshot(UMultiUserServerUserSettings::GetUserSettings()->GetLiveActivityBrowserColumnVisibility())
+			.ColumnVisibilitySnapshot(UMultiUserServerColumnVisibilitySettings::GetSettings()->GetLiveActivityBrowserColumnVisibility())
 			.SaveColumnVisibilitySnapshot_Lambda([](const FColumnVisibilitySnapshot& Snapshot)
 			{
-				UMultiUserServerUserSettings::GetUserSettings()->SetLiveActivityBrowserColumnVisibility(Snapshot);
+				UMultiUserServerColumnVisibilitySettings::GetSettings()->SetLiveActivityBrowserColumnVisibility(Snapshot);
 			});
 	}
 }
@@ -25,7 +25,7 @@ FLiveServerSessionHistoryController::FLiveServerSessionHistoryController(TShared
 	, SyncServer(MoveTemp(SyncServer))
 {
 	ReloadActivities();
-	UMultiUserServerUserSettings::GetUserSettings()->OnLiveActivityBrowserColumnVisibility().AddRaw(this, &FLiveServerSessionHistoryController::OnActivityListColumnVisibilitySettingsUpdated);
+	UMultiUserServerColumnVisibilitySettings::GetSettings()->OnLiveActivityBrowserColumnVisibility().AddRaw(this, &FLiveServerSessionHistoryController::OnActivityListColumnVisibilitySettingsUpdated);
 
 	if (const TOptional<FConcertSyncSessionDatabaseNonNullPtr> Database = SyncServer->GetLiveSessionDatabase(GetSessionId()))
 	{
@@ -35,7 +35,7 @@ FLiveServerSessionHistoryController::FLiveServerSessionHistoryController(TShared
 
 FLiveServerSessionHistoryController::~FLiveServerSessionHistoryController()
 {
-	if (UMultiUserServerUserSettings* Settings = UMultiUserServerUserSettings::GetUserSettings(); IsValid(Settings))
+	if (UMultiUserServerColumnVisibilitySettings* Settings = UMultiUserServerColumnVisibilitySettings::GetSettings(); IsValid(Settings))
 	{
 		Settings->OnLiveActivityBrowserColumnVisibility().RemoveAll(this);
 	}

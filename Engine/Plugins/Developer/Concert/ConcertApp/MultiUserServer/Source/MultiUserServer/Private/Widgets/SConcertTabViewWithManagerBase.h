@@ -13,6 +13,7 @@ class SConcertTabViewWithManagerBase : public SConcertTabViewBase
 public:
 
 	DECLARE_DELEGATE_TwoParams(FCreateTabs, const TSharedRef<FTabManager>& /*TabManager*/, const TSharedRef<FTabManager::FLayout>& /*Layout*/);
+	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FOverlayTabs, const TSharedRef<SWidget>& /* Tabs */);
 	
 	SLATE_BEGIN_ARGS(SConcertTabViewWithManagerBase) {}
 		/** Which major tab to construct the sub-tabs under. */
@@ -21,6 +22,8 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, ConstructUnderWindow)
 		/** Callback for creating the sub-tabs */
 		SLATE_EVENT(FCreateTabs, CreateTabs)
+		/** Optional function to overlay all the tabs (for example to overlay a message to execute a console command first) */
+		SLATE_EVENT(FOverlayTabs, OverlayTabs)
 		/** Name to give the layout. Important for saving config. */
 		SLATE_ARGUMENT(FName, LayoutName)
 	SLATE_END_ARGS()

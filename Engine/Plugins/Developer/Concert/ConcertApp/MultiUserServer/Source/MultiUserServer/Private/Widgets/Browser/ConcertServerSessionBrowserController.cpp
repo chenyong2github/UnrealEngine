@@ -249,6 +249,7 @@ TSharedRef<SDockTab> FConcertServerSessionBrowserController::SpawnSessionBrowser
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.Label(LOCTEXT("SessionBrowserTabTitle", "Sessions"))
 		.TabRole(MajorTab)
+		.OnCanCloseTab(SDockTab::FCanCloseTab::CreateLambda([](){ return false; }))
 		[
 			SAssignNew(ConcertBrowser, SConcertServerSessionBrowser, SharedThis(this))
 				.DoubleClickLiveSession(this, &FConcertServerSessionBrowserController::OpenSession)

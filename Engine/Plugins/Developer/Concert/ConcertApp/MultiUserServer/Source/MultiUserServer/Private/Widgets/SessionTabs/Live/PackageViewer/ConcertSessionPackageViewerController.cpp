@@ -4,9 +4,9 @@
 
 #include "ConcertSyncSessionDatabase.h"
 #include "IConcertSyncServer.h"
-#include "MultiUserServerUserSettings.h"
+#include "IConcertSession.h"
+#include "Settings/MultiUserServerColumnVisibilitySettings.h"
 #include "SConcertSessionPackageViewer.h"
-#include "Concert/Private/ConcertServerSession.h"
 
 FConcertSessionPackageViewerController::FConcertSessionPackageViewerController(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer)
 	: InspectedSession(MoveTemp(InspectedSession))
@@ -14,7 +14,7 @@ FConcertSessionPackageViewerController::FConcertSessionPackageViewerController(T
 	, PackageViewer(MakePackageViewer())
 {
 	ReloadActivities();
-	UMultiUserServerUserSettings::GetUserSettings()->OnLiveSessionContentColumnVisibility().AddRaw(this, &FConcertSessionPackageViewerController::OnSessionContentColumnVisibilitySettingsUpdated);
+	UMultiUserServerColumnVisibilitySettings::GetSettings()->OnLiveSessionContentColumnVisibility().AddRaw(this, &FConcertSessionPackageViewerController::OnSessionContentColumnVisibilitySettingsUpdated);
 	
 	if (const TOptional<FConcertSyncSessionDatabaseNonNullPtr> Database = SyncServer->GetLiveSessionDatabase(InspectedSession->GetId()))
 	{
@@ -24,7 +24,7 @@ FConcertSessionPackageViewerController::FConcertSessionPackageViewerController(T
 
 FConcertSessionPackageViewerController::~FConcertSessionPackageViewerController()
 {
-	if (UMultiUserServerUserSettings* Settings = UMultiUserServerUserSettings::GetUserSettings(); IsValid(Settings))
+	if (UMultiUserServerColumnVisibilitySettings* Settings = UMultiUserServerColumnVisibilitySettings::GetSettings(); IsValid(Settings))
 	{
 		Settings->OnLiveSessionContentColumnVisibility().RemoveAll(this);
 	}

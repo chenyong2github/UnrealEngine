@@ -12,6 +12,7 @@ class FLiveConcertSessionTab;
 class IConcertServerSession;
 class IConcertSyncServer;
 class FConcertServerSessionBrowserController;
+class FConcertClientsTabController;
 class FOutputLogController;
 class SWindow;
 
@@ -39,7 +40,9 @@ public:
 	
 	FConcertServerWindowController(const FConcertServerWindowInitParams& Params);
 	~FConcertServerWindowController();
+	
 	TSharedRef<SWindow> CreateWindow();
+	TSharedPtr<SWindow> GetRootWindow() const { return RootWindow; }
 
 	/** Opens or draws attention to the tab for the given live or archived session ID */
 	void OpenSessionTab(const FGuid& SessionId);
@@ -62,6 +65,8 @@ private:
 	
 	/** Manages the session browser */
 	TSharedRef<FConcertServerSessionBrowserController> SessionBrowserController;
+	/** Manages the view of connected clients */
+	TSharedRef<FConcertClientsTabController> ClientsController;
 	/** Additional external concert components */
 	TArray<TSharedRef<IConcertComponent>> ConcertComponents;
 	

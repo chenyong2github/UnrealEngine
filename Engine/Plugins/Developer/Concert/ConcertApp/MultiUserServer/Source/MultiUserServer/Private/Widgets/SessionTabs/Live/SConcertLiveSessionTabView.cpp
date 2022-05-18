@@ -5,8 +5,6 @@
 #include "Framework/Docking/TabManager.h"
 #include "Session/History/SSessionHistory.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "SConcertSessionInspector"
 
@@ -24,7 +22,7 @@ void SConcertLiveSessionTabView::Construct(const FArguments& InArgs, const FRequ
 		{
 			CreateTabs(InTabManager, InLayout, InRequiredArgs);
 		}))
-		.LayoutName("ConcertSessionInspector_v0.1"),
+		.LayoutName("ConcertSessionInspector_v0.2"),
 		StatusBarId
 		);
 }
@@ -36,9 +34,6 @@ TSharedRef<SWidget> SConcertLiveSessionTabView::CreateTabs(const TSharedRef<FTab
 	
 	InTabManager->RegisterTabSpawner(SessionContentTabId, FOnSpawnTab::CreateSP(this, &SConcertLiveSessionTabView::SpawnSessionContent, InRequiredArgs.PackageViewer))
 		.SetDisplayName(LOCTEXT("SessionContentLabel", "Session Content"));
-	
-	InTabManager->RegisterTabSpawner(ConnectionMonitorTabId, FOnSpawnTab::CreateSP(this, &SConcertLiveSessionTabView::SpawnConnectionMonitor))
-		.SetDisplayName(LOCTEXT("ConnectionMonitorLabel", "Connection Monitor"));
 
 	InLayout->AddArea
 	(
@@ -90,16 +85,6 @@ TSharedRef<SDockTab> SConcertLiveSessionTabView::SpawnSessionContent(const FSpaw
 		.TabRole(PanelTab)
 		[
 			PackageViewer
-		];
-}
-
-TSharedRef<SDockTab> SConcertLiveSessionTabView::SpawnConnectionMonitor(const FSpawnTabArgs& Args)
-{
-	return SNew(SDockTab)
-		.Label(LOCTEXT("ConnectionMonitorLabel", "Connection Monitor"))
-		.TabRole(PanelTab)
-		[
-			SNullWidget::NullWidget
 		];
 }
 

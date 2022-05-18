@@ -2,13 +2,12 @@
 
 #include "SConcertSessionPackageViewer.h"
 
-#include "MultiUserServerUserSettings.h"
 #include "PackageViewerColumns.h"
+#include "Settings/MultiUserServerColumnVisibilitySettings.h"
 
-#include "Session/Activity/PredefinedActivityColumns.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Session/Activity/SConcertSessionActivities.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
@@ -41,10 +40,10 @@ void SConcertSessionPackageViewer::Construct(const FArguments& InArgs)
 		.TransactionActivitiesVisibility(EVisibility::Collapsed)
 		.DetailsAreaVisibility(EVisibility::Collapsed)
 		.IsAutoScrollEnabled(true)
-		.ColumnVisibilitySnapshot(UMultiUserServerUserSettings::GetUserSettings()->GetLiveSessionContentColumnVisibility())
+		.ColumnVisibilitySnapshot(UMultiUserServerColumnVisibilitySettings::GetSettings()->GetLiveSessionContentColumnVisibility())
 		.SaveColumnVisibilitySnapshot_Lambda([](const FColumnVisibilitySnapshot& Snapshot)
 		{
-			UMultiUserServerUserSettings::GetUserSettings()->SetLiveSessionContentColumnVisibility(Snapshot);
+			UMultiUserServerColumnVisibilitySettings::GetSettings()->SetLiveSessionContentColumnVisibility(Snapshot);
 		});
 
 	ChildSlot

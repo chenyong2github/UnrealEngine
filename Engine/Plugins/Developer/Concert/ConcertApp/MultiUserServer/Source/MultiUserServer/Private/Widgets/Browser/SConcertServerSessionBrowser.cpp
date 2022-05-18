@@ -3,10 +3,10 @@
 #include "SConcertServerSessionBrowser.h"
 
 #include "MultiUserServerModule.h"
-#include "MultiUserServerUserSettings.h"
 #include "Session/Browser/ConcertBrowserUtils.h"
 #include "Session/Browser/ConcertSessionItem.h"
 #include "Session/Browser/SConcertSessionBrowser.h"
+#include "Settings/MultiUserServerColumnVisibilitySettings.h"
 #include "Widgets/Browser/ConcertServerSessionBrowserController.h"
 #include "Window/ConcertServerTabs.h"
 #include "Window/ModalWindowManager.h"
@@ -37,10 +37,10 @@ TSharedRef<SWidget> SConcertServerSessionBrowser::MakeSessionTableView(const FAr
 		.PostRequestedDeleteSession(this, &SConcertServerSessionBrowser::RequestDeleteSession)
 		// Pretend a modal dialog said no - RequestDeleteSession will show non-modal dialog
 		.AskUserToDeleteSessions_Lambda([](auto) { return false; })
-		.ColumnVisibilitySnapshot(UMultiUserServerUserSettings::GetUserSettings()->GetSessionBrowserColumnVisibility())
+		.ColumnVisibilitySnapshot(UMultiUserServerColumnVisibilitySettings::GetSettings()->GetSessionBrowserColumnVisibility())
 		.SaveColumnVisibilitySnapshot_Lambda([](const FColumnVisibilitySnapshot& Snapshot)
 		{
-			UMultiUserServerUserSettings::GetUserSettings()->SetSessionBrowserColumnVisibility(Snapshot);
+			UMultiUserServerColumnVisibilitySettings::GetSettings()->SetSessionBrowserColumnVisibility(Snapshot);
 		});
 }
 

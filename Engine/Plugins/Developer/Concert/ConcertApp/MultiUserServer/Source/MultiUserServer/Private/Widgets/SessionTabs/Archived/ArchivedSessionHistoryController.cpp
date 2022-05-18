@@ -2,7 +2,7 @@
 
 #include "ArchivedSessionHistoryController.h"
 
-#include "MultiUserServerUserSettings.h"
+#include "Settings/MultiUserServerColumnVisibilitySettings.h"
 
 FArchivedSessionHistoryController::FArchivedSessionHistoryController(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer, SSessionHistory::FArguments Arguments)
 	: FServerSessionHistoryControllerBase(MoveTemp(SessionId), MoveTemp(Arguments))
@@ -23,10 +23,10 @@ namespace UE::MultiUserServer
 		static SSessionHistory::FArguments MakeArgumentsForInspector(SSessionHistory::FArguments&& InArgs)
 		{
 			return InArgs
-				.ColumnVisibilitySnapshot(UMultiUserServerUserSettings::GetUserSettings()->GetArchivedActivityBrowserColumnVisibility())
+				.ColumnVisibilitySnapshot(UMultiUserServerColumnVisibilitySettings::GetSettings()->GetArchivedActivityBrowserColumnVisibility())
 				.SaveColumnVisibilitySnapshot_Lambda([](const FColumnVisibilitySnapshot& Snapshot)
 				{
-					UMultiUserServerUserSettings::GetUserSettings()->SetArchivedActivityBrowserColumnVisibility(Snapshot);
+					UMultiUserServerColumnVisibilitySettings::GetSettings()->SetArchivedActivityBrowserColumnVisibility(Snapshot);
 				});
 		}
 
@@ -36,12 +36,12 @@ namespace UE::MultiUserServer
 			FInspectorSessionHistoryController(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer, SSessionHistory::FArguments Arguments)
 				: FArchivedSessionHistoryController(MoveTemp(SessionId), MoveTemp(SyncServer), MakeArgumentsForInspector(MoveTemp(Arguments)))
 			{
-				UMultiUserServerUserSettings::GetUserSettings()->OnArchivedActivityBrowserColumnVisibility().AddRaw(this, &FInspectorSessionHistoryController::OnActivityListColumnVisibilitySettingsUpdated);
+				UMultiUserServerColumnVisibilitySettings::GetSettings()->OnArchivedActivityBrowserColumnVisibility().AddRaw(this, &FInspectorSessionHistoryController::OnActivityListColumnVisibilitySettingsUpdated);
 			}
 		
 			virtual ~FInspectorSessionHistoryController() override
 			{
-				if (UMultiUserServerUserSettings* Settings = UMultiUserServerUserSettings::GetUserSettings(); IsValid(Settings))
+				if (UMultiUserServerColumnVisibilitySettings* Settings = UMultiUserServerColumnVisibilitySettings::GetSettings(); IsValid(Settings))
 				{
 					Settings->OnArchivedActivityBrowserColumnVisibility().RemoveAll(this);
 				}
@@ -56,10 +56,10 @@ namespace UE::MultiUserServer
 		static SSessionHistory::FArguments MakeArgumentsForDeleteDialog(SSessionHistory::FArguments&& InArgs)
 		{
 			return InArgs
-				.ColumnVisibilitySnapshot(UMultiUserServerUserSettings::GetUserSettings()->GetDeleteActivityDialogColumnVisibility())
+				.ColumnVisibilitySnapshot(UMultiUserServerColumnVisibilitySettings::GetSettings()->GetDeleteActivityDialogColumnVisibility())
 				.SaveColumnVisibilitySnapshot_Lambda([](const FColumnVisibilitySnapshot& Snapshot)
 				{
-					UMultiUserServerUserSettings::GetUserSettings()->SetDeleteActivityDialogColumnVisibility(Snapshot);
+					UMultiUserServerColumnVisibilitySettings::GetSettings()->SetDeleteActivityDialogColumnVisibility(Snapshot);
 				});
 		}
 
@@ -70,12 +70,12 @@ namespace UE::MultiUserServer
 			FDeleteDialogSessionHistoryController(FGuid SessionId, TSharedRef<IConcertSyncServer> SyncServer, SSessionHistory::FArguments Arguments)
 				: FArchivedSessionHistoryController(MoveTemp(SessionId), MoveTemp(SyncServer), MakeArgumentsForDeleteDialog(MoveTemp(Arguments)))
 			{
-				UMultiUserServerUserSettings::GetUserSettings()->OnDeleteActivityDialogColumnVisibility().AddRaw(this, &FDeleteDialogSessionHistoryController::OnActivityListColumnVisibilitySettingsUpdated);
+				UMultiUserServerColumnVisibilitySettings::GetSettings()->OnDeleteActivityDialogColumnVisibility().AddRaw(this, &FDeleteDialogSessionHistoryController::OnActivityListColumnVisibilitySettingsUpdated);
 			}
 		
 			virtual ~FDeleteDialogSessionHistoryController() override
 			{
-				if (UMultiUserServerUserSettings* Settings = UMultiUserServerUserSettings::GetUserSettings(); IsValid(Settings))
+				if (UMultiUserServerColumnVisibilitySettings* Settings = UMultiUserServerColumnVisibilitySettings::GetSettings(); IsValid(Settings))
 				{
 					Settings->OnDeleteActivityDialogColumnVisibility().RemoveAll(this);
 				}

@@ -11,7 +11,7 @@ void SConcertTabViewWithManagerBase::Construct(const FArguments& InArgs, FName I
 		SConcertTabViewBase::FArguments()
 		.Content()
 		[
-			CreateTabs(InArgs)
+			InArgs._OverlayTabs.IsBound() ? InArgs._OverlayTabs.Execute(CreateTabs(InArgs)) : CreateTabs(InArgs)
 		],
 		InStatusBarId
 		);

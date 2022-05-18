@@ -1,6 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MultiUserServerUserSettings.h"
+#include "MultiUserServerColumnVisibilitySettings.h"
 
 #include "Misc/CoreDelegates.h"
 
@@ -9,7 +9,7 @@ namespace UE::MultiUserServer
 	static bool bIsShutdown = false;
 }
 
-UMultiUserServerUserSettings::UMultiUserServerUserSettings()
+UMultiUserServerColumnVisibilitySettings::UMultiUserServerColumnVisibilitySettings()
 {
 	OnSessionBrowserColumnVisibilityChanged().AddLambda([this](const FColumnVisibilitySnapshot&)
 	{
@@ -31,6 +31,10 @@ UMultiUserServerUserSettings::UMultiUserServerUserSettings()
 	{
 		SaveConfig();
 	});
+	OnTransportLogColumnVisibility().AddLambda([this](const FColumnVisibilitySnapshot&)
+	{
+		SaveConfig();
+	});
 
 	FCoreDelegates::OnPreExit.AddLambda([]()
 	{
@@ -38,10 +42,10 @@ UMultiUserServerUserSettings::UMultiUserServerUserSettings()
 	});
 }
 
-UMultiUserServerUserSettings* UMultiUserServerUserSettings::GetUserSettings()
+UMultiUserServerColumnVisibilitySettings* UMultiUserServerColumnVisibilitySettings::GetSettings()
 {
 	// If we're shutting down GetMutableDefault will return garbage - this function may be called by destructors when this module is unloaded
 	return UE::MultiUserServer::bIsShutdown
 		? nullptr
-		: GetMutableDefault<UMultiUserServerUserSettings>();
+		: GetMutableDefault<UMultiUserServerColumnVisibilitySettings>();
 }

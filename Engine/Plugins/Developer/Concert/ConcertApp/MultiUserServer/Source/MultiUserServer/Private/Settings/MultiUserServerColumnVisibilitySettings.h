@@ -5,22 +5,22 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "ConcertHeaderRowUtils.h"
-#include "MultiUserServerUserSettings.generated.h"
+#include "MultiUserServerColumnVisibilitySettings.generated.h"
 
 /**
  * 
  */
 UCLASS(Config = MultiUserServerUserSettings, DefaultConfig)
-class MULTIUSERSERVER_API UMultiUserServerUserSettings : public UObject
+class MULTIUSERSERVER_API UMultiUserServerColumnVisibilitySettings : public UObject
 {
 	GENERATED_BODY()
 public:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnColumnVisibilitySnapshotChanged, const FColumnVisibilitySnapshot& /*NewValue*/);
 
-	UMultiUserServerUserSettings();
+	UMultiUserServerColumnVisibilitySettings();
 	
-	static UMultiUserServerUserSettings* GetUserSettings();
+	static UMultiUserServerColumnVisibilitySettings* GetSettings();
 
 	const FColumnVisibilitySnapshot& GetSessionBrowserColumnVisibility() const { return SessionBrowserColumnVisibility; }
 	void SetSessionBrowserColumnVisibility(FColumnVisibilitySnapshot NewValue) { SessionBrowserColumnVisibility = MoveTemp(NewValue); OnSessionBrowserColumnVisibilityChangedEvent.Broadcast(SessionBrowserColumnVisibility); }
@@ -41,6 +41,10 @@ public:
 	const FColumnVisibilitySnapshot& GetLiveSessionContentColumnVisibility() const { return LiveSessionContentColumnVisibility; }
 	void SetLiveSessionContentColumnVisibility(FColumnVisibilitySnapshot NewValue) { LiveSessionContentColumnVisibility = MoveTemp(NewValue); OnLiveSessionContentColumnVisibilityEvent.Broadcast(LiveSessionContentColumnVisibility); }
 	FOnColumnVisibilitySnapshotChanged& OnLiveSessionContentColumnVisibility() { return OnLiveSessionContentColumnVisibilityEvent; }
+
+	const FColumnVisibilitySnapshot& GetTransportLogColumnVisibility() const { return TransportLogColumnVisibility; }
+	void SetTransportLogColumnVisibility(FColumnVisibilitySnapshot NewValue) { TransportLogColumnVisibility = MoveTemp(NewValue); OnTransportLogColumnVisibilityEvent.Broadcast(TransportLogColumnVisibility); }
+	FOnColumnVisibilitySnapshotChanged& OnTransportLogColumnVisibility() { return OnTransportLogColumnVisibilityEvent; }
 	
 private:
 	
@@ -63,4 +67,8 @@ private:
 	UPROPERTY(Config)
 	FColumnVisibilitySnapshot LiveSessionContentColumnVisibility;
 	FOnColumnVisibilitySnapshotChanged OnLiveSessionContentColumnVisibilityEvent;
+
+	UPROPERTY(Config)
+	FColumnVisibilitySnapshot TransportLogColumnVisibility;
+	FOnColumnVisibilitySnapshotChanged OnTransportLogColumnVisibilityEvent;
 };
