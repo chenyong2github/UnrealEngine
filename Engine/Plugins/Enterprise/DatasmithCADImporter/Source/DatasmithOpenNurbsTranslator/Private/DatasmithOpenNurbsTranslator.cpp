@@ -3002,7 +3002,13 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 		CADModelConverter->SaveModel(*OutputPath, MeshElement);
 
 		CADLibrary::FMeshParameters MeshParameters;
-		return CADModelConverter->Tessellate(MeshParameters, OutMesh);
+		bool bRet = CADModelConverter->Tessellate(MeshParameters, OutMesh);
+		if (!bRet)
+		{
+			FString StaticMeshLable = MeshElement->GetLabel();
+			UE_LOG(LogDatasmithOpenNurbsTranslator, Warning, TEXT("Failed to generate the mesh of \"%s\" (%s) StaticMesh."), *StaticMeshLable, *Name);
+		}
+		return bRet;
 	}
 	else
 	{

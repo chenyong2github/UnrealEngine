@@ -33,7 +33,7 @@ enum EComponentType : uint32
 	LastType
 };
 
-class CADINTERFACES_API FTechSoftFileParser : public ICADFileParser
+class FTechSoftFileParser : public ICADFileParser
 {
 public:
 
@@ -97,24 +97,30 @@ private:
 
 	// Traverse ASM tree by starting from the model
 	ECADParsingResult TraverseModel();
-	void TraverseReference(const A3DAsmProductOccurrence* Reference, const FMatrix& ParentMatrix, double ParentUnit);
+
+	// Note:
+	// Due to dataprep purpose, node without name cannot have a generic name (e.g. Product, Part, Body, Shell, etc...) but must have a name based on its parent's name.
+	// To be able to build a name, the name of the parent has to be known.
+	// The implementation of the naming policy is done in 5.0.3 with minimal code modification. However the model parsing need to be rewrite in the next version. (Jira UE-152624)
+
+	void TraverseReference(const A3DAsmProductOccurrence* Reference, const FString& RootName, const FMatrix& ParentMatrix, double ParentUnit);
 	bool IsConfigurationSet(const A3DAsmProductOccurrence* Occurrence);
 	void TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSet, double ParentUnit);
-	FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence, double ParentUnit);
+	FCadId TraverseOccurrence(const A3DAsmProductOccurrence* Occurrence, const FString& DefaultOccurrenceName, double ParentUnit);
 	void ProcessPrototype(const A3DAsmProductOccurrence* InPrototype, FEntityMetaData& OutMetaData, A3DMiscTransformation** OutLocation);
 	void TraversePartDefinition(const A3DAsmPartDefinition* PartDefinition, FArchiveComponent& Component, double ParentUnit);
 	FCadId TraverseRepresentationSet(const A3DRiSet* pSet, const FEntityMetaData& PartMetaData, double ParentUnit);
-	FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit);
-	FCadId TraverseBRepModel(A3DRiBrepModel* BrepModel, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit);
-	FCadId TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalBrepModel, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit);
+	FCadId TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit, int32 ItemIndex);
+	FCadId TraverseBRepModel(A3DRiBrepModel* BrepModel, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit, int32 ItemIndex);
+	FCadId TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalBrepModel, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit, int32 ItemIndex);
 
 	// MetaData
 	void ExtractSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FEntityMetaData& OutMetaData);
 
-	void BuildInstanceName(FEntityMetaData& MetaData);
+	void BuildInstanceName(FEntityMetaData& MetaData, const FString& DefaultInstanceName);
 	void BuildReferenceName(FEntityMetaData& MetaData);
-	void BuildPartName(FEntityMetaData& MetaData);
-	void BuildBodyName(FEntityMetaData& MetaData, const FEntityMetaData& PartMetaData, bool bIsSolid);
+	void BuildPartName(FEntityMetaData& MetaData, const FArchiveComponent& Component);
+	void BuildBodyName(FEntityMetaData& MetaData, const FEntityMetaData& PartMetaData, int32 ItemIndex, bool bIsSolid);
 
 	// Graphic properties
 	void ExtractGraphicProperties(const A3DGraphics* Graphics, FEntityMetaData& OutMetaData);

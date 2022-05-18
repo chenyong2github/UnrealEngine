@@ -282,7 +282,8 @@ void GetMaterialValues(uint32 StyleIndex, FCADUUID& OutColorName, FCADUUID& OutM
 			TUniqueTSObjFromIndex<A3DGraphRgbColorData> ColorData(GraphStyleData->m_uiRgbColorIndex);
 			if (ColorData.IsValid())
 			{
-				const uint8 Alpha = GraphStyleData->m_bIsTransparencyDefined ? GraphStyleData->m_ucTransparency : 255;
+				// Alpha == Opacity == (255 - Transparency)
+				const uint8 Alpha = GraphStyleData->m_bIsTransparencyDefined ? (255 - GraphStyleData->m_ucTransparency) : 255;
 				const FColor ColorValue((uint8)(ColorData->m_dRed * 255), (uint8)(ColorData->m_dGreen * 255), (uint8)(ColorData->m_dBlue * 255), Alpha);
 
 				OutColorName = BuildColorName(ColorValue);
@@ -687,6 +688,19 @@ FString CleanCatiaInstanceSdkName(const FString& Name)
 	return Name;
 }
 
+FString Clean3dxmlInstanceSdkName(const FString& Name)
+{
+	FString NewName = CleanCatiaInstanceSdkName(Name);
+
+	int32 Index = NewName.Find(TEXT("_InstanceRep"));
+	if (Index != INDEX_NONE)
+	{
+		NewName = NewName.Left(Index);
+	}
+
+	return NewName;
+}
+
 FString Clean3dxmlReferenceSdkName(const FString& Name)
 {
 	int32 Index;
@@ -695,6 +709,14 @@ FString Clean3dxmlReferenceSdkName(const FString& Name)
 		FString NewName = Name.Left(Index);
 		return NewName;
 	}
+
+	Index = Name.Find(TEXT("_InstanceRep"));
+	if (Index != INDEX_NONE)
+	{
+		FString NewName = Name.Left(Index);
+		return NewName;
+	}
+
 	return Name;
 }
 

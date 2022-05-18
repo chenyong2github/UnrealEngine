@@ -72,13 +72,6 @@ namespace UE_DATASMITHWIRETRANSLATOR_NAMESPACE
 {
 
 static bool bGAliasSewByColor = false;
-FAutoConsoleVariableRef GAliasSewByColor(
-	TEXT("ds.CADTranslator.Alias.SewByColor"),
-	bGAliasSewByColor,
-	TEXT("Enable Sew action merges BReps according to their material i.e. only BReps associated with same material can be merged together.\
-Default is disable\n"),
-	ECVF_Default);
-
 
 static const FColor DefaultColor = FColor(200, 200, 200);
 
@@ -1428,7 +1421,7 @@ bool FWireTranslatorImpl::ProcessAlGroupNode(AlDagNode& GroupNode, const FDagNod
 	TSharedPtr<AlDagNode> ChildNode(AlChildPtr);
 
 	FDagNodeInfo ThisGroupNodeInfo;
-	GetDagNodeInfo(*ChildNode, ParentInfo, ThisGroupNodeInfo);
+	GetDagNodeInfo(GroupNode, ParentInfo, ThisGroupNodeInfo);
 
 	ThisGroupNodeInfo.ActorElement = FDatasmithSceneFactory::CreateActor(*OpenModelUtils::UuidToString(ThisGroupNodeInfo.Uuid));
 	ThisGroupNodeInfo.ActorElement->SetLabel(*ThisGroupNodeInfo.Label);
@@ -1955,7 +1948,13 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	CADModelConverter->Tessellate(MeshParameters, MeshDescription);
+	bool bRet = CADModelConverter->Tessellate(MeshParameters, MeshDescription);
+	if (!bRet)
+	{
+		FString StaticMeshLable = MeshElement->GetLabel();
+		FString StaticMeshName = MeshElement->GetName();
+		UE_LOG(LogDatasmithWireTranslator, Warning, TEXT("Failed to generate the mesh of \"%s\" (%s) StaticMesh."), *StaticMeshLable, *StaticMeshName);
+	}
 
 	return MoveTemp(MeshDescription);
 }

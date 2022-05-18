@@ -383,8 +383,10 @@ A3DTopoFace* FOpenNurbsBRepToTechSoftConverter::CreateTopoFace(const ON_BrepFace
 	Face->m_dTolerance = 0.01; //mm
 
 	A3DTopoFace* FacePtr = CADLibrary::TechSoftInterface::CreateTopoFace(*Face);
-
-	CADLibrary::TechSoftUtils::SetEntityGraphicsColor(FacePtr, FColor(200, 200, 200));
+	
+	// Color with color name = 0. c.f. CADLibrary::BuildColorName 
+	constexpr FColor DefaultColor(0, 0, 0, 0);
+	CADLibrary::TechSoftUtils::SetEntityGraphicsColor(FacePtr, DefaultColor);
 
 	return FacePtr;
 }

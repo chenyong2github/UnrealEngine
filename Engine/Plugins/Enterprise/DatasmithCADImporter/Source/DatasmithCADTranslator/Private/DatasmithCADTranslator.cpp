@@ -122,6 +122,12 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	}
 
 	case CADLibrary::ECADFormat::SOLIDWORKS:
+	{
+		ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::YUp_RightHanded);
+		ImportParameters.SetDisplayPreference(CADLibrary::EDisplayPreference::ColorOnly);
+		break;
+	}
+
 	case CADLibrary::ECADFormat::INVENTOR:
 	case CADLibrary::ECADFormat::CREO:
 	{
