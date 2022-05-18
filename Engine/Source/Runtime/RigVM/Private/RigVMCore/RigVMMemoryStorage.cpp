@@ -350,6 +350,21 @@ void URigVMMemoryStorageGeneratorClass::Link(FArchive& Ar, bool bRelinkExistingP
 
 void URigVMMemoryStorageGeneratorClass::Serialize(FArchive& Ar)
 {
+	if (Ar.IsLoading() && ChildProperties != nullptr)
+	{
+		// if there are already properties in this class
+		// it means that the VM has regenerated the class before
+		// the class' own deserialization took place
+		// in that case, the VM generated class should take priority
+		// so a dummy class is used here to consume/throw away outdated serialized data
+		URigVMMemoryStorageGeneratorClass* AuxStorageClass = NewObject<URigVMMemoryStorageGeneratorClass>(
+			GetTransientPackage(),
+			TEXT("URigVMMemoryStorageGeneratorClass_Auxiliary"));
+		AuxStorageClass->ClassAddReferencedObjects = &this->AddReferencedObjects;
+		AuxStorageClass->Serialize(Ar);
+		return;
+	}
+
 	Super::Serialize(Ar);
 
 	if(Ar.IsLoading() || Ar.IsSaving())
