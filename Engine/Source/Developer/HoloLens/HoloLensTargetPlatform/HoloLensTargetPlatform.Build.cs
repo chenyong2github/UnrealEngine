@@ -21,6 +21,9 @@ public class HoloLensTargetPlatform : ModuleRules
             }
         );
 
+		// directly include the location of the HoloLensPlatformProperties.h files so that we don't instantiate the Core_HoloLens module for host platform
+		PrivateIncludePaths.Add(Path.Combine(EngineDirectory, "Platforms/HoloLens/Source/Runtime/Core/Public"));
+
 		PrivateIncludePathModuleNames.Add("Settings");
 
         int Win10Build = 0;

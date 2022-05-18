@@ -2,15 +2,13 @@
 
 using UnrealBuildTool;
 
-[SupportedPlatforms("Win64", "HoloLens")]
+[SupportedPlatforms("Win64")]
 public class D3D11RHI : ModuleRules
 {
+	protected virtual bool bIncludeExtensions { get => true; }
+
 	public D3D11RHI(ReadOnlyTargetRules Target) : base(Target)
 	{
-		if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			PrivateIncludePaths.Add("Runtime/Windows/D3D11RHI/Private/HoloLens");
-		}
 		PrivateIncludePaths.Add("Runtime/Windows/D3D11RHI/Private");
 		PrivateIncludePaths.Add("../Shaders/Shared");
 
@@ -26,7 +24,7 @@ public class D3D11RHI : ModuleRules
 			);
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-		if (Target.Platform != UnrealTargetPlatform.HoloLens)
+		if (bIncludeExtensions)
 		{ 
         	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");

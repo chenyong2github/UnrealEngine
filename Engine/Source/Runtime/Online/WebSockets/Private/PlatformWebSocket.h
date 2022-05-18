@@ -13,7 +13,7 @@
 #elif WITH_WINHTTPWEBSOCKETS
 	#include "WinHttp/WinHttpWebSocketsManager.h"
 #elif PLATFORM_HOLOLENS
-	#include "HoloLens/HoloLensWebSocketsManager.h"
+	#include "HoloLensWebSocketsManager.h"
 #else
 	#error "Web Sockets not implemented on this platform yet"
 #endif

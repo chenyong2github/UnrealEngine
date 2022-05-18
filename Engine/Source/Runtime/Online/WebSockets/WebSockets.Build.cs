@@ -26,6 +26,11 @@ public class WebSockets : ModuleRules
 		}
 	}
 
+	protected virtual bool bPlatformSupportsWinRTWebsockets
+	{
+		get => false;
+	}
+
 	protected virtual bool UsePlatformSSL
 	{
 		get => false;
@@ -35,8 +40,6 @@ public class WebSockets : ModuleRules
 	{
 		get
 		{
-			bool bPlatformSupportsWinRTWebsockets = Target.Platform == UnrealTargetPlatform.HoloLens;
-
 			return PlatformSupportsLibWebsockets || bPlatformSupportsWinRTWebsockets || bPlatformSupportsWinHttpWebSockets;
 		}
 	}

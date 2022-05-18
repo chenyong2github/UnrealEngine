@@ -7,8 +7,6 @@
 
 #if PLATFORM_WINDOWS
 	#include "Windows/D3D12ThirdParty.h"
-#elif PLATFORM_HOLOLENS
-	#include "HoloLens/D3D12ThirdParty.h"
 #else
 	#include "D3D12ThirdParty.h"
 #endif

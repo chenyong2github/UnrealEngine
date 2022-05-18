@@ -69,7 +69,7 @@ public class HLMedia : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
-            PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private/HoloLens"));
+            PrivateIncludePaths.Add(Path.Combine(EngineDir, "Platforms/HoloLens/Source/Runtime/Windows/D3D11RHI/Private"));
         }
     }
 }

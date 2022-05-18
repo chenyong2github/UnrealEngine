@@ -13,7 +13,7 @@
 #include "Windows/WindowsApplication.h"
 #endif
 #if PLATFORM_HOLOLENS
-#include "HoloLens/HoloLensApplication.h"
+#include "HoloLensApplication.h"
 #endif
 
 #include "Framework/Application/SlateApplication.h"

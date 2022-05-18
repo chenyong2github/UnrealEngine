@@ -8,7 +8,7 @@
 
 #include "Containers/UnrealString.h"
 #include "Http.h"
-#include "HoloLens/AllowWindowsPlatformTypes.h"
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #include <msxml6.h>
 #include <wrl.h>
 #include <Windows.h>
@@ -111,6 +111,6 @@ protected:
 };
 
 
-#include "HoloLens/HideWindowsPlatformTypes.h"
+#include "Microsoft/HideMicrosoftPlatformTypes.h"
 
 #endif

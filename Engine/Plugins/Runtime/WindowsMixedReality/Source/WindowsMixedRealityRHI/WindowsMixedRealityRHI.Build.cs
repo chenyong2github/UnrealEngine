@@ -92,7 +92,7 @@ namespace UnrealBuildTool.Rules
                 }
                 else if (Target.Platform == UnrealTargetPlatform.HoloLens)
                 {
-                    PrivateIncludePaths.Add("../../../../Source/Runtime/Windows/D3D11RHI/Private/HoloLens");
+                    PrivateIncludePaths.Add("../../../../Platforms/HoloLens/Source/Runtime/Windows/D3D11RHI/Private");
                 }
 
                 PCHUsage = PCHUsageMode.NoSharedPCHs;

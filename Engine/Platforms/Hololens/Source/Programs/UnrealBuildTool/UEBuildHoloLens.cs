@@ -493,8 +493,6 @@ namespace UnrealBuildTool
 			}
 			else if (ModuleName == "D3D12RHI")
 			{
-				// To enable platform specific D3D12 RHI Types
-				Rules.PrivateIncludePaths.Add("Runtime/D3D12RHI/Private/HoloLens");
 				Rules.PrivateDependencyModuleNames.Add("WinPixEventRuntime");
 			}
 			else if (ModuleName == "DX11")
@@ -602,6 +600,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.Definitions.Add("HOLOLENS=1");
 
 			CompileEnvironment.Definitions.Add("WINAPI_FAMILY=WINAPI_FAMILY_APP");
+			CompileEnvironment.Definitions.Add("PLATFORM_IS_EXTENSION=1");
 			CompileEnvironment.Definitions.Add("PLATFORM_MICROSOFT=1");
 
 			// No D3DX on HoloLens!

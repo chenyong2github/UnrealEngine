@@ -5,8 +5,8 @@
 
 #if PLATFORM_WINDOWS
 	#include "Windows/D3D11ThirdParty.h"
-#elif PLATFORM_HOLOLENS
-	#include "HoloLens/D3D11ThirdParty.h"
+#else
+	#include "D3D11ThirdParty.h"
 #endif
 
 typedef ID3D11DeviceContext FD3D11DeviceContext;

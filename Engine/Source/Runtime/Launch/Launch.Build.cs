@@ -83,11 +83,6 @@ public class Launch : ModuleRules
 					"AudioMixerXAudio2",
 				});
 			}
-			else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-			{
-				DynamicallyLoadedModuleNames.Add("D3D11RHI");
-				DynamicallyLoadedModuleNames.Add("AudioMixerXAudio2");
-			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				DynamicallyLoadedModuleNames.AddRange(new string [] {

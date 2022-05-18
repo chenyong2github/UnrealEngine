@@ -8,7 +8,7 @@
 #include <string>
 #include <sstream>
 
-#include "AllowWindowsPlatformTypes.h"
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 
 // --------------------------------------------------------------------------------------
 // Name: HttpCallback::~HttpCallback
@@ -516,6 +516,6 @@ HRESULT RequestStream::Invoke(
 
 // --------------------------------------------------------------------------------------
 
-#include "HideWindowsPlatformTypes.h"
+#include "Microsoft/HideMicrosoftPlatformTypes.h"
 
 #endif

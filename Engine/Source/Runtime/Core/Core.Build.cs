@@ -93,17 +93,6 @@ public class Core : ModuleRules
 				PublicDefinitions.Add("UE_MEMORY_TAGS_TRACE_ENABLED=1");
 			}
 		}
-		else if ((Target.Platform == UnrealTargetPlatform.HoloLens))
-		{
-			PublicIncludePaths.Add("Runtime/Core/Public/HoloLens");
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"zlib");
-
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"IntelTBB",
-				"XInput"
-				);
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
@@ -213,11 +202,6 @@ public class Core : ModuleRules
 			}
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			PublicDefinitions.Add("WITH_VS_PERF_PROFILER=0");
-		}
-
 		// Superluminal instrumentation support, if one has it installed
 		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
@@ -279,7 +263,7 @@ public class Core : ModuleRules
 		}
 
 		if ((Target.Platform == UnrealTargetPlatform.Mac) || (Target.Platform == UnrealTargetPlatform.IOS) || (Target.Platform == UnrealTargetPlatform.TVOS) 
-			|| (Target.Platform == UnrealTargetPlatform.HoloLens) || (Target.Platform == UnrealTargetPlatform.Android))
+			|| (Target.Platform == UnrealTargetPlatform.Android))
 		{
 			PublicDefinitions.Add("IS_RUNNING_GAMETHREAD_ON_EXTERNAL_THREAD=1");
 		}

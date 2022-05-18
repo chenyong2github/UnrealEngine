@@ -48,12 +48,6 @@ public class RHI : ModuleRules
 					DynamicallyLoadedModuleNames.Add("D3D12RHI");
 				}
 
-				if ((Target.Platform == UnrealTargetPlatform.HoloLens))
-				{
-					DynamicallyLoadedModuleNames.Add("D3D11RHI");
-					DynamicallyLoadedModuleNames.Add("D3D12RHI");
-				}
-
 				if ((Target.Platform.IsInGroup(UnrealPlatformGroup.Windows)) ||
 					(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && (Target.Architecture.StartsWith("x86_64") || Target.Architecture.StartsWith("aarch64"))))	// temporary, not all archs can support Vulkan atm
 				{
