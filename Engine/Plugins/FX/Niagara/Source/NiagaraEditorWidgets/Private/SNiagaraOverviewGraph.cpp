@@ -18,6 +18,7 @@
 #include "NiagaraEditorModule.h"
 #include "GraphEditorActions.h"
 #include "NiagaraEditorWidgetsStyle.h"
+#include "NiagaraSettings.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "Framework/Application/SlateApplication.h"
@@ -116,9 +117,10 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 	GraphEditor->SetNodeFactory(MakeShared<FNiagaraOverviewGraphNodeFactory>());
 
 	GraphEditor->GetCurrentGraph()->AddOnGraphChangedHandler(FOnGraphChanged::FDelegate::CreateSP(this, &SNiagaraOverviewGraph::OnNodesCreated));
-	
+
+	const UNiagaraSettings* NiagaraSettings = GetDefault<UNiagaraSettings>();
 	FNiagaraGraphViewSettings ViewSettings = ViewModel->GetViewSettings();
-	if (ViewSettings.IsValid())
+	if (NiagaraSettings->bAlwaysZoomToFitSystemGraph == false && ViewSettings.IsValid())
 	{
 		GraphEditor->SetViewLocation(ViewSettings.GetLocation(), ViewSettings.GetZoom());
 		ZoomToFitFrameDelay = 0;
