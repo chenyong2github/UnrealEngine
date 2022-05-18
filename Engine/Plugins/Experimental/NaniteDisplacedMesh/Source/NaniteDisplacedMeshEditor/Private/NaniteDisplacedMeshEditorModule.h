@@ -5,7 +5,7 @@
 #include "Modules/ModuleInterface.h"
 
 class FAssetTypeActions_NaniteDisplacedMesh;
-class NaniteDisplacedMeshTransientPackage;
+class UPackage;
 
 class FNaniteDisplacedMeshEditorModule : public IModuleInterface
 {
