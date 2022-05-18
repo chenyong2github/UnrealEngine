@@ -494,10 +494,6 @@ void FNiagaraShaderScript::UpdateCachedData_PostCompile(bool bCalledFromSerializ
 	FNiagaraShaderMapCachedData CachedData;
 	CachedData.NumPermutations = GetNumPermutations();
 	CachedData.bIsComplete = 1;
-	CachedData.bGlobalConstantBufferUsed = 0;
-	CachedData.bSystemConstantBufferUsed = 0;
-	CachedData.bOwnerConstantBufferUsed = 0;
-	CachedData.bEmitterConstantBufferUsed = 0;
 	CachedData.bExternalConstantBufferUsed = 0;
 	CachedData.bViewUniformBufferUsed = 0;
 
@@ -516,10 +512,6 @@ void FNiagaraShaderScript::UpdateCachedData_PostCompile(bool bCalledFromSerializ
 			for (int i = 0; i < 2; ++i)
 			{
 				const uint32 BitToSet = 1 << i;
-				CachedData.bGlobalConstantBufferUsed |= NiagaraShader->GlobalConstantBufferParam[i].IsBound() ? BitToSet : 0;
-				CachedData.bSystemConstantBufferUsed |= NiagaraShader->SystemConstantBufferParam[i].IsBound() ? BitToSet : 0;
-				CachedData.bOwnerConstantBufferUsed |= NiagaraShader->OwnerConstantBufferParam[i].IsBound() ? BitToSet : 0;
-				CachedData.bEmitterConstantBufferUsed |= NiagaraShader->EmitterConstantBufferParam[i].IsBound() ? BitToSet : 0;
 				CachedData.bExternalConstantBufferUsed |= NiagaraShader->ExternalConstantBufferParam[i].IsBound() ? BitToSet : 0;
 			}
 			CachedData.bViewUniformBufferUsed |= NiagaraShader->bNeedsViewUniformBuffer;
@@ -679,10 +671,10 @@ void FNiagaraShaderScript::FinishCompilation()
 
 #endif
 
-void FNiagaraShaderScript::BuildScriptParametersMetadata(const TArray<FNiagaraDataInterfaceGPUParamInfo>& InDIParamInfo)
+void FNiagaraShaderScript::BuildScriptParametersMetadata(const FNiagaraShaderScriptParametersMetadata& InScriptParametersMetadata)
 {
 	ScriptParametersMetadata = MakeShared<FNiagaraShaderScriptParametersMetadata>();
-	ScriptParametersMetadata->DataInterfaceParamInfo = InDIParamInfo;
+	ScriptParametersMetadata->DataInterfaceParamInfo = InScriptParametersMetadata.DataInterfaceParamInfo;
 
 	FShaderParametersMetadataBuilder ShaderMetadataBuilder(TShaderParameterStructTypeInfo<FNiagaraShader::FParameters>::GetStructMetadata());
 
@@ -694,13 +686,12 @@ void FNiagaraShaderScript::BuildScriptParametersMetadata(const TArray<FNiagaraDa
 		if (CDODataInterface == nullptr)
 		{
 			Invalidate();
-			return;
 		}
 
 		if (CDODataInterface->UseLegacyShaderBindings() == false)
 		{
 			const uint32 NextMemberOffset = ShaderMetadataBuilder.GetNextMemberOffset();
-			FNiagaraShaderParametersBuilder ShaderParametersBuilder(DataInterfaceParamInfo, ShaderMetadataBuilder);
+			FNiagaraShaderParametersBuilder ShaderParametersBuilder(DataInterfaceParamInfo, ScriptParametersMetadata->LooseMetadataNames, ShaderMetadataBuilder);
 			CDODataInterface->BuildShaderParameters(ShaderParametersBuilder);
 			if (NextMemberOffset != ShaderMetadataBuilder.GetNextMemberOffset())
 			{
@@ -709,7 +700,7 @@ void FNiagaraShaderScript::BuildScriptParametersMetadata(const TArray<FNiagaraDa
 		}
 	}
 
-	ScriptParametersMetadata->ShaderParametersMetadata.Reset(ShaderMetadataBuilder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("FNiagaraShaderScript")));
+	ScriptParametersMetadata->ShaderParametersMetadata = MakeShareable<FShaderParametersMetadata>(ShaderMetadataBuilder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("FNiagaraShaderScript")));
 }
 
 FNiagaraShaderRef FNiagaraShaderScript::GetShader(int32 PermutationId) const

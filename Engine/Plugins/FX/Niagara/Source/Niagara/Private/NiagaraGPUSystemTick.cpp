@@ -166,6 +166,9 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 				FMemory::Memcpy(InstanceData->EmitterParamData + sizeof(FNiagaraEmitterParameters), &InSystemInstance->GetEmitterParameters(EmitterIdx, true), sizeof(FNiagaraEmitterParameters));
 			}
 
+			bHasMultipleStages = InstanceData->bHasMultipleStages;
+			bHasInterpolatedParameters |= GPUContext->HasInterpolationParameters;
+
 			GPUContext->CombinedParamStore.CopyParameterDataToPaddedBuffer(InstanceData->ExternalParamData, InstanceData->ExternalParamDataSize);
 
 			// Calling PostTick will push current -> previous parameters this must be done after copying the parameter data
@@ -263,56 +266,34 @@ void FNiagaraGPUSystemTick::Destroy()
 	}
 }
 
-FUniformBufferRHIRef FNiagaraGPUSystemTick::GetUniformBuffer(EUniformBufferType Type, const FNiagaraComputeInstanceData* Instance, bool Current) const
+void FNiagaraGPUSystemTick::BuildUniformBuffers()
 {
-	const int32 InterpOffset = Current
-		? 0
-		: (UBT_NumSystemTypes + InstanceCount * UBT_NumInstanceTypes);
+	check(ExternalUnformBuffers_RT.Num() == 0);
 
-	if (Instance)
+	const int32 InterpCount = bHasInterpolatedParameters ? 2 : 1;
+	ExternalUnformBuffers_RT.AddDefaulted(InstanceCount * InterpCount);
+
+	TArrayView<FNiagaraComputeInstanceData> Instances = GetInstances();
+	for (uint32 iInstance=0; iInstance < InstanceCount; ++iInstance)
 	{
-		check(Type >= UBT_FirstInstanceType);
-		check(Type < UBT_NumTypes);
+		const FNiagaraComputeInstanceData& Instance = Instances[iInstance];
 
-		const int32 InstanceTypeIndex = Type - UBT_FirstInstanceType;
-
-		const int32 InstanceIndex = (Instance - GetInstances().GetData());
-		return UniformBuffers[InterpOffset + UBT_NumSystemTypes + InstanceCount * InstanceTypeIndex + InstanceIndex];
-	}
-
-	check(Type >= UBT_FirstSystemType);
-	check(Type < UBT_FirstInstanceType);
-
-	return UniformBuffers[InterpOffset + Type];
-}
-
-const uint8* FNiagaraGPUSystemTick::GetUniformBufferSource(EUniformBufferType Type, const FNiagaraComputeInstanceData* Instance, bool Current) const
-{
-	check(Type >= UBT_FirstSystemType);
-	check(Type < UBT_NumTypes);
-
-	switch (Type)
-	{
-		case UBT_Global:
-			return GlobalParamData + (Current ? 0 : sizeof(FNiagaraGlobalParameters));
-		case UBT_System:
-			return SystemParamData + (Current ? 0 : sizeof(FNiagaraSystemParameters));
-		case UBT_Owner:
-			return OwnerParamData + (Current ? 0 : sizeof(FNiagaraOwnerParameters));
-		case UBT_Emitter:
+		FNiagaraRHIUniformBufferLayout* ExternalCBufferLayout = Instance.Context->ExternalCBufferLayout;
+		const bool bExternalLayoutValid = ExternalCBufferLayout && (ExternalCBufferLayout->Resources.Num() || ExternalCBufferLayout->ConstantBufferSize > 0);
+		if ( Instance.Context->GPUScript_RT->IsExternalConstantBufferUsed_RenderThread(0) )
 		{
-			check(Instance);
-			return Instance->EmitterParamData + (Current ? 0 : sizeof(FNiagaraEmitterParameters));
+			if ( ensure(ExternalCBufferLayout && bExternalLayoutValid) )
+			{
+				ExternalUnformBuffers_RT[iInstance] = RHICreateUniformBuffer(Instance.ExternalParamData, ExternalCBufferLayout, bHasMultipleStages ? EUniformBufferUsage::UniformBuffer_SingleFrame : EUniformBufferUsage::UniformBuffer_SingleDraw);
+			}
 		}
-		case UBT_External:
+		if ( Instance.Context->GPUScript_RT->IsExternalConstantBufferUsed_RenderThread(1) )
 		{
-			// External parameters are pushed from the combined parameters store, split into two where first half is current second is previous
-			check(Instance && Instance->Context);
-			check((Current ? 0 : Instance->Context->ExternalCBufferLayout->ConstantBufferSize) + Instance->Context->ExternalCBufferLayout->ConstantBufferSize <= Instance->ExternalParamDataSize);
-
-			return Instance->ExternalParamData + (Current ? 0 : Instance->Context->ExternalCBufferLayout->ConstantBufferSize);
+			if (ensure(ExternalCBufferLayout && bExternalLayoutValid))
+			{
+				check(ExternalCBufferLayout->ConstantBufferSize + ExternalCBufferLayout->ConstantBufferSize <= Instance.ExternalParamDataSize);
+				ExternalUnformBuffers_RT[InstanceCount + iInstance] = RHICreateUniformBuffer(Instance.ExternalParamData + ExternalCBufferLayout->ConstantBufferSize, ExternalCBufferLayout, bHasMultipleStages ? EUniformBufferUsage::UniformBuffer_SingleFrame : EUniformBufferUsage::UniformBuffer_SingleDraw);
+			}
 		}
 	}
-
-	return nullptr;
 }

@@ -111,7 +111,7 @@ void FNiagaraShaderQueueTickable::ProcessQueue()
 
 		FNiagaraComputeShaderCompilationOutput NewCompilationOutput;
 
-		ShaderScript->BuildScriptParametersMetadata(CompilableScript->GetVMExecutableData().DIParamInfo);
+		ShaderScript->BuildScriptParametersMetadata(CompilableScript->GetVMExecutableData().ShaderScriptParametersMetadata);
 		ShaderScript->SetSourceName(TEXT("NiagaraComputeShader"));
 		UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(CompilableScript->GetOuter());
 		if (Emitter && Emitter->GetUniqueEmitterName().Len() > 0)
@@ -996,7 +996,7 @@ void FHlslNiagaraTranslator::BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode
 	for (const FNiagaraVariable& Variable : T::GetVariables())
 	{
 		const FString SymbolName = GetSanitizedSymbolName(Variable.GetName().ToString(), true);
-		AddUniformChunk(SymbolName, Variable, ChunkMode, true);
+		AddUniformChunk(SymbolName, Variable, ChunkMode);
 	}
 }
 
@@ -1711,35 +1711,71 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			}
 		}
 
-		ENiagaraCodeChunkMode ChunkModes[] = { ENiagaraCodeChunkMode::GlobalConstant, ENiagaraCodeChunkMode::SystemConstant, ENiagaraCodeChunkMode::OwnerConstant, ENiagaraCodeChunkMode::EmitterConstant, ENiagaraCodeChunkMode::Uniform };
-		FString ConstantBufferNames[] = { TEXT("FNiagaraGlobalParameters"), TEXT("FNiagaraSystemParameters"), TEXT("FNiagaraOwnerParameters"), TEXT("FNiagaraEmitterParameters"), TEXT("FNiagaraExternalParameters") };
-
-		static_assert(UE_ARRAY_COUNT(ChunkModes) == UE_ARRAY_COUNT(ConstantBufferNames), "Mismatch between ChunkModes and ConstantBufferNames");
-
-		FString SymbolPrefix[] = { TEXT(""), INTERPOLATED_PARAMETER_PREFIX };
-
-		for (int32 PrevIt = 0; PrevIt < (bInterpolateParams ? 2 : 1); ++PrevIt)
+		const TPair<ENiagaraCodeChunkMode, FString> ChunkModeInfos[] =
 		{
-			for (int32 ChunkModeIt = 0; ChunkModeIt < UE_ARRAY_COUNT(ChunkModes); ++ChunkModeIt)
+			MakeTuple(ENiagaraCodeChunkMode::GlobalConstant,	TEXT("FNiagaraGlobalParameters")),
+			MakeTuple(ENiagaraCodeChunkMode::SystemConstant,	TEXT("FNiagaraSystemParameters")),
+			MakeTuple(ENiagaraCodeChunkMode::OwnerConstant,		TEXT("FNiagaraOwnerParameters")),
+			MakeTuple(ENiagaraCodeChunkMode::EmitterConstant,	TEXT("FNiagaraEmitterParameters")),
+			MakeTuple(ENiagaraCodeChunkMode::Uniform,			TEXT("FNiagaraExternalParameters")),
+		};
+
+		const TCHAR* InterpPrefix[] = { TEXT(""), INTERPOLATED_PARAMETER_PREFIX };
+
+		// GPU simulation we prefer loose bindings, all but the external cbuffer are loose.  External contains structures which we
+		// don't understand when generating parameters so for the moment we can't pack it in easily.
+		// This is two separate loops as the VVM assumes cbuffer order is AllCurrent -> AllPrevious, whereas GPU we bind in order to minimize parameter copies
+		if (TranslationOptions.SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			for (const TPair<ENiagaraCodeChunkMode, FString>& ChunkModeInfo : ChunkModeInfos)
 			{
-				int32 ChunkMode = static_cast<int32>(ChunkModes[ChunkModeIt]);
-				const FString BufferName = SymbolPrefix[PrevIt] + ConstantBufferNames[ChunkModeIt];
-
-				HlslOutput += TEXT("cbuffer ") + BufferName + TEXT("\n{\n");
-
-				for (int32 i = 0; i < ChunksByMode[ChunkMode].Num(); ++i)
+				for (int32 InterpIt = 0; InterpIt < (bInterpolateParams ? 2 : 1); ++InterpIt)
 				{
-					FNiagaraVariable BufferVariable(CodeChunks[ChunksByMode[ChunkMode][i]].Type, FName(*CodeChunks[ChunksByMode[ChunkMode][i]].SymbolName));
-					if (IsVariableInUniformBuffer(BufferVariable))
+					const bool bIsCBuffer = ChunkModeInfo.Key == ENiagaraCodeChunkMode::Uniform;
+					if (bIsCBuffer)
 					{
-						FNiagaraCodeChunk Chunk = CodeChunks[ChunksByMode[ChunkMode][i]];
-						Chunk.SymbolName = SymbolPrefix[PrevIt] + Chunk.SymbolName;
+						HlslOutput.Appendf(TEXT("cbuffer %s%s\n{\n"), InterpPrefix[InterpIt], *ChunkModeInfo.Value);
+					}
 
-						HlslOutput += TEXT("\t") + GetCode(Chunk);
+					for (int32 ChunkOffset : ChunksByMode[int(ChunkModeInfo.Key)])
+					{
+						FNiagaraVariable BufferVariable(CodeChunks[ChunkOffset].Type, FName(*CodeChunks[ChunkOffset].SymbolName));
+						if (IsVariableInUniformBuffer(BufferVariable))
+						{
+							FNiagaraCodeChunk Chunk = CodeChunks[ChunkOffset];
+							Chunk.SymbolName = InterpPrefix[InterpIt] + Chunk.SymbolName;
+
+							HlslOutput += TEXT("\t") + GetCode(Chunk);
+						}
+					}
+
+					if (bIsCBuffer)
+					{
+						HlslOutput += TEXT("}\n\n");
 					}
 				}
+			}
+		}
+		else
+		{
+			for (int32 InterpIt = 0; InterpIt < (bInterpolateParams ? 2 : 1); ++InterpIt)
+			{
+				for (const TPair<ENiagaraCodeChunkMode, FString>& ChunkModeInfo : ChunkModeInfos)
+				{
+					HlslOutput.Appendf(TEXT("cbuffer %s%s\n{\n"), InterpPrefix[InterpIt], *ChunkModeInfo.Value);
+					for (int32 ChunkOffset : ChunksByMode[int(ChunkModeInfo.Key)])
+					{
+						FNiagaraVariable BufferVariable(CodeChunks[ChunkOffset].Type, FName(*CodeChunks[ChunkOffset].SymbolName));
+						if (IsVariableInUniformBuffer(BufferVariable))
+						{
+							FNiagaraCodeChunk Chunk = CodeChunks[ChunkOffset];
+							Chunk.SymbolName = InterpPrefix[InterpIt] + Chunk.SymbolName;
 
-				HlslOutput += TEXT("}\n\n");
+							HlslOutput += TEXT("\t") + GetCode(Chunk);
+						}
+					}
+					HlslOutput += TEXT("}\n\n");
+				}
 			}
 		}
 
@@ -2033,7 +2069,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		HlslOutput = Preamble + TEXT("\n\n") +  HlslOutput;
 
 		// We may have created some transient data interfaces. This cleans up the ones that we created.
-		CompilationOutput.ScriptData.DIParamInfo = DIParamInfo;
+		CompilationOutput.ScriptData.ShaderScriptParametersMetadata = ShaderScriptParametersMetadata;
+
 		if (InstanceRead.Variables.Num() == 1 && InstanceRead.Variables[0].GetName() == TEXT("Particles.UniqueID")) {
 			// NOTE(mv): Explicitly allow reading from Particles.UniqueID, as it is an engine managed variable and 
 			//           is written to before Simulate() in the SpawnScript...
@@ -2763,7 +2800,7 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString& InHlslOutput)
 				InterfaceClasses.Add(Info.Type.GetFName());
 			}
 
-			FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo = DIParamInfo.AddDefaulted_GetRef();
+			FNiagaraDataInterfaceGPUParamInfo& DIInstanceInfo = ShaderScriptParametersMetadata.DataInterfaceParamInfo.AddDefaulted_GetRef();
 			ConvertCompileInfoToParamInfo(Info, DIInstanceInfo);
 
 			CDO->GetParameterDefinitionHLSL(DIInstanceInfo, InterfaceUniformHLSL);
@@ -4135,7 +4172,7 @@ FString FHlslNiagaraTranslator::GeneratedConstantString(FVector4 Constant)
 	return FString::Format(TEXT("float4({0}, {1}, {2}, {3})"), Args);
 }
 
-int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagaraVariable& InVariable, ENiagaraCodeChunkMode ChunkMode, bool AddPadding)
+int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagaraVariable& InVariable, ENiagaraCodeChunkMode ChunkMode)
 {
 	const FNiagaraTypeDefinition& Type = InVariable.GetType();
 
@@ -4154,20 +4191,6 @@ int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagara
 		Chunk.SymbolName = GetSanitizedSymbolName(SymbolName);
 		Chunk.Type = Type;
 		Chunk.Original = InVariable;
-
-		if (AddPadding)
-		{
-			if (Type == FNiagaraTypeDefinition::GetVec2Def())
-			{
-				Chunk.Type = FNiagaraTypeDefinition::GetVec4Def();
-				Chunk.ComponentMask = TEXT(".xy");
-			}
-			else if (Type == FNiagaraTypeDefinition::GetVec3Def() || Type == FNiagaraTypeDefinition::GetPositionDef())
-			{
-				Chunk.Type = FNiagaraTypeDefinition::GetVec4Def();
-				Chunk.ComponentMask = TEXT(".xyz");
-			}
-		}
 
 		Chunk.Mode = ChunkMode;
 
@@ -5503,7 +5526,7 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 					CompilationOutput.ScriptData.Parameters.SetOrAdd(InVariable);
 				}
 
-				UniformChunk = AddUniformChunk(SymbolNameDefined, InVariable, ENiagaraCodeChunkMode::Uniform, UNiagaraScript::IsGPUScript(CompileOptions.TargetUsage));
+				UniformChunk = AddUniformChunk(SymbolNameDefined, InVariable, ENiagaraCodeChunkMode::Uniform);
 			}
 			else
 			{

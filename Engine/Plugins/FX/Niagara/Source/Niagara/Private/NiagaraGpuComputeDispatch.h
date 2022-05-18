@@ -167,8 +167,6 @@ private:
 	void UpdateFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
 	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, TConstArrayView<FNiagaraComputeExecutionContext*> Instances);
 
-	void BuildConstantBuffers(FNiagaraGPUSystemTick& Tick) const;
-
 	/** The shared GPUSortManager, used to register GPU sort tasks in order to generate sorted particle indices per emitter. */
 	TRefCountPtr<FGPUSortManager> GPUSortManager;
 	/** All sort tasks registered in AddSortedGPUSimulation(). Holds all the data required in GenerateSortKeys(). */
@@ -179,12 +177,6 @@ private:
 #if WITH_NIAGARA_GPU_PROFILER
 	TUniquePtr<FNiagaraGPUProfiler> GPUProfilerPtr;
 #endif
-
-	// persistent layouts used to create the constant buffers for the compute sim shader
-	TRefCountPtr<FNiagaraRHIUniformBufferLayout> GlobalCBufferLayout;
-	TRefCountPtr<FNiagaraRHIUniformBufferLayout> SystemCBufferLayout;
-	TRefCountPtr<FNiagaraRHIUniformBufferLayout> OwnerCBufferLayout;
-	TRefCountPtr<FNiagaraRHIUniformBufferLayout> EmitterCBufferLayout;
 
 	uint32 FramesBeforeTickFlush = 0;
 

@@ -1527,6 +1527,14 @@ const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
 
 const TArray<FNiagaraVariable>& FNiagaraOwnerParameters::GetVariables()
 {
+	static const FName NAME_NiagaraStructPadding0 = "Engine.Owner.PaddingInt32_0";
+	static const FName NAME_NiagaraStructPadding1 = "Engine.Owner.PaddingInt32_1";
+	static const FName NAME_NiagaraStructPadding2 = "Engine.Owner.PaddingInt32_2";
+	static const FName NAME_NiagaraStructPadding3 = "Engine.Owner.PaddingInt32_3";
+	static const FName NAME_NiagaraStructPadding4 = "Engine.Owner.PaddingInt32_4";
+	static const FName NAME_NiagaraStructPadding5 = "Engine.Owner.PaddingInt32_5";
+	static const FName NAME_NiagaraStructPadding6 = "Engine.Owner.PaddingInt32_6";
+
 	static const TArray<FNiagaraVariable> Variables =
 	{
 		SYS_PARAM_ENGINE_LOCAL_TO_WORLD,
@@ -1537,11 +1545,17 @@ const TArray<FNiagaraVariable>& FNiagaraOwnerParameters::GetVariables()
 		SYS_PARAM_ENGINE_WORLD_TO_LOCAL_NO_SCALE,
 		SYS_PARAM_ENGINE_ROTATION,
 		SYS_PARAM_ENGINE_POSITION,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
 		SYS_PARAM_ENGINE_VELOCITY,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
 		SYS_PARAM_ENGINE_X_AXIS,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
 		SYS_PARAM_ENGINE_Y_AXIS,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding3),
 		SYS_PARAM_ENGINE_Z_AXIS,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding4),
 		SYS_PARAM_ENGINE_SCALE,
+		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding5),
 		SYS_PARAM_ENGINE_LWC_TILE,
 	};
 

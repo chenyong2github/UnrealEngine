@@ -146,6 +146,11 @@ public:
 		EShaderPrecisionModifier::Type Precision = EShaderPrecisionModifier::Float
 		);
 
+	void AlignNextMemberToStruct()
+	{
+		NextMemberOffset = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+	}
+
 	uint32 GetNextMemberOffset() const { return NextMemberOffset; }
 
 	FShaderParametersMetadata* Build(

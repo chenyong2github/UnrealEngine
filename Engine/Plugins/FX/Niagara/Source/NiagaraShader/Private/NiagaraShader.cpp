@@ -1132,12 +1132,31 @@ FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializ
 {
 	check(!DebugDescription.IsEmpty());
 
-	// Currently we can not bind all parameters due to the external constant buffers
-	// Once they are inside parameter structure and UseLegacyShaderBindings are all true we can completely bind with validation
-	const bool bShouldBindEverything = false || (GNiagaraShaderForceBindEverything != 0);
+	// Legacy bindings
+	bNeedsViewUniformBuffer = Initializer.ParameterMap.ContainsParameterAllocation(TEXT("View"));
+	ExternalConstantBufferParam[0].Bind(Initializer.ParameterMap, TEXT("FNiagaraExternalParameters"));
+	ExternalConstantBufferParam[1].Bind(Initializer.ParameterMap, TEXT("PREV_FNiagaraExternalParameters"));
+
+	// We can only use validation for missing parameter bindings if we don't use the external constant buffer and
+	// all DataInterfaces use the new parameter bindings.  Otherwise we can't bind in a single pass.
+	const FNiagaraShaderType::FParameters* InitializerParameters = static_cast<const FNiagaraShaderType::FParameters*>(Initializer.Parameters);
+	INiagaraShaderModule* ShaderModule = INiagaraShaderModule::Get();
+	bool bShouldBindEverything = true;
+	
+	if (GNiagaraShaderForceBindEverything == 0)
+	{
+		bShouldBindEverything &= bNeedsViewUniformBuffer == false;
+		bShouldBindEverything &= ExternalConstantBufferParam[0].IsBound() == false;
+		bShouldBindEverything &= ExternalConstantBufferParam[1].IsBound() == false;
+
+		for (const FNiagaraDataInterfaceGPUParamInfo& DataInterfaceParamInfo : InitializerParameters->ScriptParametersMetadata->DataInterfaceParamInfo)
+		{
+			UNiagaraDataInterfaceBase* CDODataInterface = ShaderModule->RequestDefaultDataInterface(*DataInterfaceParamInfo.DIClassName);
+			bShouldBindEverything &= CDODataInterface && CDODataInterface->UseLegacyShaderBindings() == false;
+		}
+	}
 
 	// Bind parameters
-	const FNiagaraShaderType::FParameters* InitializerParameters = static_cast<const FNiagaraShaderType::FParameters*>(Initializer.Parameters);
 	Bindings.BindForLegacyShaderParameters(
 		this,
 		Initializer.PermutationId,
@@ -1146,23 +1165,7 @@ FNiagaraShader::FNiagaraShader(const FNiagaraShaderType::CompiledShaderInitializ
 		bShouldBindEverything
 	);
 
-	bNeedsViewUniformBuffer = Initializer.ParameterMap.ContainsParameterAllocation(TEXT("View"));
-
-	// Legacy bindings
-	GlobalConstantBufferParam[0].Bind(Initializer.ParameterMap, TEXT("FNiagaraGlobalParameters"));
-	SystemConstantBufferParam[0].Bind(Initializer.ParameterMap, TEXT("FNiagaraSystemParameters"));
-	OwnerConstantBufferParam[0].Bind(Initializer.ParameterMap, TEXT("FNiagaraOwnerParameters"));
-	EmitterConstantBufferParam[0].Bind(Initializer.ParameterMap, TEXT("FNiagaraEmitterParameters"));
-	ExternalConstantBufferParam[0].Bind(Initializer.ParameterMap, TEXT("FNiagaraExternalParameters"));
-
-	GlobalConstantBufferParam[1].Bind(Initializer.ParameterMap, TEXT("PREV_FNiagaraGlobalParameters"));
-	SystemConstantBufferParam[1].Bind(Initializer.ParameterMap, TEXT("PREV_FNiagaraSystemParameters"));
-	OwnerConstantBufferParam[1].Bind(Initializer.ParameterMap, TEXT("PREV_FNiagaraOwnerParameters"));
-	EmitterConstantBufferParam[1].Bind(Initializer.ParameterMap, TEXT("PREV_FNiagaraEmitterParameters"));
-	ExternalConstantBufferParam[1].Bind(Initializer.ParameterMap, TEXT("PREV_FNiagaraExternalParameters"));
-
 	// Gather data interface bindings
-	INiagaraShaderModule* ShaderModule = INiagaraShaderModule::Get();
 	DataInterfaceParameters.Empty(InitializerParameters->ScriptParametersMetadata->DataInterfaceParamInfo.Num());
 	for (const FNiagaraDataInterfaceGPUParamInfo& DataInterfaceParamInfo : InitializerParameters->ScriptParametersMetadata->DataInterfaceParamInfo)
 	{

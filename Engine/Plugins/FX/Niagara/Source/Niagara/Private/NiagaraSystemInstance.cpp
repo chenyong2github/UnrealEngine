@@ -2775,11 +2775,10 @@ void FNiagaraSystemInstance::EvaluateBoundFunction(FName FunctionName, bool& Use
 		if (Script)
 		{
 			const bool IsGpuScript = UNiagaraScript::IsGPUScript(Script->Usage);
-			const auto& VMExecData = Script->GetVMExecutableData();
 
 			if (!UsedOnGpu && IsGpuScript)
 			{
-				for (const FNiagaraDataInterfaceGPUParamInfo& DIParamInfo : VMExecData.DIParamInfo)
+				for (const FNiagaraDataInterfaceGPUParamInfo& DIParamInfo : Script->GetDataInterfaceGPUParamInfos())
 				{
 					auto GpuFunctionPredicate = [&](const FNiagaraDataInterfaceGeneratedFunction& DIFunction)
 					{
@@ -2801,6 +2800,7 @@ void FNiagaraSystemInstance::EvaluateBoundFunction(FName FunctionName, bool& Use
 					return BindingInfo.Name == FunctionName;
 				};
 
+				const FNiagaraVMExecutableData& VMExecData =  Script->GetVMExecutableData();
 				if (VMExecData.CalledVMExternalFunctions.ContainsByPredicate(CpuFunctionPredicate))
 				{
 					UsedOnCpu = true;

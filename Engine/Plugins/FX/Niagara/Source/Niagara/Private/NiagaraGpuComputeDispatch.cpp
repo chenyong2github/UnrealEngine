@@ -31,7 +31,7 @@
 #include "ShaderParameterUtils.h"
 #include "Renderer/Private/ScenePrivate.h"
 
-DECLARE_CYCLE_STAT(TEXT("Niagara Dispatch Setup"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
+DECLARE_CYCLE_STAT(TEXT("GPU Dispatch Setup [RT]"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Data Readback [RT]"), STAT_NiagaraGPUReadback_RT, STATGROUP_Niagara);
 DECLARE_FLOAT_COUNTER_STAT(TEXT("Niagara GPU Sim"), STAT_GPU_NiagaraSim, STATGROUP_GPU);
@@ -204,12 +204,6 @@ FNiagaraGpuComputeDispatch::FNiagaraGpuComputeDispatch(ERHIFeatureLevel::Type In
 		}
 	}
 
-	GlobalCBufferLayout  = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Global CBuffer"),  sizeof(FNiagaraGlobalParameters));
-	SystemCBufferLayout  = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU System CBuffer"),  sizeof(FNiagaraSystemParameters));
-	OwnerCBufferLayout   = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Owner CBuffer"),   sizeof(FNiagaraOwnerParameters));
-	EmitterCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Emitter CBuffer"), sizeof(FNiagaraEmitterParameters));
-
-
 	AsyncGpuTraceHelper.Reset(new FNiagaraAsyncGpuTraceHelper(InShaderPlatform, InFeatureLevel, this));
 
 #if NIAGARA_COMPUTEDEBUG_ENABLED
@@ -227,11 +221,6 @@ FNiagaraGpuComputeDispatch::~FNiagaraGpuComputeDispatch()
 	FinishDispatches();
 
 	AsyncGpuTraceHelper->Reset();
-
-	GlobalCBufferLayout = nullptr;
-	SystemCBufferLayout = nullptr;
-	OwnerCBufferLayout = nullptr;
-	EmitterCBufferLayout = nullptr;
 
 	FPrimitiveSceneInfo::OnGPUSceneInstancesAllocated.RemoveAll(this);
 	FPrimitiveSceneInfo::OnGPUSceneInstancesFreed.RemoveAll(this);
@@ -291,107 +280,6 @@ void FNiagaraGpuComputeDispatch::RemoveGpuComputeProxy(FNiagaraSystemGpuComputeP
 		}
 	);
 #endif
-}
-
-void FNiagaraGpuComputeDispatch::BuildConstantBuffers(FNiagaraGPUSystemTick& Tick) const
-{
-	if (!Tick.InstanceCount)
-	{
-		return;
-	}
-
-	TArrayView<FNiagaraComputeInstanceData> InstanceData = Tick.GetInstances();
-
-	// first go through and figure out if we need to support interpolated spawning
-	bool HasInterpolationParameters = false;
-	bool HasMultipleStages = false;
-	for (const FNiagaraComputeInstanceData& Instance : InstanceData)
-	{
-		HasInterpolationParameters = HasInterpolationParameters || Instance.Context->HasInterpolationParameters;
-		HasMultipleStages = HasMultipleStages || Instance.bHasMultipleStages;
-	}
-
-	int32 BoundParameterCounts[FNiagaraGPUSystemTick::UBT_NumTypes][2];
-	FMemory::Memzero(BoundParameterCounts);
-
-	for (const FNiagaraComputeInstanceData& Instance : InstanceData)
-	{
-		for (int32 InterpIt = 0; InterpIt < (HasInterpolationParameters ? 2 : 1); ++InterpIt)
-		{
-			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_Global][InterpIt] += Instance.Context->GPUScript_RT->IsGlobalConstantBufferUsed_RenderThread(InterpIt) ? 1 : 0;
-			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_System][InterpIt] += Instance.Context->GPUScript_RT->IsSystemConstantBufferUsed_RenderThread(InterpIt) ? 1 : 0;
-			BoundParameterCounts[FNiagaraGPUSystemTick::UBT_Owner][InterpIt] += Instance.Context->GPUScript_RT->IsOwnerConstantBufferUsed_RenderThread(InterpIt) ? 1 : 0;
-		}
-	}
-
-	const int32 InterpScale = HasInterpolationParameters ? 2 : 1;
-	const int32 BufferCount = InterpScale * (FNiagaraGPUSystemTick::UBT_NumSystemTypes + FNiagaraGPUSystemTick::UBT_NumInstanceTypes * Tick.InstanceCount);
-
-	Tick.UniformBuffers.Empty(BufferCount);
-	Tick.UniformBuffers.AddDefaulted(BufferCount);
-
-	const FRHIUniformBufferLayout* SystemLayouts[FNiagaraGPUSystemTick::UBT_NumSystemTypes] =
-	{
-		GlobalCBufferLayout,
-		SystemCBufferLayout,
-		OwnerCBufferLayout
-	};
-
-	int32 CurrentBuffer = 0;
-	for (int32 InterpIt=0; InterpIt < InterpScale; ++InterpIt)
-	{
-		for (int32 SystemTypeIt = FNiagaraGPUSystemTick::UBT_FirstSystemType; SystemTypeIt < FNiagaraGPUSystemTick::UBT_NumSystemTypes; ++SystemTypeIt)
-		{
-			if (BoundParameterCounts[SystemTypeIt][InterpIt])
-			{
-				Tick.UniformBuffers[CurrentBuffer] = RHICreateUniformBuffer(
-					Tick.GetUniformBufferSource((FNiagaraGPUSystemTick::EUniformBufferType) SystemTypeIt, nullptr, !InterpIt),
-					SystemLayouts[SystemTypeIt],
-					((BoundParameterCounts[SystemTypeIt][InterpIt] > 1) || HasMultipleStages)
-						? EUniformBufferUsage::UniformBuffer_SingleFrame
-						: EUniformBufferUsage::UniformBuffer_SingleDraw);
-			}
-			++CurrentBuffer;
-		}
-
-		// Build emitter constant buffers
-		for (const FNiagaraComputeInstanceData& Instance : InstanceData)
-		{
-			if (InterpIt == 0 || Instance.Context->HasInterpolationParameters)
-			{
-				if (Instance.Context->GPUScript_RT->IsEmitterConstantBufferUsed_RenderThread(InterpIt))
-				{
-					Tick.UniformBuffers[CurrentBuffer] = RHICreateUniformBuffer(
-						Tick.GetUniformBufferSource(FNiagaraGPUSystemTick::UBT_Emitter, &Instance, !InterpIt),
-						EmitterCBufferLayout,
-						Instance.bHasMultipleStages ? EUniformBufferUsage::UniformBuffer_SingleFrame : EUniformBufferUsage::UniformBuffer_SingleDraw
-					);
-				}
-			}
-			++CurrentBuffer;
-		}
-
-		// Build external constant buffers
-		for (const FNiagaraComputeInstanceData& Instance : InstanceData)
-		{
-			if (InterpIt == 0 || Instance.Context->HasInterpolationParameters)
-			{
-				FNiagaraRHIUniformBufferLayout* ExternalCBufferLayout = Instance.Context->ExternalCBufferLayout;
-				if (Instance.Context->GPUScript_RT->IsExternalConstantBufferUsed_RenderThread(InterpIt))
-				{
-					if (ensure(ExternalCBufferLayout && (ExternalCBufferLayout->Resources.Num() > 0 || ExternalCBufferLayout->ConstantBufferSize > 0)))
-					{
-						Tick.UniformBuffers[CurrentBuffer] = RHICreateUniformBuffer(
-							Tick.GetUniformBufferSource(FNiagaraGPUSystemTick::UBT_External, &Instance, !InterpIt),
-							ExternalCBufferLayout,
-							Instance.bHasMultipleStages ? EUniformBufferUsage::UniformBuffer_SingleFrame : EUniformBufferUsage::UniformBuffer_SingleDraw
-						);
-					}
-				}
-			}
-			++CurrentBuffer;
-		}
-	}
 }
 
 void FNiagaraGpuComputeDispatch::Tick(UWorld* World, float DeltaTime)
@@ -1169,7 +1057,7 @@ void FNiagaraGpuComputeDispatch::PrepareTicksForProxy(FRHICommandListImmediate& 
 		}
 
 		// Build constant buffers for tick
-		BuildConstantBuffers(Tick);
+		Tick.BuildUniformBuffers();
 	}
 
 	// Now that all ticks have been processed we can adjust our output buffers to the correct size
@@ -1657,47 +1545,23 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRHICommandList& RHICmdList, cons
 	// Set data interface parameters
 	SetDataInterfaceParameters(RHICmdList, Tick, InstanceData, ComputeShader, SimStageData, reinterpret_cast<uint8*>(DispatchParameters));
 
-	// Setup uniform buffers
-	//-TODO: This should be replaced with shader struct bindings instead but we currently have no way to include a untyped uniform buffer
-	auto SetConstantBuffer =
-		[](FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShader, const FShaderUniformBufferParameter& BufferParam, const FUniformBufferRHIRef& UniformBuffer)
-		{
-			check(BufferParam.IsBound() == false || UniformBuffer.IsValid());
-			if (BufferParam.IsBound() && UniformBuffer.IsValid())
-			{
-				RHICmdList.SetShaderUniformBuffer(ComputeShader, BufferParam.GetBaseIndex(), UniformBuffer);
-			}
-		};
+	// Set tick parameters
+	Tick.GetGlobalParameters(InstanceData, &DispatchParameters->GlobalParameters);
+	Tick.GetSystemParameters(InstanceData, &DispatchParameters->SystemParameters);
+	Tick.GetOwnerParameters(InstanceData, &DispatchParameters->OwnerParameters);
+	Tick.GetEmitterParameters(InstanceData, &DispatchParameters->EmitterParameters);
 
-	SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->GlobalConstantBufferParam[0], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Global, nullptr, true));
-	SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->SystemConstantBufferParam[0], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_System, nullptr, true));
-	SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->OwnerConstantBufferParam[0], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Owner, nullptr, true));
-	SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->EmitterConstantBufferParam[0], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Emitter, &InstanceData, true));
-	SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->ExternalConstantBufferParam[0], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_External, &InstanceData, true));
-
-	if (InstanceData.Context->HasInterpolationParameters)
+	// Set external constant buffer
+	//-TODO: This should be replace with parameters structure which is dynamically created
+	if (ComputeShader->ExternalConstantBufferParam[0].IsBound())
 	{
-		SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->GlobalConstantBufferParam[1], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Global, nullptr, false));
-		SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->SystemConstantBufferParam[1], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_System, nullptr, false));
-		SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->OwnerConstantBufferParam[1], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Owner, nullptr, false));
-		SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->EmitterConstantBufferParam[1], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Emitter, &InstanceData, false));
-		SetConstantBuffer(RHICmdList, RHIComputeShader, ComputeShader->ExternalConstantBufferParam[1], Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_External, &InstanceData, false));
+		RHICmdList.SetShaderUniformBuffer(RHIComputeShader, ComputeShader->ExternalConstantBufferParam[0].GetBaseIndex(), Tick.GetExternalUniformBuffer(InstanceData, false));
 	}
-
-	//-TODO: Currently we don't have a way to bind raw UBs as shader parameters
-	//DispatchParameters.GlobalParameters			= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Global, nullptr, true);
-	//DispatchParameters.OwnerParameters			= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Owner, nullptr, true);
-	//DispatchParameters.SystemParameters			= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_System, nullptr, true);
-	//DispatchParameters.EmitterParameters		= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Emitter, nullptr, true);
-	//DispatchParameters.ExternalParameters		= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_External, nullptr, true);
-	//if (InstanceData.Context->HasInterpolationParameters)
-	//{
-	//	DispatchParameters.PrevGlobalParameters		= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Global, nullptr, false);
-	//	DispatchParameters.PrevOwnerParameters		= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Owner, nullptr, false);
-	//	DispatchParameters.PrevSystemParameters		= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_System, nullptr, false);
-	//	DispatchParameters.PrevEmitterParameters	= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_Emitter, nullptr, false);
-	//	DispatchParameters.PrevExternalParameters	= Tick.GetUniformBuffer(FNiagaraGPUSystemTick::UBT_External, nullptr, false);
-	//}
+	if (ComputeShader->ExternalConstantBufferParam[1].IsBound())
+	{
+		check(InstanceData.Context->HasInterpolationParameters);
+		RHICmdList.SetShaderUniformBuffer(RHIComputeShader, ComputeShader->ExternalConstantBufferParam[1].GetBaseIndex(), Tick.GetExternalUniformBuffer(InstanceData, true));
+	}
 
 	// Execute the dispatch
 	{
@@ -1741,6 +1605,8 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRHICommandList& RHICmdList, cons
 
 void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate)
 {
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUDispatchSetup_RT);
+
 	bRequiresReadback = false;
 	GNiagaraViewDataManager.ClearSceneTextureParameters();
 #if WITH_EDITOR

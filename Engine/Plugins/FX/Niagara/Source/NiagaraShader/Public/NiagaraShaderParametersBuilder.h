@@ -8,30 +8,32 @@
 class NIAGARASHADER_API FNiagaraShaderParametersBuilder
 {
 public:
-	explicit FNiagaraShaderParametersBuilder(FNiagaraDataInterfaceGPUParamInfo& InParamInfo, FShaderParametersMetadataBuilder& InMetadataBuilder)
-		: ParamInfo(InParamInfo)
+	explicit FNiagaraShaderParametersBuilder(const FNiagaraDataInterfaceGPUParamInfo& InGPUParamInfo, TArray<FString>& InLooseNames, FShaderParametersMetadataBuilder& InMetadataBuilder)
+		: GPUParamInfo(InGPUParamInfo)
+		, LooseNames(InLooseNames)
 		, MetadataBuilder(InMetadataBuilder)
 	{
 	}
 
 	template<typename T> void AddLooseParam(const TCHAR* Name)
 	{
-		ParamInfo.LooseMetadataNames.Emplace(FString::Printf(TEXT("%s_%s"), *ParamInfo.DataInterfaceHLSLSymbol, Name));
-		MetadataBuilder.AddParam<T>(*ParamInfo.LooseMetadataNames.Last());
+		LooseNames.Emplace(FString::Printf(TEXT("%s_%s"), *GPUParamInfo.DataInterfaceHLSLSymbol, Name));
+		MetadataBuilder.AddParam<T>(*LooseNames.Last());
 	}
 	template<typename T> void AddLooseParamArray(const TCHAR* Name, int32 NumElements)
 	{
-		ParamInfo.LooseMetadataNames.Emplace(FString::Printf(TEXT("%s_%s"), *ParamInfo.DataInterfaceHLSLSymbol, Name));
-		MetadataBuilder.AddParamArray<T>(*ParamInfo.LooseMetadataNames.Last(), NumElements);
+		LooseNames.Emplace(FString::Printf(TEXT("%s_%s"), *GPUParamInfo.DataInterfaceHLSLSymbol, Name));
+		MetadataBuilder.AddParamArray<T>(*LooseNames.Last(), NumElements);
 	}
 	template<typename T> void AddNestedStruct()
 	{
-		MetadataBuilder.AddNestedStruct<T>(*ParamInfo.DataInterfaceHLSLSymbol);
+		MetadataBuilder.AddNestedStruct<T>(*GPUParamInfo.DataInterfaceHLSLSymbol);
 	}
 
-	TArrayView<FNiagaraDataInterfaceGeneratedFunction> GetGeneratedFunctions() const { return ParamInfo.GeneratedFunctions; }
+	TConstArrayView<FNiagaraDataInterfaceGeneratedFunction> GetGeneratedFunctions() const { return GPUParamInfo.GeneratedFunctions; }
 
 private:
-	FNiagaraDataInterfaceGPUParamInfo& ParamInfo;
+	const FNiagaraDataInterfaceGPUParamInfo& GPUParamInfo;
+	TArray<FString>& LooseNames;
 	FShaderParametersMetadataBuilder& MetadataBuilder;
 };

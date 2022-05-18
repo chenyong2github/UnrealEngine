@@ -5,6 +5,19 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraSystemInstance.h"
 
+namespace ScriptParameterStoreInternal
+{
+	template<typename TType>
+	void AddLayoutParameter(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, uint32& SrcOffset)
+	{
+		const uint32 BytesRemain = 16 - (NextMemberOffset & 15);
+		NextMemberOffset += BytesRemain != 16 && BytesRemain < sizeof(TType) ? BytesRemain : 0;
+		Members.Emplace(SrcOffset, NextMemberOffset, sizeof(TType), sizeof(TType));
+		SrcOffset += sizeof(TType);
+		NextMemberOffset += sizeof(TType);
+	}
+}
+
 FNiagaraScriptExecutionParameterStore::FNiagaraScriptExecutionParameterStore()
 	: FNiagaraParameterStore()
 	, ParameterSize(0)
@@ -39,106 +52,42 @@ uint32 OffsetAlign(uint32 SrcOffset, uint32 Size)
 
 uint32 FNiagaraScriptExecutionParameterStore::GenerateLayoutInfoInternal(TArray<FNiagaraScriptExecutionPaddingInfo>& Members, uint32& NextMemberOffset, const UStruct* InSrcStruct, uint32 InSrcOffset)
 {
-	uint32 VectorPaddedSize = (TShaderParameterTypeInfo<FVector4f>::NumRows * TShaderParameterTypeInfo<FVector4f>::NumColumns) * sizeof(float);
-
 	// Now insert an appropriate data member into the mix...
+	FName SrcStructName = InSrcStruct ? InSrcStruct->GetFName() : NAME_None;
 	if (InSrcStruct == FNiagaraTypeDefinition::GetBoolStruct() || InSrcStruct == FNiagaraTypeDefinition::GetIntStruct())
 	{
-		uint32 IntSize = (TShaderParameterTypeInfo<uint32>::NumRows * TShaderParameterTypeInfo<uint32>::NumColumns) * sizeof(uint32);
-		Members.Emplace(InSrcOffset, Align(NextMemberOffset, TShaderParameterTypeInfo<uint32>::Alignment), IntSize, IntSize);
-		InSrcOffset += sizeof(uint32);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
+		ScriptParameterStoreInternal::AddLayoutParameter<int32>(Members, NextMemberOffset, InSrcOffset);
 	}
 	else if (InSrcStruct == FNiagaraTypeDefinition::GetFloatStruct())
 	{
-		uint32 FloatSize = (TShaderParameterTypeInfo<float>::NumRows * TShaderParameterTypeInfo<float>::NumColumns) * sizeof(float);
-		Members.Emplace(InSrcOffset, Align(NextMemberOffset, TShaderParameterTypeInfo<float>::Alignment), FloatSize, FloatSize);
-		InSrcOffset += sizeof(float);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
+		ScriptParameterStoreInternal::AddLayoutParameter<float>(Members, NextMemberOffset, InSrcOffset);
 	}
-	else if (InSrcStruct == FNiagaraTypeDefinition::GetVec2Struct())
+	else if (InSrcStruct == FNiagaraTypeDefinition::GetVec2Struct() || SrcStructName == NAME_Vector2D || SrcStructName == NAME_Vector2d)
 	{
-		uint32 StructFinalSize = (TShaderParameterTypeInfo<FVector2f>::NumRows * TShaderParameterTypeInfo<FVector2f>::NumColumns) * sizeof(float);
-		Members.Emplace(InSrcOffset, OffsetAlign(NextMemberOffset, VectorPaddedSize), StructFinalSize, VectorPaddedSize);
-		InSrcOffset += sizeof(FVector2f);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
+		ScriptParameterStoreInternal::AddLayoutParameter<FVector2f>(Members, NextMemberOffset, InSrcOffset);
 	}
-	else if (InSrcStruct && (InSrcStruct->GetFName() == NAME_Vector2D || InSrcStruct->GetFName() == NAME_Vector2d))
+	else if (InSrcStruct == FNiagaraTypeDefinition::GetVec3Struct() || InSrcStruct == FNiagaraTypeDefinition::GetPositionStruct() || SrcStructName == NAME_Vector || SrcStructName == NAME_Vector3d)
 	{
-		uint32 StructFinalSize = (TShaderParameterTypeInfo<FVector2f>::NumRows * TShaderParameterTypeInfo<FVector2f>::NumColumns) * sizeof(float);
-		Members.Emplace(InSrcOffset, OffsetAlign(NextMemberOffset, VectorPaddedSize), StructFinalSize, VectorPaddedSize);
-		InSrcOffset += sizeof(FVector2f);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
-	}	
-	else if (InSrcStruct == FNiagaraTypeDefinition::GetVec3Struct() || InSrcStruct == FNiagaraTypeDefinition::GetPositionStruct())
-	{
-		uint32 StructFinalSize = (TShaderParameterTypeInfo<FVector3f>::NumRows * TShaderParameterTypeInfo<FVector3f>::NumColumns) * sizeof(float);
-		Members.Emplace(InSrcOffset, OffsetAlign(NextMemberOffset, VectorPaddedSize), StructFinalSize, VectorPaddedSize);
-		InSrcOffset += sizeof(FVector3f);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
+		ScriptParameterStoreInternal::AddLayoutParameter<FVector3f>(Members, NextMemberOffset, InSrcOffset);
 	}
-	else if (InSrcStruct && (InSrcStruct->GetFName() == NAME_Vector || InSrcStruct->GetFName() == NAME_Vector3d))
+	else if (SrcStructName == NAME_Vector4 || SrcStructName == NAME_Vector4d || SrcStructName == NAME_Quat || SrcStructName == NAME_Quat4d)
 	{
-		uint32 StructFinalSize = (TShaderParameterTypeInfo<FVector3f>::NumRows * TShaderParameterTypeInfo<FVector3f>::NumColumns) * sizeof(float);
-		Members.Emplace(InSrcOffset, OffsetAlign(NextMemberOffset, VectorPaddedSize), StructFinalSize, VectorPaddedSize);
-		InSrcOffset += sizeof(FVector3f);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
-	}
-	else if (InSrcStruct && (InSrcStruct->GetFName() == NAME_Vector4 || InSrcStruct->GetFName() == NAME_Vector4d))
-	{
-		uint32 StructFinalSize = (TShaderParameterTypeInfo<FVector4f>::NumRows * TShaderParameterTypeInfo<FVector4f>::NumColumns) * sizeof(float);
-		Members.Emplace(InSrcOffset, OffsetAlign(NextMemberOffset, VectorPaddedSize), StructFinalSize, VectorPaddedSize);
-		InSrcOffset += sizeof(FVector4f);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
-	}
-	else if (InSrcStruct && (InSrcStruct->GetFName() == NAME_Quat || InSrcStruct->GetFName() == NAME_Quat4d))
-	{
-		uint32 StructFinalSize = (TShaderParameterTypeInfo<FQuat4f>::NumRows * TShaderParameterTypeInfo<FQuat4f>::NumColumns) * sizeof(float);
-		Members.Emplace(InSrcOffset, OffsetAlign(NextMemberOffset, VectorPaddedSize), StructFinalSize, VectorPaddedSize);
-		InSrcOffset += sizeof(FQuat4f);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
+		ScriptParameterStoreInternal::AddLayoutParameter<FVector4f>(Members, NextMemberOffset, InSrcOffset);
 	}
 	else if (InSrcStruct == FNiagaraTypeDefinition::GetVec4Struct() || InSrcStruct == FNiagaraTypeDefinition::GetColorStruct() || InSrcStruct == FNiagaraTypeDefinition::GetQuatStruct())
 	{
-		uint32 StructFinalSize = (TShaderParameterTypeInfo<FVector4f>::NumRows * TShaderParameterTypeInfo<FVector4f>::NumColumns) * sizeof(float);
-		Members.Emplace(InSrcOffset, Align(NextMemberOffset, TShaderParameterTypeInfo<FVector4f>::Alignment), StructFinalSize, StructFinalSize);
-		InSrcOffset += sizeof(FVector4f);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
+		ScriptParameterStoreInternal::AddLayoutParameter<FVector4f>(Members, NextMemberOffset, InSrcOffset);
 	}
 	else if (InSrcStruct == FNiagaraTypeDefinition::GetMatrix4Struct())
 	{
-		uint32 StructFinalSize = (TShaderParameterTypeInfo<FMatrix44f>::NumRows * TShaderParameterTypeInfo<FMatrix44f>::NumColumns) * sizeof(float);
-		Members.Emplace(InSrcOffset, Align(NextMemberOffset, TShaderParameterTypeInfo<FMatrix44f>::Alignment), StructFinalSize, StructFinalSize);
-		InSrcOffset += sizeof(FMatrix44f);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
+		ScriptParameterStoreInternal::AddLayoutParameter<FMatrix44f>(Members, NextMemberOffset, InSrcOffset);
 	}
-	else if (InSrcStruct == FNiagaraTypeDefinition::GetHalfStruct())
+	else if (InSrcStruct == FNiagaraTypeDefinition::GetHalfStruct() ||
+			 InSrcStruct == FNiagaraTypeDefinition::GetHalfVec2Struct() ||
+			 InSrcStruct == FNiagaraTypeDefinition::GetHalfVec3Struct() ||
+			 InSrcStruct == FNiagaraTypeDefinition::GetHalfVec4Struct())
 	{
-		uint32 HalfSize = (/*NumRows*/1 * /*NumColumns*/ 1) * sizeof(FFloat16);
-		Members.Emplace(InSrcOffset, Align(NextMemberOffset, TShaderParameterTypeInfo<FFloat16>::Alignment), HalfSize, HalfSize);
-		InSrcOffset += sizeof(FFloat16);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
-	}
-	else if (InSrcStruct == FNiagaraTypeDefinition::GetHalfVec2Struct())
-	{
-		uint32 StructFinalSize = (/*NumRows*/2 * /*NumColumns*/1) * sizeof(FFloat16);
-		Members.Emplace(InSrcOffset, OffsetAlign(NextMemberOffset, VectorPaddedSize), StructFinalSize, VectorPaddedSize);
-		InSrcOffset += sizeof(FFloat16[2]);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
-	}
-	else if (InSrcStruct == FNiagaraTypeDefinition::GetHalfVec3Struct())
-	{
-		uint32 StructFinalSize = (/*NumRows*/3 * /*NumColumns*/1) * sizeof(FFloat16);
-		Members.Emplace(InSrcOffset, OffsetAlign(NextMemberOffset, VectorPaddedSize), StructFinalSize, VectorPaddedSize);
-		InSrcOffset += sizeof(FFloat16[3]);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
-	}
-	else if (InSrcStruct == FNiagaraTypeDefinition::GetHalfVec4Struct())
-	{
-		uint32 StructFinalSize = (/*NumRows*/4 * /*NumColumns*/1) * sizeof(FFloat16);
-		Members.Emplace(InSrcOffset, OffsetAlign(NextMemberOffset, VectorPaddedSize), StructFinalSize, VectorPaddedSize);
-		InSrcOffset += sizeof(FFloat16[4]);
-		NextMemberOffset = Members[Members.Num() - 1].DestOffset + Members[Members.Num() - 1].DestSize;
+		UE_LOG(LogNiagara, Fatal, TEXT("Half is not supported inside parameter stores"));
 	}
 	else
 	{

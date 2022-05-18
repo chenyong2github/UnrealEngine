@@ -10,8 +10,11 @@
 #include "NiagaraModule.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraShaderCompilationManager.h"
+#include "NiagaraShaderModule.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "Serialization/MemoryReader.h"
 #include "Misc/SecureHash.h"
+#include "ShaderParameterMetadataBuilder.h"
 
 #include "ProfilingDebugging/CookStats.h"
 #include "Stats/Stats.h"
@@ -3121,7 +3124,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes,
 				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 
-			ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.DIParamInfo);
+			ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.ShaderScriptParametersMetadata);
 
 			if (FNiagaraUtilities::SupportsComputeShaders(ShaderPlatform))
 			{
@@ -3553,7 +3556,7 @@ void UNiagaraScript::ProcessSerializedShaderMaps()
 
 	if (HasScriptResource)
 	{
-		ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.DIParamInfo);
+		ScriptResource->BuildScriptParametersMetadata(CachedScriptVM.ShaderScriptParametersMetadata);
 	}
 }
 

@@ -2048,20 +2048,26 @@ struct alignas(16) FNiagaraOwnerParameters
 	NIAGARA_API static const TArray<FNiagaraVariable>& GetVariables();
 #endif
 
-	FMatrix44f EngineLocalToWorld = FMatrix44f::Identity;
-	FMatrix44f EngineWorldToLocal = FMatrix44f::Identity;
-	FMatrix44f EngineLocalToWorldTransposed = FMatrix44f::Identity;
-	FMatrix44f EngineWorldToLocalTransposed = FMatrix44f::Identity;
-	FMatrix44f EngineLocalToWorldNoScale = FMatrix44f::Identity;
-	FMatrix44f EngineWorldToLocalNoScale = FMatrix44f::Identity;
-	FQuat4f EngineRotation = FQuat4f::Identity;
-	FVector4f EnginePosition = FVector4f(ForceInitToZero);
-	FVector4f EngineVelocity = FVector4f(ForceInitToZero);
-	FVector4f EngineXAxis = FVector4f(1.0f, 0.0f, 0.0f, 0.0f);
-	FVector4f EngineYAxis = FVector4f(0.0f, 1.0f, 0.0f, 0.0f);
-	FVector4f EngineZAxis = FVector4f(0.0f, 0.0f, 1.0f, 0.0f);
-	FVector4f EngineScale = FVector4f(1.0f, 1.0f, 1.0f, 0.0f);
-	FVector4f EngineLWCTile = FVector4f(ForceInitToZero);
+	FMatrix44f	EngineLocalToWorld = FMatrix44f::Identity;
+	FMatrix44f	EngineWorldToLocal = FMatrix44f::Identity;
+	FMatrix44f	EngineLocalToWorldTransposed = FMatrix44f::Identity;
+	FMatrix44f	EngineWorldToLocalTransposed = FMatrix44f::Identity;
+	FMatrix44f	EngineLocalToWorldNoScale = FMatrix44f::Identity;
+	FMatrix44f	EngineWorldToLocalNoScale = FMatrix44f::Identity;
+	FQuat4f		EngineRotation = FQuat4f::Identity;
+	FVector3f	EnginePosition = FVector3f(ForceInitToZero);
+	float		_Pad0;
+	FVector3f	EngineVelocity = FVector3f(ForceInitToZero);
+	float		_Pad1;
+	FVector3f	EngineXAxis = FVector3f(1.0f, 0.0f, 0.0f);
+	float		_Pad2;
+	FVector3f	EngineYAxis = FVector3f(0.0f, 1.0f, 0.0f);
+	float		_Pad3;
+	FVector3f	EngineZAxis = FVector3f(0.0f, 0.0f, 1.0f);
+	float		_Pad4;
+	FVector3f	EngineScale = FVector3f(1.0f, 1.0f, 1.0f);
+	float		_Pad5;
+	FVector4f	EngineLWCTile = FVector4f(ForceInitToZero);
 };
 
 // Any change to this structure, or it's GetVariables implementation will require a bump in the CustomNiagaraVersion so that we
