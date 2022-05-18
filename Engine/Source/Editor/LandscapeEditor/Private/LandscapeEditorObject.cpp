@@ -662,10 +662,6 @@ void ULandscapeEditorObject::ImportLandscapeData()
 
 ELandscapeImportResult ULandscapeEditorObject::CreateImportLayersInfo(TArray<FLandscapeImportLayerInfo>& OutImportLayerInfos)
 {
-	const int32 QuadsPerComponent = NewLandscape_SectionsPerComponent * NewLandscape_QuadsPerSection;
-	const int32 SizeX = NewLandscape_ComponentCount.X * QuadsPerComponent + 1;
-	const int32 SizeY = NewLandscape_ComponentCount.Y * QuadsPerComponent + 1;
-
 	const uint32 ImportSizeX = ImportLandscape_Width;
 	const uint32 ImportSizeY = ImportLandscape_Height;
 

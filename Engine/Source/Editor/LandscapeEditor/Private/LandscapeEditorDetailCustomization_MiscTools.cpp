@@ -137,6 +137,39 @@ void FLandscapeEditorDetailCustomization_MiscTools::CustomizeDetails(IDetailLayo
 				.OnClicked_Static(&FLandscapeEditorDetailCustomization_MiscTools::OnApplySelectedSplinesButtonClicked)
 			]
 		];
+
+		ToolsCategory.AddCustomRow(LOCTEXT("SelectAllLabel", "Select all"))
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(0, 6, 0, 0)
+			[
+				SNew(STextBlock)
+				.Font(DetailBuilder.GetDetailFont())
+				.ShadowOffset(FVector2D::UnitVector)
+				.Text(LOCTEXT("Spline.SelectAll", "Select All:"))
+			]
+		];
+		ToolsCategory.AddCustomRow(LOCTEXT("SelectAllLabel", "Select all"))
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SButton)
+				.ToolTipText(LOCTEXT("Spline.ControlPoints.All.Tooltip", "Selects all landscape spline control points in the map."))
+				.Text(LOCTEXT("Spline.ControlPoints", "Control Points"))
+				.HAlign(HAlign_Center)
+				.OnClicked_Static(&FLandscapeEditorDetailCustomization_MiscTools::OnSelectAllControlPointsButtonClicked)
+			]
+			+ SHorizontalBox::Slot()
+			[
+				SNew(SButton)
+				.ToolTipText(LOCTEXT("Spline.ControlPoints.All.Tooltip", "Selects all landscape spline segments in the map."))
+				.Text(LOCTEXT("Spline.Segments", "Segments"))
+				.HAlign(HAlign_Center)
+				.OnClicked_Static(&FLandscapeEditorDetailCustomization_MiscTools::OnSelectAllSegmentsButtonClicked)
+			]
+		];
 		ToolsCategory.AddCustomRow(LOCTEXT("Spline.bUseAutoRotateControlPoint.Selected", "Use Auto Rotate Control Point"))
 		[
 			SNew(SHorizontalBox)
@@ -337,6 +370,28 @@ FReply FLandscapeEditorDetailCustomization_MiscTools::OnApplySelectedSplinesButt
 	{
 		FScopedTransaction Transaction(LOCTEXT("LandscapeSpline_ApplySelectedSplines", "Apply Selected Splines to Landscape"));
 		LandscapeEdMode->UpdateLandscapeSplines(true);
+	}
+
+	return FReply::Handled();
+}
+
+FReply FLandscapeEditorDetailCustomization_MiscTools::OnSelectAllControlPointsButtonClicked()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
+	{
+		LandscapeEdMode->SelectAllSplineControlPoints();
+	}
+
+	return FReply::Handled();
+}
+
+FReply FLandscapeEditorDetailCustomization_MiscTools::OnSelectAllSegmentsButtonClicked()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (LandscapeEdMode && LandscapeEdMode->CurrentToolTarget.LandscapeInfo.IsValid())
+	{
+		LandscapeEdMode->SelectAllSplineSegments();
 	}
 
 	return FReply::Handled();

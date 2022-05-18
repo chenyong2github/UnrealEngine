@@ -35,6 +35,8 @@ protected:
 	// Splines Tool
 	static FReply OnApplyAllSplinesButtonClicked();
 	static FReply OnApplySelectedSplinesButtonClicked();
+	static FReply OnSelectAllControlPointsButtonClicked();
+	static FReply OnSelectAllSegmentsButtonClicked();
 	void OnbUseAutoRotateControlPointChanged(ECheckBoxState NewState);
 	ECheckBoxState GetbUseAutoRotateControlPoint() const;
 

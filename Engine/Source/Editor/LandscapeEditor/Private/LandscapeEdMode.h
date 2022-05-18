@@ -303,6 +303,8 @@ public:
 	bool HasSelectedSplineSegments() const;
 	void FlipSelectedSplineSegments();
 	void GetSelectedSplineOwners(TSet<AActor*>& SelectedSplineOwners) const;
+	virtual void SelectAllSplineControlPoints();
+	virtual void SelectAllSplineSegments();
 	virtual void SelectAllConnectedSplineControlPoints();
 	virtual void SelectAllConnectedSplineSegments();
 	virtual void SplineMoveToCurrentLevel();
