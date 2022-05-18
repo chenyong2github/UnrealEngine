@@ -308,7 +308,11 @@ public:
 		Result.bDrawRelevance = IsShown(View);
 		Result.bShadowRelevance = IsShadowCast(View);
 		Result.bDynamicRelevance = true;
+
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
+
+		Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
+
 		return Result;
 	}
 
