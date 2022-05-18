@@ -1,6 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#pragma once
-
 #include "LegacyVertexDeltaModel.h"
 #include "LegacyVertexDeltaModelVizSettings.h"
 #include "MLDeformerGeomCacheHelpers.h"

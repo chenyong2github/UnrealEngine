@@ -27,12 +27,15 @@ namespace UE::MLDeformer
 		UMLDeformerVizSettings* VizSettings = ActiveModel->GetModel()->GetVizSettings();
 		for (FMLDeformerEditorActor* EditorActor : ActiveModel->GetEditorActors())
 		{
-			bool bIncludeActor = (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData) && EditorActor->IsTrainingActor() && EditorActor->IsVisible();
-			bIncludeActor |= (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData) && EditorActor->IsTestActor() && EditorActor->IsVisible();
-
-			if (bIncludeActor)
+			if (EditorActor)
 			{
-				Box += EditorActor->GetBoundingBox();
+				bool bIncludeActor = (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TrainingData) && EditorActor->IsTrainingActor() && EditorActor->IsVisible();
+				bIncludeActor |= (VizSettings->GetVisualizationMode() == EMLDeformerVizMode::TestData) && EditorActor->IsTestActor() && EditorActor->IsVisible();
+
+				if (bIncludeActor)
+				{
+					Box += EditorActor->GetBoundingBox();
+				}
 			}
 		}
 	
