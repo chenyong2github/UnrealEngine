@@ -46,7 +46,7 @@ namespace Dataflow
 		FConnection* FindInput(FName Name) const;
 		FConnection* FindOutput(FName Name) const;
 
-		virtual void Evaluate(const FContext& Context, FConnection*) { ensure(false); }
+		virtual void Evaluate(const FContext& Context, FConnection*) const { ensure(false); }
 		void InvalidateOutputs();
 
 		virtual void SerializeInternal(FArchive& Ar) {};

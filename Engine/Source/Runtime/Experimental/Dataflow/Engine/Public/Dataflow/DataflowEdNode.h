@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraph.h"
-#include "Dataflow/Dataflow.h"
+#include "Dataflow/DataflowCore.h"
 
 #include "DataflowEdNode.generated.h"
 

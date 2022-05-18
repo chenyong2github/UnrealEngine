@@ -1,16 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dataflow/DataflowObject.h"
-#include "Dataflow/Dataflow.h"
+#include "Dataflow/DataflowCore.h"
 #include "Dataflow/DataflowEdNode.h"
 
 
-#define LOCTEXT_NAMESPACE "UDataflow")
+#define LOCTEXT_NAMESPACE "UDataflow"
+
+FDataflowAssetEdit::FDataflowAssetEdit(UDataflow* InAsset, FPostEditFunctionCallback InCallback)
+	: PostEditCallback(InCallback)
+	, Asset(InAsset)
+{
+}
+
+FDataflowAssetEdit::~FDataflowAssetEdit()
+{
+	PostEditCallback();
+}
+
+Dataflow::FGraph* FDataflowAssetEdit::GetGraph()
+{
+	if (Asset)
+	{
+		return Asset->Dataflow.Get();
+	}
+	return nullptr;
+}
 
 UDataflow::UDataflow(const FObjectInitializer& ObjectInitializer)
 	: UEdGraph(ObjectInitializer)
 	, Dataflow(new Dataflow::FGraph())
 {}
+
+
+void UDataflow::PostEditCallback()
+{
+	// mark as dirty for the UObject
+}
 
 #if WITH_EDITOR
 

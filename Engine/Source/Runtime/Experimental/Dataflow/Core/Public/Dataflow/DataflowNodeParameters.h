@@ -8,8 +8,11 @@ class  UDataflow;
 
 namespace Dataflow
 {
-	struct DATAFLOWCORE_API FContext
+	class DATAFLOWCORE_API FContext
 	{
+	public:
+		FContext(float InTime) : Timestamp(InTime) {}
+
 		float Timestamp = 0.f;
 
 		uint32 GetTypeHash() const

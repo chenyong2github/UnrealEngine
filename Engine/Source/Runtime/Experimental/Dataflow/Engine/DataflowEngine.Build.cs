@@ -13,9 +13,10 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"DataflowCore"
+					"DataflowCore",
+					"Chaos"
 				}
-				);
+			);
 		}
 	}
 }

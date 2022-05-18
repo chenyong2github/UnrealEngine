@@ -7,7 +7,7 @@
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowSchema.h"
-#include "Dataflow/Dataflow.h"
+#include "Dataflow/DataflowCore.h"
 #include "EditorStyleSet.h"
 #include "EditorViewportTabContent.h"
 #include "EditorViewportLayout.h"

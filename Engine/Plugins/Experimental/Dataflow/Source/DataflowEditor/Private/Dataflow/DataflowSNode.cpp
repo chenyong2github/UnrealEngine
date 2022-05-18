@@ -5,7 +5,7 @@
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
-#include "Dataflow/Dataflow.h"
+#include "Dataflow/DataflowCore.h"
 #include "Logging/LogMacros.h"
 #include "Widgets/Layout/SBorder.h"
 

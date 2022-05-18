@@ -3,7 +3,7 @@
 #include "Dataflow/DataflowEdNode.h"
 
 #include "Dataflow/DataflowNode.h"
-#include "Dataflow/Dataflow.h"
+#include "Dataflow/DataflowCore.h"
 #include "Logging/LogMacros.h"
 
 #if WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
