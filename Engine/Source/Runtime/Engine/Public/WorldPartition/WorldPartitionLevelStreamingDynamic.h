@@ -44,6 +44,7 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 
 	// Override ULevelStreaming
 	virtual bool RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoadRequests, EReqLevelBlock BlockPolicy) override;
+	virtual void SetLoadedLevel(ULevel* Level) override;
 	virtual void BeginDestroy() override;
 	virtual TOptional<FFolder::FRootObject> GetFolderRootObject() const override;
 

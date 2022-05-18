@@ -528,6 +528,9 @@ public:
 	/** If true server will wait for client acknowledgment before making treating streaming levels as visible for the client */
 	static bool ShouldServerUseMakingVisibleTransactionRequest();
 
+	/** If true level streaming will reuse the unloaded levels that aren't GC'd yet. */
+	static bool ShouldReuseUnloadedButStillAroundLevels();
+
 	/** 
 	 * Traverses all streaming level objects in the persistent world and in all inner worlds and calls appropriate delegate for streaming objects that refer specified level 
 	 *
