@@ -698,6 +698,7 @@ RENDERCORE_API void AddDrawTexturePass(
 /** Adds a render graph pass to resolve from one texture to another. Uses RHICopyToResolveTarget under the hood.
  *  The formats of the two textures don't need to match.
  */
+UE_DEPRECATED(5.1, "AddCopyToResolveTargetPass is deprecated. Use AddCopyTexturePass to perform texture copies, or FRenderTargetBinding to perform resolves.")
 RENDERCORE_API void AddCopyToResolveTargetPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef InputTexture,
