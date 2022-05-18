@@ -94,7 +94,7 @@ namespace EpicGames.Core
 
 				if (reader.TokenType == JsonTokenType.EndObject && level != LogLevel.None && reader.BytesConsumed == data.Length)
 				{
-					logEvent = new JsonLogEvent(level, new EventId(eventId), data);
+					logEvent = new JsonLogEvent(level, new EventId(eventId), data.ToArray());
 					return true;
 				}
 			}
