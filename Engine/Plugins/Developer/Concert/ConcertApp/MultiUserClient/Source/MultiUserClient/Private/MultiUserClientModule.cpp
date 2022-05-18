@@ -41,8 +41,9 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
 
-#include "Styling/AppStyle.h"
+#include "EditorStyleSet.h"
 #include "Delegates/IDelegateInstance.h"
+#include "Interfaces/IEditorStyleModule.h"
 #include "IDetailCustomization.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
@@ -75,6 +76,7 @@
 
 static const FName ConcertBrowserTabName("ConcertBrowser");
 static const TCHAR MultiUserServerAppName[] = TEXT("UnrealMultiUserServer");
+static const TCHAR MultiUserSlateServerAppName[] = TEXT("UnrealMultiUserSlateServer");
 
 #define LOCTEXT_NAMESPACE "MultiUserClient"
 
@@ -452,7 +454,7 @@ public:
 				.Padding(FMargin(0, 1, 0, 1)) // To ensure the text has same size as the default one.
 				[
 					SAssignNew(OutTextBox, SEditableTextBox)
-					.Font(FAppStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					.Font(FAppStyle::GetFontStyle((TEXT("PropertyWindow.NormalFont"))))
 					.Text(InitialValue)
 					.SelectAllTextWhenFocused(true)
 					.SelectAllTextOnCommit(true)
@@ -788,6 +790,9 @@ private:
 		// Initialize Style
 		FConcertFrontendStyle::Initialize();
 
+		// Multi-User front end currently relies on EditorStyle being loaded
+		FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
+
 #if WITH_EDITOR
 		RegisterTabSpawner(WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory());
 
@@ -1036,10 +1041,16 @@ private:
 		return DockTab;
 	}
 
-	static FString GetMultiUserServerExePathname()
+	static FString GetConfiguredMultiUserServerExePathname()
 	{
-		// Find concert server location for our build configuration
-		FString MultiUserServerName(MultiUserServerAppName);
+		return GetMultiUserServerExePathname(GetMutableDefault<UConcertClientConfig>()->ServerType);
+	}
+
+	static FString GetMultiUserServerExePathname(const EConcertServerType ServerType)
+	{
+		check(ServerType == EConcertServerType::Console || ServerType == EConcertServerType::Slate);
+		
+		const FString MultiUserServerName(ServerType == EConcertServerType::Console ? MultiUserServerAppName : MultiUserSlateServerAppName);
 		FString ServerPath = FPlatformProcess::GenerateApplicationPath(MultiUserServerName, FApp::GetBuildConfiguration());
 
 		// Validate it exists and fall back to development if it doesn't.
@@ -1053,8 +1064,11 @@ private:
 
 	virtual bool IsConcertServerRunning() override
 	{
-		FString ServerPath = GetMultiUserServerExePathname();
-		return FPlatformProcess::IsApplicationRunning(*FPaths::GetCleanFilename(ServerPath));
+		// Check both because user can change config
+		const FString ConsoleServerPath = GetMultiUserServerExePathname(EConcertServerType::Console);
+		const FString SlateServerPath = GetMultiUserServerExePathname(EConcertServerType::Slate);
+		return FPlatformProcess::IsApplicationRunning(*FPaths::GetCleanFilename(ConsoleServerPath))
+			|| FPlatformProcess::IsApplicationRunning(*FPaths::GetCleanFilename(SlateServerPath));
 	}
 
 	/**
@@ -1076,7 +1090,7 @@ private:
 		}
 
 		// Find concert server location for our build configuration
-		FString ServerPath = GetMultiUserServerExePathname();
+		FString ServerPath = GetConfiguredMultiUserServerExePathname();
 
 		FText LaunchMultiUserErrorTitle = LOCTEXT("LaunchUnrealMultiUserServerErrorTitle", "Failed to Launch the Unreal Multi-User Server");
 		if (!IFileManager::Get().FileExists(*ServerPath))
@@ -1118,7 +1132,7 @@ private:
 
 	void ShutdownConcertServer() override
 	{
-		FString ServerPath = GetMultiUserServerExePathname();
+		FString ServerPath = GetConfiguredMultiUserServerExePathname();
 		ServerPath = FPaths::ConvertRelativePathToFull(ServerPath);
 		FPaths::NormalizeDirectoryName(ServerPath); // Need to have all slashes the same side.
 
@@ -1346,11 +1360,6 @@ private:
 				{
 					CmdLine += FString::Printf(TEXT(" -CONCERTSERVER=\"%s\""), *(LaunchOverrides->ServerName));
 				}
-			}
-
-			if (ClientConfig && ClientConfig->bRunWithSlate)
-			{
-				CmdLine += TEXT(" -WITHSLATE");
 			}
 		}
 		return CmdLine;

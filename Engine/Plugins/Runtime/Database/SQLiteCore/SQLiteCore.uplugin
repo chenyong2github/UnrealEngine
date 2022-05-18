@@ -14,7 +14,7 @@
 	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
-	"SupportedPrograms": [ "UnrealMultiUserServer", "UnrealRecoverySvc" ],
+	"SupportedPrograms": [ "UnrealMultiUserServer", "UnrealMultiUserSlateServer", "UnrealRecoverySvc" ],
 	"Modules": [
 		{
 			"Name": "SQLiteCore",

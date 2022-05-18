@@ -150,9 +150,6 @@ class MultiUserApplication:
 
             if CONFIG.MUSERVER_CLEAN_HISTORY.get_value():
                 cmdline += " -ConcertClean"
-                
-            if CONFIG.MUSERVER_SLATE_MODE.get_value():
-                cmdline += " -WithSlate"
 
             if len(args) > 0:
                 cmdline += f' {" ".join(args)}'

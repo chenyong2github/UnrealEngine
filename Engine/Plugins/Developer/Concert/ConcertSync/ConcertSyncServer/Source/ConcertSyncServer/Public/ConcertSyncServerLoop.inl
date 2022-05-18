@@ -6,6 +6,7 @@
 #include "IConcertSyncServer.h"
 #include "IConcertSyncServerModule.h"
 
+#include "CoreGlobals.h"
 #include "LaunchEngineLoop.h"
 #include "Containers/Ticker.h"
 #include "Misc/ConfigCacheIni.h"
@@ -18,20 +19,10 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogSyncServer, Log, All);
 
-
-void ConcertLogCommandLineArguments( int ArgC, TCHAR** ArgV )
+int32 ConcertSyncServerLoop(const TCHAR* CommandLine, const FConcertSyncServerLoopInitArgs& InitArgs)
 {
-	FString CmdLine;
-	for ( int i = 0 ; i < ArgC; i ++ )
-	{
-		CmdLine += " ";
-		CmdLine += ArgV[i];
-	}
-	UE_LOG( LogSyncServer, Display, TEXT( "Launch : %s" ), *CmdLine );
-}
-
-int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLoopInitArgs& InitArgs)
-{
+	FTaskTagScope Scope(ETaskTag::EGameThread);
+	
 	// Validate the init settings
 	checkf(InitArgs.IdealFramerate > 0, TEXT("IdealFramerate must be greater than zero!"));
 	checkf(InitArgs.SessionFlags != EConcertSyncSessionFlags::None, TEXT("SessionFlags cannot be None!"));
@@ -40,13 +31,13 @@ int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLo
 
 	// start up the main loop, adding some extra command line arguments:
 	//	-Messaging enables MessageBus transports
-	int32 Result = GEngineLoop.PreInit(ArgC, ArgV, TEXT(" -Messaging"));
+	int32 Result = GEngineLoop.PreInit(*FString::Printf(TEXT("%s %s"), CommandLine, TEXT(" -Messaging")));
 	check(GConfig && GConfig->IsReadyForUse());
 
 	if (InitArgs.bShowConsole)
 	{
 		GLogConsole->Show(true);
-		ConcertLogCommandLineArguments( ArgC, ArgV );
+		UE_LOG(LogSyncServer, Display, TEXT( "Launch : %s" ), CommandLine);
 	}
 
 	FModuleManager::Get().StartProcessingNewlyLoadedObjects();

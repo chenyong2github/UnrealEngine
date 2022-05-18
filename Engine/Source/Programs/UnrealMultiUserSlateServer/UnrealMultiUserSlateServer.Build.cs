@@ -2,11 +2,11 @@
 
 using UnrealBuildTool;
 
-public class UnrealMultiUserServer : ModuleRules
+public class UnrealMultiUserSlateServer : ModuleRules
 {
-	public UnrealMultiUserServer(ReadOnlyTargetRules Target) : base(Target)
+	public UnrealMultiUserSlateServer(ReadOnlyTargetRules Target) : base(Target)
 	{
-		IncludeOrderVersion = EngineIncludeOrderVersion.Latest;
+		//ShortName = "MU-SlateServer";
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
@@ -22,7 +22,8 @@ public class UnrealMultiUserServer : ModuleRules
 			new string[] {
 				"Launch",
 				"ConcertSyncCore",
-				"ConcertSyncServer"
+				"ConcertSyncServer",
+				"MultiUserServer",
 			}
 		);
 
@@ -34,8 +35,18 @@ public class UnrealMultiUserServer : ModuleRules
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
-				"ConcertSyncServer"
+				"ConcertSyncServer",
+				"MultiUserServer"
 			}
 		);
+		
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"UnixCommonStartup"
+				}
+			);
+		}
 	}
 }

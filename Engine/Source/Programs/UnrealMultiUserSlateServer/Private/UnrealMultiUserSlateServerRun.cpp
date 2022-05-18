@@ -1,13 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "UnrealMultiUserServerRun.h"
+#include "UnrealMultiUserSlateServerRun.h"
 
 #include "ConcertSettings.h"
 #include "ConcertSyncServerLoop.h"
+#include "IMultiUserServerModule.h"
 
-#include "Misc/CommandLine.h"
+namespace UE::UnrealMultiUserServer
+{
+	static void SetupSlate(FConcertSyncServerLoopInitArgs& ServerLoopInitArgs)
+	{
+		ServerLoopInitArgs.bShowConsole = false;
+		ServerLoopInitArgs.PreInitServerLoop.AddLambda([&ServerLoopInitArgs]()
+		{
+			TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("MultiUserServer"));
+			if (!Plugin || !Plugin->IsEnabled())
+			{
+				UE_LOG(LogSyncServer, Error, TEXT("The 'MultiUserServer' plugin is disabled."));
+			}
+			else
+			{
+				IMultiUserServerModule::Get().InitSlateForServer(ServerLoopInitArgs);
+			}
+		});
+	}
+}
 
-int32 RunUnrealMultiUserServer(int ArgC, TCHAR* ArgV[])
+int32 RunUnrealMultiUserServer(const TCHAR* CommandLine)
 {
 	FString Role(TEXT("MultiUser"));
 	FConcertSyncServerLoopInitArgs ServerLoopInitArgs;
@@ -29,5 +48,6 @@ int32 RunUnrealMultiUserServer(int ArgC, TCHAR* ArgV[])
 		return ServerConfig;
 	};
 
-	return ConcertSyncServerLoop(*FCommandLine::BuildFromArgV(nullptr, ArgC, ArgV, nullptr), ServerLoopInitArgs);
+	UE::UnrealMultiUserServer::SetupSlate(ServerLoopInitArgs);
+	return ConcertSyncServerLoop(CommandLine, ServerLoopInitArgs);
 }

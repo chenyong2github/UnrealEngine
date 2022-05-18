@@ -2182,6 +2182,11 @@ class Config(object):
                 "Multiuser Executable Name",
                 data.get('multiuser_exe', 'UnrealMultiUserServer')
             ),
+            "multiuserslate_exe": StringSetting(
+                "multiuserslate_exe",
+                "Multiuser Slate Executable Name",
+                data.get('multiuserslate_exe', 'UnrealMultiUserSlateServer')
+            ),
             "muserver_auto_launch": BoolSetting(
                 "muserver_auto_launch",
                 "Auto Launch",
@@ -2219,6 +2224,7 @@ class Config(object):
         self.MUSERVER_ENDPOINT = self.mu_settings["muserver_endpoint"]
         self.MUSERVER_MULTICAST_ENDPOINT = self.mu_settings["udpmessaging_multicast_endpoint"]
         self.MULTIUSER_SERVER_EXE = self.mu_settings["multiuser_exe"]
+        self.MULTIUSER_SLATE_SERVER_EXE = self.mu_settings["multiuserslate_exe"]
         self.MUSERVER_AUTO_LAUNCH = self.mu_settings["muserver_auto_launch"]
         self.MUSERVER_SLATE_MODE = self.mu_settings["muserver_slate_mode"]
         self.MUSERVER_CLEAN_HISTORY = self.mu_settings["muserver_clean_history"]
@@ -2236,6 +2242,7 @@ class Config(object):
         data["muserver_server_name"] = self.MUSERVER_SERVER_NAME.get_value()
         data["muserver_endpoint"] = self.MUSERVER_ENDPOINT.get_value()
         data["multiuser_exe"] = self.MULTIUSER_SERVER_EXE.get_value()
+        data["multiuserslate_exe"] = self.MULTIUSER_SLATE_SERVER_EXE.get_value()
         data["muserver_auto_launch"] = self.MUSERVER_AUTO_LAUNCH.get_value()
         data["muserver_slate_mode"] = self.MUSERVER_SLATE_MODE.get_value()
         data["muserver_clean_history"] = self.MUSERVER_CLEAN_HISTORY.get_value()
@@ -2461,13 +2468,23 @@ class Config(object):
         return maps
 
     def multiuser_server_path(self):
-        return self.engine_exe_path(
-            self.ENGINE_DIR.get_value(), self.MULTIUSER_SERVER_EXE.get_value())
+        if self.MUSERVER_SLATE_MODE.get_value():
+            return self.engine_exe_path(
+                self.ENGINE_DIR.get_value(), self.MULTIUSER_SLATE_SERVER_EXE.get_value())
+        else:
+            return self.engine_exe_path(
+                self.ENGINE_DIR.get_value(), self.MULTIUSER_SERVER_EXE.get_value())
 
     def multiuser_server_session_directory_path(self):
+        if self.MUSERVER_SLATE_MODE.get_value():
+            return os.path.join(self.ENGINE_DIR.get_value(), "Programs", "UnrealMultiUserSlateServer", "Intermediate", "MultiUser")
+
         return os.path.join(self.ENGINE_DIR.get_value(), "Programs", "UnrealMultiUserServer", "Intermediate", "MultiUser")
-        
+
     def multiuser_server_log_path(self):
+        if self.MUSERVER_SLATE_MODE.get_value():
+            return os.path.join(self.ENGINE_DIR.get_value(), "Programs", "UnrealMultiUserSlateServer", "Saved", "Logs", "UnrealMultiUserSlateServer.log")
+        # else we get the path to the console server.
         return os.path.join(self.ENGINE_DIR.get_value(), "Programs", "UnrealMultiUserServer", "Saved", "Logs", "UnrealMultiUserServer.log")
 
     def listener_path(self):

@@ -15,13 +15,13 @@
 	"Hidden": true,
 	"IsBetaVersion": true,
 	"Installed": false,
-	"SupportedPrograms": [ "UnrealMultiUserServer", "UnrealRecoverySvc", "CrashReportClientEditor" ],
+	"SupportedPrograms": [ "UnrealMultiUserSlateServer" ],
 	"Modules": [
         {
           "Name": "MultiUserServer",
           "Type": "UncookedOnly",
           "LoadingPhase": "Default",
-          "ProgramAllowList": [ "UnrealMultiUserServer", "UnrealRecoverySvc", "CrashReportClientEditor" ]
+          "ProgramAllowList": [ "UnrealMultiUserSlateServer" ]
         }
 	],
 	"Plugins": [

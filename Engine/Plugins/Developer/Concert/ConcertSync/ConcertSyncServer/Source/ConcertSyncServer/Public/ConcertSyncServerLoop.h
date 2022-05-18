@@ -8,6 +8,6 @@
 /**
  * Blocking main loop for running a Concert Sync server application.
  */
-int32 ConcertSyncServerLoop(int32 ArgC, TCHAR** ArgV, const FConcertSyncServerLoopInitArgs& InitArgs);
+int32 ConcertSyncServerLoop(const TCHAR* CommandLine, const FConcertSyncServerLoopInitArgs& InitArgs);
 
 #include "ConcertSyncServerLoop.inl"

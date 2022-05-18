@@ -287,6 +287,13 @@ struct FConcertSourceControlSettings
 	EConcertSourceValidationMode ValidationMode;
 };
 
+UENUM()
+enum class EConcertServerType
+{
+	Console,
+	Slate
+};
+
 UCLASS(config=Engine)
 class CONCERT_API UConcertClientConfig : public UObject
 {
@@ -331,9 +338,13 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="Client Settings")
 	bool bRetryAutoConnectOnError = false;
 
-	/** If true, MU servers will be launched with Slate UI. This appends -WITHSLATE to the cmd.  */
+	/**
+	 * Determines which server executable with be launched:
+	 *		Console -> UnrealMultiUserServer.exe
+	 *		Slate	-> UnrealMultiUserSlateServer.exe
+	 */
 	UPROPERTY(config, EditAnywhere, Category="Client Settings")
-	bool bRunWithSlate = false;
+	EConcertServerType ServerType = EConcertServerType::Console;
 
 	/** 
 	 * Default server url (just a name for now) to look for on auto or default connect. 

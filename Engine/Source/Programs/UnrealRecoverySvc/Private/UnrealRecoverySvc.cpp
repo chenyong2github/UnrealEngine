@@ -4,6 +4,7 @@
 #include "ConcertSyncServerLoop.h"
 #include "ConcertLocalFileSharingService.h"
 
+#include "Misc/CommandLine.h"
 #include "RequiredProgramMainCPPInclude.h"
 
 IMPLEMENT_APPLICATION(UnrealRecoverySvc, "UnrealRecoverySvc");
@@ -59,5 +60,5 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 		return true;
 	});
 
-	return ConcertSyncServerLoop(ArgC, ArgV, ServerLoopInitArgs);
+	return ConcertSyncServerLoop(*FCommandLine::BuildFromArgV(nullptr, ArgC, ArgV, nullptr), ServerLoopInitArgs);
 }
