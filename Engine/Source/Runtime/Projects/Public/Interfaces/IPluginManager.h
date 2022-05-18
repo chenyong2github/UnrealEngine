@@ -335,6 +335,11 @@ public:
 	 * Returns the set of built-in plugin names
 	 */
 	PROJECTS_API virtual const TSet<FString>& GetBuiltInPluginNames() const = 0;
+
+	/**
+	 * Returns the plugin that owns the specified module, if any
+	 */
+	PROJECTS_API virtual TSharedPtr<IPlugin> GetModuleOwnerPlugin(FName ModuleName) const = 0;
 #endif //WITH_EDITOR
 
 	/**

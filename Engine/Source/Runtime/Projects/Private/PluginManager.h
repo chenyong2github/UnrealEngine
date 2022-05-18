@@ -141,6 +141,7 @@ public:
 
 #if WITH_EDITOR
 	virtual const TSet<FString>& GetBuiltInPluginNames() const override;
+	virtual TSharedPtr<IPlugin> GetModuleOwnerPlugin(FName ModuleName) const override;
 #endif //WITH_EDITOR
 
 	virtual bool AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh = true) override;
@@ -220,6 +221,11 @@ private:
 	/** Unmounts a plugin that was requested to be unmounted from external code (by UnmountExplicitlyLoadedPlugin) */
 	bool UnmountPluginFromExternalSource(const TSharedPtr<FPlugin>& Plugin, FText* OutReason);
 
+#if WITH_EDITOR
+	void AddToModuleNameToPluginMap(const TSharedRef<FPlugin>& Plugin);
+	void RemoveFromModuleNameToPluginMap(const TSharedRef<FPlugin>& Plugin);
+#endif //if WITH_EDITOR
+
 private:
 	/** All of the plugins that we know about */
 	TMap< FString, TSharedRef< FPlugin > > AllPlugins;
@@ -230,6 +236,8 @@ private:
 #if WITH_EDITOR
 	/** Names of built-in plugins */
 	TSet<FString> BuiltInPluginNames;
+
+	TMap<FName, TSharedRef<IPlugin>> ModuleNameToPluginMap;
 #endif //if WITH_EDITOR
 
 	TArray<TSharedRef<IPlugin>> PluginsWithPakFile;

@@ -253,6 +253,14 @@ void FPluginManager::RefreshPluginsList()
 			PluginsToConfigure.AddByHash(PluginNameHash, NewPlugin->GetName());
 		}
 	}
+
+#if WITH_EDITOR
+	ModuleNameToPluginMap.Reset();
+	for (const TPair<FString, TSharedRef<FPlugin>>& PluginPair : AllPlugins)
+	{
+		AddToModuleNameToPluginMap(PluginPair.Value);
+	}
+#endif //if WITH_EDITOR
 }
 
 bool VerifySinglePluginForAddOrRemove(const FPluginDescriptor& Descriptor, FText& OutFailReason)
@@ -318,6 +326,10 @@ bool FPluginManager::AddToPluginsList(const FString& PluginFilename, FText* OutF
 		if (ensure(NewPlugin))
 		{
 			AllPlugins.Add(PluginName, *NewPlugin);
+
+#if WITH_EDITOR
+			AddToModuleNameToPluginMap(*NewPlugin);
+#endif //if WITH_EDITOR
 		}
 
 		return true;
@@ -371,8 +383,12 @@ bool FPluginManager::RemoveFromPluginsList(const FString& PluginFilename, FText*
 		return false;
 	}
 
+#if WITH_EDITOR
+	RemoveFromModuleNameToPluginMap(FoundPlugin);
+#endif //if WITH_EDITOR
+
 	AllPlugins.Remove(PluginName);
-#endif
+#endif //if (WITH_ENGINE && !IS_PROGRAM) || WITH_PLUGIN_SUPPORT
 
 	return true;
 }
@@ -390,6 +406,7 @@ void FPluginManager::DiscoverAllPlugins()
 		PluginsToConfigure.Add(PluginPair.Key);
 #if WITH_EDITOR
 		BuiltInPluginNames.Add(PluginPair.Key);
+		AddToModuleNameToPluginMap(PluginPair.Value);
 #endif //if WITH_EDITOR
 	}
 }
@@ -1941,6 +1958,15 @@ const TSet<FString>& FPluginManager::GetBuiltInPluginNames() const
 	ensure(!BuiltInPluginNames.IsEmpty());
 	return BuiltInPluginNames;
 }
+
+TSharedPtr<IPlugin> FPluginManager::GetModuleOwnerPlugin(FName ModuleName) const
+{
+	if (const TSharedRef<IPlugin>* Plugin = ModuleNameToPluginMap.Find(ModuleName))
+	{
+		return *Plugin;
+	}
+	return TSharedPtr<IPlugin>();
+}
 #endif //if WITH_EDITOR
 
 bool FPluginManager::AddPluginSearchPath(const FString& ExtraDiscoveryPath, bool bRefresh)
@@ -2137,5 +2163,42 @@ FName FPluginManager::PackageNameFromModuleName(FName ModuleName)
 	return Result;
 }
 
+#if WITH_EDITOR
+void FPluginManager::AddToModuleNameToPluginMap(const TSharedRef<FPlugin>& Plugin)
+{
+	if (!Plugin->Descriptor.bIsPluginExtension)
+	{
+		for (const FModuleDescriptor& Module : Plugin->Descriptor.Modules)
+		{
+			if (const TSharedRef<IPlugin>* FoundPlugin = ModuleNameToPluginMap.Find(Module.Name))
+			{
+				if (*FoundPlugin != Plugin)
+				{
+					UE_LOG(LogPluginManager, Error, TEXT("Module %s from plugin %s is already associated with plugin %s (maybe because the plugin should be using bIsPluginExtension)"), *Module.Name.ToString(), *Plugin->GetName(), *(*FoundPlugin)->GetName());
+				}
+			}
+			else
+			{
+				ModuleNameToPluginMap.Add(Module.Name, Plugin);
+			}
+		}
+	}
+}
+
+void FPluginManager::RemoveFromModuleNameToPluginMap(const TSharedRef<FPlugin>& Plugin)
+{
+	if (!Plugin->Descriptor.bIsPluginExtension)
+	{
+		for (const FModuleDescriptor& Module : Plugin->Descriptor.Modules)
+		{
+			TSharedRef<IPlugin> RemovedPlugin(Plugin);
+			if (ModuleNameToPluginMap.RemoveAndCopyValue(Module.Name, RemovedPlugin))
+			{
+				ensure(RemovedPlugin == Plugin);
+			}
+		}
+	}
+}
+#endif //if WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
