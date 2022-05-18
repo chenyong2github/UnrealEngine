@@ -542,23 +542,6 @@ namespace UnrealBuildTool
 			Arguments.Add("-Wno-unknown-pragmas");          // Slate triggers this (with its optimize on/off pragmas)
 			Arguments.Add("-Wno-invalid-offsetof"); // needed to suppress warnings about using offsetof on non-POD types.
 			Arguments.Add("-Wno-gnu-string-literal-operator-template"); // we use this feature to allow static FNames.
-
-			if (CompileEnvironment.bPGOOptimize)
-			{
-				//
-				// Clang emits a warning for each compiled function that doesn't have a matching entry in the profile data.
-				// This can happen when the profile data is older than the binaries we're compiling.
-				//
-				// Disable this warning. It's far too verbose.
-				//
-				Arguments.Add("-Wno-backend-plugin");
-			}
-
-			// shipping builds will cause this warning with "ensure", so disable only in those case
-			if (CompileEnvironment.Configuration == CppConfiguration.Shipping)
-			{
-				Arguments.Add("-Wno-unused-value");
-			}
 		}
 
 		/// <inheritdoc/>
