@@ -70,7 +70,7 @@ FWorldTileModel::FWorldTileModel(FWorldTileCollectionModel& InWorldModel, int32 
 		{
 			// Find the world object
 			UWorld* World = UWorld::FindWorldInPackage(LevelPackage);
-			if (World)
+			if (IsValid(World))
 			{
 				LoadedLevel = World->PersistentLevel;
 				// Enable tile properties
