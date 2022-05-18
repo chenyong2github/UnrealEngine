@@ -893,7 +893,7 @@ public:
 	bool RemoveUnusedOrphanedPins(URigVMNode* InNode, bool bNotify);
 
 	// Initializes and recomputes the filtered permutations of all template nodes in the graph 
-	void RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo, bool bKeepResolvedTypes = false);
+	void RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo);
 
 	// Try to initialize the filterd permutations from the pin types
 	void InitializeFilteredPermutationsFromTemplateTypes();

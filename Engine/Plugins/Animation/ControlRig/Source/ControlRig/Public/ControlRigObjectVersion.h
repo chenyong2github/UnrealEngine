@@ -63,6 +63,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Added the notion of a per control animation type
 		ControlAnimationType,
 
+		// Added preferred permutation for templates
+		TemplatesPreferredPermutatation,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

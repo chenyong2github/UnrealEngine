@@ -573,6 +573,7 @@ private:
 	void PatchVariableNodesWithIncorrectType();
 	void PatchPropagateToChildren();
 	void PatchParameterNodesOnLoad();
+	void PatchTemplateNodesWithPreferredPermutation();
 
 	TMap<FName, int32> AddedMemberVariableMap;
 	TArray<FBPVariableDescription> LastNewVariables;

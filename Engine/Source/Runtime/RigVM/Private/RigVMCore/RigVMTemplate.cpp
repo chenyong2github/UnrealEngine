@@ -51,6 +51,7 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(FProperty* InProperty)
 	Type.CPPType = RigVMTypeUtils::PostProcessCPPType(Type.CPPType, Type.CPPTypeObject);
 
 	Types.Add(Type);
+	TypeToPermutations.Add(Type.CPPType, {0});
 }
 
 FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const FType& InType)
@@ -60,6 +61,7 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 , bSingleton(true)
 , Types({InType})
 {
+	TypeToPermutations.Add(InType.CPPType, {0});	
 }
 
 FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<FType>& InTypes)
@@ -70,6 +72,7 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 , Types(InTypes)
 {
 	check(Types.Num() > 0);
+
 	for(int32 TypeIndex=1;TypeIndex<Types.Num();TypeIndex++)
 	{
 		if(Types[TypeIndex] != Types[0])
@@ -78,47 +81,46 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 			break;
 		}
 	}
+
+	for(int32 TypeIndex=0;TypeIndex<Types.Num();TypeIndex++)
+	{
+		if (TArray<int32>* Permutations = TypeToPermutations.Find(Types[TypeIndex].CPPType))
+		{
+			Permutations->Add(TypeIndex);
+		}
+		else
+		{
+			TypeToPermutations.Add(Types[TypeIndex].CPPType, {TypeIndex});
+		}
+	}
 }
 
-bool FRigVMTemplateArgument::SupportsType(const FString& InCPPType, const TArray<int32>& InPermutationIndices, FType* OutType) const
+bool FRigVMTemplateArgument::SupportsType(const FString& InCPPType, FType* OutType) const
 {
-	bool bFoundMatch = false;
-	bool bFoundPerfectMatch = false;
-	
-	auto VisitType = [&bFoundMatch, &bFoundPerfectMatch, InCPPType, &OutType](const FType& InType)
+	if (const TArray<int32>* Permutations = TypeToPermutations.Find(InCPPType))
 	{
-		if (InType.Matches(InCPPType))
+		if(OutType)
 		{
-			if(!bFoundPerfectMatch)
+			(*OutType) = Types[(*Permutations)[0]];
+		}
+		return true;		
+	}
+
+	// Try to find compatible type
+	TArray<FString> CompatibleTypes = FType::GetCompatibleTypes(InCPPType);
+	for (const FString& Compatible : CompatibleTypes)
+	{
+		if (const TArray<int32>* Permutations = TypeToPermutations.Find(Compatible))
+		{
+			if(OutType)
 			{
-				if(OutType)
-				{
-					*OutType = InType;
-				}
-				if(InType.CPPType == InCPPType)
-				{
-					bFoundPerfectMatch = true;
-				}
+				(*OutType) = Types[(*Permutations)[0]];
 			}
-			bFoundMatch = true;
-		}
-	};
-	
-	if(InPermutationIndices.IsEmpty())
-	{
-		for (const FType& Type : Types)
-		{
-			VisitType(Type);
+			return true;		
 		}
 	}
-	else
-	{
-		for (const int32 PermutationIndex : InPermutationIndices)
-		{
-			VisitType(Types[PermutationIndex]);
-		}
-	}
-	return bFoundMatch;
+
+	return false;	
 }
 
 bool FRigVMTemplateArgument::IsSingleton(const TArray<int32>& InPermutationIndices) const
@@ -852,6 +854,20 @@ bool FRigVMTemplate::Merge(const FRigVMTemplate& InOther)
 		}
 
 		NewArgs.Add(Arguments[ArgumentIndex]);
+
+		// Add Other argument information into the TypeToPermutations map
+		{
+			const FString& OtherCPPType = InOther.Arguments[ArgumentIndex].Types[0].CPPType;
+			const int32 NewPermutationIndex = NewArgs[ArgumentIndex].Types.Num();
+			if (TArray<int32>* ArgTypePermutations = NewArgs[ArgumentIndex].TypeToPermutations.Find(OtherCPPType))
+			{
+				ArgTypePermutations->Add(NewPermutationIndex);
+			}
+			else
+			{
+				NewArgs[ArgumentIndex].TypeToPermutations.Add(OtherCPPType, {NewPermutationIndex});
+			}
+		}
 		NewArgs[ArgumentIndex].Types.Add(InOther.Arguments[ArgumentIndex].Types[0]);
 
 		if (!Arguments[ArgumentIndex].Types.Contains(InOther.Arguments[ArgumentIndex].Types[0]))
@@ -874,28 +890,12 @@ const FRigVMTemplateArgument* FRigVMTemplate::FindArgument(const FName& InArgume
 	});
 }
 
-bool FRigVMTemplate::ArgumentSupportsType(const FName& InArgumentName, const FString& InCPPType, const FRigVMTemplate::FTypeMap& InTypes, FRigVMTemplateArgument::FType* OutType) const
+bool FRigVMTemplate::ArgumentSupportsType(const FName& InArgumentName, const FString& InCPPType, FRigVMTemplateArgument::FType* OutType) const
 {
 	if (const FRigVMTemplateArgument* Argument = FindArgument(InArgumentName))
 	{
-		if(InTypes.Num() == 0)
-		{
-			return Argument->SupportsType(InCPPType, TArray<int32>(), OutType);
-		}
-
-		FTypeMap Types = InTypes;
-		Types.FindOrAdd(InArgumentName) = InCPPType;
-
-		TArray<int32> PermutationIndices;
-		if(Resolve(Types, PermutationIndices, true))
-		{
-			if(OutType)
-			{
-				*OutType = Types.FindChecked(InArgumentName);
-			}
-			return true;
-		}
-		return false;
+		return Argument->SupportsType(InCPPType, OutType);		
+		
 	}
 	return false;
 }

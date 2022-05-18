@@ -81,6 +81,27 @@ struct RIGVM_API FRigVMTemplateArgument
 			return false;
 		}
 
+		static TArray<FString> GetCompatibleTypes(const FString& InCPPType)
+		{
+			if(InCPPType == RigVMTypeUtils::FloatType)
+			{
+				return {RigVMTypeUtils::DoubleType};
+			}
+			if(InCPPType == RigVMTypeUtils::DoubleType)
+			{
+				return {RigVMTypeUtils::FloatType};
+			}
+			if(InCPPType == RigVMTypeUtils::FloatArrayType)
+			{
+				return {RigVMTypeUtils::DoubleArrayType};
+			}
+			if(InCPPType == RigVMTypeUtils::DoubleArrayType)
+			{
+				return {RigVMTypeUtils::FloatArrayType};
+			}
+			return {};
+		}
+
 		FName GetCPPTypeObjectPath() const
 		{
 			if(CPPTypeObject)
@@ -157,7 +178,7 @@ struct RIGVM_API FRigVMTemplateArgument
 	ERigVMPinDirection GetDirection() const { return Direction; }
 
 	// returns true if this argument supports a given type across a set of permutations
-	bool SupportsType(const FString& InCPPType, const TArray<int32>& InPermutationIndices = TArray<int32>(), FType* OutType = nullptr) const;
+	bool SupportsType(const FString& InCPPType, FType* OutType = nullptr) const;
 
 	// returns the flat list of types (including duplicates) of this argument
 	const TArray<FType>& GetTypes() const;
@@ -184,6 +205,7 @@ protected:
 	ERigVMPinDirection Direction;
 	bool bSingleton;
 	TArray<FType> Types;
+	TMap<FString, TArray<int32>> TypeToPermutations;
 
 	// default constructor
 	FRigVMTemplateArgument();
@@ -234,7 +256,7 @@ public:
 	const FRigVMTemplateArgument* FindArgument(const FName& InArgumentName) const;
 
 	// returns true if a given arg supports a type
-	bool ArgumentSupportsType(const FName& InArgumentName, const FString& InCPPType, const FTypeMap& InTypes = FTypeMap(), FRigVMTemplateArgument::FType* OutType = nullptr) const;
+	bool ArgumentSupportsType(const FName& InArgumentName, const FString& InCPPType, FRigVMTemplateArgument::FType* OutType = nullptr) const;
 
 	// returns the number of permutations supported by this template
 	int32 NumPermutations() const { return Permutations.Num(); }

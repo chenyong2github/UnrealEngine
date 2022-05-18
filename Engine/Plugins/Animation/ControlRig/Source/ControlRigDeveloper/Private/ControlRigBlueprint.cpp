@@ -479,6 +479,8 @@ void UControlRigBlueprint::PostLoad()
 		PatchBoundVariables();
 		PatchPropagateToChildren();
 		PatchParameterNodesOnLoad();
+		PatchTemplateNodesWithPreferredPermutation();
+		
 
 #if WITH_EDITOR
 
@@ -920,7 +922,7 @@ void UControlRigBlueprint::RefreshAllModels()
 				TemplateNode->InvalidateCache();
 			}
 		}
-		Controller->InitializeFilteredPermutationsFromTemplateTypes();
+		Controller->RecomputeAllTemplateFilteredTypes(false);
 	}
 }
 
@@ -4083,6 +4085,28 @@ void UControlRigBlueprint::PatchParameterNodesOnLoad()
 	}
 
 #endif	
+}
+
+void UControlRigBlueprint::PatchTemplateNodesWithPreferredPermutation()
+{
+#if WITH_EDITOR
+
+	if (GetLinkerCustomVersion(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::TemplatesPreferredPermutatation)
+	{
+		for (URigVMGraph* Graph : GetAllModels())
+		{
+			for(URigVMNode* ModelNode : Graph->GetNodes())
+			{
+				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
+				{
+					TemplateNode->InvalidateCache();
+				}
+			}
+			
+			GetController(Graph)->InitializeFilteredPermutationsFromTemplateTypes();
+		}
+	}
+#endif
 }
 
 void UControlRigBlueprint::PropagatePoseFromInstanceToBP(UControlRig* InControlRig)
