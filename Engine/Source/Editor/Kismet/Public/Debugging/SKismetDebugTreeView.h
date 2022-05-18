@@ -28,7 +28,7 @@ class SCheckBox;
 typedef TSharedPtr<class FDebugLineItem> FDebugTreeItemPtr;
 
 // The base class for a line entry in the debugging tree view
-class FDebugLineItem : public TSharedFromThis<FDebugLineItem>
+class KISMET_API FDebugLineItem : public TSharedFromThis<FDebugLineItem>
 {
 public:
 	friend class FLineItemWithChildren; // used by FLineItemWithChildren::EnsureChildIsAdded

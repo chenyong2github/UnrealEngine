@@ -178,6 +178,11 @@ void SPinValueInspector::OnExpansionChanged(FDebugTreeItemPtr InItem, bool bItem
 	ConstrainedBox->RequestResize();
 }
 
+void SPinValueInspector::AddTreeItemUnique(const FDebugTreeItemPtr& Item)
+{
+	TreeViewWidget->AddTreeItemUnique(Item);
+}
+
 void SPinValueInspector::PopulateTreeView()
 {
 	// Locate the class property associated with the source pin and set it to the root node.
@@ -245,6 +250,16 @@ void SPinValueInspector::AddPinToTreeView(const UEdGraphPin* Pin, UBlueprint* Bl
 	}
 }
 
+void SPinValueInspector::RequestUpdateFilteredItems()
+{
+	TreeViewWidget->RequestUpdateFilteredItems();
+}
+
+const FEdGraphPinReference& SPinValueInspector::GetPinRef() const
+{
+	return PinRef;
+}
+
 void SPinValueInspector::SetPinRef(const FEdGraphPinReference& InPinRef)
 {
 	TreeViewWidget->ClearTreeItems();
@@ -253,7 +268,7 @@ void SPinValueInspector::SetPinRef(const FEdGraphPinReference& InPinRef)
 	ConstrainedBox->RequestResize();
 }
 
-TWeakPtr<FPinValueInspectorTooltip> FPinValueInspectorTooltip::SummonTooltip(FEdGraphPinReference InPinRef)
+TWeakPtr<FPinValueInspectorTooltip> FPinValueInspectorTooltip::SummonTooltip(FEdGraphPinReference InPinRef, TSharedPtr<SPinValueInspector> InContentWidgetOverride)
 {
 	if (!FSlateApplication::Get().GetVisibleMenuWindow().Get())
 	{
@@ -269,7 +284,17 @@ TWeakPtr<FPinValueInspectorTooltip> FPinValueInspectorTooltip::SummonTooltip(FEd
 			}
 
 			Instance = MakeShared<FPinValueInspectorTooltip>();
-			ValueInspectorWidget->SetPinRef(InPinRef);
+			if (TooltipWidget.IsValid() && InContentWidgetOverride)
+			{
+				TooltipWidget->SetContentWidget(InContentWidgetOverride->AsShared());
+				InContentWidgetOverride->SetPinRef(InPinRef);
+				ValueInspectorWidget->SetPinRef({ });
+			}
+			else
+			{
+				ValueInspectorWidget->SetPinRef(InPinRef);
+			}
+
 			TooltipWindow->ShowWindow();
 			TooltipWindow->SetAllowFastUpdate(true);
 			return Instance;
@@ -312,9 +337,16 @@ void FPinValueInspectorTooltip::DismissTooltip()
 	{
 		FSlateApplication::Get().DismissAllMenus();
 	}
+
 	ValueInspectorWidget->SetPinRef(FEdGraphPinReference());
+
 	TooltipWindow->HideWindow();
 	TooltipWindow->SetAllowFastUpdate(false);
+	if (TooltipWidget->GetContentWidget() != ValueInspectorWidget)
+	{
+		TooltipWidget->SetContentWidget(ValueInspectorWidget->AsShared());
+	}
+
 	Instance.Reset();
 }
 
@@ -335,12 +367,12 @@ void FPinValueInspectorTooltip::CreatePinValueTooltipWindow()
 	TooltipWidget->SetContentWidget(SAssignNew(ValueInspectorWidget, SPinValueInspector));
 }
 
-bool FPinValueInspectorTooltip::TooltipCanClose()
+bool FPinValueInspectorTooltip::TooltipCanClose() const
 {
 	return !TooltipWindow->IsHovered() && !TooltipHostsMenu();
 }
 
-bool FPinValueInspectorTooltip::TooltipHostsMenu()
+bool FPinValueInspectorTooltip::TooltipHostsMenu() const
 {
 	TSharedPtr<SWindow> MenuHostWindow = FSlateApplication::Get().GetVisibleMenuWindow();
 	return MenuHostWindow.IsValid() && (MenuHostWindow == TooltipWindow);
