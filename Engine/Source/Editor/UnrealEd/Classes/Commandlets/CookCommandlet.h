@@ -33,6 +33,8 @@ class UCookCommandlet
 	bool bIterativeCooking;
 	/** Prototype cook-on-the-fly server */
 	bool bCookOnTheFly; 
+	/** Is using fast cook */
+	bool bFastCook;
 	/** Cook everything */
 	bool bCookAll;
 	/** Skip saving any packages in Engine/Content/Editor* UNLESS TARGET HAS EDITORONLY DATA (in which case it will save those anyway) */
