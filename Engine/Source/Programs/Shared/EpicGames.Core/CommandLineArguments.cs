@@ -251,7 +251,7 @@ namespace EpicGames.Core
 		/// <param name="index">Index of the argument to mark as being unused</param>
 		public void MarkAsUnused(int index)
 		{
-			_usedArguments.Set(index, true);
+			_usedArguments.Set(index, false);
 		}
 
 		/// <summary>
