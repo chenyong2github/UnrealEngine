@@ -352,12 +352,17 @@ public:
 			RHIEndOcclusionQueryBatch();
 		}
 
-		UE::RHICore::ResolveRenderPassTargets(*this, RenderPassInfo);
+		UE::RHICore::ResolveRenderPassTargets(RenderPassInfo, [this](UE::RHICore::FResolveTextureInfo Info)
+		{
+			ResolveTexture(Info);
+		});
 
 		FRHIRenderTargetView RTV(nullptr, ERenderTargetLoadAction::ENoAction);
 		FRHIDepthRenderTargetView DepthRTV(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
 		SetRenderTargets(1, &RTV, &DepthRTV);
 	}
+
+	void ResolveTexture(UE::RHICore::FResolveTextureInfo Info);
 
 	// When using Alternate Frame Rendering some temporal effects i.e. effects which consume GPU work from previous frames must synchronize their resources
 	// to prevent visual corruption.

@@ -478,6 +478,69 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
+void FD3D12CommandContext::ResolveTexture(UE::RHICore::FResolveTextureInfo Info)
+{
+	uint32 GPUIndex = GetGPUIndex();
+	FRHICommandList_RecursiveHazardous RHICmdList(this, FRHIGPUMask::FromIndex(GPUIndex));
+
+	if (IsDefaultContext())
+	{
+		GetParentDevice()->RegisterGPUWork();
+	}
+
+	FD3D12Texture* SourceTexture         = GetD3D12TextureFromRHITexture(Info.SourceTexture, GPUIndex);
+	FD3D12Resource* SourceResource       = SourceTexture->GetResource();
+	const FRHITextureDesc& SourceDesc    = SourceTexture->GetDesc();
+
+	FD3D12Texture* DestTexture           = GetD3D12TextureFromRHITexture(Info.DestTexture, GPUIndex);
+	FD3D12Resource* DestResource         = DestTexture->GetResource();
+	const FRHITextureDesc& DestDesc      = DestTexture->GetDesc();
+
+	if (SourceDesc.Format == PF_DepthStencil)
+	{
+		ResolveTextureUsingShader<FResolveDepthPS>(
+			RHICmdList,
+			SourceTexture,
+			DestTexture,
+			DestTexture->GetRenderTargetView(0, -1),
+			DestTexture->GetDepthStencilView(FExclusiveDepthStencil::DepthWrite_StencilWrite),
+			DestResource->GetDesc(),
+			GetDefaultRect(Info.ResolveRect, SourceDesc.Extent.X, SourceDesc.Extent.Y),
+			GetDefaultRect(Info.ResolveRect, DestDesc.Extent.X, DestDesc.Extent.Y),
+			FDummyResolveParameter()
+		);
+	}
+	else
+	{
+		const DXGI_FORMAT DestFormatTypeless = ConvertTypelessToUnorm((DXGI_FORMAT)GPixelFormats[DestDesc.Format].PlatformFormat);
+
+		int32 ArraySliceBegin = Info.ArraySlice;
+		int32 ArraySliceEnd   = Info.ArraySlice + 1;
+
+		if (Info.ArraySlice < 0)
+		{
+			ArraySliceBegin = 0;
+			ArraySliceEnd   = SourceDesc.ArraySize;
+		}
+
+		for (int32 ArraySlice = ArraySliceBegin; ArraySlice < ArraySliceEnd; ArraySlice++)
+		{
+			int32 DestSubresource   = CalcSubresource(Info.MipLevel, ArraySlice, DestDesc.ArraySize);
+			int32 SourceSubresource = CalcSubresource(Info.MipLevel, ArraySlice, SourceDesc.ArraySize);
+
+			CommandListHandle->ResolveSubresource(DestResource->GetResource(), DestSubresource, SourceTexture->GetResource()->GetResource(), SourceSubresource, DestFormatTypeless);
+			otherWorkCounter++;
+		}
+	}
+
+	CommandListHandle.UpdateResidency(SourceTexture->GetResource());
+	CommandListHandle.UpdateResidency(DestTexture->GetResource());
+
+	ConditionalFlushCommandList();
+
+	DEBUG_EXECUTE_COMMAND_LIST(this);
+}
+
 static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 {
 	uint32 BytesPerPixel = 0;
