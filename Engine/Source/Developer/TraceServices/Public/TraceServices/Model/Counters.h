@@ -23,6 +23,7 @@ public:
 	virtual const TCHAR* GetGroup() const = 0;
 	virtual const TCHAR* GetDescription() const = 0;
 	virtual bool IsFloatingPoint() const = 0;
+	virtual bool IsResetEveryFrame() const { return false; }
 	virtual ECounterDisplayHint GetDisplayHint() const = 0;
 	virtual void EnumerateValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, int64)> Callback) const = 0;
 	virtual void EnumerateFloatValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, double)> Callback) const = 0;
@@ -38,8 +39,8 @@ public:
 	virtual void SetGroup(const TCHAR* Group) = 0;
 	virtual void SetDescription(const TCHAR* Description) = 0;
 	virtual void SetIsFloatingPoint(bool bIsFloatingPoint) = 0;
-	virtual void SetDisplayHint(ECounterDisplayHint DisplayHint) = 0;
 	virtual void SetIsResetEveryFrame(bool bInIsResetEveryFrame) = 0;
+	virtual void SetDisplayHint(ECounterDisplayHint DisplayHint) = 0;
 	virtual void AddValue(double Time, int64 Value) = 0;
 	virtual void AddValue(double Time, double Value) = 0;
 	virtual void SetValue(double Time, int64 Value) = 0;

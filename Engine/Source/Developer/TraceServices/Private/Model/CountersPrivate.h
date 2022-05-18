@@ -202,9 +202,10 @@ public:
 	virtual void SetDescription(const TCHAR* InDescription) override { Description = InDescription; }
 	virtual bool IsFloatingPoint() const override { return bIsFloatingPoint; }
 	virtual void SetIsFloatingPoint(bool bInIsFloatingPoint) override;
+	virtual bool IsResetEveryFrame() const override { return bIsResetEveryFrame; }
+	virtual void SetIsResetEveryFrame(bool bInIsResetEveryFrame) override { bIsResetEveryFrame = bInIsResetEveryFrame; }
 	virtual ECounterDisplayHint GetDisplayHint() const { return DisplayHint; }
 	virtual void SetDisplayHint(ECounterDisplayHint InDisplayHint) override { DisplayHint = InDisplayHint; }
-	virtual void SetIsResetEveryFrame(bool bInIsResetEveryFrame) override { bIsResetEveryFrame = bInIsResetEveryFrame; }
 	virtual void EnumerateValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, int64)> Callback) const override;
 	virtual void EnumerateFloatValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, double)> Callback) const override;
 	virtual void AddValue(double Time, int64 Value) override;

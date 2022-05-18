@@ -18,13 +18,19 @@ class FStatsAnalyzer
 public:
 	FStatsAnalyzer(IAnalysisSession& Session, ICounterProvider& CounterProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
+	virtual void OnAnalysisEnd() override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
+
+private:
+	void CreateFrameCounters();
 
 private:
 	enum : uint16
 	{
 		RouteId_Spec,
 		RouteId_EventBatch,
+		RouteId_BeginFrame,
+		RouteId_EndFrame
 	};
 
 	struct FThreadState
