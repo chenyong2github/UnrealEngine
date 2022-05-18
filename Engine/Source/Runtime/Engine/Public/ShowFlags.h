@@ -476,7 +476,6 @@ private:
 		SetVisualizeVolumetricCloudConservativeDensity(false);
 		SetVisualizeStrataMaterial(false);
 		SetDrawOnlyVSMInvalidatingGeo(false);
-		SetSingleLayerWaterRefractionFullPrecision(false);
 
 		SetLumenScreenTraces(true);
 		SetLumenDetailTraces(true);
