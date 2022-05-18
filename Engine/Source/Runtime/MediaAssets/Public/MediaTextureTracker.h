@@ -10,6 +10,13 @@
 class AActor;
 class UMediaTexture;
 
+enum class EMediaTextureVisibleMipsTiles : uint8
+{
+	None = 0,
+	Plane = 1,
+	Sphere
+};
+
 /** Holds info on a single object. */
 struct FMediaTextureTrackerObject
 {
@@ -17,6 +24,8 @@ struct FMediaTextureTrackerObject
 	TWeakObjectPtr<class AActor> Object;
 	/** LOD bias for the mipmap level. */
 	float MipMapLODBias;
+	/** Specify type of mesh used for visible mips and tiles calculations. */
+	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
 };
 
 /**

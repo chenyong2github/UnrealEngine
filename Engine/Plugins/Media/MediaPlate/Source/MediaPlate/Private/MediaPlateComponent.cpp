@@ -35,6 +35,9 @@ UMediaPlateComponent::UMediaPlateComponent(const FObjectInitializer& ObjectIniti
 
 	// Set up playlist.
 	MediaPlaylist = CreateDefaultSubobject<UMediaPlaylist>(MediaPlaylistName);
+
+	// Default to plane since AMediaPlate defaults to SM_MediaPlateScreen
+	VisibleMipsTilesCalculations = EMediaPlateVisibleMipsTiles::Plane;
 }
 
 void UMediaPlateComponent::OnRegister()
@@ -121,6 +124,7 @@ void UMediaPlateComponent::RegisterWithMediaTextureTracker()
 	MediaTextureTrackerObject = MakeShared<FMediaTextureTrackerObject, ESPMode::ThreadSafe>();
 	MediaTextureTrackerObject->Object = GetOwner();
 	MediaTextureTrackerObject->MipMapLODBias = 0.0f;
+	MediaTextureTrackerObject->VisibleMipsTilesCalculations = static_cast<EMediaTextureVisibleMipsTiles>(VisibleMipsTilesCalculations);
 
 	// Add our texture.
 	TObjectPtr<UMediaTexture> MediaTexture = GetMediaTexture();
@@ -204,6 +208,13 @@ void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 				SoundComponent->DestroyComponent();
 				SoundComponent = nullptr;
 			}
+		}
+	}
+	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, VisibleMipsTilesCalculations))
+	{
+		if (MediaTextureTrackerObject != nullptr)
+		{
+			MediaTextureTrackerObject->VisibleMipsTilesCalculations = static_cast<EMediaTextureVisibleMipsTiles>(VisibleMipsTilesCalculations);
 		}
 	}
 }

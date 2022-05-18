@@ -2,12 +2,13 @@
 
 #pragma once
 
+#include "Containers/BitArray.h"
 #include "CoreMinimal.h"
 #include "IMediaOptions.h"
+#include "MediaTextureTracker.h"
 #include "Tickable.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Containers/BitArray.h"
 
 class AActor;
 class UMeshComponent;
@@ -220,7 +221,7 @@ public:
 	 * @param InActor Object using our img sequence.
 	 * @param Width Width of the object. If < 0, then get the width automatically.
 	 */
-	void AddObject(AActor* InActor, float Width, float LODBias);
+	void AddObject(AActor* InActor, float Width, float LODBias, EMediaTextureVisibleMipsTiles MeshType = EMediaTextureVisibleMipsTiles::None);
 
 	/**
 	 * This object is no longer using our img sequence.

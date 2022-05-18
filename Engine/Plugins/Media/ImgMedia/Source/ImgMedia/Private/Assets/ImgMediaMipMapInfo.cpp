@@ -11,7 +11,6 @@
 #include "Engine/StaticMesh.h"
 #include "GameFramework/Actor.h"
 #include "Math/UnrealMathUtility.h"
-#include "MediaTextureTracker.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -238,11 +237,6 @@ namespace {
 			if (MeshComponent != nullptr)
 			{
 				PlaneSize = 2.0f * MeshComponent->CalcLocalBounds().BoxExtent;
-
-				PlaneVertices[0] = 0.5f * FVector(-PlaneSize.X, -PlaneSize.Y, 0);
-				PlaneVertices[1] = 0.5f * FVector(-PlaneSize.X, PlaneSize.Y, 0);
-				PlaneVertices[2] = 0.5f * FVector(PlaneSize.X, -PlaneSize.Y, 0);
-				PlaneVertices[3] = 0.5f * FVector(PlaneSize.X, PlaneSize.Y, 0);
 			}
 			else
 			{
@@ -268,11 +262,11 @@ namespace {
 			const FTransform MeshTransform = Mesh->GetComponentTransform();
 			const FVector MeshScale = Mesh->GetComponentScale();
 
-			FVector PlaneCornerWS = MeshTransform.TransformPosition(-0.5f * PlaneSize);
-			FVector DirXWS = MeshTransform.TransformVector(FVector(PlaneSize.X, 0, 0));
-			FVector DirYWS = MeshTransform.TransformVector(FVector(0, PlaneSize.Y, 0));
-			FVector TexelOffsetXWS = MeshTransform.TransformVector(FVector(PlaneSize.X / InSequenceInfo.Dim.X, 0, 0));
-			FVector TexelOffsetYWS = MeshTransform.TransformVector(FVector(0, PlaneSize.Y / InSequenceInfo.Dim.Y, 0));
+			FVector PlaneCornerWS = MeshTransform.TransformPosition(FVector(0, -0.5f * PlaneSize.Y, 0.5f * PlaneSize.Z));
+			FVector DirXWS = MeshTransform.TransformVector(FVector(0, PlaneSize.Y, 0));
+			FVector DirYWS = MeshTransform.TransformVector(FVector(0, 0, -PlaneSize.Z));
+			FVector TexelOffsetXWS = MeshTransform.TransformVector(FVector(0, PlaneSize.Y / InSequenceInfo.Dim.X, 0));
+			FVector TexelOffsetYWS = MeshTransform.TransformVector(FVector(0, 0, -PlaneSize.Z / InSequenceInfo.Dim.Y));
 
 			for (const FImgMediaMipMapCameraInfo& CameraInfo : InCameraInfos)
 			{
@@ -315,7 +309,7 @@ namespace {
 					FVector TileCenterWS = PlaneCornerWS + (DirXWS * StepX + DirYWS * StepY);
 
 					// Calculate the tile radius in world space
-					FVector TileSizeWS = (PlaneSize * MeshScale) / FVector(CurrentNumTiles.X, CurrentNumTiles.Y, 1);
+					FVector TileSizeWS = (PlaneSize * MeshScale) / FVector(1, CurrentNumTiles.X, CurrentNumTiles.Y);
 					float TileRadiusInWS = 0.5f * (float)FMath::Sqrt(2 * FMath::Square(TileSizeWS.GetAbsMax()));
 
 					// Now we check if tile spherical bounds are in view.
@@ -436,9 +430,6 @@ namespace {
 		/** Local size of this mesh component. */
 		FVector PlaneSize;
 
-		/** Four plane vertices (in local space). */
-		TStaticArray<FVector, 4> PlaneVertices;
-
 		/** Cached calculating mip levels (at mip0). */
 		mutable TArray<float> CornerMipLevelsCached;
 	};
@@ -541,34 +532,25 @@ FImgMediaMipMapInfo::~FImgMediaMipMapInfo()
 	ClearAllObjects();
 }
 
-void FImgMediaMipMapInfo::AddObject(AActor* InActor, float Width, float LODBias)
+void FImgMediaMipMapInfo::AddObject(AActor* InActor, float Width, float LODBias, EMediaTextureVisibleMipsTiles MeshType)
 {
 	if (InActor != nullptr)
 	{
 		UMeshComponent* MeshComponent = Cast<UMeshComponent>(InActor->FindComponentByClass(UMeshComponent::StaticClass()));
 		if (MeshComponent != nullptr)
 		{
-			FImgMediaMipMapObjectInfo* Info = nullptr;
-
-			if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
+			switch (MeshType)
 			{
-				FString StaticMeshName = StaticMeshComponent->GetStaticMesh()->GetName();
-				if (StaticMeshName.Equals(TEXT("Plane")))
-				{
-					Info = new FPlaneObjectInfo(MeshComponent, LODBias);
-				}
-				else if (StaticMeshName.Equals(TEXT("Sphere")))
-				{
-					Info = new FSphereObjectInfo(MeshComponent, LODBias);
-				}
+			case EMediaTextureVisibleMipsTiles::Plane:
+				Objects.Add(new FPlaneObjectInfo(MeshComponent, LODBias));
+				break;
+			case EMediaTextureVisibleMipsTiles::Sphere:
+				Objects.Add(new FSphereObjectInfo(MeshComponent, LODBias));
+				break;
+			default:
+				Objects.Add(new FImgMediaMipMapObjectInfo(MeshComponent, LODBias));
+				break;
 			}
-
-			if (Info == nullptr)
-			{
-				Info = new FImgMediaMipMapObjectInfo(MeshComponent, LODBias);
-			}
-
-			Objects.Add(Info);
 		}
 	}
 }
@@ -605,7 +587,7 @@ void FImgMediaMipMapInfo::AddObjectsUsingThisMediaTexture(UMediaTexture* InMedia
 				AActor* Owner = ObjectInfo->Object.Get();
 				if (Owner != nullptr)
 				{
-					AddObject(Owner, 0.0f, ObjectInfo->MipMapLODBias);
+					AddObject(Owner, 0.0f, ObjectInfo->MipMapLODBias, ObjectInfo->VisibleMipsTilesCalculations);
 				}
 			}
 		}

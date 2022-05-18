@@ -5,6 +5,7 @@
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
 #include "MediaPlayerOptions.h"
+#include "MediaTextureTracker.h"
 
 #include "MediaPlateComponent.generated.h"
 
@@ -15,6 +16,18 @@ class UMediaSoundComponent;
 class UMediaSource;
 class UMediaTexture;
 struct FMediaTextureTrackerObject;
+
+/**
+ * List of mesh types used for visible mips and tiles calculations, matching EMediaTextureVisibleMipsTiles.
+ */
+UENUM()
+enum class EMediaPlateVisibleMipsTiles : uint8
+{
+	Disabled = 0,
+	Plane = 1,
+	Sphere
+};
+
 
 /**
  * This is a component for AMediaPlate that can play and show media in the world.
@@ -95,6 +108,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
 	float SmartCacheTimeToLookAhead = 0.2f;
+
+	/** Specify type of mesh used for visible mips and tiles calculations.
+	 * Use /MediaPlate/SM_MediaPlateScreen for the plane.
+	 * Use /Engine/BasicShapes/Sphere for the sphere.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
+	EMediaPlateVisibleMipsTiles VisibleMipsTilesCalculations;
 
 	/**
 	 * Adds our media texture to the media texture tracker.
