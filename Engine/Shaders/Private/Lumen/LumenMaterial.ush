@@ -455,7 +455,7 @@ bool ShouldComputeIndirectLighting(FLumenMaterialData In)
 float3x3 GetTangentBasis(FLumenMaterialData In)
 {
 #if STRATA_ENABLED
-	return In.Anisotropy != 0 ? In.TangentBasis : GetTangentBasis(In.WorldNormal);
+	if (In.Anisotropy != 0) { return In.TangentBasis; } else { return GetTangentBasis(In.WorldNormal);}
 #else
 	return GetTangentBasis(In.WorldNormal);
 #endif
