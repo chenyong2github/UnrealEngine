@@ -634,7 +634,7 @@ inline FRHIDescriptorHandle GetBindlessParameterHandle(FShaderParameterReader Re
 		checkSlow(RDGShaderResourceView);
 		RDGShaderResourceView->MarkResourceAsUsed();
 
-		FRHIShaderResourceView* ShaderResourceView = RDGShaderResourceView ? RDGShaderResourceView->GetRHI() : nullptr;
+		FRHIShaderResourceView* ShaderResourceView = RDGShaderResourceView->GetRHI();
 		return ShaderResourceView ? ShaderResourceView->GetBindlessHandle() : FRHIDescriptorHandle();
 	}
 	break;
