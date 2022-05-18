@@ -1517,7 +1517,7 @@ public:
 	 * @param remainingTime - DeltaTime to complete transition to swimming
 	 * @param Iterations - physics iteration count
 	 */
-	void StartSwimming(FVector OldLocation, FVector OldVelocity, float timeTick, float remainingTime, int32 Iterations);
+	virtual void StartSwimming(FVector OldLocation, FVector OldVelocity, float timeTick, float remainingTime, int32 Iterations);
 
 	/* Swimming uses gravity - but scaled by (1.f - buoyancy) */
 	float Swim(FVector Delta, FHitResult& Hit);
