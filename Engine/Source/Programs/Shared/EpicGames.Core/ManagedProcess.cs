@@ -1323,5 +1323,24 @@ namespace EpicGames.Core
 				}
 			}
 		}
+
+		/// <summary>
+		/// Gets all the current environment variables
+		/// </summary>
+		/// <returns></returns>
+		public static Dictionary<string, string> GetCurrentEnvVars()
+		{
+			Dictionary<string, string> newEnvironment = new Dictionary<string, string>();
+			foreach (object? envVar in Environment.GetEnvironmentVariables())
+			{
+				System.Collections.DictionaryEntry entry = (System.Collections.DictionaryEntry)envVar!;
+				string key = entry.Key.ToString()!;
+				if (!newEnvironment.ContainsKey(key))
+				{
+					newEnvironment[key] = entry.Value!.ToString()!;
+				}
+			}
+			return newEnvironment;
+		}
 	}
 }

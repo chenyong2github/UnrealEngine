@@ -3,6 +3,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -16,6 +17,59 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Parser
 {
+	interface IJsonRpcLogSink
+	{
+		Task WriteEventsAsync(List<CreateEventRequest> events);
+		Task WriteOutputAsync(WriteOutputRequest request);
+		Task SetOutcomeAsync(JobStepOutcome outcome);
+	}
+
+	sealed class JsonRpcLogSink : IJsonRpcLogSink
+	{
+		readonly IRpcConnection _rpcClient;
+		readonly string? _jobId;
+		readonly string? _jobBatchId;
+		readonly string? _jobStepId;
+		readonly ILogger _logger;
+
+		public JsonRpcLogSink(IRpcConnection rpcClient, string? jobId, string? jobBatchId, string? jobStepId, ILogger logger)
+		{
+			_rpcClient = rpcClient;
+			_jobId = jobId;
+			_jobBatchId = jobBatchId;
+			_jobStepId = jobStepId;
+			_logger = logger;
+		}
+
+		/// <inheritdoc/>
+		public async Task WriteEventsAsync(List<CreateEventRequest> events)
+		{
+			await _rpcClient.InvokeAsync(x => x.CreateEventsAsync(new CreateEventsRequest(events)), new RpcContext(), CancellationToken.None);
+		}
+
+		/// <inheritdoc/>
+		public async Task WriteOutputAsync(WriteOutputRequest request)
+		{
+			await _rpcClient.InvokeAsync(x => x.WriteOutputAsync(request), new RpcContext(), CancellationToken.None);
+		}
+
+		public async Task SetOutcomeAsync(JobStepOutcome outcome)
+		{
+			// Update the outcome of this jobstep
+			if (_jobId != null && _jobBatchId != null && _jobStepId != null)
+			{
+				try
+				{
+					await _rpcClient.InvokeAsync(x => x.UpdateStepAsync(new UpdateStepRequest(_jobId, _jobBatchId, _jobStepId, JobStepState.Unspecified, outcome)), new RpcContext(), CancellationToken.None);
+				}
+				catch (Exception ex)
+				{
+					_logger.LogWarning(ex, "Unable to update step outcome to {NewOutcome}", outcome);
+				}
+			}
+		}
+	}
+
 	/// <summary>
 	/// Class to handle uploading log data to the server in the background
 	/// </summary>
@@ -38,11 +92,8 @@ namespace Horde.Agent.Parser
 			}
 		}
 
-		readonly IRpcConnection _rpcClient;
+		readonly IJsonRpcLogSink _sink;
 		readonly string _logId;
-		readonly string? _jobId;
-		readonly string? _jobBatchId;
-		readonly string? _jobStepId;
 		readonly bool _warnings;
 		readonly ILogger _inner;
 		readonly Channel<JsonLogEvent> _dataChannel;
@@ -60,6 +111,23 @@ namespace Horde.Agent.Parser
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		/// <param name="sink">Sink for log events</param>
+		/// <param name="logId">The log id to write to</param>
+		/// <param name="warnings">Whether to include warnings in the output</param>
+		/// <param name="inner">Additional logger to write to</param>
+		public JsonRpcLogger(IJsonRpcLogSink sink, string logId, bool? warnings, ILogger inner)
+		{
+			_sink = sink;
+			_logId = logId;
+			_warnings = warnings ?? true;
+			_inner = inner;
+			_dataChannel = Channel.CreateUnbounded<JsonLogEvent>();
+			_dataWriter = Task.Run(() => RunDataWriter());
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		/// <param name="rpcClient">RPC client to use for server requests</param>
 		/// <param name="logId">The log id to write to</param>
 		/// <param name="jobId">Id of the job being executed</param>
@@ -68,17 +136,8 @@ namespace Horde.Agent.Parser
 		/// <param name="warnings">Whether to include warnings in the output</param>
 		/// <param name="inner">Additional logger to write to</param>
 		public JsonRpcLogger(IRpcConnection rpcClient, string logId, string? jobId, string? jobBatchId, string? jobStepId, bool? warnings, ILogger inner)
+			: this(new JsonRpcLogSink(rpcClient, jobId, jobBatchId, jobStepId, inner), logId, warnings, inner)
 		{
-			_rpcClient = rpcClient;
-			_logId = logId;
-			_jobId = jobId;
-			_jobBatchId = jobBatchId;
-			_jobStepId = jobStepId;
-			_warnings = warnings ?? true;
-			_inner = inner;
-			_dataChannel = Channel.CreateUnbounded<JsonLogEvent>();
-			_dataWriter = Task.Run(() => RunDataWriter());
-			Outcome = JobStepOutcome.Success;
 		}
 
 		/// <inheritdoc/>
@@ -151,17 +210,6 @@ namespace Horde.Agent.Parser
 		}
 
 		/// <summary>
-		/// Makes a <see cref="CreateEventRequest"/> for the given parameters
-		/// </summary>
-		/// <param name="logLevel">Level for this log event</param>
-		/// <param name="lineCount">Number of lines in the event</param>
-		CreateEventRequest CreateEvent(LogLevel logLevel, int lineCount)
-		{
-			EventSeverity severity = (logLevel == LogLevel.Warning) ? EventSeverity.Warning : EventSeverity.Error;
-			return new CreateEventRequest(severity, _logId, 0, lineCount);
-		}
-
-		/// <summary>
 		/// Stops the log writer's background task
 		/// </summary>
 		/// <returns>Async task</returns>
@@ -205,7 +253,6 @@ namespace Horde.Agent.Parser
 
 			// Line separator for JSON events
 			byte[] newline = { (byte)'\n' };
-			JsonEncodedText timestamp = JsonEncodedText.Encode("");
 
 			// The current jobstep outcome
 			JobStepOutcome postedOutcome = JobStepOutcome.Success;
@@ -229,13 +276,11 @@ namespace Horde.Agent.Parser
 						// If we want an event for this log event, create one now
 						if (jsonLogEvent.Level == LogLevel.Warning && ++numWarnings <= MaxWarnings)
 						{
-							int lineCount = GetEventLineCount(jsonLogEvent.Data.Span);
-							events.Add(new CreateEventRequest(EventSeverity.Warning, _logId, 0, lineCount));
+							AddEvent(jsonLogEvent.Data.Span, lineIndex, EventSeverity.Warning, events);
 						}
 						else if ((jsonLogEvent.Level == LogLevel.Error || jsonLogEvent.Level == LogLevel.Critical) && ++numErrors <= MaxErrors)
 						{
-							int lineCount = GetEventLineCount(jsonLogEvent.Data.Span);
-							events.Add(new CreateEventRequest(EventSeverity.Error, _logId, 0, lineCount));
+							AddEvent(jsonLogEvent.Data.Span, lineIndex, EventSeverity.Error, events);
 						}
 
 						writer.Write(jsonLogEvent.Data.Span);
@@ -263,7 +308,7 @@ namespace Horde.Agent.Parser
 					byte[] data = writer.WrittenSpan.ToArray();
 					try
 					{
-						await _rpcClient.InvokeAsync(x => x.WriteOutputAsync(new WriteOutputRequest(_logId, offset, initialLineIndex, data, false)), new RpcContext(), CancellationToken.None);
+						await _sink.WriteOutputAsync(new WriteOutputRequest(_logId, offset, initialLineIndex, data, false));
 					}
 					catch (Exception ex)
 					{
@@ -277,7 +322,7 @@ namespace Horde.Agent.Parser
 				{
 					try
 					{
-						await _rpcClient.InvokeAsync(x => x.CreateEventsAsync(new CreateEventsRequest(events)), new RpcContext(), CancellationToken.None);
+						await _sink.WriteEventsAsync(events);
 					}
 					catch (Exception ex)
 					{
@@ -286,11 +331,11 @@ namespace Horde.Agent.Parser
 				}
 
 				// Update the outcome of this jobstep
-				if (_jobId != null && _jobBatchId != null && _jobStepId != null && Outcome != postedOutcome)
+				if (Outcome != postedOutcome)
 				{
 					try
 					{
-						await _rpcClient.InvokeAsync(x => x.UpdateStepAsync(new UpdateStepRequest(_jobId, _jobBatchId, _jobStepId, JobStepState.Unspecified, Outcome)), new RpcContext(), CancellationToken.None);
+						await _sink.SetOutcomeAsync(Outcome);
 					}
 					catch (Exception ex)
 					{
@@ -304,7 +349,7 @@ namespace Horde.Agent.Parser
 				{
 					try
 					{
-						await _rpcClient.InvokeAsync(x => x.WriteOutputAsync(new WriteOutputRequest(_logId, offset, lineIndex, Array.Empty<byte>(), true)), new RpcContext(), CancellationToken.None);
+						await _sink.WriteOutputAsync(new WriteOutputRequest(_logId, offset, lineIndex, Array.Empty<byte>(), true));
 					}
 					catch (Exception ex)
 					{
@@ -312,6 +357,22 @@ namespace Horde.Agent.Parser
 					}
 					break;
 				}
+			}
+		}
+
+		void AddEvent(ReadOnlySpan<byte> span, int lineIndex, EventSeverity severity, List<CreateEventRequest> events)
+		{
+			try
+			{
+				int lineCount = GetEventLineCount(span);
+				if (lineCount > 0)
+				{
+					events.Add(new CreateEventRequest(severity, _logId, lineIndex, lineCount));
+				}
+			}
+			catch (Exception ex)
+			{
+				_inner.LogError(ex, "Exception while trying to parse line count from data ({Message})", Encoding.UTF8.GetString(span));
 			}
 		}
 	}
