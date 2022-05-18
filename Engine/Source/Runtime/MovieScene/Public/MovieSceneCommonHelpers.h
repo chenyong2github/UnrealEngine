@@ -28,7 +28,7 @@ public:
 	/** 
 	 * @return Whether the section is keyable (active, on a track that is not muted, etc 
 	 */
-	static bool IsSectionKeyable(UMovieSceneSection*);
+	static bool IsSectionKeyable(const UMovieSceneSection*);
 
 	/**
 	 * Finds a section that exists at a given time

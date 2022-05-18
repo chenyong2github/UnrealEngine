@@ -3,9 +3,11 @@
 #include "Sequencer/MovieSceneControlRigParameterTemplate.h"
 #include "Evaluation/Blending/MovieSceneMultiChannelBlending.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
+#include "Sequencer/MovieSceneControlRigParameterSection.h"
 #include "ControlRig.h"
 #include "Evaluation/MovieSceneEvaluation.h"
 #include "IMovieScenePlayer.h"
+#include "MovieSceneCommonHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "AnimCustomInstanceHelper.h"
 #include "Sequencer/ControlRigLayerInstance.h"
@@ -2056,7 +2058,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 	const FFrameTime Time = Context.GetTime();
 
 	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSourceSection());
-	if (Section && Section->GetControlRig())
+	if (Section && Section->GetControlRig() && MovieSceneHelpers::IsSectionKeyable(Section))
 	{
 		FEvaluatedControlRigParameterSectionChannelMasks ChannelMasks;
 		ChannelMasks.Initialize(Section, Scalars, Bools, Integers, Enums, Vector2Ds, Vectors, Colors, Transforms);

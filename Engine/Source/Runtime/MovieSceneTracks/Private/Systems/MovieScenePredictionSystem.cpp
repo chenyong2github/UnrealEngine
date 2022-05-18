@@ -10,6 +10,7 @@
 #include "EntitySystem/Interrogation/MovieSceneInterrogatedPropertyInstantiator.h"
 
 #include "Sections/MovieScene3DTransformSection.h"
+#include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTracksComponentTypes.h"
 #include "MovieSceneSequence.h"
 #include "MovieSceneSequencePlayer.h"
@@ -180,6 +181,11 @@ int32 UMovieSceneAsyncAction_SequencePrediction::ImportTransformEntities(UMovieS
 	{
 		UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(InQuery.Entity.Key.EntityOwner.Get());
 		if (TransformSection == nullptr)
+		{
+			return true;
+		}
+
+		if (!MovieSceneHelpers::IsSectionKeyable(TransformSection))
 		{
 			return true;
 		}

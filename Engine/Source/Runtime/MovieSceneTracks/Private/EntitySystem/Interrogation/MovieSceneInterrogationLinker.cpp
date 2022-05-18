@@ -664,6 +664,11 @@ void FSystemInterrogator::ImportTrack(UMovieSceneTrack* Track, FInterrogationCha
 
 void FSystemInterrogator::ImportTrack(UMovieSceneTrack* Track, const FGuid& ObjectBindingID, FInterrogationChannel InChannel)
 {
+	if (Track->IsEvalDisabled())
+	{
+		return;
+	}
+
 	TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Linker->EntityManager);
 
 	FFrameRate TickResolution = Track->GetTypedOuter<UMovieScene>()->GetTickResolution();
@@ -678,6 +683,11 @@ void FSystemInterrogator::ImportTrack(UMovieSceneTrack* Track, const FGuid& Obje
 		IMovieSceneEntityProvider* EntityProvider = Cast<IMovieSceneEntityProvider>(Entry.Section);
 
 		if (!EntityProvider || Entry.Range.IsEmpty())
+		{
+			continue;
+		}
+
+		if (Track->IsRowEvalDisabled(Entry.Section->GetRowIndex()))
 		{
 			continue;
 		}

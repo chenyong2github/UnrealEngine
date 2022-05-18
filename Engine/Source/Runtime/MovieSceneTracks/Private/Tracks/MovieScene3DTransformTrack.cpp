@@ -6,6 +6,7 @@
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "MovieSceneCommonHelpers.h"
 #include "Algo/BinarySearch.h"
 
 UMovieScene3DTransformTrack::UMovieScene3DTransformTrack( const FObjectInitializer& ObjectInitializer )
@@ -175,7 +176,7 @@ TArray<FTrajectoryKey> UMovieScene3DTransformTrack::GetTrajectoryData(FFrameNumb
 	for (UMovieSceneSection* Section : Sections)
 	{
 		UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(Section);
-		if (TransformSection)
+		if (TransformSection && MovieSceneHelpers::IsSectionKeyable(TransformSection))
 		{
 			TArrayView<FMovieSceneDoubleChannel*>        DoubleChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 			TArrayView<const FMovieSceneChannelMetaData> MetaData      = TransformSection->GetChannelProxy().GetMetaData<FMovieSceneDoubleChannel>();

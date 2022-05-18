@@ -17,7 +17,7 @@
 #include "MovieSceneTrack.h"
 #include "Engine/Engine.h"
 
-bool MovieSceneHelpers::IsSectionKeyable(UMovieSceneSection* Section)
+bool MovieSceneHelpers::IsSectionKeyable(const UMovieSceneSection* Section)
 {
 	if (!Section)
 	{
@@ -477,7 +477,7 @@ float MovieSceneHelpers::CalculateWeightForBlending(UMovieSceneSection* SectionT
 			TArray<UMovieSceneSection*, TInlineAllocator<4>> OverlappingSections;
 			for (UMovieSceneSection* Section : Sections)
 			{
-				if (Section->GetRange().Contains(Time))
+				if (MovieSceneHelpers::IsSectionKeyable(Section) && Section->GetRange().Contains(Time))
 				{
 					OverlappingSections.Add(Section);
 				}
