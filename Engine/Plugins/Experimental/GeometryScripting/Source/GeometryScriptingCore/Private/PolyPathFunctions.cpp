@@ -79,6 +79,78 @@ FGeometryScriptPolyPath UGeometryScriptLibrary_PolyPathFunctions::FlattenTo2DOnA
 	return ToReturn;
 }
 
+namespace PolyPathInternal
+{
+	
+TArray<FVector> CreateArcPoints(FTransform Transform, float Radius, int NumPoints, float StartAngle, float EndAngle, bool bIncludeEndPoint)
+{
+	TArray<FVector> Points;
+	NumPoints = FMath::Max(2, NumPoints);
+	Points.Reserve(NumPoints);
+
+	double AngleStartRad = FMathd::DegToRad * double(StartAngle);
+	double AngleRangeRad = FMathd::DegToRad * double(EndAngle) - AngleStartRad;
+	double ToAngle = AngleRangeRad / double(NumPoints - bIncludeEndPoint); // if bIncludeEndPoint, adjust fraction to reach end at PtIdx = NumPoints-1
+	for (int PtIdx = 0; PtIdx < NumPoints; PtIdx++)
+	{
+		double Angle = AngleStartRad + PtIdx * ToAngle;
+		Points.Emplace(Transform.TransformPosition(FVector3d(FMathd::Cos(Angle) * (double)Radius, FMathd::Sin(Angle) * (double)Radius, 0.0)));
+	}
+
+	return Points;
+}
+
+}
+
+FGeometryScriptPolyPath UGeometryScriptLibrary_PolyPathFunctions::CreateCirclePath3D(FTransform Transform, float Radius, int NumPoints)
+{
+	FGeometryScriptPolyPath PolyPath;
+	PolyPath.Reset();
+	PolyPath.bClosedLoop = true;
+
+	*PolyPath.Path = PolyPathInternal::CreateArcPoints(Transform, Radius, NumPoints, 0, 360, false);
+
+	return PolyPath;
+}
+
+FGeometryScriptPolyPath UGeometryScriptLibrary_PolyPathFunctions::CreateArcPath3D(FTransform Transform, float Radius, int NumPoints, float StartAngle, float EndAngle)
+{
+	FGeometryScriptPolyPath PolyPath;
+	PolyPath.Reset();
+
+	PolyPath.bClosedLoop = false;
+
+	*PolyPath.Path = PolyPathInternal::CreateArcPoints(Transform, Radius, NumPoints, StartAngle, EndAngle, true);
+
+	return PolyPath;
+}
+
+FGeometryScriptPolyPath UGeometryScriptLibrary_PolyPathFunctions::CreateCirclePath2D(FVector2D Center, float Radius, int NumPoints)
+{
+	FGeometryScriptPolyPath PolyPath;
+	PolyPath.Reset();
+
+	PolyPath.bClosedLoop = true;
+
+	FTransform TransformCenter(FVector(Center.X, Center.Y, 0));
+	*PolyPath.Path = PolyPathInternal::CreateArcPoints(TransformCenter, Radius, NumPoints, 0, 360, false);
+
+	return PolyPath;
+}
+
+FGeometryScriptPolyPath UGeometryScriptLibrary_PolyPathFunctions::CreateArcPath2D(FVector2D Center, float Radius, int NumPoints, float StartAngle, float EndAngle)
+{
+	FGeometryScriptPolyPath PolyPath;
+	PolyPath.Reset();
+
+	PolyPath.bClosedLoop = false;
+
+	FTransform TransformCenter(FVector(Center.X, Center.Y, 0));
+	*PolyPath.Path = PolyPathInternal::CreateArcPoints(TransformCenter, Radius, NumPoints, StartAngle, EndAngle, true);
+
+	return PolyPath;
+}
+
 void UGeometryScriptLibrary_PolyPathFunctions::ConvertPolyPathToArray(FGeometryScriptPolyPath PolyPath, TArray<FVector>& PathVertices)
 {
 	PathVertices.Reset();

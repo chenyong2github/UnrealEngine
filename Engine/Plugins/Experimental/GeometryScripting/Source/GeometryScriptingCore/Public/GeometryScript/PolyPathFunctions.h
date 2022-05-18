@@ -66,6 +66,34 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath", meta = (ScriptMethod, DisplayName = "Flatten To 2D On Axis"))
 	static UPARAM(DisplayName = "Poly Path") FGeometryScriptPolyPath FlattenTo2DOnAxis(FGeometryScriptPolyPath PolyPath, EGeometryScriptAxis DropAxis = EGeometryScriptAxis::Z);
 
+	/**
+	 * Create a closed circle around the origin on the XY plane, then transformed by Transform.
+	 * By our convention for closed paths, the end vertex is *not* a duplicate of the start vertex.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
+	static UPARAM(DisplayName = "Poly Path") FGeometryScriptPolyPath CreateCirclePath3D(FTransform Transform, float Radius = 10, int NumPoints = 10);
+
+	/**
+	 * Create an open arc around the origin on the XY plane, then transformed by Transform.
+	 * As it is an open path, the end vertex exactly hits the target EndAngle (so will be positioned on the start vertex if the end aligns to the start)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
+	static UPARAM(DisplayName = "Poly Path") FGeometryScriptPolyPath CreateArcPath3D(FTransform Transform, float Radius = 10, int NumPoints = 10, float StartAngle = 0, float EndAngle = 90);
+	
+	/**
+	 * Create a closed circle on the XY plane around the given Center.
+	 * By our convention for closed paths, the end vertex is *not* a duplicate of the start vertex.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
+	static UPARAM(DisplayName = "Poly Path") FGeometryScriptPolyPath CreateCirclePath2D(FVector2D Center = FVector2D(0, 0), float Radius = 10, int NumPoints = 10);
+
+	/**
+	 * Create an open arc on the XY plane around the given Center.
+	 * As it is an open path, the end vertex exactly hits the target EndAngle (so will be positioned on the start vertex if the end aligns to the start)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
+	static UPARAM(DisplayName = "Poly Path") FGeometryScriptPolyPath CreateArcPath2D(FVector2D Center = FVector2D(0, 0), float Radius = 10, int NumPoints = 10, float StartAngle = 0, float EndAngle = 90);
+
 	UFUNCTION(BlueprintCallable, Category = "GeometryScript|PolyPath")
 	static void ConvertSplineToPolyPath(const USplineComponent* Spline, FGeometryScriptPolyPath& PolyPath, FGeometryScriptSplineSamplingOptions SamplingOptions);
 
