@@ -1148,14 +1148,22 @@ void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 	if (PipelineState.FrameState.predictedDisplayTime > 0)
 	{
 		FReadScopeLock Lock(DeviceMutex);
-		PipelineState.DeviceLocations.SetNum(DeviceSpaces.Num());
+		const int NeededElements = DeviceSpaces.Num() - PipelineState.DeviceLocations.Num();
+		check(NeededElements >= 0);
+		if (NeededElements > 0)
+		{
+			PipelineState.DeviceLocations.AddZeroed(NeededElements);
+			for (XrSpaceLocation& Space : PipelineState.DeviceLocations)
+			{
+				Space.type = XR_TYPE_SPACE_LOCATION;
+			}
+		}
 		for (int32 DeviceIndex = 0; DeviceIndex < PipelineState.DeviceLocations.Num(); DeviceIndex++)
 		{
 			const FDeviceSpace& DeviceSpace = DeviceSpaces[DeviceIndex];
 			if (DeviceSpace.Space != XR_NULL_HANDLE)
 			{
-				XrSpaceLocation NewDeviceLocation = {};
-				NewDeviceLocation.type = XR_TYPE_SPACE_LOCATION;
+				XrSpaceLocation NewDeviceLocation = {XR_TYPE_SPACE_LOCATION};
 				XrResult Result = xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &NewDeviceLocation);
 				if (Result == XR_ERROR_TIME_INVALID)
 				{
