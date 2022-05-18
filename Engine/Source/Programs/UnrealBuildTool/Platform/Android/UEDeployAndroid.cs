@@ -3425,7 +3425,13 @@ namespace UnrealBuildTool
 					MinSDKVersion = 21;
 					Log.TraceInformation("Fixing minSdkVersion; NDK level above 19 requires minSdkVersion of 21 (arch={0})", Arch.Substring(1));
 				}
-			}
+
+				if (MinSDKVersion < NDKLevelInt)
+                {
+                    Log.TraceInformation("Fixing minSdkVersion; NDK level is {0} which is above minSdkVersion {1}.", NDKLevelInt, MinSDKVersion);
+					MinSDKVersion = NDKLevelInt;
+				}
+            }
 
 			if (TargetSDKVersion < MinSDKVersion)
 			{

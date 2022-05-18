@@ -319,7 +319,7 @@ namespace UnrealBuildTool
 
 			if (!IsNewNDKModel())
 			{
-				// We need to manually provide -D__ANDROID_API__ only for NDK versions prior to r22
+				// We need to manually provide -D__ANDROID_API__ for NDK versions prior to r22 only, for newer ones, --target=aarch64-none-linux-android + NDKApiLevel64Int does it for us
 				ToolchainParamsArm64 += " -D__ANDROID_API__=" + NDKApiLevel64Int;
 				ToolchainParamsx64 += " -D__ANDROID_API__=" + NDKApiLevel64Int;
 			}
