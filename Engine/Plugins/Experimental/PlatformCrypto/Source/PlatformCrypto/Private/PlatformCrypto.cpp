@@ -18,12 +18,12 @@ public:
 
 	virtual ~FPlatformCryptoModularFeature()
 	{
-		Shutdown();
+		Cleanup();
 	}
 
 	virtual void Shutdown() override
 	{
-		Context.Reset();
+		Cleanup();
 	}
 	
 	/** IEngineCrypto implementation */
@@ -68,6 +68,10 @@ public:
 	}
 
 private:
+	void Cleanup()
+	{
+		Context.Reset();
+	}
 
 	TUniquePtr<FEncryptionContext>& GetContext()
 	{
