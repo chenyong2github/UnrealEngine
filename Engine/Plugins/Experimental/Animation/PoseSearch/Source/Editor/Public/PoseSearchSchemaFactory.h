@@ -14,5 +14,6 @@ class POSESEARCHEDITOR_API UPoseSearchSchemaFactory : public UFactory
 
 	// UFactory interface
 	virtual UObject* FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
+	virtual FString GetDefaultNewAssetName() const override;
 	// End of UFactory interface
 };

@@ -18,4 +18,9 @@ UObject* UPoseSearchDatabaseFactory::FactoryCreateNew(UClass* Class, UObject* In
 	return NewObject<UPoseSearchDatabase>(InParent, Class, Name, Flags);
 }
 
+FString UPoseSearchDatabaseFactory::GetDefaultNewAssetName() const
+{
+	return FString(TEXT("NewMotionDatabase"));
+}
+
 #undef LOCTEXT_NAMESPACE
