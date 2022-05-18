@@ -10,7 +10,7 @@
 class UEdGraphPin;
 class UEdGraphSchema;
 
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, Optional)
 class UMaterialGraphNode_Base : public UEdGraphNode
 {
 	GENERATED_UCLASS_BODY()

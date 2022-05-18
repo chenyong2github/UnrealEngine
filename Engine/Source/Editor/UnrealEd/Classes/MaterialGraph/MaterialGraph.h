@@ -109,7 +109,7 @@ private:
 
 };
 
-UCLASS()
+UCLASS(Optional)
 class UNREALED_API UMaterialGraph : public UEdGraph
 {
 	GENERATED_UCLASS_BODY()

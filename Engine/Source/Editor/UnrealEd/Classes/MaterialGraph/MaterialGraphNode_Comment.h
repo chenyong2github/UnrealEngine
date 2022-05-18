@@ -9,7 +9,7 @@
 
 #include "MaterialGraphNode_Comment.generated.h"
 
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, Optional)
 class UMaterialGraphNode_Comment : public UEdGraphNode_Comment
 {
 	GENERATED_UCLASS_BODY()
