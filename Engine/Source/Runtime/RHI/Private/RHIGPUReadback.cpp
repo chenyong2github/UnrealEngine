@@ -119,15 +119,10 @@ FRHIGPUTextureReadback::FRHIGPUTextureReadback(FName RequestName) : FRHIGPUMemor
 
 void FRHIGPUTextureReadback::EnqueueCopyRDG(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
 {
-	EnqueueCopyInternal(RHICmdList, SourceTexture, FResolveParams(Rect));
+	EnqueueCopy(RHICmdList, SourceTexture, Rect);
 }
 
 void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
-{
-	EnqueueCopyInternal(RHICmdList, SourceTexture, FResolveParams(Rect));
-}
-
-void FRHIGPUTextureReadback::EnqueueCopyInternal(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveParams ResolveParams)
 {
 	Fence->Clear();
 
@@ -150,8 +145,16 @@ void FRHIGPUTextureReadback::EnqueueCopyInternal(FRHICommandList& RHICmdList, FR
 			DestinationStagingTexture = RHICreateTexture(Desc);
 		}
 
-		// Transfer memory GPU -> CPU
-		RHICmdList.CopyTexture(SourceTexture, DestinationStagingTexture, {});
+		FRHICopyTextureInfo CopyInfo;
+
+		if (Rect.IsValid())
+		{
+			CopyInfo.SourcePosition = FIntVector(Rect.X1, Rect.Y1, 1);
+			CopyInfo.DestPosition = CopyInfo.SourcePosition;
+			CopyInfo.Size = FIntVector(Rect.X2 - Rect.X1, Rect.Y2 - Rect.Y1, 1);
+		}
+
+		RHICmdList.CopyTexture(SourceTexture, DestinationStagingTexture, CopyInfo);
 
 		RHICmdList.WriteGPUFence(Fence);
 
