@@ -5,7 +5,9 @@
 #include "HAL/IConsoleManager.h"
 #include "IConcertMessages.h"
 #include "ConcertLogGlobal.h"
+#include "ConcertTransportEvents.h"
 #include "ConcertUtil.h"
+#include "Algo/AllOf.h"
 
 #include "Logging/LogVerbosity.h"
 #include "Misc/App.h"
@@ -188,6 +190,8 @@ struct FActiveLoggers
 				}
 			}
 		}
+
+		ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().Broadcast(true);
 	}
 
 	/** Disable additional concert logging. */
@@ -203,6 +207,17 @@ struct FActiveLoggers
 				}
 			}
 		}
+		
+		ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().Broadcast(false);
+	}
+
+	bool AreAllLoggersEnabled() const
+	{
+		return Algo::AllOf(Loggers, [](const TWeakPtr<FConcertLogger, ESPMode::ThreadSafe>& Logger)
+		{
+			TSharedPtr<FConcertLogger, ESPMode::ThreadSafe> LoggerPtr = Logger.Pin();
+			return !LoggerPtr.IsValid() && LoggerPtr->IsLogging();
+		});
 	}
 
 	void ChangeVerbosity(const TArray<FString>& Args)
@@ -248,10 +263,23 @@ FActiveLoggers& GetActiveLoggers()
 	return ActiveLoggers;
 }
 
-IConcertTransportLoggerRef FConcertLogger::CreateLogger(const FConcertEndpointContext& InOwnerContext)
+namespace ConcertTransportEvents
+{
+	bool IsLoggingEnabled()
+	{
+		return GetActiveLoggers().AreAllLoggersEnabled();
+	}
+	
+	void SetLoggingEnabled(bool bEnabled)
+	{
+		return GetActiveLoggers().EnableLogging();
+	}
+}
+
+IConcertTransportLoggerRef FConcertLogger::CreateLogger(const FConcertEndpointContext& InOwnerContext, FLogListener LogListenerFunc)
 {
 	FActiveLoggers& ActiveLoggers = GetActiveLoggers();
-	TSharedPtr<FConcertLogger, ESPMode::ThreadSafe> SharedLogger = MakeShared<FConcertLogger, ESPMode::ThreadSafe>(InOwnerContext);
+	TSharedPtr<FConcertLogger, ESPMode::ThreadSafe> SharedLogger = MakeShared<FConcertLogger, ESPMode::ThreadSafe>(InOwnerContext, MoveTemp(LogListenerFunc));
 	ActiveLoggers.Loggers.Add(SharedLogger);
 	return SharedLogger.ToSharedRef();
 }
@@ -272,11 +300,11 @@ void FConcertLogger::SetVerboseLogging(bool bInState)
 	}
 }
 
-FConcertLogger::FConcertLogger(const FConcertEndpointContext& InOwnerContext)
+FConcertLogger::FConcertLogger(const FConcertEndpointContext& InOwnerContext, FLogListener LogListenerFunc)
 	: bIsLogging(false)
 	, OwnerContext(InOwnerContext)
-{
-}
+	, LogListenerFunc(MoveTemp(LogListenerFunc))
+{}
 
 FConcertLogger::~FConcertLogger()
 {
@@ -713,6 +741,9 @@ void FConcertLogger::LogEntry(FConcertLog& Log)
 	{
 		ConcertLoggerUtil::PopulateLogMessagePayload(Log.SerializedPayload, Log);
 	}
+
+	// Inform external systems about the log
+	LogListenerFunc(Log);
 
 	FString CSVRow;
 	for (TFieldIterator<const FProperty> PropertyIt(FConcertLog::StaticStruct(), EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::ExcludeDeprecated, EFieldIteratorFlags::IncludeInterfaces); PropertyIt; ++PropertyIt)

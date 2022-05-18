@@ -6,6 +6,7 @@
 #include "ConcertUtil.h"
 #include "ConcertLogger.h"
 #include "ConcertLogGlobal.h"
+#include "ConcertTransportEvents.h"
 
 #include "Algo/Transform.h"
 
@@ -712,7 +713,13 @@ void FConcertClient::Startup()
 	if (!ClientAdminEndpoint.IsValid() && EndpointProvider.IsValid())
 	{
 		// Create the client administration endpoint
-		ClientAdminEndpoint = EndpointProvider->CreateLocalEndpoint(TEXT("Admin"), Settings->EndpointSettings, &FConcertLogger::CreateLogger);
+		ClientAdminEndpoint = EndpointProvider->CreateLocalEndpoint(TEXT("Admin"), Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
+		{
+			return FConcertLogger::CreateLogger(Context, [this](const FConcertLog& Log)
+			{
+				ConcertTransportEvents::OnConcertClientLogEvent().Broadcast(*this, Log);
+			});
+		});
 	}
 
 	FCoreDelegates::OnEndFrame.AddRaw(this, &FConcertClient::OnEndFrame);
@@ -1375,7 +1382,13 @@ TFuture<EConcertResponseCode> FConcertClient::CreateClientSession(const FConcert
 		SessionInfo, 
 		ClientInfo, 
 		Settings->ClientSettings, 
-		EndpointProvider->CreateLocalEndpoint(SessionInfo.SessionName, Settings->EndpointSettings, &FConcertLogger::CreateLogger),
+		EndpointProvider->CreateLocalEndpoint(SessionInfo.SessionName, Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
+		{
+			return FConcertLogger::CreateLogger(Context, [this](const FConcertLog& Log)
+			{
+				ConcertTransportEvents::OnConcertClientLogEvent().Broadcast(*this, Log);
+			});
+		}),
 		Paths.GetSessionWorkingDir(SessionInfo.SessionId)
 		);
 	OnSessionStartupDelegate.Broadcast(ClientSession.ToSharedRef());

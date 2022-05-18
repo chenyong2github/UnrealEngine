@@ -7,83 +7,24 @@
 #include "IConcertEndpoint.h"
 #include "ConcertMessageData.h"
 #include "IConcertTransportLogger.h"
-#include "ConcertLogger.generated.h"
 
+struct FConcertLog;
 struct FConcertMessageContext;
-
-UENUM()
-enum class EConcertLogMessageAction : uint8
-{
-	None,
-	Send,
-	Publish,
-	Receive,
-	Queue,
-	Discard,
-	Duplicate,
-	TimeOut,
-	Process,
-	EndpointDiscovery,
-	EndpointTimeOut,
-	EndpointClosure,
-};
-
-USTRUCT()
-struct FConcertLog
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	uint64 Frame = 0;
-
-	UPROPERTY()
-	FGuid MessageId;
-
-	UPROPERTY()
-	uint16 MessageOrderIndex  = 0;
-
-	UPROPERTY()
-	uint16 ChannelId = 0;
-
-	UPROPERTY()
-	FDateTime Timestamp = {0};
-
-	UPROPERTY()
-	EConcertLogMessageAction MessageAction = EConcertLogMessageAction::None;
-
-	UPROPERTY()
-	FName MessageTypeName;
-
-	UPROPERTY()
-	FGuid OriginEndpointId;
-
-	UPROPERTY()
-	FGuid DestinationEndpointId;
-
-	UPROPERTY()
-	FName CustomPayloadTypename;
-
-	UPROPERTY()
-	int32 CustomPayloadUncompressedByteSize = 0;
-
-	UPROPERTY()
-	FString StringPayload;
-
-	UPROPERTY(Transient)
-	FConcertSessionSerializedPayload SerializedPayload;
-};
 
 class FConcertLogger : public IConcertTransportLogger
 {
 public:
+
+	using FLogListener = TFunction<void(const FConcertLog&)>;
+	
 	/** Factory function for use with FConcertTransportLoggerFactory */
-	static IConcertTransportLoggerRef CreateLogger(const FConcertEndpointContext& InOwnerContext);
+	static IConcertTransportLoggerRef CreateLogger(const FConcertEndpointContext& InOwnerContext, FLogListener LogListenerFunc);
 
 	/** Static function to enable / disable verbose logging. */
 	static void SetVerboseLogging(bool bInState);
 
-	explicit FConcertLogger(const FConcertEndpointContext& InOwnerContext);
-	virtual ~FConcertLogger();
+	FConcertLogger(const FConcertEndpointContext& InOwnerContext, FLogListener LogListenerFunc);
+	virtual ~FConcertLogger() override;
 
 	// IConcertTransportLogger interface
 	virtual bool IsLogging() const override;
@@ -118,9 +59,12 @@ private:
 
 	/** */
 	bool bIsLogging;
-
+	
 	/** */
 	FConcertEndpointContext OwnerContext;
+
+	/** Called after a log is processed */
+	FLogListener LogListenerFunc;
 
 	/** Queue for unprocessed logs */
 	TQueue<FConcertLog, EQueueMode::Mpsc> LogQueue;

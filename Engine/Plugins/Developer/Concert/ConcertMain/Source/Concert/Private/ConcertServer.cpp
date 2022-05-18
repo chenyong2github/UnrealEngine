@@ -8,6 +8,7 @@
 #include "ConcertServerSession.h"
 #include "ConcertServerSessionRepositories.h"
 #include "ConcertLogGlobal.h"
+#include "ConcertTransportEvents.h"
 #include "IConcertServerEventSink.h"
 
 #include "Algo/AnyOf.h"
@@ -160,7 +161,13 @@ void FConcertServer::Startup()
 	if (!ServerAdminEndpoint.IsValid() && EndpointProvider.IsValid())
 	{
 		// Create the server administration endpoint
-		ServerAdminEndpoint = EndpointProvider->CreateLocalEndpoint(TEXT("Admin"), Settings->EndpointSettings, &FConcertLogger::CreateLogger);
+		ServerAdminEndpoint = EndpointProvider->CreateLocalEndpoint(TEXT("Admin"), Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
+		{
+			return FConcertLogger::CreateLogger(Context, [this](const FConcertLog& Log)
+			{
+				ConcertTransportEvents::OnConcertServerLogEvent().Broadcast(*this, Log);
+			});
+		});
 		ServerInfo.AdminEndpointId = ServerAdminEndpoint->GetEndpointContext().EndpointId;
 
 		// Make it discoverable
@@ -1511,7 +1518,13 @@ TSharedPtr<IConcertServerSession> FConcertServer::CreateLiveSession(const FConce
 	TSharedPtr<FConcertServerSession> LiveSession = MakeShared<FConcertServerSession>(
 		LiveSessionInfo,
 		Settings->ServerSettings,
-		EndpointProvider->CreateLocalEndpoint(LiveSessionInfo.SessionName, Settings->EndpointSettings, &FConcertLogger::CreateLogger),
+		EndpointProvider->CreateLocalEndpoint(LiveSessionInfo.SessionName, Settings->EndpointSettings, [this](const FConcertEndpointContext& Context)
+		{
+			return FConcertLogger::CreateLogger(Context, [this](const FConcertLog& Log)
+			{
+				ConcertTransportEvents::OnConcertServerLogEvent().Broadcast(*this, Log);
+			});
+		}),
 		InRepository.GetSessionWorkingDir(LiveSessionInfo.SessionId)
 		);
 
