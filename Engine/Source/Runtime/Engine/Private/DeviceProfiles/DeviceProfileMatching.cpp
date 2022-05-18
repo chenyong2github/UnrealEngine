@@ -540,6 +540,37 @@ static TArray<FSelectedFragmentProperties> FragmentStringToFragmentProperties(co
 	return FragmentPropertiesList;
 }
 
+const FString UDeviceProfileManager::FragmentPropertyArrayToFragmentString(const TArray<FSelectedFragmentProperties>& FragmentProperties, bool bEnabledOnly, bool bIncludeTags,bool bAlphaSort)
+{
+	FString MatchedFragmentString;
+	if(!FragmentProperties.IsEmpty())
+	{
+		TArray<FString> FragmentNames;
+		for (const FSelectedFragmentProperties& FragmentProperty : FragmentProperties)
+		{
+			if (bEnabledOnly == false || FragmentProperty.bEnabled)
+			{
+				FString FragmentName;
+				if (bIncludeTags && FragmentProperty.Tag != NAME_None)
+				{
+					FragmentName = TEXT("[") + FragmentProperty.Tag.ToString() + TEXT("]");
+				}
+				FragmentNames.Add(FragmentProperty.Fragment);
+			}
+		}
+		if (bAlphaSort)
+		{
+			FragmentNames.Sort();
+		}
+
+		for (FString& Name : FragmentNames)
+		{
+			MatchedFragmentString += MatchedFragmentString.IsEmpty() ? Name : TEXT(",") + Name;
+		}
+	}
+	return MatchedFragmentString;
+}
+
 class FDeviceProfileMatchingErrorContext: public FOutputDevice
 {
 public:
@@ -641,10 +672,6 @@ TArray<FSelectedFragmentProperties> UDeviceProfileManager::FindMatchingFragments
 	
 	}
 	SelectedFragments = RemoveAllWhiteSpace(SelectedFragments);
-	if(!SelectedFragments.IsEmpty())
-	{
-		FGenericCrashContext::SetEngineData(TEXT("DeviceProfile.MatchedFragments"), SelectedFragments);
-	}
 
 	UE_CLOG(!SelectedFragments.IsEmpty(), LogInit, Log, TEXT("MatchesRules:Fragment string %s"), *SelectedFragments);
 	TArray<FSelectedFragmentProperties> MatchedFragments = FragmentStringToFragmentProperties(SelectedFragments);

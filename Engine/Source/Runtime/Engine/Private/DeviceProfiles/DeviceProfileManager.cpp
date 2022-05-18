@@ -188,6 +188,12 @@ TMap<FName, FString> UDeviceProfileManager::GatherDeviceProfileCVars(const FStri
 		if (PlatformFragmentsSelected.Num() == 0)
 		{
 			PlatformFragmentsSelected = FindMatchingFragments(DeviceProfileName, GConfig);
+			if(PlatformFragmentsSelected.Num())
+			{
+				// Store the fragment string:
+				FString MatchedFragmentString = FragmentPropertyArrayToFragmentString(PlatformFragmentsSelected, false, false, true);
+				FGenericCrashContext::SetEngineData(TEXT("DeviceProfile.MatchedFragmentsSorted"), MatchedFragmentString);
+			}
 		}
 		FragmentsSelected = PlatformFragmentsSelected;
 	}
@@ -1288,10 +1294,10 @@ void UDeviceProfileManager::GetAllPossibleParentProfiles(const UDeviceProfile* C
 	}
 }
 
-
-
-
-
+const FString UDeviceProfileManager::GetActiveDeviceProfileMatchedFragmentsString(bool bEnabledOnly, bool bIncludeTags, bool bAlphaSort)
+{
+	return FragmentPropertyArrayToFragmentString(PlatformFragmentsSelected, bEnabledOnly, bIncludeTags, bAlphaSort);
+}
 
 #if ALLOW_OTHER_PLATFORM_CONFIG
 static bool GetCVarForDeviceProfile( FOutputDevice& Ar, FString DPName, FString CVarName)

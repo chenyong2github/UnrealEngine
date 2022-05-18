@@ -182,6 +182,18 @@ public:
 	const FString GetActiveDeviceProfileName();
 
 	/**
+	* Get a string containing the current matched fragment list.
+	*
+	* e.g. "Fragment1,Fragment2,[tag]Fragment3"
+	* 
+	* @param bEnabledOnly				- Only Enabled fragments will be present in the returned string.
+	* @param bIncludeTags				- If true the Fragment string will include the tag.
+	* @param bAlphaSort					- If true the Fragments will be in alphabetical order as opposed to application order.
+	* @return csv string of the current matched fragments.
+	*/
+	const FString GetActiveDeviceProfileMatchedFragmentsString(bool bEnabledOnly, bool bIncludeTags, bool bAlphaSort);
+
+	/**
 	* Get the selected device profile name, either the platform name, or the name
 	* provided by a Device Profile Selector Module.
 	*
@@ -255,6 +267,9 @@ private:
 
 	/** Read and process all of the fragment matching rules. Returns an array containing the names of fragments selected. */
 	static TArray<FSelectedFragmentProperties> FindMatchingFragments(const FString& ParentDP, class FConfigCacheIni* PreviewConfigSystem);
+
+	/** Convert a FSelectedFragmentProperties array to a string */
+	static const FString FragmentPropertyArrayToFragmentString(const TArray<FSelectedFragmentProperties>& FragmentProperties, bool bEnabledOnly, bool bIncludeTags, bool bAlphaSort);
 
 	/** Get the current platform's the selector module. Can return null */
 	static class IDeviceProfileSelectorModule* GetDeviceProfileSelectorModule();
