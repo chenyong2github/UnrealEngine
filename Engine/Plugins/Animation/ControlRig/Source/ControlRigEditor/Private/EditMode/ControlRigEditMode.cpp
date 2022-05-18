@@ -141,9 +141,13 @@ FControlRigEditMode::FControlRigEditMode()
 	, CurrentViewportClient(nullptr)
 	, bIsChangingCoordSystem(false)
 	, InteractionType((uint8)EControlRigInteractionType::None)
+	, bShowControlsAsOverlay(false)
 {
 	ControlProxy = NewObject<UControlRigDetailPanelControlProxies>(GetTransientPackage(), NAME_None);
 	ControlProxy->SetFlags(RF_Transactional);
+
+	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
+	bShowControlsAsOverlay = Settings->bShowControlsAsOverlay;
 
 	CommandBindings = MakeShareable(new FUICommandList);
 	BindCommands();
@@ -496,6 +500,21 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 		ViewportClient->Invalidate();
 	}
 	RecalcPivotTransform();
+
+	// check if the settings for xray rendering are different for any of the control shape actors
+	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
+	if(bShowControlsAsOverlay != Settings->bShowControlsAsOverlay)
+	{
+		bShowControlsAsOverlay = Settings->bShowControlsAsOverlay;
+		for (TWeakObjectPtr<UControlRig>& RuntimeRigPtr : RuntimeControlRigs)
+		{
+			if (UControlRig* RuntimeControlRig = RuntimeRigPtr.Get())
+			{
+				UpdateSelectabilityOnSkeletalMeshes(RuntimeControlRig, !bShowControlsAsOverlay);
+			}
+		}
+		RequestToRecreateControlShapeActors();
+	}
 
 	// Defer creation of shapes if manipulating the viewport
 	if (RecreateControlShapesRequired != ERecreateControlRigShape::RecreateNone && !(FSlateApplication::Get().HasAnyMouseCaptor() || GUnrealEd->IsUserInteracting()))
@@ -1032,6 +1051,7 @@ bool FControlRigEditMode::StartTracking(FEditorViewportClient* InViewportClient,
 					//todo need to add multiple
 					FControlRigInteractionScope* InteractionScope = new FControlRigInteractionScope(ControlRig);
 					InteractionScopes.Add(ControlRig,InteractionScope);
+					ControlRig->bInteractionJustBegan = true;
 				}
 				else
 				{
@@ -2626,7 +2646,8 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 						{
 							ControlRig->GetHierarchy()->SwitchToDefaultParent(ControlElement->GetKey());
 						}
-						ControlRig->GetHierarchy()->SetLocalTransform(ControlToReset, InitialLocalTransform);
+						ControlRig->SetControlLocalTransform(ControlToReset.Name, InitialLocalTransform, true);
+						NotifyDrivenControls(ControlRig, ControlToReset);
 						if (bHasNonDefaultParent == false)
 						{
 							ControlRig->ControlModified().Broadcast(ControlRig, ControlElement, EControlRigSetKey::DoNotCare);
@@ -2655,6 +2676,7 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 						FTransform GlobalTransform = ControlRig->GetHierarchy()->GetGlobalTransform(ControlToReset);
 						GlobalTransforms.Add(GlobalTransform);
 					}
+					NotifyDrivenControls(ControlRig, ControlToReset);
 				}
 				//switch back to original parent space
 				int32 Index = 0;
@@ -2678,8 +2700,9 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 						FRigControlElement* ControlElement = ControlRig->FindControl(ControlToReset.Name);
 						if (ControlElement && !ControlElement->Settings.bIsTransientControl)
 						{
-							ControlRig->GetHierarchy()->SetGlobalTransform(ControlToReset, GlobalTransforms[Index]);
+							ControlRig->SetControlGlobalTransform(ControlToReset.Name, GlobalTransforms[Index], true);
 							ControlRig->Evaluate_AnyThread();
+							NotifyDrivenControls(ControlRig, ControlToReset);
 							++Index;
 						}
 					}
@@ -2700,6 +2723,10 @@ void FControlRigEditMode::ResetTransforms(bool bSelectionOnly)
 				// we at least have to run the interaction event
 				TGuardValue<TArray<FName>> EventGuard(ControlRig->EventQueue, {});
 				ControlRig->Evaluate_AnyThread();
+				for (const FRigElementKey& ControlToReset : ControlsToReset)
+				{
+					NotifyDrivenControls(ControlRig, ControlToReset);
+				}
 			}
 		}
 	}
@@ -2972,7 +2999,8 @@ void FControlRigEditMode::CreateShapeActors(UControlRig* ControlRig)
 			{
 				Param.MeshTransform = ShapeDef->Transform;
 				Param.StaticMesh = ShapeDef->StaticMesh;
-				Param.Material = ShapeDef->Library->DefaultMaterial;
+				Param.Material = (bShowControlsAsOverlay && ShapeDef->Library->XRayMaterial.IsValid()) ?
+					ShapeDef->Library->XRayMaterial : ShapeDef->Library->DefaultMaterial;
 				Param.ColorParameterName = ShapeDef->Library->MaterialColorParameter;
 			}
 
@@ -3580,21 +3608,7 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 
 				ControlRig->Evaluate_AnyThread();
 
-				// if we are changing a proxy control - we also need to notify the change for the driven controls
-				if (FRigControlElement* ControlElement = ControlRig->GetHierarchy()->Find<FRigControlElement>(ShapeActor->GetElementKey()))
-				{
-					if(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
-					{
-						for(const FRigElementKey& DrivenKey : ControlElement->Settings.DrivenControls)
-						{
-							if(DrivenKey.Type == ERigElementType::Control)
-							{
-								const FTransform DrivenTransform = ControlRig->GetHierarchy()->GetLocalTransform(DrivenKey);
-								ControlRig->SetControlLocalTransform(DrivenKey.Name, DrivenTransform, true, Context, false);
-							}
-						}
-					}
-				}
+				NotifyDrivenControls(ControlRig, ShapeActor->GetElementKey());
 			}
 		}
 	}
@@ -3862,6 +3876,8 @@ void FControlRigEditMode::AddControlRigInternal(UControlRig* InControlRig)
 		Sequencer->ObjectImplicitlyAdded(InControlRig);
 	}
 	OnControlRigAddedOrRemovedDelegate.Broadcast(InControlRig, true);
+
+	UpdateSelectabilityOnSkeletalMeshes(InControlRig, !bShowControlsAsOverlay);
 }
 
 TArrayView<const TWeakObjectPtr<UControlRig>> FControlRigEditMode::GetControlRigs() const
@@ -3924,6 +3940,8 @@ void FControlRigEditMode::RemoveControlRig(UControlRig* InControlRig)
 		Sequencer->ObjectImplicitlyRemoved(InControlRig);
 	}
 	OnControlRigAddedOrRemovedDelegate.Broadcast(InControlRig, false);
+	
+	UpdateSelectabilityOnSkeletalMeshes(InControlRig, true);
 }
 
 void FControlRigEditMode::TickManipulatableObjects(float DeltaTime)
@@ -4083,6 +4101,52 @@ void FControlRigEditMode::PostPoseUpdate()
 	}
 
 }
+
+void FControlRigEditMode::NotifyDrivenControls(UControlRig* InControlRig, const FRigElementKey& InKey)
+{
+	// if we are changing a proxy control - we also need to notify the change for the driven controls
+	if (FRigControlElement* ControlElement = InControlRig->GetHierarchy()->Find<FRigControlElement>(InKey))
+	{
+		if(ControlElement->Settings.AnimationType == ERigControlAnimationType::ProxyControl)
+		{
+			FRigControlModifiedContext Context;
+			Context.EventName = FRigUnit_BeginExecution::EventName;
+
+			for(const FRigElementKey& DrivenKey : ControlElement->Settings.DrivenControls)
+			{
+				if(DrivenKey.Type == ERigElementType::Control)
+				{
+					const FTransform DrivenTransform = InControlRig->GetHierarchy()->GetLocalTransform(DrivenKey);
+					InControlRig->SetControlLocalTransform(DrivenKey.Name, DrivenTransform, true, Context, false);
+				}
+			}
+		}
+	}
+}
+
+void FControlRigEditMode::UpdateSelectabilityOnSkeletalMeshes(UControlRig* InControlRig, bool bEnabled)
+{
+	if(const USceneComponent* HostingComponent = GetHostingSceneComponent(InControlRig))
+	{
+		if(const AActor* HostingOwner = HostingComponent->GetOwner())
+		{
+			for(UActorComponent* ActorComponent : HostingOwner->GetComponents())
+			{
+				if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ActorComponent))
+				{
+					SkeletalMeshComponent->bSelectable = bEnabled;
+					SkeletalMeshComponent->MarkRenderStateDirty();
+				}
+				else if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ActorComponent))
+				{
+					StaticMeshComponent->bSelectable = bEnabled;
+					SkeletalMeshComponent->MarkRenderStateDirty();
+				}
+			}
+		}
+	}
+}
+
 void FControlRigEditMode::SetOnlySelectRigControls(bool Val)
 {
 	UControlRigEditModeSettings* Settings = GetMutableDefault<UControlRigEditModeSettings>();

@@ -700,6 +700,7 @@ protected:
 	int32 InterRigSyncBracket;
 	uint8 InteractionType;
 	TArray<FRigElementKey> ElementsBeingInteracted;
+	bool bInteractionJustBegan;
 
 	TWeakObjectPtr<USceneComponent> OuterSceneComponent;
 
@@ -913,6 +914,7 @@ private:
 	friend class UControlRigValidator;
 	friend struct FAnimNode_ControlRig;
 	friend class URigHierarchy;
+	friend class UFKControlRig;
 };
 
 class CONTROLRIG_API FControlRigBracketScope
@@ -958,6 +960,7 @@ public:
 	{
 		InControlRig->ElementsBeingInteracted = { InKey };
 		InControlRig->InteractionType = (uint8)InInteractionType;
+		InControlRig->bInteractionJustBegan = true;
 		InControlRig->GetHierarchy()->StartInteraction();
 	}
 
@@ -972,6 +975,7 @@ public:
 	{
 		InControlRig->ElementsBeingInteracted = InKeys;
 		InControlRig->InteractionType = (uint8)InInteractionType;
+		InControlRig->bInteractionJustBegan = true;
 		InControlRig->GetHierarchy()->StartInteraction();
 	}
 
@@ -981,6 +985,7 @@ public:
 		{
 			ControlRig->GetHierarchy()->EndInteraction();
 			ControlRig->InteractionType = (uint8)EControlRigInteractionType::None;
+			ControlRig->bInteractionJustBegan = false;
 			ControlRig->ElementsBeingInteracted.Reset();
 		}
 	}

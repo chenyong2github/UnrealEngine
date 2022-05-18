@@ -18,6 +18,7 @@ class UControlRigEditModeSettings : public UObject
 		, bDisplayNulls(false)
 		, bHideControlShapes(false)
 		, bShowAllProxyControls(false)
+		, bShowControlsAsOverlay(false)
 		, bDisplayAxesOnSelection(false)
 		, AxisScale(10.f)
 		, bCoordSystemPerWidgetMode(true)
@@ -52,6 +53,10 @@ public:
 	/** Should we always hide control shapes in viewport */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings", meta = (EditCondition = "!bHideControlShapes"))
 	bool bShowAllProxyControls;
+
+	/** Determins if controls should be rendered on top of other controls */
+	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings", meta = (EditCondition = "!bHideControlShapes"))
+	bool bShowControlsAsOverlay;
 
 	/** Indicates a control being driven by a proxy control */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "Animation Settings", meta = (EditCondition = "!bHideControlShapes"))

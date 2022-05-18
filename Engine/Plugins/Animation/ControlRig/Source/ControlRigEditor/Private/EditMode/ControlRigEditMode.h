@@ -409,6 +409,8 @@ private:
 	// Post pose update handler
 	void OnPoseInitialized();
 	void PostPoseUpdate();
+	void NotifyDrivenControls(UControlRig* InControlRig, const FRigElementKey& InKey);
+	void UpdateSelectabilityOnSkeletalMeshes(UControlRig* InControlRig, bool bEnabled);
 
 	// world clean up handlers
 	FDelegateHandle OnWorldCleanupHandle;
@@ -427,6 +429,7 @@ private:
 	/** Computes the current interaction types based on the widget mode */
 	static uint8 GetInteractionType(FEditorViewportClient* InViewportClient);
 	uint8 InteractionType;
+	bool bShowControlsAsOverlay;
 
 	friend class FControlRigEditorModule;
 	friend class FControlRigEditor;

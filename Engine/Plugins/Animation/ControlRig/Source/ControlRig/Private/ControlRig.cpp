@@ -85,6 +85,7 @@ UControlRig::UControlRig(const FObjectInitializer& ObjectInitializer)
 	, InteractionBracket(0)
 	, InterRigSyncBracket(0)
 	, InteractionType((uint8)EControlRigInteractionType::None)
+	, bInteractionJustBegan(false)
 #if WITH_EDITORONLY_DATA
 	, VMSnapshotBeforeExecution(nullptr)
 #endif
@@ -1243,6 +1244,11 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 
 			return true;
 		});
+	}
+
+	if(InEventName == FRigUnit_InteractionExecution::EventName)
+	{
+		bInteractionJustBegan = false;
 	}
 }
 

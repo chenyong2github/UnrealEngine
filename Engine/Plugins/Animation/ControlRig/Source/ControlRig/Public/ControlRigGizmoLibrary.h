@@ -52,6 +52,9 @@ public:
 	TSoftObjectPtr<UMaterial> DefaultMaterial;
 
 	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")
+	TSoftObjectPtr<UMaterial> XRayMaterial;
+
+	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")
 	FName MaterialColorParameter;
 
 	UPROPERTY(EditAnywhere, Category = "ShapeLibrary")
