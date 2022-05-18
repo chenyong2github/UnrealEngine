@@ -6,6 +6,7 @@
 #include "Async/Fundamental/Task.h"
 #include "Containers/StaticArray.h"
 #include "HAL/Event.h"
+#include "HAL/IConsoleManager.h"
 #include "CoreTypes.h"
 
 namespace UE::Tasks

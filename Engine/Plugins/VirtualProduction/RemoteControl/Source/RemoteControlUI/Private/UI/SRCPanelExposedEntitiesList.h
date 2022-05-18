@@ -12,7 +12,6 @@
 
 struct FRCPanelGroup;
 class FRCPanelWidgetRegistry;
-struct FRemoteControlTarget;
 class FDragDropOperation;
 struct FGuid;
 class FReply;
