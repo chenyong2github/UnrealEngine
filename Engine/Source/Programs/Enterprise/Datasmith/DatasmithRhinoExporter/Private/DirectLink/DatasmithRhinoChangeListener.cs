@@ -97,11 +97,24 @@ namespace DatasmithRhino.DirectLink
 			//Copied object will call their own creation event.
 			if (!RhinoEventArgs.ObjectsWillBeCopied)
 			{
-				System.Diagnostics.Debug.Assert(OngoingEvent == RhinoOngoingEventTypes.None, "Did not complete previous Object transform before starting a new one");
+				if (OngoingEvent != RhinoOngoingEventTypes.None)
+				{
+					System.Diagnostics.Debug.Fail("Did not complete previous Object transform before starting a new one");
+					EventStack.Clear();
+				}
 
 				for (int ObjectIndex = 0; ObjectIndex < RhinoEventArgs.ObjectCount; ++ObjectIndex)
 				{
-					EventStack.Push(RhinoOngoingEventTypes.MovingActor);
+					RhinoObject CurrentObject = RhinoEventArgs.Objects[ObjectIndex];
+					bool bIsALight = CurrentObject.ObjectType == ObjectType.Light;
+
+					if (!bIsALight)
+					{
+						// All the types that are not lights have OnReplaceRhinoObject(), OnDeleteRhinoObject() and OnAddRhinoObject() events called on them after a move.
+						// We consider that chain of event to be part of the same operation as the move.
+						EventStack.Push(RhinoOngoingEventTypes.MovingActor);
+					}
+
 					TryCatchExecute(() => ExportContext.MoveActor(RhinoEventArgs.Objects[ObjectIndex], RhinoEventArgs.Transform));
 				}
 			}

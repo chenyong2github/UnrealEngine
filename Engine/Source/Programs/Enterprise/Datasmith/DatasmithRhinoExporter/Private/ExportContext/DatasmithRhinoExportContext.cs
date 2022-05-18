@@ -401,11 +401,13 @@ namespace DatasmithRhino.ExportContext
 				bHasMesh = true;
 			}
 
-			bool bIsInstance = InRhinoObject is InstanceObject;
-			if ((bHasMesh || bIsInstance)
+			// Block instances and lights don't have a mesh, so we must update their transform directly.
+			bool bNeedsTransformUpdate = InRhinoObject.ObjectType == ObjectType.Light || InRhinoObject.ObjectType == ObjectType.InstanceReference;
+
+			if ((bHasMesh || bNeedsTransformUpdate)
 				&& ObjectIdToHierarchyActorNodeDictionary.TryGetValue(InRhinoObject.Id, out DatasmithActorInfo ActorInfo))
 			{
-				if (bIsInstance)
+				if (bNeedsTransformUpdate)
 				{
 					ActorInfo.ApplyTransform(InTransform);
 				}
