@@ -15,18 +15,6 @@ class UMediaPlaylist;
 class UMediaSoundComponent;
 class UMediaSource;
 class UMediaTexture;
-struct FMediaTextureTrackerObject;
-
-/**
- * List of mesh types used for visible mips and tiles calculations, matching EMediaTextureVisibleMipsTiles.
- */
-UENUM()
-enum class EMediaPlateVisibleMipsTiles : uint8
-{
-	Disabled = 0,
-	Plane = 1,
-	Sphere
-};
 
 
 /**
@@ -114,7 +102,7 @@ public:
 	 * Use /Engine/BasicShapes/Sphere for the sphere.
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
-	EMediaPlateVisibleMipsTiles VisibleMipsTilesCalculations;
+	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;
 
 	/**
 	 * Adds our media texture to the media texture tracker.

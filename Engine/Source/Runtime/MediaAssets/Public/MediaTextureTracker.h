@@ -3,13 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/ObjectPtr.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
+#include "MediaTextureTracker.generated.h"
+
 class AActor;
 class UMediaTexture;
 
+UENUM()
 enum class EMediaTextureVisibleMipsTiles : uint8
 {
 	None = 0,
