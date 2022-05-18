@@ -123,6 +123,8 @@ namespace Horde.Agent.Parser
 			_inner = inner;
 			_dataChannel = Channel.CreateUnbounded<JsonLogEvent>();
 			_dataWriter = Task.Run(() => RunDataWriter());
+
+			Outcome = JobStepOutcome.Success;
 		}
 
 		/// <summary>
