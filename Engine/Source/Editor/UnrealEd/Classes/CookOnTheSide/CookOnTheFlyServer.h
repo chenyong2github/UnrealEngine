@@ -209,6 +209,9 @@ private:
 	uint32 PackagesPerGC;
 	/** Amount of time that is allowed to be idle before forcing a garbage collect. Set to 0 to never force GC due to idle time */
 	double IdleTimeToGC;
+	/** Amount of time to wait when save and load are busy waiting on async operations before trying them again. */
+	float CookProgressRetryBusyPeriodSeconds = 0.f;
+
 	// Memory Limits for when to Collect Garbage
 	uint64 MemoryMaxUsedVirtual;
 	uint64 MemoryMaxUsedPhysical;
@@ -1178,12 +1181,12 @@ private:
 
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
-	float SaveBusyTimeLastRetry = 0.f;
-	float SaveBusyTimeStarted = 0.f;
-	float LoadBusyTimeLastRetry = 0.f;
-	float LoadBusyTimeStarted = 0.f;
+	double SaveBusyRetryTimeSeconds = MAX_flt;
+	double SaveBusyWarnTimeSeconds = MAX_flt;
+	double LoadBusyRetryTimeSeconds = MAX_flt;
+	double LoadBusyWarnTimeSeconds = MAX_flt;
 	/** Tracking for the ticking of tickable cook objects */
-	float LastCookableObjectTickTime = 0.f;
+	double LastCookableObjectTickTime = 0.;
 
 	// These helper structs are all TUniquePtr rather than inline members so that we can keep their headers private.  See class header comments for their purpose.
 	TUniquePtr<UE::Cook::FPackageTracker> PackageTracker;

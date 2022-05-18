@@ -1330,19 +1330,21 @@ void UCookOnTheFlyServer::SetSaveBusy(bool bInBusy)
 		bSaveBusy = bInBusy;
 		if (bSaveBusy)
 		{
-			SaveBusyTimeStarted = FPlatformTime::Seconds();
-			SaveBusyTimeLastRetry = SaveBusyTimeStarted;
+			const double CurrentTime = FPlatformTime::Seconds();
+			SaveBusyRetryTimeSeconds = CurrentTime + CookProgressRetryBusyPeriodSeconds;
+			SaveBusyWarnTimeSeconds = CurrentTime + CookProgressRetryBusyPeriodSeconds;
 		}
 		else
 		{
-			SaveBusyTimeStarted = 0;
-			SaveBusyTimeLastRetry = 0;
+			SaveBusyRetryTimeSeconds = MAX_flt;
+			SaveBusyWarnTimeSeconds = MAX_flt;
 		}
 	}
 	else if (bSaveBusy)
 	{
-		const float CurrentTime = FPlatformTime::Seconds();
-		if (CurrentTime - SaveBusyTimeStarted > GCookProgressWarnBusyTime)
+		const double CurrentTime = FPlatformTime::Seconds();
+		SaveBusyRetryTimeSeconds = CurrentTime + CookProgressRetryBusyPeriodSeconds;
+		if (CurrentTime >= SaveBusyWarnTimeSeconds)
 		{
 			// Issue a status update. For each UObject we're still waiting on, check whether the long duration is expected using type-specific checks
 			// Make the status update a warning if the long duration is not reported as expected.
@@ -1445,7 +1447,7 @@ void UCookOnTheFlyServer::SetSaveBusy(bool bInBusy)
 				UE_LOG(LogCook, Display, TEXT("    <None>"));
 			}
 
-			SaveBusyTimeStarted = CurrentTime;
+			SaveBusyWarnTimeSeconds = CurrentTime + GCookProgressWarnBusyTime;
 		}
 	}
 }
@@ -1459,19 +1461,21 @@ void UCookOnTheFlyServer::SetLoadBusy(bool bInLoadBusy)
 		bLoadBusy = bInLoadBusy;
 		if (bLoadBusy)
 		{
-			LoadBusyTimeStarted = FPlatformTime::Seconds();
-			LoadBusyTimeLastRetry = LoadBusyTimeStarted;
+			const double CurrentTime = FPlatformTime::Seconds();
+			LoadBusyRetryTimeSeconds = CurrentTime + CookProgressRetryBusyPeriodSeconds;
+			LoadBusyWarnTimeSeconds = CurrentTime + CookProgressRetryBusyPeriodSeconds;
 		}
 		else
 		{
-			LoadBusyTimeStarted = 0;
-			LoadBusyTimeLastRetry = 0;
+			LoadBusyRetryTimeSeconds = MAX_flt;
+			LoadBusyWarnTimeSeconds = MAX_flt;
 		}
 	}
 	else if (bLoadBusy)
 	{
-		const float CurrentTime = FPlatformTime::Seconds();
-		if (CurrentTime - LoadBusyTimeStarted > GCookProgressWarnBusyTime)
+		const double CurrentTime = FPlatformTime::Seconds();
+		LoadBusyRetryTimeSeconds = CurrentTime + CookProgressRetryBusyPeriodSeconds;
+		if (CurrentTime >= LoadBusyWarnTimeSeconds)
 		{
 			int DisplayCount = 0;
 			const int DisplayMax = 10;
@@ -1501,7 +1505,7 @@ void UCookOnTheFlyServer::SetLoadBusy(bool bInLoadBusy)
 			{
 				UE_LOG(LogCook, Display, TEXT("    <None>"));
 			}
-			LoadBusyTimeStarted = CurrentTime;
+			LoadBusyWarnTimeSeconds = CurrentTime + GCookProgressWarnBusyTime;
 		}
 	}
 }
@@ -1510,7 +1514,7 @@ void UCookOnTheFlyServer::UpdateDisplay(ECookTickFlags TickFlags, bool bForceDis
 {
 	using namespace UE::Cook;
 
-	const float CurrentTime = FPlatformTime::Seconds();
+	const double CurrentTime = FPlatformTime::Seconds();
 	const float DeltaProgressDisplayTime = CurrentTime - LastProgressDisplayTime;
 	const int32 CookedPackagesCount = PackageDatas->GetNumCooked();
 	const int32 CookPendingCount = ExternalRequests->GetNumRequests() + PackageDatas->GetMonitor().GetNumInProgress();
@@ -1764,8 +1768,8 @@ void UCookOnTheFlyServer::WaitForAsync(UE::Cook::FTickStackData& StackData)
 	float SleepDuration = WaitForAsyncSleepSeconds;
 	SleepDuration = FMath::Min(SleepDuration, StackData.Timer.GetEndTimeSeconds() - CurrentTime);
 	SleepDuration = FMath::Min(SleepDuration, PollNextTimeIdleSeconds - CurrentTime);
-	SleepDuration = FMath::Min(SleepDuration, SaveBusyTimeLastRetry + GCookProgressRetryBusyTime - CurrentTime);
-	SleepDuration = FMath::Min(SleepDuration, LoadBusyTimeLastRetry + GCookProgressRetryBusyTime - CurrentTime);
+	SleepDuration = FMath::Min(SleepDuration, SaveBusyRetryTimeSeconds - CurrentTime);
+	SleepDuration = FMath::Min(SleepDuration, LoadBusyRetryTimeSeconds - CurrentTime);
 	SleepDuration = FMath::Max(SleepDuration, 0);
 	FPlatformProcess::Sleep(SleepDuration);
 }
@@ -1853,43 +1857,13 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 		return ECookAction::Load;
 	}
 
-	if (IsCookOnTheFlyMode() && !IsRealtimeMode())
+	if (NumSaves > 0 && CurrentTime >= SaveBusyRetryTimeSeconds)
 	{
-		if (NumSaves > 0 && bLoadBusy)
-		{
-			return ECookAction::Save;
-		}
-		if (NumLoads > 0 && bSaveBusy)
-		{
-			return ECookAction::Load;
-		}
-		if (NumSaves > 0)
-		{
-			return ECookAction::Save;
-		}
-		if (NumLoads > 0)
-		{
-			return ECookAction::Load;
-		}
+		return ECookAction::Save;
 	}
-	else
+	if (NumLoads > 0 && CurrentTime >= LoadBusyRetryTimeSeconds)
 	{
-		if (bSaveBusy & (NumSaves > 0))
-		{
-			if (CurrentTime - SaveBusyTimeLastRetry > GCookProgressRetryBusyTime)
-			{
-				SaveBusyTimeLastRetry = CurrentTime;
-				return ECookAction::Save;
-			}
-		}
-		if (bLoadBusy & (NumLoads > 0))
-		{
-			if (CurrentTime - LoadBusyTimeLastRetry > GCookProgressRetryBusyTime)
-			{
-				LoadBusyTimeLastRetry = CurrentTime;
-				return ECookAction::Load;
-			}
-		}
+		return ECookAction::Load;
 	}
 
 	if (PackageDatas->GetMonitor().GetNumInProgress() > 0)
@@ -4702,6 +4676,16 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	IdleTimeToGC = 20.0;
 	GConfig->GetDouble( TEXT("CookSettings"), TEXT("IdleTimeToGC"), IdleTimeToGC, GEditorIni );
 
+	if (IsCookOnTheFlyMode() && !IsRealtimeMode())
+	{
+		// Remove sleeps when waiting on async operations and otherwise idle; busy wait instead to minimize latency
+		CookProgressRetryBusyPeriodSeconds = 0.0f;
+	}
+	else
+	{
+		CookProgressRetryBusyPeriodSeconds = GCookProgressRetryBusyTime;
+	}
+
 	auto ReadMemorySetting = [](const TCHAR* SettingName, uint64& TargetVariable)
 	{
 		int32 ValueInMB = 0;
@@ -7078,7 +7062,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 
 	{
 		UE_SCOPED_COOKTIMER(TickCookableObjects);
-		float CurrentTime = FPlatformTime::Seconds();
+		const double CurrentTime = FPlatformTime::Seconds();
 		FTickableCookObject::TickObjects(CurrentTime - LastCookableObjectTickTime, true /* bTickComplete */);
 		LastCookableObjectTickTime = CurrentTime;
 	}
