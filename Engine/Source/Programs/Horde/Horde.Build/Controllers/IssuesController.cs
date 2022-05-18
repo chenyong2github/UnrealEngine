@@ -147,6 +147,7 @@ namespace Horde.Build.Controllers
 						IUser? owner = null;
 						IUser? nominatedBy = null;
 						IUser? resolvedBy = null;
+						IUser? quarantinedBy = null;
 
 						if (issue.OwnerId != null)
 						{
@@ -161,9 +162,15 @@ namespace Horde.Build.Controllers
 						if (issue.ResolvedById != null)
 						{
 							resolvedBy = await _userCollection.GetCachedUserAsync(issue.ResolvedById.Value);
-						}						
+						}
 
-						FindIssueResponse response = new FindIssueResponse(issue, owner, nominatedBy, resolvedBy, streamSeverity, spanResponses);
+						if (issue.QuarantinedByUserId != null)
+						{
+							quarantinedBy = await _userCollection.GetCachedUserAsync(issue.QuarantinedByUserId.Value);
+						}
+
+
+						FindIssueResponse response = new FindIssueResponse(issue, owner, nominatedBy, resolvedBy, quarantinedBy, streamSeverity, spanResponses);
 						responses.Add(PropertyFilter.Apply(response, filter));
 					}
 				}
@@ -555,6 +562,13 @@ namespace Horde.Build.Controllers
 				newResolvedById = request.Resolved.Value ? User.GetUserId() : UserId.Empty;
 			}
 
+			UserId? newQuarantinedById = null;
+			if (request.QuarantinedById != null)
+			{
+				newQuarantinedById = request.QuarantinedById.Length > 0 ? new UserId(request.QuarantinedById) : UserId.Empty;
+			}
+
+
 			List<ObjectId>? addSpans = null;
 			if (request.AddSpans != null && request.AddSpans.Count > 0)
 			{
@@ -567,7 +581,7 @@ namespace Horde.Build.Controllers
 				removeSpans = request.RemoveSpans.ConvertAll(x => ObjectId.Parse(x));
 			}
 
-			if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans, request.ExternalIssueKey))
+			if (!await _issueService.UpdateIssueAsync(issueId, request.Summary, request.Description, request.Promoted, newOwnerId, newNominatedById, request.Acknowledged, newDeclinedById, request.FixChange, newResolvedById, addSpans, removeSpans, request.ExternalIssueKey, newQuarantinedById))
 			{
 				return NotFound();
 			}

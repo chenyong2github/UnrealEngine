@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Horde.Build.Services;
@@ -58,6 +58,16 @@ namespace Horde.Build.Models
 		/// Issue key in external issue tracker
 		/// </summary>
 		string? ExternalIssueKey { get; }
+
+		/// <summary>
+		/// User who quarantined the issue
+		/// </summary>
+		IUser? QuarantinedBy { get; }
+
+		/// <summary>
+		/// The UTC time when the issue was quarantined
+		/// </summary>
+		DateTime? QuarantineTimeUtc { get; }
 
 		/// <summary>
 		/// Determines whether the given user should be notified about the given issue

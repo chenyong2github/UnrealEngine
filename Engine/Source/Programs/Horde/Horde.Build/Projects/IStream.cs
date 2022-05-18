@@ -305,16 +305,6 @@ namespace Horde.Build.Models
 		/// </summary>
 		public DateTime? PauseTimeUtc { get; set; }
 
-		/// <summary>
-		/// User who quarantined the step
-		/// </summary>
-		public UserId? QuarantinedByUserId { get; set; }
-
-		/// <summary>
-		/// The UTC time when the step was quarantined
-		/// </summary>
-		public DateTime? QuarantineTimeUtc { get; set; }
-
 
 		/// <summary>
 		/// Default constructor for serialization
@@ -326,13 +316,11 @@ namespace Horde.Build.Models
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public TemplateStepState( string name, UserId? pausedByUserId = null, DateTime? pauseTimeUtc = null, UserId? quarantinedByUserId = null, DateTime? quarantineTimerUtc = null)
+		public TemplateStepState( string name, UserId? pausedByUserId = null, DateTime? pauseTimeUtc = null)
 		{
 			Name = name;
 			PausedByUserId = pausedByUserId;
 			PauseTimeUtc = pauseTimeUtc;
-			QuarantinedByUserId = quarantinedByUserId;
-			QuarantineTimeUtc = quarantineTimerUtc;
 		}
 
 	}

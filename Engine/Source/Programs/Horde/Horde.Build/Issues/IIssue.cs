@@ -152,6 +152,16 @@ namespace Horde.Build.Models
 		/// </summary>
 		public string? ExternalIssueKey { get; }
 
+		/// <summary>
+		/// User who quarantined the issue
+		/// </summary>
+		public UserId? QuarantinedByUserId { get; set; }
+
+		/// <summary>
+		/// The UTC time when the issue was quarantined
+		/// </summary>
+		public DateTime? QuarantineTimeUtc { get; set; }
+
 	}
 
 	/// <summary>

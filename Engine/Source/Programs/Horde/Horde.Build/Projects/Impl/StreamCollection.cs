@@ -296,7 +296,7 @@ namespace Horde.Build.Collections.Impl
 				newTemplateRef = new TemplateRef(template, oldTemplateRef.ShowUgsAlerts, oldTemplateRef.ShowUgsAlerts, oldTemplateRef.NotificationChannel, oldTemplateRef.NotificationChannelFilter, oldTemplateRef.TriageChannel, oldTemplateRef.Schedule, oldTemplateRef.ChainedJobs, null, oldTemplateRef.Acl);
 
 				// get currently valid step states
-				List<TemplateStepState> newStepStates = oldTemplateRef.StepStates?.Where(x => x.QuarantinedByUserId != null || x.PausedByUserId != null).ToList() ?? new List<TemplateStepState>();
+				List<TemplateStepState> newStepStates = oldTemplateRef.StepStates?.Where(x => x.PausedByUserId != null).ToList() ?? new List<TemplateStepState>();
 
 				// generate update list
 				foreach (UpdateStepStateRequest updateState in stepStates)
@@ -304,17 +304,16 @@ namespace Horde.Build.Collections.Impl
 					TemplateStepState? newState = newStepStates.Where(x => x.Name == updateState.Name).FirstOrDefault();
 
 					UserId? PausedByUserId = updateState.PausedByUserId != null ? new UserId(updateState.PausedByUserId) : null;
-					UserId? QuarantinedByUserId = updateState.QuarantinedByUserId != null ? new UserId(updateState.QuarantinedByUserId) : null;
 
 					if (newState == null)
 					{
 						// if this is a new state without anything set, ignore it
-						if (PausedByUserId == null && QuarantinedByUserId == null)
+						if (PausedByUserId == null)
 						{
 							continue;
 						}
 
-						newStepStates.Add(new TemplateStepState(updateState.Name, PausedByUserId, PausedByUserId != null ? DateTime.UtcNow : null, QuarantinedByUserId, QuarantinedByUserId != null ? DateTime.UtcNow : null));
+						newStepStates.Add(new TemplateStepState(updateState.Name, PausedByUserId, PausedByUserId != null ? DateTime.UtcNow : null));
 					}
 					else
 					{
@@ -327,22 +326,11 @@ namespace Horde.Build.Collections.Impl
 							newState.PauseTimeUtc = DateTime.UtcNow;
 						}
 
-						newState.PausedByUserId = PausedByUserId;
-
-						if (QuarantinedByUserId == null)
-						{
-							newState.QuarantineTimeUtc = null;
-						}
-						else if (newState.QuarantineTimeUtc == null)
-						{
-							newState.QuarantineTimeUtc = DateTime.UtcNow;
-						}
-
-						newState.QuarantinedByUserId = QuarantinedByUserId;
+						newState.PausedByUserId = PausedByUserId;						
 					}
 				}
 
-				newTemplateRef.StepStates = newStepStates.Where(x => x.QuarantinedByUserId != null || x.PausedByUserId != null).ToList();
+				newTemplateRef.StepStates = newStepStates.Where(x => x.PausedByUserId != null).ToList();
 				if (newTemplateRef.StepStates.Count == 0)
 				{
 					newTemplateRef.StepStates = null;

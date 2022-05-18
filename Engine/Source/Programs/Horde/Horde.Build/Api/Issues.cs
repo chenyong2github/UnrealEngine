@@ -519,6 +519,17 @@ namespace Horde.Build.Api
 		public string? ExternalIssueKey { get; set; }
 
 		/// <summary>
+		/// User who quarantined the issue
+		/// </summary>
+		public GetThinUserInfoResponse? QuarantinedByUserInfo { get; set; }
+
+		/// <summary>
+		/// The UTC time when the issue was quarantined
+		/// </summary>
+		public DateTime? QuarantineTimeUtc { get; set; }
+
+
+		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
 		/// <param name="details">Issue to construct from</param>
@@ -576,6 +587,8 @@ namespace Horde.Build.Api
 			PrimarySuspectsInfo = details.SuspectUsers.ConvertAll(x => new GetThinUserInfoResponse(x));
 			ShowDesktopAlerts = showDesktopAlerts;
 			ExternalIssueKey = details.ExternalIssueKey;
+			QuarantinedByUserInfo = details.QuarantinedBy != null ? new GetThinUserInfoResponse(details.QuarantinedBy) : null;
+			QuarantineTimeUtc = details.QuarantineTimeUtc;
 		}
 	}
 
@@ -737,15 +750,27 @@ namespace Horde.Build.Api
 		public string? ExternalIssueKey { get; set; }
 
 		/// <summary>
+		/// User who quarantined the issue
+		/// </summary>
+		public GetThinUserInfoResponse? QuarantinedBy { get; set; }
+
+		/// <summary>
+		/// The UTC time when the issue was quarantined
+		/// </summary>
+		public DateTime? QuarantineTimeUtc { get; set; }
+
+
+		/// <summary>
 		/// Constructs a new issue
 		/// </summary>
 		/// <param name="issue">The isseu information</param>
 		/// <param name="owner">Owner of the issue</param>
 		/// <param name="nominatedBy">User that nominated the current fixer</param>
 		/// <param name="resolvedBy">User that resolved the issue</param>
+		/// <param name="quarantinedBy">User that quarantined the issue</param>
 		/// <param name="streamSeverity">The current severity in the stream</param>
 		/// <param name="spans">Spans for this issue</param>
-		public FindIssueResponse(IIssue issue, IUser? owner, IUser? nominatedBy, IUser? resolvedBy, IssueSeverity? streamSeverity, List<FindIssueSpanResponse> spans)
+		public FindIssueResponse(IIssue issue, IUser? owner, IUser? nominatedBy, IUser? resolvedBy, IUser? quarantinedBy, IssueSeverity? streamSeverity, List<FindIssueSpanResponse> spans)
 		{
 			Id = issue.Id;
 			CreatedAt = issue.CreatedAt;
@@ -774,6 +799,11 @@ namespace Horde.Build.Api
 			LastSeenAt = issue.LastSeenAt;
 			Spans = spans;
 			ExternalIssueKey = issue.ExternalIssueKey;
+			if (quarantinedBy != null)
+			{
+				QuarantinedBy = new GetThinUserInfoResponse(quarantinedBy);
+				QuarantineTimeUtc = issue.QuarantineTimeUtc;
+			}
 		}
 	}
 
@@ -842,9 +872,14 @@ namespace Horde.Build.Api
 		/// </summary>
 		public string? ExternalIssueKey { get; set; }
 
+		/// <summary>
+		/// Id of user quarantining issue
+		/// </summary>
+		public string? QuarantinedById { get; set; }
+
 	}
 
-	
+
 	/// <summary>
 	/// External issue project information
 	/// </summary>

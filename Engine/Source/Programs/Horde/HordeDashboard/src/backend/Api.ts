@@ -1788,13 +1788,6 @@ export type GetTemplateStepStateResponse = {
 
 	/**The UTC time when the step was paused*/
 	pauseTimeUtc?: Date | string;
-
-	/**User who quarantined the step */
-	quarantinedByUserInfo?: GetThinUserInfoResponse; 
-	
-	/**The UTC time when the step was quarantined */
-	quarantineTimeUtc?: Date | string;
-
 }
 
 /**  Updates an existing stream template ref */
@@ -1814,8 +1807,6 @@ export type UpdateStepStateRequest = {
 	/** User who paused the step */
 	pausedByUserId?: string;
 
-	/** User who paused the step */
-	quarantinedByUserId?: string;
 }
 
 /**Information about a template in this stream */
@@ -2815,6 +2806,12 @@ export type GetIssueResponse = {
 	/** External issue tracking */
 	externalIssueKey?: string;
 
+	/** User info for who quarantined issue */
+	quarantinedByUserInfo?: GetThinUserInfoResponse;
+	
+	/** The UTC time when the issue was quarantined */
+	quarantineTimeUtc?: Date | string;
+
 }
 
 /**Request an issue to be updated */
@@ -2855,6 +2852,9 @@ export type UpdateIssueRequest = {
 
 	/** An external issue key*/
 	externalIssueKey?: string;
+
+	/** Id of user quarantining issue */
+	quarantinedById?: string;
 
 }
 
@@ -3914,6 +3914,13 @@ export type FindIssueResponse = {
 
 	/** External issue tracking */
 	externalIssueKey?: string;
+
+	/** User who quarantined the issue */
+	quarantinedBy?: GetThinUserInfoResponse;
+
+	/** The UTC time when the issue was quarantined */
+	quarantineTimeUtc?: Date | string;
+
 }
 
 export type GetAgentSoftwareChannelResponse = {

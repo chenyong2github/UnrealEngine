@@ -128,7 +128,7 @@ namespace Horde.Build.Controllers
 							{
 								TemplateStepState state = tref.StepStates[i];
 
-								if (state.QuarantinedByUserId == null && state.PausedByUserId == null)
+								if (state.PausedByUserId == null)
 								{
 									continue;
 								}
@@ -141,13 +141,7 @@ namespace Horde.Build.Controllers
 									pausedByUserInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(state.PausedByUserId));
 								}
 
-								GetThinUserInfoResponse? quarantinedByUserInfo = null;
-								if (state.QuarantinedByUserId != null)
-								{
-									quarantinedByUserInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(state.QuarantinedByUserId));
-								}
-
-								stepStates.Add(new GetTemplateStepStateResponse(state, pausedByUserInfo, quarantinedByUserInfo));
+								stepStates.Add(new GetTemplateStepStateResponse(state, pausedByUserInfo));
 
 							}
 						}

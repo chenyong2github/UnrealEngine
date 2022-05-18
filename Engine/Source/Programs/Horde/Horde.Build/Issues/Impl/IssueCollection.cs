@@ -110,7 +110,14 @@ namespace Horde.Build.Collections.Impl
 
 			[BsonIgnoreIfNull]
 			public string? ExternalIssueKey { get; set; }
-			
+
+			[BsonIgnoreIfNull]
+			public UserId? QuarantinedByUserId { get; set; }
+
+			[BsonIgnoreIfNull]
+			public DateTime? QuarantineTimeUtc { get; set; }
+
+
 			[BsonConstructor]
 			private Issue()
 			{
@@ -802,7 +809,7 @@ namespace Horde.Build.Collections.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<IIssue?> TryUpdateIssueAsync(IIssue issue, IssueSeverity? newSeverity = null, string? newSummary = null, string? newUserSummary = null, string? newDescription = null, bool? newManuallyPromoted = null, UserId? newOwnerId = null, UserId? newNominatedById = null, bool? newAcknowledged = null, UserId? newDeclinedById = null, int? newFixChange = null, UserId? newResolvedById = null, List<ObjectId>? newExcludeSpanIds = null, DateTime? newLastSeenAt = null, string? externaIssueKey = null)
+		public async Task<IIssue?> TryUpdateIssueAsync(IIssue issue, IssueSeverity? newSeverity = null, string? newSummary = null, string? newUserSummary = null, string? newDescription = null, bool? newManuallyPromoted = null, UserId? newOwnerId = null, UserId? newNominatedById = null, bool? newAcknowledged = null, UserId? newDeclinedById = null, int? newFixChange = null, UserId? newResolvedById = null, List<ObjectId>? newExcludeSpanIds = null, DateTime? newLastSeenAt = null, string? newExternaIssueKey = null, UserId? newQuarantinedById = null)
 		{
 			Issue issueDocument = (Issue)issue;
 
@@ -935,10 +942,23 @@ namespace Horde.Build.Collections.Impl
 			{
 				await _issueSuspects.UpdateManyAsync(x => x.IssueId == issue.Id && x.AuthorId == newDeclinedById.Value, Builders<IssueSuspect>.Update.Set(x => x.DeclinedAt, DateTime.UtcNow));
 			}
-
-			if (externaIssueKey != null)
+			if (newQuarantinedById != null)
 			{
-				updates.Add(Builders<Issue>.Update.Set(x => x.ExternalIssueKey, externaIssueKey == String.Empty ? null : externaIssueKey));
+				if (newQuarantinedById.Value == UserId.Empty)
+				{
+					updates.Add(Builders<Issue>.Update.Unset(x => x.QuarantinedByUserId));
+					updates.Add(Builders<Issue>.Update.Unset(x => x.QuarantineTimeUtc));
+				}
+				else
+				{
+					updates.Add(Builders<Issue>.Update.Set(x => x.QuarantinedByUserId!, newQuarantinedById.Value));
+					updates.Add(Builders<Issue>.Update.Set(x => x.QuarantineTimeUtc, DateTime.UtcNow));
+				}
+			}
+
+			if (newExternaIssueKey != null)
+			{
+				updates.Add(Builders<Issue>.Update.Set(x => x.ExternalIssueKey, newExternaIssueKey.Length == 0 ? null : newExternaIssueKey));
 			}
 
 			if (updates.Count == 0)

@@ -270,11 +270,6 @@ namespace Horde.Build.Api
 		/// User who paused the step
 		/// </summary>
 		public string? PausedByUserId { get; set; }
-
-		/// <summary>
-		/// User who quarantined the step
-		/// </summary>
-		public string? QuarantinedByUserId { get; set; }
 	}
 
 
@@ -456,16 +451,6 @@ namespace Horde.Build.Api
 		public DateTime? PauseTimeUtc { get; set; }
 
 		/// <summary>
-		/// User who quarantined the step
-		/// </summary>
-		public GetThinUserInfoResponse? QuarantinedByUserInfo { get; set; }
-
-		/// <summary>
-		/// The UTC time when the step was quarantined
-		/// </summary>
-		public DateTime? QuarantineTimeUtc { get; set; }
-
-		/// <summary>
 		/// Default constructor for serialization
 		/// </summary>
 		private GetTemplateStepStateResponse()
@@ -475,13 +460,11 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetTemplateStepStateResponse(TemplateStepState state, GetThinUserInfoResponse? pausedByUserInfo, GetThinUserInfoResponse? quarantinedByUserInfo)
+		public GetTemplateStepStateResponse(TemplateStepState state, GetThinUserInfoResponse? pausedByUserInfo)
 		{
 			Name = state.Name;			
 			PauseTimeUtc = state.PauseTimeUtc;
-			QuarantineTimeUtc = state.QuarantineTimeUtc;
 			PausedByUserInfo = pausedByUserInfo;
-			QuarantinedByUserInfo = quarantinedByUserInfo;
 		}
 
 	}

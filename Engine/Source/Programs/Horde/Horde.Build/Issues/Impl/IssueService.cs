@@ -52,6 +52,12 @@ namespace Horde.Build.Services.Impl
 		public IUser? ResolvedBy { get; }
 
 		/// <inheritdoc/>
+		public IUser? QuarantinedBy { get; set; }
+
+		/// <inheritdoc/>
+		public DateTime? QuarantineTimeUtc { get; set; }
+
+		/// <inheritdoc/>
 		public string? ExternalIssueKey { get; }
 
 		/// <inheritdoc/>
@@ -390,7 +396,7 @@ namespace Horde.Build.Services.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> UpdateIssueAsync(int id, string? userSummary = null, string? description = null, bool? promoted = null, UserId? ownerId = null, UserId? nominatedById = null, bool? acknowledged = null, UserId? declinedById = null, int? fixChange = null, UserId? resolvedById = null, List<ObjectId>? addSpanIds = null, List<ObjectId>? removeSpanIds = null, string? externalIssueKey = null)
+		public async Task<bool> UpdateIssueAsync(int id, string? userSummary = null, string? description = null, bool? promoted = null, UserId? ownerId = null, UserId? nominatedById = null, bool? acknowledged = null, UserId? declinedById = null, int? fixChange = null, UserId? resolvedById = null, List<ObjectId>? addSpanIds = null, List<ObjectId>? removeSpanIds = null, string? externalIssueKey = null, UserId? quarantinedById = null)
 		{
 			IIssue? issue;
 			for (; ; )
@@ -401,7 +407,7 @@ namespace Horde.Build.Services.Impl
 					return false;
 				}
 
-				issue = await _issueCollection.TryUpdateIssueAsync(issue, newUserSummary: userSummary, newDescription: description, newPromoted: promoted, newOwnerId: ownerId ?? resolvedById, newNominatedById: nominatedById, newDeclinedById: declinedById, newAcknowledged: acknowledged, newFixChange: fixChange, newResolvedById: resolvedById, newExcludeSpanIds: removeSpanIds, externalIssueKey: externalIssueKey);
+				issue = await _issueCollection.TryUpdateIssueAsync(issue, newUserSummary: userSummary, newDescription: description, newPromoted: promoted, newOwnerId: ownerId ?? resolvedById, newNominatedById: nominatedById, newDeclinedById: declinedById, newAcknowledged: acknowledged, newFixChange: fixChange, newResolvedById: resolvedById, newExcludeSpanIds: removeSpanIds, newExternalIssueKey: externalIssueKey, newQuarantinedById: quarantinedById);
 				if (issue != null)
 				{
 					break;
@@ -563,22 +569,6 @@ namespace Horde.Build.Services.Impl
 				throw new ArgumentException($"Invalid step id {stepId}");
 			}
 
-			TemplateRef? template;
-			bool SuppressNewIssues = false;
-			if (stream.Templates.TryGetValue(job.TemplateId, out template))
-			{
-				if (template.StepStates != null)
-				{
-					string StepName = graph.Groups[batch.GroupIdx].Nodes[step.NodeIdx].Name;
-					TemplateStepState? state = template.StepStates.FirstOrDefault(x => x.Name.Equals(StepName, StringComparison.Ordinal));
-					if (state?.QuarantinedByUserId != null)
-					{
-						_logger.LogInformation("Issue creation disabled for {JobId}:{BatchId}:{StepId}, Quaratined by user: {UserId}", job.Id, batchId, stepId, state.QuarantinedByUserId);
-						SuppressNewIssues = true;
-					}
-				}
-			}
-
 			scope.Span.SetTag("LogId", step.LogId.ToString());
 
 			// Get all the annotations for this template
@@ -635,12 +625,9 @@ namespace Horde.Build.Services.Impl
 						{
 							continue;
 						}
-						if (!SuppressNewIssues)
+						if (!await AddEventsToNewSpans(stream, job, batch, step, node, openSpans, eventGroups, annotations, job.PromoteIssuesByDefault))
 						{
-						    if (!await AddEventsToNewSpans(stream, job, batch, step, node, openSpans, eventGroups, annotations, job.PromoteIssuesByDefault))
-						    {
-							    continue;
-						    }
+							continue;
 						}
 					}
 

@@ -1473,6 +1473,7 @@ namespace Horde.Build.Tests
 			}
 		}
 
+		/*
 		[TestMethod]
 		public async Task QuarantinedIssueTest()
 		{
@@ -1532,9 +1533,9 @@ namespace Horde.Build.Tests
 				List<IIssueSpan> spans = await IssueCollection.FindSpansAsync();
 				Assert.AreEqual(1, spans.Count);
 				Assert.AreEqual(job.Id, spans[0].LastFailure?.JobId);
-			}
+			}			
 
-		}
+		} */
 
 
 		private async Task ParseAsync(LogId logId, string[] lines)
