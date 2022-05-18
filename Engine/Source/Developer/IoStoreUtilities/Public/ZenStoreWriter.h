@@ -143,7 +143,8 @@ private:
 	void CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader);
 	void BroadcastCommit(IPackageStoreWriter::FCommitEventArgs& EventArgs);
 	void BroadcastMarkUpToDate(IPackageStoreWriter::FMarkUpToDateEventArgs& EventArgs);
-	void CommitPackageInternal(FCommitPackageInfo&& CommitInfo);
+	struct FZenCommitInfo;
+	void CommitPackageInternal(FZenCommitInfo&& CommitInfo);
 	FCbAttachment CreateAttachment(FSharedBuffer Buffer);
 	FCbAttachment CreateAttachment(FIoBuffer Buffer);
 

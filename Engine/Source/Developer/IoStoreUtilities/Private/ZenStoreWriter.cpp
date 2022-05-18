@@ -58,6 +58,12 @@ FMD5Hash IoHashToMD5(const FIoHash& IoHash)
 	return Hash;
 }
 
+struct FZenStoreWriter::FZenCommitInfo
+{
+	IPackageWriter::FCommitPackageInfo CommitInfo;
+	TUniquePtr<FPendingPackageState> PackageState;
+};
+
 class FZenStoreWriter::FCommitQueue
 {
 public:
@@ -65,18 +71,18 @@ public:
 		: NewCommitEvent(EEventMode::AutoReset)
 		, QueueEmptyEvent(EEventMode::ManualReset) {}
 	
-	void Enqueue(const FCommitPackageInfo& Commit)
+	void Enqueue(FZenCommitInfo&& Commit)
 	{
 		{
 			FScopeLock _(&QueueCriticalSection);
-			Queue.Enqueue(Commit);
+			Queue.Enqueue(MoveTemp(Commit));
 			QueueNum++;
 		}
 
 		NewCommitEvent->Trigger();
 	}
 
-	bool BlockAndDequeue(FCommitPackageInfo& OutCommit)
+	bool BlockAndDequeue(FZenCommitInfo& OutCommit)
 	{
 		for (;;)
 		{
@@ -132,7 +138,7 @@ private:
 	FEventRef					NewCommitEvent;
 	FEventRef					QueueEmptyEvent;
 	FCriticalSection			QueueCriticalSection;
-	TQueue<FCommitPackageInfo>	Queue;
+	TQueue<FZenCommitInfo>		Queue;
 	int32						QueueNum = 0;
 	TAtomic<bool>				bCompleteAdding{false};
 };
@@ -517,7 +523,7 @@ void FZenStoreWriter::BeginCook()
 			for(;;)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(FZenStoreWriter::WaitingOnCooker);
-				FCommitPackageInfo Commit;
+				FZenCommitInfo Commit;
 				if (!CommitQueue->BlockAndDequeue(Commit))
 				{
 					break;
@@ -583,6 +589,12 @@ bool FZenStoreWriter::IsReservedOplogKey(FUtf8StringView Key)
 
 void FZenStoreWriter::CommitPackage(FCommitPackageInfo&& Info)
 {
+	if (Info.Status == ECommitStatus::Canceled)
+	{
+		RemovePendingPackage(Info.PackageName);
+		return;
+	}
+
 	UE::SavePackageUtilities::IncrementOutstandingAsyncWrites();
 
 	// If we are computing hashes, we need to allocate where the hashes will go.
@@ -592,7 +604,7 @@ void FZenStoreWriter::CommitPackage(FCommitPackageInfo&& Info)
 		FPendingPackageState& ExistingState = GetPendingPackage(Info.PackageName);
 		ExistingState.PackageHashes = new FPackageHashes();
 
-		if (Info.bSucceeded)
+		if (Info.Status == ECommitStatus::Success)
 		{
 			// Only record hashes for successful saves. A single package can be saved unsuccessfully multiple times
 			// during a cook if its rejected for being only referenced by editor-only references and we keep finding
@@ -608,21 +620,24 @@ void FZenStoreWriter::CommitPackage(FCommitPackageInfo&& Info)
 		}
 	}
 
+	TUniquePtr<FPendingPackageState> PackageState = RemovePendingPackage(Info.PackageName);
+	FZenCommitInfo ZenCommitInfo{ Forward<FCommitPackageInfo>(Info), MoveTemp(PackageState) };
 	if (FPlatformProcess::SupportsMultithreading())
 	{
-		CommitQueue->Enqueue(Info);
+		CommitQueue->Enqueue(MoveTemp(ZenCommitInfo));
 	}
 	else
 	{
-		CommitPackageInternal(Forward<FCommitPackageInfo>(Info));
+		CommitPackageInternal(MoveTemp(ZenCommitInfo));
 	}
 }
 
-void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
+void FZenStoreWriter::CommitPackageInternal(FZenCommitInfo&& ZenCommitInfo)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FZenStoreWriter::CommitPackage);
+	FCommitPackageInfo& CommitInfo = ZenCommitInfo.CommitInfo;
 	
-	TUniquePtr<FPendingPackageState> PackageState = RemovePendingPackage(CommitInfo.PackageName);
+	TUniquePtr<FPendingPackageState> PackageState = MoveTemp(ZenCommitInfo.PackageState);
 	checkf(PackageState.IsValid(), TEXT("Trying to commit non-pending package '%s'"), *CommitInfo.PackageName.ToString());
 
 	IPackageStoreWriter::FCommitEventArgs CommitEventArgs;
@@ -634,7 +649,7 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 	const bool bComputeHash			= EnumHasAnyFlags(CommitInfo.WriteOptions, EWriteOptions::ComputeHash);
 	const bool bWritePackage		= EnumHasAnyFlags(CommitInfo.WriteOptions, EWriteOptions::Write);
 
-	if (CommitInfo.bSucceeded && bWritePackage)
+	if (CommitInfo.Status == ECommitStatus::Success && bWritePackage)
 	{
 		FPackageDataEntry& PkgData = PackageState->PackageData;
 		checkf(PkgData.IsValid, TEXT("CommitPackage called with bSucceeded but without first calling WritePackageData"))
@@ -807,7 +822,7 @@ void FZenStoreWriter::CommitPackageInternal(FCommitPackageInfo&& CommitInfo)
 		TIoStatusOr<uint64> Status = HttpClient->AppendOp(MoveTemp(OplogEntry));
 		UE_CLOG(!Status.IsOk(), LogZenStoreWriter, Error, TEXT("Failed to commit oplog entry '%s' to Zen"), *CommitInfo.PackageName.ToString());
 	}
-	else if (CommitInfo.bSucceeded && bComputeHash)
+	else if (CommitInfo.Status == ECommitStatus::Success && bComputeHash)
 	{
 		FPackageDataEntry& PkgData = PackageState->PackageData;
 		checkf(PkgData.IsValid, TEXT("CommitPackage called with bSucceeded but without first calling WritePackageData"));

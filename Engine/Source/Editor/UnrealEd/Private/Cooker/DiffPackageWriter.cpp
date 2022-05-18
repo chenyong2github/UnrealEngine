@@ -192,6 +192,11 @@ bool FDiffPackageWriter::IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousR
 {
 	checkf(!Inner->IsAnotherSaveNeeded(PreviousResult, SaveArgs),
 		TEXT("DiffPackageWriter does not support an Inner that needs multiple saves."));
+	if (PreviousResult == ESavePackageResult::Timeout)
+	{
+		return false;
+	}
+
 	// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the
 	// existing package. If the simple memory diff was not identical, collect callstacks for all Serialize calls and
 	// dump differences to log
@@ -205,7 +210,7 @@ bool FDiffPackageWriter::IsAnotherSaveNeeded(FSavePackageResultStruct& PreviousR
 			// The contract with the Inner is that Begin is paired with a single commit;
 			// send the old commit and the new begin
 			FCommitPackageInfo CommitInfo;
-			CommitInfo.bSucceeded = true;
+			CommitInfo.Status = IPackageWriter::ECommitStatus::Success;
 			CommitInfo.PackageName = BeginInfo.PackageName;
 			CommitInfo.WriteOptions = EWriteOptions::None;
 			Inner->CommitPackage(MoveTemp(CommitInfo));
@@ -317,6 +322,13 @@ bool FLinkerDiffPackageWriter::IsAnotherSaveNeeded(FSavePackageResultStruct& Pre
 {
 	checkf(!Inner->IsAnotherSaveNeeded(PreviousResult, SaveArgs),
 		TEXT("LinkerDiffPackageWriter does not support an Inner that needs multiple saves."));
+	if (PreviousResult == ESavePackageResult::Timeout)
+	{
+		OtherResult.LinkerSave.Reset();
+		PreviousResult.LinkerSave.Reset();
+		return false;
+	}
+
 	if (!bHasStartedSecondSave)
 	{
 		bHasStartedSecondSave = true;
@@ -328,7 +340,14 @@ bool FLinkerDiffPackageWriter::IsAnotherSaveNeeded(FSavePackageResultStruct& Pre
 		// The contract with the Inner is that every Begin is paired with a single commit.
 		// Send the old commit and the new begin.
 		IPackageWriter::FCommitPackageInfo CommitInfo;
-		CommitInfo.bSucceeded = OtherResult == ESavePackageResult::Success;
+		if (OtherResult == ESavePackageResult::Success)
+		{
+			CommitInfo.Status = IPackageWriter::ECommitStatus::Success;
+		}
+		else
+		{
+			CommitInfo.Status = IPackageWriter::ECommitStatus::Error;
+		}
 		CommitInfo.PackageName = BeginInfo.PackageName;
 		CommitInfo.WriteOptions = IPackageWriter::EWriteOptions::None;
 		Inner->CommitPackage(MoveTemp(CommitInfo));

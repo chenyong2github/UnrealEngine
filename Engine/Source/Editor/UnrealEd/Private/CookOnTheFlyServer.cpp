@@ -3398,7 +3398,14 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 			// so we call ReleaseCookedPlatformData and ClearObjectCache to clear it and recache on next attempt.
 			ReleaseCookedPlatformData(PackageData, false/* bCompletedSave */);
 			PackageData.ClearObjectCache();
-			SaveQueue.Add(&PackageData);
+			if (PackageData.GetIsUrgent())
+			{
+				SaveQueue.AddFront(&PackageData);
+			}
+			else
+			{
+				SaveQueue.Add(&PackageData);
+			}
 			continue;
 		}
 
@@ -4485,7 +4492,18 @@ void FSaveCookedPackageContext::FinishPlatform()
 		}
 
 		ICookedPackageWriter::FCommitPackageInfo Info;
-		Info.bSucceeded = bSuccessful;
+		if (bSuccessful)
+		{
+			Info.Status = IPackageWriter::ECommitStatus::Success;
+		}
+		else if (SavePackageResult.Result == ESavePackageResult::Timeout)
+		{
+			Info.Status = IPackageWriter::ECommitStatus::Canceled;
+		}
+		else
+		{
+			Info.Status = IPackageWriter::ECommitStatus::Error;
+		}
 		Info.PackageName = Package->GetFName();
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Info.PackageGuid = AssetPackageData->PackageGuid;
@@ -4508,8 +4526,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 		Generator.UpdateAssetRegistryPackageData(*Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()));
 	}
 
-	// In success or failure we want to mark the package as cooked, unless the failure was due to being referenced only
-	// by editor-only data; we may need to save it later when new content loads it through non editor-only references.
+	// If not retrying, mark the package as cooked, either successfully or with failure
 	bool bIsRetryErrorCode = IsRetryErrorCode(SavePackageResult.Result);
 	if (!bIsRetryErrorCode)
 	{
@@ -4624,7 +4641,7 @@ void FSaveCookedPackageContext::FinishPackage()
 			}
 		}
 	}
-	else
+	else if (bReferencedOnlyByEditorOnlyData)
 	{
 		COTFS.PackageTracker->UncookedEditorOnlyPackages.AddUnique(Package->GetFName());
 	}
@@ -9232,7 +9249,14 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						check(AssetPackageData);
 
 						ICookedPackageWriter::FCommitPackageInfo CommitInfo;
-						CommitInfo.bSucceeded = SaveResult.IsSuccessful();
+						if (SaveResult.IsSuccessful())
+						{
+							CommitInfo.Status = IPackageWriter::ECommitStatus::Success;
+						}
+						else
+						{
+							CommitInfo.Status = IPackageWriter::ECommitStatus::Error;
+						}
 						CommitInfo.PackageName = Package->GetFName();
 						PRAGMA_DISABLE_DEPRECATION_WARNINGS;
 						CommitInfo.PackageGuid = AssetPackageData->PackageGuid;

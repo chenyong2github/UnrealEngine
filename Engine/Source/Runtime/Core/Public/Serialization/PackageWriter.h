@@ -73,12 +73,18 @@ public:
 		ComputeHash = 0x04,
 		SaveForDiff = 0x08,
 	};
+	enum class ECommitStatus
+	{
+		Success,
+		Canceled,
+		Error
+	};
 	struct FCommitPackageInfo
 	{
 		FName PackageName;
 		FGuid PackageGuid;
 		TArray<FCommitAttachmentInfo> Attachments;
-		bool bSucceeded = false;
+		ECommitStatus Status;
 		EWriteOptions WriteOptions;
 	};
 

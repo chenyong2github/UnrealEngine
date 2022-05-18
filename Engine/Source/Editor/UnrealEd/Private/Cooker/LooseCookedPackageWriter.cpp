@@ -58,11 +58,14 @@ void FLooseCookedPackageWriter::CommitPackageInternal(FPackageWriterRecords::FPa
 	const FCommitPackageInfo& Info)
 {
 	FRecord& Record = static_cast<FRecord&>(BaseRecord);
-	if (Info.bSucceeded)
+	if (Info.Status == IPackageWriter::ECommitStatus::Success)
 	{
 		AsyncSave(Record, Info);
 	}
-	UpdateManifest(Record);
+	if (Info.Status != IPackageWriter::ECommitStatus::Canceled)
+	{
+		UpdateManifest(Record);
+	}
 }
 
 void FLooseCookedPackageWriter::AsyncSave(FRecord& Record, const FCommitPackageInfo& Info)

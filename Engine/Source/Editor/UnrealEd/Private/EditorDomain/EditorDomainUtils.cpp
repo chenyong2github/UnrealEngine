@@ -1498,7 +1498,7 @@ protected:
 	{
 		// CommitPackage is called below with these options
 		check(Info.Attachments.Num() == 0);
-		check(Info.bSucceeded);
+		check(Info.Status == IPackageWriter::ECommitStatus::Success);
 		check(Info.WriteOptions == IPackageWriter::EWriteOptions::Write);
 		if (Record.AdditionalFiles.Num() > 0)
 		{
@@ -1700,7 +1700,7 @@ bool TrySavePackage(UPackage* Package)
 	}
 
 	ICookedPackageWriter::FCommitPackageInfo Info;
-	Info.bSucceeded = true;
+	Info.Status = IPackageWriter::ECommitStatus::Success;
 	Info.PackageName = Package->GetFName();
 	Info.WriteOptions = IPackageWriter::EWriteOptions::Write;
 	PackageWriter->CommitPackage(MoveTemp(Info));

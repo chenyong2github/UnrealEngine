@@ -57,7 +57,7 @@ public:
 
 		/** Always valid during CommitPackageInternal */
 		IPackageWriter::FBeginPackageInfo Begin;
-		/** Always valid during CommitPackageInternal if Info.bSucceeded */
+		/** Always valid during CommitPackageInternal if Info.Status == Success */
 		TArray<FWritePackage> Packages;
 		TArray<FBulkData> BulkDatas;
 		TArray<FAdditionalFile> AdditionalFiles;

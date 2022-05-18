@@ -5744,6 +5744,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const FStr
 		IPackageWriter::FCommitPackageInfo CommitInfo;
 		CommitInfo.PackageName = PackageInfo.PackageName;
 		CommitInfo.WriteOptions = IPackageWriter::EWriteOptions::Write;
+		CommitInfo.Status = IPackageWriter::ECommitStatus::Success;
 		ZenStoreWriter->CommitPackage(MoveTemp(CommitInfo));
 
 		int32 LocalUploadCount = UploadCount.IncrementExchange() + 1;
