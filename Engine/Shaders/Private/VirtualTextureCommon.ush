@@ -701,18 +701,15 @@ MaterialFloat4 TextureVirtualSample(
 	VTPageTableResult PageTableResult, uint LayerIndex,
 	VTUniform Uniform)
 {
-	if (IsValid(PageTableResult, LayerIndex))
-	{
-		const float2 pUV = VTComputePhysicalUVs(PageTableResult, LayerIndex, Uniform);
-#if VIRTUAL_TEXTURE_ANISOTROPIC_FILTERING
-		return Physical.SampleGrad(PhysicalSampler, pUV, PageTableResult.dUVdx, PageTableResult.dUVdy);
-#else
-		// no need for dUVdx/dUVdy unless we have anistropic filtering enabled
-		return Physical.SampleLevel(PhysicalSampler, pUV, 0.0f);
-#endif
-	}
+	const float2 pUV = VTComputePhysicalUVs(PageTableResult, LayerIndex, Uniform);
+	const bool bValid = IsValid(PageTableResult, LayerIndex);
 
-	return Uniform.FallbackValue;
+#if VIRTUAL_TEXTURE_ANISOTROPIC_FILTERING
+	return bValid ? Physical.SampleGrad(PhysicalSampler, pUV, PageTableResult.dUVdx, PageTableResult.dUVdy) : Uniform.FallbackValue;
+#else
+	// no need for dUVdx/dUVdy unless we have anistropic filtering enabled
+	return bValid ? Physical.SampleLevel(PhysicalSampler, pUV, 0.0f) : Uniform.FallbackValue;
+#endif
 }
 
 // SamplePhysicalTexture: Aniso Off
@@ -721,14 +718,11 @@ MaterialFloat4 TextureVirtualSampleLevel(
 	VTPageTableResult PageTableResult, uint LayerIndex,
 	VTUniform Uniform)
 {
-	if (IsValid(PageTableResult, LayerIndex))
-	{
-		const float2 pUV = VTComputePhysicalUVs(PageTableResult, LayerIndex, Uniform);
-		// No need to apply dUVdx/dUVdy, don't support anisotropic when sampling a specific level
-		return Physical.SampleLevel(PhysicalSampler, pUV, 0.0f);
-	}
+	const float2 pUV = VTComputePhysicalUVs(PageTableResult, LayerIndex, Uniform);
+	const bool bValid = IsValid(PageTableResult, LayerIndex);
+	// No need to apply dUVdx/dUVdy, don't support anisotropic when sampling a specific level
 
-	return Uniform.FallbackValue;
+	return bValid ? Physical.SampleLevel(PhysicalSampler, pUV, 0.0f) : Uniform.FallbackValue;
 }
 
 
