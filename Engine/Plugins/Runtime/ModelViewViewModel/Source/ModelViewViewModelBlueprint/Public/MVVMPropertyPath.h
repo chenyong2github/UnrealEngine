@@ -164,17 +164,6 @@ public:
 	{
 		Paths.Reset();
 		Paths.AddDefaulted_GetRef().SetBindingReference(InField);
-
-		if (InField.IsProperty() && InField.GetProperty()->IsA(FStructProperty::StaticClass()))
-		{
-			if (FProperty* Pro = ((FStructProperty*)InField.GetProperty())->Struct->FindPropertyByName("A"))
-				Paths.AddDefaulted_GetRef().SetBindingReference(UE::MVVM::FMVVMConstFieldVariant(Pro));
-		}
-		if (InField.IsProperty() && InField.GetProperty()->IsA(FObjectPropertyBase::StaticClass()))
-		{
-			if (FProperty* Pro = ((FObjectPropertyBase*)InField.GetProperty())->PropertyClass->FindPropertyByName("Dummy"))
-				Paths.AddDefaulted_GetRef().SetBindingReference(UE::MVVM::FMVVMConstFieldVariant(Pro));
-		}
 	}
 
 	void ResetBasePropertyPath()
