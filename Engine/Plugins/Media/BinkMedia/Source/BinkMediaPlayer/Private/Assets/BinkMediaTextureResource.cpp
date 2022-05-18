@@ -46,7 +46,7 @@ void FBinkMediaTextureResource::InitDynamicRHI()
 		.SetFlags(TexCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
 		.SetInitialState(ERHIAccess::SRVMask);
 
-	TextureRHI = RHICreateTexture(Desc);
+	TextureRHI = RenderTargetTextureRHI = RHICreateTexture(Desc);
 
 	// Don't bother updating if its not a valid video
 	if (Owner->GetSurfaceWidth() && Owner->GetSurfaceHeight()) 
