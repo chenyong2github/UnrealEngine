@@ -82,6 +82,7 @@ private:
 		{
 			TMap<UControlRig*, TArray<FRigElementKey>> AllSelectedControls;
 			ControlRigEditMode->GetAllSelectedControls(AllSelectedControls);
+			return (AllSelectedControls.Num() > 0);
 		}
 		return false;
 
