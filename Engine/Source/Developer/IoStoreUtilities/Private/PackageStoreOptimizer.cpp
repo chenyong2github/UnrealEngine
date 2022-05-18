@@ -512,7 +512,7 @@ void FPackageStoreOptimizer::ResolveExport(
 			if (ObjectExport->OuterIndex.IsExport())
 			{
 				int32 OuterExportIndex = ObjectExport->OuterIndex.ToExport();
-				ResolveExport(Exports, ObjectExports, OuterExportIndex, PackageName);
+				ResolveExport(Exports, ObjectExports, OuterExportIndex, PackageName, Imports, ObjectImports);
 				OuterName = &Exports[OuterExportIndex].FullName;
 			}
 			else
