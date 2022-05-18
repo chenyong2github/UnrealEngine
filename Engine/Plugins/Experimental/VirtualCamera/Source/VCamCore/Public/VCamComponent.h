@@ -21,6 +21,7 @@ class UCineCameraComponent;
 class UVCamModifierContext;
 class SWindow;
 class FSceneViewport;
+class UEnhancedInputComponent;
 
 #if WITH_EDITOR
 class FLevelEditorViewportClient;
@@ -77,8 +78,11 @@ public:
 	void HandleObjectReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
 	bool CanUpdate() const;
-
+	
 	void Update();
+
+	// Adds the Input Mapping Context from a modifier, if it exists, to the input system 
+	void AddInputMappingContext(const UVCamModifier* Modifier);
 
 	// Sets if the VCamComponent will update every frame or not
 	UFUNCTION(BlueprintSetter)
@@ -247,6 +251,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
 	void GetLiveLinkDataForCurrentFrame(FLiveLinkCameraBlueprintData& LiveLinkData);
 
+	/* Registers the given object with the VCamComponent's Input Component
+	 * This allows dynamic input bindings such as input events in blueprints to work correctly
+	 *
+	 * @param Object The object to register
+	 */
+	UFUNCTION(BlueprintCallable, Category="VirtualCamera")
+	void RegisterObjectForInput(UObject* Object);
+
 private:
 	static void CopyLiveLinkDataToCamera(const FLiveLinkCameraBlueprintData& LiveLinkData, UCineCameraComponent* CameraComponent);
 
@@ -331,4 +343,9 @@ private:
 
 	UPROPERTY(Transient)
 	bool bIsLockedToViewport = false;
+
+	// From Ben H: Mark this as Transient/DuplicateTransient so that it is saved on the BP CDO and nowhere else and
+	// handled correctly during duplication operations (copy/paste etc)
+	UPROPERTY(Transient, DuplicateTransient)
+	TObjectPtr<UInputComponent> InputComponent;
 };

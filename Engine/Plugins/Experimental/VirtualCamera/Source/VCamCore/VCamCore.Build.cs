@@ -46,7 +46,8 @@ public class VCamCore : ModuleRules
 				"LiveLinkInterface",
 				"MediaIOCore",
 				"RemoteSession",
-				"InputCore"
+				"InputCore",
+				"EnhancedInput"
 				// ... add private dependencies that you statically link with here ...
 			}
 			);
@@ -69,7 +70,8 @@ public class VCamCore : ModuleRules
 					"UnrealEd",
 					"Concert",
 					"ConcertSyncClient",
-					"MultiUserClient"
+					"MultiUserClient",
+					"InputEditor"
 				}
 			);
 		}

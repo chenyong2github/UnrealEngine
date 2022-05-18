@@ -10,6 +10,9 @@
 #include "Roles/LiveLinkTransformRole.h"
 #include "GameDelegates.h"
 #include "Engine/GameEngine.h"
+#include "EnhancedInputComponent.h"
+#include "Engine/InputDelegateBinding.h"
+#include "InputMappingContext.h"
 
 #if WITH_EDITOR
 #include "Modules/ModuleManager.h"
@@ -23,6 +26,9 @@
 #include "IConcertSession.h"
 #include "IConcertSyncClient.h"
 #include "IMultiUserClientModule.h"
+
+#include "EnhancedInputEditorSubsystem.h"
+#include "GameFramework/InputSettings.h"
 
 #include "VPSettings.h"
 #endif
@@ -65,6 +71,25 @@ UVCamComponent::UVCamComponent()
 		MultiUserStartup();
 		FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &UVCamComponent::HandleObjectReplaced);
 #endif
+
+		// Setup Input
+		//EnhancedInputComponent = CreateDefaultSubobject<UEnhancedInputComponent>(TEXT("VCamInput"));
+		// From Ben H: Use NewObject here instead so that you can specify the class from the input settings :)
+		// Marking it as transient is also necessary
+		InputComponent = NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), TEXT("VCamInput0"), RF_Transient);
+		
+		
+#if WITH_EDITOR
+		if (GEditor && IsValid(InputComponent))
+		{
+			if (UEnhancedInputEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEnhancedInputEditorSubsystem>())
+			{
+				Subsystem->PushInputComponent(InputComponent);
+				Subsystem->StartConsumingInput();
+			}
+		}
+#endif
+		
 	}
 }
 
@@ -93,6 +118,14 @@ void UVCamComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 
 	MultiUserShutdown();
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+	
+	if (GEditor && IsValid(InputComponent))
+	{
+		if (UEnhancedInputEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEnhancedInputEditorSubsystem>())
+		{
+			Subsystem->PopInputComponent(InputComponent);
+		}
+	}
 #endif
 }
 
@@ -311,6 +344,9 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 							DestroyOutputProvider(SavedOutputProviders[ChangedIndex]);
 						}
 
+						// We only Initialize a provider if they're able to be updated
+						// If they later become able to be updated then they will be
+						// Initialized inside the Update() loop
 						if (ChangedProvider && ShouldUpdateOutputProviders())
 						{
 							ChangedProvider->Initialize();
@@ -341,6 +377,25 @@ void UVCamComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 }
 #endif // WITH_EDITOR
+
+void UVCamComponent::AddInputMappingContext(const UVCamModifier* Modifier)
+{
+	// Currently only handles the editor subsystem but made as a function so we can add game input at a later date 
+#if WITH_EDITOR
+	if (GEditor)
+	{
+		if (UEnhancedInputEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UEnhancedInputEditorSubsystem>())
+		{
+			int32 InputPriority;
+			const UInputMappingContext* IMC = Modifier->GetInputMappingContext(InputPriority);
+			if (IsValid(IMC) && !Subsystem->HasMappingContext(IMC))
+			{
+				Subsystem->AddMappingContext(IMC, InputPriority);
+			}
+		}
+	}
+#endif
+}
 
 
 void UVCamComponent::Update()
@@ -399,7 +454,8 @@ void UVCamComponent::Update()
 				// Initialize the Modifier if required
 				if (Modifier->DoesRequireInitialization())
 				{
-					Modifier->Initialize(ModifierContext);
+					Modifier->Initialize(ModifierContext, InputComponent);
+					AddInputMappingContext(Modifier);
 				}
 
 				Modifier->Apply(ModifierContext, CameraComponent, DeltaTime);
@@ -784,6 +840,14 @@ void UVCamComponent::GetLiveLinkDataForCurrentFrame(FLiveLinkCameraBlueprintData
 				}
 			}
 		}
+	}
+}
+
+void UVCamComponent::RegisterObjectForInput(UObject* Object)
+{
+	if (IsValid(InputComponent) && IsValid(Object))
+	{
+		UInputDelegateBinding::BindInputDelegates(GetClass(), InputComponent, this);
 	}
 }
 
