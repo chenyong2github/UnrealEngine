@@ -217,6 +217,7 @@ EVisibility FWaterSplineMetadataDetails::IsVelocityVisible() const
 void FWaterSplineMetadataDetails::GenerateChildContent(IDetailGroup& DetailGroup)
 {
 	DetailGroup.AddWidgetRow()
+		.RowTag("Depth")
 		.Visibility(TAttribute<EVisibility>(this, &FWaterSplineMetadataDetails::IsDepthVisible))
 		.NameContent()
 		.HAlign(HAlign_Left)
@@ -248,6 +249,7 @@ void FWaterSplineMetadataDetails::GenerateChildContent(IDetailGroup& DetailGroup
 		];
 
 	DetailGroup.AddWidgetRow()
+		.RowTag("RiverWidth")
 		.Visibility(TAttribute<EVisibility>(this, &FWaterSplineMetadataDetails::IsRiverWidthVisible))
 		.NameContent()
 		.HAlign(HAlign_Left)
@@ -279,6 +281,7 @@ void FWaterSplineMetadataDetails::GenerateChildContent(IDetailGroup& DetailGroup
 		];
 
 	DetailGroup.AddWidgetRow()
+		.RowTag("Velocity")
 		.Visibility(TAttribute<EVisibility>(this, &FWaterSplineMetadataDetails::IsEnabled))
 		.NameContent()
 		.HAlign(HAlign_Left)
@@ -308,6 +311,7 @@ void FWaterSplineMetadataDetails::GenerateChildContent(IDetailGroup& DetailGroup
 		];
 
 	DetailGroup.AddWidgetRow()
+		.RowTag("AudioIntensity")
 		.Visibility(TAttribute<EVisibility>(this, &FWaterSplineMetadataDetails::IsEnabled))
 		.NameContent()
 		.HAlign(HAlign_Left)

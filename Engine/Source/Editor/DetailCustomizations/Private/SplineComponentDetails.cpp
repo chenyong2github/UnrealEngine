@@ -306,6 +306,7 @@ void FSplinePointDetails::GenerateSplinePointSelectionControls(IDetailChildrenBu
 	FMargin ButtonPadding(2.f, 0.f);
 
 	ChildrenBuilder.AddCustomRow(LOCTEXT("SelectSplinePoints", "Select Spline Points"))
+	.RowTag("SelectSplinePoints")
 	.NameContent()
 	[
 		SNew(STextBlock)
