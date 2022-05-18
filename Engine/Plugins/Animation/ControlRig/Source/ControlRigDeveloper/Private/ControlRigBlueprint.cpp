@@ -717,6 +717,7 @@ void UControlRigBlueprint::HandlePackageDone(const FEndLoadPackageContext& Conte
 	}
 	
 	PropagateHierarchyFromBPToInstances();
+	RemoveDeprecatedVMMemoryClass();
 	RecompileVM();
 	RequestControlRigInit();
 	BroadcastControlRigPackageDone();
@@ -735,6 +736,20 @@ void UControlRigBlueprint::BroadcastControlRigPackageDone()
 		if (UControlRig* InstanceRig = Cast<UControlRig>(Instance))
 		{
 			InstanceRig->BroadCastEndLoadPackage();
+		}
+	}
+}
+
+void UControlRigBlueprint::RemoveDeprecatedVMMemoryClass() const
+{
+	TArray<UObject*> Objects;
+	GetObjectsWithPackage(GetPackage(), Objects, false);
+
+	for (UObject* Object : Objects)
+	{
+		if (URigVMMemoryStorageGeneratorClass* DeprecatedClass = Cast<URigVMMemoryStorageGeneratorClass>(Object))
+		{
+			DeprecatedClass->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
 		}
 	}
 }

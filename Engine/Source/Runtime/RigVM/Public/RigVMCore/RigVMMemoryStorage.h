@@ -209,7 +209,8 @@ class RIGVM_API URigVMMemoryStorageGeneratorClass :
 	public UClass
 {
 	GENERATED_BODY()
-
+	DECLARE_WITHIN(UObject);
+	
 public:
 
 	// Default constructor

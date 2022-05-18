@@ -607,6 +607,12 @@ private:
 	void HandlePackageDone(const FEndLoadPackageContext& Context);
 	// ControlRigBP, once end-loaded, will inform other ControlRig-Dependent systems that ControlRig instances are ready.
 	void BroadcastControlRigPackageDone();
+
+	// Previously some memory classes were parented to the package
+	// which violated the "single asset per package" rule
+	// this function removes those deprecated class.
+	// new classes should be created by RecompileVM and parented to the asset object
+	void RemoveDeprecatedVMMemoryClass() const;
 #endif
 
 	// Class used to temporarily cache all 
