@@ -54,9 +54,11 @@ public:
 
 	/** Sets a new static mesh for the light card */
 	void SetStaticMesh(UStaticMesh* InStaticMesh);
-	
-protected:
+
+	/** Updates the Light Card transform based on its positional properties (Lat, Long, etc.) */
 	void UpdateLightCardTransform();
+
+protected:
 	void UpdateLightCardMaterialInstance();
 
 public:
