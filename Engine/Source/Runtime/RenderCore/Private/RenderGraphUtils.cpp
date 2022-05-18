@@ -383,7 +383,9 @@ void AddCopyToResolveTargetPass(
 		ERDGPassFlags::Copy | ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 		[InputTexture, OutputTexture, LocalResolveParams](FRHICommandList& RHICmdList)
 	{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		RHICmdList.CopyToResolveTarget(InputTexture->GetRHI(), OutputTexture->GetRHI(), LocalResolveParams);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	});
 }
 
