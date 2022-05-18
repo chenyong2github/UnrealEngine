@@ -261,7 +261,10 @@ bool FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateLightcardPos
 bool FDisplayClusterViewportConfigurationHelpers_Postprocess::ImplUpdateViewportColorGrading(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, const FString& InClusterViewportId)
 {
 	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
-
+	if (StageSettings.EnableColorGrading == false)
+	{
+		return false;
+	}
 	
 	for (const FDisplayClusterConfigurationViewport_PerViewportColorGrading& ColorGradingProfileIt : StageSettings.PerViewportColorGrading)
 	{
@@ -284,12 +287,11 @@ bool FDisplayClusterViewportConfigurationHelpers_Postprocess::ImplUpdateViewport
 
 void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCameraPostProcessSettings(FDisplayClusterViewport& DstViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)
 {
-	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
-
 	FDisplayClusterConfigurationViewport_CustomPostprocessSettings CameraPPS;
 	CameraPPS.bIsOneFrame = true;
 	CameraPPS.BlendWeight = 1.f;
 
+	const FDisplayClusterConfigurationICVFX_CameraSettings& CameraSettings = InCameraComponent.GetCameraSettingsICVFX();
 	if (CameraSettings.RenderSettings.bUseCameraComponentPostprocess)
 	{
 		FMinimalViewInfo DesiredView;
@@ -316,12 +318,17 @@ void FDisplayClusterViewportConfigurationHelpers_Postprocess::UpdateCameraPostPr
 		CameraPPS.PostProcessSettings.bOverride_MotionBlurPerObjectSize = true;
 	}
 
-	ImplUpdateCustomPostprocess(DstViewport, CameraPPS.bIsEnabled, CameraPPS, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override);
-
-	if (!ImplUpdateInnerFrustumColorGrading(DstViewport, RootActor, InCameraComponent))
+	const FDisplayClusterConfigurationICVFX_StageSettings& StageSettings = RootActor.GetStageSettings();
+	// check if frustum color grading is enabled	
+	if (StageSettings.EnableColorGrading && CameraSettings.EnableInnerFrustumColorGrading)
 	{
-		// This viewport doesn't use per-viewport PP
-		ImplRemoveCustomPostprocess(DstViewport, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
+		ImplUpdateCustomPostprocess(DstViewport, CameraPPS.bIsEnabled, CameraPPS, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::Override);
+
+		if (!ImplUpdateInnerFrustumColorGrading(DstViewport, RootActor, InCameraComponent))
+		{
+			// This viewport doesn't use per-viewport PP
+			ImplRemoveCustomPostprocess(DstViewport, IDisplayClusterViewport_CustomPostProcessSettings::ERenderPass::FinalPerViewport);
+		}
 	}
 }
 
