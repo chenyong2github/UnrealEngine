@@ -3574,6 +3574,39 @@ void UMaterial::PostLoad()
 		}
 	}
 
+#if WITH_EDITOR
+	if (GMaterialsThatNeedExpressionsFlipped.Get(this))
+	{
+		GMaterialsThatNeedExpressionsFlipped.Clear(this);
+		FlipExpressionPositions(GetExpressions(), EditorOnly->ExpressionCollection.EditorComments, true, this);
+	}
+	else if (GMaterialsThatNeedCoordinateCheck.Get(this))
+	{
+		GMaterialsThatNeedCoordinateCheck.Clear(this);
+		if (HasFlippedCoordinates())
+		{
+			FlipExpressionPositions(GetExpressions(), EditorOnly->ExpressionCollection.EditorComments, false, this);
+		}
+		FixCommentPositions(EditorOnly->ExpressionCollection.EditorComments);
+	}
+	else if (GMaterialsThatNeedCommentFix.Get(this))
+	{
+		GMaterialsThatNeedCommentFix.Clear(this);
+		FixCommentPositions(EditorOnly->ExpressionCollection.EditorComments);
+	}
+
+	if (GMaterialsThatNeedFeatureLevelSM6Fix.Get(this))
+	{
+		GMaterialsThatNeedFeatureLevelSM6Fix.Clear(this);
+		if (FixFeatureLevelNodesForSM6(EditorOnly->ExpressionCollection.Expressions))
+		{
+			// Change this guid if you change the conversion logic.
+			static FGuid BackwardsCompatibilityFeatureLevelSM6ConversionGuid(TEXT("FC75DED7-2FB3-463B-B56C-8295871A340C"));
+			ReleaseResourcesAndMutateDDCKey(BackwardsCompatibilityFeatureLevelSM6ConversionGuid);
+		}
+	}
+#endif // #if WITH_EDITOR
+
 	STAT(double MaterialLoadTime = 0);
 	{
 		SCOPE_SECONDS_COUNTER(MaterialLoadTime);
@@ -3622,40 +3655,6 @@ void UMaterial::PostLoad()
 		// Ensure that the ReferencedTextureGuids array is up to date.
 		UpdateLightmassTextureTracking();
 	}
-
-
-#if WITH_EDITOR
-	if (GMaterialsThatNeedExpressionsFlipped.Get(this))
-	{
-		GMaterialsThatNeedExpressionsFlipped.Clear(this);
-		FlipExpressionPositions(GetExpressions(), EditorOnly->ExpressionCollection.EditorComments, true, this);
-	}
-	else if (GMaterialsThatNeedCoordinateCheck.Get(this))
-	{
-		GMaterialsThatNeedCoordinateCheck.Clear(this);
-		if (HasFlippedCoordinates())
-		{
-			FlipExpressionPositions(GetExpressions(), EditorOnly->ExpressionCollection.EditorComments, false, this);
-		}
-		FixCommentPositions(EditorOnly->ExpressionCollection.EditorComments);
-	}
-	else if (GMaterialsThatNeedCommentFix.Get(this))
-	{
-		GMaterialsThatNeedCommentFix.Clear(this);
-		FixCommentPositions(EditorOnly->ExpressionCollection.EditorComments);
-	}
-
-	if (GMaterialsThatNeedFeatureLevelSM6Fix.Get(this))
-	{
-		GMaterialsThatNeedFeatureLevelSM6Fix.Clear(this);
-		if (FixFeatureLevelNodesForSM6(EditorOnly->ExpressionCollection.Expressions))
-		{
-			// Change this guid if you change the conversion logic.
-			static FGuid BackwardsCompatibilityFeatureLevelSM6ConversionGuid(TEXT("FC75DED7-2FB3-463B-B56C-8295871A340C"));
-			ReleaseResourcesAndMutateDDCKey(BackwardsCompatibilityFeatureLevelSM6ConversionGuid);
-		}
-	}
-#endif // #if WITH_EDITOR
 
 	//DumpDebugInfo();
 }
