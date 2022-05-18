@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "UObject/GCObjectInfo.h"
+#include "UObject/Class.h"
 
 UObject* FGCObjectInfo::TryResolveObject()
 {
