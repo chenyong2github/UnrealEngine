@@ -25,7 +25,6 @@ namespace UE::MVVM
 		virtual void SetSelectedSource(const FBindingSource& Source) const = 0;
 
 		virtual FMVVMBindingName GetBindingName() const = 0;
-		virtual FMemberReference GetBindingReference() const = 0;
 		virtual void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const = 0;
 		virtual void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const = 0;
 		virtual void ResetBinding() const = 0;
@@ -50,7 +49,6 @@ namespace UE::MVVM
 		virtual void SetSelectedSource(const FBindingSource& Source) const override;
 
 		virtual FMVVMBindingName GetBindingName() const override;
-		virtual FMemberReference GetBindingReference() const override;
 		virtual void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const override;
 		virtual void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const override;
 		virtual void ResetBinding() const override;
@@ -79,7 +77,6 @@ namespace UE::MVVM
 		virtual void SetSelectedSource(const FBindingSource& Source) const override;
 
 		virtual FMVVMBindingName GetBindingName() const override;
-		virtual FMemberReference GetBindingReference() const override;
 		virtual void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const override;
 		virtual void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const override;
 		virtual void ResetBinding() const override;

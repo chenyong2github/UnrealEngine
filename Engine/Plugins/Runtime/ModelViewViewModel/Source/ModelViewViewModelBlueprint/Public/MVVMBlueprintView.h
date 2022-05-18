@@ -36,8 +36,6 @@ public:
 
 	const FMVVMBlueprintViewBinding* FindBinding(const UWidget* Widget, const FProperty* Property) const;
 	FMVVMBlueprintViewBinding* FindBinding(const UWidget* Widget, const FProperty* Property);
-	const FMVVMBlueprintViewBinding* FindBinding(FName WidgetName, FMVVMBindingName BindingName) const;
-	FMVVMBlueprintViewBinding* FindBinding(FName WidgetName, FMVVMBindingName BindingName);
 
 	void RemoveBinding(const FMVVMBlueprintViewBinding* Binding);
 	void RemoveBindingAt(int32 Index);

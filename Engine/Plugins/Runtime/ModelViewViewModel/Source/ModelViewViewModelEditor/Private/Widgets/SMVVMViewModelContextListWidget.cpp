@@ -800,7 +800,7 @@ bool SMVVMViewModelContextListWidget::ValidateRemoveViewModelContext(TSharedPtr<
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(Binding.ViewModelPath.GetBindingName().ToString()))
+				.Text(FText::FromString(Binding.ViewModelPath.GetBasePropertyPath()))
 			];
 			Container->AddSlot()
 			.Padding(FMargin(3.0f, 0.0f))
@@ -821,7 +821,7 @@ bool SMVVMViewModelContextListWidget::ValidateRemoveViewModelContext(TSharedPtr<
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(FText::FormatOrdered(INVTEXT("{0}.{1}"), FText::FromString(Binding.WidgetPath.WidgetName.ToString()), FText::FromString(Binding.WidgetPath.GetBindingName().ToString())))
+				.Text(FText::FormatOrdered(INVTEXT("{0}.{1}"), FText::FromString(Binding.WidgetPath.WidgetName.ToString()), FText::FromString(Binding.WidgetPath.GetBasePropertyPath())))
 			];
 			ConflictList.Add(Container);
 		}

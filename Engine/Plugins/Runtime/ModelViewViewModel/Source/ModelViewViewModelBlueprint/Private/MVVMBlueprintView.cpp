@@ -71,29 +71,16 @@ void UMVVMBlueprintView::SetViewModels(const TArray<FMVVMBlueprintViewModelConte
 
 const FMVVMBlueprintViewBinding* UMVVMBlueprintView::FindBinding(const UWidget* Widget, const FProperty* Property) const
 {
-	return FindBinding(Widget->GetFName(), FMVVMBindingName(Property->GetFName()));
+	return const_cast<UMVVMBlueprintView*>(this)->FindBinding(Widget, Property);
 }
 
 FMVVMBlueprintViewBinding* UMVVMBlueprintView::FindBinding(const UWidget* Widget, const FProperty* Property)
 {
-	return FindBinding(Widget->GetFName(), FMVVMBindingName(Property->GetFName()));
-}
-
-const FMVVMBlueprintViewBinding* UMVVMBlueprintView::FindBinding(FName WidgetName, FMVVMBindingName BindingName) const
-{
-	return Bindings.FindByPredicate([WidgetName, BindingName](const FMVVMBlueprintViewBinding& Binding)
+	FName WidgetName = Widget->GetFName();
+	return Bindings.FindByPredicate([WidgetName, Property](const FMVVMBlueprintViewBinding& Binding)
 		{
 			return Binding.WidgetPath.WidgetName == WidgetName &&
-				Binding.WidgetPath.GetBindingName() == BindingName;
-		});
-}
-
-FMVVMBlueprintViewBinding* UMVVMBlueprintView::FindBinding(FName WidgetName, FMVVMBindingName BindingName)
-{
-	return Bindings.FindByPredicate([WidgetName, BindingName](const FMVVMBlueprintViewBinding& Binding)
-		{
-			return Binding.WidgetPath.WidgetName == WidgetName &&
-				Binding.WidgetPath.GetBindingName() == BindingName;
+				Binding.WidgetPath.BasePropertyPathContains(UE::MVVM::FMVVMConstFieldVariant(Property));
 		});
 }
 
@@ -122,7 +109,7 @@ FMVVMBlueprintViewBinding& UMVVMBlueprintView::AddBinding(const UWidget* Widget,
 {
 	FMVVMBlueprintViewBinding& NewBinding = Bindings.AddDefaulted_GetRef();
 	NewBinding.WidgetPath.WidgetName = Widget->GetFName();
-	NewBinding.WidgetPath.SetBindingReference(UE::MVVM::FMVVMConstFieldVariant(Property));
+	NewBinding.WidgetPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Property));
 
 	OnBindingsUpdated.Broadcast();
 	return NewBinding;

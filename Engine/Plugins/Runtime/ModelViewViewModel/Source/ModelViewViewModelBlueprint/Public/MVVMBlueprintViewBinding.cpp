@@ -2,18 +2,59 @@
 
 #include "MVVMBlueprintViewBinding.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMWidgetBlueprintExtension_View.h"
+#include "WidgetBlueprintExtension.h"
+
 
 FString FMVVMBlueprintViewBinding::GetNameString(const UMVVMBlueprintView* View) const
 {
 	const FMVVMBlueprintViewModelContext* ViewModel = View->FindViewModel(ViewModelPath.ContextId);
-	FString BindingName = (ViewModel != nullptr ? ViewModel->GetViewModelName().ToString() : TEXT("<none>")) + TEXT(".") + ViewModelPath.GetBindingName().ToString();
+	TStringBuilder<512> BindingName;
+	if (ViewModel != nullptr)
+	{
+		BindingName << ViewModel->GetViewModelName();
+	}
+	else
+	{
+		BindingName << TEXT("<none>");
+	}
+	BindingName << TEXT(".");
+	BindingName << ViewModelPath.GetBasePropertyPath();
 
-	BindingName += BindingType == EMVVMBindingMode::TwoWay ? TEXT(" <-> ") :
-		UE::MVVM::IsForwardBinding(BindingType) ? TEXT(" -> ") :
-		UE::MVVM::IsBackwardBinding(BindingType) ? TEXT(" <- ") :
-		TEXT("???"); // shouldn't happen
+	if (BindingType == EMVVMBindingMode::TwoWay)
+	{
+		BindingName << TEXT(" <-> ");
+	}
+	else if (UE::MVVM::IsForwardBinding(BindingType))
+	{
+		BindingName << TEXT(" -> ");
+	}
+	else if (UE::MVVM::IsBackwardBinding(BindingType))
+	{
+		BindingName << TEXT(" <- ");
+	}
+	else
+	{
+		BindingName << TEXT(" ??? "); // shouldn't happen
+	}
 
-	BindingName += WidgetPath.WidgetName.ToString() + TEXT(".") + WidgetPath.GetBindingName().ToString();
+	if (View->GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint()->GetFName() == WidgetPath.WidgetName)
+	{
+		BindingName << WidgetPath.GetBasePropertyPath();
+	}
+	else
+	{
+		if (WidgetPath.WidgetName.IsNone())
+		{
+			BindingName << TEXT("<none>");
+		}
+		else
+		{
+			BindingName << WidgetPath.WidgetName;
+		}
+		BindingName << TEXT(".");
+		BindingName << WidgetPath.GetBasePropertyPath();
+	}
 
-	return BindingName;
+	return BindingName.ToString();
 }

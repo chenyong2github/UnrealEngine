@@ -81,10 +81,10 @@ static void ExtendBindingsMenu(FMenuBuilder& MenuBuilder, const UWidgetBlueprint
 		FMVVMBlueprintViewBinding& NewBinding = MVVMBlueprintView->AddDefaultBinding();
 
 		NewBinding.ViewModelPath.ContextId = ViewModelId;
-		NewBinding.ViewModelPath.SetBindingReference(UE::MVVM::FMVVMConstFieldVariant(ViewModelProperty));
+		NewBinding.ViewModelPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(ViewModelProperty));
 
 		NewBinding.WidgetPath.WidgetName = Widget->GetFName();
-		NewBinding.WidgetPath.SetBindingReference(UE::MVVM::FMVVMConstFieldVariant(WidgetProperty));
+		NewBinding.WidgetPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(WidgetProperty));
 
 		NewBinding.BindingType = EMVVMBindingMode::OneWayToDestination;
 	};
@@ -160,7 +160,12 @@ TOptional<FName> FMVVMPropertyBindingExtension::GetCurrentValue(const UWidgetBlu
 		return TOptional<FName>();
 	}
 
-	return Binding->ViewModelPath.GetBindingName().ToName();
+	TArray<FName> Names = Binding->ViewModelPath.GetPaths();
+	if (Names.Num() > 0)
+	{
+		return Names[0];
+	}
+	return TOptional<FName>();
 }
 
 
@@ -172,7 +177,7 @@ void FMVVMPropertyBindingExtension::ClearCurrentValue(const UWidgetBlueprint* Wi
 		{
 			if (FMVVMBlueprintViewBinding* Binding = MVVMBlueprintView->FindBinding(Widget, Property))
 			{
-				Binding->ViewModelPath.Reset();
+				Binding->ViewModelPath.ResetBasePropertyPath();
 			}
 		}
 	}

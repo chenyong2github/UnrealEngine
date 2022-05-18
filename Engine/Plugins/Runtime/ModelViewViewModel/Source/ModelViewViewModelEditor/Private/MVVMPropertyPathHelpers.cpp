@@ -158,27 +158,21 @@ namespace UE::MVVM
 	{
 		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			return Path->GetBindingName();
+			TArray<FName> Paths = Path->GetPaths();
+			if (Paths.Num() > 0)
+			{
+				return FMVVMBindingName(Paths[0]);
+			}
 		}
 
 		return FMVVMBindingName();
-	}
-
-	FMemberReference FWidgetFieldPathHelper::GetBindingReference() const
-	{
-		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
-		{
-			return Path->GetBindingReference();
-		}
-
-		return FMemberReference();
 	}
 
 	void FWidgetFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const
 	{
 		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			Path->SetBindingReference(InField);
+			Path->SetBasePropertyPath(InField);
 		}
 	}
 
@@ -186,7 +180,7 @@ namespace UE::MVVM
 	{
 		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			Path->SetBindingReference(InField);
+			Path->SetBasePropertyPath(InField);
 		}
 	}
 
@@ -194,7 +188,7 @@ namespace UE::MVVM
 	{
 		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			Path->Reset();
+			Path->ResetBasePropertyPath();
 		}
 	}
 
@@ -304,27 +298,21 @@ namespace UE::MVVM
 	{
 		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			return Path->GetBindingName();
+			TArray<FName> Paths = Path->GetPaths();
+			if (Paths.Num() > 0)
+			{
+				return FMVVMBindingName(Paths[0]);
+			}
 		}
 
 		return FMVVMBindingName();
-	}
-
-	FMemberReference FViewModelFieldPathHelper::GetBindingReference() const
-	{
-		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
-		{
-			return Path->GetBindingReference();
-		}
-
-		return FMemberReference();
 	}
 
 	void FViewModelFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const
 	{
 		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			Path->SetBindingReference(InField);
+			Path->SetBasePropertyPath(InField);
 		}
 	}
 
@@ -332,7 +320,7 @@ namespace UE::MVVM
 	{
 		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			Path->SetBindingReference(InField);
+			Path->SetBasePropertyPath(InField);
 		}
 	}
 
@@ -340,7 +328,7 @@ namespace UE::MVVM
 	{
 		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
 		{
-			Path->Reset();
+			Path->ResetBasePropertyPath();
 		}
 	}
 }

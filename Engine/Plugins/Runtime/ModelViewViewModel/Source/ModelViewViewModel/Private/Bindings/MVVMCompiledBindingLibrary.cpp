@@ -6,7 +6,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "UObject/PropertyAccessUtil.h"
-
+PRAGMA_DISABLE_OPTIMIZATION
 
 /**
  *
@@ -440,3 +440,4 @@ TValueOrError<UE::FieldNotification::FFieldId, void> FMVVMCompiledBindingLibrary
 	check(LoadedFieldIds.IsValidIndex(InFieldId.FieldIdIndex));
 	return MakeValue(LoadedFieldIds[InFieldId.FieldIdIndex]);
 }
+PRAGMA_ENABLE_OPTIMIZATION

@@ -11,7 +11,7 @@
 #include "UObject/Object.h"
 #include "WidgetBlueprintCompiler.h"
 
-struct FMVVMCachedPropertyPath;
+struct FMVVMViewModelPropertyPath;
 struct FMVVMBlueprintViewBinding;
 class FWidgetBlueprintCompilerContext;
 class UEdGraph;
@@ -28,6 +28,7 @@ private:
 	struct FCompilerSourceContext;
 	struct FCompilerSourceCreatorContext;
 	struct FCompilerBinding;
+	struct FBindingSourceContext;
 
 public:
 	FMVVMViewBlueprintCompiler(FWidgetBlueprintCompilerContext& InCreationContext)
@@ -69,6 +70,11 @@ private:
 
 	void AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const UMVVMBlueprintView* BlueprintView, const FString& Message) const;
 
+	FBindingSourceContext CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const FMVVMViewModelPropertyPath& PropertyPath) const;
+	FBindingSourceContext CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMWidgetPropertyPath& PropertyPath) const;
+
+	FString CreatePropertyPath(FName PropertyName, FString PropertyPath) const;
+
 private:
 	struct FCompilerSourceContext
 	{
@@ -105,6 +111,7 @@ private:
 		int32 BindingIndex = INDEX_NONE;
 		int32 SourceContextIndex = INDEX_NONE;
 		bool bSourceIsUserWidget = false;
+		bool bFieldIdNeeded = false;
 
 		FCompiledBindingLibraryCompiler::FBindingHandle BindingHandle;
 
@@ -120,6 +127,19 @@ private:
 		FCompiledBindingLibraryCompiler::FFieldPathHandle ConversionFunction;
 	};
 	TArray<FCompilerBinding> Bindings;
+
+	struct FBindingSourceContext
+	{
+		UClass* SourceClass = nullptr;
+		FName FieldId;
+		// ViewModel.Field.SubProperty.SubProperty
+		// or Widget.Field.SubProperty
+		// or Field.SubProperty (if the widget is the userwidget)
+		// if its the destination then the Field is not necessary
+		FString PropertyPath;
+		int32 CompilerSourceContextIndex = INDEX_NONE;
+		bool bIsRootWidget = false;
+	};
 
 	TMap<FName, UWidget*> WidgetNameToWidgetPointerMap;
 	FWidgetBlueprintCompilerContext& WidgetBlueprintCompilerContext;

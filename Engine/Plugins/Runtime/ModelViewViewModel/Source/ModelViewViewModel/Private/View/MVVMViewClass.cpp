@@ -20,6 +20,19 @@
 // 
 ///////////////////////////////////////////////////////////////////////
 
+FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeManual(FName InName, UClass* InNotifyFieldValueChangedClass)
+{
+	FMVVMViewClass_SourceCreator Result;
+	if (ensure(InNotifyFieldValueChangedClass && InNotifyFieldValueChangedClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass())))
+	{
+		Result.PropertyName = InName;
+		Result.ExpectedSourceType = InNotifyFieldValueChangedClass;
+		Result.bCreateInstance = false;
+		Result.bOptional = true;
+	}
+	return Result;
+}
+
 FMVVMViewClass_SourceCreator FMVVMViewClass_SourceCreator::MakeInstance(FName InName, UClass* InNotifyFieldValueChangedClass)
 {
 	FMVVMViewClass_SourceCreator Result;
