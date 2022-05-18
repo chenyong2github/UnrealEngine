@@ -13,7 +13,33 @@
 	#include "PhysXPublic.h"
 #endif // WITH_PHYSX
 
+// Custom serialization version
+struct FShapeComponentCustomVersion
+{
+	enum Type
+	{
+		// Before any version changes were made
+		BeforeCustomVersionWasAdded = 0,
 
+		// Reworked AreaClass Implementation
+		AreaClassRework,
+
+		// -----<new versions can be added above this line>-------------------------------------------------
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+
+	// The GUID for this custom version number
+	const static FGuid GUID;
+
+private:
+	FShapeComponentCustomVersion() {}
+};
+
+const FGuid FShapeComponentCustomVersion::GUID(0xB6E31B1C, 0xD29F11EC, 0x857E9F85, 0x6F9970E2);
+
+// Register the custom version with core
+FCustomVersionRegistration GRegisterShapeComponentCustomVersion(FShapeComponentCustomVersion::GUID, FShapeComponentCustomVersion::LatestVersion, TEXT("ShapeComponentVer"));
 
 UShapeComponent::UShapeComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -33,10 +59,18 @@ UShapeComponent::UShapeComponent(const FObjectInitializer& ObjectInitializer)
 	bHasCustomNavigableGeometry = EHasCustomNavigableGeometry::Yes;
 	bCanEverAffectNavigation = true;
 	bDynamicObstacle = false;
+	
+#if WITH_EDITOR
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	AreaClass = FNavigationSystem::GetDefaultObstacleArea();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITOR
 
 	// Ignore streaming updates since GetUsedMaterials() is not implemented.
 	bIgnoreStreamingManagerUpdate = true;
+
+	bUseSystemDefaultObstacleAreaClass = true;
+	AreaClassOverride = nullptr;
 }
 
 FPrimitiveSceneProxy* UShapeComponent::CreateSceneProxy()
@@ -62,6 +96,34 @@ UBodySetup* UShapeComponent::GetBodySetup()
 	return ShapeBodySetup;
 }
 
+void UShapeComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+#if WITH_EDITOR
+	Ar.UsingCustomVersion(FShapeComponentCustomVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		const int32 Version = Ar.CustomVer(FShapeComponentCustomVersion::GUID);
+
+		// Note this has to be done during Serialize() not on PostLoad(), otherwise a blueprint class (with this component) CDO,
+		// can become out of sync with patching AreaClassOverride with AreaClass and causes bugs. This occurs if a level has an instance of the 
+		// blueprint class (with this component) and is modified then saved after patching up (but the BP class is not saved and is the 
+		// older version still), on the next time the level is loaded.
+		if (Version < FShapeComponentCustomVersion::AreaClassRework)
+		{
+			// If we are loading this object prior to the AreaClass rework then we just use whatever the current AreaClass is as the override.
+			bUseSystemDefaultObstacleAreaClass = false;
+
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			AreaClassOverride = AreaClass;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+#endif // WITH_EDITOR
+}
+
 #if WITH_EDITOR
 void UShapeComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -85,7 +147,7 @@ void UShapeComponent::GetNavigationData(FNavigationRelevantData& Data) const
 
 	if (bDynamicObstacle)
 	{
-		Data.Modifiers.CreateAreaModifiers(this, AreaClass);
+		Data.Modifiers.CreateAreaModifiers(this, GetDesiredAreaClass());
 	}
 }
 
@@ -95,6 +157,22 @@ bool UShapeComponent::IsNavigationRelevant() const
 	// dynamic obstacle overrides collision check
 
 	return (bDynamicObstacle && CanEverAffectNavigation()) || Super::IsNavigationRelevant();
+}
+
+TSubclassOf<class UNavAreaBase> UShapeComponent::GetDesiredAreaClass() const
+{
+	return bUseSystemDefaultObstacleAreaClass ?  FNavigationSystem::GetDefaultObstacleArea() : AreaClassOverride;
+}
+
+void UShapeComponent::SetAreaClassOverride(TSubclassOf<class UNavAreaBase> InAreaClassOverride)
+{
+	AreaClassOverride = InAreaClassOverride;
+	bUseSystemDefaultObstacleAreaClass = false;
+}
+
+void UShapeComponent::SetUseSystemDefaultObstacleAreaClass()
+{
+	bUseSystemDefaultObstacleAreaClass = true;
 }
 
 template <> void UShapeComponent::AddShapeToGeomArray<FKBoxElem>() { ShapeBodySetup->AggGeom.BoxElems.Add(FKBoxElem()); }

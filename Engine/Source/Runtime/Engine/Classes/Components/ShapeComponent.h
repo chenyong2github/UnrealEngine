@@ -29,9 +29,15 @@ class ENGINE_API UShapeComponent : public UPrimitiveComponent
 	UPROPERTY(transient, duplicatetransient)
 	TObjectPtr<class UBodySetup> ShapeBodySetup;
 
-	/** Navigation area type (empty = default obstacle) */
-	UPROPERTY(EditAnywhere, Category = Navigation)
+#if WITH_EDITORONLY_DATA
+	/** Navigation area type (empty / none has no effect on underlying area type).
+	 *  Deprecated! Use AreaClassOverride / bUseSystemDefaultObstacleAreaClass instead. 
+	 *  NOTE Adding _DEPRECATED to this variable can causes known bugs when patching it up.
+	 */
+	UE_DEPRECATED(5.0, "AreaClass is deprecated, use AreaClassOverride / bUseSystemDefaultObstacleAreaClass instead!.")
+	UPROPERTY()
 	TSubclassOf<class UNavAreaBase> AreaClass;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Color used to draw the shape. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Shape)
@@ -50,6 +56,16 @@ class ENGINE_API UShapeComponent : public UPrimitiveComponent
 	uint8 bDynamicObstacle : 1;
 
 protected:
+	/** Navigation area type override, null / none = no change to nav mesh.
+	 *  bDynamicObstacle must be true and bUseSystemDefaultAreaClass false to use this.
+	 */
+	UPROPERTY(EditAnywhere, Category = Navigation, meta = (EditCondition = "bDynamicObstacle && !bUseSystemDefaultObstacleAreaClass"))
+	TSubclassOf<class UNavAreaBase> AreaClassOverride;
+
+	/** Uses FNavigationSystem::GetDefaultObstacleArea() by default instead of AreaClassOverride, bDynamicObstacle must be true to use this.  */
+	UPROPERTY(EditAnywhere, Category = Navigation, meta = (EditCondition = "bDynamicObstacle"))
+	uint8 bUseSystemDefaultObstacleAreaClass : 1;
+
 	/** If the body setup can be shared (i.e. there have been no alterations compared to the CDO)*/
 	uint8 bUseArchetypeBodySetup : 1;
 
@@ -93,6 +109,8 @@ public:
 	//~ End USceneComponent Interface
 
 	//~ Begin UObject Interface.
+	virtual void Serialize(FArchive& Ar) override;
+
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool IgnoreBoundsForEditorFocus() const override { return true; }
@@ -101,6 +119,10 @@ public:
 
 	/** Update the body setup parameters based on shape information*/
 	virtual void UpdateBodySetup();
+
+	TSubclassOf<class UNavAreaBase> GetDesiredAreaClass() const;
+	void SetAreaClassOverride(TSubclassOf<class UNavAreaBase> InAreaClassOverride);
+	void SetUseSystemDefaultObstacleAreaClass();
 };
 
 enum class EShapeBodySetupHelper
