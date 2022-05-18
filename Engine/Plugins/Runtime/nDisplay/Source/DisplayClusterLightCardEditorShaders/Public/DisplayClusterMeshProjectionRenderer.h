@@ -36,6 +36,29 @@ public:
 	bool IsPrimitiveComponentFiltered(const UPrimitiveComponent* InPrimitiveComponent) const;
 };
 
+/** A transform that can be passed around to project and unprojection positions for a specific projection type */
+class DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionTransform
+{
+public:
+	FDisplayClusterMeshProjectionTransform()
+		: FDisplayClusterMeshProjectionTransform(EDisplayClusterMeshProjectionType::Perspective, FMatrix::Identity)
+	{ }
+
+	FDisplayClusterMeshProjectionTransform(EDisplayClusterMeshProjectionType InProjection, const FMatrix& InViewMatrix)
+		: Projection(InProjection)
+		, ViewMatrix(InViewMatrix)
+		, InvViewMatrix(InViewMatrix.Inverse())
+	{ }
+
+	FVector ProjectPosition(const FVector& WorldPosition) const;
+	FVector UnprojectPosition(const FVector& ProjectedPosition) const;
+
+private:
+	EDisplayClusterMeshProjectionType Projection;
+	FMatrix ViewMatrix;
+	FMatrix InvViewMatrix;
+};
+
 /** A renderer that projects meshes to screen space using non-linear projection methods */
 class DISPLAYCLUSTERLIGHTCARDEDITORSHADERS_API FDisplayClusterMeshProjectionRenderer
 {

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Math/Axis.h"
 
+#include "DisplayClusterMeshProjectionRenderer.h"
+
 class FSceneView;
 class FEditorViewportClient;
 class FPrimitiveDrawInterface;
@@ -28,6 +30,12 @@ public:
 	/** The size of the axes origin */
 	constexpr static float OriginSize = 35.f;
 
+	/** The size of the rotation circle, in pixels */
+	constexpr static float CirlceRadius = 50.0f;
+
+	/** The thickness of the rotation circle, in pixels */
+	constexpr static float CircleThickness = 2.5f;
+
 	constexpr static FLinearColor AxisColorX = FLinearColor(0.594f, 0.0197f, 0.0f);
 	constexpr static FLinearColor AxisColorY = FLinearColor(0.1349f, 0.3959f, 0.0f);
 	constexpr static FLinearColor AxisColorZ = FLinearColor(0.0251f, 0.207f, 0.85f);
@@ -36,6 +44,7 @@ public:
 	enum EWidgetMode
 	{
 		WM_Translate,
+		WM_RotateZ,
 		WM_Scale,
 
 		WM_Max
@@ -47,15 +56,18 @@ public:
 	void SetWidgetMode(EWidgetMode NewWidgetMode) { WidgetMode = NewWidgetMode; }
 
 	void SetTransform(const FTransform& NewTransform) { Transform = FTransform(NewTransform); }
+	void SetProjectionTransform(const FDisplayClusterMeshProjectionTransform& NewProjectionTransform) { ProjectionTransform = FDisplayClusterMeshProjectionTransform(NewProjectionTransform); }
 	void SetHighlightedAxis(EAxisList::Type InAxis) { HighlightedAxis = InAxis; }
 	void SetWidgetScale(float InWidgetScale) { WidgetScale = InWidgetScale; }
 
 private:
 	/** Draws the specified axis to the PDI, sizing and coloring it appropriately */
-	void DrawAxis(const FSceneView* View, FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar);
+	void DrawAxis(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar);
 
 	/** Draws the widget origin to the PDI, sizing and coloring it appropriately */
 	void DrawOrigin(FPrimitiveDrawInterface* PDI, float SizeScalar);
+
+	void DrawCircle(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar);
 
 	/** Gets the axis vector in global coordinates for the specified axis */
 	FVector GetGlobalAxis(EAxisList::Type Axis) const;
@@ -75,6 +87,9 @@ private:
 
 	/** The world transform to apply to the widget when rendering */
 	FTransform Transform;
+
+	/** The projection transfrom to apply to the widget when rendering */
+	FDisplayClusterMeshProjectionTransform ProjectionTransform;
 
 	/** The axis on the widget which should be highlighted */
 	EAxisList::Type HighlightedAxis = EAxisList::Type::None;

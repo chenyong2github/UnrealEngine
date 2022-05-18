@@ -501,14 +501,8 @@ void FDisplayClusterLightCardEditorViewportClient::Draw(const FSceneView* View, 
 		// This needs to be computed on the render thread using the render thread's scene view, which will be behind the game thread's scene view
 		// by at least one frame
 
-		FTransform ProjectedEditorWidgetTransform(CachedEditorWidgetWorldTransform);
-
-		if (ProjectionMode != EDisplayClusterMeshProjectionType::Perspective)
-		{
-			ProjectedEditorWidgetTransform.SetTranslation(ProjectWorldPosition(CachedEditorWidgetWorldTransform.GetTranslation(), View->ViewMatrices));
-		}
-
-		EditorWidget->SetTransform(ProjectedEditorWidgetTransform);
+		EditorWidget->SetTransform(CachedEditorWidgetWorldTransform);
+		EditorWidget->SetProjectionTransform(FDisplayClusterMeshProjectionTransform(ProjectionMode, View->ViewMatrices.GetViewMatrix()));
 		EditorWidget->Draw(View, this, PDI);
 	}
 }
@@ -574,13 +568,19 @@ bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* I
 	{
 		if (CurrentAxis != EAxisList::Type::None && SelectedLightCards.Num())
 		{
-			if (EditorWidget->GetWidgetMode() == FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate)
+			switch (EditorWidget->GetWidgetMode())
 			{
+			case FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Translate:
 				MoveSelectedLightCards(InViewport, CurrentAxis);
-			}
-			else if (EditorWidget->GetWidgetMode() == FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Scale)
-			{
+				break;
+
+			case FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_RotateZ:
+				SpinSelectedLightCards(InViewport);
+				break;
+
+			case FDisplayClusterLightCardEditorWidget::EWidgetMode::WM_Scale:
 				ScaleSelectedLightCards(InViewport, CurrentAxis);
+				break;
 			}
 
 			bHandled = true;
@@ -1716,13 +1716,66 @@ FVector2D FDisplayClusterLightCardEditorViewportClient::GetLightCardScaleDelta(F
 	FVector2D ScaleDelta = FVector2D((CurrentAxis & EAxisList::X) * ScaleMagnitude, (CurrentAxis & EAxisList::Y) * ScaleMagnitude);
 
 	// If both axes are being scaled at the same time, preserve the aspect ratio of the scale delta
-	if (CurrentAxis == EAxisList::Type::XY)
+	if ((CurrentAxis & EAxisList::Type::X) && (CurrentAxis & EAxisList::Type::Y))
 	{
 		// Ensure the signs of the deltas remain the same, and avoid potential divide by zero
 		ScaleDelta.Y = ScaleDelta.X * FMath::Abs(LightCard->Scale.Y) / FMath::Max(0.001, FMath::Abs(LightCard->Scale.X));
 	}
 
 	return ScaleDelta;
+}
+
+void FDisplayClusterLightCardEditorViewportClient::SpinSelectedLightCards(FViewport* InViewport)
+{
+	const TWeakObjectPtr<ADisplayClusterLightCardActor>& LastSelectedLightCard = SelectedLightCards.Last();
+	if (LastSelectedLightCard.IsValid())
+	{
+		const float DeltaSpin = GetLightCardSpinDelta(InViewport, LastSelectedLightCard.Get());
+		for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+		{
+			if (!LightCard.IsValid())
+			{
+				continue;
+			}
+
+			LightCard->Spin += DeltaSpin;
+
+			PropagateLightCardTransform(LightCard.Get());
+		}
+	}
+}
+
+float FDisplayClusterLightCardEditorViewportClient::GetLightCardSpinDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard)
+{
+	FIntPoint MousePos;
+	InViewport->GetMousePos(MousePos);
+
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		InViewport,
+		GetScene(),
+		EngineShowFlags)
+		.SetRealtimeUpdate(IsRealtime()));
+	FSceneView* View = CalcSceneView(&ViewFamily);
+
+	const FVector WorldWidgetOrigin = CachedEditorWidgetWorldTransform.GetTranslation();
+	const FVector WorldWidgetXAxis = CachedEditorWidgetWorldTransform.GetRotation().RotateVector(FVector::XAxisVector);
+	const FVector WorldWidgetYAxis = CachedEditorWidgetWorldTransform.GetRotation().RotateVector(FVector::YAxisVector);
+
+	FVector2D ScreenOrigin = FVector2D::ZeroVector;
+	FVector2D ScreenXAxis = FVector2D::ZeroVector;
+	FVector2D ScreenYAxis = FVector2D::ZeroVector;
+
+	WorldToPixel(*View, WorldWidgetOrigin, ScreenOrigin);
+	WorldToScreenDirection(*View, WorldWidgetOrigin, WorldWidgetXAxis, ScreenXAxis);
+	WorldToScreenDirection(*View, WorldWidgetOrigin, WorldWidgetYAxis, ScreenYAxis);
+
+	FVector2D MousePosOffset = FVector2D(MousePos) - ScreenOrigin;
+	FVector2D LastMousePosOffset = FVector2D(LastWidgetMousePos) - ScreenOrigin;
+
+	float Theta = FMath::Atan2(MousePosOffset | ScreenYAxis, MousePosOffset | ScreenXAxis);
+	float LastTheta = FMath::Atan2(LastMousePosOffset | ScreenYAxis, LastMousePosOffset | ScreenXAxis);
+
+	return FMath::RadiansToDegrees(Theta - LastTheta);
 }
 
 FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClusterLightCardEditorViewportClient::GetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard) const
@@ -1813,16 +1866,8 @@ ADisplayClusterLightCardActor* FDisplayClusterLightCardEditorViewportClient::Tra
 
 FVector FDisplayClusterLightCardEditorViewportClient::ProjectWorldPosition(const FVector& UnprojectedWorldPosition, const FViewMatrices& ViewMatrices) const
 {
-	FVector ProjectedPosition(UnprojectedWorldPosition);
-
-	if (ProjectionMode != EDisplayClusterMeshProjectionType::Perspective)
-	{
-		const FVector ViewPos = ViewMatrices.GetViewMatrix().TransformPosition(CachedEditorWidgetWorldTransform.GetTranslation());
-		const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, ProjectionMode);
-		ProjectedPosition = ViewMatrices.GetInvViewMatrix().TransformPosition(ProjectedViewPos);
-	}
-
-	return ProjectedPosition;
+	FDisplayClusterMeshProjectionTransform Transform(ProjectionMode, ViewMatrices.GetViewMatrix());
+	return Transform.ProjectPosition(UnprojectedWorldPosition);
 }
 
 void FDisplayClusterLightCardEditorViewportClient::PixelToWorld(const FSceneView& View, const FIntPoint& PixelPos, FVector& OutOrigin, FVector& OutDirection)

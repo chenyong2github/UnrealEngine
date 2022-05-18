@@ -238,6 +238,12 @@ private:
 	/** Determines the appropriate scale delta needed to scale the light card */
 	FVector2D GetLightCardScaleDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
 
+	/** Rotates the currently selected light cards around the light card's normal axis */
+	void SpinSelectedLightCards(FViewport* InViewport);
+
+	/** Determines the appropriate spin delta needed to rotate the light card */
+	float GetLightCardSpinDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard);
+
 	/** Gets the spherical coordinates of the specified light card */
 	FSphericalCoordinates GetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard) const;
 

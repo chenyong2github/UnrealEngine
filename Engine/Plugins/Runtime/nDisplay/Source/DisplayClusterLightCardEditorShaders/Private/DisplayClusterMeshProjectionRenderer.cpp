@@ -692,6 +692,34 @@ bool FDisplayClusterMeshProjectionPrimitiveFilter::IsPrimitiveComponentFiltered(
 	return false;
 }
 
+FVector FDisplayClusterMeshProjectionTransform::ProjectPosition(const FVector& WorldPosition) const
+{
+	FVector ProjectedPosition(WorldPosition);
+
+	if (Projection != EDisplayClusterMeshProjectionType::Perspective)
+	{
+		const FVector ViewPos = ViewMatrix.TransformPosition(WorldPosition);
+		const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(ViewPos, Projection);
+		ProjectedPosition = InvViewMatrix.TransformPosition(ProjectedViewPos);
+	}
+
+	return ProjectedPosition;
+}
+
+FVector FDisplayClusterMeshProjectionTransform::UnprojectPosition(const FVector& ProjectedPosition) const
+{
+	FVector UnprojectedPosition(ProjectedPosition);
+
+	if (Projection != EDisplayClusterMeshProjectionType::Perspective)
+	{
+		const FVector ViewPos = ViewMatrix.TransformPosition(ProjectedPosition);
+		const FVector ProjectedViewPos = FDisplayClusterMeshProjectionRenderer::UnprojectViewPosition(ViewPos, Projection);
+		UnprojectedPosition = InvViewMatrix.TransformPosition(ProjectedViewPos);
+	}
+
+	return ProjectedPosition;
+}
+
 FVector FDisplayClusterMeshProjectionRenderer::ProjectViewPosition(const FVector& ViewPosition, EDisplayClusterMeshProjectionType  ProjectionType)
 {
 	FVector ProjectedViewPosition(ViewPosition);

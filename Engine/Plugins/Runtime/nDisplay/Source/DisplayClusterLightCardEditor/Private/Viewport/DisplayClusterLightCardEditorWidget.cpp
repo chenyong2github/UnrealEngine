@@ -11,12 +11,21 @@ void FDisplayClusterLightCardEditorWidget::Draw(const FSceneView* View, const FE
 	const float SizeScalar = GetSizeScreenScalar(View, ViewportClient);
 	const float LengthScalar = GetLengthScreenScalar(View, ViewportClient, Transform.GetTranslation());
 
-	DrawAxis(View, PDI, EAxisList::Type::X, SizeScalar, LengthScalar);
-	DrawAxis(View, PDI, EAxisList::Type::Y, SizeScalar, LengthScalar);
-	DrawOrigin(PDI, SizeScalar);
+	if (WidgetMode == EWidgetMode::WM_RotateZ)
+	{
+		DrawAxis(PDI, EAxisList::Type::Y, SizeScalar, LengthScalar);
+		DrawCircle(PDI, EAxisList::Type::Z, SizeScalar, LengthScalar);
+		DrawOrigin(PDI, SizeScalar);
+	}
+	else
+	{
+		DrawAxis(PDI, EAxisList::Type::X, SizeScalar, LengthScalar);
+		DrawAxis(PDI, EAxisList::Type::Y, SizeScalar, LengthScalar);
+		DrawOrigin(PDI, SizeScalar);
+	}
 }
 
-void FDisplayClusterLightCardEditorWidget::DrawAxis(const FSceneView* View, FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar)
+void FDisplayClusterLightCardEditorWidget::DrawAxis(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar)
 {
 	const FVector Origin = Transform.GetTranslation();
 
@@ -26,8 +35,8 @@ void FDisplayClusterLightCardEditorWidget::DrawAxis(const FSceneView* View, FPri
 
 	PDI->SetHitProxy(new HWidgetAxis(Axis));
 	{
-		const FVector AxisStart = Origin;
-		const FVector AxisEnd = Origin + TransformedAxis * AxisLength * WidgetScale * LengthScalar;
+		const FVector AxisStart = ProjectionTransform.ProjectPosition(Origin);
+		const FVector AxisEnd = ProjectionTransform.ProjectPosition(Origin + TransformedAxis * AxisLength * WidgetScale * LengthScalar);
 
 		PDI->DrawLine(AxisStart, AxisEnd, AxisColor, ESceneDepthPriorityGroup::SDPG_Foreground, AxisThickness * SizeScalar, 0.0, true);
 
@@ -41,11 +50,42 @@ void FDisplayClusterLightCardEditorWidget::DrawAxis(const FSceneView* View, FPri
 
 void FDisplayClusterLightCardEditorWidget::DrawOrigin(FPrimitiveDrawInterface* PDI, float SizeScalar)
 {
-	const FVector Origin = Transform.GetTranslation();
-	const FLinearColor Color = HighlightedAxis == EAxisList::Type::XY ? HighlightColor : FLinearColor::Black;
+	const FVector Origin = ProjectionTransform.ProjectPosition(Transform.GetTranslation());
+	const FLinearColor Color = HighlightedAxis == EAxisList::Type::XYZ ? HighlightColor : FLinearColor::Black;
 
-	PDI->SetHitProxy(new HWidgetAxis(EAxisList::Type::XY));
+	PDI->SetHitProxy(new HWidgetAxis(EAxisList::Type::XYZ));
 	PDI->DrawPoint(Origin, Color, OriginSize * SizeScalar, ESceneDepthPriorityGroup::SDPG_Foreground);
+	PDI->SetHitProxy(nullptr);
+}
+
+void FDisplayClusterLightCardEditorWidget::DrawCircle(FPrimitiveDrawInterface* PDI, EAxisList::Type Axis, float SizeScalar, float LengthScalar)
+{
+	const float ScaledRadius = CirlceRadius * LengthScalar;
+	const int32 NumSides = FMath::Max(ScaledRadius / 2, 24.0f);
+	const float AngleDelta = 2.0f * UE_PI / NumSides;
+
+	const FVector Origin = Transform.GetTranslation();
+
+	const FVector GlobalAxis = GetGlobalAxis(Axis);
+	const FVector Normal = Transform.TransformVector(GlobalAxis);
+	const FVector X = GlobalAxis == FVector::ZAxisVector ? Transform.TransformVector(FVector::XAxisVector) : Transform.TransformVector(FVector::ZAxisVector);
+	const FVector Y = Normal ^ X;
+
+	EAxisList::Type RotationPlane = (EAxisList::Type)(EAxisList::Type::XYZ & ~Axis);
+
+	const FLinearColor CircleColor = HighlightedAxis == RotationPlane ? HighlightColor : GetAxisColor(Axis);
+
+	PDI->SetHitProxy(new HWidgetAxis(RotationPlane));
+	{
+		FVector Vertex = ProjectionTransform.ProjectPosition(Origin + X * ScaledRadius);
+		for (int32 Index = 0; Index < NumSides; ++Index)
+		{
+			FVector NextVertex = ProjectionTransform.ProjectPosition(Origin + (X * FMath::Cos(AngleDelta * (Index + 1)) + Y * FMath::Sin(AngleDelta * (Index + 1))) * ScaledRadius);
+			PDI->DrawLine(Vertex, NextVertex, CircleColor, ESceneDepthPriorityGroup::SDPG_Foreground, CircleThickness * SizeScalar, 0.0f, true);
+
+			Vertex = NextVertex;
+		}
+	}
 	PDI->SetHitProxy(nullptr);
 }
 
