@@ -715,16 +715,8 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 #if WITH_EDITORONLY_DATA
 static bool IsEnableLegacyAlphaCoverageThresholdScaling()
 {
-	static struct ReadConfigOnce
-	{
-		bool bBool;
-		ReadConfigOnce()
-		{
-			bBool = false;
-			GConfig->GetBool(TEXT("Texture"), TEXT("EnableLegacyAlphaCoverageThresholdScaling"), bBool, GEditorIni);
-		}
-	} ConfigValue;
-	return ConfigValue.bBool;
+	static bool bConfigBool = GConfig->GetBoolOrDefault(TEXT("Texture"), TEXT("EnableLegacyAlphaCoverageThresholdScaling"), false, GEditorIni);
+	return bConfigBool;
 }
 #endif
 
