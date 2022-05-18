@@ -2151,9 +2151,43 @@ void UMaterialInstance::CacheResourceShadersForCooking(EShaderPlatform ShaderPla
 			NewResourcesToCache.Add(NewResource);
 		}
 
+#if WITH_EDITOR
+		// For cooking, we can call the begin function and it will be completed as part of the polling mechanism.
+		BeginCacheShadersForResources(ShaderPlatform, NewResourcesToCache, PrecompileMode, TargetPlatform);
+#else
 		CacheShadersForResources(ShaderPlatform, NewResourcesToCache, PrecompileMode, TargetPlatform);
+#endif
 
 		OutCachedMaterialResources.Append(NewResourcesToCache);
+	}
+}
+
+namespace MaterialInstanceImpl
+{
+	void HandleCacheShadersForResourcesErrors(bool bSuccess, EShaderPlatform ShaderPlatform, UMaterialInstance* This, FMaterialResource* CurrentResource)
+	{
+		if (!bSuccess)
+		{
+			UMaterial* BaseMaterial = This->GetMaterial();
+
+			FString ErrorString;
+
+			ErrorString += FString::Printf(
+				TEXT("Failed to compile Material Instance with Base %s for platform %s, Default Material will be used in game.\n"), 
+				BaseMaterial ? *BaseMaterial->GetName() : TEXT("Null"), 
+				*LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString()
+				);
+
+#if WITH_EDITOR
+			const TArray<FString>& CompileErrors = CurrentResource->GetCompileErrors();
+			for (int32 ErrorIndex = 0; ErrorIndex < CompileErrors.Num(); ErrorIndex++)
+			{
+				ErrorString += FString::Printf(TEXT("	%s\n"), *CompileErrors[ErrorIndex]);
+			}
+#endif // WITH_EDITOR
+
+			UE_ASSET_LOG(LogMaterial, Warning, This, TEXT("%s"), *ErrorString);
+		}
 	}
 }
 
@@ -2172,28 +2206,37 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 
 		const bool bSuccess = CurrentResource->CacheShaders(ShaderPlatform, PrecompileMode, TargetPlatform);
 
-		if (!bSuccess)
-		{
-			FString ErrorString;
-
-			ErrorString += FString::Printf(
-				TEXT("Failed to compile Material Instance with Base %s for platform %s, Default Material will be used in game.\n"), 
-				BaseMaterial ? *BaseMaterial->GetName() : TEXT("Null"), 
-				*LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString()
-				);
-
-#if WITH_EDITOR
-			const TArray<FString>& CompileErrors = CurrentResource->GetCompileErrors();
-			for (int32 ErrorIndex = 0; ErrorIndex < CompileErrors.Num(); ErrorIndex++)
-			{
-				ErrorString += FString::Printf(TEXT("	%s\n"), *CompileErrors[ErrorIndex]);
-			}
-#endif // WITH_EDITOR
-
-			UE_ASSET_LOG(LogMaterial, Warning, this, TEXT("%s"), *ErrorString);
-		}
+		MaterialInstanceImpl::HandleCacheShadersForResourcesErrors(bSuccess, ShaderPlatform, this, CurrentResource);
 	}
 }
+
+#if WITH_EDITOR
+
+void UMaterialInstance::BeginCacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
+{
+	UMaterial* BaseMaterial = GetMaterial();
+	check(!HasAnyFlags(RF_NeedPostLoad));
+	check(BaseMaterial != nullptr && !BaseMaterial->HasAnyFlags(RF_NeedPostLoad));
+	UpdateCachedData();
+
+	for (int32 ResourceIndex = 0; ResourceIndex < ResourcesToCache.Num(); ResourceIndex++)
+	{
+		FMaterialResource* CurrentResource = ResourcesToCache[ResourceIndex];
+
+		// Begin async cache shaders that will be polled and completed inside IsCompilationFinished as part of IsCachedCookedPlatformDataLoaded.
+		CurrentResource->BeginCacheShaders(ShaderPlatform, PrecompileMode, TargetPlatform,
+			[WeakThis = MakeWeakObjectPtr(this), CurrentResource, ShaderPlatform](bool bSuccess)
+			{
+				if (UMaterialInstance* This = WeakThis.Get())
+				{
+					MaterialInstanceImpl::HandleCacheShadersForResourcesErrors(bSuccess, ShaderPlatform, This, CurrentResource);
+				}
+			}
+		);
+	}
+}
+
+#endif
 
 void UMaterialInstance::CacheShaders(EMaterialShaderPrecompileMode CompileMode)
 {

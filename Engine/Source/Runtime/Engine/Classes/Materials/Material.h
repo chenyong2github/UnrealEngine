@@ -1477,6 +1477,10 @@ private:
 	void CacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr);
 
 #if WITH_EDITOR
+
+	/** Begins caching shader maps for an array of material resources. */
+	void BeginCacheShadersForResources(EShaderPlatform ShaderPlatform, const TArray<FMaterialResource*>& ResourcesToCache, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr);
+
 	/**
 	 * If there is some texture reference used by a TextureProperty node in any expressions, this function
 	 * will extract the current hash of TextureReferencesHash into a string  then append the texture guid used by the node

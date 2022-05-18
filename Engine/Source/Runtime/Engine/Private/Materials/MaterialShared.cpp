@@ -744,6 +744,13 @@ void FMaterial::GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& ShaderMa
 
 bool FMaterial::IsCompilationFinished() const
 {
+	if (CacheShadersPending.IsValid() && !CacheShadersPending->IsReady())
+	{
+		return false;
+	}
+
+	FinishCacheShaders();
+
 	if (GameThreadCompilingShaderMapId != 0u)
 	{
 		return !GShaderCompilingManager->IsCompilingShaderMap(GameThreadCompilingShaderMapId);
@@ -753,6 +760,16 @@ bool FMaterial::IsCompilationFinished() const
 
 void FMaterial::CancelCompilation()
 {
+	if (CacheShadersPending.IsValid())
+	{
+		CacheShadersPending.Reset();
+	}
+
+	if (CacheShadersCompletion)
+	{
+		CacheShadersCompletion.Reset();
+	}
+
 	TArray<int32> ShaderMapIdsToCancel;
 	GetShaderMapIDsWithUnfinishedCompilation(ShaderMapIdsToCancel);
 
@@ -765,6 +782,8 @@ void FMaterial::CancelCompilation()
 
 void FMaterial::FinishCompilation()
 {
+	FinishCacheShaders();
+
 	TArray<int32> ShaderMapIdsToFinish;
 	GetShaderMapIDsWithUnfinishedCompilation(ShaderMapIdsToFinish);
 
@@ -2282,12 +2301,21 @@ bool FMaterial::CacheShaders(EShaderPlatform Platform, EMaterialShaderPrecompile
  * Caches the material shaders for the given static parameter set and platform.
  * This is used by material resources of UMaterialInstances.
  */
+#if WITH_EDITOR
+void FMaterial::BeginCacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform, TUniqueFunction<void (bool bSuccess)>&& CompletionCallback)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::BeginCacheShaders);
+#else
 bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::CacheShaders);
+#endif
 	UE_CLOG(!ShaderMapId.IsValid(), LogMaterial, Warning, TEXT("Invalid shader map ID caching shaders for '%s', will use default material."), *GetFriendlyName());
 #if WITH_EDITOR
 	FString DDCKeyHash;
+
+	// Just make sure that we don't already have a pending cache going on.
+	FinishCacheShaders();
 #endif // WITH_EDITOR
 
 	// If we loaded this material with inline shaders, use what was loaded (GameThreadShaderMap) instead of looking in the DDC
@@ -2339,8 +2367,7 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 				if (bSkipCompilationOnPostLoad == false || IsDefaultMaterial())
 				{
 					TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
-					FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
-					ShaderMap = LoadedShaderMap;
+					CacheShadersPending = FMaterialShaderMap::BeginLoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
 				}
 			}
 
@@ -2350,7 +2377,23 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 #endif // WITH_EDITOR
 	}
 
+	// In editor, we split the function in half with the remaining to be called as part of the 
+	// FinishCacheShaders once the DDC call initiated in BeginLoadFromDerivedDataCache above has finished.
+	// For client builds, this is executed in place without any lambda.
 #if WITH_EDITOR
+	CacheShadersCompletion = [this, Platform, ShaderMapId, DDCKeyHash, PrecompileMode, TargetPlatform, CompletionCallback = MoveTemp(CompletionCallback)]() {
+
+	ON_SCOPE_EXIT{ CacheShadersCompletion.Reset(); };
+
+	if (CacheShadersPending.IsValid())
+	{
+		TRefCountPtr<FMaterialShaderMap> LoadedShaderMap = CacheShadersPending->Get();
+		CacheShadersPending.Reset();
+
+		check(!LoadedShaderMap || LoadedShaderMap->GetFrozenContentSize() > 0u);
+		SetGameThreadShaderMap(LoadedShaderMap);
+	}
+
 	// some of the above paths did not mark the shader map as associated with an asset, do so
 	if (GameThreadShaderMap)
 	{
@@ -2482,10 +2525,53 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 #endif // WITH_EDITOR
 	}
 
+#if WITH_EDITOR
+	if (CompletionCallback)
+	{
+		CompletionCallback(bShaderMapValid);
+	}
+#endif
 	return bShaderMapValid;
+
+#if WITH_EDITOR
+}; // Close the lambda
+#endif
 }
 
 #if WITH_EDITOR
+
+void FMaterial::BeginCacheShaders(EShaderPlatform Platform, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform, TUniqueFunction<void(bool bSuccess)>&& CompletionCallback)
+{
+	FAllowCachingStaticParameterValues AllowCachingStaticParameterValues(*this);
+	FMaterialShaderMapId NoStaticParametersId;
+	GetShaderMapId(Platform, TargetPlatform, NoStaticParametersId);
+	return BeginCacheShaders(NoStaticParametersId, Platform, PrecompileMode, TargetPlatform, MoveTemp(CompletionCallback));
+}
+
+bool FMaterial::IsCachingShaders() const
+{
+	return CacheShadersCompletion || CacheShadersPending.IsValid();
+}
+
+bool FMaterial::FinishCacheShaders() const
+{
+	if (CacheShadersCompletion)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FinishCacheShaders);
+
+		return CacheShadersCompletion();
+	}
+
+	return false;
+}
+
+bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, EMaterialShaderPrecompileMode PrecompileMode, const ITargetPlatform* TargetPlatform)
+{
+	BeginCacheShaders(ShaderMapId, Platform, PrecompileMode, TargetPlatform);
+
+	return FinishCacheShaders();
+}
+
 void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<const FVertexFactoryType*>& VFTypes, const TArray<const FShaderPipelineType*>& PipelineTypes, const TArray<const FShaderType*>& ShaderTypes)
 {
 	if (CompileErrors.Num())

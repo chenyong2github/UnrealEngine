@@ -1478,13 +1478,85 @@ TRACE_DECLARE_MEMORY_COUNTER(Shaders_FMaterialShaderMapDDCBytesSent, TEXT("Shade
 
 void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, const FMaterialShaderMapId& ShaderMapId, EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, TRefCountPtr<FMaterialShaderMap>& InOutShaderMap, FString& OutDDCKeyDesc)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialShaderMap::LoadFromDerivedDataCache);
+	InOutShaderMap = BeginLoadFromDerivedDataCache(Material, ShaderMapId, InPlatform, TargetPlatform, InOutShaderMap, OutDDCKeyDesc)->Get();
+}
 
-	if (InOutShaderMap != NULL)
+TSharedRef<FMaterialShaderMap::FAsyncLoadContext> FMaterialShaderMap::BeginLoadFromDerivedDataCache(const FMaterial* Material, const FMaterialShaderMapId& ShaderMapId, EShaderPlatform InPlatform, const ITargetPlatform* TargetPlatform, TRefCountPtr<FMaterialShaderMap>& InShaderMap, FString& OutDDCKeyDesc)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialShaderMap::BeginLoadFromDerivedDataCache);
+	using namespace UE::DerivedData;
+
+	struct FMaterialShaderMapAsyncLoadContext : public FMaterialShaderMap::FAsyncLoadContext
 	{
-		check(InOutShaderMap->GetShaderPlatform() == InPlatform);
+		FString	        DataKey;
+		FSharedBuffer   CachedData;
+		EShaderPlatform Platform;
+		FString         AssetName;
+		TUniquePtr<FRequestOwner> RequestOwner;
+		TRefCountPtr<FMaterialShaderMap> ShaderMap;
+
+		bool IsReady() const override
+		{
+			return RequestOwner == nullptr || RequestOwner->Poll();
+		}
+
+		TRefCountPtr<FMaterialShaderMap> Get() override
+		{
+			// Make sure the async work is complete
+			if (RequestOwner)
+			{
+				RequestOwner->Wait();
+				RequestOwner.Reset();
+			}
+
+			TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialShaderMap::FinishLoadFromDerivedDataCache);
+			COOK_STAT(auto Timer = MaterialShaderCookStats::UsageStats.TimeSyncWork());
+
+			if (CachedData)
+			{
+				TRACE_COUNTER_INCREMENT(Shaders_FMaterialShaderMapDDCHits);
+				TRACE_COUNTER_ADD(Shaders_FMaterialShaderMapDDCBytesReceived, int64(CachedData.GetSize()));
+				COOK_STAT(Timer.AddHit(int64(CachedData.GetSize())));
+				ShaderMap = new FMaterialShaderMap();
+				FMemoryReaderView Ar(CachedData, /*bIsPersistent*/ true);
+
+				// Deserialize from the cached data
+				ShaderMap->Serialize(Ar);
+				//InOutShaderMap->RegisterSerializedShaders(false);
+
+				const FString InDataKey = GetMaterialShaderMapKeyString(ShaderMap->GetShaderMapId(), Platform);
+				checkf(InDataKey == DataKey, TEXT("Data deserialized from the DDC would need a different DDC key!"));
+				//checkf(InOutShaderMap->GetShaderMapId() == Context.ShaderMapId, TEXT("Shadermap data deserialized from the DDC does not match the ID we used to build the key!"));
+
+				// Register in the global map
+				ShaderMap->Register(Platform);
+
+				GShaderCompilerStats->AddDDCHit(1);
+
+				UE_LOG(LogMaterial, Verbose, TEXT("Loaded shaders for %s from DDC (key hash: %s)"), *AssetName, *FSHA1_HashString(DataKey));
+			}
+			else
+			{
+				TRACE_COUNTER_INCREMENT(Shaders_FMaterialShaderMapDDCRequests);
+				// We should be build the data later, and we can track that the resource was built there when we push it to the DDC.
+				COOK_STAT(Timer.TrackCyclesOnly());
+
+				GShaderCompilerStats->AddDDCMiss(1);
+			}
+
+			return ShaderMap;
+		}
+	};
+
+	TSharedRef<FMaterialShaderMapAsyncLoadContext> Result = MakeShared<FMaterialShaderMapAsyncLoadContext>();
+
+	if (InShaderMap != nullptr)
+	{
+		check(InShaderMap->GetShaderPlatform() == InPlatform);
 		// If the shader map was non-NULL then it was found in memory but is incomplete, attempt to load the missing entries from memory
-		InOutShaderMap->LoadMissingShadersFromMemory(Material);
+		InShaderMap->LoadMissingShadersFromMemory(Material);
+
+		Result->ShaderMap = InShaderMap;
 	}
 	else
 	{
@@ -1494,13 +1566,13 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 			SCOPE_SECONDS_COUNTER(MaterialDDCTime);
 			COOK_STAT(auto Timer = MaterialShaderCookStats::UsageStats.TimeSyncWork());
 
-			const FString DataKey = GetMaterialShaderMapKeyString(ShaderMapId, InPlatform);
-			OutDDCKeyDesc = FSHA1_HashString(DataKey);
+			Result->DataKey = GetMaterialShaderMapKeyString(ShaderMapId, InPlatform);
+			OutDDCKeyDesc = FSHA1_HashString(Result->DataKey);
 
 			if (UNLIKELY(ShouldDumpShaderDDCKeys()))
 			{
 				const FString FileName = FString::Printf(TEXT("%s-%s-%s.txt"), *Material->GetAssetName(), *LexToString(ShaderMapId.FeatureLevel), *LexToString(ShaderMapId.QualityLevel));
-				DumpShaderDDCKeyToFile(InPlatform, ShaderMapId.LayoutParams.WithEditorOnly(), FileName, DataKey);
+				DumpShaderDDCKeyToFile(InPlatform, ShaderMapId.LayoutParams.WithEditorOnly(), FileName, Result->DataKey);
 			}
 
 			bool CheckCache = true;
@@ -1515,7 +1587,7 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 			{
 				static TSet<uint32> SeenKeys;
 
-				const uint32 KeyHash = GetTypeHash(DataKey);
+				const uint32 KeyHash = GetTypeHash(Result->DataKey);
 
 				if (!SeenKeys.Contains(KeyHash))
 				{
@@ -1524,62 +1596,28 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 				}
 			}
 
-			// Do not check the DD cache if the material isn't persistent, because
+			// Do not check the DDC if the material isn't persistent, because
 			//   - this results in a lot of DDC requests when editing materials which are almost always going to return nothing.
 			//   - since the get call is synchronous, this can cause a hitch if there's network latency
-			FSharedBuffer CachedData;
 			if (CheckCache && Material->IsPersistent())
 			{
-				using namespace UE::DerivedData;
 				FCacheGetValueRequest Request;
 				Request.Name = Material->GetFriendlyName();
-				Request.Key = GetMaterialShaderMapKey(DataKey);
-				FRequestOwner BlockingOwner(EPriority::Blocking);
-				GetCache().GetValue({Request}, BlockingOwner, [&CachedData](FCacheGetValueResponse&& Response)
+				Request.Key = GetMaterialShaderMapKey(Result->DataKey);
+				Result->AssetName = Material->GetAssetName();
+				Result->Platform = InPlatform;
+				Result->RequestOwner = MakeUnique<FRequestOwner>(EPriority::Normal);
+
+				GetCache().GetValue({Request}, *Result->RequestOwner, [Result](FCacheGetValueResponse&& Response)
 				{
-					CachedData = Response.Value.GetData().Decompress();
+					Result->CachedData = Response.Value.GetData().Decompress();
 				});
-				BlockingOwner.Wait();
-			}
-
-			if (CachedData)
-			{
-				TRACE_COUNTER_INCREMENT(Shaders_FMaterialShaderMapDDCHits);
-				TRACE_COUNTER_ADD(Shaders_FMaterialShaderMapDDCBytesReceived, int64(CachedData.GetSize()));
-				COOK_STAT(Timer.AddHit(int64(CachedData.GetSize())));
-				InOutShaderMap = new FMaterialShaderMap();
-				FMemoryReaderView Ar(CachedData, /*bIsPersistent*/ true);
-
-				// Deserialize from the cached data
-				InOutShaderMap->Serialize(Ar);
-				//InOutShaderMap->RegisterSerializedShaders(false);
-		
-				const FString InDataKey = GetMaterialShaderMapKeyString(InOutShaderMap->GetShaderMapId(), InPlatform);
-				checkf(InDataKey == DataKey, TEXT("Data deserialized from the DDC would need a different DDC key!"));
-				checkf(InOutShaderMap->GetShaderMapId() == ShaderMapId, TEXT("Shadermap data deserialized from the DDC does not match the ID we used to build the key!"));
-
-				// Register in the global map
-				InOutShaderMap->Register(InPlatform);
-
-				GShaderCompilerStats->AddDDCHit(1);
-			}
-			else
-			{
-				TRACE_COUNTER_INCREMENT(Shaders_FMaterialShaderMapDDCRequests);
-				// We should be build the data later, and we can track that the resource was built there when we push it to the DDC.
-				COOK_STAT(Timer.TrackCyclesOnly());
-				InOutShaderMap = nullptr;
-
-				GShaderCompilerStats->AddDDCMiss(1);
-			}
-
-			if (InOutShaderMap)
-			{
-				UE_LOG(LogMaterial, Verbose, TEXT("Loaded shaders for %s from DDC (key hash: %s)"), *Material->GetAssetName(), *OutDDCKeyDesc);
 			}
 		}
 		INC_FLOAT_STAT_BY(STAT_ShaderCompiling_DDCLoading,(float)MaterialDDCTime);
 	}
+
+	return Result;
 }
 
 void FMaterialShaderMap::SaveToDerivedDataCache()

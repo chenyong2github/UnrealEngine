@@ -1150,6 +1150,21 @@ public:
 	 * Returns (via OutDDCKeyDesc parameter) a helpful string to debug the DDC key and parameters
 	 */
 	static void LoadFromDerivedDataCache(const FMaterial* Material, const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TRefCountPtr<FMaterialShaderMap>& InOutShaderMap, FString& OutDDCKeyDesc);
+
+	/** A context returned by BeginLoadFromDerivedDataCache that can be queried to know the state of the async request. */
+	struct ENGINE_API FAsyncLoadContext
+	{
+		virtual ~FAsyncLoadContext() { };
+		virtual bool IsReady() const = 0;
+		virtual TRefCountPtr<FMaterialShaderMap> Get() = 0;
+	};
+
+	/**
+	 * Begin an attempts to load the shader map for the given material from the Derived Data Cache.
+	 * If InOutShaderMap is valid, attempts to load the individual missing shaders instead.
+	 * Returns (via OutDDCKeyDesc parameter) a helpful string to debug the DDC key and parameters
+	 */
+	static TSharedRef<FAsyncLoadContext> BeginLoadFromDerivedDataCache(const FMaterial* Material, const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, const ITargetPlatform* TargetPlatform, TRefCountPtr<FMaterialShaderMap>& InOutShaderMap, FString& OutDDCKeyDesc);
 #endif
 
 	FMaterialShaderMap();
@@ -1709,6 +1724,29 @@ public:
 	ENGINE_API bool CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr);
 
 #if WITH_EDITOR
+
+	/**
+	 * Begins caching the material shaders for the given static parameter set and platform.
+	 * This is used by material resources of UMaterials.
+	 */
+	ENGINE_API void BeginCacheShaders(EShaderPlatform Platform, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr, TUniqueFunction<void(bool bSuccess)>&& CompletionCallback = nullptr);
+	
+	/**
+	 * Begins caching the material shaders for the given static parameter set and platform.
+	 * This is used by material resources of UMaterialInstances.
+	 */
+	ENGINE_API void BeginCacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPlatform Platform, EMaterialShaderPrecompileMode PrecompileMode = EMaterialShaderPrecompileMode::Default, const ITargetPlatform* TargetPlatform = nullptr, TUniqueFunction<void(bool bSuccess)>&& CompletionCallback = nullptr);
+
+	/**
+	 * Returns whether or not a material caching is still pending.
+	 */
+	ENGINE_API bool IsCachingShaders() const;
+
+	/**
+	 * Finishes any pending material caching.
+	 */
+	ENGINE_API bool FinishCacheShaders() const;
+
 	/**
 	 * Submits local compile jobs for the exact given shader types and vertex factory type combination.
 	 * @note CacheShaders() should be called first to prepare the resource for compilation.
@@ -2233,6 +2271,9 @@ private:
 
 	/** List of material expressions which generated a compiler error during the last compile. */
 	TArray<UMaterialExpression*> ErrorExpressions;
+
+	TSharedPtr<FMaterialShaderMap::FAsyncLoadContext> CacheShadersPending;
+	TUniqueFunction<bool ()> CacheShadersCompletion;
 #endif // WITH_EDITOR
 
 	uint32 GameThreadCompilingShaderMapId;
