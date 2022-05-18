@@ -97,6 +97,8 @@ SReferenceViewer::~SReferenceViewer()
 
 void SReferenceViewer::Construct(const FArguments& InArgs)
 {
+	Settings = GetMutableDefault<UReferenceViewerSettings>();
+
 	// Create an action list and register commands
 	RegisterActions();
 
@@ -507,21 +509,21 @@ void SReferenceViewer::SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& N
 {
 	GraphObj->SetGraphRoot(NewGraphRootIdentifiers);
 	// Set properties
-	GraphObj->SetShowReferencers(ReferenceViewerParams.bShowReferencers);
-	GraphObj->SetShowDependencies(ReferenceViewerParams.bShowDependencies);
+	Settings->SetShowReferencers(ReferenceViewerParams.bShowReferencers);
+	Settings->SetShowDependencies(ReferenceViewerParams.bShowDependencies);
 	// Set user-interactive properties
 	FixAndHideSearchDepthLimit = ReferenceViewerParams.FixAndHideSearchDepthLimit;
 	if (FixAndHideSearchDepthLimit > 0)
 	{
-		GraphObj->SetSearchDependencyDepthLimit(FixAndHideSearchDepthLimit);
-		GraphObj->SetSearchReferencerDepthLimit(FixAndHideSearchDepthLimit);
-		GraphObj->SetSearchDepthLimitEnabled(true);
+		Settings->SetSearchDependencyDepthLimit(FixAndHideSearchDepthLimit);
+		Settings->SetSearchReferencerDepthLimit(FixAndHideSearchDepthLimit);
+		Settings->SetSearchDepthLimitEnabled(true);
 	}
 	FixAndHideSearchBreadthLimit = ReferenceViewerParams.FixAndHideSearchBreadthLimit;
 	if (FixAndHideSearchBreadthLimit > 0)
 	{
-		GraphObj->SetSearchBreadthLimit(FixAndHideSearchBreadthLimit);
-		GraphObj->SetSearchBreadthLimitEnabled(true);
+		Settings->SetSearchBreadthLimit(FixAndHideSearchBreadthLimit);
+		Settings->SetSearchBreadthLimitEnabled(true);
 	}
 	bShowCollectionFilter = ReferenceViewerParams.bShowCollectionFilter;
 	bShowShowReferencesOptions = ReferenceViewerParams.bShowShowReferencesOptions;
@@ -531,14 +533,14 @@ void SReferenceViewer::SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& N
 	bShowShowFilteredPackagesOnly = ReferenceViewerParams.bShowShowFilteredPackagesOnly;
 	if (ReferenceViewerParams.bShowFilteredPackagesOnly.IsSet())
 	{
-		GraphObj->SetShowFilteredPackagesOnlyEnabled(ReferenceViewerParams.bShowFilteredPackagesOnly.GetValue());
+		Settings->SetShowFilteredPackagesOnlyEnabled(ReferenceViewerParams.bShowFilteredPackagesOnly.GetValue());
 	}
 	UpdateIsPassingFilterPackageCallback();
 
 	bShowCompactMode = ReferenceViewerParams.bShowCompactMode;
 	if (ReferenceViewerParams.bCompactMode.IsSet())
 	{
-		GraphObj->SetCompactModeEnabled(ReferenceViewerParams.bCompactMode.GetValue());
+		Settings->SetCompactModeEnabled(ReferenceViewerParams.bCompactMode.GetValue());
 	}
 
 	RebuildGraph();
@@ -780,86 +782,46 @@ void SReferenceViewer::OnUpdateHistoryData(FReferenceViewerHistoryData& HistoryD
 
 void SReferenceViewer::OnSearchDepthEnabledChanged( ECheckBoxState NewState )
 {
-	if ( GraphObj )
-	{
-		GraphObj->SetSearchDepthLimitEnabled(NewState == ECheckBoxState::Checked);
-		RebuildGraph();
-	}
+	Settings->SetSearchDepthLimitEnabled(NewState == ECheckBoxState::Checked);
+	RebuildGraph();
 }
 
 ECheckBoxState SReferenceViewer::IsSearchDepthEnabledChecked() const
 {
-	if ( GraphObj )
-	{
-		return GraphObj->IsSearchDepthLimited() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	}
-	else
-	{
-		return ECheckBoxState::Unchecked;
-	}
+	return Settings->IsSearchDepthLimited() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 int32 SReferenceViewer::GetSearchDependencyDepthCount() const
 {
-	if ( GraphObj )
-	{
-		return GraphObj->GetSearchDependencyDepthLimit();
-	}
-	else
-	{
-		return 0;
-	}
+	return Settings->GetSearchDependencyDepthLimit();
 }
 
 int32 SReferenceViewer::GetSearchReferencerDepthCount() const
 {
-	if ( GraphObj )
-	{
-		return GraphObj->GetSearchReferencerDepthLimit();
-	}
-	else
-	{
-		return 0;
-	}
+	return Settings->GetSearchReferencerDepthLimit();
 }
 
 void SReferenceViewer::OnSearchDependencyDepthCommitted(int32 NewValue)
 {
-	if ( GraphObj )
-	{
-		GraphObj->SetSearchDependencyDepthLimit(NewValue);
-		RebuildGraph();
-	}
+	Settings->SetSearchDependencyDepthLimit(NewValue);
+	RebuildGraph();
 }
 
 void SReferenceViewer::OnSearchReferencerDepthCommitted(int32 NewValue)
 {
-	if ( GraphObj )
-	{
-		GraphObj->SetSearchReferencerDepthLimit(NewValue);
-		RebuildGraph();
-	}
+	Settings->SetSearchReferencerDepthLimit(NewValue);
+	RebuildGraph();
 }
 
 void SReferenceViewer::OnSearchBreadthEnabledChanged( ECheckBoxState NewState )
 {
-	if ( GraphObj )
-	{
-		GraphObj->SetSearchBreadthLimitEnabled(NewState == ECheckBoxState::Checked);
-		RebuildGraph();
-	}
+	Settings->SetSearchBreadthLimitEnabled(NewState == ECheckBoxState::Checked);
+	RebuildGraph();
 }
 
 ECheckBoxState SReferenceViewer::IsSearchBreadthEnabledChecked() const
 {
-	if ( GraphObj )
-	{
-		return GraphObj->IsSearchBreadthLimited() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	}
-	else
-	{
-		return ECheckBoxState::Unchecked;
-	}
+	return Settings->IsSearchBreadthLimited() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 TSharedRef<SWidget> SReferenceViewer::GenerateCollectionFilterItem(TSharedPtr<FName> InItem)
@@ -877,28 +839,18 @@ TSharedRef<SWidget> SReferenceViewer::GenerateCollectionFilterItem(TSharedPtr<FN
 
 void SReferenceViewer::OnEnableCollectionFilterChanged(ECheckBoxState NewState)
 {
-	if (GraphObj)
+	const bool bNewValue = NewState == ECheckBoxState::Checked;
+	const bool bCurrentValue = Settings->GetEnableCollectionFilter();
+	if (bCurrentValue != bNewValue)
 	{
-		const bool bNewValue = NewState == ECheckBoxState::Checked;
-		const bool bCurrentValue = GraphObj->GetEnableCollectionFilter();
-		if (bCurrentValue != bNewValue)
-		{
-			GraphObj->SetEnableCollectionFilter(NewState == ECheckBoxState::Checked);
-			RebuildGraph();
-		}
+		Settings->SetEnableCollectionFilter(NewState == ECheckBoxState::Checked);
+		RebuildGraph();
 	}
 }
 
 ECheckBoxState SReferenceViewer::IsEnableCollectionFilterChecked() const
 {
-	if (GraphObj)
-	{
-		return GraphObj->GetEnableCollectionFilter() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	}
-	else
-	{
-		return ECheckBoxState::Unchecked;
-	}
+	return Settings->GetEnableCollectionFilter() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
 void SReferenceViewer::UpdateCollectionsComboList()
@@ -963,7 +915,7 @@ void SReferenceViewer::HandleCollectionFilterChanged(TSharedPtr<FName> Item, ESe
 			if (CurrentFilter == NAME_None)
 			{
 				// Automatically check the box to enable the filter if the previous filter was None
-				GraphObj->SetEnableCollectionFilter(true);
+				Settings->SetEnableCollectionFilter(true);
 			}
 
 			GraphObj->SetCurrentCollectionFilter(NewFilter);
@@ -979,46 +931,36 @@ FText SReferenceViewer::GetCollectionFilterText() const
 
 void SReferenceViewer::OnShowSoftReferencesChanged()
 {
-	if (GraphObj)
-	{
-		GraphObj->SetShowSoftReferencesEnabled( !GraphObj->IsShowSoftReferences() );
-		RebuildGraph();
-	}
+	Settings->SetShowSoftReferencesEnabled( !Settings->IsShowSoftReferences() );
+	RebuildGraph();
 }
 
 bool SReferenceViewer::IsShowSoftReferencesChecked() const
 {
-	return GraphObj ? GraphObj->IsShowSoftReferences() : false;
+	return Settings->IsShowSoftReferences();
 }
 
 void SReferenceViewer::OnShowHardReferencesChanged()
 {
-	if (GraphObj)
-	{
-		GraphObj->SetShowHardReferencesEnabled(!GraphObj->IsShowHardReferences());
-		RebuildGraph();
-	}
+	Settings->SetShowHardReferencesEnabled(!Settings->IsShowHardReferences());
+	RebuildGraph();
 }
-
 
 bool SReferenceViewer::IsShowHardReferencesChecked() const
 {
-	return GraphObj ? GraphObj->IsShowHardReferences() : false;
+	return Settings->IsShowHardReferences();
 }
 
 void SReferenceViewer::OnShowFilteredPackagesOnlyChanged()
 {
-	if (GraphObj)
-	{
-		GraphObj->SetShowFilteredPackagesOnlyEnabled(!GraphObj->IsShowFilteredPackagesOnly());
-	}
+	Settings->SetShowFilteredPackagesOnlyEnabled(!Settings->IsShowFilteredPackagesOnly());
 	UpdateIsPassingFilterPackageCallback();
 }
 
 
 bool SReferenceViewer::IsShowFilteredPackagesOnlyChecked() const
 {
-	return GraphObj ? GraphObj->IsShowFilteredPackagesOnly() : false;
+	return Settings->IsShowFilteredPackagesOnly();
 }
 
 void SReferenceViewer::UpdateIsPassingFilterPackageCallback()
@@ -1030,7 +972,7 @@ void SReferenceViewer::UpdateIsPassingFilterPackageCallback()
 		TArray<FString> SearchWords;
 		SearchString.ParseIntoArrayWS(SearchWords);
 		{
-			if (GraphObj->IsShowFilteredPackagesOnly())
+			if (Settings->IsShowFilteredPackagesOnly())
 			{
 				if (SearchWords.Num() > 0)
 				{
@@ -1046,44 +988,35 @@ void SReferenceViewer::UpdateIsPassingFilterPackageCallback()
 
 void SReferenceViewer::OnCompactModeChanged()
 {
-	if (GraphObj)
-	{
-		GraphObj->SetCompactModeEnabled(!GraphObj->IsCompactMode());
-		RebuildGraph();
-	}
+	Settings->SetCompactModeEnabled(!Settings->IsCompactMode());
+	RebuildGraph();
 }
 
 bool SReferenceViewer::IsCompactModeChecked() const
 {
-	return GraphObj ? GraphObj->IsCompactMode() : false;
+	return Settings->IsCompactMode();
 }
 
 void SReferenceViewer::OnShowDuplicatesChanged()
 {
-	if (GraphObj)
-	{
-		GraphObj->SetShowDuplicatesEnabled(!GraphObj->IsShowDuplicates());
-		RebuildGraph();
-	}
+	Settings->SetShowDuplicatesEnabled(!Settings->IsShowDuplicates());
+	RebuildGraph();
 }
 
 bool SReferenceViewer::IsShowDuplicatesChecked() const
 {
-	return GraphObj ? GraphObj->IsShowDuplicates() : false;
+	return Settings->IsShowDuplicates();
 }
 
 void SReferenceViewer::OnShowEditorOnlyReferencesChanged()
 {
-	if (GraphObj)
-	{
-		GraphObj->SetShowEditorOnlyReferencesEnabled(!GraphObj->IsShowEditorOnlyReferences());
-		RebuildGraph();
-	}
+	Settings->SetShowEditorOnlyReferencesEnabled(!Settings->IsShowEditorOnlyReferences());
+	RebuildGraph();
 }
 
 bool SReferenceViewer::IsShowEditorOnlyReferencesChecked() const
 {
-	return GraphObj ? GraphObj->IsShowEditorOnlyReferences() : false;
+	return Settings->IsShowEditorOnlyReferences();
 }
 
 
@@ -1094,61 +1027,49 @@ bool SReferenceViewer::GetManagementReferencesVisibility() const
 
 void SReferenceViewer::OnShowManagementReferencesChanged()
 {
-	if (GraphObj)
-	{
-		// This can take a few seconds if it isn't ready
-		UAssetManager::Get().UpdateManagementDatabase();
+	// This can take a few seconds if it isn't ready
+	UAssetManager::Get().UpdateManagementDatabase();
 
-		GraphObj->SetShowManagementReferencesEnabled(!GraphObj->IsShowManagementReferences());
-		RebuildGraph();
-	}
+	Settings->SetShowManagementReferencesEnabled(!Settings->IsShowManagementReferences());
+	RebuildGraph();
 }
 
 bool SReferenceViewer::IsShowManagementReferencesChecked() const
 {
-	return GraphObj ? GraphObj->IsShowManagementReferences() : false;
+	return Settings->IsShowManagementReferences();
 }
 
 void SReferenceViewer::OnShowSearchableNamesChanged()
 {
-	if (GraphObj)
-	{
-		GraphObj->SetShowSearchableNames(!GraphObj->IsShowSearchableNames());
-		RebuildGraph();
-	}
+	Settings->SetShowSearchableNames(!Settings->IsShowSearchableNames());
+	RebuildGraph();
 }
 
 bool SReferenceViewer::IsShowSearchableNamesChecked() const
 {
-	return GraphObj ? GraphObj->IsShowSearchableNames() : false;
+	return Settings->IsShowSearchableNames();
 }
 
 void SReferenceViewer::OnShowNativePackagesChanged()
 {
-	if (GraphObj)
-	{
-		GraphObj->SetShowNativePackages(!GraphObj->IsShowNativePackages());
-		RebuildGraph();
-	}
+	Settings->SetShowNativePackages(!Settings->IsShowNativePackages());
+	RebuildGraph();
 }
 
 bool SReferenceViewer::IsShowNativePackagesChecked() const
 {
-	return GraphObj ? GraphObj->IsShowNativePackages() : false;
+	return Settings->IsShowNativePackages();
 }
 
 int32 SReferenceViewer::GetSearchBreadthCount() const
 {
-	return GraphObj ? GraphObj->GetSearchBreadthLimit() : 0;
+	return Settings->GetSearchBreadthLimit();
 }
 
 void SReferenceViewer::OnSearchBreadthCommitted(int32 NewValue)
 {
-	if ( GraphObj )
-	{
-		GraphObj->SetSearchBreadthLimit(NewValue);
-		RebuildGraph();
-	}
+	Settings->SetSearchBreadthLimit(NewValue);
+	RebuildGraph();
 }
 
 void SReferenceViewer::RegisterActions()

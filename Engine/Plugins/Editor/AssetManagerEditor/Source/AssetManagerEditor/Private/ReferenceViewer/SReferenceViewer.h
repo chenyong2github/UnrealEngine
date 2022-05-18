@@ -14,6 +14,7 @@
 #include "CollectionManagerTypes.h"
 #include "AssetManagerEditorModule.h"
 #include "Containers/ArrayView.h"
+#include "ReferenceViewer/ReferenceViewerSettings.h"
 
 class UEdGraph;
 class UEdGraph_ReferenceViewer;
@@ -203,6 +204,8 @@ private:
 	TSharedPtr<SWidget> BreadthLimitBox;
 
 	UEdGraph_ReferenceViewer* GraphObj;
+
+	UReferenceViewerSettings* Settings;
 
 	/** The temporary copy of the path text when it is actively being edited. */
 	FText TemporaryPathBeingEdited;

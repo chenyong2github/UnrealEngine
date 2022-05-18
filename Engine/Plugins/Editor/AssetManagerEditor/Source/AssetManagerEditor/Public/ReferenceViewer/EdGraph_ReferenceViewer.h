@@ -13,6 +13,7 @@
 class FAssetThumbnailPool;
 class UEdGraphNode_Reference;
 class SReferenceViewer;
+class UReferenceViewerSettings;
 enum class EDependencyPinCategory;
 
 /*
@@ -77,51 +78,11 @@ public:
 	/** Force the graph to rebuild */
 	class UEdGraphNode_Reference* RebuildGraph();
 
-	bool IsSearchDepthLimited() const;
-	bool IsSearchBreadthLimited() const;
-	bool IsShowSoftReferences() const;
-	bool IsShowHardReferences() const;
-	bool IsShowFilteredPackagesOnly() const;
-	bool IsShowEditorOnlyReferences() const;
-	bool IsShowManagementReferences() const;
-	bool IsShowSearchableNames() const;
-	bool IsShowNativePackages() const;
-	bool IsShowReferencers() const;
-	bool IsShowDependencies() const;
-	bool IsCompactMode() const;
-	bool IsShowDuplicates() const;
-
-	void SetSearchDepthLimitEnabled(bool newEnabled);
-	void SetSearchBreadthLimitEnabled(bool newEnabled);
-	void SetShowSoftReferencesEnabled(bool newEnabled);
-	void SetShowHardReferencesEnabled(bool newEnabled);
-	void SetShowFilteredPackagesOnlyEnabled(bool newEnabled);
-	void SetShowEditorOnlyReferencesEnabled(bool newEnabled);
-	void SetShowManagementReferencesEnabled(bool newEnabled);
-	void SetShowSearchableNames(bool newEnabled);
-	void SetShowNativePackages(bool newEnabled);
-	void SetShowReferencers(const bool bShouldShowReferencers);
-	void SetShowDependencies(const bool bShouldShowDependencies);
-	void SetCompactModeEnabled(bool newEnabled);
-	void SetShowDuplicatesEnabled(bool newEnabled);
-
 	using FIsPackageNamePassingFilterCallback = TFunction<bool(FName)>;
 	void SetIsPackageNamePassingFilterCallback(const TOptional<FIsPackageNamePassingFilterCallback>& InIsPackageNamePassingFilterCallback) { IsPackageNamePassingFilterCallback = InIsPackageNamePassingFilterCallback; }
 
-	int32 GetSearchReferencerDepthLimit() const;
-	void SetSearchReferencerDepthLimit(int32 NewDepthLimit);
-
-	int32 GetSearchDependencyDepthLimit() const;
-	void SetSearchDependencyDepthLimit(int32 NewDepthLimit);
-
-	int32 GetSearchBreadthLimit() const;
-	void SetSearchBreadthLimit(int32 NewBreadthLimit);
-
 	FName GetCurrentCollectionFilter() const;
 	void SetCurrentCollectionFilter(FName NewFilter);
-
-	bool GetEnableCollectionFilter() const;
-	void SetEnableCollectionFilter(bool bEnabled);
 
 	/* Temporary variable that allows reverting to deprecated layout methods */
 	bool GetUseNodeInfos() const { return bUseNodeInfos; }
@@ -178,39 +139,22 @@ private:
 	TArray<FAssetIdentifier> CurrentGraphRootIdentifiers;
 	FIntPoint CurrentGraphRootOrigin;
 
-	int32 MaxSearchReferencerDepth; // How deep to search references
-	int32 MaxSearchDependencyDepth; // How deep to search dependanies
 	int32 MaxSearchBreadth;
 
 	/** Current collection filter. NAME_None for no filter */
 	FName CurrentCollectionFilter;
-	bool bEnableCollectionFilter;
 
-	bool bLimitSearchDepth;
-	bool bLimitSearchBreadth;
-	bool bIsShowSoftReferences;
-	bool bIsShowHardReferences;
-	bool bIsShowEditorOnlyReferences;
-	bool bIsShowManagementReferences;
-	bool bIsShowSearchableNames;
-	bool bIsShowNativePackages;
-	/* Whether to display the Referencers */
-	bool bIsShowReferencers;
-	/* Whether to display the Dependencies */
-	bool bIsShowDependencies;
-	/* Whether to show duplicate asset references */
-	bool bIsShowDuplicates;
 
 	/* This is a convenience toggle to switch between the old & new methods for computing & displaying the graph */
 	bool bUseNodeInfos;
 
-	bool bIsShowFilteredPackagesOnly;
 	TOptional<FIsPackageNamePassingFilterCallback> IsPackageNamePassingFilterCallback;
 
 	/** List of packages the current collection filter allows */
 	TSet<FName> CurrentCollectionPackages;
 
-	bool bIsCompactMode;
+
+	UReferenceViewerSettings* Settings;
 
 	friend SReferenceViewer;
 };
