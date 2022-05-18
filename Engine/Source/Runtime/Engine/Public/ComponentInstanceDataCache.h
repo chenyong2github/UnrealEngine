@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
 #include "UObject/StructOnScope.h"
 #include "ComponentInstanceDataCache.generated.h"
@@ -33,12 +34,15 @@ enum class EComponentCreationMethod : uint8
 	Instance,
 };
 
+UE_DEPRECATED(5.1, "FActorComponentDuplicatedObjectData has been renamed to FDataCacheDuplicatedObjectData")
+typedef FDataCacheDuplicatedObjectData FActorComponentDuplicatedObjectData;
+
 USTRUCT()
-struct FActorComponentDuplicatedObjectData
+struct FDataCacheDuplicatedObjectData
 {
 	GENERATED_BODY()
 
-	FActorComponentDuplicatedObjectData(UObject* InObject = nullptr);
+	FDataCacheDuplicatedObjectData(UObject* InObject = nullptr);
 
 	bool Serialize(FArchive& Ar);
 
@@ -51,7 +55,7 @@ struct FActorComponentDuplicatedObjectData
 
 // Trait to signal ActorCompomentInstanceData duplicated objects uses a serialize function
 template<>
-struct TStructOpsTypeTraits<FActorComponentDuplicatedObjectData> : public TStructOpsTypeTraitsBase2<FActorComponentDuplicatedObjectData>
+struct TStructOpsTypeTraits<FDataCacheDuplicatedObjectData> : public TStructOpsTypeTraitsBase2<FDataCacheDuplicatedObjectData>
 {
 	enum
 	{
@@ -66,16 +70,59 @@ class UActorComponentInstanceDataTransientOuter : public UObject
 	GENERATED_BODY()
 };
 
+/** Base class for instance cached data of a particular type. */
+USTRUCT()
+struct ENGINE_API FInstanceCacheDataBase
+{
+	GENERATED_BODY()
+
+	virtual ~FInstanceCacheDataBase() = default;
+
+	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+
+	/** Get (or create) the unique transient outer for the duplicated objects created for this object */
+	UObject* GetUniqueTransientPackage();
+
+	const TArray<FDataCacheDuplicatedObjectData>& GetDuplicatedObjects() const { return DuplicatedObjects; }
+	const TArray<TObjectPtr<UObject>>& GetReferencedObjects() const { return ReferencedObjects; }
+	const TArray<uint8>& GetSavedProperties() const { return SavedProperties; }
+
+protected:
+	UPROPERTY()
+	TArray<uint8> SavedProperties;
+
+private:
+	friend class FDataCachePropertyWriter;
+	friend class FDataCachePropertyReader;
+
+	/** 
+	 * A unique outer created in the transient package to act as outer for this object's duplicated objects 
+	 * to avoid name conflicts of objects that already exist in the transient package
+	 */
+	UPROPERTY()
+	FDataCacheDuplicatedObjectData UniqueTransientPackage;
+
+	// Duplicated objects created when saving instance properties
+	UPROPERTY()
+	TArray<FDataCacheDuplicatedObjectData> DuplicatedObjects;
+
+	// Referenced objects in instance saved properties
+	UPROPERTY()
+	TArray<TObjectPtr<UObject>> ReferencedObjects;
+
+	// Referenced names in instance saved properties
+	UPROPERTY()
+	TArray<FName> ReferencedNames;
+};
+
 /** Base class for component instance cached data of a particular type. */
 USTRUCT()
-struct ENGINE_API FActorComponentInstanceData
+struct ENGINE_API FActorComponentInstanceData : public FInstanceCacheDataBase
 {
 	GENERATED_BODY()
 public:
 	FActorComponentInstanceData();
 	FActorComponentInstanceData(const UActorComponent* SourceComponent);
-
-	virtual ~FActorComponentInstanceData() = default;
 
 	/** Determines whether this component instance data matches the component */
 	bool MatchesComponent(const UActorComponent* Component, const UObject* ComponentTemplate, const TMap<UActorComponent*, const UObject*>& ComponentToArchetypeMap) const;
@@ -89,18 +136,13 @@ public:
 	/** Replaces any references to old instances during Actor reinstancing */
 	virtual void FindAndReplaceInstances(const TMap<UObject*, UObject*>& OldToNewInstanceMap) { };
 
-	virtual void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	const UClass* GetComponentClass() const { return SourceComponentTemplate ? SourceComponentTemplate->GetClass() : nullptr; }
 
 	const UObject* GetComponentTemplate() const { return SourceComponentTemplate; }
 
-	/** Get (or create) the unique transient outer for the duplicated objects created for this component */
-	UObject* GetUniqueTransientPackage();
-
 protected:
-	friend class FComponentPropertyWriter;
-	friend class FComponentPropertyReader;
 
 	/** The template used to create the source component */
 	UPROPERTY()
@@ -114,28 +156,29 @@ protected:
 	when filtered to just that component type */
 	UPROPERTY()
 	int32 SourceComponentTypeSerializedIndex;
+};
 
-	UPROPERTY()
-	TArray<uint8> SavedProperties;
+/** Per instance data to be persisted for a given actor */
+USTRUCT()
+struct ENGINE_API FActorInstanceData : public FInstanceCacheDataBase
+{
+	GENERATED_BODY()
+public:
+	FActorInstanceData() = default;
+	FActorInstanceData(const AActor* SourceActor);
 
-	/** 
-	 * A unique outer created in the transient package to act as outer for this component's duplicated objects 
-	 * to avoid name conflicts of objects that already exist in the transient package
-	 */
-	UPROPERTY()
-	FActorComponentDuplicatedObjectData UniqueTransientPackage;
+	const UClass* GetActorClass() const;
 
-	// Duplicated objects created when saving component instance properties
-	UPROPERTY()
-	TArray<FActorComponentDuplicatedObjectData> DuplicatedObjects;
+	bool HasInstanceData() const { return GetSavedProperties().Num() > 0; }
 
-	// Referenced objects in component instance saved properties
-	UPROPERTY()
-	TArray<TObjectPtr<UObject>> ReferencedObjects;
+	/** Iterates over an Actor's components and applies the stored component instance data to each */
+	void ApplyToActor(AActor* Actor, const ECacheApplyPhase CacheApplyPhase);
 
-	// Referenced names in component instance saved properties
+protected:
+
+	/** The class of the actor that the instance data is for */
 	UPROPERTY()
-	TArray<FName> ReferencedNames;
+	TSubclassOf<AActor> ActorClass;
 };
 
 /** 
