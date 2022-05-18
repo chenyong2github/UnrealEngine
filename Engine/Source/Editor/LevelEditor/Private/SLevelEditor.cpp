@@ -594,7 +594,7 @@ TSharedPtr<FTabManager> SLevelEditor::GetTabManager() const
 	return LevelEditorTabManager;
 }
 
-void SLevelEditor::AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> NewSequencerAssetEditor )
+TSharedPtr<SDockTab> SLevelEditor::AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> NewSequencerAssetEditor )
 {
 	struct Local
 	{
@@ -649,7 +649,11 @@ void SLevelEditor::AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TShared
 				SequencerAssetEditor.Reset();
 			}
 		}
+
+		return Tab;
 	}
+	
+	return nullptr;
 }
 
 TArray<TWeakPtr<ISceneOutliner>> SLevelEditor::GetAllSceneOutliners() const

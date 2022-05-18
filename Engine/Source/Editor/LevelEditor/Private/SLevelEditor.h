@@ -21,6 +21,7 @@ class IAssetEditorInstance;
 class IDetailsView;
 class SActorDetails;
 class SBorder;
+class SDockTab;
 class SLevelEditorModeContent;
 class SLevelEditorToolBox;
 class UTypedElementSelectionSet;
@@ -148,7 +149,7 @@ public:
 	}
 	
 	/** Attaches a sequencer asset editor used to animate objects in the level to this level editor */
-	void AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> NewSequencerAssetEditor );
+	TSharedPtr<SDockTab> AttachSequencer( TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> NewSequencerAssetEditor );
 
 	/** Get an array containing weak pointers to all 4 Scene Outliners which could be potentially active */
 	virtual TArray<TWeakPtr<ISceneOutliner>> GetAllSceneOutliners() const override;

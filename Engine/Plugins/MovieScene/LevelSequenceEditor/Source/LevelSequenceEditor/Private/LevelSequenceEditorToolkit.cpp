@@ -228,7 +228,12 @@ void FLevelSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, cons
 	}
 	
 	// Now Attach so this window will apear in the correct front first order
-	LevelEditorModule.AttachSequencer(Sequencer->GetSequencerWidget(), SharedThis(this));
+	TSharedPtr<SDockTab> DockTab = LevelEditorModule.AttachSequencer(Sequencer->GetSequencerWidget(), SharedThis(this));
+	if (DockTab.IsValid())
+	{
+		TAttribute<FText> LabelSuffix = TAttribute<FText>(this, &FLevelSequenceEditorToolkit::GetTabSuffix);
+		DockTab->SetTabLabelSuffix(LabelSuffix);
+	}
 
 	// We need to find out when the user loads a new map, because we might need to re-create puppet actors
 	// when previewing a MovieScene
@@ -285,6 +290,24 @@ FLinearColor FLevelSequenceEditorToolkit::GetWorldCentricTabColorScale() const
 FString FLevelSequenceEditorToolkit::GetWorldCentricTabPrefix() const
 {
 	return LOCTEXT("WorldCentricTabPrefix", "Sequencer ").ToString();
+}
+
+FText FLevelSequenceEditorToolkit::GetTabSuffix() const
+{
+	UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
+
+	if (Sequence == nullptr)
+	{
+		return FText::GetEmpty();
+	}
+	
+	const bool bIsDirty = Sequence->GetMovieScene()->GetOuter()->GetOutermost()->IsDirty();
+	if (bIsDirty)
+	{
+		return LOCTEXT("TabSuffixAsterix", "*");
+	}
+
+	return FText::GetEmpty();
 }
 
 /* FLevelSequenceEditorToolkit implementation

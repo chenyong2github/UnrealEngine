@@ -127,7 +127,13 @@ void FTemplateSequenceEditorToolkit::Initialize(const EToolkitMode::Type Mode, c
 		}
 	}
 
-	LevelEditorModule.AttachSequencer(Sequencer->GetSequencerWidget(), SharedThis(this));
+	TSharedPtr<SDockTab> DockTab = LevelEditorModule.AttachSequencer(Sequencer->GetSequencerWidget(), SharedThis(this));
+	if (DockTab.IsValid())
+	{
+		TAttribute<FText> LabelSuffix = TAttribute<FText>(this, &FTemplateSequenceEditorToolkit::GetTabSuffix);
+		DockTab->SetTabLabelSuffix(LabelSuffix);
+	}
+
 	LevelEditorModule.OnMapChanged().AddRaw(this, &FTemplateSequenceEditorToolkit::HandleMapChanged);
 }
 
@@ -145,6 +151,24 @@ FName FTemplateSequenceEditorToolkit::GetToolkitFName() const
 FString FTemplateSequenceEditorToolkit::GetWorldCentricTabPrefix() const
 {
 	return LOCTEXT("WorldCentricTabPrefix", "Sequencer ").ToString();
+}
+
+FText FTemplateSequenceEditorToolkit::GetTabSuffix() const
+{
+	UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
+
+	if (Sequence == nullptr)
+	{
+		return FText::GetEmpty();
+	}
+
+	const bool bIsDirty = Sequence->GetMovieScene()->GetOuter()->GetOutermost()->IsDirty();
+	if (bIsDirty)
+	{
+		return LOCTEXT("TabSuffixAsterix", "*");
+	}
+
+	return FText::GetEmpty();
 }
 
 FLinearColor FTemplateSequenceEditorToolkit::GetWorldCentricTabColorScale() const

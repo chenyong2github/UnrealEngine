@@ -15,6 +15,7 @@
 
 class AActor;
 class IAssetViewport;
+class SDockTab;
 class SLevelEditor;
 class UAnimSequence;
 class USkeletalMeshComponent;
@@ -112,7 +113,7 @@ public:
 	 * Spawns a new sequencer tab if one doesn't exist already
 	 * @todo This only works with the first level editor. Fix it.
 	 */
-	virtual void AttachSequencer(TSharedPtr<SWidget> SequencerWidget, TSharedPtr<class IAssetEditorInstance> SequencerAssetEditor );
+	virtual TSharedPtr<SDockTab> AttachSequencer(TSharedPtr<SWidget> SequencerWidget, TSharedPtr<class IAssetEditorInstance> SequencerAssetEditor );
 
 	/**
 	 * Starts a play in editor session using the active viewport

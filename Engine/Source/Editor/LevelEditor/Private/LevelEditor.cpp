@@ -379,13 +379,15 @@ void FLevelEditorModule::SummonWorldBrowserComposition()
 }
 
 // @todo remove when world-centric mode is added
-void FLevelEditorModule::AttachSequencer(TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> SequencerAssetEditor)
+TSharedPtr<SDockTab> FLevelEditorModule::AttachSequencer(TSharedPtr<SWidget> SequencerWidget, TSharedPtr<IAssetEditorInstance> SequencerAssetEditor)
 {
 	TSharedPtr<SLevelEditor> LevelEditorInstance = LevelEditorInstancePtr.Pin();
 	if (LevelEditorInstance)
 	{
-		LevelEditorInstance->AttachSequencer(SequencerWidget, SequencerAssetEditor);
+		return LevelEditorInstance->AttachSequencer(SequencerWidget, SequencerAssetEditor);
 	}
+
+	return nullptr;
 }
 
 TSharedPtr<IAssetViewport> FLevelEditorModule::GetFirstActiveViewport()
