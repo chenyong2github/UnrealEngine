@@ -39,7 +39,12 @@ public:
 
 	virtual ~FXPBDBendingConstraints() override {}
 
-	void Init() const { for (FSolverReal& Lambda : Lambdas) { Lambda = (FSolverReal)0.; } }
+	void Init(const FSolverParticles& InParticles)
+	{ 
+		Lambdas.Reset();
+		Lambdas.AddZeroed(Constraints.Num());
+		FPBDBendingConstraintsBase::Init(InParticles);
+	}
 
 	// Update stiffness values
 	void SetProperties(const FSolverVec2& InStiffness, const FSolverReal InBucklingRatio, const FSolverVec2& InBucklingStiffness)

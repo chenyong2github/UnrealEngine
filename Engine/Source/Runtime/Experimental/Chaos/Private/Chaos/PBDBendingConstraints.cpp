@@ -110,8 +110,8 @@ void FPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(ispc::FIntVector4*)&Constraints.GetData()[ColorStart],
 						&RestAngles.GetData()[ColorStart],
+						&IsBuckled.GetData()[ColorStart],
 						ExpStiffnessValue,
-						BucklingRatio,
 						ExpBucklingValue,
 						ColorSize);
 				}
@@ -144,10 +144,10 @@ void FPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRea
 						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(ispc::FIntVector4*)&Constraints.GetData()[ColorStart],
 						&RestAngles.GetData()[ColorStart],
+						&IsBuckled.GetData()[ColorStart],
 						StiffnessHasWeightMap,
 						&Stiffness.GetIndices().GetData()[ColorStart],
 						&Stiffness.GetTable().GetData()[0],
-						BucklingRatio,
 						BucklingStiffnessHasWeightMap,
 						&BucklingStiffness.GetIndices().GetData()[ColorStart],
 						&BucklingStiffness.GetTable().GetData()[0],

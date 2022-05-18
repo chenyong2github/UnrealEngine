@@ -75,14 +75,14 @@ void FXPBDBendingConstraints::ApplyHelper(FSolverParticles& Particles, const FSo
 	const int32 i2 = Constraint[1];
 	const int32 i3 = Constraint[2];
 	const int32 i4 = Constraint[3];
-	const FSolverReal Angle = CalcAngle(Particles.P(i1), Particles.P(i2), Particles.P(i3), Particles.P(i4));
 
-	const FSolverReal BiphasicStiffnessValue = AngleIsBuckled(Angle, RestAngles[ConstraintIndex]) ? BucklingValue : StiffnessValue;
+	const FSolverReal BiphasicStiffnessValue = IsBuckled[ConstraintIndex] ? BucklingValue : StiffnessValue;
 	if (BiphasicStiffnessValue < XPBDBendMinStiffness || (Particles.InvM(i1) == (FSolverReal)0. && Particles.InvM(i2) == (FSolverReal)0. && Particles.InvM(i3) == (FSolverReal)0. && Particles.InvM(i4) == (FSolverReal)0.))
 	{
 		return;
 	}
 
+	const FSolverReal Angle = CalcAngle(Particles.P(i1), Particles.P(i2), Particles.P(i3), Particles.P(i4));
 	const TStaticArray<FSolverVec3, 4> Grads = Base::GetGradients(Particles, ConstraintIndex);
 
 	FSolverReal& Lambda = Lambdas[ConstraintIndex];
@@ -129,11 +129,11 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(ispc::FIntVector4*)&Constraints.GetData()[ColorStart],
 						&RestAngles.GetData()[ColorStart],
+						&IsBuckled.GetData()[ColorStart],
 						&Lambdas.GetData()[ColorStart],
 						Dt,
 						XPBDBendMinStiffness,
 						ExpStiffnessValue,
-						BucklingRatio,
 						ExpBucklingValue,
 						ColorSize);
 				}
@@ -166,13 +166,13 @@ void FXPBDBendingConstraints::Apply(FSolverParticles& Particles, const FSolverRe
 						(ispc::FVector4f*)Particles.GetPAndInvM().GetData(),
 						(ispc::FIntVector4*)&Constraints.GetData()[ColorStart],
 						&RestAngles.GetData()[ColorStart],
+						&IsBuckled.GetData()[ColorStart],
 						&Lambdas.GetData()[ColorStart],
 						Dt,
 						XPBDBendMinStiffness,
 						StiffnessHasWeightMap,
 						&Stiffness.GetIndices().GetData()[ColorStart],
 						&Stiffness.GetTable().GetData()[0],
-						BucklingRatio,
 						BucklingStiffnessHasWeightMap,
 						&BucklingStiffness.GetIndices().GetData()[ColorStart],
 						&BucklingStiffness.GetTable().GetData()[0],

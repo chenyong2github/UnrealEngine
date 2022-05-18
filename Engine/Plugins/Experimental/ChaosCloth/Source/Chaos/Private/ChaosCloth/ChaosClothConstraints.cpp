@@ -158,8 +158,9 @@ void FClothConstraints::CreateRules()
 	if (BendingElementConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
 			{
+				BendingElementConstraints->Init(Particles);
 				BendingElementConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 			};
 		ConstraintRules[ConstraintRuleIndex++] =
@@ -171,9 +172,9 @@ void FClothConstraints::CreateRules()
 	if (XBendingElementConstraints)
 	{
 		ConstraintInits[ConstraintInitIndex++] =
-			[this](Softs::FSolverParticles& /*Particles*/, const Softs::FSolverReal Dt)
+			[this](Softs::FSolverParticles& Particles, const Softs::FSolverReal Dt)
 		{
-			XBendingElementConstraints->Init();
+			XBendingElementConstraints->Init(Particles);
 			XBendingElementConstraints->ApplyProperties(Dt, Evolution->GetIterations());
 		};
 		ConstraintRules[ConstraintRuleIndex++] =

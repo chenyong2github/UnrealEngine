@@ -51,11 +51,11 @@ static inline float CalcGradientsAndAngle(const FVector3f& P1, const FVector3f& 
 export void ApplyXPBDBendingConstraints(uniform FVector4f PandInvM[],
 									const uniform FIntVector4 Constraints[],
 									const uniform float RestAngles[],
+									const uniform bool IsBuckled[],
 									uniform float Lambdas[],
 									const uniform float Dt,
 									const uniform float MinStiffness,
 									const uniform float Stiffness,
-									const uniform float BucklingRatio,
 									const uniform float BucklingStiffness,
 									const uniform int32 NumConstraints)
 {
@@ -86,8 +86,7 @@ export void ApplyXPBDBendingConstraints(uniform FVector4f PandInvM[],
 		const varying float Angle = CalcGradientsAndAngle(P1, P2, P3, P4, Grad1, Grad2, Grad3, Grad4);
 		
 		const varying float RestAngle = RestAngles[i];
-		const varying bool AngleIsBuckled = FLOAT_PI - abs(Angle) < BucklingRatio * (FLOAT_PI - abs(RestAngle));
-		const varying float StiffnessValue = select(AngleIsBuckled, BucklingStiffness, Stiffness);
+		const varying float StiffnessValue = select(IsBuckled[i], BucklingStiffness, Stiffness);
 		
 		const varying float Lambda = Lambdas[i];
 		const varying float Alpha  = 1.f / (StiffnessValue * Dt * Dt);
@@ -119,13 +118,13 @@ export void ApplyXPBDBendingConstraints(uniform FVector4f PandInvM[],
 export void ApplyXPBDBendingConstraintsWithMaps(uniform FVector4f PandInvM[],
 											const uniform FIntVector4 Constraints[],
 											const uniform float RestAngles[],
+											const uniform bool IsBuckled[],
 											uniform float Lambdas[],
 											const uniform float Dt,
 											const uniform float MinStiffness,
 											const uniform bool StiffnessHasMap,
 											const uniform uint8 StiffnessIndices[],
 											const uniform float StiffnessTable[],
-											const uniform float BucklingRatio,
 											const uniform bool BucklingStiffnessHasMap,
 											const uniform uint8 BucklingStiffnessIndices[],
 											const uniform float BucklingStiffnessTable[],
@@ -166,8 +165,7 @@ export void ApplyXPBDBendingConstraintsWithMaps(uniform FVector4f PandInvM[],
 		const varying float BucklingStiffness = BucklingStiffnessTable[BucklingStiffnessIndex];
 		
 		const varying float RestAngle = RestAngles[i];
-		const varying bool AngleIsBuckled = FLOAT_PI - abs(Angle) < BucklingRatio * (FLOAT_PI - abs(RestAngle));
-		const varying float StiffnessValue = select(AngleIsBuckled, BucklingStiffness, Stiffness);
+		const varying float StiffnessValue = select(IsBuckled[i], BucklingStiffness, Stiffness);
 		
 		const varying float Lambda = Lambdas[i];
 		const varying float Alpha  = 1.f / (StiffnessValue * Dt * Dt);

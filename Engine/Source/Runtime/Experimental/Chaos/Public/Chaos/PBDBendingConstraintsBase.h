@@ -98,7 +98,7 @@ public:
 		const FSolverReal Angle = CalcAngle(P1, P2, P3, P4);
 		const FSolverReal Denom = (InParticles.InvM(i1) * Grads[0].SizeSquared() + InParticles.InvM(i2) * Grads[1].SizeSquared() + InParticles.InvM(i3) * Grads[2].SizeSquared() + InParticles.InvM(i4) * Grads[3].SizeSquared());
 
-		const FSolverReal StiffnessValue = AngleIsBuckled(Angle, RestAngles[i]) ? ExpBucklingValue : ExpStiffnessValue;
+		const FSolverReal StiffnessValue = IsBuckled[i] ? ExpBucklingValue : ExpStiffnessValue;
 
 		constexpr FSolverReal SingleStepAngleLimit = (FSolverReal)(UE_PI * .25f); // this constraint is very non-linear. taking large steps is not accurate
 		const FSolverReal Delta = FMath::Clamp(StiffnessValue * (Angle - RestAngles[i]), -SingleStepAngleLimit, SingleStepAngleLimit);
@@ -139,8 +139,28 @@ public:
 		return UE_PI - FMath::Abs(Angle) < BucklingRatio * (UE_PI - FMath::Abs(RestAngle));
 	}
 
+	void Init(const FSolverParticles& InParticles)
+	{
+		IsBuckled.SetNumUninitialized(Constraints.Num());
+		for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.Num(); ++ConstraintIndex)
+		{
+			const TVec4<int32>& Constraint = Constraints[ConstraintIndex];
+			const int32 i1 = Constraint[0];
+			const int32 i2 = Constraint[1];
+			const int32 i3 = Constraint[2];
+			const int32 i4 = Constraint[3];
+			const FSolverVec3& P1 = InParticles.X(i1);
+			const FSolverVec3& P2 = InParticles.X(i2);
+			const FSolverVec3& P3 = InParticles.X(i3);
+			const FSolverVec3& P4 = InParticles.X(i4);
+			const FSolverReal Angle = CalcAngle(P1, P2, P3, P4);
+			IsBuckled[ConstraintIndex] = AngleIsBuckled(Angle, RestAngles[ConstraintIndex]);
+		}
+	}
+
 	const TArray<FSolverReal>& GetRestAngles() const { return RestAngles; }
 	const TArray<TVec4<int32>>& GetConstraints() const { return Constraints; }
+	const TArray<bool>& GetIsBuckled() const { return IsBuckled; }
 
 private:
 	template<class TNum>
@@ -221,6 +241,7 @@ protected:
 	FPBDStiffness BucklingStiffness;
 
 	TArray<FSolverReal> RestAngles;
+	TArray<bool> IsBuckled;
 };
 
 }  // End namespace Chaos::Softs

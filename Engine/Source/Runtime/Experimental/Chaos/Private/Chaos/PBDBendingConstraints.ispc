@@ -53,8 +53,8 @@ static inline float CalcGradientsAndAngle(const FVector3f& P1, const FVector3f& 
 export void ApplyBendingConstraints(uniform FVector4f PandInvM[],
 									const uniform FIntVector4 Constraints[],
 									const uniform float RestAngles[],
+									const uniform bool IsBuckled[],
 									const uniform float Stiffness,
-									const uniform float BucklingRatio,
 									const uniform float BucklingStiffness,
 									const uniform int32 NumConstraints)
 {
@@ -88,8 +88,7 @@ export void ApplyBendingConstraints(uniform FVector4f PandInvM[],
 		const varying float Denom = M1 * VectorSizeSquared(Grad1) + M2 * VectorSizeSquared(Grad2) + M3 * VectorSizeSquared(Grad3) + M4 * VectorSizeSquared(Grad4);
 		
 		const varying float RestAngle = RestAngles[i];
-		const varying bool AngleIsBuckled = FLOAT_PI - abs(Angle) < BucklingRatio * (FLOAT_PI - abs(RestAngle));
-		const varying float StiffnessValue = select(AngleIsBuckled, BucklingStiffness, Stiffness);
+		const varying float StiffnessValue = select(IsBuckled[i], BucklingStiffness, Stiffness);
 
 		const varying float Delta = clamp(StiffnessValue * (Angle - RestAngle), -SingleStepAngleLimit, SingleStepAngleLimit);
 
@@ -117,10 +116,10 @@ export void ApplyBendingConstraints(uniform FVector4f PandInvM[],
 export void ApplyBendingConstraintsWithMaps(uniform FVector4f PandInvM[],
 											const uniform FIntVector4 Constraints[],
 											const uniform float RestAngles[],
+											const uniform bool IsBuckled[],
 											const uniform bool StiffnessHasMap,
 											const uniform uint8 StiffnessIndices[],
 											const uniform float StiffnessTable[],
-											const uniform float BucklingRatio,
 											const uniform bool BucklingStiffnessHasMap,
 											const uniform uint8 BucklingStiffnessIndices[],
 											const uniform float BucklingStiffnessTable[],
@@ -163,8 +162,7 @@ export void ApplyBendingConstraintsWithMaps(uniform FVector4f PandInvM[],
 		const varying float BucklingStiffness = BucklingStiffnessTable[BucklingStiffnessIndex];
 
 		const varying float RestAngle = RestAngles[i];
-		const varying bool AngleIsBuckled = FLOAT_PI - abs(Angle) < BucklingRatio * (FLOAT_PI - abs(RestAngle));
-		const varying float StiffnessValue = select(AngleIsBuckled, BucklingStiffness, Stiffness);
+		const varying float StiffnessValue = select(IsBuckled[i], BucklingStiffness, Stiffness);
 
 		const varying float Delta = clamp(StiffnessValue * (Angle - RestAngle), -SingleStepAngleLimit, SingleStepAngleLimit);
 
