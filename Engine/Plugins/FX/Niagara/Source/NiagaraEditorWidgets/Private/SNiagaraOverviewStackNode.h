@@ -30,10 +30,15 @@ protected:
 	virtual TSharedRef<SWidget> CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle) override;
 	virtual TSharedRef<SWidget> CreateTitleRightWidget() override;
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
+	virtual bool IsHidingPinWidgets() const override { return UseLowDetailNodeContent(); }
 	void StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags);
 	void StackViewModelDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 	void FillTopContentBar();
 	void OnMaterialCompiled(class UMaterialInterface* MaterialInterface);
+	bool UseLowDetailNodeContent() const;
+	FVector2D GetLowDetailDesiredSize() const;
+	FOptionalSize GetLowDetailDesiredWidth() const;
+	FOptionalSize GetLowDetailDesiredHeight() const;
 
 	void CreateBottomSummaryExpander();
 private:
@@ -86,10 +91,14 @@ private:
 	/** The top content bar houses the isolate button and the thumbnails */
 	TSharedPtr<SHorizontalBox> TopContentBar;
 	TSharedPtr<SWidget> BottomSummaryExpander;
+	TSharedPtr<SOverlay> ScalabilityWrapper;
 
 	TArray<UNiagaraStackEntry*> PreviewStackEntries;
 	bool bIsHoveringThumbnail = false;
 	bool bTopContentBarRefreshPending = false;
 	int32 CurrentIssueIndex = 0;
 	bool bScalabilityModeActive = false;
+	
+	/** Cached size from when we last drew at high detail */
+	FVector2D LastHighDetailSize = FVector2D::ZeroVector;
 };

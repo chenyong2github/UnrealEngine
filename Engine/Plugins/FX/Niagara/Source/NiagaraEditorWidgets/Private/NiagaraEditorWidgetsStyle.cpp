@@ -150,6 +150,11 @@ FNiagaraEditorWidgetsStyle::FNiagaraEditorWidgetsStyle() : FSlateStyleSet("Niaga
 		.SetFont(SystemOverviewItemFont);
 	Set("NiagaraEditor.SystemOverview.ItemText", SystemOverviewItemText);
 
+	FSlateFontInfo SystemOverviewZoomedOutNodeFont = DEFAULT_FONT("Regular", 45);
+	FTextBlockStyle SystemOverviewZoomedOutNodeText = FTextBlockStyle(NormalText)
+		.SetFont(SystemOverviewZoomedOutNodeFont);
+	Set("NiagaraEditor.SystemOverview.ZoomedOutNodeFont", SystemOverviewZoomedOutNodeText);
+
 	FSlateFontInfo SystemOverviewAlternateItemFont = DEFAULT_FONT("Italic", 9);
 	FTextBlockStyle SystemOverviewAlternateItemText = FTextBlockStyle(NormalText)
 		.SetFont(SystemOverviewAlternateItemFont);

@@ -33,8 +33,8 @@
 #include "Materials/Material.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/StyleColors.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Styling/AppStyle.h"
+#include "KismetWidgets/Public/SLevelOfDetailBranchNode.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStackNode"
 
@@ -308,6 +308,11 @@ void SNiagaraOverviewStackNode::Tick(const FGeometry& AllottedGeometry, const do
 			FillTopContentBar();
 			bTopContentBarRefreshPending = false;
 		}
+
+		if (ScalabilityWrapper != nullptr && !UseLowDetailNodeContent())
+		{
+			LastHighDetailSize = ScalabilityWrapper->GetTickSpaceGeometry().Size;
+		}
 	}
 }
 
@@ -455,10 +460,31 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 		];
 	}
 
-	TSharedPtr<SOverlay> ScalabilityWrapper = SNew(SOverlay)
+	TSharedRef<SWidget> DetailedContent = SNew(SLevelOfDetailBranchNode)
+		.UseLowDetailSlot(this, &SNiagaraOverviewStackNode::UseLowDetailNodeContent)
+		.LowDetail()
+		[
+			SNew(SBox)
+			.WidthOverride(this, &SNiagaraOverviewStackNode::GetLowDetailDesiredWidth)
+			.HeightOverride(this, &SNiagaraOverviewStackNode::GetLowDetailDesiredHeight)
+			[
+				SNew(STextBlock)
+				.Text(this, &SNiagaraOverviewStackNode::GetEditableNodeTitleAsText)
+				.TextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.SystemOverview.ZoomedOutNodeFont"))
+				.Visibility(EVisibility::HitTestInvisible)
+				.Clipping(EWidgetClipping::Inherit)
+				.RenderTransform(FSlateRenderTransform(Concatenate(FQuat2D(FMath::DegreesToRadians(90.0f)), FVector2D(100, 25))))
+			]
+		]
+		.HighDetail()
+		[
+			NodeWidget
+		];
+
+	ScalabilityWrapper = SNew(SOverlay)
 	+ SOverlay::Slot()
 	[
-		NodeWidget
+		DetailedContent
 	]
 	+ SOverlay::Slot()
 	.Padding(0, 1)
@@ -468,9 +494,38 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 		.BorderImage(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.SystemOverview.ExcludedFromScalability.NodeBody"))
 		.BorderBackgroundColor(TAttribute<FSlateColor>(this, &SNiagaraOverviewStackNode::GetScalabilityTintAlpha))
 	];
-	
+
 	return ScalabilityWrapper.ToSharedRef();
 
+}
+
+bool SNiagaraOverviewStackNode::UseLowDetailNodeContent() const
+{
+	if (LastHighDetailSize.IsNearlyZero())
+	{
+		return false;
+	}
+	
+	if (const SGraphPanel* MyOwnerPanel = GetOwnerPanel().Get())
+	{
+		return (MyOwnerPanel->GetCurrentLOD() <= EGraphRenderingLOD::LowDetail);
+	}
+	return false;
+}
+
+FVector2D SNiagaraOverviewStackNode::GetLowDetailDesiredSize() const
+{
+	return LastHighDetailSize;
+}
+
+FOptionalSize SNiagaraOverviewStackNode::GetLowDetailDesiredWidth() const
+{
+	return LastHighDetailSize.X;
+}
+
+FOptionalSize SNiagaraOverviewStackNode::GetLowDetailDesiredHeight() const
+{
+	return LastHighDetailSize.Y;
 }
 
 void SNiagaraOverviewStackNode::StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags)

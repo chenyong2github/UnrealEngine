@@ -32,7 +32,8 @@ public class NiagaraEditorWidgets : ModuleRules
 			"ApplicationCore",
 			"CurveEditor",
 			"DesktopPlatform",
-			"ToolWidgets"
+			"ToolWidgets",
+			"KismetWidgets"
 		});
 
 		PrivateIncludePathModuleNames.AddRange(new string[] {
