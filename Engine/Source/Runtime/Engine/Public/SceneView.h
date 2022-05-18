@@ -684,7 +684,6 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4f, TranslucencyLightingVolumeInvSize, [TVC_MAX]) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4f, TemporalAAParams) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector4f, CircleDOFParams) \
-	VIEW_UNIFORM_BUFFER_MEMBER(uint32, ForceDrawAllVelocities) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, DepthOfFieldSensorWidth) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, DepthOfFieldFocalDistance) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, DepthOfFieldScale) \

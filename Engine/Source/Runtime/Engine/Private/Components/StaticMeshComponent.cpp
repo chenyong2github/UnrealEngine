@@ -1886,6 +1886,11 @@ bool UStaticMeshComponent::CanEditChange(const FProperty* InProperty) const
 		{
 			return bOverrideDistanceFieldSelfShadowBias && bAffectDistanceFieldLighting;
 		}
+
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UStaticMeshComponent, bEvaluateWorldPositionOffset))
+		{
+			return IsOptimizedWPO();
+		}
 	}
 
 	return Super::CanEditChange(InProperty);
@@ -2225,29 +2230,12 @@ void UStaticMeshComponent::SetEvaluateWorldPositionOffset(bool NewValue)
 		return;
 	}
 
-	const bool bHasChanged = bEvaluateWorldPositionOffset != NewValue;
-	
-	// Update game thread data
-	bEvaluateWorldPositionOffset = NewValue;
-
-	// Nanite is the only SM proxy that currently supports this optimization
-	if (!SceneProxy->IsNaniteMesh())
+	if (bEvaluateWorldPositionOffset != NewValue)
 	{
-		return;
-	}
-
-	if (bHasChanged)
-	{
+		// Update game thread data
+		bEvaluateWorldPositionOffset = NewValue;
 		// Update render thread data
-		ENQUEUE_RENDER_COMMAND(UpdateEvaluateWPOCmd)
-			([NewValue, Scene = GetScene(), PrimitiveSceneProxy = static_cast<Nanite::FSceneProxyBase*>(SceneProxy)](FRHICommandList&)
-		{
-			if (PrimitiveSceneProxy->SetEvaluateWorldPositionOffset(NewValue))
-			{
-				// Upload the latest state to GPU Scene if the value has changed on the proxy
-				Scene->RequestGPUSceneUpdate(*PrimitiveSceneProxy->GetPrimitiveSceneInfo(), EPrimitiveDirtyState::ChangedOther);
-			}
-		});
+		SceneProxy->SetEvaluateWorldPositionOffset_GameThread(NewValue);
 	}
 }
 

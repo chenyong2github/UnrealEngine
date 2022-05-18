@@ -2748,6 +2748,11 @@ float3 GetMaterialWorldPositionOffset(FMaterialVertexParameters Parameters)
 	}
 #endif
 
+	if ((GetPrimitiveData(Parameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) == 0)
+	{
+		return float3(0, 0, 0);
+	}
+
 %s;
 }
 
@@ -2768,6 +2773,11 @@ float3 GetMaterialPreviousWorldPositionOffset(FMaterialVertexParameters Paramete
 		return float3(0, 0, 0);
 	}
 #endif
+
+	if ((GetPrimitiveData(Parameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET) == 0)
+	{
+		return float3(0, 0, 0);
+	}
 
 %s;
 }

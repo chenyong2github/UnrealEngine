@@ -1250,7 +1250,7 @@ void FPixelShaderInOut_MainPS(
 
 #if WRITES_VELOCITY_TO_GBUFFER
 	BRANCH
-	if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0 || View.ForceDrawAllVelocities != 0)
+	if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0)
 	{
 		// 2d velocity, includes camera an object motion
 	#if IS_NANITE_PASS
@@ -1262,7 +1262,7 @@ void FPixelShaderInOut_MainPS(
 		float4 EncodedVelocity = EncodeVelocityToTexture(Velocity);
 
 		FLATTEN
-		if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY) == 0 && View.ForceDrawAllVelocities == 0)
+		if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY) == 0)
 		{
 			// TODO: remove one of the DrawsVelocity or OutputVelocity
 			EncodedVelocity = 0.0;

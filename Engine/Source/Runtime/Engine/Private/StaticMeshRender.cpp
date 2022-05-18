@@ -232,6 +232,8 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	// Static meshes do not deform internally (save by material effects such as WPO and PDO, which is allowed).
 	bHasDeformableMesh = false;
 
+	bEvaluateWorldPositionOffset = !IsOptimizedWPO() || InComponent->bEvaluateWorldPositionOffset;
+
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 
 	const int32 SMCurrentMinLOD = InComponent->GetStaticMesh()->GetMinLODIdx();
@@ -335,8 +337,6 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 	// WPO is typically used for ambient animations, so don't include in cached shadowmaps
 	// Note mesh animation can also come from PDO or Tessellation but they are typically static uses so we ignore them for cached shadowmaps
 	bGoodCandidateForCachedShadowmap = CacheShadowDepthsFromPrimitivesUsingWPO() || !MaterialRelevance.bUsesWorldPositionOffset;
-
-	bUsingWPOMaterial = !!MaterialRelevance.bUsesWorldPositionOffset;
 
 	// Disable shadow casting if no section has it enabled.
 	bCastShadow = bCastShadow && bAnySectionCastsShadows;

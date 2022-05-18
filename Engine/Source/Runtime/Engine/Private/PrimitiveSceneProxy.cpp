@@ -18,6 +18,7 @@
 #include "PrimitiveInstanceUpdateCommand.h"
 #include "InstanceUniformShaderParameters.h"
 #include "NaniteSceneProxy.h" // TODO: PROG_RASTER
+#include "ComponentRecreateRenderStateContext.h"
 
 #if WITH_EDITOR
 #include "FoliageHelper.h"
@@ -30,6 +31,19 @@ static TAutoConsoleVariable<int32> CVarForceSingleSampleShadowingFromStationary(
 	TEXT("Whether to force all components to act as if they have bSingleSampleShadowFromStationaryLights enabled.  Useful for scalability when dynamic shadows are disabled."),
 	ECVF_RenderThreadSafe | ECVF_Scalability
 	);
+
+static TAutoConsoleVariable<bool> CVarOptimizedWPO(
+	TEXT("r.OptimizedWPO"),
+	false,
+	TEXT("Special mode where primitives can explicitly indicate if WPO should be evaluated or not as an optimization.\n")
+	TEXT(" False ( 0): Ignore WPO evaluation flag, and always evaluate WPO.\n")
+	TEXT(" True  ( 1): Only evaluate WPO on primitives with explicit activation."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_RenderThreadSafe
+);
 
 static TAutoConsoleVariable<int32> CVarCacheWPOPrimitives(
 	TEXT("r.Shadow.CacheWPOPrimitives"),
@@ -45,7 +59,33 @@ static TAutoConsoleVariable<int32> CVarVelocityEnableVertexDeformation(
 	TEXT("Enables materials with World Position Offset and/or World Displacement to output velocities during velocity pass even when the actor has not moved. \n")
 	TEXT("0=Off, 1=On, 2=Auto(Default). \n")
 	TEXT("Auto setting is off if r.VelocityOutputPass=2, or else on. \n")
-	TEXT("When r.VelocityOutputPass=2 this can incur a performance cost due to additional draw calls."));
+	TEXT("When r.VelocityOutputPass=2 this can incur a performance cost due to additional draw calls."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_RenderThreadSafe
+	);
+
+static TAutoConsoleVariable<int32> CVarVelocityForceOutput(
+	TEXT("r.Velocity.ForceOutput"), 0,
+	TEXT("Force velocity output on all primitives.\n")
+	TEXT("This can incur a performance cost epecially when r.VelocityOutputPass=2.\n")
+	TEXT("But it can be useful for testing where velocity output isn't being enabled as expected.\n")
+	TEXT("0: Disabled (default)\n")
+	TEXT("1: Enabled"),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_RenderThreadSafe
+	);
+
+
+bool IsOptimizedWPO()
+{
+	return CVarOptimizedWPO.GetValueOnAnyThread() != 0;
+}
 
 bool CacheShadowDepthsFromPrimitivesUsingWPO()
 {
@@ -155,7 +195,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bTreatAsBackgroundForOcclusion(InComponent->bTreatAsBackgroundForOcclusion)
 ,	bCanSkipRedundantTransformUpdates(true)
 ,	bGoodCandidateForCachedShadowmap(true)
-,	bUsingWPOMaterial(false)
 ,	bNeedsUnbuiltPreviewLighting(!InComponent->IsPrecomputedLightingValid())
 ,	bHasValidSettingsForStaticLighting(InComponent->HasValidSettingsForStaticLighting(false))
 ,	bWillEverBeLit(true)
@@ -185,7 +224,8 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bHasDeformableMesh(true)
 ,	bSupportsInstanceDataBuffer(false)
 ,	bShouldUpdateGPUSceneTransforms(true)
-,	bAlwaysHasVelocity(false)
+,	bEvaluateWorldPositionOffset(true)
+,	bHasWorldPositionOffsetVelocity(false)
 ,	bSupportsDistanceFieldRepresentation(false)
 ,	bSupportsMeshCardRepresentation(false)
 ,	bSupportsHeightfieldRepresentation(false)
@@ -334,8 +374,11 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	FObjectCacheEventSink::NotifyUsedMaterialsChanged_Concurrent(InComponent, UsedMaterialsForVerification);
 #endif
 
-	if (!bAlwaysHasVelocity && IsMovable() && VertexDeformationOutputsVelocity())
+	bAlwaysHasVelocity = CVarVelocityForceOutput.GetValueOnAnyThread();
+
+	if (!bAlwaysHasVelocity && VertexDeformationOutputsVelocity())
 	{
+		// Find if we have any WPO materials.
 		ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
 
 		TArray<UMaterialInterface*> UsedMaterials;
@@ -345,14 +388,24 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 		{
 			if (MaterialInterface)
 			{
-				bAlwaysHasVelocity = MaterialInterface->GetRelevance_Concurrent(FeatureLevel).bUsesWorldPositionOffset;
-				if (bAlwaysHasVelocity)
+				if (MaterialInterface->GetRelevance_Concurrent(FeatureLevel).bUsesWorldPositionOffset)
 				{
+						bHasWorldPositionOffsetVelocity = true;
 					break;
 				}
 			}
 		}
 	}
+}
+
+bool FPrimitiveSceneProxy::AlwaysHasVelocity() const 
+{
+	return bAlwaysHasVelocity || (bEvaluateWorldPositionOffset && bHasWorldPositionOffsetVelocity);
+}
+
+bool FPrimitiveSceneProxy::DrawsVelocity() const
+{
+	return IsMovable() || bIsBeingMovedByEditor || AlwaysHasVelocity();
 }
 
 bool FPrimitiveSceneProxy::OnLevelAddedToWorld_RenderThread()
@@ -451,6 +504,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.ReceivesDecals(bReceivesDecals)
 				.OutputVelocity(bOutputVelocity || AlwaysHasVelocity())
 				.DrawsVelocity(DrawsVelocity())
+				.EvaluateWorldPositionOffset(EvaluateWorldPositionOffset())
 				.LightingChannelMask(GetLightingChannelMask())
 				.LightmapDataIndex(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0)
 				.LightmapUVIndex(GetLightMapCoordinateIndex())
@@ -1053,6 +1107,25 @@ void FPrimitiveSceneProxy::SetIsBeingMovedByEditor_GameThread(bool bIsBeingMoved
 		});
 }
 #endif
+
+void FPrimitiveSceneProxy::SetEvaluateWorldPositionOffset_GameThread(bool bEvaluate)
+{
+	check(IsInGameThread());
+
+	FPrimitiveSceneProxy* PrimitiveSceneProxy = this;
+	ENQUEUE_RENDER_COMMAND(SetEvaluateWorldPositionOffset)
+		([PrimitiveSceneProxy, bEvaluate](FRHICommandList& RHICmdList)
+	{
+		const bool bOptimizedWPO = CVarOptimizedWPO.GetValueOnRenderThread();
+		const bool bWPOEvaluate = !bOptimizedWPO || bEvaluate;
+
+		if (PrimitiveSceneProxy->bEvaluateWorldPositionOffset != bWPOEvaluate)
+		{
+			PrimitiveSceneProxy->bEvaluateWorldPositionOffset = bWPOEvaluate;
+			PrimitiveSceneProxy->GetScene().RequestGPUSceneUpdate(*PrimitiveSceneProxy->GetPrimitiveSceneInfo(), EPrimitiveDirtyState::ChangedOther);
+		}
+	});
+}
 
 void FPrimitiveSceneProxy::SetCollisionEnabled_GameThread(const bool bNewEnabled)
 {

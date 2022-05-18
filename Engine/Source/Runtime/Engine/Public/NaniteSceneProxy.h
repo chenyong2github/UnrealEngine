@@ -119,7 +119,6 @@ public:
 	{
 		bIsNaniteMesh  = true;
 		bHasProgrammableRaster = false;
-		bEvaluateWorldPositionOffset = false;
 	}
 
 	ENGINE_API virtual ~FSceneProxyBase() = default;
@@ -127,8 +126,6 @@ public:
 #if WITH_EDITOR
 	ENGINE_API virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy>>& OutHitProxies) override;
 #endif
-
-	ENGINE_API bool SetEvaluateWorldPositionOffset(bool NewValue);
 
 	virtual bool CanBeOccluded() const override
 	{
@@ -139,11 +136,6 @@ public:
 	inline bool HasProgrammableRaster() const
 	{
 		return bHasProgrammableRaster;
-	}
-
-	inline bool EvaluateWorldPositionOffset() const
-	{
-		return bEvaluateWorldPositionOffset;
 	}
 
 	inline const TArray<FMaterialSection>& GetMaterialSections() const
@@ -211,7 +203,6 @@ protected:
 	int32 MaterialMaxIndex = INDEX_NONE;
 	EFilterFlags FilterFlags = EFilterFlags::None;
 	uint8 bHasProgrammableRaster : 1;
-	uint8 bEvaluateWorldPositionOffset : 1;
 };
 
 class FSceneProxy : public FSceneProxyBase

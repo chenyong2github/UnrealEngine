@@ -328,13 +328,6 @@ static TAutoConsoleVariable<int32> CVarWideCustomResolve(
 	ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
-static TAutoConsoleVariable<int32> CVarBasePassForceOutputsVelocity(
-	TEXT("r.BasePassForceOutputsVelocity"), 0,
-	TEXT("Force the base pass to compute motion vector, regardless of FPrimitiveUniformShaderParameters.")
-	TEXT("0: Disabled (default)")
-	TEXT("1: Enabled"),
-	ECVF_RenderThreadSafe);
-
 static int32 GParallelCmdListInheritBreadcrumbs = 1;
 static FAutoConsoleVariableRef CVarParallelCmdListInheritBreadcrumbs(
 	TEXT("r.ParallelCmdListInheritBreadcrumbs"),
@@ -1624,16 +1617,6 @@ void FViewInfo::SetupUniformBufferParameters(
 			TemporalJitterSequenceLength,
 			TemporalJitterPixels.X,
 			TemporalJitterPixels.Y);
-	}
-
-	{
-		EMainTAAPassConfig MainTAAPass = ITemporalUpscaler::GetMainTAAPassConfig(*this);
-
-		// Gen4 TAA have the AA_DYNAMIC_ANTIGHOST heuristic that reject history based on whether the pixel is static or dynamic geometry
-		// through whether the velocity has been drawn by the base pass.
-		ViewUniformShaderParameters.ForceDrawAllVelocities = (
-			CVarBasePassForceOutputsVelocity.GetValueOnRenderThread() ||
-			MainTAAPass != EMainTAAPassConfig::TAA);
 	}
 
 	uint32 FrameIndex = 0;
@@ -4460,9 +4443,6 @@ FRendererModule::FRendererModule()
 
 	static auto EarlyZPassVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.EarlyZPass"));
 	EarlyZPassVar->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
-
-	static auto CVarVertexDeformationOutputsVelocity = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Velocity.EnableVertexDeformation"));
-	CVarVertexDeformationOutputsVelocity->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void InitDebugViewModeInterface();

@@ -124,17 +124,25 @@ void EmitSceneDepthPS(
 #endif
 
 #if VELOCITY_EXPORT
-		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+		const bool bOutputVelocity = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0;
+		if (bOutputVelocity)
+		{
+			FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-		const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
-		const FLWCVector3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
-		const float3 LocalPos  = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
+			const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+			const FLWCVector3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+			const float3 LocalPos  = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
 
-		const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
-		const float4 ScreenPosPrev = mul(float4(WorldPosPrev, 1), NaniteView.PrevTranslatedWorldToClip);
+			const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
+			const float4 ScreenPosPrev = mul(float4(WorldPosPrev, 1), NaniteView.PrevTranslatedWorldToClip);
 		
-		const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
-		OutVelocity = EncodeVelocityToTexture(Velocity);
+			const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
+			OutVelocity = EncodeVelocityToTexture(Velocity);
+		}
+		else
+		{
+			OutVelocity = 0;
+		}
 #endif
 
 		OutDepth = asfloat(DepthInt);
@@ -208,17 +216,25 @@ void EmitSceneDepthStencilPS
 		const bool IsDecalReceiver = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_DECAL_RECEIVER) != 0 && View.ShowDecalsMask > 0;
 		
 #if VELOCITY_EXPORT
-		FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+		const bool bOutputVelocity = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0;
+		if (bOutputVelocity)
+		{
+			FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-		const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
-		const FLWCVector3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
-		const float3 LocalPos  = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
+			const float4 ScreenPos = SvPositionToScreenPosition(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+			const FLWCVector3 WorldPos  = SvPositionToWorld(float4(SvPosition.xy, asfloat(DepthInt), 1.0f));
+			const float3 LocalPos  = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
 
-		const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
-		const float4 ScreenPosPrev = mul(float4(WorldPosPrev, 1), NaniteView.PrevTranslatedWorldToClip);
+			const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
+			const float4 ScreenPosPrev = mul(float4(WorldPosPrev, 1), NaniteView.PrevTranslatedWorldToClip);
 		
-		const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
-		OutVelocity = EncodeVelocityToTexture(Velocity);
+			const float3 Velocity = Calculate3DVelocity(ScreenPos, ScreenPosPrev);
+			OutVelocity = EncodeVelocityToTexture(Velocity);
+		}
+		else
+		{
+			OutVelocity = 0;
+		}
 #endif
 
 		OutDepth = asfloat(DepthInt);

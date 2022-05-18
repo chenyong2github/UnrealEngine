@@ -230,9 +230,17 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Rendering)
 	uint8 bDisallowNanite : 1;
 
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category=Rendering)
+	/** 
+	 * Whether to evaluate World Position Offset. 
+	 * This is only used when running with r.OptimizedWPO=1 
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = Rendering)
 	uint8 bEvaluateWorldPositionOffset : 1;
 
+	/** 
+	 * Whether to evaluate World Position Offset for ray tracing. 
+	 * This is only used when running with r.RayTracing.Geometry.StaticMeshes.WPO=1 
+	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = RayTracing)
 	uint8 bEvaluateWorldPositionOffsetInRayTracing : 1;
 

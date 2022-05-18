@@ -124,6 +124,8 @@ public:
 	{}
 };
 
+extern bool IsOptimizedWPO();
+
 extern bool CacheShadowDepthsFromPrimitivesUsingWPO();
 
 enum class ERayTracingPrimitiveFlags : uint8
@@ -216,6 +218,9 @@ public:
 	 */
 	void SetIsBeingMovedByEditor_GameThread(bool bIsBeingMoved);
 #endif	// WITH_EDITOR
+
+	/** Enqueue updated setting for evaluation of World Position Offset. */
+	void SetEvaluateWorldPositionOffset_GameThread(bool bEvaluate);
 
 	/** @return True if the primitive is visible in the given View. */
 	ENGINE_API bool IsShown(const FSceneView* View) const;
@@ -573,8 +578,6 @@ public:
 		return Mobility == EComponentMobility::Movable || !bGoodCandidateForCachedShadowmap; 
 	}
 
-	bool IsUsingWPOMaterial() const { return bUsingWPOMaterial; }
-
 	inline ELightmapType GetLightmapType() const { return LightmapType; }
 	inline bool IsStatic() const { return Mobility == EComponentMobility::Static; }
 	inline bool IsSelectable() const { return bSelectable; }
@@ -683,12 +686,10 @@ public:
 	}
 
 	inline bool UseEditorCompositing(const FSceneView* View) const { return GIsEditor && bUseEditorCompositing && !View->bIsGameView; }
-	inline bool IsBeingMovedByEditor() const { return bIsBeingMovedByEditor; }
 	inline const FVector& GetActorPosition() const { return ActorPosition; }
 	inline const bool ReceivesDecals() const { return bReceivesDecals; }
 	inline bool WillEverBeLit() const { return bWillEverBeLit; }
 	inline bool HasValidSettingsForStaticLighting() const { return bHasValidSettingsForStaticLighting; }
-	inline bool AlwaysHasVelocity() const { return bAlwaysHasVelocity; }
 	inline bool SupportsDistanceFieldRepresentation() const { return bSupportsDistanceFieldRepresentation; }
 	inline bool SupportsMeshCardRepresentation() const { return bSupportsMeshCardRepresentation; }
 	inline bool SupportsHeightfieldRepresentation() const { return bSupportsHeightfieldRepresentation; }
@@ -711,11 +712,9 @@ public:
 
 	static constexpr int32 InvalidRayTracingGroupId = -1;
 
-	/** Returns whether draws velocity in base pass. */
-	inline bool DrawsVelocity() const
-	{
-		return IsMovable() || IsBeingMovedByEditor();
-	}
+	inline bool EvaluateWorldPositionOffset() const { return bEvaluateWorldPositionOffset; }
+	ENGINE_API bool AlwaysHasVelocity() const;
+	ENGINE_API bool DrawsVelocity() const;
 
 #if WITH_EDITOR
 	inline int32 GetNumUncachedStaticLightingInteractions() { return NumUncachedStaticLightingInteractions; }
@@ -1106,9 +1105,6 @@ protected:
 	/** Whether this proxy's mesh is unlikely to be constantly changing. */
 	uint8 bGoodCandidateForCachedShadowmap : 1;
 
-	/** Whether this proxy's mesh uses WPO materials. */
-	uint8 bUsingWPOMaterial : 1;
-
 	/** Whether the primitive should be statically lit but has unbuilt lighting, and a preview should be used. */
 	uint8 bNeedsUnbuiltPreviewLighting : 1;
 
@@ -1212,6 +1208,12 @@ protected:
 
 	/** Whether the instances on the primitive need to update transforms during GPU Scene update. */
 	uint8 bShouldUpdateGPUSceneTransforms : 1;
+
+	/** Whether the primitive should evaluate any World Position Offset. */
+	uint8 bEvaluateWorldPositionOffset : 1;
+
+	/** Whether the primitive has any materials with World Position Offset. */
+	uint8 bHasWorldPositionOffsetVelocity : 1;
 
 	/** Whether the primitive should always be considered to have velocities, even if it hasn't moved. */
 	uint8 bAlwaysHasVelocity : 1;

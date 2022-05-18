@@ -127,16 +127,20 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 				SceneStencil[PixelPos.xy] = OutStencil;
 
 			#if VELOCITY_EXPORT
-				FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
+				const bool bOutputVelocity = (GetPrimitiveData(InstanceData.PrimitiveId).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0;
+				if (bOutputVelocity)
+				{
+					FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
-				const float4 ScreenPos = SvPositionToScreenPosition(float4(PixelPos.xy, asfloat(DepthInt), 1.0f));
-				const FLWCVector3 WorldPos  = SvPositionToWorld(float4(PixelPos.xy, asfloat(DepthInt), 1.0f));
-				const float3 LocalPos = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
+					const float4 ScreenPos = SvPositionToScreenPosition(float4(PixelPos.xy, asfloat(DepthInt), 1.0f));
+					const FLWCVector3 WorldPos  = SvPositionToWorld(float4(PixelPos.xy, asfloat(DepthInt), 1.0f));
+					const float3 LocalPos = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
 
-				const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
-				const float4 ScreenPosPrev = mul(float4(WorldPosPrev.xyz, 1), NaniteView.PrevTranslatedWorldToClip);
+					const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
+					const float4 ScreenPosPrev = mul(float4(WorldPosPrev.xyz, 1), NaniteView.PrevTranslatedWorldToClip);
 		
-				Velocity[PixelPos.xy] = EncodeVelocityToTexture(Calculate3DVelocity(ScreenPos, ScreenPosPrev));
+					Velocity[PixelPos.xy] = EncodeVelocityToTexture(Calculate3DVelocity(ScreenPos, ScreenPosPrev));
+				}
 			#endif
 
 				MaterialResolve[PixelPos.xy] = PackMaterialResolve(MaterialSlot, IsDecalReceiver);

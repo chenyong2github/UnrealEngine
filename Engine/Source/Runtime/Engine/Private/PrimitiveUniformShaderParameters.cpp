@@ -6,20 +6,7 @@
 #include "PrimitiveSceneInfo.h"
 #include "NaniteSceneProxy.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
-#include "ComponentRecreateRenderStateContext.h"
 
-static TAutoConsoleVariable<bool> CVarOptimizedWPO(
-	TEXT("r.OptimizedWPO"),
-	false,
-	TEXT("Special mode where primitives can explicitly indicate if WPO should be evaluated or not as an optimization.\n")
-	TEXT(" False ( 0): Ignore WPO evaluation flag, and always evaluate WPO.\n")
-	TEXT(" True  ( 1): Only evaluate WPO on primitives with explicit activation."),
-	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-	{
-		FGlobalComponentRecreateRenderStateContext Context;
-	}),
-	ECVF_RenderThreadSafe
-);
 
 void FSinglePrimitiveStructured::InitRHI() 
 {
@@ -138,8 +125,6 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	FBoxSphereBounds PreSkinnedLocalBounds;
 	Proxy->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
-	const bool OptimizedWPO = CVarOptimizedWPO.GetValueOnAnyThread();
-
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = Proxy->GetPrimitiveSceneInfo();
 
 	uint32 NaniteResourceID = INDEX_NONE;
@@ -147,17 +132,10 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 	uint32 NaniteImposterIndex = INDEX_NONE;
 	uint32 NaniteFilterFlags = 0u;
 
-	bool bHasNaniteImposterData = false;
-	bool bEvaluateWorldPositionOffset = !OptimizedWPO;
-
 	if (Proxy->IsNaniteMesh())
 	{
 		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, NaniteImposterIndex);
 		NaniteFilterFlags = uint32(static_cast<const Nanite::FSceneProxyBase*>(Proxy)->GetFilterFlags());
-		if (OptimizedWPO)
-		{
-			bEvaluateWorldPositionOffset = static_cast<const Nanite::FSceneProxyBase*>(Proxy)->EvaluateWorldPositionOffset();
-		}
 	}
 
 	FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{}
@@ -182,7 +160,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.ReceivesDecals(Proxy->ReceivesDecals())
 		.DrawsVelocity(Proxy->DrawsVelocity())
 		.OutputVelocity(bOutputVelocity || Proxy->AlwaysHasVelocity())
-		.EvaluateWorldPositionOffset(bEvaluateWorldPositionOffset)
+		.EvaluateWorldPositionOffset(Proxy->EvaluateWorldPositionOffset())
 		.CastContactShadow(Proxy->CastsContactShadow())
 		.CastShadow(Proxy->CastsDynamicShadow())
 		.CastHiddenShadow(Proxy->CastsHiddenShadow())
