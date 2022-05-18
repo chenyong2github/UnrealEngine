@@ -246,6 +246,8 @@ void UDisplayClusterPreviewComponent::UpdatePreviewMaterial()
 {
 	if (PreviewMaterialInstance != nullptr)
 	{
+		PreviewMaterialInstance->SetScalarParameterValue(TEXT("Opacity"), 1.0);
+
 		if (OverrideTexture)
 		{
 			PreviewMaterialInstance->SetTextureParameterValue(TEXT("Preview"), OverrideTexture);
