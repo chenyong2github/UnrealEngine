@@ -313,6 +313,8 @@ private:
 	/** True if the app has focus. We prevent some culling if the app doesn't have focus as it can interfere. */
 	bool bAppHasFocus;
 
+	bool bIsTearingDown = false;
+
 	float WorldLoopTime = 0.0f;
 	
 	ENiagaraDebugPlaybackMode RequestedDebugPlaybackMode = ENiagaraDebugPlaybackMode::Play;

@@ -473,7 +473,7 @@ UNiagaraCullProxyComponent* FNiagaraWorldManager::GetCullProxy(UNiagaraComponent
 
 UNiagaraParameterCollectionInstance* FNiagaraWorldManager::GetParameterCollection(UNiagaraParameterCollection* Collection)
 {
-	if (!Collection)
+	if (!Collection || bIsTearingDown)
 	{
 		return nullptr;
 	}
@@ -727,6 +727,11 @@ void FNiagaraWorldManager::OnPreWorldFinishDestroy(UWorld* World)
 
 void FNiagaraWorldManager::OnWorldBeginTearDown(UWorld* World)
 {
+	FNiagaraWorldManager** Manager = WorldManagers.Find(World);
+	if (Manager)
+	{
+		(*Manager)->bIsTearingDown = true;
+	}
 // 	FNiagaraWorldManager** Manager = WorldManagers.Find(World);
 // 	if (Manager)
 // 	{

@@ -15,20 +15,17 @@
 
 class UAudioComponent;
 
-
+// Children of this class MUST be UObjects and they must call QuartzAddReferencedObjects from their own override of AddReferencedObjects.
+// TODO: Ideally this should use CRTP to put the fields on the child or something to avoid the possibility of not calling it.
 class AUDIOMIXER_API FQuartzTickableObject
 {
-	struct AUDIOMIXER_API FQuartzTickableObjectGCObjectMembers : public FGCObject
+	struct AUDIOMIXER_API FQuartzTickableObjectGCObjectMembers
 	{
 	public:
 		UQuartzSubsystem* QuartzSubsystem;
 		UWorld* WorldPtr{ nullptr };
 
-		void AddReferencedObjects(FReferenceCollector& Collector) override;
-		virtual FString GetReferencerName() const override
-		{
-			return TEXT("FQuartzTickableObject::FQuartzTickableObjectGCObjectMembers");
-		}
+		void AddReferencedObjects(FReferenceCollector& Collector);
 	};
 
 	public:
@@ -60,6 +57,10 @@ class AUDIOMIXER_API FQuartzTickableObject
 
 		void Shutdown();
 
+		void QuartzAddReferencedObjects(FReferenceCollector& Collector)
+		{
+			GCObjectMembers.AddReferencedObjects(Collector);
+		}
 
 	protected:
 		struct CommandDelegateGameThreadData
@@ -218,6 +219,11 @@ public:
 	virtual void ProcessCommand(const Audio::FQuartzMetronomeDelegateData& Data) override;
 
 	bool GetCurrentTickRate(const UObject* WorldContextObject, Audio::FQuartzClockTickRate& OutTickRate) const;
+
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector) 
+	{
+		CastChecked<UQuartzClockHandle>(InThis)->QuartzAddReferencedObjects(Collector);
+	}
 
 private:
 	
