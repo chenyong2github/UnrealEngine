@@ -37,7 +37,6 @@ static FBindingSource GetSelectedSource(const TArray<IFieldPathHelper*>& Helpers
 void SMVVMSourceSelector::Construct(const FArguments& Args)
 {
 	PathHelpers = Args._PathHelpers;
-	OnSelectionChanged = Args._OnSelectionChanged;
 	TextStyle = Args._TextStyle;
 
 	Refresh();
@@ -77,6 +76,8 @@ void SMVVMSourceSelector::Construct(const FArguments& Args)
 			.OnClicked(this, &SMVVMSourceSelector::OnClearSource)
 		]
 	];
+
+	OnSelectionChanged = Args._OnSelectionChanged;
 }
 
 void SMVVMSourceSelector::OnComboBoxSelectionChanged(FBindingSource Selected, ESelectInfo::Type SelectionType)
