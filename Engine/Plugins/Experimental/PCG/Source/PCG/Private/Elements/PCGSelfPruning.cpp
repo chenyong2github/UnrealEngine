@@ -80,7 +80,7 @@ namespace PCGSelfPruningElement
 
 			ExclusionPoints.Add(Point);
 
-			Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(Point->Transform.GetLocation(), FVector::Zero()), [&ExclusionPoints, &ExcludedPoints, Point](const FPCGPointRef& InPointRef)
+			Octree.FindElementsWithBoundsTest(FBoxCenterAndExtent(Point->Transform.TransformPosition(Point->GetLocalCenter()), FVector::Zero()), [&ExclusionPoints, &ExcludedPoints, Point](const FPCGPointRef& InPointRef)
 			{
 				if ((Point->Transform.GetLocation() - InPointRef.Point->Transform.GetLocation()).SquaredLength() <= SMALL_NUMBER &&
 					!ExclusionPoints.Contains(InPointRef.Point))
