@@ -1301,7 +1301,7 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 		}
 	};
 
-	Linker->Summary.PreloadDependencyOffset = Linker->Tell();
+	Linker->Summary.PreloadDependencyOffset = (int32)Linker->Tell();
 	Linker->Summary.PreloadDependencyCount = -1;
 
 	if (SaveContext.IsCooking())
@@ -1532,7 +1532,7 @@ void WriteGatherableText(FStructuredArchive::FRecord& StructuredArchiveRoot, FSa
 		// Note that using custom version here only works because we already added it to the export tagger before the package summary was serialized
 		Linker->UsingCustomVersion(FEditorObjectVersion::GUID);
 
-		Linker->Summary.GatherableTextDataOffset = Linker->Tell();
+		Linker->Summary.GatherableTextDataOffset = (int32)Linker->Tell();
 		Linker->Summary.GatherableTextDataCount = Linker->GatherableTextDataMap.Num();
 		for (FGatherableTextData& GatherableTextData : Linker->GatherableTextDataMap)
 		{
@@ -1574,31 +1574,31 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 	// Save Dummy Import Map, overwritten later.
 	{
 		SCOPED_SAVETIMER(UPackage_Save_WriteDummyImportMap);
-		Linker->Summary.ImportOffset = Linker->Tell();
+		Linker->Summary.ImportOffset = (int32)Linker->Tell();
 		for (FObjectImport& Import : Linker->ImportMap)
 		{
 			StructuredArchiveRoot.GetUnderlyingArchive() << Import;
 		}
 	}
-	SaveContext.OffsetAfterImportMap = Linker->Tell();
+	SaveContext.OffsetAfterImportMap = (int32)Linker->Tell();
 
 	// Save Dummy Export Map, overwritten later.
 	{
 		SCOPED_SAVETIMER(UPackage_Save_WriteDummyExportMap);
-		Linker->Summary.ExportOffset = Linker->Tell();
+		Linker->Summary.ExportOffset = (int32)Linker->Tell();
 		for (FObjectExport& Export : Linker->ExportMap)
 		{
 			*Linker << Export;
 		}
 	}
-	SaveContext.OffsetAfterExportMap = Linker->Tell();
+	SaveContext.OffsetAfterExportMap = (int32)Linker->Tell();
 
 	// Save Depend Map
 	{
 		SCOPED_SAVETIMER(UPackage_Save_WriteDependsMap);
 
 		FStructuredArchive::FStream DependsStream = StructuredArchiveRoot.EnterStream(TEXT("DependsMap"));
-		Linker->Summary.DependsOffset = Linker->Tell();
+		Linker->Summary.DependsOffset = (int32)Linker->Tell();
 		if (SaveContext.IsCooking())
 		{
 			//@todo optimization, this should just be stripped entirely from cooked packages
@@ -1625,7 +1625,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 		SCOPED_SAVETIMER(UPackage_Save_SaveSoftPackagesAndSearchableNames);
 
 		// Save soft package references
-		Linker->Summary.SoftPackageReferencesOffset = Linker->Tell();
+		Linker->Summary.SoftPackageReferencesOffset = (int32)Linker->Tell();
 		Linker->Summary.SoftPackageReferencesCount = Linker->SoftPackageReferenceList.Num();
 		{
 			FStructuredArchive::FStream SoftReferenceStream = StructuredArchiveRoot.EnterStream(TEXT("SoftReferences"));
@@ -1635,7 +1635,7 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 			}
 
 			// Save searchable names map
-			Linker->Summary.SearchableNamesOffset = Linker->Tell();
+			Linker->Summary.SearchableNamesOffset = (int32)Linker->Tell();
 			Linker->SerializeSearchableNamesMap(StructuredArchiveRoot.EnterField(TEXT("SearchableNames")));
 		}
 	}
@@ -1667,7 +1667,18 @@ ESavePackageResult WritePackageHeader(FStructuredArchive::FRecord& StructuredArc
 		SCOPED_SAVETIMER(UPackage_Save_PreloadDependencies);
 		SavePreloadDependencies(StructuredArchiveRoot, SaveContext);
 	}
-	Linker->Summary.TotalHeaderSize = Linker->Tell();
+	Linker->Summary.TotalHeaderSize = (int32)Linker->Tell();
+
+	// Rather than check if an offset is truncated every time we assign one, we can just check the final TotalHeaderSize to see if it is truncated.
+	// Checking every time an offset is assigned would let us fail quicker but a) relies that new code follows the convention b) bloats the code a fair bit.
+	if (Linker->Tell() > MAX_int32)
+	{
+		UE_LOG(LogSavePackage, Error, TEXT("Package header for '%s' is too large (%" UINT64_FMT " bytes), some package file summary offsets will be truncated when stored as a int32"),
+			*SaveContext.GetPackage()->GetName(), Linker->Tell());
+
+		return ESavePackageResult::Error;
+	}
+
 	return ReturnSuccessOrCancel();
 }
 

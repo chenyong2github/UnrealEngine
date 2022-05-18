@@ -1601,7 +1601,7 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 				FObjectFullNameAndThumbnail& CurObjectThumb = ObjectsWithThumbnails[ CurObjectIndex ];
 
 				// Store the file offset to this thumbnail
-				CurObjectThumb.FileOffset = Linker->Tell();
+				CurObjectThumb.FileOffset = (int32)Linker->Tell();
 
 				// Serialize the thumbnail!
 				FObjectThumbnail* SerializableThumbnail = const_cast< FObjectThumbnail* >( CurObjectThumb.ObjectThumbnail );
@@ -1611,7 +1611,7 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 
 			// Store the thumbnail table of contents
 			{
-				Linker->Summary.ThumbnailTableOffset = Linker->Tell();
+				Linker->Summary.ThumbnailTableOffset = (int32)Linker->Tell();
 
 				// Save number of thumbnails
 				int32 ThumbnailCount = ObjectsWithThumbnails.Num();
@@ -2166,7 +2166,7 @@ void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchi
 	
 	if(FWorldTileInfo* WorldTileInfo = InOuter->GetWorldTileInfo())
 	{
-		Linker->Summary.WorldTileInfoDataOffset = Linker->Tell();
+		Linker->Summary.WorldTileInfoDataOffset = (int32)Linker->Tell();
 		Record << SA_VALUE(TEXT("WorldLevelInfo"), *WorldTileInfo);
 	}
 }
@@ -2230,7 +2230,7 @@ namespace AssetRegistry
 		check(!BinaryArchive.IsTextFormat());
 
 		// Store the asset registry offset in the file and enter a record for the asset registry data
-		Linker->Summary.AssetRegistryDataOffset = BinaryArchive.Tell();
+		Linker->Summary.AssetRegistryDataOffset = (int32)BinaryArchive.Tell();
 		FStructuredArchiveRecord AssetRegistryRecord = ParentRecord.EnterField(TEXT("AssetRegistry")).EnterRecord();
 
 		// Offset to Dependencies
