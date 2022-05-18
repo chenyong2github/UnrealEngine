@@ -191,10 +191,8 @@ namespace EpicGames.Perforce
 						maxParsedLen = parsedLen + newBufferPos;
 						break;
 					}
-					if (response.Error == null || response.Error.Generic != PerforceGenericCode.Empty)
-					{
-						yield return response;
-					}
+
+					yield return response;
 					bufferPos = newBufferPos;
 				}
 
@@ -248,10 +246,8 @@ namespace EpicGames.Perforce
 						maxParsedLen = newBufferPos;
 						break;
 					}
-					if (response.Error == null || response.Error.Generic != PerforceGenericCode.Empty)
-					{
-						responses.Add(response);
-					}
+
+					responses.Add(response);
 					bufferPos = newBufferPos;
 				}
 
