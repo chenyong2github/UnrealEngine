@@ -12,7 +12,7 @@ struct FStateTreeExecutionContext;
  * Base struct of StateTree Evaluators.
  * Evaluators calculate and expose data to be used for decision making in a StateTree.
  */
-USTRUCT()
+USTRUCT(meta = (Hidden))
 struct STATETREEMODULE_API FStateTreeEvaluatorBase : public FStateTreeNodeBase
 {
 	GENERATED_BODY()

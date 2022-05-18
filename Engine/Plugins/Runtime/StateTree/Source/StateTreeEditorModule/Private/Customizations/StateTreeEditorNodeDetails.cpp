@@ -1021,17 +1021,17 @@ TSharedRef<SWidget> FStateTreeEditorNodeDetails::GeneratePicker()
 			{
 				continue;
 			}
-			if (Class->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown))
+			if (Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Hidden | CLASS_HideDropDown))
 			{
 				continue;				
 			}
 			if (Class->HasMetaData(TEXT("Hidden")))
 			{
-				continue;				
+				continue;
 			}
 			if (Schema && !Schema->IsClassAllowed(Class))
 			{
-				continue;				
+				continue;
 			}
 
 			FUIAction ItemAction(FExecuteAction::CreateSP(this, &FStateTreeEditorNodeDetails::OnClassPicked, Class));

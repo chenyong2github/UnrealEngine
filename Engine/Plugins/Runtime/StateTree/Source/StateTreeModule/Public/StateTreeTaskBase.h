@@ -12,7 +12,7 @@ struct FStateTreeExecutionContext;
  * Base struct for StateTree Tasks.
  * Tasks are logic executed in an active state.
  */
-USTRUCT()
+USTRUCT(meta = (Hidden))
 struct STATETREEMODULE_API FStateTreeTaskBase : public FStateTreeNodeBase
 {
 	GENERATED_BODY()

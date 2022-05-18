@@ -18,7 +18,7 @@ struct FStateTreeEditorPropertyPath;
 /**
  * Base struct for all conditions.
  */
-USTRUCT()
+USTRUCT(meta = (Hidden))
 struct STATETREEMODULE_API FStateTreeConditionBase : public FStateTreeNodeBase
 {
 	GENERATED_BODY()
