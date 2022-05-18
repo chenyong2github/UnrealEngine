@@ -937,7 +937,7 @@ void UControlRigBlueprint::RefreshAllModels()
 				TemplateNode->InvalidateCache();
 			}
 		}
-		Controller->RecomputeAllTemplateFilteredTypes(false);
+		//Controller->RecomputeAllTemplateFilteredTypes(false);
 	}
 }
 
