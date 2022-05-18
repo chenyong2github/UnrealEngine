@@ -4,7 +4,7 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Scalability.h"
-#include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigUtilities.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSettings.h"
@@ -145,7 +145,7 @@ static FAutoConsoleCommand GCmdSetNiagaraPlatformOverride(
 			{
 				if (GNiagaraBackupQualityLevel != INDEX_NONE)
 				{
-					OnSetCVarFromIniEntry(*GDeviceProfilesIni, NiagaraQualityLevelName, *LexToString(GNiagaraBackupQualityLevel), ECVF_SetByMask);
+					UE::ConfigUtilities::OnSetCVarFromIniEntry(*GDeviceProfilesIni, NiagaraQualityLevelName, *LexToString(GNiagaraBackupQualityLevel), ECVF_SetByMask);
 				}
 				GNiagaraBackupQualityLevel = INDEX_NONE;
 				UE_LOG(LogNiagara, Warning, TEXT("Niagara Clearing Override DeviceProfile"));
@@ -1075,7 +1075,7 @@ void SetGNiagaraDeviceProfile(UDeviceProfile* Profile)
 	check(OverrideDP);
 	int32 DPQL = FNiagaraPlatformSet::QualityLevelFromMask(FNiagaraPlatformSet::GetActiveQualityMaskForDeviceProfile(OverrideDP));
 					
-	OnSetCVarFromIniEntry(*GDeviceProfilesIni, NiagaraQualityLevelName, *LexToString(DPQL), ECVF_SetByMask);
+	UE::ConfigUtilities::OnSetCVarFromIniEntry(*GDeviceProfilesIni, NiagaraQualityLevelName, *LexToString(DPQL), ECVF_SetByMask);
 }
 
 #if WITH_EDITOR

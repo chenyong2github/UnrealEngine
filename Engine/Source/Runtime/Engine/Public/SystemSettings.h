@@ -23,6 +23,7 @@ struct FSystemSettingsData
 	ENGINE_API void LoadFromIni(const TCHAR* IniSection, const FString& IniFilename = GEngineIni, bool bAllowMissingValues = true, bool* FoundValues=NULL);
 };
 
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::OnSetCVarFromIniEntry")
 ENGINE_API void OnSetCVarFromIniEntry(const TCHAR *IniFile, const TCHAR *Key, const TCHAR* Value, uint32 SetBy, bool bAllowCheating = false);
 
 

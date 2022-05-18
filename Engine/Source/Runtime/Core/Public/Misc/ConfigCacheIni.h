@@ -21,6 +21,7 @@
 #include "Misc/AccessDetection.h"
 #include "Misc/Paths.h"
 #include "Serialization/StructuredArchive.h"
+#include "Misc/ConfigTypes.h"
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConfig, Log, All);
 
@@ -339,30 +340,6 @@ struct FConfigCommandlineOverride
 };
 #endif // ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 
-
-class FConfigFileHierarchy : public TMap<int32, FString>
-{
-private:
-	int32 KeyGen = 0;
-
-public:
-	FConfigFileHierarchy();
-
-	friend FArchive& operator<<(FArchive& Ar, FConfigFileHierarchy& ConfigFileHierarchy)
-	{
-		Ar << static_cast<FConfigFileHierarchy::Super&>(ConfigFileHierarchy);
-		Ar << ConfigFileHierarchy.KeyGen;
-		return Ar;
-	}
-
-private:
-	int32 GenerateDynamicKey();
-
-	int32 AddStaticLayer(const FString& Filename, int32 LayerIndex, int32 ExpansionIndex=0, int32 PlatformIndex=0);
-	int32 AddDynamicLayer(const FString& Filename);
-
-	friend class FConfigFile;
-};
 
 // One config file.
 
@@ -1241,11 +1218,7 @@ private:
 	friend FConfigContext;
 };
 
-UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
-CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, int32 InGroupNumber, const TCHAR* InIniFilename, uint32 SetBy);
 
-UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
-CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, const TCHAR* InSectionTag, const TCHAR* InIniFilename, uint32 SetBy);
 
 /**
  * Helper function to read the contents of an ini file and a specified group of cvar parameters, where sections in the ini file are marked [InName]
@@ -1253,6 +1226,7 @@ CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, cons
  * @param InIniFilename - The ini filename
  * @param SetBy anything in ECVF_LastSetMask e.g. ECVF_SetByScalability
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::ApplyCVarSettingsFromIni")
 CORE_API void ApplyCVarSettingsFromIni(const TCHAR* InSectionBaseName, const TCHAR* InIniFilename, uint32 SetBy, bool bAllowCheating = false);
 
 /**
@@ -1261,6 +1235,7 @@ CORE_API void ApplyCVarSettingsFromIni(const TCHAR* InSectionBaseName, const TCH
  * @param InIniFilename - The ini filename
  * @param InEvaluationFunction - The evaluation function to be called for each key/value pair
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::ForEachCVarInSectionFromIni")
 CORE_API void ForEachCVarInSectionFromIni(const TCHAR* InSectionName, const TCHAR* InIniFilename, TFunction<void(IConsoleVariable* CVar, const FString& KeyString, const FString& ValueString)> InEvaluationFunction);
 
 /**
@@ -1271,34 +1246,41 @@ CORE_API void ForEachCVarInSectionFromIni(const TCHAR* InSectionName, const TCHA
  * Helper function to start recording ApplyCVarSettings function calls 
  * uses these to generate a history of applied ini settings sections
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::RecordApplyCVarSettingsFromIni")
 CORE_API void RecordApplyCVarSettingsFromIni();
 
 /**
  * Helper function to reapply inis which have been applied after RecordCVarIniHistory was called
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::ReapplyRecordedCVarSettingsFromIni")
 CORE_API void ReapplyRecordedCVarSettingsFromIni();
 
 /**
  * Helper function to clean up ini history
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::DeleteRecordedCVarSettingsFromIni")
 CORE_API void DeleteRecordedCVarSettingsFromIni();
 
 /**
  * Helper function to start recording config reads
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::RecordConfigReadsFromIni")
 CORE_API void RecordConfigReadsFromIni();
 
 /**
  * Helper function to dump config reads to csv after RecordConfigReadsFromIni was called
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::DumpRecordedConfigReadsFromIni")
 CORE_API void DumpRecordedConfigReadsFromIni();
 
 /**
  * Helper function to clean up config read history
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::DeleteRecordedConfigReadsFromIni")
 CORE_API void DeleteRecordedConfigReadsFromIni();
 
 /**
  * Helper function to deal with "True","False","Yes","No","On","Off"
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::ConvertValueFromHumanFriendlyValue")
 CORE_API const TCHAR* ConvertValueFromHumanFriendlyValue(const TCHAR* Value);

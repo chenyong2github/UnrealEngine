@@ -22,6 +22,7 @@
 #include "Misc/Paths.h"
 #include "Misc/PathViews.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigUtilities.h"
 #include "Misc/OutputDeviceHelper.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/AutomationTest.h"
@@ -2304,7 +2305,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 
 	if (bDumpEarlyConfigReads)
 	{
-		RecordConfigReadsFromIni();
+		UE::ConfigUtilities::RecordConfigReadsFromIni();
 	}
 
 	if (bDumpEarlyPakFileReads)
@@ -2316,7 +2317,7 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	{
 		UE_LOG(LogInit, Verbose, TEXT("Begin recording CVar changes for config patching."));
 
-		RecordApplyCVarSettingsFromIni();
+		UE::ConfigUtilities::RecordApplyCVarSettingsFromIni();
 	}
 
 #if WITH_ENGINE
@@ -2499,13 +2500,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		GSystemSettings.Initialize(bHasEditorToken);
 
 		// Apply renderer settings from console variables stored in the INI.
-		ApplyCVarSettingsFromIni(TEXT("/Script/Engine.RendererSettings"), *GEngineIni, ECVF_SetByProjectSetting);
-		ApplyCVarSettingsFromIni(TEXT("/Script/Engine.RendererOverrideSettings"), *GEngineIni, ECVF_SetByProjectSetting);
-		ApplyCVarSettingsFromIni(TEXT("/Script/Engine.StreamingSettings"), *GEngineIni, ECVF_SetByProjectSetting);
-		ApplyCVarSettingsFromIni(TEXT("/Script/Engine.GarbageCollectionSettings"), *GEngineIni, ECVF_SetByProjectSetting);
-		ApplyCVarSettingsFromIni(TEXT("/Script/Engine.NetworkSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+		UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/Engine.RendererSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+		UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/Engine.RendererOverrideSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+		UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/Engine.StreamingSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+		UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/Engine.GarbageCollectionSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+		UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/Engine.NetworkSettings"), *GEngineIni, ECVF_SetByProjectSetting);
 #if WITH_EDITOR
-		ApplyCVarSettingsFromIni(TEXT("/Script/UnrealEd.CookerSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+		UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/UnrealEd.CookerSettings"), *GEngineIni, ECVF_SetByProjectSetting);
 #endif
 
 #if !UE_SERVER
@@ -4681,8 +4682,8 @@ void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, boo
 {
 	if (bDumpEarlyConfigReads)
 	{
-		DumpRecordedConfigReadsFromIni();
-		DeleteRecordedConfigReadsFromIni();
+		UE::ConfigUtilities::DumpRecordedConfigReadsFromIni();
+		UE::ConfigUtilities::DeleteRecordedConfigReadsFromIni();
 	}
 
 	if (bDumpEarlyPakFileReads)
@@ -4709,8 +4710,8 @@ void HandleConfigReload(bool bReloadConfig)
 {
 	if (bReloadConfig)
 	{
-		ReapplyRecordedCVarSettingsFromIni();
-		DeleteRecordedCVarSettingsFromIni();
+		UE::ConfigUtilities::ReapplyRecordedCVarSettingsFromIni();
+		UE::ConfigUtilities::DeleteRecordedCVarSettingsFromIni();
 	}
 }
 

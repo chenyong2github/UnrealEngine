@@ -2,7 +2,7 @@
 
 #include "Scalability.h"
 #include "GenericPlatform/GenericPlatformSurvey.h"
-#include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigUtilities.h"
 #include "HAL/IConsoleManager.h"
 #include "SynthBenchmark.h"
 #include "EngineAnalytics.h"
@@ -356,7 +356,7 @@ void ApplyScalabilityGroupFromPlatformIni(const TCHAR* InSectionName, const TCHA
 		}			   
 	};
 			
-	ForEachCVarInSectionFromIni(InSectionName, InIniFilename, Func);
+	UE::ConfigUtilities::ForEachCVarInSectionFromIni(InSectionName, InIniFilename, Func);
 }
 
 void ChangeScalabilityPreviewPlatform(FName NewPlatformScalabilityName)
@@ -399,7 +399,7 @@ static void SetGroupQualityLevel(const TCHAR* InGroupName, int32 InQualityLevel,
 	else
 #endif
 	{
-		ApplyCVarSettingsFromIni(*Section, *GScalabilityIni, ECVF_SetByScalability);
+		UE::ConfigUtilities::ApplyCVarSettingsFromIni(*Section, *GScalabilityIni, ECVF_SetByScalability);
 	}
 }
 

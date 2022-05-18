@@ -2,6 +2,8 @@
 
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
+#include "Misc/ConfigUtilities.h"
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/CommandLine.h"
@@ -344,7 +346,7 @@ void UDeviceProfileManager::SetDeviceProfileCVars(const FString& DeviceProfileNa
 		{
 			const FString& KeyString = AllowScalabilityAtRuntimeName.ToString();
 			const FString& ValueString = Value->GetValue();
-			OnSetCVarFromIniEntry(*GEngineIni, *KeyString, *ValueString, ECVF_SetBySystemSettingsIni);
+			UE::ConfigUtilities::OnSetCVarFromIniEntry(*GEngineIni, *KeyString, *ValueString, ECVF_SetBySystemSettingsIni);
 		}
 	}
 
@@ -379,7 +381,7 @@ void UDeviceProfileManager::SetDeviceProfileCVars(const FString& DeviceProfileNa
 
 		// Set by scalability or DP, depending
 		uint32 CVarPriority = bIsScalabilityBucket ? ECVF_SetByScalability : ECVF_SetByDeviceProfile;
-		OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, CVarPriority);
+		UE::ConfigUtilities::OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, CVarPriority);
 	}
 
 
@@ -399,7 +401,7 @@ void UDeviceProfileManager::SetDeviceProfileCVars(const FString& DeviceProfileNa
 			UE_LOG(LogDeviceProfileManager, Log, TEXT("Setting ConfigRules Device Profile CVar: [[%s:%s]]"), *CVarKey, *CVarValue);
 
 			// set it and remember it
-			OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, ECVF_SetByDeviceProfile);
+			UE::ConfigUtilities::OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, ECVF_SetByDeviceProfile);
 		}
 	}
 #endif
@@ -419,7 +421,7 @@ void UDeviceProfileManager::SetDeviceProfileCVars(const FString& DeviceProfileNa
 				UE_LOG(LogDeviceProfileManager, Log, TEXT("Setting CommandLine Device Profile CVar: [[%s:%s]]"), *CVarKey, *CVarValue);
 
 				// set it and remember it (no thanks, Ron Popeil)
-				OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, ECVF_SetByDeviceProfile);
+				UE::ConfigUtilities::OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, ECVF_SetByDeviceProfile);
 			}
 		}
 	}
@@ -500,8 +502,9 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSett
 		ActiveProfileName = DeviceProfileManagerSingleton->ActiveDeviceProfile->GetName();
 		//Ensure we've loaded the device profiles for the active platform.
 		//This can be needed when overriding the device profile.
-		FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"), NULL, bForceReload);
-
+		FConfigContext Context = FConfigContext::ReadIntoGConfig();
+		Context.bForceReload = bForceReload;
+		Context.Load(TEXT("DeviceProfiles"), GDeviceProfilesIni);
 	}
 	else
 	{
@@ -935,7 +938,7 @@ void UDeviceProfileManager::SetPreviewDeviceProfile(UDeviceProfile* DeviceProfil
 			if (!CVar->TestFlags(EConsoleVariableFlags::ECVF_Cheat))
 			{
 				// set the cvar to the new value, with same priority that it was before (SetByMask means current priority)
-				CVar->SetWithCurrentPriority(ConvertValueFromHumanFriendlyValue(*Pair.Value));
+				CVar->SetWithCurrentPriority(UE::ConfigUtilities::ConvertValueFromHumanFriendlyValue(*Pair.Value));
 			}
 		}
 	}

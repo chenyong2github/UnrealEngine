@@ -10,6 +10,7 @@ ConsoleManager.cpp: console command handling
 #include "Misc/Paths.h"
 #include "Stats/Stats.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigUtilities.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformProcess.h"
@@ -834,7 +835,7 @@ TSharedPtr<IConsoleVariable> FOtherPlatformValueHelper<T>::GetPlatformValueVaria
 		}
 
 		T TypedValue;
-		TTypeFromString<T>::FromString(TypedValue, ConvertValueFromHumanFriendlyValue(*ConfigValue));
+		TTypeFromString<T>::FromString(TypedValue, UE::ConfigUtilities::ConvertValueFromHumanFriendlyValue(*ConfigValue));
 
 		// clear the existing setby mask
 		int NewFlags = GetFlags() & ~ECVF_SetFlagMask;

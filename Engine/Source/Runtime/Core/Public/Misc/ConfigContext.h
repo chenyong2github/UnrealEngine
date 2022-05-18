@@ -7,7 +7,7 @@
 #include "Containers/UnrealString.h"
 #include "Containers/Map.h"
 #include "CoreGlobals.h"
-
+#include "Misc/ConfigTypes.h"
 
 
 #ifndef CUSTOM_CONFIG
@@ -54,6 +54,16 @@ public:
 	}
 
 	/**
+	 * Create a context to read a hierarchical config into GConfig. Only for current platform.
+	 */
+	static FConfigContext ForceReloadIntoGConfig()
+	{
+		FConfigContext Context(GConfig, true, FString());
+		Context.bForceReload = true;
+		return Context;
+	}
+
+	/**
 	 * Create a context to read a non-hierarchical config into GConfig. Only for current platform.
 	 */
 	static FConfigContext ReadSingleIntoGConfig()
@@ -94,6 +104,17 @@ public:
 		return Context;
 	}
 
+	/**
+	 * Create a context to read a hierarchy, but once it reaches the given filename (StartDeletingFilename), it will not read in anymore 
+	 * files at that point
+	 */
+	static FConfigContext ReadUpToBeforeFile(FConfigFile& DestConfigFile, const FString& Platform, const FString& StartSkippingAtFilename)
+	{
+		FConfigContext Context(nullptr, true, Platform, &DestConfigFile);
+		Context.StartSkippingAtFilename = StartSkippingAtFilename;
+		return Context;
+	}
+
 
 	/**
 	 * Use the context to perform the actual load operation. Note that this is where you specify the Ini name (for instance "Engine"), meaning
@@ -120,8 +141,6 @@ public:
 	const FPerPlatformDirs& GetPerPlatformDirs(const FString& PlatformName);
 
 
-
-
 	// @todo make these private and friend the FCOnfigCacheIni and FConfigFile once everything is a member function!!!!
 	FConfigCacheIni* ConfigSystem;
 
@@ -131,6 +150,7 @@ public:
 	FString SavePlatform;
 	FString GeneratedConfigDir;
 	FString BaseIniName;
+	FString StartSkippingAtFilename;
 
 	FString EngineConfigDir;
 	FString EngineRootDir;
@@ -168,10 +188,9 @@ protected:
 	bool PrepareForLoad(bool& bPerformLoad);
 	bool PerformLoad();
 
-public:
-
+	void AddStaticLayersToHierarchy();
+	bool GenerateDestIniFile();
+	FString PerformFinalExpansions(const FString& InString, const FString& Platform);
 };
 
-
-bool GenerateDestIniFile(FConfigContext& Context);
-void LoadAnIniFile(const FString& FilenameToLoad, FConfigFile& ConfigFile);
+bool DoesConfigFileExistWrapper(const TCHAR* IniFile, const TSet<FString>* IniCacheSet = nullptr);

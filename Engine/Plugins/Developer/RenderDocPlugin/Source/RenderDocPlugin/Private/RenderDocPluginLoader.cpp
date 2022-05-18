@@ -10,7 +10,7 @@
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
-#include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigUtilities.h"
 #include "RHI.h"
 
 #if PLATFORM_LINUX
@@ -215,7 +215,7 @@ void FRenderDocPluginLoader::Initialize()
 	UE_LOG(RenderDocPlugin, Log, TEXT("locating RenderDoc library (%s)..."), *RenderDocDllName);
 
 	// 1) Check the Game configuration files. Since we are so early in the loading phase, we first need to load the cvars since they're not loaded at this point:
-	ApplyCVarSettingsFromIni(TEXT("/Script/RenderDocPlugin.RenderDocPluginSettings"), *GEngineIni, ECVF_SetByProjectSetting);
+	UE::ConfigUtilities::ApplyCVarSettingsFromIni(TEXT("/Script/RenderDocPlugin.RenderDocPluginSettings"), *GEngineIni, ECVF_SetByProjectSetting);
 	RenderDocDLL = LoadAndCheckRenderDocLibrary(RenderDocAPI, CVarRenderDocBinaryPath.GetValueOnAnyThread());
 
 #if PLATFORM_WINDOWS
