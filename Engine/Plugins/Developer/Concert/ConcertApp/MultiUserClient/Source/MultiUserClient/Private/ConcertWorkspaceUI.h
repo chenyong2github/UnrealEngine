@@ -154,4 +154,7 @@ private:
 
 	/** Asset history layout for asset history window tabs. */
 	TSharedPtr<FTabManager::FLayout> AssetHistoryLayout;
+
+	/** Toolbar extender for sequencer toolbar */
+	TSharedPtr<FExtender> ToolbarExtender;
 };
