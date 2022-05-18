@@ -1784,17 +1784,38 @@ export type GetTemplateStepStateResponse = {
 	name: string;
 
 	/**User who paused the step */
-	pausedByUserId?: string;
+	pausedByUserInfo?: GetThinUserInfoResponse;
 
 	/**The UTC time when the step was paused*/
 	pauseTimeUtc?: Date | string;
 
 	/**User who quarantined the step */
-	quarantinedByUserId?: string; 
+	quarantinedByUserInfo?: GetThinUserInfoResponse; 
 	
 	/**The UTC time when the step was quarantined */
 	quarantineTimeUtc?: Date | string;
 
+}
+
+/**  Updates an existing stream template ref */
+export type UpdateTemplateRefRequest = {
+	
+	/** Step states to update */
+	stepStates?: UpdateStepStateRequest[];
+
+}
+
+/** Step state update request */
+export type UpdateStepStateRequest = {
+
+	/** Name of the step */
+	name: string;
+
+	/** User who paused the step */
+	pausedByUserId?: string;
+
+	/** User who paused the step */
+	quarantinedByUserId?: string;
 }
 
 /**Information about a template in this stream */
