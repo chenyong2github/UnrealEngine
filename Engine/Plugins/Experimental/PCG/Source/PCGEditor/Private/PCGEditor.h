@@ -8,6 +8,7 @@
 class FUICommandList;
 class IDetailsView;
 class SGraphEditor;
+class SPCGEditorGraphFind;
 class SPCGEditorGraphNodePalette;
 class UPCGEditorGraph;
 class UPCGGraph;
@@ -17,6 +18,12 @@ class FPCGEditor : public FAssetEditorToolkit, public FSelfRegisteringEditorUndo
 public:
 	/** Edits the specified PCGGraph */
 	void Initialize(const EToolkitMode::Type InMode, const TSharedPtr<class IToolkitHost>& InToolkitHost, UPCGGraph* InPCGGraph);
+
+	/** Get the PCG graph being edited */
+	UPCGEditorGraph* GetPCGEditorGraph();
+
+	/** Focus the graph view on a specific node */
+	void JumpToNode(const UEdGraphNode* InNode);
 
 	// ~Begin IToolkit interface
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager) override;
@@ -37,6 +44,12 @@ public:
 	// ~End FAssetEditorToolkit interface
 
 private:
+	/** Bind commands to delegates */
+	void BindCommands();
+
+	/** Bring up the find tab */
+	void OnFind();
+
 	/** Select every node in the graph */
 	void SelectAllNodes();
 	/** Whether we can select every node */
@@ -85,6 +98,9 @@ private:
 	/** Create new palette widget */
 	TSharedRef<SPCGEditorGraphNodePalette> CreatePaletteWidget();
 
+	/** Create new find widget */
+	TSharedRef<SPCGEditorGraphFind> CreateFindWidget();
+
 	/** Called when the selection changes in the GraphEditor */
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 
@@ -96,10 +112,12 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Palette(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Attributes(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Find(const FSpawnTabArgs& Args);
 
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
 	TSharedPtr<IDetailsView> PropertyDetailsWidget;
 	TSharedPtr<SPCGEditorGraphNodePalette> PaletteWidget;
+	TSharedPtr<SPCGEditorGraphFind> FindWidget;
 
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 

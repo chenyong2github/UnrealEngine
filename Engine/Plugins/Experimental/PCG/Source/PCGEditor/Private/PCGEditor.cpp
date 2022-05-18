@@ -2,11 +2,13 @@
 
 #include "PCGEditor.h"
 
+#include "PCGEditorCommands.h"
 #include "PCGEditorCommon.h"
 #include "PCGEditorGraph.h"
 #include "PCGEditorGraphNodeBase.h"
 #include "PCGEditorGraphSchema.h"
 #include "PCGGraph.h"
+#include "SPCGEditorGraphFind.h"
 #include "SPCGEditorGraphNodePalette.h"
 
 #include "EdGraphUtilities.h"
@@ -36,6 +38,7 @@ namespace FPCGEditor_private
 	const FName PaletteID = FName(TEXT("Palette"));
 	const FName AttributesID = FName(TEXT("Attributes"));
 	const FName ViewportID = FName(TEXT("Viewport"));
+	const FName FindID = FName(TEXT("Find"));
 }
 
 void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<class IToolkitHost>& InToolkitHost, UPCGGraph* InPCGGraph)
@@ -56,6 +59,9 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 
 	GraphEditorWidget = CreateGraphEditorWidget();
 	PaletteWidget = CreatePaletteWidget();
+	FindWidget = CreateFindWidget();
+
+	BindCommands();
 
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_PCGGraphEditor_Layout_v0.4")
 		->AddArea
@@ -98,6 +104,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 					->SetSizeCoefficient(0.28)
 					->SetHideTabWell(true)
 					->AddTab(FPCGEditor_private::AttributesID, ETabState::OpenedTab)
+					->AddTab(FPCGEditor_private::FindID, ETabState::ClosedTab)
 				)
 			)
 			->Split
@@ -114,7 +121,20 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	InitAssetEditor(InMode, InToolkitHost, PCGGraphEditorAppName, StandaloneDefaultLayout, /*bCreateDefaultStandaloneMenu=*/ true, /*bCreateDefaultToolbar=*/ true, InPCGGraph);
 }
 
-void FPCGEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
+UPCGEditorGraph* FPCGEditor::GetPCGEditorGraph()
+{
+	return PCGEditorGraph;
+}
+
+void FPCGEditor::JumpToNode(const UEdGraphNode* InNode)
+{
+	if (GraphEditorWidget.IsValid())
+	{
+		GraphEditorWidget->JumpToNode(InNode);
+	}
+}
+
+void FPCGEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
 	WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_PCGEditor", "PCG Editor"));
 	auto WorkspaceMenuCategoryRef = WorkspaceMenuCategory.ToSharedRef();
@@ -140,6 +160,10 @@ void FPCGEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabM
 
 	InTabManager->RegisterTabSpawner(FPCGEditor_private::ViewportID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Viewport))
 		.SetDisplayName(LOCTEXT("ViewportTab", "Viewport"))
+		.SetGroup(WorkspaceMenuCategoryRef);
+
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::FindID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Find))
+		.SetDisplayName(LOCTEXT("FindTab", "Find"))
 		.SetGroup(WorkspaceMenuCategoryRef);
 }
 
@@ -196,6 +220,24 @@ FLinearColor FPCGEditor::GetWorldCentricTabColorScale() const
 FString FPCGEditor::GetWorldCentricTabPrefix() const
 {
 	return LOCTEXT("WorldCentricTabPrefix", "PCG ").ToString();
+}
+
+void FPCGEditor::BindCommands()
+{
+	const FPCGEditorCommands& PCGEditorCommands = FPCGEditorCommands::Get();
+
+	ToolkitCommands->MapAction(
+		PCGEditorCommands.Find,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnFind));
+}
+
+void FPCGEditor::OnFind()
+{
+	if (TabManager.IsValid() && FindWidget.IsValid())
+	{
+		TabManager->TryInvokeTab(FPCGEditor_private::FindID);
+		FindWidget->FocusForUse();
+	}
 }
 
 void FPCGEditor::SelectAllNodes()
@@ -578,6 +620,11 @@ TSharedRef<SPCGEditorGraphNodePalette> FPCGEditor::CreatePaletteWidget()
 	return SNew(SPCGEditorGraphNodePalette);
 }
 
+TSharedRef<SPCGEditorGraphFind> FPCGEditor::CreateFindWidget()
+{
+	return SNew(SPCGEditorGraphFind, SharedThis(this));
+}
+
 void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
@@ -662,6 +709,16 @@ TSharedRef<SDockTab> FPCGEditor::SpawnTab_Viewport(const FSpawnTabArgs& Args)
 		.TabColorScale(GetTabColorScale())
 		[
 			SNullWidget::NullWidget
+		];
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_Find(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGFindTitle", "Find"))
+		.TabColorScale(GetTabColorScale())
+		[
+			FindWidget.ToSharedRef()
 		];
 }
 

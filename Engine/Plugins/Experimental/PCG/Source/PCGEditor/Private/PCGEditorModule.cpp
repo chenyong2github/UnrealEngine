@@ -2,24 +2,24 @@
 
 #include "PCGEditorModule.h"
 
+#include "AssetTypeActions/PCGGraphAssetTypeActions.h"
+#include "AssetTypeActions/PCGSettingsAssetTypeActions.h"
+#include "PCGComponentDetails.h"
+#include "PCGEditorCommands.h"
+#include "PCGEditorGraphNodeFactory.h"
+#include "PCGEditorSettings.h"
+#include "PCGGraphDetails.h"
+#include "PCGSubsystem.h"
+#include "PCGVolumeFactory.h"
+
 #include "EdGraphUtilities.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "IAssetTools.h"
+#include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "Toolkits/IToolkit.h"
-#include "ISettingsModule.h"
-
-#include "AssetTypeActions/PCGGraphAssetTypeActions.h"
-#include "AssetTypeActions/PCGSettingsAssetTypeActions.h"
-#include "PCGComponentDetails.h"
-#include "PCGEditorGraphNodeFactory.h"
-#include "PCGGraphDetails.h"
-#include "PCGVolumeFactory.h"
-#include "PCGEditorSettings.h"
-
-#include "PCGSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FPCGEditorModule"
 
@@ -31,6 +31,8 @@ void FPCGEditorModule::StartupModule()
 	RegisterAssetTypeActions();
 	RegisterMenuExtensions();
 	RegisterSettings();
+
+	FPCGEditorCommands::Register();
 
 	GraphNodeFactory = MakeShareable(new FPCGEditorGraphNodeFactory());
 	FEdGraphUtilities::RegisterVisualNodeFactory(GraphNodeFactory);
@@ -47,6 +49,8 @@ void FPCGEditorModule::ShutdownModule()
 	UnregisterAssetTypeActions();
 	UnregisterDetailsCustomizations();
 	UnregisterMenuExtensions();
+
+	FPCGEditorCommands::Unregister();
 
 	FEdGraphUtilities::UnregisterVisualNodeFactory(GraphNodeFactory);
 
