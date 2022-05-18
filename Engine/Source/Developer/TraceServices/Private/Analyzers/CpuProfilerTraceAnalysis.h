@@ -20,6 +20,7 @@ public:
 	FCpuProfilerAnalyzer(IAnalysisSession& Session, FTimingProfilerProvider& TimingProfilerProvider, FThreadProvider& InThreadProvider);
 	~FCpuProfilerAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
+	virtual void OnAnalysisEnd(/*const FOnAnalysisEndContext& Context*/) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
 private:
@@ -37,9 +38,10 @@ private:
 
 	struct FThreadState
 	{
+		uint32 ThreadId = 0;
 		TArray<FEventScopeState> ScopeStack;
 		TArray<FPendingEvent> PendingEvents;
-		FTimingProfilerProvider::TimelineInternal* Timeline;
+		FTimingProfilerProvider::TimelineInternal* Timeline = nullptr;
 		uint64 LastCycle = 0;
 	};
 
