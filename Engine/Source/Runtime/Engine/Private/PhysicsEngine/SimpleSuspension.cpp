@@ -100,7 +100,7 @@ bool FSimpleSuspensionHelpers::ComputeSprungMasses(const TArray<FVector>& MassSp
 		return false;
 	}
 
-	if (!ErrCheck(TotalMass > SMALL_NUMBER, TEXT("Total mass must be greater than zero to compute sprung masses."), ErrMsg))
+	if (!ErrCheck(TotalMass > UE_SMALL_NUMBER, TEXT("Total mass must be greater than zero to compute sprung masses."), ErrMsg))
 	{
 		return false;
 	}
