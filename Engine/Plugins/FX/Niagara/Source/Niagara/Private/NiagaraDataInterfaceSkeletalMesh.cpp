@@ -1800,9 +1800,9 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 	{
 		FoundSkelComp = SourceComponent;
 	}
-	else if (bTrySource && Source)
+	else if (bTrySource && SoftSourceActor.Get())
 	{
-		FoundSkelComp = FindActorSkelMeshComponent(Source);
+		FoundSkelComp = FindActorSkelMeshComponent(SoftSourceActor.Get());
 	}
 	else if (bTryAttachParent && AttachComponent)
 	{
@@ -2468,7 +2468,7 @@ UNiagaraDataInterfaceSkeletalMesh::UNiagaraDataInterfaceSkeletalMesh(FObjectInit
 #if WITH_EDITORONLY_DATA
 	  , PreviewMesh(nullptr)
 #endif
-	  , Source(nullptr)
+	  , SoftSourceActor(nullptr)
 	  , SourceComponent(nullptr)
       , SkinningMode(ENDISkeletalMesh_SkinningMode::SkinOnTheFly)
 	  , WholeMeshLOD(INDEX_NONE)
@@ -2515,6 +2515,12 @@ void UNiagaraDataInterfaceSkeletalMesh::PostLoad()
 		LocalPreviewMesh->ConditionalPostLoad();
 	}
 #endif
+#if WITH_EDITORONLY_DATA
+	if (Source_DEPRECATED != nullptr)
+	{
+		SoftSourceActor = Source_DEPRECATED;
+	}
+#endif
 }
 
 #if WITH_EDITOR
@@ -2529,7 +2535,7 @@ void UNiagaraDataInterfaceSkeletalMesh::PostEditChangeProperty(FPropertyChangedE
 		SourceMode != ENDISkeletalMesh_SourceMode::Source)
 	{
 		// Clear out any source that is set to prevent unnecessary references, since we won't even consider them
-		Source = nullptr;
+		SoftSourceActor = nullptr;
 		SourceComponent = nullptr;
 	}
 }
@@ -2541,7 +2547,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::CanEditChange(const FProperty* InPropert
 		return false;
 	}
 
-	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, Source) &&
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, SoftSourceActor) &&
 		SourceMode != ENDISkeletalMesh_SourceMode::Default &&
 		SourceMode != ENDISkeletalMesh_SourceMode::Source)
 	{
@@ -2622,7 +2628,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::CopyToInternal(UNiagaraDataInterface* De
 
 	UNiagaraDataInterfaceSkeletalMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceSkeletalMesh>(Destination);
 	OtherTyped->SourceMode = SourceMode;
-	OtherTyped->Source = Source;
+	OtherTyped->SoftSourceActor = SoftSourceActor;
 	OtherTyped->MeshUserParameter = MeshUserParameter;
 	OtherTyped->SourceComponent = SourceComponent;
 	OtherTyped->SkinningMode = SkinningMode;
@@ -2651,7 +2657,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::Equals(const UNiagaraDataInterface* Othe
 #if WITH_EDITORONLY_DATA
 		OtherTyped->PreviewMesh == PreviewMesh &&
 #endif
-		OtherTyped->Source == Source &&
+		OtherTyped->SoftSourceActor == SoftSourceActor &&
 		OtherTyped->MeshUserParameter == MeshUserParameter &&
 		OtherTyped->SourceComponent == SourceComponent &&
 		OtherTyped->SkinningMode == SkinningMode &&
@@ -2846,7 +2852,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFeedback(UNiagaraSystem* Asset, UNiag
 	}
 #endif
 
-	if (Source == nullptr && bHasNoMeshAssignedWarning)
+	if (SoftSourceActor.Get() == nullptr && bHasNoMeshAssignedWarning)
 	{
 		FNiagaraDataInterfaceFeedback NoMeshAssignedError(LOCTEXT("NoMeshAssignedError", "This Data Interface should be assigned a skeletal mesh to operate correctly."),
 			LOCTEXT("NoMeshAssignedErrorSummary", "No mesh assigned warning"),
@@ -3620,7 +3626,7 @@ void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkelet
 	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated.
 	ChangeId++;
 	SourceComponent = ComponentToUse;
-	Source = ComponentToUse->GetOwner();
+	SoftSourceActor = ComponentToUse->GetOwner();
 }
 
 void UNiagaraDataInterfaceSkeletalMesh::SetSamplingRegionsFromBlueprints(const TArray<FName>& InSamplingRegions)

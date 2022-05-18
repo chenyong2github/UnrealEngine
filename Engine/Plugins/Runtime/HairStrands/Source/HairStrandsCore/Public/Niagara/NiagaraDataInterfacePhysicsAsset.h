@@ -108,11 +108,16 @@ public:
 
 	/** Skeletal Mesh from which the Physics Asset will be found. */
 	UPROPERTY(EditAnywhere, Category = "Source")
-		TObjectPtr<UPhysicsAsset> DefaultSource;
+	TObjectPtr<UPhysicsAsset> DefaultSource;
 
 	/** The source actor from which to sample */
-	UPROPERTY(EditAnywhere, Category = "Source")
-	TObjectPtr<AActor> SourceActor;
+	UPROPERTY(EditAnywhere, Category = "Source", meta = (DisplayName = "Source Actor"))
+	TSoftObjectPtr<AActor> SoftSourceActor;
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TObjectPtr<AActor> SourceActor_DEPRECATED;
+#endif
 
 	/** Reference to a user parameter if we're reading one. */
 	UPROPERTY(EditAnywhere, Category = "Source")
@@ -126,6 +131,7 @@ public:
 
 	/** UObject Interface */
 	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 
 	/** UNiagaraDataInterface Interface */
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;

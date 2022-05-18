@@ -683,7 +683,7 @@ void FNDIPhysicsAssetProxy::ResetData(FRHICommandList& RHICmdList, const FNiagar
 UNiagaraDataInterfacePhysicsAsset::UNiagaraDataInterfacePhysicsAsset(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DefaultSource(nullptr)
-	, SourceActor(nullptr)
+	, SoftSourceActor(nullptr)
 	, SourceComponents()
 	, PhysicsAssets()
 {
@@ -770,7 +770,8 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 		{
 			// The binding exists, but no object is bound. Not warning here in case the user knows what they're doing.
 		}
-	} else if (SourceActor)
+	}
+	else if (AActor* SourceActor = SoftSourceActor.Get())
 	{
 		ASkeletalMeshActor* SkeletalMeshActor = Cast<ASkeletalMeshActor>(SourceActor);
 		if (SkeletalMeshActor != nullptr)
@@ -911,7 +912,7 @@ bool UNiagaraDataInterfacePhysicsAsset::CopyToInternal(UNiagaraDataInterface* De
 
 	UNiagaraDataInterfacePhysicsAsset* OtherTyped = CastChecked<UNiagaraDataInterfacePhysicsAsset>(Destination);
 	OtherTyped->PhysicsAssets = PhysicsAssets;
-	OtherTyped->SourceActor = SourceActor;
+	OtherTyped->SoftSourceActor = SoftSourceActor;
 	OtherTyped->SourceComponents = SourceComponents;
 	OtherTyped->DefaultSource = DefaultSource;
 	OtherTyped->MeshUserParameter = MeshUserParameter;
@@ -928,7 +929,7 @@ bool UNiagaraDataInterfacePhysicsAsset::Equals(const UNiagaraDataInterface* Othe
 	const UNiagaraDataInterfacePhysicsAsset* OtherTyped = CastChecked<const UNiagaraDataInterfacePhysicsAsset>(Other);
 
 	return  (OtherTyped->PhysicsAssets == PhysicsAssets) && 
-		(OtherTyped->SourceActor == SourceActor) && 
+		(OtherTyped->SoftSourceActor == SoftSourceActor) &&
 		(OtherTyped->SourceComponents == SourceComponents) && 
 		(OtherTyped->DefaultSource == DefaultSource) &&
 		(OtherTyped->MeshUserParameter == MeshUserParameter);
@@ -943,6 +944,18 @@ void UNiagaraDataInterfacePhysicsAsset::PostInitProperties()
 		ENiagaraTypeRegistryFlags Flags = ENiagaraTypeRegistryFlags::AllowAnyVariable | ENiagaraTypeRegistryFlags::AllowParameter;
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), Flags);
 	}
+}
+
+void UNiagaraDataInterfacePhysicsAsset::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	if (SourceActor_DEPRECATED != nullptr)
+	{
+		SoftSourceActor = SourceActor_DEPRECATED;
+	}
+#endif
 }
 
 void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)

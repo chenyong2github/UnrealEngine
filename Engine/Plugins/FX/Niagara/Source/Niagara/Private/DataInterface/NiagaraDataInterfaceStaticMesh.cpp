@@ -1407,6 +1407,18 @@ void UNiagaraDataInterfaceStaticMesh::PostInitProperties()
 	}
 }
 
+void UNiagaraDataInterfaceStaticMesh::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	if ( Source_DEPRECATED != nullptr )
+	{
+		SoftSourceActor = Source_DEPRECATED;
+	}
+#endif
+}
+
 #if WITH_EDITOR
 void UNiagaraDataInterfaceStaticMesh::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
@@ -1419,7 +1431,7 @@ void UNiagaraDataInterfaceStaticMesh::PostEditChangeProperty(struct FPropertyCha
 		if (SourceMode != ENDIStaticMesh_SourceMode::Default && SourceMode != ENDIStaticMesh_SourceMode::Source)
 		{
 			// Ensure we don't have any reference to a source actor that we'll never use
-			Source = nullptr;
+			SoftSourceActor = nullptr;
 			SourceComponent = nullptr;
 		}
 	
@@ -1438,7 +1450,7 @@ bool UNiagaraDataInterfaceStaticMesh::CanEditChange(const FProperty* InProperty)
 		return false;
 	}
 
-	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceStaticMesh, Source) &&
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceStaticMesh, SoftSourceActor) &&
 		SourceMode != ENDIStaticMesh_SourceMode::Default &&
 		SourceMode != ENDIStaticMesh_SourceMode::Source)
 	{
@@ -2520,7 +2532,7 @@ bool UNiagaraDataInterfaceStaticMesh::Equals(const UNiagaraDataInterface* Other)
 	}
 	const UNiagaraDataInterfaceStaticMesh* OtherTyped = CastChecked<const UNiagaraDataInterfaceStaticMesh>(Other);
 	return OtherTyped->SourceMode == SourceMode &&
-		OtherTyped->Source == Source &&
+		OtherTyped->SoftSourceActor == SoftSourceActor &&
 		OtherTyped->SourceComponent == SourceComponent &&
 		OtherTyped->DefaultMesh == DefaultMesh &&
 		OtherTyped->SectionFilter.AllowedMaterialSlots == SectionFilter.AllowedMaterialSlots &&
@@ -2537,7 +2549,7 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 
 	UNiagaraDataInterfaceStaticMesh* OtherTyped = CastChecked<UNiagaraDataInterfaceStaticMesh>(Destination);
 	OtherTyped->SourceMode = SourceMode;
-	OtherTyped->Source = Source;
+	OtherTyped->SoftSourceActor = SoftSourceActor;
 	OtherTyped->SourceComponent = SourceComponent;
 	OtherTyped->DefaultMesh = DefaultMesh;
 #if WITH_EDITORONLY_DATA
@@ -2552,7 +2564,8 @@ bool UNiagaraDataInterfaceStaticMesh::CopyToInternal(UNiagaraDataInterface* Dest
 #if WITH_EDITOR
 void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors, TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
 {
-	if (Source == nullptr && DefaultMesh != nullptr && !DefaultMesh->bAllowCPUAccess)
+	AActor* SourceActor = SoftSourceActor.Get();
+	if (SourceActor == nullptr && DefaultMesh != nullptr && !DefaultMesh->bAllowCPUAccess)
 	{
 		FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(DefaultMesh->GetName())),
 			LOCTEXT("CPUAccessNotAllowedErrorSummary", "CPU access error"),
@@ -2566,7 +2579,7 @@ void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagar
 		OutErrors.Add(CPUAccessNotAllowedError);
 	}
 
-	bool bHasNoMeshAssignedWarning = (Source == nullptr && DefaultMesh == nullptr);
+	bool bHasNoMeshAssignedWarning = (SourceActor == nullptr && DefaultMesh == nullptr);
 #if WITH_EDITORONLY_DATA
 	if (bHasNoMeshAssignedWarning)
 	{
@@ -2672,9 +2685,9 @@ UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(USceneComponent*& Ou
 	{
 		FoundMeshComponent = SourceComponent;
 	}
-	else if (bTrySource && Source)
+	else if (bTrySource && SoftSourceActor.Get())
 	{
-		FoundMeshComponent = FindActorMeshComponent(Source);
+		FoundMeshComponent = FindActorMeshComponent(SoftSourceActor.Get());
 	}
 	else if (bTryAttachParent && SystemInstance)
 	{
@@ -2736,7 +2749,7 @@ void UNiagaraDataInterfaceStaticMesh::SetSourceComponentFromBlueprints(UStaticMe
 	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated. 
 	++ChangeId;
 	SourceComponent = ComponentToUse;
-	Source = ComponentToUse->GetOwner();
+	SoftSourceActor = ComponentToUse->GetOwner();
 }
 
 void UNiagaraDataInterfaceStaticMesh::SetDefaultMeshFromBlueprints(UStaticMesh* MeshToUse)
@@ -2744,7 +2757,7 @@ void UNiagaraDataInterfaceStaticMesh::SetDefaultMeshFromBlueprints(UStaticMesh* 
 	// NOTE: When ChangeId changes the next tick will be skipped and a reset of the per-instance data will be initiated. 
 	++ChangeId;
 	SourceComponent = nullptr;
-	Source = nullptr;
+	SoftSourceActor = nullptr;
 	DefaultMesh = MeshToUse;
 }
 
