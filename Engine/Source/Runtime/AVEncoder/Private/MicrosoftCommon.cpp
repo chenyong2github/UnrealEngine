@@ -2,7 +2,7 @@
 
 #include "MicrosoftCommon.h"
 
-#if PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
+#if PLATFORM_WINDOWS
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 	#pragma comment(lib, "mfplat")
@@ -41,5 +41,5 @@ namespace AVEncoder
 
 } // namespace AVEncoder
 
-#endif // PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
+#endif // PLATFORM_WINDOWS
 

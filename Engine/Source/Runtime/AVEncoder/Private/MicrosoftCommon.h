@@ -5,7 +5,7 @@
 #include "Containers/UnrealString.h"
 #include "VideoCommon.h"
 
-#if PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK) || PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 namespace AVEncoder
 {
@@ -163,6 +163,6 @@ const GUID CLSID_VideoProcessorMFT = { 0x88753b26, 0x5b24, 0x49bd, { 0xb2, 0xe7,
 } // namespace AVEncoder
 
 
-#endif // PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
+#endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 
 

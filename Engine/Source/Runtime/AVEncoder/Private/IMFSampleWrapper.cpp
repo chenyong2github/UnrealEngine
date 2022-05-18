@@ -3,7 +3,7 @@
 #include "IMFSampleWrapper.h"
 #include "AVEncoder.h"
 
-#if PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
+#if PLATFORM_WINDOWS
 
 #include "MicrosoftCommon.h"
 
@@ -121,5 +121,5 @@ FIMFSampleWrapper FIMFSampleWrapper::Clone() const
 
 } // namespace AVEncoder
 
-#endif // PLATFORM_WINDOWS || (PLATFORM_XBOXONE && WITH_LEGACY_XDK)
+#endif // PLATFORM_WINDOWS
 
