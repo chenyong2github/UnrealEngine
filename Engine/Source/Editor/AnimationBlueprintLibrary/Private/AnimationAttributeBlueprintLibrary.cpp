@@ -113,7 +113,7 @@ DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execSetAttributeKeys)
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
 			EBlueprintExceptionType::AccessViolation, 
-			LOCTEXT("SetAttributeKey_InvalidController", "Accessed None attempting to call SetAttributeKeys.")
+			LOCTEXT("SetAttributeKeys_InvalidController", "Accessed None attempting to call SetAttributeKeys.")
 		);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 	}
@@ -181,7 +181,7 @@ DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execGetAttributeKey)
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
 			EBlueprintExceptionType::AccessViolation,
-			LOCTEXT("SetAttributeKey_InvalidValue", "Failed to resolve the attribute value parameter for GetAttributeKey.")
+			LOCTEXT("GetAttributeKey_InvalidValue", "Failed to resolve the attribute value parameter for GetAttributeKey.")
 		);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 	}
@@ -190,7 +190,7 @@ DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execGetAttributeKey)
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
 			EBlueprintExceptionType::AccessViolation, 
-			LOCTEXT("SetAttributeKey_InvalidController", "Accessed None attempting to call GetAttributeKey.")
+			LOCTEXT("GetAttributeKey_InvalidController", "Accessed None attempting to call GetAttributeKey.")
 		);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 	}
@@ -266,7 +266,7 @@ DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execGetAttributeKeys)
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
 			EBlueprintExceptionType::AccessViolation,
-			LOCTEXT("SetAttributeKeys_InvalidValue", "Failed to resolve the attribute values parameter for GetAttributeKeys.")
+			LOCTEXT("GetAttributeKeys_InvalidValue", "Failed to resolve the attribute values parameter for GetAttributeKeys.")
 		);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 	}
@@ -275,7 +275,7 @@ DEFINE_FUNCTION(UAnimationAttributeBlueprintLibrary::execGetAttributeKeys)
 	{
 		FBlueprintExceptionInfo ExceptionInfo(
 			EBlueprintExceptionType::AccessViolation, 
-			LOCTEXT("SetAttributeKey_InvalidController", "Accessed None attempting to call GetAttributeKeys.")
+			LOCTEXT("GetAttributeKeys_InvalidController", "Accessed None attempting to call GetAttributeKeys.")
 		);
 		FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
 	}

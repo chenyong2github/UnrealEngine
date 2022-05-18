@@ -102,16 +102,17 @@ FText UAnimGraphNode_LinkedAnimLayer::GetNodeTitle(ENodeTitleType::Type TitleTyp
 	UClass* TargetClass = *Node.Interface;
 	UAnimBlueprint* TargetAnimBlueprintInterface = TargetClass ? CastChecked<UAnimBlueprint>(TargetClass->ClassGeneratedBy) : nullptr;
 
+	const FText DefaultNodeTitle = LOCTEXT("NodeTitle", "Linked Anim Layer");
 	if(TitleType == ENodeTitleType::MenuTitle)
 	{
-		return LOCTEXT("NodeTitle", "Linked Anim Layer");
+		return DefaultNodeTitle;
 	}
 	else
 	{
 		bool bIsSelf = TargetAnimBlueprintInterface == nullptr; 
 		
 		FFormatNamedArguments Args;
-		Args.Add(TEXT("NodeType"), bIsSelf ? LOCTEXT("NodeTitle", "Anim Layer (self)") : LOCTEXT("NodeTitle", "Linked Anim Layer"));
+		Args.Add(TEXT("NodeType"), bIsSelf ? LOCTEXT("SelfLayerNodeTitle", "Anim Layer (self)") : DefaultNodeTitle);
 		Args.Add(TEXT("TargetClass"), bIsSelf ? LOCTEXT("ClassSelf", "Self") : FText::FromString(TargetAnimBlueprintInterface->GetName()));
 		Args.Add(TEXT("Layer"), (Node.Layer == NAME_None) ? LOCTEXT("LayerNone", "None") : FText::FromName(Node.Layer));
 
