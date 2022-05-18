@@ -1621,21 +1621,26 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 				this->OffsetInFile = PayloadOffset;
 				this->Flags = (this->Flags & EFlags::TransientFlags) | (UpdatedFlags & ~EFlags::TransientFlags);
 	
-				if (PayloadOffset != INDEX_NONE)
+				// If the payload is valid we might want to fix up the package path or virtualization flags now
+				// that the package has saved.
+				if (!this->PayloadContentId.IsZero())
 				{
-					// A valid payload means that it was saved locally to disk. We can set the path at this point but will only
-					// be able to load from it if the package is reattached to the file on disk, which is not a currently
-					// supported feature.
-					this->PackagePath = InPackagePath;
-					check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
-				}
-				else
-				{
-					// If the payload offset we are given is INDEX_NONE it means that the payload was discarded as there was an identical
-					// virtualized entry and the virtualized version takes priority. Since we know that the payload is in the 
-					// virtualization system at this point we can set the virtualization flag allowing us to unload any existing payload
-					// in memory to help reduce bloat.
-					EnumAddFlags(this->Flags, EFlags::IsVirtualized);
+					if (PayloadOffset != INDEX_NONE)
+					{
+						// A valid payload offset means that it was saved locally to disk. We can set the path at this point
+						// but will only be able to load from it if the package is reattached to the file on disk, which is
+						// not a currently supported feature.
+						this->PackagePath = InPackagePath;
+						check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
+					}
+					else
+					{
+						// If the payload offset we are given is INDEX_NONE it means that the payload was discarded as there was an identical
+						// virtualized entry and the virtualized version takes priority. Since we know that the payload is in the 
+						// virtualization system at this point we can set the virtualization flag allowing us to unload any existing payload
+						// in memory to help reduce bloat.
+						EnumAddFlags(this->Flags, EFlags::IsVirtualized);
+					}
 				}
 
 				if (CanUnloadData())
