@@ -8,6 +8,8 @@ set(VERSION "1.2.12")
 option(ASM686 "Enable building i686 assembly implementation")
 option(AMD64 "Enable building amd64 assembly implementation")
 
+option(MINIZIP "Enable building MiniZip")
+
 set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH "Installation directory for executables")
 set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
 set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "Installation directory for headers")
@@ -160,6 +162,14 @@ if(MSVC)
 	if(ZLIB_ASMS)
 		add_definitions(-DASMV -DASMINF)
 	endif()
+endif()
+
+if(MINIZIP)
+	set(ZLIB_SRCS ${ZLIB_SRCS}
+		contrib/minizip/zip.c
+		contrib/minizip/ioapi.c
+		contrib/minizip/unzip.c
+	)
 endif()
 
 # parse the full version number from zlib.h and include in ZLIB_FULL_VERSION
