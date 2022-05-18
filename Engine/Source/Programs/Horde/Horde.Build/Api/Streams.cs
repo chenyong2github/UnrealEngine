@@ -448,7 +448,7 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// User who paused the step
 		/// </summary>
-		public string? PausedByUserId { get; set; }
+		public GetThinUserInfoResponse? PausedByUserInfo { get; set; }
 
 		/// <summary>
 		/// The UTC time when the step was paused
@@ -458,7 +458,7 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// User who quarantined the step
 		/// </summary>
-		public string? QuarantinedByUserId { get; set; }
+		public GetThinUserInfoResponse? QuarantinedByUserInfo { get; set; }
 
 		/// <summary>
 		/// The UTC time when the step was quarantined
@@ -475,13 +475,13 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public GetTemplateStepStateResponse(TemplateStepState state)
+		public GetTemplateStepStateResponse(TemplateStepState state, GetThinUserInfoResponse? pausedByUserInfo, GetThinUserInfoResponse? quarantinedByUserInfo)
 		{
-			Name = state.Name;
-			PausedByUserId = state.PausedByUserId?.ToString();
+			Name = state.Name;			
 			PauseTimeUtc = state.PauseTimeUtc;
-			QuarantinedByUserId = state.QuarantinedByUserId?.ToString();
 			QuarantineTimeUtc = state.QuarantineTimeUtc;
+			PausedByUserInfo = pausedByUserInfo;
+			QuarantinedByUserInfo = quarantinedByUserInfo;
 		}
 
 	}
@@ -553,8 +553,9 @@ namespace Horde.Build.Api
 		/// <param name="id">The template ref id</param>
 		/// <param name="templateRef">The template ref</param>
 		/// <param name="template">The template instance</param>
+		/// <param name="stepStates">The template step states</param>
 		/// <param name="bIncludeAcl">Whether to include the ACL in the response</param>
-		public GetTemplateRefResponse(TemplateRefId id, TemplateRef templateRef, ITemplate template, bool bIncludeAcl)
+		public GetTemplateRefResponse(TemplateRefId id, TemplateRef templateRef, ITemplate template, List<GetTemplateStepStateResponse>? stepStates, bool bIncludeAcl)
 			: base(template)
 		{
 			Id = id.ToString();
@@ -565,7 +566,7 @@ namespace Horde.Build.Api
 			NotificationChannelFilter = templateRef.NotificationChannelFilter;
 			Schedule = (templateRef.Schedule != null) ? new GetScheduleResponse(templateRef.Schedule) : null;
 			ChainedJobs = (templateRef.ChainedJobs != null && templateRef.ChainedJobs.Count > 0) ? templateRef.ChainedJobs.ConvertAll(x => new GetChainedJobTemplateResponse(x)) : null;
-			StepStates = (templateRef.StepStates != null && templateRef.StepStates.Count > 0) ? templateRef.StepStates.ConvertAll(x => new GetTemplateStepStateResponse(x)) : null;
+			StepStates = stepStates;
 			Acl = (bIncludeAcl && templateRef.Acl != null)? new GetAclResponse(templateRef.Acl) : null;
 		}
 	}

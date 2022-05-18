@@ -31,15 +31,17 @@ namespace Horde.Build.Controllers
 		private readonly ITemplateCollection _templateCollection;
 		private readonly IJobStepRefCollection _jobStepRefCollection;
 		private readonly IPerforceService _perforceService;
+		private readonly IUserCollection _userCollection;
 		private readonly AclService _aclService;
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public StreamsController(AclService aclService, StreamService streamService, ITemplateCollection templateCollection, IJobStepRefCollection jobStepRefCollection, IPerforceService perforceService)
+		public StreamsController(AclService aclService, StreamService streamService, ITemplateCollection templateCollection, IJobStepRefCollection jobStepRefCollection, IUserCollection userCollection, IPerforceService perforceService)
 		{
 			_streamService = streamService;
 			_templateCollection = templateCollection;
 			_jobStepRefCollection = jobStepRefCollection;
+			_userCollection = userCollection;
 			_perforceService = perforceService;
 			_aclService = aclService;
 		}
@@ -114,10 +116,44 @@ namespace Horde.Build.Controllers
 				if (await _streamService.AuthorizeAsync(stream, pair.Value, AclAction.ViewTemplate, User, cache))
 				{
 					ITemplate? template = await _templateCollection.GetAsync(pair.Value.Hash);
-					if (template != null)
+					
+					if (template != null)						
 					{
+						TemplateRef tref = pair.Value;
+
+						List<GetTemplateStepStateResponse>? stepStates = null;
+						if (tref.StepStates != null)
+						{
+							for (int i = 0; i < tref.StepStates.Count; i++)
+							{
+								TemplateStepState state = tref.StepStates[i];
+
+								if (state.QuarantinedByUserId == null && state.PausedByUserId == null)
+								{
+									continue;
+								}
+
+								stepStates ??= new List<GetTemplateStepStateResponse>();
+
+								GetThinUserInfoResponse? pausedByUserInfo = null;
+								if (state.PausedByUserId != null)
+								{
+									pausedByUserInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(state.PausedByUserId));
+								}
+
+								GetThinUserInfoResponse? quarantinedByUserInfo = null;
+								if (state.QuarantinedByUserId != null)
+								{
+									quarantinedByUserInfo = new GetThinUserInfoResponse(await _userCollection.GetCachedUserAsync(state.QuarantinedByUserId));
+								}
+
+								stepStates.Add(new GetTemplateStepStateResponse(state, pausedByUserInfo, quarantinedByUserInfo));
+
+							}
+						}
+
 						bool bIncludeTemplateAcl = pair.Value.Acl != null && await _streamService.AuthorizeAsync(stream, pair.Value, AclAction.ViewPermissions, User, cache);
-						apiTemplateRefs.Add(new GetTemplateRefResponse(pair.Key, pair.Value, template, bIncludeTemplateAcl));
+						apiTemplateRefs.Add(new GetTemplateRefResponse(pair.Key, pair.Value, template, stepStates, bIncludeTemplateAcl));
 					}
 				}
 			}
