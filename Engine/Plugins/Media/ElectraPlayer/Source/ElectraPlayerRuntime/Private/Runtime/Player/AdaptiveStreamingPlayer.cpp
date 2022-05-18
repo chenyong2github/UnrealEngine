@@ -88,7 +88,7 @@ FAdaptiveStreamingPlayer::FAdaptiveStreamingPlayer(const IAdaptiveStreamingPlaye
 	PlaybackRate   		    = 0.0;
 	RenderRateScale			= 1.0;
 	StreamReaderHandler     = nullptr;
-	bRebufferPending   	    = false;
+	RebufferCause   	    = ERebufferCause::None;
 	Manifest  				= nullptr;
 	LastBufferingState 		= EPlayerState::eState_Buffering;
 	bIsClosing 				= false;
@@ -1944,97 +1944,6 @@ double FAdaptiveStreamingPlayer::GetMinBufferTimeBeforePlayback()
 	return kMinBufferBeforePlayback;
 }
 
-
-void FAdaptiveStreamingPlayer::InternalHandleLiveSync()
-{
-	// If we have to start playback at the current time NOW we need to tag all buffered access units
-	// that are older than NOW so that they will be skipped over in decoding or rendering.
-	// They may have been tagged already if frame accurate seeking is enabled, but the real time NOW
-	// between the time the segment download was started until, well, NOW, has continued to elapse
-	// so any access units in between need to be tagged as well.
-	if (LiveSyncVars.bSyncLiveToNow && Manifest.IsValid())
-	{
-		FTimeRange Seekable = Manifest->GetSeekableTimeRange();
-		FTimeRange TotalRange = Manifest->GetTotalTimeRange();
-		double minBufTime = Manifest->GetMinBufferTime().GetAsSeconds();
-
-		// For now attempting to sync to Live works only when there is a sufficiently large distance
-		// between the Live edge and the playback position. The difference can be found by examining
-		// the end value of the total vs. seekable range.
-		FTimeValue DistanceToLiveEdge = TotalRange.End - Seekable.End;
-		if (!DistanceToLiveEdge.IsValid() || DistanceToLiveEdge.GetAsSeconds() < minBufTime)
-		{
-			PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Live sync not possible due to insufficient distance to Live edge (%.3fs) compared to minimum buffer time (%.3fs)"), DistanceToLiveEdge.GetAsSeconds(), minBufTime));
-			LiveSyncVars.Clear();
-			return;
-		}
-
-		TSharedPtrTS<FMultiTrackAccessUnitBuffer> VidBuffer = GetCurrentReceiveStreamBuffer(EStreamType::Video);
-		TSharedPtrTS<FMultiTrackAccessUnitBuffer> AudBuffer = GetCurrentReceiveStreamBuffer(EStreamType::Audio);
-		TSharedPtrTS<FMultiTrackAccessUnitBuffer> TxtBuffer = GetCurrentReceiveStreamBuffer(EStreamType::Subtitle);
-
-		// See if we should perform a sync. For now we do this only if there is a video track.
-		bool bPerformSync = LiveSyncVars.StartTime.IsValid();
-		if (!bPerformSync && VidBuffer.IsValid())
-		{
-			FAccessUnitBufferInfo bi;
-			VidBuffer->GetStats(bi);
-			//bool bHaveEnough = bi.bLastPushWasBlocked || bi.bEndOfData || bi.PlayableDuration.GetAsSeconds() >= minBufTime;
-			bool bHaveEnough = bi.bLastPushWasBlocked || bi.bEndOfData || bi.PlayableDuration.GetAsSeconds() > 0.0;
-			if (bHaveEnough)
-			{
-				bPerformSync = true;
-				LiveSyncVars.StartTime = MEDIAutcTime::Current();
-			}
-		}
-
-		if (bPerformSync)
-		{
-			if (VidBuffer.IsValid())
-			{
-				LiveSyncVars.DroppedDurationVid += VidBuffer->PrepareForDecodeStartingAt(Seekable.End);
-			}
-			if (AudBuffer.IsValid())
-			{
-				LiveSyncVars.DroppedDurationAud += AudBuffer->PrepareForDecodeStartingAt(Seekable.End);
-			}
-			if (TxtBuffer.IsValid())
-			{
-				// Subtitles we discard.
-				FMultiTrackAccessUnitBuffer::FScopedLock lock(TxtBuffer);
-				TxtBuffer->PopDiscardUntil(Seekable.End);
-			}
-			UpdateDiagnostics();
-
-			// Check if we are spending too much time trying to perform the sync.
-			FTimeValue ElapsedTime = MEDIAutcTime::Current() - LiveSyncVars.StartTime;
-			if (ElapsedTime > DistanceToLiveEdge)
-			{
-				PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Warning, FString::Printf(TEXT("Live sync is taking too long. Bandwidth to CDN is most likey insufficient. Starting now.")));
-				LiveSyncVars.Clear();
-			}
-
-			FTimeValue VidDropped = LiveSyncVars.DroppedDurationVid;
-			FTimeValue VidTotal = VideoBufferStats.StreamBuffer.PlayableDuration + VidDropped;
-			double DropRatio = VidDropped.GetAsSeconds() / VidTotal.GetAsSeconds();
-			if (LiveSyncVars.LastDropRatio < DropRatio && DropRatio >= 1.0)
-			{
-				// Force a rate scale in the ABR in the hope to get new data faster on a lower quality level.
-				if (StreamSelector.IsValid())
-				{
-					IAdaptiveStreamSelector::FBufferingQuality RateScale;
-					RateScale.BandwidthScaleFactor = 0.45;
-					StreamSelector->SwitchBufferingQuality(RateScale);
-				}
-			}
-			LiveSyncVars.LastDropRatio = DropRatio;
-
-			//PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Info, FString::Printf(TEXT("%3.3fs: %.3f drop, %.3f total, %.3f ratio"), ElapsedTime.GetAsSeconds(), VidDropped.GetAsSeconds(), VidTotal.GetAsSeconds(), DropRatio));
-		}
-	}
-}
-
-
 bool FAdaptiveStreamingPlayer::HaveEnoughBufferedDataToStartPlayback()
 {
 	double kMinBufferBeforePlayback = GetMinBufferTimeBeforePlayback();
@@ -2176,9 +2085,6 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 	{
 		if (!SeekVars.bForScrubbing)
 		{
-			// Synchronize buffers to wallclock time if necessary.
-			InternalHandleLiveSync();
-
 			check(LastBufferingState == EPlayerState::eState_Buffering || LastBufferingState == EPlayerState::eState_Rebuffering || LastBufferingState == EPlayerState::eState_Seeking);
 			// Check if we have enough data buffered up to begin handing off data to the decoders.
 			bool bHaveEnoughData = HaveEnoughBufferedDataToStartPlayback();
@@ -2207,8 +2113,6 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 				DecoderState = EDecoderState::eDecoder_Running;
 
 				PostrollVars.Clear();
-				// We are synced up now and can clear the state.
-				LiveSyncVars.Clear();
 
 				// Send buffering end event
 				DispatchBufferingEvent(false, LastBufferingState);
@@ -2240,7 +2144,6 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 					PipelineState = EPipelineState::ePipeline_Prerolling;
 					DecoderState = EDecoderState::eDecoder_Running;
 					PostrollVars.Clear();
-					LiveSyncVars.Clear();
 					DispatchEvent(FMetricEvent::ReportPrerollStart());
 				}
 			}
@@ -2525,9 +2428,6 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingStartRequest(const FTimeValu
 						// DASH Live streams provide the means to join at an exact wallclock time, so enable this.
 						if (ManifestType == EMediaFormatType::DASH)
 						{
-							LiveSyncVars.Clear();
-							// Live sync is no longer required since DASH Live maintains sync with the Live edge now.
-							//LiveSyncVars.bSyncLiveToNow = true;
 							PlaybackState.SetShouldPlayOnLiveEdge(true);
 						}
 					}
@@ -2894,9 +2794,9 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingFirstSegmentRequest(const FT
 			TSharedPtrTS<FBufferSourceInfo> BufferSourceInfoTxt = CurrentPlayPeriodText.IsValid() ? CurrentPlayPeriodText->GetSelectedStreamBufferSourceInfo(EStreamType::Subtitle) : nullptr;
 
 			TSharedPtrTS<FStreamDataBuffers> NewReceiveBuffers = MakeSharedTS<FStreamDataBuffers>();
-			NewReceiveBuffers->VidBuffer = MakeSharedTS<FMultiTrackAccessUnitBuffer>();
-			NewReceiveBuffers->AudBuffer = MakeSharedTS<FMultiTrackAccessUnitBuffer>();
-			NewReceiveBuffers->TxtBuffer = MakeSharedTS<FMultiTrackAccessUnitBuffer>();
+			NewReceiveBuffers->VidBuffer = MakeSharedTS<FMultiTrackAccessUnitBuffer>(EStreamType::Video);
+			NewReceiveBuffers->AudBuffer = MakeSharedTS<FMultiTrackAccessUnitBuffer>(EStreamType::Audio);
+			NewReceiveBuffers->TxtBuffer = MakeSharedTS<FMultiTrackAccessUnitBuffer>(EStreamType::Subtitle);
 
 			if (ManifestType == EMediaFormatType::ISOBMFF)
 			{
@@ -2905,9 +2805,9 @@ void FAdaptiveStreamingPlayer::InternalHandlePendingFirstSegmentRequest(const FT
 				NewReceiveBuffers->AudBuffer->SetParallelTrackMode();
 				NewReceiveBuffers->TxtBuffer->SetParallelTrackMode();
 			}
-			NewReceiveBuffers->VidBuffer->SelectTrackWhenAvailable(BufferSourceInfoVid);
-			NewReceiveBuffers->AudBuffer->SelectTrackWhenAvailable(BufferSourceInfoAud);
-			NewReceiveBuffers->TxtBuffer->SelectTrackWhenAvailable(BufferSourceInfoTxt);
+			NewReceiveBuffers->VidBuffer->SelectTrackWhenAvailable(CurrentPlaybackSequenceID[StreamTypeToArrayIndex(EStreamType::Video)], BufferSourceInfoVid);
+			NewReceiveBuffers->AudBuffer->SelectTrackWhenAvailable(CurrentPlaybackSequenceID[StreamTypeToArrayIndex(EStreamType::Audio)], BufferSourceInfoAud);
+			NewReceiveBuffers->TxtBuffer->SelectTrackWhenAvailable(CurrentPlaybackSequenceID[StreamTypeToArrayIndex(EStreamType::Subtitle)], BufferSourceInfoTxt);
 
 			// Add the new receive buffer to the list.
 			DataBuffersCriticalSection.Lock();
@@ -3233,30 +3133,18 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 						CurrentPlayPeriodVideo = FinishedReq.Period;
 						StreamSelector->SetCurrentPlaybackPeriod(EStreamType::Video, CurrentPlayPeriodVideo);
 						UpdateStreamResolutionLimit();
-						if ((!FinishedReq.bStartOver || FinishedReq.bPlayPosAutoReselect) && StreamRcvBuffer.IsValid())
-						{
-							StreamRcvBuffer->AddUpcomingBuffer(SegmentPlayPeriod->GetSelectedStreamBufferSourceInfo(StreamType));
-						}
 					}
 					else if (StreamType == EStreamType::Audio)
 					{
 						SegmentPlayPeriod = FinishedReq.Period;
 						CurrentPlayPeriodAudio = FinishedReq.Period;
 						StreamSelector->SetCurrentPlaybackPeriod(EStreamType::Audio, CurrentPlayPeriodAudio);
-						if ((!FinishedReq.bStartOver || FinishedReq.bPlayPosAutoReselect) && StreamRcvBuffer.IsValid())
-						{
-							StreamRcvBuffer->AddUpcomingBuffer(SegmentPlayPeriod->GetSelectedStreamBufferSourceInfo(StreamType));
-						}
 					}
 					else if (StreamType == EStreamType::Subtitle)
 					{
 						SegmentPlayPeriod = FinishedReq.Period;
 						CurrentPlayPeriodText = FinishedReq.Period;
 						//StreamSelector->SetCurrentPlaybackPeriod(EStreamType::Subtitle, CurrentPlayPeriodText);
-						if ((!FinishedReq.bStartOver || FinishedReq.bPlayPosAutoReselect) && StreamRcvBuffer.IsValid())
-						{
-							StreamRcvBuffer->AddUpcomingBuffer(SegmentPlayPeriod->GetSelectedStreamBufferSourceInfo(StreamType));
-						}
 					}
 					// Add this to the upcoming periods the play position will move into and metadata will need to be updated then
 					// unless this is a startover request.
@@ -3320,7 +3208,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 							TSharedPtrTS<FMultiTrackAccessUnitBuffer> StreamRcvBuffer = GetCurrentReceiveStreamBuffer(StreamType);
 							if (StreamRcvBuffer.IsValid())
 							{
-								StreamRcvBuffer->SelectTrackWhenAvailable(BufferSourceInfo);
+								StreamRcvBuffer->SelectTrackWhenAvailable(CurrentPlaybackSequenceID[StreamTypeToArrayIndex(StreamType)], BufferSourceInfo);
 							}
 							switch(StreamType)
 							{
@@ -3556,9 +3444,13 @@ void FAdaptiveStreamingPlayer::InternalDeselectStream(EStreamType StreamType)
 	{
 		case EStreamType::Video:
 			bIsVideoDeselected = true;
+			SelectedStreamAttributesVid.Deselect();
+			VideoDecoder.Flush();
+			VideoRender.Flush(false);
 			break;
 		case EStreamType::Audio:
 			bIsAudioDeselected = true;
+			SelectedStreamAttributesAud.Deselect();
 			AudioDecoder.Flush();
 			AudioRender.Flush();
 			break;
@@ -3611,45 +3503,32 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 
 	if (ManifestType == EMediaFormatType::ISOBMFF)
 	{
-		if (PendingTrackSelectionAud.IsValid() && CurrentPlayPeriodAudio.IsValid())
+		auto HandleISOBMFFTrackSelection = [&bChangeMade, this](FStreamSelectionAttributes& OutSelectionAttributes, FInternalStreamSelectionAttributes& InOutSelectedAttributes, EStreamType InType,
+																TSharedPtrTS<FStreamSelectionAttributes>& InPendingSelection, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPeriod) -> void
 		{
-			IManifest::IPlayPeriod::ETrackChangeResult Result = CurrentPlayPeriodAudio->ChangeTrackStreamPreference(EStreamType::Audio, *PendingTrackSelectionAud);
-			TSharedPtrTS<FBufferSourceInfo> BufferSourceInfo = CurrentPlayPeriodAudio->GetSelectedStreamBufferSourceInfo(EStreamType::Audio);
-			if (Result == IManifest::IPlayPeriod::ETrackChangeResult::Changed)
+			if (InPendingSelection.IsValid() && InCurrentPeriod.IsValid())
 			{
-				TSharedPtrTS<FMultiTrackAccessUnitBuffer> StreamRcvBuf = GetCurrentReceiveStreamBuffer(EStreamType::Audio);
-				if (StreamRcvBuf.IsValid())
+				IManifest::IPlayPeriod::ETrackChangeResult Result = InCurrentPeriod->ChangeTrackStreamPreference(InType, *InPendingSelection);
+				TSharedPtrTS<FBufferSourceInfo> BufferSourceInfo = InCurrentPeriod->GetSelectedStreamBufferSourceInfo(InType);
+				if (Result == IManifest::IPlayPeriod::ETrackChangeResult::Changed)
 				{
-					StreamRcvBuf->SelectTrackWhenAvailable(BufferSourceInfo);
+					TSharedPtrTS<FMultiTrackAccessUnitBuffer> StreamRcvBuf = GetCurrentReceiveStreamBuffer(InType);
+					if (StreamRcvBuf.IsValid())
+					{
+						StreamRcvBuf->SelectTrackWhenAvailable(CurrentPlaybackSequenceID[StreamTypeToArrayIndex(InType)], BufferSourceInfo);
+					}
+					OutSelectionAttributes = *InPendingSelection;
+					bChangeMade = true;
 				}
-				StreamSelectionAttributesAud = *PendingTrackSelectionAud;
-				bChangeMade = true;
+				InOutSelectedAttributes.UpdateWith(BufferSourceInfo->Kind, BufferSourceInfo->Language, BufferSourceInfo->Codec, BufferSourceInfo->HardIndex);
+				InOutSelectedAttributes.Select();
+				InPendingSelection.Reset();
 			}
-			SelectedStreamAttributesAud.UpdateWith(BufferSourceInfo->Kind, BufferSourceInfo->Language, BufferSourceInfo->Codec, BufferSourceInfo->HardIndex);
-			PendingTrackSelectionAud.Reset();
-		}
+		};
 
-		if (PendingTrackSelectionTxt.IsValid() && CurrentPlayPeriodText.IsValid())
-		{
-			IManifest::IPlayPeriod::ETrackChangeResult Result = CurrentPlayPeriodText->ChangeTrackStreamPreference(EStreamType::Subtitle, *PendingTrackSelectionTxt);
-			TSharedPtrTS<FBufferSourceInfo> BufferSourceInfo = CurrentPlayPeriodText->GetSelectedStreamBufferSourceInfo(EStreamType::Subtitle);
-			if (Result == IManifest::IPlayPeriod::ETrackChangeResult::Changed)
-			{
-				TSharedPtrTS<FMultiTrackAccessUnitBuffer> StreamRcvBuf = GetCurrentReceiveStreamBuffer(EStreamType::Subtitle);
-				if (StreamRcvBuf.IsValid())
-				{
-					StreamRcvBuf->SelectTrackWhenAvailable(BufferSourceInfo);
-				}
-				StreamSelectionAttributesTxt = *PendingTrackSelectionTxt;
-				bChangeMade = true;
-			}
-			SelectedStreamAttributesTxt.UpdateWith(BufferSourceInfo->Kind, BufferSourceInfo->Language, BufferSourceInfo->Codec, BufferSourceInfo->HardIndex);
-			SelectedStreamAttributesTxt.Select();
-			PendingTrackSelectionTxt.Reset();
-		}
-
-		// Ignore video changes for now.
-		PendingTrackSelectionVid.Reset();
+		HandleISOBMFFTrackSelection(StreamSelectionAttributesVid, SelectedStreamAttributesVid, EStreamType::Video, PendingTrackSelectionVid, CurrentPlayPeriodVideo);
+		HandleISOBMFFTrackSelection(StreamSelectionAttributesAud, SelectedStreamAttributesAud, EStreamType::Audio, PendingTrackSelectionAud, CurrentPlayPeriodAudio);
+		HandleISOBMFFTrackSelection(StreamSelectionAttributesTxt, SelectedStreamAttributesTxt, EStreamType::Subtitle, PendingTrackSelectionTxt, CurrentPlayPeriodText);
 	}
 	else if (ManifestType == EMediaFormatType::HLS)
 	{
@@ -3659,7 +3538,7 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 			TSharedPtrTS<FMultiTrackAccessUnitBuffer> StreamRcvBuf = GetCurrentReceiveStreamBuffer(EStreamType::Audio);
 			if (StreamRcvBuf.IsValid())
 			{
-				StreamRcvBuf->SelectTrackWhenAvailable(BufferSourceInfo);
+				StreamRcvBuf->SelectTrackWhenAvailable(CurrentPlaybackSequenceID[StreamTypeToArrayIndex(EStreamType::Audio)], BufferSourceInfo);
 			}
 			StreamSelectionAttributesAud = *PendingTrackSelectionAud;
 			SelectedStreamAttributesAud.UpdateWith(BufferSourceInfo->Kind, BufferSourceInfo->Language, BufferSourceInfo->Codec, BufferSourceInfo->HardIndex);
@@ -3677,63 +3556,42 @@ void FAdaptiveStreamingPlayer::InternalHandleSegmentTrackChanges(const FTimeValu
 			return;
 		}
 
-		if (PendingTrackSelectionAud.IsValid() && CurrentPlayPeriodAudio.IsValid())
+		auto HandleDASHTrackSelection = [&bChangeMade, this](FStreamSelectionAttributes& OutSelectionAttributes, FInternalStreamSelectionAttributes& InOutSelectedAttributes, EStreamType InType,
+															 TSharedPtrTS<FStreamSelectionAttributes>& InPendingSelection, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPeriod) -> void
 		{
-			if (!SelectedStreamAttributesAud.IsCompatibleWith(*PendingTrackSelectionAud))
+			if (InPendingSelection.IsValid() && InCurrentPeriod.IsValid())
 			{
-				IManifest::IPlayPeriod::ETrackChangeResult TrackChangeResult = CurrentPlayPeriodAudio->ChangeTrackStreamPreference(EStreamType::Audio, *PendingTrackSelectionAud);
-				if (TrackChangeResult == IManifest::IPlayPeriod::ETrackChangeResult::NewPeriodNeeded)
+				if (InOutSelectedAttributes.IsDeselected() || !InOutSelectedAttributes.IsCompatibleWith(*InPendingSelection))
 				{
-					// Make sure any finishing current requests will be ignored by increasing the sequence ID.
-					++CurrentPlaybackSequenceID[StreamTypeToArrayIndex(EStreamType::Audio)];
-					// Cancel any ongoing segment download now.
-					CancelPendingMediaSegmentRequests(EStreamType::Audio);
+					IManifest::IPlayPeriod::ETrackChangeResult TrackChangeResult = InCurrentPeriod->ChangeTrackStreamPreference(InType, *InPendingSelection);
+					if (TrackChangeResult == IManifest::IPlayPeriod::ETrackChangeResult::NewPeriodNeeded)
+					{
+						// Make sure any finishing current requests will be ignored by increasing the sequence ID.
+						++CurrentPlaybackSequenceID[StreamTypeToArrayIndex(InType)];
+						// Cancel any ongoing segment download now.
+						CancelPendingMediaSegmentRequests(InType);
 
-					StreamSelectionAttributesAud = *PendingTrackSelectionAud;
+						OutSelectionAttributes = *InPendingSelection;
+						InOutSelectedAttributes.Select();
 
-					FPendingSegmentRequest NextReq;
-					NextReq.bStartOver = true;
-					NextReq.StartoverPosition.Time = PlaybackState.GetPlayPosition();
-					SetPlaystartOptions(NextReq.StartoverPosition.Options);
-					NextReq.StreamType = EStreamType::Audio;
-					NextPendingSegmentRequests.Enqueue(MoveTemp(NextReq));
+						FPendingSegmentRequest NextReq;
+						NextReq.bStartOver = true;
+						NextReq.StartoverPosition.Time = PlaybackState.GetPlayPosition();
+						SetPlaystartOptions(NextReq.StartoverPosition.Options);
+						NextReq.StreamType = InType;
+						NextPendingSegmentRequests.Enqueue(MoveTemp(NextReq));
 
-					bChangeMade = true;
+						bChangeMade = true;
+					}
 				}
+				InOutSelectedAttributes.Select();
+				InPendingSelection.Reset();
 			}
-			PendingTrackSelectionAud.Reset();
-		}
+		};
 
-		if (PendingTrackSelectionTxt.IsValid() && CurrentPlayPeriodText.IsValid())
-		{
-			if (SelectedStreamAttributesTxt.IsDeselected() || !SelectedStreamAttributesTxt.IsCompatibleWith(*PendingTrackSelectionTxt))
-			{
-				IManifest::IPlayPeriod::ETrackChangeResult TrackChangeResult = CurrentPlayPeriodText->ChangeTrackStreamPreference(EStreamType::Subtitle, *PendingTrackSelectionTxt);
-				if (TrackChangeResult == IManifest::IPlayPeriod::ETrackChangeResult::NewPeriodNeeded)
-				{
-					// Make sure any finishing current requests will be ignored by increasing the sequence ID.
-					++CurrentPlaybackSequenceID[StreamTypeToArrayIndex(EStreamType::Subtitle)];
-					// Cancel any ongoing segment download now.
-					CancelPendingMediaSegmentRequests(EStreamType::Subtitle);
-
-					StreamSelectionAttributesTxt = *PendingTrackSelectionTxt;
-					SelectedStreamAttributesTxt.Select();
-
-					FPendingSegmentRequest NextReq;
-					NextReq.bStartOver = true;
-					NextReq.StartoverPosition.Time = PlaybackState.GetPlayPosition();
-					SetPlaystartOptions(NextReq.StartoverPosition.Options);
-					NextReq.StreamType = EStreamType::Subtitle;
-					NextPendingSegmentRequests.Enqueue(MoveTemp(NextReq));
-
-					bChangeMade = true;
-				}
-			}
-			PendingTrackSelectionTxt.Reset();
-		}
-
-		// Ignore video changes for now.
-		PendingTrackSelectionVid.Reset();
+		PendingTrackSelectionVid.Reset();	// Ignore video changes for now.
+		HandleDASHTrackSelection(StreamSelectionAttributesAud, SelectedStreamAttributesAud, EStreamType::Audio, PendingTrackSelectionAud, CurrentPlayPeriodAudio);
+		HandleDASHTrackSelection(StreamSelectionAttributesTxt, SelectedStreamAttributesTxt, EStreamType::Subtitle, PendingTrackSelectionTxt, CurrentPlayPeriodText);
 	}
 	else
 	{
@@ -4483,10 +4341,9 @@ void FAdaptiveStreamingPlayer::InternalClose()
 	CurrentState   	= EPlayerState::eState_Idle;
 	PlaybackRate   	= 0.0;
 	StreamState		= EStreamState::eStream_Running;
-	bRebufferPending   = false;
+	RebufferCause = ERebufferCause::None;
 	LastBufferingState = EPlayerState::eState_Buffering;
 	RebufferDetectedAtPlayPos.SetToInvalid();
-	LiveSyncVars.Clear();
 	PrerollVars.Clear();
 	PostrollVars.Clear();
 
@@ -4565,7 +4422,6 @@ void FAdaptiveStreamingPlayer::InternalSetLoop(const FLoopParam& LoopParam)
  */
 void FAdaptiveStreamingPlayer::InternalRebuffer()
 {
-
 	IAdaptiveStreamSelector::FRebufferAction Action;
 	check(StreamSelector.IsValid());
 	if (StreamSelector.IsValid())
@@ -4597,7 +4453,14 @@ void FAdaptiveStreamingPlayer::InternalRebuffer()
 		CurrentState = EPlayerState::eState_Rebuffering;
 		LastBufferingState = EPlayerState::eState_Rebuffering;
 
-		bRebufferPending = false;
+		// If rebuffering triggered while switching tracks then the spacing of sync frames may be too big and we
+		// have none to switch over to the new track yet. To overcome this we restart at the current position.
+		if (RebufferCause == ERebufferCause::TrackswitchUnderrun && Action.Action == IAdaptiveStreamSelector::FRebufferAction::EAction::ContinueLoading)
+		{
+			Action.Action = IAdaptiveStreamSelector::FRebufferAction::EAction::Restart;
+			PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Info, FString::Printf(TEXT("Rebuffering during track change switches rebuffering policy from continue to restart.")));
+		}
+		RebufferCause = ERebufferCause::None;
 
 		// Check if we should just continue loading data
 		if (Action.Action == IAdaptiveStreamSelector::FRebufferAction::EAction::ContinueLoading)
@@ -4686,32 +4549,28 @@ FTimeValue FAdaptiveStreamingPlayer::ABRGetPlaySpeed() const
 {
 	return FTimeValue(RenderClock->IsRunning() ? 1.0 : 0.0);
 }
-void FAdaptiveStreamingPlayer::ABRGetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream)
+void FAdaptiveStreamingPlayer::ABRGetStreamBufferStats(IAdaptiveStreamSelector::IPlayerLiveControl::FABRBufferStats& OutBufferStats, EStreamType ForStream)
 {
 	UpdateDiagnostics();
-	FMediaCriticalSection::ScopedLock lock(DiagnosticsCriticalSection);
+	DiagnosticsCriticalSection.Lock();
 	switch(ForStream)
 	{
 		case EStreamType::Video:
-			OutBufferStats = VideoBufferStats.StreamBuffer;
+			OutBufferStats.PlayableContentDuration = VideoBufferStats.StreamBuffer.PlayableDuration;
+			OutBufferStats.bReachedEnd = VideoBufferStats.StreamBuffer.bEndOfData;
 			break;
 		case EStreamType::Audio:
-			OutBufferStats = AudioBufferStats.StreamBuffer;
+			OutBufferStats.PlayableContentDuration = AudioBufferStats.StreamBuffer.PlayableDuration;
+			OutBufferStats.bReachedEnd = AudioBufferStats.StreamBuffer.bEndOfData;
 			break;
 		case EStreamType::Subtitle:
-			OutBufferStats = TextBufferStats.StreamBuffer;
+			OutBufferStats.PlayableContentDuration = TextBufferStats.StreamBuffer.PlayableDuration;
+			OutBufferStats.bReachedEnd = TextBufferStats.StreamBuffer.bEndOfData;
 			break;
 		default:
-			OutBufferStats.Clear();
 			break;
 	}
-}
-
-void FAdaptiveStreamingPlayer::ABRGetStreamBufferStats(IAdaptiveStreamSelector::IPlayerLiveControl::FABRBufferStats& OutBufferStats, EStreamType ForStream)
-{
-	FAccessUnitBufferInfo bi;
-	ABRGetStreamBufferStats(bi, ForStream);
-	OutBufferStats.PlayableContentDuration = bi.PlayableDuration;
+	DiagnosticsCriticalSection.Unlock();
 	if (ForStream == EStreamType::Video && VideoRender.Renderer.IsValid())
 	{
 		OutBufferStats.PlayableContentDuration += VideoRender.Renderer->GetEnqueuedSampleDuration();
@@ -4721,7 +4580,6 @@ void FAdaptiveStreamingPlayer::ABRGetStreamBufferStats(IAdaptiveStreamSelector::
 		OutBufferStats.PlayableContentDuration += AudioRender.Renderer->GetEnqueuedSampleDuration();
 	}
 }
-
 void FAdaptiveStreamingPlayer::ABRSetRenderRateScale(double InRenderRateScale)
 {
 	RenderRateScale = InRenderRateScale;

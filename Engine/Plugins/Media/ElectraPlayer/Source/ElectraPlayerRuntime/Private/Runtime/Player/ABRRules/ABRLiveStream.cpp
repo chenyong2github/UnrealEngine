@@ -46,7 +46,6 @@ public:
 	void RepresentationsChanged(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod) override;
 	void SetBandwidth(int64 bitsPerSecond) override;
 	void SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback) override;
-	void SwitchBufferingQuality(const IAdaptiveStreamSelector::FBufferingQuality& InQualityChange) override;
 	int64 GetLastBandwidth() override;
 	int64 GetAverageBandwidth() override;
 	int64 GetAverageThroughput() override;
@@ -272,10 +271,11 @@ private:
 		return Stream ? (*Stream) : nullptr;
 	}
 	
-	double GetPlayablePlayerDuration(EStreamType InStreamType)
+	double GetPlayablePlayerDuration(bool& bEOS, EStreamType InStreamType)
 	{
 		IAdaptiveStreamSelector::IPlayerLiveControl::FABRBufferStats bs;
 		Info->ABRGetStreamBufferStats(bs, InStreamType);
+		bEOS = bs.bReachedEnd;
 		return bs.PlayableContentDuration.GetAsSeconds();
 	}
 
@@ -444,7 +444,8 @@ FABRDownloadProgressDecision FABRLiveStream::ReportDownloadProgress(const Metric
 
 		if (SegmentDownloadStats.SegmentType == Metrics::ESegmentType::Media)
 		{
-			const double playableSeconds = GetPlayablePlayerDuration(SegmentDownloadStats.StreamType);
+			bool bEOS = false;
+			const double playableSeconds = GetPlayablePlayerDuration(bEOS, SegmentDownloadStats.StreamType);
 
 			FScopeLock lock(&WorkVars->Lock);
 
@@ -725,8 +726,9 @@ void FABRLiveStream::ReportDownloadEnd(const Metrics::FSegmentDownloadStats& Seg
 		}
 
 		FStreamWorkVars::FSegmentInfo si;
+		bool bEOS = false;
 		si.BufferDurationAtStart = WorkVars->BufferContentDurationAtSegmentStart;
-		si.BufferDurationAtEnd = GetPlayablePlayerDuration(SegmentDownloadStats.StreamType);
+		si.BufferDurationAtEnd = GetPlayablePlayerDuration(bEOS, SegmentDownloadStats.StreamType);
 		si.ExpectedNetworkLatency = WorkVars->ExpectedNetworkLatency;
 		si.SegmentDuration = SegmentDownloadStats.Duration;
 		si.DownloadTime = SegmentDownloadStats.TimeToDownload;
@@ -829,11 +831,6 @@ void FABRLiveStream::SetBandwidth(int64 bitsPerSecond)
 void FABRLiveStream::SetForcedNextBandwidth(int64 bitsPerSecond, double /*minBufferTimeBeforePlayback*/)
 {
 	ForcedInitialBandwidth = (int32)bitsPerSecond;
-}
-
-void FABRLiveStream::SwitchBufferingQuality(const IAdaptiveStreamSelector::FBufferingQuality& InQualityChange)
-{
-	// No-op for Live ABR
 }
 
 int64 FABRLiveStream::GetLastBandwidth()
@@ -1047,7 +1044,8 @@ IAdaptiveStreamSelector::ESegmentAction FABRLiveStream::PerformSelection(const T
 			ConsumptionRateScale = 1.0;
 		}
 
-		const double AvailableDuration = GetPlayablePlayerDuration(StreamType);
+		bool bEOS = false;
+		const double AvailableDuration = GetPlayablePlayerDuration(bEOS, StreamType);
 		const double DownloadLatency = WorkVars ? WorkVars->AverageLatency.GetWeightedMax(DefaultNetworkLatency) : DefaultNetworkLatency;
 
 		if (WorkVars && StreamType == EStreamType::Video)
@@ -1385,7 +1383,8 @@ bool FABRLiveStream::HasStableBuffer(int32& OutGain, int32& OutTrend, EStreamTyp
 	}
 	FScopeLock lock(&WorkVars->Lock);
 
-	const double AvailableDuration = GetPlayablePlayerDuration(InStreamType) + ExtraContentDuration;
+	bool bEOS = false;
+	const double AvailableDuration = GetPlayablePlayerDuration(bEOS, InStreamType) + ExtraContentDuration;
 	const double DesiredLatency = LatencyConfig.TargetLatency;
 
 	/*
@@ -1573,7 +1572,8 @@ IAdaptiveStreamSelector::EHandlingAction FABRLiveStream::PeriodicHandle()
 		const FStreamWorkVars* WorkVars = GetWorkVars(StreamType);
 		if (WorkVars)
 		{
-			const double AvailableBufferedDuration = GetPlayablePlayerDuration(StreamType);
+			bool bEOS = false;
+			const double AvailableBufferedDuration = GetPlayablePlayerDuration(bEOS, StreamType);
 			const double CurrentLatency = Info->ABRGetLatency().GetAsSeconds();
 			const double TargetLatency = lc.TargetLatency;
 			const double NetworkLatency = WorkVars->AverageLatency.GetWeightedMax(DefaultNetworkLatency);
@@ -1587,7 +1587,7 @@ IAdaptiveStreamSelector::EHandlingAction FABRLiveStream::PeriodicHandle()
 			const bool bMaybeSpeedUp = bStable || Trend>=0;
 
 			// Slow down because of insufficient buffered data?
-			bool bBufferSlowDown = bOvertime || AvailableBufferedDuration < Utils::Max(lc.LowBufferContentBackoff, NetworkLatency);
+			bool bBufferSlowDown = bOvertime || (!bEOS && AvailableBufferedDuration < Utils::Max(lc.LowBufferContentBackoff, NetworkLatency));
 			// Do not slow down if we are supposed to play on the Live edge and are already too far behind.
 			if (Info->ABRShouldPlayOnLiveEdge() && Distance > lc.LowBufferMaxTargetLatencyDistance)
 			{
@@ -1678,7 +1678,9 @@ void FABRLiveStream::DebugPrint(void* pThat, void (*pPrintFN)(void* pThat, const
 	pPrintFN(pThat, "  Catchup rate: %.3f", Info->ABRGetRenderRateScale());
 	pPrintFN(pThat, "Network latency: %.3f", WorkVars->AverageLatency.GetWeightedMax(DefaultNetworkLatency));
 	pPrintFN(pThat, " Num rebuffers: %d", WorkVars->NumSegmentsRebuffered);
-	pPrintFN(pThat, "Duration avail: %.3f", GetPlayablePlayerDuration(StreamType));
+	bool bEOS = false;
+	double Dur = GetPlayablePlayerDuration(bEOS, GetPrimaryStreamType());
+	pPrintFN(pThat, "Duration avail: %.3f, EOS=%d", Dur, bEOS);
 #if 0
 	int32 Gain, Trend;
 	bool bStable = HasStableBuffer(Gain, Trend, StreamType, 0.0);

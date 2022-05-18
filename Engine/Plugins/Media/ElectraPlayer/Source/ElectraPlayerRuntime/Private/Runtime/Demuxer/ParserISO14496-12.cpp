@@ -250,7 +250,7 @@ public:
 	FDataBufferReader(const TArray<uint8>& InDataBufferToReadFrom) : DataBufferRef(InDataBufferToReadFrom)
 	{}
 	virtual ~FDataBufferReader() = default;
-	virtual int64 ReadData(void* IntoBuffer, int64 NumBytesToRead) override
+	int64 ReadData(void* IntoBuffer, int64 NumBytesToRead) override
 	{
 		int64 NumAvail = DataBufferRef.Num() - CurrentOffset;
 		if (NumAvail >= NumBytesToRead)
@@ -264,11 +264,11 @@ public:
 		}
 		return -1;
 	}
-	virtual bool HasReachedEOF() const override
+	bool HasReachedEOF() const override
 	{ return CurrentOffset >= DataBufferRef.Num(); }
-	virtual bool HasReadBeenAborted() const override
+	bool HasReadBeenAborted() const override
 	{ return false;	}
-	virtual int64 GetCurrentOffset() const override
+	int64 GetCurrentOffset() const override
 	{ return CurrentOffset;	}
 private:
 	const TArray<uint8>& DataBufferRef;
@@ -601,6 +601,17 @@ private:
 
 
 
+		struct FFillerData
+		{
+			~FFillerData()
+			{
+				FMemory::Free(Data);
+			}
+			void* Data = nullptr;
+			int64	Size = 0;
+			int64	StartOffset = 0;
+		};
+
 		UEMediaError ReadFillerData(FMP4ParseInfo* ParseInfo, int64 Size)
 		{
 			if (Size == 0)
@@ -624,6 +635,11 @@ private:
 			FillerData->Size = Size;
 			FillerData->StartOffset = ParseInfo->Reader()->GetCurrentReadOffset();
 			return ParseInfo->Reader()->ReadBytes(FillerData->Data, FillerData->Size);
+		}
+
+		const FFillerData* GetFillerData() const
+		{
+			return FillerData;
 		}
 
 		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) = 0;
@@ -764,21 +780,6 @@ private:
 		FMP4Box() = delete;
 		FMP4Box(const FMP4Box&) = delete;
 	protected:
-		struct FFillerData
-		{
-			FFillerData()
-				: Data(nullptr), Size(0), StartOffset(0)
-			{
-			}
-			~FFillerData()
-			{
-				FMemory::Free(Data);
-			}
-			void* Data;
-			int64	Size;
-			int64	StartOffset;
-		};
-
 		FMP4Box*						ParentBox;
 		TArray<FMP4Box*>				ChildBoxes;
 		IParserISO14496_12::FBoxType	BoxType;
@@ -820,7 +821,7 @@ private:
 		FMP4BoxBasic(const FMP4BoxBasic&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			// The basic box is merely a container with no attributes.
 			return UEMEDIA_ERROR_OK;
@@ -854,7 +855,7 @@ private:
 		FMP4BoxFull(const FMP4BoxFull&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint32 VersionAndFlags = 0;
 			UEMediaError Error = UEMEDIA_ERROR_OK;
@@ -899,7 +900,7 @@ private:
 		FMP4BoxIgnored(const FMP4BoxIgnored&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			// Read the remaining bytes from this box.
 			return ReadFillerData(ParseInfo, BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
@@ -929,7 +930,7 @@ private:
 		FMP4BoxMDAT(const FMP4BoxMDAT&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			// Read the data from this box to NULL.
 			return ParseInfo->Reader()->ReadBytes(nullptr, BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
@@ -972,7 +973,7 @@ private:
 		FMP4BoxFTYP(const FMP4BoxFTYP&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			uint32 Major;
@@ -1072,7 +1073,7 @@ private:
 		FMP4BoxMVHD(const FMP4BoxMVHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint64  		Value64 = 0;
 			uint32  		Value32 = 0;
@@ -1132,7 +1133,7 @@ private:
 		FMP4BoxMEHD(const FMP4BoxMEHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint32  		Value32 = 0;
 			UEMediaError	Error = UEMEDIA_ERROR_OK;
@@ -1209,7 +1210,7 @@ private:
 		FMP4BoxTKHD(const FMP4BoxTKHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint64 Value64 = 0;
 			uint32 Value32 = 0;
@@ -1328,7 +1329,7 @@ private:
 		FMP4BoxTREX(const FMP4BoxTREX&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 
@@ -1394,7 +1395,7 @@ private:
 		FMP4BoxMVEX(const FMP4BoxMVEX&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			// The mvex box is merely a container with no attributes.
 			return UEMEDIA_ERROR_OK;
@@ -1442,7 +1443,7 @@ private:
 		FMP4BoxMDHD(const FMP4BoxMDHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint64 Value64 = 0;
 			uint32 Value32 = 0;
@@ -1513,7 +1514,7 @@ private:
 		FMP4BoxHDLR(const FMP4BoxHDLR&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint32 Value32 = 0;
 			UEMediaError Error = UEMEDIA_ERROR_OK;
@@ -1581,7 +1582,7 @@ private:
 		FMP4BoxELST(const FMP4BoxELST&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint32	NumEntries = 0;
 			UEMediaError Error = UEMEDIA_ERROR_OK;
@@ -1656,7 +1657,7 @@ private:
 		FMP4BoxNMHD(const FMP4BoxNMHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -1688,7 +1689,7 @@ private:
 		FMP4BoxVMHD(const FMP4BoxVMHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint16 Value16 = 0;
 			UEMediaError Error = UEMEDIA_ERROR_OK;
@@ -1727,7 +1728,7 @@ private:
 		FMP4BoxSMHD(const FMP4BoxSMHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint16 Value16 = 0;
 			UEMediaError Error = UEMEDIA_ERROR_OK;
@@ -1764,7 +1765,7 @@ private:
 		FMP4BoxSTHD(const FMP4BoxSTHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -1797,7 +1798,7 @@ private:
 		FMP4BoxDREF(const FMP4BoxDREF&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			// Now that we parse this box we clear its leaf status. We call back into the generic box reader
 			// for which this flag must be clear to continue with the next boxes.
@@ -1838,7 +1839,7 @@ private:
 		FMP4BoxURL(const FMP4BoxURL&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -1878,7 +1879,7 @@ private:
 		FMP4BoxURN(const FMP4BoxURN&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -1920,7 +1921,7 @@ private:
 		FMP4BoxSampleEntry(const FMP4BoxSampleEntry&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, 6));			// reserved
@@ -1953,7 +1954,7 @@ private:
 		FMP4BoxVisualSampleEntry(const FMP4BoxVisualSampleEntry&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			uint32 Value32 = 0;
 			uint16 Value16 = 0;
@@ -2025,7 +2026,7 @@ private:
 		FMP4BoxAudioSampleEntry(const FMP4BoxAudioSampleEntry&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			// The audio sample entry can be version 0 or version 1.
 			// In ISO/IEC 14496-12 a version 1 sample is required to be inside a version 1 'stsd' box while in QuickTime a
@@ -2098,7 +2099,7 @@ private:
 		FMP4BoxPlainTextSampleEntry(const FMP4BoxPlainTextSampleEntry&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxSampleEntry::ReadAndParseAttributes(ParseInfo));
@@ -2195,7 +2196,7 @@ private:
 		FMP4BoxTX3GSampleEntry(const FMP4BoxTX3GSampleEntry&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 
@@ -2355,7 +2356,7 @@ private:
 		FMP4BoxWVTTSampleEntry(const FMP4BoxWVTTSampleEntry&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 
@@ -2490,7 +2491,7 @@ private:
 		FMP4BoxXMLSubtitleSampleEntry(const FMP4BoxXMLSubtitleSampleEntry&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 
@@ -2591,7 +2592,7 @@ private:
 		FMP4BoxAVCC(const FMP4BoxAVCC&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
@@ -2640,7 +2641,7 @@ private:
 		FMP4BoxHVCC(const FMP4BoxHVCC&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
@@ -2691,7 +2692,7 @@ private:
 		FMP4BoxESDS(const FMP4BoxESDS&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -2738,7 +2739,7 @@ private:
 		FMP4BoxDAC3(const FMP4BoxDAC3&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 
@@ -2775,7 +2776,7 @@ private:
 		FMP4BoxDEC3(const FMP4BoxDEC3&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 
@@ -2827,7 +2828,7 @@ private:
 		FMP4BoxBTRT(const FMP4BoxBTRT&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(BufferSizeDB));				// bufferSizeDB
@@ -2865,7 +2866,7 @@ private:
 		FMP4BoxPASP(const FMP4BoxPASP&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(HSpacing));				// hSpacing
@@ -2900,7 +2901,7 @@ private:
 		FMP4BoxELNG(const FMP4BoxELNG&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -2951,7 +2952,7 @@ private:
 		FMP4BoxPRFT(const FMP4BoxPRFT&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -2995,39 +2996,39 @@ private:
 		{
 		}
 
-		virtual int32 GetVersion() const override
-		{ 
-			return Version; 
+		int32 GetVersion() const override
+		{
+			return Version;
 		}
-		virtual const FString& GetSchemeIdUri() const override
-		{ 
-			return SchemeIdUri; 
+		const FString& GetSchemeIdUri() const override
+		{
+			return SchemeIdUri;
 		}
-		virtual const FString& GetValue() const override
-		{ 
-			return Value; 
+		const FString& GetValue() const override
+		{
+			return Value;
 		}
-		virtual uint32 GetTimescale() const override
+		uint32 GetTimescale() const override
 		{
 			return Timescale;
 		}
-		virtual uint32 GetPresentationTimeDelta() const override
+		uint32 GetPresentationTimeDelta() const override
 		{
 			return PresentationTimeDelta;
 		}
-		virtual uint64 GetPresentationTime() const override
+		uint64 GetPresentationTime() const override
 		{
 			return PresentationTime;
 		}
-		virtual uint32 GetEventDuration() const override
+		uint32 GetEventDuration() const override
 		{
 			return EventDuration;
 		}
-		virtual uint32 GetID() const override
+		uint32 GetID() const override
 		{
 			return ID;
 		}
-		virtual const TArray<uint8>& GetMessageData() const override
+		const TArray<uint8>& GetMessageData() const override
 		{
 			return MessageData;
 		}
@@ -3037,7 +3038,7 @@ private:
 		FMP4BoxEMSG(const FMP4BoxEMSG&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3115,7 +3116,7 @@ private:
 		FMP4BoxSTSD(const FMP4BoxSTSD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			// Now that we parse this box we clear its leaf status. We call back into the generic box reader
 			// for which this flag must be clear to continue with the next boxes.
@@ -3312,7 +3313,7 @@ private:
 		FMP4BoxSTTS(const FMP4BoxSTTS&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3394,7 +3395,7 @@ private:
 			uint32		SampleCount;
 			uint32		SampleOffset;
 		};
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3461,7 +3462,7 @@ private:
 		FMP4BoxSTSS(const FMP4BoxSTSS&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3523,7 +3524,7 @@ private:
 		FMP4BoxSTSC(const FMP4BoxSTSC&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3593,7 +3594,7 @@ private:
 		FMP4BoxSTSZ(const FMP4BoxSTSZ&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3651,7 +3652,7 @@ private:
 		FMP4BoxSTCO(const FMP4BoxSTCO&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3713,15 +3714,15 @@ private:
 		// ----------------------------------------------------------------
 		// Methods from IParserISO14496_12::ISegmentIndex
 		//
-		virtual uint64 GetEarliestPresentationTime() const override
+		uint64 GetEarliestPresentationTime() const override
 		{ return EarliestPresentationTime; }
-		virtual uint64 GetFirstOffset() const override
+		uint64 GetFirstOffset() const override
 		{ return FirstOffset; }
-		virtual uint32 GetReferenceID() const override
+		uint32 GetReferenceID() const override
 		{ return ReferenceID; }
-		virtual uint32 GetTimescale() const override
+		uint32 GetTimescale() const override
 		{ return Timescale; }
-		virtual int32 GetNumEntries() const override
+		int32 GetNumEntries() const override
 		{ return Entries.Num(); }
 		virtual const FEntry& GetEntry(int32 Index) const
 		{
@@ -3734,7 +3735,7 @@ private:
 		FMP4BoxSIDX(const FMP4BoxSIDX&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3815,7 +3816,7 @@ private:
 		FMP4BoxMFHD(const FMP4BoxMFHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3909,7 +3910,7 @@ private:
 		FMP4BoxTFHD(const FMP4BoxTFHD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -3973,7 +3974,7 @@ private:
 		FMP4BoxTFDT(const FMP4BoxTFDT&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -4075,7 +4076,7 @@ private:
 		FMP4BoxTRUN(const FMP4BoxTRUN&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -4197,7 +4198,7 @@ private:
 		FMP4BoxPSSH(const FMP4BoxPSSH&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			// We need to retain the box as a whole since some DRM systems need it to be passed in verbatim.
@@ -4266,7 +4267,7 @@ private:
 		FMP4BoxSINF(const FMP4BoxSINF&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			// Now that we parse this box we clear its leaf status. We call back into the generic box reader
 			// for which this flag must be clear to continue with the next boxes.
@@ -4304,7 +4305,7 @@ private:
 		FMP4BoxFRMA(const FMP4BoxFRMA&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(DataFormat));						// data_format
@@ -4342,7 +4343,7 @@ private:
 		FMP4BoxSCHM(const FMP4BoxSCHM&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -4417,7 +4418,7 @@ private:
 		FMP4BoxTENC(const FMP4BoxTENC&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -4478,7 +4479,7 @@ private:
 		FMP4BoxSAIZ(const FMP4BoxSAIZ&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -4529,7 +4530,7 @@ private:
 		FMP4BoxSAIO(const FMP4BoxSAIO&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -4609,7 +4610,7 @@ private:
 			{
 				return UEMEDIA_ERROR_FORMAT_ERROR;
 			}
-			
+
 			int32 PerSampleIVSize = TENCBox->GetDefaultPerSampleIVSize();
 
 			FDataBufferReader BufferReader(BoxData);
@@ -4647,7 +4648,7 @@ private:
 		FMP4BoxSENC(const FMP4BoxSENC&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -4657,7 +4658,7 @@ private:
 			{
 				return UEMEDIA_ERROR_FORMAT_ERROR;
 			}
-			
+
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(SampleCount));
 			// The contents of this box cannot be parsed without information from another box
 			// containing the size of the IV.
@@ -4708,7 +4709,7 @@ private:
 
 		int32 GetNumberOfEntries() const
 		{ return Entries.Num(); }
-		
+
 		const FEntry& GetEntry(int32 Index) const
 		{ return Entries[Index]; }
 
@@ -4717,7 +4718,7 @@ private:
 		FMP4BoxSBGP(const FMP4BoxSBGP&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -4792,7 +4793,7 @@ private:
 
 		int32 GetNumberOfEntries() const
 		{ return Entries.Num(); }
-		
+
 		const FSampleGroupDescriptionEntry& GetEntry(int32 Index) const
 		{ return Entries[Index]; }
 
@@ -4801,7 +4802,7 @@ private:
 		FMP4BoxSGPD(const FMP4BoxSGPD&) = delete;
 
 	protected:
-		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
 			RETURN_IF_ERROR(FMP4BoxFull::ReadAndParseAttributes(ParseInfo));
@@ -4819,7 +4820,7 @@ private:
 			}
 
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(GroupingType));							// grouping_type
-			
+
 			if (Version == 1)
 			{
 				RETURN_IF_ERROR(ParseInfo->Reader()->Read(DefaultLength));						// default_length
@@ -4852,6 +4853,81 @@ private:
 		uint32 DefaultLength;
 		uint32 DefaultSampleDescriptionIndex;
 		TArray<FSampleGroupDescriptionEntry> Entries;
+	};
+
+
+
+	/**
+	 * 'udta' box. ISO/IEC 14496-12:2015 - 8.10.1 User Data Box
+	 */
+	class FMP4BoxUDTA : public FMP4BoxBasic
+	{
+	public:
+		FMP4BoxUDTA(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
+			: FMP4BoxBasic(InBoxType, InBoxSize, InStartOffset, InDataOffset, bInIsLeafBox)
+		{
+		}
+
+		virtual ~FMP4BoxUDTA() = default;
+
+
+		TMediaOptionalValue<FString> GetName() const
+		{
+			static const IParserISO14496_12::FBoxType kUDTA_name = MAKE_BOX_ATOM('n', 'a', 'm', 'e');
+			const FMP4BoxIgnored* NameBox = static_cast<const FMP4BoxIgnored*>(FindBox(kUDTA_name, 1));
+			const FFillerData* Filler = NameBox ? NameBox->GetFillerData() : nullptr;
+			if (Filler)
+			{
+				FString name(Filler->Size, static_cast<const ANSICHAR*>(Filler->Data));
+				return TMediaOptionalValue<FString>(name);
+			}
+			return TMediaOptionalValue<FString>();
+		}
+
+	private:
+		FMP4BoxUDTA() = delete;
+		FMP4BoxUDTA(const FMP4BoxUDTA&) = delete;
+
+	protected:
+		UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
+		{
+			UEMediaError Error = UEMEDIA_ERROR_OK;
+
+			int32 BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+			if (BytesRemaining > 8)
+			{
+				// Now that there are additional boxes we ourselves are no longer a leaf box.
+				bIsLeafBox = false;
+				// This will read all the boxes in here and add them as children.
+				for(; BytesRemaining>8; BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset)))
+				{
+					IParserISO14496_12::FBoxType	ChildBoxType;
+					int64							ChildBoxSize;
+					uint8							ChildBoxUUID[16];
+
+					int64 BoxStartOffset = ParseInfo->Reader()->GetCurrentReadOffset();
+					RETURN_IF_ERROR(ParseInfo->ReadBoxTypeAndSize(ChildBoxType, ChildBoxSize, ChildBoxUUID));
+#if MEDIA_DEBUG_HAS_BOX_NAMES
+					char boxName[4];
+					*((uint32*)&boxName) = MEDIA_TO_BIG_ENDIAN(ChildBoxType);
+#endif
+					int64 BoxDataOffset = ParseInfo->Reader()->GetCurrentReadOffset();
+					FMP4Box* NextBox = new FMP4BoxIgnored(ChildBoxType, ChildBoxSize, BoxStartOffset, BoxDataOffset, true);
+
+					AddChildBox(NextBox);
+					RETURN_IF_ERROR(ParseInfo->ReadAndParseNextBox(NextBox));
+				}
+			}
+			// If there is still something left that is not a complete box, skip over it.
+			// There may be a 32 bit integer zero value to terminate the list.
+			// See: "User Data Atoms" in https://developer.apple.com/library/archive/documentation/QuickTime/QTFF/QTFFChap2/qtff2.html
+			BytesRemaining = (int32) (BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset));
+			if (BytesRemaining)
+			{
+				RETURN_IF_ERROR(ParseInfo->Reader()->ReadBytes(nullptr, BytesRemaining));
+			}
+			return Error;
+		}
 	};
 
 
@@ -5169,8 +5245,10 @@ private:
 						case FMP4Box::kBox_gmhd:
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
-						case FMP4Box::kBox_skip:
 						case FMP4Box::kBox_udta:
+							NextBox = new FMP4BoxUDTA(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							break;
+						case FMP4Box::kBox_skip:
 						case FMP4Box::kBox_VOID:
 							NextBox = new FMP4BoxIgnored(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
 							break;
@@ -5347,23 +5425,23 @@ private:
 	public:
 		FParserISO14496_12();
 		virtual ~FParserISO14496_12();
-		virtual UEMediaError ParseHeader(IReader* DataReader, IBoxCallback* BoxParseCallback, IPlayerSessionServices* PlayerSession, const IParserISO14496_12* OptionalInitSegment) override;
+		UEMediaError ParseHeader(IReader* DataReader, IBoxCallback* BoxParseCallback, IPlayerSessionServices* PlayerSession, const IParserISO14496_12* OptionalInitSegment) override;
 
-		virtual UEMediaError PrepareTracks(IPlayerSessionServices* PlayerSession, TSharedPtrTS<const IParserISO14496_12> OptionalMP4InitSegment) override;
+		UEMediaError PrepareTracks(IPlayerSessionServices* PlayerSession, TSharedPtrTS<const IParserISO14496_12> OptionalMP4InitSegment) override;
 
-		virtual TMediaOptionalValue<FTimeFraction> GetMovieDuration() const override;
-		virtual int32 GetNumberOfTracks() const override;
-		virtual int32 GetNumberOfSegmentIndices() const override;
-		virtual int32 GetNumberOfEventMessages() const override;
-		virtual int32 GetNumberOfBrands() const override;
-		virtual FBrandType GetBrandByIndex(int32 Index) const override;
-		virtual bool HasBrand(const FBrandType InBrand) const override;
-		virtual const ITrack* GetTrackByIndex(int32 Index) const override;
-		virtual const ITrack* GetTrackByTrackID(int32 TrackID) const override;
-		virtual const ISegmentIndex* GetSegmentIndexByIndex(int32 Index) const override;
-		virtual const IEventMessage* GetEventMessageByIndex(int32 Index) const override;
+		TMediaOptionalValue<FTimeFraction> GetMovieDuration() const override;
+		int32 GetNumberOfTracks() const override;
+		int32 GetNumberOfSegmentIndices() const override;
+		int32 GetNumberOfEventMessages() const override;
+		int32 GetNumberOfBrands() const override;
+		FBrandType GetBrandByIndex(int32 Index) const override;
+		bool HasBrand(const FBrandType InBrand) const override;
+		const ITrack* GetTrackByIndex(int32 Index) const override;
+		const ITrack* GetTrackByTrackID(int32 TrackID) const override;
+		const ISegmentIndex* GetSegmentIndexByIndex(int32 Index) const override;
+		const IEventMessage* GetEventMessageByIndex(int32 Index) const override;
 
-		virtual TSharedPtrTS<IAllTrackIterator> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const override;
+		TSharedPtrTS<IAllTrackIterator> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const override;
 
 	private:
 		class FTrack;
@@ -5374,27 +5452,27 @@ private:
 			FTrackIterator();
 			virtual ~FTrackIterator();
 
-			virtual const ITrack* GetTrack() const override;
-			virtual int64 GetBaseMediaDecodeTime() const override;
-			virtual bool IsAtEOS() const override;
+			const ITrack* GetTrack() const override;
+			int64 GetBaseMediaDecodeTime() const override;
+			bool IsAtEOS() const override;
 
-			virtual UEMediaError StartAtTime(const FTimeValue& AtTime, ESearchMode SearchMode, bool bNeedSyncSample) override;
-			virtual UEMediaError StartAtFirst(bool bNeedSyncSample) override;
-			virtual UEMediaError Next() override;
+			UEMediaError StartAtTime(const FTimeValue& AtTime, ESearchMode SearchMode, bool bNeedSyncSample) override;
+			UEMediaError StartAtFirst(bool bNeedSyncSample) override;
+			UEMediaError Next() override;
 
-			virtual uint32 GetSampleNumber() const override;
-			virtual int64 GetDTS() const override;
-			virtual int64 GetPTS() const override;
-			virtual int64 GetDuration() const override;
-			virtual uint32 GetTimescale() const override;
-			virtual bool IsSyncSample() const override;
-			virtual int64 GetSampleSize() const override;
-			virtual int64 GetSampleFileOffset() const override;
-			virtual int64 GetRawDTS() const override;
-			virtual int64 GetRawPTS() const override;
-			virtual int64 GetCompositionTimeEdit() const override;
-			virtual int64 GetEmptyEditOffset() const override;
-			virtual bool GetEncryptionInfo(ElectraCDM::FMediaCDMSampleInfo& OutSampleEncryptionInfo) const override;
+			uint32 GetSampleNumber() const override;
+			int64 GetDTS() const override;
+			int64 GetPTS() const override;
+			int64 GetDuration() const override;
+			uint32 GetTimescale() const override;
+			bool IsSyncSample() const override;
+			int64 GetSampleSize() const override;
+			int64 GetSampleFileOffset() const override;
+			int64 GetRawDTS() const override;
+			int64 GetRawPTS() const override;
+			int64 GetCompositionTimeEdit() const override;
+			int64 GetEmptyEditOffset() const override;
+			bool GetEncryptionInfo(ElectraCDM::FMediaCDMSampleInfo& OutSampleEncryptionInfo) const override;
 
 			UEMediaError StartAtFirstInteral();
 			void SetTrack(const FTrack* InTrack);
@@ -5491,17 +5569,18 @@ private:
 			virtual ~FTrack()
 			{
 			}
-			virtual uint32 GetID() const override;
-			virtual FString GetNameFromHandler() const override;
-			virtual FTimeFraction GetDuration() const override;
-			virtual ITrackIterator* CreateIterator() const override;
-			virtual const TArray<uint8>& GetCodecSpecificData() const override;
-			virtual const TArray<uint8>& GetCodecSpecificDataRAW() const override;
-			virtual const FStreamCodecInformation& GetCodecInformation() const override;
-			virtual const FBitrateInfo& GetBitrateInfo() const override;
-			virtual const FString GetLanguage() const override;
-			virtual void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const override;
-			virtual void GetPRFTBoxes(TArray<ITrack::FProducerReferenceTime>& OutBoxes) const override;
+			uint32 GetID() const override;
+			FString GetName() const override;
+			FString GetNameFromHandler() const override;
+			FTimeFraction GetDuration() const override;
+			ITrackIterator* CreateIterator() const override;
+			const TArray<uint8>& GetCodecSpecificData() const override;
+			const TArray<uint8>& GetCodecSpecificDataRAW() const override;
+			const FStreamCodecInformation& GetCodecInformation() const override;
+			const FBitrateInfo& GetBitrateInfo() const override;
+			const FString GetLanguage() const override;
+			void GetPSSHBoxes(TArray<TArray<uint8>>& OutBoxes, bool bFromMOOV, bool bFromMOOF) const override;
+			void GetPRFTBoxes(TArray<ITrack::FProducerReferenceTime>& OutBoxes) const override;
 
 			//private:
 			const FMP4BoxMVHD* MVHDBox = nullptr;
@@ -5518,6 +5597,7 @@ private:
 			const FMP4BoxSTSZ* STSZBox = nullptr;
 			const FMP4BoxSTCO* STCOBox = nullptr;
 			const FMP4BoxSTSS* STSSBox = nullptr;
+			const FMP4BoxUDTA* UDTABox = nullptr;
 			// Encryption
 			TArray<const FMP4BoxPSSH*>	PSSHBoxesFromInit;
 			TArray<const FMP4BoxPSSH*>	PSSHBoxes;
@@ -5553,15 +5633,15 @@ private:
 		public:
 			virtual ~FAllTrackIterator();
 			//! Returns the iterator at the current file position.
-			virtual const ITrackIterator* Current() const override;
+			const ITrackIterator* Current() const override;
 			//! Advance iterator to point to the next sample in sequence. Returns false if there are no more samples.
-			virtual bool Next() override;
+			bool Next() override;
 			//! Returns a list of all tracks iterators that reached EOS while iterating since the most recent call to ClearNewEOSTracks().
-			virtual void GetNewEOSTracks(TArray<const ITrackIterator*>& OutTracksThatNewlyReachedEOS) const override;
+			void GetNewEOSTracks(TArray<const ITrackIterator*>& OutTracksThatNewlyReachedEOS) const override;
 			//! Clears the list of track iterators that have reached EOS.
-			virtual void ClearNewEOSTracks() override;
+			void ClearNewEOSTracks() override;
 			//! Returns list of all iterators.
-			virtual void GetAllIterators(TArray<const ITrackIterator*>& OutIterators) const override;
+			void GetAllIterators(TArray<const ITrackIterator*>& OutIterators) const override;
 
 			TArray<TSharedPtrTS<ITrackIterator>>		TrackIterators;
 			TSharedPtrTS<ITrackIterator>				CurrentIterator;
@@ -5666,7 +5746,20 @@ private:
 	{
 		return TKHDBox ? TKHDBox->GetTrackID() : 0;
 	}
-	
+
+	FString FParserISO14496_12::FTrack::GetName() const
+	{
+		if (UDTABox)
+		{
+			TMediaOptionalValue<FString> Name = UDTABox->GetName();
+			if (Name.IsSet())
+			{
+				return Name.Value();
+			}
+		}
+		return FString();
+	}
+
 	FString FParserISO14496_12::FTrack::GetNameFromHandler() const
 	{
 		return HDLRBox ? HDLRBox->GetHandlerName() : FString();
@@ -6449,7 +6542,7 @@ private:
 		{
 			OutSampleEncryptionInfo.DefaultKID = Track->TENCBox->GetDefaultKID();
 		}
-	
+
 		const TArray<FMP4BoxSENC::FEntry>& SencEntries = Track->SENCBox->GetEntries();
 		check((int32) SampleNumberInTRUN < SencEntries.Num());
 		if ((int32) SampleNumberInTRUN >= SencEntries.Num())
@@ -6709,7 +6802,7 @@ private:
 						{
 							// Is this AAC audio?
 							if (Track->CodecSpecificDataMP4A.GetObjectTypeID() == MPEG::FESDescriptor::FObjectTypeID::MPEG4_Audio &&
-								Track->CodecSpecificDataMP4A.GetStreamType() == MPEG::FESDescriptor::FStreamType::Audio)
+								Track->CodecSpecificDataMP4A.GetStreamType() == MPEG::FESDescriptor::FStreamType::AudioStream)
 							{
 								Track->CodecInformation.SetStreamType(EStreamType::Audio);
 								Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::AAC);
@@ -6926,6 +7019,7 @@ private:
 						{
 							return UEMEDIA_ERROR_FORMAT_ERROR;
 						}
+						Track->UDTABox = static_cast<const FMP4BoxUDTA*>(Box->GetBoxPath(FMP4Box::kBox_udta));
 						// TODO: Check the dinf->dref->url box to not reference any external media!
 
 						// Get the composition time offset and the empty edit from the edit list. Those are necessary to correct the PTS values from
@@ -7413,7 +7507,7 @@ private:
 		}
 		return 0;
 	}
-	
+
 	IParserISO14496_12::FBrandType FParserISO14496_12::GetBrandByIndex(int32 Index) const
 	{
 		const FMP4BoxFTYP* Box = static_cast<const FMP4BoxFTYP*>(ParsedData->GetCurrentStypBox() ? ParsedData->GetCurrentStypBox() : ParsedData->GetCurrentFtypBox());

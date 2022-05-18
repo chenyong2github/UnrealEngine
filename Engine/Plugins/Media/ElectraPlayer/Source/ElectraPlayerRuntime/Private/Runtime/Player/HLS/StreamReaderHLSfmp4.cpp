@@ -616,6 +616,9 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 	//        to make sure the retry info is not modified.
 	TSharedPtrTS<HTTP::FRetryInfo> CurrentRetryInfo = CurrentRequest->ConnectionInfo.RetryInfo;
 
+	TSharedPtrTS<FBufferSourceInfo> SourceBufferInfo = MakeSharedTS<FBufferSourceInfo>(*Request->SourceBufferInfo);
+	SourceBufferInfo->PlaybackSequenceID = Request->GetPlaybackSequenceID();
+
 	Metrics::FSegmentDownloadStats& ds = CurrentRequest->DownloadStats;
 	ds.StatsID = FMediaInterlockedIncrement(UniqueDownloadID);
 
@@ -917,7 +920,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 										AccessUnit->LatestPTS = Request->LastPTS;
 										AccessUnit->LatestPTS.SetSequenceIndex(Request->TimestampSequenceIndex);
 
-										AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
+										AccessUnit->BufferSourceInfo = SourceBufferInfo;
 
 										// There should not be any gaps!
 								// TODO: what if there are?
@@ -1169,7 +1172,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 				AccessUnit->AUSize = 0;
 				AccessUnit->AUData = nullptr;
 				AccessUnit->bIsDummyData = true;
-				AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
+				AccessUnit->BufferSourceInfo = SourceBufferInfo;
 				if (CSD.IsValid() && CSD->CodecSpecificData.Num())
 				{
 					AccessUnit->AUCodecData = CSD;

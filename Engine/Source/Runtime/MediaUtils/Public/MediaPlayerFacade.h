@@ -782,10 +782,10 @@ protected:
 	void ProcessMetadataSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
 
 	/** Fetch audio samples from the player and forward them to the registered sinks. */
-	void ProcessCaptionSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+	void ProcessCaptionSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
 
 	/** Fetch subtitle samples from the player and forward them to the registered sinks. */
-	void ProcessSubtitleSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
+	void ProcessSubtitleSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange);
 
 	/** Fetch video samples from the player and forward them to the registered sinks. */
 	void ProcessVideoSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange);

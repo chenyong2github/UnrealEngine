@@ -33,7 +33,6 @@ namespace Electra
 		FTimeValue GetMinBufferTimeForPlayback(EMinBufferType InBufferingType, FTimeValue InDefaultMBT) override;
 		FRebufferAction GetRebufferAction(const FParamDict& CurrentPlayerOptions) override;
 		EHandlingAction PeriodicHandle() override;
-		void SwitchBufferingQuality(const FBufferingQuality& InQualityChange) override;
 		void MarkStreamAsUnavailable(const FBlacklistedStream& BlacklistedStream) override;
 		void MarkStreamAsAvailable(const FBlacklistedStream& NoLongerBlacklistedStream) override;
 		int64 GetLastBandwidth() override;
@@ -105,8 +104,6 @@ namespace Electra
 		{ return PlayerLiveControl->ABRGetLatency(); }
 		FTimeValue ABRGetPlaySpeed() const override
 		{ return PlayerLiveControl->ABRGetPlaySpeed(); }
-		void ABRGetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream) override
-		{ PlayerLiveControl->ABRGetStreamBufferStats(OutBufferStats, ForStream); }
 		void ABRGetStreamBufferStats(IAdaptiveStreamSelector::IPlayerLiveControl::FABRBufferStats& OutBufferStats, EStreamType ForStream) override
 		{ PlayerLiveControl->ABRGetStreamBufferStats(OutBufferStats, ForStream); }
 		FTimeRange ABRGetSupportedRenderRateScale() override
@@ -511,12 +508,6 @@ namespace Electra
 	{
 		check(ABRMethod.IsValid());
 		ABRMethod->ReportBufferingEnd(BufferingReason);
-	}
-
-	void FAdaptiveStreamSelector::SwitchBufferingQuality(const FBufferingQuality& InQualityChange)
-	{
-		check(ABRMethod.IsValid());
-		ABRMethod->SwitchBufferingQuality(InQualityChange);
 	}
 
 	const TArray<TSharedPtrTS<FABRStreamInformation>>& FAdaptiveStreamSelector::GetStreamInformations(EStreamType InForStreamType)

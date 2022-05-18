@@ -78,7 +78,6 @@ namespace Electra
 		virtual void RepresentationsChanged(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod) = 0;
 		virtual void SetBandwidth(int64 bitsPerSecond) = 0;
 		virtual void SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback) = 0;
-		virtual void SwitchBufferingQuality(const IAdaptiveStreamSelector::FBufferingQuality& InQualityChange) = 0;
 		virtual int64 GetLastBandwidth() = 0;
 		virtual int64 GetAverageBandwidth() = 0;
 		virtual int64 GetAverageThroughput() = 0;

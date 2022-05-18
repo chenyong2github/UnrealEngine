@@ -923,7 +923,6 @@ private:
 	FTimeValue ABRGetDesiredLiveEdgeLatency() const override;
 	FTimeValue ABRGetLatency() const override;
 	FTimeValue ABRGetPlaySpeed() const override;
-	void ABRGetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream) override;
 	void ABRGetStreamBufferStats(IAdaptiveStreamSelector::IPlayerLiveControl::FABRBufferStats& OutBufferStats, EStreamType ForStream) override;
 	FTimeRange ABRGetSupportedRenderRateScale() override;
 	void ABRSetRenderRateScale(double InRenderRateScale) override;
@@ -1008,6 +1007,13 @@ private:
 			default:								return("undefined");
 		}
 	}
+
+	enum class ERebufferCause
+	{
+		None,
+		Underrun,
+		TrackswitchUnderrun
+	};
 
 	struct FVideoRenderer
 	{
@@ -1567,27 +1573,6 @@ private:
 		FStallMonitor										DecoderOutputStalledMonitor;
 	};
 
-	struct FLiveSyncVars
-	{
-		FLiveSyncVars()
-		{
-			Clear();
-		}
-		void Clear()
-		{
-			bSyncLiveToNow = false;
-			StartTime.SetToInvalid();
-			DroppedDurationVid.SetToZero();
-			DroppedDurationAud.SetToZero();
-			LastDropRatio = 0.0;
-		}
-		bool bSyncLiveToNow;
-		FTimeValue StartTime;
-		FTimeValue DroppedDurationVid;
-		FTimeValue DroppedDurationAud;
-		double LastDropRatio;
-	};
-
 	struct FPrerollVars
 	{
 		FPrerollVars()
@@ -1828,7 +1813,6 @@ private:
 	void InternalHandleSegmentTrackChanges(const FTimeValue& CurrentTime);
 	void InternalStartoverAtCurrentPosition();
 	void InternalStartoverAtLiveEdge();
-	void InternalHandleLiveSync();
 
 	void UpdateDiagnostics();
 	void HandleNewBufferedData();
@@ -1993,7 +1977,6 @@ private:
 	EDecoderState														DecoderState;
 	EStreamState														StreamState;
 
-	FLiveSyncVars														LiveSyncVars;
 	FPrerollVars														PrerollVars;
 	FPostrollVars														PostrollVars;
 	FSeekVars															SeekVars;
@@ -2001,7 +1984,7 @@ private:
 	double																PlaybackRate;
 	double																RenderRateScale;
 	FTimeValue															RebufferDetectedAtPlayPos;
-	bool																bRebufferPending;
+	ERebufferCause														RebufferCause;
 	bool																bIsClosing;
 
 	TSharedPtrTS<IAdaptiveStreamSelector>								StreamSelector;

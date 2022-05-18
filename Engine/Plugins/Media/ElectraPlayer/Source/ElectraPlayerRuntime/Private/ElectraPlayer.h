@@ -383,7 +383,7 @@ private:
 	int32											NumTracksVideo;
 	int32											NumTracksSubtitle;
 	int32											SelectedQuality;
-	int32											SelectedVideoTrackIndex;
+	mutable int32									SelectedVideoTrackIndex;
 	mutable int32									SelectedAudioTrackIndex;
 	mutable int32									SelectedSubtitleTrackIndex;
 	mutable bool									bAudioTrackIndexDirty;

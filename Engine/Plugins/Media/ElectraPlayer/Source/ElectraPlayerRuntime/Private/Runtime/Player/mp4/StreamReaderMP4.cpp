@@ -438,15 +438,26 @@ void FStreamReaderMP4::HandleRequest()
 		bHasErrored = true;
 	}
 
+	uint32 PlaybackSequenceID = Request->GetPlaybackSequenceID();
 	while(!bDone && !HasErrored() && !HasBeenAborted() && !bTerminate)
 	{
-		auto UpdateSelectedTrack = [&SelectedTrackMap](const IParserISO14496_12::ITrackIterator* trkIt, TMap<uint32, FSelectedTrackData>& ActiveTrks) -> FSelectedTrackData&
+		auto UpdateSelectedTrack = [&SelectedTrackMap, &PlaybackSequenceID](const IParserISO14496_12::ITrackIterator* trkIt, TMap<uint32, FSelectedTrackData>& ActiveTrks) -> FSelectedTrackData&
 		{
 			const IParserISO14496_12::ITrack* Track = trkIt->GetTrack();
 			uint32 tkid = Track->GetID();
 
 			// Check if this track ID is already in our map of active tracks.
 			FSelectedTrackData& st = ActiveTrks.FindOrAdd(tkid);
+			if (!st.CSD.IsValid())
+			{
+				TSharedPtrTS<FAccessUnit::CodecData> CSD(new FAccessUnit::CodecData);
+				CSD->CodecSpecificData = Track->GetCodecSpecificData();
+				CSD->RawCSD			   = Track->GetCodecSpecificDataRAW();
+				CSD->ParsedInfo		   = Track->GetCodecInformation();
+				// Set information not necessarily available on the CSD.
+				CSD->ParsedInfo.SetBitrate(st.Bitrate);
+				st.CSD = MoveTemp(CSD);
+			}
 			if (!st.BufferSourceInfo.IsValid())
 			{
 				auto meta = MakeShared<FBufferSourceInfo, ESPMode::ThreadSafe>();
@@ -460,20 +471,12 @@ void FStreamReaderMP4::HandleRequest()
 					st.Bitrate = SelectedTrackMetadata->Bitrate;
 					meta->Kind = SelectedTrackMetadata->Kind;
 					meta->Language = SelectedTrackMetadata->Language;
+					meta->Codec = st.CSD.IsValid() ? st.CSD->ParsedInfo.GetCodecName() : FString();
 					meta->PeriodAdaptationSetID = SelectedTrackMetadata->PeriodID + TEXT(".") + SelectedTrackMetadata->AdaptationSetID;
 					meta->HardIndex = SelectedTrackMetadata->Index;
+					meta->PlaybackSequenceID = PlaybackSequenceID;
 				}
 				st.BufferSourceInfo = MoveTemp(meta);
-			}
-			if (!st.CSD.IsValid())
-			{
-				TSharedPtrTS<FAccessUnit::CodecData> CSD(new FAccessUnit::CodecData);
-				CSD->CodecSpecificData = Track->GetCodecSpecificData();
-				CSD->RawCSD			   = Track->GetCodecSpecificDataRAW();
-				CSD->ParsedInfo		   = Track->GetCodecInformation();
-				// Set information not necessarily available on the CSD.
-				CSD->ParsedInfo.SetBitrate(st.Bitrate);
-				st.CSD = MoveTemp(CSD);
 			}
 			return st;
 		};

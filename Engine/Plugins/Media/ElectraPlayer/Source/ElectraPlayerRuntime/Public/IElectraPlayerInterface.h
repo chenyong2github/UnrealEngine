@@ -118,6 +118,7 @@ public:
 	struct FPlaystartOptions
 	{
 		TOptional<FTimespan>		TimeOffset;
+		FStreamSelectionAttributes	InitialVideoTrackAttributes;
 		FStreamSelectionAttributes	InitialAudioTrackAttributes;
 		FStreamSelectionAttributes	InitialSubtitleTrackAttributes;
 		TOptional<int32>			MaxVerticalStreamResolution;

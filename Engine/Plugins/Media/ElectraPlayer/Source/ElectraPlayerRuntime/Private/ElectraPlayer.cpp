@@ -1228,7 +1228,7 @@ bool FElectraPlayer::GetAudioTrackFormat(int32 TrackIndex, int32 FormatIndex, FA
 
 bool FElectraPlayer::GetVideoTrackFormat(int32 TrackIndex, int32 FormatIndex, FVideoTrackFormat& OutFormat) const
 {
-	if (TrackIndex == 0 && FormatIndex == 0)
+	if (TrackIndex >= 0 && TrackIndex < NumTracksVideo && FormatIndex == 0)
 	{
 		TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Video, TrackIndex);
 		if (Meta.IsValid())
@@ -1404,7 +1404,7 @@ FText FElectraPlayer::GetTrackDisplayName(EPlayerTrackType TrackType, int32 Trac
 		{
 			if (!Meta->Label.IsEmpty())
 			{
-				return FText::FromString(FString::Printf(TEXT("%s, ID=%s"), *Meta->Label, *Meta->ID));
+				return FText::FromString(Meta->Label);
 			}
 			return FText::FromString(FString::Printf(TEXT("Video Track ID %s"), *Meta->ID));
 		}
@@ -1412,7 +1412,7 @@ FText FElectraPlayer::GetTrackDisplayName(EPlayerTrackType TrackType, int32 Trac
 		{
 			if (!Meta->Label.IsEmpty())
 			{
-				return FText::FromString(FString::Printf(TEXT("%s, ID=%s"), *Meta->Label, *Meta->ID));
+				return FText::FromString(Meta->Label);
 			}
 			return FText::FromString(FString::Printf(TEXT("Audio Track ID %s"), *Meta->ID));
 		}
@@ -1421,7 +1421,7 @@ FText FElectraPlayer::GetTrackDisplayName(EPlayerTrackType TrackType, int32 Trac
 			FString Name;
 			if (!Meta->Label.IsEmpty())
 			{
-				Name = FString::Printf(TEXT("%s (%s), ID=%s"), *Meta->Label, *Meta->HighestBandwidthCodec.GetCodecSpecifierRFC6381(), *Meta->ID);
+				Name = FString::Printf(TEXT("%s (%s)"), *Meta->Label, *Meta->HighestBandwidthCodec.GetCodecSpecifierRFC6381());
 			}
 			else
 			{
@@ -1482,115 +1482,78 @@ FString FElectraPlayer::GetTrackName(EPlayerTrackType TrackType, int32 TrackInde
  */
 bool FElectraPlayer::SelectTrack(EPlayerTrackType TrackType, int32 TrackIndex)
 {
-	if (TrackType == EPlayerTrackType::Audio)
+	auto PerformSelection = [this, TrackType, TrackIndex](int32& OutSelectedTrackIndex, IElectraPlayerInterface::FStreamSelectionAttributes& OutSelectionAttributes) -> bool
 	{
+		Electra::EStreamType StreamType = TrackType == IElectraPlayerInterface::EPlayerTrackType::Video ? Electra::EStreamType::Video :
+										  TrackType == IElectraPlayerInterface::EPlayerTrackType::Audio ? Electra::EStreamType::Audio :
+										  TrackType == IElectraPlayerInterface::EPlayerTrackType::Subtitle ? Electra::EStreamType::Subtitle :
+										  Electra::EStreamType::Unsupported;
 		// Select a track or deselect?
 		if (TrackIndex >= 0)
 		{
 			// Check if the track index exists by checking the presence of the track metadata.
 			// If for some reason the index is not valid the selection will not be changed.
-			TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Audio, TrackIndex);
+			TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(TrackType, TrackIndex);
 			if (Meta.IsValid())
 			{
 				// Switch only when the track index has changed.
 				if (GetSelectedTrack(TrackType) != TrackIndex)
 				{
-					Electra::FStreamSelectionAttributes AudioAttributes;
-					AudioAttributes.OverrideIndex = TrackIndex;
+					Electra::FStreamSelectionAttributes TrackAttributes;
+					TrackAttributes.OverrideIndex = TrackIndex;
 
-					PlaystartOptions.InitialAudioTrackAttributes.TrackIndexOverride = TrackIndex;
+					OutSelectionAttributes.TrackIndexOverride = TrackIndex;
 					if (!Meta->Kind.IsEmpty())
 					{
-						AudioAttributes.Kind = Meta->Kind;
-						PlaystartOptions.InitialAudioTrackAttributes.Kind = Meta->Kind;
+						TrackAttributes.Kind = Meta->Kind;
+						OutSelectionAttributes.Kind = Meta->Kind;
 					}
 					if (!Meta->Language.IsEmpty())
 					{
-						AudioAttributes.Language_ISO639 = Meta->Language;
-						PlaystartOptions.InitialAudioTrackAttributes.Language_ISO639 = Meta->Language;
+						TrackAttributes.Language_ISO639 = Meta->Language;
+						OutSelectionAttributes.Language_ISO639 = Meta->Language;
 					}
-					AudioAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
-					PlaystartOptions.InitialAudioTrackAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
+					TrackAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
+					OutSelectionAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
 
 					TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
 					if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
 					{
-						LockedPlayer->AdaptivePlayer->SelectTrackByAttributes(Electra::EStreamType::Audio, AudioAttributes);
+						LockedPlayer->AdaptivePlayer->SelectTrackByAttributes(StreamType, TrackAttributes);
 					}
 
-					SelectedAudioTrackIndex = TrackIndex;
+					OutSelectedTrackIndex = TrackIndex;
 				}
 				return true;
 			}
 		}
 		else
 		{
-			// Deselect audio track.
-			PlaystartOptions.InitialAudioTrackAttributes.TrackIndexOverride = -1;
-			SelectedAudioTrackIndex = -1;
+			// Deselect track.
+			OutSelectionAttributes.TrackIndexOverride = -1;
+			OutSelectedTrackIndex = -1;
 			TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
 			if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
 			{
-				LockedPlayer->AdaptivePlayer->DeselectTrack(Electra::EStreamType::Audio);
+				LockedPlayer->AdaptivePlayer->DeselectTrack(StreamType);
 			}
 			return true;
 		}
+		return false;
+	};
+
+	if (TrackType == EPlayerTrackType::Video)
+	{
+		return PerformSelection(SelectedVideoTrackIndex, PlaystartOptions.InitialVideoTrackAttributes);
+	}
+	else if (TrackType == EPlayerTrackType::Audio)
+	{
+		return PerformSelection(SelectedAudioTrackIndex, PlaystartOptions.InitialAudioTrackAttributes);
 	}
 	else if (TrackType == EPlayerTrackType::Subtitle)
 	{
-		// Select a track or deselect?
-		if (TrackIndex >= 0)
-		{
-			// Check if the track index exists by checking the presence of the track metadata.
-			// If for some reason the index is not valid the selection will not be changed.
-			TSharedPtr<Electra::FTrackMetadata, ESPMode::ThreadSafe> Meta = GetTrackStreamMetadata(EPlayerTrackType::Subtitle, TrackIndex);
-			if (Meta.IsValid())
-			{
-				// Switch only when the track index has changed.
-				if (GetSelectedTrack(TrackType) != TrackIndex)
-				{
-					Electra::FStreamSelectionAttributes SubtitleAttributes;
-					SubtitleAttributes.OverrideIndex = TrackIndex;
-
-					PlaystartOptions.InitialSubtitleTrackAttributes.TrackIndexOverride = TrackIndex;
-					if (!Meta->Kind.IsEmpty())
-					{
-						SubtitleAttributes.Kind = Meta->Kind;
-						PlaystartOptions.InitialSubtitleTrackAttributes.Kind = Meta->Kind;
-					}
-					if (!Meta->Language.IsEmpty())
-					{
-						SubtitleAttributes.Language_ISO639 = Meta->Language;
-						PlaystartOptions.InitialSubtitleTrackAttributes.Language_ISO639 = Meta->Language;
-					}
-					SubtitleAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
-					PlaystartOptions.InitialSubtitleTrackAttributes.Codec = Meta->HighestBandwidthCodec.GetCodecName();
-
-					TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
-					if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
-					{
-						LockedPlayer->AdaptivePlayer->SelectTrackByAttributes(Electra::EStreamType::Subtitle, SubtitleAttributes);
-					}
-
-					SelectedSubtitleTrackIndex = TrackIndex;
-				}
-				return true;
-			}
-		}
-		else
-		{
-			// Deselect subtitle track.
-			PlaystartOptions.InitialSubtitleTrackAttributes.TrackIndexOverride = -1;
-			SelectedSubtitleTrackIndex = -1;
-			TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
-			if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
-			{
-				LockedPlayer->AdaptivePlayer->DeselectTrack(Electra::EStreamType::Subtitle);
-			}
-			return true;
-		}
+		return PerformSelection(SelectedSubtitleTrackIndex, PlaystartOptions.InitialSubtitleTrackAttributes);
 	}
-	// The player is selecting tracks for now.
 	return false;
 }
 
@@ -2171,7 +2134,7 @@ void FElectraPlayer::HandlePlayerEventBufferingEnd(Electra::Metrics::EBufferingR
 void FElectraPlayer::HandlePlayerEventBandwidth(int64 EffectiveBps, int64 ThroughputBps, double LatencyInSeconds)
 {
 //	FScopeLock Lock(&StatisticsLock);
-	UE_LOG(LogElectraPlayer, Verbose, TEXT("[%p][%p] Observed bandwidth of %d bps; throughput = %d; latency = %.3fs"), this, CurrentPlayer.Get(), (int32)EffectiveBps, (int32)ThroughputBps, LatencyInSeconds);
+	UE_LOG(LogElectraPlayer, VeryVerbose, TEXT("[%p][%p] Observed bandwidth of %d bps; throughput = %d; latency = %.3fs"), this, CurrentPlayer.Get(), (int32)EffectiveBps, (int32)ThroughputBps, LatencyInSeconds);
 }
 
 void FElectraPlayer::HandlePlayerEventBufferUtilization(const Electra::Metrics::FBufferStats& BufferStats)
@@ -2212,7 +2175,7 @@ void FElectraPlayer::HandlePlayerEventSegmentDownload(const Electra::Metrics::FS
 	}
 	if (SegmentDownloadStats.bWasSuccessful)
 	{
-		UE_LOG(LogElectraPlayer, Verbose, TEXT("[%p][%p] Downloaded %s segment at bitrate %d: Playback time = %.3fs, duration = %.3fs, download time = %.3fs, URL=%s \"%s\""), this, CurrentPlayer.Get(), Electra::GetStreamTypeName(SegmentDownloadStats.StreamType), SegmentDownloadStats.Bitrate, SegmentDownloadStats.PresentationTime, SegmentDownloadStats.Duration, SegmentDownloadStats.TimeToDownload, *SegmentDownloadStats.Range, *SanitizeMessage(SegmentDownloadStats.URL));
+		UE_LOG(LogElectraPlayer, VeryVerbose, TEXT("[%p][%p] Downloaded %s segment at bitrate %d: Playback time = %.3fs, duration = %.3fs, download time = %.3fs, URL=%s \"%s\""), this, CurrentPlayer.Get(), Electra::GetStreamTypeName(SegmentDownloadStats.StreamType), SegmentDownloadStats.Bitrate, SegmentDownloadStats.PresentationTime, SegmentDownloadStats.Duration, SegmentDownloadStats.TimeToDownload, *SegmentDownloadStats.Range, *SanitizeMessage(SegmentDownloadStats.URL));
 	}
 	else if (SegmentDownloadStats.bWasAborted)
 	{

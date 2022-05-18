@@ -51,11 +51,10 @@ public:
 		virtual FTimeValue ABRGetPlaySpeed() const = 0;
 
 		// Returns the current stream access unit buffer stats.
-		virtual void ABRGetStreamBufferStats(FAccessUnitBufferInfo& OutBufferStats, EStreamType ForStream) = 0;
-
 		struct FABRBufferStats
 		{
 			FTimeValue PlayableContentDuration;
+			bool bReachedEnd = false;
 		};
 		virtual void ABRGetStreamBufferStats(FABRBufferStats& OutBufferStats, EStreamType ForStream) = 0;
 
@@ -119,13 +118,6 @@ public:
 	// Call when rebuffering occurs to get the recommended action. This implies that rebuffering has actually occurred.
 	// The ABR may take internal action to switch quality when this is called!
 	virtual FRebufferAction GetRebufferAction(const FParamDict& CurrentPlayerOptions) = 0;
-
-	struct FBufferingQuality
-	{
-		TOptional<double> BandwidthScaleFactor;
-		TOptional<int64> AbsoluteBandwidth;
-	};
-	virtual void SwitchBufferingQuality(const FBufferingQuality& InQualityChange) = 0;
 
 	struct FBlacklistedStream
 	{

@@ -44,6 +44,9 @@ namespace Electra
 
 		// Internal hard index, used for multiplexed streams.
 		int32		HardIndex = -1;
+
+		// To which playback sequence this belongs.
+		uint32		PlaybackSequenceID = 0;
 	};
 
 	struct FAccessUnit
@@ -641,11 +644,10 @@ namespace Electra
 	class FMultiTrackAccessUnitBuffer : public TSharedFromThis<FMultiTrackAccessUnitBuffer, ESPMode::ThreadSafe>
 	{
 	public:
-		FMultiTrackAccessUnitBuffer();
+		FMultiTrackAccessUnitBuffer(EStreamType InForType);
 		~FMultiTrackAccessUnitBuffer();
 		void SetParallelTrackMode();
-		void SelectTrackWhenAvailable(TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
-		void AddUpcomingBuffer(TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
+		void SelectTrackWhenAvailable(uint32 PlaybackSequenceID, TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
 		bool Push(FAccessUnit*& AU, const FAccessUnitBuffer::FConfiguration* BufferConfiguration, const FAccessUnitBuffer::FExternalBufferInfo* InCurrentTotalBufferUtilization);
 		void PushEndOfDataFor(TSharedPtrTS<const FBufferSourceInfo> InStreamSourceInfo);
 		void PushEndOfDataAll();
@@ -653,8 +655,6 @@ namespace Electra
 		void GetStats(FAccessUnitBufferInfo& OutStats);
 		FTimeValue GetLastPoppedDTS();
 		FTimeValue GetLastPoppedPTS();
-		TSharedPtrTS<FBufferSourceInfo> GetActiveOutputBufferInfo() const
-		{ return ActiveOutputBufferInfo; }
 
 		// Helper class to lock the AU buffer
 		class FScopedLock
@@ -680,40 +680,55 @@ namespace Electra
 		bool PeekAndAddRef(FAccessUnit*& OutAU);
 		bool Pop(FAccessUnit*& OutAU);
 		void PopDiscardUntil(FTimeValue UntilTime);
-		FTimeValue PrepareForDecodeStartingAt(FTimeValue DecodeStartTime);
 		bool IsEODFlagSet();
 		int32 Num();
 		bool WasLastPushBlocked();
+		bool HasPendingTrackSwitch();
 
 	private:
 
-		struct FQueuedBuffer
+		struct FSwitchToBuffer
 		{
-			TSharedPtrTS<FBufferSourceInfo> Info;
+			void Reset()
+			{
+				BufferInfo.Reset();
+			}
+			bool IsSet() const
+			{
+				return BufferInfo.IsValid();
+			}
+			TSharedPtrTS<FBufferSourceInfo> BufferInfo;
+		};
+
+		struct FBufferByInfoType
+		{
+			TSharedPtrTS<const FBufferSourceInfo> Info;
 			TSharedPtrTS<FAccessUnitBuffer> Buffer;
 		};
 
-		void PurgeAll();
 		void Clear();
 
 		TSharedPtrTS<FAccessUnitBuffer> CreateNewBuffer();
+		TSharedPtrTS<FAccessUnitBuffer> FindOrCreateBufferFor(TSharedPtrTS<const FBufferSourceInfo>& OutBufferSourceInfo, const TSharedPtrTS<const FBufferSourceInfo>& InBufferInfo, bool bCreateIfNotExist);
+		void ActivateInitialBuffer();
+		void HandlePendingSwitch();
+		void RemoveOutdatedBuffers();
+
 		TSharedPtrTS<FAccessUnitBuffer> GetSelectedTrackBuffer();
-		void ActivateBuffer(bool bIsPushing);
-		void ChangeOver();
-		void RemoveUnusedBuffers();
-		void GetEnqueuedBufferInfo(FAccessUnitBuffer::FExternalBufferInfo& OutInfo, bool bForSwitchOverChain);
 
 		FCriticalSection								AccessLock;
-		TMap<FString, TSharedPtrTS<FAccessUnitBuffer>>	TrackBuffers;						//!< Map of track buffers. One per track ID.
-		TArray<FQueuedBuffer>							UpcomingBufferChain;
-		TArray<FQueuedBuffer>							SwitchOverBufferChain;
-		TSharedPtrTS<FAccessUnitBuffer>					EmptyBuffer;						//!< An empty buffer
-		TSharedPtrTS<FBufferSourceInfo>					ActiveOutputBufferInfo;
-		TSharedPtrTS<FBufferSourceInfo>					LastPoppedBufferInfo;
+		EStreamType										Type;
+		TArray<FBufferByInfoType>						BufferList;
+		FSwitchToBuffer									PendingBufferSwitch;
+		TSharedPtrTS<FAccessUnitBuffer>					EmptyBuffer;
+		TSharedPtrTS<FAccessUnitBuffer>					ActiveBuffer;
+		TSharedPtrTS<const FBufferSourceInfo>			ActiveOutputBufferInfo;
+		TSharedPtrTS<const FBufferSourceInfo>			LastPoppedBufferInfo;
 		FTimeValue										LastPoppedDTS;
 		FTimeValue										LastPoppedPTS;
 		bool											bEndOfData;
 		bool											bLastPushWasBlocked;
+		bool											bPopAsDummyUntilSyncFrame;
 		bool											bIsParallelTrackMode;
 	};
 

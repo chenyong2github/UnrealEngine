@@ -665,6 +665,8 @@ bool FElectraPlayerPlugin::GetPlayerFeatureFlag(EFeatureFlag flag) const
 			return true;
 		case EFeatureFlag::PlayerUsesInternalFlushOnSeek:
 			return true;
+		case EFeatureFlag::IsTrackSwitchSeamless:
+			return true;
 		default:
 			break;
 	}

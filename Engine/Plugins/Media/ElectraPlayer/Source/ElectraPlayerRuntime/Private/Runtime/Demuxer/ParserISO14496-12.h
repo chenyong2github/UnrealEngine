@@ -228,6 +228,7 @@ namespace Electra
 			virtual ~ITrack() = default;
 
 			virtual uint32 GetID() const = 0;
+			virtual FString GetName() const = 0;
 			virtual FString GetNameFromHandler() const = 0;
 			virtual FTimeFraction GetDuration() const = 0;
 

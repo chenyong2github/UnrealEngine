@@ -35,7 +35,6 @@ public:
 	void RepresentationsChanged(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod) override;
 	void SetBandwidth(int64 bitsPerSecond) override;
 	void SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback) override;
-	void SwitchBufferingQuality(const IAdaptiveStreamSelector::FBufferingQuality& InQualityChange) override;
 	int64 GetLastBandwidth() override;
 	int64 GetAverageBandwidth() override;
 	int64 GetAverageThroughput() override;
@@ -138,10 +137,11 @@ private:
 		return Stream ? (*Stream) : nullptr;
 	}
 	
-	double GetPlayablePlayerDuration(EStreamType InStreamType)
+	double GetPlayablePlayerDuration(bool& bEOS, EStreamType InStreamType)
 	{
 		IAdaptiveStreamSelector::IPlayerLiveControl::FABRBufferStats bs;
 		Info->ABRGetStreamBufferStats(bs, InStreamType);
+		bEOS = bs.bReachedEnd;
 		return bs.PlayableContentDuration.GetAsSeconds();
 	}
 
@@ -276,7 +276,8 @@ FABRDownloadProgressDecision FABROnDemandPlus::ReportDownloadProgress(const Metr
 			double EstimatedTotalDownloadTime = SegmentDownloadStats.Duration;
 
 			const int32 QualityIndex = WorkVars->QualityIndexDownloading;
-			const double playableSeconds = GetPlayablePlayerDuration(SegmentDownloadStats.StreamType);
+			bool bEOS = false;
+			const double playableSeconds = GetPlayablePlayerDuration(bEOS, SegmentDownloadStats.StreamType);
 			const bool bIsEmittingPartial = (Flags & FABRDownloadProgressDecision::EDecisionFlags::eABR_EmitPartialData) != 0;
 
 			// Estimate how long we will take to complete the download.
@@ -544,11 +545,6 @@ void FABROnDemandPlus::SetForcedNextBandwidth(int64 bitsPerSecond, double minBuf
 	ForcedInitialBandwidthUntilSecondsBuffered = minBufferTimeBeforePlayback;
 }
 
-void FABROnDemandPlus::SwitchBufferingQuality(const IAdaptiveStreamSelector::FBufferingQuality& InQualityChange)
-{
-	// No-op
-}
-
 int64 FABROnDemandPlus::GetLastBandwidth()
 {
 	FStreamWorkVars* WorkVars = GetWorkVars(GetPrimaryStreamType());
@@ -733,7 +729,8 @@ IAdaptiveStreamSelector::ESegmentAction FABROnDemandPlus::PerformSelection(const
 
 		int32 NewQualityIndex = 0;
 
-		const double AvailableDuration = GetPlayablePlayerDuration(StreamType);
+		bool bEOS = false;
+		const double AvailableDuration = GetPlayablePlayerDuration(bEOS, StreamType);
 		const double DownloadLatency = WorkVars ? WorkVars->AverageLatency.GetWeightedMax(DefaultNetworkLatency) : DefaultNetworkLatency;
 
 		if (WorkVars && StreamType == EStreamType::Video)
@@ -867,13 +864,14 @@ IAdaptiveStreamSelector::EHandlingAction FABROnDemandPlus::PeriodicHandle()
 		const FStreamWorkVars* WorkVars = GetWorkVars(StreamType);
 		if (WorkVars)
 		{
-			const double AvailableBufferedDuration = GetPlayablePlayerDuration(StreamType);
+			bool bEOS = false;
+			const double AvailableBufferedDuration = GetPlayablePlayerDuration(bEOS, StreamType);
 			const double NetworkLatency = WorkVars->AverageLatency.GetWeightedMax(DefaultNetworkLatency);
 			const double CurrentPlayRate = Info->ABRGetRenderRateScale();
 			const bool bOvertime = WorkVars->bWentIntoOvertime;
 
 			// Slow down because of insufficient buffered data?
-			bool bBufferSlowDown = bOvertime || AvailableBufferedDuration < Utils::Max(SlowDownWhenBufferDurationUnder, NetworkLatency);
+			bool bBufferSlowDown = bOvertime || (!bEOS && AvailableBufferedDuration < Utils::Max(SlowDownWhenBufferDurationUnder, NetworkLatency));
 			if (bBufferSlowDown)
 			{
 				SetRenderRateScale(SlowDownRateWhenBufferDurationUnder);
@@ -911,7 +909,9 @@ void FABROnDemandPlus::DebugPrint(void* pThat, void (*pPrintFN)(void* pThat, con
 
 	pPrintFN(pThat, "  Catchup rate: %.3f", Info->ABRGetRenderRateScale());
 	pPrintFN(pThat, "Network latency: %.3f", VideoWorkVars.AverageLatency.GetWeightedMax(DefaultNetworkLatency));
-	pPrintFN(pThat, "Duration avail: %.3f", GetPlayablePlayerDuration(GetPrimaryStreamType()));
+	bool bEOS = false;
+	double Dur = GetPlayablePlayerDuration(bEOS, GetPrimaryStreamType());
+	pPrintFN(pThat, "Duration avail: %.3f, EOS=%d", Dur, bEOS);
 }
 
 

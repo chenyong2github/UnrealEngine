@@ -747,7 +747,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 	if (!bIsDeselected)
 	{
 		// Check for buffer underrun.
-		if (bHandleUnderrun && !bRebufferPending && CurrentState == EPlayerState::eState_Playing && StreamState == EStreamState::eStream_Running && PipelineState == EPipelineState::ePipeline_Running)
+		if (bHandleUnderrun && RebufferCause == ERebufferCause::None && CurrentState == EPlayerState::eState_Playing && StreamState == EStreamState::eStream_Running && PipelineState == EPipelineState::ePipeline_Running)
 		{
 			bool bEODSet = FromMultistreamBuffer->IsEODFlagSet();
 			if (!bEODSet && FromMultistreamBuffer->Num() == 0)
@@ -765,7 +765,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 				if (NumEnqueuedSamples <= 1)
 				{
 					// Buffer underrun.
-					bRebufferPending = true;
+					RebufferCause = FromMultistreamBuffer->HasPendingTrackSwitch() ? ERebufferCause::TrackswitchUnderrun : ERebufferCause::Underrun;
 					FTimeValue LastKnownPTS = FromMultistreamBuffer->GetLastPoppedPTS();
 					// Only set the 'rebuffer at' time if we have a valid last known PTS. If we don't
 					// then maybe this is a cascade failure from a previous rebuffer attempt for which

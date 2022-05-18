@@ -34,7 +34,6 @@ public:
 	void RepresentationsChanged(EStreamType InStreamType, TSharedPtrTS<IManifest::IPlayPeriod> InCurrentPlayPeriod) override {}
 	void SetBandwidth(int64 bitsPerSecond) override {}
 	void SetForcedNextBandwidth(int64 bitsPerSecond, double minBufferTimeBeforePlayback) override {}
-	void SwitchBufferingQuality(const IAdaptiveStreamSelector::FBufferingQuality& InQualityChange) override {}
 	int64 GetLastBandwidth() override;
 	int64 GetAverageBandwidth() override;
 	int64 GetAverageThroughput() override;

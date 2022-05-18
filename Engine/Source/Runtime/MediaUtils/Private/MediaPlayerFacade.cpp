@@ -1133,8 +1133,10 @@ bool FMediaPlayerFacade::SelectTrack(EMediaTrackType TrackType, int32 TrackIndex
 		return false;
 	}
 
-	Flush();
-
+	if (!Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::IsTrackSwitchSeamless))
+	{
+		Flush();
+	}
 	return true;
 }
 
@@ -2044,8 +2046,8 @@ void FMediaPlayerFacade::TickFetch(FTimespan DeltaTime, FTimespan Timecode)
 
 		while (true)
 		{
-			ProcessCaptionSamplesV1(Samples, TimeRange);
-			ProcessSubtitleSamplesV1(Samples, TimeRange);
+			ProcessCaptionSamples(Samples, TimeRange);
+			ProcessSubtitleSamples(Samples, TimeRange);
 			ProcessVideoSamplesV1(Samples, TimeRange);
 
 			if (!BlockOnFetch())
@@ -2150,6 +2152,11 @@ void FMediaPlayerFacade::TickTickable()
 
 	ProcessAudioSamples(Samples, AudioTimeRange);
 	ProcessMetadataSamples(Samples, MetadataTimeRange);
+	if (bUseV2Timing)
+	{
+		ProcessCaptionSamples(Samples, MetadataTimeRange);
+		ProcessSubtitleSamples(Samples, MetadataTimeRange);
+	}
 
 	SET_DWORD_STAT(STAT_MediaUtils_FacadeNumAudioSamples, Samples.NumAudio());
 }
@@ -2478,7 +2485,7 @@ void FMediaPlayerFacade::ProcessAudioSamples(IMediaSamples& Samples, TRange<FTim
 }
 
 
-void FMediaPlayerFacade::ProcessCaptionSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange)
+void FMediaPlayerFacade::ProcessCaptionSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange)
 {
 	TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe> Sample;
 
@@ -2510,12 +2517,13 @@ void FMediaPlayerFacade::ProcessMetadataSamples(IMediaSamples& Samples, TRange<F
 }
 
 
-void FMediaPlayerFacade::ProcessSubtitleSamplesV1(IMediaSamples& Samples, TRange<FTimespan> TimeRange)
+void FMediaPlayerFacade::ProcessSubtitleSamples(IMediaSamples& Samples, TRange<FTimespan> TimeRange)
 {
 	TSharedPtr<IMediaOverlaySample, ESPMode::ThreadSafe> Sample;
 
 	while (Samples.FetchSubtitle(TimeRange, Sample))
 	{
+		//UE_LOG(LogMediaUtils, Display, TEXT("Subtitle @%.3f: %s"), Sample->GetTime().Time.GetTotalSeconds(), *Sample->GetText().ToString());
 		if (Sample.IsValid() && !SubtitleSampleSinks.Enqueue(Sample.ToSharedRef(), FMediaPlayerQueueDepths::MaxSubtitleSinkDepth))
 		{
 #if MEDIAPLAYERFACADE_TRACE_SINKOVERFLOWS

@@ -811,6 +811,10 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 	bool bIsEmptyFillerSegment = Request->bInsertFillerData;
 	bool bIsLastSegment = Request->Segment.bIsLastInPeriod;
 
+	// Copy the source buffer info into a new instance and set the playback sequence ID in it.
+	TSharedPtrTS<FBufferSourceInfo> SourceBufferInfo = MakeSharedTS<FBufferSourceInfo>(*Request->SourceBufferInfo);
+	SourceBufferInfo->PlaybackSequenceID = Request->GetPlaybackSequenceID();
+
 	Metrics::FSegmentDownloadStats& ds = CurrentRequest->DownloadStats;
 	ds.StatsID = FMediaInterlockedIncrement(UniqueDownloadID);
 	ds.FailureReason.Empty();
@@ -923,7 +927,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 				AccessUnit->bIsSyncSample = true;
 				AccessUnit->bIsDummyData = false;
 				AccessUnit->bIsSideloaded = true;
-				AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
+				AccessUnit->BufferSourceInfo = SourceBufferInfo;
 				AccessUnit->SequenceIndex = Request->TimestampSequenceIndex;
 				AccessUnit->DropState = FAccessUnit::EDropState::None;
 
@@ -1140,7 +1144,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 									AccessUnit->bIsSyncSample = TrackIterator->IsSyncSample();
 									AccessUnit->bIsDummyData = false;
 									AccessUnit->AUCodecData = CSD;
-									AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
+									AccessUnit->BufferSourceInfo = SourceBufferInfo;
 
 									AccessUnit->DropState = FAccessUnit::EDropState::None;
 									// Is this AU entirely before the time we want?
@@ -1493,7 +1497,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			}
 
 			AccessUnit->ESType = Request->GetType();
-			AccessUnit->BufferSourceInfo = Request->SourceBufferInfo;
+			AccessUnit->BufferSourceInfo = SourceBufferInfo;
 			AccessUnit->Duration = DefaultDuration;
 			AccessUnit->AUSize = 0;
 			AccessUnit->AUData = nullptr;
