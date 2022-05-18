@@ -148,6 +148,7 @@ public:
 	virtual void StartPatchCheck();
 	virtual void AddEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag, FInstallBundleManagerEnvironmentWantsPatchCheck Delegate) {}
 	virtual void RemoveEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag) {}
+	virtual bool SupportsEarlyStartupPatching() const = 0;
 
 	virtual bool IsNullInterface() const = 0;
 

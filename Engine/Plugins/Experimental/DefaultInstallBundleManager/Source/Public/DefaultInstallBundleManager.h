@@ -657,6 +657,7 @@ public:
 	virtual void StartPatchCheck() override;
 	virtual void AddEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag, FInstallBundleManagerEnvironmentWantsPatchCheck Delegate) override;
 	virtual void RemoveEnvironmentWantsPatchCheckBackCompatDelegate(FName Tag) override;
+	virtual bool SupportsEarlyStartupPatching() const override;
 
 	virtual bool IsNullInterface() const override;
 

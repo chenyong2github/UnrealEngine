@@ -3876,6 +3876,11 @@ void FDefaultInstallBundleManager::RemoveEnvironmentWantsPatchCheckBackCompatDel
 	FPatchCheck::Get().RemoveEnvironmentWantsPatchCheckBackCompatDelegate(Tag);
 }
 
+bool FDefaultInstallBundleManager::SupportsEarlyStartupPatching() const
+{
+	return false;
+}
+
 bool FDefaultInstallBundleManager::IsNullInterface() const
 {
 	return false;

@@ -135,6 +135,11 @@ class FNullInstallBundleManager : public IInstallBundleManager
 
 	}
 
+	virtual bool SupportsEarlyStartupPatching() const override
+	{
+		return false;
+	}
+
 	virtual bool IsNullInterface() const override
 	{
 		return true;
