@@ -111,7 +111,7 @@ void FGeometryCollectionResults::Reset()
 //==============================================================================
 
 
-Chaos::FTriangleMesh* CreateTriangleMesh(
+TUniquePtr<Chaos::FTriangleMesh> CreateTriangleMesh(
 	const int32 FaceStart,
 	const int32 FaceCount, 
 	const TManagedArray<bool>& Visible, 
@@ -141,7 +141,7 @@ Chaos::FTriangleMesh* CreateTriangleMesh(
 			}
 		}
 	}
-	return new Chaos::FTriangleMesh(MoveTemp(Faces)); // Culls geometrically degenerate faces
+	return MakeUnique<Chaos::FTriangleMesh>(MoveTemp(Faces)); // Culls geometrically degenerate faces
 }
 
 TArray<int32> ComputeTransformToGeometryMap(const FGeometryCollection& Collection)
@@ -2283,7 +2283,7 @@ static FGeometryDynamicCollection::FSharedImplicit CreateImplicitGeometry(
 }
 
 static void ComputeGeometryVolumeAndCenterOfMass(
-	const Chaos::FParticles& MassSpaceParticles,
+	const TArray<FVector3f> Vertices,
 	const Chaos::FTriangleMesh& TriMesh,
 	const FBox& BoundingBox,
 	const FSharedSimulationParameters& SharedParams, 
@@ -2303,8 +2303,12 @@ static void ComputeGeometryVolumeAndCenterOfMass(
 	
 	if (!OutIsTooSmallGeometry)
 	{
-		Chaos::CalculateVolumeAndCenterOfMass(MassSpaceParticles, TriMesh.GetElements(), OutUncorrectedVolume, OutCenterOfMass);
-		OutVolume = OutUncorrectedVolume;
+		float Volume;
+		FVector3f CenterOfMass;
+		Chaos::CalculateVolumeAndCenterOfMass(Vertices, TriMesh.GetElements(), Volume, CenterOfMass);
+		OutVolume = Volume;
+		OutUncorrectedVolume = Volume;
+		OutCenterOfMass = CenterOfMass;
 		
 		if (OutUncorrectedVolume == 0)
 		{
@@ -2324,6 +2328,78 @@ static void ComputeGeometryVolumeAndCenterOfMass(
 		}
 	}
 }
+
+static void ComputeMassPropertyFromMesh(
+	const int32 GeometryIndex,
+	const FGeometryCollection& RestCollection,
+	const FSharedSimulationParameters& SharedParams,
+	TUniquePtr<Chaos::FTriangleMesh>& TriMesh,
+	Chaos::FMassProperties& OutMassProperties,
+	bool& bOutIsTooSmallGeometry
+)
+{
+	// VerticesGroup
+	const TManagedArray<FVector3f>& Vertex = RestCollection.Vertex;
+
+	// FacesGroup
+	const TManagedArray<bool>& Visible = RestCollection.Visible;
+	const TManagedArray<FIntVector>& Indices = RestCollection.Indices;
+
+	// GeometryGroup
+	const TManagedArray<FBox>& BoundingBox = RestCollection.BoundingBox;
+	const TManagedArray<int32>& FaceStart = RestCollection.FaceStart;
+	const TManagedArray<int32>& FaceCount = RestCollection.FaceCount;
+
+	
+	TriMesh = CreateTriangleMesh(
+		FaceStart[GeometryIndex],
+		FaceCount[GeometryIndex],
+		Visible,
+		Indices);
+
+	Chaos::FReal UncorrectedVolume = 0;
+	
+	bOutIsTooSmallGeometry = false;
+	ComputeGeometryVolumeAndCenterOfMass(
+		Vertex.GetConstArray(),
+		*TriMesh,
+		BoundingBox[GeometryIndex],
+		SharedParams,
+		UncorrectedVolume,
+		OutMassProperties.Volume,
+		OutMassProperties.CenterOfMass,
+		bOutIsTooSmallGeometry
+		);
+
+	// now compute unit inertia ( assuming mass of 1 it will be scaled later by the real mass
+	constexpr Chaos::FReal UnitMass = 1000;
+	ensure (OutMassProperties.Volume > UE_SMALL_NUMBER);
+	const Chaos::FReal Density = UnitMass / OutMassProperties.Volume;
+	const bool bUseBoundingBoxInertia = (UncorrectedVolume == 0);  
+	if (bUseBoundingBoxInertia)
+	{
+		OutMassProperties.CenterOfMass = BoundingBox[GeometryIndex].GetCenter();
+		Chaos::CalculateInertiaAndRotationOfMass(BoundingBox[GeometryIndex], Density, OutMassProperties.InertiaTensor, OutMassProperties.RotationOfMass);
+	}
+	else
+	{
+		const FVector3f CenterOfMass{ OutMassProperties.CenterOfMass };
+		Chaos::PMatrix<float,3,3> InertiaTensor;
+		Chaos::TRotation<float,3> RotationOfMass;
+		CalculateInertiaAndRotationOfMass(Vertex.GetConstArray(), TriMesh->GetSurfaceElements(), (float)Density, CenterOfMass, InertiaTensor, RotationOfMass);
+		OutMassProperties.CenterOfMass = CenterOfMass;
+		OutMassProperties.InertiaTensor = InertiaTensor;
+		OutMassProperties.RotationOfMass = RotationOfMass;
+
+		// scale the inertia tensor accordingly to compensate for the volume adjustment
+		if (OutMassProperties.Volume != UncorrectedVolume)
+		{
+			const FVector::FReal InertiaScale = OutMassProperties.Volume / UncorrectedVolume;
+			OutMassProperties.InertiaTensor = OutMassProperties.InertiaTensor.ApplyScale(InertiaScale);
+		}
+	}
+}
+
 
 /** 
 	NOTE - Making any changes to data stored on the rest collection below MUST be accompanied
@@ -2364,8 +2440,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	RestCollection.RemoveAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 	TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& CollectionImplicits = RestCollection.AddAttribute<FGeometryDynamicCollection::FSharedImplicit>(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 
-	TManagedArray<TSet<int32>>* TransformToConvexIndices = RestCollection.FindAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
-	TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry = RestCollection.FindAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
+	//TManagedArray<TSet<int32>>* TransformToConvexIndices = RestCollection.FindAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
+	//TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry = RestCollection.FindAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
 
 	bool bUseRelativeSize = RestCollection.HasAttribute(TEXT("Size"), FTransformCollection::TransformGroup);
 	if (!bUseRelativeSize)
@@ -2396,8 +2472,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	const TManagedArray<int32>& VertexCount = RestCollection.VertexCount;
 	const TManagedArray<int32>& FaceStart = RestCollection.FaceStart;
 	const TManagedArray<int32>& FaceCount = RestCollection.FaceCount;
-
-
+	
 	TArray<FTransform> CollectionSpaceTransforms;
 	{ // tmp scope
 		const TManagedArray<FTransform>& HierarchyTransform = RestCollection.Transform;
@@ -2410,24 +2485,19 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TArray<TUniquePtr<FTriangleMesh>> TriangleMeshesArray;	//use to union trimeshes in cluster case
 	TriangleMeshesArray.AddDefaulted(NumTransforms);
 
-	FParticles MassSpaceParticles;
-	MassSpaceParticles.AddParticles(Vertex.Num());
-	for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
-	{
-		MassSpaceParticles.X(Idx) = Vertex[Idx];	//mass space computation done later down
-	}
+	// FParticles MassSpaceParticles;
+	// MassSpaceParticles.AddParticles(Vertex.Num());
+	// for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
+	// {
+	// 	MassSpaceParticles.X(Idx) = Vertex[Idx];	//mass space computation done later down
+	// }
 
 	TArray<FMassProperties> MassPropertiesArray;
 	MassPropertiesArray.AddUninitialized(NumGeometries);
 
-	TArray<FVector::FReal> UncorrectedVolume;
-	UncorrectedVolume.Init(false, NumGeometries);
+	//TArray<FVector::FReal> UncorrectedVolume;
+	//UncorrectedVolume.Init(0, NumGeometries);
 
-	// We skip very small geometry and log as a warning. To avoid log spamming, we wait
-	// until we complete the loop before reporting the skips.
-	bool bSkippedSmallGeometry = false;
-	
-	FReal TotalVolume = 0.f;
 	// The geometry group has a set of transform indices that maps a geometry index
 	// to a transform index, but only in the case where there is a 1-to-1 mapping 
 	// between the two.  In the event where a geometry is instanced for multiple
@@ -2435,66 +2505,41 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	// Otherwise, iterating over the geometry group is a convenient way to iterate
 	// over all the leaves of the hierarchy.
 	check(!TransformIndex.Contains(INDEX_NONE)); // TODO: implement support for instanced bodies
-	// @todo(chaos) could this be in a parallel for and having the total volume computed in a tight loop right after? 
-	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometries; GeometryIndex++)
+
+	TArray<bool> IsTooSmallGeometryArray;
+	IsTooSmallGeometryArray.Init(false, NumGeometries);
+
+	// compute mass properties in parallel
+	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
 	{
-		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
-		
 		// @chaos(todo): is that really needed? 
 		GenerateInnerAndOuterRadiiIfNeeded(RestCollection, GeometryIndex);
 
-		CollectionSimulatableParticles[TransformGroupIndex] = false;
-		if (SimulationType[TransformGroupIndex] > FGeometryCollection::ESimulationTypes::FST_None)
+		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
+		CollectionSimulatableParticles[TransformGroupIndex] = (SimulationType[TransformGroupIndex] > FGeometryCollection::ESimulationTypes::FST_None);
+		
+		if (CollectionSimulatableParticles[TransformGroupIndex])
 		{
-			TUniquePtr<FTriangleMesh> TriMesh(
-				CreateTriangleMesh(
-					FaceStart[GeometryIndex],
-					FaceCount[GeometryIndex],
-					Visible,
-					Indices));
-
-			// Compute volume and center of mass 
-			FMassProperties& MassProperties = MassPropertiesArray[GeometryIndex];
-			{
-				bool bIsTooSmallGeometry = false;
-				ComputeGeometryVolumeAndCenterOfMass(
-					MassSpaceParticles,
-					*TriMesh,
-					BoundingBox[GeometryIndex],
-					SharedParams,
-					UncorrectedVolume[GeometryIndex],
-					MassProperties.Volume,
-					MassProperties.CenterOfMass,
-					bIsTooSmallGeometry
-					);
-				
-				if (bIsTooSmallGeometry)
-				{
-					bSkippedSmallGeometry = true;
-				}
-				else
-				{
-					CollectionSimulatableParticles[TransformGroupIndex] = true;
-				
-					// shift the particles to the mass local space
-					const FVector MassTranslation = MassProperties.CenterOfMass;
-					if (!FMath::IsNearlyZero(MassTranslation.SizeSquared()))
-					{
-						const int32 IdxStart = VertexStart[GeometryIndex];
-						const int32 IdxEnd = IdxStart + VertexCount[GeometryIndex];
-						for (int32 Idx = IdxStart; Idx < IdxEnd; ++Idx)
-						{
-							MassSpaceParticles.X(Idx) -= MassTranslation;
-						}
-					}
-				}
-
-				// update Mass to local matrix
-				CollectionMassToLocal[TransformGroupIndex] = FTransform(FQuat::Identity, MassProperties.CenterOfMass);
-			}
-
-			TotalVolume += MassProperties.Volume;
-			TriangleMeshesArray[TransformGroupIndex] = MoveTemp(TriMesh);
+			ComputeMassPropertyFromMesh(GeometryIndex, RestCollection, SharedParams, TriangleMeshesArray[GeometryIndex], MassPropertiesArray[GeometryIndex], IsTooSmallGeometryArray[GeometryIndex]);
+		}
+	});
+	
+	// compute total volume and whether we need to skip small geometry ( can't use parallelfors )
+	bool bSkippedSmallGeometry = false;
+	FReal TotalVolume = 0.f;
+	for (int32 GeometryIndex = 0; GeometryIndex < NumGeometries; GeometryIndex++)
+	{
+		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
+		if (CollectionSimulatableParticles[TransformGroupIndex])
+		{
+			TotalVolume += MassPropertiesArray[GeometryIndex].Volume;
+		}
+		// We skip very small geometry and log as a warning. To avoid log spamming, we wait
+		// until we complete the loop before reporting the skips.
+		if (IsTooSmallGeometryArray[GeometryIndex])
+		{
+			CollectionSimulatableParticles[TransformGroupIndex] = false;
+			bSkippedSmallGeometry = true;
 		}
 	}
 
@@ -2503,7 +2548,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	{
 		UE_LOG(LogChaos, Warning, TEXT("Some geometry is too small to be simulated and has been skipped."));
 	}
-
+	
 	// User provides us with total mass or density.
 	// Density must be the same for individual parts and the total. Density_i = Density = Mass_i / Volume_i
 	// Total mass must equal sum of individual parts. Mass_i = TotalMass * Volume_i / TotalVolume => Density_i = TotalMass / TotalVolume
@@ -2512,9 +2557,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	const FReal ClampedTotalMass = FMath::Clamp(DesiredTotalMass, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp);
 	const FReal DesiredDensity = ClampedTotalMass / TotalVolume;
 
-	FVec3 MaxChildBounds(1);
 	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
-	//for (int32 GeometryIndex = 0; GeometryIndex < NumGeometries; GeometryIndex++)
 	{
 		// Need a new error reporter for parallel for loop here as it wouldn't be thread-safe to write to the prefix
 		Chaos::FErrorReporter LocalErrorReporter;
@@ -2544,43 +2587,51 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			const FReal Density_i = Mass_i / Volume_i;
 			CollectionMass[TransformGroupIndex] = (FRealSingle)Mass_i;
 
-			const bool bUseBoundingBoxInertia = (UncorrectedVolume[GeometryIndex] == 0);  
-			if (bUseBoundingBoxInertia)
-			{
-				CalculateInertiaAndRotationOfMass(BoundingBox[GeometryIndex], Density_i, MassProperties.InertiaTensor, MassProperties.RotationOfMass);
-			}
-			else
-			{
-				// Note: particles already in CoM space, so passing in zero as CoM
-				CalculateInertiaAndRotationOfMass(MassSpaceParticles, TriMesh->GetSurfaceElements(), Density_i, FVec3(0), MassProperties.InertiaTensor, MassProperties.RotationOfMass);
-				// scale the inertia tensor accordingly
-				if (MassProperties.Volume != UncorrectedVolume[GeometryIndex])
-				{
-					const FVector::FReal InertiaScale = MassProperties.Volume / UncorrectedVolume[GeometryIndex];
-					MassProperties.InertiaTensor = MassProperties.InertiaTensor.ApplyScale(InertiaScale);
-				}
-			}
-			
+			// scale the mass properties inertia tensor by the mass
+			MassPropertiesArray[GeometryIndex].InertiaTensor *= Mass_i / 1000.0;
+			const Chaos::FMatrix33& InertiaTensor = MassPropertiesArray[GeometryIndex].InertiaTensor;
+			CollectionInertiaTensor[TransformGroupIndex] = FVector3f((float)InertiaTensor.M[0][0], (float)InertiaTensor.M[1][1], (float)InertiaTensor.M[2][2]);
+
+			CollectionMassToLocal[TransformGroupIndex] = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass);
+		}
+	});
+
+	// we need the vertices in mass space to compute the collision particles
+	// todo(chaos) we shoudl eventually get rid of that that's a waste of memory and performance
+	FParticles MassSpaceParticles;
+	MassSpaceParticles.AddParticles(Vertex.Num());
+	for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
+	{
+		MassSpaceParticles.X(Idx) = Vertex[Idx];	//mass space computation done later down
+	}
+	
+	// compute the bounding box in mesh space
+	FVec3 MaxChildBounds(1);
+	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
+	{
+		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
+		if (CollectionSimulatableParticles[TransformGroupIndex])
+		{
+			const TUniquePtr<Chaos::FTriangleMesh>& TriMesh = TriangleMeshesArray[GeometryIndex];
+			const FTransform& MassToLocalTransform = CollectionMassToLocal[TransformGroupIndex];
+
 			// Orient particle in the local mass space 
-			if (!MassProperties.RotationOfMass.Equals(FQuat::Identity))
+			if (!MassPropertiesArray[TransformGroupIndex].RotationOfMass.Equals(FQuat::Identity) ||
+				!FMath::IsNearlyZero(MassPropertiesArray[TransformGroupIndex].CenterOfMass.SizeSquared()))
 			{
-				FTransform InverseMassRotation = FTransform(MassProperties.RotationOfMass.Inverse());
 				const int32 IdxStart = VertexStart[GeometryIndex];
 				const int32 IdxEnd = IdxStart + VertexCount[GeometryIndex];
 				for (int32 Idx = IdxStart; Idx < IdxEnd; ++Idx)
 				{
-					MassSpaceParticles.X(Idx) = InverseMassRotation.TransformPosition(MassSpaceParticles.X(Idx));
+					MassSpaceParticles.X(Idx) = MassToLocalTransform.InverseTransformPositionNoScale(MassSpaceParticles.X(Idx));
 				}
 			}
-
-			// update Rest collection properties
-			CollectionInertiaTensor[TransformGroupIndex] = FVector3f((float)MassProperties.InertiaTensor.M[0][0], (float)MassProperties.InertiaTensor.M[1][1], (float)MassProperties.InertiaTensor.M[2][2]);
-			CollectionMassToLocal[TransformGroupIndex] = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass);
-
 
 			FBox InstanceBoundingBox(EForceInit::ForceInitToZero);
 			if (TriMesh->GetElements().Num())
 			{
+				// really not optimized as this generate a full set of the vertices with all the allocation that comes with it
+				// the cost of going through all the vertices multiple time  may be faster 
 				const TSet<int32> MeshVertices = TriMesh->GetVertices();
 				for (const int32 Idx : MeshVertices)
 				{
@@ -2598,12 +2649,15 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			}
 			else
 			{
-				InstanceBoundingBox = FBox(MassProperties.CenterOfMass, MassProperties.CenterOfMass);
+				const Chaos::FVec3 CenterOfMass = MassPropertiesArray[TransformGroupIndex].CenterOfMass;
+				InstanceBoundingBox = FBox(CenterOfMass, CenterOfMass);
 			}
 
 			const FSharedSimulationSizeSpecificData& SizeSpecificData = GetSizeSpecificData(SharedParams.SizeSpecificData, RestCollection, TransformGroupIndex, InstanceBoundingBox);
 			if (SizeSpecificData.CollisionShapesData.Num())
 			{
+				// Need a new error reporter for parallel for loop here as it wouldn't be thread-safe to write to the prefix
+				Chaos::FErrorReporter LocalErrorReporter;
 				//
 				//  Build the simplicial for the rest collection. This will be used later in the DynamicCollection to 
 				//  populate the collision structures of the simulation. 

@@ -343,6 +343,21 @@ public:
 	}
 
 	/**
+	* Helper function for returning the internal const array
+	*
+	* @returns const array of all the elements
+	*/
+	FORCEINLINE const TArray<ElementType>& GetConstArray()
+	{
+		return Array;
+	}
+
+	FORCEINLINE const TArray<ElementType>& GetConstArray() const
+	{
+		return Array;
+	}
+	
+	/**
 	* Helper function for returning a typed pointer to the first array entry.
 	*
 	* @returns Pointer to first array entry or nullptr if ArrayMax == 0.

@@ -33,7 +33,8 @@ namespace Chaos
 		FMatrix33 InertiaTensor;
 	};
 
-	FRotation3 CHAOS_API TransformToLocalSpace(FMatrix33& Inertia);
+	template <typename T>
+	TRotation<T,3> CHAOS_API TransformToLocalSpace(PMatrix<T,3,3>& Inertia);
 	void CHAOS_API TransformToLocalSpace(FMassProperties& MassProperties);
 
 	template<typename T, typename TSurfaces>
@@ -42,13 +43,20 @@ namespace Chaos
 	template<typename T, typename TSurfaces>
 	void CHAOS_API CalculateVolumeAndCenterOfMass(const TArray<TVec3<T>>& Vertices, const TSurfaces& Surfaces, T& OutVolume, TVec3<T>& OutCenterOfMass);
 
+	template<typename T, typename TSurfaces>
+	void CHAOS_API CalculateVolumeAndCenterOfMass(const TArray<UE::Math::TVector<T>>& Vertices, const TSurfaces& Surfaces, T& OutVolume, UE::Math::TVector<T>& OutCenterOfMass);
+	
 	template<typename TSurfaces>
 	FMassProperties CHAOS_API CalculateMassProperties(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Mass);
 
-	template<typename TSurfaces>
-	void CHAOS_API CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Density, const FVec3& CenterOfMass,
-		FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
+	template<typename T, typename TSurfaces>
+	void CHAOS_API CalculateInertiaAndRotationOfMass(const TParticles<T,3>& Vertices, const TSurfaces& Surfaces, const T Density, const TVec3<T>& CenterOfMass,
+		PMatrix<T,3,3>& OutInertiaTensor, TRotation<T, 3>& OutRotationOfMass);
 
+	template<typename T, typename TSurfaces>
+	void CHAOS_API CalculateInertiaAndRotationOfMass(const TArray<UE::Math::TVector<T>>& Vertices, const TSurfaces& Surfaces, const T Density, const UE::Math::TVector<T>& CenterOfMass,
+		PMatrix<T,3,3>& OutInertiaTensor, TRotation<T, 3>& OutRotationOfMass);
+	
 	void CHAOS_API CalculateVolumeAndCenterOfMass(const FBox& BoundingBox, FVector::FReal& OutVolume, FVector& OutCenterOfMass);
 	void CHAOS_API CalculateInertiaAndRotationOfMass(const FBox& BoundingBox, const FVector::FReal Density, FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
 
