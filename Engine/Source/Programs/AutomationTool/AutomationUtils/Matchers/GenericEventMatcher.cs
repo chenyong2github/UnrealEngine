@@ -5,7 +5,9 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Parser.Matchers
+#nullable enable
+
+namespace AutomationUtils.Matchers
 {
 	/// <summary>
 	/// Low-priority matcher for generic error strings like "warning:" and "error:"

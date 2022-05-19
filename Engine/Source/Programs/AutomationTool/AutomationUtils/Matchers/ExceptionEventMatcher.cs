@@ -3,7 +3,9 @@
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Parser.Matchers
+#nullable enable
+
+namespace AutomationUtils.Matchers
 {
 	/// <summary>
 	/// Matches a generic C# exception
