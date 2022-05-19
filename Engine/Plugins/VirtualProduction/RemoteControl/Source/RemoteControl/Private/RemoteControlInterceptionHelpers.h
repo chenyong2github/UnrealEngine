@@ -22,6 +22,9 @@ constexpr ERCAccess ToInternal(ERCIAccess Value)
 
 	case ERCIAccess::WRITE_TRANSACTION_ACCESS:
 		return ERCAccess::WRITE_TRANSACTION_ACCESS;
+
+	case ERCIAccess::WRITE_MANUAL_TRANSACTION_ACCESS:
+		return ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS;
 	}
 
 	return ERCAccess::NO_ACCESS;
@@ -82,6 +85,9 @@ constexpr ERCIAccess ToExternal(ERCAccess Value)
 
 	case ERCAccess::WRITE_TRANSACTION_ACCESS:
 		return ERCIAccess::WRITE_TRANSACTION_ACCESS;
+
+	case ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS:
+		return ERCIAccess::WRITE_MANUAL_TRANSACTION_ACCESS;
 	}
 
 	return ERCIAccess::NO_ACCESS;

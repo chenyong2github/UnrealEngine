@@ -185,7 +185,7 @@ namespace RemoteControlUtil
 	/** Returns whether the access is a write access regardless of if it generates a transaction. */
 	bool IsWriteAccess(ERCAccess Access)
 	{
-		return Access == ERCAccess::WRITE_ACCESS || Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+		return Access == ERCAccess::WRITE_ACCESS || Access == ERCAccess::WRITE_TRANSACTION_ACCESS || Access == ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS;
 	}
 
 	/** Helper function to check if a value is 0 without always calling FMath::IsNearlyZero, since that results in an ambiguous call for non-float values. */
@@ -274,7 +274,21 @@ namespace RemoteControlSetterUtils
 		FStructSerializer::Serialize(InFunctionArguments.GetStructMemory(), *const_cast<UStruct*>(InFunctionArguments.GetStruct()), WriterBackend, FStructSerializerPolicies());
 		OutPayload.Type = ERCPayloadType::Cbor;
 
-		InOutArgs.Call.bGenerateTransaction = InOutArgs.ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS ? true : false;
+		switch (InOutArgs.ObjectReference.Access)
+		{
+		case ERCAccess::WRITE_TRANSACTION_ACCESS:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::AUTOMATIC;
+			break;
+
+		case ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::MANUAL;
+			break;
+
+		default:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::NONE;
+			break;
+		}
+
 		InOutArgs.Call.CallRef.Function = InFunction;
 		InOutArgs.Call.CallRef.Object = InOutArgs.ObjectReference.Object;
 		InOutArgs.Call.ParamStruct = MoveTemp(InFunctionArguments);
@@ -284,7 +298,21 @@ namespace RemoteControlSetterUtils
 	{
 		ensure(InFunctionArguments.GetStruct() && InFunctionArguments.GetStruct()->IsA<UFunction>());
 
-		InOutArgs.Call.bGenerateTransaction = InOutArgs.ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS ? true : false;
+		switch (InOutArgs.ObjectReference.Access)
+		{
+		case ERCAccess::WRITE_TRANSACTION_ACCESS:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::AUTOMATIC;
+			break;
+
+		case ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::MANUAL;
+			break;
+
+		default:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::NONE;
+			break;
+		}
+
 		InOutArgs.Call.CallRef.Function = InFunction;
 		InOutArgs.Call.CallRef.Object = InOutArgs.ObjectReference.Object;
 		InOutArgs.Call.ParamStruct = MoveTemp(InFunctionArguments);
@@ -300,7 +328,22 @@ namespace RemoteControlSetterUtils
 		FStructSerializer::Serialize(InFunctionArguments.GetStructMemory(), *const_cast<UStruct*>(InFunctionArguments.GetStruct()), WriterBackend, FStructSerializerPolicies());
 		OutPayload.Type = ERCPayloadType::Cbor;
 
-		InOutArgs.Call.bGenerateTransaction = InOutArgs.ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS ? true : false;
+
+		switch (InOutArgs.ObjectReference.Access)
+		{
+		case ERCAccess::WRITE_TRANSACTION_ACCESS:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::AUTOMATIC;
+			break;
+
+		case ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::MANUAL;
+			break;
+
+		default:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::NONE;
+			break;
+		}
+
 		InOutArgs.Call.CallRef.PropertyWithSetter = InPropertyWithSetter;
 		InOutArgs.Call.CallRef.Object = InOutArgs.ObjectReference.Object;
 		InOutArgs.Call.ParamStruct = MoveTemp(InFunctionArguments);
@@ -314,8 +357,22 @@ namespace RemoteControlSetterUtils
 	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, FProperty* InPropertyWithSetter, FStructOnScope&& InFunctionArguments)
 	{
 		ensure(InFunctionArguments.GetStruct());
-		
-		InOutArgs.Call.bGenerateTransaction = InOutArgs.ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS ? true : false;
+
+		switch (InOutArgs.ObjectReference.Access)
+		{
+		case ERCAccess::WRITE_TRANSACTION_ACCESS:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::AUTOMATIC;
+			break;
+
+		case ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::MANUAL;
+			break;
+
+		default:
+			InOutArgs.Call.TransactionMode = ERCTransactionMode::NONE;
+			break;
+		}
+
 		InOutArgs.Call.CallRef.PropertyWithSetter = InPropertyWithSetter;
 		InOutArgs.Call.CallRef.Object = InOutArgs.ObjectReference.Object;
 		InOutArgs.Call.ParamStruct = MoveTemp(InFunctionArguments);
@@ -639,12 +696,15 @@ bool FRemoteControlModule::ResolveCall(const FString& ObjectPath, const FString&
 bool FRemoteControlModule::InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadType, const TArray<uint8>& InInterceptPayload)
 {
 	UE_LOG(LogRemoteControl, VeryVerbose, TEXT("Invoke function"));
+
 	if (InCall.IsValid())
 	{
+		const bool bGenerateTransaction = InCall.TransactionMode == ERCTransactionMode::AUTOMATIC;
+
 		// Check the replication path before apply property values
 		if (InInterceptPayload.Num() != 0)
 		{
-			FRCIFunctionMetadata FunctionMetadata(InCall.CallRef.Object->GetPathName(), InCall.CallRef.Function->GetPathName(), InCall.bGenerateTransaction, ToExternal(InPayloadType), InInterceptPayload);
+			FRCIFunctionMetadata FunctionMetadata(InCall.CallRef.Object->GetPathName(), InCall.CallRef.Function->GetPathName(), bGenerateTransaction, ToExternal(InPayloadType), InInterceptPayload);
 
 			// Initialization
 			IModularFeatures& ModularFeatures = IModularFeatures::Get();
@@ -672,34 +732,22 @@ bool FRemoteControlModule::InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadT
 		}
 
 #if WITH_EDITOR
-		if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
+		const bool bUseOngoingChangeOptimization = CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1;
+		if (bUseOngoingChangeOptimization)
 		{
-			// If we have a different ongoing change that hasn't been finalized, do that before handling the next function call.
-			if (OngoingModification && GetTypeHash(*OngoingModification) != GetTypeHash(InCall.CallRef))
-			{
-				constexpr bool bForceFinalizeChange = true;
-				TestOrFinalizeOngoingChange(true);
-			}
-				
-			if (!OngoingModification)
-			{
-				if (InCall.bGenerateTransaction)
-				{
-					if (GEditor)
-					{
-						GEditor->BeginTransaction(LOCTEXT("RemoteCallTransaction", "Remote Call Transaction Wrap"));
-					}
+			EndOngoingModificationIfMismatched(GetTypeHash(InCall.CallRef));
+		}
 
-					if (ensureAlways(InCall.CallRef.Object.IsValid()))
-					{
-					InCall.CallRef.Object->Modify();
-				}
-			}
-		}
-		}
-		else if (GEditor && InCall.bGenerateTransaction)
+		const bool bIsNewTransaction = bGenerateTransaction && (!bUseOngoingChangeOptimization || !OngoingModification);
+		if (bIsNewTransaction && GEditor)
 		{
 			GEditor->BeginTransaction(LOCTEXT("RemoteCallTransaction", "Remote Call Transaction Wrap"));
+		}
+
+		const bool bIsManualTransaction = InCall.TransactionMode == ERCTransactionMode::MANUAL;
+		if ((bIsNewTransaction || bIsManualTransaction) && ensureAlways(InCall.CallRef.Object.IsValid()))
+		{
+			InCall.CallRef.Object->Modify();
 		}
 			
 #endif
@@ -717,7 +765,7 @@ bool FRemoteControlModule::InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadT
 		}
 
 #if WITH_EDITOR
-		if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
+		if (bUseOngoingChangeOptimization)
 		{
 			// If we've called the same function recently, refresh the triggered flag and snapshot the object to the transaction buffer
 			if (OngoingModification && GetTypeHash(*OngoingModification) == GetTypeHash(InCall.CallRef))
@@ -735,13 +783,13 @@ bool FRemoteControlModule::InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadT
 					}
 				}
 			}
-			else
+			else if (!bIsManualTransaction)
 			{
 				OngoingModification = InCall.CallRef;
-				OngoingModification->bHasStartedTransaction = InCall.bGenerateTransaction;
+				OngoingModification->bHasStartedTransaction = bGenerateTransaction;
 			}
 		}
-		else if (GEditor && InCall.bGenerateTransaction)
+		else if (GEditor && bGenerateTransaction)
 		{
 			GEditor->EndTransaction();
 		}
@@ -1003,17 +1051,13 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 		FRCObjectReference MutableObjectReference = ObjectAccess;
 
 #if WITH_EDITOR
-		const bool bGenerateTransaction = MutableObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
-		if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
+		const bool bUseOngoingChangeOptimization = CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1;
+		if (bUseOngoingChangeOptimization)
 		{
-			FString ObjectPath = MutableObjectReference.Object->GetPathName();
+			const FString ObjectPath = MutableObjectReference.Object->GetPathName();
 
 			// If we have a change that hasn't yet generated a post edit change property, do that before handling the next change.
-			if (OngoingModification && GetTypeHash(*OngoingModification) != GetTypeHash(MutableObjectReference))
-			{
-				constexpr bool bForcePostEditChange = true;
-				TestOrFinalizeOngoingChange(true);
-			}
+			EndOngoingModificationIfMismatched(GetTypeHash(MutableObjectReference));
 
 			// This step is necessary because the object might get recreated by a PostEditChange called in TestOrFinalizeOngoingChange.
 			if (!MutableObjectReference.Object.IsValid())
@@ -1032,30 +1076,27 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 					return false;
 				}
 			}
+		}
 
-			// Only create the transaction if we have no ongoing change.
-			if (!OngoingModification)
+		const bool bGenerateTransaction = MutableObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+		const bool bIsNewTransaction = bGenerateTransaction && (!bUseOngoingChangeOptimization || !OngoingModification);
+
+		if (bIsNewTransaction && GEditor)
+		{
+			GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
+
+			if (bUseOngoingChangeOptimization)
 			{
-				if (GEditor && bGenerateTransaction)
-				{
-					GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
-
-					// Call modify since it's not called by PreEditChange until the end of the ongoing change.
-					MutableObjectReference.Object->Modify();
-				}
+				// Call modify since it's not called by PreEditChange until the end of the ongoing change.
+				MutableObjectReference.Object->Modify();
 			}
 		}
-		else 
-		{
-			if (GEditor && bGenerateTransaction)
-			{
-				GEditor->BeginTransaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"));
-			}
 
+		if (!bUseOngoingChangeOptimization)
+		{
 			FEditPropertyChain PreEditChain;
 			MutableObjectReference.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
 			MutableObjectReference.Object->PreEditChange(PreEditChain);
-				
 		}
 #endif
 
@@ -1141,7 +1182,7 @@ bool FRemoteControlModule::SetObjectProperties(const FRCObjectReference& ObjectA
 					}
 				}
 			}
-			else
+			else if (MutableObjectReference.Access != ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS)
 			{
 				OngoingModification = MutableObjectReference;
 				OngoingModification->bHasStartedTransaction = bGenerateTransaction;
@@ -1478,6 +1519,54 @@ void FRemoteControlModule::UnregisterEntityFactory(const FName InFactoryName)
 	EntityFactories.Remove(InFactoryName);
 }
 
+FGuid FRemoteControlModule::BeginManualEditorTransaction(const FText& InDescription, uint32 TypeHash)
+{
+#if WITH_EDITOR
+	if (CVarRemoteControlEnableOngoingChangeOptimization.GetValueOnAnyThread() == 1)
+	{
+		EndOngoingModificationIfMismatched(TypeHash);
+
+		if (OngoingModification)
+		{
+			// We weren't able to finish the ongoing modification, so we won't start a new transaction
+			return FGuid();
+		}
+	}
+
+	if (GEditor && GEditor->Trans)
+	{
+		if (GEditor->BeginTransaction(InDescription) != INDEX_NONE)
+		{
+			const FTransaction* Transaction = GEditor->Trans->GetTransaction(GEditor->Trans->GetQueueLength() - 1);
+			if (ensure(Transaction))
+			{
+				return Transaction->GetId();
+			}
+		}
+	}
+#endif
+
+	return FGuid();
+}
+
+int32 FRemoteControlModule::EndManualEditorTransaction(const FGuid& TransactionId)
+{
+#if WITH_EDITOR
+	if (GEditor && GEditor->Trans && GEditor->Trans->IsActive())
+	{
+		if (const FTransaction* CurrentTransaction = GEditor->Trans->GetTransaction(GEditor->Trans->GetQueueLength() - 1))
+		{
+			if (CurrentTransaction->GetId() == TransactionId)
+			{
+				return GEditor->EndTransaction();
+			}
+		}
+	}
+#endif
+
+	return INDEX_NONE;
+}
+
 void FRemoteControlModule::CachePresets() const
 {
 	TArray<FAssetData> Assets;
@@ -1694,6 +1783,14 @@ bool FRemoteControlModule::DeserializeDeltaModificationData(const FRCObjectRefer
 }
 
 #if WITH_EDITOR
+void FRemoteControlModule::EndOngoingModificationIfMismatched(uint32 TypeHash)
+{
+	if (OngoingModification && GetTypeHash(*OngoingModification) != TypeHash)
+	{
+		TestOrFinalizeOngoingChange(true);
+	}
+}
+
 void FRemoteControlModule::TestOrFinalizeOngoingChange(bool bForceEndChange)
 {
 	if (OngoingModification)

@@ -969,6 +969,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	break;
 	case ERCAccess::WRITE_ACCESS:
 	case ERCAccess::WRITE_TRANSACTION_ACCESS:
+	case ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS:
 	{
 		const FBlockDelimiters& PropertyValueDelimiters = DeserializedRequest.GetStructParameters().FindChecked(FRCObjectRequest::PropertyValueLabel());
 		if (bResetToDefault)
@@ -1090,7 +1091,7 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 
 				FRCCall Call;
 				Call.CallRef = MoveTemp(CallRef);
-				Call.bGenerateTransaction = CallRequest.GenerateTransaction;
+				Call.TransactionMode = CallRequest.GenerateTransaction ? ERCTransactionMode::AUTOMATIC : ERCTransactionMode::NONE;
 				Call.ParamStruct = FStructOnScope(FunctionArgs.GetStruct(), FunctionArgs.GetStructMemory());
 
 				// Invoke call with replication payload
@@ -1179,7 +1180,8 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 	}
 
 	const bool bSuccess = WebRemoteControlInternalUtils::ModifyPropertyUsingPayload(
-		*RemoteControlProperty.Get(), SetPropertyRequest, SetPropertyRequest.TCHARBody, ActingClientId, *WebSocketHandler);
+		*RemoteControlProperty.Get(), SetPropertyRequest, SetPropertyRequest.TCHARBody, ActingClientId, *WebSocketHandler,
+		SetPropertyRequest.GenerateTransaction ? ERCAccess::WRITE_TRANSACTION_ACCESS : ERCAccess::WRITE_ACCESS);
 
 	if (bSuccess)
 	{

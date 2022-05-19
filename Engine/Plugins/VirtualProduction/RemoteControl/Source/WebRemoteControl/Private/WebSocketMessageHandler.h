@@ -105,6 +105,12 @@ private:
 	/** Handles calling a Blueprint function */
 	void HandleWebSocketFunctionCall(const FRemoteControlWebSocketMessage& WebSocketMessage);
 
+	/** Handles beginning a manual editor transaction. */
+	void HandleWebSocketBeginEditorTransaction(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
+	/** Handles ending a manual editor transaction. */
+	void HandleWebSocketEndEditorTransaction(const FRemoteControlWebSocketMessage& WebSocketMessage);
+
 	//Preset callbacks
 	void OnPresetExposedPropertiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedPropertyIds);
 	void OnPropertyExposed(URemoteControlPreset* Owner,  const FGuid& EntityId);
@@ -120,6 +126,9 @@ private:
 
 	/** End of frame callback to send cached property changed, preset changed messages */
 	void OnEndFrame();
+
+	/** Check if any transactions have timed out and end them. */
+	void TimeOutTransactions();
 
 	/** If properties have changed during the frame, send out notifications to listeners */
 	void ProcessChangedProperties();
@@ -214,6 +223,18 @@ private:
 	 */
 	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& TransactionEvent);
 
+#if WITH_EDITOR
+	/**
+	 * Called when the state of an editor transaction changes.
+	 */
+	void HandleTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState);
+#endif
+
+	/**
+	 * Handle a transaction ending (either cancelled or finalized).
+	 */
+	void HandleTransactionEnded(const FGuid& TransactionGuid);
+
 	/**
 	 * Start watching an actor because it's a member of the given class.
 	 */
@@ -239,11 +260,44 @@ private:
 	 * Update the sequence number for a client when a new one is received.
 	 */
 	void UpdateSequenceNumber(const FGuid& ClientId, int64 NewSequenceNumber);
+	
+	/**
+	 * Get the current sequence number for a client.
+	 */
+	int64 GetSequenceNumber(const FGuid& ClientId) const;
+
+	/**
+	 * Indicate that a client is going to contribute to the transaction with the given ID.
+	 * This should be called whenever a change is made that will be part of the transaction, not just at the start.
+	 * Returns true if the client can contribute to a transaction with that ID.
+	 */
+	bool ContributeToTransaction(const FGuid& ClientId, int32 TransactionId);
+
+	/**
+	 * End the transaction with the given ID for the client with the given ID.
+	 */
+	void EndClientTransaction(const FGuid& ClientId, int32 TransactionId);
+
+	/**
+	 * Converts a client's transaction ID to its editor internal GUID.
+	 */
+	FGuid GetTransactionGuid(const FGuid& ClientId, int32 TransactionId) const;
+
+	/**
+	 * Converts an internal transaction GUID to the ID used by the given client to refer to it.
+	 */
+	int32 GetClientTransactionId(const FGuid& ClientId, const FGuid& TransactionGuid) const;
 
 private:
 
 	/** Default sequence number for a client that hasn't reported one yet. */
 	static const int64 DefaultSequenceNumber;
+
+	/** Client transaction ID for a transaction that doesn't exist. */
+	static const int32 InvalidTransactionId;
+
+	/** When this much time has passed since a client last contributed to a transaction, the transaction will automatically end. */
+	static const FTimespan TransactionTimeout;
 
 	/** Map type from class to Guids of clients listening for changes to actors of that class. */
 	typedef TMap<TWeakObjectPtr<UClass>, FWatchedClassData, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UClass>, FWatchedClassData>> FActorNotificationMap;
@@ -316,6 +370,12 @@ private:
 
 	/** Map from transient preset ID to clients which, when all disconnected, will automatically destroy the preset. */
 	TMap<FGuid, TArray<FGuid>> TransientPresetAutoDestroyClients;
+
+	/** Map from transasction ID to a map of (contributing client ID, time of last contribution to the transaction). */
+	TMap<FGuid, TMap<FGuid, FDateTime>> ClientsByTransactionGuid;
+
+	/** Map from client ID to pairs of editor GUID/client ID used to refer to the transaction. */
+	TMap<FGuid, TMap<FGuid, int32>> TransactionIdsByClientId;
 	
 	/** Holds the ID of the client currently making a request. Used to prevent sending back notifications to it. */
 	const FGuid& ActingClientId;

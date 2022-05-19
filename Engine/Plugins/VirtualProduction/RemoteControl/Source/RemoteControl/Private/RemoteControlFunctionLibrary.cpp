@@ -56,7 +56,7 @@ bool URemoteControlFunctionLibrary::ExposeActor(URemoteControlPreset* Preset, AA
 	return false;
 }
 
-bool URemoteControlFunctionLibrary::ApplyColorWheelDelta(UObject* TargetObject, const FString& PropertyName, const FColorWheelColor& DeltaValue, const FColorWheelColor& ReferenceColor)
+bool URemoteControlFunctionLibrary::ApplyColorWheelDelta(UObject* TargetObject, const FString& PropertyName, const FColorWheelColor& DeltaValue, const FColorWheelColor& ReferenceColor, bool bIsInteractive)
 {
 	if (!TargetObject)
 	{
@@ -102,12 +102,13 @@ bool URemoteControlFunctionLibrary::ApplyColorWheelDelta(UObject* TargetObject, 
 
 #if WITH_EDITOR
 		TargetObject->PreEditChange(Property);
+		TargetObject->Modify();
 #endif
 
 		ColorProperty->SetValue_InContainer(TargetObject, &Color);
 
 #if WITH_EDITOR
-		FPropertyChangedEvent ChangeEvent(Property, EPropertyChangeType::ValueSet);
+		FPropertyChangedEvent ChangeEvent(Property, bIsInteractive ? EPropertyChangeType::Interactive : EPropertyChangeType::ValueSet);
 		TargetObject->PostEditChangeProperty(ChangeEvent);
 #endif
 

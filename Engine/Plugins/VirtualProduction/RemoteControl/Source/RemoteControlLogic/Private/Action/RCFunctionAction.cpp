@@ -45,7 +45,7 @@ void URCFunctionAction::Execute() const
 
 			FRCCall Call;
 			Call.CallRef = MoveTemp(CallRef);
-			Call.bGenerateTransaction = true;
+			Call.TransactionMode = ERCTransactionMode::AUTOMATIC;
 			Call.ParamStruct = FStructOnScope(FunctionArgs.GetStruct(), FunctionArgs.GetStructMemory());
 		
 			IRemoteControlModule::Get().InvokeCall(Call, ERCPayloadType::Cbor, FunctionPayload);

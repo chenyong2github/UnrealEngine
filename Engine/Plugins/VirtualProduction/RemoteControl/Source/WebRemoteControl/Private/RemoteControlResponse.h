@@ -444,3 +444,36 @@ struct FRCActorsChangedEvent
 	UPROPERTY()
 	TMap<FString, FRCActorsChangedData> Changes;
 };
+
+/**
+ * Event sent to a client that contributed to a transaction, indicating that the transaction was either cancelled or finalized.
+ */
+USTRUCT()
+struct FRCTransactionEndedEvent
+{
+	GENERATED_BODY()
+
+	FRCTransactionEndedEvent()
+	: Type(TEXT("TransactionEnded"))
+	{
+	}
+
+	/**
+	 * Type of the event.
+	 */
+	UPROPERTY()
+	FString Type;
+
+	/**
+	 * The client-specific ID of the transaction that was ended.
+	 */
+	UPROPERTY()
+	int32 TransactionId;
+
+	/**
+	 * The highest sequence number received from the receiving client at the time that the transaction ended.
+	 */
+	UPROPERTY()
+	int64 SequenceNumber = -1;
+};
+

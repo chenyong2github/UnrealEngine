@@ -98,8 +98,9 @@ public:
 	 * @param PropertyName the name of the property to modify.
 	 * @param DeltaValue the amount to change the color by.
 	 * @param ReferenceColor if the color's current position on the wheel is ambiguous as calculated from RGB values (e.g. black), use this reference color's position instead.
+	 * @param bIsInteractive if true, this is treated as an interactive change. If false, it will be treated as the final value set change.
 	 * @return Whether the operation was successful.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Color")
-	static bool ApplyColorWheelDelta(UObject* TargetObject, const FString& PropertyName, const FColorWheelColor& DeltaValue, const FColorWheelColor& ReferenceColor);
+	static bool ApplyColorWheelDelta(UObject* TargetObject, const FString& PropertyName, const FColorWheelColor& DeltaValue, const FColorWheelColor& ReferenceColor, bool bIsInteractive);
 };

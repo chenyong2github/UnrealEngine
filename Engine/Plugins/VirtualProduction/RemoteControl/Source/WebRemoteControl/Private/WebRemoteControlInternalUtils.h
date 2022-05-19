@@ -361,9 +361,10 @@ namespace WebRemoteControlInternalUtils
 	 * @param Payload The payload from which to deserialize property data.
 	 * @param ClientId The ID of the client that sent this request.
 	 * @param WebSocketHandler The WebSocket handler that will be notified of this remote change.
+	 * @param Access The access mode to use for this operation.
 	 */
 	template <typename RequestType>
-	bool ModifyPropertyUsingPayload(FRemoteControlProperty& Property, const RequestType& Request, const TArrayView<uint8>& Payload, const FGuid& ClientId, FWebSocketMessageHandler& WebSocketHandler)
+	bool ModifyPropertyUsingPayload(FRemoteControlProperty& Property, const RequestType& Request, const TArrayView<uint8>& Payload, const FGuid& ClientId, FWebSocketMessageHandler& WebSocketHandler, ERCAccess Access)
 	{
 		FRCObjectReference ObjectRef;
 
@@ -376,7 +377,7 @@ namespace WebRemoteControlInternalUtils
 		FRCJsonStructDeserializerBackend Backend(NewPayloadReader);
 
 		ObjectRef.Property = Property.GetProperty();
-		ObjectRef.Access = Request.GenerateTransaction ? ERCAccess::WRITE_TRANSACTION_ACCESS : ERCAccess::WRITE_ACCESS;
+		ObjectRef.Access = Access;
 
 		bool bSuccess = true;
 
@@ -397,6 +398,16 @@ namespace WebRemoteControlInternalUtils
 				}
 			}
 
+#if WITH_EDITOR
+			if (Access == ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS && ObjectRef.Object.IsValid())
+			{
+				// This transaction is being manually controlled, so RemoteControlModule's automatic transaction handling won't call this for us
+				FEditPropertyChain PreEditChain;
+				ObjectRef.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+				ObjectRef.Object->PreEditChange(PreEditChain);
+			}
+#endif
+
 			if (Request.ResetToDefault)
 			{
 				// set interception flag as an extra argument {}
@@ -409,6 +420,16 @@ namespace WebRemoteControlInternalUtils
 				// Set a ERCPayloadType and TCHARBody in order to follow the replication path
 				bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend, ERCPayloadType::Json, NewPayload, Request.Operation);
 			}
+
+#if WITH_EDITOR
+			if (Access == ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS && ObjectRef.Object.IsValid())
+			{
+				// This transaction is being manually controlled, so RemoteControlModule's automatic transaction handling won't call this for us
+				FPropertyChangedEvent PropertyEvent = ObjectRef.PropertyPathInfo.ToPropertyChangedEvent();
+				PropertyEvent.ChangeType = EPropertyChangeType::Interactive;
+				ObjectRef.Object->PostEditChangeProperty(PropertyEvent);
+			}
+#endif
 		}
 
 		return bSuccess;

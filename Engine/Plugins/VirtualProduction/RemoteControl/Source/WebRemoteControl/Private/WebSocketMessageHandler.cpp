@@ -18,10 +18,15 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "Editor/TransBuffer.h"
 #endif
+
+#define LOCTEXT_NAMESPACE "WebRemoteControl"
 
 static TAutoConsoleVariable<int32> CVarWebRemoteControlFramesBetweenPropertyNotifications(TEXT("WebControl.FramesBetweenPropertyNotifications"), 5, TEXT("The number of frames between sending batches of property notifications."));
 const int64 FWebSocketMessageHandler::DefaultSequenceNumber = -1;
+const int32 FWebSocketMessageHandler::InvalidTransactionId = -1;
+const FTimespan FWebSocketMessageHandler::TransactionTimeout = FTimespan::FromSeconds(3.f);
 
 namespace WebSocketMessageHandlerStructUtils
 {
@@ -269,6 +274,14 @@ void FWebSocketMessageHandler::RegisterRoutes(FWebRemoteControlModule* WebRemote
 	{
 		FCoreDelegates::OnPostEngineInit.AddRaw(this, &FWebSocketMessageHandler::RegisterActorHandlers);
 	}
+
+	if (GEditor)
+	{
+		if (UTransBuffer* TransBuffer = Cast<UTransBuffer>(GEditor->Trans))
+		{
+			TransBuffer->OnTransactionStateChanged().AddRaw(this, &FWebSocketMessageHandler::HandleTransactionStateChanged);
+		}
+	}
 #endif
 	
 	// WebSocket routes
@@ -313,6 +326,18 @@ void FWebSocketMessageHandler::RegisterRoutes(FWebRemoteControlModule* WebRemote
 		TEXT("object.call"),
 		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketFunctionCall)
 	));
+
+	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
+		TEXT("Begin a manual editor transaction. Be sure to send transaction.end when finished."),
+		TEXT("transaction.begin"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketBeginEditorTransaction)
+	));
+
+	RegisterRoute(WebRemoteControl, MakeUnique<FRemoteControlWebsocketRoute>(
+		TEXT("End a manual editor transaction"),
+		TEXT("transaction.end"),
+		FWebSocketMessageDelegate::CreateRaw(this, &FWebSocketMessageHandler::HandleWebSocketEndEditorTransaction)
+	));
 }
 
 void FWebSocketMessageHandler::UnregisterRoutes(FWebRemoteControlModule* WebRemoteControl)
@@ -330,6 +355,14 @@ void FWebSocketMessageHandler::UnregisterRoutes(FWebRemoteControlModule* WebRemo
 		GEngine->OnLevelActorDeleted().Remove(OnActorDeletedHandle);
 		GEngine->OnLevelActorListChanged().Remove(OnActorListChangedHandle);
 		GEngine->OnLevelActorListChanged().Remove(OnWorldDestroyedHandle);
+	}
+
+	if (GEditor)
+	{
+		if (UTransBuffer* TransBuffer = Cast<UTransBuffer>(GEditor->Trans))
+		{
+			TransBuffer->OnTransactionStateChanged().RemoveAll(this);
+		}
 	}
 #endif
 
@@ -580,6 +613,33 @@ void FWebSocketMessageHandler::HandleWebSocketPresetModifyProperty(const FRemote
 		return;
 	}
 
+	ERCAccess Access;
+	switch (Body.TransactionMode)
+	{
+	case ERCTransactionMode::NONE:
+		Access = ERCAccess::WRITE_ACCESS;
+		break;
+
+	case ERCTransactionMode::AUTOMATIC:
+		Access = ERCAccess::WRITE_TRANSACTION_ACCESS;
+		break;
+
+	case ERCTransactionMode::MANUAL:
+		Access = ERCAccess::WRITE_MANUAL_TRANSACTION_ACCESS;
+
+		// Indicate that we want to contribute to this transaction if it's active
+		if (!ContributeToTransaction(WebSocketMessage.ClientId, Body.TransactionId))
+		{
+			return;
+		}
+
+		break;
+
+	default:
+		UE_LOG(LogRemoteControl, Warning, TEXT("Unknown transaction mode %d"), Body.TransactionMode);
+		return;
+	}
+
 	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(Body.PresetName);
 	if (Preset == nullptr)
 	{
@@ -596,7 +656,7 @@ void FWebSocketMessageHandler::HandleWebSocketPresetModifyProperty(const FRemote
 
 	UpdateSequenceNumber(WebSocketMessage.ClientId, Body.SequenceNumber);
 
-	WebRemoteControlInternalUtils::ModifyPropertyUsingPayload(*RemoteControlProperty.Get(), Body, WebSocketMessage.RequestPayload, WebSocketMessage.ClientId, *this);
+	WebRemoteControlInternalUtils::ModifyPropertyUsingPayload(*RemoteControlProperty.Get(), Body, WebSocketMessage.RequestPayload, WebSocketMessage.ClientId, *this, Access);
 }
 
 void FWebSocketMessageHandler::HandleWebSocketFunctionCall(const FRemoteControlWebSocketMessage& WebSocketMessage)
@@ -607,11 +667,16 @@ void FWebSocketMessageHandler::HandleWebSocketFunctionCall(const FRemoteControlW
 		return;
 	}
 
+	if (Body.GenerateTransaction)
+	{
+		Body.TransactionMode = ERCTransactionMode::AUTOMATIC;
+	}
+
 	FRCCall Call;
 	if (IRemoteControlModule::Get().ResolveCall(Body.ObjectPath, Body.FunctionName, Call.CallRef, nullptr))
 	{
 		// Initialize the param struct with default parameters
-		Call.bGenerateTransaction = Body.GenerateTransaction;
+		Call.TransactionMode = Body.GenerateTransaction ? ERCTransactionMode::AUTOMATIC : Body.TransactionMode;
 		Call.ParamStruct = FStructOnScope(Call.CallRef.Function.Get());
 
 		// If some parameters were provided, deserialize them
@@ -644,9 +709,64 @@ void FWebSocketMessageHandler::HandleWebSocketFunctionCall(const FRemoteControlW
 		return;
 	}
 
+	if (Body.TransactionMode == ERCTransactionMode::MANUAL)
+	{
+		// Indicate that we want to contribute to this transaction
+		if (!ContributeToTransaction(WebSocketMessage.ClientId, Body.TransactionId))
+		{
+			return;
+		}
+	}
+
 	UpdateSequenceNumber(WebSocketMessage.ClientId, Body.SequenceNumber);
 
 	IRemoteControlModule::Get().InvokeCall(Call);
+}
+
+void FWebSocketMessageHandler::HandleWebSocketBeginEditorTransaction(const FRemoteControlWebSocketMessage& WebSocketMessage)
+{
+#if WITH_EDITOR
+	FRCWebSocketTransactionStartBody Body;
+	if (!WebRemoteControlInternalUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
+	{
+		return;
+	}
+
+	const FText Description = FText::Format(LOCTEXT("RemoteControlTransaction", "Remote Control - {0}"), FText::FromString(Body.Description));
+	const FGuid TransactionGuid = IRemoteControlModule::Get().BeginManualEditorTransaction(Description, 0);
+
+	if (TransactionGuid.IsValid())
+	{
+		ClientsByTransactionGuid.FindOrAdd(TransactionGuid);
+		ContributeToTransaction(WebSocketMessage.ClientId, Body.TransactionId);
+
+		TransactionIdsByClientId.FindOrAdd(WebSocketMessage.ClientId).Add({ TransactionGuid, Body.TransactionId });
+	}
+	else
+	{
+		// Send a message indicating that the transaction ended immediately so the client knows it wasn't created
+		FRCTransactionEndedEvent Event;
+		Event.TransactionId = Body.TransactionId;
+		Event.SequenceNumber = GetSequenceNumber(WebSocketMessage.ClientId);
+
+		TArray<uint8> Payload;
+		WebRemoteControlUtils::SerializeMessage(Event, Payload);
+		Server->Send(WebSocketMessage.ClientId, Payload);
+	}
+#endif
+}
+
+void FWebSocketMessageHandler::HandleWebSocketEndEditorTransaction(const FRemoteControlWebSocketMessage& WebSocketMessage)
+{
+#if WITH_EDITOR
+	FRCWebSocketTransactionEndBody Body;
+	if (!WebRemoteControlInternalUtils::DeserializeRequestPayload(WebSocketMessage.RequestPayload, nullptr, Body))
+	{
+		return;
+	}
+
+	EndClientTransaction(WebSocketMessage.ClientId, Body.TransactionId);
+#endif
 }
 
 void FWebSocketMessageHandler::ProcessChangedProperties()
@@ -681,8 +801,7 @@ void FWebSocketMessageHandler::ProcessChangedProperties()
 			// Send a property change event for each property type
 			for (const TPair<uint64, TSet<FGuid>>& ClassToEventsPair : PropertyIdsByType)
 			{
-				const int64* ClientSequenceNumber = ClientSequenceNumbers.Find(ClientToEventsPair.Key);
-				const int64 SequenceNumber = ClientSequenceNumber ? *ClientSequenceNumber : DefaultSequenceNumber;
+				const int64 SequenceNumber = GetSequenceNumber(ClientToEventsPair.Key);
 
 				TArray<uint8> WorkingBuffer;
 				if (ClientToEventsPair.Value.Num() && WritePropertyChangeEventPayload(Preset, { ClassToEventsPair.Value }, SequenceNumber, WorkingBuffer))
@@ -943,13 +1062,28 @@ void FWebSocketMessageHandler::OnConnectionClosedCallback(FGuid ClientId)
 		TArray<FGuid>& ClientList = Iter.Value();
 
 		ClientList.Remove(ClientId);
-		if (ClientList.Num() == 0)
+		if (ClientList.IsEmpty())
 		{
 			RemoteControl.DestroyTransientPreset(PresetId);
 			PresetNotificationMap.Remove(PresetId);
 			Iter.RemoveCurrent();
 		}
 	}
+
+	// Remove the client as a listener for any active transactions
+	for (auto Iter = ClientsByTransactionGuid.CreateIterator(); Iter; ++Iter)
+	{
+		IRemoteControlModule::Get().EndManualEditorTransaction(Iter.Key());
+
+		TMap<FGuid, FDateTime>& Clients = Iter.Value();
+		Clients.Remove(ClientId);
+		if (Clients.IsEmpty())
+		{
+			Iter.RemoveCurrent();
+		}
+	}
+
+	TransactionIdsByClientId.Remove(ClientId);
 
 	/** Remove this client's config. */
 	ClientConfigMap.Remove(ClientId);
@@ -958,16 +1092,18 @@ void FWebSocketMessageHandler::OnConnectionClosedCallback(FGuid ClientId)
 
 void FWebSocketMessageHandler::OnEndFrame()
 {
-	//Early exit if no clients are requesting notifications
-	if (PresetNotificationMap.Num() <= 0 && ActorNotificationMap.Num() <= 0)
-	{
-		return;
-	}
-
 	PropertyNotificationFrameCounter++;
 
 	if (PropertyNotificationFrameCounter >= CVarWebRemoteControlFramesBetweenPropertyNotifications.GetValueOnGameThread())
 	{
+		TimeOutTransactions();
+
+		//Early exit if no clients are requesting notifications
+		if (PresetNotificationMap.Num() <= 0 && ActorNotificationMap.Num() <= 0)
+		{
+			return;
+		}
+
 		PropertyNotificationFrameCounter = 0;
 		ProcessChangedProperties();
 		ProcessChangedActorProperties();
@@ -977,6 +1113,30 @@ void FWebSocketMessageHandler::OnEndFrame()
 		ProcessModifiedMetadata();
 		ProcessModifiedPresetLayouts();
 		ProcessActorChanges();
+	}
+}
+
+void FWebSocketMessageHandler::TimeOutTransactions()
+{
+	TArray<TPair<FGuid, int32>> TransactionsToEnd;
+	const FDateTime Now = FDateTime::Now();
+
+	for (const TPair<FGuid, TMap<FGuid, FDateTime>>& TransactionClientsPair : ClientsByTransactionGuid)
+	{
+		for (const TPair<FGuid, FDateTime>& ClientTimePair : TransactionClientsPair.Value)
+		{
+			if (Now >= ClientTimePair.Value + TransactionTimeout)
+			{
+				// This transaction has timed out; we should force it to end
+				TransactionsToEnd.Add({ ClientTimePair.Key, GetClientTransactionId(ClientTimePair.Key, TransactionClientsPair.Key) });
+			}
+		}
+	}
+
+	// Do this as a separate step since it may remove entries from the map during iteration
+	for (auto TransactionIterator : TransactionsToEnd)
+	{
+		EndClientTransaction(TransactionIterator.Key, TransactionIterator.Value);
 	}
 }
 
@@ -1591,6 +1751,45 @@ void FWebSocketMessageHandler::OnObjectTransacted(UObject* Object, const class F
 	}
 }
 
+#if WITH_EDITOR
+void FWebSocketMessageHandler::HandleTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState)
+{
+	if (InTransactionState == ETransactionStateEventType::TransactionCanceled || InTransactionState == ETransactionStateEventType::TransactionFinalized)
+	{
+		HandleTransactionEnded(InTransactionContext.TransactionId);
+	}
+}
+#endif
+
+void FWebSocketMessageHandler::HandleTransactionEnded(const FGuid& TransactionGuid)
+{
+	if (const TMap<FGuid, FDateTime>* TransactionClients = ClientsByTransactionGuid.Find(TransactionGuid))
+	{
+		FRCTransactionEndedEvent Event;
+
+		// Notify the clients
+		for (const TPair<FGuid, FDateTime>& ClientTimePair : *TransactionClients)
+		{
+			const FGuid& ClientId = ClientTimePair.Key;
+
+			Event.TransactionId = GetClientTransactionId(ClientId, TransactionGuid);
+			Event.SequenceNumber = GetSequenceNumber(ClientId);
+
+			TArray<uint8> Payload;
+			WebRemoteControlUtils::SerializeMessage(Event, Payload);
+			Server->Send(ClientId, Payload);
+		}
+
+		// Forget about the transaction
+		ClientsByTransactionGuid.Remove(TransactionGuid);
+
+		for (TPair<FGuid, TMap<FGuid, int32>>& ClientIdsPair : TransactionIdsByClientId)
+		{
+			ClientIdsPair.Value.Remove(TransactionGuid);
+		}
+	}
+}
+
 void FWebSocketMessageHandler::StartWatchingActor(AActor* Actor, UClass* WatchedClass)
 {
 	FWatchedActorData* ActorData = WatchedActors.Find(Actor);
@@ -1676,3 +1875,87 @@ void FWebSocketMessageHandler::UpdateSequenceNumber(const FGuid& ClientId, int64
 		StoredSequenceNumber = NewSequenceNumber;
 	}
 }
+
+bool FWebSocketMessageHandler::ContributeToTransaction(const FGuid& ClientId, int32 TransactionId)
+{
+	const FGuid InternalId = GetTransactionGuid(ClientId, TransactionId);
+	if (ClientId.IsValid())
+	{
+		if (TMap<FGuid, FDateTime>* TransactionClients = ClientsByTransactionGuid.Find(InternalId))
+		{
+			TransactionClients->Add(ClientId, FDateTime::Now());
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void FWebSocketMessageHandler::EndClientTransaction(const FGuid& ClientId, int32 TransactionId)
+{
+	if (TMap<FGuid, int32>* TransactionIds = TransactionIdsByClientId.Find(ClientId))
+	{
+		const FGuid TransactionGuid = GetTransactionGuid(ClientId, TransactionId);
+
+		if (!TransactionGuid.IsValid())
+		{
+			return;
+		}
+
+		// Stop tracking the transaction for this client
+		if (TMap<FGuid, FDateTime>* TransactionClients = ClientsByTransactionGuid.Find(TransactionGuid))
+		{
+			const int32 Result = IRemoteControlModule::Get().EndManualEditorTransaction(TransactionGuid);
+
+			if (Result != INDEX_NONE && Result <= 1)
+			{
+				// This was the last action, so the transaction will end. This will clean up the client and ID maps for us.
+				HandleTransactionEnded(TransactionGuid);
+				return;
+			}
+
+			// Transaction still exists, but we can remove the client from its list
+			TransactionClients->Remove(ClientId);
+		}
+
+		// Do this last so we can still look up the client ID/transaction GUID mapping in HandleTransactionEnded
+		TransactionIds->Remove(TransactionGuid);
+	}
+}
+
+int64 FWebSocketMessageHandler::GetSequenceNumber(const FGuid& ClientId) const
+{
+	const int64* ClientSequenceNumber = ClientSequenceNumbers.Find(ClientId);
+	return ClientSequenceNumber ? *ClientSequenceNumber : DefaultSequenceNumber;
+}
+
+FGuid FWebSocketMessageHandler::GetTransactionGuid(const FGuid& ClientId, int32 TransactionId) const
+{
+	if (const TMap<FGuid, int32>* TransactionIdPairs = TransactionIdsByClientId.Find(ClientId))
+	{
+		for (const TPair<FGuid, int32>& Pair : *TransactionIdPairs)
+		{
+			if (TransactionId == Pair.Value)
+			{
+				return Pair.Key;
+			}
+		}
+	}
+
+	return FGuid();
+}
+
+int32 FWebSocketMessageHandler::GetClientTransactionId(const FGuid& ClientId, const FGuid& TransactionGuid) const
+{
+	if (const TMap<FGuid, int32>* TransactionIds = TransactionIdsByClientId.Find(ClientId))
+	{
+		if (const int32* ClientTransactionId = TransactionIds->Find(TransactionGuid))
+		{
+			return *ClientTransactionId;
+		}
+	}
+
+	return InvalidTransactionId;
+}
+
+#undef LOCTEXT_NAMESPACE

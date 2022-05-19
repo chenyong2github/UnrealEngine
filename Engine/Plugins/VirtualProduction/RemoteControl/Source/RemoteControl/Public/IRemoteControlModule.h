@@ -76,6 +76,14 @@ struct FRCCallReference
 	}
 };
 
+UENUM()
+enum class ERCTransactionMode : uint8
+{
+	NONE = 0,
+	AUTOMATIC,
+	MANUAL,
+};
+
 /**
  * Object to hold a UObject remote call
  */
@@ -91,7 +99,7 @@ struct FRCCall
 	FStructOnScope ParamStruct;
 	// Payload for native function
 	TArray<uint8> ParamData;
-	bool bGenerateTransaction = false;
+	ERCTransactionMode TransactionMode;
 };
 
 /**
@@ -113,6 +121,7 @@ enum class ERCAccess : uint8
 	READ_ACCESS,
 	WRITE_ACCESS,
 	WRITE_TRANSACTION_ACCESS,
+	WRITE_MANUAL_TRANSACTION_ACCESS,
 };
 
 /**
@@ -421,6 +430,21 @@ public:
 	 * @param InFactoryName the factory unique name
 	 */
 	virtual void UnregisterEntityFactory( const FName InFactoryName ) = 0;
+
+	/**
+	 * Start a manual editor transaction originating from a remote request.
+	 * @param InDescription A description of the transaction.
+	 * @param TypeHash The type hash of the object or call to which the transaction applies, or 0 if not applicable (e.g. multiple objects being modified).
+	 * @return The ID of the new transaction if one was created, or an invalid ID otherwise.
+	 */
+	virtual FGuid BeginManualEditorTransaction(const FText& InDescription, uint32 TypeHash) = 0;
+
+	/**
+	 * End a manual editor transaction originating from a remote request.
+	 * @param TransactionId The ID of the transaction. If this doesn't match the current active transaction, the transaction won't be ended.
+	 * @return INDEX_NONE if there was no transaction to end; otherwise, the number of remaining actions in the transaction (i.e. 1 means this was the last action and the transaction will end).
+	 */
+	virtual int32 EndManualEditorTransaction(const FGuid& TransactionId) = 0;
 
 	/** Get map of the factories which is responsible for the Remote Control property creation */
 	virtual const TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>>& GetEntityFactories() const = 0;

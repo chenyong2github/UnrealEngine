@@ -696,10 +696,19 @@ struct FRCWebSocketPresetSetPropertyBody : public FRCRequest
 	ERCModifyOperation Operation = ERCModifyOperation::EQUAL;
 
 	/**
-	 * Whether a transaction should be created for the call.
+	 * How to handle generating transactions for this property change.
+	 * If NONE, don't generate a transaction immediately.
+	 * If AUTOMATIC, let the Remote Control system automatically start and end the transaction after enough time passes.
+	 * If MANUAL, TransactionId must also be set and the changes will only be applied if that transaction is still active.
 	 */
 	UPROPERTY()
-	bool GenerateTransaction = false;
+	ERCTransactionMode TransactionMode = ERCTransactionMode::NONE;
+
+	/**
+	 * The ID of the transaction with which to associate these changes. Must be provided if TransactionMode is Manual.
+	 */
+	UPROPERTY()
+	int32 TransactionId = -1;
 
 	/**
 	 * If true, ignore the other parameters and just reset the property to its default value.
@@ -715,7 +724,6 @@ struct FRCWebSocketPresetSetPropertyBody : public FRCRequest
 	int64 SequenceNumber = -1;
 };
 
-
 /**
  * Holds a request made via websocket to call an exposed function on an object.
  */
@@ -725,9 +733,25 @@ struct FRCWebSocketCallBody : public FRCCallRequest
 	GENERATED_BODY()
 
 	FRCWebSocketCallBody()
-		: FRCCallRequest()
+	: FRCCallRequest()
 	{
 	}
+
+	/**
+	 * How to handle generating transactions for this property change.
+	 * If NONE, don't generate a transaction immediately.
+	 * If AUTOMATIC, let the Remote Control system automatically start and end the transaction after enough time passes.
+	 * If MANUAL, TransactionId must also be set and the changes will only be applied if that transaction is still active.
+	 * If bGenerateTransaction is true, this value will be treated as if it was AUTOMATIC.
+	 */
+	UPROPERTY()
+	ERCTransactionMode TransactionMode = ERCTransactionMode::NONE;
+
+	/**
+	 * The ID of the transaction with which to associate these changes. Must be provided if TransactionMode is Manual.
+	 */
+	UPROPERTY()
+	int32 TransactionId = -1;
 
 	/**
 	 * The sequence number of this change. The highest sequence number received from this client will be
@@ -735,4 +759,61 @@ struct FRCWebSocketCallBody : public FRCCallRequest
 	 */
 	UPROPERTY()
 	int64 SequenceNumber = -1;
+};
+
+/**
+ * Holds a request made via websocket to start a transaction.
+ */
+USTRUCT()
+struct FRCWebSocketTransactionStartBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketTransactionStartBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * The description of the transaction.
+	 */
+	UPROPERTY()
+	FString Description;
+
+	/**
+	 * The ID that will be used to refer to the transaction in future messages.
+	 */
+	UPROPERTY()
+	int32 TransactionId;
+};
+
+
+/**
+ * Holds a request made via websocket to end a transaction.
+ */
+USTRUCT()
+struct FRCWebSocketTransactionEndBody : public FRCRequest
+{
+	GENERATED_BODY()
+
+	FRCWebSocketTransactionEndBody()
+	{
+		AddStructParameter(ParametersFieldLabel());
+	}
+
+	/**
+	 * Get the label for the property value struct.
+	 */
+	static FString ParametersFieldLabel() { return TEXT("Parameters"); }
+
+	/**
+	 * The ID of the transaction. If this doesn't match the current editor transaction, it won't be ended.
+	 */
+	UPROPERTY()
+	int32 TransactionId;
 };

@@ -50,6 +50,8 @@ public:
 	virtual bool PropertySupportsRawModificationWithoutEditor(FProperty* Property, UClass* OwnerClass = nullptr) const override;
 	virtual void RegisterEntityFactory( const FName InFactoryName, const TSharedRef<IRemoteControlPropertyFactory>& InFactory) override;
 	virtual void UnregisterEntityFactory( const FName InFactoryName ) override;
+	virtual FGuid BeginManualEditorTransaction(const FText& InDescription, uint32 TypeHash) override;
+	virtual int32 EndManualEditorTransaction(const FGuid& TransactionId) override;
 	virtual const TMap<FName, TSharedPtr<IRemoteControlPropertyFactory>>& GetEntityFactories() const override { return EntityFactories; };
 	//~ End IRemoteControlModule
 
@@ -80,6 +82,12 @@ private:
 	static bool DeserializeDeltaModificationData(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCModifyOperation Operation, TArray<uint8>& OutData);
 
 #if WITH_EDITOR
+	/**
+	 * End the ongoing modification if one exists and is a mismatch for the new object to edit.
+	 * @param TypeHash The type hash of the object we want to modify after this check.
+	 */
+	void EndOngoingModificationIfMismatched(uint32 TypeHash);
+
 	/** Finalize an ongoing change, triggering post edit change on the tracked object. */
 	void TestOrFinalizeOngoingChange(bool bForceEndChange = false);
 

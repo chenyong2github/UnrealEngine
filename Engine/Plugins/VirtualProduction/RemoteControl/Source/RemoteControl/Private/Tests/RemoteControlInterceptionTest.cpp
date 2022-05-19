@@ -348,7 +348,7 @@ struct FRemoteControlInterceptionTest
 		
 		FRCCall Call;
 		Call.CallRef = MoveTemp(CallRef);
-		Call.bGenerateTransaction = true;
+		Call.TransactionMode = ERCTransactionMode::AUTOMATIC;
 		Call.ParamStruct = FStructOnScope(FunctionArgs.GetStruct(), FunctionArgs.GetStructMemory());
 
 		const bool bSuccess = IRemoteControlModule::Get().InvokeCall(Call, ERCPayloadType::Json, JsonBuffer);

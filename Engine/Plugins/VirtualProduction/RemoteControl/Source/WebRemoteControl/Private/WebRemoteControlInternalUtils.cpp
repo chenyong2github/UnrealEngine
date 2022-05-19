@@ -138,7 +138,7 @@ bool DeserializeCall(const FHttpServerRequest& InRequest, FRCCall& OutCall, cons
 	if (IRemoteControlModule::Get().ResolveCall(CallRequest.ObjectPath, CallRequest.FunctionName, OutCall.CallRef, &ErrorText))
 	{
 		// Initialize the param struct with default parameters
-		OutCall.bGenerateTransaction = CallRequest.GenerateTransaction;
+		OutCall.TransactionMode = CallRequest.GenerateTransaction ? ERCTransactionMode::AUTOMATIC : ERCTransactionMode::NONE;
 		OutCall.ParamStruct = FStructOnScope(OutCall.CallRef.Function.Get());
 
 		// If some parameters were provided, deserialize them

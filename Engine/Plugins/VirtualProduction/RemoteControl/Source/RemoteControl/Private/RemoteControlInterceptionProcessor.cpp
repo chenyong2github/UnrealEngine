@@ -104,7 +104,7 @@ void FRemoteControlInterceptionProcessor::InvokeCall(FRCIFunctionMetadata& InFun
 		
 		FRCCall Call;
 		Call.CallRef = MoveTemp(CallRef);
-		Call.bGenerateTransaction = InFunction.bGenerateTransaction;
+		Call.TransactionMode = InFunction.bGenerateTransaction ? ERCTransactionMode::AUTOMATIC : ERCTransactionMode::NONE;
 		Call.ParamStruct = FStructOnScope(FunctionArgs.GetStruct(), FunctionArgs.GetStructMemory());
 
 		IRemoteControlModule::Get().InvokeCall(Call);
