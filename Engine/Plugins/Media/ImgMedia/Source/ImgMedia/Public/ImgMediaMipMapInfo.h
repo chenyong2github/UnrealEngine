@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "IMediaOptions.h"
 #include "MediaTextureTracker.h"
+#include "ImgMediaSceneViewExtension.h"
 #include "Tickable.h"
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -36,23 +37,6 @@ struct FSequenceInfo
 	{
 		return (NumTiles.X > 1) || (NumTiles.Y > 1);
 	}
-};
-
-/**
- * Holds info on a camera which we can use for mipmap calculations.
- */
-struct FImgMediaMipMapCameraInfo
-{
-	/** Position of camera. */
-	FVector Location;
-	/** View matrix of camera. */
-	FMatrix ViewMatrix;
-	/** View projection matrix of camera. */
-	FMatrix ViewProjectionMatrix;
-	/** Active viewport size. */
-	FIntRect ViewportRect;
-	/** View mip bias. */
-	float MaterialTextureMipBias;
 };
 
 /**
@@ -191,7 +175,7 @@ public:
 	 * @param InSequenceInfo Active image sequence information
 	 * @param VisibleTiles Updated list of visible tiles per mip level
 	 */
-	virtual bool CalculateVisibleTiles(const TArray<FImgMediaMipMapCameraInfo>& InCameraInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const;
+	virtual void CalculateVisibleTiles(const TArray<FImgMediaViewInfo>& InViewInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const;
 
 	/**
 	 * Get the registered mesh component.
@@ -291,8 +275,8 @@ protected:
 	/** Array of objects that are using our img sequence. */
 	TArray<FImgMediaMipMapObjectInfo*> Objects;
 
-	/** Info for each camera, used in mipmap calculations. */
-	TArray<FImgMediaMipMapCameraInfo> CameraInfos;
+	/** Info for each view, used in mipmap calculations. */
+	TArray<FImgMediaViewInfo> ViewInfos;
 
 	/** Size, tiling and mips sequence information. */
 	FSequenceInfo SequenceInfo;

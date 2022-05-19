@@ -12,6 +12,7 @@
 class FImgMediaGlobalCache;
 struct FImgMediaMipMapCameraInfo;
 class FImgMediaPlayer;
+class FImgMediaSceneViewExtension;
 class IMediaEventSink;
 class IMediaPlayer;
 
@@ -53,12 +54,8 @@ public:
 	 */
 	virtual TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> CreatePlayer(IMediaEventSink& EventHandler) = 0;
 
-	/**
-	 * Get a copy of camera information cached by our local scene view extension, for mip & tile calculations.
-	 *
-	 * @return Array of info on each camera.
-	 */
-	virtual TArray<FImgMediaMipMapCameraInfo> GetCopyCameraInfos() const = 0;
+	/** Get scene view extension cahcing view information (for mip/tile calculations). */
+	virtual const TSharedPtr<FImgMediaSceneViewExtension, ESPMode::ThreadSafe>& GetSceneViewExtension() const = 0;
 public:
 
 	/** Virtual destructor. */

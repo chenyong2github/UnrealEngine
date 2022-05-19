@@ -4,6 +4,7 @@
 
 #include "IImgMediaModule.h"
 #include "ImgMediaPrivate.h"
+#include "ImgMediaSceneViewExtension.h"
 
 #include "Async/Async.h"
 #include "Components/StaticMeshComponent.h"
@@ -166,6 +167,16 @@ int32 FImgMediaTileSelection::NumVisibleTiles() const
 	return NumVisibleTiles;
 }
 
+namespace {
+	bool IsPrimitiveComponentHidden(FPrimitiveComponentId ComponentId, const FImgMediaViewInfo& ViewInfo)
+	{
+		bool bIsPrimitiveContained = ViewInfo.PrimitiveComponentIds.Contains(ComponentId);
+
+		// The primitive component id is either part of the hidden list, or not in the show-only list.
+		return ViewInfo.bPrimitiveHiddenMode ? bIsPrimitiveContained : !bIsPrimitiveContained;
+	}
+}
+
 
 FImgMediaMipMapObjectInfo::FImgMediaMipMapObjectInfo(UMeshComponent* InMeshComponent, float InLODBias)
 	: MeshComponent(InMeshComponent)
@@ -179,14 +190,13 @@ UMeshComponent* FImgMediaMipMapObjectInfo::GetMeshComponent() const
 	return MeshComponent.Get();
 }
 
-bool FImgMediaMipMapObjectInfo::CalculateVisibleTiles(const TArray<FImgMediaMipMapCameraInfo>& InCameraInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const
+void FImgMediaMipMapObjectInfo::CalculateVisibleTiles(const TArray<FImgMediaViewInfo>& InViewInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const
 {
 	// We simply add fully visible regions for all mip levels
 	for (int32 MipLevel = 0; MipLevel < InSequenceInfo.NumMipLevels; ++MipLevel)
 	{
 		VisibleTiles.Add(MipLevel, FImgMediaTileSelection::CreateForTargetMipLevel(InSequenceInfo.NumTiles.X, InSequenceInfo.NumTiles.Y, MipLevel, true));
 	}
-	return true;
 }
 
 namespace {
@@ -207,14 +217,14 @@ namespace {
 	}
 
 	// Approximates hardware mip level selection.
-	bool CalculateMipLevel(const FImgMediaMipMapCameraInfo& CameraInfo, const FVector& TexelWS, const FVector& OffsetXWS, const FVector& OffsetYWS, float& OutMipLevel)
+	bool CalculateMipLevel(const FImgMediaViewInfo& ViewInfo, const FVector& TexelWS, const FVector& OffsetXWS, const FVector& OffsetYWS, float& OutMipLevel)
 	{
 		FVector2D TexelScreenSpace[3];
 
 		bool bValid = true;
-		bValid &= ProjectWorldToScreenFast(TexelWS, CameraInfo.ViewportRect, CameraInfo.ViewProjectionMatrix, TexelScreenSpace[0]);
-		bValid &= ProjectWorldToScreenFast(TexelWS + OffsetXWS, CameraInfo.ViewportRect, CameraInfo.ViewProjectionMatrix, TexelScreenSpace[1]);
-		bValid &= ProjectWorldToScreenFast(TexelWS + OffsetYWS, CameraInfo.ViewportRect, CameraInfo.ViewProjectionMatrix, TexelScreenSpace[2]);
+		bValid &= ProjectWorldToScreenFast(TexelWS, ViewInfo.ViewportRect, ViewInfo.ViewProjectionMatrix, TexelScreenSpace[0]);
+		bValid &= ProjectWorldToScreenFast(TexelWS + OffsetXWS, ViewInfo.ViewportRect, ViewInfo.ViewProjectionMatrix, TexelScreenSpace[1]);
+		bValid &= ProjectWorldToScreenFast(TexelWS + OffsetYWS, ViewInfo.ViewportRect, ViewInfo.ViewProjectionMatrix, TexelScreenSpace[2]);
 
 		if (bValid)
 		{
@@ -244,12 +254,12 @@ namespace {
 			}
 		}
 
-		bool CalculateVisibleTiles(const TArray<FImgMediaMipMapCameraInfo>& InCameraInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const override
+		void CalculateVisibleTiles(const TArray<FImgMediaViewInfo>& InViewInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const override
 		{
 			UMeshComponent* Mesh = MeshComponent.Get();
 			if (Mesh == nullptr)
 			{
-				return false;
+				return;
 			}
 
 			// To avoid calculating tile corner mip levels multiple times over, we cache them in this array.
@@ -268,11 +278,16 @@ namespace {
 			FVector TexelOffsetXWS = MeshTransform.TransformVector(FVector(0, PlaneSize.Y / InSequenceInfo.Dim.X, 0));
 			FVector TexelOffsetYWS = MeshTransform.TransformVector(FVector(0, 0, -PlaneSize.Z / InSequenceInfo.Dim.Y));
 
-			for (const FImgMediaMipMapCameraInfo& CameraInfo : InCameraInfos)
+			for (const FImgMediaViewInfo& ViewInfo : InViewInfos)
 			{
+				if (IsPrimitiveComponentHidden(Mesh->ComponentId, ViewInfo))
+				{
+					continue;
+				}
+
 				// Get frustum.
 				FConvexVolume ViewFrustum;
-				GetViewFrustumBounds(ViewFrustum, CameraInfo.ViewProjectionMatrix, false, false);
+				GetViewFrustumBounds(ViewFrustum, ViewInfo.ViewProjectionMatrix, false, false);
 
 				int32 MaxLevel = InSequenceInfo.NumMipLevels - 1;
 				int MipLevelDiv = 1 << MaxLevel;
@@ -341,9 +356,9 @@ namespace {
 									float CornerStepY = TileCornerY / (float)CurrentNumTiles.Y;
 									FVector CornersWS = PlaneCornerWS + (DirXWS * CornerStepX + DirYWS * CornerStepY);
 
-									if (CalculateMipLevel(CameraInfo, CornersWS, TexelOffsetXWS, TexelOffsetYWS, CalculatedLevel))
+									if (CalculateMipLevel(ViewInfo, CornersWS, TexelOffsetXWS, TexelOffsetYWS, CalculatedLevel))
 									{
-										CalculatedLevel += LODBias + CameraInfo.MaterialTextureMipBias;
+										CalculatedLevel += LODBias + ViewInfo.MaterialTextureMipBias;
 
 										SetCachedMipLevel(BaseLevelCorner.X, BaseLevelCorner.Y, MaxCornerX, CalculatedLevel);
 										bValidLevel = true;
@@ -401,7 +416,6 @@ namespace {
 					}
 				}
 			}
-			return true;
 		}
 
 	private:
@@ -439,21 +453,26 @@ namespace {
 	public:
 		using FImgMediaMipMapObjectInfo::FImgMediaMipMapObjectInfo;
 
-		bool CalculateVisibleTiles(const TArray<FImgMediaMipMapCameraInfo>& InCameraInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const override
+		void CalculateVisibleTiles(const TArray<FImgMediaViewInfo>& InViewInfos, const FSequenceInfo& InSequenceInfo, TMap<int32, FImgMediaTileSelection>& VisibleTiles) const override
 		{
 			UMeshComponent* Mesh = MeshComponent.Get();
 			if (Mesh == nullptr)
 			{
-				return false;
+				return;
 			}
 
 			const float DefaultSphereRadius = 160.0f;
 
-			for (const FImgMediaMipMapCameraInfo& CameraInfo : InCameraInfos)
+			for (const FImgMediaViewInfo& ViewInfo : InViewInfos)
 			{
+				if (IsPrimitiveComponentHidden(Mesh->ComponentId, ViewInfo))
+				{
+					continue;
+				}
+
 				// Analytical derivation of visible tiles from the view frustum, given a sphere presumed to be infinitely large
 				FConvexVolume ViewFrustum;
-				GetViewFrustumBounds(ViewFrustum, CameraInfo.ViewProjectionMatrix, false, false);
+				GetViewFrustumBounds(ViewFrustum, ViewInfo.ViewProjectionMatrix, false, false);
 				
 				// Include all tiles containted in the visible UV region
 				int32 NumX = InSequenceInfo.NumTiles.X;
@@ -515,8 +534,6 @@ namespace {
 					}
 				}
 			}
-
-			return true;
 		}
 	};
 
@@ -644,7 +661,7 @@ void FImgMediaMipMapInfo::UpdateMipLevelCache()
 		// Loop over all objects.
 		for (FImgMediaMipMapObjectInfo* ObjectInfo : Objects)
 		{
-			ObjectInfo->CalculateVisibleTiles(CameraInfos, SequenceInfo, CachedVisibleTiles);
+			ObjectInfo->CalculateVisibleTiles(ViewInfos, SequenceInfo, CachedVisibleTiles);
 		}
 	}
 	
@@ -656,7 +673,11 @@ void FImgMediaMipMapInfo::Tick(float DeltaTime)
 {
 	FScopeLock Lock(&InfoCriticalSection);
 
-	CameraInfos = IImgMediaModule::Get().GetCopyCameraInfos();
+	const TSharedPtr<FImgMediaSceneViewExtension, ESPMode::ThreadSafe>& SVE = IImgMediaModule::Get().GetSceneViewExtension();
+	if (SVE.IsValid())
+	{
+		ViewInfos = SVE->GetViewInfos();
+	}
 
 	// Let the cache update this frame.
 	bIsCacheValid = false;

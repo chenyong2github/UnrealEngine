@@ -122,14 +122,9 @@ public:
 		return Player;
 	}
 
-	TArray<FImgMediaMipMapCameraInfo> GetCopyCameraInfos() const override
+	const TSharedPtr<FImgMediaSceneViewExtension, ESPMode::ThreadSafe>& GetSceneViewExtension() const override
 	{
-		if (SceneViewExtension.IsValid())
-		{
-			return SceneViewExtension->GetCameraInfos();
-		}
-
-		return {};
+		return SceneViewExtension;
 	}
 
 public:

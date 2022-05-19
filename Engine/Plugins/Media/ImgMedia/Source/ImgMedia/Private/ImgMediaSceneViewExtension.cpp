@@ -7,7 +7,7 @@
 
 FImgMediaSceneViewExtension::FImgMediaSceneViewExtension(const FAutoRegister& AutoReg)
 	: FSceneViewExtensionBase(AutoReg)
-	, CachedCameraInfos()
+	, CachedViewInfos()
 	, LastFrameNumber(0)
 {
 }
@@ -24,7 +24,7 @@ void FImgMediaSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InView
 {
 	if (LastFrameNumber != InViewFamily.FrameNumber)
 	{
-		CachedCameraInfos.Reset();
+		CachedViewInfos.Reset();
 		LastFrameNumber = InViewFamily.FrameNumber;
 	}
 
@@ -40,11 +40,23 @@ void FImgMediaSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InView
 
 	for (const FSceneView* View : InViewFamily.Views)
 	{
-		FImgMediaMipMapCameraInfo Info;
+		FImgMediaViewInfo Info;
 		Info.Location = View->ViewMatrices.GetViewOrigin();
 		Info.ViewMatrix = View->ViewMatrices.GetViewMatrix();
 		Info.ViewProjectionMatrix = View->ViewMatrices.GetViewProjectionMatrix();
 		Info.ViewportRect = View->UnconstrainedViewRect.Scale(ResolutionFraction);
+
+		// We store hidden or show-only ids to later avoid needless calculations when objects are not in view.
+		if (View->ShowOnlyPrimitives.IsSet())
+		{
+			Info.bPrimitiveHiddenMode = false;
+			Info.PrimitiveComponentIds = View->ShowOnlyPrimitives.GetValue();
+		}
+		else
+		{
+			Info.bPrimitiveHiddenMode = true;
+			Info.PrimitiveComponentIds = View->HiddenPrimitives;
+		}
 
 		// View->MaterialTextureMipBias is only set later in rendering: we replicate the logic here.
 		if (View->PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
@@ -57,6 +69,12 @@ void FImgMediaSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InView
 			Info.MaterialTextureMipBias = 0.0f;
 		}
 
-		CachedCameraInfos.Add(MoveTemp(Info));
+		CachedViewInfos.Add(MoveTemp(Info));
 	}
+}
+
+int32 FImgMediaSceneViewExtension::GetPriority() const
+{
+	// Lowest priority value to ensure all other extensions are executed before ours.
+	return MIN_int32;
 }
