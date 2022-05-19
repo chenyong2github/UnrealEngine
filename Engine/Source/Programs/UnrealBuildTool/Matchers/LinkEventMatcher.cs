@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Parser.Matchers
+namespace UnrealBuildTool.Matchers
 {
 	/// <summary>
 	/// Matcher for linker errors
@@ -119,7 +119,11 @@ namespace Horde.Agent.Parser.Matchers
 		{
 			bool hasSymbols = false;
 
-			string message = builder.Current.CurrentLine ?? String.Empty;
+			string? message = builder.Current.CurrentLine;
+			if (message == null)
+			{
+				return false;
+			}
 
 			// Mac link error:
 			//   Undefined symbols for architecture arm64:

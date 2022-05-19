@@ -483,6 +483,9 @@ namespace UnrealBuildTool
 					Utils.WriteFileIfChangedTrace = Options.TraceWrites;
 				}
 
+				// Add all the default event matchers from the UBT assembly
+				Log.EventParser.AddMatchersFromAssembly(Assembly.GetExecutingAssembly());
+
 				// Always start capturing logs as early as possible to later copy to a log file if the ToolMode desires it (we have to start capturing before we get the ToolModeOptions below)
 				StartupTraceListener StartupTrace = new StartupTraceListener();
 				Log.AddTraceListener(StartupTrace);

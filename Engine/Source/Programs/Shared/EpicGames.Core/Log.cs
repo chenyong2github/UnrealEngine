@@ -938,8 +938,6 @@ namespace EpicGames.Core
 		/// Last time a status message was pushed to the stack
 		/// </summary>
 		private readonly Stopwatch _statusTimer = new Stopwatch();
-		readonly ArrayBufferWriter<byte> _jsonBufferWriter;
-		readonly Utf8JsonWriter _jsonWriter;
 
 		/// <summary>
 		/// Constructor
@@ -956,9 +954,6 @@ namespace EpicGames.Core
 			{
 				WriteJsonToStdOut = true;
 			}
-
-			_jsonBufferWriter = new ArrayBufferWriter<byte>();
-			_jsonWriter = new Utf8JsonWriter(_jsonBufferWriter);
 		}
 
 		/// <summary>
@@ -1106,14 +1101,8 @@ namespace EpicGames.Core
 					{
 						if (WriteJsonToStdOut)
 						{
-							_jsonBufferWriter.Clear();
-							_jsonWriter.Reset();
-
-							LogEvent logEvent = LogEvent.FromState<TState>(logLevel, eventId, state, exception, formatter);
-							logEvent.Write(_jsonWriter);
-
-							_jsonWriter.Flush();
-							Console.WriteLine(Encoding.UTF8.GetString(_jsonBufferWriter.WrittenSpan));
+							JsonLogEvent jsonLogEvent = JsonLogEvent.FromLoggerState(logLevel, eventId, state, exception, formatter);
+							Console.WriteLine(Encoding.UTF8.GetString(jsonLogEvent.Data.Span));
 						}
 						else
 						{

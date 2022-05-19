@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Parser.Matchers
+namespace UnrealBuildTool.Matchers
 {
 	class XoreaxEventMatcher : ILogEventMatcher
 	{

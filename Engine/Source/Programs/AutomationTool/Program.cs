@@ -360,8 +360,12 @@ namespace AutomationToolDriver
 			// Configure log timestamps
 			Log.IncludeTimestamps = AutomationToolCommandLine.IsSetGlobal("-Timestamps");
 
+			// Configure the structured logging event parser with matchers from UBT
+			Assembly UnrealBuildToolAssembly = typeof(UnrealBuildTool.BuildVersion).Assembly;
+			Log.EventParser.AddMatchersFromAssembly(UnrealBuildToolAssembly);
+
 			// Enter the main program section
-            ExitCode ReturnCode = ExitCode.Success;
+			ExitCode ReturnCode = ExitCode.Success;
 			try
 			{
 				// Set the working directory to the Unreal root directory

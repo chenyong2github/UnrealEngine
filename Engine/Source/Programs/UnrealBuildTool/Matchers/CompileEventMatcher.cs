@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Parser.Matchers
+namespace UnrealBuildTool.Matchers
 {
 	/// <summary>
 	/// Matches compile errors and annotates with the source file path and revision
@@ -132,7 +132,7 @@ namespace Horde.Agent.Parser.Matchers
 			return null;
 		}
 
-		static bool TryMatchVisualCppEvent(LogEventBuilder builder, [NotNullWhen(true)] out LogEventMatch? outEvent)
+		bool TryMatchVisualCppEvent(LogEventBuilder builder, [NotNullWhen(true)] out LogEventMatch? outEvent)
 		{
 			Match? match;
 			if(!builder.Current.TryMatch($"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:", out match) || !IsSourceFile(match))
@@ -220,7 +220,7 @@ namespace Horde.Agent.Parser.Matchers
 			}
 		}
 
-		static bool IsSourceFile(Match match)
+		bool IsSourceFile(Match match)
 		{
 			Group group = match.Groups["file"];
 			if (!group.Success)

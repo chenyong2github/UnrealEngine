@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-namespace Horde.Agent.Parser.Matchers
+namespace UnrealBuildTool.Matchers
 {
 	/// <summary>
 	/// Matcher for generic Microsoft errors (see https://docs.microsoft.com/en-us/cpp/build/formatting-the-output-of-a-custom-build-step-or-build-event?view=msvc-160)
@@ -41,7 +40,7 @@ namespace Horde.Agent.Parser.Matchers
 					Group severity = match.Groups["severity"];
 					builder.Annotate(severity);
 					builder.Annotate(match.Groups["code"]);
-					return builder.ToMatch(LogEventPriority.Normal, severity.Value.Equals("error", StringComparison.Ordinal)? LogLevel.Error : LogLevel.Warning, KnownLogEvents.Microsoft);
+					return builder.ToMatch(LogEventPriority.Normal, severity.Value.Equals("error")? LogLevel.Error : LogLevel.Warning, KnownLogEvents.Microsoft);
 				}
 			}
 			return null;
