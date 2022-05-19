@@ -54,3 +54,12 @@ bool UMediaOutput::Validate(FString& OutFailureReason) const
 
 	return true;
 }
+
+#if WITH_EDITOR
+void UMediaOutput::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	UObject::PostEditChangeProperty(PropertyChangedEvent);
+
+	OnOutputModifiedDelegate.Broadcast(this);
+}
+#endif

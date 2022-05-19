@@ -146,11 +146,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
 	bool bAutostopOnCapture;
 
+
 	/** The number of images to capture*/
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture")
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "MediaCapture", meta=(editcondition="bAutostopOnCapture"))
 	int32 NumberOfFramesToCapture;
-
-
 };
 
 

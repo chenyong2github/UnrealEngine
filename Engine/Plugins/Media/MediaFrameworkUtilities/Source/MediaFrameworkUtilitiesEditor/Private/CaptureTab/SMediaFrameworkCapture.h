@@ -50,6 +50,10 @@ public:
 	/** Should the Capture setting be saved with the level or should it be saved as a project settings. */
 	UPROPERTY(config)
 	bool bSaveCaptureSetingsInWorld = true;
+	
+	/** Should the capture be restarted if the media output is modified. */
+	UPROPERTY(config)
+	bool bAutoRestartCaptureOnChange = true;
 };
 
 /*
@@ -85,6 +89,7 @@ private:
 	void OnLevelActorsRemoved(AActor* InActor);
 	void OnAssetsDeleted(const TArray<UClass*>& DeletedAssetClasses);
 	void OnObjectPreEditChange(UObject* Object, const FEditPropertyChain& PropertyChain);
+	void OnOutputModified(UMediaOutput* Output);
 
 	TSharedRef<class SWidget> MakeToolBar();
 	TSharedRef<SWidget> CreateSettingsMenu();
@@ -107,4 +112,10 @@ private:
 	TSharedPtr<SMediaFrameworkCaptureCurrentViewportWidget> CaptureCurrentViewport;
 
 	static FDelegateHandle LevelEditorTabManagerChangedHandle;
+
+	/** Handle for the timer used to restart a source after its output options have been modified. */
+	FTimerHandle NextTickTimerHandle;
+
+	/** List of MediaOutputs for which we have a registered delegates. */
+	TArray<TWeakObjectPtr<UMediaOutput>> MediaOutputsWithDelegates;
 };

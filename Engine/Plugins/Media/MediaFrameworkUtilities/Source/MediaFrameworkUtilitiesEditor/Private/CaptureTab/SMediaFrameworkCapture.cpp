@@ -177,6 +177,15 @@ SMediaFrameworkCapture::~SMediaFrameworkCapture()
 	FEditorDelegates::PostPIEStarted.RemoveAll(this);
 	FEditorDelegates::PreBeginPIE.RemoveAll(this);
 	EnabledCapture(false);
+	
+	for (const TWeakObjectPtr<UMediaOutput>& WeakMediaOutput : MediaOutputsWithDelegates)
+	{
+		if (UMediaOutput* MediaOutput = WeakMediaOutput.Get())
+		{
+			MediaOutput->OnOutputModified().RemoveAll(this);
+		}
+	}
+	MediaOutputsWithDelegates.Reset();
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -382,6 +391,29 @@ TSharedRef<SWidget> SMediaFrameworkCapture::CreateSettingsMenu()
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 			);
+
+		SettingsMenuBuilder.AddMenuEntry(
+			LOCTEXT("AutoRestartCaptureOnChange_Label", "Auto Restart On Change"),
+			LOCTEXT("AutoRestartCaptureOnChange_Tooltip", "Should the capture be restarted if the media output is modified."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]
+					{
+						const FScopedTransaction Transaction(LOCTEXT("AutoRestartCaptureOnChange", "Auto Restart Capture On Change"));
+						GetMutableDefault<UMediaFrameworkEditorCaptureSettings>()->Modify();
+						GetMutableDefault<UMediaFrameworkEditorCaptureSettings>()->bAutoRestartCaptureOnChange = !GetDefault<UMediaFrameworkEditorCaptureSettings>()->bAutoRestartCaptureOnChange;
+						DetailView->SetObject(FindOrAddMediaFrameworkAssetUserData());
+						GetMutableDefault<UMediaFrameworkEditorCaptureSettings>()->SaveConfig();
+					}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]
+					{
+						return GetDefault<UMediaFrameworkEditorCaptureSettings>()->bAutoRestartCaptureOnChange;
+					})
+				),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+			);
 	}
 
 	return SettingsMenuBuilder.MakeWidget();
@@ -435,6 +467,15 @@ void SMediaFrameworkCapture::EnabledCapture(bool bEnabled)
 		if (bIsCapturing)
 		{
 			EnabledCapture(false);
+			for (const TWeakObjectPtr<UMediaOutput>& WeakMediaOutput : MediaOutputsWithDelegates)
+			{
+				if (UMediaOutput* MediaOutput = WeakMediaOutput.Get())
+				{
+					MediaOutput->OnOutputModified().RemoveAll(this);
+				}
+			}
+			
+			MediaOutputsWithDelegates.Reset();
 		}
 
 		UMediaFrameworkWorldSettingsAssetUserData* AssetUserData = FindOrAddMediaFrameworkAssetUserData();
@@ -459,6 +500,9 @@ void SMediaFrameworkCapture::EnabledCapture(bool bEnabled)
 				.CaptureOptions(Info.CaptureOptions)
 				.ViewMode(Info.ViewMode);
 
+			Info.MediaOutput->OnOutputModified().AddSP(this, &SMediaFrameworkCapture::OnOutputModified);
+			MediaOutputsWithDelegates.Add(Info.MediaOutput);
+
 			CaptureBoxes->AddCaptureWidget(CaptureCameraViewport);
 			CaptureCameraViewport->StartOutput();
 			CaptureCameraViewports.Add(CaptureCameraViewport);
@@ -472,6 +516,9 @@ void SMediaFrameworkCapture::EnabledCapture(bool bEnabled)
 				.CaptureOptions(Info.CaptureOptions)
 				.RenderTarget(Info.RenderTarget);
 
+			Info.MediaOutput->OnOutputModified().AddSP(this, &SMediaFrameworkCapture::OnOutputModified);
+			MediaOutputsWithDelegates.Add(Info.MediaOutput);
+
 			CaptureBoxes->AddCaptureWidget(CaptureRenderTarget);
 			CaptureRenderTarget->StartOutput();
 			CaptureRenderTargets.Add(CaptureRenderTarget);
@@ -484,6 +531,9 @@ void SMediaFrameworkCapture::EnabledCapture(bool bEnabled)
 				.MediaOutput(AssetUserData->CurrentViewportMediaOutput.MediaOutput)
 				.CaptureOptions(AssetUserData->CurrentViewportMediaOutput.CaptureOptions)
 				.ViewMode(AssetUserData->CurrentViewportMediaOutput.ViewMode);
+
+			AssetUserData->CurrentViewportMediaOutput.MediaOutput->OnOutputModified().AddSP(this, &SMediaFrameworkCapture::OnOutputModified);
+			MediaOutputsWithDelegates.Add(AssetUserData->CurrentViewportMediaOutput.MediaOutput);
 
 			CaptureBoxes->AddCaptureWidget(CaptureCurrentViewport);
 			CaptureCurrentViewport->StartOutput();
@@ -637,6 +687,44 @@ void SMediaFrameworkCapture::OnObjectPreEditChange(UObject* Object, const FEditP
 	if (Object == AssetUserData)
 	{
 		EnabledCapture(false);
+	}
+}
+
+void SMediaFrameworkCapture::OnOutputModified(UMediaOutput* Output)
+{
+	if (bIsCapturing)
+	{
+		if (GetDefault<UMediaFrameworkEditorCaptureSettings>()->bAutoRestartCaptureOnChange)
+		{
+			/** Only trigger one restart if multiple properties were modified. */
+			if (!NextTickTimerHandle.IsValid())
+			{
+				for (const TSharedPtr<SMediaFrameworkCaptureCameraViewportWidget>& CaptureWidget : CaptureCameraViewports)
+				{
+					CaptureWidget->StopOutput();
+				}
+				
+				for (const TSharedPtr<SMediaFrameworkCaptureRenderTargetWidget>& CaptureWidget : CaptureRenderTargets)
+				{
+					CaptureWidget->StopOutput();
+				}
+				
+				if (CaptureCurrentViewport)
+				{
+					CaptureCurrentViewport->StopOutput();
+				}
+
+				NextTickTimerHandle = GEditor->GetTimerManager()->SetTimerForNextTick(FTimerDelegate::CreateLambda(
+					[]() mutable
+				{
+					if (TSharedPtr<SMediaFrameworkCapture> Capture = WidgetInstance.Pin())
+					{
+						Capture->EnabledCapture(true);
+						Capture->NextTickTimerHandle.Invalidate();
+					}
+				}));
+			}
+		}
 	}
 }
 
