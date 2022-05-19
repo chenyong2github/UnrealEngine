@@ -21,20 +21,19 @@ namespace UE::MVVM
 class SMVVMFieldIcon;
 class STextBlock; 
 
+using FIsFieldValidResult = TValueOrError<bool, FString>;
+DECLARE_DELEGATE_RetVal_OneParam(FIsFieldValidResult, FIsFieldValid, UE::MVVM::FMVVMConstFieldVariant);
+
 class SMVVMFieldEntry : public SCompoundWidget
 {
 public:
-
-	using FIsEntryValidResult = TValueOrError<bool, FString>; 
-
-	DECLARE_DELEGATE_RetVal_OneParam(FIsEntryValidResult, FIsEntryValid, UE::MVVM::FMVVMConstFieldVariant);
 
 	SLATE_BEGIN_ARGS(SMVVMFieldEntry) :
 		_TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "NormalText" ) )
 		{}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 		SLATE_ARGUMENT(UE::MVVM::FMVVMConstFieldVariant, Field)
-		SLATE_EVENT(FIsEntryValid, OnValidate)
+		SLATE_EVENT(FIsFieldValid, OnValidateField)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -43,7 +42,7 @@ public:
 
 private:
 	UE::MVVM::FMVVMConstFieldVariant Field;
-	FIsEntryValid OnValidate;
+	FIsFieldValid OnValidateField;
 	TSharedPtr<SMVVMFieldIcon> Icon;
 	TSharedPtr<STextBlock> Label;
 };
@@ -64,6 +63,7 @@ public:
 		SLATE_ATTRIBUTE(EMVVMBindingMode, BindingMode)
 		SLATE_ARGUMENT(bool, IsSource)
 		SLATE_EVENT(FSelectionChanged, OnSelectionChanged)
+		SLATE_EVENT(FIsFieldValid, OnValidateField)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -92,6 +92,7 @@ private:
 	TSharedPtr<SComboBox<UE::MVVM::FMVVMConstFieldVariant>> FieldComboBox;
 
 	FSelectionChanged OnSelectionChangedDelegate;
+	FIsFieldValid OnValidateFieldDelegate;
 
 	TArray<UE::MVVM::FMVVMConstFieldVariant> AvailableFields;
 }; 

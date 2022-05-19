@@ -75,6 +75,7 @@ void SMVVMFieldSelector::Construct(const FArguments& InArgs)
 {
 	PathHelpers = InArgs._PathHelpers;
 	CounterpartHelpers = InArgs._CounterpartHelpers;
+	OnValidateFieldDelegate = InArgs._OnValidateField;
 	OnSelectionChangedDelegate = InArgs._OnSelectionChanged;
 	BindingMode = InArgs._BindingMode;
 	bIsSource = InArgs._IsSource;
@@ -118,7 +119,7 @@ void SMVVMFieldSelector::Construct(const FArguments& InArgs)
 					SAssignNew(SelectedEntry, SMVVMFieldEntry)
 					.TextStyle(TextStyle)
 					.Field(SelectedField)
-					.OnValidate(this, &SMVVMFieldSelector::ValidateField)
+					.OnValidateField(this, &SMVVMFieldSelector::ValidateField)
 				]
 			]
 		]
@@ -200,12 +201,16 @@ void SMVVMFieldSelector::Refresh()
 
 TValueOrError<bool, FString> SMVVMFieldSelector::IsValidBindingForField(const FMVVMConstFieldVariant& Field, const FMVVMConstFieldVariant& CounterpartField) const
 {
+	// if we have a delegate bound, use that instead
+	if (OnValidateFieldDelegate.IsBound())
+	{
+		return OnValidateFieldDelegate.Execute(Field);
+	}
+
 	if (CounterpartField.IsEmpty() || Field.IsEmpty())
 	{
 		return MakeValue(true);
 	}
-
-	UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
 
 	if (!BindingMode.IsSet())
 	{
@@ -223,6 +228,8 @@ TValueOrError<bool, FString> SMVVMFieldSelector::IsValidBindingForField(const FM
 	UMVVMSubsystem::FConstDirectionalBindingArgs Args;
 	Args.SourceBinding = bToDestination ? Field : CounterpartField;
 	Args.DestinationBinding = bToDestination ? CounterpartField : Field;
+
+	UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
 
 	TValueOrError<bool, FString> Result = Subsystem->IsBindingValid(Args);
 
@@ -249,13 +256,13 @@ TSharedRef<SWidget> SMVVMFieldSelector::OnGenerateFieldWidget(FMVVMConstFieldVar
 	return SNew(SMVVMFieldEntry)
 		.TextStyle(TextStyle)
 		.Field(Field)
-		.OnValidate(this, &SMVVMFieldSelector::ValidateField);
+		.OnValidateField(this, &SMVVMFieldSelector::ValidateField);
 }
 
 void SMVVMFieldEntry::Construct(const FArguments& InArgs)
 {
 	Field = InArgs._Field;
-	OnValidate = InArgs._OnValidate;
+	OnValidateField = InArgs._OnValidateField;
 
 	ChildSlot
 	[
@@ -284,9 +291,9 @@ void SMVVMFieldEntry::Refresh()
 {
 	FText ToolTipText = FText::GetEmpty();
 	bool bEnabled = true;
-	if (OnValidate.IsBound())
+	if (OnValidateField.IsBound())
 	{
-		TValueOrError<bool, FString> Result = OnValidate.Execute(Field);
+		TValueOrError<bool, FString> Result = OnValidateField.Execute(Field);
 		if (Result.HasError())
 		{
 			ToolTipText = FText::FromString(Result.GetError());
