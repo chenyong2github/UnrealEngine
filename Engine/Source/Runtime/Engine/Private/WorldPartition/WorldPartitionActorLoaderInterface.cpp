@@ -137,7 +137,7 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 			for (FWorldPartitionHandle& ActorToUnload : ActorsToUnload)
 			{
 				SlowTask.EnterProgressFrame(1);
-				ActorReferences.Remove(ActorToUnload->GetGuid());
+				RemoveReferenceToActor(ActorToUnload);
 			}
 
 			PostLoadedStateChanged(ActorsToUnload.Num() > 0);
@@ -292,6 +292,11 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::AddReferenceToActor(FW
 	AddReferences(ActorHandle, ActorReferences.Emplace(ActorHandle->GetGuid()));
 }
 
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RemoveReferenceToActor(FWorldPartitionHandle& ActorHandle)
+{
+	ActorReferences.Remove(ActorHandle->GetGuid());
+}
+
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation)
 {
 	if (!RefreshLoadedState())
@@ -303,11 +308,11 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEdito
 	}
 }
 
-IWorldPartitionActorLoaderInterface::FLoaderAdapterList::FLoaderAdapterList(UWorld* InWorld)
+IWorldPartitionActorLoaderInterface::ILoaderAdapterList::ILoaderAdapterList(UWorld* InWorld)
 	: ILoaderAdapter(InWorld)
 {}
 
-void IWorldPartitionActorLoaderInterface::FLoaderAdapterList::ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const
+void IWorldPartitionActorLoaderInterface::ILoaderAdapterList::ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const
 {
 	for (const FWorldPartitionHandle& Actor : Actors)
 	{
@@ -323,7 +328,7 @@ IWorldPartitionActorLoaderInterface::ILoaderAdapterSpatial::ILoaderAdapterSpatia
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapterSpatial::ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const
 {
-	if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
 	{
 		WorldPartition->EditorHash->ForEachIntersectingActor(*GetBoundingBox(), [this, WorldPartition, &InOperation](FWorldPartitionActorDesc* ActorDesc)
 		{

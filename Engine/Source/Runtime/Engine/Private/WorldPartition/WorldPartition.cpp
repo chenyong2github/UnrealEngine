@@ -209,12 +209,69 @@ public:
 		bIncludeNonSpatiallyLoadedActors = true;
 	}
 };
+
+class FLoaderAdapterPinnedActors: public IWorldPartitionActorLoaderInterface::ILoaderAdapterList
+{
+public:
+	FLoaderAdapterPinnedActors(UWorld* InWorld)
+		: IWorldPartitionActorLoaderInterface::ILoaderAdapterList(InWorld)
+	{
+		Load();
+	}
+
+	void AddActor(FWorldPartitionHandle& ActorHandle)
+	{
+		if (!ContainsActor(ActorHandle))
+		{
+			Actors.Add(ActorHandle);
+			RefreshLoadedState();
+		}
+	}
+
+	void RemoveActor(FWorldPartitionHandle& ActorHandle)
+	{
+		if (ContainsActor(ActorHandle))
+		{
+			ActorToRemove = ActorHandle;
+
+			if (RefreshLoadedState())
+			{
+				Actors.Remove(ActorHandle);
+			}
+
+			ActorToRemove.Reset();
+		}
+	}
+
+	bool ContainsActor(const FWorldPartitionHandle& ActorHandle) const
+	{
+		return Actors.Contains(ActorHandle);
+	}
+
+protected:
+	//~ Begin IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
+	virtual bool ShouldActorBeLoaded(const FWorldPartitionHandle& ActorHandle) const override
+	{
+		if (ContainsActor(ActorHandle) && (ActorHandle == ActorToRemove))
+		{
+			return false;
+		}
+
+		return IWorldPartitionActorLoaderInterface::ILoaderAdapterList::ShouldActorBeLoaded(ActorHandle);
+	}
+	//~ End IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
+
+private:
+	FWorldPartitionHandle ActorToRemove;
+};
 #endif
 
 UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
 	, EditorHash(nullptr)
+	, AlwaysLoadedActors(nullptr)
+	, PinnedActors(nullptr)
 	, WorldPartitionEditor(nullptr)
 	, bEnableStreaming(true)
 	, bStreamingWasEnabled(true)
@@ -388,6 +445,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		EditorHash->Initialize();
 
 		AlwaysLoadedActors = new FLoaderAdapterAlwaysLoadedActors(OuterWorld);
+		PinnedActors = new FLoaderAdapterPinnedActors(OuterWorld);
 	}
 
 	check(RuntimeHash);
@@ -575,6 +633,12 @@ void UWorldPartition::Uninitialize()
 			AlwaysLoadedActors = nullptr;
 		}
 
+		if (PinnedActors)
+		{
+			delete PinnedActors;
+			PinnedActors = nullptr;
+		}
+
 		if (RegisteredEditorLoaderAdapters.Num())
 		{
 			for (IWorldPartitionActorLoaderInterface::ILoaderAdapter* RegisteredLoaderAdapter : RegisteredEditorLoaderAdapters)
@@ -586,9 +650,6 @@ void UWorldPartition::Uninitialize()
 		}
 
 		WorldDataLayersActor = FWorldPartitionReference();
-
-		PinnedActors.Empty();
-		PinnedActorRefs.Empty();
 
 		EditorHash = nullptr;
 #endif		
@@ -1285,60 +1346,24 @@ void UWorldPartition::SetEditorWantedCellSize(uint32 InCellSize)
 
 AActor* UWorldPartition::PinActor(const FGuid& ActorGuid)
 {
-	if (FWorldPartitionReference* PinnedActor = PinnedActors.Find(ActorGuid))
-	{
-		return (*PinnedActor).IsValid() ? (*PinnedActor)->GetActor() : nullptr;
-	}
-
-	TFunction<void(const FGuid&, TMap<FGuid, FWorldPartitionReference>&)> AddReferences = [this, &AddReferences](const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& ReferenceMap)
-	{
-		if (ReferenceMap.Contains(ActorGuid))
-		{
-			return;
-		}
-
-		if (TUniquePtr<FWorldPartitionActorDesc>* const ActorDescPtr = GetActorDescriptor(ActorGuid); ActorDescPtr != nullptr && ActorDescPtr->IsValid())
-		{
-			ReferenceMap.Emplace(ActorGuid, ActorDescPtr);
-			
-			const FWorldPartitionActorDesc* const ActorDesc = ActorDescPtr->Get(); 
-			for (const FGuid& ReferencedActor : ActorDesc->GetReferences())
-			{
-				AddReferences(ReferencedActor, ReferenceMap);
-			}
-		}
-	};
-	
-	if (TUniquePtr<FWorldPartitionActorDesc>* const ActorDescPtr = GetActorDescriptor(ActorGuid))
-	{
-		if (const FWorldPartitionActorDesc* const ActorDesc = ActorDescPtr->Get())
-		{
-			FWorldPartitionReference& PinnedActor = PinnedActors.Emplace(ActorGuid, ActorDescPtr);
-
-			// If the pinned actor has references, we must also create references to those to ensure they are added
-			TMap<FGuid, FWorldPartitionReference>& References = PinnedActorRefs.Emplace(ActorGuid);
-
-			for (const FGuid& ReferencedActor : ActorDesc->GetReferences())
-			{
-				AddReferences(ReferencedActor, References);
-			}
-
-			return PinnedActor.IsValid() ? PinnedActor->GetActor() : nullptr;
-		}
-	}
-
-	return nullptr;
+	check(PinnedActors);
+	FWorldPartitionHandle ActorHandle(this, ActorGuid);
+	PinnedActors->AddActor(ActorHandle);
+	return ActorHandle->GetActor();
 }
 
 void UWorldPartition::UnpinActor(const FGuid& ActorGuid)
 {
-	PinnedActors.Remove(ActorGuid);
-	PinnedActorRefs.Remove(ActorGuid);
+	check(PinnedActors);
+	FWorldPartitionHandle ActorHandle(this, ActorGuid);
+	PinnedActors->RemoveActor(ActorHandle);
 }
 
 bool UWorldPartition::IsActorPinned(const FGuid& ActorGuid) const
 {
-	return PinnedActors.Contains(ActorGuid);
+	check(PinnedActors);
+	FWorldPartitionHandle ActorHandle(const_cast<UWorldPartition*>(this), ActorGuid);
+	return PinnedActors->ContainsActor(ActorHandle);
 }
 
 void UWorldPartition::LoadLastLoadedRegions(const TArray<FBox>& EditorLastLoadedRegions)

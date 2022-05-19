@@ -16,6 +16,7 @@ public:
 	virtual TOptional<FString> GetLabel() const override;
 	//~ End IWorldPartitionActorLoaderInterface::ILoader interface
 
+protected:
 	//~ Begin IWorldPartitionActorLoaderInterface::ILoaderAdapterSpatial interface
 	virtual bool Intersect(const FBox& Box) const override;
 	//~ End IWorldPartitionActorLoaderInterface::ILoaderAdapterSpatial interface

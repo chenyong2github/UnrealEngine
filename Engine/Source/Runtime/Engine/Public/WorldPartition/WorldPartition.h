@@ -29,6 +29,7 @@ class UWorldPartitionRuntimeHash;
 class UWorldPartitionStreamingPolicy;
 class IStreamingGenerationErrorHandler;
 class FLoaderAdapterAlwaysLoadedActors;
+class FLoaderAdapterPinnedActors;
 class FHLODActorDesc;
 class UCanvas;
 class ULevel;
@@ -209,6 +210,7 @@ public:
 	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
 
 	FLoaderAdapterAlwaysLoadedActors* AlwaysLoadedActors;
+	FLoaderAdapterPinnedActors* PinnedActors;
 
 	IWorldPartitionEditor* WorldPartitionEditor;
 
@@ -282,9 +284,6 @@ private:
 #if WITH_EDITOR
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
-
-	TMap<FGuid, FWorldPartitionReference> PinnedActors;
-	TMap<FGuid, TMap<FGuid, FWorldPartitionReference>> PinnedActorRefs;
 
 public:
 	// Editor loader adapters management
