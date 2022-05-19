@@ -618,11 +618,7 @@ void UControlRigBlueprint::PostLoad()
 	// but GIsEditor is turned off
 	if(!GIsEditor)
 	{
-		FEndLoadPackageContext Context;
-		Context.bSynchronous = true;
-		Context.LoadedPackages = {GetPackage()};
-		Context.RecursiveDepth = 0;
-		HandlePackageDone(Context);
+		HandlePackageDone();
 	}
 #endif
 }
@@ -634,7 +630,11 @@ void UControlRigBlueprint::HandlePackageDone(const FEndLoadPackageContext& Conte
 	{
 		return;
 	}
+	HandlePackageDone();
+}
 
+void UControlRigBlueprint::HandlePackageDone()
+{
 	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
 
 	if (ShapeLibrariesToLoadOnPackageLoaded.Num() > 0)
