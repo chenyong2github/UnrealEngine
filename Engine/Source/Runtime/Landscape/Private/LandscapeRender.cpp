@@ -1664,6 +1664,8 @@ FPrimitiveViewRelevance FLandscapeComponentSceneProxy::GetViewRelevance(const FS
 		}
 	}
 
+	Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
+
 	// Various visualizations need to render using dynamic relevance
 	if ((View->Family->EngineShowFlags.Bounds && IsSelected()) ||
 		GLandscapeDebugOptions.bShowPatches)
