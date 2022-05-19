@@ -7,11 +7,11 @@
 #if IMGMEDIA_EXR_SUPPORTED_PLATFORM
 
 #include "IImgMediaReader.h"
+#include "ExrReaderGpu.h"
 
 class FImgMediaLoader;
 class FOpenExrHeaderReader;
 class FRgbaInputFile;
-
 
 /**
  * Implements a reader for EXR image sequences.
@@ -65,6 +65,11 @@ protected:
 
 		/** Used for rendering tiles in bulk regions. */
 		TMap<int32, FIntRect> Viewports;
+
+#if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
+		/** Contain information about individual tiles. Used to convert buffer data into a 2D Texture. */
+		TArray<TArray<FExrReader::FTileDesc>> TileInfoPerMipLevel;
+#endif
 
 		/** Number of mip levels read. */
 		int32 NumMipLevels;

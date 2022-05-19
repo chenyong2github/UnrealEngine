@@ -56,7 +56,7 @@ bool FExrImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFrameIn
 }
 
 FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
-	( uint16* Buffer
+(uint16* Buffer
 	, int64 BufferSize
 	, const FString& ImagePath
 	, int32 FrameId
@@ -72,71 +72,79 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 	int MipLevelDiv = 1 << CurrentMipLevel;
 
 	FIntPoint DimensionInTiles
-		( FMath::CeilToInt(float(ConverterParams->FrameInfo.NumTiles.X) / MipLevelDiv)
+	(FMath::CeilToInt(float(ConverterParams->FrameInfo.NumTiles.X) / MipLevelDiv)
 		, FMath::CeilToInt(float(ConverterParams->FrameInfo.NumTiles.Y) / MipLevelDiv));
 
 	TArray<int32> NumTilesPerLevel;
 	TArray<TArray<int64>> CustomOffsets;
 	int32 NumMipLevels = ConverterParams->bMipsInSeparateFiles ? 1 : ConverterParams->NumMipLevels;
+	bool bHasPartialTiles = false;
 
 	FExrReader::CalculateTileOffsets(
-		NumTilesPerLevel, 
-		CustomOffsets, 
-		ConverterParams->FullResolution, 
+		NumTilesPerLevel,
+		CustomOffsets,
+		ConverterParams->TileInfoPerMipLevel,
+		ConverterParams->FullResolution,
 		ConverterParams->FrameInfo.NumTiles,
 		ConverterParams->TileDimWithBorders,
-		NumMipLevels, 
+		NumMipLevels,
 		ConverterParams->PixelSize,
 		ConverterParams->bCustomExr);
 
-	if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, NumTilesPerLevel, MoveTemp(CustomOffsets), ConverterParams->bCustomExr))
 	{
-		return Fail;
-	}
-
-	for (int32 TileRow = TileRegion.Min.Y; TileRow < TileRegion.Max.Y; TileRow++)
-	{
-
-		// Check to see if the frame was canceled.
+		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FExrImgMediaReader_ReadTilesCustom_OpenFile")));
+		if (!ChunkReader.OpenExrAndPrepareForPixelReading(ImagePath, NumTilesPerLevel, MoveTemp(CustomOffsets), ConverterParams->bCustomExr))
 		{
-			FScopeLock RegionScopeLock(&CanceledFramesCriticalSection);
-			if (CanceledFrames.Remove(FrameId) > 0)
+			return Fail;
+		}
+	}
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FExrImgMediaReader_ReadTilesCustom_ReadTiles")));
+
+		for (int32 TileRow = TileRegion.Min.Y; TileRow < TileRegion.Max.Y; TileRow++)
+		{
+			// Check to see if the frame was canceled.
 			{
-				UE_LOG(LogImgMedia, Warning, TEXT("Reader %p: Canceling Frame %i At tile row # %i"), this, FrameId, TileRow);
-				bResult = Cancelled;
+				FScopeLock RegionScopeLock(&CanceledFramesCriticalSection);
+				if (CanceledFrames.Remove(FrameId) > 0)
+				{
+					UE_LOG(LogImgMedia, Warning, TEXT("Reader %p: Canceling Frame %i At tile row # %i"), this, FrameId, TileRow);
+					bResult = Cancelled;
+					break;
+				}
+			}
+
+			const uint16 Padding = ConverterParams->bCustomExr ? 0 : FExrReader::TILE_PADDING;
+			const int64 TileByteStride = ConverterParams->PixelSize * ConverterParams->TileDimWithBorders.X * ConverterParams->TileDimWithBorders.Y + Padding;
+			const int StartTileIndex = TileRow * DimensionInTiles.X + TileRegion.Min.X;
+
+			bool bLastTile = TileRow + 1 == DimensionInTiles.Y && TileRegion.Max.X == DimensionInTiles.X;
+			const int EndTileIndex = TileRow * DimensionInTiles.X + TileRegion.Max.X;
+
+			int MipLevel = ConverterParams->bMipsInSeparateFiles ? 0 : CurrentMipLevel;
+			ChunkReader.SeekTileWithinFile(StartTileIndex, MipLevel, CurrentBufferPos);
+			int64 ByteOffsetStart = 0;
+			int64 ByteOffsetEnd = 0;
+
+			if (!ChunkReader.GetByteOffsetForTile(StartTileIndex, MipLevel, ByteOffsetStart)
+				|| !ChunkReader.GetByteOffsetForTile(EndTileIndex, MipLevel, ByteOffsetEnd))
+			{
+				bResult = Fail;
+				break;
+			}
+
+			// If this is the last tile, make sure chunk reader reads till the end of the buffer we write into.
+			int64 ByteChunkToRead = bLastTile
+				? FMath::Min(ByteOffsetEnd - ByteOffsetStart, BufferSize - CurrentBufferPos)
+				: (ByteOffsetEnd - ByteOffsetStart);
+
+			if (!ChunkReader.ReadExrImageChunk(reinterpret_cast<char*>(Buffer) + CurrentBufferPos, ByteChunkToRead))
+			{
+				bResult = Fail;
 				break;
 			}
 		}
-
-		const uint16 Padding = ConverterParams->bCustomExr ? 0 : FExrReader::TILE_PADDING;
-		const int64 TileByteStride = ConverterParams->PixelSize * ConverterParams->TileDimWithBorders.X * ConverterParams->TileDimWithBorders.Y + Padding;
-		const int StartTileIndex = TileRow * DimensionInTiles.X + TileRegion.Min.X;
-
-		bool bLastTile = TileRow + 1 == DimensionInTiles.Y && TileRegion.Max.X == DimensionInTiles.X;
-		const int EndTileIndex = TileRow * DimensionInTiles.X + TileRegion.Max.X;
-
-		int MipLevel = ConverterParams->bMipsInSeparateFiles ? 0 : CurrentMipLevel;
-		ChunkReader.SeekTileWithinFile(StartTileIndex, MipLevel, CurrentBufferPos);
-		int64 ByteOffsetStart = 0;
-		int64 ByteOffsetEnd = 0;
-
-		if (!ChunkReader.GetByteOffsetForTile(StartTileIndex, MipLevel, ByteOffsetStart)
-			|| !ChunkReader.GetByteOffsetForTile(EndTileIndex, MipLevel, ByteOffsetEnd))
-		{
-			bResult = Fail;
-			break;
-		}
-
-		int64 ByteChunkToRead = bLastTile
-			? FMath::Min(ByteOffsetEnd - ByteOffsetStart, BufferSize - CurrentBufferPos)
-			: (ByteOffsetEnd - ByteOffsetStart);
-		if (!ChunkReader.ReadExrImageChunk(reinterpret_cast<char*>(Buffer) + CurrentBufferPos, ByteChunkToRead))
-		{
-			bResult = Fail;
-			break;
-		}
 	}
-
 	if (!ChunkReader.CloseExrFile())
 	{
 		return Fail;

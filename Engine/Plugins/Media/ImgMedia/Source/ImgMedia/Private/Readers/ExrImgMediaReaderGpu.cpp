@@ -30,6 +30,7 @@
 
 
 DECLARE_GPU_STAT_NAMED(ExrImgMediaReaderGpu, TEXT("ExrImgMediaReaderGpu"));
+DECLARE_GPU_STAT_NAMED(ExrImgMediaReaderGpu_MipRender, TEXT("ExrImgMediaReaderGpu_MipRender"));
 
 namespace {
 
@@ -164,7 +165,11 @@ bool FExrImgMediaReaderGpu::ReadFrame(int32 FrameId, const TMap<int32, FImgMedia
 
 		for (const TPair<int32, FImgMediaTileSelection>& TilesPerMip : InMipTiles)
 		{
+
 			const int32 CurrentMipLevel = TilesPerMip.Key;
+
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FExrImgMediaReaderGpu_ReadMip %d"), CurrentMipLevel));
+
 			const FImgMediaTileSelection& CurrentTileSelection = TilesPerMip.Value;
 
 			bool ReadThisMip = true;
@@ -368,8 +373,10 @@ TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> FExrImgMediaReader
 		FIntPoint Dim = ConverterParams->FullResolution;
 		for (int32 MipLevel = 0; MipLevel < ConverterParams->NumMipLevels; ++MipLevel)
 		{
+			SCOPED_GPU_STAT(RHICmdList, ExrImgMediaReaderGpu_MipRender);
 			int MipLevelDiv = 1 << MipLevel;
 			Dim = ConverterParams->FullResolution / MipLevelDiv;
+
 
 			FStructuredBufferPoolItemSharedPtr BufferData = BufferDataArray[MipLevel];
 			if (BufferData.IsValid())
@@ -391,13 +398,33 @@ TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> FExrImgMediaReader
 				PermutationVector.Set<FExrSwizzlePS::FRgbaSwizzle>(ConverterParams->FrameInfo.NumChannels - 1);
 				PermutationVector.Set<FExrSwizzlePS::FRenderTiles>(ConverterParams->FrameInfo.bHasTiles || ConverterParams->bCustomExr);
 				PermutationVector.Set<FExrSwizzlePS::FCustomExr>(ConverterParams->bCustomExr);
+				PermutationVector.Set<FExrSwizzlePS::FPartialTiles>(false);
+
 				FExrSwizzlePS::FParameters Parameters = FExrSwizzlePS::FParameters();
 				Parameters.TextureSize = Dim;
 				Parameters.TileSize = ConverterParams->TileDimWithBorders;
 				Parameters.NumChannels = ConverterParams->FrameInfo.NumChannels;
 				if (ConverterParams->FrameInfo.bHasTiles)
 				{
-					Parameters.NumTiles = Dim / ConverterParams->TileDimWithBorders;
+					Parameters.NumTiles = FIntPoint(FMath::CeilToInt(float(Dim.X) / ConverterParams->TileDimWithBorders.X), FMath::CeilToInt(float(Dim.Y) / ConverterParams->TileDimWithBorders.Y));
+				}
+
+				if (ConverterParams->FrameInfo.bHasTiles && 
+					(ConverterParams->TileInfoPerMipLevel.Num() > MipLevel && ConverterParams->TileInfoPerMipLevel[MipLevel].Num() > 0))
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FExrImgMediaReaderGpu_TileDesc")));
+
+					FBufferRHIRef BufferRef;
+					FRHIResourceCreateInfo CreateInfo(TEXT("FExrImgMediaReaderGpu_TileDesc"));
+					const uint32 BytesPerElement = sizeof(FExrReader::FTileDesc);
+					const uint32 NumElements = ConverterParams->TileInfoPerMipLevel[MipLevel].Num();
+
+					BufferRef = RHICreateStructuredBuffer(BytesPerElement, BytesPerElement*NumElements, BUF_ShaderResource | BUF_Dynamic | BUF_FastVRAM, CreateInfo);
+					void* MappedBuffer = RHILockBuffer(BufferRef, 0, NumElements, RLM_WriteOnly);
+					FMemory::Memcpy(MappedBuffer, &ConverterParams->TileInfoPerMipLevel[MipLevel][0], sizeof(FExrReader::FTileDesc) * ConverterParams->TileInfoPerMipLevel[MipLevel].Num());
+					RHIUnlockBuffer(BufferRef);
+					Parameters.TileDescBuffer = RHICreateShaderResourceView(BufferRef);
+					PermutationVector.Set<FExrSwizzlePS::FPartialTiles>(true);
 				}
 
 				Parameters.UnswizzledBuffer = RHICreateShaderResourceView(BufferData->BufferRef);
@@ -435,6 +462,8 @@ TSharedPtr<IMediaTextureSampleConverter, ESPMode::ThreadSafe> FExrImgMediaReader
 
 FStructuredBufferPoolItemSharedPtr FExrImgMediaReaderGpu::AllocateGpuBufferFromPool(uint32 AllocSize, bool bWait)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FExrImgMediaReaderGpu_AllocBuffer %d"), AllocSize));
+
 	// This function is attached to the shared pointer and is used to return any allocated memory to staging pool.
 	auto BufferDeleter = [AllocSize](FStructuredBufferPoolItem* ObjectToDelete) {
 		ReturnGpuBufferToStagingPool(AllocSize, ObjectToDelete);

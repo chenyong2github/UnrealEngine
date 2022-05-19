@@ -17,6 +17,15 @@ class EXRREADERGPU_API FExrReader
 {
 public:
 
+	struct FTileDesc
+	{
+		FIntPoint TileResolution;
+		uint32 BufferOffset;
+
+		// Optimization: align to 128 bit. 
+		int32 AlignPadding;
+	};
+
 	/** 
 	*	This is based on Open Exr implementation.
 	*	We need to handle all of these in the future. At the moment only INCREASING_Y is 
@@ -69,8 +78,10 @@ public:
 	 * To be able to read tiles, especially in cases where tiles vary in sizes, we need to calculate offsets manually
 	 * for custom exr files, since we don't write out offsets.
 	*/
-	static void CalculateTileOffsets(TArray<int32>& OutNumTilesPerLevel
+	static void CalculateTileOffsets
+		( TArray<int32>& OutNumTilesPerLevel
 		, TArray<TArray<int64>>& OutCustomOffsets
+		, TArray<TArray<FTileDesc>>& OutPartialTileInfo
 		, const FIntPoint& FullTextureResolution
 		, const FIntPoint& FullResolutionInTiles
 		, const FIntPoint& TileDimWithBorders

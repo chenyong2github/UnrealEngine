@@ -2,8 +2,22 @@
 
 #include "/Engine/Private/Common.ush"
 
+#if PARTIAL_TILES
+struct FTileDesc
+{
+	int2 TileResolution;
+	uint BufferOffset;
+	int AlignPadding;
+};
+#endif
+
 /** The unswizzled buffer packed into 4 byte buffer stride. */
 StructuredBuffer<uint> UnswizzledBuffer;
+
+#if PARTIAL_TILES
+/** The unswizzled buffer packed into 4 byte buffer stride. */
+StructuredBuffer<FTileDesc> TileDescBuffer;
+#endif
 
 /** Texture size that the buffer is supposed to be unpacked to. */
 int2 TextureSize;
@@ -64,6 +78,32 @@ void MainVS(
 	DrawRectangle(InPosition, InTexCoord, OutPosition, OutUVAndScreenPos);
 }
 
+#if PARTIAL_TILES
+void GetStartScanlinePosition_PartialTiles(in int2 PixelPos, out int2 SampleSize, out int StartPosition)
+{
+	int2 TileCoord = int2(ceil(PixelPos.x / TileSize.x), ceil(PixelPos.y / TileSize.y));
+	FTileDesc TileDesc = TileDescBuffer[TileCoord.y * NumTiles.x + TileCoord.x];
+
+	SampleSize = TileDesc.TileResolution;
+
+	int xCoord = (PixelPos.x) % TileSize.x;
+	int yCoord = (PixelPos.y) % TileSize.y;
+
+	// Padding in buffer elements (uint)
+	const int TilePadding = 10;
+
+	// Offset is in bytes while our buffer is a packed uint16 into uint32. Therefore divide by 2. 
+	int PreviousTilesOffset = TileDesc.BufferOffset / 2;
+
+	// Current tile position.
+#if CUSTOM_EXR
+	StartPosition = PreviousTilesOffset + yCoord * TileDesc.TileResolution.x * NumChannels + xCoord * NumChannels;
+#else
+	StartPosition = PreviousTilesOffset + yCoord * TileDesc.TileResolution.x * NumChannels + xCoord + TilePadding;
+#endif //CUSTOM_EXR
+}
+#endif
+
 void GetStartScanlinePosition(in int2 PixelPos, out int2 SampleSize, out int StartPosition)
 {
 	// Depending on the EXR file it could contain multi-channel data.
@@ -105,14 +145,20 @@ void GetStartScanlinePosition(in int2 PixelPos, out int2 SampleSize, out int Sta
 /** Pixel Shader. */
 half4 MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0) : SV_Target0
 {
-	float2 UV = UVAndScreenPos.xy;
 
+	float2 UV = UVAndScreenPos.xy;
+	
 	int2 SampleSize;
 
 	int2 PixelPos = UV * TextureSize;
+
 	int StartBufferPosition;
 
+#if PARTIAL_TILES
+	GetStartScanlinePosition_PartialTiles(PixelPos, SampleSize, StartBufferPosition);
+#else
 	GetStartScanlinePosition(PixelPos, SampleSize, StartBufferPosition);
+#endif
 
 	int ChannelIndex = 0;
 
