@@ -27,7 +27,7 @@ private:
 	void OnDMXImportChanged();
 
 	/** Handle to the DMXImport property */
-	TSharedPtr<IPropertyHandle> DMXImportHandle;
+	TSharedPtr<IPropertyHandle> GDTFHandle;
 
 	/** Property utilities for this customization */
 	TSharedPtr<IPropertyUtilities> PropertyUtilities;

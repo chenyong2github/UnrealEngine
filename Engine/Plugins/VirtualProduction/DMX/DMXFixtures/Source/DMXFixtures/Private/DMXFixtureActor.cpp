@@ -69,7 +69,14 @@ void ADMXFixtureActor::OnMVRGetSupportedDMXAttributes_Implementation(TArray<FNam
 
 void ADMXFixtureActor::OnMVRSetFixturePatch_Implementation(UDMXEntityFixturePatch* FixturePatch)
 {
+	check(DMX);
 	DMX->SetFixturePatch(FixturePatch);
+}
+
+UDMXEntityFixturePatch* ADMXFixtureActor::OnMVRGetFixturePatch_Implementation() const
+{
+	check(DMX);
+	return DMX->GetFixturePatch();
 }
 
 #if WITH_EDITOR

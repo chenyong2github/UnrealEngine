@@ -42,9 +42,6 @@ public:
 	/** Constructs this widget */
 	void Construct(const FArguments& InArgs);
 
-	/** Updates the patcher, should be called on property changes */
-	void NotifyPropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent);
-
 	/** Refreshes the whole view from properties, does not consider changes in the library */
 	void RefreshFromProperties();
 
@@ -91,6 +88,9 @@ protected:
 
 	/** Called when a fixture patch changed */
 	void OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch);
+
+	/** Called when a fixture type changed */
+	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
 
 	/** Called when a fixture patch was selected */
 	void OnFixturePatchSelectionChanged();

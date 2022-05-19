@@ -368,7 +368,7 @@ void SDMXFixtureTypeFunctionsEditor::OnFixtureTypeChanged(const UDMXEntityFixtur
 
 TSharedRef<SHeaderRow> SDMXFixtureTypeFunctionsEditor::GenerateHeaderRow()
 {
-	const float StatusColumnWidth = FMath::Max(FAppStyle::GetBrush("Icons.Warning")->GetImageSize().X + 6.f, FAppStyle::GetBrush("Icons.Error")->GetImageSize().X + 6.f);
+	const float StatusColumnWidth = FMath::Max(FAppStyle::Get().GetBrush("Icons.Warning")->GetImageSize().X + 6.f, FAppStyle::Get().GetBrush("Icons.Error")->GetImageSize().X + 6.f);
 
 	HeaderRow = SNew(SHeaderRow);
 	SHeaderRow::FColumn::FArguments ColumnArgs;
@@ -405,15 +405,15 @@ TSharedRef<SHeaderRow> SDMXFixtureTypeFunctionsEditor::GenerateHeaderRow()
 	if (const UDMXEditorSettings* EditorSettings = GetDefault<UDMXEditorSettings>())
 	{
 		const float NameColumnWidth = EditorSettings->FixtureTypeFunctionsEditorSettings.NameColumnWidth;
-		if (NameColumnWidth > 0.f)
+		if (NameColumnWidth > 10.f)
 		{
 			HeaderRow->SetColumnWidth("Name", NameColumnWidth);
 		}
 
 		const float AttributeColumnWidth = EditorSettings->FixtureTypeFunctionsEditorSettings.AttributeColumnWidth;
-		if (AttributeColumnWidth > 0.f)
+		if (AttributeColumnWidth > 10.f)
 		{
-			HeaderRow->SetColumnWidth("Attribute", AttributeColumnWidth);
+			HeaderRow->SetColumnWidth(FDMXFixtureTypeFunctionsEditorCollumnIDs::Attribute, AttributeColumnWidth);
 		}
 	}
 
@@ -427,12 +427,12 @@ void SDMXFixtureTypeFunctionsEditor::SaveHeaderRowSettings()
 	{
 		for (const SHeaderRow::FColumn& Column : HeaderRow->GetColumns())
 		{
-			if (Column.ColumnId == "Name")
+			if (Column.ColumnId == FDMXFixtureTypeFunctionsEditorCollumnIDs::Name)
 			{
 				EditorSettings->FixtureTypeFunctionsEditorSettings.NameColumnWidth = Column.Width.Get();
 
 			}
-			else if (Column.ColumnId == "Attribute")
+			else if (Column.ColumnId == FDMXFixtureTypeFunctionsEditorCollumnIDs::Attribute)
 			{
 				EditorSettings->FixtureTypeFunctionsEditorSettings.AttributeColumnWidth = Column.Width.Get();
 			}

@@ -10,6 +10,7 @@ class FDMXEditor;
 class FDMXFixturePatchSharedData;
 class SDMXFixturePatcher;
 class SDMXFixturePatchTree;
+class SDMXMVRFixtureList;
 class UDMXEntityFixturePatch;
 
 struct FPropertyChangedEvent;
@@ -45,17 +46,14 @@ private:
 	/** Selects the patch */
 	void SelectUniverse(int32 UniverseID);
 
-	/** Callback for when some property has changed in the inspector */
-	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
-
 	/** Called whewn Fixture Patches were selected in Fixture Patch Shared Data */
 	void OnFixturePatchesSelected();
 
 	/** Generates a Detail View for the edited Fixture Patch */
 	TSharedRef<IDetailsView> GenerateFixturePatchDetailsView() const;
 
-	/** Tree View of available Fixture Patches */
-	TSharedPtr<SDMXFixturePatchTree> FixturePatchTree;
+	/** List of Fixture Patches as MVR Fixtures */
+	TSharedPtr<SDMXMVRFixtureList> MVRFixtureList;
 
 	/** Details View for the selected Fixture Patches */
 	TSharedPtr<IDetailsView> FixturePatchDetailsView;

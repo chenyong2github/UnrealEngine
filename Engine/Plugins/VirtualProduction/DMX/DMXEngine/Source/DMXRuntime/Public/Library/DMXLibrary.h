@@ -7,7 +7,6 @@
 #include "IO/DMXInputPortReference.h"
 #include "IO/DMXOutputPortReference.h"
 #include "Library/DMXEntity.h"
-#include "MVR/DMXMVRGeneralSceneDescription.h"
 
 #include "Templates/SubclassOf.h"
 #include "Misc/Guid.h"
@@ -15,6 +14,9 @@
 #include "DMXLibrary.generated.h"
 
 class UDMXEntity;
+class UDMXEntityFixturePatch;
+class UDMXEntityFixtureType;
+class UDMXMVRGeneralSceneDescription;
 
 
 /** Custom struct of in put and output port references for custom details customization with an enabled state */
@@ -48,8 +50,13 @@ class DMXRUNTIME_API UDMXLibrary
 	/** Friend DMXEntity so they can register and unregister themselves with the Library */
 	friend class UDMXEntity;
 
+public:
+	/** Constructor */
+	UDMXLibrary();
+
 protected:
 	// ~Begin UObject Interface
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
@@ -201,18 +208,30 @@ public:
 	/** Updates the ports from what's set in the Input and Output Port References arrays */
 	void UpdatePorts();
 
-	/** Creates an MVR General Scene Description from the Library's MVR data */
-	FDMXMVRGeneralSceneDescription MakeGeneralSceneDescription() const;
+	/** 
+	 * Sets the MVR General Scene Description of the Library. 
+	 * Note, this will not add any patches occur in the new General Scene Description. 
+	 * Note, this will remove any patches that do not occur in the new General Scene Description. 
+	 */
+	void SetMVRGeneralSceneDescription(UDMXMVRGeneralSceneDescription* NewGeneralSceneDescription);
+
+	/** Updates the General Scene Description to reflect the Library */
+	UDMXMVRGeneralSceneDescription* UpdateGeneralSceneDescription();
+
+	/** 
+	 * Returns the General Scene Description of the Library. 
+	 * May not always represent the state of the library. 
+	 * Use WriteGeneralSceneDescription to update it to get an exact version.
+	 */
+	FORCEINLINE UDMXMVRGeneralSceneDescription* GetLazyGeneralSceneDescription() const { return GeneralSceneDescription; }
 
 	/** Returns the Entity that was last added to the Library */
 	FORCEINLINE TWeakObjectPtr<UDMXEntity> GetLastAddedEntity() const { return LastAddedEntity; }
 
 #if WITH_EDITOR
-	/** Returns the name of the Ports property. */
 	static FName GetPortReferencesPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, PortReferences); }
-
-	/** Returns the name of the Entities property. */
 	static FName GetEntitiesPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, Entities); }
+	static FName GetGeneralSceneDescriptionPropertyName() { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, GeneralSceneDescription); }
 #endif // WITH_EDITOR
 
 protected:
@@ -229,9 +248,13 @@ protected:
 	FDMXLibraryPortReferences PortReferences;
 
 private:
-	/** All Fixture Types and Fixture Patches in the library */
+	/** All Fixture Types and Fixture Patches in the Library */
 	UPROPERTY()
 	TArray<UDMXEntity*> Entities;
+
+	/** The General Scene Description of this Library */
+	UPROPERTY()
+	UDMXMVRGeneralSceneDescription* GeneralSceneDescription;
 
 	/** The entity that was added last to the Library */
 	TWeakObjectPtr<UDMXEntity> LastAddedEntity;

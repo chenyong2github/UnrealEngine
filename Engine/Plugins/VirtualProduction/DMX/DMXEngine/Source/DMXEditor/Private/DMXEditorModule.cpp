@@ -14,6 +14,7 @@
 #include "Customizations/DMXEntityReferenceCustomization.h"
 #include "Customizations/DMXFixtureSignalFormatCustomization.h"
 #include "Customizations/DMXLibraryPortReferencesCustomization.h"
+#include "Customizations/DMXMVRSceneActorDetails.h"
 #include "Customizations/DMXNameListCustomization.h"
 #include "Customizations/DMXPixelMappingDistributionCustomization.h"
 #include "Customizations/TakeRecorderDMXLibrarySourceEditorCustomization.h"
@@ -22,6 +23,7 @@
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXLibrary.h"
+#include "MVR/DMXMVRSceneActor.h"
 #include "Sequencer/DMXLibraryTrackEditor.h"
 #include "Sequencer/TakeRecorderDMXLibrarySource.h"
 #include "Widgets/Monitors/SDMXActivityMonitor.h"
@@ -250,9 +252,14 @@ void FDMXEditorModule::RegisterClassCustomizations()
 {
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-	// Property type customization for the UDMXEntityFixtureType class
+	// Details customization for the UDMXEntityFixtureType class
 	PropertyModule.RegisterCustomClassLayout(UDMXEntityFixtureType::StaticClass()->GetFName(),
 		FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeDetails::MakeInstance)
+	);
+
+	// Details customization for the ADMXMVRSceneActor class
+	PropertyModule.RegisterCustomClassLayout(ADMXMVRSceneActor::StaticClass()->GetFName(),
+		FOnGetDetailCustomizationInstance::CreateStatic(&FDMXMVRSceneActorDetails::MakeInstance)
 	);
 }
 

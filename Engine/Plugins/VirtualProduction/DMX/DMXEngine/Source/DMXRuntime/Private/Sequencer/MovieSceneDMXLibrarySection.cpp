@@ -5,7 +5,7 @@
 #include "DMXConversions.h"
 #include "DMXProtocolCommon.h"
 #include "DMXRuntimeLog.h"
-#include "DMXRuntimeObjectVersion.h"
+#include "DMXRuntimeMainStreamObjectVersion.h"
 #include "DMXSubsystem.h"
 #include "Interfaces/IDMXProtocol.h"
 #include "IO/DMXInputPort.h"
@@ -319,16 +319,16 @@ void UMovieSceneDMXLibrarySection::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	Ar.UsingCustomVersion(FDMXRuntimeObjectVersion::GUID);
+	Ar.UsingCustomVersion(FDMXRuntimeMainStreamObjectVersion::GUID);
 	if (Ar.IsLoading())
 	{
-		if (Ar.CustomVer(FDMXRuntimeObjectVersion::GUID) < FDMXRuntimeObjectVersion::DefaultToNormalizedValuesInDMXLibrarySection)
+		if (Ar.CustomVer(FDMXRuntimeMainStreamObjectVersion::GUID) < FDMXRuntimeMainStreamObjectVersion::DefaultToNormalizedValuesInDMXLibrarySection)
 		{
 			// For assets created before normalized values were supported, use absolute values
 			bUseNormalizedValues = false;
 		}
 
-		if (Ar.CustomVer(FDMXRuntimeObjectVersion::GUID) < FDMXRuntimeObjectVersion::ReplaceWeakWithStrongFixturePatchReferncesInLibrarySection)
+		if (Ar.CustomVer(FDMXRuntimeMainStreamObjectVersion::GUID) < FDMXRuntimeMainStreamObjectVersion::ReplaceWeakWithStrongFixturePatchReferncesInLibrarySection)
 		{
 			// Add a library reference if possible. In cases where this is serialized before the section's library is loaded, this is not possible programmatically.
 			// This is expected to be a rare case (as it wouldn't prevent the sequence from playing before 4.27). For these cases, provide detailed steps to the user how to upgrade in logs.

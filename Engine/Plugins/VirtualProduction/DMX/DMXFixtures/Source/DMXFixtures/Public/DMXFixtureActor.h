@@ -50,6 +50,7 @@ public:
 	//~ Begin DMXMVRFixtureActorInterface interface
 	virtual void OnMVRGetSupportedDMXAttributes_Implementation(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const override;
 	virtual void OnMVRSetFixturePatch_Implementation(UDMXEntityFixturePatch* FixturePatch) override;
+	virtual UDMXEntityFixturePatch* OnMVRGetFixturePatch_Implementation() const override;
 	//~ End DMXMVRFixtureActorInterface interface
 
 	bool HasBeenInitialized;

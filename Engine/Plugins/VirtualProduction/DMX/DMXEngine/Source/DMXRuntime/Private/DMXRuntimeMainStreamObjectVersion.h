@@ -4,8 +4,8 @@
 #include "CoreTypes.h"
 #include "Misc/Guid.h"
 
-// Custom serialization version for changes to DMX Runtime Objects
-struct FDMXRuntimeObjectVersion
+// Custom serialization version for changes to DMX Runtime Objects in the //Main Stream
+struct FDMXRuntimeMainStreamObjectVersion
 {
 	enum Type
 	{
@@ -21,7 +21,18 @@ struct FDMXRuntimeObjectVersion
 		// Update DMX Entity Fixture Type to allow the Matrix to be enabled/disabled per Mode
 		DMXFixtureTypeAllowMatrixInEachFixtureMode,
 
-		// -----<new versions can be added above this line>-------------------------------------------------
+		// DMX Controllers are removed from the pugin
+		DMXControllersAreRemoved,
+		
+		// Update DMX Library to contain an MVR General Scene Description
+		DMXLibraryContainsMVRGeneralSceneDescription,
+
+		// Update Fixture Patch to use an MVR UUID
+		DMXFixturePatchHasMVRUUID,
+
+		// Update DMX Entity Fixture Type to use the correct GDTF type instead of its base class
+		DMXFixtureTypeUsesCorrectGDTFType,
+
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
 	};
@@ -30,5 +41,5 @@ struct FDMXRuntimeObjectVersion
 	const static FGuid GUID;
 
 private:
-	FDMXRuntimeObjectVersion() {}
+	FDMXRuntimeMainStreamObjectVersion() {}
 };

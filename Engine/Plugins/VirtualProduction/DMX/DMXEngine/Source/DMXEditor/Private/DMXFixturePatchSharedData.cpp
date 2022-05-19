@@ -55,8 +55,16 @@ void FDMXFixturePatchSharedData::SelectFixturePatches(const TArray<TWeakObjectPt
 		return;
 	}
 
+	// Make a copy without duplicates
+	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> UniquePatchesOnlyArray;
+	UniquePatchesOnlyArray.Reserve(Patches.Num());
+	for (TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : Patches)
+	{
+		UniquePatchesOnlyArray.AddUnique(FixturePatch);
+	}
+
 	SelectedFixturePatches.Reset();
-	SelectedFixturePatches = Patches;
+	SelectedFixturePatches = UniquePatchesOnlyArray;
 	OnFixturePatchSelectionChanged.Broadcast();
 }
 

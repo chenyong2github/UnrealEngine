@@ -2,6 +2,7 @@
 #include "Library/DMXLibrary.h"
 
 #include "DMXRuntimeLog.h"
+#include "DMXRuntimeMainStreamObjectVersion.h"
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolUtils.h"
 #include "Interfaces/IDMXProtocol.h"
@@ -11,13 +12,49 @@
 #include "Library/DMXEntity.h"
 #include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXImportGDTF.h"
+#include "MVR/DMXMVRGeneralSceneDescription.h"
 
+#include "Misc/Paths.h"
 
 #define LOCTEXT_NAMESPACE "DMXLibrary"
+
 
 FDMXOnEntityArrayChangedDelegate UDMXLibrary::OnEntitiesAddedDelegate;
 
 FDMXOnEntityArrayChangedDelegate UDMXLibrary::OnEntitiesRemovedDelegate;
+
+UDMXLibrary::UDMXLibrary()
+{
+	const FName GeneralSceneDescriptionName = FName(GetName() + TEXT("_MVRGeneralSceneDescription"));
+	GeneralSceneDescription = NewObject<UDMXMVRGeneralSceneDescription>(this, GeneralSceneDescriptionName);
+}
+
+void UDMXLibrary::Serialize(FArchive& Ar)
+{
+	if (Ar.IsSaving())
+	{
+		// Update the General Scene Description before saving it
+		UpdateGeneralSceneDescription();
+	}
+
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FDMXRuntimeMainStreamObjectVersion::GUID);
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FDMXRuntimeMainStreamObjectVersion::GUID) < FDMXRuntimeMainStreamObjectVersion::DMXLibraryContainsMVRGeneralSceneDescription)
+		{
+			if (!GeneralSceneDescription)
+			{
+				const FName GeneralSceneDescriptionName = FName(GetName() + TEXT("_MVRGeneralSceneDescription"));
+				GeneralSceneDescription = UDMXMVRGeneralSceneDescription::CreateFromDMXLibrary(*this, this, GeneralSceneDescriptionName);
+			}
+
+			GeneralSceneDescription->WriteDMXLibraryToGeneralSceneDescription(*this);
+		}
+	}
+}
 
 void UDMXLibrary::PostInitProperties()
 {
@@ -119,15 +156,20 @@ void UDMXLibrary::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 
 void UDMXLibrary::RegisterEntity(UDMXEntity* Entity)
 {
-	if (ensureMsgf(IsValid(Entity), TEXT("Trying to register Entity with DMX Library, but DMX Entity is not valid.")))
+	if (!ensureAlwaysMsgf(IsValid(Entity), TEXT("Trying to register Entity with DMX Library, but DMX Entity is not valid.")))
 	{
-		if (!Entities.Contains(Entity))
-		{
-			Entities.Add(Entity);
-			LastAddedEntity = Entity;
-			OnEntitiesAddedDelegate.Broadcast(this, TArray<UDMXEntity*>({ Entity }));
-		}	
+		return;
 	}
+
+	if (!ensureAlwaysMsgf(!Entities.Contains(Entity), TEXT("Trying to register Entity %s with DMX Library, but Entity was already added."), *Entity->Name))
+	{
+		return;
+	}
+
+	Entities.Add(Entity);
+	LastAddedEntity = Entity;
+
+	OnEntitiesAddedDelegate.Broadcast(this, TArray<UDMXEntity*>({ Entity }));
 }
 
 void UDMXLibrary::UnregisterEntity(UDMXEntity* Entity)
@@ -530,17 +572,30 @@ void UDMXLibrary::UpdatePorts()
 	}
 }
 
-FDMXMVRGeneralSceneDescription UDMXLibrary::MakeGeneralSceneDescription() const
+void UDMXLibrary::SetMVRGeneralSceneDescription(UDMXMVRGeneralSceneDescription* NewGeneralSceneDescription)
 {
-	FDMXMVRGeneralSceneDescription GeneralSceneDescription;
-	const TArray<UDMXEntityFixturePatch*> FixturePatches = GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
+	// Remove all Fixture Patches that don't exist in the General Scene Description
+	Entities.RemoveAll([NewGeneralSceneDescription](UDMXEntity* Entity)
+		{
+			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
+			{
+				return NewGeneralSceneDescription->FindMVRFixture(FixturePatch->GetMVRFixtureUUID()) == nullptr;
+			}
+			return false;
+		});
+
+	GeneralSceneDescription = NewGeneralSceneDescription;
+}
+
+UDMXMVRGeneralSceneDescription* UDMXLibrary::UpdateGeneralSceneDescription()
+{
+	if (ensureAlwaysMsgf(GeneralSceneDescription, TEXT("Trying to update General Scene Description of %s, but the General Scene Description is not valid."), *GetName()))
 	{
-		const TArray<FDMXMVRFixture> MVRFixtures = FixturePatch->MakeMVRFixtures();
-		GeneralSceneDescription.MVRFixtures.Append(MVRFixtures);
+		GeneralSceneDescription->WriteDMXLibraryToGeneralSceneDescription(*this);
+		return GeneralSceneDescription;
 	}
 
-	return GeneralSceneDescription;
+	return nullptr;
 }
 
 #if WITH_EDITOR

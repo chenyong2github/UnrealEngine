@@ -29,7 +29,11 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "DMX", Meta = (DisplayName = "On MVR Get Supported DMX Attributes"))
 	void OnMVRGetSupportedDMXAttributes(TArray<FName>& OutAttributeNames, TArray<FName>& OutMatrixAttributeNames) const;
 
-	/** Should set the Fixture Patch the MVR Fixture uses */
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, CallInEditor, Category = "DMX", Meta = (DisplayName = "On MVR Set Fixture Patch"))
-	void OnMVRSetFixturePatch(UDMXEntityFixturePatch* FixturePatch);
+	/** Should return the Fixture Patch the MVR Fixture uses */
+	UFUNCTION(BlueprintNativeEvent, CallInEditor, Category = "DMX", Meta = (DisplayName = "On MVR Set Fixture Patch"))
+	UDMXEntityFixturePatch* OnMVRGetFixturePatch() const;
+
+	/** Should SET the Fixture Patch the MVR Fixture uses */
+	UFUNCTION(BlueprintNativeEvent, CallInEditor, Category = "DMX", Meta = (DisplayName = "On MVR Get Fixture Patch"))
+	void OnMVRSetFixturePatch(UDMXEntityFixturePatch* FixturePatchInUse);
 };

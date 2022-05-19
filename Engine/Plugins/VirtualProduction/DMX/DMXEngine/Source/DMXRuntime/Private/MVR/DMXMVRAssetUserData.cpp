@@ -3,14 +3,15 @@
 #include "MVR/DMXMVRAssetUserData.h"
 
 #include "GameFramework/Actor.h"
+#include "Interfaces/Interface_AssetUserData.h"
+
+const FName UDMXMVRAssetUserData::MVRFixtureUUIDMetaDataKey = TEXT("MVRFixtureUUID");
+const FName UDMXMVRAssetUserData::FixturePatchMetaDataKey = TEXT("FixturePatch");
 
 
-const FName UDMXMVRAssetUserData::MVRUUIDMetaDataKey = TEXT("MVRUUID");
-
-
-UDMXMVRAssetUserData* UDMXMVRAssetUserData::GetMVRAssetUserData(AActor* Actor)
+UDMXMVRAssetUserData* UDMXMVRAssetUserData::GetMVRAssetUserData(const AActor& Actor)
 {
-	if (USceneComponent* RootComponent = Actor->GetRootComponent())
+	if (UActorComponent* RootComponent = Actor.GetRootComponent())
 	{
 		return RootComponent->GetAssetUserData<UDMXMVRAssetUserData>();
 	}
@@ -18,7 +19,7 @@ UDMXMVRAssetUserData* UDMXMVRAssetUserData::GetMVRAssetUserData(AActor* Actor)
 	return nullptr;
 }
 
-FString UDMXMVRAssetUserData::GetMVRAssetUserDataValueForkey(AActor* Actor, const FName Key)
+FString UDMXMVRAssetUserData::GetMVRAssetUserDataValueForKey(const AActor& Actor, const FName Key)
 {
 	if (UDMXMVRAssetUserData* MVRAssetUserData = GetMVRAssetUserData(Actor))
 	{
@@ -29,27 +30,23 @@ FString UDMXMVRAssetUserData::GetMVRAssetUserDataValueForkey(AActor* Actor, cons
 	return FString();
 }
 
-bool UDMXMVRAssetUserData::SetMVRAssetUserDataValueForKey(AActor* Actor, FName Key, const FString& Value)
+bool UDMXMVRAssetUserData::SetMVRAssetUserDataValueForKey(AActor& InOutActor, FName InKey, const FString& InValue)
 {
 	// For AActor, the interface is actually implemented by the ActorComponent
-	if (USceneComponent* RootComponent = Actor->GetRootComponent())
+	if (UActorComponent* RootComponent = InOutActor.GetRootComponent())
 	{
-		if (IInterface_AssetUserData* AssetUserData = Cast<IInterface_AssetUserData>(RootComponent))
+		UDMXMVRAssetUserData* MVRUserData = RootComponent->GetAssetUserData<UDMXMVRAssetUserData>();
+		if (!MVRUserData)
 		{
-			UDMXMVRAssetUserData* MVRUserData = AssetUserData->GetAssetUserData<UDMXMVRAssetUserData>();
-
-			if (!MVRUserData)
-			{
-				MVRUserData = NewObject<UDMXMVRAssetUserData>(RootComponent, NAME_None, RF_Public | RF_Transactional);
-				AssetUserData->AddAssetUserData(MVRUserData);
-			}
-
-			// Add Datasmith meta data
-			MVRUserData->MetaData.Add(Key, Value);
-			MVRUserData->MetaData.KeySort(FNameLexicalLess());
-
-			return true;
+			MVRUserData = NewObject<UDMXMVRAssetUserData>(&InOutActor, NAME_None, RF_Public | RF_Transactional);
+			RootComponent->AddAssetUserData(MVRUserData);
 		}
+
+		// Add Datasmith meta data
+		MVRUserData->MetaData.Add(InKey, InValue);
+		MVRUserData->MetaData.KeySort(FNameLexicalLess());
+
+		return true;
 	}
 
 	return false;

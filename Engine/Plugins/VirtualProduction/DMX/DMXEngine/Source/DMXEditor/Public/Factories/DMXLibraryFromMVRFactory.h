@@ -6,11 +6,10 @@
 
 #include "DMXLibraryFromMVRFactory.generated.h"
 
-struct FDMXMVRGeneralSceneDescription;
 class FDMXMVRUnzip;
 class UDMXImportGDTF;
 class UDMXLibrary;
-
+class UDMXMVRGeneralSceneDescription;
 
 
 UCLASS()
@@ -38,9 +37,11 @@ private:
 	UDMXLibrary* CreateDMXLibraryAsset(UObject* Parent, EObjectFlags Flags, const FString& InFilename);
 
 	/** Creates GDTF assets from the MVR */
-	TArray<UDMXImportGDTF*> CreateGDTFAssets(UObject* Parent, EObjectFlags Flags, const TSharedRef<FDMXMVRUnzip>& MVRUnzip, const FDMXMVRGeneralSceneDescription& GeneralSceneDescription);
+	TArray<UDMXImportGDTF*> CreateGDTFAssets(UObject* Parent, EObjectFlags Flags, const TSharedRef<FDMXMVRUnzip>& MVRUnzip, const UDMXMVRGeneralSceneDescription& GeneralSceneDescription);
 
 	/** Initializes the DMX Library from the General Scene Description and GDTF assets */
-	void InitDMXLibrary(UDMXLibrary* DMXLibrary, const TArray<UDMXImportGDTF*>& GDTFAssets, const FDMXMVRGeneralSceneDescription& GeneralSceneDescription) const;
+	void InitDMXLibrary(UDMXLibrary* DMXLibrary, const TArray<UDMXImportGDTF*>& GDTFAssets, UDMXMVRGeneralSceneDescription* GeneralSceneDescription) const;
 
+	/** The DMX Library Package Name, initialized when the DMX Library Asset is created */
+	FString DMXLibraryPackageName;
 };

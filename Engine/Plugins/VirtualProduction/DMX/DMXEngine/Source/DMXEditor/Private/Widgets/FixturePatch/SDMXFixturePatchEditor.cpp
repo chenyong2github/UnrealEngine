@@ -6,13 +6,13 @@
 #include "DMXFixturePatchSharedData.h"
 #include "DMXSubsystem.h"
 #include "SDMXFixturePatcher.h"
-#include "SDMXFixturePatchTree.h"
 #include "Customizations/DMXEntityFixturePatchDetails.h"
 #include "IO/DMXPortManager.h"
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXOutputPortReference.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "Widgets/FixturePatch/SDMXMVRFixtureList.h"
 
 #include "PropertyEditorModule.h"
 #include "Modules/ModuleManager.h"
@@ -41,7 +41,13 @@ void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 		.Orientation(EOrientation::Orient_Horizontal)
 		.ResizeMode(ESplitterResizeMode::FixedPosition)
 		
-		// Left, entity list & inspector
+		// Left, MVR Fixture List
+		+ SSplitter::Slot()	
+		[
+			SAssignNew(MVRFixtureList, SDMXMVRFixtureList, DMXEditorPtr)
+		]
+
+		// Right, Fixture Patcher and Details
 		+ SSplitter::Slot()	
 		[
 			SNew(SSplitter)
@@ -49,24 +55,17 @@ void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 			.ResizeMode(ESplitterResizeMode::FixedPosition)
 
 			+SSplitter::Slot()			
-			.Value(0.38f)
+			.Value(0.6f)
 			[
-				SAssignNew(FixturePatchTree, SDMXFixturePatchTree)
+				SAssignNew(FixturePatcher, SDMXFixturePatcher)
 				.DMXEditor(DMXEditorPtr)
 			]
 	
 			+SSplitter::Slot()
-			.Value(0.62f)
+			.Value(0.4f)
 			[
 				FixturePatchDetailsView.ToSharedRef()
 			]
-		]
-
-		// Right, fixture patcher
-		+ SSplitter::Slot()	
-		[
-			SAssignNew(FixturePatcher, SDMXFixturePatcher)
-			.DMXEditor(DMXEditorPtr)
 		]
 	];
 
@@ -79,31 +78,52 @@ void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 
 void SDMXFixturePatchEditor::RequestRenameOnNewEntity(const UDMXEntity* InEntity, ESelectInfo::Type SelectionType)
 {
-	check(FixturePatchTree.IsValid());
-
-	FixturePatchTree->SelectItemByEntity(InEntity, SelectionType);
-	FixturePatchTree->UpdateTree();
+	if (MVRFixtureList.IsValid())
+	{
+		MVRFixtureList->EnterFixturePatchNameEditingMode();
+	}
 }
 
 void SDMXFixturePatchEditor::SelectEntity(UDMXEntity* InEntity, ESelectInfo::Type InSelectionType /*= ESelectInfo::Type::Direct*/)
 {
-	check(FixturePatchTree.IsValid());
-
-	FixturePatchTree->SelectItemByEntity(InEntity, InSelectionType);
+	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
+	{
+		if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(InEntity))
+		{
+			DMXEditor->GetFixturePatchSharedData()->SelectFixturePatch(FixturePatch);
+		}
+	}
 }
 
 void SDMXFixturePatchEditor::SelectEntities(const TArray<UDMXEntity*>& InEntities, ESelectInfo::Type InSelectionType /*= ESelectInfo::Type::Direct*/)
 {
-	check(FixturePatchTree.IsValid());
-
-	FixturePatchTree->SelectItemsByEntities(InEntities, InSelectionType);
+	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
+	{
+		TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatches;
+		for (UDMXEntity* Entity : InEntities)
+		{
+			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
+			{
+				FixturePatches.Add(FixturePatch);
+			}
+		}
+		DMXEditor->GetFixturePatchSharedData()->SelectFixturePatches(FixturePatches);
+	}
 }
 
 TArray<UDMXEntity*> SDMXFixturePatchEditor::GetSelectedEntities() const
 {
-	check(FixturePatchTree.IsValid());
+	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
+	TArray<UDMXEntity*> SelectedEntities;
+	for (TWeakObjectPtr<UDMXEntityFixturePatch> WeakSelectedFixturePatch : SelectedFixturePatches)
+	{
+		if (UDMXEntity* Entity = WeakSelectedFixturePatch.Get())
+		{
+			SelectedEntities.Add(Entity);
+		}
+	}
 
-	return FixturePatchTree->GetSelectedEntities();
+	return SelectedEntities;
 }
 
 void SDMXFixturePatchEditor::SelectUniverse(int32 UniverseID)
@@ -114,15 +134,6 @@ void SDMXFixturePatchEditor::SelectUniverse(int32 UniverseID)
 	{
 		FixturePatchSharedData->SelectUniverse(UniverseID);
 	}
-}
-
-void SDMXFixturePatchEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
-{
-	check(FixturePatchTree.IsValid());
-	check(FixturePatcher.IsValid());
-
-	FixturePatchTree->UpdateTree();
-	FixturePatcher->NotifyPropertyChanged(PropertyChangedEvent);
 }
 
 void SDMXFixturePatchEditor::OnFixturePatchesSelected()

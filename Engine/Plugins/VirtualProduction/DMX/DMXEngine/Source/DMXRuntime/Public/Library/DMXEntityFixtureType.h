@@ -11,6 +11,8 @@
 #include "DMXEntityFixtureType.generated.h"
 
 class UDMXImport;
+class UDMXImportGDTF;
+
 
 UENUM(BlueprintType)
 enum class EDMXPixelMappingDistribution : uint8
@@ -324,10 +326,15 @@ public:
 	/** Returns a delegate that is and should be broadcast whenever a Fixture Type changed */
 	static FDMXOnFixtureTypeChangedDelegate& GetOnFixtureTypeChanged();
 
+	/** DEPRECATED 5.0 */
+	UE_DEPRECATED(5.1, "Deprecated in favor of the GDTF property, which is of the GDTF type instead of just a base class.")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", Meta = (DeprecatedProperty, DeprecationMessage = "Deprecated in favor of the GDTF property, which is of the GDTF type instead of just a base class."))
+	UDMXImport* DMXImport;
+
 	/** The GDTF file from which the Fixture Type was setup */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings")
-	UDMXImport* DMXImport;
-	
+	UDMXImportGDTF* GDTF;
+
 	/** The Category of the Fixture, useful for Filtering */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Settings", meta = (DisplayName = "DMX Category"))
 	FDMXFixtureCategory DMXCategory;
@@ -354,10 +361,12 @@ private:
 public:
 	/**
 	 * Adds a Mode to the Modes Array
+	 * 
+	 * @param(optional)						The Base Mode Name when generating a name
 	 *
 	 * @return								The Index of the newly added Mode.
 	 */	
-	int32 AddMode();
+	int32 AddMode(FString BaseModeName = FString("Mode"));
 
 	/** 
 	 * Duplicates the Modes at specified Indices 

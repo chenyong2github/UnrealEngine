@@ -2,10 +2,10 @@
 
 #include "DMXEditorStyle.h"
 
-#include "Styling/AppStyle.h"
 #include "Engine/Font.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateTypes.h"
@@ -26,6 +26,8 @@ FDMXEditorStyle::FDMXEditorStyle()
 	static const FVector2D Icon51x30(51.f, 30.f);
 	static const FVector2D Icon51x31(51.f, 31.f);
 
+	const FSlateColor SelectorColor = FAppStyle::GetSlateColor("SelectorColor");
+
 	const TSharedPtr<FSlateStyleSet> Style = MakeShared<FSlateStyleSet>(GetStyleSetName());
 
 	static const TCHAR* DMXEnginePluginName = TEXT("DMXEngine");
@@ -36,13 +38,19 @@ FDMXEditorStyle::FDMXEditorStyle()
 	}
 	SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-	// Default color brushes
+	// Color brushes
 	{
 		Set("DMXEditor.WhiteBrush", new FSlateColorBrush(FLinearColor(1.f, 1.f, 1.f, 1.f)));
 		Set("DMXEditor.BlackBrush", new FSlateColorBrush(FLinearColor(0.f, 0.f, 0.f, 1.f)));
 	}
 
-	// Default Fonts
+	// Border Brushes
+	{
+		Set("DMXEditor.RoundedPropertyBorder", new FSlateRoundedBoxBrush(FLinearColor::Black, 4.f));
+	}
+
+
+	// Fonts
 	{
 		static const TCHAR* FontPathRoboto = TEXT("Font'/Engine/EngineFonts/Roboto.Roboto'");
 		static const UFont* FontRoboto = Cast<UFont>(StaticLoadObject(UFont::StaticClass(), nullptr, FontPathRoboto));
@@ -129,6 +137,16 @@ FDMXEditorStyle::FDMXEditorStyle()
 			.SetInactiveFillBrush(CORE_BOX_BRUSH("Slate/Common/Spinbox_Fill", FMargin(4.f / 16.f), DefaultFaderFillColor))
 			.SetForegroundColor(DefeaultFaderForeColor)
 			.SetArrowsImage(FSlateNoResource()));
+	}
+
+	{
+		Set("MVRFixtureList.Row", FTableRowStyle()
+			.SetEvenRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.95f, 1.f, 1.f, .3f)))
+			.SetOddRowBackgroundBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.85f, .9f, 9.f, .3f)))
+			.SetEvenRowBackgroundHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.95f, 1.f, 1.f, 0.6f)))
+			.SetOddRowBackgroundHoveredBrush(IMAGE_BRUSH("Common/Selection", Icon8x8, FLinearColor(.85f, 9.f, 9.f, 0.6f)))
+			.SetSelectorFocusedBrush(BORDER_BRUSH("Common/Selector", FMargin(4.f / 16.f), SelectorColor))
+		);
 	}
 
 	FSlateStyleRegistry::RegisterSlateStyle(*this);

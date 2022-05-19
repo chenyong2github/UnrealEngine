@@ -62,10 +62,16 @@ UObject* UDMXLibraryFromMVRFactory::FactoryCreateFile(UClass* InClass, UObject* 
 	const FUTF8ToTCHAR TCHARData(reinterpret_cast<const ANSICHAR*>(XMLData.GetData()), XMLData.Num());
 
 	const TSharedRef<FXmlFile> GeneralSceneDescriptionXml = MakeShared<FXmlFile>(FString(TCHARData.Length(), TCHARData.Get()), EConstructMethod::ConstructFromBuffer);
-	FDMXMVRGeneralSceneDescription GeneralSceneDescription(GeneralSceneDescriptionXml);
 
-	TArray<UDMXImportGDTF*> GDTFs = CreateGDTFAssets(Parent, Flags, MVRUnzip.ToSharedRef(), GeneralSceneDescription);
+	const FName GeneralSceneDescriptionName = FName(GetName() + TEXT("_MVRGeneralSceneDescription"));
+	UDMXMVRGeneralSceneDescription* GeneralSceneDescription = UDMXMVRGeneralSceneDescription::CreateFromXmlFile(GeneralSceneDescriptionXml, NewDMXLibrary, GeneralSceneDescriptionName);
 
+	if (!ensureAlwaysMsgf(GeneralSceneDescription, TEXT("Failed to create a General Scene Description when importing MVR."), __FUNCTION__))
+	{
+		return nullptr;
+	}
+
+	TArray<UDMXImportGDTF*> GDTFs = CreateGDTFAssets(Parent, Flags, MVRUnzip.ToSharedRef(), *GeneralSceneDescription);
 	InitDMXLibrary(NewDMXLibrary, GDTFs, GeneralSceneDescription);
 
 	return NewDMXLibrary;
@@ -87,22 +93,25 @@ UDMXLibrary* UDMXLibraryFromMVRFactory::CreateDMXLibraryAsset(UObject* Parent, E
 {
 	constexpr bool bRemovePathFromDesiredName = true;
 	const FString BaseFileName = FPaths::GetBaseFilename(InFilename, bRemovePathFromDesiredName);
-	const FString PackageName = Parent->GetName() + TEXT("_MVR/");
-	const FString AssetName = ObjectTools::SanitizeObjectName(BaseFileName);
+	const FString PackageName = Parent->GetName();
+	FString AssetName = ObjectTools::SanitizeObjectName(BaseFileName);
+	if (PackageName.Contains(AssetName))
+	{
+		AssetName = AssetName + TEXT("_DMXLibrary");
+	}
 
-	FString UniquePackageName;
-	FString UniqueAssetName;
+	FString DMXLibraryAssetName;
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
-	AssetToolsModule.Get().CreateUniqueAssetName(PackageName / AssetName, TEXT(""), UniquePackageName, UniqueAssetName);
+	AssetToolsModule.Get().CreateUniqueAssetName(PackageName / AssetName, TEXT(""), DMXLibraryPackageName, DMXLibraryAssetName);
 
-	UPackage* Package = CreatePackage(*UniquePackageName);
+	UPackage* Package = CreatePackage(*DMXLibraryPackageName);
 	check(Package);
 	Package->FullyLoad();
 
 	UImportSubsystem* ImportSubsystem = GEditor->GetEditorSubsystem<UImportSubsystem>();
-	ImportSubsystem->BroadcastAssetPreImport(this, UDMXLibrary::StaticClass(), Parent, *UniqueAssetName, *MVRFileExtension.ToString());
+	ImportSubsystem->BroadcastAssetPreImport(this, UDMXLibrary::StaticClass(), Parent, *DMXLibraryAssetName, *MVRFileExtension.ToString());
 
-	UDMXLibrary* NewDMXLibrary = NewObject<UDMXLibrary>(Package, *UniqueAssetName, Flags | RF_Public);
+	UDMXLibrary* NewDMXLibrary = NewObject<UDMXLibrary>(Package, *DMXLibraryAssetName, Flags | RF_Public);
 	if (!NewDMXLibrary)
 	{
 		return nullptr;
@@ -113,24 +122,20 @@ UDMXLibrary* UDMXLibraryFromMVRFactory::CreateDMXLibraryAsset(UObject* Parent, E
 	return NewDMXLibrary;
 }
 
-TArray<UDMXImportGDTF*> UDMXLibraryFromMVRFactory::CreateGDTFAssets(UObject* Parent, EObjectFlags Flags, const TSharedRef<FDMXMVRUnzip>& MVRUnzip, const FDMXMVRGeneralSceneDescription& GeneralSceneDescription)
+TArray<UDMXImportGDTF*> UDMXLibraryFromMVRFactory::CreateGDTFAssets(UObject* Parent, EObjectFlags Flags, const TSharedRef<FDMXMVRUnzip>& MVRUnzip, const UDMXMVRGeneralSceneDescription& GeneralSceneDescription)
 {
-	TArray<UDMXImportGDTF*> ImportedGDTFs;
-	TArray<FString> ImportedGDTFNames;
-
-	constexpr bool bRemovePathFromDesiredName = true;
-	const FString PackageName = Parent->GetName() + FString(TEXT("_MVR")) / FString(TEXT("GDTFs"));
+	const FString Path = FPaths::GetPath(DMXLibraryPackageName) + TEXT("/GDTFs");
 
 	TArray<FAssetData> ExistingGDTFAssets;
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().GetAssetsByPath(FName(PackageName), ExistingGDTFAssets);
+	AssetRegistryModule.Get().GetAssetsByPath(FName(Path), ExistingGDTFAssets);
 
 	TArray<UDMXImportGDTF*> ExistingGDTFs;
 	for (const FAssetData& AssetData : ExistingGDTFAssets)
 	{
 		if (UDMXImportGDTF* GDTFAsset = Cast<UDMXImportGDTF>(AssetData.GetAsset()))
 		{
-			GeneralSceneDescription.MVRFixtures.ContainsByPredicate([GDTFAsset](const FDMXMVRFixture& MVRFixture)
+			GeneralSceneDescription.GetMVRFixtures().ContainsByPredicate([GDTFAsset](const FDMXMVRFixture& MVRFixture)
 				{
 					return GDTFAsset->SourceFilename.Equals(MVRFixture.GDTFSpec, ESearchCase::IgnoreCase);
 				});
@@ -140,6 +145,8 @@ TArray<UDMXImportGDTF*> UDMXLibraryFromMVRFactory::CreateGDTFAssets(UObject* Par
 	}
 
 	UDMXGDTFFactory* GDTFFactory = NewObject<UDMXGDTFFactory>();
+	TArray<UDMXImportGDTF*> ImportedGDTFs;
+	TArray<FString> ImportedGDTFNames;
 	if (ExistingGDTFs.Num() > 0)
 	{
 		const FText MessageText = LOCTEXT("MVRImportReimportsGDTFDialog", "MVR contains existing GDTFs. Do you want to reimport the existing GDTF assets?");
@@ -157,7 +164,7 @@ TArray<UDMXImportGDTF*> UDMXLibraryFromMVRFactory::CreateGDTFAssets(UObject* Par
 	}
 
 	// Import GDTF Assets that aren't yet imported in the reimport procedure
-	for (const FDMXMVRFixture& MVRFixture : GeneralSceneDescription.MVRFixtures)
+	for (const FDMXMVRFixture& MVRFixture : GeneralSceneDescription.GetMVRFixtures())
 	{
 		// Don't import the same GDTF twice
 		if (!ImportedGDTFNames.Contains(MVRFixture.GDTFSpec))
@@ -165,7 +172,18 @@ TArray<UDMXImportGDTF*> UDMXLibraryFromMVRFactory::CreateGDTFAssets(UObject* Par
 			const FDMXMVRUnzip::FDMXScopedUnzipToTempFile ScopedUnzipGDTF(MVRUnzip, MVRFixture.GDTFSpec);
 			if (!ScopedUnzipGDTF.TempFilePathAndName.IsEmpty())
 			{
-				UPackage* Package = FDMXEditorUtils::GetOrCreatePackage(Parent, MVRFixture.GDTFSpec);
+				constexpr bool bRemovePathFromDesiredName = true;
+				const FString BaseFileName = FPaths::GetBaseFilename(ScopedUnzipGDTF.TempFilePathAndName, bRemovePathFromDesiredName);
+				FString AssetName = ObjectTools::SanitizeObjectName(BaseFileName);
+
+				FString GDTFPackageName;
+				FString GDTFAssetName;
+				FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+				AssetToolsModule.Get().CreateUniqueAssetName(Path / AssetName, TEXT(""), GDTFPackageName, GDTFAssetName);
+
+				UPackage* Package = CreatePackage(*GDTFPackageName);
+				check(Package);
+				Package->FullyLoad();
 
 				bool bCanceled;
 				UObject* NewGDTFObject = GDTFFactory->FactoryCreateFile(UDMXImportGDTF::StaticClass(), Package, FName(*MVRFixture.GDTFSpec), Flags | RF_Public, ScopedUnzipGDTF.TempFilePathAndName, nullptr, GWarn, bCanceled);
@@ -185,68 +203,94 @@ TArray<UDMXImportGDTF*> UDMXLibraryFromMVRFactory::CreateGDTFAssets(UObject* Par
 	return ImportedGDTFs;
 }
 
-void UDMXLibraryFromMVRFactory::InitDMXLibrary(UDMXLibrary* DMXLibrary, const TArray<UDMXImportGDTF*>& GDTFAssets, const FDMXMVRGeneralSceneDescription& GeneralSceneDescription) const
+void UDMXLibraryFromMVRFactory::InitDMXLibrary(UDMXLibrary* DMXLibrary, const TArray<UDMXImportGDTF*>& GDTFAssets, UDMXMVRGeneralSceneDescription* GeneralSceneDescription) const
 {
-	if (DMXLibrary)
+	if (!ensureAlwaysMsgf(DMXLibrary, TEXT("Trying to initialize a DMX Library from MVR, but the DMX Library is not valid.")))
 	{
-		// Create a Fixture Type for each GDTF
-		TMap<FString, UDMXEntityFixtureType*> GDTFSpecToFixtureTypeMap;
-		for (UDMXImportGDTF* GDTF : GDTFAssets)
+		return;
+	}
+	if (!ensureAlwaysMsgf(GeneralSceneDescription, TEXT("Trying to initialize a DMX Library '%s' from MVR, but the DMX Library is not valid."), *DMXLibrary->GetName()))
+	{
+		return;
+	}
+	DMXLibrary->SetMVRGeneralSceneDescription(GeneralSceneDescription);
+
+	// Create a Fixture Type for each GDTF
+	TMap<FString, UDMXEntityFixtureType*> GDTFSpecToFixtureTypeMap;
+	TMap<UDMXEntityFixtureType*, FLinearColor> FixtureTypeToColorMap;
+	for (UDMXImportGDTF* GDTF : GDTFAssets)
+	{
+		const FString GDTFFilename = FPaths::GetCleanFilename(GDTF->SourceFilename);
+		FDMXEntityFixtureTypeConstructionParams FixtureTypeConstructionParams;
+		FixtureTypeConstructionParams.DMXCategory = FDMXFixtureCategory(FDMXFixtureCategory::GetFirstValue());
+		FixtureTypeConstructionParams.ParentDMXLibrary = DMXLibrary;
+
+		UDMXEntityFixtureType* FixtureType = UDMXEntityFixtureType::CreateFixtureTypeInLibrary(FixtureTypeConstructionParams, FPaths::GetBaseFilename(GDTFFilename));
+		FixtureType->SetGDTF(GDTF);
+
+		GDTFSpecToFixtureTypeMap.Add(GDTFFilename, FixtureType);
+	}
+
+	// Create Fixture Patches for the MVR Fixtures
+	for (const FDMXMVRFixture& MVRFixture : GeneralSceneDescription->GetMVRFixtures())
+	{
+		if (!GDTFSpecToFixtureTypeMap.Contains(MVRFixture.GDTFSpec))
 		{
-			const FString GDTFFilename = FPaths::GetCleanFilename(GDTF->SourceFilename);
-			FDMXEntityFixtureTypeConstructionParams FixtureTypeConstructionParams;
-			FixtureTypeConstructionParams.DMXCategory = FDMXFixtureCategory(FDMXFixtureCategory::GetFirstValue());
-			FixtureTypeConstructionParams.ParentDMXLibrary = DMXLibrary;
-
-			UDMXEntityFixtureType* FixtureType = UDMXEntityFixtureType::CreateFixtureTypeInLibrary(FixtureTypeConstructionParams, FPaths::GetBaseFilename(GDTFFilename));
-			FixtureType->SetGDTF(GDTF);
-
-			GDTFSpecToFixtureTypeMap.Add(GDTFFilename, FixtureType);
+			continue;
 		}
 
-		// Create Fixture Patches for the MVR Fixtures
-		for (const FDMXMVRFixture& MVRFixture : GeneralSceneDescription.MVRFixtures)
+		UDMXEntityFixtureType* FixtureType = GDTFSpecToFixtureTypeMap[MVRFixture.GDTFSpec];
+		UDMXEntityFixturePatch* const* FixturePatchPtr = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>().FindByPredicate([MVRFixture, FixtureType](UDMXEntityFixturePatch* FixturePatch)
+			{
+				const FDMXFixtureMode* ActiveModePtr = FixturePatch->GetActiveMode();
+				return
+					FixturePatch->GetFixtureType() == FixtureType &&
+					FixturePatch->GetUniverseID() == MVRFixture.Addresses.Universe &&
+					FixturePatch->GetStartingChannel() == MVRFixture.Addresses.Address &&
+					ActiveModePtr && ActiveModePtr->ModeName == MVRFixture.GDTFMode;
+			});
+
+		if (!FixtureTypeToColorMap.Contains(FixtureType))
 		{
-			if (!GDTFSpecToFixtureTypeMap.Contains(MVRFixture.GDTFSpec))
+			FLinearColor FixtureTypeColor = FLinearColor::MakeRandomColor();
+
+			// Avoid dominant red values for a bit more of a professional feel
+			if (FixtureTypeColor.R > 0.75f)
 			{
-				continue;
+				FixtureTypeColor.R = FMath::Abs(FixtureTypeColor.R - 1.0f);
 			}
 
-			UDMXEntityFixtureType* FixtureType = GDTFSpecToFixtureTypeMap[MVRFixture.GDTFSpec];
-			UDMXEntityFixturePatch* const* FixturePatchPtr = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>().FindByPredicate([MVRFixture, FixtureType](UDMXEntityFixturePatch* FixturePatch)
+			FixtureTypeToColorMap.Add(FixtureType, FixtureTypeColor);
+		}
+
+		if (!FixturePatchPtr)
+		{
+			int32 ActiveModeIndex = FixtureType->Modes.IndexOfByPredicate([MVRFixture](const FDMXFixtureMode& Mode)
 				{
-					const FDMXFixtureMode* ActiveModePtr = FixturePatch->GetActiveMode();
-					return
-						FixturePatch->GetFixtureType() == FixtureType &&
-						FixturePatch->GetUniverseID() == MVRFixture.Addresses.Universe &&
-						FixturePatch->GetStartingChannel() == MVRFixture.Addresses.Address &&
-						ActiveModePtr && ActiveModePtr->ModeName == MVRFixture.GDTFMode;
+					return Mode.ModeName == MVRFixture.GDTFMode;
 				});
-			
-			if (!FixturePatchPtr)
+
+			if (ActiveModeIndex != INDEX_NONE)
 			{
-				int32 ActiveModeIndex = FixtureType->Modes.IndexOfByPredicate([MVRFixture](const FDMXFixtureMode& Mode)
-					{
-						return Mode.ModeName == MVRFixture.GDTFMode;
-					});
+				FDMXEntityFixturePatchConstructionParams FixturePatchConstructionParams;
+				FixturePatchConstructionParams.ActiveMode = ActiveModeIndex;
+				FixturePatchConstructionParams.FixtureTypeRef = FDMXEntityFixtureTypeRef(FixtureType);
+				FixturePatchConstructionParams.UniverseID = MVRFixture.Addresses.Universe;
+				FixturePatchConstructionParams.StartingAddress = MVRFixture.Addresses.Address;
+				FixturePatchConstructionParams.MVRFixtureUUID = MVRFixture.UUID;
 
-				if (ActiveModeIndex != INDEX_NONE)
-				{
-					FDMXEntityFixturePatchConstructionParams FixturePatchConstructionParams;
-					FixturePatchConstructionParams.ActiveMode = ActiveModeIndex;
-					FixturePatchConstructionParams.FixtureTypeRef = FDMXEntityFixtureTypeRef(FixtureType);
-					FixturePatchConstructionParams.UniverseID = MVRFixture.Addresses.Universe;
-					FixturePatchConstructionParams.StartingAddress = MVRFixture.Addresses.Address;
-
-					UDMXEntityFixturePatch* FixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams, MVRFixture.Name);
-					FixturePatchPtr = &FixturePatch;
-				}
+				UDMXEntityFixturePatch* FixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams, MVRFixture.Name);
+				FixturePatch->EditorColor = FixtureTypeToColorMap.FindChecked(FixtureType);
+				FixturePatchPtr = &FixturePatch;
 			}
-			check(FixturePatchPtr);
-
-			(*FixturePatchPtr)->AddMVRFixtureInstance(MVRFixture);
+			else
+			{
+				UE_LOG(LogDMXEditor, Warning, TEXT("Skipped creating a Fixture Patch for '%s', as no valid Mode could be imported when importing %s."), *MVRFixture.Name, *MVRFixture.GDTFSpec)
+			}
 		}
 	}
+
+	DMXLibrary->UpdateGeneralSceneDescription();
 }
 
 #undef LOCTEXT_NAMESPACE

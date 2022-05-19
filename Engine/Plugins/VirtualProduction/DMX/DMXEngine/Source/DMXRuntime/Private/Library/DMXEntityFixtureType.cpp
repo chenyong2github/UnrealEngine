@@ -5,7 +5,7 @@
 #include "DMXConversions.h"
 #include "DMXProtocolSettings.h"
 #include "DMXRuntimeLog.h"
-#include "DMXRuntimeObjectVersion.h"
+#include "DMXRuntimeMainStreamObjectVersion.h"
 #include "DMXRuntimeUtils.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXImport.h"
@@ -225,10 +225,10 @@ void UDMXEntityFixtureType::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	Ar.UsingCustomVersion(FDMXRuntimeObjectVersion::GUID);
+	Ar.UsingCustomVersion(FDMXRuntimeMainStreamObjectVersion::GUID);
 	if (Ar.IsLoading())
 	{
-		if (Ar.CustomVer(FDMXRuntimeObjectVersion::GUID) < FDMXRuntimeObjectVersion::DMXFixtureTypeAllowMatrixInEachFixtureMode)
+		if (Ar.CustomVer(FDMXRuntimeMainStreamObjectVersion::GUID) < FDMXRuntimeMainStreamObjectVersion::DMXFixtureTypeAllowMatrixInEachFixtureMode)
 		{
 			// For assets that were created before each mode could enable or disable the matrix, copy the deprecated bFixtureMatrixEnabled property to each mode
 			for (FDMXFixtureMode& Mode : Modes)
@@ -237,6 +237,18 @@ void UDMXEntityFixtureType::Serialize(FArchive& Ar)
 				Mode.bFixtureMatrixEnabled = bFixtureMatrixEnabled;
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
+		}
+
+		if (Ar.CustomVer(FDMXRuntimeMainStreamObjectVersion::GUID) < FDMXRuntimeMainStreamObjectVersion::DMXFixtureTypeUsesCorrectGDTFType)
+		{
+			// Upgrade the GDTF type from the base DMXImport to the actual DMXImportGDTF type which was always used.
+			// Name the new variable 'GDTF' to make the purpose of the variable more clear, namely holding a GDTF asset.
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			if (UDMXImportGDTF* OldGDTF = Cast<UDMXImportGDTF>(DMXImport))
+			{
+				GDTF = OldGDTF;
+			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 }
@@ -307,16 +319,11 @@ void UDMXEntityFixtureType::SetGDTF(UDMXImportGDTF* GDTFAsset)
 		return;
 	}
 
-	DMXImport = GDTFAsset;
-	if (UDMXImportGDTFDMXModes* GDTFDMXModes = Cast<UDMXImportGDTFDMXModes>(DMXImport->DMXModes))
+	GDTF = GDTFAsset;
+	if (UDMXImportGDTFDMXModes* GDTFDMXModes = Cast<UDMXImportGDTFDMXModes>(GDTF->DMXModes))
 	{
 		// Clear existing modes
-		Modes.Empty(DMXImport->DMXModes != nullptr ? GDTFDMXModes->DMXModes.Num() : 0);
-
-		if (DMXImport->DMXModes == nullptr)
-		{
-			return;
-		}
+		Modes.Empty(GDTF->DMXModes != nullptr ? GDTFDMXModes->DMXModes.Num() : 0);
 
 		// Used to map Functions to Attributes
 		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
@@ -452,7 +459,7 @@ FDMXOnFixtureTypeChangedDelegate& UDMXEntityFixtureType::GetOnFixtureTypeChanged
 	return OnFixtureTypeChangedDelegate;
 }
 
-int32 UDMXEntityFixtureType::AddMode()
+int32 UDMXEntityFixtureType::AddMode(FString BaseModeName)
 {
 	FDMXFixtureMode NewMode;
 
@@ -462,7 +469,7 @@ int32 UDMXEntityFixtureType::AddMode()
 	{
 		ModeNames.Add(Mode.ModeName);
 	}
-	NewMode.ModeName = FDMXRuntimeUtils::GenerateUniqueNameFromExisting(ModeNames, LOCTEXT("DefaultModeName", "Mode").ToString());
+	NewMode.ModeName = FDMXRuntimeUtils::GenerateUniqueNameFromExisting(ModeNames, BaseModeName);
 
 	const int32 NewModeIndex = Modes.Add(NewMode);
 

@@ -140,9 +140,6 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 				]
 			];
 
-		// Bind to fixture patch changes
-		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXFixturePatcher::OnFixturePatchChanged);
-
 		// Bind to selection changes
 		SharedData->OnFixturePatchSelectionChanged.AddSP(this, &SDMXFixturePatcher::OnFixturePatchSelectionChanged);
 		SharedData->OnUniverseSelectionChanged.AddSP(this, &SDMXFixturePatcher::OnUniverseSelectionChanged);
@@ -150,6 +147,12 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 		// If the selected universe has no patches, try to find one with patches instead
 		UDMXLibrary* Library = GetDMXLibrary();
 		check(Library);
+
+		// Bind to object changes
+		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXFixturePatcher::OnFixturePatchChanged);
+		UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXFixturePatcher::OnFixtureTypeChanged);
+		Library->GetOnEntitiesAdded().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
+		Library->GetOnEntitiesRemoved().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
 
 		TArray<UDMXEntityFixturePatch*> Patches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 		UDMXEntityFixturePatch** ExistingPatchPtr = Patches.FindByPredicate([&](UDMXEntityFixturePatch* Patch) {
@@ -163,9 +166,6 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 		// Bind to tabs being switched
 		FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXFixturePatcher::OnActiveTabChanged));
 
-		// Bind to entity changes
-		Library->GetOnEntitiesAdded().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
-		Library->GetOnEntitiesRemoved().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
 
 		GEditor->RegisterForUndo(this);
 
@@ -173,29 +173,6 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void SDMXFixturePatcher::NotifyPropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent)
-{
-	if (PropertyChangedEvent.GetPropertyName() == UDMXEntityFixturePatch::GetUniverseIDPropertyNameChecked() ||
-		PropertyChangedEvent.GetPropertyName() == UDMXEntityFixturePatch::GetManualStartingAddressPropertyNameChecked())
-	{
-		if (IsUniverseSelectionEnabled() && PropertyChangedEvent.GetNumObjectsBeingEdited() == 1)
-		{
-			const UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(PropertyChangedEvent.GetObjectBeingEdited(0));
-			check(FixturePatch);
-
-			SelectUniverse(FixturePatch->GetUniverseID());
-		}
-		
-		RefreshFromProperties();
-	}
-	else if (PropertyChangedEvent.GetPropertyName() == UDMXEntityFixturePatch::GetAutoAssignAddressPropertyNameChecked() ||
-		PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, EditorColor) ||
-		PropertyChangedEvent.GetPropertyName() == UDMXEntityFixturePatch::GetActiveModePropertyNameChecked())
-	{
-		RefreshFromProperties();
-	}
-}
 
 void SDMXFixturePatcher::RefreshFromProperties()
 {
@@ -553,6 +530,11 @@ void SDMXFixturePatcher::OnFixturePatchChanged(const UDMXEntityFixturePatch* Fix
 			RefreshFromProperties();
 		}
 	}
+}
+
+void SDMXFixturePatcher::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
+{
+	RefreshFromLibrary();
 }
 
 void SDMXFixturePatcher::OnFixturePatchSelectionChanged()

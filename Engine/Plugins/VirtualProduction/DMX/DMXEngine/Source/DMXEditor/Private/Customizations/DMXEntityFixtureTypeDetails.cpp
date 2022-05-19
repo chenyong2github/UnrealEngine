@@ -24,14 +24,14 @@ void FDMXEntityFixtureTypeDetails::CustomizeDetails(IDetailLayoutBuilder& Detail
 
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes));
 
-	DMXImportHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, DMXImport));
-	DMXImportHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXEntityFixtureTypeDetails::OnDMXImportChanged));
+	GDTFHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, GDTF));
+	GDTFHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXEntityFixtureTypeDetails::OnDMXImportChanged));
 }
 
 void FDMXEntityFixtureTypeDetails::OnDMXImportChanged()
 {
 	UObject* DMXImportObject = nullptr;
-	if (DMXImportHandle->GetValue(DMXImportObject) == FPropertyAccess::Success)
+	if (GDTFHandle->GetValue(DMXImportObject) == FPropertyAccess::Success)
 	{
 		if (UDMXImportGDTF* DMXImportGDTF = Cast<UDMXImportGDTF>(DMXImportObject))
 		{

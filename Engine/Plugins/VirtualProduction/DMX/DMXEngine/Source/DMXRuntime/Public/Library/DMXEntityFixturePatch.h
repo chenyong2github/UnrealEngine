@@ -27,36 +27,6 @@ struct FPropertyChangedEvent;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnFixturePatchChangedDelegate, const UDMXEntityFixturePatch* /** ChangedFixturePatch */);
 
-
-/**
- * An instance of an MVR Fixture in a Fixture Patch.
- */
-UCLASS(DefaultToInstanced)
-class DMXRUNTIME_API UDMXMVRFixtureInstance
-	: public UObject
-{
-	GENERATED_BODY()
-
-public:
-	/** Creates a new instance from an MVR Fixture */
-	static UDMXMVRFixtureInstance* CreateFromMVRFixture(const FDMXMVRFixture& InMVRFixture);
-
-	//~ Begin UObject interface
-	virtual void Serialize(FArchive& Ar) override;
-	//~ End UObject interface
-
-	/** Sets the MVR Fixture. Note, the UUID has to match the previous MVR Fixture. */
-	void SetMVRFixture(const FDMXMVRFixture& InMVRFixture);
-
-	/** Returns the MVR Fixture */
-	FORCEINLINE const FDMXMVRFixture& GetMVRFixture() const { return MVRFixture; }
-
-private:
-	/** The mvr fixture data */
-	FDMXMVRFixture MVRFixture;
-};
-
-
 /** Parameters to construct a Fixture Patch. */
 USTRUCT(BlueprintType)
 struct DMXRUNTIME_API FDMXEntityFixturePatchConstructionParams
@@ -78,6 +48,13 @@ struct DMXRUNTIME_API FDMXEntityFixturePatchConstructionParams
 	/** Starting channel for when auto-assign address is false */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fixture Patch", meta = (DisplayName = "Starting Address", UIMin = "1", UIMax = "512", ClampMin = "1", ClampMax = "512"))
 	int32 StartingAddress = 1;
+
+	/** 
+	 * When spawning the DMX Library as MVR Scene in Editor, each Fixture Patch has to correspond to a Fixture in the World (if it is desired to export the Scene as MVR later).
+	 * Mostly useful when importing an MVR into the DMX Library (see DMXLibraryFromMVRFactory). If left '00000000-00000000-00000000-00000000', a Unique ID will be generated for the patch. 
+	 * Ensures the Unique ID is not used by another patch in the DMX Library already.
+	 */
+	FGuid MVRFixtureUUID;
 };
 
 
@@ -111,6 +88,7 @@ public:
 	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 #endif
 protected:
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 
@@ -236,24 +214,18 @@ public:
 	/** Returns custom tags defined for the patch */
 	FORCEINLINE const TArray<FName>& GetCustomTags() const { return CustomTags; }
 
-	/** Adds an MVR Fixture to the patch */
-	void AddMVRFixtureInstance(const FDMXMVRFixture& MVRFixtureToAdd);
-
-	/** Makes an array of MVR Fixtures from the MVR fixture instances of this patch */
-	TArray<FDMXMVRFixture> MakeMVRFixtures() const;
-
-	/** Returns the MVR Fixture instances that use this patch */
-	FORCEINLINE const TArray<UDMXMVRFixtureInstance*>& GetMVRFixtureInstances() const { return MVRFixtureInstances; }
+	/** Returns the MVR Fixture UUIDs of this patch */
+	FORCEINLINE const FGuid& GetMVRFixtureUUID() const { return MVRFixtureUUID; }
 
 #if WITH_EDITOR
-	/** Property name getters. When accessing the this way, use with care. The patch will need to update its cache after using property setters. Call RebuildCache to do that. */
+	/** Property name getters. When accessing the this way, use with care. The patch will need to update its cache after using property setters, use Pre/PostEditChanged events to achieve that. */
 	static FName GetUniverseIDPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, UniverseID); }
 	static FName GetAutoAssignAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, bAutoAssignAddress); }
 	static FName GetManualStartingAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, ManualStartingAddress); }
 	static FName GetAutoStartingAddressPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, AutoStartingAddress); }
 	static FName GetParentFixtureTypeTemplatePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, ParentFixtureTypeTemplate); }
 	static FName GetActiveModePropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, ActiveMode); }
-	static FName GetMVRFixtureInstancesPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, MVRFixtureInstances); }
+	static FName GetMVRFixtureUUIDPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(UDMXEntityFixturePatch, MVRFixtureUUID); }
 #endif // WITH_EDITOR
 
 protected:
@@ -281,9 +253,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Fixture Patch")
 	int32 ActiveMode;
 
-	/** MVR Fixtures that use this patch */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Fixture Patch")
-	TArray<UDMXMVRFixtureInstance*> MVRFixtureInstances;
+	/** The MVR Fixture UUID when used as such */
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = "Fixture Patch")
+	FGuid MVRFixtureUUID;
 
 	/** Delegate broadcast when a Fixture Patch changed */
 	static FDMXOnFixturePatchChangedDelegate OnFixturePatchChangedDelegate;

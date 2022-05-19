@@ -60,7 +60,7 @@ void FDMXEntityFixturePatchDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	GenerateActiveModesSource();
 
 	int32 ActiveMode;
-	if (ensure(ActiveModeHandle->GetValue(ActiveMode) == FPropertyAccess::Success))
+	if (ActiveModeHandle->GetValue(ActiveMode) == FPropertyAccess::Success)
 	{
 		const bool bActiveModeExists = ActiveModesSource.ContainsByPredicate([ActiveMode](TSharedPtr<uint32> Option) 
 			{

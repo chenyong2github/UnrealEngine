@@ -115,7 +115,7 @@ UDMXLibrary* FDatasmithMVRNativeTranslator::CreateDMXLibraryFromMVR(const FStrin
 
 	const FString SceneName = GetSource().GetSceneName();
 	const FString DMXLibraryName = FPaths::GetBaseFilename(MVRFilePathAndName);
-	const FString PackageName = FPaths::ProjectContentDir() / SceneName;
+	const FString PackageName = TEXT("/Game") / SceneName;
 	UPackage* DMXLibraryAssetPackage = CreatePackage(*PackageName);
 	DMXLibraryAssetPackage->FullyLoad();
 	
@@ -172,59 +172,61 @@ void FDatasmithMVRNativeTranslator::ReplaceMVRActorsWithMVRSceneActor(TSharedRef
 	TArray<TSharedRef<IDatasmithActorElement>> ActorElementsToRemove;
 
 	const int32 NumMetaDatas = InOutScene->GetMetaDataCount();
-	TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
+
+	DMXLibrary->UpdateGeneralSceneDescription();
+	UDMXMVRGeneralSceneDescription* GeneralSceneDescription = DMXLibrary->GetLazyGeneralSceneDescription();
+	if (!ensureAlwaysMsgf(GeneralSceneDescription, TEXT("Trying to remove MVR scene elements from datasmith scene, but the DMX Library that was created for it does not provide a General Scene Description.")))
 	{
-		const TArray<UDMXMVRFixtureInstance*>& MVRFixtureInstances = FixturePatch->GetMVRFixtureInstances();
-		for (UDMXMVRFixtureInstance* MVRFixtureInstance : MVRFixtureInstances)
+		return;
+	}
+
+	for (const FDMXMVRFixture& MVRFixture : GeneralSceneDescription->GetMVRFixtures())
+	{
+		for (int32 MetaDataIndex = 0; MetaDataIndex < NumMetaDatas; MetaDataIndex++)
 		{
-			const FDMXMVRFixture& MVRFixture = MVRFixtureInstance->GetMVRFixture();
-			for (int32 MetaDataIndex = 0; MetaDataIndex < NumMetaDatas; MetaDataIndex++)
+			const TSharedPtr<IDatasmithMetaDataElement> MetaDataElement = InOutScene->GetMetaData(MetaDataIndex);
+
+			// Try to find an MVR ID in MetaData. Note Vectorworks uses VW_UUID as that, so we search for that too.
+			static const FString Generic_MVRUUIDName = TEXT("MVR_UUID");
+			static const FString VW_MVRUUIDName = TEXT("VW_UUID");
+
+			const TSharedPtr<IDatasmithKeyValueProperty> DatasmithKeyValueProperty = [&MetaDataElement]()
 			{
-				const TSharedPtr<IDatasmithMetaDataElement> MetaDataElement = InOutScene->GetMetaData(MetaDataIndex);
-
-				// Try to find an MVR ID in MetaData. Note Vectorworks uses VW_UUID as that, so we search for that too.
-				static const FString Generic_MVRUUIDName = TEXT("MVR_UUID");
-				static const FString VW_MVRUUIDName = TEXT("VW_UUID");
-
-				const TSharedPtr<IDatasmithKeyValueProperty> DatasmithKeyValueProperty = [&MetaDataElement]()
+				TSharedPtr<IDatasmithKeyValueProperty> Result = MetaDataElement->GetPropertyByName(*Generic_MVRUUIDName);
+				if (!Result.IsValid())
 				{
-					TSharedPtr<IDatasmithKeyValueProperty> Result = MetaDataElement->GetPropertyByName(*Generic_MVRUUIDName);
-					if (!Result.IsValid())
-					{
-						Result = MetaDataElement->GetPropertyByName(*VW_MVRUUIDName);
-					}
+					Result = MetaDataElement->GetPropertyByName(*VW_MVRUUIDName);
+				}
 
-					return Result;
-				}();
+				return Result;
+			}();
 
-				if (!DatasmithKeyValueProperty.IsValid())
+			if (!DatasmithKeyValueProperty.IsValid())
+			{
+				continue;
+			}
+
+			// Try to find the node that corresponds to the MVR node
+			const FString MetaDataMVRUUIDString = FString(DatasmithKeyValueProperty->GetValue());
+			FGuid MetaDataMVRUUID;
+			if (!FGuid::Parse(MetaDataMVRUUIDString, MetaDataMVRUUID))
+			{
+				continue;
+			}
+
+			if (MetaDataMVRUUID == MVRFixture.UUID)
+			{
+				const TSharedPtr<IDatasmithElement> AssociatedElementToRemove = MetaDataElement->GetAssociatedElement();
+
+				const bool bValidElementType = AssociatedElementToRemove.IsValid() || AssociatedElementToRemove->IsA(EDatasmithElementType::Actor);
+				if (!ensureAlwaysMsgf(bValidElementType, TEXT("DatasmithMVRNativeTranslator unexpected Element type when trying to remove MVR element in favor of an MVR Scene Actor."), AssociatedElementToRemove->GetName()))
 				{
 					continue;
 				}
 
-				// Try to find the node that corresponds to the MVR node
-				FString MetaDataMVRUUIDString = FString(DatasmithKeyValueProperty->GetValue());
-				FGuid MetaDataMVRUUID;
-				if (!FGuid::Parse(MetaDataMVRUUIDString, MetaDataMVRUUID))
-				{
-					continue;
-				}
-
-				if (MetaDataMVRUUID == MVRFixture.UUID)
-				{
-					const TSharedPtr<IDatasmithElement> AssociatedElementToRemove = MetaDataElement->GetAssociatedElement();
-
-					if (!AssociatedElementToRemove.IsValid() || !AssociatedElementToRemove->IsA(EDatasmithElementType::Actor))
-					{
-						ensureAlwaysMsgf(0, TEXT("DatasmithMVRNativeTranslator unexpected Element type when trying to remove MVR element in favor of an MVR Scene Actor."), AssociatedElementToRemove->GetName());
-						continue;
-					}
-
-					const TSharedRef<IDatasmithActorElement> ActorElementToRemove = StaticCastSharedRef<IDatasmithActorElement>(AssociatedElementToRemove.ToSharedRef());
-					MetaDataElementsToRemove.Add(MetaDataElement.ToSharedRef());
-					ActorElementsToRemove.Add(ActorElementToRemove);
-				}
+				const TSharedRef<IDatasmithActorElement> ActorElementToRemove = StaticCastSharedRef<IDatasmithActorElement>(AssociatedElementToRemove.ToSharedRef());
+				MetaDataElementsToRemove.Add(MetaDataElement.ToSharedRef());
+				ActorElementsToRemove.Add(ActorElementToRemove);
 			}
 		}
 	}

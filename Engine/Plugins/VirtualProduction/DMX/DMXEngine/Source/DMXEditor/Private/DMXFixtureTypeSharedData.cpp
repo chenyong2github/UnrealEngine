@@ -74,7 +74,15 @@ void FDMXFixtureTypeSharedData::SelectFixtureTypes(const TArray<TWeakObjectPtr<U
 {
 	if (SelectedFixtureTypes != InFixtureTypes)
 	{
-		SelectedFixtureTypes = InFixtureTypes;
+		// Make a copy without duplicates
+		TArray<TWeakObjectPtr<UDMXEntityFixtureType>> UniqueFixtureTypesOnlyArray;
+		UniqueFixtureTypesOnlyArray.Reserve(InFixtureTypes.Num());
+		for (TWeakObjectPtr<UDMXEntityFixtureType> FixtureType : InFixtureTypes)
+		{
+			UniqueFixtureTypesOnlyArray.AddUnique(FixtureType);
+		}
+
+		SelectedFixtureTypes = UniqueFixtureTypesOnlyArray;
 
 		// Selected Modes and Functions turn invalid
 		SelectedModeIndices.Reset();

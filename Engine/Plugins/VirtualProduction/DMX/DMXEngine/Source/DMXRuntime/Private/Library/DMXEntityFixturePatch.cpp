@@ -5,6 +5,7 @@
 #include "DMXConversions.h"
 #include "DMXProtocolConstants.h"
 #include "DMXRuntimeLog.h"
+#include "DMXRuntimeMainStreamObjectVersion.h"
 #include "DMXRuntimeUtils.h"
 #include "DMXStats.h"
 #include "DMXTypes.h"
@@ -17,6 +18,8 @@
 #include "Library/DMXLibrary.h"
 #include "Modulators/DMXModulator.h"
 
+#include "UObject/UObjectGlobals.h"
+
 DECLARE_LOG_CATEGORY_CLASS(DMXEntityFixturePatchLog, Log, All);
 
 DECLARE_CYCLE_STAT(TEXT("FixturePatch receive DMX"), STAT_DMXFixturePatchReceiveDMX, STATGROUP_DMX);
@@ -24,32 +27,6 @@ DECLARE_CYCLE_STAT(TEXT("FixturePatch cache values"), STAT_DMXFixturePatchCacheV
 
 
 #define LOCTEXT_NAMESPACE "DMXEntityFixturePatch"
-
-
-UDMXMVRFixtureInstance* UDMXMVRFixtureInstance::CreateFromMVRFixture(const FDMXMVRFixture& InMVRFixture)
-{
-	UDMXMVRFixtureInstance* NewMVRFixtureInstance = NewObject<UDMXMVRFixtureInstance>();
-	NewMVRFixtureInstance->MVRFixture = InMVRFixture;
-
-	return NewMVRFixtureInstance;
-}
-
-void UDMXMVRFixtureInstance::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-
-	Ar << MVRFixture;
-}
-
-void UDMXMVRFixtureInstance::SetMVRFixture(const FDMXMVRFixture& InMVRFixture)
-{
-	if (!ensureAlwaysMsgf(InMVRFixture.UUID == MVRFixture.UUID, TEXT("Cannot change the MVR UUID of an existing MVR Fixture Instance")))
-	{
-		return;
-	}
-
-	MVRFixture = InMVRFixture;
-}
 
 FDMXOnFixturePatchChangedDelegate UDMXEntityFixturePatch::OnFixturePatchChangedDelegate;
 
@@ -74,29 +51,75 @@ UDMXEntityFixturePatch* UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FDMX
 		UDMXLibrary* DMXLibrary = FixtureType->GetParentLibrary();
 		if (ensureMsgf(DMXLibrary, TEXT("Cannot create Fixture Patch when Fixture Type's DMX Library is invalid.")))
 		{
+			const FString EntityName = FDMXRuntimeUtils::FindUniqueEntityName(DMXLibrary, UDMXEntityFixturePatch::StaticClass(), DesiredName);
+			UDMXEntityFixturePatch* NewFixturePatch = NewObject<UDMXEntityFixturePatch>(DMXLibrary, UDMXEntityFixturePatch::StaticClass(), NAME_None, RF_Transactional);
+
 #if WITH_EDITOR
 			if (bMarkDMXLibraryDirty)
 			{
 				DMXLibrary->Modify();
 				DMXLibrary->PreEditChange(UDMXLibrary::StaticClass()->FindPropertyByName(UDMXLibrary::GetEntitiesPropertyName()));
+				NewFixturePatch->PreEditChange(nullptr);
 			}
 #endif
-
-			const FString EntityName = FDMXRuntimeUtils::FindUniqueEntityName(DMXLibrary, UDMXEntityFixturePatch::StaticClass(), DesiredName);
-
-			UDMXEntityFixturePatch* NewFixturePatch = NewObject<UDMXEntityFixturePatch>(DMXLibrary, UDMXEntityFixturePatch::StaticClass(), NAME_None, RF_Transactional);
+			
 			NewFixturePatch->SetName(EntityName);
 			NewFixturePatch->SetFixtureType(FixtureType);
 			NewFixturePatch->SetUniverseID(ConstructionParams.UniverseID);
 			NewFixturePatch->SetStartingChannel(ConstructionParams.StartingAddress);
 			NewFixturePatch->SetActiveModeIndex(ConstructionParams.ActiveMode);
-			
+
+			if (ConstructionParams.MVRFixtureUUID.IsValid())
+			{
+				// Make sure the MVR UUID is truly unique across the DNX Library
+				const TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+				const UDMXEntityFixturePatch* const* bOtherFixturePatchWithMVRFixtureUUIDPtr = FixturePatches.FindByPredicate([NewFixturePatch, &ConstructionParams](const UDMXEntityFixturePatch* FixturePatch)
+					{
+						return
+							FixturePatch != NewFixturePatch &&
+							FixturePatch->GetMVRFixtureUUID() == ConstructionParams.MVRFixtureUUID;
+					});
+
+				if (bOtherFixturePatchWithMVRFixtureUUIDPtr)
+				{
+					UE_LOG(LogDMXRuntime, Error, TEXT("Trying to create Fixture Patch '%s' with Unique MVR Fixture ID '%s' in DMX Library '%s'."), *DesiredName, *ConstructionParams.MVRFixtureUUID.ToString(), *DMXLibrary->GetName());
+					UE_LOG(LogDMXRuntime, Error, TEXT("However Fixture Patch '%s' in the same Library already uses this Unique MVR Fixture ID."), *(*bOtherFixturePatchWithMVRFixtureUUIDPtr)->Name);
+					UE_LOG(LogDMXRuntime, Error, TEXT("Generating a new Unique MVR Fixture ID for the new Fixture Patch instead"));
+					ensureAlways(0);
+
+					ConstructionParams.MVRFixtureUUID = FGuid::NewGuid();
+				}
+			}
+			else
+			{
+				// No MVR Fixture UUID specified, generate one.
+				ConstructionParams.MVRFixtureUUID = FGuid::NewGuid();
+			}
+			NewFixturePatch->MVRFixtureUUID = ConstructionParams.MVRFixtureUUID;
+
+#if WITH_EDITORONLY_DATA
+			// Make a nice Editor Color
+			const FLinearColor EditorColor = [DMXLibrary, &ConstructionParams]()
+			{
+				const TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+				const UDMXEntityFixturePatch* const* FixturePatchOfSameTypePtr = FixturePatches.FindByPredicate([&ConstructionParams](const UDMXEntityFixturePatch* FixturePatch)
+					{
+						return FixturePatch->GetFixtureType() == ConstructionParams.FixtureTypeRef.GetFixtureType();
+					});
+				return FixturePatchOfSameTypePtr ? (*FixturePatchOfSameTypePtr)->EditorColor : FLinearColor::MakeRandomColor();
+			}();
+
+			NewFixturePatch->EditorColor = EditorColor;
+#endif
+
 #if WITH_EDITOR
 			if (bMarkDMXLibraryDirty)
 			{
 				DMXLibrary->PostEditChange();
+				NewFixturePatch->PostEditChange();
 			}
 #endif
+
 			OnFixturePatchChangedDelegate.Broadcast(NewFixturePatch);
 			return NewFixturePatch;
 		}
@@ -132,11 +155,25 @@ bool UDMXEntityFixturePatch::Modify(bool bAlwaysMarkDirty)
 }
 #endif // WITH_EDITOR
 
+void UDMXEntityFixturePatch::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FDMXRuntimeMainStreamObjectVersion::GUID);
+	if (Ar.IsLoading())
+	{
+		if (Ar.CustomVer(FDMXRuntimeMainStreamObjectVersion::GUID) < FDMXRuntimeMainStreamObjectVersion::DMXFixturePatchHasMVRUUID)
+		{
+			MVRFixtureUUID = FGuid::NewGuid();
+		}
+	}
+}
+
 void UDMXEntityFixturePatch::PostInitProperties()
 {
 	Super::PostInitProperties();
 
-	if (!HasAnyFlags(RF_ClassDefaultObject))
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
 	{
 		UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddUObject(this, &UDMXEntityFixturePatch::OnFixtureTypeChanged);
 		RebuildCache();
@@ -147,7 +184,10 @@ void UDMXEntityFixturePatch::PostLoad()
 {
 	Super::PostLoad();
 
-	RebuildCache();
+	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
+	{
+		RebuildCache();
+	}
 }
 
 #if WITH_EDITOR
@@ -524,44 +564,6 @@ bool UDMXEntityFixturePatch::SetActiveModeIndex(int32 NewActiveModeIndex)
 	}
 
 	return false;
-}
-
-void UDMXEntityFixturePatch::AddMVRFixtureInstance(const FDMXMVRFixture& MVRFixtureToAdd)
-{
-	if (!ensureMsgf(ParentFixtureTypeTemplate, TEXT("Trying to create an MVR Fixture Instance in Fixture Patch '%s', but it has not Fixture Type."), *Name))
-	{
-		return;
-	}
-	if (!ensureMsgf(ParentFixtureTypeTemplate->DMXImport, TEXT("Trying to create an MVR Fixture Instance in Fixture Patch '%s', but its Fixture Type '%s' has no GDTF set."), *Name, *ParentFixtureTypeTemplate->Name))
-	{
-		return;
-	}
-	if (!ensureMsgf(MVRFixtureToAdd.UUID.IsValid(), TEXT("Trying to create an MVR Fixture Instance in Fixture Patch '%s', the UUID is not valid."), *Name, *ParentFixtureTypeTemplate->Name))
-	{
-		return;
-	}
-	const bool bMVRUUIDAlreadyContained = MVRFixtureInstances.ContainsByPredicate([MVRFixtureToAdd](const UDMXMVRFixtureInstance* MVRFixtureInstance)
-		{
-			return MVRFixtureInstance->GetMVRFixture().UUID == MVRFixtureToAdd.UUID;
-		});
-	if (!ensureMsgf(!bMVRUUIDAlreadyContained, TEXT("Trying to add an MVR Fixture to a Fixture Patch, but its UUID is already contained.")))
-	{
-		return;
-	}	
-
-	UDMXMVRFixtureInstance* NewMVRFixtureInstance = UDMXMVRFixtureInstance::CreateFromMVRFixture(MVRFixtureToAdd);
-	MVRFixtureInstances.Add(NewMVRFixtureInstance);
-}
-
-TArray<FDMXMVRFixture> UDMXEntityFixturePatch::MakeMVRFixtures() const
-{
-	TArray<FDMXMVRFixture> Result;
-	for (UDMXMVRFixtureInstance* MVRFixtureInstance : MVRFixtureInstances)
-	{
-		Result.Add(MVRFixtureInstance->GetMVRFixture());
-	}
-
-	return Result;
 }
 
 int32 UDMXEntityFixturePatch::GetRemoteUniverse() const
