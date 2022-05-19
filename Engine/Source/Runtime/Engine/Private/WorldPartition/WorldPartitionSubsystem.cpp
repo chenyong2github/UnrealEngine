@@ -291,14 +291,6 @@ void UWorldPartitionSubsystem::DumpStreamingSources(FOutputDevice& OutputDevice)
 
 void UWorldPartitionSubsystem::UpdateStreamingState()
 {
-#if WITH_EDITOR
-	// Do not update during transaction
-	if (GUndo)
-	{
-		return;
-	}
-#endif
-
 	for (UWorldPartition* RegisteredWorldPartition : RegisteredWorldPartitions)
 	{
 		RegisteredWorldPartition->UpdateStreamingState();
