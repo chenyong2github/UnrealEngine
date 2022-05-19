@@ -239,8 +239,6 @@ void FIKRetargetDefaultMode::Enter()
 
 void FIKRetargetDefaultMode::Exit()
 {
-	IPersonaEditMode::Exit();
-
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
 	{
@@ -254,6 +252,8 @@ void FIKRetargetDefaultMode::Exit()
 	
 	// deselect all
 	SetSelectedComponent(nullptr);
+
+	IPersonaEditMode::Exit();
 }
 
 bool FIKRetargetDefaultMode::ComponentSelectionOverride(const UPrimitiveComponent* InComponent) const

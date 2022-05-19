@@ -281,6 +281,7 @@ bool ULegacyEdModeWrapper::ShouldDrawBrushWireframe(AActor* InActor) const
 
 void ULegacyEdModeWrapper::Enter()
 {
+	CreateInteractiveToolsContexts();
 	LegacyEditorMode->Enter();
 	Toolkit = LegacyEditorMode->GetToolkit();
 }
@@ -290,6 +291,7 @@ void ULegacyEdModeWrapper::Exit()
 	Toolkit.Reset();
 
 	LegacyEditorMode->Exit();
+	DestroyInteractiveToolsContexts();
 }
 
 FEdMode* ULegacyEdModeWrapper::AsLegacyMode()

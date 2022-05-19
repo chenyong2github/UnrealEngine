@@ -35,6 +35,8 @@
 #include "AudioDevice.h"
 #include "RawIndexBuffer.h"
 #include "CameraController.h"
+#include "ContextObjectStore.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "Animation/MorphTarget.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "UnrealWidget.h"
@@ -1721,10 +1723,10 @@ void FAnimationViewportClient::DrawSockets(const UDebugSkelMeshComponent* InPrev
 FSphere FAnimationViewportClient::GetCameraTarget()
 {
 	// give the editor mode a chance to give us a camera target
-	if (GetPersonaModeManager())
+	if (IPersonaManagerContext* PersonaModeManagerContext = GetModeTools()->GetInteractiveToolsContext()->ContextObjectStore->FindContext<UPersonaEditorModeManagerContext>())
 	{
 		FSphere Target;
-		if (GetPersonaModeManager()->GetCameraTarget(Target))
+		if (PersonaModeManagerContext->GetCameraTarget(Target))
 		{
 			return Target;
 		}
@@ -2096,7 +2098,7 @@ TSharedRef<FAnimationEditorPreviewScene> FAnimationViewportClient::GetAnimPrevie
 
 IPersonaEditorModeManager* FAnimationViewportClient::GetPersonaModeManager() const
 {
-	return static_cast<IPersonaEditorModeManager*>(ModeTools.Get());
+	return ModeTools->GetInteractiveToolsContext()->ContextObjectStore->FindContext<UPersonaEditorModeManagerContext>()->GetPersonaEditorModeManager();
 }
 
 void FAnimationViewportClient::HandleInvalidateViews()

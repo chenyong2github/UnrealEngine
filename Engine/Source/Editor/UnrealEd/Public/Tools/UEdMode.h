@@ -291,4 +291,8 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UObject> SettingsObject;
 
+protected:
+
+	void CreateInteractiveToolsContexts();
+	void DestroyInteractiveToolsContexts();
 };

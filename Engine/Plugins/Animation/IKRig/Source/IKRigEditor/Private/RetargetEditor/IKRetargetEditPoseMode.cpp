@@ -402,6 +402,8 @@ bool FIKRetargetEditPoseMode::GetCustomInputCoordinateSystem(FMatrix& InMatrix, 
 
 void FIKRetargetEditPoseMode::Enter()
 {
+	IPersonaEditMode::Enter();
+	
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();
 	if (!Controller.IsValid())
 	{
@@ -426,6 +428,8 @@ void FIKRetargetEditPoseMode::Exit()
 	}
 
 	Controller->AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
+
+	IPersonaEditMode::Exit();
 }
 
 void FIKRetargetEditPoseMode::UpdateWidgetTransform()

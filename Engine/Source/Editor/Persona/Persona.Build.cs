@@ -20,6 +20,7 @@ public class Persona : ModuleRules
         PublicDependencyModuleNames.AddRange(
             new string[] {
                 "AdvancedPreviewScene",
+                "AnimationEditMode",
             }
         );
 
@@ -33,6 +34,7 @@ public class Persona : ModuleRules
                 "MeshReductionInterface",
                 "SequenceRecorder",
                 "AnimationBlueprintEditor",
+                "EditorInteractiveToolsFramework",
 			}
 		);
 
@@ -77,7 +79,8 @@ public class Persona : ModuleRules
                 "Sequencer",
 				"StatusBar",
 				"ToolWidgets",
-			}
+				"InteractiveToolsFramework",
+            }
         );
 
         DynamicallyLoadedModuleNames.AddRange(

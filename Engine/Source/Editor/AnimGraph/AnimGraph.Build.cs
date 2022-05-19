@@ -42,6 +42,7 @@ public class AnimGraph : ModuleRules
 				"Kismet",
 				"EditorWidgets",
 				"ToolWidgets",
+				"AnimationEditMode",
 			}
 		);
 
@@ -54,8 +55,7 @@ public class AnimGraph : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
-				"Persona",
-				"SkeletonEditor",
+	            "SkeletonEditor",
                 "AdvancedPreviewScene",
                 "AnimationBlueprintEditor",
             }

@@ -47,13 +47,7 @@ void UEdMode::Enter()
 			return true;
 		});
 
-	// Editor-scope ToolsContext is provided by the Mode Manager
-	EditorToolsContext = Owner->GetInteractiveToolsContext();
-	check(EditorToolsContext.IsValid());
-
-	// Mode-scope ToolsContext is created derived from the Editor-Scope ToolsContext so that the UInputRouter can be shared
-	ModeToolsContext = EditorToolsContext->CreateNewChildEdModeToolsContext();
-	check(ModeToolsContext != nullptr);
+	CreateInteractiveToolsContexts();
 
 	ModeToolsContext->ToolManager->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
 	ModeToolsContext->ToolManager->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
@@ -145,10 +139,7 @@ void UEdMode::Exit()
 
 		// Shutdown the Mode-scope ToolsContext, and notify the EditorToolsContext so it can release the reference it holds.
 		// Do this before shutting down the Toolkit as if a Mode-scope Tool is still active it will need to clean up
-		if (ModeToolsContext != nullptr)
-		{
-			ModeToolsContext->ShutdownContext();
-		}
+		DestroyInteractiveToolsContexts();
 	}
 
 	if (Toolkit.IsValid())
@@ -260,6 +251,25 @@ void UEdMode::OnModeActivated(const FEditorModeID& InID, bool bIsActive)
 
 			Owner->GetInteractiveToolsContext()->OnChildEdModeDeactivated(ModeToolsContext);
 		}
+	}
+}
+
+void UEdMode::CreateInteractiveToolsContexts()
+{
+	// Editor-scope ToolsContext is provided by the Mode Manager
+	EditorToolsContext = Owner->GetInteractiveToolsContext();
+	check(EditorToolsContext.IsValid());
+
+	// Mode-scope ToolsContext is created derived from the Editor-Scope ToolsContext so that the UInputRouter can be shared
+	ModeToolsContext = EditorToolsContext->CreateNewChildEdModeToolsContext();
+	check(ModeToolsContext);
+}
+
+void UEdMode::DestroyInteractiveToolsContexts()
+{
+	if (ModeToolsContext)
+	{
+		ModeToolsContext->ShutdownContext();
 	}
 }
 

@@ -4,10 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "UnrealWidgetFwd.h"
-#include "IPersonaEditMode.h"
+#include "AnimationEditMode.h"
 
 /** Base interface for skeletal control edit modes */
-class IAnimNodeEditMode : public IPersonaEditMode
+class IAnimNodeEditMode : public FAnimationEditMode
 {
 public:
 	/** Returns the coordinate system that should be used for this bone */

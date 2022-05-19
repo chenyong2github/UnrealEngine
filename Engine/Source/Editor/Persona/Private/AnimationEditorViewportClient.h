@@ -301,6 +301,7 @@ public:
 	int32 GetViewportIndex() const { return ViewportIndex; }
 
 	/** Get the persona mode manager */
+	UE_DEPRECATED(5.1, "Use the UPersonaEditorModeManagerContext object stored in the editor mode tools' context store instead.")
 	class IPersonaEditorModeManager* GetPersonaModeManager() const;
 
 private:

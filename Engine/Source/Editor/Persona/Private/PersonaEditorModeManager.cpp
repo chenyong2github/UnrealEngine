@@ -1,46 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PersonaEditorModeManager.h"
+
 #include "IPersonaEditMode.h"
 #include "IPersonaPreviewScene.h"
 #include "Selection.h"
 #include "Animation/DebugSkelMeshComponent.h"
-
+#include "EdModeInteractiveToolsContext.h"
+#include "ContextObjectStore.h"
 
 bool FPersonaEditorModeManager::GetCameraTarget(FSphere& OutTarget) const
 {
-	for (UEdMode* Mode : ActiveScriptableModes)
+	for (const UEdMode* Mode : ActiveScriptableModes)
 	{
-		FEdMode* LegacyMode = Mode->AsLegacyMode();
-		// Hack for UE-136071, UE-141936. ClothPaintModes are not IPersonaEditModes, but are FEdModes.
-		if (LegacyMode && LegacyMode->GetID() != FEditorModeID("ClothPaintMode"))
+		if (const UEditorInteractiveToolsContext* ModeInteractiveToolsContext = Mode->GetInteractiveToolsContext())
 		{
-			if (IPersonaEditMode* EditMode = static_cast<IPersonaEditMode*>(LegacyMode))
+			if (const IAnimationEditContext* PersonaContext = ModeInteractiveToolsContext->ContextObjectStore->FindContext<UAnimationEditModeContext>())
 			{
-				FSphere Target;
-				if (EditMode->GetCameraTarget(Target))
+				if (PersonaContext->GetCameraTarget(OutTarget))
 				{
-					OutTarget = Target;
 					return true;
 				}
 			}
 		}
 	}
-
 	return false;
 }
 
 void FPersonaEditorModeManager::GetOnScreenDebugInfo(TArray<FText>& OutDebugText) const
 {
-	for (UEdMode* Mode : ActiveScriptableModes)
+	for (const UEdMode* Mode : ActiveScriptableModes)
 	{
-		FEdMode* LegacyMode = Mode->AsLegacyMode();
-		// Hack for UE-136071, UE-141936. ClothPaintModes are not IPersonaEditModes, but are FEdModes.
-		if (LegacyMode && LegacyMode->GetID() != FEditorModeID("ClothPaintMode"))
+		if (const UEditorInteractiveToolsContext* ModeInteractiveToolsContext = Mode->GetInteractiveToolsContext())
 		{
-			if (IPersonaEditMode* EditMode = static_cast<IPersonaEditMode*>(LegacyMode))
+			if (const IAnimationEditContext* PersonaContext = ModeInteractiveToolsContext->ContextObjectStore->FindContext<UAnimationEditModeContext>())
 			{
-				EditMode->GetOnScreenDebugInfo(OutDebugText);
+				PersonaContext->GetOnScreenDebugInfo(OutDebugText);
 			}
 		}
 	}

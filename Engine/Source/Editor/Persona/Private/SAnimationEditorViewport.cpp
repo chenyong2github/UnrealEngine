@@ -33,6 +33,10 @@
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Materials/Material.h"
 #include "EditorFontGlyphs.h"
+#include "Experimental/EditorInteractiveToolsFramework/Public/EdModeInteractiveToolsContext.h"
+#include "ContextObjectStore.h"
+#include "IPersonaEditMode.h"
+#include "PersonaContext.h"
 
 #include "SkeletalMeshTypes.h"
 #include "IPersonaToolkit.h"
@@ -291,11 +295,10 @@ FText SAnimationEditorViewportTabBody::GetDisplayString() const
 	else if(AnimViewportClient->IsShowingSelectedNodeStats())
 	{
 		// Allow edit modes (inc. skeletal control modes) to draw with the canvas, and collect on screen strings to draw later
-		if (AnimViewportClient->GetPersonaModeManager())
+		if (IAnimationEditContext* PersonaContext = AnimViewportClient->GetModeTools()->GetInteractiveToolsContext()->ContextObjectStore->FindContext<UAnimationEditModeContext>())
 		{
 			TArray<FText> EditModeDebugText;
-			AnimViewportClient->GetPersonaModeManager()->GetOnScreenDebugInfo(EditModeDebugText);
-
+			PersonaContext->GetOnScreenDebugInfo(EditModeDebugText);
 			for(FText& Text : EditModeDebugText)
 			{
 				DefaultText = ConcatenateLine(DefaultText, Text);

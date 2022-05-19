@@ -2,27 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "EdMode.h"
+#include "AnimationEditMode.h"
 
-class IPersonaEditMode : public FEdMode
+class PERSONA_API IPersonaEditMode : public FAnimationEditMode
 {
+	// These implementations are duplicated in the Persona module so that code that links only to Persona and not to
+	// the AnimationEditMode module can work properly
 public:
-	/** 
-	 * Get a camera target used to focus the viewport on an object when a user presses 'F' (default). 
-	 * @param	OutTarget	The target object
-	 * @return true if the target sphere was filled-in
-	 */
-	virtual bool GetCameraTarget(FSphere& OutTarget) const = 0;
-
-	/** @return the anim preview scene */
-	virtual class IPersonaPreviewScene& GetAnimPreviewScene() const = 0;
-
-	/**
-	* Function to collect strings from nodes to display in the viewport.
-	* Use this rather than DrawHUD when adding general text to the viewport.
-	* Display of this assumes that this will be mostly used by skeletal controls.
-	* @param	OutDebugInfo	Text to display
-	*/
-	virtual void GetOnScreenDebugInfo(TArray<FText>& OutDebugInfo) const = 0;
+	IPersonaEditMode();
+	virtual ~IPersonaEditMode() override;
+	virtual void Enter() override;
+	virtual void Exit() override;
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 };
