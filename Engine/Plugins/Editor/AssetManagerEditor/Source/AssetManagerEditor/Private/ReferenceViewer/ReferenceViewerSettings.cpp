@@ -188,3 +188,15 @@ void UReferenceViewerSettings::SetEnableCollectionFilter(bool bEnabled)
 	bEnableCollectionFilter = bEnabled;
 	SaveConfig();
 }
+
+bool UReferenceViewerSettings::IsShowPath() const
+{
+	return bIsShowPath;
+}
+
+void UReferenceViewerSettings::SetShowPathEnabled(bool bEnabled)
+{
+	bIsShowPath = bEnabled;
+	SaveConfig();
+}
+

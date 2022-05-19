@@ -78,6 +78,11 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 
 		// append the type so it shows up on the extra line
 		NodeTitle = FText::FromString(FString::Printf(TEXT("%s\n%s"), *MainAssetName, *AssetTypeName));
+
+		if (bIsPackage)
+		{
+			NodeComment = First.PackageName.ToString();
+		}
 	}
 	else
 	{

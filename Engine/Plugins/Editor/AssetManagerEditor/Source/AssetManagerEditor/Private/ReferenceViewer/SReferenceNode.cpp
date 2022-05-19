@@ -244,7 +244,7 @@ void SReferenceNode::UpdateGraphNode()
 	];
 	// Create comment bubble if comment text is valid
 	GetNodeObj()->bCommentBubbleVisible = !GetNodeObj()->NodeComment.IsEmpty();
-	if( GetNodeObj()->bCommentBubbleVisible )
+	if( GetNodeObj()->ShouldMakeCommentBubbleVisible() && GetNodeObj()->bCommentBubbleVisible)
 	{
 		TSharedPtr<SCommentBubble> CommentBubble;
 

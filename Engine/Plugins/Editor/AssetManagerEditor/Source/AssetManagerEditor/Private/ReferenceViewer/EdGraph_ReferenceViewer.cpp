@@ -259,6 +259,7 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::ConstructNodes(const TArray<FA
 		RootNode = CreateReferenceNode();
 		bool bRootIsDuplicated = DependencyNodeInfos[GraphRootIdentifiers[0]].IsADuplicate() || ReferenceNodeInfos[GraphRootIdentifiers[0]].IsADuplicate();
 		RootNode->SetupReferenceNode(GraphRootOrigin, GraphRootIdentifiers, PackagesToAssetDataMap.FindRef(GraphRootIdentifiers[0].PackageName), /*bInAllowThumbnail = */ !Settings->IsCompactMode(), /*bIsDuplicate*/ bRootIsDuplicated);
+		RootNode->SetMakeCommentBubbleVisible(Settings->IsShowPath());
 
 		if (bUseNodeInfos) // @LULU true = using new stuff, false = Not using new stuff 
 		{
@@ -534,6 +535,7 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyCreateNodes(bool bI
 	{
 		NewNode = CreateReferenceNode();
 		NewNode->SetupReferenceNode(InNodeLoc, {InAssetId}, NodeInfo.AssetData, /*bInAllowThumbnail*/ !Settings->IsCompactMode(), /*bIsADuplicate*/ NodeInfo.Parents.Num() > 1);
+		NewNode->SetMakeCommentBubbleVisible(Settings->IsShowPath());
 		NodeProvSize = NodeInfo.ProvisionSize(InParentId);
 	}
 
@@ -543,10 +545,12 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::RecursivelyCreateNodes(bool bI
 	{
 
 		// position the children nodes
-		const int32 ColumnWidth = Settings->IsCompactMode() ? 400 : 800;
+		const int32 ColumnWidth = Settings->IsCompactMode() ? 500 : 800;
 		ChildLoc.X += bInReferencers ? -ColumnWidth : ColumnWidth;
 
-		const int32 NodeSizeY = Settings->IsCompactMode() ? 100 : 200;
+		int32 NodeSizeY = Settings->IsCompactMode() ? 100 : 200;
+		NodeSizeY += Settings->IsShowPath() ? 40 : 0;
+
 		ChildLoc.Y -= (NodeProvSize - 1) * NodeSizeY * 0.5 ;
 
 		int32 Breadth = 0;

@@ -1274,6 +1274,41 @@ void SReferenceViewer::RegisterActions()
 		FAssetManagerEditorCommands::Get().ViewAssetAudit,
 		FExecuteAction::CreateSP(this, &SReferenceViewer::ViewAssetAudit),
 		FCanExecuteAction::CreateSP(this, &SReferenceViewer::HasAtLeastOneRealNodeSelected));
+
+	ReferenceViewerActions->MapAction(
+		FAssetManagerEditorCommands::Get().ShowCommentPath,
+		FExecuteAction::CreateLambda([this] { 
+			Settings->SetShowPathEnabled(!Settings->IsShowPath());
+			RebuildGraph();
+		}),
+		FCanExecuteAction(),	
+		FIsActionChecked::CreateLambda([this] {return Settings->IsShowPath();}));
+
+
+	ReferenceViewerActions->MapAction(
+		FAssetManagerEditorCommands::Get().CopyPaths,
+		FExecuteAction::CreateLambda([this] {
+				FString Result;
+				// Build up a list of selected assets from the graph selection set
+				TSet<UObject*> SelectedNodes = GraphEditorPtr->GetSelectedNodes();
+				for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
+				{
+					if (UEdGraphNode_Reference* ReferenceNode = Cast<UEdGraphNode_Reference>(*It))
+					{
+						if (ReferenceNode->GetAssetData().IsValid())
+						{
+							Result += ReferenceNode->GetAssetData().PackageName.ToString();
+							Result += TEXT("\n");
+						}
+					}
+				}
+
+				if (Result.Len())
+				{
+					FPlatformApplicationMisc::ClipboardCopy(*Result);
+				}
+		}),
+		FCanExecuteAction::CreateSP(this, &SReferenceViewer::HasAtLeastOneRealNodeSelected));
 }
 
 void SReferenceViewer::ShowSelectionInContentBrowser()
@@ -1824,6 +1859,7 @@ TSharedRef<SWidget> SReferenceViewer::GetShowMenuContent()
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ShowDuplicates);
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().FilterSearch);
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().CompactMode);
+	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ShowCommentPath);
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();

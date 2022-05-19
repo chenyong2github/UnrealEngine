@@ -85,6 +85,12 @@ public:
 	// Toggles Compact Mode
 	TSharedPtr<FUICommandInfo> CompactMode;
 
+	// Toggles Path Comment 
+	TSharedPtr<FUICommandInfo> ShowCommentPath;
+
+	// Copies the selected Asset Paths to the Clipboard
+	TSharedPtr<FUICommandInfo> CopyPaths;
+
 	// Toggles whether search results are filtered or just selected 
 	TSharedPtr<FUICommandInfo> FilterSearch;
 

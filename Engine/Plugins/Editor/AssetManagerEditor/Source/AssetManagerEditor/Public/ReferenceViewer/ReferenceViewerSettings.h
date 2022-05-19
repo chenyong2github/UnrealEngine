@@ -68,6 +68,8 @@ public:
 	bool IsCompactMode() const;
 	void SetCompactModeEnabled(bool newEnabled);
 
+	bool IsShowPath() const;
+	void SetShowPathEnabled(bool newEnabled);
 
 private:
 	/* Whether to limit the search depth for Referencers & Dependencies */
@@ -137,5 +139,9 @@ private:
 	/* Whether to show the nodes in a compact (no thumbnail) view */
 	UPROPERTY(config)
 	bool bIsCompactMode;
+
+	/* Whether to show the package's path as a comment */
+	UPROPERTY(config)
+	bool bIsShowPath;
 
 };
