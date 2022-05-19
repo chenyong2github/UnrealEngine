@@ -24,9 +24,10 @@ class UNiagaraSystemAuditCommandlet : public UCommandlet
 	TSet<FString> NiagaraSystemsWithPrerequisites;
 	/** All Niagara systems that contain emitters with dynamic bounds */
 	TSet<FString> NiagaraSystemsWithDynamicBounds;
-
 	/** All Niagara systems that use a user requested data interface */
 	TSet<FString> NiagaraSystemsWithUserDataInterface;
+	/** All Niagara Systems & Emitters with simulation stages enabled*/
+	TSet<FString> NiagaraSystemsWithSimulationStages;
 
 	/** Optional list of data interface usage */
 	struct FDataInterfaceUsage
