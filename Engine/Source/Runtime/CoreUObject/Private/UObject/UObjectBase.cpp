@@ -697,6 +697,8 @@ void RegisterCompiledInInfo(UPackage* (*InOuterRegister)(), const TCHAR* InPacka
 // Multiple registrations
 void RegisterCompiledInInfo(const TCHAR* PackageName, const FClassRegisterCompiledInInfo* ClassInfo, size_t NumClassInfo, const FStructRegisterCompiledInInfo* StructInfo, size_t NumStructInfo, const FEnumRegisterCompiledInInfo* EnumInfo, size_t NumEnumInfo)
 {
+	LLM_SCOPE(ELLMTag::UObject);
+
 	for (size_t Index = 0; Index < NumClassInfo; ++Index)
 	{
 		const FClassRegisterCompiledInInfo& Info = ClassInfo[Index];

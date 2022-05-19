@@ -3015,6 +3015,8 @@ bool FLinkerLoad::VerifyImportInner(const int32 ImportIndex, FString& WarningSuf
 	// Lambda used to load an import package
 	auto LoadImportPackage = [this, ImportIndex](FObjectImport& Import, TOptional<FScopedSlowTask>& SlowTask) -> UPackage*
 	{
+		LLM_SCOPE(ELLMTag::UObject);
+
 		// Either this import is a UPackage or it has PackageName set.
 		check(Import.ClassName == NAME_Package || Import.HasPackageName());
 
