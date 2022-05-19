@@ -50,19 +50,50 @@ void UDataflowSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMe
 	}
 }
 
-const FPinConnectionResponse UDataflowSchema::CanCreateConnection(const UEdGraphPin* PinA, const UEdGraphPin* PinB) const
+const FPinConnectionResponse UDataflowSchema::CanCreateConnection(const UEdGraphPin* InPinA, const UEdGraphPin* InPinB) const
 {
-	// Make sure the pins are not on the same node
-	if (PinA->GetOwningNode() != PinB->GetOwningNode())
+	bool bSwapped = false;
+	const UEdGraphPin* PinA = InPinA;
+	const UEdGraphPin* PinB = InPinB;
+	if (PinA->Direction == EEdGraphPinDirection::EGPD_Input &&
+		PinB->Direction == EEdGraphPinDirection::EGPD_Output)
 	{
-		// Make sure types match. 
-		if (PinA->PinType == PinB->PinType)
-		{
-			return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("PinConnect", "Connect nodes"));
-		}
+		bSwapped = true;
+		PinA = InPinB; PinB = InPinA;
 	}
 
-	return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, LOCTEXT("PinErrorSameNode", "Both are on the same node"));
+
+	if (PinA->Direction == EEdGraphPinDirection::EGPD_Output)
+	{
+		if (PinB->Direction == EEdGraphPinDirection::EGPD_Input)
+		{
+			// Make sure the pins are not on the same node
+			if (PinA->GetOwningNode() != PinB->GetOwningNode())
+			{
+				// Make sure types match. 
+				if (PinA->PinType == PinB->PinType)
+				{
+					if (PinB->LinkedTo.Num())
+					{
+						return (bSwapped) ?
+							FPinConnectionResponse(CONNECT_RESPONSE_BREAK_OTHERS_A, LOCTEXT("PinSteal", "Disconnect existing input and connect new input."))
+							:
+							FPinConnectionResponse(CONNECT_RESPONSE_BREAK_OTHERS_B, LOCTEXT("PinSteal", "Disconnect existing input and connect new input."));
+
+					}
+					return FPinConnectionResponse(CONNECT_RESPONSE_MAKE, LOCTEXT("PinConnect", "Connect input to output."));
+				}
+			}
+		}
+	}
+	TArray<FText> NoConnectionResponse = {
+		LOCTEXT("PinErrorSameNode", "Nope"), 
+		LOCTEXT("PinErrorSameNode", "Sorry :("),
+		LOCTEXT("PinErrorSameNode", "Not gonna work."),
+		LOCTEXT("PinErrorSameNode", "Still no!"),
+		LOCTEXT("PinErrorSameNode", "Try again?"),
+	};
+	return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, NoConnectionResponse[FMath::RandRange(0, NoConnectionResponse.Num()-1)]);
 }
 
 
