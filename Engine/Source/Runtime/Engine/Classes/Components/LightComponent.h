@@ -243,6 +243,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|Light")
 	void SetLightColor(FLinearColor NewLightColor, bool bSRGB = true);
 
+	/** Set color of the light */
+	UFUNCTION(Category="Rendering|Components|Light")
+	void SetLightFColor(FColor NewLightColor);
+
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
 	void SetTemperature(float NewTemperature);
 

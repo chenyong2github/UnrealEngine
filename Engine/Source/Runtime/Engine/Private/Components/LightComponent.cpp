@@ -993,13 +993,17 @@ void ULightComponent::SetVolumetricScatteringIntensity(float NewIntensity)
 /** Set color of the light */
 void ULightComponent::SetLightColor(FLinearColor NewLightColor, bool bSRGB)
 {
-	FColor NewColor(NewLightColor.ToFColor(bSRGB));
+	const FColor NewColor(NewLightColor.ToFColor(bSRGB));
+	SetLightFColor(NewColor);
+}
 
+void ULightComponent::SetLightFColor(FColor NewLightColor)
+{
 	// Can't set color on a static light
 	if (AreDynamicDataChangesAllowed()
-		&& LightColor != NewColor)
+		&& LightColor != NewLightColor)
 	{
-		LightColor	= NewColor;
+		LightColor	= NewLightColor;
 
 		// Use lightweight color and brightness update 
 		UWorld* World = GetWorld();
