@@ -12,6 +12,9 @@ class FStaticMeshRenderData;
 class FStaticMeshLODGroup;
 class USkeletalMesh;
 struct FOverlappingCorners;
+struct FMeshDescription;
+struct FMeshBuildSettings;
+
 
 class MESHBUILDER_API FStaticMeshBuilder : public FMeshBuilder
 {
