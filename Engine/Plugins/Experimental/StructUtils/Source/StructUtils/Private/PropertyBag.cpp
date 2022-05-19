@@ -1345,52 +1345,47 @@ const UPropertyBag* UPropertyBag::GetOrCreateFromDescs(const TConstArrayView<FPr
 		return ExistingBag;
 	}
 
-	// Validate descriptors
-	bool bAllValid = true;
-	for (const FPropertyBagPropertyDesc& Desc : PropertyDescs)
+	UPropertyBag* NewBag = NewObject<UPropertyBag>(GetTransientPackage(), *ScriptStructName, RF_Standalone | RF_Transient);
+
+	NewBag->PropertyDescs = PropertyDescs;
+
+	// Fix missing structs, enums, and objects.
+	for (FPropertyBagPropertyDesc& Desc : NewBag->PropertyDescs)
 	{
 		if (Desc.ValueType == EPropertyBagPropertyType::Struct)
 		{
 			if (Desc.ValueTypeObject == nullptr || Desc.ValueTypeObject->GetClass()->IsChildOf(UScriptStruct::StaticClass()) == false)
 			{
-				ensureAlwaysMsgf(false, TEXT("Struct property must have valid struct type object."));
-				bAllValid = false;
+				UE_LOG(LogCore, Warning, TEXT("PropertyBag: Struct property '%s' is missing type."), *Desc.Name.ToString());
+				Desc.ValueTypeObject = FPropertyBagMissingStruct::StaticStruct();
 			}
 		}
 		else if (Desc.ValueType == EPropertyBagPropertyType::Enum)
 		{
 			if (Desc.ValueTypeObject == nullptr || Desc.ValueTypeObject->GetClass()->IsChildOf(UEnum::StaticClass()) == false)
 			{
-				ensureAlwaysMsgf(false, TEXT("Enum property must have valid enum type object."));
-				bAllValid = false;
+				UE_LOG(LogCore, Warning, TEXT("PropertyBag: Enum property '%s' is missing type."), *Desc.Name.ToString());
+				Desc.ValueTypeObject = StaticEnum<EPropertyBagMissingEnum>();
 			}
 		}
 		else if (Desc.ValueType == EPropertyBagPropertyType::Object || Desc.ValueType == EPropertyBagPropertyType::SoftObject)
 		{
 			if (Desc.ValueTypeObject == nullptr)
 			{
-				ensureAlwaysMsgf(false, TEXT("Object property must have valid object type object."));
-				bAllValid = false;
+				UE_LOG(LogCore, Warning, TEXT("PropertyBag: Object property '%s' is missing type."), *Desc.Name.ToString());
+				Desc.ValueTypeObject = UPropertyBagMissingObject::StaticClass();
 			}
 		}
 		else if (Desc.ValueType == EPropertyBagPropertyType::Class || Desc.ValueType == EPropertyBagPropertyType::SoftClass)
 		{
 			if (Desc.ValueTypeObject == nullptr || Desc.ValueTypeObject->GetClass()->IsChildOf(UClass::StaticClass()) == false)
 			{
-				ensureAlwaysMsgf(false, TEXT("Class property must have valid class type object."));
-				bAllValid = false;
+				UE_LOG(LogCore, Warning, TEXT("PropertyBag: Class property '%s' is missing type."), *Desc.Name.ToString());
+				Desc.ValueTypeObject = UPropertyBagMissingObject::StaticClass();
 			}
 		}
 	}
-	if (!bAllValid)
-	{
-		return nullptr;
-	}
 	
-	UPropertyBag* NewBag = NewObject<UPropertyBag>(GetTransientPackage(), *ScriptStructName, RF_Standalone | RF_Transient);
-
-	NewBag->PropertyDescs = PropertyDescs;
-
 	// Remove properties with same name
 	for (int32 Index = 0; Index < NewBag->PropertyDescs.Num() - 1; Index++)
 	{

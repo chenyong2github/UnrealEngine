@@ -40,6 +40,33 @@ bool IsScriptStruct(const TSharedPtr<IPropertyHandle>& PropertyHandle)
 	return StructProperty && StructProperty->Struct == TBaseStructure<T>::Get();
 }
 
+/** @return true if the property is one of the known missing types. */
+bool HasMissingType(const TSharedPtr<IPropertyHandle>& PropertyHandle)
+{
+	if (!PropertyHandle)
+	{
+		return false;
+	}
+
+	// Handles Struct
+	if (FStructProperty* StructProperty = CastField<FStructProperty>(PropertyHandle->GetProperty()))
+	{
+		return StructProperty->Struct == FPropertyBagMissingStruct::StaticStruct();
+	}
+	// Handles Object, SoftObject, Class, SoftClass.
+	if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(PropertyHandle->GetProperty()))
+	{
+		return ObjectProperty->PropertyClass == UPropertyBagMissingObject::StaticClass();
+	}
+	// Handles Enum
+	if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(PropertyHandle->GetProperty()))
+	{
+		return EnumProperty->GetEnum() == StaticEnum<EPropertyBagMissingEnum>();
+	}
+
+	return false;
+}
+
 /** @return property bag struct common to all edited properties. */
 const UPropertyBag* GetCommonBagStruct(TSharedPtr<IPropertyHandle> StructProperty)
 {
@@ -410,10 +437,10 @@ void FPropertyBagInstanceDataDetails::OnChildRowAdded(IDetailPropertyRow& ChildR
 	FDetailWidgetRow Row;
 	ChildRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
 
+	TSharedPtr<IPropertyHandle> ChildPropertyHandle = ChildRow.GetPropertyHandle();
+	
 	if (!bFixedLayout)
 	{
-		TSharedPtr<IPropertyHandle> ChildPropertyHandle = ChildRow.GetPropertyHandle();
-
 		// Inline editable name
 		TSharedPtr<SInlineEditableTextBlock> InlineWidget = SNew(SInlineEditableTextBlock)
 			.Font(IDetailLayoutBuilder::GetDetailFont())
@@ -466,12 +493,35 @@ void FPropertyBagInstanceDataDetails::OnChildRowAdded(IDetailPropertyRow& ChildR
 				InlineWidget.ToSharedRef()
 			];
 	}
-		
+
 	ChildRow
 		.CustomWidget(/*bShowChildren*/true)
 		.NameContent()
 		[
-			NameWidget.ToSharedRef()
+			SNew(SHorizontalBox)
+			// Error icon
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Center)
+			.Padding(0,0,2,0)
+			[
+				SNew(SBox)
+				.WidthOverride(12)
+				.HeightOverride(12)
+				[
+					SNew(SImage)
+					.ToolTipText(LOCTEXT("MissingType", "The property is missing type. The Struct, Enum, or Object may have been removed."))
+					.Visibility_Lambda([this, ChildPropertyHandle]() { return UE::StructUtils::Private::HasMissingType(ChildPropertyHandle) ? EVisibility::Visible : EVisibility::Collapsed; })
+					.Image(FAppStyle::GetBrush("Icons.Error"))
+				]
+			]
+			// Name
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				NameWidget.ToSharedRef()
+			]
 		]
 		.ValueContent()
 		[

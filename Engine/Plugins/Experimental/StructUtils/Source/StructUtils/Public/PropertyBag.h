@@ -415,6 +415,28 @@ template<> struct TStructOpsTypeTraits<FInstancedPropertyBag> : public TStructOp
 };
 
 /**
+ * Dummy types used to mark up missing types when creating property bags. These are used in the UI to display error message.
+ */
+UENUM()
+enum class EPropertyBagMissingEnum : uint8
+{
+	Missing,
+};
+
+USTRUCT()
+struct STRUCTUTILS_API FPropertyBagMissingStruct
+{
+	GENERATED_BODY()
+};
+
+UCLASS()
+class STRUCTUTILS_API UPropertyBagMissingObject : public UObject
+{
+	GENERATED_BODY()
+};
+
+
+/**
  * A script struct that is used to store the value of the property bag instance.
  * References to UPropertyBag cannot be serialized, instead the array of the properties
  * is serialized and new class is create on load based on the composition of the properties.
