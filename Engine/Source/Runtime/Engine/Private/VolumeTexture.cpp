@@ -22,7 +22,7 @@
 // Master switch to control whether streaming is enabled for volume texture. 
 bool GSupportsVolumeTextureStreaming = true;
 
-// Limit the possible depth of volume texture otherwise when the user converts 2D textures, he can crash the engine.
+// Limit the possible depth of volume texture otherwise when the user converts 2D textures, they can crash the engine.
 const int32 MAX_VOLUME_TEXTURE_DEPTH = 512;
 
 //*****************************************************************************

@@ -32,7 +32,7 @@ public:
 template <typename FunctionType>
 class TBuildFunctionFactory final : public IBuildFunctionFactory
 {
-	static_assert(sizeof(FunctionType) == sizeof(IBuildFunction), "IBuildFunction must be pure and maintain no state.");
+	static_assert(sizeof(FunctionType) == sizeof(IBuildFunction), "Derivations of IBuildFunction must be pure and maintain no state.");
 
 public:
 	template <typename... ArgTypes>
