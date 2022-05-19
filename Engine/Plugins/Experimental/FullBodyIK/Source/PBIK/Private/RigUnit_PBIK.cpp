@@ -109,6 +109,11 @@ FRigUnit_PBIK_Execute()
 		return;
 	}
 
+	if (EffectorSolverIndices.Num() != Effectors.Num())
+	{
+		return;
+	}
+
 	// set bones to input pose
 	for(int32 BoneIndex = 0; BoneIndex < Solver.GetNumBones(); BoneIndex++)
 	{
