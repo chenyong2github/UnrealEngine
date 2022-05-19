@@ -894,7 +894,7 @@ namespace UnrealBuildTool.Modes
 	/// <summary>
 	/// Invoke UHT
 	/// </summary>
-	[ToolMode("UnrealHeaderTool", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.SingleInstance | ToolModeOptions.ShowExecutionTime)]
+	[ToolMode("UnrealHeaderTool", ToolModeOptions.XmlConfig | ToolModeOptions.BuildPlatforms | ToolModeOptions.ShowExecutionTime)]
 	class UnrealHeaderToolMode : ToolMode
 	{
 		/// <summary>
