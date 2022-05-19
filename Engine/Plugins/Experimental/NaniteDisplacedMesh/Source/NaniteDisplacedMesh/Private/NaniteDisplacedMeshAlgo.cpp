@@ -5,7 +5,6 @@
 #if WITH_EDITOR
 
 #include "NaniteDisplacedMesh.h"
-#include "NaniteBuilder.h"
 
 bool DisplaceNaniteMesh(
 	const FNaniteDisplacedMeshParams& Parameters,

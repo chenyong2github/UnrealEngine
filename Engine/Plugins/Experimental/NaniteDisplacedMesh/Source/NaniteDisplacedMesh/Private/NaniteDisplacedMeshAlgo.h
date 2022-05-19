@@ -6,10 +6,7 @@
 
 struct FNaniteDisplacedMeshParams;
 
-namespace Nanite
-{
-	struct IBuilderModule::FVertexMeshData;
-}
+#include "NaniteBuilder.h"
 
 bool DisplaceNaniteMesh(
 	const FNaniteDisplacedMeshParams& Parameters,
