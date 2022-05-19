@@ -260,12 +260,42 @@ public:
 	void BeginCreateAllShaders();
 
 #if RHI_RAYTRACING
-	static void GetRayTracingMaterialLibrary(TArray<FRHIRayTracingShader*>& RayTracingMaterials, FRHIRayTracingShader* DefaultShader);
 
+	UE_DEPRECATED(5.1, "GetRayTracingMaterialLibrary is deprecated. Use GetRayTracingHitGroupLibrary instead.")
+	static void GetRayTracingMaterialLibrary(TArray<FRHIRayTracingShader*>& RayTracingMaterials, FRHIRayTracingShader* DefaultShader)
+	{
+		GetRayTracingHitGroupLibrary(RayTracingMaterials, DefaultShader);
+	}
+
+	UE_DEPRECATED(5.1, "GetRayTracingMaterialLibraryIndex is deprecated. Use GetRayTracingHitGroupLibraryIndex instead.")
 	inline uint32 GetRayTracingMaterialLibraryIndex(int32 ShaderIndex)
 	{
-		GetShader(ShaderIndex);	// make sure the shader is created
-		return RayTracingMaterialLibraryIndices[ShaderIndex];
+		return GetRayTracingHitGroupLibraryIndex(ShaderIndex);
+	}
+
+	static void GetRayTracingHitGroupLibrary(TArray<FRHIRayTracingShader*>& RayTracingHitGroupShaders, FRHIRayTracingShader* DefaultShader);
+	static void GetRayTracingCallableShaderLibrary(TArray<FRHIRayTracingShader*>& RayTracingCallableShaders, FRHIRayTracingShader* DefaultShader);
+	static void GetRayTracingMissShaderLibrary(TArray<FRHIRayTracingShader*>& RayTracingMissShaders, FRHIRayTracingShader* DefaultShader);
+
+	inline uint32 GetRayTracingHitGroupLibraryIndex(int32 ShaderIndex)
+	{
+		FRHIShader* Shader = GetShader(ShaderIndex);	// make sure the shader is created
+		checkSlow(Shader->GetFrequency() == SF_RayHitGroup);
+		return RayTracingLibraryIndices[ShaderIndex];
+	}
+
+	inline uint32 GetRayTracingCallableShaderLibraryIndex(int32 ShaderIndex)
+	{
+		FRHIShader* Shader = GetShader(ShaderIndex);	// make sure the shader is created
+		checkSlow(Shader->GetFrequency() == SF_RayCallable);
+		return RayTracingLibraryIndices[ShaderIndex];
+	}
+
+	inline uint32 GetRayTracingMissShaderLibraryIndex(int32 ShaderIndex)
+	{
+		FRHIShader* Shader = GetShader(ShaderIndex);	// make sure the shader is created
+		checkSlow(Shader->GetFrequency() == SF_RayMiss);
+		return RayTracingLibraryIndices[ShaderIndex];
 	}
 #endif // RHI_RAYTRACING
 
@@ -279,7 +309,7 @@ protected:
 	{
 		SIZE_T Size = NumRHIShaders * sizeof(std::atomic<FRHIShader*>);
 #if RHI_RAYTRACING
-		Size += RayTracingMaterialLibraryIndices.GetAllocatedSize();
+		Size += RayTracingLibraryIndices.GetAllocatedSize();
 #endif
 		return Size;
 	}
@@ -304,7 +334,7 @@ private:
 	int32 NumRHIShaders;
 
 #if RHI_RAYTRACING
-	TArray<uint32> RayTracingMaterialLibraryIndices;
+	TArray<uint32> RayTracingLibraryIndices;
 #endif // RHI_RAYTRACING
 
 	EShaderPlatform Platform;
@@ -957,11 +987,31 @@ public:
 		return RHIShader;
 	}
 
+	UE_DEPRECATED(5.1, "GetRayTracingMaterialLibraryIndex is deprecated. Use GetRayTracingHitGroupLibraryIndex instead.")
 	inline uint32 GetRayTracingMaterialLibraryIndex() const
+	{
+		return GetRayTracingHitGroupLibraryIndex();
+	}
+
+	inline uint32 GetRayTracingHitGroupLibraryIndex() const
 	{
 		checkSlow(ShaderContent);
 		checkSlow(ShaderContent->GetFrequency() == SF_RayHitGroup);
-		return GetResourceChecked().GetRayTracingMaterialLibraryIndex(ShaderContent->GetResourceIndex());
+		return GetResourceChecked().GetRayTracingHitGroupLibraryIndex(ShaderContent->GetResourceIndex());
+	}
+
+	inline uint32 GetRayTracingCallableShaderLibraryIndex() const
+	{
+		checkSlow(ShaderContent);
+		checkSlow(ShaderContent->GetFrequency() == SF_RayCallable);
+		return GetResourceChecked().GetRayTracingCallableShaderLibraryIndex(ShaderContent->GetResourceIndex());
+	}
+
+	inline uint32 GetRayTracingMissShaderLibraryIndex() const
+	{
+		checkSlow(ShaderContent);
+		checkSlow(ShaderContent->GetFrequency() == SF_RayMiss);
+		return GetResourceChecked().GetRayTracingMissShaderLibraryIndex(ShaderContent->GetResourceIndex());
 	}
 #endif // RHI_RAYTRACING
 

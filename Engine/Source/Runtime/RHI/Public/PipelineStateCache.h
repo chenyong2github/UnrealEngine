@@ -83,7 +83,9 @@ namespace PipelineStateCache
 	extern RHI_API int32 GetNumActivePipelinePrecompileTasks();
 }
 
-// Returns the hit group index within the ray tracing pipeline or INDEX_NONE if given shader does not exist.
+// Returns the shader index within the ray tracing pipeline or INDEX_NONE if given shader does not exist.
 // Asserts if shader is not found but bRequired is true.
 extern RHI_API int32 FindRayTracingHitGroupIndex(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* HitGroupShader, bool bRequired = true);
+extern RHI_API int32 FindRayTracingCallableShaderIndex(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* CallableShader, bool bRequired = true);
+extern RHI_API int32 FindRayTracingMissShaderIndex(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* MissShader, bool bRequired = true);
 

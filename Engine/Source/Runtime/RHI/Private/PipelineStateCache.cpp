@@ -398,10 +398,28 @@ class FRayTracingPipelineState : public FPipelineState
 public:
 	FRayTracingPipelineState(const FRayTracingPipelineStateInitializer& Initializer)
 	{
-		int32 Index = 0;
-		for (FRHIRayTracingShader* Shader : Initializer.GetHitGroupTable())
 		{
-			HitGroupShaderMap.Add(Shader->GetHash(), Index++);
+			int32 Index = 0;
+			for (FRHIRayTracingShader* Shader : Initializer.GetHitGroupTable())
+			{
+				HitGroupShaderMap.Add(Shader->GetHash(), Index++);
+			}
+		}
+
+		{
+			int32 Index = 0;
+			for (FRHIRayTracingShader* Shader : Initializer.GetCallableTable())
+			{
+				CallableShaderMap.Add(Shader->GetHash(), Index++);
+			}
+		}
+
+		{
+			int32 Index = 0;
+			for (FRHIRayTracingShader* Shader : Initializer.GetMissTable())
+			{
+				MissShaderMap.Add(Shader->GetHash(), Index++);
+			}
 		}
 	}
 
@@ -441,6 +459,8 @@ public:
 	uint64 LastFrameHit = 0;
 
 	TMap<FSHAHash, int32> HitGroupShaderMap;
+	TMap<FSHAHash, int32> CallableShaderMap;
+	TMap<FSHAHash, int32> MissShaderMap;
 
 #if PIPELINESTATECACHE_VERIFYTHREADSAFE
 	FThreadSafeCounter InUseCount;
@@ -465,6 +485,32 @@ int32 FindRayTracingHitGroupIndex(FRayTracingPipelineState* Pipeline, FRHIRayTra
 		return *FoundIndex;
 	}
 	checkf(!bRequired, TEXT("Required hit group shader was not found in the ray tracing pipeline."));
+#endif // RHI_RAYTRACING
+
+	return INDEX_NONE;
+}
+
+int32 FindRayTracingCallableShaderIndex(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* CallableShader, bool bRequired)
+{
+#if RHI_RAYTRACING
+	if (int32* FoundIndex = Pipeline->CallableShaderMap.Find(CallableShader->GetHash()))
+	{
+		return *FoundIndex;
+	}
+	checkf(!bRequired, TEXT("Required callable shader was not found in the ray tracing pipeline."));
+#endif // RHI_RAYTRACING
+
+	return INDEX_NONE;
+}
+
+int32 FindRayTracingMissShaderIndex(FRayTracingPipelineState* Pipeline, FRHIRayTracingShader* MissShader, bool bRequired)
+{
+#if RHI_RAYTRACING
+	if (int32* FoundIndex = Pipeline->MissShaderMap.Find(MissShader->GetHash()))
+	{
+		return *FoundIndex;
+	}
+	checkf(!bRequired, TEXT("Required miss shader was not found in the ray tracing pipeline."));
 #endif // RHI_RAYTRACING
 
 	return INDEX_NONE;

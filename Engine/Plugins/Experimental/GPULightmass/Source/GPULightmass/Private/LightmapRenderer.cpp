@@ -1203,10 +1203,10 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 			PSOInitializer.SetRayGenShaderTable(RayGenShaderTable);
 
 			auto DefaultClosestHitShader = GlobalShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
-			TArray<FRHIRayTracingShader*> RayTracingMaterialLibrary;
-			FShaderMapResource::GetRayTracingMaterialLibrary(RayTracingMaterialLibrary, DefaultClosestHitShader);
+			TArray<FRHIRayTracingShader*> RayTracingHitGroupLibrary;
+			FShaderMapResource::GetRayTracingHitGroupLibrary(RayTracingHitGroupLibrary, DefaultClosestHitShader);
 
-			PSOInitializer.SetHitGroupTable(RayTracingMaterialLibrary);
+			PSOInitializer.SetHitGroupTable(RayTracingHitGroupLibrary);
 
 			RayTracingPipelineState = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, PSOInitializer);
 

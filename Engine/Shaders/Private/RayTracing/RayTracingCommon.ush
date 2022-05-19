@@ -98,6 +98,11 @@
 [shader("miss")] void name(inout payload_type payload_name)
 #endif //RAY_TRACING_ENTRY_MISS
 
+#ifndef RAY_TRACING_ENTRY_CALLABLE
+#define RAY_TRACING_ENTRY_CALLABLE(name, params_type, params_name)\
+[shader("callable")] void name(inout params_type params_name)
+#endif //RAY_TRACING_ENTRY_CALLABLE
+
 #ifndef OVERRIDE_PLATFORM_RAYTRACING_INSTANCE_DESCRITOR
 
 // Must match D3D12_RAYTRACING_INSTANCE_FLAGS / VkGeometryInstanceFlagBitsKHR

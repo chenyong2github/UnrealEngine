@@ -621,10 +621,10 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 	FRHIRayTracingShader* OpaqueShadowShader = View.ShaderMap->GetShader<FOpaqueShadowHitGroup>().GetRayTracingShader();
 	FRHIRayTracingShader* HiddenMaterialShader = View.ShaderMap->GetShader<FHiddenMaterialHitGroup>().GetRayTracingShader();
 	
-	TArray<FRHIRayTracingShader*> RayTracingMaterialLibrary;
+	TArray<FRHIRayTracingShader*> RayTracingHitGroupLibrary;
 	if (bEnableMaterials)
 	{
-		FShaderMapResource::GetRayTracingMaterialLibrary(RayTracingMaterialLibrary, DefaultClosestHitShader);
+		FShaderMapResource::GetRayTracingHitGroupLibrary(RayTracingHitGroupLibrary, DefaultClosestHitShader);
 	}
 
 	FRHIRayTracingShader* RequiredHitShaders[] =
@@ -636,10 +636,10 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 
 	for (FRHIRayTracingShader* Shader : RequiredHitShaders)
 	{
-		RayTracingMaterialLibrary.Add(Shader);
+		RayTracingHitGroupLibrary.Add(Shader);
 	}
 
-	Initializer.SetHitGroupTable(RayTracingMaterialLibrary);
+	Initializer.SetHitGroupTable(RayTracingHitGroupLibrary);
 
 	FRayTracingPipelineState* FallbackPipelineState = GRayTracingNonBlockingPipelineCreation && View.ViewState
 		? PipelineStateCache::GetRayTracingPipelineState(View.ViewState->LastRayTracingMaterialPipelineSignature)

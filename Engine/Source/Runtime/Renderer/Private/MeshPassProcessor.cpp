@@ -769,7 +769,7 @@ void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, cons
 void FRayTracingMeshCommand::SetShaders(const FMeshProcessorShaders& Shaders)
 {
 	check(Shaders.RayHitGroupShader.IsValid())
-	MaterialShaderIndex = Shaders.RayHitGroupShader.GetRayTracingMaterialLibraryIndex();
+	MaterialShaderIndex = Shaders.RayHitGroupShader.GetRayTracingHitGroupLibraryIndex();
 	MaterialShader = Shaders.RayHitGroupShader.GetRayTracingShader();
 	ShaderBindings.Initialize(Shaders);
 }

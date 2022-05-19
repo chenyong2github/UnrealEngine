@@ -150,47 +150,71 @@ bool FShaderMapResource::ArePlatformsCompatible(EShaderPlatform CurrentPlatform,
 }
 
 #if RHI_RAYTRACING
-static TArray<uint32> GlobalUnusedIndicies;
-static TArray<FRHIRayTracingShader*> GlobalRayTracingMaterialLibrary;
-static FCriticalSection GlobalRayTracingMaterialLibraryCS;
-
-void FShaderMapResource::GetRayTracingMaterialLibrary(TArray<FRHIRayTracingShader*>& RayTracingMaterials, FRHIRayTracingShader* DefaultShader)
+class FRayTracingShaderLibrary
 {
-	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
-	RayTracingMaterials = GlobalRayTracingMaterialLibrary;
-
-	for (uint32 Index : GlobalUnusedIndicies)
+public:
+	uint32 AddShader(FRHIRayTracingShader* Shader)
 	{
-		RayTracingMaterials[Index] = DefaultShader;
+		FScopeLock Lock(&CS);
+
+		if (UnusedIndicies.Num() != 0)
+		{
+			uint32 Index = UnusedIndicies.Pop(false);
+			checkSlow(Shaders[Index] == nullptr);
+			Shaders[Index] = Shader;
+			return Index;
+		}
+		else
+		{
+			Shaders.Add(Shader);
+			return Shaders.Num() - 1;
+		}
 	}
+
+	void RemoveShader(uint32 Index)
+	{
+		if (Index != ~0u)
+		{
+			FScopeLock Lock(&CS);
+			UnusedIndicies.Push(Index);
+			Shaders[Index] = nullptr;
+		}
+	}
+
+	void GetShaders(TArray<FRHIRayTracingShader*>& OutShaders, FRHIRayTracingShader* DefaultShader)
+	{
+		FScopeLock Lock(&CS);
+		OutShaders = Shaders;
+
+		for (uint32 Index : UnusedIndicies)
+		{
+			OutShaders[Index] = DefaultShader;
+		}
+	}
+
+private:
+	TArray<uint32> UnusedIndicies;
+	TArray<FRHIRayTracingShader*> Shaders;
+	FCriticalSection CS;
+};
+
+static FRayTracingShaderLibrary GlobalRayTracingHitGroupLibrary;
+static FRayTracingShaderLibrary GlobalRayTracingCallableShaderLibrary;
+static FRayTracingShaderLibrary GlobalRayTracingMissShaderLibrary;
+
+void FShaderMapResource::GetRayTracingHitGroupLibrary(TArray<FRHIRayTracingShader*>& RayTracingShaders, FRHIRayTracingShader* DefaultShader)
+{
+	GlobalRayTracingHitGroupLibrary.GetShaders(RayTracingShaders, DefaultShader);
 }
 
-static uint32 AddToRayTracingLibrary(FRHIRayTracingShader* Shader)
+void FShaderMapResource::GetRayTracingCallableShaderLibrary(TArray<FRHIRayTracingShader*>& RayTracingCallableShaders, FRHIRayTracingShader* DefaultShader)
 {
-	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
-
-	if (GlobalUnusedIndicies.Num() != 0)
-	{
-		uint32 Index = GlobalUnusedIndicies.Pop(false);
-		checkSlow(GlobalRayTracingMaterialLibrary[Index] == nullptr);
-		GlobalRayTracingMaterialLibrary[Index] = Shader;
-		return Index;
-	}
-	else
-	{
-		GlobalRayTracingMaterialLibrary.Add(Shader);
-		return GlobalRayTracingMaterialLibrary.Num() - 1;
-	}
+	GlobalRayTracingCallableShaderLibrary.GetShaders(RayTracingCallableShaders, DefaultShader);
 }
 
-static void RemoveFromRayTracingLibrary(uint32 Index)
+void FShaderMapResource::GetRayTracingMissShaderLibrary(TArray<FRHIRayTracingShader*>& RayTracingMissShaders, FRHIRayTracingShader* DefaultShader)
 {
-	if (Index != ~0u)
-	{
-		FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
-		GlobalUnusedIndicies.Push(Index);
-		GlobalRayTracingMaterialLibrary[Index] = nullptr;
-	}
+	GlobalRayTracingMissShaderLibrary.GetShaders(RayTracingMissShaders, DefaultShader);
 }
 #endif // RHI_RAYTRACING
 
@@ -432,8 +456,8 @@ FShaderMapResource::FShaderMapResource(EShaderPlatform InPlatform, int32 NumShad
 #if RHI_RAYTRACING
 	if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders)
 	{
-		RayTracingMaterialLibraryIndices.AddUninitialized(NumShaders);
-		FMemory::Memset(RayTracingMaterialLibraryIndices.GetData(), 0xff, NumShaders * RayTracingMaterialLibraryIndices.GetTypeSize());
+		RayTracingLibraryIndices.AddUninitialized(NumShaders);
+		FMemory::Memset(RayTracingLibraryIndices.GetData(), 0xff, NumShaders * RayTracingLibraryIndices.GetTypeSize());
 	}
 #endif // RHI_RAYTRACING
 }
@@ -485,11 +509,33 @@ void FShaderMapResource::ReleaseShaders()
 void FShaderMapResource::ReleaseRHI()
 {
 #if RHI_RAYTRACING
-	for (int32 Index : RayTracingMaterialLibraryIndices)
+	if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders)
 	{
-		RemoveFromRayTracingLibrary(Index);
+		check(NumRHIShaders == RayTracingLibraryIndices.Num());
+
+		for (int32 Idx = 0; Idx < NumRHIShaders; ++Idx)
+		{
+			if (FRHIShader* Shader = RHIShaders[Idx].load(std::memory_order_acquire))
+			{
+				int32 IndexInLibrary = RayTracingLibraryIndices[Idx];
+				switch (Shader->GetFrequency())
+				{
+				case SF_RayHitGroup:
+					GlobalRayTracingHitGroupLibrary.RemoveShader(IndexInLibrary);
+					break;
+				case SF_RayCallable:
+					GlobalRayTracingCallableShaderLibrary.RemoveShader(IndexInLibrary);
+					break;
+				case SF_RayMiss:
+					GlobalRayTracingMissShaderLibrary.RemoveShader(IndexInLibrary);
+					break;
+				default:
+					break;
+				}
+			}
+		}
 	}
-	RayTracingMaterialLibraryIndices.Empty();
+	RayTracingLibraryIndices.Empty();
 #endif // RHI_RAYTRACING
 
 	ReleaseShaders();
@@ -515,9 +561,22 @@ FRHIShader* FShaderMapResource::CreateShader(int32 ShaderIndex)
 
 	TRefCountPtr<FRHIShader> RHIShader = CreateRHIShader(ShaderIndex);
 #if RHI_RAYTRACING
-	if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders && RHIShader.IsValid() && RHIShader->GetFrequency() == SF_RayHitGroup)
+	if (GRHISupportsRayTracing && GRHISupportsRayTracingShaders && RHIShader.IsValid())
 	{
-		RayTracingMaterialLibraryIndices[ShaderIndex] = AddToRayTracingLibrary(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
+		switch (RHIShader->GetFrequency())
+		{
+		case SF_RayHitGroup:
+			RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingHitGroupLibrary.AddShader(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
+			break;
+		case SF_RayCallable:
+			RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingCallableShaderLibrary.AddShader(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
+			break;
+		case SF_RayMiss:
+			RayTracingLibraryIndices[ShaderIndex] = GlobalRayTracingMissShaderLibrary.AddShader(static_cast<FRHIRayTracingShader*>(RHIShader.GetReference()));
+			break;
+		default:
+			break;
+		}
 	}
 #endif // RHI_RAYTRACING
 
