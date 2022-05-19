@@ -686,6 +686,7 @@ void FNiagaraShaderScript::BuildScriptParametersMetadata(const FNiagaraShaderScr
 		if (CDODataInterface == nullptr)
 		{
 			Invalidate();
+			continue;
 		}
 
 		if (CDODataInterface->UseLegacyShaderBindings() == false)
