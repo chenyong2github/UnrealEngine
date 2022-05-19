@@ -268,6 +268,10 @@ private:
 	
 #endif //STATS
 
+#if USE_OS_SMALL_BLOCK_ALLOC
+	bool			bNanoMallocAvailable;
+#endif
+
 public:
 	// FMalloc interface.
 	// InPageSize - First parameter is page size, all allocs from BinnedAllocFromOS() MUST be aligned to this size
