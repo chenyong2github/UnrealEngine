@@ -2453,7 +2453,7 @@ UE::Cook::FGeneratorPackage* UCookOnTheFlyServer::CreateGeneratorPackage(UE::Coo
 	return GeneratorPackage;
 }
 
-void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStruct, bool& bOutCompleted, bool& bOutError)
+void UCookOnTheFlyServer::SplitPackage(UE::Cook::FPackageData& PackageData, UE::Cook::FGeneratorPackage* GeneratorStruct, bool& bOutCompleted, bool& bOutError)
 {
 	using namespace UE::Cook;
 
@@ -2535,9 +2535,12 @@ void UCookOnTheFlyServer::SplitPackage(UE::Cook::FGeneratorPackage* GeneratorStr
 		}
 	}
 
-	UPackage* OwnerPackage = GeneratorStruct->GetOwner().GetPackage();
+	UPackage* OwnerPackage = PackageData.GetPackage();
 	check(OwnerPackage);
 	GeneratorStruct->GetCookPackageSplitterInstance()->PreSaveGeneratorPackage(OwnerPackage, SplitObject, SplitterDatas);
+	// PreSaveGenerator package can add new objects to the package due to moving them in from OneFilePerActor packages
+	// We want to support calling BeginCacheForCookedPlatformData on those new objects, so recreate the ObjectCache now.
+	PackageData.RecreateObjectCache();
 
 	bOutCompleted = true;
 }
@@ -2704,7 +2707,7 @@ bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, 
 				return false;
 			}
 			bool bCompleted = false;
-			SplitPackage(Generator, bCompleted, bError);
+			SplitPackage(PackageData, Generator, bCompleted, bError);
 			if (bError)
 			{
 				// SplitPackage failure marks the package data for PumpSaves to handle this as an error and to put it in idle state

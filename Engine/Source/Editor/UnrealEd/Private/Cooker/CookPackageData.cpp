@@ -983,6 +983,19 @@ void FPackageData::CreateObjectCache()
 	}
 }
 
+void FPackageData::RecreateObjectCache()
+{
+	check(GetPackage());
+	if (GetHasSaveCache())
+	{
+		// It is not valid to recreate the ObjectCache when we have already started calling BeginCacheForCookedPlatformData on the objects in it.
+		// ReleaseCookedPlatformData must be called first to tear down all of the calls and reset GetCookedPlatformDataNextIndex to 0
+		check(GetCookedPlatformDataNextIndex() == 0);
+		ClearObjectCache();
+	}
+	CreateObjectCache();
+}
+
 void FPackageData::ClearObjectCache()
 {
 	CachedObjectsInOuter.Empty();

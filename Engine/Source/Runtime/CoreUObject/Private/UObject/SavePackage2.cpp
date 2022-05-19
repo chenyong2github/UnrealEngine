@@ -2087,6 +2087,12 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 ESavePackageResult BeginCachePlatformCookedData(FSaveContext& SaveContext)
 {
 #if WITH_EDITOR
+	// TODO: Call IsCachedCookedPlatformDataLoaded on all the objects until it returns true. This is required for the contract.
+	// We tried enabling this once, but it created knockon bugs: Textures created by landscape were not handling it correctly
+	// (which we have subsequently fixed) and MaterialInstanceConstants created by landscape were not handling it correctly (which 
+	// we have not yet diagnosed)
+#define SAVEPACKAGE_CALL_ISCACHEDCOOKEDPLATFORMDATALOADED 0
+
 	// TODO: Remove BeginCacheForCookedPlatformData from SavePackage; it is already called by the cooker.
 	// Cache platform cooked data
 	if (SaveContext.IsCooking() && !SaveContext.IsConcurrent())
@@ -2103,12 +2109,15 @@ ESavePackageResult BeginCachePlatformCookedData(FSaveContext& SaveContext)
 				continue;
 			}
 			Object->BeginCacheForCookedPlatformData(TargetPlatform);
+#if SAVEPACKAGE_CALL_ISCACHEDCOOKEDPLATFORMDATALOADED
 			if (Object->IsCachedCookedPlatformDataLoaded(TargetPlatform))
 			{
 				Iter.RemoveCurrentSwap();
 				continue;
 			}
+#endif
 		}
+#if SAVEPACKAGE_CALL_ISCACHEDCOOKEDPLATFORMDATALOADED
 		if (ObjectsInPackage.Num())
 		{
 			if (SaveContext.GetSaveArgs().SaveFlags & SAVE_AllowTimeout)
@@ -2135,6 +2144,7 @@ ESavePackageResult BeginCachePlatformCookedData(FSaveContext& SaveContext)
 				}
 			}
 		}
+#endif
 	}
 #endif
 	return ESavePackageResult::Success;

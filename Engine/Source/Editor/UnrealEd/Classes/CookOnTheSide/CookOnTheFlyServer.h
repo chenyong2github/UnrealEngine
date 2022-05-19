@@ -1139,7 +1139,7 @@ private:
 	* @param bOutCompleted			Return true is function is done splitting
 	* @param bOutError				Return true if function fails
 	*/
-	void SplitPackage(UE::Cook::FGeneratorPackage* Generator, bool& bCompleted, bool& bOutError);
+	void SplitPackage(UE::Cook::FPackageData& PackageData, UE::Cook::FGeneratorPackage* Generator, bool& bCompleted, bool& bOutError);
 
 	/** Try calling the splitter's populate to create the package */
 	UPackage* TryPopulateGeneratedPackage(UE::Cook::FPopulatePackageContext& Context);
