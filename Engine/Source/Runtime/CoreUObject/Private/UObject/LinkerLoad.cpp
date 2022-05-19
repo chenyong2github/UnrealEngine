@@ -1399,10 +1399,10 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializePackageFileSummary()
 		}
 
 		// Slack everything according to summary.
-		ImportMap					.Empty( Summary.ImportCount				);
-		ExportMap					.Empty( Summary.ExportCount				);
-		GatherableTextDataMap		.Empty( Summary.GatherableTextDataCount );
-		NameMap						.Empty( Summary.NameCount				);
+		ImportMap.Empty(Summary.ImportCount);
+		ExportMap.Empty(Summary.ExportCount);
+		GatherableTextDataMap.Empty(Summary.GatherableTextDataCount);
+		NameMap.Empty(Summary.NameCount);
 		// Depends map gets pre-sized in SerializeDependsMap if used.
 
 		// Avoid serializing it again.
