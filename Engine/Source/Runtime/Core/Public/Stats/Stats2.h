@@ -2062,8 +2062,9 @@ struct FStat_##StatName\
 {\
 	if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 	{ \
-		FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Add, int64(1));\
-		TRACE_STAT_INCREMENT(GET_STATFNAME(Stat)); \
+		const FName StatName = GET_STATFNAME(Stat); \
+		FThreadStats::AddMessage(StatName, EStatOperation::Add, int64(1));\
+		TRACE_STAT_INCREMENT(StatName); \
 	} \
 }
 #define INC_FLOAT_STAT_BY(Stat, Amount) \
@@ -2073,8 +2074,9 @@ struct FStat_##StatName\
 	{ \
 		if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 		{ \
-			FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Add, AddAmount); \
-			TRACE_STAT_ADD(GET_STATFNAME(Stat), AddAmount); \
+			const FName StatName = GET_STATFNAME(Stat); \
+			FThreadStats::AddMessage(StatName, EStatOperation::Add, AddAmount); \
+			TRACE_STAT_ADD(StatName, AddAmount); \
 		} \
 	} \
 }
@@ -2085,8 +2087,9 @@ struct FStat_##StatName\
 	{ \
 		if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 		{ \
-			FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Add, AddAmount); \
-			TRACE_STAT_ADD(GET_STATFNAME(Stat), AddAmount); \
+			const FName StatName = GET_STATFNAME(Stat); \
+			FThreadStats::AddMessage(StatName, EStatOperation::Add, AddAmount); \
+			TRACE_STAT_ADD(StatName, AddAmount); \
 		} \
 	} \
 }
@@ -2097,8 +2100,9 @@ struct FStat_##StatName\
 	{ \
 		if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 		{ \
-			FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Add, AddAmount); \
-			TRACE_STAT_ADD(GET_STATFNAME(Stat), AddAmount); \
+			const FName StatName = GET_STATFNAME(Stat); \
+			FThreadStats::AddMessage(StatName, EStatOperation::Add, AddAmount); \
+			TRACE_STAT_ADD(StatName, AddAmount); \
 		} \
 	} \
 }
@@ -2106,8 +2110,9 @@ struct FStat_##StatName\
 {\
 	if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 	{ \
-		FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Subtract, int64(1));\
-		TRACE_STAT_DECREMENT(GET_STATFNAME(Stat)); \
+		const FName StatName = GET_STATFNAME(Stat); \
+		FThreadStats::AddMessage(StatName, EStatOperation::Subtract, int64(1));\
+		TRACE_STAT_DECREMENT(StatName); \
 	} \
 }
 #define DEC_FLOAT_STAT_BY(Stat,Amount) \
@@ -2117,8 +2122,9 @@ struct FStat_##StatName\
 	{ \
 		if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 		{ \
-			FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Subtract, SubtractAmount); \
-			TRACE_STAT_ADD(GET_STATFNAME(Stat), -SubtractAmount); \
+			const FName StatName = GET_STATFNAME(Stat); \
+			FThreadStats::AddMessage(StatName, EStatOperation::Subtract, SubtractAmount); \
+			TRACE_STAT_ADD(StatName, -SubtractAmount); \
 		} \
 	} \
 }
@@ -2129,8 +2135,9 @@ struct FStat_##StatName\
 	{ \
 		if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 		{ \
-			FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Subtract, SubtractAmount); \
-			TRACE_STAT_ADD(GET_STATFNAME(Stat), -SubtractAmount); \
+			const FName StatName = GET_STATFNAME(Stat); \
+			FThreadStats::AddMessage(StatName, EStatOperation::Subtract, SubtractAmount); \
+			TRACE_STAT_ADD(StatName, -SubtractAmount); \
 		} \
 	} \
 }
@@ -2141,8 +2148,9 @@ struct FStat_##StatName\
 	{ \
 		if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 		{ \
-			FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Subtract, SubtractAmount); \
-			TRACE_STAT_ADD(GET_STATFNAME(Stat), -SubtractAmount); \
+			const FName StatName = GET_STATFNAME(Stat); \
+			FThreadStats::AddMessage(StatName, EStatOperation::Subtract, SubtractAmount); \
+			TRACE_STAT_ADD(StatName, -SubtractAmount); \
 		} \
 	} \
 }
@@ -2150,27 +2158,30 @@ struct FStat_##StatName\
 {\
 	if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 	{ \
+		const FName StatName = GET_STATFNAME(Stat); \
 		int64 SetValue = int64(Value); \
-		FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Set, SetValue); \
-		TRACE_STAT_SET(GET_STATFNAME(Stat), SetValue); \
+		FThreadStats::AddMessage(StatName, EStatOperation::Set, SetValue); \
+		TRACE_STAT_SET(StatName, SetValue); \
 	} \
 }
 #define SET_DWORD_STAT(Stat,Value) \
 {\
 	if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 	{ \
+		const FName StatName = GET_STATFNAME(Stat); \
 		int64 SetValue = int64(Value); \
-		FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Set, SetValue); \
-		TRACE_STAT_SET(GET_STATFNAME(Stat), SetValue); \
+		FThreadStats::AddMessage(StatName, EStatOperation::Set, SetValue); \
+		TRACE_STAT_SET(StatName, SetValue); \
 	} \
 }
 #define SET_FLOAT_STAT(Stat,Value) \
 {\
 	if (FThreadStats::IsCollectingData() || !GET_STATISEVERYFRAME(Stat)) \
 	{ \
+		const FName StatName = GET_STATFNAME(Stat); \
 		double SetValue = double(Value); \
-		FThreadStats::AddMessage(GET_STATFNAME(Stat), EStatOperation::Set, SetValue); \
-		TRACE_STAT_SET(GET_STATFNAME(Stat), SetValue); \
+		FThreadStats::AddMessage(StatName, EStatOperation::Set, SetValue); \
+		TRACE_STAT_SET(StatName, SetValue); \
 	} \
 }
 

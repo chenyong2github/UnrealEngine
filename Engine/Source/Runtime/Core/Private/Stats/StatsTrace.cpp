@@ -106,74 +106,95 @@ void FStatsTraceInternal::EndEncodeOp(FThreadState* ThreadState, uint8* BufferPt
 
 void FStatsTrace::DeclareStat(const FName& Stat, const ANSICHAR* Name, const TCHAR* Description, const ANSICHAR* Group, bool IsFloatingPoint, bool IsMemory, bool ShouldClearEveryFrame)
 {
-	uint32 NameLen = FCStringAnsi::Strlen(Name);
-	uint32 DescriptionLen = FCString::Strlen(Description);
-	uint32 GroupLen = FCStringAnsi::Strlen(Group);
-		
-	UE_TRACE_LOG(Stats, Spec, StatsChannel, NameLen + DescriptionLen + GroupLen)
-		<< Spec.Id(Stat.GetComparisonIndex().ToUnstableInt())
-		<< Spec.IsFloatingPoint(IsFloatingPoint)
-		<< Spec.IsMemory(IsMemory)
-		<< Spec.ShouldClearEveryFrame(ShouldClearEveryFrame)
-		<< Spec.Name(Name, NameLen)
-		<< Spec.Description(Description, DescriptionLen)
-		<< Spec.Group(Group, GroupLen);
+	if (!Stat.IsNone())
+	{
+		uint32 NameLen = FCStringAnsi::Strlen(Name);
+		uint32 DescriptionLen = FCString::Strlen(Description);
+		uint32 GroupLen = FCStringAnsi::Strlen(Group);
+
+		UE_TRACE_LOG(Stats, Spec, StatsChannel, NameLen + DescriptionLen + GroupLen)
+			<< Spec.Id(Stat.GetComparisonIndex().ToUnstableInt())
+			<< Spec.IsFloatingPoint(IsFloatingPoint)
+			<< Spec.IsMemory(IsMemory)
+			<< Spec.ShouldClearEveryFrame(ShouldClearEveryFrame)
+			<< Spec.Name(Name, NameLen)
+			<< Spec.Description(Description, DescriptionLen)
+			<< Spec.Group(Group, GroupLen);
+	}
 }
 
 void FStatsTrace::Increment(const FName& Stat)
 {
-	FStatsTraceInternal::FThreadState* ThreadState;
-	uint8* BufferPtr;
-	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::Increment, ThreadState, BufferPtr);
-	ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
-	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	if (!Stat.IsNone())
+	{
+		FStatsTraceInternal::FThreadState* ThreadState;
+		uint8* BufferPtr;
+		FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::Increment, ThreadState, BufferPtr);
+		ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
+		FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	}
 }
 
 void FStatsTrace::Decrement(const FName& Stat)
 {
-	FStatsTraceInternal::FThreadState* ThreadState;
-	uint8* BufferPtr;
-	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::Decrement, ThreadState, BufferPtr);
-	ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
-	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	if (!Stat.IsNone())
+	{
+		FStatsTraceInternal::FThreadState* ThreadState;
+		uint8* BufferPtr;
+		FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::Decrement, ThreadState, BufferPtr);
+		ThreadState->BufferSize = uint16(BufferPtr - ThreadState->Buffer);
+		FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	}
 }
 
 void FStatsTrace::Add(const FName& Stat, int64 Amount)
 {
-	FStatsTraceInternal::FThreadState* ThreadState;
-	uint8* BufferPtr;
-	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::AddInteger, ThreadState, BufferPtr);
-	FTraceUtils::EncodeZigZag(Amount, BufferPtr);
-	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	if (!Stat.IsNone())
+	{
+		FStatsTraceInternal::FThreadState* ThreadState;
+		uint8* BufferPtr;
+		FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::AddInteger, ThreadState, BufferPtr);
+		FTraceUtils::EncodeZigZag(Amount, BufferPtr);
+		FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	}
 }
 
 void FStatsTrace::Add(const FName& Stat, double Amount)
 {
-	FStatsTraceInternal::FThreadState* ThreadState;
-	uint8* BufferPtr;
-	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::AddFloat, ThreadState, BufferPtr);
-	memcpy(BufferPtr, &Amount, sizeof(double));
-	BufferPtr += sizeof(double);
-	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	if (!Stat.IsNone())
+	{
+		FStatsTraceInternal::FThreadState* ThreadState;
+		uint8* BufferPtr;
+		FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::AddFloat, ThreadState, BufferPtr);
+		memcpy(BufferPtr, &Amount, sizeof(double));
+		BufferPtr += sizeof(double);
+		FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	}
 }
 
 void FStatsTrace::Set(const FName& Stat, int64 Value)
 {
-	FStatsTraceInternal::FThreadState* ThreadState;
-	uint8* BufferPtr;
-	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::SetInteger, ThreadState, BufferPtr);
-	FTraceUtils::EncodeZigZag(Value, BufferPtr);
-	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	if (!Stat.IsNone())
+	{
+		FStatsTraceInternal::FThreadState* ThreadState;
+		uint8* BufferPtr;
+		FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::SetInteger, ThreadState, BufferPtr);
+		FTraceUtils::EncodeZigZag(Value, BufferPtr);
+		FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	}
 }
 
 void FStatsTrace::Set(const FName& Stat, double Value)
 {
-	FStatsTraceInternal::FThreadState* ThreadState;
-	uint8* BufferPtr;
-	FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::SetFloat, ThreadState, BufferPtr);
-	memcpy(BufferPtr, &Value, sizeof(double));
-	BufferPtr += sizeof(double);
-	FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	if (!Stat.IsNone())
+	{
+		FStatsTraceInternal::FThreadState* ThreadState;
+		uint8* BufferPtr;
+		FStatsTraceInternal::BeginEncodeOp(Stat, FStatsTraceInternal::SetFloat, ThreadState, BufferPtr);
+		memcpy(BufferPtr, &Value, sizeof(double));
+		BufferPtr += sizeof(double);
+		FStatsTraceInternal::EndEncodeOp(ThreadState, BufferPtr);
+	}
 }
 
 #endif
