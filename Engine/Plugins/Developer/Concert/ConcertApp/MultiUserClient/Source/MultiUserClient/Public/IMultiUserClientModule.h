@@ -3,10 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Optional.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 
 class IConcertSyncClient;
+
+struct FProcHandle;
 
 struct FServerLaunchOverrides
 {
@@ -74,10 +77,10 @@ public:
 	virtual bool DisconnectSession(bool bAlwaysAskConfirmation = false) = 0;
 
 	/**
-	 * Launches a server (if none are running) on the local machine. On success, the server is launched. On
-	 * failure, an asynchronous notification (banner) is displayed to the user.
+	 * Launches a server (if none are running) on the local machine. On success, the server is launched
+	 * and its FProcHandle is returned. On failure, an asynchronous notification (banner) is displayed to the user.
 	 */
-	virtual void LaunchConcertServer(TOptional<FServerLaunchOverrides> LaunchOverrides = {}) = 0;
+	virtual TOptional<FProcHandle> LaunchConcertServer(TOptional<FServerLaunchOverrides> LaunchOverrides = {}) = 0;
 
 	/**
 	 * Shuts down all local servers running. Do nothing if no servers are running.

@@ -1074,7 +1074,7 @@ private:
 	/**
 	 * Launch a Concert collaboration server on the local machine.
 	 */
-	virtual void LaunchConcertServer(TOptional<FServerLaunchOverrides> LaunchOverrides = {}) override
+	virtual TOptional<FProcHandle> LaunchConcertServer(TOptional<FServerLaunchOverrides> LaunchOverrides = {}) override
 	{
 		FAsyncTaskNotificationConfig NotificationConfig;
 		NotificationConfig.bKeepOpenOnFailure = true;
@@ -1100,7 +1100,7 @@ private:
 				LOCTEXT("LaunchUnrealMultiUserServerError_ExecutableMissing", "Could not find the executable. Have you compiled the Unreal Multi-User Server?"), 
 				false
 				);
-			return;
+			return TOptional<FProcHandle>();
 		}
 
 		// Validate we do not have it running locally 
@@ -1112,14 +1112,17 @@ private:
 				LOCTEXT("LaunchUnrealMultiUserServerError_AlreadyRunning", "An Unreal Multi-User Server instance is already running."), 
 				false
 				);
-			return;
+			return TOptional<FProcHandle>();
 		}
 
 		FString CmdLineArgs = GenerateConcertServerCommandLine(LaunchOverrides);
 		FProcHandle ProcHandle = FPlatformProcess::CreateProc(*ServerPath, *CmdLineArgs, true, false, false, nullptr, 0, nullptr, nullptr, nullptr);
 		if (ProcHandle.IsValid())
 		{
-			Notification.SetComplete(LOCTEXT("LaunchedUnrealMultiUserServer", "Launched Unreal Multi-User Server"), FText(), true);
+			Notification.SetComplete(
+				LOCTEXT("LaunchedUnrealMultiUserServer", "Launched Unreal Multi-User Server"), FText(), true);
+
+			return ProcHandle;
 		}
 		else // Very unlikely in practice, but possible in theory.
 		{
@@ -1128,6 +1131,8 @@ private:
 				LOCTEXT("LaunchUnrealMultiUserServerError_InvalidHandle", "Failed to create the Multi-User Server process."),
 				false);
 		}
+		
+		return TOptional<FProcHandle>();
 	}
 
 	void ShutdownConcertServer() override
