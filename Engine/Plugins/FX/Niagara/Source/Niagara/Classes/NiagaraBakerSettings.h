@@ -167,7 +167,7 @@ public:
 	int32 CurrentCameraIndex = 0;
 
 	/** Should we render just the component or the whole scene. */
-	UPROPERTY(EditAnywhere, Category = "Settings", AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	uint8 bRenderComponentOnly : 1;
 
 	bool Equals(const UNiagaraBakerSettings& Other) const;

@@ -356,9 +356,16 @@ void FNiagaraBakerRenderer::RenderSceneCapture(UTextureRenderTarget2D* RenderTar
 	SceneCaptureComponent->bUseCustomProjectionMatrix = true;
 	SceneCaptureComponent->CustomProjectionMatrix = BakerSettings->GetProjectionMatrix();
 
-	SceneCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-	SceneCaptureComponent->ShowOnlyComponents.Empty(1);
-	SceneCaptureComponent->ShowOnlyComponents.Add(NiagaraComponent);
+	if (BakerSettings->bRenderComponentOnly)
+	{
+		SceneCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+		SceneCaptureComponent->ShowOnlyComponents.Empty(1);
+		SceneCaptureComponent->ShowOnlyComponents.Add(NiagaraComponent);
+	}
+	else
+	{
+		SceneCaptureComponent->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_RenderScenePrimitives;
+	}
 
 	SceneCaptureComponent->CaptureScene();
 

@@ -64,6 +64,9 @@ public:
 	bool ShowInfoText() const { return bShowInfoText; }
 	void ToggleInfoText() { bShowInfoText = !bShowInfoText; }
 
+	bool ShowRenderComponentOnly() const;
+	void ToggleRenderComponentOnly();
+
 	void SetCameraSettingsIndex(int CamerSettingsIndex);
 	bool IsCameraSettingIndex(int CamerSettingsIndex) const;
 

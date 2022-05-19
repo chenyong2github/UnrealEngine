@@ -84,6 +84,22 @@ bool FNiagaraBakerViewModel::IsPlaybackLooping() const
 	return BakerSettings ? BakerSettings->bPreviewLooping : false;
 }
 
+bool FNiagaraBakerViewModel::ShowRenderComponentOnly() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->bRenderComponentOnly : false;
+}
+
+void FNiagaraBakerViewModel::ToggleRenderComponentOnly()
+{
+	if ( UNiagaraBakerSettings* BakerSettings = GetBakerSettings() )
+	{
+		const FScopedTransaction Transaction(LOCTEXT("SetRenderComponentOnly", "Set Render Component Only"));
+		BakerSettings->Modify();
+		BakerSettings->bRenderComponentOnly = !BakerSettings->bRenderComponentOnly;
+	}
+}
+
 void FNiagaraBakerViewModel::SetCameraSettingsIndex(int CamerSettingsIndex)
 {
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())

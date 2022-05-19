@@ -621,6 +621,19 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeViewOptionsMenu()
 			EUserInterfaceActionType::ToggleButton
 		);
 
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowNiagaraOnly", "Render Niagara Only"),
+			LOCTEXT("ShowNiagaraOnlyTooltip", "Renders only the Niagara System when enabled."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleRenderComponentOnly),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::ShowRenderComponentOnly)
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
 		//DetailCategory.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, bPreviewLooping));
 		//DetailCategory.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, bRenderComponentOnly));
 	}
