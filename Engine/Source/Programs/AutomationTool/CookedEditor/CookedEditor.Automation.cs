@@ -169,7 +169,7 @@ public class ModifyStageContext
 
 		// remove already-cooked assets to be replaced with 
 		List<StagedFileReference> UncookedFilesThatDoNotExist = new List<StagedFileReference>();
-		string[] CookedExtensions = { ".uasset", ".umap", ".ubulk", ".uexp" };
+		string[] CookedExtensions = { ".uasset", ".umap", ".ubulk", ".uexp", ".uptnl" };
 		foreach (var UncookedFile in StagedUncookFiles)
 		{
 			string PathWithNoExtension = Path.ChangeExtension(UncookedFile.Key.Name, null);
