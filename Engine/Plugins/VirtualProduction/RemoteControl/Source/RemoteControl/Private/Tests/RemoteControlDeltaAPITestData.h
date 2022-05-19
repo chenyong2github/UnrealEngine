@@ -33,12 +33,17 @@ public:
 		return GET_MEMBER_NAME_CHECKED(URemoteControlDeltaAPITestObject, Int32WithSetterValue);
 	}
 
+	static const FName GetFloatWithSetterValuePropertyName()
+	{
+		return GET_MEMBER_NAME_CHECKED(URemoteControlDeltaAPITestObject, FloatWithSetterValue);
+	}
+
 	UFUNCTION(BlueprintGetter)
 	int32 GetInt32WithSetterValue() { return Int32WithSetterValue; }
 
 	UFUNCTION(BlueprintSetter)
 	void SetInt32WithSetterValue(const int32 NewValue) { Int32WithSetterValue = NewValue; }
-
+	
 	UPROPERTY(EditAnywhere, Category = "RC")
 	int32 Int32Value = Int32ValueDefault;
 
@@ -57,4 +62,17 @@ public:
 private:
 	UPROPERTY(EditAnywhere, Category = "RC", BlueprintGetter = GetInt32WithSetterValue, BlueprintSetter = SetInt32WithSetterValue)
 	int32 Int32WithSetterValue;
+
+	/** Uses Setter - not BlueprintSetter */
+	UPROPERTY(EditAnywhere, Setter, Category = "RC")
+	float FloatWithSetterValue = FloatValueDefault;
+
+public:
+	float GetFloatWithSetterValue() { return FloatWithSetterValue; }
+	void SetFloatWithSetterValue(const float& InValue);
 };
+
+inline void URemoteControlDeltaAPITestObject::SetFloatWithSetterValue(const float& InValue)
+{
+	FloatWithSetterValue = InValue;
+}

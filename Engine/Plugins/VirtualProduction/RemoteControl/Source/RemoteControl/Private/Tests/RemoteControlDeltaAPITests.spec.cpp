@@ -64,6 +64,7 @@ void FRemoteControlDeltaAPISpec::ResetTestObject()
 	TestObject->VectorValue = URemoteControlDeltaAPITestObject::VectorValueDefault;
 	TestObject->ColorValue = URemoteControlDeltaAPITestObject::ColorValueDefault;
 	TestObject->SetInt32WithSetterValue(URemoteControlDeltaAPITestObject::Int32ValueDefault);
+	TestObject->SetFloatWithSetterValue(URemoteControlDeltaAPITestObject::FloatValueDefault);
 
 	TestObject->StructValue.ColorValue = FRemoteControlDeltaAPITestStruct::ColorValueDefault;
 }
@@ -160,7 +161,7 @@ void FRemoteControlDeltaAPISpec::Define()
 			TestEqual("Z value", TestObject->VectorValue.Z, URemoteControlDeltaAPITestObject::VectorValueDefault.Z);
 		});
 
-		It("should add property with a getter/setter", [this]
+		It("should add property with a blueprint getter/setter", [this]
 		{
 			FProperty* ValueProperty = FindFProperty<FProperty>(URemoteControlDeltaAPITestObject::StaticClass(), URemoteControlDeltaAPITestObject::GetInt32WithSetterValuePropertyName());
 
@@ -173,7 +174,20 @@ void FRemoteControlDeltaAPISpec::Define()
 			TestEqual("Combined value", TestObject->GetInt32WithSetterValue(), URemoteControlDeltaAPITestObject::Int32ValueDefault + AddedValue);
 		});
 
-		It("should add property with a getter/setter and no intercept payload", [this]
+		It("should add property with a getter/setter", [this]
+		{
+			FProperty* ValueProperty = FindFProperty<FProperty>(URemoteControlDeltaAPITestObject::StaticClass(), URemoteControlDeltaAPITestObject::GetFloatWithSetterValuePropertyName());
+
+			const float AddedValue = 4.0f;
+			TestObject->SetFloatWithSetterValue(AddedValue);
+
+			SerializeElementAndReset(ValueProperty);
+			ApplyOperation(ValueProperty, ERCModifyOperation::ADD);
+
+			TestEqual("Combined value", TestObject->GetFloatWithSetterValue(), URemoteControlDeltaAPITestObject::FloatValueDefault + AddedValue);
+		});
+
+		It("should add property with a blueprint getter/setter and no intercept payload", [this]
 		{
 			FProperty* ValueProperty = FindFProperty<FProperty>(URemoteControlDeltaAPITestObject::StaticClass(), URemoteControlDeltaAPITestObject::GetInt32WithSetterValuePropertyName());
 
@@ -279,7 +293,7 @@ void FRemoteControlDeltaAPISpec::Define()
 			TestEqual("Combined Z value", TestObject->VectorValue.Z, URemoteControlDeltaAPITestObject::VectorValueDefault.Z - 6.7f);
 		});
 
-		It("should subtract property with a getter/setter", [this]
+		It("should subtract property with a blueprint getter/setter", [this]
 		{
 			FProperty* ValueProperty = FindFProperty<FProperty>(URemoteControlDeltaAPITestObject::StaticClass(), URemoteControlDeltaAPITestObject::GetInt32WithSetterValuePropertyName());
 
@@ -292,7 +306,7 @@ void FRemoteControlDeltaAPISpec::Define()
 			TestEqual("Combined value", TestObject->GetInt32WithSetterValue(), URemoteControlDeltaAPITestObject::Int32ValueDefault - SubtractedValue);
 		});
 
-		It("should subtract property with a getter/setter and no intercept payload", [this]
+		It("should subtract property with a blueprint getter/setter and no intercept payload", [this]
 		{
 			FProperty* ValueProperty = FindFProperty<FProperty>(URemoteControlDeltaAPITestObject::StaticClass(), URemoteControlDeltaAPITestObject::GetInt32WithSetterValuePropertyName());
 
@@ -398,7 +412,7 @@ void FRemoteControlDeltaAPISpec::Define()
 			TestEqual("Z value", TestObject->VectorValue.Z, URemoteControlDeltaAPITestObject::VectorValueDefault.Z);
 		});
 
-		It("should multiply property with a getter/setter", [this]
+		It("should multiply property with a blueprint getter/setter", [this]
 		{
 			FProperty* ValueProperty = FindFProperty<FProperty>(URemoteControlDeltaAPITestObject::StaticClass(), URemoteControlDeltaAPITestObject::GetInt32WithSetterValuePropertyName());
 
@@ -411,7 +425,7 @@ void FRemoteControlDeltaAPISpec::Define()
 			TestEqual("Combined value", TestObject->GetInt32WithSetterValue(), URemoteControlDeltaAPITestObject::Int32ValueDefault * Multiplier);
 		});
 
-		It("should multiply property with a getter/setter and no intercept payload", [this]
+		It("should multiply property with a blueprint getter/setter and no intercept payload", [this]
 		{
 			FProperty* ValueProperty = FindFProperty<FProperty>(URemoteControlDeltaAPITestObject::StaticClass(), URemoteControlDeltaAPITestObject::GetInt32WithSetterValuePropertyName());
 
@@ -530,7 +544,7 @@ void FRemoteControlDeltaAPISpec::Define()
 			TestEqual("Z value", TestObject->VectorValue.Z, URemoteControlDeltaAPITestObject::VectorValueDefault.Z);
 		});
 
-		It("should multiply property with a getter/setter", [this]
+		It("should multiply property with a blueprint getter/setter", [this]
 		{
 			FProperty* ValueProperty = FindFProperty<FProperty>(URemoteControlDeltaAPITestObject::StaticClass(), URemoteControlDeltaAPITestObject::GetInt32WithSetterValuePropertyName());
 
@@ -543,7 +557,7 @@ void FRemoteControlDeltaAPISpec::Define()
 			TestEqual("Combined value", TestObject->GetInt32WithSetterValue(), URemoteControlDeltaAPITestObject::Int32ValueDefault / Divisor);
 		});
 
-		It("should multiply property with a getter/setter and no intercept payload", [this]
+		It("should multiply property with a blueprint getter/setter and no intercept payload", [this]
 		{
 			FProperty* ValueProperty = FindFProperty<FProperty>(URemoteControlDeltaAPITestObject::StaticClass(), URemoteControlDeltaAPITestObject::GetInt32WithSetterValuePropertyName());
 

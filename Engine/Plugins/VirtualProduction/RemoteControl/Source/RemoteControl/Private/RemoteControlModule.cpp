@@ -290,6 +290,42 @@ namespace RemoteControlSetterUtils
 		InOutArgs.Call.ParamStruct = MoveTemp(InFunctionArguments);
 	}
 
+	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, FProperty* InPropertyWithSetter, FStructOnScope&& InFunctionArguments, FRCInterceptionPayload& OutPayload)
+	{
+		ensure(InFunctionArguments.GetStruct());
+		
+		// Create the output payload for interception purposes.
+		FMemoryWriter Writer{OutPayload.Payload};
+		FCborStructSerializerBackend WriterBackend{Writer, EStructSerializerBackendFlags::Default};
+		FStructSerializer::Serialize(InFunctionArguments.GetStructMemory(), *const_cast<UStruct*>(InFunctionArguments.GetStruct()), WriterBackend, FStructSerializerPolicies());
+		OutPayload.Type = ERCPayloadType::Cbor;
+
+		InOutArgs.Call.bGenerateTransaction = InOutArgs.ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS ? true : false;
+		InOutArgs.Call.CallRef.PropertyWithSetter = InPropertyWithSetter;
+		InOutArgs.Call.CallRef.Object = InOutArgs.ObjectReference.Object;
+		InOutArgs.Call.ParamStruct = MoveTemp(InFunctionArguments);
+		
+		InOutArgs.Call.ParamData.SetNumUninitialized(InPropertyWithSetter->GetSize());
+		InPropertyWithSetter->InitializeValue(InOutArgs.Call.ParamData.GetData());
+		const void* ValuePtr = InPropertyWithSetter->ContainerPtrToValuePtr<uint8>(InOutArgs.Call.ParamStruct.GetStructMemory());
+		InPropertyWithSetter->CopyCompleteValue(InOutArgs.Call.ParamData.GetData(), ValuePtr);
+	}
+
+	void CreateRCCall(FConvertToFunctionCallArgs& InOutArgs, FProperty* InPropertyWithSetter, FStructOnScope&& InFunctionArguments)
+	{
+		ensure(InFunctionArguments.GetStruct());
+		
+		InOutArgs.Call.bGenerateTransaction = InOutArgs.ObjectReference.Access == ERCAccess::WRITE_TRANSACTION_ACCESS ? true : false;
+		InOutArgs.Call.CallRef.PropertyWithSetter = InPropertyWithSetter;
+		InOutArgs.Call.CallRef.Object = InOutArgs.ObjectReference.Object;
+		InOutArgs.Call.ParamStruct = MoveTemp(InFunctionArguments);
+
+		InOutArgs.Call.ParamData.SetNumUninitialized(InPropertyWithSetter->GetSize());
+		InPropertyWithSetter->InitializeValue(InOutArgs.Call.ParamData.GetData());
+		const void* ValuePtr = InPropertyWithSetter->ContainerPtrToValuePtr<uint8>(InFunctionArguments.GetStructMemory());
+		InPropertyWithSetter->CopyCompleteValue(InOutArgs.Call.ParamData.GetData(), ValuePtr);
+	}
+
 	/** Create the payload to pass to be passed to a property's setter function. */
 	TOptional<FStructOnScope> CreateSetterFunctionPayload(UFunction* InSetterFunction, FConvertToFunctionCallArgs& InOutArgs)
 	{
@@ -345,6 +381,47 @@ namespace RemoteControlSetterUtils
 		return OptionalArgsOnScope;
 	}
 
+	/** Create the payload to pass to be passed to a property's native setter. */
+	TOptional<FStructOnScope> CreateSetterFunctionPayload(FProperty* InPropertyWithSetter, FConvertToFunctionCallArgs& InOutArgs)
+	{
+		TOptional<FStructOnScope> OptionalArgsOnScope;
+
+		FStructOnScope ArgsOnScope{ InOutArgs.ObjectReference.ContainerType.Get() };
+
+		bool bSuccess = false;
+		if (InOutArgs.ValuePtrOverride)
+		{
+			// We already have a pointer directly to the data we want, so copy the data into the function arguments
+			const UStruct* ArgsStruct = ArgsOnScope.GetStruct();
+
+			check(ArgsStruct);
+
+			uint8* SetterArgData = InOutArgs.ObjectReference.Property->ContainerPtrToValuePtr<uint8>(ArgsOnScope.GetStructMemory());
+			InOutArgs.ObjectReference.Property->CopyCompleteValue(SetterArgData, InOutArgs.ValuePtrOverride);
+
+			bSuccess = true;
+		}
+		else
+		{
+			// Data needs to be deserialized from the passed reader backend
+
+			// First put the complete property value from the object in the struct on scope
+			// in case the user only a part of the incoming structure (ie. Providing only { "x": 2 } in the case of a vector.
+			const uint8* ContainerAddress = InOutArgs.ObjectReference.Property->ContainerPtrToValuePtr<uint8>(InOutArgs.ObjectReference.ContainerAdress);
+			InOutArgs.ObjectReference.Property->CopyCompleteValue(ArgsOnScope.GetStructMemory(), ContainerAddress);
+
+			// Deserialize on top of the setter argument
+			bSuccess = FStructDeserializer::Deserialize((void*)ArgsOnScope.GetStructMemory(), *const_cast<UStruct*>(ArgsOnScope.GetStruct()), InOutArgs.ReaderBackend, FStructDeserializerPolicies());
+		}
+
+		if (bSuccess)
+		{
+			OptionalArgsOnScope = MoveTemp(ArgsOnScope);
+		}
+
+		return OptionalArgsOnScope;
+	}
+
 	bool ConvertModificationToFunctionCall(FConvertToFunctionCallArgs& InOutArgs, UFunction* InSetterFunction, FRCInterceptionPayload& OutPayload)
 	{
 		if (TOptional<FStructOnScope> ArgsOnScope = CreateSetterFunctionPayload(InSetterFunction, InOutArgs))
@@ -367,6 +444,28 @@ namespace RemoteControlSetterUtils
 		return false;
 	}
 
+	bool ConvertModificationToFunctionCall(FConvertToFunctionCallArgs& InOutArgs, FProperty* InPropertyWithSetter, FRCInterceptionPayload& OutPayload)
+	{
+		if (TOptional<FStructOnScope> ArgsOnScope = CreateSetterFunctionPayload(InPropertyWithSetter, InOutArgs))
+		{
+			CreateRCCall(InOutArgs, InPropertyWithSetter, MoveTemp(*ArgsOnScope), OutPayload);
+			return true;
+		}
+
+		return false;
+	}
+
+	bool ConvertModificationToFunctionCall(FConvertToFunctionCallArgs& InOutArgs, FProperty* InPropertyWithSetter)
+	{
+		if (TOptional<FStructOnScope> ArgsOnScope = CreateSetterFunctionPayload(InPropertyWithSetter, InOutArgs))
+		{
+			CreateRCCall(InOutArgs, InPropertyWithSetter, MoveTemp(*ArgsOnScope));
+			return true;
+		}
+
+		return false;
+	}
+
 	bool ConvertModificationToFunctionCall(FConvertToFunctionCallArgs& InOutArgs)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(RemoteControlSetterUtils::ConvertModificationToFunctionCall);
@@ -375,7 +474,11 @@ namespace RemoteControlSetterUtils
 			return false;
 		}
 
-		if (UFunction* SetterFunction = RemoteControlPropertyUtilities::FindSetterFunction(InOutArgs.ObjectReference.Property.Get(), InOutArgs.ObjectReference.Object->GetClass()))
+		if (InOutArgs.ObjectReference.Property->HasSetter())
+		{
+			return ConvertModificationToFunctionCall(InOutArgs, InOutArgs.ObjectReference.Property.Get());
+		}
+		else if (UFunction* SetterFunction = RemoteControlPropertyUtilities::FindSetterFunction(InOutArgs.ObjectReference.Property.Get(), InOutArgs.ObjectReference.Object->GetClass()))
 		{
 			return ConvertModificationToFunctionCall(InOutArgs, SetterFunction);
 		}
@@ -391,6 +494,10 @@ namespace RemoteControlSetterUtils
 			return false;
 		}
 
+		if (InArgs.ObjectReference.Property->HasSetter())
+		{
+			return ConvertModificationToFunctionCall(InArgs, InArgs.ObjectReference.Property.Get(), OutPayload);
+		}
 		if (UFunction* SetterFunction = RemoteControlPropertyUtilities::FindSetterFunction(InArgs.ObjectReference.Property.Get(), InArgs.ObjectReference.Object->GetClass()))
 		{
 			return ConvertModificationToFunctionCall(InArgs, SetterFunction, OutPayload);
@@ -599,7 +706,14 @@ bool FRemoteControlModule::InvokeCall(FRCCall& InCall, ERCPayloadType InPayloadT
 		FEditorScriptExecutionGuard ScriptGuard;
 		if (ensureAlways(InCall.CallRef.Object.IsValid()))
 		{
-		InCall.CallRef.Object->ProcessEvent(InCall.CallRef.Function.Get(), InCall.ParamStruct.GetStructMemory());
+			if(InCall.CallRef.PropertyWithSetter.IsValid())
+			{
+				InCall.CallRef.PropertyWithSetter->CallSetter(InCall.CallRef.Object.Get(), InCall.ParamData.GetData());
+			}
+			else
+			{
+				InCall.CallRef.Object->ProcessEvent(InCall.CallRef.Function.Get(), InCall.ParamStruct.GetStructMemory());
+			}
 		}
 
 #if WITH_EDITOR
@@ -1500,7 +1614,7 @@ bool FRemoteControlModule::PropertyModificationShouldUseSetter(UObject* Object, 
 		return false;
 	}
 
-	return !!RemoteControlPropertyUtilities::FindSetterFunction(Property, Object->GetClass());
+	return Property->HasSetter() || !!RemoteControlPropertyUtilities::FindSetterFunction(Property, Object->GetClass());
 }
 
 bool FRemoteControlModule::DeserializeDeltaModificationData(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend, ERCModifyOperation Operation, TArray<uint8>& OutData)

@@ -49,19 +49,30 @@ struct FRCCallReference
 	FRCCallReference()
 		: Object(nullptr)
 		, Function(nullptr)
+		, PropertyWithSetter(nullptr)
 	{}
 
 	bool IsValid() const
 	{
-		return Object.IsValid() && Function.IsValid();
+		/** The object and either the function or property must be valid */
+		return Object.IsValid() && (Function.IsValid() || PropertyWithSetter.IsValid());
 	}
 
 	TWeakObjectPtr<UObject> Object; 
 	TWeakObjectPtr<UFunction> Function;
+	TWeakFieldPtr<FProperty> PropertyWithSetter;
 	
 	friend uint32 GetTypeHash(const FRCCallReference& CallRef)
 	{
-		return CallRef.IsValid() ? HashCombine(GetTypeHash(CallRef.Object), GetTypeHash(CallRef.Function)) : 0;
+		if(!CallRef.IsValid())
+		{
+			return 0;
+		}
+		
+		return HashCombine(GetTypeHash(CallRef.Object),
+			CallRef.PropertyWithSetter.IsValid()
+			? GetTypeHash(CallRef.PropertyWithSetter)
+			: GetTypeHash(CallRef.Function));
 	}
 };
 
@@ -72,11 +83,14 @@ struct FRCCall
 {
 	bool IsValid() const
 	{
-		return CallRef.IsValid() && ParamStruct.IsValid();
+		return CallRef.IsValid() && (ParamStruct.IsValid() || !ParamData.IsEmpty());
 	}
 
 	FRCCallReference CallRef;
+	// Payload for UFunctiom
 	FStructOnScope ParamStruct;
+	// Payload for native function
+	TArray<uint8> ParamData;
 	bool bGenerateTransaction = false;
 };
 
