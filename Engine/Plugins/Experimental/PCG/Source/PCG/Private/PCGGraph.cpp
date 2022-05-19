@@ -142,50 +142,6 @@ void UPCGGraph::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-#if WITH_EDITOR
-void UPCGGraph::InitializeFromTemplate()
-{
-	Modify();
-
-	// Disable notification until the end of this method, otherwise it will cause issues in proper refresh dispatch
-	DisableNotificationsForEditor();
-
-	auto ResetDefaultNode = [](UPCGNode* InNode) {
-		check(InNode);
-		for (UPCGPin* InputPin : InNode->InputPins)
-		{
-			InputPin->BreakAllEdges();
-		}
-
-		for (UPCGPin* OutputPin : InNode->OutputPins)
-		{
-			OutputPin->BreakAllEdges();
-		}
-
-		// Reset settings as well
-		InNode->SetDefaultSettings(NewObject<UPCGTrivialSettings>(InNode));
-	};
-
-	ResetDefaultNode(InputNode);
-	ResetDefaultNode(OutputNode);
-
-	for (UPCGNode* Node : Nodes)
-	{
-		OnNodeRemoved(Node);
-	}
-
-	Nodes.Reset();
-
-	if (GraphTemplate)
-	{
-		Cast<UPCGGraphSetupBP>(GraphTemplate->GetDefaultObject())->Setup(this);
-	}
-
-	// Reenable notifications and notify listeners as needed
-	EnableNotificationsForEditor();
-}
-#endif
-
 UPCGNode* UPCGGraph::AddNodeOfType(TSubclassOf<class UPCGSettings> InSettingsClass, UPCGSettings*& OutDefaultNodeSettings)
 {
 	UPCGSettings* Settings = NewObject<UPCGSettings>(GetTransientPackage(), InSettingsClass);

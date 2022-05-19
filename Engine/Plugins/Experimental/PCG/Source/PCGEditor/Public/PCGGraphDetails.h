@@ -16,7 +16,5 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 
 private:
-	FReply OnInitializeClicked();
-
 	TArray<TWeakObjectPtr<UPCGGraph>> SelectedGraphs;
 };

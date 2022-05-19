@@ -45,39 +45,6 @@ void FPCGGraphDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	{
 		PCGCategory.AddProperty(Property);
 	}
-
-	FDetailWidgetRow& NewRow = PCGCategory.AddCustomRow(FText::GetEmpty());
-
-	NewRow.ValueContent()
-		.MaxDesiredWidth(120.f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(4.0f)
-			[
-				SNew(SButton)
-				.OnClicked(this, &FPCGGraphDetails::OnInitializeClicked)
-				[
-					SNew(STextBlock)
-					.Font(IDetailLayoutBuilder::GetDetailFont())
-					.Text(LOCTEXT("InitializeButton", "Initialize from template"))
-				]
-			]
-		];
-}
-
-FReply FPCGGraphDetails::OnInitializeClicked()
-{
-	for (TWeakObjectPtr<UPCGGraph>& Graph : SelectedGraphs)
-	{
-		if (Graph.IsValid())
-		{
-			Graph.Get()->InitializeFromTemplate();
-		}
-	}
-
-	return FReply::Handled();
 }
 
 #undef LOCTEXT_NAMESPACE

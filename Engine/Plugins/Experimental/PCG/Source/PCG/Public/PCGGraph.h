@@ -6,7 +6,6 @@
 #include "Templates/SubclassOf.h"
 #include "PCGNode.h"
 #include "PCGSettings.h"
-#include "PCGGraphSetupBP.h"
 
 #include "PCGGraph.generated.h"
 
@@ -39,15 +38,6 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = AssetInfo, AssetRegistrySearchable)
 	FText Description;
-#endif
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Template)
-	TSubclassOf<UPCGGraphSetupBP> GraphTemplate;
-
-#if WITH_EDITOR
-	/** Resets & initializes the graph from the Graph Template parameter. */
-	UFUNCTION(BlueprintCallable, Category = Template)
-	void InitializeFromTemplate();
 #endif
 
 	/** Creates a default node based on the settings class wanted. Returns the newly created node. */
