@@ -11,6 +11,7 @@ class UStaticMesh;
 class FStaticMeshRenderData;
 class FStaticMeshLODGroup;
 class USkeletalMesh;
+struct FOverlappingCorners;
 
 class MESHBUILDER_API FStaticMeshBuilder : public FMeshBuilder
 {
@@ -42,3 +43,23 @@ private:
 	TSharedPtr<class FStaticMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
 };
 
+namespace UE::Private::StaticMeshBuilder
+{
+	MESHBUILDER_API void BuildVertexBuffer(
+		UStaticMesh* StaticMesh,
+		const FMeshDescription& MeshDescription,
+		const FMeshBuildSettings& BuildSettings,
+		TArray<int32>& OutWedgeMap,
+		FStaticMeshSectionArray& OutSections,
+		TArray<TArray<uint32>>& OutPerSectionIndices,
+		TArray<FStaticMeshBuildVertex>& StaticMeshBuildVertices,
+		const FOverlappingCorners& OverlappingCorners,
+		TArray<int32>& RemapVerts
+	);
+
+	MESHBUILDER_API void BuildCombinedSectionIndices(
+		const TArray<TArray<uint32>>& PerSectionIndices,
+		FStaticMeshSectionArray& SectionsOut,
+		TArray<uint32>& CombinedIndicesOut,
+		bool& bNeeds32BitIndicesOut);
+}

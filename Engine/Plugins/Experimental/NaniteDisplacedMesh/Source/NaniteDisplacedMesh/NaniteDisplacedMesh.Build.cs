@@ -32,7 +32,23 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bBuildEditor)
 			{
-				PrivateDependencyModuleNames.Add("DerivedDataCache");
+				PrivateDependencyModuleNames.AddRange(
+					new string[]
+					{
+						"DerivedDataCache",
+						"MeshDescription",
+						"StaticMeshDescription",
+						"MeshReductionInterface",
+						"RawMesh",
+						"MeshUtilities",
+						"MeshUtilitiesCommon",
+						"MeshBuilderCommon",
+						"MeshBuilder",
+					}
+				);
+
+				PrivateIncludePathModuleNames.Add("NaniteBuilder");
+				DynamicallyLoadedModuleNames.Add("NaniteBuilder");
 			}
 		}
 	}

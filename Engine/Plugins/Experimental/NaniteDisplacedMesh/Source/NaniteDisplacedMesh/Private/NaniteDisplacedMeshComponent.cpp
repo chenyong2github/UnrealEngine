@@ -19,7 +19,14 @@ void UNaniteDisplacedMeshComponent::TickComponent(float DeltaTime, ELevelTick Ti
 
 const Nanite::FResources* UNaniteDisplacedMeshComponent::GetNaniteResources() const
 {
-	// TODO: Remap to UNaniteDisplacedMesh NaniteResources
+	// TODO: Refactor API to support also overriding the mesh section info
+
+	if (IsValid(DisplacedMesh) && DisplacedMesh->HasValidNaniteData())
+	{
+		return DisplacedMesh->GetNaniteData();
+	}
+
+	// If the displaced mesh does not have valid Nanite data, try the SMC's static mesh.
 	if (GetStaticMesh() && GetStaticMesh()->GetRenderData())
 	{
 		return &GetStaticMesh()->GetRenderData()->NaniteResources;

@@ -228,7 +228,7 @@ struct FStaticMeshSection
 	}
 
 	/** Serializer. */
-	friend FArchive& operator<<(FArchive& Ar,FStaticMeshSection& Section);
+	ENGINE_API friend FArchive& operator<<(FArchive& Ar,FStaticMeshSection& Section);
 };
 
 

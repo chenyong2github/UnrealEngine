@@ -21,20 +21,13 @@
 
 DEFINE_LOG_CATEGORY(LogStaticMeshBuilder);
 
-//////////////////////////////////////////////////////////////////////////
-//Local functions definition
-void BuildVertexBuffer(
-	  UStaticMesh *StaticMesh
-	, const FMeshDescription& MeshDescription
-	, const FMeshBuildSettings& BuildSettings
-	, TArray<int32>& OutWedgeMap
-	, FStaticMeshSectionArray& OutSections
-	, TArray<TArray<uint32> >& OutPerSectionIndices
-	, TArray< FStaticMeshBuildVertex >& StaticMeshBuildVertices
-	, const FOverlappingCorners& OverlappingCorners
-	, TArray<int32>& RemapVerts);
-void BuildAllBufferOptimizations(struct FStaticMeshLODResources& StaticMeshLOD, const struct FMeshBuildSettings& LODBuildSettings, TArray< uint32 >& IndexBuffer, bool bNeeds32BitIndices, TArray< FStaticMeshBuildVertex >& StaticMeshBuildVertices);
-//////////////////////////////////////////////////////////////////////////
+void BuildAllBufferOptimizations(
+	struct FStaticMeshLODResources& StaticMeshLOD,
+	const struct FMeshBuildSettings& LODBuildSettings,
+	TArray< uint32 >& IndexBuffer,
+	bool bNeeds32BitIndices,
+	TArray< FStaticMeshBuildVertex >& StaticMeshBuildVertices
+);
 
 FStaticMeshBuilder::FStaticMeshBuilder()
 {
@@ -106,62 +99,16 @@ static void ComputeBoundsFromVertexList(const TArray<FStaticMeshBuildVertex>& Ve
 	BoundsOut.SphereRadius = FMath::Sqrt( RadiusSqr );
 }
 
-
-
-/**
- * Utility function used inside FStaticMeshBuilder::Build() per-LOD loop to populate
- * the Sections in a FStaticMeshLODResources from PerSectionIndices, as well as
- * concatenate all section indices into CombinedIndicesOut.
- * Returned bNeeds32BitIndicesOut indicates whether max vert index is larger than max int16
- */
-static void BuildCombinedSectionIndices(
-	const TArray<TArray<uint32>>& PerSectionIndices, 
-	FStaticMeshLODResources& StaticMeshLODInOut, 
-	TArray<uint32>& CombinedIndicesOut,
-	bool& bNeeds32BitIndicesOut )
-{
-	bNeeds32BitIndicesOut = false;
-	for (int32 SectionIndex = 0; SectionIndex < StaticMeshLODInOut.Sections.Num(); SectionIndex++)
-	{
-		FStaticMeshSection& Section = StaticMeshLODInOut.Sections[SectionIndex];
-		const TArray<uint32>& SectionIndices = PerSectionIndices[SectionIndex];
-		Section.FirstIndex = 0;
-		Section.NumTriangles = 0;
-		Section.MinVertexIndex = 0;
-		Section.MaxVertexIndex = 0;
-
-		if (SectionIndices.Num())
-		{
-			Section.FirstIndex = CombinedIndicesOut.Num();
-			Section.NumTriangles = SectionIndices.Num() / 3;
-
-			CombinedIndicesOut.AddUninitialized(SectionIndices.Num());
-			uint32* DestPtr = &CombinedIndicesOut[Section.FirstIndex];
-			uint32 const* SrcPtr = SectionIndices.GetData();
-
-			Section.MinVertexIndex = *SrcPtr;
-			Section.MaxVertexIndex = *SrcPtr;
-
-			for (int32 Index = 0; Index < SectionIndices.Num(); Index++)
-			{
-				uint32 VertIndex = *SrcPtr++;
-
-				bNeeds32BitIndicesOut |= (VertIndex > MAX_uint16);
-				Section.MinVertexIndex = FMath::Min<uint32>(VertIndex, Section.MinVertexIndex);
-				Section.MaxVertexIndex = FMath::Max<uint32>(VertIndex, Section.MaxVertexIndex);
-				*DestPtr++ = VertIndex;
-			}
-		}
-	}
-}
-
 static bool BuildNanite(
 	UStaticMesh* StaticMesh,
 	FStaticMeshSourceModel& SourceModel,
-	FStaticMeshRenderData& StaticMeshRenderData,
+	FStaticMeshLODResourcesArray& LODResources,
+	FStaticMeshVertexFactoriesArray& LODVertexFactories,
+	Nanite::FResources& NaniteResources,
 	const FMeshNaniteSettings& NaniteSettings, 
-	TArrayView< float > PercentTriangles,
-	FBoxSphereBounds& BoundsOut )
+	TArrayView<float> PercentTriangles,
+	FBoxSphereBounds& BoundsOut
+)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE( FStaticMeshBuilder::BuildNanite );
 
@@ -173,7 +120,7 @@ static bool BuildNanite(
 	FMeshDescription MeshDescription = *SourceModel.GetOrCacheMeshDescription();
 
 	FMeshBuildSettings& BuildSettings = SourceModel.BuildSettings;
-	FStaticMeshLODResources& StaticMeshLOD = StaticMeshRenderData.LODResources[0];
+	FStaticMeshLODResources& StaticMeshLOD = LODResources[0];
 
 	// compute tangents, lightmap UVs, etc
 	FMeshDescriptionHelper MeshDescriptionHelper( &BuildSettings );
@@ -195,7 +142,17 @@ static bool BuildNanite(
 	StaticMeshLOD.Sections.Empty( MeshDescription.PolygonGroups().Num() );
 
 	//Build the vertex and index buffer
-	BuildVertexBuffer(StaticMesh, MeshDescription, BuildSettings, WedgeMap, StaticMeshLOD.Sections, PerSectionIndices, StaticMeshBuildVertices, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts);
+	UE::Private::StaticMeshBuilder::BuildVertexBuffer(
+		StaticMesh,
+		MeshDescription,
+		BuildSettings,
+		WedgeMap,
+		StaticMeshLOD.Sections,
+		PerSectionIndices,
+		StaticMeshBuildVertices,
+		MeshDescriptionHelper.GetOverlappingCorners(),
+		RemapVerts
+	);
 
 	const uint32 NumTextureCoord = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2f>( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumChannels();
 
@@ -209,7 +166,7 @@ static bool BuildNanite(
 	// Concatenate the per-section index buffers.
 	TArray<uint32> CombinedIndices;
 	bool bNeeds32BitIndices = false;
-	BuildCombinedSectionIndices(PerSectionIndices, StaticMeshLOD, CombinedIndices, bNeeds32BitIndices);
+	UE::Private::StaticMeshBuilder::BuildCombinedSectionIndices(PerSectionIndices, StaticMeshLOD.Sections, CombinedIndices, bNeeds32BitIndices);
 
 	// Nanite build requires the section material indices to have already been resolved from the SectionInfoMap
 	// as the indices are baked into the FMaterialTriangles.
@@ -239,7 +196,7 @@ static bool BuildNanite(
 		OutputLODMeshData[ LodIndex ].PercentTriangles = PercentTriangles[ LodIndex ];
 	}
 
-	if( !NaniteBuilderModule.Build( StaticMeshRenderData.NaniteResources, InputMeshData, OutputLODMeshData, NumTextureCoord, NaniteSettings ) )
+	if( !NaniteBuilderModule.Build( NaniteResources, InputMeshData, OutputLODMeshData, NumTextureCoord, NaniteSettings ) )
 	{
 		UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for HiRes static mesh. See previous line(s) for details."));
 		return false;
@@ -266,13 +223,13 @@ static bool BuildNanite(
 		if (bHasValidSections)
 		{
 			// Add new LOD resource if not created yet
-			if (ValidLODCount >= StaticMeshRenderData.LODResources.Num())
+			if (ValidLODCount >= LODResources.Num())
 			{
-				StaticMeshRenderData.LODResources.Add(new FStaticMeshLODResources);
-				new (StaticMeshRenderData.LODVertexFactories) FStaticMeshVertexFactories(GMaxRHIFeatureLevel);
+				LODResources.Add(new FStaticMeshLODResources);
+				new (LODVertexFactories) FStaticMeshVertexFactories(GMaxRHIFeatureLevel);
 			}
 
-			FStaticMeshLODResources& ProxyLOD = StaticMeshRenderData.LODResources[ValidLODCount];
+			FStaticMeshLODResources& ProxyLOD = LODResources[ValidLODCount];
 			ProxyLOD.Sections.Empty(ProxyMeshData.Sections.Num());
 			for (FStaticMeshSection& Section : ProxyMeshData.Sections)
 			{
@@ -360,7 +317,9 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		bool bBuildSuccess = BuildNanite(
 			StaticMesh,
 			StaticMesh->GetHiResSourceModel(),
-			StaticMeshRenderData,
+			StaticMeshRenderData.LODResources,
+			StaticMeshRenderData.LODVertexFactories,
+			StaticMeshRenderData.NaniteResources,
 			NaniteSettings,
 			TArrayView< float >(),
 			HiResBounds );
@@ -394,7 +353,9 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		bool bBuildSuccess = BuildNanite(
 			StaticMesh,
 			StaticMesh->GetSourceModel(0),
-			StaticMeshRenderData,
+			StaticMeshRenderData.LODResources,
+			StaticMeshRenderData.LODVertexFactories,
+			StaticMeshRenderData.NaniteResources,
 			NaniteSettings,
 			PercentTriangles,
 			HiResBounds );
@@ -593,7 +554,17 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		PerSectionIndices.AddDefaulted(MeshDescriptions[LodIndex].PolygonGroups().Num());
 
 		//Build the vertex and index buffer
-		BuildVertexBuffer(StaticMesh, MeshDescriptions[LodIndex], LODBuildSettings, WedgeMap, StaticMeshLOD.Sections, PerSectionIndices, StaticMeshBuildVertices, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts);
+		UE::Private::StaticMeshBuilder::BuildVertexBuffer(
+			StaticMesh,
+			MeshDescriptions[LodIndex],
+			LODBuildSettings,
+			WedgeMap,
+			StaticMeshLOD.Sections,
+			PerSectionIndices,
+			StaticMeshBuildVertices,
+			MeshDescriptionHelper.GetOverlappingCorners(),
+			RemapVerts
+		);
 
 		const uint32 NumTextureCoord = MeshDescriptions[LodIndex].VertexInstanceAttributes().GetAttributesRef<FVector2f>( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumChannels();
 
@@ -607,7 +578,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		// Concatenate the per-section index buffers.
 		TArray<uint32> CombinedIndices;
 		bool bNeeds32BitIndices = false;
-		BuildCombinedSectionIndices(PerSectionIndices, StaticMeshLOD, CombinedIndices, bNeeds32BitIndices);
+		UE::Private::StaticMeshBuilder::BuildCombinedSectionIndices(PerSectionIndices, StaticMeshLOD.Sections, CombinedIndices, bNeeds32BitIndices);
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build::BufferInit);
@@ -736,16 +707,20 @@ bool AreVerticesEqual(FStaticMeshBuildVertex const& A, FStaticMeshBuildVertex co
 	return true;
 }
 
+namespace UE::Private::StaticMeshBuilder
+{
+
 void BuildVertexBuffer(
-	  UStaticMesh *StaticMesh
-	, const FMeshDescription& MeshDescription
-	, const FMeshBuildSettings& BuildSettings
-	, TArray<int32>& OutWedgeMap
-	, FStaticMeshSectionArray& OutSections
-	, TArray<TArray<uint32> >& OutPerSectionIndices
-	, TArray< FStaticMeshBuildVertex >& StaticMeshBuildVertices
-	, const FOverlappingCorners& OverlappingCorners
-	, TArray<int32>& RemapVerts)
+	UStaticMesh* StaticMesh,
+	const FMeshDescription& MeshDescription,
+	const FMeshBuildSettings& BuildSettings,
+	TArray<int32>& OutWedgeMap,
+	FStaticMeshSectionArray& OutSections,
+	TArray<TArray<uint32>>& OutPerSectionIndices,
+	TArray< FStaticMeshBuildVertex>& StaticMeshBuildVertices,
+	const FOverlappingCorners& OverlappingCorners,
+	TArray<int32>& RemapVerts
+)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(BuildVertexBuffer);
 
@@ -836,10 +811,10 @@ void BuildVertexBuffer(
 			FStaticMeshBuildVertex StaticMeshVertex;
 
 			StaticMeshVertex.Position = FVector3f(VertexPosition * BuildSettings.BuildScale3D);
-			if( bIgnoreTangents )
+			if (bIgnoreTangents)
 			{
-				StaticMeshVertex.TangentX = FVector3f( 1.0f, 0.0f, 0.0f );
-				StaticMeshVertex.TangentY = FVector3f( 0.0f, 1.0f, 0.0f );
+				StaticMeshVertex.TangentX = FVector3f(1.0f, 0.0f, 0.0f);
+				StaticMeshVertex.TangentY = FVector3f(0.0f, 1.0f, 0.0f);
 			}
 			else
 			{
@@ -847,7 +822,7 @@ void BuildVertexBuffer(
 				StaticMeshVertex.TangentY = (FVector4f)ScaleMatrix.TransformVector(FVector::CrossProduct(VertexInstanceNormal, VertexInstanceTangent) * VertexInstanceBinormalSign).GetSafeNormal();
 			}
 			StaticMeshVertex.TangentZ = (FVector4f)ScaleMatrix.TransformVector(VertexInstanceNormal).GetSafeNormal();
-				
+
 			if (bHasColors)
 			{
 				const FVector4f& VertexInstanceColor = VertexInstanceColors[VertexInstanceID];
@@ -862,7 +837,7 @@ void BuildVertexBuffer(
 			const uint32 MaxNumTexCoords = FMath::Min<int32>(MAX_MESH_TEXTURE_COORDS_MD, MAX_STATIC_TEXCOORDS);
 			for (uint32 UVIndex = 0; UVIndex < MaxNumTexCoords; ++UVIndex)
 			{
-				if(UVIndex < NumTextureCoord)
+				if (UVIndex < NumTextureCoord)
 				{
 					StaticMeshVertex.UVs[UVIndex] = VertexInstanceUVs.Get(VertexInstanceID, UVIndex);
 				}
@@ -871,7 +846,7 @@ void BuildVertexBuffer(
 					StaticMeshVertex.UVs[UVIndex] = FVector2f(0.0f, 0.0f);
 				}
 			}
-					
+
 
 			//Never add duplicated vertex instance
 			//Use WedgeIndex since OverlappingCorners has been built based on that
@@ -897,7 +872,7 @@ void BuildVertexBuffer(
 			}
 			RemapVerts[WedgeIndex] = Index;
 			OutWedgeMap[WedgeIndex] = Index;
-			SectionIndices.Add( Index );
+			SectionIndices.Add(Index);
 		}
 	}
 
@@ -909,6 +884,55 @@ void BuildVertexBuffer(
 		//check(OutWedgeMap.Num() == MeshDescription->VertexInstances().Num());
 	}
 }
+
+/**
+ * Utility function used inside FStaticMeshBuilder::Build() per-LOD loop to populate
+ * the Sections in a FStaticMeshLODResources from PerSectionIndices, as well as
+ * concatenate all section indices into CombinedIndicesOut.
+ * Returned bNeeds32BitIndicesOut indicates whether max vert index is larger than max int16
+ */
+void BuildCombinedSectionIndices(
+	const TArray<TArray<uint32>>& PerSectionIndices,
+	FStaticMeshSectionArray& SectionsOut,
+	TArray<uint32>& CombinedIndicesOut,
+	bool& bNeeds32BitIndicesOut)
+{
+	bNeeds32BitIndicesOut = false;
+	for (int32 SectionIndex = 0; SectionIndex < SectionsOut.Num(); SectionIndex++)
+	{
+		FStaticMeshSection& Section = SectionsOut[SectionIndex];
+		const TArray<uint32>& SectionIndices = PerSectionIndices[SectionIndex];
+		Section.FirstIndex = 0;
+		Section.NumTriangles = 0;
+		Section.MinVertexIndex = 0;
+		Section.MaxVertexIndex = 0;
+
+		if (SectionIndices.Num())
+		{
+			Section.FirstIndex = CombinedIndicesOut.Num();
+			Section.NumTriangles = SectionIndices.Num() / 3;
+
+			CombinedIndicesOut.AddUninitialized(SectionIndices.Num());
+			uint32* DestPtr = &CombinedIndicesOut[Section.FirstIndex];
+			uint32 const* SrcPtr = SectionIndices.GetData();
+
+			Section.MinVertexIndex = *SrcPtr;
+			Section.MaxVertexIndex = *SrcPtr;
+
+			for (int32 Index = 0; Index < SectionIndices.Num(); Index++)
+			{
+				uint32 VertIndex = *SrcPtr++;
+
+				bNeeds32BitIndicesOut |= (VertIndex > MAX_uint16);
+				Section.MinVertexIndex = FMath::Min<uint32>(VertIndex, Section.MinVertexIndex);
+				Section.MaxVertexIndex = FMath::Max<uint32>(VertIndex, Section.MaxVertexIndex);
+				*DestPtr++ = VertIndex;
+			}
+		}
+	}
+}
+
+} // namespace UE::Private::StaticMeshBuilder
 
 void BuildAllBufferOptimizations(FStaticMeshLODResources& StaticMeshLOD, const FMeshBuildSettings& LODBuildSettings, TArray< uint32 >& IndexBuffer, bool bNeeds32BitIndices, TArray< FStaticMeshBuildVertex >& StaticMeshBuildVertices)
 {
@@ -988,3 +1012,4 @@ void BuildAllBufferOptimizations(FStaticMeshLODResources& StaticMeshLOD, const F
 		StaticMeshLOD.AdditionalIndexBuffers->WireframeIndexBuffer.SetIndices(WireframeIndices, IndexBufferStride);
 	}
 }
+

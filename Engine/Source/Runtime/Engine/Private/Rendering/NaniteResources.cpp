@@ -525,7 +525,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	}
 	
 	// This should always be valid.
-	check(Resources);
+	check(Resources && Resources->PageStreamingStates.Num() > 0);
 
 	FMaterialAudit MaterialAudit;
 	AuditMaterials(Component, MaterialAudit);

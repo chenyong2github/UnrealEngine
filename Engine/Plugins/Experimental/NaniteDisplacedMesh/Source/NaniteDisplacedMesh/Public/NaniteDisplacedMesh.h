@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "RenderCommandFence.h"
 #include "Rendering/NaniteResources.h"
 #include "UObject/ObjectMacros.h"
 
@@ -11,15 +12,6 @@
 class FNaniteBuildAsyncCacheTask;
 class UNaniteDisplacedMesh;
 class UTexture;
-
-UCLASS(config=Engine, defaultconfig)
-class NANITEDISPLACEDMESH_API UNaniteDisplacedMeshSettings : public UObject
-{
-	GENERATED_BODY()
-
-public:
-
-};
 
 USTRUCT(BlueprintType)
 struct FNaniteDisplacedMeshParams
@@ -142,30 +134,56 @@ struct FNaniteDisplacedMeshParams
 #endif // WITH_EDITORONLY_DATA
 };
 
+struct FNaniteData
+{
+	Nanite::FResources Resources;
+
+	// Material section information that matches displaced mesh.
+	FStaticMeshSectionArray MeshSections;
+};
+
 UCLASS()
 class NANITEDISPLACEDMESH_API UNaniteDisplacedMesh : public UObject
 {
 	GENERATED_BODY()
 
+	friend class FNaniteBuildAsyncCacheTask;
+
 public:
 	UNaniteDisplacedMesh(const FObjectInitializer& Init);
 
-	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
+	virtual void BeginDestroy() override;
+	virtual bool IsReadyForFinishDestroy() override;
 
 	void InitResources();
 	void ReleaseResources();
 
+	bool HasValidNaniteData() const;
+
+	inline Nanite::FResources* GetNaniteData()
+	{
+		return &Data.Resources;
+	}
+
+	inline const Nanite::FResources* GetNaniteData() const
+	{
+		return &Data.Resources;
+	}
+
+	inline const FStaticMeshSectionArray& GetMeshSections() const
+	{
+		return Data.MeshSections;
+	}
+
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
 	virtual bool IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform) override;
 	virtual void ClearAllCachedCookedPlatformData() override;
 #endif
-
-private:
-	// Data used to render this displaced mesh with Nanite.
-	Nanite::FResources Resources;
 
 public:
 #if WITH_EDITORONLY_DATA
@@ -181,18 +199,25 @@ public:
 	bool bIsEditable = true;
 #endif
 
-#if WITH_EDITOR
 private:
+	bool bIsInitialized = false;
+
+	// Data used to render this displaced mesh with Nanite.
+	FNaniteData Data;
+
+	FRenderCommandFence ReleaseResourcesFence;
+
+#if WITH_EDITOR
 	FIoHash CreateDerivedDataKeyHash(const ITargetPlatform* TargetPlatform);
 	FIoHash BeginCacheDerivedData(const ITargetPlatform* TargetPlatform);
 	bool PollCacheDerivedData(const FIoHash& KeyHash) const;
 	void EndCacheDerivedData(const FIoHash& KeyHash);
 
 	/** Synchronously cache and return derived data for the target platform. */
-	Nanite::FResources& CacheDerivedData(const ITargetPlatform* TargetPlatform);
+	FNaniteData& CacheDerivedData(const ITargetPlatform* TargetPlatform);
 
-	FIoHash ResourcesKeyHash;
-	TMap<FIoHash, TUniquePtr<Nanite::FResources>> ResourcesByPlatformKeyHash;
+	FIoHash DataKeyHash;
+	TMap<FIoHash, TUniquePtr<FNaniteData>> DataByPlatformKeyHash;
 	TMap<FIoHash, TPimplPtr<FNaniteBuildAsyncCacheTask>> CacheTasksByKeyHash;
 #endif
 };

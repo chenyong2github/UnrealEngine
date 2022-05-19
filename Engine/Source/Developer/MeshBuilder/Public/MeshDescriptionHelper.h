@@ -14,7 +14,7 @@ struct FMeshBuildSettings;
 struct FVertexInstanceID;
 struct FMeshReductionSettings;
 
-class FMeshDescriptionHelper
+class MESHBUILDER_API FMeshDescriptionHelper
 {
 public:
 
