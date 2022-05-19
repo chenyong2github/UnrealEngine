@@ -69,14 +69,14 @@ namespace UnrealBuildTool.Matchers
 				AddSymbolMarkupForLine(builder);
 
 				string prefix = $"^(?<prefix>{match.Groups[1].Value}\\s+)";
-				if (builder.Next.TryMatch(prefix + @"""(?<symbol>[^""]+)""", out match))
+				while (builder.Next.TryMatch(prefix + @"""(?<symbol>[^""]+)""", out match))
 				{
-					prefix = $"^{match.Groups["prefix"].Value}\\s+";
+					string nextPrefix = $"^{match.Groups["prefix"].Value}\\s+";
 
 					builder.MoveNext();
 					builder.AnnotateSymbol(match.Groups["symbol"]);
 
-					while(builder.Next.TryMatch(prefix + "(?<symbol>[^ ].*) in ", out match))
+					while(builder.Next.TryMatch(nextPrefix + "(?<symbol>[^ ].*) in ", out match))
 					{
 						builder.MoveNext();
 						builder.AnnotateSymbol(match.Groups["symbol"]);

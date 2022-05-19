@@ -329,6 +329,27 @@ namespace UnrealBuildToolTests
 		}
 
 		[TestMethod]
+		public void MacLinkEventMatcher2()
+		{
+			string[] lines =
+			{
+				@"  Undefined symbols for architecture x86_64:",
+				@"    ""_OBJC_CLASS_$_NSAppleScript"", referenced from:",
+				@"        objc-class-ref in libsupp.a(macutil.o)",
+				@"    ""_OBJC_CLASS_$_NSString"", referenced from:",
+				@"        objc-class-ref in libsupp.a(macutil.o)",
+				@"    ""_OBJC_CLASS_$_NSBundle"", referenced from:",
+				@"        objc-class-ref in libsupp.a(macutil.o)",
+				@"    ""_CGSessionCopyCurrentDictionary"", referenced from:",
+				@"        _WindowServicesAvailable in libsupp.a(macutil.o)",
+				@"  ld: symbol(s) not found for architecture x86_64"
+			};
+
+			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
+			CheckEventGroup(logEvents, 0, 10, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
+		}
+
+		[TestMethod]
 		public void LinuxLinkErrorMatcher()
 		{
 			string[] lines =
