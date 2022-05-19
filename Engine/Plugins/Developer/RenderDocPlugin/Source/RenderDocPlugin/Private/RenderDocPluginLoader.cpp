@@ -10,6 +10,7 @@
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
+#include "Misc/Paths.h"
 #include "Misc/ConfigUtilities.h"
 #include "RHI.h"
 
