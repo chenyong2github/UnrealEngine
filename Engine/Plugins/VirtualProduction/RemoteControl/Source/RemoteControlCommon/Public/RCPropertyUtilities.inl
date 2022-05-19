@@ -1,7 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RCPropertyUtilities.h"
-
 #include "CoreMinimal.h"
 
 #include "RCTypeTraits.h"
