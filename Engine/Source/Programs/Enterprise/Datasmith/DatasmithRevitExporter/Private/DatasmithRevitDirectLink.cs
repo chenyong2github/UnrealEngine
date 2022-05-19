@@ -144,7 +144,7 @@ namespace DatasmithRevitExporter
 		private FCachedDocumentData										RootCache = null;
 		private FCachedDocumentData										CurrentCache = null;
 		
-		private View3D													SyncView = null;
+		public View3D													SyncView { get; private set; } = null;
 
 		private HashSet<Document>										ModifiedLinkedDocuments = new HashSet<Document>();
 		private HashSet<ElementId>										ExportedLinkedDocuments = new HashSet<ElementId>();
@@ -168,17 +168,14 @@ namespace DatasmithRevitExporter
 
 		private EventHandler<DocumentChangedEventArgs>					DocumentChangedHandler;
 
-		private static FDirectLink										ActiveInstance = null;
-		private static List<FDirectLink> Instances = new List<FDirectLink>();
+		private FSettings												Settings = null;
 
 		private static UIApplication UIApp { get; set; } = null;
 
 		private bool bHasChanges = false;
 		private bool bSyncInProgress = false;
 
-		private EventHandler SettingsChangedHandler;
-
-		private bool bSettingsDirty = false;
+		public bool bSettingsDirty = false;
 
 		private static bool _bAutoSync = false;
 		public static bool bAutoSync
@@ -192,117 +189,15 @@ namespace DatasmithRevitExporter
 				_bAutoSync = value;
 				if (_bAutoSync)
 				{
-					Get()?.RunAutoSync();
+					FDocument.ActiveDocument?.ActiveDirectLinkInstance?.RunAutoSync();
 				}
 			}
-		}
-
-		public static FDirectLink Get()
-		{
-			return ActiveInstance;
-		}
-
-		public static View3D GetSyncView()
-		{
-			return ActiveInstance?.SyncView ?? null;
-		}
-
-		public static void ActivateInstance(View3D InView)
-		{
-			if (UIApp == null)
-			{
-				UIApp = new UIApplication(InView.Document.Application);
-			}
-
-			// Disable existing instance, if there's active one.
-			ActiveInstance?.MakeActive(false);
-			ActiveInstance = null;
-
-			// Find out if we already have instance for this document and 
-			// activate it if we do. Otherwise, create new one.
-
-			FDirectLink InstanceToActivate = null;
-
-			foreach (FDirectLink DL in Instances)
-			{
-				if (DL.SyncView == null || !DL.SyncView.IsValidObject)
-				{
-					continue;
-				}
-
-				if (DL.RootCache.SourceDocument.Equals(InView.Document) && DL.SyncView.Id == InView.Id)
-				{
-					InstanceToActivate = DL;
-					break;
-				}
-			}
-
-			if (InstanceToActivate == null)
-			{
-				InstanceToActivate = new FDirectLink(InView);
-				Instances.Add(InstanceToActivate);
-			}
-
-			InstanceToActivate.MakeActive(true);
-			ActiveInstance = InstanceToActivate;
-		}
-
-		public static FDirectLink FindInstance(View3D InView)
-		{
-			foreach (var Inst in Instances)
-			{
-				if (Inst.SyncView.Id == InView.Id)
-				{
-					return Inst;
-				}
-			}
-			return null;
-		}
-
-		public static void DestroyInstance(FDirectLink Instance, Application InApp)
-		{
-			if (ActiveInstance == Instance)
-			{
-				ActiveInstance = null;
-			}
-			FSettingsManager.SettingsUpdated -= Instance.SettingsChangedHandler;
-			Instances.Remove(Instance);
-			Instance?.Destroy(InApp);
-		}
-
-		public static void DestroyInstancesForDocument(Document InDoc, Application InApp)
-		{
-			for (int InstanceIndex = Instances.Count - 1; InstanceIndex >= 0; --InstanceIndex)
-			{
-				FDirectLink Instance = Instances[InstanceIndex];
-
-				if (!Instance.RootCache.SourceDocument.Equals(InDoc))
-				{
-					continue;
-				}
-
-				if (ActiveInstance == Instance)
-				{
-					ActiveInstance = null;
-				}
-
-				Instances.RemoveAt(InstanceIndex);
-				Instance?.Destroy(InApp);
-			}
-		}
-
-		public static void DestroyAllInstances(Application InApp) 
-		{
-			foreach (FDirectLink DL in Instances)
-			{
-				DestroyInstance(DL, InApp);
-			}
-
-			Instances.Clear();
 		}
 
 		public static void OnApplicationIdle()
 		{
+			FDirectLink ActiveInstance = FDocument.ActiveDocument?.ActiveDirectLinkInstance ?? null;
+
 			if (ActiveInstance == null || ActiveInstance.SyncCount == 0)
 			{
 				return;
@@ -327,32 +222,32 @@ namespace DatasmithRevitExporter
 		  object InSender,
 		  DocumentChangedEventArgs InArgs) 
 		{
-			FDirectLink DirectLink = FDirectLink.Get();
+			FDirectLink ActiveInstance = FDocument.ActiveDocument?.ActiveDirectLinkInstance ?? null;
 
-			Debug.Assert(DirectLink != null);
+			Debug.Assert(ActiveInstance != null);
 
 			// Handle modified elements
 			foreach (ElementId ElemId in InArgs.GetModifiedElementIds())
 			{
-				Element ModifiedElement = DirectLink.RootCache.SourceDocument.GetElement(ElemId);
-			
-				DirectLink.bHasChanges = true;
+				Element ModifiedElement = ActiveInstance.RootCache.SourceDocument.GetElement(ElemId);
+
+				ActiveInstance.bHasChanges = true;
 
 				if (ModifiedElement != null)
 				{
 					if (ModifiedElement.GetType() == typeof(RevitLinkInstance))
 					{
-						DirectLink.ModifiedLinkedDocuments.Add((ModifiedElement as RevitLinkInstance).GetLinkDocument());
+						ActiveInstance.ModifiedLinkedDocuments.Add((ModifiedElement as RevitLinkInstance).GetLinkDocument());
 					}
 					else if (ModifiedElement.GetType() == typeof(RevitLinkType))
 					{
-						foreach (KeyValuePair<ElementId, FCachedDocumentData> Link in DirectLink.RootCache.LinkedDocumentsCache)
+						foreach (KeyValuePair<ElementId, FCachedDocumentData> Link in ActiveInstance.RootCache.LinkedDocumentsCache)
 						{
-							RevitLinkInstance LinkInstance = DirectLink.RootCache.SourceDocument.GetElement(Link.Key) as RevitLinkInstance;
+							RevitLinkInstance LinkInstance = ActiveInstance.RootCache.SourceDocument.GetElement(Link.Key) as RevitLinkInstance;
 							if (LinkInstance != null)
 							{
-								RevitLinkType LinkType = DirectLink.RootCache.SourceDocument.GetElement(LinkInstance.GetTypeId()) as RevitLinkType;
-								if (LinkType != null && LinkType.Id == ModifiedElement.Id && RevitLinkType.IsLoaded(DirectLink.RootCache.SourceDocument, LinkType.Id))
+								RevitLinkType LinkType = ActiveInstance.RootCache.SourceDocument.GetElement(LinkInstance.GetTypeId()) as RevitLinkType;
+								if (LinkType != null && LinkType.Id == ModifiedElement.Id && RevitLinkType.IsLoaded(ActiveInstance.RootCache.SourceDocument, LinkType.Id))
 								{
 									Link.Value.SetAllElementsModified();
 								}
@@ -368,30 +263,29 @@ namespace DatasmithRevitExporter
 						{
 							foreach (ElementId DepElemId in DependentElements)
 							{
-								DirectLink.RootCache.SetElementModified(true, DepElemId);
+								ActiveInstance.RootCache.SetElementModified(true, DepElemId);
 							}
 						}
 					}
 
-					DirectLink.RootCache.SetElementModified(true, ElemId);
+					ActiveInstance.RootCache.SetElementModified(true, ElemId);
 				}
 			}
 
-			DirectLink.bHasChanges = DirectLink.bHasChanges || InArgs.GetDeletedElementIds().Any();
-			DirectLink.bHasChanges = DirectLink.bHasChanges || InArgs.GetAddedElementIds().Any();
+			ActiveInstance.bHasChanges = ActiveInstance.bHasChanges || InArgs.GetDeletedElementIds().Any();
+			ActiveInstance.bHasChanges = ActiveInstance.bHasChanges || InArgs.GetAddedElementIds().Any();
 
-			if (DirectLink.bHasChanges && bAutoSync)
+			if (ActiveInstance.bHasChanges && bAutoSync)
 			{
-				DirectLink.RunAutoSync();
+				ActiveInstance.RunAutoSync();
 			}
 		}
 
-		private FDirectLink(View3D InView)
+		public FDirectLink(View3D InView, FSettings InSettings)
 		{
+			Settings = InSettings;
 			RootCache = new FCachedDocumentData(InView.Document);
-			
 			CurrentCache = RootCache;
-
 			SyncView = InView;
 
 			DatasmithScene = new FDatasmithFacadeScene(
@@ -407,12 +301,11 @@ namespace DatasmithRevitExporter
 
 			DocumentChangedHandler = new EventHandler<DocumentChangedEventArgs>(OnDocumentChanged);
 			InView.Document.Application.DocumentChanged += DocumentChangedHandler;
+		}
 
-			SettingsChangedHandler = new EventHandler((object Sender, EventArgs Args) => 
-			{
-				bSettingsDirty = true;
-			});
-			FSettingsManager.SettingsUpdated += SettingsChangedHandler;
+		public Document GetRootDocument()
+		{
+			return RootCache.SourceDocument;
 		}
 
 		private void RunAutoSync()
@@ -450,7 +343,7 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private void MakeActive(bool bInActive)
+		public void MakeActive(bool bInActive)
 		{
 			if (!bInActive)
 			{
@@ -467,7 +360,7 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private void Destroy(Application InApp)
+		public void Destroy(Application InApp)
 		{
 			InApp.DocumentChanged -= DocumentChangedHandler;
 			DocumentChangedHandler = null;
@@ -878,7 +771,7 @@ namespace DatasmithRevitExporter
 					ElementData.ElementMetaData.SetLabel(Actor.GetLabel());
 					ElementData.ElementMetaData.SetAssociatedElement(Actor);
 
-					FUtils.AddActorMetadata(RevitElement, ElementData.ElementMetaData);
+					FUtils.AddActorMetadata(RevitElement, ElementData.ElementMetaData, Settings);
 
 					DatasmithScene.AddMetaData(ElementData.ElementMetaData);
 

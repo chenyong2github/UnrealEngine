@@ -1052,12 +1052,12 @@ namespace DatasmithRevitExporter
 				}
 
 				// Add Revit element metadata to the Datasmith actor.
-				FUtils.AddActorMetadata(CurrentElement, "Element*", ElementMetaData);
+				FUtils.AddActorMetadata(CurrentElement, "Element*", ElementMetaData, DocumentData.CurrentSettings);
 
 				if (BaseElementType != null)
 				{
 					// Add Revit element type metadata to the Datasmith actor.
-					FUtils.AddActorMetadata(BaseElementType, "Type*", ElementMetaData);
+					FUtils.AddActorMetadata(BaseElementType, "Type*", ElementMetaData, DocumentData.CurrentSettings);
 				}
 
 				return ElementMetaData;
@@ -1077,6 +1077,8 @@ namespace DatasmithRevitExporter
 		private string									CurrentMaterialName = null;
 		private List<string>							MessageList = null;
 
+		private FSettings								CurrentSettings = null;
+
 		// Apply world offset to elements
 		public	FSettings.EInsertionPoint				InsertionPoint { get; set; } = FSettings.EInsertionPoint.Default;
 
@@ -1093,13 +1095,15 @@ namespace DatasmithRevitExporter
 
 		public FDocumentData(
 			Document InDocument,
+			FSettings InSettings,
 			ref List<string> InMessageList,
 			FDirectLink InDirectLink,
 			string InLinkedDocumentId
 		)
 		{
-			InsertionPoint = FSettingsManager.CurrentSettings?.InsertionPoint ?? FSettings.EInsertionPoint.Default;
+			InsertionPoint = InSettings?.InsertionPoint ?? FSettings.EInsertionPoint.Default;
 
+			CurrentSettings = InSettings;
 			DirectLink = InDirectLink;
 			CurrentDocument = InDocument;
 			MessageList = InMessageList;
@@ -1910,6 +1914,7 @@ namespace DatasmithRevitExporter
 					// Don't apply offset since basepoints aren't yet initialized
 					SetActorTransform(TranslationMatrix.Multiply(InWorldTransform), BasePointActor, false);
 
+
 					// Set the Datasmith placeholder actor layer to the base point category name.
 					BasePointActor.SetLayer(BasePointLocation.Category.Name);
 
@@ -1931,7 +1936,7 @@ namespace DatasmithRevitExporter
 
 					if (!bSkipMetadataExport)
 					{
-						FUtils.AddActorMetadata(BasePointLocation, MetadataPrefix, BasePointMetaData);
+						FUtils.AddActorMetadata(BasePointLocation, MetadataPrefix, BasePointMetaData, CurrentSettings);
 					}
 
 					if (BasePointElement == null)
@@ -2310,7 +2315,8 @@ namespace DatasmithRevitExporter
 		private void SetActorTransform(
 			Transform InWorldTransform,
 			FDatasmithFacadeActor IOActor,
-			bool bInApplyOffset = true)
+			bool bInApplyOffset = true
+		)
 		{
 			XYZ transformBasisX = InWorldTransform.BasisX;
 			XYZ transformBasisY = InWorldTransform.BasisY;
@@ -2322,21 +2328,23 @@ namespace DatasmithRevitExporter
 			{
 				switch (InsertionPoint)
 				{
-					case FSettings.EInsertionPoint.BasePoint: 
+					case FSettings.EInsertionPoint.BasePoint:
 					{
 						if (ProjectBasePoint != null)
 						{
 							transformOrigin -= ProjectBasePoint;
 						}
-					} break;
+					}
+					break;
 
-					case FSettings.EInsertionPoint.SurveyPoint: 
+					case FSettings.EInsertionPoint.SurveyPoint:
 					{
 						if (ProjectSurveyPoint != null)
 						{
 							transformOrigin -= ProjectSurveyPoint;
 						}
-					} break;
+					}
+					break;
 				}
 			}
 

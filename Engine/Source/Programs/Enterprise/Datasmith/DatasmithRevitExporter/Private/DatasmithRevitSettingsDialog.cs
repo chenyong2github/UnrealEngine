@@ -95,7 +95,7 @@ namespace DatasmithRevitExporter
 		private List<string> AddedParamNames = new List<string>();
 		private bool bSettingsChanged = false;
 
-		public DatasmithRevitSettingsDialog(Autodesk.Revit.DB.Document InDocument)
+		public DatasmithRevitSettingsDialog(Autodesk.Revit.DB.Document InDocument, FSettings InSettings)
 		{
 			string FormatTooltip(string InText)
 			{
@@ -106,7 +106,7 @@ namespace DatasmithRevitExporter
 			Document = InDocument;
 			FormClosing += OnClosing;
 
-			Settings = FSettingsManager.CurrentSettings;
+			Settings = InSettings;
 
 			ToolTip OptionToolTip = new ToolTip();
 			OptionToolTip.AutoPopDelay = 10000; // milliseconds
@@ -174,10 +174,6 @@ namespace DatasmithRevitExporter
 				LevelOfTessellation.AutoSize = true;
 				LevelOfTessellation.TabIndex = 3;
 				LevelOfTessellation.TextAlign = HorizontalAlignment.Right;
-				LevelOfTessellation.ValueChanged += (S, E) =>
-				{
-					bSettingsChanged = true;
-				};
 
 				OptionToolTip.SetToolTip(LevelOfTessellationLabel, FormatTooltip(DatasmithRevitResources.Strings.SettingsDialog_LevelOfTesselationTooltip));
 
@@ -333,11 +329,7 @@ namespace DatasmithRevitExporter
 
 			Controls.Add(TopLayout);
 
-			if (Settings == null)
-			{
-				Settings = new FSettings();
-			}
-			else
+			if (Settings != null)
 			{
 				InsertionPointCombo.SelectedIndex = (int)Settings.InsertionPoint;
 				LevelOfTessellation.Value = Settings.LevelOfTesselation;
@@ -350,6 +342,11 @@ namespace DatasmithRevitExporter
 
 				ReloadAddedGroupsList();
 			}
+
+			LevelOfTessellation.ValueChanged += (S, E) =>
+			{
+				bSettingsChanged = true;
+			};
 		}
 
 		private void ReloadAddedGroupsList()

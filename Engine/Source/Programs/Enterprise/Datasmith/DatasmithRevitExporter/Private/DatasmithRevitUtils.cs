@@ -18,7 +18,7 @@ namespace DatasmithRevitExporter
 			return InElement.Document.GetElement(InElement.GetTypeId()) as ElementType;
 		}
 
-		public static void AddActorMetadata(Element InElement, FDatasmithFacadeMetaData ActorMetadata)
+		public static void AddActorMetadata(Element InElement, FDatasmithFacadeMetaData ActorMetadata, FSettings InSettings)
 		{
 			// Add the Revit element category name metadata to the Datasmith actor.
 			string CategoryName = GetCategoryName(InElement);
@@ -43,23 +43,22 @@ namespace DatasmithRevitExporter
 			}
 
 			// Add Revit element metadata to the Datasmith actor.
-			AddActorMetadata(InElement, "Element*", ActorMetadata);
+			AddActorMetadata(InElement, "Element*", ActorMetadata, InSettings);
 
 			if (ElemType != null)
 			{
 				// Add Revit element type metadata to the Datasmith actor.
-				AddActorMetadata(ElemType, "Type*", ActorMetadata);
+				AddActorMetadata(ElemType, "Type*", ActorMetadata, InSettings);
 			}
 		}
 
 		public static void AddActorMetadata(
 			Element InSourceElement,
 			string InMetadataPrefix,
-			FDatasmithFacadeMetaData ElementMetaData
+			FDatasmithFacadeMetaData ElementMetaData,
+			FSettings InSettings
 		)
 		{
-			FSettings Settings = FSettingsManager.CurrentSettings;
-
 			IList<Parameter> Parameters = InSourceElement.GetOrderedParameters();
 
 			if (Parameters != null)
@@ -70,7 +69,7 @@ namespace DatasmithRevitExporter
 					{
 						if (Parameter.HasValue)
 						{
-							if (Settings != null && !Settings.MatchParameterByMetadata(Parameter))
+							if (InSettings != null && !InSettings.MatchParameterByMetadata(Parameter))
 							{
 								continue; // Skip export of this param
 							}

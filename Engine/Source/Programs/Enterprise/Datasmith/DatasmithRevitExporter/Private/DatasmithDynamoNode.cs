@@ -70,6 +70,7 @@ namespace DSNode
 			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(
 				App,
 				InDocument,
+				FDocument.ActiveDocument.Settings,
 				FilePaths,
 				ExportOptions,
 				null);

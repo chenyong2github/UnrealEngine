@@ -64,6 +64,8 @@ namespace DatasmithRevitExporter
 
 		private FDirectLink DirectLink;
 
+		private FSettings DocumentSettings;
+
 		private FDatasmithRevitExportContext() {}
 
 		private bool CurrentElementSkipped = false;
@@ -85,19 +87,21 @@ namespace DatasmithRevitExporter
 		public FDatasmithRevitExportContext(
 			Application						InApplication,        // running Revit application
 			Document						InDocument,           // active Revit document
+			FSettings						InSettings,
 			Dictionary<ElementId, string>	InDatasmithFilePaths, // Datasmith output file path
-			DatasmithRevitExportOptions		InExportOptions,      // Unreal Datasmith export options
-			FDirectLink						InDirectLink		  // DirectLink manager
+			DatasmithRevitExportOptions		InExportOptions,       // Unreal Datasmith export options
+			FDirectLink						InDirectLink
 		)
 		{
 			ProductVersion = InApplication.VersionNumber;
+			DocumentSettings = InSettings;
 			DatasmithFilePaths = InDatasmithFilePaths;
 			RevitDocument = InDocument;
 			DirectLink = InDirectLink;
 
 			// Get the Unreal Datasmith export options.
 			DebugLog = InExportOptions.GetWriteLogFile() ? new FDatasmithFacadeLog() : null;
-			LevelOfTessellation = FSettingsManager.CurrentSettings?.LevelOfTesselation ?? 8;
+			LevelOfTessellation = InSettings.LevelOfTesselation;
 		}
 
 		//========================================================================================================================
@@ -605,7 +609,7 @@ namespace DatasmithRevitExporter
 		}
 
 		private void PushDocument(
-			Document InDocument,
+			Document InRevitDocument,
 			string InLinkedDocumentId
 		)
 		{
@@ -617,7 +621,7 @@ namespace DatasmithRevitExporter
 			}
 
 			// Check if we have cache for this document.
-			FDocumentData DocumentData = new FDocumentData(InDocument, ref MessageList, DirectLink, InLinkedDocumentId);
+			FDocumentData DocumentData = new FDocumentData(InRevitDocument, DocumentSettings, ref MessageList, DirectLink, InLinkedDocumentId);
 
 			DocumentDataStack.Push(DocumentData);
 

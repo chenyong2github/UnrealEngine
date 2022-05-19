@@ -3,9 +3,7 @@
 using System;
 using System.Collections.Generic;
 using Autodesk.Revit.DB;
-using Autodesk.Revit.DB.Events;
 using Autodesk.Revit.DB.ExtensibleStorage;
-using Autodesk.Revit.UI;
 
 namespace DatasmithRevitExporter
 {
@@ -27,6 +25,7 @@ namespace DatasmithRevitExporter
 
 		public int LevelOfTesselation { get; set; } = 8;
 		public EInsertionPoint InsertionPoint { get; set; } = EInsertionPoint.Default;
+		public ElementId SyncViewId { get; set; } = ElementId.InvalidElementId;
 
 		public IList<string> MetadataParamNamesFilter 
 		{
@@ -85,12 +84,13 @@ namespace DatasmithRevitExporter
 	{
 		static class FSettingsSchema
 		{
-			readonly static Guid SchemaGuid = new Guid("{F910B32B-32C6-4BD1-BFD1-7DBF81FFC41B}");
+			readonly static Guid SchemaGuid = new Guid("{67D3D706-4881-4BC3-9AA1-75768DE40415}");
 			
 			public readonly static string MetadataParamNamesField = "MetadataParamNames";
 			public readonly static string MetadataParamGroupsField = "MetadataParamGroups";
 			public readonly static string LevelOfTesselationField = "LevelOfTesselation";
 			public readonly static string InsertionPointField = "InsertionPoint";
+			public readonly static string SyncViewField = "SyncView";
 
 			public static Schema GetSchema()
 			{
@@ -107,6 +107,7 @@ namespace DatasmithRevitExporter
 				SchemaBuilder.AddArrayField(MetadataParamGroupsField, typeof(int));
 				SchemaBuilder.AddSimpleField(LevelOfTesselationField, typeof(int));
 				SchemaBuilder.AddSimpleField(InsertionPointField, typeof(int));
+				SchemaBuilder.AddSimpleField(SyncViewField, typeof(int));
 
 				return SchemaBuilder.Finish();
 			}
@@ -114,7 +115,7 @@ namespace DatasmithRevitExporter
 
 		static class DataStorageUniqueIdSchema
 		{
-			static readonly Guid SchemaGuid = new Guid("{2E363F82-4589-43BE-8927-C596AA02396F}");
+			static readonly Guid SchemaGuid = new Guid("{B03CF2DB-3617-4C67-90D4-A34C734A54E4}");
 
 			public static Schema GetSchema()
 			{
@@ -132,31 +133,11 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		static EventHandler<DocumentOpenedEventArgs> DocumentOpenedHandler;
-		static EventHandler<DocumentClosingEventArgs> DocumentClosingHandler;
-		static readonly Guid SettingDataStorageId = new Guid("{6CD2BB42-4A04-4F12-8E7F-5C6723C33791}");
-
-		public static FSettings CurrentSettings = null;
+		static readonly Guid SettingDataStorageId = new Guid("{5933427B-3E44-44AC-85CF-74C396662E05}");
 
 		public static event EventHandler SettingsUpdated;
 
-		public static void Init(UIControlledApplication InApplication)
-		{
-			DocumentOpenedHandler = new EventHandler<DocumentOpenedEventArgs>(OnDocumentOpened);
-			DocumentClosingHandler = new EventHandler<DocumentClosingEventArgs>(OnDocumentClosing);
-			InApplication.ControlledApplication.DocumentOpened += DocumentOpenedHandler;
-			InApplication.ControlledApplication.DocumentClosing += DocumentClosingHandler;
-		}
-
-		public static void Destroy(UIControlledApplication InApplication)
-		{
-			InApplication.ControlledApplication.DocumentClosing -= DocumentClosingHandler;
-			InApplication.ControlledApplication.DocumentOpened -= DocumentOpenedHandler;
-			DocumentClosingHandler = null;
-			DocumentOpenedHandler = null;
-		}
-
-		private static FSettings ReadSettings(Document Doc)
+		public static FSettings ReadSettings(Document Doc)
 		{
 			FSettings Settings = new FSettings();
 
@@ -165,6 +146,7 @@ namespace DatasmithRevitExporter
 				// No settings in document, create defaults
 				Settings.LevelOfTesselation = 8;
 				Settings.InsertionPoint = 0;
+				Settings.SyncViewId = ElementId.InvalidElementId;
 				Settings.MetadataParamGroupsFilter.Add((int)Autodesk.Revit.DB.BuiltInParameterGroup.PG_GEOMETRY);
 				Settings.MetadataParamGroupsFilter.Add((int)Autodesk.Revit.DB.BuiltInParameterGroup.PG_IDENTITY_DATA);
 				Settings.MetadataParamGroupsFilter.Add((int)Autodesk.Revit.DB.BuiltInParameterGroup.PG_MATERIALS);
@@ -188,6 +170,7 @@ namespace DatasmithRevitExporter
 					Settings.MetadataParamGroupsFilter = SettingsEntity.Get<IList<int>>(FSettingsSchema.MetadataParamGroupsField);
 					Settings.LevelOfTesselation = SettingsEntity.Get<int>(FSettingsSchema.LevelOfTesselationField);
 					Settings.InsertionPoint = (FSettings.EInsertionPoint)SettingsEntity.Get<int>(FSettingsSchema.InsertionPointField);
+					Settings.SyncViewId = new ElementId(SettingsEntity.Get<int>(FSettingsSchema.SyncViewField));
 				}
 				catch
 				{
@@ -217,6 +200,7 @@ namespace DatasmithRevitExporter
 					SettingsEntity.Set(FSettingsSchema.MetadataParamGroupsField, Settings.MetadataParamGroupsFilter);
 					SettingsEntity.Set(FSettingsSchema.LevelOfTesselationField, Settings.LevelOfTesselation);
 					SettingsEntity.Set(FSettingsSchema.InsertionPointField, (int)Settings.InsertionPoint);
+					SettingsEntity.Set(FSettingsSchema.SyncViewField, Settings.SyncViewId.IntegerValue);
 
 					// Identify settings data storage
 					Entity IdEntity = new Entity(DataStorageUniqueIdSchema.GetSchema());
@@ -225,24 +209,12 @@ namespace DatasmithRevitExporter
 					SettingDataStorage.SetEntity(IdEntity);
 					SettingDataStorage.SetEntity(SettingsEntity);
 
-					CurrentSettings = Settings;
-
 					T.Commit();
 
-					SettingsUpdated?.Invoke(CurrentSettings, null);
+					SettingsUpdated?.Invoke(Settings, null);
 				}
 				catch { }
 			}
-		}
-
-		static void OnDocumentOpened(object sender, DocumentOpenedEventArgs e)
-		{
-			CurrentSettings = ReadSettings(e.Document);
-		}
-
-		static void OnDocumentClosing(object sender, DocumentClosingEventArgs e)
-		{
-			CurrentSettings = null;
 		}
 
 		private static DataStorage GetSettingsDataStorage(Document Doc)

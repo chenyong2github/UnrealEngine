@@ -7,7 +7,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Media.Imaging;
-using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Events;
 using Autodesk.Revit.UI;
@@ -35,7 +34,7 @@ namespace DatasmithRevitExporter
 			{
 				if (InData.GetAddedElementIds().Count > 0 || InData.GetDeletedElementIds().Count > 0 || InData.GetModifiedElementIds().Count > 0)
 				{
-					DatasmithRevitApplication.Instance.SetViewList();
+					Instance.SetViewList(ElementId.InvalidElementId);
 				}
 			}
 
@@ -67,11 +66,11 @@ namespace DatasmithRevitExporter
 		private EventHandler<DocumentClosingEventArgs> DocumentClosingHandler;
 		private EventHandler<IdlingEventArgs> IdlingEventHandler;
 		private EventHandler<DocumentOpenedEventArgs> DocumentOpenedHandler;
+		private EventHandler<DocumentCreatedEventArgs> DocumentCreatedHandler;
+		private EventHandler<ViewActivatedEventArgs> ViewActivatedHandler;
 
 		private PushButton AutoSyncPushButton;
 		private PushButton SyncPushButton;
-
-		private Document ActiveDocument = null;
 
 		private View3DUpdater ViewsUpdater;
 		private ElementId SelectedViewId = ElementId.InvalidElementId;
@@ -111,7 +110,7 @@ namespace DatasmithRevitExporter
 				if (SelectedView != null)
 				{
 					SelectedViewId = SelectedView.Id;
-					FDirectLink.ActivateInstance(SelectedView);
+					FDocument.ActiveDocument?.SetActiveDirectLinkInstance(SelectedView);
 				}
 			}
 		}
@@ -128,15 +127,15 @@ namespace DatasmithRevitExporter
 			SelectedViewId = ElementId.InvalidElementId;
 		}
 
-		private void SetViewList()
+		private void SetViewList(ElementId InActiveViewId)
 		{
-			if (ActiveDocument == null)
+			if (FDocument.ActiveDocument == null)
 			{
 				return;
 			}
 
 			// Cache prev selected view
-			All3DViews = new FilteredElementCollector(ActiveDocument).OfClass(typeof(View3D)).Cast<View3D>().ToList();
+			All3DViews = new FilteredElementCollector(FDocument.ActiveDocument.RevitDoc).OfClass(typeof(View3D)).Cast<View3D>().ToList();
 			All3DViews.RemoveAll(view => (view.IsTemplate || !view.CanBePrinted));
 
 			// Combo box does not allow removal of items :). This is a workaround to always only add items and 
@@ -164,6 +163,11 @@ namespace DatasmithRevitExporter
 				ComboViews.GetItems()[ViewIndex].Visible = false;
 			}
 
+			if (InActiveViewId != ElementId.InvalidElementId)
+			{
+				SelectedViewId = InActiveViewId;
+			}
+
 			// Set the active view
 			View3D ComboActiveView = null;
 
@@ -185,7 +189,7 @@ namespace DatasmithRevitExporter
 					{
 						ComboViews.Current = Item;
 						SelectedViewId = ComboActiveView.Id;
-						FDirectLink.ActivateInstance(ComboActiveView);
+						FDocument.ActiveDocument?.SetActiveDirectLinkInstance(ComboActiveView);
 						break;
 					}
 				}
@@ -288,11 +292,17 @@ namespace DatasmithRevitExporter
 			DocumentOpenedHandler = new EventHandler<DocumentOpenedEventArgs>(OnDocumentOpened);
 			InApplication.ControlledApplication.DocumentOpened += DocumentOpenedHandler;
 
+			DocumentCreatedHandler = new EventHandler<DocumentCreatedEventArgs>(OnDocumentCreated);
+			InApplication.ControlledApplication.DocumentCreated += DocumentCreatedHandler;
+
 			DocumentClosingHandler = new EventHandler<DocumentClosingEventArgs>(OnDocumentClosing);
 			InApplication.ControlledApplication.DocumentClosing += DocumentClosingHandler;
 
 			IdlingEventHandler = new EventHandler<IdlingEventArgs>(OnIdling);
 			InApplication.Idling += IdlingEventHandler;
+
+			ViewActivatedHandler = new EventHandler<ViewActivatedEventArgs>(OnViewActivated);
+			InApplication.ViewActivated += ViewActivatedHandler;
 
 			// Setup Direct Link
 
@@ -318,8 +328,6 @@ namespace DatasmithRevitExporter
 
 			Debug.Assert(bDirectLinkInitOk);
 
-			FSettingsManager.Init(InApplication);
-
 			// Register updater to react to view modification
 
 			ViewsUpdater = new View3DUpdater(InApplication.ControlledApplication.ActiveAddInId);
@@ -340,14 +348,32 @@ namespace DatasmithRevitExporter
 
 		static void OnDocumentOpened(object sender, DocumentOpenedEventArgs e)
 		{
-			Instance.ActiveDocument = e.Document;
-			Instance.SetViewList();
+			FDocument.SetActiveDocument(e.Document);
+			Instance.SetViewList(FDocument.ActiveDocument?.Settings.SyncViewId ?? ElementId.InvalidElementId);
+		}
+
+		static void OnDocumentCreated(object sender, DocumentCreatedEventArgs e)
+		{
+			FDocument.SetActiveDocument(e.Document);
+			Instance.SetViewList(ElementId.InvalidElementId);
 		}
 
 		static void OnDocumentClosing(object sender, DocumentClosingEventArgs e)
 		{
 			Instance.ClearViews();
-			FDirectLink.DestroyInstancesForDocument(e.Document, e.Document.Application);
+			FDocument.Destroy(e.Document);
+		}
+
+		static void OnViewActivated(object sender, ViewActivatedEventArgs e)
+		{
+			View Previous = e.PreviousActiveView;
+			View Current = e.CurrentActiveView;
+
+			if (Previous != null && !Previous.Document.Equals(Current.Document))
+			{
+				FDocument.SetActiveDocument(e.Document);
+				Instance.SetViewList(FDocument.ActiveDocument?.Settings.SyncViewId ?? ElementId.InvalidElementId);
+			}
 		}
 
 		// Implement the interface to execute some tasks when Revit shuts down.
@@ -355,11 +381,17 @@ namespace DatasmithRevitExporter
 			UIControlledApplication InApplication // handle to the application being shut down
 		)
 		{
+			FDocument.DestroyAll();
+
 			InApplication.ControlledApplication.DocumentClosing -= DocumentClosingHandler;
 			InApplication.ControlledApplication.DocumentOpened -= DocumentOpenedHandler;
+			InApplication.ControlledApplication.DocumentCreated -= DocumentCreatedHandler;
+			InApplication.ViewActivated -= ViewActivatedHandler;
 
 			DocumentClosingHandler = null;
 			DocumentOpenedHandler = null;
+			DocumentCreatedHandler = null;
+			ViewActivatedHandler = null;
 
 			UpdaterRegistry.UnregisterUpdater(ViewsUpdater.GetUpdaterId());
 			ViewsUpdater = null;
@@ -368,7 +400,6 @@ namespace DatasmithRevitExporter
 			{
 				ExportMessagesDialog.Close();
 			}
-			FSettingsManager.Destroy(InApplication);
 			FDatasmithFacadeDirectLink.Shutdown();
 			return Result.Succeeded;
 		}

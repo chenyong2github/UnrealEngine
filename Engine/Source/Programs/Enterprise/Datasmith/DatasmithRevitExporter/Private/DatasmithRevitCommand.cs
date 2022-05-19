@@ -62,7 +62,7 @@ namespace DatasmithRevitExporter
 		{
 			UIDocument UIDoc = InCommandData.Application.ActiveUIDocument;
 			Document Doc = UIDoc.Document;
-			View3D ActiveView = FDirectLink.GetSyncView();
+			View3D ActiveView = FDocument.ActiveDocument?.ActiveDirectLinkInstance?.SyncView;
 
 			if (ActiveView == null)
 			{
@@ -78,14 +78,15 @@ namespace DatasmithRevitExporter
 				return Result.Cancelled;
 			}
 
-			Debug.Assert(FDirectLink.Get() != null);
+			Debug.Assert(FDocument.ActiveDocument?.ActiveDirectLinkInstance != null);
 
 			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(
 				InCommandData.Application.Application,
 				Doc,
+				FDocument.ActiveDocument.Settings,
 				null,
 				new DatasmithRevitExportOptions(Doc),
-				FDirectLink.Get());
+				FDocument.ActiveDocument.ActiveDirectLinkInstance);
 
 			// Export the active 3D View to the given Unreal Datasmith file.
 			using (CustomExporter Exporter = new CustomExporter(Doc, ExportContext))
@@ -178,7 +179,7 @@ namespace DatasmithRevitExporter
 
 			if (ExportActiveViewOnly)
 			{
-				View3D ActiveView = FDirectLink.GetSyncView();
+				View3D ActiveView = FDocument.ActiveDocument?.ActiveDirectLinkInstance?.SyncView;
 
 				if (ActiveView == null)
 				{
@@ -288,6 +289,7 @@ namespace DatasmithRevitExporter
 			FDatasmithRevitExportContext ExportContext = new FDatasmithRevitExportContext(
 				InCommandData.Application.Application,
 				Doc,
+				FDocument.ActiveDocument.Settings,
 				FilePaths,
 				ExportOptions,
 				null);
@@ -422,7 +424,7 @@ namespace DatasmithRevitExporter
 	{
 		public Result Execute(ExternalCommandData InCommandData, ref string OutCommandMessage, ElementSet OutElements)
 		{
-			DatasmithRevitSettingsDialog ExportOptions = new DatasmithRevitSettingsDialog(InCommandData.Application.ActiveUIDocument.Document);
+			DatasmithRevitSettingsDialog ExportOptions = new DatasmithRevitSettingsDialog(InCommandData.Application.ActiveUIDocument.Document, FDocument.ActiveDocument?.Settings);
 			ExportOptions.ShowDialog();
 			return Result.Succeeded;
 		}
