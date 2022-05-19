@@ -424,11 +424,6 @@ namespace PropertyContainers
 			}
 		}
 
-		if(NewProperty)
-		{
-			
-		}
-
 		return NewProperty;
 	}
 #endif
