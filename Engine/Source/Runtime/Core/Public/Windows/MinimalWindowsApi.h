@@ -2,8 +2,8 @@
 
 #pragma once
 
-#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
-	#error this file is for PLATFORM_WINDOWS or PLATFORM_HOLOLENS only
+#if !PLATFORM_WINDOWS
+	#error this file is for PLATFORM_WINDOWS only
 #endif
 
 // redirect to new file

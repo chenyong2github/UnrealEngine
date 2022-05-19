@@ -44,7 +44,7 @@ THIRD_PARTY_INCLUDES_END
 #undef GetTempFileName
 #undef GetFreeSpace
 
-// Undefine all the atomics. AllowWindowsPlatformAtomics/HideWindowsPlatformAtomics temporarily defining these macros.
+// Undefine all the atomics. AllowMicrosoftPlatformAtomics/HideMicrosoftPlatformAtomics temporarily defining these macros.
 #undef InterlockedIncrement
 #undef InterlockedDecrement
 #undef InterlockedAdd
@@ -57,6 +57,9 @@ THIRD_PARTY_INCLUDES_END
 #undef InterlockedCompareExchange64
 #undef InterlockedIncrement64
 #undef InterlockedDecrement64
+#undef InterlockedAnd
+#undef InterlockedOr
+#undef InterlockedXor
 
 // Restore any previously defined macros
 #pragma pop_macro("MAX_uint8")
@@ -72,4 +75,3 @@ THIRD_PARTY_INCLUDES_END
 #if !defined(_XTL_) && (_WIN32_WINNT < 0x0403)
 #error SetCriticalSectionSpinCount requires _WIN32_WINNT >= 0x0403
 #endif
-#undef InterlockedDecrement64

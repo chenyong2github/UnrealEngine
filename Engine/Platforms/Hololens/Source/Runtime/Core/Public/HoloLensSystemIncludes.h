@@ -9,7 +9,7 @@
 #endif
 
 #include "HoloLensPlatformCompilerSetup.h"
-#include "Windows/MinimalWindowsApi.h"
+#include "Microsoft/MinimalWindowsApi.h"
 
 // Macro for releasing COM objects
 #define SAFE_RELEASE(p) { if(p) { (p)->Release(); (p)=NULL; } }

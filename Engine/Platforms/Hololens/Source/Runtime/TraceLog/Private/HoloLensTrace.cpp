@@ -4,13 +4,13 @@
 
 #if UE_TRACE_ENABLED && PLATFORM_HOLOLENS
 
-#include "Windows/AllowWindowsPlatformTypes.h"
-#	include "Windows/WindowsHWrapper.h"
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
+#	include "Microsoft/WindowsHWrapper.h"
 #	define _WINSOCK_DEPRECATED_NO_WARNINGS
 #	include <winsock2.h>
 #	include <ws2tcpip.h>
 #	pragma comment(lib, "ws2_32.lib")
-#include "Windows/HideWindowsPlatformTypes.h"
+#include "Microsoft/HideMicrosoftPlatformTypes.h"
 
 #pragma warning(push)
 #pragma warning(disable : 6031) // WSAStartup() return ignore  - we're error tolerant

@@ -6,7 +6,7 @@
 #include "ARTextures.h"
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR
-	#include "Windows/AllowWindowsPlatformTypes.h"
+	#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 
 	THIRD_PARTY_INCLUDES_START
 		#include <windows.h>
@@ -16,7 +16,7 @@
 	THIRD_PARTY_INCLUDES_END
 
 	#include "Microsoft/COMPointer.h"
-	#include "Windows/HideWindowsPlatformTypes.h"
+	#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
 
 #include "HoloLensCameraImageTexture.generated.h"

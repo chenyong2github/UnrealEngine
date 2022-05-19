@@ -2,7 +2,7 @@
 
 // #TODO: redirect to platform-agnostic version for the time being. Eventually this will become an error
 #include "HAL/Platform.h"
-#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+#if !PLATFORM_WINDOWS
 	#include "Microsoft/PostWindowsApi.h"
 #else
 
@@ -56,23 +56,21 @@ THIRD_PARTY_INCLUDES_END
 #undef GetFreeSpace
 
 // Undefine all the atomics. AllowWindowsPlatformAtomics/HideWindowsPlatformAtomics temporarily defining these macros.
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#undef InterlockedIncrement
-	#undef InterlockedDecrement
-	#undef InterlockedAdd
-	#undef InterlockedExchange
-	#undef InterlockedExchangeAdd
-	#undef InterlockedCompareExchange
-	#undef InterlockedCompareExchangePointer
-	#undef InterlockedExchange64
-	#undef InterlockedExchangeAdd64
-	#undef InterlockedCompareExchange64
-	#undef InterlockedIncrement64
-	#undef InterlockedDecrement64
-	#undef InterlockedAnd
-	#undef InterlockedOr
-	#undef InterlockedXor
-#endif
+#undef InterlockedIncrement
+#undef InterlockedDecrement
+#undef InterlockedAdd
+#undef InterlockedExchange
+#undef InterlockedExchangeAdd
+#undef InterlockedCompareExchange
+#undef InterlockedCompareExchangePointer
+#undef InterlockedExchange64
+#undef InterlockedExchangeAdd64
+#undef InterlockedCompareExchange64
+#undef InterlockedIncrement64
+#undef InterlockedDecrement64
+#undef InterlockedAnd
+#undef InterlockedOr
+#undef InterlockedXor
 
 // Restore any previously defined macros
 #pragma pop_macro("MAX_uint8")

@@ -3,7 +3,7 @@
 
 // #TODO: redirect to platform-agnostic version for the time being. Eventually this will become an error
 #include "HAL/Platform.h"
-#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
+#if !PLATFORM_WINDOWS
 	#include "Microsoft/WindowsHWrapper.h"
 #else
 
