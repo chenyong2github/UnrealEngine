@@ -30,7 +30,7 @@
 
 #define LOCTEXT_NAMESPACE "UMG"
 
-void FLibraryViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates)
+void FLibraryViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates, TArray<FString>& FavoritesList)
 {
 	TSharedPtr<FWidgetHeaderViewModel> Header = MakeShareable(new FWidgetHeaderViewModel());
 	Header->GroupName = FText::FromString(Category);
@@ -40,33 +40,32 @@ void FLibraryViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TS
 	Header->Children.Add(TemplateViewModel);
 	WidgetTemplateListViewModels.Add(TemplateViewModel);
 
-	// @TODO: DarenC - Reference for when implementing favorites system
-	//for ( auto& Template : Entry.Value )
-	//{
-	//	TSharedPtr<FWidgetTemplateViewModel> TemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
-	//	TemplateViewModel->Template = Template;
-	//	TemplateViewModel->FavortiesViewModel = this;
-	//	Header->Children.Add(TemplateViewModel);
+	for ( auto& Template : Templates)
+	{
+		TSharedPtr<FWidgetTemplateViewModel> CurrentTemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
+		CurrentTemplateViewModel->Template = Template;
+		CurrentTemplateViewModel->FavortiesViewModel = this;
+		Header->Children.Add(CurrentTemplateViewModel);
 
-	//	// If it's a favorite, we also add it to the Favorite section
-	//	int32 index = FavoritesList.Find(Template->Name.ToString());
-	//	if (index != INDEX_NONE)
-	//	{
-	//		TemplateViewModel->SetFavorite();
+		// If it's a favorite, we also add it to the Favorite section
+		int32 index = FavoritesList.Find(Template->Name.ToString());
+		if (index != INDEX_NONE)
+		{
+			CurrentTemplateViewModel->SetFavorite();
 
-	//		// We have to create a second copy of the ViewModel for the treeview has it doesn't support to have the same element twice.
-	//		TSharedPtr<FWidgetTemplateViewModel> FavoriteTemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
-	//		FavoriteTemplateViewModel->Template = Template;
-	//		FavoriteTemplateViewModel->FavortiesViewModel = this;
-	//		FavoriteTemplateViewModel->SetFavorite();
+			// We have to create a second copy of the ViewModel for the treeview has it doesn't support to have the same element twice.
+			TSharedPtr<FWidgetTemplateViewModel> FavoriteTemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
+			FavoriteTemplateViewModel->Template = Template;
+			FavoriteTemplateViewModel->FavortiesViewModel = this;
+			FavoriteTemplateViewModel->SetFavorite();
 
-	//		FavoriteHeader->Children.Add(FavoriteTemplateViewModel);
+			FavoriteHeader->Children.Add(FavoriteTemplateViewModel);
 
-	//		// Remove the favorite from the temporary list
-	//		FavoritesList.RemoveAt(index);
-	//	}
+			// Remove the favorite from the temporary list
+			FavoritesList.RemoveAt(index);
+		}
 
-	//}
+	}
 
 	Header->Children.Sort([](const TSharedPtr<FWidgetViewModel>& L, const TSharedPtr<FWidgetViewModel>& R) { return R->GetName().CompareTo(L->GetName()) > 0; });
 

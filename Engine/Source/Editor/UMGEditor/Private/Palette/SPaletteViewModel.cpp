@@ -298,8 +298,8 @@ void FWidgetCatalogViewModel::BuildWidgetList()
 	// For each entry in the category create a view model for the widget template
 	for ( auto& Entry : WidgetTemplateCategories )
 	{
-		BuildWidgetTemplateCategory(Entry.Key, Entry.Value);
-	}	
+		BuildWidgetTemplateCategory(Entry.Key, Entry.Value, FavoritesList);
+	}
 
 	// Remove all Favorites that may be left in the list.Typically happening when the list of favorite contains widget that were deleted since the last opening.
 	for (const FString& favoriteName : FavoritesList)
@@ -639,14 +639,13 @@ void FWidgetCatalogViewModel::HandleOnAssetsDeleted(const TArray<UClass*>& Delet
 	}
 }
 
-void FPaletteViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates)
+void FPaletteViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates, TArray<FString>& FavoritesList)
 {
 	TSharedPtr<FWidgetHeaderViewModel> Header = MakeShareable(new FWidgetHeaderViewModel());
 	Header->GroupName = FText::FromString(Category);
 
 	// Copy of the list of favorites to be able to do some cleanup in the real list
 	UWidgetPaletteFavorites* FavoritesPalette = GetDefault<UWidgetDesignerSettings>()->Favorites;
-	TArray<FString> FavoritesList = FavoritesPalette->GetFavorites();
 
 	for (auto& Template : Templates)
 	{
