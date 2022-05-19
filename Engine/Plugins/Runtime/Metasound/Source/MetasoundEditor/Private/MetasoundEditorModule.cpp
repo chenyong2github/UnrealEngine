@@ -67,25 +67,6 @@ namespace Metasound
 	namespace Editor
 	{
 		static const FName AssetToolName { "AssetTools" };
-		
-		const FSlateBrush* FEditorDataType::GetIconBrush(const bool bIsConstructorType) const
-		{
-			if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
-			{
-				if (PinType.IsArray())
-				{
-					return bIsConstructorType ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArray")) : MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ArrayPin"));
-				}
-				else
-				{
-					return bIsConstructorType ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPin")) : FAppStyle::GetBrush("Icons.BulletPoint");
-				}
-			}
-			else
-			{
-				return PinType.IsArray() ? FAppStyle::GetBrush("Graph.ArrayPin.Connected") : FAppStyle::GetBrush("Icons.BulletPoint");
-			}
-		}
 
 		template <typename T>
 		void AddAssetAction(IAssetTools& AssetTools, TArray<TSharedPtr<FAssetTypeActions_Base>>& AssetArray)
@@ -429,7 +410,7 @@ namespace Metasound
 				}
 			}
 
-			void RegisterCoreDataTypes()
+			void RegisterCorePinTypes()
 			{
 				using namespace Metasound::Frontend;
 
@@ -530,15 +511,28 @@ namespace Metasound
 							}
 						}
 
-						const bool bIsArray = RegistryInfo.IsArrayType();
-						const EPinContainerType ContainerType = bIsArray ? EPinContainerType::Array : EPinContainerType::None;
-						FEdGraphPinType PinType(PinCategory, PinSubCategory, nullptr, ContainerType, false, FEdGraphTerminalType());
-						UClass* ClassToUse = DataTypeRegistry.GetUClassForDataType(DataTypeName);
-						PinType.PinSubCategoryObject = Cast<UObject>(ClassToUse);
-
-						DataTypeInfo.Emplace(DataTypeName, FEditorDataType(MoveTemp(PinType), MoveTemp(RegistryInfo)));
+						RegisterPinType(DataTypeName, PinCategory, PinSubCategory);
 					}
 				}
+			}
+
+			void RegisterPinType(FName InDataTypeName, FName InPinCategory, FName InPinSubCategory)
+			{
+				using namespace Frontend;
+
+				FDataTypeRegistryInfo DataTypeInfo;
+				IDataTypeRegistry::Get().GetDataTypeInfo(InDataTypeName, DataTypeInfo);
+
+				// Default to object as most calls to this outside of the MetaSound Editor will be for custom UObject types
+				const FName PinCategory = InPinCategory.IsNone() ? FGraphBuilder::PinCategoryObject : InPinCategory;
+
+				const bool bIsArray = DataTypeInfo.IsArrayType();
+				const EPinContainerType ContainerType = bIsArray ? EPinContainerType::Array : EPinContainerType::None;
+				FEdGraphPinType PinType(PinCategory, InPinSubCategory, nullptr, ContainerType, false, FEdGraphTerminalType());
+				UClass* ClassToUse = IDataTypeRegistry::Get().GetUClassForDataType(InDataTypeName);
+				PinType.PinSubCategoryObject = Cast<UObject>(ClassToUse);
+
+				PinTypes.Emplace(InDataTypeName, MoveTemp(PinType));
 			}
 
 			void ShutdownAssetClassRegistry()
@@ -617,27 +611,36 @@ namespace Metasound
 				return InputDefaultLiteralClassRegistry.FindRef(InLiteralType);
 			}
 
-			virtual const FEditorDataType* FindDataType(FName InDataTypeName) const override
+			virtual const FSlateBrush* GetIconBrush(FName InDataType, const bool bIsConstructorType) const override
 			{
-				return DataTypeInfo.Find(InDataTypeName);
-			}
+				bool bIsArrayType = false;
 
-			virtual const FEditorDataType& FindDataTypeChecked(FName InDataTypeName) const override
-			{
-				return DataTypeInfo.FindChecked(InDataTypeName);
-			}
-
-			virtual bool IsRegisteredDataType(FName InDataTypeName) const override
-			{
-				return DataTypeInfo.Contains(InDataTypeName);
-			}
-
-			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const override
-			{
-				for (const TPair<FName, FEditorDataType>& Pair : DataTypeInfo)
+				Frontend::FDataTypeRegistryInfo Info;
+				if (Frontend::IDataTypeRegistry::Get().GetDataTypeInfo(InDataType, Info))
 				{
-					InDataTypeFunction(Pair.Value);
+					bIsArrayType = Info.IsArrayType();
 				}
+
+				if (const ISlateStyle* MetasoundStyle = FSlateStyleRegistry::FindSlateStyle("MetaSoundStyle"))
+				{
+					if (bIsArrayType)
+					{
+						return bIsConstructorType ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArray")) : MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ArrayPin"));
+					}
+					else
+					{
+						return bIsConstructorType ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPin")) : FAppStyle::GetBrush("Icons.BulletPoint");
+					}
+				}
+				else
+				{
+					return bIsArrayType ? FAppStyle::GetBrush("Graph.ArrayPin.Connected") : FAppStyle::GetBrush("Icons.BulletPoint");
+				}
+			}
+
+			virtual const FEdGraphPinType* FindPinType(FName InDataTypeName) const
+			{
+				return PinTypes.Find(InDataTypeName);
 			}
 
 			virtual bool IsMetaSoundAssetClass(const FName InClassName) const override
@@ -698,7 +701,7 @@ namespace Metasound
 
 				StyleSet = MakeShared<FSlateStyle>();
 
-				RegisterCoreDataTypes();
+				RegisterCorePinTypes();
 				RegisterInputDefaultClasses();
 
 				GraphConnectionFactory = MakeShared<FGraphConnectionDrawingPolicyFactory>();
@@ -787,15 +790,15 @@ namespace Metasound
 				ShutdownAssetClassRegistry();
 
 				AssetActions.Reset();
-				DataTypeInfo.Reset();
+				PinTypes.Reset();
 				MetaSoundClassNames.Reset();
 			}
 
 			TArray<FName> MetaSoundClassNames;
 
 			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
-			TMap<FName, FEditorDataType> DataTypeInfo;
 			TMap<EMetasoundFrontendLiteralType, const TSubclassOf<UMetasoundEditorGraphMemberDefaultLiteral>> InputDefaultLiteralClassRegistry;
+			TMap<FName, FEdGraphPinType> PinTypes;
 
 			TMap<UClass*, TUniquePtr<IMemberDefaultLiteralCustomizationFactory>> LiteralCustomizationFactories;
 

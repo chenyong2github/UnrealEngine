@@ -10,6 +10,7 @@
 #include "IDetailsView.h"
 #include "IMetasoundEditor.h"
 #include "Math/UnrealMathUtility.h"
+#include "MetasoundEditorGraphConnectionManager.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundEditorMeter.h"
 #include "MetasoundFrontend.h"
@@ -42,6 +43,7 @@ class FSlateRect;
 class IDetailsView;
 class IToolkitHost;
 class SVerticalBox;
+class UAudioComponent;
 class UEdGraphNode;
 class UMetaSound;
 class UMetasoundEditorGraph;
@@ -100,6 +102,8 @@ namespace Metasound
 			/** Edits the specified Metasound object */
 			void InitMetasoundEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit);
 
+			UAudioComponent* GetAudioComponent() const;
+
 			/** IMetasoundEditor interface */
 			virtual UObject* GetMetasoundObject() const override;
 			virtual void SetSelection(const TArray<UObject*>& SelectedObjects) override;
@@ -140,6 +144,8 @@ namespace Metasound
 			virtual void Play() override;
 			virtual void Stop() override;
 
+			virtual bool IsPlaying() const override;
+
 			/** Whether pasting the currently selected nodes is permissible */
 			bool CanPasteNodes();
 
@@ -153,6 +159,9 @@ namespace Metasound
 			void PasteNodes(const FVector2D* InLocation = nullptr);
 			void PasteNodes(const FVector2D* InLocation, const FText& InTransactionText);
 
+			/** Returns Graph Connection Manager associated with this editor */
+			FGraphConnectionManager& GetConnectionManager();
+			const FGraphConnectionManager& GetConnectionManager() const;
 
 			/** Forces all UX pertaining to the root graph's interface to be refreshed. */
 			void RefreshGraphMemberMenu();
@@ -373,8 +382,7 @@ namespace Metasound
 
 			/** Create new graph editor widget */
 			void CreateGraphEditorWidget();
-			
-		private:
+
 			TSharedPtr<SWidget> BuildAnalyzerWidget() const;
 
 			void EditObjectSettings();
@@ -384,8 +392,6 @@ namespace Metasound
 			void NotifyDocumentVersioned();
 			void NotifyNodePasteFailure_MultipleVariableSetters();
 			void NotifyNodePasteFailure_ReferenceLoop();
-
-			bool IsPlaying() const;
 
 			/** List of open tool panels; used to ensure only one exists at any one time */
 			TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
@@ -412,6 +418,8 @@ namespace Metasound
 			/** Widget showing playtime that overlays the graph when previewing */
 			TSharedPtr<STextBlock> PlayTimeWidget;
 			double PlayTime = 0.0;
+
+			FGraphConnectionManager GraphConnectionManager;
 
 			/** Command list for this editor */
 			TSharedPtr<FUICommandList> GraphEditorCommands;

@@ -100,6 +100,22 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = NodeTitleColors)
 	FLinearColor VariableNodeTitleColor;
 
+	/** Whether or not animated connections are enabled. */
+	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (DisplayName = "Animate Connections (Experimental)"))
+	bool bAnimateConnections;
+
+	/** Thickness of default analyzer wire thickness when connection analyzer is active. */
+	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 8, ClampMin = 1))
+	float ActiveAnalyzerWireThickness;
+
+	/** Minimum height scalar of wire signal analyzers (ex. audio, triggers). */
+	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 3, ClampMin = 1))
+	float ActiveAnalyzerWireSignalScalarMin;
+
+	/** Maximum height scalar of wire signal analyzers (ex. audio, triggers). */
+	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 3, ClampMin = 1))
+	float ActiveAnalyzerWireSignalScalarMax;
+
 	/** Determines which details view to show in Metasounds Editor */
 	UPROPERTY(Transient)
 	EMetasoundActiveDetailView DetailView = EMetasoundActiveDetailView::Metasound;

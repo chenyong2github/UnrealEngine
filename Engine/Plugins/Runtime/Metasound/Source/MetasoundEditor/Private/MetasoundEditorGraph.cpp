@@ -94,9 +94,10 @@ void UMetasoundEditorGraphMember::ConformLiteralDataType()
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
+	FDataTypeRegistryInfo DataTypeInfo;
 	IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-	const FEditorDataType& EditorDataType = EditorModule.FindDataTypeChecked(TypeName);
-	const EMetasoundFrontendLiteralType LiteralType = static_cast<EMetasoundFrontendLiteralType>(EditorDataType.RegistryInfo.PreferredLiteralType);
+	IDataTypeRegistry::Get().GetDataTypeInfo(TypeName, DataTypeInfo);
+	const EMetasoundFrontendLiteralType LiteralType = static_cast<EMetasoundFrontendLiteralType>(DataTypeInfo.PreferredLiteralType);
 
 	TSubclassOf<UMetasoundEditorGraphMemberDefaultLiteral> LiteralClass = EditorModule.FindDefaultLiteralClass(LiteralType);
 	if (!LiteralClass)

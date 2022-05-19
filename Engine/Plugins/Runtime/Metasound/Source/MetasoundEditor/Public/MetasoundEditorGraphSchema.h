@@ -401,6 +401,7 @@ class UMetasoundEditorGraphSchema : public UEdGraphSchema
 {
 	GENERATED_UCLASS_BODY()
 
+public:
 	/** Check whether connecting these pins would cause a loop */
 	bool ConnectionCausesLoop(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const;
 

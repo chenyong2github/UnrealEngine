@@ -8,6 +8,7 @@
 #include "Components/AudioComponent.h"
 #include "DetailLayoutBuilder.h"
 #include "EdGraph/EdGraphNode.h"
+#include "EdGraph/EdGraphPin.h"
 #include "EdGraphUtilities.h"
 #include "Editor.h"
 #include "Styling/AppStyle.h"
@@ -506,17 +507,16 @@ namespace Metasound
 					}
 					FName DataTypeName = GraphMember->GetDataType(); 
 
-					IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-					if (const FEditorDataType* EditorDataType = EditorModule.FindDataType(DataTypeName))
+					const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+					if (const FEdGraphPinType* PinType = EditorModule.FindPinType(DataTypeName))
 					{
-						FEdGraphPinType PinType = EditorDataType->PinType;
 						if (const UMetasoundEditorGraphSchema* Schema = GetDefault<UMetasoundEditorGraphSchema>())
 						{
-							IconColor = Schema->GetPinTypeColor(PinType);
+							IconColor = Schema->GetPinTypeColor(*PinType);
 						}
-
-						IconBrush = EditorDataType->GetIconBrush(bIsConstructorPin);
 					}
+
+					IconBrush = EditorModule.GetIconBrush(DataTypeName, bIsConstructorPin);
 				}
 
 				TSharedRef<SHorizontalBox> LayoutWidget = SNew(SHorizontalBox);
@@ -1420,6 +1420,16 @@ namespace Metasound
 					{
 						PreviewComp->SetAudioBusSendPostEffect(AudioBus, 1.0f);
 					}
+				
+					FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+					check(MetasoundAsset);
+
+					FAudioDevice* AudioDevice = PreviewComp->GetAudioDevice();
+					check(AudioDevice);
+
+					const FName& AudioBufferTypeName = GetMetasoundDataTypeName<FAudioBuffer>();
+					const FSampleRate SampleRate = static_cast<FSampleRate>(AudioDevice->GetSampleRate());
+					GraphConnectionManager = FGraphConnectionManager(*MetasoundAsset, *PreviewComp, SampleRate);
 				}
 
 				MetasoundGraphEditor->RegisterActiveTimer(0.0f,
@@ -1443,6 +1453,7 @@ namespace Metasound
 							SetPreviewID(INDEX_NONE);
 							PlayTime = 0.0;
 							PlayTimeWidget->SetText(FText::GetEmpty());
+							GraphConnectionManager = { };
 
 							return EActiveTimerReturnType::Stop;
 						}
@@ -2503,7 +2514,28 @@ namespace Metasound
 			return false;
 		}
 
-		void FEditor::RenameSelectedNode() 
+		FGraphConnectionManager& FEditor::GetConnectionManager()
+		{
+			return GraphConnectionManager;
+		}
+
+		const FGraphConnectionManager& FEditor::GetConnectionManager() const
+		{
+			return GraphConnectionManager;
+		}
+
+		UAudioComponent* FEditor::GetAudioComponent() const
+		{
+			// TODO: Instance for each editor
+			if (IsPlaying())
+			{
+				return GEditor->GetPreviewAudioComponent();
+			}
+
+			return nullptr;
+		}
+
+		void FEditor::RenameSelectedNode()
 		{
 			const FGraphPanelSelectionSet& SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 			for (FGraphPanelSelectionSet::TConstIterator SelectedIter(SelectedNodes); SelectedIter; ++SelectedIter)
@@ -3136,6 +3168,8 @@ namespace Metasound
 					}
 				}
 			}
+
+			GraphConnectionManager.Update(DeltaTime);
 		}
 
 		TStatId FEditor::GetStatId() const

@@ -87,6 +87,69 @@ namespace Metasound
 			}
 		} // namespace GraphBuilderPrivate
 
+		bool FGraphBuilder::CanInspectPin(const UEdGraphPin* InPin)
+		{
+			// Can't inspect the value on an invalid pin object.
+			if (!InPin || InPin->IsPendingKill())
+			{
+				return false;
+			}
+
+			// Can't inspect the value on an orphaned pin object.
+			if (InPin->bOrphanedPin)
+			{
+				return false;
+			}
+
+			// Currently only inspection of connected pins is supported.
+			if (InPin->LinkedTo.IsEmpty())
+			{
+				return false;
+			}
+
+			// Can't inspect the value on an unknown pin object or if the owning node is disabled.
+			const UEdGraphNode* OwningNode = InPin->GetOwningNodeUnchecked();
+			if (!OwningNode || !OwningNode->IsNodeEnabled())
+			{
+				return false;
+			}
+
+			TSharedPtr<FEditor> Editor = GetEditorForPin(*InPin);
+			if (!Editor.IsValid())
+			{
+				return false;
+			}
+
+			if (!Editor->IsPlaying())
+			{
+				return false;
+			}
+
+			FName DataType;
+			if (InPin->Direction == EGPD_Input)
+			{
+				Frontend::FConstInputHandle InputHandle = GetConstInputHandleFromPin(InPin);
+				DataType = InputHandle->GetDataType();
+			}
+			else
+			{
+				Frontend::FConstOutputHandle OutputHandle = GetConstOutputHandleFromPin(InPin);
+				DataType = OutputHandle->GetDataType();
+			}
+
+			const bool bIsSupportedType = DataType == GetMetasoundDataTypeName<float>()
+				|| DataType == GetMetasoundDataTypeName<int32>()
+				|| DataType == GetMetasoundDataTypeName<FString>()
+				|| DataType == GetMetasoundDataTypeName<bool>();
+
+			if (!bIsSupportedType)
+			{
+				return false;
+			}
+
+			return true;
+		}
+
 		FText FGraphBuilder::GetDisplayName(const FMetasoundFrontendClassMetadata& InClassMetadata, FName InNodeName, bool bInIncludeNamespace)
 		{
 			using namespace Frontend;
@@ -514,13 +577,37 @@ namespace Metasound
 				}
 			}
 
-			return TSharedPtr<FEditor>(nullptr);
+			return { };
 		}
 
 		TSharedPtr<FEditor> FGraphBuilder::GetEditorForGraph(const UEdGraph& EdGraph)
 		{
-			const UMetasoundEditorGraph* MetasoundGraph = CastChecked<const UMetasoundEditorGraph>(&EdGraph);
-			return GetEditorForMetasound(MetasoundGraph->GetMetasoundChecked());
+			if (const UMetasoundEditorGraph* MetasoundGraph = Cast<const UMetasoundEditorGraph>(&EdGraph))
+			{
+				return GetEditorForMetasound(MetasoundGraph->GetMetasoundChecked());
+			}
+
+			return { };
+		}
+
+		TSharedPtr<FEditor> FGraphBuilder::GetEditorForNode(const UEdGraphNode& InEdNode)
+		{
+			if (const UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(InEdNode.GetGraph()))
+			{
+				return FGraphBuilder::GetEditorForGraph(*Graph);
+			}
+
+			return { };
+		}
+
+		TSharedPtr<FEditor> FGraphBuilder::GetEditorForPin(const UEdGraphPin& InEdPin)
+		{
+			if (const UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(InEdPin.GetOwningNode()))
+			{
+				return GetEditorForNode(*Node);
+			}
+
+			return { };
 		}
 
 		FLinearColor FGraphBuilder::GetPinCategoryColor(const FEdGraphPinType& PinType)
@@ -633,6 +720,33 @@ namespace Metasound
 			return IOutputController::GetInvalidHandle();
 		}
 
+		const FMetasoundFrontendEdgeStyle* FGraphBuilder::GetOutputEdgeStyle(Frontend::FConstOutputHandle InOutputHandle)
+		{
+			using namespace Frontend;
+
+			if (InOutputHandle->IsValid())
+			{
+				FConstNodeHandle NodeHandle = InOutputHandle->GetOwningNode();
+				FConstGraphHandle GraphHandle = NodeHandle->GetOwningGraph();
+
+				const TArray<FMetasoundFrontendEdgeStyle>& EdgeStyles = GraphHandle->GetGraphStyle().EdgeStyles;
+				return EdgeStyles.FindByPredicate([&InOutputHandle](const FMetasoundFrontendEdgeStyle& InCandidate)
+				{
+					return InCandidate.NodeID == InOutputHandle->GetOwningNodeID() && InCandidate.OutputName == InOutputHandle->GetName();
+				});
+			}
+
+			return nullptr;
+		}
+
+		const FMetasoundFrontendEdgeStyle* FGraphBuilder::GetOutputEdgeStyle(const UEdGraphPin* InGraphPin)
+		{
+			using namespace Frontend;
+
+			FConstOutputHandle OutputHandle = GetConstOutputHandleFromPin(InGraphPin);
+			return GetOutputEdgeStyle(OutputHandle);
+		}
+
 		Frontend::FConstOutputHandle FGraphBuilder::GetConstOutputHandleFromPin(const UEdGraphPin* InPin)
 		{
 			return GetOutputHandleFromPin(InPin);
@@ -731,8 +845,10 @@ namespace Metasound
 
 			const FString& InStringValue = InInputPin.DefaultValue;
 			const FName TypeName = InputHandle->GetDataType();
-			const FEditorDataType DataType = EditorModule.FindDataTypeChecked(TypeName);
-			switch (DataType.RegistryInfo.PreferredLiteralType)
+
+			FDataTypeRegistryInfo DataTypeInfo;
+			IDataTypeRegistry::Get().GetDataTypeInfo(TypeName, DataTypeInfo);
+			switch (DataTypeInfo.PreferredLiteralType)
 			{
 				case ELiteralType::Boolean:
 				{
@@ -1564,10 +1680,10 @@ namespace Metasound
 			FEdGraphPinType PinType;
 			FName DataTypeName = InInputHandle->GetDataType();
 
-			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-			if (const FEditorDataType* EditorDataType = EditorModule.FindDataType(DataTypeName))
+			const IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+			if (const FEdGraphPinType* RegisteredPinType = EditorModule.FindPinType(DataTypeName))
 			{
-				PinType = EditorDataType->PinType;
+				PinType = *RegisteredPinType;
 			}
 
 			FName PinName = FGraphBuilder::GetPinName(*InInputHandle);
@@ -1587,9 +1703,9 @@ namespace Metasound
 			FName DataTypeName = InOutputHandle->GetDataType();
 
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-			if (const FEditorDataType* EditorDataType = EditorModule.FindDataType(DataTypeName))
+			if (const FEdGraphPinType* RegisteredPinType = EditorModule.FindPinType(DataTypeName))
 			{
-				PinType = EditorDataType->PinType;
+				PinType = *RegisteredPinType;
 			}
 
 			FName PinName = FGraphBuilder::GetPinName(*InOutputHandle);
@@ -1605,9 +1721,9 @@ namespace Metasound
 		bool FGraphBuilder::SynchronizePinType(const IMetasoundEditorModule& InEditorModule, UEdGraphPin& InPin, const FName InDataType)
 		{
 			FEdGraphPinType PinType;
-			if (const FEditorDataType* EditorDataType = InEditorModule.FindDataType(InDataType))
+			if (const FEdGraphPinType* RegisteredPinType = InEditorModule.FindPinType(InDataType))
 			{
-				PinType = EditorDataType->PinType;
+				PinType = *RegisteredPinType;
 			}
 
 			if (InPin.PinType != PinType)

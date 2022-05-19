@@ -65,9 +65,11 @@ namespace Metasound
 			// Adds an EdGraph node to mirror the provided FNodeHandle.
 			static UMetasoundEditorGraphNode* AddNode(UObject& InMetaSound, Frontend::FNodeHandle InNodeHandle, FVector2D InLocation, bool bInSelectNewNode = true);
 
-			// Convenience functions for retrieving the editor for the given MetaSound/EdGraph
+			// Convenience functions for retrieving the editor for the given UObject
 			static TSharedPtr<FEditor> GetEditorForMetasound(const UObject& InMetaSound);
 			static TSharedPtr<FEditor> GetEditorForGraph(const UEdGraph& InEdGraph);
+			static TSharedPtr<FEditor> GetEditorForNode(const UEdGraphNode& InEdNode);
+			static TSharedPtr<FEditor> GetEditorForPin(const UEdGraphPin& InEdPin);
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			// @param InMetaSound - MetaSound to register
@@ -77,6 +79,9 @@ namespace Metasound
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			static void UnregisterGraphWithFrontend(UObject& InMetaSound);
+
+			// Determines if pin supports inspection/probe view.
+			static bool CanInspectPin(const UEdGraphPin* InPin);
 
 			// Returns a display name for a node. If the node has an empty or whitespace
 			// only DisplayName, first attempts to use the asset name if class is defined
@@ -179,6 +184,9 @@ namespace Metasound
 			// TODO: use IDs to connect rather than names. Likely need an UMetasoundEditorGraphPin
 			static Frontend::FInputHandle GetInputHandleFromPin(const UEdGraphPin* InPin);
 			static Frontend::FConstInputHandle GetConstInputHandleFromPin(const UEdGraphPin* InPin);
+
+			static const FMetasoundFrontendEdgeStyle* GetOutputEdgeStyle(Frontend::FConstOutputHandle InOutputHandle);
+			static const FMetasoundFrontendEdgeStyle* GetOutputEdgeStyle(const UEdGraphPin* InPin);
 
 			// Get the output handle from an output pin.  Ensures pin is an output pin.
 			// TODO: use IDs to connect rather than names. Likely need an UMetasoundEditorGraphPin

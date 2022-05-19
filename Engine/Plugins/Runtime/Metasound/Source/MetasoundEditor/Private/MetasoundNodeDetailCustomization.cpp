@@ -620,28 +620,27 @@ namespace Metasound
 
 			// Update data type based on "Is Array" checkbox and support for arrays.
 			// If an array type is not supported, default to the base data type.
-			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
 			if (DataTypeArrayCheckbox->GetCheckedState() == ECheckBoxState::Checked)
 			{
-				if (EditorModule.IsRegisteredDataType(ArrayDataTypeName))
+				if (Frontend::IDataTypeRegistry::Get().IsRegistered(ArrayDataTypeName))
 				{
 					NewDataTypeName = ArrayDataTypeName;
 				}
 				else
 				{
-					ensure(EditorModule.IsRegisteredDataType(InSelectedTypeName));
+					ensure(Frontend::IDataTypeRegistry::Get().IsRegistered(InSelectedTypeName));
 					NewDataTypeName = InSelectedTypeName;
 				}
 			}
 			else
 			{
-				if (EditorModule.IsRegisteredDataType(InSelectedTypeName))
+				if (Frontend::IDataTypeRegistry::Get().IsRegistered(InSelectedTypeName))
 				{
 					NewDataTypeName = InSelectedTypeName;
 				}
 				else
 				{
-					ensure(EditorModule.IsRegisteredDataType(ArrayDataTypeName));
+					ensure(Frontend::IDataTypeRegistry::Get().IsRegistered(ArrayDataTypeName));
 					NewDataTypeName = ArrayDataTypeName;
 				}
 			}

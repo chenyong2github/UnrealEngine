@@ -13,6 +13,7 @@
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontendController.h"
 #include "SGraphPin.h"
+#include "SMetasoundPinValueInspector.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/SBoxPanel.h"
@@ -29,6 +30,8 @@ namespace Metasound
 		template <typename ParentPinType>
 		class METASOUNDEDITOR_API TMetasoundGraphPin : public ParentPinType
 		{
+			TSharedPtr<SMetasoundPinValueInspector> PinInspector;
+
 		public:
 			SLATE_BEGIN_ARGS(TMetasoundGraphPin<ParentPinType>)
 			{
@@ -229,17 +232,77 @@ namespace Metasound
 					{
 						if (ParentPinType::IsArray())
 						{
-							return bIsConnected ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArray")) : 
+							return bIsConnected ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArray")) :
 								MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinArrayDisconnected"));
 						}
 						else
 						{
-							return bIsConnected ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPin")) : 
+							return bIsConnected ? MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPin")) :
 								MetasoundStyle->GetBrush(TEXT("MetasoundEditor.Graph.ConstructorPinDisconnected"));
 						}
 					}
 				}
 				return SGraphPin::GetPinIcon();
+			}
+
+			virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override
+			{
+				ParentPinType::CachedNodeOffset = FVector2D(AllottedGeometry.AbsolutePosition) / AllottedGeometry.Scale - ParentPinType::OwnerNodePtr.Pin()->GetUnscaledPosition();
+				ParentPinType::CachedNodeOffset.Y += AllottedGeometry.Size.Y * 0.5f;
+
+				UEdGraphPin* GraphPin = ParentPinType::GetPinObj();
+
+				// Pause updates if menu is hosted (so user can capture state for ex. using the copy value action)
+				TSharedPtr<FPinValueInspectorTooltip> InspectorTooltip = ParentPinType::ValueInspectorTooltip.Pin();
+				if (InspectorTooltip.IsValid())
+				{
+					const bool bIsHoveringPin = ParentPinType::IsHovered();
+					const bool bIsInspectingPin = bIsHoveringPin && FGraphBuilder::CanInspectPin(GraphPin);
+					if (bIsInspectingPin)
+					{
+						if (PinInspector.IsValid())
+						{
+							PinInspector->UpdateMessage();
+						}
+					}
+					else
+					{
+						if (InspectorTooltip->TooltipCanClose())
+						{
+							PinInspector.Reset();
+							InspectorTooltip->TryDismissTooltip();
+						}
+					}
+				}
+				else
+				{
+					const bool bIsHoveringPin = ParentPinType::IsHovered();
+					const bool bCanInspectPin = FGraphBuilder::CanInspectPin(GraphPin);
+					if (bIsHoveringPin && bCanInspectPin)
+					{
+						const FEdGraphPinReference* CurrentRef = nullptr;
+						if (FPinValueInspectorTooltip::ValueInspectorWidget.IsValid())
+						{
+							CurrentRef = &FPinValueInspectorTooltip::ValueInspectorWidget->GetPinRef();
+						}
+
+						// Only update if reference is not already set.  This avoids ping-pong between pins which can happen
+						// when hovering connections as this state causes IsHovered to return true for all the associated pins
+						// for the given connection.
+						if (!CurrentRef || !CurrentRef->Get() || CurrentRef->Get() == GraphPin)
+						{
+							PinInspector = SNew(SMetasoundPinValueInspector);
+							ParentPinType::ValueInspectorTooltip = FPinValueInspectorTooltip::SummonTooltip(GraphPin, PinInspector);
+							InspectorTooltip = ParentPinType::ValueInspectorTooltip.Pin();
+							if (InspectorTooltip.IsValid())
+							{
+								FVector2D TooltipLocation;
+								ParentPinType::GetInteractiveTooltipLocation(TooltipLocation);
+								InspectorTooltip->MoveTooltip(TooltipLocation);
+							}
+						}
+					}
+				}
 			}
 		};
 

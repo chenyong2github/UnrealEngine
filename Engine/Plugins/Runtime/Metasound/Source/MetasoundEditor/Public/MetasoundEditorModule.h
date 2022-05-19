@@ -25,8 +25,6 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		using FDataTypeRegistryInfo = Frontend::FDataTypeRegistryInfo;
-
 		// Status of initial asset scan when editor loads up.
 		enum class EAssetScanStatus : uint8
 		{
@@ -44,21 +42,6 @@ namespace Metasound
 			Requested = 1,
 			InProgress = 2,
 			Complete = 3
-		};
-
-		struct FEditorDataType
-		{
-			FEdGraphPinType PinType;
-			FDataTypeRegistryInfo RegistryInfo;
-
-			FEditorDataType(FEdGraphPinType&& InPinType, FDataTypeRegistryInfo&& InRegistryInfo)
-				: PinType(MoveTemp(InPinType))
-				, RegistryInfo(InRegistryInfo)
-			{
-			}
-
-			// Get the corresponding icon brush for this type 
-			const FSlateBrush* GetIconBrush(const bool bIsConstructorType) const;
 		};
 
 		class METASOUNDEDITOR_API FMetasoundDefaultLiteralCustomizationBase
@@ -99,22 +82,22 @@ namespace Metasound
 			// By default, proxy classes support child classes & inheritance.
 			virtual void RegisterExplicitProxyClass(const UClass& InClass) = 0;
 
-			virtual const FEditorDataType* FindDataType(FName InDataTypeName) const = 0;
-			virtual const FEditorDataType& FindDataTypeChecked(FName InDataTypeName) const = 0;
 			virtual bool IsMetaSoundAssetClass(const FName InClassName) const = 0;
-
-			virtual bool IsRegisteredDataType(FName InDataTypeName) const = 0;
 
 			// Primes MetaSound assets, effectively loading the asset asynchronously (if not already
 			// loaded) & registers them if not already registered with the MetaSound Class Registry.
 			virtual void PrimeAssetRegistryAsync() = 0;
 			virtual EAssetPrimeStatus GetAssetRegistryPrimeStatus() const = 0;
 
-			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const = 0;
-
 			virtual TUniquePtr<FMetasoundDefaultLiteralCustomizationBase> CreateMemberDefaultLiteralCustomization(UClass& InClass, IDetailCategoryBuilder& DefaultCategoryBuilder) const = 0;
 
 			virtual const TSubclassOf<UMetasoundEditorGraphMemberDefaultLiteral> FindDefaultLiteralClass(EMetasoundFrontendLiteralType InLiteralType) const = 0;
+
+			virtual const FEdGraphPinType* FindPinType(FName InDataTypeName) const = 0;
+
+			virtual const FSlateBrush* GetIconBrush(FName InDataType, const bool bIsConstructorType) const = 0;
+
+			virtual void RegisterPinType(FName InDataTypeName, FName InPinCategory = { }, FName InPinSubCategory = { }) = 0;
 		};
 	} // namespace Editor
 } // namespace Metasound

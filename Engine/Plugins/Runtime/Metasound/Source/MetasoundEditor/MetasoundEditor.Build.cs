@@ -13,17 +13,21 @@ namespace UnrealBuildTool.Rules
 			(
 				new string[]
 				{
+					"AppFramework",
 					"AudioExtensions",
 					"AudioMixer",
+					"AudioWidgets",
+					"AudioSynesthesia",
+					"EditorWidgets",
+					"Kismet",
 					"KismetWidgets",
 					"MetasoundEngine",
 					"MetasoundFrontend",
+					"MetasoundGenerator",
 					"MetasoundGraphCore",
+					"SignalProcessing",
 					"ToolMenus",
-					"ToolWidgets",
-					"AudioWidgets",
-					"AudioSynesthesia",
-					"EditorWidgets"
+					"ToolWidgets"
 				}
 			);
 
@@ -32,6 +36,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"ApplicationCore",
+					"AudioAnalyzer",
 					"AudioMixer",
 					"AudioWidgets",
 					"ClassViewer",
@@ -39,7 +44,8 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"DetailCustomizations",
-					
+					"EditorFramework",
+					"EditorStyle",
 					"Engine",
 					"GraphEditor",
 					"InputCore",
@@ -47,9 +53,7 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"Slate",
 					"SlateCore",
-					"EditorFramework",
-					"UnrealEd",
-					"AudioAnalyzer"
+					"UnrealEd"
 				}
 			);
 		}
