@@ -84,6 +84,28 @@ namespace UE
 			}
 		}
 
+		void FInterchangeFbxParser::FetchAnimationBakeTransformPayload(const FString& PayloadKey, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& ResultFolder)
+		{
+			check(FbxParserPrivate.IsValid());
+			ResultsContainer->Empty();
+			FString PayloadFilepathCopy;
+			{
+				FScopeLock Lock(&ResultPayloadsCriticalSection);
+				FString& PayloadFilepath = ResultPayloads.FindOrAdd(PayloadKey);
+				PayloadFilepath = ResultFolder + TEXT("/") + PayloadKey + TEXT(".payload");
+
+				//Copy the map filename key because we are multithreaded and the TMap can be reallocated
+				PayloadFilepathCopy = PayloadFilepath;
+			}
+			if (!FbxParserPrivate->FetchAnimationBakeTransformPayload(PayloadKey, BakeFrequency, RangeStartTime, RangeEndTime, PayloadFilepathCopy))
+			{
+				UInterchangeResultError_Generic* Error = AddMessage<UInterchangeResultError_Generic>();
+				Error->SourceAssetName = SourceFilename;
+				Error->Text = LOCTEXT("CantFetchPayload", "Cannot fetch FBX payload data.");
+				return;
+			}
+		}
+
 		TArray<FString> FInterchangeFbxParser::GetJsonLoadMessages() const
 		{
 			TArray<FString> JsonResults;

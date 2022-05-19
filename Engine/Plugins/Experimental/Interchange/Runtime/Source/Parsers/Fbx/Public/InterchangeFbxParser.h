@@ -37,6 +37,16 @@ namespace UE
 			 */
 			void FetchPayload(const FString& PayloadKey, const FString& ResultFolder);
 
+			/**
+			 * Extract bake transform animation payload data from the fbx, the key tell the translator what payload the client ask
+			 * @param - PayloadKey is the key that describe the payload data to extract from the fbx file
+			 * @param - BakeFrequency is the Hz at which we should bake the transform
+			 * @param - RangeStartTime is the start time of the bake
+			 * @param - RangeEndTime is the end time of the bake
+			 * @param - ResultFolder is the folder where we must put any result file
+			 */
+			void FetchAnimationBakeTransformPayload(const FString& PayloadKey, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& ResultFolder);
+
 			FString GetResultFilepath() const { return ResultFilepath; }
 			FString GetResultPayloadFilepath(const FString& PayloadKey) const
 			{

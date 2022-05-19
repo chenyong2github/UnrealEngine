@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/InterchangeAnimationPayload.h"
+#include "Misc/FrameRate.h"
 #include "UObject/Interface.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -31,6 +32,8 @@ public:
 	 * 
 	 */
 	virtual TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> GetAnimationTransformPayloadData(const FString& PayLoadKey) const = 0;
+
+	virtual TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const = 0;
 };
 
 

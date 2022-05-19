@@ -5,8 +5,13 @@
 #include "CoreMinimal.h"
 #include "Nodes/InterchangeFactoryBaseNode.h"
 #include "Animation/AnimSequence.h"
-
+#include "Misc/FrameRate.h"
 #include "InterchangeAnimSequenceFactoryNode.generated.h"
+
+namespace UE::Interchange::Animation
+{
+	INTERCHANGEFACTORYNODES_API FFrameRate ConvertSampleRatetoFrameRate(double SampleRate);
+}
 
 UCLASS(BlueprintType, Experimental)
 class INTERCHANGEFACTORYNODES_API UInterchangeAnimSequenceFactoryNode : public UInterchangeFactoryBaseNode

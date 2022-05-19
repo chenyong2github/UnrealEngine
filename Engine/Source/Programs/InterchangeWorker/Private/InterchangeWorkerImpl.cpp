@@ -218,6 +218,7 @@ void FInterchangeWorkerImpl::ProcessCommand(const TSharedPtr<UE::Interchange::IC
 	FString JSonResult;
 	TArray<FString> JSonMessages;
 	FJsonLoadSourceCmd LoadSourceCommand;
+	FJsonFetchAnimationBakeTransformPayloadCmd FetchAnimationBakeTransform;
 	FJsonFetchPayloadCmd FetchPayloadCommand;
 	//Any command FromJson function return true if the Json descibe the command
 	if (LoadSourceCommand.FromJson(JsonToProcess))
@@ -227,6 +228,15 @@ void FInterchangeWorkerImpl::ProcessCommand(const TSharedPtr<UE::Interchange::IC
 		{
 			//We want to load an FBX file
 			ProcessResult = LoadFbxFile(LoadSourceCommand, JSonResult, JSonMessages);
+		}
+	}
+	else if (FetchAnimationBakeTransform.FromJson(JsonToProcess))
+	{
+		//Load file command
+		if (FetchAnimationBakeTransform.GetTranslatorID().Equals(TEXT("FBX"), ESearchCase::IgnoreCase))
+		{
+			//We want to load an FBX file
+			ProcessResult = FetchFbxPayload(FetchAnimationBakeTransform, JSonResult, JSonMessages);
 		}
 	}
 	else if (FetchPayloadCommand.FromJson(JsonToProcess))
@@ -280,6 +290,24 @@ ETaskState FInterchangeWorkerImpl::FetchFbxPayload(const FJsonFetchPayloadCmd& F
 	ETaskState ResultState = ETaskState::Unknown;
 	FString PayloadKey = FetchPayloadCommand.GetPayloadKey();
 	FbxParser.FetchPayload(PayloadKey, ResultFolder);
+	FJsonLoadSourceCmd::JsonResultParser ResultParser;
+	ResultParser.SetResultFilename(FbxParser.GetResultPayloadFilepath(PayloadKey));
+	OutJSonMessages = FbxParser.GetJsonLoadMessages();
+	OutJSonResult = ResultParser.ToJson();
+	ResultState = ETaskState::ProcessOk;
+	return ResultState;
+}
+
+ETaskState FInterchangeWorkerImpl::FetchFbxPayload(const FJsonFetchAnimationBakeTransformPayloadCmd& FetchAnimationBakeTransformPayloadCommand, FString& OutJSonResult, TArray<FString>& OutJSonMessages)
+{
+	ETaskState ResultState = ETaskState::Unknown;
+	FString PayloadKey = FetchAnimationBakeTransformPayloadCommand.GetPayloadKey();
+
+	FbxParser.FetchAnimationBakeTransformPayload(PayloadKey
+		, FetchAnimationBakeTransformPayloadCommand.GetBakeFrequency()
+		, FetchAnimationBakeTransformPayloadCommand.GetRangeStartTime()
+		, FetchAnimationBakeTransformPayloadCommand.GetRangeEndTime()
+		, ResultFolder);
 	FJsonLoadSourceCmd::JsonResultParser ResultParser;
 	ResultParser.SetResultFilename(FbxParser.GetResultPayloadFilepath(PayloadKey));
 	OutJSonMessages = FbxParser.GetJsonLoadMessages();

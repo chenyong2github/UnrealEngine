@@ -45,7 +45,7 @@ namespace UE::Interchange::Private
 		, const IInterchangeAnimationPayloadInterface* AnimSequenceTranslatorPayloadInterface
 		, const FString& AssetName)
 	{
-		TMap<FString, TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>>> AnimationPayloads;
+		TMap<FString, TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>> AnimationPayloads;
 
 		FString SkeletonRootUid;
 		if (!SkeletonFactoryNode->GetCustomRootJointUid(SkeletonRootUid))
@@ -57,6 +57,20 @@ namespace UE::Interchange::Private
 		AnimSequenceFactoryNode->GetCustomImportBoneTracks(bImportBoneTracks);
 		if (bImportBoneTracks)
 		{
+			//Get the sample rate, default to 30Hz in case the attribute is missing
+			double SampleRate = 30.0;
+			AnimSequenceFactoryNode->GetCustomImportBoneTracksSampleRate(SampleRate);
+
+			double RangeStart = 0.0;
+			AnimSequenceFactoryNode->GetCustomImportBoneTracksRangeStart(RangeStart);
+
+			double RangeEnd = 1.0 / SampleRate; //One frame duration per default
+			AnimSequenceFactoryNode->GetCustomImportBoneTracksRangeStop(RangeEnd);
+
+			const double BakeInterval = 1.0 / SampleRate;
+			const double SequenceLength = FMath::Max<double>(RangeEnd - RangeStart, MINIMUM_ANIMATION_LENGTH);
+			int32 BakeKeyCount = (SequenceLength / BakeInterval) + 1;
+
 			TArray<FString> SkeletonNodes;
 			GetSkeletonSceneNodeFlatListRecursive(NodeContainer, SkeletonRootUid, SkeletonNodes);
 			for (const FString& NodeUid : SkeletonNodes)
@@ -66,23 +80,10 @@ namespace UE::Interchange::Private
 					FString PayloadKey;
 					if (SkeletonSceneNode->GetCustomTransformCurvePayloadKey(PayloadKey))
 					{
-						AnimationPayloads.Add(PayloadKey, AnimSequenceTranslatorPayloadInterface->GetAnimationTransformPayloadData(PayloadKey));
+						AnimationPayloads.Add(PayloadKey, AnimSequenceTranslatorPayloadInterface->GetAnimationBakeTransformPayloadData(PayloadKey, SampleRate, RangeStart, RangeEnd));
 					}
 				}
 			}
-			//Get the sample rate, default to 30Hz in case the attribute is missing
-			double SampleRate = 30.0;
-			AnimSequenceFactoryNode->GetCustomImportBoneTracksSampleRate(SampleRate);
-
-			double RangeStart = 0.0;
-			AnimSequenceFactoryNode->GetCustomImportBoneTracksRangeStart(RangeStart);
-
-			double RangeStop = 1.0 / SampleRate; //One frame duration per default
-			AnimSequenceFactoryNode->GetCustomImportBoneTracksRangeStop(RangeStop);
-
-			const double BakeInterval = 1.0 / SampleRate;
-			const double SequenceLength = RangeStop - RangeStart;
-			int32 BakeKeyCount = (SequenceLength / BakeInterval)+1;
 
 			IAnimationDataController& Controller = AnimSequence->GetController();
 			//This destroy all previously imported animation raw data
@@ -116,11 +117,17 @@ namespace UE::Interchange::Private
 					FString PayloadKey;
 					if (SkeletonSceneNode->GetCustomTransformCurvePayloadKey(PayloadKey))
 					{
-						TOptional<UE::Interchange::FAnimationTransformPayloadData> AnimationTransformPayload = AnimationPayloads.FindChecked(PayloadKey).Get();
+						TOptional<UE::Interchange::FAnimationBakeTransformPayloadData> AnimationTransformPayload = AnimationPayloads.FindChecked(PayloadKey).Get();
 						if (!AnimationTransformPayload.IsSet())
 						{
 							UE_LOG(LogInterchangeImport, Warning, TEXT("Invalid animation transform payload key [%s] AnimSequence asset %s"), *PayloadKey, *AssetName);
 							continue;
+						}
+
+						if (AnimationTransformPayload->Transforms.Num() == 0)
+						{
+							//We need at least one transform
+							AnimationTransformPayload->Transforms.Add(FTransform::Identity);
 						}
 
 						FRawAnimSequenceTrack RawTrack;
@@ -129,69 +136,30 @@ namespace UE::Interchange::Private
 						RawTrack.ScaleKeys.Reserve(BakeKeyCount);
 						TArray<float> TimeKeys;
 						TimeKeys.Reserve(BakeKeyCount);
-						for (double CurrentTime = RangeStart; CurrentTime <= RangeStop + SMALL_NUMBER; CurrentTime += BakeInterval)
-						{
-							//Default value to identity
-							FVector3f Position(0.0f);
-							FVector3f Euler(0.0f);
-							FVector3f Scale(1.0f);
-							//Fill the anim sequence raw data
-							for (int32 CurveIndex = 0; CurveIndex < AnimationTransformPayload->TransformCurves.Num(); ++CurveIndex)
-							{
-								const UE::Interchange::FAnimationCurveTransformPayloadData& CurveData = AnimationTransformPayload->TransformCurves[CurveIndex];
-								if (CurveData.Curve.GetNumKeys() <= 0)
-								{
-									//skip empty curve, the default value will be applied
-									continue;
-								}
+						
+						//Everything should match Key count, sample rate and range
+						check(AnimationTransformPayload->Transforms.Num() == BakeKeyCount);
+						check(FMath::IsNearlyEqual(AnimationTransformPayload->BakeFrequency, SampleRate, UE_DOUBLE_KINDA_SMALL_NUMBER));
+						check(FMath::IsNearlyEqual(AnimationTransformPayload->RangeStartTime, RangeStart, UE_DOUBLE_KINDA_SMALL_NUMBER));
+						check(FMath::IsNearlyEqual(AnimationTransformPayload->RangeEndTime, RangeEnd, UE_DOUBLE_KINDA_SMALL_NUMBER));
 
-								if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::TranslationX)
-								{
-									Position.X = CurveData.Curve.Eval(CurrentTime);
-								}
-								else if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::TranslationY)
-								{
-									Position.Y = CurveData.Curve.Eval(CurrentTime);
-								}
-								else if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::TranslationZ)
-								{
-									Position.Z = CurveData.Curve.Eval(CurrentTime);
-								}
-								else if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::EulerX)
-								{
-									Euler.X = CurveData.Curve.Eval(CurrentTime);
-								}
-								else if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::EulerY)
-								{
-									Euler.Y = CurveData.Curve.Eval(CurrentTime);
-								}
-								else if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::EulerZ)
-								{
-									Euler.Z = CurveData.Curve.Eval(CurrentTime);
-								}
-								else if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::ScaleX)
-								{
-									Scale.X = CurveData.Curve.Eval(CurrentTime);
-								}
-								else if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::ScaleY)
-								{
-									Scale.Y = CurveData.Curve.Eval(CurrentTime);
-								}
-								else if (CurveData.TransformChannel == EInterchangeTransformCurveChannel::ScaleZ)
-								{
-									Scale.Z = CurveData.Curve.Eval(CurrentTime);
-								}
-							}
-							FQuat4f Quaternion = FQuat4f::MakeFromEuler(Euler);
-							
+						int32 TransformIndex = 0;
+						for (double CurrentTime = RangeStart; CurrentTime <= RangeEnd + UE_DOUBLE_SMALL_NUMBER; CurrentTime += BakeInterval, ++TransformIndex)
+						{
+							check(AnimationTransformPayload->Transforms.IsValidIndex(TransformIndex));
+							FTransform3f AnimKeyTransform = FTransform3f(AnimationTransformPayload->Transforms[TransformIndex]);
 							if (bApplyGlobalOffset)
 							{
-								FTransform3f AnimKeyTransform(Quaternion, Position, Scale);
 								AnimKeyTransform = AnimKeyTransform * GlobalOffsetTransform;
-								Position = AnimKeyTransform.GetLocation();
-								Quaternion = AnimKeyTransform.GetRotation();
-								Scale = AnimKeyTransform.GetScale3D();
 							}
+							//Default value to identity
+							FVector3f Position(0.0f);
+							FQuat4f Quaternion(0.0f);
+							FVector3f Scale(1.0f);
+							
+							Position = AnimKeyTransform.GetLocation();
+							Quaternion = AnimKeyTransform.GetRotation();
+							Scale = AnimKeyTransform.GetScale3D();
 							RawTrack.ScaleKeys.Add(Scale);
 							RawTrack.PosKeys.Add(Position);
 							RawTrack.RotKeys.Add(Quaternion);
@@ -213,19 +181,6 @@ namespace UE::Interchange::Private
 			}
 		}
 	}
-
-	FFrameRate ConvertSampleRatetoFrameRate(double SampleRate)
-	{
-		double IntegralPart = FMath::FloorToDouble(SampleRate);
-		double FractionalPart = SampleRate - IntegralPart;
-		const int32 Tolerance = 1000000;
-		double Divisor = static_cast<double>(FMath::GreatestCommonDivisor(FMath::RoundToInt(FractionalPart * Tolerance), Tolerance));
-		int32 Denominator = static_cast<int32>(Tolerance / Divisor);
-		int32 Numerator = static_cast<int32>(IntegralPart * Denominator + FMath::RoundToDouble(FractionalPart * Tolerance) / Divisor);
-		check(Denominator != 0);
-		return FFrameRate(Numerator, Denominator);
-	}
-
 } //namespace UE::Interchange::Private
 #endif //WITH_EDITOR
 
@@ -249,6 +204,12 @@ UObject* UInterchangeAnimSequenceFactory::CreateEmptyAsset(const FCreateAssetPar
 
 	const UInterchangeAnimSequenceFactoryNode* AnimSequenceFactoryNode = Cast<UInterchangeAnimSequenceFactoryNode>(Arguments.AssetNode);
 	if (AnimSequenceFactoryNode == nullptr)
+	{
+		return nullptr;
+	}
+	
+	//Verify if the bone track animation is valid (sequence length versus framerate ...)
+	if(!IsBoneTrackAnimationValid(AnimSequenceFactoryNode, Arguments))
 	{
 		return nullptr;
 	}
@@ -295,6 +256,12 @@ UObject* UInterchangeAnimSequenceFactory::CreateAsset(const FCreateAssetParams& 
 
 	UInterchangeAnimSequenceFactoryNode* AnimSequenceFactoryNode = Cast<UInterchangeAnimSequenceFactoryNode>(Arguments.AssetNode);
 	if (AnimSequenceFactoryNode == nullptr)
+	{
+		return nullptr;
+	}
+
+	//Verify if the bone track animation is valid (sequence length versus framerate ...)
+	if (!IsBoneTrackAnimationValid(AnimSequenceFactoryNode, Arguments))
 	{
 		return nullptr;
 	}
@@ -398,20 +365,15 @@ UObject* UInterchangeAnimSequenceFactory::CreateAsset(const FCreateAssetParams& 
 	{
 		FFrameRate FrameRate(30, 1);
 		double SampleRate = 30.0;
-		
-		//If we import bone track we will set the framerate according to the bone track settings
-		//The default is 30Hz when there is no bone tracks, i.e. like when we just have morphtarget attribute curve animation.
-		//Curve do not need framerate, framerate is needed if we want to bake curve animation data.
-		//TODO: discuss with animation team so we can pass curves for bones transform animation instead of baked data.
+
 		bool bImportBoneTracks = false;
 		if (AnimSequenceFactoryNode->GetCustomImportBoneTracks(bImportBoneTracks) && bImportBoneTracks)
 		{
 			if (AnimSequenceFactoryNode->GetCustomImportBoneTracksSampleRate(SampleRate))
 			{
-				FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(SampleRate);
+				FrameRate = UE::Interchange::Animation::ConvertSampleRatetoFrameRate(SampleRate);
 			}
 		}
-
 		IAnimationDataController& Controller = AnimSequence->GetController();
 		Controller.OpenBracket(NSLOCTEXT("InterchangeAnimSequenceFactory", "ImportAnimationInterchange_Bracket", "Importing Animation (Interchange)"));
 		AnimSequence->SetSkeleton(Skeleton);
@@ -505,77 +467,40 @@ bool UInterchangeAnimSequenceFactory::SetSourceFilename(const UObject* Object, c
 	return false;
 }
 
-/************************************************************************/
-/* Automation tests                                                     */
-/************************************************************************/
-#if WITH_EDITOR
-#if WITH_DEV_AUTOMATION_TESTS
-
-#include "Misc/AutomationTest.h"
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInterchangeAnimSequenceTest, "System.Runtime.Interchange.ConvertSampleRatetoFrameRate", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
-
-bool FInterchangeAnimSequenceTest::RunTest(const FString& Parameters)
+bool UInterchangeAnimSequenceFactory::IsBoneTrackAnimationValid(const UInterchangeAnimSequenceFactoryNode* AnimSequenceFactoryNode, const FCreateAssetParams& Arguments)
 {
-	FFrameRate FrameRate;
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(120.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 120.0 to FFrameRate"), FrameRate.Numerator, 120);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 120.0 to FFrameRate"), FrameRate.Denominator, 1);
-	
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(100.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 100.0 to FFrameRate"), FrameRate.Numerator, 100);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 100.0 to FFrameRate"), FrameRate.Denominator, 1);
+	bool bResult = true;
+	FFrameRate FrameRate(30, 1);
+	double SampleRate = 30.0;
 
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(60.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 60.0 to FFrameRate"), FrameRate.Numerator, 60);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 60.0 to FFrameRate"), FrameRate.Denominator, 1);
+	bool bImportBoneTracks = false;
+	if (AnimSequenceFactoryNode->GetCustomImportBoneTracks(bImportBoneTracks) && bImportBoneTracks)
+	{
+		if (AnimSequenceFactoryNode->GetCustomImportBoneTracksSampleRate(SampleRate))
+		{
+			FrameRate = UE::Interchange::Animation::ConvertSampleRatetoFrameRate(SampleRate);
+		}
 
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(50.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 50.0 to FFrameRate"), FrameRate.Numerator, 50);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 50.0 to FFrameRate"), FrameRate.Denominator, 1);
+		double RangeStart = 0.0;
+		AnimSequenceFactoryNode->GetCustomImportBoneTracksRangeStart(RangeStart);
 
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(48.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 48.0 to FFrameRate"), FrameRate.Numerator, 48);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 48.0 to FFrameRate"), FrameRate.Denominator, 1);
+		double RangeEnd = 1.0 / SampleRate; //One frame duration per default
+		AnimSequenceFactoryNode->GetCustomImportBoneTracksRangeStop(RangeEnd);
 
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(30.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 30.0 to FFrameRate"), FrameRate.Numerator, 30);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 30.0 to FFrameRate"), FrameRate.Denominator, 1);
+		const double SequenceLength = FMath::Max<double>(RangeEnd - RangeStart, MINIMUM_ANIMATION_LENGTH);
 
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(29.97);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 29.97 to FFrameRate"), FrameRate.Numerator, 2997);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 29.97 to FFrameRate"), FrameRate.Denominator, 100);
+		const float SubFrame = FrameRate.AsFrameTime(SequenceLength).GetSubFrame();
 
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(25.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 25.0 to FFrameRate"), FrameRate.Numerator, 25);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 25.0 to FFrameRate"), FrameRate.Denominator, 1);
-
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(24.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 24.0 to FFrameRate"), FrameRate.Numerator, 24);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 24.0 to FFrameRate"), FrameRate.Denominator, 1);
-
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(23.976);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 23.976 to FFrameRate"), FrameRate.Numerator, 2997);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 23.976 to FFrameRate"), FrameRate.Denominator, 125);
-
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(96.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 96.0 to FFrameRate"), FrameRate.Numerator, 96);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 96.0 to FFrameRate"), FrameRate.Denominator, 1);
-
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(72.0);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 72.0 to FFrameRate"), FrameRate.Numerator, 72);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 72.0 to FFrameRate"), FrameRate.Denominator, 1);
-
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(59.94);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 59.94 to FFrameRate"), FrameRate.Numerator, 2997);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 59.94 to FFrameRate"), FrameRate.Denominator, 50);
-
-	FrameRate = UE::Interchange::Private::ConvertSampleRatetoFrameRate(119.88);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 119.88 to FFrameRate"), FrameRate.Numerator, 2997);
-	TestEqual(TEXT("`ConvertSampleRatetoFrameRate` Error converting 119.88 to FFrameRate"), FrameRate.Denominator, 25);
-	
-	return true;
+		if (!FMath::IsNearlyZero(SubFrame, KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(SubFrame, 1.0f, KINDA_SMALL_NUMBER))
+		{
+			UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+			Message->SourceAssetName = Arguments.SourceData->GetFilename();
+			Message->DestinationAssetName = Arguments.AssetName;
+			Message->AssetType = UAnimSequence::StaticClass();
+			Message->Text = FText::Format(NSLOCTEXT("UInterchangeAnimSequenceFactory", "WrongSequenceLength", "Animation length {0} is not compatible with import frame-rate {1} (sub frame {2}), animation has to be frame-border aligned."),
+				FText::AsNumber(SequenceLength), FrameRate.ToPrettyText(), FText::AsNumber(SubFrame));
+			bResult = false;
+		}
+	}
+	return bResult;
 }
-
-#endif //WITH_DEV_AUTOMATION_TESTS
-#endif //WITH_EDITOR

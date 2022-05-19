@@ -228,10 +228,74 @@ namespace UE
 				FString ResultFilename = FString();
 			};
 
-		private:
+		protected:
 			FString TranslatorID = FString();
 			FString PayloadKey = FString();
 		};
 
+		//Animation transform payload require transform to be bake by the translator
+		//The anim sequence API is not yet using curve to describe bone track animation
+		class INTERCHANGEDISPATCHER_API FJsonFetchAnimationBakeTransformPayloadCmd : public FJsonFetchPayloadCmd
+		{
+		public:
+			FJsonFetchAnimationBakeTransformPayloadCmd()
+			{
+				check(!bIsDataInitialize);
+			}
+
+			FJsonFetchAnimationBakeTransformPayloadCmd(const FString& InTranslatorID
+				, const FString& InPayloadKey
+				, double InBakeFrequency
+				, double InRangeStartTime
+				, double InRangeEndTime)
+				: FJsonFetchPayloadCmd(InTranslatorID, InPayloadKey)
+				, BakeFrequency(InBakeFrequency)
+				, RangeStartTime(InRangeStartTime)
+				, RangeEndTime(InRangeEndTime)
+			{}
+
+			virtual FString ToJson() const override;
+			virtual bool FromJson(const FString& JsonString) override;
+
+			double GetBakeFrequency() const
+			{
+				ensure(bIsDataInitialize);
+				return BakeFrequency;
+			}
+
+			static FString GetBakeFrequencyJsonKey()
+			{
+				static const FString Key = TEXT("BakeFrequency");
+				return Key;
+			}
+
+			double GetRangeStartTime() const
+			{
+				ensure(bIsDataInitialize);
+				return RangeStartTime;
+			}
+
+			static FString GetRangeStartTimeJsonKey()
+			{
+				static const FString Key = TEXT("RangeStartTime");
+				return Key;
+			}
+
+			double GetRangeEndTime() const
+			{
+				ensure(bIsDataInitialize);
+				return RangeEndTime;
+			}
+
+			static FString GetRangeEndTimeJsonKey()
+			{
+				static const FString Key = TEXT("RangeEndTime");
+				return Key;
+			}
+		protected:
+			double BakeFrequency = 30.0;
+			double RangeStartTime = 0.0;
+			double RangeEndTime = 1.0/BakeFrequency;
+		};
 	} //ns Interchange
 }//ns UE

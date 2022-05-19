@@ -10,6 +10,7 @@
 #include "InterchangeAnimSequenceFactory.generated.h"
 
 class UAnimSequence;
+class UInterchangeAnimSequenceFactoryNode;
 
 UCLASS(BlueprintType, Experimental)
 class INTERCHANGEIMPORT_API UInterchangeAnimSequenceFactory : public UInterchangeFactoryBase
@@ -32,6 +33,9 @@ public:
 	}
 	virtual bool GetSourceFilenames(const UObject* Object, TArray<FString>& OutSourceFilenames) const override;
 	virtual bool SetSourceFilename(const UObject* Object, const FString& SourceFilename, int32 SourceIndex) const override;
+
+private:
+	bool IsBoneTrackAnimationValid(const UInterchangeAnimSequenceFactoryNode* AnimSequenceFactoryNode, const FCreateAssetParams& Arguments);
 
 	// Interchange factory base interface end
 	//////////////////////////////////////////////////////////////////////////

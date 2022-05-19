@@ -20,6 +20,7 @@ namespace UE::Interchange::Private
 		virtual ~FAnimationPayloadContextTransform() {}
 		virtual FString GetPayloadType() const override { return TEXT("TransformAnimation-PayloadContext"); }
 		virtual bool FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath) override;
+		virtual bool FetchAnimationBakeTransformPayloadToFile(FFbxParser& Parser, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& PayloadFilepath) override;
 		FbxNode* Node = nullptr;
 		FbxScene* SDKScene = nullptr;
 	};

@@ -46,7 +46,9 @@ namespace UE
 
 				/* Extract the fbx data from the sdk into our node container */
 				bool FetchPayloadData(const FString& PayloadKey, const FString& PayloadFilepath);
-			
+
+				/* Extract the fbx data from the sdk into our node container */
+				bool FetchAnimationBakeTransformPayload(const FString& PayloadKey, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& PayloadFilepath);
 				/**
 				 * This function is used to add the given message object directly into the results for this operation.
 				 */
@@ -68,12 +70,11 @@ namespace UE
 				}
 
 				/**
-				 * Critical section to avoid getting animation payload curves asynchronously.
+				 * Critical section to avoid getting multiple payload in same time.
 				 * The FBX evaluator use a cache mechanism for evaluating global transform that is not thread safe.
-				 * We avoid evaluating global transform asynchronously by using this CriticalSection when we import curves payload.
-				 * Each scene nodes representing a joint have is own payload for the transform animation.
+				 * There si other stuff in the sdk which are not thread safe, so all fbx payload should be fetch one by one
 				 */
-				FCriticalSection AnimationTransformPayloadCriticalSection;
+				FCriticalSection PayloadCriticalSection;
 			private:
 
 				void CleanupFbxData();

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "Math/Transform.h"
+#include "Serialization/Archive.h"
 #include "UObject/Class.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
@@ -11,6 +13,26 @@
 #endif
 
 #include "InterchangeCommonAnimationPayload.generated.h"
+
+namespace UE::Interchange
+{
+
+	struct INTERCHANGECOMMONPARSER_API FAnimationBakeTransformPayloadData
+	{
+		double BakeFrequency = 30.0;
+		double RangeStartTime = 0.0;
+		double RangeEndTime = 1.0 / BakeFrequency;
+		TArray<FTransform> Transforms;
+
+		void Serialize(FArchive& Ar)
+		{
+			Ar << BakeFrequency;
+			Ar << RangeStartTime;
+			Ar << RangeEndTime;
+			Ar << Transforms;
+		}
+	};
+}
 
 UENUM()
 enum class EInterchangeTransformCurveChannel

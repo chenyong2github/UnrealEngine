@@ -409,6 +409,47 @@ namespace UE::Interchange::Private
 		return bResult;
 	}
 
+	bool ImportBakeTransforms(FbxNode* Node, FAnimationBakeTransformPayloadData& AnimationBakeTransformPayloadData)
+	{
+		if (!ensure(!FMath::IsNearlyZero(AnimationBakeTransformPayloadData.BakeFrequency)))
+		{
+			return false;
+		}
+		
+		FbxTime StartTime;
+		StartTime.SetSecondDouble(AnimationBakeTransformPayloadData.RangeStartTime);
+		FbxTime EndTime;
+		EndTime.SetSecondDouble(AnimationBakeTransformPayloadData.RangeEndTime);
+		if (!ensure(AnimationBakeTransformPayloadData.RangeEndTime > AnimationBakeTransformPayloadData.RangeStartTime))
+		{
+			return false;
+		}
+
+		const double TimeStepSecond = 1.0 / AnimationBakeTransformPayloadData.BakeFrequency;
+		FbxTime TimeStep = 0;
+		TimeStep.SetSecondDouble(TimeStepSecond);
+
+		const int32 NumFrame = FMath::RoundToInt32((AnimationBakeTransformPayloadData.RangeEndTime - AnimationBakeTransformPayloadData.RangeStartTime * AnimationBakeTransformPayloadData.BakeFrequency));
+		
+		//Add a threshold when we compare if we have reach the end of the animation
+		const FbxTime TimeComparisonThreshold = (UE_DOUBLE_KINDA_SMALL_NUMBER * static_cast<double>(FBXSDK_TC_SECOND));
+		AnimationBakeTransformPayloadData.Transforms.Empty(NumFrame);
+
+		for (FbxTime CurTime = StartTime; CurTime < (EndTime + TimeComparisonThreshold); CurTime += TimeStep)
+		{
+			FbxAMatrix NodeTransform = Node->EvaluateGlobalTransform(CurTime);
+			FbxNode* ParentNode = Node->GetParent();
+			if (ParentNode)
+			{
+				FbxAMatrix ParentTransform = ParentNode->EvaluateGlobalTransform(CurTime);
+				NodeTransform = ParentTransform.Inverse() * NodeTransform;
+			}
+			AnimationBakeTransformPayloadData.Transforms.Add(UE::Interchange::Private::FFbxConvert::ConvertTransform(NodeTransform));
+		}
+
+		return true;
+	}
+
 	struct FGetFbxTransformCurvesParameters
 	{
 		FGetFbxTransformCurvesParameters(FbxScene* InSDKScene, FbxNode* InNode)
@@ -522,6 +563,12 @@ namespace UE::Interchange::Private
 
 	bool FAnimationPayloadContextTransform::FetchPayloadToFile(FFbxParser& Parser, const FString& PayloadFilepath)
 	{
+		//Will need this one to import animated curves
+		return false;
+	}
+
+	bool FAnimationPayloadContextTransform::FetchAnimationBakeTransformPayloadToFile(FFbxParser& Parser, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime, const FString& PayloadFilepath)
+	{
 		if (!ensure(SDKScene != nullptr))
 		{
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
@@ -538,23 +585,16 @@ namespace UE::Interchange::Private
 			return false;
 		}
 
-		FGetFbxTransformCurvesParameters Parameters(SDKScene, Node);
-		GetFbxTransformCurves(Parameters);
+		bool bBakeTransform = false;
+		FAnimationBakeTransformPayloadData AnimationBakeTransformPayloadData;
+		AnimationBakeTransformPayloadData.BakeFrequency = BakeFrequency;
+		AnimationBakeTransformPayloadData.RangeStartTime = RangeStartTime;
+		AnimationBakeTransformPayloadData.RangeEndTime = RangeEndTime;
 
-		TArray<FInterchangeCurve> Curves;
-		Curves.AddDefaulted(Parameters.TransformChannelCount);
-
-		if (Parameters.IsNodeAnimated)
-		{
-			//Fbx node global transform evaluator is not thread safe, so we acquire a lock to import the curves
-			FScopeLock Lock(&Parser.AnimationTransformPayloadCriticalSection);
-			ImportTransformCurves(Node, Parameters.TransformChannelCurves, Curves);
-		}
-
-		//Dump all curves to a file
+		ImportBakeTransforms(Node, AnimationBakeTransformPayloadData);
 		{
 			FLargeMemoryWriter Ar;
-			Ar << Curves;
+			AnimationBakeTransformPayloadData.Serialize(Ar);
 			uint8* ArchiveData = Ar.GetData();
 			int64 ArchiveSize = Ar.TotalSize();
 			TArray64<uint8> Buffer(ArchiveData, ArchiveSize);

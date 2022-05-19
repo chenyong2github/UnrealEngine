@@ -197,6 +197,28 @@ void UInterchangeGenericAnimationPipeline::ExecutePreImportPipeline(UInterchange
 			AnimSequenceName.LeftChopInline(9);
 		}
 		AnimSequenceName += TEXT("_Anim");
+
+		if (bImportBoneTracks)
+		{
+			FFrameRate FrameRate = UE::Interchange::Animation::ConvertSampleRatetoFrameRate(SampleRate);
+
+			const double SequenceLength = FMath::Max<double>(RangeStop - RangeStart, MINIMUM_ANIMATION_LENGTH);
+
+			const float SubFrame = FrameRate.AsFrameTime(SequenceLength).GetSubFrame();
+
+			if (!FMath::IsNearlyZero(SubFrame, KINDA_SMALL_NUMBER) && !FMath::IsNearlyEqual(SubFrame, 1.0f, KINDA_SMALL_NUMBER))
+			{
+				UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+				Message->SourceAssetName = SourceDatas[0]->GetFilename();
+				Message->DestinationAssetName = AnimSequenceName;
+				Message->AssetType = UAnimSequence::StaticClass();
+				Message->Text = FText::Format(NSLOCTEXT("UInterchangeGenericAnimationPipeline", "WrongSequenceLength", "Animation length {0} is not compatible with import frame-rate {1} (sub frame {2}), animation has to be frame-border aligned."),
+					FText::AsNumber(SequenceLength), FrameRate.ToPrettyText(), FText::AsNumber(SubFrame));
+				//Skip this anim sequence factory node
+				continue;
+			}
+		}
+
 		UInterchangeAnimSequenceFactoryNode* AnimSequenceFactoryNode = NewObject<UInterchangeAnimSequenceFactoryNode>(BaseNodeContainer, NAME_None);
 		AnimSequenceFactoryNode->InitializeAnimSequenceNode(AnimSequenceUid, AnimSequenceName);
 		

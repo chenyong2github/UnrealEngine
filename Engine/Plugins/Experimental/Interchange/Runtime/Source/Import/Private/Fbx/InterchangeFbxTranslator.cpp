@@ -486,6 +486,79 @@ TFuture<TOptional<UE::Interchange::FAnimationTransformPayloadData>> UInterchange
 	return Promise->GetFuture();
 }
 
+TFuture<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>> UInterchangeFbxTranslator::GetAnimationBakeTransformPayloadData(const FString& PayLoadKey, const double BakeFrequency, const double RangeStartSecond, const double RangeStopSecond) const
+{
+	TSharedPtr<TPromise<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>> Promise = MakeShared<TPromise<TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>>>();
+
+	if (!Dispatcher.IsValid())
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
+		return Promise->GetFuture();
+	}
+
+
+	// Create a json command to read the fbx file
+	FString JsonCommand = CreateFetchAnimationBakeTransformPayloadFbxCommand(PayLoadKey, BakeFrequency, RangeStartSecond, RangeStopSecond);
+	const int32 CreatedTaskIndex = Dispatcher->AddTask(JsonCommand, FInterchangeDispatcherTaskCompleted::CreateLambda([this, Promise](const int32 TaskIndex)
+		{
+			UE::Interchange::ETaskState TaskState;
+			FString JsonResult;
+			TArray<FString> JsonMessages;
+			Dispatcher->GetTaskState(TaskIndex, TaskState, JsonResult, JsonMessages);
+
+			// Parse the Json messages into UInterchangeResults
+			for (const FString& JsonMessage : JsonMessages)
+			{
+				AddMessage(UInterchangeResult::FromJson(JsonMessage));
+			}
+
+			if (TaskState != UE::Interchange::ETaskState::ProcessOk)
+			{
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
+				return;
+			}
+
+			// Grab the result file and fill the BaseNodeContainer
+			UE::Interchange::FJsonFetchPayloadCmd::JsonResultParser ResultParser;
+			ResultParser.FromJson(JsonResult);
+			FString AnimationTransformPayloadFilename = ResultParser.GetResultFilename();
+
+			if (!ensure(FPaths::FileExists(AnimationTransformPayloadFilename)))
+			{
+				// TODO log an error saying the payload file does not exist even if the get payload command succeeded
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
+				return;
+			}
+
+			UE::Interchange::FAnimationBakeTransformPayloadData AnimationTransformPayload;
+
+			// All sub object should be gone with the reset
+			TArray64<uint8> Buffer;
+			FFileHelper::LoadFileToArray(Buffer, *AnimationTransformPayloadFilename);
+			uint8* FileData = Buffer.GetData();
+			int64 FileDataSize = Buffer.Num();
+			if (FileDataSize < 1)
+			{
+				// Nothing to load from this file
+				Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>());
+				return;
+			}
+
+			// Buffer keeps the ownership of the data, the large memory reader is use to serialize the TMap
+			FLargeMemoryReader Ar(FileData, FileDataSize);
+			AnimationTransformPayload.Serialize(Ar);
+			Promise->SetValue(MoveTemp(AnimationTransformPayload));
+		}));
+
+	// The task was not added to the dispatcher
+	if (CreatedTaskIndex == INDEX_NONE)
+	{
+		Promise->SetValue(TOptional<UE::Interchange::FAnimationBakeTransformPayloadData>{});
+	}
+
+	return Promise->GetFuture();
+}
+
 FString UInterchangeFbxTranslator::CreateLoadFbxFileCommand(const FString& FbxFilePath) const
 {
 	UE::Interchange::FJsonLoadSourceCmd LoadSourceCommand(TEXT("FBX"), FbxFilePath);
@@ -495,5 +568,11 @@ FString UInterchangeFbxTranslator::CreateLoadFbxFileCommand(const FString& FbxFi
 FString UInterchangeFbxTranslator::CreateFetchPayloadFbxCommand(const FString& FbxPayloadKey) const
 {
 	UE::Interchange::FJsonFetchPayloadCmd PayloadCommand(TEXT("FBX"), FbxPayloadKey);
+	return PayloadCommand.ToJson();
+}
+
+FString UInterchangeFbxTranslator::CreateFetchAnimationBakeTransformPayloadFbxCommand(const FString& FbxPayloadKey, const double BakeFrequency, const double RangeStartTime, const double RangeEndTime) const
+{
+	UE::Interchange::FJsonFetchAnimationBakeTransformPayloadCmd PayloadCommand(TEXT("FBX"), FbxPayloadKey, BakeFrequency, RangeStartTime, RangeEndTime);
 	return PayloadCommand.ToJson();
 }
