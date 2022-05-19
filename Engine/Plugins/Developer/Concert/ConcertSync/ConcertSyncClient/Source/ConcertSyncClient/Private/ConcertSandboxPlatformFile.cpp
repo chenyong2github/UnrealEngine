@@ -1007,6 +1007,16 @@ void FConcertSandboxPlatformFile::DiscardSandbox(TArray<FName>& OutPackagesPendi
 		if (FileChanges.Num() > 0)
 		{
 			DirectoryWatcherModule->RegisterExternalChanges(FileChanges);
+			if (IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule->Get())
+			{
+				// Force the directory watcher to process the file changes
+				// immediately. This ensures that the Asset Registry is
+				// brought up to date especially after file/package deletes,
+				// since we may not otherwise Tick() before packages are hot
+				// reloaded and stale entries could still be present in the
+				// registry.
+				DirectoryWatcher->Tick(0.0f);
+			}
 		}
 	}
 #endif
