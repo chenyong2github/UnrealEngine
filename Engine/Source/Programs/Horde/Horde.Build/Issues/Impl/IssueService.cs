@@ -266,6 +266,13 @@ namespace Horde.Build.Services.Impl
 			for (int idx = 0; idx < openIssues.Count; idx++)
 			{
 				IIssue openIssue = openIssues[idx];
+
+				// Do not automaically close quarantined issues
+				if (openIssue.QuarantinedByUserId != null)
+				{
+					continue;
+				}
+
 				if (openIssue.LastSeenAt < utcNow - TimeSpan.FromDays(7.0))
 				{
 					await _issueCollection.TryUpdateIssueAsync(openIssue, newResolvedById: IIssue.ResolvedByTimeoutId);

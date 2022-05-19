@@ -595,6 +595,12 @@ namespace Horde.Build.Notifications.Impl
 		/// <inheritdoc/>
 		public async Task NotifyIssueUpdatedAsync(IIssue issue)
 		{
+			// Do not send notifications for quarantined issues
+			if (issue.QuarantinedByUserId != null)
+			{
+				return;
+			}
+
 			IIssueDetails details = await _issueService.GetIssueDetailsAsync(issue);
 
 			bool notifySuspects = issue.Promoted || details.Spans.Any(x => x.LastFailure.Annotations.NotifySubmitters ?? false);
@@ -1119,6 +1125,11 @@ namespace Horde.Build.Notifications.Impl
 						{
 							status = $"{status} (unacknowledged)";
 						}
+					}
+
+					if (issue.QuarantinedByUserId != null)
+					{
+						status = $"{status} - *Quarantined*";
 					}
 
 					body.Append($"\n\u2022 *Issue <{issueUrl}|{issue.Id}>");
