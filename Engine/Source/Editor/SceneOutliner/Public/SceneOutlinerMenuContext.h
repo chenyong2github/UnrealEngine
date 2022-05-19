@@ -20,6 +20,7 @@ public:
 	{
 		bShowParentTree = false;
 		bRepresentingPartitionedWorld = false;
+		bRepresentingGameWorld = false;
 		NumSelectedItems = 0;
 		NumSelectedFolders = 0;
 		NumWorldsSelected = 0;
@@ -29,6 +30,7 @@ public:
 	TWeakPtr<SSceneOutliner> SceneOutliner;
 
 	bool bShowParentTree;
+	bool bRepresentingGameWorld;
 	bool bRepresentingPartitionedWorld;
 	int32 NumSelectedItems;
 	int32 NumSelectedFolders;

@@ -146,5 +146,6 @@ private:
 	/** List of actors which passed the regular filters and may or may not have passed the search filter */
 	TSet<TWeakObjectPtr<AActor>> ApplicableActors;
 
+	bool bRepresentingWorldGameWorld = false;
 	bool bRepresentingWorldPartitionedWorld = false;
 };

@@ -241,6 +241,7 @@ void FActorBrowsingMode::Rebuild()
 	ApplicableUnloadedActors.Empty();
 	ApplicableActors.Empty();
 
+	bRepresentingWorldGameWorld = RepresentingWorld.IsValid() && RepresentingWorld->IsGameWorld();
 	bRepresentingWorldPartitionedWorld = RepresentingWorld.IsValid() && RepresentingWorld->IsPartitionedWorld();
 
 	if (bRepresentingWorldPartitionedWorld)
@@ -496,7 +497,7 @@ void FActorBrowsingMode::RegisterContextMenu()
 					if (Context->bShowParentTree && Context->NumSelectedItems > 0 && Context->SceneOutliner.IsValid())
 					{
 						// Only add the menu option to wp levels
-						if (Context->bRepresentingPartitionedWorld)
+						if (!Context->bRepresentingGameWorld && Context->bRepresentingPartitionedWorld)
 						{
 							// If selection contains some unpinned items, show the pin option
 							// If the selection contains folders, always show the pin option
@@ -603,6 +604,7 @@ TSharedPtr<SWidget> FActorBrowsingMode::BuildContextMenu()
 	ContextObject->NumSelectedItems = ItemSelection.Num();
 	ContextObject->NumSelectedFolders = ItemSelection.Num<FFolderTreeItem>();
 	ContextObject->NumWorldsSelected = ItemSelection.Num<FWorldTreeItem>();
+	ContextObject->bRepresentingGameWorld = bRepresentingWorldGameWorld;
 	ContextObject->bRepresentingPartitionedWorld = bRepresentingWorldPartitionedWorld;
 
 	int32 NumPinnedItems = 0;

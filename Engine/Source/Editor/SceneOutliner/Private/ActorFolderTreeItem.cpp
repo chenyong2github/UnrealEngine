@@ -350,7 +350,7 @@ TSharedRef<SWidget> FActorFolderTreeItem::GenerateLabelWidget(ISceneOutliner& Ou
 
 bool FActorFolderTreeItem::ShouldShowPinnedState() const
 {
-	return GetRootObject() == FFolder::GetDefaultRootObject() && World.IsValid() && World->IsPartitionedWorld();
+	return GetRootObject() == FFolder::GetDefaultRootObject() && World.IsValid() && !World->IsGameWorld() && World->IsPartitionedWorld();
 }
 
 bool FActorFolderTreeItem::CanInteract() const
