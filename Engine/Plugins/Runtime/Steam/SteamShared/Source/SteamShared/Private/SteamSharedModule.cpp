@@ -350,18 +350,9 @@ FSteamServerInstanceHandler::FSteamServerInstanceHandler(FSteamSharedModule* Ste
 
 	UE_LOG(LogSteamShared, Verbose, TEXT("Initializing Steam Game Server IP: 0x%08X Port: %d QueryPort: %d"), LocalServerIP, GamePort, QueryPort);
 
-	// This is a quick fix so Steam 1.51 works on Windows and Mac uses 1.47 (previous version)
-#if PLATFORM_MAC
-	// Grab the SteamPort, which handles communications over the steam network.
-	int SteamPort = GamePort + 1;
-	if (SteamGameServer_Init(LocalServerIP, SteamPort, GamePort, QueryPort,
-		(bVACEnabled ? eServerModeAuthenticationAndSecure : eServerModeAuthentication),
-		TCHAR_TO_UTF8(*GameVersion)))
-#else
 	if (SteamGameServer_Init(LocalServerIP, GamePort, QueryPort,
 		(bVACEnabled ? eServerModeAuthenticationAndSecure : eServerModeAuthentication),
 		TCHAR_TO_UTF8(*GameVersion)))
-#endif // PLATFORM_MAC
 	{
 		UE_LOG(LogSteamShared, Verbose, TEXT("Steam Dedicated Server API initialized."));
 		bInitialized = true;

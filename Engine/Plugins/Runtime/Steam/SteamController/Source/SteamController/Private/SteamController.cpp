@@ -45,7 +45,8 @@ public:
 		// [RCL] 2015-01-23 FIXME: move to some other code than constructor so we can handle failures more gracefully
 		if (SteamAPIHandle.IsValid() && (SteamInput() != nullptr))
 		{
-			bSteamControllerInitialized = SteamInput()->Init();
+			const bool bManuallyCallRunFrame = false;
+			bSteamControllerInitialized = SteamInput()->Init(bManuallyCallRunFrame);
 
 			InputSettings = GetDefault<UInputSettings>();
 			if (InputSettings != nullptr)
@@ -271,12 +272,12 @@ public:
 		// of a "stronger" vibration
 		if (ForceFeedbackValues.LeftLarge > 0.f)
 		{
-			Controller->TriggerHapticPulse(ControllerHandles[ControllerId], ESteamControllerPad::k_ESteamControllerPad_Left, ForceFeedbackValues.LeftLarge * 4000.0f);
+			Controller->Legacy_TriggerHapticPulse(ControllerHandles[ControllerId], ESteamControllerPad::k_ESteamControllerPad_Left, ForceFeedbackValues.LeftLarge * 4000.0f);
 		}
 
 		if (ForceFeedbackValues.RightLarge > 0.f)
 		{
-			Controller->TriggerHapticPulse(ControllerHandles[ControllerId], ESteamControllerPad::k_ESteamControllerPad_Right, ForceFeedbackValues.RightLarge * 4000.0f);
+			Controller->Legacy_TriggerHapticPulse(ControllerHandles[ControllerId], ESteamControllerPad::k_ESteamControllerPad_Right, ForceFeedbackValues.RightLarge * 4000.0f);
 		}
 	}
 

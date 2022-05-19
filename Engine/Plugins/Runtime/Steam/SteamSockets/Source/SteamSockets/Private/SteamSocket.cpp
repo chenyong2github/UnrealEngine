@@ -19,9 +19,7 @@ FSteamSocket::FSteamSocket(ESocketType InSocketType, const FString& InSocketDesc
 {
 	SocketSubsystem = static_cast<FSteamSocketsSubsystem*>(ISocketSubsystem::Get(STEAM_SOCKETS_SUBSYSTEM));
 	ISteamNetworkingSockets* SocketInterface = FSteamSocketsSubsystem::GetSteamSocketsInterface();
-#if !PLATFORM_MAC
 	PollGroup = k_HSteamNetPollGroup_Invalid;
-#endif // PLATFORM_MAC
 }
 
 FSteamSocket::~FSteamSocket()
@@ -32,13 +30,11 @@ FSteamSocket::~FSteamSocket()
 		PendingData->Release();
 	}
 
-#if !PLATFORM_MAC
 	ISteamNetworkingSockets* SocketInterface = FSteamSocketsSubsystem::GetSteamSocketsInterface();
 	if (PollGroup != k_HSteamNetPollGroup_Invalid)
 	{
 		SocketInterface->DestroyPollGroup(PollGroup);
 	}
-#endif // PLATFORM_MAC
 
 	Close();
 }
@@ -179,10 +175,8 @@ bool FSteamSocket::Listen(int32 MaxBacklog)
 		bWasSuccessful = true;
 		SocketSubsystem->AddSocket(BindAddress, this);
 
-#if !PLATFORM_MAC
 		PollGroup = SocketInterface->CreatePollGroup();
 		SocketInterface->SetConnectionPollGroup(InternalHandle, PollGroup);
-#endif // PLATFORM_MAC
 	}
 
 	return bWasSuccessful;
@@ -340,13 +334,8 @@ bool FSteamSocket::RecvRaw(SteamNetworkingMessage_t*& Data, int32 MaxMessages, i
 	}
 
 	// At this point, we will have already written our pending data or we're getting a new one.
-#if PLATFORM_MAC
-	MessagesRead = (bIsListenSocket) ? SocketInterface->ReceiveMessagesOnListenSocket(InternalHandle, ((bIsPeeking) ? &PendingData : &Data), MaxMessages) :
-		SocketInterface->ReceiveMessagesOnConnection(InternalHandle, ((bIsPeeking) ? &PendingData : &Data), MaxMessages);
-#else
 	MessagesRead = (bIsListenSocket) ? SocketInterface->ReceiveMessagesOnPollGroup(PollGroup, ((bIsPeeking) ? &PendingData : &Data), MaxMessages) :
 		SocketInterface->ReceiveMessagesOnConnection(InternalHandle, ((bIsPeeking) ? &PendingData : &Data), MaxMessages);
-#endif // PLATFORM_MAC
 
 	if (MessagesRead >= 1)
 	{
@@ -415,8 +404,10 @@ ESocketConnectionState FSteamSocket::GetConnectionState()
 		return SCS_NotConnected;
 	}
 
-	SteamNetworkingQuickConnectionStatus QuickSocketData;
-	if (SocketInterface->GetQuickConnectionStatus(InternalHandle, &QuickSocketData))
+	SteamNetConnectionRealTimeStatus_t QuickSocketData;
+	int nLanes = 0;
+	SteamNetConnectionRealTimeLaneStatus_t* pLanes = NULL;
+	if (SocketInterface->GetConnectionRealTimeStatus(InternalHandle, &QuickSocketData, nLanes, pLanes))
 	{
 		switch (QuickSocketData.m_eState)
 		{

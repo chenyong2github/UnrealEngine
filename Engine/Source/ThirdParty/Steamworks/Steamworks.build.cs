@@ -10,12 +10,7 @@ public class Steamworks : ModuleRules
 	public Steamworks(ReadOnlyTargetRules Target) : base(Target)
 	{
         // The current SDK version number.
-        double SteamVersionNumber = 1.51;
-        if (Target.Platform == UnrealTargetPlatform.Mac)
-        {
-            // 1.51 on Mac is crashing on 4.27, quick fix to make sure Steam still works on Mac
-            SteamVersionNumber = 1.47;
-        }
+        double SteamVersionNumber = 1.53;
 
         // Mark the current version of the Steam SDK
         string SteamVersion = String.Format(CultureInfo.InvariantCulture, "v{0}", SteamVersionNumber).Replace(".", "");
@@ -73,9 +68,11 @@ public class Steamworks : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			LibraryPath = SteamBinariesDir + "Mac/libsteam_api.dylib";
-			PublicDelayLoadDLLs.Add(LibraryPath);
-			RuntimeDependencies.Add(LibraryPath);
+			LibraryPath += "osx/";
+			SteamBinariesDir += "Mac/";
+			PublicDelayLoadDLLs.Add(SteamBinariesDir + "libsteam_api.dylib");
+			// since Steam SDK 1.51, the dylib needs to be in the same directory the binary otherwise it crashes
+			RuntimeDependencies.Add("$(BinaryOutputDir)/libsteam_api.dylib", LibraryPath + "libsteam_api.dylib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Linux)
 		{

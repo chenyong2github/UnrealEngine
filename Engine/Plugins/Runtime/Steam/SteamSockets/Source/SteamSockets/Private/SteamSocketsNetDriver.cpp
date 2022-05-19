@@ -238,7 +238,7 @@ bool USteamSocketsNetDriver::InitListen(FNetworkNotify* InNotify, FURL& LocalURL
 	if (!bIsDelayedNetworkAccess && Socket->Listen(0) == false)
 	{
 		UE_LOG(LogNet, Warning, TEXT("SteamSockets: InitListen failed to start listening on the Steam Network."));
-		Socket->SetClosureReason(k_ESteamNetConnectionEnd_Misc_RelayConnectivity);
+		Socket->SetClosureReason(k_ESteamNetConnectionEnd_Misc_SteamConnectivity);  // k_ESteamNetConnectionEnd_Misc_RelayConnectivity has been deprecated
 
 		return false;
 	}
@@ -498,11 +498,13 @@ void USteamSocketsNetDriver::OnConnectionCreated(SteamSocketHandles ListenParent
 		SocketSubsystem->LinkNetDriver(NewSocket, this);
 
 		EConnectionState RemoteConnectionState = USOCK_Pending;
-		SteamNetworkingQuickConnectionStatus ConnStatus;
+		SteamNetConnectionRealTimeStatus_t ConnStatus;
+		int nLanes = 0;
+		SteamNetConnectionRealTimeLaneStatus_t* pLanes = NULL;
 		// We might already have a full route to the user already, which will not signal an event later (for the listener) that would otherwise update the connection state
 		// Because of this, we need to quickly query the new connection status to determine where we are in the connection flow
 		// This is very unlikely unless we already had a previous route to this connection.
-		if (FSteamSocketsSubsystem::GetSteamSocketsInterface()->GetQuickConnectionStatus(SocketHandle, &ConnStatus) && ConnStatus.m_eState == k_ESteamNetworkingConnectionState_Connected)
+		if (FSteamSocketsSubsystem::GetSteamSocketsInterface()->GetConnectionRealTimeStatus(SocketHandle, &ConnStatus, nLanes, pLanes) && ConnStatus.m_eState == k_ESteamNetworkingConnectionState_Connected)
 		{
 			// We have already found a route and made a connection, skip out of pending.
 			RemoteConnectionState = USOCK_Open;
