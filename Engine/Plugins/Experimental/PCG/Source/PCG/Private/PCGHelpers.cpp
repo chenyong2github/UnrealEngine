@@ -40,6 +40,18 @@ namespace PCGHelpers
 			(InPosition.Y >= InBox.Min.Y) && (InPosition.Y < InBox.Max.Y);
 	}
 
+	FBox OverlapBounds(const FBox& InA, const FBox& InB)
+	{
+		if (!InA.IsValid || !InB.IsValid)
+		{
+			return FBox(EForceInit::ForceInit);
+		}
+		else
+		{
+			return InA.Overlap(InB);
+		}
+	}
+
 	FBox GetActorBounds(AActor* InActor)
 	{
 		// Specialized version of GetComponentsBoundingBox that skips over PCG generated components

@@ -53,7 +53,7 @@ void UPCGUnionData::AddData(const UPCGSpatialData* InData)
 	else
 	{
 		CachedBounds += InData->GetBounds();
-		CachedStrictBounds = CachedStrictBounds.Overlap(InData->GetStrictBounds());
+		CachedStrictBounds = PCGHelpers::OverlapBounds(CachedStrictBounds, InData->GetStrictBounds());
 		CachedDimension = FMath::Max(CachedDimension, InData->GetDimension());
 	}
 

@@ -25,6 +25,8 @@ namespace PCGHelpers
 	bool IsInsideBounds(const FBox& InBox, const FVector& InPosition);
 	bool IsInsideBoundsXY(const FBox& InBox, const FVector& InPosition);
 
+	FBox OverlapBounds(const FBox& InBoxA, const FBox& InBoxB);
+
 	FBox GetActorBounds(AActor* InActor);
 	FBox GetLandscapeBounds(ALandscapeProxy* InLandscape);
 

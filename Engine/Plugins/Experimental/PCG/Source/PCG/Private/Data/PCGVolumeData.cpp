@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Data/PCGVolumeData.h"
+#include "Data/PCGPointData.h"
 #include "PCGHelpers.h"
+#include "Elements/PCGVolumeSampler.h"
 
 #include "Components/BrushComponent.h"
 #include "GameFramework/Volume.h"
@@ -38,8 +40,19 @@ FBox UPCGVolumeData::GetStrictBounds() const
 
 const UPCGPointData* UPCGVolumeData::CreatePointData(FPCGContext* Context) const
 {
-	UE_LOG(LogPCG, Error, TEXT("Volume data has no default point sampling"));
-	return nullptr;
+	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGVolumeData::CreatePointData);
+
+	PCGVolumeSampler::FVolumeSamplerSettings SamplerSettings;
+	SamplerSettings.VoxelSize = VoxelSize;
+
+	UPCGPointData* Data = PCGVolumeSampler::SampleVolume(Context, this, SamplerSettings);
+
+	if (Data)
+	{
+		UE_LOG(LogPCG, Verbose, TEXT("Volume extracted %d points"), Data->GetPoints().Num());
+	}
+
+	return Data;
 }
 
 bool UPCGVolumeData::SamplePoint(const FTransform& InTransform, const FBox& InBounds, FPCGPoint& OutPoint, UPCGMetadata* OutMetadata) const

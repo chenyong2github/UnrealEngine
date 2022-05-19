@@ -28,8 +28,8 @@ void UPCGIntersectionData::Initialize(const UPCGSpatialData* InA, const UPCGSpat
 	B = InB;
 	TargetActor = A->TargetActor;
 
-	CachedBounds = A->GetBounds().Overlap(B->GetBounds());
-	CachedStrictBounds = A->GetStrictBounds().Overlap(B->GetStrictBounds());
+	CachedBounds = PCGHelpers::OverlapBounds(A->GetBounds(), B->GetBounds());
+	CachedStrictBounds = PCGHelpers::OverlapBounds(A->GetStrictBounds(), B->GetStrictBounds());
 }
 
 int UPCGIntersectionData::GetDimension() const

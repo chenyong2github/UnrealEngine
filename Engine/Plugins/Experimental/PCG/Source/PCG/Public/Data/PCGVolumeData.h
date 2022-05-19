@@ -33,6 +33,9 @@ public:
 	virtual const UPCGPointData* CreatePointData(FPCGContext* Context) const override;
 	// ~End UPCGSpatialDataWithPointCache interface
 
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Data")
+	FVector VoxelSize = FVector(100.0, 100.0, 100.0);
+
 protected:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = SourceData)
 	TObjectPtr<AVolume> Volume = nullptr;
