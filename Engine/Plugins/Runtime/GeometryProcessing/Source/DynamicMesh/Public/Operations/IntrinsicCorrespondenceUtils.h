@@ -9,7 +9,6 @@
 #include "VectorTypes.h"
 #include "MathUtil.h"
 
-struct foofoo { foofoo(){}; double x; double y; double z;};
 namespace UE
 {
 namespace Geometry
