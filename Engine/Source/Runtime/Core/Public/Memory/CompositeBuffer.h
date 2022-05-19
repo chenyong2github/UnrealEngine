@@ -109,6 +109,9 @@ public:
 	CORE_API void IterateRange(uint64 Offset, uint64 Size,
 		TFunctionRef<void (FMemoryView View, const FSharedBuffer& ViewOuter)> Visitor) const;
 
+	/** Returns true if the bytes of this buffer are equal to the bytes of the other buffer. */
+	[[nodiscard]] CORE_API bool EqualBytes(const FCompositeBuffer& Other) const;
+
 	/** A null composite buffer. */
 	static const FCompositeBuffer Null;
 

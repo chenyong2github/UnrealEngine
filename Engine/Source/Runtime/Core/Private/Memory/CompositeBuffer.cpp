@@ -137,3 +137,29 @@ void FCompositeBuffer::IterateRange(uint64 Offset, uint64 Size,
 		}
 	}
 }
+
+bool FCompositeBuffer::EqualBytes(const FCompositeBuffer& Other) const
+{
+	const uint64 Size = GetSize();
+	if (Size != Other.GetSize())
+	{
+		return false;
+	}
+	uint64 Offset = 0;
+	for (const FSharedBuffer& Segment : Segments)
+	{
+		bool bEqual = true;
+		FMemoryView SegmentView = Segment.GetView();
+		Other.IterateRange(Offset, Segment.GetSize(), [&bEqual, &SegmentView](FMemoryView OtherView)
+		{
+			bEqual = bEqual && SegmentView.Left(OtherView.GetSize()).EqualBytes(OtherView);
+			SegmentView += OtherView.GetSize();
+		});
+		Offset += Segment.GetSize();
+		if (!bEqual)
+		{
+			return false;
+		}
+	}
+	return true;
+}
