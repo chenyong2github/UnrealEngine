@@ -9,6 +9,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Serialization/MemoryHasher.h"
+#include "Async/Async.h"
 #include "MeshDescription.h"
 #include "MeshAttributes.h"
 #include "StaticMeshAttributes.h"

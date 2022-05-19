@@ -5,6 +5,7 @@
 #include "SConcertClientsTabView.h"
 #include "Window/ConcertServerTabs.h"
 #include "Window/ConcertServerWindowController.h"
+#include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 

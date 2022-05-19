@@ -6,6 +6,7 @@
 #include "RenderCommandFence.h"
 #include "Rendering/NaniteResources.h"
 #include "UObject/ObjectMacros.h"
+#include "StaticMeshResources.h"
 
 #include "NaniteDisplacedMesh.generated.h"
 
