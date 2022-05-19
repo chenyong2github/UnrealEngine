@@ -58,6 +58,10 @@ public:
 	{
 		return true;
 	}
+	virtual bool CanBeUsedOnPanicThread() const override
+	{
+		return true;
+	}
 	virtual bool IsMemoryOnly() const override
 	{
 		return true;

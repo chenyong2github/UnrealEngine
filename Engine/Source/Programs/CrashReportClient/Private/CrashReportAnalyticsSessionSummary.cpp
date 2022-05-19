@@ -451,6 +451,11 @@ bool FCrashReportAnalyticsSessionSummary::CanBeUsedOnMultipleThreads() const
 	return true;
 }
 
+bool FCrashReportAnalyticsSessionSummary::CanBeUsedOnPanicThread() const
+{
+	return true;
+}
+
 void FCrashReportAnalyticsSessionSummary::LogEvent(const FString& Event)
 {
 	LogEvent(*Event);

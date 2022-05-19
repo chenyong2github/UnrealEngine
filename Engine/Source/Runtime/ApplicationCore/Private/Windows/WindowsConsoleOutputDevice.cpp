@@ -445,7 +445,7 @@ bool FWindowsConsoleOutputDevice::IsAttached()
 	}
 	else
 	{
-		FreeConsole();		
+		FreeConsole();
 	}
 	return false;
 }
@@ -455,3 +455,7 @@ bool FWindowsConsoleOutputDevice::CanBeUsedOnAnyThread() const
 	return true;
 }
 
+bool FWindowsConsoleOutputDevice::CanBeUsedOnPanicThread() const 
+{
+	return true;
+}

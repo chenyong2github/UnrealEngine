@@ -24,5 +24,10 @@ public:
 	}
 
 	virtual bool CanBeUsedOnMultipleThreads() const override;
+
+	virtual bool CanBeUsedOnPanicThread() const override
+	{
+		return true;
+	}
 };
 

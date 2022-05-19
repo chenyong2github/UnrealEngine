@@ -377,6 +377,11 @@ public:
 		return true;
 	}
 
+	virtual bool CanBeUsedOnPanicThread() const override
+	{
+		return true;
+	}
+
 	virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override
 	{
 		if (Verbosity <= AllowedLogVerbosity)

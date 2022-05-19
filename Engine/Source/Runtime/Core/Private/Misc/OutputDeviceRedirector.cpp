@@ -2,6 +2,7 @@
 
 #include "Misc/OutputDeviceRedirector.h"
 
+#include "Containers/BitArray.h"
 #include "Containers/DepletableMpscQueue.h"
 #include "Experimental/ConcurrentLinearAllocator.h"
 #include "HAL/Event.h"
@@ -133,11 +134,11 @@ struct FOutputDeviceRedirectorState
 	/** A lock to synchronize access to the thread. */
 	FRWLock ThreadLock;
 
-	/** An event to wake the dedicated master thread to process buffered lines. */
-	std::atomic<FEvent*> ThreadWakeEvent = nullptr;
-
 	/** A queue of events to trigger when the dedicated master thread is idle. */
 	TDepletableMpscQueue<FEvent*, FOutputDeviceLinearAllocator> ThreadIdleEvents;
+
+	/** An event to wake the dedicated master thread to process buffered lines. */
+	std::atomic<FEvent*> ThreadWakeEvent = nullptr;
 
 	/** The ID of the thread holding the master lock. */
 	std::atomic<uint32> LockedThreadId = MAX_uint32;
@@ -150,6 +151,10 @@ struct FOutputDeviceRedirectorState
 
 	/** Whether the backlog is enabled. */
 	bool bEnableBacklog = false;
+
+	/** Whether the output device at the corresponding index can be used on the panic thread. */
+	TBitArray<TInlineAllocator<1>> BufferedOutputDevicesCanBeUsedOnPanicThread;
+	TBitArray<TInlineAllocator<1>> UnbufferedOutputDevicesCanBeUsedOnPanicThread;
 
 	bool IsMasterThread(const uint32 ThreadId) const
 	{
@@ -171,6 +176,9 @@ struct FOutputDeviceRedirectorState
 		return LocalPanicThreadId == MAX_uint32 || LocalPanicThreadId == ThreadId;
 	}
 
+	void AddOutputDevice(FOutputDevice* OutputDevice);
+	void RemoveOutputDevice(FOutputDevice* OutputDevice);
+
 	bool TryStartThread();
 	bool TryStopThread();
 
@@ -179,12 +187,18 @@ struct FOutputDeviceRedirectorState
 	void FlushBufferedLines();
 
 	template <typename OutputDevicesType, typename FunctionType, typename... ArgTypes>
-	FORCEINLINE void BroadcastTo(const uint32 ThreadId, const OutputDevicesType& OutputDevices, FunctionType&& Function, ArgTypes&&... Args)
+	FORCEINLINE void BroadcastTo(
+		const uint32 ThreadId,
+		const OutputDevicesType& OutputDevices,
+		const TBitArray<TInlineAllocator<1>>& CanBeUsedOnPanicThread,
+		FunctionType&& Function,
+		ArgTypes&&... Args)
 	{
+		int32 Index = 0;
 		const bool bIsPanicThread = IsPanicThread(ThreadId);
 		for (FOutputDevice* OutputDevice : OutputDevices)
 		{
-			if (!bIsPanicThread || OutputDevice->CanBeUsedOnPanicThread())
+			if (!bIsPanicThread || CanBeUsedOnPanicThread[Index++])
 			{
 				Invoke(Function, OutputDevice, Forward<ArgTypes>(Args)...);
 			}
@@ -343,6 +357,42 @@ private:
 	bool bLocked = false;
 };
 
+void FOutputDeviceRedirectorState::AddOutputDevice(FOutputDevice* OutputDevice)
+{
+	const auto AddTo = [OutputDevice](TArray<FOutputDevice*>& OutputDevices, TBitArray<TInlineAllocator<1>>& Flags)
+	{
+		const int32 Count = OutputDevices.Num();
+		if (OutputDevices.AddUnique(OutputDevice) == Count)
+		{
+			Flags.Add(OutputDevice->CanBeUsedOnPanicThread());
+		}
+	};
+	UE::Private::FOutputDevicesWriteScopeLock ScopeLock(*this);
+	if (OutputDevice->CanBeUsedOnMultipleThreads())
+	{
+		AddTo(UnbufferedOutputDevices, UnbufferedOutputDevicesCanBeUsedOnPanicThread);
+	}
+	else
+	{
+		AddTo(BufferedOutputDevices, BufferedOutputDevicesCanBeUsedOnPanicThread);
+	}
+}
+
+void FOutputDeviceRedirectorState::RemoveOutputDevice(FOutputDevice* OutputDevice)
+{
+	const auto RemoveFrom = [OutputDevice](TArray<FOutputDevice*>& OutputDevices, TBitArray<TInlineAllocator<1>>& Flags)
+	{
+		if (const int32 Index = OutputDevices.FindLast(OutputDevice); Index != INDEX_NONE)
+		{
+			OutputDevices.RemoveAt(Index);
+			Flags.RemoveAt(Index);
+		}
+	};
+	UE::Private::FOutputDevicesWriteScopeLock ScopeLock(*this);
+	RemoveFrom(BufferedOutputDevices, BufferedOutputDevicesCanBeUsedOnPanicThread);
+	RemoveFrom(UnbufferedOutputDevices, UnbufferedOutputDevicesCanBeUsedOnPanicThread);
+}
+
 bool FOutputDeviceRedirectorState::TryStartThread()
 {
 	if (FWriteScopeLock ThreadScopeLock(ThreadLock); !ThreadWakeEvent.load(std::memory_order_relaxed))
@@ -402,7 +452,8 @@ void FOutputDeviceRedirectorState::FlushBufferedLines()
 	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 	BufferedLines.Deplete([this, ThreadId](UE::Private::FOutputDeviceLine&& Line)
 	{
-		BroadcastTo(ThreadId, BufferedOutputDevices, UE_PROJECTION_MEMBER(FOutputDevice, Serialize),
+		BroadcastTo(ThreadId, BufferedOutputDevices, BufferedOutputDevicesCanBeUsedOnPanicThread,
+			UE_PROJECTION_MEMBER(FOutputDevice, Serialize),
 			Line.Data, Line.Verbosity, Line.Category, Line.Time);
 	});
 }
@@ -424,15 +475,7 @@ void FOutputDeviceRedirector::AddOutputDevice(FOutputDevice* OutputDevice)
 {
 	if (OutputDevice)
 	{
-		UE::Private::FOutputDevicesWriteScopeLock ScopeLock(*State);
-		if (OutputDevice->CanBeUsedOnMultipleThreads())
-		{
-			State->UnbufferedOutputDevices.AddUnique(OutputDevice);
-		}
-		else
-		{
-			State->BufferedOutputDevices.AddUnique(OutputDevice);
-		}
+		State->AddOutputDevice(OutputDevice);
 	}
 }
 
@@ -440,9 +483,7 @@ void FOutputDeviceRedirector::RemoveOutputDevice(FOutputDevice* OutputDevice)
 {
 	if (OutputDevice)
 	{
-		UE::Private::FOutputDevicesWriteScopeLock ScopeLock(*State);
-		State->BufferedOutputDevices.Remove(OutputDevice);
-		State->UnbufferedOutputDevices.Remove(OutputDevice);
+		State->RemoveOutputDevice(OutputDevice);
 	}
 }
 
@@ -537,7 +578,8 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 	const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
 
 	// Serialize directly to any output devices which don't require buffering
-	State->BroadcastTo(ThreadId, State->UnbufferedOutputDevices, UE_PROJECTION_MEMBER(FOutputDevice, Serialize),
+	State->BroadcastTo(ThreadId, State->UnbufferedOutputDevices, State->UnbufferedOutputDevicesCanBeUsedOnPanicThread,
+		UE_PROJECTION_MEMBER(FOutputDevice, Serialize),
 		Data, Verbosity, Category, RealTime);
 
 	// Serialize to the backlog when not in panic mode. This will deadlock in panic mode when the
@@ -557,7 +599,8 @@ void FOutputDeviceRedirector::Serialize(const TCHAR* const Data, const ELogVerbo
 		if (UE::Private::FOutputDevicesMasterScope MasterLock(*State); MasterLock.IsLocked() && State->IsMasterThread(ThreadId))
 		{
 			State->FlushBufferedLines();
-			State->BroadcastTo(ThreadId, State->BufferedOutputDevices, UE_PROJECTION_MEMBER(FOutputDevice, Serialize),
+			State->BroadcastTo(ThreadId, State->BufferedOutputDevices, State->BufferedOutputDevicesCanBeUsedOnPanicThread,
+				UE_PROJECTION_MEMBER(FOutputDevice, Serialize),
 				Data, Verbosity, Category, RealTime);
 			if (UNLIKELY(State->IsPanicThread(ThreadId)))
 			{
@@ -598,8 +641,8 @@ void FOutputDeviceRedirector::Flush()
 	{
 		State->FlushBufferedLines();
 		const uint32 ThreadId = FPlatformTLS::GetCurrentThreadId();
-		State->BroadcastTo(ThreadId, State->BufferedOutputDevices, &FOutputDevice::Flush);
-		State->BroadcastTo(ThreadId, State->UnbufferedOutputDevices, &FOutputDevice::Flush);
+		State->BroadcastTo(ThreadId, State->BufferedOutputDevices, State->BufferedOutputDevicesCanBeUsedOnPanicThread, &FOutputDevice::Flush);
+		State->BroadcastTo(ThreadId, State->UnbufferedOutputDevices, State->UnbufferedOutputDevicesCanBeUsedOnPanicThread, &FOutputDevice::Flush);
 	}
 }
 

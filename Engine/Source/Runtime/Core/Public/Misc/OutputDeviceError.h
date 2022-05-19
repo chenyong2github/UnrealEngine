@@ -9,6 +9,11 @@
 class CORE_API FOutputDeviceError : public FOutputDevice
 {
 public:
+	virtual bool CanBeUsedOnPanicThread() const override
+	{
+		return true;
+	}
+
 	virtual void HandleError()=0;
 
 	/** Sets the location of the instruction that raise the next error */

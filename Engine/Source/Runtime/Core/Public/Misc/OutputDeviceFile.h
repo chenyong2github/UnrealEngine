@@ -147,6 +147,10 @@ public:
 	{
 		return true;
 	}
+	virtual bool CanBeUsedOnPanicThread() const override
+	{
+		return true;
+	}
 	//~ End FOutputDevice Interface.
 
 	/** Creates a backup copy of a log file if it already exists */

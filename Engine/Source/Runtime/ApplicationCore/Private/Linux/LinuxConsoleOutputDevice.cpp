@@ -106,7 +106,12 @@ void FLinuxConsoleOutputDevice::Serialize(const TCHAR* Data, ELogVerbosity::Type
 	}
 }
 
-bool FLinuxConsoleOutputDevice::CanBeUsedOnAnyThread() const 
+bool FLinuxConsoleOutputDevice::CanBeUsedOnAnyThread() const
+{
+	return true;
+}
+
+bool FLinuxConsoleOutputDevice::CanBeUsedOnPanicThread() const
 {
 	return true;
 }

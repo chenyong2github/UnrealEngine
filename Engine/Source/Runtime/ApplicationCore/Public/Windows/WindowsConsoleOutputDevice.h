@@ -84,6 +84,7 @@ public:
 	virtual bool IsAttached();
 
 	virtual bool CanBeUsedOnAnyThread() const override;
+	virtual bool CanBeUsedOnPanicThread() const override;
 
 	/**
 	 * Displays text on the console and scrolls if necessary.

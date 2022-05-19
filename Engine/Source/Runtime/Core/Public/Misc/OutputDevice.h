@@ -201,10 +201,11 @@ public:
 
 	/**
 	 * @return whether this output device can be used after a panic (crash or fatal error) has been flagged.
+	 * @note The return value is cached by AddOutputDevice because calling this during a panic may fail.
 	 */
 	virtual bool CanBeUsedOnPanicThread() const
 	{
-		return CanBeUsedOnAnyThread();
+		return false;
 	}
 
 	// Simple text printing.

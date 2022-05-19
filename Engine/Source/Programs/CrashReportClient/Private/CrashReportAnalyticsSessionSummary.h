@@ -39,6 +39,7 @@ public:
 	virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const FName& Category, const double Time) override;
 	virtual bool CanBeUsedOnAnyThread() const override;
 	virtual bool CanBeUsedOnMultipleThreads() const override;
+	virtual bool CanBeUsedOnPanicThread() const override;
 
 	/** Logs an events in the analytics session summary diagnostic log. The event text is expected to be short and concise. */
 	void LogEvent(const TCHAR* Event, bool bForwardToUELog = true);
