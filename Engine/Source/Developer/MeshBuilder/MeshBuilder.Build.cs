@@ -7,6 +7,13 @@ namespace UnrealBuildTool.Rules
 	{
 		public MeshBuilder(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"MeshUtilitiesCommon",
+				}
+			);
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -20,7 +27,6 @@ namespace UnrealBuildTool.Rules
                     "MeshReductionInterface",
                     "RawMesh",
 					"MeshUtilities",
-					"MeshUtilitiesCommon",
 					"ClothingSystemRuntimeNv",
 					"MeshBoneReduction",
 					"SkeletalMeshUtilitiesCommon",
