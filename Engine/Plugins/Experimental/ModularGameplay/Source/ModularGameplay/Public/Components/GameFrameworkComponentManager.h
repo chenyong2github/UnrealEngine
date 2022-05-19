@@ -9,12 +9,19 @@
 #include "UObject/ClassTree.h"
 #include "Templates/SubclassOf.h"
 #include "Subsystems/GameInstanceSubsystem.h"
+#include "GameplayTagContainer.h"
 
 #include "GameFrameworkComponentManager.generated.h"
 
 class AActor;
 class UActorComponent;
 class UGameFrameworkComponent;
+
+/** Native delegate called when an actor feature changes init state */
+DECLARE_DELEGATE_FourParams(FActorInitStateChangedDelegate, AActor* /* OwningActor */, FName /* FeatureName */, UObject* /* Implementer */, FGameplayTag /* FeatureState */);
+
+/** Blueprint delegate called when an actor feature changes init state */
+DECLARE_DYNAMIC_DELEGATE_FourParams(FActorInitStateChangedBPDelegate, AActor*, OwningActor, FName, FeatureName, UObject*, Implementer, FGameplayTag, FeatureState);
 
 /** 
  * A handle for a request to put components or call a delegate for an extensible actor class.
@@ -63,8 +70,8 @@ private:
  * Any actors that are in memory when a request is made will automatically get the components, and any in memory when a request is removed will lose the components immediately.
  * Requests are reference counted, so if multiple requests are made for the same actor class and component class, only one component will be added and that component wont be removed until all requests are removed.
  */
-UCLASS(MinimalAPI)
-class UGameFrameworkComponentManager : public UGameInstanceSubsystem
+UCLASS()
+class MODULARGAMEPLAY_API UGameFrameworkComponentManager : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
@@ -75,24 +82,27 @@ public:
 	/** Delegate types for extension handlers */
 	using FExtensionHandlerDelegate = FExtensionHandlerDelegateInternal;
 
-	void InitGameFrameworkComponentManager() {}
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+
+	/** Utility to get this manager from an actor, will return null if actor is null or not in a world */
+	static UGameFrameworkComponentManager* GetForActor(const AActor* Actor, bool bOnlyGameWorlds = true);
 
 	/** Adds an actor as a receiver for components. If it passes the actorclass filter on requests it will get the components. */
 	UFUNCTION(BlueprintCallable, Category="Gameplay", meta=(DefaultToSelf="Receiver", AdvancedDisplay=1))
-	MODULARGAMEPLAY_API void AddReceiver(AActor* Receiver, bool bAddOnlyInGameWorlds = true);
+	void AddReceiver(AActor* Receiver, bool bAddOnlyInGameWorlds = true);
 
 	/** Removes an actor as a receiver for components. */
 	UFUNCTION(BlueprintCallable, Category="Gameplay", meta=(DefaultToSelf="Receiver"))
-	MODULARGAMEPLAY_API void RemoveReceiver(AActor* Receiver);
+	void RemoveReceiver(AActor* Receiver);
 
 	/** Adds an actor as a receiver for components (automatically finding the manager for the actor's  game instance). If it passes the actorclass filter on requests it will get the components. */
-	static MODULARGAMEPLAY_API void AddGameFrameworkComponentReceiver(AActor* Receiver, bool bAddOnlyInGameWorlds = true);
+	static void AddGameFrameworkComponentReceiver(AActor* Receiver, bool bAddOnlyInGameWorlds = true);
 
 	/** Removes an actor as a receiver for components (automatically finding the manager for the actor's game instance). */
-	static MODULARGAMEPLAY_API void RemoveGameFrameworkComponentReceiver(AActor* Receiver);
+	static void RemoveGameFrameworkComponentReceiver(AActor* Receiver);
 
 	/** Adds a request to instantiate components on actors of the given classes. Returns a handle that will keep the request "alive" until it is destructed, at which point the request is removed. */
-	MODULARGAMEPLAY_API TSharedPtr<FComponentRequestHandle> AddComponentRequest(const TSoftClassPtr<AActor>& ReceiverClass, TSubclassOf<UActorComponent> ComponentClass);
+	TSharedPtr<FComponentRequestHandle> AddComponentRequest(const TSoftClassPtr<AActor>& ReceiverClass, TSubclassOf<UActorComponent> ComponentClass);
 
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -100,33 +110,33 @@ public:
 	// These are the default events but games can define, send, and listen for their own.
 
 	/** AddReceiver was called for a registered class and components were added, called early in initialization */
-	static MODULARGAMEPLAY_API FName NAME_ReceiverAdded;
+	static FName NAME_ReceiverAdded;
 
 	/** RemoveReceiver was called for a registered class and components were removed, normally called from EndPlay */
-	static MODULARGAMEPLAY_API FName NAME_ReceiverRemoved;
+	static FName NAME_ReceiverRemoved;
 
 	/** A new extension handler was added */
-	static MODULARGAMEPLAY_API FName NAME_ExtensionAdded;
+	static FName NAME_ExtensionAdded;
 
 	/** An extension handler was removed by a freed request handle */
-	static MODULARGAMEPLAY_API FName NAME_ExtensionRemoved;
+	static FName NAME_ExtensionRemoved;
 
 	/** 
 	 * Game-specific event indicating an actor is mostly initialized and ready for extension. 
 	 * All extensible games are expected to send this event at the appropriate actor-specific point, as plugins may be listening for it.
 	 */
-	static MODULARGAMEPLAY_API FName NAME_GameActorReady;
+	static FName NAME_GameActorReady;
 
 
 	/** Adds an extension handler to run on actors of the given class. Returns a handle that will keep the handler "alive" until it is destructed, at which point the delegate is removed */
-	MODULARGAMEPLAY_API TSharedPtr<FComponentRequestHandle> AddExtensionHandler(const TSoftClassPtr<AActor>& ReceiverClass, FExtensionHandlerDelegate ExtensionHandler);
+	TSharedPtr<FComponentRequestHandle> AddExtensionHandler(const TSoftClassPtr<AActor>& ReceiverClass, FExtensionHandlerDelegate ExtensionHandler);
 
 	/** Sends an arbitrary extension event that can be listened for by other systems */
 	UFUNCTION(BlueprintCallable, Category = "Gameplay", meta = (DefaultToSelf = "Receiver", AdvancedDisplay = 1))
-	MODULARGAMEPLAY_API void SendExtensionEvent(AActor* Receiver, FName EventName, bool bOnlyInGameWorlds = true);
+	void SendExtensionEvent(AActor* Receiver, FName EventName, bool bOnlyInGameWorlds = true);
 
 	/** Sends an arbitrary extension event that can be listened for by other systems */
-	static MODULARGAMEPLAY_API void SendGameFrameworkComponentExtensionEvent(AActor* Receiver, const FName& EventName, bool bOnlyInGameWorlds = true);
+	static void SendGameFrameworkComponentExtensionEvent(AActor* Receiver, const FName& EventName, bool bOnlyInGameWorlds = true);
 
 	static void AddReferencedObjects(UObject* InThis, class FReferenceCollector& Collector);
 
@@ -247,4 +257,267 @@ private:
 #endif // WITH_EDITORONLY_DATA
 
 	friend struct FComponentRequestHandle;
+
+	// TODO work in progress for new actor feature ini state system
+
+
+public:
+
+	/** Adds a new global actor feature state, either before or after an existing one. This will generally be called from game global or game feature initialization */
+	void RegisterInitState(FGameplayTag NewState, bool bAddBefore, FGameplayTag ExistingState);
+
+	/** Returns true if FeatureState comes after the second state (or is equal) */
+	bool IsInitStateAfterOrEqual(FGameplayTag FeatureState, FGameplayTag RelativeState) const;
+
+	/** Returns the earliest state found for the given feature */
+	FGameplayTag GetInitStateForFeature(AActor* Actor, FName FeatureName) const;
+
+	/** Returns true if feature has reached query state or later */
+	bool HasFeatureReachedInitState(AActor* Actor, FName FeatureName, FGameplayTag FeatureState) const;
+
+	/** Returns the object implementing specified feature, filtered by required state if not none */
+	UObject* GetImplementerForFeature(AActor* Actor, FName FeatureName, FGameplayTag RequiredState = FGameplayTag()) const;
+
+	/** Gets all implementing objects for an actor that are at RequiredState or later, other than excluding feature if specified */
+	void GetAllFeatureImplementers(TArray<UObject*>& OutImplementers, AActor* Actor, FGameplayTag RequiredState, FName ExcludingFeature = NAME_None) const;
+
+	/** Checks to see if all features of object, other than the excluding feature if specified, have reached a specified state or later */
+	bool HaveAllFeaturesReachedInitState(AActor* Actor, FGameplayTag RequiredState, FName ExcludingFeature = NAME_None) const;
+
+	/** Changes the current actor feature state, this will call registered callbacks and return true if anything changed */
+	bool ChangeFeatureInitState(AActor* Actor, FName FeatureName, UObject* Implementer, FGameplayTag FeatureState);
+
+	/** Removes an actor and all of it's state information */
+	void RemoveActorFeatureData(AActor* Actor);
+
+	/** Removes an implementing object and any feature states it implements */
+	void RemoveFeatureImplementer(AActor* Actor, UObject* Implementer);
+	
+	/** 
+	 * Registers native delegate for feature state change notifications on a specific actor and may call it immediately
+	 * 
+	 * @param Actor				The actor to listen for state changes to, if you don't have a specific actor call the Class version instead
+	 * @param FeatureName		If not empty, only listen to state changes for the specified feature
+	 * @param RequiredState		If specified, only activate if the init state of the feature is equal to or later than this
+	 * @param Delegate			Native delegate to call
+	 * @param bCallImmediately	If true and the actor feature is already in the specified state, call delegate immediately after registering 
+	 * @return DelegateHandle used for later removal
+	 */
+	FDelegateHandle RegisterAndCallForActorInitState(AActor* Actor, FName FeatureName, FGameplayTag RequiredState, FActorInitStateChangedDelegate Delegate, bool bCallImmediately = true);
+
+	/** Removes a registered delegate bound to a specific actor */
+	bool UnregisterActorInitStateDelegate(AActor* Actor, FDelegateHandle& Handle);
+	
+	/**
+	 * Registers blueprint delegate for feature state change notifications on a specific actor and may call it immediately
+	 *
+	 * @param Actor				The actor to listen for state changes to, if you don't have a specific actor call the Class version instead
+	 * @param FeatureName		If not empty, only listen to state changes for the specified feature
+	 * @param RequiredState		If specified, only activate if the init state of the feature is equal to or later than this
+	 * @param Delegate			Native delegate to call
+	 * @param bCallImmediately	If true and the actor feature is already in the specified state, call delegate immediately after registering
+	 * @return true if delegate was registered
+	 */
+	UFUNCTION(BlueprintCallable, Category = "InitState")
+	bool RegisterAndCallForActorInitState(AActor* Actor, FName FeatureName, FGameplayTag RequiredState, FActorInitStateChangedBPDelegate Delegate, bool bCallImmediately = true);
+
+	/** Removes a registered delegate bound to a specific actor */
+	UFUNCTION(BlueprintCallable, Category = "InitState")
+	bool UnregisterActorInitStateDelegate(AActor* Actor, FActorInitStateChangedBPDelegate DelegateToRemove);
+
+
+	/**
+	 * Registers native delegate for feature state change notifications on a class of actors and may call it immediately
+	 *
+	 * @param ActorClass		Name of an actor class to listen for changes to
+	 * @param FeatureName		If not empty, only listen to state changes for the specified feature
+	 * @param RequiredState		If specified, only activate if the init state of the feature is equal to or later than this
+	 * @param Delegate			Native delegate to call
+	 * @param bCallImmediately	If true and the actor feature is already in the specified state, call delegate immediately after registering
+	 * @return DelegateHandle used for later removal
+	 */
+	FDelegateHandle RegisterAndCallForClassInitState(const TSoftClassPtr<AActor>& ActorClass, FName FeatureName, FGameplayTag RequiredState, FActorInitStateChangedDelegate Delegate, bool bCallImmediately = true);
+
+	/** Removes a registered delegate bound to a class */
+	bool UnregisterClassInitStateDelegate(const TSoftClassPtr<AActor>& ActorClass, FDelegateHandle& Handle);
+
+	/**
+	 * Registers blueprint delegate for feature state change notifications on a class of actors and may call it immediately
+	 *
+	 * @param ActorClass		Name of an actor class to listen for changes to
+	 * @param FeatureName		If not empty, only listen to state changes for the specified feature
+	 * @param RequiredState		If specified, only activate if the init state of the feature is equal to or later than this
+	 * @param Delegate			Native delegate to call
+	 * @param bCallImmediately	If true and the actor feature is already in the specified state, call delegate immediately after registering
+	 * @return true if delegate was registered
+	 */
+	UFUNCTION(BlueprintCallable, Category = "InitState")
+	bool RegisterAndCallForClassInitState(TSoftClassPtr<AActor> ActorClass, FName FeatureName, FGameplayTag RequiredState, FActorInitStateChangedBPDelegate Delegate, bool bCallImmediately = true);
+
+	/** Removes a registered delegate bound to a class */
+	UFUNCTION(BlueprintCallable, Category = "InitState")
+	bool UnregisterClassInitStateDelegate(TSoftClassPtr<AActor> ActorClass, FActorInitStateChangedBPDelegate DelegateToRemove);
+
+
+private:
+	/** List of all registered feature states in order */
+	TArray<FGameplayTag> InitStateOrder;
+
+	/** State for a specific object implementing an actor feature, should this be in a map instead of an array? */
+	struct FActorFeatureState
+	{
+		FActorFeatureState(FName InFeatureName) : FeatureName(InFeatureName) {}
+
+		/** The feature this is tracking */
+		FName FeatureName;
+
+		/** The state when it was last registered */
+		FGameplayTag CurrentState;
+
+		/** The object implementing this feature, this can be null */
+		TWeakObjectPtr<UObject> Implementer;
+	};
+
+	/** Holds the list of feature delegates */
+	struct FActorFeatureRegisteredDelegate
+	{
+		/** Construct from a native or BP Delegate */
+		FActorFeatureRegisteredDelegate(FActorInitStateChangedDelegate&& InDelegate, FName InFeatureName = NAME_None, FGameplayTag InInitState = FGameplayTag());
+		FActorFeatureRegisteredDelegate(FActorInitStateChangedBPDelegate&& InDelegate, FName InFeatureName = NAME_None, FGameplayTag InInitState = FGameplayTag());
+
+		/** Call the appropriate native/bp delegate, this could invalidate this struct */
+		void Execute(AActor* OwningActor, FName FeatureName, UObject* Implementer, FGameplayTag FeatureState);
+
+		/** Delegate that is called on notification */
+		FActorInitStateChangedDelegate Delegate;
+
+		/** BP delegate that is called on notification */
+		FActorInitStateChangedBPDelegate BPDelegate;
+
+		/** A handle assigned to this delegate so it acts like a multicast delegate for removal */
+		FDelegateHandle DelegateHandle;
+
+		/** If this is not null, will only activate for specific feature names */
+		FName RequiredFeatureName;
+
+		/** If this is not null, will only activate for states >= to this */
+		FGameplayTag RequiredInitState;
+	};
+
+	/** Information for each registered actor */
+	struct FActorFeatureData
+	{
+		/** Actor class for cross referencing with the class callbacks */
+		TWeakObjectPtr<UClass> ActorClass;
+
+		/** All active features */
+		TArray<FActorFeatureState> RegisteredStates;
+
+		/** All delegates bound to this actor */
+		TArray<FActorFeatureRegisteredDelegate> RegisteredDelegates;
+	};
+
+	/** Actors that were registered as tracking feature state */
+	TMap<FObjectKey, FActorFeatureData> ActorFeatureMap;
+
+	/** Global delegates for any class name */
+	TMap<FComponentRequestReceiverClassPath, TArray<FActorFeatureRegisteredDelegate>> ClassFeatureChangeDelegates;
+
+	/** A queue of state changes to call delegates for, we don't want recursive callbacks */
+	TArray<TPair<AActor*, FActorFeatureState> > StateChangeQueue;
+
+	/** Position in state change queue, INDEX_NONE means not actively handling */
+	int32 CurrentStateChange;
+
+	/** Find an appropriate state struct if it exists */
+	const FActorFeatureState* FindFeatureStateStruct(const FActorFeatureData* ActorStruct, FName FeatureName, FGameplayTag RequiredState = FGameplayTag()) const;
+
+	/** Add to queue for delegate processing */
+	void ProcessFeatureStateChange(AActor* Actor, const FActorFeatureState* StateChange);
+
+	/** Call all delegates for a specific actor feature change */
+	void CallFeatureStateDelegates(AActor* Actor, FActorFeatureState StateChange);
+
+	/** Call the specified delegate for all matching features on the actor, this should be passed a copy of the original delegate */
+	void CallDelegateForMatchingFeatures(AActor* Actor, FActorFeatureRegisteredDelegate& RegisteredDelegate);
+
+	/** Call the specified delegate for all matching actors and features, this should be passed a copy of the original delegate */
+	void CallDelegateForMatchingActors(UClass* ActorClass, FActorFeatureRegisteredDelegate& RegisteredDelegate);
+
+	/** Gets or creates the actor struct */
+	FActorFeatureData& FindOrAddActorData(AActor* Actor);
+
+	/** Searches an array of delegates for the one with the specified handle, returns -1 if not found */
+	int32 GetIndexForRegisteredDelegate(TArray<FActorFeatureRegisteredDelegate>& DelegatesToSearch, FDelegateHandle SearchHandle) const;
+	int32 GetIndexForRegisteredDelegate(TArray<FActorFeatureRegisteredDelegate>& DelegatesToSearch, FActorInitStateChangedBPDelegate SearchDelegate) const;
+};
+
+
+// TODO Move into different header and see if we can make this pure virtual
+/** Interface that can be implemented by actors/components to make interacting with the feature state system easier */
+UINTERFACE(MinimalAPI, NotBlueprintable)
+class UGameFrameworkInitStateInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class MODULARGAMEPLAY_API IGameFrameworkInitStateInterface
+{
+	GENERATED_BODY()
+public:
+
+	/** Returns the Actor this object is bound to, might be this object */
+	virtual AActor* GetOwningActor() const;
+
+	/** Gets the component manager corresponding to this object based on owning actor */
+	UGameFrameworkComponentManager* GetComponentManager() const;
+
+	/** Returns the feature this object implements, this interface is only meant for simple objects with a single feature like Actor */
+	virtual FName GetFeatureName() const { return NAME_None; }
+
+	/** Returns the current feature state of this object, the default behavior is to query the manager */
+	virtual FGameplayTag GetInitState() const;
+
+	/** Checks the component manager to see if we have already reached the desired state or a later one */
+	virtual bool HasReachedInitState(FGameplayTag DesiredState) const;
+
+	/** Should be overridden to perform class-specific checks to see if the desired state can be reached */
+	virtual bool CanChangeInitState(UGameFrameworkComponentManager* Manager, FGameplayTag CurrentState, FGameplayTag DesiredState) const { return true; }
+
+	/** Should be overridden to perform class-specific state changes, this is called right before notifying the component manager */
+	virtual void HandleChangeInitState(UGameFrameworkComponentManager* Manager, FGameplayTag CurrentState, FGameplayTag DesiredState) {}
+
+	/** Checks to see if a change is possible, then calls execute and notify */
+	virtual bool TryToChangeInitState(FGameplayTag DesiredState);
+
+	/** Tries to follow a chain of connected init states, will progress states in order and returns the final state reached */
+	virtual FGameplayTag ContinueInitStateChain(const TArray<FGameplayTag>& InitStateChain);
+
+	/** Override to try and progress the default initialization path, likely using ContinueInitStateChain */
+	virtual void CheckDefaultInitialization() {}
+
+	/** This will call CheckDefaultInitialization on all other feature implementers using this interface, useful to update the state of any dependencies */
+	virtual void CheckDefaultInitializationForImplementers();
+
+	/** Signature for handling a game feature state, this is not registered by default */
+	virtual void OnActorInitStateChanged(AActor* OwningActor, FName FeatureName, UObject* Implementer, FGameplayTag FeatureState) {}
+
+	/** Call to bind the OnActorInitStateChanged function to the appropriate delegate on the component manager */
+	virtual void BindOnActorInitStateChanged(FName FeatureName, FGameplayTag RequiredState, bool bCallIfReached);
+
+	/** Unregisters state and delegate binding with component manager */
+	virtual void UnregisterInitStateData();
+
+	/** Binds a BP delegate to get called on a state change for this feature */
+	UFUNCTION(BlueprintCallable, Category = "InitState")
+	virtual bool RegisterAndCallForInitStateChange(FGameplayTag RequiredState, FActorInitStateChangedBPDelegate Delegate, bool bCallImmediately = true);
+
+	/** Unbinds a BP delegate from changes to this feature */
+	UFUNCTION(BlueprintCallable, Category = "InitState")
+	virtual bool UnregisterInitStateDelegate(FActorInitStateChangedBPDelegate Delegate);
+
+protected:
+	/** Default handle created from calling BindOnActorInitStateChanged */
+	FDelegateHandle ActorInitStateChangedHandle;
+
 };

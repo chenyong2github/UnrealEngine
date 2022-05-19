@@ -20,6 +20,7 @@ public class ModularGameplay : ModuleRules
 			{
 				"Core",
 				"Engine",
+				"GameplayTags",
 			}
 			);
 			

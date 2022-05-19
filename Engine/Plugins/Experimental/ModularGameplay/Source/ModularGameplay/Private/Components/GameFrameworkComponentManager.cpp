@@ -98,6 +98,31 @@ void UGameFrameworkComponentManager::DumpGameFrameworkComponentManagers()
 }
 #endif // !UE_BUILD_SHIPPING
 
+void UGameFrameworkComponentManager::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	CurrentStateChange = INDEX_NONE;
+}
+
+UGameFrameworkComponentManager* UGameFrameworkComponentManager::GetForActor(const AActor* Actor, bool bOnlyGameWorlds)
+{
+	if (Actor)
+	{
+		if (UWorld* ReceiverWorld = Actor->GetWorld())
+		{
+			if (bOnlyGameWorlds && (!ReceiverWorld->IsGameWorld() || ReceiverWorld->IsPreviewWorld()))
+			{
+				return nullptr;
+			}
+
+			return UGameInstance::GetSubsystem<UGameFrameworkComponentManager>(ReceiverWorld->GetGameInstance());
+		}
+	}
+
+	return nullptr;
+}
+
 void UGameFrameworkComponentManager::AddReceiver(AActor* Receiver, bool bAddOnlyInGameWorlds)
 {
 	if (Receiver != nullptr)
@@ -114,7 +139,6 @@ void UGameFrameworkComponentManager::AddReceiver(AActor* Receiver, bool bAddOnly
 		AddReceiverInternal(Receiver);
 	}
 }
-
 
 void UGameFrameworkComponentManager::AddReceiverInternal(AActor* Receiver)
 {
@@ -457,61 +481,898 @@ void UGameFrameworkComponentManager::DestroyInstancedComponent(UActorComponent* 
 
 void UGameFrameworkComponentManager::AddGameFrameworkComponentReceiver(AActor* Receiver, bool bAddOnlyInGameWorlds)
 {
-	if (Receiver != nullptr)
+	if (UGameFrameworkComponentManager* GFCM = GetForActor(Receiver, bAddOnlyInGameWorlds))
 	{
-		if (bAddOnlyInGameWorlds)
-		{
-			UWorld* ReceiverWorld = Receiver->GetWorld();
-			if ((ReceiverWorld != nullptr) && ReceiverWorld->IsGameWorld() && !ReceiverWorld->IsPreviewWorld())
-			{
-				if (UGameFrameworkComponentManager* GFCM = UGameInstance::GetSubsystem<UGameFrameworkComponentManager>(ReceiverWorld->GetGameInstance()))
-				{
-					GFCM->AddReceiverInternal(Receiver);
-				}
-			}
-		}
-		else
-		{
-			if (UGameFrameworkComponentManager* GFCM = UGameInstance::GetSubsystem<UGameFrameworkComponentManager>(Receiver->GetGameInstance()))
-			{
-				GFCM->AddReceiverInternal(Receiver);
-			}
-		}
+		GFCM->AddReceiverInternal(Receiver);
 	}
 }
 
 void UGameFrameworkComponentManager::RemoveGameFrameworkComponentReceiver(AActor* Receiver)
 {
-	if (Receiver != nullptr)
+	if (UGameFrameworkComponentManager* GFCM = GetForActor(Receiver, false))
 	{
-		if (UGameFrameworkComponentManager* GFCM = UGameInstance::GetSubsystem<UGameFrameworkComponentManager>(Receiver->GetGameInstance()))
-		{
-			GFCM->RemoveReceiverInternal(Receiver);
-		}
+		GFCM->RemoveReceiverInternal(Receiver);
 	}
 }
 
 void UGameFrameworkComponentManager::SendGameFrameworkComponentExtensionEvent(AActor* Receiver, const FName& EventName, bool bOnlyInGameWorlds)
 {
-	if (Receiver != nullptr)
+	if (UGameFrameworkComponentManager* GFCM = GetForActor(Receiver, bOnlyInGameWorlds))
 	{
-		if (bOnlyInGameWorlds)
+		GFCM->SendExtensionEvent(Receiver, EventName);
+	}
+}
+
+// TODO Actor feature state prototypes
+
+UGameFrameworkComponentManager::FActorFeatureRegisteredDelegate::FActorFeatureRegisteredDelegate(FActorInitStateChangedDelegate&& InDelegate, FName InFeatureName, FGameplayTag InInitState)
+	: Delegate(InDelegate)
+	, DelegateHandle(FDelegateHandle::EGenerateNewHandleType::GenerateNewHandle)
+	, RequiredFeatureName(InFeatureName)
+	, RequiredInitState(InInitState)
+{
+
+}
+
+UGameFrameworkComponentManager::FActorFeatureRegisteredDelegate::FActorFeatureRegisteredDelegate(FActorInitStateChangedBPDelegate&& InDelegate, FName InFeatureName, FGameplayTag InInitState)
+	: BPDelegate(InDelegate)
+	, DelegateHandle(FDelegateHandle::EGenerateNewHandleType::GenerateNewHandle)
+	, RequiredFeatureName(InFeatureName)
+	, RequiredInitState(InInitState)
+{
+
+}
+
+void UGameFrameworkComponentManager::FActorFeatureRegisteredDelegate::Execute(AActor* OwningActor, FName FeatureName, UObject* Implementer, FGameplayTag FeatureState)
+{
+	if (Delegate.IsBound())
+	{
+		ensure(!BPDelegate.IsBound());
+
+		Delegate.Execute(OwningActor, FeatureName, Implementer, FeatureState);
+	}
+	else if (BPDelegate.IsBound())
+	{
+		BPDelegate.Execute(OwningActor, FeatureName, Implementer, FeatureState);
+	}
+}
+
+void UGameFrameworkComponentManager::RegisterInitState(FGameplayTag NewState, bool bAddBefore, FGameplayTag ExistingState)
+{
+	int32 FoundIndex;
+
+	// TODO ensure or ignore for duplicates?
+	if (InitStateOrder.Contains(NewState))
+	{
+		return;
+	}
+
+	if (!ExistingState.IsValid())
+	{
+		if (bAddBefore)
 		{
-			UWorld* ReceiverWorld = Receiver->GetWorld();
-			if ((ReceiverWorld != nullptr) && ReceiverWorld->IsGameWorld() && !ReceiverWorld->IsPreviewWorld())
+			InitStateOrder.Insert(NewState, 0);
+		}
+		else
+		{
+			InitStateOrder.Add(NewState);
+		}
+	}
+
+	else if (ensureMsgf(InitStateOrder.Find(ExistingState, FoundIndex), TEXT("State %s not found in existing state list!"), *ExistingState.ToString()))
+	{
+		if (!bAddBefore)
+		{
+			FoundIndex++;
+		}
+
+		InitStateOrder.Insert(NewState, FoundIndex);
+	}
+}
+
+bool UGameFrameworkComponentManager::IsInitStateAfterOrEqual(FGameplayTag FeatureState, FGameplayTag RelativeState) const
+{
+	// In theory we could use a tree instead of a simple array, but if two states are related to each other they should be registered relative to each other
+	// And if the two states are completely unrelated, the order doesn't matter because it will never be queried
+
+	if (FeatureState == RelativeState)
+	{
+		return true;
+	}
+
+	bool bFoundSecond = false;
+	for (int32 i = 0; i < InitStateOrder.Num(); i++)
+	{
+		if (InitStateOrder[i] == RelativeState)
+		{
+			bFoundSecond = true;
+		}
+		else if (InitStateOrder[i] == FeatureState)
+		{
+			return bFoundSecond;
+		}
+	}
+
+	return false;
+}
+
+FGameplayTag UGameFrameworkComponentManager::GetInitStateForFeature(AActor* Actor, FName FeatureName) const
+{
+	const FActorFeatureState* FoundState = FindFeatureStateStruct(ActorFeatureMap.Find(FObjectKey(Actor)), FeatureName, FGameplayTag());
+
+	if (FoundState)
+	{
+		return FoundState->CurrentState;
+	}
+
+	return FGameplayTag();
+}
+
+bool UGameFrameworkComponentManager::HasFeatureReachedInitState(AActor* Actor, FName FeatureName, FGameplayTag FeatureState) const
+{
+	FGameplayTag FoundState = GetInitStateForFeature(Actor, FeatureName);
+	return IsInitStateAfterOrEqual(FoundState, FeatureState);
+}
+
+UObject* UGameFrameworkComponentManager::GetImplementerForFeature(AActor* Actor, FName FeatureName, FGameplayTag RequiredState) const
+{
+	const FActorFeatureState* FoundState = FindFeatureStateStruct(ActorFeatureMap.Find(FObjectKey(Actor)), FeatureName, RequiredState);
+
+	if (FoundState)
+	{
+		return FoundState->Implementer.Get();
+	}
+
+	return nullptr;
+}
+
+void UGameFrameworkComponentManager::GetAllFeatureImplementers(TArray<UObject*>& OutImplementers, AActor* Actor, FGameplayTag RequiredState, FName ExcludingFeature /*= NAME_None*/) const
+{
+	const FActorFeatureData* FoundStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+
+	if (FoundStruct)
+	{
+		for (const FActorFeatureState& State : FoundStruct->RegisteredStates)
+		{
+			if (State.FeatureName != ExcludingFeature)
 			{
-				if (UGameFrameworkComponentManager* GFCM = UGameInstance::GetSubsystem<UGameFrameworkComponentManager>(ReceiverWorld->GetGameInstance()))
+				if (!RequiredState.IsValid() || IsInitStateAfterOrEqual(State.CurrentState, RequiredState))
 				{
-					GFCM->SendExtensionEvent(Receiver, EventName);
+					if (UObject* Implementer = State.Implementer.Get())
+					{
+						OutImplementers.Add(Implementer);
+					}
 				}
+			}
+		}
+	}
+}
+
+bool UGameFrameworkComponentManager::HaveAllFeaturesReachedInitState(AActor* Actor, FGameplayTag RequiredState, FName ExcludingFeature) const
+{
+	const FActorFeatureData* FoundStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+
+	if (FoundStruct)
+	{
+		for (const FActorFeatureState& State : FoundStruct->RegisteredStates)
+		{
+			if (State.FeatureName != ExcludingFeature)
+			{
+				if (!IsInitStateAfterOrEqual(State.CurrentState, RequiredState))
+				{
+					return false;
+				}
+			}
+		}
+
+		// TODO do we want at least one feature to be valid?
+		return true;
+	}
+
+	return false;
+}
+
+bool UGameFrameworkComponentManager::ChangeFeatureInitState(AActor* Actor, FName FeatureName, UObject* Implementer, FGameplayTag FeatureState)
+{
+	if (Actor == nullptr || FeatureName.IsNone() || !FeatureState.IsValid())
+	{
+		// TODO Ensure?
+		return false;
+	}
+
+	FActorFeatureData& ActorStruct = FindOrAddActorData(Actor);
+
+	FActorFeatureState* FoundState = nullptr;
+	for (FActorFeatureState& State : ActorStruct.RegisteredStates)
+	{
+		if (State.FeatureName == FeatureName)
+		{
+			// TODO what if it's already in the desired state?
+			FoundState = &State;
+		}
+	}
+
+	if (!FoundState)
+	{
+		FoundState = &ActorStruct.RegisteredStates.Emplace_GetRef(FeatureName);
+	}
+
+	FoundState->CurrentState = FeatureState;
+	FoundState->Implementer = Implementer;
+
+	ProcessFeatureStateChange(Actor, FoundState);
+
+	return true;
+}
+
+void UGameFrameworkComponentManager::RemoveActorFeatureData(AActor* Actor)
+{
+	// TODO when should we clear up now-invalid actor keys?
+	ActorFeatureMap.Remove(FObjectKey(Actor));
+}
+
+void UGameFrameworkComponentManager::RemoveFeatureImplementer(AActor* Actor, UObject* Implementer)
+{
+	if (Actor == nullptr || Implementer == nullptr)
+	{
+		return;
+	}
+	TWeakObjectPtr<UObject> WeakToRemove(Implementer);
+
+	FActorFeatureData* FoundStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+
+	if (FoundStruct)
+	{
+		for (int32 i = FoundStruct->RegisteredStates.Num() - 1; i >= 0; i--)
+		{
+			// Clear if it matches or is stale
+			UObject* ResolvedObject = FoundStruct->RegisteredStates[i].Implementer.Get();
+
+			if (ResolvedObject == Implementer || (!ResolvedObject && !FoundStruct->RegisteredStates[i].Implementer.IsExplicitlyNull()))
+			{
+				FoundStruct->RegisteredStates.RemoveAt(i);
+			}
+		}
+	}
+}
+
+FDelegateHandle UGameFrameworkComponentManager::RegisterAndCallForActorInitState(AActor* Actor, FName FeatureName, FGameplayTag RequiredState, FActorInitStateChangedDelegate Delegate, bool bCallImmediately)
+{
+	if (ensure(Actor && Delegate.IsBound()))
+	{
+		// We often register delegates before registering states
+		FActorFeatureData& ActorStruct = FindOrAddActorData(Actor);
+
+		FActorFeatureRegisteredDelegate& RegisteredDelegate = ActorStruct.RegisteredDelegates.Emplace_GetRef(MoveTemp(Delegate), FeatureName, RequiredState);
+
+		// Cache handle as delegate could invalidate it
+		FDelegateHandle ReturnHandle = RegisteredDelegate.DelegateHandle;
+
+		if (bCallImmediately)
+		{
+			FActorFeatureRegisteredDelegate DelegateCopy = RegisteredDelegate;
+			CallDelegateForMatchingFeatures(Actor, DelegateCopy);
+		}		
+		
+		return ReturnHandle;
+	}
+
+	return FDelegateHandle();
+}
+
+bool UGameFrameworkComponentManager::RegisterAndCallForActorInitState(AActor* Actor, FName FeatureName, FGameplayTag RequiredState, FActorInitStateChangedBPDelegate Delegate, bool bCallImmediately /*= true*/)
+{
+	if (ensure(Actor && Delegate.IsBound()))
+	{
+		// We often register delegates before registering states
+		FActorFeatureData& ActorStruct = FindOrAddActorData(Actor);
+
+		FActorFeatureRegisteredDelegate& RegisteredDelegate = ActorStruct.RegisteredDelegates.Emplace_GetRef(MoveTemp(Delegate), FeatureName, RequiredState);
+
+		// Cache handle as delegate could invalidate it
+		FDelegateHandle ReturnHandle = RegisteredDelegate.DelegateHandle;
+
+		if (bCallImmediately)
+		{
+			FActorFeatureRegisteredDelegate DelegateCopy = RegisteredDelegate;
+			CallDelegateForMatchingFeatures(Actor, DelegateCopy);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UGameFrameworkComponentManager::UnregisterActorInitStateDelegate(AActor* Actor, FDelegateHandle& Handle)
+{
+	if (Actor && Handle.IsValid())
+	{
+		FActorFeatureData* ActorStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+
+		if (ActorStruct)
+		{
+			int32 FoundIndex = GetIndexForRegisteredDelegate(ActorStruct->RegisteredDelegates, Handle);
+
+			if (FoundIndex >= 0)
+			{
+				Handle.Reset();
+				ActorStruct->RegisteredDelegates.RemoveAt(FoundIndex);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UGameFrameworkComponentManager::UnregisterActorInitStateDelegate(AActor* Actor, FActorInitStateChangedBPDelegate DelegateToRemove)
+{
+	if (Actor && DelegateToRemove.IsBound())
+	{
+		FActorFeatureData* ActorStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+
+		if (ActorStruct)
+		{
+			int32 FoundIndex = GetIndexForRegisteredDelegate(ActorStruct->RegisteredDelegates, DelegateToRemove);
+
+			if (FoundIndex >= 0)
+			{
+				ActorStruct->RegisteredDelegates.RemoveAt(FoundIndex);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+FDelegateHandle UGameFrameworkComponentManager::RegisterAndCallForClassInitState(const TSoftClassPtr<AActor>& ActorClass, FName FeatureName, FGameplayTag RequiredState, FActorInitStateChangedDelegate Delegate, bool bCallImmediately)
+{
+	if (ensure(!ActorClass.IsNull() && Delegate.IsBound() && !FeatureName.IsNone()))
+	{
+		FComponentRequestReceiverClassPath ReceiverClassPath(ActorClass);
+		TArray<FActorFeatureRegisteredDelegate>& RegisteredDelegates = ClassFeatureChangeDelegates.FindOrAdd(ReceiverClassPath);
+
+		FActorFeatureRegisteredDelegate& RegisteredDelegate = RegisteredDelegates.Emplace_GetRef(MoveTemp(Delegate), FeatureName, RequiredState);
+
+		// Cache handle as delegate could invalidate it
+		FDelegateHandle ReturnHandle = RegisteredDelegate.DelegateHandle;
+
+		if (bCallImmediately)
+		{
+			// If RealClass isn't valid yet, there can't be any instances
+			UClass* RealClass = ActorClass.Get();
+
+			FActorFeatureRegisteredDelegate DelegateCopy = RegisteredDelegate;
+			CallDelegateForMatchingActors(RealClass, DelegateCopy);
+		}
+
+		return ReturnHandle;
+	}
+
+	return FDelegateHandle();
+}
+
+bool UGameFrameworkComponentManager::RegisterAndCallForClassInitState(TSoftClassPtr<AActor> ActorClass, FName FeatureName, FGameplayTag RequiredState, FActorInitStateChangedBPDelegate Delegate, bool bCallImmediately /*= true*/)
+{
+	if (ensure(!ActorClass.IsNull() && Delegate.IsBound() && !FeatureName.IsNone()))
+	{
+		FComponentRequestReceiverClassPath ReceiverClassPath(ActorClass);
+		TArray<FActorFeatureRegisteredDelegate>& RegisteredDelegates = ClassFeatureChangeDelegates.FindOrAdd(ReceiverClassPath);
+
+		FActorFeatureRegisteredDelegate& RegisteredDelegate = RegisteredDelegates.Emplace_GetRef(MoveTemp(Delegate), FeatureName, RequiredState);
+
+		// Cache handle as delegate could invalidate it
+		FDelegateHandle ReturnHandle = RegisteredDelegate.DelegateHandle;
+
+		if (bCallImmediately)
+		{
+			// If RealClass isn't valid yet, there can't be any instances
+			UClass* RealClass = ActorClass.Get();
+
+			FActorFeatureRegisteredDelegate DelegateCopy = RegisteredDelegate;
+			CallDelegateForMatchingActors(RealClass, DelegateCopy);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UGameFrameworkComponentManager::UnregisterClassInitStateDelegate(const TSoftClassPtr<AActor>& ActorClass, FDelegateHandle& Handle)
+{
+	if (!ActorClass.IsNull() && Handle.IsValid())
+	{
+		FComponentRequestReceiverClassPath ReceiverClassPath(ActorClass);
+		TArray<FActorFeatureRegisteredDelegate>* RegisteredDelegates = ClassFeatureChangeDelegates.Find(ReceiverClassPath);
+
+		if (RegisteredDelegates)
+		{
+			int32 FoundIndex = GetIndexForRegisteredDelegate(*RegisteredDelegates, Handle);
+
+			if (FoundIndex >= 0)
+			{
+				Handle.Reset();
+				RegisteredDelegates->RemoveAt(FoundIndex);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool UGameFrameworkComponentManager::UnregisterClassInitStateDelegate(TSoftClassPtr<AActor> ActorClass, FActorInitStateChangedBPDelegate DelegateToRemove)
+{
+	if (!ActorClass.IsNull() && DelegateToRemove.IsBound())
+	{
+		FComponentRequestReceiverClassPath ReceiverClassPath(ActorClass);
+		TArray<FActorFeatureRegisteredDelegate>* RegisteredDelegates = ClassFeatureChangeDelegates.Find(ReceiverClassPath);
+
+		if (RegisteredDelegates)
+		{
+			int32 FoundIndex = GetIndexForRegisteredDelegate(*RegisteredDelegates, DelegateToRemove);
+
+			if (FoundIndex >= 0)
+			{
+				RegisteredDelegates->RemoveAt(FoundIndex);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+
+const UGameFrameworkComponentManager::FActorFeatureState* UGameFrameworkComponentManager::FindFeatureStateStruct(const FActorFeatureData* ActorStruct, FName FeatureName, FGameplayTag RequiredState) const
+{
+	if (ActorStruct)
+	{
+		for (const FActorFeatureState& State : ActorStruct->RegisteredStates)
+		{
+			if (State.FeatureName == FeatureName)
+			{
+				if (!RequiredState.IsValid() || IsInitStateAfterOrEqual(State.CurrentState, RequiredState))
+				{
+					return &State;
+				}
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+void UGameFrameworkComponentManager::ProcessFeatureStateChange(AActor* Actor, const FActorFeatureState* StateChange)
+{
+	StateChangeQueue.Emplace(Actor, *StateChange);
+
+	if (CurrentStateChange == INDEX_NONE)
+	{
+		// Start processing in order
+		CurrentStateChange = 0;
+
+		while (CurrentStateChange < StateChangeQueue.Num())
+		{
+			CallFeatureStateDelegates(StateChangeQueue[CurrentStateChange].Key, StateChangeQueue[CurrentStateChange].Value);
+			CurrentStateChange++;
+		}
+
+		// Done processing, clear it
+		StateChangeQueue.Empty();
+		CurrentStateChange = INDEX_NONE;
+	}
+}
+
+void UGameFrameworkComponentManager::CallFeatureStateDelegates(AActor* Actor, FActorFeatureState StateChange)
+{
+	FActorFeatureData* ActorStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+	int32 DelegateIndex = 0;
+	bool bMoreActorDelegates = true;
+	bool bMoreClassDelegates = true;
+	UClass* ClassToCheck = Actor->GetClass();
+
+	while (ActorStruct)
+	{
+		if (bMoreActorDelegates)
+		{
+			// First check the actor-specific delegates in order
+
+			if (ActorStruct->RegisteredDelegates.IsValidIndex(DelegateIndex))
+			{
+				FActorFeatureRegisteredDelegate& RegisteredDelegate = ActorStruct->RegisteredDelegates[DelegateIndex];
+
+				if ((RegisteredDelegate.RequiredFeatureName.IsNone() || RegisteredDelegate.RequiredFeatureName == StateChange.FeatureName)
+					&& (!RegisteredDelegate.RequiredInitState.IsValid() || IsInitStateAfterOrEqual(StateChange.CurrentState, RegisteredDelegate.RequiredInitState)))
+				{
+					// TODO remove invalid delegates now?
+					RegisteredDelegate.Execute(Actor, StateChange.FeatureName, StateChange.Implementer.Get(), StateChange.CurrentState);
+
+					// That could have invalidated anything
+					ActorStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+				}
+
+				DelegateIndex++;
+			}
+			else
+			{
+				DelegateIndex = 0;
+				bMoreActorDelegates = false;
+			}
+		}
+		else if (ClassToCheck)
+		{
+			// Now check the general class delegates
+
+			FComponentRequestReceiverClassPath ReceiverClassPath(ClassToCheck);
+			TArray<FActorFeatureRegisteredDelegate>* FoundDelegates = ClassFeatureChangeDelegates.Find(ReceiverClassPath);
+
+			if (FoundDelegates && FoundDelegates->IsValidIndex(DelegateIndex))
+			{
+				FActorFeatureRegisteredDelegate& RegisteredDelegate = (*FoundDelegates)[DelegateIndex];
+
+				if ((RegisteredDelegate.RequiredFeatureName.IsNone() || RegisteredDelegate.RequiredFeatureName == StateChange.FeatureName)
+					&& (!RegisteredDelegate.RequiredInitState.IsValid() || IsInitStateAfterOrEqual(StateChange.CurrentState, RegisteredDelegate.RequiredInitState)))
+				{
+					// TODO remove invalid delegates now?
+					RegisteredDelegate.Execute(Actor, StateChange.FeatureName, StateChange.Implementer.Get(), StateChange.CurrentState);
+
+					// That could have invalidated anything
+					ActorStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+				}
+
+				DelegateIndex++;
+			}
+			else
+			{
+				// Start over with parent class
+				DelegateIndex = 0;
+				ClassToCheck = ClassToCheck->GetSuperClass();
 			}
 		}
 		else
 		{
-			if (UGameFrameworkComponentManager* GFCM = UGameInstance::GetSubsystem<UGameFrameworkComponentManager>(Receiver->GetGameInstance()))
+			return;
+		}
+	}
+}
+
+void UGameFrameworkComponentManager::CallDelegateForMatchingFeatures(AActor* Actor, FActorFeatureRegisteredDelegate& RegisteredDelegate)
+{
+	FActorFeatureData* ActorStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+	int32 StateIndex = 0;
+
+	// If feature is specified, just call the one
+	if (!RegisteredDelegate.RequiredFeatureName.IsNone())
+	{
+		const FActorFeatureState* FoundStruct = FindFeatureStateStruct(ActorStruct, RegisteredDelegate.RequiredFeatureName, RegisteredDelegate.RequiredInitState);
+
+		if (FoundStruct)
+		{
+			RegisteredDelegate.Execute(Actor, FoundStruct->FeatureName, FoundStruct->Implementer.Get(), FoundStruct->CurrentState);
+		}
+
+		return;
+	}
+	
+	// If feature is not specified, iterate them all
+	while (ActorStruct && ActorStruct->RegisteredStates.IsValidIndex(StateIndex))
+	{
+		const FActorFeatureState* FoundStruct = &ActorStruct->RegisteredStates[StateIndex];
+
+		if (!RegisteredDelegate.RequiredInitState.IsValid() || IsInitStateAfterOrEqual(FoundStruct->CurrentState, RegisteredDelegate.RequiredInitState))
+		{
+			RegisteredDelegate.Execute(Actor, FoundStruct->FeatureName, FoundStruct->Implementer.Get(), FoundStruct->CurrentState);
+
+			// That could have invalidated anything
+			ActorStruct = ActorFeatureMap.Find(FObjectKey(Actor));
+		}
+
+		StateIndex++;
+	}
+}
+
+void UGameFrameworkComponentManager::CallDelegateForMatchingActors(UClass* ActorClass, FActorFeatureRegisteredDelegate& RegisteredDelegate)
+{
+	TArray<AActor*> MatchingActors;
+
+	if (ActorClass == nullptr)
+	{
+		return;
+	}
+
+	for (TPair<FObjectKey, FActorFeatureData>& Pair : ActorFeatureMap)
+	{
+		UClass* CheckActorClass = Pair.Value.ActorClass.Get();
+
+		if (CheckActorClass->IsChildOf(ActorClass))
+		{
+			AActor* FoundActor = Cast<AActor>(Pair.Key.ResolveObjectPtr());
+			if (FoundActor)
 			{
-				GFCM->SendExtensionEvent(Receiver, EventName);
+				MatchingActors.Add(FoundActor);
 			}
 		}
 	}
+
+	// Iterate actor list before calling any delegates as delegates could change it
+	for (AActor* Actor : MatchingActors)
+	{
+		CallDelegateForMatchingFeatures(Actor, RegisteredDelegate);
+	}
+}
+
+UGameFrameworkComponentManager::FActorFeatureData& UGameFrameworkComponentManager::FindOrAddActorData(AActor* Actor)
+{
+	check(Actor);
+
+	FActorFeatureData& ActorStruct = ActorFeatureMap.FindOrAdd(FObjectKey(Actor));
+	if (!ActorStruct.ActorClass.IsValid())
+	{
+		ActorStruct.ActorClass = Actor->GetClass();
+	}
+	return ActorStruct;
+}
+
+int32 UGameFrameworkComponentManager::GetIndexForRegisteredDelegate(TArray<FActorFeatureRegisteredDelegate>& DelegatesToSearch, FDelegateHandle SearchHandle) const
+{
+	for (int32 i = DelegatesToSearch.Num() - 1; i >= 0; i--)
+	{
+		if (DelegatesToSearch[i].DelegateHandle == SearchHandle)
+		{
+			return i;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+int32 UGameFrameworkComponentManager::GetIndexForRegisteredDelegate(TArray<FActorFeatureRegisteredDelegate>& DelegatesToSearch, FActorInitStateChangedBPDelegate SearchDelegate) const
+{
+	for (int32 i = DelegatesToSearch.Num() - 1; i >= 0; i--)
+	{
+		if (DelegatesToSearch[i].BPDelegate == SearchDelegate)
+		{
+			return i;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+// INTERFACE
+
+AActor* IGameFrameworkInitStateInterface::GetOwningActor() const
+{
+	// Removing const because most AActor functions can't handle const
+	AActor* FoundActor = const_cast<AActor*>(Cast<AActor>(this));
+
+	if (!FoundActor)
+	{
+		const UActorComponent* FoundComponent = Cast<UActorComponent>(this);
+		if (FoundComponent)
+		{
+			FoundActor = FoundComponent->GetOwner();
+		}
+	}
+
+	if (ensure(FoundActor))
+	{
+		// Subclasses must implement this if they are not actors or components
+		return FoundActor;
+	}
+
+	return nullptr;
+}
+
+UGameFrameworkComponentManager* IGameFrameworkInitStateInterface::GetComponentManager() const
+{
+	return UGameFrameworkComponentManager::GetForActor(GetOwningActor());
+}
+
+FGameplayTag IGameFrameworkInitStateInterface::GetInitState() const
+{
+	AActor* MyActor = GetOwningActor();
+	UGameFrameworkComponentManager* Manager = UGameFrameworkComponentManager::GetForActor(MyActor);
+	if (Manager)
+	{
+		return Manager->GetInitStateForFeature(MyActor, GetFeatureName());
+	}
+
+	return FGameplayTag();
+}
+
+bool IGameFrameworkInitStateInterface::HasReachedInitState(FGameplayTag DesiredState) const
+{
+	AActor* MyActor = GetOwningActor();
+	UGameFrameworkComponentManager* Manager = UGameFrameworkComponentManager::GetForActor(MyActor);
+	if (Manager)
+	{
+		return Manager->HasFeatureReachedInitState(MyActor, GetFeatureName(), DesiredState);
+	}
+
+	return false;
+}
+
+bool IGameFrameworkInitStateInterface::TryToChangeInitState(FGameplayTag DesiredState)
+{
+	UObject* ThisObject = Cast<UObject>(this);
+	AActor* MyActor = GetOwningActor();
+	UGameFrameworkComponentManager* Manager = UGameFrameworkComponentManager::GetForActor(MyActor);
+	const FName MyFeatureName = GetFeatureName();
+
+	if (!Manager || !ThisObject || !MyActor)
+	{
+		return false;	
+	}
+
+	FGameplayTag CurrentState = Manager->GetInitStateForFeature(MyActor, MyFeatureName);
+	
+	// If we're already in that state, just return
+	if (CurrentState == DesiredState)
+	{
+		return false;
+	}
+
+	if (!CanChangeInitState(Manager, CurrentState, DesiredState))
+	{
+		UE_LOG(LogModularGameplay, Verbose, TEXT("TryToChangeInitState: Cannot transition %s:%s (role %d) from %s to %s"),
+			*MyActor->GetName(), *MyFeatureName.ToString(), MyActor->GetLocalRole(), *CurrentState.ToString(), *DesiredState.ToString());
+		return false;
+	}
+
+	UE_LOG(LogModularGameplay, Verbose, TEXT("TryToChangeInitState: Transitioning %s:%s (role %d) from %s to %s"),
+		*MyActor->GetName(), *MyFeatureName.ToString(), MyActor->GetLocalRole(), *CurrentState.ToString(), *DesiredState.ToString());
+
+	// Perform the local change
+	HandleChangeInitState(Manager, CurrentState, DesiredState);
+
+	// The local change has completed, notify the system to register change and execute callbacks
+	return ensure(Manager->ChangeFeatureInitState(MyActor, MyFeatureName, ThisObject, DesiredState));
+}
+
+FGameplayTag IGameFrameworkInitStateInterface::ContinueInitStateChain(const TArray<FGameplayTag>& InitStateChain)
+{
+	UObject* ThisObject = Cast<UObject>(this);
+	AActor* MyActor = GetOwningActor();
+	UGameFrameworkComponentManager* Manager = UGameFrameworkComponentManager::GetForActor(MyActor);
+	const FName MyFeatureName = GetFeatureName();
+
+	if (!Manager || !ThisObject || !MyActor)
+	{
+		return FGameplayTag();
+	}
+
+	int32 ChainIndex = 0;
+	FGameplayTag CurrentState = Manager->GetInitStateForFeature(MyActor, MyFeatureName);
+
+	// For each state in chain before the last, see if we can transition to the next state
+	while (ChainIndex < InitStateChain.Num() - 1)
+	{
+		if (CurrentState == InitStateChain[ChainIndex])
+		{
+			FGameplayTag DesiredState = InitStateChain[ChainIndex + 1];
+			if (CanChangeInitState(Manager, CurrentState, DesiredState))
+			{
+				UE_LOG(LogModularGameplay, Verbose, TEXT("ContinueInitStateChain: Transitioning %s:%s (role %d) from %s to %s"),
+					*MyActor->GetName(), *MyFeatureName.ToString(), MyActor->GetLocalRole(), *CurrentState.ToString(), *DesiredState.ToString());
+
+				// Perform the local change
+				HandleChangeInitState(Manager, CurrentState, DesiredState);
+
+				// The local change has completed, notify the system to register change and execute callbacks
+				ensure(Manager->ChangeFeatureInitState(MyActor, MyFeatureName, ThisObject, DesiredState));
+
+				// Update state and check again
+				CurrentState = Manager->GetInitStateForFeature(MyActor, MyFeatureName);
+			}
+			else
+			{
+				UE_LOG(LogModularGameplay, Verbose, TEXT("ContinueInitStateChain: Cannot transition %s:%s (role %d) from %s to %s"),
+					*MyActor->GetName(), *MyFeatureName.ToString(), MyActor->GetLocalRole(), *CurrentState.ToString(), *DesiredState.ToString());
+			}
+		}
+
+		ChainIndex++;
+	}
+
+	return CurrentState;
+}
+
+void IGameFrameworkInitStateInterface::CheckDefaultInitializationForImplementers()
+{
+	UObject* ThisObject = Cast<UObject>(this);
+	AActor* MyActor = GetOwningActor();
+	UGameFrameworkComponentManager* Manager = UGameFrameworkComponentManager::GetForActor(MyActor);
+	const FName MyFeatureName = GetFeatureName();
+
+	if (Manager)
+	{
+		TArray<UObject*> Implementers;
+		Manager->GetAllFeatureImplementers(Implementers, MyActor, FGameplayTag(), MyFeatureName);
+
+		for (UObject* Implementer : Implementers)
+		{
+			if (IGameFrameworkInitStateInterface* ImplementerInterface = Cast<IGameFrameworkInitStateInterface>(Implementer))
+			{
+				ImplementerInterface->CheckDefaultInitialization();
+			}
+		}
+	}
+}
+
+void IGameFrameworkInitStateInterface::UnregisterInitStateData()
+{
+	UObject* ThisObject = Cast<UObject>(this);
+	AActor* MyActor = GetOwningActor();
+	UGameFrameworkComponentManager* Manager = UGameFrameworkComponentManager::GetForActor(MyActor);
+
+	if (Manager)
+	{
+		if (ThisObject == MyActor)
+		{
+			// This will clear all the feature states and delegates
+			Manager->RemoveActorFeatureData(MyActor);
+		}
+		else
+		{
+			Manager->RemoveFeatureImplementer(MyActor, ThisObject);
+		}
+
+		if (ActorInitStateChangedHandle.IsValid())
+		{
+			Manager->UnregisterActorInitStateDelegate(MyActor, ActorInitStateChangedHandle);
+		}
+	}
+}
+
+void IGameFrameworkInitStateInterface::BindOnActorInitStateChanged(FName FeatureName, FGameplayTag RequiredState, bool bCallIfReached)
+{
+	UObject* ThisObject = Cast<UObject>(this);
+	AActor* MyActor = GetOwningActor();
+	UGameFrameworkComponentManager* Manager = UGameFrameworkComponentManager::GetForActor(MyActor);
+
+	if (ensure(MyActor && Manager))
+	{
+		// Bind as a weak lambda because this is not a UObject but is guaranteed to be valid as long as ThisObject is
+		FActorInitStateChangedDelegate Delegate = FActorInitStateChangedDelegate::CreateWeakLambda(ThisObject,
+			[this](AActor* OwningActor, FName FeatureName, UObject* Implementer, FGameplayTag FeatureState)
+			{
+				this->OnActorInitStateChanged(OwningActor, FeatureName, Implementer, FeatureState);
+			});
+
+		ActorInitStateChangedHandle = Manager->RegisterAndCallForActorInitState(MyActor, FeatureName, RequiredState, MoveTemp(Delegate), bCallIfReached);
+	}
+}
+
+bool IGameFrameworkInitStateInterface::RegisterAndCallForInitStateChange(FGameplayTag RequiredState, FActorInitStateChangedBPDelegate Delegate, bool bCallImmediately)
+{
+	UObject* ThisObject = Cast<UObject>(this);
+	AActor* MyActor = GetOwningActor();
+	UGameFrameworkComponentManager* Manager = UGameFrameworkComponentManager::GetForActor(MyActor);
+	const FName MyFeatureName = GetFeatureName();
+
+	if (ensure(MyActor && Manager))
+	{
+		return Manager->RegisterAndCallForActorInitState(MyActor, MyFeatureName, RequiredState, Delegate, bCallImmediately);
+	}
+
+	return false;
+}
+
+bool IGameFrameworkInitStateInterface::UnregisterInitStateDelegate(FActorInitStateChangedBPDelegate Delegate)
+{
+	UObject* ThisObject = Cast<UObject>(this);
+	AActor* MyActor = GetOwningActor();
+	UGameFrameworkComponentManager* Manager = UGameFrameworkComponentManager::GetForActor(MyActor);
+
+	if (ensure(MyActor && Manager))
+	{
+		return Manager->UnregisterActorInitStateDelegate(MyActor, Delegate);
+	}
+
+	return false;
 }
