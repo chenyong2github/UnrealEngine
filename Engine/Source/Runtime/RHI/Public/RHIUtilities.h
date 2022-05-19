@@ -807,8 +807,7 @@ inline void CopyTextureWithTransitions(FRHICommandListImmediate& RHICmdList, FRH
 	if (SrcTexture == DstTexture)
 	{
 		RHICmdList.Transition({
-			FRHITransitionInfo(SrcTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask),
-			FRHITransitionInfo(DstTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask)
+			FRHITransitionInfo(SrcTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask)
 		});
 		return;
 	}
