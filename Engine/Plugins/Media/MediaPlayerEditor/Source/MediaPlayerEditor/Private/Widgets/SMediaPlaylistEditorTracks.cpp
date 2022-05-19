@@ -35,7 +35,7 @@ void SMediaPlaylistEditorTracks::Construct(const FArguments& InArgs, UMediaPlayl
 						[
 							// Add button to add to the playlist.
 							SNew(SButton)
-							.ToolTipText(LOCTEXT("MediaSource_ToolTip", "The Media Source to play."))
+							.ToolTipText(LOCTEXT("Add_ToolTip", "Add an entry to the playlist."))
 								.VAlign(VAlign_Center)
 								.OnClicked_Lambda([this]() -> FReply
 								{
