@@ -24,7 +24,7 @@ protected:
 	{
 		void * Data = nullptr;
 		uint32 Pitch = 0;
-		// @@!! Size would be nice but LockTexture doesn't return size
+		// note: Size would be nice but LockTexture doesn't return size
 	};
 	TArray<FStreamMipData, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipData;
 	void * InitialMipDataForAsyncCreate[MAX_TEXTURE_MIP_COUNT];

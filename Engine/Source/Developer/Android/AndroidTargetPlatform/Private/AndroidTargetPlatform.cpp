@@ -66,6 +66,7 @@ namespace AndroidTexFormat
 	const static FName NameETC2_RGBA(TEXT("ETC2_RGBA"));
 	const static FName NameETC2_R11(TEXT("ETC2_R11"));
 	const static FName NameAutoETC2(TEXT("AutoETC2"));
+	// AFAICT none of these explicitly sized ASTC names are actually valid TextureFormat names
 	const static FName NameASTC_4x4(TEXT("ASTC_4x4"));
 	const static FName NameASTC_6x6(TEXT("ASTC_6x6"));
 	const static FName NameASTC_8x8(TEXT("ASTC_8x8"));

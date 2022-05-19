@@ -268,7 +268,7 @@ void FTexture2DResource::GetData( uint32 MipIndex, void* Dest, uint32 DestPitch 
 		#if WITH_EDITORONLY_DATA
 		// in Editor, Mip doesn't come from BulkData, it may be null
 		// MipData[] was set from Editor data
-		// @@!! check MipData[MipIndex] size ! but it's not stored
+		// would be nice to check MipData[MipIndex] size ! but it's not stored
 		if ( BulkDataSize == 0 )
 		{
 			BulkDataSize = EffectiveSize;

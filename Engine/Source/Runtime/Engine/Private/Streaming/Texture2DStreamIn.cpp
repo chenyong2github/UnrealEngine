@@ -39,7 +39,7 @@ void FTexture2DStreamIn::DoAllocateNewMips(const FContext& Context)
 
 			check(MipData[MipIndex].Data == nullptr);
 			MipData[MipIndex].Data = FMemory::Malloc(MipSize);
-			// @@!! store Size !
+			// would be nice to store Size here !
 			//MipData[MipIndex].Size = MipSize;
 			MipData[MipIndex].Pitch = 0; // 0 means tight packed
 		}
@@ -75,7 +75,7 @@ void FTexture2DStreamIn::DoLockNewMips(const FContext& Context)
 			uint32 DestPitch = -1;
 			MipData[MipIndex].Data = RHILockTexture2D(IntermediateTextureRHI, MipIndex - MipOffset, RLM_WriteOnly, DestPitch, false, CVarFlushRHIThreadOnSTreamingTextureLocks.GetValueOnAnyThread() > 0);
 			MipData[MipIndex].Pitch = DestPitch;
-			// @@!! should store Size but RHILockTexture2D doesn't tell us size
+			// note: should store Size but RHILockTexture2D doesn't tell us size
 			//MipData[MipIndex].Size
 
 			UE_LOG(LogTextureUpload,Verbose,TEXT("FTexture2DStreamIn::DoLockNewMips( : Lock Mip %d Pitch=%d"),MipIndex,DestPitch);

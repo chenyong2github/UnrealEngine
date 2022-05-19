@@ -152,7 +152,7 @@ ERawImageFormat::Type FJpegImageWrapper::GetSupportedRawFormat(const ERawImageFo
 	case ERawImageFormat::RGBA16:
 	case ERawImageFormat::RGBA16F:
 	case ERawImageFormat::RGBA32F:
-	case ERawImageFormat::G16: // @@!! use G8 ?
+	case ERawImageFormat::G16:
 	case ERawImageFormat::R16F:
 	case ERawImageFormat::R32F:
 		return ERawImageFormat::BGRA8; // needs conversion

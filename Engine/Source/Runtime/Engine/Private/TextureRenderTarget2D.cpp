@@ -305,7 +305,7 @@ UTexture2D* UTextureRenderTarget2D::ConstructTexture2D(UObject* Outer, const FSt
 	UpdateTexture2D(Result, TextureFormat, Flags, AlphaOverride);
 
 	// if render target gamma used was 1.0 then disable SRGB for the static texture
-	// @@!! UTextureRenderTarget2D also has an explicit SRGB flag in the UTexture parent class
+	// note: UTextureRenderTarget2D also has an explicit SRGB flag in the UTexture parent class
 	//	  these are NOT correctly kept in sync
 	//		I see SRGB = 1 but Gamma = 1.0
 	//	 see also IsSRGB() which is yet another query that has different ideas

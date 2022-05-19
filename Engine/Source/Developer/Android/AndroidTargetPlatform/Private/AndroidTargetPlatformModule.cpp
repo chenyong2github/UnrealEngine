@@ -33,7 +33,7 @@ public:
 				SinglePlatforms.Add(new FAndroid_DXTTargetPlatform(bIsClient));
 				SinglePlatforms.Add(new FAndroid_ETC2TargetPlatform(bIsClient));
 
-				// thse are used in NotifyMultiSelectedFormatsChanged, so track in another array
+				// these are used in NotifyMultiSelectedFormatsChanged, so track in another array
 				MultiPlatforms.Add(new FAndroid_MultiTargetPlatform(bIsClient));
 			}
 

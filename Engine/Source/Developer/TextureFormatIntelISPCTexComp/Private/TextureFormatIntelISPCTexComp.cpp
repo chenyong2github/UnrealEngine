@@ -638,9 +638,8 @@ public:
 	/*
 	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const override
 	{
-		// @@!! no GetDerivedDataKeyString !?
+		// @todo Oodle : should log settings here :
 
-		// should log settings here :
 		// should store
 		// GetDefaultCompressionBySizeValue() 
 		//return FString::Printf(TEXT("ISPC_%d_%d_%d"), GetQualityVersion(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality), GASTCCompressor, int32(GASTCHDRProfile > 0 && BuildSettings.bHDRSource));
@@ -754,7 +753,9 @@ public:
 			{
 				F16Value.Encoded = 0;
 			}
-			// @@!! also clamp +Inf to max non-inf value?
+			// @todo Oodle : should also clamp +Inf to max non-inf value?
+			//	 note that behavior of the basic F32->F16 conversion was changed,
+			//	 it used to clamp to max val if out of range, now stores inf
 		}
 	}
 

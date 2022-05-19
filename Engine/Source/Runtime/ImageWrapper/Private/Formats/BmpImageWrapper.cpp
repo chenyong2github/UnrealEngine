@@ -353,7 +353,7 @@ ERawImageFormat::Type FBmpImageWrapper::GetSupportedRawFormat(const ERawImageFor
 	case ERawImageFormat::RGBA16F:
 	case ERawImageFormat::RGBA32F:
 	case ERawImageFormat::R16F:
-	case ERawImageFormat::R32F: // @@!! can these go to G8 ?
+	case ERawImageFormat::R32F:
 		return ERawImageFormat::BGRA8; // needs conversion
 	default:
 		check(0);

@@ -34,7 +34,7 @@ FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
 
 static void ValidateMipBulkDataSize(const UTexture2D& Texture, int32 MipSizeX, int32 MipSizeY, int32 MipIndex, int64& BulkDataSize)
 {
-// @@!! why is this not done on all platforms?
+	// why is this not done on all platforms?
 #if PLATFORM_ANDROID
 	const int64 ExpectedMipSize = CalcTextureMipMapSize((uint32)MipSizeX, (uint32)MipSizeY, Texture.GetPixelFormat(), 0);
 	if (BulkDataSize != ExpectedMipSize)
@@ -66,7 +66,7 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 			TaskSynchronization.Increment();
 
 			// Validate buffer size for the mip, so we don't overrun it on streaming
-			// @@!! MipData[] should have size
+			// note: MipData[] should have size
 			// ValidateMipBulkDataSize only does anything on Android
 			ValidateMipBulkDataSize(*Context.Texture, MipMap.SizeX, MipMap.SizeY, MipIndex, BulkDataSize);
 			

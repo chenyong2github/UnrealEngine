@@ -2968,7 +2968,6 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 
 				// NOTE: this function is called like 10 times for each texture
 				//	it makes any log here a bit annoying
-				//  @@!! why is this called over and over?  ; make this log "Display" not "Verbose" when it's less spewy
 
 				UE_LOG(LogTexture, Verbose, TEXT("Texture forced to uncompressed because size is not a multiple of 4 : %dx%d: was %s : %s"), SizeX,SizeY, 
 					*(StaticEnum<TextureCompressionSettings>()->GetNameStringByValue(FormatSettings.CompressionSettings)),

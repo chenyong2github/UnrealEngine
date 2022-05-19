@@ -180,7 +180,7 @@ protected:
 
 	virtual FAndroidTargetDevicePtr CreateTargetDevice(const ITargetPlatform& InTargetPlatform, const FString& InSerialNumber, const FString& InAndroidVariant) const;
 
-	// query for rene3ring mode support
+	// query for rendering mode support
 	bool SupportsES31() const;
 	bool SupportsVulkan() const;
 	bool SupportsLandscapeMeshLODStreaming() const;

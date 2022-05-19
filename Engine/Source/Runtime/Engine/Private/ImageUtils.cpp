@@ -364,7 +364,7 @@ bool FImageUtils::GetRenderTargetImage(UTextureRenderTarget2D* TexRT, FImage & I
 		return false;
 	}
 	
-	// @@!! in theory the RT knows its gamma
+	// @todo Oodle : in theory the RenderTarget knows its gamma
 	//   but from what I've seen it's usually wrong?
 	// TexRT->GetDisplayGamma() or TexRT->SRGB or TexRT->IsSRGB() , OMG
 
@@ -1214,7 +1214,7 @@ bool FImageUtils::GetTexture2DSourceImage(UTexture2D* Texture, FImage & OutImage
 
 	UE_LOG(LogImageUtils,Warning,TEXT("GetTexture2DSourceImage from PlatformData not implemented yet"));
 
-	// @@!! could export texture from platformdata
+	// @todo Oodle : could export texture from platformdata
 	// only a few formats would be possible to grab to an FImage
 	//   (for DDS export we could do all formats)
 	// eg. see ExportHDR below
