@@ -80,4 +80,12 @@ public:
 	/** Returns the name of the current state of this state machine */
 	UFUNCTION(BlueprintPure, Category = "State Machine", meta=(BlueprintThreadSafe))
 	static FName GetState(const FAnimUpdateContext& UpdateContext, const FAnimationStateMachineReference& Node);
+
+	/** Returns the remaining animation time of the state's most relevant asset player */
+	UFUNCTION(BlueprintPure, Category = "State Machine", meta = (BlueprintThreadSafe))
+	static float GetRelevantAnimTimeRemaining(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
+
+	/** Returns the remaining animation time as a fraction of the duration for the state's most relevant asset player */
+	UFUNCTION(BlueprintPure, Category = "State Machine", meta = (BlueprintThreadSafe))
+	static float GetRelevantAnimTimeRemainingFraction(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node);
 };

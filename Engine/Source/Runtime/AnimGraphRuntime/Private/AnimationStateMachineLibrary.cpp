@@ -129,3 +129,57 @@ FName UAnimationStateMachineLibrary::GetState(const FAnimUpdateContext& UpdateCo
 
 	return OutName;
 }
+
+float UAnimationStateMachineLibrary::GetRelevantAnimTimeRemaining(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node)
+{
+	float Result = MAX_flt;
+
+	Node.CallAnimNodeFunction<FAnimNode_StateResult>(
+		TEXT("IsStateBlendingOut"),
+		[&UpdateContext, &Result](FAnimNode_StateResult& StateResultNode)
+	{
+		if (const FAnimationUpdateContext* AnimationUpdateContext = UpdateContext.GetContext())
+		{
+			IAnimClassInterface* AnimBlueprintClass = AnimationUpdateContext->GetAnimClass();
+
+			// Previous node to an FAnimNode_StateResult is always its owning FAnimNode_StateMachine
+			const int32 MachineIndex = AnimBlueprintClass->GetAnimNodeProperties().Num() - 1 - AnimationUpdateContext->GetPreviousNodeId();
+			const int32 StateIndex = StateResultNode.GetStateIndex();
+
+			const FAnimInstanceProxy* AnimInstanceProxy = AnimationUpdateContext->AnimInstanceProxy;
+			if (const FAnimNode_StateMachine* MachineInstance = AnimInstanceProxy->GetStateMachineInstance(MachineIndex))
+			{
+				Result = MachineInstance->GetRelevantAnimTimeRemaining(AnimInstanceProxy, StateIndex);
+			}
+		}
+	});
+
+	return Result;
+}
+
+float UAnimationStateMachineLibrary::GetRelevantAnimTimeRemainingFraction(const FAnimUpdateContext& UpdateContext, const FAnimationStateResultReference& Node)
+{
+	float Result = 1.f;
+
+	Node.CallAnimNodeFunction<FAnimNode_StateResult>(
+		TEXT("IsStateBlendingOut"),
+		[&UpdateContext, &Result](FAnimNode_StateResult& StateResultNode)
+	{
+		if (const FAnimationUpdateContext* AnimationUpdateContext = UpdateContext.GetContext())
+		{
+			IAnimClassInterface* AnimBlueprintClass = AnimationUpdateContext->GetAnimClass();
+
+			// Previous node to an FAnimNode_StateResult is always its owning FAnimNode_StateMachine
+			const int32 MachineIndex = AnimBlueprintClass->GetAnimNodeProperties().Num() - 1 - AnimationUpdateContext->GetPreviousNodeId();
+			const int32 StateIndex = StateResultNode.GetStateIndex();
+
+			const FAnimInstanceProxy* AnimInstanceProxy = AnimationUpdateContext->AnimInstanceProxy;
+			if (const FAnimNode_StateMachine* MachineInstance = AnimInstanceProxy->GetStateMachineInstance(MachineIndex))
+			{
+				Result = MachineInstance->GetRelevantAnimTimeRemainingFraction(AnimInstanceProxy, StateIndex);
+			}
+		}
+	});
+
+	return Result;
+}

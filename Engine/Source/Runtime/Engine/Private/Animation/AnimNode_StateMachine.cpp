@@ -553,6 +553,36 @@ void FAnimNode_StateMachine::Update_AnyThread(const FAnimationUpdateContext& Con
 #endif //ANIM_TRACE_ENABLED
 }
 
+float FAnimNode_StateMachine::GetRelevantAnimTimeRemaining(const FAnimInstanceProxy* InAnimInstanceProxy, int32 StateIndex) const
+{
+	if (const FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(InAnimInstanceProxy, GetStateInfo(StateIndex)))
+	{
+		if (AssetPlayer->GetAnimAsset())
+		{
+			return AssetPlayer->GetCurrentAssetLength() - AssetPlayer->GetCurrentAssetTimePlayRateAdjusted();
+		}
+	}
+
+	return MAX_flt;
+}
+
+float FAnimNode_StateMachine::GetRelevantAnimTimeRemainingFraction(const FAnimInstanceProxy* InAnimInstanceProxy, int32 StateIndex) const
+{
+	if (const FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(InAnimInstanceProxy, GetStateInfo(StateIndex)))
+	{
+		if (AssetPlayer->GetAnimAsset())
+		{
+			float Length = AssetPlayer->GetCurrentAssetLength();
+			if (Length > 0.0f)
+			{
+				return (Length - AssetPlayer->GetCurrentAssetTimePlayRateAdjusted()) / Length;
+			}
+		}
+	}
+
+	return 1.f;
+}
+
 const FAnimNode_AssetPlayerBase* FAnimNode_StateMachine::GetRelevantAssetPlayerFromState(const FAnimInstanceProxy* InAnimInstanceProxy, const FBakedAnimationState& StateInfo) const
 {
 	const FAnimNode_AssetPlayerBase* ResultPlayer = nullptr;

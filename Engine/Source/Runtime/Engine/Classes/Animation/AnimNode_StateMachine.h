@@ -292,6 +292,20 @@ protected:
 	void EvaluateTransitionStandardBlendInternal(FPoseContext& Output, FAnimationActiveTransitionEntry& Transition, const FPoseContext& PreviousStateResult, const FPoseContext& NextStateResult);
 	void EvaluateTransitionCustomBlend(FPoseContext& Output, FAnimationActiveTransitionEntry& Transition, bool bIntermediatePoseIsValid);
 
+	// Get the time remaining in seconds for the most relevant animation in the source state 
+	float GetRelevantAnimTimeRemaining(const FAnimInstanceProxy* InAnimInstanceProxy, int32 StateIndex) const;
+	float GetRelevantAnimTimeRemaining(const FAnimationUpdateContext& Context, int32 StateIndex) const
+	{
+		return GetRelevantAnimTimeRemaining(Context.AnimInstanceProxy, StateIndex);
+	}
+
+	// Get the time remaining as a fraction of the duration for the most relevant animation in the source state 
+	float GetRelevantAnimTimeRemainingFraction(const FAnimInstanceProxy* InAnimInstanceProxy, int32 StateIndex) const;
+	float GetRelevantAnimTimeRemainingFraction(const FAnimationUpdateContext& Context, int32 StateIndex) const
+	{
+		return GetRelevantAnimTimeRemainingFraction(Context.AnimInstanceProxy, StateIndex);
+	}
+
 	const FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(const FAnimInstanceProxy* InAnimInstanceProxy, const FBakedAnimationState& StateInfo) const;
 	const FAnimNode_AssetPlayerBase* GetRelevantAssetPlayerFromState(const FAnimationUpdateContext& Context, const FBakedAnimationState& StateInfo) const
 	{
@@ -320,4 +334,5 @@ protected:
 
 public:
 	friend struct FAnimInstanceProxy;
+	friend class UAnimationStateMachineLibrary;
 };

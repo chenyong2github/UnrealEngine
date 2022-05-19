@@ -2335,12 +2335,9 @@ float FAnimInstanceProxy::GetInstanceTransitionTimeElapsedFraction(int32 Machine
 
 float FAnimInstanceProxy::GetRelevantAnimTimeRemaining(int32 MachineIndex, int32 StateIndex) const
 {
-	if(const FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
+	if (const FAnimNode_StateMachine* StateMachine = GetStateMachineInstance(MachineIndex))
 	{
-		if(AssetPlayer->GetAnimAsset())
-		{
-			return AssetPlayer->GetCurrentAssetLength() - AssetPlayer->GetCurrentAssetTimePlayRateAdjusted();
-		}
+		return StateMachine->GetRelevantAnimTimeRemaining(this, StateIndex);
 	}
 
 	return MAX_flt;
@@ -2348,16 +2345,9 @@ float FAnimInstanceProxy::GetRelevantAnimTimeRemaining(int32 MachineIndex, int32
 
 float FAnimInstanceProxy::GetRelevantAnimTimeRemainingFraction(int32 MachineIndex, int32 StateIndex) const
 {
-	if(const FAnimNode_AssetPlayerBase* AssetPlayer = GetRelevantAssetPlayerFromState(MachineIndex, StateIndex))
+	if (const FAnimNode_StateMachine* StateMachine = GetStateMachineInstance(MachineIndex))
 	{
-		if(AssetPlayer->GetAnimAsset())
-		{
-			float Length = AssetPlayer->GetCurrentAssetLength();
-			if(Length > 0.0f)
-			{
-				return (Length - AssetPlayer->GetCurrentAssetTimePlayRateAdjusted()) / Length;
-			}
-		}
+		return StateMachine->GetRelevantAnimTimeRemainingFraction(this, StateIndex);
 	}
 
 	return 1.0f;
