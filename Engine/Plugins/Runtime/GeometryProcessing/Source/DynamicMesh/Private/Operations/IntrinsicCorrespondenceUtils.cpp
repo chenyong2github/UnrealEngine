@@ -33,9 +33,7 @@ IntrinsicCorrespondenceUtils::FSurfacePoint::FSurfacePoint(int32 TriID, const FV
 {
 	PositionType = EPositionType::Triangle;
 	Position.TriPosition.TriID = TriID;
-	Position.TriPosition.BarycentricCoords[0] = BaryCentrics[0];
-	Position.TriPosition.BarycentricCoords[1] = BaryCentrics[1];
-	Position.TriPosition.BarycentricCoords[2] = BaryCentrics[2];
+	Position.TriPosition.BarycentricCoords = BaryCentrics;
 }
 
 FVector3d IntrinsicCorrespondenceUtils::AsR3Position(const IntrinsicCorrespondenceUtils::FSurfacePoint& SurfacePoint, const FDynamicMesh3& Mesh, bool& bIsValid)
@@ -76,7 +74,7 @@ FVector3d IntrinsicCorrespondenceUtils::AsR3Position(const IntrinsicCorresponden
 				Result = Mesh.GetTriBaryPoint( SurfaceTID,
 											   Position.TriPosition.BarycentricCoords[0],
 											   Position.TriPosition.BarycentricCoords[1],
-											   Position.TriPosition.BarycentricCoords[2] );
+											   Position.TriPosition.BarycentricCoords[2]);
 			}
 
 		}
@@ -162,9 +160,11 @@ IntrinsicCorrespondenceUtils::FNormalCoordinates::FNormalCoordinates(const FDyna
 	const int32 MaxVID = SurfMesh.MaxVertexID();
 	const int32 MaxTID = SurfMesh.MaxTriangleID();
 
-	// the intrinsic mesh on construction will have the same triangles as the surface mesh,
-	// so no surface mesh edges will cross intrinsic edges.
-	NormalCoord.SetNumZeroed(MaxEID);
+	// on construction the intrinsic mesh will have the same triangles as the surface mesh,
+	// with the intrinsic edges identical to the surface edges. 
+	// the value -1 indicates the intrinsic mesh edge is a surface mesh edge segment.
+	NormalCoord.Resize(MaxEID, -1);
+	
 
 	// populate Ref Vert Degree. 
 	RefVertDegree.SetNumZeroed(MaxVID);
@@ -179,11 +179,8 @@ IntrinsicCorrespondenceUtils::FNormalCoordinates::FNormalCoordinates(const FDyna
 	}
 
 	// init the roundabout data as invalid
-	RoundaboutOrder.SetNumUninitialized(MaxTID);
-	for (FIndex3i& PerTri : RoundaboutOrder)
-	{
-		PerTri = FIndex3i(FDynamicMesh3::InvalidID, FDynamicMesh3::InvalidID, FDynamicMesh3::InvalidID);
-	}
+	RoundaboutOrder.Resize(MaxTID, FIndex3i::Invalid());
+	
 
 	// correctly populate the roundabout data.  Note bow-tie vertices should prohibited at a higher level
 	for (int32 CVID : SurfMesh.VertexIndicesItr())
@@ -201,7 +198,11 @@ IntrinsicCorrespondenceUtils::FNormalCoordinates::FNormalCoordinates(const FDyna
 	}
 
 	// Edge Order is a copy of the roundabout before edge flips.  Edge order describes the surface mesh, and shouldn't be updated after construction
-	EdgeOrder = RoundaboutOrder;
+	EdgeOrder.SetNumUninitialized(MaxTID);
+	for (int32 i = 0; i < MaxTID; ++i)
+	{
+		EdgeOrder[i] = RoundaboutOrder[i];
+	}
 }
 
 bool  IntrinsicCorrespondenceUtils::FNormalCoordinates::OnFlipEdge(const int32 T0ID, const FIndex3i& BeforeT0EIDs, const int32 T0OppVID,
@@ -258,11 +259,11 @@ bool  IntrinsicCorrespondenceUtils::FNormalCoordinates::OnFlipEdge(const int32 T
 		const int32 Eki_j = NumCornerEmanatingRefEdges(BeforeT0EIDs, T0_j);
 
 		// if the edge being flipped aligns with a surface edge, then it will cross that surface edge after the  flip
-		const int32 Kronecker = (NormalCoord[FlippedEID] == 0) ? 1 : 0;
+		const int32 Kronecker = IsSurfaceEdgeSegment(FlippedEID) ? 1 : 0;
 
 		// total number of surfaces edges this edge crosses after the flip
-		const int32 N_kl = TMathUtil<int32>::Max(0, Cji_l + Cij_k + (TMathUtil<int32>::Abs(Cil_j - Cki_j) + TMathUtil<int32>::Abs(Clj_i - Cjk_i) - Eji_l - Eij_k) / 2
-			+ Elj_i + Ejk_i + Eil_j + Eki_j + Kronecker);
+		const int32 N_kl = Cji_l + Cij_k + (TMathUtil<int32>::Abs(Cil_j - Cki_j) + TMathUtil<int32>::Abs(Clj_i - Cjk_i) - Eji_l - Eij_k) / 2
+						 + Elj_i + Ejk_i + Eil_j + Eki_j + Kronecker;
 
 		NormalCoord[FlippedEID] = N_kl;
 	}
@@ -294,18 +295,29 @@ bool  IntrinsicCorrespondenceUtils::FNormalCoordinates::OnFlipEdge(const int32 T
 		const int32 R_lj = T1Rab[T1_l];
 
 		// --compute the roundabouts for the two half-edges associated with the edge that does flip. (i.e  R_kl, R_lk)
+		// note roundabouts are only computed for the original vertex set (i.e. those also in the surface mesh)
+		const int32 R_kl = [&] 
+							{
+								if (!SurfaceMesh->IsVertex(VID_k))
+								{
+									return -1;
+								}
+								const int32 Kronecker_ki = IsSurfaceEdgeSegment(Edge_ki) ? 1 : 0;
+								const int32 Eil_k = NumCornerEmanatingRefEdges(AfterT1EIDs, 1/*k corner*/); // AfterT1 = (l, k, i)
+								return  (R_ki + Eil_k + Kronecker_ki) % RefVertDegree[VID_k];
+							}();
 
-		const int32 Kronecker_ki = (NormalCoord[Edge_ki] == 0) ? 1 : 0;
-		const int32 Kronecker_lj = (NormalCoord[Edge_lj] == 0) ? 1 : 0;
-
-		const int32 Eil_k = NumCornerEmanatingRefEdges(AfterT1EIDs, 1/*k corner*/); // AfterT1 = (l, k, i)
-		const int32 Ejk_l = NumCornerEmanatingRefEdges(AfterT0EIDs, 1/*l corner*/); // AfterT0 = (k, l, j)
-
-		// Roundabout values for the two directions of the flipped edge ( i.e. as seen by the new T0 and T1)
-		const int32 R_kl = (R_ki + Eil_k + Kronecker_ki) % RefVertDegree[VID_k];
-		const int32 R_lk = (R_lj + Ejk_l + Kronecker_lj) % RefVertDegree[VID_l];
-
-
+		const int32 R_lk = [&]
+							{
+								if (!SurfaceMesh->IsVertex(VID_l))
+								{
+									return -1;
+								}
+								const int32 Kronecker_lj = IsSurfaceEdgeSegment(Edge_lj) ? 1 : 0;
+								const int32 Ejk_l = NumCornerEmanatingRefEdges(AfterT0EIDs, 1/*l corner*/); // AfterT0 = (k, l, j)
+								return (R_lj + Ejk_l + Kronecker_lj) % RefVertDegree[VID_l];
+							}();
+		
 		// update the roundabouts with new edge order and values for the flipped edge
 		RoundaboutOrder[T0ID] = FIndex3i(R_kl, R_lj, R_jk);
 		RoundaboutOrder[T1ID] = FIndex3i(R_lk, R_ki, R_il);

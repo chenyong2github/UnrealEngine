@@ -9,7 +9,7 @@
 #include "VectorTypes.h"
 #include "MathUtil.h"
 
-
+struct foofoo { foofoo(){}; double x; double y; double z;};
 namespace UE
 {
 namespace Geometry
@@ -47,10 +47,11 @@ namespace IntrinsicCorrespondenceUtils
 		struct FTrianglePosition
 		{
 			int32 TriID;                    // Reference (extrinsic) triangle
-			double BarycentricCoords[3];    // Barycentric coordinates within referenced triangle
+			FVector3d  BarycentricCoords;   // Barycentric coordinates within referenced triangle
 		};
 		union FSurfacePositionUnion
 		{
+			FSurfacePositionUnion() { VertexPosition.VID = -1;}
 			FVertexPosition   VertexPosition;
 			FEdgePosition     EdgePosition;
 			FTrianglePosition TriPosition;
@@ -69,7 +70,29 @@ namespace IntrinsicCorrespondenceUtils
 	* @param Mesh         - Dynamic mesh that defines a surface
 	* @param bValidPoint  - will be false if the vert, edge or tri that defines the surface point is not a member of Mesh
 	*/
-	FVector3d AsR3Position(const FSurfacePoint& SurfacePoint, const FDynamicMesh3& Mesh, bool& bValidPoint);
+	FVector3d DYNAMICMESH_API AsR3Position(const FSurfacePoint& SurfacePoint, const FDynamicMesh3& Mesh, bool& bValidPoint);
+
+	/**
+	* @return true if the SurfacePoint corresponds to a vertex
+	*/
+	static inline bool IsVertexPoint(const FSurfacePoint& SurfacePoint)
+	{
+		return SurfacePoint.PositionType == FSurfacePoint::EPositionType::Vertex;
+	}
+	/**
+	* @return true if the SurfacePoint corresponds to an edge
+	*/
+	static inline bool IsEdgePoint(const FSurfacePoint& SurfacePoint)
+	{
+		return SurfacePoint.PositionType == FSurfacePoint::EPositionType::Edge;
+	}
+	/**
+	* @return true if the SurfacePoint corresponds to a face
+	*/
+	static inline bool IsFacePoint(const FSurfacePoint& SurfacePoint)
+	{
+		return SurfacePoint.PositionType == FSurfacePoint::EPositionType::Triangle;
+	}
 
 	// A Connection stores the information needed to define a local reference direction for each vertex and triangle.
 	struct DYNAMICMESH_API FMeshConnection
@@ -97,6 +120,20 @@ namespace IntrinsicCorrespondenceUtils
 			int32 EID;  // edge crossed.  This will be one of the three edges in GetTriEdges(TID)
 			int32 CIdx; // index of curve relative to the edge crossed
 		};
+
+		/**
+		* @return the number of surface edges that cross this intrinsic edge.  
+		* Note: it is the responsibility of the caller to ensure IntrinsicEID is a valid edge on the intrinsic mesh.
+		*/ 
+		inline int32 NumEdgeCrossing(const int32 IntrinsicEID) const;
+
+		/**
+		* @return true if the specified intrinsic edge ( indicated by IntrinsicEID) is a segment of a surface edge.  
+		* Note: By construction the initial intrinsic edges will have the same ID as the corresponding surface mesh edges, but edge splits 
+		* will disrupt this.
+		* Also note: it is the responsibility of the caller to ensure IntrinsicEID is a valid edge on the intrinsic mesh.
+		*/ 
+		inline bool IsSurfaceEdgeSegment(const int32 IntrinsicEID) const;
 
 		/**
 		* @return number of surface edges within the specified intrinsic triangle that are adjacent to the specified triangle corner.
@@ -131,10 +168,11 @@ namespace IntrinsicCorrespondenceUtils
 		*/
 		int32 GetEdgeOrder(const int32 VID, const int32 SurfaceEID) const;
 
-		TArray<int32>     NormalCoord;     // Per intrinsic edge: number of times src mesh edge crosses. NormalCoord[EID] is 0 if and only if same as edge on surface mesh   
-		TArray<int32>     RefVertDegree;   // Per vertex in ref mesh, caches the result of counting the edges in RefMesh.VtxEdgeIter().  
-		TArray<FIndex3i>  RoundaboutOrder; // Per intrinsic Triangle, per (directed) edge: indicates the closest (when traveling ccw) reference mesh edge  
-		TArray<FIndex3i>  EdgeOrder;       // Per surface triangle, per directed edge: number of edges past reference edge traveling ccw.
+		TDynamicVector<int32>     NormalCoord;     // Per intrinsic edge: number of times src mesh edge crosses. By convention NormalCoord[EID] = -1 iff same as edge on surface mesh   
+		TDynamicVector<FIndex3i>  RoundaboutOrder; // Per intrinsic Triangle, per (directed) edge: indicates the closest (when traveling ccw) reference mesh edge
+
+		TArray<int32>             RefVertDegree;   // Per vertex in ref mesh, caches the result of counting the edges in RefMesh.VtxEdgeIter().  
+		TArray<FIndex3i>          EdgeOrder;       // Per surface triangle, per directed edge: number of edges past reference edge traveling ccw.
 	};
 
 
@@ -176,7 +214,15 @@ namespace IntrinsicCorrespondenceUtils
 		TDynamicVector<FGeometricInfo>       GeometricVertexInfo;             // Per-intrinsic Vertex - Simple geometric information about the extrinsic surface in the neighborhood of intrinsic vert 	
 	};
 
+	int32 FNormalCoordinates::NumEdgeCrossing(const int32 IntrinsicEID) const
+	{
+		return TMathUtil<int32>::Max(0, NormalCoord[IntrinsicEID]);
+	}
 
+	bool FNormalCoordinates::IsSurfaceEdgeSegment(const int32 IntrinsicEID) const
+	{
+		return NormalCoord[IntrinsicEID] == -1;
+	}
 
 
 
@@ -191,9 +237,10 @@ namespace IntrinsicCorrespondenceUtils
 		const int32 Edgejk = IntrinsicTriEIDs[j_index];
 		const int32 Edgeki = IntrinsicTriEIDs[k_index];
 
-		const int32 N_ij = NormalCoord[Edgeij];
-		const int32 N_jk = NormalCoord[Edgejk];
-		const int32 N_ki = NormalCoord[Edgeki];
+		const int32 N_ij = NumEdgeCrossing(Edgeij);
+		const int32 N_jk = NumEdgeCrossing(Edgejk);
+		const int32 N_ki = NumEdgeCrossing(Edgeki);
+
 
 
 		return TMathUtil<int32>::Max(0, N_ij - N_jk - N_ki);
@@ -209,9 +256,9 @@ namespace IntrinsicCorrespondenceUtils
 		const int32 Edgejk = IntrinsicTriEIDs[j_index];
 		const int32 Edgeki = IntrinsicTriEIDs[k_index];
 
-		const int32 N_ij = NormalCoord[Edgeij];
-		const int32 N_jk = NormalCoord[Edgejk];
-		const int32 N_ki = NormalCoord[Edgeki];
+		const int32 N_ij = NumEdgeCrossing(Edgeij);
+		const int32 N_jk = NumEdgeCrossing(Edgejk);
+		const int32 N_ki = NumEdgeCrossing(Edgeki);
 
 		// see Gillespi et al, eqn 14
 
