@@ -80,6 +80,13 @@ FAutoConsoleVariableRef GTickComponentLatentActionsWithTheComponentCVar(
 /** Static var indicating activity of reregister context */
 int32 FGlobalComponentReregisterContext::ActiveGlobalReregisterContextCount = 0;
 
+bool GDefaultUseSubObjectReplicationList = false;
+static FAutoConsoleVariableRef CVarDefaultUseSubObjectReplicationList(
+	TEXT("net.SubObjects.DefaultUseSubObjectReplicationList"),
+	GDefaultUseSubObjectReplicationList,
+	TEXT("Do actors and actorcomponents replicate subobjects using the registration method by default."));
+
+
 #if WITH_CHAOS
 // Allows for CreatePhysicsState to be deferred, to batch work and parallelize.
 int32 GEnableDeferredPhysicsCreation = 0;
@@ -333,7 +340,7 @@ UActorComponent::UActorComponent(const FObjectInitializer& ObjectInitializer /*=
 	bMarkedForPreEndOfFrameSync = false;
 	bAsyncPhysicsTickEnabled = false;
 
-	bReplicateUsingRegisteredSubObjectList = DEFAULT_USE_SUBOBJECT_LIST;
+	bReplicateUsingRegisteredSubObjectList = GDefaultUseSubObjectReplicationList;
 }
 
 void UActorComponent::PostInitProperties()

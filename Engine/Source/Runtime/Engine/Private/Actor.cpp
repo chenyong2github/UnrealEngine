@@ -82,6 +82,9 @@ DECLARE_CYCLE_STAT(TEXT("PostActorConstruction"), STAT_PostActorConstruction, ST
 
 FMakeNoiseDelegate AActor::MakeNoiseDelegate = FMakeNoiseDelegate::CreateStatic(&AActor::MakeNoiseImpl);
 
+/** Selects if actor and actorcomponents will replicate subobjects using the registration list by default. */
+extern bool GDefaultUseSubObjectReplicationList;
+
 #if !UE_BUILD_SHIPPING
 FOnProcessEvent AActor::ProcessEventDelegate;
 #endif
@@ -126,7 +129,7 @@ void AActor::InitializeDefaults()
 	bReplicates = false;
 	bCallPreReplication = true;
 	bCallPreReplicationForReplay = true;
-	bReplicateUsingRegisteredSubObjectList = DEFAULT_USE_SUBOBJECT_LIST;
+	bReplicateUsingRegisteredSubObjectList = GDefaultUseSubObjectReplicationList;
 	NetPriority = 1.0f;
 	NetUpdateFrequency = 100.0f;
 	MinNetUpdateFrequency = 2.0f;
