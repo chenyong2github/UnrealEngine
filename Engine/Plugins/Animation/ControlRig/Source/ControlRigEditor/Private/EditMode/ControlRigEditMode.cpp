@@ -4140,7 +4140,7 @@ void FControlRigEditMode::UpdateSelectabilityOnSkeletalMeshes(UControlRig* InCon
 				else if(UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ActorComponent))
 				{
 					StaticMeshComponent->bSelectable = bEnabled;
-					SkeletalMeshComponent->MarkRenderStateDirty();
+					StaticMeshComponent->MarkRenderStateDirty();
 				}
 			}
 		}
