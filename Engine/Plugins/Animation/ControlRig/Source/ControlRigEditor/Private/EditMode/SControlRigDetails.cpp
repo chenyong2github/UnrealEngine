@@ -540,7 +540,7 @@ void SControlRigDetails::UpdateProxies()
 				UControlRigControlsProxy* Proxy = Cast<UControlRigControlsProxy>(Object.Get());
 				if (Proxy)
 				{
-					Proxy->SetIsMultiple(Transforms.Num() > 1);
+					Proxy->SetIsMultiple(Floats.Num() > 1);
 				}
 			}
 		}
