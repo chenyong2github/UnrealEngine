@@ -798,7 +798,7 @@ static bool OpenSaveDialog(const FString& InDefaultPath, const FString& InNewNam
 
 bool GetSavePresetPackageName(FString& OutName)
 {
-	ULiveLinkSettings* ConfigSettings = GetMutableDefault<ULiveLinkSettings>();
+	ULiveLinkUserSettings* ConfigSettings = GetMutableDefault<ULiveLinkUserSettings>();
 
 	FDateTime Today = FDateTime::Now();
 

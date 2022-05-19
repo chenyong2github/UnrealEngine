@@ -48,6 +48,19 @@ public:
 	TArray<TSubclassOf<ULiveLinkFramePreProcessor>> FramePreProcessors;
 };
 
+UCLASS(config=EditorPerProjectUserSettings)
+class LIVELINK_API ULiveLinkUserSettings : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/** The default location in which to save LiveLink presets */
+	UPROPERTY(config, EditAnywhere, Category = "LiveLink", meta = (DisplayName = "Preset Save Location"))
+	FDirectoryPath PresetSaveDir;
+
+public:
+	const FDirectoryPath& GetPresetSaveDir() const { return PresetSaveDir; }
+};
 
 /**
  * Settings for LiveLink.
@@ -59,6 +72,10 @@ class LIVELINK_API ULiveLinkSettings : public UObject
 
 public:
 	ULiveLinkSettings();
+
+	//~ Begin UObject Interface
+	virtual void PostInitProperties() override;
+	//~ End UObject Interface
 
 protected:
 	UPROPERTY(config, EditAnywhere, Category="LiveLink")
@@ -73,9 +90,11 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "LiveLink")
 	TSoftObjectPtr<ULiveLinkPreset> DefaultLiveLinkPreset;
 
-	/** The default location in which to save take presets */
-	UPROPERTY(config, EditAnywhere, Category="LiveLink", meta=(DisplayName="Preset Save Location"))
-	FDirectoryPath PresetSaveDir;
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "PresetSaveDir was moved into LiveLinkUserSettings. Please use ULiveLinkUserSettings::GetPresetSaveDir().")
+	UPROPERTY(config)
+	FDirectoryPath PresetSaveDir_DEPRECATED;
+#endif //WITH_EDITORONLY_DATA
 
 	/** Continuous clock offset correction step */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = "LiveLink")
@@ -128,7 +147,10 @@ public:
 
 public:
 	FLiveLinkRoleProjectSetting GetDefaultSettingForRole(TSubclassOf<ULiveLinkRole> Role) const;
-	const FDirectoryPath& GetPresetSaveDir() const { return PresetSaveDir; }
+
+	UE_DEPRECATED(5.1, "PresetSaveDir was moved into LiveLinkUserSettings. Please use ULiveLinkUserSettings::GetPresetSaveDir().")
+	const FDirectoryPath& GetPresetSaveDir() const { return GetDefault<ULiveLinkUserSettings>()->GetPresetSaveDir(); }
+
 	double GetTimeWithoutFrameToBeConsiderAsInvalid() const { return TimeWithoutFrameToBeConsiderAsInvalid; }
 	FLinearColor GetValidColor() const { return ValidColor; }
 	FLinearColor GetInvalidColor() const { return InvalidColor; }

@@ -36,3 +36,24 @@ FLiveLinkRoleProjectSetting ULiveLinkSettings::GetDefaultSettingForRole(TSubclas
 	Result.Role = Role;
 	return Result;
 }
+
+void ULiveLinkSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+#if WITH_EDITOR
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	// If the deprecated preset save directory has a valid path, update the replacement setting in LiveLinkUserSettings with its value
+	if (!PresetSaveDir_DEPRECATED.Path.IsEmpty())
+	{
+		ULiveLinkUserSettings* UserSettings = GetMutableDefault<ULiveLinkUserSettings>();
+		UserSettings->PresetSaveDir = PresetSaveDir_DEPRECATED;
+		UserSettings->SaveConfig();
+
+		// Empty the path of the deprecated setting so that this won't overwrite the user setting again
+		PresetSaveDir_DEPRECATED.Path.Empty();
+		SaveConfig();
+	}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif //WITH_EDITOR
+}
