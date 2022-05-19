@@ -95,6 +95,7 @@ public:
 		// Flags defaulted on
 		bCastShadow									= true;
 		bCastContactShadow							= true;
+		bEvaluateWorldPositionOffset				= true;
 		bVisibleInGame								= true;
 		bVisibleInEditor							= true;
 		bVisibleInReflectionCaptures				= true;
@@ -107,7 +108,6 @@ public:
 		bUseVolumetricLightmap						= false;
 		bShouldCacheShadow							= false;
 		bOutputVelocity								= false;
-		bEvaluateWorldPositionOffset				= false;
 		bHasCapsuleRepresentation					= false;
 		bHasPreSkinnedLocalBounds					= false;
 		bHasPreviousLocalToWorld					= false;
