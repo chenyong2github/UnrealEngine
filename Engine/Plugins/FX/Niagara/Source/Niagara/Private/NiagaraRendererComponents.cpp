@@ -438,7 +438,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 			ParticleID = UniqueIDAccessor.GetSafe(ParticleIndex, -1);
 			ParticlesWithComponents.RemoveAndCopyValue(ParticleID, PoolIndex);
 
-			if (PoolIndex == -1 && Properties->bOnlyCreateComponentsOnParticleSpawn)
+			if (PoolIndex == -1 && Properties->bCreateComponentFirstParticleFrame)
 			{
 				// Don't allow this particle to acquire a component unless it was just spawned or had a component assigned to it previously
 				bool bIsNewlySpawnedParticle = Emitter->IsParticleComponentActive(ComponentKey, ParticleID) || ParticleIndex >= ParticleData.GetNumInstances() - ParticleData.GetNumSpawnedInstances();
@@ -537,7 +537,7 @@ void FNiagaraRendererComponents::PostSystemTick_GameThread(const UNiagaraRendere
 
 		PoolEntry.LastAssignedToParticleID = ParticleID;
 		PoolEntry.LastActiveTime = CurrentTime;
-		if (Properties->bOnlyCreateComponentsOnParticleSpawn)
+		if (Properties->bCreateComponentFirstParticleFrame)
 		{
 			Emitter->SetParticleComponentActive(ComponentKey, ParticleID);
 		}

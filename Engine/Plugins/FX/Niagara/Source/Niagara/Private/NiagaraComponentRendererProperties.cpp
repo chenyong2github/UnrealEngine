@@ -7,13 +7,13 @@
 #include "NiagaraComponent.h"
 #include "Modules/ModuleManager.h"
 #if WITH_EDITOR
-#include "Editor.h"
 #include "Widgets/Images/SImage.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/SWidget.h"
 #include "AssetThumbnail.h"
 #include "Widgets/Text/STextBlock.h"
 #endif
+#include "NiagaraCustomVersion.h"
 #include "NiagaraSettings.h"
 
 static float GNiagaraComponentRenderComponentCountWarning = 50;
@@ -171,9 +171,10 @@ FNiagaraTypeDefinition UNiagaraComponentRendererProperties::GetFQuatDef()
 TArray<TWeakObjectPtr<UNiagaraComponentRendererProperties>> UNiagaraComponentRendererProperties::ComponentRendererPropertiesToDeferredInit;
 
 UNiagaraComponentRendererProperties::UNiagaraComponentRendererProperties()
-	: ComponentCountLimit(15), bAssignComponentsOnParticleID(true), bOnlyCreateComponentsOnParticleSpawn(true), bOnlyActivateNewlyAquiredComponents(true)
+	: ComponentCountLimit(15), bAssignComponentsOnParticleID(true), bOnlyActivateNewlyAquiredComponents(true)
 #if WITH_EDITORONLY_DATA
 	, bVisualizeComponents(true)
+	, bOnlyCreateComponentsOnParticleSpawn_DEPRECATED(true)
 #endif
 	, TemplateComponent(nullptr)
 {
@@ -198,6 +199,14 @@ void UNiagaraComponentRendererProperties::PostLoad()
 {
 	Super::PostLoad();
 	ENiagaraRendererSourceDataMode InSourceMode = ENiagaraRendererSourceDataMode::Particles;
+
+#if WITH_EDITORONLY_DATA
+	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+	if (NiagaraVer < FNiagaraCustomVersion::ComponentRendererSpawnProperty)
+	{
+		bCreateComponentFirstParticleFrame = bOnlyCreateComponentsOnParticleSpawn_DEPRECATED;
+	}
+#endif
 	
 	const TArray<FNiagaraVariable>& OldTypes = FNiagaraConstants::GetOldPositionTypeVariables();
 	for (FNiagaraComponentPropertyBinding& Binding : PropertyBindings)
@@ -497,8 +506,7 @@ void UNiagaraComponentRendererProperties::OnObjectsReplacedCallback(const TMap<U
 	// When a custom component class is recompiled in the editor, we need to switch to the new template component object
 	if (TemplateComponent)
 	{
-		UObject* const* Replacement = ReplacementsMap.Find(TemplateComponent);
-		if (Replacement)
+		if (UObject* const* Replacement = ReplacementsMap.Find(TemplateComponent))
 		{
 			TemplateComponent = Cast<USceneComponent>(*Replacement);
 			UpdateSetterFunctions();
@@ -524,7 +532,7 @@ bool UNiagaraComponentRendererProperties::HasPropertyBinding(FName PropertyName)
 
 void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& e)
 {
-	FName PropertyName = (e.Property != NULL) ? e.Property->GetFName() : NAME_None;
+	FName PropertyName = (e.Property != nullptr) ? e.Property->GetFName() : NAME_None;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UNiagaraComponentRendererProperties, ComponentType))
 	{
 		PropertyBindings.Empty();

@@ -52,7 +52,7 @@ public:
 	GENERATED_BODY()
 
 	UNiagaraComponentRendererProperties();
-	~UNiagaraComponentRendererProperties();
+	virtual ~UNiagaraComponentRendererProperties() override;
 
 	//UObject Interface
 	virtual void PostLoad() override;
@@ -68,7 +68,7 @@ public:
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return (InSimTarget == ENiagaraSimTarget::CPUSim); };
 	virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const override {};
 #if WITH_EDITORONLY_DATA
-	void PostEditChangeProperty(struct FPropertyChangedEvent& e) override;
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& e) override;
 
 	virtual void GetRendererWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
@@ -103,8 +103,8 @@ public:
 
 	/** If true then new components can only be created on newly spawned particles. If a particle is not able to create a component on it's first frame (e.g. because the component
 	 * limit was reached) then it will be blocked from spawning a component on subsequent frames. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering", meta = (EditCondition = "bAssignComponentsOnParticleID"))
-	bool bOnlyCreateComponentsOnParticleSpawn;
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering", DisplayName="Only Create Components on Particle Spawn", meta = (EditCondition = "bAssignComponentsOnParticleID"))
+	bool bCreateComponentFirstParticleFrame = false;
 	
 	/** 
 	If true then components will only be activated when newly acquired. e.g. on particle spawn or when the particle enables/disables the component.
@@ -121,6 +121,9 @@ public:
 	/** If true then the editor visualization is enabled for the component; has no effect in-game. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering")
 	bool bVisualizeComponents;
+
+	UPROPERTY()
+	bool bOnlyCreateComponentsOnParticleSpawn_DEPRECATED;
 
 #endif
 
