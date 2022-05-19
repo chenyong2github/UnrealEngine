@@ -113,6 +113,15 @@ int32 GetTilesCountHelper(const dtNavMesh* DetourMesh)
 	return NumTiles;
 }
 
+namespace UE::NavMesh::Private
+{
+	// @todo: Promote to the public interface when this becomes less experimental.
+	bool IsWorldPartitionedDynamicNavmesh(const ARecastNavMesh& NavMesh)
+	{
+		return NavMesh.bIsWorldPartitioned && NavMesh.SupportsRuntimeGeneration();
+	}
+} // namespace UE::NavMesh::Private
+
 /**
  * Exports geometry to OBJ file. Can be used to verify NavMesh generation in RecastDemo app
  * @param FileName - full name of OBJ file with extension
@@ -5335,7 +5344,7 @@ TArray<uint32> FRecastNavMeshGenerator::RemoveTileLayers(const int32 TileX, cons
 				dtPolyRef TileRef = DetourMesh->getTileRef(Tiles[i]);
 
 				NumActiveTiles--;
-				UE_LOG(LogNavigation, Verbose, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%X (active:%d)"),
+				UE_LOG(LogNavigation, VeryVerbose, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%llx (active count: %d)"),
 					*DestNavMesh->GetName(), TileX, TileY, LayerIndex, TileRef, NumActiveTiles);
 
 				DetourMesh->removeTile(TileRef, nullptr, nullptr);
@@ -5404,7 +5413,7 @@ void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTil
 		if (OldTileRef)
 		{
 			NumActiveTiles--;
-			UE_LOG(LogNavigation, Verbose, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%X (active:%d)"),
+			UE_LOG(LogNavigation, VeryVerbose, TEXT("%s> Tile (%d,%d:%d), removing TileRef: 0x%llx (active count: %d)"),
 				*DestNavMesh->GetName(), TileX, TileY, LayerIndex, OldTileRef, NumActiveTiles);
 
 			DetourMesh->removeTile(OldTileRef, nullptr, nullptr);
@@ -5449,7 +5458,7 @@ void FRecastNavMeshGenerator::AddGeneratedTileLayer(int32 LayerIndex, FRecastTil
 				OutResultTileIndices.AddUnique(DetourMesh->decodePolyIdTile(ResultTileRef));
 				NumActiveTiles++;
 
-				UE_LOG(LogNavigation, Verbose, TEXT("%s> Tile (%d,%d:%d), added TileRef: 0x%X (active:%d)"),
+				UE_LOG(LogNavigation, VeryVerbose, TEXT("%s> Tile (%d,%d:%d), added TileRef: 0x%llx (active count: %d)"),
 					*DestNavMesh->GetName(), TileX, TileY, LayerIndex, ResultTileRef, NumActiveTiles);
 
 				{
@@ -5551,10 +5560,7 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 	case EAddGeneratedTilesTimeSlicedState::AddTiles:
 	{
 		if (DetourMesh != nullptr
-			// no longer testing this here, we can live with a stray unwanted tile here 
-			// and there. It will be removed the next time around the invokers get
-			// updated 
-			// && IsInActiveSet(FIntPoint(TileX, TileY))
+			&& (UE::NavMesh::Private::IsWorldPartitionedDynamicNavmesh(*DestNavMesh) && IsInActiveSet(FIntPoint(TileX, TileY)))
 			&& SyncTimeSlicedData.AddGenTilesLayerIndex != INDEX_NONE)
 		{
 			for (; SyncTimeSlicedData.AddGenTilesLayerIndex < TileGenerator.GetDirtyLayersMask().Num(); ++SyncTimeSlicedData.AddGenTilesLayerIndex)
@@ -5618,10 +5624,7 @@ TArray<uint32> FRecastNavMeshGenerator::AddGeneratedTiles(FRecastTileGenerator& 
 	const int32 FirstDirtyTileIndex = TileGenerator.GetDirtyLayersMask().Find(true);
 
 	if (DetourMesh != nullptr
-		// no longer testing this here, we can live with a stray unwanted tile here 
-		// and there. It will be removed the next time around the invokers get
-		// updated 
-		// && IsInActiveSet(FIntPoint(TileX, TileY))
+		&& (UE::NavMesh::Private::IsWorldPartitionedDynamicNavmesh(*DestNavMesh) && IsInActiveSet(FIntPoint(TileX, TileY)))
 		&& FirstDirtyTileIndex != INDEX_NONE)
 	{
 		TArray<FNavMeshTileData> TileLayers = TileGenerator.GetNavigationData();
@@ -5799,6 +5802,8 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 		{
 			continue;
 		}
+
+		UE_VLOG_BOX(OwnerNav, LogNavigation, VeryVerbose, DirtyArea.Bounds, FColor::Blue, TEXT("DirtyArea"));
 		
 		// (if bUseVirtualGeometryFilteringAndDirtying is true) Ignore dirty areas flagged by a source object that is not supposed to apply to this navmesh
 		if (bUseVirtualGeometryFilteringAndDirtying && NavSys && NavOctreeInstance && NavDataConfig)
@@ -5848,6 +5853,11 @@ void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>&
 			{
 				if (IsInActiveSet(FIntPoint(TileX, TileY)) == false)
 				{
+					UE_SUPPRESS(LogNavigation, VeryVerbose,
+					{
+						const FBox TileBounds = CalculateTileBounds(TileX, TileY, RcNavMeshOrigin, TotalNavBounds, TileSizeInWorldUnits);
+						UE_VLOG_BOX(OwnerNav, LogNavigation, VeryVerbose, TileBounds, FColor::Red, TEXT("Not in active set"));
+					});
 					continue;
 				}
 

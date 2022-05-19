@@ -101,9 +101,6 @@ class NAVIGATIONSYSTEM_API URecastNavMeshDataChunk : public UNavigationDataChunk
 	/** Releases all tiles that this chunk holds */
 	void ReleaseTiles();
 
-	UE_DEPRECATED(4.26, "Use GetTiles() instead.")
-	void GatherTiles(const FPImplRecastNavMesh* NavMeshImpl, const TArray<int32>& TileIndices);
-
 	/** Collect tiles with data and/or cache data from the provided TileIndices. */
 	void GetTiles(const FPImplRecastNavMesh* NavMeshImpl, const TArray<int32>& TileIndices, const EGatherTilesCopyMode CopyMode, const bool bMarkAsAttached = true);
 

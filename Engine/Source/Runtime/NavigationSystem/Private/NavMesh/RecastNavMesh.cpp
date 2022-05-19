@@ -794,6 +794,13 @@ void ARecastNavMesh::SortAreasForGenerator(TArray<FRecastAreaNavModifierElement>
 	Modifiers.Sort(FNavAreaSortPredicate());
 }
 
+const TArray<FIntPoint>& ARecastNavMesh::GetActiveTiles() const
+{
+	const FRecastNavMeshGenerator* MyGenerator = static_cast<const FRecastNavMeshGenerator*>(GetGenerator());
+	check(MyGenerator);
+	return MyGenerator->ActiveTiles;
+}
+
 TArray<FIntPoint>& ARecastNavMesh::GetActiveTiles()
 {
 	FRecastNavMeshGenerator* MyGenerator = static_cast<FRecastNavMeshGenerator*>(GetGenerator());
@@ -2801,6 +2808,11 @@ FRecastNavMeshGenerator* ARecastNavMesh::CreateGeneratorInstance()
 	return new FRecastNavMeshGenerator(*this);
 }
 
+bool ARecastNavMesh::IsUsingActiveTilesGeneration(const UNavigationSystemV1& NavSys) const
+{
+	return NavSys.IsActiveTilesGenerationEnabled() || bIsWorldPartitioned;
+}
+
 void ARecastNavMesh::ConditionalConstructGenerator()
 {	
 	if (NavDataGenerator.IsValid())
@@ -2824,7 +2836,7 @@ void ARecastNavMesh::ConditionalConstructGenerator()
 		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
 		if (NavSys)
 		{
-			RestrictBuildingToActiveTiles(NavSys->IsActiveTilesGenerationEnabled());
+			RestrictBuildingToActiveTiles(IsUsingActiveTilesGeneration(*NavSys));
 		}
 	}
 }

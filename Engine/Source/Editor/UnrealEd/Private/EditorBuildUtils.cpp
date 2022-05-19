@@ -902,9 +902,9 @@ void FEditorBuildUtils::TriggerNavigationBuilder(UWorld*& InOutWorld, FName Id)
 			bBuildingNavigationFromUserRequest = false;
 		}
 
-		const FString& LongPackageName = GetNameSafe(InOutWorld->GetPackage());
-		if (UE::EditorBuildUtils::bNavmeshAllowPartitionedBuildingFromEditor && ULevel::GetIsLevelPartitionedFromPackage(*LongPackageName))
+		if (UE::EditorBuildUtils::bNavmeshAllowPartitionedBuildingFromEditor && InOutWorld->IsPartitionedWorld())
 		{
+			const FString& LongPackageName = GetNameSafe(InOutWorld->GetPackage());
 			WorldPartitionBuildNavigation(LongPackageName);
 			InOutWorld = GEditor->GetEditorWorldContext().World();
 		}

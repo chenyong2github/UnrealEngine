@@ -2823,12 +2823,12 @@ void UNavigationSystemV1::UnregisterComponentToNavOctree(UActorComponent* Comp)
 	}
 }
 
-void UNavigationSystemV1::AddDirtyArea(const FBox& NewArea, int32 Flags)
+void UNavigationSystemV1::AddDirtyArea(const FBox& NewArea, int32 Flags, const char* SourceText)
 {
-	DefaultDirtyAreasController.AddArea(NewArea, Flags);
+	DefaultDirtyAreasController.AddArea(NewArea, Flags, nullptr, nullptr, SourceText);
 }
 
-void UNavigationSystemV1::AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flags)
+void UNavigationSystemV1::AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flags, const char* SourceText)
 { 
 	if (Flags == 0)
 	{
@@ -2837,7 +2837,7 @@ void UNavigationSystemV1::AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flag
 
 	for (int32 NewAreaIndex = 0; NewAreaIndex < NewAreas.Num(); NewAreaIndex++)
 	{
-		AddDirtyArea(NewAreas[NewAreaIndex], Flags);
+		AddDirtyArea(NewAreas[NewAreaIndex], Flags, SourceText);
 	}
 }
 
@@ -3367,7 +3367,7 @@ void UNavigationSystemV1::PerformNavigationBoundsUpdate(const TArray<FNavigation
 		}
 
 		// Propagate to generators areas that needs to be updated
-		AddDirtyAreas(UpdatedAreas, ENavigationDirtyFlag::All | ENavigationDirtyFlag::NavigationBounds);
+		AddDirtyAreas(UpdatedAreas, ENavigationDirtyFlag::All | ENavigationDirtyFlag::NavigationBounds, "Navigation bounds update");
 	}
 
 	// I'm not sure why we even do the following as part of this function
@@ -4054,7 +4054,7 @@ void UNavigationSystemV1::OnActorMoved(AActor* Actor)
 
 void UNavigationSystemV1::OnNavigationDirtied(const FBox& Bounds)
 {
-	AddDirtyArea(Bounds, ENavigationDirtyFlag::All);
+	AddDirtyArea(Bounds, ENavigationDirtyFlag::All, "OnNavigationDirtied");
 }
 
 void UNavigationSystemV1::OnReloadComplete(EReloadCompleteReason Reason)
