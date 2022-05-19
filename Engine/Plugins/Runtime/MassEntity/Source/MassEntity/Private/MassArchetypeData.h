@@ -10,7 +10,7 @@ struct FMassExecutionContext;
 class FOutputDevice;
 struct FMassArchetypeEntityCollection;
 
-namespace UE::MassEntity
+namespace UE::Mass
 {
 	constexpr int32 ChunkSize = 128*1024;
 }
@@ -210,7 +210,7 @@ public:
 
 	int32 GetNumEntities() const { return EntityMap.Num(); }
 
-	int32 GetChunkAllocSize() const { return UE::MassEntity::ChunkSize; }
+	int32 GetChunkAllocSize() const { return UE::Mass::ChunkSize; }
 
 	int32 GetChunkCount() const { return Chunks.Num(); }
 

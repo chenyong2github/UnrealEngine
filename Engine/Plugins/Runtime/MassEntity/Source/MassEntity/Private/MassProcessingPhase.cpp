@@ -24,7 +24,7 @@ namespace FMassTweakables
 	};
 }
 
-namespace UE::MassEntity::Private
+namespace UE::Mass::Private
 {
 	ETickingGroup PhaseToTickingGroup[int(EMassProcessingPhase::MAX)]
 	{
@@ -35,7 +35,7 @@ namespace UE::MassEntity::Private
 		ETickingGroup::TG_PostPhysics,	// EMassProcessingPhase::PostPhysics
 		ETickingGroup::TG_LastDemotable, // EMassProcessingPhase::FrameEnd
 	};
-} // UE::MassEntity::Private
+} // UE::Mass::Private
 
 //----------------------------------------------------------------------//
 //  FMassProcessingPhase
@@ -302,7 +302,7 @@ void UMassProcessingPhaseManager::CreatePhases()
 	for (int i = 0; i < int(EMassProcessingPhase::MAX); ++i)
 	{
 		ProcessingPhases[i].Phase = EMassProcessingPhase(i);
-		ProcessingPhases[i].TickGroup = UE::MassEntity::Private::PhaseToTickingGroup[i];
+		ProcessingPhases[i].TickGroup = UE::Mass::Private::PhaseToTickingGroup[i];
 		UMassCompositeProcessor* PhaseProcessor = NewObject<UMassCompositeProcessor>(this, UMassCompositeProcessor::StaticClass()
 			, *FString::Printf(TEXT("ProcessingPhase_%s"), *EnumToString(EMassProcessingPhase(i))));
 		SetPhaseProcessor(EMassProcessingPhase(i), PhaseProcessor);
