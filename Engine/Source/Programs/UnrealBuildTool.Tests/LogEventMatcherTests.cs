@@ -3,10 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 #nullable enable
@@ -33,8 +33,8 @@ namespace UnrealBuildToolTests
 				LogEvent logEvent = LogEvent.Read(JsonLogEvent.FromLoggerState(logLevel, eventId, state, exception, formatter).Data.Span);
 				if (logEvent.Level != LogLevel.Information || logEvent.Id != default || logEvent.Properties != null)
 				{
-					logEvent.Properties ??= new Dictionary<string, object>();
-					logEvent.Properties.Add(LogLine, _logLineIndex);
+					KeyValuePair<string, object>[] items = new[] { new KeyValuePair<string, object>(LogLine, _logLineIndex) };
+					logEvent.Properties = (logEvent.Properties == null) ? items : Enumerable.Concat(logEvent.Properties, items);
 					_events.Add(logEvent);
 				}
 
@@ -61,29 +61,23 @@ namespace UnrealBuildToolTests
 				List<LogEvent> logEvents = Parse(String.Join("\n", lines));
 				CheckEventGroup(logEvents, 0, 7, LogLevel.Error, KnownLogEvents.Compiler);
 
-				Assert.AreEqual("C2664", logEvents[0].Properties!["code"].ToString());
-				Assert.AreEqual("78", logEvents[0].Properties!["line"].ToString());
+				Assert.AreEqual("C2664", logEvents[0].GetProperty("code").ToString());
+				Assert.AreEqual("78", logEvents[0].GetProperty("line").ToString());
 
-				LogValue fileProperty = (LogValue)logEvents[0].Properties!["file"];
+				LogValue fileProperty = (LogValue)logEvents[0].GetProperty("file");
 				Assert.AreEqual(@"C:\Horde/Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp", fileProperty.Text);
-				Assert.AreEqual(@"SourceFile", fileProperty.Type);
+				Assert.AreEqual(LogValueType.SourceFile, fileProperty.Type);
 
-				LogValue noteProperty1 = (LogValue)logEvents[5].Properties!["file"];
+				LogValue noteProperty1 = logEvents[5].GetProperty<LogValue>("file");
 				Assert.AreEqual(@"C:\Horde/Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp", noteProperty1.Text);
-				Assert.AreEqual(@"SourceFile", noteProperty1.Type);
+				Assert.AreEqual(LogValueType.SourceFile, noteProperty1.Type);
 
-				LogValue noteProperty2 = (LogValue)logEvents[6].Properties!["file"];
+				LogValue noteProperty2 = logEvents[6].GetProperty<LogValue>("file");
 				Assert.AreEqual(@"C:\Horde\Sync\Engine\Source\Runtime\Core\Public\Delegates/DelegateSignatureImpl.inl", noteProperty2.Text);
 
 				// FIXME: Fails on Linux. Properties dict is empty
 				//Assert.AreEqual(@"SourceFile", NoteProperty2.Properties["type"].ToString());
 			}
-		}
-
-		[TestMethod]
-		public void CompileTest2()
-		{
-
 		}
 
 		[TestMethod]
@@ -103,27 +97,27 @@ namespace UnrealBuildToolTests
 
 				// 0
 				CheckEventGroup(logEvents.Slice(0, 1), 0, 1, LogLevel.Warning, KnownLogEvents.Microsoft);
-				Assert.AreEqual("TL2012", logEvents[0].Properties!["code"].ToString());
-				Assert.AreEqual("20", logEvents[0].Properties!["line"].ToString());
+				Assert.AreEqual("TL2012", logEvents[0].GetProperty("code").ToString());
+				Assert.AreEqual("20", logEvents[0].GetProperty("line").ToString());
 
-				LogValue fileProperty0 = (LogValue)logEvents[0].Properties!["file"];
-				Assert.AreEqual(@"SourceFile", fileProperty0.Type);
+				LogValue fileProperty0 = (LogValue)logEvents[0].GetProperty("file");
+				Assert.AreEqual(LogValueType.SourceFile, fileProperty0.Type);
 				Assert.AreEqual(@"C:\Horde\Foo\Bar.txt", fileProperty0.Text);
 
 				// 1
 				CheckEventGroup(logEvents.Slice(1, 1), 1, 1, LogLevel.Warning, KnownLogEvents.Microsoft);
-				Assert.AreEqual("TL2034", logEvents[1].Properties!["code"].ToString());
-				Assert.AreEqual("20", logEvents[1].Properties!["line"].ToString());
-				Assert.AreEqual("30", logEvents[1].Properties!["column"].ToString());
+				Assert.AreEqual("TL2034", logEvents[1].GetProperty("code").ToString());
+				Assert.AreEqual("20", logEvents[1].GetProperty("line").ToString());
+				Assert.AreEqual("30", logEvents[1].GetProperty("column").ToString());
 
-				LogValue fileProperty1 = (LogValue)logEvents[1].Properties!["file"];
-				Assert.AreEqual(@"SourceFile", fileProperty1.Type);
+				LogValue fileProperty1 = logEvents[1].GetProperty<LogValue>("file");
+				Assert.AreEqual(LogValueType.SourceFile, fileProperty1.Type);
 				Assert.AreEqual(@"C:\Horde\Foo\Bar.txt", fileProperty1.Text);
 
 				// 2
 				CheckEventGroup(logEvents.Slice(2, 1), 2, 1, LogLevel.Error, KnownLogEvents.Microsoft);
-				Assert.AreEqual("CS2012", logEvents[2].Properties!["code"].ToString());
-				Assert.AreEqual("CSC", logEvents[2].Properties!["tool"].ToString());
+				Assert.AreEqual("CS2012", logEvents[2].GetProperty("code").ToString());
+				Assert.AreEqual("CSC", logEvents[2].GetProperty("tool").ToString());
 			}
 		}
 
@@ -148,7 +142,7 @@ namespace UnrealBuildToolTests
 				CheckEventGroup(logEvents.Slice(3, 2), 3, 2, LogLevel.Error, KnownLogEvents.Compiler);
 
 				LogEvent logEvent = logEvents[1];
-				Assert.AreEqual("C4996", logEvent.Properties!["code"].ToString());
+				Assert.AreEqual("C4996", logEvent.GetProperty("code").ToString());
 				Assert.AreEqual(LogLevel.Error, logEvent.Level);
 
 				//LogValue FileProperty = (LogValue)Event.Properties["file"];
@@ -156,9 +150,9 @@ namespace UnrealBuildToolTests
 				// FIXME: Fails on Linux. Properties dict is empty
 				//Assert.AreEqual(@"//UE4/Main/Engine/Plugins/Experimental/VirtualCamera/Source/VirtualCamera/Private/VCamBlueprintFunctionLibrary.cpp@12345", FileProperty.Properties["depotPath"].ToString());
 
-				LogValue noteProperty1 = (LogValue)logEvents[2].Properties!["file"];
-				Assert.AreEqual(@"SourceFile", noteProperty1.Type);
-				Assert.AreEqual(@"Engine\Plugins\Editor\EditorScriptingUtilities\Source\EditorScriptingUtilities\Public\EditorLevelLibrary.h", noteProperty1.Properties!["file"]);
+				LogValue noteProperty1 = logEvents[2].GetProperty<LogValue>("file");
+				Assert.AreEqual(LogValueType.SourceFile, noteProperty1.Type);
+				Assert.AreEqual(@"Engine\Plugins\Editor\EditorScriptingUtilities\Source\EditorScriptingUtilities\Public\EditorLevelLibrary.h", noteProperty1.Properties!["file"].ToString()!);
 			}
 		}
 
@@ -198,11 +192,11 @@ namespace UnrealBuildToolTests
 			CheckEventGroup(logEvents, 1, 1, LogLevel.Error, KnownLogEvents.Compiler);
 
 			LogEvent logEvent = logEvents[0];
-			Assert.AreEqual("7", logEvent.Properties!["line"].ToString());
-			Assert.AreEqual("48", logEvent.Properties!["column"].ToString());
+			Assert.AreEqual("7", logEvent.GetProperty("line").ToString());
+			Assert.AreEqual("48", logEvent.GetProperty("column").ToString());
 
-			LogValue fileProperty = (LogValue)logEvent.Properties["file"];
-			Assert.AreEqual(@"SourceFile", fileProperty.Type);
+			LogValue fileProperty = logEvent.GetProperty<LogValue>("file");
+			Assert.AreEqual("/Users/build/Build/++UE4/Sync/Engine/Plugins/Runtime/AR/AzureSpatialAnchorsForARKit/Source/AzureSpatialAnchorsForARKit/Private/AzureSpatialAnchorsForARKit.cpp", fileProperty.Text);
 		}
 
 		[TestMethod]
@@ -211,7 +205,7 @@ namespace UnrealBuildToolTests
 			{
 				List<LogEvent> logEvents = Parse(@"  TP_VehicleAdvPawn.cpp.obj : error LNK2019: unresolved external symbol ""__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)"" (__imp_?GetPrivateStaticClass@UPhysicalMaterial@@CAPEAVUClass@@XZ) referenced in function ""class UPhysicalMaterial * __cdecl ConstructorHelpersInternal::FindOrLoadObject<class UPhysicalMaterial>(class FString &,unsigned int)"" (??$FindOrLoadObject@VUPhysicalMaterial@@@ConstructorHelpersInternal@@YAPEAVUPhysicalMaterial@@AEAVFString@@I@Z)");
 				CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
-				Assert.AreEqual("__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)", logEvents[0].Properties!["symbol"].ToString());
+				Assert.AreEqual("__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)", logEvents[0].GetProperty("symbol").ToString());
 			}
 
 			{
@@ -236,10 +230,10 @@ namespace UnrealBuildToolTests
 				Assert.AreEqual(5, logEvents.Count);
 				CheckEventGroup(logEvents.Slice(0, 5), 1, 5, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-				Assert.AreEqual("UProjectPlayControllerComponent::HandleMoveToolSpawnedActor(ATestGameCreativeMoveTool*, AActor*, bool)", logEvents[0].Properties!["symbol"].ToString());
-				Assert.AreEqual("UProjectPlayControllerComponent::HandleWeaponEquipped(ATestGameWeapon*, ATestGameWeapon*)", logEvents[1].Properties!["symbol"].ToString());
-				Assert.AreEqual("UProjectPlayControllerComponent::HandleMoveToolSpawnedActor(ATestGameMoveTool*, AActor*, bool)", logEvents[2].Properties!["symbol"].ToString());
-				Assert.AreEqual("UProjectPlayControllerComponent::HandleWeaponEquipped(ATestGameWeapon*, ATestGameWeapon*)", logEvents[3].Properties!["symbol"].ToString());
+				Assert.AreEqual("UProjectPlayControllerComponent::HandleMoveToolSpawnedActor(ATestGameCreativeMoveTool*, AActor*, bool)", logEvents[0].GetProperty("symbol").ToString());
+				Assert.AreEqual("UProjectPlayControllerComponent::HandleWeaponEquipped(ATestGameWeapon*, ATestGameWeapon*)", logEvents[1].GetProperty("symbol").ToString());
+				Assert.AreEqual("UProjectPlayControllerComponent::HandleMoveToolSpawnedActor(ATestGameMoveTool*, AActor*, bool)", logEvents[2].GetProperty("symbol").ToString());
+				Assert.AreEqual("UProjectPlayControllerComponent::HandleWeaponEquipped(ATestGameWeapon*, ATestGameWeapon*)", logEvents[3].GetProperty("symbol").ToString());
 
 			}
 		}
@@ -258,7 +252,7 @@ namespace UnrealBuildToolTests
 			Assert.AreEqual(2, logEvents.Count);
 
 			CheckEventGroup(logEvents.Slice(0, 1), 0, 1, LogLevel.Error, KnownLogEvents.Linker_DuplicateSymbol);
-			Assert.AreEqual("tf_select_table", logEvents[0].Properties!["symbol"].ToString());
+			Assert.AreEqual("tf_select_table", logEvents[0].GetProperty("symbol").ToString());
 
 			CheckEventGroup(logEvents.Slice(1, 1), 2, 1, LogLevel.Error, KnownLogEvents.Linker);
 		}
@@ -292,10 +286,10 @@ namespace UnrealBuildToolTests
 			Assert.AreEqual(2, logEvents.Count);
 			CheckEventGroup(logEvents, 0, 2, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = (LogValue)logEvents[0].GetProperty("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 
-			LogValue symbolProperty2 = (LogValue)logEvents[1].Properties!["symbol"];
+			LogValue symbolProperty2 = (LogValue)logEvents[1].GetProperty("symbol");
 			Assert.AreEqual("Foo::Bar2", symbolProperty2.Properties!["identifier"].ToString());
 		}
 
@@ -313,7 +307,7 @@ namespace UnrealBuildToolTests
 			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
 			CheckEventGroup(logEvents, 0, 4, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = (LogValue)logEvents[0].GetProperty("symbol");
 			Assert.AreEqual("USkeleton::GetBlendProfile", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -329,8 +323,8 @@ namespace UnrealBuildToolTests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 2, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[1].Properties!["symbol"];
-			Assert.AreEqual("symbol", symbolProperty.Type);
+			LogValue symbolProperty = (LogValue)logEvents[1].GetProperty("symbol");
+			Assert.AreEqual(LogValueType.Symbol, symbolProperty.Type);
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -363,7 +357,7 @@ namespace UnrealBuildToolTests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = (LogValue)logEvents[0].GetProperty("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -396,7 +390,7 @@ namespace UnrealBuildToolTests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = logEvents[0].GetProperty<LogValue>("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -411,7 +405,7 @@ namespace UnrealBuildToolTests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = logEvents[0].GetProperty<LogValue>("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -426,7 +420,7 @@ namespace UnrealBuildToolTests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = logEvents[0].GetProperty<LogValue>("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -454,17 +448,17 @@ namespace UnrealBuildToolTests
 			CheckEventGroup(logEvents.Slice(7, 1), 8, 1, LogLevel.Error, KnownLogEvents.Systemic_Xge_BuildFailed);
 		}
 
-		List<LogEvent> Parse(IEnumerable<string> lines)
+		static List<LogEvent> Parse(IEnumerable<string> lines)
 		{
 			return Parse(String.Join("\n", lines));
 		}
 
-		List<LogEvent> Parse(string text)
+		static List<LogEvent> Parse(string text)
 		{
 			return Parse(text, new DirectoryReference("C:\\Horde".Replace('\\', Path.DirectorySeparatorChar)));
 		}
 
-		List<LogEvent> Parse(string text, DirectoryReference workspaceDir)
+		static List<LogEvent> Parse(string text, DirectoryReference workspaceDir)
 		{
 			byte[] textBytes = Encoding.UTF8.GetBytes(text);
 
@@ -487,7 +481,7 @@ namespace UnrealBuildToolTests
 			return logger._events;
 		}
 
-		void CheckEventGroup(IEnumerable<LogEvent> logEvents, int index, int count, LogLevel level, EventId eventId = default)
+		static void CheckEventGroup(IEnumerable<LogEvent> logEvents, int index, int count, LogLevel level, EventId eventId = default)
 		{
 			IEnumerator<LogEvent> enumerator = logEvents.GetEnumerator();
 			for (int idx = 0; idx < count; idx++)
@@ -499,7 +493,7 @@ namespace UnrealBuildToolTests
 				Assert.AreEqual(eventId, logEvent.Id);
 				Assert.AreEqual(idx, logEvent.LineIndex);
 				Assert.AreEqual(count, logEvent.LineCount);
-				Assert.AreEqual(index + idx, logEvent.Properties![LogLine]);
+				Assert.AreEqual(index + idx, logEvent.GetProperty(LogLine));
 			}
 			Assert.IsFalse(enumerator.MoveNext());
 		}
