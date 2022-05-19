@@ -690,11 +690,11 @@ namespace Horde.Build
 
 		public static void ConfigureFormatters()
 		{
-			LogEventFormatter.RegisterFormatter(typeof(AgentId), new LogEventFormatter.AnnotateTypeFormatter("AgentId"));
-			LogEventFormatter.RegisterFormatter(typeof(JobId), new LogEventFormatter.AnnotateTypeFormatter("JobId"));
-			LogEventFormatter.RegisterFormatter(typeof(LeaseId), new LogEventFormatter.AnnotateTypeFormatter("LeaseId"));
-			LogEventFormatter.RegisterFormatter(typeof(LogId), new LogEventFormatter.AnnotateTypeFormatter("LogId"));
-			LogEventFormatter.RegisterFormatter(typeof(UserId), new LogEventFormatter.AnnotateTypeFormatter("UserId"));
+			LogValueFormatter.RegisterTypeAnnotation<AgentId>("AgentId");
+			LogValueFormatter.RegisterTypeAnnotation<JobId>("JobId");
+			LogValueFormatter.RegisterTypeAnnotation<LeaseId>("LeaseId");
+			LogValueFormatter.RegisterTypeAnnotation<LogId>("LogId");
+			LogValueFormatter.RegisterTypeAnnotation<UserId>("UserId");
 		}
 
 		public static void ConfigureJsonSerializer(JsonSerializerOptions options)

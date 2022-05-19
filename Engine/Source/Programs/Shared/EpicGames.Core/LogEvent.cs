@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -42,12 +43,6 @@ namespace EpicGames.Core
 	[JsonConverter(typeof(LogEventConverter))]
 	public class LogEvent : IEnumerable<KeyValuePair<string, object?>>
 	{
-		static class InternalPropertyNames
-		{
-			public static string LineIndex = "$line";
-			public static string LineCount = "$lineCount";
-		}
-
 		/// <summary>
 		/// Time that the event was emitted
 		/// </summary>
@@ -86,7 +81,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Map of property name to value
 		/// </summary>
-		public Dictionary<string, object>? Properties { get; set; }
+		public IEnumerable<KeyValuePair<string, object>>? Properties { get; set; }
 
 		/// <summary>
 		/// The exception value
@@ -96,7 +91,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogEvent(DateTime time, LogLevel level, EventId eventId, string message, string? format, Dictionary<string, object>? properties, LogException? exception)
+		public LogEvent(DateTime time, LogLevel level, EventId eventId, string message, string? format, IEnumerable<KeyValuePair<string, object>>? properties, LogException? exception)
 			: this(time, level, eventId, 0, 1, message, format, properties, exception)
 		{
 		}
@@ -104,7 +99,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LogEvent(DateTime time, LogLevel level, EventId eventId, int lineIndex, int lineCount, string message, string? format, Dictionary<string, object>? properties, LogException? exception)
+		public LogEvent(DateTime time, LogLevel level, EventId eventId, int lineIndex, int lineCount, string message, string? format, IEnumerable<KeyValuePair<string, object>>? properties, LogException? exception)
 		{
 			Time = time;
 			Level = level;
@@ -115,6 +110,75 @@ namespace EpicGames.Core
 			Format = format;
 			Properties = properties;
 			Exception = exception;
+		}
+
+		/// <summary>
+		/// Gets an untyped property with the given name
+		/// </summary>
+		/// <param name="name"></param>
+		/// <returns></returns>
+		public object GetProperty(string name)
+		{
+			object? value;
+			if (TryGetProperty(name, out value))
+			{
+				return value;
+			}
+			throw new KeyNotFoundException($"Property {name} not found");
+		}
+
+		/// <summary>
+		/// Gets a property with the given name
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="name">Name of the property</param>
+		/// <returns></returns>
+		public T GetProperty<T>(string name) => (T)GetProperty(name);
+
+		/// <summary>
+		/// Finds a property with the given name
+		/// </summary>
+		/// <param name="name">Name of the property</param>
+		/// <param name="value">Value for the property, on success</param>
+		/// <returns>True if the property was found, false otherwise</returns>
+		public bool TryGetProperty(string name, [NotNullWhen(true)] out object? value)
+		{
+			if (Properties != null)
+			{
+				foreach (KeyValuePair<string, object> pair in Properties)
+				{
+					if (pair.Key.Equals(name, StringComparison.Ordinal))
+					{
+						value = pair.Value;
+						return true;
+					}
+				}
+			}
+
+			value = null;
+			return false;
+		}
+
+		/// <summary>
+		/// Finds a typed property with the given name
+		/// </summary>
+		/// <typeparam name="T">Type of the property to receive</typeparam>
+		/// <param name="name">Name of the property</param>
+		/// <param name="value">Value for the property, on success</param>
+		/// <returns>True if the property was found, false otherwise</returns>
+		public bool TryGetProperty<T>(string name, [NotNullWhen(true)] out T value)
+		{
+			object? untypedValue;
+			if(TryGetProperty(name, out untypedValue) && untypedValue is T typedValue)
+			{
+				value = typedValue;
+				return true;
+			}
+			else
+			{
+				value = default!;
+				return false;
+			}
 		}
 
 		/// <summary>
@@ -283,8 +347,11 @@ namespace EpicGames.Core
 				writer.WriteStartObject(LogEventPropertyName.Properties.Span);
 				foreach ((string name, object? value) in Properties!)
 				{
-					writer.WritePropertyName(name);
-					WritePropertyValue(ref writer, value);
+					if (!name.Equals(MessageTemplate.FormatPropertyName, StringComparison.Ordinal))
+					{
+						writer.WritePropertyName(name);
+						LogValueFormatter.Format(value, writer);
+					}
 				}
 				writer.WriteEndObject();
 			}
@@ -296,96 +363,6 @@ namespace EpicGames.Core
 				writer.WriteEndObject();
 			}
 			writer.WriteEndObject();
-		}
-
-		/// <summary>
-		/// Write a property value to a json object
-		/// </summary>
-		/// <param name="writer"></param>
-		/// <param name="value"></param>
-		static void WritePropertyValue(ref Utf8JsonWriter writer, object? value)
-		{
-			if (value == null)
-			{
-				writer.WriteNullValue();
-			}
-			else
-			{
-				Type valueType = value.GetType();
-				if (valueType == typeof(LogValue))
-				{
-					WriteStructuredPropertyValue(ref writer, (LogValue)value);
-				}
-				else
-				{
-					WriteSimplePropertyValue(ref writer, value, valueType);
-				}
-			}
-		}
-
-		static void WriteStructuredPropertyValue(ref Utf8JsonWriter writer, LogValue value)
-		{
-			writer.WriteStartObject();
-			writer.WriteString(LogEventPropertyName.Type.Span, value.Type);
-			writer.WriteString(LogEventPropertyName.Text.Span, value.Text);
-			if (value.Properties != null)
-			{
-				foreach ((Utf8String propertyName, object? propertyValue) in value.Properties)
-				{
-					writer.WritePropertyName(propertyName);
-					WritePropertyValue(ref writer, propertyValue);
-				}
-			}
-			writer.WriteEndObject();
-		}
-
-		static void WriteSimplePropertyValue(ref Utf8JsonWriter writer, object value, Type valueType)
-		{
-			switch (Type.GetTypeCode(valueType))
-			{
-				case TypeCode.Boolean:
-					writer.WriteBooleanValue((bool)value);
-					break;
-				case TypeCode.Byte:
-					writer.WriteNumberValue((byte)value);
-					break;
-				case TypeCode.SByte:
-					writer.WriteNumberValue((sbyte)value);
-					break;
-				case TypeCode.UInt16:
-					writer.WriteNumberValue((ushort)value);
-					break;
-				case TypeCode.UInt32:
-					writer.WriteNumberValue((uint)value);
-					break;
-				case TypeCode.UInt64:
-					writer.WriteNumberValue((long)value);
-					break;
-				case TypeCode.Int16:
-					writer.WriteNumberValue((short)value);
-					break;
-				case TypeCode.Int32:
-					writer.WriteNumberValue((int)value);
-					break;
-				case TypeCode.Int64:
-					writer.WriteNumberValue((long)value);
-					break;
-				case TypeCode.Decimal:
-					writer.WriteNumberValue((decimal)value);
-					break;
-				case TypeCode.Double:
-					writer.WriteNumberValue((double)value);
-					break;
-				case TypeCode.Single:
-					writer.WriteNumberValue((float)value);
-					break;
-				case TypeCode.String:
-					writer.WriteStringValue((string)value);
-					break;
-				default:
-					writer.WriteStringValue(value.ToString() ?? String.Empty);
-					break;
-			}
 		}
 
 		/// <summary>
@@ -451,27 +428,8 @@ namespace EpicGames.Core
 
 			// Try to log the event
 			IEnumerable<KeyValuePair<string, object>>? values = state as IEnumerable<KeyValuePair<string, object>>;
-			if (values != null)
-			{
-				KeyValuePair<string, object>? format = values.FirstOrDefault(x => x.Key.Equals(MessageTemplate.FormatPropertyName, StringComparison.Ordinal));
-				if (format != null)
-				{
-					// Format all the other values
-					string formatString = format.Value.Value?.ToString() ?? String.Empty;
-					Dictionary<string, object>? properties = MessageTemplate.CreatePositionalProperties(formatString, values);
-					return new LogEvent(time, level, eventId, message, formatString, properties, LogException.FromException(exception));
-				}
-				else
-				{
-					// Include all the data, but don't use the format string
-					return new LogEvent(time, level, eventId, message, null, values.ToDictionary(x => x.Key, x => x.Value), LogException.FromException(exception));
-				}
-			}
-			else
-			{
-				// Format as a string
-				return new LogEvent(time, level, eventId, message, null, null, LogException.FromException(exception));
-			}
+			string? format = values?.FirstOrDefault(x => x.Key.Equals(MessageTemplate.FormatPropertyName, StringComparison.Ordinal)).Value?.ToString();
+			return new LogEvent(time, level, eventId, message, format, values, LogException.FromException(exception));
 		}
 
 		/// <summary>
@@ -483,16 +441,6 @@ namespace EpicGames.Core
 			if (Format != null)
 			{
 				yield return new KeyValuePair<string, object?>(MessageTemplate.FormatPropertyName, Format.ToString());
-			}
-
-			if (LineIndex > 0)
-			{
-				yield return new KeyValuePair<string, object?>(InternalPropertyNames.LineIndex, LineIndex);
-			}
-
-			if (LineCount > 1)
-			{
-				yield return new KeyValuePair<string, object?>(InternalPropertyNames.LineCount, LineCount);
 			}
 
 			if (Properties != null)
@@ -544,46 +492,6 @@ namespace EpicGames.Core
 
 		/// <inheritdoc/>
 		public override string ToString() => Message;
-	}
-
-	/// <summary>
-	/// Information for a structured value for use in log events
-	/// </summary>
-	public sealed class LogValue
-	{
-		/// <summary>
-		/// Type of the event
-		/// </summary>
-		public Utf8String Type { get; set; }
-
-		/// <summary>
-		/// Rendering of the value
-		/// </summary>
-		public string Text { get; set; }
-
-		/// <summary>
-		/// Properties associated with the value
-		/// </summary>
-		public Dictionary<Utf8String, object>? Properties { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="type">Type of the value</param>
-		/// <param name="text">Rendering of the value as text</param>
-		/// <param name="properties">Additional properties for this value</param>
-		public LogValue(Utf8String type, string text, Dictionary<Utf8String, object>? properties = null)
-		{
-			Type = type;
-			Text = text;
-			Properties = properties;
-		}
-
-		/// <inheritdoc/>
-		public override string ToString()
-		{
-			return Text;
-		}
 	}
 
 	/// <summary>

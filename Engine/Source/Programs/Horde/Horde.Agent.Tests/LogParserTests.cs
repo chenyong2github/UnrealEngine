@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using EpicGames.Core;
 using EpicGames.Perforce;
@@ -34,8 +35,8 @@ namespace Horde.Agent.Tests
 				LogEvent logEvent = LogEvent.Read(JsonLogEvent.FromLoggerState(logLevel, eventId, state, exception, formatter).Data.Span);
 				if (logEvent.Level != LogLevel.Information || logEvent.Id != default || logEvent.Properties != null)
 				{
-					logEvent.Properties ??= new Dictionary<string, object>();
-					logEvent.Properties.Add(LogLine, _logLineIndex);
+					KeyValuePair<string, object>[] items = new[] { new KeyValuePair<string, object>(LogLine, _logLineIndex) };
+					logEvent.Properties = (logEvent.Properties == null) ? items : Enumerable.Concat(logEvent.Properties, items);
 					_events.Add(logEvent);
 				}
 
@@ -71,9 +72,9 @@ namespace Horde.Agent.Tests
 
 			Assert.AreEqual(impl._lines.Count, 2);
 			Assert.AreEqual(impl._lines[0].ToString(), "Hello world");
-			Assert.AreEqual(impl._lines[0].Properties!["Text"].ToString()!, "world");
+			Assert.AreEqual(impl._lines[0].GetProperty("Text").ToString()!, "world");
 			Assert.AreEqual(impl._lines[1].ToString(), "Hello world");
-			Assert.AreEqual(impl._lines[1].Properties!["Text"].ToString(), "world");
+			Assert.AreEqual(impl._lines[1].GetProperty("Text").ToString(), "world");
 		}
 
 		[TestMethod]
@@ -189,20 +190,20 @@ namespace Horde.Agent.Tests
 				List<LogEvent> logEvents = Parse(String.Join("\n", lines));
 				CheckEventGroup(logEvents, 0, 7, LogLevel.Error, KnownLogEvents.Compiler);
 
-				Assert.AreEqual("C2664", logEvents[0].Properties!["code"].ToString());
-				Assert.AreEqual("78", logEvents[0].Properties!["line"].ToString());
+				Assert.AreEqual("C2664", logEvents[0].GetProperty("code").ToString());
+				Assert.AreEqual("78", logEvents[0].GetProperty("line").ToString());
 
-				LogValue fileProperty = (LogValue)logEvents[0].Properties!["file"];
+				LogValue fileProperty = (LogValue)logEvents[0].GetProperty("file");
 				Assert.AreEqual(@"C:\Horde/Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp", fileProperty.Text);
 				Assert.AreEqual(@"SourceFile", fileProperty.Type);
 				Assert.AreEqual(@"Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp", fileProperty.Properties!["relativePath"].ToString());
 				Assert.AreEqual(@"//UE4/Main/Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp@12345", fileProperty.Properties["depotPath"].ToString());
 
-				LogValue noteProperty1 = (LogValue)logEvents[5].Properties!["file"];
+				LogValue noteProperty1 = logEvents[5].GetProperty<LogValue>("file");
 				Assert.AreEqual(@"C:\Horde/Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp", noteProperty1.Text);
 				Assert.AreEqual(@"SourceFile", noteProperty1.Type);
 
-				LogValue noteProperty2 = (LogValue)logEvents[6].Properties!["file"];
+				LogValue noteProperty2 = logEvents[6].GetProperty<LogValue>("file");
 				Assert.AreEqual(@"C:\Horde\Sync\Engine\Source\Runtime\Core\Public\Delegates/DelegateSignatureImpl.inl", noteProperty2.Text);
 
 				// FIXME: Fails on Linux. Properties dict is empty
@@ -243,20 +244,20 @@ namespace Horde.Agent.Tests
 				Assert.AreEqual(2, logEvents.Count);
 
 				CheckEventGroup(logEvents.Slice(0, 1), 0, 1, LogLevel.Error, KnownLogEvents.Compiler);
-				Assert.AreEqual("CS0246", logEvents[0].Properties!["code"].ToString());
-				Assert.AreEqual("22", logEvents[0].Properties!["line"].ToString());
+				Assert.AreEqual("CS0246", logEvents[0].GetProperty("code").ToString());
+				Assert.AreEqual("22", logEvents[0].GetProperty("line").ToString());
 
-				LogValue fileProperty1 = (LogValue)logEvents[0].Properties!["file"];
+				LogValue fileProperty1 = (LogValue)logEvents[0].GetProperty("file");
 				Assert.AreEqual(@"GenerateSigningRequestDialog.cs", fileProperty1.Text);
 				Assert.AreEqual(@"SourceFile", fileProperty1.Type);
 				Assert.AreEqual(@"Engine/Source/Programs/IOS/iPhonePackager/GenerateSigningRequestDialog.cs", fileProperty1.Properties!["relativePath"].ToString());
 				Assert.AreEqual(@"//UE4/Main/Engine/Source/Programs/IOS/iPhonePackager/GenerateSigningRequestDialog.cs@12345", fileProperty1.Properties["depotPath"].ToString());
 
 				CheckEventGroup(logEvents.Slice(1, 1), 1, 1, LogLevel.Error, KnownLogEvents.Compiler);
-				Assert.AreEqual("CS0246", logEvents[1].Properties!["code"].ToString());
-				Assert.AreEqual("16", logEvents[1].Properties!["line"].ToString());
+				Assert.AreEqual("CS0246", logEvents[1].GetProperty("code").ToString());
+				Assert.AreEqual("16", logEvents[1].GetProperty("line").ToString());
 
-				LogValue fileProperty2 = (LogValue)logEvents[1].Properties!["file"];
+				LogValue fileProperty2 = (LogValue)logEvents[1].GetProperty("file");
 				Assert.AreEqual(@"Utilities.cs", fileProperty2.Text);
 				Assert.AreEqual(@"SourceFile", fileProperty2.Type);
 				Assert.AreEqual(@"Engine/Source/Programs/IOS/iPhonePackager/Utilities.cs", fileProperty2.Properties!["relativePath"].ToString());
@@ -277,10 +278,10 @@ namespace Horde.Agent.Tests
 				List<LogEvent> events = Parse(String.Join("\n", lines));
 				CheckEventGroup(events, 0, 1, LogLevel.Warning, KnownLogEvents.Compiler);
 
-				Assert.AreEqual("CS8625", events[0].Properties!["code"].ToString());
-				Assert.AreEqual("1497", events[0].Properties!["line"].ToString());
+				Assert.AreEqual("CS8625", events[0].GetProperty("code").ToString());
+				Assert.AreEqual("1497", events[0].GetProperty("line").ToString());
 
-				LogValue fileProperty = (LogValue)events[0].Properties!["file"];
+				LogValue fileProperty = (LogValue)events[0].GetProperty("file");
 				Assert.AreEqual(@"Configuration\TargetRules.cs", fileProperty.Text);
 				Assert.AreEqual(@"SourceFile", fileProperty.Type);
 				Assert.AreEqual(@"Engine/Source/Programs/UnrealBuildTool/Configuration/TargetRules.cs", fileProperty.Properties!["relativePath"].ToString());
@@ -303,20 +304,20 @@ namespace Horde.Agent.Tests
 				Assert.AreEqual(2, logEvents.Count);
 
 				CheckEventGroup(logEvents.Slice(0, 1), 0, 1, LogLevel.Error, KnownLogEvents.Compiler);
-				Assert.AreEqual("CS0246", logEvents[0].Properties!["code"].ToString());
-				Assert.AreEqual("4", logEvents[0].Properties!["line"].ToString());
+				Assert.AreEqual("CS0246", logEvents[0].GetProperty("code").ToString());
+				Assert.AreEqual("4", logEvents[0].GetProperty("line").ToString());
 
-				LogValue fileProperty = (LogValue)logEvents[0].Properties!["file"];
+				LogValue fileProperty = (LogValue)logEvents[0].GetProperty("file");
 				Assert.AreEqual(@"c:\Horde\Engine\Source\Runtime\CoreOnline\CoreOnline.Build.cs", fileProperty.Text);
 				Assert.AreEqual(@"SourceFile", fileProperty.Type);
 				Assert.AreEqual(@"Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs", fileProperty.Properties!["relativePath"].ToString());
 				Assert.AreEqual(@"//UE4/Main/Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs@12345", fileProperty.Properties!["depotPath"].ToString());
 
 				CheckEventGroup(logEvents.Slice(1, 1), 1, 1, LogLevel.Warning, KnownLogEvents.Compiler);
-				Assert.AreEqual("CS0246", logEvents[1].Properties!["code"].ToString());
-				Assert.AreEqual("4", logEvents[1].Properties!["line"].ToString());
+				Assert.AreEqual("CS0246", logEvents[1].GetProperty("code").ToString());
+				Assert.AreEqual("4", logEvents[1].GetProperty("line").ToString());
 
-				LogValue fileProperty1 = (LogValue)logEvents[1].Properties!["file"];
+				LogValue fileProperty1 = logEvents[1].GetProperty<LogValue>("file");
 				Assert.AreEqual(@"C:\horde\Engine\Source\Runtime\CoreOnline\CoreOnline.Build.cs", fileProperty1.Text);
 				Assert.AreEqual(@"SourceFile", fileProperty1.Type);
 				Assert.AreEqual(@"Engine/Source/Runtime/CoreOnline/CoreOnline.Build.cs", fileProperty1.Properties!["relativePath"].ToString());
@@ -353,27 +354,27 @@ namespace Horde.Agent.Tests
 
 				// 0
 				CheckEventGroup(logEvents.Slice(0, 1), 0, 1, LogLevel.Warning, KnownLogEvents.Microsoft);
-				Assert.AreEqual("TL2012", logEvents[0].Properties!["code"].ToString());
-				Assert.AreEqual("20", logEvents[0].Properties!["line"].ToString());
+				Assert.AreEqual("TL2012", logEvents[0].GetProperty("code").ToString());
+				Assert.AreEqual("20", logEvents[0].GetProperty("line").ToString());
 
-				LogValue fileProperty0 = (LogValue)logEvents[0].Properties!["file"];
+				LogValue fileProperty0 = (LogValue)logEvents[0].GetProperty("file");
 				Assert.AreEqual(@"SourceFile", fileProperty0.Type);
 				Assert.AreEqual(@"Foo/Bar.txt", fileProperty0.Properties!["relativePath"].ToString());
 
 				// 1
 				CheckEventGroup(logEvents.Slice(1, 1), 1, 1, LogLevel.Warning, KnownLogEvents.Microsoft);
-				Assert.AreEqual("TL2034", logEvents[1].Properties!["code"].ToString());
-				Assert.AreEqual("20", logEvents[1].Properties!["line"].ToString());
-				Assert.AreEqual("30", logEvents[1].Properties!["column"].ToString());
+				Assert.AreEqual("TL2034", logEvents[1].GetProperty("code").ToString());
+				Assert.AreEqual("20", logEvents[1].GetProperty("line").ToString());
+				Assert.AreEqual("30", logEvents[1].GetProperty("column").ToString());
 
-				LogValue fileProperty1 = (LogValue)logEvents[1].Properties!["file"];
+				LogValue fileProperty1 = logEvents[1].GetProperty<LogValue>("file");
 				Assert.AreEqual(@"SourceFile", fileProperty1.Type);
 				Assert.AreEqual(@"Foo/Bar.txt", fileProperty1.Properties!["relativePath"].ToString());
 
 				// 2
 				CheckEventGroup(logEvents.Slice(2, 1), 2, 1, LogLevel.Error, KnownLogEvents.Microsoft);
-				Assert.AreEqual("CS2012", logEvents[2].Properties!["code"].ToString());
-				Assert.AreEqual("CSC", logEvents[2].Properties!["tool"].ToString());
+				Assert.AreEqual("CS2012", logEvents[2].GetProperty("code").ToString());
+				Assert.AreEqual("CSC", logEvents[2].GetProperty("tool").ToString());
 			}
 		}
 
@@ -398,7 +399,7 @@ namespace Horde.Agent.Tests
 				CheckEventGroup(logEvents.Slice(3, 2), 3, 2, LogLevel.Error, KnownLogEvents.Compiler);
 
 				LogEvent logEvent = logEvents[1];
-				Assert.AreEqual("C4996", logEvent.Properties!["code"].ToString());
+				Assert.AreEqual("C4996", logEvent.GetProperty("code").ToString());
 				Assert.AreEqual(LogLevel.Error, logEvent.Level);
 
 				//LogValue FileProperty = (LogValue)Event.Properties["file"];
@@ -406,7 +407,7 @@ namespace Horde.Agent.Tests
 				// FIXME: Fails on Linux. Properties dict is empty
 				//Assert.AreEqual(@"//UE4/Main/Engine/Plugins/Experimental/VirtualCamera/Source/VirtualCamera/Private/VCamBlueprintFunctionLibrary.cpp@12345", FileProperty.Properties["depotPath"].ToString());
 
-				LogValue noteProperty1 = (LogValue)logEvents[2].Properties!["file"];
+				LogValue noteProperty1 = logEvents[2].GetProperty<LogValue>("file");
 				Assert.AreEqual(@"SourceFile", noteProperty1.Type);
 				Assert.AreEqual(@"//UE4/Main/Engine/Plugins/Editor/EditorScriptingUtilities/Source/EditorScriptingUtilities/Public/EditorLevelLibrary.h@12345", noteProperty1.Properties!["depotPath"].ToString());
 			}
@@ -424,7 +425,7 @@ namespace Horde.Agent.Tests
 			Assert.AreEqual(1, events.Count);
 			Assert.AreEqual(events[0].Id, KnownLogEvents.Engine_AssetLog);
 
-			LogValue assetProperty = (LogValue)events[0].Properties!["asset"];
+			LogValue assetProperty = events[0].GetProperty<LogValue>("asset");
 			Assert.AreEqual("Asset", assetProperty.Type);
 			Assert.AreEqual(@"//UE4/Main/QAGame/Plugins/NiagaraFluids/Content/Blueprints/Phsyarum_BP.uasset@12345", assetProperty.Properties!["depotPath"].ToString());
 			Assert.AreEqual(@"QAGame/Plugins/NiagaraFluids/Content/Blueprints/Phsyarum_BP.uasset", assetProperty.Properties!["relativePath"].ToString());
@@ -466,10 +467,10 @@ namespace Horde.Agent.Tests
 			CheckEventGroup(logEvents, 1, 1, LogLevel.Error, KnownLogEvents.Compiler);
 
 			LogEvent logEvent = logEvents[0];
-			Assert.AreEqual("7", logEvent.Properties!["line"].ToString());
-			Assert.AreEqual("48", logEvent.Properties!["column"].ToString());
+			Assert.AreEqual("7", logEvent.GetProperty("line").ToString());
+			Assert.AreEqual("48", logEvent.GetProperty("column").ToString());
 
-			LogValue fileProperty = (LogValue)logEvent.Properties["file"];
+			LogValue fileProperty = logEvent.GetProperty<LogValue>("file");
 			Assert.AreEqual("//UE4/Main/Engine/Plugins/Runtime/AR/AzureSpatialAnchorsForARKit/Source/AzureSpatialAnchorsForARKit/Private/AzureSpatialAnchorsForARKit.cpp@12345", fileProperty.Properties!["depotPath"]);
 		}
 
@@ -479,7 +480,7 @@ namespace Horde.Agent.Tests
 			{
 				List<LogEvent> logEvents = Parse(@"  TP_VehicleAdvPawn.cpp.obj : error LNK2019: unresolved external symbol ""__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)"" (__imp_?GetPrivateStaticClass@UPhysicalMaterial@@CAPEAVUClass@@XZ) referenced in function ""class UPhysicalMaterial * __cdecl ConstructorHelpersInternal::FindOrLoadObject<class UPhysicalMaterial>(class FString &,unsigned int)"" (??$FindOrLoadObject@VUPhysicalMaterial@@@ConstructorHelpersInternal@@YAPEAVUPhysicalMaterial@@AEAVFString@@I@Z)");
 				CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
-				Assert.AreEqual("__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)", logEvents[0].Properties!["symbol"].ToString());
+				Assert.AreEqual("__declspec(dllimport) private: static class UClass * __cdecl UPhysicalMaterial::GetPrivateStaticClass(void)", logEvents[0].GetProperty("symbol").ToString());
 			}
 
 			{
@@ -504,10 +505,10 @@ namespace Horde.Agent.Tests
 				Assert.AreEqual(5, logEvents.Count);
 				CheckEventGroup(logEvents.Slice(0, 5), 1, 5, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-				Assert.AreEqual("UProjectPlayControllerComponent::HandleMoveToolSpawnedActor(ATestGameCreativeMoveTool*, AActor*, bool)", logEvents[0].Properties!["symbol"].ToString());
-				Assert.AreEqual("UProjectPlayControllerComponent::HandleWeaponEquipped(ATestGameWeapon*, ATestGameWeapon*)", logEvents[1].Properties!["symbol"].ToString());
-				Assert.AreEqual("UProjectPlayControllerComponent::HandleMoveToolSpawnedActor(ATestGameMoveTool*, AActor*, bool)", logEvents[2].Properties!["symbol"].ToString());
-				Assert.AreEqual("UProjectPlayControllerComponent::HandleWeaponEquipped(ATestGameWeapon*, ATestGameWeapon*)", logEvents[3].Properties!["symbol"].ToString());
+				Assert.AreEqual("UProjectPlayControllerComponent::HandleMoveToolSpawnedActor(ATestGameCreativeMoveTool*, AActor*, bool)", logEvents[0].GetProperty("symbol").ToString());
+				Assert.AreEqual("UProjectPlayControllerComponent::HandleWeaponEquipped(ATestGameWeapon*, ATestGameWeapon*)", logEvents[1].GetProperty("symbol").ToString());
+				Assert.AreEqual("UProjectPlayControllerComponent::HandleMoveToolSpawnedActor(ATestGameMoveTool*, AActor*, bool)", logEvents[2].GetProperty("symbol").ToString());
+				Assert.AreEqual("UProjectPlayControllerComponent::HandleWeaponEquipped(ATestGameWeapon*, ATestGameWeapon*)", logEvents[3].GetProperty("symbol").ToString());
 
 			}
 		}
@@ -526,7 +527,7 @@ namespace Horde.Agent.Tests
 			Assert.AreEqual(2, logEvents.Count);
 
 			CheckEventGroup(logEvents.Slice(0, 1), 0, 1, LogLevel.Error, KnownLogEvents.Linker_DuplicateSymbol);
-			Assert.AreEqual("tf_select_table", logEvents[0].Properties!["symbol"].ToString());
+			Assert.AreEqual("tf_select_table", logEvents[0].GetProperty("symbol").ToString());
 
 			CheckEventGroup(logEvents.Slice(1, 1), 2, 1, LogLevel.Error, KnownLogEvents.Linker);
 		}
@@ -537,9 +538,9 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse("ERROR: C:\\Horde\\InstalledEngineBuild.xml(50): Some error");
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.AutomationTool_SourceFileLine);
 
-			Assert.AreEqual("ERROR", logEvents[0].Properties!["severity"].ToString());
-			Assert.AreEqual("C:\\Horde\\InstalledEngineBuild.xml", logEvents[0].Properties!["file"].ToString());
-			Assert.AreEqual("50", logEvents[0].Properties!["line"].ToString());
+			Assert.AreEqual("ERROR", logEvents[0].GetProperty("severity").ToString());
+			Assert.AreEqual("C:\\Horde\\InstalledEngineBuild.xml", logEvents[0].GetProperty("file").ToString());
+			Assert.AreEqual("50", logEvents[0].GetProperty("line").ToString());
 		}
 
 		[TestMethod]
@@ -548,8 +549,8 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse("  WARNING: Engine\\Plugins\\Test\\Foo.cpp: Missing copyright boilerplate");
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Warning, KnownLogEvents.AutomationTool_MissingCopyright);
 
-			Assert.AreEqual("WARNING", logEvents[0].Properties!["severity"].ToString());
-			Assert.AreEqual("Engine\\Plugins\\Test\\Foo.cpp", logEvents[0].Properties!["file"].ToString());
+			Assert.AreEqual("WARNING", logEvents[0].GetProperty("severity").ToString());
+			Assert.AreEqual("Engine\\Plugins\\Test\\Foo.cpp", logEvents[0].GetProperty("file").ToString());
 		}
 
 		[TestMethod]
@@ -558,7 +559,7 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse(@"  C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\Microsoft.Common.CurrentVersion.targets(4207,5): warning MSB3026: Could not copy ""obj\Development\DotNETUtilities.dll"" to ""..\..\..\..\Binaries\DotNET\DotNETUtilities.dll"". Beginning retry 2 in 1000ms. The process cannot access the file '..\..\..\..\Binaries\DotNET\DotNETUtilities.dll' because it is being used by another process. The file is locked by: ""UnrealAutomationTool(13236)"" [C:\Horde\Engine\Source\Programs\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj]");
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Information, KnownLogEvents.Systemic_MSBuild);
 
-			Assert.AreEqual("warning", logEvents[0].Properties!["severity"].ToString());
+			Assert.AreEqual("warning", logEvents[0].GetProperty("severity").ToString());
 			
 			// FIXME: Fails on Linux. Properties dict is empty
 			//Assert.AreEqual(@"Engine\Source\Programs\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj", GetSubProperty(Events[0], "file", "relativePath"));
@@ -606,10 +607,10 @@ namespace Horde.Agent.Tests
 			Assert.AreEqual(2, logEvents.Count);
 			CheckEventGroup(logEvents, 0, 2, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = (LogValue)logEvents[0].GetProperty("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 
-			LogValue symbolProperty2 = (LogValue)logEvents[1].Properties!["symbol"];
+			LogValue symbolProperty2 = (LogValue)logEvents[1].GetProperty("symbol");
 			Assert.AreEqual("Foo::Bar2", symbolProperty2.Properties!["identifier"].ToString());
 		}
 
@@ -627,7 +628,7 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse(String.Join("\n", lines));
 			CheckEventGroup(logEvents, 0, 4, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = (LogValue)logEvents[0].GetProperty("symbol");
 			Assert.AreEqual("USkeleton::GetBlendProfile", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -643,7 +644,7 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 2, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[1].Properties!["symbol"];
+			LogValue symbolProperty = (LogValue)logEvents[1].GetProperty("symbol");
 			Assert.AreEqual("symbol", symbolProperty.Type);
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
@@ -677,7 +678,7 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = (LogValue)logEvents[0].GetProperty("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -756,8 +757,8 @@ namespace Horde.Agent.Tests
 			{
 				Assert.AreEqual(LogLevel.Error, logEvents[idx].Level);
 			}
-			Assert.AreEqual(9, logEvents[0].Properties![LogLine]);
-			Assert.AreEqual(lines.Length, (int)logEvents[0].Properties![LogLine] + logEvents[0].LineCount + 2);
+			Assert.AreEqual(9, logEvents[0].GetProperty(LogLine));
+			Assert.AreEqual(lines.Length, logEvents[0].GetProperty<int>(LogLine) + logEvents[0].LineCount + 2);
 		}
 
 		[TestMethod]
@@ -771,7 +772,7 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = logEvents[0].GetProperty<LogValue>("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -786,7 +787,7 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = logEvents[0].GetProperty<LogValue>("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -801,7 +802,7 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 
-			LogValue symbolProperty = (LogValue)logEvents[0].Properties!["symbol"];
+			LogValue symbolProperty = logEvents[0].GetProperty<LogValue>("symbol");
 			Assert.AreEqual("Foo::Bar", symbolProperty.Properties!["identifier"].ToString());
 		}
 
@@ -950,17 +951,17 @@ namespace Horde.Agent.Tests
 			List<LogEvent> logEvents = Parse(lines);
 			CheckEventGroup(logEvents, 0, 55, LogLevel.Error, KnownLogEvents.Gauntlet_UnitTest);
 
-			Assert.AreEqual("HLOD", logEvents[29].Properties!["group"].ToString());
-			Assert.AreEqual("SectionFlags", logEvents[29].Properties!["name"].ToString());
-			Assert.AreEqual("SectionFlags", logEvents[29].Properties!["friendly_name"].ToString());
+			Assert.AreEqual("HLOD", logEvents[29].GetProperty("group").ToString());
+			Assert.AreEqual("SectionFlags", logEvents[29].GetProperty("name").ToString());
+			Assert.AreEqual("SectionFlags", logEvents[29].GetProperty("friendly_name").ToString());
 
-			Assert.AreEqual("HLOD", logEvents[34].Properties!["group"].ToString());
-			Assert.AreEqual("SimpleMerge", logEvents[34].Properties!["name"].ToString());
-			Assert.AreEqual("SimpleMerge", logEvents[34].Properties!["friendly_name"].ToString());
+			Assert.AreEqual("HLOD", logEvents[34].GetProperty("group").ToString());
+			Assert.AreEqual("SimpleMerge", logEvents[34].GetProperty("name").ToString());
+			Assert.AreEqual("SimpleMerge", logEvents[34].GetProperty("friendly_name").ToString());
 
-			Assert.AreEqual("HLOD", logEvents[46].Properties!["group"].ToString());
-			Assert.AreEqual("SingleLODMerge", logEvents[46].Properties!["name"].ToString());
-			Assert.AreEqual("SingleLODMerge", logEvents[46].Properties!["friendly_name"].ToString());
+			Assert.AreEqual("HLOD", logEvents[46].GetProperty("group").ToString());
+			Assert.AreEqual("SingleLODMerge", logEvents[46].GetProperty("name").ToString());
+			Assert.AreEqual("SingleLODMerge", logEvents[46].GetProperty("friendly_name").ToString());
 		}
 
 		[TestMethod]
@@ -972,7 +973,7 @@ namespace Horde.Agent.Tests
 			CheckEventGroup(logEvents, 0, 1, LogLevel.Error, KnownLogEvents.Gauntlet_ScreenshotTest);
 
 			LogEvent logEvent = logEvents[0];
-			Assert.AreEqual("ActorMerging_SectionFlags_LOD_0_None", logEvent.Properties!["screenshot"].ToString());
+			Assert.AreEqual("ActorMerging_SectionFlags_LOD_0_None", logEvent.GetProperty("screenshot").ToString());
 		}
 
 		[TestMethod]
@@ -1087,7 +1088,7 @@ namespace Horde.Agent.Tests
 				Assert.AreEqual(eventId, logEvent.Id);
 				Assert.AreEqual(idx, logEvent.LineIndex);
 				Assert.AreEqual(count, logEvent.LineCount);
-				Assert.AreEqual(index + idx, logEvent.Properties![LogLine]);
+				Assert.AreEqual(index + idx, logEvent.GetProperty(LogLine));
 			}
 			Assert.IsFalse(enumerator.MoveNext());
 		}

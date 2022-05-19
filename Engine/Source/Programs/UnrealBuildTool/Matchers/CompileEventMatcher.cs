@@ -76,8 +76,8 @@ namespace UnrealBuildTool.Matchers
 					LogEvent newEvent = eventMatch!.Events[eventMatch.Events.Count - 1];
 
 					// If warnings as errors is enabled, upgrade any following warnings to errors.
-					object? codeProp;
-					if(newEvent.Properties != null && newEvent.Properties.TryGetValue("code", out codeProp) && codeProp is LogValue code && code.Text == "C2220")
+					LogValue? code;
+					if(newEvent.Properties != null && newEvent.TryGetProperty("code", out code) && code.Text == "C2220")
 					{
 						ILogCursor nextCursor = builder.Next;
 						while (nextCursor.CurrentLine != null)

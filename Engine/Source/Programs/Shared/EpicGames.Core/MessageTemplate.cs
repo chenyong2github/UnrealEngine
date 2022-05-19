@@ -18,33 +18,6 @@ namespace EpicGames.Core
 		public const string FormatPropertyName = "{OriginalFormat}";
 
 		/// <summary>
-		/// Converts any positional properties to named properties
-		/// </summary>
-		/// <returns></returns>
-		public static Dictionary<string, object>? CreatePositionalProperties(string format, IEnumerable<KeyValuePair<string, object>> properties)
-		{
-			Dictionary<string, object>? outputProperties = null;
-			if (properties != null)
-			{
-				outputProperties = new Dictionary<string, object>(properties);
-
-				List<(int, int)>? offsets = ParsePropertyNames(format);
-				if (offsets != null)
-				{
-					foreach ((int offset, int length) in offsets)
-					{
-						ReadOnlySpan<char> name = format.AsSpan(offset, length);
-						if (Int32.TryParse(name, out int number))
-						{
-							outputProperties[name.ToString()] = properties.ElementAtOrDefault(number).Value;
-						}
-					}
-				}
-			}
-			return outputProperties;
-		}
-
-		/// <summary>
 		/// Renders a format string
 		/// </summary>
 		/// <param name="format">The format string</param>

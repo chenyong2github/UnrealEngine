@@ -423,18 +423,19 @@ namespace EpicGames.Core
 						{
 							newValue = text;
 						}
+						else if (span._value is LogValue newLogValue)
+						{
+							newLogValue.Text = text;
+							newValue = newLogValue;
+						}
 						else
 						{
-							newValue = LogEventFormatter.Format(span._value!);
-							if (newValue is LogValue newLogValue)
-							{
-								newLogValue.Text = text;
-							}
+							newValue = text;
 						}
 					}
 					else
 					{
-						newValue = LogEventFormatter.Format(value);
+						newValue = value;
 					}
 					properties[name] = newValue;
 				}

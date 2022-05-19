@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
-using EpicGames.Core;
 
 namespace EpicGames.Core
 {
@@ -13,18 +12,15 @@ namespace EpicGames.Core
 	/// </summary>
 	public static class LogEventMarkup
 	{
-		public static readonly Utf8String Asset = new Utf8String("Asset");
-		public static readonly Utf8String SourceFile = new Utf8String("SourceFile");
-
-		public static LogValue Channel => new LogValue("Channel", "");
-		public static LogValue Severity => new LogValue("Severity", "");
-		public static LogValue Message => new LogValue("Message", "");
-		public static LogValue LineNumber => new LogValue("Line", "");
-		public static LogValue ColumnNumber => new LogValue("Column", "");
-		public static LogValue Symbol => new LogValue("Symbol", "");
-		public static LogValue ErrorCode => new LogValue("ErrorCode", "");
-		public static LogValue ToolName => new LogValue("ToolName", "");
-		public static LogValue ScreenshotTest => new LogValue("ScreenshotTest", "");
+		public static LogValue Channel => new LogValue(LogValueType.Channel, "");
+		public static LogValue Severity => new LogValue(LogValueType.Severity, "");
+		public static LogValue Message => new LogValue(LogValueType.Message, "");
+		public static LogValue LineNumber => new LogValue(LogValueType.LineNumber, "");
+		public static LogValue ColumnNumber => new LogValue(LogValueType.ColumnNumber, "");
+		public static LogValue Symbol => new LogValue(LogValueType.Symbol, "");
+		public static LogValue ErrorCode => new LogValue(LogValueType.ErrorCode, "");
+		public static LogValue ToolName => new LogValue(LogValueType.ToolName, "");
+		public static LogValue ScreenshotTest => new LogValue(LogValueType.ScreenshotTest, "");
 
 		static readonly char[] s_pathChars = { '/', '\\' };
 
@@ -79,7 +75,7 @@ namespace EpicGames.Core
 					}
 				}
 			}
-			builder.Annotate(group, new LogValue(SourceFile, group.Value, properties));
+			builder.Annotate(group, new LogValue(LogValueType.SourceFile, group.Value, properties));
 		}
 
 		/// <summary>
@@ -87,7 +83,7 @@ namespace EpicGames.Core
 		/// </summary>
 		public static void AnnotateAsset(this LogEventBuilder builder, Group group)
 		{
-			builder.Annotate(group, new LogValue(Asset, group.Value));
+			builder.Annotate(group, new LogValue(LogValueType.Asset, group.Value));
 		}
 
 		/// <summary>
@@ -109,7 +105,7 @@ namespace EpicGames.Core
 			// Add it to the list
 			Dictionary<Utf8String, object> properties = new Dictionary<Utf8String, object>();
 			properties["identifier"] = identifier;
-			builder.Annotate(group, new LogValue("symbol", "", properties));
+			builder.Annotate(group, new LogValue(LogValueType.Symbol, "", properties));
 		}
 	}
 }
