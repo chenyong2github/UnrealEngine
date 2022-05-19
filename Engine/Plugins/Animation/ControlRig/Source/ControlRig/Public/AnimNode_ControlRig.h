@@ -18,7 +18,6 @@ struct CONTROLRIG_API FAnimNode_ControlRig : public FAnimNode_ControlRigBase
 	GENERATED_BODY()
 
 	FAnimNode_ControlRig();
-	virtual ~FAnimNode_ControlRig();
 
 	UControlRig* GetControlRig() const { return ControlRig; }
 
@@ -93,9 +92,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = Performance, meta = (DisplayName = "LOD Threshold"))
 	int32 LODThreshold;
 
-#if WITH_EDITOR
-	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
-#endif // WITH_EDITOR
 protected:
 	virtual UClass* GetTargetClass() const override { return *ControlRigClass; }
 	virtual void UpdateInput(UControlRig* InControlRig, const FPoseContext& InOutput) override;

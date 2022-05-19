@@ -3785,6 +3785,19 @@ void UAnimInstance::QueueRootMotionBlend(const FTransform& RootTransform, const 
 	RootMotionBlendQueue.Add(FQueuedRootMotionBlend(RootTransform, SlotName, Weight));
 }
 
+#if WITH_EDITOR
+void UAnimInstance::HandleAnimInstanceReplaced()
+{
+	RecalcRequiredBones();
+	
+	// Reinit proxy
+	FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+	Proxy.Initialize(this);
+	Proxy.InitializeCachedClassData();
+	Proxy.InitializeRootNode_WithRoot(Proxy.RootNode);
+}
+#endif
+
 bool UAnimInstance::RequestTransitionEvent(const FName EventName, const double RequestTimeout, const ETransitionRequestQueueMode QueueMode, const ETransitionRequestOverwriteMode OverwriteMode)
 {
 	return GetProxyOnAnyThread<FAnimInstanceProxy>().RequestTransitionEvent(EventName, RequestTimeout, QueueMode, OverwriteMode);

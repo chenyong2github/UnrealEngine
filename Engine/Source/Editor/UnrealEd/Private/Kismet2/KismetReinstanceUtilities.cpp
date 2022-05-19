@@ -55,6 +55,13 @@ DECLARE_CYCLE_STAT(TEXT("Reinstance Objects"), EKismetCompilerStats_ReinstanceOb
 DECLARE_CYCLE_STAT(TEXT("Refresh Dependent Blueprints In Reinstancer"), EKismetCompilerStats_RefreshDependentBlueprintsInReinstancer, STATGROUP_KismetCompiler);
 DECLARE_CYCLE_STAT(TEXT("Recreate UberGraphPersistentFrame"), EKismetCompilerStats_RecreateUberGraphPersistentFrame, STATGROUP_KismetCompiler);
 
+bool GUseLegacyAnimInstanceReinstancingBehavior = false;
+static FAutoConsoleVariableRef CVarUseLegacyAnimInstanceReinstancingBehavior(
+	TEXT("bp.UseLegacyAnimInstanceReinstancingBehavior"),
+	GUseLegacyAnimInstanceReinstancingBehavior,
+	TEXT("Use the legacy re-instancing behavior for anim instances where the instance is destroyed and re-created.")
+);
+
 struct FReplaceReferenceHelper
 {
 	static void IncludeCDO(UClass* OldClass, UClass* NewClass, TMap<UObject*, UObject*> &OldToNewInstanceMap, TArray<UObject*> &SourceObjects, UObject* OriginalCDO)
@@ -2558,14 +2565,17 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 
 			if (UAnimInstance* AnimTree = Cast<UAnimInstance>(*NewObject))
 			{
-				// Initialising the anim instance isn't enough to correctly set up the skeletal mesh again in a
-				// paused world, need to initialise the skeletal mesh component that contains the anim instance.
 				if (USkeletalMeshComponent* SkelComponent = Cast<USkeletalMeshComponent>(AnimTree->GetOuter()))
 				{
-					SkelComponent->ClearAnimScriptInstance();
-					SkelComponent->InitAnim(true);
-					// compile change ignores motion vector, so ignore this. 
-					SkelComponent->ClearMotionVector();
+					if(GUseLegacyAnimInstanceReinstancingBehavior)
+					{
+						// Legacy behavior - destroy and re-create the anim instance
+						SkelComponent->ClearAnimScriptInstance();
+						SkelComponent->InitAnim(true);
+
+						// compile change ignores motion vector, so ignore this. 
+						SkelComponent->ClearMotionVector();
+					}
 				}
 			}
 		}

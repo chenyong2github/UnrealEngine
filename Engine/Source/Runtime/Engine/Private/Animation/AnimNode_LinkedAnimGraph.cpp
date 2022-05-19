@@ -470,3 +470,23 @@ void FAnimNode_LinkedAnimGraph::RequestBlend(const IAnimClassInterface* PriorAni
 		PendingBlendInProfile = nullptr;
 	}
 }
+
+#if WITH_EDITOR
+void FAnimNode_LinkedAnimGraph::HandleObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+{
+	FAnimNode_CustomProperty::HandleObjectsReplaced(OldToNewInstanceMap);
+	
+	if (UAnimInstance* ThisTargetInstance = GetTargetInstance<UAnimInstance>())
+	{
+		UObject* const* ReinstancedTarget = OldToNewInstanceMap.Find(ThisTargetInstance);
+		if (ReinstancedTarget)
+		{
+			if(UAnimInstance* ReinstancedTargetInstance = Cast<UAnimInstance>(*ReinstancedTarget))
+			{
+				DynamicUnlink(ThisTargetInstance);
+				DynamicLink(ReinstancedTargetInstance);
+			}
+		}
+	}
+}
+#endif

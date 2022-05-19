@@ -1635,4 +1635,9 @@ public:
 public:
 	/** Dispatch AnimEvents (AnimNotifies, Montage Events) queued during UpdateAnimation() */
 	void DispatchQueuedAnimEvents();
+
+#if WITH_EDITOR
+	// Helper function to handle reinstancing
+	void HandleAnimInstanceReplaced();
+#endif
 };

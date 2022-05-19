@@ -20,11 +20,8 @@ UAnimInstance* FAnimNode_LinkedAnimLayer::GetDynamicLinkTarget(UAnimInstance* In
 	}
 }
 
-void FAnimNode_LinkedAnimLayer::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
+void FAnimNode_LinkedAnimLayer::InitializeSourceProperties(const UAnimInstance* InAnimInstance)
 {
-	check(SourcePropertyNames.Num() == DestPropertyNames.Num());
-	
-	// Initialize source properties here as they do not change
 	const int32 NumSourceProperties = SourcePropertyNames.Num();
 	SourceProperties.SetNumZeroed(NumSourceProperties);
 
@@ -33,7 +30,15 @@ void FAnimNode_LinkedAnimLayer::OnInitializeAnimInstance(const FAnimInstanceProx
 	{
 		SourceProperties[SourcePropertyIndex] = ThisClass->FindPropertyByName(SourcePropertyNames[SourcePropertyIndex]);
 	}
+}
+
+void FAnimNode_LinkedAnimLayer::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)
+{
+	check(SourcePropertyNames.Num() == DestPropertyNames.Num());
 	
+	// Initialize source properties here as they do not change
+	InitializeSourceProperties(InAnimInstance);
+
 	// We only initialize here if we are running a 'self' layer. Layers that use external instances need to be 
 	// initialized by the owning anim instance as they may share linked instances via grouping.
 	if(Interface.Get() == nullptr || InstanceClass.Get() == nullptr)
@@ -98,6 +103,14 @@ void FAnimNode_LinkedAnimLayer::SetLinkedLayerInstance(const UAnimInstance* InOw
 void FAnimNode_LinkedAnimLayer::InitializeProperties(const UObject* InSourceInstance, UClass* InTargetClass)
 {
 	check(SourcePropertyNames.Num() == DestPropertyNames.Num());
+
+#if WITH_EDITOR
+	// When reinstancing we need to init source properties here too as the class may have changed
+	if(GIsReinstancing)
+	{
+		InitializeSourceProperties(CastChecked<UAnimInstance>(InSourceInstance));
+	}
+#endif
 	
 	// Build dest property list - source is set up when we initialize
 	DestProperties.SetNumZeroed(SourcePropertyNames.Num());

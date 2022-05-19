@@ -936,6 +936,9 @@ private:
 	/** Evaluate the slot when there are blend spaces involved in any of the active anim montages. */
 	void SlotEvaluatePoseWithBlendProfiles(const FName& SlotNodeName, const FAnimationPoseData& SourceAnimationPoseData, float InSourceWeight, FAnimationPoseData& OutBlendedAnimationPoseData, float InBlendWeight);
 
+	/** Initialize cached class data - state machines, pre-update nodes etc. */
+	void InitializeCachedClassData();
+	
 	/** The component to world transform of the component we are running on */
 	FTransform ComponentTransform;
 

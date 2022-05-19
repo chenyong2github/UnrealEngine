@@ -30,6 +30,7 @@
 #include "Algo/Sort.h"
 #include "ScopedTransaction.h"
 #include "Features/IModularFeatures.h"
+#include "AnimPreviewInstance.h"
 
 #define LOCTEXT_NAMESPACE "PreviewSceneCustomizations"
 
@@ -642,7 +643,13 @@ ECheckBoxState FPreviewSceneDescriptionCustomization::HandleUseCustomAnimBPIsChe
 
 void FPreviewSceneDescriptionCustomization::HandleAnimBlueprintCompiled(UBlueprint*)
 {
-	ReinitializePreviewController();
+	// Only re-initialize controller if we are not debugging an external instance.
+	// If we switch at this point then we will disconnect from the external instance
+	TSharedPtr<FAnimationEditorPreviewScene> PreviewScenePtr = PreviewScene.Pin();
+	if(PreviewScenePtr->GetPreviewMeshComponent()->PreviewInstance == nullptr || PreviewScenePtr->GetPreviewMeshComponent()->PreviewInstance->GetDebugSkeletalMeshComponent() == nullptr)
+	{
+		ReinitializePreviewController();
+	}
 }
 
 void FPreviewSceneDescriptionCustomization::ReinitializePreviewController()

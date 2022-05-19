@@ -73,7 +73,7 @@ void FAnimNode_LinkedInputPose::GatherDebugData(FNodeDebugData& DebugData)
 
 void FAnimNode_LinkedInputPose::DynamicLink(FAnimInstanceProxy* InInputProxy, FPoseLinkBase* InPoseLink, int32 InOuterGraphNodeIndex)
 {
-	check(InputProxy == nullptr);			// Must be unlinked before re-linking
+	check(GIsReinstancing || InputProxy == nullptr);			// Must be unlinked before re-linking
 
 	InputProxy = InInputProxy;
 	InputPose.SetDynamicLinkNode(InPoseLink);
@@ -82,7 +82,7 @@ void FAnimNode_LinkedInputPose::DynamicLink(FAnimInstanceProxy* InInputProxy, FP
 
 void FAnimNode_LinkedInputPose::DynamicUnlink()
 {
-	check(InputProxy != nullptr);			// Must be linked before unlinking
+	check(GIsReinstancing || InputProxy != nullptr);			// Must be linked before unlinking
 
 	InputProxy = nullptr;
 	InputPose.SetDynamicLinkNode(nullptr);

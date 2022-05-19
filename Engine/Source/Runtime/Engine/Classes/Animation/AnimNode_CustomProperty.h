@@ -29,6 +29,7 @@ struct ENGINE_API FAnimNode_CustomProperty : public FAnimNode_Base
 public:
 
 	FAnimNode_CustomProperty();
+	~FAnimNode_CustomProperty();
 
 	/* Set Target Instance */
 	void SetTargetInstance(UObject* InInstance);
@@ -89,6 +90,11 @@ protected:
 	/** Get Target Class */
 	virtual UClass* GetTargetClass() const PURE_VIRTUAL(FAnimNode_CustomProperty::GetTargetClass, return nullptr;);
 
+#if WITH_EDITOR
+	// Handle object replacement in editor
+	virtual void HandleObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+#endif	// #if WITH_EDITOR
+	
 	friend class UAnimGraphNode_CustomProperty;
 };
 

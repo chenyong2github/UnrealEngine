@@ -44,6 +44,7 @@
 #include "Animation/BuiltInAttributeTypes.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
+#include "HAL/IConsoleManager.h"
 
 LLM_DEFINE_TAG(SkeletalMesh_TransformData);
 
@@ -274,6 +275,10 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	bSkipBoundsUpdateWhenInterpolating = false;
 
 	DeferredKinematicUpdateIndex = INDEX_NONE;
+	
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectsReplaced.AddUObject(this, &USkeletalMeshComponent::HandleObjectsReplaced);
+#endif // WITH_EDITOR
 }
 
 void USkeletalMeshComponent::Serialize(FArchive& Ar)
@@ -4606,4 +4611,35 @@ TArray<FTransform> USkeletalMeshComponent::GetBoneSpaceTransforms()
 	return BoneSpaceTransforms;
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
+
+
+#if WITH_EDITOR
+void USkeletalMeshComponent::HandleObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+{
+	IConsoleVariable* UseLegacyAnimInstanceReinstancingBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("bp.UseLegacyAnimInstanceReinstancingBehavior"));
+	if(UseLegacyAnimInstanceReinstancingBehavior == nullptr || !UseLegacyAnimInstanceReinstancingBehavior->GetBool())
+	{
+		bool bReinstancedAnimInstance = false;
+		
+		ForEachAnimInstance([&OldToNewInstanceMap, &bReinstancedAnimInstance](UAnimInstance* InAnimInstance)
+		{
+			UObject* const* ReinstancedTarget = OldToNewInstanceMap.Find(InAnimInstance);
+			if(ReinstancedTarget)
+			{
+				if (UAnimInstance* ReinstancedTargetInstance = Cast<UAnimInstance>(*ReinstancedTarget))
+				{
+					ReinstancedTargetInstance->HandleAnimInstanceReplaced();
+					bReinstancedAnimInstance = true;
+				}
+			}
+		});
+
+		if(bReinstancedAnimInstance)
+		{
+			ClearMotionVector();
+		}
+	}
+}
+#endif	// #if WITH_EDITOR
+
 #undef LOCTEXT_NAMESPACE

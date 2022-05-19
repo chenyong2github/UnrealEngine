@@ -12,7 +12,16 @@ FAnimNode_CustomProperty::FAnimNode_CustomProperty()
 	, bReinitializeProperties(false)
 #endif // WITH_EDITOR
 {
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FAnimNode_CustomProperty::HandleObjectsReplaced);
+#endif // WITH_EDITOR
+}
 
+FAnimNode_CustomProperty::~FAnimNode_CustomProperty()
+{
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
+#endif // WITH_EDITOR
 }
 
 void FAnimNode_CustomProperty::SetTargetInstance(UObject* InInstance)
@@ -96,3 +105,17 @@ void FAnimNode_CustomProperty::InitializeProperties(const UObject* InSourceInsta
 	}
 }
 
+#if WITH_EDITOR
+void FAnimNode_CustomProperty::HandleObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+{
+	if (UObject* ThisTargetInstance = GetTargetInstance<UObject>())
+	{
+		UObject* const* ReinstancedTarget = OldToNewInstanceMap.Find(ThisTargetInstance);
+		if (ReinstancedTarget)
+		{
+			// recache the properties
+			bReinitializeProperties = true;
+		}
+	}
+}
+#endif	// #if WITH_EDITOR

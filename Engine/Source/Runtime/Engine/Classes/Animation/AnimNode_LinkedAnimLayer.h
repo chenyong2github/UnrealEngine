@@ -60,6 +60,9 @@ public:
 protected:
 	void InitializeSelfLayer(const UAnimInstance* SelfAnimInstance);
 
+	// Initialize the source properties to copy from
+	void InitializeSourceProperties(const UAnimInstance* InAnimInstance);
+
 #if WITH_EDITOR
 	// Event fired when the instance we are running has changed
 	FSimpleMulticastDelegate OnInstanceChangedEvent;

@@ -43,18 +43,7 @@ void FAnimNode_ControlRig::OnInitializeAnimInstance(const FAnimInstanceProxy* In
 
 	FAnimNode_ControlRigBase::OnInitializeAnimInstance(InProxy, InAnimInstance);
 
-#if WITH_EDITOR
-	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FAnimNode_ControlRig::OnObjectsReplaced);
-#endif // WITH_EDITOR
-
 	InitializeProperties(InAnimInstance, GetTargetClass());
-}
-
-FAnimNode_ControlRig::~FAnimNode_ControlRig()
-{
-#if WITH_EDITOR
-	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
-#endif // WITH_EDITOR
 }
 
 void FAnimNode_ControlRig::GatherDebugData(FNodeDebugData& DebugData)
@@ -591,19 +580,3 @@ void FAnimNode_ControlRig::PropagateInputProperties(const UObject* InSourceInsta
 		}
 	}
 }
-
-#if WITH_EDITOR
-void FAnimNode_ControlRig::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
-{
-	if (ControlRig)
-	{
-		UObject* const* NewFound = OldToNewInstanceMap.Find(ControlRig);
-
-		if (NewFound)
-		{
-			// recache the properties
-			bReinitializeProperties = true;
-		}
-	}
-}
-#endif	// #if WITH_EDITOR

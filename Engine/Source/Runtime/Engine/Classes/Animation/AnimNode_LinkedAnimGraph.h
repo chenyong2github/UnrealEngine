@@ -113,11 +113,15 @@ protected:
 	// Shutdown the currently running instance
 	void TeardownInstance(const UAnimInstance* InOwningAnimInstance);
 
-	// Get Target Class
+	// FAnimNode_CustomProperty interface
 	virtual UClass* GetTargetClass() const override 
 	{
 		return *InstanceClass;
 	}
+
+#if WITH_EDITOR
+	virtual void HandleObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap) override;
+#endif	// #if WITH_EDITOR
 
 	/** Link up pose links dynamically with linked instance */
 	void DynamicLink(UAnimInstance* InOwningAnimInstance);

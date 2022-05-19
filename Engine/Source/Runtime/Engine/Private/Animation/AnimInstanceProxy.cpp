@@ -250,7 +250,7 @@ void FAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 	}
 }
 
-void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
+void FAnimInstanceProxy::InitializeCachedClassData()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -266,15 +266,7 @@ void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
 			FAnimNode_StateMachine* StateMachine = Property->ContainerPtrToValuePtr<FAnimNode_StateMachine>(AnimInstanceObject);
 			StateMachine->CacheMachineDescription(AnimClassInterface);
 		}
-
-		// Init any nodes that need non-relevancy based initialization
-		UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(GetAnimInstanceObject());
-		for (const FStructProperty* Property : AnimClassInterface->GetInitializationNodeProperties())
-		{
-			FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(AnimInstanceObject);
-			AnimNode->OnInitializeAnimInstance(this, AnimInstance);
-		}
-
+		
 		// Cache any preupdate nodes
 		for (const FStructProperty* Property : AnimClassInterface->GetPreUpdateNodeProperties())
 		{
@@ -304,6 +296,24 @@ void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
 					}
 				}
 			}
+		}
+	}
+}
+
+void FAnimInstanceProxy::InitializeRootNode(bool bInDeferRootNodeInitialization)
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+
+	InitializeCachedClassData();
+	
+	if(AnimClassInterface)
+	{
+		// Init any nodes that need non-relevancy based initialization
+		UAnimInstance* AnimInstance = CastChecked<UAnimInstance>(GetAnimInstanceObject());
+		for (const FStructProperty* Property : AnimClassInterface->GetInitializationNodeProperties())
+		{
+			FAnimNode_Base* AnimNode = Property->ContainerPtrToValuePtr<FAnimNode_Base>(AnimInstanceObject);
+			AnimNode->OnInitializeAnimInstance(this, AnimInstance);
 		}
 	}
 	else
