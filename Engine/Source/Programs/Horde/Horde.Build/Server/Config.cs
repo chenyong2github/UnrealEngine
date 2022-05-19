@@ -368,6 +368,11 @@ namespace Horde.Build.Server
 		public int MaxMentions { get; set; } = 5;
 
 		/// <summary>
+		/// Whether to mention people on this thread. Useful to disable for testing.
+		/// </summary>
+		public bool AllowMentions { get; set; } = true;
+
+		/// <summary>
 		/// Additional node annotations implicit in this workflow
 		/// </summary>
 		public NodeAnnotations Annotations { get; set; } = new NodeAnnotations();
