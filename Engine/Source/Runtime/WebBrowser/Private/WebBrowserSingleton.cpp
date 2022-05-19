@@ -57,8 +57,8 @@ THIRD_PARTY_INCLUDES_END
 #elif PLATFORM_IOS
 #	include <IOS/IOSPlatformWebBrowser.h>
 #	include <IOS/IOSCookieManager.h>
-#elif PLATFORM_PS4
-#	include "PS4PlatformWebBrowser.h"
+#elif PLATFORM_SPECIFIC_WEB_BROWSER
+#	include COMPILED_PLATFORM_HEADER(PlatformWebBrowser.h)
 #endif
 
 // Define some platform-dependent file locations

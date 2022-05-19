@@ -91,5 +91,7 @@ public class WebBrowser : ModuleRules
 				}
 			}
 		}
+		PrivateDefinitions.Add("PLATFORM_SPECIFIC_WEB_BROWSER=" + (bPlatformSpecificWebBrowser ? "1" : "0"));
 	}
+	protected virtual bool bPlatformSpecificWebBrowser { get { return false; } }
 }
