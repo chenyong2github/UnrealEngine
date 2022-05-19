@@ -721,6 +721,14 @@ public:
 	/** @return the view offset in graph space */
 	FVector2D GetViewOffset() const;
 
+	/** 
+	 * when a panel is scrolling/zooming to a target, this can be called to get it's destination
+	 * @param TopLeft top left corner of the destination
+	 * @param BottomRight bottom right corner of the destination
+	 * @return true if there's a scrolling/zooming target and false if there is no destination
+	 */
+	bool GetZoomTargetRect(FVector2D& TopLeft, FVector2D& BottomRight) const;
+
 	/** @return the current view bookmark ID */
 	const FGuid& GetViewBookmarkId() const { return CurrentBookmarkGuid; }
 

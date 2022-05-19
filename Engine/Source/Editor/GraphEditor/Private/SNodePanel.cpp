@@ -309,6 +309,15 @@ FVector2D SNodePanel::GetViewOffset() const
 	return ViewOffset;
 }
 
+bool SNodePanel::GetZoomTargetRect(FVector2D& TopLeft, FVector2D& BottomRight) const
+{
+	TopLeft = ZoomTargetTopLeft;
+	BottomRight = ZoomTargetBottomRight;
+	
+	// if the zoom target rect is all zeroed out, then notify caller that there is no target
+	return !(ZoomTargetTopLeft == FVector2D::ZeroVector && ZoomTargetBottomRight == FVector2D::ZeroVector);
+}
+
 void SNodePanel::Construct()
 {
 	if (!ZoomLevels)

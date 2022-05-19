@@ -816,6 +816,7 @@ EVisibility SGraphEditorImpl::PIENotification( ) const
 	
 SGraphEditorImpl::~SGraphEditorImpl()
 {
+	UnRegisterActiveTimer(FocusEditorTimer.Pin().ToSharedRef());
 }
 
 void SGraphEditorImpl::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
@@ -1417,7 +1418,7 @@ void SGraphEditorImpl::AddNotification( FNotificationInfo& Info, bool bSuccess )
 	}
 }
 
-void SGraphEditorImpl::FocusLockedEditorHere()
+EActiveTimerReturnType SGraphEditorImpl::HandleFocusEditorDeferred(double InCurrentTime, float InDeltaTime)
 {
 	for( int i = 0; i < LockedGraphs.Num(); ++i )
 	{
@@ -1425,12 +1426,39 @@ void SGraphEditorImpl::FocusLockedEditorHere()
 		if (LockedGraph != TSharedPtr<SGraphEditor>())
 		{
 			LockedGraph->SetViewLocation(GraphPanel->GetViewOffset(), GraphPanel->GetZoomAmount());
+
+			// if GraphPanel is currently panning to a target, pan with it
+			FVector2D TopLeft, BottomRight;
+			if (GraphPanel->GetZoomTargetRect(TopLeft, BottomRight))
+			{
+				// if this graph is zooming/panning to a target location, have the locked graph do the same
+				LockedGraph->GetGraphPanel()->JumpToRect(TopLeft, BottomRight);
+			}
 		}
 		else
 		{
 			LockedGraphs.RemoveAtSwap(i--);
 		}
 	}
+	
+	// If GraphPanel is going to pan to a target but hasn't yet, wait until it does so we don't miss it
+	if (GraphPanel->HasDeferredObjectFocus())
+	{
+		return EActiveTimerReturnType::Continue;
+	}
+	return EActiveTimerReturnType::Stop;
+}
+
+void SGraphEditorImpl::FocusLockedEditorHere()
+{
+	if (!FocusEditorTimer.IsValid())
+	{
+		FocusEditorTimer = RegisterActiveTimer(
+		0.f,
+		FWidgetActiveTimerDelegate::CreateSP(this, &SGraphEditorImpl::HandleFocusEditorDeferred)
+		);
+	}
+	
 }
 
 void SGraphEditorImpl::SetPinVisibility( SGraphEditor::EPinVisibility InVisibility ) 

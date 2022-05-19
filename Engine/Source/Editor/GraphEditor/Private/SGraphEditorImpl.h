@@ -383,7 +383,9 @@ private:
 	void SelectAllNodesInDirection(const UEdGraphPin* InGraphPin) const;
 	bool IsSelectConnectedNodesFromPinVisible(const FToolMenuContext& InContext, EEdGraphPinDirection DirectionToSelect) const;
 
+	EActiveTimerReturnType HandleFocusEditorDeferred(double InCurrentTime, float InDeltaTime);
 private:
+	TWeakPtr<FActiveTimerHandle> FocusEditorTimer;
 	bool bIsActiveTimerRegistered;
 	uint32 NumNodesAddedSinceLastPointerPosition;
 };
