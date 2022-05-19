@@ -55,5 +55,9 @@ void RayTracingDebugTraversalCS(uint3 DispatchThread : SV_DispatchThreadID)
 		break;
 	}
 
+#if PRINT_TRAVERSAL_STATISTICS
+	TraceRayInlineAccumulateStatistics();
+#endif
+
 	Output[PixelCoord] = Result;
 }

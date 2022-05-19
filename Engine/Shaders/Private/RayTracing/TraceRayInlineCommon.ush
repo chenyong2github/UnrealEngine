@@ -8,7 +8,38 @@ struct FTraceRayInlineTraversalStatistics
 	uint ClusterIntersectionCount;
 	uint TriangleIntersectionCount;
 	uint IterationCount;
+
+	uint WaveNodeIntersectionCount;
+	uint WaveTriangleIntersectionCount;
+
+	uint RayCount;
+	uint WavefrontCount;
+
+	uint ActiveLaneCount;
+	uint TotalLaneCount;
 };
+
+static FTraceRayInlineTraversalStatistics TraceRayInlineTraversalStatistics_Sample;
+RWStructuredBuffer<FTraceRayInlineTraversalStatistics> TraceRayInlineTraversalStatistics_Accumulator;
+
+void TraceRayInlineAccumulateStatistics()
+{
+#if ENABLE_TRACE_RAY_INLINE_TRAVERSAL_STATISTICS
+	if (WaveIsFirstLane())
+	{
+		InterlockedAdd(TraceRayInlineTraversalStatistics_Accumulator[0].RayCount, TraceRayInlineTraversalStatistics_Sample.RayCount);
+		InterlockedAdd(TraceRayInlineTraversalStatistics_Accumulator[0].WavefrontCount, TraceRayInlineTraversalStatistics_Sample.WavefrontCount);
+
+		InterlockedAdd(TraceRayInlineTraversalStatistics_Accumulator[0].ActiveLaneCount, TraceRayInlineTraversalStatistics_Sample.ActiveLaneCount);
+		InterlockedAdd(TraceRayInlineTraversalStatistics_Accumulator[0].TotalLaneCount, TraceRayInlineTraversalStatistics_Sample.TotalLaneCount);
+
+		InterlockedAdd(TraceRayInlineTraversalStatistics_Accumulator[0].IterationCount, TraceRayInlineTraversalStatistics_Sample.IterationCount);
+
+		InterlockedAdd(TraceRayInlineTraversalStatistics_Accumulator[0].WaveNodeIntersectionCount, TraceRayInlineTraversalStatistics_Sample.WaveNodeIntersectionCount);
+		InterlockedAdd(TraceRayInlineTraversalStatistics_Accumulator[0].WaveTriangleIntersectionCount, TraceRayInlineTraversalStatistics_Sample.WaveTriangleIntersectionCount);
+	}
+#endif
+}
 
 struct FTraceRayInlineResult
 {
