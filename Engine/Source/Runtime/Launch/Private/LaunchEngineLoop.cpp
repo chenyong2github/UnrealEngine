@@ -4579,6 +4579,12 @@ void FEngineLoop::Exit()
 	FIoDispatcher::Shutdown();
 #endif
 
+#if WITH_EDITOR
+	// Make sure we shut this down before the modules are torn down, we can clean this up if/when the
+	// virtualization module is moved to be a plugin
+	UE::Virtualization::Shutdown();
+#endif //WITH_EDITOR
+
 #if !PLATFORM_ANDROID // UnloadModules doesn't work on Android
 #if WITH_ENGINE
 	// Save the hot reload state
