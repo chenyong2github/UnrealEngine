@@ -56,6 +56,9 @@ public:
 	FGuid ChildActorGUID;
 #endif
 
+	// The saved properties for the ChildActor itself
+	TSharedPtr<FActorInstanceData> ActorInstanceData;
+
 	// The component instance data cache for the ChildActor spawned by this component
 	TSharedPtr<FComponentInstanceDataCache> ComponentInstanceData;
 };

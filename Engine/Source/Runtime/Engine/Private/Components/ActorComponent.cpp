@@ -812,9 +812,13 @@ bool UActorComponent::Modify( bool bAlwaysMarkDirty/*=true*/ )
 
 	// If this is a construction script component we don't store them in the transaction buffer.  Instead, mark
 	// the Actor as modified so that we store of the transaction annotation that has the component properties stashed
-	if (MyOwner && IsCreatedByConstructionScript())
+	if (MyOwner)
 	{
-		return MyOwner->Modify(bAlwaysMarkDirty);
+		extern int32 GExperimentalAllowPerInstanceChildActorProperties;
+		if (IsCreatedByConstructionScript() || (GExperimentalAllowPerInstanceChildActorProperties && MyOwner->IsChildActor()))
+		{
+			return MyOwner->Modify(bAlwaysMarkDirty);
+		}
 	}
 
 	return Super::Modify(bAlwaysMarkDirty);

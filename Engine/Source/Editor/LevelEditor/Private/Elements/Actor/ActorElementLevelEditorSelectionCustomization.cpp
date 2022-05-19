@@ -50,9 +50,13 @@ FTypedElementHandle FActorElementLevelEditorSelectionCustomization::GetSelection
 {
 	if (AActor* ConsideredActor = ActorElementDataUtil::GetActorFromHandle(InElementSelectionHandle))
 	{
-		while (ConsideredActor->IsChildActor())
+		extern ENGINE_API int32 GExperimentalAllowPerInstanceChildActorProperties;
+		if (!GExperimentalAllowPerInstanceChildActorProperties)
 		{
-			ConsideredActor = ConsideredActor->GetParentActor();
+			while (ConsideredActor->IsChildActor())
+			{
+				ConsideredActor = ConsideredActor->GetParentActor();
+			}
 		}
 		return UEngineElementsLibrary::AcquireEditorActorElementHandle(ConsideredActor);
 	}

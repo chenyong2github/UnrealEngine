@@ -1631,6 +1631,15 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 		return false;
 	}
 
+	extern int32 GExperimentalAllowPerInstanceChildActorProperties;
+	if (GExperimentalAllowPerInstanceChildActorProperties)
+	{
+		if (AActor* ParentActor = GetParentActor())
+		{
+			return ParentActor->Modify(bAlwaysMarkDirty);
+		}
+	}
+
 	// Any properties that reference a blueprint constructed component needs to avoid creating a reference to the component from the transaction
 	// buffer, so we temporarily switch the property to non-transactional while the modify occurs
 	TArray<FObjectProperty*> TemporarilyNonTransactionalProperties;
@@ -4903,7 +4912,8 @@ bool AActor::IsSelectionChild() const
 
 AActor* AActor::GetSelectionParent() const
 {
-	if (IsChildActor())
+	extern int32 GExperimentalAllowPerInstanceChildActorProperties;
+	if (!GExperimentalAllowPerInstanceChildActorProperties && IsChildActor())
 	{
 		return GetParentActor();
 	}

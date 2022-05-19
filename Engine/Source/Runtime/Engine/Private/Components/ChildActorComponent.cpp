@@ -11,6 +11,15 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogChildActorComponent, Warning, All);
 
+ENGINE_API int32 GExperimentalAllowPerInstanceChildActorProperties = 0;
+
+static FAutoConsoleVariableRef CVarExperimentalAllowPerInstanceChildActorProperties(
+	TEXT("cac.ExperimentalAllowPerInstanceChildActorProperties"),
+	GExperimentalAllowPerInstanceChildActorProperties,
+	TEXT("[EXPERIMENTAL] If true, allows properties to be modified on a per-instance basis for child actors."),
+	ECVF_Default
+);
+
 UChildActorComponent::UChildActorComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, ActorOuter(nullptr)
@@ -326,6 +335,16 @@ FChildActorComponentInstanceData::FChildActorComponentInstanceData(const UChildA
 			ChildActorName = ChildActor->GetFName();
 		}
 
+		if (GExperimentalAllowPerInstanceChildActorProperties)
+		{
+			ActorInstanceData = MakeShared<FActorInstanceData>(ChildActor);
+			// If it is empty dump it
+			if (!ActorInstanceData->HasInstanceData())
+			{
+				ActorInstanceData.Reset();
+			}
+		}
+
 		ComponentInstanceData = MakeShared<FComponentInstanceDataCache>(ChildActor);
 		// If it is empty dump it
 		if (!ComponentInstanceData->HasInstanceData())
@@ -444,6 +463,11 @@ void UChildActorComponent::ApplyComponentInstanceData(FChildActorComponentInstan
 				ChildActor->ClearActorLabel();
 #endif
 			}
+		}
+
+		if (ChildActorInstanceData->ActorInstanceData)
+		{
+			ChildActorInstanceData->ActorInstanceData->ApplyToActor(ChildActor, CacheApplyPhase);
 		}
 
 		if (ChildActorInstanceData->ComponentInstanceData)
