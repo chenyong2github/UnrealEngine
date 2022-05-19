@@ -2746,7 +2746,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		if (!LoadDirectoryManifest(SourceDirectoryManifest, SourcePath, SourceManifestTempPath))
 		{
 			bSourceManifestOk = false;
-			UNSYNC_ERROR(L"Failed to read source directory manifest '%ls'", SourceManifestPath.wstring().c_str());
+			UNSYNC_ERROR(L"Failed to load source directory manifest '%ls'", SourceManifestPath.wstring().c_str());
 
 			return false;
 		}

@@ -466,6 +466,18 @@ LoadDirectoryManifest(FDirectoryManifest& OutManifest, const FPath& Root, FIORea
 
 			std::wstring Filename = ConvertUtf8ToWide(FilenameUtf8);
 
+			if (FileManifest.Mtime == 0)
+			{
+				UNSYNC_ERROR(L"Invalid manifest entry for file '%ls' (Mtime is 0)", Filename.c_str());
+				return false;
+			}
+
+			if (FileManifest.BlockSize == 0)
+			{
+				UNSYNC_ERROR(L"Invalid manifest entry for file '%ls' (BlockSize is 0)", Filename.c_str());
+				return false;
+			}
+
 			FileManifest.CurrentPath	= Root / Filename;
 			OutManifest.Files[Filename] = std::move(FileManifest);
 		}
