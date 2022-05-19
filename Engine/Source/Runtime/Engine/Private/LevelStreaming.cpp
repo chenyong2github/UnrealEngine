@@ -59,14 +59,6 @@ namespace LevelStreamingCVars
 		TEXT("Whether server should wait for client to acknowledge visibility update before treating streaming levels as visible by the client.\n")
 		TEXT("0: Disable, 1: Enable"),
 		ECVF_Default);
-
-	static bool bShouldReuseUnloadedButStillAroundLevels = false;
-	FAutoConsoleVariableRef CVarShouldReuseUnloadedButStillAroundLevels(
-		TEXT("LevelStreaming.ShouldReuseUnloadedButStillAroundLevels"),
-		bShouldReuseUnloadedButStillAroundLevels,
-		TEXT("Whether level streaming will reuse the unloaded levels that aren't GC'd yet.\n")
-		TEXT("0: Disable, 1: Enable"),
-		ECVF_ReadOnly);
 }
 
 bool ULevelStreaming::ShouldClientUseMakingInvisibleTransactionRequest()
@@ -77,11 +69,6 @@ bool ULevelStreaming::ShouldClientUseMakingInvisibleTransactionRequest()
 bool ULevelStreaming::ShouldServerUseMakingVisibleTransactionRequest()
 {
 	return LevelStreamingCVars::bShouldServerUseMakingVisibleTransactionRequest;
-}
-
-bool ULevelStreaming::ShouldReuseUnloadedButStillAroundLevels()
-{
-	return LevelStreamingCVars::bShouldReuseUnloadedButStillAroundLevels;
 }
 
 int32 ULevelStreamingDynamic::UniqueLevelInstanceId = 0;
@@ -1034,33 +1021,6 @@ void ULevelStreaming::SetLoadedLevel(ULevel* Level)
 	if (PendingUnloadLevel)
 	{
 		RemoveLevelAnnotation(PendingUnloadLevel);
-
-		if (!ULevelStreaming::ShouldReuseUnloadedButStillAroundLevels())
-		{
-			// Rename so it isn't found again
-			auto TrashPackage = [](UPackage* Package)
-			{
-				ForEachObjectWithPackage(Package, [](UObject* Object)
-				{
-					Object->ClearFlags(RF_Standalone);
-					return true;
-				}, false);
-
-				FName NewPackageName = MakeUniqueObjectName(nullptr, UPackage::StaticClass(), FName(*FString::Printf(TEXT("%s_Trashed"), *Package->GetName())));
-				Package->Rename(*NewPackageName.ToString(), nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors | REN_NonTransactional | REN_DoNotDirty);
-			};
-		
-			UPackage* LevelPackage = PendingUnloadLevel->GetPackage();
-			TrashPackage(LevelPackage);
-
-			ForEachObjectWithOuter(PendingUnloadLevel, [LevelPackage,  TrashPackage](UObject* InObject)
-			{
-				if (UPackage* ObjectPackage = InObject->GetPackage(); ObjectPackage && LevelPackage != ObjectPackage)
-				{
-					TrashPackage(ObjectPackage);
-				}
-			}, false);
-		}
 	}
 
 	if (LoadedLevel)
