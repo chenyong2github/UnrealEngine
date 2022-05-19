@@ -7,8 +7,10 @@
 #include "InterchangeCineCameraFactoryNode.h"
 #include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeLightNode.h"
+#include "InterchangeMeshActorFactoryNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
+#include "InterchangePipelineMeshesUtilities.h"
 #include "InterchangeSceneNode.h"
 
 #include "Animation/SkeletalMeshActor.h"
@@ -115,7 +117,7 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBas
 
 	if (TranslatedAssetNode)
 	{
-		SetUpFactoryNode(ActorFactoryNode, TranslatedAssetNode, FactoryNodeContainer);
+		SetUpFactoryNode(ActorFactoryNode, SceneNode, TranslatedAssetNode, FactoryNodeContainer);
 	}
 }
 
@@ -125,14 +127,23 @@ UInterchangeActorFactoryNode* UInterchangeGenericLevelPipeline::CreateActorFacto
 	{
 		return NewObject<UInterchangeCineCameraFactoryNode>(FactoryNodeContainer, NAME_None);
 	}
+	else if (TranslatedAssetNode && TranslatedAssetNode->IsA<UInterchangeMeshNode>())
+	{
+		return NewObject<UInterchangeMeshActorFactoryNode>(FactoryNodeContainer, NAME_None);
+	}
 	else
 	{
 		return NewObject<UInterchangeActorFactoryNode>(FactoryNodeContainer, NAME_None);
 	}
 }
 
-void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactoryNode* ActorFactoryNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const
+void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactoryNode* ActorFactoryNode, const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const
 {
+	if (!ensure(ActorFactoryNode && SceneNode && TranslatedAssetNode && FactoryNodeContainer))
+	{
+		return;
+	}
+
 	if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(TranslatedAssetNode))
 	{
 		if (MeshNode->IsSkinnedMesh())
@@ -143,6 +154,14 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 		else
 		{
 			ActorFactoryNode->SetCustomActorClassName(AStaticMeshActor::StaticClass()->GetPathName());
+		}
+
+		if (UInterchangeMeshActorFactoryNode* MeshActorFactoryNode = Cast<UInterchangeMeshActorFactoryNode>(ActorFactoryNode))
+		{
+			TMap<FString, FString> SlotMaterialDependencies;
+			SceneNode->GetSlotMaterialDependencies(SlotMaterialDependencies);
+
+			UE::Interchange::MeshesUtilities::ApplySlotMaterialDependencies(*MeshActorFactoryNode, SlotMaterialDependencies, *FactoryNodeContainer);
 		}
 	}
 	else if (const UInterchangeLightNode* LightNode = Cast<UInterchangeLightNode>(TranslatedAssetNode))

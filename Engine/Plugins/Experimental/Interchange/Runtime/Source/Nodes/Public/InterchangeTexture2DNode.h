@@ -54,6 +54,19 @@ public:
 		return TypeName;
 	}
 
+	/**
+	 * Override serialize to restore SourceBlocks on load.
+	 */
+	virtual void Serialize(FArchive& Ar) override
+	{
+		Super::Serialize(Ar);
+
+		if (Ar.IsLoading() && bIsInitialized)
+		{
+			SourceBlocks.RebuildCache();
+		}
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	// UDIMs begin here
 	// UDIM base texture use a different model for the source data

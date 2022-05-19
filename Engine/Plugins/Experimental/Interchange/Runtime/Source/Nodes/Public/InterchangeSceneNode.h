@@ -22,6 +22,7 @@ namespace UE
 			static const FString& GetTransformSpecializeTypeString();
 			static const FString& GetJointSpecializeTypeString();
 			static const FString& GetLodGroupSpecializeTypeString();
+			static const FString& GetSlotMaterialDependenciesString();
 		};
 
 	}//ns Interchange
@@ -34,6 +35,19 @@ class INTERCHANGENODES_API UInterchangeSceneNode : public UInterchangeBaseNode
 
 public:
 	UInterchangeSceneNode();
+
+	/**
+	 * Override serialize to restore SlotMaterialDependencies on load.
+	 */
+	virtual void Serialize(FArchive& Ar) override
+	{
+		Super::Serialize(Ar);
+
+		if (Ar.IsLoading() && bIsInitialized)
+		{
+			SlotMaterialDependencies.RebuildCache();
+		}
+	}
 
 	/**
 	 * Return the node type name of the class, we use this when reporting error
@@ -67,22 +81,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
 	bool RemoveSpecializedType(const FString& SpecializedType);
-
-	/** Asset dependencies are the asset on which this node depend.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	int32 GetMaterialDependencyUidsCount() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	void GetMaterialDependencyUid(const int32 Index, FString& OutMaterialDependencyUid) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	void GetMaterialDependencyUids(TArray<FString>& OutMaterialDependencyUids) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool AddMaterialDependencyUid(const FString& MaterialDependencyUid);
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool RemoveMaterialDependencyUid(const FString& MaterialDependencyUid);
 
 	//Default transform is the transform we have in the node (no bind pose, no time evaluation).
 
@@ -190,6 +188,30 @@ public:
 	/** This static function make sure all the global transform caches are reset for all the UInterchangeSceneNode nodes children in the UInterchangeBaseNodeContainer */
 	static void ResetGlobalTransformCachesOfNodeAndAllChildren(const UInterchangeBaseNodeContainer* BaseNodeContainer, const UInterchangeBaseNode* ParentNode);
 
+	/**
+	 * Allow to retrieve the correspondence table between slot names and assigned materials for this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	void GetSlotMaterialDependencies(TMap<FString, FString>& OutMaterialDependencies) const;
+
+	/**
+	 * Allow to retrieve one Material dependency for a given slot of this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool GetSlotMaterialDependencyUid(const FString& SlotName, FString& OutMaterialDependency) const;
+
+	/**
+	 * Add one Material dependency to a specific slot name of this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool SetSlotMaterialDependencyUid(const FString& SlotName, const FString& MaterialDependencyUid);
+
+	/**
+	 * Remove the Material dependency associated with the given slot name from this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool RemoveSlotMaterialDependencyUid(const FString& SlotName);
+
 private:
 
 	bool GetGlobalTransformInternal(const UE::Interchange::FAttributeKey LocalTransformKey
@@ -213,7 +235,8 @@ private:
 	const UE::Interchange::FAttributeKey Macro_CustomTransformCurvePayloadKeyKey = UE::Interchange::FAttributeKey(TEXT("TransformCurvePayloadKey"));
 
 	UE::Interchange::TArrayAttributeHelper<FString> NodeSpecializeTypes;
-	UE::Interchange::TArrayAttributeHelper<FString> MaterialDependencyUids;
+
+	UE::Interchange::TMapAttributeHelper<FString, FString> SlotMaterialDependencies;
 
 	mutable TOptional<FTransform> CacheGlobalTransform;
 	mutable TOptional<FTransform> CacheBindPoseGlobalTransform;

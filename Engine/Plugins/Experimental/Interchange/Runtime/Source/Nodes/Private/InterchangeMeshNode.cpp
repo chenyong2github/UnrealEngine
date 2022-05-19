@@ -38,12 +38,6 @@ namespace UE
 			return Dependencies_BaseKey;
 		}
 
-		const FAttributeKey& FMeshNodeStaticData::GetMaterialDependenciesKey()
-		{
-			static FAttributeKey Dependencies_BaseKey(TEXT("__MeshMaterialDependencies__"));
-			return Dependencies_BaseKey;
-		}
-
 		const FAttributeKey& FMeshNodeStaticData::GetShapeDependenciesKey()
 		{
 			static FAttributeKey Dependencies_BaseKey(TEXT("__MeshShapeDependencies__"));
@@ -56,15 +50,21 @@ namespace UE
 			return SceneInstanceUids_BaseKey;
 		}
 
+		const FAttributeKey& FMeshNodeStaticData::GetSlotMaterialDependenciesKey()
+		{
+			static FAttributeKey Dependencies_BaseKey(TEXT("__SlotMaterialDependencies__"));
+			return Dependencies_BaseKey;
+		}
+
 	}//ns Interchange
 }//ns UE
 
 UInterchangeMeshNode::UInterchangeMeshNode()
 {
 	SkeletonDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey().ToString());
-	MaterialDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey().ToString());
 	ShapeDependencies.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey().ToString());
 	SceneInstancesUids.Initialize(Attributes, UE::Interchange::FMeshNodeStaticData::GetSceneInstancesUidsKey().ToString());
+	SlotMaterialDependencies.Initialize(Attributes.ToSharedRef(), UE::Interchange::FMeshNodeStaticData::GetSlotMaterialDependenciesKey().ToString());
 }
 
 FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
@@ -94,21 +94,6 @@ FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey().ToString()))
 	{
 		KeyDisplayName = TEXT("Skeleton Dependencies Index ");
-		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKeyString.Len())
-		{
-			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
-		}
-		return KeyDisplayName;
-	}
-	else if (NodeAttributeKey == UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey())
-	{
-		return KeyDisplayName = TEXT("Material Dependencies count");
-	}
-	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey().ToString()))
-	{
-		KeyDisplayName = TEXT("Material Dependencies Index ");
 		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
 		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
 		if (IndexPosition < NodeAttributeKeyString.Len())
@@ -147,6 +132,10 @@ FString UInterchangeMeshNode::GetKeyDisplayName(const UE::Interchange::FAttribut
 		}
 		return KeyDisplayName;
 	}
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSlotMaterialDependenciesKey().ToString()))
+	{
+		return KeyDisplayName = TEXT("Slot material dependencies");
+	}
 	return Super::GetKeyDisplayName(NodeAttributeKey);
 }
 
@@ -156,10 +145,6 @@ FString UInterchangeMeshNode::GetAttributeCategory(const UE::Interchange::FAttri
 	if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSkeletonDependenciesKey().ToString()))
 	{
 		return FString(TEXT("SkeletonDependencies"));
-	}
-	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetMaterialDependenciesKey().ToString()))
-	{
-		return FString(TEXT("MaterialDependencies"));
 	}
 	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetShapeDependenciesKey().ToString()))
 	{
@@ -180,6 +165,10 @@ FString UInterchangeMeshNode::GetAttributeCategory(const UE::Interchange::FAttri
 				|| NodeAttributeKey == Macro_CustomUVCountKey)
 	{
 		return FString(TEXT("MeshInfo"));
+	}
+	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FMeshNodeStaticData::GetSlotMaterialDependenciesKey().ToString()))
+	{
+		return FString(TEXT("SlotMaterialDependencies"));
 	}
 	return Super::GetAttributeCategory(NodeAttributeKey);
 }
@@ -434,31 +423,6 @@ bool UInterchangeMeshNode::RemoveSkeletonDependencyUid(const FString& Dependency
 	return SkeletonDependencies.RemoveItem(DependencyUid);
 }
 
-int32 UInterchangeMeshNode::GetMaterialDependeciesCount() const
-{
-	return MaterialDependencies.GetCount();
-}
-
-void UInterchangeMeshNode::GetMaterialDependencies(TArray<FString>& OutDependencies) const
-{
-	MaterialDependencies.GetItems(OutDependencies);
-}
-
-void UInterchangeMeshNode::GetMaterialDependency(const int32 Index, FString& OutDependency) const
-{
-	MaterialDependencies.GetItem(Index, OutDependency);
-}
-
-bool UInterchangeMeshNode::SetMaterialDependencyUid(const FString& DependencyUid)
-{
-	return MaterialDependencies.AddItem(DependencyUid);
-}
-
-bool UInterchangeMeshNode::RemoveMaterialDependencyUid(const FString& DependencyUid)
-{
-	return MaterialDependencies.RemoveItem(DependencyUid);
-}
-
 int32 UInterchangeMeshNode::GetShapeDependeciesCount() const
 {
 	return ShapeDependencies.GetCount();
@@ -507,4 +471,24 @@ bool UInterchangeMeshNode::SetSceneInstanceUid(const FString& DependencyUid)
 bool UInterchangeMeshNode::RemoveSceneInstanceUid(const FString& DependencyUid)
 {
 	return SceneInstancesUids.RemoveItem(DependencyUid);
+}
+
+void UInterchangeMeshNode::GetSlotMaterialDependencies(TMap<FString, FString>& OutMaterialDependencies) const
+{
+	OutMaterialDependencies = SlotMaterialDependencies.ToMap();
+}
+
+bool UInterchangeMeshNode::GetSlotMaterialDependencyUid(const FString& SlotName, FString& OutMaterialDependency) const
+{
+	return SlotMaterialDependencies.GetValue(SlotName, OutMaterialDependency);
+}
+
+bool UInterchangeMeshNode::SetSlotMaterialDependencyUid(const FString& SlotName, const FString& MaterialDependencyUid)
+{
+	return SlotMaterialDependencies.SetKeyValue(SlotName, MaterialDependencyUid);
+}
+
+bool UInterchangeMeshNode::RemoveSlotMaterialDependencyUid(const FString& SlotName)
+{
+	return SlotMaterialDependencies.RemoveKey(SlotName);
 }

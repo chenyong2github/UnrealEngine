@@ -56,6 +56,19 @@ public:
 		IMPLEMENT_NODE_ATTRIBUTE_SETTER(UInterchangeTexture2DFactoryNode, AddressY, TEnumAsByte<TextureAddress>, UTexture2D)
 	}
 
+	/**
+	 * Override serialize to restore SourceBlocks on load.
+	 */
+	virtual void Serialize(FArchive& Ar) override
+	{
+		Super::Serialize(Ar);
+
+		if (Ar.IsLoading() && bIsInitialized)
+		{
+			SourceBlocks.RebuildCache();
+		}
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	// UDIMs begin here
 	// UDIM base texture use a different model for the source data

@@ -176,12 +176,16 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 					{
 						return true;
 					}
+					// Cache number of B's dependencies as reference on TSet can become stale
+					const int32 BDependenciesNum = BDependencies.Num();
+
 					const TSet<FString>& ADependencies = DependencyCache.GetAccumulatedDependencies(BaseNodeContainer, A.UniqueID);
 					if (ADependencies.Contains(B.UniqueID))
 					{
 						return false;
 					}
-					return ADependencies.Num() <= BDependencies.Num();
+
+					return ADependencies.Num() <= BDependenciesNum;
 				};
 
 				// Nodes cannot depend on a node from another source, so it's faster to sort the dependencies per-source and then append those to the TaskData arrays.
@@ -256,7 +260,7 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 				);
 				CreateAssetPrerequistes.Add(AsyncHelper->CreateAssetTasks[CreateTaskIndex]);
 
-				CreatedTasksAssetNames.Add(AssetFullPath);
+					CreatedTasksAssetNames.Add(AssetFullPath);
 				return AsyncHelper->CreateAssetTasks[CreateTaskIndex];
 			}
 			else

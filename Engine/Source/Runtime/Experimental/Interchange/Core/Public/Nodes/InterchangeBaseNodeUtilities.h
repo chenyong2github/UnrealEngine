@@ -310,21 +310,7 @@ public:
 		else
 		{
 			KeyCountHandle = InAttributes->GetAttributeHandle<int32>(KeyCountKey);
-
-			//Init map
-			int32 KeyCount;
-			KeyCountHandle.Get(KeyCount);
-
-			CachedKeysAndValues.Reserve(KeyCount);
-
-			for (int32 Index = 0; Index < KeyCount; Index++)
-			{
-				TAttributeHandle<KeyType> KeyAttribute = InAttributes->GetAttributeHandle<KeyType>(GetKeyAttribute(Index));
-				KeyType Key;
-				KeyAttribute.Get(Key);
-				TAttributeHandle<ValueType> ValueAttribute = InAttributes->GetAttributeHandle<ValueType>(GetValueAttribute(Key));
-				CachedKeysAndValues.Add(Key, TPair<TAttributeHandle<KeyType>, TAttributeHandle<ValueType>>(KeyAttribute, ValueAttribute));
-			}
+			RebuildCache();
 		}
 	}
 
@@ -339,10 +325,10 @@ public:
 		Attributes.Reset();
 	}
 
-	void SetKeyValue(const KeyType& InKey, const ValueType& InValue)
+	bool SetKeyValue(const KeyType& InKey, const ValueType& InValue)
 	{
 		const uint32 Hash = GetTypeHash(InKey);
-		SetKeyValueByHash(Hash, InKey, InValue);
+		return SetKeyValueByHash(Hash, InKey, InValue);
 	}
 
 	bool GetValue(const KeyType& InKey, ValueType& OutValue) const
@@ -363,12 +349,12 @@ public:
 		return RemoveKeyAndGetValueByHash(Hash, InKey, OutValue);
 	}
 
-	void SetKeyValueByHash(uint32 Hash, const KeyType& InKey, const ValueType& InValue)
+	bool SetKeyValueByHash(uint32 Hash, const KeyType& InKey, const ValueType& InValue)
 	{
 		TSharedPtr<FAttributeStorage, ESPMode::ThreadSafe> AttributesPtr = Attributes.Pin();
 		if (!ensure(AttributesPtr.IsValid()))
 		{
-			return;
+			return false;
 		}
 
 		if (TPair<TAttributeHandle<KeyType>, TAttributeHandle<ValueType>>* Pair = CachedKeysAndValues.FindByHash(Hash, InKey))
@@ -390,6 +376,8 @@ public:
 					));
 			KeyCountHandle.Set(CachedKeysAndValues.Num());
 		}
+
+		return true;
 	}
 
 
@@ -494,6 +482,33 @@ public:
 		return Map;
 	}
 
+	void RebuildCache()
+	{
+		TSharedPtr<FAttributeStorage, ESPMode::ThreadSafe> AttributesPtr = Attributes.Pin();
+		if (AttributesPtr.IsValid() && KeyCountHandle.IsValid())
+		{
+			int32 KeyCount;
+			if (KeyCountHandle.Get(KeyCount) == EAttributeStorageResult::Operation_Success)
+			{
+				CachedKeysAndValues.Empty(KeyCount);
+
+				for (int32 Index = 0; Index < KeyCount; Index++)
+				{
+					TAttributeHandle<KeyType> KeyAttribute = AttributesPtr->GetAttributeHandle<KeyType>(GetKeyAttribute(Index));
+					ensure(KeyAttribute.IsValid());
+
+					KeyType Key;
+					KeyAttribute.Get(Key);
+
+					TAttributeHandle<ValueType> ValueAttribute = AttributesPtr->GetAttributeHandle<ValueType>(GetValueAttribute(Key));
+					ensure(ValueAttribute.IsValid());
+
+					CachedKeysAndValues.Add(Key, TPair<TAttributeHandle<KeyType>, TAttributeHandle<ValueType>>(KeyAttribute, ValueAttribute));
+				}
+			}
+		}
+	}
+
 private:
 	FAttributeKey GetKeyAttribute(int32 Index) const
 	{
@@ -538,12 +553,14 @@ private:
 		KeyType LastKey;
 		LastKeyIndex.Get(LastKey);
 		CachedKeysAndValues[LastKey].Key = CachedPair.Key;
-		CachedPair->Key.Set(MoveTemp(LastKey));
+		CachedPair.Key.Set(MoveTemp(LastKey));
 
 		AttributesPtr->UnregisterAttribute(LastKeyIndex.GetKey());
 		AttributesPtr->UnregisterAttribute(CachedPair.Value.GetKey());
 		CachedKeysAndValues.RemoveByHash(Hash, InKey);
 		KeyCountHandle.Set(CachedKeysAndValues.Num());
+
+		return true;
 	}
 
 	void EmptyInternal(int32 NumOfExpectedElements)

@@ -2,6 +2,7 @@
 #include "Scene/InterchangeStaticMeshActorFactory.h"
 
 #include "InterchangeActorFactoryNode.h"
+#include "InterchangeMeshActorFactoryNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Scene/InterchangeActorHelper.h"
 
@@ -61,6 +62,11 @@ void UInterchangeStaticMeshActorFactory::PostImportPreCompletedCallback(const FI
 				if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(MeshNode->ReferenceObject.TryLoad()))
 				{
 					StaticMeshComponent->SetStaticMesh(StaticMesh);
+
+					if (const UInterchangeMeshActorFactoryNode* MeshActorFactoryNode = Cast<UInterchangeMeshActorFactoryNode>(Arguments.FactoryNode))
+					{
+						UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(*Arguments.NodeContainer, *MeshActorFactoryNode, *StaticMeshComponent);
+					}
 				}
 			}
 		}

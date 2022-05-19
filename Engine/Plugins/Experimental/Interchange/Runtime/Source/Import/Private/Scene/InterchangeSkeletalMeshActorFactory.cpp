@@ -2,6 +2,7 @@
 #include "Scene/InterchangeSkeletalMeshActorFactory.h"
 
 #include "InterchangeActorFactoryNode.h"
+#include "InterchangeMeshActorFactoryNode.h"
 #include "Scene/InterchangeActorHelper.h"
 
 #include "Animation/SkeletalMeshActor.h"
@@ -39,12 +40,28 @@ void UInterchangeSkeletalMeshActorFactory::SetupSkeletalMeshActor(const UInterch
 {
 	USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent();
 	SkeletalMeshComponent->UnregisterComponent();
+}
 
-	if (const UInterchangeFactoryBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(NodeContainer, ActorFactoryNode))
+void UInterchangeSkeletalMeshActorFactory::PostImportPreCompletedCallback(const FImportPreCompletedCallbackParams& Arguments)
+{
+	// Set the skeletal mesh on the component in the post import callback, once the skeletal mesh has been fully imported.
+
+	if (ASkeletalMeshActor* SkeletalMeshActor = Cast<ASkeletalMeshActor>(Arguments.ImportedObject))
 	{
-		if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(MeshNode->ReferenceObject.TryLoad()))
+		if (USkeletalMeshComponent * SkeletalMeshComponent = SkeletalMeshActor->GetSkeletalMeshComponent())
 		{
-			SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
+			if (const UInterchangeFactoryBaseNode* MeshNode = UE::Interchange::ActorHelper::FindAssetInstanceFactoryNode(Arguments.NodeContainer, Arguments.FactoryNode))
+			{
+				if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(MeshNode->ReferenceObject.TryLoad()))
+				{
+					SkeletalMeshComponent->SetSkeletalMesh(SkeletalMesh);
+
+					if (const UInterchangeMeshActorFactoryNode* MeshActorFactoryNode = Cast<UInterchangeMeshActorFactoryNode>(Arguments.FactoryNode))
+					{
+						UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(*Arguments.NodeContainer, *MeshActorFactoryNode, *SkeletalMeshComponent);
+					}
+				}
+			}
 		}
 	}
 }

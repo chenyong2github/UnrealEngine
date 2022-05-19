@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InterchangeMeshFactoryNode.h"
 #include "Nodes/InterchangeFactoryBaseNode.h"
 
 #if WITH_ENGINE
@@ -10,15 +11,6 @@
 #endif
 
 #include "InterchangeSkeletalMeshFactoryNode.generated.h"
-
-//Interchange namespace
-namespace UE::Interchange
-{
-	struct INTERCHANGEFACTORYNODES_API FSkeletalMeshNodeStaticData : public FBaseNodeStaticData
-	{
-		static const FAttributeKey& GetLodDependenciesBaseKey();
-	};
-}//ns UE::Interchange
 
 UENUM(BlueprintType)
 enum class EInterchangeSkeletalMeshContentType : uint8
@@ -30,7 +22,7 @@ enum class EInterchangeSkeletalMeshContentType : uint8
 };
 
 UCLASS(BlueprintType, Experimental)
-class INTERCHANGEFACTORYNODES_API UInterchangeSkeletalMeshFactoryNode : public UInterchangeFactoryBaseNode
+class INTERCHANGEFACTORYNODES_API UInterchangeSkeletalMeshFactoryNode : public UInterchangeMeshFactoryNode
 {
 	GENERATED_BODY()
 
@@ -46,33 +38,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	void InitializeSkeletalMeshNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass);
 
-	virtual void Serialize(FArchive& Ar) override;
-
 	/**
 	 * Return the node type name of the class, we use this when reporting error
 	 */
 	virtual FString GetTypeName() const override;
-
-	virtual FString GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const override;
 
 	/** Get the class this node want to create */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	virtual class UClass* GetObjectClass() const override;
 
 public:
-	/** Return The number of LOD this skeletalmesh has.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	int32 GetLodDataCount() const;
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	void GetLodDataUniqueIds(TArray<FString>& OutLodDataUniqueIds) const;
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool AddLodDataUniqueId(const FString& LodDataUniqueId);
-
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool RemoveLodDataUniqueId(const FString& LodDataUniqueId);
-	
 	/** Query the skeletal mesh factory skeleton UObject. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	bool GetCustomSkeletonSoftObjectPath(FSoftObjectPath& AttributeValue) const;
@@ -105,30 +80,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	bool SetCustomPhysicAssetSoftObjectPath(const FSoftObjectPath& AttributeValue);
 
-	/** Query weather the skeletal mesh factory should replace the vertex color. Return false if the attribute was not set.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool GetCustomVertexColorReplace(bool& AttributeValue) const;
-
-	/** Set weather the skeletal mesh factory should replace the vertex color. Return false if the attribute cannot be set.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool SetCustomVertexColorReplace(const bool& AttributeValue);
-
-	/** Query weather the skeletal mesh factory should ignore the vertex color. Return false if the attribute was not set.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool GetCustomVertexColorIgnore(bool& AttributeValue) const;
-
-	/** Set weather the skeletal mesh factory should ignore the vertex color. Return false if the attribute cannot be set.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool SetCustomVertexColorIgnore(const bool& AttributeValue);
-
-	/** Query weather the skeletal mesh factory should override the vertex color. Return false if the attribute was not set.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool GetCustomVertexColorOverride(FColor& AttributeValue) const;
-
-	/** Set weather the skeletal mesh factory should override the vertex color. Return false if the attribute cannot be set.*/
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
-	bool SetCustomVertexColorOverride(const FColor& AttributeValue);
-
 	/** Query the skeletal mesh import content type. The content type is use by the factory to import partial or full translated content. Return false if the attribute was not set.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | SkeletalMesh")
 	bool GetCustomImportContentType(EInterchangeSkeletalMeshContentType& AttributeValue) const;
@@ -143,26 +94,18 @@ public:
 	virtual void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 private:
 
-	void FillAssetClassFromAttribute();
-
-	bool SetNodeClassFromClassAttribute();
-
-	bool IsEditorOnlyDataDefined();
+	virtual void FillAssetClassFromAttribute() override;
+	virtual bool SetNodeClassFromClassAttribute() override;
 
 	const UE::Interchange::FAttributeKey ClassNameAttributeKey = UE::Interchange::FBaseNodeStaticData::ClassTypeAttributeKey();
 	const UE::Interchange::FAttributeKey Macro_CustomImportMorphTargetKey = UE::Interchange::FAttributeKey(TEXT("ImportMorphTarget"));
 	const UE::Interchange::FAttributeKey Macro_CustomSkeletonSoftObjectPathKey = UE::Interchange::FAttributeKey(TEXT("SkeletonSoftObjectPath"));
 	const UE::Interchange::FAttributeKey Macro_CustomCreatePhysicsAssetKey = UE::Interchange::FAttributeKey(TEXT("CreatePhysicsAsset"));
 	const UE::Interchange::FAttributeKey Macro_CustomPhysicAssetSoftObjectPathKey = UE::Interchange::FAttributeKey(TEXT("PhysicAssetSoftObjectPath"));
-	const UE::Interchange::FAttributeKey Macro_CustomVertexColorReplaceKey = UE::Interchange::FAttributeKey(TEXT("VertexColorReplace"));
-	const UE::Interchange::FAttributeKey Macro_CustomVertexColorIgnoreKey = UE::Interchange::FAttributeKey(TEXT("VertexColorIgnore"));
-	const UE::Interchange::FAttributeKey Macro_CustomVertexColorOverrideKey = UE::Interchange::FAttributeKey(TEXT("VertexColorOverride"));
 	const UE::Interchange::FAttributeKey Macro_CustomImportContentTypeKey = UE::Interchange::FAttributeKey(TEXT("ImportContentType"));
 
-	UE::Interchange::TArrayAttributeHelper<FString> LodDependencies;
 protected:
 #if WITH_ENGINE
 	TSubclassOf<USkeletalMesh> AssetClass = nullptr;
 #endif
-	bool bIsNodeClassInitialized = false;
 };

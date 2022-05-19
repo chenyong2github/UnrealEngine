@@ -537,7 +537,7 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 		constexpr bool bAddSourceNodeName = true;
 		for (const FString& NodeUid : NodeUids)
 		{
-			TArray<FString> MaterialDependencies;
+			TMap<FString, FString> SlotMaterialDependencies;
 			if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(NodeUid)))
 			{
 				FString MeshDependency;
@@ -548,11 +548,12 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 					UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(MeshDependencyNode, SkeletalMeshFactoryNode, bAddSourceNodeName);
 					SkeletalMeshFactoryNode->AddTargetNodeUid(MeshDependency);
 					MeshDependencyNode->AddTargetNodeUid(SkeletalMeshFactoryNode->GetUniqueID());
-					MeshDependencyNode->GetMaterialDependencies(MaterialDependencies);
+					
+					MeshDependencyNode->GetSlotMaterialDependencies(SlotMaterialDependencies);
 				}
 				else
 				{
-					SceneNode->GetMaterialDependencyUids(MaterialDependencies);
+					SceneNode->GetSlotMaterialDependencies(SlotMaterialDependencies);
 				}
 				UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(SceneNode, SkeletalMeshFactoryNode, bAddSourceNodeName);
 			}
@@ -561,24 +562,12 @@ void UInterchangeGenericMeshPipeline::AddLodDataToSkeletalMesh(const UInterchang
 				UInterchangeUserDefinedAttributesAPI::DuplicateAllUserDefinedAttribute(MeshNode, SkeletalMeshFactoryNode, bAddSourceNodeName);
 				SkeletalMeshFactoryNode->AddTargetNodeUid(NodeUid);
 				MeshNode->AddTargetNodeUid(SkeletalMeshFactoryNode->GetUniqueID());
-				MeshNode->GetMaterialDependencies(MaterialDependencies);
+
+				MeshNode->GetSlotMaterialDependencies(SlotMaterialDependencies);
 			}
-			const int32 MaterialCount = MaterialDependencies.Num();
-			for (int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
-			{
-				const FString MaterialFactoryNodeUid = UInterchangeMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(MaterialDependencies[MaterialIndex]);
-				if (BaseNodeContainer->IsNodeUidValid(MaterialFactoryNodeUid))
-				{
-					BaseNodeContainer->GetFactoryNode(MaterialFactoryNodeUid)->SetEnabled(true);
-					//Create a factory dependency so Material asset are import before the skeletal mesh asset
-					TArray<FString> FactoryDependencies;
-					SkeletalMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);
-					if (!FactoryDependencies.Contains(MaterialFactoryNodeUid))
-					{
-						SkeletalMeshFactoryNode->AddFactoryDependencyUid(MaterialFactoryNodeUid);
-					}
-				}
-			}
+
+			UE::Interchange::MeshesUtilities::ApplySlotMaterialDependencies(*SkeletalMeshFactoryNode, SlotMaterialDependencies, *BaseNodeContainer);
+
 			LodDataNode->AddMeshUid(NodeUid);
 		}
 	}

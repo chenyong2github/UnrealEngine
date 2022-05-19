@@ -3,12 +3,16 @@
 #include "Scene/InterchangeActorHelper.h"
 
 #include "InterchangeActorFactoryNode.h"
+#include "InterchangeMaterialFactoryNode.h"
+#include "InterchangeMeshActorFactoryNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangeSceneNode.h"
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 
+#include "Components/MeshComponent.h"
 #include "Engine/World.h"
+#include "Materials/Material.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
@@ -144,4 +148,32 @@ const UInterchangeFactoryBaseNode* UE::Interchange::ActorHelper::FindAssetInstan
 	TArray<FString> AssetTargetNodeIds;
 	AssetNode->GetTargetNodeUids(AssetTargetNodeIds);
 	return AssetTargetNodeIds.IsEmpty() ? nullptr : NodeContainer->GetFactoryNode(AssetTargetNodeIds[0]);
+}
+
+void UE::Interchange::ActorHelper::ApplySlotMaterialDependencies(const UInterchangeBaseNodeContainer& NodeContainer, const UInterchangeMeshActorFactoryNode& MeshActorFactoryNode, UMeshComponent& MeshComponent)
+{
+	// Set material slots from imported materials
+	TMap<FString, FString> SlotMaterialDependencies;
+	MeshActorFactoryNode.GetSlotMaterialDependencies(SlotMaterialDependencies);
+	for (TPair<FString, FString>& SlotMaterialDependency : SlotMaterialDependencies)
+	{
+		const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(NodeContainer.GetNode(SlotMaterialDependency.Value));
+		if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid() || !MaterialFactoryNode->IsEnabled())
+		{
+			continue;
+		}
+
+		FName MaterialSlotName = *SlotMaterialDependency.Key;
+		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
+		if (!MaterialInterface)
+		{
+			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+
+		int32 MaterialSlotIndex = MeshComponent.GetMaterialIndex(MaterialSlotName);
+		if (MaterialSlotIndex != INDEX_NONE)
+		{
+			MeshComponent.SetMaterial(MaterialSlotIndex, MaterialInterface);
+		}
+	}
 }

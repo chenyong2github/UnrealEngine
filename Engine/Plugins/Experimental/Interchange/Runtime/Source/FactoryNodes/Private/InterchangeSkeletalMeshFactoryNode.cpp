@@ -6,22 +6,11 @@
 #include "Engine/SkeletalMesh.h"
 #endif
 
-//Interchange namespace
-namespace UE::Interchange
-{
-	const FAttributeKey& FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey()
-	{
-		static FAttributeKey LodDependencies_BaseKey(TEXT("Lod_Dependencies"));
-		return LodDependencies_BaseKey;
-	}
-}//ns UE::Interchange
-
 UInterchangeSkeletalMeshFactoryNode::UInterchangeSkeletalMeshFactoryNode()
 {
 #if WITH_ENGINE
 	AssetClass = nullptr;
 #endif
-	LodDependencies.Initialize(Attributes, UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey().ToString());
 }
 
 void UInterchangeSkeletalMeshFactoryNode::InitializeSkeletalMeshNode(const FString& UniqueID, const FString& DisplayLabel, const FString& InAssetClass)
@@ -34,46 +23,10 @@ void UInterchangeSkeletalMeshFactoryNode::InitializeSkeletalMeshNode(const FStri
 	FillAssetClassFromAttribute();
 }
 
-void UInterchangeSkeletalMeshFactoryNode::Serialize(FArchive& Ar)
-{
-	Super::Serialize(Ar);
-#if WITH_ENGINE
-	if (Ar.IsLoading())
-	{
-		//Make sure the class is properly set when we compile with engine, this will set the
-		//bIsNodeClassInitialized to true.
-		SetNodeClassFromClassAttribute();
-	}
-#endif //#if WITH_ENGINE
-}
-
 FString UInterchangeSkeletalMeshFactoryNode::GetTypeName() const
 {
 	const FString TypeName = TEXT("SkeletalMeshNode");
 	return TypeName;
-}
-
-FString UInterchangeSkeletalMeshFactoryNode::GetKeyDisplayName(const UE::Interchange::FAttributeKey& NodeAttributeKey) const
-{
-	FString KeyDisplayName = NodeAttributeKey.ToString();
-	const FString NodeAttributeKeyString = KeyDisplayName;
-	if (NodeAttributeKey == UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey())
-	{
-		KeyDisplayName = TEXT("LOD Dependencies Count");
-		return KeyDisplayName;
-	}
-	else if (NodeAttributeKeyString.StartsWith(UE::Interchange::FSkeletalMeshNodeStaticData::GetLodDependenciesBaseKey().ToString()))
-	{
-		KeyDisplayName = TEXT("LOD Dependencies Index ");
-		const FString IndexKey = UE::Interchange::TArrayAttributeHelper<FString>::IndexKey();
-		int32 IndexPosition = NodeAttributeKeyString.Find(IndexKey) + IndexKey.Len();
-		if (IndexPosition < NodeAttributeKeyString.Len())
-		{
-			KeyDisplayName += NodeAttributeKeyString.RightChop(IndexPosition);
-		}
-		return KeyDisplayName;
-	}
-	return Super::GetKeyDisplayName(NodeAttributeKey);
 }
 
 UClass* UInterchangeSkeletalMeshFactoryNode::GetObjectClass() const
@@ -84,26 +37,6 @@ UClass* UInterchangeSkeletalMeshFactoryNode::GetObjectClass() const
 #else
 	return nullptr;
 #endif
-}
-
-int32 UInterchangeSkeletalMeshFactoryNode::GetLodDataCount() const
-{
-	return LodDependencies.GetCount();
-}
-
-void UInterchangeSkeletalMeshFactoryNode::GetLodDataUniqueIds(TArray<FString>& OutLodDataUniqueIds) const
-{
-	LodDependencies.GetItems(OutLodDataUniqueIds);
-}
-
-bool UInterchangeSkeletalMeshFactoryNode::AddLodDataUniqueId(const FString& LodDataUniqueId)
-{
-	return LodDependencies.AddItem(LodDataUniqueId);
-}
-
-bool UInterchangeSkeletalMeshFactoryNode::RemoveLodDataUniqueId(const FString& LodDataUniqueId)
-{
-	return LodDependencies.RemoveItem(LodDataUniqueId);
 }
 
 bool UInterchangeSkeletalMeshFactoryNode::GetCustomSkeletonSoftObjectPath(FSoftObjectPath& AttributeValue) const
@@ -144,36 +77,6 @@ bool UInterchangeSkeletalMeshFactoryNode::GetCustomPhysicAssetSoftObjectPath(FSo
 bool UInterchangeSkeletalMeshFactoryNode::SetCustomPhysicAssetSoftObjectPath(const FSoftObjectPath& AttributeValue)
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(PhysicAssetSoftObjectPath, FSoftObjectPath)
-}
-
-bool UInterchangeSkeletalMeshFactoryNode::GetCustomVertexColorReplace(bool& AttributeValue) const
-{
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(VertexColorReplace, bool)
-}
-
-bool UInterchangeSkeletalMeshFactoryNode::SetCustomVertexColorReplace(const bool& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(VertexColorReplace, bool)
-}
-
-bool UInterchangeSkeletalMeshFactoryNode::GetCustomVertexColorIgnore(bool& AttributeValue) const
-{
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(VertexColorIgnore, bool)
-}
-
-bool UInterchangeSkeletalMeshFactoryNode::SetCustomVertexColorIgnore(const bool& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(VertexColorIgnore, bool)
-}
-
-bool UInterchangeSkeletalMeshFactoryNode::GetCustomVertexColorOverride(FColor& AttributeValue) const
-{
-	IMPLEMENT_NODE_ATTRIBUTE_GETTER(VertexColorOverride, FColor)
-}
-
-bool UInterchangeSkeletalMeshFactoryNode::SetCustomVertexColorOverride(const FColor& AttributeValue)
-{
-	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(VertexColorOverride, FColor)
 }
 
 bool UInterchangeSkeletalMeshFactoryNode::GetCustomImportContentType(EInterchangeSkeletalMeshContentType& AttributeValue) const
@@ -243,13 +146,4 @@ bool UInterchangeSkeletalMeshFactoryNode::SetNodeClassFromClassAttribute()
 		FillAssetClassFromAttribute();
 	}
 	return bIsNodeClassInitialized;
-}
-
-bool UInterchangeSkeletalMeshFactoryNode::IsEditorOnlyDataDefined()
-{
-#if WITH_EDITORONLY_DATA
-	return true;
-#else
-	return false;
-#endif
 }

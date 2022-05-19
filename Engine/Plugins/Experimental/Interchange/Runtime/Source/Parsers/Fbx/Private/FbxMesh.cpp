@@ -1344,7 +1344,7 @@ void FFbxMesh::AddAllMeshes(FbxScene* SDKScene, FbxGeometryConverter* SDKGeometr
 						FString MaterialUid = TEXT("\\Material\\") + MaterialName;
 						if (bAddAllNodeMaterials || MaterialIndexes.Contains(MaterialIndex))
 						{
-							MeshNode->SetMaterialDependencyUid(MaterialUid);
+							MeshNode->SetSlotMaterialDependencyUid(MaterialName, MaterialUid);
 						}
 					}
 				}

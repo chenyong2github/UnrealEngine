@@ -288,8 +288,7 @@ namespace UE
 				{
 					FbxSurfaceMaterial* SurfaceMaterial = ParentFbxNode->GetMaterial(MaterialIndex);
 					const UInterchangeShaderGraphNode* ShaderGraphNode = AddShaderGraphNode(SurfaceMaterial, NodeContainer);
-					//The dependencies order is important because mesh will use index in that order to determine material use by a face
-					SceneNode->AddMaterialDependencyUid(ShaderGraphNode->GetUniqueID());
+					SceneNode->SetSlotMaterialDependencyUid(FFbxHelper::GetFbxObjectName(SurfaceMaterial), ShaderGraphNode->GetUniqueID());
 				}
 			}
 

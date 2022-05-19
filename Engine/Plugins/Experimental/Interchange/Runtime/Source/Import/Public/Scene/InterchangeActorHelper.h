@@ -7,6 +7,8 @@
 class UInterchangeFactoryBaseNode;
 class UInterchangeBaseNodeContainer;
 class UInterchangeActorFactoryNode;
+class UInterchangeMeshActorFactoryNode;
+class UMeshComponent;
 
 namespace UE::Interchange::ActorHelper
 {
@@ -25,4 +27,9 @@ namespace UE::Interchange::ActorHelper
 	 * Returns the factory node of the asset instanced by ActorFactoryNode.
 	 */
 	INTERCHANGEIMPORT_API const UInterchangeFactoryBaseNode* FindAssetInstanceFactoryNode(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeFactoryBaseNode* ActorFactoryNode);
+
+	/**
+	 * Applies material slot dependencies stored in ActorFactoryNode to MeshComponent.
+	 */
+	INTERCHANGEIMPORT_API void ApplySlotMaterialDependencies(const UInterchangeBaseNodeContainer& NodeContainer, const UInterchangeMeshActorFactoryNode& ActorFactoryNode, UMeshComponent& MeshComponent);
 }

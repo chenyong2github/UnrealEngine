@@ -20,9 +20,9 @@ namespace UE
 			static const FAttributeKey& IsBlendShapeKey();
 			static const FAttributeKey& BlendShapeNameKey();
 			static const FAttributeKey& GetSkeletonDependenciesKey();
-			static const FAttributeKey& GetMaterialDependenciesKey();
 			static const FAttributeKey& GetShapeDependenciesKey();
 			static const FAttributeKey& GetSceneInstancesUidsKey();
+			static const FAttributeKey& GetSlotMaterialDependenciesKey();
 		};
 
 	}//ns Interchange
@@ -49,6 +49,19 @@ public:
 	 * Icon name are simply create by adding "InterchangeIcon_" in front of the specialized type. If there is no special type the function will return NAME_None which will use the default icon.
 	 */
 	virtual FName GetIconName() const override;
+	
+	/**
+	 * Override serialize to restore SlotMaterialDependencies on load.
+	 */
+	virtual void Serialize(FArchive& Ar) override
+	{
+		Super::Serialize(Ar);
+
+		if (Ar.IsLoading() && bIsInitialized)
+		{
+			SlotMaterialDependencies.RebuildCache();
+		}
+	}
 
 	/**
 	 * Return true if this node represent a skinned mesh
@@ -196,36 +209,6 @@ public:
 	bool RemoveSkeletonDependencyUid(const FString& DependencyUid);
 
 	/**
-	 * This function allow to retrieve the number of Material dependencies for this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	int32 GetMaterialDependeciesCount() const;
-
-	/**
-	 * This function allow to retrieve the Material dependency for this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	void GetMaterialDependencies(TArray<FString>& OutDependencies) const;
-
-	/**
-	 * This function allow to retrieve one Material dependency for this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	void GetMaterialDependency(const int32 Index, FString& OutDependency) const;
-
-	/**
-	 * Add one Material dependency to this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	bool SetMaterialDependencyUid(const FString& DependencyUid);
-
-	/**
-	 * Remove one Material dependency from this object.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
-	bool RemoveMaterialDependencyUid(const FString& DependencyUid);
-
-	/**
 	 * This function allow to retrieve the number of Shape dependencies for this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
@@ -285,6 +268,30 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Mesh")
 	bool RemoveSceneInstanceUid(const FString& DependencyUid);
 
+	/**
+	 * Allow to retrieve the correspondence table between slot names and assigned materials for this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	void GetSlotMaterialDependencies(TMap<FString, FString>& OutMaterialDependencies) const;
+
+	/**
+	 * Allow to retrieve one Material dependency for a given slot of this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool GetSlotMaterialDependencyUid(const FString& SlotName, FString& OutMaterialDependency) const;
+
+	/**
+	 * Add one Material dependency to a specific slot name of this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool SetSlotMaterialDependencyUid(const FString& SlotName, const FString& MaterialDependencyUid);
+
+	/**
+	 * Remove the Material dependency associated with the given slot name from this object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | StaticMesh")
+	bool RemoveSlotMaterialDependencyUid(const FString& SlotName);
+
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomVertexCountKey = UE::Interchange::FAttributeKey(TEXT("VertexCount"));
 	const UE::Interchange::FAttributeKey Macro_CustomPolygonCountKey = UE::Interchange::FAttributeKey(TEXT("PolygonCount"));
@@ -300,4 +307,6 @@ private:
 	UE::Interchange::TArrayAttributeHelper<FString> MaterialDependencies;
 	UE::Interchange::TArrayAttributeHelper<FString> ShapeDependencies;
 	UE::Interchange::TArrayAttributeHelper<FString> SceneInstancesUids;
+	
+	UE::Interchange::TMapAttributeHelper<FString, FString> SlotMaterialDependencies;
 };

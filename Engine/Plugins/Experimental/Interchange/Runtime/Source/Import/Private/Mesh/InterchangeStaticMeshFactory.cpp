@@ -95,7 +95,6 @@ UObject* UInterchangeStaticMeshFactory::CreateEmptyAsset(const FCreateAssetParam
 #endif //else !WITH_EDITOR || !WITH_EDITORONLY_DATA
 }
 
-
 UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Arguments)
 {
 #if !WITH_EDITOR || !WITH_EDITORONLY_DATA
@@ -151,52 +150,59 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		return nullptr;
 	}
 			
-	int32 LodCount = StaticMeshFactoryNode->GetLodDataCount();
-	int32 FinalLodCount = LodCount;
-
-	// If we are reimporting, cache the existing vertex colors so they can be optionally reapplied after reimport
-	TMap<FVector3f, FColor> ExisitingVertexColorData;
-	if (Arguments.ReimportObject)
-	{
-		if(ExistingAsset)
-		{
-			StaticMesh->GetVertexColorData(ExisitingVertexColorData);
-		}
-
-		// When we reimport we don't want to reduce the number of existing LODs
-		FinalLodCount = FMath::Max(StaticMesh->GetNumLODs(), LodCount);
-	}
+	const int32 LodCount = StaticMeshFactoryNode->GetLodDataCount();
+	const int32 PrevLodCount = StaticMesh->GetNumLODs();
+	const int32 FinalLodCount = FMath::Max(PrevLodCount, LodCount);
 
 	StaticMesh->SetNumSourceModels(FinalLodCount);
 
-	// Set material slots from imported materials
-	TArray<FString> FactoryDependencies;
-	StaticMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);
-
-	for (int32 DependencyIndex = 0; DependencyIndex < FactoryDependencies.Num(); ++DependencyIndex)
+	// Make sure that mesh descriptions for added LODs are kept as is when the mesh is built
+	for (int32 LodIndex = PrevLodCount; LodIndex < FinalLodCount; ++LodIndex)
 	{
-		const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.NodeContainer->GetNode(FactoryDependencies[DependencyIndex]));
-		if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid())
-		{
-			continue;
-		}
-		if (!MaterialFactoryNode->IsEnabled())
-		{
-			continue;
-		}
+		FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LodIndex);
 
-		FName MaterialSlotName = *MaterialFactoryNode->GetDisplayLabel();
-		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
-		if (!MaterialInterface)
-		{
-			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
-		}
+		SrcModel.ReductionSettings.MaxDeviation = 0.0f;
+		SrcModel.ReductionSettings.PercentTriangles = 1.0f;
+		SrcModel.ReductionSettings.PercentVertices = 1.0f;
+	}
 
+	// If we are reimporting, cache the existing vertex colors so they can be optionally reapplied after reimport
+	TMap<FVector3f, FColor> ExisitingVertexColorData;
+	if (Arguments.ReimportObject && ExistingAsset)
+	{
+		StaticMesh->GetVertexColorData(ExisitingVertexColorData);
+	}
+
+	// Set material slots from imported materials
+	auto UpdateOrAddStaticMaterial = [&StaticMesh](const FName& MaterialSlotName, UMaterialInterface* MaterialInterface)
+	{
 		int32 MaterialSlotIndex = StaticMesh->GetMaterialIndexFromImportedMaterialSlotName(MaterialSlotName);
+
 		if (MaterialSlotIndex == INDEX_NONE)
 		{
 			StaticMesh->GetStaticMaterials().Emplace(MaterialInterface, MaterialSlotName);
 		}
+		else
+		{
+			StaticMesh->GetStaticMaterials()[MaterialSlotIndex].MaterialInterface = MaterialInterface;
+		}
+	};
+
+	TMap<FString, FString> SlotMaterialDependencies;
+	StaticMeshFactoryNode->GetSlotMaterialDependencies(SlotMaterialDependencies);
+	for (TPair<FString, FString>& SlotMaterialDependency : SlotMaterialDependencies)
+	{
+		FName MaterialSlotName = *SlotMaterialDependency.Key;
+
+		const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.NodeContainer->GetNode(SlotMaterialDependency.Value));
+		if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid() || !MaterialFactoryNode->IsEnabled())
+		{
+			UpdateOrAddStaticMaterial(MaterialSlotName, UMaterial::GetDefaultMaterial(MD_Surface));
+			continue;
+		}
+
+		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
+		UpdateOrAddStaticMaterial(MaterialSlotName, MaterialInterface ? MaterialInterface : UMaterial::GetDefaultMaterial(MD_Surface));
 	}
 
 	// Now import geometry for each LOD
@@ -231,7 +237,10 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 
 		// Fill the lod mesh description using all combined mesh parts
 		TArray<FMeshPayload> MeshPayloads = GetMeshPayloads(Arguments, MeshUids);
-		for (const FMeshPayload& MeshPayload : MeshPayloads)
+
+		// Just move the mesh description from the first valid payload then append the rest
+		bool bFirstValidMoved = false;
+		for (FMeshPayload& MeshPayload : MeshPayloads)
 		{
 			const TOptional<UE::Interchange::FStaticMeshPayloadData>& LodMeshPayload = MeshPayload.PayloadData.Get();
 			if (!LodMeshPayload.IsSet())
@@ -240,9 +249,24 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 				continue;
 			}
 
-			// Bake the payload, with the provided transform
-			AppendSettings.MeshTransform = MeshPayload.Transform;
-			FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, *LodMeshDescription, AppendSettings);
+			if (!bFirstValidMoved)
+			{
+				FMeshDescription& MeshDescription = const_cast<FMeshDescription&>(LodMeshPayload->MeshDescription);
+				*LodMeshDescription = MoveTemp(MeshDescription);
+				bFirstValidMoved = true;
+
+				// Bake the payload mesh, with the provided transform
+				if (!MeshPayload.Transform.Equals(FTransform::Identity))
+				{
+					FStaticMeshOperations::ApplyTransform(*LodMeshDescription, MeshPayload.Transform);
+				}
+			}
+			else
+			{
+				// Bake the payload mesh, with the provided transform
+				AppendSettings.MeshTransform = MeshPayload.Transform;
+				FStaticMeshOperations::AppendMeshDescription(LodMeshPayload->MeshDescription, *LodMeshDescription, AppendSettings);
+			}
 		}
 
 		// Manage vertex color
@@ -312,11 +336,11 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 		{
 			int32 MaterialSlotIndex = StaticMesh->GetMaterialIndexFromImportedMaterialSlotName(SlotNames[PolygonGroupID]);
 					
-			if (MaterialSlotIndex == INDEX_NONE)
+			// If no material was found with this slot name, fill out a blank slot instead.
+			// However this should not happen. The translator should have properly set the UInterchangeMeshNode with the slot names used by all LODs.
+			if (!ensure(MaterialSlotIndex != INDEX_NONE))
 			{
-				// If no material was found with this slot name, it is probably because the pipeline is configured to not import materials.
-				// Fill out a blank slot instead.
-				MaterialSlotIndex = StaticMesh->GetStaticMaterials().Emplace(nullptr, SlotNames[PolygonGroupID]);
+				MaterialSlotIndex = StaticMesh->GetStaticMaterials().Emplace(UMaterial::GetDefaultMaterial(MD_Surface), SlotNames[PolygonGroupID]);
 			}
 
 			FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(CurrentLodIndex, SectionIndex);
@@ -347,13 +371,6 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			if (CurrentLodIndex == 0)
 			{
 				StaticMesh->SetLightMapCoordinateIndex(FirstOpenUVChannel);
-			}
-
-			if (CurrentLodIndex >= FinalLodCount)
-			{
-				SrcModel.ReductionSettings.MaxDeviation = 0.0f;
-				SrcModel.ReductionSettings.PercentTriangles = 1.0f;
-				SrcModel.ReductionSettings.PercentVertices = 1.0f;
 			}
 		}
 

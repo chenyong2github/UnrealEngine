@@ -18,6 +18,7 @@
 #include "InterchangeSkeletonHelper.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
+#include "Materials/Material.h"
 #include "Math/GenericOctree.h"
 #include "Mesh/InterchangeSkeletalMeshPayload.h"
 #include "Mesh/InterchangeSkeletalMeshPayloadInterface.h"
@@ -542,72 +543,6 @@ namespace UE
 				CopyBlendShapesMeshDescriptionToSkeletalMeshImportData(BlendShapeMeshDescriptionsPerBlendShapeName, DestinationImportData);
 			}
 
-			/**
-			 * Fill the Materials array using the raw skeletalmesh geometry data (using material imported name)
-			 * Find the material from the dependencies of the skeletalmesh before searching in all package.
-			 */
-			//TODO: the pipeline should search for existing material and hook those before the factory is called
-			void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData, TMap<FString, UMaterialInterface*>& AvailableMaterials)
-			{
-				TArray <SkeletalMeshImportData::FMaterial>& ImportedMaterials = ImportData.Materials;
-				// If direct linkup of materials is requested, try to find them here - to get a texture name from a 
-				// material name, cut off anything in front of the dot (beyond are special flags).
-				int32 SkinOffset = INDEX_NONE;
-				for (int32 MatIndex = 0; MatIndex < ImportedMaterials.Num(); ++MatIndex)
-				{
-					const SkeletalMeshImportData::FMaterial& ImportedMaterial = ImportedMaterials[MatIndex];
-
-					UMaterialInterface* Material = nullptr;
-
-					const FName SearchMaterialSlotName(*ImportedMaterial.MaterialImportName);
-					int32 MaterialIndex = 0;
-					FSkeletalMaterial* SkeletalMeshMaterialFind = Materials.FindByPredicate([&SearchMaterialSlotName, &MaterialIndex](const FSkeletalMaterial& ItemMaterial)
-					{
-						//Imported material slot name is available only WITH_EDITOR
-						FName ImportedMaterialSlot = NAME_None;
-						ImportedMaterialSlot = ItemMaterial.ImportedMaterialSlotName;
-						if (ImportedMaterialSlot != SearchMaterialSlotName)
-						{
-							MaterialIndex++;
-							return false;
-						}
-						return true;
-					});
-
-					if (SkeletalMeshMaterialFind != nullptr)
-					{
-						Material = SkeletalMeshMaterialFind->MaterialInterface;
-					}
-
-					if(!Material)
-					{
-						//Try to find the material in the skeletal mesh node dependencies (Materials are import before skeletal mesh when there is a dependency)
-						if (AvailableMaterials.Contains(ImportedMaterial.MaterialImportName))
-						{
-							Material = AvailableMaterials.FindChecked(ImportedMaterial.MaterialImportName);
-						}
-						else
-						{
-							//We did not found any material in the dependencies so try to find material everywhere
-							Material = FindObject<UMaterialInterface>(ANY_PACKAGE, *ImportedMaterial.MaterialImportName);
-						}
-
-						const bool bEnableShadowCasting = true;
-						const bool bInRecomputeTangent = false;
-						Materials.Add(FSkeletalMaterial(Material, bEnableShadowCasting, bInRecomputeTangent, Material != nullptr ? Material->GetFName() : FName(*ImportedMaterial.MaterialImportName), FName(*(ImportedMaterial.MaterialImportName))));
-					}
-				}
-
-				int32 NumMaterialsToAdd = FMath::Max<int32>(ImportedMaterials.Num(), ImportData.MaxMaterialIndex + 1);
-
-				// Pad the material pointers
-				while (NumMaterialsToAdd > Materials.Num())
-				{
-					UMaterialInterface* NullMaterialInterface = nullptr;
-					Materials.Add(FSkeletalMaterial(NullMaterialInterface));
-				}
-			}
-
 			void ProcessImportMeshInfluences(const int32 WedgeCount, TArray<SkeletalMeshImportData::FRawBoneInfluence>& Influences)
 			{
 
@@ -1086,6 +1021,44 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		SkeletalMeshFactoryNode->SetCustomVertexColorReplace(bFalseSetting);
 	}
 
+	// Update skeletal materials
+	TArray<FSkeletalMaterial>& Materials = SkeletalMesh->GetMaterials();
+
+	auto UpdateOrAddSkeletalMaterial = [&Materials](const FName& MaterialSlotName, UMaterialInterface* MaterialInterface)
+	{
+		FSkeletalMaterial* SkeletalMaterial = Materials.FindByPredicate([&MaterialSlotName](const FSkeletalMaterial& Material) { return Material.MaterialSlotName == MaterialSlotName; });
+		
+		if (SkeletalMaterial)
+		{
+			SkeletalMaterial->MaterialInterface = MaterialInterface;
+		}
+		else
+		{
+			const bool bEnableShadowCasting = true;
+			const bool bInRecomputeTangent = false;
+			Materials.Emplace(MaterialInterface, bEnableShadowCasting, bInRecomputeTangent, MaterialSlotName, MaterialSlotName);
+		}
+	};
+
+	TMap<FString, FString> SlotMaterialDependencies;
+	SkeletalMeshFactoryNode->GetSlotMaterialDependencies(SlotMaterialDependencies);
+	Materials.Reserve(SlotMaterialDependencies.Num());
+
+	for (TPair<FString, FString>& SlotMaterialDependency : SlotMaterialDependencies)
+	{
+		FName MaterialSlotName = *SlotMaterialDependency.Key;
+
+		const UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(Arguments.NodeContainer->GetNode(SlotMaterialDependency.Value));
+		if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid() || !MaterialFactoryNode->IsEnabled())
+		{
+			UpdateOrAddSkeletalMaterial(MaterialSlotName, UMaterial::GetDefaultMaterial(MD_Surface));
+			continue;
+		}
+
+		UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
+		UpdateOrAddSkeletalMaterial(MaterialSlotName, MaterialInterface ? MaterialInterface : UMaterial::GetDefaultMaterial(MD_Surface));
+	}
+
 	for (int32 LodIndex = 0; LodIndex < LodCount; ++LodIndex)
 	{
 		ESkeletalMeshGeoImportVersions GeoImportVersion = ESkeletalMeshGeoImportVersions::LatestVersion;
@@ -1297,31 +1270,9 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 		{
 			ensure(ImportedResource->LODModels.Add(new FSkeletalMeshLODModel()) == CurrentLodIndex);
 		}
+
 		FSkeletalMeshLODModel& LODModel = ImportedResource->LODModels[CurrentLodIndex];
 
-		TMap<FString, UMaterialInterface*> AvailableMaterials;
-		TArray<FString> FactoryDependencies;
-		SkeletalMeshFactoryNode->GetFactoryDependencies(FactoryDependencies);
-		for (int32 DependencyIndex = 0; DependencyIndex < FactoryDependencies.Num(); ++DependencyIndex)
-		{
-			const UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeMaterialFactoryNode>(Arguments.NodeContainer->GetNode(FactoryDependencies[DependencyIndex]));
-			if (!MaterialFactoryNode || !MaterialFactoryNode->ReferenceObject.IsValid())
-			{
-				continue;
-			}
-			if (!MaterialFactoryNode->IsEnabled())
-			{
-				continue;
-			}
-			UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(MaterialFactoryNode->ReferenceObject.ResolveObject());
-			if (!MaterialInterface)
-			{
-				continue;
-			}
-			AvailableMaterials.Add(MaterialFactoryNode->GetDisplayLabel(), MaterialInterface);
-		}
-
-		UE::Interchange::Private::ProcessImportMeshMaterials(SkeletalMesh->GetMaterials(), SkeletalMeshImportData, AvailableMaterials);
 		UE::Interchange::Private::ProcessImportMeshInfluences(SkeletalMeshImportData.Wedges.Num(), SkeletalMeshImportData.Influences);
 
 		if (bApplyGeometryOnly)
@@ -1372,11 +1323,11 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 			AddLodInfo();
 		}
 
-		TArray<FSkeletalMaterial>& Materials = SkeletalMesh->GetMaterials();
 		const TArray<SkeletalMeshImportData::FMaterial>& ImportedMaterials = SkeletalMeshImportData.Materials;
 		if (FSkeletalMeshLODInfo* LodInfo = SkeletalMesh->GetLODInfo(CurrentLodIndex))
 		{
 			LodInfo->LODMaterialMap.Empty();
+
 			// Now set up the material mapping array.
 			for (int32 ImportedMaterialIndex = 0; ImportedMaterialIndex < ImportedMaterials.Num(); ImportedMaterialIndex++)
 			{
@@ -1392,11 +1343,14 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 						break;
 					}
 				}
-				// If we dont have a match, add a new entry to the material list.
-				if (LODMatIndex == INDEX_NONE)
+
+				// If we don't have a match, add a new entry to the material list.
+				// However this should not happen. The translator should have properly set the UInterchangeMeshNode with the slot names used by all LODs.
+				if (!ensure(LODMatIndex != INDEX_NONE))
 				{
 					LODMatIndex = Materials.Add(FSkeletalMaterial(ImportedMaterials[ImportedMaterialIndex].Material.Get(), true, false, ImportedMaterialName, ImportedMaterialName));
 				}
+
 				LodInfo->LODMaterialMap.Add(LODMatIndex);
 			}
 		}

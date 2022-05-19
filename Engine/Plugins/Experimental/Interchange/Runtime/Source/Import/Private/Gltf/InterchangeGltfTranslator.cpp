@@ -764,8 +764,9 @@ bool UInterchangeGltfTranslator::Translate( UInterchangeBaseNodeContainer& NodeC
 			{
 				if ( GltfAsset.Materials.IsValidIndex( Primitive.MaterialIndex ) )
 				{
-					const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid( TEXT("Material_") + GenerateNameForGltfNode( GltfAsset.Materials[ Primitive.MaterialIndex ].Name, Primitive.MaterialIndex ) );
-					MeshNode->SetMaterialDependencyUid( ShaderGraphNodeUid );
+					const FString MaterialName = GenerateNameForGltfNode(GltfAsset.Materials[Primitive.MaterialIndex].Name, Primitive.MaterialIndex);
+					const FString ShaderGraphNodeUid = UInterchangeShaderGraphNode::MakeNodeUid( TEXT("Material_") + MaterialName);
+					MeshNode->SetSlotMaterialDependencyUid(MaterialName, ShaderGraphNodeUid);
 				}
 			}
 		}
@@ -864,7 +865,8 @@ TFuture< TOptional< UE::Interchange::FStaticMeshPayloadData > > UInterchangeGltf
 
 			if ( GltfAsset.Materials.IsValidIndex( MaterialIndex ) )
 			{
-				StaticMeshAttributes.GetPolygonGroupMaterialSlotNames()[ MaterialSlotIndex ] = *(TEXT("Material_") + GenerateNameForGltfNode( GltfAsset.Materials[ MaterialIndex ].Name, MaterialIndex ));
+				const FString MaterialName = GenerateNameForGltfNode(GltfAsset.Materials[MaterialIndex].Name, MaterialIndex);
+				StaticMeshAttributes.GetPolygonGroupMaterialSlotNames()[ MaterialSlotIndex ] = *MaterialName;
 			}
 		}
 	}

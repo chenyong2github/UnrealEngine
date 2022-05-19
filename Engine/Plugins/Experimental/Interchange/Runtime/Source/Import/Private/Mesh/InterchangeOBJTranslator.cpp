@@ -939,7 +939,8 @@ bool UInterchangeOBJTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 
 			if (!Group.Value.MaterialName.IsEmpty())
 			{
-				MeshNode->SetMaterialDependencyUid(UInterchangeShaderGraphNode::MakeNodeUid(MakeShaderGraphNodeName(Group.Value.MaterialName)));
+				const FString MaterialDependencyUid = UInterchangeShaderGraphNode::MakeNodeUid(MakeShaderGraphNodeName(Group.Value.MaterialName));
+				MeshNode->SetSlotMaterialDependencyUid(Group.Value.MaterialName, MaterialDependencyUid);
 			}
 		}
 

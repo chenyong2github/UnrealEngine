@@ -35,8 +35,14 @@ namespace UE
 
 		const FString& FSceneNodeStaticData::GetLodGroupSpecializeTypeString()
 		{
-			static FString JointSpecializeTypeString(TEXT("LodGroup"));
-			return JointSpecializeTypeString;
+			static FString LodGroupSpecializeTypeString(TEXT("LodGroup"));
+			return LodGroupSpecializeTypeString;
+		}
+
+		const FString& FSceneNodeStaticData::GetSlotMaterialDependenciesString()
+		{
+			static FString SlotMaterialDependenciesString(TEXT("__SlotMaterialDependencies__"));
+			return SlotMaterialDependenciesString;
 		}
 	}//ns Interchange
 }//ns UE
@@ -44,7 +50,7 @@ namespace UE
 UInterchangeSceneNode::UInterchangeSceneNode()
 {
 	NodeSpecializeTypes.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetNodeSpecializeTypeBaseKey().ToString());
-	MaterialDependencyUids.Initialize(Attributes, UE::Interchange::FSceneNodeStaticData::GetMaterialDependencyUidsBaseKey().ToString());
+	SlotMaterialDependencies.Initialize(Attributes.ToSharedRef(), UE::Interchange::FSceneNodeStaticData::GetSlotMaterialDependenciesString());
 }
 
 /**
@@ -178,31 +184,6 @@ bool UInterchangeSceneNode::AddSpecializedType(const FString& SpecializedType)
 bool UInterchangeSceneNode::RemoveSpecializedType(const FString& SpecializedType)
 {
 	return NodeSpecializeTypes.RemoveItem(SpecializedType);
-}
-
-int32 UInterchangeSceneNode::GetMaterialDependencyUidsCount() const
-{
-	return MaterialDependencyUids.GetCount();
-}
-
-void UInterchangeSceneNode::GetMaterialDependencyUid(const int32 Index, FString& OutMaterialDependencyUid) const
-{
-	MaterialDependencyUids.GetItem(Index, OutMaterialDependencyUid);
-}
-
-void UInterchangeSceneNode::GetMaterialDependencyUids(TArray<FString>& OutMaterialDependencyUids) const
-{
-	MaterialDependencyUids.GetItems(OutMaterialDependencyUids);
-}
-
-bool UInterchangeSceneNode::AddMaterialDependencyUid(const FString& MaterialDependencyUid)
-{
-	return MaterialDependencyUids.AddItem(MaterialDependencyUid);
-}
-
-bool UInterchangeSceneNode::RemoveMaterialDependencyUid(const FString& MaterialDependencyUid)
-{
-	return MaterialDependencyUids.RemoveItem(MaterialDependencyUid);
 }
 
 bool UInterchangeSceneNode::GetCustomLocalTransform(FTransform& AttributeValue) const
@@ -429,4 +410,24 @@ bool UInterchangeSceneNode::GetGlobalTransformInternal(const UE::Interchange::FA
 	check(CacheTransform.IsSet());
 	AttributeValue = CacheTransform.GetValue();
 	return true;
+}
+
+void UInterchangeSceneNode::GetSlotMaterialDependencies(TMap<FString, FString>& OutMaterialDependencies) const
+{
+	OutMaterialDependencies = SlotMaterialDependencies.ToMap();
+}
+
+bool UInterchangeSceneNode::GetSlotMaterialDependencyUid(const FString& SlotName, FString& OutMaterialDependency) const
+{
+	return SlotMaterialDependencies.GetValue(SlotName, OutMaterialDependency);
+}
+
+bool UInterchangeSceneNode::SetSlotMaterialDependencyUid(const FString& SlotName, const FString& MaterialDependencyUid)
+{
+	return SlotMaterialDependencies.SetKeyValue(SlotName, MaterialDependencyUid);
+}
+
+bool UInterchangeSceneNode::RemoveSlotMaterialDependencyUid(const FString& SlotName)
+{
+	return SlotMaterialDependencies.RemoveKey(SlotName);
 }

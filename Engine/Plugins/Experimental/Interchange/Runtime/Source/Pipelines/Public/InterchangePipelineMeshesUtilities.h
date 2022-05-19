@@ -6,6 +6,10 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
+#include "InterchangeMaterialFactoryNode.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
+#include "Nodes/InterchangeFactoryBaseNode.h"
+
 #include "InterchangePipelineMeshesUtilities.generated.h"
 
 class UInterchangeBaseNodeContainer;
@@ -272,3 +276,33 @@ protected:
 	TMap<FString, FInterchangeMeshInstance> MeshInstancesPerMeshInstanceUid;
 	TMap<FString, FString> SkeletonRootUidPerMeshUid;
 };
+
+namespace UE::Interchange::MeshesUtilities
+{
+
+	/**
+	 * Applies material slot dependencies stored in SlotMaterialDependencies to FactoryNode.
+	 */
+	template<class T>
+	void ApplySlotMaterialDependencies(T& FactoryNode, const TMap<FString, FString>& SlotMaterialDependencies, const UInterchangeBaseNodeContainer& NodeContainer)
+	{
+		for (const TPair<FString, FString>& SlotMaterialDependency : SlotMaterialDependencies)
+		{
+			const FString MaterialFactoryNodeUid = UInterchangeMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(SlotMaterialDependency.Value);
+			if (UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast< UInterchangeMaterialFactoryNode>(NodeContainer.GetFactoryNode(MaterialFactoryNodeUid)))
+			{
+				FactoryNode.SetSlotMaterialDependencyUid(SlotMaterialDependency.Key, MaterialFactoryNodeUid);
+				MaterialFactoryNode->SetEnabled(true);
+
+				// Create a factory dependency so Material asset are imported before the static mesh asset
+				TArray<FString> FactoryDependencies;
+				FactoryNode.GetFactoryDependencies(FactoryDependencies);
+				if (!FactoryDependencies.Contains(MaterialFactoryNodeUid))
+				{
+					FactoryNode.AddFactoryDependencyUid(MaterialFactoryNodeUid);
+				}
+			}
+		}
+
+	}
+}
