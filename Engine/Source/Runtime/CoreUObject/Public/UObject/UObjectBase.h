@@ -230,6 +230,7 @@ private:
 	UObject*						OuterPrivate;
 	
 	friend class FBlueprintCompileReinstancer;
+	friend class FVerseObjectClassReplacer;
 	friend class FContextObjectManager;
 
 #if WITH_EDITOR

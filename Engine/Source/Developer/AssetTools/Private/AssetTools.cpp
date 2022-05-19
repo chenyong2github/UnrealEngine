@@ -932,13 +932,20 @@ void UAssetToolsImpl::GetAllAdvancedCopySources(FName SelectedPackage, FAdvanced
 	}
 }
 
-bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceAndDestPackages, const bool bForceAutosave, const bool bCopyOverAllDestinationOverlaps) const
+bool UAssetToolsImpl::AdvancedCopyPackages(
+	const TMap<FString, FString>& SourceAndDestPackages,
+	const bool bForceAutosave,
+	const bool bCopyOverAllDestinationOverlaps,
+	FDuplicatedObjects* OutDuplicatedObjects) const
 {
 	if (ValidateFlattenedAdvancedCopyDestinations(SourceAndDestPackages))
 	{
 		TArray<FString> SuccessfullyCopiedDestinationFiles;
 		TArray<FName> SuccessfullyCopiedSourcePackages;
-		TArray<TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>>> DuplicatedObjectsForEachPackage;
+
+		FDuplicatedObjects DuplicatedObjectsLocal;
+		FDuplicatedObjects& DuplicatedObjectsForEachPackage = OutDuplicatedObjects ? *OutDuplicatedObjects : DuplicatedObjectsLocal;
+
 		TSet<UObject*> ExistingObjectSet;
 		TSet<UObject*> NewObjectSet;
 		FString CopyErrors;
@@ -1111,7 +1118,7 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const FAdvancedCopyParams& CopyParams
 	TMap<FString, FString> FlattenedDestinationMap;
 	if (FlattenAdvancedCopyDestinations(PackagesAndDestinations, FlattenedDestinationMap))
 	{
-		return AdvancedCopyPackages(FlattenedDestinationMap, CopyParams.bShouldForceSave, CopyParams.bCopyOverAllDestinationOverlaps);
+		return AdvancedCopyPackages(FlattenedDestinationMap, CopyParams.bShouldForceSave, CopyParams.bCopyOverAllDestinationOverlaps, nullptr);
 	}
 	return false;
 }
