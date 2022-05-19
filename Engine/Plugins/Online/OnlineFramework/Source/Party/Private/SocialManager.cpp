@@ -32,7 +32,8 @@ static TAutoConsoleVariable<bool> CVarForceDisconnectedToPartyService(
 //////////////////////////////////////////////////////////////////////////
 
 USocialManager::FRejoinableParty::FRejoinableParty(const USocialParty& SourceParty)
-	: PartyId(SourceParty.GetPartyId().AsShared())
+	: PartyId(SourceParty.GetPartyId().AsShared()),
+	OriginalJoinMethod(SourceParty.GetOwningLocalMember().GetRepData().GetJoinMethod())
 {
 	for (UPartyMember* Member : SourceParty.GetPartyMembers())
 	{
@@ -52,26 +53,33 @@ USocialManager::FRejoinableParty::FRejoinableParty(const USocialParty& SourcePar
 // FJoinPartyAttempt
 //////////////////////////////////////////////////////////////////////////
 
-USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(const USocialUser* InTargetUser, const FOnlinePartyTypeId& InPartyTypeId, const FOnJoinPartyAttemptComplete& InOnJoinComplete)
+USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(const USocialUser* InTargetUser, const FOnlinePartyTypeId& InPartyTypeId, const FName& InJoinMethod, const FOnJoinPartyAttemptComplete& InOnJoinComplete)
 	: TargetUser(InTargetUser)
 	, PartyTypeId(InPartyTypeId)
+	, JoinMethod(InJoinMethod)
 	, OnJoinComplete(InOnJoinComplete)
+{}
+
+USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(const USocialUser* InTargetUser, const FOnlinePartyTypeId& InPartyTypeId, const FOnJoinPartyAttemptComplete& InOnJoinComplete)
+	: USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(InTargetUser, InPartyTypeId, PartyJoinMethod::Unspecified, InOnJoinComplete)
 {}
 
 USocialManager::FJoinPartyAttempt::FJoinPartyAttempt(TSharedRef<const FRejoinableParty> InRejoinInfo)
 	: PartyTypeId(IOnlinePartySystem::GetPrimaryPartyTypeId())
+	, JoinMethod(InRejoinInfo->OriginalJoinMethod)
 	, RejoinInfo(InRejoinInfo)
 {}
 
 FString USocialManager::FJoinPartyAttempt::ToDebugString() const
 {
-	return FString::Printf(TEXT("IsRejoin (%s), TargetUser (%s), PartyId (%s), TypeId (%d), TargetUserPlatformId (%s), PlatformSessionId (%s)"),
+	return FString::Printf(TEXT("IsRejoin (%s), TargetUser (%s), PartyId (%s), TypeId (%d), TargetUserPlatformId (%s), PlatformSessionId (%s), JoinMethod (%s)"),
 		RejoinInfo.IsValid() ? TEXT("true") : TEXT("false"),
 		TargetUser.IsValid() ? *TargetUser->ToDebugString() : TEXT("invalid"),
 		JoinInfo.IsValid() ? *JoinInfo->GetPartyId()->ToDebugString() : RejoinInfo.IsValid() ? *RejoinInfo->PartyId->ToDebugString() : TEXT("unknown"),
 		PartyTypeId.GetValue(),
 		*TargetUserPlatformId.ToDebugString(),
-		*PlatformSessionId);
+		*PlatformSessionId,
+		*JoinMethod.ToString());
 }
 
 const FName USocialManager::FJoinPartyAttempt::Step_FindPlatformSession = TEXT("FindPlatformSession");
@@ -310,7 +318,7 @@ void USocialManager::HandlePlatformSessionInviteAccepted(const FUniqueNetIdRef& 
 	// Session invites are always for the persistent party
 	const FOnlinePartyTypeId PersistentPartyTypeId = IOnlinePartySystem::GetPrimaryPartyTypeId();
 
-	FJoinPartyAttempt NewAttempt(nullptr, PersistentPartyTypeId, FOnJoinPartyAttemptComplete());
+	FJoinPartyAttempt NewAttempt(nullptr, PersistentPartyTypeId, PartyJoinMethod::PlatformSession, FOnJoinPartyAttemptComplete());
 	FJoinPartyResult ValidationResult = ValidateJoinAttempt(PersistentPartyTypeId);
 	if (ValidationResult.WasSuccessful())
 	{
@@ -612,11 +620,11 @@ FJoinPartyResult USocialManager::ValidateJoinTarget(const USocialUser& UserToJoi
 	return FJoinPartyResult();
 }
 
-void USocialManager::JoinParty(const USocialUser& UserToJoin, const FOnlinePartyTypeId& PartyTypeId, const FOnJoinPartyAttemptComplete& OnJoinPartyComplete)
+void USocialManager::JoinParty(const USocialUser& UserToJoin, const FOnlinePartyTypeId& PartyTypeId, const FOnJoinPartyAttemptComplete& OnJoinPartyComplete, const FName& JoinMethod)
 {
-	UE_LOG(LogParty, Verbose, TEXT("Attempting to join user [%s]'s party of type [%d]"), *UserToJoin.ToDebugString(), PartyTypeId.GetValue());
+	UE_LOG(LogParty, Verbose, TEXT("Attempting to join user [%s]'s party of type [%d] by [%s]"), *UserToJoin.ToDebugString(), PartyTypeId.GetValue(), *JoinMethod.ToString());
 
-	FJoinPartyAttempt NewAttempt(&UserToJoin, PartyTypeId, OnJoinPartyComplete);
+	FJoinPartyAttempt NewAttempt(&UserToJoin, PartyTypeId, JoinMethod, OnJoinPartyComplete);
 	const FJoinPartyResult ValidationResult = ValidateJoinTarget(UserToJoin, PartyTypeId);
 	if (ValidationResult.WasSuccessful())
 	{
@@ -1121,6 +1129,12 @@ void USocialManager::HandleCreatePartyComplete(const FUniqueNetId& LocalUserId, 
 		if (USocialParty* NewParty = EstablishNewParty(LocalUserId, *PartyId, PartyTypeId))
 		{
 			NewParty->ResetPrivacySettings();
+
+			if (UPartyMember* LocalPartyMember = NewParty->GetPartyMember(LocalUserId.AsShared()))
+			{
+				UE_LOG(LogParty, Verbose, TEXT("Player [%s] created party."), *LocalUserId.ToDebugString());
+				LocalPartyMember->GetMutableRepData().SetJoinMethod(PartyJoinMethod::Creation.ToString());
+			}
 		}
 		else
 		{
@@ -1153,6 +1167,7 @@ void USocialManager::HandleJoinPartyComplete(const FUniqueNetId& LocalUserId, co
 				{
 					JoinResult.SetResult(EJoinPartyCompletionResult::UnknownClientFailure);
 				}
+
 				FinishJoinPartyAttempt(*JoinAttempt, JoinResult);
 			}
 			else

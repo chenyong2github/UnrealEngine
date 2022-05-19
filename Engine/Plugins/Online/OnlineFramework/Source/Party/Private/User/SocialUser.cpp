@@ -887,9 +887,14 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void USocialUser::JoinParty(const FOnlinePartyTypeId& PartyTypeId) const
 {
+	JoinParty(PartyTypeId, PartyJoinMethod::Unspecified);
+}
+
+void USocialUser::JoinParty(const FOnlinePartyTypeId& PartyTypeId, const FName& JoinMethod) const
+{
 	const bool bHasSentInvite = HasSentPartyInvite(PartyTypeId);
-	
-	GetOwningToolkit().GetSocialManager().JoinParty(*this, PartyTypeId, USocialManager::FOnJoinPartyAttemptComplete());
+
+	GetOwningToolkit().GetSocialManager().JoinParty(*this, PartyTypeId, USocialManager::FOnJoinPartyAttemptComplete(), JoinMethod);
 
 	// Regardless of the outcome, note that the invite was accepted (deletes it from the OSS party system)
 	if (bHasSentInvite)
@@ -1068,11 +1073,6 @@ void USocialUser::HandlePartyInviteRemoved(const IOnlinePartyJoinInfo& Invite, E
 	GetOwningToolkit().NotifyPartyInviteRemoved(*this, Invite);
 }
 
-void USocialUser::HandleRequestToJoinSent(const FDateTime& ExpiresAt)
-{
-	NotifyRequestToJoinSent(ExpiresAt);
-}
-
 void USocialUser::HandleRequestToJoinReceived(const IOnlinePartyRequestToJoinInfo& Request)
 {
 	NotifyRequestToJoinReceived(Request);
@@ -1085,7 +1085,13 @@ void USocialUser::HandleRequestToJoinRemoved(const IOnlinePartyRequestToJoinInfo
 
 void USocialUser::RequestToJoinParty()
 {
-	return GetOwningToolkit().RequestToJoinParty(*this);
+	RequestToJoinParty(PartyJoinMethod::Unspecified);
+}
+
+void USocialUser::RequestToJoinParty(const FName& JoinMethod)
+{
+	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
+	PartyInterface->RequestToJoinParty(*GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary), IOnlinePartySystem::GetPrimaryPartyTypeId(), *GetUserId(ESocialSubsystem::Primary), FOnRequestToJoinPartyComplete::CreateUObject(this, &USocialUser::HandlePartyRequestToJoinSent, JoinMethod));
 }
 
 void USocialUser::AcceptRequestToJoinParty() const
@@ -1105,6 +1111,23 @@ void USocialUser::DismissRequestToJoinParty() const
 		IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 		PartyInterface->ClearRequestToJoinParty(*GetOwningToolkit().GetLocalUserNetId(ESocialSubsystem::Primary), Party->GetPartyId(), *GetUserId(ESocialSubsystem::Primary), EPartyRequestToJoinRemovedReason::Dismissed);
 	}
+}
+
+void USocialUser::HandlePartyRequestToJoinSent(const FUniqueNetId& LocalUserId, const FUniqueNetId& PartyLeaderId, const FDateTime& ExpiresAt, const ERequestToJoinPartyCompletionResult Result, FName JoinMethod)
+{
+	UE_LOG(LogParty, VeryVerbose, TEXT("%s - User [%s] sent a join request to [%s] with result[%s]"), ANSI_TO_TCHAR(__FUNCTION__), *LocalUserId.ToDebugString(), *PartyLeaderId.ToDebugString(), ToString(Result));
+
+	if (Result == ERequestToJoinPartyCompletionResult::Succeeded)
+	{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		NotifyRequestToJoinSent(ExpiresAt);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+		GetOwningToolkit().OnPartyRequestToJoinSent().Broadcast(*this);
+	}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	GetOwningToolkit().OnRequestToJoinPartyComplete(PartyLeaderId, Result);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 TSharedPtr<const IOnlinePartyJoinInfo> USocialUser::GetPartyJoinInfo(const FOnlinePartyTypeId& PartyTypeId) const

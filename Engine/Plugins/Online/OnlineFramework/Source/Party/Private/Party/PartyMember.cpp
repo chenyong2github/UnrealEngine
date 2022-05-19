@@ -105,6 +105,16 @@ void UPartyMember::InitializeLocalMemberRepData()
 
 	MemberDataReplicator->SetPlatformDataPlatform(IOnlineSubsystem::GetLocalPlatformName());
 	MemberDataReplicator->SetPlatformDataUniqueId(SocialUser->GetUserId(ESocialSubsystem::Platform));
+	
+	const USocialParty& CurrentParty = GetParty();
+	
+	if (const USocialManager::FJoinPartyAttempt* JoinAttempt = CurrentParty.GetSocialManager().GetJoinAttemptInProgress(CurrentParty.GetPartyTypeId()))
+	{
+		const FString JoinMethod = JoinAttempt->JoinMethod.ToString();
+
+		UE_LOG(LogParty, Verbose, TEXT("Join method for local member [%s] is %s."), *ToDebugString(), *JoinMethod);
+		MemberDataReplicator->SetJoinMethod(JoinMethod);
+	}
 }
 
 void UPartyMember::Shutdown()

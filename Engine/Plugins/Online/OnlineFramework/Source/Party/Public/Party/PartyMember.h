@@ -69,6 +69,11 @@ private:
 	UPROPERTY()
 	ECrossplayPreference CrossplayPreference = ECrossplayPreference::NoSelection;
 	EXPOSE_REP_DATA_PROPERTY(FPartyMemberRepData, ECrossplayPreference, CrossplayPreference);
+
+	/** Method used to join the party */
+	UPROPERTY()
+	FString JoinMethod;
+	EXPOSE_REP_DATA_PROPERTY(FPartyMemberRepData, FString, JoinMethod);
 };
 
 using FPartyMemberDataReplicator = TPartyDataReplicator<FPartyMemberRepData, UPartyMember>;
@@ -79,6 +84,7 @@ class PARTY_API UPartyMember : public UObject
 	GENERATED_BODY()
 
 	friend class FPartyPlatformSessionMonitor;
+	friend class USocialManager;
 	friend USocialParty;
 public:
 	UPartyMember();

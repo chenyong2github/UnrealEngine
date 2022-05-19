@@ -674,3 +674,23 @@ inline const TCHAR* ToString(EApprovalAction Type)
 	}
 	}
 }
+
+/** Defines the means used to join a party*/
+namespace PartyJoinMethod
+{
+	// User has created the party
+	const FName Creation = FName(TEXT("Creation"));
+	// User has joined the party via invitation
+	const FName Invitation = FName(TEXT("Invitation"));
+	// user has joined after requesting access
+	const FName RequestToJoin = FName(TEXT("RequestToJoin"));
+	// User has joined the party via presence
+	const FName Presence = FName(TEXT("Presence"));
+	// User has joined the party using a platform option
+	const FName PlatformSession = FName(TEXT("PlatformSession"));
+	// User has joined the party via command line
+	const FName CommandLineJoin = FName(TEXT("CommandLineJoin"));
+	// User has joined via unknown/undocumented process
+	const FName Unspecified = FName(TEXT("Unspecified"));
+	
+}

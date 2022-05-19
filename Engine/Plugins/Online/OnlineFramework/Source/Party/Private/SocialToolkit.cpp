@@ -1211,29 +1211,6 @@ void USocialToolkit::HandleExistingPartyInvites(ESocialSubsystem SubsystemType)
 	}
 }
 
-void USocialToolkit::RequestToJoinParty(USocialUser& SocialUser)
-{
-	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
-	PartyInterface->RequestToJoinParty(*GetLocalUserNetId(ESocialSubsystem::Primary), IOnlinePartySystem::GetPrimaryPartyTypeId(), *SocialUser.GetUserId(ESocialSubsystem::Primary), FOnRequestToJoinPartyComplete::CreateUObject(this, &USocialToolkit::HandlePartyRequestToJoinSent));
-}
-
-void USocialToolkit::HandlePartyRequestToJoinSent(const FUniqueNetId& LocalUserId, const FUniqueNetId& PartyLeaderId, const FDateTime& ExpiresAt, const ERequestToJoinPartyCompletionResult Result)
-{
-	UE_LOG(LogParty, VeryVerbose, TEXT("%s - User [%s] sent a join request to [%s] with result[%s]"), ANSI_TO_TCHAR(__FUNCTION__), *LocalUserId.ToDebugString(), *PartyLeaderId.ToDebugString(), ToString(Result));
-
-	if (Result == ERequestToJoinPartyCompletionResult::Succeeded)
-	{
-		QueueUserDependentActionInternal(PartyLeaderId.AsShared(), ESocialSubsystem::Primary,
-			[this, ExpiresAt](USocialUser& SocialUser)
-			{
-				SocialUser.HandleRequestToJoinSent(ExpiresAt);
-				OnPartyRequestToJoinSent().Broadcast(SocialUser);
-			});
-	}
-
-	OnRequestToJoinPartyComplete(PartyLeaderId, Result);
-}
-
 void USocialToolkit::HandlePartyRequestToJoinReceived(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FUniqueNetId& RequesterId, const IOnlinePartyRequestToJoinInfo& Request)
 {
 	if (LocalUserId == GetLocalUserNetId(ESocialSubsystem::Primary))

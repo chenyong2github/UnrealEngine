@@ -116,7 +116,7 @@ public:
 
 protected:
 	DECLARE_DELEGATE_OneParam(FOnJoinPartyAttemptComplete, const FJoinPartyResult&);
-	void JoinParty(const USocialUser& UserToJoin, const FOnlinePartyTypeId& PartyTypeId, const FOnJoinPartyAttemptComplete& OnJoinPartyComplete);
+	void JoinParty(const USocialUser& UserToJoin, const FOnlinePartyTypeId& PartyTypeId, const FOnJoinPartyAttemptComplete& OnJoinPartyComplete, const FName& JoinMethod);
 
 	USocialToolkit* GetSocialToolkit(int32 LocalPlayerNum) const;
 	USocialToolkit* GetSocialToolkit(FUniqueNetIdRepl LocalUserId) const;
@@ -128,17 +128,22 @@ protected:
 
 		TSharedRef<const FOnlinePartyId> PartyId;
 		TArray<FUniqueNetIdRef> MemberIds;
+		FName OriginalJoinMethod;
 	};
 
 	struct PARTY_API FJoinPartyAttempt
 	{
 		FJoinPartyAttempt(TSharedRef<const FRejoinableParty> InRejoinInfo);
+		FJoinPartyAttempt(const USocialUser* InTargetUser, const FOnlinePartyTypeId& InPartyTypeId, const FName& InJoinMethod, const FOnJoinPartyAttemptComplete& InOnJoinComplete);
+
+		UE_DEPRECATED(5.1, "This constructor is deprecated, use (USocialUser*, FOnlinePartyTypeId, FName, FOnJoinPartyAttemptComplete) instead.")
 		FJoinPartyAttempt(const USocialUser* InTargetUser, const FOnlinePartyTypeId& InPartyTypeId, const FOnJoinPartyAttemptComplete& InOnJoinComplete);
 
 		FString ToDebugString() const;
 
 		TWeakObjectPtr<const USocialUser> TargetUser;
 		FOnlinePartyTypeId PartyTypeId;
+		FName JoinMethod;
 		FUniqueNetIdRepl TargetUserPlatformId;
 		FSessionId PlatformSessionId;
 
@@ -193,8 +198,11 @@ protected:
 	void RefreshCanCreatePartyObjects();
 
 	USocialParty* GetPersistentPartyInternal(bool bEvenIfLeaving = false) const;
+
+public:
 	const FJoinPartyAttempt* GetJoinAttemptInProgress(const FOnlinePartyTypeId& PartyTypeId) const;
 
+protected:
 	//@todo DanH: TEMP - for now relying on FN to bind to its game-level UFortOnlineSessionClient instance #required
 	void HandlePlatformSessionInviteAccepted(const FUniqueNetIdRef& LocalUserId, const FOnlineSessionSearchResult& InviteResult);
 
