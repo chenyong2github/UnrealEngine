@@ -509,6 +509,7 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// Whether the target should be included in the default solution build configuration
+		/// Setting this to false will skip building when running in the IDE
 		/// </summary>
 		public bool? bBuildInSolutionByDefault = null;
 

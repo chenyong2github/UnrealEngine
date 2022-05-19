@@ -95,6 +95,7 @@ namespace UnrealBuildTool
 
 			if (bExplicitTestsTargetOverride)
 			{
+				bBuildInSolutionByDefault = true;
 				SolutionDirectory = "Programs/LowLevelTests";
 			}
 		}
