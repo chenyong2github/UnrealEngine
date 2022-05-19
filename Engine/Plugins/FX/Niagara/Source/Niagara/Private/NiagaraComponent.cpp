@@ -285,6 +285,7 @@ TUniformBuffer<FPrimitiveUniformShaderParameters>& FNiagaraSceneProxy::GetCustom
 	bool bOutputVelocity;
 	FPrimitiveSceneInfo* LocalPrimitiveSceneInfo = GetPrimitiveSceneInfo();
 	GetScene().GetPrimitiveUniformShaderParameters_RenderThread(LocalPrimitiveSceneInfo, bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
+	bOutputVelocity |= AlwaysHasVelocity();
 
 	// we need to incorporate the transform of the PreviousLocalToWorld because it stopping moving is relevant
 	// and we need to be able to generate a new UB for that case
@@ -323,8 +324,7 @@ TUniformBuffer<FPrimitiveUniformShaderParameters>& FNiagaraSceneProxy::GetCustom
 				.InstancePayloadDataOffset(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetInstancePayloadDataOffset() : INDEX_NONE)
 				.InstancePayloadDataStride(LocalPrimitiveSceneInfo ? LocalPrimitiveSceneInfo->GetInstancePayloadDataStride() : 0)
 				.ReceivesDecals(ReceivesDecals())
-				.DrawsVelocity(DrawsVelocity())
-				.OutputVelocity(bOutputVelocity || AlwaysHasVelocity())
+				.OutputVelocity(bOutputVelocity)
 				.CastContactShadow(CastsContactShadow())
 				.CastShadow(CastsDynamicShadow())
 				.HasCapsuleRepresentation(HasDynamicIndirectShadowCasterRepresentation())

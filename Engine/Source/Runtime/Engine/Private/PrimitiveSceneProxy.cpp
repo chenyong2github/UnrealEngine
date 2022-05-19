@@ -70,7 +70,7 @@ static TAutoConsoleVariable<int32> CVarVelocityEnableVertexDeformation(
 static TAutoConsoleVariable<int32> CVarVelocityForceOutput(
 	TEXT("r.Velocity.ForceOutput"), 0,
 	TEXT("Force velocity output on all primitives.\n")
-	TEXT("This can incur a performance cost epecially when r.VelocityOutputPass=2.\n")
+	TEXT("This can incur a performance cost unless r.VelocityOutputPass=1.\n")
 	TEXT("But it can be useful for testing where velocity output isn't being enabled as expected.\n")
 	TEXT("0: Disabled (default)\n")
 	TEXT("1: Enabled"),
@@ -390,22 +390,12 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 			{
 				if (MaterialInterface->GetRelevance_Concurrent(FeatureLevel).bUsesWorldPositionOffset)
 				{
-						bHasWorldPositionOffsetVelocity = true;
+					bHasWorldPositionOffsetVelocity = true;
 					break;
 				}
 			}
 		}
 	}
-}
-
-bool FPrimitiveSceneProxy::AlwaysHasVelocity() const 
-{
-	return bAlwaysHasVelocity || (bEvaluateWorldPositionOffset && bHasWorldPositionOffsetVelocity);
-}
-
-bool FPrimitiveSceneProxy::DrawsVelocity() const
-{
-	return IsMovable() || bIsBeingMovedByEditor || AlwaysHasVelocity();
 }
 
 bool FPrimitiveSceneProxy::OnLevelAddedToWorld_RenderThread()
@@ -488,6 +478,8 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 			bOutputVelocity
 		);
 
+		bOutputVelocity |= AlwaysHasVelocity();
+
 		FBoxSphereBounds PreSkinnedLocalBounds;
 		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
@@ -502,8 +494,8 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.InstanceLocalBounds(GetInstanceLocalBounds(0))
 				.PreSkinnedLocalBounds(PreSkinnedLocalBounds)
 				.ReceivesDecals(bReceivesDecals)
-				.OutputVelocity(bOutputVelocity || AlwaysHasVelocity())
-				.DrawsVelocity(DrawsVelocity())
+				.ShouldCacheShadow(ShouldCacheShadow())
+				.OutputVelocity(bOutputVelocity)
 				.EvaluateWorldPositionOffset(EvaluateWorldPositionOffset())
 				.LightingChannelMask(GetLightingChannelMask())
 				.LightmapDataIndex(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0)

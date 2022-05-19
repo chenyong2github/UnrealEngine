@@ -6865,7 +6865,6 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 				.LocalBounds(GetLocalBounds())
 				.ReceivesDecals(ReceivesDecals())
 				.OutputVelocity(AlwaysHasVelocity())
-				.DrawsVelocity(DrawsVelocity())
 				.LightingChannelMask(GetLightingChannelMask())
 				.UseSingleSampleShadowFromStationaryLights(UseSingleSampleShadowFromStationaryLights())
 				.UseVolumetricLightmap(GetScene().HasPrecomputedVolumetricLightmap_RenderThread())

@@ -2436,7 +2436,7 @@ public:
 	 */
 	void UpdateTransform(FPrimitiveSceneInfo* PrimitiveSceneInfo, const FMatrix& LocalToWorld, const FMatrix& PreviousLocalToWorld)
 	{
-		check(PrimitiveSceneInfo->Proxy->DrawsVelocity());
+		check(PrimitiveSceneInfo->Proxy->HasDynamicTransform());
 
 		FComponentVelocityData& VelocityData = ComponentData.FindOrAdd(PrimitiveSceneInfo->PrimitiveComponentId);
 		VelocityData.LocalToWorld = LocalToWorld;

@@ -11,11 +11,10 @@ bool ShouldCacheInstanceAsStatic(FInstanceSceneData InstanceData)
 #if 0
 	return false;
 #else
-	// TODO: Fix this with our own mobility flag, but for testing for now
-	// this flag should be stable and not change, which is a requirement.
+	// TODO: Tweak mobility flag, but for testing for now
+	// This flag should be stable and not change, which is a requirement.
 	uint Flags = GetPrimitiveData(InstanceData.PrimitiveId).Flags;
 	//return (Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_CAST_CONTACT_SHADOW) != 0;
-	// DrawsVelocity is IsMovable() || IsBeingMovedByEditor() so good enough test for now
-	return (Flags & PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY) == 0;
+	return (Flags & PRIMITIVE_SCENE_DATA_FLAG_SHOULD_CACHE_SHADOW) != 0;
 #endif
 }

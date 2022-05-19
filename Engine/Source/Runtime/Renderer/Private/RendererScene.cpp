@@ -4228,7 +4228,7 @@ struct FPrimitiveArraySortKey
 
 static bool ShouldPrimitiveOutputVelocity(const FPrimitiveSceneProxy* Proxy, const FStaticShaderPlatform ShaderPlatform)
 {
-	bool bShouldPrimitiveOutputVelocity = Proxy->DrawsVelocity();
+	bool bShouldPrimitiveOutputVelocity = Proxy->HasDynamicTransform();
 
 	bool bPlatformSupportsVelocityRendering = PlatformSupportsVelocityRendering(ShaderPlatform);
 

@@ -164,7 +164,7 @@ FPrimitiveSceneProxy* UOceanCollisionComponent::CreateSceneProxy()
 						FColor CollisionColor(157, 149, 223, 255);
 						const bool bPerHullColor = false;
 						const bool bDrawSolid = false;
-						AggregateGeom.GetAggGeom(LocalToWorldTransform, GetSelectionColor(CollisionColor, IsSelected(), IsHovered()).ToFColor(true), nullptr, bPerHullColor, bDrawSolid, DrawsVelocity(), ViewIndex, Collector);
+						AggregateGeom.GetAggGeom(LocalToWorldTransform, GetSelectionColor(CollisionColor, IsSelected(), IsHovered()).ToFColor(true), nullptr, bPerHullColor, bDrawSolid, AlwaysHasVelocity(), ViewIndex, Collector);
 					}
 
 					RenderBounds(Collector.GetPDI(ViewIndex), View->Family->EngineShowFlags, GetBounds(), IsSelected());

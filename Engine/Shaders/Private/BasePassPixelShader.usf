@@ -1261,13 +1261,6 @@ void FPixelShaderInOut_MainPS(
 
 		float4 EncodedVelocity = EncodeVelocityToTexture(Velocity);
 
-		FLATTEN
-		if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_DRAWS_VELOCITY) == 0)
-		{
-			// TODO: remove one of the DrawsVelocity or OutputVelocity
-			EncodedVelocity = 0.0;
-		}
-
 	#if USES_GBUFFER
 		GBuffer.Velocity = EncodedVelocity;
 	#else

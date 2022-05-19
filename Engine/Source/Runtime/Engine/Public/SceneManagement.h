@@ -2567,7 +2567,6 @@ public:
 		const FBoxSphereBounds& PreSkinnedLocalBounds,
 		bool bReceivesDecals,
 		bool bHasPrecomputedVolumetricLightmap,
-		bool bDrawsVelocity,
 		bool bOutputVelocity,
 		const FCustomPrimitiveData* CustomPrimitiveData);
 
@@ -2579,7 +2578,6 @@ public:
 		const FBoxSphereBounds& PreSkinnedLocalBounds,
 		bool bReceivesDecals,
 		bool bHasPrecomputedVolumetricLightmap,
-		bool bDrawsVelocity,
 		bool bOutputVelocity);
 
 	/** Pass-through implementation which calls the overloaded Set function with LocalBounds for PreSkinnedLocalBounds. */
@@ -2590,8 +2588,31 @@ public:
 		const FBoxSphereBounds& LocalBounds,
 		bool bReceivesDecals,
 		bool bHasPrecomputedVolumetricLightmap,
-		bool bDrawsVelocity,
 		bool bOutputVelocity);
+
+	UE_DEPRECATED(5.1, "Use version without bDrawsVelocity instead.")
+	void Set(
+		const FMatrix& LocalToWorld, const FMatrix& PreviousLocalToWorld, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FBoxSphereBounds& PreSkinnedLocalBounds,
+		bool bReceivesDecals, bool bHasPrecomputedVolumetricLightmap, bool bDrawsVelocity, bool bOutputVelocity, const FCustomPrimitiveData* CustomPrimitiveData)
+	{
+		Set(LocalToWorld, PreviousLocalToWorld, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, bHasPrecomputedVolumetricLightmap, bOutputVelocity, CustomPrimitiveData);
+	}
+
+	UE_DEPRECATED(5.1, "Use version without bDrawsVelocity instead.")
+	void Set(
+		const FMatrix& LocalToWorld, const FMatrix& PreviousLocalToWorld, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FBoxSphereBounds& PreSkinnedLocalBounds,
+		bool bReceivesDecals, bool bHasPrecomputedVolumetricLightmap, bool bDrawsVelocity, bool bOutputVelocity)
+	{
+		Set(LocalToWorld, PreviousLocalToWorld, WorldBounds, LocalBounds, PreSkinnedLocalBounds, bReceivesDecals, bHasPrecomputedVolumetricLightmap, bOutputVelocity);
+	}
+
+	UE_DEPRECATED(5.1, "Use version without bDrawsVelocity instead.")
+	void Set(
+		const FMatrix& LocalToWorld, const FMatrix& PreviousLocalToWorld, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, 
+		bool bReceivesDecals, bool bHasPrecomputedVolumetricLightmap, bool bDrawsVelocity, bool bOutputVelocity)
+	{
+		Set(LocalToWorld, PreviousLocalToWorld, WorldBounds, LocalBounds, bReceivesDecals, bHasPrecomputedVolumetricLightmap, bOutputVelocity);
+	}
 };
 
 //

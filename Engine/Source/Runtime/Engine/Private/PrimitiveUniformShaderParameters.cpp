@@ -122,6 +122,8 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		bOutputVelocity
 	);
 
+	bOutputVelocity |= Proxy->AlwaysHasVelocity();
+
 	FBoxSphereBounds PreSkinnedLocalBounds;
 	Proxy->GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
@@ -158,8 +160,8 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.InstancePayloadDataStride(Proxy->GetPrimitiveSceneInfo()->GetInstancePayloadDataStride())
 		.HasCapsuleRepresentation(Proxy->HasDynamicIndirectShadowCasterRepresentation())
 		.ReceivesDecals(Proxy->ReceivesDecals())
-		.DrawsVelocity(Proxy->DrawsVelocity())
-		.OutputVelocity(bOutputVelocity || Proxy->AlwaysHasVelocity())
+		.ShouldCacheShadow(Proxy->ShouldCacheShadow())
+		.OutputVelocity(bOutputVelocity)
 		.EvaluateWorldPositionOffset(Proxy->EvaluateWorldPositionOffset())
 		.CastContactShadow(Proxy->CastsContactShadow())
 		.CastShadow(Proxy->CastsDynamicShadow())

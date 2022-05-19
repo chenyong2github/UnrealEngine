@@ -862,7 +862,7 @@ void FDynamicMeshBuilder::GetMesh(
 					.WorldBounds(FBoxSphereBounds(EForceInit::ForceInit))
 					.LocalBounds(FBoxSphereBounds(EForceInit::ForceInit))
 					.ReceivesDecals(Settings.bReceivesDecals)
-					.DrawsVelocity(true)
+					.OutputVelocity(true)
 				.Build();
 
 			if (IsInGameThread())
@@ -945,7 +945,7 @@ void FDynamicMeshBuilder::GetMeshElement(const FMatrix& LocalToWorld, const FMat
 					.WorldBounds(FBoxSphereBounds(EForceInit::ForceInit))
 					.LocalBounds(FBoxSphereBounds(EForceInit::ForceInit))
 					.ReceivesDecals(bReceivesDecals)
-					.DrawsVelocity(true)
+					.OutputVelocity(true)
 				.Build();
 
 			if (IsInGameThread())
@@ -1015,7 +1015,7 @@ void FDynamicMeshBuilder::Draw(FPrimitiveDrawInterface* PDI,const FMatrix& Local
 				.WorldBounds(FBoxSphereBounds(EForceInit::ForceInit))
 				.LocalBounds(FBoxSphereBounds(EForceInit::ForceInit))
 				.ReceivesDecals(bReceivesDecals)
-				.DrawsVelocity(true)
+				.OutputVelocity(true)
 			.Build();
 
 		if (IsInGameThread())

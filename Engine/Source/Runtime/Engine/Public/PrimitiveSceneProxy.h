@@ -578,6 +578,11 @@ public:
 		return Mobility == EComponentMobility::Movable || !bGoodCandidateForCachedShadowmap; 
 	}
 
+	inline bool ShouldCacheShadow() const
+	{
+		return !IsMovable() && !bIsBeingMovedByEditor;
+	}
+
 	inline ELightmapType GetLightmapType() const { return LightmapType; }
 	inline bool IsStatic() const { return Mobility == EComponentMobility::Static; }
 	inline bool IsSelectable() const { return bSelectable; }
@@ -713,8 +718,13 @@ public:
 	static constexpr int32 InvalidRayTracingGroupId = -1;
 
 	inline bool EvaluateWorldPositionOffset() const { return bEvaluateWorldPositionOffset; }
-	ENGINE_API bool AlwaysHasVelocity() const;
-	ENGINE_API bool DrawsVelocity() const;
+	
+	/** Returns true if this proxy can change transform so that we should cache previous transform for calculating velocity. */
+	inline bool HasDynamicTransform() const { return IsMovable() || bIsBeingMovedByEditor; }
+	/** Returns true if this proxy should always write velocity, even if transform doesn't change. */
+	inline bool AlwaysHasVelocity() const {	return bAlwaysHasVelocity || (bEvaluateWorldPositionOffset && bHasWorldPositionOffsetVelocity);	}
+	/** Returns true if this proxy should set velocity relevance. */
+	inline bool DrawsVelocity() const { return HasDynamicTransform() || AlwaysHasVelocity(); }
 
 #if WITH_EDITOR
 	inline int32 GetNumUncachedStaticLightingInteractions() { return NumUncachedStaticLightingInteractions; }
