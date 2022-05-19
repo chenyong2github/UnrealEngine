@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DiagnosticsSessionAnalyzer.h"
+
+#include "HAL/LowLevelMemTracker.h"
 #include "TraceServices/Model/Diagnostics.h"
 
 namespace Insights
@@ -16,6 +18,8 @@ void FDiagnosticsSessionAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Cont
 
 bool FDiagnosticsSessionAnalyzer::OnEvent(uint16 RouteId, EStyle, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FDiagnosticsSessionAnalyzer"));
+
 	const FEventData& EventData = Context.EventData;
 
 	switch (RouteId)

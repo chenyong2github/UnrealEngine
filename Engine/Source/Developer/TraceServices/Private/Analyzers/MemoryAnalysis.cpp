@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "MemoryAnalysis.h"
+
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
+#include "HAL/LowLevelMemTracker.h"
 
 namespace TraceServices
 {
@@ -32,6 +35,8 @@ bool FMemoryAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 	{
 		return false;
 	}
+
+	LLM_SCOPE_BYNAME(TEXT("Insights/FMemoryAnalyzer"));
 
 	FAnalysisSessionEditScope _(Session);
 

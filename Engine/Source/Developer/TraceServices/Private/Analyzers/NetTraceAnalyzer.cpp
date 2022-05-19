@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "NetTraceAnalyzer.h"
+
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
-#include "TraceServices/Model/Threads.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Logging/LogMacros.h"
+#include "TraceServices/Model/Threads.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetTrace, Log, All);
 
@@ -77,6 +80,8 @@ uint32 FNetTraceAnalyzer::GetTracedEventTypeIndex(uint16 NameIndex, uint8 Level)
 
 bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FNetTraceAnalyzer"));
+
 	FAnalysisSessionEditScope _(Session);
 
 	// check that we always get the InitEvent before processing any other events

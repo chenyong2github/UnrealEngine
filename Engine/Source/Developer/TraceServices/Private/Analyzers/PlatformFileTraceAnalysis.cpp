@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "PlatformFileTraceAnalysis.h"
+
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Model/FileActivity.h"
 
 #define DEBUG_PLATFORMFILETRACE 0
@@ -40,6 +43,8 @@ void FPlatformFileTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 
 bool FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FPlatformFileTraceAnalyzer"));
+
 	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
@@ -327,7 +332,7 @@ bool FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 	return true;
 }
 
+} // namespace TraceServices
+
 #undef PLATFORMFILETRACE_WARNING
 #undef DEBUG_PLATFORMFILETRACE
-
-} // namespace TraceServices

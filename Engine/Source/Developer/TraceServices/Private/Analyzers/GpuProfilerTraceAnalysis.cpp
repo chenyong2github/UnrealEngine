@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "GpuProfilerTraceAnalysis.h"
+
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
+#include "HAL/LowLevelMemTracker.h"
 
 namespace TraceServices
 {
@@ -26,6 +29,8 @@ void FGpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FGpuProfilerAnalyzer"));
+
 	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;

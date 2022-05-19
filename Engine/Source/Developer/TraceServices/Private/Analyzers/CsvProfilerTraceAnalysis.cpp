@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "CsvProfilerTraceAnalysis.h"
+
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "TraceServices/Model/Counters.h"
 #include "TraceServices/Model/Frames.h"
 
@@ -65,6 +68,8 @@ void FCsvProfilerAnalyzer::OnAnalysisEnd()
 
 bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FCsvProfilerAnalyzer"));
+
 	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;
@@ -239,6 +244,12 @@ const TCHAR* FCsvProfilerAnalyzer::GetStatSeriesName(const FStatSeriesDefinition
 	{
 		// Add a counts prefix
 		Name = TEXT("COUNTS/") + Name;
+	}
+
+	if (Name.IsEmpty())
+	{
+		UE_LOG(LogTraceServices, Warning, TEXT("Invalid counter name for CSV column %d."), Definition->ColumnIndex);
+		Name = FString::Printf(TEXT("<noname CSV column %d>"), Definition->ColumnIndex);
 	}
 
 	return Session.StoreString(*Name);

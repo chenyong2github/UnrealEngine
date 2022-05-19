@@ -1,46 +1,51 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TasksAnalysis.h"
+
 #include "AnalysisServicePrivate.h"
-#include "Model/TasksProfilerPrivate.h"
 #include "Containers/UnrealString.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "Model/TasksProfilerPrivate.h"
 
 namespace TraceServices
 {
-	FTasksAnalyzer::FTasksAnalyzer(IAnalysisSession& InSession, FTasksProvider& InTasksProvider)
-		: Session(InSession)
-		, TasksProvider(InTasksProvider)
-	{
-	}
 
-	void FTasksAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
-	{
-		auto& Builder = Context.InterfaceBuilder;
+FTasksAnalyzer::FTasksAnalyzer(IAnalysisSession& InSession, FTasksProvider& InTasksProvider)
+	: Session(InSession)
+	, TasksProvider(InTasksProvider)
+{
+}
 
-		Builder.RouteEvent(RouteId_Init, "TaskTrace", "Init");
-		Builder.RouteEvent(RouteId_Created, "TaskTrace", "Created");
-		Builder.RouteEvent(RouteId_Launched, "TaskTrace", "Launched");
-		Builder.RouteEvent(RouteId_Scheduled, "TaskTrace", "Scheduled");
-		Builder.RouteEvent(RouteId_SubsequentAdded, "TaskTrace", "SubsequentAdded");
-		Builder.RouteEvent(RouteId_Started, "TaskTrace", "Started");
-		Builder.RouteEvent(RouteId_NestedAdded, "TaskTrace", "NestedAdded");
-		Builder.RouteEvent(RouteId_Finished, "TaskTrace", "Finished");
-		Builder.RouteEvent(RouteId_Completed, "TaskTrace", "Completed");
+void FTasksAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
+{
+	auto& Builder = Context.InterfaceBuilder;
 
-		Builder.RouteEvent(RouteId_WaitingStarted, "TaskTrace", "WaitingStarted");
-		Builder.RouteEvent(RouteId_WaitingFinished, "TaskTrace", "WaitingFinished");
-	}
+	Builder.RouteEvent(RouteId_Init, "TaskTrace", "Init");
+	Builder.RouteEvent(RouteId_Created, "TaskTrace", "Created");
+	Builder.RouteEvent(RouteId_Launched, "TaskTrace", "Launched");
+	Builder.RouteEvent(RouteId_Scheduled, "TaskTrace", "Scheduled");
+	Builder.RouteEvent(RouteId_SubsequentAdded, "TaskTrace", "SubsequentAdded");
+	Builder.RouteEvent(RouteId_Started, "TaskTrace", "Started");
+	Builder.RouteEvent(RouteId_NestedAdded, "TaskTrace", "NestedAdded");
+	Builder.RouteEvent(RouteId_Finished, "TaskTrace", "Finished");
+	Builder.RouteEvent(RouteId_Completed, "TaskTrace", "Completed");
 
-	bool FTasksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
-	{
-		FAnalysisSessionEditScope _(Session);
+	Builder.RouteEvent(RouteId_WaitingStarted, "TaskTrace", "WaitingStarted");
+	Builder.RouteEvent(RouteId_WaitingFinished, "TaskTrace", "WaitingFinished");
+}
+
+bool FTasksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
+{
+	LLM_SCOPE_BYNAME(TEXT("Insights/FTasksAnalyzer"));
+
+	FAnalysisSessionEditScope _(Session);
 	
-		// the protocol must match TaskTrace.cpp
+	// the protocol must match TaskTrace.cpp
 
-		const auto& EventData = Context.EventData;
-		uint32 ThreadId = Context.ThreadInfo.GetId();
-		switch (RouteId)
-		{
+	const auto& EventData = Context.EventData;
+	uint32 ThreadId = Context.ThreadInfo.GetId();
+	switch (RouteId)
+	{
 		case RouteId_Init:
 		{
 			uint32 Version = EventData.GetValue<uint32>("Version");
@@ -130,8 +135,9 @@ namespace TraceServices
 			TasksProvider.WaitingFinished(Timestamp, ThreadId);
 			break;
 		}
-		}
-
-		return true;
 	}
+
+	return true;
 }
+
+} // namespace TraceServices

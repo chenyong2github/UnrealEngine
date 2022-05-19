@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "PlatformEventTraceAnalysis.h"
-#include "TraceServices/Model/AnalysisSession.h"
+
+#include "HAL/LowLevelMemTracker.h"
 #include "Model/ContextSwitchesPrivate.h"
 #include "Model/StackSamplesPrivate.h"
+#include "TraceServices/Model/AnalysisSession.h"
 
 namespace TraceServices
 {
@@ -27,6 +30,8 @@ void FPlatformEventTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Cont
 
 bool FPlatformEventTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FPlatformEventTraceAnalyzer"));
+
 	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;

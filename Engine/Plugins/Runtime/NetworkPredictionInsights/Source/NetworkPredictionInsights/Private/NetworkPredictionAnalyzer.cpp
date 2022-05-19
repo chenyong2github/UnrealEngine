@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NetworkPredictionAnalyzer.h"
-#include "NetworkPredictionProvider.h"
+
+#include "HAL/LowLevelMemTracker.h"
 #include "Containers/StringView.h"
+#include "NetworkPredictionProvider.h"
 #include "TraceServices/Utils.h"
 
 // As we are tracing from multiple threads and we have trace events that are stringed together we need to track some state per thread to not trace bad data.
@@ -67,6 +69,8 @@ void FNetworkPredictionAnalyzer::OnAnalysisEnd()
 
 bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FNetworkPredictionAnalyzer"));
+
 	TraceServices::FAnalysisSessionEditScope _(Session);
 	const auto& EventData = Context.EventData;
 

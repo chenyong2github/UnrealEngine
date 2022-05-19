@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CallstacksAnalysis.h"
-#include "TraceServices/Model/AnalysisSession.h"
+
+#include "HAL/LowLevelMemTracker.h"
 #include "Model/CallstacksProvider.h"
+#include "TraceServices/Model/AnalysisSession.h"
 
 namespace TraceServices
 {
@@ -25,6 +27,8 @@ void FCallstacksAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 bool FCallstacksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FCallstacksAnalyzer"));
+
 	switch (RouteId)
 	{
 		case RouteId_Callstack:

@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GameplayAnalyzer.h"
-#include "TraceServices/Utils.h"
-#include "TraceServices/Model/AnalysisSession.h"
+
 #include "GameplayProvider.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Utils.h"
 
 FGameplayAnalyzer::FGameplayAnalyzer(TraceServices::IAnalysisSession& InSession, FGameplayProvider& InGameplayProvider)
 	: Session(InSession)
@@ -34,6 +36,8 @@ void FGameplayAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FGameplayAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FGameplayAnalyzer"));
+
 	TraceServices::FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;

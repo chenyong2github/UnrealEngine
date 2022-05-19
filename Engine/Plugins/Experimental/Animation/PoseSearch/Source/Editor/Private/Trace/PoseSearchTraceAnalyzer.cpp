@@ -1,6 +1,8 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearchTraceAnalyzer.h"
+
+#include "HAL/LowLevelMemTracker.h"
 #include "PoseSearchTraceProvider.h"
 #include "Runtime/Private/Trace/PoseSearchTraceLogger.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -26,6 +28,8 @@ void FTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/PoseSearch::FTraceAnalyzer"));
+
 	TraceServices::FAnalysisSessionEditScope Scope(Session);
 	const FEventData& EventData = Context.EventData;
 

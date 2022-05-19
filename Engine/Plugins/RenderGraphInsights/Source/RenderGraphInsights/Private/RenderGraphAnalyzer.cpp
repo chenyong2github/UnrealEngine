@@ -2,6 +2,7 @@
 
 #include "RenderGraphAnalyzer.h"
 
+#include "HAL/LowLevelMemTracker.h"
 #include "RenderGraphProvider.h"
 #include "Trace/Analyzer.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -32,6 +33,8 @@ void FRenderGraphAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FRenderGraphAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FRenderGraphAnalyzer"));
+
 	TraceServices::FAnalysisSessionEditScope _(Session);
 	switch (RouteId)
 	{

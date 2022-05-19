@@ -1,16 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "MiscTraceAnalysis.h"
-#include "TraceServices/Model/AnalysisSession.h"
-#include "Model/LogPrivate.h"
-#include "Model/ThreadsPrivate.h"
-#include "Model/BookmarksPrivate.h"
-#include "Model/FramesPrivate.h"
-#include "Model/ScreenshotProviderPrivate.h"
-#include "Model/Channel.h"
+
 #include "Common/Utils.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "Model/BookmarksPrivate.h"
+#include "Model/Channel.h"
+#include "Model/FramesPrivate.h"
+#include "Model/LogPrivate.h"
+#include "Model/ScreenshotProviderPrivate.h"
+#include "Model/ThreadsPrivate.h"
+#include "TraceServices/Model/AnalysisSession.h"
 
 namespace TraceServices
 {
+
 FMiscTraceAnalyzer::FMiscTraceAnalyzer(IAnalysisSession& InSession,
 									   FThreadProvider& InThreadProvider,
 									   FBookmarkProvider& InBookmarkProvider,
@@ -73,6 +77,8 @@ void FMiscTraceAnalyzer::OnThreadInfo(const FThreadInfo& ThreadInfo)
 
 bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FMiscTraceAnalyzer"));
+
 	FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;

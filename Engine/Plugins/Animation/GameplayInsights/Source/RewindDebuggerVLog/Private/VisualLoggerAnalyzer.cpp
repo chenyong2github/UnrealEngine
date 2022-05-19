@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VisualLoggerAnalyzer.h"
+
+#include "HAL/LowLevelMemTracker.h"
+#include "Serialization/MemoryReader.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "VisualLoggerProvider.h"
-#include "Serialization/MemoryReader.h"
 
 FVisualLoggerAnalyzer::FVisualLoggerAnalyzer(TraceServices::IAnalysisSession& InSession, FVisualLoggerProvider& InProvider)
 	: Session(InSession)
@@ -20,6 +22,8 @@ void FVisualLoggerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FVisualLoggerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FVisualLoggerAnalyzer"));
+
 	TraceServices::FAnalysisSessionEditScope _(Session);
 
 	const auto& EventData = Context.EventData;

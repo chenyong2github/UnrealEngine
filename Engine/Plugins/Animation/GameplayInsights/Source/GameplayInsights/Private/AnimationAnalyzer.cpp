@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationAnalyzer.h"
-#include "TraceServices/Model/AnalysisSession.h"
-#include "TraceServices/Utils.h"
+
 #include "AnimationProvider.h"
 #include "Containers/ArrayView.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Utils.h"
 
 FAnimationAnalyzer::FAnimationAnalyzer(TraceServices::IAnalysisSession& InSession, FAnimationProvider& InAnimationProvider)
 	: Session(InSession)
@@ -49,6 +51,8 @@ void FAnimationAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 bool FAnimationAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	using namespace TraceServices;
+
+	LLM_SCOPE_BYNAME(TEXT("Insights/FAnimationAnalyzer"));
 
 	FAnalysisSessionEditScope _(Session);
 

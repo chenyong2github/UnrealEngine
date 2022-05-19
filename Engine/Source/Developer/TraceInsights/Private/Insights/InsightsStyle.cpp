@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "InsightsStyle.h"
+
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"

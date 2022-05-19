@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AllocationsAnalysis.h"
+
+#include "HAL/LowLevelMemTracker.h"
 #include "Model/AllocationsProvider.h"
 #include "Model/MetadataProvider.h"
 #include "ProfilingDebugging/MemoryTrace.h"
@@ -84,6 +86,8 @@ void FAllocationsAnalyzer::OnAnalysisEnd()
 
 bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FAllocationsAnalyzer"));
+
 	const auto& EventData = Context.EventData;
 	HeapId RootHeap = 0;
 

@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "LoadTimeTraceAnalysis.h"
 
-#include "Serialization/LoadTimeTrace.h"
-#include "Model/LoadTimeProfilerPrivate.h"
 #include "Analyzers/MiscTraceAnalysis.h"
 #include "Common/FormatArgs.h"
 #include "Common/Utils.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "Model/LoadTimeProfilerPrivate.h"
+#include "Serialization/LoadTimeTrace.h"
+
 #include <limits>
 
 namespace TraceServices
@@ -95,6 +98,8 @@ void FAsyncLoadingTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Conte
 
 bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FAsyncLoadingTraceAnalyzer"));
+
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
 	{

@@ -1,7 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "DiagnosticsAnalysis.h"
+
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
+#include "HAL/LowLevelMemTracker.h"
 
 namespace TraceServices
 {
@@ -31,6 +34,8 @@ bool FDiagnosticsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	{
 		return false;
 	}
+
+	LLM_SCOPE_BYNAME(TEXT("Insights/FDiagnosticsAnalyzer"));
 
 	FAnalysisSessionEditScope _(Session);
 

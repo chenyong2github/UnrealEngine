@@ -4,6 +4,7 @@
 
 #include "FastUpdate/WidgetUpdateFlags.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "SlateProvider.h"
 #include "Trace/Analyzer.h"
 #include "TraceServices/Model/AnalysisSession.h"
@@ -37,6 +38,8 @@ void FSlateAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 bool FSlateAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FSlateAnalyzer"));
+
 	TraceServices::FAnalysisSessionEditScope _(Session);
 
 	const UE::Trace::IAnalyzer::FEventData& EventData = Context.EventData;
