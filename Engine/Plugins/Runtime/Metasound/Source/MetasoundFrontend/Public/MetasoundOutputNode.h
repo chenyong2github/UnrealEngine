@@ -75,12 +75,12 @@ namespace Metasound
 				{
 				}
 
-				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
+				virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 				{
-					const bool bContainsRef = InParams.InputDataReferences.ContainsDataReadReference<DataType>(DataReferenceName);
+					const bool bContainsRef = InParams.InputData.IsVertexBound(DataReferenceName);
 					if (bContainsRef)
 					{
-						TDataReadReference<DataType> InputReadRef = InParams.InputDataReferences.GetDataReadReference<DataType>(DataReferenceName);
+						TDataReadReference<DataType> InputReadRef = InParams.InputData.GetDataReadReference<DataType>(DataReferenceName);
 						return MakeUnique<FOutputOperator>(DataReferenceName, InputReadRef);
 					}
 

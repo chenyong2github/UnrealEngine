@@ -2,17 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundGraphOperator.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorBuilderSettings.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundVertexData.h"
+#include "Templates/UniquePtr.h"
 
 namespace Metasound
 {
 	// Forward declare.
 	class FDirectedGraphAlgoAdapter;
+	class FOperatorSettings;
+	class FMetasoundEnvironment;
 
 	/** FOperatorBuilder builds an IOperator from an IGraph. */
 	class METASOUNDGRAPHCORE_API FOperatorBuilder : public IOperatorBuilder
@@ -23,7 +29,7 @@ namespace Metasound
 			 *
 			 * @param InBuilderSettings  - Settings to configure builder options.
 			 */
-			FOperatorBuilder() = default;
+			FOperatorBuilder(const FOperatorBuilderSettings& InBuilderSettings);
 
 			virtual ~FOperatorBuilder();
 
@@ -35,30 +41,13 @@ namespace Metasound
 			 * @return A TUniquePtr to an IOperator. If the processes was unsuccessful, 
 			 *         the returned pointer will contain a nullptr and be invalid.
 			 */
-			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphParams& InParams, FBuildGraphResults& OutResults) const override;
+			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphOperatorParams& InParams, FBuildResults& OutResults) const override;
 
 		private:
-			// Collection of existing inputs and outputs associated with a given
-			// IOperator.
-			struct FOperatorDataReferences
-			{
-				FOperatorDataReferences()
-				{
-				}
-
-				FOperatorDataReferences(const FDataReferenceCollection& InInputs, const FDataReferenceCollection& InOutputs)
-				:	Inputs(InInputs)
-				,	Outputs(InOutputs)
-				{
-				}
-
-				FDataReferenceCollection Inputs;
-				FDataReferenceCollection Outputs;
-			};
 
 			using FNodeEdgeMultiMap = TMultiMap<const INode*, const FDataEdge*>;
 			using FNodeDestinationMap = TMap<const INode*, const FInputDataDestination*>;
-			using FNodeDataReferenceMap = TMap<const INode*, FOperatorDataReferences>;
+			using FNodeVertexInterfaceDataMap = TMap<const INode*, FVertexInterfaceData>;
 			using FOperatorPtr = TUniquePtr<IOperator>;
 
 			// Handles build status of current build operation.
@@ -83,10 +72,6 @@ namespace Metasound
 					FatalError = 2
 				};
 
-				static FBuildStatus GetMaxErrorLevel(const FOperatorBuilderSettings& InBuilderSettings)
-				{
-					return InBuilderSettings.bFailOnAnyError ? EStatus::NoError : EStatus::NonFatalError;
-				}
 
 				FBuildStatus() = default;
 
@@ -119,10 +104,10 @@ namespace Metasound
 				const FMetasoundEnvironment& Environment;
 				const FOperatorBuilderSettings& BuilderSettings;
 
-				FBuildGraphResults& Results;
+				FBuildResults& Results;
 
 				TArray<FOperatorPtr> Operators;
-				FNodeDataReferenceMap DataReferences;
+				FNodeVertexInterfaceDataMap DataReferences;
 
 				FBuildContext(
 					const IGraph& InGraph,
@@ -130,7 +115,7 @@ namespace Metasound
 					const FOperatorSettings& InSettings,
 					const FMetasoundEnvironment& InEnvironment,
 					const FOperatorBuilderSettings& bInBuilderSettings,
-					FBuildGraphResults& OutResults)
+					FBuildResults& OutResults)
 				:	Graph(InGraph)
 				,	AlgoAdapter(InAlgoAdapter)
 				,	Settings(InSettings)
@@ -151,19 +136,29 @@ namespace Metasound
 			FBuildStatus PruneNodes(FBuildContext& InOutContext, TArray<const INode*>& InOutNodes) const;
 
 			// Get all input data references for a given node for inputs provided internally to the graph.
-			FBuildStatus GatherInputDataReferences(FBuildContext& InOutContext, const INode* InNode, const FNodeEdgeMultiMap& InEdgeMap, FDataReferenceCollection& OutInputCollection) const;
+			FBuildStatus GatherInputDataReferences(FBuildContext& InOutContext, const INode* InNode, const FNodeEdgeMultiMap& InEdgeMap, FInputVertexInterfaceData& OutVertexData) const;
 
 			// Get all input data references for a given node for inputs provided externally to the graph.
-			FBuildStatus GatherExternalInputDataReferences(FBuildContext& InOutContext, const INode* InNode, const FNodeDestinationMap& InNodeDestinationMap, const FDataReferenceCollection& InExternalCollection, FDataReferenceCollection& OutDataReferences) const;
+			FBuildStatus GatherExternalInputDataReferences(FBuildContext& InContext, const INode* InNode, const FNodeDestinationMap& InNodeDestinationMap, const FInputVertexInterfaceData& InExternalCollection, FInputVertexInterfaceData& OutVertexData) const;
+
+			// Graphs all internal graph references and places them in output map.
+			void GatherInternalGraphDataReferences(FBuildContext& InOutContext, TMap<FGuid, FDataReferenceCollection>& OutNodeVertexData) const;
+
+			// Validates whether all operator outputs are bound to data references. 
+			FBuildStatus ValidateOperatorOutputsAreBound(const INode& InNode, const FOutputVertexInterfaceData& InVertexData) const;
 
 			// Get all input/output data references for a given graph.
-			FBuildStatus GatherGraphDataReferences(FBuildContext& InOutContext, FDataReferenceCollection& OutGraphInputs, FDataReferenceCollection& OutGraphOutputs) const;
+			FBuildStatus GatherGraphDataReferences(FBuildContext& InOutContext, FVertexInterfaceData& OutVertexData) const;
 
 			// Call the operator factories for the nodes
-			FBuildStatus CreateOperators(FBuildContext& InOutContext, const TArray<const INode*>& InSortedNodes, const FDataReferenceCollection& InGraphInputs) const;
+			FBuildStatus CreateOperators(FBuildContext& InOutContext, const TArray<const INode*>& InSortedNodes, const FInputVertexInterfaceData& InExternalInputData) const;
 
 			// Create the final graph operator from the provided build context.
 			TUniquePtr<IOperator> CreateGraphOperator(FBuildContext& InOutContext) const;
+
+			FBuildStatus::EStatus GetMaxErrorLevel() const;
+
+			FOperatorBuilderSettings BuilderSettings;
 	};
 }
 

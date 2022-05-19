@@ -139,11 +139,11 @@ namespace Metasound
 		return MakeShared<FGraph::FFactory>();
 	}
 
-	TUniquePtr<IOperator> FGraph::FFactory::CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults)
+	TUniquePtr<IOperator> FGraph::FFactory::CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults)
 	{
 		const FGraph& Graph = static_cast<const FGraph&>(InParams.Node);
 
-		FBuildGraphParams BuildParams { Graph, InParams.OperatorSettings, InParams.InputDataReferences, InParams.Environment, InParams.BuilderSettings };
+		FBuildGraphOperatorParams BuildParams { Graph, InParams.OperatorSettings, InParams.InputData, InParams.Environment};
 
 		if (nullptr != InParams.Builder)
 		{
@@ -152,7 +152,7 @@ namespace Metasound
 		}
 		else
 		{
-			return FOperatorBuilder().BuildGraphOperator(BuildParams, OutResults);
+			return FOperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings()).BuildGraphOperator(BuildParams, OutResults);
 		}
 	}
 }

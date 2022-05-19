@@ -61,6 +61,12 @@ namespace Metasound
 		 */
 		bool bValidateEdgeDataTypesMatch = true;
 
+		/** If true, each IOperator in the graph will be validated by checking
+		 * that each output of the FVertexInterface is bound to data. Errors will
+		 * be generated outputs are not bound.
+		 */
+		bool bValidateOperatorOutputsAreBound = true;
+
 		/** If true, the builder will return an invalid IOperator if any errors
 		 * are detected. If false, the builder will return an invalid IOperator
 		 * only if fatal errors are detected.

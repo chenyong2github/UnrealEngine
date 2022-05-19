@@ -133,7 +133,7 @@ namespace Metasound
 			public:
 				virtual ~FFactory() = default;
 
-				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override;
+				virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override;
 			};
 
 			FVertexName InstanceName;

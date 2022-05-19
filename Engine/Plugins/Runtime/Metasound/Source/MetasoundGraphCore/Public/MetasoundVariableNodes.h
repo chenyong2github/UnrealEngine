@@ -173,7 +173,7 @@ namespace Metasound
 
 			virtual ~FFactory() = default;
 
-			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
+			virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 			{
 				TDataWriteReference<DataType> Data = TDataWriteReferenceLiteralFactory<DataType>::CreateExplicitArgs(InParams.OperatorSettings, Literal);
 				return MakeUnique<FOperator>(TDataWriteReference<FVariable>::CreateNew(Data));

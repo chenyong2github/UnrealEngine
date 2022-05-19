@@ -9,9 +9,13 @@ namespace Metasound
 	{
 	}
 
-	TUniquePtr<IOperator> FNodeFacade::FFactory::CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults)
+	TUniquePtr<IOperator> FNodeFacade::FFactory::CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults)
 	{
-		return CreateFunc(InParams, OutResults.Errors);
+		// TODO: update facade to deprecate old CreateOperator functionality.
+		FDataReferenceCollection InputDataReferences = InParams.InputData.ToDataReferenceCollection();
+		FCreateOperatorParams DeprecatedParams{ InParams.Node, InParams.OperatorSettings, InputDataReferences, InParams.Environment, InParams.Builder };
+
+		return CreateFunc(DeprecatedParams, OutResults.Errors);
 	}
 
 	const FVertexInterface& FNodeFacade::GetVertexInterface() const

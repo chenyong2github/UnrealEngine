@@ -57,6 +57,9 @@ namespace Metasound
 				AddDataReference(InName, MoveTemp(Wrapper));
 			}
 
+			/** Add a data reference to this collection. */
+			void AddDataReference(const FVertexName& InName, FAnyDataReference&& InDataReference);
+
 			/** Add a readable data reference from another collection.
 			 *
 			 * @param InLocalName - Name to give data added to this collection.
@@ -254,9 +257,6 @@ namespace Metasound
 
 
 		private:
-
-
-			void AddDataReference(const FVertexName& InName, FAnyDataReference&& InDataReference);
 
 			FDataReferenceMap DataRefMap;
 	};

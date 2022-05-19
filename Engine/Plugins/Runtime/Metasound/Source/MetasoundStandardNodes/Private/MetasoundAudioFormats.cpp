@@ -153,13 +153,13 @@ namespace Metasound
 			{
 			}
 
-			TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
+			TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 			{
 				using namespace StereoAudioFormatVertexKeys;
 
 				// Construct stereo from left and right audio buffers. 
-				TDataReadReference<FAudioBuffer> Left = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(LeftChannelVertex), InParams.OperatorSettings);
-				TDataReadReference<FAudioBuffer> Right = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FAudioBuffer>(METASOUND_GET_PARAM_NAME(RightChannelVertex), InParams.OperatorSettings);
+				TDataReadReference<FAudioBuffer> Left = InParams.InputData.GetOrConstructDataReadReference<FAudioBuffer>(METASOUND_GET_PARAM_NAME(LeftChannelVertex), InParams.OperatorSettings);
+				TDataReadReference<FAudioBuffer> Right = InParams.InputData.GetOrConstructDataReadReference<FAudioBuffer>(METASOUND_GET_PARAM_NAME(RightChannelVertex), InParams.OperatorSettings);
 
 				TDataReadReference<FStereoAudioFormat> Stereo = TDataReadReferenceFactory<FStereoAudioFormat>::CreateExplicitArgs(InParams.OperatorSettings, WriteCast(Left), WriteCast(Right));
 
@@ -298,10 +298,10 @@ namespace Metasound
 			{
 			}
 
-			TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
+			TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 			{
 				// Split a stereo signal into left/right.
-				TDataReadReference<FStereoAudioFormat> Stereo = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FStereoAudioFormat>(InputName, InParams.OperatorSettings);
+				TDataReadReference<FStereoAudioFormat> Stereo = InParams.InputData.GetOrConstructDataReadReference<FStereoAudioFormat>(InputName, InParams.OperatorSettings);
 				TDataReadReference<FAudioBuffer> Left = Stereo->GetLeft();
 				TDataReadReference<FAudioBuffer> Right = Stereo->GetRight();
 
@@ -436,9 +436,9 @@ namespace Metasound
 			{
 			}
 
-			TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
+			TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 			{
-				TDataReadReference<FAudioBuffer> Center = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FAudioBuffer>(OutputName, InParams.OperatorSettings);
+				TDataReadReference<FAudioBuffer> Center = InParams.InputData.GetOrConstructDataReadReference<FAudioBuffer>(OutputName, InParams.OperatorSettings);
 
 				TDataReadReference<FMonoAudioFormat> Mono = TDataReadReferenceFactory<FMonoAudioFormat>::CreateExplicitArgs(InParams.OperatorSettings, WriteCast(Center));
 
@@ -570,9 +570,9 @@ namespace Metasound
 			{
 			}
 
-			TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
+			TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 			{
-				TDataReadReference<FMonoAudioFormat> Mono = InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FMonoAudioFormat>(InputName, InParams.OperatorSettings);
+				TDataReadReference<FMonoAudioFormat> Mono = InParams.InputData.GetOrConstructDataReadReference<FMonoAudioFormat>(InputName, InParams.OperatorSettings);
 				TDataReadReference<FAudioBuffer> Center = Mono->GetCenter();
 
 				return MakeUnique<FInputOperator>(InputName, Center, Mono);

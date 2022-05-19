@@ -246,7 +246,7 @@ namespace Metasound
 			{
 			}
 
-			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override;
+			virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override;
 
 		private:
 			ReferenceCreatorType ReferenceCreator;
@@ -361,23 +361,17 @@ namespace Metasound
 
 
 	template<typename DataType, typename ReferenceCreatorType>
-	TUniquePtr<IOperator> TInputOperatorFactory<DataType, ReferenceCreatorType>::CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults)
+	TUniquePtr<IOperator> TInputOperatorFactory<DataType, ReferenceCreatorType>::CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults)
 	{
 		using FInputNodeType = TInputNode<DataType>;
 
 		const FInputNodeType& InputNode = static_cast<const FInputNodeType&>(InParams.Node);
 		const FVertexName& VertexKey = InputNode.GetVertexName();
 
-		if (InParams.InputDataReferences.ContainsDataWriteReference<DataType>(VertexKey))
+		if (InParams.InputData.IsVertexBound(VertexKey))
 		{
 			// Data is externally owned. Use pass through operator
-			FDataWriteReference DataRef = InParams.InputDataReferences.GetDataWriteReference<DataType>(VertexKey);
-			return MakeUnique<TPassThroughOperator<DataType>>(InputNode.GetVertexName(), DataRef);
-		}
-		else if (InParams.InputDataReferences.ContainsDataReadReference<DataType>(VertexKey))
-		{
-			// Data is externally owned. Use pass through operator
-			FDataReadReference DataRef = InParams.InputDataReferences.GetDataReadReference<DataType>(VertexKey);
+			FDataReadReference DataRef = InParams.InputData.GetDataReadReference<DataType>(VertexKey);
 			return MakeUnique<TPassThroughOperator<DataType>>(InputNode.GetVertexName(), DataRef);
 		}
 		else

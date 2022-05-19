@@ -20,15 +20,25 @@ namespace Metasound
 
 			virtual ~FGraphOperator();
 
+			// Add an operator to the end of the executation stack.
 			void AppendOperator(FOperatorPtr InOperator);
 
+			UE_DEPRECATED(5.1, "Use FGraphOperator::SetVertexInterfaceData instead.")
 			void SetInputs(const FDataReferenceCollection& InCollection);
 
+			UE_DEPRECATED(5.1, "Use FGraphOperator::SetVertexInterfaceData instead.")
 			void SetOutputs(const FDataReferenceCollection& InCollection);
+
+			// Set the vertex interface data. This data will be copied to output 
+			// during calls to Bind(InOutVertexData).
+			void SetVertexInterfaceData(FVertexInterfaceData&& InVertexData);
 
 			virtual FDataReferenceCollection GetInputs() const override;
 
 			virtual FDataReferenceCollection GetOutputs() const override;
+
+			// Bind the graph's interface data references to FVertexInterfaceData.
+			virtual void Bind(FVertexInterfaceData& InOutVertexData) const override;
 
 			virtual FExecuteFunction GetExecuteFunction() override;
 
@@ -38,13 +48,10 @@ namespace Metasound
 			// Delete copy operator because underlying types cannot be copied. 
 			FGraphOperator& operator=(const FGraphOperator&) = delete;
 			FGraphOperator(const FGraphOperator&) = delete;
-			
 
 			static void ExecuteFunction(IOperator* InOperator);
 
 			TArray<FExecuter> OperatorStack;
-
-			FDataReferenceCollection Inputs;
-			FDataReferenceCollection Outputs;
+			FVertexInterfaceData VertexData;
 	};
 }

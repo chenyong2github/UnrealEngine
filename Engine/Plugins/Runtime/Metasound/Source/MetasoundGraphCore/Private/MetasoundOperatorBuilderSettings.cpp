@@ -32,6 +32,7 @@ namespace Metasound
 			Settings.bValidateNoDuplicateInputs = true;
 			Settings.bValidateVerticesExist = true;
 			Settings.bValidateEdgeDataTypesMatch = true;
+			Settings.bValidateOperatorOutputsAreBound = true;
 			Settings.bFailOnAnyError = false;
 			return Settings;
 		};
@@ -50,6 +51,7 @@ namespace Metasound
 			Settings.bValidateNoDuplicateInputs = true;
 			Settings.bValidateVerticesExist = true;
 			Settings.bValidateEdgeDataTypesMatch = true;
+			Settings.bValidateOperatorOutputsAreBound = true;
 			Settings.bFailOnAnyError = false;
 			return Settings;
 		};
@@ -68,6 +70,7 @@ namespace Metasound
 			Settings.bValidateNoDuplicateInputs = false;
 			Settings.bValidateVerticesExist = false;
 			Settings.bValidateEdgeDataTypesMatch = false;
+			Settings.bValidateOperatorOutputsAreBound = false;
 			Settings.bFailOnAnyError = false;
 			return Settings;
 		};
@@ -86,6 +89,7 @@ namespace Metasound
 			Settings.bValidateNoDuplicateInputs = false;
 			Settings.bValidateVerticesExist = false;
 			Settings.bValidateEdgeDataTypesMatch = false;
+			Settings.bValidateOperatorOutputsAreBound = false;
 			Settings.bFailOnAnyError = false;
 			return Settings;
 		};

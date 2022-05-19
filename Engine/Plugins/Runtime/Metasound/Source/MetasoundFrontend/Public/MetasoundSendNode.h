@@ -169,14 +169,14 @@ namespace Metasound
 			public:
 				FSendOperatorFactory() = default;
 
-				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
+				virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 				{
 					using namespace SendVertexNames;
 
-					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(GetSendInputName()))
+					if (InParams.InputData.IsVertexBound(GetSendInputName()))
 					{
-						return MakeUnique<TSendOperator>(InParams.InputDataReferences.GetDataReadReference<TDataType>(GetSendInputName()),
-							InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput)),
+						return MakeUnique<TSendOperator>(InParams.InputData.GetDataReadReference<TDataType>(GetSendInputName()),
+							InParams.InputData.GetOrConstructDataReadReference<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput)),
 							InParams.OperatorSettings
 						);
 					}

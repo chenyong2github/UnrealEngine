@@ -6,7 +6,6 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundEnvironment.h"
 #include "MetasoundNodeInterface.h"
-#include "MetasoundOperatorBuilderSettings.h"
 #include "MetasoundOperatorInterface.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/NameTypes.h"
@@ -49,7 +48,7 @@ namespace Metasound
 	using FBuildErrorArray = TArray<TUniquePtr<IOperatorBuildError>>;
 
 	/** Structure of all resulting data generated during graph operator build. */
-	struct FBuildGraphResults
+	struct FBuildResults
 	{
 		/** An array of errors. Errors can be added if issues occur while creating an IOperator. */
 		FBuildErrorArray Errors;
@@ -75,11 +74,64 @@ namespace Metasound
 		/** Environment settings available. */
 		const FMetasoundEnvironment& Environment;
 
-		/** Settings for the builder requesting creation of the IOperator. */
-		const FOperatorBuilderSettings& BuilderSettings;
+		/** Pointer to builder actively building graph. */
+		const IOperatorBuilder* Builder = nullptr;
+	};
+
+	/** FBuildOperatorParams holds the parameters provided to operator factories
+	 * during the creation of an IOperator
+	 */
+	struct FBuildOperatorParams
+	{
+		/** The node associated with this factory and the desired IOperator. */
+		const INode& Node;
+
+		/** General operator settings for the graph. */
+		const FOperatorSettings& OperatorSettings;
+
+		/** Input data references for an IOperator */
+		const FInputVertexInterfaceData& InputData;
+
+		/** Environment settings available. */
+		const FMetasoundEnvironment& Environment;
 
 		/** Pointer to builder actively building graph. */
 		const IOperatorBuilder* Builder = nullptr;
+	};
+
+	/** Parameters for building an operator from a graph. 
+	  *
+	  * This object is slated to be deprecated in UE 5.2
+	  */
+	struct FBuildGraphParams
+	{
+		/** Reference to graph being built. */
+		const IGraph& Graph;
+
+		/** General operator settings for the graph. */
+		const FOperatorSettings& OperatorSettings;
+
+		/** Collection of input parameters available for an IOperator. */
+		const FDataReferenceCollection& InputDataReferences;
+
+		/** Environment settings available. */
+		const FMetasoundEnvironment& Environment;
+	};
+
+	/** Parameters for building an operator from a graph. */
+	struct FBuildGraphOperatorParams
+	{
+		/** Reference to graph being built. */
+		const IGraph& Graph;
+
+		/** General operator settings for the graph. */
+		const FOperatorSettings& OperatorSettings;
+
+		/** Bound input data available for an IOperator. */
+		const FInputVertexInterfaceData& InputData;
+
+		/** Environment settings available. */
+		const FMetasoundEnvironment& Environment;
 	};
 
 	/** Convenience template for adding build errors.
@@ -98,46 +150,40 @@ namespace Metasound
 		OutErrors.Add(MakeUnique<ErrorType>(Forward<ArgTypes>(Args)...));
 	}
 
+
 	/** IOperatorFactory
 	 *
 	 * IOperatorFactory defines an interface for building an IOperator from an INode.  In practice,
 	 * each INode returns its own IOperatorFactory through the INode::GetDefaultOperatorFactory() 
 	 * member function.
 	 */
-	class IOperatorFactory
+	class METASOUNDGRAPHCORE_API IOperatorFactory
 	{
 		public:
 			virtual ~IOperatorFactory() = default;
 
-			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) = 0;
+			virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) = 0;
 
-			UE_DEPRECATED(5.1, "Use CreateOperator overload providing the FBuildGraphResults struct.")
+			UE_DEPRECATED(5.1, "Use CreateOperator overload providing the FBuildResults struct.")
 			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
 			{
-				FBuildGraphResults Results { MoveTemp(OutErrors) };
-				TUniquePtr<IOperator> Operator = CreateOperator(InParams, Results);
+				// Map inputs to new structures
+				FInputVertexInterfaceData InputData(InParams.Node.GetVertexInterface().GetInputInterface());
+				InputData.Bind(InParams.InputDataReferences);
+
+				FBuildOperatorParams Params2 { InParams.Node, InParams.OperatorSettings, InputData, InParams.Environment, InParams.Builder };
+
+				// Create operator
+				FBuildResults Results;
+				TUniquePtr<IOperator> Operator = CreateOperator(Params2, Results);
+
+				// Map new output to old output
 				OutErrors = MoveTemp(Results.Errors);
-				return Operator;
+
+				return MoveTemp(Operator);
 			}
 	};
 
-	struct FBuildGraphParams
-	{
-		/** Reference to graph being built. */
-		const IGraph& Graph;
-
-		/** General operator settings for the graph. */
-		const FOperatorSettings& OperatorSettings;
-
-		/** Collection of input parameters available for an IOperator. */
-		const FDataReferenceCollection& InputDataReferences;
-
-		/** Environment settings available. */
-		const FMetasoundEnvironment& Environment;
-
-		/** Settings for graph's operator builder. */
-		const FOperatorBuilderSettings& BuilderSettings;
-	};
 
 	/** IOperatorBuilder
 	 *
@@ -151,8 +197,27 @@ namespace Metasound
 
 			virtual ~IOperatorBuilder() = default;
 
-			UE_DEPRECATED(5.1, "Use BuildGraphOperator overload providing the FBuildGraphResults struct.")
-			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphParams& InParams, FBuildErrorArray& OutErrors) const { return { }; }
+			/** Build a graph operator from a graph.
+			 *
+			 * @params InParams - Input parameters for building a graph.
+			 * @param OutErrors - An array of errors which occurred during while building the operator.
+			 *
+			 * @return A unique pointer to the built IOperator. Null if build failed.
+			 */
+			UE_DEPRECATED(5.1, "Use BuildGraphOperator overload providing the FBuildResults struct.")
+			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphParams& InParams, FBuildErrorArray& OutErrors) const 
+			{ 
+				FInputVertexInterfaceData InputData(InParams.Graph.GetVertexInterface().GetInputInterface());
+				InputData.Bind(InParams.InputDataReferences);
+				FBuildGraphOperatorParams NewParams{InParams.Graph, InParams.OperatorSettings, InputData, InParams.Environment};
+				FBuildResults Results;
+
+				TUniquePtr<IOperator> GraphOperator = BuildGraphOperator(NewParams, Results);
+
+				OutErrors.Append(MoveTemp(Results.Errors));
+				
+				return MoveTemp(GraphOperator);
+			}
 
 			/** Build a graph operator from a graph.
 			 *
@@ -161,6 +226,6 @@ namespace Metasound
 			 *
 			 * @return A unique pointer to the built IOperator. Null if build failed.
 			 */
-			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphParams& InParams, FBuildGraphResults& OutResults) const = 0;
+			virtual TUniquePtr<IOperator> BuildGraphOperator(const FBuildGraphOperatorParams& InParams, FBuildResults& OutResults) const = 0;
 	};
 }

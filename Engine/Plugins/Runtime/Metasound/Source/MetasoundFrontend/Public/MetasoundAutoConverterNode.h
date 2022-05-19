@@ -212,15 +212,15 @@ namespace Metasound
 			public:
 				FCoverterOperatorFactory() = default;
 
-				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
+				virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 				{
 					TDataWriteReference<ToDataType> WriteReference = TDataWriteReferenceFactory<ToDataType>::CreateAny(InParams.OperatorSettings);
 
 					const FVertexName& InputName = GetInputName();
-					const bool bContainsRef = InParams.InputDataReferences.ContainsDataReadReference<FromDataType>(InputName);
+					const bool bContainsRef = InParams.InputData.IsVertexBound(InputName);
 					if (bContainsRef)
 					{
-						TDataReadReference<FromDataType> ReadReference = InParams.InputDataReferences.GetDataReadReference<FromDataType>(InputName);
+						TDataReadReference<FromDataType> ReadReference = InParams.InputData.GetDataReadReference<FromDataType>(InputName);
 						return MakeUnique<FConverterOperator>(ReadReference, WriteReference);
 					}
 

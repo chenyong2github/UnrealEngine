@@ -1508,13 +1508,10 @@ namespace Metasound
 			return INodeController::GetInvalidHandle();
 		}
 
-		TUniquePtr<IOperator> FGraphController::BuildOperator(const FOperatorSettings& InSettings, const FMetasoundEnvironment& InEnvironment, FBuildGraphResults& OutResults) const
+		TUniquePtr<IOperator> FGraphController::BuildOperator(const FOperatorSettings& InSettings, const FMetasoundEnvironment& InEnvironment, FBuildResults& OutResults) const
 		{
 			if (const FMetasoundFrontendGraphClass* GraphClass = GraphClassPtr.Get())
 			{
-
-				// TODO: Implement subgraph inflation step here.
-
 				// TODO: bubble up errors. 
 				const TArray<FMetasoundFrontendGraphClass>& Subgraphs = OwningDocument->GetSubgraphs();
 				const TArray<FMetasoundFrontendClass>& Dependencies = OwningDocument->GetDependencies();
@@ -1527,8 +1524,8 @@ namespace Metasound
 					return TUniquePtr<IOperator>(nullptr);
 				}
 
-				FBuildGraphParams BuildParams { *Graph, InSettings, FDataReferenceCollection { }, InEnvironment, FOperatorBuilderSettings::GetDefaultSettings() };
-				return FOperatorBuilder().BuildGraphOperator(BuildParams, OutResults);
+				FBuildGraphOperatorParams BuildParams { *Graph, InSettings, FInputVertexInterfaceData{}, InEnvironment };
+				return FOperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings()).BuildGraphOperator(BuildParams, OutResults);
 			}
 			else
 			{

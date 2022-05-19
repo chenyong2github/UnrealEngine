@@ -28,22 +28,32 @@ namespace Metasound
 
 	void FGraphOperator::SetInputs(const FDataReferenceCollection& InCollection)
 	{
-		Inputs = InCollection;
+		VertexData.GetInputs().Bind(InCollection);
 	}
 
 	void FGraphOperator::SetOutputs(const FDataReferenceCollection& InCollection)
 	{
-		Outputs = InCollection;
+		VertexData.GetOutputs().Bind(InCollection);
+	}
+
+	void FGraphOperator::SetVertexInterfaceData(FVertexInterfaceData&& InVertexData)
+	{
+		VertexData = InVertexData;
 	}
 
 	FDataReferenceCollection FGraphOperator::GetInputs() const
 	{
-		return Inputs;
+		return VertexData.GetInputs().ToDataReferenceCollection();
 	}
 
 	FDataReferenceCollection FGraphOperator::GetOutputs() const
 	{
-		return Outputs;
+		return VertexData.GetOutputs().ToDataReferenceCollection();
+	}
+
+	void FGraphOperator::Bind(FVertexInterfaceData& InVertexData) const
+	{
+		InVertexData.Bind(VertexData);
 	}
 
 	IOperator::FExecuteFunction FGraphOperator::GetExecuteFunction()

@@ -212,21 +212,21 @@ namespace Metasound
 			public:
 				FReceiverOperatorFactory() = default;
 
-				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override
+				virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override
 				{
 					using namespace ReceiveNodeInfo; 
 
 					TDataReadReference<TDataType> DefaultReadRef = TDataReadReferenceFactory<TDataType>::CreateAny(InParams.OperatorSettings);
 
-					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput)))
+					if (InParams.InputData.IsVertexBound(METASOUND_GET_PARAM_NAME(DefaultDataInput)))
 					{
-						DefaultReadRef = InParams.InputDataReferences.GetDataReadReference<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput));
+						DefaultReadRef = InParams.InputData.GetDataReadReference<TDataType>(METASOUND_GET_PARAM_NAME(DefaultDataInput));
 					}
 
 					return MakeUnique<TReceiverOperator>(
 						DefaultReadRef,
 						TDataWriteReferenceFactory<TDataType>::CreateAny(InParams.OperatorSettings, *DefaultReadRef),
-						InParams.InputDataReferences.GetDataReadReferenceOrConstruct<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput)),
+						InParams.InputData.GetOrConstructDataReadReference<FSendAddress>(METASOUND_GET_PARAM_NAME(AddressInput)),
 						InParams.OperatorSettings
 						);
 				}

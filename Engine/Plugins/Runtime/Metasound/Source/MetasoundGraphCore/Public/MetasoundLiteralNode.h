@@ -90,7 +90,7 @@ namespace Metasound
 		{
 		}
 
-		virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override;
+		virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override;
 
 	private:
 		FLiteral InitParam;
@@ -171,7 +171,7 @@ namespace Metasound
 	};
 
 	template<typename DataType>
-	TUniquePtr<IOperator> TLiteralOperatorLiteralFactory<DataType>::CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults)
+	TUniquePtr<IOperator> TLiteralOperatorLiteralFactory<DataType>::CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults)
 	{
 		using FLiteralNodeType = TLiteralNode<DataType>;
 

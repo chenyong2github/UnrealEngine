@@ -27,3 +27,30 @@ namespace Metasound
 		return *InArrayTypeName.ToString().LeftChop(SuffixLength);
 	}
 }
+
+FString LexToString(Metasound::EDataReferenceAccessType InAccessType)
+{
+	using namespace Metasound;
+
+	switch (InAccessType)
+	{
+		case EDataReferenceAccessType::None:
+			return FString(TEXT("None"));
+
+		case EDataReferenceAccessType::Read:
+			return FString(TEXT("Read"));
+
+		case EDataReferenceAccessType::Write:
+			return FString(TEXT("Write"));
+
+		case EDataReferenceAccessType::Value:
+			return FString(TEXT("Value"));
+
+		default:
+			{
+				checkNoEntry();
+			}
+	}
+	return FString(TEXT(""));
+}
+

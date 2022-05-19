@@ -52,7 +52,7 @@ namespace Metasound
 	{
 		class FOperatorFactory : public IOperatorFactory
 		{
-			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults) override;
+			virtual TUniquePtr<IOperator> CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults) override;
 		};
 
 	public:
@@ -983,26 +983,26 @@ namespace Metasound
 		
 	};
 
-	TUniquePtr<IOperator> FWavePlayerNode::FOperatorFactory::CreateOperator(const FCreateOperatorParams& InParams, FBuildGraphResults& OutResults)
+	TUniquePtr<IOperator> FWavePlayerNode::FOperatorFactory::CreateOperator(const FBuildOperatorParams& InParams, FBuildResults& OutResults)
 	{
 		using namespace Audio;
 		using namespace WavePlayerVertexNames;
 
 		const FWavePlayerNode& WaveNode = static_cast<const FWavePlayerNode&>(InParams.Node);
 
-		const FDataReferenceCollection& Inputs = InParams.InputDataReferences;
+		const FInputVertexInterfaceData& Inputs = InParams.InputData;
 
 		FWavePlayerOpArgs Args =
 		{
 			InParams.OperatorSettings,
-			Inputs.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputTriggerPlay), InParams.OperatorSettings),
-			Inputs.GetDataReadReferenceOrConstruct<FTrigger>(METASOUND_GET_PARAM_NAME(InputTriggerStop), InParams.OperatorSettings),
-			Inputs.GetDataReadReferenceOrConstruct<FWaveAsset>(METASOUND_GET_PARAM_NAME(InputWaveAsset)),
-			Inputs.GetDataReadReferenceOrConstruct<FTime>(METASOUND_GET_PARAM_NAME(InputStartTime)),
-			Inputs.GetDataReadReferenceOrConstruct<float>(METASOUND_GET_PARAM_NAME(InputPitchShift)),
-			Inputs.GetDataReadReferenceOrConstruct<bool>(METASOUND_GET_PARAM_NAME(InputLoop)),
-			Inputs.GetDataReadReferenceOrConstruct<FTime>(METASOUND_GET_PARAM_NAME(InputLoopStart)),
-			Inputs.GetDataReadReferenceOrConstruct<FTime>(METASOUND_GET_PARAM_NAME(InputLoopDuration))
+			Inputs.GetOrConstructDataReadReference<FTrigger>(METASOUND_GET_PARAM_NAME(InputTriggerPlay), InParams.OperatorSettings),
+			Inputs.GetOrConstructDataReadReference<FTrigger>(METASOUND_GET_PARAM_NAME(InputTriggerStop), InParams.OperatorSettings),
+			Inputs.GetOrConstructDataReadReference<FWaveAsset>(METASOUND_GET_PARAM_NAME(InputWaveAsset)),
+			Inputs.GetOrCreateDefaultDataReadReference<FTime>(METASOUND_GET_PARAM_NAME(InputStartTime), InParams.OperatorSettings),
+			Inputs.GetOrCreateDefaultDataReadReference<float>(METASOUND_GET_PARAM_NAME(InputPitchShift), InParams.OperatorSettings),
+			Inputs.GetOrCreateDefaultDataReadReference<bool>(METASOUND_GET_PARAM_NAME(InputLoop), InParams.OperatorSettings),
+			Inputs.GetOrCreateDefaultDataReadReference<FTime>(METASOUND_GET_PARAM_NAME(InputLoopStart), InParams.OperatorSettings),
+			Inputs.GetOrCreateDefaultDataReadReference<FTime>(METASOUND_GET_PARAM_NAME(InputLoopDuration), InParams.OperatorSettings)
 		};
 
 		return MakeUnique<FWavePlayerOperator>(Args);

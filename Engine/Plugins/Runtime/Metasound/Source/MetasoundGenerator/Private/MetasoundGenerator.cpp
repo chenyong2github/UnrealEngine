@@ -57,10 +57,11 @@ namespace Metasound
 
 		// Create an instance of the new graph
 		FDataReferenceCollection DataReferenceCollection;
-		FBuildGraphParams BuildParams { *InitParams.Graph, InitParams.OperatorSettings, DataReferenceCollection, InitParams.Environment, InitParams.BuilderSettings };
-		FBuildGraphResults BuildResults;
+		FInputVertexInterfaceData InputVertexData;
+		FBuildGraphOperatorParams BuildParams { *InitParams.Graph, InitParams.OperatorSettings, InputVertexData, InitParams.Environment };
+		FBuildResults BuildResults;
 
-		TUniquePtr<IOperator> GraphOperator = FOperatorBuilder().BuildGraphOperator(BuildParams, BuildResults);
+		TUniquePtr<IOperator> GraphOperator = FOperatorBuilder(InitParams.BuilderSettings).BuildGraphOperator(BuildParams, BuildResults);
 
 		TUniquePtr<FGraphAnalyzer> GraphAnalyzer;
 		if (InitParams.BuilderSettings.bPopulateInternalDataReferences)

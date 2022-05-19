@@ -23,6 +23,7 @@ namespace Metasound
 		bool bIsAdvancedDisplay = false;
 	};
 
+
 	/** FDataVertex
 	 *
 	 * An FDataVertex is a named vertex of a MetaSound node which can contain data.
@@ -39,13 +40,15 @@ namespace Metasound
 		 * @InVertexName - Name of vertex.
 		 * @InDataTypeName - Name of data type.
 		 * @InMetadata - Metadata pertaining to given vertex.
+		 * @InAccessType - The access type of the vertex.
 		 */
-		FDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
-		:	VertexName(InVertexName)
-		,	DataTypeName(InDataTypeName)
+		FDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EDataReferenceAccessType InAccessType)
+		: VertexName(InVertexName)
+		, DataTypeName(InDataTypeName)
 #if WITH_EDITORONLY_DATA
-		,	Metadata(InMetadata)
+		, Metadata(InMetadata)
 #endif // WITH_EDITORONLY_DATA
+		, AccessType(InAccessType)
 		{
 		}
 
@@ -62,6 +65,9 @@ namespace Metasound
 		/** Metadata associated with vertex. */
 		FDataVertexMetadata Metadata;
 #endif // WITH_EDITORONLY_DATA
+
+		/** Access type of the vertex. */
+		EDataReferenceAccessType AccessType;
 
 		UE_DEPRECATED(5.1, "GetVertexName() is deprecated. Use VertexName")
 		const FVertexName& GetVertexName() const
@@ -174,16 +180,25 @@ namespace Metasound
 		FInputDataVertex() = default;
 
 		/** Construct an FInputDataVertex. */
-		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata)
-			: FDataVertex(InVertexName, InDataTypeName, InMetadata)
+		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EDataReferenceAccessType InAccessType=EDataReferenceAccessType::Read)
+			: FDataVertex(InVertexName, InDataTypeName, InMetadata, InAccessType)
 			, LiteralFactory(FLiteral::FNone{})
 		{
 		}
 
 		/** Construct an FInputDataVertex with a default literal. */
 		template<typename LiteralValueType>
+		UE_DEPRECATED(5.1, "Use constructor with EDataReferenceAccessType argument.")
 		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, const LiteralValueType& InLiteralValue)
-			: FDataVertex(InVertexName, InDataTypeName, InMetadata)
+			: FDataVertex(InVertexName, InDataTypeName, InMetadata, EDataReferenceAccessType::Read)
+			, LiteralFactory(InLiteralValue)
+		{
+		}
+
+		/** Construct an FInputDataVertex with a default literal. */
+		template<typename LiteralValueType>
+		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EDataReferenceAccessType InAccessType, const LiteralValueType& InLiteralValue)
+			: FDataVertex(InVertexName, InDataTypeName, InMetadata, InAccessType)
 			, LiteralFactory(InLiteralValue)
 		{
 		}
@@ -212,20 +227,35 @@ namespace Metasound
 
 		template<typename... ArgTypes>
 		TInputDataVertex(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata, ArgTypes&&... Args)
-		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, Forward<ArgTypes>(Args)...)
+		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EDataReferenceAccessType::Read, Forward<ArgTypes>(Args)...)
 		{
 		}
 
 		template<typename... ArgTypes>
  		UE_DEPRECATED(5.1, "TInputDataVertex constructor without explicit FDataVertexMatadata is deprecated. Use constructor which accepts TDataVertexMetadata")
 		TInputDataVertex(const FVertexName& InVertexName, const FText& InDescription, ArgTypes&&... Args)
-		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, Forward<ArgTypes>(Args)...)
+		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, EDataReferenceAccessType::Read, Forward<ArgTypes>(Args)...)
 		{
 		}
 	};
 
 	template<typename DataType>
 	using TInputDataVertexModel UE_DEPRECATED(5.1, "TInputDataVertexModel<DataType> is deprecated. Replace with TInputDataVertex<DataType>") = TInputDataVertex<DataType>;
+
+	/** Create a FInputDataVertex with a templated MetaSound data type which only
+	 * reads data at operator time. */
+	template<typename DataType>
+	class TInputConstructorVertex : public FInputDataVertex
+	{
+	public:
+		TInputConstructorVertex() = default;
+
+		template<typename... ArgTypes>
+		TInputConstructorVertex(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata, ArgTypes&&... Args)
+		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EDataReferenceAccessType::Value, Forward<ArgTypes>(Args)...)
+		{
+		}
+	};
 	
 	/** FOutputDataVertex
 	 *
@@ -251,14 +281,14 @@ namespace Metasound
 
 		template<typename... ArgTypes>
 		TOutputDataVertex(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata, ArgTypes&&... Args)
-		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, Forward<ArgTypes>(Args)...)
+		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EDataReferenceAccessType::Read, Forward<ArgTypes>(Args)...)
 		{
 		}
 
 		template<typename... ArgTypes>
  		UE_DEPRECATED(5.1, "TOutputDataVertex constructor without explicit FDataVertexMatadata is deprecated. Use constructor which accepts TDataVertexMetadata")
 		TOutputDataVertex(const FVertexName& InVertexName, const FText& InDescription, ArgTypes&&... Args)
-		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, Forward<ArgTypes>(Args)...)
+		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, EDataReferenceAccessType::Read, Forward<ArgTypes>(Args)...)
 		{
 		}
 	};
@@ -266,6 +296,22 @@ namespace Metasound
 	template<typename DataType>
 	using TOutputDataVertexModel UE_DEPRECATED(5.1, "TOutputDataVertexModel<DataType> is deprecated. Replace with TOutputDataVertex<DataType>") = TOutputDataVertex<DataType>;
 
+	/** Create a FOutputDataVertex with a templated MetaSound data type which is only
+	 * sets data at operator construction time. 
+	 */
+	template<typename DataType>
+	class TOutputConstructorVertex : public FOutputDataVertex
+	{
+	public:
+
+		TOutputConstructorVertex() = default;
+
+		template<typename... ArgTypes>
+		TOutputConstructorVertex(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata, ArgTypes&&... Args)
+		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EDataReferenceAccessType::Value, Forward<ArgTypes>(Args)...)
+		{
+		}
+	};
 
 	/** FEnvironmentVertex
 	 *
@@ -324,172 +370,210 @@ namespace Metasound
 	template<typename VertexType>
 	class TVertexInterfaceGroup
 	{
-			static constexpr bool bIsDerivedFromFInputDataVertex = std::is_base_of<FInputDataVertex, VertexType>::value;
-			static constexpr bool bIsDerivedFromFOutputDataVertex = std::is_base_of<FOutputDataVertex, VertexType>::value;
-			static constexpr bool bIsDerivedFromFEnvironmentVertex = std::is_base_of<FEnvironmentVertex, VertexType>::value;
-			static constexpr bool bIsSupportedVertexType = bIsDerivedFromFInputDataVertex || bIsDerivedFromFOutputDataVertex || bIsDerivedFromFEnvironmentVertex;
-
-			static_assert(bIsSupportedVertexType, "VertexType must be derived from FInputDataVertex, FOutputDataVertex, or FEnvironmentVertex");
-
-			using FContainerType = TArray<VertexType>;
-
-			struct FEqualVertexNamePredicate
-			{
-				const FVertexName& NameRef;
-
-				FEqualVertexNamePredicate(const FVertexName& InName)
-				: NameRef(InName)
-				{
-				}
-
-				FEqualVertexNamePredicate(const VertexType& InVertex)
-				: NameRef(InVertex.VertexName)
-				{
-				}
-
-				bool operator()(const VertexType& InOther)
-				{
-					return InOther.VertexName == NameRef;
-				}
-			};
-
-			void AddOrUpdateVertex(VertexType&& InVertex)
-			{
-				if (VertexType* Vertex = Find(InVertex.VertexName))
-				{
-					*Vertex = MoveTemp(InVertex);
-				}
-				else
-				{
-					Vertices.Add(MoveTemp(InVertex));
-				}
-			}
-
-			// Required for end of recursion.
-			void CopyInputs()
-			{
-			}
-
-			// Recursive call used to unpack a template parameter pack. This stores
-			// each object in the template parameter pack into the groups internal
-			// storage.
-			//
-			// Assume that InputType is either a sublcass of FDataVertex
-			// and that VertexType is either FInputDataVertex or FOutputDataVertex
-			template<typename CurrentVertexType, typename... RemainingVertexTypes>
-			void CopyInputs(CurrentVertexType&& InInput, RemainingVertexTypes&&... InRemainingInputs)
-			{
-				// Create vertex out of vertex model
-				AddOrUpdateVertex(MoveTemp(InInput));
-				CopyInputs(InRemainingInputs...);
-			}
-
-
-		public:
-
-			using RangedForConstIteratorType = typename FContainerType::RangedForConstIteratorType;
-
-			/** TVertexInterfaceGroup constructor with variadic list of vertex
-			 * models.
-			 */
-			template<typename... VertexTypes>
-			TVertexInterfaceGroup(VertexTypes&&... InVertexs)
-			{
-				// Reserve array to hold exact number of vertices to avoid
-				// over allocation.
-				Vertices.Reserve(sizeof...(VertexTypes));
-
-				CopyInputs(Forward<VertexTypes>(InVertexs)...);
-			}
-
-			/** Add a vertex to the group. */
-			void Add(const VertexType& InVertex)
-			{
-				AddOrUpdateVertex(VertexType(InVertex));
-			}
-
-			void Add(VertexType&& InVertex)
-			{
-				AddOrUpdateVertex(MoveTemp(InVertex));
-			}
-
-			/** Remove a vertex by key. */
-			bool Remove(const FVertexName& InKey)
-			{
-				int32 NumRemoved = Vertices.RemoveAll(FEqualVertexNamePredicate(InKey));
-				return (NumRemoved > 0);
-			}
-
-			/** Returns true if the group contains a vertex with a matching key. */
-			bool Contains(const FVertexName& InKey) const
-			{
-				return Vertices.ContainsByPredicate(FEqualVertexNamePredicate(InKey));
-			}
-
-			/** Find a vertex with a given VertexName */
-			VertexType* Find(const FVertexName& InKey)
-			{
-				return Vertices.FindByPredicate(FEqualVertexNamePredicate(InKey));
-			}
-
-			/** Find a vertex with a given VertexName */
-			const VertexType* Find(const FVertexName& InKey) const
-			{
-				return Vertices.FindByPredicate(FEqualVertexNamePredicate(InKey));
-			}
-
-			/** Return the sort order index of a vertex with the given name.
-			 *
-			 * @param InKey - FVertexName of vertex of interest.
-			 *
-			 * @return The index of the vertex. INDEX_NONE if the vertex does not exist. 
-			 */
-			int32 GetSortOrderIndex(const FVertexName& InKey) const
-			{
-				return Vertices.IndexOfByPredicate(FEqualVertexNamePredicate(InKey));
-			}
-
-			/** Return the vertex for a given vertex key. */
-			const VertexType& operator[](const FVertexName& InName) const
-			{
-				const VertexType* Vertex = Find(InName);
-				checkf(nullptr != Vertex, TEXT("Vertex with name '%s' does not exist"), *InName.ToString());
-				return *Vertex;
-			}
-
-			/** Iterator for ranged for loops. */
-			RangedForConstIteratorType begin() const
-			{
-				return Vertices.begin();
-			}
-
-			/** Iterator for ranged for loops. */
-			RangedForConstIteratorType end() const
-			{
-				return Vertices.end();
-			}
-
-			/** Returns the number of vertices in the group. */
-			int32 Num() const
-			{
-				return Vertices.Num();
-			}
-
-			/** Compare whether two vertex groups are equal. */
-			friend bool operator==(const TVertexInterfaceGroup<VertexType>& InLHS, const TVertexInterfaceGroup<VertexType>& InRHS)
-			{
-				return InLHS.Vertices == InRHS.Vertices;
-			}
-
-			/** Compare whether two vertex groups are unequal. */
-			friend bool operator!=(const TVertexInterfaceGroup<VertexType>& InLHS, const TVertexInterfaceGroup<VertexType>& InRHS)
-			{
-				return !(InLHS == InRHS);
-			}
-
+		// Determine if the vertex type is a supported vertex type.
+		template<typename T>
+		struct TIsSupportedVertexType
+		{
 		private:
+			static constexpr bool bIsDerivedFromFInputDataVertex = std::is_base_of<FInputDataVertex, T>::value;
+			static constexpr bool bIsDerivedFromFOutputDataVertex = std::is_base_of<FOutputDataVertex, T>::value;
+			static constexpr bool bIsDerivedFromFEnvironmentVertex = std::is_base_of<FEnvironmentVertex, T>::value;
+			static constexpr bool bIsSupportedVertexType = bIsDerivedFromFInputDataVertex || bIsDerivedFromFOutputDataVertex || bIsDerivedFromFEnvironmentVertex;
+		public:
+			static constexpr bool Value = bIsSupportedVertexType;
+		};
 
-			FContainerType Vertices;
+		static_assert(TIsSupportedVertexType<VertexType>::Value, "VertexType must be derived from FInputDataVertex, FOutputDataVertex, or FEnvironmentVertex");
+
+
+		// Helper struct for determining whether the vertices in a parameter pack
+		// can be used in the TVertexInterfaceGroup constructor
+		template<typename ...>
+		struct TIsConstructibleFromParameterPack
+		{
+			static constexpr bool Value = false;
+		};
+
+		// Helper struct specialization for no template argument. 
+		template<>
+		struct TIsConstructibleFromParameterPack<>
+		{
+			static constexpr bool Value = true;
+		};
+
+
+	
+
+		// Helper struct specialization for unwinding a parameter pack.
+		template<typename T, typename ... Ts>
+		struct TIsConstructibleFromParameterPack<T, Ts...>
+		{
+			static constexpr bool Value = std::is_constructible<VertexType, T>::value && TIsConstructibleFromParameterPack<Ts...>::Value;
+		};
+
+
+		using FContainerType = TArray<VertexType>;
+
+		struct FEqualVertexNamePredicate
+		{
+			const FVertexName& NameRef;
+
+			FEqualVertexNamePredicate(const FVertexName& InName)
+			: NameRef(InName)
+			{
+			}
+
+			FEqualVertexNamePredicate(const VertexType& InVertex)
+			: NameRef(InVertex.VertexName)
+			{
+			}
+
+			bool operator()(const VertexType& InOther)
+			{
+				return InOther.VertexName == NameRef;
+			}
+		};
+
+		void AddOrUpdateVertex(VertexType&& InVertex)
+		{
+			if (VertexType* Vertex = Find(InVertex.VertexName))
+			{
+				*Vertex = MoveTemp(InVertex);
+			}
+			else
+			{
+				Vertices.Add(MoveTemp(InVertex));
+			}
+		}
+
+		// Required for end of recursion.
+		void CopyInputs()
+		{
+		}
+
+		// Recursive call used to unpack a template parameter pack. This stores
+		// each object in the template parameter pack into the groups internal
+		// storage.
+		//
+		// Assume that InputType is either a sublcass of FDataVertex
+		// and that VertexType is either FInputDataVertex or FOutputDataVertex
+		template<typename CurrentVertexType, typename... RemainingVertexTypes>
+		void CopyInputs(CurrentVertexType&& InInput, RemainingVertexTypes&&... InRemainingInputs)
+		{
+			// Create vertex out of vertex model
+			AddOrUpdateVertex(MoveTemp(InInput));
+			CopyInputs(InRemainingInputs...);
+		}
+
+
+	public:
+
+		using RangedForConstIteratorType = typename FContainerType::RangedForConstIteratorType;
+
+		/** TVertexInterfaceGroup constructor with variadic list of vertex
+		 * models.
+		 */
+		template<
+			typename... VertexTypes, 
+			typename std::enable_if< TIsConstructibleFromParameterPack<VertexTypes...>::Value, int >::type = 0
+		>
+		TVertexInterfaceGroup(VertexTypes&&... InVertexs)
+		{
+			// Reserve array to hold exact number of vertices to avoid
+			// over allocation.
+			Vertices.Reserve(sizeof...(VertexTypes));
+
+			CopyInputs(Forward<VertexTypes>(InVertexs)...);
+		}
+
+		/** Add a vertex to the group. */
+		void Add(const VertexType& InVertex)
+		{
+			AddOrUpdateVertex(VertexType(InVertex));
+		}
+
+		void Add(VertexType&& InVertex)
+		{
+			AddOrUpdateVertex(MoveTemp(InVertex));
+		}
+
+		/** Remove a vertex by key. */
+		bool Remove(const FVertexName& InKey)
+		{
+			int32 NumRemoved = Vertices.RemoveAll(FEqualVertexNamePredicate(InKey));
+			return (NumRemoved > 0);
+		}
+
+		/** Returns true if the group contains a vertex with a matching key. */
+		bool Contains(const FVertexName& InKey) const
+		{
+			return Vertices.ContainsByPredicate(FEqualVertexNamePredicate(InKey));
+		}
+
+		/** Find a vertex with a given VertexName */
+		VertexType* Find(const FVertexName& InKey)
+		{
+			return Vertices.FindByPredicate(FEqualVertexNamePredicate(InKey));
+		}
+
+		/** Find a vertex with a given VertexName */
+		const VertexType* Find(const FVertexName& InKey) const
+		{
+			return Vertices.FindByPredicate(FEqualVertexNamePredicate(InKey));
+		}
+
+		/** Return the sort order index of a vertex with the given name.
+		 *
+		 * @param InKey - FVertexName of vertex of interest.
+		 *
+		 * @return The index of the vertex. INDEX_NONE if the vertex does not exist. 
+		 */
+		int32 GetSortOrderIndex(const FVertexName& InKey) const
+		{
+			return Vertices.IndexOfByPredicate(FEqualVertexNamePredicate(InKey));
+		}
+
+		/** Return the vertex for a given vertex key. */
+		const VertexType& operator[](const FVertexName& InName) const
+		{
+			const VertexType* Vertex = Find(InName);
+			checkf(nullptr != Vertex, TEXT("Vertex with name '%s' does not exist"), *InName.ToString());
+			return *Vertex;
+		}
+
+		/** Iterator for ranged for loops. */
+		RangedForConstIteratorType begin() const
+		{
+			return Vertices.begin();
+		}
+
+		/** Iterator for ranged for loops. */
+		RangedForConstIteratorType end() const
+		{
+			return Vertices.end();
+		}
+
+		/** Returns the number of vertices in the group. */
+		int32 Num() const
+		{
+			return Vertices.Num();
+		}
+
+		/** Compare whether two vertex groups are equal. */
+		friend bool operator==(const TVertexInterfaceGroup<VertexType>& InLHS, const TVertexInterfaceGroup<VertexType>& InRHS)
+		{
+			return InLHS.Vertices == InRHS.Vertices;
+		}
+
+		/** Compare whether two vertex groups are unequal. */
+		friend bool operator!=(const TVertexInterfaceGroup<VertexType>& InLHS, const TVertexInterfaceGroup<VertexType>& InRHS)
+		{
+			return !(InLHS == InRHS);
+		}
+
+	private:
+
+		FContainerType Vertices;
 	};
 
 	
