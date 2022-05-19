@@ -87,8 +87,9 @@ namespace Horde.Storage.Implementation
                     bool found = false;
                     NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(@namespace);
                     
+                    List<NamespaceId> namespacesThatSharePool = namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool).ToList();
                     // check all other namespaces that share the same storage pool for presence of the blob
-                    foreach (NamespaceId blobNamespace in namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool))
+                    foreach (NamespaceId blobNamespace in namespacesThatSharePool)
                     {
                         if (cancellationToken.IsCancellationRequested)
                         {
@@ -135,7 +136,10 @@ namespace Horde.Storage.Implementation
 
                     if (!found)
                     {
-                        await RemoveBlob(@namespace, blob);
+                        foreach (NamespaceId namespaceToDeleteFrom in namespacesThatSharePool)
+                        {
+                            await RemoveBlob(namespaceToDeleteFrom, blob);
+                        }
                         ++countOfBlobsRemoved;
                     }
                 }
@@ -150,6 +154,10 @@ namespace Horde.Storage.Implementation
             try
             {
                 await _blobService.DeleteObject(ns, blob);
+            }
+            catch (BlobNotFoundException)
+            {
+                // ignore blob not found exceptions, if it didn't exist it has been removed so we are happy either way
             }
             catch (Exception e)
             {
