@@ -45,8 +45,10 @@ FCoreDelegates::FNoPakFilesMountedDelegate FCoreDelegates::NoPakFilesMountedDele
 FCoreDelegates::FOnFileOpenedForReadFromPakFile FCoreDelegates::OnFileOpenedForReadFromPakFile;
 
 FCoreDelegates::FOnUserLoginChangedEvent FCoreDelegates::OnUserLoginChangedEvent;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FCoreDelegates::FOnUserControllerConnectionChange FCoreDelegates::OnControllerConnectionChange;
 FCoreDelegates::FOnUserControllerPairingChange FCoreDelegates::OnControllerPairingChange;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 FCoreDelegates::FOnSafeFrameChangedEvent FCoreDelegates::OnSafeFrameChangedEvent;
 FCoreDelegates::FOnHandleSystemEnsure FCoreDelegates::OnHandleSystemEnsure;
 FCoreDelegates::FOnHandleSystemError FCoreDelegates::OnHandleSystemError;

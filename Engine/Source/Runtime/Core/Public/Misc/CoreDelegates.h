@@ -156,9 +156,11 @@ public:
 	static FOnUserLoginChangedEvent OnUserLoginChangedEvent;
 
 	// Callback when controllers disconnected / reconnected
+	UE_DEPRECATED(5.1, "OnControllerConnectionChange, use IPlatformInputDeviceMapper::GetOnInputDeviceConnectionChange() instead")
 	static FOnUserControllerConnectionChange OnControllerConnectionChange;
 
 	// Callback when a single controller pairing changes
+	UE_DEPRECATED(5.1, "OnControllerPairingChange, use IPlatformInputDeviceMapper::GetOnInputDevicePairingChange() instead")
 	static FOnUserControllerPairingChange OnControllerPairingChange;
 
 	// Callback when a user changes the safe frame size

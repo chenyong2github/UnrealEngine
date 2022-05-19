@@ -185,7 +185,9 @@ bool IPlatformInputDeviceMapper::Internal_MapInputDeviceToUser(FInputDeviceId De
 	if (ShouldBroadcastLegacyDelegates())
 	{
 		const bool bIsConnected = (ConnectionState == EInputDeviceConnectionState::Connected);
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FCoreDelegates::OnControllerConnectionChange.Broadcast(bIsConnected, UserId, DeviceId.GetId());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	
 	return true;
@@ -222,8 +224,9 @@ bool IPlatformInputDeviceMapper::Internal_ChangeInputDeviceUserMapping(FInputDev
 		// Remap the DeviceId to the older int32 "ControllerId" format for the legacy delegates
 		int32 LegacyControllerId = INDEX_NONE;
 		RemapUserAndDeviceToControllerId(NewUserId, LegacyControllerId, DeviceId);
-		
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		FCoreDelegates::OnControllerPairingChange.Broadcast(LegacyControllerId, NewUserId, OldUserId);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	return true;
 }
