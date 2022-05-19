@@ -8,6 +8,7 @@
 class FConcertLogTokenizer;
 class FConcertFrontendLogFilter;
 class FConcertFrontendLogFilter_TextSearch;
+class SWidget;
 
 /** A filter that contains multiple UI filters */
 class FConcertLogFilter_FrontendRoot : public FConcertLogFilter, public TSharedFromThis<FConcertLogFilter_FrontendRoot>
