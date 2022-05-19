@@ -4616,7 +4616,7 @@ TArray<FTransform> USkeletalMeshComponent::GetBoneSpaceTransforms()
 #if WITH_EDITOR
 void USkeletalMeshComponent::HandleObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
 {
-	IConsoleVariable* UseLegacyAnimInstanceReinstancingBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("bp.UseLegacyAnimInstanceReinstancingBehavior"));
+	static IConsoleVariable* UseLegacyAnimInstanceReinstancingBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("bp.UseLegacyAnimInstanceReinstancingBehavior"));
 	if(UseLegacyAnimInstanceReinstancingBehavior == nullptr || !UseLegacyAnimInstanceReinstancingBehavior->GetBool())
 	{
 		bool bReinstancedAnimInstance = false;
