@@ -11,6 +11,7 @@
 #include "Settings/ConcertTransportLogSettings.h"
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"

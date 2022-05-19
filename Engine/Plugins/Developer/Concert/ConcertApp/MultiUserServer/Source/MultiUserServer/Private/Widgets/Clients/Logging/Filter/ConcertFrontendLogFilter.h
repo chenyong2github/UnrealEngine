@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "ConcertLogFilter.h"
 
+class SWidget;
+
 /**
  * A filter that is intended to be displayed in the UI. Every filter has one widget displaying it. */
 class FConcertFrontendLogFilter : public FConcertLogFilter

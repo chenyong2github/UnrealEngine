@@ -14,6 +14,9 @@ class FConcertLogFilter_FrontendRoot;
 class FMenuBuilder;
 class FPagedFilteredConcertLogList;
 class IConcertLogSource;
+class ITableRow;
+class SHeaderRow;
+class STableViewBase;
 template <typename ItemType> class SListView;
 
 struct FConcertLogEntry;

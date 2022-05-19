@@ -5,6 +5,8 @@
 #include "ConcertFrontendUtils.h"
 #include "ConcertTransportEvents.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"

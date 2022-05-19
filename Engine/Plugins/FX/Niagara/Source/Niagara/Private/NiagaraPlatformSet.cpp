@@ -4,6 +4,7 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Scalability.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/ConfigUtilities.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "NiagaraSystem.h"

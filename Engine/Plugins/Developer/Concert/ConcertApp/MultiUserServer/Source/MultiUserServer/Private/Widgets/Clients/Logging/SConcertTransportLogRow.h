@@ -6,6 +6,7 @@
 #include "ConcertLogEntry.h"
 #include "TransportLogDelegates.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Views/STableRow.h"
 
 class FConcertLogTokenizer;
 

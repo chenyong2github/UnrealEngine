@@ -3,7 +3,10 @@
 #include "ConcertFrontendLogFilter_MessageAction.h"
 
 #include "ConcertTransportEvents.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Clients/Logging/Util/MessageActionUtils.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 

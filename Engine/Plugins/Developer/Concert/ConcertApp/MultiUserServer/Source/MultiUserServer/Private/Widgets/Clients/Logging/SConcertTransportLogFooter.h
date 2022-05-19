@@ -7,6 +7,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FMenuBuilder;
+class STextBlock;
 template<typename T> class SSpinBox;
 struct FConcertLogEntry;
 
