@@ -116,7 +116,8 @@ public:
 	TArray<TScriptInterface<IChooserColumn>> Columns;
 
 	// array of results (rows of table)
-	UPROPERTY(EditAnywhere, Meta=(EditInline="true"), Category = "Runtime")
+	// todo: DataInterfaceType shouldn't be hard coded (Should be based on Result Type above) needed for Details customization to work
+	UPROPERTY(EditAnywhere, Meta=(DataInterfaceType="Asset"), Category = "Runtime")
 	TArray<TScriptInterface<IDataInterface>> Results;
 };
 
