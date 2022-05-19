@@ -46,10 +46,11 @@ public class RequestHelper
 
         // namespace is a restricted namespace
         HttpContext context = request.HttpContext;
-        bool isPublicPort = _settings!.CurrentValue.PublicApiPorts.Contains(context.Connection.LocalPort) ||
-            /* unit tests do not run on ports, we consider them always on the internal port */ !(context.Connection.LocalPort == 0 && context.Connection.LocalIpAddress == null);
+        bool isUnitTest = context.Connection.LocalPort == 0 && context.Connection.LocalIpAddress == null;
+        /* unit tests do not run on ports, we consider them always on the internal port */
+        bool isPublicPort = _settings!.CurrentValue.PublicApiPorts.Contains(context.Connection.LocalPort);
             
-        if (isPublicPort)
+        if (isPublicPort && !isUnitTest)
         {
             // trying to access restricted namespace on a public port, this is not allowed
             return new ForbidResult();
