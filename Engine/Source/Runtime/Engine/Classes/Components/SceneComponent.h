@@ -186,6 +186,9 @@ private:
 	UPROPERTY(Transient, Replicated)
 	uint8 bShouldSnapRotationWhenAttached : 1;
 
+	UPROPERTY(Transient, Replicated)
+	uint8 bShouldSnapScaleWhenAttached : 1;
+
 	/** Sets bShouldBeAttached, push model aware. */
 	void SetShouldBeAttached(bool bNewShouldBeAttached);
 
@@ -194,6 +197,9 @@ private:
 
 	/** Sets bShouldSnapRotationWhenAttached, push model aware. */
 	void SetShouldSnapRotationWhenAttached(bool bShouldSnapRotation);
+
+	/** Sets bShouldSnapScaleWhenAttached, push model aware. */
+	void SetShouldSnapScaleWhenAttached(bool bShouldSnapScale);
 
 	/**
 	 * Whether or not the cached PhysicsVolume this component overlaps should be updated when the component is moved.
