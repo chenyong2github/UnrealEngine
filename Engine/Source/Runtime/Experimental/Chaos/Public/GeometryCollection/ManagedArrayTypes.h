@@ -94,19 +94,3 @@ inline FManagedArrayBase* NewManagedTypedArray(EManagedArrayType ArrayType)
 	check(false);
 	return nullptr;
 }
-
-// ---------------------------------------------------------
-//     Makes a copy from one array to another
-//
-inline FManagedArrayBase* CopyManagedTypedArray(EManagedArrayType ArrayType, FManagedArrayBase* Dest, FManagedArrayBase* Src)
-{
-	switch (ArrayType)
-	{
-#define MANAGED_ARRAY_TYPE(a,A)	case EManagedArrayType::F##A##Type:\
-		return new TManagedArray<a>();
-#include "ManagedArrayTypeValues.inl"
-#undef MANAGED_ARRAY_TYPE
-	}
-	check(false);
-	return nullptr;
-}

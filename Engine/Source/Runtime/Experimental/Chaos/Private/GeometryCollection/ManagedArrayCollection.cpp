@@ -15,6 +15,7 @@ FManagedArrayCollection::FManagedArrayCollection()
 	Version = 9;
 }
 
+
 void FManagedArrayCollection::AddGroup(FName Group)
 {
 	ensure(!GroupInfo.Contains(Group));
@@ -353,8 +354,20 @@ void FManagedArrayCollection::CopyAttribute(const FManagedArrayCollection& InCol
 	SyncGroupSizeFrom(InCollection, Group);
 	FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
 
+	if (!HasAttribute(Name, Group))
+	{
+		const FValueType& V = InCollection.Map[Key];
+		EArrayType Type = V.ArrayType;
+		FValueType Value(Type, *NewManagedTypedArray(Type));
+		Value.Value->Resize(NumElements(Group));
+		Value.GroupIndexDependency = V.GroupIndexDependency;
+		Value.Saved = V.Saved;
+		Value.bExternalValue = V.bExternalValue;
+		Map.Add(Key, MoveTemp(Value));
+	}
+
 	const FValueType& OriginalValue = InCollection.Map[Key];
-	const FValueType& DestValue = Map[Key];	//todo(ocohen): API assumes an AddAttribute is called before copy is done. It'd be nice to handle the case where AddAttribute was not done first
+	const FValueType& DestValue = Map[Key];	
 	check(OriginalValue.ArrayType == DestValue.ArrayType);
 	DestValue.Value->Init(*OriginalValue.Value);
 }
