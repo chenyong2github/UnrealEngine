@@ -164,9 +164,6 @@ public:
 
 	void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 
-	uint32 GetWantedEditorCellSize() const;
-	void SetEditorWantedCellSize(uint32 InCellSize);
-
 	// Actors pinning
 	AActor* PinActor(const FGuid& ActorGuid);
 	void UnpinActor(const FGuid& ActorGuid);

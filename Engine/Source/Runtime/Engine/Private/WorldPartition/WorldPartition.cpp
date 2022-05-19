@@ -1331,16 +1331,6 @@ void UWorldPartition::AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags
 	}
 }
 
-uint32 UWorldPartition::GetWantedEditorCellSize() const
-{
-	return EditorHash->GetWantedEditorCellSize();
-}
-
-void UWorldPartition::SetEditorWantedCellSize(uint32 InCellSize)
-{
-	EditorHash->SetEditorWantedCellSize(InCellSize);
-}
-
 AActor* UWorldPartition::PinActor(const FGuid& ActorGuid)
 {
 	if (PinnedActors)

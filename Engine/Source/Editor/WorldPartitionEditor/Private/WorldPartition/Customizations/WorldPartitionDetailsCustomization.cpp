@@ -61,30 +61,6 @@ void FWorldPartitionDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 				.Visibility(TAttribute<EVisibility>::CreateLambda([this]() { return WorldPartition.IsValid() && WorldPartition->IsStreamingEnabled() ? EVisibility::Visible : EVisibility::Hidden; }));
 		}
 	}
-
-	WorldPartitionCategory.AddCustomRow(LOCTEXT("EditorCellSizeRow", "Editor Cell Size"), true)
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("WorldPartitionCellSize", "Editor Cell Size"))
-			.ToolTipText(LOCTEXT("WorldPartitionEditorCellSize_ToolTip", "Set the world partition editor cell size, will take effect on the next world reload."))
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-		]
-		.ValueContent()
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(SNumericEntryBox<uint32>)
-				.AllowSpin(false)
-				.MinSliderValue(100)
-				.MaxSliderValue(100000)
-				.OnValueChanged(this, &FWorldPartitionDetails::HandleWorldPartitionEditorCellSizeChanged)
-				.Value(this, &FWorldPartitionDetails::HandleWorldPartitionEditorCellSizeValue)
-			]
-		];		
 }
 
 void FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged(ECheckBoxState CheckState)
@@ -111,16 +87,6 @@ void FWorldPartitionDetails::HandleWorldPartitionEnableStreamingChanged(ECheckBo
 			WorldPartition->SetEnableStreaming(false);
 		}
 	}
-}
-
-void FWorldPartitionDetails::HandleWorldPartitionEditorCellSizeChanged(uint32 NewValue)
-{
-	WorldPartition->SetEditorWantedCellSize(NewValue);
-}
-
-TOptional<uint32> FWorldPartitionDetails::HandleWorldPartitionEditorCellSizeValue() const
-{
-	return WorldPartition->GetWantedEditorCellSize();
 }
 
 #undef LOCTEXT_NAMESPACE

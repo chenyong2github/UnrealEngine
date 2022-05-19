@@ -186,10 +186,6 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 public:
 	virtual ~UWorldPartitionEditorSpatialHash() {}
 
-	// UObject interface begin
-	virtual void PostLoad() override;
-	// UObject interface end
-
 	// UWorldPartitionEditorHash interface begin
 	virtual void Initialize() override;
 	virtual void SetDefaultValues() override;
@@ -201,9 +197,6 @@ public:
 	virtual void UnhashActor(FWorldPartitionHandle& InActorHandle) override;
 
 	virtual int32 ForEachIntersectingActor(const FBox& Box, TFunctionRef<void(FWorldPartitionActorDesc*)> InOperation, bool bIncludeSpatiallyLoadedActors = true, bool bIncludeNonSpatiallyLoadedActors = true) override;
-
-	virtual uint32 GetWantedEditorCellSize() const override;
-	virtual void SetEditorWantedCellSize(uint32 InCellSize) override;
 	// UWorldPartitionEditorHash interface end
 #endif
 
@@ -214,9 +207,6 @@ private:
 
 	UPROPERTY(Config)
 	int32 CellSize;
-
-	UPROPERTY()
-	int32 WantedCellSize;
 
 	// Dynamic sparse octree structure
 	typedef TTuple<FCellNode, TUniquePtr<FCell>> FCellNodeElement;

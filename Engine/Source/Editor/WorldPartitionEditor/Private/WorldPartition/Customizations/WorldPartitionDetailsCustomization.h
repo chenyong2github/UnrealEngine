@@ -28,11 +28,5 @@ private:
 	// Callback for changes in the world partition enable streaming.
 	void HandleWorldPartitionEnableStreamingChanged(ECheckBoxState CheckState);
 
-	// Callback for changes in the world partition editor cell size.
-	void HandleWorldPartitionEditorCellSizeChanged(uint32 NewValue);
-
-	// Callback for getting the world partition editor cell size.
-	TOptional<uint32> HandleWorldPartitionEditorCellSizeValue() const;
-
 	TWeakObjectPtr<UWorldPartition> WorldPartition;
 };

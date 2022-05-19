@@ -348,28 +348,6 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCell(const FBox& Box,
 
 	return NumIntersecting;
 }
-
-uint32 UWorldPartitionEditorSpatialHash::GetWantedEditorCellSize() const
-{
-	return WantedCellSize ? WantedCellSize : CellSize;
-}
-
-void UWorldPartitionEditorSpatialHash::SetEditorWantedCellSize(uint32 InCellSize)
-{
-	Modify();
-	WantedCellSize = InCellSize;
-}
-
-void UWorldPartitionEditorSpatialHash::PostLoad()
-{
-	Super::PostLoad();
-
-	if (WantedCellSize && (CellSize != WantedCellSize))
-	{
-		CellSize = WantedCellSize;
-		WantedCellSize = 0;
-	}
-}
 #endif
 
 #undef LOCTEXT_NAMESPACE
