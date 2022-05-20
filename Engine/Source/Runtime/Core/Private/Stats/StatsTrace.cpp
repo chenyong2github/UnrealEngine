@@ -3,6 +3,7 @@
 #include "ProfilingDebugging/MiscTrace.h"
 #include "Templates/Atomic.h"
 #include "Misc/CString.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
 #include "Trace/Trace.inl"
@@ -67,6 +68,7 @@ thread_local FStatsTraceInternal::FThreadState* FStatsTraceInternal::ThreadLocal
 
 FStatsTraceInternal::FThreadState* FStatsTraceInternal::InitThreadState()
 {
+	LLM_SCOPE_BYNAME(TEXT("Trace/Stats"));
 	ThreadLocalThreadState = new FThreadState();
 	ThreadLocalThreadState->BufferSize = 0;
 	ThreadLocalThreadState->LastCycle = 0;
@@ -197,4 +199,4 @@ void FStatsTrace::Set(const FName& Stat, double Value)
 	}
 }
 
-#endif
+#endif // STATSTRACE_ENABLED

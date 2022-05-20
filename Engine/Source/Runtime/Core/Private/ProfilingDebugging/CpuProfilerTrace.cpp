@@ -171,6 +171,7 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const ANSICHAR* Name, const ANSI
 	uint32 SpecId = ThreadBuffer->DynamicAnsiScopeNamesMap.FindRef(Name);
 	if (!SpecId)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Trace/CpuProfiler"));
 		int32 NameSize = strlen(Name) + 1;
 		ANSICHAR* NameCopy = reinterpret_cast<ANSICHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(ANSICHAR)));
 		FMemory::Memmove(NameCopy, Name, NameSize);
@@ -186,6 +187,7 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const TCHAR* Name, const ANSICHA
 	uint32 SpecId = ThreadBuffer->DynamicTCharScopeNamesMap.FindRef(Name);
 	if (!SpecId)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Trace/CpuProfiler"));
 		int32 NameSize = (FCString::Strlen(Name) + 1) * sizeof(TCHAR);
 		TCHAR* NameCopy = reinterpret_cast<TCHAR*>(ThreadBuffer->DynamicScopeNamesMemory.Alloc(NameSize, alignof(TCHAR)));
 		FMemory::Memmove(NameCopy, Name, NameSize);
@@ -201,6 +203,7 @@ void FCpuProfilerTrace::OutputBeginDynamicEvent(const FName& Name, const ANSICHA
 	uint32 SpecId = ThreadBuffer->DynamicFNameScopeNamesMap.FindRef(Name.GetComparisonIndex());
 	if (!SpecId)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Trace/CpuProfiler"));
 		const FNameEntry* NameEntry = Name.GetDisplayNameEntry();
 		if (NameEntry->IsWide())
 		{
