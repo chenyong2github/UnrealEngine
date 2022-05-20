@@ -33,10 +33,9 @@
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Materials/Material.h"
 #include "EditorFontGlyphs.h"
-#include "Experimental/EditorInteractiveToolsFramework/Public/EdModeInteractiveToolsContext.h"
+#include "EdModeInteractiveToolsContext.h"
 #include "ContextObjectStore.h"
 #include "IPersonaEditMode.h"
-#include "PersonaContext.h"
 
 #include "SkeletalMeshTypes.h"
 #include "IPersonaToolkit.h"
