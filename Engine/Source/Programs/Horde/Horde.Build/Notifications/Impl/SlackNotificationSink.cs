@@ -228,6 +228,7 @@ namespace Horde.Build.Notifications.Impl
 		readonly IMongoCollection<MessageStateDocument> _messageStates;
 		readonly IMongoCollection<SlackUser> _slackUsers;
 		readonly HashSet<string>? _allowUsers;
+		readonly IExternalIssueService _externalIssueService;
 		readonly ILogger _logger;
 
 		/// <summary>
@@ -238,13 +239,14 @@ namespace Horde.Build.Notifications.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public SlackNotificationSink(MongoService mongoService, IIssueService issueService, IUserCollection userCollection, ILogFileService logFileService, StreamService streamService, ConfigCollection configCollection, IWebHostEnvironment environment, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
+		public SlackNotificationSink(MongoService mongoService, IIssueService issueService, IUserCollection userCollection, ILogFileService logFileService, StreamService streamService, ConfigCollection configCollection, IExternalIssueService externalIssueService, IWebHostEnvironment environment, IOptions<ServerSettings> settings, ILogger<SlackNotificationSink> logger)
 		{
 			_issueService = issueService;
 			_userCollection = userCollection;
 			_logFileService = logFileService;
 			_streamService = streamService;
 			_configCollection = configCollection;
+			_externalIssueService = externalIssueService;
 			_environment = environment;
 			_settings = settings.Value;
 			_messageStates = mongoService.Database.GetCollection<MessageStateDocument>("Slack");
@@ -839,17 +841,28 @@ namespace Horde.Build.Notifications.Impl
 				if (issue.ResolvedAt != null && issue.FixChange != null)
 				{
 					string fixedEventId = $"issue_{issue.Id}_fixed_{issue.ResolvedAt.Value}";
+					string fixedMessage = $"Marked as fixed in {FormatChange(issue.FixChange.Value)}";
+					await PostSingleMessageToThreadAsync(triageChannel, state.Ts, fixedEventId, fixedMessage);
+				}
 
-					(MessageStateDocument fixedState, bool fixedIsNew) = await AddOrUpdateMessageStateAsync(triageChannel, eventId, null, "");
-					if (fixedIsNew)
-					{
-						string fixedMessage = $"Marked as fixed in {FormatChange(issue.FixChange.Value)}";
-						string? fixedTs = await SendMessageToThread(triageChannel, state.Ts, fixedMessage);
-						if (fixedTs != null)
-						{
-							await SetMessageTimestampAsync(fixedState.Id, triageChannel, fixedTs);
-						}
-					}
+				if(issue.ExternalIssueKey != null)
+				{
+					string extIssueEventId = $"issue_{issue.Id}_ext_{issue.ExternalIssueKey}";
+					string extIssueMessage = $"Linked to issue {FormatExternalIssue(issue.ExternalIssueKey)}";
+					await PostSingleMessageToThreadAsync(triageChannel, state.Ts, extIssueEventId, extIssueMessage);
+				}
+			}
+		}
+
+		async Task PostSingleMessageToThreadAsync(string channel, string threadTs, string eventId, string message)
+		{
+			(MessageStateDocument state, bool isNew) = await AddOrUpdateMessageStateAsync(channel, eventId, null, "");
+			if (isNew)
+			{
+				string? ts = await SendMessageToThread(channel, threadTs, message);
+				if (ts != null)
+				{
+					await SetMessageTimestampAsync(state.Id, channel, ts);
 				}
 			}
 		}
@@ -1069,6 +1082,19 @@ namespace Horde.Build.Notifications.Impl
 		}
 
 		static string FormatChange(int change) => $"<ugs://change?number={change}|CL {change}>";
+
+		string FormatExternalIssue(string key)
+		{
+			string? url = _externalIssueService.GetIssueUrl(key);
+			if (url == null)
+			{
+				return key;
+			}
+			else
+			{
+				return $"<{_externalIssueService.GetIssueUrl(key)}|{key}>";
+			}
+		}
 
 		async Task<string> FormatMentionAsync(UserId userId, bool allowMentions)
 		{

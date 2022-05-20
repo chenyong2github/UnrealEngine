@@ -49,6 +49,13 @@ namespace Horde.Build.Services
 	public interface IExternalIssueService : IHostedService
 	{
 		/// <summary>
+		/// Gets the URL for an issue from a key
+		/// </summary>
+		/// <param name="key">Key for the issue</param>
+		/// <returns>Url to the issue</returns>
+		string? GetIssueUrl(string key);
+
+		/// <summary>
 		/// Get issues associated with provided keys
 		/// </summary>
 		/// <param name="keys"></param>
@@ -83,6 +90,12 @@ namespace Horde.Build.Services
 	/// </summary>
 	public class DefaultExternalIssueService : IExternalIssueService
 	{
+		/// <inheritdoc/>
+		public string? GetIssueUrl(string key)
+		{
+			return null;
+		}
+
 		/// <inheritdoc/>
 		public Task<List<IExternalIssue>> GetIssuesAsync(string[] keys)
 		{

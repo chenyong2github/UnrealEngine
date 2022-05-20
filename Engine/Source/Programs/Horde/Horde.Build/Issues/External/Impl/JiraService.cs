@@ -167,13 +167,15 @@ namespace Horde.Build.Services
 		/// <inheritdoc/>
 		public Task StopAsync(CancellationToken cancellationToken) => _ticker.StopAsync();
 
-
 		/// <inheritdoc/>
 		public void Dispose()
 		{
 			_ticker.Dispose();
 			_client.Dispose();
 		}
+
+		/// <inheritdoc/>
+		public string? GetIssueUrl(string key) => $"{_jiraUrl}browse/{key}";
 
 		public async Task<List<IExternalIssueProject>> GetProjects(IStream stream)
 		{
