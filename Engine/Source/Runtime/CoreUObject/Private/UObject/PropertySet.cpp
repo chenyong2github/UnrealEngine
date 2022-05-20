@@ -136,7 +136,7 @@ namespace UESetProperty_Private
 		for (;;)
 		{
 			const uint8* ElementA = SetHelperA.GetElementPtr(IndexA);
-			if (!AnyEqual(SetHelperA, FirstIndexA, FirstNum - Num, ElementA, PortFlags) && !RangesContainSameAmountsOfVal(SetHelperA, IndexA, SetHelperB, IndexB, Num, ElementA, PortFlags))
+			if (!AnyEqual(SetHelperA, FirstIndexA, FirstNum - Num, ElementA, PortFlags) && !RangesContainSameAmountsOfVal(SetHelperA, FirstIndexA, SetHelperB, FirstIndexB, FirstNum, ElementA, PortFlags))
 			{
 				return false;
 			}
@@ -147,15 +147,12 @@ namespace UESetProperty_Private
 				return true;
 			}
 
+			++IndexA;
 			while (!SetHelperA.IsValidIndex(IndexA))
 			{
 				++IndexA;
 			}
 
-			while (!SetHelperB.IsValidIndex(IndexB))
-			{
-				++IndexB;
-			}
 		}
 	}
 }

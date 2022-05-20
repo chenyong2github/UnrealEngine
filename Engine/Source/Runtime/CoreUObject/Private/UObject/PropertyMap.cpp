@@ -154,7 +154,7 @@ namespace UEMapProperty_Private
 		for (;;)
 		{
 			const uint8* PairA = MapHelperA.GetPairPtr(IndexA);
-			if (!AnyEqual(MapHelperA, FirstIndexA, FirstNum - Num, PairA, PortFlags) && !RangesContainSameAmountsOfVal(MapHelperA, IndexA, MapHelperB, IndexB, Num, PairA, PortFlags))
+			if (!AnyEqual(MapHelperA, FirstIndexA, FirstNum - Num, PairA, PortFlags) && !RangesContainSameAmountsOfVal(MapHelperA, FirstIndexA, MapHelperB, FirstIndexB, FirstNum, PairA, PortFlags))
 			{
 				return false;
 			}
@@ -165,14 +165,10 @@ namespace UEMapProperty_Private
 				return true;
 			}
 
+			++IndexA;
 			while (!MapHelperA.IsValidIndex(IndexA))
 			{
 				++IndexA;
-			}
-
-			while (!MapHelperB.IsValidIndex(IndexB))
-			{
-				++IndexB;
 			}
 		}
 	}
