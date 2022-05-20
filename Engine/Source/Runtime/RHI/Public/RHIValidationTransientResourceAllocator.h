@@ -36,7 +36,7 @@ private:
 			Buffer,
 		};
 
-		const TCHAR* DebugName = nullptr;
+		FString DebugName;
 		EType ResourceType = EType::Texture;
 
 		struct FTexture
