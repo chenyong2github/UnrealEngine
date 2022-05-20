@@ -71,7 +71,7 @@ namespace
 		Params.Size.X = SrcRect.Width();
 		Params.Size.Y = SrcRect.Height();
 
-		CopyTextureWithTransitions(RHICmdList, SrcTexture, DstTexture, {});
+		TransitionAndCopyTexture(RHICmdList, SrcTexture, DstTexture, {});
 	}
 
 	static void ResampleCopyTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FIntRect* SrcTextureRect, const FIntRect* DstTextureRect)

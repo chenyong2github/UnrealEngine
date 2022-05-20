@@ -799,7 +799,7 @@ inline void ClearRenderTarget(FRHICommandList& RHICmdList, FRHITexture* Texture,
 	RHICmdList.EndRenderPass();
 }
 
-inline void CopyTextureWithTransitions(FRHICommandListImmediate& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FRHICopyTextureInfo& Info)
+inline void TransitionAndCopyTexture(FRHICommandList& RHICmdList, FRHITexture* SrcTexture, FRHITexture* DstTexture, const FRHICopyTextureInfo& Info)
 {
 	check(SrcTexture && DstTexture);
 	check(SrcTexture->GetNumSamples() == DstTexture->GetNumSamples());

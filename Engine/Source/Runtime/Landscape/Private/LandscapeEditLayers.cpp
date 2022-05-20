@@ -3269,7 +3269,7 @@ void ALandscape::PrintLayersDebugRT(const FString& InContext, UTextureRenderTarg
 		[RenderTargetResource](FRHICommandListImmediate& RHICmdList) mutable
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(LandscapeLayers_RT_DebugResolve);
-		CopyTextureWithTransitions(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
+		TransitionAndCopyTexture(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
 	});
 
 	{

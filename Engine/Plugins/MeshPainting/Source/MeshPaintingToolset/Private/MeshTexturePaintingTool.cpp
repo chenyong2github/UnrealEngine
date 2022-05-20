@@ -1001,7 +1001,7 @@ void UMeshTexturePaintingTool::PaintTexture(FMeshPaintParameters& InParams, TArr
 	ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand1)(
 		[BrushRenderTargetResource](FRHICommandListImmediate& RHICmdList)
 	{
-		CopyTextureWithTransitions(RHICmdList, BrushRenderTargetResource->GetRenderTargetTexture(), BrushRenderTargetResource->TextureRHI, {});
+		TransitionAndCopyTexture(RHICmdList, BrushRenderTargetResource->GetRenderTargetTexture(), BrushRenderTargetResource->TextureRHI, {});
 	});
 
 	if (bEnableSeamPainting)
@@ -1011,7 +1011,7 @@ void UMeshTexturePaintingTool::PaintTexture(FMeshPaintParameters& InParams, TArr
 		ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand2)(
 			[BrushMaskRenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
-			CopyTextureWithTransitions(RHICmdList, BrushMaskRenderTargetResource->GetRenderTargetTexture(), BrushMaskRenderTargetResource->TextureRHI, {});
+			TransitionAndCopyTexture(RHICmdList, BrushMaskRenderTargetResource->GetRenderTargetTexture(), BrushMaskRenderTargetResource->TextureRHI, {});
 		});
 	}
 
@@ -1105,7 +1105,7 @@ void UMeshTexturePaintingTool::PaintTexture(FMeshPaintParameters& InParams, TArr
 		ENQUEUE_RENDER_COMMAND(UpdateMeshPaintRTCommand3)(
 			[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
-			CopyTextureWithTransitions(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
+			TransitionAndCopyTexture(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
 		});
 	}
 	FlushRenderingCommands();

@@ -7541,7 +7541,7 @@ bool ALandscapeProxy::LandscapeExportHeightmapToRenderTarget(UTextureRenderTarge
 	ENQUEUE_RENDER_COMMAND(DrawHeightmapRTCommand)(
 		[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 		{
-			CopyTextureWithTransitions(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
+			TransitionAndCopyTexture(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
 		});
 
 

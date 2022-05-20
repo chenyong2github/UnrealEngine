@@ -558,7 +558,7 @@ bool FDisplayClusterViewportManagerProxy::ResolveFrameTargetToBackBuffer_RenderT
 			CopyInfo.DestPosition.X = DstRect.Min.X;
 			CopyInfo.DestPosition.Y = DstRect.Min.Y;
 
-			CopyTextureWithTransitions(RHICmdList, FrameTexture, DestTexture, CopyInfo);
+			TransitionAndCopyTexture(RHICmdList, FrameTexture, DestTexture, CopyInfo);
 
 			return true;
 		}

@@ -174,7 +174,7 @@ void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderT
 				EDRF_Default);
 		}
 		RHICmdList.EndRenderPass();
-		CopyTextureWithTransitions(RHICmdList, DestRenderTarget, ReadbackTexture, {});
+		TransitionAndCopyTexture(RHICmdList, DestRenderTarget, ReadbackTexture, {});
 
 		if (RenderToReadback)
 		{

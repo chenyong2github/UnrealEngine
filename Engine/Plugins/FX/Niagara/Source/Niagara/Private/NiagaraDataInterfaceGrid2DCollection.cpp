@@ -2050,25 +2050,6 @@ void UNiagaraDataInterfaceGrid2DCollection::FindAttributes(TArray<FNiagaraVariab
 	OutNumAttribChannelsFound = TotalAttributes - NumAttributes;
 }
 
-static void TransitionAndCopyTexture(FRHICommandList& RHICmdList, FRHITexture* Source, FRHITexture* Destination, const FRHICopyTextureInfo& CopyInfo)
-{
-	FRHITransitionInfo TransitionsBefore[] = {
-		FRHITransitionInfo(Source, ERHIAccess::SRVMask, ERHIAccess::CopySrc),
-		FRHITransitionInfo(Destination, ERHIAccess::SRVMask, ERHIAccess::CopyDest)
-	};
-
-	RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
-
-	RHICmdList.CopyTexture(Source, Destination, CopyInfo);
-
-	FRHITransitionInfo TransitionsAfter[] = {
-		FRHITransitionInfo(Source, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
-		FRHITransitionInfo(Destination, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
-	};
-
-	RHICmdList.Transition(MakeArrayView(TransitionsAfter, UE_ARRAY_COUNT(TransitionsAfter)));
-}
-
 void UNiagaraDataInterfaceGrid2DCollection::GetCanvasVariables(TArray<FNiagaraVariableBase>& OutVariables) const
 {
 	TArray<uint32> VariableOffsets;

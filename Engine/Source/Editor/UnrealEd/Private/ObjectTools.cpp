@@ -4790,7 +4790,7 @@ namespace ThumbnailTools
 				ENQUEUE_RENDER_COMMAND(UpdateThumbnailRTCommand)(
 					[RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 					{
-						CopyTextureWithTransitions(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
+						TransitionAndCopyTexture(RHICmdList, RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, {});
 					});
 
 				if(OutThumbnail)

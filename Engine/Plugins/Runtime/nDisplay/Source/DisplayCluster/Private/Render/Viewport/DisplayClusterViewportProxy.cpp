@@ -592,7 +592,7 @@ void ImplResolveResource(FRHICommandListImmediate& RHICmdList, FRHITexture2D* In
 		CopyInfo.DestPosition.X = OutputRect.Min.X;
 		CopyInfo.DestPosition.Y = OutputRect.Min.Y;
 
-		CopyTextureWithTransitions(RHICmdList, InputResource, OutputResource, CopyInfo);
+		TransitionAndCopyTexture(RHICmdList, InputResource, OutputResource, CopyInfo);
 	}
 	else
 	{

@@ -205,7 +205,7 @@ static void CopyDirectTextureImpl_RenderThread(FRHICommandListImmediate& RHICmdL
 		Params.DestPosition.Y = DstRect.Min.Y;
 	}
 
-	CopyTextureWithTransitions(RHICmdList, SrcTexture, DstTexture, {});
+	TransitionAndCopyTexture(RHICmdList, SrcTexture, DstTexture, {});
 }
 
 bool FD3D12CrossGPUHeap::SendCrossGPUResource(FRHICommandListImmediate& RHICmdList, const FString& ResourceID, FRHITexture2D* SrcResource, const FIntRect* SrcTextureRect)

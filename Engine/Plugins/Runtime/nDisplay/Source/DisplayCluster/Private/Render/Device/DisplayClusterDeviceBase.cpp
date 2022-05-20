@@ -480,7 +480,7 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 			CopyInfo.Size.X = FMath::Min(SrcSize.X, DstSize.X);
 			CopyInfo.Size.Y = FMath::Min(SrcSize.Y, DstSize.Y);
 
-			CopyTextureWithTransitions(RHICmdList, SrcTexture, BackBuffer, CopyInfo);
+			TransitionAndCopyTexture(RHICmdList, SrcTexture, BackBuffer, CopyInfo);
 		}
 
 		if (RenderFrameMode == EDisplayClusterRenderFrameMode::Stereo && ViewportManagerProxyPtr)

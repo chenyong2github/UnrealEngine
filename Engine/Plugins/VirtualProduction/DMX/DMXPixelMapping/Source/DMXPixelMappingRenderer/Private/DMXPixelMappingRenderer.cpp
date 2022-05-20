@@ -214,7 +214,7 @@ void FDMXPixelMappingRenderer::DownsampleRender(
 
 			// Copy texture from GPU to CPU
 			{
-				CopyTextureWithTransitions(RHICmdList, ResolveRenderTarget, RenderTargetRef, {});
+				TransitionAndCopyTexture(RHICmdList, ResolveRenderTarget, RenderTargetRef, {});
 
 				// Read the contents of a texture to an output CPU buffer
 				TArray<FLinearColor> ColorArray;

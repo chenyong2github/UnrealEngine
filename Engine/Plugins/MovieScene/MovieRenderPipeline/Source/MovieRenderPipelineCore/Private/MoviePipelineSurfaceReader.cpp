@@ -162,7 +162,7 @@ void FMoviePipelineSurfaceReader::ResolveSampleToReadbackTexture_RenderThread(co
 	}
 	RHICmdList.EndRenderPass();
 
-	CopyTextureWithTransitions(RHICmdList, ResampleTexturePooledRenderTarget->GetRHI(), ReadbackTexture, {});
+	TransitionAndCopyTexture(RHICmdList, ResampleTexturePooledRenderTarget->GetRHI(), ReadbackTexture, {});
 }
 
 void FMoviePipelineSurfaceReader::CopyReadbackTexture_RenderThread(TUniqueFunction<void(TUniquePtr<FImagePixelData>&&)>&& InFunctionCallback, TSharedPtr<FImagePixelDataPayload, ESPMode::ThreadSafe> InFramePayload)

@@ -689,7 +689,7 @@ void FGameplayMediaEncoder::CopyTexture(const FTexture2DRHIRef& SourceTexture, F
 
 	if(SourceTexture->GetFormat() == DestinationTexture->GetFormat() && SourceTexture->GetSizeXY() == DestinationTexture->GetSizeXY())
 	{
-		CopyTextureWithTransitions(RHICmdList, SourceTexture, DestinationTexture, {});
+		TransitionAndCopyTexture(RHICmdList, SourceTexture, DestinationTexture, {});
 	}
 	else // Texture format mismatch, use a shader to do the copy.
 	{
