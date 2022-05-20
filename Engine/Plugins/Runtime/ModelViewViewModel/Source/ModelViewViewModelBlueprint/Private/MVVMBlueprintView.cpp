@@ -155,6 +155,19 @@ void UMVVMBlueprintView::PostEditChangeProperty(FPropertyChangedEvent& PropertyC
 	}
 }
 
+void UMVVMBlueprintView::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChainEvent)
+{
+	Super::PostEditChangeChainProperty(PropertyChainEvent);
+	if (PropertyChainEvent.PropertyChain.Contains(UMVVMBlueprintView::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMVVMBlueprintView, Bindings))))
+	{
+		OnBindingsUpdated.Broadcast();
+	}
+	if (PropertyChainEvent.PropertyChain.Contains(UMVVMBlueprintView::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UMVVMBlueprintView, AvailableViewModels))))
+	{
+		OnViewModelsUpdated.Broadcast();
+	}
+}
+
 void UMVVMBlueprintView::WidgetRenamed(FName OldObjectName, FName NewObjectName)
 {
 	bool bRenamed = false;

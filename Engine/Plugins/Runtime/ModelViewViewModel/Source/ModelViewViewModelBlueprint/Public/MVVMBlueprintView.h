@@ -63,6 +63,8 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChainEvent) override;
+
 	void WidgetRenamed(FName OldObjectName, FName NewObjectName);
 #endif
 
