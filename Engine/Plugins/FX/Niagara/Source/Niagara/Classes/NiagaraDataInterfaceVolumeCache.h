@@ -26,7 +26,7 @@ class NIAGARA_API UNiagaraDataInterfaceVolumeCache : public UNiagaraDataInterfac
 public:
 		
 	UPROPERTY(EditAnywhere, Category = "File")
-	UVolumeCache *VolumeCache;
+	TObjectPtr<UVolumeCache> VolumeCache;
 
 	virtual void PostInitProperties() override;
 
