@@ -816,7 +816,10 @@ EVisibility SGraphEditorImpl::PIENotification( ) const
 	
 SGraphEditorImpl::~SGraphEditorImpl()
 {
-	UnRegisterActiveTimer(FocusEditorTimer.Pin().ToSharedRef());
+	if (FocusEditorTimer.IsValid())
+	{
+		UnRegisterActiveTimer(FocusEditorTimer.Pin().ToSharedRef());
+	}
 }
 
 void SGraphEditorImpl::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
