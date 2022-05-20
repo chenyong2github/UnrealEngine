@@ -192,7 +192,10 @@ void FMotionTraiMovieScenelKeyTool::BuildKeys()
 	TArray<FFrameNumber> KeyTimes = SelectedKeyTimes();
 	Keys.Reset();
 	CachedSelection.Reset();
-
+	if (OwningTrail->GetChannelOffset() == INDEX_NONE)
+	{
+		return;
+	}
 	UMovieSceneSection* AbsoluteTransformSection = OwningTrail->GetSection();
 	int32 MaxChannel = (int32)ETransformChannel::TranslateZ;//only do the first three channels, 0,1,2 which are position.
 	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = AbsoluteTransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
@@ -261,6 +264,10 @@ TArray<FKeyHandle> FMotionTraiMovieScenelKeyTool::GetSelectedKeyHandles(FMovieSc
 
 void FMotionTraiMovieScenelKeyTool::TranslateSelectedKeys(bool bRight)
 {
+	if (OwningTrail->GetChannelOffset() == INDEX_NONE)
+	{
+		return;
+	}
 	UMovieSceneSection* Section = OwningTrail->GetSection();
 	if (CachedSelection.Num() > 0 && Section && Section->TryModify())
 	{
@@ -340,6 +347,10 @@ void FMotionTraiMovieScenelKeyTool::TranslateSelectedKeys(bool bRight)
 
 void FMotionTraiMovieScenelKeyTool::DeleteSelectedKeys()
 {
+	if (OwningTrail->GetChannelOffset() == INDEX_NONE)
+	{
+		return;
+	}
 	UMovieSceneSection* Section = OwningTrail->GetSection();
 	if (CachedSelection.Num() > 0 && Section && Section->TryModify())
 	{
@@ -506,6 +517,10 @@ TArray<FFrameNumber> FMotionTraiMovieScenelKeyTool::GetTimesFromModifiedTimes(co
 
 bool FMotionTraiMovieScenelKeyTool::ShouldRebuildKeys()
 {
+	if (OwningTrail->GetChannelOffset() == INDEX_NONE)
+	{
+		return false;
+	}
 	TMap<FFrameNumber, TSet<ETransformChannel>> KeyTimes;
 	int32 MaxChannel = (int32)ETransformChannel::TranslateZ;///only do the first three channels, 0,1,2 which are position.
 	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = OwningTrail->GetSection()->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
@@ -605,6 +620,10 @@ FTrailKeyInfo::FTrailKeyInfo(const FFrameNumber InFrameNumber, UMovieSceneSectio
 , bDirty(true)
 , OwningTrail(InOwningTrail)
 {
+	if (OwningTrail->GetChannelOffset() == INDEX_NONE)
+	{
+		return;
+	}
 	int32 MaxChannel = (int32)ETransformChannel::TranslateZ;///only do the first three channels, 0,1,2 which are position.
 	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();

@@ -381,7 +381,7 @@ void UMovieSceneControlRigParameterTrack::ReconstructControlRig()
 					{
 						CRSection->SpaceChannelAdded().AddUObject(this, &UMovieSceneControlRigParameterTrack::HandleOnSpaceAdded);
 					}
-					CRSection->RecreateWithThisControlRig(ControlRig, false);
+					CRSection->RecreateWithThisControlRig(ControlRig, CRSection->GetBlendType() == EMovieSceneBlendType::Absolute);
 				}
 			}
 		}

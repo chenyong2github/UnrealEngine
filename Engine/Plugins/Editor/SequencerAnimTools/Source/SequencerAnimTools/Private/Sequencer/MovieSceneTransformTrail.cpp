@@ -721,9 +721,9 @@ int32 FMovieSceneControlRigTransformTrail::GetChannelOffset() const
 	if (CRParamSection)
 	{
 		FChannelMapInfo* pChannelIndex = CRParamSection->ControlChannelMap.Find(ControlName);
-		return pChannelIndex->ChannelIndex;;
+		return pChannelIndex ? pChannelIndex->ChannelIndex : INDEX_NONE;
 	}
-	return 0;
+	return INDEX_NONE;
 }
 
 bool FMovieSceneControlRigTransformTrail::ApplyDelta(const FVector& Pos, const FRotator& Rot, const FVector& WidgetLocation)
