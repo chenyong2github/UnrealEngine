@@ -132,6 +132,11 @@ namespace Horde.Build.Models
 		/// </summary>
 		public int? FixChange { get; }
 
+//		/// <summary>
+//		/// The first stream that encountered the error. The fix will be considered failed if an error after FixChange occurs in this stream. 
+//		/// </summary>
+//		public StreamId? OriginStreamId { get; }
+
 		/// <summary>
 		/// List of streams affected by this issue
 		/// </summary>
@@ -173,6 +178,11 @@ namespace Horde.Build.Models
 		/// The stream id
 		/// </summary>
 		StreamId StreamId { get; }
+
+		/// <summary>
+		/// Whether this stream is the merge origin for other streams
+		/// </summary>
+		bool? MergeOrigin { get; }
 
 		/// <summary>
 		/// Whether this stream contains the fix change

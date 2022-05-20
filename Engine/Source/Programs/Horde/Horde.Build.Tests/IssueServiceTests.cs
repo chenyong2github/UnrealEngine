@@ -1486,5 +1486,60 @@ namespace Horde.Build.Tests
 				}
 			}
 		}
+
+		//		static List<IIssueSpan> GetOriginSpans(List<IIssueSpan> spans)
+
+		static IIssueSpanSuspect MockSuspect(int change, int? originatingChange)
+		{
+			Mock<IIssueSpanSuspect> suspect = new Mock<IIssueSpanSuspect>(MockBehavior.Strict);
+			suspect.SetupGet(x => x.Change).Returns(change);
+			suspect.SetupGet(x => x.OriginatingChange).Returns(originatingChange);
+			return suspect.Object;
+		}
+
+		static IIssueSpan MockSpan(StreamId streamId, params IIssueSpanSuspect[] suspects)
+		{
+			Mock<IIssueSpan> span = new Mock<IIssueSpan>(MockBehavior.Strict);
+			span.SetupGet(x => x.StreamId).Returns(streamId);
+			span.SetupGet(x => x.Suspects).Returns(suspects);
+			return span.Object;
+		}
+
+		[TestMethod]
+		public void FindMergeOrigins()
+		{
+			{
+				List<IIssueSpan> spans = new List<IIssueSpan>();
+				spans.Add(MockSpan(new StreamId("ue5-main"), MockSuspect(201, 1), MockSuspect(202, 2)));
+				spans.Add(MockSpan(new StreamId("ue5-release-staging"), MockSuspect(101, 1), MockSuspect(102, 2)));
+				spans.Add(MockSpan(new StreamId("ue5-release"), MockSuspect(1, null), MockSuspect(2, null)));
+
+				List<IIssueSpan> results = Horde.Build.Services.Impl.IssueService.FindMergeOriginSpans(spans);
+				Assert.AreEqual(1, results.Count);
+				Assert.AreEqual(new StreamId("ue5-release"), results[0].StreamId);
+			}
+
+			{
+				List<IIssueSpan> spans = new List<IIssueSpan>();
+				spans.Add(MockSpan(new StreamId("ue5-main"), MockSuspect(201, null), MockSuspect(202, 2)));
+				spans.Add(MockSpan(new StreamId("ue5-release-staging"), MockSuspect(101, 1), MockSuspect(102, null)));
+				spans.Add(MockSpan(new StreamId("ue5-release"), MockSuspect(1, null), MockSuspect(2, null)));
+
+				List<IIssueSpan> results = Horde.Build.Services.Impl.IssueService.FindMergeOriginSpans(spans);
+				Assert.AreEqual(1, results.Count);
+				Assert.AreEqual(new StreamId("ue5-release"), results[0].StreamId);
+			}
+
+			{
+				List<IIssueSpan> spans = new List<IIssueSpan>();
+				spans.Add(MockSpan(new StreamId("ue5-release"), MockSuspect(1, null), MockSuspect(2, null)));
+				spans.Add(MockSpan(new StreamId("ue5-release-staging"), MockSuspect(101, 1), MockSuspect(102, null)));
+				spans.Add(MockSpan(new StreamId("ue5-main"), MockSuspect(201, null), MockSuspect(202, 2)));
+
+				List<IIssueSpan> results = Horde.Build.Services.Impl.IssueService.FindMergeOriginSpans(spans);
+				Assert.AreEqual(1, results.Count);
+				Assert.AreEqual(new StreamId("ue5-release"), results[0].StreamId);
+			}
+		}
 	}
 }

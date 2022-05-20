@@ -352,6 +352,9 @@ namespace Horde.Build.Collections
 		/// <inheritdoc cref="IIssueStream.StreamId"/>
 		public StreamId StreamId { get; set; }
 
+		/// <inheritdoc cref="IIssueStream.MergeOrigin"/>
+		public bool? MergeOrigin { get; set; }
+
 		/// <inheritdoc cref="IIssueStream.ContainsFix"/>
 		public bool? ContainsFix { get; set; }
 

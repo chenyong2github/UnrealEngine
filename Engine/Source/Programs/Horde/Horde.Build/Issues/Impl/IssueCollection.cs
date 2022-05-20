@@ -165,6 +165,7 @@ namespace Horde.Build.Collections.Impl
 		class IssueStream : IIssueStream
 		{
 			public StreamId StreamId { get; set; }
+			public bool? MergeOrigin { get; set; }
 			public bool? ContainsFix { get; set; }
 
 			public IssueStream()
@@ -174,6 +175,7 @@ namespace Horde.Build.Collections.Impl
 			public IssueStream(IIssueStream other)
 			{
 				StreamId = other.StreamId;
+				MergeOrigin = other.MergeOrigin;
 				ContainsFix = other.ContainsFix;
 			}
 		}

@@ -910,6 +910,58 @@ namespace Horde.Build.Services.Impl
 			return issue;
 		}
 
+		static void GetChangeMap(IIssueSpan span, Dictionary<int, int> originChangeToSuspectChange)
+		{
+			foreach (IIssueSpanSuspect suspect in span.Suspects)
+			{
+				originChangeToSuspectChange[suspect.OriginatingChange ?? suspect.Change] = suspect.Change;
+			}
+		}
+
+		static int CompareSpans(Dictionary<int, int> originChangeToSuspectChange, IIssueSpan span)
+		{
+			foreach (IIssueSpanSuspect suspect in span.Suspects)
+			{
+				int originChange = suspect.OriginatingChange ?? suspect.Change;
+				if (originChangeToSuspectChange.TryGetValue(originChange, out int suspectChange) && suspectChange != suspect.Change)
+				{
+					return suspectChange - suspect.Change;
+				}
+			}
+			return 0;
+		}
+
+		internal static List<IIssueSpan> FindMergeOriginSpans(List<IIssueSpan> spans)
+		{
+			// Determine the stream(s) highest up in the merge hierarchy, as determined by the minimum changelist number
+			// for any robomerged change.
+			List<IIssueSpan> originSpans = new List<IIssueSpan>();
+			if (spans.Count > 0)
+			{
+				originSpans.Add(spans[0]);
+
+				Dictionary<int, int> originChangeToSuspectChange = new Dictionary<int, int>();
+				GetChangeMap(spans[0], originChangeToSuspectChange);
+
+				for (int idx = 1; idx < spans.Count; idx++)
+				{
+					IIssueSpan span = spans[idx];
+					int comparison = CompareSpans(originChangeToSuspectChange, span);
+					if (comparison > 0)
+					{
+						originChangeToSuspectChange.Clear();
+						originSpans.Clear();
+					}
+					if (comparison >= 0)
+					{
+						GetChangeMap(span, originChangeToSuspectChange);
+						originSpans.Add(span);
+					}
+				}
+			}
+			return originSpans;
+		}
+
 		async Task<IIssue?> UpdateIssueDerivedDataAsync(IIssue issue)
 		{
 			Dictionary<(StreamId, int), bool> fixChangeCache = new Dictionary<(StreamId, int), bool>();
@@ -1035,6 +1087,17 @@ namespace Horde.Build.Services.Impl
 						{
 							newStream.ContainsFix = await ContainsFixChange(newStream.StreamId, issue.FixChange.Value, fixChangeCache);
 						}
+					}
+				}
+
+				// Find the stream where the error was introduced.
+				List<IIssueSpan> mergeOrigins = FindMergeOriginSpans(spans);
+				foreach (IIssueSpan mergeOrigin in mergeOrigins)
+				{
+					NewIssueStream? newStream = newStreams.FirstOrDefault(x => x.StreamId == mergeOrigin.StreamId);
+					if (newStream != null)
+					{
+						newStream.MergeOrigin = true;
 					}
 				}
 
