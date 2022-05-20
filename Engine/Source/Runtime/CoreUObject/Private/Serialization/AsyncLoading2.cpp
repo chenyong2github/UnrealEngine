@@ -6007,7 +6007,7 @@ void FAsyncPackage2::CreateUPackage(const FZenPackageSummary* PackageSummary, co
 				UPackage* FoundPackage = FindObjectFast<UPackage>(nullptr, Desc.UPackageName);
 				checkf(LinkerRoot == FoundPackage,
 					TEXT("LinkerRoot '%s' (%p) is different from FoundPackage '%s' (%p)"),
-					*LinkerRoot->GetName(), LinkerRoot, *FoundPackage->GetName(), FoundPackage);
+					*LinkerRoot->GetName(), LinkerRoot, FoundPackage ? *FoundPackage->GetName() : TEXT("null"), FoundPackage);
 			}
 #endif
 		}
