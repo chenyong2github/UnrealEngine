@@ -223,6 +223,11 @@ class FSequencerTrackFilter_AudioTracks : public FSequencerTrackFilter_ClassType
 
 	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override
 	{
+		if (InSequence && InSequence->IsTrackSupported(UMovieSceneAudioTrack::StaticClass()) == ETrackSupport::NotSupported)
+		{
+			return false;
+		}
+
 		static UClass* LevelSequenceClass = FindObject<UClass>(ANY_PACKAGE, TEXT("LevelSequence"), true);
 		static UClass* WidgetAnimationClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WidgetAnimation"), true);
 		return InSequence != nullptr &&
@@ -240,6 +245,11 @@ class FSequencerTrackFilter_EventTracks : public FSequencerTrackFilter_ClassType
 
 	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override
 	{
+		if (InSequence && InSequence->IsTrackSupported(UMovieSceneEventTrack::StaticClass()) == ETrackSupport::NotSupported)
+		{
+			return false;
+		}
+
 		static UClass* LevelSequenceClass = FindObject<UClass>(ANY_PACKAGE, TEXT("LevelSequence"), true);
 		static UClass* WidgetAnimationClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WidgetAnimation"), true);
 		return InSequence != nullptr &&

@@ -140,6 +140,11 @@ bool FGameplayCueTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) c
 
 bool FGameplayCueTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
 {
+	if (InSequence && InSequence->IsTrackSupported(UMovieSceneGameplayCueTrack::StaticClass()) == ETrackSupport::NotSupported)
+	{
+		return false;
+	}
+
 	return true;
 }
 
