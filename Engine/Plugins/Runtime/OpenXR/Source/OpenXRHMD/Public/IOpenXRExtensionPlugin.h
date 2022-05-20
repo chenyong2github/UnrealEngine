@@ -349,6 +349,10 @@ public:
 		return InNext;
 	}
 
+	virtual void OnDestroySession(XrSession InSession)
+	{
+	}
+
 	// OpenXRHMD::OnBeginRendering_GameThread
 	virtual void* OnWaitFrame(XrSession InSession, void* InNext)
 	{

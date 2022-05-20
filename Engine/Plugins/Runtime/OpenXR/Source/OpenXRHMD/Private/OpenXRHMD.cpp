@@ -1562,11 +1562,17 @@ void FOpenXRHMD::DestroySession()
 {
 	// FlushRenderingCommands must be called outside of SessionLock since some rendering threads will also lock this mutex.
 	FlushRenderingCommands();
+
 	FWriteScopeLock SessionLock(SessionHandleMutex);
 
 	if (Session != XR_NULL_HANDLE)
 	{
 		FWriteScopeLock DeviceLock(DeviceMutex);
+
+		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
+		{
+			Module->OnDestroySession(Session);
+		}
 
 		// We need to reset all swapchain references to ensure there are no attempts
 		// to destroy swapchain handles after the session is already destroyed.
