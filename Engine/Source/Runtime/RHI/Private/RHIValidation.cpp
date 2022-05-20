@@ -1763,7 +1763,7 @@ void FValidationTransientResourceAllocator::Release(FRHICommandListImmediate& RH
 				TEXT("Resources with Allocated Memory:\n"),
 				AllocatedResourceMap.Num());
 
-			for (const auto KeyValue : AllocatedResourceMap)
+			for (const auto& KeyValue : AllocatedResourceMap)
 			{
 				const FAllocatedResourceData& ResourceData = KeyValue.Value;
 
