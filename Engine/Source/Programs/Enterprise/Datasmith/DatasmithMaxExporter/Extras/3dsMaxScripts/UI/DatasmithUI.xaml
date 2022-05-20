@@ -131,6 +131,7 @@
             IsSplit="false"
             IsSynchronizedWithCurrentItem="true"
             IsToolTipEnabled="true"
+            LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
             ListImageSize="Standard"
             MaxscriptIndexCallback="Datasmith_ExportOptions_IncludeIndex()"
             MinWidth="0"
@@ -144,6 +145,7 @@
               Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
               IsCheckable="true"
               IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
               MinWidth="100"
               Name="Visible Objects"
               ShowImage="false"
@@ -228,6 +230,156 @@
               Text="Active Time Segment"
               UID="4097c080-33ee-430d-a47f-ab6e5c06c007" />
           </wpfcust:MaxRibbonSplitButton>
+        </ads:RibbonRowPanel>
+      </wpfcust:MaxRibbonPanelSource>
+    </wpfcust:MaxModelingRibbonPanel>
+    <wpfcust:MaxModelingRibbonPanel
+      CollapsedPanelImage="Icons/MissingImage_32.png"
+      FloatingGroup="0"
+      FloatingOrder="0"
+      UID="42ca9067-e3a4-4d3c-8d83-af9bb10b1124">
+      <wpfcust:MaxRibbonPanelSource
+        Title="Settings"
+        UID="cc748308-a562-4516-8c94-4b2dae7a3a8b">
+        <ads:RibbonRowPanel
+          AllowInToolBar="false"
+          Image="Icons/MissingImage_16.png"
+          IsToolTipEnabled="true"
+          LargeImage="Icons/MissingImage_32.png"
+          MinWidth="100"
+          ShowText="false"
+          UID="939d8499-112d-4b8a-8b95-375ca7f8e029">
+          <wpfcust:MaxRibbonLabel
+            AllowInToolBar="false"
+            IsToolTipEnabled="false"
+            MinWidth="0"
+            ResizeStyle="NoResize"
+            ShowText="true"
+            Text="Limit Texture Resolution"
+            UID="4519fb6c-d5d3-45ee-908a-6464f8639ba1" />
+          <ads:RibbonSeparator
+            AllowInToolBar="false"
+            Image="Icons/MissingImage_16.png"
+            IsToolTipEnabled="true"
+            LargeImage="Icons/MissingImage_32.png"
+            MinWidth="0"
+            ResizeStyle="NoResize"
+            ShowText="false"
+            UID="1c3c4b93-a99e-4246-ac1f-7173c87aec67" />
+          <wpfcust:MaxRibbonSplitButton
+            Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+            IsCheckable="false"
+            IsSplit="false"
+            IsSynchronizedWithCurrentItem="true"
+            IsToolTipEnabled="true"
+            LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+            ListImageSize="Standard"
+            MaxscriptIndexCallback="Datasmith_ExportOptions_TextureResolutionIndex()"
+            MinWidth="0"
+            ResizeStyle="HideText"
+            ShowImage="false"
+            ShowText="true"
+            UID="a721d8e7-992f-464a-b2b4-c080a4f39fd9">
+            <ads:RibbonCommandItem
+              AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_TextureResolution64, MacroCategory=Datasmith}"
+              Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              IsCheckable="true"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              MinWidth="100"
+              Name="64"
+              ShowImage="false"
+              ShowText="false"
+              Text="64"
+              UID="28d398da-505c-4f91-9cf3-14316cd2893b" />
+            <ads:RibbonCommandItem
+              AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_TextureResolution128, MacroCategory=Datasmith}"
+              Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              IsCheckable="true"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              MinWidth="100"
+              Name="128"
+              ShowImage="false"
+              ShowText="false"
+              Text="128"
+              UID="89a922df-7286-40b9-833e-c51419fe3c1d" />
+            <ads:RibbonCommandItem
+              AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_TextureResolution256, MacroCategory=Datasmith}"
+              Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              IsCheckable="true"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              MinWidth="100"
+              Name="256"
+              ShowImage="false"
+              ShowText="false"
+              Text="256"
+              UID="177f6116-6ee0-4b6f-8d06-72d73bcc89e4" />
+            <ads:RibbonCommandItem
+              AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_TextureResolution512, MacroCategory=Datasmith}"
+              Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              IsCheckable="true"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              MinWidth="100"
+              Name="512"
+              ShowImage="false"
+              ShowText="false"
+              Text="512"
+              UID="a5dd7f25-278a-4f8e-a9c2-7d73164df5f0" />
+            <ads:RibbonCommandItem
+              AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_TextureResolution1024, MacroCategory=Datasmith}"
+              Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              IsCheckable="true"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              MinWidth="100"
+              Name="1024"
+              ShowImage="false"
+              ShowText="false"
+              Text="1024"
+              UID="09fec31c-f9e9-4e55-b33c-f4fb2218a4a0" />
+            <ads:RibbonCommandItem
+              AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_TextureResolution2048, MacroCategory=Datasmith}"
+              Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              IsCheckable="true"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              MinWidth="100"
+              Name="2048"
+              ShowImage="false"
+              ShowText="false"
+              Text="2048"
+              UID="ef8585b8-1012-47a7-9af0-46371cf70df2" />
+            <ads:RibbonCommandItem
+              AllowInToolBar="false"
+              CommandHandler="{wpfcust:ActionItem MacroName=Datasmith_ExportOptions_TextureResolution4096, MacroCategory=Datasmith}"
+              Image="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              IsCheckable="true"
+              IsToolTipEnabled="true"
+              LargeImage="pack://application:,,,/AdWindows;component/Resources/Images/MissingImage.ico"
+              MinWidth="100"
+              Name="4096"
+              ShowImage="false"
+              ShowText="false"
+              Text="4096"
+              UID="c5c4c61f-7d64-4267-a387-cd6df2704161" />
+          </wpfcust:MaxRibbonSplitButton>
+          <ads:RibbonRowBreak
+            AllowInToolBar="false"
+            Image="Icons/MissingImage_16.png"
+            IsToolTipEnabled="true"
+            LargeImage="Icons/MissingImage_32.png"
+            MinWidth="100"
+            ShowText="false"
+            UID="189ae82b-5e0f-4d3b-aa93-81e928234b27" />
         </ads:RibbonRowPanel>
       </wpfcust:MaxRibbonPanelSource>
     </wpfcust:MaxModelingRibbonPanel>

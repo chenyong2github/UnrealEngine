@@ -59,6 +59,9 @@ public:
 	// Whether to output export statistics to listener/log
 	virtual void SetStatSync(bool) = 0;
 	virtual bool GetStatSync() = 0;
+
+	virtual void SetTextureResolution(int32 Bool) = 0;
+	virtual int32 GetTextureResolution() = 0;
 };
 
 //---- Main class for export/change tracking

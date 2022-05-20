@@ -293,14 +293,36 @@ Value* SetExportOption_##name##_cf(Value** arg_list, int count) \
 } \
 Primitive SetExportOption_##name##_pf(_M("Datasmith_SetExportOption_" #name), SetExportOption_##name##_cf);\
 
+#define DefinePersistentExportOptionInt(name) \
+Value* GetExportOption_##name##_cf(Value** arg_list, int count) \
+{ \
+	check_arg_count(GetExportOption_##name, 0, count); \
+ \
+	one_value_local(result); \
+	vl.result = Integer::intern(GetPersistentExportOptions().Get##name##()); \
+	return_value(vl.result); \
+} \
+Primitive GetExportOption_##name##_pf(_M("Datasmith_GetExportOption_" #name), GetExportOption_##name##_cf);\
+\
+Value* SetExportOption_##name##_cf(Value** arg_list, int count) \
+{ \
+	check_arg_count(SetExportOption_##name, 1, count); \
+	Value* pValue= arg_list[0]; \
+	GetPersistentExportOptions().Set##name##(pValue->to_int()); \
+	return &true_value; \
+} \
+Primitive SetExportOption_##name##_pf(_M("Datasmith_SetExportOption_" #name), SetExportOption_##name##_cf);\
+
 //////////////////////////////////////////
 DefinePersistentExportOption(SelectedOnly)
 DefinePersistentExportOption(AnimatedTransforms)
 
 DefinePersistentExportOption(StatSync)
+DefinePersistentExportOptionInt(TextureResolution)
 //////////////////////////////////////////
 
 #undef DefinePersistentExportOption
+#undef DefinePersistentExportOptionInt
 
 Value* GetDirectlinkCacheDirectory_cf(Value** arg_list, int count)
 {

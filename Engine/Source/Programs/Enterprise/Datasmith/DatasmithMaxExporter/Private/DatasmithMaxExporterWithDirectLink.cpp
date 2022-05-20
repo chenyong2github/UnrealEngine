@@ -548,11 +548,13 @@ public:
 
 struct FExportOptions
 {
-	// Default options for DirectLink change-tracking
 	bool bSelectedOnly = false;
 	bool bAnimatedTransforms = false;
 
 	bool bStatSync = false;
+	int32 TextureResolution = 4;
+
+	static const int32 TextureResolutionMax = 6; // 
 };
 
 // Global export options, stored in preferences
@@ -567,28 +569,8 @@ public:
 		}
 		GetBool(TEXT("SelectedOnly"), Options.bSelectedOnly);
 		GetBool(TEXT("AnimatedTransforms"), Options.bAnimatedTransforms);
+		GetInt(TEXT("TextureResolution"), Options.TextureResolution);
 		bLoaded = true;
-	}
-
-	virtual void SetSelectedOnly(bool bValue) override
-	{
-		Options.bSelectedOnly = bValue;
-		SetBool(TEXT("SelectedOnly"), bValue);
-	}
-	virtual bool GetSelectedOnly() override
-	{
-		return Options.bSelectedOnly;
-	}
-
-	virtual void SetAnimatedTransforms(bool bValue) override
-	{
-		Options.bAnimatedTransforms = bValue;
-		SetBool(TEXT("AnimatedTransforms"), bValue);
-	}
-
-	virtual bool GetAnimatedTransforms() override
-	{
-		return Options.bAnimatedTransforms;
 	}
 
 	void GetBool(const TCHAR* Name, bool& bValue)
@@ -612,10 +594,52 @@ public:
 		GConfig->Flush(false, ConfigPath);
 	}
 
+	void GetInt(const TCHAR* Name, int32& bValue)
+	{
+		if (!GConfig)
+		{
+			return;
+		}
+		FString ConfigPath = GetConfigPath();
+		GConfig->GetInt(TEXT("Export"), Name, bValue, ConfigPath);
+	}
+
+	void SetInt(const TCHAR* Name, int32 bValue)
+	{
+		if (!GConfig)
+		{
+			return;
+		}
+		FString ConfigPath = GetConfigPath();
+		GConfig->SetInt(TEXT("Export"), Name, bValue, ConfigPath);
+		GConfig->Flush(false, ConfigPath);
+	}
+
 	FString GetConfigPath()
 	{
 		FString PlugCfgPath = GetCOREInterface()->GetDir(APP_PLUGCFG_DIR);
 		return FPaths::Combine(PlugCfgPath, TEXT("UnrealDatasmithMax.ini"));
+	}
+
+	virtual void SetSelectedOnly(bool bValue) override
+	{
+		Options.bSelectedOnly = bValue;
+		SetBool(TEXT("SelectedOnly"), bValue);
+	}
+	virtual bool GetSelectedOnly() override
+	{
+		return Options.bSelectedOnly;
+	}
+
+	virtual void SetAnimatedTransforms(bool bValue) override
+	{
+		Options.bAnimatedTransforms = bValue;
+		SetBool(TEXT("AnimatedTransforms"), bValue);
+	}
+
+	virtual bool GetAnimatedTransforms() override
+	{
+		return Options.bAnimatedTransforms;
 	}
 
 	virtual void SetStatSync(bool bValue) override
@@ -629,6 +653,17 @@ public:
 		return Options.bStatSync;
 	}
 
+	virtual void SetTextureResolution(int32 Value) override
+	{
+		
+		Options.TextureResolution = FMath::Clamp(Value, 0, FExportOptions::TextureResolutionMax);
+		SetInt(TEXT("TextureResolution"), Value);
+	}
+
+	virtual int32 GetTextureResolution() override
+	{
+		return Options.TextureResolution;
+	}
 
 	FExportOptions Options;
 	bool bLoaded = false;
@@ -1167,6 +1202,7 @@ public:
 
 		CurrentSyncPoint.Time = GetCOREInterface()->GetTime();
 
+		// Changes present only when there are modified layers(changes checked manually), nodes(notified by Max) or materials(notified by Max with all changes in dependencies)
 		bool bChangeEncountered = false;
 
 		Stats.Reset();
@@ -1182,8 +1218,6 @@ public:
 			return false;	
 		}
 
-		// Changes present only when there are modified layers(changes checked manually), nodes(notified by Max) or materials(notified by Max with all changes in dependencies)
-		bChangeEncountered |= !MaterialsCollectionTracker.GetInvalidatedMaterials().IsEmpty();
 
 		{
 			PROGRESS_STAGE("Remove deleted nodes")
@@ -1373,6 +1407,21 @@ public:
 
 			InvalidatedNodeTrackers.Finish();
 		}
+
+		// 0 -> 64; 4 -> 1024; 6 -> 4096
+		int32 MaxBakedTextureSize = 1 << (Options.TextureResolution + 6);
+
+		// When requested max texture size changed  invalidate all materials(material update emits textures to bake)
+		if (MaxBakedTextureSize != FDatasmithExportOptions::MaxTextureSize)
+		{
+			for (TTuple<MtlBase*, FMaterialTrackerHandle> Material : MaterialsCollectionTracker.MaterialTrackers)
+			{
+				MaterialsCollectionTracker.InvalidateMaterial(Material.Value.GetMaterialTracker()->Material);
+			}
+			FDatasmithExportOptions::MaxTextureSize = MaxBakedTextureSize;
+		}
+
+		bChangeEncountered |= !MaterialsCollectionTracker.GetInvalidatedMaterials().IsEmpty();
 
 		// Each tracked(i.e. assigned to a visible node) Max material can result in multiple actual materials
 		// e.g. an assigned MultiSubObj material is aclually a set of material not directly assigned to a node
