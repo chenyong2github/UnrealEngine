@@ -296,9 +296,6 @@ private:
 	/** Client transaction ID for a transaction that doesn't exist. */
 	static const int32 InvalidTransactionId;
 
-	/** When this much time has passed since a client last contributed to a transaction, the transaction will automatically end. */
-	static const FTimespan TransactionTimeout;
-
 	/** Map type from class to Guids of clients listening for changes to actors of that class. */
 	typedef TMap<TWeakObjectPtr<UClass>, FWatchedClassData, FDefaultSetAllocator, TWeakObjectPtrMapKeyFuncs<TWeakObjectPtr<UClass>, FWatchedClassData>> FActorNotificationMap;
 
