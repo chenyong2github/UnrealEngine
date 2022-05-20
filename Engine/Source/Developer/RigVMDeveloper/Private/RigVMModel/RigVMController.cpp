@@ -14837,8 +14837,8 @@ bool URigVMController::FullyResolveTemplateNode(URigVMTemplateNode* InNode, int3
 		}
 
 		TArray<int32> Permutations;
-		Template->Resolve(TypeMap, Permutations, false);
-		check(Permutations.Num() == 1);
+		Template->Resolve(TypeMap, Permutations, true);
+		check(!Permutations.IsEmpty());
 		InputPermutation = Permutations[0];
 	}
 	
@@ -15387,6 +15387,7 @@ bool URigVMController::UpdateFilteredPermutations(URigVMPin* InPin, const TArray
 
 bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo)
 {
+	bool bAnyTypeChanged = false;
 	for(int32 PinIndex=0; PinIndex < InNode->GetPins().Num(); ++PinIndex)
 	{
 		URigVMPin* Pin = InNode->GetPins()[PinIndex];
@@ -15458,6 +15459,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 			
 			if (Pin->GetCPPType() != CPPType || Pin->GetCPPTypeObject() != CPPObjectType)
 			{
+				bAnyTypeChanged = true;
 				ChangePinType(Pin, CPPType, CPPObjectType, bSetupUndoRedo, false, false, false);
 			}
 		}
@@ -15468,6 +15470,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 			UObject* CPPObjectType = Types[0].CPPTypeObject;
 			if (Pin->GetCPPType() != CPPType || Pin->GetCPPTypeObject() != CPPObjectType)
 			{
+				bAnyTypeChanged = true;
 				ChangePinType(Pin, CPPType, CPPObjectType, bSetupUndoRedo, false, false, false);
 			}
 		}
@@ -15478,7 +15481,7 @@ bool URigVMController::UpdateTemplateNodePinTypes(URigVMTemplateNode* InNode, bo
 		}
 	}
 
-	return true;
+	return bAnyTypeChanged;
 }
 
 bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode, bool bSetupUndoRedo) 
@@ -15555,16 +15558,16 @@ bool URigVMController::PropagateTemplateFilteredTypes(URigVMTemplateNode* InNode
 	return true;
 }
 
-void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
+bool URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
 {
 	if (!IsValidGraph())
 	{
-		return;
+		return false;
 	}
 
 	if (!bIsTransacting && !IsGraphEditable())
 	{
-		return;
+		return false;
 	}
 
 	URigVMGraph* Graph = GetGraph();
@@ -15702,6 +15705,7 @@ void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
 	}
 
 	// Now update all template nodes pin types
+	bool bAnyTypeChanged = false;
 	for (URigVMNode* Node : Graph->GetNodes())
 	{
 		if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(Node))
@@ -15711,9 +15715,11 @@ void URigVMController::RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo)
 				continue;
 			}
 
-			UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
+			bAnyTypeChanged |= UpdateTemplateNodePinTypes(TemplateNode, bSetupUndoRedo);
 		}
 	}
+
+	return bAnyTypeChanged;
 }
 
 void URigVMController::InitializeFilteredPermutationsFromTemplateTypes()

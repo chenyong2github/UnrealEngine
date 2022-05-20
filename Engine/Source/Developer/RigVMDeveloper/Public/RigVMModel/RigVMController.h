@@ -892,8 +892,9 @@ public:
 	// removes any orphan pins that no longer holds a link
 	bool RemoveUnusedOrphanedPins(URigVMNode* InNode, bool bNotify);
 
-	// Initializes and recomputes the filtered permutations of all template nodes in the graph 
-	void RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo);
+	// Initializes and recomputes the filtered permutations of all template nodes in the graph
+	// Returns true if any pin has change it's type
+	bool RecomputeAllTemplateFilteredTypes(bool bSetupUndoRedo);
 
 	// Try to initialize the filterd permutations from the pin types
 	void InitializeFilteredPermutationsFromTemplateTypes();

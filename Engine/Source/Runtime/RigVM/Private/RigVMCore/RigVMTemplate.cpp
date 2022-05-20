@@ -991,10 +991,19 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 				// if we found a perfect match - remove all permutations which don't match this one
 				if(bFoundPerfectMatch)
 				{
+					const TArray<int32> BeforePermutationIndices = OutPermutationIndices;
 					OutPermutationIndices.RemoveAll([Argument, MatchedType](int32 PermutationIndex) -> bool
 					{
 						return Argument.Types[PermutationIndex] != MatchedType;
 					});
+					if (OutPermutationIndices.IsEmpty() && bAllowFloatingPointCasts)
+					{
+						OutPermutationIndices = BeforePermutationIndices;
+						OutPermutationIndices.RemoveAll([Argument, MatchedType, InputType](int32 PermutationIndex) -> bool
+						{
+							return !Argument.Types[PermutationIndex].Matches(InputType->CPPType, true);
+						});
+					}
 				}
 				continue;
 			}

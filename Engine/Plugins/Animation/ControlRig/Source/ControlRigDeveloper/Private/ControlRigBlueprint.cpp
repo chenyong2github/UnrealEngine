@@ -479,8 +479,6 @@ void UControlRigBlueprint::PostLoad()
 		PatchBoundVariables();
 		PatchPropagateToChildren();
 		PatchParameterNodesOnLoad();
-		PatchTemplateNodesWithPreferredPermutation();
-		
 
 #if WITH_EDITOR
 
@@ -918,6 +916,7 @@ void UControlRigBlueprint::RefreshAllModels()
 		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true);
 	}
 
+	PatchTemplateNodesWithPreferredPermutation();
 	
 	TArray<URigVMGraph*> GraphsToClean = GetAllModels();
 	
@@ -935,9 +934,15 @@ void UControlRigBlueprint::RefreshAllModels()
 			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
 			{
 				TemplateNode->InvalidateCache();
+				TemplateNode->PostLoad();
 			}
 		}
-		//Controller->RecomputeAllTemplateFilteredTypes(false);
+#if WITH_EDITOR
+		// if (Controller->RecomputeAllTemplateFilteredTypes(false))
+		// {
+		// 	ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
+		// }
+#endif
 	}
 }
 
@@ -4123,6 +4128,7 @@ void UControlRigBlueprint::PatchTemplateNodesWithPreferredPermutation()
 				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
 				{
 					TemplateNode->InvalidateCache();
+					TemplateNode->PostLoad();
 				}
 			}
 			
