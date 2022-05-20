@@ -17,6 +17,12 @@
 #include "Factories/VolumeTextureFactory.h"
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
+#include "UObject/UObjectGlobals.h"
+
+#include "VolumeCache.h"
+#include "VolumeCacheFactory.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogNiagaraBaker, Log, All);
 
 struct FVolumeDataInterfaceHelper
 {
@@ -386,6 +392,10 @@ void FNiagaraBakerRendererOutputVolumeTexture::RenderGenerated(UNiagaraBakerOutp
 bool FNiagaraBakerRendererOutputVolumeTexture::BeginBake(UNiagaraBakerOutput* InBakerOutput)
 {
 	UNiagaraBakerOutputVolumeTexture* OutputVolumeTexture = CastChecked<UNiagaraBakerOutputVolumeTexture>(InBakerOutput);
+
+	// @todo: 
+	BakedFrameRange = FIntVector2(TNumericLimits<int32>::Lowest(), TNumericLimits<int32>::Lowest());
+
 	return OutputVolumeTexture->bGenerateAtlas || OutputVolumeTexture->bGenerateFrames || OutputVolumeTexture->bExportFrames;
 }
 
@@ -570,8 +580,21 @@ void FNiagaraBakerRendererOutputVolumeTexture::BakeFrame(UNiagaraBakerOutput* In
 		// Export each frame
 		if (OutputVolumeTexture->bExportFrames)
 		{
+			BakedFrameSize = TextureSize;
+
+			if (BakedFrameRange.X == TNumericLimits<int32>::Lowest() && BakedFrameRange.Y == TNumericLimits<int32>::Lowest())
+			{
+				BakedFrameRange.X = FrameIndex;
+				BakedFrameRange.Y = FrameIndex;
+			}
+			else
+			{
+				BakedFrameRange.X = FMath::Min(BakedFrameRange.X, FrameIndex);
+				BakedFrameRange.Y = FMath::Max(BakedFrameRange.Y, FrameIndex);
+			}
+
 			const FString FilePath = OutputVolumeTexture->GetExportPath(OutputVolumeTexture->FramesExportPathFormat, FrameIndex);
-			FNiagaraBakerRenderer::ExportImage(FilePath, FIntPoint(TextureSize.X, TextureSize.Y * TextureSize.Z), TextureData);
+			FNiagaraBakerRenderer::ExportVolume(FilePath, TextureSize, TextureData);
 		}
 	}
 }
@@ -603,6 +626,67 @@ void FNiagaraBakerRendererOutputVolumeTexture::EndBake(UNiagaraBakerOutput* InBa
 		BakeAtlasFrameSize = FIntVector::ZeroValue;
 		BakeAtlasTextureSize = FIntVector::ZeroValue;
 		BakeAtlasTextureData.Empty();
+	}
+
+	// @todo: move this to the right place
+	if (OutputVolumeTexture->bExportFrames)
+	{
+		const FString AssetFullName = OutputVolumeTexture->GetAssetPath(OutputVolumeTexture->AtlasAssetPathFormat, 0);
+		const FString AssetName = FString(FPathViews::GetCleanFilename(AssetFullName));
+		const FString PackagePath = FString(FPathViews::GetPath(AssetFullName));
+		IAssetTools& AssetTools = FModuleManager::Get().LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		
+		// see if the asset has been created
+		UPackage* Pkg = CreatePackage(*AssetFullName);		
+		UVolumeCache* OutputCache = Cast<UVolumeCache>(StaticFindObject(UObject::StaticClass(), Pkg, *AssetName));
+		
+		if (OutputCache == nullptr)
+		{
+			UVolumeCacheFactory* VolumeCacheFactory = NewObject<UVolumeCacheFactory>();
+			OutputCache = Cast<UVolumeCache>(AssetTools.CreateAsset(AssetName, PackagePath, UVolumeCache::StaticClass(), VolumeCacheFactory));
+		}
+
+		FString FullPath = OutputVolumeTexture->GetExportPath(OutputVolumeTexture->FramesExportPathFormat, 0);
+		FullPath = FString(FPathViews::GetPath(FullPath));
+
+		FString FullFileName = FString(FPathViews::GetCleanFilename(OutputVolumeTexture->FramesExportPathFormat));
+
+		FullPath = FullPath + "/" + FullFileName;
+
+		OutputCache->FilePath = FullPath;
+		
+		OutputCache->FrameRangeStart = BakedFrameRange.X;
+		OutputCache->FrameRangeEnd = BakedFrameRange.Y;
+		OutputCache->Resolution = BakedFrameSize;
+		OutputCache->CacheType = EVolumeCacheType::OpenVDB;
+
+		OutputCache->Modify();
+		OutputCache->PostEditChange();		
+
+		if (BakedFrameRange.Y - BakedFrameRange.X > 0)
+		{
+			if (BakedFrameSize.X + BakedFrameSize.Y + BakedFrameSize.Z > 0)
+			{
+
+				OutputCache->InitData();
+		
+				// @todo: could be cool to have an option where the whole cache is read into memory after writing it so you can preview results super quick
+				// bool LoadedCache = OutputCache->LoadRange();
+
+				// if (!LoadedCache)
+				// {
+				// 	UE_LOG(LogNiagaraBaker, Warning, TEXT("Could not load cache into memory: %s"), *FullPath);
+				// }
+			}
+			else
+			{
+				UE_LOG(LogNiagaraBaker, Warning, TEXT("Output cache has no voxels : %s"), *FullPath);
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagaraBaker, Warning, TEXT("No frames written : %s"), *FullPath);
+		}
 	}
 }
 

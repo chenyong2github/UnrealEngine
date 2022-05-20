@@ -29,6 +29,10 @@
 #include "Engine/StaticMesh.h"
 #include "UObject/UObjectGlobals.h"
 
+#if PLATFORM_WINDOWS
+#include "NiagaraOpenVDB.h"
+#endif
+
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
 #define LOCTEXT_NAMESPACE "NiagaraModule"
@@ -196,6 +200,13 @@ void INiagaraModule::StartupModule()
 	VectorVM::Init();
 	FNiagaraTypeDefinition::Init();
 	FNiagaraRenderViewDataManager::Init();
+
+	
+#if PLATFORM_WINDOWS
+	// Global registration of  the vdb types.
+	openvdb::initialize();
+	Vec4SGrid::registerGrid();
+#endif
 
 	FNiagaraWorldManager::OnStartup();
 

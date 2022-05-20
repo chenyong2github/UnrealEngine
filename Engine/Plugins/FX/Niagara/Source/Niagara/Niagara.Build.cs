@@ -8,7 +8,14 @@ public class Niagara : ModuleRules
     {
         PrivateIncludePaths.Add("../../../../Shaders/Shared");
 
-        PrivateDependencyModuleNames.AddRange(
+		// Specific to OpenVDB support
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+		{
+			bUseRTTI = true;
+			bEnableExceptions = true;
+		}
+		
+		PrivateDependencyModuleNames.AddRange(
             new string[] {
                 "ApplicationCore",
                 "AudioPlatformConfiguration",
@@ -67,7 +74,18 @@ public class Niagara : ModuleRules
             });
         }
 
-        PublicDefinitions.AddRange(
+		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
+		{ 
+			AddEngineThirdPartyPrivateStaticDependencies(Target,
+				"IntelTBB",
+				"Blosc",
+				"zlib",
+				"Boost",				
+				"OpenVDB"
+			);
+		}
+
+		PublicDefinitions.AddRange(
             new string[]
             {
                 "VECTORVM_SUPPORTS_EXPERIMENTAL=0",

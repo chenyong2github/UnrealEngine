@@ -25,4 +25,7 @@ protected:
 	FIntVector				BakeAtlasFrameSize = FIntVector::ZeroValue;
 	FIntVector				BakeAtlasTextureSize = FIntVector::ZeroValue;
 	TArray<FFloat16Color>	BakeAtlasTextureData;
+
+	FIntVector				BakedFrameSize = FIntVector::ZeroValue;
+	FIntVector2				BakedFrameRange = FIntVector2(-1, -1);
 };

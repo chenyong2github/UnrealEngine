@@ -27,6 +27,7 @@
 #include "IImageWrapper.h"
 #include "ImageWrapperHelper.h"
 #include "LegacyScreenPercentageDriver.h"
+#include "VolumeCache.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -652,13 +653,7 @@ FNiagaraBakerOutputRenderer* FNiagaraBakerRenderer::GetOutputRenderer(UClass* Cl
 
 bool FNiagaraBakerRenderer::ExportImage(FStringView FilePath, FIntPoint ImageSize, TArrayView<FFloat16Color> ImageData)
 {
-	int32 LastDot = INDEX_NONE;
-	if ( FilePath.FindLastChar('.', LastDot) == false )
-	{
-		return false;
-	}
-
-	const FStringView FileExtension = FilePath.Mid(LastDot);
+	const FString FileExtension = FPaths::GetExtension(FilePath.GetData(), true);
 	const EImageFormat ImageFormat = ImageWrapperHelper::GetImageFormat(FileExtension);
 	if (ImageFormat == EImageFormat::Invalid)
 	{
@@ -736,5 +731,21 @@ void FNiagaraBakerRenderer::DestroyPreviewScene(UNiagaraComponent*& InOutCompone
 	{
 		InOutComponent->DestroyComponent();
 		InOutComponent = nullptr;
+	}
+}
+bool FNiagaraBakerRenderer::ExportVolume(FStringView FilePath, FIntVector ImageSize, TArrayView<FFloat16Color> ImageData)
+{
+	const FString FileExtension = FPaths::GetExtension(FilePath.GetData(), true);
+	if (FileExtension == TEXT(".vdb"))
+	{
+#if PLATFORM_WINDOWS
+		return FOpenVDBCacheData::WriteImageDataToOpenVDBFile(FilePath, ImageSize, ImageData, false);
+#else
+		return false;
+#endif
+	}
+	else
+	{
+		return ExportImage(FilePath, FIntPoint(ImageSize.X, ImageSize.Y * ImageSize.Z), ImageData);
 	}
 }
