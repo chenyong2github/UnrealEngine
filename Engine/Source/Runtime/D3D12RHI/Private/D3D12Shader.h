@@ -22,10 +22,9 @@ public:
 	/** Elements of the vertex declaration. */
 	FD3D12VertexElements VertexElements;
 
-	uint16 StreamStrides[MaxVertexElementCount];
+	TStaticArray<uint16, MaxVertexElementCount> StreamStrides;
 	uint32 Hash;
 	uint32 HashNoStrides;
-
 
 	/** Initialization constructor. */
 	explicit FD3D12VertexDeclaration(const FD3D12VertexElements& InElements, const uint16* InStrides, const uint32 InHash, const uint32 InHashNoStrides)
@@ -33,7 +32,7 @@ public:
 		, Hash(InHash)
 		, HashNoStrides(InHashNoStrides)
 	{
-		FMemory::Memcpy(StreamStrides, InStrides, sizeof(StreamStrides));
+		FMemory::Memcpy(StreamStrides.GetData(), InStrides, StreamStrides.Num() * sizeof(StreamStrides[0]));
 	}
 
 	virtual bool GetInitializer(FVertexDeclarationElementList& Init) final override;
@@ -134,7 +133,7 @@ class FD3D12ComputeShader : public FRHIComputeShader, public FD3D12ShaderData
 public:
 	enum { StaticFrequency = SF_Compute };
 
-	const FD3D12RootSignature* pRootSignature = nullptr;
+	const FD3D12RootSignature* RootSignature = nullptr;
 };
 
 /**

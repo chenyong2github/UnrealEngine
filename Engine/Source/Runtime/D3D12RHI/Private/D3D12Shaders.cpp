@@ -160,12 +160,12 @@ FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(TArrayView<const u
 		FD3D12Adapter& Adapter = GetAdapter();
 
 #if USE_STATIC_ROOT_SIGNATURE
-		Shader->pRootSignature = Adapter.GetStaticComputeRootSignature();
+		Shader->RootSignature = Adapter.GetStaticComputeRootSignature();
 #else
 		const D3D12_RESOURCE_BINDING_TIER Tier = Adapter.GetResourceBindingTier();
 		FD3D12QuantizedBoundShaderState QBSS;
 		QuantizeBoundShaderState(Tier, Shader, QBSS);
-		Shader->pRootSignature = Adapter.GetRootSignature(QBSS);
+		Shader->RootSignature = Adapter.GetRootSignature(QBSS);
 #endif
 	}
 

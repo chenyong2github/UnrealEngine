@@ -50,11 +50,11 @@ extern int32 GGlobalSamplerHeapSize;
 extern int32 GOnlineDescriptorHeapSize;
 extern int32 GOnlineDescriptorHeapBlockSize;
 
-enum ED3D12PipelineType
+enum class ED3D12PipelineType : uint8
 {
-	D3D12PT_Graphics,
-	D3D12PT_Compute,
-	D3D12PT_RayTracing,
+	Graphics,
+	Compute,
+	RayTracing,
 };
 
 
@@ -381,7 +381,7 @@ protected:
 			D3D12_RECT CurrentScissorRects[D3D12_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE];
 			uint32 CurrentNumberOfScissorRects;
 
-			uint16 StreamStrides[MaxVertexElementCount];
+			TStaticArray<uint16, MaxVertexElementCount> StreamStrides;
 
 			FD3D12RenderTargetView* RenderTargetArray[D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT];
 			uint32 CurrentNumberOfRenderTargets;
@@ -450,52 +450,7 @@ protected:
 #endif
 #undef DECLARE_SHADER_TRAITS
 
-	template <typename TShader> D3D12_STATE_CACHE_INLINE void SetShader(TShader* Shader)
-	{
-		typedef StateCacheShaderTraits<TShader> Traits;
-		TShader* OldShader = Traits::GetShader(GetGraphicsPipelineState());
-
-		if (OldShader != Shader)
-		{
-			PipelineState.Common.CurrentShaderSamplerCounts[Traits::Frequency] = (Shader) ? Shader->ResourceCounts.NumSamplers : 0;
-			PipelineState.Common.CurrentShaderSRVCounts[Traits::Frequency]     = (Shader) ? Shader->ResourceCounts.NumSRVs     : 0;
-			PipelineState.Common.CurrentShaderCBCounts[Traits::Frequency]      = (Shader) ? Shader->ResourceCounts.NumCBs      : 0;
-			PipelineState.Common.CurrentShaderUAVCounts[Traits::Frequency]     = (Shader) ? Shader->ResourceCounts.NumUAVs     : 0;
-		
-			// Shader changed so its resource table is dirty
-			SetDirtyUniformBuffers(this->CmdContext, Traits::Frequency);
-		}
-	}
-
-	template <ED3D12PipelineType PipelineType>
-	D3D12_STATE_CACHE_INLINE void InternalSetPipelineState()
-	{
-		static_assert(PipelineType != D3D12PT_RayTracing, "FD3D12StateCacheBase is not expected to be used with ray tracing.");
-
-		// See if we need to set our PSO:
-		// In D3D11, you could Set dispatch arguments, then set Draw arguments, then call Draw/Dispatch/Draw/Dispatch without setting arguments again.
-		// In D3D12, we need to understand when the app switches between Draw/Dispatch and make sure the correct PSO is set.
-
-		bool bNeedSetPSO = PipelineState.Common.bNeedSetPSO;
-		ID3D12PipelineState*& CurrentPSO = PipelineState.Common.CurrentPipelineStateObject;
-		ID3D12PipelineState* const RequiredPSO = (PipelineType == D3D12PT_Compute) 
-			? PipelineState.Compute.CurrentPipelineStateObject->PipelineState->GetPipelineState() 
-			: PipelineState.Graphics.CurrentPipelineStateObject->PipelineState->GetPipelineState();
-
-		if (CurrentPSO != RequiredPSO)
-		{
-			CurrentPSO = RequiredPSO;
-			bNeedSetPSO = true;
-		}
-
-		// Set the PSO on the command list if necessary.
-		if (bNeedSetPSO)
-		{
-			check(CurrentPSO);
-			SetPipelineState(this->CmdContext, CurrentPSO);
-			PipelineState.Common.bNeedSetPSO = false;
-		}
-	}
+	void InternalSetPipelineState(FD3D12PipelineState* InPipelineState);
 
 private:
 
@@ -507,12 +462,6 @@ private:
 	static void SetDirtyUniformBuffers(ContextType* Context, EShaderFrequency Frequency)
 	{
 		Context->DirtyUniformBuffers[Frequency] = 0xffff;
-	}
-
-	template <typename ContextType>
-	static void SetPipelineState(ContextType* Context, ID3D12PipelineState* State)
-	{
-		Context->CommandListHandle->SetPipelineState(State);
 	}
 
 public:
@@ -533,9 +482,9 @@ public:
 		return PipelineState.Graphics.CurrentPipelineStateObject;
 	}
 
-	const FD3D12RootSignature* GetGraphicsRootSignature() const
+	FD3D12ComputePipelineState* GetComputePipelineState() const
 	{
-		return PipelineState.Graphics.CurrentPipelineStateObject ? PipelineState.Graphics.CurrentPipelineStateObject->RootSignature : nullptr;
+		return PipelineState.Compute.CurrentPipelineStateObject;
 	}
 
 	inline EPrimitiveType GetGraphicsPipelinePrimitiveType() const
@@ -551,11 +500,6 @@ public:
 
 	inline uint32 GetNumTrianglesStat() const { return PipelineState.Graphics.NumTriangles; }
 	inline uint32 GetNumLinesStat() const { return PipelineState.Graphics.NumLines; }
-
-	const FD3D12RootSignature* GetComputeRootSignature() const
-	{
-		return PipelineState.Compute.CurrentPipelineStateObject ? PipelineState.Compute.CurrentPipelineStateObject->ComputeShader->pRootSignature : nullptr;
-	}
 
 	void ClearSRVs();
 
@@ -725,117 +669,9 @@ public:
 		return StateCacheShaderTraits<TShader>::GetShader(GetGraphicsPipelineState());
 	}
 
-	template <typename TShader>
-	D3D12_STATE_CACHE_INLINE void GetShader(TShader** Shader)
-	{
-		*Shader = GetShader<TShader>();
-	}
-
-	D3D12_STATE_CACHE_INLINE void GetVertexShader(FD3D12VertexShader** Shader)
-	{
-		GetShader(Shader);
-	}
-
-	D3D12_STATE_CACHE_INLINE void GetMeshShader(FD3D12MeshShader** Shader)
-	{
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-		GetShader(Shader);
-#else
-		* Shader = nullptr;
-#endif
-	}
-
-	D3D12_STATE_CACHE_INLINE void GetAmplificationShader(FD3D12AmplificationShader** Shader)
-	{
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-		GetShader(Shader);
-#else
-		* Shader = nullptr;
-#endif
-	}
-
-	D3D12_STATE_CACHE_INLINE void GetGeometryShader(FD3D12GeometryShader** Shader)
-	{
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		GetShader(Shader);
-#else
-		*Shader = nullptr;
-#endif
-	}
-
-	D3D12_STATE_CACHE_INLINE void GetPixelShader(FD3D12PixelShader** Shader)
-	{
-		GetShader(Shader);
-	}
-
-	D3D12_STATE_CACHE_INLINE void SetGraphicsPipelineState(FD3D12GraphicsPipelineState* GraphicsPipelineState)
-	{
-		check(GraphicsPipelineState);
-		if (PipelineState.Graphics.CurrentPipelineStateObject != GraphicsPipelineState)
-		{
-			SetStreamStrides(GraphicsPipelineState->StreamStrides);
-			SetShader(GraphicsPipelineState->GetVertexShader());
-#if PLATFORM_SUPPORTS_MESH_SHADERS
-			SetShader(GraphicsPipelineState->GetMeshShader());
-			SetShader(GraphicsPipelineState->GetAmplificationShader());
-#endif
-			SetShader(GraphicsPipelineState->GetPixelShader());
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			SetShader(GraphicsPipelineState->GetGeometryShader());
-#endif
-			// See if we need to change the root signature
-			if (GetGraphicsRootSignature() != GraphicsPipelineState->RootSignature)
-			{
-				PipelineState.Graphics.bNeedSetRootSignature = true;
-			}
-
-			// Save the PSO
-			PipelineState.Common.bNeedSetPSO = true;
-			PipelineState.Graphics.CurrentPipelineStateObject = GraphicsPipelineState;
-
-			EPrimitiveType PrimitiveType = GraphicsPipelineState->PipelineStateInitializer.PrimitiveType;
-			if (PipelineState.Graphics.CurrentPrimitiveType != PrimitiveType)
-			{
-				PipelineState.Graphics.CurrentPrimitiveType = PrimitiveType;
-				PipelineState.Graphics.CurrentPrimitiveTopology = GetD3D12PrimitiveType(PrimitiveType);
-				bNeedSetPrimitiveTopology = true;
-
-				static_assert(PT_Num == 38, "This computation needs to be updated, matching that of GetVertexCountForPrimitiveCount()");
-				PipelineState.Graphics.PrimitiveTypeFactor = (PrimitiveType == PT_TriangleList)? 3 : (PrimitiveType == PT_LineList)? 2 : (PrimitiveType == PT_RectList)? 3 : (PrimitiveType >= PT_1_ControlPointPatchList)? (PrimitiveType - PT_1_ControlPointPatchList + 1) : 1;
-				PipelineState.Graphics.PrimitiveTypeOffset = (PrimitiveType == PT_TriangleStrip)? 2 : 0;
-				PipelineState.Graphics.CurrentPrimitiveStat = (PrimitiveType == PT_LineList)? &PipelineState.Graphics.NumLines : &PipelineState.Graphics.NumTriangles;
-			}
-
-			// Set the PSO
-			InternalSetPipelineState<D3D12PT_Graphics>();
-		}
-	}
-
-	D3D12_STATE_CACHE_INLINE void SetComputePipelineState(FD3D12ComputePipelineState* ComputePipelineState)
-	{
-		check(ComputePipelineState);
-		if (PipelineState.Compute.CurrentPipelineStateObject != ComputePipelineState)
-		{
-			// Save the PSO
-			PipelineState.Common.bNeedSetPSO = true;
-			PipelineState.Compute.CurrentPipelineStateObject = ComputePipelineState;
-
-			// Set the PSO
-			InternalSetPipelineState<D3D12PT_Compute>();
-		}
-	}
-
-	void SetComputeShader(FD3D12ComputeShader* Shader);
-
-	D3D12_STATE_CACHE_INLINE void GetComputeShader(FD3D12ComputeShader** ComputeShader) const
-	{
-		*ComputeShader = PipelineState.Compute.CurrentPipelineStateObject ? PipelineState.Compute.CurrentPipelineStateObject->ComputeShader : nullptr;
-	}
-
-	D3D12_STATE_CACHE_INLINE void SetStreamStrides(const uint16* InStreamStrides)
-	{
-		FMemory::Memcpy(PipelineState.Graphics.StreamStrides, InStreamStrides, sizeof(PipelineState.Graphics.StreamStrides));
-	}
+	void SetNewShaderData(EShaderFrequency InFrequency, const FD3D12ShaderData* InShaderData);
+	void SetGraphicsPipelineState(FD3D12GraphicsPipelineState* GraphicsPipelineState);
+	void SetComputePipelineState(FD3D12ComputePipelineState* ComputePipelineState);
 
 	D3D12_STATE_CACHE_INLINE void SetStreamSource(FD3D12ResourceLocation* VertexBufferLocation, uint32 StreamIndex, uint32 Stride, uint32 Offset)
 	{
@@ -931,7 +767,7 @@ public:
 		}
 	}
 
-	ED3D12PipelineType LastComputePipelineType = D3D12PT_Compute;
+	ED3D12PipelineType LastComputePipelineType = ED3D12PipelineType::Compute;
 #endif // D3D12_RHI_RAYTRACING
 
 	template <ED3D12PipelineType PipelineType> 

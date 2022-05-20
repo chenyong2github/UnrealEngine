@@ -5201,7 +5201,7 @@ static void DispatchRays(FD3D12CommandContext& CommandContext,
 	};
 
 	// Invalidate state cache to ensure all root parameters for regular shaders are reset when non-RT work is dispatched later.
-	CommandContext.StateCache.TransitionComputeState(D3D12PT_RayTracing);
+	CommandContext.StateCache.TransitionComputeState(ED3D12PipelineType::RayTracing);
 
 	CommandContext.CommandListHandle.GraphicsCommandList()->SetComputeRootSignature(Pipeline->GlobalRootSignature);
 

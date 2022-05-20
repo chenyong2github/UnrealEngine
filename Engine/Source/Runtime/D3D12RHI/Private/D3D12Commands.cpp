@@ -113,20 +113,14 @@ void FD3D12CommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIBuffer* Ve
 
 void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
 {
-	FD3D12ComputeShader* ComputeShader = nullptr;
-	StateCache.GetComputeShader(&ComputeShader);
-
 	if (IsDefaultContext())
 	{
 		GetParentDevice()->RegisterGPUDispatch(FIntVector(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ));	
 	}
 
-	if (ComputeShader->UsesGlobalUniformBuffer())
-	{
-		CommitComputeShaderConstants();
-	}
-	CommitComputeResourceTables(ComputeShader);
-	StateCache.ApplyState<D3D12PT_Compute>();
+	CommitComputeShaderConstants();
+	CommitComputeResourceTables();
+	StateCache.ApplyState<ED3D12PipelineType::Compute>();
 
 	numDispatches++;
 	CommandListHandle->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
@@ -145,18 +139,12 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIBuffer* Argument
 		GetParentDevice()->RegisterGPUDispatch(FIntVector(1, 1, 1));	
 	}
 
-	FD3D12ComputeShader* ComputeShader = nullptr;
-	StateCache.GetComputeShader(&ComputeShader);
-
-	if (ComputeShader->UsesGlobalUniformBuffer())
-	{
-		CommitComputeShaderConstants();
-	}
-	CommitComputeResourceTables(ComputeShader);
+	CommitComputeShaderConstants();
+	CommitComputeResourceTables();
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 
-	StateCache.ApplyState<D3D12PT_Compute>();
+	StateCache.ApplyState<ED3D12PipelineType::Compute>();
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
@@ -809,18 +797,13 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 void FD3D12CommandContext::RHISetComputePipelineState(FRHIComputePipelineState* ComputeState)
 {
 #if D3D12_RHI_RAYTRACING
-	StateCache.TransitionComputeState(D3D12PT_Compute);
+	StateCache.TransitionComputeState(ED3D12PipelineType::Compute);
 #endif
 
 	FD3D12ComputePipelineState* ComputePipelineState = FD3D12DynamicRHI::ResourceCast(ComputeState);
 
 	CSConstantBuffer.Reset();
 	bDiscardSharedComputeConstants = true;
-
-	// TODO: [PSO API] Every thing inside this scope is only necessary to keep the PSO shadow in sync while we convert the high level to only use PSOs
-	{
-		StateCache.SetComputeShader(ComputePipelineState->ComputeShader);
-	}
 
 	StateCache.SetComputePipelineState(ComputePipelineState);
 
@@ -1593,7 +1576,14 @@ void FD3D12CommandContext::CommitNonComputeShaderConstants()
 
 void FD3D12CommandContext::CommitComputeShaderConstants()
 {
-	StateCache.SetConstantBuffer<SF_Compute>(CSConstantBuffer, bDiscardSharedComputeConstants);
+	const FD3D12ComputePipelineState* const RESTRICT ComputePSO = StateCache.GetComputePipelineState();
+
+	check(ComputePSO);
+
+	if (ComputePSO->bShaderNeedsGlobalConstantBuffer)
+	{
+		StateCache.SetConstantBuffer<SF_Compute>(CSConstantBuffer, bDiscardSharedComputeConstants);
+	}
 
 	bDiscardSharedComputeConstants = false;
 }
@@ -1926,40 +1916,48 @@ void FD3D12CommandContext::CommitGraphicsResourceTables()
 	const FD3D12GraphicsPipelineState* const RESTRICT GraphicPSO = StateCache.GetGraphicsPipelineState();
 	check(GraphicPSO);
 
-	auto* PixelShader = GraphicPSO->GetPixelShader();
+	FD3D12PixelShader* PixelShader = GraphicPSO->GetPixelShader();
 	if (PixelShader)
 	{
 		SetUAVPSResourcesFromTables(PixelShader);
 	}
-	if (auto* Shader = GraphicPSO->GetVertexShader())
+
+	if (FD3D12VertexShader* Shader = GraphicPSO->GetVertexShader())
 	{
 		SetResourcesFromTables(Shader);
 	}
-	if (auto* Shader = GraphicPSO->GetMeshShader())
+
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	if (FD3D12MeshShader* Shader = GraphicPSO->GetMeshShader())
 	{
 		SetResourcesFromTables(Shader);
 	}
-	if (auto* Shader = GraphicPSO->GetAmplificationShader())
+	if (FD3D12AmplificationShader* Shader = GraphicPSO->GetAmplificationShader())
 	{
 		SetResourcesFromTables(Shader);
 	}
+#endif
+
 	if (PixelShader)
 	{
 		SetResourcesFromTables(PixelShader);
 	}
-	if (auto* Shader = GraphicPSO->GetGeometryShader())
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+	if (FD3D12GeometryShader* Shader = GraphicPSO->GetGeometryShader())
 	{
 		SetResourcesFromTables(Shader);
 	}
+#endif
 }
 
-void FD3D12CommandContext::CommitComputeResourceTables(FD3D12ComputeShader* InComputeShader)
+void FD3D12CommandContext::CommitComputeResourceTables()
 {
 	//SCOPE_CYCLE_COUNTER(STAT_D3D12CommitResourceTables);
 
-	FD3D12ComputeShader* RESTRICT ComputeShader = InComputeShader;
-	check(ComputeShader);
-	SetResourcesFromTables(ComputeShader);
+	const FD3D12ComputePipelineState* const RESTRICT ComputePSO = StateCache.GetComputePipelineState();
+
+	SetResourcesFromTables(ComputePSO->GetComputeShader());
 }
 
 void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances)
@@ -1979,7 +1977,7 @@ void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPr
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, VertexCount * NumInstances);
 	}
 
-	StateCache.ApplyState<D3D12PT_Graphics>();
+	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
 	CommandListHandle->DrawInstanced(VertexCount, NumInstances, BaseVertexIndex, 0);
 
 	ConditionalFlushCommandList();
@@ -2006,7 +2004,7 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRH
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 
-	StateCache.ApplyState<D3D12PT_Graphics>();
+	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
@@ -2057,7 +2055,7 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FR
 
 	FD3D12ResourceLocation& Location = ArgumentsBuffer->ResourceLocation;
 
-	StateCache.ApplyState<D3D12PT_Graphics>();
+	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
@@ -2113,7 +2111,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 	// determine 16bit vs 32bit indices
 	const DXGI_FORMAT Format = (IndexBuffer->GetStride() == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT);
 	StateCache.SetIndexBuffer(IndexBuffer->ResourceLocation, Format, 0);
-	StateCache.ApplyState<D3D12PT_Graphics>();
+	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
 
 	CommandListHandle->DrawIndexedInstanced(IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance);
 
@@ -2147,7 +2145,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 
-	StateCache.ApplyState<D3D12PT_Graphics>();
+	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.
@@ -2185,7 +2183,7 @@ void FD3D12CommandContext::RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint3
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
 
-	StateCache.ApplyState<D3D12PT_Graphics>();
+	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
 
 	CommandListHandle.GraphicsCommandList6()->DispatchMesh(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 
@@ -2213,7 +2211,7 @@ void FD3D12CommandContext::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuf
 
 	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
 
-	StateCache.ApplyState<D3D12PT_Graphics>();
+	StateCache.ApplyState<ED3D12PipelineType::Graphics>();
 
 	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
 	// arg transition and flush here.

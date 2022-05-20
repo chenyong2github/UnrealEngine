@@ -239,7 +239,7 @@ public:
 	template <class ShaderType> uint32 SetUAVPSResourcesFromTables(const ShaderType* RESTRICT Shader);
 
 	void CommitGraphicsResourceTables();
-	void CommitComputeResourceTables(FD3D12ComputeShader* ComputeShader);
+	void CommitComputeResourceTables();
 
 	void ValidateExclusiveDepthStencilAccess(FExclusiveDepthStencil Src) const;
 

@@ -521,9 +521,12 @@ TRefCountPtr<FRHIComputePipelineState> FD3D12DynamicRHI::RHICreateComputePipelin
 		return Found;
 	}
 #endif
+
+	const FD3D12RootSignature* RootSignature = ComputeShader->RootSignature;
+
 	// Next try to find the PSO based on the hash of its desc.
 	FD3D12ComputePipelineStateDesc LowLevelDesc;
-	Found = PSOCache.FindInLoadedCache(ComputeShader, LowLevelDesc);
+	Found = PSOCache.FindInLoadedCache(ComputeShader, RootSignature, LowLevelDesc);
 	if (Found)
 	{
 		return Found;
@@ -532,7 +535,7 @@ TRefCountPtr<FRHIComputePipelineState> FD3D12DynamicRHI::RHICreateComputePipelin
 	TRACE_CPUPROFILER_EVENT_SCOPE(FD3D12DynamicRHI::RHICreateComputePipelineState);
 
 	// We need to actually create a PSO.
-	return PSOCache.CreateAndAdd(ComputeShader, LowLevelDesc);
+	return PSOCache.CreateAndAdd(ComputeShader, RootSignature, LowLevelDesc);
 }
 
 FD3D12SamplerState::FD3D12SamplerState(FD3D12Device* InParent, const D3D12_SAMPLER_DESC& Desc, uint16 SamplerID)

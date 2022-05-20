@@ -107,8 +107,8 @@ template void FD3D12StateCacheBase::SetUAVs<SF_Compute>(uint32 UAVStartSlot, uin
 
 template void FD3D12StateCacheBase::ClearUAVs<SF_Pixel>();
 
-template void FD3D12StateCacheBase::ApplyState<D3D12PT_Graphics>();
-template void FD3D12StateCacheBase::ApplyState<D3D12PT_Compute>();
+template void FD3D12StateCacheBase::ApplyState<ED3D12PipelineType::Graphics>();
+template void FD3D12StateCacheBase::ApplyState<ED3D12PipelineType::Compute>();
 
 #if D3D12_STATE_CACHE_RUNTIME_TOGGLE
 
@@ -409,6 +409,25 @@ inline bool ShouldSkipStage(uint32 Stage)
 	return ((Stage == SF_Mesh || Stage == SF_Amplification) && !GRHISupportsMeshShadersTier0);
 }
 
+void FD3D12StateCacheBase::InternalSetPipelineState(FD3D12PipelineState* InPipelineState)
+{
+	// See if we need to set our PSO:
+	// In D3D11, you could Set dispatch arguments, then set Draw arguments, then call Draw/Dispatch/Draw/Dispatch without setting arguments again.
+	// In D3D12, we need to understand when the app switches between Draw/Dispatch and make sure the correct PSO is set.
+
+	ID3D12PipelineState* const CurrentD3DPipelineState = PipelineState.Common.CurrentPipelineStateObject;
+	ID3D12PipelineState* const PendingD3DPipelineState = InPipelineState->GetPipelineState();
+
+	if (PipelineState.Common.bNeedSetPSO || CurrentD3DPipelineState == nullptr || CurrentD3DPipelineState != PendingD3DPipelineState)
+	{
+		PipelineState.Common.CurrentPipelineStateObject = PendingD3DPipelineState;
+
+		CmdContext->CommandListHandle->SetPipelineState(PendingD3DPipelineState);
+
+		PipelineState.Common.bNeedSetPSO = false;
+	}
+}
+
 template <ED3D12PipelineType PipelineType>
 void FD3D12StateCacheBase::ApplyState()
 {
@@ -428,9 +447,9 @@ void FD3D12StateCacheBase::ApplyState()
 	const FD3D12RootSignature* pRootSignature = nullptr;
 
 	// PSO
-	if (PipelineType == D3D12PT_Compute)
+	if (PipelineType == ED3D12PipelineType::Compute)
 	{
-		pRootSignature = PipelineState.Compute.CurrentPipelineStateObject->ComputeShader->pRootSignature;
+		pRootSignature = PipelineState.Compute.CurrentPipelineStateObject->RootSignature;
 
 		// See if we need to set a compute root signature
 		if (PipelineState.Compute.bNeedSetRootSignature)
@@ -444,10 +463,13 @@ void FD3D12StateCacheBase::ApplyState()
 			PipelineState.Common.SamplerCache.DirtyCompute();
 			PipelineState.Common.CBVCache.DirtyCompute();
 		}
+
+		// Ensure the correct compute PSO is set.
+		InternalSetPipelineState(GetComputePipelineState()->PipelineState);
 	}
-	else if (PipelineType == D3D12PT_Graphics)
+	else if (PipelineType == ED3D12PipelineType::Graphics)
 	{
-		pRootSignature = GetGraphicsRootSignature();
+		pRootSignature = PipelineState.Graphics.CurrentPipelineStateObject->RootSignature;
 
 		// See if we need to set a graphics root signature
 		if (PipelineState.Graphics.bNeedSetRootSignature)
@@ -461,18 +483,18 @@ void FD3D12StateCacheBase::ApplyState()
 			PipelineState.Common.SamplerCache.DirtyGraphics();
 			PipelineState.Common.CBVCache.DirtyGraphics();
 		}
+
+		// Ensure the correct graphics PSO is set.
+		InternalSetPipelineState(GetGraphicsPipelineState()->PipelineState);
 	}
 
-	// Ensure the correct graphics or compute PSO is set.
-	InternalSetPipelineState<PipelineType>();
-
 	// Need to cache compute budget, as we need to reset after PSO changes
-	if (PipelineType == D3D12PT_Compute && CommandList->GetType() == D3D12_COMMAND_LIST_TYPE_COMPUTE)
+	if (PipelineType == ED3D12PipelineType::Compute && CommandList->GetType() == D3D12_COMMAND_LIST_TYPE_COMPUTE)
 	{
 		CmdContext->SetAsyncComputeBudgetInternal(PipelineState.Compute.ComputeBudget);
 	}
 
-	if (PipelineType == D3D12PT_Graphics)
+	if (PipelineType == ED3D12PipelineType::Graphics)
 	{
 		// Setup non-heap bindings
 		if (bNeedSetVB)
@@ -530,10 +552,10 @@ void FD3D12StateCacheBase::ApplyState()
 	}
 
 	// Note that ray tracing pipeline shares state with compute
-	const uint32 StartStage = PipelineType == D3D12PT_Graphics ? 0 : SF_Compute;
-	const uint32 EndStage = PipelineType == D3D12PT_Graphics ? SF_Compute : SF_NumStandardFrequencies;
+	const uint32 StartStage = PipelineType == ED3D12PipelineType::Graphics ? 0 : SF_Compute;
+	const uint32 EndStage = PipelineType == ED3D12PipelineType::Graphics ? SF_Compute : SF_NumStandardFrequencies;
 
-	const EShaderFrequency UAVStage = PipelineType == D3D12PT_Graphics ? SF_Pixel : SF_Compute;
+	const EShaderFrequency UAVStage = PipelineType == ED3D12PipelineType::Graphics ? SF_Pixel : SF_Compute;
 
 	//
 	// Reserve space in descriptor heaps
@@ -658,7 +680,7 @@ void FD3D12StateCacheBase::ApplyState()
 			DescriptorCache.SetSRVs<##Shader>(pRootSignature, SRVCache, CurrentShaderDirtySRVSlots[##Shader], NumSRVs[##Shader], ViewHeapSlot); \
 		}
 
-		if (PipelineType == D3D12PT_Graphics)
+		if (PipelineType == ED3D12PipelineType::Graphics)
 		{
 			CONDITIONAL_SET_SRVS(SF_Vertex);
 			CONDITIONAL_SET_SRVS(SF_Mesh);
@@ -693,7 +715,7 @@ void FD3D12StateCacheBase::ApplyState()
 		}
 #endif
 
-		if (PipelineType == D3D12PT_Graphics)
+		if (PipelineType == ED3D12PipelineType::Graphics)
 		{
 			CONDITIONAL_SET_CBVS(SF_Vertex);
 			CONDITIONAL_SET_CBVS(SF_Mesh);
@@ -772,7 +794,7 @@ void FD3D12StateCacheBase::ApplySamplers(const FD3D12RootSignature* const pRootS
 				continue;
 			}
 
-			if ((CurrentShaderDirtySamplerSlots[Stage] && NumSamplers[Stage]))
+			if (CurrentShaderDirtySamplerSlots[Stage] && NumSamplers[Stage])
 			{
 				SamplerSlotMask& CurrentDirtySlotMask = Cache.DirtySlotMask[Stage];
 				FD3D12SamplerState** Samplers = Cache.States[Stage];
@@ -901,8 +923,8 @@ bool FD3D12StateCacheBase::AssertResourceStates(ED3D12PipelineType PipelineType)
 	//
 
 	// Note that ray tracing pipeline shares state with compute
-	const uint32 StartStage = PipelineType == D3D12PT_Graphics ? 0 : SF_Compute;
-	const uint32 EndStage = PipelineType == D3D12PT_Graphics ? SF_Compute : SF_NumStandardFrequencies;
+	const uint32 StartStage = PipelineType == ED3D12PipelineType::Graphics ? 0 : SF_Compute;
+	const uint32 EndStage = PipelineType == ED3D12PipelineType::Graphics ? SF_Compute : SF_NumStandardFrequencies;
 
 	bool bSRVIntersectsWithDepth = false;
 	bool bSRVIntersectsWithStencil = false;
@@ -977,7 +999,7 @@ bool FD3D12StateCacheBase::AssertResourceStates(ED3D12PipelineType PipelineType)
 	}
 
 	// Note: There is nothing special to check for compute and ray tracing pipelines
-	if (PipelineType == D3D12PT_Graphics)
+	if (PipelineType == ED3D12PipelineType::Graphics)
 	{
 		//
 		// Verify graphics pipeline state
@@ -1164,27 +1186,110 @@ void FD3D12StateCacheBase::SetStencilRef(uint32 StencilRef)
 	}
 }
 
-void FD3D12StateCacheBase::SetComputeShader(FD3D12ComputeShader* Shader)
+void FD3D12StateCacheBase::SetNewShaderData(EShaderFrequency InFrequency, const FD3D12ShaderData* InShaderData)
 {
-	FD3D12ComputeShader* CurrentShader = nullptr;
-	GetComputeShader(&CurrentShader);
-	if (CurrentShader != Shader)
+	PipelineState.Common.CurrentShaderSamplerCounts[InFrequency] = InShaderData ? InShaderData->ResourceCounts.NumSamplers : 0;
+	PipelineState.Common.CurrentShaderSRVCounts[InFrequency] = InShaderData ? InShaderData->ResourceCounts.NumSRVs : 0;
+	PipelineState.Common.CurrentShaderCBCounts[InFrequency] = InShaderData ? InShaderData->ResourceCounts.NumCBs : 0;
+	PipelineState.Common.CurrentShaderUAVCounts[InFrequency] = InShaderData ? InShaderData->ResourceCounts.NumUAVs : 0;
+
+	// Shader changed so its resource table is dirty
+	SetDirtyUniformBuffers(CmdContext, InFrequency);
+}
+
+void FD3D12StateCacheBase::SetComputePipelineState(FD3D12ComputePipelineState* ComputePipelineState)
+{
+	check(ComputePipelineState);
+
+	FD3D12ComputePipelineState* CurrentComputePipelineState = PipelineState.Compute.CurrentPipelineStateObject;
+	const bool bForceSet = CurrentComputePipelineState == nullptr;
+
+	if (bForceSet || CurrentComputePipelineState != ComputePipelineState)
 	{
-		// See if we need to change the root signature
-		const FD3D12RootSignature* const pCurrentRootSignature = CurrentShader ? CurrentShader->pRootSignature : nullptr;
-		const FD3D12RootSignature* const pNewRootSignature = Shader ? Shader->pRootSignature : nullptr;
-		if (pCurrentRootSignature != pNewRootSignature)
+		if (bForceSet || CurrentComputePipelineState->RootSignature != ComputePipelineState->RootSignature)
 		{
 			PipelineState.Compute.bNeedSetRootSignature = true;
 		}
 
-		PipelineState.Common.CurrentShaderSamplerCounts[SF_Compute] = (Shader) ? Shader->ResourceCounts.NumSamplers : 0;
-		PipelineState.Common.CurrentShaderSRVCounts[SF_Compute] = (Shader) ? Shader->ResourceCounts.NumSRVs : 0;
-		PipelineState.Common.CurrentShaderCBCounts[SF_Compute] = (Shader) ? Shader->ResourceCounts.NumCBs : 0;
-		PipelineState.Common.CurrentShaderUAVCounts[SF_Compute] = (Shader) ? Shader->ResourceCounts.NumUAVs : 0;
+		if (bForceSet || CurrentComputePipelineState->ComputeShader != ComputePipelineState->ComputeShader)
+		{
+			SetNewShaderData(SF_Compute, ComputePipelineState->ComputeShader);
+		}
 
-		// Shader changed so its resource table is dirty
-		CmdContext->DirtyUniformBuffers[SF_Compute] = 0xffff;
+		// Save the PSO
+		PipelineState.Common.bNeedSetPSO = true;
+		PipelineState.Compute.CurrentPipelineStateObject = ComputePipelineState;
+
+		// Set the PSO
+		InternalSetPipelineState(ComputePipelineState->PipelineState);
+	}
+}
+
+void FD3D12StateCacheBase::SetGraphicsPipelineState(FD3D12GraphicsPipelineState* GraphicsPipelineState)
+{
+	check(GraphicsPipelineState);
+
+	FD3D12GraphicsPipelineState* CurrentGraphicsPipelineState = PipelineState.Graphics.CurrentPipelineStateObject;
+	const bool bForceSet = CurrentGraphicsPipelineState == nullptr;
+
+	if (bForceSet || CurrentGraphicsPipelineState != GraphicsPipelineState)
+	{
+		if (bForceSet || CurrentGraphicsPipelineState->GetVertexShader() != GraphicsPipelineState->GetVertexShader())
+		{
+			SetNewShaderData(SF_Vertex, GraphicsPipelineState->GetVertexShader());
+		}
+
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		if (bForceSet || CurrentGraphicsPipelineState->GetMeshShader() != GraphicsPipelineState->GetMeshShader())
+		{
+			SetNewShaderData(SF_Mesh, GraphicsPipelineState->GetMeshShader());
+		}
+
+		if (bForceSet || CurrentGraphicsPipelineState->GetAmplificationShader() != GraphicsPipelineState->GetAmplificationShader())
+		{
+			SetNewShaderData(SF_Amplification, GraphicsPipelineState->GetAmplificationShader());
+		}
+#endif
+
+		if (bForceSet || CurrentGraphicsPipelineState->GetPixelShader() != GraphicsPipelineState->GetPixelShader())
+		{
+			SetNewShaderData(SF_Pixel, GraphicsPipelineState->GetPixelShader());
+		}
+
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+		if (bForceSet || CurrentGraphicsPipelineState->GetGeometryShader() != GraphicsPipelineState->GetGeometryShader())
+		{
+			SetNewShaderData(SF_Geometry, GraphicsPipelineState->GetGeometryShader());
+		}
+#endif
+
+		// See if we need to change the root signature
+		if (bForceSet || CurrentGraphicsPipelineState->RootSignature != GraphicsPipelineState->RootSignature)
+		{
+			PipelineState.Graphics.bNeedSetRootSignature = true;
+		}
+
+		PipelineState.Graphics.StreamStrides = GraphicsPipelineState->StreamStrides;
+
+		// Save the PSO
+		PipelineState.Common.bNeedSetPSO = true;
+		PipelineState.Graphics.CurrentPipelineStateObject = GraphicsPipelineState;
+
+		EPrimitiveType PrimitiveType = GraphicsPipelineState->PipelineStateInitializer.PrimitiveType;
+		if (PipelineState.Graphics.CurrentPrimitiveType != PrimitiveType)
+		{
+			PipelineState.Graphics.CurrentPrimitiveType = PrimitiveType;
+			PipelineState.Graphics.CurrentPrimitiveTopology = GetD3D12PrimitiveType(PrimitiveType);
+			bNeedSetPrimitiveTopology = true;
+
+			static_assert(PT_Num == 38, "This computation needs to be updated, matching that of GetVertexCountForPrimitiveCount()");
+			PipelineState.Graphics.PrimitiveTypeFactor = (PrimitiveType == PT_TriangleList) ? 3 : (PrimitiveType == PT_LineList) ? 2 : (PrimitiveType == PT_RectList) ? 3 : (PrimitiveType >= PT_1_ControlPointPatchList) ? (PrimitiveType - PT_1_ControlPointPatchList + 1) : 1;
+			PipelineState.Graphics.PrimitiveTypeOffset = (PrimitiveType == PT_TriangleStrip) ? 2 : 0;
+			PipelineState.Graphics.CurrentPrimitiveStat = (PrimitiveType == PT_LineList) ? &PipelineState.Graphics.NumLines : &PipelineState.Graphics.NumTriangles;
+		}
+
+		// Set the PSO
+		InternalSetPipelineState(GraphicsPipelineState->PipelineState);
 	}
 }
 

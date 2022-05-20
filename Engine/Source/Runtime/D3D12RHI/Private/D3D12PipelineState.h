@@ -7,11 +7,18 @@
 	#include "d3d12.h"
 #endif
 
+class FD3D12VertexShader;
+class FD3D12MeshShader;
+class FD3D12AmplificationShader;
+class FD3D12PixelShader;
+class FD3D12GeometryShader;
+class FD3D12ComputeShader;
+
 // FORT-101886
 // UE implemented high level PSO caches on the general RHI level already
 // D3D12RHI high level PSO caches never cleanup (until shutdown) currently
 // and stale PSOs remain in the cache, which is being suspected as the cause
-// of some XboxOne crashes
+// of some crashes
 // TODO: Remove or rewrite D3D12RHI high level PSO cache
 #ifndef D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE
 #define D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE 0
@@ -151,13 +158,8 @@ struct FD3D12ComputePipelineStateDesc
 };
 
 
-FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(const FGraphicsPipelineStateInitializer& Initializer, const FD3D12RootSignature* RootSignature);
-FD3D12ComputePipelineStateDesc GetComputePipelineStateDesc(const FD3D12ComputeShader* ComputeShader);
-
 #define PSO_IF_NOT_EQUAL_RETURN_FALSE( value ) if(lhs.##value != rhs.##value){ return false; }
-
 #define PSO_IF_MEMCMP_FAILS_RETURN_FALSE( value ) if(FMemory::Memcmp(&lhs.##value, &rhs.##value, sizeof(rhs.##value)) != 0){ return false; }
-
 #define PSO_IF_STRING_COMPARE_FAILS_RETURN_FALSE( value ) \
 	const char* const lhString = lhs.##value##; \
 	const char* const rhString = rhs.##value##; \
@@ -352,39 +354,42 @@ protected:
 	uint64 ContextSortKey = 0;
 };
 
-struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState
+struct FD3D12PipelineStateCommonData
 {
-	explicit FD3D12GraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer, const FD3D12RootSignature* InRootSignature, FD3D12PipelineState* InPipelineState);
-	~FD3D12GraphicsPipelineState();
+	FD3D12PipelineStateCommonData(const FD3D12RootSignature* InRootSignature, FD3D12PipelineState* InPipelineState);
 
-	FGraphicsPipelineStateInitializer PipelineStateInitializer;
-	const FD3D12RootSignature* RootSignature;
-	uint16 StreamStrides[MaxVertexElementCount];
-	bool bShaderNeedsGlobalConstantBuffer[SF_NumStandardFrequencies];
+	const FD3D12RootSignature* const RootSignature;
 
 	FD3D12PipelineState* PipelineState;
-
-	FORCEINLINE class FD3D12VertexShader*   GetVertexShader() const { return (FD3D12VertexShader*)PipelineStateInitializer.BoundShaderState.VertexShaderRHI; }
-	FORCEINLINE class FD3D12PixelShader*    GetPixelShader() const { return (FD3D12PixelShader*)PipelineStateInitializer.BoundShaderState.PixelShaderRHI; }
-	FORCEINLINE class FD3D12MeshShader*				GetMeshShader() const { return (FD3D12MeshShader*)PipelineStateInitializer.BoundShaderState.GetMeshShader(); }
-	FORCEINLINE class FD3D12AmplificationShader*	GetAmplificationShader() const { return (FD3D12AmplificationShader*)PipelineStateInitializer.BoundShaderState.GetAmplificationShader(); }
-	FORCEINLINE class FD3D12GeometryShader* GetGeometryShader() const { return (FD3D12GeometryShader*)PipelineStateInitializer.BoundShaderState.GetGeometryShader(); }
 };
 
-struct FD3D12ComputePipelineState : public FRHIComputePipelineState
+struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState, FD3D12PipelineStateCommonData
 {
-	explicit FD3D12ComputePipelineState(
-		FD3D12ComputeShader* InComputeShader,
-		FD3D12PipelineState* InPipelineState)
-		: ComputeShader(InComputeShader)
-		, PipelineState(InPipelineState)
-	{
-	}
+	FD3D12GraphicsPipelineState() = delete;
+	FD3D12GraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer, const FD3D12RootSignature* InRootSignature, FD3D12PipelineState* InPipelineState);
+	~FD3D12GraphicsPipelineState();
 
+	FORCEINLINE FD3D12VertexShader*        GetVertexShader() const        { return (FD3D12VertexShader*)PipelineStateInitializer.BoundShaderState.GetVertexShader(); }
+	FORCEINLINE FD3D12PixelShader*         GetPixelShader() const         { return (FD3D12PixelShader*)PipelineStateInitializer.BoundShaderState.GetPixelShader(); }
+	FORCEINLINE FD3D12MeshShader*          GetMeshShader() const          { return (FD3D12MeshShader*)PipelineStateInitializer.BoundShaderState.GetMeshShader(); }
+	FORCEINLINE FD3D12AmplificationShader* GetAmplificationShader() const { return (FD3D12AmplificationShader*)PipelineStateInitializer.BoundShaderState.GetAmplificationShader(); }
+	FORCEINLINE FD3D12GeometryShader*      GetGeometryShader() const      { return (FD3D12GeometryShader*)PipelineStateInitializer.BoundShaderState.GetGeometryShader(); }
+
+	FGraphicsPipelineStateInitializer PipelineStateInitializer;
+	TStaticArray<uint16, MaxVertexElementCount> StreamStrides;
+	bool bShaderNeedsGlobalConstantBuffer[SF_NumStandardFrequencies];
+};
+
+struct FD3D12ComputePipelineState : public FRHIComputePipelineState, FD3D12PipelineStateCommonData
+{
+	FD3D12ComputePipelineState() = delete;
+	FD3D12ComputePipelineState(FD3D12ComputeShader* InComputeShader, const FD3D12RootSignature* InRootSignature, FD3D12PipelineState* InPipelineState);
 	~FD3D12ComputePipelineState();
 
+	FORCEINLINE FD3D12ComputeShader* GetComputeShader() const { return ComputeShader; }
+
 	TRefCountPtr<FD3D12ComputeShader> ComputeShader;
-	FD3D12PipelineState* const PipelineState;
+	bool bShaderNeedsGlobalConstantBuffer;
 };
 
 #if D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE
@@ -495,8 +500,8 @@ public:
 
 	FD3D12ComputePipelineState* FindInRuntimeCache(const FD3D12ComputeShader* ComputeShader);
 #endif
-	FD3D12ComputePipelineState* FindInLoadedCache(FD3D12ComputeShader* ComputeShader, FD3D12ComputePipelineStateDesc& OutLowLevelDesc);
-	FD3D12ComputePipelineState* CreateAndAdd(FD3D12ComputeShader* ComputeShader, const FD3D12ComputePipelineStateDesc& LowLevelDesc);
+	FD3D12ComputePipelineState* FindInLoadedCache(FD3D12ComputeShader* ComputeShader, const FD3D12RootSignature* RootSignature, FD3D12ComputePipelineStateDesc& OutLowLevelDesc);
+	FD3D12ComputePipelineState* CreateAndAdd(FD3D12ComputeShader* ComputeShader, const FD3D12RootSignature* RootSignature, const FD3D12ComputePipelineStateDesc& LowLevelDesc);
 
 	static uint64 HashPSODesc(const FD3D12LowLevelGraphicsPipelineStateDesc& Desc);
 	static uint64 HashPSODesc(const FD3D12ComputePipelineStateDesc& Desc);

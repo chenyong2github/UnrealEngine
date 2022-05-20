@@ -17,11 +17,9 @@ static TAutoConsoleVariable<float> CVarPSOStallWarningThresholdInMs(
 
 /// @cond DOXYGEN_WARNINGS
 
-FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(const FGraphicsPipelineStateInitializer& Initializer, const FD3D12RootSignature* RootSignature)
+static FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(const FGraphicsPipelineStateInitializer& Initializer, const FD3D12RootSignature* RootSignature)
 {
-	// Memzero because we hash using the entire struct and we need to clear any padding.
-	FD3D12LowLevelGraphicsPipelineStateDesc Desc;
-	FMemory::Memzero(&Desc, sizeof(Desc));
+	FD3D12LowLevelGraphicsPipelineStateDesc Desc{};
 
 	Desc.pRootSignature = RootSignature;
 	Desc.Desc.pRootSignature = RootSignature->GetRootSignature();
@@ -89,14 +87,12 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 	return Desc;
 }
 
-FD3D12ComputePipelineStateDesc GetComputePipelineStateDesc(const FD3D12ComputeShader* ComputeShader)
+static FD3D12ComputePipelineStateDesc GetComputePipelineStateDesc(const FD3D12ComputeShader* ComputeShader, const FD3D12RootSignature* RootSignature)
 {
-	// Memzero because we hash using the entire struct and we need to clear any padding.
-	FD3D12ComputePipelineStateDesc Desc;
-	FMemory::Memzero(&Desc, sizeof(Desc));
+	FD3D12ComputePipelineStateDesc Desc{};
 
-	Desc.pRootSignature = ComputeShader->pRootSignature;
-	Desc.Desc.pRootSignature = Desc.pRootSignature->GetRootSignature();
+	Desc.pRootSignature = RootSignature;
+	Desc.Desc.pRootSignature = RootSignature->GetRootSignature();
 	Desc.Desc.CS = ComputeShader->GetShaderBytecode();
 	Desc.CSHash = ComputeShader->GetBytecodeHash();
 #if D3D12RHI_NEEDS_VENDOR_EXTENSIONS
@@ -310,21 +306,28 @@ ID3D12PipelineState* FD3D12PipelineState::InternalGetPipelineState()
 	return PipelineState.GetReference();
 }
 
+FD3D12PipelineStateCommonData::FD3D12PipelineStateCommonData(const FD3D12RootSignature* InRootSignature, FD3D12PipelineState* InPipelineState)
+	: RootSignature(InRootSignature)
+	, PipelineState(InPipelineState)
+{
+}
+
 FD3D12GraphicsPipelineState::FD3D12GraphicsPipelineState(
 	const FGraphicsPipelineStateInitializer& Initializer,
 	const FD3D12RootSignature* InRootSignature,
 	FD3D12PipelineState* InPipelineState)
-	: PipelineStateInitializer(Initializer)
-	, RootSignature(InRootSignature)
-	, PipelineState(InPipelineState)
+	: FD3D12PipelineStateCommonData(InRootSignature, InPipelineState)
+	, PipelineStateInitializer(Initializer)
+	, StreamStrides(InPlace, 0)
 {
 	// hold on to bound RHI resources
 	PipelineStateInitializer.BoundShaderState.AddRefResources();
 
 	if (Initializer.BoundShaderState.VertexDeclarationRHI)
-		FMemory::Memcpy(StreamStrides, ((FD3D12VertexDeclaration*) Initializer.BoundShaderState.VertexDeclarationRHI)->StreamStrides, sizeof(StreamStrides));
-	else
-		FMemory::Memzero(StreamStrides, sizeof(StreamStrides));
+	{
+		StreamStrides = static_cast<FD3D12VertexDeclaration*>(Initializer.BoundShaderState.VertexDeclarationRHI)->StreamStrides;
+	}
+
 	bShaderNeedsGlobalConstantBuffer[SF_Vertex] = GetVertexShader() && GetVertexShader()->UsesGlobalUniformBuffer();
 	bShaderNeedsGlobalConstantBuffer[SF_Mesh] = GetMeshShader() && GetMeshShader()->UsesGlobalUniformBuffer();
 	bShaderNeedsGlobalConstantBuffer[SF_Amplification] = GetAmplificationShader() && GetAmplificationShader()->UsesGlobalUniformBuffer();
@@ -342,13 +345,19 @@ FD3D12GraphicsPipelineState::~FD3D12GraphicsPipelineState()
 	// stop doing an AddRef() and remove the PipelineState from any caches at this point.
 
 #if D3D12_USE_DERIVED_PSO
-	// On XboxOne the pipeline state is the derived object.
 	delete PipelineState;
 	PipelineState = nullptr;
-#endif // D3D12_USE_DERIVED_PSO
+#endif
 
 	// release bound RHI resources
 	PipelineStateInitializer.BoundShaderState.ReleaseResources();
+}
+
+FD3D12ComputePipelineState::FD3D12ComputePipelineState(FD3D12ComputeShader* InComputeShader, const FD3D12RootSignature* InRootSignature, FD3D12PipelineState* InPipelineState)
+	: FD3D12PipelineStateCommonData(InRootSignature, InPipelineState)
+	, ComputeShader(InComputeShader)
+{
+	bShaderNeedsGlobalConstantBuffer = InComputeShader && InComputeShader->UsesGlobalUniformBuffer();
 }
 
 FD3D12ComputePipelineState::~FD3D12ComputePipelineState()
@@ -668,10 +677,10 @@ FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::FindInRuntimeCache(con
 }
 #endif
 
-FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::FindInLoadedCache(FD3D12ComputeShader* ComputeShader, FD3D12ComputePipelineStateDesc& OutLowLevelDesc)
+FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::FindInLoadedCache(FD3D12ComputeShader* ComputeShader, const FD3D12RootSignature* RootSignature, FD3D12ComputePipelineStateDesc& OutLowLevelDesc)
 {
 	// TODO: For now PSOs will be created on every node of the LDA chain.
-	OutLowLevelDesc = GetComputePipelineStateDesc(ComputeShader);
+	OutLowLevelDesc = GetComputePipelineStateDesc(ComputeShader, RootSignature);
 	OutLowLevelDesc.Desc.NodeMask = FRHIGPUMask::All().GetNative();
 	OutLowLevelDesc.CombinedHash = FD3D12PipelineStateCacheBase::HashPSODesc(OutLowLevelDesc);
 
@@ -690,14 +699,14 @@ FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::FindInLoadedCache(FD3D
 #else
 	if (PipelineState && PipelineState->IsValid())
 	{
-		return new FD3D12ComputePipelineState(ComputeShader, PipelineState);
+		return new FD3D12ComputePipelineState(ComputeShader, RootSignature, PipelineState);
 	}
 
 	return nullptr;
 #endif
 }
 
-FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::CreateAndAdd(FD3D12ComputeShader* ComputeShader, const FD3D12ComputePipelineStateDesc& LowLevelDesc)
+FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::CreateAndAdd(FD3D12ComputeShader* ComputeShader, const FD3D12RootSignature* RootSignature, const FD3D12ComputePipelineStateDesc& LowLevelDesc)
 {
 	FD3D12PipelineState* const PipelineState = CreateAndAddToLowLevelCache(LowLevelDesc);
 #if D3D12RHI_USE_HIGH_LEVEL_PSO_CACHE
@@ -706,7 +715,7 @@ FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::CreateAndAdd(FD3D12Com
 #else
 	if (PipelineState && PipelineState->IsValid())
 	{
-		return new FD3D12ComputePipelineState(ComputeShader, PipelineState);
+		return new FD3D12ComputePipelineState(ComputeShader, RootSignature, PipelineState);
 	}
 
 	return nullptr;
