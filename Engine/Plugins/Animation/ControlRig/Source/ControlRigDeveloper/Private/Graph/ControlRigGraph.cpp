@@ -421,7 +421,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 				UEdGraphNode* EdNode = FindNodeForModelNodeName(ModelNode->GetFName(), false);
 				if (EdNode)
 				{
-					RemoveAndDeleteNode(EdNode);
+					RemoveNode(EdNode);
 				}
 			}
 			break;
@@ -927,21 +927,26 @@ URigVMController* UControlRigGraph::GetController() const
 	return nullptr;
 }
 
-void UControlRigGraph::RemoveAndDeleteNode(UEdGraphNode* InNode)
+void UControlRigGraph::RemoveNode(UEdGraphNode* InNode)
 {
 	// Make sure EdGraph is not part of the transaction
 	TGuardValue<ITransaction*> TransactionGuard(GUndo, nullptr);
 					
-	static UObject* NewOuter = GetTransientPackage();
-	InNode->Rename(nullptr, NewOuter, REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
-					
-	// Remove the node and notify of the removal
+	// Rename the soon to be deleted object to a unique name, so that other objects can use
+	// the old name
+	FString DeletedName;
 	{
-		Nodes.Remove(InNode);
-		InNode->BreakAllNodeLinks();
-						
-		NotifyGraphChanged();
+		UObject* ExistingObject = nullptr;
+		static int32 DeletedIndex = FMath::Rand();
+		do
+		{
+			DeletedName = FString::Printf(TEXT("%s_Deleted_%d"), *InNode->GetName(), DeletedIndex++); 
+			ExistingObject = StaticFindObject(/*Class=*/ NULL, this, *DeletedName, true);						
+		}
+		while (ExistingObject);
 	}
+	InNode->Rename(*DeletedName, nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors);	
+	Super::RemoveNode(InNode);
 }
 
 URigVMController* UControlRigGraph::GetTemplateController()

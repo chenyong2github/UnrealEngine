@@ -147,6 +147,7 @@ private:
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
 	TWeakObjectPtr<URigVMGraph> GraphPtr;
+	TWeakObjectPtr<UControlRigGraph> EdGraphOuterPtr;
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprintPtr;
 	FSimpleDelegate OnRebuildChildren;
 	TSharedPtr<SControlRigGraphNode> OwnedNodeWidget;

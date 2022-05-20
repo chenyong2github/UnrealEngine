@@ -563,6 +563,7 @@ FControlRigArgumentDefaultNode::FControlRigArgumentDefaultNode(
 		{
 			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ControlRigBlueprintPtr->GetEdGraph(LibraryNode->GetGraph())))
 			{
+				EdGraphOuterPtr = RigGraph;
 				GraphChangedDelegateHandle = RigGraph->AddOnGraphChangedHandler(
 					FOnGraphChanged::FDelegate::CreateRaw(this, &FControlRigArgumentDefaultNode::OnGraphChanged)
 				);
@@ -574,20 +575,17 @@ FControlRigArgumentDefaultNode::FControlRigArgumentDefaultNode(
 
 FControlRigArgumentDefaultNode::~FControlRigArgumentDefaultNode()
 {
-	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
+	if (ControlRigBlueprintPtr.IsValid())
 	{
 		ControlRigBlueprintPtr.Get()->OnModified().RemoveAll(this);
-
-		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(GraphPtr->GetOuter()))
+	}
+	
+	if (EdGraphOuterPtr.IsValid())
+	{
+		if (GraphChangedDelegateHandle.IsValid())
 		{
-			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ControlRigBlueprintPtr->GetEdGraph(LibraryNode->GetGraph())))
-			{
-				if (GraphChangedDelegateHandle.IsValid())
-				{
-					RigGraph->RemoveOnGraphChangedHandler(GraphChangedDelegateHandle);
-				}
-			}
-		}
+			EdGraphOuterPtr->RemoveOnGraphChangedHandler(GraphChangedDelegateHandle);
+		}		
 	}
 }
 

@@ -135,7 +135,7 @@ private:
 
 	TMap<URigVMNode*, TPair<int32, int32>> CachedInstructionIndices;
 
-	void RemoveAndDeleteNode(UEdGraphNode* InNode);
+	void RemoveNode(UEdGraphNode* InNode);
 
 #endif
 #if WITH_EDITORONLY_DATA
