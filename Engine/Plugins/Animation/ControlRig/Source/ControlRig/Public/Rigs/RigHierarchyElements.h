@@ -397,6 +397,48 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 	FRigLocalAndGlobalTransform Initial;
 };
 
+USTRUCT(BlueprintType)
+struct CONTROLRIG_API FRigPreferredEulerAngles
+{
+	GENERATED_BODY()
+
+	static constexpr EEulerRotationOrder DefaultRotationOrder = EEulerRotationOrder::YZX;
+
+	FRigPreferredEulerAngles()
+	: RotationOrder(DefaultRotationOrder) // default for rotator
+	, Current(FVector::ZeroVector)
+	, Initial(FVector::ZeroVector)
+	{}
+
+	void Save(FArchive& Ar);
+	void Load(FArchive& Ar);
+
+	FORCEINLINE bool operator == (const FRigPreferredEulerAngles& Other) const
+	{
+		return RotationOrder == Other.RotationOrder &&
+			Current == Other.Current &&
+			Initial == Other.Initial;
+	}
+
+	void Reset();
+	FORCEINLINE FVector& Get(bool bInitial = false) { return bInitial ? Initial : Current; }
+	FORCEINLINE const FVector& Get(bool bInitial = false) const { return bInitial ? Initial : Current; }
+	FRotator GetRotator(bool bInitial = false) const;
+	FRotator SetRotator(const FRotator& InValue, bool bInitial = false, bool bFixEulerFlips = false);
+	FVector GetAngles(bool bInitial = false, EEulerRotationOrder InRotationOrder = DefaultRotationOrder) const;
+	void SetAngles(const FVector& InValue, bool bInitial = false, EEulerRotationOrder InRotationOrder = DefaultRotationOrder);
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
+	EEulerRotationOrder RotationOrder;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
+	FVector Current;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Pose")
+	FVector Initial;
+};
+
+
 struct FRigBaseElement;
 //typedef TArray<FRigBaseElement*> FRigBaseElementChildrenArray;
 typedef TArray<FRigBaseElement*, TInlineAllocator<3>> FRigBaseElementChildrenArray;
@@ -1107,6 +1149,9 @@ public:
 	FRigCurrentAndInitialTransform Shape;
 
 protected:
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = RigElement)
+	FRigPreferredEulerAngles PreferredEulerAngles;
 	
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
@@ -1120,6 +1165,7 @@ public:
 protected:
 
 	friend struct FRigBaseElement;
+	friend class URigHierarchy;
 };
 
 USTRUCT(BlueprintType)

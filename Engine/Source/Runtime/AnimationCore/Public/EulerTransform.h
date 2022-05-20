@@ -49,23 +49,12 @@ struct ANIMATIONCORE_API FEulerTransform
 	{
 	}
 
-	FORCEINLINE FEulerTransform(const FTransform& InTransform)
+	FORCEINLINE explicit FEulerTransform(const FTransform& InTransform)
 		: Location(InTransform.GetLocation())
 		, Rotation(InTransform.GetRotation().Rotator())
 		, Scale(InTransform.GetScale3D())
 	{
 
-	}
-
-	FORCEINLINE FEulerTransform& operator =(const FTransform& InTransform)
-	{
-		FromFTransform(InTransform);
-		return *this;
-	}
-
-	FORCEINLINE operator FTransform() const
-	{
-		return ToFTransform();
 	}
 
 	/** The translation of this transform */

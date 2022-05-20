@@ -1633,21 +1633,23 @@ static void EvaluateThisControl(UMovieSceneControlRigParameterSection* Section, 
 			case ERigControlType::TransformNoScale:
 			case ERigControlType::EulerTransform:
 			{
-				TOptional <FTransform> Value = Section->EvaluateTransformParameter(FrameTime, ControlName);
+				TOptional <FEulerTransform> Value = Section->EvaluateTransformParameter(FrameTime, ControlName);
 				if (Value.IsSet())
 				{
 					if (ControlElement->Settings.ControlType == ERigControlType::Transform)
 					{
-						ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, Value.GetValue(), true, EControlRigSetKey::Never, bSetupUndo);
+						ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, Value.GetValue().ToFTransform(), true, EControlRigSetKey::Never, bSetupUndo);
+						ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Value.GetValue().Rotation);
 					}
 					else if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 					{
-						FTransformNoScale NoScale = Value.GetValue();
+						FTransformNoScale NoScale = Value.GetValue().ToFTransform();
 						ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ControlName, NoScale, true, EControlRigSetKey::Never, bSetupUndo);
+						ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Value.GetValue().Rotation);
 					}
 					else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 					{
-						FEulerTransform Euler = Value.GetValue();
+						const FEulerTransform& Euler = Value.GetValue();
 						ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ControlName, Euler, true, EControlRigSetKey::Never, bSetupUndo);
 					}
 				}
@@ -2545,26 +2547,23 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 			case ERigControlType::EulerTransform:
 			{
 				FVector Translation, Scale(1.0f, 1.0f, 1.0f);
-				FRotator Rotation;
+				FRotator Rotation = InControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
 
 				if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 				{
 					FTransformNoScale NoScale = ControlValue.Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
 					Translation = NoScale.Location;
-					Rotation = NoScale.Rotation.Rotator();
 				}
 				else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 				{
 					FEulerTransform Euler = ControlValue.Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
 					Translation = Euler.Location;
-					Rotation = Euler.Rotation;
 					Scale = Euler.Scale;
 				}
 				else
 				{
 					FTransform Val = ControlValue.Get<FRigControlValue::FTransform_Float>().ToTransform();
 					Translation = Val.GetTranslation();
-					Rotation = Val.GetRotation().Rotator();
 					Scale = Val.GetScale3D();
 				}
 				FVector3f CurrentVector = (FVector3f)Translation;
@@ -2624,19 +2623,6 @@ void FControlRigParameterTrackEditor::GetControlRigKeys(UControlRig* InControlRi
 				{
 					bKeyZ = false;
 				}
-
-				/* @Mike.Zyracki this is my gut feeling - we should run SetClosestToMe on the rotator SOMEWHERE....
-				FMovieSceneInterrogationData InterrogationData;
-				GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
-				for (const FTransformInterrogationData& PreviousVal : InterrogationData.Iterate<FTransformInterrogationData>(UMovieSceneControlRigParameterSection::GetTransformInterrogationKey()))
-				{
-				if ((PreviousVal.ParameterName == RigControl.Name))
-				{
-				FRotator PreviousRot = PreviousVal.Val.GetRotation().Rotator();
-				PreviousRot.SetClosestToMe(CurrentRotator);
-				}
-				}
-				*/
 
 				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Roll, bKeyX));
 				OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(ChannelIndex++, CurrentRotator.Pitch, bKeyY));
@@ -2930,7 +2916,7 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 		case ERigControlType::TransformNoScale:
 		case ERigControlType::EulerTransform:
 		{
-			for (const FTransformInterrogationData& Val : InterrogationData.Iterate<FTransformInterrogationData>(UMovieSceneControlRigParameterSection::GetTransformInterrogationKey()))
+			for (const FEulerTransformInterrogationData& Val : InterrogationData.Iterate<FEulerTransformInterrogationData>(UMovieSceneControlRigParameterSection::GetTransformInterrogationKey()))
 			{
 
 				if ((Val.ParameterName == ControlElement->GetName()))
@@ -2945,8 +2931,8 @@ bool FControlRigParameterTrackEditor::ModifyOurGeneratedKeysByCurrentAndWeight(U
 							++ChannelIndex;
 						}
 						
-						FVector3f CurrentPos = (FVector3f)Val.Val.GetTranslation();
-						FRotator3f CurrentRot = FRotator3f(Val.Val.GetRotation().Rotator());
+						FVector3f CurrentPos = (FVector3f)Val.Val.GetLocation();
+						FRotator3f CurrentRot = FRotator3f(Val.Val.Rotator());
 						GeneratedTotalKeys[ChannelIndex]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void*)&CurrentPos.X, Weight);
 						GeneratedTotalKeys[ChannelIndex + 1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void*)&CurrentPos.Y, Weight);
 						GeneratedTotalKeys[ChannelIndex + 2]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void*)&CurrentPos.Z, Weight);

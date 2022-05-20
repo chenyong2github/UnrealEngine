@@ -124,9 +124,9 @@ struct FVectorInterrogationData
 	FName ParameterName;
 };
 
-struct FTransformInterrogationData
+struct FEulerTransformInterrogationData
 {
-	FTransform Val;
+	FEulerTransform Val;
 	FName ParameterName;
 };
 
@@ -383,7 +383,7 @@ public:
 	void AddColorParameter(FName InParameterName, TOptional<FLinearColor> DefaultValue, bool bReconstructChannel);
 
 	/** Adds a a key for a specific transform parameter*/
-	void AddTransformParameter(FName InParameterName, TOptional<FTransform> DefaultValue, bool bReconstructChannel);
+	void AddTransformParameter(FName InParameterName, TOptional<FEulerTransform> DefaultValue, bool bReconstructChannel);
 
 	/** Add Space Parameter for a specified Control, no Default since that is Parent space*/
 	void AddSpaceChannel(FName InControlName, bool bReconstructChannel);
@@ -413,7 +413,8 @@ public:
 	TOptional<FLinearColor> EvaluateColorParameter(const  FFrameTime& InTime, FName InParameterName);
 
 	/** Evaluates a a key for a specific transform parameter. Will not get set if not found */
-	TOptional<FTransform> EvaluateTransformParameter(const  FFrameTime& InTime, FName InParameterName);
+	TOptional<FEulerTransform> EvaluateTransformParameter(const  FFrameTime& InTime, FName InParameterName);
+	
 
 	/** Evaluates a a key for a specific space parameter. Will not get set if not found */
 	TOptional<FMovieSceneControlRigSpaceBaseKey> EvaluateSpaceChannel(const  FFrameTime& InTime, FName InParameterName);

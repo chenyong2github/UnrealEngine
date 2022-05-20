@@ -66,6 +66,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Added preferred permutation for templates
 		TemplatesPreferredPermutatation,
 
+		// Added preferred euler angles to controls
+		PreferredEulerAnglesForControls,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

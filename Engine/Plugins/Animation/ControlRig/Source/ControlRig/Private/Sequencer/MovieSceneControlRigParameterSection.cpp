@@ -584,28 +584,8 @@ struct FParameterTransformChannelEditorData
 			FRigControlElement* ControlElement = ControlRig->FindControl(ParameterName);
 			if (ControlElement)
 			{
-				if (ControlElement->Settings.ControlType == ERigControlType::Transform)
-				{
-					const FRigControlValue::FTransform_Float Transform = 
-						ControlRig->GetHierarchy()
-						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>();
-					return Transform.GetRotation().Rotator();
-				}
-				else if (ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
-				{
-					const FRigControlValue::FTransformNoScale_Float Transform = 
-						ControlRig->GetHierarchy()
-						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>();
-					return Transform.GetRotation().Rotator();
-				}
-				else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
-				{
-					const FRigControlValue::FEulerTransform_Float Transform = 
-						ControlRig->GetHierarchy()
-						->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>();
-					return Transform.GetRotator();
+				return ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
 			}
-		}
 		}
 		return TOptional<FRotator>();
 	}
@@ -650,12 +630,12 @@ struct FParameterTransformChannelEditorData
 		FVector CurrentPos; FRotator CurrentRot;
 		FVector CurrentScale;
 
-		for (const FTransformInterrogationData& Transform : InterrogationData.Iterate<FTransformInterrogationData>(UMovieSceneControlRigParameterSection::GetTransformInterrogationKey()))
+		for (const FEulerTransformInterrogationData& Transform : InterrogationData.Iterate<FEulerTransformInterrogationData>(UMovieSceneControlRigParameterSection::GetTransformInterrogationKey()))
 		{
 			if (Transform.ParameterName == ParameterName)
 			{
-				CurrentPos = Transform.Val.GetTranslation();
-				CurrentRot = Transform.Val.GetRotation().Rotator();
+				CurrentPos = Transform.Val.GetLocation();
+				CurrentRot = Transform.Val.Rotator();
 				CurrentScale = Transform.Val.GetScale3D();
 				break;
 			}
@@ -1207,7 +1187,7 @@ void UMovieSceneControlRigParameterSection::AddColorParameter(FName InParameterN
 	}
 }
 
-void UMovieSceneControlRigParameterSection::AddTransformParameter(FName InParameterName, TOptional<FTransform> DefaultValue, bool bReconstructChannel)
+void UMovieSceneControlRigParameterSection::AddTransformParameter(FName InParameterName, TOptional<FEulerTransform> DefaultValue, bool bReconstructChannel)
 {
 	FTransformParameterNameAndCurves* ExistingCurves = nullptr;
 
@@ -1217,10 +1197,10 @@ void UMovieSceneControlRigParameterSection::AddTransformParameter(FName InParame
 		ExistingCurves = &TransformParameterNamesAndCurves[NewIndex];
 		if (DefaultValue.IsSet())
 		{
-			FTransform& InValue = DefaultValue.GetValue();
-			FVector Translation = InValue.GetTranslation();
-			FRotator Rotator = InValue.GetRotation().Rotator();
-			FVector Scale = InValue.GetScale3D();
+			FEulerTransform& InValue = DefaultValue.GetValue();
+			const FVector& Translation = InValue.GetLocation();
+			const FRotator& Rotator = InValue.Rotator();
+			const FVector& Scale = InValue.GetScale3D();
 			ExistingCurves->Translation[0].SetDefault(Translation[0]);
 			ExistingCurves->Translation[1].SetDefault(Translation[1]);
 			ExistingCurves->Translation[2].SetDefault(Translation[2]);
@@ -2161,14 +2141,14 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 		case ERigControlType::TransformNoScale:
 		case ERigControlType::Transform:
 		{
-			TOptional<FTransform> DefaultValue;
+			TOptional<FEulerTransform> DefaultValue;
 			if (bSetDefault)
 			{
 				if (ControlElement->Settings.ControlType == ERigControlType::Transform)
 				{
-					DefaultValue = 
+					DefaultValue = FEulerTransform(
 						ControlRig->GetHierarchy()->
-						GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
+						GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform());
 				}
 				else if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 
@@ -2183,7 +2163,7 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 					FTransformNoScale NoScale = 
 						ControlRig->GetHierarchy()->
 						GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
-					DefaultValue = NoScale;
+					DefaultValue = FEulerTransform(NoScale.Rotation.Rotator(), NoScale.Location, FVector::OneVector);
 				}
 			}
 			AddTransformParameter(ControlElement->GetName(), DefaultValue, false);
@@ -2979,13 +2959,13 @@ TOptional<FLinearColor>UMovieSceneControlRigParameterSection:: EvaluateColorPara
 	return OptValue;
 }
 
-TOptional<FTransform> UMovieSceneControlRigParameterSection::EvaluateTransformParameter(const  FFrameTime& InTime, FName InParameterName)
+TOptional<FEulerTransform> UMovieSceneControlRigParameterSection::EvaluateTransformParameter(const  FFrameTime& InTime, FName InParameterName)
 {
-	TOptional<FTransform> OptValue;
+	TOptional<FEulerTransform> OptValue;
 	if (const FChannelMapInfo* ChannelInfo = ControlChannelMap.Find(InParameterName))
 	{
 		TArrayView<FMovieSceneFloatChannel*> FloatChannels = ChannelProxy->GetChannels<FMovieSceneFloatChannel>();
-		FTransform Value = FTransform::Identity;
+		FEulerTransform Value = FEulerTransform::Identity;
 		FVector3f Translation(ForceInitToZero), Scale(FVector3f::OneVector);
 		FRotator3f Rotator(0.0f, 0.0f, 0.0f);
 
@@ -3010,7 +2990,7 @@ TOptional<FTransform> UMovieSceneControlRigParameterSection::EvaluateTransformPa
 
 			}
 		}
-		Value = FTransform(FRotator(Rotator), (FVector)Translation, (FVector)Scale);
+		Value = FEulerTransform(FRotator(Rotator), (FVector)Translation, (FVector)Scale);
 		OptValue = Value;
 	}
 	return OptValue;

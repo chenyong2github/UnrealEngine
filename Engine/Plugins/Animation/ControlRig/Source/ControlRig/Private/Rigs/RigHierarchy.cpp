@@ -112,6 +112,7 @@ URigHierarchy::URigHierarchy()
 #endif
 , bEnableCacheValidityCheck(bEnableValidityCheckbyDefault)
 , HierarchyForCacheValidation()
+, bUpdatePreferedEulerAngleWhenSettingTransform(true)
 , ExecuteContext(nullptr)
 #if WITH_EDITOR
 , bRecordTransformsAtRuntime(true)
@@ -2402,7 +2403,22 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InTransformElement))
 			{
 				const FTransform NewTransform = ComputeLocalControlValue(ControlElement, ControlElement->Pose.Get(OpposedType), GlobalType);
-				InTransformElement->Pose.Set(InTransformType, NewTransform);
+				ControlElement->Pose.Set(InTransformType, NewTransform);
+				switch(ControlElement->Settings.ControlType)
+				{
+					case ERigControlType::Rotator:
+					case ERigControlType::EulerTransform:
+					case ERigControlType::Transform:
+					case ERigControlType::TransformNoScale:
+					{
+						ControlElement->PreferredEulerAngles.SetRotator(NewTransform.Rotator(), IsInitial(InTransformType), true);
+						break;
+					}
+					default:
+					{
+						break;
+					}
+				}
 			}
 			else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InTransformElement))
 			{
@@ -2514,6 +2530,12 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 	if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InTransformElement))
 	{
 		ControlElement->Shape.MarkDirty(MakeGlobal(InTransformType));
+
+		if(bUpdatePreferedEulerAngleWhenSettingTransform && ERigTransformType::IsLocal(InTransformType))
+		{
+			const bool bInitial = ERigTransformType::IsInitial(InTransformType);
+			ControlElement->PreferredEulerAngles.SetRotator(InTransform.Rotator(), bInitial, true);
+		}
 	}
 
 	EnsureCacheValidity();
@@ -3035,10 +3057,40 @@ FRigControlValue URigHierarchy::GetControlValue(FRigControlElement* InControlEle
 
 	if(InControlElement != nullptr)
 	{
+		auto GetValueFromPreferredEulerAngles = [this, InControlElement, &Value, InValueType]() -> bool
+		{
+			const bool bInitial = InValueType == ERigControlValueType::Initial;
+			switch(InControlElement->Settings.ControlType)
+			{
+				case ERigControlType::Rotator:
+				{
+					Value = MakeControlValueFromRotator(InControlElement->PreferredEulerAngles.GetRotator(bInitial)); 
+					return true;
+				}
+				case ERigControlType::EulerTransform:
+				{
+					FEulerTransform EulerTransform(GetTransform(InControlElement, CurrentLocal));
+					EulerTransform.Rotation = InControlElement->PreferredEulerAngles.GetRotator(bInitial);
+					Value = MakeControlValueFromEulerTransform(EulerTransform); 
+					return true;
+				}
+				default:
+				{
+					break;
+				}
+			}
+			return false;
+		};
+		
 		switch(InValueType)
 		{
 			case ERigControlValueType::Current:
 			{
+				if(GetValueFromPreferredEulerAngles())
+				{
+					break;
+				}
+					
 				Value.SetFromTransform(
                     GetTransform(InControlElement, CurrentLocal),
                     InControlElement->Settings.ControlType,
@@ -3048,6 +3100,11 @@ FRigControlValue URigHierarchy::GetControlValue(FRigControlElement* InControlEle
 			}
 			case ERigControlValueType::Initial:
 			{
+				if(GetValueFromPreferredEulerAngles())
+				{
+					break;
+				}
+
 				Value.SetFromTransform(
                     GetTransform(InControlElement, InitialLocal),
                     InControlElement->Settings.ControlType,
@@ -3068,7 +3125,7 @@ FRigControlValue URigHierarchy::GetControlValue(FRigControlElement* InControlEle
 	return Value;
 }
 
-void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const FRigControlValue& InValue, ERigControlValueType InValueType, bool bSetupUndo, bool bForce, bool bPrintPythonCommands)
+void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const FRigControlValue& InValue, ERigControlValueType InValueType, bool bSetupUndo, bool bForce, bool bPrintPythonCommands, bool bFixEulerFlips)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));
 	
@@ -3076,13 +3133,46 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 
 	if(InControlElement != nullptr)
 	{
+		auto SetPreferredEulerAnglesFromValue = [this, InControlElement, &InValue, InValueType, bFixEulerFlips]()
+		{
+			const bool bInitial = InValueType == ERigControlValueType::Initial;
+			switch(InControlElement->Settings.ControlType)
+			{
+				case ERigControlType::Rotator:
+				{
+					InControlElement->PreferredEulerAngles.SetRotator(GetRotatorFromControlValue(InValue), bInitial, bFixEulerFlips);
+					break;
+				}
+				case ERigControlType::EulerTransform:
+				{
+					InControlElement->PreferredEulerAngles.SetRotator(GetEulerTransformFromControlValue(InValue).Rotation, bInitial, bFixEulerFlips);
+					break;
+				}
+				case ERigControlType::Transform:
+				{
+					InControlElement->PreferredEulerAngles.SetRotator(GetTransformFromControlValue(InValue).Rotator(), bInitial, bFixEulerFlips);
+					break;
+				}
+				case ERigControlType::TransformNoScale:
+				{
+					InControlElement->PreferredEulerAngles.SetRotator(GetTransformNoScaleFromControlValue(InValue).Rotation.Rotator(), bInitial, bFixEulerFlips);
+					break;
+				}
+				default:
+				{
+					break;
+				}
+			}
+		};
+
 		switch(InValueType)
 		{
 			case ERigControlValueType::Current:
 			{
 				FRigControlValue Value = InValue;
 				InControlElement->Settings.ApplyLimits(Value);
-					
+
+				TGuardValue<bool> DontSetPreferredEulerAngle(bUpdatePreferedEulerAngleWhenSettingTransform, false);
 				SetTransform(
 					InControlElement,
 					Value.GetAsTransform(
@@ -3094,7 +3184,9 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 					bSetupUndo,
 					bForce,
 					bPrintPythonCommands
-				); 
+				);
+
+				SetPreferredEulerAnglesFromValue();
 				break;
 			}
 			case ERigControlValueType::Initial:
@@ -3102,6 +3194,7 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 				FRigControlValue Value = InValue;
 				InControlElement->Settings.ApplyLimits(Value);
 
+				TGuardValue<bool> DontSetPreferredEulerAngle(bUpdatePreferedEulerAngleWhenSettingTransform, false);
 				SetTransform(
 					InControlElement,
 					Value.GetAsTransform(
@@ -3113,7 +3206,9 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 					bSetupUndo,
 					bForce,
 					bPrintPythonCommands
-				); 
+				);
+
+				SetPreferredEulerAnglesFromValue();
 				break;
 			}
 			case ERigControlValueType::Minimum:

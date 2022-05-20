@@ -6,6 +6,7 @@
 #include "Units/RigUnitContext.h"
 #include "ControlRigObjectVersion.h"
 #include "ControlRigGizmoLibrary.h"
+#include "AnimationCoreLibrary.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // FRigBaseElement
@@ -134,6 +135,84 @@ void FRigCurrentAndInitialTransform::Load(FArchive& Ar)
 {
 	Current.Load(Ar);
 	Initial.Load(Ar);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// FRigPreferredEulerAngles
+////////////////////////////////////////////////////////////////////////////////
+
+void FRigPreferredEulerAngles::Save(FArchive& Ar)
+{
+	static const UEnum* RotationOrderEnum = StaticEnum<EEulerRotationOrder>();
+	FName RotationOrderName = RotationOrderEnum->GetNameByValue((int64)RotationOrder);
+	Ar << RotationOrderName;
+	Ar << Current;
+	Ar << Initial;
+}
+
+void FRigPreferredEulerAngles::Load(FArchive& Ar)
+{
+	static const UEnum* RotationOrderEnum = StaticEnum<EEulerRotationOrder>();
+	FName RotationOrderName;
+	Ar << RotationOrderName;
+	RotationOrder = (EEulerRotationOrder)RotationOrderEnum->GetValueByName(RotationOrderName);
+	Ar << Current;
+	Ar << Initial;
+}
+
+void FRigPreferredEulerAngles::Reset()
+{
+	RotationOrder = DefaultRotationOrder;
+	Initial = Current = FVector::ZeroVector;
+}
+
+FRotator FRigPreferredEulerAngles::GetRotator(bool bInitial) const
+{
+	return FRotator::MakeFromEuler(GetAngles(bInitial, DefaultRotationOrder));
+}
+
+FRotator FRigPreferredEulerAngles::SetRotator(const FRotator& InValue, bool bInitial, bool bFixEulerFlips)
+{
+	if(RotationOrder == DefaultRotationOrder)
+	{
+		if(bFixEulerFlips)
+		{
+			const FRotator CurrentValue = GetRotator(bInitial);
+			
+			//Find Diff of the rotation from current and just add that instead of setting so we can go over/under -180
+			FRotator CurrentWinding;
+			FRotator CurrentRotRemainder;
+			CurrentValue.GetWindingAndRemainder(CurrentWinding, CurrentRotRemainder);
+
+			FRotator DeltaRot = InValue - CurrentRotRemainder;
+			DeltaRot.Normalize();
+			const FRotator FixedValue = CurrentValue + DeltaRot;
+
+			SetAngles(FixedValue.Euler(), bInitial, DefaultRotationOrder);
+			return FixedValue;
+		}
+	}
+	SetAngles(InValue.Euler(), bInitial, DefaultRotationOrder);
+	return InValue;
+}
+
+FVector FRigPreferredEulerAngles::GetAngles(bool bInitial, EEulerRotationOrder InRotationOrder) const
+{
+	if(RotationOrder == InRotationOrder)
+	{
+		return Get(bInitial);
+	}
+	return AnimationCore::ChangeEulerRotationOrder(Get(bInitial), RotationOrder, InRotationOrder);
+}
+
+void FRigPreferredEulerAngles::SetAngles(const FVector& InValue, bool bInitial, EEulerRotationOrder InRotationOrder)
+{
+	FVector Value = InValue;
+	if(RotationOrder != InRotationOrder)
+	{
+		Value = AnimationCore::ChangeEulerRotationOrder(Value, InRotationOrder, RotationOrder);
+	}
+	Get(bInitial) = Value;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -782,6 +861,7 @@ void FRigControlElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializa
 		Settings.Save(Ar);
 		Offset.Save(Ar);
 		Shape.Save(Ar);
+		PreferredEulerAngles.Save(Ar);
 	}
 }
 
@@ -794,6 +874,15 @@ void FRigControlElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializa
 		Settings.Load(Ar);
 		Offset.Load(Ar);
 		Shape.Load(Ar);
+
+		if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::PreferredEulerAnglesForControls)
+		{
+			PreferredEulerAngles.Load(Ar);
+		}
+		else
+		{
+			PreferredEulerAngles.Reset();
+		}
 	}
 }
 
@@ -805,6 +894,7 @@ void FRigControlElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* I
 	Settings = Source->Settings;
 	Offset = Source->Offset;
 	Shape = Source->Shape;
+	PreferredEulerAngles = Source->PreferredEulerAngles;
 }
 
 void FRigControlElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool bInitial, bool bWeights)
@@ -817,11 +907,13 @@ void FRigControlElement::CopyPose(FRigBaseElement* InOther, bool bCurrent, bool 
 		{
 			Offset.Current = Other->Offset.Current;
 			Shape.Current = Other->Shape.Current;
+			PreferredEulerAngles.SetAngles(Other->PreferredEulerAngles.GetAngles(false), false);
 		}
 		if(bInitial)
 		{
 			Offset.Initial = Other->Offset.Initial;
 			Shape.Initial = Other->Shape.Initial;
+			PreferredEulerAngles.SetAngles(Other->PreferredEulerAngles.GetAngles(true), true);
 		}
 	}
 }

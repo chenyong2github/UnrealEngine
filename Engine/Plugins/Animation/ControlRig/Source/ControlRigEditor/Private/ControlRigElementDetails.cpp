@@ -1430,8 +1430,27 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 		const bool bInitial = InTransformType == ERigTransformElementDetailsTransform::Initial; 
 		if(bInitial || InTransformType == ERigTransformElementDetailsTransform::Current)
 		{
-			RelativeTransform = HierarchyBeingDebugged->GetLocalTransform(Key, bInitial);
-			AbsoluteTransform = HierarchyBeingDebugged->GetGlobalTransform(Key, bInitial);
+			RelativeTransform.FromFTransform(HierarchyBeingDebugged->GetLocalTransform(Key, bInitial));
+			AbsoluteTransform.FromFTransform(HierarchyBeingDebugged->GetGlobalTransform(Key, bInitial));
+
+			if(FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
+			{
+				switch(ControlElement->Settings.ControlType)
+				{
+					case ERigControlType::Rotator:
+					case ERigControlType::EulerTransform:
+					case ERigControlType::Transform:
+					case ERigControlType::TransformNoScale:
+					{
+						RelativeTransform.Rotation = HierarchyBeingDebugged->GetControlPreferredRotator(ControlElement, bInitial);
+						break;
+					}
+					default:
+					{
+						break;
+					}
+				}
+			}
 		}
 		else
 		{
@@ -1441,8 +1460,8 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 
 				if(InTransformType == ERigTransformElementDetailsTransform::Offset)
 				{
-					RelativeTransform = HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
-					AbsoluteTransform = HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialGlobal);
+					RelativeTransform.FromFTransform(HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal));
+					AbsoluteTransform.FromFTransform(HierarchyBeingDebugged->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialGlobal));
 				}
 				else if(InTransformType == ERigTransformElementDetailsTransform::Minimum)
 				{
@@ -1525,7 +1544,7 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 			}
 		}
 
-		return TPair<FTransform, FTransform>(RelativeTransform, AbsoluteTransform);
+		return TPair<FEulerTransform, FEulerTransform>(RelativeTransform, AbsoluteTransform);
 	};
 
 	
@@ -1540,7 +1559,7 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 
 		FEulerTransform Xfo;
 		Xfo.SetLocation((IsComponentRelative(0)) ? RelativeTransform.GetLocation() : AbsoluteTransform.GetLocation());
-		Xfo.SetRotation((IsComponentRelative(1)) ? RelativeTransform.GetRotation() : AbsoluteTransform.GetRotation());
+		Xfo.SetRotator((IsComponentRelative(1)) ? RelativeTransform.Rotator() : AbsoluteTransform.Rotator());
 		Xfo.SetScale3D((IsComponentRelative(2)) ? RelativeTransform.GetScale3D() : AbsoluteTransform.GetScale3D());
 
 		return Xfo;
@@ -1586,11 +1605,30 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 			{
 				if(bIsRelative)
 				{
-					HierarchyToUpdate->SetLocalTransform(Key, InTransform, bInitial, true, bSetupUndoRedo);
+					HierarchyToUpdate->SetLocalTransform(Key, InTransform.ToFTransform(), bInitial, true, bSetupUndoRedo);
+
+					if(FRigControlElement* ControlElement = HierarchyToUpdate->Find<FRigControlElement>(Key))
+					{
+						switch(ControlElement->Settings.ControlType)
+						{
+							case ERigControlType::Rotator:
+							case ERigControlType::EulerTransform:
+							case ERigControlType::Transform:
+							case ERigControlType::TransformNoScale:
+							{
+								HierarchyToUpdate->SetControlPreferredRotator(ControlElement, InTransform.Rotator(), bInitial);
+								break;
+							}
+							default:
+							{
+								break;
+							}
+						}
+					}
 				}
 				else
 				{
-					HierarchyToUpdate->SetGlobalTransform(Key, InTransform, bInitial, true, bSetupUndoRedo);
+					HierarchyToUpdate->SetGlobalTransform(Key, InTransform.ToFTransform(), bInitial, true, bSetupUndoRedo);
 				}
 			}
 			else
@@ -1604,9 +1642,9 @@ void FRigTransformElementDetails::CreateEulerTransformValueWidgetRow(
 						if(!bIsRelative)
 						{
 							const FTransform ParentTransform = HierarchyToUpdate->GetParentTransform(Key, bInitial);
-							InTransform = FTransform(InTransform).GetRelativeTransform(ParentTransform);
+							InTransform.FromFTransform(InTransform.ToFTransform().GetRelativeTransform(ParentTransform));
 						}
-						HierarchyToUpdate->SetControlOffsetTransform(Key, InTransform, true, true, bSetupUndoRedo);
+						HierarchyToUpdate->SetControlOffsetTransform(Key, InTransform.ToFTransform(), true, true, bSetupUndoRedo);
 					}
 					else if(CurrentTransformType == ERigTransformElementDetailsTransform::Minimum)
 					{
@@ -2762,7 +2800,7 @@ void FRigControlElementDetails::CustomizeShape(IDetailLayoutBuilder& DetailBuild
 	{
 		if(FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
 		{
-			return HierarchyBeingDebugged->GetControlShapeTransform(ControlElement, ERigTransformType::InitialLocal);
+			return FEulerTransform(HierarchyBeingDebugged->GetControlShapeTransform(ControlElement, ERigTransformType::InitialLocal));
 		}
 		return FEulerTransform::Identity;
 	};
@@ -2775,7 +2813,7 @@ void FRigControlElementDetails::CustomizeShape(IDetailLayoutBuilder& DetailBuild
 	{
 		if(FRigControlElement* ControlElement = HierarchyBeingCustomized->Find<FRigControlElement>(Key))
 		{
-			HierarchyBeingCustomized->SetControlShapeTransform(ControlElement, InTransform, ERigTransformType::InitialLocal, bSetupUndo, true, bSetupUndo);
+			HierarchyBeingCustomized->SetControlShapeTransform(ControlElement, InTransform.ToFTransform(), ERigTransformType::InitialLocal, bSetupUndo, true, bSetupUndo);
 		}
 	};
 

@@ -146,8 +146,9 @@ void UControlRigTransformControlProxy::PostEditChangeProperty(struct FPropertyCh
 		{
 			//MUST set through ControlRig
 			FControlRigInteractionScope InteractionScope(ControlRig.Get(), ControlElement->GetKey());
-			FTransform RealTransform = Transform; //Transform is FEulerTransform
+			const FTransform RealTransform = Transform.ToFTransform(); //Transform is FEulerTransform
 			ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::DoNotCare,false);
+			ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Transform.Rotation);
 			ControlRig->Evaluate_AnyThread();
 
 		}
@@ -163,7 +164,8 @@ void UControlRigTransformControlProxy::ValueChanged()
 		const FName PropertyName("Transform");
 		FTrackInstancePropertyBindings Binding(PropertyName, PropertyName.ToString());
 		const FTransform NewTransform = ControlRig.Get()->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
-		const FEulerTransform EulerTransform = NewTransform;
+		FEulerTransform EulerTransform(NewTransform);
+		EulerTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
 		Binding.CallFunction<FEulerTransform>(*this, EulerTransform);
 	}
 }
@@ -175,8 +177,9 @@ void UControlRigTransformControlProxy::PostEditUndo()
 	if (ControlElement && ControlRig.IsValid() && ControlRig->GetHierarchy()->Contains(FRigElementKey(ControlName, ERigElementType::Control)))
 	{
 		ControlRig->SelectControl(ControlName, bSelected);
-		FTransform RealTransform = Transform; //Transform is FEulerTransform
+		const FTransform RealTransform = Transform.ToFTransform(); //Transform is FEulerTransform
 		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, EControlRigSetKey::Never,false);
+		ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Transform.Rotation);
 	}
 }
 #endif
@@ -200,8 +203,9 @@ void UControlRigTransformControlProxy::SetKey(const IPropertyHandle& KeyedProper
 		{
 			Context.KeyMask = (uint32)EControlRigContextChannelToKey::Scale;
 		}
-		FTransform RealTransform = Transform; //Transform is FEulerTransform
+		const FTransform RealTransform = Transform.ToFTransform(); //Transform is FEulerTransform
 		ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ControlName, RealTransform, true, Context, false);
+		ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Transform.Rotation);
 	}
 }
 

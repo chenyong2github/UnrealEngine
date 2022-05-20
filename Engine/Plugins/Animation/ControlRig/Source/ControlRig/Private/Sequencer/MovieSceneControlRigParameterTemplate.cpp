@@ -155,21 +155,16 @@ struct FColorParameterStringAndValue
 	FLinearColor Value;
 };
 
-struct FTransformParameterStringAndValue
+struct FEulerTransformParameterStringAndValue
 {
 
 	/** The name of the transform  parameter. */
 	FName ParameterName;
-	/** Translation component */
-	FVector Translation;
-	/** Rotation component */
-	FRotator Rotation;
-	/** Scale component */
-	FVector Scale;
+	/** Transform component */
+	FEulerTransform Transform;
 
-	FTransformParameterStringAndValue(FName InParameterName, const FVector& InTranslation,
-		const FRotator& InRotation, const FVector& InScale) : Translation(InTranslation),
-		Rotation(InRotation), Scale(InScale)
+	FEulerTransformParameterStringAndValue(FName InParameterName, const FEulerTransform& InTransform)
+		: Transform(InTransform)
 	{
 		ParameterName = InParameterName;
 	}
@@ -377,7 +372,7 @@ struct FEvaluatedControlRigParameterSectionValues
 	/** Array of evaluated color values */
 	TArray<FColorParameterStringAndValue, TInlineAllocator<2>> ColorValues;
 	/** Array of evaluated transform values */
-	TArray<FTransformParameterStringAndValue, TInlineAllocator<2>> TransformValues;
+	TArray<FEulerTransformParameterStringAndValue, TInlineAllocator<2>> TransformValues;
 };
 
 /** Token for control rig control parameters */
@@ -427,10 +422,10 @@ struct FControlRigTrackTokenVector
 struct FControlRigTrackTokenTransform
 {
 	FControlRigTrackTokenTransform() {}
-	FControlRigTrackTokenTransform(FTransform InValue)
+	FControlRigTrackTokenTransform(FEulerTransform InValue)
 		: Value(InValue)
 	{}
-	FTransform Value;
+	FEulerTransform Value;
 
 };
 
@@ -545,8 +540,8 @@ namespace MovieScene
 
 	void MultiChannelFromData(const FControlRigTrackTokenTransform& In, TMultiChannelValue<float, 9>& Out)
 	{
-		FVector Translation = In.Value.GetTranslation();
-		FVector Rotation = In.Value.GetRotation().Rotator().Euler();
+		FVector Translation = In.Value.GetLocation();
+		FVector Rotation = In.Value.Rotator().Euler();
 		FVector Scale = In.Value.GetScale3D();
 		Out = { Translation.X, Translation.Y, Translation.Z, Rotation.X, Rotation.Y, Rotation.Z, Scale.X, Scale.Y, Scale.Z };
 
@@ -554,7 +549,7 @@ namespace MovieScene
 
 	void ResolveChannelsToData(const TMultiChannelValue<float, 9>& In, FControlRigTrackTokenTransform& Out)
 	{
-		Out.Value = FTransform(
+		Out.Value = FEulerTransform(
 			FRotator::MakeFromEuler(FVector(In[3], In[4], In[5])),
 			FVector(In[0], In[1], In[2]),
 			FVector(In[6], In[7], In[8])
@@ -777,7 +772,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 									}
 								}
 
-								for (TNameAndValue<FTransform>& Value : TransformValues)
+								for (TNameAndValue<FEulerTransform>& Value : TransformValues)
 								{
 									if (FRigControlElement* ControlElement = ControlRig->FindControl(Value.Name))
 									{
@@ -785,13 +780,15 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 										{
 										case ERigControlType::Transform:
 										{
-											ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(Value.Name, Value.Value, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+											ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(Value.Name, Value.Value.ToFTransform(), true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+											ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Value.Value.Rotation);
 											break;
 										}
 										case ERigControlType::TransformNoScale:
 										{
-											FTransformNoScale NoScale = Value.Value;
+											FTransformNoScale NoScale = Value.Value.ToFTransform();
 											ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(Value.Name, NoScale, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
+											ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, Value.Value.Rotation);
 											break;
 										}
 										case ERigControlType::EulerTransform:
@@ -800,7 +797,10 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 											ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(Value.Name, EulerTransform, true, FRigControlModifiedContext(EControlRigSetKey::Never), bSetupUndo);
 											break;
 										}
-
+										default:
+										{
+											break;
+										}
 										}
 									}
 								}
@@ -845,7 +845,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 			TArray< TNameAndValue<int32> > IntegerValues;
 			TArray< TNameAndValue<FVector> > VectorValues;
 			TArray< TNameAndValue<FVector2D> > Vector2DValues;
-			TArray< TNameAndValue<FTransform> > TransformValues;
+			TArray< TNameAndValue<FEulerTransform> > TransformValues;
 			FSkeletalMeshRestoreState SkeletalMeshRestoreState;
 
 		};
@@ -913,7 +913,9 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 						SpaceValue.SpaceType = EMovieSceneControlRigSpaceType::Parent;
 						Token.SpaceValues.Add(FControlSpaceAndValue(ControlElement->GetName(), SpaceValue));
 						const FTransform Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
-						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
+						FEulerTransform EulerTransform(Val);
+						EulerTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
+						Token.TransformValues.Add(TNameAndValue<FEulerTransform>{ ControlElement->GetName(), EulerTransform });
 						break;
 					}
 					case ERigControlType::TransformNoScale:
@@ -921,17 +923,17 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 						const FTransformNoScale NoScale = 
 							ControlRig->GetHierarchy()
 							->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
-						FTransform Val = NoScale;
-						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
+						FEulerTransform EulerTransform(NoScale.ToFTransform());
+						EulerTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
+						Token.TransformValues.Add(TNameAndValue<FEulerTransform>{ ControlElement->GetName(), EulerTransform });
 						break;
 					}
 					case ERigControlType::EulerTransform:
 					{
-						const FEulerTransform Euler = 
+						const FEulerTransform EulerTransform = 
 							ControlRig->GetHierarchy()
 							->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
-						FTransform Val = Euler.ToFTransform();
-						Token.TransformValues.Add(TNameAndValue<FTransform>{ ControlElement->GetName(), Val });
+						Token.TransformValues.Add(TNameAndValue<FEulerTransform>{ ControlElement->GetName(), EulerTransform });
 						break;
 					}
 				}
@@ -1482,20 +1484,23 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 			FRigControlElement* ControlElement = ControlRig->FindControl(ParameterName);
 			if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Transform)
 			{
-				FTransform Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
-				return FControlRigTrackTokenTransform(Val);
+				const FTransform Val = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransform_Float>().ToTransform();
+				FEulerTransform EulerTransform(Val);
+				EulerTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
+				return FControlRigTrackTokenTransform(EulerTransform);
 			}
 			else if(ControlElement && ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 			{
 				FTransformNoScale ValNoScale = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FTransformNoScale_Float>().ToTransform();
 				FTransform Val = ValNoScale;
-				return FControlRigTrackTokenTransform(Val);
+				FEulerTransform EulerTransform(Val);
+				EulerTransform.Rotation = ControlRig->GetHierarchy()->GetControlPreferredRotator(ControlElement);
+				return FControlRigTrackTokenTransform(EulerTransform);
 			}
 			else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				FEulerTransform Euler = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
-				FTransform Val = Euler.ToFTransform();
-				return FControlRigTrackTokenTransform(Val);
+				FEulerTransform EulerTransform = ControlRig->GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Current).Get<FRigControlValue::FEulerTransform_Float>().ToTransform();
+				return FControlRigTrackTokenTransform(EulerTransform);
 		}
 		}
 		return FControlRigTrackTokenTransform();
@@ -1526,17 +1531,18 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 				FRigControlElement* ControlElement = ControlRig->FindControl(ParameterName);
 				if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::Transform)
 				{
-						ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ParameterName, InFinalValue.Value,true, EControlRigSetKey::Never,bSetupUndo);
+					ControlRig->SetControlValue<FRigControlValue::FTransform_Float>(ParameterName, InFinalValue.Value.ToFTransform(),true, EControlRigSetKey::Never,bSetupUndo);
+					ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, InFinalValue.Value.Rotator());
 				}
 				else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::TransformNoScale)
 				{
-					FTransformNoScale NoScale = InFinalValue.Value;
-						ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ParameterName, NoScale, true, EControlRigSetKey::Never,bSetupUndo);
+					const FTransformNoScale NoScale = InFinalValue.Value.ToFTransform();
+					ControlRig->SetControlValue<FRigControlValue::FTransformNoScale_Float>(ParameterName, NoScale, true, EControlRigSetKey::Never,bSetupUndo);
+					ControlRig->GetHierarchy()->SetControlPreferredRotator(ControlElement, InFinalValue.Value.Rotator());
 				}
 				else if (ControlElement && ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 				{
-					FEulerTransform Euler = InFinalValue.Value;
-					ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ParameterName, Euler, true, EControlRigSetKey::Never,bSetupUndo);
+					ControlRig->SetControlValue<FRigControlValue::FEulerTransform_Float>(ParameterName, InFinalValue.Value, true, EControlRigSetKey::Never,bSetupUndo);
 				}
 			}
 
@@ -1545,10 +1551,10 @@ struct TControlRigParameterActuatorTransform : TMovieSceneBlendingActuator<FCont
 	}
 	virtual void Actuate(FMovieSceneInterrogationData& InterrogationData, const FControlRigTrackTokenTransform& InValue, const TBlendableTokenStack<FControlRigTrackTokenTransform>& OriginalStack, const FMovieSceneContext& Context) const override
 	{
-		FTransformInterrogationData Data;
+		FEulerTransformInterrogationData Data;
 		Data.Val = InValue.Value;
 		Data.ParameterName = ParameterName;
-		InterrogationData.Add(FTransformInterrogationData(Data), UMovieSceneControlRigParameterSection::GetTransformInterrogationKey());
+		InterrogationData.Add(FEulerTransformInterrogationData(Data), UMovieSceneControlRigParameterSection::GetTransformInterrogationKey());
 	}
 	FName ParameterName;
 	TWeakObjectPtr<const UMovieSceneControlRigParameterSection> SectionData;
@@ -1646,7 +1652,7 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 		}
 
 		UE::MovieScene::TMultiChannelValue<float, 9> TransformData;
-		for (const FTransformParameterStringAndValue& TransformNameAndValue : Values.TransformValues)
+		for (const FEulerTransformParameterStringAndValue& TransformNameAndValue : Values.TransformValues)
 		{
 			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindTransform(TransformNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
@@ -1656,19 +1662,19 @@ void FMovieSceneControlRigParameterTemplate::Evaluate(const FMovieSceneEvaluatio
 				ExecutionTokens.GetBlendingAccumulator().DefineActuator(ActuatorTypeID, MakeShared <TControlRigParameterActuatorTransform>(AnimTypeID,  TransformNameAndValue.ParameterName, Section));
 			}
 
-			FTransform Transform(TransformNameAndValue.Rotation, TransformNameAndValue.Translation, TransformNameAndValue.Scale);
+			const FEulerTransform& Transform = TransformNameAndValue.Transform;
 
-			TransformData.Set(0, TransformNameAndValue.Translation.X);
-			TransformData.Set(1, TransformNameAndValue.Translation.Y);
-			TransformData.Set(2, TransformNameAndValue.Translation.Z);
+			TransformData.Set(0, Transform.Location.X);
+			TransformData.Set(1, Transform.Location.Y);
+			TransformData.Set(2, Transform.Location.Z);
 
-			TransformData.Set(3, TransformNameAndValue.Rotation.Roll);
-			TransformData.Set(4, TransformNameAndValue.Rotation.Pitch);
-			TransformData.Set(5, TransformNameAndValue.Rotation.Yaw);
+			TransformData.Set(3, Transform.Rotation.Roll);
+			TransformData.Set(4, Transform.Rotation.Pitch);
+			TransformData.Set(5, Transform.Rotation.Yaw);
 
-			TransformData.Set(6, TransformNameAndValue.Scale.X);
-			TransformData.Set(7, TransformNameAndValue.Scale.Y);
-			TransformData.Set(8, TransformNameAndValue.Scale.Z);
+			TransformData.Set(6, Transform.Scale.X);
+			TransformData.Set(7, Transform.Scale.Y);
+			TransformData.Set(8, Transform.Scale.Z);
 			ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<FControlRigTrackTokenTransform>(TransformData, Section->GetBlendType().Get(), Weight));
 		}
 
@@ -2038,7 +2044,7 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 					}
 				}
 			}
-			FTransformParameterStringAndValue NameAndValue(Transform.ParameterName, (FVector)Translation, FRotator(Rotator), (FVector)Scale);
+			FEulerTransformParameterStringAndValue NameAndValue(Transform.ParameterName, FEulerTransform(FRotator(Rotator), (FVector)Translation, (FVector)Scale));
 			Values.TransformValues.Emplace(NameAndValue);
 		}
 	}
@@ -2129,7 +2135,7 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 		}
 
 		UE::MovieScene::TMultiChannelValue<float, 9> TransformData;
-		for (const FTransformParameterStringAndValue& TransformNameAndValue : Values.TransformValues)
+		for (const FEulerTransformParameterStringAndValue& TransformNameAndValue : Values.TransformValues)
 		{
 			FMovieSceneAnimTypeID AnimTypeID = TypeIDs->FindTransform(TransformNameAndValue.ParameterName);
 			FMovieSceneBlendingActuatorID ActuatorTypeID(AnimTypeID);
@@ -2139,19 +2145,19 @@ void FMovieSceneControlRigParameterTemplate::Interrogate(const FMovieSceneContex
 				Container.GetAccumulator().DefineActuator(ActuatorTypeID, MakeShared <TControlRigParameterActuatorTransform>(AnimTypeID, TransformNameAndValue.ParameterName, Section));
 			}
 
-			FTransform Transform(TransformNameAndValue.Rotation, TransformNameAndValue.Translation, TransformNameAndValue.Scale);
+			const FEulerTransform& Transform = TransformNameAndValue.Transform;
 
-			TransformData.Set(0, TransformNameAndValue.Translation.X);
-			TransformData.Set(1, TransformNameAndValue.Translation.Y);
-			TransformData.Set(2, TransformNameAndValue.Translation.Z);
+			TransformData.Set(0, Transform.Location.X);
+			TransformData.Set(1, Transform.Location.Y);
+			TransformData.Set(2, Transform.Location.Z);
 
-			TransformData.Set(3, TransformNameAndValue.Rotation.Roll);
-			TransformData.Set(4, TransformNameAndValue.Rotation.Pitch);
-			TransformData.Set(5, TransformNameAndValue.Rotation.Yaw);
+			TransformData.Set(3, Transform.Rotation.Roll);
+			TransformData.Set(4, Transform.Rotation.Pitch);
+			TransformData.Set(5, Transform.Rotation.Yaw);
 
-			TransformData.Set(6, TransformNameAndValue.Scale.X);
-			TransformData.Set(7, TransformNameAndValue.Scale.Y);
-			TransformData.Set(8, TransformNameAndValue.Scale.Z);
+			TransformData.Set(6, Transform.Scale.X);
+			TransformData.Set(7, Transform.Scale.Y);
+			TransformData.Set(8, Transform.Scale.Z);
 			Container.GetAccumulator().BlendToken(FMovieSceneEvaluationOperand(),ActuatorTypeID, FMovieSceneEvaluationScope(), Context, TBlendableToken<FControlRigTrackTokenTransform>(TransformData, Section->GetBlendType().Get(), Weight));
 		}
 

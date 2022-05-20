@@ -1257,6 +1257,100 @@ public:
 	}
 
 	/**
+	 * Returns a control's preferred rotator (local transform rotation)
+	 * @param InKey The key of the element to retrieve the current value for
+	 * @param bInitial If true we'll return the preferred rotator for the initial - otherwise current transform
+	 * @return Returns the current preferred rotator
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE_DEBUGGABLE FRotator GetControlPreferredRotator(FRigElementKey InKey, bool bInitial = false) const
+	{
+		return GetControlPreferredRotatorByIndex(GetIndex(InKey), bInitial);
+	}
+
+	/**
+	 * Returns a control's preferred rotator (local transform rotation)
+	 * @param InElementIndex The element index to look up
+	 * @param bInitial If true we'll return the preferred rotator for the initial - otherwise current transform
+	 * @return Returns the current preferred rotator
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE_DEBUGGABLE FRotator GetControlPreferredRotatorByIndex(int32 InElementIndex, bool bInitial = false) const
+	{
+		if(Elements.IsValidIndex(InElementIndex))
+		{
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Elements[InElementIndex]))
+			{
+				return GetControlPreferredRotator(ControlElement, bInitial);
+			}
+		}
+		return FRotator::ZeroRotator;
+	}
+
+	/**
+	 * Returns a control's preferred rotator (local transform rotation)
+	 * @param InControlElement The element to look up
+	 * @param bInitial If true we'll return the preferred rotator for the initial - otherwise current transform
+	 * @return Returns the current preferred rotator
+	 */
+	FORCEINLINE_DEBUGGABLE FRotator GetControlPreferredRotator(FRigControlElement* InControlElement, bool bInitial = false) const
+	{
+		if(InControlElement)
+		{
+			return InControlElement->PreferredEulerAngles.GetRotator(bInitial);
+		}
+		return FRotator::ZeroRotator;
+	}
+
+	/**
+	 * Sets a control's preferred rotator (local transform rotation)
+	 * @param InKey The key of the element to retrieve the current value for
+	 * @param InValue The new preferred rotator to set
+	 * @param bInitial If true we'll return the preferred rotator for the initial - otherwise current transform
+	 * @param bFixEulerFlips If true the new rotator value will use the shortest path
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE_DEBUGGABLE void SetControlPreferredRotator(FRigElementKey InKey, const FRotator& InValue, bool bInitial = false, bool bFixEulerFlips = false)
+	{
+		SetControlPreferredRotatorByIndex(GetIndex(InKey), InValue, bInitial, bFixEulerFlips);
+	}
+	
+
+	/**
+	 * Sets a control's preferred rotator (local transform rotation)
+	 * @param InElementIndex The element index to look up
+	 * @param InValue The new preferred rotator to set
+	 * @param bInitial If true we'll return the preferred rotator for the initial - otherwise current transform
+	 * @param bFixEulerFlips If true the new rotator value will use the shortest path
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE_DEBUGGABLE void SetControlPreferredRotatorByIndex(int32 InElementIndex, const FRotator& InValue, bool bInitial = false, bool bFixEulerFlips = false)
+	{
+		if(Elements.IsValidIndex(InElementIndex))
+		{
+			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Elements[InElementIndex]))
+			{
+				SetControlPreferredRotator(ControlElement, InValue, bInitial, bFixEulerFlips);
+			}
+		}
+	}
+
+	/**
+	 * Sets a control's preferred rotator (local transform rotation)
+	 * @param InControlElement The element to look up
+	 * @param InValue The new preferred rotator to set
+	 * @param bInitial If true we'll return the preferred rotator for the initial - otherwise current transform
+	 * @param bFixEulerFlips If true the new rotator value will use the shortest path
+	 */
+	FORCEINLINE_DEBUGGABLE void SetControlPreferredRotator(FRigControlElement* InControlElement, const FRotator& InValue, bool bInitial = false, bool bFixEulerFlips = false)
+	{
+		if(InControlElement)
+		{
+			InControlElement->PreferredEulerAngles.SetRotator(InValue, bInitial, bFixEulerFlips);
+		}
+	}
+	
+	/**
 	 * Returns the pin type to use for a control
 	 * @param InControlElement The control to return the pin type for
 	 * @return The pin type
@@ -2527,7 +2621,7 @@ public:
 	 * @param bSetupUndo If true the transform stack will be setup for undo / redo
 	 * @param bForce Set the transform even if it is the same as the previously set one
 	 */
-	void SetControlValue(FRigControlElement* InControlElement, const FRigControlValue& InValue, ERigControlValueType InValueType, bool bSetupUndo = false, bool bForce = false, bool bPrintPythonCommands = false);
+	void SetControlValue(FRigControlElement* InControlElement, const FRigControlValue& InValue, ERigControlValueType InValueType, bool bSetupUndo = false, bool bForce = false, bool bPrintPythonCommands = false, bool bFixEulerFlips = false);
 
 	template<typename T>
 	FORCEINLINE_DEBUGGABLE void SetControlValue(FRigControlElement* InControlElement, const T& InValue, ERigControlValueType InValueType, bool bSetupUndo = false, bool bForce = false) const
@@ -3130,7 +3224,9 @@ protected:
 	UPROPERTY(transient)
 	TObjectPtr<URigHierarchy> HierarchyForCacheValidation;
 
-	mutable TMap<FRigElementKey, FRigElementKey> DefaultParentPerElement;  
+	mutable TMap<FRigElementKey, FRigElementKey> DefaultParentPerElement;
+
+	bool bUpdatePreferedEulerAngleWhenSettingTransform;
 	
 private:
 	

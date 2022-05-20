@@ -386,4 +386,15 @@ FVector EulerFromQuat(const FQuat& Rotation, EEulerRotationOrder RotationOrder)
 	return Result * 180.f / PI;
 }
 
+FVector ChangeEulerRotationOrder(const FVector& XYZAnglesInDegrees, EEulerRotationOrder SourceRotationOrder, EEulerRotationOrder TargetRotationOrder)
+{
+	if(SourceRotationOrder == TargetRotationOrder)
+	{
+		return XYZAnglesInDegrees;
+	}
+	
+	const FQuat Quaternion = QuatFromEuler(XYZAnglesInDegrees, SourceRotationOrder);
+	return EulerFromQuat(Quaternion, TargetRotationOrder); 
+}
+
 }

@@ -63,4 +63,8 @@ namespace AnimationCore
 	 */
 	ANIMATIONCORE_API FVector EulerFromQuat(const FQuat& Rotation, EEulerRotationOrder RotationOrder = EEulerRotationOrder::ZYX);
 
+	/**
+	 * Converts a euler rotation from one rotation order to another
+	 */
+	ANIMATIONCORE_API FVector ChangeEulerRotationOrder(const FVector& XYZAnglesInDegrees, EEulerRotationOrder SourceRotationOrder, EEulerRotationOrder TargetRotationOrder);
 }

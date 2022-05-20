@@ -506,7 +506,7 @@ void FAnimNode_ControlRig::PropagateInputProperties(const UObject* InSourceInsta
 							if(ensure(StructProperty->Struct == TBaseStructure<FTransform>::Get()))
 							{
 								const FTransform& SrcTransform = *(FTransform*)SrcPtr;  
-								Value = FRigControlValue::Make<FEulerTransform>(SrcTransform);
+								Value = FRigControlValue::Make<FEulerTransform>(FEulerTransform(SrcTransform));
 								bIsValid = true;
 							}
 						}
