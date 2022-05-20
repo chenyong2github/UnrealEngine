@@ -319,12 +319,15 @@ void FLevelEditorModule::ShutdownModule()
 
 	// If the level editor tab is currently open, close it
 	{
-		TSharedPtr<SDockTab> LevelEditorTab = LevelEditorInstanceTabPtr.Pin();
-		if (LevelEditorTab.IsValid())
+		if (!IsEngineExitRequested())
 		{
-			LevelEditorTab->RemoveTabFromParent();
+			TSharedPtr<SDockTab> LevelEditorTab = LevelEditorInstanceTabPtr.Pin();
+			if (LevelEditorTab.IsValid())
+			{
+				LevelEditorTab->RemoveTabFromParent();
+			}
+			LevelEditorInstanceTabPtr.Reset();
 		}
-		LevelEditorInstanceTabPtr.Reset();
 	}
 
 	// Clear out some globals that may be referencing this module

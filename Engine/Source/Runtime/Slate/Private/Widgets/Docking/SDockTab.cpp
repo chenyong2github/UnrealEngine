@@ -990,5 +990,8 @@ FVector2D SDockTab::GetAnimatedScale() const
 
 void SDockTab::UpdateActivationTime()
 {
-	LastActivationTime = FSlateApplication::Get().GetCurrentTime();
+	if (FSlateApplication::IsInitialized())
+	{
+		LastActivationTime = FSlateApplication::Get().GetCurrentTime();
+	}
 }

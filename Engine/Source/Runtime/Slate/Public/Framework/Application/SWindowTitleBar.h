@@ -209,8 +209,12 @@ public:
 	}
 
 
-	virtual void SetAllowMenuBar(bool bInAllowMenuBar)
+	virtual void SetAllowMenuBar(bool bInAllowMenuBar) override
 	{
+		if (!FSlateApplicationBase::IsInitialized())
+		{
+			return;
+		}
 		bAllowMenuBar = bInAllowMenuBar;
 
 		if (AppIconWidget)
