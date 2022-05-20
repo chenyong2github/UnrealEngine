@@ -349,13 +349,18 @@ const TArray<TObjectPtr<URetargetChainSettings>>& UIKRetargeterController::GetCh
 	return Asset->ChainSettings;
 }
 
-void UIKRetargeterController::AddRetargetPose(FName NewPoseName) const
+void UIKRetargeterController::AddRetargetPose(FName NewPoseName, const FIKRetargetPose* ToDuplicate) const
 {
 	FScopedTransaction Transaction(LOCTEXT("AddRetargetPose", "Add Retarget Pose"));
 	Asset->Modify();
 	
-	NewPoseName = MakePoseNameUnique(NewPoseName);
-	Asset->RetargetPoses.Add(NewPoseName);
+	NewPoseName = MakePoseNameUnique(NewPoseName.ToString());
+	FIKRetargetPose& NewPose = Asset->RetargetPoses.Add(NewPoseName);
+	if (ToDuplicate)
+	{
+		NewPose.RootTranslationOffset = ToDuplicate->RootTranslationOffset;
+		NewPose.BoneRotationOffsets = ToDuplicate->BoneRotationOffsets;
+	}
 	Asset->CurrentRetargetPose = NewPoseName;
 
 	BroadcastNeedsReinitialized();
@@ -411,18 +416,42 @@ void UIKRetargeterController::RemoveRetargetPose(FName PoseToRemove) const
 	BroadcastNeedsReinitialized();
 }
 
-void UIKRetargeterController::ResetRetargetPose(FName PoseToReset) const
+void UIKRetargeterController::ResetRetargetPose(FName PoseToReset, const TArray<FName>& BonesToReset) const
 {
 	if (!Asset->RetargetPoses.Contains(PoseToReset))
 	{
 		return; // cannot reset pose that doesn't exist
 	}
-
-	FScopedTransaction Transaction(LOCTEXT("ResetRetargetPose", "Reset Retarget Pose"));
-	Asset->Modify();
 	
-	Asset->RetargetPoses[PoseToReset].BoneRotationOffsets.Reset();
-	Asset->RetargetPoses[PoseToReset].RootTranslationOffset = FVector::ZeroVector;
+	FIKRetargetPose& PoseToEdit = Asset->RetargetPoses[PoseToReset];
+	
+	if (BonesToReset.IsEmpty())
+	{
+		FScopedTransaction Transaction(LOCTEXT("ResetRetargetPose", "Reset Retarget Pose"));
+		Asset->Modify();
+		
+		PoseToEdit.BoneRotationOffsets.Reset();
+		PoseToEdit.RootTranslationOffset = FVector::ZeroVector;
+	}
+	else
+	{
+		FScopedTransaction Transaction(LOCTEXT("ResetRetargetBonePose", "Reset Bone Pose"));
+		Asset->Modify();
+		
+		const FName RootBoneName = GetTargetRootBone();
+		for (const FName& BoneToReset : BonesToReset)
+		{
+			if (PoseToEdit.BoneRotationOffsets.Contains(BoneToReset))
+			{
+				PoseToEdit.BoneRotationOffsets.Remove(BoneToReset);
+			}
+
+			if (BoneToReset == RootBoneName)
+			{
+				PoseToEdit.RootTranslationOffset = FVector::ZeroVector;	
+			}
+		}
+	}
 
 	BroadcastNeedsReinitialized();
 }
@@ -448,6 +477,11 @@ const TMap<FName, FIKRetargetPose>& UIKRetargeterController::GetRetargetPoses()
 	return GetAsset()->RetargetPoses;
 }
 
+const FIKRetargetPose& UIKRetargeterController::GetCurrentRetargetPose() const
+{
+	return GetAsset()->RetargetPoses[GetCurrentRetargetPoseName()];
+}
+
 void UIKRetargeterController::SetRotationOffsetForRetargetPoseBone(FName BoneName, FQuat RotationOffset) const
 {
 	const FIKRigSkeleton& Skeleton = Asset->GetTargetIKRig()->Skeleton;
@@ -470,16 +504,16 @@ void UIKRetargeterController::AddTranslationOffsetToRetargetRootBone(FVector Tra
 	Asset->RetargetPoses[Asset->CurrentRetargetPose].AddTranslationDeltaToRoot(TranslationOffset);
 }
 
-FName UIKRetargeterController::MakePoseNameUnique(FName PoseName) const
+FName UIKRetargeterController::MakePoseNameUnique(FString PoseName) const
 {
-	FName UniqueName = PoseName;
+	FString UniqueName = PoseName;
 	int32 Suffix = 1;
-	while (Asset->RetargetPoses.Contains(UniqueName))
+	while (Asset->RetargetPoses.Contains(FName(UniqueName)))
 	{
-		UniqueName = FName(PoseName.ToString() + "_" + FString::FromInt(Suffix));
+		UniqueName = PoseName + "_" + FString::FromInt(Suffix);
 		++Suffix;
 	}
-	return UniqueName;
+	return FName(UniqueName);
 }
 
 URetargetChainSettings* UIKRetargeterController::GetChainMap(const FName& TargetChainName) const

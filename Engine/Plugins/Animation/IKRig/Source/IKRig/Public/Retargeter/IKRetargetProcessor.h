@@ -65,6 +65,10 @@ struct IKRIG_API FRetargetSkeleton
 		const TArray<FTransform>& InGlobalPose) const;
 
 	void GetChildrenIndices(const int32 BoneIndex, TArray<int32>& OutChildren) const;
+
+	void GetChildrenIndicesRecursive(const int32 BoneIndex, TArray<int32>& OutChildren) const;
+	
+	bool IsParentOfChild(const int32 PotentialParentIndex, const int32 ChildBoneIndex) const;
 };
 
 struct FTargetSkeleton : public FRetargetSkeleton

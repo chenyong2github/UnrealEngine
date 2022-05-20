@@ -33,6 +33,9 @@ void FIKRetargeterDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		return;
 	}
 
+	// the commands for the menus
+	TSharedPtr<FUICommandList> Commands = Controller->GetEditorController()->Editor.Pin()->GetToolkitCommands();
+
 	// add a new category at the top to edit the retarget pose
 	IDetailCategoryBuilder& EditPoseCategoryBuilder = DetailBuilder.EditCategory( "Edit Retarget Pose", LOCTEXT("EditPoseLabel", "Edit Retarget Pose"), ECategoryPriority::Default );
 
@@ -65,12 +68,7 @@ void FIKRetargeterDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		]
 	];
 
-	// add the bone size slider
-	TSharedRef<IPropertyHandle> BoneSizeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UIKRetargeter, BoneDrawSize));
-	EditPoseCategoryBuilder.AddProperty(BoneSizeHandle);
-
 	// add pose editing toolbar
-	const TSharedRef<FUICommandList>& Commands = Controller->GetEditorController()->Editor.Pin()->GetToolkitCommands();
 	FDetailWidgetRow& ToolbarRow = EditPoseCategoryBuilder.AddCustomRow(LOCTEXT("CurrentPoseLabel", "Edit Pose"))
 	.WholeRowWidget
 	[
@@ -82,9 +80,13 @@ void FIKRetargeterDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			MakeToolbar(Commands)
 		]
 	];
+
+	// add the bone size slider
+	TSharedRef<IPropertyHandle> BoneSizeHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UIKRetargeter, BoneDrawSize));
+	EditPoseCategoryBuilder.AddProperty(BoneSizeHandle);
 }
 
-TSharedRef<SWidget>  FIKRetargeterDetails::MakeToolbar(const TSharedRef<FUICommandList>& Commands)
+TSharedRef<SWidget>  FIKRetargeterDetails::MakeToolbar(TSharedPtr<FUICommandList> Commands)
 {
 	FToolBarBuilder ToolbarBuilder(Commands, FMultiBoxCustomization::None);
 	
@@ -97,22 +99,23 @@ TSharedRef<SWidget>  FIKRetargeterDetails::MakeToolbar(const TSharedRef<FUIComma
 		TAttribute<FText>(),
 		FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Edit"));
 
-	ToolbarBuilder.AddToolBarButton(
-		FIKRetargetCommands::Get().SetToRefPose,
-		NAME_None,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Refresh"));
+	ToolbarBuilder.AddComboButton(
+		FUIAction(),
+		FOnGetContent::CreateSP(this, &FIKRetargeterDetails::GenerateResetMenuContent, Commands),
+		LOCTEXT("ResetPose_Label", "Reset"),
+		LOCTEXT("ResetPoseToolTip_Label", "Reset bones to reference pose."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Refresh"));
 
 	ToolbarBuilder.EndSection();
+
 	ToolbarBuilder.BeginSection("Create Poses");
 
-	ToolbarBuilder.AddToolBarButton(
-		FIKRetargetCommands::Get().NewRetargetPose,
-		NAME_None,
+	ToolbarBuilder.AddComboButton(
+		FUIAction(),
+		FOnGetContent::CreateSP(this, &FIKRetargeterDetails::GenerateNewMenuContent, Commands),
+		LOCTEXT("CreatePose_Label", "Create"),
 		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FAppStyle::Get().GetStyleSetName(),"Icons.Plus"));
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus"));
 
 	ToolbarBuilder.AddToolBarButton(
 		FIKRetargetCommands::Get().DeleteRetargetPose,
@@ -131,6 +134,80 @@ TSharedRef<SWidget>  FIKRetargeterDetails::MakeToolbar(const TSharedRef<FUIComma
 	ToolbarBuilder.EndSection();
 
 	return ToolbarBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FIKRetargeterDetails::GenerateResetMenuContent(TSharedPtr<FUICommandList> Commands)
+{
+	FMenuBuilder MenuBuilder(true, Commands);
+
+	MenuBuilder.AddMenuEntry(
+		FIKRetargetCommands::Get().ResetSelectedBones,
+		TEXT("Reset Selected"),
+		TAttribute<FText>(),
+		TAttribute<FText>());
+
+	MenuBuilder.AddMenuEntry(
+		FIKRetargetCommands::Get().ResetSelectedAndChildrenBones,
+		TEXT("Reset Selected And Children"),
+		TAttribute<FText>(),
+		TAttribute<FText>());
+
+	MenuBuilder.AddMenuEntry(
+		FIKRetargetCommands::Get().ResetAllBones,
+		TEXT("Reset All"),
+		TAttribute<FText>(),
+		TAttribute<FText>());
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> FIKRetargeterDetails::GenerateNewMenuContent(TSharedPtr<FUICommandList> Commands)
+{
+	FMenuBuilder MenuBuilder(true, Commands);
+
+	MenuBuilder.BeginSection("Create", LOCTEXT("CreatePoseOperations", "Create New Retarget Pose"));
+	{
+		MenuBuilder.AddMenuEntry(
+		FIKRetargetCommands::Get().NewRetargetPose,
+		TEXT("Create"),
+		TAttribute<FText>(),
+		TAttribute<FText>());
+
+		MenuBuilder.AddMenuEntry(
+			FIKRetargetCommands::Get().DuplicateRetargetPose,
+			TEXT("Create"),
+			TAttribute<FText>(),
+			TAttribute<FText>());
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Import",LOCTEXT("ImportPoseOperations", "Import Retarget Pose"));
+	{
+		MenuBuilder.AddMenuEntry(
+		FIKRetargetCommands::Get().ImportRetargetPose,
+		TEXT("Import"),
+		TAttribute<FText>(),
+		TAttribute<FText>());
+	
+		MenuBuilder.AddMenuEntry(
+			FIKRetargetCommands::Get().ImportRetargetPoseFromAnim,
+			TEXT("ImportFromSequence"),
+			TAttribute<FText>(),
+			TAttribute<FText>());
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("Export",LOCTEXT("EmportPoseOperations", "Export Retarget Pose"));
+	{
+		MenuBuilder.AddMenuEntry(
+			FIKRetargetCommands::Get().ExportRetargetPose,
+			TEXT("Export"),
+			TAttribute<FText>(),
+			TAttribute<FText>());
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 TObjectPtr<UIKRetargeterController> FIKRetargeterDetails::GetAssetControllerFromSelectedObjects(IDetailLayoutBuilder& DetailBuilder) const

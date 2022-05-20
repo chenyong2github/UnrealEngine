@@ -74,7 +74,14 @@ public:
 	USkeletalMesh* GetSourceSkeletalMesh() const;
 	/** get the target skeletal mesh we are copying TO */
 	USkeletalMesh* GetTargetSkeletalMesh() const;
+	/** get the source skeleton asset */
+	const USkeleton* GetSourceSkeleton() const;
+	/** get the target skeleton asset */
+	const USkeleton* GetTargetSkeleton() const;
 
+	/** get list of currently selected bones */
+	const TArray<FName>& GetSelectedBones() const;
+	
 	/** get current chain pose */
 	FTransform GetTargetBoneGlobalTransform(const UIKRetargetProcessor* RetargetProcessor, const int32& TargetBoneIndex) const;
 	FTransform GetTargetBoneLocalTransform(const UIKRetargetProcessor* RetargetProcessor, const int32& TargetBoneIndex) const;
@@ -87,7 +94,6 @@ public:
 
 	/** get the retargeter that is running in the viewport (which is a duplicate of the source asset) */
 	UIKRetargetProcessor* GetRetargetProcessor() const;
-
 	/** Reset the planting state of the IK (when scrubbing or animation loops over) */
 	void ResetIKPlantingState() const;
 
@@ -97,34 +103,69 @@ public:
 	UAnimationAsset* PreviousAsset = nullptr;
 	/** END Sequence Browser */
 
-	// go to retarget pose
+	/* START RETARGET POSES */
+	
+	/** go to retarget pose */
 	void HandleGoToRetargetPose() const;
+	
+	/** toggle current retarget pose */
+	TArray<TSharedPtr<FName>> PoseNames;
+	FText GetCurrentPoseName() const;
+	void OnPoseSelected(TSharedPtr<FName> InPoseName, ESelectInfo::Type SelectInfo) const;
 	
 	/** edit retarget poses */
 	void HandleEditPose() const;
 	bool CanEditPose() const;
 	bool IsEditingPose() const;
 
-	void HandleResetPose() const;
+	/** reset retarget pose */
+	void HandleResetAllBones() const;
+	void HandleResetSelectedBones() const;
+	void HandleResetSelectedAndChildrenBones() const;
 	bool CanResetPose() const;
+	bool CanResetSelected() const;
 
+	/** create new retarget pose */
 	void HandleNewPose();
-	bool CanNewPose() const;
+	bool CanCreatePose() const;
 	FReply CreateNewPose() const;
 	TSharedPtr<SWindow> NewPoseWindow;
 	TSharedPtr<SEditableTextBox> NewPoseEditableText;
-	
+
+	/** duplicate current retarget pose */
+	void HandleDuplicatePose();
+	FReply CreateDuplicatePose() const;
+
+	/** import retarget pose from asset*/
+	void HandleImportPose();
+	FReply ImportRetargetPose() const;
+	void OnRetargetPoseSelected(const FAssetData& SelectedAsset);
+	FSoftObjectPath RetargetPoseToImport;
+	TSharedPtr<SWindow> ImportPoseWindow;
+
+	/** import retarget pose from animation sequence*/
+	void HandleImportPoseFromSequence();
+	bool OnShouldFilterSequenceToImport(const struct FAssetData& AssetData) const;
+	FReply OnImportPoseFromSequence();
+	void OnSequenceSelectedForPose(const FAssetData& SelectedAsset);
+	TSharedPtr<SWindow> ImportPoseFromSequenceWindow;
+	FSoftObjectPath SequenceToImportAsPose;
+	int32 FrameOfSequenceToImport;
+	FText ImportedPoseName;
+
+	/** export retarget pose to asset*/
+	void HandleExportPose();
+
+	/** delete retarget pose */
 	void HandleDeletePose() const;
 	bool CanDeletePose() const;
-	
+
+	/** rename retarget pose */
 	void HandleRenamePose();
 	FReply RenamePose() const;
 	bool CanRenamePose() const;
 	TSharedPtr<SWindow> RenamePoseWindow;
 	TSharedPtr<SEditableTextBox> NewNameEditableText;
 	
-	TArray<TSharedPtr<FName>> PoseNames;
-	FText GetCurrentPoseName() const;
-	void OnPoseSelected(TSharedPtr<FName> InPoseName, ESelectInfo::Type SelectInfo) const;
-	/* END edit retarget poses */
+	/* END RETARGET POSES */
 };

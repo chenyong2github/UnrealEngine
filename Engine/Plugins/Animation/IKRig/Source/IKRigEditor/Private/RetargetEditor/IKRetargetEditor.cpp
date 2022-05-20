@@ -125,15 +125,34 @@ void FIKRetargetEditor::BindCommands()
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
-		Commands.SetToRefPose,
-		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleResetPose),
+		Commands.ResetAllBones,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleResetAllBones),
 		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanResetPose),
+		EUIActionRepeatMode::RepeatDisabled);
+
+	ToolkitCommands->MapAction(
+		Commands.ResetSelectedBones,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleResetSelectedBones),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanResetSelected),
+		EUIActionRepeatMode::RepeatDisabled);
+
+	ToolkitCommands->MapAction(
+		Commands.ResetSelectedAndChildrenBones,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleResetSelectedAndChildrenBones),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanResetSelected),
 		EUIActionRepeatMode::RepeatDisabled);
 
 	ToolkitCommands->MapAction(
 		Commands.NewRetargetPose,
 		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleNewPose),
-		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanNewPose),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
+		FCanExecuteAction(),
+		EUIActionRepeatMode::RepeatDisabled);
+
+	ToolkitCommands->MapAction(
+		Commands.DuplicateRetargetPose,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleDuplicatePose),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 
@@ -148,6 +167,27 @@ void FIKRetargetEditor::BindCommands()
 		Commands.RenameRetargetPose,
 		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleRenamePose),
 		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanRenamePose),
+		FCanExecuteAction(),
+		EUIActionRepeatMode::RepeatDisabled);
+
+	ToolkitCommands->MapAction(
+		Commands.ImportRetargetPose,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleImportPose),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
+		FCanExecuteAction(),
+		EUIActionRepeatMode::RepeatDisabled);
+
+	ToolkitCommands->MapAction(
+		Commands.ImportRetargetPoseFromAnim,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleImportPoseFromSequence),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
+		FCanExecuteAction(),
+		EUIActionRepeatMode::RepeatDisabled);
+
+	ToolkitCommands->MapAction(
+		Commands.ExportRetargetPose,
+		FExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::HandleExportPose),
+		FCanExecuteAction::CreateSP(EditorController, &FIKRetargetEditorController::CanCreatePose),
 		FCanExecuteAction(),
 		EUIActionRepeatMode::RepeatDisabled);
 }

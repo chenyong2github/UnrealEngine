@@ -68,6 +68,9 @@ public:
 	virtual void Exit() override;
 	/** END FEdMode interface */
 
+	// get a list of the names of the currently selected bones (empty if non selected)
+	const TArray<FName>& GetSelectedBones() const;
+	
 private:
 
 	void GetAffectedBones(

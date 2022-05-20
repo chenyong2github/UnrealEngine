@@ -432,6 +432,11 @@ void FIKRetargetEditPoseMode::Exit()
 	IPersonaEditMode::Exit();
 }
 
+const TArray<FName>& FIKRetargetEditPoseMode::GetSelectedBones() const
+{
+	return BoneEdit.SelectedBones;
+}
+
 void FIKRetargetEditPoseMode::UpdateWidgetTransform()
 {
 	const TSharedPtr<FIKRetargetEditorController> Controller = EditorController.Pin();

@@ -10,6 +10,7 @@
 #include "IKRigDefinition.h"
 #include "RigEditor/AssetTypeActions_IKRigDefinition.h"
 #include "RetargetEditor/AssetTypeActions_IKRetargeter.h"
+#include "RetargetEditor/AssetTypeActions_RetargetPose.h"
 #include "RetargetEditor/IKRetargetCommands.h"
 #include "RetargetEditor/IKRetargetDefaultMode.h"
 #include "RetargetEditor/IKRetargetDetails.h"
@@ -34,11 +35,16 @@ void FIKRigEditor::StartupModule()
 	FIKRetargetCommands::Register();
 	
 	// register custom asset type actions
+	IAssetTools& ToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	//
 	IKRigDefinitionAssetAction = MakeShareable(new FAssetTypeActions_IKRigDefinition);
-	FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get().RegisterAssetTypeActions(IKRigDefinitionAssetAction.ToSharedRef());
+	ToolsModule.RegisterAssetTypeActions(IKRigDefinitionAssetAction.ToSharedRef());
 	//
 	IKRetargeterAssetAction = MakeShareable(new FAssetTypeActions_IKRetargeter);
-	FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get().RegisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
+	ToolsModule.RegisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
+	//
+	RetargetPoseAssetAction = MakeShareable(new FAssetTypeActions_RetargetPose);
+	ToolsModule.RegisterAssetTypeActions(RetargetPoseAssetAction.ToSharedRef());
 
 	// extend the content browser menu
 	FAssetTypeActions_IKRetargeter::ExtendAnimSequenceToolMenu();
@@ -68,24 +74,24 @@ void FIKRigEditor::ShutdownModule()
 	FEditorModeRegistry::Get().UnregisterMode(FIKRetargetDefaultMode::ModeName);
 	FEditorModeRegistry::Get().UnregisterMode(FIKRetargetEditPoseMode::ModeName);
 
-	// unregister IKRigDefinition asset action
-	if (IKRigDefinitionAssetAction.IsValid())
+	// unregister asset actions
+	IAssetTools& ToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
 	{
-		if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
+		if (IKRigDefinitionAssetAction.IsValid())
 		{
-			FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get().UnregisterAssetTypeActions(IKRigDefinitionAssetAction.ToSharedRef());
+			ToolsModule.UnregisterAssetTypeActions(IKRigDefinitionAssetAction.ToSharedRef());
 		}
-		IKRigDefinitionAssetAction.Reset();
-	}
-
-	// unregister IKRetargeter asset action
-	if (IKRetargeterAssetAction.IsValid())
-	{
-		if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
+		
+		if (IKRetargeterAssetAction.IsValid())
 		{
-			FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools").Get().UnregisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
+			ToolsModule.UnregisterAssetTypeActions(IKRetargeterAssetAction.ToSharedRef());
 		}
-		IKRetargeterAssetAction.Reset();
+		
+		if (RetargetPoseAssetAction.IsValid())
+		{
+			ToolsModule.UnregisterAssetTypeActions(RetargetPoseAssetAction.ToSharedRef());
+		}
 	}
 }
 

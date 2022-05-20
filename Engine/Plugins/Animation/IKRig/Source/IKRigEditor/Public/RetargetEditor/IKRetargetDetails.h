@@ -21,9 +21,13 @@ public:
 
 private:
 
-	TSharedRef<SWidget> MakeToolbar(const TSharedRef<FUICommandList>& UICommandList);
+	TSharedRef<SWidget> MakeToolbar(TSharedPtr<FUICommandList> Commands);
+
+	TSharedRef<SWidget> GenerateResetMenuContent(TSharedPtr<FUICommandList> Commands);
+	
+	TSharedRef<SWidget> GenerateNewMenuContent(TSharedPtr<FUICommandList> Commands);
 	
 	TObjectPtr<UIKRetargeterController> GetAssetControllerFromSelectedObjects(IDetailLayoutBuilder& DetailBuilder) const;
-
+	
 	TArray<TSharedPtr<FName>> PoseNames;
 };

@@ -77,19 +77,22 @@ public:
 	/** Remove bones from retarget poses that are no longer in skeleton */
 	void CleanPoseList(const bool bForceReinitialization=true);
 	/** Add new retarget pose. */
-	void AddRetargetPose(FName NewPoseName) const;
+	void AddRetargetPose(FName NewPoseName, const FIKRetargetPose* ToDuplicate = nullptr) const;
 	/** Rename current retarget pose. */
 	void RenameCurrentRetargetPose(FName NewPoseName) const;
 	/** Remove a retarget pose. */
 	void RemoveRetargetPose(FName PoseToRemove) const;
-	/** Reset a retarget pose (removes all stored deltas, returning pose to reference pose */
-	void ResetRetargetPose(FName PoseToReset) const;
+	/** Reset a retarget pose for the specified bones.
+	 *If BonesToReset is Empty, will removes all stored deltas, returning pose to reference pose */
+	void ResetRetargetPose(FName PoseToReset, const TArray<FName>& BonesToReset) const;
 	/** Get the current retarget pose */
     FName GetCurrentRetargetPoseName() const;
 	/** Change which retarget pose is used by the retargeter at runtime */
 	void SetCurrentRetargetPose(FName CurrentPose) const;
 	/** Get read-only access to list of retarget poses */
 	const TMap<FName, FIKRetargetPose>& GetRetargetPoses();
+	/** Get the current retarget pose */
+	const FIKRetargetPose& GetCurrentRetargetPose() const;
 	/** Set a delta rotation for a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
 	void SetRotationOffsetForRetargetPoseBone(FName BoneName, FQuat RotationOffset) const;
 	/** Get a delta rotation for a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
@@ -97,7 +100,7 @@ public:
 	/** Add a delta translation to the root bone (used in Edit Mode in the retarget editor) */
 	void AddTranslationOffsetToRetargetRootBone(FVector TranslationOffset) const;
 	/** Add a numbered suffix to the given pose name to make it unique. */
-	FName MakePoseNameUnique(FName PoseName) const;
+	FName MakePoseNameUnique(FString PoseName) const;
 	/** END RETARGET POSE EDITING */
 
 private:

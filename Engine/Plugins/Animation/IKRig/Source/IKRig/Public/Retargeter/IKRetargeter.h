@@ -210,6 +210,26 @@ public:
 	void SortHierarchically(const FIKRigSkeleton& Skeleton);
 };
 
+UCLASS(Blueprintable)
+class IKRIG_API URetargetPose: public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	UPROPERTY(EditAnywhere, Category = RetargetPose)
+	FVector RootTranslationOffset = FVector::ZeroVector;
+	
+	UPROPERTY(EditAnywhere, Category = RetargetPose)
+	TMap<FName, FQuat> BoneRotationOffsets;
+
+	void GetAsRetargetPose(FIKRetargetPose& OutPose) const
+	{
+		OutPose.RootTranslationOffset = RootTranslationOffset;
+		OutPose.BoneRotationOffsets = BoneRotationOffsets;
+	}
+};
+
 #if WITH_EDITOR
 enum class ERetargeterOutputMode : uint8
 {

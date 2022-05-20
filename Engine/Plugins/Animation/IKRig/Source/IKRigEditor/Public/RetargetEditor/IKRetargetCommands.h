@@ -18,24 +18,40 @@ public:
 	)
 	{}
 
-	/** reset reference pose */
+	/** reset retarget pose */
 	TSharedPtr< FUICommandInfo > GoToRetargetPose;
 	
-	/** edit reference pose */
+	/** edit retarget pose */
 	TSharedPtr< FUICommandInfo > EditRetargetPose;
 
-	/** reset reference pose */
-	TSharedPtr< FUICommandInfo > SetToRefPose;
+	/** reset retarget pose to ref pose */
+	TSharedPtr< FUICommandInfo > ResetAllBones;
+	/** reset retarget pose to ref pose */
+	TSharedPtr< FUICommandInfo > ResetSelectedBones;
+	/** reset retarget pose to ref pose */
+	TSharedPtr< FUICommandInfo > ResetSelectedAndChildrenBones;
 
-	/** new reference pose */
-	TSharedPtr< FUICommandInfo > NewRetargetPose;
-
-	/** delete reference pose */
+	/** delete retarget pose */
 	TSharedPtr< FUICommandInfo > DeleteRetargetPose;
 
-	/** rename reference pose */
+	/** rename retarget pose */
 	TSharedPtr< FUICommandInfo > RenameRetargetPose;
-	
+
+	/** new retarget pose */
+	TSharedPtr< FUICommandInfo > NewRetargetPose;
+
+	/** duplicate retarget pose */
+	TSharedPtr< FUICommandInfo > DuplicateRetargetPose;
+
+	/** import retarget pose */
+	TSharedPtr< FUICommandInfo > ImportRetargetPose;
+
+	/** import retarget pose from anim */
+	TSharedPtr< FUICommandInfo > ImportRetargetPoseFromAnim;
+
+	/** export retarget pose */
+	TSharedPtr< FUICommandInfo > ExportRetargetPose;
+
 	/** export animation */
 	TSharedPtr< FUICommandInfo > ExportAnimation;
 

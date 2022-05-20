@@ -134,7 +134,6 @@ FReply SIKRetargetAssetBrowser::OnExportButtonClicked() const
 	BatchOperation.RunRetarget(BatchContext);
 
 	return FReply::Handled();
-	
 }
 
 bool SIKRetargetAssetBrowser::IsExportButtonEnabled() const
@@ -187,21 +186,14 @@ bool SIKRetargetAssetBrowser::OnShouldFilterAsset(const struct FAssetData& Asset
 	}
 	
 	// controller setup
-	FIKRetargetEditorController* Controller = EditorController.Pin().Get();
+	const FIKRetargetEditorController* Controller = EditorController.Pin().Get();
 	if (!Controller)
 	{
 		return true;
 	}
 
-	// get source mesh
-	USkeletalMesh* SourceMesh = Controller->GetSourceSkeletalMesh();
-	if (!SourceMesh)
-	{
-		return true;
-	}
-
 	// get source skeleton
-	USkeleton* DesiredSkeleton = SourceMesh->GetSkeleton();
+	const USkeleton* DesiredSkeleton = Controller->GetSourceSkeleton();
 	if (!DesiredSkeleton)
 	{
 		return true;

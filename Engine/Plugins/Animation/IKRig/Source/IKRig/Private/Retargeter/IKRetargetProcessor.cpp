@@ -140,6 +140,34 @@ void FRetargetSkeleton::GetChildrenIndices(const int32 BoneIndex, TArray<int32>&
 	}
 }
 
+void FRetargetSkeleton::GetChildrenIndicesRecursive(const int32 BoneIndex, TArray<int32>& OutChildren) const
+{
+	const int32 NumBones = BoneNames.Num();
+	for (int32 ChildIndex=BoneIndex+1; ChildIndex<NumBones; ++ChildIndex)
+	{
+		if (!OutChildren.Contains(ChildIndex) && IsParentOfChild(BoneIndex, ChildIndex))
+		{
+			OutChildren.Add(ChildIndex);
+		}
+	}
+}
+
+bool FRetargetSkeleton::IsParentOfChild(const int32 PotentialParentIndex, const int32 ChildBoneIndex) const
+{
+	int32 ParentIndex = GetParentIndex(ChildBoneIndex);
+	while (ParentIndex != INDEX_NONE)
+	{
+		if (ParentIndex == PotentialParentIndex)
+		{
+			return true;
+		}
+		
+		ParentIndex = GetParentIndex(ParentIndex);
+	}
+	
+	return false;
+}
+
 int32 FRetargetSkeleton::GetParentIndex(const int32 BoneIndex) const
 {
 	if (BoneIndex < 0 || BoneIndex>ParentIndices.Num() || BoneIndex == INDEX_NONE)
