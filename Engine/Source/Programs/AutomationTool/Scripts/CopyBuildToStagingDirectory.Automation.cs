@@ -4450,7 +4450,8 @@ namespace AutomationScripts
 				//@todo should pull StageExecutables from somewhere else if not cooked
 				var SC = new DeploymentContext(Params.RawProjectPath, Unreal.RootDirectory,
 					String.IsNullOrEmpty(StageDirectory) ? null : new DirectoryReference(StageDirectory),
-					String.IsNullOrEmpty(Params.OptionalStageDirectory) ? null : new DirectoryReference(Params.OptionalStageDirectory),
+					String.IsNullOrEmpty(Params.OptionalFileStagingDirectory) ? null : new DirectoryReference(Params.OptionalFileStagingDirectory),
+					String.IsNullOrEmpty(Params.OptionalFileInputDirectory) ? null : new DirectoryReference(Params.OptionalFileInputDirectory),
 					String.IsNullOrEmpty(ArchiveDirectory) ? null : new DirectoryReference(ArchiveDirectory),
 					Platform.Platforms[CookedDataPlatform],
 					Platform.Platforms[StagePlatform],

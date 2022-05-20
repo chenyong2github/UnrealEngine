@@ -202,6 +202,11 @@ public class DeploymentContext //: ProjectParams
 	public DirectoryReference OptionalFileStageDirectory = null;
 
 	/// <summary>
+	/// Directory to read all of the optional (ie editor only) files from (written earlier with OptionalFileStageDirectory)
+	/// </summary>
+	public DirectoryReference OptionalFileInputDirectory = null;
+
+	/// <summary>
 	/// Directory name for staged projects
 	/// </summary>
 	public StagedDirectoryReference RelativeProjectRootForStage;
@@ -386,7 +391,8 @@ public class DeploymentContext //: ProjectParams
 		FileReference RawProjectPathOrName,
 		DirectoryReference InLocalRoot,
 		DirectoryReference BaseStageDirectory,
-		DirectoryReference OptionalStageDirectory,
+		DirectoryReference OptionalFileStageDirectory,
+		DirectoryReference OptionalFileInputDirectory,
 		DirectoryReference BaseArchiveDirectory,
 		Platform InSourcePlatform,
         Platform InTargetPlatform,
@@ -454,7 +460,8 @@ public class DeploymentContext //: ProjectParams
 			StageDirectory = DirectoryReference.Combine(BaseStageDirectory, FinalCookPlatform);
 			DebugStageDirectory = InSeparateDebugStageDirectory? DirectoryReference.Combine(BaseStageDirectory, FinalCookPlatform + "Debug") : StageDirectory;
 		}
-		OptionalFileStageDirectory = OptionalStageDirectory;
+		this.OptionalFileStageDirectory = OptionalFileStageDirectory;
+		this.OptionalFileInputDirectory = OptionalFileInputDirectory;
 
 		if (BaseArchiveDirectory != null)
 		{
