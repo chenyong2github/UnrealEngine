@@ -41,6 +41,8 @@ private:
 	static EAssetTypeCategories::Type InputAssetsCategory;
 	
 	TArray<TSharedPtr<IAssetTypeActions>> CreatedAssetTypeActions;
+	
+	TSharedPtr<class FSlateStyleSet> StyleSet;
 };
 
 ////////////////////////////////////////////////////////////////////
