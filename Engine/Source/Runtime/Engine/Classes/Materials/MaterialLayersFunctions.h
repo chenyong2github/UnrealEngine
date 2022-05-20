@@ -199,10 +199,8 @@ struct ENGINE_API FMaterialLayersFunctions : public FMaterialLayersFunctionsRunt
 	FMaterialLayersFunctionsRuntimeData& GetRuntime() { return *this; }
 	const FMaterialLayersFunctionsRuntimeData& GetRuntime() const { return *this; }
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, Category = MaterialLayers)
 	FMaterialLayersFunctionsEditorOnlyData EditorOnly;
-#endif
 
 	void Empty()
 	{

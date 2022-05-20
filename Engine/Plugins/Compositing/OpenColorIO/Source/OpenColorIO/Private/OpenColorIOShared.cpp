@@ -181,10 +181,10 @@ void FOpenColorIOTransformResource::SerializeShaderMap(FArchive& Ar)
 				// Toss the loaded shader data if this is a server only instance (@todo - don't cook it in the first place) or if it's for a different RHI than the current one
 				if (bSuccessfullyLoaded && FApp::CanEverRender())
 				{
+					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
 #if WITH_EDITOR
 					GameThreadShaderMap->AssociateWithAsset(AssetPath);
 #endif
-					GameThreadShaderMap = RenderingThreadShaderMap = LoadedShaderMap;
 				}
 			}
 		}

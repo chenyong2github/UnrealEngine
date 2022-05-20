@@ -1899,7 +1899,7 @@ void UMaterial::UpdateCachedExpressionData()
 {
 	COOK_STAT(FScopedDurationTimer BlockingTimer(MaterialCookStats::UpdateCachedExpressionDataSec));
 
-	if (bLoadedCachedExpressionData)
+	if (bLoadedCachedExpressionData && !GetPackage()->bIsCookedForEditor)
 	{
 		// Don't need to rebuild cached data if it was serialized
 		return;
@@ -3549,11 +3549,7 @@ void UMaterial::PostLoad()
 	PropagateDataToMaterialProxy();
 
 #if WITH_EDITOR
-	// cooked materials will not have any expressions in them, so this will obliterate the saved cached expression data
-	if (!GetOutermost()->bIsCookedForEditor)
-	{
-		UpdateCachedExpressionData();
-	}
+	UpdateCachedExpressionData();
 #endif // WITH_EDITOR
 
 	// Strata materials conversion needs to be done after expressions are cached, otherwise material function won't have 
