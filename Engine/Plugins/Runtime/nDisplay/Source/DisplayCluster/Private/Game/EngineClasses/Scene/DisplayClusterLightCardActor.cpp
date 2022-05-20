@@ -79,10 +79,10 @@ void ADisplayClusterLightCardActor::Tick(float DeltaSeconds)
 		// If latitude exceeds [-90, 90], mod it back into the appropriate range, and apply a shift of 180 degrees if
 		// needed to the longitude, to allow the latitude to be continuous (increasing latitude indefinitely should result in the LC 
 		// orbiting around a polar great circle)
-		float Parity = FMath::Fmod(FMath::Abs(Latitude) + 90, 360) - 180;
-		float DeltaLongitude = Parity > 1 ? 180.f : 0.f;
+		double Parity = FMath::Fmod(FMath::Abs(Latitude) + 90, 360) - 180;
+		double DeltaLongitude = Parity > 1 ? 180.f : 0.f;
 
-		float LatMod = FMath::Fmod(Latitude + 90.f, 180.f);
+		double LatMod = FMath::Fmod(Latitude + 90.f, 180.f);
 		if (LatMod < 0.f)
 		{
 			LatMod += 180.f;
@@ -203,4 +203,28 @@ UStaticMesh* ADisplayClusterLightCardActor::GetStaticMesh() const
 void ADisplayClusterLightCardActor::SetStaticMesh(UStaticMesh* InStaticMesh)
 {
 	LightCardComponent->SetStaticMesh(InStaticMesh);
+}
+
+ADisplayClusterLightCardActor::PositionalParams ADisplayClusterLightCardActor::GetPositionalParams()
+{
+	PositionalParams Params;
+
+	Params.DistanceFromCenter = DistanceFromCenter;
+	Params.Latitude = Latitude;
+	Params.Longitude = Longitude;
+	Params.Pitch = Pitch;
+	Params.Spin = Spin;
+	Params.Yaw = Yaw;
+
+	return Params;
+}
+
+void ADisplayClusterLightCardActor::SetPositionalParams(const PositionalParams& Params)
+{
+	DistanceFromCenter = Params.DistanceFromCenter;
+	Latitude = Params.Latitude;
+	Longitude = Params.Longitude;
+	Pitch = Params.Pitch;
+	Spin = Params.Spin;
+	Yaw = Params.Yaw;
 }

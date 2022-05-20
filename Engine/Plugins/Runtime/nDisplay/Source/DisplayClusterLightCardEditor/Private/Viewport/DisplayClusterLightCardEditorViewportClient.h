@@ -24,46 +24,32 @@ private:
 	struct FSphericalCoordinates
 	{
 	public:
-		FSphericalCoordinates(const FVector& CartesianPosition)
-		{
-			Radius = CartesianPosition.Size();
 
-			if (Radius > UE_SMALL_NUMBER)
-			{
-				Inclination = FMath::Acos(CartesianPosition.Z / Radius);
-			}
-			else
-			{
-				Inclination = 0;
-			}
+		/** Constructors */
+		FSphericalCoordinates(const FVector& CartesianPosition);
+		FSphericalCoordinates();
 
-			Azimuth = FMath::Atan2(CartesianPosition.Y, CartesianPosition.X);
-		}
+		/** Return equivalent cartesian coordinates */
+		FVector AsCartesian() const;
 
-		FSphericalCoordinates()
-			: Radius(0)
-			, Inclination(0)
-			, Azimuth(0)
-		{ }
+		/** Addition operator */
+		FSphericalCoordinates operator+(FSphericalCoordinates const& Other) const;
 
-		FVector AsCartesian() const
-		{
-			const double SinAzimuth = FMath::Sin(Azimuth);
-			const double CosAzimuth = FMath::Cos(Azimuth);
+		/** Subtraction operator */
+		FSphericalCoordinates operator-(FSphericalCoordinates const& Other) const;
 
-			const double SinInclination = FMath::Sin(Inclination);
-			const double CosInclination = FMath::Cos(Inclination);
+		/** Conform parameters to their normal ranges */
+		void Conform();
+		
+		/** Returns a conformed version of this struct without changing the current one */
+		FSphericalCoordinates GetConformed() const;
 
-			return FVector(
-				Radius * CosAzimuth * SinInclination,
-				Radius * SinAzimuth * SinInclination,
-				Radius * CosInclination
-			);
-		}
+		/** Returns true if the inclination is pointing at north or south poles, within the given margin (in radians) */
+		bool IsPointingAtPole(double Margin = 1e-6) const;
 
-		double Radius = 0;
-		double Inclination = 0;
-		double Azimuth = 0;
+		double Radius = 0;      // unitless   0+      (when conforming)
+		double Inclination = 0; // radians    0 to PI (when conforming)
+		double Azimuth = 0;     // radians  -PI to PI (when conforming)
 	};
 
 	/** Custom render target that stores the normal data for the stage */
@@ -229,6 +215,9 @@ private:
 	/** Ensures that the light card root component is at the same location as the projection/view origin */
 	void VerifyAndFixLightCardOrigin(ADisplayClusterLightCardActor* LightCard) const;
 
+	/** Determines the appropriate delta rotation needed to move the specified light card to the mouse's location */
+	FRotator GetLightCardRotationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
+
 	/** Determines the appropriate delta in spherical coordinates needed to move the specified light card to the mouse's location */
 	FSphericalCoordinates GetLightCardTranslationDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard, EAxisList::Type CurrentAxis);
 
@@ -242,10 +231,13 @@ private:
 	void SpinSelectedLightCards(FViewport* InViewport);
 
 	/** Determines the appropriate spin delta needed to rotate the light card */
-	float GetLightCardSpinDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard);
+	double GetLightCardSpinDelta(FViewport* InViewport, ADisplayClusterLightCardActor* LightCard);
 
 	/** Gets the spherical coordinates of the specified light card */
 	FSphericalCoordinates GetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard) const;
+
+	/** Sets the light card position to the given spherical coordinates */
+	void SetLightCardCoordinates(ADisplayClusterLightCardActor* LightCard, const FSphericalCoordinates& SphericalCoords) const;
 
 	/** Traces to find the light card corresponding to a click on a stage screen */
 	ADisplayClusterLightCardActor* TraceScreenForLightCard(const FSceneView& View, int32 HitX, int32 HitY);

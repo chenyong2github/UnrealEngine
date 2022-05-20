@@ -26,6 +26,18 @@ class DISPLAYCLUSTER_API ADisplayClusterLightCardActor : public AActor
 	GENERATED_BODY()
 
 public:
+
+	struct PositionalParams
+	{
+		double DistanceFromCenter;
+		double Longitude;
+		double Latitude;
+		double Spin;
+		double Pitch;
+		double Yaw;
+	};
+
+public:
 	/** The rotation used to orient the plane mesh used for the light card so that its normal points radially inwards */
 	static const FRotator PlaneMeshRotation;
 
@@ -58,27 +70,33 @@ public:
 	/** Updates the Light Card transform based on its positional properties (Lat, Long, etc.) */
 	void UpdateLightCardTransform();
 
+	/** Retrieves positional parameters */
+	PositionalParams GetPositionalParams();
+
+	/** Set positional parameters */
+	void SetPositionalParams(const PositionalParams& Params);
+
 protected:
 	void UpdateLightCardMaterialInstance();
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
-	float DistanceFromCenter;
+	double DistanceFromCenter;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation", meta = (UIMin = 0, ClampMin = 0, UIMax = 360, ClampMax = 360))
-	float Longitude;
+	double Longitude;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation", meta = (UIMin = -90, ClampMin = -90, UIMax = 90, ClampMax = 90))
-	float Latitude;
+	double Latitude;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
-	float Spin;
+	double Spin;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
-	float Pitch;
+	double Pitch;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
-	float Yaw;
+	double Yaw;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
 	FVector2D Scale;
