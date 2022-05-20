@@ -3,7 +3,6 @@
 #include "AGXRHIPrivate.h"
 #include "AGXRHIRenderQuery.h"
 #include "AGXCommandBufferFence.h"
-#include "RHICore.h"
 
 TGlobalResource<TBoundShaderStateHistory<10000>> FAGXRHICommandContext::BoundShaderStateHistory;
 
@@ -159,7 +158,69 @@ void FAGXRHICommandContext::RHIEndRenderPass()
 		RHIEndOcclusionQueryBatch();
 	}
 
-	UE::RHICore::ResolveRenderPassTargets(*this, RenderPassInfo);
+	UE::RHICore::ResolveRenderPassTargets(RenderPassInfo, [this](UE::RHICore::FResolveTextureInfo Info)
+	{
+		ResolveTexture(Info);
+	});
+}
+
+void FAGXRHICommandContext::ResolveTexture(UE::RHICore::FResolveTextureInfo Info)
+{
+	@autoreleasepool {
+	FAGXSurface* Source = AGXGetMetalSurfaceFromRHITexture(Info.SourceTexture);
+	FAGXSurface* Destination = AGXGetMetalSurfaceFromRHITexture(Info.DestTexture);
+
+	const FRHITextureDesc& SourceDesc = Source->GetDesc();
+	const FRHITextureDesc& DestinationDesc = Destination->GetDesc();
+
+	const bool bDepthStencil = SourceDesc.Format == PF_DepthStencil;
+	const bool bSupportsMSAADepthResolve = GetAGXDeviceContext().SupportsFeature(EAGXFeaturesMSAADepthResolve);
+	const bool bSupportsMSAAStoreAndResolve = GetAGXDeviceContext().SupportsFeature(EAGXFeaturesMSAAStoreAndResolve);
+	// Resolve required - Device must support this - Using Shader for resolve not supported amd NumSamples should be 1
+	check((!bDepthStencil && bSupportsMSAAStoreAndResolve) || (bDepthStencil && bSupportsMSAADepthResolve));
+
+	mtlpp::Origin Origin(0, 0, 0);
+	mtlpp::Size Size(0, 0, 1);
+
+	if (Info.ResolveRect.IsValid())
+	{
+		Origin.x    = Info.ResolveRect.X1;
+		Origin.y    = Info.ResolveRect.Y1;
+		Size.width  = Info.ResolveRect.X2 - Info.ResolveRect.X1;
+		Size.height = Info.ResolveRect.Y2 - Info.ResolveRect.Y1;
+	}
+	else
+	{
+		Size.width  = FMath::Max<uint32>(1, SourceDesc.Extent.X >> Info.MipLevel);
+		Size.height = FMath::Max<uint32>(1, SourceDesc.Extent.Y >> Info.MipLevel);
+	}
+
+	if (Profiler)
+	{
+		Profiler->RegisterGPUWork();
+	}
+
+	int32 ArraySliceBegin = Info.ArraySlice;
+	int32 ArraySliceEnd   = Info.ArraySlice + 1;
+
+	if (Info.ArraySlice < 0)
+	{
+		ArraySliceBegin = 0;
+		ArraySliceEnd   = SourceDesc.ArraySize;
+	}
+
+	for (int32 ArraySlice = ArraySliceBegin; ArraySlice < ArraySliceEnd; ArraySlice++)
+	{
+		Context->CopyFromTextureToTexture(Source->MSAAResolveTexture, ArraySlice, Info.MipLevel, Origin, Size, Destination->Texture, ArraySlice, Info.MipLevel, Origin);
+
+#if PLATFORM_MAC
+		if ((Destination->GPUReadback & FAGXSurface::EAGXGPUReadbackFlags::ReadbackRequested) != 0)
+		{
+			Context->GetCurrentRenderPass().SynchronizeTexture(Destination->Texture, ArraySlice, Info.MipLevel);
+		}
+#endif
+	}
+	}
 }
 
 void FAGXRHICommandContext::RHINextSubpass()

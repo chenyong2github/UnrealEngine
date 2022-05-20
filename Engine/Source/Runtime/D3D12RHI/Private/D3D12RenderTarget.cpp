@@ -481,7 +481,6 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 void FD3D12CommandContext::ResolveTexture(UE::RHICore::FResolveTextureInfo Info)
 {
 	uint32 GPUIndex = GetGPUIndex();
-	FRHICommandList_RecursiveHazardous RHICmdList(this, FRHIGPUMask::FromIndex(GPUIndex));
 
 	if (IsDefaultContext())
 	{
@@ -498,6 +497,8 @@ void FD3D12CommandContext::ResolveTexture(UE::RHICore::FResolveTextureInfo Info)
 
 	if (SourceDesc.Format == PF_DepthStencil)
 	{
+		FRHICommandList_RecursiveHazardous RHICmdList(this, FRHIGPUMask::FromIndex(GPUIndex));
+
 		ResolveTextureUsingShader<FResolveDepthPS>(
 			RHICmdList,
 			SourceTexture,

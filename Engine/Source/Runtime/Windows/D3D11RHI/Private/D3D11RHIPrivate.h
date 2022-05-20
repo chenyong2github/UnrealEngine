@@ -658,6 +658,8 @@ public:
 	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName) final override;
 	virtual void RHIEndRenderPass() final override;
 
+	void ResolveTexture(UE::RHICore::FResolveTextureInfo Info);
+
 	virtual void RHICalibrateTimers() override;
 
 	// ID3D11DynamicRHI interface

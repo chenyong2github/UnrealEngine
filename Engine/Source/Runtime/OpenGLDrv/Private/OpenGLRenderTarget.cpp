@@ -1164,8 +1164,6 @@ void FOpenGLDynamicRHI::RHIEndRenderPass()
 		EndOcclusionQueryBatch();
 	}
 
-	UE::RHICore::ResolveRenderPassTargets(*this, RenderPassInfo);
-
 	// Drop depth and stencil to avoid export
 	if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget)
 	{

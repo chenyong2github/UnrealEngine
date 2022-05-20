@@ -1136,9 +1136,65 @@ void FD3D11DynamicRHI::RHIEndRenderPass()
 		RHIEndOcclusionQueryBatch();
 	}
 
-	UE::RHICore::ResolveRenderPassTargets(*this, RenderPassInfo);
+	UE::RHICore::ResolveRenderPassTargets(RenderPassInfo, [this](UE::RHICore::FResolveTextureInfo Info)
+	{
+		ResolveTexture(Info);
+	});
 
 	FRHIRenderTargetView RTV(nullptr, ERenderTargetLoadAction::ENoAction);
 	FRHIDepthRenderTargetView DepthRTV(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
 	SetRenderTargets(1, &RTV, &DepthRTV);
+}
+
+void FD3D11DynamicRHI::ResolveTexture(UE::RHICore::FResolveTextureInfo Info)
+{
+	GPUProfilingData.RegisterGPUWork();
+
+	FD3D11Texture* SourceTexture      = GetD3D11TextureFromRHITexture(Info.SourceTexture);
+	const FRHITextureDesc& SourceDesc = SourceTexture->GetDesc();
+
+	FD3D11Texture* DestTexture        = GetD3D11TextureFromRHITexture(Info.DestTexture);
+	const FRHITextureDesc& DestDesc   = DestTexture->GetDesc();
+
+	if (SourceDesc.Format == PF_DepthStencil)
+	{
+		FRHICommandList_RecursiveHazardous RHICmdList(this);
+
+		D3D11_TEXTURE2D_DESC ResolveTargetDesc;
+		DestTexture->GetD3D11Texture2D()->GetDesc(&ResolveTargetDesc);
+
+		ResolveTextureUsingShader<FResolveDepthPS>(
+			RHICmdList,
+			SourceTexture,
+			DestTexture,
+			DestTexture->GetRenderTargetView(0, -1),
+			DestTexture->GetDepthStencilView(FExclusiveDepthStencil::DepthWrite_StencilWrite),
+			ResolveTargetDesc,
+			GetDefaultRect(Info.ResolveRect, SourceDesc.Extent.X, SourceDesc.Extent.Y),
+			GetDefaultRect(Info.ResolveRect, DestDesc.Extent.X, DestDesc.Extent.Y),
+			Direct3DDeviceIMContext,
+			FDummyResolveParameter()
+		);
+	}
+	else
+	{
+		const DXGI_FORMAT DestFormatTypeless = ConvertTypelessToUnorm((DXGI_FORMAT)GPixelFormats[DestDesc.Format].PlatformFormat);
+
+		int32 ArraySliceBegin = Info.ArraySlice;
+		int32 ArraySliceEnd   = Info.ArraySlice + 1;
+
+		if (Info.ArraySlice < 0)
+		{
+			ArraySliceBegin = 0;
+			ArraySliceEnd   = SourceDesc.ArraySize;
+		}
+
+		for (int32 ArraySlice = ArraySliceBegin; ArraySlice < ArraySliceEnd; ArraySlice++)
+		{
+			int32 DestSubresource   = D3D11CalcSubresource(Info.MipLevel, ArraySlice, DestDesc.ArraySize);
+			int32 SourceSubresource = D3D11CalcSubresource(Info.MipLevel, ArraySlice, SourceDesc.ArraySize);
+
+			Direct3DDeviceIMContext->ResolveSubresource(DestTexture->GetResource(), DestSubresource, SourceTexture->GetResource(), SourceSubresource, DestFormatTypeless);
+		}
+	}
 }

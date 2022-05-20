@@ -9,16 +9,8 @@
 
 RHICORE_API DECLARE_LOG_CATEGORY_EXTERN(LogRHICore, Log, VeryVerbose);
 
-class IRHICommandContext;
-
-struct FRHIRenderPassInfo;
-
-namespace UE
+namespace UE::RHICore
 {
-namespace RHICore
-{
-
-RHICORE_API void ResolveRenderPassTargets(IRHICommandContext& Context, const FRHIRenderPassInfo& Info);
 
 struct FResolveTextureInfo
 {
@@ -45,5 +37,4 @@ struct FResolveTextureInfo
 
 RHICORE_API void ResolveRenderPassTargets(const FRHIRenderPassInfo& Info, TFunction<void(FResolveTextureInfo)> Function);
 
-} //! RHICore
-} //! UE
+} //! UE::RHICore

@@ -6,6 +6,7 @@
 #include "AGXState.h"
 #include "AGXResources.h"
 #include "AGXViewport.h"
+#include "RHICore.h"
 
 #define UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER	1
 
@@ -236,6 +237,8 @@ private:
 	void ClearUAVWithBlitEncoder(FRHIUnorderedAccessView* UnorderedAccessViewRHI, EAGXRHIClearUAVType Type, uint32 Pattern);
 #endif // UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER
 	void ClearUAV(TRHICommandList_RecursiveHazardous<FAGXRHICommandContext>& RHICmdList, FAGXUnorderedAccessView* UnorderedAccessView, const void* ClearValue, bool bFloat);
+
+	void ResolveTexture(UE::RHICore::FResolveTextureInfo Info);
 
 	void RHIClearMRT(bool bClearColor, int32 NumClearColors, const FLinearColor* ColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);
 };

@@ -7,6 +7,7 @@
 #include "MetalState.h"
 #include "MetalResources.h"
 #include "MetalViewport.h"
+#include "RHICore.h"
 
 #define UE_METAL_RHI_SUPPORT_CLEAR_UAV_WITH_BLIT_ENCODER	1
 
@@ -229,6 +230,8 @@ protected:
 
 	template <typename TRHIShader>
 	void ApplyStaticUniformBuffers(TRHIShader* Shader);
+
+	void ResolveTexture(UE::RHICore::FResolveTextureInfo Info);
 
 	TArray<FRHIUniformBuffer*> GlobalUniformBuffers;
 
