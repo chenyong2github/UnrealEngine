@@ -126,7 +126,15 @@ class Watchdog {
 		this.respawnTimer = null
 		this.memUsageTimer = setInterval(() => {
 			if (this.analytics) {
-				spawn('du', ['-s', '/src']).stdout.on('data', _ => {});
+				spawn('du', ['-s', '/src']).stdout.on('data', data => {
+					const match = data.toString().match(/(\d+)/)
+					if (match) {
+						const sizeBytes = parseInt(match[1])
+						if (!isNaN(sizeBytes)) {
+							this.analytics.reportDiskUsage('watchdog', sizeBytes)
+						}
+					}
+				})
 				this.analytics.reportMemoryUsage('watchdog', process.memoryUsage().heapUsed)
 				this.analytics.reportBranchesRequests(branchesRequests)
 			}
