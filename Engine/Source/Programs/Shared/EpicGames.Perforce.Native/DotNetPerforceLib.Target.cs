@@ -18,5 +18,19 @@ public class DotNetPerforceLibTarget : TargetRules
 		bBuildWithEditorOnlyData = false;
 		bCompileAgainstEngine = false;
 		bCompileAgainstCoreUObject = false;
+
+		string ConfigFolder = (Target.Configuration == UnrealTargetConfiguration.Shipping) ? "Release" : "Debug";
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			OutputFile = $"Binaries/DotNET/EpicGames.Perforce.Native/win-x64/{ConfigFolder}/EpicGames.Perforce.Native.dll";
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			OutputFile = $"Binaries/DotNET/EpicGames.Perforce.Native/mac-x64/{ConfigFolder}/EpicGames.Perforce.Native.dylib";
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Linux)
+		{
+			OutputFile = $"Binaries/DotNET/EpicGames.Perforce.Native/linux-x64/{ConfigFolder}/EpicGames.Perforce.Native.so";
+		}
 	}
 }
