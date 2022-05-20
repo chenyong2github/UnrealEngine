@@ -12,8 +12,24 @@
 #include "Templates/Casts.h"
 #include "UObject/UnrealType.h"
 #include "UObject/EnumProperty.h"
+#include "Memory/VirtualStackAllocator.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogScriptFrame, Warning, All);
+
+#ifndef UE_USE_VIRTUAL_STACK_ALLOCATOR_FOR_SCRIPT_VM
+#define UE_USE_VIRTUAL_STACK_ALLOCATOR_FOR_SCRIPT_VM 0
+#endif 
+
+#if UE_USE_VIRTUAL_STACK_ALLOCATOR_FOR_SCRIPT_VM
+FORCEINLINE void* UeVstackAllocHelper(FVirtualStackAllocator* Allocator, size_t Size, size_t Align) { return ((Size == 0) ? 0 : Allocator->Allocate(Size, (Align < 16) ? 16 : Align)); }
+#define UE_VSTACK_MAKE_FRAME(Name, VirtualStackAllocatorPtr) FScopedStackAllocatorBookmark Name = VirtualStackAllocatorPtr->CreateScopedBookmark()
+#define UE_VSTACK_ALLOC(VirtualStackAllocatorPtr, Size) UeVstackAllocHelper((VirtualStackAllocatorPtr), (Size), 0) 
+#define UE_VSTACK_ALLOC_ALIGNED(VirtualStackAllocatorPtr, Size, Align) UeVstackAllocHelper((VirtualStackAllocatorPtr), (Size), (Align))
+#else
+#define UE_VSTACK_MAKE_FRAME(Name, VirtualStackAllocatorPtr)
+#define UE_VSTACK_ALLOC(VirtualStackAllocatorPtr, Size) FMemory_Alloca(Size)
+#define UE_VSTACK_ALLOC_ALIGNED(VirtualStackAllocatorPtr, Size, Align) FMemory_Alloca_Aligned(Size, Align)
+#endif
 
 /**
  * Property data type enums.
@@ -110,6 +126,10 @@ public:
 
 	/** Currently executed native function */
 	UFunction* CurrentNativeFunction;
+
+#if UE_USE_VIRTUAL_STACK_ALLOCATOR_FOR_SCRIPT_VM
+	FVirtualStackAllocator* CachedThreadVirtualStackAllocator;
+#endif
 
 	/** Previous tracking frame */
 	FFrame* PreviousTrackingFrame;
@@ -268,6 +288,16 @@ inline FFrame::FFrame( UObject* InObject, UFunction* InNode, void* InLocals, FFr
 	if (InPreviousFrame)
 	{
 		DepthCounter = (InPreviousFrame->DepthCounter < MAX_uint8) ? InPreviousFrame->DepthCounter + 1 : MAX_uint8;
+	}
+#endif
+#if UE_USE_VIRTUAL_STACK_ALLOCATOR_FOR_SCRIPT_VM
+	if (InPreviousFrame == nullptr)
+	{
+		CachedThreadVirtualStackAllocator = FBlueprintContext::GetThreadSingleton()->GetVirtualStackAllocator();
+	}
+	else
+	{
+		CachedThreadVirtualStackAllocator = InPreviousFrame->CachedThreadVirtualStackAllocator;
 	}
 #endif
 }

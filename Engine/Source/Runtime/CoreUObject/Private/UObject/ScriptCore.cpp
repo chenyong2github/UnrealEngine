@@ -148,6 +148,40 @@ FBlueprintCoreDelegates::FOnToggleScriptProfiler FBlueprintCoreDelegates::OnTogg
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+static int32 BlueprintContextVirtualStackAllocatorSize = 8 * 1024 * 1024;
+FAutoConsoleVariableRef CVarBlueprintContextVirtualStackAllocatorStackSize(
+	TEXT("r.FBlueprintContext.VirtualStackAllocatorStackSize"),
+	BlueprintContextVirtualStackAllocatorSize,
+	TEXT("Default size for FBlueprintContext's FVirtualStackAllocator"),
+	ECVF_ReadOnly
+);
+
+static int BlueprintContextVirtualStackAllocatorDecommitMode = (int)EVirtualStackAllocatorDecommitMode::AllOnDestruction;
+FAutoConsoleVariableRef CVarBlueprintContextVirtualStackAllocatorDecommitMode(
+	TEXT("r.FBlueprintContext.VirtualStackAllocator.DecommitMode"),
+	BlueprintContextVirtualStackAllocatorDecommitMode,
+	TEXT("Specifies DecommitMode for FVirtualStackAllocator when used through its ThreadSingleton. Values are from EVirtualStackAllocatorDecommitMode."),
+	ECVF_ReadOnly
+);
+
+FBlueprintContext::FBlueprintContext()
+#if UE_USE_VIRTUAL_STACK_ALLOCATOR_FOR_SCRIPT_VM
+	: VirtualStackAllocator(
+		BlueprintContextVirtualStackAllocatorSize,
+		static_cast<EVirtualStackAllocatorDecommitMode>(BlueprintContextVirtualStackAllocatorDecommitMode))
+#else
+	: VirtualStackAllocator(0, EVirtualStackAllocatorDecommitMode::AllOnDestruction)
+#endif
+{
+	ensure(BlueprintContextVirtualStackAllocatorDecommitMode >= 0 && BlueprintContextVirtualStackAllocatorDecommitMode < (int)EVirtualStackAllocatorDecommitMode::NumModes);
+}
+
+FBlueprintContext* FBlueprintContext::GetThreadSingleton()
+{
+	static thread_local FBlueprintContext ThreadLocalContext;
+	return &ThreadLocalContext;
+}
+
 void FBlueprintCoreDelegates::ThrowScriptException(const UObject* ActiveObject, FFrame& StackFrame, const FBlueprintExceptionInfo& Info)
 {
 	bool bShouldLogWarning = true;
@@ -785,7 +819,9 @@ static uint8 GRegisterCast(ECastToken CastCode, const FNativeFuncPtr& Func)
 void UObject::SkipFunction(FFrame& Stack, RESULT_DECL, UFunction* Function)
 {
 	// allocate temporary memory on the stack for evaluating parameters
-	uint8* Frame = (uint8*)FMemory_Alloca_Aligned(Function->PropertiesSize, Function->GetMinAlignment());
+	UE_VSTACK_MAKE_FRAME(SkipFunctionBookmark, Stack.CachedThreadVirtualStackAllocator);
+
+	uint8* Frame = (uint8*)UE_VSTACK_ALLOC_ALIGNED(Stack.CachedThreadVirtualStackAllocator, Function->PropertiesSize, Function->GetMinAlignment());
 	FMemory::Memzero(Frame, Function->PropertiesSize);
 	for (FProperty* Property = (FProperty*)(Function->ChildProperties); *Stack.Code != EX_EndFunctionParms; Property = (FProperty*)(Property->Next))
 	{
@@ -838,13 +874,14 @@ void ProcessScriptFunction(UObject* Context, UFunction* Function, FFrame& Stack,
 	// the desire to inline calls to our Execution function are the reason for this template function:
 	uint8* FrameMemory = nullptr;
 	FFrame NewStack(Context, Function, nullptr, &Stack, Function->ChildProperties);
+	UE_VSTACK_MAKE_FRAME(ProcessScriptFunctionBookmark, NewStack.CachedThreadVirtualStackAllocator);
 #if USE_UBER_GRAPH_PERSISTENT_FRAME
 	FrameMemory = Function->GetOuterUClassUnchecked()->GetPersistentUberGraphFrame(Context, Function);
 #endif
 	bool bUsePersistentFrame = (nullptr != FrameMemory);
 	if (!bUsePersistentFrame)
 	{
-		FrameMemory = (uint8*)FMemory_Alloca_Aligned(Function->PropertiesSize, Function->GetMinAlignment());
+		FrameMemory = (uint8*)UE_VSTACK_ALLOC_ALIGNED(NewStack.CachedThreadVirtualStackAllocator, Function->PropertiesSize, Function->GetMinAlignment());
 		FMemory::Memzero(FrameMemory, Function->PropertiesSize);
 	}
 
@@ -858,7 +895,7 @@ void ProcessScriptFunction(UObject* Context, UFunction* Function, FFrame& Stack,
 		FProperty* ReturnProperty = Function->GetReturnProperty();
 		if(ensure(ReturnProperty))
 		{
- 			FOutParmRec* RetVal = (FOutParmRec*)FMemory_Alloca(sizeof(FOutParmRec));
+ 			FOutParmRec* RetVal = (FOutParmRec*)UE_VSTACK_ALLOC(NewStack.CachedThreadVirtualStackAllocator, sizeof(FOutParmRec));
 
  			/* Our context should be that we're in a variable assignment to the return value, so ensure that we have a valid property to return to */
  			check(RESULT_PARAM != NULL);
@@ -891,7 +928,7 @@ void ProcessScriptFunction(UObject* Context, UFunction* Function, FFrame& Stack,
 			Stack.Step(Stack.Object, NULL);
 
 			CA_SUPPRESS(6263)
-			FOutParmRec* Out = (FOutParmRec*)FMemory_Alloca(sizeof(FOutParmRec));
+			FOutParmRec* Out = (FOutParmRec*)UE_VSTACK_ALLOC(NewStack.CachedThreadVirtualStackAllocator, sizeof(FOutParmRec));
 			// set the address and property in the out param info
 			// warning: Stack.MostRecentPropertyAddress could be NULL for optional out parameters
 			// if that's the case, we use the extra memory allocated for the out param in the function's locals
@@ -1008,7 +1045,7 @@ void UObject::CallFunction( FFrame& Stack, RESULT_DECL, UFunction* Function )
 		if (FunctionCallspace & FunctionCallspace::Remote)
 		{
 			// Call native networkable function.
-			uint8* Buffer = (uint8*)FMemory_Alloca_Aligned(Function->ParmsSize, Function->GetMinAlignment());
+			uint8* Buffer = (uint8*)UE_VSTACK_ALLOC_ALIGNED(Stack.CachedThreadVirtualStackAllocator, Function->ParmsSize, Function->GetMinAlignment());
 
 			SavedCode = Stack.Code; // Since this is native, we need to rollback the stack if we are calling both remotely and locally
 
@@ -1978,10 +2015,12 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 			Frame = Function->GetOuterUClassUnchecked()->GetPersistentUberGraphFrame(this, Function);
 		}
 #endif
+		FVirtualStackAllocator* VirtualStackAllocator = FBlueprintContext::GetThreadSingleton()->GetVirtualStackAllocator();
+		UE_VSTACK_MAKE_FRAME(ProcessEventBookmark, VirtualStackAllocator);
 		const bool bUsePersistentFrame = (NULL != Frame);
 		if (!bUsePersistentFrame)
 		{
-			Frame = (uint8*)FMemory_Alloca_Aligned(Function->PropertiesSize, Function->GetMinAlignment());
+			Frame = (uint8*)UE_VSTACK_ALLOC_ALIGNED(VirtualStackAllocator, Function->PropertiesSize, Function->GetMinAlignment());
 			// zero the local property memory
 			FMemory::Memzero(Frame + Function->ParmsSize, Function->PropertiesSize - Function->ParmsSize);
 		}
@@ -2008,7 +2047,7 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 				if ( Property->HasAnyPropertyFlags(CPF_OutParm) )
 				{
 					CA_SUPPRESS(6263)
-					FOutParmRec* Out = (FOutParmRec*)FMemory_Alloca(sizeof(FOutParmRec));
+					FOutParmRec* Out = (FOutParmRec*)UE_VSTACK_ALLOC(VirtualStackAllocator, sizeof(FOutParmRec));
 					// set the address and property in the out param info
 					// note that since C++ doesn't support "optional out" we can ignore that here
 					Out->PropAddr = Property->ContainerPtrToValuePtr<uint8>(Parms);
@@ -2610,7 +2649,7 @@ DEFINE_FUNCTION(UObject::execSwitchValue)
 
 	bool bProperCaseUsed = false;
 	{
-		auto LocalTempIndexMem = (uint8*)FMemory_Alloca_Aligned(IndexProperty->GetSize(), IndexProperty->GetMinAlignment());
+		auto LocalTempIndexMem = (uint8*)UE_VSTACK_ALLOC_ALIGNED(Stack.CachedThreadVirtualStackAllocator, IndexProperty->GetSize(), IndexProperty->GetMinAlignment());
 		IndexProperty->InitializeValue(LocalTempIndexMem);
 		for (int32 CaseIndex = 0; CaseIndex < NumCases; ++CaseIndex)
 		{
@@ -2738,20 +2777,20 @@ DEFINE_FUNCTION(UObject::execLet)
 
 		if (LocallyKnownProperty)
 		{
-			LocalTempResult = (uint8*)FMemory_Alloca_Aligned(LocallyKnownProperty->GetSize(), LocallyKnownProperty->GetMinAlignment());
+			LocalTempResult = (uint8*)UE_VSTACK_ALLOC_ALIGNED(Stack.CachedThreadVirtualStackAllocator, LocallyKnownProperty->GetSize(), LocallyKnownProperty->GetMinAlignment());
 			LocallyKnownProperty->InitializeValue(LocalTempResult);
 			Stack.MostRecentPropertyAddress = LocalTempResult;
 		}
 		else
 		{
-			Stack.MostRecentPropertyAddress = (uint8*)FMemory_Alloca(1024);
+			Stack.MostRecentPropertyAddress = (uint8*)UE_VSTACK_ALLOC(Stack.CachedThreadVirtualStackAllocator, 1024);
 			FMemory::Memzero(Stack.MostRecentPropertyAddress, sizeof(FString));
 		}
 	}
 	else if (LocallyKnownProperty && LocallyKnownProperty->HasSetter())
 	{
 		// We can't assign a value directly to a property if it's got a setter or getter
-		LocalTempResult = (uint8*)FMemory_Alloca_Aligned(LocallyKnownProperty->GetSize(), LocallyKnownProperty->GetMinAlignment());
+		LocalTempResult = (uint8*)UE_VSTACK_ALLOC_ALIGNED(Stack.CachedThreadVirtualStackAllocator, LocallyKnownProperty->GetSize(), LocallyKnownProperty->GetMinAlignment());
 		LocallyKnownProperty->InitializeValue(LocalTempResult);
 		PreviousPropertyAddress = Stack.MostRecentPropertyAddress;
 		Stack.MostRecentPropertyAddress = LocalTempResult;
@@ -3171,7 +3210,7 @@ public:
 		const FMulticastScriptDelegate* DelegateAddr = (DelegateProp ? DelegateProp->GetMulticastDelegate(Stack.MostRecentPropertyAddress) : nullptr);
 
 		//Fill parameters
-		uint8* Parameters = (uint8*)FMemory_Alloca_Aligned(SignatureFunction->ParmsSize, SignatureFunction->GetMinAlignment());
+		uint8* Parameters = (uint8*)UE_VSTACK_ALLOC_ALIGNED(Stack.CachedThreadVirtualStackAllocator, SignatureFunction->ParmsSize, SignatureFunction->GetMinAlignment());
 		FMemory::Memzero(Parameters, SignatureFunction->ParmsSize);
 		for (FProperty* Property = (FProperty*)SignatureFunction->ChildProperties; *Stack.Code != EX_EndFunctionParms; Property = (FProperty*)Property->Next)
 		{

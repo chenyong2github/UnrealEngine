@@ -11,6 +11,7 @@
 #include "Stats/Stats.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/CoreMisc.h"
+#include "Memory/VirtualStackAllocator.h"
 
 struct FFrame;
 
@@ -61,6 +62,23 @@ typedef uint16 CodeSkipSizeType;
 typedef uint32 CodeSkipSizeType;
 #endif
 
+// Context object for data and utilities that may be needed throughout BP execution
+// In the future, it would be preferable for this not to be a thread singleton but to have
+// clearer initialization/termination semantics and per-thread tuning for the stack allocator
+class FBlueprintContext
+{
+public:
+
+	COREUOBJECT_API static FBlueprintContext* GetThreadSingleton();
+
+	FBlueprintContext();
+
+	FVirtualStackAllocator* GetVirtualStackAllocator() { return &VirtualStackAllocator; }
+
+private:
+
+	FVirtualStackAllocator VirtualStackAllocator;
+};
 
 //
 // Blueprint VM intrinsic return value declaration.
