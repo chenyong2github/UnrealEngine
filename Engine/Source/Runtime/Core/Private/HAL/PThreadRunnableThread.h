@@ -274,7 +274,11 @@ public:
 		// brute force kill that thread. Very bad as that might leak.
 		if (bShouldWait && bThreadStartedAndNotCleanedUp)
 		{
-			pthread_join(Thread, nullptr);
+			int JoinResult = pthread_join(Thread, nullptr);
+
+			UE_CLOG(JoinResult != 0, LogHAL, Warning, TEXT("Failed to join thread %u (%s). (err=%d, %s)"), ThreadID, *ThreadName, JoinResult, UTF8_TO_TCHAR(strerror(JoinResult)));
+
+			bDidExitOK = (JoinResult == 0);
 			bThreadStartedAndNotCleanedUp = false;
 		}
 
@@ -287,7 +291,10 @@ public:
 		// Block until this thread exits
 		if (bThreadStartedAndNotCleanedUp)
 		{
-			pthread_join(Thread, nullptr);
+			int JoinResult = pthread_join(Thread, nullptr);
+
+			UE_CLOG(JoinResult != 0, LogHAL, Warning, TEXT("Failed to join thread %u (%s). (err=%d, %s)"), ThreadID, *ThreadName, JoinResult, UTF8_TO_TCHAR(strerror(JoinResult)));
+
 			bThreadStartedAndNotCleanedUp = false;
 		}
 	}
