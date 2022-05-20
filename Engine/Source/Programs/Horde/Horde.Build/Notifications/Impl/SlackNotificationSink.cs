@@ -616,8 +616,12 @@ namespace Horde.Build.Notifications.Impl
 			// Do not send notifications for quarantined issues
 			if (issue.QuarantinedByUserId != null)
 			{
+				_logger.LogInformation("Skipping notifications for quarantined issue {IssueId}", issue.Id);
 				return;
 			}
+
+			using IDisposable scope = _logger.BeginScope("Slack notifications for issue {IssueId}", issue.Id);
+			_logger.LogInformation("Updating Slack notifications for issue {IssueId}", issue.Id);
 
 			IIssueDetails details = await _issueService.GetIssueDetailsAsync(issue);
 
@@ -663,22 +667,19 @@ namespace Horde.Build.Notifications.Impl
 				}
 			}
 
-			if (issue.OwnerId == null && (details.Suspects.Count == 0 || details.Suspects.All(x => x.DeclinedAt != null) || issue.CreatedAt < DateTime.UtcNow - TimeSpan.FromHours(1.0)))
+			foreach (IIssueSpan span in details.Spans)
 			{
-				foreach (IIssueSpan span in details.Spans)
+				IStream? stream = await _streamService.GetCachedStream(span.StreamId);
+				if (stream != null)
 				{
-					IStream? stream = await _streamService.GetCachedStream(span.StreamId);
-					if (stream != null)
+					TemplateRef? templateRef;
+					if (stream.Templates.TryGetValue(span.TemplateRefId, out templateRef) && templateRef.TriageChannel != null)
 					{
-						TemplateRef? templateRef;
-						if (stream.Templates.TryGetValue(span.TemplateRefId, out templateRef) && templateRef.TriageChannel != null)
-						{
-							channels.Add(templateRef.TriageChannel);
-						}
-						else if (stream.TriageChannel != null)
-						{
-							channels.Add(stream.TriageChannel);
-						}
+						channels.Add(templateRef.TriageChannel);
+					}
+					else if (stream.TriageChannel != null)
+					{
+						channels.Add(stream.TriageChannel);
 					}
 				}
 			}
