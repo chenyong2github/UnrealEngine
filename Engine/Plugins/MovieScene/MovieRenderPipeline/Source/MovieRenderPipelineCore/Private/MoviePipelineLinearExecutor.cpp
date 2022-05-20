@@ -72,7 +72,8 @@ void UMoviePipelineLinearExecutorBase::StartPipelineByIndex(int32 InPipelineInde
 
 void UMoviePipelineLinearExecutorBase::OnIndividualPipelineFinished(UMoviePipeline* /* FinishedPipeline */)
 {
-	if (CurrentPipelineIndex == Queue->GetJobs().Num() - 1 || bIsCanceling)
+	const bool bNoMoreJobs = CurrentPipelineIndex >= Queue->GetJobs().Num() - 1;
+	if (bNoMoreJobs || bIsCanceling)
 	{
 		OnExecutorFinishedImpl();
 	}
