@@ -21,7 +21,7 @@ ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitia
 	, Scale(FVector2D(1.f))
 	, Mask(EDisplayClusterLightCardMask::Circle)
 	, Texture(nullptr)
-	, Color(FLinearColor(1.f, 1.f, 1.f, 0.f))
+	, Color(FLinearColor(1.f, 1.f, 1.f, 1.f))
 	, Exposure(0.f)
 	, Opacity(1.f)
 	, Feathering(0.f)

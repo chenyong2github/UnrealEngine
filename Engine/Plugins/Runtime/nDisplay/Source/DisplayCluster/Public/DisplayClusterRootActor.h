@@ -115,6 +115,9 @@ protected:
 	// Creates all hierarchy objects declared in a config file
 	bool BuildHierarchy();
 
+	/** Updates the world position and rotation of each light card referenced by this root actor's light card list to match the default view origin */
+	void UpdateLightCardPositions();
+
 public:
 	UFUNCTION(BlueprintGetter)
 	UDisplayClusterCameraComponent* GetDefaultCamera() const;

@@ -14,6 +14,8 @@
 #include "CineCameraComponent.h"
 #include "ProceduralMeshComponent.h"
 
+#include "DisplayClusterLightCardActor.h"
+
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "DisplayClusterConfigurationStrings.h"
 
@@ -628,6 +630,66 @@ bool ADisplayClusterRootActor::BuildHierarchy()
 	return true;
 }
 
+void ADisplayClusterRootActor::UpdateLightCardPositions()
+{
+	// Find a view origin to use as the transform "anchor" of each light card. At the moment, assume the first view origin component
+	// found is the correct view origin (the same assumption is made in the light card editor). If no view origin is found, use the root component
+	USceneComponent* ViewOriginComponent = GetRootComponent();
+
+	TArray<UDisplayClusterCameraComponent*> ViewOriginComponents;
+	GetComponents<UDisplayClusterCameraComponent>(ViewOriginComponents);
+
+	if (ViewOriginComponents.Num())
+	{
+		ViewOriginComponent = ViewOriginComponents[0];
+	}
+
+	const FVector Location = ViewOriginComponent ? ViewOriginComponent->GetComponentLocation() : GetActorLocation();
+	const FRotator Rotation = GetActorRotation();
+
+	// Iterate over all the light cards referenced in the root actor's config data and update their location and rotation to match the view origin
+	if (UDisplayClusterConfigurationData* CurrentData = GetConfigData())
+	{
+		FDisplayClusterConfigurationICVFX_VisibilityList& LightCards = CurrentData->StageSettings.Lightcard.ShowOnlyList;
+
+		for (const TSoftObjectPtr<AActor>& Actor : LightCards.Actors)
+		{
+			ADisplayClusterLightCardActor* LightCardActor = Actor.IsValid() ? Cast<ADisplayClusterLightCardActor>(Actor.Get()) : nullptr;
+			if (LightCardActor)
+			{
+				if (LightCardActor->bLockToOwningRootActor)
+				{
+					LightCardActor->SetActorLocation(Location);
+					LightCardActor->SetActorRotation(Rotation);
+				}
+			}
+		}
+
+		if (LightCards.ActorLayers.Num())
+		{
+			if (UWorld* World = GetWorld())
+			{
+				for (TActorIterator<ADisplayClusterLightCardActor> Iter(World); Iter; ++Iter)
+				{
+					ADisplayClusterLightCardActor* LightCardActor = *Iter;
+					for (const FActorLayer& ActorLayer : LightCards.ActorLayers)
+					{
+						if (LightCardActor->Layers.Contains(ActorLayer.Name))
+						{
+							if (LightCardActor->bLockToOwningRootActor)
+							{
+								LightCardActor->SetActorLocation(Location);
+								LightCardActor->SetActorRotation(Rotation);
+							}
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 bool ADisplayClusterRootActor::IsBlueprint() const
 {
 	for (UClass* Class = GetClass(); Class; Class = Class->GetSuperClass())
@@ -731,6 +793,14 @@ void ADisplayClusterRootActor::Tick(float DeltaSeconds)
 	// Tick editor preview
 	Tick_Editor(DeltaSeconds);
 #endif
+
+	if (UDisplayClusterConfigurationData* CurrentData = GetConfigData())
+	{
+		if (CurrentData->StageSettings.Lightcard.bEnable)
+		{
+			UpdateLightCardPositions();
+		}
+	}
 
 	Super::Tick(DeltaSeconds);
 }
