@@ -525,6 +525,13 @@ bool UFractureToolSelection::GetBonesByVolume(const FGeometryCollection& Collect
 			FilterIndices.Add(BoneIdx);
 		}
 	}
+
+	int TargetNumBones = FMath::Max(0, FilterIndices.Num() * SelectionSettings->KeepFrac);
+	FRandomStream Random(1); // Randomly remove but always with the same seed, to avoid flickering
+	while (FilterIndices.Num() > TargetNumBones)
+	{
+		FilterIndices.RemoveAtSwap(Random.RandHelper(FilterIndices.Num()), 1, false);
+	}
 	return true;
 }
 
