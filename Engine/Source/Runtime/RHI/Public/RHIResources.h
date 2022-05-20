@@ -3758,6 +3758,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Color, no depth, optional resolve, optional mip, optional array slice
 	explicit FRHIRenderPassInfo(FRHITexture* ColorRT, ERenderTargetActions ColorAction, FRHITexture* ResolveRT = nullptr, uint8 InMipIndex = 0, int32 InArraySlice = -1)
 	{
+		check(!ResolveRT || ResolveRT->IsMultisampled());
 		check(ColorRT);
 		ColorRenderTargets[0].RenderTarget = ColorRT;
 		ColorRenderTargets[0].ResolveTarget = ResolveRT;
@@ -3828,6 +3829,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		check(NumColorRTs > 0);
 		for (int32 Index = 0; Index < NumColorRTs; ++Index)
 		{
+			check(!ResolveRTs[Index] || ResolveRTs[Index]->IsMultisampled());
 			check(ColorRTs[Index]);
 			ColorRenderTargets[Index].RenderTarget = ColorRTs[Index];
 			ColorRenderTargets[Index].ResolveTarget = ResolveRTs[Index];
@@ -3835,6 +3837,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			ColorRenderTargets[Index].MipIndex = 0;
 			ColorRenderTargets[Index].Action = ColorAction;
 		}
+		check(!ResolveDepthRT || ResolveDepthRT->IsMultisampled());
 		check(DepthRT);
 		DepthStencilRenderTarget.DepthStencilTarget = DepthRT;
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
@@ -3845,6 +3848,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	// Depth, no color
 	explicit FRHIRenderPassInfo(FRHITexture* DepthRT, EDepthStencilTargetActions DepthActions, FRHITexture* ResolveDepthRT = nullptr, FExclusiveDepthStencil InEDS = FExclusiveDepthStencil::DepthWrite_StencilWrite)
 	{
+		check(!ResolveDepthRT || ResolveDepthRT->IsMultisampled());
 		check(DepthRT);
 		DepthStencilRenderTarget.DepthStencilTarget = DepthRT;
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
@@ -3856,6 +3860,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	explicit FRHIRenderPassInfo(FRHITexture* DepthRT, uint32 InNumOcclusionQueries, EDepthStencilTargetActions DepthActions, FRHITexture* ResolveDepthRT = nullptr, FExclusiveDepthStencil InEDS = FExclusiveDepthStencil::DepthWrite_StencilWrite)
 		: NumOcclusionQueries(InNumOcclusionQueries)
 	{
+		check(!ResolveDepthRT || ResolveDepthRT->IsMultisampled());
 		check(DepthRT);
 		DepthStencilRenderTarget.DepthStencilTarget = DepthRT;
 		DepthStencilRenderTarget.ResolveTarget = ResolveDepthRT;
@@ -3884,6 +3889,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	explicit FRHIRenderPassInfo(FRHITexture* ColorRT, ERenderTargetActions ColorAction, FRHITexture* ResolveColorRT,
 		FRHITexture* DepthRT, EDepthStencilTargetActions DepthActions, FRHITexture* ResolveDepthRT, FExclusiveDepthStencil InEDS = FExclusiveDepthStencil::DepthWrite_StencilWrite)
 	{
+		check(!ResolveColorRT || ResolveColorRT->IsMultisampled());
+		check(!ResolveDepthRT || ResolveDepthRT->IsMultisampled());
 		check(ColorRT);
 		ColorRenderTargets[0].RenderTarget = ColorRT;
 		ColorRenderTargets[0].ResolveTarget = ResolveColorRT;
@@ -3904,6 +3911,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		FRHITexture* InShadingRateTexture, EVRSRateCombiner InShadingRateTextureCombiner,
 		FExclusiveDepthStencil InEDS = FExclusiveDepthStencil::DepthWrite_StencilWrite)
 	{
+		check(!ResolveColorRT || ResolveColorRT->IsMultisampled());
+		check(!ResolveDepthRT || ResolveDepthRT->IsMultisampled());
 		check(ColorRT);
 		ColorRenderTargets[0].RenderTarget = ColorRT;
 		ColorRenderTargets[0].ResolveTarget = ResolveColorRT;

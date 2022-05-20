@@ -849,6 +849,7 @@ public:
 			FRHIRenderPassInfo::FColorEntry& RTV = State.RenderPassInfo.ColorRenderTargets[RTVIndex];
 			if (RTV.RenderTarget == nullptr)
 			{
+				checkf(RTV.ResolveTarget == nullptr, TEXT("Render target is null, but resolve target is not."));
 				continue;
 			}
 
@@ -866,6 +867,17 @@ public:
 			}
 
 			Tracker->Assert(RTV.RenderTarget->GetViewIdentity(RTV.MipIndex, 1, ArraySlice, NumArraySlices, 0, 0), ERHIAccess::RTV);
+
+			if (RTV.ResolveTarget)
+			{
+				const FRHITextureDesc& RenderTargetDesc = RTV.RenderTarget->GetDesc();
+				const FRHITextureDesc& ResolveTargetDesc = RTV.ResolveTarget->GetDesc();
+
+				checkf(RenderTargetDesc.Extent == ResolveTargetDesc.Extent, TEXT("Render target extent must match resolve target extent."));
+				checkf(RenderTargetDesc.Format == ResolveTargetDesc.Format, TEXT("Render target format must match resolve target format."));
+
+				Tracker->Assert(RTV.ResolveTarget->GetViewIdentity(RTV.MipIndex, 1, ArraySlice, NumArraySlices, 0, 0), ERHIAccess::ResolveSrc);
+			}
 		}
 
 		FRHIRenderPassInfo::FDepthStencilEntry& DSV = State.RenderPassInfo.DepthStencilRenderTarget;
@@ -876,6 +888,15 @@ public:
 			FIntVector MipDimensions = DSV.DepthStencilTarget->GetMipDimensions(0);
 			checkf(ViewDimensions.IsZero() || ViewDimensions == MipDimensions, TEXT("Depth target size mismatch. All render and depth target views must have the same effective dimensions."));
 			ViewDimensions = MipDimensions;
+		}
+
+		if (DSV.ResolveTarget)
+		{
+			const FRHITextureDesc& DepthStencilTargetDesc = DSV.DepthStencilTarget->GetDesc();
+			const FRHITextureDesc& ResolveTargetDesc = DSV.ResolveTarget->GetDesc();
+
+			checkf(DepthStencilTargetDesc.Extent == ResolveTargetDesc.Extent, TEXT("Depth stencil target extent must match resolve target extent."));
+			checkf(DepthStencilTargetDesc.IsTexture2D() && ResolveTargetDesc.IsTexture2D(), TEXT("Only 2D depth stencil resolves are supported."));
 		}
 
 		// @todo: additional checks for matching array slice counts on RTVs/DSVs
@@ -889,6 +910,11 @@ public:
 
 			checkf(DSV.DepthStencilTarget, TEXT("Depth read/write is enabled but no depth stencil texture is bound."));
 			Tracker->Assert(DSV.DepthStencilTarget->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Common), 1), DepthAccess);
+
+			if (DSV.ResolveTarget)
+			{
+				Tracker->Assert(DSV.ResolveTarget->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Common), 1), ERHIAccess::ResolveSrc);
+			}
 		}
 
 		// assert stencil is in the correct mode
@@ -905,6 +931,11 @@ public:
 			if (bIsStencilFormat)
 			{
 				Tracker->Assert(DSV.DepthStencilTarget->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Stencil), 1), StencilAccess);
+
+				if (DSV.ResolveTarget)
+				{
+					Tracker->Assert(DSV.ResolveTarget->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Stencil), 1), ERHIAccess::ResolveSrc);
+				}
 			}
 		}
 

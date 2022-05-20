@@ -120,7 +120,7 @@ void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderT
 
 		FRHITexture* DestRenderTarget = ResampleTexturePooledRenderTarget->GetRHI();
 
-		FRHIRenderPassInfo RPInfo(DestRenderTarget, ERenderTargetActions::Load_Store, ReadbackTexture);
+		FRHIRenderPassInfo RPInfo(DestRenderTarget, ERenderTargetActions::Load_Store);
 		RHICmdList.BeginRenderPass(RPInfo, TEXT("FrameGrabberResolveRenderTarget"));
 		{
 			RHICmdList.SetViewport(0, 0, 0.0f, TargetSize.X, TargetSize.Y, 1.0f);
@@ -174,6 +174,7 @@ void FViewportSurfaceReader::ResolveRenderTarget(FViewportSurfaceReader* RenderT
 				EDRF_Default);
 		}
 		RHICmdList.EndRenderPass();
+		CopyTextureWithTransitions(RHICmdList, DestRenderTarget, ReadbackTexture, {});
 
 		if (RenderToReadback)
 		{
