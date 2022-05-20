@@ -39,7 +39,7 @@ FNiagaraRendererLights::FNiagaraRendererLights(ERHIFeatureLevel::Type FeatureLev
 FPrimitiveViewRelevance FNiagaraRendererLights::GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const
 {
 	FPrimitiveViewRelevance Result;
-	Result.bDrawRelevance = bHasLights && View->Family->EngineShowFlags.Particles && View->Family->EngineShowFlags.Niagara;
+	Result.bDrawRelevance = bHasLights && SceneProxy->IsShown(View) && View->Family->EngineShowFlags.Particles && View->Family->EngineShowFlags.Niagara;
 	Result.bShadowRelevance = false;
 	Result.bDynamicRelevance = false;
 	Result.bOpaque = false;
