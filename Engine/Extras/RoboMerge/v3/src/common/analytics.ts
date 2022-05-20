@@ -115,6 +115,12 @@ export class Analytics {
 
 		this.memUsage.clear()
 
+		for (const [procName, usage] of this.diskUsage) {
+			lines.push(this._linePrefix + `event=disk,proc=${procName} value=${usage}`)
+		}
+
+		this.diskUsage.clear()
+
 		const branchesRequestsDelta = this.branchesRequests - this.lastReportedBranchesRequests
 		this.lastReportedBranchesRequests = this.branchesRequests
 		if (branchesRequestsDelta > 0) {
@@ -176,6 +182,10 @@ export class Analytics {
 		this.memUsage.set(procName, usage)
 	}
 
+	reportDiskUsage(procName: string, usage: number) {
+		this.diskUsage.set(procName, usage)
+	}
+
 	reportBranchesRequests(requests: number) {
 		this.branchesRequests = requests
 	}
@@ -209,6 +219,7 @@ export class Analytics {
 	}
 
 	private memUsage = new Map<string, number>()
+	private diskUsage = new Map<string, number>()
 	private branchesRequests = 0
 	private lastReportedBranchesRequests = 0
 

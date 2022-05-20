@@ -2,7 +2,7 @@
 
 import * as Sentry from '@sentry/node';
 import { OnUncaughtException, OnUnhandledRejection } from '@sentry/node/dist/integrations';
-import { ChildProcess, fork, ForkOptions } from 'child_process';
+import { ChildProcess, fork, ForkOptions, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import { Analytics } from '../common/analytics';
@@ -126,6 +126,15 @@ class Watchdog {
 		this.respawnTimer = null
 		this.memUsageTimer = setInterval(() => {
 			if (this.analytics) {
+				spawn('du', ['-s', '/src']).stdout.on('data', data => {
+					const match = data.match(/size:\s*(\d+)/)
+					if (match) {
+						const sizeBytes = parseInt(match[1])
+						if (!isNaN(sizeBytes)) {
+							this.analytics.reportDiskUsage('watchdog', sizeBytes)
+						}
+					}
+				})
 				this.analytics.reportMemoryUsage('watchdog', process.memoryUsage().heapUsed)
 				this.analytics.reportBranchesRequests(branchesRequests)
 			}
