@@ -802,6 +802,8 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	}
 #endif
 
+	EndCullDistance = Component->InstanceEndCullDistance;
+
 	FilterFlags = EFilterFlags::InstancedStaticMesh;
 }
 
@@ -1236,6 +1238,21 @@ void FSceneProxy::OnTransformChanged()
 		{
 			InstanceLocalBounds[0] = GetLocalBounds();
 		}
+	}
+}
+
+bool FSceneProxy::GetCameraDistanceCullRange(FVector2f& OutCullRange) const
+{
+	if (EndCullDistance > 0)
+	{
+		OutCullRange = FVector2f(0.0f, float(EndCullDistance));
+		OutCullRange *= GetCachedScalabilityCVars().ViewDistanceScale;
+		return true;
+	}
+	else
+	{
+		OutCullRange = FVector2f(0.0f);
+		return false;
 	}
 }
 

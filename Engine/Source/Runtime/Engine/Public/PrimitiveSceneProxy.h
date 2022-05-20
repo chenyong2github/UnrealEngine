@@ -814,6 +814,18 @@ public:
 		return false;
 	}
 
+	/**
+	 * Retrieves the camera distance cull range (mostly only used by objects whose instances are culled on the GPU)
+	 * 
+	 * @param OutCullRange	contains the min/max camera distance of the primitive's instances when enabled
+	 * @return bool 		true if camera distance culling is enabled for this primitive's instances
+	 **/
+	virtual bool GetCameraDistanceCullRange(FVector2f& OutCullRange) const
+	{
+		OutCullRange = FVector2f(0.0f);
+		return false;
+	}
+
 	FORCEINLINE TConstArrayView<FPrimitiveInstance> GetInstanceSceneData() const
 	{
 		return InstanceSceneData;

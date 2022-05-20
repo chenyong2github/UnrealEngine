@@ -280,17 +280,23 @@ void InstanceCull(
 			const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 
 #if DEBUG_FLAGS
-			const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
-			const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0u;
+			const bool bSkipBoxCullFrustum	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
+			const bool bSkipBoxCullHZB		= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0u;
+			const bool bSkipCamDistanceCull	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_CAMERA_DISTANCE) != 0u;
 #else
-			const bool bSkipBoxCullFrustum = false;
-			const bool bSkipBoxCullHZB     = false;
+			const bool bSkipBoxCullFrustum	= false;
+			const bool bSkipBoxCullHZB		= false;
+			const bool bSkipCamDistanceCull	= false;
 #endif
 			FInstanceDynamicData DynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 			float BoundsRadiusSq = dot(InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsExtent);
 			bIsVisible = BoundsRadiusSq > NaniteView.MinBoundsRadiusSq; // Only process valid Nanite primitives
 			const bool bViewHZB = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
+
+			// HACK: Don't distance cull shadows for now because we don't have the main view's camera location to do it properly
+			const bool bDisableDistanceCull = bSkipCamDistanceCull || OnlyCastShadowsPrimitives;
+			CameraDistanceCull(PrimitiveData, InstanceData, DynamicData, bDisableDistanceCull, bIsVisible);
 
 			FFrustumCullData Cull;
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
@@ -473,11 +479,13 @@ void InstanceCullVSM(
 	const bool bNearClip = ( NEAR_CLIP != 0 );
 
 #if DEBUG_FLAGS
-	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
-	const bool bSkipBoxCullHZB     = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+	const bool bSkipBoxCullFrustum	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0;
+	const bool bSkipBoxCullHZB		= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
+	const bool bSkipCamDistanceCull	= (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX) != 0;
 #else
-	const bool bSkipBoxCullFrustum = false;
-	const bool bSkipBoxCullHZB     = false;
+	const bool bSkipBoxCullFrustum	= false;
+	const bool bSkipBoxCullHZB		= false;
+	const bool bSkipCamDistanceCull	= false;
 #endif
 
 	const uint InstanceId = DispatchIndex;
@@ -557,7 +565,11 @@ void InstanceCullVSM(
 				FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4 );
 
 				bool bVisible = Cull.bIsVisible && Rect.bOverlapsPixelCenter;
-		
+
+				// TODO: Distance culling for VSM is complicated because of page invalidations and because the pre-view translation
+				// is not the same as the main view's camera. This will need some work to be able to support properly if we need to
+				//CameraDistanceCull(InstanceData, DynamicData, bSkipCamDistanceCull, bVisible);
+
 				BRANCH
 				if( bVisible && !Cull.bCrossesNearPlane )
 				{

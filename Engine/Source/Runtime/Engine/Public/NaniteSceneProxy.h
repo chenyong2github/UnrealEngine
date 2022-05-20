@@ -261,6 +261,8 @@ public:
 		ImposterIndex = Resources->ImposterIndex;
 	}
 
+	virtual bool GetCameraDistanceCullRange(FVector2f& OutCullRange) const override;
+
 	const UStaticMesh* GetStaticMesh() const
 	{
 		return StaticMesh;
@@ -306,6 +308,8 @@ protected:
 
 	/** Per instance render data, could be shared with component */
 	TSharedPtr<FPerInstanceRenderData, ESPMode::ThreadSafe> PerInstanceRenderData;
+
+	uint32 EndCullDistance = 0;
 
 #if WITH_EDITOR
 	/* If we we have any selected instances */

@@ -73,6 +73,7 @@
 #define PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN							0x400000
 #define PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW					0x800000
 #define PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET		0x1000000
+#define PRIMITIVE_SCENE_DATA_FLAG_CAMERA_DISTANCE_CULL					0x2000000
 
 // GPUCULL_TODO: Eventually we need to remove this workaround
 #define VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG (1U << 31U)
@@ -146,6 +147,7 @@ struct FPrimitiveSceneData
 	float3		LevelColor; // TODO: Should refactor out all editor data into a separate buffer
 	uint		NaniteImposterIndex;
 	uint		NaniteFilterFlags;
+	float2 		CameraDistanceCullMinMaxSquared;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
 
@@ -154,40 +156,41 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 {
 	FPrimitiveSceneData PrimitiveData;
 
-	PrimitiveData.Flags							= Primitive.Flags;
-	PrimitiveData.InstanceSceneDataOffset		= Primitive.InstanceSceneDataOffset;
-	PrimitiveData.NumInstanceSceneDataEntries	= Primitive.NumInstanceSceneDataEntries;
-	PrimitiveData.SingleCaptureIndex			= Primitive.SingleCaptureIndex;
-	PrimitiveData.TilePosition					= Primitive.TilePosition;
-	PrimitiveData.PrimitiveComponentId			= Primitive.PrimitiveComponentId;
-	PrimitiveData.LocalToWorld					= MakeLWCMatrix4x3(Primitive.TilePosition, Primitive.LocalToRelativeWorld);
-	PrimitiveData.WorldToLocal					= MakeLWCInverseMatrix4x3(Primitive.TilePosition, Primitive.RelativeWorldToLocal);
-	PrimitiveData.PreviousLocalToWorld			= MakeLWCMatrix4x3(Primitive.TilePosition, Primitive.PreviousLocalToRelativeWorld);
-	PrimitiveData.PreviousWorldToLocal			= MakeLWCInverseMatrix4x3(Primitive.TilePosition, Primitive.PreviousRelativeWorldToLocal);
-	PrimitiveData.InvNonUniformScale			= Primitive.InvNonUniformScale;
-	PrimitiveData.ObjectBoundsX					= Primitive.ObjectBoundsX;
-	PrimitiveData.ObjectWorldPosition			= MakeLWCVector3(Primitive.TilePosition, Primitive.ObjectRelativeWorldPositionAndRadius.xyz);
-	PrimitiveData.ObjectRadius					= Primitive.ObjectRelativeWorldPositionAndRadius.w;
-	PrimitiveData.ActorWorldPosition			= MakeLWCVector3(Primitive.TilePosition, Primitive.ActorRelativeWorldPosition);
-	PrimitiveData.LightmapUVIndex				= Primitive.LightmapUVIndex;
-	PrimitiveData.ObjectOrientation				= Primitive.ObjectOrientation;
-	PrimitiveData.LightmapDataIndex				= Primitive.LightmapDataIndex;
-	PrimitiveData.NonUniformScale				= Primitive.NonUniformScale;
-	PrimitiveData.PreSkinnedLocalBoundsMin		= Primitive.PreSkinnedLocalBoundsMin;
-	PrimitiveData.NaniteResourceID				= Primitive.NaniteResourceID;
-	PrimitiveData.PreSkinnedLocalBoundsMax		= Primitive.PreSkinnedLocalBoundsMax;
-	PrimitiveData.NaniteHierarchyOffset			= Primitive.NaniteHierarchyOffset;
-	PrimitiveData.LocalObjectBoundsMin			= Primitive.LocalObjectBoundsMin;
-	PrimitiveData.ObjectBoundsY					= Primitive.ObjectBoundsY;
-	PrimitiveData.LocalObjectBoundsMax			= Primitive.LocalObjectBoundsMax;
-	PrimitiveData.ObjectBoundsZ					= Primitive.ObjectBoundsZ;
-	PrimitiveData.InstancePayloadDataOffset		= Primitive.InstancePayloadDataOffset;
-	PrimitiveData.InstancePayloadDataStride		= Primitive.InstancePayloadDataStride;
-	PrimitiveData.WireframeColor				= Primitive.WireframeColor;
-	PrimitiveData.LevelColor					= Primitive.LevelColor;
-	PrimitiveData.NaniteImposterIndex			= Primitive.NaniteImposterIndexAndFilterFlags & NANITE_IMPOSTER_INDEX_MASK;
-	PrimitiveData.NaniteFilterFlags				= Primitive.NaniteImposterIndexAndFilterFlags >> NANITE_IMPOSTER_INDEX_NUM_BITS;
-	PrimitiveData.PersistentPrimitiveIndex		= Primitive.PersistentPrimitiveIndex;
+	PrimitiveData.Flags								= Primitive.Flags;
+	PrimitiveData.InstanceSceneDataOffset			= Primitive.InstanceSceneDataOffset;
+	PrimitiveData.NumInstanceSceneDataEntries		= Primitive.NumInstanceSceneDataEntries;
+	PrimitiveData.SingleCaptureIndex				= Primitive.SingleCaptureIndex;
+	PrimitiveData.TilePosition						= Primitive.TilePosition;
+	PrimitiveData.PrimitiveComponentId				= Primitive.PrimitiveComponentId;
+	PrimitiveData.LocalToWorld						= MakeLWCMatrix4x3(Primitive.TilePosition, Primitive.LocalToRelativeWorld);
+	PrimitiveData.WorldToLocal						= MakeLWCInverseMatrix4x3(Primitive.TilePosition, Primitive.RelativeWorldToLocal);
+	PrimitiveData.PreviousLocalToWorld				= MakeLWCMatrix4x3(Primitive.TilePosition, Primitive.PreviousLocalToRelativeWorld);
+	PrimitiveData.PreviousWorldToLocal				= MakeLWCInverseMatrix4x3(Primitive.TilePosition, Primitive.PreviousRelativeWorldToLocal);
+	PrimitiveData.InvNonUniformScale				= Primitive.InvNonUniformScale;
+	PrimitiveData.ObjectBoundsX						= Primitive.ObjectBoundsX;
+	PrimitiveData.ObjectWorldPosition				= MakeLWCVector3(Primitive.TilePosition, Primitive.ObjectRelativeWorldPositionAndRadius.xyz);
+	PrimitiveData.ObjectRadius						= Primitive.ObjectRelativeWorldPositionAndRadius.w;
+	PrimitiveData.ActorWorldPosition				= MakeLWCVector3(Primitive.TilePosition, Primitive.ActorRelativeWorldPosition);
+	PrimitiveData.LightmapUVIndex					= Primitive.LightmapUVIndex;
+	PrimitiveData.ObjectOrientation					= Primitive.ObjectOrientation;
+	PrimitiveData.LightmapDataIndex					= Primitive.LightmapDataIndex;
+	PrimitiveData.NonUniformScale					= Primitive.NonUniformScale;
+	PrimitiveData.PreSkinnedLocalBoundsMin			= Primitive.PreSkinnedLocalBoundsMin;
+	PrimitiveData.NaniteResourceID					= Primitive.NaniteResourceID;
+	PrimitiveData.PreSkinnedLocalBoundsMax			= Primitive.PreSkinnedLocalBoundsMax;
+	PrimitiveData.NaniteHierarchyOffset				= Primitive.NaniteHierarchyOffset;
+	PrimitiveData.LocalObjectBoundsMin				= Primitive.LocalObjectBoundsMin;
+	PrimitiveData.ObjectBoundsY						= Primitive.ObjectBoundsY;
+	PrimitiveData.LocalObjectBoundsMax				= Primitive.LocalObjectBoundsMax;
+	PrimitiveData.ObjectBoundsZ						= Primitive.ObjectBoundsZ;
+	PrimitiveData.InstancePayloadDataOffset			= Primitive.InstancePayloadDataOffset;
+	PrimitiveData.InstancePayloadDataStride			= Primitive.InstancePayloadDataStride;
+	PrimitiveData.WireframeColor					= Primitive.WireframeColor;
+	PrimitiveData.LevelColor						= Primitive.LevelColor;
+	PrimitiveData.NaniteImposterIndex				= Primitive.NaniteImposterIndexAndFilterFlags & NANITE_IMPOSTER_INDEX_MASK;
+	PrimitiveData.NaniteFilterFlags					= Primitive.NaniteImposterIndexAndFilterFlags >> NANITE_IMPOSTER_INDEX_NUM_BITS;
+	PrimitiveData.CameraDistanceCullMinMaxSquared	= Primitive.CameraDistanceCullMinMaxSquared;
+	PrimitiveData.PersistentPrimitiveIndex			= Primitive.PersistentPrimitiveIndex;
 	UNROLL
 	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
 	{
@@ -205,7 +208,7 @@ RWStructuredBuffer<float4> GPUScenePrimitiveSceneDataRW;
 #endif
 
 // Stride of a single primitive's data in float4's, must match C++
-#define PRIMITIVE_SCENE_DATA_STRIDE 40
+#define PRIMITIVE_SCENE_DATA_STRIDE 41
 
 float4 LoadPrimitivePrimitiveSceneDataElement(uint PrimitiveIndex, uint ItemIndex)
 {
@@ -298,6 +301,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.WireframeColor				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).xyz;
 	PrimitiveData.LevelColor					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).xyz;
 	PrimitiveData.PersistentPrimitiveIndex		= asint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).w);
+	PrimitiveData.CameraDistanceCullMinMaxSquared = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).xy;
 
 	uint NaniteImposterIndexAndFilterFlags		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).w);
 	PrimitiveData.NaniteFilterFlags				= NaniteImposterIndexAndFilterFlags >> NANITE_IMPOSTER_INDEX_NUM_BITS;
@@ -312,7 +316,7 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	UNROLL
 	for (int DataIndex = 0; DataIndex < NUM_CUSTOM_PRIMITIVE_DATA; ++DataIndex)
 	{
-		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  31 + DataIndex);
+		PrimitiveData.CustomPrimitiveData[DataIndex] = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex,  32 + DataIndex);
 	}
 	return PrimitiveData;
 #endif

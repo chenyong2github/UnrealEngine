@@ -8,6 +8,7 @@
 #include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 #endif
 
+#include "../SceneData.ush"
 #include "NaniteDataDecode.ush"
 #include "NaniteHZBCull.ush"
 #include "NaniteCulling.ush"
@@ -55,6 +56,21 @@ void TestCurrentHZB(FFrustumCullData Cull, FScreenRect Rect, FNaniteView NaniteV
 #else
 			bWasOccluded = !IsVisibleHZB(Rect, true);
 #endif
+		}
+	}
+}
+
+void CameraDistanceCull(FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, bool bSkipCamDistanceCull, inout bool bVisible)
+{
+	BRANCH
+	if (bVisible && !bSkipCamDistanceCull)
+	{
+		BRANCH
+		if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAMERA_DISTANCE_CULL) != 0)
+		{
+			float3 TranslatedWorldCenter = mul(float4(InstanceData.LocalBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
+			float CameraDistSq = dot(TranslatedWorldCenter, TranslatedWorldCenter);
+			bVisible = CameraDistSq >= PrimitiveData.CameraDistanceCullMinMaxSquared.x && CameraDistSq <= PrimitiveData.CameraDistanceCullMinMaxSquared.y;
 		}
 	}
 }

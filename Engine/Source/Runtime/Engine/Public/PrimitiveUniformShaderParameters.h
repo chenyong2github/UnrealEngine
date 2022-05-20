@@ -55,6 +55,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(uint32,		NaniteImposterIndexAndFilterFlags)
 	SHADER_PARAMETER(FVector3f,		LevelColor)												// Only needed for editor/development
 	SHADER_PARAMETER(int32,			PersistentPrimitiveIndex)
+	SHADER_PARAMETER(FVector2f,		CameraDistanceCullMinMaxSquared)
 	SHADER_PARAMETER_ARRAY(FVector4f, CustomPrimitiveData, [FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s]) // Custom data per primitive that can be accessed through material expression parameters and modified through UStaticMeshComponent
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -84,6 +85,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN							0x400000
 #define PRIMITIVE_SCENE_DATA_FLAG_CAST_HIDDEN_SHADOW					0x800000
 #define PRIMITIVE_SCENE_DATA_FLAG_EVALUATE_WORLD_POSITION_OFFSET		0x1000000
+#define PRIMITIVE_SCENE_DATA_FLAG_CAMERA_DISTANCE_CULL					0x2000000
 
 struct FPrimitiveUniformShaderParametersBuilder
 {
@@ -117,6 +119,7 @@ public:
 		bHiddenInSceneCapture						= false;
 		bForceHidden								= false;
 		bHasNaniteImposter							= false;
+		bHasCameraDistanceCull						= false;
 
 		// Default colors
 		Parameters.WireframeColor					= FVector3f(1.0f, 1.0f, 1.0f);
@@ -302,6 +305,14 @@ public:
 		return *this;
 	}
 
+	inline FPrimitiveUniformShaderParametersBuilder& CameraDistanceCull(FVector2f CameraDistanceCullRange)
+	{
+		bHasCameraDistanceCull = true;
+		Parameters.CameraDistanceCullMinMaxSquared = CameraDistanceCullRange * CameraDistanceCullRange;
+
+		return *this;
+	}
+
 	inline const FPrimitiveUniformShaderParameters& Build()
 	{
 		const FLargeWorldRenderPosition AbsoluteWorldPosition(AbsoluteLocalToWorld.GetOrigin());
@@ -395,6 +406,7 @@ public:
 		Parameters.Flags |= bVisibleInSceneCaptureOnly ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_SCENE_CAPTURE_ONLY : 0u;
 		Parameters.Flags |= bHiddenInSceneCapture ? PRIMITIVE_SCENE_DATA_FLAG_HIDDEN_IN_SCENE_CAPTURE : 0u;
 		Parameters.Flags |= bForceHidden ? PRIMITIVE_SCENE_DATA_FLAG_FORCE_HIDDEN : 0u;
+		Parameters.Flags |= bHasCameraDistanceCull ? PRIMITIVE_SCENE_DATA_FLAG_CAMERA_DISTANCE_CULL : 0u;
 		return Parameters;
 	}
 
@@ -432,6 +444,7 @@ private:
 	uint32 bHiddenInSceneCapture : 1;
 	uint32 bForceHidden : 1;
 	uint32 bHasNaniteImposter : 1;
+	uint32 bHasCameraDistanceCull : 1;
 };
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(
@@ -492,7 +505,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match PRIMITIVE_SCENE_DATA_STRIDE in SceneData.ush
-	enum { DataStrideInFloat4s = 40 };
+	enum { DataStrideInFloat4s = 41 };
 
 	TStaticArray<FVector4f, DataStrideInFloat4s> Data;
 

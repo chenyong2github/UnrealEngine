@@ -182,6 +182,12 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		.PrimitiveComponentId(Proxy->GetPrimitiveComponentId().PrimIDValue)
 		.EditorColors(Proxy->GetWireframeColor(), Proxy->GetLevelColor());
 
+	FVector2f CameraDistanceCullRange;
+	if (Proxy->GetCameraDistanceCullRange(CameraDistanceCullRange))
+	{
+		Builder.CameraDistanceCull(CameraDistanceCullRange);
+	}
+
 	const TConstArrayView<FRenderBounds> InstanceBounds = Proxy->GetInstanceLocalBounds();
 	if (InstanceBounds.Num() > 0)
 	{
@@ -270,8 +276,13 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[30].Z = PrimitiveUniformShaderParameters.LevelColor.Z;
 	Data[30].W = FMath::AsFloat(uint32(PrimitiveUniformShaderParameters.PersistentPrimitiveIndex));
 
+	Data[31].X = PrimitiveUniformShaderParameters.CameraDistanceCullMinMaxSquared.X;
+	Data[31].Y = PrimitiveUniformShaderParameters.CameraDistanceCullMinMaxSquared.Y;
+	Data[31].Z = 0.0f;
+	Data[31].W = 0.0f;
+
 	// Set all the custom primitive data float4. This matches the loop in SceneData.ush
-	const int32 CustomPrimitiveDataStartIndex = 31;
+	const int32 CustomPrimitiveDataStartIndex = 32;
 	for (int32 DataIndex = 0; DataIndex < FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s; ++DataIndex)
 	{
 		Data[CustomPrimitiveDataStartIndex + DataIndex] = PrimitiveUniformShaderParameters.CustomPrimitiveData[DataIndex];

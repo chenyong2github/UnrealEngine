@@ -171,6 +171,13 @@ static FAutoConsoleVariableRef CVarNaniteSphereCullingFrustum(
 	TEXT("")
 );
 
+int32 GNaniteCameraDistanceCulling = 1;
+static FAutoConsoleVariableRef CVarNaniteCameraDistanceCulling(
+	TEXT("r.Nanite.CameraDistanceCulling"),
+	GNaniteCameraDistanceCulling,
+	TEXT("")
+);
+
 static TAutoConsoleVariable<int32> CVarLargePageRectThreshold(
 	TEXT("r.Nanite.LargePageRectThreshold"),
 	128,
@@ -1290,6 +1297,11 @@ FCullingContext InitCullingContext(
 		if (GNaniteBoxCullingHZB == 0)
 		{
 			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_HZB_BOX;
+		}
+
+		if (GNaniteCameraDistanceCulling == 0)
+		{
+			CullingContext.DebugFlags |= NANITE_DEBUG_FLAG_DISABLE_CULL_CAMERA_DISTANCE;
 		}
 
 		if (GNaniteShowStats != 0)

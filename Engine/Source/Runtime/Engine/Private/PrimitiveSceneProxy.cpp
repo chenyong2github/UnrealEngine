@@ -484,7 +484,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 		GetPreSkinnedLocalBounds(PreSkinnedLocalBounds);
 
 		// Update the uniform shader parameters.
-		FPrimitiveUniformShaderParameters PrimitiveParams = FPrimitiveUniformShaderParametersBuilder{}
+		FPrimitiveUniformShaderParametersBuilder Builder = FPrimitiveUniformShaderParametersBuilder{}
 			.Defaults()
 				.LocalToWorld(LocalToWorld)
 				.PreviousLocalToWorld(PreviousLocalToWorld)
@@ -510,8 +510,15 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.InstanceSceneDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstanceSceneDataOffset() : INDEX_NONE)
 				.NumInstanceSceneDataEntries(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceSceneDataEntries() : 0)
 				.InstancePayloadDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataOffset() : INDEX_NONE)
-				.InstancePayloadDataStride(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataStride() : 0)
-			.Build();
+				.InstancePayloadDataStride(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataStride() : 0);				
+
+		FVector2f CameraDistanceCullRange;
+		if (GetCameraDistanceCullRange(CameraDistanceCullRange))
+		{
+			Builder.CameraDistanceCull(CameraDistanceCullRange);
+		}
+
+		FPrimitiveUniformShaderParameters PrimitiveParams = Builder.Build();
 
 		if (UniformBuffer.GetReference())
 		{
