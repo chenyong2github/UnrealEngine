@@ -24,7 +24,7 @@
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorTreeItem"
 
-const FSceneOutlinerTreeItemType FActorTreeItem::Type(&ISceneOutlinerTreeItem::Type);
+const FSceneOutlinerTreeItemType FActorTreeItem::Type(&IActorBaseTreeItem::Type);
 
 struct SActorTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidget
 {
@@ -334,7 +334,7 @@ private:
 };
 
 FActorTreeItem::FActorTreeItem(AActor* InActor)
-	: ISceneOutlinerTreeItem(Type)
+	: IActorBaseTreeItem(Type)
 	, Actor(InActor)
 	, ID(InActor)
 {
@@ -456,6 +456,12 @@ void FActorTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outlin
 		FToolMenuSection& Section = Menu->AddSection("Section");
 		Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(&Outliner, &SSceneOutliner::CreateFolder)));
 	}
+}
+
+const FGuid& FActorTreeItem::GetGuid() const
+{
+	static const FGuid InvalidGuid;
+	return Actor.IsValid() ? Actor->GetActorGuid() : InvalidGuid;
 }
 
 void FActorTreeItem::UpdateDisplayString()

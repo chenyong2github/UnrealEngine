@@ -610,9 +610,9 @@ TSharedPtr<SWidget> FActorBrowsingMode::BuildContextMenu()
 	int32 NumPinnedItems = 0;
 	if (const UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
 	{
-		ItemSelection.ForEachItem<FActorTreeItem>([WorldPartition, &NumPinnedItems](const FActorTreeItem& ActorItem)
+		ItemSelection.ForEachItem<IActorBaseTreeItem>([WorldPartition, &NumPinnedItems](const IActorBaseTreeItem& ActorItem)
 		{
-			if (ActorItem.Actor.IsValid() && WorldPartition->IsActorPinned(ActorItem.Actor->GetActorGuid()))
+			if (WorldPartition->IsActorPinned(ActorItem.GetGuid()))
 			{
 				++NumPinnedItems;
 			}

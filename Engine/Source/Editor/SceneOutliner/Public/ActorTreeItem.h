@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
-#include "ISceneOutlinerTreeItem.h"
+#include "ActorBaseTreeItem.h"
 #include "UObject/ObjectKey.h"
 
 /** A tree item that represents an actor in the world */
-struct SCENEOUTLINER_API FActorTreeItem : ISceneOutlinerTreeItem
+struct SCENEOUTLINER_API FActorTreeItem : IActorBaseTreeItem
 {
 public:
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FFilterPredicate, const AActor*);
@@ -53,6 +53,10 @@ public:
 	virtual void OnLabelChanged() override;
 	virtual void GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner) override;
 	/* End ISceneOutlinerTreeItem Implementation */
+
+	/* Begin IActorBaseTreeItem Implementation */
+	virtual const FGuid& GetGuid() const override;
+	/* End IActorBaseTreeItem Implementation */
 
 	/** true if this item exists in both the current world and PIE. */
 	bool bExistsInCurrentWorldAndPIE;

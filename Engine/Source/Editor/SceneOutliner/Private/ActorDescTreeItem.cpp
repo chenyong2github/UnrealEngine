@@ -24,7 +24,7 @@
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorDescTreeItem"
 
-const FSceneOutlinerTreeItemType FActorDescTreeItem::Type(&ISceneOutlinerTreeItem::Type);
+const FSceneOutlinerTreeItemType FActorDescTreeItem::Type(&IActorBaseTreeItem::Type);
 
 struct SActorDescTreeLabel : FSceneOutlinerCommonLabelData, public SCompoundWidget
 {
@@ -118,8 +118,17 @@ private:
 			{
 				FFormatNamedArguments Args;
 				Args.Add(TEXT("ActorLabel"), FText::FromString(TreeItem->GetDisplayString()));
-				Args.Add(TEXT("UnloadedTag"), LOCTEXT("UnloadedActorLabel", "(Unloaded)"));
-				return FText::Format(LOCTEXT("UnloadedActorDisplay", "{ActorLabel} {UnloadedTag}"), Args);
+
+				if (UWorldPartition* WorldPartition = Cast<UWorldPartition>(ActorDesc->GetContainer()); WorldPartition->IsActorPinned(ActorDesc->GetGuid()))
+				{
+					Args.Add(TEXT("UnloadState"), LOCTEXT("UnloadedDataLayer", "(Unloaded DataLayer)"));
+				}
+				else
+				{
+					Args.Add(TEXT("UnloadState"), LOCTEXT("UnloadedActorLabel", "(Unloaded)"));
+				}
+
+				return FText::Format(LOCTEXT("UnloadedActorDisplay", "{ActorLabel} {UnloadState}"), Args);
 			}
 		}
 		return FText();
@@ -211,7 +220,7 @@ private:
 };
 
 FActorDescTreeItem::FActorDescTreeItem(const FGuid& InActorGuid, UActorDescContainer* Container)
-	: ISceneOutlinerTreeItem(Type)
+	: IActorBaseTreeItem(Type)
 	, ActorDescHandle(Container, InActorGuid)
 	, ActorGuid(InActorGuid)
 {

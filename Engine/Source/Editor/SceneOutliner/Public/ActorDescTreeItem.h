@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
-#include "ISceneOutlinerTreeItem.h"
+#include "ActorBaseTreeItem.h"
 #include "UObject/ObjectKey.h"
 #include "WorldPartition/WorldPartition.h"
 
@@ -12,7 +12,7 @@ class FWorldPartitionActorDesc;
 class UToolMenu;
 
 /** A tree item that represents an actor in the world */
-struct SCENEOUTLINER_API FActorDescTreeItem : ISceneOutlinerTreeItem
+struct SCENEOUTLINER_API FActorDescTreeItem : IActorBaseTreeItem
 {
 public:
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FFilterPredicate, const FWorldPartitionActorDesc*);
@@ -55,7 +55,9 @@ public:
 	virtual bool GetPinnedState() const override;
 	/* End ISceneOutlinerTreeItem Implementation */
 	
-	const FGuid& GetGuid() const { return ActorGuid; }
+	/* Begin IActorBaseTreeItem Implementation */
+	virtual const FGuid& GetGuid() const override { return ActorGuid; }
+	/* End IActorBaseTreeItem Implementation */
 
 protected:
 	FString DisplayString;
