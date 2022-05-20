@@ -6,8 +6,11 @@
 #include "Editor.h"
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
+#include "MediaTextureTracker.h"
 
+class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
+class SWidget;
 class UMediaPlateComponent;
 class UMediaPlayer;
 
@@ -39,6 +42,34 @@ private:
 	TArray<TWeakObjectPtr<UMediaPlateComponent>> MediaPlatesList;
 	/** Stores the current value of the MediaPath property. */
 	FString MediaPath;
+
+	/** Whether we have a plane, sphere, etc. */
+	EMediaTextureVisibleMipsTiles MeshMode;
+
+	/**
+	 * Adds widgets for editing the mesh.
+	 */
+	void AddMeshCustomization(IDetailCategoryBuilder& MediaPlateCategory);
+
+	/**
+	 * Controls visibility for widgets for plane meshes.
+	 */
+	EVisibility ShouldShowMeshPlaneWidgets() const;
+
+	/**
+	 * Returns menu options for all aspect ratio presets.
+	 */
+	TSharedRef<SWidget> OnGetAspectRatios();
+
+	/**
+	 * Call this to set the aspect ratio.
+	 */
+	void SetAspectRatio(float AspectRatio);
+
+	/**
+	 * Call this to get the aspect ratio.
+	 */
+	TOptional<float> GetAspectRatio() const;
 
 	/**
 	 * Gets the object path for the media source object.
