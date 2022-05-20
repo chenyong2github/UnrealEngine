@@ -21916,6 +21916,7 @@ int32 UMaterialExpressionStrataBSDF::CompilePreview(class FMaterialCompiler* Com
 UMaterialExpressionStrataSlabBSDF::UMaterialExpressionStrataSlabBSDF(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bUseMetalness(true)
+	, bUseSSSDiffusion(true)
 {
 	struct FConstructorStatics
 	{
@@ -21983,6 +21984,8 @@ int32 UMaterialExpressionStrataSlabBSDF::Compile(class FMaterialCompiler* Compil
 		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),	
 		CompileWithDefaultFloat3(Compiler, SSSMFP, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, SSSMFPScale, 1.0f),
+		CompileWithDefaultFloat1(Compiler, SSSPhaseAnisotropy, 0.0f),
+		bUseSSSDiffusion ? Compiler->Constant(1.0f) : Compiler->Constant(0.0f),
 		CompileWithDefaultFloat3(Compiler, EmissiveColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Haziness, 0.0f),
 		CompileWithDefaultFloat1(Compiler, FuzzAmount, 0.0f),
@@ -22019,6 +22022,7 @@ const TArray<FExpressionInput*> UMaterialExpressionStrataSlabBSDF::GetInputs()
 	Result.Add(&Tangent);
 	Result.Add(&SSSMFP);
 	Result.Add(&SSSMFPScale);
+	Result.Add(&SSSPhaseAnisotropy);
 	Result.Add(&EmissiveColor);
 	Result.Add(&Haziness);
 	Result.Add(&Thickness);
@@ -22151,21 +22155,25 @@ uint32 UMaterialExpressionStrataSlabBSDF::GetInputType(int32 InputIndex)
 	}
 	else if (InputIndex == (10 + SkipDisabledInputOffset))
 	{
-		return MCT_Float3; // Emissive Color
+		return MCT_Float1; // SSSPhaseAniso
 	}
 	else if (InputIndex == (11 + SkipDisabledInputOffset))
 	{
-		return MCT_Float1; // Haziness
+		return MCT_Float3; // Emissive Color
 	}
 	else if (InputIndex == (12 + SkipDisabledInputOffset))
 	{
-		return MCT_Float1; // Thickness
+		return MCT_Float1; // Haziness
 	}
 	else if (InputIndex == (13 + SkipDisabledInputOffset))
 	{
-		return MCT_Float1; // FuzzAmount
+		return MCT_Float1; // Thickness
 	}
 	else if (InputIndex == (14 + SkipDisabledInputOffset))
+	{
+		return MCT_Float1; // FuzzAmount
+	}
+	else if (InputIndex == (15 + SkipDisabledInputOffset))
 	{
 		return MCT_Float3; // FuzzColor
 	}
@@ -22239,21 +22247,25 @@ FName UMaterialExpressionStrataSlabBSDF::GetInputName(int32 InputIndex) const
 	}
 	else if (InputIndex == (10 + SkipDisabledInputOffset))
 	{
-		return TEXT("Emissive Color");
+		return TEXT("SSS Phase Anisotropy");
 	}
 	else if (InputIndex == (11 + SkipDisabledInputOffset))
 	{
-		return TEXT("Haziness");
+		return TEXT("Emissive Color");
 	}
 	else if (InputIndex == (12 + SkipDisabledInputOffset))
 	{
-		return TEXT("Thickness");
+		return TEXT("Haziness");
 	}
 	else if (InputIndex == (13 + SkipDisabledInputOffset))
 	{
-		return TEXT("FuzzAmount");
+		return TEXT("Thickness");
 	}
 	else if (InputIndex == (14 + SkipDisabledInputOffset))
+	{
+		return TEXT("FuzzAmount");
+	}
+	else if (InputIndex == (15 + SkipDisabledInputOffset))
 	{
 		return TEXT("FuzzColor");
 	}
@@ -22352,6 +22364,10 @@ void UMaterialExpressionStrataSlabBSDF::GetConnectorToolTip(int32 InputIndex, in
 	else if (InputIndex == (15 + SkipDisabledInputOffset))
 	{
 		Super::GetConnectorToolTip(18, INDEX_NONE, OutToolTip);
+	}
+	else if (InputIndex == (16 + SkipDisabledInputOffset))
+	{
+		Super::GetConnectorToolTip(19, INDEX_NONE, OutToolTip);
 	}
 }
 

@@ -1762,7 +1762,7 @@ void FPixelShaderInOut_MainPS(
 			// We only enable opaque rough refraction if the material is coated or has SSS.
 			// BSDFs and Operators indices must match StrataLegacyConversion.ush.
 			OpaqueRoughRefractionData.OpaqueRoughRefractionEnabled = (StrataPixelHeader.StrataTree.Operators[2].Weight > 0.0f && StrataPixelHeader.StrataTree.Operators[3].Weight > 0.0f) 
-				|| BSDF_GETHASSSS(StrataPixelHeader.StrataTree.BSDFs[0]) || BSDF_GETHASSSS(StrataPixelHeader.StrataTree.BSDFs[1]);
+				|| BSDF_GETSSSTYPE(StrataPixelHeader.StrataTree.BSDFs[0]) != SSS_TYPE_INVALID || BSDF_GETSSSTYPE(StrataPixelHeader.StrataTree.BSDFs[1]) != SSS_TYPE_INVALID;
 		}
 	#endif
 		StrataStruct.OpaqueRoughRefractionTextureUAV[PixelPos] = StrataPackOpaqueRoughRefractionData(OpaqueRoughRefractionData);

@@ -267,6 +267,12 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	FExpressionInput SSSMFPScale;
 
 	/**
+	 * Phase function anisotropy. Positive value elongates the phase function along the lignt direction, causing forward scattering. Negative value elongates the phase function backward to the light direction, causing backward scattering.  (type = float, unitless, defaults to 1, valid value -1..1)
+	 */
+	UPROPERTY()
+	FExpressionInput SSSPhaseAnisotropy;
+
+	/**
 	 * Emissive color on top of the surface (type = float3, unit = luminance, default = 0)
 	 */
 	UPROPERTY()
@@ -303,6 +309,10 @@ class UMaterialExpressionStrataSlabBSDF : public UMaterialExpressionStrataBSDF
 	/** Whether to use the metalness workflow relying on BaseColor, Specular, EdgeColor and Metallic inputs. Or use the DiffuseColor, F0 and F90 specification. */
 	UPROPERTY(EditAnywhere, Category = Mode)
 	uint32 bUseMetalness : 1;
+
+	/** Whether to use light diffusion (i.e., SSS diffusion) or wrap-approximation for material with scattering behavior. */
+	UPROPERTY(EditAnywhere, Category = Mode, meta = (DisplayName = "Use Subsurface Diffusion"))
+	uint32 bUseSSSDiffusion : 1;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR

@@ -267,8 +267,7 @@ struct FStrataBSDF
 // Bit count for each component stored in a Strata BSDF state
 #define BSDF_BIT_COUNT_ANISOTROPY				1
 #define BSDF_BIT_COUNT_TOPLAYER					1
-#define BSDF_BIT_COUNT_HASSSS					1
-#define BSDF_BIT_COUNT_HASSSSPROFILE			1
+#define BSDF_BIT_COUNT_SSSTYPE					2
 #define BSDF_BIT_COUNT_GREYWEIGHT_V				1
 #define BSDF_BIT_COUNT_HAZINESS					1
 #define BSDF_BIT_COUNT_F90						1
@@ -285,9 +284,8 @@ struct FStrataBSDF
 // Bit offset of each component store in BSDF state 
 #define BSDF_BIT_OFFSET_ANISOTROPY				0
 #define BSDF_BIT_OFFSET_TOPLAYER				(BSDF_BIT_OFFSET_ANISOTROPY			+ BSDF_BIT_COUNT_ANISOTROPY)
-#define BSDF_BIT_OFFSET_HASSSS					(BSDF_BIT_OFFSET_TOPLAYER			+ BSDF_BIT_COUNT_TOPLAYER)
-#define BSDF_BIT_OFFSET_HASSSSPROFILE			(BSDF_BIT_OFFSET_HASSSS				+ BSDF_BIT_COUNT_HASSSS)
-#define BSDF_BIT_OFFSET_GREYWEIGHT_V			(BSDF_BIT_OFFSET_HASSSSPROFILE		+ BSDF_BIT_COUNT_HASSSSPROFILE)
+#define BSDF_BIT_OFFSET_SSSTYPE					(BSDF_BIT_OFFSET_TOPLAYER			+ BSDF_BIT_COUNT_TOPLAYER)
+#define BSDF_BIT_OFFSET_GREYWEIGHT_V			(BSDF_BIT_OFFSET_SSSTYPE			+ BSDF_BIT_COUNT_SSSTYPE)
 #define BSDF_BIT_OFFSET_HAZINESS				(BSDF_BIT_OFFSET_GREYWEIGHT_V		+ BSDF_BIT_COUNT_GREYWEIGHT_V)
 #define BSDF_BIT_OFFSET_F90						(BSDF_BIT_OFFSET_HAZINESS			+ BSDF_BIT_COUNT_HAZINESS)
 #define BSDF_BIT_OFFSET_SIMPLEVOLUME			(BSDF_BIT_OFFSET_F90				+ BSDF_BIT_COUNT_F90)
@@ -308,6 +306,12 @@ struct FStrataBSDF
 // Layout 2 (Complex)
 #define BSDF_COMPLEXCODING_BIT_COUNT			(32u)
 #define BSDF_COMPLEXFASTENCODING_MASK			(0xFFFFFFFFu)
+
+// Sub-surface scattering types
+#define SSS_TYPE_INVALID						(0u)
+#define SSS_TYPE_WRAP							(1u)
+#define SSS_TYPE_DIFFUSION						(2u)
+#define SSS_TYPE_DIFFUSION_PROFILE				(3u)
 
 // Sanity check
 #if (BSDF_BIT_OFFSET_WEIGHT10F + BSDF_BIT_COUNT_WEIGHT10F) > 32
@@ -336,12 +340,8 @@ struct FStrataBSDF
 #define BSDF_SETISTOPLAYER(X, IsTop)	WRITE_BITS(X.State, BSDF_BIT_COUNT_TOPLAYER, BSDF_BIT_OFFSET_TOPLAYER, IsTop)
 
 // Indicates if the BSDF has scattering component
-#define BSDF_GETHASSSS(X)				READ_BITS(X.State,  BSDF_BIT_COUNT_HASSSS, BSDF_BIT_OFFSET_HASSSS)
-#define BSDF_SETHASSSS(X, Scatt)		WRITE_BITS(X.State, BSDF_BIT_COUNT_HASSSS, BSDF_BIT_OFFSET_HASSSS, Scatt)
-
-// Indicates if the BSDF has a SSS profile
-#define BSDF_GETHASSSSPROFILE(X)		READ_BITS(X.State,  BSDF_BIT_COUNT_HASSSSPROFILE, BSDF_BIT_OFFSET_HASSSSPROFILE)
-#define BSDF_SETHASSSSPROFILE(X, Profi)	WRITE_BITS(X.State, BSDF_BIT_COUNT_HASSSSPROFILE, BSDF_BIT_OFFSET_HASSSSPROFILE, Profi)
+#define BSDF_GETSSSTYPE(X)				READ_BITS(X.State,  BSDF_BIT_COUNT_SSSTYPE, BSDF_BIT_OFFSET_SSSTYPE)
+#define BSDF_SETSSSTYPE(X, Scatt)		WRITE_BITS(X.State, BSDF_BIT_COUNT_SSSTYPE, BSDF_BIT_OFFSET_SSSTYPE, Scatt)
 
 // Indicates if the BSDF weight is grey scale so that it can be stored in a single float (e.g. top layer BSDFs)
 #define BSDF_GETHASGREYWEIGHT_V(X)		READ_BITS(X.State,  BSDF_BIT_COUNT_GREYWEIGHT_V, BSDF_BIT_OFFSET_GREYWEIGHT_V)
@@ -397,10 +397,10 @@ struct FStrataBSDF
 
 ///////////////////////////////////////////////////////////////////////////////
 // Slab BSDF members
-#define SLAB_COMPLEX_PATH_MASK (TO_OFFSET_BITMASK(BSDF_BIT_COUNT_ANISOTROPY, BSDF_BIT_OFFSET_ANISOTROPY)		| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HASSSS, BSDF_BIT_OFFSET_HASSSS) | \
-								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HASSSSPROFILE, BSDF_BIT_OFFSET_HASSSSPROFILE)	| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HAZINESS, BSDF_BIT_OFFSET_HAZINESS) | \
-								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_F90, BSDF_BIT_OFFSET_F90)						| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_SIMPLEVOLUME, BSDF_BIT_OFFSET_SIMPLEVOLUME) | \
-								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HASFUZZ, BSDF_BIT_OFFSET_HASFUZZ)				| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_ISTHIN, BSDF_BIT_OFFSET_ISTHIN) )
+#define SLAB_COMPLEX_PATH_MASK (TO_OFFSET_BITMASK(BSDF_BIT_COUNT_ANISOTROPY, BSDF_BIT_OFFSET_ANISOTROPY)		| \
+								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_SSSTYPE,    BSDF_BIT_OFFSET_SSSTYPE)			| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HAZINESS,     BSDF_BIT_OFFSET_HAZINESS) | \
+								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_F90,        BSDF_BIT_OFFSET_F90)				| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_SIMPLEVOLUME, BSDF_BIT_OFFSET_SIMPLEVOLUME) | \
+								TO_OFFSET_BITMASK(BSDF_BIT_COUNT_HASFUZZ,    BSDF_BIT_OFFSET_HASFUZZ)			| TO_OFFSET_BITMASK(BSDF_BIT_COUNT_ISTHIN,       BSDF_BIT_OFFSET_ISTHIN) )
 
 #define SLAB_DIFFUSEALBEDO(X)			X.VGPRs[0].xyz
 #define SLAB_ROUGHNESS(X)				X.VGPRs[0].w
@@ -414,7 +414,7 @@ struct FStrataBSDF
 #define SLAB_SSSPROFILERADIUSSCALE(X)	X.VGPRs[3].y
 // Or explicit MFP in centimeter
 #define SLAB_SSSMFP(X)					X.VGPRs[3].xyz
-// Free slot:                           X.VGPRs[3].w
+#define SLAB_SSSPHASEANISOTROPY(X)		X.VGPRs[3].w
 // Fuzz to simulate cloth
 #define SLAB_FUZZ_COLOR(X)				X.VGPRs[4].xyz
 #define SLAB_FUZZ_AMOUNT(X)				X.VGPRs[4].w
@@ -1108,7 +1108,7 @@ FStrataData GetStrataSlabBSDF(
 	float3 BaseColor, float3 EdgeColor, float Specular, float Metallic,	//  Metalness workflow
 	float3 DiffuseAlbedo, float3 F0, float3 F90,						// !Metalness workflow
 	float Roughness, float Anisotropy,
-	float SSSProfileID, float3 SSSMFP, float SSSMFPScale,
+	float SSSProfileID, float3 SSSMFP, float SSSMFPScale, float SSSPhaseAnisotropy, float UseSSSDiffusion,
 	float3 Emissive, 
 	float Haziness, 
 	float FuzzAmount, float3 FuzzColor,
@@ -1186,8 +1186,7 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETEMISSIVE		(StrataData.InlinedBSDF,		Emissive);
 	BSDF_SETHASANISOTROPY	(StrataData.InlinedBSDF,		bHasAnisotropy);
 	BSDF_SETISTOPLAYER		(StrataData.InlinedBSDF,		0);
-	BSDF_SETHASSSS			(StrataData.InlinedBSDF,		bHasSSS ? 1 : 0);
-	BSDF_SETHASSSSPROFILE	(StrataData.InlinedBSDF,		bHasSSSProfile ? 1 : 0);
+	BSDF_SETSSSTYPE			(StrataData.InlinedBSDF,		bHasSSS ? (bHasSSSProfile ? SSS_TYPE_DIFFUSION_PROFILE : SSS_TYPE_DIFFUSION) : SSS_TYPE_INVALID);
 	BSDF_SETISTHIN			(StrataData.InlinedBSDF,		bIsThin ? 1 : 0);
 	BSDF_SETHASMFP			(StrataData.InlinedBSDF,		bMFPPlugged ? 1 : 0);
 	BSDF_SETHASHAZINESS		(StrataData.InlinedBSDF,		bHasHaziness);
@@ -1224,8 +1223,9 @@ FStrataData GetStrataSlabBSDF(
 	}
 	else
 	{
-		SLAB_SSSMFP	(StrataData.InlinedBSDF)			= SSSMFP * SSSMFPScale;
+		SLAB_SSSMFP	(StrataData.InlinedBSDF)				= SSSMFP * SSSMFPScale;
 	}
+	SLAB_SSSPHASEANISOTROPY(StrataData.InlinedBSDF)			= SSSPhaseAnisotropy;
 
 	SLAB_FUZZ_AMOUNT		(StrataData.InlinedBSDF)		= FuzzAmount;
 	SLAB_FUZZ_COLOR			(StrataData.InlinedBSDF)		= FuzzColor;
@@ -1819,6 +1819,11 @@ float HorizontalMixingParameterBlendingBSDFCoverageToNormalMix(FStrataData Backg
 #endif
 }
 
+// Merge two type of SSS type, by using the most complex behavior, i.e., No < Wrap < Diffusion < Diffusion Profile
+uint StrataMergeSSSType(uint SSSType0, uint SSSType1)
+{
+	return max(SSSType0, SSSType1);
+}
 
 // Note about parameter blending
 //  - We can only parameter blend Slab nodes. This error is handled in the compiler.
@@ -1843,8 +1848,7 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 
 	BSDF_SETISTOPLAYER(ResultBSDF,		0);
 	BSDF_SETHASANISOTROPY(ResultBSDF,	BSDF_GETHASANISOTROPY(ForegroundBSDF)			| BSDF_GETHASANISOTROPY(BackgroundBSDF));
-	BSDF_SETHASSSS(ResultBSDF,			BSDF_GETHASSSS(ForegroundBSDF)					| BSDF_GETHASSSS(BackgroundBSDF));
-	BSDF_SETHASSSSPROFILE(ResultBSDF,	BSDF_GETHASSSSPROFILE(ForegroundBSDF)			| BSDF_GETHASSSSPROFILE(BackgroundBSDF));	// Problem: cannot blend SSS profiles...
+	BSDF_SETSSSTYPE(ResultBSDF,			StrataMergeSSSType(BSDF_GETSSSTYPE(ForegroundBSDF), BSDF_GETSSSTYPE(BackgroundBSDF)));
 	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(ForegroundBSDF)					| BSDF_GETISTHIN(BackgroundBSDF));
 	BSDF_SETHASMFP(ResultBSDF,			BSDF_GETHASMFP(ForegroundBSDF)					| BSDF_GETHASMFP(BackgroundBSDF));
 	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(ForegroundBSDF)				| BSDF_GETHASHAZINESS(BackgroundBSDF));
@@ -1864,10 +1868,10 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(BackgroundBSDF),				SLAB_HAZINESS(ForegroundBSDF),				ForegroundOtherMixFactor);
 	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BackgroundBSDF),			SLAB_FUZZ_AMOUNT(ForegroundBSDF),			ForegroundOtherMixFactor);
 
-	if (BSDF_GETHASSSSPROFILE(ResultBSDF))
+	if (BSDF_GETSSSTYPE(ResultBSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 	{
-		const bool bForegroundHasSSSProfile = BSDF_GETHASSSSPROFILE(ForegroundBSDF);
-		const bool bBackgroundHasSSSProfile = BSDF_GETHASSSSPROFILE(BackgroundBSDF);
+		const bool bForegroundHasSSSProfile = BSDF_GETSSSTYPE(ForegroundBSDF) == SSS_TYPE_DIFFUSION_PROFILE;
+		const bool bBackgroundHasSSSProfile = BSDF_GETSSSTYPE(BackgroundBSDF) == SSS_TYPE_DIFFUSION_PROFILE;
 
 		// As mentioned above, we cannot blend SSSProfiles. So we select the one that triggered the profile, foreground having priority.
 		SLAB_SSSPROFILEID(ResultBSDF) = bForegroundHasSSSProfile ? SLAB_SSSPROFILEID(ForegroundBSDF) : SLAB_SSSPROFILEID(BackgroundBSDF);
@@ -1881,8 +1885,7 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 		if (SLAB_SSSPROFILERADIUSSCALE(ResultBSDF) == 0.0f)
 		{
 			SLAB_SSSPROFILEID(ResultBSDF) = SSS_PROFILE_ID_INVALID;
-			BSDF_SETHASSSS(ResultBSDF, 0);
-			BSDF_SETHASSSSPROFILE(ResultBSDF, 0);
+			BSDF_SETSSSTYPE(ResultBSDF, SSS_TYPE_INVALID);
 		}
 	}
 	else
@@ -1892,14 +1895,14 @@ FStrataData StrataHorizontalMixingParameterBlending(FStrataData Background, FStr
 		// We still try to disable SSS if possible: for performance and also to preserve the surface color (especially specular reflection color).
 		if (all(SLAB_SSSMFP(ResultBSDF) == 0.0f))
 		{
-			BSDF_SETHASSSS(ResultBSDF, 0);
+			BSDF_SETSSSTYPE(ResultBSDF, SSS_TYPE_INVALID);
 		}
 	}
 
 
 #if STRATA_INLINE_SHADING
 	// At this stage we do not know if this strata BSDF is going to be using simple volume lighting so always store the MFP on the side to not override SSSPROFILE data.
-	ResultBSDF.TmpMFP =				lerp(BackgroundBSDF.TmpMFP,					ForegroundBSDF.TmpMFP,						ForegroundOtherMixFactor);
+	ResultBSDF.TmpMFP =					lerp(BackgroundBSDF.TmpMFP,						ForegroundBSDF.TmpMFP,						ForegroundOtherMixFactor);
 
 	// We blend the parameter above, and we also need to lerp the Coverage to match the total energy.
 	ResultBSDF.Coverage =				lerp(BackgroundBSDF.Coverage,					ForegroundBSDF.Coverage,					HorizontalMixValue);
@@ -1938,8 +1941,7 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 
 	BSDF_SETISTOPLAYER(ResultBSDF,		0);
 	BSDF_SETHASANISOTROPY(ResultBSDF,	BSDF_GETHASANISOTROPY(BBSDF)					| BSDF_GETHASANISOTROPY(ABSDF));
-	BSDF_SETHASSSS(ResultBSDF,			BSDF_GETHASSSS(BBSDF)							| BSDF_GETHASSSS(ABSDF));
-	BSDF_SETHASSSSPROFILE(ResultBSDF,	BSDF_GETHASSSSPROFILE(BBSDF)					| BSDF_GETHASSSSPROFILE(ABSDF));	// Problem: cannot blend SSS profiles...
+	BSDF_SETSSSTYPE(ResultBSDF,			StrataMergeSSSType(BSDF_GETSSSTYPE(BBSDF)		, BSDF_GETSSSTYPE(ABSDF)));
 	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(BBSDF)							| BSDF_GETISTHIN(ABSDF));
 	BSDF_SETHASMFP(ResultBSDF,			BSDF_GETHASMFP(BBSDF)							| BSDF_GETHASMFP(ABSDF));
 	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(BBSDF)						| BSDF_GETHASHAZINESS(ABSDF));
@@ -1961,10 +1963,10 @@ FStrataData StrataAddParameterBlending(FStrataData A, FStrataData B, float AMixF
 	SLAB_HAZINESS(ResultBSDF) =			lerp(SLAB_HAZINESS(BBSDF),						SLAB_HAZINESS(ABSDF),						AMixFactor);
 	SLAB_FUZZ_AMOUNT(ResultBSDF) =		lerp(SLAB_FUZZ_AMOUNT(BBSDF),					SLAB_FUZZ_AMOUNT(ABSDF),					AMixFactor);
 
-	if (BSDF_GETHASSSSPROFILE(ResultBSDF))
+	if (BSDF_GETSSSTYPE(ResultBSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 	{
 		// As mentioned above, we cannot blend SSSProfiles. We do select the appropriate profile, ABSDF being selected if both have SSSProfile.
-		if (BSDF_GETHASSSSPROFILE(ABSDF))
+		if (BSDF_GETSSSTYPE(ABSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 		{
 			SLAB_SSSPROFILEID(ResultBSDF) = SLAB_SSSPROFILEID(ABSDF);
 			SLAB_SSSPROFILERADIUSSCALE(ResultBSDF) = SLAB_SSSPROFILERADIUSSCALE(ABSDF);
@@ -2027,8 +2029,7 @@ FStrataBSDF StrataVerticalLayeringParameterBlending(in FStrataBSDF TopBSDF, in F
 
 	BSDF_SETISTOPLAYER(ResultBSDF,		0);
 	BSDF_SETHASANISOTROPY(ResultBSDF,	0);																					// Anisotropy is disabled because it changes a lot of things
-	BSDF_SETHASSSS(ResultBSDF,			BSDF_GETHASSSS(BaseBSDF));															// We only keep SSS if the bottom layer has it
-	BSDF_SETHASSSSPROFILE(ResultBSDF,	0);																					// Problem: cannot blend SSS profiles so we simply disable SSSProfile
+	BSDF_SETSSSTYPE(ResultBSDF,			min(BSDF_GETSSSTYPE(BaseBSDF), SSS_TYPE_DIFFUSION));								// We only keep SSS if the bottom layer has it. Problem: cannot blend SSS profiles so we simply disable SSSProfile in this case, i.e., min(..., SSS_TYPE_DIFFUSION)
 	BSDF_SETISTHIN(ResultBSDF,			BSDF_GETISTHIN(BaseBSDF));
 	BSDF_SETHASMFP(ResultBSDF,			BSDF_GETHASMFP(BaseBSDF)						| BSDF_GETHASMFP(TopBSDF));			// We keep MFP of both to make sure bottom layer on translucent can also be effective
 	BSDF_SETHASHAZINESS(ResultBSDF,		BSDF_GETHASHAZINESS(TopBSDF));														// We only keep haziness if the top layer has it
@@ -2195,16 +2196,13 @@ void SanitizeStrataSlab(inout FStrataBSDF BSDF)
 #endif
 
 	// BSDF feature tests must be executed for profile path to not interact with MFP, especially for forward rendered simple volumetrics.
-	if (BSDF_GETHASSSS(BSDF))
+	if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 	{
-		if (BSDF_GETHASSSSPROFILE(BSDF))
-		{
-			SLAB_SSSPROFILERADIUSSCALE(BSDF) = saturate(SLAB_SSSPROFILERADIUSSCALE(BSDF));
-		}
-		else
-		{
-			SLAB_SSSMFP(BSDF) = clamp(SLAB_SSSMFP(BSDF), 0.0f, Max111110BitsFloat3);
-		}
+		SLAB_SSSPROFILERADIUSSCALE(BSDF) = saturate(SLAB_SSSPROFILERADIUSSCALE(BSDF));
+	}
+	else if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION)
+	{
+		SLAB_SSSMFP(BSDF) = clamp(SLAB_SSSMFP(BSDF), 0.0f, Max111110BitsFloat3);
 	}
 
 	SLAB_FUZZ_AMOUNT(BSDF) = saturate(SLAB_FUZZ_AMOUNT(BSDF));
@@ -2330,8 +2328,7 @@ void EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF)
 	EnableSlabMFPComputationSpace(BSDF);
 
 	// Mark the BSDF has not having any SSS through post process.
-	BSDF_SETHASSSS(BSDF, 0);
-	BSDF_SETHASSSSPROFILE(BSDF, 0);
+	BSDF_SETSSSTYPE(BSDF, SSS_TYPE_INVALID);
 
 	// Notify that the Slab can use SSS post-process only if at the bottom (layered considered optically thick, e.g. cannot see-through)
 	// When forward rendering is used or if a layer is not a bottom layer, SSS post cannot be used and simple scattering is used.
@@ -2422,7 +2419,7 @@ float3 StrataGetBSDFSubSurfaceColor(in FStrataBSDF BSDF)
 {
 	switch (BSDF_GETTYPE(BSDF))
 	{
-	case STRATA_BSDF_TYPE_SLAB: 			return BSDF_GETHASSSS(BSDF) ? SLAB_DIFFUSEALBEDO(BSDF) : 0; // A more accurate version would be IsotropicMediumSlabPunctualDirectionalAlbedo(StrataSlabCreateParticipatingMedia(SLAB_DIFFUSEALBEDO(BSDF), SLAB_SSSMFP(BSDFContext.BSDF)));
+	case STRATA_BSDF_TYPE_SLAB: 			return BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID ? SLAB_DIFFUSEALBEDO(BSDF) : 0; // A more accurate version would be IsotropicMediumSlabPunctualDirectionalAlbedo(StrataSlabCreateParticipatingMedia(SLAB_DIFFUSEALBEDO(BSDF), SLAB_SSSMFP(BSDFContext.BSDF)));
 	case STRATA_BSDF_TYPE_HAIR: 			return 0;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 0;
 	}
@@ -2515,14 +2512,14 @@ float StrataGetLegacyShadingModels(in FStrataBSDF BSDF)
 	case STRATA_BSDF_TYPE_SLAB:
 	{
 		// Base on features, we can only partially recovers the original shading models. Shading models like foliage, eye, clear coat are impossible/harder to infer.
-		if (BSDF_GETHASSSSPROFILE(BSDF))	{ return SHADINGMODELID_SUBSURFACE_PROFILE; }
-		else if (BSDF_GETHASSSS(BSDF))		{ return SHADINGMODELID_SUBSURFACE; }
-		else if (BSDF_GETHASFUZZ(BSDF))		{ return SHADINGMODELID_CLOTH; }
-		else if (BSDF_GETHASFUZZ(BSDF))		{ return SHADINGMODELID_TWOSIDED_FOLIAGE; }
-		else								{ return SHADINGMODELID_DEFAULT_LIT; }
+		if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE){ return SHADINGMODELID_SUBSURFACE_PROFILE; }
+		else if (BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID)		{ return SHADINGMODELID_SUBSURFACE; }
+		else if (BSDF_GETHASFUZZ(BSDF))							{ return SHADINGMODELID_CLOTH; }
+		else if (BSDF_GETHASFUZZ(BSDF))							{ return SHADINGMODELID_TWOSIDED_FOLIAGE; }
+		else													{ return SHADINGMODELID_DEFAULT_LIT; }
 	}
-	case STRATA_BSDF_TYPE_HAIR: 			{ return SHADINGMODELID_HAIR; }
-	case STRATA_BSDF_TYPE_SINGLELAYERWATER: { return SHADINGMODELID_SINGLELAYERWATER; }
+	case STRATA_BSDF_TYPE_HAIR: 								{ return SHADINGMODELID_HAIR; }
+	case STRATA_BSDF_TYPE_SINGLELAYERWATER:						{ return SHADINGMODELID_SINGLELAYERWATER; }
 	}
 	return 0.f;
 }
@@ -2947,6 +2944,8 @@ void StrataConvertFromDBuffer(
 		0.f,				// SSSProfileID
 		0.f,				// SSSMFP
 		0.f,				// SSSMFPScale
+		0.f,				// SSSPhaseAniso
+		0.f,				// UseSSSDiffusion
 		0.f,				// Emissive
 		0.f,				// Haziness
 		0.f,				// FuzzAmount
@@ -3165,12 +3164,13 @@ void PackStrataOut(
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
 
+						const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID;
 						const bool bIsThin = BSDF_GETISTHIN(BSDF);
 						const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
-						bStrataSubsurfaceEnable = bStrataSubsurfaceEnable || (BSDF_GETHASSSS(BSDF) && BSDF.Coverage > 0.0f && !bIsSimpleVolume && !bIsThin); // Should it be coverage>0 or any(LuminanceWeight>0) ?
+						bStrataSubsurfaceEnable = bStrataSubsurfaceEnable || (bHasSSS && BSDF.Coverage > 0.0f && !bIsSimpleVolume && !bIsThin); // Should it be coverage>0 or any(LuminanceWeight>0) ?
 
 						const bool bSSSMask = !bIsThin && BSDF.bIsBottom;	// SSS and Thin can only be on the bottom layer, so ignoring bIsSimpleVolume here.
-						SetHasSubsurface(StrataPixelHeader, (bSSSMask && BSDF_GETHASSSS(BSDF)));
+						SetHasSubsurface(StrataPixelHeader, (bSSSMask && bHasSSS));
 
 						break;
 					}
@@ -3367,7 +3367,7 @@ void PackStrataOut(
 							const uint PackedData8Bits = (PackedF020Bits >> 12) & 0xFF;
 
 							STRATA_STORE_UINT1(PackedData32Bits);
-							STRATA_STORE_UINT1(PackedData8Bits | PackRGBA8(float4(0.0f, SLAB_ROUGHNESS(BSDF), (SLAB_ANISOTROPY(BSDF) + 1.f) * 0.5f, 0.f)));
+							STRATA_STORE_UINT1(PackedData8Bits | PackRGBA8(float4(0.0f, SLAB_ROUGHNESS(BSDF), (SLAB_ANISOTROPY(BSDF) + 1.f) * 0.5f, (SLAB_SSSPHASEANISOTROPY(BSDF) + 1.f) * 0.5f)));
 
 							if (BSDF_GETHASF90(BSDF) || BSDF_GETHASHAZINESS(BSDF))
 							{
@@ -3382,11 +3382,12 @@ void PackStrataOut(
 
 							const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(BSDF);
 							const bool bIsThin = BSDF_GETISTHIN(BSDF);
-							if (BSDF_GETHASSSS(BSDF) || bIsSimpleVolume || bIsThin)
+							const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID;
+							if (bHasSSS || bIsSimpleVolume || bIsThin)
 							{
-								if (!bIsThin && BSDF_GETHASSSS(BSDF))
+								if (!bIsThin && bHasSSS)
 								{
-									const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSData.Header) || BSDF_GETHASSSSPROFILE(BSDF);
+									const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSData.Header) || BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE;
 									StrataSubSurfaceHeaderSetIsValid(SSSData.Header, true);
 									StrataSubSurfaceHeaderSetIsProfile(SSSData.Header, bIsProfile);
 									if (bIsProfile)
@@ -3401,7 +3402,7 @@ void PackStrataOut(
 									StrataSubsurfaceExtrasSetBaseColor(SSSData.Extras, SLAB_DIFFUSEALBEDO(BSDF));
 								}
 
-								if (BSDF_GETHASSSSPROFILE(BSDF) && !bIsSimpleVolume)
+								if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && !bIsSimpleVolume)
 								{
 									// Simple volume overrides SSS profile because it takes over for when not at the bottom of the BSDF layer, or during forward rendering.
 									STRATA_STORE_UINT1(PackRGBA8(float4(SLAB_SSSPROFILEID(BSDF), SLAB_SSSPROFILERADIUSSCALE(BSDF), 0, 0)));
@@ -3556,8 +3557,9 @@ void UnpackFastPathSlabBSDF(inout FStrataBSDF OutBSDF, uint2 PackedData01)
 	SLAB_F0(OutBSDF)			= UnpackR7G7B6Gamma2(PackedF020Bits);
 
 	float4 Data1 = UnpackRGBA8(PackedData01.y);
-	SLAB_ROUGHNESS(OutBSDF)		= Data1.y;
-	SLAB_ANISOTROPY(OutBSDF)	= Data1.z * 2.f - 1.f;
+	SLAB_ROUGHNESS(OutBSDF)			= Data1.y;
+	SLAB_ANISOTROPY(OutBSDF)		= Data1.z * 2.f - 1.f;
+	SLAB_SSSPHASEANISOTROPY(OutBSDF)= Data1.2 * 2.f - 1.f;
 }
 
 FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStrataAddressing StrataAddressing, FStrataPixelHeader StrataPixelHeader)
@@ -3593,8 +3595,7 @@ FStrataBSDF UnpackFastPathStrataBSDFIn(FStrataMaterialContainer StrataBuffer, in
 	BSDF_SETHASF90(OutBSDF, 0);
 	BSDF_SETHASANISOTROPY(OutBSDF, 0);
 	BSDF_SETISTOPLAYER(OutBSDF, 1);
-	BSDF_SETHASSSS(OutBSDF, 0);
-	BSDF_SETHASSSSPROFILE(OutBSDF, 0);
+	BSDF_SETSSSTYPE(OutBSDF, SSS_TYPE_INVALID);
 	BSDF_SETHASHAZINESS(OutBSDF, 0);
 	BSDF_SETISSIMPLEVOLUME(OutBSDF, 0);
 	BSDF_SETHASFUZZ(OutBSDF, 0);
@@ -3680,9 +3681,10 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 
 		const bool bIsSimpleVolume = BSDF_GETISSIMPLEVOLUME(OutBSDF);
 		const bool bIsThin = BSDF_GETISTHIN(OutBSDF);
-		if (BSDF_GETHASSSS(OutBSDF) || bIsSimpleVolume || bIsThin)
+		const bool bHasSSS = BSDF_GETSSSTYPE(OutBSDF) != SSS_TYPE_INVALID;
+		if (bHasSSS || bIsSimpleVolume || bIsThin)
 		{
-			if (BSDF_GETHASSSSPROFILE(OutBSDF) && !bIsSimpleVolume && !bIsThin)
+			if (BSDF_GETSSSTYPE(OutBSDF) == SSS_TYPE_DIFFUSION_PROFILE && !bIsSimpleVolume && !bIsThin)
 			{
 				float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
 				SLAB_SSSPROFILEID(OutBSDF) = Data.r;

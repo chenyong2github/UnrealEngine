@@ -20,6 +20,8 @@ struct FStrataLegacyParameters
 	float  SSSProfileID;
 	float3 SSSMFP;
 	float  SSSMFPScale;
+	float  SSSPhaseAniso;
+	bool   UseSSSDiffusion;
 	float3 Emissive;
 	float  FuzzAmount;
 	float3 FuzzColor;
@@ -51,6 +53,8 @@ FStrataLegacyParameters InitStrataLegacyParameters(FStrataPixelFootprint InPixel
 	Out.SSSProfileID = 0.f;
 	Out.SSSMFP = Zeros;
 	Out.SSSMFPScale = 1.f;
+	Out.SSSPhaseAniso = 0.f;
+	Out.UseSSSDiffusion = false;
 	Out.Emissive = Zeros;
 	Out.FuzzAmount = 0.f;
 	Out.FuzzColor = Zeros;
@@ -87,7 +91,9 @@ FStrataData CreateLegacySlab(
 			In.Anisotropy,		// Anisotropy
 			In.SSSProfileID,	// SSSProfileID
 			In.SSSMFP,			// SSSMFP
-			In.SSSMFPScale,	// SSSMFPScale
+			In.SSSMFPScale,		// SSSMFPScale
+			In.SSSPhaseAniso,	// SSSPhaseAniso
+			In.UseSSSDiffusion, // UseSSSDiffusion
 			In.Emissive,		// Emissive
 			0.f,				// Haziness
 			In.FuzzAmount,		// FuzzAmount
@@ -268,6 +274,8 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Anisotropy = Anisotropy;
 		Top.SSSProfileID = SubSurfaceProfileId;
 		Top.SSSMFPScale = Opacity;
+		Top.SSSPhaseAniso = 0.93f;
+		Top.UseSSSDiffusion = true;
 		Top.Emissive = Emissive;
 
 		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1

@@ -10272,8 +10272,8 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic,
 	int32 DiffuseAlbedo, int32 F0, int32 F90,
 	int32 Roughness, int32 Anisotropy,
-	int32 SSSProfileId, int32 SSSMFP, int32 SSSMFPScale, 
-	int32 EmissiveColor,	
+	int32 SSSProfileId, int32 SSSMFP, int32 SSSMFPScale, int32 SSSPhaseAniso, int32 UseSSSDiffusion,
+	int32 EmissiveColor,
 	int32 Haziness, 
 	int32 FuzzAmount, int32 FuzzColor,
 	int32 Thickness, 
@@ -10291,7 +10291,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			return INDEX_NONE;
 		}
 		return AddCodeChunk(
-			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */, Parameters.StrataTree, %u, %u, %u, %u)"),
+			MCT_Strata, TEXT("PromoteParameterBlendedBSDFToOperator(GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */, Parameters.StrataTree, %u, %u, %u, %u)"),
 			*StrataGetCastParameterCode(UseMetalness,	MCT_Float),
 			*StrataGetCastParameterCode(BaseColor,		MCT_Float3),
 			*StrataGetCastParameterCode(EdgeColor,		MCT_Float3),
@@ -10305,6 +10305,8 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 			*StrataGetCastParameterCode(SSSProfileId,	MCT_Float),
 			*StrataGetCastParameterCode(SSSMFP,			MCT_Float3),
 			*StrataGetCastParameterCode(SSSMFPScale,	MCT_Float),
+			*StrataGetCastParameterCode(SSSPhaseAniso,  MCT_Float),
+			*StrataGetCastParameterCode(UseSSSDiffusion,MCT_Float),
 			*StrataGetCastParameterCode(EmissiveColor,	MCT_Float3),
 			*StrataGetCastParameterCode(Haziness,		MCT_Float),
 			*StrataGetCastParameterCode(FuzzAmount,		MCT_Float),
@@ -10320,7 +10322,7 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 	}
 	
 	return AddCodeChunk(
-		MCT_Strata, TEXT("GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */"),
+		MCT_Strata, TEXT("GetStrataSlabBSDF(Parameters.StrataPixelFootprint, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, Parameters.SharedLocalBases.Types) /* Normal = %s ; Tangent = %s */"),
 		*StrataGetCastParameterCode(UseMetalness,	MCT_Float),
 		*StrataGetCastParameterCode(BaseColor,		MCT_Float3),
 		*StrataGetCastParameterCode(EdgeColor,		MCT_Float3),
@@ -10334,6 +10336,8 @@ int32 FHLSLMaterialTranslator::StrataSlabBSDF(
 		*StrataGetCastParameterCode(SSSProfileId,	MCT_Float),
 		*StrataGetCastParameterCode(SSSMFP,			MCT_Float3),
 		*StrataGetCastParameterCode(SSSMFPScale,	MCT_Float),
+		*StrataGetCastParameterCode(SSSPhaseAniso,	MCT_Float),
+		*StrataGetCastParameterCode(UseSSSDiffusion,MCT_Float),
 		*StrataGetCastParameterCode(EmissiveColor,	MCT_Float3),
 		*StrataGetCastParameterCode(Haziness,		MCT_Float),
 		*StrataGetCastParameterCode(FuzzAmount,		MCT_Float),

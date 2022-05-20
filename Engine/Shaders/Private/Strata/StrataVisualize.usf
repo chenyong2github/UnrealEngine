@@ -157,12 +157,12 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			Newline(Context);
 
 			Print(Context, TEXT(" "), FontSilver);
-			Print(Context, BSDF_GETSHAREDLOCALBASISID(BSDF), FontBSDF, 2, 1);	Print(Context, TEXT("       "), FontSilver);
-			PrintBool(Context, BSDF_GETHASANISOTROPY(BSDF), FontBSDF);			Print(Context, TEXT(" "), FontSilver);
-			PrintBool(Context, BSDF_GETISTOPLAYER(BSDF), FontBSDF);				Print(Context, TEXT("    "), FontSilver);
-			PrintBool(Context, BSDF_GETHASSSS(BSDF), FontBSDF);					Print(Context, TEXT("      "), FontSilver);
-			PrintBool(Context, BSDF_GETISSIMPLEVOLUME(BSDF), FontBSDF);			Print(Context, TEXT("        "), FontSilver);
-			PrintBool(Context, BSDF_GETISTHIN(BSDF), FontBSDF);					Print(Context, TEXT("  "), FontSilver);
+			Print(Context, BSDF_GETSHAREDLOCALBASISID(BSDF), FontBSDF, 2, 1);			Print(Context, TEXT("       "), FontSilver);
+			PrintBool(Context, BSDF_GETHASANISOTROPY(BSDF), FontBSDF);					Print(Context, TEXT(" "), FontSilver);
+			PrintBool(Context, BSDF_GETISTOPLAYER(BSDF), FontBSDF);						Print(Context, TEXT("    "), FontSilver);
+			PrintBool(Context, BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID, FontBSDF);	Print(Context, TEXT("      "), FontSilver);
+			PrintBool(Context, BSDF_GETISSIMPLEVOLUME(BSDF), FontBSDF);					Print(Context, TEXT("        "), FontSilver);
+			PrintBool(Context, BSDF_GETISTHIN(BSDF), FontBSDF);							Print(Context, TEXT("  "), FontSilver);
 
 			// View Weight
 			{
@@ -233,10 +233,10 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			Print(Context, TEXT(" Haziness    "), FontBSDFPropName);	Print(Context, SLAB_HAZINESS(BSDF), FontBSDFPropValu);				Newline(Context);
 			}
 			
-			if (BSDF_GETHASSSS(BSDF) || BSDF_GETISSIMPLEVOLUME(BSDF) || BSDF_GETISTHIN(BSDF))
+			if (BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID || BSDF_GETISSIMPLEVOLUME(BSDF) || BSDF_GETISTHIN(BSDF))
 			{
 
-			if (BSDF_GETHASSSSPROFILE(BSDF) && BSDF_GETISSIMPLEVOLUME(BSDF) == 0)
+			if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && BSDF_GETISSIMPLEVOLUME(BSDF) == 0)
 			{
 			Print(Context, TEXT(" SSS ID.     "), FontBSDFPropName);	Print(Context, SLAB_SSSPROFILEID(BSDF), FontBSDFPropValu);			Newline(Context);
 			Print(Context, TEXT(" SSS Radius  "), FontBSDFPropName);	Print(Context, SLAB_SSSPROFILERADIUSSCALE(BSDF), FontBSDFPropValu);	Newline(Context);

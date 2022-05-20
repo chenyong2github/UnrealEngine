@@ -96,6 +96,7 @@ FStrataDBuffer GetDBufferData(float2 BufferUV, uint RTMaskBit)
 #define STRATA_DBUFFER_RESPONSE_NORMAL    (MATERIALDECALRESPONSEMASK & 0x2)
 #define STRATA_DBUFFER_RESPONSE_ROUGHNESS (MATERIALDECALRESPONSEMASK & 0x4)
 
+#if MATERIAL_IS_STRATA
 void ApplyDBufferData(in FStrataDBuffer StrataDBufferData, inout FStrataPixelHeader StrataPixelHeader, inout FStrataData StrataData)
 {
 	// Early out if DBuffer has no coverage
@@ -161,8 +162,7 @@ void ApplyDBufferData(in FStrataDBuffer StrataDBufferData, inout FStrataPixelHea
 					SLAB_SSSMFP(BSDF) = lerp(0.f, SLAB_SSSMFP(BSDF), StrataDBufferData.OneMinusCoverage_BaseColor);
 					if (all(SLAB_SSSMFP(BSDF) == 0.0f))
 					{
-						BSDF_SETHASMFP(BSDF, 0);
-						BSDF_SETHASSSS(BSDF, 0);
+						BSDF_SETSSSTYPE(BSDF, SSS_TYPE_INVALID);
 					}
 				#endif
 
@@ -243,6 +243,7 @@ void ApplyDBufferData(in FStrataDBuffer StrataDBufferData, inout FStrataPixelHea
 	#undef BSDF
 	}
 }
+#endif // MATERIAL_IS_STRATA
 #else // STRATA_ENABLED
 struct FDBufferData
 {

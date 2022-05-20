@@ -244,7 +244,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 		#if STRATA_FASTPATH==0
 			float HazeSafeRoughness		= SafeRoughness;
 		#endif
-			const bool bHasSubsurface	= BSDF_GETHASSSS(BSDFContext.BSDF) > 0;
+			const bool bHasSubsurface	= BSDF_GETSSSTYPE(BSDFContext.BSDF) != SSS_TYPE_INVALID;
 			const bool bHasAnisotropy	= BSDF_GETHASANISOTROPY(BSDFContext.BSDF);
 			const bool bHaziness		= BSDF_GETHASHAZINESS(BSDFContext.BSDF);
 
@@ -550,8 +550,8 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			////
 
 			#if STRATA_FASTPATH==0 && STRATA_SSS_TRANSMISSION
-			const bool bHasProfile = BSDF_GETHASSSSPROFILE(BSDFContext.BSDF);
-			if (BSDF_GETHASSSS(BSDFContext.BSDF))
+			const bool bHasProfile = BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION_PROFILE;
+			if (BSDF_GETSSSTYPE(BSDFContext.BSDF) != SSS_TYPE_INVALID)
 			{
 				const float ThicknessInCm = DecodeThickness(ShadowTerms.TransmissionThickness) * SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
 
@@ -572,7 +572,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 					const float3 SubsurfaceAlebdo = SLAB_DIFFUSEALBEDO(BSDFContext.BSDF);
 					const float3 MeanFreePathInCm = SLAB_SSSMFP(BSDFContext.BSDF);
 					TransmissionThroughput	= GetBurleyTransmissionProfile(SubsurfaceAlebdo, MeanFreePathInCm, ThicknessInCm);
-					PhaseFunctionAnisotropy = 0.93f; // STRATA_TODO: expose phase function eccentricity. For now, forward scattering matching default SSS profile value
+					PhaseFunctionAnisotropy = SLAB_SSSPHASEANISOTROPY(BSDFContext.BSDF);
 					OneOverIOR				= 1.f / DielectricF0ToIor(F0.y);
 				}
 
@@ -969,7 +969,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 			}
 
 			StrataEnvLightResult.DiffuseNormal = BSDFContext.N;
-			StrataEnvLightResult.bSubsurface = BSDF_GETHASSSS(BSDFContext.BSDF) > 0;
+			StrataEnvLightResult.bSubsurface = BSDF_GETSSSTYPE(BSDFContext.BSDF) != SSS_TYPE_INVALID;
 
 			float SafeRoughness = MakeRoughnessSafe(SLAB_ROUGHNESS(BSDFContext.BSDF));
 

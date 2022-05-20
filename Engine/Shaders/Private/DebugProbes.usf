@@ -297,6 +297,8 @@ void MainPS(
 			/*float SSSProfileID					*/0.0f,
 			/*float3 SSSMFP							*/0.0f,
 			/*float SSSMFPScale						*/0.0f,
+			/*float SSSPhaseAniso					*/0.0f,
+			/*float UseSSSDiffuse					*/0.0f,
 			/*float3 Emissive						*/0.0f,
 			/*float Haziness						*/0.0f,
 			/*float FuzzAmount						*/0.0f,

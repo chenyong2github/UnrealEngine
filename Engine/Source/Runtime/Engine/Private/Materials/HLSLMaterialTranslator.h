@@ -1022,7 +1022,7 @@ protected:
 		int32 BaseColor, int32 EdgeColor, int32 Specular, int32 Metallic,
 		int32 DiffuseAlbedo, int32 F0, int32 F90,
 		int32 Roughness, int32 Anisotropy,
-		int32 SSSProfileId, int32 SSSMFP, int32 SSSMFPScale,
+		int32 SSSProfileId, int32 SSSMFP, int32 SSSMFPScale, int32 SSSPhaseAniso, int32 bUseSSSDiffusion,
 		int32 EmissiveColor, 
 		int32 Haziness, 
 		int32 FuzzAmount, int32 FuzzColor, 
