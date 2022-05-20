@@ -2279,8 +2279,16 @@ namespace AutomationTool
 			{
 				foreach (ZipArchiveEntry Entry in ZipArchive.Entries)
 				{
+					if(Entry.FullName.EndsWith("/"))
+					{
+						// ignore directories
+						continue;
+					}
 					FileReference OutputFile = FileReference.Combine(BaseDirectory, Entry.FullName);
-					DirectoryReference.CreateDirectory(OutputFile.Directory);
+					if(!DirectoryReference.Exists(OutputFile.Directory))
+					{
+						DirectoryReference.CreateDirectory(OutputFile.Directory);
+					}
 					Entry.ExtractToFile_CrossPlatform(OutputFile.FullName, true);
 					OutputFiles.Add(OutputFile);
 				}
