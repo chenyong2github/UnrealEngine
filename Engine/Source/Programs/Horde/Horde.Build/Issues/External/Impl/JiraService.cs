@@ -372,7 +372,7 @@ namespace Horde.Build.Services
 
 		}
 
-		public async Task<(string? key, string? url)> CreateIssueAsync(IUser User, int issueId, string summary, string projectId, string componentId, string issueType, string? description, string? hordeIssueLink)
+		public async Task<(string? key, string? url)> CreateIssueAsync(IUser user, string? externalIssueUser, int issueId, string summary, string projectId, string componentId, string issueType, string? description, string? hordeIssueLink)
 		{
 
 			IIssue? issue = await _issueService.GetIssueAsync(issueId);
@@ -385,11 +385,11 @@ namespace Horde.Build.Services
 
 			if (hordeIssueLink != null)
 			{
-				issueDesc = $"\n{issueDesc}\n\nJira issue created by {User.Name} for *[Horde Issue {issueId}|{hordeIssueLink}]*\n\n";
+				issueDesc = $"\n{issueDesc}\n\nJira issue created by {user.Name} for *[Horde Issue {issueId}|{hordeIssueLink}]*\n\n";
 			}
 			else
 			{
-				issueDesc = $"\n{issueDesc}\n\nJira Issue created by {User.Name} from Horde\n\n";
+				issueDesc = $"\n{issueDesc}\n\nJira Issue created by {user.Name} from Horde\n\n";
 			}
 
 
@@ -433,6 +433,23 @@ namespace Horde.Build.Services
 			}
 
 			await _issueService.UpdateIssueAsync(issueId, externalIssueKey: jiraResponse.Key);
+
+			// add the user as a watcher to the newly created issue
+			if (externalIssueUser != null)
+			{
+				uri = new Uri(_jiraUrl, $"/rest/api/2/issue/{jiraResponse.Key}/watchers");
+
+				try
+				{
+					response = await _retryPolicy.ExecuteAsync(() => _client.PostAsync(uri, new StringContent(JsonSerializer.Serialize(externalIssueUser), Encoding.UTF8, "application/json")));
+					response.EnsureSuccessStatusCode();
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Unable to add {ExternalUser} as watcher to issue {IssueKey}", externalIssueUser, jiraResponse.Key);
+				}
+				
+			}
 
 			return (jiraResponse.Key, $"{_jiraUrl}browse/{jiraResponse.Key}");
 		}

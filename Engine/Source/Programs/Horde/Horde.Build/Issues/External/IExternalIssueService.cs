@@ -65,7 +65,8 @@ namespace Horde.Build.Services
 		/// <summary>
 		/// Create and link an external issue
 		/// </summary>		
-		/// <param name="User"></param>
+		/// <param name="user"></param>
+		/// <param name="externalIssueUser"></param>
 		/// <param name="issueId"></param>
 		/// <param name="summary"></param>
 		/// <param name="projectId"></param>
@@ -73,7 +74,7 @@ namespace Horde.Build.Services
 		/// <param name="issueType"></param>
 		/// <param name="description"></param>
 		/// <param name="hordeIssueLink"></param>
-		Task<(string? key, string? url)> CreateIssueAsync(IUser User, int issueId, string summary, string projectId, string componentId, string issueType, string? description, string? hordeIssueLink);
+		Task<(string? key, string? url)> CreateIssueAsync(IUser user, string? externalIssueUser, int issueId, string summary, string projectId, string componentId, string issueType, string? description, string? hordeIssueLink);
 
 
 		/// <summary>
@@ -103,7 +104,7 @@ namespace Horde.Build.Services
 		}
 
 		/// <inheritdoc/>
-		public Task<(string? key, string? url)> CreateIssueAsync(IUser User, int issueId, string summary, string projectId, string componentId, string issueType, string? description, string? hordeIssueLink)
+		public Task<(string? key, string? url)> CreateIssueAsync(IUser user, string? externalIssueUser, int issueId, string summary, string projectId, string componentId, string issueType, string? description, string? hordeIssueLink)
 		{
 			throw new NotImplementedException();
 		}

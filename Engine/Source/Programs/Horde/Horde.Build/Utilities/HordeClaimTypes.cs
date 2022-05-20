@@ -58,6 +58,12 @@ namespace Horde.Build.Utilities
 		/// Claim for the Perforce username
 		/// </summary>
 		public const string PerforceUser = Prefix + "perforce-user";
+
+		/// <summary>
+		/// Claim for the external issue username
+		/// </summary>
+		public const string ExternalIssueUser = Prefix + "external-issue-user";
+
 	}
 
 	/// <summary>
@@ -117,5 +123,21 @@ namespace Horde.Build.Utilities
 			}
 			return claim.Value;
 		}
+
+		/// <summary>
+		/// Gets the external issue username for the given principal
+		/// </summary>
+		/// <param name="user">The principal to get the external issue user for</param>
+		/// <returns>Jira user name</returns>
+		public static string? GetExternalIssueUser(this ClaimsPrincipal user)
+		{
+			Claim? claim = user.FindFirst(HordeClaimTypes.ExternalIssueUser);
+			if (claim == null)
+			{
+				return null;
+			}
+			return claim.Value;
+		}
+
 	}
 }

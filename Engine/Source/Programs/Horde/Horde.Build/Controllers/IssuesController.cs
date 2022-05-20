@@ -654,7 +654,7 @@ namespace Horde.Build.Controllers
 				return BadRequest($"Missing user for {User.GetUserName()}");
 			}
 
-			(string? key, string? url) = await _externalIssueService.CreateIssueAsync(user, issueRequest.IssueId, issueRequest.Summary, issueRequest.ProjectId, issueRequest.ComponentId, issueRequest.IssueTypeId, issueRequest.Description, issueRequest.HordeIssueLink);
+			(string? key, string? url) = await _externalIssueService.CreateIssueAsync(user, User.GetExternalIssueUser(), issueRequest.IssueId, issueRequest.Summary, issueRequest.ProjectId, issueRequest.ComponentId, issueRequest.IssueTypeId, issueRequest.Description, issueRequest.HordeIssueLink);
 
 			if (key == null)
 			{
