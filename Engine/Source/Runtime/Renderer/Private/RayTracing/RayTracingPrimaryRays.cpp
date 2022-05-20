@@ -44,8 +44,6 @@ class FRayTracingPrimaryRaysRGS : public FGlobalShader
 		SHADER_PARAMETER(float, MaxNormalBias)
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
-		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
@@ -147,7 +145,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	PassParameters->TLAS = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;
-	PassParameters->LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
 
 	PassParameters->SceneTextures = SceneTextureParameters;
 
@@ -158,7 +155,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 
 	PassParameters->ColorOutput = GraphBuilder.CreateUAV(*InOutColorTexture);
 	PassParameters->RayHitDistanceOutput = GraphBuilder.CreateUAV(*InOutRayHitDistanceTexture);
-	PassParameters->SSProfilesTexture = View.RayTracingSubSurfaceProfileTexture;
 
 	FRayTracingPrimaryRaysRGS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FRayTracingPrimaryRaysRGS::FEnableTwoSidedGeometryForShadowDim>(EnableRayTracingShadowTwoSidedGeometry());

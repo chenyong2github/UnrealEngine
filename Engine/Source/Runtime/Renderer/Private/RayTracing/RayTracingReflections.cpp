@@ -291,8 +291,6 @@ class FRayTracingReflectionsRGS : public FGlobalShader
 
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
-		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
-		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightVisibilityRaysData, SkyLightVisibilityRaysData)
@@ -678,15 +676,12 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.TLAS = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 	CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 	CommonParameters.LightDataPacked = View.RayTracingLightData.UniformBuffer;
-	CommonParameters.LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
 
 	CommonParameters.SceneTextures = SceneTextureParameters;
 	SetupSkyLightVisibilityRaysParameters(GraphBuilder, View, &CommonParameters.SkyLightVisibilityRaysData);
 
 	// Hybrid reflection path samples lit scene color texture instead of performing a ray trace.
 	CommonParameters.SceneColor = bHybridReflections ? SceneTextures.Color.Resolve : SystemTextures.Black;
-
-	CommonParameters.SSProfilesTexture = View.RayTracingSubSurfaceProfileTexture;
 
 	CommonParameters.ReflectionStruct = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	CommonParameters.FogUniformParameters = CreateFogUniformBuffer(GraphBuilder, View);

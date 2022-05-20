@@ -185,8 +185,6 @@ void SetLumenHardwareRayTracingSharedParameters(
 
 	// Lighting data
 	SharedParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;
-	SharedParameters->LightDataBuffer = View.RayTracingLightData.LightBufferSRV;
-	SharedParameters->SSProfilesTexture = View.RayTracingSubSurfaceProfileTexture;
 
 	// Inline
 	SharedParameters->HitGroupData = View.LumenHardwareRayTracingHitDataBufferSRV;

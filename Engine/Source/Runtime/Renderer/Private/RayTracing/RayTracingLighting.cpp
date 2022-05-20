@@ -355,7 +355,6 @@ FRayTracingLightData CreateRayTracingLightData(
 	LightingData.LightBufferSRV = RHICreateShaderResourceView(LightingData.LightBuffer);
 
 	LightData.LightDataBuffer = LightingData.LightBufferSRV;
-	LightData.SSProfilesTexture = View.RayTracingSubSurfaceProfileSRV;
 
 	LightingData.UniformBuffer = CreateUniformBufferImmediate(LightData, Usage);
 
