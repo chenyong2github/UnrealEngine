@@ -75,9 +75,10 @@ void FIKRigEditor::ShutdownModule()
 	FEditorModeRegistry::Get().UnregisterMode(FIKRetargetEditPoseMode::ModeName);
 
 	// unregister asset actions
-	IAssetTools& ToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	if (FModuleManager::Get().IsModuleLoaded("AssetTools"))
 	{
+		IAssetTools& ToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
+		
 		if (IKRigDefinitionAssetAction.IsValid())
 		{
 			ToolsModule.UnregisterAssetTypeActions(IKRigDefinitionAssetAction.ToSharedRef());
