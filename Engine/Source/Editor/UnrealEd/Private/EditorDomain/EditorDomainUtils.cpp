@@ -171,8 +171,8 @@ const TCHAR* EditorDomainVersion = TEXT("D3E2B4E479C34305952A97AA63A8E19D");
 
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
-const TCHAR* EditorDomainBulkDataListBucketName = TEXT("EditorDomainBulkDataList");
-const TCHAR* EditorDomainBulkDataPayloadIdBucketName = TEXT("EditorDomainBulkDataPayloadId");
+const TCHAR* BulkDataListBucketName = TEXT("BulkDataList");
+const TCHAR* BulkDataPayloadIdBucketName = TEXT("BulkDataPayloadId");
 
 static bool GetEditorDomainSaveUnversioned()
 {
@@ -1118,14 +1118,14 @@ UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FIoHash& EditorDomain
 
 static UE::DerivedData::FCacheKey GetBulkDataListKey(const FIoHash& EditorDomainHash)
 {
-	static UE::DerivedData::FCacheBucket EditorDomainBulkDataListBucket(EditorDomainBulkDataListBucketName);
-	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataListBucket, EditorDomainHash };
+	static UE::DerivedData::FCacheBucket BulkDataListBucket(BulkDataListBucketName);
+	return UE::DerivedData::FCacheKey{ BulkDataListBucket, EditorDomainHash };
 }
 
 static UE::DerivedData::FCacheKey GetBulkDataPayloadIdKey(const FIoHash& PackageAndGuidHash)
 {
-	static UE::DerivedData::FCacheBucket EditorDomainBulkDataPayloadIdBucket(EditorDomainBulkDataPayloadIdBucketName);
-	return UE::DerivedData::FCacheKey{ EditorDomainBulkDataPayloadIdBucket, PackageAndGuidHash };
+	static UE::DerivedData::FCacheBucket BulkDataPayloadIdBucket(BulkDataPayloadIdBucketName);
+	return UE::DerivedData::FCacheKey{ BulkDataPayloadIdBucket, PackageAndGuidHash };
 }
 
 static UE::DerivedData::FValueId GetBulkDataValueId()

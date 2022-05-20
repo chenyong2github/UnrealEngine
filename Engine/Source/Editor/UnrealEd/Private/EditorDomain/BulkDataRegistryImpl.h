@@ -22,7 +22,7 @@ struct FIoHash;
 namespace UE::BulkDataRegistry::Private
 {
 
-class FBulkDataRegistryEditorDomain;
+class FBulkDataRegistryImpl;
 
 /** Struct for storage of a BulkData in the registry, including the BulkData itself and data about cache status. */
 struct FRegisteredBulk
@@ -47,7 +47,7 @@ void Serialize(FArchive& Ar, TArray<UE::Serialization::FEditorBulkData>& InDatas
 class FPendingPackage
 {
 public:
-	FPendingPackage(FName PackageName, FBulkDataRegistryEditorDomain* InOwner);
+	FPendingPackage(FName PackageName, FBulkDataRegistryImpl* InOwner);
 	FPendingPackage(FPendingPackage&& Other) = delete;
 	FPendingPackage(const FPendingPackage& Other) = delete;
 
@@ -77,7 +77,7 @@ private:
 	TArray<UE::Serialization::FEditorBulkData> BulkDatas;
 	TArray<UE::Serialization::FEditorBulkData> CachedBulkDatas;
 	UE::DerivedData::FRequestOwner BulkDataListCacheRequest;
-	FBulkDataRegistryEditorDomain* Owner;
+	FBulkDataRegistryImpl* Owner;
 	/**
 	 * When PendingOperations reaches zero, we can remove the FPendingPackage.
 	 */
@@ -111,7 +111,7 @@ public:
 class FUpdatePayloadWorker : public FNonAbandonableTask
 {
 public:
-	FUpdatePayloadWorker(FBulkDataRegistryEditorDomain* InBulkDataRegistry,
+	FUpdatePayloadWorker(FBulkDataRegistryImpl* InBulkDataRegistry,
 		const UE::Serialization::FEditorBulkData& InSourceBulk);
 
 	void DoWork();
@@ -123,7 +123,7 @@ public:
 private:
 	UE::Serialization::FEditorBulkData BulkData;
 	TRefCountPtr<FTaskSharedDataLock> SharedDataLock;
-	FBulkDataRegistryEditorDomain* BulkDataRegistry;
+	FBulkDataRegistryImpl* BulkDataRegistry;
 };
 
 /** Data storage for the FUpdatePayloadWorker that is updated while in flight for additional requesters. */
@@ -160,11 +160,11 @@ private:
 };
 
 /** Implementation of a BulkDataRegistry that stores its persistent data in a DDC bucket. */
-class FBulkDataRegistryEditorDomain : public IBulkDataRegistry, public FTickableEditorObject, public FTickableCookObject
+class FBulkDataRegistryImpl : public IBulkDataRegistry, public FTickableEditorObject, public FTickableCookObject
 {
 public:
-	FBulkDataRegistryEditorDomain();
-	virtual ~FBulkDataRegistryEditorDomain();
+	FBulkDataRegistryImpl();
+	virtual ~FBulkDataRegistryImpl();
 
 	// IBulkDataRegistry interface
 	virtual UE::BulkDataRegistry::ERegisterResult

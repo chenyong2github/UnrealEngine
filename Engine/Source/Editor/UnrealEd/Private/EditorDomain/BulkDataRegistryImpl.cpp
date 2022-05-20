@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "BulkDataRegistryEditorDomain.h"
+#include "BulkDataRegistryImpl.h"
 
 #include "Serialization/BulkDataRegistry.h"
 #include "Compression/CompressedBuffer.h"
@@ -47,20 +47,20 @@ public:
 
 	static IBulkDataRegistry* SetBulkDataRegistry()
 	{
-		return new FBulkDataRegistryEditorDomain();
+		return new FBulkDataRegistryImpl();
 	}
 } GRegisterAsBulkDataRegistry;
 
 
-FBulkDataRegistryEditorDomain::FBulkDataRegistryEditorDomain()
+FBulkDataRegistryImpl::FBulkDataRegistryImpl()
 {
 	SharedDataLock = new FTaskSharedDataLock();
 	// We piggyback on the BulkDataRegistry hook to set the pointer to tunnel in the pointer to the EditorBuildInputResolver as well
 	SetGlobalBuildInputResolver(&UE::DerivedData::FEditorBuildInputResolver::Get());
-	FCoreUObjectDelegates::OnEndLoadPackage.AddRaw(this, &FBulkDataRegistryEditorDomain::OnEndLoadPackage);
+	FCoreUObjectDelegates::OnEndLoadPackage.AddRaw(this, &FBulkDataRegistryImpl::OnEndLoadPackage);
 }
 
-FBulkDataRegistryEditorDomain::~FBulkDataRegistryEditorDomain()
+FBulkDataRegistryImpl::~FBulkDataRegistryImpl()
 {
 	FCoreUObjectDelegates::OnEndLoadPackage.RemoveAll(this);
 	SetGlobalBuildInputResolver(nullptr);
@@ -116,7 +116,7 @@ FBulkDataRegistryEditorDomain::~FBulkDataRegistryEditorDomain()
 	}
 }
 
-void FBulkDataRegistryEditorDomain::OnEndLoadPackage(const FEndLoadPackageContext& Context)
+void FBulkDataRegistryImpl::OnEndLoadPackage(const FEndLoadPackageContext& Context)
 {
 	TArray<TUniquePtr<FPendingPackage>> PackagesToWrite;
 	{
@@ -156,7 +156,7 @@ void FBulkDataRegistryEditorDomain::OnEndLoadPackage(const FEndLoadPackageContex
 }
 
 UE::BulkDataRegistry::ERegisterResult
-FBulkDataRegistryEditorDomain::TryRegister(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
+FBulkDataRegistryImpl::TryRegister(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
 {
 	if (!BulkData.GetIdentifier().IsValid())
 	{
@@ -246,7 +246,7 @@ FBulkDataRegistryEditorDomain::TryRegister(UPackage* Owner, const UE::Serializat
 	return UE::BulkDataRegistry::ERegisterResult::Success;
 }
 
-void FBulkDataRegistryEditorDomain::UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
+void FBulkDataRegistryImpl::UpdateRegistrationData(UPackage* Owner, const UE::Serialization::FEditorBulkData& BulkData)
 {
 	if (!BulkData.GetIdentifier().IsValid())
 	{
@@ -274,7 +274,7 @@ void FBulkDataRegistryEditorDomain::UpdateRegistrationData(UPackage* Owner, cons
 	ResaveSizeTracker.UpdateRegistrationData(Owner, BulkData);
 }
 
-void FBulkDataRegistryEditorDomain::Unregister(const UE::Serialization::FEditorBulkData& BulkData)
+void FBulkDataRegistryImpl::Unregister(const UE::Serialization::FEditorBulkData& BulkData)
 {
 	const FGuid& Key = BulkData.GetIdentifier();
 	FWriteScopeLock RegistryScopeLock(RegistryLock);
@@ -282,7 +282,7 @@ void FBulkDataRegistryEditorDomain::Unregister(const UE::Serialization::FEditorB
 	Registry.Remove(Key);
 }
 
-void FBulkDataRegistryEditorDomain::OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData)
+void FBulkDataRegistryImpl::OnExitMemory(const UE::Serialization::FEditorBulkData& BulkData)
 {
 	const FGuid& Key = BulkData.GetIdentifier();
 	FWriteScopeLock RegistryScopeLock(RegistryLock);
@@ -300,7 +300,7 @@ void FBulkDataRegistryEditorDomain::OnExitMemory(const UE::Serialization::FEdito
 	}
 }
 
-TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryEditorDomain::GetMeta(const FGuid& BulkDataId)
+TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryImpl::GetMeta(const FGuid& BulkDataId)
 {
 	bool bIsWriteLock = false;
 	FRWScopeLock RegistryScopeLock(RegistryLock, SLT_ReadOnly);
@@ -350,7 +350,7 @@ TFuture<UE::BulkDataRegistry::FMetaData> FBulkDataRegistryEditorDomain::GetMeta(
 	}
 }
 
-TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(const FGuid& BulkDataId)
+TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryImpl::GetData(const FGuid& BulkDataId)
 {
 	TOptional<UE::Serialization::FEditorBulkData> CopyBulk;
 	{
@@ -425,7 +425,7 @@ TFuture<UE::BulkDataRegistry::FData> FBulkDataRegistryEditorDomain::GetData(cons
 		});
 }
 
-bool FBulkDataRegistryEditorDomain::TryGetBulkData(const FGuid& BulkDataId, UE::Serialization::FEditorBulkData* OutBulk,
+bool FBulkDataRegistryImpl::TryGetBulkData(const FGuid& BulkDataId, UE::Serialization::FEditorBulkData* OutBulk,
 	FName* OutOwner)
 {
 	FReadScopeLock RegistryScopeLock(RegistryLock);
@@ -449,12 +449,12 @@ bool FBulkDataRegistryEditorDomain::TryGetBulkData(const FGuid& BulkDataId, UE::
 	return false;
 }
 
-uint64 FBulkDataRegistryEditorDomain::GetBulkDataResaveSize(FName PackageName)
+uint64 FBulkDataRegistryImpl::GetBulkDataResaveSize(FName PackageName)
 {
 	return ResaveSizeTracker.GetBulkDataResaveSize(PackageName);
 }
 
-void FBulkDataRegistryEditorDomain::TickCook(float DeltaTime, bool bTickComplete)
+void FBulkDataRegistryImpl::TickCook(float DeltaTime, bool bTickComplete)
 {
 	bool bWaitForCooldown = !bTickComplete;
 	check(bActive); // Ticks should not come in after we destruct
@@ -465,12 +465,12 @@ void FBulkDataRegistryEditorDomain::TickCook(float DeltaTime, bool bTickComplete
 	}
 }
 
-void FBulkDataRegistryEditorDomain::Tick(float DeltaTime)
+void FBulkDataRegistryImpl::Tick(float DeltaTime)
 {
 	TickCook(DeltaTime, false /* bTickComplete */);
 }
 
-void FBulkDataRegistryEditorDomain::AddPendingPackageBulkData(FName PackageName, UE::Serialization::FEditorBulkData&& BulkData)
+void FBulkDataRegistryImpl::AddPendingPackageBulkData(FName PackageName, UE::Serialization::FEditorBulkData&& BulkData)
 {
 	FScopeLock PendingPackageScopeLock(&PendingPackageLock);
 	check(bActive); // Registrations should not come in after we destruct, and AsyncTasks should check bActive before calling
@@ -486,14 +486,14 @@ void FBulkDataRegistryEditorDomain::AddPendingPackageBulkData(FName PackageName,
 	PendingPackage->AddBulkData(MoveTemp(BulkData));
 }
 
-void FBulkDataRegistryEditorDomain::AddTempLoadedPayload(const FGuid& RegistryKey, uint64 PayloadSize)
+void FBulkDataRegistryImpl::AddTempLoadedPayload(const FGuid& RegistryKey, uint64 PayloadSize)
 {
 	// Called within RegistryLock WriteLock
 	TempLoadedPayloads.Add(FTempLoadedPayload{ RegistryKey, PayloadSize, FPlatformTime::Seconds() + Constants::TempLoadedPayloadsDuration });
 	TempLoadedPayloadsSize += PayloadSize;
 }
 
-void FBulkDataRegistryEditorDomain::PruneTempLoadedPayloads()
+void FBulkDataRegistryImpl::PruneTempLoadedPayloads()
 {
 	// Called within RegistryLock WriteLock
 	if (!TempLoadedPayloads.IsEmpty())
@@ -516,7 +516,7 @@ void FBulkDataRegistryEditorDomain::PruneTempLoadedPayloads()
 	}
 }
 
-void FBulkDataRegistryEditorDomain::WritePayloadIdToCache(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData) const
+void FBulkDataRegistryImpl::WritePayloadIdToCache(FName PackageName, const UE::Serialization::FEditorBulkData& BulkData) const
 {
 	check(!PackageName.IsNone());
 	TArray<uint8> Bytes;
@@ -525,7 +525,7 @@ void FBulkDataRegistryEditorDomain::WritePayloadIdToCache(FName PackageName, con
 	UE::EditorDomain::PutBulkDataPayloadId(PackageName, BulkData.GetIdentifier(), MakeSharedBufferFromArray(MoveTemp(Bytes)));
 }
 
-void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, TArray<TRefCountPtr<FPendingPayloadId>>&& OldPendings,
+void FBulkDataRegistryImpl::ReadPayloadIdsFromCache(FName PackageName, TArray<TRefCountPtr<FPendingPayloadId>>&& OldPendings,
 	TArray<TRefCountPtr<FPendingPayloadId>>&& NewPendings)
 {
 	// Cancel any old requests for the Guids in NewPendings; we are about to overwrite them
@@ -625,7 +625,7 @@ void FBulkDataRegistryEditorDomain::ReadPayloadIdsFromCache(FName PackageName, T
 	OldPendings.Empty();
 }
 
-FPendingPackage::FPendingPackage(FName InPackageName, FBulkDataRegistryEditorDomain* InOwner)
+FPendingPackage::FPendingPackage(FName InPackageName, FBulkDataRegistryImpl* InOwner)
 	: PackageName(InPackageName)
 	, BulkDataListCacheRequest(UE::DerivedData::EPriority::Low)
 	, Owner(InOwner)
@@ -803,7 +803,7 @@ void FPendingPackage::WriteCache()
 	UE::EditorDomain::PutBulkDataList(PackageName, MakeSharedBufferFromArray(MoveTemp(Bytes)));
 }
 
-FUpdatePayloadWorker::FUpdatePayloadWorker(FBulkDataRegistryEditorDomain* InBulkDataRegistry,
+FUpdatePayloadWorker::FUpdatePayloadWorker(FBulkDataRegistryImpl* InBulkDataRegistry,
 	const UE::Serialization::FEditorBulkData& InSourceBulk)
 	: BulkData(InSourceBulk)
 	, BulkDataRegistry(InBulkDataRegistry)
