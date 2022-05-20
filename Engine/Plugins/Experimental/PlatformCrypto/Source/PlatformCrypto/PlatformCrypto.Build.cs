@@ -25,6 +25,8 @@ namespace UnrealBuildTool.Rules
 					}
 					);
 			}
+			PublicDefinitions.Add("PLATFORM_ENCRYPTION_CONTEXT_HEADER=\"" + PlatformEncryptionContextHeader + "\"");
 		}
+		protected virtual string PlatformEncryptionContextHeader { get { return "EncryptionContextOpenSSL.h"; } }
 	}
 }
