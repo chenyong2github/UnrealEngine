@@ -792,7 +792,7 @@ bool SMVVMViewModelContextListWidget::ValidateRemoveViewModelContext(TSharedPtr<
 	TArray<TSharedPtr<SHorizontalBox>> ConflictList;
 	for (const FMVVMBlueprintViewBinding& Binding : Bindings)
 	{
-		if (Binding.ViewModelPath.ContextId == ContextToRemove->GetViewModelId())
+		if (Binding.ViewModelPath.GetViewModelId() == ContextToRemove->GetViewModelId())
 		{
 			TSharedRef<SHorizontalBox> Container = SNew(SHorizontalBox);
 			Container->AddSlot()
@@ -802,6 +802,7 @@ bool SMVVMViewModelContextListWidget::ValidateRemoveViewModelContext(TSharedPtr<
 				SNew(STextBlock)
 				.Text(FText::FromString(Binding.ViewModelPath.GetBasePropertyPath()))
 			];
+
 			Container->AddSlot()
 			.Padding(FMargin(3.0f, 0.0f))
 			.AutoWidth()
@@ -816,12 +817,13 @@ bool SMVVMViewModelContextListWidget::ValidateRemoveViewModelContext(TSharedPtr<
 					.Image(UE::MVVM::Private::ManageViewModelsGetModeBrush(Binding.BindingType))
 				]
 			];
+
 			Container->AddSlot()
 			.Padding(FMargin(3.0f, 0.0f))
 			.AutoWidth()
 			[
 				SNew(STextBlock)
-				.Text(FText::FormatOrdered(INVTEXT("{0}.{1}"), FText::FromString(Binding.WidgetPath.WidgetName.ToString()), FText::FromString(Binding.WidgetPath.GetBasePropertyPath())))
+				.Text(FText::FormatOrdered(INVTEXT("{0}.{1}"), FText::FromString(Binding.WidgetPath.GetWidgetName().ToString()), FText::FromString(Binding.WidgetPath.GetBasePropertyPath())))
 			];
 			ConflictList.Add(Container);
 		}

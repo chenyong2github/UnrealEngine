@@ -17,6 +17,8 @@ namespace UE::MVVM
 	class IFieldPathHelper
 	{
 	public:
+		virtual ~IFieldPathHelper() {}
+
 		virtual void GetAvailableFields(TSet<FMVVMConstFieldVariant>& Fields) const = 0;
 		virtual FMVVMConstFieldVariant GetSelectedField() const = 0;
 
@@ -25,8 +27,7 @@ namespace UE::MVVM
 		virtual void SetSelectedSource(const FBindingSource& Source) const = 0;
 
 		virtual FMVVMBindingName GetBindingName() const = 0;
-		virtual void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const = 0;
-		virtual void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const = 0;
+		virtual void SetBindingReference(const FMVVMConstFieldVariant& InField) const = 0;
 		virtual void ResetBinding() const = 0;
 	};
 
@@ -35,10 +36,12 @@ namespace UE::MVVM
 	public:
 		FWidgetFieldPathHelper() {}
 		virtual ~FWidgetFieldPathHelper() {}
-		FWidgetFieldPathHelper(const TAttribute<FMVVMWidgetPropertyPath*>& WidgetPath, const UWidgetBlueprint* InWidgetBlueprint) :
-			PathAttr(WidgetPath),
+		FWidgetFieldPathHelper(FMVVMBlueprintPropertyPath* WidgetPath, const UWidgetBlueprint* InWidgetBlueprint) :
+			Path(WidgetPath),
 			WidgetBlueprint(InWidgetBlueprint)
 		{
+			check(Path);
+			check(Path->IsFromWidget() || Path->IsEmpty());
 		}
 
 		virtual void GetAvailableFields(TSet<FMVVMConstFieldVariant>& Fields) const override;
@@ -49,12 +52,11 @@ namespace UE::MVVM
 		virtual void SetSelectedSource(const FBindingSource& Source) const override;
 
 		virtual FMVVMBindingName GetBindingName() const override;
-		virtual void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const override;
-		virtual void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const override;
+		virtual void SetBindingReference(const FMVVMConstFieldVariant& InField) const override;
 		virtual void ResetBinding() const override;
 
 	private:
-		TAttribute<FMVVMWidgetPropertyPath*> PathAttr;
+		FMVVMBlueprintPropertyPath* Path;
 		const UWidgetBlueprint* WidgetBlueprint = nullptr;
 	};
 
@@ -63,10 +65,12 @@ namespace UE::MVVM
 	public:
 		FViewModelFieldPathHelper() {}
 		virtual ~FViewModelFieldPathHelper() {}
-		FViewModelFieldPathHelper(const TAttribute<FMVVMViewModelPropertyPath*>& ViewModelPath, const UWidgetBlueprint* InWidgetBlueprint) :
-			PathAttr(ViewModelPath),
+		FViewModelFieldPathHelper(FMVVMBlueprintPropertyPath* ViewModelPath, const UWidgetBlueprint* InWidgetBlueprint) :
+			Path(ViewModelPath),
 			WidgetBlueprint(InWidgetBlueprint)
 		{
+			check(Path);
+			check(Path->IsFromViewModel() || Path->IsEmpty());
 		}
 
 		virtual void GetAvailableFields(TSet<FMVVMConstFieldVariant>& Fields) const override;
@@ -77,12 +81,11 @@ namespace UE::MVVM
 		virtual void SetSelectedSource(const FBindingSource& Source) const override;
 
 		virtual FMVVMBindingName GetBindingName() const override;
-		virtual void SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const override;
-		virtual void SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const override;
+		virtual void SetBindingReference(const FMVVMConstFieldVariant& InField) const override;
 		virtual void ResetBinding() const override;
 
 	private:
-		TAttribute<FMVVMViewModelPropertyPath*> PathAttr;
+		FMVVMBlueprintPropertyPath* Path;
 		const UWidgetBlueprint* WidgetBlueprint = nullptr;
 	};
 }

@@ -74,23 +74,22 @@ public:
 		if (InField.IsEmpty())
 		{
 			Reset();
+			return;
+		}
+
+		BindingReference = InField.CreateMemberReference();
+
+		if (InField.IsProperty())
+		{
+			BindingKind = EBindingKind::Property;
+		}
+		else if (InField.IsFunction())
+		{
+			BindingKind = EBindingKind::Function;
 		}
 		else
 		{
-			BindingReference = InField.CreateMemberReference();
-
-			if (InField.IsProperty())
-			{
-				BindingKind = EBindingKind::Property;
-			}
-			else if (InField.IsFunction())
-			{
-				BindingKind = EBindingKind::Function;
-			}
-			else
-			{
-				ensureAlwaysMsgf(false, TEXT("Binding to field of unknown type!"));
-			}
+			ensureAlwaysMsgf(false, TEXT("Binding to field of unknown type!"));
 		}
 	}
 
@@ -123,7 +122,7 @@ public:
  * Used to associate properties within MVVM bindings in editor & during MVVM compilation
  */
 USTRUCT()
-struct FMVVMBlueprintPropertyPathBase
+struct FMVVMBlueprintPropertyPath
 {
 	GENERATED_BODY()
 
@@ -131,6 +130,12 @@ private:
 	/** Reference to property for this binding. */
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	TArray<FMVVMBlueprintFieldPath> Paths;
+
+	UPROPERTY(EditAnywhere, Category = "MVVM")
+	FName WidgetName;
+
+	UPROPERTY(EditAnywhere, Category = "MVVM")
+	FGuid ContextId;
 
 #if WITH_EDITORONLY_DATA
 	// Use the Paths. BindingReference and BindingKind are deprecated.
@@ -171,6 +176,49 @@ public:
 		Paths.Reset();
 	}
 
+	void ResetSource()
+	{
+		ContextId = FGuid();
+		WidgetName = FName();
+	}
+
+	bool IsFromWidget() const
+	{
+		return !WidgetName.IsNone();
+	}
+
+	bool IsFromViewModel() const
+	{
+		return ContextId.IsValid();
+	}
+
+	FGuid GetViewModelId() const
+	{
+		return ContextId;
+	}
+
+	void SetViewModelId(FGuid InViewModelId)
+	{
+		WidgetName = FName();
+		ContextId = InViewModelId;
+	}
+
+	FName GetWidgetName() const
+	{
+		return WidgetName;
+	}
+
+	void SetWidgetName(FName InWidgetName)
+	{
+		ContextId = FGuid();
+		WidgetName = InWidgetName;
+	}
+
+	bool IsEmpty() const
+	{
+		return !IsFromWidget() && !IsFromViewModel() && BindingReference.GetMemberName() == FName();
+	}
+
 	/**
 	 * Get the full path without the first property name.
 	 * returns Field.SubProperty.SubProperty from ViewModel.Field.SubProeprty.SubProperty
@@ -189,97 +237,31 @@ public:
 		return Result.ToString();
 	}
 
-public:
-	bool operator==(const FMVVMBlueprintPropertyPathBase& Other) const
+	bool operator==(const FMVVMBlueprintPropertyPath& Other) const
 	{
 		return Paths == Other.Paths;
 	}
-	bool operator!=(const FMVVMBlueprintPropertyPathBase& Other) const
+
+	bool operator!=(const FMVVMBlueprintPropertyPath& Other) const
 	{
 		return !operator==(Other);
 	}
 
-public:
 	void PostSerialize(const FArchive& Ar)
 	{
-		if (Ar.IsLoading() && !BindingReference.GetMemberName().IsNone())
+		if (Ar.IsLoading())
 		{
-			Paths.AddDefaulted_GetRef().SetDeprecatedBindingReference(BindingReference, BindingKind);
-			BindingReference = FMemberReference();
+			if (!BindingReference.GetMemberName().IsNone())
+			{
+				Paths.AddDefaulted_GetRef().SetDeprecatedBindingReference(BindingReference, BindingKind);
+				BindingReference = FMemberReference();
+			}
 		}
 	}
 };
 
 template<>
-struct TStructOpsTypeTraits<FMVVMBlueprintPropertyPathBase> : public TStructOpsTypeTraitsBase2<FMVVMBlueprintPropertyPathBase>
-{
-	enum
-	{
-		WithPostSerialize = true,
-	};
-};
-
-
-/** */
-USTRUCT(BlueprintType)
-struct FMVVMViewModelPropertyPath : public FMVVMBlueprintPropertyPathBase
-{
-	GENERATED_BODY();
-
-	UPROPERTY(EditAnywhere, Category = "MVVM")
-	FGuid ContextId;
-
-	bool operator==(const FMVVMViewModelPropertyPath& Other) const
-	{
-		return ContextId == Other.ContextId &&
-			FMVVMBlueprintPropertyPathBase::operator==(Other);
-	}
-
-	bool operator!=(const FMVVMViewModelPropertyPath& Other) const
-	{
-		return ContextId != Other.ContextId &&
-			FMVVMBlueprintPropertyPathBase::operator!=(Other);
-	}
-};
-
-
-template<>
-struct TStructOpsTypeTraits<FMVVMViewModelPropertyPath> : public TStructOpsTypeTraitsBase2<FMVVMViewModelPropertyPath>
-{
-	enum
-	{
-		WithPostSerialize = true,
-	};
-};
-
-
-/** */
-USTRUCT(BlueprintType)
-struct FMVVMWidgetPropertyPath : public FMVVMBlueprintPropertyPathBase
-{
-	GENERATED_BODY();
-
-	/** The context from which the destination path will be evaluated from. */
-	UPROPERTY(EditAnywhere, Category = "MVVM")
-	FName WidgetName;
-
-	bool operator==(const FMVVMWidgetPropertyPath& Other) const
-	{
-		return WidgetName == Other.WidgetName &&
-			FMVVMBlueprintPropertyPathBase::operator==(Other);
-	}
-
-
-	bool operator!=(const FMVVMWidgetPropertyPath& Other) const
-	{
-		return WidgetName != Other.WidgetName ||
-			FMVVMBlueprintPropertyPathBase::operator!=(Other);
-	}
-};
-
-
-template<>
-struct TStructOpsTypeTraits<FMVVMWidgetPropertyPath> : public TStructOpsTypeTraitsBase2<FMVVMWidgetPropertyPath>
+struct TStructOpsTypeTraits<FMVVMBlueprintPropertyPath> : public TStructOpsTypeTraitsBase2<FMVVMBlueprintPropertyPath>
 {
 	enum
 	{

@@ -27,12 +27,11 @@ private:
 	TOptional<UE::MVVM::FBindingSource> SelectedSource;
 };
 
-
 class SMVVMWidgetPropertyPath : public SMVVMPropertyPathBase
 {
 public:
 	SLATE_BEGIN_ARGS(SMVVMWidgetPropertyPath) {}
-		SLATE_ATTRIBUTE(FMVVMWidgetPropertyPath*, WidgetPath)
+		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath*, WidgetPath)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint);
@@ -51,7 +50,7 @@ class SMVVMViewModelPropertyPath : public SMVVMPropertyPathBase
 {
 public:
 	SLATE_BEGIN_ARGS(SMVVMViewModelPropertyPath) {}
-		SLATE_ATTRIBUTE(FMVVMViewModelPropertyPath*, ViewModelPath)
+		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath*, ViewModelPath)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint);

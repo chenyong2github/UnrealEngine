@@ -15,21 +15,21 @@ namespace UE::MVVM
 {
 	struct FBindingSource;
 
-	enum class EPropertyPathType
+	class FPropertyPathCustomization : public IPropertyTypeCustomization
 	{
-		Widget,
-		ViewModel
-	};
-
-	class FPropertyPathCustomizationBase : public IPropertyTypeCustomization
-	{
-	protected:
-		FPropertyPathCustomizationBase(UWidgetBlueprint* WidgetBlueprint, EPropertyPathType PathType);
-		~FPropertyPathCustomizationBase();
-
 	public:
+		FPropertyPathCustomization(UWidgetBlueprint* WidgetBlueprint);
+		~FPropertyPathCustomization();
+
 		virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 		virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override {}
+
+		static TSharedRef<IPropertyTypeCustomization> MakeInstance(UWidgetBlueprint* InWidgetBlueprint)
+		{
+			check(InWidgetBlueprint != nullptr);
+
+			return MakeShared<FPropertyPathCustomization>(InWidgetBlueprint);
+		}
 
 	private:
 		void OnSourceSelectionChanged(FBindingSource Selected);
@@ -46,7 +46,6 @@ namespace UE::MVVM
 
 	private:
 		TSharedPtr<IPropertyHandle> PropertyHandle;
-		EPropertyPathType PathType;
 		UWidgetBlueprint* WidgetBlueprint = nullptr;
 
 		TSharedPtr<SMVVMSourceSelector> SourceSelector;
@@ -58,37 +57,5 @@ namespace UE::MVVM
 		bool bPropertySelectionChanging = false;
 
 		FDelegateHandle OnBlueprintChangedHandle;
-	};
-
-	class FWidgetPropertyPathCustomization : public FPropertyPathCustomizationBase
-	{
-	public:
-		static TSharedRef<IPropertyTypeCustomization> MakeInstance(UWidgetBlueprint* InWidgetBlueprint)
-		{
-			check(InWidgetBlueprint != nullptr);
-			TSharedRef<FWidgetPropertyPathCustomization> Customization = MakeShared<FWidgetPropertyPathCustomization>(InWidgetBlueprint);
-			return Customization;
-		}
-	
-		FWidgetPropertyPathCustomization(UWidgetBlueprint* WidgetBlueprint) : 
-			FPropertyPathCustomizationBase(WidgetBlueprint, EPropertyPathType::Widget)
-		{
-		}
-	};
-
-	class FViewModelPropertyPathCustomization : public FPropertyPathCustomizationBase
-	{
-	public:
-		static TSharedRef<IPropertyTypeCustomization> MakeInstance(UWidgetBlueprint* InWidgetBlueprint)
-		{
-			check(InWidgetBlueprint != nullptr);
-			TSharedRef<FViewModelPropertyPathCustomization> Customization = MakeShared<FViewModelPropertyPathCustomization>(InWidgetBlueprint);
-			return Customization;
-		}
-
-		FViewModelPropertyPathCustomization(UWidgetBlueprint* WidgetBlueprint) :
-			FPropertyPathCustomizationBase(WidgetBlueprint, EPropertyPathType::ViewModel)
-		{
-		}
 	};
 }

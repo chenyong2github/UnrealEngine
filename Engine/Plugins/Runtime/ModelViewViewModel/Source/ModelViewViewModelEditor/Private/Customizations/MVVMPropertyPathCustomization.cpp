@@ -29,7 +29,7 @@ namespace UE::MVVM
 	{
 		// figure out what the selection is - if any is different in the case of a multiselection, then return null
 		// this is required for getting the selection of the other pair
-		TArray<TSharedPtr<IFieldPathHelper>> GetPathHelpersForProperty(const TSharedPtr<IPropertyHandle>& PropertyHandle, UWidgetBlueprint* WidgetBlueprint, EPropertyPathType PathType)
+		TArray<TSharedPtr<IFieldPathHelper>> GetPathHelpersForProperty(const TSharedPtr<IPropertyHandle>& PropertyHandle, UWidgetBlueprint* WidgetBlueprint, bool bIsWidget)
 		{
 			TArray<TSharedPtr<IFieldPathHelper>> Result;
 
@@ -39,13 +39,14 @@ namespace UE::MVVM
 			for (void* Datum : RawData)
 			{
 				const FProperty* ThisSelected = nullptr;
-				if (PathType == EPropertyPathType::ViewModel)
+				
+				if (bIsWidget)
 				{
-					Result.Add(MakeShared<FViewModelFieldPathHelper>(reinterpret_cast<FMVVMViewModelPropertyPath*>(Datum), WidgetBlueprint));
+					Result.Add(MakeShared<FWidgetFieldPathHelper>(reinterpret_cast<FMVVMBlueprintPropertyPath*>(Datum), WidgetBlueprint));
 				}
 				else
 				{
-					Result.Add(MakeShared<FWidgetFieldPathHelper>(reinterpret_cast<FMVVMWidgetPropertyPath*>(Datum), WidgetBlueprint));
+					Result.Add(MakeShared<FViewModelFieldPathHelper>(reinterpret_cast<FMVVMBlueprintPropertyPath*>(Datum), WidgetBlueprint));
 				}
 			}
 			return Result;
@@ -62,41 +63,53 @@ namespace UE::MVVM
 		}
 	}
 
-	FPropertyPathCustomizationBase::FPropertyPathCustomizationBase(UWidgetBlueprint* InWidgetBlueprint, EPropertyPathType InPathType) :
-		PathType(InPathType),
+	FPropertyPathCustomization::FPropertyPathCustomization(UWidgetBlueprint* InWidgetBlueprint) :
 		WidgetBlueprint(InWidgetBlueprint)
 	{
 		check(WidgetBlueprint != nullptr);
 
-		OnBlueprintChangedHandle = WidgetBlueprint->OnChanged().AddRaw(this, &FPropertyPathCustomizationBase::HandleBlueprintChanged);
+		OnBlueprintChangedHandle = WidgetBlueprint->OnChanged().AddRaw(this, &FPropertyPathCustomization::HandleBlueprintChanged);
 	}
 
-	FPropertyPathCustomizationBase::~FPropertyPathCustomizationBase()
+	FPropertyPathCustomization::~FPropertyPathCustomization()
 	{
 		WidgetBlueprint->OnChanged().Remove(OnBlueprintChangedHandle);
 	}
 
-	void FPropertyPathCustomizationBase::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+	void FPropertyPathCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 	{
 		PropertyHandle = InPropertyHandle;
-		PathHelpers = Private::GetPathHelpersForProperty(PropertyHandle, WidgetBlueprint, PathType);
+
+		bool bIsWidget = false;
+
+		const FName PropertyName = PropertyHandle->GetProperty()->GetFName();
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath))
+		{
+			bIsWidget = true;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath))
+		{
+			bIsWidget = false;
+		}
+
+		PathHelpers = Private::GetPathHelpersForProperty(PropertyHandle, WidgetBlueprint, bIsWidget);
 
 		TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
 		TSharedPtr<IPropertyHandle> OtherHandle;
 
-		if (PathType == EPropertyPathType::ViewModel)
+		if (bIsWidget)
 		{
-			OtherHandle = ParentHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath));
+			OtherHandle = ParentHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath));
 		}
 		else
 		{
-			OtherHandle = ParentHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath));
+			OtherHandle = ParentHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath));
 		}
 
 		if (OtherHandle.IsValid() && OtherHandle->IsValidHandle())
 		{
-			OtherHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPropertyPathCustomizationBase::OnOtherPropertyChanged));
-			OtherHelpers = Private::GetPathHelpersForProperty(OtherHandle, WidgetBlueprint, PathType == EPropertyPathType::Widget ? EPropertyPathType::ViewModel : EPropertyPathType::Widget);
+			OtherHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPropertyPathCustomization::OnOtherPropertyChanged));
+			OtherHelpers = Private::GetPathHelpersForProperty(OtherHandle, WidgetBlueprint, !bIsWidget);
 		}
 		else
 		{
@@ -106,7 +119,7 @@ namespace UE::MVVM
 		TSharedPtr<IPropertyHandle> BindingTypeHandle = ParentHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, BindingType));
 		if (BindingTypeHandle.IsValid() && BindingTypeHandle->IsValidHandle())
 		{
-			BindingTypeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPropertyPathCustomizationBase::OnOtherPropertyChanged));
+			BindingTypeHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPropertyPathCustomization::OnOtherPropertyChanged));
 		}
 		else
 		{
@@ -132,8 +145,8 @@ namespace UE::MVVM
 				[
 					SAssignNew(SourceSelector, SMVVMSourceSelector)
 					.TextStyle(FAppStyle::Get(), "SmallText")
-					.PathHelpers(this, &FPropertyPathCustomizationBase::GetRawPathHelpers)
-					.OnSelectionChanged(this, &FPropertyPathCustomizationBase::OnSourceSelectionChanged)
+					.PathHelpers(this, &FPropertyPathCustomization::GetRawPathHelpers)
+					.OnSelectionChanged(this, &FPropertyPathCustomization::OnSourceSelectionChanged)
 				]
 			+ SHorizontalBox::Slot()
 				.Padding(5, 0, 0, 0)
@@ -143,28 +156,28 @@ namespace UE::MVVM
 					.TextStyle(FAppStyle::Get(), "SmallText")
 					.PathHelpers(GetRawPathHelpers())
 					.CounterpartHelpers(GetRawOtherHelpers())
-					.BindingMode(this, &FPropertyPathCustomizationBase::GetCurrentBindingMode)
-					.OnSelectionChanged(this, &FPropertyPathCustomizationBase::OnPropertySelectionChanged)
+					.BindingMode(this, &FPropertyPathCustomization::GetCurrentBindingMode)
+					.OnSelectionChanged(this, &FPropertyPathCustomization::OnPropertySelectionChanged)
 				]				
 			];
 	}
 
-	TArray<IFieldPathHelper*> FPropertyPathCustomizationBase::GetRawPathHelpers() const
+	TArray<IFieldPathHelper*> FPropertyPathCustomization::GetRawPathHelpers() const
 	{
 		return Private::GetRawPathHelperPointers(PathHelpers);
 	}
 
-	TArray<IFieldPathHelper*> FPropertyPathCustomizationBase::GetRawOtherHelpers() const
+	TArray<IFieldPathHelper*> FPropertyPathCustomization::GetRawOtherHelpers() const
 	{
 		return Private::GetRawPathHelperPointers(OtherHelpers);
 	}
 
-	void FPropertyPathCustomizationBase::OnOtherPropertyChanged()
+	void FPropertyPathCustomization::OnOtherPropertyChanged()
 	{
 		FieldSelector->Refresh();
 	}
 
-	EMVVMBindingMode FPropertyPathCustomizationBase::GetCurrentBindingMode() const
+	EMVVMBindingMode FPropertyPathCustomization::GetCurrentBindingMode() const
 	{
 		TSharedPtr<IPropertyHandle> BindingTypeHandle = PropertyHandle->GetParentHandle()->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, BindingType));
 		uint8 BindingMode;
@@ -176,7 +189,7 @@ namespace UE::MVVM
 		return EMVVMBindingMode::OneWayToDestination;
 	}
 
-	void FPropertyPathCustomizationBase::OnSourceSelectionChanged(FBindingSource Selected)
+	void FPropertyPathCustomization::OnSourceSelectionChanged(FBindingSource Selected)
 	{
 		FScopedTransaction Transaction(LOCTEXT("ChangeSource", "Change binding source."));
 
@@ -193,7 +206,7 @@ namespace UE::MVVM
 		FieldSelector->Refresh();
 	}
 
-	void FPropertyPathCustomizationBase::OnPropertySelectionChanged(FMVVMConstFieldVariant Selected)
+	void FPropertyPathCustomization::OnPropertySelectionChanged(FMVVMConstFieldVariant Selected)
 	{
 		if (bPropertySelectionChanging)
 		{
@@ -215,7 +228,7 @@ namespace UE::MVVM
 		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 	}
 
-	void FPropertyPathCustomizationBase::HandleBlueprintChanged(UBlueprint* Blueprint)
+	void FPropertyPathCustomization::HandleBlueprintChanged(UBlueprint* Blueprint)
 	{
 		SourceSelector->Refresh();
 		FieldSelector->Refresh();

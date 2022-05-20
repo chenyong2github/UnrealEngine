@@ -35,10 +35,10 @@ struct FMVVMBlueprintViewBinding
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = "MVVM")
-	FMVVMViewModelPropertyPath ViewModelPath;
+	FMVVMBlueprintPropertyPath ViewModelPath;
 
 	UPROPERTY(EditAnywhere, Category = "MVVM")
-	FMVVMWidgetPropertyPath WidgetPath;
+	FMVVMBlueprintPropertyPath WidgetPath;
 
 	/** */
 	UPROPERTY(EditAnywhere, Category = "MVVM")

@@ -80,10 +80,10 @@ static void ExtendBindingsMenu(FMenuBuilder& MenuBuilder, const UWidgetBlueprint
 	{
 		FMVVMBlueprintViewBinding& NewBinding = MVVMBlueprintView->AddDefaultBinding();
 
-		NewBinding.ViewModelPath.ContextId = ViewModelId;
+		NewBinding.ViewModelPath.SetViewModelId(ViewModelId);
 		NewBinding.ViewModelPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(ViewModelProperty));
 
-		NewBinding.WidgetPath.WidgetName = Widget->GetFName();
+		NewBinding.WidgetPath.SetWidgetName(Widget->GetFName());
 		NewBinding.WidgetPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(WidgetProperty));
 
 		NewBinding.BindingType = EMVVMBindingMode::OneWayToDestination;

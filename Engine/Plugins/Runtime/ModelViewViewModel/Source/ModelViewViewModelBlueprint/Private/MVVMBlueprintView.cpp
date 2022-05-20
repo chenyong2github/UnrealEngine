@@ -79,7 +79,7 @@ FMVVMBlueprintViewBinding* UMVVMBlueprintView::FindBinding(const UWidget* Widget
 	FName WidgetName = Widget->GetFName();
 	return Bindings.FindByPredicate([WidgetName, Property](const FMVVMBlueprintViewBinding& Binding)
 		{
-			return Binding.WidgetPath.WidgetName == WidgetName &&
+			return Binding.WidgetPath.GetWidgetName() == WidgetName &&
 				Binding.WidgetPath.BasePropertyPathContains(UE::MVVM::FMVVMConstFieldVariant(Property));
 		});
 }
@@ -108,7 +108,7 @@ void UMVVMBlueprintView::RemoveBinding(const FMVVMBlueprintViewBinding* Binding)
 FMVVMBlueprintViewBinding& UMVVMBlueprintView::AddBinding(const UWidget* Widget, const FProperty* Property)
 {
 	FMVVMBlueprintViewBinding& NewBinding = Bindings.AddDefaulted_GetRef();
-	NewBinding.WidgetPath.WidgetName = Widget->GetFName();
+	NewBinding.WidgetPath.SetWidgetName(Widget->GetFName());
 	NewBinding.WidgetPath.SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant(Property));
 
 	OnBindingsUpdated.Broadcast();
@@ -160,9 +160,9 @@ void UMVVMBlueprintView::WidgetRenamed(FName OldObjectName, FName NewObjectName)
 	bool bRenamed = false;
 	for (FMVVMBlueprintViewBinding& Binding : Bindings)
 	{
-		if (Binding.WidgetPath.WidgetName == OldObjectName)
+		if (Binding.WidgetPath.GetWidgetName() == OldObjectName)
 		{
-			Binding.WidgetPath.WidgetName = NewObjectName;
+			Binding.WidgetPath.SetWidgetName(NewObjectName);
 			bRenamed = true;
 		}
 	}

@@ -8,7 +8,7 @@
 
 FString FMVVMBlueprintViewBinding::GetNameString(const UMVVMBlueprintView* View) const
 {
-	const FMVVMBlueprintViewModelContext* ViewModel = View->FindViewModel(ViewModelPath.ContextId);
+	const FMVVMBlueprintViewModelContext* ViewModel = View->FindViewModel(ViewModelPath.GetViewModelId());
 	TStringBuilder<512> BindingName;
 	if (ViewModel != nullptr)
 	{
@@ -38,19 +38,19 @@ FString FMVVMBlueprintViewBinding::GetNameString(const UMVVMBlueprintView* View)
 		BindingName << TEXT(" ??? "); // shouldn't happen
 	}
 
-	if (View->GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint()->GetFName() == WidgetPath.WidgetName)
+	if (View->GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint()->GetFName() == WidgetPath.GetWidgetName())
 	{
 		BindingName << WidgetPath.GetBasePropertyPath();
 	}
 	else
 	{
-		if (WidgetPath.WidgetName.IsNone())
+		if (WidgetPath.GetWidgetName().IsNone())
 		{
 			BindingName << TEXT("<none>");
 		}
 		else
 		{
-			BindingName << WidgetPath.WidgetName;
+			BindingName << WidgetPath.GetWidgetName();
 		}
 		BindingName << TEXT(".");
 		BindingName << WidgetPath.GetBasePropertyPath();

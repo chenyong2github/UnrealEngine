@@ -334,7 +334,7 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 		if (IsForwardBinding(Binding.BindingType) || IsBackwardBinding(Binding.BindingType))
 		{
 			// todo support any type of UObject
-			const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(Binding.ViewModelPath.ContextId);
+			const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(Binding.ViewModelPath.GetViewModelId());
 			if (SourceViewModelContext == nullptr)
 			{
 				WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The binding number %d has an invalid source."), Index));
@@ -349,23 +349,23 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 				bAreSourceContextsValid = false;
 			}
 
-			if (Binding.WidgetPath.WidgetName == NAME_None)
+			if (Binding.WidgetPath.GetWidgetName().IsNone())
 			{
 				WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The widget binding is invalid.")));
 				bAreSourceContextsValid = false;
 				continue;
 			}
 
-			if (Binding.WidgetPath.WidgetName != Context.GetWidgetBlueprint()->GetFName()) // is the userwidget itself
+			if (Binding.WidgetPath.GetWidgetName() != Context.GetWidgetBlueprint()->GetFName()) // is the userwidget itself
 			{
-				if (!WidgetSources.Contains(Binding.WidgetPath.WidgetName))
+				if (!WidgetSources.Contains(Binding.WidgetPath.GetWidgetName()))
 				{
-					WidgetSources.Add(Binding.WidgetPath.WidgetName);
+					WidgetSources.Add(Binding.WidgetPath.GetWidgetName());
 
-					UWidget** WidgetPtr = WidgetNameToWidgetPointerMap.Find(Binding.WidgetPath.WidgetName);
+					UWidget** WidgetPtr = WidgetNameToWidgetPointerMap.Find(Binding.WidgetPath.GetWidgetName());
 					if (WidgetPtr == nullptr || *WidgetPtr == nullptr)
 					{
-						WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The widget '%s' could not be found."), *Binding.WidgetPath.WidgetName.ToString()));
+						WidgetBlueprintCompilerContext.MessageLog.Error(*FString::Printf(TEXT("The widget '%s' could not be found."), *Binding.WidgetPath.GetWidgetName().ToString()));
 						bAreSourceContextsValid = false;
 						continue;
 					}
@@ -373,7 +373,7 @@ void FMVVMViewBlueprintCompiler::CreateSourceLists(const FWidgetBlueprintCompile
 					UWidget* Widget = *WidgetPtr;
 					FCompilerSourceContext SourceVariable;
 					SourceVariable.Class = Widget->GetClass();
-					SourceVariable.PropertyName = Binding.WidgetPath.WidgetName;
+					SourceVariable.PropertyName = Binding.WidgetPath.GetWidgetName();
 					SourceVariable.DisplayName = Widget->GetDisplayLabel();
 					SourceVariable.CategoryName = TEXT("Widget");
 					SourceContexts.Emplace(MoveTemp(SourceVariable));
@@ -745,7 +745,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 
 			FString Setter;
 			{
-				FName DestinationName = Binding.WidgetPath.WidgetName;
+				FName DestinationName = Binding.WidgetPath.GetWidgetName();
 				checkf(!DestinationName.IsNone(), TEXT("The destination should have been checked and set bAreSourceContextsValid."));
 				const bool bSourceIsUserWidget = DestinationName == Class->ClassGeneratedBy->GetFName();
 				if (bSourceIsUserWidget)
@@ -814,7 +814,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 
 			FString Setter;
 			{
-				const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(Binding.ViewModelPath.ContextId);
+				const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(Binding.ViewModelPath.GetViewModelId());
 				check(SourceViewModelContext);
 				FName DestinationName = SourceViewModelContext->GetViewModelName();
 				const int32 DestinationVariableContextIndex = SourceContexts.IndexOfByPredicate([DestinationName](const FCompilerSourceContext& Other) { return Other.PropertyName == DestinationName; });
@@ -902,7 +902,7 @@ const FMVVMViewBlueprintCompiler::FCompilerSourceCreatorContext* FMVVMViewBluepr
 }
 
 
-FMVVMViewBlueprintCompiler::FBindingSourceContext FMVVMViewBlueprintCompiler::CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const FMVVMViewModelPropertyPath& PropertyPath) const
+FMVVMViewBlueprintCompiler::FBindingSourceContext FMVVMViewBlueprintCompiler::CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& PropertyPath) const
 {
 	FBindingSourceContext Result;
 
@@ -914,7 +914,7 @@ FMVVMViewBlueprintCompiler::FBindingSourceContext FMVVMViewBlueprintCompiler::Cr
 	}
 
 	{
-		const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(PropertyPath.ContextId);
+		const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(PropertyPath.GetViewModelId());
 		check(SourceViewModelContext);
 		const FName SourceName = SourceViewModelContext->GetViewModelName();
 		Result.CompilerSourceContextIndex = SourceContexts.IndexOfByPredicate([SourceName](const FCompilerSourceContext& Other) { return Other.PropertyName == SourceName; });
@@ -929,11 +929,11 @@ FMVVMViewBlueprintCompiler::FBindingSourceContext FMVVMViewBlueprintCompiler::Cr
 }
 
 
-FMVVMViewBlueprintCompiler::FBindingSourceContext FMVVMViewBlueprintCompiler::CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMWidgetPropertyPath& PropertyPath) const
+FMVVMViewBlueprintCompiler::FBindingSourceContext FMVVMViewBlueprintCompiler::CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath) const
 {
 	FBindingSourceContext Result;
 
-	const FName SourceName = PropertyPath.WidgetName;
+	const FName SourceName = PropertyPath.GetWidgetName();
 	Result.bIsRootWidget = SourceName == Class->ClassGeneratedBy->GetFName();
 
 	// Todo the path may contains an other INotifyFieldValueChanged

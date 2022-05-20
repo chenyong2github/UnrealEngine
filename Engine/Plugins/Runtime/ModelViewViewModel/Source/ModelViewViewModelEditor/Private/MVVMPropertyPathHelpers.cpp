@@ -15,12 +15,6 @@ namespace UE::MVVM
 {
 	void FWidgetFieldPathHelper::GetAvailableSources(TSet<FBindingSource>& OutSources) const
 	{
-		FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr);
-		if (Path == nullptr)
-		{
-			return;
-		}
-
 		const UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree;
 		if (WidgetTree == nullptr)
 		{
@@ -44,7 +38,7 @@ namespace UE::MVVM
 				Source.Name = WidgetBlueprint->GetFName();
 				Source.DisplayName = FText::FromName(WidgetBlueprint->GetFName());
 				Source.Class = BPClass;
-				Source.IsSelected = Source.Name == Path->WidgetName;
+				Source.IsSelected = Source.Name == Path->GetWidgetName();
 				OutSources.Add(Source);
 			}
 		}
@@ -60,7 +54,7 @@ namespace UE::MVVM
 				Source.Name = Widget->GetFName();
 				Source.DisplayName = Widget->GetLabelText();
 				Source.Class = Widget->GetClass();
-				Source.IsSelected = Source.Name == Path->WidgetName;
+				Source.IsSelected = Source.Name == Path->GetWidgetName();
 				OutSources.Add(Source);
 			}
 		}
@@ -84,12 +78,6 @@ namespace UE::MVVM
 
 	void FWidgetFieldPathHelper::GetAvailableFields(TSet<FMVVMConstFieldVariant>& OutFields) const
 	{
-		FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr);
-		if (Path == nullptr)
-		{
-			return;
-		}
-
 		const UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree;
 		if (WidgetTree == nullptr)
 		{
@@ -97,11 +85,11 @@ namespace UE::MVVM
 		}
 
 		TSubclassOf<UWidget> WidgetClass = nullptr;
-		if (const UWidget* Widget = WidgetTree->FindWidget(Path->WidgetName))
+		if (const UWidget* Widget = WidgetTree->FindWidget(Path->GetWidgetName()))
 		{
 			WidgetClass = Widget->GetClass();
 		}
-		else if (WidgetBlueprint->GetFName() == Path->WidgetName)
+		else if (WidgetBlueprint->GetFName() == Path->GetWidgetName())
 		{
 			WidgetClass = WidgetBlueprint->GeneratedClass;
 		}
@@ -138,68 +126,39 @@ namespace UE::MVVM
 
 	void FWidgetFieldPathHelper::SetSelectedSource(const FBindingSource& Source) const
 	{
-		FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr);
-		if (Path == nullptr)
-		{
-			return;
-		}
-
 		if (Source.IsValid())
 		{
-			Path->WidgetName = Source.Name;
+			Path->SetWidgetName(Source.Name);
 		}
 		else
 		{
-			Path->WidgetName = FName();
+			Path->SetWidgetName(FName());
 		}
 	}
 
 	FMVVMBindingName FWidgetFieldPathHelper::GetBindingName() const
 	{
-		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
+		TArray<FName> Paths = Path->GetPaths();
+		if (Paths.Num() > 0)
 		{
-			TArray<FName> Paths = Path->GetPaths();
-			if (Paths.Num() > 0)
-			{
-				return FMVVMBindingName(Paths[0]);
-			}
+			return FMVVMBindingName(Paths[0]);
 		}
 
 		return FMVVMBindingName();
 	}
 
-	void FWidgetFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const
-	{
-		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
-		{
-			Path->SetBasePropertyPath(InField);
-		}
-	}
-
 	void FWidgetFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const
 	{
-		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
-		{
-			Path->SetBasePropertyPath(InField);
-		}
+		Path->SetBasePropertyPath(InField);
 	}
 
 	void FWidgetFieldPathHelper::ResetBinding() const
 	{
-		if (FMVVMWidgetPropertyPath* Path = PathAttr.Get(nullptr))
-		{
-			Path->ResetBasePropertyPath();
-		}
+		Path->ResetBasePropertyPath();
 	}
 
 	void FViewModelFieldPathHelper::GetAvailableSources(TSet<FBindingSource>& OutSources) const
 	{
-		FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr);
-		if (Path == nullptr)
-		{
-			return;
-		}
-
 		const UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint);
 		const UMVVMBlueprintView* MVVMBlueprintView = MVVMExtensionPtr->GetBlueprintView();
 		const TArrayView<const FMVVMBlueprintViewModelContext>& ViewModels = MVVMBlueprintView->GetViewModels();
@@ -212,7 +171,7 @@ namespace UE::MVVM
 			Source.SourceGuid = ViewModel.GetViewModelId();
 			Source.DisplayName = ViewModel.GetDisplayName();
 			Source.Class = ViewModel.GetViewModelClass().Get();
-			Source.IsSelected = (Source.SourceGuid == Path->ContextId);
+			Source.IsSelected = (Source.SourceGuid == Path->GetViewModelId());
 
 			OutSources.Add(Source);
 		}
@@ -236,16 +195,10 @@ namespace UE::MVVM
 
 	void FViewModelFieldPathHelper::GetAvailableFields(TSet<FMVVMConstFieldVariant>& OutFields) const
 	{
-		FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr);
-		if (Path == nullptr)
-		{
-			return;
-		}
-
 		const UMVVMWidgetBlueprintExtension_View* MVVMExtensionPtr = UMVVMWidgetBlueprintExtension_View::GetExtension<UMVVMWidgetBlueprintExtension_View>(WidgetBlueprint);
 		const UMVVMBlueprintView* MVVMBlueprintView = MVVMExtensionPtr->GetBlueprintView();
 
-		const FMVVMBlueprintViewModelContext* ViewModelContext = MVVMBlueprintView->FindViewModel(Path->ContextId);
+		const FMVVMBlueprintViewModelContext* ViewModelContext = MVVMBlueprintView->FindViewModel(Path->GetViewModelId());
 		if (ViewModelContext == nullptr)
 		{
 			return;
@@ -278,57 +231,33 @@ namespace UE::MVVM
 
 	void FViewModelFieldPathHelper::SetSelectedSource(const FBindingSource& Source) const
 	{
-		FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr);
-		if (Path == nullptr)
-		{
-			return;
-		}
-
 		if (Source.IsValid())
 		{
-			Path->ContextId = Source.SourceGuid;
+			Path->SetViewModelId(Source.SourceGuid);
 		}
 		else
 		{
-			Path->ContextId = FGuid();
+			Path->SetViewModelId(FGuid());
 		}
 	}
 
 	FMVVMBindingName FViewModelFieldPathHelper::GetBindingName() const
 	{
-		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
+		TArray<FName> Paths = Path->GetPaths();
+		if (Paths.Num() > 0)
 		{
-			TArray<FName> Paths = Path->GetPaths();
-			if (Paths.Num() > 0)
-			{
-				return FMVVMBindingName(Paths[0]);
-			}
+			return FMVVMBindingName(Paths[0]);
 		}
-
 		return FMVVMBindingName();
-	}
-
-	void FViewModelFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMFieldVariant& InField) const
-	{
-		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
-		{
-			Path->SetBasePropertyPath(InField);
-		}
 	}
 
 	void FViewModelFieldPathHelper::SetBindingReference(const UE::MVVM::FMVVMConstFieldVariant& InField) const
 	{
-		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
-		{
-			Path->SetBasePropertyPath(InField);
-		}
+		Path->SetBasePropertyPath(InField);
 	}
 
 	void FViewModelFieldPathHelper::ResetBinding() const
 	{
-		if (FMVVMViewModelPropertyPath* Path = PathAttr.Get(nullptr))
-		{
-			Path->ResetBasePropertyPath();
-		}
+		Path->ResetBasePropertyPath();
 	}
 }
