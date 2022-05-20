@@ -6,7 +6,6 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "RHIResources.h"
-#include "RHIUtilities.h"
 
 // @todo: we need builds for OpenVDB for platforms other than windows
 #if PLATFORM_WINDOWS
