@@ -155,6 +155,130 @@ float UMovieSceneSectionExtensions::GetEndFrameSeconds(UMovieSceneSection* Secti
 	return -1.f;
 }
 
+bool UMovieSceneSectionExtensions::GetAutoSizeHasStartFrame(UMovieSceneSection* Section)
+{
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetAutoSizeHasStartFrame on a null section"), ELogVerbosity::Error);
+		return false;
+	}
+
+	TOptional<TRange<FFrameNumber>> AutoSizeRange = Section->GetAutoSizeRange();
+	return AutoSizeRange.IsSet() && AutoSizeRange->GetLowerBound().IsClosed();
+}
+
+int32 UMovieSceneSectionExtensions::GetAutoSizeStartFrame(UMovieSceneSection* Section)
+{
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetAutoSizeStartFrame on a null section"), ELogVerbosity::Error);
+		return -1;
+	}
+
+	TOptional<TRange<FFrameNumber>> AutoSizeRange = Section->GetAutoSizeRange();
+	if (!AutoSizeRange.IsSet() || AutoSizeRange->GetLowerBound().IsOpen())
+	{
+		FFrame::KismetExecutionMessage(TEXT("Section does not have an AutoSize start frame"), ELogVerbosity::Error);
+		return -1;
+	}
+
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
+	{
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+		return ConvertFrameTime(UE::MovieScene::DiscreteInclusiveLower(AutoSizeRange.GetValue()), MovieScene->GetTickResolution(), DisplayRate).FloorToFrame().Value;
+	}
+
+	return -1;
+}
+
+float UMovieSceneSectionExtensions::GetAutoSizeStartFrameSeconds(UMovieSceneSection* Section)
+{
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetAutoSizeStartFrameSeconds on a null section"), ELogVerbosity::Error);
+		return -1.f;
+	}
+
+	TOptional<TRange<FFrameNumber>> AutoSizeRange = Section->GetAutoSizeRange();
+	if (!AutoSizeRange.IsSet() || AutoSizeRange->GetLowerBound().IsOpen())
+	{
+		FFrame::KismetExecutionMessage(TEXT("Section does not have an AutoSize start frame"), ELogVerbosity::Error);
+		return -1.f;
+	}
+
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
+	{
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+		return DisplayRate.AsSeconds(ConvertFrameTime(UE::MovieScene::DiscreteInclusiveLower(AutoSizeRange.GetValue()), MovieScene->GetTickResolution(), DisplayRate));
+	}
+
+	return -1.f;
+}
+
+bool UMovieSceneSectionExtensions::GetAutoSizeHasEndFrame(UMovieSceneSection* Section)
+{
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetAutoSizeHasEndFrame on a null section"), ELogVerbosity::Error);
+		return false;
+	}
+
+	TOptional<TRange<FFrameNumber>> AutoSizeRange = Section->GetAutoSizeRange();
+	return AutoSizeRange.IsSet() && AutoSizeRange->GetUpperBound().IsClosed();
+}
+
+int32 UMovieSceneSectionExtensions::GetAutoSizeEndFrame(UMovieSceneSection* Section)
+{
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetAutoSizeEndFrame on a null section"), ELogVerbosity::Error);
+		return -1;
+	}
+
+	TOptional<TRange<FFrameNumber>> AutoSizeRange = Section->GetAutoSizeRange();
+	if (!AutoSizeRange.IsSet() || AutoSizeRange->GetUpperBound().IsOpen())
+	{
+		FFrame::KismetExecutionMessage(TEXT("Section does not have an AutoSize end frame"), ELogVerbosity::Error);
+		return -1;
+	}
+
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
+	{
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+		return ConvertFrameTime(UE::MovieScene::DiscreteExclusiveUpper(AutoSizeRange.GetValue()), MovieScene->GetTickResolution(), DisplayRate).FloorToFrame().Value;
+	}
+
+	return -1;
+}
+
+float UMovieSceneSectionExtensions::GetAutoSizeEndFrameSeconds(UMovieSceneSection* Section)
+{
+	if (!Section)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetAutoSizeEndFrameSeconds on a null section"), ELogVerbosity::Error);
+		return -1.f;
+	}
+
+	TOptional<TRange<FFrameNumber>> AutoSizeRange = Section->GetAutoSizeRange();
+	if (!AutoSizeRange.IsSet() || AutoSizeRange->GetUpperBound().IsOpen())
+	{
+		FFrame::KismetExecutionMessage(TEXT("Section does not have an AutoSize end frame"), ELogVerbosity::Error);
+		return -1.f;
+	}
+
+	UMovieScene* MovieScene = Section->GetTypedOuter<UMovieScene>();
+	if (MovieScene)
+	{
+		FFrameRate DisplayRate = MovieScene->GetDisplayRate();
+		return DisplayRate.AsSeconds(ConvertFrameTime(UE::MovieScene::DiscreteExclusiveUpper(AutoSizeRange.GetValue()), MovieScene->GetTickResolution(), DisplayRate));
+	}
+
+	return -1.f;
+}
+
 void UMovieSceneSectionExtensions::SetRange(UMovieSceneSection* Section, int32 StartFrame, int32 EndFrame)
 {
 	if (!Section)

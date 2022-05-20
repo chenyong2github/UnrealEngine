@@ -34,7 +34,7 @@ public:
 	static bool HasStartFrame(UMovieSceneSection* Section);
 
 	/**
-	 * Get start frame
+	 * Get start frame. Will throw an exception if section has no start frame, use HasStartFrame to check first.
 	 *
 	 * @param Section        The section within which to get the start frame
 	 * @return Start frame of this section
@@ -43,7 +43,7 @@ public:
 	static int32 GetStartFrame(UMovieSceneSection* Section);
 
 	/**
-	 * Get start time in seconds
+	 * Get start time in seconds. Will throw an exception if section has no start frame, use HasStartFrame to check first.
 	 *
 	 * @param Section        The section within which to get the start time
 	 * @return Start time of this section
@@ -61,7 +61,7 @@ public:
 	static bool HasEndFrame(UMovieSceneSection* Section);
 
 	/**
-	 * Get end frame
+	 * Get end frame. Will throw an exception if section has no end frame, use HasEndFrame to check first.
 	 *
 	 * @param Section        The section within which to get the end frame
 	 * @return End frame of this section
@@ -70,13 +70,67 @@ public:
 	static int32 GetEndFrame(UMovieSceneSection* Section);
 
 	/**
-	 * Get end time in seconds
+	 * Get end time in seconds. Will throw an exception if section has no end frame, use HasEndFrame to check first.
 	 *
 	 * @param Section        The section within which to get the end time
 	 * @return End time of this section
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta = (ScriptMethod))
 	static float GetEndFrameSeconds(UMovieSceneSection* Section);
+
+	/**
+	 * Checks to see if this section has an AutoSize implementation, and if so, if that implementation has a start frame.
+	 *
+	 * @param Section        The section being queried
+	 * @return Whether this section has a valid autosize range, and a valid start frame
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta = (ScriptMethod))
+	static bool GetAutoSizeHasStartFrame(UMovieSceneSection* Section);
+
+	/**
+	 * Get start frame of the AutoSize. Will throw an exception if section has no start frame, use GetAutoSizeHasStartFrame to check first.
+	 *
+	 * @param Section        The section being queried
+	 * @return The start frame of the AutoSize data.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta = (ScriptMethod))
+	static int32 GetAutoSizeStartFrame(UMovieSceneSection* Section);
+
+	/**
+	 * Get start time of the AutoSize in seconds. Will throw an exception if section has no start frame, use GetAutoSizeHasStartFrame to check first.
+	 *
+	 * @param Section        The section being queried
+	 * @return The start frame of the AutoSize data in seconds.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta = (ScriptMethod))
+	static float GetAutoSizeStartFrameSeconds(UMovieSceneSection* Section);
+
+	/**
+	 * Checks to see if this section has an AutoSize implementation, and if so, if that implementation has a end frame.
+	 *
+	 * @param Section        The section being queried
+	 * @return Whether this section has a valid autosize range, and a valid end frame
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta = (ScriptMethod))
+	static bool GetAutoSizeHasEndFrame(UMovieSceneSection* Section);
+
+	/**
+	 * Get end frame of the AutoSize. Will throw an exception if section has no end frame, use GetAutoSizeHasEndFrame to check first.
+	 *
+	 * @param Section        The section being queried
+	 * @return The end frame of the AutoSize data.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta = (ScriptMethod))
+	static int32 GetAutoSizeEndFrame(UMovieSceneSection* Section);
+
+	/**
+	 * Get end time of the AutoSize seconds. Will throw an exception if section has no end frame, use GetAutoSizeHasEndFrame to check first.
+	 *
+	 * @param Section        The section being queried
+	 * @return The end frame of the AutoSize data in seconds.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section", meta = (ScriptMethod))
+	static float GetAutoSizeEndFrameSeconds(UMovieSceneSection* Section);
 
 	/**
 	 * Set range
