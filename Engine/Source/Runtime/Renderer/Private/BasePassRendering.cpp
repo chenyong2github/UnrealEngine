@@ -619,6 +619,7 @@ TRDGUniformBufferRef<FOpaqueBasePassUniformParameters> CreateOpaqueBasePassUnifo
 		{
 			BasePassParameters.ResolvedSceneDepthTexture = ForwardBasePassTextures.SceneDepthIfResolved;
 		}
+		BasePassParameters.Is24BitUnormDepthStencil = ForwardBasePassTextures.bIs24BitUnormDepthStencil ? 1 : 0;
 	}
 
 	// DBuffer Decals
@@ -907,6 +908,12 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 		ForwardBasePassTextures.ScreenSpaceAO = SceneTextures.ScreenSpaceAO;
 		ForwardBasePassTextures.ScreenSpaceShadowMask = ForwardShadowMaskTexture;
 	}
+	else if (!ExclusiveDepthStencil.IsDepthWrite())
+	{
+		// If depth write is not enabled, we can bound the depth texture as read only
+		ForwardBasePassTextures.SceneDepthIfResolved = SceneTextures.Depth.Resolve;
+	}
+	ForwardBasePassTextures.bIs24BitUnormDepthStencil = ForwardBasePassTextures.SceneDepthIfResolved ? GPixelFormats[ForwardBasePassTextures.SceneDepthIfResolved->Desc.Format].bIs24BitUnormDepthStencil : 1;
 
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_BasePass));
 	RenderBasePassInternal(GraphBuilder, SceneTextures, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, bDoParallelBasePass, bRenderLightmapDensity, InstanceCullingManager, bNaniteEnabled, NaniteRasterResults);

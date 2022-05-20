@@ -615,6 +615,7 @@ void FVulkanDevice::SetupFormats()
 		// prefer VK_FORMAT_D24_UNORM_S8_UINT
 		MapFormatSupport(PF_DepthStencil, { VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT }, ComponentMappingRIII);
 		MapFormatSupport(PF_X24_G8, { VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT }, ComponentMappingRR01);
+		GPixelFormats[PF_DepthStencil].bIs24BitUnormDepthStencil = true;
 	}
 	else
 	{

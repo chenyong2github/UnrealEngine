@@ -804,10 +804,10 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 		GPixelFormats[PF_FloatR11G11B10		].Supported			= true;
 	}
 	
-		GPixelFormats[PF_DepthStencil		].PlatformFormat	= (uint32)MTLPixelFormatDepth32Float_Stencil8;
-		GPixelFormats[PF_DepthStencil		].BlockBytes		= 4;
-
+	GPixelFormats[PF_DepthStencil		].PlatformFormat	= (uint32)MTLPixelFormatDepth32Float_Stencil8;
+	GPixelFormats[PF_DepthStencil		].BlockBytes		= 4;
 	GPixelFormats[PF_DepthStencil		].Supported			= true;
+
 	GPixelFormats[PF_ShadowDepth		].PlatformFormat	= (uint32)MTLPixelFormatDepth32Float;
 	GPixelFormats[PF_ShadowDepth		].BlockBytes		= 4;
 	GPixelFormats[PF_ShadowDepth		].Supported			= true;
@@ -842,6 +842,7 @@ FAGXDynamicRHI::FAGXDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if(bSupportsD24S8)
 	{
 		GPixelFormats[PF_DepthStencil	].PlatformFormat	= (uint32)MTLPixelFormatDepth24Unorm_Stencil8;
+		GPixelFormats[PF_DepthStencil].bIs24BitUnormDepthStencil = true;
 	}
 	else
 	{

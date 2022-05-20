@@ -2631,6 +2631,7 @@ FPixelFormatInfo::FPixelFormatInfo(
 	, BlockBytes(InBlockBytes)
 	, NumComponents(InNumComponents)
 	, Supported(InSupported)
+	, bIs24BitUnormDepthStencil(true)
 {
 }
 

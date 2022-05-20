@@ -3107,7 +3107,7 @@ void PackStrataOut(
 
 		const uint RootOperatorIndex = Strata.OperatorIndex;
 
-	#if STRATA_ADVANCED_DEBUG_ENABLED
+	#if STRATA_ADVANCED_DEBUG_ENABLED && STRATA_USES_RESOURCE_MATERIALCONTAINER
 		if (Settings.SliceStoringDebugStrataTree > -1)
 		{
 			StrataPackOutStrataTree(ExtraMaterialDataUAV, RootOperatorIndex, StrataTree, Settings.SliceStoringDebugStrataTree);

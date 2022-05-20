@@ -60,6 +60,7 @@ struct FForwardBasePassTextures
 	FRDGTextureRef ScreenSpaceAO = nullptr;
 	FRDGTextureRef ScreenSpaceShadowMask = nullptr;
 	FRDGTextureRef SceneDepthIfResolved = nullptr;
+	bool bIs24BitUnormDepthStencil = false;
 };
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSharedBasePassUniformParameters,)
@@ -91,6 +92,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FOpaqueBasePassUniformParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PreIntegratedGFSampler)
 	SHADER_PARAMETER(FVector4f, SceneWithoutSingleLayerWaterMinMaxUV)
 	SHADER_PARAMETER(FVector4f, DistortionParams)
+	SHADER_PARAMETER(int32, Is24BitUnormDepthStencil)
 	// Misc
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()

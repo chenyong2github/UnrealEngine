@@ -860,7 +860,8 @@ struct FPixelFormatInfo
 	uint32						PlatformFormat{ 0 };
 
 	/** Whether the texture format is supported on the current platform/ rendering combination	*/
-	bool						Supported;
+	uint8						Supported : 1;
+	uint8						bIs24BitUnormDepthStencil : 1;	// If false, 32 bit float is assumed
 };
 
 extern RHI_API FPixelFormatInfo GPixelFormats[PF_MAX];		// Maps members of EPixelFormat to a FPixelFormatInfo describing the format.

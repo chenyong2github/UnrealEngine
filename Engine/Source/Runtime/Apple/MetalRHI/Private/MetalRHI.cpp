@@ -853,6 +853,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	if(bSupportsD24S8)
 	{
 		GPixelFormats[PF_DepthStencil	].PlatformFormat	= (uint32)mtlpp::PixelFormat::Depth24Unorm_Stencil8;
+		GPixelFormats[PF_DepthStencil	].bIs24BitUnormDepthStencil = true;
 	}
 	else
 	{
