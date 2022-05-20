@@ -692,12 +692,3 @@ namespace Chaos
 
 	using FAABB3 = TAABB<FReal, 3>;
 }
-
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bChaos_AABBTransform_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bChaos_AABBTransform_ISPC_Enabled = true;
-#else
-extern bool bChaos_AABBTransform_ISPC_Enabled;
-#endif

@@ -11,11 +11,13 @@
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spherical Constraints"), STAT_PBD_Spherical, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("Chaos PBD Spherical Backstop Constraints"), STAT_PBD_SphericalBackstop, STATGROUP_Chaos);
 
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bChaos_Spherical_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bChaos_Spherical_ISPC_Enabled = true;
+#if !defined(CHAOS_SPHERICAL_ISPC_ENABLED_DEFAULT)
+#define CHAOS_SPHERICAL_ISPC_ENABLED_DEFAULT 1
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bChaos_Spherical_ISPC_Enabled = INTEL_ISPC && CHAOS_SPHERICAL_ISPC_ENABLED_DEFAULT;
 #else
 extern CHAOS_API bool bChaos_Spherical_ISPC_Enabled;
 #endif

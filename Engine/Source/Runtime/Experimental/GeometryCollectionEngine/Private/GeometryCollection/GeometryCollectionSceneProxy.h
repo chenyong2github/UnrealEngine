@@ -446,12 +446,3 @@ protected:
 	uint32 bCurrentlyInMotion : 1;
 	uint32 bRequiresGPUSceneUpdate : 1;
 };
-
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bGeometryCollection_SetDynamicData_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bGeometryCollection_SetDynamicData_ISPC_Enabled = true;
-#else
-extern bool bGeometryCollection_SetDynamicData_ISPC_Enabled;
-#endif

@@ -958,12 +958,3 @@ extern ENGINE_API void BuildPoseFromRawData(
 	const TArray<FTransform>& RetargetTransforms,
 	const TMap<int32, const FTransformCurve*>* AdditiveBoneTransformCurves = nullptr
 	);
-
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bAnim_BonePose_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bAnim_BonePose_ISPC_Enabled = true;
-#else
-extern bool bAnim_BonePose_ISPC_Enabled;
-#endif

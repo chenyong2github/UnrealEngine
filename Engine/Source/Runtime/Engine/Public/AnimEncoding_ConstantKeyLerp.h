@@ -322,12 +322,3 @@ FORCEINLINE void AEFConstantKeyLerp<FORMAT>::GetBoneAtomScale(FTransform& OutAto
 		OutAtom.SetScale3D((FVector)P0);
 	}
 }
-
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bAnim_ConstantKeyLerp_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bAnim_ConstantKeyLerp_ISPC_Enabled = true;
-#else
-extern bool bAnim_ConstantKeyLerp_ISPC_Enabled;
-#endif

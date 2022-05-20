@@ -205,11 +205,13 @@ private:
 
 }  // End namespace Chaos::Softs
 
+#if !defined(CHAOS_POST_ITERATION_UPDATES_ISPC_ENABLED)
+#define CHAOS_POST_ITERATION_UPDATES_ISPC_ENABLED 1
+#endif
+
 // Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bChaos_PostIterationUpdates_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bChaos_PostIterationUpdates_ISPC_Enabled = true;
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bChaos_PostIterationUpdates_ISPC_Enabled = INTEL_ISPC && CHAOS_POST_ITERATION_UPDATES_ISPC_ENABLED;
 #else
 extern CHAOS_API bool bChaos_PostIterationUpdates_ISPC_Enabled;
 #endif

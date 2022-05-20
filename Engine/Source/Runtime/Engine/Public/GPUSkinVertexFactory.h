@@ -989,12 +989,3 @@ public:
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 };
-
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bGPUSkin_CopyBones_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bGPUSkin_CopyBones_ISPC_Enabled = true;
-#else
-extern bool bGPUSkin_CopyBones_ISPC_Enabled;
-#endif

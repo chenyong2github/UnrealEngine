@@ -8,11 +8,13 @@
 #include "Chaos/KinematicGeometryParticles.h"
 #include "HAL/PlatformMath.h"
 
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bChaos_PerParticleCollision_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bChaos_PerParticleCollision_ISPC_Enabled = true;
+#if !defined(CHAOS_PER_PARTICLE_COLLISION_ISPC_ENABLED_DEFAULT)
+#define CHAOS_PER_PARTICLE_COLLISION_ISPC_ENABLED_DEFAULT 1
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+const bool bChaos_PerParticleCollision_ISPC_Enabled = INTEL_ISPC && CHAOS_PER_PARTICLE_COLLISION_ISPC_ENABLED_DEFAULT;
 #else
 extern CHAOS_API bool bChaos_PerParticleCollision_ISPC_Enabled;
 #endif

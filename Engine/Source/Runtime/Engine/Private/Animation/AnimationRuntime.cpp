@@ -36,9 +36,16 @@ static_assert(sizeof(ispc::FVector4) == sizeof(FQuat), "sizeof(ispc::FVector4) !
 static_assert(sizeof(ispc::FPerBoneBlendWeight) == sizeof(FPerBoneBlendWeight), "sizeof(ispc::FPerBoneBlendWeight) != sizeof(FPerBoneBlendWeight)");
 #endif
 
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
-bool bAnim_Runtime_ISPC_Enabled = true;
-FAutoConsoleVariableRef CVarAnimRuntimeISPCEnabled(TEXT("a.Runtime.ISPC"), bAnim_Runtime_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in animation runtime"));
+#if !defined(ANIM_RUNTIME_ISPC_ENABLED_DEFAULT)
+#define ANIM_RUNTIME_ISPC_ENABLED_DEFAULT 1
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bAnim_Runtime_ISPC_Enabled = INTEL_ISPC && ANIM_RUNTIME_ISPC_ENABLED_DEFAULT;
+#else
+static bool bAnim_Runtime_ISPC_Enabled = ANIM_RUNTIME_ISPC_ENABLED_DEFAULT;
+static FAutoConsoleVariableRef CVarAnimRuntimeISPCEnabled(TEXT("a.Runtime.ISPC"), bAnim_Runtime_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in animation runtime"));
 #endif
 
 void FAnimationRuntime::NormalizeRotations(const FBoneContainer& RequiredBones, /*inout*/ FTransformArrayA2& Atoms)

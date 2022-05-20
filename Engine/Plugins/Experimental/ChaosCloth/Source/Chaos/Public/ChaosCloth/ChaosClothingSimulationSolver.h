@@ -248,14 +248,18 @@ namespace Chaos
 
 } // namespace Chaos
 
-// Support ISPC enable/disable in non-shipping builds
-constexpr bool bChaos_CalculateBounds_ISPC_Enable = true;
-#if !INTEL_ISPC
-const bool bChaos_PreSimulationTransforms_ISPC_Enabled = false;
-const bool bChaos_CalculateBounds_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bChaos_PreSimulationTransforms_ISPC_Enabled = true;
-const bool bChaos_CalculateBounds_ISPC_Enabled = bChaos_CalculateBounds_ISPC_Enable;
+#if !defined(CHAOS_CALCULATE_BOUNDS_ISPC_ENABLED_DEFAULT)
+#define CHAOS_CALCULATE_BOUNDS_ISPC_ENABLED_DEFAULT 1
+#endif
+
+#if !defined(CHAOS_PRE_SIMULATION_TRANSFORMS_ISPC_ENABLED_DEFAULT)
+#define CHAOS_PRE_SIMULATION_TRANSFORMS_ISPC_ENABLED_DEFAULT 1
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bChaos_CalculateBounds_ISPC_Enabled = INTEL_ISPC && CHAOS_CALCULATE_BOUNDS_ISPC_ENABLED_DEFAULT;
+static constexpr bool bChaos_PreSimulationTransforms_ISPC_Enabled = INTEL_ISPC && CHAOS_PRE_SIMULATION_TRANSFORMS_ISPC_ENABLED_DEFAULT;
 #else
 extern bool bChaos_PreSimulationTransforms_ISPC_Enabled;
 extern bool bChaos_CalculateBounds_ISPC_Enabled;

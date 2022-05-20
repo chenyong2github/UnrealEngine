@@ -3,13 +3,15 @@
 
 #include "CoreMinimal.h"
 
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-	const bool bChaos_Joint_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-	const bool bChaos_Joint_ISPC_Enabled = false;
+#if !defined(CHAOS_JOINT_SOLVER_ISPC_ENABLED_DEFAULT)
+#define CHAOS_JOINT_SOLVER_ISPC_ENABLED_DEFAULT 0
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bChaos_Joint_ISPC_Enabled = INTEL_ISPC && CHAOS_JOINT_SOLVER_ISPC_ENABLED_DEFAULT;
 #else
-	extern bool bChaos_Joint_ISPC_Enabled;
+extern bool bChaos_Joint_ISPC_Enabled;
 #endif
 
 extern bool bChaos_Joint_EarlyOut_Enabled;

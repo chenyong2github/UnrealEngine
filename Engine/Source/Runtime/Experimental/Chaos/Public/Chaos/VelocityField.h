@@ -115,11 +115,13 @@ using FVelocityField UE_DEPRECATED(5.1, "Chaos::Softs::FVelocityField has been r
 
 }  // End namespace Chaos::Softs
 
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bChaos_VelocityField_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bChaos_VelocityField_ISPC_Enabled = true;
+#if !defined(CHAOS_VELOCITY_FIELD_ISPC_ENABLED_DEFAULT)
+#define CHAOS_VELOCITY_FIELD_ISPC_ENABLED_DEFAULT 1
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bChaos_VelocityField_ISPC_Enabled = INTEL_ISPC && CHAOS_VELOCITY_FIELD_ISPC_ENABLED_DEFAULT;
 #else
 extern CHAOS_API bool bChaos_VelocityField_ISPC_Enabled;
 #endif

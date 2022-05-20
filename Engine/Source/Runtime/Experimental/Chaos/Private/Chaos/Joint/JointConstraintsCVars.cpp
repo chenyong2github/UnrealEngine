@@ -3,8 +3,8 @@
 #include "HAL/IConsoleManager.h"
 
 #if INTEL_ISPC && !UE_BUILD_SHIPPING
-bool bChaos_Joint_ISPC_Enabled = false;
-FAutoConsoleVariableRef CVarChaosJointISPCEnabled(TEXT("p.Chaos.Joint.ISPC"), bChaos_Joint_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Joint Solver"));
+bool bChaos_Joint_ISPC_Enabled = CHAOS_JOINT_SOLVER_ISPC_ENABLED_DEFAULT;
+static FAutoConsoleVariableRef CVarChaosJointISPCEnabled(TEXT("p.Chaos.Joint.ISPC"), bChaos_Joint_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Joint Solver"));
 #endif
 
 float Chaos_Joint_DegenerateRotationLimit = -0.998f;	// Cos(176deg)

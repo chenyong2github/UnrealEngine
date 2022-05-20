@@ -35,11 +35,16 @@ static_assert(sizeof(ispc::FRotator) == sizeof(FRotator), "sizeof(ispc::FRotator
 static_assert(sizeof(ispc::FVector) == sizeof(FVector), "sizeof(ispc::FVector) != sizeof(FVector)");
 #endif
 
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
-bool bPhysics_AggregateGeom_ISPC_Enabled = true;
-FAutoConsoleVariableRef CVarPhysicsAggregateGeomISPCEnabled(TEXT("p.AggregateGeom.ISPC"), bPhysics_AggregateGeom_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in physics aggregate geometry calculations"));
+#if !defined(PHYSICS_AGGREGATE_GEOMETRY_ISPC_ENABLED_DEFAULT)
+#define PHYSICS_AGGREGATE_GEOMETRY_ISPC_ENABLED_DEFAULT 1
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bPhysics_AggregateGeom_ISPC_Enabled = INTEL_ISPC && PHYSICS_AGGREGATE_GEOMETRY_ISPC_ENABLED_DEFAULT;
 #else
-const bool bPhysics_AggregateGeom_ISPC_Enabled = INTEL_ISPC;
+static bool bPhysics_AggregateGeom_ISPC_Enabled = PHYSICS_AGGREGATE_GEOMETRY_ISPC_ENABLED_DEFAULT;
+static FAutoConsoleVariableRef CVarPhysicsAggregateGeomISPCEnabled(TEXT("p.AggregateGeom.ISPC"), bPhysics_AggregateGeom_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in physics aggregate geometry calculations"));
 #endif
 
 ///////////////////////////////////////

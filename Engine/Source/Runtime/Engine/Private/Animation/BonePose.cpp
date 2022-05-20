@@ -10,9 +10,16 @@
 static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTransform) != sizeof(FTransform)");
 #endif
 
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
-bool bAnim_BonePose_ISPC_Enabled = true;
-FAutoConsoleVariableRef CVarAnimBonePoseISPCEnabled(TEXT("a.BonePose.ISPC"), bAnim_BonePose_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in bone pose calculations"));
+#if !defined(ANIM_BONE_POSE_ISPC_ENABLED_DEFAULT)
+#define ANIM_BONE_POSE_ISPC_ENABLED_DEFAULT 1
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bAnim_BonePose_ISPC_Enabled = INTEL_ISPC && ANIM_BONE_POSE_ISPC_ENABLED_DEFAULT;
+#else
+static bool bAnim_BonePose_ISPC_Enabled = ANIM_BONE_POSE_ISPC_ENABLED_DEFAULT;
+static FAutoConsoleVariableRef CVarAnimBonePoseISPCEnabled(TEXT("a.BonePose.ISPC"), bAnim_BonePose_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in bone pose calculations"));
 #endif
 
 // Normalizes all rotations in this pose

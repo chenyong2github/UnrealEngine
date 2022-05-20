@@ -14,9 +14,16 @@ static_assert(sizeof(ispc::FTransform) == sizeof(FTransform), "sizeof(ispc::FTra
 static_assert(sizeof(ispc::BoneTrackPair) == sizeof(BoneTrackPair), "sizeof(ispc::BoneTrackPair) != sizeof(BoneTrackPair)");
 #endif
 
-#if INTEL_ISPC && !UE_BUILD_SHIPPING
-bool bAnim_ConstantKeyLerp_ISPC_Enabled = true;
-FAutoConsoleVariableRef CVarAnimConstantKeyLerpISPCEnabled(TEXT("a.ConstantKeyLerp.ISPC"), bAnim_ConstantKeyLerp_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in constant key anim encoding"));
+#if !defined(ANIM_CONSTANT_KEY_LERP_ISPC_ENABLED_DEFAULT)
+#define ANIM_CONSTANT_KEY_LERP_ISPC_ENABLED_DEFAULT 1
+#endif
+
+// Support run-time toggling on supported platforms in non-shipping configurations
+#if !INTEL_ISPC || UE_BUILD_SHIPPING
+static constexpr bool bAnim_ConstantKeyLerp_ISPC_Enabled = INTEL_ISPC && ANIM_CONSTANT_KEY_LERP_ISPC_ENABLED_DEFAULT;
+#else
+static bool bAnim_ConstantKeyLerp_ISPC_Enabled = ANIM_CONSTANT_KEY_LERP_ISPC_ENABLED_DEFAULT;
+static FAutoConsoleVariableRef CVarAnimConstantKeyLerpISPCEnabled(TEXT("a.ConstantKeyLerp.ISPC"), bAnim_ConstantKeyLerp_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in constant key anim encoding"));
 #endif
 
 /**

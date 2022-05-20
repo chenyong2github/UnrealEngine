@@ -329,12 +329,3 @@ FORCEINLINE_DEBUGGABLE void AEFVariableKeyLerp<FORMAT>::GetBoneAtomScale(FTransf
 		OutAtom.SetScale3D( (FVector)P0 );
 	}
 }
-
-// Support ISPC enable/disable in non-shipping builds
-#if !INTEL_ISPC
-const bool bAnim_VariableKeyLerp_ISPC_Enabled = false;
-#elif UE_BUILD_SHIPPING
-const bool bAnim_VariableKeyLerp_ISPC_Enabled = true;
-#else
-extern bool bAnim_VariableKeyLerp_ISPC_Enabled;
-#endif
