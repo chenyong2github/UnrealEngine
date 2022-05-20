@@ -129,6 +129,9 @@ namespace Horde.Build
 				dashboardConfigResponse.PerforceSwarmUrl = _settings.P4SwarmUrl.ToString().TrimEnd('/');
 			}
 
+			dashboardConfigResponse.HelpEmailAddress = _settings.HelpEmailAddress;
+			dashboardConfigResponse.HelpSlackChannel = _settings.HelpSlackChannel;
+
 			return dashboardConfigResponse;
 		}
 

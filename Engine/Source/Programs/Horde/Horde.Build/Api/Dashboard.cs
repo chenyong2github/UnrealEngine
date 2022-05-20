@@ -23,6 +23,16 @@ namespace Horde.Build.Api
 		public string? PerforceSwarmUrl { get; set; }
 
 		/// <summary>
+		/// Help email address that users can contact with issues
+		/// </summary>
+		public string? HelpEmailAddress { get; set; }
+
+		/// <summary>
+		/// Help slack channel that users can use for issues
+		/// </summary>
+		public string? HelpSlackChannel { get; set; }
+
+		/// <summary>
 		/// Response constructor
 		/// </summary>
 		public GetDashboardConfigResponse()

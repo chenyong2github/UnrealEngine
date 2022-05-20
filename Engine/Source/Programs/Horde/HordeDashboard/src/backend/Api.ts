@@ -385,8 +385,13 @@ export type GetDashboardConfigResponse = {
 
 	/** The url of the perforce swarm installation */
 	perforceSwarmUrl?: string;
-}
 
+	/** Help email address that users can contact with issues */
+	helpEmailAddress?: string;
+
+	/** Help slack channel that users can use for issues */
+	helpSlackChannel?: string;
+}
 
 /**Parameters to register a new agent */
 export type CreateAgentRequest = {

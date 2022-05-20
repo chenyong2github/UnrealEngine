@@ -138,6 +138,13 @@ export class Dashboard {
 
     }
 
+    get helpEmail(): string | undefined {
+        return this.config?.helpEmailAddress;
+    }
+
+    get helpSlack(): string | undefined {
+        return this.config?.helpSlackChannel;
+    }
 
     get swarmUrl(): string | undefined {
         return this.config?.perforceSwarmUrl;
