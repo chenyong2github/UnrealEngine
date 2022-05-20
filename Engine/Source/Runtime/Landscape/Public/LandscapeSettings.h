@@ -23,6 +23,9 @@ public:
 
 	int32 GetSideResolutionLimit() const { return SideResolutionLimit; }
 
+	/** Returns the default landscape material that should be used when creating a new landscape. */
+	TSoftObjectPtr<UMaterialInterface> GetDefaultLandscapeMaterial() const { return DefaultLandscapeMaterial; }
+
 public:
 	UPROPERTY(config, EditAnywhere, Category = "Layers", meta=(UIMin = "1", UIMax = "32", ClampMin = "1", ClampMax = "32", ToolTip = "This option controls the maximum editing layers that can be added to a Landscape"))
 	int32 MaxNumberOfLayers = 8;
@@ -30,6 +33,9 @@ public:
 protected:
 	UPROPERTY(config)
 	int32 SideResolutionLimit = 2048;
+
+	UPROPERTY(EditAnywhere, config, Category = "Materials", meta = (ToolTip = "Default Landscape Material will be prefilled when creating a new landscape."))
+	TSoftObjectPtr<UMaterialInterface> DefaultLandscapeMaterial;
 
 	UPROPERTY(transient)
 	bool bRestrictiveMode = false;

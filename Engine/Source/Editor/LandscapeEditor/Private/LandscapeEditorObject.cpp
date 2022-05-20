@@ -8,6 +8,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "LandscapeEditorModule.h"
 #include "LandscapeRender.h"
+#include "LandscapeSettings.h"
 #include "LandscapeImportHelper.h"
 #include "LandscapeMaterialInstanceConstant.h"
 #include "Misc/ConfigCacheIni.h"
@@ -316,9 +317,33 @@ void ULandscapeEditorObject::Load()
 		}
 	}
 
-	FString NewLandscapeMaterialName = (NewLandscape_Material != NULL) ? NewLandscape_Material->GetPathName() : FString();
-	GConfig->GetString(TEXT("LandscapeEdit"), TEXT("NewLandscapeMaterialName"), NewLandscapeMaterialName, GEditorPerProjectIni);
-	if(NewLandscapeMaterialName != TEXT(""))
+	FString NewLandscapeMaterialName;
+
+	// If NewLandscape_Material is not null, we will try to use it
+	if (!NewLandscape_Material.IsExplicitlyNull())
+	{
+		NewLandscapeMaterialName = NewLandscape_Material->GetPathName();
+	}
+	else
+	{
+		// If this project already has a saved NewLandscapeMaterialName, we use it
+		GConfig->GetString(TEXT("LandscapeEdit"), TEXT("NewLandscapeMaterialName"), NewLandscapeMaterialName, GEditorPerProjectIni);
+
+		if (NewLandscapeMaterialName.IsEmpty())
+		{
+			/* Project does not have a saved NewLandscapeMaterialNameand and NewLandscape_Material is not already assigned;
+			 * we fallback to the DefaultLandscapeMaterial for the project, if set */
+			const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
+			TSoftObjectPtr<UMaterialInterface> DefaultMaterial = Settings->GetDefaultLandscapeMaterial();
+
+			if (!DefaultMaterial.IsNull())
+			{
+				NewLandscapeMaterialName = DefaultMaterial.ToString();
+			}
+		}
+	}
+	
+	if (!NewLandscapeMaterialName.IsEmpty())
 	{
 		NewLandscape_Material = LoadObject<UMaterialInterface>(NULL, *NewLandscapeMaterialName, NULL, LOAD_NoWarn);
 	}
