@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 					"MLDeformerFramework",
 					"Projects",
 					"PropertyEditor",
+					"AnimationEditMode",
 					"AnimGraph",
 					"ToolWidgets",
 					"GeometryCache",
