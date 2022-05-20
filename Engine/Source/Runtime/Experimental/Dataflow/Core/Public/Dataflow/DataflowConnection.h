@@ -10,6 +10,7 @@ namespace Dataflow
 	class FNode;
 
 	template<class T> inline DATAFLOWCORE_API FName GraphConnectionTypeName();
+	template<class T> inline DATAFLOWCORE_API T DeepCopy(const T&);
 
 	struct FPin
 	{
