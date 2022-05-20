@@ -113,7 +113,7 @@ public:
 	* Duplicate the ManagedArrayCollection as the specified templated type
 	* @return unowned pointer to new collection.
 	*/
-	template<class T>
+	template<class T = FManagedArrayCollection>
 	T* NewCopy() const
 	{
 		T* Collection = new T();
