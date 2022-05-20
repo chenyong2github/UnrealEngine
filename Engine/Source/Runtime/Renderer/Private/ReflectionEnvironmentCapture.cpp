@@ -218,11 +218,6 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FCopyCubemapToCubeFacePS, "/Engine/Private/ReflectionEnvironmentShaders.usf", "CopyCubemapToCubeFaceColorPS", SF_Pixel);
 
-bool DoGPUArrayCopy()
-{
-	return GRHISupportsResolveCubemapFaces;
-}
-
 class FReflectionCubemapTexture : public FRenderThreadStructBase
 {
 public:
@@ -795,7 +790,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 			const int32 ReflectionCaptureSize = GetReflectionCaptureSizeForArrayCount(UReflectionCaptureComponent::GetReflectionCaptureSize(), DesiredMaxCubemaps);
 			bool bNeedsUpdateAllCaptures = ReflectionSceneData.DoesAllocatedDataNeedUpdate(DesiredMaxCubemaps, ReflectionCaptureSize);
 
-			if (DoGPUArrayCopy() && bNeedsUpdateAllCaptures)
+			if (bNeedsUpdateAllCaptures)
 			{
 				// If we're not in the editor, we discard the CPU-side reflection capture data after loading to save memory, so we can't resize if the resolution changes. If this happens, we assert
 				check(GIsEditor || ReflectionCaptureSize == ReflectionSceneData.CubemapArray.GetCubemapSize() || ReflectionSceneData.CubemapArray.GetCubemapSize() == 0);
@@ -1280,10 +1275,7 @@ void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* Captu
 				{
 					UploadReflectionCapture_RenderingThread(Scene, CaptureData, CaptureComponent);
 
-					if (DoGPUArrayCopy())
-					{
-						CaptureData->OnDataUploadedToGPUFinal();
-					}
+					CaptureData->OnDataUploadedToGPUFinal();
 				}
 				else
 				{

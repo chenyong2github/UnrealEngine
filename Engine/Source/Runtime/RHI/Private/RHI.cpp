@@ -1426,7 +1426,6 @@ bool GRHISupportsDirectGPUMemoryLock = false;
 bool GRHISupportsMultithreadedShaderCreation = true;
 
 bool GRHISupportsMSAADepthSampleAccess = false;
-bool GRHISupportsResolveCubemapFaces = false;
 
 bool GRHISupportsBackBufferWithCustomDepthStencil = true;
 

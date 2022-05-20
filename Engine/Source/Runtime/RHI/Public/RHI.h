@@ -606,6 +606,7 @@ RHI_API void RHISetCurrentNumDrawCallPtr(FRHIDrawCallsStatPtr InNumDrawCallsRHIP
 extern RHI_API bool GRHISupportsBaseVertexIndex;
 
 /** True if the RHI supports copying cubemap faces using CopyToResolveTarget */
+UE_DEPRECATED(5.1, "CopyToResoveTarget is deprecated.")
 extern RHI_API bool GRHISupportsResolveCubemapFaces;
 
 /** Whether or not the RHI can handle a non-zero FirstInstance to DrawIndexedPrimitive and friends - extra SetStreamSource calls will be needed if this is false */

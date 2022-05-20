@@ -527,7 +527,6 @@ GRHISupportsRayTracingDispatchIndirect                 = MAC_PLATFORM_AGXRHI_SUP
 GRHISupportsRayTracingPSOAdditions                     = MAC_PLATFORM_AGXRHI_SUPPORTS_RAY_TRACING_PSO_ADDITIONS;
 GRHISupportsRayTracingShaders                          = MAC_PLATFORM_AGXRHI_SUPPORTS_RAY_TRACING_SHADERS;
 GRHISupportsRectTopology                               = MAC_PLATFORM_AGXRHI_SUPPORTS_RECT_TOPOLOGY;
-GRHISupportsResolveCubemapFaces                        = MAC_PLATFORM_AGXRHI_SUPPORTS_RESOLVE_CUBEMAP_FACES;
 GRHISupportsResummarizeHTile                           = MAC_PLATFORM_AGXRHI_SUPPORTS_RESUMMARIZE_HTILE;
 GRHISupportsRHIOnTaskThread                            = MAC_PLATFORM_AGXRHI_SUPPORTS_RHI_ON_TASK_THREAD;
 GRHISupportsRHIThread                                  = MAC_PLATFORM_AGXRHI_SUPPORTS_RHI_THREAD;
