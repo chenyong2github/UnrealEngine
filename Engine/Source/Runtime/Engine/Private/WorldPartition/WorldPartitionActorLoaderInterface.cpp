@@ -307,39 +307,6 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEdito
 		GEditor->ResetTransaction(LOCTEXT("LoadingEditorActorResetTrans", "Editor Actors Loading State Changed"));
 	}
 }
-
-IWorldPartitionActorLoaderInterface::ILoaderAdapterList::ILoaderAdapterList(UWorld* InWorld)
-	: ILoaderAdapter(InWorld)
-{}
-
-void IWorldPartitionActorLoaderInterface::ILoaderAdapterList::ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const
-{
-	for (const FWorldPartitionHandle& Actor : Actors)
-	{
-		InOperation(Actor);
-	}
-}
-
-IWorldPartitionActorLoaderInterface::ILoaderAdapterSpatial::ILoaderAdapterSpatial(UWorld* InWorld)
-	: ILoaderAdapter(InWorld)
-	, bIncludeSpatiallyLoadedActors(true)
-	, bIncludeNonSpatiallyLoadedActors(false)
-{}
-
-void IWorldPartitionActorLoaderInterface::ILoaderAdapterSpatial::ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const
-{
-	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
-	{
-		WorldPartition->EditorHash->ForEachIntersectingActor(*GetBoundingBox(), [this, WorldPartition, &InOperation](FWorldPartitionActorDesc* ActorDesc)
-		{
-			if (Intersect(ActorDesc->GetBounds()))
-			{
-				FWorldPartitionHandle ActorHandle(WorldPartition, ActorDesc->GetGuid());
-				InOperation(ActorHandle);
-			}
-		}, bIncludeSpatiallyLoadedActors, bIncludeNonSpatiallyLoadedActors);
-	}
-}
 #endif
 
 #undef LOCTEXT_NAMESPACE

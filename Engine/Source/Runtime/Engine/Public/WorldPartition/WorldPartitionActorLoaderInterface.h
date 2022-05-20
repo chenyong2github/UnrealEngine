@@ -43,7 +43,6 @@ public:
 
 	protected:
 		// Private interface
-		virtual bool Intersect(const FBox& Box) const =0;
 		virtual void ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const =0;
 		virtual bool ShouldActorBeLoaded(const FWorldPartitionHandle& Actor) const;
 
@@ -71,41 +70,6 @@ public:
 		uint8 bUserCreated : 1;
 
 		TMap<FGuid, TMap<FGuid, FWorldPartitionReference>> ActorReferences;
-	};
-
-	/** Base class for actor loaders that contains a specific list of actors */
-	class ENGINE_API ILoaderAdapterList : public ILoaderAdapter
-	{
-	public:
-		ILoaderAdapterList(UWorld* InWorld);
-		virtual ~ILoaderAdapterList() {}
-
-	protected:
-		//~ Begin ILoaderAdapter interface
-		virtual bool Intersect(const FBox& Box) const { return true; }
-		virtual void ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const;
-		//~ End ILoaderAdapter interface
-
-		TSet<FWorldPartitionHandle> Actors;
-	};
-
-	/** Base class for actor loaders that requires spatial queries */
-	class ENGINE_API ILoaderAdapterSpatial : public ILoaderAdapter
-	{
-	public:
-		ILoaderAdapterSpatial(UWorld* InWorld);
-		virtual ~ILoaderAdapterSpatial() {}
-
-	protected:
-		//~ Begin ILoaderAdapter interface
-		virtual void ForEachActor(TFunctionRef<void(const FWorldPartitionHandle&)> InOperation) const;
-		//~ End ILoaderAdapter interface
-
-		// Interface
-		virtual bool Intersect(const FBox& Box) const =0;
-
-		bool bIncludeSpatiallyLoadedActors;
-		bool bIncludeNonSpatiallyLoadedActors;
 	};
 
 	virtual ILoaderAdapter* GetLoaderAdapter() =0;

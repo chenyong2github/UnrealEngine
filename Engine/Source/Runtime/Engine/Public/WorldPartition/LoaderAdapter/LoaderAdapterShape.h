@@ -2,11 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterSpatial.h"
 
 #if WITH_EDITOR
 /** Actor loader adapter that will do a spatial query based on a shape */
-class ENGINE_API FLoaderAdapterShape : public IWorldPartitionActorLoaderInterface::ILoaderAdapterSpatial
+class ENGINE_API FLoaderAdapterShape : public ILoaderAdapterSpatial
 {
 public:
 	FLoaderAdapterShape(UWorld* InWorld, const FBox& InBoundingBox, const FString& InLabel);

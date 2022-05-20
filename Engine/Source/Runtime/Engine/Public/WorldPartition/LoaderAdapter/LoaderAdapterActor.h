@@ -2,11 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterSpatial.h"
 
 #if WITH_EDITOR
 /** Actor loader adapter that will do a spatial query based on the actor's brush  */
-class ENGINE_API FLoaderAdapterActor : public IWorldPartitionActorLoaderInterface::ILoaderAdapterSpatial
+class ENGINE_API FLoaderAdapterActor : public ILoaderAdapterSpatial
 {
 public:
 	FLoaderAdapterActor(AActor* InActor);

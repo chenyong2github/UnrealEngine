@@ -45,6 +45,7 @@
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerSubsystem.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterList.h"
 #include "WorldPartition/LoaderAdapter/LoaderAdapterShape.h"
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -210,11 +211,11 @@ public:
 	}
 };
 
-class FLoaderAdapterPinnedActors: public IWorldPartitionActorLoaderInterface::ILoaderAdapterList
+class FLoaderAdapterPinnedActors: public FLoaderAdapterList
 {
 public:
 	FLoaderAdapterPinnedActors(UWorld* InWorld)
-		: IWorldPartitionActorLoaderInterface::ILoaderAdapterList(InWorld)
+		: FLoaderAdapterList(InWorld)
 	{
 		Load();
 	}
@@ -252,12 +253,7 @@ protected:
 	//~ Begin IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 	virtual bool ShouldActorBeLoaded(const FWorldPartitionHandle& ActorHandle) const override
 	{
-		if (ContainsActor(ActorHandle) && (ActorHandle == ActorToRemove))
-		{
-			return false;
-		}
-
-		return IWorldPartitionActorLoaderInterface::ILoaderAdapterList::ShouldActorBeLoaded(ActorHandle);
+		return (ActorHandle != ActorToRemove) && FLoaderAdapterList::ShouldActorBeLoaded(ActorHandle);
 	}
 	//~ End IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 
