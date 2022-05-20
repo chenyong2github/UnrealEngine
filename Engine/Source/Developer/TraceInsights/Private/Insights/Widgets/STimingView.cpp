@@ -5021,11 +5021,10 @@ void STimingView::FindLastEvent()
 
 void STimingView::FilterAllTracks()
 {
+	FilterConfigurator = MakeShared<Insights::FFilterConfigurator>(*QuickFindVm->GetFilterConfigurator());
 	for (auto& Entry : AllTracks)
 	{
-		FilterConfigurator = MakeShared<Insights::FFilterConfigurator>(*QuickFindVm->GetFilterConfigurator());
-		Entry.Value->SetFilterConfigurator(QuickFindVm->GetFilterConfigurator());
-		Entry.Value->SetDirtyFlag();
+		Entry.Value->SetFilterConfigurator(FilterConfigurator);
 	}
 }
 
@@ -5033,11 +5032,10 @@ void STimingView::FilterAllTracks()
 
 void STimingView::ClearFilters()
 {
+	FilterConfigurator.Reset();
 	for (auto& Entry : AllTracks)
 	{
-		FilterConfigurator.Reset();
 		Entry.Value->SetFilterConfigurator(nullptr);
-		Entry.Value->SetDirtyFlag();
 	}
 }
 

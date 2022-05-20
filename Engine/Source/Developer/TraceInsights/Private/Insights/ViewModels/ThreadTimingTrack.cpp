@@ -1743,12 +1743,19 @@ void FThreadTimingTrack::OnFilterTrackClicked()
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EndTime), LOCTEXT("EndTime", "End Time"), LOCTEXT("EndTime", "End Time"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::Duration), LOCTEXT("Duration", "Duration"), LOCTEXT("Duration", "Duration"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::TimerId), LOCTEXT("TimerId", "Timer Id"), LOCTEXT("TimerId", "Timer Id"), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
-
-		OnFilterChangesCommitedHandle = FilterConfigurator->GetOnChangesCommitedEvent().AddLambda([this]()
-			{
-				this->SetDirtyFlag();
-			});
 	}
+	else
+	{
+		FilterConfigurator->GetOnChangesCommitedEvent().Remove(OnFilterChangesCommitedHandle);
+
+		// Make a copy, so it will not affect other tracks that shares same filter.
+		FilterConfigurator = MakeShared<FFilterConfigurator>(*FilterConfigurator);
+	}
+
+	OnFilterChangesCommitedHandle = FilterConfigurator->GetOnChangesCommitedEvent().AddLambda([this]()
+		{
+			this->SetDirtyFlag();
+		});
 
 	FFilterService::Get()->CreateFilterConfiguratorWidget(FilterConfigurator);
 }
@@ -1794,16 +1801,11 @@ int32 FThreadTimingTrack::GetDepthAt(double Time) const
 
 void FThreadTimingTrack::SetFilterConfigurator(TSharedPtr<Insights::FFilterConfigurator> InFilterConfigurator)
 {
-	if (InFilterConfigurator.IsValid())
+	if (FilterConfigurator != InFilterConfigurator)
 	{
-		FilterConfigurator = MakeShared<Insights::FFilterConfigurator>(*InFilterConfigurator);
+		FilterConfigurator = InFilterConfigurator;
+		SetDirtyFlag();
 	}
-	else
-	{
-		FilterConfigurator.Reset();
-	}
-
-	SetDirtyFlag();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
