@@ -938,10 +938,10 @@ void UControlRigBlueprint::RefreshAllModels()
 			}
 		}
 #if WITH_EDITOR
-		// if (Controller->RecomputeAllTemplateFilteredTypes(false))
-		// {
-		// 	ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
-		// }
+		if (Controller->RecomputeAllTemplateFilteredTypes(false))
+		{
+			ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
+		}
 #endif
 	}
 }

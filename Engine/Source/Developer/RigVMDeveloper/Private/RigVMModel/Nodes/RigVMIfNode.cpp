@@ -28,6 +28,7 @@ const FRigVMTemplate* URigVMIfNode::GetTemplate() const
 		TArray<FRigVMTemplateArgument::FType> Types;
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
 		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
+		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue));
 		
 		TArray<FRigVMTemplateArgument> Arguments;
 		Arguments.Emplace(*ConditionName, ERigVMPinDirection::Input, FRigVMTemplateArgument::FType(RigVMTypeUtils::BoolType, nullptr));

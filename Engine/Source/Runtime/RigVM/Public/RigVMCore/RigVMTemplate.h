@@ -147,6 +147,7 @@ struct RIGVM_API FRigVMTemplateArgument
 	{
 		EArrayType_SingleValue,
 		EArrayType_ArrayValue,
+		EArrayType_ArrayArrayValue,
 		EArrayType_Mixed,
 		EArrayType_Invalid
 	};
@@ -155,16 +156,22 @@ struct RIGVM_API FRigVMTemplateArgument
 	{
 		ETypeCategory_SingleAnyValue,
 		ETypeCategory_ArrayAnyValue,
+		ETypeCategory_ArrayArrayAnyValue,
 		ETypeCategory_SingleSimpleValue,
 		ETypeCategory_ArraySimpleValue,
+		ETypeCategory_ArrayArraySimpleValue,
 		ETypeCategory_SingleMathStructValue,
 		ETypeCategory_ArrayMathStructValue,
+		ETypeCategory_ArrayArrayMathStructValue,
 		ETypeCategory_SingleScriptStructValue,
 		ETypeCategory_ArrayScriptStructValue,
+		ETypeCategory_ArrayArrayScriptStructValue,
 		ETypeCategory_SingleEnumValue,
 		ETypeCategory_ArrayEnumValue,
+		ETypeCategory_ArrayArrayEnumValue,
 		ETypeCategory_SingleObjectValue,
 		ETypeCategory_ArrayObjectValue,
+		ETypeCategory_ArrayArrayObjectValue,
 		ETypeCategory_Invalid
 	};
 

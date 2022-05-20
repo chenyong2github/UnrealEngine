@@ -180,29 +180,41 @@ const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibl
 	{
 		CompatibleTypes.Add(ETypeCategory_SingleAnyValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_ArrayAnyValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayArrayAnyValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_SingleSimpleValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_ArraySimpleValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayArraySimpleValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_SingleMathStructValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_ArrayMathStructValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayArrayMathStructValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_SingleScriptStructValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_ArrayScriptStructValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayArrayScriptStructValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_SingleEnumValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_ArrayEnumValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayArrayEnumValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_SingleObjectValue, TArray<FType>());
 		CompatibleTypes.Add(ETypeCategory_ArrayObjectValue, TArray<FType>());
+		CompatibleTypes.Add(ETypeCategory_ArrayArrayObjectValue, TArray<FType>());
 		
 		TArray<FType>& SingleAnyValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleAnyValue);
 		TArray<FType>& ArrayAnyValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayAnyValue);
+		TArray<FType>& ArrayArrayAnyValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayAnyValue);
 		TArray<FType>& SingleSimpleValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleSimpleValue);
 		TArray<FType>& ArraySimpleValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArraySimpleValue);
+		TArray<FType>& ArrayArraySimpleValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayArraySimpleValue);
 		TArray<FType>& SingleMathStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleMathStructValue);
 		TArray<FType>& ArrayMathStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayMathStructValue);
+		TArray<FType>& ArrayArrayMathStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayMathStructValue);
 		TArray<FType>& SingleScriptStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleScriptStructValue);
 		TArray<FType>& ArrayScriptStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayScriptStructValue);
+		TArray<FType>& ArrayArrayScriptStructValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayScriptStructValue);
 		TArray<FType>& SingleEnumValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleEnumValue);
 		TArray<FType>& ArrayEnumValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayEnumValue);
+		TArray<FType>& ArrayArrayEnumValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayEnumValue);
 		TArray<FType>& SingleObjectValueTypes = CompatibleTypes.FindChecked(ETypeCategory_SingleObjectValue);
 		TArray<FType>& ArrayObjectValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayObjectValue);
+		TArray<FType>& ArrayArrayObjectValueTypes = CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayObjectValue);
 		
 		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::BoolType));
 		SingleSimpleValueTypes.Add(FType(RigVMTypeUtils::Int32Type));
@@ -215,10 +227,12 @@ const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibl
 		for(const FType& Type : SingleSimpleValueTypes)
 		{
 			ArraySimpleValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(Type.CPPType)));
+			ArrayArraySimpleValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(ArraySimpleValueTypes.Last().CPPType)));
 		}
 
 		SingleAnyValueTypes = SingleSimpleValueTypes;
 		ArrayAnyValueTypes = ArraySimpleValueTypes;
+		ArrayArrayAnyValueTypes = ArrayArraySimpleValueTypes;
 
 		static const TArray<UScriptStruct*> MathTypes = { 
 			TBaseStructure<FRotator>::Get(),
@@ -237,6 +251,7 @@ const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibl
 		{
 			SingleMathStructValueTypes.Add(FType(MathType->GetStructCPPName(), MathType));
 			ArrayMathStructValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(MathType->GetStructCPPName()), MathType));
+			ArrayArrayMathStructValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(ArrayMathStructValueTypes.Last().CPPType), MathType));
 		}
 
 		struct FTypeTraverser
@@ -363,8 +378,10 @@ const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibl
 			{
 				SingleAnyValueTypes.Add(FType(CPPType, ScriptStruct));
 				ArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), ScriptStruct));
+				ArrayArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(ArrayAnyValueTypes.Last().CPPType), ScriptStruct));
 				SingleScriptStructValueTypes.Add(FType(CPPType, ScriptStruct));
 				ArrayScriptStructValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), ScriptStruct));
+				ArrayArrayScriptStructValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(ArrayScriptStructValueTypes.Last().CPPType), ScriptStruct));
 			}
 		}
 
@@ -379,8 +396,10 @@ const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibl
 			const FString CPPType = Enum->CppType.IsEmpty() ? Enum->GetName() : Enum->CppType;
 			SingleAnyValueTypes.Add(FType(CPPType, Enum));
 			ArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), Enum));
+			ArrayArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(ArrayAnyValueTypes.Last().CPPType), Enum));
 			SingleEnumValueTypes.Add(FType(CPPType, Enum));
 			ArrayEnumValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), Enum));
+			ArrayArrayEnumValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(ArrayEnumValueTypes.Last().CPPType), Enum));
 		}
 
 		// add all classes
@@ -397,17 +416,25 @@ const TArray<FRigVMTemplateArgument::FType> FRigVMTemplateArgument::GetCompatibl
 			const FString CPPType = Class->GetPrefixCPP() + Class->GetName();
 			SingleAnyValueTypes.Add(FType(CPPType, Class));
 			ArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), Class));
+			ArrayArrayAnyValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(ArrayAnyValueTypes.Last().CPPType), Class));
 			SingleObjectValueTypes.Add(FType(CPPType, Class));
 			ArrayObjectValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(CPPType), Class));
+			ArrayArrayObjectValueTypes.Add(FType(RigVMTypeUtils::ArrayTypeFromBaseType(ArrayObjectValueTypes.Last().CPPType), Class));
 		}
 
 		// check that matching categories have the same size
 		check(CompatibleTypes.FindChecked(ETypeCategory_SingleAnyValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayAnyValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleAnyValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayAnyValue).Num());
 		check(CompatibleTypes.FindChecked(ETypeCategory_SingleSimpleValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArraySimpleValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleSimpleValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayArraySimpleValue).Num());
 		check(CompatibleTypes.FindChecked(ETypeCategory_SingleMathStructValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayMathStructValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleMathStructValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayMathStructValue).Num());
 		check(CompatibleTypes.FindChecked(ETypeCategory_SingleScriptStructValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayScriptStructValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleScriptStructValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayScriptStructValue).Num());
 		check(CompatibleTypes.FindChecked(ETypeCategory_SingleEnumValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayEnumValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleEnumValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayEnumValue).Num());
 		check(CompatibleTypes.FindChecked(ETypeCategory_SingleObjectValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayObjectValue).Num());
+		check(CompatibleTypes.FindChecked(ETypeCategory_SingleObjectValue).Num() == CompatibleTypes.FindChecked(ETypeCategory_ArrayArrayObjectValue).Num());
 	}
 
 	return CompatibleTypes.FindChecked(InCategory);
