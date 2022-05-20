@@ -99,6 +99,7 @@ namespace EpicGames.UHT.Parsers
 			this._tokenReader = specifierContext.Scope.TokenReader;
 			this._context = context;
 			this._table = table;
+			this._deferredSpecifiers.Clear();
 		}
 
 		/// <summary>

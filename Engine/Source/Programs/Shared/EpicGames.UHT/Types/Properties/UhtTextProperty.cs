@@ -2,6 +2,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Tables;
@@ -517,7 +518,7 @@ namespace EpicGames.UHT.Types
 			bool isFloat = UhtFCString.IsFloatMarker(c);
 			if (token.GetConstDouble(out double value))
 			{
-				innerDefaultValue.AppendFormat("{0:F6}", value);
+				innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, "{0:F6}", value);
 				if (isFloat)
 				{
 					innerDefaultValue.Append(c);

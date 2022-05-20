@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -2135,7 +2136,7 @@ namespace EpicGames.UHT.Types
 		public static StringBuilder AppendFlags(this StringBuilder builder, EPropertyFlags propertyFlags)
 		{
 			propertyFlags &= ~EPropertyFlags.ComputedFlags;
-			return builder.Append("(EPropertyFlags)0x").AppendFormat("{0:x16}", (ulong)propertyFlags);
+			return builder.Append("(EPropertyFlags)0x").AppendFormat(CultureInfo.InvariantCulture, "{0:x16}", (ulong)propertyFlags);
 		}
 
 		/// <summary>

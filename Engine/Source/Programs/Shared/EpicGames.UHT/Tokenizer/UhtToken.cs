@@ -684,28 +684,31 @@ namespace EpicGames.UHT.Tokenizer
 			}
 		}
 
-		float GetFloatValue()
+		private const NumberStyles s_defaultNumberStyles = NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite |
+			NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowThousands | NumberStyles.AllowExponent;
+
+		private float GetFloatValue()
 		{
 			if (Value.Span.Length > 0)
 			{
 				if (UhtFCString.IsFloatMarker(Value.Span[^1]))
 				{
-					return Single.Parse(Value.Span[0..^1]);
+					return Single.Parse(Value.Span[0..^1], s_defaultNumberStyles, CultureInfo.InvariantCulture);
 				}
 			}
-			return Single.Parse(Value.Span);
+			return Single.Parse(Value.Span, s_defaultNumberStyles, CultureInfo.InvariantCulture);
 		}
 
-		double GetDoubleValue()
+		private double GetDoubleValue()
 		{
 			if (Value.Span.Length > 0)
 			{
 				if (UhtFCString.IsFloatMarker(Value.Span[^1]))
 				{
-					return Double.Parse(Value.Span[0..^1]);
+					return Double.Parse(Value.Span[0..^1], s_defaultNumberStyles, CultureInfo.InvariantCulture);
 				}
 			}
-			return Double.Parse(Value.Span);
+			return Double.Parse(Value.Span, s_defaultNumberStyles, CultureInfo.InvariantCulture);
 		}
 
 		long GetDecimalValue()

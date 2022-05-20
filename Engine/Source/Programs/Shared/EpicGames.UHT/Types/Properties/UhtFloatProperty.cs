@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 using EpicGames.UHT.Tables;
 using EpicGames.UHT.Tokenizer;
@@ -47,7 +48,7 @@ namespace EpicGames.UHT.Types
 		/// <inheritdoc/>
 		public override bool SanitizeDefaultValue(IUhtTokenReader defaultValueReader, StringBuilder innerDefaultValue)
 		{
-			innerDefaultValue.AppendFormat("{0:F6}", defaultValueReader.GetConstFloatExpression());
+			innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, "{0:F6}", defaultValueReader.GetConstFloatExpression());
 			return true;
 		}
 

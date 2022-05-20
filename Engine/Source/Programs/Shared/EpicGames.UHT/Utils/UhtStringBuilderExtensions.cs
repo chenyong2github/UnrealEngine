@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using EpicGames.Core;
 using EpicGames.UHT.Types;
@@ -380,7 +381,7 @@ namespace EpicGames.UHT.Utils
 							{
 								trailingHex = true;
 								//Builder.Append($"\\x{(uint)c:x2}");
-								builder.Append("\\x").AppendFormat("{0:x2}", (uint)c);
+								builder.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", (uint)c);
 							}
 							else
 							{
@@ -435,28 +436,28 @@ namespace EpicGames.UHT.Utils
 			if (c < 0x80)
 			{
 				builder
-					.Append("\\x").AppendFormat("{0:x2}", c);
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", c);
 			}
 			else if (c < 0x800)
 			{
 				builder
-					.Append("\\x").AppendFormat("{0:x2}", 0xC0 + (c >> 6))
-					.Append("\\x").AppendFormat("{0:x2}", 0x80 + (c & 0x3f));
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", 0xC0 + (c >> 6))
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", 0x80 + (c & 0x3f));
 			}
 			else if (c < 0x10000)
 			{
 				builder
-					.Append("\\x").AppendFormat("{0:x2}", 0xE0 + (c >> 12))
-					.Append("\\x").AppendFormat("{0:x2}", 0x80 + ((c >> 6) & 0x3f))
-					.Append("\\x").AppendFormat("{0:x2}", 0x80 + (c & 0x3f));
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", 0xE0 + (c >> 12))
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", 0x80 + ((c >> 6) & 0x3f))
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", 0x80 + (c & 0x3f));
 			}
 			else
 			{
 				builder
-					.Append("\\x").AppendFormat("{0:x2}", 0xF0 + (c >> 18))
-					.Append("\\x").AppendFormat("{0:x2}", 0x80 + ((c >> 12) & 0x3f))
-					.Append("\\x").AppendFormat("{0:x2}", 0x80 + ((c >> 6) & 0x3f))
-					.Append("\\x").AppendFormat("{0:x2}", 0x80 + (c & 0x3f));
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", 0xF0 + (c >> 18))
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", 0x80 + ((c >> 12) & 0x3f))
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", 0x80 + ((c >> 6) & 0x3f))
+					.Append("\\x").AppendFormat(CultureInfo.InvariantCulture, "{0:x2}", 0x80 + (c & 0x3f));
 			}
 			return builder;
 		}

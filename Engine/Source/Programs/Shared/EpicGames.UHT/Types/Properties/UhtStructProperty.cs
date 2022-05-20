@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 using System.Text.Json.Serialization;
 using EpicGames.Core;
@@ -219,9 +220,9 @@ namespace EpicGames.UHT.Types
 				switch (defaultValueReader.GetIdentifier().Value.ToString())
 				{
 					case "ZeroVector": return true;
-					case "UpVector": innerDefaultValue.AppendFormat(Format, 0, 0, 1); return true;
-					case "ForwardVector": innerDefaultValue.AppendFormat(Format, 1, 0, 0); return true;
-					case "RightVector": innerDefaultValue.AppendFormat(Format, 0, 1, 0); return true;
+					case "UpVector": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0, 0, 1); return true;
+					case "ForwardVector": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 1, 0, 0); return true;
+					case "RightVector": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0, 1, 0); return true;
 					default: return false;
 				}
 			}
@@ -241,7 +242,7 @@ namespace EpicGames.UHT.Types
 						defaultValueReader.Require(',');
 						z = defaultValueReader.GetConstDoubleExpression();
 					}
-					innerDefaultValue.AppendFormat(Format, x, y, z);
+					innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, x, y, z);
 				}
 				defaultValueReader.Require(")");
 				return true;
@@ -275,7 +276,7 @@ namespace EpicGames.UHT.Types
 					double y = defaultValueReader.GetConstDoubleExpression();
 					defaultValueReader.Require(',');
 					double z = defaultValueReader.GetConstDoubleExpression();
-					innerDefaultValue.AppendFormat("{0:F6},{1:F6},{2:F6}", x, y, z);
+					innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, "{0:F6},{1:F6},{2:F6}", x, y, z);
 				}
 				defaultValueReader.Require(")");
 				return true;
@@ -295,7 +296,7 @@ namespace EpicGames.UHT.Types
 				switch (defaultValueReader.GetIdentifier().Value.ToString())
 				{
 					case "ZeroVector": return true;
-					case "UnitVector": innerDefaultValue.AppendFormat(Format, 1.0, 1.0); return true;
+					case "UnitVector": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 1.0, 1.0); return true;
 					default: return false;
 				}
 			}
@@ -310,7 +311,7 @@ namespace EpicGames.UHT.Types
 					double x = defaultValueReader.GetConstDoubleExpression();
 					defaultValueReader.Require(',');
 					double y = defaultValueReader.GetConstDoubleExpression();
-					innerDefaultValue.AppendFormat(Format, x, y);
+					innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, x, y);
 				}
 				defaultValueReader.Require(")");
 				return true;
@@ -329,14 +330,14 @@ namespace EpicGames.UHT.Types
 			{
 				switch (defaultValueReader.GetIdentifier().Value.ToString())
 				{
-					case "White": innerDefaultValue.AppendFormat(Format, 1.0, 1.0, 1.0, 1.0); ; return true;
-					case "Gray": innerDefaultValue.AppendFormat(Format, 0.5, 0.5, 0.5, 1.0); ; return true;
-					case "Black": innerDefaultValue.AppendFormat(Format, 0.0, 0.0, 0.0, 1.0); ; return true;
-					case "Transparent": innerDefaultValue.AppendFormat(Format, 0.0, 0.0, 0.0, 0.0); ; return true;
-					case "Red": innerDefaultValue.AppendFormat(Format, 1.0, 0.0, 0.0, 1.0); ; return true;
-					case "Green": innerDefaultValue.AppendFormat(Format, 0.0, 1.0, 0.0, 1.0); ; return true;
-					case "Blue": innerDefaultValue.AppendFormat(Format, 0.0, 0.0, 1.0, 1.0); ; return true;
-					case "Yellow": innerDefaultValue.AppendFormat(Format, 1.0, 1.0, 0.0, 1.0); ; return true;
+					case "White": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 1.0, 1.0, 1.0, 1.0); return true;
+					case "Gray": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0.5, 0.5, 0.5, 1.0); return true;
+					case "Black": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0.0, 0.0, 0.0, 1.0); return true;
+					case "Transparent": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0.0, 0.0, 0.0, 0.0); return true;
+					case "Red": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 1.0, 0.0, 0.0, 1.0); return true;
+					case "Green": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0.0, 1.0, 0.0, 1.0); return true;
+					case "Blue": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0.0, 0.0, 1.0, 1.0); return true;
+					case "Yellow": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 1.0, 1.0, 0.0, 1.0); return true;
 					default: return false;
 				}
 			}
@@ -358,7 +359,7 @@ namespace EpicGames.UHT.Types
 					{
 						a = defaultValueReader.GetConstDoubleExpression();
 					}
-					innerDefaultValue.AppendFormat(Format, r, g, b, a);
+					innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, r, g, b, a);
 				}
 				defaultValueReader.Require(")");
 				return true;
@@ -377,14 +378,14 @@ namespace EpicGames.UHT.Types
 			{
 				switch (defaultValueReader.GetIdentifier().Value.ToString())
 				{
-					case "White": innerDefaultValue.AppendFormat(Format, 255, 255, 255, 255); ; return true;
-					case "Black": innerDefaultValue.AppendFormat(Format, 0, 0, 0, 255); ; return true;
-					case "Red": innerDefaultValue.AppendFormat(Format, 255, 0, 0, 255); ; return true;
-					case "Green": innerDefaultValue.AppendFormat(Format, 0, 255, 0, 255); ; return true;
-					case "Blue": innerDefaultValue.AppendFormat(Format, 0, 0, 255, 255); ; return true;
-					case "Yellow": innerDefaultValue.AppendFormat(Format, 255, 255, 0, 255); ; return true;
-					case "Cyan": innerDefaultValue.AppendFormat(Format, 0, 255, 255, 255); ; return true;
-					case "Magenta": innerDefaultValue.AppendFormat(Format, 255, 0, 255, 255); ; return true;
+					case "White": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 255, 255, 255, 255); return true;
+					case "Black": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0, 0, 0, 255); return true;
+					case "Red": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 255, 0, 0, 255); return true;
+					case "Green": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0, 255, 0, 255); return true;
+					case "Blue": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0, 0, 255, 255); return true;
+					case "Yellow": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 255, 255, 0, 255); return true;
+					case "Cyan": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 0, 255, 255, 255); return true;
+					case "Magenta": innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, 255, 0, 255, 255); return true;
 					default: return false;
 				}
 			}
@@ -406,7 +407,7 @@ namespace EpicGames.UHT.Types
 					{
 						a = defaultValueReader.GetConstIntExpression();
 					}
-					innerDefaultValue.AppendFormat(Format, r, g, b, a);
+					innerDefaultValue.AppendFormat(CultureInfo.InvariantCulture, Format, r, g, b, a);
 				}
 				defaultValueReader.Require(")");
 				return true;
