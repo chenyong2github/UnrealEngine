@@ -281,7 +281,7 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 	FRayTracingLocalShaderBindingWriter* BindingWriter,
 	uint32 InstanceIndex, 
 	uint32 SegmentIndex,
-	uint32 HitGroupIndex,
+	uint32 HitGroupIndexInPipeline,
 	uint32 ShaderSlot) const
 {
 	check(ShaderLayouts.Num() == 1);
@@ -333,7 +333,7 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 	Bindings.InstanceIndex = InstanceIndex;
 	Bindings.SegmentIndex = SegmentIndex;
 	Bindings.ShaderSlot = ShaderSlot;
-	Bindings.ShaderIndexInPipeline = HitGroupIndex;
+	Bindings.ShaderIndexInPipeline = HitGroupIndexInPipeline;
 	Bindings.UserData = UserData;
 
 	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBufferParameters; UniformBufferIndex++)
@@ -354,6 +354,12 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 			LooseDataOffset += LooseParameter.Size;
 		}
 	}
+}
+
+void FMeshDrawShaderBindings::SetRayTracingShaderBindings(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 ShaderIndexInPipeline, uint32 ShaderSlot) const
+{
+	check(ShaderLayouts.Num() == 1);
+	return SetRayTracingShaderBindingsForHitGroup(BindingWriter, 0, 0, ShaderIndexInPipeline, ShaderSlot);
 }
 
 #endif // RHI_RAYTRACING
@@ -481,12 +487,13 @@ FMeshDrawShaderBindings::~FMeshDrawShaderBindings()
 
 void FMeshDrawShaderBindings::Initialize(FMeshProcessorShaders Shaders)
 {
-	const int32 NumShaderFrequencies = (Shaders.VertexShader.IsValid() ? 1 : 0) +
+	const int32 NumShaderFrequencies = 
+		(Shaders.VertexShader.IsValid() ? 1 : 0) +
 		(Shaders.PixelShader.IsValid() ? 1 : 0) +
 		(Shaders.GeometryShader.IsValid() ? 1 : 0) +
 		(Shaders.ComputeShader.IsValid() ? 1 : 0)
 #if RHI_RAYTRACING
-		+ (Shaders.RayHitGroupShader.IsValid() ? 1 : 0)
+		+ (Shaders.RayTracingShader.IsValid() ? 1 : 0)
 #endif
 		;
 
@@ -526,12 +533,14 @@ void FMeshDrawShaderBindings::Initialize(FMeshProcessorShaders Shaders)
 	}
 
 #if RHI_RAYTRACING
-	if (Shaders.RayHitGroupShader.IsValid())
+	if (Shaders.RayTracingShader.IsValid())
 	{
-		ShaderLayouts.Add(FMeshDrawShaderBindingsLayout(Shaders.RayHitGroupShader));
+		ShaderLayouts.Add(FMeshDrawShaderBindingsLayout(Shaders.RayTracingShader));
 		ShaderBindingDataSize += ShaderLayouts.Last().GetDataSizeBytes();
-		check(ShaderFrequencyBits < (1 << SF_RayHitGroup));
-		ShaderFrequencyBits |= (1 << SF_RayHitGroup);
+
+		const EShaderFrequency Frequency = Shaders.RayTracingShader->GetFrequency();
+		check(ShaderFrequencyBits < (1 << Frequency));
+		ShaderFrequencyBits |= (1 << Frequency);
 	}
 #endif
 
@@ -768,9 +777,9 @@ void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, cons
 #if RHI_RAYTRACING
 void FRayTracingMeshCommand::SetShaders(const FMeshProcessorShaders& Shaders)
 {
-	check(Shaders.RayHitGroupShader.IsValid())
-	MaterialShaderIndex = Shaders.RayHitGroupShader.GetRayTracingHitGroupLibraryIndex();
-	MaterialShader = Shaders.RayHitGroupShader.GetRayTracingShader();
+	check(Shaders.RayTracingShader.IsValid())
+	MaterialShaderIndex = Shaders.RayTracingShader.GetRayTracingHitGroupLibraryIndex();
+	MaterialShader = Shaders.RayTracingShader.GetRayTracingShader();
 	ShaderBindings.Initialize(Shaders);
 }
 #endif // RHI_RAYTRACING

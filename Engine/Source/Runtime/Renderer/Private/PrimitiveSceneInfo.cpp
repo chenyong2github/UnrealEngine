@@ -798,7 +798,7 @@ void CacheRayTracingPrimitive(
 		for (const FStaticMeshBatch& Mesh : SceneInfo->StaticMeshes)
 		{
 			// Why do we pass a full mask here when the dynamic case only uses a mask of 1?
-			// Also note that the code below assumes only a single command was generated per batch.
+			// Also note that the code below assumes only a single command was generated per batch (see SupportsCachingMeshDrawCommands(...))
 			const uint64 BatchElementMask = ~0ull;
 			RayTracingMeshProcessor.AddMeshBatch(Mesh, BatchElementMask, SceneInfo->Proxy);
 
@@ -851,7 +851,7 @@ void CacheRayTracingPrimitive(
 		for (const FMeshBatch& Mesh : CachedRayTracingInstance.Materials)
 		{
 			// Why do we pass a full mask here when the dynamic case only uses a mask of 1?
-			// Also note that the code below assumes only a single command was generated per batch.
+			// Also note that the code below assumes only a single command was generated per batch (see SupportsCachingMeshDrawCommands(...))
 			const uint64 BatchElementMask = ~0ull;
 			RayTracingMeshProcessor.AddMeshBatch(Mesh, BatchElementMask, SceneInfo->Proxy);
 

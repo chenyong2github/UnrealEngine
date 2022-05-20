@@ -584,7 +584,7 @@ struct FMeshProcessorShaders
 	mutable TShaderRef<FShader> GeometryShader;
 	mutable TShaderRef<FShader> ComputeShader;
 #if RHI_RAYTRACING
-	mutable TShaderRef<FShader> RayHitGroupShader;
+	mutable TShaderRef<FShader> RayTracingShader;
 #endif
 
 	TShaderRef<FShader> GetShader(EShaderFrequency Frequency) const
@@ -606,9 +606,14 @@ struct FMeshProcessorShaders
 			return ComputeShader;
 		}
 #if RHI_RAYTRACING
-		else if (Frequency == SF_RayHitGroup)
+		else if (Frequency == SF_RayHitGroup || Frequency == SF_RayCallable || Frequency == SF_RayMiss)
 		{
-			return RayHitGroupShader;
+			if (RayTracingShader.IsValid() && Frequency != RayTracingShader->GetFrequency())
+			{
+				checkf(0, TEXT("Requested raytracing shader frequency (%d) doesn't match assigned shader frequency (%d)."), Frequency, RayTracingShader->GetFrequency());
+				return TShaderRef<FShader>();
+			}
+			return RayTracingShader;
 		}
 #endif // RHI_RAYTRACING
 
@@ -819,7 +824,8 @@ public:
 	RENDERER_API void SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader, class FShaderBindingState* StateCacheShaderBindings = nullptr) const;
 
 #if RHI_RAYTRACING
-	RENDERER_API void SetRayTracingShaderBindingsForHitGroup(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 InstanceIndex, uint32 SegmentIndex, uint32 HitGroupIndex, uint32 ShaderSlot) const;
+	RENDERER_API void SetRayTracingShaderBindingsForHitGroup(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 InstanceIndex, uint32 SegmentIndex, uint32 HitGroupIndexInPipeline, uint32 ShaderSlot) const;
+	RENDERER_API void SetRayTracingShaderBindings(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 ShaderIndexInPipeline, uint32 ShaderSlot) const;
 #endif // RHI_RAYTRACING
 
 	/** Returns whether this set of shader bindings can be merged into an instanced draw call with another. */
@@ -1692,7 +1698,7 @@ private:
 	TArray<Experimental::FHashType> DeferredCommandHashes;
 };
 
-template<typename VertexType, typename PixelType, typename GeometryType = FMeshMaterialShader, typename RayHitGroupType = FMeshMaterialShader, typename ComputeType = FMeshMaterialShader>
+template<typename VertexType, typename PixelType, typename GeometryType = FMeshMaterialShader, typename RayTracingType = FMeshMaterialShader, typename ComputeType = FMeshMaterialShader>
 struct TMeshProcessorShaders
 {
 	TShaderRef<VertexType> VertexShader;
@@ -1700,7 +1706,7 @@ struct TMeshProcessorShaders
 	TShaderRef<GeometryType> GeometryShader;
 	TShaderRef<ComputeType> ComputeShader;
 #if RHI_RAYTRACING
-	TShaderRef<RayHitGroupType> RayHitGroupShader;
+	TShaderRef<RayTracingType> RayTracingShader;
 #endif
 
 	TMeshProcessorShaders() = default;
@@ -1713,7 +1719,7 @@ struct TMeshProcessorShaders
 		Shaders.GeometryShader = GeometryShader;
 		Shaders.ComputeShader = ComputeShader;
 #if RHI_RAYTRACING
-		Shaders.RayHitGroupShader = RayHitGroupShader;
+		Shaders.RayTracingShader = RayTracingShader;
 #endif
 		return Shaders;
 	}

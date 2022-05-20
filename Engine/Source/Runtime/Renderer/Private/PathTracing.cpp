@@ -981,7 +981,7 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 		FMeshMaterialShader,
 		FMeshMaterialShader,
 		FMeshMaterialShader> RayTracingShaders;
-	if (!Shaders.TryGetShader(SF_RayHitGroup, RayTracingShaders.RayHitGroupShader))
+	if (!Shaders.TryGetShader(SF_RayHitGroup, RayTracingShaders.RayTracingShader))
 	{
 		return false;
 	}
