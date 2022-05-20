@@ -88,6 +88,12 @@ struct FPackedView
 	 * Note: depends on the global 'GNaniteMaxPixelsPerEdge'.
 	 */
 	void UpdateLODScales();
+
+
+	/**
+	 * Helper to compute the derived subpixel transform.
+	 */
+	static FMatrix44f CalcTranslatedWorldToSubpixelClip(const FMatrix44f& TranslatedWorldToClip, const FIntRect& ViewRect);
 };
 
 struct FPackedViewParams

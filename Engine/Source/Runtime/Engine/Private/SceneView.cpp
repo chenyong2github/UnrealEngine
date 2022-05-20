@@ -2428,6 +2428,7 @@ void FSceneView::SetupViewRectUniformBufferParameters(FViewUniformShaderParamete
 
 	ViewUniformShaderParameters.ViewResolutionFraction = EffectiveViewRect.Width() / (float)UnscaledViewRect.Width();
 
+	// TODO: This should really call FPackedView::CalcTranslatedWorldToSubpixelClip, but since FSceneView is in the Engine module we can't pull in the Renderer.
 	const FVector2f SubpixelScale = FVector2f(	 0.5f * EffectiveViewRect.Width() * NANITE_SUBPIXEL_SAMPLES,
 												-0.5f * EffectiveViewRect.Height() * NANITE_SUBPIXEL_SAMPLES);
 

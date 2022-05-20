@@ -1725,6 +1725,8 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 
 				MipView.UpdateLODScales();
 				MipView.LODScales.X *= LODScaleFactor;
+
+				MipView.TranslatedWorldToSubpixelClip = Nanite::FPackedView::CalcTranslatedWorldToSubpixelClip(MipView.TranslatedWorldToClip, FIntRect(ViewMin.X, ViewMin.Y, ViewMin.X + ViewSize.X, ViewMin.Y + ViewSize.Y));
 			}
 
 			MipView.HZBTestViewRect = MipView.ViewRect;	// Assumed to always be the same for VSM

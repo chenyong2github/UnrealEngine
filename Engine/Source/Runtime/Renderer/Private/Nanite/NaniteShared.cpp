@@ -63,6 +63,18 @@ void FPackedView::UpdateLODScales()
 	LODScales = FVector2f(LODScale, LODScaleHW);
 }
 
+FMatrix44f FPackedView::CalcTranslatedWorldToSubpixelClip(const FMatrix44f& TranslatedWorldToClip, const FIntRect& ViewRect)
+{
+	const FVector2f SubpixelScale = FVector2f(0.5f * ViewRect.Width() * NANITE_SUBPIXEL_SAMPLES,
+		-0.5f * ViewRect.Height() * NANITE_SUBPIXEL_SAMPLES);
+
+	const FVector2f SubpixelOffset = FVector2f((0.5f * ViewRect.Width() + ViewRect.Min.X) * NANITE_SUBPIXEL_SAMPLES,
+		(0.5f * ViewRect.Height() + ViewRect.Min.Y) * NANITE_SUBPIXEL_SAMPLES);
+
+	return TranslatedWorldToClip * FScaleMatrix44f(FVector3f(SubpixelScale, 1.0f))* FTranslationMatrix44f(FVector3f(SubpixelOffset, 0.0f));
+}
+
+
 FPackedView CreatePackedView( const FPackedViewParams& Params )
 {
 	// NOTE: There is some overlap with the logic - and this should stay consistent with - FSceneView::SetupViewRectUniformBufferParameters
@@ -76,16 +88,10 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	const FIntRect& ViewRect = Params.ViewRect;
 	const FVector4f ViewSizeAndInvSize(ViewRect.Width(), ViewRect.Height(), 1.0f / float(ViewRect.Width()), 1.0f / float(ViewRect.Height()));
 
-	const FVector2f SubpixelScale = FVector2f(	 0.5f * ViewRect.Width() * NANITE_SUBPIXEL_SAMPLES,
-												-0.5f * ViewRect.Height() * NANITE_SUBPIXEL_SAMPLES);
-
-	const FVector2f SubpixelOffset = FVector2f(	(0.5f * ViewRect.Width() + ViewRect.Min.X) * NANITE_SUBPIXEL_SAMPLES,
-												(0.5f * ViewRect.Height() + ViewRect.Min.Y) * NANITE_SUBPIXEL_SAMPLES);
-
 	FPackedView PackedView;
 	PackedView.TranslatedWorldToView		= FMatrix44f(Params.ViewMatrices.GetOverriddenTranslatedViewMatrix());	// LWC_TODO: Precision loss? (and below)
 	PackedView.TranslatedWorldToClip		= FMatrix44f(Params.ViewMatrices.GetTranslatedViewProjectionMatrix());
-	PackedView.TranslatedWorldToSubpixelClip= PackedView.TranslatedWorldToClip * FScaleMatrix44f(FVector3f(SubpixelScale, 1.0f)) * FTranslationMatrix44f(FVector3f(SubpixelOffset, 0.0f));
+	PackedView.TranslatedWorldToSubpixelClip= FPackedView::CalcTranslatedWorldToSubpixelClip(PackedView.TranslatedWorldToClip, Params.ViewRect);
 	PackedView.ViewToClip					= RelativeMatrices.ViewToClip;
 	PackedView.ClipToRelativeWorld			= RelativeMatrices.ClipToRelativeWorld;
 	PackedView.PreViewTranslation			= FVector4f(FVector3f(Params.ViewMatrices.GetPreViewTranslation() + ViewTileOffset)); // LWC_TODO: precision loss
