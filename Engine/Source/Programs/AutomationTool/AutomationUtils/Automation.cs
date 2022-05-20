@@ -72,6 +72,10 @@ namespace AutomationTool
 				Log.TraceVerbose("IsBuildMachine={0}", IsBuildMachine);
 				Environment.SetEnvironmentVariable("IsBuildMachine", IsBuildMachine ? "1" : "0");
 
+				// Register all the log event matchers
+				Assembly AutomationUtilsAssembly = Assembly.GetExecutingAssembly();
+				Log.EventParser.AddMatchersFromAssembly(AutomationUtilsAssembly);
+
 				// Get the path to the telemetry file, if present
 				string TelemetryFile = GlobalCommandLine.TelemetryPath;
 				JsonTracer Tracer = JsonTracer.TryRegisterAsGlobalTracer();
