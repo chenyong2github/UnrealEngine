@@ -25,6 +25,7 @@ public class DisplayClusterLaunchEditor : ModuleRules
 				"Concert",
 				"ConcertTransport",
 				"CoreUObject",
+				"ConcertSyncClient",
 				"ConsoleVariablesEditor",
 				"ContentBrowser",
 				"DisplayCluster",

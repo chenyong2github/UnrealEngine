@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "ConcertMessageData.h"
+#include "IConcertModule.h"
+
 #include "Containers/Array.h"
 #include "Modules/ModuleInterface.h"
 #include "Templates/SharedPointer.h"
@@ -27,10 +30,19 @@ class FDisplayClusterLaunchEditorModule : public IModuleInterface
 {
 public:
 
-	enum class ELaunchState
+	enum class EConcertServerRequestStatus
 	{
-		NotLaunched,
-		Launched
+		None,
+		ShutdownRequested,
+		LaunchRequested,
+		ReuseExisting
+	};
+
+	struct FDisplayClusterLaunchMultiUserServerTrackingData
+	{
+		FString GeneratedMultiUserServerName;
+		FConcertServerInfo MultiUserServerInfo;
+		FProcHandle MultiUserServerHandle;
 	};
 	
 	static FDisplayClusterLaunchEditorModule& Get();
@@ -42,12 +54,26 @@ public:
 	
 	static void OpenProjectSettings();
 
-	void LaunchDisplayClusterProcess();
+	/**
+	 * Performs a sanity check to determine if nDisplay can be launched
+	 * and if so, gets Concert parameters async if Concert is enabled for the launch.
+	 * Ultimately, LaunchDisplayClusterProcess will be called when Concert parameters are skipped or returned.
+	 */
+	void TryLaunchDisplayClusterProcess();
 	void TerminateActiveDisplayClusterProcesses();
 
 private:
 
 	void OnFEngineLoopInitComplete();
+
+	void LaunchConcertServer();
+
+	void FindOrLaunchConcertServer();
+	void OnServersAssumedReady();
+	void FindAppropriateServer();
+	void ConnectToSession();
+	
+	void LaunchDisplayClusterProcess();
 
 	void RegisterToolbarItem();
 	FText GetToolbarButtonTooltipText();
@@ -79,6 +105,8 @@ private:
 	void AddOptionsToToolbarMenu(FMenuBuilder& MenuBuilder);
 
 	bool GetConnectToMultiUser() const;
+	const FString& GetConcertServerName();
+	const FString& GetConcertSessionName(); 
 
 	void RemoveTerminatedNodeProcesses();
 
@@ -90,5 +118,10 @@ private:
 	
 	FName SelectedConsoleVariablesAssetName = NAME_None;
 
-	TArray<FProcHandle> ActiveProcesses; 
+	FDisplayClusterLaunchMultiUserServerTrackingData ServerTrackingData;
+	FString CachedConcertSessionName;
+	
+	TArray<FProcHandle> ActiveDisplayClusterProcesses;
+
+	EConcertServerRequestStatus ConcertServerRequestStatus = EConcertServerRequestStatus::None;
 };

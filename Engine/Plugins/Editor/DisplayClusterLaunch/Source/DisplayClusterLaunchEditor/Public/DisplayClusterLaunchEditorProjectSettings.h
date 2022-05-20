@@ -94,33 +94,10 @@ public:
 	bool bConnectToMultiUser = false;
 
 	/**
-	 * If true, a server name will be automatically generated for you when connecting to multi-user.
-	 * If false, the text in ExplicitServerName will be used instead.
-	 * If ExplicitServerName is empty, a name will be generated whether this setting is true or false.
-	 */
-	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Multi-User", meta = (EditCondition="bConnectToMultiUser"))
-	bool bAutoGenerateServerName = true;
-
-	/**
-	 * A specific server name to use when connecting to multi-user if bAutoGenerateServerName is false.
-	 * If left empty, a name will be generated whether bAutoGenerateServerName is true or false.
-	 */
-	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Multi-User", meta = (EditCondition="bConnectToMultiUser && !bAutoGenerateServerName"))
-	FString ExplicitServerName;
-
-	/**
-	 * If true, a session name will be automatically generated for you when connecting to multi-user.
-	 * If false, the text in ExplicitSessionName will be used instead.
-	 * If ExplicitSessionName is empty, a name will be generated whether this setting is true or false.
-	 */
-	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Multi-User", meta = (EditCondition="bConnectToMultiUser"))
-	bool bAutoGenerateSessionName = true;
-
-	/**
 	 * A specific session name to use when connecting to multi-user if bAutoGenerateSessionName is false.
-	 * If left empty, a name will be generated whether bAutoGenerateSessionName is true or false.
+	 * If left empty, a name will be generated.
 	 */
-	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Multi-User", meta = (EditCondition="bConnectToMultiUser && !bAutoGenerateSessionName"))
+	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Multi-User", meta = (EditCondition="bConnectToMultiUser"))
 	FString ExplicitSessionName;
 
 	/**
@@ -136,17 +113,11 @@ public:
 	bool bEnableStatNamedEvents = false;
 
 	/**
-	 * If true, the Unreal Insights Trace Files will be saved to the path specified in ExplicitTraceFileSaveDirectory without needing to run Unreal Insights.
-	 * If false, Unreal Insights will connect to localhost (this computer) instead and you'll need to ensure Unreal Insights is launched.
+	 * Where to store the Unreal Insights Trace Files.
+	 * If empty, Unreal Insights will connect to localhost (this computer) instead and you'll need to ensure Unreal Insights is launched.
 	 * To specify a socket to connect to, use CommandLineArguments.
 	 */
 	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Unreal Insights", meta = (EditCondition="bEnableUnrealInsights"))
-	bool bOverrideInsightsTraceFileSaveDirectory = false;
-
-	/**
-	 * Where to store the Unreal Insights Trace Files if bOverrideInsightsTraceFileDirectory is true.
-	 */
-	UPROPERTY(Config, EditAnywhere, Category="nDisplay Launch Settings|Unreal Insights", meta = (EditCondition="bEnableUnrealInsights && bOverrideInsightsTraceFileSaveDirectory"))
 	FDirectoryPath ExplicitTraceFileSaveDirectory;
 
 	/**
