@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "PhysicsEngine/ConvexElem.h"
+#include "PhysicsEngine/LevelSetElem.h"
 #include "PhysicsEngine/BoxElem.h"
 #include "PhysicsEngine/SphereElem.h"
 #include "PhysicsEngine/SphylElem.h"
@@ -34,6 +35,9 @@ struct ENGINE_API FKAggregateGeom
 	UPROPERTY(EditAnywhere, editfixedsize, Category = "Aggregate Geometry", meta = (DisplayName = "Tapered Capsules"))
 	TArray<FKTaperedCapsuleElem> TaperedCapsuleElems;
 
+	UPROPERTY(EditAnywhere, editfixedsize, Category = "Aggregate Geometry", meta = (DisplayName = "Level Sets"))
+	TArray<FKLevelSetElem> LevelSetElems;
+
 	class FKConvexGeomRenderInfo* RenderInfo;
 
 	FKAggregateGeom()
@@ -56,7 +60,7 @@ struct ENGINE_API FKAggregateGeom
 
 	int32 GetElementCount() const
 	{
-		return SphereElems.Num() + SphylElems.Num() + BoxElems.Num() + ConvexElems.Num() + TaperedCapsuleElems.Num();
+		return SphereElems.Num() + SphylElems.Num() + BoxElems.Num() + ConvexElems.Num() + TaperedCapsuleElems.Num() + LevelSetElems.Num();
 	}
 
 	int32 GetElementCount(EAggCollisionShape::Type Type) const;
@@ -75,6 +79,8 @@ struct ENGINE_API FKAggregateGeom
 			if (ensure(ConvexElems.IsValidIndex(Index))) { return &ConvexElems[Index]; }
 		case EAggCollisionShape::TaperedCapsule:
 			if (ensure(TaperedCapsuleElems.IsValidIndex(Index))) { return &TaperedCapsuleElems[Index]; }
+		case EAggCollisionShape::LevelSet:
+			if (ensure(LevelSetElems.IsValidIndex(Index))) { return &LevelSetElems[Index]; }
 		default:
 			ensure(false);
 			return nullptr;
@@ -93,6 +99,8 @@ struct ENGINE_API FKAggregateGeom
 		if (Index < ConvexElems.Num()) { return &ConvexElems[Index]; }
 		Index -= ConvexElems.Num();
 		if (Index < TaperedCapsuleElems.Num()) { return &TaperedCapsuleElems[Index]; }
+		Index -= TaperedCapsuleElems.Num();
+		if (Index < LevelSetElems.Num()) { return &LevelSetElems[Index]; }
 		ensure(false);
 		return nullptr;
 	}
@@ -109,6 +117,8 @@ struct ENGINE_API FKAggregateGeom
 		if (Index < ConvexElems.Num()) { return &ConvexElems[Index]; }
 		Index -= ConvexElems.Num();
 		if (Index < TaperedCapsuleElems.Num()) { return &TaperedCapsuleElems[Index]; }
+		Index -= TaperedCapsuleElems.Num();
+		if (Index < LevelSetElems.Num()) { return &LevelSetElems[Index]; }
 		ensure(false);
 		return nullptr;
 	}
@@ -120,6 +130,7 @@ struct ENGINE_API FKAggregateGeom
 		SphylElems.Empty();
 		SphereElems.Empty();
 		TaperedCapsuleElems.Empty();
+		LevelSetElems.Empty();
 
 		FreeRenderInfo();
 	}

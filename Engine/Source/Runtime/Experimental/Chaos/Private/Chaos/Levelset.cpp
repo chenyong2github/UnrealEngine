@@ -166,6 +166,18 @@ FLevelSet::FLevelSet(std::istream& Stream)
 	ComputeNormals();
 }
 
+FLevelSet::FLevelSet(TUniformGrid<FReal, 3>&& Grid, TArrayND<FReal, 3>&& Phi, int32 BandWidth)
+	: FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
+	, MGrid(MoveTemp(Grid))
+	, MPhi(MoveTemp(Phi))
+	, MNormals(MGrid)
+	, MLocalBoundingBox(MGrid.MinCorner(), MGrid.MaxCorner())
+	, MOriginalLocalBoundingBox(MLocalBoundingBox)
+	, MBandWidth(BandWidth)
+{
+	ComputeNormals();
+}
+
 FLevelSet::FLevelSet(FLevelSet&& Other)
     : FImplicitObject(EImplicitObject::HasBoundingBox, ImplicitObjectType::LevelSet)
     , MGrid(MoveTemp(Other.MGrid))

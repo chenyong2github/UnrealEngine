@@ -920,6 +920,64 @@ void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBu
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
+// FKLevelSetElem
+/////////////////////////////////////////////////////////////////////////////////////
+
+void FKLevelSetElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FColor Color) const
+{
+	TArray<FBox> Boxes;
+
+	// Bounding box
+	Boxes.Add(CalcAABB(FTransform::Identity, FVector::OneVector));
+
+	// Cells with negative Phi values
+	GetInteriorGridCells(Boxes);
+
+	for (const FBox& Box : Boxes)
+	{
+		DrawWireBox(PDI, ElemTM.ToMatrixWithScale(), Box, Color, SDPG_World, 0.f);
+	}
+}
+
+void FKLevelSetElem::DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const
+{
+	TArray<FVector3f> Vertices;
+	TArray<FIntVector> Tris;
+	GetZeroIsosurfaceGridCellFaces(Vertices, Tris);
+
+	FDynamicMeshBuilder MeshBuilder(PDI->View->GetFeatureLevel());
+	for (const FVector3f& V : Vertices)
+	{
+		MeshBuilder.AddVertex(FDynamicMeshVertex(V));
+	}
+	for (const FIntVector& T : Tris)
+	{
+		MeshBuilder.AddTriangle(T[0], T[1], T[2]);
+	}
+
+	MeshBuilder.Draw(PDI, ElemTM.ToMatrixWithScale(), MaterialRenderProxy, SDPG_World, 0.f);
+}
+
+void FKLevelSetElem::GetElemSolid(const FTransform& ElemTM, const FVector& Scale3D, const FMaterialRenderProxy* MaterialRenderProxy, int32 ViewIndex, class FMeshElementCollector& Collector) const
+{
+	TArray<FVector3f> Vertices;
+	TArray<FIntVector> Tris;
+	GetZeroIsosurfaceGridCellFaces(Vertices, Tris);
+
+	FDynamicMeshBuilder MeshBuilder(Collector.GetFeatureLevel());
+	for (const FVector3f& V : Vertices)
+	{
+		MeshBuilder.AddVertex(FDynamicMeshVertex(V));
+	}
+	for (const FIntVector& T : Tris)
+	{
+		MeshBuilder.AddTriangle(T[0], T[1], T[2]);
+	}
+
+	MeshBuilder.GetMesh(ElemTM.ToMatrixWithScale(), MaterialRenderProxy, SDPG_World, false, false, ViewIndex, Collector);
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
 // FKConvexGeomRenderInfo
 /////////////////////////////////////////////////////////////////////////////////////
 
@@ -1075,6 +1133,17 @@ void FKAggregateGeom::GetAggGeom(const FTransform& Transform, const FColor Color
 			TaperedCapsuleElems[i].GetElemSolid(ElemTM, Scale3D, MatInst, ViewIndex, Collector);
 		else
 			TaperedCapsuleElems[i].DrawElemWire(Collector.GetPDI(ViewIndex), ElemTM, Scale3D, Color);
+	}
+
+	for (int32 i = 0; i < LevelSetElems.Num(); i++)
+	{
+		FTransform ElemTM = LevelSetElems[i].GetTransform();
+		ElemTM *= Transform;
+
+		if (bDrawSolid)
+			LevelSetElems[i].GetElemSolid(ElemTM, Scale3D, MatInst, ViewIndex, Collector);
+		else
+			LevelSetElems[i].DrawElemWire(Collector.GetPDI(ViewIndex), ElemTM, 1.f, Color);
 	}
 }
 

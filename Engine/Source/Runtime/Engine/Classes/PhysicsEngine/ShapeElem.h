@@ -19,6 +19,7 @@ namespace EAggCollisionShape
 		Sphyl,
 		Convex,
 		TaperedCapsule,
+		LevelSet,
 
 		Unknown
 	};

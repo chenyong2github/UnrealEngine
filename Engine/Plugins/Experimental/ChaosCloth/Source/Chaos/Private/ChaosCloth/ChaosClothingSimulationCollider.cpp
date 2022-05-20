@@ -9,6 +9,8 @@
 #include "Chaos/TaperedCylinder.h"
 #include "Chaos/TaperedCapsule.h"
 #include "Chaos/Convex.h"
+#include "Chaos/Levelset.h"
+#include "Chaos/ImplicitObjectTransformed.h"
 #include "ClothingSimulation.h" // For context
 #include "ClothingAsset.h"
 #include "Engine/SkeletalMesh.h"
@@ -40,6 +42,7 @@ void FClothingSimulationCollider::FLODData::Add(
 	FClothingSimulationSolver* Solver,
 	FClothingSimulationCloth* Cloth,
 	const FClothCollisionData& InClothCollisionData,
+	const TArray<FLevelSetCollisionData>& InLevelSetCollisionData,
 	const FReal InScale,
 	const TArray<int32>& UsedBoneIndices)
 {
@@ -70,7 +73,8 @@ void FClothingSimulationCollider::FLODData::Add(
 
 	const uint32 NumConvexes = ClothCollisionData.Convexes.Num();
 	const int32 NumBoxes = ClothCollisionData.Boxes.Num();
-	NumGeometries = NumSpheres + NumCapsules + NumConvexes + NumBoxes;
+	const int32 NumLevelSets = InLevelSetCollisionData.Num();
+	NumGeometries = NumSpheres + NumCapsules + NumConvexes + NumBoxes + NumLevelSets;
 
 	// Retrieve cloth group Id, or use INDEX_NONE if this collider applies to all cloths (when Cloth == nullptr)
 	const uint32 GroupId = Cloth ? Cloth->GetGroupId() : INDEX_NONE;
@@ -290,7 +294,28 @@ void FClothingSimulationCollider::FLODData::Add(
 		}
 	}
 
-	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Added collisions: %d spheres, %d capsules, %d convexes, %d boxes."), NumSpheres, NumCapsules, NumConvexes, NumBoxes);
+	const int32 LevelSetOffset = BoxOffset + NumBoxes;
+	if (NumLevelSets != 0)
+	{
+		int32* const BoneIndices = Solver->GetCollisionBoneIndices(LevelSetOffset);
+		Softs::FSolverRigidTransform3* const BaseTransforms = Solver->GetCollisionBaseTransforms(LevelSetOffset);
+
+		for (int32 Index = 0; Index < NumLevelSets; ++Index)
+		{
+			// Always initialize the collision particle transforms before setting any geometry as otherwise NaNs gets detected during the bounding box updates
+			BaseTransforms[Index] = Softs::FSolverRigidTransform3::Identity;
+
+			BoneIndices[Index] = GetMappedBoneIndex(UsedBoneIndices, InLevelSetCollisionData[Index].BoneIndex);
+			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision level set on bone index %d."), BoneIndices[Index]);
+
+			// Setup the collision particle geometry
+			TUniquePtr<FImplicitObject> TransformedLevelSet = MakeUnique<TImplicitObjectTransformed<FReal, 3>>(InLevelSetCollisionData[Index].LevelSet->DeepCopy(), 
+				TRigidTransform<FReal, 3>(InLevelSetCollisionData[Index].Transform));
+			Solver->SetCollisionGeometry(LevelSetOffset, Index, MoveTemp(TransformedLevelSet));
+		}
+	}
+
+	UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Added collisions: %d spheres, %d capsules, %d convexes, %d boxes, % level sets."), NumSpheres, NumCapsules, NumConvexes, NumBoxes, NumLevelSets);
 }
 
 void FClothingSimulationCollider::FLODData::Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth)
@@ -383,7 +408,7 @@ FClothCollisionData FClothingSimulationCollider::GetCollisionData(const FClothin
 	return ClothCollisionData;
 }
 
-void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<int32>& UsedBoneIndices)
+void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<FLevelSetCollisionData>& LevelSetCollisions, TArray<int32>& UsedBoneIndices)
 {
 	ClothCollisionData.Reset();
 	UsedBoneIndices.Reset();
@@ -546,6 +571,15 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				ClothCollisionData.Convexes.Add(Convex);
 			}
 #endif  // #if WITH_CHAOS
+
+			for (const FKLevelSetElem& LevelSetElem : AggGeom.LevelSetElems)
+			{
+				if (LevelSetElem.GetLevelSet().IsValid())
+				{
+					LevelSetCollisions.Add({ LevelSetElem.GetLevelSet(), LevelSetElem.GetTransform(), MappedBoneIndex });
+				}
+			}
+
 		}  // End for PhysAsset->SkeletalBodySetups
 	}  // End if Asset->PhysicsAsset
 }
@@ -607,10 +641,11 @@ void FClothingSimulationCollider::Add(FClothingSimulationSolver* Solver, FClothi
 
 	// Create physics asset collisions, this will affect all LODs, so store it at index 0
 	FClothCollisionData PhysicsAssetCollisionData;
+	TArray<FLevelSetCollisionData> LevelSetCollisions;
 	TArray<int32> UsedBoneIndices;
-	ExtractPhysicsAssetCollision(PhysicsAssetCollisionData, UsedBoneIndices);
+	ExtractPhysicsAssetCollision(PhysicsAssetCollisionData, LevelSetCollisions, UsedBoneIndices);
 
-	LODData[(int32)ECollisionDataType::LODless].Add(Solver, Cloth, PhysicsAssetCollisionData, Scale, UsedBoneIndices);
+	LODData[(int32)ECollisionDataType::LODless].Add(Solver, Cloth, PhysicsAssetCollisionData, LevelSetCollisions, Scale, UsedBoneIndices);
 
 	// Create legacy asset LOD collisions
 	const int32 NumLODs = Asset ? Asset->LodData.Num() : 0;
@@ -629,8 +664,10 @@ void FClothingSimulationCollider::Add(FClothingSimulationSolver* Solver, FClothi
 			AssetCollisionData.SphereConnections.Num(),
 			AssetCollisionData.Convexes.Num());
 
+		const TArray<FLevelSetCollisionData> AssetLevelSetCollisions;		// Shouldn't be any level set collider on legacy asset
+
 		// Add legacy collision
-		LODData[(int32)ECollisionDataType::LODs + Index].Add(Solver, Cloth, AssetCollisionData, Scale, Asset->UsedBoneIndices);
+		LODData[(int32)ECollisionDataType::LODs + Index].Add(Solver, Cloth, AssetCollisionData, AssetLevelSetCollisions, Scale, Asset->UsedBoneIndices);
 	}
 }
 
@@ -656,7 +693,10 @@ void FClothingSimulationCollider::PreUpdate(FClothingSimulationSolver* Solver, F
 	const int32 ExternalCollisionNumGeometries = GetNumGeometries((int32)ECollisionDataType::External);
 	const int32 ExternalCollisionOffset = GetOffset(Solver, Cloth, (int32)ECollisionDataType::External);
 
-	LODData[(int32)ECollisionDataType::External].Add(Solver, Cloth, CollisionData ? *CollisionData : FClothCollisionData());
+	// TODO: Get level sets?
+	const TArray<FLevelSetCollisionData> LevelSetCollisions;
+
+	LODData[(int32)ECollisionDataType::External].Add(Solver, Cloth, CollisionData ? *CollisionData : FClothCollisionData(), LevelSetCollisions);
 	
 	// TODO: Find a better way in case the same number but different collisions are being re-added (hash collision data? Provide user dirty function?)
 	bHasExternalCollisionChanged =

@@ -15,6 +15,7 @@ namespace Chaos
 
 	class FClothingSimulationSolver;
 	class FClothingSimulationCloth;
+	class FLevelSet;
 
 	// Collider simulation node
 	class FClothingSimulationCollider final
@@ -71,7 +72,15 @@ namespace Chaos
 		// ---- End of the debugging and visualization functions ----
 
 	private:
-		void ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<int32>& UsedBoneIndices);
+
+		struct FLevelSetCollisionData
+		{
+			const TSharedPtr<Chaos::FLevelSet, ESPMode::ThreadSafe> LevelSet;
+			FTransform Transform;
+			int32 BoneIndex;
+		};
+
+		void ExtractPhysicsAssetCollision(FClothCollisionData& ClothCollisionData, TArray<FLevelSetCollisionData>& LevelSetCollisions, TArray<int32>& UsedBoneIndices);
 
 		int32 GetNumGeometries(int32 InSlotIndex) const;
 
@@ -96,6 +105,7 @@ namespace Chaos
 				FClothingSimulationSolver* Solver,
 				FClothingSimulationCloth* Cloth,
 				const FClothCollisionData& InClothCollisionData,
+				const TArray<FLevelSetCollisionData>& InLevelSetCollisionData,
 				const FReal InScale = 1.f,
 				const TArray<int32>& UsedBoneIndices = TArray<int32>());
 			void Remove(FClothingSimulationSolver* Solver, FClothingSimulationCloth* Cloth);

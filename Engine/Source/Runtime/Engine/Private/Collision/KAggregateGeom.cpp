@@ -16,6 +16,7 @@
 #include "Engine/Polys.h"
 #include "PhysXIncludes.h"
 #include "Chaos/Convex.h"
+#include "Chaos/Levelset.h"
 #if INTEL_ISPC
 #include "KAggregateGeom.ispc.generated.h"
 #endif
@@ -103,6 +104,11 @@ FBox FKAggregateGeom::CalcAABB(const FTransform& Transform) const
 	for(int32 i=0; i<TaperedCapsuleElems.Num(); i++)
 	{
 		Box += TaperedCapsuleElems[i].CalcAABB(BoneTM, ScaleFactor);
+	}
+
+	for (int32 i = 0; i < LevelSetElems.Num(); i++)
+	{
+		Box += LevelSetElems[i].CalcAABB(BoneTM, (FVector)Scale3D);
 	}
 
 	return Box;
@@ -494,6 +500,147 @@ FBox FKTaperedCapsuleElem::CalcAABB(const FTransform& BoneTM, float Scale) const
 	return Result;
 }
 
+
+///////////////////////////////////////
+//////// FKLevelSetElem ///////////////
+///////////////////////////////////////
+
+FBox FKLevelSetElem::CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) const
+{
+	FBox Box;
+
+	if (LevelSet.IsValid())
+	{
+		Box = FBox(LevelSet->BoundingBox().Min(), LevelSet->BoundingBox().Max());
+		const FTransform LocalToWorld = FTransform(FQuat::Identity, FVector::ZeroVector, Scale3D) * BoneTM;
+		return Box.TransformBy(Transform * LocalToWorld);
+	}
+
+	return Box;
+}
+
+void FKLevelSetElem::BuildLevelSet(const FVector& GridOrigin, const TArray<double>& GridValues, const FIntVector& GridDims, float GridCellSize)
+{
+	const Chaos::FVec3 Min = GridOrigin;
+	const Chaos::FVec3 Max = GridOrigin + Chaos::FVec3(GridCellSize * (FVector)GridDims);
+	const Chaos::TVec3<int32> ChaosDim(GridDims[0], GridDims[1], GridDims[2]);
+	
+	Chaos::TUniformGrid<Chaos::FReal, 3> ChaosGrid(Min, Max, ChaosDim);
+	Chaos::TArrayND<Chaos::FReal, 3> Phi( Chaos::TVec3<int32>(GridDims[0], GridDims[1], GridDims[2]), GridValues );
+
+	LevelSet = TSharedPtr<Chaos::FLevelSet>(new Chaos::FLevelSet(MoveTemp(ChaosGrid), MoveTemp(Phi), 0));
+}
+
+void FKLevelSetElem::GetInteriorGridCells( TArray<FBox>& CellBoxes ) const
+{
+	if (LevelSet.IsValid())
+	{
+		const Chaos::TUniformGrid<Chaos::FReal, 3>& Grid = LevelSet->GetGrid();
+		const Chaos::TVector<int32, 3> Cells = Grid.Counts();
+		for (int i = 0; i < Cells.X; ++i)
+		{
+			for (int j = 0; j < Cells.Y; ++j)
+			{
+				for (int k = 0; k < Cells.Z; ++k)
+				{
+					const double Value = LevelSet->GetPhiArray()(i, j, k);
+
+					if (Value <= 0.0)
+					{
+						const FVector3d CellMin = Grid.MinCorner() + Grid.Dx() * FVector3d(i, j, k);
+						const FVector3d CellMax = CellMin + Grid.Dx() * FVector3d(1, 1, 1);
+						CellBoxes.Emplace( FBox(CellMin, CellMax) );
+					}
+				}
+			}
+		}
+	}
+}
+
+
+void FKLevelSetElem::GetZeroIsosurfaceGridCellFaces(TArray<FVector3f>& Vertices, TArray<FIntVector>& Tris ) const
+{
+	if (LevelSet.IsValid())
+	{
+		const Chaos::TUniformGrid<Chaos::FReal, 3>& Grid = LevelSet->GetGrid();
+		const Chaos::TVector<int32, 3> Cells = Grid.Counts();
+		for (int i = 0; i < Cells.X-1; ++i)
+		{
+			for (int j = 0; j < Cells.Y-1; ++j)
+			{
+				for (int k = 0; k < Cells.Z-1; ++k)
+				{
+					const double Sign = FMath::Sign(LevelSet->GetPhiArray()(i, j, k));
+					const double SignNextI = FMath::Sign(LevelSet->GetPhiArray()(i+1, j, k));
+					const double SignNextJ = FMath::Sign(LevelSet->GetPhiArray()(i, j+1, k));
+					const double SignNextK = FMath::Sign(LevelSet->GetPhiArray()(i, j, k+1));
+
+					const FVector3d CellMin = Grid.MinCorner() + Grid.Dx() * FVector3d(i, j, k);
+
+					if (Sign > SignNextI)
+					{
+						const int32 V0 = Vertices.Emplace( CellMin + FVector3d(1, 0, 0) );
+						const int32 V1 = Vertices.Emplace( CellMin + FVector3d(1, 1, 0) );
+						const int32 V2 = Vertices.Emplace( CellMin + FVector3d(1, 1, 1) );
+						const int32 V3 = Vertices.Emplace( CellMin + FVector3d(1, 0, 1) );
+						Tris.Emplace(FIntVector(V0, V1, V2));
+						Tris.Emplace(FIntVector(V2, V3, V0));
+					}
+					else if (Sign < SignNextI)
+					{
+						const int32 V0 = Vertices.Emplace(CellMin + FVector3d(1, 0, 0));
+						const int32 V1 = Vertices.Emplace(CellMin + FVector3d(1, 1, 0));
+						const int32 V2 = Vertices.Emplace(CellMin + FVector3d(1, 1, 1));
+						const int32 V3 = Vertices.Emplace(CellMin + FVector3d(1, 0, 1));
+						Tris.Emplace(FIntVector(V0, V2, V1));
+						Tris.Emplace(FIntVector(V2, V0, V3));
+					}
+
+					
+					if (Sign > SignNextJ)
+					{
+						const int32 V0 = Vertices.Emplace(CellMin + FVector3d(0, 1, 0));
+						const int32 V1 = Vertices.Emplace(CellMin + FVector3d(1, 1, 0));
+						const int32 V2 = Vertices.Emplace(CellMin + FVector3d(1, 1, 1));
+						const int32 V3 = Vertices.Emplace(CellMin + FVector3d(0, 1, 1));
+						Tris.Emplace(FIntVector(V0, V2, V1));
+						Tris.Emplace(FIntVector(V2, V0, V3));
+					}
+					else if (Sign < SignNextJ)
+					{
+						const int32 V0 = Vertices.Emplace(CellMin + FVector3d(0, 1, 0));
+						const int32 V1 = Vertices.Emplace(CellMin + FVector3d(1, 1, 0));
+						const int32 V2 = Vertices.Emplace(CellMin + FVector3d(1, 1, 1));
+						const int32 V3 = Vertices.Emplace(CellMin + FVector3d(0, 1, 1));
+						Tris.Emplace(FIntVector(V0, V1, V2));
+						Tris.Emplace(FIntVector(V2, V3, V0));
+					}
+
+					if (Sign > SignNextK)
+					{
+						const int32 V0 = Vertices.Emplace(CellMin + FVector3d(0, 0, 1));
+						const int32 V1 = Vertices.Emplace(CellMin + FVector3d(1, 0, 1));
+						const int32 V2 = Vertices.Emplace(CellMin + FVector3d(1, 1, 1));
+						const int32 V3 = Vertices.Emplace(CellMin + FVector3d(0, 1, 1));
+						Tris.Emplace(FIntVector(V0, V1, V2));
+						Tris.Emplace(FIntVector(V2, V3, V0));
+					}
+					else if (Sign < SignNextK)
+					{
+						const int32 V0 = Vertices.Emplace(CellMin + FVector3d(0, 0, 1));
+						const int32 V1 = Vertices.Emplace(CellMin + FVector3d(1, 0, 1));
+						const int32 V2 = Vertices.Emplace(CellMin + FVector3d(1, 1, 1));
+						const int32 V3 = Vertices.Emplace(CellMin + FVector3d(0, 1, 1));
+						Tris.Emplace(FIntVector(V0, V2, V1));
+						Tris.Emplace(FIntVector(V2, V0, V3));
+					}
+
+				}
+			}
+		}
+	}
+}
+
 static const float DIST_COMPARE_THRESH = 0.1f;
 static const float DIR_COMPARE_THRESH = 0.0003f; // about 1 degree
 
@@ -809,3 +956,21 @@ FArchive& operator<<(FArchive& Ar,FKConvexElem& Elem)
 	}
 	return Ar;
 }
+
+bool FKLevelSetElem::Serialize(FArchive& Ar)
+{
+	Ar << Transform;
+
+	if (Ar.IsLoading())
+	{
+		LevelSet = TSharedPtr<Chaos::FLevelSet>(new Chaos::FLevelSet());
+	}
+
+	if (LevelSet.IsValid())
+	{
+		LevelSet->Serialize(Ar);
+	}
+
+	return true;
+}
+

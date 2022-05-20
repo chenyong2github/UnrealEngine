@@ -27,6 +27,7 @@
 
 #include "ChaosCheck.h"
 #include "Chaos/Convex.h"
+#include "Chaos/Levelset.h"
 
 #include "PhysXCookHelper.h"
 
@@ -222,6 +223,8 @@ void UBodySetup::AddCollisionFrom(const FKAggregateGeom& FromAggGeom)
 		ConvexElem.ResetChaosConvexMesh();
 #endif
 	}
+
+	AggGeom.LevelSetElems.Append(FromAggGeom.LevelSetElems);
 }
 
 void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlags InCookFlags) const
@@ -1990,6 +1993,8 @@ int32 FKAggregateGeom::GetElementCount(EAggCollisionShape::Type Type) const
 		return SphereElems.Num();
 	case EAggCollisionShape::TaperedCapsule:
 		return TaperedCapsuleElems.Num();
+	case EAggCollisionShape::LevelSet:
+		return LevelSetElems.Num();
 	default:
 		return 0;
 	}
@@ -2624,6 +2629,22 @@ float UBodySetup::CalculateMass(const UPrimitiveComponent* Component) const
 float UBodySetup::GetVolume(const FVector& Scale) const
 {
 	return AggGeom.GetVolume(Scale);
+}
+
+
+/** Helper function to safely copy instances of this shape*/
+void FKLevelSetElem::CloneElem(const FKLevelSetElem& Other)
+{
+	Super::CloneElem(Other);
+	LevelSet = Other.LevelSet;
+	Transform = Other.Transform;
+}
+
+void FKLevelSetElem::ScaleElem(FVector DeltaSize, float MinSize)
+{
+	FTransform ScaledTransform = GetTransform();
+	ScaledTransform.SetScale3D(ScaledTransform.GetScale3D() + DeltaSize);
+	SetTransform(ScaledTransform);
 }
 
 #undef LOCTEXT_NAMESPACE

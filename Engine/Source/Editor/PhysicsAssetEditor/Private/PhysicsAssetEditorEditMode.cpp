@@ -395,6 +395,11 @@ bool FPhysicsAssetEditorEditMode::InputDelta(FEditorViewportClient* InViewportCl
 						AggGeom->TaperedCapsuleElems[SelectedObject.PrimitiveIndex].SetTransform(SelectedObject.ManipulateTM * AggGeom->TaperedCapsuleElems[SelectedObject.PrimitiveIndex].GetTransform());
 						SelectedObject.ManipulateTM.SetIdentity();
 					}
+					else if (SelectedObject.PrimitiveType == EAggCollisionShape::LevelSet)
+					{
+						AggGeom->LevelSetElems[SelectedObject.PrimitiveIndex].SetTransform(SelectedObject.ManipulateTM * AggGeom->LevelSetElems[SelectedObject.PrimitiveIndex].GetTransform());
+						SelectedObject.ManipulateTM.SetIdentity();
+					}
 				}
 				else if (InViewportClient->GetWidgetMode() == UE::Widget::WM_Scale)
 				{
@@ -1007,6 +1012,11 @@ void FPhysicsAssetEditorEditMode::ModifyPrimitiveSize(int32 BodyIndex, EAggColli
 	{
 		check(AggGeom->TaperedCapsuleElems.IsValidIndex(PrimIndex));
 		AggGeom->TaperedCapsuleElems[PrimIndex].ScaleElem(DeltaSize, MinPrimSize);
+	}
+	else if (PrimType == EAggCollisionShape::LevelSet)
+	{
+		check(AggGeom->LevelSetElems.IsValidIndex(PrimIndex));
+		AggGeom->LevelSetElems[PrimIndex].ScaleElem(DeltaSize, MinPrimSize);
 	}
 }
 
