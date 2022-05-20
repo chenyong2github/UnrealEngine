@@ -303,8 +303,12 @@ void SNiagaraOverviewGraph::OnCreateEmptyEmitter()
 
 void SNiagaraOverviewGraph::OnCreateComment()
 {
-	FNiagaraSchemaAction_NewComment CommentAction = FNiagaraSchemaAction_NewComment(GraphEditor);
-	CommentAction.PerformAction(ViewModel->GetGraph(), nullptr, GraphEditor->GetPasteLocation(), false);
+	// Emitter assets have a transient overview graph, so any created comments would also be transient. We skip creating these comments instead.
+	if (ViewModel->GetSystemViewModel()->GetEditMode() != ENiagaraSystemViewModelEditMode::EmitterAsset)
+	{
+		FNiagaraSchemaAction_NewComment CommentAction = FNiagaraSchemaAction_NewComment(GraphEditor);
+		CommentAction.PerformAction(ViewModel->GetGraph(), nullptr, GraphEditor->GetPasteLocation(), false);
+	}
 }
 
 void SNiagaraOverviewGraph::OnClearIsolated()
