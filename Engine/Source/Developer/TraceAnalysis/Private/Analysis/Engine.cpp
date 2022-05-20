@@ -52,7 +52,8 @@ struct FAuxData
 	const uint8*	Data;
 	uint32			DataSize;
 	uint16			FieldIndex;
-	int16			FieldSizeAndType;
+	int8			FieldSizeAndType;
+	bool			bSigned;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -578,6 +579,12 @@ bool IAnalyzer::FEventFieldInfo::IsArray() const
 	return Inner->bArray;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+bool IAnalyzer::FEventFieldInfo::IsSigned() const
+{
+	const auto* Inner = (const FDispatch::FField*)this;
+	return (Inner->Class & UE::Trace::Protocol0::Field_Signed) != 0;
+}
 
 
 // {{{1 array-reader -----------------------------------------------------------
@@ -592,7 +599,7 @@ uint32 IAnalyzer::FArrayReader::Num() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const void* IAnalyzer::FArrayReader::GetImpl(uint32 Index, int16& SizeAndType) const
+const void* IAnalyzer::FArrayReader::GetImpl(uint32 Index, int8& SizeAndType) const
 {
 	const auto* Inner = (const FAuxData*)this;
 	SizeAndType = Inner->FieldSizeAndType;
@@ -633,7 +640,9 @@ const FAuxData* FEventDataInfo::GetAuxData(uint32 FieldIndex) const
 	{
 		if (Data.FieldIndex == FieldIndex)
 		{
-			Data.FieldSizeAndType = Info->Dispatch.Fields[FieldIndex].SizeAndType;
+			const FDispatch::FField& Field = Info->Dispatch.Fields[FieldIndex];
+			Data.FieldSizeAndType = Field.SizeAndType;
+			Data.bSigned = (Field.Class & UE::Trace::Protocol0::Field_Signed) != 0;
 			return &Data;
 		}
 	}
@@ -667,7 +676,7 @@ const IAnalyzer::FArrayReader* IAnalyzer::FEventData::GetArrayImpl(const ANSICHA
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const
+const void* IAnalyzer::FEventData::GetValueImpl(const ANSICHAR* FieldName, int8& SizeAndType) const
 {
 	const auto* Info = (const FEventDataInfo*)this;
 	const auto& Dispatch = Info->Dispatch;
@@ -2727,6 +2736,7 @@ protected:
 	virtual EStatus			OnData(FStreamReader& Reader, const FMachineContext& Context) override;
 	EStatus					OnDataNewEvents(const FMachineContext& Context);
 	EStatus					OnDataImportant(const FMachineContext& Context);
+	EStatus					OnDataNonCachedImportant(const FMachineContext& Context);
 	EStatus					OnDataNormal(const FMachineContext& Context);
 	int32					ParseImportantEvents(FStreamReader& Reader, EventDescArray& OutEventDescs);
 	int32					ParseEvents(FStreamReader& Reader, EventDescArray& OutEventDescs);

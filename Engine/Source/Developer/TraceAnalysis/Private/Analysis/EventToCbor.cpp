@@ -9,6 +9,25 @@ namespace UE {
 namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
+template<typename DestType>
+static void WriteArray(FCborWriter& CborWriter, const IAnalyzer::TArrayReader<DestType>& Reader)
+{
+	if (const uint32 Num = Reader.Num())
+	{
+		CborWriter.WriteContainerStart(ECborCode::Array, Reader.Num());
+		for (uint32 j = 0; j < Num; ++j)
+		{
+			DestType Value = Reader[j];
+			CborWriter.WriteValue(Value);
+		}
+	}
+	else
+	{
+		CborWriter.WriteNull();
+	}
+}
+	
+////////////////////////////////////////////////////////////////////////////////
 void SerializeToCborImpl(
 	TArray<uint8>& Out,
 	const IAnalyzer::FEventData& EventData,
@@ -53,47 +72,34 @@ void SerializeToCborImpl(
 
 		if (FieldInfo.IsArray())
 		{
-			if (FieldInfo.GetType() == IAnalyzer::FEventFieldInfo::EType::Integer)
+			switch (FieldInfo.GetType())
 			{
-				const IAnalyzer::TArrayReader<uint64>& Reader = EventData.GetArray<uint64>(FieldName);
-				if (uint32 Num = Reader.Num())
-				{
-					CborWriter.WriteContainerStart(ECborCode::Array, Reader.Num());
-					for (uint32 j = 0; j < Num; ++j)
-					{
-						uint64 Value = Reader[j];
-						CborWriter.WriteValue(Value);
-					}
-				}
-				else
-				{
-					CborWriter.WriteNull();
-				}
-			}
-			else
-			{
-				const IAnalyzer::TArrayReader<double>& Reader = EventData.GetArray<double>(FieldName);
-				if (uint32 Num = Reader.Num())
-				{
-					CborWriter.WriteContainerStart(ECborCode::Array, Reader.Num());
-					for (uint32 j = 0; j < Num; ++j)
-					{
-						double Value = Reader[j];
-						CborWriter.WriteValue(Value);
-					}
-				}
-				else
-				{
-					CborWriter.WriteNull();
-				}
+			case IAnalyzer::FEventFieldInfo::EType::Integer:
+				WriteArray(CborWriter, EventData.GetArray<uint64>(FieldName));
+				break;
+			case IAnalyzer::FEventFieldInfo::EType::Float:
+				WriteArray(CborWriter, EventData.GetArray<double>(FieldName));
+				break;
+			default:
+				//not supported
+				CborWriter.WriteNull();
+				break;
 			}
 			continue;
 		}
 
 		if (FieldInfo.GetType() == IAnalyzer::FEventFieldInfo::EType::Integer)
 		{
-			uint64 Value = EventData.GetValue<uint64>(FieldName);
-			CborWriter.WriteValue(Value);
+			if (FieldInfo.IsSigned())
+			{
+				int64 Value = EventData.GetValue<int64>(FieldName);
+				CborWriter.WriteValue(Value);
+			}
+			else
+			{
+				uint64 Value = EventData.GetValue<uint64>(FieldName);
+				CborWriter.WriteValue(Value);
+			}
 			continue;
 		}
 

@@ -39,7 +39,8 @@ enum : uint8
 	Field_SpecialMask	= 0030,
 	Field_Pod			= 0000,
 	Field_String		= 0010,
-	/*Field_Unused_2	= 0020,
+	Field_Signed		= 0020,
+	/*Field_Unused_3	= 0030,
 	  ...
 	  Field_Unused_7	= 0070,*/
 };
@@ -47,16 +48,20 @@ enum : uint8
 ////////////////////////////////////////////////////////////////////////////////
 enum class EFieldType : uint8
 {
-	Bool		= Field_Pod    | Field_Integer             | Field_8,
-	Int8		= Field_Pod    | Field_Integer             | Field_8,
-	Int16		= Field_Pod    | Field_Integer             | Field_16,
-	Int32		= Field_Pod    | Field_Integer             | Field_32,
-	Int64		= Field_Pod    | Field_Integer             | Field_64,
-	Pointer		= Field_Pod    | Field_Integer             | Field_Ptr,
-	Float32		= Field_Pod    | Field_Float               | Field_32,
-	Float64		= Field_Pod    | Field_Float               | Field_64,
-	AnsiString	= Field_String | Field_Integer|Field_Array | Field_8,
-	WideString	= Field_String | Field_Integer|Field_Array | Field_16,
+	Bool		= Field_Pod    | Field_Integer                 | Field_8,
+	Int8		= Field_Pod    | Field_Integer|Field_Signed    | Field_8,
+	Int16		= Field_Pod    | Field_Integer|Field_Signed    | Field_16,
+	Int32		= Field_Pod    | Field_Integer|Field_Signed    | Field_32,
+	Int64		= Field_Pod    | Field_Integer|Field_Signed    | Field_64,
+	Uint8		= Field_Pod    | Field_Integer                 | Field_8,
+	Uint16		= Field_Pod    | Field_Integer                 | Field_16,
+	Uint32		= Field_Pod    | Field_Integer                 | Field_32,
+	Uint64		= Field_Pod    | Field_Integer                 | Field_64,
+	Pointer		= Field_Pod    | Field_Integer                 | Field_Ptr,
+	Float32		= Field_Pod    | Field_Float                   | Field_32,
+	Float64		= Field_Pod    | Field_Float                   | Field_64,
+	AnsiString	= Field_String | Field_Integer|Field_Array     | Field_8,
+	WideString	= Field_String | Field_Integer|Field_Array     | Field_16,
 	Array		= Field_Array,
 };
 

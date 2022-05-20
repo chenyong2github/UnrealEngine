@@ -61,6 +61,9 @@ public:
 
 		/** Is this field an array-type field? */
 		bool IsArray() const;
+
+		/** Is this field signed (only relevant for integer types) */
+		bool IsSigned() const;
 	};
 
 	struct FEventFieldHandle
@@ -107,7 +110,7 @@ public:
 		uint32 Num() const;
 
 	protected:
-		const void* GetImpl(uint32 Index, int16& SizeAndType) const;
+		const void* GetImpl(uint32 Index, int8& SizeAndType) const;
 	};
 
 	template <typename ValueType>
@@ -186,7 +189,7 @@ public:
 	private:
 		bool IsDefinitionImpl(uint32& OutTypeId) const;
 		const void* GetReferenceValueImpl(const char* FieldName, uint16& OutSizeType, uint32& OutTypeUid) const;
-		const void* GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const;
+		const void* GetValueImpl(const ANSICHAR* FieldName, int8& SizeAndType) const;
 		const FArrayReader* GetArrayImpl(const ANSICHAR* FieldName) const;
 	};
 
@@ -287,7 +290,7 @@ public:
 	}
 
 private:
-	template <typename ValueType> static ValueType CoerceValue(const void* Addr, int16 SizeAndType);
+	template <typename ValueType> static ValueType CoerceValue(const void* Addr, int8 SizeAndType);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -309,26 +312,29 @@ IAnalyzer::FEventFieldHandle IAnalyzer::FEventTypeInfo::GetFieldHandle(const ANS
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ValueType>
-ValueType IAnalyzer::CoerceValue(const void* Addr, int16 SizeAndType)
+ValueType IAnalyzer::CoerceValue(const void* Addr, int8 SizeAndType)
 {
+	using integral8 = std::conditional_t<std::is_signed_v<ValueType>, int8, uint8>;
+	using integral16 = std::conditional_t<std::is_signed_v<ValueType>, int16, uint16>;
+	using integral32 = std::conditional_t<std::is_signed_v<ValueType>, int32, uint32>;
+	using integral64 = std::conditional_t<std::is_signed_v<ValueType>, int64, uint64>;
 	switch (SizeAndType)
 	{
 	case -4: return ValueType(*(const float*)(Addr));
 	case -8: return ValueType(*(const double*)(Addr));
-	case  1: return ValueType(*(const uint8*)(Addr));
-	case  2: return ValueType(*(const uint16*)(Addr));
-	case  4: return ValueType(*(const uint32*)(Addr));
-	case  8: return ValueType(*(const uint64*)(Addr));
+	case  1: return ValueType(*(const integral8*)(Addr));
+	case  2: return ValueType(*(const integral16*)(Addr));
+	case  4: return ValueType(*(const integral32*)(Addr));
+	case  8: return ValueType(*(const integral64*)(Addr));
+	default: return ValueType(0);
 	}
-
-	return ValueType(0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ValueType>
 ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName, ValueType Default) const
 {
-	int16 FieldSizeAndType;
+	int8 FieldSizeAndType;
 	if (const void* Addr = GetValueImpl(FieldName, FieldSizeAndType))
 	{
 		return CoerceValue<ValueType>(Addr, FieldSizeAndType);
@@ -364,7 +370,7 @@ TArrayView<const ValueType> IAnalyzer::FEventData::GetArrayView(const ANSICHAR* 
 template <typename ValueType>
 ValueType IAnalyzer::TArrayReader<ValueType>::operator [] (uint32 Index) const
 {
-	int16 ElementSizeAndType;
+	int8 ElementSizeAndType;
 	if (const void* Addr = GetImpl(Index, ElementSizeAndType))
 	{
 		return CoerceValue<ValueType>(Addr, ElementSizeAndType);
@@ -376,7 +382,7 @@ ValueType IAnalyzer::TArrayReader<ValueType>::operator [] (uint32 Index) const
 template <typename ValueType>
 const ValueType* IAnalyzer::TArrayReader<ValueType>::GetData() const
 {
-	int16 ElementSizeAndType;
+	int8 ElementSizeAndType;
 	const void* Addr = GetImpl(0, ElementSizeAndType);
 
 	if (Addr == nullptr || sizeof(ValueType) != abs(ElementSizeAndType))
