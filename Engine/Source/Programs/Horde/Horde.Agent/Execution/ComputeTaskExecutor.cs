@@ -181,7 +181,7 @@ namespace Horde.Agent.Execution
 		/// <param name="inputDirectory">The directory spec</param>
 		/// <param name="outputDir">Output directory on disk</param>
 		/// <returns>Async task</returns>
-		async Task SetupSandboxAsync(NamespaceId namespaceId, DirectoryTree inputDirectory, DirectoryReference outputDir)
+		internal async Task SetupSandboxAsync(NamespaceId namespaceId, DirectoryTree inputDirectory, DirectoryReference outputDir)
 		{
 			DirectoryReference.CreateDirectory(outputDir);
 
@@ -189,7 +189,9 @@ namespace Horde.Agent.Execution
 			{
 				FileReference file = FileReference.Combine(outputDir, fileNode.Name.ToString());
 				_logger.LogInformation("Downloading {File} (digest: {Digest})", file, fileNode.Hash);
-				byte[] data = await _storageClient.ReadBlobToMemoryAsync(namespaceId, fileNode.Hash);
+				byte[] data = fileNode.IsCompressed
+					? await _storageClient.ReadCompressedBlobToMemoryAsync(namespaceId, fileNode.Hash)
+					: await _storageClient.ReadBlobToMemoryAsync(namespaceId, fileNode.Hash);
 				_logger.LogInformation("Writing {File} (digest: {Digest})", file, fileNode.Hash);
 				await FileReference.WriteAllBytesAsync(file, data);
 			}
@@ -276,7 +278,8 @@ namespace Horde.Agent.Execution
 		{
 			byte[] data = await FileReference.ReadAllBytesAsync(file);
 			IoHash hash = await _storageClient.WriteBlobFromMemoryAsync(namespaceId, data);
-			return new FileNode(name, hash, data.Length, (int)FileReference.GetAttributes(file));
+			// TODO: Figure out how file can be marked as compressed
+			return new FileNode(name, hash, data.Length, (int)FileReference.GetAttributes(file), false);
 		}
 
 		/// <summary>

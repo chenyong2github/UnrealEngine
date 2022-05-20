@@ -52,6 +52,12 @@ namespace EpicGames.Horde.Compute
 		/// </summary>
 		[CbField("a")]
 		public int Attributes { get; set; }
+		
+		/// <summary>
+		/// Whether the file is compressed or not.
+		/// </summary>
+		[CbField("c")]
+		public bool IsCompressed { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization
@@ -63,12 +69,13 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileNode(Utf8String name, CbBinaryAttachment hash, long size, int attributes)
+		public FileNode(Utf8String name, CbBinaryAttachment hash, long size, int attributes, bool isCompressed)
 		{
 			Name = name;
 			Hash = hash;
 			Size = size;
 			Attributes = attributes;
+			IsCompressed = isCompressed;
 		}
 	}
 

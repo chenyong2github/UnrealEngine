@@ -165,6 +165,15 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Stream for the blob, or null if it does not exist</returns>
 		Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default);
+		
+		/// <summary>
+		/// Opens a blob read stream for compressed blobs
+		/// </summary>
+		/// <param name="namespaceId">Namespace to operate on</param>
+		/// <param name="uncompressedHash">Hash of the uncompressed blob</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Stream for the blob, or null if it does not exist</returns>
+		Task<Stream> ReadCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a blob to storage
@@ -176,13 +185,23 @@ namespace EpicGames.Horde.Storage
 		Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Writes a blob to storage
+		/// Writes a blob to storage and calculates hash
 		/// </summary>
 		/// <param name="namespaceId">Namespace to operate on</param>
 		/// <param name="stream">The stream to write</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Hash of the blob written</returns>
 		Task<IoHash> WriteBlobAsync(NamespaceId namespaceId, Stream stream, CancellationToken cancellationToken = default);
 
+		/// <summary>
+		/// Writes a compressed blob to storage
+		/// </summary>
+		/// <param name="namespaceId">Namespace to operate on</param>
+		/// <param name="uncompressedHash">Hash of the blob</param>
+		/// <param name="compressedStream">Compressed stream to write</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream compressedStream, CancellationToken cancellationToken = default);
+		
 		/// <summary>
 		/// Checks if the given blob exists
 		/// </summary>
@@ -285,9 +304,30 @@ namespace EpicGames.Horde.Storage
 		/// <param name="maxInMemoryBlobLength">Maximum allowed memory allocation to store the blob</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Data for the blob that was read. Throws an exception if the blob was not found.</returns>
-		public static async Task<byte[]> ReadBlobToMemoryAsync(this IStorageClient storageClient, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
+		public static Task<byte[]> ReadBlobToMemoryAsync(this IStorageClient storageClient, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
 		{
-			using Stream stream = await storageClient.ReadBlobAsync(namespaceId, hash, cancellationToken);
+			return ReadBlobToMemoryAsync(storageClient, false, namespaceId, hash, maxInMemoryBlobLength, cancellationToken);
+		}
+		
+		/// <summary>
+		/// Gets a compressed blob as a byte array
+		/// </summary>
+		/// <param name="storageClient">The storage interface</param>
+		/// <param name="namespaceId">Namespace containing the blob</param>
+		/// <param name="hash">Hash of the blob to read</param>
+		/// <param name="maxInMemoryBlobLength">Maximum allowed memory allocation to store the blob</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Data for the blob that was read. Throws an exception if the blob was not found.</returns>
+		public static Task<byte[]> ReadCompressedBlobToMemoryAsync(this IStorageClient storageClient, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
+		{
+			return ReadBlobToMemoryAsync(storageClient, true, namespaceId, hash, maxInMemoryBlobLength, cancellationToken);
+		}
+		
+		private static async Task<byte[]> ReadBlobToMemoryAsync(IStorageClient storageClient, bool isBlobCompressed, NamespaceId namespaceId, IoHash hash, int maxInMemoryBlobLength = DefaultMaxInMemoryBlobLength, CancellationToken cancellationToken = default)
+		{
+			using Stream stream = isBlobCompressed
+				? await storageClient.ReadCompressedBlobAsync(namespaceId, hash, cancellationToken)
+				: await storageClient.ReadBlobAsync(namespaceId, hash, cancellationToken);
 
 			long length = stream.Length;
 			if (length > maxInMemoryBlobLength)

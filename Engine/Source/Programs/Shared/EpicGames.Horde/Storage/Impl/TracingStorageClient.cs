@@ -35,6 +35,13 @@ namespace EpicGames.Horde.Storage.Impl
 			_logger.LogDebug("Reading blob {NamespaceId}/{Hash}", namespaceId, hash);
 			return _inner.ReadBlobAsync(namespaceId, hash, cancellationToken);
 		}
+		
+		/// <inheritdoc/>
+		public Task<Stream> ReadCompressedBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
+		{
+			_logger.LogDebug("Reading compressed blob {NamespaceId}/{Hash}", namespaceId, hash);
+			return _inner.ReadCompressedBlobAsync(namespaceId, hash, cancellationToken);
+		}
 
 		/// <inheritdoc/>
 		public Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken = default)
@@ -49,6 +56,13 @@ namespace EpicGames.Horde.Storage.Impl
 			IoHash hash = await _inner.WriteBlobAsync(namespaceId, stream, cancellationToken);
 			_logger.LogDebug("Written blob {NamespaceId}/{Hash}", namespaceId, hash);
 			return hash;
+		}
+
+		/// <inheritdoc/>
+		public Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream stream, CancellationToken cancellationToken = default)
+		{
+			_logger.LogDebug("Writing compressed blob {NamespaceId}/{UncompressedHash}", namespaceId, uncompressedHash);
+			return _inner.WriteCompressedBlobAsync(namespaceId, uncompressedHash, stream, cancellationToken);
 		}
 
 		/// <inheritdoc/>

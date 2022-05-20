@@ -107,7 +107,7 @@ namespace Horde.Agent.Commands
 				byte[] data = File.ReadAllBytes(fileInfo.FullName);
 				IoHash hash = IoHash.Compute(data);
 				uploadList[hash] = data;
-				tree.Files.Add(new FileNode(fileInfo.Name, hash, fileInfo.Length, (int)fileInfo.Attributes));
+				tree.Files.Add(new FileNode(fileInfo.Name, hash, fileInfo.Length, (int)fileInfo.Attributes, false));
 			}
 			tree.Files.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
 

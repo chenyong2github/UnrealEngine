@@ -70,6 +70,12 @@ namespace Horde.Build.Storage.Services
 
 			return stream;
 		}
+		
+		/// <inheritdoc/>
+		public Task<Stream> ReadCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, CancellationToken cancellationToken)
+		{
+			throw new NotImplementedException();
+		}
 
 		/// <inheritdoc/>
 		public async Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken)
@@ -107,6 +113,12 @@ namespace Horde.Build.Storage.Services
 			await _storageBackend.WriteBytesAsync(path, data);
 
 			return dataHash;
+		}
+
+		/// <inheritdoc/>
+		public Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream stream, CancellationToken cancellationToken = default)
+		{
+			throw new NotImplementedException();
 		}
 
 		/// <inheritdoc/>

@@ -34,6 +34,11 @@ namespace EpicGames.Horde.Storage.Impl
 
 		/// <inheritdoc/>
 		public Dictionary<(NamespaceId, IoHash), ReadOnlyMemory<byte>> Blobs { get; } = new Dictionary<(NamespaceId, IoHash), ReadOnlyMemory<byte>>();
+		
+		/// <summary>
+		/// Mapping from uncompressed hash to compressed hash.
+		/// </summary>
+		public Dictionary<(NamespaceId, IoHash), IoHash> UncompressedToCompressedHash { get; } = new Dictionary<(NamespaceId, IoHash), IoHash>();
 
 		/// <inheritdoc/>
 		public Dictionary<(NamespaceId, BucketId, RefId), IRef> Refs { get; } = new Dictionary<(NamespaceId, BucketId, RefId), IRef>();
@@ -42,6 +47,14 @@ namespace EpicGames.Horde.Storage.Impl
 		public Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
 			ReadOnlyMemory<byte> data = Blobs[(namespaceId, hash)];
+			return Task.FromResult<Stream>(new ReadOnlyMemoryStream(data));
+		}
+		
+		/// <inheritdoc/>
+		public Task<Stream> ReadCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, CancellationToken cancellationToken = default)
+		{
+			IoHash compressedHash = UncompressedToCompressedHash[(namespaceId, uncompressedHash)];
+			ReadOnlyMemory<byte> data = Blobs[(namespaceId, compressedHash)];
 			return Task.FromResult<Stream>(new ReadOnlyMemoryStream(data));
 		}
 
@@ -68,6 +81,17 @@ namespace EpicGames.Horde.Storage.Impl
 				Blobs[(namespaceId, hash)] = data;
 				return hash;
 			}
+		}
+
+		/// <inheritdoc/>
+		public async Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream compressedStream, CancellationToken cancellationToken = default)
+		{
+			using MemoryStream memoryStream = new MemoryStream();
+			await compressedStream.CopyToAsync(memoryStream, cancellationToken);
+			byte[] compressedData = memoryStream.ToArray();
+			IoHash compressedHash = IoHash.Compute(compressedData);
+			Blobs[(namespaceId, compressedHash)] = compressedData;
+			UncompressedToCompressedHash[(namespaceId, uncompressedHash)] = compressedHash;
 		}
 
 		/// <inheritdoc/>

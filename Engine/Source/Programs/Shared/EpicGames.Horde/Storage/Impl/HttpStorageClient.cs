@@ -92,9 +92,20 @@ namespace EpicGames.Horde.Storage.Impl
 		#region Blobs
 
 		/// <inheritdoc/>
-		public async Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken)
+		public Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken)
 		{
-			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, $"api/v1/blobs/{namespaceId}/{hash}");
+			return ReadBlobFromUrlAsync($"api/v1/blobs/{namespaceId}/{hash}", namespaceId, hash, cancellationToken);
+		}
+		
+		/// <inheritdoc/>
+		public Task<Stream> ReadCompressedBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
+		{
+			return ReadBlobFromUrlAsync($"api/v1/compressed-blobs/{namespaceId}/{hash}", namespaceId, hash, cancellationToken);
+		}
+		
+		private async Task<Stream> ReadBlobFromUrlAsync(string url, NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken)
+		{
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url);
 
 			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
 			try
@@ -152,6 +163,20 @@ namespace EpicGames.Horde.Storage.Impl
 				WriteBlobResponse? responseMessage = await JsonSerializer.DeserializeAsync<WriteBlobResponse>(responseStream, cancellationToken: cancellationToken);
 				return responseMessage!.Identifier;
 			}
+		}
+
+		/// <inheritdoc/>
+		public async Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream stream, CancellationToken cancellationToken = default)
+		{
+			StreamContent content = new StreamContent(stream);
+			content.Headers.ContentType = new MediaTypeHeaderValue("application/x-ue-comp");
+			content.Headers.ContentLength = stream.Length;
+
+			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Put, $"api/v1/compressed-blobs/{namespaceId}/{uncompressedHash}");
+			request.Content = content;
+
+			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+			response.EnsureSuccessStatusCode();
 		}
 
 		/// <inheritdoc/>

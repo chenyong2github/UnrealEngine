@@ -65,6 +65,12 @@ namespace EpicGames.Horde.Storage.Impl
 			_logger.LogInformation("Reading {File} ({Size:n0} bytes)", file, new FileInfo(file.FullName).Length);
 			return Task.FromResult<Stream>(FileReference.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read));
 		}
+		
+		/// <inheritdoc/>
+		public Task<Stream> ReadCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, CancellationToken cancellationToken = default)
+		{
+			throw new NotImplementedException();
+		}
 
 		/// <inheritdoc/>
 		public async Task WriteBlobAsync(NamespaceId namespaceId, IoHash hash, Stream stream, CancellationToken cancellationToken = default)
@@ -89,6 +95,12 @@ namespace EpicGames.Horde.Storage.Impl
 				data = memoryStream.ToArray();
 			}
 			return await this.WriteBlobFromMemoryAsync(namespaceId, data, cancellationToken);
+		}
+
+		/// <inheritdoc/>
+		public Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream stream, CancellationToken cancellationToken = default)
+		{
+			throw new NotImplementedException();
 		}
 
 		/// <inheritdoc/>
