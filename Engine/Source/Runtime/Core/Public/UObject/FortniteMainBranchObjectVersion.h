@@ -211,6 +211,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Serialize LevelInstanceActorGuid on new ILevelInstanceInterface implementation
 		LevelInstanceActorGuidSerialize,
 
+		// Single-frame/key AnimDataModel patch-up
+		SingleFrameAndKeyAnimModel,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

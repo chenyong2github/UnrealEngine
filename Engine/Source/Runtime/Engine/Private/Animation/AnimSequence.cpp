@@ -5155,7 +5155,7 @@ void UAnimSequence::PopulateModel()
 	check(!HasAnyFlags(EObjectFlags::RF_ClassDefaultObject));
 	
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	const int32 NumKeys = NumberOfKeys;
+	const int32 NumKeys = FMath::Max(NumberOfKeys, 2);
 	const float PlayLength = SequenceLength;
 	// Reset target framerate to current sampling frame rate
 	TargetFrameRate = SamplingFrameRate;
