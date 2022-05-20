@@ -30,14 +30,6 @@ enum class EDefaultGraphicsRHI : uint8
 	DefaultGraphicsRHI_Vulkan = 3 UMETA(DisplayName = "Vulkan"),
 };
 
-UENUM()
-enum class EWindowsRHIFeatureLevel : uint8
-{
-	ES3_1 = 0 UMETA(DisplayName = "ES3.1"),
-	SM5   = 1 UMETA(DisplayName = "SM5"),
-	SM6   = 2 UMETA(DisplayName = "SM6"),
-};
-
 /**
  * Implements the settings for the Windows target platform. The first instance of this class is initialized in
  * WindowsTargetPlatform, really early during the startup sequence before the CDO has been constructed, so its config 
@@ -48,43 +40,29 @@ class WINDOWSTARGETPLATFORM_API UWindowsTargetSettings
 	: public UObject
 {
 public:
-
 	GENERATED_UCLASS_BODY()
 
-	/** The compiler version to use for this project. May be different to the chosen IDE. */
-	UPROPERTY(EditAnywhere, config, Category="Toolchain", Meta=(DisplayName="Compiler Version"))
-	ECompilerVersion Compiler;
+	virtual void PostInitProperties() override;
 
-	/** 
-	 * The collection of RHI's we want to support on this platform.
-	 * This is not always the full list of RHI we can support.
-	 */
-	UPROPERTY(EditAnywhere, config, Category=Rendering)
-	TArray<FString> TargetedRHIs;
-
-	/** 
-	 * Select which RHI to use. Make sure its also selected as a Targeted RHI. Requires Editor restart.
-	 */
+	/** Select which RHI to use. Make sure its also selected as a Targeted RHI. Requires Editor restart. */
 	UPROPERTY(EditAnywhere, config, Category="Targeted RHIs", Meta = (DisplayName = "Default RHI", ConfigRestartRequired = true))
 	EDefaultGraphicsRHI DefaultGraphicsRHI;
 
-	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "DirectX 12 Minimum FeatureLevel", ConfigRestartRequired = true))
-	EWindowsRHIFeatureLevel D3D12MinimumFeatureLevel;
+	UPROPERTY(config, meta = (DeprecatedProperty, DeprecationMessage = "Use one of the RHI specific lists."))
+	TArray<FString> TargetedRHIs_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "DirectX 12 Maximum FeatureLevel", ConfigRestartRequired = true))
-	EWindowsRHIFeatureLevel D3D12MaximumFeatureLevel;
+	UPROPERTY(EditAnywhere, config, Category = "Rendering")
+	TArray<FString> D3D12TargetedShaderFormats;
 
-	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "DirectX 11 Minimum FeatureLevel", ConfigRestartRequired = true))
-	EWindowsRHIFeatureLevel D3D11MinimumFeatureLevel;
+	UPROPERTY(EditAnywhere, config, Category = "Rendering")
+	TArray<FString> D3D11TargetedShaderFormats;
 
-	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "DirectX 11 Maximum FeatureLevel", ConfigRestartRequired = true))
-	EWindowsRHIFeatureLevel D3D11MaximumFeatureLevel;
+	UPROPERTY(EditAnywhere, config, Category = "Rendering")
+	TArray<FString> VulkanTargetedShaderFormats;
 
-	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "Vulkan Minimum FeatureLevel", ConfigRestartRequired = true))
-	EWindowsRHIFeatureLevel VulkanMinimumFeatureLevel;
-
-	UPROPERTY(EditAnywhere, config, Category = "Targeted RHIs", AdvancedDisplay, Meta = (DisplayName = "Vulkan Maximum FeatureLevel", ConfigRestartRequired = true))
-	EWindowsRHIFeatureLevel VulkanMaximumFeatureLevel;
+	/** The compiler version to use for this project. May be different to the chosen IDE. */
+	UPROPERTY(EditAnywhere, config, Category = "Toolchain", Meta = (DisplayName = "Compiler Version"))
+	ECompilerVersion Compiler;
 
 	/** Sample rate to run the audio mixer with. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", Meta = (DisplayName = "Audio Mixer Sample Rate"))

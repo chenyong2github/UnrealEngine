@@ -21,66 +21,7 @@
 
 #define LOCTEXT_NAMESPACE "ShaderFormatsPropertyDetails"
 
-FText FShaderFormatsPropertyDetails::GetFriendlyNameFromRHINameMac(const FString& InRHIName)
-{
-	FText FriendlyRHIName = FText::FromString(InRHIName);
-	
-	FName RHIName(*InRHIName, FNAME_Find);
-	EShaderPlatform Platform = ShaderFormatToLegacyShaderPlatform(RHIName);
-	switch(Platform)
-	{
-		case SP_PCD3D_SM5:
-			FriendlyRHIName = LOCTEXT("D3DSM5", "Direct3D 11+ (SM5)");
-			break;
-		case SP_PCD3D_ES3_1:
-			FriendlyRHIName = LOCTEXT("D3DES31", "Direct3D (ES3.1, Mobile Preview)");
-			break;
-		case SP_OPENGL_PCES3_1:
-			FriendlyRHIName = LOCTEXT("OpenGLES31PC", "OpenGL (ES3.1, Mobile Preview)");
-			break;
-		case SP_OPENGL_ES3_1_ANDROID:
-			FriendlyRHIName = LOCTEXT("OpenGLES31", "OpenGLES 3.1 (Mobile)");
-			break;
-		case SP_METAL:
-			FriendlyRHIName = LOCTEXT("Metal", "iOS Metal Mobile Renderer (ES3.1, Metal 1.1+, iOS 9.0 or later)");
-			break;
-		case SP_METAL_MRT:
-			FriendlyRHIName = LOCTEXT("MetalMRT", "iOS Metal Desktop Renderer (SM5, Metal 1.2+, iOS 10.0 or later)");
-			break;
-		case SP_METAL_TVOS:
-			FriendlyRHIName = LOCTEXT("MetalTV", "tvOS Metal Mobile Renderer (ES3.1, Metal 1.1+, tvOS 9.0 or later)");
-			break;
-		case SP_METAL_MRT_TVOS:
-			FriendlyRHIName = LOCTEXT("MetalMRTTV", "tvOS Metal Desktop Renderer (SM5, Metal 1.2+, tvOS 10.0 or later)");
-			break;
-		case SP_METAL_SM5:
-			FriendlyRHIName = LOCTEXT("MetalSM5", "Mac Metal Desktop Renderer (SM5, Metal 2.1+, macOS Catalina 10.15.7 or later)");
-			break;
-		case SP_METAL_MACES3_1:
-			FriendlyRHIName = LOCTEXT("MetalES3.1", "Mac Metal High-End Mobile Preview (ES3.1)");
-			break;
-		case SP_METAL_MRT_MAC:
-			FriendlyRHIName = LOCTEXT("MetalMRTMac", "Mac Metal iOS/tvOS Desktop Renderer Preview (SM5)");
-			break;
-		case SP_VULKAN_SM5:
-		case SP_VULKAN_SM5_ANDROID:
-			FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5)");
-			break;
-		case SP_VULKAN_PCES3_1:
-		case SP_VULKAN_ES3_1_ANDROID:
-			FriendlyRHIName = LOCTEXT("VulkanES31", "Vulkan (ES 3.1)");
-			break;
-		case SP_D3D_ES3_1_HOLOLENS:
-			FriendlyRHIName = LOCTEXT("D3DES31HL", "Direct3D (ES3.1, Hololens)");
-			break;
-		default:
-			break;
-	}
-	
-	return FriendlyRHIName;
-}
-
-FShaderFormatsPropertyDetails::FShaderFormatsPropertyDetails(IDetailLayoutBuilder* InDetailBuilder, FString InProperty, FString InTitle)
+FShaderFormatsPropertyDetails::FShaderFormatsPropertyDetails(IDetailLayoutBuilder* InDetailBuilder, const TCHAR* InProperty, const TCHAR* InTitle)
 : DetailBuilder(InDetailBuilder)
 , Property(InProperty)
 , Title(InTitle)
@@ -94,7 +35,11 @@ void FShaderFormatsPropertyDetails::SetOnUpdateShaderWarning(FSimpleDelegate con
 	ShaderFormatsPropertyHandle->SetOnPropertyValueChanged(Delegate);
 }
 
-void FShaderFormatsPropertyDetails::CreateTargetShaderFormatsPropertyView(ITargetPlatform* TargetPlatform, GetFriendlyNameFromRHINameFnc FriendlyNameFnc)
+void FShaderFormatsPropertyDetails::CreateTargetShaderFormatsPropertyView(
+	ITargetPlatform* TargetPlatform,
+	GetFriendlyNameFromRHINameFnc FriendlyNameFnc,
+	FilterShaderPlatformFnc* FilterShaderPlatformFunc,
+	ECategoryPriority::Type Priority)
 {
 	check(TargetPlatform);
 	DetailBuilder->HideProperty(ShaderFormatsPropertyHandle);
@@ -103,12 +48,17 @@ void FShaderFormatsPropertyDetails::CreateTargetShaderFormatsPropertyView(ITarge
 	TArray<FName> ShaderFormats;
 	TargetPlatform->GetAllPossibleShaderFormats(ShaderFormats);
 	
-	IDetailCategoryBuilder& TargetedRHICategoryBuilder = DetailBuilder->EditCategory(*Title);
+	IDetailCategoryBuilder& TargetedRHICategoryBuilder = DetailBuilder->EditCategory(Title, FText::GetEmpty(), Priority);
 	
 	int32 ShaderCounter = 0;
 	for (const FName& ShaderFormat : ShaderFormats)
 	{
-		FText FriendlyShaderFormatName = FriendlyNameFnc(ShaderFormat.ToString());
+		if (FilterShaderPlatformFunc && !FilterShaderPlatformFunc(ShaderFormat))
+		{
+			continue;
+		}
+
+		const FText FriendlyShaderFormatName = FriendlyNameFnc(ShaderFormat);
 		if (!FriendlyShaderFormatName.IsEmpty())
 		{
 			ShaderFormatOrder.Add(ShaderFormat, ShaderCounter++);

@@ -258,8 +258,23 @@ public:
 	virtual void GetAllTargetedShaderFormats( TArray<FName>& OutFormats ) const override 
 	{
 		// Get the Target RHIs for this platform, we do not always want all those that are supported. (reload in case user changed in the editor)
-		TArray<FString>TargetedShaderFormats;
-		GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), TargetedShaderFormats, GEngineIni);
+		TArray<FString> TargetedShaderFormats;
+
+		auto AddWindowsShaderFormats = [&TargetedShaderFormats](const TCHAR* InName)
+		{
+			TArray<FString> NewTargetedShaderFormats;
+			GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), InName, NewTargetedShaderFormats, GEngineIni);
+
+			for (const FString& NewShaderFormat : NewTargetedShaderFormats)
+			{
+				TargetedShaderFormats.AddUnique(NewShaderFormat);
+			}
+		};
+
+		AddWindowsShaderFormats(TEXT("TargetedRHIs"));
+		AddWindowsShaderFormats(TEXT("D3D12TargetedShaderFormats"));
+		AddWindowsShaderFormats(TEXT("D3D11TargetedShaderFormats"));
+		AddWindowsShaderFormats(TEXT("VulkanTargetedShaderFormats"));
 
 		// Gather the list of Target RHIs and filter out any that may be invalid.
 		TArray<FName> PossibleShaderFormats;

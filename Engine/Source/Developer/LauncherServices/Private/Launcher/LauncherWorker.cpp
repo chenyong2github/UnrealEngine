@@ -297,7 +297,15 @@ static void AddDeviceToLaunchCommand(const FString& DeviceId, TSharedPtr<ITarget
 			FConfigCacheIni::LoadLocalIniFile(WindowsEngineSettings, TEXT("Engine"), true, TEXT("Windows"));
 
 			bCheckTargetedRHIs = true;
-			WindowsEngineSettings.GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), TargetedShaderFormats);
+			WindowsEngineSettings.GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("VulkanTargetedShaderFormats"), TargetedShaderFormats);
+
+			TArray<FString> OldConfigShaderFormats;
+			WindowsEngineSettings.GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), OldConfigShaderFormats);
+
+			for (const FString& OldConfigShaderFormat : OldConfigShaderFormats)
+			{
+				TargetedShaderFormats.AddUnique(OldConfigShaderFormat);
+			}
 		}
 		else if (Platform.StartsWith(TEXT("Linux")))
 		{

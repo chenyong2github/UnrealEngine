@@ -50,9 +50,9 @@ namespace WindowsTargetSettingsDetailsConstants
 	const FText DisabledTip = LOCTEXT("GitHubSourceRequiredToolTip", "This requires GitHub source.");
 }
 
-static FText GetFriendlyNameFromShaderPlatform(const FString& InShaderPlatformName)
+static FText GetFriendlyNameFromWindowsShaderPlatform(FName InShaderPlatformName)
 {
-	const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(FName(*InShaderPlatformName));
+	const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(InShaderPlatformName);
 
 	FText FriendlyRHIName;
 	switch (ShaderPlatform)
@@ -80,12 +80,54 @@ static FText GetFriendlyNameFromShaderPlatform(const FString& InShaderPlatformNa
 		break;
 
 	default:
-		UE_LOG(LogEngine, Warning, TEXT("Unknown Windows target RHI %s"), *InShaderPlatformName);
+		UE_LOG(LogEngine, Warning, TEXT("Unknown Windows target RHI %s"), *InShaderPlatformName.ToString());
 		FriendlyRHIName = LOCTEXT("UnknownRHI", "UnknownRHI");
 		break;
 	}
 
 	return FriendlyRHIName;
+}
+
+static FText GetFriendlyNameForWindowsShaderPlatformCheckbox(FName InShaderPlatformName)
+{
+	const EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(InShaderPlatformName);
+
+	FText FriendlyName;
+
+	switch (ShaderPlatform)
+	{
+	case SP_PCD3D_SM6:
+		FriendlyName = LOCTEXT("SM6", "SM6");
+		break;
+	case SP_PCD3D_SM5:
+		FriendlyName = LOCTEXT("SM5", "SM5");
+		break;
+	case SP_PCD3D_ES3_1:
+		FriendlyName = LOCTEXT("ES31", "ES3.1");
+		break;
+	case SP_VULKAN_SM5:
+		FriendlyName = LOCTEXT("SM5", "SM5");
+		break;
+	default:
+		break;
+	}
+
+	return FriendlyName;
+}
+
+static bool FilterShaderPlatform_D3D12(FName InShaderPlatform)
+{
+	return InShaderPlatform == NAME_PCD3D_SM6 || InShaderPlatform == NAME_PCD3D_SM5 || InShaderPlatform == NAME_PCD3D_ES3_1;
+}
+
+static bool FilterShaderPlatform_D3D11(FName InShaderPlatform)
+{
+	return InShaderPlatform == NAME_PCD3D_SM5 || InShaderPlatform == NAME_PCD3D_ES3_1;
+}
+
+static bool FilterShaderPlatform_Vulkan(FName InShaderPlatform)
+{
+	return InShaderPlatform == NAME_VULKAN_SM5;
 }
 
 TSharedRef<IDetailCustomization> FWindowsTargetSettingsDetails::MakeInstance()
@@ -159,8 +201,15 @@ void FWindowsTargetSettingsDetails::CustomizeDetails( IDetailLayoutBuilder& Deta
 {
 	// Setup the supported/targeted RHI property view
 	ITargetPlatform* TargetPlatform = FModuleManager::GetModuleChecked<ITargetPlatformModule>("WindowsTargetPlatform").GetTargetPlatforms()[0];
-	TargetShaderFormatsDetails = MakeShareable(new FShaderFormatsPropertyDetails(&DetailBuilder));
-	TargetShaderFormatsDetails->CreateTargetShaderFormatsPropertyView(TargetPlatform, GetFriendlyNameFromShaderPlatform);
+
+	D3D12TargetShaderFormatsDetails = MakeShareable(new FShaderFormatsPropertyDetails(&DetailBuilder, TEXT("D3D12TargetedShaderFormats"), TEXT("D3D12 Targeted Shader Formats")));
+	D3D12TargetShaderFormatsDetails->CreateTargetShaderFormatsPropertyView(TargetPlatform, &GetFriendlyNameForWindowsShaderPlatformCheckbox, &FilterShaderPlatform_D3D12, ECategoryPriority::Important);
+
+	D3D11TargetShaderFormatsDetails = MakeShareable(new FShaderFormatsPropertyDetails(&DetailBuilder, TEXT("D3D11TargetedShaderFormats"), TEXT("D3D11 Targeted Shader Formats")));
+	D3D11TargetShaderFormatsDetails->CreateTargetShaderFormatsPropertyView(TargetPlatform, &GetFriendlyNameForWindowsShaderPlatformCheckbox, &FilterShaderPlatform_D3D11, ECategoryPriority::Important);
+
+	VulkanTargetShaderFormatsDetails = MakeShareable(new FShaderFormatsPropertyDetails(&DetailBuilder, TEXT("VulkanTargetedShaderFormats"), TEXT("Vulkan Targeted Shader Formats")));
+	VulkanTargetShaderFormatsDetails->CreateTargetShaderFormatsPropertyView(TargetPlatform, &GetFriendlyNameForWindowsShaderPlatformCheckbox, &FilterShaderPlatform_Vulkan, ECategoryPriority::Important);
 
 	// Next add the splash image customization
 	const FText EditorSplashDesc(LOCTEXT("EditorSplashLabel", "Editor Splash"));

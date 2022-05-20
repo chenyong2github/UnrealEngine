@@ -5,6 +5,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/MessageDialog.h"
+#include "Containers/StaticArray.h"
 
 #if WINDOWS_USE_FEATURE_DYNAMIC_RHI
 
@@ -16,108 +17,265 @@
 
 static const TCHAR* GLoadedRHIModuleName;
 
-enum class WindowsRHI
+enum class EWindowsRHI
 {
 	D3D11,
 	D3D12,
 	Vulkan,
 	OpenGL,
+	count
+};
+static constexpr int32 EWindowsRHICount = static_cast<int32>(EWindowsRHI::count);
+
+static const TCHAR* ModuleNameFromWindowsRHI(EWindowsRHI InWindowsRHI)
+{
+	switch (InWindowsRHI)
+	{
+	default: check(false);
+	case EWindowsRHI::D3D11:  return TEXT("D3D11RHI");
+	case EWindowsRHI::D3D12:  return TEXT("D3D12RHI");
+	case EWindowsRHI::Vulkan: return TEXT("VulkanRHI");
+	case EWindowsRHI::OpenGL: return TEXT("OpenGLDrv");
+	}
+}
+
+static FString GetRHINameFromWindowsRHI(EWindowsRHI InWindowsRHI, ERHIFeatureLevel::Type InFeatureLevel)
+{
+	switch (InWindowsRHI)
+	{
+	default: check(false);
+	case EWindowsRHI::D3D11:  return TEXT("DirectX 11");
+	case EWindowsRHI::D3D12:
+	{
+		FString FeatureLevelName;
+		GetFeatureLevelName(InFeatureLevel, FeatureLevelName);
+		return FString::Printf(TEXT("DirectX 12 (%s)"), *FeatureLevelName);
+	}
+	case EWindowsRHI::Vulkan: return TEXT("Vulkan");
+	case EWindowsRHI::OpenGL: return TEXT("OpenGL");
+	}
+}
+
+static ERHIFeatureLevel::Type GetDefaultFeatureLevelForRHI(EWindowsRHI InWindowsRHI)
+{
+	switch (InWindowsRHI)
+	{
+	case EWindowsRHI::D3D11:  return ERHIFeatureLevel::SM5;
+	case EWindowsRHI::D3D12:  return ERHIFeatureLevel::SM5;
+	case EWindowsRHI::Vulkan: return ERHIFeatureLevel::SM5;
+	case EWindowsRHI::OpenGL: return ERHIFeatureLevel::ES3_1;
+	default: check(false);    return ERHIFeatureLevel::SM5;
+	}
+}
+
+struct FWindowsRHIConfig
+{
+	TArray<EShaderPlatform>        ShaderPlatforms;
+	TArray<ERHIFeatureLevel::Type> FeatureLevels;
 };
 
-static TArray<EShaderPlatform> GetTargetedShaderPlatforms()
+struct FParsedWindowsDynamicRHIConfig
+{
+	TOptional<EWindowsRHI> DefaultRHI{};
+
+	TStaticArray<FWindowsRHIConfig, EWindowsRHICount> RHIConfigs;
+
+	bool IsEmpty() const;
+
+	bool IsRHISupported(EWindowsRHI InWindowsRHI) const;
+	TOptional<ERHIFeatureLevel::Type> GetHighestSupportedFeatureLevel(EWindowsRHI InWindowsRHI) const;
+	TOptional<ERHIFeatureLevel::Type> GetNextHighestTargetedFeatureLevel(EWindowsRHI InWindowsRHI, ERHIFeatureLevel::Type InFeatureLevel) const;
+
+	bool IsFeatureLevelTargeted(EWindowsRHI InWindowsRHI, ERHIFeatureLevel::Type InFeatureLevel) const;
+
+	void MergeConfig(EWindowsRHI InWindowsRHI, const FWindowsRHIConfig& Other);
+};
+
+bool FParsedWindowsDynamicRHIConfig::IsEmpty() const
+{
+	for (const FWindowsRHIConfig& Config : RHIConfigs)
+	{
+		if (!Config.ShaderPlatforms.IsEmpty())
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool FParsedWindowsDynamicRHIConfig::IsRHISupported(EWindowsRHI InWindowsRHI) const
+{
+	// If we don't require cooked data, then we should be able to support this RHI at any feature level.
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		return true;
+	}
+
+	return !RHIConfigs[(int32)InWindowsRHI].ShaderPlatforms.IsEmpty();
+}
+
+TOptional<ERHIFeatureLevel::Type> FParsedWindowsDynamicRHIConfig::GetHighestSupportedFeatureLevel(EWindowsRHI InWindowsRHI) const
+{
+	const TArray<ERHIFeatureLevel::Type>& FeatureLevels = RHIConfigs[(int32)InWindowsRHI].FeatureLevels;
+	if (FeatureLevels.Num() == 0)
+	{
+		return TOptional<ERHIFeatureLevel::Type>();
+	}
+
+	ERHIFeatureLevel::Type MaxFeatureLevel = (ERHIFeatureLevel::Type)0;
+	for (ERHIFeatureLevel::Type SupportedFeatureLevel : FeatureLevels)
+	{
+		MaxFeatureLevel = std::max(MaxFeatureLevel, SupportedFeatureLevel);
+	}
+	return MaxFeatureLevel;
+}
+
+TOptional<ERHIFeatureLevel::Type> FParsedWindowsDynamicRHIConfig::GetNextHighestTargetedFeatureLevel(EWindowsRHI InWindowsRHI, ERHIFeatureLevel::Type InFeatureLevel) const
+{
+	TArray<ERHIFeatureLevel::Type> LowerFeatureLevels(RHIConfigs[(int32)InWindowsRHI].FeatureLevels);
+	LowerFeatureLevels.RemoveAll([InFeatureLevel](ERHIFeatureLevel::Type OtherFeatureLevel) { return OtherFeatureLevel >= InFeatureLevel; });
+
+	if (LowerFeatureLevels.Num())
+	{
+		ERHIFeatureLevel::Type MaxFeatureLevel = (ERHIFeatureLevel::Type)0;
+		for (ERHIFeatureLevel::Type SupportedFeatureLevel : LowerFeatureLevels)
+		{
+			MaxFeatureLevel = std::max(MaxFeatureLevel, SupportedFeatureLevel);
+		}
+		return MaxFeatureLevel;
+	}
+
+	return TOptional<ERHIFeatureLevel::Type>();
+}
+
+bool FParsedWindowsDynamicRHIConfig::IsFeatureLevelTargeted(EWindowsRHI InWindowsRHI, ERHIFeatureLevel::Type InFeatureLevel) const
+{
+	for (ERHIFeatureLevel::Type SupportedFeatureLevel : RHIConfigs[(int32)InWindowsRHI].FeatureLevels)
+	{
+		if (SupportedFeatureLevel == InFeatureLevel)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void FParsedWindowsDynamicRHIConfig::MergeConfig(EWindowsRHI InWindowsRHI, const FWindowsRHIConfig& Other)
+{
+	FWindowsRHIConfig& ExistingConfig = RHIConfigs[(int32)InWindowsRHI];
+
+	for (EShaderPlatform ShaderPlatform : Other.ShaderPlatforms)
+	{
+		ExistingConfig.ShaderPlatforms.AddUnique(ShaderPlatform);
+	}
+
+	for (ERHIFeatureLevel::Type FeatureLevel : Other.FeatureLevels)
+	{
+		ExistingConfig.FeatureLevels.AddUnique(FeatureLevel);
+	}
+}
+
+TOptional<EWindowsRHI> ParseDefaultWindowsRHI()
+{
+	TOptional<EWindowsRHI> DefaultRHI{};
+
+	FString DefaultGraphicsRHI;
+	if (GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("DefaultGraphicsRHI"), DefaultGraphicsRHI, GEngineIni))
+	{
+		const FString NAME_DX11(TEXT("DefaultGraphicsRHI_DX11"));
+		const FString NAME_DX12(TEXT("DefaultGraphicsRHI_DX12"));
+		const FString NAME_VULKAN(TEXT("DefaultGraphicsRHI_Vulkan"));
+
+		DefaultRHI = EWindowsRHI::D3D11;
+
+		if (DefaultGraphicsRHI == NAME_DX11)
+		{
+			DefaultRHI = EWindowsRHI::D3D11;
+		}
+		else if (DefaultGraphicsRHI == NAME_DX12)
+		{
+			DefaultRHI = EWindowsRHI::D3D12;
+		}
+		else if (DefaultGraphicsRHI == NAME_VULKAN)
+		{
+			DefaultRHI = EWindowsRHI::Vulkan;
+		}
+		else if (DefaultGraphicsRHI != TEXT("DefaultGraphicsRHI_Default"))
+		{
+			UE_LOG(LogRHI, Error, TEXT("Unrecognized setting '%s' for DefaultGraphicsRHI"), *DefaultGraphicsRHI);
+		}
+	}
+
+	return DefaultRHI;
+}
+
+static TArray<EShaderPlatform> ParseShaderPlatformsConfig(const TCHAR* InSettingName)
 {
 	TArray<FString> TargetedShaderFormats;
-	GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("TargetedRHIs"), TargetedShaderFormats, GEngineIni);
+	GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), InSettingName, TargetedShaderFormats, GEngineIni);
 
 	TArray<EShaderPlatform> ShaderPlatforms;
 	ShaderPlatforms.Reserve(TargetedShaderFormats.Num());
 
 	for (const FString& ShaderFormat : TargetedShaderFormats)
 	{
-		ShaderPlatforms.Add(ShaderFormatToLegacyShaderPlatform(FName(*ShaderFormat)));
+		ShaderPlatforms.AddUnique(ShaderFormatToLegacyShaderPlatform(FName(*ShaderFormat)));
 	}
 
 	return ShaderPlatforms;
 }
 
-static bool IsD3DSM6Platform(EShaderPlatform InShaderPlatform)
+static TArray<ERHIFeatureLevel::Type> FeatureLevelsFromShaderPlatforms(const TArray<EShaderPlatform>& InShaderPlatforms)
 {
-	return IsD3DPlatform(InShaderPlatform) && IsFeatureLevelSupported(InShaderPlatform, ERHIFeatureLevel::SM6);
+	TArray<ERHIFeatureLevel::Type> FeatureLevels;
+	FeatureLevels.Reserve(InShaderPlatforms.Num());
+
+	for (EShaderPlatform ShaderPlatform : InShaderPlatforms)
+	{
+		FeatureLevels.AddUnique(FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(ShaderPlatform));
+	}
+
+	return FeatureLevels;
 }
 
-static bool IsD3DSM6PlatformTargeted(const TArray<EShaderPlatform>& TargetedShaderPlatforms)
+static FWindowsRHIConfig ParseWindowsRHIConfig(const TCHAR* ShaderFormatsSettingName)
 {
-	for (const EShaderPlatform ShaderPlatform : TargetedShaderPlatforms)
-	{
-		if (IsD3DSM6Platform(ShaderPlatform))
-		{
-			return true;
-		}
-	}
+	FWindowsRHIConfig Config;
 
-	return false;
+	Config.ShaderPlatforms = ParseShaderPlatformsConfig(ShaderFormatsSettingName);
+	Config.FeatureLevels = FeatureLevelsFromShaderPlatforms(Config.ShaderPlatforms);
+
+	return Config;
 }
 
-static TOptional<ERHIFeatureLevel::Type> ParseFeatureLevelFromSetting(const TCHAR* InName)
+FParsedWindowsDynamicRHIConfig ParseWindowsDynamicRHIConfig()
 {
-	TOptional<ERHIFeatureLevel::Type> ResultFeatureLevel{};
+	FParsedWindowsDynamicRHIConfig Config;
 
-	FString ConfigFeatureLevel;
-	if (GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), InName, ConfigFeatureLevel, GEngineIni))
+	Config.DefaultRHI = ParseDefaultWindowsRHI();
+
+	Config.RHIConfigs[(int32)EWindowsRHI::D3D11]  = ParseWindowsRHIConfig(TEXT("D3D11TargetedShaderFormats"));
+	Config.RHIConfigs[(int32)EWindowsRHI::D3D12]  = ParseWindowsRHIConfig(TEXT("D3D12TargetedShaderFormats"));
+	Config.RHIConfigs[(int32)EWindowsRHI::Vulkan] = ParseWindowsRHIConfig(TEXT("VulkanTargetedShaderFormats"));
+
+	// Only add OpenGL support to non-client programs.
+	if (!FPlatformProperties::RequiresCookedData())
 	{
-		const FName FeatureLevelName(*ConfigFeatureLevel);
-
-		ERHIFeatureLevel::Type ParsedFeatureLevel = ERHIFeatureLevel::Num;
-		if (GetFeatureLevelFromName(FeatureLevelName, ParsedFeatureLevel))
-		{
-			ResultFeatureLevel = ParsedFeatureLevel;
-		}
+		Config.RHIConfigs[(int32)EWindowsRHI::OpenGL].ShaderPlatforms.Add(SP_OPENGL_PCES3_1);
+		Config.RHIConfigs[(int32)EWindowsRHI::OpenGL].FeatureLevels.Add(ERHIFeatureLevel::ES3_1);
 	}
 
-	return ResultFeatureLevel;
-}
-
-static ERHIFeatureLevel::Type FilterFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel, const TCHAR* MinSetting, const TCHAR* MaxSetting)
-{
-	const TOptional<ERHIFeatureLevel::Type> MinFeatureLevel = ParseFeatureLevelFromSetting(MinSetting);
-	const TOptional<ERHIFeatureLevel::Type> MaxFeatureLevel = ParseFeatureLevelFromSetting(MaxSetting);
-
-	if (MinFeatureLevel && InFeatureLevel < MinFeatureLevel.GetValue())
+	if (FWindowsRHIConfig DeprecatedConfig = ParseWindowsRHIConfig(TEXT("TargetedRHIs")); !DeprecatedConfig.ShaderPlatforms.IsEmpty())
 	{
-		return MinFeatureLevel.GetValue();
-	}
-	else if (MaxFeatureLevel && InFeatureLevel > MaxFeatureLevel.GetValue())
-	{
-		return MaxFeatureLevel.GetValue();
+		// Since we don't have context here, we have to add this old config setting to every potential RHI.
+		Config.MergeConfig(EWindowsRHI::D3D11,  DeprecatedConfig);
+		Config.MergeConfig(EWindowsRHI::D3D12,  DeprecatedConfig);
+		Config.MergeConfig(EWindowsRHI::Vulkan, DeprecatedConfig);
+		Config.MergeConfig(EWindowsRHI::OpenGL, DeprecatedConfig);
 	}
 
-	return InFeatureLevel;
-}
-
-static ERHIFeatureLevel::Type FilterFeatureLevel(ERHIFeatureLevel::Type FeatureLevel, WindowsRHI ChosenRHI)
-{
-	if (ChosenRHI == WindowsRHI::OpenGL)
-	{
-		// Seriously locked down.
-		return ERHIFeatureLevel::ES3_1;
-	}
-
-	if (ChosenRHI == WindowsRHI::D3D12)
-	{
-		return FilterFeatureLevel(FeatureLevel, TEXT("D3D12MinimumFeatureLevel"), TEXT("D3D12MaximumFeatureLevel"));
-	}
-
-	if (ChosenRHI == WindowsRHI::D3D11)
-	{
-		return FilterFeatureLevel(FeatureLevel, TEXT("D3D11MinimumFeatureLevel"), TEXT("D3D11MaximumFeatureLevel"));
-	}
-
-	if (ChosenRHI == WindowsRHI::Vulkan)
-	{
-		return FilterFeatureLevel(FeatureLevel, TEXT("VulkanMinimumFeatureLevel"), TEXT("VulkanMaximumFeatureLevel"));
-	}
-
-	return FeatureLevel;
+	return Config;
 }
 
 // Default to Performance Mode on low-end machines
@@ -260,117 +418,84 @@ static bool IsES31D3DOnly()
 	return bES31DXOnly;
 }
 
-static bool AllowD3D12FeatureLevelES31()
+static bool AllowD3D12FeatureLevelES31(const FParsedWindowsDynamicRHIConfig& Config)
 {
 	if (!GIsEditor)
 	{
-		return FilterFeatureLevel(ERHIFeatureLevel::ES3_1, WindowsRHI::D3D12) == ERHIFeatureLevel::ES3_1;
+		return Config.IsFeatureLevelTargeted(EWindowsRHI::D3D12, ERHIFeatureLevel::ES3_1);
 	}
 	return true;
 }
 
 // Choose the default from DefaultGraphicsRHI or TargetedRHIs. DefaultGraphicsRHI has precedence.
-static WindowsRHI ChooseDefaultRHI(const TArray<EShaderPlatform>& TargetedShaderPlatforms)
+static EWindowsRHI ChooseDefaultRHI(const FParsedWindowsDynamicRHIConfig& Config)
 {
-	// Make sure the DDSPI is initialized before we try and read from it
-	FGenericDataDrivenShaderPlatformInfo::Initialize();
-
-	WindowsRHI DefaultRHI = WindowsRHI::D3D11;
-
 	// Default graphics RHI is the main project setting that governs the choice, so it takes the priority
-	FString DefaultGraphicsRHI;
-	if (GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("DefaultGraphicsRHI"), DefaultGraphicsRHI, GEngineIni))
+	if (TOptional<EWindowsRHI> ConfigDefault = Config.DefaultRHI)
 	{
-		const FString NAME_DX11(TEXT("DefaultGraphicsRHI_DX11"));
-		const FString NAME_DX12(TEXT("DefaultGraphicsRHI_DX12"));
-		const FString NAME_VULKAN(TEXT("DefaultGraphicsRHI_Vulkan"));
-
-		if (DefaultGraphicsRHI == NAME_DX11)
-		{
-			DefaultRHI = WindowsRHI::D3D11;
-		}
-		else if (DefaultGraphicsRHI == NAME_DX12)
-		{
-			DefaultRHI = WindowsRHI::D3D12;
-		}
-		else if (DefaultGraphicsRHI == NAME_VULKAN)
-		{
-			DefaultRHI = WindowsRHI::Vulkan;
-		}
-		else if (DefaultGraphicsRHI != TEXT("DefaultGraphicsRHI_Default"))
-		{
-			UE_LOG(LogRHI, Error, TEXT("Unrecognized setting '%s' for DefaultGraphicsRHI"), *DefaultGraphicsRHI);
-		}
+		return ConfigDefault.GetValue();
 	}
-	else if (TargetedShaderPlatforms.Num() > 0)
-	{
-		// If we don't have DefaultGraphicsRHI set, try to deduce it from the list of targeted shader platforms
-		// Pick the first one
-		const EShaderPlatform TargetedPlatform = TargetedShaderPlatforms[0];
 
-		// not checking D3D as DefaultRHI begins initialized as D3D12
-		if (IsVulkanPlatform(TargetedPlatform))
+	const EWindowsRHI DefaultRHIOrder[] =
+	{
+		EWindowsRHI::D3D12,
+		EWindowsRHI::D3D11,
+		EWindowsRHI::Vulkan,
+	};
+
+	// Find the first RHI with configured support based on the order above
+	for (EWindowsRHI DefaultRHI : DefaultRHIOrder)
+	{
+		if (TOptional<ERHIFeatureLevel::Type> HighestFL = Config.GetHighestSupportedFeatureLevel(DefaultRHI))
 		{
-			DefaultRHI = WindowsRHI::Vulkan;
-		}
-		else if (IsOpenGLPlatform(TargetedPlatform))
-		{
-			DefaultRHI = WindowsRHI::OpenGL;
-		}
-		else if (IsD3DSM6Platform(TargetedPlatform))
-		{
-			DefaultRHI = WindowsRHI::D3D12;
-		}
-		else
-		{
-			DefaultRHI = WindowsRHI::D3D11;
+			return DefaultRHI;
 		}
 	}
 
-	return DefaultRHI;
+	return EWindowsRHI::D3D11;
 }
 
-static TOptional<WindowsRHI> ChoosePreferredRHI(WindowsRHI InDefaultRHI)
+static TOptional<EWindowsRHI> ChoosePreferredRHI(EWindowsRHI InDefaultRHI)
 {
-	TOptional<WindowsRHI> RHIPreference{};
+	TOptional<EWindowsRHI> RHIPreference{};
 
 	// If we are in game, there is a separate setting that can make it prefer D3D12 over D3D11 (but not over other RHIs).
-	if (!GIsEditor && (InDefaultRHI == WindowsRHI::D3D11 || InDefaultRHI == WindowsRHI::D3D12))
+	if (!GIsEditor && (InDefaultRHI == EWindowsRHI::D3D11 || InDefaultRHI == EWindowsRHI::D3D12))
 	{
 		bool bUseD3D12InGame = false;
 		if (GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bUseD3D12InGame"), bUseD3D12InGame, GGameUserSettingsIni) && bUseD3D12InGame)
 		{
-			RHIPreference = WindowsRHI::D3D12;
+			RHIPreference = EWindowsRHI::D3D12;
 		}
 	}
 
 	return RHIPreference;
 }
 
-static TOptional<WindowsRHI> ChooseForcedRHI()
+static TOptional<EWindowsRHI> ChooseForcedRHI(const FParsedWindowsDynamicRHIConfig& Config)
 {
-	TOptional<WindowsRHI> ForcedRHI = {};
+	TOptional<EWindowsRHI> ForcedRHI = {};
 
 	// Command line overrides
 	uint32 Sum = 0;
 	if (FParse::Param(FCommandLine::Get(), TEXT("vulkan")))
 	{
-		ForcedRHI = WindowsRHI::Vulkan;
+		ForcedRHI = EWindowsRHI::Vulkan;
 		Sum++;
 	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("opengl")))
 	{
-		ForcedRHI = WindowsRHI::OpenGL;
+		ForcedRHI = EWindowsRHI::OpenGL;
 		Sum++;
 	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")))
 	{
-		ForcedRHI = WindowsRHI::D3D11;
+		ForcedRHI = EWindowsRHI::D3D11;
 		Sum++;
 	}
 	if (FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12")))
 	{
-		ForcedRHI = WindowsRHI::D3D12;
+		ForcedRHI = EWindowsRHI::D3D12;
 		Sum++;
 	}
 
@@ -386,19 +511,19 @@ static TOptional<WindowsRHI> ChooseForcedRHI()
 	// FeatureLevelES31 is also a command line override, so it will determine the underlying RHI unless one is specified
 	if (IsES31D3DOnly() && (FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1"))))
 	{
-		if (ForcedRHI == WindowsRHI::OpenGL)
+		if (ForcedRHI == EWindowsRHI::OpenGL)
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RHIPerformanceOpenGL", "OpenGL is not supported for Performance Mode."));
 			UE_LOG(LogRHI, Fatal, TEXT("OpenGL is not supported for Performance Mode."));
 		}
-		else if (ForcedRHI == WindowsRHI::Vulkan)
+		else if (ForcedRHI == EWindowsRHI::Vulkan)
 		{
 			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RHIPerformanceVulkan", "Vulkan is not supported for Performance Mode."));
 			UE_LOG(LogRHI, Fatal, TEXT("Vulkan is not supported for Performance Mode."));
 		}
-		else if (ForcedRHI == WindowsRHI::D3D12)
+		else if (ForcedRHI == EWindowsRHI::D3D12)
 		{
-			if (!AllowD3D12FeatureLevelES31())
+			if (!AllowD3D12FeatureLevelES31(Config))
 			{
 				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RHIPerformanceDX12", "DirectX 12 is not supported for Performance Mode."));
 				UE_LOG(LogRHI, Fatal, TEXT("DirectX 12 is not supported for Performance Mode."));
@@ -406,7 +531,7 @@ static TOptional<WindowsRHI> ChooseForcedRHI()
 		}
 		else
 		{
-			ForcedRHI = WindowsRHI::D3D11;
+			ForcedRHI = EWindowsRHI::D3D11;
 		}
 	}
 #endif //!WITH_EDITOR && UE_BUILD_SHIPPING
@@ -414,7 +539,7 @@ static TOptional<WindowsRHI> ChooseForcedRHI()
 	return ForcedRHI;
 }
 
-static TOptional<ERHIFeatureLevel::Type> ChooseForcedFeatureLevel(TOptional<WindowsRHI> ChosenRHI, TOptional<WindowsRHI> ForcedRHI)
+static TOptional<ERHIFeatureLevel::Type> GetForcedFeatureLevel()
 {
 	TOptional<ERHIFeatureLevel::Type> ForcedFeatureLevel{};
 
@@ -436,7 +561,7 @@ static TOptional<ERHIFeatureLevel::Type> ChooseForcedFeatureLevel(TOptional<Wind
 	return ForcedFeatureLevel;
 }
 
-static ERHIFeatureLevel::Type ChooseFeatureLevel(TOptional<WindowsRHI> ChosenRHI, TOptional<ERHIFeatureLevel::Type> ForcedFeatureLevel, const TArray<EShaderPlatform>& TargetedShaderPlatforms)
+static ERHIFeatureLevel::Type ChooseFeatureLevel(EWindowsRHI ChosenRHI, const TOptional<EWindowsRHI> ForcedRHI, const TOptional<ERHIFeatureLevel::Type> ForcedFeatureLevel, const FParsedWindowsDynamicRHIConfig& Config)
 {
 	if (ForcedFeatureLevel)
 	{
@@ -447,44 +572,123 @@ static ERHIFeatureLevel::Type ChooseFeatureLevel(TOptional<WindowsRHI> ChosenRHI
 		}
 
 		// Make sure the feature level is supported by the runtime, otherwise fall back to the default
-		const ERHIFeatureLevel::Type FilteredForcedFeatureLevel = FilterFeatureLevel(ForcedFeatureLevel.GetValue(), ChosenRHI.GetValue());
-		if (FilteredForcedFeatureLevel == ForcedFeatureLevel)
+		if (Config.IsFeatureLevelTargeted(ChosenRHI, ForcedFeatureLevel.GetValue()))
 		{
-			return FilteredForcedFeatureLevel;
+			return ForcedFeatureLevel.GetValue();
 		}
 	}
 
-	ERHIFeatureLevel::Type FeatureLevel;
+	TOptional<ERHIFeatureLevel::Type> FeatureLevel{};
 
-	if (ChosenRHI == WindowsRHI::OpenGL)
+	if ((ChosenRHI == EWindowsRHI::D3D11 || ChosenRHI == EWindowsRHI::D3D12) && Config.IsFeatureLevelTargeted(ChosenRHI, ERHIFeatureLevel::ES3_1) && PreferFeatureLevelES31())
 	{
-		// OpenGL can only be used for mobile preview
-		FeatureLevel = ERHIFeatureLevel::ES3_1;
-	}
-	else if (ChosenRHI == WindowsRHI::D3D12)
-	{
-		FeatureLevel = IsD3DSM6PlatformTargeted(TargetedShaderPlatforms) ? ERHIFeatureLevel::SM6 : ERHIFeatureLevel::SM5;
+		FeatureLevel = TOptional<ERHIFeatureLevel::Type>(ERHIFeatureLevel::ES3_1);
 	}
 	else
 	{
-		FeatureLevel = ERHIFeatureLevel::SM5;
+		FeatureLevel = Config.GetHighestSupportedFeatureLevel(ChosenRHI);
 	}
 
-	ERHIFeatureLevel::Type FilteredFeatureLevel = FilterFeatureLevel(FeatureLevel, ChosenRHI.GetValue());
+	// If we were forced to a specific RHI while not forced to a specific feature level and the project isn't configured for it, find the default Feature Level for that RHI
+	if (!FeatureLevel && ForcedRHI)
+	{
+		FeatureLevel = GetDefaultFeatureLevelForRHI(ChosenRHI);
+
+		if (FPlatformProperties::RequiresCookedData())
+		{
+			const TCHAR* RHIName = ModuleNameFromWindowsRHI(ForcedRHI.GetValue());
+			const FString FeatureLevelName = LexToString(FeatureLevel.GetValue());
+			UE_LOG(LogRHI, Warning, TEXT("User requested RHI '%s' but that is not supported by this project's data. Defaulting to Feature Level '%s'."), RHIName, *FeatureLevelName);
+		}
+	}
 
 	// If the user wanted to force a feature level and we couldn't set it, log out why and what we're actually running with
 	if (ForcedFeatureLevel)
 	{
 		const FString ForcedName = LexToString(ForcedFeatureLevel.GetValue());
-		const FString UsedName = LexToString(FilteredFeatureLevel);
+		const FString UsedName = LexToString(FeatureLevel.GetValue());
 		UE_LOG(LogRHI, Warning, TEXT("User requested Feature Level '%s' but that is not supported by this project. Falling back to Feature Level '%s'."), *ForcedName, *UsedName);
 	}
 
-	return FilteredFeatureLevel;
+	return FeatureLevel.GetValue();
+}
+
+static bool HandleUnsupportedFeatureLevel(EWindowsRHI& WindowsRHI, ERHIFeatureLevel::Type& FeatureLevel, TOptional<ERHIFeatureLevel::Type> ForcedFeatureLevel, const FParsedWindowsDynamicRHIConfig& Config)
+{
+	if (ForcedFeatureLevel)
+	{
+		if (WindowsRHI == EWindowsRHI::D3D12 && FeatureLevel == ERHIFeatureLevel::SM6)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12SM6", "DX12 SM6 is not supported on your system. Try running without the -sm6 command line argument."));
+			FPlatformMisc::RequestExit(1);
+		}
+
+		return false;
+	}
+
+	if (TOptional<ERHIFeatureLevel::Type> FallbackFeatureLevel = Config.GetNextHighestTargetedFeatureLevel(WindowsRHI, FeatureLevel))
+	{
+		UE_LOG(LogRHI, Log, TEXT("RHI %s with Feature Level %s not supported, falling back to Feature Level %s"), ModuleNameFromWindowsRHI(WindowsRHI), *LexToString(FeatureLevel), *LexToString(FallbackFeatureLevel.GetValue()));
+
+		FeatureLevel = FallbackFeatureLevel.GetValue();
+		return true;
+	}
+
+	return false;
+}
+
+static bool HandleUnsupportedRHI(EWindowsRHI& WindowsRHI, ERHIFeatureLevel::Type& FeatureLevel, TOptional<EWindowsRHI> ForcedRHI, const FParsedWindowsDynamicRHIConfig& Config)
+{
+	if (ForcedRHI)
+	{
+		if (ForcedRHI == EWindowsRHI::D3D12)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12", "DX12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
+			FPlatformMisc::RequestExit(1);
+		}
+	}
+
+	if (WindowsRHI == EWindowsRHI::D3D12)
+	{
+		if (TOptional<ERHIFeatureLevel::Type> D3D11FeatureLevel = Config.GetHighestSupportedFeatureLevel(EWindowsRHI::D3D11))
+		{
+			UE_LOG(LogRHI, Log, TEXT("D3D12 is not supported, falling back to D3D11 with Feature Level %s"), *LexToString(D3D11FeatureLevel.GetValue()));
+
+			WindowsRHI = EWindowsRHI::D3D11;
+			FeatureLevel = D3D11FeatureLevel.GetValue();
+			return true;
+		}
+
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12", "DX12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
+		FPlatformMisc::RequestExit(1);
+	}
+
+	if (WindowsRHI == EWindowsRHI::D3D11)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX11Feature_11_SM5", "A D3D11-compatible GPU (Feature Level 11.0, Shader Model 5.0) is required to run the engine."));
+		FPlatformMisc::RequestExit(1);
+	}
+
+	if (WindowsRHI == EWindowsRHI::Vulkan)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredVulkan", "Vulkan Driver is required to run the engine."));
+		FPlatformMisc::RequestExit(1);
+	}
+
+	if (WindowsRHI == EWindowsRHI::OpenGL)
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredOpenGL", "OpenGL 4.3 is required to run the engine."));
+		FPlatformMisc::RequestExit(1);
+	}
+
+	return false;
 }
 
 static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFeatureLevel, const TCHAR*& LoadedRHIModuleName)
 {
+	// Make sure the DDSPI is initialized before we try and read from it
+	FGenericDataDrivenShaderPlatformInfo::Initialize();
+
 	bool bUseGPUCrashDebugging = false;
 	if (!GIsEditor && GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bUseGPUCrashDebugging"), bUseGPUCrashDebugging, GGameUserSettingsIni))
 	{
@@ -492,17 +696,17 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		*GPUCrashDebuggingCVar = bUseGPUCrashDebugging;
 	}
 
-	const TArray<EShaderPlatform> TargetedShaderPlatforms = GetTargetedShaderPlatforms();
+	const FParsedWindowsDynamicRHIConfig Config = ParseWindowsDynamicRHIConfig();
 
 	// RHI is chosen by the project settings (first DefaultGraphicsRHI, then TargetedRHIs are consulted, "Default" maps to D3D12). 
 	// After this, a separate game-only setting (does not affect editor) bPreferD3D12InGame selects between D3D12 or D3D11 (but will not have any effect if Vulkan or OpenGL are chosen).
 	// Commandline switches apply after this and can force an arbitrary RHIs. If RHI isn't supported, the game will refuse to start.
 
-	WindowsRHI DefaultRHI = ChooseDefaultRHI(TargetedShaderPlatforms);
-	const TOptional<WindowsRHI> PreferredRHI = ChoosePreferredRHI(DefaultRHI);
-	const TOptional<WindowsRHI> ForcedRHI = ChooseForcedRHI();
+	EWindowsRHI DefaultRHI = ChooseDefaultRHI(Config);
+	const TOptional<EWindowsRHI> PreferredRHI = ChoosePreferredRHI(DefaultRHI);
+	const TOptional<EWindowsRHI> ForcedRHI = ChooseForcedRHI(Config);
 
-	WindowsRHI ChosenRHI = DefaultRHI;
+	EWindowsRHI ChosenRHI = DefaultRHI;
 	if (ForcedRHI)
 	{
 		ChosenRHI = ForcedRHI.GetValue();
@@ -512,113 +716,37 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		ChosenRHI = PreferredRHI.GetValue();
 	}
 
-	TOptional<ERHIFeatureLevel::Type> ForcedFeatureLevel = ChooseForcedFeatureLevel(ChosenRHI, ForcedRHI);
-	DesiredFeatureLevel = ChooseFeatureLevel(ChosenRHI, ForcedFeatureLevel, TargetedShaderPlatforms);
+	const TOptional<ERHIFeatureLevel::Type> ForcedFeatureLevel = GetForcedFeatureLevel();
+
+	DesiredFeatureLevel = ChooseFeatureLevel(ChosenRHI, ForcedRHI, ForcedFeatureLevel, Config);
 
 	// Load the dynamic RHI module.
-	IDynamicRHIModule* DynamicRHIModule = nullptr;
 
-	if (ChosenRHI == WindowsRHI::OpenGL)
+	bool bTryWithNewConfig = false;
+	do
 	{
-		FApp::SetGraphicsRHI(TEXT("OpenGL"));
-		const TCHAR* OpenGLRHIModuleName = TEXT("OpenGLDrv");
-		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(OpenGLRHIModuleName);
+		const FString RHIName = GetRHINameFromWindowsRHI(ChosenRHI, DesiredFeatureLevel);
+		FApp::SetGraphicsRHI(RHIName);
 
-		if (!DynamicRHIModule->IsSupported(DesiredFeatureLevel))
+		const TCHAR* ModuleName = ModuleNameFromWindowsRHI(ChosenRHI);
+		IDynamicRHIModule* DynamicRHIModule = FModuleManager::LoadModulePtr<IDynamicRHIModule>(ModuleName);
+
+		if (DynamicRHIModule && DynamicRHIModule->IsSupported(DesiredFeatureLevel))
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredOpenGL", "OpenGL 4.3 is required to run the engine."));
-			FPlatformMisc::RequestExit(1);
-			DynamicRHIModule = nullptr;
+			LoadedRHIModuleName = ModuleName;
+			return DynamicRHIModule;
 		}
 
-		LoadedRHIModuleName = OpenGLRHIModuleName;
-	}
-	else if (ChosenRHI == WindowsRHI::Vulkan)
-	{
-		FApp::SetGraphicsRHI(TEXT("Vulkan"));
-		const TCHAR* VulkanRHIModuleName = TEXT("VulkanRHI");
-		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(VulkanRHIModuleName);
+		bTryWithNewConfig = HandleUnsupportedFeatureLevel(ChosenRHI, DesiredFeatureLevel, ForcedFeatureLevel, Config);
 
-		if (!DynamicRHIModule->IsSupported(DesiredFeatureLevel))
+		if (!bTryWithNewConfig)
 		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredVulkan", "Vulkan Driver is required to run the engine."));
-			FPlatformMisc::RequestExit(1);
-			DynamicRHIModule = nullptr;
-		}
-		LoadedRHIModuleName = VulkanRHIModuleName;
-	}
-	else if (ChosenRHI == WindowsRHI::D3D12)
-	{
-		FString FeatureLevelName;
-		GetFeatureLevelName(DesiredFeatureLevel, FeatureLevelName);
-
-		const FString RHIDisplayName = FString::Printf(TEXT("DirectX 12 (%s)"), *FeatureLevelName);
-		FApp::SetGraphicsRHI(RHIDisplayName);
-
-		LoadedRHIModuleName = TEXT("D3D12RHI");
-		DynamicRHIModule = FModuleManager::LoadModulePtr<IDynamicRHIModule>(LoadedRHIModuleName);
-
-		bool bD3D12Supported = DynamicRHIModule && DynamicRHIModule->IsSupported(DesiredFeatureLevel);
-
-		// Fallback to SM5 if SM6 is not supported
-		if (!bD3D12Supported && DynamicRHIModule && DesiredFeatureLevel == ERHIFeatureLevel::SM6)
-		{
-			if (ForcedFeatureLevel)
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12SM6", "DX12 SM6 is not supported on your system. Try running without the -sm6 command line argument."));
-				FPlatformMisc::RequestExit(1);
-			}
-
-			if (FilterFeatureLevel(ERHIFeatureLevel::SM5, WindowsRHI::D3D12) == ERHIFeatureLevel::SM5)
-			{
-				UE_LOG(LogRHI, Log, TEXT("D3D12 SM6 is not supported, trying SM5"));
-
-				DesiredFeatureLevel = ERHIFeatureLevel::SM5;
-				bD3D12Supported = DynamicRHIModule->IsSupported(DesiredFeatureLevel);
-			}
-			
-			if (!bD3D12Supported)
-			{
-				UE_LOG(LogRHI, Log, TEXT("D3D12 SM5 is not supported, trying D3D11"));
-			}
+			bTryWithNewConfig = HandleUnsupportedRHI(ChosenRHI, DesiredFeatureLevel, ForcedRHI, Config);
 		}
 
-		if (!bD3D12Supported)
-		{
-			if (ForcedRHI == WindowsRHI::D3D12)
-			{
-				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX12", "DX12 is not supported on your system. Try running without the -dx12 or -d3d12 command line argument."));
-				FPlatformMisc::RequestExit(1);
-			}
-			if (DynamicRHIModule)
-			{
-				FModuleManager::Get().UnloadModule(LoadedRHIModuleName);
-			}
-			DynamicRHIModule = nullptr;
-			LoadedRHIModuleName = nullptr;
-		}
-	}
+	} while (bTryWithNewConfig);
 
-	// Fallback to D3D11RHI if nothing is selected
-	if (!DynamicRHIModule)
-	{
-		// We need to filter one more time to handle the D3D12 fallback
-		DesiredFeatureLevel = FilterFeatureLevel(DesiredFeatureLevel, WindowsRHI::D3D11);
-
-		FApp::SetGraphicsRHI(TEXT("DirectX 11"));
-		const TCHAR* D3D11RHIModuleName = TEXT("D3D11RHI");
-		DynamicRHIModule = &FModuleManager::LoadModuleChecked<IDynamicRHIModule>(D3D11RHIModuleName);
-
-		if (!DynamicRHIModule->IsSupported(DesiredFeatureLevel))
-		{
-			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("WindowsDynamicRHI", "RequiredDX11Feature_11_SM5", "A D3D11-compatible GPU (Feature Level 11.0, Shader Model 5.0) is required to run the engine."));
-			FPlatformMisc::RequestExit(1);
-			DynamicRHIModule = nullptr;
-		}
-
-		LoadedRHIModuleName = D3D11RHIModuleName;
-	}
-	return DynamicRHIModule;
+	return nullptr;
 }
 
 FDynamicRHI* PlatformCreateDynamicRHI()
