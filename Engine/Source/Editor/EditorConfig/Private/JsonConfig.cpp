@@ -151,7 +151,7 @@ namespace UE
 		MergedObject = MakeShared<FJsonObject>();
 	}
 
-	void FJsonConfig::SetParent(TSharedPtr<FJsonConfig> Parent)
+	void FJsonConfig::SetParent(const TSharedPtr<FJsonConfig>& Parent)
 	{
 		if (ParentConfig.IsValid())
 		{
@@ -831,9 +831,9 @@ namespace UE
 		return true;
 	}
 
-	static bool SetValueHelper(TSharedPtr<FJsonValue>& CurrentValue, TSharedPtr<FJsonValue> NewValue, TSharedPtr<FJsonValue> ParentValue);
+	static bool SetValueHelper(TSharedPtr<FJsonValue>& CurrentValue, const TSharedPtr<FJsonValue>& NewValue, const TSharedPtr<FJsonValue>& ParentValue);
 
-	static bool SetArrayValueHelper(TSharedPtr<FJsonValue> CurrentValue, const TArray<TSharedPtr<FJsonValue>>& NewArray, TSharedPtr<FJsonValue> ParentValue)
+	static bool SetArrayValueHelper(const TSharedPtr<FJsonValue>& CurrentValue, const TArray<TSharedPtr<FJsonValue>>& NewArray, const TSharedPtr<FJsonValue>& ParentValue)
 	{
 		TArray<TSharedPtr<FJsonValue>>* CurrentArray = nullptr;
 		if (CurrentValue->TryGetArray(CurrentArray))
@@ -947,7 +947,7 @@ namespace UE
 		return true;
 	}
 
-	static bool SetObjectValueHelper(TSharedPtr<FJsonObject> CurrentObject, TSharedPtr<FJsonObject> NewObject, TSharedPtr<FJsonValue> ParentValue)
+	static bool SetObjectValueHelper(const TSharedPtr<FJsonObject>& CurrentObject, const TSharedPtr<FJsonObject>& NewObject, const TSharedPtr<FJsonValue>& ParentValue)
 	{
 		TSharedPtr<FJsonObject>* ParentObject = nullptr;
 		if (ParentValue.IsValid())
@@ -999,7 +999,7 @@ namespace UE
 		return true;
 	}
 
-	bool SetValueHelper(TSharedPtr<FJsonValue>& CurrentValue, TSharedPtr<FJsonValue> NewValue, TSharedPtr<FJsonValue> ParentValue)
+	bool SetValueHelper(TSharedPtr<FJsonValue>& CurrentValue, const TSharedPtr<FJsonValue>& NewValue, const TSharedPtr<FJsonValue>& ParentValue)
 	{
 		check(CurrentValue.IsValid());
 		check(NewValue.IsValid());
@@ -1039,7 +1039,7 @@ namespace UE
 		return false;
 	}
 
-	bool FJsonConfig::SetJsonValueInMerged(const FJsonPath& Path, TSharedPtr<FJsonValue> NewValue)
+	bool FJsonConfig::SetJsonValueInMerged(const FJsonPath& Path, const TSharedPtr<FJsonValue>& NewValue)
 	{
 		TSharedPtr<FJsonObject>* CurrentObject = &MergedObject;
 	
@@ -1084,7 +1084,7 @@ namespace UE
 		return SetValueHelper(*LastValue, NewValue, TSharedPtr<FJsonValue>());
 	}
 
-	bool FJsonConfig::SetJsonValueInOverride(const FJsonPath& Path, TSharedPtr<FJsonValue> NewValue, TSharedPtr<FJsonValue> PreviousValue, TSharedPtr<FJsonValue> ParentValue)
+	bool FJsonConfig::SetJsonValueInOverride(const FJsonPath& Path, const TSharedPtr<FJsonValue>& NewValue, const TSharedPtr<FJsonValue>& PreviousValue, const TSharedPtr<FJsonValue>& ParentValue)
 	{
 		TSharedPtr<FJsonObject>* CurrentObject = &OverrideObject;
 	
@@ -1248,7 +1248,7 @@ namespace UE
 		return SetValueHelper(*LastValue, NewValue, ParentValue);
 	}
 
-	bool FJsonConfig::RemoveJsonValueFromOverride(const FJsonPath& Path, TSharedPtr<FJsonValue> CurrentValue)
+	bool FJsonConfig::RemoveJsonValueFromOverride(const FJsonPath& Path, const TSharedPtr<FJsonValue>& CurrentValue)
 	{
 		TSharedPtr<FJsonObject>* CurrentObject = &OverrideObject;
 	
@@ -1337,7 +1337,7 @@ namespace UE
 		return true;
 	}
 
-	bool FJsonConfig::SetJsonValue(const FJsonPath& Path, TSharedPtr<FJsonValue> NewValue)
+	bool FJsonConfig::SetJsonValue(const FJsonPath& Path, const TSharedPtr<FJsonValue>& NewValue)
 	{
 		TSharedPtr<FJsonValue> PreviousValue;
 		TryGetJsonValue(Path, PreviousValue);
@@ -1398,7 +1398,7 @@ namespace UE
 		return SetJsonValue(Path, JsonValue);
 	}
 
-	bool FJsonConfig::SetJsonObject(const FJsonPath& Path, TSharedPtr<FJsonObject> Object)
+	bool FJsonConfig::SetJsonObject(const FJsonPath& Path, const TSharedPtr<FJsonObject>& Object)
 	{
 		TSharedPtr<FJsonValue> JsonValue = MakeShared<FJsonValueObject>(Object);
 		return SetJsonValue(Path, JsonValue);
@@ -1442,7 +1442,7 @@ namespace UE
 		return true;
 	}
 
-	bool FJsonConfig::SetRootObject(TSharedPtr<FJsonObject> Object)
+	bool FJsonConfig::SetRootObject(const TSharedPtr<FJsonObject>& Object)
 	{
 		if (!Object.IsValid())
 		{

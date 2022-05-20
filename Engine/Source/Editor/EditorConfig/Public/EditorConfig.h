@@ -28,8 +28,6 @@ public:
 
 	bool IsValid() const { return JsonConfig.IsValid() && JsonConfig->IsValid(); }
 
-	TSharedPtr<FEditorConfig> GetParentConfig() const;
-
 	// UStruct & UObject
 	template <typename T>
 	bool TryGetStruct(FStringView Key, T& OutValue, EPropertyFilter Filter = EPropertyFilter::MetadataOnly) const;

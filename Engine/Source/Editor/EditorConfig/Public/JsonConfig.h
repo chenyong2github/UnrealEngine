@@ -52,7 +52,7 @@ namespace UE
 	public:
 		FJsonConfig();
 
-		void SetParent(TSharedPtr<FJsonConfig> Parent);
+		void SetParent(const TSharedPtr<FJsonConfig>& Parent);
 
 		bool LoadFromFile(FStringView FilePath);
 		bool LoadFromString(FStringView Content);
@@ -104,11 +104,11 @@ namespace UE
 		bool SetBool(const FJsonPath& Path, bool Value);
 		bool SetString(const FJsonPath& Path, FStringView Value);
 		bool SetString(const FJsonPath& Path, const FText& Value);
-		bool SetJsonValue(const FJsonPath& Path, TSharedPtr<FJsonValue> Value);
-		bool SetJsonObject(const FJsonPath& Path, TSharedPtr<FJsonObject> Object);
+		bool SetJsonValue(const FJsonPath& Path, const TSharedPtr<FJsonValue>& Value);
+		bool SetJsonObject(const FJsonPath& Path, const TSharedPtr<FJsonObject>& Object);
 		bool SetJsonArray(const FJsonPath& Path, const TArray<TSharedPtr<FJsonValue>>& Array);
 
-		bool SetRootObject(TSharedPtr<FJsonObject> Object);
+		bool SetRootObject(const TSharedPtr<FJsonObject>& Object);
 
 		bool HasOverride(const FJsonPath& Path) const;
 
@@ -120,12 +120,12 @@ namespace UE
 		template <typename T>
 		bool TryGetNumericArrayHelper(const FJsonPath& Path, TArray<T>& OutArray) const;
 
-		bool SetJsonValueInMerged(const FJsonPath& Path, TSharedPtr<FJsonValue> Value);
-		bool SetJsonValueInOverride(const FJsonPath& Path, TSharedPtr<FJsonValue> NewValue, TSharedPtr<FJsonValue> PreviousValue, TSharedPtr<FJsonValue> ParentValue);
-		bool SetArrayValueInOverride(TSharedPtr<FJsonValue> CurrentValue, const TArray<TSharedPtr<FJsonValue>>& NewArray, TSharedPtr<FJsonValue> ParentValue);
-		bool SetObjectValueInOverride(TSharedPtr<FJsonObject> CurrentObject, TSharedPtr<FJsonObject> NewObject, TSharedPtr<FJsonValue> ParentValue);
+		bool SetJsonValueInMerged(const FJsonPath& Path, const TSharedPtr<FJsonValue>& Value);
+		bool SetJsonValueInOverride(const FJsonPath& Path, const TSharedPtr<FJsonValue>& NewValue, const TSharedPtr<FJsonValue>& PreviousValue, const TSharedPtr<FJsonValue>& ParentValue);
+		bool SetArrayValueInOverride(const TSharedPtr<FJsonValue>& CurrentValue, const TArray<TSharedPtr<FJsonValue>>& NewArray, const TSharedPtr<FJsonValue>& ParentValue);
+		bool SetObjectValueInOverride(const TSharedPtr<FJsonObject>& CurrentObject, const TSharedPtr<FJsonObject>& NewObject, const TSharedPtr<FJsonValue>& ParentValue);
 
-		bool RemoveJsonValueFromOverride(const FJsonPath& Path, TSharedPtr<FJsonValue> PreviousValue);
+		bool RemoveJsonValueFromOverride(const FJsonPath& Path, const TSharedPtr<FJsonValue>& PreviousValue);
 
 		bool MergeThisWithParent();
 		void OnParentConfigChanged();

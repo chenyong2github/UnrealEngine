@@ -70,6 +70,15 @@ struct FEditorConfigTestSimpleMap
 };
 
 USTRUCT()
+struct FEditorConfigTestSimpleKeyComplexValueMap
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	TMap<FString, FEditorConfigTestKey> Map;
+};
+
+USTRUCT()
 struct FEditorConfigTestComplexMap
 {
 	GENERATED_BODY()
