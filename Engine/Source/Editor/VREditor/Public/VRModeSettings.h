@@ -88,6 +88,10 @@ public:
 	UPROPERTY( EditAnywhere, config, NoClear, Category = "Motion Controllers" )
 	TSoftClassPtr<AVREditorTeleporter> TeleporterClass;
 
+	/** The mode extension to use when UnrealEd is in VR mode. Use VREditorMode to get default editor behavior or select a custom mode. */
+	UPROPERTY(EditAnywhere, config, NoClear, Category = "General")
+	TSoftClassPtr<UVREditorMode> ModeClass;
+
 private:
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);

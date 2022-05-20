@@ -59,14 +59,25 @@ public:
 	/** Default constructor */
 	UVREditorMode();
 
+	/** Overrides the HMD device type, which is otherwise derived from the XR system name. */
+	void SetHMDDeviceTypeOverride( FName InOverrideType );
+
+	//~ Begin UEditorWorldExtension interface
+
 	/** Initialize the VREditor */
 	virtual void Init() override;
 
 	/** Shutdown the VREditor */
 	virtual void Shutdown() override;
 
+protected:
+	virtual void TransitionWorld(UWorld* NewWorld, EEditorWorldExtensionTransitionState TransitionState) override;
+
+	//~ End UEditorWorldExtension interface
+
+public:
 	/** When the user actually enters the VR Editor mode */
-	void Enter();
+	virtual void Enter();
 
 	/** When the user leaves the VR Editor mode */
 	void Exit( const bool bShouldDisableStereo );
@@ -307,14 +318,14 @@ public:
 	DECLARE_EVENT_OneParam(UVREditorMode, FOnToggleVRModeDebug, bool);
 	FOnToggleVRModeDebug& OnToggleDebugMode() { return OnToggleDebugModeEvent; };
 
+	/** Delegate to be called when async VR mode entry has been completed. */
+	DECLARE_EVENT(UVREditorMode, FOnVRModeEntryComplete);
+	FOnVRModeEntryComplete& OnVRModeEntryComplete() { return OnVRModeEntryCompleteEvent; }
+
 	const TArray<UVREditorInteractor*> GetVRInteractors() const
 	{
 		return Interactors;
 	}
-
-protected:
-
-	virtual void TransitionWorld(UWorld* NewWorld, EEditorWorldExtensionTransitionState TransitionState) override;
 
 private:
 
@@ -339,6 +350,10 @@ protected:
 	//
 	// Startup/Shutdown
 	//
+
+	void BeginEntry();
+	void SetupSubsystems();
+	void FinishEntry();
 
 	/** The VR editor window, if it's open right now */
 	TWeakPtr< class SWindow > VREditorWindowWeakPtr;
@@ -500,4 +515,10 @@ private:
 
 	/** Event that gets broadcasted when debug mode is toggled. */
 	FOnToggleVRModeDebug OnToggleDebugModeEvent;
+
+	/** Overridden HMD device type. If NAME_None, HMD device type is derived from the XR system name. */
+	FName HMDDeviceTypeOverride = NAME_None;
+
+	/** Event that gets broadcast when async VR mode entry is completed. */
+	FOnVRModeEntryComplete OnVRModeEntryCompleteEvent;
 };

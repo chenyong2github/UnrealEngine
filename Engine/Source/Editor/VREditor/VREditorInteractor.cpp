@@ -746,7 +746,7 @@ void UVREditorInteractor::Tick_Implementation( const float DeltaTime )
 
 FName UVREditorInteractor::GetHMDDeviceType() const
 {
-	return (GEngine && GEngine->XRSystem.IsValid()) ? GEngine->XRSystem->GetSystemName() : FName();
+	return GetVRMode().GetHMDDeviceType();
 }
 
 void UVREditorInteractor::CalculateDragRay( float& InOutDragRayLength, float& InOutDragRayVelocity )
@@ -978,59 +978,57 @@ void UVREditorInteractor::HandleInputAxis( FEditorViewportClient& ViewportClient
 {
 	if (!bOutWasHandled && Action.ActionType == TriggerAxis)
 	{
+		const float TriggerPressedThreshold = (GetHMDDeviceType() == OculusDeviceType) ? GetDefault<UVRModeSettings>()->TriggerPressedThreshold_Rift : GetDefault<UVRModeSettings>()->TriggerPressedThreshold_Vive;
+		const float TriggerDeadZone = (GetHMDDeviceType() == OculusDeviceType) ? VREd::TriggerDeadZone_Rift->GetFloat() : VREd::TriggerDeadZone_Vive->GetFloat();
+
+		// Synthesize "lightly pressed" events for the trigger
 		{
-			const float TriggerPressedThreshold = (GetHMDDeviceType() == OculusDeviceType) ? GetDefault<UVRModeSettings>()->TriggerPressedThreshold_Rift : GetDefault<UVRModeSettings>()->TriggerPressedThreshold_Vive;
-			const float TriggerDeadZone = (GetHMDDeviceType() == OculusDeviceType) ? VREd::TriggerDeadZone_Rift->GetFloat() : VREd::TriggerDeadZone_Vive->GetFloat();
+			// Store latest trigger value amount
+			SelectAndMoveTriggerValue = Delta;
 
-			// Synthesize "lightly pressed" events for the trigger
+			if (!bIsTriggerPressed &&			// Don't fire if we are already pressed
+				bHasTriggerBeenReleasedSinceLastPress &&	// Only if we've been fully released since the last time we fired
+				Delta >= TriggerPressedThreshold)
 			{
-				// Store latest trigger value amount
-				SelectAndMoveTriggerValue = Delta;
-
-				if (!bIsTriggerPressed &&			// Don't fire if we are already pressed
-					bHasTriggerBeenReleasedSinceLastPress &&	// Only if we've been fully released since the last time we fired
-					Delta >= TriggerPressedThreshold)
-				{
-					bIsTriggerPressed = true;
-					bHasTriggerBeenReleasedSinceLastPress = false;
-					// Synthesize an input key for this light press
-					const EInputEvent InputEvent = IE_Pressed;
-					const bool bWasLightPressHandled = UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_PressedTriggerAxis : MotionController_Right_PressedTriggerAxis, InputEvent );
-				}
-				else if (bIsTriggerPressed && Delta < TriggerPressedThreshold)
-				{
-					bIsTriggerPressed = false;
-
-					// Synthesize an input key for this light press
-					const EInputEvent InputEvent = IE_Released;
-					const bool bWasLightReleaseHandled = UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_PressedTriggerAxis : MotionController_Right_PressedTriggerAxis, InputEvent );
-				}
+				bIsTriggerPressed = true;
+				bHasTriggerBeenReleasedSinceLastPress = false;
+				// Synthesize an input key for this light press
+				const EInputEvent InputEvent = IE_Pressed;
+				const bool bWasLightPressHandled = UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_PressedTriggerAxis : MotionController_Right_PressedTriggerAxis, InputEvent );
 			}
-
-			if (!bHasTriggerBeenReleasedSinceLastPress && Delta < TriggerDeadZone)
+			else if (bIsTriggerPressed && Delta < TriggerPressedThreshold)
 			{
-				bHasTriggerBeenReleasedSinceLastPress = true;
+				bIsTriggerPressed = false;
+
+				// Synthesize an input key for this light press
+				const EInputEvent InputEvent = IE_Released;
+				const bool bWasLightReleaseHandled = UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_PressedTriggerAxis : MotionController_Right_PressedTriggerAxis, InputEvent );
 			}
+		}
 
-			// Synthesize "fully pressed" events for the trigger
+		if (!bHasTriggerBeenReleasedSinceLastPress && Delta < TriggerDeadZone)
+		{
+			bHasTriggerBeenReleasedSinceLastPress = true;
+		}
+
+		// Synthesize "fully pressed" events for the trigger
+		{
+			const float TriggerFullyPressedThreshold = (GetHMDDeviceType() == OculusDeviceType) ? VREd::TriggerFullyPressedThreshold_Rift->GetFloat() : VREd::TriggerFullyPressedThreshold_Vive->GetFloat();
+
+			if (!bIsTriggerFullyPressed &&	// Don't fire if we are already pressed
+				Delta >= TriggerFullyPressedThreshold)
 			{
-				const float TriggerFullyPressedThreshold = (GetHMDDeviceType() == OculusDeviceType) ? VREd::TriggerFullyPressedThreshold_Rift->GetFloat() : VREd::TriggerFullyPressedThreshold_Vive->GetFloat();
+				bIsTriggerFullyPressed = true;
 
-				if (!bIsTriggerFullyPressed &&	// Don't fire if we are already pressed
-					Delta >= TriggerFullyPressedThreshold)
-				{
-					bIsTriggerFullyPressed = true;
+				const EInputEvent InputEvent = IE_Pressed;
+				UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_FullyPressedTriggerAxis : MotionController_Right_FullyPressedTriggerAxis, InputEvent );
+			}
+			else if (bIsTriggerFullyPressed && Delta < TriggerPressedThreshold)
+			{
+				bIsTriggerFullyPressed = false;
 
-					const EInputEvent InputEvent = IE_Pressed;
-					UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_FullyPressedTriggerAxis : MotionController_Right_FullyPressedTriggerAxis, InputEvent );
-				}
-				else if (bIsTriggerFullyPressed && Delta < TriggerPressedThreshold)
-				{
-					bIsTriggerFullyPressed = false;
-
-					const EInputEvent InputEvent = IE_Released;
-					UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_FullyPressedTriggerAxis : MotionController_Right_FullyPressedTriggerAxis, InputEvent );
-				}
+				const EInputEvent InputEvent = IE_Released;
+				UViewportInteractor::HandleInputKey( ViewportClient, ControllerMotionSource == FXRMotionControllerBase::LeftHandSourceId ? MotionController_Left_FullyPressedTriggerAxis : MotionController_Right_FullyPressedTriggerAxis, InputEvent );
 			}
 		}
 	}

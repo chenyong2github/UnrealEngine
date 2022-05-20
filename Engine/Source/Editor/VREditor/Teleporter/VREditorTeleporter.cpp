@@ -243,50 +243,48 @@ void AVREditorTeleporter::OnPreviewInputAction(class FEditorViewportClient& View
 
 	if (VREditorInteractor != nullptr && VREditorInteractor->GetControllerType() == EControllerType::Laser)
 	{
+		const bool bDraggingWorldForTeleport =
+			(Interactor->GetDraggingMode () == EViewportInteractionDraggingMode::World &&
+			(Interactor->GetOtherInteractor () == nullptr || Interactor->GetOtherInteractor ()->GetDraggingMode () != EViewportInteractionDraggingMode::AssistingDrag)) ||
+				(VREditorInteractor->GetControllerType() == EControllerType::Navigation && (Action.ActionType == VRActionTypes::TrackpadDown));
+		if (bDraggingWorldForTeleport &&
+			Action.Event == IE_Pressed &&
+			Action.ActionType == ViewportWorldActionTypes::SelectAndMove)
 		{
-			const bool bDraggingWorldForTeleport =
-				(Interactor->GetDraggingMode () == EViewportInteractionDraggingMode::World &&
-				(Interactor->GetOtherInteractor () == nullptr || Interactor->GetOtherInteractor ()->GetDraggingMode () != EViewportInteractionDraggingMode::AssistingDrag)) ||
-					(VREditorInteractor->GetControllerType() == EControllerType::Navigation && (Action.ActionType == VRActionTypes::TrackpadDown));
-			if (bDraggingWorldForTeleport &&
-				Action.Event == IE_Pressed &&
-				Action.ActionType == ViewportWorldActionTypes::SelectAndMove)
+			if (InteractorTryingTeleport == nullptr && TeleportingState == EState::None)
 			{
-				if (InteractorTryingTeleport == nullptr && TeleportingState == EState::None)
-				{
-					TeleportGoalScale = VRMode->GetWorldScaleFactor ();
+				TeleportGoalScale = VRMode->GetWorldScaleFactor ();
 
-					// Checking teleport
-					SetVisibility ( true );
-					InteractorTryingTeleport = Interactor;
+				// Checking teleport
+				SetVisibility ( true );
+				InteractorTryingTeleport = Interactor;
 
-					TeleportingState = EState::Aiming;
-					SetColor ( VRMode->GetColor ( UVREditorMode::EColors::WorldDraggingColor ) );
-					VRMode->GetWorldInteraction ().AllowWorldMovement ( false );
-				}
-
-				bWasHandled = true;
+				TeleportingState = EState::Aiming;
+				SetColor ( VRMode->GetColor ( UVREditorMode::EColors::WorldDraggingColor ) );
+				VRMode->GetWorldInteraction ().AllowWorldMovement ( false );
 			}
 
-			if (Action.Event == IE_Released &&
-				Action.ActionType == ViewportWorldActionTypes::SelectAndMove &&
-				InteractorTryingTeleport != nullptr && InteractorTryingTeleport == Interactor)
+			bWasHandled = true;
+		}
+
+		if (Action.Event == IE_Released &&
+			Action.ActionType == ViewportWorldActionTypes::SelectAndMove &&
+			InteractorTryingTeleport != nullptr && InteractorTryingTeleport == Interactor)
+		{
+			if (!(VREditorInteractor->IsHoveringOverGizmo () || VREditorInteractor->IsHoveringOverUI ()))
 			{
-				if (!(VREditorInteractor->IsHoveringOverGizmo () || VREditorInteractor->IsHoveringOverUI ()))
-				{
-					// Confirm teleport
-					StartTeleport ( );
-					// Clean everything up
-					bPushedFromEndOfLaser = false;
-					bInitialTeleportAim = true;
-					bShouldBeVisible = false;
-					SetVisibility ( false );
+				// Confirm teleport
+				StartTeleport ( );
+				// Clean everything up
+				bPushedFromEndOfLaser = false;
+				bInitialTeleportAim = true;
+				bShouldBeVisible = false;
+				SetVisibility ( false );
 
-					VREditorInteractor->SetForceShowLaser ( false );
-					InteractorTryingTeleport = nullptr;
+				VREditorInteractor->SetForceShowLaser ( false );
+				InteractorTryingTeleport = nullptr;
 
-					bWasHandled = true;
-				}
+				bWasHandled = true;
 			}
 		}
 	}

@@ -5,11 +5,13 @@
 #if WITH_EDITOR
 
 #include "IOpenXRExtensionPlugin.h"
-
+#include "Async/Future.h"
 #include "OpenXRCore.h"
 
 
-class VIRTUALSCOUTINGOPENXR_API FVirtualScoutingOpenXRExtension : public IOpenXRExtensionPlugin
+class VIRTUALSCOUTINGOPENXR_API FVirtualScoutingOpenXRExtension
+	: public IOpenXRExtensionPlugin
+	, public TSharedFromThis<FVirtualScoutingOpenXRExtension>
 {
 public:
 	FVirtualScoutingOpenXRExtension();
@@ -22,14 +24,22 @@ public:
 	}
 
 	virtual bool GetOptionalExtensions(TArray<const ANSICHAR*>& OutExtensions) override;
+	virtual void OnEvent(XrSession InSession, const XrEventDataBaseHeader* InHeader) override;
 	virtual void PostCreateInstance(XrInstance InInstance) override;
+	virtual void PostCreateSession(XrSession InSession) override;
 	virtual void AddActions(XrInstance InInstance, FCreateActionSetFunc CreateActionSet, FCreateActionFunc CreateAction) override;
 	virtual void GetActiveActionSetsForSync(TArray<XrActiveActionSet>& OutActiveSets) override;
+	virtual void PostSyncActions(XrSession InSession) override;
 	//~ End IOpenXRExtensionPlugin interface
+
+	TFuture<FName>& GetHmdDeviceTypeFuture() { return DeviceTypeFuture; }
 
 private:
 	void OnVREditingModeEnter();
 	void OnVREditingModeExit();
+
+	TOptional<FName> TryGetHmdDeviceType();
+	void TryFulfillDeviceTypePromise();
 
 private:
 	FDelegateHandle InitCompleteDelegate;
@@ -37,9 +47,13 @@ private:
 	XrDebugUtilsMessengerEXT Messenger = XR_NULL_HANDLE;
 
 	XrInstance Instance = XR_NULL_HANDLE;
+	XrSession Session = XR_NULL_HANDLE;
 	XrActionSet ActionSet = XR_NULL_HANDLE;
 
 	bool bIsVrEditingModeActive = false;
+
+	TPromise<FName> DeviceTypePromise;
+	TFuture<FName> DeviceTypeFuture;
 
 private:
 	static XrBool32 XRAPI_CALL XrDebugUtilsMessengerCallback_Trampoline(

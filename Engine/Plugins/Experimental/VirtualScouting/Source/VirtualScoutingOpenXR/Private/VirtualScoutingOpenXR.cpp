@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualScoutingOpenXR.h"
+#include "VirtualScoutingOpenXRModule.h"
 
 #include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
@@ -17,8 +18,10 @@
 #define LOCTEXT_NAMESPACE "VirtualScouting"
 
 
-DECLARE_LOG_CATEGORY_EXTERN(LogVPOpenXRDebug, VeryVerbose, All);
-DEFINE_LOG_CATEGORY(LogVPOpenXRDebug);
+DECLARE_LOG_CATEGORY_EXTERN(LogVirtualScoutingOpenXR, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogVirtualScoutingOpenXRDebug, VeryVerbose, All);
+DEFINE_LOG_CATEGORY(LogVirtualScoutingOpenXR);
+DEFINE_LOG_CATEGORY(LogVirtualScoutingOpenXRDebug);
 
 
 static TAutoConsoleVariable<int32> CVarOpenXRDebugLogging(
@@ -28,22 +31,16 @@ static TAutoConsoleVariable<int32> CVarOpenXRDebugLogging(
 	ECVF_Default);
 
 
-class FVirtualScoutingOpenXRModule : public IModuleInterface
+
+void FVirtualScoutingOpenXRModule::StartupModule()
 {
-private:
-	virtual void StartupModule() override
-	{
-		OpenXRExt = MakeUnique<FVirtualScoutingOpenXRExtension>();
-	}
+	OpenXRExt = MakeShared<FVirtualScoutingOpenXRExtension>();
+}
 
-	virtual void ShutdownModule() override
-	{
-		OpenXRExt.Reset();
-	}
-
-private:
-	TUniquePtr<FVirtualScoutingOpenXRExtension> OpenXRExt;
-};
+void FVirtualScoutingOpenXRModule::ShutdownModule()
+{
+	OpenXRExt.Reset();
+}
 
 
 IMPLEMENT_MODULE(FVirtualScoutingOpenXRModule, VirtualScoutingOpenXR);
@@ -56,8 +53,9 @@ FVirtualScoutingOpenXRExtension::FVirtualScoutingOpenXRExtension()
 	InitCompleteDelegate = FCoreDelegates::OnFEngineLoopInitComplete.AddLambda(
 		[this]()
 		{
-			IVREditorModule::Get().OnVREditingModeEnter().AddRaw(this, &FVirtualScoutingOpenXRExtension::OnVREditingModeEnter);
-			IVREditorModule::Get().OnVREditingModeExit().AddRaw(this, &FVirtualScoutingOpenXRExtension::OnVREditingModeExit);
+			IVREditorModule& VrEditor = IVREditorModule::Get();
+			VrEditor.OnVREditingModeEnter().AddRaw(this, &FVirtualScoutingOpenXRExtension::OnVREditingModeEnter);
+			VrEditor.OnVREditingModeExit().AddRaw(this, &FVirtualScoutingOpenXRExtension::OnVREditingModeExit);
 
 			// Must happen last; this implicitly deallocates this lambda's captures.
 			FCoreDelegates::OnFEngineLoopInitComplete.Remove(InitCompleteDelegate);
@@ -68,6 +66,11 @@ FVirtualScoutingOpenXRExtension::FVirtualScoutingOpenXRExtension()
 
 FVirtualScoutingOpenXRExtension::~FVirtualScoutingOpenXRExtension()
 {
+	if (!DeviceTypeFuture.IsReady())
+	{
+		DeviceTypePromise.EmplaceValue(NAME_None);
+	}
+
 #if 0 // FIXME?: Too late to use Instance here, and don't see any suitable extension interface methods.
 	// Might also be OK not to explicitly clean this up.
 	if (Messenger != XR_NULL_HANDLE)
@@ -103,6 +106,19 @@ bool FVirtualScoutingOpenXRExtension::GetOptionalExtensions(TArray<const ANSICHA
 }
 
 
+void FVirtualScoutingOpenXRExtension::OnEvent(XrSession InSession, const XrEventDataBaseHeader* InHeader)
+{
+	switch (InHeader->type)
+	{
+		case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED:
+			// TODO: Correctly handle interaction profile changing mid-session
+			ensure(InSession == Session);
+			TryFulfillDeviceTypePromise();
+			break;
+	}
+}
+
+
 void FVirtualScoutingOpenXRExtension::PostCreateInstance(XrInstance InInstance)
 {
 	Instance = InInstance;
@@ -127,13 +143,22 @@ void FVirtualScoutingOpenXRExtension::PostCreateInstance(XrInstance InInstance)
 
 			if (XR_ENSURE(PfnXrCreateDebugUtilsMessengerEXT(Instance, &DebugMessengerCreateInfo, &Messenger)))
 			{
-				UE_LOG(LogVPOpenXRDebug, Log, TEXT("XR_EXT_debug_utils messenger ACTIVE"));
+				UE_LOG(LogVirtualScoutingOpenXRDebug, Log, TEXT("XR_EXT_debug_utils messenger ACTIVE"));
 				return;
 			}
 		}
 	}
 
-	UE_LOG(LogVPOpenXRDebug, Log, TEXT("XR_EXT_debug_utils messenger DISABLED"));
+	UE_LOG(LogVirtualScoutingOpenXRDebug, Log, TEXT("XR_EXT_debug_utils messenger DISABLED"));
+}
+
+
+void FVirtualScoutingOpenXRExtension::PostCreateSession(XrSession InSession)
+{
+	Session = InSession;
+
+	DeviceTypePromise = {};
+	DeviceTypeFuture = DeviceTypePromise.GetFuture();
 }
 
 
@@ -146,13 +171,13 @@ void FVirtualScoutingOpenXRExtension::AddActions(XrInstance InInstance, FCreateA
 		ActionSet = XR_NULL_HANDLE;
 	}
 
-	UClass* InteractorClass = GetDefault<UVRModeSettings>()->InteractorClass.LoadSynchronous();
+	UClass* InteractorClass = GetDefault<UVRModeSettings>()->InteractorClass.Get();
 	if (!InteractorClass)
 	{
 		return;
 	}
 
-	const UVREditorInteractor* InteractorCDO = Cast<const UVREditorInteractor>(InteractorClass->GetDefaultObject());
+	const UVREditorInteractor* InteractorCDO = InteractorClass->GetDefaultObject<const UVREditorInteractor>();
 	if (!InteractorCDO)
 	{
 		return;
@@ -201,6 +226,76 @@ void FVirtualScoutingOpenXRExtension::GetActiveActionSetsForSync(TArray<XrActive
 }
 
 
+void FVirtualScoutingOpenXRExtension::PostSyncActions(XrSession InSession)
+{
+	TryFulfillDeviceTypePromise();
+}
+
+void FVirtualScoutingOpenXRExtension::TryFulfillDeviceTypePromise()
+{
+	if (!DeviceTypeFuture.IsReady())
+	{
+		TOptional<FName> MaybeType = TryGetHmdDeviceType();
+		if (MaybeType)
+		{
+			DeviceTypePromise.EmplaceValue(MaybeType.GetValue());
+			return;
+		}
+	}
+}
+
+
+TOptional<FName> FVirtualScoutingOpenXRExtension::TryGetHmdDeviceType()
+{
+	UVREditorMode* VrMode = IVREditorModule::Get().GetVRMode();
+	if (!ensure(VrMode) || !ensure(Session != XR_NULL_HANDLE) || !ensure(ActionSet != XR_NULL_HANDLE))
+	{
+		return TOptional<FName>();
+	}
+
+	XrPath LeftHand = XR_NULL_PATH, RightHand = XR_NULL_PATH;
+	check(XR_SUCCEEDED(xrStringToPath(Instance, "/user/hand/left", &LeftHand)));
+	check(XR_SUCCEEDED(xrStringToPath(Instance, "/user/hand/right", &RightHand)));
+
+	XrInteractionProfileState LeftHandState{ XR_TYPE_INTERACTION_PROFILE_STATE },
+	                          RightHandState{ XR_TYPE_INTERACTION_PROFILE_STATE };
+
+	XR_ENSURE(xrGetCurrentInteractionProfile(Session, LeftHand, &LeftHandState));
+	XR_ENSURE(xrGetCurrentInteractionProfile(Session, RightHand, &RightHandState));
+
+	// TODO: Correctly handle mixed interaction profiles?
+	XrPath InteractionProfile = LeftHandState.interactionProfile != XR_NULL_PATH
+		? LeftHandState.interactionProfile
+		: RightHandState.interactionProfile;
+
+	if (InteractionProfile == XR_NULL_PATH)
+	{
+		return TOptional<FName>();
+	}
+
+	uint32 PathLen;
+	char PathBuf[XR_MAX_PATH_LENGTH] = { 0 };
+	if (!XR_ENSURE(xrPathToString(Instance, InteractionProfile, XR_MAX_PATH_LENGTH, &PathLen, PathBuf)))
+	{
+		return FName();
+	}
+
+	const FAnsiStringView PathView(PathBuf, PathLen - 1);
+	if (PathView.StartsWith(ANSITEXTVIEW("/interaction_profiles/oculus/")))
+	{
+		return FName("OculusHMD");
+	}
+	else if (PathView.StartsWith(ANSITEXTVIEW("/interaction_profiles/htc/"))
+		|| PathView.StartsWith(ANSITEXTVIEW("/interaction_profiles/valve/")))
+	{
+		return FName("SteamVR");
+	}
+
+	UE_LOG(LogVirtualScoutingOpenXR, Error, TEXT("Unsupported interaction profile: '%S'"), PathBuf);
+	return FName();
+}
+
+
 void FVirtualScoutingOpenXRExtension::OnVREditingModeEnter()
 {
 	bIsVrEditingModeActive = true;
@@ -243,7 +338,7 @@ XrBool32 XRAPI_CALL FVirtualScoutingOpenXRExtension::XrDebugUtilsMessengerCallba
 	Types[2] = (InMessageTypes & XR_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) ? TEXT('P') : TEXT('_');
 	Types[3] = (InMessageTypes & XR_DEBUG_UTILS_MESSAGE_TYPE_CONFORMANCE_BIT_EXT) ? TEXT('C') : TEXT('_');
 
-	FMsg::Logf(__FILE__, __LINE__, LogVPOpenXRDebug.GetCategoryName(), Verbosity,
+	FMsg::Logf(__FILE__, __LINE__, LogVirtualScoutingOpenXRDebug.GetCategoryName(), Verbosity,
 		TEXT("[%s]: %S(): %S"), *Types, InCallbackData->functionName, InCallbackData->message);
 
 	// "A value of XR_TRUE indicates that the application wants to abort this call. [...]

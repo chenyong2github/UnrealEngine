@@ -26,6 +26,11 @@
 				"Win64",
 				"Linux"
 			]
+		},
+		{
+			"Name": "VirtualScoutingEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [

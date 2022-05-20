@@ -58,7 +58,7 @@ public:
 	// End FGCObject
 
 	/** Return a multicast delegate which is executed when VR mode starts. */
-	FOnVREditingModeEnter& OnVREditingModeEnter() { return OnVREditingModeEnterHandle;  }
+	FOnVREditingModeEnter& OnVREditingModeEnter() { return OnVREditingModeEnterHandle; }
 
 	/** Return a multicast delegate which is executed when VR mode stops. */
 	FOnVREditingModeExit& OnVREditingModeExit() { return OnVREditingModeExitHandle; }
@@ -70,6 +70,8 @@ private:
 
 	/** Broadcasts when VR mode is stopped */
 	FOnVREditingModeExit OnVREditingModeExitHandle;
+
+	void HandleModeEntryComplete();
 
 	/** Saves the WorldToMeters and enters the mode belonging to GWorld */
 	void StartVREditorMode( const bool bForceWithoutHMD );

@@ -36,7 +36,11 @@ FVREditorModeManager::FVREditorModeManager() :
 
 FVREditorModeManager::~FVREditorModeManager()
 {
-	CurrentVREditorMode = nullptr;
+	if (CurrentVREditorMode)
+	{
+		CurrentVREditorMode->OnVRModeEntryComplete().RemoveAll(this);
+		CurrentVREditorMode = nullptr;
+	}
 }
 
 void FVREditorModeManager::Tick( const float DeltaTime )
@@ -166,6 +170,15 @@ void FVREditorModeManager::AddReferencedObjects( FReferenceCollector& Collector 
 	Collector.AddReferencedObject( CurrentVREditorMode );
 }
 
+void FVREditorModeManager::HandleModeEntryComplete()
+{
+	// Connects the mode UObject's event to the module delegate.
+	if (CurrentVREditorMode->IsActuallyUsingVR())
+	{
+		OnVREditingModeEnterHandle.Broadcast();
+	}
+}
+
 void FVREditorModeManager::StartVREditorMode( const bool bForceWithoutHMD )
 {
 	if (!IsEngineExitRequested())
@@ -192,8 +205,13 @@ void FVREditorModeManager::StartVREditorMode( const bool bForceWithoutHMD )
 			}
 
 			// Create vr editor mode.
-			VRMode = NewObject<UVREditorMode>();
+			const TSoftClassPtr<UVREditorMode> ModeClassSoft = GetDefault<UVRModeSettings>()->ModeClass;
+			ModeClassSoft.LoadSynchronous();
+			check(ModeClassSoft.IsValid());
+
+			VRMode = NewObject<UVREditorMode>(GetTransientPackage(), ModeClassSoft.Get());
 			check(VRMode != nullptr);
+			VRMode->OnVRModeEntryComplete().AddRaw(this, &FVREditorModeManager::HandleModeEntryComplete);
 			ExtensionCollection->AddExtension(VRMode);
 		}
 
@@ -207,11 +225,6 @@ void FVREditorModeManager::StartVREditorMode( const bool bForceWithoutHMD )
 		CurrentVREditorMode->SetActuallyUsingVR( !bForceWithoutHMD );
 
 		CurrentVREditorMode->Enter();
-
-		if (CurrentVREditorMode->IsActuallyUsingVR())
-		{
-			OnVREditingModeEnterHandle.Broadcast();
-		}
 	}
 }
 
