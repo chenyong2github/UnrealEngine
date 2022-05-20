@@ -11,7 +11,7 @@ class IRendererModule;
 
 struct FPostProcessRectParams
 {
-	FTexture2DRHIRef SourceTexture;
+	FTextureRHIRef SourceTexture;
 	FSlateRect SourceRect;
 	FSlateRect DestRect;
 	FVector4 CornerRadius;

@@ -1184,7 +1184,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				const FVector4f QuadPositionData = ShaderParams.PixelParams;
 
 				FPostProcessRectParams RectParams;
-				RectParams.SourceTexture = PostProcessTexture->GetTexture2D();
+				RectParams.SourceTexture = PostProcessTexture;
 				RectParams.SourceRect = FSlateRect(0, 0, PostProcessTexture->GetSizeX(), PostProcessTexture->GetSizeY());
 				RectParams.DestRect = FSlateRect(QuadPositionData.X, QuadPositionData.Y, QuadPositionData.Z, QuadPositionData.W);
 				RectParams.SourceTextureSize = PostProcessTexture->GetSizeXY();
