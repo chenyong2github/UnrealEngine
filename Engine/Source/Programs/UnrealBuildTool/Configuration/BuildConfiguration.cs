@@ -141,7 +141,7 @@ namespace UnrealBuildTool
 		/// If true, use UHT internal to UBT
 		/// </summary>
 		[XmlConfigFile(Category = "UEBuildConfiguration")]
-		public bool bUseBuiltInUnrealHeaderTool = true;
+		public bool bUseBuiltInUnrealHeaderTool = false;
 
 		/// <summary>
 		/// Whether to skip compiling rules assemblies and just assume they are valid
