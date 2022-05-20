@@ -8056,6 +8056,11 @@ void FRepLayout::UpdateUnmappedGuidsForFastArray(FFastArrayDeltaSerializeParams&
 
 			if (bOutSomeObjectsWereMapped)
 			{
+				if (Params.ReadChangedElements != nullptr)
+				{
+					Params.ReadChangedElements->Add(ItemIndex);
+				}
+
 				Params.PostReplicatedChange(ElementData, Params);
 			}
 
