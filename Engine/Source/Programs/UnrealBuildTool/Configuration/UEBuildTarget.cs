@@ -3248,18 +3248,26 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile">The project file containing the target being built</param>
 		/// <param name="Rules">Rules for the target being built</param>
 		/// <returns>List of executable paths for this target</returns>
-		public static List<FileReference> MakeBinaryPaths(DirectoryReference BaseDirectory, string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UEBuildBinaryType BinaryType, string Architecture, UnrealTargetConfiguration UndecoratedConfiguration, bool bIncludesGameModules, string ExeSubFolder, FileReference? ProjectFile, ReadOnlyTargetRules Rules)
+		public List<FileReference> MakeBinaryPaths(DirectoryReference BaseDirectory, string BinaryName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, UEBuildBinaryType BinaryType, string Architecture, UnrealTargetConfiguration UndecoratedConfiguration, bool bIncludesGameModules, string ExeSubFolder, FileReference? ProjectFile, ReadOnlyTargetRules Rules)
 		{
-			// Get the configuration for the executable. If we're building DebugGame, and this executable only contains engine modules, use the same name as development.
-			UnrealTargetConfiguration ExeConfiguration = Configuration;
-
-			// Build the binary path
-			DirectoryReference BinaryDirectory = DirectoryReference.Combine(BaseDirectory, "Binaries", Platform.ToString());
-			if (!String.IsNullOrEmpty(ExeSubFolder))
+			FileReference BinaryFile;
+			if (Rules.OutputFile != null)
 			{
-				BinaryDirectory = DirectoryReference.Combine(BinaryDirectory, ExeSubFolder);
+				BinaryFile = FileReference.Combine(BaseDirectory, Rules.OutputFile);
 			}
-			FileReference BinaryFile = FileReference.Combine(BinaryDirectory, MakeBinaryFileName(BinaryName, Platform, ExeConfiguration, Architecture, UndecoratedConfiguration, BinaryType));
+			else
+			{
+				// Get the configuration for the executable. If we're building DebugGame, and this executable only contains engine modules, use the same name as development.
+				UnrealTargetConfiguration ExeConfiguration = Configuration;
+
+				// Build the binary path
+				DirectoryReference BinaryDirectory = DirectoryReference.Combine(BaseDirectory, "Binaries", Platform.ToString());
+				if (!String.IsNullOrEmpty(ExeSubFolder))
+				{
+					BinaryDirectory = DirectoryReference.Combine(BinaryDirectory, ExeSubFolder);
+				}
+				BinaryFile = FileReference.Combine(BinaryDirectory, MakeBinaryFileName(BinaryName, Platform, ExeConfiguration, Architecture, UndecoratedConfiguration, BinaryType));
+			}
 
 			// Allow the platform to customize the output path (and output several executables at once if necessary)
 			return UEBuildPlatform.GetBuildPlatform(Platform).FinalizeBinaryPaths(BinaryFile, ProjectFile, Rules);

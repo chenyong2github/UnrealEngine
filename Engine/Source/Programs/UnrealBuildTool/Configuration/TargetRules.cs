@@ -390,6 +390,12 @@ namespace UnrealBuildTool
 		private EngineIncludeOrderVersion? IncludeOrderVersionPrivate;
 
 		/// <summary>
+		/// Path to the output file for the main executable, relative to the Engine or project directory.
+		/// This setting is only typically useful for non-UE programs, since the engine uses paths relative to the executable to find other known folders (eg. Content).
+		/// </summary>
+		public string? OutputFile;
+
+		/// <summary>
 		/// Tracks a list of config values read while constructing this target
 		/// </summary>
 		internal readonly ConfigValueTracker ConfigValueTracker;
@@ -2244,6 +2250,11 @@ namespace UnrealBuildTool
 		internal ConfigValueTracker ConfigValueTracker
 		{
 			get { return Inner.ConfigValueTracker; }
+		}
+
+		public string? OutputFile
+		{
+			get { return Inner.OutputFile; }
 		}
 
 		public bool bUsesSteam
