@@ -364,9 +364,6 @@ namespace AutomationToolDriver
 			Assembly UnrealBuildToolAssembly = typeof(UnrealBuildTool.BuildVersion).Assembly;
 			Log.EventParser.AddMatchersFromAssembly(UnrealBuildToolAssembly);
 
-			Assembly AutomationUtilsAssembly = typeof(AutomationTool.CommandUtils).Assembly;
-			Log.EventParser.AddMatchersFromAssembly(AutomationUtilsAssembly);
-
 			// Enter the main program section
 			ExitCode ReturnCode = ExitCode.Success;
 			try
