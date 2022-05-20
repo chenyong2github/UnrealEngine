@@ -4,6 +4,7 @@
 #if PLATFORM_WINDOWS
 
 #include "ExrReaderGpuModule.h"
+#include "HAL/IConsoleManager.h"
 
 PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "UObject/Interface.h"
 #include "UObject/UObjectHierarchyFwd.h"
 
 #include "AnimationEditContext.generated.h"

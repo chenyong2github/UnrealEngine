@@ -4,7 +4,7 @@
 #include "Debug/DebugDrawService.h"
 #include "Engine/Canvas.h"
 #include "TouchInputVisualizer.h"
-
+#include "Modules/ModuleManager.h"
 
 class FInputDebuggingModule : public IInputDebuggingInterface
 {
