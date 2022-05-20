@@ -194,6 +194,7 @@ TAtomic<int32> FStats::GameThreadStatsFrame(1);
 void FStats::AdvanceFrame( bool bDiscardCallstack, const FOnAdvanceRenderingThreadStats& AdvanceRenderingThreadStatsDelegate /*= FOnAdvanceRenderingThreadStats()*/ )
 {
 #if STATS
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStats::AdvanceFrame);
 	LLM_SCOPE(ELLMTag::Stats);
 	check( IsInGameThread() );
 	static int32 MasterDisableChangeTagStartFrame = -1;
