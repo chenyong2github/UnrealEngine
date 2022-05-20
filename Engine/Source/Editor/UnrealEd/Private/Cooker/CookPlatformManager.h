@@ -75,20 +75,17 @@ namespace Cook
 		/** Returns the set of TargetPlatforms that is active for the CurrentCookByTheBook session or CookOnTheFly request. */
 		const TArray<const ITargetPlatform*>& GetSessionPlatforms() const;
 
-		/** Return whether the platforms have been selected for the current session (may be empty if current session is a null session). */
-		bool HasSelectedSessionPlatforms() const;
-
 		/** Return whether the given platform is already in the list of platforms for the current session. */
 		bool HasSessionPlatform(FPlatformId TargetPlatform) const;
 
 		/** Specify the set of TargetPlatforms to use for the currently-initializing CookByTheBook session or CookOnTheFly request. */
-		void SelectSessionPlatforms(const TArrayView<FPlatformId const>& TargetPlatforms);
+		void SelectSessionPlatforms(UCookOnTheFlyServer& COTFS, const TArrayView<FPlatformId const>& TargetPlatforms);
 
 		/** Mark that the list of TargetPlatforms for the session has no longer been set; it will be an error to try to read them until SelectSessionPlatforms is called. */
-		void ClearSessionPlatforms();
+		void ClearSessionPlatforms(UCookOnTheFlyServer& COTFS);
 
 		/** Add @param TargetPlatform to the session platforms if not already present. */
-		void AddSessionPlatform(FPlatformId TargetPlatform);
+		void AddSessionPlatform(UCookOnTheFlyServer& COTFS, FPlatformId TargetPlatform);
 
 		/**
 		 * Get The PlatformData for the given Platform.
@@ -177,7 +174,7 @@ namespace Cook
 		
 		bool bArePlatformsPrepopulated = false;
 
-		/** It is invalid to attempt to cook if session platforms have not been selected. */
+		/** Duplicate of COTFS.bSessionRunning. Used for assertions on other threads. It is invalid to attempt to cook if session platforms have not been selected. */
 		bool bHasSelectedSessionPlatforms = false;
 	};
 

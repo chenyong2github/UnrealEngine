@@ -157,17 +157,20 @@ namespace UE::Cook
 		static float ForeverTimeSlice;
 	};
 
-	/** Fields from TickCookOnTheSide that helper functions will need access to. */
+	/** Temporary-lifetime data about the current tick of the cooker. */
 	struct FTickStackData
 	{
-		/** The return value from TickCookOnTheSide; it is a bitmask of flags in enum ECookOnTheSideResult */
+		/** A bitmask of flags of type enum ECookOnTheSideResult that were set during the tick. */
 		uint32 ResultFlags = 0;
-		/** The number of packages that have been cooked in the current call to TickCookOnTheSide. It is used for e.g. decisions about when to collect garbage. */
+		/** The number of packages that have been cooked in the current tick. It is used for e.g. decisions about when to collect garbage. */
 		uint32 CookedPackageCount = 0;
-		/** The CookerTimer for the current TickCookOnTheSide request. Used by slow reentrant operations that need to check whether they have timed out. */
+		/** The CookerTimer for the current tick. Used by slow reentrant operations that need to check whether they have timed out. */
 		FCookerTimer Timer;
-		/** CookFlags describing details of the caller's desired behavior of the current TickCookOnTheSide request. */
+		/** CookFlags describing details of the caller's desired behavior for the current tick. */
 		ECookTickFlags TickFlags;
+
+		bool bCookComplete = false;
+		bool bCookCancelled = false;
 
 		explicit FTickStackData(const float& TimeSlice, const bool bIsRealtimeMode, ECookTickFlags InTickFlags, int32 InMaxNumPackagesToSave)
 			:Timer(TimeSlice, bIsRealtimeMode, InMaxNumPackagesToSave), TickFlags(InTickFlags)
@@ -235,21 +238,16 @@ inline bool RouteIsCachedCookedPlatformDataLoaded(UObject* Obj, const ITargetPla
 //////////////////////////////////////////////////////////////////////////
 // Cook by the book options
 
-struct UCookOnTheFlyServer::FCookByTheBookOptions
+namespace UE::Cook
+{
+
+struct FCookByTheBookOptions
 {
 public:
-	/** Should we generate streaming install manifests (only valid option in cook by the book) */
-	bool							bGenerateStreamingInstallManifests = false;
+	// Process-lifetime variables
+	TArray<FName>					StartupPackages;
 
-	/** Should we generate a seperate manifest for map dependencies */
-	bool							bGenerateDependenciesForMaps = false;
-
-	/** Is cook by the book currently running */
-	bool							bRunning = false;
-
-	/** Cancel has been queued will be processed next tick */
-	bool							bCancel = false;
-
+	// Session-lifetime variables
 	/** DlcName setup if we are cooking dlc will be used as the directory to save cooked files to */
 	FString							DlcName;
 
@@ -257,27 +255,52 @@ public:
 	FString							CreateReleaseVersion;
 
 	/** If we are based on a release version of the game this is the set of packages which were cooked in that release. Map from platform name to list of uncooked package filenames */
-	TMap<FName, TArray<FName>>			BasedOnReleaseCookedPackages;
+	TMap<FName, TArray<FName>>		BasedOnReleaseCookedPackages;
+
+	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
+	TMap<FName, TArray<FName>>		SourceToLocalizedPackageVariants;
+	/** List of all the cultures (e.g. "en") that need to be cooked */
+	TArray<FString>					AllCulturesToCook;
 
 	/** Timing information about cook by the book */
 	double							CookTime = 0.0;
 	double							CookStartTime = 0.0;
+
+	/** Should we generate streaming install manifests (only valid option in cook by the book) */
+	bool							bGenerateStreamingInstallManifests = false;
+
+	/** Should we generate a seperate manifest for map dependencies */
+	bool							bGenerateDependenciesForMaps = false;
 
 	/** error when detecting engine content being used in this cook */
 	bool							bErrorOnEngineContentUse = false;
 	bool							bSkipHardReferences = false;
 	bool							bSkipSoftReferences = false;
 	bool							bFullLoadAndSave = false;
-	bool							bZenStore = false;
 	bool							bCookAgainstFixedBase = false;
 	bool							bDlcLoadMainAssetRegistry = false;
-	TArray<FName>					StartupPackages;
 
-	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
-	TMap<FName, TArray<FName>>		SourceToLocalizedPackageVariants;
-	/** List of all the cultures (e.g. "en") that need to be cooked */
-	TArray<FString>					AllCulturesToCook;
+	void ClearSessionData()
+	{
+		FCookByTheBookOptions EmptyOptions;
+		// Preserve Process-lifetime variables
+		EmptyOptions.StartupPackages = MoveTemp(StartupPackages);
+		*this = MoveTemp(EmptyOptions);
+	}
 };
+
+//////////////////////////////////////////////////////////////////////////
+// Cook on the fly startup options
+struct FCookOnTheFlyOptions
+{
+	/** Wether the network file server or the I/O store connection server should bind to any port */
+	bool bBindAnyPort = false;
+	/** Whether the network file server should use a platform-specific communication protocol instead of TCP (used when bZenStore == false) */
+	bool bPlatformProtocol = false;
+};
+
+}
+
 
 /** Helper struct for FBeginCookContext; holds the context data for each platform being cooked */
 struct FBeginCookContextPlatform

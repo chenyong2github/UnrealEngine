@@ -125,6 +125,8 @@ namespace UE::Cook
 	class FSaveCookedPackageContext;
 	class ICookOnTheFlyRequestManager;
 	struct FConstructPackageData;
+	struct FCookByTheBookOptions;
+	struct FCookOnTheFlyOptions;
 	struct FCookerTimer;
 	struct FCookSavePackageContext;
 	struct FGeneratorPackage;
@@ -148,23 +150,6 @@ class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorO
 
 	UCookOnTheFlyServer(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	UCookOnTheFlyServer(FVTableHelper& Helper); // Declare the FVTableHelper constructor manually so that we can forward-declare-only TUniquePtrs in the header without getting compile error in generated cpp
-
-public:
-	struct FCookByTheBookOptions;
-
-	//////////////////////////////////////////////////////////////////////////
-	// Cook on the fly startup options
-	struct FCookOnTheFlyOptions
-	{
-		/** Wether the network file server or the I/O store connection server should bind to any port */
-		bool bBindAnyPort = false;
-		/** Whether to save the cooked output to the Zen storage server. */
-		bool bZenStore = false;
-		/** Whether the network file server should use a platform-specific communication protocol instead of TCP (used when bZenStore == false) */
-		bool bPlatformProtocol = false;
-		/** Target platforms */
-		TArray<ITargetPlatform*> TargetPlatforms;
-	};
 
 private:
 	using FPollFunction = TUniqueFunction<void(UE::Cook::FTickStackData&)>;
@@ -190,13 +175,13 @@ private:
 	/** Directory to output to instead of the default should be empty in the case of DLC cooking */ 
 	FString OutputDirectoryOverride;
 
-	FCookByTheBookOptions* CookByTheBookOptions = nullptr;
+	TUniquePtr<UE::Cook::FCookByTheBookOptions> CookByTheBookOptions;
 	TUniquePtr<UE::Cook::FPlatformManager> PlatformManager;
 
 	//////////////////////////////////////////////////////////////////////////
 	// Cook on the fly options
 
-	FCookOnTheFlyOptions CookOnTheFlyOptions;
+	TUniquePtr<UE::Cook::FCookOnTheFlyOptions> CookOnTheFlyOptions;
 	/** Cook on the fly server uses the NetworkFileServer */
 	TArray<class INetworkFileServer*> NetworkFileServers;
 	FOnFileModifiedDelegate FileModifiedDelegate;
@@ -322,6 +307,8 @@ private:
 	/* Update polled fields used by CookOnTheFly's network request handlers */
 	void TickNetwork();
 
+	void TickMainCookLoop(UE::Cook::FTickStackData& StackData);
+
 	/** Execute operations that need to be done after each Scheduler task, such as checking for new external requests. */
 	void TickCookStatus(UE::Cook::FTickStackData& StackData);
 	void SetSaveBusy(bool bInSaveBusy);
@@ -338,7 +325,7 @@ private:
 		Poll,			// Execute pollables which have exceeded their period
 		PollIdle,		// Execute pollables which have exceeded their idle period
 		WaitForAsync,	// Sleep for a time slice while we wait for async tasks to complete
-		YieldTick,		// Progress is blocked by an async result. Temporarily exit TickCookOnTheSide.
+		YieldTick,		// Progress is blocked by an async result. Temporarily exit TickMainCookLoop.
 		Cancel,			// Cancel the current CookByTheBook
 	};
 	/** Inspect all tasks the scheduler could do and return which one it should do. */
@@ -414,6 +401,37 @@ public:
 		COSR_RequiresGC_PackageCount= 0x00000100,
 	};
 
+	struct FCookByTheBookStartupOptions
+	{
+	public:
+		TArray<ITargetPlatform*> TargetPlatforms;
+		TArray<FString> CookMaps;
+		TArray<FString> CookDirectories;
+		TArray<FString> NeverCookDirectories;
+		TArray<FString> CookCultures;
+		TArray<FString> IniMapSections;
+		TArray<FString> CookPackages; // list of packages we should cook, used to specify specific packages to cook
+		ECookByTheBookOptions CookOptions = ECookByTheBookOptions::None;
+		FString DLCName;
+		FString CreateReleaseVersion;
+		FString BasedOnReleaseVersion;
+		bool bGenerateStreamingInstallManifests = false;
+		bool bGenerateDependenciesForMaps = false;
+		bool bErrorOnEngineContentUse = false; // this is a flag for dlc, will cause the cooker to error if the dlc references engine content
+	};
+
+	struct FCookOnTheFlyStartupOptions
+	{
+		/** Wether the network file server or the I/O store connection server should bind to any port */
+		bool bBindAnyPort = false;
+		/** Whether to save the cooked output to the Zen storage server. */
+		bool bZenStore = false;
+		/** Whether the network file server should use a platform-specific communication protocol instead of TCP (used when bZenStore == false) */
+		bool bPlatformProtocol = false;
+		/** Target platforms */
+		TArray<ITargetPlatform*> TargetPlatforms;
+	};
+
 
 	virtual ~UCookOnTheFlyServer();
 
@@ -455,7 +473,7 @@ public:
 	*
 	* @return true on success, false otherwise.
 	*/
-	bool StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyOptions); 
+	bool StartCookOnTheFly(FCookOnTheFlyStartupOptions InCookOnTheFlyOptions); 
 
 	/**
 	* Broadcast our the fileserver presence on the network
@@ -466,25 +484,6 @@ public:
 	* Shutdown cook on the fly server
 	*/
 	void ShutdownCookOnTheFly();
-
-	struct FCookByTheBookStartupOptions
-	{
-	public:
-		TArray<ITargetPlatform*> TargetPlatforms;
-		TArray<FString> CookMaps;
-		TArray<FString> CookDirectories;
-		TArray<FString> NeverCookDirectories;
-		TArray<FString> CookCultures; 
-		TArray<FString> IniMapSections;
-		TArray<FString> CookPackages; // list of packages we should cook, used to specify specific packages to cook
-		ECookByTheBookOptions CookOptions = ECookByTheBookOptions::None;
-		FString DLCName;
-		FString CreateReleaseVersion;
-		FString BasedOnReleaseVersion;
-		bool bGenerateStreamingInstallManifests = false;
-		bool bGenerateDependenciesForMaps = false;
-		bool bErrorOnEngineContentUse = false; // this is a flag for dlc, will cause the cooker to error if the dlc references engine content
-	};
 
 	/**
 	* Start a cook by the book session
@@ -516,14 +515,19 @@ public:
 	void PostLoadPackageFixup(UPackage* Package, TArray<FName>* OutDiscoveredPackageNames,
 		TMap<FName, UE::Cook::FInstigator>* OutInstigators);
 
+	/** Tick CBTB until it finishes or needs to yield. Should only be called when in CookByTheBook Mode. */
+	uint32 TickCookByTheBook(const float TimeSlice, uint32& CookedPackageCount, ECookTickFlags TickFlags = ECookTickFlags::None, int32 InMaxNumPackagesToSave = 50);
+	/** Tick COTF until it finishes or needs to yield. Should only be called when in CookOnTheFly Mode. */
+	uint32 TickCookOnTheFly(const float TimeSlice, uint32& CookedPackageCount, ECookTickFlags TickFlags = ECookTickFlags::None, int32 InMaxNumPackagesToSave = 50);
+
 	/**
-	* Handles cook package requests until there are no more requests, then returns
-	*
-	* @param  CookFlags output of the things that might have happened in the cook on the side
-	* 
-	* @return returns ECookOnTheSideResult
-	*/
-	uint32 TickCookOnTheSide( const float TimeSlice, uint32 &CookedPackagesCount, ECookTickFlags TickFlags = ECookTickFlags::None, int32 InMaxNumPackagesToSave = 50);
+	 * Execute CookByTheBook as a load of all packages followed by a save of all packages. This mode is sometimes faster than normal CBTB.
+	 * Should be called at the beginning of the cook after StartCookByTheBook, and only if IsFullLoadAndSave.
+	 */
+	uint32 CookFullLoadAndSave();
+
+	/** Return whether the configuration and commandline settings have selected FullLoadAndSave. */
+	bool IsFullLoadAndSave() const;
 
 	/**
 	* Clear all the previously cooked data all cook requests from now on will be considered recook requests
@@ -590,12 +594,7 @@ public:
 
 	bool HasRecompileShaderRequests() const;
 
-	UE_DEPRECATED(4.26, "Use HasRemainingWork instead")
-	bool HasCookRequests() const
-	{
-		return HasRemainingWork();
-	}
-	/** Return whether TickCookOnTheSide needs to take any action for the current session. If not, the session is done. Used for external managers of the cooker to know when to tick it. */
+	/** Return whether the tick needs to take any action for the current session. If not, the session is done. Used for external managers of the cooker to know when to tick it. */
 	bool HasRemainingWork() const;
 	void WaitForRequests(int TimeoutMs);
 
@@ -724,7 +723,7 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// cook by the book specific functions
 	/** Construct the on-stack data for StartCook functions, based on the arguments to StartCookByTheBook */
-	FBeginCookContext SetCookByTheBookOptions(const FCookByTheBookStartupOptions& StartupOptions);
+	FBeginCookContext CreateBeginCookByTheBookContext(const FCookByTheBookStartupOptions& StartupOptions);
 	/** Set the PlatformManager's session platforms and finish filling out the BeginContext for StartCookByTheBook */
 	void SelectSessionPlatforms(FBeginCookContext& BeginContext);
 	/** CollectFilesToCook and add them as external requests. */
@@ -800,9 +799,7 @@ private:
 
 	void RegisterShaderChunkDataGenerator();
 
-	/**
-	* Call back from the TickCookOnTheSide when a cook by the book finishes (when started form StartCookByTheBook)
-	*/
+	/** Called at the end of CookByTheBook to write aggregated data such as AssetRegistry and shaders. */
 	void CookByTheBookFinished();
 
 	/** Clears session-lifetime data from COTFS and CookPackageDatas. */
@@ -837,7 +834,7 @@ private:
 	// cook on the fly specific functions
 
 	/** Construct the on-stack data for StartCook functions, based on the arguments to StartCookOnTheFly */
-	FBeginCookContext CreateBeginCookOnTheFlyContext();
+	FBeginCookContext CreateBeginCookOnTheFlyContext(const FCookOnTheFlyStartupOptions& Options);
 	/** Construct the on-stack data for StartCook functions, based on the arguments when adding a COTF platform */
 	FBeginCookContext CreateAddPlatformContext(ITargetPlatform* TargetPlatform);
 	void GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, const FString& PlatformName, TArray<FString>& UnsolicitedFiles, const FString& Filename, bool bIsCookable);
@@ -1144,8 +1141,6 @@ private:
 	/** Try calling the splitter's populate to create the package */
 	UPackage* TryPopulateGeneratedPackage(UE::Cook::FPopulatePackageContext& Context);
 
-	uint32 FullLoadAndSave(uint32& CookedPackageCount);
-
 	ICookedPackageWriter& FindOrCreatePackageWriter(const ITargetPlatform* TargetPlatform);
 	void FindOrCreateSaveContexts(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
 	UE::Cook::FCookSavePackageContext& FindOrCreateSaveContext(const ITargetPlatform* TargetPlatform);
@@ -1178,7 +1173,12 @@ private:
 	bool bFirstCookInThisProcess = true;
 	bool bHasDeferredInitializeCookOnTheFly = false;
 	bool bImportBehaviorCallbackInstalled = false;
-
+	/** Cancel has been queued and will be processed next tick */
+	bool bCancelSession = false;
+	/** True if a session is started for any mode. If the session is started, then we have at least one TargetPlatform specified. */
+	bool bSessionRunning = false;
+	/** Whether we're using ZenStore for storage of cook results. If false, we are using LooseCookedPackageWriter. */
+	bool bZenStore = false;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	double SaveBusyRetryTimeSeconds = MAX_flt;

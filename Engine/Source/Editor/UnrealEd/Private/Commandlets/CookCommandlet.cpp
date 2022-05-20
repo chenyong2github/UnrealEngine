@@ -439,7 +439,7 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 	CookFlags |= bIgnoreIniSettingsOutOfDate || CookerSettings->bIgnoreIniSettingsOutOfDateForIteration ? ECookInitializationFlags::IgnoreIniSettingsOutOfDate : ECookInitializationFlags::None;
 	CookOnTheFlyServer->Initialize( ECookMode::CookOnTheFly, CookFlags );
 
-	UCookOnTheFlyServer::FCookOnTheFlyOptions CookOnTheFlyStartupOptions;
+	UCookOnTheFlyServer::FCookOnTheFlyStartupOptions CookOnTheFlyStartupOptions;
 	CookOnTheFlyStartupOptions.bBindAnyPort = InstanceId.IsValid();
 	CookOnTheFlyStartupOptions.bZenStore = Switches.Contains(TEXT("ZenStore"));
 	CookOnTheFlyStartupOptions.bPlatformProtocol = Switches.Contains(TEXT("PlatformProtocol"));
@@ -479,7 +479,7 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 			, LastCookActionTime(FPlatformTime::Seconds())
 		{}
 
-		/** Intended to be called with stats from a UCookOnTheFlyServer::TickCookOnTheSide() call. Determines if we should be calling GC after TickCookOnTheSide(). */
+		/** Intended to be called with stats from the COTF tick loop. Determines if we should be calling GC after TickCookOnTheFly(). */
 		void Update(uint32 CookedCount, UCookOnTheFlyServer::ECookOnTheSideResult ResultFlags)
 		{
 			if (ResultFlags & (UCookOnTheFlyServer::COSR_CookedMap | UCookOnTheFlyServer::COSR_CookedPackage | UCookOnTheFlyServer::COSR_WaitingOnCache))
@@ -559,7 +559,7 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 	while (!IsEngineExitRequested())
 	{
 		uint32 CookedPkgCount = 0;
-		uint32 TickResults = CookOnTheFlyServer->TickCookOnTheSide(/*TimeSlice =*/10.f, CookedPkgCount, ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay);
+		uint32 TickResults = CookOnTheFlyServer->TickCookOnTheFly(/*TimeSlice =*/10.f, CookedPkgCount, ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay);
 
 		// Flush the asset registry before GC
 		FAssetRegistryModule::TickAssetRegistry(-1.0f);
@@ -992,14 +992,19 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 			COOK_STAT(FScopedDurationTimer StartCookByTheBookTimer(DetailedCookStats::StartCookByTheBookTimeSec));
 			CookOnTheFlyServer->StartCookByTheBook(StartupOptions);
 		}
-		while (CookOnTheFlyServer->IsCookByTheBookRunning())
+		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CookByTheBook.MainLoop"), STAT_CookByTheBook_MainLoop, STATGROUP_LoadTime);
+		if (CookOnTheFlyServer->IsFullLoadAndSave())
 		{
-			DECLARE_SCOPE_CYCLE_COUNTER( TEXT( "CookByTheBook.MainLoop" ), STAT_CookByTheBook_MainLoop, STATGROUP_LoadTime );
+			CookOnTheFlyServer->CookFullLoadAndSave();
+		}
+		else
+		{
+			while (CookOnTheFlyServer->IsInSession())
 			{
 				uint32 TickResults = 0;
 				uint32 UnusedVariable = 0;
 
-				TickResults = CookOnTheFlyServer->TickCookOnTheSide( MAX_flt, UnusedVariable,
+				TickResults = CookOnTheFlyServer->TickCookByTheBook(MAX_flt, UnusedVariable,
 					ShowProgress ? ECookTickFlags::None : ECookTickFlags::HideProgressDisplay, MAX_int32);
 
 				if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC) != 0)
@@ -1039,7 +1044,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 							// GShaderCompilingManager->FinishAllCompilation();
 						}
 					}
-					else 
+					else
 					{
 						// cooker loaded some object which needs to be cleaned up before the cooker can proceed so force gc
 						GCReason = TEXT("COSR_RequiresGC");
@@ -1054,7 +1059,7 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 
 					int32 NumObjectsBeforeGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
 					int32 NumObjectsAvailableBeforeGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-					UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC? TEXT(" partial gc") : TEXT("")), *GCReason);
+					UE_LOG(LogCookCommandlet, Display, TEXT("GarbageCollection...%s (%s)"), (bPartialGC ? TEXT(" partial gc") : TEXT("")), *GCReason);
 
 #if ENABLE_LOW_LEVEL_MEM_TRACKER
 					FLowLevelMemTracker::Get().UpdateStatsPerFrame();

@@ -101,12 +101,6 @@ namespace Cook
 		return SessionPlatforms;
 	}
 
-	bool FPlatformManager::HasSelectedSessionPlatforms() const
-	{
-		FRWScopeLockConditional ScopeLock(SessionLock, FRWScopeLockType::SLT_ReadOnly, !IsSchedulerThread());
-		return bHasSelectedSessionPlatforms;
-	}
-
 	bool FPlatformManager::HasSessionPlatform(FPlatformId TargetPlatform) const
 	{
 		const bool bIsSchedulerThread = IsSchedulerThread();
@@ -115,7 +109,7 @@ namespace Cook
 		return SessionPlatforms.Contains(TargetPlatform);
 	}
 
-	void FPlatformManager::SelectSessionPlatforms(const TArrayView<FPlatformId const>& TargetPlatforms)
+	void FPlatformManager::SelectSessionPlatforms(UCookOnTheFlyServer& COTFS, const TArrayView<FPlatformId const>& TargetPlatforms)
 	{
 		checkf(IsSchedulerThread(), TEXT("Writing to SessionPlatforms is only allowed from the scheduler thread."));
 		for (FPlatformId TargetPlatform : TargetPlatforms)
@@ -126,18 +120,20 @@ namespace Cook
 		FRWScopeLock ScopeLock(SessionLock, FRWScopeLockType::SLT_Write);
 		SessionPlatforms.Empty(TargetPlatforms.Num());
 		SessionPlatforms.Append(TargetPlatforms.GetData(), TargetPlatforms.Num());
+		COTFS.bSessionRunning = true;
 		bHasSelectedSessionPlatforms = true;
 	}
 
-	void FPlatformManager::ClearSessionPlatforms()
+	void FPlatformManager::ClearSessionPlatforms(UCookOnTheFlyServer& COTFS)
 	{
 		checkf(IsSchedulerThread(), TEXT("Writing to SessionPlatforms is only allowed from the scheduler thread."));
 		FRWScopeLock ScopeLock(SessionLock, FRWScopeLockType::SLT_Write);
 		SessionPlatforms.Empty();
+		COTFS.bSessionRunning = false;
 		bHasSelectedSessionPlatforms = false;
 	}
 
-	void FPlatformManager::AddSessionPlatform(FPlatformId TargetPlatform)
+	void FPlatformManager::AddSessionPlatform(UCookOnTheFlyServer& COTFS, FPlatformId TargetPlatform)
 	{
 		checkf(IsSchedulerThread(), TEXT("Writing to SessionPlatforms is only allowed from the scheduler thread."));
 		CreatePlatformData(TargetPlatform);
@@ -148,6 +144,7 @@ namespace Cook
 			return;
 		}
 		SessionPlatforms.Add(TargetPlatform);
+		COTFS.bSessionRunning = true;
 		bHasSelectedSessionPlatforms = true;
 	}
 
@@ -264,6 +261,7 @@ namespace Cook
 					SessionPlatforms.Remove(TargetPlatform);
 					if (SessionPlatforms.Num() == 0)
 					{
+						CookOnTheFlyServer.bSessionRunning = false;
 						bHasSelectedSessionPlatforms = false;
 					}
 				}
@@ -286,7 +284,7 @@ namespace Cook
 					const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName.ToString());
 					if (TargetPlatform)
 					{
-						AddSessionPlatform(TargetPlatform);
+						AddSessionPlatform(*LocalCookOnTheFlyServer, TargetPlatform);
 						LocalCookOnTheFlyServer->bPackageFilterDirty = true;
 					}
 				});

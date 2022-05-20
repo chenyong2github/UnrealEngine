@@ -129,16 +129,13 @@ void FRequestCluster::AddClusters(UCookOnTheFlyServer& COTFS, FPackageDataSet& U
 	};
 
 	bool bErrorOnEngineContentUse = false;
-	UCookOnTheFlyServer::FCookByTheBookOptions* Options = COTFS.CookByTheBookOptions;
+	UE::Cook::FCookByTheBookOptions& Options = *COTFS.CookByTheBookOptions;
 	FString DLCPath;
-	if (Options)
+	bErrorOnEngineContentUse = Options.bErrorOnEngineContentUse;
+	if (bErrorOnEngineContentUse)
 	{
-		bErrorOnEngineContentUse = Options->bErrorOnEngineContentUse;
-		if (bErrorOnEngineContentUse)
-		{
-			DLCPath = FPaths::Combine(*COTFS.GetBaseDirectoryForDLC(), TEXT("Content"));
-			FPaths::MakeStandardFilename(DLCPath);
-		}
+		DLCPath = FPaths::Combine(*COTFS.GetBaseDirectoryForDLC(), TEXT("Content"));
+		FPaths::MakeStandardFilename(DLCPath);
 	}
 
 	UE::Cook::FRequestCluster* MRUCluster = nullptr;
@@ -189,12 +186,12 @@ FRequestCluster::FFileNameRequest::FFileNameRequest(FFilePlatformRequest&& FileR
 
 void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 {
-	UCookOnTheFlyServer::FCookByTheBookOptions* Options = COTFS.CookByTheBookOptions;
-	if (Options)
+	if (!COTFS.IsCookOnTheFlyMode())
 	{
-		bAllowHardDependencies = !Options->bSkipHardReferences;
-		bAllowSoftDependencies = !Options->bSkipSoftReferences;
-		bErrorOnEngineContentUse = Options->bErrorOnEngineContentUse;
+		UE::Cook::FCookByTheBookOptions& Options = *COTFS.CookByTheBookOptions;
+		bAllowHardDependencies = !Options.bSkipHardReferences;
+		bAllowSoftDependencies = !Options.bSkipSoftReferences;
+		bErrorOnEngineContentUse = Options.bErrorOnEngineContentUse;
 	}
 	else
 	{
@@ -284,7 +281,7 @@ void FRequestCluster::FetchPackageNames(const FCookerTimer& CookerTimer, bool& b
 	}
 	for (;NextRequest < InRequestsNum; ++NextRequest)
 	{
-		if (NextRequest % TimerCheckPeriod == 0 && CookerTimer.IsTimeUp())
+		if ((NextRequest+1) % TimerCheckPeriod == 0 && CookerTimer.IsTimeUp())
 		{
 			break;
 		}

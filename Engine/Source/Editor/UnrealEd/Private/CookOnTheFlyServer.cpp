@@ -461,7 +461,6 @@ private:
 UCookOnTheFlyServer::UCookOnTheFlyServer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer),
 	CurrentCookMode(ECookMode::CookOnTheFly),
-	CookByTheBookOptions(nullptr),
 	CookFlags(ECookInitializationFlags::None),
 	bIsSavingPackage(false),
 	AssetRegistry(nullptr)
@@ -479,9 +478,6 @@ UCookOnTheFlyServer::~UCookOnTheFlyServer()
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 	GetTargetPlatformManager()->GetOnTargetPlatformsInvalidatedDelegate().RemoveAll(this);
-
-	delete CookByTheBookOptions;
-	CookByTheBookOptions = nullptr;
 }
 
 // This tick only happens in the editor.  The cook commandlet directly calls tick on the side.
@@ -492,7 +488,7 @@ void UCookOnTheFlyServer::Tick(float DeltaTime)
 
 	check(IsCookingInEditor());
 
-	if (IsCookByTheBookMode() && !IsCookByTheBookRunning() && !GIsSlowTask && IsCookFlagSet(ECookInitializationFlags::BuildDDCInBackground))
+	if (IsCookByTheBookMode() && !IsInSession() && !GIsSlowTask && IsCookFlagSet(ECookInitializationFlags::BuildDDCInBackground))
 	{
 		// if we are in the editor then precache some stuff ;)
 		TArray<const ITargetPlatform*> CacheTargetPlatforms;
@@ -509,8 +505,18 @@ void UCookOnTheFlyServer::Tick(float DeltaTime)
 	}
 
 	uint32 CookedPackagesCount = 0;
-	const static float CookOnTheSideTimeSlice = 0.1f; // seconds
-	TickCookOnTheSide( CookOnTheSideTimeSlice, CookedPackagesCount);
+	const static float TickTimeSliceSeconds = 0.1f;
+	TickCancels();
+	if (IsCookOnTheFlyMode())
+	{
+		TickCookOnTheFly(TickTimeSliceSeconds, CookedPackagesCount);
+	}
+	else
+	{
+		check(IsCookByTheBookMode());
+		TickCookByTheBook(TickTimeSliceSeconds, CookedPackagesCount);
+	}
+
 	TickRequestManager();
 	TickRecompileShaderRequests();
 }
@@ -525,7 +531,7 @@ TStatId UCookOnTheFlyServer::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UCookServer, STATGROUP_Tickables);
 }
 
-bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyOptions)
+bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyStartupOptions InCookOnTheFlyOptions)
 {
 	LLM_SCOPE_BYTAG(Cooker);
 #if WITH_COTF
@@ -536,8 +542,7 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 	NetworkRequestEvent = FPlatformProcess::GetSynchEventFromPool();
 #endif
 
-	CookOnTheFlyOptions = MoveTemp(InCookOnTheFlyOptions);
-	FBeginCookContext BeginContext = CreateBeginCookOnTheFlyContext();
+	FBeginCookContext BeginContext = CreateBeginCookOnTheFlyContext(InCookOnTheFlyOptions);
 	CreateSandboxFile(BeginContext);
 
 	CookOnTheFlyServerInterface = MakeUnique<UCookOnTheFlyServer::FCookOnTheFlyServerInterface>(*this);
@@ -556,15 +561,15 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 
 	GRedirectCollector.OnStartupPackageLoadComplete();
 
-	for (ITargetPlatform* TargetPlatform : CookOnTheFlyOptions.TargetPlatforms)
+	for (ITargetPlatform* TargetPlatform : InCookOnTheFlyOptions.TargetPlatforms)
 	{
 		AddCookOnTheFlyPlatformFromGameThread(TargetPlatform);
 	}
 
 	UE_LOG(LogCook, Display, TEXT("Starting '%s' cook-on-the-fly server"),
-		CookOnTheFlyOptions.bZenStore ? TEXT("Zen") : TEXT("Network File"));
+		IsUsingZenStore() ? TEXT("Zen") : TEXT("Network File"));
 
-	if (CookOnTheFlyOptions.bZenStore)
+	if (IsUsingZenStore())
 	{
 		UE::Cook::FIoStoreCookOnTheFlyServerOptions ServerOptions;
 		ServerOptions.Port = -1; // Use default
@@ -573,8 +578,8 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 	else
 	{
 		FNetworkFileServerOptions ServerOptions;
-		ServerOptions.Protocol = CookOnTheFlyOptions.bPlatformProtocol ? NFSP_Platform : NFSP_Tcp;
-		ServerOptions.Port = CookOnTheFlyOptions.bBindAnyPort ? 0 : -1;
+		ServerOptions.Protocol = CookOnTheFlyOptions->bPlatformProtocol ? NFSP_Platform : NFSP_Tcp;
+		ServerOptions.Port = CookOnTheFlyOptions->bBindAnyPort ? 0 : -1;
 		CookOnTheFlyRequestManager = UE::Cook::MakeNetworkFileCookOnTheFlyRequestManager(*CookOnTheFlyServerInterface, MoveTemp(ServerOptions));
 	}
 	BeginCookEditorSystems();
@@ -1005,7 +1010,7 @@ bool UCookOnTheFlyServer::IsUsingShaderCodeLibrary() const
 
 bool UCookOnTheFlyServer::IsUsingZenStore() const
 {
-	return (IsCookByTheBookMode() && CookByTheBookOptions->bZenStore) || (IsCookOnTheFlyMode() && CookOnTheFlyOptions.bZenStore);
+	return bZenStore;
 }
 
 bool UCookOnTheFlyServer::IsCookOnTheFlyMode() const
@@ -1020,35 +1025,23 @@ bool UCookOnTheFlyServer::IsUsingLegacyCookOnTheFlyScheduling() const
 
 bool UCookOnTheFlyServer::IsCreatingReleaseVersion()
 {
-	if (CookByTheBookOptions)
-	{
-		return !CookByTheBookOptions->CreateReleaseVersion.IsEmpty();
-	}
-
-	return false;
+	return !CookByTheBookOptions->CreateReleaseVersion.IsEmpty();
 }
 
 bool UCookOnTheFlyServer::IsCookingDLC() const
 {
-	// can only cook DLC in cook by the book
 	// we are cooking DLC when the DLC name is setup
-	
-	if (CookByTheBookOptions)
-	{
-		return !CookByTheBookOptions->DlcName.IsEmpty();
-	}
-
-	return false;
+	return !CookByTheBookOptions->DlcName.IsEmpty();
 }
 
 bool UCookOnTheFlyServer::IsCookingAgainstFixedBase() const
 {
-	return IsCookingDLC() && CookByTheBookOptions && CookByTheBookOptions->bCookAgainstFixedBase;
+	return IsCookingDLC() && CookByTheBookOptions->bCookAgainstFixedBase;
 }
 
 bool UCookOnTheFlyServer::ShouldPopulateFullAssetRegistry() const
 {
-	return !IsCookingDLC() || (CookByTheBookOptions && CookByTheBookOptions->bDlcLoadMainAssetRegistry);
+	return !IsCookingDLC() || CookByTheBookOptions->bDlcLoadMainAssetRegistry;
 }
 
 FString UCookOnTheFlyServer::GetBaseDirectoryForDLC() const
@@ -1167,131 +1160,120 @@ bool UCookOnTheFlyServer::RequestPackage(const FName& StandardPackageFName, cons
 	return RequestPackage(StandardPackageFName, PlatformManager->GetSessionPlatforms(), bForceFrontOfQueue);
 }
 
-uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &CookedPackageCount, ECookTickFlags TickFlags, int32 InMaxNumPackagesToSave)
+uint32 UCookOnTheFlyServer::TickCookByTheBook(const float TimeSlice, uint32& CookedPackageCount, ECookTickFlags TickFlags, int32 InMaxNumPackagesToSave)
 {
+	check(IsCookByTheBookMode());
+
 	LLM_SCOPE_BYTAG(Cooker);
-	TickCancels();
-	TickNetwork();
-	if (!IsInSession())
-	{
-		return COSR_None;
-	}
-
-	if (IsCookByTheBookMode() && CookByTheBookOptions->bRunning && CookByTheBookOptions->bFullLoadAndSave)
-	{
-		uint32 Result = FullLoadAndSave(CookedPackageCount);
-
-		CookByTheBookFinished();
-
-		return Result;
-	}
-
 	COOK_STAT(FScopedDurationTimer TickTimer(DetailedCookStats::TickCookOnTheSideTimeSec));
-
-	{
-		if (AssetRegistry == nullptr || AssetRegistry->IsLoadingAssets())
-		{
-			// early out
-			return COSR_None;
-		}
-	}
-
 	UE::Cook::FTickStackData StackData(TimeSlice, IsRealtimeMode(), TickFlags, InMaxNumPackagesToSave);
-	bool bCookComplete = false;
-	bool bCookCancelled = false;
 
-	{
-		UE_SCOPED_HIERARCHICAL_COOKTIMER(TickCookOnTheSide); // Make sure no UE_SCOPED_HIERARCHICAL_COOKTIMERs are around CookByTheBookFinishes or CancelCookByTheBook, as those functions delete memory for them
+	TickMainCookLoop(StackData);
 
-		bool bContinueTick = true;
-		while (bContinueTick && (!IsEngineExitRequested() || CurrentCookMode == ECookMode::CookByTheBook))
-		{
-			TickCookStatus(StackData);
-
-			ECookAction CookAction = DecideNextCookAction(StackData);
-			int32 NumPushed;
-			bool bBusy;
-			switch (CookAction)
-			{
-			case ECookAction::Request:
-				PumpRequests(StackData, NumPushed);
-				if (NumPushed > 0)
-				{
-					SetLoadBusy(false);
-				}
-				break;
-			case ECookAction::Load:
-				PumpLoads(StackData, 0, NumPushed, bBusy);
-				SetLoadBusy(bBusy && NumPushed == 0); // Mark as busy if pump was blocked and we did not make any progress
-				if (NumPushed > 0)
-				{
-					SetSaveBusy(false);
-				}
-				break;
-			case ECookAction::LoadLimited:
-				PumpLoads(StackData, DesiredLoadQueueLength, NumPushed, bBusy);
-				SetLoadBusy(bBusy && NumPushed == 0); // Mark as busy if pump was blocked and we did not make any progress
-				if (NumPushed > 0)
-				{
-					SetSaveBusy(false);
-				}
-				break;
-			case ECookAction::Save:
-				PumpSaves(StackData, 0, NumPushed, bBusy);
-				SetSaveBusy(bBusy && NumPushed == 0); // Mark as busy if pump was blocked and we did not make any progress
-				break;
-			case ECookAction::SaveLimited:
-				PumpSaves(StackData, DesiredSaveQueueLength, NumPushed, bBusy);
-				SetSaveBusy(bBusy && NumPushed == 0); // Mark as busy if pump was blocked and we did not make any progress
-				break;
-			case ECookAction::Poll:
-				PumpPollables(StackData, false /* bIsIdle */);
-				break;
-			case ECookAction::PollIdle:
-				PumpPollables(StackData, true /* bIsIdle */);
-				break;
-			case ECookAction::WaitForAsync:
-				WaitForAsync(StackData);
-				break;
-			case ECookAction::YieldTick:
-				bContinueTick = false;
-				break;
-			case ECookAction::Done:
-				bContinueTick = false;
-				bCookComplete = true;
-				break;
-			case ECookAction::Cancel:
-				bCookCancelled = true;
-				bContinueTick = false;
-				break;
-			default:
-				check(false);
-				break;
-			}
-		}
-	}
-
-	if (bCookCancelled)
+	CookByTheBookOptions->CookTime += StackData.Timer.GetTimeTillNow();
+	// Make sure no UE_SCOPED_HIERARCHICAL_COOKTIMERs are around CookByTheBookFinishes or CancelCookByTheBook, as those functions delete memory for them
+	if (StackData.bCookCancelled)
 	{
 		CancelCookByTheBook();
 	}
-
-	if (CookByTheBookOptions)
+	else if (IsInSession() && StackData.bCookComplete)
 	{
-		CookByTheBookOptions->CookTime += StackData.Timer.GetTimeTillNow();
-	}
-
-	if (IsCookByTheBookRunning() && bCookComplete)
-	{
-		check(IsCookByTheBookMode());
-
-		// if we are out of stuff and we are in cook by the book from the editor mode then we finish up
 		UpdateDisplay(TickFlags, true /* bForceDisplay */);
 		CookByTheBookFinished();
 	}
+	CookedPackageCount += StackData.CookedPackageCount;
+	return StackData.ResultFlags;
+}
+
+uint32 UCookOnTheFlyServer::TickCookOnTheFly(const float TimeSlice, uint32& CookedPackageCount, ECookTickFlags TickFlags, int32 InMaxNumPackagesToSave)
+{
+	check(IsCookOnTheFlyMode());
+
+	LLM_SCOPE_BYTAG(Cooker);
+	COOK_STAT(FScopedDurationTimer TickTimer(DetailedCookStats::TickCookOnTheSideTimeSec));
+	UE::Cook::FTickStackData StackData(TimeSlice, IsRealtimeMode(), TickFlags, InMaxNumPackagesToSave);
+
+	TickNetwork();
+	TickMainCookLoop(StackData);
 
 	CookedPackageCount += StackData.CookedPackageCount;
 	return StackData.ResultFlags;
+}
+
+void UCookOnTheFlyServer::TickMainCookLoop(UE::Cook::FTickStackData& StackData)
+{
+	UE_SCOPED_HIERARCHICAL_COOKTIMER(TickMainCookLoop);
+	if (!IsInSession())
+	{
+		return;
+	}
+
+	bool bContinueTick = true;
+	while (bContinueTick && (!IsEngineExitRequested() || CurrentCookMode == ECookMode::CookByTheBook))
+	{
+		TickCookStatus(StackData);
+
+		ECookAction CookAction = DecideNextCookAction(StackData);
+		int32 NumPushed;
+		bool bBusy;
+		switch (CookAction)
+		{
+		case ECookAction::Request:
+			PumpRequests(StackData, NumPushed);
+			if (NumPushed > 0)
+			{
+				SetLoadBusy(false);
+			}
+			break;
+		case ECookAction::Load:
+			PumpLoads(StackData, 0, NumPushed, bBusy);
+			SetLoadBusy(bBusy && NumPushed == 0); // Mark as busy if pump was blocked and we did not make any progress
+			if (NumPushed > 0)
+			{
+				SetSaveBusy(false);
+			}
+			break;
+		case ECookAction::LoadLimited:
+			PumpLoads(StackData, DesiredLoadQueueLength, NumPushed, bBusy);
+			SetLoadBusy(bBusy && NumPushed == 0); // Mark as busy if pump was blocked and we did not make any progress
+			if (NumPushed > 0)
+			{
+				SetSaveBusy(false);
+			}
+			break;
+		case ECookAction::Save:
+			PumpSaves(StackData, 0, NumPushed, bBusy);
+			SetSaveBusy(bBusy && NumPushed == 0); // Mark as busy if pump was blocked and we did not make any progress
+			break;
+		case ECookAction::SaveLimited:
+			PumpSaves(StackData, DesiredSaveQueueLength, NumPushed, bBusy);
+			SetSaveBusy(bBusy && NumPushed == 0); // Mark as busy if pump was blocked and we did not make any progress
+			break;
+		case ECookAction::Poll:
+			PumpPollables(StackData, false /* bIsIdle */);
+			break;
+		case ECookAction::PollIdle:
+			PumpPollables(StackData, true /* bIsIdle */);
+			break;
+		case ECookAction::WaitForAsync:
+			WaitForAsync(StackData);
+			break;
+		case ECookAction::YieldTick:
+			bContinueTick = false;
+			break;
+		case ECookAction::Done:
+			bContinueTick = false;
+			StackData.bCookComplete = true;
+			break;
+		case ECookAction::Cancel:
+			StackData.bCookCancelled = true;
+			bContinueTick = false;
+			break;
+		default:
+			check(false);
+			break;
+		}
+	}
 }
 
 void UCookOnTheFlyServer::TickCookStatus(UE::Cook::FTickStackData& StackData)
@@ -1776,7 +1758,7 @@ void UCookOnTheFlyServer::WaitForAsync(UE::Cook::FTickStackData& StackData)
 
 UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::Cook::FTickStackData& StackData)
 {
-	if (IsCookByTheBookMode() && CookByTheBookOptions->bCancel)
+	if (bCancelSession)
 	{
 		return ECookAction::Cancel;
 	}
@@ -2300,7 +2282,7 @@ void UCookOnTheFlyServer::QueueDiscoveredPackageData(UE::Cook::FPackageData& Pac
 	}
 	
 	if (!PackageData.IsInProgress() &&
-		(PackageData.IsGenerated() || !IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences))
+		(PackageData.IsGenerated() || !CookByTheBookOptions->bSkipHardReferences))
 	{
 		PackageData.SetRequestData(TargetPlatforms, /*bIsUrgent*/ false, UE::Cook::FCompletionCallback(),
 			MoveTemp(Instigator));
@@ -2352,22 +2334,20 @@ void UCookOnTheFlyServer::TickNetwork()
 {
 	// Only CookOnTheFly handles network requests
 	// It is not safe to call PruneUnreferencedSessionPlatforms in CookByTheBook because StartCookByTheBook does not AddRef its session platforms
-	if (IsCookOnTheFlyMode())
+	check(IsCookOnTheFlyMode())
+	if (IsInSession() && !bCookOnTheFlyExternalRequests)
 	{
-		if (IsInSession() && !bCookOnTheFlyExternalRequests)
+		PlatformManager->PruneUnreferencedSessionPlatforms(*this);
+	}
+	else
+	{
+		// Process callbacks in case there is a callback pending that needs to create a session
+		TArray<UE::Cook::FSchedulerCallback> Callbacks;
+		if (ExternalRequests->DequeueCallbacks(Callbacks))
 		{
-			PlatformManager->PruneUnreferencedSessionPlatforms(*this);
-		}
-		else
-		{
-			// Process callbacks in case there is a callback pending that needs to create a session
-			TArray<UE::Cook::FSchedulerCallback> Callbacks;
-			if (ExternalRequests->DequeueCallbacks(Callbacks))
+			for (UE::Cook::FSchedulerCallback& Callback : Callbacks)
 			{
-				for (UE::Cook::FSchedulerCallback& Callback : Callbacks)
-				{
-					Callback();
-				}
+				Callback();
 			}
 		}
 	}
@@ -3085,7 +3065,7 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages(TArray<FName>* OutDiscovere
 		{
 			UPackage* Package = PackageWithInstigator.Key;
 			FInstigator& Instigator = PackageWithInstigator.Value;
-			if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
+			if (!CookByTheBookOptions->bSkipSoftReferences)
 			{
 				PostLoadPackageFixup(Package, OutDiscoveredPackageNames, OutInstigators);
 			}
@@ -3579,12 +3559,6 @@ void UCookOnTheFlyServer::TickPrecacheObjectsForPlatforms(const float TimeSlice,
 
 bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 {
-	if (IsCookByTheBookMode() && CookByTheBookOptions->bFullLoadAndSave)
-	{
-		// FullLoadAndSave does the entire cook in one tick, so there is no need to GC after
-		return false;
-	}
-
 #if UE_GC_TRACK_OBJ_AVAILABLE
 	if (GUObjectArray.GetObjectArrayEstimatedAvailable() < MinFreeUObjectIndicesBeforeGC)
 	{
@@ -3755,7 +3729,7 @@ void UCookOnTheFlyServer::MarkPackageDirtyForCooker(UPackage* Package, bool bAll
 		return;
 	}
 
-	if (IsInSession() && !bAllowInSession && !(IsCookByTheBookMode() && CookByTheBookOptions->bFullLoadAndSave))
+	if (IsInSession() && !bAllowInSession)
 	{
 		ExternalRequests->AddCallback([this, PackageName]() { MarkPackageDirtyForCookerFromSchedulerThread(PackageName); });
 	}
@@ -3787,7 +3761,7 @@ void UCookOnTheFlyServer::MarkPackageDirtyForCookerFromSchedulerThread(const FNa
 		{
 			PackageData->SendToState(UE::Cook::EPackageState::Request, UE::Cook::ESendFlags::QueueAddAndRemove);
 		}
-		else if (IsCookByTheBookRunning() && bHadCookedPlatforms)
+		else if (IsCookByTheBookMode() && IsInSession() && bHadCookedPlatforms)
 		{
 			PackageData->UpdateRequestData(PlatformManager->GetSessionPlatforms(), false /* bIsUrgent */, UE::Cook::FCompletionCallback(),
 				UE::Cook::FInstigator(UE::Cook::EInstigator::Unspecified, GInstigatorMarkPackageDirty));
@@ -3809,7 +3783,7 @@ void UCookOnTheFlyServer::MarkPackageDirtyForCookerFromSchedulerThread(const FNa
 
 bool UCookOnTheFlyServer::IsInSession() const
 {
-	return IsCookByTheBookRunning() || (IsCookOnTheFlyMode() && PlatformManager->HasSelectedSessionPlatforms());
+	return bSessionRunning;
 }
 
 void UCookOnTheFlyServer::ShutdownCookOnTheFly()
@@ -4489,7 +4463,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 		// TODO: Reenable BuildDefinitionList once FCbPackage support for empty FCbObjects is in
 		//Info.Attachments.Add({ "BuildDefinitionList", BuildDefinitionList });
 		Info.WriteOptions = IPackageWriter::EWriteOptions::Write;
-		if (COTFS.CookByTheBookOptions != nullptr)
+		if (COTFS.IsCookByTheBookMode())
 		{
 			Info.WriteOptions |= IPackageWriter::EWriteOptions::ComputeHash;
 		}
@@ -4498,7 +4472,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 	}
 
 	// Update asset registry
-	if (COTFS.CookByTheBookOptions)
+	if (COTFS.IsCookByTheBookMode())
 	{
 		Generator.UpdateAssetRegistryPackageData(*Package, SavePackageResult, MoveTemp(*ArchiveCookContext.GetCookTagList()));
 	}
@@ -4552,7 +4526,7 @@ void FSaveCookedPackageContext::FinishPackage()
 {
 	// Add soft references discovered from the package
 	FName PackageFName = Package->GetFName();
-	if (!COTFS.IsCookByTheBookMode() || !COTFS.CookByTheBookOptions->bSkipSoftReferences)
+	if (!COTFS.CookByTheBookOptions->bSkipSoftReferences)
 	{
 		// Also request any localized variants of this package
 		if (COTFS.IsCookByTheBookMode() && !FPackageName::IsLocalizedPackage(Package->GetName()))
@@ -4635,9 +4609,11 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	ExternalRequests = MakeUnique<UE::Cook::FExternalRequests>();
 	PackageTracker = MakeUnique<UE::Cook::FPackageTracker>(*PackageDatas.Get());
 	DiffModeHelper = MakeUnique<FDiffModeCookServerUtils>();
+	BuildDefinitions = MakeUnique<UE::Cook::FBuildDefinitions>();
+	CookByTheBookOptions = MakeUnique<UE::Cook::FCookByTheBookOptions>();
+	CookOnTheFlyOptions = MakeUnique<UE::Cook::FCookOnTheFlyOptions>();
 	AssetRegistry = IAssetRegistry::Get();
 
-	BuildDefinitions.Reset(new UE::Cook::FBuildDefinitions());
 	UE::Cook::InitializeTls();
 	UE::Cook::FPlatformManager::InitializeTls();
 
@@ -4709,31 +4685,6 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	ReadMemorySetting(TEXT("MemoryMinFreeVirtual"), MemoryMinFreeVirtual);
 	ReadMemorySetting(TEXT("MemoryMinFreePhysical"), MemoryMinFreePhysical);
 
-	uint64 MaxMemoryAllowance;
-	if (ReadMemorySetting(TEXT("MaxMemoryAllowance"), MaxMemoryAllowance))
-	{ 
-		UE_LOG(LogCook, Warning, TEXT("CookSettings.MaxMemoryAllowance is deprecated. Use CookSettings.MemoryMaxUsedPhysical instead."));
-		MemoryMaxUsedPhysical = MaxMemoryAllowance;
-	}
-	uint64 MinMemoryBeforeGC;
-	if (ReadMemorySetting(TEXT("MinMemoryBeforeGC"), MinMemoryBeforeGC))
-	{
-		UE_LOG(LogCook, Warning, TEXT("CookSettings.MinMemoryBeforeGC is deprecated. Use CookSettings.MemoryMaxUsedVirtual instead."));
-		MemoryMaxUsedVirtual = MinMemoryBeforeGC;
-	}
-	uint64 MinFreeMemory;
-	if (ReadMemorySetting(TEXT("MinFreeMemory"), MinFreeMemory))
-	{
-		UE_LOG(LogCook, Warning, TEXT("CookSettings.MinFreeMemory is deprecated. Use CookSettings.MemoryMinFreePhysical instead."));
-		MemoryMinFreePhysical = MinFreeMemory;
-	}
-	uint64 MinReservedMemory;
-	if (ReadMemorySetting(TEXT("MinReservedMemory"), MinReservedMemory))
-	{
-		UE_LOG(LogCook, Warning, TEXT("CookSettings.MinReservedMemory is deprecated. Use CookSettings.MemoryMinFreePhysical instead."));
-		MemoryMinFreePhysical = MinReservedMemory;
-	}
-	
 	MaxPreloadAllocated = 16;
 	DesiredSaveQueueLength = 8;
 	DesiredLoadQueueLength = 8;
@@ -4787,7 +4738,6 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 
 	if (IsCookByTheBookMode())
 	{
-		CookByTheBookOptions = new FCookByTheBookOptions();
 		for (TObjectIterator<UPackage> It; It; ++It)
 		{
 			if ((*It) != GetTransientPackage())
@@ -4799,8 +4749,6 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 		bHybridIterativeDebug = FParse::Param(FCommandLine::Get(), TEXT("hybriditerativedebug"));
 	}
 	
-	UE_LOG(LogCook, Display, TEXT("Mobile HDR setting %d"), IsMobileHDR());
-
 	// See if there are any plugins that need to be remapped for the sandbox
 	const FProjectDescriptor* Project = IProjectManager::Get().GetCurrentProject();
 	if (Project != nullptr)
@@ -5556,13 +5504,14 @@ TMap<FName, FString> UCookOnTheFlyServer::CalculateCookSettingStrings() const
 	const FName NAME_CookMode(TEXT("CookMode"));
 
 	CookSettingStrings.Add(FName(TEXT("Version")), TEXT("C7C76F79"));
-	if (CookByTheBookOptions)
+	if (IsCookByTheBookMode())
 	{
 		CookSettingStrings.Add(NAME_CookMode, TEXT("CookByTheBook"));
 		CookSettingStrings.Add(FName(TEXT("DLCName")), CookByTheBookOptions->DlcName);
 	}
 	else
 	{
+		check(IsCookOnTheFlyMode());
 		CookSettingStrings.Add(NAME_CookMode, TEXT("CookOnTheFly"));
 	}
 	return CookSettingStrings;
@@ -6028,7 +5977,7 @@ void UCookOnTheFlyServer::BlockOnAssetRegistry()
 	UE_LOG(LogCook, Display, TEXT("Waiting for Asset Registry"));
 	if (ShouldPopulateFullAssetRegistry())
 	{
-		// Trigger or waitfor completion the primary AssetRegistry scan.
+		// Trigger or wait for completion the primary AssetRegistry scan.
 		// Additionally scan any cook-specific paths from ini
 		TArray<FString> ScanPaths;
 		GConfig->GetArray(TEXT("AssetRegistry"), TEXT("PathsToScanForCook"), ScanPaths, GEngineIni);
@@ -6078,7 +6027,7 @@ void UCookOnTheFlyServer::RefreshPlatformAssetRegistries(const TArrayView<const 
 		// if we are cooking DLC, we will just spend a lot of time removing the shipped packages from the AR,
 		// so we don't bother copying them over. can easily save 10 seconds on a large project
 		bool bInitalizeFromExisting = !IsCookingDLC();
-		RegistryGenerator->Initialize(CookByTheBookOptions ? CookByTheBookOptions->StartupPackages : TArray<FName>(), bInitalizeFromExisting);
+		RegistryGenerator->Initialize(CookByTheBookOptions->StartupPackages, bInitalizeFromExisting);
 	}
 }
 
@@ -6611,7 +6560,7 @@ void UCookOnTheFlyServer::GetGameDefaultObjects(const TArray<ITargetPlatform*>& 
 
 bool UCookOnTheFlyServer::IsCookByTheBookRunning() const
 {
-	return CookByTheBookOptions && CookByTheBookOptions->bRunning;
+	return IsCookByTheBookMode() && IsInSession();
 }
 
 
@@ -6761,7 +6710,7 @@ void UCookOnTheFlyServer::BeginCookStartShaderCodeLibrary(FBeginCookContext& Beg
 
 void UCookOnTheFlyServer::BeginCookFinishShaderCodeLibrary(FBeginCookContext& BeginContext)
 {
-	check(BeginContext.StartupOptions && CookByTheBookOptions); // CookByTheBook only for now
+	check(BeginContext.StartupOptions && IsCookByTheBookMode()); // CookByTheBook only for now
 	// don't resave the global shader map files in dlc
 	if (!IsCookingDLC() && !EnumHasAnyFlags(BeginContext.StartupOptions->CookOptions, ECookByTheBookOptions::ForceDisableSaveGlobalShaders))
 	{
@@ -7053,9 +7002,9 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 {
 	using namespace UE::Cook;
 
-	check( IsInGameThread() );
-	check( IsCookByTheBookMode() );
-	check( CookByTheBookOptions->bRunning == true );
+	check(IsInGameThread());
+	check(IsCookByTheBookMode());
+	check(IsInSession());
 	check(PackageDatas->GetRequestQueue().IsEmpty());
 	check(PackageDatas->GetLoadPrepareQueue().IsEmpty());
 	check(PackageDatas->GetLoadReadyQueue().IsEmpty());
@@ -7294,7 +7243,6 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 
 void UCookOnTheFlyServer::ShutdownCookSession()
 {
-	PlatformManager->ClearSessionPlatforms();
 	for (UE::Cook::FPackageData* PackageData : *PackageDatas)
 	{
 		PackageData->DestroyGeneratorPackage();
@@ -7302,12 +7250,10 @@ void UCookOnTheFlyServer::ShutdownCookSession()
 
 	ConditionalUninstallImportBehaviorCallback();
 
+	bCancelSession = false;
 	if (IsCookByTheBookMode())
 	{
-		check(CookByTheBookOptions);
-		CookByTheBookOptions->BasedOnReleaseCookedPackages.Empty();
-		CookByTheBookOptions->bRunning = false;
-		CookByTheBookOptions->bFullLoadAndSave = false;
+		CookByTheBookOptions->ClearSessionData();
 
 		UnregisterCookByTheBookDelegates();
 
@@ -7316,6 +7262,7 @@ void UCookOnTheFlyServer::ShutdownCookSession()
 		OutputHierarchyTimers();
 		ClearHierarchyTimers();
 	}
+	PlatformManager->ClearSessionPlatforms(*this);
 }
 
 void UCookOnTheFlyServer::PrintFinishStats()
@@ -7387,22 +7334,19 @@ void UCookOnTheFlyServer::WriteMapDependencyGraph(const ITargetPlatform* TargetP
 
 void UCookOnTheFlyServer::QueueCancelCookByTheBook()
 {
-	if ( IsCookByTheBookMode() )
+	if (IsCookByTheBookMode() && IsInSession())
 	{
-		check( CookByTheBookOptions != NULL );
-		CookByTheBookOptions->bCancel = true;
+		bCancelSession = true;
 	}
 }
 
 void UCookOnTheFlyServer::CancelCookByTheBook()
 {
-	if ( IsCookByTheBookMode() && CookByTheBookOptions->bRunning )
+	check(IsCookByTheBookMode());
+	check(IsInGameThread());
+	if (IsInSession())
 	{
-		check(CookByTheBookOptions);
-		check( IsInGameThread() );
-
 		CancelAllQueues();
-
 		ShutdownCookSession();
 	} 
 }
@@ -7411,7 +7355,6 @@ void UCookOnTheFlyServer::StopAndClearCookedData()
 {
 	if ( IsCookByTheBookMode() )
 	{
-		check( CookByTheBookOptions != NULL );
 		CancelCookByTheBook();
 	}
 	else
@@ -7979,13 +7922,12 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	// Initialize systems and settings that the rest of StartCookByTheBook depends on
 	// Functions in this section are ordered and can depend on the functions before them
-	FBeginCookContext BeginContext = SetCookByTheBookOptions(CookByTheBookStartupOptions);
+	FBeginCookContext BeginContext = CreateBeginCookByTheBookContext(CookByTheBookStartupOptions);
 	BlockOnAssetRegistry();
 	CreateSandboxFile(BeginContext);
 	SetBeginCookConfigSettings(BeginContext);
 	SelectSessionPlatforms(BeginContext);
 	SetBeginCookIterativeFlags(BeginContext);
-	CookByTheBookOptions->bRunning = true;
 
 	// Initialize systems referenced by later stages or that need to start early for async performance
 	// Functions in this section must not need to read/write the SandboxDirectory or MemoryCookedPackages
@@ -8014,13 +7956,13 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	RegisterCookByTheBookDelegates();
 }
 
-FBeginCookContext UCookOnTheFlyServer::SetCookByTheBookOptions(const FCookByTheBookStartupOptions& StartupOptions)
+FBeginCookContext UCookOnTheFlyServer::CreateBeginCookByTheBookContext(const FCookByTheBookStartupOptions& StartupOptions)
 {
 	FBeginCookContext BeginContext;
 
 	BeginContext.StartupOptions = &StartupOptions;
 	const ECookByTheBookOptions& CookOptions = StartupOptions.CookOptions;
-	CookByTheBookOptions->bCancel = false;
+	bZenStore = !!(CookOptions & ECookByTheBookOptions::ZenStore);
 	CookByTheBookOptions->CookTime = 0.0f;
 	CookByTheBookOptions->CookStartTime = FPlatformTime::Seconds();
 	CookByTheBookOptions->bGenerateStreamingInstallManifests = StartupOptions.bGenerateStreamingInstallManifests;
@@ -8028,8 +7970,7 @@ FBeginCookContext UCookOnTheFlyServer::SetCookByTheBookOptions(const FCookByTheB
 	CookByTheBookOptions->CreateReleaseVersion = StartupOptions.CreateReleaseVersion;
 	CookByTheBookOptions->bSkipHardReferences = !!(CookOptions & ECookByTheBookOptions::SkipHardReferences);
 	CookByTheBookOptions->bSkipSoftReferences = !!(CookOptions & ECookByTheBookOptions::SkipSoftReferences);
-	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
-	CookByTheBookOptions->bZenStore = !!(CookOptions & ECookByTheBookOptions::ZenStore);
+	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave) && !IsCookingInEditor();
 	CookByTheBookOptions->bCookAgainstFixedBase = !!(CookOptions & ECookByTheBookOptions::CookAgainstFixedBase);
 	CookByTheBookOptions->bDlcLoadMainAssetRegistry = !!(CookOptions & ECookByTheBookOptions::DlcLoadMainAssetRegistry);
 	CookByTheBookOptions->bErrorOnEngineContentUse = StartupOptions.bErrorOnEngineContentUse;
@@ -8054,8 +7995,11 @@ FBeginCookContext UCookOnTheFlyServer::SetCookByTheBookOptions(const FCookByTheB
 	return BeginContext;
 }
 
-FBeginCookContext UCookOnTheFlyServer::CreateBeginCookOnTheFlyContext()
+FBeginCookContext UCookOnTheFlyServer::CreateBeginCookOnTheFlyContext(const FCookOnTheFlyStartupOptions& Options)
 {
+	bZenStore = Options.bZenStore;
+	CookOnTheFlyOptions->bBindAnyPort = Options.bBindAnyPort;
+	CookOnTheFlyOptions->bPlatformProtocol = Options.bPlatformProtocol;
 	return FBeginCookContext();
 }
 
@@ -8348,7 +8292,7 @@ void UCookOnTheFlyServer::BeginCookPackageWriters(FBeginCookContext& BeginContex
 
 void UCookOnTheFlyServer::SelectSessionPlatforms(FBeginCookContext& BeginContext)
 {
-	PlatformManager->SelectSessionPlatforms(BeginContext.TargetPlatforms);
+	PlatformManager->SelectSessionPlatforms(*this, BeginContext.TargetPlatforms);
 	if (PackageTracker->HasBeenConsumed())
 	{
 		bPackageFilterDirty = true;
@@ -8520,17 +8464,17 @@ void UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded(UPackage *Package)
 	{
 		bShouldMarkAsAlreadyProcessed = PackageData->HasAllCookedPlatforms(PlatformManager->GetSessionPlatforms(), true /* bIncludeFailed */);
 
-		FString Platforms;
-		for (const TPair<const ITargetPlatform*, UE::Cook::FPackageData::FPlatformData>& Pair : PackageData->GetPlatformDatas())
-		{
-			if (Pair.Value.bCookAttempted)
-			{
-				Platforms += TEXT(" ");
-				Platforms += Pair.Key->PlatformName();
-			}
-		}
 		if (IsCookFlagSet(ECookInitializationFlags::LogDebugInfo))
 		{
+			FString Platforms;
+			for (const TPair<const ITargetPlatform*, UE::Cook::FPackageData::FPlatformData>& Pair : PackageData->GetPlatformDatas())
+			{
+				if (Pair.Value.bCookAttempted)
+				{
+					Platforms += TEXT(" ");
+					Platforms += Pair.Key->PlatformName();
+				}
+			}
 			if (!bShouldMarkAsAlreadyProcessed)
 			{
 				UE_LOG(LogCook, Display, TEXT("Reloading package %s slowly because it wasn't cooked for all platforms %s."), *StandardName.ToString(), *Platforms);
@@ -8726,7 +8670,7 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry(const FString&
 					}
 					else
 					{
-						const bool bContainsMap = AssetDatas[AssetIndex]->PackageFlags & PKG_ContainsMap;
+						const bool bContainsMap = !!(AssetDatas[AssetIndex]->PackageFlags & PKG_ContainsMap);
 						PackageFileName = FPackageDatas::LookupFileNameOnDisk(PackageName,
 							false /* bRequireExists */, bContainsMap);
 						if (!PackageFileName.IsNone())
@@ -8747,11 +8691,16 @@ bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry(const FString&
 	return false;
 }
 
-uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
+bool UCookOnTheFlyServer::IsFullLoadAndSave() const
+{
+	return CookByTheBookOptions->bFullLoadAndSave;
+}
+
+uint32 UCookOnTheFlyServer::CookFullLoadAndSave()
 {
 	UE_SCOPED_HIERARCHICAL_COOKTIMER(FullLoadAndSave);
-	check(CurrentCookMode == ECookMode::CookByTheBook);
-	check(CookByTheBookOptions);
+	check(IsCookByTheBookMode());
+	check(!IsCookingInEditor());
 	check(IsInGameThread());
 
 	uint32 Result = 0;
@@ -8980,7 +8929,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					}
 				}
 
-				if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
+				if (!CookByTheBookOptions->bSkipSoftReferences)
 				{
 					UE_SCOPED_HIERARCHICAL_COOKTIMER(ResolveStringReferences);
 					TSet<FName> StringAssetPackages;
@@ -9294,7 +9243,6 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 			GIsSavingPackage = false;
 		}
 
-		CookedPackageCount += ParallelSavedPackages;
 		if (ParallelSavedPackages > 0)
 		{
 			Result |= COSR_CookedPackage;
@@ -9323,6 +9271,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 		}
 	}
 
+	CookByTheBookFinished();
 	return Result;
 }
 
@@ -9434,10 +9383,6 @@ void UCookOnTheFlyServer::PropertyImportBehaviorCallback(const FObjectImport& Im
 
 void UCookOnTheFlyServer::GenerateLocalizationReferences(TConstArrayView<FString> CookCultures)
 {
-	if (!CookByTheBookOptions)
-	{
-		return;
-	}
 	CookByTheBookOptions->SourceToLocalizedPackageVariants.Reset();
 	CookByTheBookOptions->AllCulturesToCook.Reset();
 
@@ -9490,11 +9435,6 @@ void UCookOnTheFlyServer::GenerateLocalizationReferences(TConstArrayView<FString
 
 void UCookOnTheFlyServer::RegisterLocalizationChunkDataGenerator()
 {
-	if (!CookByTheBookOptions)
-	{
-		return;
-	}
-
 	// Get the list of localization targets to chunk, and remove any targets that we've been asked not to stage
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
 	TArray<FString> LocalizationTargetsToChunk = PackagingSettings->LocalizationTargetsToChunk;
