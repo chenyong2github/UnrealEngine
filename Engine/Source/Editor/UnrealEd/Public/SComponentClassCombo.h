@@ -146,6 +146,7 @@ public:
     	return CustomizationArgs.OnSubobjectCreated;
     }
 	
+	FString GetClassDisplayName() const;
 	FString GetClassName() const;
 	FString GetComponentPath() const { return ComponentPath.ToString(); }
 

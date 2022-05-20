@@ -27,9 +27,14 @@
 
 #define LOCTEXT_NAMESPACE "ComponentClassCombo"
 
-FString FComponentClassComboEntry::GetClassName() const
+FString FComponentClassComboEntry::GetClassDisplayName() const
 {
 	return ComponentClass != nullptr ? ComponentClass->GetDisplayNameText().ToString() : ComponentName;
+}
+
+FString FComponentClassComboEntry::GetClassName() const
+{
+	return ComponentClass != nullptr ? ComponentClass->GetName() : ComponentName;
 }
 
 void FComponentClassComboEntry::AddReferencedObjects(FReferenceCollector& Collector)
@@ -204,8 +209,13 @@ void SComponentClassCombo::GenerateFilteredComponentList()
 				if (bAllowEntry && bHasFilterText)
 				{
 					// Finally, disallow class entries that don't match the search box text.
-					FString FriendlyComponentName = GetSanitizedComponentName(CurrentEntry);
-					bAllowEntry = TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(FriendlyComponentName));
+					const FString ComponentName = CurrentEntry->GetClassName();
+					bAllowEntry = TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(ComponentName));
+					if(!bAllowEntry)
+					{
+						const FString FriendlyComponentName = GetSanitizedComponentName(CurrentEntry);
+						TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(FriendlyComponentName));
+					}
 				}
 			}
 
@@ -542,7 +552,7 @@ FString SComponentClassCombo::GetSanitizedComponentName(FComponentClassComboEntr
 	}
 	else
 	{
-		DisplayName = Entry->GetClassName();
+		DisplayName = Entry->GetClassDisplayName();
 	}
 	return FName::NameToDisplayString(DisplayName, false);
 }
@@ -569,7 +579,7 @@ TSharedRef<SToolTip> SComponentClassCombo::GetComponentToolTip(FComponentClassCo
 
 	// Fallback for components that don't currently have a loaded class
 	return SNew(SToolTip)
-		.Text(FText::FromString(Entry->GetClassName()));
+		.Text(FText::FromString(Entry->GetClassDisplayName()));
 }
 
 bool SComponentClassCombo::IsComponentClassAllowed(FComponentClassComboEntryPtr Entry) const

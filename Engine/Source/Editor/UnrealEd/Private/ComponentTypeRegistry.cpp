@@ -450,7 +450,7 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 			{
 				if( A->GetSortPriority() == 0 && B->GetSortPriority() == 0 )
 				{
-					bResult = FCString::Stricmp(*A->GetClassName(), *B->GetClassName()) < 0;
+					bResult = FCString::Stricmp(*A->GetClassDisplayName(), *B->GetClassDisplayName()) < 0;
 				}
 				else
 				{
