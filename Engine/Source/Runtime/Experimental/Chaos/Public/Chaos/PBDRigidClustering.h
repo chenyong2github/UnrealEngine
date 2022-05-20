@@ -290,16 +290,12 @@ public:
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
 	void UpdateConnectivityGraphUsingDelaunayTriangulation(
-		Chaos::FPBDRigidClusteredParticleHandle* Parent,
+		const Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
-
-	void ConnectNodes(
-		FPBDRigidParticleHandle* Child1,
-		FPBDRigidParticleHandle* Child2);
-	void ConnectNodes(
-		FPBDRigidClusteredParticleHandle* Child1,
-		FPBDRigidClusteredParticleHandle* Child2);
-
+	void UpdateConnectivityGraphUsingDelaunayTriangulationWithBoundsOverlaps(
+		const Chaos::FPBDRigidClusteredParticleHandle* Parent,
+		const FClusterCreationParameters& Parameters = FClusterCreationParameters());
+	
 	void RemoveNodeConnections(FPBDRigidParticleHandle* Child);
 	void RemoveNodeConnections(FPBDRigidClusteredParticleHandle* Child);
 

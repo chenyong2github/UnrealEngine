@@ -1040,6 +1040,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 							// #todo: should other parameters be set here?  Previously, there was no parameters being sent, and it is unclear
 							// where some of these parameters are defined (ie: CollisionThicknessPercent)
 							ClusterParams.ConnectionMethod = Parameters.ClusterConnectionMethod;
+							ClusterParams.ConnectionGraphBoundsFilteringMargin = Parameters.ConnectionGraphBoundsFilteringMargin;
 						
 							RigidsSolver->GetEvolution()->GetRigidClustering().GenerateConnectionGraph(ClusteredParticle, ClusterParams);
 						}
@@ -1048,26 +1049,29 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 			}
 			else
 			{
-				for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+				if (Connections)
 				{
-					if (FClusterHandle* ClusteredParticle = SolverParticleHandles[TransformGroupIndex]) 
+					for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 					{
-						const TSet<int32>& Siblings = (*Connections)[TransformGroupIndex];
-						for (const int32 SiblingTransformIndex: Siblings)
+						if (FClusterHandle* ClusteredParticle = SolverParticleHandles[TransformGroupIndex]) 
 						{
-							if (FClusterHandle* OtherClusteredParticle = SolverParticleHandles[SiblingTransformIndex])
+							const TSet<int32>& Siblings = (*Connections)[TransformGroupIndex];
+							for (const int32 SiblingTransformIndex: Siblings)
 							{
-								// we add both connection for integrity so let use the index order as a way to filter out the symmetrical part 
-								if (SiblingTransformIndex > TransformGroupIndex)
+								if (FClusterHandle* OtherClusteredParticle = SolverParticleHandles[SiblingTransformIndex])
 								{
-									Chaos::TConnectivityEdge<Chaos::FReal> Edge;
-									Edge.Strain = (ClusteredParticle->Strains() + OtherClusteredParticle->Strains()) * 0.5f;
+									// we add both connection for integrity so let use the index order as a way to filter out the symmetrical part 
+									if (SiblingTransformIndex > TransformGroupIndex)
+									{
+										Chaos::TConnectivityEdge<Chaos::FReal> Edge;
+										Edge.Strain = (ClusteredParticle->Strains() + OtherClusteredParticle->Strains()) * 0.5f;
 									
-									Edge.Sibling = OtherClusteredParticle;
-									ClusteredParticle->ConnectivityEdges().Add(Edge);
+										Edge.Sibling = OtherClusteredParticle;
+										ClusteredParticle->ConnectivityEdges().Add(Edge);
 									
-									Edge.Sibling = ClusteredParticle;
-									OtherClusteredParticle->ConnectivityEdges().Add(Edge);
+										Edge.Sibling = ClusteredParticle;
+										OtherClusteredParticle->ConnectivityEdges().Add(Edge);
+									}
 								}
 							}
 						}

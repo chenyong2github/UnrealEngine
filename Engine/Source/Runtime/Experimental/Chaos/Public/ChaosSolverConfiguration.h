@@ -16,6 +16,7 @@ enum class EClusterUnionMethod : uint8
 	DelaunayTriangulation,
 	MinimalSpanningSubsetDelaunayTriangulation,
 	PointImplicitAugmentedWithMinimalDelaunay,
+	BoundsOverlapFilteredDelaunayTriangulation,
 	None
 };
 

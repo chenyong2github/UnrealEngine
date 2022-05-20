@@ -349,6 +349,8 @@ void AChaosSolverActor::PostLoad()
 				return EClusterUnionMethod::MinimalSpanningSubsetDelaunayTriangulation;
 			case EClusterConnectionTypeEnum::Chaos_PointImplicitAugmentedWithMinimalDelaunay:
 				return EClusterUnionMethod::PointImplicitAugmentedWithMinimalDelaunay;
+			case EClusterConnectionTypeEnum::Chaos_BoundsOverlapFilteredDelaunayTriangulation:
+				return EClusterUnionMethod::BoundsOverlapFilteredDelaunayTriangulation;
 			default:
 				break;
 			}

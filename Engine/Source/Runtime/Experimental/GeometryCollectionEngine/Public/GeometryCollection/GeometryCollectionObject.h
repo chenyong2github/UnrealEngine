@@ -440,6 +440,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Clustering")
 	EClusterConnectionTypeEnum ClusterConnectionType;
 
+	UPROPERTY(EditAnywhere, Category = "Clustering")
+	float ConnectionGraphBoundsFilteringMargin;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "GeometrySource")
 	TArray<FGeometryCollectionSource> GeometrySource;

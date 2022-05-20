@@ -1690,6 +1690,8 @@ CSV_CUSTOM_STAT(PhysicsCounters, Name, Value, ECsvCustomStatOp::Set);
 			return ETargetEnum::MinimalSpanningSubsetDelaunayTriangulation;
 		case EClusterUnionMethod::PointImplicitAugmentedWithMinimalDelaunay:
 			return ETargetEnum::PointImplicitAugmentedWithMinimalDelaunay;
+		case EClusterUnionMethod::BoundsOverlapFilteredDelaunayTriangulation:
+			return ETargetEnum::BoundsOverlapFilteredDelaunayTriangulation;
 		}
 
 		return ETargetEnum::None;

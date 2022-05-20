@@ -75,6 +75,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, DamageThreshold({ 500000.f, 50000.f, 5000.f })
 	, PerClusterOnlyDamageThreshold(false)
 	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_MinimalSpanningSubsetDelaunayTriangulation)
+	, ConnectionGraphBoundsFilteringMargin(0)
 	, bUseFullPrecisionUVs(false)
 	, bStripOnCook(false)
 	, EnableNanite(false)

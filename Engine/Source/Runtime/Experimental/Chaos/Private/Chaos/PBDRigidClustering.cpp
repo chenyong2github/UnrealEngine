@@ -939,6 +939,11 @@ namespace Chaos
 				UpdateConnectivityGraphUsingDelaunayTriangulation(Parent, Parameters); // not thread safe
 			}
 
+			if (LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::BoundsOverlapFilteredDelaunayTriangulation)
+			{
+				UpdateConnectivityGraphUsingDelaunayTriangulationWithBoundsOverlaps(Parent, Parameters);
+			}
+
 			if (LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::PointImplicitAugmentedWithMinimalDelaunay ||
 				LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::MinimalSpanningSubsetDelaunayTriangulation)
 			{
@@ -1141,6 +1146,33 @@ namespace Chaos
 
 	}
 
+	static void ConnectClusteredNodes(FPBDRigidClusteredParticleHandle* ClusteredChild1, FPBDRigidClusteredParticleHandle* ClusteredChild2)
+	{
+		check(ClusteredChild1 && ClusteredChild2);
+		if (ClusteredChild1 == ClusteredChild2)
+			return;
+		const FReal AvgStrain = (ClusteredChild1->Strains() + ClusteredChild2->Strains()) * (FReal)0.5;
+		TArray<TConnectivityEdge<FReal>>& Edges1 = ClusteredChild1->ConnectivityEdges();
+		TArray<TConnectivityEdge<FReal>>& Edges2 = ClusteredChild2->ConnectivityEdges();
+		if (//Edges1.Num() < Parameters.MaxNumConnections && 
+			!Edges1.FindByKey(ClusteredChild2))
+		{
+			Edges1.Add(TConnectivityEdge<FReal>(ClusteredChild2, AvgStrain));
+		}
+		if (//Edges2.Num() < Parameters.MaxNumConnections && 
+			!Edges2.FindByKey(ClusteredChild1))
+		{
+			Edges2.Add(TConnectivityEdge<FReal>(ClusteredChild1, AvgStrain));
+		}
+	}
+	
+	static void ConnectNodes(FPBDRigidParticleHandle* Child1, FPBDRigidParticleHandle* Child2)
+	{
+		check(Child1 != Child2);
+		FPBDRigidClusteredParticleHandle* ClusteredChild1 = Child1->CastToClustered();
+		FPBDRigidClusteredParticleHandle* ClusteredChild2 = Child2->CastToClustered();
+		ConnectClusteredNodes(ClusteredChild1, ClusteredChild2);
+	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingPointImplicit"), STAT_UpdateConnectivityGraphUsingPointImplicit, STATGROUP_Chaos);
 	void 
@@ -1368,28 +1400,28 @@ namespace Chaos
 			}
 		}
 	}
-
-	static bool IsOveralppingConnection(const FPBDRigidParticleHandle* Child1, const FPBDRigidParticleHandle* Child2)
+	
+	// connection filters
+	static bool IsAlwaysValidConnection(const FPBDRigidParticleHandle* Child1, const FPBDRigidParticleHandle* Child2)
+	{
+		return true;
+	}
+	
+	static bool IsOverlappingConnection(const FPBDRigidParticleHandle* Child1, const FPBDRigidParticleHandle* Child2, FReal Margin)
 	{
 		if (ensure(Child1 != nullptr && Child2 != nullptr ))
 		{
 			FAABB3 Bounds1 = Child1->WorldSpaceInflatedBounds();
-			Bounds1.Thicken(BoundingBoxMarginForConnectionGraphFiltering);
+			Bounds1.Thicken(Margin);
 			return Bounds1.Intersects(Child2->WorldSpaceInflatedBounds());
 		}
 		return false;
 	}
-	
-	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingDelaunayTriangulation"), STAT_UpdateConnectivityGraphUsingDelaunayTriangulation, STATGROUP_Chaos);
-	void 
-	FRigidClustering::UpdateConnectivityGraphUsingDelaunayTriangulation(
-		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
-		const FClusterCreationParameters& Parameters)
+
+	template <typename FilterLambda>
+	static void UpdateConnectivityGraphUsingDelaunayTriangulationWithFiltering(
+		const TArray<FPBDRigidParticleHandle*>& Children, FilterLambda ShouldKeepConnection)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_UpdateConnectivityGraphUsingDelaunayTriangulation);
-
-		const TArray<FPBDRigidParticleHandle*>& Children = MChildren[Parent];
-
 		TArray<FVector> Pts;
 		Pts.AddUninitialized(Children.Num());
 		for (int32 i = 0; i < Children.Num(); ++i)
@@ -1412,12 +1444,7 @@ namespace Chaos
 					bFirstSmaller ? Child2 : Child1);
 				if (!UniqueEdges.Find(SortedPair))
 				{
-					bool ValidConnection = true;
-					if (UseBoundingBoxForConnectionGraphFiltering)
-					{
-						ValidConnection = IsOveralppingConnection(Child1, Child2);
-					}
-					if (ValidConnection)
+					if (ShouldKeepConnection(Child1, Child2))
 					{
 						// this does not use ConnectNodes because Neighbors is bi-direction : as in (1,2),(2,1)
 						ConnectNodes(Child1, Child2);
@@ -1427,39 +1454,43 @@ namespace Chaos
 			}
 		}
 	}
-
-	void 
-	FRigidClustering::ConnectNodes(
-		FPBDRigidParticleHandle* Child1,
-		FPBDRigidParticleHandle* Child2)
+	
+	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingDelaunayTriangulation"), STAT_UpdateConnectivityGraphUsingDelaunayTriangulation, STATGROUP_Chaos);
+	void FRigidClustering::UpdateConnectivityGraphUsingDelaunayTriangulation(
+		const Chaos::FPBDRigidClusteredParticleHandle* Parent, 
+		const FClusterCreationParameters& Parameters)
 	{
-		check(Child1 != Child2);
-		FPBDRigidClusteredParticleHandle* ClusteredChild1 = Child1->CastToClustered();
-		FPBDRigidClusteredParticleHandle* ClusteredChild2 = Child2->CastToClustered();
-		ConnectNodes(ClusteredChild1, ClusteredChild2);
+		SCOPE_CYCLE_COUNTER(STAT_UpdateConnectivityGraphUsingDelaunayTriangulation);
+
+		if (UseBoundingBoxForConnectionGraphFiltering)
+		{
+			constexpr auto IsOverlappingConnectionUsingCVarMargin =
+				[] (const FPBDRigidParticleHandle* Child1, const FPBDRigidParticleHandle* Child2)
+				{
+					return IsOverlappingConnection(Child1, Child2, BoundingBoxMarginForConnectionGraphFiltering);
+				};
+			UpdateConnectivityGraphUsingDelaunayTriangulationWithFiltering(MChildren[Parent], IsOverlappingConnectionUsingCVarMargin);
+		}
+		else
+		{
+			UpdateConnectivityGraphUsingDelaunayTriangulationWithFiltering(MChildren[Parent], IsAlwaysValidConnection);
+		}
 	}
 
-	void 
-	FRigidClustering::ConnectNodes(
-		FPBDRigidClusteredParticleHandle* ClusteredChild1,
-		FPBDRigidClusteredParticleHandle* ClusteredChild2)
+	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingDelaunayTriangulationWithBoundsOverlaps"), STAT_UpdateConnectivityGraphUsingDelaunayTriangulationWithBoundsOverlaps, STATGROUP_Chaos);
+	void FRigidClustering::UpdateConnectivityGraphUsingDelaunayTriangulationWithBoundsOverlaps(
+		const Chaos::FPBDRigidClusteredParticleHandle* Parent, 
+		const FClusterCreationParameters& Parameters)
 	{
-		check(ClusteredChild1 && ClusteredChild2);
-		if (ClusteredChild1 == ClusteredChild2)
-			return;
-		const FReal AvgStrain = (ClusteredChild1->Strains() + ClusteredChild2->Strains()) * (FReal)0.5;
-		TArray<TConnectivityEdge<FReal>>& Edges1 = ClusteredChild1->ConnectivityEdges();
-		TArray<TConnectivityEdge<FReal>>& Edges2 = ClusteredChild2->ConnectivityEdges();
-		if (//Edges1.Num() < Parameters.MaxNumConnections && 
-			!Edges1.FindByKey(ClusteredChild2))
-		{
-			Edges1.Add(TConnectivityEdge<FReal>(ClusteredChild2, AvgStrain));
-		}
-		if (//Edges2.Num() < Parameters.MaxNumConnections && 
-			!Edges2.FindByKey(ClusteredChild1))
-		{
-			Edges2.Add(TConnectivityEdge<FReal>(ClusteredChild1, AvgStrain));
-		}
+		SCOPE_CYCLE_COUNTER(STAT_UpdateConnectivityGraphUsingDelaunayTriangulationWithBoundsOverlaps);
+
+		const auto IsOverlappingConnectionUsingCVarMargin =
+			[&Parameters] (const FPBDRigidParticleHandle* Child1, const FPBDRigidParticleHandle* Child2)
+			{
+				return IsOverlappingConnection(Child1, Child2, Parameters.ConnectionGraphBoundsFilteringMargin);
+			};
+		
+		UpdateConnectivityGraphUsingDelaunayTriangulationWithFiltering(MChildren[Parent], IsOverlappingConnectionUsingCVarMargin);
 	}
 
 	void 

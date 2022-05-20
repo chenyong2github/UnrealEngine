@@ -38,6 +38,12 @@ FGeometryCollectionConnectionGraphGenerator::ComputeConnectivityGraph(const FGeo
 		//UpdateConnectivityGraphUsingPointImplicit(Parent, Parameters);
 	}
 
+	if (LocalConnectionMethod == EClusterUnionMethod::PointImplicitAugmentedWithMinimalDelaunay)
+	{
+		// todo : fix later when we have proper implementation for this on the GT side 
+		FixConnectivityGraphUsingDelaunayTriangulation(Graph, Collection, ClusterTransformIndex);
+	}
+	
 	if (LocalConnectionMethod == EClusterUnionMethod::DelaunayTriangulation)
 	{
 		ComputeConnectivityGraphUsingDelaunayTriangulation(Graph, Collection, ClusterTransformIndex);
