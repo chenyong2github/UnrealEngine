@@ -200,7 +200,7 @@ namespace UnrealGameSyncCmd
 				GlobalSettingsFile Settings;
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					Settings = UserSettings.Create(FileReference.Combine(GlobalConfigFolder, "UnrealGameSync.ini"), FileReference.Combine(GlobalConfigFolder, "Global.json"), Logger);
+					Settings = UserSettings.Create(GlobalConfigFolder, Logger);
 				}
 				else
 				{

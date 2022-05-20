@@ -645,13 +645,20 @@ namespace UnrealGameSync
 
 		public static UserSettings Create(DirectoryReference SettingsDir, ILogger Logger)
 		{
-			return Create(FileReference.Combine(SettingsDir, "UnrealGameSync.ini"), FileReference.Combine(SettingsDir, "Global.json"), Logger);
+			return Create(FileReference.Combine(SettingsDir, "UnrealGameSyncV2.ini"), FileReference.Combine(SettingsDir, "UnrealGameSync.ini"), FileReference.Combine(SettingsDir, "Global.json"), Logger);
 		}
 
-		public static UserSettings Create(FileReference FileName, FileReference CoreFileName, ILogger Logger)
+		public static UserSettings Create(FileReference FileName, FileReference LegacyFileName, FileReference CoreFileName, ILogger Logger)
 		{
 			ConfigFile ConfigFile = new ConfigFile();
-			ConfigFile.TryLoad(FileName, Logger);
+			if (FileReference.Exists(FileName))
+			{
+				ConfigFile.TryLoad(FileName, Logger);
+			}
+			else
+			{
+				ConfigFile.TryLoad(LegacyFileName, Logger);
+			}
 
 			GlobalSettings? CoreSettingsData;
 			if(FileReference.Exists(CoreFileName))
