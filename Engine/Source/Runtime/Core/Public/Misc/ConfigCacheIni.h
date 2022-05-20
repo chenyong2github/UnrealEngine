@@ -599,10 +599,9 @@ enum class EConfigCacheType : uint8
 };
 
 // Set of all cached config files.
-class CORE_API FConfigCacheIni : private TMap<FString,FConfigFile>
+class CORE_API FConfigCacheIni
 {
 public:
-	
 	// Basic functions.
 	FConfigCacheIni(EConfigCacheType Type);
 
@@ -705,19 +704,19 @@ public:
 	/** Finds Config file that matches the base name such as "Engine" */
 	FConfigFile* FindConfigFileWithBaseName(FName BaseName);
 
-	using Super = TMap<FString, FConfigFile>;
 	FConfigFile& Add(const FString& Filename, const FConfigFile& File)
 	{
-		return Super::Add(Filename, File);
+		return *OtherFiles.Add(Filename, new FConfigFile(File));
 	}
 	int32 Remove(const FString& Filename)
 	{
-		return Super::Remove(Filename);
+		delete OtherFiles.FindRef(Filename);
+		return OtherFiles.Remove(Filename);
 	}
 	TArray<FString> GetFilenames();
 
 
-	void Flush( bool Read, const FString& Filename=TEXT("") );
+	void Flush(bool bRemoveFromCache, const FString& Filename=TEXT(""));
 
 	void LoadFile( const FString& InFilename, const FConfigFile* Fallback = NULL, const TCHAR* PlatformString = NULL );
 	void SetFile( const FString& InFilename, const FConfigFile* NewConfigFile );
@@ -1261,6 +1260,8 @@ private:
 
 	/** The filenames for the known files in this config */
 	FKnownConfigFiles KnownFiles;
+
+	TMap<FString, FConfigFile*> OtherFiles;
 
 	friend FConfigContext;
 };
