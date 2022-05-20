@@ -7,6 +7,7 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraSettings.h"
+#include "NiagaraSimulationStageBase.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
@@ -282,7 +283,6 @@ void UNiagaraValidationRule_InvalidEffectType::CheckValidity(TSharedPtr<FNiagara
 
 void UNiagaraValidationRule_LWC::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& Results)  const
 {
-
 	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
 	UNiagaraSystem& System = ViewModel->GetSystem();
 	if (!System.SupportsLargeWorldCoordinates())
@@ -351,6 +351,72 @@ void UNiagaraValidationRule_LWC::CheckValidity(TSharedPtr<FNiagaraSystemViewMode
 					}
 				}
 			}
+		}
+	}
+}
+
+void UNiagaraValidationRule_SimulationStageBudget::CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const
+{
+	UNiagaraSystem& System = ViewModel->GetSystem();
+	for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleModel : ViewModel->GetEmitterHandleViewModels())
+	{
+		// Skip disabled
+		if ( EmitterHandleModel->GetIsEnabled() == false )
+		{	
+			continue;
+		}
+
+		// Simulation stages are GPU only currently
+		FVersionedNiagaraEmitterData* EmitterData = EmitterHandleModel.Get().GetEmitterHandle()->GetEmitterData();
+		if ( EmitterData->SimTarget != ENiagaraSimTarget::GPUComputeSim )
+		{
+			continue;
+		}
+
+		int32 TotalIterations = 0;
+		int32 TotalEnabledStages = 0;
+		for ( UNiagaraSimulationStageBase* SimStageBase : EmitterData->GetSimulationStages() )
+		{
+			UNiagaraSimulationStageGeneric* SimStage = Cast<UNiagaraSimulationStageGeneric>(SimStageBase);
+			if ( SimStage == nullptr || SimStage->bEnabled == false )
+			{
+				continue;
+			}
+
+			++TotalEnabledStages;
+			TotalIterations += SimStage->Iterations;
+			if ( bMaxIterationsPerStageEnabled && SimStage->Iterations > MaxIterationsPerStage )
+			{
+				UNiagaraStackEmitterPropertiesItem* EmitterProperties = GetStackEntry<UNiagaraStackEmitterPropertiesItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
+				OutResults.Emplace_GetRef(
+					ENiagaraValidationSeverity::Error,
+					FText::Format(LOCTEXT("SimStageTooManyIterationsFormat", "Simulation Stage '{0}' has too many iterations"), FText::FromName(SimStage->SimulationStageName)),
+					FText::Format(LOCTEXT("SimStageTooManyIterationsDetailedFormat", "Simulation Stage '{0}' has {1} iterations and we only allow {2}"), FText::FromName(SimStage->SimulationStageName), FText::AsNumber(SimStage->Iterations), FText::AsNumber(MaxIterationsPerStage)),
+					EmitterProperties
+				);
+			}
+		}
+
+		if ( bMaxTotalIterationsEnabled && TotalIterations > MaxTotalIterations )
+		{
+			UNiagaraStackEmitterPropertiesItem* EmitterProperties = GetStackEntry<UNiagaraStackEmitterPropertiesItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
+			OutResults.Emplace(
+				ENiagaraValidationSeverity::Error,
+				LOCTEXT("SimStageTooManyTotalIterationsFormat", "Emitter has too many total simulation stage iterations"),
+				FText::Format(LOCTEXT("SimStageTooManyTotalIterationsDetailedFormat", "Emitter has {0} total simulation stage iterations and we only allow {1}"), FText::AsNumber(TotalIterations), FText::AsNumber(MaxTotalIterations)),
+				EmitterProperties
+			);
+		}
+
+		if ( bMaxSimulationStagesEnabled && TotalEnabledStages > MaxSimulationStages )
+		{
+			UNiagaraStackEmitterPropertiesItem* EmitterProperties = GetStackEntry<UNiagaraStackEmitterPropertiesItem>(EmitterHandleModel.Get().GetEmitterStackViewModel());
+			OutResults.Emplace(
+				ENiagaraValidationSeverity::Error,
+				LOCTEXT("TooManySimStagesFormat", "Emitter has too many simulation stages"),
+				FText::Format(LOCTEXT("TooManySimStagesDetailedFormat", "Emitter has {0} simulation stages active and we only allow {1}"), FText::AsNumber(TotalEnabledStages), FText::AsNumber(MaxSimulationStages)),
+				EmitterProperties
+			);
 		}
 	}
 }

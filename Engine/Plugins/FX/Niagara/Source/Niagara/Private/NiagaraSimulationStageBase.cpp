@@ -215,6 +215,8 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 	{
 		RequestRecompile();
 	}
+
+	OnChanged().Broadcast();
 }
 
 FVersionedNiagaraEmitterData* UNiagaraSimulationStageBase::GetEmitterData() const

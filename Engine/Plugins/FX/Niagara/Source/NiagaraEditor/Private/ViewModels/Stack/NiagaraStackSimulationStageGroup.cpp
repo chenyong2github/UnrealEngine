@@ -4,6 +4,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraSimulationStageBase.h"
 #include "ViewModels/Stack/NiagaraStackObject.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "ViewModels/NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
@@ -148,6 +149,9 @@ void UNiagaraStackSimulationStagePropertiesItem::RefreshChildrenInternal(const T
 
 void UNiagaraStackSimulationStagePropertiesItem::SimulationStagePropertiesChanged()
 {
+	FVersionedNiagaraEmitter VersionedEmitter = GetEmitterViewModel()->GetEmitter();
+	GetSystemViewModel()->GetEmitterHandleViewModelForEmitter(VersionedEmitter).Get()->GetEmitterStackViewModel()->RequestValidationUpdate();
+
 	bCanResetToBaseCache.Reset();
 }
 

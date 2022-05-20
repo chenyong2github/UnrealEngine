@@ -81,3 +81,40 @@ class UNiagaraValidationRule_LWC : public UNiagaraValidationRule
 public:
 	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
+
+/** This validation rule can be used to enforce a budget on the number of simulation stages and the iterations that may execute. */
+UCLASS(Category = "Validation", DisplayName = "Simulation Stage Budget")
+class UNiagaraValidationRule_SimulationStageBudget : public UNiagaraValidationRule
+{
+	GENERATED_BODY()
+
+public:
+	virtual void CheckValidity(TSharedPtr<FNiagaraSystemViewModel> ViewModel, TArray<FNiagaraValidationResult>& OutResults) const override;
+
+	UPROPERTY(EditAnywhere, Category = Validation)
+	bool bMaxSimulationStagesEnabled = false;
+
+	UPROPERTY(EditAnywhere, Category = Validation)
+	bool bMaxIterationsPerStageEnabled = false;
+
+	UPROPERTY(EditAnywhere, Category = Validation)
+	bool bMaxTotalIterationsEnabled = false;
+
+	/** Maximum number of simulation stages allowed, where 0 means no simulation stages. */
+	UPROPERTY(EditAnywhere, Category = Validation, meta=(EditCondition="bMaxSimulationStagesEnabled"))
+	int32 MaxSimulationStages = 0;
+
+	/**
+	Maximum number of iterations a single stage is allowed to execute.
+	Note: Can only check across explicit counts, dynamic bindings will be ignored.
+	*/
+	UPROPERTY(EditAnywhere, Category = Validation, meta = (EditCondition = "bMaxIterationsPerStageEnabled"))
+	int32 MaxIterationsPerStage = 1;
+
+	/**
+	Maximum total iterations across all the enabled simulation stages.
+	Note: Can only check across explicit counts, dynamic bindings will be ignored.
+	*/
+	UPROPERTY(EditAnywhere, Category = Validation, meta = (EditCondition = "bMaxTotalIterationsEnabled"))
+	int32 MaxTotalIterations = 1;
+};
