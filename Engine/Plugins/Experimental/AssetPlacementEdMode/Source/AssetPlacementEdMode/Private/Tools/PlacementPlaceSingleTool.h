@@ -38,7 +38,7 @@ public:
 
 	/** If the tool should automatically select the last placed asset. */
 	UPROPERTY(config, EditAnywhere, Category = "Single Place Settings")
-	bool bSelectAfterPlacing = true;
+	bool bSelectAfterPlacing = false;
 };
 
 UCLASS(Transient)
