@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "DatasmithSceneXmlReader.h"
 
 #include "DatasmithCore.h"
@@ -402,7 +403,7 @@ void FDatasmithSceneXmlReader::ParseMesh(FXmlNode* InNode, TSharedPtr<IDatasmith
 	{
 		if (MeshNodes[j]->GetTag() == TEXT("file"))
 		{
-			OutElement->SetFile(*MeshNodes[j]->GetAttribute(TEXT("path"))) ;
+			OutElement->SetFile(*UnsanitizeXMLText(MeshNodes[j]->GetAttribute(TEXT("path"))));
 		}
 		else if (MeshNodes[j]->GetTag() == TEXT("Size"))
 		{
@@ -1178,7 +1179,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 			OutScene->SetUserID(*Nodes[i]->GetAttribute(DATASMITH_USERID));
 			OutScene->SetUserOS(*Nodes[i]->GetAttribute(DATASMITH_USEROS));
 		}
-		//READ STATIC MESHES
+		// STATIC MESHES
 		else if (Nodes[i]->GetTag() == DATASMITH_STATICMESHNAME)
 		{
 			FString ElementName = Nodes[i]->GetAttribute(TEXT("name"));
@@ -1190,7 +1191,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 			Objects.Add( Element->GetName(), Element );
 		}
-		//READ LEVEL SEQUENCES
+		// LEVEL SEQUENCES
 		else if (Nodes[i]->GetTag() == DATASMITH_LEVELSEQUENCENAME)
 		{
 			FString ElementName = Nodes[i]->GetAttribute(TEXT("name"));
@@ -1200,7 +1201,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 			OutScene->AddLevelSequence(Element);
 		}
-		//READ LEVEL VARIANT SETS
+		// LEVEL VARIANT SETS
 		else if (Nodes[i]->GetTag() == DATASMITH_LEVELVARIANTSETSNAME)
 		{
 			FString ElementName = Nodes[i]->GetAttribute(TEXT("name"));
@@ -1210,7 +1211,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 			OutScene->AddLevelVariantSets(Element);
 		}
-		//READ TEXTURES
+		// TEXTURES
 		else if (Nodes[i]->GetTag() == DATASMITH_TEXTURENAME)
 		{
 			TSharedPtr< IDatasmithTextureElement > Element = FDatasmithSceneFactory::CreateTexture(*Nodes[i]->GetAttribute(TEXT("name")));
@@ -1236,7 +1237,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 				Objects.Add(Element->GetName(), Element);
 			}
 		}
-		//READ ENVIRONMENTS
+		// ENVIRONMENTS
 		else if (Nodes[i]->GetTag() == DATASMITH_ENVIRONMENTNAME)
 		{
 			TSharedPtr< IDatasmithEnvironmentElement > Element = FDatasmithSceneFactory::CreateEnvironment(*Nodes[i]->GetAttribute(TEXT("name")));
@@ -1267,19 +1268,19 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 				Objects.Add( Element->GetName(), Element );
 			}
 		}
-		//READ SKY
+		// SKY
 		else if (Nodes[i]->GetTag() == DATASMITH_PHYSICALSKYNAME)
 		{
 			OutScene->SetUsePhysicalSky( ValueFromString<bool>(Nodes[i]->GetAttribute(TEXT("enabled"))));
 		}
-		//READ POSTPROCESS
+		// POSTPROCESS
 		else if (Nodes[i]->GetTag() == DATASMITH_POSTPRODUCTIONNAME)
 		{
 			TSharedPtr< IDatasmithPostProcessElement > PostProcess = FDatasmithSceneFactory::CreatePostProcess();
 			ParsePostProcess(Nodes[i], PostProcess);
 			OutScene->SetPostProcess(PostProcess);
 		}
-		//READ MATERIALS
+		// MATERIALS
 		else if (Nodes[i]->GetTag() == DATASMITH_MATERIALNAME)
 		{
 			TSharedPtr< IDatasmithMaterialElement > Material = FDatasmithSceneFactory::CreateMaterial(*Nodes[i]->GetAttribute(TEXT("name")));
@@ -1289,7 +1290,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 			Objects.Add( Material->GetName(), Material );
 		}
-		//READ MASTER MATERIALS
+		// MASTER MATERIALS
 		else if (Nodes[i]->GetTag() == DATASMITH_MASTERMATERIALNAME)
 		{
 			TSharedPtr< IDatasmithMasterMaterialElement > MasterMaterial = FDatasmithSceneFactory::CreateMasterMaterial(*Nodes[i]->GetAttribute(TEXT("name")));
@@ -1299,7 +1300,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 			Objects.Add( MasterMaterial->GetName(), MasterMaterial );
 		}
-		//READ DECAL MATERIALS
+		// DECAL MATERIALS
 		else if (Nodes[i]->GetTag() == DATASMITH_DECALMATERIALNAME)
 		{
 			TSharedPtr< IDatasmithDecalMaterialElement > DecalMaterial = FDatasmithSceneFactory::CreateDecalMaterial(*Nodes[i]->GetAttribute(TEXT("name")));
@@ -1309,7 +1310,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 			Objects.Add( DecalMaterial->GetName(), DecalMaterial );
 		}
-		//READ UEPBR MATERIALS
+		// UEPBR MATERIALS
 		else if (Nodes[i]->GetTag() == DATASMITH_UEPBRMATERIALNAME)
 		{
 			TSharedPtr< IDatasmithUEPbrMaterialElement > Material = FDatasmithSceneFactory::CreateUEPbrMaterial(*Nodes[i]->GetAttribute(TEXT("name")));
@@ -1319,7 +1320,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 
 			Objects.Add( Material->GetName(), Material );
 		}
-		//READ METADATA
+		// METADATA
 		else if (Nodes[i]->GetTag() == DATASMITH_METADATANAME)
 		{
 			TSharedPtr< IDatasmithMetaDataElement > MetaData = FDatasmithSceneFactory::CreateMetaData(*Nodes[i]->GetAttribute(TEXT("name")));
@@ -1331,7 +1332,7 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 		{
 			OutScene->SetExportDuration(ValueFromString<int32>(Nodes[i]->GetAttribute(DATASMITH_EXPORTDURATION)));
 		}
-		//READ ACTORS
+		// ACTORS
 		else
 		{
 			for ( const TCHAR* ActorTag : ActorTagsView )
@@ -1361,8 +1362,8 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 #ifdef USE_LOCALE
 	if (Locale)
 	{
-	::uselocale(PreviousLocale);
-	::freelocale(Locale);
+		::uselocale(PreviousLocale);
+		::freelocale(Locale);
 	}
 #endif
 

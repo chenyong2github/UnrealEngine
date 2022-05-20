@@ -17,7 +17,7 @@
 #include "Serialization/MemoryWriter.h"
 
 /**
- *	Number of datsmith meshes pending deletion for which the Garbage Collection will be triggered.
+ * Number of datasmith meshes pending deletion for which the Garbage Collection will be triggered.
  */
 constexpr int32 DSMeshGarbageCollectionThreshold{ 2000 };
 
@@ -37,8 +37,8 @@ struct FDatasmithMeshExporterOptions
 };
 
 /**
- *	Implementation class of the DatasmithMeshExporter
- *	We use a lockfree UDatasmithMesh pool to avoid creating new UObject when exporting and reduces our memory footprint.
+ * Implementation class of the DatasmithMeshExporter
+ * We use a lockfree UDatasmithMesh pool to avoid creating new UObject when exporting and reduces our memory footprint.
  */
 class FDatasmithMeshExporterLegacyImpl
 {
@@ -217,7 +217,6 @@ bool FDatasmithMeshExporterLegacyImpl::ExportMeshes( const FDatasmithMeshExporte
 	OutHash.Set( MD5 );
 	return true;
 }
-
 
 
 FDatasmithMeshExporter::FDatasmithMeshExporter()

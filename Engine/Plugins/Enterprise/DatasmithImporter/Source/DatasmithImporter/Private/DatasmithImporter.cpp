@@ -1806,7 +1806,6 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 			FDatasmithImporterImpl::CheckAssetPersistenceValidity(ExistingMaterialFunction, ImportContext);
 		}
 
-		TArray<UMaterial*> MaterialsToRefreshAfterVirtualTextureConversion;
 		for (const TPair< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* >& ImportedMaterialPair : ImportContext.ImportedMaterials)
 		{
 			if (ImportContext.bUserCancelled)
@@ -1833,17 +1832,6 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 			if (UMaterial* SourceMaterial = Cast< UMaterial >(SourceMaterialInterface))
 			{
 				SourceMaterial->UpdateCachedExpressionData();
-
-				TArray<UObject*> ReferencedTextures;
-				ReferencedTextures = SourceMaterial->GetReferencedTextures();
-				for (UTexture2D* VirtualTexture : ImportContext.AssetsContext.VirtualTexturesToConvert)
-				{
-					if (ReferencedTextures.Contains(VirtualTexture))
-					{
-						MaterialsToRefreshAfterVirtualTextureConversion.Add(SourceMaterial);
-						break;
-					}
-				}
 
 				TArray<UMaterialFunctionInterface*> FinalizableFunctions;
 				for (const FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->GetCachedExpressionData().FunctionInfos)

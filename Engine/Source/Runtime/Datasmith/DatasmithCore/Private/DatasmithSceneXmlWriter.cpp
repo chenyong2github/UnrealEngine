@@ -315,11 +315,9 @@ void FDatasmithSceneXmlWriterImpl::WriteMeshElement(const TSharedPtr< IDatasmith
 	FString XmlString = TEXT("<") + FString(DATASMITH_STATICMESHNAME) + TEXT(" name=\"") + SanitizeXMLText( MeshElement->GetName() ) + TEXT("\"");
 	XmlString += TEXT(" label=\"") + SanitizeXMLText( MeshElement->GetLabel() ) + TEXT("\"");
 	XmlString += FString( TEXT(">") ) + LINE_TERMINATOR;
-
 	SerializeToArchive(Archive, XmlString);
 
 	WriteIndent(Archive, Indent + 1);
-
 	XmlString = TEXT("<file path=\"") + SanitizeXMLText(MeshElement->GetFile()) + TEXT("\"/>") + LINE_TERMINATOR;
 	SerializeToArchive(Archive, XmlString);
 
@@ -335,30 +333,25 @@ void FDatasmithSceneXmlWriterImpl::WriteMeshElement(const TSharedPtr< IDatasmith
 	}
 
 	WriteIndent(Archive, Indent + 1);
-
 	XmlString = TEXT("<") + FString(DATASMITH_LIGHTMAPCOORDINATEINDEX) + TEXT(" value=\"") + FString::FromInt(MeshElement->GetLightmapCoordinateIndex()) + TEXT("\"/>") + LINE_TERMINATOR;
 	SerializeToArchive(Archive, XmlString);
 
 	WriteIndent(Archive, Indent + 1);
-
 	XmlString = TEXT("<") + FString(DATASMITH_LIGHTMAPUVSOURCE) + TEXT(" value=\"") + FString::FromInt( MeshElement->GetLightmapSourceUV() ) + TEXT("\"/>") + LINE_TERMINATOR;
 	SerializeToArchive(Archive, XmlString);
 
 	WriteIndent(Archive, Indent + 1);
-
 	XmlString = TEXT("<") + FString(DATASMITH_HASH) + TEXT(" value=\"") + LexToString(MeshElement->GetFileHash()) + TEXT("\"/>") + LINE_TERMINATOR;
 	SerializeToArchive(Archive, XmlString);
 
 	for (int i = 0; i < MeshElement->GetMaterialSlotCount(); ++i)
 	{
 		WriteIndent(Archive, Indent + 1);
-
 		XmlString = TEXT("<") + FString(DATASMITH_MATERIAL) + FString::Printf(TEXT(" id=\"%d\" name=\""), MeshElement->GetMaterialSlotAt(i)->GetId()) + SanitizeXMLText(FDatasmithUtils::SanitizeFileName(MeshElement->GetMaterialSlotAt(i)->GetName())) + TEXT("\"/>") + LINE_TERMINATOR;
 		SerializeToArchive(Archive, XmlString);
 	}
 
 	WriteIndent(Archive, Indent);
-
 	XmlString = TEXT("</") + FString(DATASMITH_STATICMESHNAME) + TEXT(">") + LINE_TERMINATOR;
 	SerializeToArchive(Archive, XmlString);
 }

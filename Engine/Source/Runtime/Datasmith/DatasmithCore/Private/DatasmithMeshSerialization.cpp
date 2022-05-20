@@ -135,7 +135,7 @@ bool DecompressInline(TArray<uint8>& CompressedData)
 	return false;
 }
 
-} // ns Impl
+} // ns DatasmithMeshSerializationImpl
 
 
 FMD5Hash FDatasmithPackedMeshes::Serialize(FArchive& Ar, bool bCompressed)
@@ -155,7 +155,7 @@ FMD5Hash FDatasmithPackedMeshes::Serialize(FArchive& Ar, bool bCompressed)
 
 	enum EBufferType{ RawMeshDescription, CompressedMeshDescription };
 	uint8 BufferType = bCompressed ? CompressedMeshDescription : RawMeshDescription;
-	Ar << BufferType; // (MeshDesc, Zipped Mesh desc;...)
+	Ar << BufferType;
 
 	FMD5Hash OutHash;
 	if (Ar.IsLoading())
