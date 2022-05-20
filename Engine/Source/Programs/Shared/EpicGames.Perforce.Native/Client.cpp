@@ -1,14 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "CoreTypes.h"
+
+THIRD_PARTY_INCLUDES_START
 #pragma warning(push)
 #pragma warning(disable: 4244)
-#include "clientapi.h"
-#include "strtable.h"
-#include "datetime.h"
-#include "md5.h"
-#include "extra/gzip.h"
+#pragma warning(disable: 4458)
+#include "p4/clientapi.h"
+#include "p4/strtable.h"
+#include "p4/datetime.h"
+#include "p4/md5.h"
+#include "ThirdParty/gzip.h"
 #pragma warning(pop)
 #include <assert.h>
+THIRD_PARTY_INCLUDES_END
 
 #ifdef _MSC_VER
 	#define NATIVE_API __declspec(dllexport)
@@ -16,6 +21,9 @@
 #else
 	#define NATIVE_API
 #endif
+
+#pragma warning(disable:4100)
+#pragma warning(disable:4458)
 
 struct FSettings
 {
@@ -103,10 +111,10 @@ public:
 		rsp.Set(PromptResponse);
 	}
 
-	void SetInputBuffer(const char* InputBuffer, int InputLength)
+	void SetInputBuffer(const char* InInputBuffer, int InInputLength)
 	{
-		this->InputBuffer = InputBuffer;
-		this->InputLength = InputLength;
+		InputBuffer = InInputBuffer;
+		InputLength = InInputLength;
 	}
 
 	void SetWriteBuffer(FWriteBuffer* WriteBuffer)
@@ -246,15 +254,15 @@ public:
 		return true;
 	}
 
-	virtual void OutputInfo(char Level, const char* Data) override
+	virtual void OutputInfo(char InLevel, const char* InData) override
 	{
-		while (!TryOutputInfo(Level, Data))
+		while (!TryOutputInfo(InLevel, InData))
 		{
 			Flush();
 		}
 	}
 
-	bool TryOutputInfo(char Level, const char* Info)
+	bool TryOutputInfo(char InLevel, const char* InInfo)
 	{
 		static const char CodeKey[] = "code";
 		static const char LevelKey[] = "level";
@@ -262,7 +270,7 @@ public:
 
 		static const char InfoCode[] = "info";
 
-		unsigned int InfoLen = (unsigned int)strlen(Info);
+		unsigned int InfoLen = (unsigned int)strlen(InInfo);
 		unsigned int RecordLen = 1 + MeasureStringField(CodeKey, InfoCode) + MeasureIntField(LevelKey) + MeasureStringField(DataKey, InfoLen) + 1;
 		if (Length + RecordLen > MaxLength)
 		{
@@ -272,8 +280,8 @@ public:
 		unsigned char* Pos = Data + Length;
 		*(Pos++) = '{';
 		Pos = WriteStringField(Pos, CodeKey, InfoCode);
-		Pos = WriteIntField(Pos, LevelKey, Level);
-		Pos = WriteStringField(Pos, DataKey, Info, InfoLen);
+		Pos = WriteIntField(Pos, LevelKey, InLevel);
+		Pos = WriteStringField(Pos, DataKey, InInfo, InfoLen);
 		*(Pos++) = '0';
 		assert(Pos == Data + Length + RecordLen);
 
@@ -281,12 +289,12 @@ public:
 		return true;
 	}
 
-	virtual void OutputBinary(const char* data, int length) override
+	virtual void OutputBinary(const char* InData, int InLength) override
 	{
 		assert(false);
 	}
 
-	virtual void OutputText(const char* Data, int Length) override
+	virtual void OutputText(const char* InData, int InLength) override
 	{
 		assert(false);
 	}
