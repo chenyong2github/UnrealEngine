@@ -815,7 +815,7 @@ namespace Horde.Build.Notifications.Impl
 							foreach (IGrouping<UserId, IIssueSuspect> suspectGroup in suspectGroups)
 							{
 								string mention = await FormatMentionAsync(suspectGroup.Key, workflow.AllowMentions);
-								string changes = String.Join(", ", suspectGroup.Select(x => $"<ugs://change?number={x.Change}|CL {x.Change}>"));
+								string changes = String.Join(", ", suspectGroup.Select(x => FormatChange(x.Change)));
 								suspectList.Add($"{mention} ({changes})");
 							}
 
@@ -834,6 +834,22 @@ namespace Horde.Build.Notifications.Impl
 				if (issue.ResolvedAt != null)
 				{
 					await AddReactionAsync(state.Channel, state.Ts, "tick");
+				}
+
+				if (issue.ResolvedAt != null && issue.FixChange != null)
+				{
+					string fixedEventId = $"issue_{issue.Id}_fixed_{issue.ResolvedAt.Value}";
+
+					(MessageStateDocument fixedState, bool fixedIsNew) = await AddOrUpdateMessageStateAsync(triageChannel, eventId, null, "");
+					if (fixedIsNew)
+					{
+						string fixedMessage = $"Marked as fixed in {FormatChange(issue.FixChange.Value)}";
+						string? fixedTs = await SendMessageToThread(triageChannel, state.Ts, fixedMessage);
+						if (fixedTs != null)
+						{
+							await SetMessageTimestampAsync(fixedState.Id, triageChannel, fixedTs);
+						}
+					}
 				}
 			}
 		}
@@ -1051,6 +1067,8 @@ namespace Horde.Build.Notifications.Impl
 			}
 			return user.Name;
 		}
+
+		static string FormatChange(int change) => $"<ugs://change?number={change}|CL {change}>";
 
 		async Task<string> FormatMentionAsync(UserId userId, bool allowMentions)
 		{
