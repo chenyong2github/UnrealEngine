@@ -295,10 +295,13 @@ void UCommonTextBlock::PostLoad()
 	// We will remove this once existing content is fixed up. Since previously the native CDO was actually the default style, this code will attempt to set the style on assets that were once using this default
 	if (!Style && !bStyleNoLongerNeedsConversion && !IsRunningDedicatedServer())
 	{
-		TSubclassOf<UCommonTextStyle> DefaultStyle = ICommonUIModule::GetEditorSettings().GetTemplateTextStyle();
+		UCommonUIEditorSettings& Settings = ICommonUIModule::GetEditorSettings();
+		Settings.ConditionalPostLoad();
+		TSubclassOf<UCommonTextStyle> DefaultStyle = Settings.GetTemplateTextStyle();
 		UCommonTextStyle* DefaultStyleCDO = DefaultStyle ? Cast<UCommonTextStyle>(DefaultStyle->ClassDefaultObject) : nullptr;
 		if (DefaultStyleCDO)
 		{
+			DefaultStyleCDO->ConditionalPostLoad();
 			UCommonTextBlock* CDO = CastChecked<UCommonTextBlock>(GetClass()->GetDefaultObject());
 			bool bAllDefaults = true;
 
@@ -445,7 +448,7 @@ void UCommonTextBlock::PostLoad()
 
 			if (bAllDefaults)
 			{
-				Style = ICommonUIModule::GetEditorSettings().GetTemplateTextStyle();
+				Style = Settings.GetTemplateTextStyle();
 			}
 		}
 	}

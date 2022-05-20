@@ -351,7 +351,9 @@ void UCommonLoadGuard::PostLoad()
 	//TODO: I want this removed, it's needed for backwards compatibility
 	if (!TextStyle && !bStyleNoLongerNeedsConversion && !IsRunningDedicatedServer())
 	{
-		TextStyle = ICommonUIModule::GetEditorSettings().GetTemplateTextStyle();
+		UCommonUIEditorSettings& Settings = ICommonUIModule::GetEditorSettings();
+		Settings.ConditionalPostLoad();
+		TextStyle = Settings.GetTemplateTextStyle();
 	}
 
 	bStyleNoLongerNeedsConversion = true;

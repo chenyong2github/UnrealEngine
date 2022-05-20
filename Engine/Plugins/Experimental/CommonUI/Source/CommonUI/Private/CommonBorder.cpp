@@ -40,7 +40,9 @@ void UCommonBorder::PostLoad()
 		UCommonBorder* CDO = Cast<UCommonBorder>(GetClass()->GetDefaultObject());
 		if (Background == CDO->Background)
 		{
-			Style = ICommonUIModule::GetEditorSettings().GetTemplateBorderStyle();
+			UCommonUIEditorSettings& Settings = ICommonUIModule::GetEditorSettings();
+			Settings.ConditionalPostLoad();
+			Style = Settings.GetTemplateBorderStyle();
 		}
 	}
 

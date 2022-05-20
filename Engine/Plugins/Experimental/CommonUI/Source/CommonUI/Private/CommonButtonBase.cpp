@@ -335,7 +335,9 @@ void UCommonButtonBase::PostLoad()
 	// We will remove this once existing content is fixed up. Since previously the native CDO was actually the default style, this code will attempt to set the style on assets that were once using this default
 	if (!Style && !bStyleNoLongerNeedsConversion && !IsRunningDedicatedServer())
 	{
-		Style = ICommonUIModule::GetEditorSettings().GetTemplateButtonStyle();
+		UCommonUIEditorSettings& Settings = ICommonUIModule::GetEditorSettings();
+		Settings.ConditionalPostLoad();
+		Style = Settings.GetTemplateButtonStyle();
 	}
 
 	bStyleNoLongerNeedsConversion = true;
