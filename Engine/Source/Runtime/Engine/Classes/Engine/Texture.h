@@ -1352,6 +1352,12 @@ public:
 	UPROPERTY(transient)
 	uint8 bNotOfflineProcessed : 1;
 
+	/**
+	 * Gets the memory size of the texture, in bytes
+	 */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "GetMemorySize"), Category = "Rendering|Texture")
+	int64 Blueprint_GetMemorySize() const;
+
 private:
 	/** Whether the async resource release process has already been kicked off or not */
 	UPROPERTY(transient)

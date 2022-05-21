@@ -3285,6 +3285,11 @@ void UTexture::NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnSha
 
 #endif //WITH_EDITOR
 
+int64 UTexture::Blueprint_GetMemorySize() const
+{
+	return CalcTextureMemorySizeEnum(TMC_AllMips);
+}
+
 #if WITH_EDITOR
 
 FTextureSource::FMipData::FMipData(const FTextureSource& InSource, FSharedBuffer InData)
