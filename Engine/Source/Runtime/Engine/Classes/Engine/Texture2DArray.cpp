@@ -5,8 +5,6 @@
 =============================================================================*/
 
 #include "Engine/Texture2DArray.h"
-
-#include "AsyncCompilationHelpers.h"
 #include "RenderUtils.h"
 #include "TextureResource.h"
 #include "EngineUtils.h"
@@ -18,9 +16,6 @@
 #include "Streaming/TextureStreamIn.h"
 #include "Streaming/TextureStreamOut.h"
 #include "Engine/TextureMipDataProviderFactory.h"
-#include "Misc/ScopedSlowTask.h"
-
-#define LOCTEXT_NAMESPACE "UTexture2DArray"
 
 // Master switch to control whether streaming is enabled for texture2darray. 
 bool GSupportsTexture2DArrayStreaming = true;
@@ -70,30 +65,6 @@ FTextureResource* UTexture2DArray::CreateResource()
 		UE_LOG(LogTexture, Warning, TEXT("%s cannot be created, rhi does not support format %s."), *GetFullName(), FormatInfo.Name);
 	}
 	return nullptr;
-}
-
-
-// Any direct access to GetPlatformDataOrWait() will stall until the structure
-// is safe to use. It is advisable to replace those use case with
-// async aware code to avoid stalls where possible.
-FTexturePlatformData* UTexture2DArray::GetPlatformDataOrWait()
-{
-#if WITH_EDITOR
-	if (PlatformData && !PlatformData->IsAsyncWorkComplete())
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(UTexture2D::GetPlatformDataStall);
-		UE_LOG(LogTexture, Log, TEXT("Call to GetPlatformDataOrWait() is forcing a wait on data that is not yet ready."));
-
-		FText Msg = FText::Format(LOCTEXT("WaitOnTextureCompilation", "Waiting on texture array compilation {0} ..."), FText::FromString(GetName()));
-		FScopedSlowTask Progress(1.f, Msg, true);
-		Progress.MakeDialog(true);
-		uint64 StartTime = FPlatformTime::Cycles64();
-		PlatformData->FinishCache();
-		AsyncCompilationHelpers::SaveStallStack(FPlatformTime::Cycles64() - StartTime);
-	}
-#endif
-
-	return PlatformData;
 }
 
 void UTexture2DArray::UpdateResource()
@@ -438,5 +409,3 @@ bool UTexture2DArray::StreamIn(int32 NewMipCount, bool bHighPrio)
 	}
 	return false;
 }
-
-#undef LOCTEXT_NAMESPACE

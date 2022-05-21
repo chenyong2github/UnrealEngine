@@ -20,32 +20,49 @@ FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner, const
 	AddressU = InOwner->AddressX == TA_Wrap ? AM_Wrap : (InOwner->AddressX == TA_Clamp ? AM_Clamp : AM_Mirror);
 	AddressV = InOwner->AddressY == TA_Wrap ? AM_Wrap : (InOwner->AddressY == TA_Clamp ? AM_Clamp : AM_Mirror);
 	AddressW = InOwner->AddressZ == TA_Wrap ? AM_Wrap : (InOwner->AddressZ == TA_Clamp ? AM_Clamp : AM_Mirror);
-	
-	if (InOwner->GetMipData(State.RequestedFirstLODIdx(), MipData) == false)
+
+	const int32 MaxLoadableMipIndex = State.MaxNumLODs - FMath::Max(1, PlatformData->GetNumMipsInTail()) + 1;
+
+	TArray<uint64> MipOffsets;
+	MipOffsets.AddZeroed(State.MaxNumLODs);
+
+	uint64 InitialMipDataSize = 0;
+	TArrayView<const FTexture2DMipMap*> MipsView = GetPlatformMipsView();
+	for (int32 MipIdx = State.RequestedFirstLODIdx(); MipIdx < MaxLoadableMipIndex; ++MipIdx)
 	{
-		// This is fatal as we will crash trying to upload the data below, this way we crash at the cause.
-		UE_LOG(LogTexture, Fatal, TEXT("Corrupt texture [%s]! Unable to load mips (bulk data missing)"), *TextureName.ToString());
-		return;
+		const FTexture2DMipMap& Mip = *MipsView[MipIdx];
+		MipOffsets[MipIdx] = InitialMipDataSize;
+		InitialMipDataSize += Mip.BulkData.GetBulkDataSize();
 	}
+	InitialMipData.Reset(new uint8[InitialMipDataSize]);
 
 	// Resize each structure correctly per slice, since we access it per mip after.
 	SliceMipDataViews.AddDefaulted(SizeZ);
 	for (uint32 SliceIdx = 0; SliceIdx < SizeZ; ++SliceIdx)
 	{
-		SliceMipDataViews[SliceIdx].AddDefaulted(State.MaxNumLODs);
+		SliceMipDataViews[SliceIdx].AddDefaulted(MaxLoadableMipIndex);
 	}
 
-	const int32 RequestedFirstLODIdx = State.RequestedFirstLODIdx();
-	for (int32 RHIMipIdx = 0; RHIMipIdx < State.NumRequestedLODs; ++RHIMipIdx)
+	for (int32 MipIdx = State.RequestedFirstLODIdx(); MipIdx < MaxLoadableMipIndex; ++MipIdx)
 	{
-		const int32 MipIdx = RHIMipIdx + RequestedFirstLODIdx;
-		const uint64 SliceMipDataSize = MipData[RHIMipIdx].GetSize() / SizeZ;
-		uint8* SrcData = (uint8*)MipData[RHIMipIdx].GetData();
-
-		for (uint32 SliceIdx = 0; SliceIdx < SizeZ; ++SliceIdx)
+		FTexture2DMipMap& Mip = const_cast<FTexture2DMipMap&>(*MipsView[MipIdx]);
+		if (Mip.BulkData.GetBulkDataSize() > 0)
 		{
-			TArrayView<uint8>& SliceMipDataView = SliceMipDataViews[SliceIdx][MipIdx];
-			SliceMipDataView = TArrayView<uint8>(SrcData + SliceIdx * SliceMipDataSize, SliceMipDataSize);
+			const uint64 SliceMipDataSize = Mip.BulkData.GetBulkDataSize() / SizeZ;
+			const uint8* SrcData = (const uint8*)Mip.BulkData.Lock(LOCK_READ_ONLY);
+
+			for (uint32 SliceIdx = 0; SliceIdx < SizeZ; ++SliceIdx)
+			{
+				TArrayView<uint8>& SliceMipDataView = SliceMipDataViews[SliceIdx][MipIdx];
+				SliceMipDataView = TArrayView<uint8>(InitialMipData.Get() + MipOffsets[MipIdx] + SliceIdx * SliceMipDataSize, SliceMipDataSize);
+				FMemory::Memcpy(SliceMipDataView.GetData(), SrcData + SliceIdx * SliceMipDataSize, SliceMipDataSize);
+			}
+
+			Mip.BulkData.Unlock();
+		}
+		else
+		{
+			UE_LOG(LogTexture, Error, TEXT("Corrupt texture [%s]! Missing bulk data for MipIndex=%d"), *TextureName.ToString(), MipIdx);
 		}
 	}
 }
@@ -82,7 +99,7 @@ void FTexture2DArrayResource::CreateTexture()
 	}
 		
 	SliceMipDataViews.Empty();
-	MipData.Empty();
+	InitialMipData.Reset();
 }
 
 void FTexture2DArrayResource::CreatePartiallyResidentTexture()
