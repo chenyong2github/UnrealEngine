@@ -618,9 +618,6 @@ FSceneViewFamily::ConstructionValues FDisplayClusterViewportManager::CreateViewF
 	{
 	case EDisplayClusterRenderFrameMode::PreviewInScene:
 
-		// Disable eye adaptation for preview
-		InEngineShowFlags.EyeAdaptation = 0;
-
 		if (RenderFrameSettings.bPreviewEnablePostProcess == false)
 		{
 			// Disable postprocess for preview
