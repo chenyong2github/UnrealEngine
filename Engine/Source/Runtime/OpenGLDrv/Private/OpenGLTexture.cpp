@@ -579,8 +579,11 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(FOpenGLTexture* Texture, voi
 		// Use a texture stage that's not likely to be used for draws, to avoid waiting
 		CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Target, TextureID, 0, Desc.NumMips);
 
-		if((GLFormat.bBGRA && !EnumHasAnyFlags(Desc.Flags, TexCreate_RenderTargetable)) ||
-			((!PLATFORM_ANDROID) && GLFormat.InternalFormat[0] == GL_RGB5_A1))
+		if((GLFormat.bBGRA && !EnumHasAnyFlags(Desc.Flags, TexCreate_RenderTargetable)) 
+#if !PLATFORM_ANDROID
+			|| (GLFormat.InternalFormat[0] == GL_RGB5_A1)
+#endif
+			)
 		{
 			glTexParameteri(Target, GL_TEXTURE_SWIZZLE_R, GL_BLUE);
 			glTexParameteri(Target, GL_TEXTURE_SWIZZLE_B, GL_RED);

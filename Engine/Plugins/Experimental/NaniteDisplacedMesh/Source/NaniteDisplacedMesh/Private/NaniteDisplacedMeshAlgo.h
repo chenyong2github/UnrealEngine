@@ -4,9 +4,9 @@
 
 #if WITH_EDITOR
 
-struct FNaniteDisplacedMeshParams;
-
 #include "NaniteBuilder.h"
+
+struct FNaniteDisplacedMeshParams;
 
 bool DisplaceNaniteMesh(
 	const FNaniteDisplacedMeshParams& Parameters,

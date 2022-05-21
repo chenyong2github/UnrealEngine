@@ -176,7 +176,7 @@ struct FGPUBatchedTileRequests
 	{
 		for (const FLightmapTileRequest& Tile : TileRequests)
 		{
-			FGPUTileDescription TileDesc;
+			FGPUTileDescription TileDesc = {};
 			TileDesc.LightmapSize = Tile.RenderState->GetSize();
 			TileDesc.VirtualTilePosition = Tile.VirtualCoordinates.Position * GPreviewLightmapVirtualTileSize;
 			TileDesc.WorkingSetPosition = LightmapTilePoolGPU.GetPositionFromLinearAddress(Tile.TileAddressInWorkingSet) * GPreviewLightmapPhysicalTileSize;

@@ -144,21 +144,19 @@ bool FMaterialBlend::ValidateSelectedAssets(TArray<FString> SelectedMaterials, F
 
 void FMaterialBlend::HandleTextureLoading(FAssetData TextureData)
 {
+	UTexture* TextureAsset = Cast<UTexture>(TextureData.GetAsset());
+	if (TextureAsset == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("VT"));
+		return;
+	}
+	uint8 VT = TextureAsset->VirtualTextureStreaming;
+	TextureAsset->VirtualTextureStreaming = 1;
+	TextureAsset->SetFlags(RF_Standalone);
+	TextureAsset->MarkPackageDirty();
+	TextureAsset->PostEditChange();
 
-	
-			UTexture* TextureAsset = Cast<UTexture>(TextureData.GetAsset());
-			uint8 VT = TextureAsset->VirtualTextureStreaming;
-			if (TextureAsset == nullptr)
-			{
-				UE_LOG(LogTemp, Error, TEXT("VT"));
-			}
-		TextureAsset->VirtualTextureStreaming = 1;
-		TextureAsset->SetFlags(RF_Standalone);
-		TextureAsset->MarkPackageDirty();
-		TextureAsset->PostEditChange();
-
-		AssetUtils::SavePackage(TextureAsset);
-
+	AssetUtils::SavePackage(TextureAsset);
 }
 
 void FMaterialBlend::ConvertToVirtualTextures(FUAssetMeta AssetMetaData)

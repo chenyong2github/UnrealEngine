@@ -888,15 +888,15 @@ public:
 			FIntVector MipDimensions = DSV.DepthStencilTarget->GetMipDimensions(0);
 			checkf(ViewDimensions.IsZero() || ViewDimensions == MipDimensions, TEXT("Depth target size mismatch. All render and depth target views must have the same effective dimensions."));
 			ViewDimensions = MipDimensions;
-		}
 
-		if (DSV.ResolveTarget)
-		{
-			const FRHITextureDesc& DepthStencilTargetDesc = DSV.DepthStencilTarget->GetDesc();
-			const FRHITextureDesc& ResolveTargetDesc = DSV.ResolveTarget->GetDesc();
+			if (DSV.ResolveTarget)
+			{
+				const FRHITextureDesc& DepthStencilTargetDesc = DSV.DepthStencilTarget->GetDesc();
+				const FRHITextureDesc& ResolveTargetDesc = DSV.ResolveTarget->GetDesc();
 
-			checkf(DepthStencilTargetDesc.Extent == ResolveTargetDesc.Extent, TEXT("Depth stencil target extent must match resolve target extent."));
-			checkf(DepthStencilTargetDesc.IsTexture2D() && ResolveTargetDesc.IsTexture2D(), TEXT("Only 2D depth stencil resolves are supported."));
+				checkf(DepthStencilTargetDesc.Extent == ResolveTargetDesc.Extent, TEXT("Depth stencil target extent must match resolve target extent."));
+				checkf(DepthStencilTargetDesc.IsTexture2D() && ResolveTargetDesc.IsTexture2D(), TEXT("Only 2D depth stencil resolves are supported."));
+			}
 		}
 
 		// @todo: additional checks for matching array slice counts on RTVs/DSVs
