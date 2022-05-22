@@ -173,7 +173,7 @@ namespace PerfSummaries
 			return null;
 		}
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData summaryTableRowData, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, CsvStats csvStatsUnstripped, bool bWriteSummaryCsv, SummaryTableRowData summaryTableRowData, string htmlFileName)
 		{
 			// Only HTML reporting is supported (does not output summary table row data)
 			StreamWriter LLMCsvData = null;

@@ -23,7 +23,7 @@ namespace PerfSummaries
 
 		public override string GetName() { return "event"; }
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, CsvStats csvStatsUnstripped, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
 		{
 			Dictionary<string, int> eventCountsDict = new Dictionary<string, int>();
 			int eventCount = 0;

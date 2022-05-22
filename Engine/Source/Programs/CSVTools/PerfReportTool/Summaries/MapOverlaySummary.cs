@@ -135,7 +135,7 @@ namespace PerfSummaries
 			}
 		}
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, CsvStats csvStatsUnstripped, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
 		{
 			// Output HTML
 			if (htmlFile != null)
@@ -143,11 +143,8 @@ namespace PerfSummaries
 				string outputDirectory = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(htmlFileName));
 				string outputMapFilename = System.IO.Path.Combine(outputDirectory, destImageFilename);
 
-				if (File.Exists(outputMapFilename))
-				{
-					Console.WriteLine("Map file already exists. Skipping copy: "+ outputMapFilename);
-				}
-				else
+				// Skip the copy if the output file already exists
+				if (!File.Exists(outputMapFilename))
 				{
 					if (File.Exists(sourceImagePath))
 					{

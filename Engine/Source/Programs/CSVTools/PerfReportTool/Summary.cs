@@ -78,7 +78,7 @@ namespace PerfSummaries
             StatThresholds = new Dictionary<string, ColourThresholdList>();
 
         }
-        public virtual void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
+        public virtual void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, CsvStats csvStatsUnstripped, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
         { }
 
         public virtual void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)

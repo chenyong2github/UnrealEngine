@@ -123,8 +123,33 @@ namespace PerfSummaries
 			return outData;
 		}
 
+		class ColumnInfo
+		{
+			public ColumnInfo(string inName, double inValue, ColourThresholdList inColorThresholds, string inDetails=null, bool inIsAvgValue=false)
+			{
+				Name = inName;
+				Value = inValue;
+				ColorThresholds = inColorThresholds; 
+				isAverageValue = inIsAvgValue;
+				Details = inDetails;
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
+				UpdateColor();
+			}
+
+			public void UpdateColor()
+			{
+				Color = ColourThresholdList.GetSafeColourForValue(ColorThresholds, Value);
+			}
+
+			public string Name;
+			public double Value;
+			public string Color;
+			public ColourThresholdList ColorThresholds;
+			public string Details;
+			public bool isAverageValue;
+		};
+
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, CsvStats csvStatsUnstripped, bool bWriteSummaryCsv, SummaryTableRowData rowData, string htmlFileName)
 		{
 			System.IO.StreamWriter statsCsvFile = null;
 			if (bWriteSummaryCsv)
@@ -137,81 +162,81 @@ namespace PerfSummaries
 			FpsChartData fpsChartData = ComputeFPSChartDataForFrames(frameTimes, true);
 
 			// Write the averages
-			List<string> ColumnNames = new List<string>();
-			List<double> ColumnValues = new List<double>();
-			List<string> ColumnColors = new List<string>();
-			List<ColourThresholdList> ColumnColorThresholds = new List<ColourThresholdList>();
+			List<ColumnInfo> Columns = new List<ColumnInfo>();
 
-			ColumnNames.Add("Total Time (s)");
-			ColumnColorThresholds.Add(new ColourThresholdList());
-			ColumnValues.Add(fpsChartData.TotalTimeSeconds);
-			ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
-
-			ColumnNames.Add("Hitches/Min");
-			ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
-			ColumnValues.Add(fpsChartData.HitchesPerMinute);
-			ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
-
+			Columns.Add( new ColumnInfo("Total Time (s)", fpsChartData.TotalTimeSeconds, new ColourThresholdList() ) );
+			Columns.Add(new ColumnInfo("Hitches/Min", fpsChartData.HitchesPerMinute, GetStatColourThresholdList("Hitches/Min") ) );
+			
 			if (!bIgnoreHitchTimePercent)
 			{
-				ColumnNames.Add("HitchTimePercent");
-				ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
-				ColumnValues.Add(fpsChartData.HitchTimePercent);
-				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
+				Columns.Add(new ColumnInfo("HitchTimePercent", fpsChartData.HitchTimePercent, GetStatColourThresholdList("HitchTimePercent")));
 			}
 
+			string MvpStatName = "MVP" + fps.ToString();
 			if (!bIgnoreMVP)
 			{
-				ColumnNames.Add("MVP" + fps.ToString());
-				ColumnColorThresholds.Add(GetStatColourThresholdList(ColumnNames.Last()));
-				ColumnValues.Add(fpsChartData.MVP);
-				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
+				Columns.Add(new ColumnInfo(MvpStatName, fpsChartData.MVP, GetStatColourThresholdList(MvpStatName)));
 			}
 
-			List<bool> ColumnIsAvgValueList = new List<bool>();
-			for (int i = 0; i < ColumnNames.Count; i++)
-			{
-				ColumnIsAvgValueList.Add(false);
-			}
+			// Output CSV stats
+			int csvStatColumnStartIndex = Columns.Count;
 			foreach (string statName in stats)
 			{
-				string[] StatTokens = statName.Split('(');
+				string baseStatName = statName;
 
-				float value = 0;
+				string [] statAttributes=new string[0];
+				int bracketIndex = statName.IndexOf('(');
+				if (bracketIndex != -1)
+				{
+					baseStatName = statName.Substring(0,bracketIndex);
+					int rBracketIndex = statName.LastIndexOf(')');
+					if (rBracketIndex > bracketIndex)
+					{
+						string attributesStr = statName.Substring(bracketIndex + 1, rBracketIndex - (bracketIndex + 1)).ToLower();
+						statAttributes = attributesStr.Split(' ');
+					}
+				}
+
+				float value = 0.0f;
 				string ValueType = " Avg";
 				bool bIsAvg = false;
-				if (!csvStats.Stats.ContainsKey(StatTokens[0].ToLower()))
+				if (!csvStats.Stats.ContainsKey(baseStatName.ToLower()))
 				{
 					continue;
 				}
-				if (StatTokens.Length > 1 && StatTokens[1].ToLower().Contains("min"))
+
+				bool bUnstripped = statAttributes.Contains("unstripped");
+				StatSamples stat = bUnstripped ? csvStatsUnstripped.Stats[baseStatName.ToLower()] : csvStats.Stats[baseStatName.ToLower()];
+				if (statAttributes.Contains("min"))
 				{
-					value = csvStats.Stats[StatTokens[0].ToLower()].ComputeMinValue();
+					value = stat.ComputeMinValue();
 					ValueType = " Min";
 				}
-				else if (StatTokens.Length > 1 && StatTokens[1].ToLower().Contains("max"))
+				else if (statAttributes.Contains("max"))
 				{
-					value = csvStats.Stats[StatTokens[0].ToLower()].ComputeMaxValue();
+					value = stat.ComputeMaxValue();
 					ValueType = " Max";
 				}
 				else
 				{
-					value = csvStats.Stats[StatTokens[0].ToLower()].average;
+					value = stat.average;
 					bIsAvg = true;
 				}
-				ColumnIsAvgValueList.Add(bIsAvg);
-				ColumnNames.Add(StatTokens[0] + ValueType);
-				ColumnValues.Add(value);
-				ColumnColorThresholds.Add(GetStatColourThresholdList(statName));
-				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
+
+				string detailStr = null;
+				if (bUnstripped)
+				{
+					detailStr = "all frames";
+				}
+				Columns.Add(new ColumnInfo(baseStatName + ValueType, value, GetStatColourThresholdList(statName), detailStr, bIsAvg));
 			}
 
 			// Output summary table row data
 			if (rowData != null)
 			{
-				for (int i = 0; i < ColumnNames.Count; i++)
+				foreach (ColumnInfo column in Columns)
 				{
-					string columnName = ColumnNames[i];
+					string columnName = column.Name;
 
 					// Output simply MVP to rowData instead of MVP30 etc
 					if (columnName.StartsWith("MVP"))
@@ -219,7 +244,7 @@ namespace PerfSummaries
 						columnName = "MVP";
 					}
 					// Hide pre-existing stats with the same name
-					if (ColumnIsAvgValueList[i] && columnName.EndsWith(" Avg"))
+					if (column.isAverageValue && columnName.EndsWith(" Avg"))
 					{
 						string originalStatName = columnName.Substring(0, columnName.Length - 4).ToLower();
 						SummaryTableElement smv;
@@ -231,7 +256,7 @@ namespace PerfSummaries
 							}
 						}
 					}
-					rowData.Add(SummaryTableElement.Type.SummaryTableMetric, columnName, ColumnValues[i], ColumnColorThresholds[i]);
+					rowData.Add(SummaryTableElement.Type.SummaryTableMetric, columnName, column.Value, column.ColorThresholds);
 				}
 				rowData.Add(SummaryTableElement.Type.SummaryTableMetric, "TargetFPS", (double)fps);
 			}
@@ -243,15 +268,21 @@ namespace PerfSummaries
 				string ValueRow = "";
 				HeaderRow += "<th>Section Name</th>";
 				ValueRow += "<td>Entire Run</td>";
-				for (int i = 0; i < ColumnNames.Count; i++)
-				{
-					string columnName = ColumnNames[i];
+				foreach (ColumnInfo column in Columns)
+				{ 
+					string columnName = column.Name;
 					if (columnName.ToLower().EndsWith("time"))
 					{
 						columnName += " (ms)";
 					}
+
+					if (column.Details != null)
+					{
+						columnName += " ("+ column.Details + ")";
+					}
+
 					HeaderRow += "<th>" + TableUtil.FormatStatName(columnName) + "</th>";
-					ValueRow += "<td bgcolor=" + ColumnColors[i] + ">" + ColumnValues[i].ToString("0.00") + "</td>";
+					ValueRow += "<td bgcolor=" + column.Color + ">" + column.Value.ToString("0.00") + "</td>";
 				}
 				htmlFile.WriteLine("  <h2>FPSChart</h2>");
 				htmlFile.WriteLine("<table border='0' style='width:400'>");
@@ -262,6 +293,15 @@ namespace PerfSummaries
 			// Output CSV
 			if (statsCsvFile != null)
 			{
+				List<string> ColumnNames = new List<string>();
+				List<double> ColumnValues = new List<double>();
+				List<string> ColumnColors = new List<string>();
+				foreach (ColumnInfo column in Columns)
+				{
+					ColumnNames.Add(column.Name);
+					ColumnValues.Add(column.Value);
+					ColumnColors.Add(column.Color);
+				}
 				statsCsvFile.Write("Section Name,");
 				statsCsvFile.WriteLine(string.Join(",", ColumnNames));
 
@@ -273,13 +313,19 @@ namespace PerfSummaries
 				statsCsvFile.WriteLine(string.Join(",", ColumnColors));
 			}
 
+
+
 			if (csvStats.Events.Count > 0)
 			{
+				Dictionary<string, ColumnInfo> ColumnDict = new Dictionary<string, ColumnInfo>();
+				foreach (ColumnInfo column in Columns)
+				{
+					ColumnDict[column.Name] = column;
+				}
+
 				// Per-event breakdown
 				foreach (CaptureRange CapRange in captures)
 				{
-					ColumnValues.Clear();
-					ColumnColors.Clear();
 					CaptureData CaptureFrameTimes = GetFramesForCapture(CapRange, frameTimes, csvStats.Events);
 
 					if (CaptureFrameTimes == null)
@@ -293,24 +339,21 @@ namespace PerfSummaries
 						continue;
 					}
 
-					ColumnValues.Add(captureFpsChartData.TotalTimeSeconds);
-					ColumnColors.Add("\'#ffffff\'");
-
-					ColumnValues.Add(captureFpsChartData.HitchesPerMinute);
-					ColumnColors.Add(GetStatThresholdColour("Hitches/Min", captureFpsChartData.HitchesPerMinute));
+					ColumnDict["Total Time (s)"].Value = captureFpsChartData.TotalTimeSeconds;
+					ColumnDict["Hitches/Min"].Value = captureFpsChartData.HitchesPerMinute;
 
 					if (!bIgnoreHitchTimePercent)
 					{
-						ColumnValues.Add(captureFpsChartData.HitchTimePercent);
-						ColumnColors.Add(GetStatThresholdColour("HitchTimePercent", captureFpsChartData.HitchTimePercent));
+						ColumnDict["HitchTimePercent"].Value = captureFpsChartData.HitchTimePercent;
 					}
 
 					if (!bIgnoreMVP)
 					{
-						ColumnValues.Add(captureFpsChartData.MVP);
-						ColumnColors.Add(GetStatThresholdColour("MVP" + fps.ToString(), captureFpsChartData.MVP));
+						ColumnDict[MvpStatName].Value = captureFpsChartData.MVP;
 					}
 
+					// Update the CSV stat values
+					int columnIndex = csvStatColumnStartIndex;
 					foreach (string statName in stats)
 					{
 						string StatToCheck = statName.Split('(')[0];
@@ -334,9 +377,14 @@ namespace PerfSummaries
 						{
 							value = csvStats.Stats[StatTokens[0].ToLower()].ComputeAverage(CaptureFrameTimes.startIndex, CaptureFrameTimes.endIndex);
 						}
+						Columns[columnIndex].Value = value;
+						columnIndex++;
+					}
 
-						ColumnValues.Add(value);
-						ColumnColors.Add(GetStatThresholdColour(statName, value));
+					// Recompute colors
+					foreach (ColumnInfo column in Columns)
+					{
+						column.UpdateColor();
 					}
 
 					// Output HTML
@@ -344,9 +392,9 @@ namespace PerfSummaries
 					{
 						string ValueRow = "";
 						ValueRow += "<td>" + CapRange.name + "</td>";
-						for (int i = 0; i < ColumnNames.Count; i++)
+						foreach (ColumnInfo column in Columns)
 						{
-							ValueRow += "<td bgcolor=" + ColumnColors[i] + ">" + ColumnValues[i].ToString("0.00") + "</td>";
+							ValueRow += "<td bgcolor=" + column.Color + ">" + column.Value.ToString("0.00") + "</td>";
 						}
 						htmlFile.WriteLine("  <tr>" + ValueRow + "</tr>");
 					}
@@ -354,6 +402,14 @@ namespace PerfSummaries
 					// Output CSV
 					if (statsCsvFile != null)
 					{
+						List<double> ColumnValues = new List<double>();
+						List<string> ColumnColors = new List<string>();
+						foreach (ColumnInfo column in Columns)
+						{
+							ColumnValues.Add(column.Value);
+							ColumnColors.Add(column.Color);
+						}
+
 						statsCsvFile.Write(CapRange.name + ",");
 						statsCsvFile.WriteLine(string.Join(",", ColumnValues));
 

@@ -22,7 +22,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.75";
+        private static string VersionString = "4.76";
 
         public static string Get() { return VersionString; }
     };
@@ -718,16 +718,16 @@ namespace PerfReportTool
 			}
 
 			int numFramesStripped;
-			CsvStats unstrippedCsvStats;
-			CsvStats csvStats = ProcessCsv(csvFile, out numFramesStripped, out unstrippedCsvStats, minX, maxX, null, bStripStatsByEvents);
+			CsvStats csvStatsUnstripped;
+			CsvStats csvStats = ProcessCsv(csvFile, out numFramesStripped, out csvStatsUnstripped, minX, maxX, null, bStripStatsByEvents);
 			csvStats.WriteToCSV(outCsvFilename, false);
 		}
 
-		CsvStats ProcessCsv(CachedCsvFile csvFile, out int numFramesStripped, out CsvStats unstrippedCsvStats, int minX=0, int maxX=Int32.MaxValue, PerfLog perfLog=null, bool bStripStatsByEvents = true)
+		CsvStats ProcessCsv(CachedCsvFile csvFile, out int numFramesStripped, out CsvStats csvStatsUnstripped, int minX=0, int maxX=Int32.MaxValue, PerfLog perfLog=null, bool bStripStatsByEvents = true)
 		{
 			numFramesStripped = 0;
 			CsvStats csvStats = ReadCsvStats(csvFile, minX, maxX);
-			unstrippedCsvStats = csvStats;
+			csvStatsUnstripped = csvStats;
 			if (perfLog != null)
 			{
 				perfLog.LogTiming("    ReadCsvStats");
@@ -735,7 +735,7 @@ namespace PerfReportTool
 
 			if (bStripStatsByEvents)
 			{
-				CsvStats strippedCsvStats = StripCsvStatsByEvents(unstrippedCsvStats, out numFramesStripped);
+				CsvStats strippedCsvStats = StripCsvStatsByEvents(csvStatsUnstripped, out numFramesStripped);
 				csvStats = strippedCsvStats;
 			}
 			if (perfLog != null)
@@ -832,8 +832,6 @@ namespace PerfReportTool
 						if (graphGenerator != null)
 						{
 							GraphParams graphParams=GetCsvToSvgGraphParams(csvFile.filename, graph, thickness, minX, maxX, false, svgFilenames.Count);
-							string args = GetCsvToSvgArgs(csvFile.filename, svgFilename, graph, thickness, minX, maxX, false, svgFilenames.Count);
-
 							if (bCsvToSvgMultiThreaded)
 							{
 								csvToSvgTasks.Add( graphGenerator.MakeGraphAsync(graphParams, svgFilename, true, false) );
@@ -891,8 +889,8 @@ namespace PerfReportTool
 
 			// Read the full csv while we wait for the graph processes to complete (this is only safe for CsvToSVG processes, not task threads)
 			int numFramesStripped;
-			CsvStats unstrippedCsvStats;
-			CsvStats csvStats=ProcessCsv(csvFile, out numFramesStripped, out unstrippedCsvStats, minX, maxX, perfLog, bStripStatsByEvents);
+			CsvStats csvStatsUnstripped;
+			CsvStats csvStats=ProcessCsv(csvFile, out numFramesStripped, out csvStatsUnstripped, minX, maxX, perfLog, bStripStatsByEvents);
 
             if ( writeDetailedReport && csvToSvgProcesses.Count > 0)
             { 
@@ -1004,7 +1002,7 @@ namespace PerfReportTool
             }
 
             // Write the report
-            WriteReport(htmlFilename, title, svgFilenames, reportTypeInfo, csvStats, unstrippedCsvStats, numFramesStripped, minX, maxX, bBulkMode, rowData);
+            WriteReport(htmlFilename, title, svgFilenames, reportTypeInfo, csvStats, csvStatsUnstripped, numFramesStripped, minX, maxX, bBulkMode, rowData);
             perfLog.LogTiming("    WriteReport");
 
             // Delete the temp files
@@ -1110,7 +1108,7 @@ namespace PerfReportTool
       
 
 
-        void WriteReport(string htmlFilename, string title, List<string> svgFilenames, ReportTypeInfo reportTypeInfo, CsvStats csvStats, CsvStats unstrippedCsvStats, int numFramesStripped, int minX, int maxX, bool bBulkMode, SummaryTableRowData summaryRowData)
+        void WriteReport(string htmlFilename, string title, List<string> svgFilenames, ReportTypeInfo reportTypeInfo, CsvStats csvStats, CsvStats csvStatsUnstripped, int numFramesStripped, int minX, int maxX, bool bBulkMode, SummaryTableRowData summaryRowData)
         {
  
             ReportGraph[] graphs = reportTypeInfo.graphs.ToArray();
@@ -1206,7 +1204,7 @@ namespace PerfReportTool
 			PeakSummary peakSummary = null;
             foreach (Summary summary in summaries)
             {
-                summary.WriteSummaryData(htmlFile, summary.useUnstrippedCsvStats ? unstrippedCsvStats : csvStats, bWriteSummaryCsv, summaryRowData, htmlFilename);
+                summary.WriteSummaryData(htmlFile, summary.useUnstrippedCsvStats ? csvStatsUnstripped : csvStats, csvStatsUnstripped, bWriteSummaryCsv, summaryRowData, htmlFilename);
                 if ( summary.GetType() == typeof(PeakSummary) )
                 {
                     peakSummary = (PeakSummary)summary;
@@ -1298,13 +1296,13 @@ namespace PerfReportTool
 				string ForEmail = GetArg("foremail", false);
 				if (ForEmail != "")
 				{
-					WriteEmail(htmlFilename, title, svgFilenames, reportTypeInfo, csvStats, minX, maxX, bBulkMode);
+					WriteEmail(htmlFilename, title, svgFilenames, reportTypeInfo, csvStats, csvStatsUnstripped, minX, maxX, bBulkMode);
 				}
 			}
         }
 
 
-        void WriteEmail(string htmlFilename, string title, List<string> svgFilenames, ReportTypeInfo reportTypeInfo, CsvStats csvStats, int minX, int maxX, bool bBulkMode)
+        void WriteEmail(string htmlFilename, string title, List<string> svgFilenames, ReportTypeInfo reportTypeInfo, CsvStats csvStats, CsvStats csvStatsUnstripped, int minX, int maxX, bool bBulkMode)
         {
 			if (htmlFilename==null)
 			{
@@ -1355,7 +1353,7 @@ namespace PerfReportTool
 			PeakSummary peakSummary = null;
             foreach (Summary summary in reportTypeInfo.summaries)
             {
-                summary.WriteSummaryData(htmlFile, csvStats, bWriteSummaryCsv, null, htmlFilename);
+                summary.WriteSummaryData(htmlFile, csvStats, csvStatsUnstripped, bWriteSummaryCsv, null, htmlFilename);
                 if (summary.GetType() == typeof(PeakSummary))
                 {
                     peakSummary = (PeakSummary)summary;

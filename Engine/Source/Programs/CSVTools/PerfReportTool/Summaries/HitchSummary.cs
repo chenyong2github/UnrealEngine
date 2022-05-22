@@ -27,7 +27,7 @@ namespace PerfSummaries
 
 		public override string GetName() { return "hitches"; }
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData summaryTableRowData, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, CsvStats csvStatsUnstripped, bool bWriteSummaryCsv, SummaryTableRowData summaryTableRowData, string htmlFileName)
 		{
 			// if we have 20k frames in a typical flythrough then 20 frames would be red
 			float redThresholdFor50ms = (float)csvStats.SampleCount / 500.0f;

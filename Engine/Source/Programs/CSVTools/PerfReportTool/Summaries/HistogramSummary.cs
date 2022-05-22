@@ -45,7 +45,7 @@ namespace PerfSummaries
 
 		public override string GetName() { return "histogram"; }
 
-		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, bool bWriteSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
+		public override void WriteSummaryData(System.IO.StreamWriter htmlFile, CsvStats csvStats, CsvStats csvStatsUnstripped, bool bWriteSummaryCsv, SummaryTableRowData metadata, string htmlFileName)
 		{
 			// Only HTML reporting is supported (does not output summary table row data)
 			if (htmlFile == null)
