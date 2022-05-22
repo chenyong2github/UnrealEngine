@@ -33,7 +33,7 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "SoundSubmix"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "/Script/Engine.SoundSubmix"))
 	FSoftObjectPath OutputSubmix;
 
 	// Which audio engine to use.

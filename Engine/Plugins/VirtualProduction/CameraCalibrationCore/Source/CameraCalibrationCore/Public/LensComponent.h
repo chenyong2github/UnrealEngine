@@ -54,7 +54,7 @@ private:
 
 protected:
 	/** The CineCameraComponent on which to apply the post-process distortion effect */
-	UPROPERTY(EditInstanceOnly, Category = "Default", meta = (UseComponentPicker, AllowedClasses = "CineCameraComponent"))
+	UPROPERTY(EditInstanceOnly, Category = "Default", meta = (UseComponentPicker, AllowedClasses = "/Script/CinematicCamera.CineCameraComponent"))
 	FComponentReference TargetCameraComponent;
 
 	/** Structure used to query the camera calibration subsystem for a lens distortion model handler */

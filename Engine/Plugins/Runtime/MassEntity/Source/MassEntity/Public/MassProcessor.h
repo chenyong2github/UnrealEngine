@@ -103,7 +103,7 @@ protected:
 
 protected:
 	/** Whether this processor should be executed on StandAlone or Server or Client */
-	UPROPERTY(EditAnywhere, Category = "Pipeline", meta = (Bitmask, BitmaskEnum = EProcessorExecutionFlags), config)
+	UPROPERTY(EditAnywhere, Category = "Pipeline", meta = (Bitmask, BitmaskEnum = "/Script/MassEntity.EProcessorExecutionFlags"), config)
 	int32 ExecutionFlags;
 
 	/** Processing phase this processor will be automatically run as part of. */

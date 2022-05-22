@@ -21,7 +21,7 @@ void UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::PostInitProperties()
 	if (HandTrackingBoneNameMap.Num() == 0)
 	{
 		// Fill the first time use of the bone name map
-		const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EWMRHandKeypoint"), true);
+		const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/WindowsMixedRealityHandTracking.EWMRHandKeypoint"), true);
 		check(EnumPtr != nullptr);
 		// Iterate through all of the Keypoints building the skeleton info for it
 		for (int32 Keypoint = 0; Keypoint < EWMRHandKeypointCount; Keypoint++)

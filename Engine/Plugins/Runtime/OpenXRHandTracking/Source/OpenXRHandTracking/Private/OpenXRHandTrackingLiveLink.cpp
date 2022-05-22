@@ -69,7 +69,7 @@ void FOpenXRHandTracking::SetupLiveLinkData()
 	BoneParents.Reserve(EHandKeypointCount);
 	BoneKeypoints.Reserve(EHandKeypointCount);
 
-	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EHandKeypoint"), true);
+	const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/HeadMountedDisplay.EHandKeypoint"), true);
 	check(EnumPtr != nullptr);
 	// Iterate through all of the Keypoints building the skeleton info for it
 	for (int32 Keypoint = 0; Keypoint < EHandKeypointCount; Keypoint++)

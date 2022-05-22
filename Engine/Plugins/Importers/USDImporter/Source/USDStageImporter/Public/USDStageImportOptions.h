@@ -66,7 +66,7 @@ public:
 
 
 	/** Only import prims with these specific purposes from the USD file */
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options", meta = (Bitmask, BitmaskEnum=EUsdPurpose))
+	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options", meta = (Bitmask, BitmaskEnum="/Script/UnrealUSDWrapper.EUsdPurpose"))
 	int32 PurposesToImport;
 
 	/** Try enabling Nanite for static meshes that are generated with at least this many triangles */
@@ -114,7 +114,7 @@ public:
 	 * Whether to try to combine individual assets and components of the same type on a kind-per-kind basis,
 	 * like multiple Mesh prims into a single Static Mesh
 	 */
-	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "Processing", meta = ( Bitmask, BitmaskEnum = EUsdDefaultKind ) )
+	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "Processing", meta = ( Bitmask, BitmaskEnum = "/Script/UnrealUSDWrapper.EUsdDefaultKind" ) )
 	int32 KindsToCollapse;
 
 	/**

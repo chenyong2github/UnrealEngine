@@ -29,7 +29,7 @@ struct METASOUNDENGINE_API FDefaultMetaSoundAssetAutoUpdateSettings
 	GENERATED_BODY()
 
 	/** MetaSound to prevent from AutoUpdate. */
-	UPROPERTY(EditAnywhere, Category = "AutoUpdate", meta = (AllowedClasses = "MetaSound, MetaSoundSource"))
+	UPROPERTY(EditAnywhere, Category = "AutoUpdate", meta = (AllowedClasses = "/Script/MetasoundEngine.MetaSound, /Script/MetasoundEngine.MetaSoundSource"))
 	FSoftObjectPath MetaSound;
 };
 

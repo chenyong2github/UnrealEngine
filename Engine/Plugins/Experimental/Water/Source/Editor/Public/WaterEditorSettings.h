@@ -256,7 +256,7 @@ public:
 
 private:
 	/** Class of the water brush to be used in landscape */
-	UPROPERTY(EditAnywhere, config, Category = Brush, meta = (MetaClass = "WaterLandscapeBrush"))
+	UPROPERTY(EditAnywhere, config, Category = Brush, meta = (MetaClass = "/Script/WaterEditor.WaterLandscapeBrush"))
 	FSoftClassPath WaterManagerClassPath;
 
 	UPROPERTY(EditAnywhere, config, Category = Brush)

@@ -179,7 +179,7 @@ struct FGatherTextFromPackagesConfiguration
 	TArray<FName> Collections;
 
 	/* Classes that should be excluded from gathering. */
-	UPROPERTY(config, EditAnywhere, Category = "Filter", meta=(MetaClass="Object", AllowAbstract="True"))
+	UPROPERTY(config, EditAnywhere, Category = "Filter", meta=(MetaClass="/Script/CoreUObject.Object", AllowAbstract="True"))
 	TArray<FSoftClassPath> ExcludeClasses;
 
 	/* Should classes derived from those in the exclude classes list also be excluded from gathering? */

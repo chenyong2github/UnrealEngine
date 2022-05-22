@@ -20,7 +20,7 @@ enum class EInputActionValueType : uint8
 };
 
 
-USTRUCT(BlueprintType, meta = (HasNativeMake = "EnhancedInput.EnhancedInputLibrary.MakeInputActionValue", HasNativeBreak = "EnhancedInput.EnhancedInputLibrary.BreakInputActionValue"))
+USTRUCT(BlueprintType, meta = (HasNativeMake = "/Script/EnhancedInput.EnhancedInputLibrary.MakeInputActionValue", HasNativeBreak = "/Script/EnhancedInput.EnhancedInputLibrary.BreakInputActionValue"))
 struct FInputActionValue
 {
 	GENERATED_BODY()

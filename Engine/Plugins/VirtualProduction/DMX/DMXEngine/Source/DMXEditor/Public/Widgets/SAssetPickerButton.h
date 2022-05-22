@@ -37,11 +37,11 @@ public:
 		/** Allows more than a single class on the picker list.
 		 * Overrides AssetClass (doesn't affect the Use Selected on Content Browser button)
 		 */
-		SLATE_ARGUMENT(TArray<FName>, AllowedClasses)
+		SLATE_ARGUMENT(TArray<FTopLevelAssetPath>, AllowedClasses)
 		/** Disallows subclasses from the allowed asset class(es).
 		 * Doesn't affect the Use Selected on Content Browser button.
 		 */
-		SLATE_ARGUMENT(TArray<FName>, DisallowedClasses)
+		SLATE_ARGUMENT(TArray<FTopLevelAssetPath>, DisallowedClasses)
 
 		/** Called to decide the hovered state using the parent's interact able area */
 		SLATE_EVENT(FOnParentIsHovered, OnParentIsHovered)
@@ -56,9 +56,9 @@ public:
 	/** The class to filter the list of assets in the picker menu */
 	TWeakObjectPtr<UClass> AssetClass;
 	/** Allows more than a single class. Overrides AssetClass */
-	TArray<FName> AllowedClasses;
+	TArray<FTopLevelAssetPath> AllowedClasses;
 	/** Disallows subclasses from the allowed asset class(es) */
-	TArray<FName> DisallowedClasses;
+	TArray<FTopLevelAssetPath> DisallowedClasses;
 
 protected:
 	/** Clicked Use button */

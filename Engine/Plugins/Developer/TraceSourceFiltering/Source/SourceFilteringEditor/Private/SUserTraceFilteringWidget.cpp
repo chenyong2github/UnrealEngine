@@ -376,7 +376,7 @@ TSharedPtr<SWidget> SUserTraceFilteringWidget::OnContextMenuOpening()
 				FText LabelTextFormat = LOCTEXT("MakeFilterSetLabel", "{0}");
 				FText ToolTipTextFormat = LOCTEXT("MakeFilterSetTooltip", "Creates a new filter set, containing this filter, with the {0} operator");
 
-				const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EFilterSetMode"), true);
+				const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/SourceFilteringCore.EFilterSetMode"), true);
 				for (EFilterSetMode Mode : TEnumRange<EFilterSetMode>())
 				{
 					FText ModeText = EnumPtr->GetDisplayNameTextByValue((int64)Mode);

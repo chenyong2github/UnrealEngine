@@ -53,11 +53,11 @@ class ENGINE_API UAISystemBase : public UObject
 
 private:
 	/** List of specific AI system class to create, can be game-specific */
-	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", noclear, meta = (MetaClass = "AISystem", DisplayName = "AISystem Class"))
+	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", noclear, meta = (MetaClass = "/Script/AIModule.AISystem", DisplayName = "AISystem Class"))
 	FSoftClassPath AISystemClassName;
 
 	/** Name of a module used to spawn the AI system. If not empty, this module has to implement IAISystemModule */
-	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", noclear, meta = (MetaClass = "AISystem", DisplayName = "AISystem Module"))
+	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", noclear, meta = (MetaClass = "/Script/AIModule.AISystem", DisplayName = "AISystem Module"))
 	FName AISystemModuleName;
 
 	FDelegateHandle OnMatchStateSetHandle;

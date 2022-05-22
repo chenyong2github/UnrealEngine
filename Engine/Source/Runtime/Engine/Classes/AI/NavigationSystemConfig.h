@@ -15,7 +15,7 @@ class ENGINE_API UNavigationSystemConfig : public UObject
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category=Navigation, meta = (MetaClass = "NavigationSystemBase", NoResetToDefault))
+	UPROPERTY(EditAnywhere, Category=Navigation, meta = (MetaClass = "/Script/Engine.NavigationSystemBase", NoResetToDefault))
 	FSoftClassPath NavigationSystemClass;
 
 	/** NavigationSystem's properties in Project Settings define all possible supported agents,

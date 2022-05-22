@@ -543,7 +543,7 @@ public:
 	FText VersionChangeDescription;
 
 	/** When used as a module, what are the appropriate script types for referencing this module?*/
-	UPROPERTY(EditAnywhere, Category = Script, meta = (Bitmask, BitmaskEnum = ENiagaraScriptUsage))
+	UPROPERTY(EditAnywhere, Category = Script, meta = (Bitmask, BitmaskEnum = "/Script/Niagara.ENiagaraScriptUsage"))
 	int32 ModuleUsageBitmask;
 
 	/** Used to break up scripts of the same Usage type in UI display.*/

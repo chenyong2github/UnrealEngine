@@ -66,15 +66,15 @@ public:
 	uint16 OSCServerPort;
 
 	/** What EditorUtilityObject should be ran on editor launch. */
-	UPROPERTY(config, EditAnywhere, Category = "OSC", meta = (AllowedClasses = "EditorUtilityBlueprint", DisplayName = "OSC Listeners"))
+	UPROPERTY(config, EditAnywhere, Category = "OSC", meta = (AllowedClasses = "/Script/Blutility.EditorUtilityBlueprint", DisplayName = "OSC Listeners"))
 	TArray<FSoftObjectPath> StartupOSCListeners;
 
 	/** ScoutingSubsystem class to use for Blueprint helpers */
-	UPROPERTY(config, meta = (MetaClass = "VPScoutingSubsystemHelpersBase"))
+	UPROPERTY(config, meta = (MetaClass = "/Script/VPUtilitiesEditor.VPScoutingSubsystemHelpersBase"))
 	FSoftClassPath ScoutingSubsystemEditorUtilityClassPath;
 
 	/** GestureManager class to use by the ScoutingSubsystem */
-	UPROPERTY(config, meta = (MetaClass = "VPScoutingSubsystemGestureManagerBase"))
+	UPROPERTY(config, meta = (MetaClass = "/Script/VPUtilitiesEditor.VPScoutingSubsystemGestureManagerBase"))
 	FSoftClassPath GestureManagerEditorUtilityClassPath;
 
 	/** GestureManager class to use by the ScoutingSubsystem */

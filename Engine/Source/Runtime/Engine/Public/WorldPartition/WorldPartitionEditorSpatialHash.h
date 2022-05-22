@@ -220,7 +220,7 @@ private:
 	bool bBoundsDirty;	
 
 public:
-	UPROPERTY(Config, meta = (AllowedClasses = "Texture2D, MaterialInterface"))
+	UPROPERTY(Config, meta = (AllowedClasses = "/Script/Engine.Texture2D, /Script/Engine.MaterialInterface"))
 	FSoftObjectPath WorldImage;
 
 	UPROPERTY(Config)

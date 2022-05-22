@@ -135,7 +135,7 @@ public:
 	TObjectPtr<USkeleton> Skeleton;
 
 	/** Skeletal mesh used to setup skeletal mesh components */
-	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (DisallowedClasses = "DestructibleMesh"))
+	UPROPERTY(EditAnywhere, Category = AnimationSharing, meta = (DisallowedClasses = "/Script/ApexDestruction.DestructibleMesh"))
 	TObjectPtr<USkeletalMesh> SkeletalMesh;
 
 	/** Animation blueprint used to perform the blending between states */

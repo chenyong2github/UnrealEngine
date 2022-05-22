@@ -32,7 +32,7 @@ struct HAIRSTRANDSCORE_API FGroomCacheImportSettings
 	bool bImportGroomAsset = true;
 
 	/** The groom asset the groom cache will be built from (must be compatible) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GroomCache, meta = (MetaClass = "GroomAsset"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GroomCache, meta = (MetaClass = "/Script/HairStrandsCore.GroomAsset"))
 	FSoftObjectPath GroomAsset;
 };
 

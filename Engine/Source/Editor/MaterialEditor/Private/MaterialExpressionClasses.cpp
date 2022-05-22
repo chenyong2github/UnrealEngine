@@ -52,7 +52,7 @@ MaterialExpressionClasses* MaterialExpressionClasses::Get()
 const UStruct* MaterialExpressionClasses::GetExpressionInputStruct()
 {
 	static const UStruct* ExpressionInputStruct =
-		CastChecked<UStruct>( StaticFindObject( UStruct::StaticClass(), ANY_PACKAGE, TEXT("ExpressionInput")) );
+		CastChecked<UStruct>( StaticFindObject( UStruct::StaticClass(), nullptr, TEXT("/Script/Engine.ExpressionInput")) );
 	check( ExpressionInputStruct );
 	return ExpressionInputStruct;
 }

@@ -642,7 +642,7 @@ public:
 	 *	The input action that is bound to this button. The common input manager will trigger this button to 
 	 *	click if the action was pressed 
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (ExposeOnSpawn = true, RowType = CommonInputActionDataBase))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Input, meta = (ExposeOnSpawn = true, RowType = "/Script/CommonUI.CommonInputActionDataBase"))
 	FDataTableRowHandle TriggeringInputAction;
 
 	/**

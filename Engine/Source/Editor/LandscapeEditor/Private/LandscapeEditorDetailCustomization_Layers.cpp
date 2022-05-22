@@ -378,7 +378,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::FillClearPaintLayerMenu(FMenuBuil
 void FLandscapeEditorCustomNodeBuilder_Layers::FillClearLayerMenu(FMenuBuilder& MenuBuilder, int32 InLayerIndex)
 {
 	TSharedRef<FLandscapeEditorCustomNodeBuilder_Layers> SharedThis = AsShared();
-	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("ELandscapeClearMode"), true);
+	const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/Landscape.ELandscapeClearMode"), true);
 	if (ensure(EnumPtr != nullptr))
 	{
 		// NumEnums()-1 to exclude Enum Max Value

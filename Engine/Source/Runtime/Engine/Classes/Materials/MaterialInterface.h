@@ -287,7 +287,7 @@ public:
 	TArray<FMaterialTextureInfo> TextureStreamingDataMissingEntries;
 
 	/** The mesh used by the material editor to preview the material.*/
-	UPROPERTY(EditAnywhere, Category=Previewing, meta=(AllowedClasses="StaticMesh,SkeletalMesh", ExactClass="true"))
+	UPROPERTY(EditAnywhere, Category=Previewing, meta=(AllowedClasses="/Script/Engine.StaticMesh,/Script/Engine.SkeletalMesh", ExactClass="true"))
 	FSoftObjectPath PreviewMesh;
 
 	/** Information for thumbnail rendering */

@@ -335,7 +335,7 @@ void FNiagaraSystemInstance::Dump()const
 
 void FNiagaraSystemInstance::DumpTickInfo(FOutputDevice& Ar)
 {
-	static const UEnum* TickingGroupEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
+	static const UEnum* TickingGroupEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Engine.ETickingGroup"));
 
 	FString PrereqInfo;
 	UActorComponent* PrereqComponent = GetPrereqComponent();

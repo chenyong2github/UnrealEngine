@@ -96,10 +96,10 @@ public:
 	virtual bool NeedsLoadForServer() const override;
 
 public:
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (RowType = CommonInputActionDataBase))
+	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase"))
 	FDataTableRowHandle DefaultClickAction;
 
-	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (RowType = CommonInputActionDataBase))
+	UPROPERTY(EditDefaultsOnly, Category = "Properties", meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase"))
 	FDataTableRowHandle DefaultBackAction;
 };
 

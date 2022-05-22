@@ -30,7 +30,7 @@ struct MOTIONTRAJECTORY_API FMotionTrajectorySettings
 
 	// Trajectory mask for specifying a time and/or distance domain
 	// Default: Time Domain of 2.0 seconds
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta=(Bitmask, BitmaskEnum=ETrajectorySampleDomain))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Settings", meta=(Bitmask, BitmaskEnum="/Script/Engine.ETrajectorySampleDomain"))
 	int32 Domain = 1; // ETrajectorySampleDomain::Time
 
 	// Sample time horizon

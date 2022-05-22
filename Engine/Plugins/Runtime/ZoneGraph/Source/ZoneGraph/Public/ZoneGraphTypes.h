@@ -844,7 +844,7 @@ struct ZONEGRAPH_API FZoneShapePoint
 	bool bReverseLaneProfile = false;
 
 	/** Lane connection restrictions */
-	UPROPERTY(Category = Zone, EditAnywhere, BlueprintReadWrite, meta = (Bitmask, BitmaskEnum = EZoneShapeLaneConnectionRestrictions))
+	UPROPERTY(Category = Zone, EditAnywhere, BlueprintReadWrite, meta = (Bitmask, BitmaskEnum = "/Script/ZoneGraph.EZoneShapeLaneConnectionRestrictions"))
 	int32 LaneConnectionRestrictions = 0;
 };
 
@@ -947,7 +947,7 @@ struct ZONEGRAPH_API FZoneGraphLaneRoutingRule
 	UPROPERTY(Category = Rule, EditAnywhere)
 	EZoneGraphLaneRoutingCountRule DestinationIncomingConnections = EZoneGraphLaneRoutingCountRule::Any;
 
-	UPROPERTY(Category = Rule, EditAnywhere, meta = (Bitmask, BitmaskEnum = EZoneShapeLaneConnectionRestrictions))
+	UPROPERTY(Category = Rule, EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/ZoneGraph.EZoneShapeLaneConnectionRestrictions"))
 	int32 ConnectionRestrictions = 0;
 };
 

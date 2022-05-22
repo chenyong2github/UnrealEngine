@@ -409,7 +409,7 @@ void FLocalizationTargetDetailCustomization::CustomizeDetails(IDetailLayoutBuild
 
 		static const TArray< TSharedPtr<ELocalizationTargetLoadingPolicy> > LoadingPolicies = []()
 		{
-			UEnum* const LoadingPolicyEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ELocalizationTargetLoadingPolicy"));
+			UEnum* const LoadingPolicyEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Localization.ELocalizationTargetLoadingPolicy"));
 			TArray< TSharedPtr<ELocalizationTargetLoadingPolicy> > Array;
 			for (int32 i = 0; i < LoadingPolicyEnum->NumEnums() - 1; ++i)
 			{
@@ -437,7 +437,7 @@ void FLocalizationTargetDetailCustomization::CustomizeDetails(IDetailLayoutBuild
 					.Font(DetailLayoutBuilder->GetDetailFont())
 					.Text_Lambda([this]() 
 					{
-						UEnum* const LoadingPolicyEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ELocalizationTargetLoadingPolicy"));
+						UEnum* const LoadingPolicyEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Localization.ELocalizationTargetLoadingPolicy"));
 						return LoadingPolicyEnum->GetDisplayNameTextByValue(static_cast<int64>(GetLoadingPolicy()));
 					})
 				]
@@ -700,7 +700,7 @@ void FLocalizationTargetDetailCustomization::OnLoadingPolicySelectionChanged(TSh
 
 TSharedRef<SWidget> FLocalizationTargetDetailCustomization::GenerateWidgetForLoadingPolicy(TSharedPtr<ELocalizationTargetLoadingPolicy> LoadingPolicy)
 {
-	UEnum* const LoadingPolicyEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ELocalizationTargetLoadingPolicy"));
+	UEnum* const LoadingPolicyEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Localization.ELocalizationTargetLoadingPolicy"));
 	return SNew(STextBlock)
 		.Font(DetailLayoutBuilder->GetDetailFont())
 		.Text(LoadingPolicyEnum->GetDisplayNameTextByValue(static_cast<int64>(*LoadingPolicy.Get())));

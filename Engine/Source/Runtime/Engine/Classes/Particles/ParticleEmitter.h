@@ -203,7 +203,7 @@ class UParticleEmitter : public UObject
 	float QualityLevelSpawnRateScale;
 
 	/** Detail mode: Set flags reflecting which system detail mode you want the emitter to be ticked and rendered in */
-	UPROPERTY(EditAnywhere, Category = Particle, meta = (Bitmask, BitmaskEnum = EParticleDetailMode))
+	UPROPERTY(EditAnywhere, Category = Particle, meta = (Bitmask, BitmaskEnum = "/Script/Engine.EParticleDetailMode"))
 	uint32 DetailModeBitmask;
 
 #if WITH_EDITORONLY_DATA

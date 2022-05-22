@@ -505,7 +505,7 @@ public:
 	float BackgroundDropDistance;
 
 	/** A list of meshes that can be used as preview mesh in the editor view port by holding down the backslash key */
-	UPROPERTY(EditAnywhere, config, Category=Preview, meta=(AllowedClasses = "StaticMesh"))
+	UPROPERTY(EditAnywhere, config, Category=Preview, meta=(AllowedClasses = "/Script/Engine.StaticMesh"))
 	TArray<FSoftObjectPath> PreviewMeshes;
 
 	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category=LookAndFeel, meta=(ClampMin = "0.01", UIMin = "0.01", UIMax = "5"))

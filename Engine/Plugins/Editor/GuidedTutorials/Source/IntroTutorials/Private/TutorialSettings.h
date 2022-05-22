@@ -20,6 +20,6 @@ class UTutorialSettings : public UObject
 	TArray<FTutorialCategory> Categories;
 
 	/** Tutorial to start on project startup */
-	UPROPERTY(Config, EditAnywhere, Category="Tutorials", meta=(MetaClass="EditorTutorial"))
+	UPROPERTY(Config, EditAnywhere, Category="Tutorials", meta=(MetaClass="/Script/IntroTutorials.EditorTutorial"))
 	FSoftClassPath StartupTutorial;
 };

@@ -28,7 +28,7 @@ const TCHAR* FNetFaultState::GetConfigSection()
 
 UClass* FNetFaultState::GetBaseConfigClass()
 {
-	return FindObject<UClass>(ANY_PACKAGE, TEXT("NetFaultConfig"));
+	return FindObject<UClass>(nullptr, TEXT("/Script/Engine.NetFaultConfig"));
 }
 
 

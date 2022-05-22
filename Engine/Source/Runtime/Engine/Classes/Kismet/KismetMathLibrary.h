@@ -896,27 +896,27 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 	
 	/** Zero Int Point (0, 0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Zero", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Zero", ScriptConstantHost = "/Script/CoreUObject.IntPoint"), Category = "Math|IntPoint|Constants")
 	static FIntPoint IntPoint_Zero();
 	
 	/** One Int Point (1, 1) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "One", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "One", ScriptConstantHost = "/Script/CoreUObject.IntPoint"), Category = "Math|IntPoint|Constants")
 	static FIntPoint IntPoint_One();
 	
 	/** Up Int Point (0, -1) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Up", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Up", ScriptConstantHost = "/Script/CoreUObject.IntPoint"), Category = "Math|IntPoint|Constants")
 	static FIntPoint IntPoint_Up();
 	
 	/** Left Int Point (-1, 0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Left", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Left", ScriptConstantHost = "/Script/CoreUObject.IntPoint"), Category = "Math|IntPoint|Constants")
 	static FIntPoint IntPoint_Left();
 	
 	/** Right Int Point (1, 0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Right", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Right", ScriptConstantHost = "/Script/CoreUObject.IntPoint"), Category = "Math|IntPoint|Constants")
 	static FIntPoint IntPoint_Right();
 	
 	/** Down Int Point (0, 1) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Down", ScriptConstantHost = "IntPoint"), Category = "Math|IntPoint|Constants")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Down", ScriptConstantHost = "/Script/CoreUObject.IntPoint"), Category = "Math|IntPoint|Constants")
 	static FIntPoint IntPoint_Down();
 
 	//
@@ -973,15 +973,15 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 
 	/** 2D one vector constant (1,1) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "One", ScriptConstantHost = "Vector2D"), Category = "Math|Vector2D")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "One", ScriptConstantHost = "/Script/CoreUObject.Vector2D"), Category = "Math|Vector2D")
 	static FVector2D Vector2D_One();
 
 	/** 2D unit vector constant along the 45 degree angle or symmetrical positive axes (sqrt(.5),sqrt(.5)) or (.707,.707). https://en.wikipedia.org/wiki/Unit_vector */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Unit45Deg", ScriptConstantHost = "Vector2D"), Category = "Math|Vector2D")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Unit45Deg", ScriptConstantHost = "/Script/CoreUObject.Vector2D"), Category = "Math|Vector2D")
 	static FVector2D Vector2D_Unit45Deg();
 
 	/** 2D zero vector constant (0,0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Zero", ScriptConstantHost = "Vector2D"), Category = "Math|Vector2D")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Zero", ScriptConstantHost = "/Script/CoreUObject.Vector2D"), Category = "Math|Vector2D")
 	static FVector2D Vector2D_Zero();
 
 
@@ -1256,35 +1256,35 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 
 	/** 3D vector zero constant (0,0,0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Zero", ScriptConstantHost = "Vector"), Category = "Math|Vector")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Zero", ScriptConstantHost = "/Script/CoreUObject.Vector"), Category = "Math|Vector")
 	static FVector Vector_Zero();
 
 	/** 3D vector one constant (1,1,1) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "One", ScriptConstantHost = "Vector"), Category = "Math|Vector")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "One", ScriptConstantHost = "/Script/CoreUObject.Vector"), Category = "Math|Vector")
 	static FVector Vector_One();
 
 	/** 3D vector Unreal forward direction constant (1,0,0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Forward", ScriptConstantHost = "Vector"), Category = "Math|Vector")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Forward", ScriptConstantHost = "/Script/CoreUObject.Vector"), Category = "Math|Vector")
 	static FVector Vector_Forward();
 
 	/** 3D vector Unreal backward direction constant (-1,0,0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Backward", ScriptConstantHost = "Vector"), Category = "Math|Vector")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Backward", ScriptConstantHost = "/Script/CoreUObject.Vector"), Category = "Math|Vector")
 	static FVector Vector_Backward();
 
 	/** 3D vector Unreal up direction constant (0,0,1) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Up", ScriptConstantHost = "Vector"), Category = "Math|Vector")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Up", ScriptConstantHost = "/Script/CoreUObject.Vector"), Category = "Math|Vector")
 	static FVector Vector_Up();
 
 	/** 3D vector Unreal down direction constant (0,0,-1) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Down", ScriptConstantHost = "Vector"), Category = "Math|Vector")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Down", ScriptConstantHost = "/Script/CoreUObject.Vector"), Category = "Math|Vector")
 	static FVector Vector_Down();
 
 	/** 3D vector Unreal right direction constant (0,1,0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Right", ScriptConstantHost = "Vector"), Category = "Math|Vector")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Right", ScriptConstantHost = "/Script/CoreUObject.Vector"), Category = "Math|Vector")
 	static FVector Vector_Right();
 
 	/** 3D vector Unreal left direction constant (0,-1,0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Left", ScriptConstantHost = "Vector"), Category = "Math|Vector")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Left", ScriptConstantHost = "/Script/CoreUObject.Vector"), Category = "Math|Vector")
 	static FVector Vector_Left();
 
 	//
@@ -2028,7 +2028,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 
 	/** 4D vector zero constant (0,0,0) */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Zero", ScriptConstantHost = "Vector4"), Category = "Math|Vector4")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Zero", ScriptConstantHost = "/Script/CoreUObject.Vector4"), Category = "Math|Vector4")
 	static FVector4 Vector4_Zero();
 
 	//
@@ -2428,7 +2428,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static FVector Matrix_GetOrigin(const FMatrix& InMatrix);
 
 	// Identity matrix
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "Identity (Matrix)", ScriptConstant = "Identity", ScriptConstantHost = "Matrix"), Category = "Math|Matrix")
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Identity (Matrix)", ScriptConstant = "Identity", ScriptConstantHost = "/Script/CoreUObject.Matrix"), Category = "Math|Matrix")
 	static FMatrix Matrix_Identity();
 
 	/**
@@ -2727,7 +2727,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 
 	/** Identity quaternion constant */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Identity", ScriptConstantHost = "Quat"), Category = "Math|Quat")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Identity", ScriptConstantHost = "/Script/CoreUObject.Quat"), Category = "Math|Quat")
 	static FQuat Quat_Identity();
 
 	//
@@ -2949,35 +2949,35 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 
 	/** White linear color */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "White", ScriptConstantHost = "LinearColor"), Category = "Math|Color")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "White", ScriptConstantHost = "/Script/CoreUObject.LinearColor"), Category = "Math|Color")
 	static FLinearColor LinearColor_White();
 
 	/** Grey linear color */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Gray", ScriptConstantHost = "LinearColor"), Category = "Math|Color")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Gray", ScriptConstantHost = "/Script/CoreUObject.LinearColor"), Category = "Math|Color")
 	static FLinearColor LinearColor_Gray();
 
 	/** Black linear color */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Black", ScriptConstantHost = "LinearColor"), Category = "Math|Color")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Black", ScriptConstantHost = "/Script/CoreUObject.LinearColor"), Category = "Math|Color")
 	static FLinearColor LinearColor_Black();
 
 	/** Red linear color */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Red", ScriptConstantHost = "LinearColor"), Category = "Math|Color")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Red", ScriptConstantHost = "/Script/CoreUObject.LinearColor"), Category = "Math|Color")
 	static FLinearColor LinearColor_Red();
 
 	/** Green linear color */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Green", ScriptConstantHost = "LinearColor"), Category = "Math|Color")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Green", ScriptConstantHost = "/Script/CoreUObject.LinearColor"), Category = "Math|Color")
 	static FLinearColor LinearColor_Green();
 
 	/** Blue linear color */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Blue", ScriptConstantHost = "LinearColor"), Category = "Math|Color")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Blue", ScriptConstantHost = "/Script/CoreUObject.LinearColor"), Category = "Math|Color")
 	static FLinearColor LinearColor_Blue();
 
 	/** Yellow linear color */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Yellow", ScriptConstantHost = "LinearColor"), Category = "Math|Color")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Yellow", ScriptConstantHost = "/Script/CoreUObject.LinearColor"), Category = "Math|Color")
 	static FLinearColor LinearColor_Yellow();
 
 	/** Transparent linear color - black with 0 opacity/alpha */
-	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Transparent", ScriptConstantHost = "LinearColor"), Category = "Math|Color")
+	UFUNCTION(BlueprintPure, meta = (ScriptConstant = "Transparent", ScriptConstantHost = "/Script/CoreUObject.LinearColor"), Category = "Math|Color")
 	static FLinearColor LinearColor_Transparent();
 
 
@@ -3342,15 +3342,15 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	//
 
 	/** Returns the maximum time span value */
-	UFUNCTION(BlueprintPure, meta=(DisplayName="Max Value (Timespan)", ScriptConstant = "MaxValue", ScriptConstantHost = "Timespan"), Category="Math|Timespan")
+	UFUNCTION(BlueprintPure, meta=(DisplayName="Max Value (Timespan)", ScriptConstant = "MaxValue", ScriptConstantHost = "/Script/CoreUObject.Timespan"), Category="Math|Timespan")
 	static FTimespan TimespanMaxValue( );
 
 	/** Returns the minimum time span value */
-	UFUNCTION(BlueprintPure, meta=(DisplayName="Min Value (Timespan)", ScriptConstant = "MinValue", ScriptConstantHost = "Timespan"), Category="Math|Timespan")
+	UFUNCTION(BlueprintPure, meta=(DisplayName="Min Value (Timespan)", ScriptConstant = "MinValue", ScriptConstantHost = "/Script/CoreUObject.Timespan"), Category="Math|Timespan")
 	static FTimespan TimespanMinValue( );
 
 	/** Returns a zero time span value */
-	UFUNCTION(BlueprintPure, meta=(DisplayName="Zero Value (Timespan)", ScriptConstant = "Zero", ScriptConstantHost = "Timespan"), Category="Math|Timespan")
+	UFUNCTION(BlueprintPure, meta=(DisplayName="Zero Value (Timespan)", ScriptConstant = "Zero", ScriptConstantHost = "/Script/CoreUObject.Timespan"), Category="Math|Timespan")
 	static FTimespan TimespanZeroValue( );
 
 	//

@@ -880,7 +880,7 @@ TSharedRef< SWidget > FPlayWorldCommands::GeneratePlayMenuContent(TSharedRef<FUI
 					LOCTEXT("NetworkModeToolTip", "Which network mode should the clients launch in? A server will automatically be started if needed."),
 					FNewMenuDelegate::CreateLambda([](FMenuBuilder& InMenuBuilder)
 						{
-							const UEnum* PlayNetModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EPlayNetMode"));
+							const UEnum* PlayNetModeEnum = FindObject<UEnum>(nullptr, TEXT("/Script/UnrealEd.EPlayNetMode"));
 
 							for (int32 i = 0; i < PlayNetModeEnum->NumEnums() - 1; i++)
 							{

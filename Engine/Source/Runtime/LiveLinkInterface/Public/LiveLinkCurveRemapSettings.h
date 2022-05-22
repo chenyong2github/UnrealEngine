@@ -13,7 +13,7 @@ struct FLiveLinkCurveConversionSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (AllowedClasses = "PoseAsset"))
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (AllowedClasses = "/Script/Engine.PoseAsset"))
 	TMap<FString, FSoftObjectPath> CurveConversionAssetMap;
 };
 

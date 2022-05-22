@@ -77,7 +77,7 @@ struct INTROTUTORIALS_API FTutorialCategory
 	FString Icon;
 
 	/** Texture for this tutorial, used when presented to the user in the tutorial browser. */
-	UPROPERTY(EditAnywhere, Category="Tutorial", meta=(AllowedClasses="Texture2D"))
+	UPROPERTY(EditAnywhere, Category="Tutorial", meta=(AllowedClasses="/Script/Engine.Texture2D"))
 	FSoftObjectPath Texture;
 };
 
@@ -266,11 +266,11 @@ class INTROTUTORIALS_API UEditorTutorial : public UObject
 	TArray<FTutorialStage> Stages;
 
 	/** Tutorial to optionally chain back to if the "back" button is clicked on the first stage */
-	UPROPERTY(EditAnywhere, Category = "Tutorial", meta = (MetaClass = "EditorTutorial"))
+	UPROPERTY(EditAnywhere, Category = "Tutorial", meta = (MetaClass = "/Script/IntroTutorials.EditorTutorial"))
 	FSoftClassPath PreviousTutorial;
 
 	/** Tutorial to optionally chain onto after this tutorial completes */
-	UPROPERTY(EditAnywhere, Category="Tutorial", meta=(MetaClass="EditorTutorial"))
+	UPROPERTY(EditAnywhere, Category="Tutorial", meta=(MetaClass="/Script/IntroTutorials.EditorTutorial"))
 	FSoftClassPath NextTutorial;
 
 	/**

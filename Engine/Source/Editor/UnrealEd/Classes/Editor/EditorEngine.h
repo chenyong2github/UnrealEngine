@@ -3229,7 +3229,7 @@ protected:
 
 protected:
 
-	UPROPERTY(EditAnywhere, config, Category = Advanced, meta = (MetaClass = "ActorGroupingUtils"))
+	UPROPERTY(EditAnywhere, config, Category = Advanced, meta = (MetaClass = "/Script/UnrealEd.ActorGroupingUtils"))
 	FSoftClassPath ActorGroupingUtilsClassName;
 
 	UPROPERTY()

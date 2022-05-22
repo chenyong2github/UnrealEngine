@@ -771,7 +771,7 @@ bool FFeaturePackContentSource::ParseManifestString(const FString& ManifestStrin
 		}
 	}
 
-	UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EContentSourceCategory"));
+	UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/AddContentDialog.EContentSourceCategory"));
 	for (const FString& CategoryString : CategoryStrings)
 	{
 		int32 EnumValue = Enum->GetValueByName(FName(*CategoryString));
@@ -808,7 +808,7 @@ bool FFeaturePackContentSource::ParseManifestString(const FString& ManifestStrin
 	// Parse additional packs data
 	if (ManifestObject->HasTypedField<EJson::Array>("AdditionalFeaturePacks") == true)
 	{
-		UEnum* DetailEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EFeaturePackDetailLevel"));
+		UEnum* DetailEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/AddContentDialog.EFeaturePackDetailLevel"));
 		for (TSharedPtr<FJsonValue> AdditionalFeaturePackValue : ManifestObject->GetArrayField("AdditionalFeaturePacks"))
 		{
 			TSharedPtr<FJsonObject> EachAdditionalPack = AdditionalFeaturePackValue->AsObject();

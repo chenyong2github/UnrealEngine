@@ -30,7 +30,7 @@ struct FPreviewMeshCollectionEntry
 	}
 
 	/** The skeletal mesh to display */
-	UPROPERTY(EditAnywhere, Category = "Skeletal Mesh", meta=(DisplayThumbnail=true, DisallowedClasses = "DestructibleMesh"))
+	UPROPERTY(EditAnywhere, Category = "Skeletal Mesh", meta=(DisplayThumbnail=true, DisallowedClasses = "/Script/ApexDestruction.DestructibleMesh"))
 	TSoftObjectPtr<USkeletalMesh> SkeletalMesh;
 };
 

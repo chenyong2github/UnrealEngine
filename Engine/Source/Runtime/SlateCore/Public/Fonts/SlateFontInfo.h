@@ -50,7 +50,7 @@ struct SLATECORE_API FFontOutlineSettings
 	bool bApplyOutlineToDropShadows;
 
 	/** Optional material to apply to the outline */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(AllowedClasses="MaterialInterface"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(AllowedClasses="/Script/Engine.MaterialInterface"))
 	TObjectPtr<UObject> OutlineMaterial;
 
 	/** The color of the outline for any character in this font */
@@ -134,11 +134,11 @@ struct SLATECORE_API FSlateFontInfo
 	GENERATED_USTRUCT_BODY()
 
 	/** The font object (valid when used from UMG or a Slate widget style asset) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(AllowedClasses="Font", DisplayName="Font Family"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(AllowedClasses="/Script/Engine.Font", DisplayName="Font Family"))
 	TObjectPtr<const UObject> FontObject;
 
 	/** The material to use when rendering this font */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(AllowedClasses="MaterialInterface"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(AllowedClasses="/Script/Engine.MaterialInterface"))
 	TObjectPtr<UObject> FontMaterial;
 
 	/** Settings for applying an outline to a font */

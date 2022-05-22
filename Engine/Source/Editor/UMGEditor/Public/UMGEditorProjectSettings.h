@@ -159,7 +159,7 @@ public:
 	UPROPERTY(EditAnywhere, config, AdvancedDisplay, Category="Class Filtering")
 	TArray<FString> CategoriesToHide;
 
-	UPROPERTY(EditAnywhere, config, Category = "Class Filtering", meta = (MetaClass = "Widget"))
+	UPROPERTY(EditAnywhere, config, Category = "Class Filtering", meta = (MetaClass = "/Script/UMG.Widget"))
 	TArray<FSoftClassPath> WidgetClassesToHide;
 
 public:

@@ -496,9 +496,9 @@ void UAbilitySystemGlobals::ListPlayerAbilities()
 	UAbilitySystemComponent* AbilityComponent = PC ? GetAbilitySystemComponentFromActor(PC->GetPawn()) : nullptr;
 	if(AbilityComponent)
 	{
-		const UEnum* ExecutionEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EGameplayAbilityNetExecutionPolicy"), true);
+		const UEnum* ExecutionEnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/GameplayAbilities.EGameplayAbilityNetExecutionPolicy"), true);
 		check(ExecutionEnumPtr && TEXT("Couldn't locate EGameplayAbilityNetExecutionPolicy enum!"));
-		const UEnum* SecurityEnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EGameplayAbilityNetSecurityPolicy"), true);
+		const UEnum* SecurityEnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/GameplayAbilities.EGameplayAbilityNetSecurityPolicy"), true);
 		check(SecurityEnumPtr && TEXT("Couldn't locate EGameplayAbilityNetSecurityPolicy enum!"));
 
 		PC->ClientMessage(TEXT("Available abilities:"));

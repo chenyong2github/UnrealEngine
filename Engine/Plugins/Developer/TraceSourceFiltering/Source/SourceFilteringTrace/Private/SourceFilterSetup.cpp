@@ -247,7 +247,7 @@ bool FSourceFilterSetup::DetermineDefaultPassingValueForSet(const UDataSourceFil
 
 void FSourceFilterSetup::OutputFilterSetState(const FFilterSet& FilterSet, FString& OutputString, int32 Depth)
 {
-	const UEnum* FilterModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EFilterSetMode"));
+	const UEnum* FilterModeEnum = FindObject<UEnum>(nullptr, TEXT("/Script/SourceFilteringCore.EFilterSetMode"));
 
 	FString NewLineValue = TEXT("\n");
 	FString TabValue = TEXT("\t");

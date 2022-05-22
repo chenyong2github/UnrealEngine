@@ -917,7 +917,7 @@ struct FGameplayEffectRemovalInfo
 
 
 /** Metadata about a gameplay cue execution */
-USTRUCT(BlueprintType, meta = (HasNativeBreak = "GameplayAbilities.AbilitySystemBlueprintLibrary.BreakGameplayCueParameters", HasNativeMake = "GameplayAbilities.AbilitySystemBlueprintLibrary.MakeGameplayCueParameters"))
+USTRUCT(BlueprintType, meta = (HasNativeBreak = "/Script/GameplayAbilities.AbilitySystemBlueprintLibrary.BreakGameplayCueParameters", HasNativeMake = "/Script/GameplayAbilities.AbilitySystemBlueprintLibrary.MakeGameplayCueParameters"))
 struct GAMEPLAYABILITIES_API FGameplayCueParameters
 {
 	GENERATED_USTRUCT_BODY()

@@ -541,7 +541,7 @@ public:
 	uint8 bIncludeGridSizeInNameForPartitionedActors : 1;
 #endif
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AI, meta=(MetaClass="AISystemBase", editcondition="bEnableAISystem"), AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AI, meta=(MetaClass="/Script/Engine.AISystemBase", editcondition="bEnableAISystem"), AdvancedDisplay)
 	TSoftClassPtr<UAISystemBase> AISystemClass;
 
 	/** Additional transform applied when applying LevelStreaming Transform to LevelInstance */
@@ -913,7 +913,7 @@ private:
 	 * Class that will be used when creating new bookmarks.
 	 * Old bookmarks may be recreated with the new class where possible.
 	 */
-	UPROPERTY(Config, Meta=(AllowAbstract="false", ExactClass="false", AllowedClasses="BookmarkBase"))
+	UPROPERTY(Config, Meta=(AllowAbstract="false", ExactClass="false", AllowedClasses="/Script/Engine.BookmarkBase"))
 	TSubclassOf<class UBookmarkBase> DefaultBookmarkClass;
 
 	UPROPERTY()

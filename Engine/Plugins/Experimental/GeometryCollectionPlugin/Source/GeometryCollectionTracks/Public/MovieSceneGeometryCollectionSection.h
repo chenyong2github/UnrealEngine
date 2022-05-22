@@ -48,7 +48,7 @@ struct FMovieSceneGeometryCollectionParams
 	}
 
 	/** The animation this section plays */
-	UPROPERTY(EditAnywhere, Category="GeometryCollection", meta=(AllowedClasses = "GeometryCollectionCache"))
+	UPROPERTY(EditAnywhere, Category="GeometryCollection", meta=(AllowedClasses = "/Script/GeometryCollectionEngine.GeometryCollectionCache"))
 	FSoftObjectPath GeometryCollectionCache;
 
 	/** The offset into the beginning of the animation clip */

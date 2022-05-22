@@ -80,7 +80,7 @@ class UMaterialExpressionMaterialFunctionCall : public UMaterialExpression
 	GENERATED_UCLASS_BODY()
 
 	/** The function to call. */
-	UPROPERTY(EditAnywhere, Category=MaterialExpressionMaterialFunctionCall, meta=(DisallowedClasses="MaterialFunctionInstance"))
+	UPROPERTY(EditAnywhere, Category=MaterialExpressionMaterialFunctionCall, meta=(DisallowedClasses="/Script/Engine.MaterialFunctionInstance"))
 	TObjectPtr<class UMaterialFunctionInterface> MaterialFunction;
 
 	/** Array of all the function inputs that this function exposes. */

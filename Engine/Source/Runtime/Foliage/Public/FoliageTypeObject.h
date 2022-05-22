@@ -42,7 +42,7 @@ struct FOLIAGE_API FFoliageTypeObject
 
 private:
 	/** The foliage type that will be spawned by the procedural foliage simulation */
-	UPROPERTY(Category = ProceduralFoliageSimulation, EditAnywhere, meta=(AllowedClasses="FoliageType_InstancedStaticMesh,FoliageType_Actor,Blueprint", DisplayThumbnail="true", ThumbnailSize="X=40 Y=40"))
+	UPROPERTY(Category = ProceduralFoliageSimulation, EditAnywhere, meta=(AllowedClasses="/Script/Foliage.FoliageType_InstancedStaticMesh,/Script/Foliage.FoliageType_Actor,/Script/Engine.Blueprint", DisplayThumbnail="true", ThumbnailSize="X=40 Y=40"))
 	TObjectPtr<UObject> FoliageTypeObject;
 
 	/** The actual instance of the foliage type that is used for spawning */

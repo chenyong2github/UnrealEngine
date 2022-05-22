@@ -11,9 +11,9 @@
 #endif
 
 template<typename TEnum>
-static FString GetEnumValueAsString(const FString& Name, TEnum Value)
+static FString GetEnumValueAsString(const TCHAR* PathName, TEnum Value)
 {
-	if (const UEnum* EnumClass = FindObject<UEnum>(ANY_PACKAGE, *Name, true))
+	if (const UEnum* EnumClass = FindObject<UEnum>(nullptr, PathName, true))
 	{
 		return EnumClass->GetNameByValue((int64)Value).ToString();
 	}
@@ -629,8 +629,8 @@ void FAppleARKitConversion::ConfigureSessionTrackingFeatures(UARSessionConfig* S
 				else
 				{
 					UE_LOG(LogAppleARKit, Error, TEXT("Session type [%s] doesn't support the required session feature: [%s]!"),
-						   *GetEnumValueAsString<>(TEXT("EARSessionType"), SessionType),
-						   *GetEnumValueAsString<>(TEXT("EARSessionTrackingFeature"), SessionTrackingFeature));
+						   *GetEnumValueAsString<>(TEXT("/Script/AugmentedReality.EARSessionType"), SessionType),
+						   *GetEnumValueAsString<>(TEXT("/Script/AugmentedReality.EARSessionTrackingFeature"), SessionTrackingFeature));
 				}
 			}
 		}

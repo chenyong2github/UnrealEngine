@@ -69,7 +69,7 @@ class SBlueprintWarningRow : public SMultiColumnTableRow< FBlueprintWarningListE
 		{
 			const auto& GetWarningText = [this]() -> FText
 			{
-				UEnum* const BlueprintWarningBehaviorEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EBlueprintWarningBehavior"));
+				UEnum* const BlueprintWarningBehaviorEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/BlueprintRuntime.EBlueprintWarningBehavior"));
 				EBlueprintWarningBehavior Behavior = EBlueprintWarningBehavior::Warn;
 				FName WarningIdentifier = this->WarningInfo->WarningIdentifier;
 				if (FBlueprintSupport::ShouldTreatWarningAsError(WarningIdentifier))
@@ -103,7 +103,7 @@ class SBlueprintWarningRow : public SMultiColumnTableRow< FBlueprintWarningListE
 					FBlueprintWarningBehaviorComboBox::FOnGenerateWidget::CreateStatic(
 						[]( TSharedPtr<EBlueprintWarningBehavior> Behavior )->TSharedRef<SWidget>
 						{
-							UEnum* const BlueprintWarningBehaviorEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EBlueprintWarningBehavior"));
+							UEnum* const BlueprintWarningBehaviorEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/BlueprintRuntime.EBlueprintWarningBehavior"));
 							return SNew(STextBlock)
 								.Text(BlueprintWarningBehaviorEnum->GetDisplayNameTextByValue(static_cast<int64>(*Behavior)));
 						}

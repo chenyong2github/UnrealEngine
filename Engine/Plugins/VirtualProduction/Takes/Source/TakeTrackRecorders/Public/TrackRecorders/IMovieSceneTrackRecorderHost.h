@@ -28,7 +28,7 @@ struct FTakeRecorderTrackSettings
 	GENERATED_BODY()
 
 	/** The Actor class to create movie scene tracks for. */
-	UPROPERTY(config, EditAnywhere, Category = TrackSettings, meta = (MetaClass = "Actor"))
+	UPROPERTY(config, EditAnywhere, Category = TrackSettings, meta = (MetaClass = "/Script/Engine.Actor"))
 	FSoftClassPath MatchingActorClass;
 
 	/** List of property names for which movie scene tracks will be created automatically. */

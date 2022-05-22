@@ -292,11 +292,11 @@ struct GOOGLEARCOREBASE_API FGoogleARCoreCameraConfig
 	FString CameraID;
 
 	/** The target FPS of the camera. */
-	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig", meta = (Bitmask, BitmaskEnum = EGoogleARCoreCameraFPS))
+	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig", meta = (Bitmask, BitmaskEnum = "/Script/GoogleARCoreBase.EGoogleARCoreCameraFPS"))
 	int32 TargetFPS = 0; // EGoogleARCoreCameraFPS::FPS_Any
 
 	/** The desired depth sensor usage of the camera. */
-	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig", meta = (Bitmask, BitmaskEnum = EGoogleARCoreCameraDepthSensorUsage))
+	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig", meta = (Bitmask, BitmaskEnum = "/Script/GoogleARCoreBase.EGoogleARCoreCameraDepthSensorUsage"))
 	int32 DepthSensorUsage = 0; // EGoogleARCoreCameraDepthSensorUsage::DepthSensor_Any
 
 	/** Below are for internal use only */

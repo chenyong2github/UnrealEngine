@@ -188,7 +188,7 @@ struct NIAGARAEDITOR_API FNiagaraCurveTemplate
 	UPROPERTY(EditAnywhere, Category = Curve)
 	FString DisplayNameOverride;
 
-	UPROPERTY(EditAnywhere, Category = Curve, meta = (AllowedClasses = "CurveFloat"))
+	UPROPERTY(EditAnywhere, Category = Curve, meta = (AllowedClasses = "/Script/Engine.CurveFloat"))
 	FSoftObjectPath CurveAsset;
 };
 

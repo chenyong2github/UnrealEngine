@@ -48,7 +48,7 @@ struct FAutomationTestExcludeOptions
 	FName Reason;
 
 	/* Option to target specific RHI. No option means it should be applied to all RHI */
-	UPROPERTY(EditAnywhere, Meta = (Bitmask, BitmaskEnum = "ERHI_Flags"), Category = ExcludeTestOptions)
+	UPROPERTY(EditAnywhere, Meta = (Bitmask, BitmaskEnum = "/Script/AutomationTest.ERHI_Flags"), Category = ExcludeTestOptions)
 	int8 RHIs = 0;
 
 	/* Should the Reason be reported as a warning in the log */

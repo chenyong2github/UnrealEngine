@@ -24,11 +24,11 @@ struct FTutorialContext
 	FString BrowserFilter;
 
 	/** The tutorial to use in this context to let the user know there is a tutorial available */
-	UPROPERTY(EditAnywhere, Category = "Tutorials", meta = (MetaClass = "EditorTutorial"))
+	UPROPERTY(EditAnywhere, Category = "Tutorials", meta = (MetaClass = "/Script/IntroTutorials.EditorTutorial"))
 	FSoftClassPath AttractTutorial;
 
 	/** The tutorial to use in this context when the user chooses to launch */
-	UPROPERTY(EditAnywhere, Category = "Tutorials", meta = (MetaClass = "EditorTutorial"))
+	UPROPERTY(EditAnywhere, Category = "Tutorials", meta = (MetaClass = "/Script/IntroTutorials.EditorTutorial"))
 	FSoftClassPath LaunchTutorial;
 };
 
@@ -47,7 +47,7 @@ class UEditorTutorialSettings : public UObject
 	TArray<FTutorialCategory> Categories;
 
 	/** Tutorial to start on Editor startup */
-	UPROPERTY(Config, EditAnywhere, Category="Tutorials", meta=(MetaClass="EditorTutorial"))
+	UPROPERTY(Config, EditAnywhere, Category="Tutorials", meta=(MetaClass="/Script/IntroTutorials.EditorTutorial"))
 	FSoftClassPath StartupTutorial;
 
 	/** Tutorials used in various contexts - e.g. the various asset editors */

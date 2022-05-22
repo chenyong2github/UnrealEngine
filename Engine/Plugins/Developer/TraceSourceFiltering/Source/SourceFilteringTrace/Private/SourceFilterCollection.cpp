@@ -196,7 +196,7 @@ void USourceFilterCollection::AddFiltersFromPreset(const TArray<FString>& ClassN
 	AsyncTask(ENamedThreads::GameThread,
 		[this, ClassNames, ChildToParentIndices]()
 	{
-		const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EFilterSetMode"), true);
+		const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/SourceFilteringCore.EFilterSetMode"), true);
 
 		TArray<UDataSourceFilter*> CreatedFilters;
 		TArray<bool> MovedFlags;

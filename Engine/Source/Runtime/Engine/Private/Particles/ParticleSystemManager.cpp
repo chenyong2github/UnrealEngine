@@ -174,7 +174,7 @@ void FParticleSystemWorldManager::OnWorldInit(UWorld* World, const UWorld::Initi
 #if !UE_BUILD_SHIPPING
 	if (TickGroupEnum == nullptr)
 	{
-		TickGroupEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
+		TickGroupEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Engine.ETickingGroup"));
 	}
 #endif
 	FParticleSystemWorldManager* NewWorldMan = new FParticleSystemWorldManager(World);
@@ -831,7 +831,7 @@ void FParticleSystemWorldManagerTickFunction::ExecuteTick(float DeltaTime, enum 
 
 FString FParticleSystemWorldManagerTickFunction::DiagnosticMessage()
 {
-	static const UEnum* EnumType = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
+	static const UEnum* EnumType = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Engine.ETickingGroup"));
 
 	return TEXT("FParticleSystemManager::Tick(") + EnumType->GetNameStringByIndex(static_cast<uint32>(TickGroup)) + TEXT(")");
 }

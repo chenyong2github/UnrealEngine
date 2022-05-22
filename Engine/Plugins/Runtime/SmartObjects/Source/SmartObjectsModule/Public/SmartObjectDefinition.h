@@ -59,7 +59,7 @@ struct SMARTOBJECTSMODULE_API FSmartObjectSlotDefinition
 	FRotator Rotation = FRotator::ZeroRotator;
 
 	/** Custom data (struct inheriting from SmartObjectSlotDefinitionData) that can be added to the slot definition and accessed through a FSmartObjectSlotView */
-	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (BaseStruct = "SmartObjectSlotDefinitionData", ExcludeBaseStruct))
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (BaseStruct = "/Script/SmartObjectsModule.SmartObjectSlotDefinitionData", ExcludeBaseStruct))
 	TArray<FInstancedStruct> Data;
 
 	/**

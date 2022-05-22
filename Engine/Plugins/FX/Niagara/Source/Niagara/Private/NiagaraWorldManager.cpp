@@ -263,7 +263,7 @@ void FNiagaraWorldManagerTickFunction::ExecuteTick(float DeltaTime, enum ELevelT
 
 FString FNiagaraWorldManagerTickFunction::DiagnosticMessage()
 {
-	static const UEnum* EnumType = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
+	static const UEnum* EnumType = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Engine.ETickingGroup"));
 
 	return TEXT("FParticleSystemManager::Tick(") + EnumType->GetNameStringByIndex(static_cast<uint32>(TickGroup)) + TEXT(")");
 }
@@ -1189,7 +1189,7 @@ void FNiagaraWorldManager::DumpDetails(FOutputDevice& Ar)
 {
 	Ar.Logf(TEXT("=== FNiagaraWorldManager Dumping Detailed Information"));
 
-	static const UEnum* TickingGroupEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ETickingGroup"));
+	static const UEnum* TickingGroupEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Engine.ETickingGroup"));
 
 	for ( int TG=0; TG < NiagaraNumTickGroups; ++TG )
 	{

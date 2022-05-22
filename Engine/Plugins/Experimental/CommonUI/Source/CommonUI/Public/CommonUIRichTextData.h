@@ -16,7 +16,7 @@ struct COMMONUI_API FRichTextIconData : public FTableRowBase
 	UPROPERTY(EditDefaultsOnly, Category = "RichText Icon")
 	FText DisplayName;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RichText Icon", meta = (DisplayThumbnail = "true", DisplayName = "Image", AllowedClasses = "Texture2D,MaterialInterface,SlateTextureAtlasInterface", DisallowedClasses = "MediaTexture"))
+	UPROPERTY(EditDefaultsOnly, Category = "RichText Icon", meta = (DisplayThumbnail = "true", DisplayName = "Image", AllowedClasses = "/Script/Engine.Texture2D,/Script/Engine.MaterialInterface,/Script/Engine.SlateTextureAtlasInterface", DisallowedClasses = "/Script/MediaAssets.MediaTexture"))
 	TSoftObjectPtr<UObject> ResourceObject;
 
 	UPROPERTY(EditDefaultsOnly, Category = "RichText Icon")
@@ -39,6 +39,6 @@ public:
 	const TMap<FName, uint8*>& GetIconMap() const { return InlineIconSet->GetRowMap(); }
 
 private:
-	UPROPERTY(EditDefaultsOnly, Category = "Inline Icons", meta = (RowType = RichTextIconData))
+	UPROPERTY(EditDefaultsOnly, Category = "Inline Icons", meta = (RowType = "/Script/CommonUI.RichTextIconData"))
 	UDataTable* InlineIconSet;
 };

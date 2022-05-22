@@ -141,7 +141,7 @@ private:
 
 public:
 	/** The default on-screen touch input interface for the game (can be null to disable the onscreen interface) */
-	UPROPERTY(config, EditAnywhere, Category="Mobile", meta=(AllowedClasses="TouchInterface"))
+	UPROPERTY(config, EditAnywhere, Category="Mobile", meta=(AllowedClasses="/Script/Engine.TouchInterface"))
 	FSoftObjectPath DefaultTouchInterface;
 
 	/** The key which opens the console. */

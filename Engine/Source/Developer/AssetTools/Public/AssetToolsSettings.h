@@ -16,11 +16,11 @@ struct FAdvancedCopyMap
 
 public:
 	/** When copying this class, use a particular set of dependency and destination rules */
-	UPROPERTY(EditAnywhere, Category = "Asset Tools", meta = (MetaClass = "Object"))
+	UPROPERTY(EditAnywhere, Category = "Asset Tools", meta = (MetaClass = "/Script/CoreUObject.Object"))
 	FSoftClassPath ClassToCopy;
 
 	/** The set of dependency and destination rules to use for advanced copy */
-	UPROPERTY(EditAnywhere, Category = "Asset Tools", meta = (MetaClass = "AdvancedCopyCustomization"))
+	UPROPERTY(EditAnywhere, Category = "Asset Tools", meta = (MetaClass = "/Script/AssetTools.AdvancedCopyCustomization"))
 	FSoftClassPath AdvancedCopyCustomization;
 };
 

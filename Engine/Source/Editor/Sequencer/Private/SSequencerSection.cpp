@@ -284,7 +284,7 @@ struct FSequencerSectionPainterImpl : FSequencerSectionPainter
 
 		TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
 
-		UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMovieSceneBlendType"), true);
+		UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/MovieScene.EMovieSceneBlendType"), true);
 		FText DisplayText = Enum->GetDisplayNameTextByValue((int64)Section.GetBlendType().Get());
 
 		FSlateFontInfo FontInfo = FAppStyle::GetFontStyle("Sequencer.Section.BackgroundText");

@@ -88,7 +88,7 @@ void SPDD_TargetRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 
 	if (DistanceMethodOptions.Num() == 0)
 	{
-		UEnum * Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ERBFDistanceMethod"));
+		UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/AnimGraphRuntime.ERBFDistanceMethod"));
 		for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
 		{
 			DistanceMethodOptions.Add(MakeShareable(new FString(Enum->GetDisplayNameTextByIndex(i).ToString())));
@@ -97,7 +97,7 @@ void SPDD_TargetRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 
 	if (FunctionTypeOptions.Num() == 0)
 	{
-		UEnum * Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ERBFFunctionType"));
+		UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/AnimGraphRuntime.ERBFFunctionType"));
 		for (int32 i = 0; i < Enum->NumEnums() - 1; i++)
 		{
 			FunctionTypeOptions.Add(MakeShareable(new FString(Enum->GetDisplayNameTextByIndex(i).ToString())));

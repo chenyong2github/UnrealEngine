@@ -149,7 +149,7 @@ private:
 	UPROPERTY()
 	float PrerollTime_DEPRECATED;
 
-	UPROPERTY(EditAnywhere, Category="Networking", meta=(Bitmask, BitmaskEnum=EMovieSceneServerClientMask))
+	UPROPERTY(EditAnywhere, Category="Networking", meta=(Bitmask, BitmaskEnum="/Script/MovieScene.EMovieSceneServerClientMask"))
 	uint8 NetworkMask;
 
 protected:

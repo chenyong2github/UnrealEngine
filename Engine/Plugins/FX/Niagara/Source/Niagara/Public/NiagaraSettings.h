@@ -89,13 +89,13 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	GENERATED_UCLASS_BODY()
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "ScriptStruct"))
+	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "/Script/CoreUObject.ScriptStruct"))
 	TArray<FSoftObjectPath> AdditionalParameterTypes;
 
-	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "ScriptStruct"))
+	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "/Script/CoreUObject.ScriptStruct"))
 	TArray<FSoftObjectPath> AdditionalPayloadTypes;
 
-	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "Enum"))
+	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "/Script/CoreUObject.Enum"))
 	TArray<FSoftObjectPath> AdditionalParameterEnums;
 
 	/** Sets the default navigation behavior for the system preview viewport. */
@@ -123,7 +123,7 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	bool bEnforceStrictStackTypes = true;
 
 	/** Default effect type to use for effects that don't define their own. Can be null. */
-	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "NiagaraEffectType"))
+	UPROPERTY(config, EditAnywhere, Category = Niagara, meta = (AllowedClasses = "/Script/Niagara.NiagaraEffectType"))
 	FSoftObjectPath DefaultEffectType;
 
 	/** Position pin type color. The other pin colors are defined in the general editor settings. */

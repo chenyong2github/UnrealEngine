@@ -71,7 +71,7 @@ public:
 	 */
 	FString ArucoDictionaryAsString() const
 	{
-		const UEnum* EnumPtr = FindObject<UEnum>((UObject*)ANY_PACKAGE, TEXT("EArucoDictionary"), true);
+		const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/LedWallCalibration.EArucoDictionary"), true);
 		check(EnumPtr);
 
 #if WITH_EDITOR

@@ -118,7 +118,7 @@ const UWorldPartition* UWorldPartitionSubsystem::GetWorldPartition() const
 #if WITH_EDITOR
 bool UWorldPartitionSubsystem::IsRunningConvertWorldPartitionCommandlet() const
 {
-	static UClass* WorldPartitionConvertCommandletClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionConvertCommandlet"), true);
+	static UClass* WorldPartitionConvertCommandletClass = FindObject<UClass>(nullptr, TEXT("/Script/UnrealEd.WorldPartitionConvertCommandlet"), true);
 	check(WorldPartitionConvertCommandletClass);
 	static const bool bIsRunningWorldPartitionConvertCommandlet = GetRunningCommandletClass() && GetRunningCommandletClass()->IsChildOf(WorldPartitionConvertCommandletClass);
 	return bIsRunningWorldPartitionConvertCommandlet;

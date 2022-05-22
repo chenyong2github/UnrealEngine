@@ -43,7 +43,7 @@ public:
 	TObjectPtr<UComputeKernelSource> KernelSource = nullptr;
 
 	/** Specifying certain memory access flags allows for optimizations such as kernel fusing. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (Bitmask, BitmaskEnum = "EComputeKernelFlags"), Category = "Kernel")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, meta = (Bitmask, BitmaskEnum = "/Script/ComputeFramework.EComputeKernelFlags"), Category = "Kernel")
 	int32 KernelFlags = 0;
 
 	/** Permutation overrides on the kernel. */

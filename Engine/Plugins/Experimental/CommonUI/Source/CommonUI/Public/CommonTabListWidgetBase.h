@@ -170,11 +170,11 @@ protected:
 	void HandleTabRemoval(FName TabNameID, UCommonButtonBase* TabButton);
 
 	/** The input action to listen for causing the next tab to be selected */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (RowType = CommonInputActionDataBase))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase"))
 	FDataTableRowHandle NextTabInputActionData;
 
 	/** The input action to listen for causing the previous tab to be selected */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (RowType = CommonInputActionDataBase))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TabList, meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase"))
 	FDataTableRowHandle PreviousTabInputActionData;
 
 	/** Whether to register to handle tab list input immediately upon construction */

@@ -96,7 +96,7 @@ struct ENGINE_API FSoundDebugEntry
 	FName DebugName;
 
 	/** Reference to a Debug Sound */
-	UPROPERTY(config, EditAnywhere, Category="Debug", meta=(AllowedClasses="SoundBase"))
+	UPROPERTY(config, EditAnywhere, Category="Debug", meta=(AllowedClasses="/Script/Engine.SoundBase"))
 	FSoftObjectPath Sound;
 };
 
@@ -106,7 +106,7 @@ struct ENGINE_API FDefaultAudioBusSettings
 	GENERATED_BODY()
 
 	/** The audio bus to start up by default on init. */
-	UPROPERTY(EditAnywhere, Category = "Mix", meta = (AllowedClasses = "AudioBus"))
+	UPROPERTY(EditAnywhere, Category = "Mix", meta = (AllowedClasses = "/Script/Engine.AudioBus"))
 	FSoftObjectPath AudioBus;
 };
 
@@ -127,39 +127,39 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 #endif // WITH_EDITOR
 
 	/** The SoundClass assigned to newly created sounds */
-	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundClass", DisplayName="Default Sound Class"))
+	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="/Script/Engine.SoundClass", DisplayName="Default Sound Class"))
 	FSoftObjectPath DefaultSoundClassName;
 
 	/** The SoundClass assigned to media player assets */
-	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (AllowedClasses = "SoundClass", DisplayName = "Default Media Sound Class"))
+	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (AllowedClasses = "/Script/Engine.SoundClass", DisplayName = "Default Media Sound Class"))
 	FSoftObjectPath DefaultMediaSoundClassName;
 
 	/** The SoundConcurrency assigned to newly created sounds */
-	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (AllowedClasses = "SoundConcurrency", DisplayName = "Default Sound Concurrency"))
+	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (AllowedClasses = "/Script/Engine.SoundConcurrency", DisplayName = "Default Sound Concurrency"))
 	FSoftObjectPath DefaultSoundConcurrencyName;
 
 	/** The SoundMix to use as base when no other system has specified a Base SoundMix */
-	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundMix"))
+	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="/Script/Engine.SoundMix"))
 	FSoftObjectPath DefaultBaseSoundMix;
 
 	/** Sound class to be used for the VOIP audio component */
-	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundClass", DisplayName = "VOIP Sound Class"))
+	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="/Script/Engine.SoundClass", DisplayName = "VOIP Sound Class"))
 	FSoftObjectPath VoiPSoundClass;
 
 	/** The default submix through which all sounds are routed to. The root submix that outputs to audio hardware. */
-	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix"))
+	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="/Script/Engine.SoundSubmix"))
 	FSoftObjectPath MasterSubmix;
 
 	/** The default submix to use for implicit submix sends (i.e. if the base submix send is null or if a submix parent is null) */
-	UPROPERTY(config, EditAnywhere, Category = "Mix", meta = (AllowedClasses = "SoundSubmix"), AdvancedDisplay)
+	UPROPERTY(config, EditAnywhere, Category = "Mix", meta = (AllowedClasses = "/Script/Engine.SoundSubmix"), AdvancedDisplay)
 	FSoftObjectPath BaseDefaultSubmix;
 
 	/** The submix through which all sounds set to use reverb are routed */
-	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix"))
+	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="/Script/Engine.SoundSubmix"))
 	FSoftObjectPath ReverbSubmix;
 
 	/** The submix through which all sounds set to use legacy EQ system are routed */
-	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix", DisplayName = "EQ Submix (Legacy)"), AdvancedDisplay)
+	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="/Script/Engine.SoundSubmix", DisplayName = "EQ Submix (Legacy)"), AdvancedDisplay)
 	FSoftObjectPath EQSubmix;
 
 	/** Sample rate used for voice over IP. VOIP audio is resampled to the application's sample rate on the receiver side. */

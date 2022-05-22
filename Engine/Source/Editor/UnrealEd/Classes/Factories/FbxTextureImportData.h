@@ -26,7 +26,7 @@ class UNREALED_API UFbxTextureImportData : public UFbxAssetImportData
 	EMaterialSearchLocation MaterialSearchLocation;
 
 	/** Base material to instance from when importing materials. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh", AllowedClasses = "MaterialInterface"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh", AllowedClasses = "/Script/Engine.MaterialInterface"))
 	FSoftObjectPath BaseMaterialName;
 
 	/** transient, ImportUI customize helper to store if we must show or not the BaseMaterialName property. */

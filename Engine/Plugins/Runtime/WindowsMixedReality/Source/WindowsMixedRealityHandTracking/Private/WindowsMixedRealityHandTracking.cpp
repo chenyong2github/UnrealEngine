@@ -247,7 +247,7 @@ bool FWindowsMixedRealityHandTracking::GetControllerOrientationAndPosition(const
 		// This can only be done in the game thread since it uses the UEnum directly
 		if (IsInGameThread())
 		{
-			const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EWMRHandKeypoint"), true);
+			const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/WindowsMixedRealityHandTracking.EWMRHandKeypoint"), true);
 			check(EnumPtr != nullptr);
 			bool bUseRightHand = false;
 			FString SourceString = MotionSource.ToString();
@@ -339,7 +339,7 @@ void FWindowsMixedRealityHandTracking::EnumerateSources(TArray<FMotionController
 
 	SourcesOut.Empty(EWMRHandKeypointCount);
 
-	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EWMRHandKeypoint"), true);
+	const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/WindowsMixedRealityHandTracking.EWMRHandKeypoint"), true);
 	check(EnumPtr != nullptr);
 	for (int32 Keypoint = 0; Keypoint < EWMRHandKeypointCount; Keypoint++)
 	{

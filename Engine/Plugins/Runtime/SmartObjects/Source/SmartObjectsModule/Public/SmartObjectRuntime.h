@@ -203,7 +203,7 @@ private:
 	FSmartObjectHandle RegisteredHandle;
 
 	/** Spatial representation data associated to the current instance */
-	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (BaseStruct = "SmartObjectSpatialEntryData", ExcludeBaseStruct))
+	UPROPERTY(EditDefaultsOnly, Category = "SmartObject", meta = (BaseStruct = "/Script/SmartObjectsModule.SmartObjectSpatialEntryData", ExcludeBaseStruct))
 	FInstancedStruct SpatialEntryData;
 
 #if UE_ENABLE_DEBUG_DRAWING

@@ -476,7 +476,7 @@ struct ENGINE_API FNavAgentProperties : public FMovementProperties
 	float NavWalkingSearchHeightScale;
 
 	/** Type of navigation data used by agent, null means "any" */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MovementProperties, meta=(MetaClass = "NavigationData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MovementProperties, meta=(MetaClass = "/Script/NavigationSystem.NavigationData"))
 	FSoftClassPath PreferredNavData;
 	
 	FNavAgentProperties(float Radius = -1.f, float Height = -1.f)
@@ -554,7 +554,7 @@ struct ENGINE_API FNavDataConfig : public FNavAgentProperties
 
 protected:
 	/** Class to use when spawning navigation data instance */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (MetaClass = "NavigationData"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (MetaClass = "/Script/NavigationSystem.NavigationData"))
 	TSoftClassPtr<AActor> NavDataClass;
 
 public:	

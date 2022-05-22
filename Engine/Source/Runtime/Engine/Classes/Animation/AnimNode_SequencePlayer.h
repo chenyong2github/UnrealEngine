@@ -106,7 +106,7 @@ protected:
 	bool bIgnoreForRelevancyTest = false;
 	
 	// The animation sequence asset to play
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses="AnimMontage", FoldProperty))
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses="/Script/Engine.AnimMontage", FoldProperty))
 	TObjectPtr<UAnimSequenceBase> Sequence = nullptr;
 
 	// The Basis in which the PlayRate is expressed in. This is used to rescale PlayRate inputs.
@@ -188,7 +188,7 @@ protected:
 	bool bIgnoreForRelevancyTest = false;
 
 	// The animation sequence asset to play
-	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses="AnimMontage"))
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, DisallowedClasses="/Script/Engine.AnimMontage"))
 	TObjectPtr<UAnimSequenceBase> Sequence = nullptr;
 
 	// The Basis in which the PlayRate is expressed in. This is used to rescale PlayRate inputs.

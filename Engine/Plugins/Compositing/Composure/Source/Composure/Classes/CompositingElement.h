@@ -138,7 +138,7 @@ public:
 	// Editor Only
 
 private:
-	UPROPERTY(/*BlueprintReadWrite, Category = "Composure",*/ meta = (Bitmask, BitmaskEnum = ETargetUsageFlags))
+	UPROPERTY(/*BlueprintReadWrite, Category = "Composure",*/ meta = (Bitmask, BitmaskEnum = "/Script/Composure.ETargetUsageFlags"))
 	int32 FreezeFrameMask = 0x00;
 
 public:

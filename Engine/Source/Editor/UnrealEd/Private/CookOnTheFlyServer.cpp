@@ -1336,7 +1336,7 @@ void UCookOnTheFlyServer::SetSaveBusy(bool bInBusy)
 			TSet<UPackage*> ExpectedPackages;
 			FPackageDataQueue& SaveQueue = PackageDatas->GetSaveQueue();
 			const TArray<FPendingCookedPlatformData>& PendingCookedPlatformDatas = PackageDatas->GetPendingCookedPlatformDatas();
-			TArray<UClass*> CompilationUsers({ UMaterialInterface::StaticClass(), FindObject<UClass>(ANY_PACKAGE, TEXT("NiagaraScript")) });
+			TArray<UClass*> CompilationUsers({ UMaterialInterface::StaticClass(), FindObject<UClass>(nullptr, TEXT("/Script/Niagara.NiagaraScript")) });
 
 			for (const FPendingCookedPlatformData& Data : PendingCookedPlatformDatas)
 			{

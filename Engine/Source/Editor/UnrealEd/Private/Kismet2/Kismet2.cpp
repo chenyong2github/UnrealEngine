@@ -514,8 +514,8 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprint(UClass* ParentClass, UObject
 		{
 			// Based on the Blueprint type we are constructing, place some starting events.
 			// Note, this cannot happen in the Factories for constructing these Blueprint types due to the fact that creating child BPs circumvent the factories
-			UClass* WidgetClass = FindObject<UClass>(ANY_PACKAGE, TEXT("UserWidget"));
-			UClass* GameplayAbilityClass = FindObject<UClass>(ANY_PACKAGE, TEXT("GameplayAbility"));
+			UClass* WidgetClass = FindObject<UClass>(nullptr, TEXT("/Script/UMG.UserWidget"));
+			UClass* GameplayAbilityClass = FindObject<UClass>(nullptr, TEXT("/Script/GameplayAbilities.GameplayAbility"));
 
 			TArray<FName> AutoSpawnedEventNames;
 			int32 NodePositionY = 0;

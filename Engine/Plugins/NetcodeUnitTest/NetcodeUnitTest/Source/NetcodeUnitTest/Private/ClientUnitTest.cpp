@@ -67,7 +67,7 @@ UClientUnitTest::UClientUnitTest(const FObjectInitializer& ObjectInitializer)
 
 void UClientUnitTest::InitOnlineBeaconClass()
 {
-	OnlineBeaconClass_Private = FindObject<UClass>(ANY_PACKAGE, TEXT("OnlineBeaconClient"));
+	OnlineBeaconClass_Private = FindObject<UClass>(nullptr, TEXT("/Script/OnlineSubsystemUtils.OnlineBeaconClient"));
 }
 
 void UClientUnitTest::NotifyAlterMinClient(FMinClientParms& Parms)

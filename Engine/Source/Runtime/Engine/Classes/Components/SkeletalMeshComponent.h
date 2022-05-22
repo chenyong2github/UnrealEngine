@@ -2511,7 +2511,7 @@ private:
 #if WITH_EDITORONLY_DATA
 
 	/** Default Animating Rig to Use if bOverrideDefaultAnimatingRig is true */
-	UPROPERTY(EditAnywhere, Category = AnimationRig, BlueprintGetter = GetDefaultAnimatingRigOverride, BlueprintSetter = SetDefaultAnimatingRigOverride, meta = (AllowedClasses = "ControlRigBlueprint"), meta = (editcondition = "bOverrideDefaultAnimatingRig"))
+	UPROPERTY(EditAnywhere, Category = AnimationRig, BlueprintGetter = GetDefaultAnimatingRigOverride, BlueprintSetter = SetDefaultAnimatingRigOverride, meta = (AllowedClasses = "/Script/ControlRigDeveloper.ControlRigBlueprint"), meta = (editcondition = "bOverrideDefaultAnimatingRig"))
 	TSoftObjectPtr<UObject> DefaultAnimatingRigOverride;
 
 #endif

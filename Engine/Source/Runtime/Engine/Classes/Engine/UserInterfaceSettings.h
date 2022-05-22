@@ -117,7 +117,7 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Hardware Cursors")
 	TMap<TEnumAsByte<EMouseCursor::Type>, FHardwareCursorReference> HardwareCursors;
 
-	UPROPERTY(config, EditAnywhere, Category = "Software Cursors", meta = ( MetaClass = "UserWidget" ))
+	UPROPERTY(config, EditAnywhere, Category = "Software Cursors", meta = ( MetaClass = "/Script/UMG.UserWidget" ))
 	TMap<TEnumAsByte<EMouseCursor::Type>, FSoftClassPath> SoftwareCursors;
 
 	// DEPRECATED 4.16
@@ -164,7 +164,7 @@ public:
 	/**
 	 * Set DPI Scale Rule to Custom, and this class will be used instead of any of the built-in rules.
 	 */
-	UPROPERTY(config, EditAnywhere, Category="DPI Scaling", meta=( MetaClass="DPICustomScalingRule" ))
+	UPROPERTY(config, EditAnywhere, Category="DPI Scaling", meta=( MetaClass="/Script/Engine.DPICustomScalingRule" ))
 	FSoftClassPath CustomScalingRuleClass;
 
 	/**

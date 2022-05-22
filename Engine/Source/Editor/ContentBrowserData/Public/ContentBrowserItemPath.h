@@ -13,7 +13,7 @@
  * 
  * Path conversion each time Set is called
  */
-USTRUCT(BlueprintType, meta=(HasNativeBreak="ContentBrowserData.ContentBrowserItemPathExtensions.BreakContentBrowserItemPath", HasNativeMake="ContentBrowserData.ContentBrowserItemPathExtensions.MakeContentBrowserItemPath"))
+USTRUCT(BlueprintType, meta=(HasNativeBreak="/Script/ContentBrowserData.ContentBrowserItemPathExtensions.BreakContentBrowserItemPath", HasNativeMake="/Script/ContentBrowserData.ContentBrowserItemPathExtensions.MakeContentBrowserItemPath"))
 struct CONTENTBROWSERDATA_API FContentBrowserItemPath
 {
 	GENERATED_BODY()

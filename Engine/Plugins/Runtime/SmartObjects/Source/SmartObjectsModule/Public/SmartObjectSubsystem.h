@@ -530,7 +530,7 @@ protected:
 	 *		[/Script/SmartObjectsModule.SmartObjectSubsystem]
 	 *		SpacePartitionClassName=/Script/SmartObjectsModule.<SpacePartitionClassName>
 	 */
-	UPROPERTY(config, meta=(MetaClass="SmartObjectSpacePartition", DisplayName="Spatial Representation Structure Class"))
+	UPROPERTY(config, meta=(MetaClass="/Script/SmartObjectsModule.SmartObjectSpacePartition", DisplayName="Spatial Representation Structure Class"))
 	FSoftClassPath SpacePartitionClassName;
 
 	UPROPERTY()

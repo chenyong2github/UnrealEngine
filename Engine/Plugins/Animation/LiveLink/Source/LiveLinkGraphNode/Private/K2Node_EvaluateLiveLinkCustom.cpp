@@ -49,7 +49,7 @@ void UK2Node_EvaluateLiveLinkFrameAtSceneTime::AllocateDefaultPins()
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
 	// Timecode pin
-	UScriptStruct* TimecodeScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, TEXT("Timecode"), true);
+	UScriptStruct* TimecodeScriptStruct = FindObject<UScriptStruct>(nullptr, TEXT("/Script/CoreUObject.Timecode"), true);
 	check(TimecodeScriptStruct);
 	UEdGraphPin* LiveLinkSceneTimePin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, TimecodeScriptStruct, UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSceneTimePinName);
 	LiveLinkSceneTimePin->PinFriendlyName = LOCTEXT("LiveLinkSceneTimePin", "Scene Time");

@@ -1205,7 +1205,7 @@ public:
 	/** Dumps all tick functions to output device. */
 	void DumpAllTickFunctions(FOutputDevice& Ar, int32& EnabledCount, int32& DisabledCount, bool bEnabled, bool bDisabled)
 	{
-		UEnum* TickGroupEnum = CastChecked<UEnum>(StaticFindObject(UEnum::StaticClass(), ANY_PACKAGE, TEXT("ETickingGroup"), true));
+		UEnum* TickGroupEnum = CastChecked<UEnum>(StaticFindObject(UEnum::StaticClass(), nullptr, TEXT("/Script/Engine.ETickingGroup"), true));
 		if (bEnabled)
 		{
 			for (TSet<FTickFunction*>::TIterator It(AllEnabledTickFunctions); It; ++It)

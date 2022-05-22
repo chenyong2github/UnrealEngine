@@ -125,7 +125,7 @@ class GAMEPLAYTAGS_API UGameplayTagsSettings : public UGameplayTagsList
 	TArray<FGameplayTagCategoryRemap> CategoryRemapping;
 
 	/** List of data tables to load tags from */
-	UPROPERTY(config, EditAnywhere, Category = GameplayTags, meta = (AllowedClasses = "DataTable"))
+	UPROPERTY(config, EditAnywhere, Category = GameplayTags, meta = (AllowedClasses = "/Script/Engine.DataTable"))
 	TArray<FSoftObjectPath> GameplayTagTableList;
 
 	/** List of active tag redirects */

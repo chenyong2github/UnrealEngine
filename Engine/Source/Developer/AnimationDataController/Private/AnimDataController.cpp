@@ -1269,7 +1269,7 @@ FString UAnimDataController::GetCurveTypeValueName(ERawCurveTrackTypes InType) c
 {
 	FString ValueString;
 
-	const UEnum* Enum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ERawCurveTrackTypes"));
+	const UEnum* Enum = FindObject<UEnum>(nullptr, TEXT("/Script/Engine.ERawCurveTrackTypes"));
 	if (Enum)
 	{
 		ValueString = Enum->GetNameStringByValue((int64)InType);

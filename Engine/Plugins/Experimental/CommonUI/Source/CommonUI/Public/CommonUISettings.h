@@ -55,7 +55,7 @@ private:
 	bool bAutoLoadData;
 
 	/** The Default Image Resource, newly created CommonImage Widgets will use this style. */
-	UPROPERTY(config, EditAnywhere, Category = "Image", meta = (AllowedClasses = "Texture2D,MaterialInterface"))
+	UPROPERTY(config, EditAnywhere, Category = "Image", meta = (AllowedClasses = "/Script/Engine.Texture2D,/Script/Engine.MaterialInterface"))
 	TSoftObjectPtr<UObject> DefaultImageResourceObject;
 
 	/** The Default Throbber Material, newly created CommonLoadGuard Widget will use this style. */

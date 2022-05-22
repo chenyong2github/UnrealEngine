@@ -19,7 +19,7 @@ public:
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Reverb", meta = (AllowedClasses = "SoundSubmix"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Reverb", meta = (AllowedClasses = "/Script/Engine.SoundSubmix"))
 	FSoftObjectPath OutputSubmix;
 
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Reverb", meta = (ClampMin = "-60.0", ClampMax = "20.0", UIMin = "-60.0", UIMax = "20.0"))

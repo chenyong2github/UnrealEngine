@@ -73,16 +73,16 @@ private:
 	UPROPERTY(EditAnywhere, config, Category = Water)
 	TSoftObjectPtr<UMaterialInterface> DefaultWaterInfoMaterial;
 	
-	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyRiverComponent"))
+	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "/Script/Water.WaterBodyRiverComponent"))
 	TSubclassOf<UWaterBodyRiverComponent> WaterBodyRiverComponentClass;
 
-	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyLakeComponent"))
+	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "/Script/Water.WaterBodyLakeComponent"))
 	TSubclassOf<UWaterBodyLakeComponent> WaterBodyLakeComponentClass;
 
-	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyOceanComponent"))
+	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "/Script/Water.WaterBodyOceanComponent"))
 	TSubclassOf<UWaterBodyOceanComponent> WaterBodyOceanComponentClass;
 
-	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "WaterBodyCustomComponent"))
+	UPROPERTY(EditAnywhere, Config, Category = Water,  meta = (MetaClass = "/Script/Water.WaterBodyCustomComponent"))
 	TSubclassOf<UWaterBodyCustomComponent> WaterBodyCustomComponentClass;
 
 #if WITH_EDITORONLY_DATA

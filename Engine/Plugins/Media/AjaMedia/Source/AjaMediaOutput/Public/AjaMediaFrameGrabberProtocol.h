@@ -29,7 +29,7 @@ public:
 public:
 
 	/** AJA Setting to use for the FrameGrabberProtocol */
-	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category=AJA, meta=(AllowedClasses=AjaMediaOutput))
+	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category=AJA, meta=(AllowedClasses="/Script/AjaMediaOutput.AjaMediaOutput"))
 	FSoftObjectPath MediaOutput;
 
 	/** States unused options for AJAFrameGrabberProtocolSettings */

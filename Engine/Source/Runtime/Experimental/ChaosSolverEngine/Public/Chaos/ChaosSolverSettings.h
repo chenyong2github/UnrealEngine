@@ -23,7 +23,7 @@ public:
 	virtual UClass* GetSolverActorClass() const;
 
 	/** The class to use when auto-creating a default chaos solver actor */
-	UPROPERTY(config, noclear, EditAnywhere, Category = GameInstance, meta = (MetaClass = "ChaosSolverActor"))
+	UPROPERTY(config, noclear, EditAnywhere, Category = GameInstance, meta = (MetaClass = "/Script/ChaosSolverEngine.ChaosSolverActor"))
 	FSoftClassPath DefaultChaosSolverActorClass;
 
 #if WITH_EDITOR

@@ -263,7 +263,7 @@ void FSequencerUtilities::PopulateMenu_CreateNewSection(FMenuBuilder& MenuBuilde
 	FText NameOverride		= Track->GetSupportedBlendTypes().Num() == 1 ? LOCTEXT("AddSectionText", "Add New Section") : FText();
 	FText TooltipOverride	= Track->GetSupportedBlendTypes().Num() == 1 ? LOCTEXT("AddSectionToolTip", "Adds a new section at the current time") : FText();
 
-	const UEnum* MovieSceneBlendType = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMovieSceneBlendType"));
+	const UEnum* MovieSceneBlendType = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/MovieScene.EMovieSceneBlendType"));
 	for (EMovieSceneBlendType BlendType : Track->GetSupportedBlendTypes())
 	{
 		FText DisplayName = MovieSceneBlendType->GetDisplayNameTextByValue((int64)BlendType);
@@ -349,7 +349,7 @@ void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, c
 		}
 	};
 
-	const UEnum* MovieSceneBlendType = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EMovieSceneBlendType"));
+	const UEnum* MovieSceneBlendType = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/MovieScene.EMovieSceneBlendType"));
 	for (int32 NameIndex = 0; NameIndex < MovieSceneBlendType->NumEnums() - 1; ++NameIndex)
 	{
 		EMovieSceneBlendType BlendType = (EMovieSceneBlendType)MovieSceneBlendType->GetValueByIndex(NameIndex);

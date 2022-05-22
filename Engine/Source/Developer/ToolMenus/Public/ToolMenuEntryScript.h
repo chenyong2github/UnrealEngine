@@ -21,7 +21,7 @@
 struct FToolMenuEntry;
 struct FToolMenuSection;
 
-USTRUCT(BlueprintType, meta=(HasNativeBreak="ToolMenus.ToolMenuEntryExtensions.BreakScriptSlateIcon", HasNativeMake="ToolMenus.ToolMenuEntryExtensions.MakeScriptSlateIcon"))
+USTRUCT(BlueprintType, meta=(HasNativeBreak="/Script/ToolMenus.ToolMenuEntryExtensions.BreakScriptSlateIcon", HasNativeMake="/Script/ToolMenus.ToolMenuEntryExtensions.MakeScriptSlateIcon"))
 struct TOOLMENUS_API FScriptSlateIcon
 {
 	GENERATED_BODY()

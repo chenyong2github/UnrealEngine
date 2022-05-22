@@ -565,11 +565,11 @@ namespace LocalizationConfigurationScript
 
 			// Import-specific settings.
 			{
-				UEnum* LocalizedTextCollapseModeEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ELocalizedTextCollapseMode"));
+				UEnum* LocalizedTextCollapseModeEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Localization.ELocalizedTextCollapseMode"));
 				const FName CollapseModeName = LocalizedTextCollapseModeEnum->GetNameByValue((int64)Target->Settings.ExportSettings.CollapseMode);
 				ConfigSection.Add(TEXT("LocalizedTextCollapseMode"), CollapseModeName.ToString());
 
-				UEnum* POFormatEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EPortableObjectFormat"));
+				UEnum* POFormatEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Localization.EPortableObjectFormat"));
 				const FName POFormatName = POFormatEnum->GetNameByValue((int64)Target->Settings.ExportSettings.POFormat);
 				ConfigSection.Add(TEXT("POFormat"), POFormatName.ToString());
 			}
@@ -690,11 +690,11 @@ namespace LocalizationConfigurationScript
 
 			// Export-specific settings.
 			{
-				UEnum* LocalizedTextCollapseModeEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ELocalizedTextCollapseMode"));
+				UEnum* LocalizedTextCollapseModeEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Localization.ELocalizedTextCollapseMode"));
 				const FName CollapseModeName = LocalizedTextCollapseModeEnum->GetNameByValue((int64)Target->Settings.ExportSettings.CollapseMode);
 				ConfigSection.Add(TEXT("LocalizedTextCollapseMode"), CollapseModeName.ToString());
 
-				UEnum* POFormatEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EPortableObjectFormat"));
+				UEnum* POFormatEnum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/Localization.EPortableObjectFormat"));
 				const FName POFormatName = POFormatEnum->GetNameByValue((int64)Target->Settings.ExportSettings.POFormat);
 				ConfigSection.Add(TEXT("POFormat"), POFormatName.ToString());
 

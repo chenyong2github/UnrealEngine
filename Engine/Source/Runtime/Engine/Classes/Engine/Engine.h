@@ -667,7 +667,7 @@ private:
 
 public:
 	/** Sets the font used for the smallest engine text */
-	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="Font", DisplayName="Tiny Font", ConfigRestartRequired=true))
+	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="/Script/Engine.Font", DisplayName="Tiny Font", ConfigRestartRequired=true))
 	FSoftObjectPath TinyFontName;
 
 private:
@@ -676,7 +676,7 @@ private:
 
 public:
 	/** Sets the font used for small engine text, used for most debug displays */
-	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="Font", DisplayName="Small Font", ConfigRestartRequired=true))
+	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="/Script/Engine.Font", DisplayName="Small Font", ConfigRestartRequired=true))
 	FSoftObjectPath SmallFontName;
 
 private:
@@ -685,7 +685,7 @@ private:
 
 public:
 	/** Sets the font used for medium engine text */
-	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="Font", DisplayName="Medium Font", ConfigRestartRequired=true))
+	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="/Script/Engine.Font", DisplayName="Medium Font", ConfigRestartRequired=true))
 	FSoftObjectPath MediumFontName;
 
 private:
@@ -694,7 +694,7 @@ private:
 
 public:
 	/** Sets the font used for large engine text */
-	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="Font", DisplayName="Large Font", ConfigRestartRequired=true))
+	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="/Script/Engine.Font", DisplayName="Large Font", ConfigRestartRequired=true))
 	FSoftObjectPath LargeFontName;
 
 private:
@@ -703,7 +703,7 @@ private:
 
 public:
 	/** Sets the font used by the default Subtitle Manager */
-	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="Font", DisplayName="Subtitle Font", ConfigRestartRequired=true), AdvancedDisplay)
+	UPROPERTY(globalconfig, EditAnywhere, Category=Fonts, meta=(AllowedClasses="/Script/Engine.Font", DisplayName="Subtitle Font", ConfigRestartRequired=true), AdvancedDisplay)
 	FSoftObjectPath SubtitleFontName;
 
 private:
@@ -719,31 +719,31 @@ public:
 	TSubclassOf<class UConsole>  ConsoleClass;
 
 	/** Sets the class to use for the game console summoned with ~ */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="Console", DisplayName="Console Class", ConfigRestartRequired=true))
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/Engine.Console", DisplayName="Console Class", ConfigRestartRequired=true))
 	FSoftClassPath ConsoleClassName;
 
 	UPROPERTY()
 	TSubclassOf<class UGameViewportClient>  GameViewportClientClass;
 
 	/** Sets the class to use for the game viewport client, which can be overridden to change game-specific input and display behavior. */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="GameViewportClient", DisplayName="Game Viewport Client Class", ConfigRestartRequired=true))
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/Engine.GameViewportClient", DisplayName="Game Viewport Client Class", ConfigRestartRequired=true))
 	FSoftClassPath GameViewportClientClassName;
 
 	UPROPERTY()
 	TSubclassOf<class ULocalPlayer>  LocalPlayerClass;
 
 	/** Sets the class to use for local players, which can be overridden to store game-specific information for a local player. */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="LocalPlayer", DisplayName="Local Player Class", ConfigRestartRequired=true))
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/Engine.LocalPlayer", DisplayName="Local Player Class", ConfigRestartRequired=true))
 	FSoftClassPath LocalPlayerClassName;
 
 	UPROPERTY()
 	TSubclassOf<class AWorldSettings>  WorldSettingsClass;
 
 	/** Sets the class to use for WorldSettings, which can be overridden to store game-specific information on map/world. */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="WorldSettings", DisplayName="World Settings Class", ConfigRestartRequired=true))
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/Engine.WorldSettings", DisplayName="World Settings Class", ConfigRestartRequired=true))
 	FSoftClassPath WorldSettingsClassName;
 
-	UPROPERTY(globalconfig, noclear, meta=(MetaClass="NavigationSystem", DisplayName="Navigation System Class"))
+	UPROPERTY(globalconfig, noclear, meta=(MetaClass="/Script/NavigationSystem.NavigationSystem", DisplayName="Navigation System Class"))
 	FSoftClassPath NavigationSystemClassName;
 
 	/** Sets the class to use for NavigationSystem, which can be overridden to change game-specific navigation/AI behavior. */
@@ -751,32 +751,32 @@ public:
 	TSubclassOf<class UNavigationSystemBase>  NavigationSystemClass;
 
 	/** Sets the Navigation System Config class, which can be overridden to change game-specific navigation/AI behavior. */
-	UPROPERTY(globalconfig, noclear, meta = (MetaClass = "NavigationSystem", DisplayName = "Navigation System Config Class"))
+	UPROPERTY(globalconfig, noclear, meta = (MetaClass = "/Script/NavigationSystem.NavigationSystem", DisplayName = "Navigation System Config Class"))
 	FSoftClassPath NavigationSystemConfigClassName;
 
 	UPROPERTY()
 	TSubclassOf<class UNavigationSystemConfig>  NavigationSystemConfigClass;
 	
 	/** Sets the AvoidanceManager class, which can be overridden to change AI crowd behavior. */
-	UPROPERTY(globalconfig, noclear, meta=(MetaClass="AvoidanceManager", DisplayName="Avoidance Manager Class"))
+	UPROPERTY(globalconfig, noclear, meta=(MetaClass="/Script/Engine.AvoidanceManager", DisplayName="Avoidance Manager Class"))
 	FSoftClassPath AvoidanceManagerClassName;
 	
 	UPROPERTY()
 	TSubclassOf<class UAvoidanceManager>  AvoidanceManagerClass;
 
 	/** Sets the class to be used as the default AIController class for pawns. */
-	UPROPERTY(globalconfig, noclear, meta = (MetaClass = "AI", DisplayName = "Default AIController class for all Pawns"))
+	UPROPERTY(globalconfig, noclear, meta = (MetaClass = "/Script/AIModule.AIController", DisplayName = "Default AIController class for all Pawns"))
 	FSoftClassPath AIControllerClassName;
 
 	UPROPERTY()
 	TSubclassOf<class UPhysicsCollisionHandler>	PhysicsCollisionHandlerClass;
 
 	/** Sets the PhysicsCollisionHandler class to use by default, which can be overridden to change game-specific behavior when objects collide using physics. */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="PhysicsCollisionHandler", DisplayName="Physics Collision Handler Class", ConfigRestartRequired=true), AdvancedDisplay)
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/Engine.PhysicsCollisionHandler", DisplayName="Physics Collision Handler Class", ConfigRestartRequired=true), AdvancedDisplay)
 	FSoftClassPath PhysicsCollisionHandlerClassName;
 
 	/** Sets the GameUserSettings class, which can be overridden to support game-specific options for Graphics/Sound/Gameplay. */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="GameUserSettings", DisplayName="Game User Settings Class", ConfigRestartRequired=true), AdvancedDisplay)
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/Engine.GameUserSettings", DisplayName="Game User Settings Class", ConfigRestartRequired=true), AdvancedDisplay)
 	FSoftClassPath GameUserSettingsClassName;
 
 	UPROPERTY()
@@ -790,15 +790,15 @@ public:
 	TSubclassOf<class ALevelScriptActor>  LevelScriptActorClass;
 
 	/** Sets the Level Script Actor class, which can be overridden to allow game-specific behavior in per-map blueprint scripting */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="LevelScriptActor", DisplayName="Level Script Actor Class", ConfigRestartRequired=true))
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/Engine.LevelScriptActor", DisplayName="Level Script Actor Class", ConfigRestartRequired=true))
 	FSoftClassPath LevelScriptActorClassName;
 	
 	/** Sets the base class to use for new blueprints created in the editor, configurable on a per-game basis */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="Object", DisplayName="Default Blueprint Base Class", AllowAbstract, BlueprintBaseOnly), AdvancedDisplay)
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/CoreUObject.Object", DisplayName="Default Blueprint Base Class", AllowAbstract, BlueprintBaseOnly), AdvancedDisplay)
 	FSoftClassPath DefaultBlueprintBaseClassName;
 
 	/** Sets the class for a global object spawned at startup to handle game-specific data. If empty, it will not spawn one */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="Object", DisplayName="Game Singleton Class", ConfigRestartRequired=true), AdvancedDisplay)
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/CoreUObject.Object", DisplayName="Game Singleton Class", ConfigRestartRequired=true), AdvancedDisplay)
 	FSoftClassPath GameSingletonClassName;
 
 	/** A UObject spawned at initialization time to handle game-specific data */
@@ -806,7 +806,7 @@ public:
 	TObjectPtr<UObject> GameSingleton;
 
 	/** Sets the class to spawn as the global AssetManager, configurable per game. If empty, it will not spawn one */
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="Object", DisplayName="Asset Manager Class", ConfigRestartRequired=true), AdvancedDisplay)
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/CoreUObject.Object", DisplayName="Asset Manager Class", ConfigRestartRequired=true), AdvancedDisplay)
 	FSoftClassPath AssetManagerClassName;
 
 	/** A UObject spawned at initialization time to handle runtime asset loading and management */
@@ -1099,7 +1099,7 @@ public:
 	TObjectPtr<class UMaterial> PreviewShadowsIndicatorMaterial;
 
 	/** Path of the material that renders a message about preview shadows being used. */
-	UPROPERTY(globalconfig, EditAnywhere, Category=DefaultMaterials, meta=(AllowedClasses="Material", DisplayName="Preview Shadows Indicator Material"))
+	UPROPERTY(globalconfig, EditAnywhere, Category=DefaultMaterials, meta=(AllowedClasses="/Script/Engine.Material", DisplayName="Preview Shadows Indicator Material"))
 	FSoftObjectPath PreviewShadowsIndicatorMaterialName;
 
 	/** Material that 'fakes' lighting, used for arrows, widgets. */
@@ -1386,7 +1386,7 @@ public:
 	 * This class will be responsible of updating the application Time and DeltaTime.
 	 * Can be used to synchronize the engine with another process (gen-lock).
 	 */
-	UPROPERTY(AdvancedDisplay, config, EditAnywhere, Category=Framerate, meta=(MetaClass="EngineCustomTimeStep", DisplayName="Custom TimeStep"))
+	UPROPERTY(AdvancedDisplay, config, EditAnywhere, Category=Framerate, meta=(MetaClass="/Script/Engine.EngineCustomTimeStep", DisplayName="Custom TimeStep"))
 	FSoftClassPath CustomTimeStepClassName;
 
 private:
@@ -1402,7 +1402,7 @@ private:
 
 public:
 	/** Set TimecodeProvider when the engine is started. */
-	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="TimecodeProvider", DisplayName="Timecode Provider"))
+	UPROPERTY(config, EditAnywhere, Category=Timecode, meta=(MetaClass="/Script/Engine.TimecodeProvider", DisplayName="Timecode Provider"))
 	FSoftClassPath TimecodeProviderClassName;
 
 	/**

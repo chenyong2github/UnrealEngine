@@ -80,11 +80,11 @@ protected:
 public:
 
 	/** The type of capture protocol to use for image data */
-	UPROPERTY(config, EditAnywhere, NoClear, Category=CaptureSettings, DisplayName="Image Output Format", meta=(MetaClass="MovieSceneImageCaptureProtocolBase", HideViewOptions, ShowDisplayNames))
+	UPROPERTY(config, EditAnywhere, NoClear, Category=CaptureSettings, DisplayName="Image Output Format", meta=(MetaClass="/Script/MovieSceneCapture.MovieSceneImageCaptureProtocolBase", HideViewOptions, ShowDisplayNames))
 	FSoftClassPath ImageCaptureProtocolType;
 	
 	/** The type of capture protocol to use for audio data. Requires experimental audio mixer (launch editor via with -audiomixer). */
-	UPROPERTY(config, EditAnywhere, NoClear, Category=CaptureSettings, DisplayName="Audio Output Format", meta=(MetaClass="MovieSceneAudioCaptureProtocolBase", HideViewOptions, ShowDisplayNames))
+	UPROPERTY(config, EditAnywhere, NoClear, Category=CaptureSettings, DisplayName="Audio Output Format", meta=(MetaClass="/Script/MovieSceneCapture.MovieSceneAudioCaptureProtocolBase", HideViewOptions, ShowDisplayNames))
 	FSoftClassPath AudioCaptureProtocolType;
 
 	/** Capture protocol responsible for actually capturing frame data */

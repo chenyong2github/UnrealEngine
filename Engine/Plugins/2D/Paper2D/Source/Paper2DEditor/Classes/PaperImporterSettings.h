@@ -92,27 +92,27 @@ protected:
 	TEnumAsByte<TextureCompressionSettings> DefaultSpriteTextureCompression;
 
 	// The unlit default masked material for newly created sprites (masked means binary opacity: things are either opaque or see-thru, with nothing in between)
-	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="MaterialInterface", DisplayName="Unlit Default Masked Material"))
+	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="/Script/Engine.MaterialInterface", DisplayName="Unlit Default Masked Material"))
 	FSoftObjectPath UnlitDefaultMaskedMaterialName;
 
 	// The unlit default translucent material for newly created sprites (translucent means smooth opacity which can vary continuously from 0..1, but translucent rendering is more expensive that opaque or masked rendering and has different sorting rules)
-	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="MaterialInterface", DisplayName="Unlit Default Translucent Material"))
+	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="/Script/Engine.MaterialInterface", DisplayName="Unlit Default Translucent Material"))
 	FSoftObjectPath UnlitDefaultTranslucentMaterialName;
 
 	// The unlit default opaque material for newly created sprites
-	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="MaterialInterface", DisplayName="Unlit Default Opaque Sprite Material"))
+	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="/Script/Engine.MaterialInterface", DisplayName="Unlit Default Opaque Sprite Material"))
 	FSoftObjectPath UnlitDefaultOpaqueMaterialName;
 
 	// The lit default masked material for newly created sprites (masked means binary opacity: things are either opaque or see-thru, with nothing in between)
-	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="MaterialInterface", DisplayName="Lit Default Masked Material"))
+	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="/Script/Engine.MaterialInterface", DisplayName="Lit Default Masked Material"))
 	FSoftObjectPath LitDefaultMaskedMaterialName;
 
 	// The lit default translucent material for newly created sprites (translucent means smooth opacity which can vary continuously from 0..1, but translucent rendering is more expensive that opaque or masked rendering and has different sorting rules)
-	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="MaterialInterface", DisplayName="Lit Default Translucent Material"))
+	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="/Script/Engine.MaterialInterface", DisplayName="Lit Default Translucent Material"))
 	FSoftObjectPath LitDefaultTranslucentMaterialName;
 
 	// The lit default opaque material for newly created sprites
-	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="MaterialInterface", DisplayName="Lit Default Opaque Material"))
+	UPROPERTY(config, EditAnywhere, Category=MaterialSettings, meta=(AllowedClasses="/Script/Engine.MaterialInterface", DisplayName="Lit Default Opaque Material"))
 	FSoftObjectPath LitDefaultOpaqueMaterialName;
 
 public:

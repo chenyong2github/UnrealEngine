@@ -23,7 +23,7 @@ public:
 	static const FName LoadStateServer;
 
 	/** Name of a singleton class to spawn as the game feature project policy. If empty, it will spawn the default one (UDefaultGameFeaturesProjectPolicies) */
-	UPROPERTY(config, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="GameFeaturesProjectPolicies", DisplayName="Game Feature Project Policy Class", ConfigRestartRequired=true))
+	UPROPERTY(config, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/GameFeatures.GameFeaturesProjectPolicies", DisplayName="Game Feature Project Policy Class", ConfigRestartRequired=true))
 	FSoftClassPath GameFeaturesManagerClassName;
 
 	/** List of plugins that are forcibly disabled (e.g., via a hotfix) */

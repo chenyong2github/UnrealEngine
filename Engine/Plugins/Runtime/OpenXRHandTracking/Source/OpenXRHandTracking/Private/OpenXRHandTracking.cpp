@@ -335,7 +335,7 @@ bool FOpenXRHandTracking::GetControllerOrientationAndPosition(const int32 Contro
 		// This can only be done in the game thread since it uses the UEnum directly
 		if (IsInGameThread())
 		{
-			const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EHandKeypoint"), true);
+			const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/HeadMountedDisplay.EHandKeypoint"), true);
 			check(EnumPtr != nullptr);
 			bool bUseRightHand = false;
 			FString SourceString = MotionSource.ToString();
@@ -437,7 +437,7 @@ void FOpenXRHandTracking::EnumerateSources(TArray<FMotionControllerSource>& Sour
 
 	SourcesOut.Empty(EHandKeypointCount * 2);
 
-	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EHandKeypoint"), true);
+	const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/HeadMountedDisplay.EHandKeypoint"), true);
 	check(EnumPtr != nullptr);
 	for (int32 Keypoint = 0; Keypoint < EHandKeypointCount; Keypoint++)
 	{

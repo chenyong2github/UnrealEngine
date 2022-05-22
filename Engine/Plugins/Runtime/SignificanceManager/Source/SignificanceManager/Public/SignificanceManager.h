@@ -244,7 +244,7 @@ private:
 	TArray<FSequentialPostWorkPair> ObjWithSequentialPostWork;
 
 	// Game specific significance class to instantiate
-	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="SignificanceManager", DisplayName="Significance Manager Class"))
+	UPROPERTY(globalconfig, noclear, EditAnywhere, Category=DefaultClasses, meta=(MetaClass="/Script/SignificanceManager.SignificanceManager", DisplayName="Significance Manager Class"))
 	FSoftClassPath SignificanceManagerClassName;
 
 	// Callback function registered with HUD to supply debug info when ShowDebug SignificanceManager has been entered on the console

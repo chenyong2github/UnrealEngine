@@ -34,7 +34,7 @@ public:
 	/** Returns whether the filter supports the sequence type */
 	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const
 	{
-		static UClass* LevelSequenceClass = FindObject<UClass>(ANY_PACKAGE, TEXT("LevelSequence"), true);
+		static UClass* LevelSequenceClass = FindObject<UClass>(nullptr, TEXT("/Script/LevelSequence.LevelSequence"), true);
 		return InSequence != nullptr && (LevelSequenceClass != nullptr && InSequence->GetClass()->IsChildOf(LevelSequenceClass));
 	}
 

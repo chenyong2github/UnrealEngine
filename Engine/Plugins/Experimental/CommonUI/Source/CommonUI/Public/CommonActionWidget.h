@@ -79,7 +79,7 @@ protected:
 	 * that you need to represent as a single entry in the UI.  For example - zoom, might be mouse wheel up or down, but you just need to
 	 * show a single icon for Up & Down on the mouse, this solves that problem.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget, meta = (RowType = CommonInputActionDataBase, TitleProperty = "RowName"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = CommonActionWidget, meta = (RowType = "/Script/CommonUI.CommonInputActionDataBase", TitleProperty = "RowName"))
 	TArray<FDataTableRowHandle> InputActions;
 
 	//@todo DanH: Create clearer split between support for the new & legacy system in here

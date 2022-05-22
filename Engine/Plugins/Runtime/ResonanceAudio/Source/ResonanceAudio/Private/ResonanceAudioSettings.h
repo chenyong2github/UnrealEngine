@@ -17,7 +17,7 @@ public:
 	UResonanceAudioSettings();
 
 	// Reference to submix where reverb plugin audio is routed.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Reverb", meta = (AllowedClasses = "SoundSubmix"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Reverb", meta = (AllowedClasses = "/Script/Engine.SoundSubmix"))
 	FSoftObjectPath OutputSubmix;
 
 	// Global Quality mode to use for directional sound sources.
@@ -25,10 +25,10 @@ public:
 	ERaQualityMode QualityMode;
 
 	// Default settings for global reverb: This is overridden when a player enters Audio Volumes.
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "ResonanceAudioReverbPluginPreset"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "/Script/ResonanceAudioEditor.ResonanceAudioReverbPluginPreset"))
 	FSoftObjectPath GlobalReverbPreset;
 
 	// Default settings for global source settings
-	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "ResonanceAudioSpatializationSourceSettings"))
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = General, meta = (AllowedClasses = "/Script/ResonanceAudio.ResonanceAudioSpatializationSourceSettings"))
 	FSoftObjectPath GlobalSourcePreset;
 };

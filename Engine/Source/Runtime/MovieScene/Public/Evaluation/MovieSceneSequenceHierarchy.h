@@ -64,7 +64,7 @@ struct FMovieSceneSubSequenceData
 	MOVIESCENE_API FMovieSceneSectionParameters ToSubSectionParameters() const;
 
 	/** The sequence that the sub section references */
-	UPROPERTY(meta=(AllowedClasses="MovieSceneSequence"))
+	UPROPERTY(meta=(AllowedClasses="/Script/MovieScene.MovieSceneSequence"))
 	FSoftObjectPath Sequence;
 
 	/** The transform from this sub sequence's parent to its own play space. */

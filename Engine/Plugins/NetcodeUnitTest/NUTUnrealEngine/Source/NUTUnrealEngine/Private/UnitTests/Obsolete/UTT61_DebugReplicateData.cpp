@@ -16,7 +16,7 @@
 
 UUTT61_DebugReplicateData::UUTT61_DebugReplicateData(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, RepClass(FindObject<UClass>(ANY_PACKAGE, TEXT("GameplayDebuggingReplicator")))
+	, RepClass(FindObject<UClass>(nullptr, TEXT("/Script/GameplayDebugger.GameplayDebuggingReplicator")))
 	, Replicator(nullptr)
 {
 	UnitTestName = TEXT("ReplicateDataCheck");

@@ -1837,7 +1837,7 @@ TSharedRef<SWidget> FIOSTargetSettingsCustomization::OnGetShaderVersionContent()
 {
 	FMenuBuilder MenuBuilder(true, NULL);
 	
-	UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EIOSMetalShaderStandard"), true);
+	UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/IOSRuntimeSettings.EIOSMetalShaderStandard"), true);
 	
 	for (int32 i = 0; i < Enum->GetMaxEnumValue(); i++)
 	{
@@ -1856,7 +1856,7 @@ FText FIOSTargetSettingsCustomization::GetShaderVersionDesc() const
 	uint8 EnumValue;
 	ShaderVersionPropertyHandle->GetValue(EnumValue);
 	
-	UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EIOSMetalShaderStandard"), true);
+	UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/IOSRuntimeSettings.EIOSMetalShaderStandard"), true);
 	
 	if (EnumValue < Enum->GetMaxEnumValue() && Enum->IsValidEnumValue(EnumValue))
 	{
@@ -1870,7 +1870,7 @@ TSharedRef<SWidget> FIOSTargetSettingsCustomization::OnGetMinVersionContent()
 {
 	FMenuBuilder MenuBuilder(true, NULL);
 
-	UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EIOSVersion"), true);
+	UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/IOSRuntimeSettings.EIOSVersion"), true);
 
 	for (int32 i = 0; i < Enum->GetMaxEnumValue(); i++)
 	{
@@ -1889,7 +1889,7 @@ FText FIOSTargetSettingsCustomization::GetMinVersionDesc() const
 	uint8 EnumValue;
 	MinOSPropertyHandle->GetValue(EnumValue);
 
-	UEnum* Enum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EIOSVersion"), true);
+	UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/IOSRuntimeSettings.EIOSVersion"), true);
 
 	if (EnumValue < Enum->GetMaxEnumValue() && Enum->IsValidEnumValue(EnumValue))
 	{

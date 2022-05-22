@@ -17,7 +17,7 @@ class AUDIOMODULATION_API UAudioModulationSettings : public UDeveloperSettings
 
 public:
 	// Array of Modulation Parameters that are loaded on plugin startup
-	UPROPERTY(config, EditAnywhere, Category = "Parameters", meta = (AllowedClasses = "SoundModulationParameter"))
+	UPROPERTY(config, EditAnywhere, Category = "Parameters", meta = (AllowedClasses = "/Script/AudioModulation.SoundModulationParameter"))
 	TArray<FSoftObjectPath> Parameters;
 
 	void RegisterParameters() const;

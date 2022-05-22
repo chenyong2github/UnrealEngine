@@ -23,7 +23,7 @@ enum class EPaperTileFlags : uint32
 };
 
 // This is the contents of a tile map cell
-USTRUCT(BlueprintType, meta=(HasNativeBreak="Paper2D.TileMapBlueprintLibrary.BreakTile", HasNativeMake="Paper2D.TileMapBlueprintLibrary.MakeTile"))
+USTRUCT(BlueprintType, meta=(HasNativeBreak="/Script/Paper2D.TileMapBlueprintLibrary.BreakTile", HasNativeMake="/Script/Paper2D.TileMapBlueprintLibrary.MakeTile"))
 struct FPaperTileInfo
 {
 	GENERATED_USTRUCT_BODY()

@@ -306,7 +306,7 @@ struct FEditorMapPerformanceTestDefinition
 	GENERATED_USTRUCT_BODY()
 	
 	/** Map to be used for the Performance Capture **/
-	UPROPERTY(config, EditAnywhere, Category = Automation, meta=( AllowedClasses="World" ))
+	UPROPERTY(config, EditAnywhere, Category = Automation, meta=( AllowedClasses="/Script/Engine.World" ))
 	FSoftObjectPath PerformanceTestmap;
 
 	/** How long is this test expected to run before stopping **/
@@ -358,7 +358,7 @@ public:
 	/**
 	 * The automation test map to be used for several of the automation tests.
 	 */
-	UPROPERTY(config, EditAnywhere, Category = Automation, meta=( AllowedClasses="World" ))
+	UPROPERTY(config, EditAnywhere, Category = Automation, meta=( AllowedClasses="/Script/Engine.World" ))
 	FSoftObjectPath AutomationTestmap;
 
 	/**

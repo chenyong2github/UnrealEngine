@@ -24,7 +24,7 @@ public:
 	GENERATED_BODY()
 
 	/** The sequence from which to choose a binding identifier */
-	UPROPERTY(EditAnywhere, Category="Sequence", meta=(AllowedClasses="MovieSceneSequence"))
+	UPROPERTY(EditAnywhere, Category="Sequence", meta=(AllowedClasses="/Script/MovieScene.MovieSceneSequence"))
 	FSoftObjectPath SourceSequence;
 
 	/** The user-selected literal binding identifier from the sequence to use */

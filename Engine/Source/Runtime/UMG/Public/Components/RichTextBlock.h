@@ -196,7 +196,7 @@ protected:
 	FText Text;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category=Appearance, meta=(RequiredAssetDataTags = "RowStructure=RichTextStyleRow"))
+	UPROPERTY(EditAnywhere, Category=Appearance, meta=(RequiredAssetDataTags = "RowStructure=/Script/UMG.RichTextStyleRow"))
 	TObjectPtr<UDataTable> TextStyleSet;
 
 	/**  */

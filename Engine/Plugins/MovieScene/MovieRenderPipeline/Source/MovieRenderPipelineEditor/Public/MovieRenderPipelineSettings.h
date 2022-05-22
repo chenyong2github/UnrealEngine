@@ -42,7 +42,7 @@ public:
 	* which does different logic. See UMoviePipelineExecutorBase for more information. This is used for
 	* the Render button on the UI.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipelineExecutorBase"), Category="Movie Render Pipeline")
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "/Script/MovieRenderPipelineCore.MoviePipelineExecutorBase"), Category="Movie Render Pipeline")
 	FSoftClassPath DefaultLocalExecutor;
 
 	/**
@@ -51,7 +51,7 @@ public:
 	* which does different logic. See UMoviePipelineExecutorBase for more information. This is used for
 	* the Render Remotely button on the UI.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipelineExecutorBase"), Category = "Movie Render Pipeline")
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "/Script/MovieRenderPipelineCore.MoviePipelineExecutorBase"), Category = "Movie Render Pipeline")
 	FSoftClassPath DefaultRemoteExecutor;
 	
 	/**
@@ -59,7 +59,7 @@ public:
 	* that will have editable properties in the UI for special handling with your executor. This can be
 	* made dynamic if you add jobs to the queue programatically instead of through the UI.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipelineExecutorJob"), Category="Movie Render Pipeline")
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "/Script/MovieRenderPipelineCore.MoviePipelineExecutorJob"), Category="Movie Render Pipeline")
 	FSoftClassPath DefaultExecutorJob;
 	
 	/**
@@ -67,7 +67,7 @@ public:
 	* this will allow you to re-use the existing UI/Executors while providing your own logic for producing
 	* a single render.
 	*/
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "MoviePipeline"), Category="Movie Render Pipeline")
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (MetaClass = "/Script/MovieRenderPipelineCore.MoviePipeline"), Category="Movie Render Pipeline")
 	FSoftClassPath DefaultPipeline;
 
 	/**
@@ -78,6 +78,6 @@ public:
 	*
 	* This only applies to jobs created via the UI. If you do not use the UI (ie: Scripting/Python) you will need to
 	* add settings by hand for each job you create. */
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline", meta = (MetaClass = "MoviePipelineSetting"), DisplayName = "Default Job Settings Classes")
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Movie Render Pipeline", meta = (MetaClass = "/Script/MovieRenderPipelineCore.MoviePipelineSetting"), DisplayName = "Default Job Settings Classes")
 	TArray<FSoftClassPath> DefaultClasses;
 };

@@ -45,7 +45,7 @@ public:
 	 * Game = Tick in game even if we are only ticking the viewport. Use the event Tick.
 	 * Preview = Tick if the actor is present in any editing tool like Blueprint or Material graph. Use EditorTick.
 	 */
-	UPROPERTY(EditDefaultsOnly, Category = "Actor Tick", meta = (Bitmask, BitmaskEnum = EVPViewportTickableType))
+	UPROPERTY(EditDefaultsOnly, Category = "Actor Tick", meta = (Bitmask, BitmaskEnum = "/Script/VPUtilities.EVPViewportTickableType"))
 	EVPViewportTickableFlags ViewportTickType;
 
 	/** If true, actor is ticked even if TickType==LEVELTICK_ViewportsOnly */

@@ -1570,7 +1570,7 @@ void FHLSLMaterialTranslator::ValidateShadingModelsForFeatureLevel(const FMateri
 				GetFeatureLevelName(FeatureLevel, FeatureLevelName);
 
 				FString ShadingModelName;
-				const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("EMaterialShadingModel"), true);
+				const UEnum* EnumPtr = FindObject<UEnum>(nullptr, TEXT("/Script/Engine.EMaterialShadingModel"), true);
 				if (EnumPtr)
 				{
 					ShadingModelName = EnumPtr->GetNameStringByValue(InvalidShadingModel);

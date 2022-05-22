@@ -17,7 +17,7 @@ enum class EToolMenuStringCommandType : uint8
 	Custom
 };
 
-USTRUCT(BlueprintType, meta=(HasNativeBreak="ToolMenus.ToolMenuEntryExtensions.BreakStringCommand", HasNativeMake="ToolMenus.ToolMenuEntryExtensions.MakeStringCommand"))
+USTRUCT(BlueprintType, meta=(HasNativeBreak="/Script/ToolMenus.ToolMenuEntryExtensions.BreakStringCommand", HasNativeMake="/Script/ToolMenus.ToolMenuEntryExtensions.MakeStringCommand"))
 struct TOOLMENUS_API FToolMenuStringCommand
 {
 	GENERATED_BODY()

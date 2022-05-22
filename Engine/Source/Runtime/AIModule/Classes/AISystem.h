@@ -29,15 +29,15 @@ class AIMODULE_API UAISystem : public UAISystemBase
 
 protected:
 	/** Class that will be used to spawn the perception system, can be game-specific */
-	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", meta = (MetaClass = "AIPerceptionSystem", DisplayName = "Perception System Class"))
+	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", meta = (MetaClass = "/Script/AIModule.AIPerceptionSystem", DisplayName = "Perception System Class"))
 	FSoftClassPath PerceptionSystemClassName;
 
 	/** Class that will be used to spawn the hot spot manager, can be game-specific */
-	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", meta = (MetaClass = "AIHotSpotManager", DisplayName = "AIHotSpotManager Class"))
+	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", meta = (MetaClass = "/Script/AIModule.AIHotSpotManager", DisplayName = "AIHotSpotManager Class"))
 	FSoftClassPath HotSpotManagerClassName;
 
 	/** Class that will be used to spawn the env query manager, can be game-specific */
-	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", meta = (MetaClass = "EnvQueryManager", DisplayName = "EnvQueryManager Class"))
+	UPROPERTY(globalconfig, EditAnywhere, Category = "AISystem", meta = (MetaClass = "/Script/AIModule.EnvQueryManager", DisplayName = "EnvQueryManager Class"))
 	FSoftClassPath EnvQueryManagerClassName;
 public:
 	/** Default AI movement's acceptance radius used to determine whether 

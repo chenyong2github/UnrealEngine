@@ -307,22 +307,22 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=Classes)
 	TObjectPtr<UClass> ClassProperty;
 
-	UPROPERTY(EditAnywhere, Category=Classes, meta=(AllowedClasses="Texture2D"))
+	UPROPERTY(EditAnywhere, Category=Classes, meta=(AllowedClasses="/Script/Engine.Texture2D"))
 	TObjectPtr<UClass> ClassPropertyWithAllowed;
 
-	UPROPERTY(EditAnywhere, Category=Classes, meta=(DisallowedClasses="Texture2D"))
+	UPROPERTY(EditAnywhere, Category=Classes, meta=(DisallowedClasses="/Script/Engine.Texture2D"))
 	TObjectPtr<UClass> ClassPropertyWithDisallowed;
 
 	UPROPERTY(EditAnywhere, Category=Classes)
 	TSubclassOf<UTexture> SubclassOfTexture;
 
-	UPROPERTY(EditAnywhere, Category=Classes, meta=(AllowedClasses="Texture2D"))
+	UPROPERTY(EditAnywhere, Category=Classes, meta=(AllowedClasses="/Script/Engine.Texture2D"))
 	TSubclassOf<UTexture> SubclassOfWithAllowed;
 
-	UPROPERTY(EditAnywhere, Category=Classes, meta=(DisallowedClasses="Texture2D"))
+	UPROPERTY(EditAnywhere, Category=Classes, meta=(DisallowedClasses="/Script/Engine.Texture2D"))
 	TSubclassOf<UTexture> SubclassOfWithDisallowed;
 
-	UPROPERTY(EditAnywhere, Category=Classes, meta=(AllowedClasses="StaticMesh,  SkeletalMesh	"))
+	UPROPERTY(EditAnywhere, Category=Classes, meta=(AllowedClasses="/Script/Engine.StaticMesh,  /Script/Engine.SkeletalMesh	"))
 	TSoftObjectPtr<UObject> AssetPointerWithAllowedAndWhitespace;
 
 	// Integer
@@ -427,7 +427,7 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(VisibleAnywhere, Category=AdvancedProperties)
 	TObjectPtr<UPrimitiveComponent> ObjectThatCannotBeChanged;
 
-	UPROPERTY(EditAnywhere, Category=AdvancedProperties, meta=(Bitmask, BitmaskEnum="EPropertyEditorTestBitflags"))
+	UPROPERTY(EditAnywhere, Category=AdvancedProperties, meta=(Bitmask, BitmaskEnum="/Script/UnrealEd.EPropertyEditorTestBitflags"))
 	int32 EnumBitflags=0;
 
 	UPROPERTY(EditAnywhere, Category=AdvancedProperties, meta=(PasswordField=true))
@@ -463,26 +463,26 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category=Assets, meta=(DisplayThumbnail="true"))
 	FSoftObjectPath AssetReferenceCustomStructWithThumbnail;
 
-	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="PointLight", ExactClass))
+	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="/Script/Engine.PointLight", ExactClass))
 	FSoftObjectPath ExactlyPointLightActorReference;
 
-	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="Light"))
+	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="/Script/Engine.Light"))
 	FSoftObjectPath LightActorReference;
 
-	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="PointLight, SpotLight", ExactClass=true))
+	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="/Script/Engine.PointLight, /Script/Engine.SpotLight", ExactClass=true))
 	FSoftObjectPath ExactPointOrSpotLightActorReference;
 
 	// NOTE: intentionally misplaced space in AllowedClasses
-	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="Light ,StaticMeshActor", DisplayThumbnail))
+	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="/Script/Engine.Light ,/Script/Engine.StaticMeshActor", DisplayThumbnail))
 	FSoftObjectPath LightOrStaticMeshActorReference;
 
-	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="Actor", DisallowedClasses="Light"))
+	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="/Script/Engine.Actor", DisallowedClasses="/Script/Engine.Light"))
 	FSoftObjectPath NotLightActorReference;
 
-	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="Material,Texture"))
+	UPROPERTY(EditAnywhere, Category=Assets, meta=(AllowedClasses="/Script/Engine.Material,/Script/Engine.Texture"))
 	FSoftObjectPath MaterialOrTextureAssetReference;
 
-	UPROPERTY(EditAnywhere, Category=Assets, meta=(MetaClass="Actor"))
+	UPROPERTY(EditAnywhere, Category=Assets, meta=(MetaClass="/Script/Engine.Actor"))
 	FSoftObjectPath ActorWithMetaClass;
 
 	UPROPERTY(EditAnywhere, Category=Assets)
@@ -626,7 +626,7 @@ class UPropertyEditorTestObject : public UObject
 
 	// Allows either an object that's derived from UTexture or IBlendableInterface, to ensure that Object Property handles know how to
 	// filter for AllowedClasses correctly.
-	UPROPERTY(EditAnywhere, Category=ObjectPropertyAllowedClasses, meta=(AllowedClasses="Texture,BlendableInterface"))
+	UPROPERTY(EditAnywhere, Category=ObjectPropertyAllowedClasses, meta=(AllowedClasses="/Script/Engine.Texture,/Script/Engine.BlendableInterface"))
 	TObjectPtr<UObject> TextureOrBlendableInterface;
 
 	UPROPERTY(EditAnywhere, Category="Subcategory")

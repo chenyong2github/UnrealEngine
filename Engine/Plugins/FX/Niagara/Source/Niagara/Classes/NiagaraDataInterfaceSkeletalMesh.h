@@ -725,7 +725,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Mesh used to sample from when not overridden by a source actor from the scene. Only available in editor for previewing. This is removed in cooked builds. */
-	UPROPERTY(EditAnywhere, Category = "Mesh", meta = (DisallowedClasses = "DestructibleMesh"))
+	UPROPERTY(EditAnywhere, Category = "Mesh", meta = (DisallowedClasses = "/Script/ApexDestruction.DestructibleMesh"))
 	TSoftObjectPtr<USkeletalMesh> PreviewMesh;
 #endif
 

@@ -48,11 +48,11 @@ struct FGameModeName
 	GENERATED_USTRUCT_BODY()
 
 	/** Abbreviation/prefix that can be used as an alias for the class name */
-	UPROPERTY(EditAnywhere, Category = DefaultModes, meta = (MetaClass = "GameModeBase"))
+	UPROPERTY(EditAnywhere, Category = DefaultModes, meta = (MetaClass = "/Script/Engine.GameModeBase"))
 	FString Name;
 
 	/** GameMode class to load */
-	UPROPERTY(EditAnywhere, Category = DefaultModes, meta = (MetaClass = "GameModeBase"))
+	UPROPERTY(EditAnywhere, Category = DefaultModes, meta = (MetaClass = "/Script/Engine.GameModeBase"))
 	FSoftClassPath GameMode;
 };
 
@@ -148,7 +148,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** If set, this map will be loaded when the Editor starts up. */
-	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, meta=(AllowedClasses="World"))
+	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, meta=(AllowedClasses="/Script/Engine.World"))
 	FSoftObjectPath EditorStartupMap;
 
 	/** Map templates that should show up in the new level dialog. This will completely override the default maps chosen by the default editor */
@@ -161,7 +161,7 @@ public:
 	FString LocalMapOptions;
 
 	/** The map loaded when transition from one map to another. */
-	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, AdvancedDisplay, meta=(AllowedClasses="World"))
+	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, AdvancedDisplay, meta=(AllowedClasses="/Script/Engine.World"))
 	FSoftObjectPath TransitionMap;
 
 	/** Whether the screen should be split or not when multiple local players are present */
@@ -188,28 +188,28 @@ public:
 	bool bOffsetPlayerGamepadIds;
 
 	/** The class to use when instantiating the transient GameInstance class */
-	UPROPERTY(config, noclear, EditAnywhere, Category=GameInstance, meta=(MetaClass="GameInstance"))
+	UPROPERTY(config, noclear, EditAnywhere, Category=GameInstance, meta=(MetaClass="/Script/Engine.GameInstance"))
 	FSoftClassPath GameInstanceClass;
 
 private:
 
 	/** The map that will be loaded by default when no other map is loaded. */
-	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, meta=(AllowedClasses="World"))
+	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, meta=(AllowedClasses="/Script/Engine.World"))
 	FSoftObjectPath GameDefaultMap;
 
 	/** The map that will be loaded by default when no other map is loaded (DEDICATED SERVER). */
-	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, AdvancedDisplay, meta=(AllowedClasses="World"))
+	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, AdvancedDisplay, meta=(AllowedClasses="/Script/Engine.World"))
 	FSoftObjectPath ServerDefaultMap;
 
 	/** GameMode to use if not specified in any other way. (e.g. per-map DefaultGameMode or on the URL). */
-	UPROPERTY(config, noclear, EditAnywhere, Category=DefaultModes, meta=(MetaClass="GameModeBase", DisplayName="Default GameMode"))
+	UPROPERTY(config, noclear, EditAnywhere, Category=DefaultModes, meta=(MetaClass="/Script/Engine.GameModeBase", DisplayName="Default GameMode"))
 	FSoftClassPath GlobalDefaultGameMode;
 
 	/**
 	 * GameMode to use if not specified in any other way. (e.g. per-map DefaultGameMode or on the URL) (DEDICATED SERVERS)
 	 * If not set, the GlobalDefaultGameMode value will be used.
 	 */
-	UPROPERTY(config, EditAnywhere, Category=DefaultModes, meta=(MetaClass="GameModeBase"), AdvancedDisplay)
+	UPROPERTY(config, EditAnywhere, Category=DefaultModes, meta=(MetaClass="/Script/Engine.GameModeBase"), AdvancedDisplay)
 	FSoftClassPath GlobalDefaultServerGameMode;
 
 	/** Overrides the GameMode to use when loading a map that starts with a specific prefix */

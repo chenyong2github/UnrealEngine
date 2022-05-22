@@ -594,7 +594,7 @@ FString FOculusHandTracking::GetBoneName(uint8 Bone)
 {
 	uint8 HandBone = Bone == ovrpBoneId_Invalid ? (uint8)EBone::Invalid : Bone;
 
-	UEnum* BoneEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EBone"), true);
+	UEnum* BoneEnum = FindObject<UEnum>(nullptr, TEXT("/Script/OculusInput.EBone"), true);
 	if (BoneEnum)
 	{
 		return BoneEnum->GetDisplayNameTextByValue(HandBone).ToString();

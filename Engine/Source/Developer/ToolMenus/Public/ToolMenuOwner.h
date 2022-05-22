@@ -7,7 +7,7 @@
 #include "ToolMenuOwner.generated.h"
 
 
-USTRUCT(BlueprintType, meta=(HasNativeBreak="ToolMenus.ToolMenuEntryExtensions.BreakToolMenuOwner", HasNativeMake="ToolMenus.ToolMenuEntryExtensions.MakeToolMenuOwner"))
+USTRUCT(BlueprintType, meta=(HasNativeBreak="/Script/ToolMenus.ToolMenuEntryExtensions.BreakToolMenuOwner", HasNativeMake="/Script/ToolMenus.ToolMenuEntryExtensions.MakeToolMenuOwner"))
 struct TOOLMENUS_API FToolMenuOwner
 {
 	GENERATED_BODY()

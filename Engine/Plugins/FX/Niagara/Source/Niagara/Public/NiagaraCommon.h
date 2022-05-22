@@ -404,7 +404,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	uint32 bHidden : 1;
 
 	/** Bitmask for which scripts are supported for this function. Use UNiagaraScript::MakeSupportedUsageContextBitmask to make the bitmask. */
-	UPROPERTY(meta = (Bitmask, BitmaskEnum = ENiagaraScriptUsage))
+	UPROPERTY(meta = (Bitmask, BitmaskEnum = "/Script/Niagara.ENiagaraScriptUsage"))
 	int32 ModuleUsageBitmask;
 
 	/** When using simulation stages and bRequiresContext is true this will be the index of the stage that is associated with the function. */
