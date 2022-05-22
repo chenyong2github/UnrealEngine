@@ -15,6 +15,16 @@ public class WebRTC : ModuleRules
 			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"));
 	}
 
+	private bool bWebRtcVersion96
+	{
+		get
+		{
+			return false
+				// || Target.Platform == UnrealTargetPlatform.Win64 // uncomment to enable WebRtc 96 
+				   ;
+		}
+	}
+
 	public WebRTC(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
@@ -32,7 +42,10 @@ public class WebRTC : ModuleRules
 
 		if (bShouldUseWebRTC)
 		{
-			string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + "WebRTC/4147"; // Branch head 4147 is Release 84
+			string WebRtcVersionPath = bWebRtcVersion96 ? 
+				"WebRTC/4664" :   // Branch head 4664 is Release 96
+				"WebRTC/4147";    // Branch head 4147 is Release 84
+			string WebRtcSdkPath = Target.UEThirdPartySourceDirectory + WebRtcVersionPath;
 			string VS2013Friendly_WebRtcSdkPath = Target.UEThirdPartySourceDirectory;
 
 			string PlatformSubdir = Target.Platform.ToString();
@@ -40,7 +53,7 @@ public class WebRTC : ModuleRules
 			string IncludePath = Path.Combine(WebRtcSdkPath, "Include");
 			PublicSystemIncludePaths.Add(IncludePath);
 
-			string AbslthirdPartyIncludePath = Path.Combine(WebRtcSdkPath, "Include", "third_party", "abseil-cpp");
+			string AbslthirdPartyIncludePath = Path.Combine(IncludePath, "third_party", "abseil-cpp");
 			PublicSystemIncludePaths.Add(AbslthirdPartyIncludePath);
 
 			if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
@@ -49,6 +62,7 @@ public class WebRTC : ModuleRules
 
 				PlatformSubdir = "Win64"; // windows-based platform extensions can share this library
 				string LibraryPath = Path.Combine(WebRtcSdkPath, "Lib", PlatformSubdir, ConfigPath);
+				
 				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "webrtc.lib"));
 
 				// Additional System library
@@ -74,7 +88,8 @@ public class WebRTC : ModuleRules
 			}
 		}
 
-		PublicDefinitions.Add("WEBRTC_VERSION=84");
+		string WebRtcDefinitionVersion = bWebRtcVersion96 ? "96" : "84";
+		PublicDefinitions.Add("WEBRTC_VERSION=" + WebRtcDefinitionVersion);
 		PublicDefinitions.Add("ABSL_ALLOCATOR_NOTHROW=1");
 	}
 }
