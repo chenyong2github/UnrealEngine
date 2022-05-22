@@ -7,8 +7,10 @@
 #include "CanvasItem.h"
 #include "UnrealEngine.h"
 #include "ConsoleSettings.h"
+#include "DebugGraph.h"
 
 class IPixelStreamingStatsConsumer;
+struct FPixelStreamingFrameMetadata;
 
 namespace UE::PixelStreaming
 {
@@ -22,7 +24,9 @@ namespace UE::PixelStreaming
 			: StatName(InStatName)
 			, StatValue(InStatValue)
 			, NDecimalPlacesToPrint(InNDecimalPlacesToPrint)
-			, bSmooth(bInSmooth) {}
+			, bSmooth(bInSmooth)
+			 {
+			 }
 
 		bool operator==(const FStatData& Other) const
 		{
@@ -38,6 +42,8 @@ namespace UE::PixelStreaming
 		double StatValue;
 		int NDecimalPlacesToPrint;
 		bool bSmooth;
+		double LastEMA = 0;
+		int NumSamples = 0;
 	};
 
 	FORCEINLINE uint32 GetTypeHash(const FStatData& Obj)
@@ -91,7 +97,9 @@ namespace UE::PixelStreaming
 		static constexpr double SmoothingFactor = 10.0 / 100.0;
 		static FStats* Get();
 
-		FStats(FPlayerSessions* Sessions);
+		void AddSessions(FPlayerSessions* InSessions);
+		void RemoveSessions(FPlayerSessions* InSessions);
+
 		FStats(const FStats&) = delete;
 		void QueryPeerStat(FPixelStreamingPlayerId PlayerId, FName StatToQuery, TFunction<void(bool, double)> QueryCallback) const;
 		bool QueryPeerStat_GameThread(FPixelStreamingPlayerId PlayerId, FName StatToQuery, double& OutStatValue) const;
@@ -100,12 +108,25 @@ namespace UE::PixelStreaming
 		void StoreApplicationStat(FStatData PeerStat);
 		void Tick(float DeltaTime);
 		void AddOnPeerStatChangedCallback(FPixelStreamingPlayerId PlayerId, FName StatToListenOn, TWeakPtr<IPixelStreamingStatsConsumer> Callback);
-		int32 OnRenderStats(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+
 		bool OnToggleStats(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
+		int32 OnRenderStats(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
+
+		bool OnToggleGraphs(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
+		int32 OnRenderGraphs(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
 
 		FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(PixelStreamingStats, STATGROUP_Tickables); }
 
+		void GraphValue(FName InName, float Value, int InSamples, float InMinRange, float InMaxRange, float InRefValue = 0.0f);
+		
+		double AddTimeDeltaStat(uint64 Cycles1, uint64 Cycles2, const FString& Label);
+		void AddFrameTimingStats(const FPixelStreamingFrameMetadata& FrameMetadata);
+
+		void AddCanvasTile(FName Name, const FCanvasTileItem& Tile);
+
 	private:
+		FStats();
+		void RegisterEngineHooks();
 		void PollPixelStreamingSettings();
 		void RemovePeerStat_GameThread(FPixelStreamingPlayerId PlayerId);
 		bool StorePeerStat_GameThread(FPixelStreamingPlayerId PlayerId, FStatData Stat);
@@ -117,16 +138,16 @@ namespace UE::PixelStreaming
 	private:
 		static FStats* Instance;
 
-		FPlayerSessions* Sessions;
+		TArray<FPlayerSessions*> SessionsList;
 
 		bool bRegisterEngineStats = false;
-		FName PixelStreamingStatName = FName(TEXT("STAT_PixelStreaming"));
-		FName PixelStreamingStatCategory = FName(TEXT("STATCAT_PixelStreaming"));
-		FText PixelStreamingStatDescription = FText::FromString(FString(TEXT("Pixel Streaming stats for all connected peers.")));
 
 		TMap<FPixelStreamingPlayerId, FPeerStats> PeerStats;
 		TMap<FName, FRenderableStat> ApplicationStats;
 
 		int64 LastTimeSettingsPolledCycles = 0;
+
+		TMap<FName, FDebugGraph> Graphs;
+		TMap<FName, FCanvasTileItem> Tiles;
 	};
 } // namespace UE::PixelStreaming

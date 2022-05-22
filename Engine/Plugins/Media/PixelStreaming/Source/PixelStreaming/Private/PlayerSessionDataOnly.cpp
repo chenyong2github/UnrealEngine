@@ -4,70 +4,77 @@
 #include "PixelStreamingDelegates.h"
 #include "PixelStreamingPrivate.h"
 #include "Utils.h"
+#include "PlayerSession.h"
 
 namespace UE::PixelStreaming
 {
-	FPlayerSessionDataOnly::FPlayerSessionDataOnly(FPlayerSessions* InSessions,
-		FSignallingServerConnection* InSignallingServerConnection,
-		FPixelStreamingPlayerId InPlayerId,
-		webrtc::PeerConnectionInterface* InPeerConnection,
-		int32 SendStreamId,
-		int32 RecvStreamId)
-		: SignallingServerConnection(InSignallingServerConnection)
-		, PlayerId(InPlayerId)
-		, PeerConnection(InPeerConnection)
-		, DataChannelObserver(InSessions, InPlayerId)
+	FPlayerSessionDataOnly::FPlayerSessionDataOnly(FPlayerSessions* InSessions, FPixelStreamingPlayerId InPlayerId, TSharedPtr<IPixelStreamingInputDevice> InInputDevice, rtc::scoped_refptr<webrtc::PeerConnectionInterface> InPeerConnection, int32 SendStreamId, int32 RecvStreamId)
+		: PlayerId(InPlayerId)
+		, bUsingBidirectionalDataChannel(SendStreamId == RecvStreamId)
 	{
-		webrtc::DataChannelInit SendDataChannelConfig;
-		SendDataChannelConfig.reliable = true;
-		SendDataChannelConfig.ordered = true;
-		SendDataChannelConfig.negotiated = true;
-		SendDataChannelConfig.id = SendStreamId;
+		SetupDataChannels(InSessions, InPeerConnection, SendStreamId, RecvStreamId, InInputDevice);
+	}
 
-		SendDataChannel = PeerConnection->CreateDataChannel("datachannel", &SendDataChannelConfig);
+	FPlayerSessionDataOnly::~FPlayerSessionDataOnly()
+	{
+	}
 
-		if (SendStreamId != RecvStreamId)
+	void FPlayerSessionDataOnly::SetupDataChannels(FPlayerSessions* InSessions, rtc::scoped_refptr<webrtc::PeerConnectionInterface> InPeerConnection, int32 SendStreamId, int32 RecvStreamId, TSharedPtr<IPixelStreamingInputDevice> InInputDevice)
+	{
+		bUsingBidirectionalDataChannel = SendStreamId == RecvStreamId;
+		if (!bUsingBidirectionalDataChannel)
 		{
+			webrtc::DataChannelInit SendDataChannelConfig;
+			SendDataChannelConfig.reliable = true;
+			SendDataChannelConfig.ordered = true;
+			SendDataChannelConfig.negotiated = true;
+			SendDataChannelConfig.id = SendStreamId;
+			SendDataChannel = InPeerConnection->CreateDataChannel("send-datachannel", &SendDataChannelConfig);
+			SendDataChannelObserver = MakeShared<FDataChannelObserver>(InSessions, PlayerId, EDataChannelDirection::SendOnly, InInputDevice);
+			SendDataChannelObserver->Register(SendDataChannel);
+
 			webrtc::DataChannelInit RecvDataChannelConfig;
 			RecvDataChannelConfig.reliable = true;
 			RecvDataChannelConfig.ordered = true;
 			RecvDataChannelConfig.negotiated = true;
 			RecvDataChannelConfig.id = RecvStreamId;
-			RecvDataChannel = PeerConnection->CreateDataChannel("datachannel", &RecvDataChannelConfig);
+			RecvDataChannel = InPeerConnection->CreateDataChannel("recv-datachannel", &RecvDataChannelConfig);
+			RecvDataChannelObserver = MakeShared<FDataChannelObserver>(InSessions, PlayerId, EDataChannelDirection::RecvOnly, InInputDevice);
+			RecvDataChannelObserver->Register(RecvDataChannel);
 		}
 		else
 		{
-			RecvDataChannel = SendDataChannel;
+			webrtc::DataChannelInit DataChannelConfig;
+			DataChannelConfig.reliable = true;
+			DataChannelConfig.ordered = true;
+			DataChannelConfig.negotiated = true;
+			DataChannelConfig.id = SendStreamId;
+			BidiDataChannel = InPeerConnection->CreateDataChannel("datachannel", &DataChannelConfig);
+			BidiDataChannelObserver = MakeShared<FDataChannelObserver>(InSessions, PlayerId, EDataChannelDirection::Bidirectional, InInputDevice);
+			BidiDataChannelObserver->Register(BidiDataChannel);
 		}
-		RecvDataChannel->RegisterObserver(&DataChannelObserver);
 	}
 
-	FPlayerSessionDataOnly::~FPlayerSessionDataOnly()
+	TSharedPtr<FDataChannelObserver> FPlayerSessionDataOnly::GetDataChannelObserver()
 	{
-		UE_LOG(LogPixelStreaming, Log, TEXT("%s: PlayerId=%s"), TEXT("FPlayerSessionDataOnly::~FPlayerSessionDataOnly"), *PlayerId);
-
-		RecvDataChannel->UnregisterObserver();
-		SendDataChannel = nullptr;
-		RecvDataChannel = nullptr;
+		if (bUsingBidirectionalDataChannel)
+		{
+			return BidiDataChannelObserver;
+		}
+		else
+		{
+			return SendDataChannelObserver;
+		}
 	}
 
 	bool FPlayerSessionDataOnly::SendMessage(Protocol::EToPlayerMsg InMessageType, const FString& Descriptor) const
 	{
-		if (!SendDataChannel)
-		{
-			return false;
-		}
+		return FPlayerSession::SendMessage(bUsingBidirectionalDataChannel ? BidiDataChannel : SendDataChannel, InMessageType, Descriptor);
+	}
 
-		const uint8 MessageType = static_cast<uint8>(InMessageType);
-		const size_t DescriptorSize = Descriptor.Len() * sizeof(TCHAR);
-
-		rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + DescriptorSize);
-
-		size_t Pos = 0;
-		Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
-		Pos = SerializeToBuffer(Buffer, Pos, *Descriptor, DescriptorSize);
-
-		return SendDataChannel->Send(webrtc::DataBuffer(Buffer, true));
+	bool FPlayerSessionDataOnly::SendInputControlStatus(bool bIsInputController) const
+	{
+		return FPlayerSession::SendInputControlStatus(bUsingBidirectionalDataChannel ? BidiDataChannel : SendDataChannel, PlayerId, bIsInputController);
 	}
 
 	void FPlayerSessionDataOnly::OnDataChannelClosed() const

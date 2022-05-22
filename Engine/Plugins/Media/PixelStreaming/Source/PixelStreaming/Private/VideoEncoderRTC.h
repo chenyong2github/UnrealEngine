@@ -1,23 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "PixelStreamingPlayerId.h"
-#include "HAL/ThreadSafeBool.h"
 #include "WebRTCIncludes.h"
 #include "VideoEncoder.h"
-#include "Templates/SharedPointer.h"
-#include "Misc/Optional.h"
 #include "VideoEncoderH264Wrapper.h"
 
 namespace UE::PixelStreaming 
 {
-	class FVideoEncoderFactory;
+	class FVideoEncoderFactorySimple;
 
 	// Implementation that is a WebRTC video encoder that allows us tie to our actually underlying non-WebRTC video encoder.
 	class FVideoEncoderRTC : public webrtc::VideoEncoder
 	{
 	public:
-		FVideoEncoderRTC(FVideoEncoderFactory& InFactory);
+		FVideoEncoderRTC(FVideoEncoderFactorySimple& InFactory);
 		virtual ~FVideoEncoderRTC() override;
 
 		// WebRTC Interface
@@ -35,13 +31,17 @@ namespace UE::PixelStreaming
 		// virtual void OnLossNotification(const LossNotification& loss_notification) override;
 		// End WebRTC Interface.
 
-		void SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation);
+		void SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info
+#if WEBRTC_VERSION == 84
+			, webrtc::RTPFragmentationHeader const* fragmentation
+#endif
+		);
 
 	private:
 		void UpdateConfig();
 		AVEncoder::FVideoEncoder::FLayerConfig CreateEncoderConfigFromCVars(AVEncoder::FVideoEncoder::FLayerConfig BaseEncoderConfig) const;
 
-		FVideoEncoderFactory& Factory;
+		FVideoEncoderFactorySimple& Factory;
 
 		FVideoEncoderH264Wrapper* HardwareEncoder;
 

@@ -2,6 +2,9 @@
 #pragma once
 
 #include "IPlayerSession.h"
+#include "InputDevice.h"
+
+class FPixelStreamingSignallingConnection;
 
 namespace UE::PixelStreaming
 {
@@ -16,16 +19,18 @@ namespace UE::PixelStreaming
 		FPlayerSessions& operator=(const FPlayerSessions&) = delete;
 
 		TSharedPtr<IPlayerSession> CreatePlayerSession(FPixelStreamingPlayerId PlayerId,
+			TSharedPtr<IPixelStreamingInputDevice> InputDevice,
 			rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory,
 			webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig,
-			FSignallingServerConnection* SignallingServerConnection,
+			FPixelStreamingSignallingConnection* SignallingServerConnection,
 			int Flags);
 
-		void CreateNewDataChannel(FPixelStreamingPlayerId SFUId,
+		void CreateSFUDataOnlyPeer(FPixelStreamingPlayerId SFUId,
 			FPixelStreamingPlayerId PlayerId,
+			TSharedPtr<IPixelStreamingInputDevice> InputDevice,
 			int32 SendStreamId,
 			int32 RecvStreamId,
-			FSignallingServerConnection* SignallingServerConnection);
+			FPixelStreamingSignallingConnection* SignallingServerConnection);
 
 		int DeletePlayerSession(FPixelStreamingPlayerId PlayerId);
 		void DeleteAllPlayerSessions(bool bEnginePreExit = false);
@@ -34,6 +39,8 @@ namespace UE::PixelStreaming
 
 		bool IsQualityController(FPixelStreamingPlayerId PlayerId) const;
 		void SetQualityController(FPixelStreamingPlayerId PlayerId);
+		bool IsInputController(FPixelStreamingPlayerId PlayerId) const;
+		void SetInputController(FPixelStreamingPlayerId PlayerId);
 
 		// do something with a single session
 		void ForSession(FPixelStreamingPlayerId PlayerId, const TFunction<void(TSharedPtr<IPlayerSession>)>& Func) const
@@ -66,8 +73,16 @@ namespace UE::PixelStreaming
 			webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig,
 			TSharedPtr<IPlayerSession> Session) const;
 
+		rtc::scoped_refptr<webrtc::DataChannelInterface> CreateDataChannel(
+			rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection,
+			bool bIsSFU) const;
+
+		int GetNumPeersMatching(TFunction<bool(FName)> SessionTypeMatchFunc) const;
+		int NumNonSFUPeers() const;
 		int NumP2PPeers() const;
+		bool GetFirstPeerMatching(TFunction<bool(FName)> SessionTypeMatchFunc, FPixelStreamingPlayerId& OutPlayerId) const;
 		bool GetFirstP2PPeer(FPixelStreamingPlayerId& OutPlayerId) const;
+		bool GetFirstNonSFUPeer(FPixelStreamingPlayerId& OutPlayerId) const;
 		TSharedPtr<IPlayerSession> GetPlayerSession(FPixelStreamingPlayerId PlayerId) const;
 
 		mutable FCriticalSection PlayersCS;
@@ -75,5 +90,8 @@ namespace UE::PixelStreaming
 
 		mutable FCriticalSection QualityControllerCS;
 		FPixelStreamingPlayerId QualityControllingPlayer = INVALID_PLAYER_ID;
+
+		mutable FCriticalSection InputControllerCS;
+		FPixelStreamingPlayerId InputControllingPlayer = INVALID_PLAYER_ID;
 	};
 } // namespace UE::PixelStreaming

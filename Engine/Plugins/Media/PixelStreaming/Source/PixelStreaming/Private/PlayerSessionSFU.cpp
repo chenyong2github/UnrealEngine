@@ -6,8 +6,8 @@
 
 namespace UE::PixelStreaming
 {
-	FPlayerSessionSFU::FPlayerSessionSFU(FPlayerSessions* InSessions, FSignallingServerConnection* InSignallingServerConnection, FPixelStreamingPlayerId InPlayerId)
-		: FPlayerSession(InSessions, InSignallingServerConnection, InPlayerId)
+	FPlayerSessionSFU::FPlayerSessionSFU(FPlayerSessions* InSessions, FPixelStreamingSignallingConnection* InSignallingServerConnection, FPixelStreamingPlayerId InPlayerId, TSharedPtr<IPixelStreamingInputDevice> InInputDevice)
+		: FPlayerSession(InSessions, InSignallingServerConnection, InPlayerId, InInputDevice)
 	{
 	}
 

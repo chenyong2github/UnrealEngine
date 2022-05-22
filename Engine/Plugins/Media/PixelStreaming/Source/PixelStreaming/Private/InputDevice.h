@@ -2,16 +2,17 @@
 
 #pragma once
 
-#include "IInputDevice.h"
+#include "IPixelStreamingInputDevice.h"
 #include "Containers/Queue.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "api/data_channel_interface.h"
+#include "Slate/SceneViewport.h"
 
 class IPixelStreamingModule;
 
-namespace UE::PixelStreaming 
+namespace UE::PixelStreaming
 {
-	class FInputDevice : public IInputDevice
+	class FInputDevice : public IPixelStreamingInputDevice
 	{
 	public:
 		/**
@@ -433,7 +434,7 @@ namespace UE::PixelStreaming
 		* Is the application faking touch events?
 		* @return True if the application is faking touch events.
 		*/
-		bool IsFakingTouchEvents() const
+		virtual bool IsFakingTouchEvents() const override
 		{
 			return bFakingTouchEvents;
 		}
@@ -442,7 +443,7 @@ namespace UE::PixelStreaming
 		* Handle incoming messages
 		* @param Buffer - Incoming data buffer.
 		*/
-		void OnMessage(const webrtc::DataBuffer& Buffer);
+		virtual void OnMessage(const webrtc::DataBuffer& Buffer) override;
 
 		/**
 		* How long is the message type specifier and the length specifier in bytes?
@@ -452,6 +453,8 @@ namespace UE::PixelStreaming
 		{
 			return MessageHeaderOffset;
 		}
+
+		virtual void SetTargetViewport(TSharedPtr<FSceneViewport> InTargetViewport) override;
 
 	private:
 		/**
@@ -523,5 +526,9 @@ namespace UE::PixelStreaming
 		* 2 characters for the length which are skipped
 		*/
 		static const size_t MessageHeaderOffset;
+
+		//bool FindSceneViewportAndLevel();
+		TSharedPtr<FSceneViewport> TargetViewport;
+		bool bIsGameViewport = false;
 	};
 } // namespace UE::PixelStreaming

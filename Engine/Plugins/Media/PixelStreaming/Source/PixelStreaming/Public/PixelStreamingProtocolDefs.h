@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "HAL/Platform.h"
+
 namespace UE::PixelStreaming::Protocol
 {
 	enum EPlayerFlags
@@ -11,7 +13,7 @@ namespace UE::PixelStreaming::Protocol
 		PSPFlag_IsSFU = 0x02,
 	};
 
-	enum class EToStreamerMsg : uint8_t
+	enum class EToStreamerMsg : uint8
 	{
 		/**********************************************************************/
 
@@ -32,7 +34,7 @@ namespace UE::PixelStreaming::Protocol
 		/**********************************************************************/
 
 		/*
-		 * Input Messages. Range = 50..89.
+		 * Input Messages. Range = 50+. (DO NOT ADD ANY NEW INPUT MESSAGE <50 ).
 		 */
 
 		// Generic Input Messages. Range = 50..59.
@@ -73,7 +75,7 @@ namespace UE::PixelStreaming::Protocol
 	};
 
 	//! Messages that can be sent to the webrtc players
-	enum class EToPlayerMsg : uint8_t
+	enum class EToPlayerMsg : uint8
 	{
 		QualityControlOwnership = 0,
 		Response = 1,
@@ -86,7 +88,8 @@ namespace UE::PixelStreaming::Protocol
 		FileExtension = 8,
 		FileMimeType = 9,
 		FileContents = 10,
-		TestEcho = 11
+		TestEcho = 11,
+		InputControlOwnership = 12
 	};
 
 }; // namespace UE::PixelStreaming::Protocol

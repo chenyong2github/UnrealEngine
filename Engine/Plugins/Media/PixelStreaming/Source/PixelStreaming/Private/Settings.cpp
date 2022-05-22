@@ -226,12 +226,6 @@ namespace UE::PixelStreaming::Settings
 		TEXT("If true disables latency tester being triggerable."),
 		ECVF_Default);
 
-	TAutoConsoleVariable<bool> CVarPixelStreamingDecoupleFrameRate(
-		TEXT("PixelStreaming.DecoupleFrameRate"),
-		true,
-		TEXT("If true, Pixel Streaming will send 60fps to WebRTC regardless of actual application framerate"),
-		ECVF_Default);
-
 	TAutoConsoleVariable<FString> CVarPixelStreamingKeyFilter(
 		TEXT("PixelStreaming.KeyFilter"),
 		"",
@@ -256,8 +250,16 @@ namespace UE::PixelStreaming::Settings
 		TEXT("Comma separated list of video track types to create when a peer joins. Default: Backbuffer"),
 		ECVF_Default);
 
+	TAutoConsoleVariable<FString> CVarPixelStreamingInputController(
+		TEXT("PixelStreaming.InputController"),
+		TEXT("Any"),
+		TEXT("Various modes of input control supported by Pixel Streaming, currently: \"Any\"  or \"Host\". Default: Any"),
+		ECVF_Default);
+
 	TArray<FKey> FilteredKeys;
 	TArray<FName> ActiveTextureSourceTypes;
+	bool bDecoupleFrameRate = true;
+	FString DefaultStreamerID = TEXT("DefaultStreamer");
 
 	void OnActiveTextureSourcesChanged(IConsoleVariable* Var)
 	{
@@ -286,6 +288,11 @@ namespace UE::PixelStreaming::Settings
 	void OnHudStatsToggled(IConsoleVariable* Var)
 	{
 		bool bHudStatsEnabled = Var->GetBool();
+
+		if (!GEngine)
+		{
+			return;
+		}
 
 		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
 		{
@@ -465,10 +472,35 @@ namespace UE::PixelStreaming::Settings
 		}
 	}
 
+	bool DecoupleFrameRate()
+	{
+		return bDecoupleFrameRate;
+	}
+
 	bool IsCodecVPX()
 	{
 		ECodec SelectedCodec = GetSelectedCodec();
 		return SelectedCodec == ECodec::VP8 || SelectedCodec == ECodec::VP9;
+	}
+
+	EInputControllerMode GetInputControllerMode()
+	{
+		// Convert the current value to all lowercase and remove any whitespace.
+		const FString InputControllerMode = CVarPixelStreamingInputController.GetValueOnAnyThread().ToLower().TrimStartAndEnd();
+
+		if (InputControllerMode == TEXT("host"))
+		{
+			return EInputControllerMode::Host;
+		}
+		else
+		{
+			return EInputControllerMode::Any;
+		}
+	}
+
+	FString GetDefaultStreamerID()
+	{
+		return DefaultStreamerID;
 	}
 
 	/*
@@ -516,6 +548,11 @@ namespace UE::PixelStreaming::Settings
 	{
 		UE_LOG(LogPixelStreaming, Log, TEXT("Initialising Pixel Streaming settings."));
 
+		FString StringOptions;
+		bDecoupleFrameRate = !FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingDisableDecoupleFrameRate"), StringOptions, false);
+		
+		FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), DefaultStreamerID, false);
+
 		CVarPixelStreamingOnScreenStats.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnHudStatsToggled));
 		CVarPixelStreamingKeyFilter.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnFilteredKeysChanged));
 		CVarPixelStreamingVideoTracks.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnActiveTextureSourcesChanged));
@@ -545,12 +582,12 @@ namespace UE::PixelStreaming::Settings
 		CommandLineParseValue(TEXT("PixelStreamingKeyFilter="), CVarPixelStreamingKeyFilter);
 		CommandLineParseValue(TEXT("PixelStreamingVideoTracks="), CVarPixelStreamingVideoTracks);
 		CommandLineParseValue(TEXT("PixelStreamingFrameScale="), CVarPixelStreamingFrameScale);
+		CommandLineParseValue(TEXT("PixelStreamingInputController="), CVarPixelStreamingInputController);
 
 		// Options parse (if these exist they are set to true)
 		CommandLineParseOption(TEXT("AllowPixelStreamingCommands"), CVarPixelStreamingAllowConsoleCommands);
 		CommandLineParseOption(TEXT("PixelStreamingOnScreenStats"), CVarPixelStreamingOnScreenStats);
 		CommandLineParseOption(TEXT("PixelStreamingHudStats"), CVarPixelStreamingOnScreenStats);
-
 		CommandLineParseOption(TEXT("PixelStreamingDebugDumpFrame"), CVarPixelStreamingDebugDumpFrame);
 		CommandLineParseOption(TEXT("PixelStreamingEnableFillerData"), CVarPixelStreamingEnableFillerData);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCDisableStats"), CVarPixelStreamingWebRTCDisableStats);
@@ -560,7 +597,6 @@ namespace UE::PixelStreaming::Settings
 		CommandLineParseOption(TEXT("PixelStreamingSendPlayerIdAsInteger"), CVarSendPlayerIdAsInteger);
 		CommandLineParseOption(TEXT("PixelStreamingWebRTCUseLegacyAudioDevice"), CVarPixelStreamingWebRTCUseLegacyAudioDevice);
 		CommandLineParseOption(TEXT("PixelStreamingDisableLatencyTester"), CVarPixelStreamingDisableLatencyTester);
-		CommandLineParseOption(TEXT("PixelStreamingDecoupleFrameRate"), CVarPixelStreamingDecoupleFrameRate);
 		CommandLineParseOption(TEXT("PixelStreamingVPXUseCompute"), CVarPixelStreamingVPXUseCompute);
 
 		ReadSimulcastParameters();
@@ -570,9 +606,9 @@ namespace UE::PixelStreaming::Settings
 
 		IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("PixelStreaming.StartStreaming"),
-			TEXT("<SignallingServer URL> - Connect to a signalling server and begin a streaming session."),
-			FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args) {
-				IPixelStreamingModule::Get().StartStreaming(Args[0].TrimQuotes());
+			TEXT("Start all streaming sessions"),
+			FConsoleCommandDelegate::CreateLambda([]() {
+				IPixelStreamingModule::Get().StartStreaming();
 			}));
 
 		IConsoleManager::Get().RegisterConsoleCommand(

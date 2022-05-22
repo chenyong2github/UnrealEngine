@@ -9,6 +9,7 @@
 #include "IPixelStreamingStatsConsumer.h"
 #include "Engine/Console.h"
 #include "ConsoleSettings.h"
+#include "PixelStreamingFrameMetadata.h"
 
 namespace UE::PixelStreaming
 {
@@ -16,16 +17,26 @@ namespace UE::PixelStreaming
 
 	FStats* FStats::Get()
 	{
-		return FStats::Instance;
+		if (Instance == nullptr)
+		{
+			Instance = new FStats();
+		}
+		return Instance;
 	}
 
-	FStats::FStats(FPlayerSessions* InSessions)
-		: Sessions(InSessions)
+	void FStats::AddSessions(FPlayerSessions* InSessions)
 	{
-		checkf(FStats::Instance == nullptr, TEXT("There should only ever been one PixelStreaming stats object."));
-		checkf(Sessions, TEXT("To make stats object the sessions object must not be nullptr."));
-		FStats::Instance = this;
+		SessionsList.Add(InSessions);
+	}
 
+	void FStats::RemoveSessions(FPlayerSessions* InSessions)
+	{
+		SessionsList.Remove(InSessions);
+	}
+
+	FStats::FStats()
+	{
+		checkf(Instance == nullptr, TEXT("There should only ever been one PixelStreaming stats object."));
 		UConsole::RegisterConsoleAutoCompleteEntries.AddRaw(this, &FStats::UpdateConsoleAutoComplete_GameThread);
 	}
 
@@ -187,6 +198,19 @@ namespace UE::PixelStreaming
 		return PeerStats[PlayerId].StoreStat_GameThread(Stat);
 	}
 
+	double CalcMA(double PrevAvg, int NumSamples, double Value)
+	{
+		const double Result = NumSamples * PrevAvg + Value;
+		return Result / (PrevAvg + 1.0);
+	}
+
+	double CalcEMA(double PrevAvg, int NumSamples, double Value)
+	{
+		const double Mult = 2.0 / (NumSamples + 1.0);
+		const double Result = (Value - PrevAvg) * Mult + PrevAvg;
+		return Result;
+	}
+
 	bool FStats::StoreApplicationStat_GameThread(FStatData Stat)
 	{
 		checkf(IsInGameThread(), TEXT("This method must be called from the game thread"));
@@ -204,17 +228,18 @@ namespace UE::PixelStreaming
 
 			if (Stat.bSmooth && RenderableStat->Stat.StatValue != 0)
 			{
-				double CurValue = RenderableStat->Stat.StatValue;
-				double PercentageDrift = FMath::Abs(CurValue - Stat.StatValue) / CurValue;
-				if (PercentageDrift > FStats::SmoothingFactor)
+				const int MaxSamples = 60;
+				RenderableStat->Stat.NumSamples = FGenericPlatformMath::Min(MaxSamples, RenderableStat->Stat.NumSamples + 1);
+				if (RenderableStat->Stat.NumSamples < MaxSamples)
 				{
-					RenderableStat->Stat.StatValue = Stat.StatValue;
-					bUpdated = true;
+					RenderableStat->Stat.LastEMA = CalcMA(RenderableStat->Stat.LastEMA, RenderableStat->Stat.NumSamples - 1, Stat.StatValue);
 				}
 				else
 				{
-					return false;
+					RenderableStat->Stat.LastEMA = CalcEMA(RenderableStat->Stat.LastEMA, RenderableStat->Stat.NumSamples - 1, Stat.StatValue);
 				}
+				RenderableStat->Stat.StatValue = RenderableStat->Stat.LastEMA;
+				bUpdated = true;
 			}
 			else
 			{
@@ -279,12 +304,16 @@ namespace UE::PixelStreaming
 		const UConsoleSettings* ConsoleSettings = GetDefault<UConsoleSettings>();
 
 		AutoCompleteList.AddDefaulted();
-
 		FAutoCompleteCommand& AutoCompleteCommand = AutoCompleteList.Last();
-
 		AutoCompleteCommand.Command = TEXT("Stat PixelStreaming");
 		AutoCompleteCommand.Desc = TEXT("Displays stats about Pixel Streaming on screen.");
 		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
+
+		AutoCompleteList.AddDefaulted();
+		FAutoCompleteCommand& AutoCompleteGraphCommand = AutoCompleteList.Last();
+		AutoCompleteGraphCommand.Command = TEXT("Stat PixelStreamingGraphs");
+		AutoCompleteGraphCommand.Desc = TEXT("Displays graphs about Pixel Streaming on screen.");
+		AutoCompleteGraphCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
 	}
 
 	int32 FStats::OnRenderStats(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
@@ -350,6 +379,45 @@ namespace UE::PixelStreaming
 		return true;
 	}
 
+	bool FStats::OnToggleGraphs(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
+	{
+		return true;
+	}
+
+	int32 FStats::OnRenderGraphs(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
+	{
+		FVector2D GraphPos{ 0, 0 };
+		FVector2D GraphSize{ 200, 200 };
+		float GraphSpacing = 5;
+
+		for (auto& [GraphName, Graph] : Graphs)
+		{
+			Graph.Draw(Canvas, GraphPos, GraphSize);
+			GraphPos.X += GraphSize.X + GraphSpacing;
+			if (GraphPos.X > Canvas->GetParentCanvasSize().X)
+			{
+				GraphPos.Y += GraphSize.Y + GraphSpacing;
+				GraphPos.X = 0;
+			}
+		}
+
+		for (auto& [TileName, Tile] : Tiles)
+		{
+			Tile.Position.X = GraphPos.X;
+			Tile.Position.Y = GraphPos.Y;
+			Tile.Size = GraphSize;
+			Tile.Draw(Canvas);
+			GraphPos.X += GraphSize.X + GraphSpacing;
+			if (GraphPos.X > Canvas->GetParentCanvasSize().X)
+			{
+				GraphPos.Y += GraphSize.Y + GraphSpacing;
+				GraphPos.X = 0;
+			}
+		}
+
+		return Y;
+	}
+
 	void FStats::PollPixelStreamingSettings()
 	{
 		double DeltaSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - LastTimeSettingsPolledCycles);
@@ -387,9 +455,12 @@ namespace UE::PixelStreaming
 		// webrtc::metrics::Histogram* Hist1 = webrtc::metrics::HistogramFactoryGetCounts("WebRTC.Video.NacksSent", 0, 100000, 100);
 		// Will require calling webrtc::metrics::Enable();
 
-		Sessions->ForEachSession([](TSharedPtr<IPlayerSession> Session) {
-			Session->PollWebRTCStats();
-		});
+		for (auto& Sessions : SessionsList)
+		{
+			Sessions->ForEachSession([](TSharedPtr<IPlayerSession> Session) {
+				Session->PollWebRTCStats();
+			});
+		}
 
 		PollPixelStreamingSettings();
 
@@ -400,12 +471,42 @@ namespace UE::PixelStreaming
 
 		if (!bRegisterEngineStats)
 		{
-			GAreScreenMessagesEnabled = true;
-			UEngine::FEngineStatRender RenderFunc = UEngine::FEngineStatRender::CreateRaw(this, &FStats::OnRenderStats);
-			UEngine::FEngineStatToggle ToggleFunc = UEngine::FEngineStatToggle::CreateRaw(this, &FStats::OnToggleStats);
-			GEngine->AddEngineStat(PixelStreamingStatName, PixelStreamingStatCategory, PixelStreamingStatDescription, RenderFunc, ToggleFunc, false);
-			bRegisterEngineStats = true;
+			RegisterEngineHooks();
 		}
+	}
+
+	void FStats::RegisterEngineHooks()
+	{
+		GAreScreenMessagesEnabled = true;
+
+		const FName StatName("STAT_PixelStreaming");
+		const FName StatCategory("STATCAT_PixelStreaming");
+		const FText StatDescription(FText::FromString("Pixel Streaming stats for all connected peers."));
+		UEngine::FEngineStatRender RenderStatFunc = UEngine::FEngineStatRender::CreateRaw(this, &FStats::OnRenderStats);
+		UEngine::FEngineStatToggle ToggleStatFunc = UEngine::FEngineStatToggle::CreateRaw(this, &FStats::OnToggleStats);
+		GEngine->AddEngineStat(StatName, StatCategory, StatDescription, RenderStatFunc, ToggleStatFunc, false);
+
+		const FName GraphName("STAT_PixelStreamingGraphs");
+		const FText GraphDescription(FText::FromString("Pixel Streaming graphs showing frame pipeline timings."));
+		UEngine::FEngineStatRender RenderGraphFunc = UEngine::FEngineStatRender::CreateRaw(this, &FStats::OnRenderGraphs);
+		UEngine::FEngineStatToggle ToggleGraphFunc = UEngine::FEngineStatToggle::CreateRaw(this, &FStats::OnToggleGraphs);
+		GEngine->AddEngineStat(GraphName, StatCategory, GraphDescription, RenderGraphFunc, ToggleGraphFunc, false);
+
+		bool StatsEnabled = Settings::CVarPixelStreamingOnScreenStats.GetValueOnAnyThread();
+		if (StatsEnabled)
+		{
+			for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+			{
+				if (WorldContext.WorldType == EWorldType::Game || WorldContext.WorldType == EWorldType::PIE)
+				{
+					UWorld* World = WorldContext.World();
+					UGameViewportClient* ViewportClient = World->GetGameViewport();
+					GEngine->SetEngineStat(World, ViewportClient, TEXT("PixelStreaming"), StatsEnabled);
+				}
+			}
+		}
+
+		bRegisterEngineStats = true;
 	}
 
 	//
@@ -468,17 +569,14 @@ namespace UE::PixelStreaming
 
 			if (RenderableStat->Stat.bSmooth && RenderableStat->Stat.StatValue != 0)
 			{
-				double CurValue = RenderableStat->Stat.StatValue;
-				double PercentageDrift = FMath::Abs(CurValue - StatToStore.StatValue) / CurValue;
-				if (PercentageDrift > FStats::SmoothingFactor)
-				{
-					RenderableStat->Stat.StatValue = StatToStore.StatValue;
-					bUpdated = true;
-				}
+				const int MaxSamples = 60;
+				RenderableStat->Stat.NumSamples = FGenericPlatformMath::Min(MaxSamples, RenderableStat->Stat.NumSamples + 1);
+				if (RenderableStat->Stat.NumSamples < MaxSamples)
+					RenderableStat->Stat.LastEMA = CalcMA(RenderableStat->Stat.LastEMA, RenderableStat->Stat.NumSamples - 1, StatToStore.StatValue);
 				else
-				{
-					return false;
-				}
+					RenderableStat->Stat.LastEMA = CalcEMA(RenderableStat->Stat.LastEMA, RenderableStat->Stat.NumSamples - 1, StatToStore.StatValue);
+				RenderableStat->Stat.StatValue = RenderableStat->Stat.LastEMA;
+				bUpdated = true;
 			}
 			else
 			{
@@ -518,5 +616,54 @@ namespace UE::PixelStreaming
 
 			return bUpdated;
 		}
+	}
+
+	void FStats::GraphValue(FName InName, float Value, int InSamples, float InMinRange, float InMaxRange, float InRefValue)
+	{
+		if (!Graphs.Contains(InName))
+		{
+			auto& Graph = Graphs.Add(InName, FDebugGraph(InName, InSamples, InMinRange, InMaxRange, InRefValue));
+			Graph.AddValue(Value);
+		}
+		else
+		{
+			Graphs[InName].AddValue(Value);
+		}
+	}
+
+	double FStats::AddTimeDeltaStat(uint64 Cycles1, uint64 Cycles2, const FString& Label)
+	{
+		const uint64 MaxCycles = FGenericPlatformMath::Max(Cycles1, Cycles2);
+		const uint64 MinCycles = FGenericPlatformMath::Min(Cycles1, Cycles2);
+		const double DeltaMs = FPlatformTime::ToMilliseconds64(MaxCycles - MinCycles) * ((Cycles1 > Cycles2) ? 1.0 : -1.0);
+		const FStatData TimeData{ FName(*Label), DeltaMs, 2, true };
+		StoreApplicationStat(TimeData);
+		return DeltaMs;
+	}
+
+	void FStats::AddFrameTimingStats(const FPixelStreamingFrameMetadata& FrameMetadata)
+	{
+		const double TimePending = AddTimeDeltaStat(FrameMetadata.AdaptProcessStartTime, FrameMetadata.AdaptCallTime, FString::Printf(TEXT("%s Layer %d Frame Adapt Pending Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
+		const double TimeGPU = AddTimeDeltaStat(FrameMetadata.AdaptProcessFinalizeTime, FrameMetadata.AdaptProcessStartTime, FString::Printf(TEXT("%s Layer %d Frame Adapt GPU Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
+		const double TimeCPU = AddTimeDeltaStat(FrameMetadata.AdaptProcessEndTime, FrameMetadata.AdaptProcessFinalizeTime, FString::Printf(TEXT("%s Layer %d Frame Adapt CPU Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
+		const double TimeWait = AddTimeDeltaStat(FrameMetadata.FirstEncodeStartTime, FrameMetadata.AdaptProcessEndTime, FString::Printf(TEXT("%s Layer %d Frame Wait Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
+		const double TimeEncode = AddTimeDeltaStat(FrameMetadata.LastEncodeEndTime, FrameMetadata.LastEncodeStartTime, FString::Printf(TEXT("%s Layer %d Frame Encode Time"), *FrameMetadata.ProcessName, FrameMetadata.Layer));
+
+		const FStatData UseData{ FName(*FString::Printf(TEXT("%s Layer %d Frame Uses"), *FrameMetadata.ProcessName, FrameMetadata.Layer)), static_cast<double>(FrameMetadata.UseCount), 0, false };
+		StoreApplicationStat(UseData);
+
+		const int Samples = 100;
+		GraphValue(*FString::Printf(TEXT("%d Frame Lifetime"), FrameMetadata.Layer), StaticCast<float>(TimePending + TimeGPU + TimeCPU + TimeEncode), Samples, 0.0f, 30.0f, 16.66f);
+		GraphValue(*FString::Printf(TEXT("%d Pending Time"), FrameMetadata.Layer), StaticCast<float>(TimePending), Samples, 0.0f, 30.0f);
+		GraphValue(*FString::Printf(TEXT("%d GPU Time"), FrameMetadata.Layer), StaticCast<float>(TimeGPU), Samples, 0.0f, 6.0f);
+		GraphValue(*FString::Printf(TEXT("%d CPU Time"), FrameMetadata.Layer), StaticCast<float>(TimeCPU), Samples, 0.0f, 6.0f);
+		GraphValue(*FString::Printf(TEXT("%d Wait Time"), FrameMetadata.Layer), StaticCast<float>(TimeWait), Samples, 0.0f, 30.0f);
+		GraphValue(*FString::Printf(TEXT("%d Encode Time"), FrameMetadata.Layer), StaticCast<float>(TimeEncode), Samples, 0.0f, 10.0f);
+		GraphValue(*FString::Printf(TEXT("%d Frame Uses"), FrameMetadata.Layer), StaticCast<float>(FrameMetadata.UseCount), Samples, 0.0f, 10.0f);
+	}
+
+	void FStats::AddCanvasTile(FName Name, const FCanvasTileItem& Tile)
+	{
+		Tiles.FindOrAdd(Name, Tile);
 	}
 } // namespace UE::PixelStreaming

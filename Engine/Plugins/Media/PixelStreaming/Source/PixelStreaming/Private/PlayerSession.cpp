@@ -4,8 +4,8 @@
 #include "PlayerSessions.h"
 #include "PixelStreamingStatNames.h"
 #include "ToStringExtensions.h"
-#include "SessionDescriptionObservers.h"
-#include "SignallingServerConnection.h"
+#include "PixelStreamingSessionDescriptionObservers.h"
+#include "PixelStreamingSignallingConnection.h"
 #include "Async/Async.h"
 #include "IPixelStreamingStatsConsumer.h"
 #include "RTCStatsCollector.h"
@@ -26,7 +26,7 @@ namespace UE::PixelStreaming
 		// Begin IPixelStreamingStatsConsumer
 		void ConsumeStat(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue) override
 		{
-			Sessions->ForSession(PlayerId, [&](TSharedPtr<IPlayerSession> Session) {
+			Sessions->ForSession(PlayerId, [StatValue](TSharedPtr<IPlayerSession> Session) {
 				Session->SendVideoEncoderQP((int)StatValue);
 			});
 		}
@@ -35,11 +35,11 @@ namespace UE::PixelStreaming
 		FPlayerSessions* Sessions;
 	};
 
-	FPlayerSession::FPlayerSession(FPlayerSessions* InSessions, FSignallingServerConnection* InSignallingServerConnection, FPixelStreamingPlayerId InPlayerId)
+	FPlayerSession::FPlayerSession(FPlayerSessions* InSessions, FPixelStreamingSignallingConnection* InSignallingServerConnection, FPixelStreamingPlayerId InPlayerId, TSharedPtr<IPixelStreamingInputDevice> InInputDevice)
 		: PlayerSessions(InSessions)
 		, SignallingServerConnection(InSignallingServerConnection)
 		, PlayerId(InPlayerId)
-		, DataChannelObserver(InSessions, InPlayerId)
+		, DataChannelObserver(new FDataChannelObserver(InSessions, InPlayerId, EDataChannelDirection::Bidirectional, InInputDevice))
 		, WebRTCStatsCallback(new rtc::RefCountedObject<FRTCStatsCollector>(InPlayerId))
 		, QPReporter(MakeShared<QPConsumer>(InSessions))
 	{
@@ -59,19 +59,13 @@ namespace UE::PixelStreaming
 	{
 		UE_LOG(LogPixelStreaming, Log, TEXT("%s: PlayerId=%s"), TEXT("FPlayerSession::~FPlayerSession"), *PlayerId);
 
-		DataChannelObserver.Unregister();
+		DataChannelObserver->Unregister();
 		DataChannel = nullptr;
 
 		if (PeerConnection)
 		{
 			PeerConnection->Close();
 			PeerConnection = nullptr;
-		}
-
-		FStats* Stats = FStats::Get();
-		if (Stats)
-		{
-			Stats->RemovePeersStats(PlayerId);
 		}
 	}
 
@@ -93,15 +87,15 @@ namespace UE::PixelStreaming
 	{
 	}
 
-	FDataChannelObserver* FPlayerSession::GetDataChannelObserver()
+	TSharedPtr<FDataChannelObserver> FPlayerSession::GetDataChannelObserver()
 	{
-		return &DataChannelObserver;
+		return DataChannelObserver;
 	}
 
-	webrtc::PeerConnectionInterface& FPlayerSession::GetPeerConnection()
+	rtc::scoped_refptr<webrtc::PeerConnectionInterface> FPlayerSession::GetPeerConnection()
 	{
 		check(PeerConnection);
-		return *PeerConnection;
+		return PeerConnection;
 	}
 
 	void FPlayerSession::SetPeerConnection(const rtc::scoped_refptr<webrtc::PeerConnectionInterface>& InPeerConnection)
@@ -112,6 +106,7 @@ namespace UE::PixelStreaming
 	void FPlayerSession::SetDataChannel(const rtc::scoped_refptr<webrtc::DataChannelInterface>& InDataChannel)
 	{
 		DataChannel = InDataChannel;
+		DataChannelObserver->Register(InDataChannel);
 	}
 
 	void FPlayerSession::SetVideoSource(const rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>& InVideoSource)
@@ -146,15 +141,15 @@ namespace UE::PixelStreaming
 	void FPlayerSession::OnAnswer(FString Sdp)
 	{
 		webrtc::SdpParseError Error;
-		std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc = webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, ToString(Sdp), &Error);
+		std::unique_ptr<webrtc::SessionDescriptionInterface> SessionDesc = webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, UE::PixelStreaming::ToString(Sdp), &Error);
 		if (!SessionDesc)
 		{
 			UE_LOG(LogPixelStreaming, Error, TEXT("Failed to parse answer's SDP\n%s"), *Sdp);
 			return;
 		}
 
-		FSetSessionDescriptionObserver* SetRemoteDescriptionObserver = FSetSessionDescriptionObserver::Create(
-			[this]() // on success
+		FPixelStreamingSetSessionDescriptionObserver* SetRemoteDescriptionObserver = FPixelStreamingSetSessionDescriptionObserver::Create(
+			[]() // on success
 			{
 
 			},
@@ -169,7 +164,7 @@ namespace UE::PixelStreaming
 	void FPlayerSession::OnRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp)
 	{
 		webrtc::SdpParseError Error;
-		std::unique_ptr<webrtc::IceCandidateInterface> Candidate(webrtc::CreateIceCandidate(ToString(SdpMid), SdpMLineIndex, ToString(Sdp), &Error));
+		std::unique_ptr<webrtc::IceCandidateInterface> Candidate(webrtc::CreateIceCandidate(UE::PixelStreaming::ToString(SdpMid), SdpMLineIndex, UE::PixelStreaming::ToString(Sdp), &Error));
 		if (Candidate)
 		{
 			PeerConnection->AddIceCandidate(std::move(Candidate), [this](webrtc::RTCError error) {
@@ -204,6 +199,11 @@ namespace UE::PixelStreaming
 
 	bool FPlayerSession::SendMessage(Protocol::EToPlayerMsg InMessageType, const FString& Descriptor) const
 	{
+		return SendMessage(DataChannel, InMessageType, Descriptor);
+	}
+
+	bool FPlayerSession::SendMessage(rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel, Protocol::EToPlayerMsg InMessageType, const FString& Descriptor)
+	{
 		if (!DataChannel)
 		{
 			return false;
@@ -221,13 +221,18 @@ namespace UE::PixelStreaming
 		return DataChannel->Send(webrtc::DataBuffer(Buffer, true));
 	}
 
-	void FPlayerSession::SendQualityControlStatus(bool bIsQualityController) const
+	bool FPlayerSession::SendQualityControlStatus(bool bIsQualityController) const
 	{
-		FStats::Get()->StorePeerStat(PlayerId, FStatData(PixelStreamingStatNames::QualityController, bIsQualityController ? 1.0 : 0.0, 0));
-
 		if (!DataChannel)
 		{
-			return;
+			UE_LOG(LogPixelStreaming, Error, TEXT("Cannot send quality controller status when data channel is null."));
+			return false;
+		}
+
+		if (DataChannel->state() != webrtc::DataChannelInterface::DataState::kOpen)
+		{
+			UE_LOG(LogPixelStreaming, Warning, TEXT("Cannot send quality controller status when data channel not yet open."));
+			return false;
 		}
 
 		const uint8 MessageType = static_cast<uint8>(Protocol::EToPlayerMsg::QualityControlOwnership);
@@ -241,16 +246,63 @@ namespace UE::PixelStreaming
 
 		if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 		{
-			UE_LOG(LogPixelStreaming, Error, TEXT("failed to send quality control status"));
+			UE_LOG(LogPixelStreaming, Error, TEXT("Failed to send quality control status."));
+			return false;
+		}
+		else
+		{
+			FStats::Get()->StorePeerStat(PlayerId, FStatData(PixelStreamingStatNames::QualityController, bIsQualityController ? 1.0 : 0.0, 0));
+			return true;
 		}
 	}
 
-	void FPlayerSession::SendFreezeFrame(const TArray64<uint8>& JpegBytes) const
+	bool FPlayerSession::SendInputControlStatus(rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel, FPixelStreamingPlayerId PlayerId, bool bIsInputController)
 	{
-		FPlayerSession::SendArbitraryData(static_cast<TArray<uint8>>(JpegBytes), static_cast<uint8>(Protocol::EToPlayerMsg::FreezeFrame));
+		if (!DataChannel)
+		{
+			UE_LOG(LogPixelStreaming, Error, TEXT("Cannot send input controller status for player=%s when data channel is null."), *PlayerId);
+			return false;
+		}
+
+		if (DataChannel->state() != webrtc::DataChannelInterface::DataState::kOpen)
+		{
+			UE_LOG(LogPixelStreaming, Warning, TEXT("Cannot send input controller status when data channel not yet open."));
+			return false;
+		}
+
+		const uint8 MessageType = static_cast<uint8>(Protocol::EToPlayerMsg::InputControlOwnership);
+		const uint8 ControlsInput = bIsInputController ? 1 : 0;
+
+		rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + sizeof(ControlsInput));
+
+		size_t Pos = 0;
+		Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+		Pos = SerializeToBuffer(Buffer, Pos, &ControlsInput, sizeof(ControlsInput));
+
+		if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
+		{
+			UE_LOG(LogPixelStreaming, Error, TEXT("Failed to send input control status."));
+			return false;
+		}
+		else
+		{
+			UE_LOG(LogPixelStreaming, Log, TEXT("Player %s sent input controller status. Msg=%d. (Controls input = %s)."), *PlayerId, ControlsInput, bIsInputController ? TEXT("true") : TEXT("false"));
+			FStats::Get()->StorePeerStat(PlayerId, FStatData(PixelStreamingStatNames::InputController, bIsInputController ? 1.0 : 0.0, 0));
+			return true;
+		}
 	}
 
-	void FPlayerSession::SendFileData(const TArray<uint8>& ByteData, const FString& MimeType, const FString& FileExtension) const
+	bool FPlayerSession::SendInputControlStatus(bool bIsInputController) const
+	{
+		return SendInputControlStatus(DataChannel, PlayerId, bIsInputController);
+	}
+
+	bool FPlayerSession::SendFreezeFrame(const TArray64<uint8>& JpegBytes) const
+	{
+		return FPlayerSession::SendArbitraryData(static_cast<TArray<uint8>>(JpegBytes), static_cast<uint8>(Protocol::EToPlayerMsg::FreezeFrame));
+	}
+
+	bool FPlayerSession::SendFileData(const TArray<uint8>& ByteData, const FString& MimeType, const FString& FileExtension) const
 	{
 		// Send the mime type first
 		FPlayerSession::SendMessage(Protocol::EToPlayerMsg::FileMimeType, MimeType);
@@ -258,17 +310,22 @@ namespace UE::PixelStreaming
 		// Send the extension next
 		FPlayerSession::SendMessage(Protocol::EToPlayerMsg::FileExtension, FileExtension);
 
-		// Send the contents of the file
-		AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [this, ByteData]() {
-			FPlayerSession::SendArbitraryData(ByteData, static_cast<uint8>(Protocol::EToPlayerMsg::FileContents));
-		});
+		// Send the contents of the file. Note to callers: consider running this on its own thread, it can take a while if the file is big.
+		bool bSentData = SendArbitraryData(ByteData, static_cast<uint8>(Protocol::EToPlayerMsg::FileContents));
+		if (!bSentData)
+		{
+			UE_LOG(LogPixelStreaming, Error, TEXT("Unable to send file data over the data channel."));
+			return false;
+		}
+		return true;
 	}
 
-	void FPlayerSession::SendUnfreezeFrame() const
+	bool FPlayerSession::SendUnfreezeFrame() const
 	{
 		if (!DataChannel)
 		{
-			return;
+			UE_LOG(LogPixelStreaming, Error, TEXT("Cannot send unfreeze frame when data channel is null."));
+			return false;
 		}
 
 		const uint8 MessageType = static_cast<uint8>(Protocol::EToPlayerMsg::UnfreezeFrame);
@@ -280,15 +337,18 @@ namespace UE::PixelStreaming
 
 		if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 		{
-			UE_LOG(LogPixelStreaming, Error, TEXT("failed to send unfreeze frame"));
+			UE_LOG(LogPixelStreaming, Error, TEXT("Failed to send unfreeze frame."));
+			return false;
 		}
+		return true;
 	}
 
-	void FPlayerSession::SendArbitraryData(const TArray<uint8>& DataBytes, const uint8 MessageType) const
+	bool FPlayerSession::SendArbitraryData(const TArray<uint8>& DataBytes, const uint8 MessageType) const
 	{
 		if (!DataChannel)
 		{
-			return;
+			UE_LOG(LogPixelStreaming, Error, TEXT("Cannot send arbitrary data when data channel is null."));
+			return false;
 		}
 
 		// int32 results in a maximum 4GB file (4,294,967,296 bytes)
@@ -322,19 +382,21 @@ namespace UE::PixelStreaming
 			uint64_t BufferBefore = DataChannel->buffered_amount();
 			while (BufferBefore + BytesToTransmit >= 16 * 1024 * 1024) // 16MB (WebRTC Data Channel buffer size)
 			{
-				FPlatformProcess::Sleep(0.000001f); // sleep 1 microsecond
+				// As per UE docs a Sleep of 0.0 simply lets other threads take CPU cycles while this is happening.
+				FPlatformProcess::Sleep(0.0);
 				BufferBefore = DataChannel->buffered_amount();
 			}
 
 			if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
 			{
 				UE_LOG(LogPixelStreaming, Error, TEXT("Failed to send data channel packet"));
-				return;
+				return false;
 			}
 
 			// Increment the number of bytes transmitted
 			BytesTransmitted += BytesToTransmit;
 		}
+		return true;
 	}
 
 	//
@@ -343,25 +405,25 @@ namespace UE::PixelStreaming
 
 	void FPlayerSession::OnSignalingChange(webrtc::PeerConnectionInterface::SignalingState NewState)
 	{
-		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, NewState=%s"), TEXT("FPlayerSession::OnSignalingChange"), *PlayerId, ToString(NewState));
+		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, NewState=%s"), TEXT("FPlayerSession::OnSignalingChange"), *PlayerId, UE::PixelStreaming::ToString(NewState));
 	}
 
 	// Called when a remote stream is added
 	void FPlayerSession::OnAddStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> Stream)
 	{
-		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, Stream=%s"), TEXT("FPlayerSession::OnAddStream"), *PlayerId, *ToString(Stream->id()));
+		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, Stream=%s"), TEXT("FPlayerSession::OnAddStream"), *PlayerId, *UE::PixelStreaming::ToString(Stream->id()));
 	}
 
 	void FPlayerSession::OnRemoveStream(rtc::scoped_refptr<webrtc::MediaStreamInterface> Stream)
 	{
-		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, Stream=%s"), TEXT("FPlayerSession::OnRemoveStream"), *PlayerId, *ToString(Stream->id()));
+		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, Stream=%s"), TEXT("FPlayerSession::OnRemoveStream"), *PlayerId, *UE::PixelStreaming::ToString(Stream->id()));
 	}
 
 	void FPlayerSession::OnDataChannel(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel)
 	{
 		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s"), TEXT("FPlayerSession::OnDataChannel"), *PlayerId);
 		DataChannel = InDataChannel;
-		DataChannelObserver.Register(InDataChannel);
+		DataChannelObserver->Register(InDataChannel);
 	}
 
 	void FPlayerSession::OnRenegotiationNeeded()
@@ -371,17 +433,19 @@ namespace UE::PixelStreaming
 
 	void FPlayerSession::OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState NewState)
 	{
-		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, NewState=%s"), TEXT("FPlayerSession::OnIceConnectionChange"), *PlayerId, ToString(NewState));
+		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, NewState=%s"), TEXT("FPlayerSession::OnIceConnectionChange"), *PlayerId, UE::PixelStreaming::ToString(NewState));
 	}
 
 	void FPlayerSession::OnIceGatheringChange(webrtc::PeerConnectionInterface::IceGatheringState NewState)
 	{
-		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, NewState=%s"), TEXT("FPlayerSession::OnIceGatheringChange"), *PlayerId, ToString(NewState));
+		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s, NewState=%s"), TEXT("FPlayerSession::OnIceGatheringChange"), *PlayerId, UE::PixelStreaming::ToString(NewState));
 	}
 
 	void FPlayerSession::OnIceCandidate(const webrtc::IceCandidateInterface* Candidate)
 	{
-		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s"), TEXT("FPlayerSession::OnIceCandidate"), *PlayerId);
+		std::string IceCandidateStdStr;
+		Candidate->ToString(&IceCandidateStdStr);
+		UE_LOG(LogPixelStreaming, Verbose, TEXT("%s : PlayerId=%s Candidate=%s"), TEXT("FPlayerSession::OnIceCandidate"), *PlayerId, *FString(IceCandidateStdStr.c_str()));
 
 		SignallingServerConnection->SendIceCandidate(PlayerId, *Candidate);
 	}
@@ -465,11 +529,13 @@ namespace UE::PixelStreaming
 		UE_LOG(LogPixelStreaming, Log, TEXT("%s : PlayerId=%s"), TEXT("FPlayerSession::OnRemoveTrack"), *PlayerId);
 	}
 
-	void FPlayerSession::SendVideoEncoderQP(double QP) const
+	bool FPlayerSession::SendVideoEncoderQP(double QP) const
 	{
 		if (!SendMessage(Protocol::EToPlayerMsg::VideoEncoderAvgQP, FString::FromInt(QP)))
 		{
 			UE_LOG(LogPixelStreaming, Verbose, TEXT("Failed to send video encoder QP to peer."));
+			return false;
 		}
+		return true;
 	}
 } // namespace UE::PixelStreaming

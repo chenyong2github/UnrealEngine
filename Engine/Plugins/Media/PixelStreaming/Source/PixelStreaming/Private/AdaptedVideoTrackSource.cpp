@@ -4,16 +4,20 @@
 
 namespace UE::PixelStreaming
 {
-	AdaptedVideoTrackSource::AdaptedVideoTrackSource() = default;
+	FAdaptedVideoTrackSource::FAdaptedVideoTrackSource() = default;
 
-	AdaptedVideoTrackSource::AdaptedVideoTrackSource(int required_alignment)
+	FAdaptedVideoTrackSource::FAdaptedVideoTrackSource(int required_alignment)
 		: video_adapter_(required_alignment) {}
 
-	AdaptedVideoTrackSource::~AdaptedVideoTrackSource() = default;
+	FAdaptedVideoTrackSource::~FAdaptedVideoTrackSource() = default;
 
-	bool AdaptedVideoTrackSource::GetStats(Stats* stats)
+	bool FAdaptedVideoTrackSource::GetStats(Stats* stats)
 	{
+#if WEBRTC_VERSION == 84
 		rtc::CritScope lock(&stats_crit_);
+#elif WEBRTC_VERSION == 96
+		webrtc::MutexLock lock(&stats_mutex_);
+#endif
 
 		if (!stats_)
 		{
@@ -24,7 +28,7 @@ namespace UE::PixelStreaming
 		return true;
 	}
 
-	void AdaptedVideoTrackSource::OnFrame(const webrtc::VideoFrame& frame)
+	void FAdaptedVideoTrackSource::OnFrame(const webrtc::VideoFrame& frame)
 	{
 		rtc::scoped_refptr<webrtc::VideoFrameBuffer> buffer(
 			frame.video_frame_buffer());
@@ -52,7 +56,7 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	void AdaptedVideoTrackSource::AddOrUpdateSink(
+	void FAdaptedVideoTrackSource::AddOrUpdateSink(
 		rtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
 		const rtc::VideoSinkWants& wants)
 	{
@@ -60,25 +64,25 @@ namespace UE::PixelStreaming
 		OnSinkWantsChanged(broadcaster_.wants());
 	}
 
-	void AdaptedVideoTrackSource::RemoveSink(
+	void FAdaptedVideoTrackSource::RemoveSink(
 		rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
 	{
 		broadcaster_.RemoveSink(sink);
 		OnSinkWantsChanged(broadcaster_.wants());
 	}
 
-	bool AdaptedVideoTrackSource::apply_rotation()
+	bool FAdaptedVideoTrackSource::apply_rotation()
 	{
 		return broadcaster_.wants().rotation_applied;
 	}
 
-	void AdaptedVideoTrackSource::OnSinkWantsChanged(
+	void FAdaptedVideoTrackSource::OnSinkWantsChanged(
 		const rtc::VideoSinkWants& wants)
 	{
 		video_adapter_.OnSinkWants(wants);
 	}
 
-	bool AdaptedVideoTrackSource::AdaptFrame(int width,
+	bool FAdaptedVideoTrackSource::AdaptFrame(int width,
 		int height,
 		int64_t time_us,
 		int* out_width,
@@ -89,7 +93,11 @@ namespace UE::PixelStreaming
 		int* crop_y)
 	{
 		{
+#if WEBRTC_VERSION == 84
 			rtc::CritScope lock(&stats_crit_);
+#elif WEBRTC_VERSION == 96
+			webrtc::MutexLock lock(&stats_mutex_);
+#endif
 			stats_ = Stats{ width, height };
 		}
 

@@ -1,49 +1,50 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Misc/AutomationTest.h"
 #include "Tests/AutomationCommon.h"
-#include "SignallingServerConnection.h"
+#include "PixelStreamingSignallingConnection.h"
 #include "Serialization/JsonSerializer.h"
 #include "IWebSocket.h"
 
 namespace
 {
-	using namespace UE::PixelStreaming;
+	//using namespace UE::PixelStreaming;
 
 	// For validating callbacks from the signalling server connection
-	class FTestSSConnectionObserver : public FSignallingServerConnectionObserver
+	class FTestSSConnectionObserver : public IPixelStreamingSignallingConnectionObserver
 	{
 	public:
 		virtual ~FTestSSConnectionObserver() = default;
 
-		virtual void OnSignallingServerConnected() override {}
-		virtual void OnSignallingServerDisconnected() override {}
+		virtual void OnSignallingConnected() override {}
+		virtual void OnSignallingDisconnected(int32 StatusCode, const FString& Reason, bool bWasClean) override {}
+		virtual void OnSignallingError(const FString& ErrorMsg) override {}
 
-		virtual void OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override { SetConfig = Config; }
+		virtual void OnSignallingConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override { SetConfig = Config; }
 
 		//// Streamer-only
-		virtual void OnSessionDescription(FPixelStreamingPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) override
+		virtual void OnSignallingSessionDescription(FPixelStreamingPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) override
 		{
 			SetSDP = { Type, Sdp, PlayerId };
 		}
-		virtual void OnRemoteIceCandidate(FPixelStreamingPlayerId PlayerId, const FString& SdpMid, int SdpMLineIndex, const FString& Sdp)
+		virtual void OnSignallingRemoteIceCandidate(FPixelStreamingPlayerId PlayerId, const FString& SdpMid, int SdpMLineIndex, const FString& Sdp)
 		{
 			SetIceCandidate = { SdpMid, SdpMLineIndex, Sdp, PlayerId };
 		}
-		//virtual void OnPlayerConnected(FPixelStreamingPlayerId PlayerId, int Flags) { unimplemented(); }
-		//virtual void OnPlayerDisconnected(FPixelStreamingPlayerId PlayerId) { unimplemented(); }
-		//virtual void OnStreamerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) { unimplemented(); }
+		// virtual void OnPlayerConnected(FPixelStreamingPlayerId PlayerId, int Flags) { unimplemented(); }
+		// virtual void OnPlayerDisconnected(FPixelStreamingPlayerId PlayerId) { unimplemented(); }
+		// virtual void OnSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) { unimplemented(); }
 
 		//// Player-only
-		virtual void OnSessionDescription(webrtc::SdpType Type, const FString& Sdp) override
+		virtual void OnSignallingSessionDescription(webrtc::SdpType Type, const FString& Sdp) override
 		{
 			SetSDP = { Type, Sdp };
 		}
-		virtual void OnRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp)
+		virtual void OnSignallingRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp)
 		{
 			SetIceCandidate = { SdpMid, SdpMLineIndex, Sdp };
 		}
-		//virtual void OnPlayerCount(uint32 Count) { unimplemented(); }
-		//virtual void OnPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) { unimplemented(); }
+		// virtual void OnPlayerCount(uint32 Count) { unimplemented(); }
+		// virtual void OnPeerDataChannels(int32 SendStreamId, int32 RecvStreamId) { unimplemented(); }
 
 		void Reset()
 		{
@@ -142,12 +143,12 @@ namespace
 	};
 
 	BEGIN_DEFINE_SPEC(FSignallingServerConnectionSpec, "System.Plugins.PixelStreaming.SignallingServerConnection",  EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
-	TUniquePtr<FSignallingServerConnection> SignallingServerConnection; // the object being tested
+	TUniquePtr<FPixelStreamingSignallingConnection> SignallingServerConnection; // the object being tested
 	FTestSSConnectionObserver Observer;
-	FSignallingServerConnection::FWebSocketFactory WebSocketFactory;
+	FPixelStreamingSignallingConnection::FWebSocketFactory WebSocketFactory;
 	TSharedPtr<FMockWebSocket> SocketEndpoint; // the socket created for the SignallingServerConnection. Used to fake send data.
-	FDelegateHandle OnMessageDelegateHandle; // so we can remove the delegate after tests
-	TSharedPtr<FJsonObject> LastJsonMsg; // the parsed json of the last message received from the SignallingServerConnection
+	FDelegateHandle OnMessageDelegateHandle;   // so we can remove the delegate after tests
+	TSharedPtr<FJsonObject> LastJsonMsg;	   // the parsed json of the last message received from the SignallingServerConnection
 	const FString ServerID = "MOCK SERVER";
 	const FPixelStreamingPlayerId MockPlayerId = "MOCK";
 	const FMockSessionDescriptionInterface MockSDP;
@@ -158,11 +159,11 @@ namespace
 	{
 		Describe("Mocked connection tests", [this]() {
 			BeforeEach([this]() {
-				WebSocketFactory = [&](const FString&) {
+				WebSocketFactory = [this](const FString&) {
 					SocketEndpoint = MakeShared<FMockWebSocket>();
 					return SocketEndpoint;
 				};
-				SignallingServerConnection = MakeUnique<FSignallingServerConnection>(WebSocketFactory, Observer, ServerID);
+				SignallingServerConnection = MakeUnique<FPixelStreamingSignallingConnection>(WebSocketFactory, Observer, ServerID);
 				SignallingServerConnection->Connect("Fake Url");
 				OnMessageDelegateHandle = SocketEndpoint->OnMockResponseEvent.AddLambda([this](const FString& message) {
 					OnMessageReceived(message);

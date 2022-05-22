@@ -40,6 +40,7 @@ namespace PixelStreamingStatNames
 	const FName TotalPacketSendDelay	  = FName(TEXT("totalPacketSendDelay"));
 	const FName FramesEncoded			  = FName(TEXT("framesEncoded"));
 	const FName QualityController		  = FName(TEXT("qualityController"));
+	const FName InputController			  = FName(TEXT("inputController"));
 
 	// Calculated stats
 	const FName FramesSentPerSecond	   = FName(TEXT("transmitFps"));

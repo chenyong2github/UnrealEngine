@@ -17,6 +17,19 @@
 #include "Serialization/JsonSerializer.h"
 #include "Framework/Application/SlateUser.h"
 #include "EditorPixelStreamingSettings.h"
+#include "IPixelStreamingStreamer.h"
+
+#if WITH_EDITOR
+	#include "AnalyticsEventAttribute.h"
+	#include "Editor.h"
+	#include "EngineAnalytics.h"
+	#include "IAssetViewport.h"
+	#include "LevelEditor.h"
+	#include "Editor/EditorEngine.h"
+	#include "Engine/EngineTypes.h"
+	#include "Framework/Notifications/NotificationManager.h"
+	#include "Widgets/Notifications/SNotificationList.h"
+#endif // WITH_EDITOR
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingInputDevice, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingInputDevice);
@@ -146,36 +159,20 @@ namespace UE::PixelStreaming
 		, FocusedPos(UnfocusedPos)
 		, PixelStreamingModule(FPixelStreamingModule::GetModule())
 	{
-		if (GEngine->GameViewport && !GEngine->GameViewport->HasSoftwareCursor(EMouseCursor::Default))
+		// default to the scene viewport if we have a game engine. if we are
+		// running editor we require the user to set the viewport via FStreamer
+		if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
 		{
-			// Pixel streaming always requires a default software cursor as it needs
-			// to be shown on the browser to allow the user to click UI elements.
-			const UPixelStreamingSettings* Settings = GetDefault<UPixelStreamingSettings>();
-			check(Settings);
-
-			// Check to see if we want to hide the cursor (by making it invisible).
-			// This is required if we want to make the cursor client-side (displayed
-			// only by the the browser).
-			bool bHideCursor = UE::PixelStreaming::Settings::IsPixelStreamingHideCursor();
-			if (bHideCursor)
-			{
-				GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->HiddenCursorClassName);
-				GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->HiddenCursorClassName);
-			}
-			else
-			{
-				GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->DefaultCursorClassName);
-				GEngine->GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->TextEditBeamCursorClassName);
-			}
+			SetTargetViewport(GameEngine->SceneViewport);
 		}
 	}
 
 	// XY positions are the ratio (0.0..1.0) along a viewport axis, quantized
 	// into an uint16 (0..65536). This allows the browser viewport and player
 	// viewport to have a different size.
-	void QuantizeAndNormalize(const FVector2D& InPos, uint16& OutX, uint16& OutY)
+	void QuantizeAndNormalize(TSharedPtr<FSceneViewport> TargetViewport, const FVector2D& InPos, uint16& OutX, uint16& OutY)
 	{
-		FIntPoint SizeXY = GEngine->GameViewport->Viewport->GetSizeXY();
+		FIntPoint SizeXY = TargetViewport->GetSizeXY();
 		OutX = InPos.X / SizeXY.X * 65536.0f;
 		OutY = InPos.Y / SizeXY.Y * 65536.0f;
 	}
@@ -275,7 +272,7 @@ namespace UE::PixelStreaming
 					int16 DeltaX;
 					int16 DeltaY;
 					Event.GetMouseDelta(PosX, PosY, DeltaX, DeltaY);
-					FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
+					FVector2D CursorPos = TargetViewport->GetCachedGeometry().GetAbsolutePosition() + FVector2D(PosX, PosY);
 					PixelStreamerApplicationWrapper->Cursor->SetPosition(CursorPos.X, CursorPos.Y);
 					MessageHandler->OnRawMouseMove(DeltaX, DeltaY);
 					UE_LOG(LogPixelStreamingInputDevice, VeryVerbose, TEXT("MOUSE_MOVE: Pos = (%d, %d); CursorPos = (%d, %d); Delta = (%d, %d)"), PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), DeltaX, DeltaY);
@@ -296,9 +293,9 @@ namespace UE::PixelStreaming
 					uint16 PosX;
 					uint16 PosY;
 					Event.GetMouseClick(Button, PosX, PosY);
-					FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
+					FVector2D CursorPos = TargetViewport->GetCachedGeometry().GetAbsolutePosition() + FVector2D(PosX, PosY);
 					PixelStreamerApplicationWrapper->Cursor->SetPosition(CursorPos.X, CursorPos.Y);
-					MessageHandler->OnMouseDown(GEngine->GameViewport->GetWindow()->GetNativeWindow(), Button, CursorPos);
+					MessageHandler->OnMouseDown(TargetViewport->FindWindow()->GetNativeWindow(), Button, CursorPos);
 					UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("MOUSE_DOWN: Button = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Button, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
 
 					// The browser may be faking a mouse when touching so it will send
@@ -312,7 +309,7 @@ namespace UE::PixelStreaming
 					uint16 PosX;
 					uint16 PosY;
 					Event.GetMouseClick(Button, PosX, PosY);
-					FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
+					FVector2D CursorPos = TargetViewport->GetCachedGeometry().GetAbsolutePosition() + FVector2D(PosX, PosY);
 					PixelStreamerApplicationWrapper->Cursor->SetPosition(CursorPos.X, CursorPos.Y);
 					MessageHandler->OnMouseUp(Button);
 					UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("MOUSE_UP: Button = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Button, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
@@ -325,7 +322,7 @@ namespace UE::PixelStreaming
 					uint16 PosY;
 					Event.GetMouseWheel(Delta, PosX, PosY);
 					const float SpinFactor = 1 / 120.0f;
-					FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
+					FVector2D CursorPos = TargetViewport->GetCachedGeometry().GetAbsolutePosition() + FVector2D(PosX, PosY);
 					MessageHandler->OnMouseWheel(Delta * SpinFactor, CursorPos);
 					UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("MOUSE_WHEEL: Delta = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), Delta, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
 				}
@@ -337,8 +334,8 @@ namespace UE::PixelStreaming
 					uint16 PosY;
 					uint8 Force; // Force is between 0.0 and 1.0 so will need to unquantize from byte.
 					Event.GetTouch(TouchIndex, PosX, PosY, Force);
-					FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
-					MessageHandler->OnTouchStarted(GEngine->GameViewport->GetWindow()->GetNativeWindow(), CursorPos, Force / 255.0f, TouchIndex, 0); // TODO: ControllerId?
+					FVector2D CursorPos = TargetViewport->GetCachedGeometry().GetAbsolutePosition() + FVector2D(PosX, PosY);
+					MessageHandler->OnTouchStarted(TargetViewport->FindWindow()->GetNativeWindow(), CursorPos, Force / 255.0f, TouchIndex, 0); // TODO: ControllerId?
 					UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("TOUCH_START: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), Force / 255.0f);
 
 					// If the user starts a touch then they may be focusing an editable
@@ -353,7 +350,7 @@ namespace UE::PixelStreaming
 					uint16 PosY;
 					uint8 Force;
 					Event.GetTouch(TouchIndex, PosX, PosY, Force);
-					FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
+					FVector2D CursorPos = TargetViewport->GetCachedGeometry().GetAbsolutePosition() + FVector2D(PosX, PosY);
 					MessageHandler->OnTouchEnded(CursorPos, TouchIndex, 0); // TODO: ControllerId?
 					UE_LOG(LogPixelStreamingInputDevice, Verbose, TEXT("TOUCH_END: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d)"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y));
 				}
@@ -365,7 +362,7 @@ namespace UE::PixelStreaming
 					uint16 PosY;
 					uint8 Force; // Force is between 0.0 and 1.0 so will need to unquantize from byte.
 					Event.GetTouch(TouchIndex, PosX, PosY, Force);
-					FVector2D CursorPos = GEngine->GameViewport->GetWindow()->GetPositionInScreen() + FVector2D(PosX, PosY);
+					FVector2D CursorPos = TargetViewport->GetCachedGeometry().GetAbsolutePosition() + FVector2D(PosX, PosY);
 					MessageHandler->OnTouchMoved(CursorPos, Force / 255.0f, TouchIndex, 0); // TODO: ControllerId?
 					UE_LOG(LogPixelStreamingInputDevice, VeryVerbose, TEXT("TOUCH_MOVE: TouchIndex = %d; Pos = (%d, %d); CursorPos = (%d, %d); Force = %.3f"), TouchIndex, PosX, PosY, static_cast<int>(CursorPos.X), static_cast<int>(CursorPos.Y), Force / 255.0f);
 				}
@@ -626,10 +623,10 @@ namespace UE::PixelStreaming
 
 				if (bEditable)
 				{
-					Pos = Pos - GEngine->GameViewport->GetWindow()->GetPositionInScreen();
+					Pos = Pos - TargetViewport->FindWindow()->GetPositionInScreen();
 					uint16 PosX;
 					uint16 PosY;
-					QuantizeAndNormalize(Pos, PosX, PosY);
+					QuantizeAndNormalize(TargetViewport, Pos, PosX, PosY);
 					JsonObject->SetNumberField(TEXT("x"), PosX);
 					JsonObject->SetNumberField(TEXT("y"), PosY);
 				}
@@ -638,7 +635,9 @@ namespace UE::PixelStreaming
 				TSharedRef<TJsonWriter<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TCondensedJsonPrintPolicy<TCHAR>>::Create(&Descriptor);
 				FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
 
-				PixelStreamingModule->SendCommand(Descriptor);
+				PixelStreamingModule->ForEachStreamer([&Descriptor](TSharedPtr<IPixelStreamingStreamer> Streamer){
+					Streamer->SendPlayerMessage(Protocol::EToPlayerMsg::Command, Descriptor);
+				});
 			}
 		});
 	}
@@ -648,15 +647,14 @@ namespace UE::PixelStreaming
 	namespace
 	{
 
-	#define GET(Type, Var) Type Var = UE::PixelStreaming::ParseBuffer<Type>(Data, Size)
+#define GET(Type, Var) Type Var = UE::PixelStreaming::ParseBuffer<Type>(Data, Size)
 
 		// XY positions are the ratio (0.0..1.0) along a viewport axis, quantized
 		// into an uint16 (0..65536). This allows the browser viewport and player
 		// viewport to have a different size.
-		void UnquantizeAndDenormalize(uint16& InOutX, uint16& InOutY)
+		void UnquantizeAndDenormalize(TSharedPtr<FSceneViewport> TargetViewport, uint16& InOutX, uint16& InOutY)
 		{
-			checkf(GEngine->GameViewport != nullptr, TEXT("PixelStreaming is not supported in editor, and should have been disabled earlier"));
-			FIntPoint SizeXY = GEngine->GameViewport->Viewport->GetSizeXY();
+			FIntPoint SizeXY = TargetViewport->GetSizeXY();
 			InOutX = InOutX / 65536.0f * SizeXY.X;
 			InOutY = InOutY / 65536.0f * SizeXY.Y;
 		}
@@ -664,9 +662,9 @@ namespace UE::PixelStreaming
 		// XY deltas are the ratio (-1.0..1.0) along a viewport axis, quantized
 		// into an int16 (-32767..32767). This allows the browser viewport and
 		// player viewport to have a different size.
-		void UnquantizeAndDenormalize(int16& InOutX, int16& InOutY)
+		void UnquantizeAndDenormalize(TSharedPtr<FSceneViewport> TargetViewport, int16& InOutX, int16& InOutY)
 		{
-			FIntPoint SizeXY = GEngine->GameViewport->Viewport->GetSizeXY();
+			FIntPoint SizeXY = TargetViewport->GetSizeXY();
 			InOutX = InOutX / 32767.0f * SizeXY.X;
 			InOutY = InOutY / 32767.0f * SizeXY.Y;
 		}
@@ -702,7 +700,7 @@ namespace UE::PixelStreaming
 		* @param OutTouches - The array of touches.
 		* @return False if there insufficient room in the receive buffer to read the entire event.
 		*/
-		FTouchesType GetTouches(const uint8*& Data, uint32& Size)
+		FTouchesType GetTouches(TSharedPtr<FSceneViewport> TargetViewport, const uint8*& Data, uint32& Size)
 		{
 			// Get the number of touches in the array.
 			GET(uint8, NumTouches);
@@ -713,7 +711,7 @@ namespace UE::PixelStreaming
 			{
 				GET(FPosType, PosX);
 				GET(FPosType, PosY);
-				UnquantizeAndDenormalize(PosX, PosY);
+				UnquantizeAndDenormalize(TargetViewport, PosX, PosY);
 				GET(uint8, TouchIndex);
 				GET(uint8, Force);
 				GET(uint8, Valid);
@@ -838,7 +836,7 @@ namespace UE::PixelStreaming
 				checkf(Size == 0, TEXT("%d"), Size);
 				UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseDown at (%d, %d), button %d"), PosX, PosY, Button);
 
-				UnquantizeAndDenormalize(PosX, PosY);
+				UnquantizeAndDenormalize(TargetViewport, PosX, PosY);
 
 				FEvent MouseDownEvent(EventType::MOUSE_DOWN);
 				MouseDownEvent.SetMouseClick(Button, PosX, PosY);
@@ -853,7 +851,7 @@ namespace UE::PixelStreaming
 				checkf(Size == 0, TEXT("%d"), Size);
 				UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseUp at (%d, %d), button %d"), PosX, PosY, Button);
 
-				UnquantizeAndDenormalize(PosX, PosY);
+				UnquantizeAndDenormalize(TargetViewport, PosX, PosY);
 
 				FEvent MouseDownEvent(EventType::MOUSE_UP);
 				MouseDownEvent.SetMouseClick(Button, PosX, PosY);
@@ -869,8 +867,8 @@ namespace UE::PixelStreaming
 				checkf(Size == 0, TEXT("%d"), Size);
 				UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseMove to (%d, %d), delta (%d, %d)"), PosX, PosY, DeltaX, DeltaY);
 
-				UnquantizeAndDenormalize(PosX, PosY);
-				UnquantizeAndDenormalize(DeltaX, DeltaY);
+				UnquantizeAndDenormalize(TargetViewport, PosX, PosY);
+				UnquantizeAndDenormalize(TargetViewport, DeltaX, DeltaY);
 
 				FEvent MouseMoveEvent(EventType::MOUSE_MOVE);
 				MouseMoveEvent.SetMouseDelta(PosX, PosY, DeltaX, DeltaY);
@@ -885,7 +883,7 @@ namespace UE::PixelStreaming
 				checkf(Size == 0, TEXT("%d"), Size);
 				UE_LOG(LogPixelStreamingInput, Verbose, TEXT("mouseWheel, delta %d"), Delta);
 
-				UnquantizeAndDenormalize(PosX, PosY);
+				UnquantizeAndDenormalize(TargetViewport, PosX, PosY);
 
 				FEvent MouseWheelEvent(EventType::MOUSE_WHEEL);
 				MouseWheelEvent.SetMouseWheel(Delta, PosX, PosY);
@@ -894,7 +892,7 @@ namespace UE::PixelStreaming
 			}
 			case EToStreamerMsg::TouchStart:
 			{
-				FTouchesType Touches = GetTouches(Data, Size);
+				FTouchesType Touches = GetTouches(TargetViewport, Data, Size);
 				checkf(Size == 0, TEXT("%d"), Size);
 				UE_LOG(LogPixelStreamingInput, Verbose, TEXT("TouchStart: %s"), *TouchesToString(Touches));
 
@@ -911,7 +909,7 @@ namespace UE::PixelStreaming
 			}
 			case EToStreamerMsg::TouchEnd:
 			{
-				FTouchesType Touches = GetTouches(Data, Size);
+				FTouchesType Touches = GetTouches(TargetViewport, Data, Size);
 				checkf(Size == 0, TEXT("%d"), Size);
 				UE_LOG(LogPixelStreamingInput, Verbose, TEXT("TouchEnd: %s"), *TouchesToString(Touches));
 
@@ -930,7 +928,7 @@ namespace UE::PixelStreaming
 			}
 			case EToStreamerMsg::TouchMove:
 			{
-				FTouchesType Touches = GetTouches(Data, Size);
+				FTouchesType Touches = GetTouches(TargetViewport, Data, Size);
 				checkf(Size == 0, TEXT("%d"), Size);
 				UE_LOG(LogPixelStreamingInput, Verbose, TEXT("TouchMove: %s"), *TouchesToString(Touches));
 
@@ -983,7 +981,7 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	#undef GET
+#undef GET
 
 	void FInputDevice::FEvent::GetMouseClick(EMouseButtons::Type& OutButton, uint16& OutPosX, uint16& OutPosY)
 	{
@@ -1025,5 +1023,45 @@ namespace UE::PixelStreaming
 		}
 		OutPosX = Data.MouseButton.PosX;
 		OutPosY = Data.MouseButton.PosY;
+	}
+
+	void FInputDevice::SetTargetViewport(TSharedPtr<FSceneViewport> InTargetViewport)
+	{
+		TargetViewport = InTargetViewport;
+
+		if (TargetViewport)
+		{
+			if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+			{
+				if (TargetViewport == GameEngine->SceneViewport)
+				{
+					if (UGameViewportClient* GameViewport = static_cast<UGameViewportClient*>(TargetViewport->GetClient()))
+					{
+						if (!GameViewport->HasSoftwareCursor(EMouseCursor::Default))
+						{
+							// Pixel streaming always requires a default software cursor as it needs
+							// to be shown on the browser to allow the user to click UI elements.
+							const UPixelStreamingSettings* Settings = GetDefault<UPixelStreamingSettings>();
+							check(Settings);
+
+							// Check to see if we want to hide the cursor (by making it invisible).
+							// This is required if we want to make the cursor client-side (displayed
+							// only by the the browser).
+							bool bHideCursor = UE::PixelStreaming::Settings::IsPixelStreamingHideCursor();
+							if (bHideCursor)
+							{
+								GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->HiddenCursorClassName);
+								GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->HiddenCursorClassName);
+							}
+							else
+							{
+								GameViewport->AddSoftwareCursor(EMouseCursor::Default, Settings->DefaultCursorClassName);
+								GameViewport->AddSoftwareCursor(EMouseCursor::TextEditBeam, Settings->TextEditBeamCursorClassName);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 } // namespace UE::PixelStreaming

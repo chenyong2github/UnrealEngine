@@ -47,7 +47,10 @@ THIRD_PARTY_INCLUDES_START
 #include "rtc_base/arraysize.h"
 #include "rtc_base/net_helpers.h"
 #include "rtc_base/string_utils.h"
+#if WEBRTC_VERSION == 84
 #include "rtc_base/signal_thread.h"
+#endif 
+#include "rtc_base/physical_socket_server.h"
 #include "rtc_base/experiments/rate_control_settings.h"
 
 #include "pc/session_description.h"
@@ -55,7 +58,11 @@ THIRD_PARTY_INCLUDES_START
 
 #include "media/engine/internal_decoder_factory.h"
 #include "media/engine/internal_encoder_factory.h"
+#if WEBRTC_VERSION == 84
 #include "media/base/h264_profile_level_id.h"
+#elif WEBRTC_VERSION == 96
+#include "api/video_codecs/h264_profile_level_id.h"
+#endif 
 #include "media/base/adapted_video_track_source.h"
 #include "media/base/media_channel.h"
 #include "media/base/video_common.h"
@@ -65,8 +72,12 @@ THIRD_PARTY_INCLUDES_START
 #include "modules/audio_device/audio_device_buffer.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
+#if WEBRTC_VERSION ==  84
 #include "modules/video_coding/utility/framerate_controller.h"
+#endif
 #include "modules/video_coding/utility/simulcast_rate_allocator.h"
+#include "modules/video_coding/codecs/vp8/include/vp8.h"
+#include "modules/video_coding/codecs/vp9/include/vp9.h"
 
 #include "common_video/h264/h264_bitstream_parser.h"
 #include "common_video/h264/h264_common.h"

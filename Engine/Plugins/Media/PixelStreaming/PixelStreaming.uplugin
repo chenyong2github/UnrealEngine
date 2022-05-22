@@ -28,7 +28,7 @@
             "LoadingPhase": "PostConfigInit",
             "PlatformAllowList": [ "Win64", "Linux" ],
             "TargetDenyList": [ "Server" ]
-		},
+		}
 	],
 	"Plugins": [
 		{

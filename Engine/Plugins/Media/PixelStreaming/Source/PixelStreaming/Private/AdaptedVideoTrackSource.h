@@ -13,15 +13,12 @@
 #pragma once
 
 #include <stdint.h>
-
 #include "WebRTCIncludes.h"
 
-
 /*
-* This code is nearly identical to the version found inside the WebRTC source file:
-* media/base/adapted_video_track_source.h
-*/
-
+ * This code is nearly identical to the version found inside the WebRTC source file:
+ * media/base/adapted_video_track_source.h
+ */
 
 namespace UE::PixelStreaming
 {
@@ -29,22 +26,32 @@ namespace UE::PixelStreaming
 	// capture sources. Sinks must be added and removed on one and only
 	// one thread, while AdaptFrame and OnFrame may be called on any
 	// thread.
-	class AdaptedVideoTrackSource
-		: public webrtc::Notifier<webrtc::VideoTrackSourceInterface>
+	class FAdaptedVideoTrackSource : public webrtc::Notifier<webrtc::VideoTrackSourceInterface>
 	{
 	public:
-		AdaptedVideoTrackSource();
-		~AdaptedVideoTrackSource() override;
-				
+		FAdaptedVideoTrackSource();
+		~FAdaptedVideoTrackSource() override;
+
 		// Implements rtc::VideoSourceInterface.
 		void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink,
 			const rtc::VideoSinkWants& wants) override;
 		void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
 
+		virtual void AddRef() const override { RefCount.IncRef(); }
+		virtual rtc::RefCountReleaseStatus Release() const override
+		{
+			const rtc::RefCountReleaseStatus Status = RefCount.DecRef();
+			if (Status == rtc::RefCountReleaseStatus::kDroppedLastRef)
+			{
+				delete this;
+			}
+			return Status;
+		}
+
 	protected:
 		// Allows derived classes to initialize |video_adapter_| with a custom
 		// alignment.
-		explicit AdaptedVideoTrackSource(int required_alignment);
+		explicit FAdaptedVideoTrackSource(int required_alignment);
 		// Checks the apply_rotation() flag. If the frame needs rotation, and it is a
 		// plain memory frame, it is rotated. Subclasses producing native frames must
 		// handle apply_rotation() themselves.
@@ -73,6 +80,8 @@ namespace UE::PixelStreaming
 		cricket::VideoAdapter* video_adapter() { return &video_adapter_; }
 
 	private:
+		mutable webrtc::webrtc_impl::RefCounter RefCount{ 0 };
+
 		// Part of VideoTrackSourceInterface.
 		bool GetStats(Stats* stats) override;
 
@@ -88,8 +97,13 @@ namespace UE::PixelStreaming
 
 		cricket::VideoAdapter video_adapter_;
 
+#if WEBRTC_VERSION == 84
 		rtc::CriticalSection stats_crit_;
 		absl::optional<Stats> stats_ RTC_GUARDED_BY(stats_crit_);
+#elif WEBRTC_VERSION == 96
+		webrtc::Mutex stats_mutex_;
+		absl::optional<Stats> stats_ RTC_GUARDED_BY(stats_mutex_);
+#endif
 
 		rtc::VideoBroadcaster broadcaster_;
 	};

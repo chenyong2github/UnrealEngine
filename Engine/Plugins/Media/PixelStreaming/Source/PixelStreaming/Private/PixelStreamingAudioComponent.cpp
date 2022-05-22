@@ -2,12 +2,13 @@
 
 #include "PixelStreamingAudioComponent.h"
 #include "IPixelStreamingModule.h"
+#include "IPixelStreamingStreamer.h"
 #include "PixelStreamingPrivate.h"
 #include "CoreMinimal.h"
 
 /*
-* Component that recieves audio from a remote webrtc connection and outputs it into UE using a "synth component".
-*/
+ * Component that recieves audio from a remote webrtc connection and outputs it into UE using a "synth component".
+ */
 UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PlayerToHear(FPixelStreamingPlayerId())
@@ -15,19 +16,10 @@ UPixelStreamingAudioComponent::UPixelStreamingAudioComponent(const FObjectInitia
 	, AudioSink(nullptr)
 	, SoundGenerator(MakeShared<FWebRTCSoundGenerator, ESPMode::ThreadSafe>())
 {
-
-	bool bPixelStreamingLoaded = IPixelStreamingModule::IsAvailable();
-
-	// Only output this warning if we are actually running this component (not in commandlet).
-	if (!bPixelStreamingLoaded && !IsRunningCommandlet())
-	{
-		UE_LOG(LogPixelStreaming, Warning, TEXT("Pixel Streaming audio component will not tick because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
-	}
-
 	PreferredBufferLength = 512u;
 	NumChannels = 2;
-	PrimaryComponentTick.bCanEverTick = bPixelStreamingLoaded;
-	SetComponentTickEnabled(bPixelStreamingLoaded);
+	PrimaryComponentTick.bCanEverTick = true;
+	SetComponentTickEnabled(true);
 	bAutoActivate = true;
 };
 
@@ -56,7 +48,16 @@ void UPixelStreamingAudioComponent::BeginDestroy()
 
 bool UPixelStreamingAudioComponent::ListenTo(FString PlayerToListenTo)
 {
+	IPixelStreamingModule& PixelStreamingModule = IPixelStreamingModule::Get();
+	if (!PixelStreamingModule.IsReady())
+	{
+		return false;
+	}
+	return StreamerListenTo(PixelStreamingModule.GetDefaultStreamerID(), PlayerToListenTo);
+}
 
+bool UPixelStreamingAudioComponent::StreamerListenTo(FString StreamerId, FString PlayerToListenTo)
+{
 	if (!IPixelStreamingModule::IsAvailable())
 	{
 		UE_LOG(LogPixelStreaming, Verbose, TEXT("Pixel Streaming audio component could not listen to anything because Pixel Streaming module is not loaded. This is expected on dedicated servers."));
@@ -71,7 +72,29 @@ bool UPixelStreamingAudioComponent::ListenTo(FString PlayerToListenTo)
 
 	PlayerToHear = PlayerToListenTo;
 
-	IPixelStreamingAudioSink* CandidateSink = WillListenToAnyPlayer() ? PixelStreamingModule.GetUnlistenedAudioSink() : PixelStreamingModule.GetPeerAudioSink(FPixelStreamingPlayerId(PlayerToHear));
+	if (StreamerId == FString())
+	{
+		TArray<FString> StreamerIds = PixelStreamingModule.GetStreamerIds();
+		if (StreamerIds.Num() > 0)
+		{
+			StreamerToHear = StreamerIds[0];
+		}
+		else
+		{
+			StreamerToHear = PixelStreamingModule.GetDefaultStreamerID();
+		}
+	}
+	else
+	{
+		StreamerToHear = StreamerId;
+	}
+
+	TSharedPtr<IPixelStreamingStreamer> Streamer = PixelStreamingModule.GetStreamer(StreamerToHear);
+	if (!Streamer)
+	{
+		return false;
+	}
+	IPixelStreamingAudioSink* CandidateSink = WillListenToAnyPlayer() ? Streamer->GetUnlistenedAudioSink() : Streamer->GetPeerAudioSink(FPixelStreamingPlayerId(PlayerToHear));
 
 	if (CandidateSink == nullptr)
 	{
@@ -87,6 +110,7 @@ bool UPixelStreamingAudioComponent::ListenTo(FString PlayerToListenTo)
 void UPixelStreamingAudioComponent::Reset()
 {
 	PlayerToHear = FString();
+	StreamerToHear = FString();
 	SoundGenerator->bShouldGenerateAudio = false;
 	if (AudioSink)
 	{
@@ -141,6 +165,14 @@ void UPixelStreamingAudioComponent::OnConsumerRemoved()
 void UPixelStreamingAudioComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 
+	bool bPixelStreamingLoaded = IPixelStreamingModule::IsAvailable();
+
+	// Early out if running in commandlet
+	if (IsRunningCommandlet())
+	{
+		return;
+	}
+
 	// if auto connect turned off don't bother
 	if (!bAutoFindPeer)
 	{
@@ -153,15 +185,15 @@ void UPixelStreamingAudioComponent::TickComponent(float DeltaTime, ELevelTick Ti
 		return;
 	}
 
-	if (ListenTo(PlayerToHear))
+	if (StreamerListenTo(StreamerToHear, PlayerToHear))
 	{
 		UE_LOG(LogPixelStreaming, Log, TEXT("PixelStreaming audio component found a WebRTC peer to listen to."));
 	}
 }
 
 /*
-* ---------------- FWebRTCSoundGenerator -------------------------
-*/
+ * ---------------- FWebRTCSoundGenerator -------------------------
+ */
 
 FWebRTCSoundGenerator::FWebRTCSoundGenerator()
 	: Params()

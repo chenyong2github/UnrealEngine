@@ -13,15 +13,32 @@
 
 namespace UE::PixelStreaming
 {
-	FDataChannelObserver::FDataChannelObserver(FPlayerSessions* InPlayerSessions, FPixelStreamingPlayerId InPlayerId)
+	FDataChannelObserver::FDataChannelObserver(FPlayerSessions* InPlayerSessions, FPixelStreamingPlayerId InPlayerId, EDataChannelDirection InDirection, TSharedPtr<IPixelStreamingInputDevice> InInputDevice)
 		: PlayerSessions(InPlayerSessions)
 		, PlayerId(InPlayerId)
-		, InputDevice(static_cast<FInputDevice&>(IPixelStreamingModule::Get().GetInputDevice()))
+		, Direction(InDirection)
+		, InputDevice(InInputDevice)
 	{
+	}
+
+	FDataChannelObserver::~FDataChannelObserver()
+	{
+		Unregister();
+	}
+
+	bool FDataChannelObserver::IsDataChannelOpen() const
+	{
+		return DataChannel && DataChannel->state() == webrtc::DataChannelInterface::DataState::kOpen;
 	}
 
 	void FDataChannelObserver::Register(rtc::scoped_refptr<webrtc::DataChannelInterface> InDataChannel)
 	{
+		checkf(InDataChannel, TEXT("Datachannel we are registering must be non null."));
+		if (!InDataChannel)
+		{
+			return;
+		}
+
 		DataChannel = InDataChannel;
 		DataChannel->RegisterObserver(this);
 	}
@@ -42,16 +59,21 @@ namespace UE::PixelStreaming
 			return;
 		}
 
-		switch (DataChannel->state())
+		const webrtc::DataChannelInterface::DataState State = DataChannel->state();
+		FString StateStr = FString(webrtc::DataChannelInterface::DataStateString(State));
+		FString LabelStr = FString(DataChannel->label().c_str());
+		UE_LOG(LogPixelStreaming, Log, TEXT("Player %s data channel (label: %s) - State=%s."), *PlayerId, *LabelStr, *StateStr);
+
+		switch (State)
 		{
 			case webrtc::DataChannelInterface::DataState::kOpen:
 			{
-				if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
-				{
-					Delegates->OnDataChannelOpenNative.Broadcast(PlayerId, DataChannel.get());
-				}
+				OnDataChannelOpen();
 				break;
 			}
+			case webrtc::DataChannelInterface::DataState::kConnecting:
+			case webrtc::DataChannelInterface::DataState::kClosing:
+				break;
 			case webrtc::DataChannelInterface::DataState::kClosed:
 			{
 				if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
@@ -66,8 +88,34 @@ namespace UE::PixelStreaming
 		}
 	}
 
+	void FDataChannelObserver::OnDataChannelOpen()
+	{
+		// Send all initial settings to the peer
+		SendInitialSettings();
+
+		// Input controller/quality controller
+		SendPeerControllerMessages();
+
+		// Let an delegate subscribers know data channel is open
+		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
+		{
+			Delegates->OnDataChannelOpenNative.Broadcast(PlayerId, DataChannel.get());
+		}
+	}
+
+	void FDataChannelObserver::SetDirection(EDataChannelDirection InDirection)
+	{
+		Direction = InDirection;
+	}
+
 	void FDataChannelObserver::OnMessage(const webrtc::DataBuffer& Buffer)
 	{
+		// If we can't recieve then early exit here.
+		if (Direction == EDataChannelDirection::SendOnly)
+		{
+			return;
+		}
+
 		Protocol::EToStreamerMsg MsgType = static_cast<Protocol::EToStreamerMsg>(Buffer.data.data()[0]);
 
 		if (MsgType == Protocol::EToStreamerMsg::RequestQualityControl)
@@ -89,18 +137,54 @@ namespace UE::PixelStreaming
 			const size_t StringLen = (Buffer.data.size() - 1) / sizeof(TCHAR);
 			const TCHAR* StringPtr = reinterpret_cast<const TCHAR*>(Buffer.data.data() + 1);
 			const FString EchoMessage(StringLen, StringPtr);
-			PlayerSessions->ForSession(PlayerId, [&](TSharedPtr<IPlayerSession> Session) {
+			PlayerSessions->ForSession(PlayerId, [&EchoMessage](TSharedPtr<IPlayerSession> Session) {
 				Session->SendMessage(Protocol::EToPlayerMsg::TestEcho, EchoMessage);
 			});
 		}
 		else if (!IsEngineExitRequested())
 		{
-			InputDevice.OnMessage(Buffer);
+			if (UE::PixelStreaming::Settings::GetInputControllerMode() == UE::PixelStreaming::Settings::EInputControllerMode::Host)
+			{
+				// If we are in "Host" mode and the current peer is not the host, then discard this input.
+				if (!PlayerSessions->IsInputController(PlayerId))
+				{
+					return;
+				}
+			}
+
+			if (InputDevice)
+			{
+				InputDevice->OnMessage(Buffer);
+			}
 		}
+	}
+
+	void FDataChannelObserver::SendPeerControllerMessages() const
+	{
+		// Only send if we can actually send.
+		if (Direction == EDataChannelDirection::RecvOnly)
+		{
+			return;
+		}
+
+		FPixelStreamingPlayerId ThisPlayerId = PlayerId;
+		FPlayerSessions* ThisPlayerSessions = PlayerSessions;
+
+		// Send quality and input control status messages to peer
+		PlayerSessions->ForSession(PlayerId, [ThisPlayerSessions, ThisPlayerId](TSharedPtr<IPlayerSession> Session) {
+			Session->SendInputControlStatus(ThisPlayerSessions->IsInputController(ThisPlayerId));
+			Session->SendQualityControlStatus(ThisPlayerSessions->IsQualityController(ThisPlayerId));
+		});
 	}
 
 	void FDataChannelObserver::SendLatencyReport() const
 	{
+		// Only send if we can actually send.
+		if (Direction == EDataChannelDirection::RecvOnly)
+		{
+			return;
+		}
+
 		if (Settings::CVarPixelStreamingDisableLatencyTester.GetValueOnAnyThread())
 		{
 			return;
@@ -141,7 +225,7 @@ namespace UE::PixelStreaming
 					TransmissionTimeMs);
 			}
 
-			PlayerSessions->ForSession(PlayerId, [&](TSharedPtr<IPlayerSession> Session) {
+			PlayerSessions->ForSession(PlayerId, [&ReportToTransmitJSON](TSharedPtr<IPlayerSession> Session) {
 				Session->SendMessage(Protocol::EToPlayerMsg::LatencyTest, ReportToTransmitJSON);
 			});
 		});
@@ -165,6 +249,12 @@ namespace UE::PixelStreaming
 
 	void FDataChannelObserver::SendInitialSettings() const
 	{
+		// Only send if we can actually send.
+		if (Direction == EDataChannelDirection::RecvOnly)
+		{
+			return;
+		}
+
 		const FString PixelStreamingPayload = FString::Printf(TEXT("{ \"AllowPixelStreamingCommands\": %s, \"DisableLatencyTest\": %s }"),
 			Settings::CVarPixelStreamingAllowConsoleCommands.GetValueOnAnyThread() ? TEXT("true") : TEXT("false"),
 			Settings::CVarPixelStreamingDisableLatencyTester.GetValueOnAnyThread() ? TEXT("true") : TEXT("false"));
@@ -188,7 +278,7 @@ namespace UE::PixelStreaming
 
 		const FString FullPayload = FString::Printf(TEXT("{ \"PixelStreaming\": %s, \"Encoder\": %s, \"WebRTC\": %s }"), *PixelStreamingPayload, *EncoderPayload, *WebRTCPayload);
 
-		PlayerSessions->ForSession(PlayerId, [&](TSharedPtr<IPlayerSession> Session) {
+		PlayerSessions->ForSession(PlayerId, [&FullPayload](TSharedPtr<IPlayerSession> Session) {
 			if (!Session->SendMessage(Protocol::EToPlayerMsg::InitialSettings, FullPayload))
 			{
 				UE_LOG(LogPixelStreaming, Log, TEXT("Failed to send initial Pixel Streaming settings."));

@@ -3,8 +3,9 @@
 #include "VideoEncoderH264Wrapper.h"
 #include "Stats.h"
 #include "VideoEncoderFactory.h"
-#include "EncoderFactory.h"
-#include "FrameBuffer.h"
+#include "VideoEncoderFactorySimple.h"
+#include "FrameBufferH264.h"
+#include "FrameAdapterH264.h"
 
 namespace UE::PixelStreaming
 {
@@ -22,18 +23,11 @@ namespace UE::PixelStreaming
 
 	void FVideoEncoderH264Wrapper::Encode(const webrtc::VideoFrame& WebRTCFrame, bool bKeyframe)
 	{
-		FPixelStreamingFrameBuffer* FrameBuffer = static_cast<FPixelStreamingFrameBuffer*>(WebRTCFrame.video_frame_buffer().get());
-		check(FrameBuffer->GetFrameBufferType() == EPixelStreamingFrameBufferType::Layer);
-		FLayerFrameBuffer* LayerFrameBuffer = static_cast<FLayerFrameBuffer*>(FrameBuffer);
-		TSharedPtr<FPixelStreamingTextureWrapper> SourceTexture = LayerFrameBuffer->GetFrame();
-
-		if (!SourceTexture.IsValid())
-		{
-			return;
-		}
+		FFrameBufferH264* FrameBuffer = static_cast<FFrameBufferH264*>(WebRTCFrame.video_frame_buffer().get());
+		checkf(FrameBuffer->GetFrameBufferType() == EPixelStreamingFrameBufferType::Layer, TEXT("FVideoEncoderH264Wrapper::Encode(): Supplied frame buffer is of incorrect type."));
 
 		AVEncoder::FVideoEncoder::FLayerConfig EncoderConfig = GetCurrentConfig();
-		TSharedPtr<AVEncoder::FVideoEncoderInputFrame> EncoderInputFrame = FrameFactory->GetFrameAndSetTexture(SourceTexture->GetTexture<FTextureRHIRef>());
+		TSharedPtr<AVEncoder::FVideoEncoderInputFrame> EncoderInputFrame = FrameFactory->GetFrameAndSetTexture(FrameBuffer->GetAdaptedLayer()->GetFrameTexture());
 		if (EncoderInputFrame)
 		{
 			EncoderInputFrame->SetTimestampUs(WebRTCFrame.timestamp_us());
@@ -72,10 +66,11 @@ namespace UE::PixelStreaming
 
 	/* ------------------ Static functions below --------------------- */
 
-	void FVideoEncoderH264Wrapper::OnEncodedPacket(FVideoEncoderFactory* Factory, uint32 InLayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InFrame, const AVEncoder::FCodecPacket& InPacket)
+	void FVideoEncoderH264Wrapper::OnEncodedPacket(FVideoEncoderFactorySimple* Factory, uint32 InLayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InFrame, const AVEncoder::FCodecPacket& InPacket)
 	{
 		webrtc::EncodedImage Image;
 
+#if WEBRTC_VERSION == 84
 		webrtc::RTPFragmentationHeader FragHeader;
 		//CreateH264FragmentHeader(InPacket.Data.Get(), InPacket.DataSize, FragHeader);
 
@@ -88,7 +83,7 @@ namespace UE::PixelStreaming
 			FragHeader.fragmentationOffset[i] = NALUIndex.payload_start_offset;
 			FragHeader.fragmentationLength[i] = NALUIndex.payload_size;
 		}
-
+#endif
 		Image.timing_.packetization_finish_ms = FTimespan::FromSeconds(FPlatformTime::Seconds()).GetTotalMilliseconds();
 		Image.timing_.encode_start_ms = InPacket.Timings.StartTs.GetTotalMilliseconds();
 		Image.timing_.encode_finish_ms = InPacket.Timings.FinishTs.GetTotalMilliseconds();
@@ -101,7 +96,9 @@ namespace UE::PixelStreaming
 		Image.content_type_ = webrtc::VideoContentType::UNSPECIFIED;
 		Image.qp_ = InPacket.VideoQP;
 		Image.SetSpatialIndex(InLayerIndex);
+#if WEBRTC_VERSION == 84
 		Image._completeFrame = true;
+#endif
 		Image.rotation_ = webrtc::VideoRotation::kVideoRotation_0;
 		Image.SetTimestamp(InFrame->GetTimestampRTP());
 		Image.capture_time_ms_ = InFrame->GetTimestampUs() / 1000.0;
@@ -113,6 +110,10 @@ namespace UE::PixelStreaming
 		CodecInfo.codecSpecific.H264.idr_frame = InPacket.IsKeyFrame;
 		CodecInfo.codecSpecific.H264.base_layer_sync = false;
 
+#if WEBRTC_VERSION == 84
 		Factory->OnEncodedImage(Image, &CodecInfo, &FragHeader);
+#elif WEBRTC_VERSION == 96
+		Factory->OnEncodedImage(Image, &CodecInfo);
+#endif
 	}
 } // namespace UE::PixelStreaming

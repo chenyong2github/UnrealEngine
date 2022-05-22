@@ -51,8 +51,8 @@ namespace UE::PixelStreaming::Settings
 	extern TAutoConsoleVariable<int32> CVarPixelStreamingFreezeFrameQuality;
 	extern TAutoConsoleVariable<bool> CVarSendPlayerIdAsInteger;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingDisableLatencyTester;
-	extern TAutoConsoleVariable<bool> CVarPixelStreamingDecoupleFrameRate;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingVPXUseCompute;
+	extern TAutoConsoleVariable<FString> CVarPixelStreamingInputController;
 
 	extern TArray<FKey> FilteredKeys;
 	// Ends Pixel Streaming Plugin CVars
@@ -68,7 +68,17 @@ namespace UE::PixelStreaming::Settings
 		VP9
 	};
 
+	/* Pixel Streaming can limit who can send input (keyboard, mouse, etc). */
+	enum EInputControllerMode
+	{
+		/* Any - Any peer can control input. */
+		Any,
+		/* Host - Only the "host" peer can control input. */
+		Host
+	};
+
 	// Begin utility functions etc.
+	bool DecoupleFrameRate();
 	bool IsCodecVPX();
 	ECodec GetSelectedCodec();
 	AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar();
@@ -77,6 +87,9 @@ namespace UE::PixelStreaming::Settings
 	AVEncoder::FVideoEncoder::H264Profile GetH264Profile();
 	const TArray<FName>& GetActiveTextureSourceTypes();
 	void SetActiveTextureSourceTypes(TArray<FName> InActiveTextureSourceTypes);
+	EInputControllerMode GetInputControllerMode();
+	FString GetDefaultStreamerID();
+
 	// End utility functions etc.
 
 	struct FSimulcastParameters

@@ -10,7 +10,7 @@ namespace UE::PixelStreaming
 	class FPlayerSessionSFU : public FPlayerSession
 	{
 	public:
-		FPlayerSessionSFU(FPlayerSessions* InSessions, FSignallingServerConnection* InSignallingServerConnection, FPixelStreamingPlayerId PlayerId);
+		FPlayerSessionSFU(FPlayerSessions* InSessions, FPixelStreamingSignallingConnection* InSignallingServerConnection, FPixelStreamingPlayerId PlayerId, TSharedPtr<IPixelStreamingInputDevice> InInputDevice);
 		virtual ~FPlayerSessionSFU();
 
 		void AddChildSession(TSharedPtr<FPlayerSessionDataOnly> ChildSession);

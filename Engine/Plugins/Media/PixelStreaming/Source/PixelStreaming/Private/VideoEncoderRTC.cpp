@@ -1,22 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VideoEncoderRTC.h"
-#include "EncoderFactory.h"
+#include "VideoEncoderFactorySimple.h"
 #include "VideoEncoderFactory.h"
-#include "PixelStreamingFrameBuffer.h"
-#include "PlayerSession.h"
-#include "Stats.h"
-#include "UnrealEngine.h"
-#include "Misc/Paths.h"
+#include "FrameBufferH264.h"
+#include "FrameAdapterH264.h"
 #include "Settings.h"
-#include "PixelStreamingPlayerId.h"
-#include "Async/Async.h"
-#include "VideoEncoderH264Wrapper.h"
 #include "HAL/PlatformFileManager.h"
+#include "Misc/Paths.h"
+#include "Stats.h"
 
 namespace UE::PixelStreaming
 {
-	FVideoEncoderRTC::FVideoEncoderRTC(FVideoEncoderFactory& InFactory)
+	FVideoEncoderRTC::FVideoEncoderRTC(FVideoEncoderFactorySimple& InFactory)
 		: Factory(InFactory)
 	{
 	}
@@ -59,13 +55,21 @@ namespace UE::PixelStreaming
 
 	int32 FVideoEncoderRTC::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
 	{
-		FPixelStreamingFrameBuffer* FrameBuffer = static_cast<FPixelStreamingFrameBuffer*>(frame.video_frame_buffer().get());
+		FFrameBufferH264* FrameBuffer = static_cast<FFrameBufferH264*>(frame.video_frame_buffer().get());
 
 		// If initialize frame is passed, this is a dummy frame so WebRTC is happy frames are passing through
 		// This is used so that an encoder can be active as far as WebRTC is concerned by simply have frames transmitted by some other encoder on its behalf.
 		if (FrameBuffer->GetFrameBufferType() == EPixelStreamingFrameBufferType::Initialize)
 		{
 			return WEBRTC_VIDEO_CODEC_OK;
+		}
+
+		FPixelStreamingFrameMetadata& FrameMetadata = FrameBuffer->GetAdaptedLayer()->Metadata;
+		FrameMetadata.UseCount++;
+		FrameMetadata.LastEncodeStartTime = FPlatformTime::Cycles64();
+		if (FrameMetadata.UseCount == 1)
+		{
+			FrameMetadata.FirstEncodeStartTime = FrameMetadata.LastEncodeStartTime;
 		}
 
 		bool bKeyframe = false;
@@ -83,6 +87,10 @@ namespace UE::PixelStreaming
 		UpdateConfig();
 
 		Encoder->Encode(frame, bKeyframe);
+
+		FrameMetadata.LastEncodeEndTime = FPlatformTime::Cycles64();
+
+		FStats::Get()->AddFrameTimingStats(FrameMetadata);
 
 		return WEBRTC_VIDEO_CODEC_OK;
 	}
@@ -162,7 +170,11 @@ namespace UE::PixelStreaming
 		return InEncoderConfig;
 	}
 
-	void FVideoEncoderRTC::SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation)
+	void FVideoEncoderRTC::SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info
+#if WEBRTC_VERSION == 84
+		, webrtc::RTPFragmentationHeader const* fragmentation
+#endif
+	)
 	{
 		if (FirstKeyframeCountdown > 0)
 		{
@@ -195,7 +207,11 @@ namespace UE::PixelStreaming
 
 		if (OnEncodedImageCallback)
 		{
-			OnEncodedImageCallback->OnEncodedImage(encoded_image, codec_specific_info, fragmentation);
+			OnEncodedImageCallback->OnEncodedImage(encoded_image, codec_specific_info
+#if WEBRTC_VERSION == 84
+				, fragmentation
+#endif
+			);
 		}
 	}
 } // namespace UE::PixelStreaming

@@ -11,7 +11,7 @@ namespace webrtc
 
 namespace UE::PixelStreaming 
 {
-	class FVideoEncoderFactory;
+	class FVideoEncoderFactorySimple;
 	
 	class FVideoEncoderH264Wrapper
 	{
@@ -28,7 +28,7 @@ namespace UE::PixelStreaming
 		AVEncoder::FVideoEncoder::FLayerConfig GetCurrentConfig();
 		void SetConfig(const AVEncoder::FVideoEncoder::FLayerConfig& NewConfig);
 
-		static void OnEncodedPacket(FVideoEncoderFactory* Factory, 
+		static void OnEncodedPacket(FVideoEncoderFactorySimple* Factory, 
 			uint32 InLayerIndex, const TSharedPtr<AVEncoder::FVideoEncoderInputFrame> InFrame, 
 			const AVEncoder::FCodecPacket& InPacket);
 
