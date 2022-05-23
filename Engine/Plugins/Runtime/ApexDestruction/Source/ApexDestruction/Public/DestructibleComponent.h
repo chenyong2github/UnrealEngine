@@ -23,18 +23,6 @@ namespace physx
 	class PxRigidDynamic;
 	class PxRigidActor;
 }
-
-#if WITH_APEX
-namespace nvidia
-{
-	namespace apex
-	{
-		class  DestructibleActor;
-		struct DamageEventReportData;
-		struct ChunkStateEventData;
-	}
-}
-#endif
 #endif // WITH_PHYSX 
 
 /** Delegate for notification when fracture occurs */
@@ -79,13 +67,6 @@ class APEXDESTRUCTION_API UDestructibleComponent : public USkinnedMeshComponent,
 	class UDestructibleMesh* DestructibleMesh_DEPRECATED;
 #endif // WITH_EDITORONLY_DATA
 
-#if WITH_APEX
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	/** Per chunk info */
-	TArray<FApexDestructionCustomPayload> ChunkInfos;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif // WITH_PHYSX 
-
 #if WITH_EDITOR
 	//~ Begin UObject Interface.
 	virtual void PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -116,10 +97,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	FComponentFractureSignature OnComponentFracture;
 
 public:
-#if WITH_APEX
-	/** The DestructibleActor instantated from a DestructibleAsset, which contains the runtime physical state. */
-	nvidia::apex::DestructibleActor* ApexDestructibleActor;
-#endif	//WITH_APEX
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
@@ -177,23 +154,6 @@ public:
 
 
 	//~ Begin DestructibleComponent Interface.
-#if WITH_APEX
-	struct FFakeBodyInstanceState
-	{
-		physx::PxRigidActor* ActorSync;
-		int32 InstanceIndex;
-	};
-
-	/** Changes the body instance to have the specified actor and instance id. */
-	void SetupFakeBodyInstance(physx::PxRigidActor* NewRigidActor, int32 InstanceIdx, FFakeBodyInstanceState* PrevState = NULL);
-	
-	/** Resets the BodyInstance to the state that is defined in PrevState. */
-	void ResetFakeBodyInstance(FFakeBodyInstanceState& PrevState);
-
-	/** Setup a pair of PxShape and ChunkIndex */
-	void Pair( int32 ChunkIndex, physx::PxShape* PShape );
-#endif // WITH_APEX
-
 	/** This method makes a chunk (fractured piece) visible or invisible.
 	 *
 	 * @param ChunkIndex - Which chunk to affect.  ChunkIndex must lie in the range: 0 <= ChunkIndex < ((DestructibleMesh*)USkeletalMesh)->ApexDestructibleAsset->chunkCount().
@@ -209,17 +169,6 @@ public:
 	 * @param WorldRotation - The world space position to give to the chunk.
 	 */
 	void SetChunkWorldRT( int32 ChunkIndex, const FQuat& WorldRotation, const FVector& WorldTranslation );
-
-#if WITH_APEX
-	/** Trigger any fracture effects after a damage event is received */
-	virtual void SpawnFractureEffectsFromDamageEvent(const nvidia::apex::DamageEventReportData& InDamageEvent);
-
-	/** Callback from physics system to notify the actor that it has been damaged */
-	void OnDamageEvent(const nvidia::apex::DamageEventReportData& InDamageEvent);
-
-	/** Callback from physics system to notify the actor that a chunk's visibility has changed */
-	void OnVisibilityEvent(const nvidia::apex::ChunkStateEventData & InDamageEvent);
-#endif // WITH_APEX
 
 	//~ End DestructibleComponent Interface.
 

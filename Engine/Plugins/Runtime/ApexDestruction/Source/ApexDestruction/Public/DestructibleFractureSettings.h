@@ -10,26 +10,6 @@
 
 class UMaterialInterface;
 
-#if WITH_APEX
-
-// Forward declares
-namespace nvidia
-{
-	namespace apex
-	{
-		struct FractureMaterialDesc;
-		class DestructibleChunkDesc;
-		class DestructibleGeometryDesc;
-		class DestructibleAsset;
-		class DestructibleAssetAuthoring;
-		struct ExplicitRenderTriangle;
-		struct ExplicitSubmeshData;
-		class DestructibleAssetCookingDesc;
-	};
-};
-#endif // WITH_APEX
-
-
 /** 
  * Options for APEX asset import.
  **/
@@ -95,12 +75,6 @@ struct FFractureMaterial
 		, UAngle(0.0f)
 		, InteriorElementIndex(-1)
 	{}
-
-	//~ Begin FFractureMaterial Interface
-#if WITH_APEX
-	void	FillNxFractureMaterialDesc(nvidia::apex::FractureMaterialDesc& PFractureMaterialDesc);
-#endif // WITH_APEX
-	//~ End FFractureMaterial Interface
 };
 
 

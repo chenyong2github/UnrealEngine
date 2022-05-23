@@ -20,10 +20,6 @@
 #include "EditorFramework/AssetImportData.h"
 #endif
 
-#if WITH_APEX && WITH_EDITOR
-#include "ApexDestructibleAssetImport.h"
-#endif
-
 DEFINE_LOG_CATEGORY(LogDestructible)
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS

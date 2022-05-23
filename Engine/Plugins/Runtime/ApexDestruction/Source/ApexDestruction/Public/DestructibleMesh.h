@@ -12,21 +12,6 @@
 class UPhysicalMaterial;
 class UStaticMesh;
 
-#if WITH_APEX
-namespace NvParameterized
-{
-	class Interface;
-}
-
-namespace nvidia
-{
-	namespace apex
-	{
-		class DestructibleAsset;
-	}
-}
-#endif
-
 #ifndef WITH_DESTRUCTIBLE_DEPRECATION
 #define WITH_DESTRUCTIBLE_DEPRECATION 0
 #endif
@@ -58,12 +43,6 @@ struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be su
 	FDestructibleDepthParameters()
 		: ImpactDamageOverride(IDO_None)
 	{}
-
-#if WITH_APEX
-	void FillDestructibleActorDesc(NvParameterized::Interface* Params, const char* OverrideName, const char* OverrideValueName) const;
-	void LoadDefaultDestructibleParametersFromApexAsset(const NvParameterized::Interface* Params, const char* OverrideName, const char* OverrideValueName);
-#endif
-
 };
 
 
@@ -164,12 +143,6 @@ struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be su
 		, bUseValidBounds(false)
 		, bFormExtendedStructures(false)
 	{}
-
-#if WITH_APEX
-	void FillDestructibleActorDesc(NvParameterized::Interface* Params) const;
-	void LoadDefaultDestructibleParametersFromApexAsset(const NvParameterized::Interface* Params);
-#endif
-
 };
 
 
@@ -234,12 +207,6 @@ struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be su
 		, bCustomImpactResistance(false)
 		, ImpactResistance(1.f)
 	{}
-
-#if WITH_APEX
-	void FillDestructibleActorDesc(NvParameterized::Interface* Params, UPhysicalMaterial* PhysMat) const;
-	void LoadDefaultDestructibleParametersFromApexAsset(const NvParameterized::Interface* Params);
-#endif
-	
 };
 
 
@@ -294,12 +261,6 @@ struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be su
 		, DebrisMaxSeparationMax(10.0f)
 		, ValidBounds(FVector(-500000.0f), FVector(500000.0f))
 	{}
-
-#if WITH_APEX
-	void FillDestructibleActorDesc(NvParameterized::Interface* Params) const;
-	void LoadDefaultDestructibleParametersFromApexAsset(const NvParameterized::Interface* Params);
-#endif
-	
 };
 
 
@@ -346,12 +307,6 @@ struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be su
 		, MaxChunkSpeed(0)
 		, FractureImpulseScale(0)
 	{}
-
-#if WITH_APEX
-	void FillDestructibleActorDesc(NvParameterized::Interface* Params) const;
-	void LoadDefaultDestructibleParametersFromApexAsset(const NvParameterized::Interface* Params);
-#endif
-
 };
 
 
@@ -408,11 +363,6 @@ struct UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be su
 		, DebrisDepth(-1)
 		, EssentialDepth(0)
 	{}
-
-#if WITH_APEX
-	void FillDestructibleActorDesc(NvParameterized::Interface* Params) const;
-	void LoadDefaultDestructibleParametersFromApexAsset(const NvParameterized::Interface* Params);
-#endif
 };
 
 
@@ -488,13 +438,6 @@ class UE_DEPRECATED(4.26, "APEX is deprecated. Destruction in future will be sup
 
 public:
 
-#if WITH_APEX
-	/** ApexDestructibleAsset is a pointer to the Apex asset interface for this destructible asset */
-	nvidia::apex::DestructibleAsset* ApexDestructibleAsset;
-#endif // WITH_APEX
-
-public:
-
 	// UObject interface.
 
 	virtual void PostLoad() override;
@@ -515,24 +458,6 @@ public:
 #endif
 
 public:
-		
-#if WITH_APEX
-	/** 
-	 * Retrieve a default actor descriptor.
-	 * Builds the descriptor from the NxDestructibleAsset and the overrides provided in DefaultDestructibleParameters
-	 * @return : The (NvParameterized) descriptor.
-	 */
-	NvParameterized::Interface* GetDestructibleActorDesc(UPhysicalMaterial* PhysMat);
-
-	/**
-	 * Access to APEX native destructible asset .
-	 * @return : Returns the NxDestructibleAsset stored in this object.
-	 */
-	nvidia::apex::DestructibleAsset*		GetApexDestructibleAsset()
-	{
-		return ApexDestructibleAsset;
-	}
-#endif // WITH_APEX
 
 	/** Fills DefaultDestructibleParameters with parameters from the NxDestructibleAsset. */
 	APEXDESTRUCTION_API void LoadDefaultDestructibleParametersFromApexAsset();
