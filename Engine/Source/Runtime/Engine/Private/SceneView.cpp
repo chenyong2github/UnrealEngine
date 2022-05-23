@@ -2778,10 +2778,10 @@ FSceneViewFamily::FSceneViewFamily(const ConstructionValues& CVS)
 		}
 	}
 
-	LandscapeLODOverride = -1;
 	bDrawBaseInfo = true;
 	bNullifyWorldSpacePosition = false;
 #endif
+	LandscapeLODOverride = -1;
 
 	// ScreenPercentage is not supported in ES 3.1 with MobileHDR = false. Disable show flag so to have it respected.
 	const bool bIsMobileLDR = (GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 && !IsMobileHDR());

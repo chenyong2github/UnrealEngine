@@ -1796,10 +1796,10 @@ public:
 	float SecondaryViewFraction;
 	ESecondaryScreenPercentageMethod SecondaryScreenPercentageMethod;
 
-#if WITH_EDITOR
 	// Override the LOD of landscape in this viewport
 	int8 LandscapeLODOverride;
 
+#if WITH_EDITOR
 	/** Indicates whether, or not, the base attachment volume should be drawn. */
 	bool bDrawBaseInfo;
 

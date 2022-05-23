@@ -618,10 +618,8 @@ static int32 GetViewLodOverride(FSceneView const& View)
 {
 	// Apply r.ForceLOD override
 	int32 LodOverride = GetCVarForceLOD_AnyThread();
-#if WITH_EDITOR
 	// Apply editor landscape lod override
 	LodOverride = View.Family->LandscapeLODOverride >= 0 ? View.Family->LandscapeLODOverride : LodOverride;
-#endif
 	// Use lod 0 if lodding is disabled
 	LodOverride = View.Family->EngineShowFlags.LOD == 0 ? 0 : LodOverride;
 	return LodOverride;

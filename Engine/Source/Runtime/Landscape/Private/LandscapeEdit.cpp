@@ -7013,7 +7013,8 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	const bool bStreamLandscapeMeshLODs = TargetPlatform
 		&& TargetPlatform->SupportsFeature(ETargetPlatformFeatures::LandscapeMeshLODStreaming)
 		&& NumHoleLods <= FMath::Min(MaxLOD, MaxLODClamp);
-	const int32 NumStreamingLODs = bStreamLandscapeMeshLODs ? FMath::Min(MaxLOD, MaxLODClamp) : 0;
+	int32 NumStreamingLODs = bStreamLandscapeMeshLODs ? FMath::Min(MaxLOD, MaxLODClamp) : 0;
+	NumStreamingLODs = FMath::Max(0, NumStreamingLODs - 5); // Always inline bottom 5 LODs
 	TArray<int32> StreamingLODVertStartOffsets;
 	StreamingLODVertStartOffsets.AddUninitialized(NumStreamingLODs);
 

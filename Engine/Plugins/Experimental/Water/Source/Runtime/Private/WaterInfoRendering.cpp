@@ -452,6 +452,7 @@ static FSceneRenderer* CreateWaterInfoDepthRenderer(
 		.SetRealtimeUpdate(false)
 		.SetResolveScene(false));
 	DepthViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_DeviceDepth;
+	DepthViewFamily.LandscapeLODOverride = Context.LandscapeLODOverride;
 
 	// Setup the view family
 	FSceneViewInitOptions DepthViewInitOptions;
@@ -531,6 +532,7 @@ static FSceneRenderer* CreateWaterInfoColorRenderer(
 		.SetRealtimeUpdate(false)
 		.SetResolveScene(false));
 	ColorViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorSceneDepth;
+	ColorViewFamily.LandscapeLODOverride = Context.LandscapeLODOverride;
 
 	FSceneViewInitOptions ColorViewInitOptions;
 	ColorViewInitOptions.SetViewRectangle(FIntRect(0, 0, RenderTargetSize.X, RenderTargetSize.Y));
