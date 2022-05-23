@@ -104,21 +104,27 @@ namespace PhysicsAssetEditor
 	{
 		int32 Index;
 		int32 PrimitiveIndex;
+		EAggCollisionShape::Type PrimitiveType;
 
-		FShapeData(int32 Index, int32 PrimitiveIndex)
+		FShapeData(int32 Index, int32 PrimitiveIndex, EAggCollisionShape::Type PrimitiveType)
 			: Index(Index)
 			, PrimitiveIndex(PrimitiveIndex)
+			, PrimitiveType(PrimitiveType)
 		{
 		}
 
 		bool operator==(const FShapeData& rhs) const
 		{
-			return Index == rhs.Index && PrimitiveIndex == rhs.PrimitiveIndex;
+			return Index == rhs.Index && PrimitiveIndex == rhs.PrimitiveIndex && PrimitiveType == rhs.PrimitiveType;
 		}
 
 		friend uint32 GetTypeHash(const FShapeData& ShapeData)
 		{
-			return HashCombine(::GetTypeHash(ShapeData.Index), ::GetTypeHash(ShapeData.PrimitiveIndex));
+			return HashCombine(
+				HashCombine(
+					::GetTypeHash(ShapeData.Index),
+					::GetTypeHash(ShapeData.PrimitiveIndex)),
+				::GetTypeHash(ShapeData.PrimitiveType));
 		}
 	};
 }
@@ -294,9 +300,15 @@ void FPhysicsAssetEditor::HandleViewportSelectionChanged(const TArray<FPhysicsAs
 			{ 
 				return SharedData->PhysicsAsset->ConstraintSetup[InItem.Index];
 			});
+			// NOTE: Does selecting a constraint also select a shape?
+			// If not then this is not needed.
 			Algo::Transform(InSelectedConstraints, Shapes, [this](const FPhysicsAssetEditorSharedData::FSelection& InItem)
 			{
-				return PhysicsAssetEditor::FShapeData(InItem.Index, InItem.PrimitiveIndex);
+				return PhysicsAssetEditor::FShapeData(InItem.Index, InItem.PrimitiveIndex, InItem.PrimitiveType);
+			});
+			Algo::Transform(InSelectedBodies, Shapes, [this](const FPhysicsAssetEditorSharedData::FSelection& InItem)
+			{
+				return PhysicsAssetEditor::FShapeData(InItem.Index, InItem.PrimitiveIndex, InItem.PrimitiveType);
 			});
 
 			if (PhysAssetProperties.IsValid())
@@ -320,7 +332,7 @@ void FPhysicsAssetEditor::HandleViewportSelectionChanged(const TArray<FPhysicsAs
 					else if (InItem->IsOfType<FSkeletonTreePhysicsShapeItem>())
 					{
 						TSharedRef<FSkeletonTreePhysicsShapeItem> ShapeItem = StaticCastSharedRef<FSkeletonTreePhysicsShapeItem>(InItem);
-						PhysicsAssetEditor::FShapeData ShapeData(ShapeItem->GetBodySetupIndex(), ShapeItem->GetShapeIndex());
+						PhysicsAssetEditor::FShapeData ShapeData(ShapeItem->GetBodySetupIndex(), ShapeItem->GetShapeIndex(), ShapeItem->GetShapeType());
 						if (Shapes.Contains(ShapeData))
 						{
 							bInOutExpand = true;
