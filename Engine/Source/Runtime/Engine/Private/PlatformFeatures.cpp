@@ -5,6 +5,10 @@
 #include "DVRStreaming.h"
 #include "VideoRecordingSystem.h"
 
+#if PLATFORM_ANDROID
+extern bool AndroidThunkCpp_IsScreenCaptureDisabled();
+extern void AndroidThunkCpp_DisableScreenCapture(bool bDisable);
+#endif
 
 ISaveGameSystem* IPlatformFeaturesModule::GetSaveGameSystem()
 {
@@ -28,4 +32,14 @@ IVideoRecordingSystem* IPlatformFeaturesModule::GetVideoRecordingSystem()
 {
 	static FGenericVideoRecordingSystem GenericVideoRecordingSystem;
 	return &GenericVideoRecordingSystem;
+}
+
+void IPlatformFeaturesModule::SetScreenshotEnableState(bool bEnabled)
+{
+#if PLATFORM_ANDROID
+	if (AndroidThunkCpp_IsScreenCaptureDisabled() != !bEnabled)
+	{
+		AndroidThunkCpp_DisableScreenCapture(!bEnabled);
+	}
+#endif
 }

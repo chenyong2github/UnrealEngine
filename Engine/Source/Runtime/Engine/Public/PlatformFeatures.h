@@ -45,4 +45,6 @@ public:
 	virtual FString GetUniqueAppId();
 
 	virtual IVideoRecordingSystem* GetVideoRecordingSystem();
+
+	virtual void SetScreenshotEnableState(bool bEnabled);
 };
