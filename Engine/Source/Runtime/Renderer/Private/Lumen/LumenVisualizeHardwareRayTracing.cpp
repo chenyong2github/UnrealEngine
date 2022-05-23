@@ -442,11 +442,27 @@ class FLumenVisualizeHardwareRayTracing : public FLumenHardwareRayTracingShaderB
 			OutEnvironment.SetDefine(TEXT("ENABLE_FAR_FIELD_TRACING"), 1);
 		}
 	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters, Lumen::ERayTracingShaderDispatchType ShaderDispatchType)
+	{
+		if (!FLumenHardwareRayTracingShaderBase::ShouldCompilePermutation(Parameters, ShaderDispatchType))
+		{
+			return false;
+		}
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FTraceModeDim>() != ETraceMode::DefaultTrace && ShaderDispatchType == Lumen::ERayTracingShaderDispatchType::Inline)
+		{
+			return false;
+		}
+		return true;
+	}
 };
 
-IMPLEMENT_LUMEN_RAYGEN_RAYTRACING_SHADER(FLumenVisualizeHardwareRayTracing)
+IMPLEMENT_LUMEN_RAYGEN_AND_COMPUTE_RAYTRACING_SHADERS(FLumenVisualizeHardwareRayTracing)
 
 IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeHardwareRayTracingRGS, "/Engine/Private/Lumen/LumenVisualizeHardwareRayTracing.usf", "LumenVisualizeHardwareRayTracingRGS", SF_RayGen);
+IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeHardwareRayTracingCS, "/Engine/Private/Lumen/LumenVisualizeHardwareRayTracing.usf", "LumenVisualizeHardwareRayTracingCS", SF_Compute);
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingVisualize(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
@@ -494,6 +510,7 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 	bool bTraceFarField = LumenVisualize::UseFarField();
 	bool bRetraceForHitLighting = LumenVisualize::UseHitLighting(View) && bVisualizeModeWithHitLighting;
 	bool bForceHitLighting = LumenVisualize::IsHitLightingForceEnabled(View);
+	bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*View.Family);
 
 	// Reflection scene view uses reflection setup
 	if (VisualizeParameters.VisualizeMode == VISUALIZE_MODE_REFLECTION_VIEW)
@@ -502,6 +519,14 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 		bRetraceForHitLighting = LumenReflections::UseHitLightingForReflections(View);
 		bForceHitLighting = LumenReflections::IsHitLightingForceEnabled(View);
 	}
+
+	// Disable modes that use hit-lighting when it's not available
+	if (!GRHISupportsRayTracingShaders)
+	{
+		bTraceFarField = false;
+		bRetraceForHitLighting = false;
+		bForceHitLighting = false;
+	}	
 
 	// Cache near-field and far-field trace distances
 	const float FarFieldMaxTraceDistance = IndirectTracingParameters.MaxTraceDistance;
@@ -607,24 +632,33 @@ void LumenVisualize::VisualizeHardwareRayTracing(
 		}
 
 		FLumenVisualizeHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenVisualizeHardwareRayTracingRGS::FTraceModeDim>(ETraceMode::DefaultTrace);
-		TShaderRef<FLumenVisualizeHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenVisualizeHardwareRayTracingRGS>(PermutationVector);
+		PermutationVector.Set<FLumenVisualizeHardwareRayTracingRGS::FTraceModeDim>(ETraceMode::DefaultTrace);		
 
 		FIntPoint DispatchResolution = FIntPoint(RayGenThreadCount, RayGenGroupCount);
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("VisualizeHardwareRayTracing %ux%u", DispatchResolution.X, DispatchResolution.Y),
-			PassParameters,
-			ERDGPassFlags::Compute,
-			[PassParameters, &View, RayGenerationShader, DispatchResolution](FRHIRayTracingCommandList& RHICmdList)
-			{
-				FRayTracingShaderBindingsWriter GlobalResources;
-				SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
+		if (bInlineRayTracing)
+		{
+			const FIntVector GroupCount = FComputeShaderUtils::GetGroupCount(DispatchResolution, FLumenVisualizeHardwareRayTracingCS::GetThreadGroupSize());
 
-				FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
-				FRayTracingPipelineState* Pipeline = View.LumenHardwareRayTracingMaterialPipeline;
-				RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, DispatchResolution.X, DispatchResolution.Y);
-			}
-		);
+			TShaderRef<FLumenVisualizeHardwareRayTracingCS> ComputeShader = View.ShaderMap->GetShader<FLumenVisualizeHardwareRayTracingCS>(PermutationVector);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("VisualizeHardwareRayTracing (inline) %ux%u", DispatchResolution.X, DispatchResolution.Y),
+				ComputeShader,
+				PassParameters,
+				GroupCount);
+		}
+		else
+		{
+			TShaderRef<FLumenVisualizeHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenVisualizeHardwareRayTracingRGS>(PermutationVector);
+			AddLumenRayTraceDispatchPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("VisualizeHardwareRayTracing (raygen) %ux%u", DispatchResolution.X, DispatchResolution.Y),
+				RayGenerationShader,
+				PassParameters,
+				DispatchResolution,
+				View,
+				true);
+		}
 	}
 
 	// Cache current (possibly compacted) buffers for far-field tracing

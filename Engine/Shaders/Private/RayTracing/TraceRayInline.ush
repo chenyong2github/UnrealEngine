@@ -47,6 +47,7 @@ FTraceRayInlineResult TraceRayInline(RaytracingAccelerationStructure Acceleratio
 {
 	FTraceRayInlineResult TraceRayResult = (FTraceRayInlineResult)0;
 	TraceRayResult.SetMiss();
+	TraceRayResult.bIsCompleted = true;
 
 #if ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE
 	float2 ProcBarycentrics;

@@ -70,9 +70,7 @@ bool Lumen::UseHardwareRayTracing(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
 	return IsRayTracingEnabled() 
-		// As of 2021-11-24, Lumen can only run in full RT pipeline mode.
-		// It will be able to run using inline ray tracing mode in the future.
-		&& GRHISupportsRayTracingShaders 
+		&& (GRHISupportsRayTracingShaders || GRHISupportsInlineRayTracing)
 		&& CVarLumenUseHardwareRayTracing.GetValueOnAnyThread() != 0 
 		// Ray Tracing does not support split screen yet
 		&& ViewFamily.Views.Num() == 1;
@@ -188,6 +186,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 
 	// Inline
 	SharedParameters->HitGroupData = View.LumenHardwareRayTracingHitDataBufferSRV;
+	SharedParameters->RayTracingSceneMetadata = View.GetRayTracingSceneChecked()->GetMetadataBufferSRV();
 
 	// Use surface cache, instead
 	FLumenViewCardTracingInputs ViewTracingInputs(GraphBuilder, View);

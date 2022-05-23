@@ -124,12 +124,13 @@ FRayId UnpackRayId(FRayIdPacked RayIdPacked)
 
 RaytracingAccelerationStructure TLAS;
 
-RWStructuredBuffer<FTraceTileResultPacked> RWTraceTileResultPackedBuffer;
-RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
-
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
+RWStructuredBuffer<FTraceTileResultPacked> RWTraceTileResultPackedBuffer;
+RWStructuredBuffer<FTraceDataPacked> RWRetraceDataPackedBuffer;
 
 uint PersistentTracingGroupCount;
 float FarFieldBias;
@@ -237,6 +238,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 			{
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 				Context.HitGroupData = HitGroupData;
+				Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 				Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);

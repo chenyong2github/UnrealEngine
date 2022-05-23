@@ -104,7 +104,12 @@ struct FHitGroupRootConstants
 struct FRayTracedLightingContext
 {
 	RaytracingAccelerationStructure TLAS;
+
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
 	StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+	StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 	FRayCone RayCone;
 	uint2 TraceCoord;
 	uint LinearCoord;
@@ -330,7 +335,20 @@ FLumenMinimalRayResult TraceLumenMinimalRay(
 			uint bIsTwoSided = (HitData.UserData >> 30) & 0x1;
 			Payload.SetIsTwoSided(bIsTwoSided);
 
+#if PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_ATTRIBUTES
+			FTriangleBaseAttributes Attributes = LoadInlineRayTracingTriangleAttributes(
+				Context.RayTracingSceneMetadata,
+				TraceResult.InstanceContributionToHitGroupIndex,
+				RAY_TRACING_NUM_SHADER_SLOTS,
+				TraceResult.GeometryIndex,
+				TraceResult.PrimitiveIndex
+			);
+
+			float3 LocalNormal = cross(Attributes.LocalPositions[2] - Attributes.LocalPositions[0], Attributes.LocalPositions[1] - Attributes.LocalPositions[0]);
+			float3 WorldNormal = normalize(mul((float3x3)TraceResult.ObjectToWorld3x4, LocalNormal));
+#else
 			float3 WorldNormal = TraceResult.WorldGeometryNormal;
+#endif // PLATFORM_SUPPORTS_INLINE_RAY_TRACING_TRIANGLE_ATTRIBUTES
 			Payload.SetWorldNormal(WorldNormal);
 
 			MinimalRayResult.Bookmark.PackedData = TraceResult.Bookmark;

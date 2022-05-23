@@ -1694,13 +1694,13 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 	SetupRayTracingPipelineStates(GraphBuilder.RHICmdList);
 
-	bool bAnyInlineRayTracingPassEnabled = false;
+	bool bAnyLumenHardwareInlineRayTracingPassEnabled = false;
 	for (const FViewInfo& View : AllFamilyViews)
 	{
-		bAnyInlineRayTracingPassEnabled |= Lumen::AnyLumenHardwareInlineRayTracingPassEnabled(Scene, View);
+		bAnyLumenHardwareInlineRayTracingPassEnabled |= Lumen::AnyLumenHardwareInlineRayTracingPassEnabled(Scene, View);
 	}
 
-	if (bAnyInlineRayTracingPassEnabled)
+	if (bAnyLumenHardwareInlineRayTracingPassEnabled)
 	{
 		const int32 ReferenceViewIndex = 0;
 		FViewInfo& ReferenceView = AllFamilyViews[ReferenceViewIndex];
@@ -1714,7 +1714,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	PassParams->DynamicGeometryScratchBuffer = DynamicGeometryScratchBuffer;
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-		[this, PassParams](FRHICommandListImmediate& RHICmdList)
+		[this, PassParams, bAnyLumenHardwareInlineRayTracingPassEnabled](FRHICommandListImmediate& RHICmdList)
 	{
 		const int32 ReferenceViewIndex = 0;
 		FViewInfo& ReferenceView = AllFamilyViews[ReferenceViewIndex];
@@ -1787,50 +1787,63 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 		if (!bIsPathTracing)
 		{
-			TArray<FRHIRayTracingShader*> DeferredMaterialRayGenShaders;
-			if (!IsForwardShadingEnabled(ShaderPlatform))
+			FMemMark Mark(FMemStack::Get());
+
+			FRayTracingLocalShaderBindings* LumenHardwareRayTracingMaterialBindings = nullptr;
+
+			// When Lumen passes are running in inline-only mode we need to build bindings for HitGroupData here instead of when building the pipeline.
+			if (bAnyLumenHardwareInlineRayTracingPassEnabled && !GRHISupportsRayTracingShaders)
 			{
-				for (const FViewInfo& View : AllFamilyViews)
+				LumenHardwareRayTracingMaterialBindings = BuildLumenHardwareRayTracingMaterialBindings(RHICmdList, ReferenceView, ReferenceView.LumenHardwareRayTracingHitDataBuffer, true);
+			}
+
+			if (GRHISupportsRayTracingShaders)
+			{
+				TArray<FRHIRayTracingShader*> DeferredMaterialRayGenShaders;
+				if (!IsForwardShadingEnabled(ShaderPlatform))
 				{
-					PrepareRayTracingReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
-					PrepareRayTracingDeferredReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
-					PrepareRayTracingGlobalIlluminationDeferredMaterial(View, DeferredMaterialRayGenShaders);
-					if (DoesPlatformSupportLumenGI(ShaderPlatform))
+					for (const FViewInfo& View : AllFamilyViews)
 					{
-						PrepareLumenHardwareRayTracingReflectionsDeferredMaterial(View, DeferredMaterialRayGenShaders);
-						PrepareLumenHardwareRayTracingRadianceCacheDeferredMaterial(View, DeferredMaterialRayGenShaders);
-						PrepareLumenHardwareRayTracingScreenProbeGatherDeferredMaterial(View, DeferredMaterialRayGenShaders);
-						PrepareLumenHardwareRayTracingVisualizeDeferredMaterial(View, DeferredMaterialRayGenShaders);
+						PrepareRayTracingReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
+						PrepareRayTracingDeferredReflectionsDeferredMaterial(View, *Scene, DeferredMaterialRayGenShaders);
+						PrepareRayTracingGlobalIlluminationDeferredMaterial(View, DeferredMaterialRayGenShaders);
+						if (DoesPlatformSupportLumenGI(ShaderPlatform))
+						{
+							PrepareLumenHardwareRayTracingReflectionsDeferredMaterial(View, DeferredMaterialRayGenShaders);
+							PrepareLumenHardwareRayTracingRadianceCacheDeferredMaterial(View, DeferredMaterialRayGenShaders);
+							PrepareLumenHardwareRayTracingScreenProbeGatherDeferredMaterial(View, DeferredMaterialRayGenShaders);
+							PrepareLumenHardwareRayTracingVisualizeDeferredMaterial(View, DeferredMaterialRayGenShaders);
+						}
 					}
 				}
-			}
-			DeduplicateRayGenerationShaders(DeferredMaterialRayGenShaders);
+				DeduplicateRayGenerationShaders(DeferredMaterialRayGenShaders);
 
-			if (DeferredMaterialRayGenShaders.Num())
-			{
-				ReferenceView.RayTracingMaterialGatherPipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, ReferenceView, DeferredMaterialRayGenShaders);
-			}
-
-			// Add Lumen hardware ray tracing materials
-			TArray<FRHIRayTracingShader*> LumenHardwareRayTracingRayGenShaders;
-			if (DoesPlatformSupportLumenGI(ShaderPlatform))
-			{
-				for (const FViewInfo& View : AllFamilyViews)
+				if (DeferredMaterialRayGenShaders.Num())
 				{
-					PrepareLumenHardwareRayTracingVisualizeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-					PrepareLumenHardwareRayTracingRadianceCacheLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-					PrepareLumenHardwareRayTracingTranslucencyVolumeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-					PrepareLumenHardwareRayTracingRadiosityLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-					PrepareLumenHardwareRayTracingReflectionsLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-					PrepareLumenHardwareRayTracingScreenProbeGatherLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
-					PrepareLumenHardwareRayTracingDirectLightingLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+					ReferenceView.RayTracingMaterialGatherPipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, ReferenceView, DeferredMaterialRayGenShaders);
 				}
-			}
-			DeduplicateRayGenerationShaders(LumenHardwareRayTracingRayGenShaders);
 
-			if (LumenHardwareRayTracingRayGenShaders.Num())
-			{
-				ReferenceView.LumenHardwareRayTracingMaterialPipeline = BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, ReferenceView, LumenHardwareRayTracingRayGenShaders, ReferenceView.LumenHardwareRayTracingHitDataBuffer);
+				// Add Lumen hardware ray tracing materials
+				TArray<FRHIRayTracingShader*> LumenHardwareRayTracingRayGenShaders;
+				if (DoesPlatformSupportLumenGI(ShaderPlatform))
+				{
+					for (const FViewInfo& View : AllFamilyViews)
+					{
+						PrepareLumenHardwareRayTracingVisualizeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+						PrepareLumenHardwareRayTracingRadianceCacheLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+						PrepareLumenHardwareRayTracingTranslucencyVolumeLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+						PrepareLumenHardwareRayTracingRadiosityLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+						PrepareLumenHardwareRayTracingReflectionsLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+						PrepareLumenHardwareRayTracingScreenProbeGatherLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+						PrepareLumenHardwareRayTracingDirectLightingLumenMaterial(View, LumenHardwareRayTracingRayGenShaders);
+					}
+				}
+				DeduplicateRayGenerationShaders(LumenHardwareRayTracingRayGenShaders);
+
+				if (LumenHardwareRayTracingRayGenShaders.Num())
+				{
+					ReferenceView.LumenHardwareRayTracingMaterialPipeline = BindLumenHardwareRayTracingMaterialPipeline(RHICmdList, LumenHardwareRayTracingMaterialBindings, ReferenceView, LumenHardwareRayTracingRayGenShaders, ReferenceView.LumenHardwareRayTracingHitDataBuffer);
+				}
 			}
 		}
 

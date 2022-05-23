@@ -42,6 +42,11 @@ void LumenDirectLightingHardwareRayTracingIndirectArgsCS()
 
 RaytracingAccelerationStructure TLAS;
 
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 Buffer<uint2> ShadowTraceTileData;
 Buffer<int> VirtualShadowMapIds;
 
@@ -58,10 +63,6 @@ float3 FarFieldReferencePos;
 float HardwareRayTracingShadowRayBias;
 float HeightfieldShadowReceiverBias;
 float HeightfieldProjectionBiasSearchRadius;
-
-#if LUMEN_HARDWARE_INLINE_RAYTRACING
-StructuredBuffer<FHitGroupRootConstants> HitGroupData;
-#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 StructuredBuffer<uint> LightTileAllocator;
 StructuredBuffer<uint2> LightTiles;
@@ -174,6 +175,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenSceneDirectLightingHardwareRayTracing)
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 					Context.HitGroupData = HitGroupData;
+					Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 					bool bRayOccluded = false;

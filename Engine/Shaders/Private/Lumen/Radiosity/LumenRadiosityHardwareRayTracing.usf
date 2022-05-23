@@ -24,7 +24,11 @@ RWTexture2D<float3> RWTraceRadianceAtlas;
 RWTexture2D<float> RWTraceHitDistanceAtlas;
 
 RaytracingAccelerationStructure TLAS;
+
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
 StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 float MinTraceDistance;
 float MaxTraceDistance;
@@ -101,6 +105,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 				Context.HitGroupData = HitGroupData;
+				Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
 #endif
 
 #if DIM_AVOID_SELF_INTERSECTION_TRACE

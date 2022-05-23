@@ -26,7 +26,12 @@
 #endif
 
 RaytracingAccelerationStructure TLAS;
+
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
 StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 RWTexture3D<float3> RWVolumeTraceRadiance;
 RWTexture3D<float> RWVolumeTraceHitDistance;
 uint MaxTraversalIterations;
@@ -94,6 +99,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenTranslucencyVolumeHardwareRayTracing)
 				{
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 					Context.HitGroupData = HitGroupData;
+					Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
 #endif
 					TraceLightingResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 				}

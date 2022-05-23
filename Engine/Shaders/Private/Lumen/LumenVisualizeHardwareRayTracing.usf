@@ -9,7 +9,7 @@
 #include "LumenTracingCommon.ush"
 #include "LumenVisualize.ush"
 
-#if LUMEN_HARDWARE_RAYTRACING
+#if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 #include "LumenHardwareRayTracingCommon.ush"
 #endif
 
@@ -403,7 +403,7 @@ void FLumenVisualizeBucketRaysByMaterialIdCS(
 
 RWTexture2D<float3> RWRadiance;
 
-#if LUMEN_HARDWARE_RAYTRACING
+#if LUMEN_HARDWARE_RAYTRACING || LUMEN_HARDWARE_INLINE_RAYTRACING
 
 #ifndef DIM_LIGHTING_MODE
 #define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
@@ -415,6 +415,11 @@ RWTexture2D<float3> RWRadiance;
 
 RaytracingAccelerationStructure TLAS;
 
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 uint ThreadCount;
 uint GroupCount;
 uint LightingMode;
@@ -425,10 +430,10 @@ float3 FarFieldReferencePos;
 float FarFieldDitheredStartDistanceFactor;
 uint ApplySkylightStage;
 
-RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
+LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 {
-	uint ThreadIndex = DispatchRaysIndex().x;
-	uint GroupIndex = DispatchRaysIndex().y;
+	uint ThreadIndex = DispatchThreadIndex.x;
+	uint GroupIndex = DispatchThreadIndex.y;
 
 	uint DispatchedThreads = ThreadCount * GroupCount;
 	uint IterationCount = (RayAllocator[0] + DispatchedThreads - 1) / DispatchedThreads;
@@ -496,6 +501,12 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 #endif // DIM_TRACE_MODE
 
 #if DIM_TRACE_MODE == TRACE_MODE_DEFAULT_TRACE
+
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+		Context.HitGroupData = HitGroupData;
+		Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
 #else
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, HitLightingMode);

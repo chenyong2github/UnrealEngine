@@ -49,6 +49,11 @@ float3 FarFieldReferencePos;
 
 RaytracingAccelerationStructure TLAS;
 
+#if LUMEN_HARDWARE_INLINE_RAYTRACING
+StructuredBuffer<FHitGroupRootConstants> HitGroupData;
+StructuredBuffer<FRayTracingSceneMetadataRecord> RayTracingSceneMetadata;
+#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
+
 uint ThreadCount;
 uint GroupCount;
 int NearFieldLightingMode;
@@ -62,10 +67,6 @@ int ApplySkyLight;
 
 RWTexture2D<float3> RWTraceRadiance;
 RWTexture2D<float> RWTraceHit;
-
-#if LUMEN_HARDWARE_INLINE_RAYTRACING
-StructuredBuffer<FHitGroupRootConstants> HitGroupData;
-#endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 {
@@ -165,6 +166,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 
 #if LUMEN_HARDWARE_INLINE_RAYTRACING
 		Context.HitGroupData = HitGroupData;
+		Context.RayTracingSceneMetadata = RayTracingSceneMetadata;
 #endif // LUMEN_HARDWARE_INLINE_RAYTRACING
 
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
