@@ -282,9 +282,13 @@ namespace EpicGames.Core
 					{
 						return intValue;
 					}
+					else if (reader.TryGetDouble(out double doubleValue))
+					{
+						return doubleValue;
+					}
 					else
 					{
-						return reader.GetString();
+						return Encoding.UTF8.GetString(reader.ValueSpan);
 					}
 				default:
 					throw new InvalidOperationException("Unhandled property type");
