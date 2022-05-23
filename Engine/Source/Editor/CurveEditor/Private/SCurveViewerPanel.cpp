@@ -70,13 +70,20 @@ void SCurveViewerPanel::DrawCurves(const FGeometry& AllottedGeometry, FSlateWind
 				const FKeyDrawInfo& PointDrawInfo = Params.GetKeyDrawInfo(Point.Type, PointIndex);
 
 				const int32 KeyLayerId = BaseLayerId + Point.LayerBias + CurveViewConstants::ELayerOffset::Keys;
+				FLinearColor PointTint = PointDrawInfo.Tint.IsSet() ? PointDrawInfo.Tint.GetValue() : Params.Color;
+
+				// Brighten and saturate the points a bit so they pop
+				FLinearColor HSV = PointTint.LinearRGBToHSV();
+				HSV.G = FMath::Clamp(HSV.G * 1.1f, 0.f, 255.f);
+				HSV.B = FMath::Clamp(HSV.B * 2.f, 0.f, 255.f);
+				PointTint = HSV.HSVToLinearRGB();
 
 				FPaintGeometry PointGeometry = AllottedGeometry.ToPaintGeometry(
 					Point.ScreenPosition - (PointDrawInfo.ScreenSize * 0.5f),
 					PointDrawInfo.ScreenSize
 				);
 
-				FSlateDrawElement::MakeBox(OutDrawElements, KeyLayerId, PointGeometry, PointDrawInfo.Brush, DrawEffects, PointDrawInfo.Tint);
+				FSlateDrawElement::MakeBox(OutDrawElements, KeyLayerId, PointGeometry, PointDrawInfo.Brush, DrawEffects, PointTint );
 			}
 		}
 	}

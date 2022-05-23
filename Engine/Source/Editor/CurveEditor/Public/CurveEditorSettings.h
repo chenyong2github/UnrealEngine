@@ -112,6 +112,11 @@ public:
 	/** Set whether to snap the time to the currently selected key. */
 	void SetSnapTimeToSelection(bool bInSnapTimeToSelection);
 
+	/** Set the selection color. */
+	void SetSelectionColor(const FLinearColor& InColor);
+	/** Get the selection color. */
+	FLinearColor GetSelectionColor() const;
+
 	/** Get custom color for object and property if it exists, if it doesn't the optional won't be set */
 	TOptional<FLinearColor> GetCustomColor(UClass* InClass, const FString& InPropertyName) const;
 	/** Set Custom Color for the specified parameters. */
@@ -155,6 +160,9 @@ protected:
 
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor")
 	bool bSnapTimeToSelection;
+
+	UPROPERTY(config, EditAnywhere, Category = "Curve Editor")
+	FLinearColor SelectionColor;
 
 	UPROPERTY(config, EditAnywhere, Category="Curve Editor")
 	TArray<FCustomColorForChannel> CustomColors;

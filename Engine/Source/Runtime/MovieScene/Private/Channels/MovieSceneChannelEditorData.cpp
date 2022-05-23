@@ -16,7 +16,7 @@ const FText FCommonChannelData::ChannelA = NSLOCTEXT("MovieSceneChannels", "Chan
 
 const FLinearColor FCommonChannelData::RedChannelColor(1.0f, 0.05f, 0.05f, 0.9f);
 const FLinearColor FCommonChannelData::GreenChannelColor(0.05f, 1.0f, 0.05f, 0.9f);
-const FLinearColor FCommonChannelData::BlueChannelColor(0.05f, 0.1f, 1.0f, 0.9f);
+const FLinearColor FCommonChannelData::BlueChannelColor(0.1f, 0.2f, 1.0f, 0.9f);
 
 
 FMovieSceneChannelMetaData::FMovieSceneChannelMetaData()

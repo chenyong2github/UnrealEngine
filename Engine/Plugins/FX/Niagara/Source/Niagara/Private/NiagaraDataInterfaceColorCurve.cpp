@@ -149,10 +149,10 @@ bool UNiagaraDataInterfaceColorCurve::Equals(const UNiagaraDataInterface* Other)
 
 void UNiagaraDataInterfaceColorCurve::GetCurveData(TArray<FCurveData>& OutCurveData)
 {
-	OutCurveData.Add(FCurveData(&RedCurve, TEXT("Red"), FLinearColor::Red));
-	OutCurveData.Add(FCurveData(&GreenCurve, TEXT("Green"), FLinearColor::Green));
-	OutCurveData.Add(FCurveData(&BlueCurve, TEXT("Blue"), FLinearColor::Blue));
-	OutCurveData.Add(FCurveData(&AlphaCurve, TEXT("Alpha"), FLinearColor::White));
+	OutCurveData.Add(FCurveData(&RedCurve, TEXT("Red"), FLinearColor(1.0f, 0.05f, 0.05f)));
+	OutCurveData.Add(FCurveData(&GreenCurve, TEXT("Green"), FLinearColor(0.05f, 1.0f, 0.05f)));
+	OutCurveData.Add(FCurveData(&BlueCurve, TEXT("Blue"), FLinearColor(0.1f, 0.2f, 1.0f)));
+	OutCurveData.Add(FCurveData(&AlphaCurve, TEXT("Alpha"), FLinearColor(0.2f, 0.2f, 0.2f)));
 }
 
 void UNiagaraDataInterfaceColorCurve::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)

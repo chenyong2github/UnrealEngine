@@ -85,7 +85,7 @@ bool UNiagaraDataInterfaceCurve::Equals(const UNiagaraDataInterface* Other) cons
 
 void UNiagaraDataInterfaceCurve::GetCurveData(TArray<FCurveData>& OutCurveData)
 {
-	OutCurveData.Add(FCurveData(&Curve, NAME_None, FLinearColor::Red));
+	OutCurveData.Add(FCurveData(&Curve, NAME_None, FLinearColor(1.0f, 0.05f, 0.05f)));
 }
 
 void UNiagaraDataInterfaceCurve::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)

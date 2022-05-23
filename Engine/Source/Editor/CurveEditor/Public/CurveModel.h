@@ -38,7 +38,7 @@ class CURVEEDITOR_API FCurveModel
 public:
 
 	FCurveModel()
-		: Color(FLinearColor::White)
+		: Color(0.2f,0.2f,0.2f)
 		, bKeyDrawEnabled(true)
 		, SupportedViews(ECurveEditorViewID::ANY_BUILT_IN)
 	{}

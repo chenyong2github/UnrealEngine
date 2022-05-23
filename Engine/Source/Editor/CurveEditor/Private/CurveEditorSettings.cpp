@@ -13,6 +13,7 @@ UCurveEditorSettings::UCurveEditorSettings()
 	ZoomPosition = ECurveEditorZoomPosition::CurrentTime;
 	bSnapTimeToSelection = false;
 
+	SelectionColor = FLinearColor::White;
 	ParentSpaceCustomColor = FLinearColor(.93, .31, .19); //pastel orange
 	WorldSpaceCustomColor = FLinearColor(.198, .610, .558); //pastel teal
 }
@@ -125,6 +126,20 @@ void UCurveEditorSettings::SetSnapTimeToSelection(bool bInSnapTimeToSelection)
 	if (bSnapTimeToSelection != bInSnapTimeToSelection)
 	{
 		bSnapTimeToSelection = bInSnapTimeToSelection;
+		SaveConfig();
+	}
+}
+
+FLinearColor UCurveEditorSettings::GetSelectionColor() const
+{
+	return SelectionColor;
+}
+
+void UCurveEditorSettings::SetSelectionColor(const FLinearColor& InColor)
+{
+	if (SelectionColor != InColor)
+	{
+		SelectionColor = InColor;
 		SaveConfig();
 	}
 }

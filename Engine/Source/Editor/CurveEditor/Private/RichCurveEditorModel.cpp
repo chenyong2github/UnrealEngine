@@ -273,19 +273,15 @@ void FRichCurveEditorModel::GetKeyDrawInfo(ECurvePointType PointType, const FKey
 		{
 		case ERichCurveInterpMode::RCIM_Constant:
 			OutDrawInfo.Brush = FAppStyle::GetBrush("GenericCurveEditor.ConstantKey");
-			OutDrawInfo.Tint = FLinearColor(0, 0.45f, 0.70f);
 			break;
 		case ERichCurveInterpMode::RCIM_Linear:
 			OutDrawInfo.Brush = FAppStyle::GetBrush("GenericCurveEditor.LinearKey");
-			OutDrawInfo.Tint = FLinearColor(0, 0.62f, 0.46f);
 			break;
 		case ERichCurveInterpMode::RCIM_Cubic:
 			OutDrawInfo.Brush = FAppStyle::GetBrush("GenericCurveEditor.CubicKey");
-			OutDrawInfo.Tint = FLinearColor::White;
 			break;
 		default:
 			OutDrawInfo.Brush = FAppStyle::GetBrush("GenericCurveEditor.Key");
-			OutDrawInfo.Tint = FLinearColor::White;
 			break;
 		}
 	}

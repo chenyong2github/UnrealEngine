@@ -384,8 +384,7 @@ void SInteractiveCurveEditorView::DrawGridLines(TSharedRef<FCurveEditor> CurveEd
 
 void SInteractiveCurveEditorView::DrawCurves(TSharedRef<FCurveEditor> CurveEditor, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, const FWidgetStyle& InWidgetStyle, ESlateDrawEffect DrawEffects) const
 {
-	static const FName SelectionColorName("SelectionColor");
-	FLinearColor SelectionColor = FAppStyle::GetSlateColor(SelectionColorName).GetColor(InWidgetStyle);
+	FLinearColor SelectionColor = CurveEditor->GetSettings()->GetSelectionColor();
 
 	const FVector2D      VisibleSize = AllottedGeometry.GetLocalSize();
 	const FPaintGeometry PaintGeometry = AllottedGeometry.ToPaintGeometry();
@@ -423,7 +422,20 @@ void SInteractiveCurveEditorView::DrawCurves(TSharedRef<FCurveEditor> CurveEdito
 				const FCurvePointInfo& Point = Params.Points[PointIndex];
 				const FKeyDrawInfo& PointDrawInfo = Params.GetKeyDrawInfo(Point.Type, PointIndex);
 				const bool          bSelected = CurveEditor->GetSelection().IsSelected(FCurvePointHandle(Params.GetID(), Point.Type, Point.KeyHandle));
-				const FLinearColor  PointTint = bSelected ? SelectionColor : PointDrawInfo.Tint;
+				FLinearColor  PointTint = PointDrawInfo.Tint.IsSet() ? PointDrawInfo.Tint.GetValue() : Params.Color;
+
+				if (bSelected)
+				{
+					PointTint = SelectionColor;
+				}
+				else
+				{
+					// Brighten and saturate the points a bit so they pop
+					FLinearColor HSV = PointTint.LinearRGBToHSV();
+					HSV.G = FMath::Clamp(HSV.G * 1.1f, 0.f, 255.f);
+					HSV.B = FMath::Clamp(HSV.B * 2.f, 0.f, 255.f);
+					PointTint = HSV.HSVToLinearRGB();
+				}
 
 				const int32 KeyLayerId = BaseLayerId + Point.LayerBias + (bSelected ? CurveViewConstants::ELayerOffset::SelectedKeys : CurveViewConstants::ELayerOffset::Keys);
 

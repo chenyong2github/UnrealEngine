@@ -12,18 +12,18 @@ FLinearColor FCurveOwnerInterface::GetCurveColor(FRichCurveEditInfo CurveInfo) c
 
 	if (CurveName == TEXT("X") || CurveName == TEXT("R"))
 	{
-		return FLinearColor(1.0f, 0.0f, 0.0f);
+		return FLinearColor(1.0f, 0.05f, 0.05f);
 	}
 	
 	if (CurveName == TEXT("Y") || CurveName == TEXT("G"))
 	{
-		return FLinearColor(0.0f, 1.0f, 0.0f);
+		return FLinearColor(0.05f, 1.0f, 0.05f);
 	}
 	
 	if (CurveName == TEXT("Z") || CurveName == TEXT("B"))
 	{
-		return FLinearColor(0.05f, 0.05f, 1.0f);
+		return FLinearColor(0.1f, 0.2f, 1.0f);
 	}
 
-	return FLinearColor::Gray;
+	return FLinearColor(0.2f, 0.2f, 0.2f);
 }

@@ -19,7 +19,6 @@ struct FKeyDrawInfo
 	FKeyDrawInfo()
 		: ScreenSize(0.f, 0.f)
 		, Brush(nullptr)
-		, Tint(1.f, 1.f, 1.f, 1.f)
 	{}
 
 	/** The size of the key on screen in slate units */
@@ -29,7 +28,7 @@ struct FKeyDrawInfo
 	const FSlateBrush* Brush;
 
 	/** A tint to apply to the brush */
-	FLinearColor Tint;
+	TOptional<FLinearColor> Tint;
 };
 
 
@@ -88,7 +87,7 @@ struct FCurveDrawParams
 	 * Construct new draw parameters for the specified curve ID
 	 */
 	FCurveDrawParams(FCurveModelID InID)
-		: Color(FLinearColor::White)
+		: Color(0.2f, 0.2f, 0.2f)
 		, bKeyDrawEnabled(1)
 		, ID(InID)
 	{}
