@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EventFilterStyle.h"
+
+#include "HAL/LowLevelMemTracker.h"
 #include "Styling/StyleColors.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
@@ -40,6 +42,8 @@ static const FVector2D Icon267x140(170.0f, 50.0f);
 
 void FEventFilterStyle::Initialize()
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/TraceDataFiltering"));
+
 	// Only register once
 	if( StyleSet.IsValid() )
 	{

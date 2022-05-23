@@ -2,6 +2,7 @@
 
 #include "TraceDataFilteringModule.h"
 
+#include "HAL/LowLevelMemTracker.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Features/IModularFeatures.h"
@@ -30,6 +31,8 @@ FString FTraceFilteringModule::TraceFiltersIni;
 
 void FTraceFilteringModule::StartupModule()
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/TraceDataFiltering"));
+
 	FEventFilterStyle::Initialize();
 
 	FConfigCacheIni::LoadGlobalIniFile(TraceFiltersIni, TEXT("TraceDataFilters"));
@@ -39,6 +42,8 @@ void FTraceFilteringModule::StartupModule()
 	FTabSpawnerEntry& FilterTabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FTraceFilteringModule::InsightsFilterTabName,
 		FOnSpawnTab::CreateLambda([](const FSpawnTabArgs& Args)
 		{
+			LLM_SCOPE_BYNAME(TEXT("Insights/TraceDataFiltering"));
+
 			const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 				.TabRole(ETabRole::NomadTab);
 
@@ -62,7 +67,10 @@ void FTraceFilteringModule::StartupModule()
 
 void FTraceFilteringModule::ShutdownModule()
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/TraceDataFiltering"));
+
 	FEventFilterStyle::Shutdown();
+
 #if WITH_EDITOR
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FTraceFilteringModule::InsightsFilterTabName);
 #else
@@ -84,6 +92,8 @@ void FTraceFilteringModule::RegisterTimingProfilerLayoutExtensions(FInsightsMajo
 	MinorTabConfig.WorkspaceGroup = Category;
 	MinorTabConfig.OnSpawnTab = FOnSpawnTab::CreateLambda([](const FSpawnTabArgs& Args)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Insights/TraceDataFiltering"));
+
 		const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab);
 
