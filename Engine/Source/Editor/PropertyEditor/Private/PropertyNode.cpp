@@ -919,24 +919,65 @@ bool FPropertyNode::IsEditConst() const
 		const FObjectPropertyNode* ObjectPropertyNode = FindObjectItemParent();
 
 		bIsEditConst = IsPropertyConst();
-		if (!bIsEditConst && Property != nullptr && ObjectPropertyNode)
+		if (!bIsEditConst && Property.IsValid() && ObjectPropertyNode)
 		{
-			// travel up the chain to see if this property's owner struct is editconst - if it is, so is this property
-			FPropertyNode* NextParent = ParentNode;
-			while (NextParent != nullptr && CastField<FStructProperty>(NextParent->GetProperty()) != NULL)
+			TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain(Property.Get());
+			
+			// travel up the chain to see if this property's owner struct is EditConst - if it is, so is this property
+			FPropertyNode* CurParent = ParentNode;
+			while (CurParent != nullptr)
 			{
-				if (NextParent->IsEditConst())
+				FStructProperty* StructProperty = CastField<FStructProperty>(CurParent->GetProperty());
+				if (StructProperty == nullptr)
 				{
-						bIsEditConst = true;
-						break;
+					break;
 				}
-				NextParent = NextParent->ParentNode;
+
+				if (CurParent->IsEditConst())
+				{
+					// An owning struct is edit const, so the child property is too
+					bIsEditConst = true;
+				}
+				else
+				{
+					// See if the struct has a problem with this property being editable
+					UScriptStruct* ScriptStruct = StructProperty->Struct;
+					if (ScriptStruct && ScriptStruct->StructFlags & STRUCT_CanEditChange)
+					{
+						UScriptStruct::ICppStructOps* TheCppStructOps = ScriptStruct->GetCppStructOps();
+						check(TheCppStructOps);
+
+						const int32 NumInstances = ObjectPropertyNode->GetInstancesNum();
+
+						TArray<const void*> StructAddresses;
+						StructAddresses.Reset(NumInstances);
+
+						for (int32 Index = 0; Index < NumInstances; ++Index)
+						{
+							StructAddresses.Add(CurParent->GetValueAddressFromObject(ObjectPropertyNode->GetUObject(Index)));
+						}
+
+						for (const void* StructAddr : StructAddresses)
+						{
+							if (!TheCppStructOps->CanEditChange(*PropertyChain, StructAddr))
+							{
+								bIsEditConst = true;
+								break;
+							}
+						}
+					}
+				}
+
+				if (bIsEditConst)
+				{
+					break;
+				}
+				
+				CurParent = CurParent->ParentNode;
 			}
 
 			if (!bIsEditConst)
 			{
-				TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain(Property.Get());
-				
 				for (TPropObjectConstIterator CurObjectIt(ObjectPropertyNode->ObjectConstIterator()); CurObjectIt; ++CurObjectIt)
 				{
 					const TWeakObjectPtr<UObject> CurObject = *CurObjectIt;

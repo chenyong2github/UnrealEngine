@@ -2684,6 +2684,13 @@ void UScriptStruct::PrepareCppStructOps()
 		UE_LOG(LogClass, Verbose, TEXT("Native struct %s has native SerializeFromMismatchedTag."),*GetName());
 		StructFlags = EStructFlags(StructFlags | STRUCT_SerializeFromMismatchedTag);
 	}
+#if WITH_EDITOR
+	if (CppStructOps->HasCanEditChange())
+	{
+		UE_LOG(LogClass, Verbose, TEXT("Native struct %s has native CanEditChange."), *GetName());
+		StructFlags = EStructFlags(StructFlags | STRUCT_CanEditChange);
+	}
+#endif
 
 	check(!bPrepareCppStructOpsCompleted); // recursion is unacceptable
 	bPrepareCppStructOpsCompleted = true;

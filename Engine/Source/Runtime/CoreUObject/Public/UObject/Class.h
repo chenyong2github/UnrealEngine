@@ -707,6 +707,9 @@ enum EStructFlags
 	/** If set, this structure has been replaced via reinstancing */
 	STRUCT_NewerVersionExists = 0x01000000,
 
+	/** If set, this struct will have CanEditChange on it in the editor to determine if a child property can be edited */
+	STRUCT_CanEditChange = 0x02000000,
+	
 	/** Struct flags that are automatically inherited */
 	STRUCT_Inherit				= STRUCT_HasInstancedReference|STRUCT_Atomic,
 
@@ -741,6 +744,7 @@ struct TStructOpsTypeTraitsBase2
 		WithNetSharedSerialization     = false,                         // struct has a NetSerialize function that does not require the package map to serialize its state.
 		WithGetPreloadDependencies     = false,                         // struct has a GetPreloadDependencies function to return all objects that will be Preload()ed when the struct is serialized at load time.
 		WithPureVirtual                = false,                         // struct has PURE_VIRTUAL functions and cannot be constructed when CHECK_PUREVIRTUALS is true
+		WithCanEditChange			   = false,							// struct has an editor-only CanEditChange function that can conditionally make child properties read-only in the details panel (same idea as UObject::CanEditChange)
 	};
 };
 
@@ -925,6 +929,14 @@ public:
 
 		/** return true if this struct is abstract **/
 		virtual bool IsAbstract() const = 0;
+
+#if WITH_EDITOR
+		/** Returns true if this struct wants to indicate whether a property can be edited in the details panel */
+		virtual bool HasCanEditChange() const = 0;
+		/** Returns true if this struct would allow the given property to be edited in the details panel. */
+		virtual bool CanEditChange(const FEditPropertyChain& PropertyChain, const void* Data) const = 0;
+#endif
+		
 	private:
 		/** sizeof() of the structure **/
 		const int32 Size;
@@ -1299,6 +1311,25 @@ public:
 		{
 			return TIsAbstract<CPPSTRUCT>::Value;
 		}
+
+#if WITH_EDITOR
+		virtual bool HasCanEditChange() const override
+		{
+			return TTraits::WithCanEditChange;
+		}
+
+		virtual bool CanEditChange(const FEditPropertyChain& PropertyChain, const void* Data) const override
+		{
+			if constexpr (TStructOpsTypeTraits<CPPSTRUCT>::WithCanEditChange)
+			{
+				return ((const CPPSTRUCT*)Data)->CanEditChange(PropertyChain);
+			}
+			else
+			{
+				return false;
+			}
+		}
+#endif // WITH_EDITOR
 	};
 
 	/** Template for noexport classes to autoregister before main starts **/
