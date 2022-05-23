@@ -199,7 +199,7 @@ static LONG __stdcall D3DVectoredExceptionHandler(EXCEPTION_POINTERS* InInfo)
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 
-#endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#endif // #if PLATFORM_WINDOWS
 
 
 FTransientUniformBufferAllocator::~FTransientUniformBufferAllocator()
