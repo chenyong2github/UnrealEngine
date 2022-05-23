@@ -358,6 +358,9 @@ public:
 	/** Gets whether the specified track filter is on/off */
 	bool IsTrackFilterEnabled(const FText& InTrackFilterName) const;
 
+	/** Reset all enabled filters */
+	void ResetFilters();
+
 	/** Gets all the available track filter names */
 	TArray<FText> GetTrackFilterNames() const;
 
@@ -474,7 +477,6 @@ public:
 
 private:
 
-	void OnResetFilters();
 	void OnEnableAllFilters();
 	void OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter);
 	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;

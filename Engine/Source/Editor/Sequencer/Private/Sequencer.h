@@ -1019,6 +1019,9 @@ protected:
 	void ExpandAllNodes();
 	void CollapseAllNodes();
 
+	/** Reset all enabled filters */
+	void ResetFilters();
+
 	/** Sort all nodes and their descendants by category then alphabetically */
 	void SortAllNodesAndDescendants();
 

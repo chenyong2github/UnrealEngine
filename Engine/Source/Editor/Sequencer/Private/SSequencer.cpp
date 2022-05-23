@@ -1796,12 +1796,7 @@ TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnEnableAllFilters)));
 
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("FilterListResetFilters", "Reset Filters"),
-			LOCTEXT("FilterListResetToolTip", "Resets current filter selection"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnResetFilters))
-		);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ResetFilters);
 	}
 	MenuBuilder.EndSection();
 
@@ -2049,7 +2044,7 @@ TArray<FText> SSequencer::GetTrackFilterNames() const
 	return Filters;
 }
 
-void SSequencer::OnResetFilters()
+void SSequencer::ResetFilters()
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	Sequencer->GetNodeTree()->RemoveAllFilters();

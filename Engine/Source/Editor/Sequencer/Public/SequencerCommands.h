@@ -151,6 +151,9 @@ public:
 	/** Sort all nodes and descendants */
 	TSharedPtr< FUICommandInfo > SortAllNodesAndDescendants;
 
+	/** Reset all enabled filters */
+	TSharedPtr< FUICommandInfo > ResetFilters;
+
 	/** Sets the upper bound of the selection range */
 	TSharedPtr< FUICommandInfo > SetSelectionRangeEnd;
 

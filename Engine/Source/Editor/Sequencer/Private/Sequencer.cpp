@@ -11109,6 +11109,11 @@ void FSequencer::CollapseAllNodes()
 	SequencerWidget->GetTreeView()->ToggleExpandCollapseNodes(ETreeRecursion::Recursive, bExpandAll, bCollapseAll);
 }
 
+void FSequencer::ResetFilters()
+{
+	SequencerWidget->ResetFilters();
+}
+
 void FSequencer::AddSelectedActors()
 {
 	USelection* ActorSelection = GEditor->GetSelectedActors();
@@ -12403,6 +12408,10 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.CollapseAllNodes,
 		FExecuteAction::CreateSP(this, &FSequencer::CollapseAllNodes));
+
+	SequencerCommandBindings->MapAction(
+		Commands.ResetFilters,
+		FExecuteAction::CreateSP(this, &FSequencer::ResetFilters));
 
 	SequencerCommandBindings->MapAction(
 		Commands.AddActorsToSequencer,
