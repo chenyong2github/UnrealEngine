@@ -12,6 +12,7 @@
 #include "UObject/Object.h"
 #include "SlateGlobals.h"
 #include "Logging/LogMacros.h"
+#include "Styling/SlateIconFinder.h"
 
 #include "SAssetFilterBar.generated.h"
 
@@ -513,7 +514,7 @@ protected:
 				NAME_None,
 				LabelText,
 				FText::Format( LOCTEXT("FilterByTooltipPrefix", "Filter by {0}"), LabelText ),
-				FSlateIcon(),
+				FSlateIconFinder::FindIconForClass(CustomClassFilterData->GetClass()),
 				FUIAction(
 					FExecuteAction::CreateSP( const_cast< SAssetFilterBar<FilterType>* >(this), &SAssetFilterBar<FilterType>::FilterByTypeClicked, CustomClassFilterData ),
 					FCanExecuteAction(),
@@ -661,7 +662,7 @@ protected:
 						NAME_None,
 						MenuExpansion->Title,
 						MenuExpansion->Tooltip,
-						FSlateIcon(),
+						FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PlacementBrowser.Icons.Basic"),
 						FUIAction(
 						FExecuteAction::CreateSP( this, &SAssetFilterBar<FilterType>::FilterByTypeCategoryClicked, MenuExpansion, ExpandedCategory->Classes ),
 						FCanExecuteAction(),

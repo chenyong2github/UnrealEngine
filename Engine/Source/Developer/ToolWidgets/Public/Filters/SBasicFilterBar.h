@@ -1044,9 +1044,11 @@ protected:
 			"ResetFilters",
 			LOCTEXT("FilterListResetFilters", "Reset Filters"),
 			LOCTEXT("FilterListResetToolTip", "Resets current filter selection"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &SBasicFilterBar<FilterType>::OnResetFilters))
-			);
+			FSlateIcon(FAppStyle::Get().GetStyleSetName(), "PropertyWindow.DiffersFromDefault"),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SBasicFilterBar<FilterType>::OnResetFilters),
+				FCanExecuteAction::CreateLambda([this]() { return HasAnyFilters(); }))
+		);
 	}
 
 	/** Helper function to add all custom filters to the Add Filter Menu */
