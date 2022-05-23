@@ -417,7 +417,7 @@ FEditorDomainOplog::FEditorDomainOplog()
 {
 	StaticInit();
 
-	FString ProjectId = FZenStoreHttpClient::GetProjectId();
+	FString ProjectId = FApp::GetZenStoreProjectId();
 	FString OplogId = TEXT("EditorDomain");
 
 	FString RootDir = FPaths::RootDir();

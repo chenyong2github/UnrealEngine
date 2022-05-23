@@ -212,6 +212,13 @@ public:
 	}
 
 	/**
+	 * Gets the Zen store project id for the current application instance.
+	 *
+	 * @return Zen store project id.
+	 */
+	static FString GetZenStoreProjectId();
+
+	/**
 	 * Gets the globally unique identifier of this application instance.
 	 *
 	 * Every running instance of the engine has a globally unique instance identifier

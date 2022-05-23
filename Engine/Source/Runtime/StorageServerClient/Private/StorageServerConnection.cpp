@@ -66,18 +66,6 @@ static uint64 GetCompressedOffset(const FCompressedBuffer& Buffer, uint64 RawOff
 	return 0;
 }
 
-// Duplicated in ZenStoreHttpClient.cpp to avoid having a public API in a shared module
-static FString GetProjectPathId()
-{
-	FString ProjectFilePath = FPaths::GetProjectFilePath();
-	FPaths::NormalizeFilename(ProjectFilePath);
-	FString AbsProjectFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFilePath);
-	FTCHARToUTF8 AbsProjectFilePathUTF8(*AbsProjectFilePath);
-
-	FString HashString = FMD5::HashBytes((unsigned char*)AbsProjectFilePathUTF8.Get(), AbsProjectFilePathUTF8.Length()).Left(8);
-	return FString::Printf(TEXT("%s.%.8s"), FApp::GetProjectName(), *HashString);
-}
-
 FStorageServerRequest::FStorageServerRequest(FAnsiStringView Verb, FAnsiStringView Resource, FAnsiStringView Hostname, EStorageServerContentType Accept)
 : AcceptType(Accept)
 {
@@ -451,7 +439,7 @@ bool FStorageServerConnection::Initialize(TArrayView<const FString> InHostAddres
 	}
 	else
 	{
-		OplogPath.Append(TCHAR_TO_ANSI(*GetProjectPathId()));
+		OplogPath.Append(TCHAR_TO_ANSI(*FApp::GetZenStoreProjectId()));
 	}
 	OplogPath.Append("/oplog/");
 	if (InPlatformNameOverride)

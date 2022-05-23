@@ -770,32 +770,4 @@ const UTF8CHAR* FZenStoreHttpClient::FindAttachmentId(FUtf8StringView Attachment
 	return Existing;
 }
 
-// Duplicated in StorageServerPlatformFile.cpp to avoid having a public API in a shared module
-static FString GetProjectPathId()
-{
-	FString ProjectFilePath = FPaths::GetProjectFilePath();
-	FPaths::NormalizeFilename(ProjectFilePath);
-	FString AbsProjectFilePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFilePath);
-	FTCHARToUTF8 AbsProjectFilePathUTF8(*AbsProjectFilePath);
-
-	FString HashString = FMD5::HashBytes((unsigned char*)AbsProjectFilePathUTF8.Get(), AbsProjectFilePathUTF8.Length()).Left(8);
-	return FString::Printf(TEXT("%s.%.8s"), FApp::GetProjectName(), *HashString);
-}
-
-FString FZenStoreHttpClient::GetProjectId()
-{
-	FString ProjectId;
-	if (FParse::Value(FCommandLine::Get(), TEXT("-ZenStoreProject="), ProjectId) == false)
-	{
-		ProjectId = GetProjectPathId();
-	}
-
-	return ProjectId;
-}
-
-FString FZenStoreHttpClient::GenerateDefaultProjectId()
-{
-	return GetProjectPathId();
-}
-
 }

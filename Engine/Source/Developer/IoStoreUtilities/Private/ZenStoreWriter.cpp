@@ -175,7 +175,7 @@ FZenStoreWriter::FZenStoreWriter(
 {
 	StaticInit();
 
-	ProjectId = FZenStoreHttpClient::GetProjectId();
+	ProjectId = FApp::GetZenStoreProjectId();
 	
 	if (FParse::Value(FCommandLine::Get(), TEXT("-ZenStorePlatform="), OplogId) == false)
 	{
