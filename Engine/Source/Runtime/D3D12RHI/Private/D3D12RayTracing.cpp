@@ -5540,22 +5540,29 @@ static void SetRayTracingCallableShader(
 	const uint32 UserDataOffset = offsetof(FHitGroupSystemParameters, RootConstants) + offsetof(FHitGroupSystemRootConstants, UserData);
 	ShaderTable->SetLocalShaderParameters(RecordIndex, UserDataOffset, UserData);
 
-	const FD3D12RayTracingShader* Shader = Pipeline->CallableShaders.Shaders[ShaderIndexInPipeline];
+	const FD3D12ShaderIdentifier* ShaderIdentifier = &FD3D12ShaderIdentifier::Null;
 
-	FD3D12RayTracingLocalResourceBinder ResourceBinder(*Device, *ShaderTable, *(Shader->pRootSignature), RecordIndex, WorkerIndex);
-	const bool bResourcesBound = SetRayTracingShaderResources(Shader,
-		0, nullptr, // Textures
-		0, nullptr, // SRVs
-		NumUniformBuffers, UniformBuffers,
-		0, nullptr, // Samplers
-		0, nullptr, // UAVs
-		LooseParameterDataSize, LooseParameterData, // Loose parameters
-		ResourceBinder);
+	if (ShaderIndexInPipeline != INDEX_NONE)
+	{
+		const FD3D12RayTracingShader* Shader = Pipeline->CallableShaders.Shaders[ShaderIndexInPipeline];
 
-	ShaderTable->SetLocalShaderIdentifier(RecordIndex,
-		bResourcesBound
-		? Pipeline->CallableShaders.Identifiers[ShaderIndexInPipeline]
-		: FD3D12ShaderIdentifier::Null);
+		FD3D12RayTracingLocalResourceBinder ResourceBinder(*Device, *ShaderTable, *(Shader->pRootSignature), RecordIndex, WorkerIndex);
+		const bool bResourcesBound = SetRayTracingShaderResources(Shader,
+			0, nullptr, // Textures
+			0, nullptr, // SRVs
+			NumUniformBuffers, UniformBuffers,
+			0, nullptr, // Samplers
+			0, nullptr, // UAVs
+			LooseParameterDataSize, LooseParameterData, // Loose parameters
+			ResourceBinder);
+
+		if (bResourcesBound)
+		{
+			ShaderIdentifier = &Pipeline->CallableShaders.Identifiers[ShaderIndexInPipeline];
+		}
+	}
+
+	ShaderTable->SetLocalShaderIdentifier(RecordIndex, *ShaderIdentifier);
 }
 
 static void SetRayTracingMissShader(

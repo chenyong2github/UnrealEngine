@@ -154,6 +154,19 @@ class RENDERER_API FOpaqueShadowHitGroup : public FGlobalShader
 	using FParameters = FEmptyShaderParameters;
 };
 
+class RENDERER_API FDefaultCallableShader : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FDefaultCallableShader)
+	SHADER_USE_ROOT_PARAMETER_STRUCT(FDefaultCallableShader, FGlobalShader)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingCallableShadersForProject(Parameters.Platform);
+	}
+
+	using FParameters = FEmptyShaderParameters;
+};
+
 class FRayTracingLocalShaderBindingWriter
 {
 public:

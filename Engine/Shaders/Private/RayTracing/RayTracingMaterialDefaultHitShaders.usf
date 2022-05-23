@@ -21,4 +21,16 @@ RAY_TRACING_ENTRY_ANY_HIT(HiddenMaterialAHS,
 	FRayTracingIntersectionAttributes, Attributes)
 {
 	IgnoreHit();
-}  
+}
+
+struct FDefaultCallableShaderParams
+{
+	int Param;
+};
+
+RAY_TRACING_ENTRY_CALLABLE(DefaultCallableShader,
+	FDefaultCallableShaderParams, Params)
+{
+	// This shader serves only has a placeholder in RTPSO
+	// If RTPSO doesn't include a required shader, a NULL SBT entry should be used.
+}
