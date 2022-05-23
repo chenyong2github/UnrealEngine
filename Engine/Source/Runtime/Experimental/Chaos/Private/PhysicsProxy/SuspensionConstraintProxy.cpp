@@ -18,7 +18,7 @@ namespace Chaos
 {
 
 FSuspensionConstraintPhysicsProxy::FSuspensionConstraintPhysicsProxy(FSuspensionConstraint* InConstraint, FPBDSuspensionConstraintHandle* InHandle, UObject* InOwner)
-	: Base(EPhysicsProxyType::SuspensionConstraintType, InOwner, new FProxyTimestampBase)
+	: Base(EPhysicsProxyType::SuspensionConstraintType, InOwner, MakeShared<FProxyTimestampBase>())
 	, Constraint_GT(InConstraint)
 	, Constraint_PT(InHandle)
 	, bInitialized(false)

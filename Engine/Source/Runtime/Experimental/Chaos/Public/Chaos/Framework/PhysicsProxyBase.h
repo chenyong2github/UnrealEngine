@@ -61,7 +61,7 @@ struct CHAOS_API FGeometryCollectionProxyTimestamp: public FProxyTimestampBase
 class CHAOS_API IPhysicsProxyBase
 {
 public:
-	IPhysicsProxyBase(EPhysicsProxyType InType, UObject* InOwner, FProxyTimestampBase* InProxyTimeStamp)
+	IPhysicsProxyBase(EPhysicsProxyType InType, UObject* InOwner, TSharedPtr<FProxyTimestampBase,ESPMode::ThreadSafe> InProxyTimeStamp)
 		: Solver(nullptr)
 		, Owner(InOwner)
 		, DirtyIdx(INDEX_NONE)

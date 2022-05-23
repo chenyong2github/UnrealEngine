@@ -44,12 +44,12 @@ public:
 	using FIntArray = Chaos::TArrayCollectionArray<int32>;
 
 	TPhysicsProxy()
-		: IPhysicsProxyBase(ConcreteType(), nullptr, new TProxyTimeStamp)
+		: IPhysicsProxyBase(ConcreteType(), nullptr, MakeShared<TProxyTimeStamp>())
 	{
 	}
 
 	explicit TPhysicsProxy(UObject* InOwner)
-		: IPhysicsProxyBase(ConcreteType(), InOwner, new TProxyTimeStamp)
+		: IPhysicsProxyBase(ConcreteType(), InOwner, MakeShared<TProxyTimeStamp>())
 	{
 	}
 
