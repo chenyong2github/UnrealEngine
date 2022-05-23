@@ -120,12 +120,6 @@ namespace Horde.Build.Controllers
 						List<FindIssueSpanResponse> spanResponses = new List<FindIssueSpanResponse>();
 						if (issueIdToSpans.TryGetValue(issue.Id, out List<IIssueSpan>? spansForIssue))
 						{
-							// Filter issues on resolved state
-							if (resolved != null && (resolved.Value != spansForIssue.All(x => x.NextSuccess != null)))
-							{
-								continue;
-							}
-
 							// Find the current severity in the stream
 							DateTime lastStepTime = DateTime.MinValue;
 							foreach (IIssueSpan span in spansForIssue)
