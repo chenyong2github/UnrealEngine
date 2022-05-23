@@ -21,6 +21,7 @@
 #include "Dialogs/Dialogs.h"
 #include "Widgets/Notifications/SErrorText.h"
 #include "IDetailPropertyRow.h"
+#include "RHI.h"
 
 namespace MacTargetSettingsDetailsConstants
 {
