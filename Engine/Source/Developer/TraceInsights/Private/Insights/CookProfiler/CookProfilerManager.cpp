@@ -134,19 +134,23 @@ bool FCookProfilerManager::Tick(float DeltaTime)
 		if (Session.IsValid())
 		{
 			const TraceServices::ICookProfilerProvider* CookProvider = TraceServices::ReadCookProfilerProvider(*Session.Get());
-			TraceServices::FProviderReadScopeLock ProviderReadScope(*CookProvider);
 
-			TSharedPtr<FTabManager> TabManagerShared = TimingTabManager.Pin();
-			if (CookProvider && CookProvider->GetNumPackages() > 0 && TabManagerShared.IsValid())
+			if (CookProvider)
 			{
-				bIsAvailable = true;
-				TabManagerShared->TryInvokeTab(FCookProfilerTabs::PackageTableTreeViewTabID);
-			}
+				TraceServices::FProviderReadScopeLock ProviderReadScope(*CookProvider);
 
-			if (Session->IsAnalysisComplete())
-			{
-				// Never check again during this session.
-				AvailabilityCheck.Disable();
+				TSharedPtr<FTabManager> TabManagerShared = TimingTabManager.Pin();
+				if (CookProvider && CookProvider->GetNumPackages() > 0 && TabManagerShared.IsValid())
+				{
+					bIsAvailable = true;
+					TabManagerShared->TryInvokeTab(FCookProfilerTabs::PackageTableTreeViewTabID);
+				}
+
+				if (Session->IsAnalysisComplete())
+				{
+					// Never check again during this session.
+					AvailabilityCheck.Disable();
+				}
 			}
 		}
 		else
