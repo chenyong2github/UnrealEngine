@@ -64,7 +64,7 @@ public:
 		SHADER_PARAMETER_SRV(StructuredBuffer, RayTracingSceneMetadata)
 
 		// Lighting structures
-		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRaytracingLightDataPacked, LightDataPacked)
 
 		// Surface cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)

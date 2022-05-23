@@ -1401,9 +1401,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FBuildAccelerationStructurePassParams, )
 	RDG_BUFFER_ACCESS(RayTracingSceneScratchBuffer, ERHIAccess::UAVCompute)
 	RDG_BUFFER_ACCESS(DynamicGeometryScratchBuffer, ERHIAccess::UAVCompute)
 	RDG_BUFFER_ACCESS(RayTracingSceneInstanceBuffer, ERHIAccess::SRVCompute)
+
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRaytracingLightDataPacked, LightDataPacked)
 END_SHADER_PARAMETER_STRUCT()
 
-bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandListImmediate& RHICmdList)
+bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& GraphBuilder)
 {
 	if (!IsRayTracingEnabled() || Views.Num() == 0)
 	{
@@ -1492,7 +1494,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 
 		if (RayGenShaders.Num())
 		{
-			ReferenceView.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(RHICmdList, ReferenceView, RayGenShaders);
+			ReferenceView.RayTracingMaterialPipeline = BindRayTracingMaterialPipeline(GraphBuilder.RHICmdList, ReferenceView, RayGenShaders);
 		}
 	}
 
@@ -1522,8 +1524,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRHICommandLis
 		else
 		{
 			// This light data is a function of the camera position, so must be computed per view.
-			View.RayTracingLightData = CreateRayTracingLightData(RHICmdList,
-				Scene->Lights, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+			View.RayTracingLightData = CreateRayTracingLightData(GraphBuilder, Scene->Lights, View);
 		}
 	}
 
@@ -1600,6 +1601,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
 		PassParams->RayTracingSceneInstanceBuffer = Scene->RayTracingScene.InstanceBuffer;
 		PassParams->DynamicGeometryScratchBuffer = OutDynamicGeometryScratchBuffer;
+		PassParams->LightDataPacked =  nullptr;
 
 		// Use ERDGPassFlags::NeverParallel so the pass never runs off the render thread and we always get the following order of execution on the CPU:
 		// BuildTLASInstanceBuffer, RayTracingScene, EndUpdate, ..., ReleaseRayTracingResources		
@@ -1664,13 +1666,6 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 			// Release common lighting resources
 			View.RayTracingSubSurfaceProfileSRV.SafeRelease();
 			View.RayTracingSubSurfaceProfileTexture.SafeRelease();
-
-			View.RayTracingLightData.LightBufferSRV.SafeRelease();
-			View.RayTracingLightData.LightBuffer.SafeRelease();
-			View.RayTracingLightData.LightCullVolumeSRV.SafeRelease();
-			View.RayTracingLightData.LightCullVolume.SafeRelease();
-			View.RayTracingLightData.LightIndices.Release();
-			View.RayTracingLightData.UniformBuffer.SafeRelease();
 		}
 	});
 }
@@ -1692,7 +1687,10 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
-	SetupRayTracingPipelineStates(GraphBuilder.RHICmdList);
+	SetupRayTracingPipelineStates(GraphBuilder);
+
+	const int32 ReferenceViewIndex = 0;
+	FViewInfo& ReferenceView = AllFamilyViews[ReferenceViewIndex];
 
 	bool bAnyLumenHardwareInlineRayTracingPassEnabled = false;
 	for (const FViewInfo& View : AllFamilyViews)
@@ -1702,25 +1700,20 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 	if (bAnyLumenHardwareInlineRayTracingPassEnabled)
 	{
-		const int32 ReferenceViewIndex = 0;
-		FViewInfo& ReferenceView = AllFamilyViews[ReferenceViewIndex];
-
 		SetupLumenHardwareRayTracingHitGroupBuffer(ReferenceView);
 	}
+
+	const bool bIsPathTracing = ActiveViewFamily->EngineShowFlags.PathTracing;
 
 	// Scratch buffer must be referenced in this pass, as it must live until the BVH build is complete.
 	FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 	PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
 	PassParams->DynamicGeometryScratchBuffer = DynamicGeometryScratchBuffer;
+	PassParams->LightDataPacked = bIsPathTracing ? nullptr : ReferenceView.RayTracingLightData.UniformBuffer; // accessed by FRayTracingLightingMS
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-		[this, PassParams, bAnyLumenHardwareInlineRayTracingPassEnabled](FRHICommandListImmediate& RHICmdList)
+		[this, PassParams, bIsPathTracing, &ReferenceView, bAnyLumenHardwareInlineRayTracingPassEnabled](FRHICommandListImmediate& RHICmdList)
 	{
-		const int32 ReferenceViewIndex = 0;
-		FViewInfo& ReferenceView = AllFamilyViews[ReferenceViewIndex];
-
-		const bool bIsPathTracing = ActiveViewFamily->EngineShowFlags.PathTracing;
-
 		check(ReferenceView.RayTracingMaterialPipeline || ReferenceView.RayTracingMaterialBindings.Num() == 0);
 
 		if (ReferenceView.RayTracingMaterialPipeline && ReferenceView.RayTracingMaterialBindings.Num())

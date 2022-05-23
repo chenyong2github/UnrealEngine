@@ -22,9 +22,7 @@ static TAutoConsoleVariable<float> CVarRayTracingLightingCellSize(
 	ECVF_RenderThreadSafe
 );
 
-
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, "RaytracingLightsDataPacked");
-
 
 class FSetupRayTracingLightCullData : public FGlobalShader
 {
@@ -49,14 +47,14 @@ class FSetupRayTracingLightCullData : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, RankedLights)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, RankedLights)
 		SHADER_PARAMETER(FVector3f, TranslatedWorldPos)
 		SHADER_PARAMETER(uint32, NumLightsToUse)
 		SHADER_PARAMETER(uint32, CellCount)
 		SHADER_PARAMETER(float, CellScale)
-		SHADER_PARAMETER_UAV(RWBuffer<uint>, LightIndices)
-		SHADER_PARAMETER_UAV(RWStructuredBuffer<uint4>, LightCullingVolume)
-		END_SHADER_PARAMETER_STRUCT()
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, LightIndices)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint4>, LightCullingVolume)
+	END_SHADER_PARAMETER_STRUCT()
 };
 
 IMPLEMENT_GLOBAL_SHADER(FSetupRayTracingLightCullData, "/Engine/Private/RayTracing/GenerateCulledLightListCS.usf", "GenerateCulledLightListCS", SF_Compute);
@@ -90,7 +88,7 @@ static int32 GetCellsPerDim()
 }
 
 static void CreateRaytracingLightCullingStructure(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const FViewInfo& View,
 	const TArray<int32>& LightIndices,
@@ -108,8 +106,7 @@ static void CreateRaytracingLightCullingStructure(
 
 	const int32 CellsPerDim = GetCellsPerDim();
 
-	TResourceArray<FVector4f> RankedLights;
-	RankedLights.Reserve(NumLightsToUse);
+	FRDGUploadData<FVector4f> RankedLights(GraphBuilder, FMath::Max(NumLightsToUse, 1));
 
 	// setup light vector array sorted by rank
 	for (int32 LightIndex = 0; LightIndex < NumLightsToUse; LightIndex++)
@@ -122,83 +119,52 @@ static void CreateRaytracingLightCullingStructure(
 			VectorGetComponentImpl<3>(BoundingSphereRegister)
 		);
 		FVector4f TranslatedBoundingSphere = FVector4f(BoundingSphere + View.ViewMatrices.GetPreViewTranslation());
-		RankedLights.Push(TranslatedBoundingSphere);
+		RankedLights[LightIndex] = TranslatedBoundingSphere;
 	}
 
-	// push null vector to prevent failure in RHICreateStructuredBuffer due to requesting a zero sized allocation
-	if (RankedLights.Num() == 0)
-	{
-		RankedLights.Push(FVector4f());
-	}
+	FRDGBufferRef RayTracingCullLights = CreateStructuredBuffer(GraphBuilder, TEXT("RayTracingCullLights"), RankedLights);
 
-	FRHIResourceCreateInfo CreateInfo(TEXT("RayTracingCullLights"));
-	CreateInfo.ResourceArray = &RankedLights;
-
-	FBufferRHIRef RayTracingCullLights = RHICreateStructuredBuffer(sizeof(RankedLights[0]),
-		RankedLights.GetResourceDataSize(),
-		BUF_Static | BUF_ShaderResource,
-		CreateInfo);
-	FShaderResourceViewRHIRef RankedLightsSRV = RHICreateShaderResourceView(RayTracingCullLights);
-
-	// Structured buffer version
-	FRHIResourceCreateInfo CullStructureCreateInfo(TEXT("RayTracingLightCullVolume"));
-	OutLightingData.LightCullVolume = RHICreateStructuredBuffer(sizeof(FUintVector4), CellsPerDim*CellsPerDim*CellsPerDim* sizeof(FUintVector4), BUF_UnorderedAccess | BUF_ShaderResource, CullStructureCreateInfo);
-	OutLightingData.LightCullVolumeSRV = RHICmdList.CreateShaderResourceView(OutLightingData.LightCullVolume);
-	FUnorderedAccessViewRHIRef LightCullVolumeUAV = RHICmdList.CreateUnorderedAccessView(OutLightingData.LightCullVolume, false, false);
-
-	// ensure zero sized texture isn't requested  to prevent failure in Initialize
-	OutLightingData.LightIndices.Initialize(
-		TEXT("RayTracingLightIndices"),
-		sizeof(uint16),
-		FMath::Max(NumLightsToUse, 1) * CellsPerDim * CellsPerDim * CellsPerDim,
-		EPixelFormat::PF_R16_UINT,
-		BUF_UnorderedAccess);
+	OutLightingData.LightCullVolume = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FUintVector4), CellsPerDim * CellsPerDim * CellsPerDim), TEXT("RayTracingLightCullVolume"));
 
 	{
-		auto* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-		TShaderMapRef<FSetupRayTracingLightCullData> Shader(GlobalShaderMap);
+		FRDGBufferDesc BufferDesc;
+		BufferDesc.Usage = EBufferUsageFlags::Static | EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::ShaderResource | EBufferUsageFlags::VertexBuffer;
+		BufferDesc.BytesPerElement = sizeof(uint16);
+		BufferDesc.NumElements = FMath::Max(NumLightsToUse, 1) * CellsPerDim * CellsPerDim * CellsPerDim;
 
-		{
-			FSetupRayTracingLightCullData::FParameters Params;
-			Params.RankedLights = RankedLightsSRV;
-
-			Params.TranslatedWorldPos = (FVector3f)(View.ViewMatrices.GetViewOrigin() + View.ViewMatrices.GetPreViewTranslation());
-			Params.NumLightsToUse = NumLightsToUse;
-			Params.LightCullingVolume = LightCullVolumeUAV;
-			Params.LightIndices = OutLightingData.LightIndices.UAV;
-			Params.CellCount = CellsPerDim;
-			Params.CellScale = CVarRayTracingLightingCellSize.GetValueOnRenderThread() / 2.0f; // cells are based on pow2, and initial cell is 2^1, so scale is half min cell size
-			{
-				SCOPED_GPU_STAT(RHICmdList, LightCullingVolumeCompute);
-				FComputeShaderUtils::Dispatch(RHICmdList, Shader, Params, FIntVector(CellsPerDim, CellsPerDim, CellsPerDim));
-			}
-		}
+		OutLightingData.LightIndices = GraphBuilder.CreateBuffer(BufferDesc, TEXT("RayTracingLightIndices"));
 	}
 
 	{
-		FRHITransitionInfo Transitions[] =
-		{
-			FRHITransitionInfo(LightCullVolumeUAV.GetReference(), ERHIAccess::UAVMask, ERHIAccess::SRVMask),
-			FRHITransitionInfo(OutLightingData.LightIndices.UAV.GetReference(), ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
-		};
-		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
-	}
+		auto Parameters = GraphBuilder.AllocParameters<FSetupRayTracingLightCullData::FParameters>();
 
+		Parameters->RankedLights = GraphBuilder.CreateSRV(RayTracingCullLights);
+		Parameters->LightCullingVolume = GraphBuilder.CreateUAV(OutLightingData.LightCullVolume);
+		Parameters->LightIndices = GraphBuilder.CreateUAV(OutLightingData.LightIndices, EPixelFormat::PF_R16_UINT);
+
+		Parameters->TranslatedWorldPos = (FVector3f)(View.ViewMatrices.GetViewOrigin() + View.ViewMatrices.GetPreViewTranslation());
+		Parameters->NumLightsToUse = NumLightsToUse;
+		Parameters->CellCount = CellsPerDim;
+		Parameters->CellScale = CVarRayTracingLightingCellSize.GetValueOnRenderThread() / 2.0f; // cells are based on pow2, and initial cell is 2^1, so scale is half min cell size
+
+		auto Shader = View.ShaderMap->GetShader<FSetupRayTracingLightCullData>();
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("LightCullingVolumeCompute"), Shader, Parameters, FIntVector(CellsPerDim, CellsPerDim, CellsPerDim));
+	}
 }
 
 
 static void SetupRaytracingLightDataPacked(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const TArray<int32>& LightIndices,
 	const FViewInfo& View,
-	FRaytracingLightDataPacked* LightData,
-	TResourceArray<FRTLightingData>& LightDataArray)
+	FRaytracingLightDataPacked& OutLightData,
+	TArrayView<FRTLightingData>& OutLightDataArray)
 {
 	TMap<UTextureLightProfile*, int32> IESLightProfilesMap;
 	TMap<FRHITexture*, uint32> RectTextureMap;
 
-	LightData->Count = 0;
+	OutLightData.Count = 0;
 	{
 		// IES profiles
 		FRHITexture* IESTextureRHI = nullptr;
@@ -206,18 +172,18 @@ static void SetupRaytracingLightDataPacked(
 
 		if (View.IESLightProfileResource && View.IESLightProfileResource->GetIESLightProfilesCount())
 		{
-			LightData->IESLightProfileTexture = View.IESLightProfileResource->GetTexture();
+			OutLightData.IESLightProfileTexture = View.IESLightProfileResource->GetTexture();
 
 			uint32 ProfileCount = View.IESLightProfileResource->GetIESLightProfilesCount();
 			IESInvProfileCount = ProfileCount ? 1.f / static_cast<float>(ProfileCount) : 0.f;
 		}
 		else
 		{
-			LightData->IESLightProfileTexture = GWhiteTexture->TextureRHI;
+			OutLightData.IESLightProfileTexture = GWhiteTexture->TextureRHI;
 		}
 
-		LightData->IESLightProfileInvCount = IESInvProfileCount;
-		LightData->IESLightProfileTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		OutLightData.IESLightProfileInvCount = IESInvProfileCount;
+		OutLightData.IESLightProfileTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 
 	for (auto LightIndex : LightIndices)
@@ -225,7 +191,7 @@ static void SetupRaytracingLightDataPacked(
 		auto Light = Lights[LightIndex];
 		const bool bHasStaticLighting = Light.LightSceneInfo->Proxy->HasStaticLighting() && Light.LightSceneInfo->IsPrecomputedLightingValid();
 		const bool bAffectReflection = Light.LightSceneInfo->Proxy->AffectReflection();
-		if (bHasStaticLighting || !bAffectReflection) continue;
+		checkf(!bHasStaticLighting && bAffectReflection, TEXT("Lights need to be prefiltered by SelectRaytracingLights()."));
 
 		FLightRenderParameters LightParameters;
 		Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
@@ -253,7 +219,7 @@ static void SetupRaytracingLightDataPacked(
 			}
 		}
 
-		FRTLightingData LightDataElement;
+		FRTLightingData& LightDataElement = OutLightDataArray[OutLightData.Count];
 
 		LightDataElement.Type = Light.LightType;
 		LightDataElement.LightProfileIndex = IESLightProfileIndex;
@@ -295,12 +261,10 @@ static void SetupRaytracingLightDataPacked(
 			LightDataElement.RectLightBarnCosAngle = Light.LightSceneInfo->Proxy->GetShadowSourceAngleFactor();
 		}
 
-		LightDataArray.Add(LightDataElement);
-
-		LightData->Count++;
-
-		if (LightData->Count >= RAY_TRACING_LIGHT_COUNT_MAXIMUM) break;
+		OutLightData.Count++;
 	}
+
+	check(OutLightData.Count <= RAY_TRACING_LIGHT_COUNT_MAXIMUM);
 
 	// Update IES light profiles texture 
 	// TODO (Move to a shared place)
@@ -313,50 +277,42 @@ static void SetupRaytracingLightDataPacked(
 			IESProfilesArray[It->Value] = It->Key;
 		}
 
-		View.IESLightProfileResource->BuildIESLightProfilesTexture(RHICmdList, IESProfilesArray);
+		View.IESLightProfileResource->BuildIESLightProfilesTexture(GraphBuilder.RHICmdList, IESProfilesArray);
 	}
 }
 
 
 FRayTracingLightData CreateRayTracingLightData(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
-	const FViewInfo& View, EUniformBufferUsage Usage)
+	const FViewInfo& View)
 {
 	FRayTracingLightData LightingData;
-	FRaytracingLightDataPacked LightData;
-	TResourceArray<FRTLightingData> LightDataArray;
 	TArray<int32> LightIndices;
+
+	auto* LightData = GraphBuilder.AllocParameters<FRaytracingLightDataPacked>();
+	LightData->CellCount = GetCellsPerDim();
+	LightData->CellScale = CVarRayTracingLightingCellSize.GetValueOnRenderThread() / 2.0f;
 
 	SelectRaytracingLights(Lights, View, LightIndices);
 
 	// Create light culling volume
-	CreateRaytracingLightCullingStructure(RHICmdList, Lights, View, LightIndices, LightingData);
-	LightData.CellCount = GetCellsPerDim();
-	LightData.CellScale = CVarRayTracingLightingCellSize.GetValueOnRenderThread() / 2.0f;
-	LightData.LightCullingVolume = LightingData.LightCullVolumeSRV;
-	LightData.LightIndices = LightingData.LightIndices.SRV;
+	CreateRaytracingLightCullingStructure(GraphBuilder, Lights, View, LightIndices, LightingData);
 
-	SetupRaytracingLightDataPacked(RHICmdList, Lights, LightIndices, View, &LightData, LightDataArray);
+	FRDGUploadData<FRTLightingData> LightDataArray(GraphBuilder, FMath::Max(LightIndices.Num(), 1));
+	SetupRaytracingLightDataPacked(GraphBuilder, Lights, LightIndices, View, *LightData, LightDataArray);
 
-	check(LightData.Count == LightDataArray.Num());
+	check(LightData->Count == LightDataArray.Num());
 
-	// need at least one element
-	if (LightDataArray.Num() == 0)
-	{
-		LightDataArray.AddZeroed(1);
-	}
+	static_assert(sizeof(FRTLightingData) % sizeof(FUintVector4) == 0, "sizeof(FRTLightingData) must be a multiple of sizeof(FUintVector4)");
+	const uint32 NumUintVector4Elements = LightDataArray.GetTotalSize() / sizeof(FUintVector4);
+	LightingData.LightBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("LightBuffer"), sizeof(FUintVector4), NumUintVector4Elements, LightDataArray.GetData(), LightDataArray.GetTotalSize(), ERDGInitialDataFlags::NoCopy);
 
-	// This buffer might be best placed as an element of the LightData uniform buffer
-	FRHIResourceCreateInfo CreateInfo(TEXT("LightBuffer"));
-	CreateInfo.ResourceArray = &LightDataArray;
+	LightData->LightDataBuffer = GraphBuilder.CreateSRV(LightingData.LightBuffer);
+	LightData->LightIndices = GraphBuilder.CreateSRV(LightingData.LightIndices, EPixelFormat::PF_R16_UINT);
+	LightData->LightCullingVolume = GraphBuilder.CreateSRV(LightingData.LightCullVolume);
 
-	LightingData.LightBuffer = RHICreateStructuredBuffer(sizeof(FUintVector4), LightDataArray.GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-	LightingData.LightBufferSRV = RHICreateShaderResourceView(LightingData.LightBuffer);
-
-	LightData.LightDataBuffer = LightingData.LightBufferSRV;
-
-	LightingData.UniformBuffer = CreateUniformBufferImmediate(LightData, Usage);
+	LightingData.UniformBuffer = GraphBuilder.CreateUniformBuffer(LightData);
 
 	return LightingData;
 }
@@ -366,10 +322,10 @@ class FRayTracingLightingMS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRayTracingLightingMS);
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FRayTracingLightingMS, FGlobalShader)
 
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_REF(FRaytracingLightDataPacked, LightDataPacked)
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRaytracingLightDataPacked, LightDataPacked)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		END_SHADER_PARAMETER_STRUCT()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -421,8 +377,8 @@ static int32 BindParameters(const TShaderRef<ShaderClass>& Shader, typename Shad
 void FDeferredShadingSceneRenderer::SetupRayTracingLightingMissShader(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FRayTracingLightingMS::FParameters MissParameters;
-	MissParameters.LightDataPacked = View.RayTracingLightData.UniformBuffer;
 	MissParameters.ViewUniformBuffer = View.ViewUniformBuffer;
+	MissParameters.LightDataPacked = View.RayTracingLightData.UniformBuffer;
 
 	static constexpr uint32 MaxUniformBuffers = UE_ARRAY_COUNT(FRayTracingShaderBindings::UniformBuffers);
 	const FRHIUniformBuffer* MissData[MaxUniformBuffers] = {};

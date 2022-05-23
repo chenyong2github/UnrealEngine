@@ -1113,19 +1113,16 @@ typedef TArray<FViewCommands, TInlineAllocator<4>> FViewVisibleCommandsPerView;
 /** Convenience struct for all lighting data used by ray tracing effects using RayTracingLightingCommon.ush */
 struct FRayTracingLightData
 {
-	/** Uniform buffer with all lighting data */
-	TUniformBufferRef<FRaytracingLightDataPacked>	UniformBuffer;
+	TRDGUniformBufferRef<FRaytracingLightDataPacked> UniformBuffer;
 
 	/** Structured buffer containing all light data */
-	FBufferRHIRef									LightBuffer;
-	FShaderResourceViewRHIRef						LightBufferSRV;
+	FRDGBufferRef LightBuffer;
 
 	/** Buffer of light indices reference by the culling volume */
-	FRWBuffer										LightIndices;
+	FRDGBufferRef LightIndices;
 
 	/** Camera-centered volume used to cull lights to cells */
-	FBufferRHIRef									LightCullVolume;
-	FShaderResourceViewRHIRef						LightCullVolumeSRV;
+	FRDGBufferRef LightCullVolume;
 };
 
 struct FRayTracingCullingParameters

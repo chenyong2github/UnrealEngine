@@ -64,11 +64,14 @@ struct FCulledLightList
 		return Result;
 	}
 
+	bool IsPacked()
+	{
+		return (LightCellData[0] & (1 << 31)) > 0;
+	}
+
 	uint NumLights()
 	{
-		const bool bPacked = (LightCellData[0] & (1 << 31)) > 0;
-
-		return bPacked ? (LightCellData[3] >> (PackedLightBits * 2)) & PackedLightMask : LightCellData.x;
+		return IsPacked() ? (LightCellData[3] >> (PackedLightBits * 2)) & PackedLightMask : LightCellData.x;
 	}
 
 	uint GetLightIndex(int LightNum, out uint Valid)
@@ -78,8 +81,7 @@ struct FCulledLightList
 
 		const uint LightCount = NumLights();
 
-		const bool bPacked = (LightCellData[0] & (1 << 31)) > 0;
-		if (bPacked)
+		if (IsPacked())
 		{
 			// packed lights 
 			uint Shift = (LightNum % PackedLightsPerComponent) * PackedLightBits;
