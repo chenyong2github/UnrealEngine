@@ -35,10 +35,12 @@ protected:
 	void StackViewModelDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
 	void FillTopContentBar();
 	void OnMaterialCompiled(class UMaterialInterface* MaterialInterface);
+	
 	bool UseLowDetailNodeContent() const;
 	FVector2D GetLowDetailDesiredSize() const;
 	FOptionalSize GetLowDetailDesiredWidth() const;
 	FOptionalSize GetLowDetailDesiredHeight() const;
+	FText GetLowDetailNodeTitle() const;
 
 	void CreateBottomSummaryExpander();
 private:
@@ -101,4 +103,6 @@ private:
 	
 	/** Cached size from when we last drew at high detail */
 	FVector2D LastHighDetailSize = FVector2D::ZeroVector;
+	int32 GeometryTickForSize = 3;
+	mutable TPair<FString, FText> LowDetailTitleCache;
 };

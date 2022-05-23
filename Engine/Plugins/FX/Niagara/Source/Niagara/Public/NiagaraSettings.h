@@ -106,10 +106,6 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category=Niagara)
 	bool bDisplayAffectedAssetStatsInEditor = true;
 
-	/** If true then the system editor will zoom to fit all emitters when opening an asset. */
-	UPROPERTY(config, EditAnywhere, Category = Niagara)
-	bool bAlwaysZoomToFitSystemGraph = true;
-
 	/** If true then the "link input" menu will also show variables of different types, as long as there is a conversion script for them. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	bool bShowConvertibleInputsInStack = false;

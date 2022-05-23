@@ -247,6 +247,18 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	TArray<FNiagaraSpawnShortcut> GraphCreationShortcuts;
 
+	/** If true then emitter and system nodes will show a simplified representation on low zoom levels. This improves performance and readablity when zoomed out of the system overview graph. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	bool bSimplifyStackNodesAtLowResolution = true;
+
+	/** The max number of chars before names on the low resolution nodes are truncated. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara, meta=(EditCondition="bSimplifyStackNodesAtLowResolution", UIMin=3))
+	int32 LowResolutionNodeMaxNameChars = 7;
+	
+	/** If true then the system editor will zoom to fit all emitters when opening an asset. */
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	bool bAlwaysZoomToFitSystemGraph = true;
+
 	TArray<float> GetPlaybackSpeeds() const;
 
 	/** Gets whether or not auto-compile is enabled in the editors. */

@@ -26,6 +26,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/SBoxPanel.h"
 #include "NiagaraRendererProperties.h"
+#include "NiagaraEditorSettings.h"
 #include "SGraphPanel.h"
 #include "Widgets/SWidget.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
@@ -312,6 +313,11 @@ void SNiagaraOverviewStackNode::Tick(const FGeometry& AllottedGeometry, const do
 		if (ScalabilityWrapper != nullptr && !UseLowDetailNodeContent())
 		{
 			LastHighDetailSize = ScalabilityWrapper->GetTickSpaceGeometry().Size;
+			if (GeometryTickForSize > 0)
+			{
+				// the stack needs a few tick to fully initialize, so we wait to bit to grab the right low detail geomtry size
+				GeometryTickForSize--;
+			}
 		}
 	}
 }
@@ -469,11 +475,10 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 			.HeightOverride(this, &SNiagaraOverviewStackNode::GetLowDetailDesiredHeight)
 			[
 				SNew(STextBlock)
-				.Text(this, &SNiagaraOverviewStackNode::GetEditableNodeTitleAsText)
+				.Text(this, &SNiagaraOverviewStackNode::GetLowDetailNodeTitle)
 				.TextStyle(&FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTextBlockStyle>("NiagaraEditor.SystemOverview.ZoomedOutNodeFont"))
 				.Visibility(EVisibility::HitTestInvisible)
 				.Clipping(EWidgetClipping::Inherit)
-				.RenderTransform(FSlateRenderTransform(Concatenate(FQuat2D(FMath::DegreesToRadians(90.0f)), FVector2D(100, 25))))
 			]
 		]
 		.HighDetail()
@@ -501,7 +506,8 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
 
 bool SNiagaraOverviewStackNode::UseLowDetailNodeContent() const
 {
-	if (LastHighDetailSize.IsNearlyZero())
+	const UNiagaraEditorSettings* NiagaraSettings = GetDefault<UNiagaraEditorSettings>();
+	if (LastHighDetailSize.IsNearlyZero() || GeometryTickForSize > 0 || !NiagaraSettings->bSimplifyStackNodesAtLowResolution)
 	{
 		return false;
 	}
@@ -526,6 +532,100 @@ FOptionalSize SNiagaraOverviewStackNode::GetLowDetailDesiredWidth() const
 FOptionalSize SNiagaraOverviewStackNode::GetLowDetailDesiredHeight() const
 {
 	return LastHighDetailSize.Y;
+}
+
+namespace NiagaraOverviewStackNode
+{
+	struct StringRange
+	{
+		int32 Start = 0;
+		int32 End = 0;
+	};
+	
+	bool IsUpperAlphaNumeric(const TCHAR& c)
+	{
+		return (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+	}
+
+	// this method splits long emitter names for the low details view by inserting new lines
+	// and abbreviating large pieces when necessary
+	FString PrettySplitString(const FString& Input)
+	{
+		TArray<FStringView, TInlineAllocator<16>> Parts;
+
+		// split at convenient places
+		int32 Start = 0;
+		for (int i = 0; i < Input.Len() - 1; i++)
+		{
+			TCHAR currentChar = Input[i];
+			TCHAR nextChar = Input[i + 1];
+
+			bool bIsLowerAlpha = currentChar >= 'a' && currentChar <= 'z';
+
+			// skip '_' at the beginning or in sequence
+			if (currentChar == '_')
+			{
+				Start = i + 1;
+			}
+			// replace '_' in the middle of the name with a newline
+			else if (nextChar == '_')
+			{
+				Parts.Add(FStringView(&Input[Start], i - Start + 1));
+				i++;
+				Start = i + 1;
+			}
+			// split when changing from lowercase to uppercase or number
+			else if (bIsLowerAlpha && IsUpperAlphaNumeric(nextChar))
+			{
+				Parts.Add(FStringView(&Input[Start], i - Start + 1));
+				Start = i + 1;
+			}
+		}
+		// add the end piece
+		if (Start < Input.Len())
+		{
+			Parts.Add(FStringView(&Input[Start], Input.Len() - Start));
+		}
+
+		// assemble the pieces
+		const UNiagaraEditorSettings* NiagaraSettings = GetDefault<UNiagaraEditorSettings>();
+		int32 MaxLength = FMath::Max(3, NiagaraSettings->LowResolutionNodeMaxNameChars);
+		TStringBuilder<128> SplitNameBuilder;
+		int32 RunningLength = 0;
+		for (const FStringView& Split : Parts)
+		{
+			// merge small parts together, only insert a newline between big parts
+			if (Split.Len() + RunningLength > MaxLength && SplitNameBuilder.Len() > 0)
+			{
+				SplitNameBuilder.AppendChar('\n');
+				RunningLength = 0;
+			}
+			
+			// if the name is too long, abbreviate with ...
+			if (Split.Len() > MaxLength)
+			{
+				SplitNameBuilder.Append(Split.Left(MaxLength - 2));
+				SplitNameBuilder.Append(TEXT("…"));
+			}
+			else
+			{
+				SplitNameBuilder.Append(Split);
+			}
+			RunningLength += Split.Len();
+		}
+
+		return SplitNameBuilder.ToString();
+	}
+}
+
+FText SNiagaraOverviewStackNode::GetLowDetailNodeTitle() const
+{
+	if (FString Title = GetEditableNodeTitle(); LowDetailTitleCache.Key != Title)
+	{
+		LowDetailTitleCache.Key = Title;
+		LowDetailTitleCache.Value = FText::FromString(NiagaraOverviewStackNode::PrettySplitString(Title));
+	}
+	return LowDetailTitleCache.Value;
 }
 
 void SNiagaraOverviewStackNode::StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags)
