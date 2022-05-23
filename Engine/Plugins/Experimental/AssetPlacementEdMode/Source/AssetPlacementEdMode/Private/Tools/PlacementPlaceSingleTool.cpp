@@ -25,6 +25,10 @@
 #include "ContextObjectStore.h"
 #include "PlacementPaletteItem.h"
 
+#if !UE_IS_COOKED_EDITOR
+#include "AssetPlacementEdModeModule.h"
+#endif
+
 constexpr TCHAR UPlacementModePlaceSingleTool::ToolName[];
 
 UPlacementBrushToolBase* UPlacementModePlaceSingleToolBuilder::FactoryToolInstance(UObject* Outer) const
@@ -86,7 +90,17 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 		// Place the Preview data if we managed to get to a valid handled click.
 		FPlacementOptions PlacementOptions;
 		PlacementOptions.bPreferBatchPlacement = true;
-		PlacementOptions.InstancedPlacementGridGuid = PlacementSettings->GetActivePaletteGuid();
+		
+#if !UE_IS_COOKED_EDITOR
+		if (!AssetPlacementEdModeUtil::AreInstanceWorkflowsEnabled())
+		{
+			PlacementOptions.InstancedPlacementGridGuid = FGuid();
+		}
+		else
+#endif
+		{
+			PlacementOptions.InstancedPlacementGridGuid = PlacementSettings->GetActivePaletteGuid();
+		}
 
 		FAssetPlacementInfo FinalizedPlacementInfo = *PlacementInfo;
 		FinalizedPlacementInfo.FinalizedTransform = FinalizeTransform(
