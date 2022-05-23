@@ -19,7 +19,6 @@
 #include "Animation/AnimSequence.h"
 #include "INodeAndChannelMappings.h"
 
-
 class ISequencer;
 class UMovieScene;
 class UMovieSceneSection;
@@ -566,6 +565,10 @@ public:
 	*/
 	static void GetActorWorldTransforms(IMovieScenePlayer* Player, UMovieSceneSequence* InSequence, FMovieSceneSequenceIDRef Template,const FActorForWorldTransforms& Actors, const TArray<FFrameNumber>& Frames, TArray<FTransform>& OutWorldTransforms);
 
+	/*
+	 * Return whether this asset is valid for the given sequence
+	 */
+	static bool IsValidAsset(UMovieSceneSequence* Sequence, const FAssetData& InAssetData);
 };
 
 // Helper to make spawnables persist throughout the export process and then restore properly afterwards

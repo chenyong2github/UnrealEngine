@@ -48,6 +48,7 @@
 #include "IDetailsView.h"
 #include "Widgets/Input/SButton.h"
 #include "Editor.h"
+#include "Editor/EditorEngine.h"
 #include "LevelEditorViewport.h"
 #include "AssetToolsModule.h"
 #include "Camera/CameraAnim.h"
@@ -4527,6 +4528,27 @@ void MovieSceneToolHelpers::GetActorWorldTransforms(ISequencer* Sequencer, const
 	{
 		GetNonSequencerActorWorldTransforms(Sequencer, Sequencer->GetFocusedMovieSceneSequence(), Template, ActorSelection, Frames, OutWorldTransforms);
 	}
+}
+
+bool MovieSceneToolHelpers::IsValidAsset(UMovieSceneSequence* Sequence, const FAssetData& InAssetData)
+{
+	if (!Sequence)
+	{
+		return false;
+	}
+
+	FAssetReferenceFilterContext AssetReferenceFilterContext;
+	AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(Sequence));
+
+	TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext);
+
+	FText FailureReason;
+	if (AssetReferenceFilter.IsValid() && !AssetReferenceFilter->PassesFilter(InAssetData, &FailureReason))
+	{
+		UE_LOG(LogMovieScene, Warning, TEXT("%s cannot reference because: %s"), *GetNameSafe(Sequence), *FailureReason.ToString());
+		return false;
+	}
+	return true;
 }
 
 void MovieSceneToolHelpers::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value)

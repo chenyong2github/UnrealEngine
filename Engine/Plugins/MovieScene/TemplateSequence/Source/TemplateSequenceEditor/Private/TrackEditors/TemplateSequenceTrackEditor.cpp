@@ -151,6 +151,7 @@ public:
 		FAssetPickerConfig AssetPickerConfig;
 		{
 			TSharedRef<FTemplateSequenceTrackEditor> TrackEditorRef = TrackEditor.ToSharedRef();
+			UMovieSceneSequence* Sequence = TrackEditorRef->GetSequencer() ? TrackEditorRef->GetSequencer()->GetFocusedMovieSceneSequence() : nullptr;
 
 			AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateSP(TrackEditorRef, &FTemplateSequenceTrackEditor::OnTemplateSequenceAssetSelected, ObjectBindings);
 			AssetPickerConfig.OnAssetEnterPressed = FOnAssetEnterPressed::CreateSP(TrackEditorRef, &FTemplateSequenceTrackEditor::OnTemplateSequenceAssetEnterPressed, ObjectBindings);
@@ -160,6 +161,7 @@ public:
 			AssetPickerConfig.Filter.bRecursiveClasses = true;
 			AssetPickerConfig.Filter.ClassNames.Add(UTemplateSequence::StaticClass()->GetFName());
 			AssetPickerConfig.SaveSettingsName = TEXT("SequencerAssetPicker");
+			AssetPickerConfig.AdditionalReferencingAssets.Add(FAssetData(Sequence));
 			if (LegacyBaseClass != nullptr)
 			{
 				AssetPickerConfig.Filter.ClassNames.Add(LegacyBaseClass->GetFName());

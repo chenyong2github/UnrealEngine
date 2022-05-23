@@ -106,6 +106,7 @@
 #include "EditorActorFolders.h"
 #include "Tracks/MovieSceneEventTrack.h"
 #include "ToolMenus.h"
+#include "MovieSceneToolHelpers.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -3442,6 +3443,11 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 
 	for (const FAssetData& AssetData : DragDropOp.GetAssets())
 	{
+		if (!MovieSceneToolHelpers::IsValidAsset(SequencerRef.GetFocusedMovieSceneSequence(), AssetData))
+		{
+			continue;
+		}
+
 		UObject* Object = AssetData.GetAsset();
 
 		if ( Object != nullptr )
