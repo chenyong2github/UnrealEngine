@@ -10,6 +10,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"
 #include "FrontendFilterBase.h"
+#include "Filters/SAssetFilterBar.h"
 
 class UToolMenu;
 struct FToolMenuSection;
@@ -20,13 +21,13 @@ enum class ECheckBoxState : uint8;
 /**
  * A list of filters currently applied to an asset view.
  */
-class SFilterList : public SCompoundWidget
+class SFilterList : public SAssetFilterBar<FAssetFilterType>
 {
 public:
-	/** Delegate for when filters have changed */
-	DECLARE_DELEGATE( FOnFilterChanged );
 
 	DECLARE_DELEGATE_RetVal( TSharedPtr<SWidget>, FOnGetContextMenu );
+
+	using FOnFilterChanged = typename SAssetFilterBar<FAssetFilterType>::FOnFilterChanged;
 
 	SLATE_BEGIN_ARGS( SFilterList ){}
 
@@ -50,44 +51,6 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct( const FArguments& InArgs );
 
-	/** Returns true if any filters are applied */
-	bool HasAnyFilters() const;
-
-	/** Returns all of the filters combined */
-	FARFilter GetCombinedBackendFilter() const;
-
-	/** Retrieve a specific frontend filter */
-	TSharedPtr<FFrontendFilter> GetFrontendFilter(const FString& InName) const;
-
-	/** Handler for when the floating add filter button was clicked */
-	TSharedRef<SWidget> ExternalMakeAddFilterMenu(EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic);
-
-	/** Enables all filters */
-	void EnableAllFilters();
-
-	/** Disables any applied filters */
-	void DisableAllFilters();
-
-	/** Removes all filters in the list */
-	void RemoveAllFilters();
-
-	/** Removes all filters in the list except the given one. */
-	void RemoveAllButThis(const TSharedRef<SFilter>& FilterToKeep);
-
-	/** Disables any active filters that would hide the supplied items */
-	void DisableFiltersThatHideItems(TArrayView<const FContentBrowserItem> ItemList);
-
-	/** Saves any settings to config that should be persistent between editor sessions */
-	void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const;
-
-	/** Loads any settings to config that should be persistent between editor sessions */
-	void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString);
-
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-
-	/** Returns the class filters specified at construction using argument 'InitialClassFilters'. */
-	const TArray<UClass*>& GetInitialClassFilters();
-
 	/** Set the check box state of the specified frontend filter (in the filter drop down) and pin/unpin a filter widget on/from the filter bar. When a filter is pinned (was not already pinned), it is activated and deactivated when unpinned. */
 	void SetFrontendFilterCheckState(const TSharedPtr<FFrontendFilter>& InFrontendFilter, ECheckBoxState CheckState);
 
@@ -97,80 +60,39 @@ public:
 	/** Returns true if the specified frontend filter is both checked (pinned on the filter bar) and active (contributing to filter the result). */
 	bool IsFrontendFilterActive(const TSharedPtr<FFrontendFilter>& InFrontendFilter) const;
 
-private:
-	/** Sets the active state of a frontend filter. */
-	void SetFrontendFilterActive(const TSharedRef<FFrontendFilter>& Filter, bool bActive);
+	/** Retrieve a specific frontend filter */
+	TSharedPtr<FFrontendFilter> GetFrontendFilter(const FString& InName) const;
 
-	/** Adds a filter to the end of the filter box. */
-	TSharedRef<SFilter> AddFilter(const TWeakPtr<IAssetTypeActions>& AssetTypeActions);
-	TSharedRef<SFilter> AddFilter(const TSharedRef<FFrontendFilter>& FrontendFilter);
-	void AddFilter(const TSharedRef<SFilter>& FilterToAdd);
+	/** Handler for when the floating add filter button was clicked */
+	TSharedRef<SWidget> ExternalMakeAddFilterMenu(EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic);
 
-	/** Handler for when the remove filter button was clicked on a filter */
-	void RemoveFilter(const TWeakPtr<IAssetTypeActions>& AssetTypeActions, bool ExecuteOnFilterChanged = true);
-	void RemoveFilter(const TSharedRef<FFrontendFilter>& FrontendFilter, bool ExecuteOnFilterChanged = true);
-	void RemoveFilter(const TSharedRef<SFilter>& FilterToRemove);
-	void RemoveFilterAndUpdate(const TSharedRef<SFilter>& FilterToRemove);
+	/** Disables any active filters that would hide the supplied items */
+	void DisableFiltersThatHideItems(TArrayView<const FContentBrowserItem> ItemList);
 
-	/** Handler for when the enable only this button was clicked on a single filter */
-	void EnableOnlyThisFilter(const TSharedRef<SFilter>& FilterToEnable);
+	/** Saves any settings to config that should be persistent between editor sessions */
+	void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const override;
 
-	/** Handler for when a frontend filter state has changed */
-	void FrontendFilterChanged(TSharedRef<FFrontendFilter> FrontendFilter);
+	/** Loads any settings to config that should be persistent between editor sessions */
+	void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) override;
 
-	/** Handler for when the add filter menu is populated by a category */
-	void CreateFiltersMenuCategory(FToolMenuSection& Section, const TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList) const;
-	void CreateFiltersMenuCategory(UToolMenu* InMenu, const TArray<TWeakPtr<IAssetTypeActions>> AssetTypeActionsList) const;
+	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 
-	/** Handler for when the add filter menu is populated by a non-category */
-	void CreateOtherFiltersMenuCategory(FToolMenuSection& Section, TSharedPtr<FFrontendFilterCategory> MenuCategory) const;
-	void CreateOtherFiltersMenuCategory(UToolMenu* InMenu, TSharedPtr<FFrontendFilterCategory> MenuCategory) const;
+	/** Returns the class filters specified at construction using argument 'InitialClassFilters'. */
+	const TArray<UClass*>& GetInitialClassFilters();
 
+protected:
+	
 	/** Handler for when the add filter button was clicked */
-	TSharedRef<SWidget> MakeAddFilterMenu(EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic);
-	void PopulateAddFilterMenu(UToolMenu* Menu);
-
-	/** Handler for when filter by type is selected */
-	void FilterByTypeClicked(TWeakPtr<IAssetTypeActions> AssetTypeActions);
-
-	/** Handler to determine the "checked" state of an asset type in the filter dropdown */
-	bool IsAssetTypeActionsInUse(TWeakPtr<IAssetTypeActions> AssetTypeActions) const;
-
-	/** Handler for when filter by type category is selected */
-	void FilterByTypeCategoryClicked(EAssetTypeCategories::Type Category);
-
-	/** Handler to determine the "checked" state of an asset type category in the filter dropdown */
-	ECheckBoxState IsAssetTypeCategoryChecked(EAssetTypeCategories::Type Category) const;
-
-	/** Returns all the asset type actions objects for the specified category */
-	void GetTypeActionsForCategory(EAssetTypeCategories::Type Category, TArray< TWeakPtr<IAssetTypeActions> >& TypeActions) const;
-
-	/** Function to check if a given asset type category is in use */
-	bool IsAssetTypeCategoryInUse(EAssetTypeCategories::Type Category) const;
-
-	void FrontendFilterClicked(TSharedRef<FFrontendFilter> FrontendFilter);
-	bool IsFrontendFilterInUse(TSharedRef<FFrontendFilter> FrontendFilter) const;
-	void FrontendFilterCategoryClicked(TSharedPtr<FFrontendFilterCategory> MenuCategory);
-	bool IsFrontendFilterCategoryInUse(TSharedPtr<FFrontendFilterCategory> MenuCategory) const;
-
-	/** Called when reset filters option is pressed */
-	void OnResetFilters();
-
-	/** Called to set a filter active externally */
-	void OnSetFilterActive(bool bInActive, TWeakPtr<FFrontendFilter> InWeakFilter);
+	TSharedRef<SWidget> MakeAddFilterMenu() override;
 
 private:
-	/** All SFilters in the list */
-	TArray<TSharedRef<SFilter>> Filters;
 
-	/** The filter collection used to further filter down assets returned from the backend */
-	TSharedPtr<FAssetFilterCollectionType> FrontendFilters;
+	// Exists for backwards compatibility with ExternalMakeAddFilterMenu
+	TSharedRef<SWidget> MakeAddFilterMenu(EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic);
 
-	/** All possible frontend filter objects */
-	TArray< TSharedRef<FFrontendFilter> > AllFrontendFilters;
-
-	/** All frontend filter categories (for menu construction) */
-	TArray< TSharedPtr<FFrontendFilterCategory> > AllFrontendFilterCategories;
+	void PopulateAddFilterMenu_Internal(UToolMenu* Menu);
+	
+private:
 
 	/** List of classes that our filters must match */
 	TArray<UClass*> InitialClassFilters;
@@ -181,5 +103,6 @@ private:
 	/** Delegate for when filters have changed */
 	FOnFilterChanged OnFilterChanged;
 
-	friend struct FFrontendFilterExternalActivationHelper;
+	/** A reference to AllFrontEndFilters so we can access the filters as FFrontEndFilter instead of FFilterBase<FAssetFilterType> */
+	TArray< TSharedRef<FFrontendFilter> > AllFrontendFilters_Internal;
 };

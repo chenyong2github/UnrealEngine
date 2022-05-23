@@ -697,6 +697,21 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 
 	const float SearchBoxDesiredWidth = 500.0f;
 
+	// Create the Filter Bar Widget
+	FilterListPtr = SNew(SFilterList)
+					.OnFilterChanged(this, &SContentBrowser::OnFilterChanged)
+					.OnGetContextMenu(this, &SContentBrowser::GetFilterContextMenu)
+					.Visibility((Config != nullptr ? Config->bCanShowFilters : true) ? EVisibility::Visible : EVisibility::Collapsed)
+					.FrontendFilters(FrontendFilters)
+					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFilters")));
+
+	// Create the Filter Combo Button
+	TSharedPtr<SWidget> FilterComboButton = SFilterList::MakeAddFilterButton(FilterListPtr.ToSharedRef());
+	
+	TSharedPtr<ISlateMetaData> FilterComboButtonMetaData = MakeShared<FTagMetaData>(TEXT("ContentBrowserFiltersCombo"));
+	FilterComboButton->AddMetadata(FilterComboButtonMetaData.ToSharedRef());
+	FilterComboButton->SetVisibility((Config != nullptr ? Config->bCanShowFilters : true) ? EVisibility::Visible : EVisibility::Collapsed);
+
 	return
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
@@ -766,20 +781,7 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 						.HAlign(HAlign_Left)
 						.Padding(5, 0, 0, 0)
 						[
-							SNew(SComboButton)
-							.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButtonWithIcon"))
-							.ForegroundColor(FSlateColor::UseStyle())
-							.ToolTipText(LOCTEXT("AddFilterToolTip", "Add an asset filter."))
-							.OnGetMenuContent(this, &SContentBrowser::MakeAddFilterMenu)
-							.ContentPadding(FMargin(1, 0))
-							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFiltersCombo")))
-							.Visibility((Config != nullptr ? Config->bCanShowFilters : true) ? EVisibility::Visible : EVisibility::Collapsed)
-							.ButtonContent()
-							[
-								SNew(SImage)
-								.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
-								.ColorAndOpacity(FSlateColor::UseForeground())
-							]
+							FilterComboButton.ToSharedRef()
 						]
 					]
 				]
@@ -793,12 +795,7 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 					.MinDesiredHeight_Lambda([this, SearchFilterItemHeight]() { return FilterListPtr->HasAnyFilters() ? SearchFilterItemHeight : 0; })
 					.VAlign(VAlign_Center)
 					[
-						SAssignNew(FilterListPtr, SFilterList)
-						.OnFilterChanged(this, &SContentBrowser::OnFilterChanged)
-						.OnGetContextMenu(this, &SContentBrowser::GetFilterContextMenu)
-						.Visibility((Config != nullptr ? Config->bCanShowFilters : true) ? EVisibility::Visible : EVisibility::Collapsed)
-						.FrontendFilters(FrontendFilters)
-						.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFilters")))
+						FilterListPtr.ToSharedRef()
 					]
 				]
 			]
