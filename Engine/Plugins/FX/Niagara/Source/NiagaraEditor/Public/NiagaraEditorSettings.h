@@ -297,6 +297,8 @@ public:
 	/** Sets whether or not to display advanced categories for the parameter panel. */
 	void SetDisplayAdvancedParameterPanelCategories(bool bInDisplayAdvancedParameterPanelCategories);
 
+	bool GetDisplayAffectedAssetStats() const;
+
 	bool IsShowGridInViewport() const;
 	void SetShowGridInViewport(bool bShowGridInViewport);
 	
@@ -363,6 +365,10 @@ private:
 	/** Whether or not to display advanced categories for the parameter panel. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	bool bDisplayAdvancedParameterPanelCategories;
+
+	/** If true, then the emitter and script editors will show an info message how many downstream asset are affected by a change. Gathering this information for large asset graphs can delay the opening of the asset editors a bit. */
+	UPROPERTY(config, EditAnywhere, Category=Niagara)
+	bool bDisplayAffectedAssetStats = true;
 
 	/** Speeds used for slowing down and speeding up the playback speeds */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)

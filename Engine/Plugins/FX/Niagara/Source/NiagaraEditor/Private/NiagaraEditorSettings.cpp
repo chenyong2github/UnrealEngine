@@ -453,6 +453,11 @@ void UNiagaraEditorSettings::SetDisplayAdvancedParameterPanelCategories(bool bIn
 	}
 }
 
+bool UNiagaraEditorSettings::GetDisplayAffectedAssetStats() const
+{
+	return bDisplayAffectedAssetStats;
+}
+
 FNiagaraNewAssetDialogConfig UNiagaraEditorSettings::GetNewAssetDailogConfig(FName InDialogConfigKey) const
 {
 	const FNiagaraNewAssetDialogConfig* Config = NewAssetDialogConfigMap.Find(InDialogConfigKey);

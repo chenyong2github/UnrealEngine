@@ -28,7 +28,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GraphEditorActions.h"
 #include "EditorFontGlyphs.h"
-#include "NiagaraSettings.h"
+#include "NiagaraEditorSettings.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Widgets/SNiagaraGraphActionMenu.h"
 
@@ -699,8 +699,7 @@ int32 SNiagaraScriptGraph::GetScriptAffectedAssets() const
 	{
 		return 0;
 	}
-	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-	if (Settings->bDisplayAffectedAssetStatsInEditor == false)
+	if (GetDefault<UNiagaraEditorSettings>()->GetDisplayAffectedAssetStats() == false)
 	{
 		return 0;
 	}

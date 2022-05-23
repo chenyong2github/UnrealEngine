@@ -102,10 +102,6 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Viewport)
 	bool bSystemViewportInOrbitMode = true;
 
-	/** If true, then the emitter and script editors will show an info message how many downstream asset are affected by a change. Gathering this information for large asset graphs can delay the opening of the asset editors a bit. */
-	UPROPERTY(config, EditAnywhere, Category=Niagara)
-	bool bDisplayAffectedAssetStatsInEditor = true;
-
 	/** If true then the "link input" menu will also show variables of different types, as long as there is a conversion script for them. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	bool bShowConvertibleInputsInStack = false;

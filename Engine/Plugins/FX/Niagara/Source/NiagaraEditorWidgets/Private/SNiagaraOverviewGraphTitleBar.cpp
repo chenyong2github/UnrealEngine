@@ -3,7 +3,7 @@
 #include "SNiagaraOverviewGraphTitleBar.h"
 
 #include "NiagaraEditorWidgetsStyle.h"
-#include "NiagaraSettings.h"
+#include "NiagaraEditorSettings.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "SNiagaraScalabilityPreviewSettings.h"
 #include "SNiagaraSystemEffectTypeBar.h"
@@ -156,8 +156,7 @@ int32 SNiagaraOverviewGraphTitleBar::GetEmitterAffectedAssets() const
 		return 0;
 	}
 	
-	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-	if (Settings->bDisplayAffectedAssetStatsInEditor == false)
+	if (GetDefault<UNiagaraEditorSettings>()->GetDisplayAffectedAssetStats() == false)
 	{
 		return 0;
 	}
