@@ -3036,6 +3036,8 @@ void FScene::UpdateLightTransform_RenderThread(FLightSceneInfo* LightSceneInfo, 
 		// Update the light's transform and position.
 		LightSceneInfo->Proxy->SetTransform(Parameters.LightToWorld,Parameters.Position);
 
+		InvalidatePathTracedOutput();
+
 		// Also update the LightSceneInfoCompact
 		if( bHasId )
 		{
