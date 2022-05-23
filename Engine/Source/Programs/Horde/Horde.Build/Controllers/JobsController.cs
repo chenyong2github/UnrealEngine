@@ -91,7 +91,7 @@ namespace Horde.Build.Controllers
 			TemplateRef? templateRef;
 			if (!stream.Templates.TryGetValue(templateRefId, out templateRef))
 			{
-				return BadRequest($"Invalid {create.TemplateId} parameter");
+				return BadRequest($"Template {create.TemplateId} is not available for stream {stream.Id}");
 			}
 			if (!await _streamService.AuthorizeAsync(stream, templateRef, AclAction.CreateJob, User, null))
 			{
