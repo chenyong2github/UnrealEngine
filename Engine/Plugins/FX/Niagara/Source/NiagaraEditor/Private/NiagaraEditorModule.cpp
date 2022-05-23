@@ -825,7 +825,14 @@ void FNiagaraEditorModule::StartupModule()
 	// Global registration of  the vdb types.
 #if PLATFORM_WINDOWS
 	openvdb::initialize();
-	Vec4SGrid::registerGrid();
+	try
+	{
+		Vec4SGrid::registerGrid();
+	}
+	catch (openvdb::Exception e)
+	{
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("OpenVDB exception: %s"), ANSI_TO_TCHAR(e.what()));
+	}
 #endif	
 	
 	bThumbnailRenderersRegistered = false;
