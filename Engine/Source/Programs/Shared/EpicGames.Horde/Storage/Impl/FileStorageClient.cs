@@ -69,7 +69,7 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public Task<Stream> ReadCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, CancellationToken cancellationToken = default)
 		{
-			throw new NotImplementedException();
+			throw new NotSupportedException();
 		}
 
 		/// <inheritdoc/>
