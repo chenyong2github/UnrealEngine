@@ -264,10 +264,10 @@ bool FDatasmithMeshExporterImpl::WriteMeshFile( const FDatasmithMeshExporterOpti
 		return Models;
 	};
 
-	Pack.MeshesToExport.Add(PackMeshModels(ExporterOptions.Mesh, false));
+	Pack.Meshes.Add(PackMeshModels(ExporterOptions.Mesh, false));
 	if (ExporterOptions.CollisionMesh)
 	{
-		Pack.MeshesToExport.Add(PackMeshModels(*ExporterOptions.CollisionMesh, true));
+		Pack.Meshes.Add(PackMeshModels(*ExporterOptions.CollisionMesh, true));
 	}
 
 	TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileWriter(*ExporterOptions.MeshFullPath) );

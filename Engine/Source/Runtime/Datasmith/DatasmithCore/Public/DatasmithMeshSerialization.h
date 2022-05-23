@@ -10,7 +10,7 @@
 struct FDatasmithMeshModels
 {
 	FString MeshName;
-	bool bIsCollisionMesh;
+	bool bIsCollisionMesh = false;
 	TArray<FMeshDescription> SourceModels;
 
 	DATASMITHCORE_API friend void operator << (FArchive& Ar, FDatasmithMeshModels& Models);
@@ -18,9 +18,9 @@ struct FDatasmithMeshModels
 
 struct DATASMITHCORE_API FDatasmithPackedMeshes
 {
-	TArray<FDatasmithMeshModels> MeshesToExport;
+	TArray<FDatasmithMeshModels> Meshes;
 
 	FMD5Hash Serialize(FArchive& Ar, bool bSaveCompressed=true);
 };
 
-DATASMITHCORE_API TArray<FDatasmithMeshModels> GetDatasmithMeshFromMeshPath(const FString& MeshPath);
+DATASMITHCORE_API FDatasmithPackedMeshes GetDatasmithMeshFromFile(const FString& MeshPath);

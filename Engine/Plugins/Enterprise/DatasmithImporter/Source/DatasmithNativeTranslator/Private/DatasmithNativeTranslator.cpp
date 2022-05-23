@@ -117,7 +117,8 @@ bool FDatasmithNativeTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 
 	FString FilePath = MeshElement->GetFile();
 
-	for (FDatasmithMeshModels& DatasmithMesh : GetDatasmithMeshFromMeshPath( FilePath ))
+	FDatasmithPackedMeshes Pack = GetDatasmithMeshFromFile(FilePath);
+	for (FDatasmithMeshModels& DatasmithMesh : Pack.Meshes)
 	{
 		if (DatasmithMesh.bIsCollisionMesh)
 		{

@@ -173,13 +173,13 @@ FMD5Hash FDatasmithPackedMeshes::Serialize(FArchive& Ar, bool bCompressed)
 
 		FMemoryReader Buffer(Bytes, true);
 		Buffer.SetCustomVersions(CustomVersions);
-		Buffer << MeshesToExport;
+		Buffer << Meshes;
 	}
 	else
 	{
 		TArray<uint8> Bytes;
 		FMemoryWriter Buffer(Bytes, true);
-		Buffer << MeshesToExport;
+		Buffer << Meshes;
 
 		// MeshDescriptions uses custom versionning,
 		const_cast<FCustomVersionContainer&>(Buffer.GetCustomVersions()).Serialize(Ar);
@@ -285,9 +285,9 @@ TArray<FDatasmithMeshModels> GetDatasmithMeshFromMeshPath_Legacy(FArchive* Archi
 	return Result;
 }
 
-TArray<FDatasmithMeshModels> GetDatasmithMeshFromMeshPath(const FString& MeshPath)
+FDatasmithPackedMeshes GetDatasmithMeshFromFile(const FString& MeshPath)
 {
-	TArray< FDatasmithMeshModels > Result;
+	FDatasmithPackedMeshes Result;
 
 	TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileReader(*MeshPath) );
 	if ( !Archive.IsValid() )
@@ -301,25 +301,15 @@ TArray<FDatasmithMeshModels> GetDatasmithMeshFromMeshPath(const FString& MeshPat
 
 	if (LeagacyNumMeshesCount > 0)
 	{
-		return GetDatasmithMeshFromMeshPath_Legacy(Archive.Get(), LeagacyNumMeshesCount);
+		Result.Meshes = GetDatasmithMeshFromMeshPath_Legacy(Archive.Get(), LeagacyNumMeshesCount);
 	}
-
-	if (LeagacyNumMeshesCount == 0)
+	else
 	{
-		FDatasmithPackedMeshes Pack;
-		Pack.Serialize(*Archive);
+		Result.Serialize(*Archive);
 
-		if (!Archive->IsError())
+		if (Archive->IsError())
 		{
-			for (FDatasmithMeshModels& Mesh : Pack.MeshesToExport)
-			{
-				FDatasmithMeshModels& MeshInternal = Result.AddDefaulted_GetRef();
-				MeshInternal.bIsCollisionMesh = Mesh.bIsCollisionMesh;
-				MeshInternal.SourceModels = MoveTemp(Mesh.SourceModels);
-			}
-		}
-		else
-		{
+			Result = FDatasmithPackedMeshes{};
 			UE_LOG(LogDatasmith, Warning, TEXT("Failed to read meshes from %s"), *MeshPath);
 		}
 	}
