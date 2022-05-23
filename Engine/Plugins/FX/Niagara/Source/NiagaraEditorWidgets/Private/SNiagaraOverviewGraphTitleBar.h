@@ -19,7 +19,8 @@ class SNiagaraOverviewGraphTitleBar : public SCompoundWidget
 	SLATE_END_ARGS()
 
 public:
-	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel);
+	virtual ~SNiagaraOverviewGraphTitleBar() override;
+	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel, const FAssetData& InEditedAsset);
 
 	void RebuildWidget();
 	//virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
@@ -28,6 +29,18 @@ private:
 	bool bScalabilityModeActive = false;
 	TSharedPtr<SVerticalBox> ContainerWidget;
 	TWeakPtr<SNiagaraOverviewGraph> OverviewGraph;
-private:
+
 	void OnUpdateScalabilityMode(bool bActive);
+
+	FText GetEmitterSubheaderText() const;
+	EVisibility GetEmitterSubheaderVisibility() const;
+	FLinearColor GetEmitterSubheaderColor() const;
+	
+	int32 GetEmitterAffectedAssets() const;
+	void ResetAssetCount(const FAssetData& InAssetData);
+	void AddAssetListeners();
+	void ClearListeners();
+
+	mutable TOptional<int32> EmitterAffectedAssets;
+	FAssetData EditedAsset;
 };

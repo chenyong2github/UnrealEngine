@@ -667,15 +667,16 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_MessageLog(const FS
 
 TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_SystemOverview(const FSpawnTabArgs& Args)
 {
-	if(!SystemToolkit.Pin()->GetSystemOverview().IsValid())
+	TSharedPtr<FNiagaraSystemToolkit, ESPMode::ThreadSafe> NiagaraSystemToolkit = SystemToolkit.Pin();
+	if(!NiagaraSystemToolkit->GetSystemOverview().IsValid())
 	{
-		SystemToolkit.Pin()->SetSystemOverview(FNiagaraEditorModule::Get().GetWidgetProvider()->CreateSystemOverview(SystemToolkit.Pin()->GetSystemViewModel().ToSharedRef()));
+		NiagaraSystemToolkit->SetSystemOverview(FNiagaraEditorModule::Get().GetWidgetProvider()->CreateSystemOverview(NiagaraSystemToolkit->GetSystemViewModel().ToSharedRef(), NiagaraSystemToolkit->GetEditedAsset()));
 	}
 	
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
 		.Label(LOCTEXT("SystemOverviewTabLabel", "System Overview"))
 		[
-			SystemToolkit.Pin()->GetSystemOverview().ToSharedRef()
+			NiagaraSystemToolkit->GetSystemOverview().ToSharedRef()
 		];
 
 

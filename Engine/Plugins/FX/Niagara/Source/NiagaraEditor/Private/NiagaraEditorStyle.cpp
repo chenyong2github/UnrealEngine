@@ -538,6 +538,7 @@ void FNiagaraEditorStyle::InitDropTarget()
 void FNiagaraEditorStyle::InitScriptGraph()
 {
 	Set("NiagaraEditor.ScriptGraph.SearchBorderColor", FLinearColor(.1f, .1f, .1f, 1.f));
+	Set("NiagaraEditor.ScriptGraph.AffectedAssetsWarningColor", FLinearColor(FColor(255, 184, 0)));
 }
 
 void FNiagaraEditorStyle::InitDebuggerStyle()

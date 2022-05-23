@@ -124,6 +124,8 @@ public:
 
 	bool HasSystem() const { return SystemToolkitMode == ESystemToolkitMode::System && System != nullptr; }
 
+	FAssetData GetEditedAsset() const; 
+
 	const TArray<UObject*>& GetObjectsBeingEdited() const;
 
 	

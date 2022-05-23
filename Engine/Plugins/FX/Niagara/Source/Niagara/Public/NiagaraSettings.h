@@ -102,6 +102,10 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Viewport)
 	bool bSystemViewportInOrbitMode = true;
 
+	/** If true, then the emitter and script editors will show an info message how many downstream asset are affected by a change. Gathering this information for large asset graphs can delay the opening of the asset editors a bit. */
+	UPROPERTY(config, EditAnywhere, Category=Niagara)
+	bool bDisplayAffectedAssetStatsInEditor = true;
+
 	/** If true then the system editor will zoom to fit all emitters when opening an asset. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	bool bAlwaysZoomToFitSystemGraph = true;

@@ -837,6 +837,19 @@ void FNiagaraSystemToolkit::RegisterToolbarTab(const TSharedRef<FTabManager>& In
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 }
 
+FAssetData FNiagaraSystemToolkit::GetEditedAsset() const
+{
+	if (HasEmitter())
+	{
+		return FAssetData(Emitter);
+	}
+	if (HasSystem())
+	{
+		return FAssetData(System);
+	}
+	return FAssetData();
+}
+
 const TArray<UObject*>& FNiagaraSystemToolkit::GetObjectsBeingEdited() const
 {
 	return GetEditingObjects();

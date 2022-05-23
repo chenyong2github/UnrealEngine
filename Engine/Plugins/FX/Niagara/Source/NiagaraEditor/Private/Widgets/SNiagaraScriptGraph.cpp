@@ -28,12 +28,16 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GraphEditorActions.h"
 #include "EditorFontGlyphs.h"
+#include "NiagaraSettings.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Widgets/SNiagaraGraphActionMenu.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptGraph"
 
-void SNiagaraScriptGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel)
+void SNiagaraScriptGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel, const FAssetData& InEditedAsset)
 {
+	EditedAsset = InEditedAsset;
+	
 	UpdateViewModel(InViewModel);
 	bUpdatingGraphSelectionFromViewModel = false;
 
@@ -53,6 +57,13 @@ void SNiagaraScriptGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagar
 	];
 
 	CurrentFocusedSearchMatchIndex = 0;
+
+	AddAssetListeners();
+}
+
+SNiagaraScriptGraph::~SNiagaraScriptGraph()
+{
+	ClearListeners();
 }
 
 void SNiagaraScriptGraph::UpdateViewModel(TSharedRef<FNiagaraScriptGraphViewModel> InNewModel)
@@ -95,25 +106,46 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 			SNew(SOverlay)
 			+SOverlay::Slot()
 			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(0.0f, 0.0f, 3.0f, 0.0f)
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.AutoHeight()
 				[
-					SNew(SErrorText)
-					.Visibility(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetGraphErrorTextVisible)
-					.BackgroundColor(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetGraphErrorColor)
-					.ToolTipText(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetGraphErrorMsgToolTip)
-					.ErrorText(ViewModel->GetGraphErrorText())
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(0.0f, 0.0f, 3.0f, 0.0f)
+					[
+						SNew(SErrorText)
+						.Visibility(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetGraphErrorTextVisible)
+						.BackgroundColor(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetGraphErrorColor)
+						.ToolTipText(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetGraphErrorMsgToolTip)
+						.ErrorText(ViewModel->GetGraphErrorText())
+					]
+					+SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetDisplayName)
+						.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+						.Justification(ETextJustify::Center)
+						.Visibility(bShowHeader ? EVisibility::Visible : EVisibility::Collapsed)
+					]
 				]
-				+SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
+				// optional info for downstream assets
+				+ SVerticalBox::Slot()
 				[
-					SNew(STextBlock)
-					.Text(ViewModel.ToSharedRef(), &FNiagaraScriptGraphViewModel::GetDisplayName)
-					.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
-					.Justification(ETextJustify::Center)
-					.Visibility(bShowHeader ? EVisibility::Visible : EVisibility::Collapsed)
+					SNew(SBorder)
+					.BorderImage(FAppStyle::GetBrush(TEXT("Graph.TitleBackground")))
+					.ColorAndOpacity(this, &SNiagaraScriptGraph::GetScriptSubheaderColor)
+					.Visibility(this, &SNiagaraScriptGraph::GetScriptSubheaderVisibility)
+					.HAlign(HAlign_Fill)
+					[
+						SNew(STextBlock)
+						.Text(this, &SNiagaraScriptGraph::GetScriptSubheaderText)
+						.TextStyle(FAppStyle::Get(), TEXT("GraphBreadcrumbButtonText"))
+						.Justification(ETextJustify::Center)
+					]
 				]
 			]
 			// Search Box
@@ -644,6 +676,110 @@ TOptional<SSearchBox::FSearchResultData> SNiagaraScriptGraph::GetSearchResultDat
 		return TOptional<SSearchBox::FSearchResultData>();
 	}
 	return TOptional<SSearchBox::FSearchResultData>({ CurrentSearchResults.Num(), CurrentFocusedSearchMatchIndex + 1 });
+}
+
+FText SNiagaraScriptGraph::GetScriptSubheaderText() const
+{
+	return FText::Format(LOCTEXT("EmitterSubheaderText", "Note: editing this script will affect {0} dependent assets (across all versions)!"), GetScriptAffectedAssets());
+}
+
+EVisibility SNiagaraScriptGraph::GetScriptSubheaderVisibility() const
+{
+	return bShowHeader && (GetScriptAffectedAssets() > 1) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FLinearColor SNiagaraScriptGraph::GetScriptSubheaderColor() const
+{
+	return GetScriptAffectedAssets() >= 5 ? FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.ScriptGraph.AffectedAssetsWarningColor") : FLinearColor::White;
+}
+
+int32 SNiagaraScriptGraph::GetScriptAffectedAssets() const
+{
+	if (!EditedAsset.IsValid())
+	{
+		return 0;
+	}
+	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+	if (Settings->bDisplayAffectedAssetStatsInEditor == false)
+	{
+		return 0;
+	}
+	
+	if (!ScriptAffectedAssets.IsSet())
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+		if (AssetRegistry.IsLoadingAssets())
+		{
+			// We are still discovering assets, wait a bit
+			return 0;
+		}
+
+		int32 Count = 0;
+		if (EditedAsset.IsValid())
+		{
+			TSet<FName> SeenObjects;
+			TArray<FAssetData> AssetsToCheck;
+			AssetsToCheck.Add(EditedAsset);
+
+			// search for assets that reference this script
+			while (AssetsToCheck.Num() > 0)
+			{
+				FAssetData AssetToCheck = AssetsToCheck[0];
+				AssetsToCheck.RemoveAtSwap(0);
+				if (SeenObjects.Contains(AssetToCheck.ObjectPath))
+				{
+					continue;
+				}
+				SeenObjects.Add(AssetToCheck.ObjectPath);
+
+				if (AssetToCheck.GetClass() == UNiagaraSystem::StaticClass())
+				{
+					Count++;
+				}
+				else if (AssetToCheck.GetClass() == UNiagaraEmitter::StaticClass() || AssetToCheck.GetClass() == UNiagaraScript::StaticClass())
+				{
+					Count++;
+					TArray<FName> Referencers;
+					AssetRegistry.GetReferencers(AssetToCheck.PackageName, Referencers);
+					for (FName& Referencer : Referencers)
+					{
+						AssetRegistry.GetAssetsByPackageName(Referencer, AssetsToCheck);
+					}
+				}
+			}
+			Count--; // remove one for our own asset
+		}
+		ScriptAffectedAssets = Count;
+	}
+	return ScriptAffectedAssets.Get(0);
+}
+
+void SNiagaraScriptGraph::ResetAssetCount(const FAssetData&)
+{
+	ScriptAffectedAssets.Reset();
+}
+
+void SNiagaraScriptGraph::AddAssetListeners()
+{
+	if (EditedAsset.IsValid())
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.OnAssetUpdated().AddRaw(this, &SNiagaraScriptGraph::ResetAssetCount);
+		AssetRegistry.OnAssetAdded().AddRaw(this, &SNiagaraScriptGraph::ResetAssetCount);
+		AssetRegistry.OnAssetRemoved().AddRaw(this, &SNiagaraScriptGraph::ResetAssetCount);
+	}
+}
+
+void SNiagaraScriptGraph::ClearListeners()
+{
+	if (EditedAsset.IsValid())
+	{
+		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
+		AssetRegistry.OnAssetUpdated().RemoveAll(this);
+		AssetRegistry.OnAssetAdded().RemoveAll(this);
+		AssetRegistry.OnAssetRemoved().RemoveAll(this);
+	}
 }
 
 FReply SNiagaraScriptGraph::CloseGraphSearchBoxPressed()

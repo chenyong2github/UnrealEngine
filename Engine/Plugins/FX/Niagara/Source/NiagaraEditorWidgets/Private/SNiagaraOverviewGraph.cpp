@@ -6,12 +6,10 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
-#include "ViewModels/Stack/NiagaraStackViewModel.h"
 #include "NiagaraSystem.h"
 #include "NiagaraOverviewNode.h"
 #include "NiagaraSystemEditorData.h"
 #include "NiagaraObjectSelection.h"
-#include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "EdGraphSchema_Niagara.h"
 #include "GraphEditAction.h"
 #include "NiagaraEditorCommands.h"
@@ -26,14 +24,13 @@
 #include "EdGraph/EdGraph.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Framework/Commands/GenericCommands.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
 #include "Widgets/SItemSelector.h"
 #include "SNiagaraOverviewGraphTitleBar.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewGraph"
 
-void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagaraOverviewGraphViewModel> InViewModel)
+void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiagaraOverviewGraphViewModel> InViewModel, const FAssetData& InEditedAsset)
 {
 	ViewModel = InViewModel;
 	ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraOverviewGraph::ViewModelSelectionChanged);
@@ -65,7 +62,7 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 		AppearanceInfo.CornerText = LOCTEXT("NiagaraOverview_AppearanceCornerTextGeneric", "NIAGARA");
 	}
 	
-	TSharedRef<SWidget> TitleBarWidget = SNew(SNiagaraOverviewGraphTitleBar, ViewModel->GetSystemViewModel()).Visibility(EVisibility::SelfHitTestInvisible);
+	TSharedRef<SWidget> TitleBarWidget = SNew(SNiagaraOverviewGraphTitleBar, ViewModel->GetSystemViewModel(), InEditedAsset).Visibility(EVisibility::SelfHitTestInvisible);
 
 	TSharedRef<FUICommandList> Commands = ViewModel->GetCommands();
 	Commands->MapAction(

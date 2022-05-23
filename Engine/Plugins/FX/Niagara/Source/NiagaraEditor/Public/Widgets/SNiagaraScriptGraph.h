@@ -28,7 +28,9 @@ public:
 		SLATE_ARGUMENT(bool, ShowHeader)
 	SLATE_END_ARGS();
 
-	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel);
+	NIAGARAEDITOR_API void Construct(const FArguments& InArgs, TSharedRef<FNiagaraScriptGraphViewModel> InViewModel, const FAssetData& InEditedAsset = FAssetData());
+
+	NIAGARAEDITOR_API virtual ~SNiagaraScriptGraph() override;
 
 	const TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; };
 
@@ -88,6 +90,14 @@ private:
 	FText GetCurrentSearchText() const { return CurrentSearchText; };
 
 	EVisibility GetGraphSearchBoxVisibility() const { return bGraphSearchBoxActive ? EVisibility::Visible : EVisibility::Collapsed; };
+	FText GetScriptSubheaderText() const;
+	EVisibility GetScriptSubheaderVisibility() const;
+	FLinearColor GetScriptSubheaderColor() const;
+	
+	int32 GetScriptAffectedAssets() const;
+	void ResetAssetCount(const FAssetData& InAssetData);
+	void AddAssetListeners();
+	void ClearListeners();
 
 	FReply CloseGraphSearchBoxPressed();
 
@@ -132,6 +142,9 @@ private:
 	TArray<TSharedPtr<INiagaraScriptGraphFocusInfo>> CurrentSearchResults;
 	bool bGraphSearchBoxActive;
 	bool bShowHeader;
+
+	mutable TOptional<int32> ScriptAffectedAssets;
+	FAssetData EditedAsset;
 
 private:
 	// action menu data
