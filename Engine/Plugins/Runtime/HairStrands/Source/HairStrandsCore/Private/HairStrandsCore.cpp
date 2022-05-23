@@ -17,8 +17,6 @@ void ProcessHairStrandsBookmark(
 	EHairStrandsBookmark Bookmark,
 	FHairStrandsBookmarkParameters& Parameters);
 
-FHairAssetHelper HairStrandsCore_AssetHelper;
-
 void FHairStrandsCore::StartupModule()
 {
 	RegisterBookmarkFunction(ProcessHairStrandsBookmark);
@@ -37,9 +35,17 @@ void FHairStrandsCore::ShutdownModule()
 void FHairStrandsCore::RegisterAssetHelper(const FHairAssetHelper& Helper)
 {
 #if WITH_EDITOR
-	HairStrandsCore_AssetHelper = Helper;
+	AssetHelper() = Helper;
 #endif
 }
+
+#if WITH_EDITOR
+FHairAssetHelper& FHairStrandsCore::AssetHelper()
+{
+	static FHairAssetHelper AssetHelper;
+	return AssetHelper;
+}
+#endif
 
 // This is a workaround to be able to create & register UTexture2D from the HairStrandsCore project 
 // without requiring editor dependencies. This is used for the hair cards generation, which creates 
@@ -75,14 +81,14 @@ void FHairStrandsCore::RegisterAssetHelper(const FHairAssetHelper& Helper)
 #if WITH_EDITOR
 UTexture2D* FHairStrandsCore::CreateTexture(const FString& InPackageName, const FIntPoint& Resolution, const FString& Suffix, TTextureAllocation TextureAllocation)
 {
-	if (HairStrandsCore_AssetHelper.CreateFilename == nullptr || HairStrandsCore_AssetHelper.RegisterAsset == nullptr)
+	if (AssetHelper().CreateFilename == nullptr || AssetHelper().RegisterAsset == nullptr)
 	{
 		return nullptr;
 	}
 
 	FString Name;
 	FString PackageName;
-	HairStrandsCore_AssetHelper.CreateFilename(InPackageName, Suffix, PackageName, Name);
+	AssetHelper().CreateFilename(InPackageName, Suffix, PackageName, Name);
 
 	UObject* InParent = nullptr;
 	UPackage* Package = Cast<UPackage>(InParent);
@@ -104,7 +110,7 @@ UTexture2D* FHairStrandsCore::CreateTexture(const FString& InPackageName, const 
 		Out->MarkPackageDirty();
 
 		// Notify the asset registry
-		HairStrandsCore_AssetHelper.RegisterAsset(Out);
+		AssetHelper().RegisterAsset(Out);
 		return Out;
 	}
 
@@ -123,14 +129,14 @@ void FHairStrandsCore::ResizeTexture(UTexture2D* Out, const FIntPoint& Resolutio
 
 UStaticMesh* FHairStrandsCore::CreateStaticMesh(const FString& InPackageName, const FString& Suffix)
 {
-	if (HairStrandsCore_AssetHelper.CreateFilename == nullptr || HairStrandsCore_AssetHelper.RegisterAsset == nullptr)
+	if (AssetHelper().CreateFilename == nullptr || AssetHelper().RegisterAsset == nullptr)
 	{
 		return nullptr;
 	}
 
 	FString Name;
 	FString PackageName;
-	HairStrandsCore_AssetHelper.CreateFilename(InPackageName, Suffix, PackageName, Name);
+	AssetHelper().CreateFilename(InPackageName, Suffix, PackageName, Name);
 
 	UObject* InParent = nullptr;
 	UPackage* Package = Cast<UPackage>(InParent);
@@ -152,7 +158,7 @@ UStaticMesh* FHairStrandsCore::CreateStaticMesh(const FString& InPackageName, co
 		Out->GetSourceModel(0).BuildSettings.bRecomputeNormals = false;
 		Out->GetSourceModel(0).BuildSettings.bRecomputeTangents = true;
 		Out->MarkPackageDirty();
-		HairStrandsCore_AssetHelper.RegisterAsset(Out);
+		AssetHelper().RegisterAsset(Out);
 		return Out;
 	}
 
@@ -190,11 +196,11 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshT
 			Suffix += TEXT("_") + Target->GetName();
 		}
 		Suffix += TEXT("_Binding");
-		HairStrandsCore_AssetHelper.CreateFilename(GroomAsset->GetOutermost()->GetName(), Suffix, PackageName, Name);		
+		AssetHelper().CreateFilename(GroomAsset->GetOutermost()->GetName(), Suffix, PackageName, Name);		
 	}
 	else
 	{
-		HairStrandsCore_AssetHelper.CreateFilename(InPackageName, TEXT(""), PackageName, Name);
+		AssetHelper().CreateFilename(InPackageName, TEXT(""), PackageName, Name);
 	}
 
 	UPackage* Package = Cast<UPackage>(InParent);
@@ -227,7 +233,7 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingMeshT
 		Out->NumInterpolationPoints = NumInterpolationPoints;
 		Out->MatchingSection = MatchingSection;
 		Out->MarkPackageDirty();
-		HairStrandsCore_AssetHelper.RegisterAsset(Out);
+		AssetHelper().RegisterAsset(Out);
 		return Out;
 	}
 #endif
@@ -246,11 +252,11 @@ UGroomBindingAsset* FHairStrandsCore::CreateGroomBindingAsset(UGroomAsset* Groom
 
 void FHairStrandsCore::SaveAsset(UObject* Object)
 {
-	if (HairStrandsCore_AssetHelper.SaveAsset == nullptr)
+	if (AssetHelper().SaveAsset == nullptr)
 	{
 		return;
 	}
 
-	HairStrandsCore_AssetHelper.SaveAsset(Object);
+	AssetHelper().SaveAsset(Object);
 }
 #endif

@@ -132,6 +132,7 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	struct FGuides : FStrandsBase
 	{
 		bool bIsSimulationEnable = false;
+		bool bIsDeformationEnable = false;
 		bool bHasGlobalInterpolation = false;
 	} Guides;
 
@@ -278,7 +279,13 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	bool					bForceCards = false;
 	bool					bUpdatePositionOffset = false;
 	bool					bCastShadow = true;
-
+	
+	// Deformed component to extract the bone buffer 
+	UMeshComponent*	 DeformedComponent = nullptr;
+	
+	// Section of the deformed component to be used 
+	int32	 DeformedSection = INDEX_NONE;
+	
 	bool IsValid() const 
 	{
 		return Meshes.IsValid() || Cards.IsValid() || Strands.IsValid();

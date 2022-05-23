@@ -25,6 +25,7 @@ RWBuffer<uint4> OutSimDeformedPositionBuffer;
 #define DEFORMATION_OFFSET_GUIDE 1
 #define DEFORMATION_OFFSET_GUIDE_DYNAMIC 2
 #define DEFORMATION_OFFSET_GUIDE_GLOBAL 3
+#define DEFORMATION_OFFSET_GUIDE_BONES 4
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_DYNAMIC
 
@@ -54,6 +55,13 @@ float3 DeformGuideByTriangle(
 }
 
 #endif
+
+#if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_BONES
+
+Buffer<float4>  BoneDeformedPositionBuffer;
+
+#endif
+
 
 #if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_GLOBAL
 uint SampleCount;
@@ -89,12 +97,21 @@ float3 DisplacePosition(uint VertexIndex, float3 Pos)
 	const float3 ControlPoint = ApplyRBF(RestControlPoint, SampleCount, RestSamplePositionsBuffer, MeshSampleWeightsBuffer);
 	return ControlPoint - OutSimHairPositionOffset;
 #endif
+
+#if PERMUTATION_DEFORMATION == DEFORMATION_OFFSET_GUIDE_BONES
+	const float4 RestControlPoint = float4(Pos + SimRestOffset,1);
+	const int BufferOffset = 3 * (VertexIndex+1);
+
+	const float3x4 BoneMatrix = float3x4(BoneDeformedPositionBuffer[BufferOffset], BoneDeformedPositionBuffer[BufferOffset+1], BoneDeformedPositionBuffer[BufferOffset+2]);
+	return mul(BoneMatrix,RestControlPoint) - OutSimHairPositionOffset;
+#endif
 }
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint VertexIndex = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
+	
 	if (VertexIndex < VertexCount)
 	{
 		const uint4  Data 				= SimRestPosePositionBuffer[VertexIndex];

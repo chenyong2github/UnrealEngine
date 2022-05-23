@@ -20,6 +20,8 @@
 #include "RenderTargetPool.h"
 #include "GroomTextureBuilder.h"
 #include "GroomBindingBuilder.h"
+#include "SkeletalRenderPublic.h"
+#include "SkeletalMeshDeformerHelpers.h"
 #include "GroomAsset.h" 
 #include "GroomManager.h"
 #include "GroomInstance.h"
@@ -280,7 +282,7 @@ class FDeformGuideCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FDeformGuideCS, FGlobalShader);
 
 	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUP_SIZE", 32, 64);
-	class FDeformationType : SHADER_PERMUTATION_INT("PERMUTATION_DEFORMATION", 4);
+	class FDeformationType : SHADER_PERMUTATION_INT("PERMUTATION_DEFORMATION", 5);
 	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FDeformationType>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -306,6 +308,8 @@ class FDeformGuideCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, SampleCount)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, RestSamplePositionsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, MeshSampleWeightsBuffer)
+
+		SHADER_PARAMETER_SRV(Buffer<float4>, BoneDeformedPositionBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -326,7 +330,8 @@ static void AddDeformSimHairStrandsPass(
 	FRDGImportedBuffer OutSimDeformedPositionBuffer,
 	const FVector& SimRestOffset,
 	FRDGBufferSRVRef SimDeformedOffsetBuffer,
-	const bool bHasGlobalInterpolation)
+	const bool bHasGlobalInterpolation,
+	FRHIShaderResourceView* BoneBufferSRV)
 {
 	enum EInternalDeformationType
 	{
@@ -334,6 +339,7 @@ static void AddDeformSimHairStrandsPass(
 		InternalDeformationType_Offset = 1,
 		InternalDeformationType_Skinned = 2,
 		InternalDeformationType_RBF = 3,
+		InternalDeformationType_Bones = 4,
 		InternalDeformationTypeCount
 	};
 
@@ -368,41 +374,50 @@ static void AddDeformSimHairStrandsPass(
 		}
 
 		const uint32 RootCount = SimRestRootResources ? SimRestRootResources->BulkData.RootCount : 0;
-		const bool bSupportDynamicMesh = 
-			RootCount > 0 && 
-			MeshLODIndex >= 0 && 
-			MeshLODIndex < uint32(SimRestRootResources->LODs.Num()) &&
-			MeshLODIndex < uint32(SimDeformedRootResources->LODs.Num()) &&
-			SimRestRootResources->LODs[MeshLODIndex].IsValid() &&
-			SimDeformedRootResources->LODs[MeshLODIndex].IsValid() &&
-			bIsVertexToCurveBuffersValid;
-		
-		bool bSupportGlobalInterpolation = false;
-		if (bSupportDynamicMesh)
+
+		if(BoneBufferSRV)
 		{
-			FHairStrandsRestRootResource::FLOD& RestLODDatas = SimRestRootResources->LODs[MeshLODIndex];
-			FHairStrandsDeformedRootResource::FLOD& DeformedLODDatas = SimDeformedRootResources->LODs[MeshLODIndex];
-
-			bSupportGlobalInterpolation = bHasGlobalInterpolation && (RestLODDatas.SampleCount > 0);
-			if (!bSupportGlobalInterpolation) 
+			InternalDeformationType = InternalDeformationType_Bones;
+			Parameters->BoneDeformedPositionBuffer = BoneBufferSRV;
+		}
+		else
+		{
+			const bool bSupportDynamicMesh = 
+				RootCount > 0 && 
+				MeshLODIndex >= 0 && 
+				MeshLODIndex < uint32(SimRestRootResources->LODs.Num()) &&
+				MeshLODIndex < uint32(SimDeformedRootResources->LODs.Num()) &&
+				SimRestRootResources->LODs[MeshLODIndex].IsValid() &&
+				SimDeformedRootResources->LODs[MeshLODIndex].IsValid() &&
+				bIsVertexToCurveBuffersValid;
+			
+			bool bSupportGlobalInterpolation = false;
+			if (bSupportDynamicMesh)
 			{
-				InternalDeformationType = InternalDeformationType_Skinned;
-				Parameters->SimRestPosition0Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition0Buffer);
-				Parameters->SimRestPosition1Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition1Buffer);
-				Parameters->SimRestPosition2Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition2Buffer);
+				FHairStrandsRestRootResource::FLOD& RestLODDatas = SimRestRootResources->LODs[MeshLODIndex];
+				FHairStrandsDeformedRootResource::FLOD& DeformedLODDatas = SimDeformedRootResources->LODs[MeshLODIndex];
 
-				Parameters->SimDeformedPosition0Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition0Buffer);
-				Parameters->SimDeformedPosition1Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition1Buffer);
-				Parameters->SimDeformedPosition2Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition2Buffer);
+				bSupportGlobalInterpolation = bHasGlobalInterpolation && (RestLODDatas.SampleCount > 0);
+				if (!bSupportGlobalInterpolation) 
+				{
+					InternalDeformationType = InternalDeformationType_Skinned;
+					Parameters->SimRestPosition0Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition0Buffer);
+					Parameters->SimRestPosition1Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition1Buffer);
+					Parameters->SimRestPosition2Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition2Buffer);
 
-				Parameters->SimRootBarycentricBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RootTriangleBarycentricBuffer);
-			}
-			else
-			{
-				InternalDeformationType = InternalDeformationType_RBF;
-				Parameters->MeshSampleWeightsBuffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.MeshSampleWeightsBuffer);
-				Parameters->RestSamplePositionsBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestSamplePositionsBuffer);
-				Parameters->SampleCount = RestLODDatas.SampleCount;
+					Parameters->SimDeformedPosition0Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition0Buffer);
+					Parameters->SimDeformedPosition1Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition1Buffer);
+					Parameters->SimDeformedPosition2Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition2Buffer);
+
+					Parameters->SimRootBarycentricBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RootTriangleBarycentricBuffer);
+				}
+				else
+				{
+					InternalDeformationType = InternalDeformationType_RBF;
+					Parameters->MeshSampleWeightsBuffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.MeshSampleWeightsBuffer);
+					Parameters->RestSamplePositionsBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestSamplePositionsBuffer);
+					Parameters->SampleCount = RestLODDatas.SampleCount;
+				}
 			}
 		}
 	}
@@ -677,7 +692,7 @@ static void AddHairStrandsInterpolationPass(
 
 	// Guides
 	bool bSupportGlobalInterpolation = false;
-	if (bSupportDynamicMesh && (Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation))
+	if (bSupportDynamicMesh && (Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation || Instance->Guides.bIsDeformationEnable))
 	{
 		const FHairStrandsRestRootResource::FLOD& Sim_RestLODDatas = SimRestRootResources->LODs[MeshLODIndex];
 		const FHairStrandsDeformedRootResource::FLOD& Sim_DeformedLODDatas = SimDeformedRootResources->LODs[MeshLODIndex];
@@ -714,7 +729,7 @@ static void AddHairStrandsInterpolationPass(
 		}
 	}
 
-	const bool bHasLocalDeformation = Instance->Guides.bIsSimulationEnable || bSupportGlobalInterpolation;
+	const bool bHasLocalDeformation = Instance->Guides.bIsSimulationEnable || bSupportGlobalInterpolation || Instance->Guides.bIsDeformationEnable;
 	const bool bCullingEnable		= InstanceGeometryType == EHairGeometryType::Strands && CullingData.bCullingResultAvailable;
 	Parameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
 
@@ -1759,7 +1774,7 @@ void ComputeHairStrandsInterpolation(
 				Strands_TangentSRV = Strands_DeformedTangent.SRV;
 
 				// "WITH_EDITOR && bDebugModePatchedAttributeBuffer" is a special path when visualizing groom within the groom editor, so that we can diplay guides even when there is no simulation or global interpolation enabled
-				const bool bValidGuide = Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation || (WITH_EDITOR && bDebugModePatchedAttributeBuffer);
+				const bool bValidGuide = Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation || Instance->Guides.bIsDeformationEnable || (WITH_EDITOR && bDebugModePatchedAttributeBuffer);
 				const bool bHasSkinning = Instance->BindingType == EHairBindingType::Skinning;
 
 				bool bHasValidGroomCacheBuffers = Instance->Debug.GroomCacheBuffers.IsValid() && Instance->Debug.GroomCacheBuffers->GetInterpolatedFrameBuffer().GroupsData.IsValidIndex(Instance->Debug.GroupIndex);
@@ -1786,6 +1801,38 @@ void ComputeHairStrandsInterpolation(
 						RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->PositionBuffer),
 						RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current)),
 						RegisterAsUAV(GraphBuilder, Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current)));
+				}
+				else if( Instance->Guides.bIsDeformationEnable && Instance->Guides.DeformedResource && Instance->DeformedComponent && (Instance->DeformedSection != INDEX_NONE))
+				{
+					if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->DeformedComponent))
+					{
+						if(FSkeletalMeshObject* SkeletalMeshObject = SkeletalMeshComponent->MeshObject)
+						{
+							const int32 LodIndex = SkeletalMeshObject->GetLOD();
+							FSkeletalMeshLODRenderData const* LodRenderData = &SkeletalMeshObject->GetSkeletalMeshRenderData().LODRenderData[LodIndex];
+				
+							if(LodRenderData->RenderSections.Num() > Instance->DeformedSection) 
+							{
+								FRHIShaderResourceView* BoneBufferSRV = FSkeletalMeshDeformerHelpers::GetBoneBufferForReading(SkeletalMeshObject, LodIndex, Instance->DeformedSection, false);
+
+								// Guides deformation based on the skeletal mesh bones
+								AddDeformSimHairStrandsPass(
+									GraphBuilder,
+									ShaderMap,
+									EDeformationType::OffsetGuide,
+									MeshLODIndex,
+									Instance->Guides.RestResource->GetVertexCount(),
+									Instance->Guides.RestRootResource,
+									Instance->Guides.DeformedRootResource,
+									RegisterAsSRV(GraphBuilder, Instance->Guides.RestResource->PositionBuffer),
+									Register(GraphBuilder, Instance->Guides.DeformedResource->GetBuffer(FHairStrandsDeformedResource::Current), ERDGImportedBufferFlags::CreateUAV),
+									Instance->Guides.RestResource->GetPositionOffset(),
+									RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current)),
+									Instance->Guides.bHasGlobalInterpolation,
+									BoneBufferSRV);
+							}
+						}
+					}
 				}
 
 				// 2.1 Compute deformation position based on simulation/skinning/RBF
@@ -2016,7 +2063,7 @@ void ComputeHairStrandsInterpolation(
 		const bool bIsCardsValid = Instance->Cards.IsValid(HairLODIndex);
 		if (bIsCardsValid)
 		{
-			const bool bValidGuide = Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation;
+			const bool bValidGuide = Instance->Guides.bIsSimulationEnable || Instance->Guides.bHasGlobalInterpolation || Instance->Guides.bIsDeformationEnable;
 			const bool bHasSkinning = Instance->BindingType == EHairBindingType::Skinning && MeshLODIndex >= 0;
 			const bool bNeedDeformation = bValidGuide || bHasSkinning;
 
@@ -2214,8 +2261,8 @@ void ResetHairStrandsInterpolation(
 	int32 MeshLODIndex)
 {
 	if (!Instance || 
-		(Instance && Instance->Guides.bIsSimulationEnable) ||
-		(!Instance->Guides.bHasGlobalInterpolation && !Instance->Guides.bIsSimulationEnable) ||
+		(Instance && (Instance->Guides.bIsSimulationEnable || Instance->Guides.bIsDeformationEnable)) ||
+		(Instance && !Instance->Guides.bHasGlobalInterpolation && !Instance->Guides.bIsSimulationEnable && !Instance->Guides.bIsDeformationEnable) ||
 		!IsHairStrandsBindingEnable()) return;
 
 	DECLARE_GPU_STAT(HairStrandsGuideDeform);
@@ -2237,5 +2284,6 @@ void ResetHairStrandsInterpolation(
 		DeformedPositionBuffer,
 		Instance->Guides.RestResource->GetPositionOffset(),
 		RegisterAsSRV(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::Current)),
-		Instance->Guides.bHasGlobalInterpolation);
+		Instance->Guides.bHasGlobalInterpolation,
+		nullptr);
 }

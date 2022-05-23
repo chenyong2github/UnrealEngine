@@ -3627,7 +3627,7 @@ bool HasPositionsChanged(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 		const int32 LODIndex = HairGroupPublicData->GetIntLODIndex();
 		const bool bHasSimulationOrSkinning = 
 			HairGroupPublicData->GetGeometryType(LODIndex) == EHairGeometryType::Strands &&
-			(HairGroupPublicData->IsSimulationEnable(LODIndex) || HairGroupPublicData->GetBindingType(LODIndex) == EHairBindingType::Skinning);
+			(HairGroupPublicData->IsSimulationEnable(LODIndex) || HairGroupPublicData->bIsDeformationEnable || HairGroupPublicData->GetBindingType(LODIndex) == EHairBindingType::Skinning);
 		if (bHasSimulationOrSkinning)
 		{
 			GroupDatas.Add(HairGroupPublicData);

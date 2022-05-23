@@ -370,7 +370,7 @@ public:
 
 			{
 				// If one of the group has simulation enable, then we enable velocity rendering for meshes/cards
-				if (IsHairStrandsSimulationEnable() && HairInstance->Guides.IsValid() && HairInstance->Guides.bIsSimulationEnable)
+				if (IsHairStrandsSimulationEnable() && HairInstance->Guides.IsValid() && (HairInstance->Guides.bIsSimulationEnable || HairInstance->Guides.bIsDeformationEnable))
 				{
 					bAlwaysHasVelocity = true;
 				}
@@ -1565,6 +1565,7 @@ void UGroomComponent::SetScatterSceneLighting(bool Enable)
 void UGroomComponent::SetUseCards(bool InbUseCards)
 {
 	bUseCards = InbUseCards;
+	ResetSimulation();
 	UpdateHairGroupsDescAndInvalidateRenderState();
 }
 
@@ -2166,6 +2167,7 @@ void UGroomComponent::UpdateSimulatedGroups()
 					check(Instance->HairGroupPublicData);
 					Instance->Guides.bIsSimulationEnable	 = Instance->HairGroupPublicData->IsSimulationEnable(LODIndex);
 					Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(LODIndex);
+					Instance->Guides.bIsDeformationEnable = Instance->HairGroupPublicData->bIsDeformationEnable;
 				}
 				++GroupIt;
 			}
@@ -2356,10 +2358,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	bool bHasNeedSkeletalMesh = false;
 	TArray<bool> bHasNeedGlobalDeformation;
 	TArray<bool> bHasNeedSimulation;
+	TArray<bool> bHasNeedDeformation;
 	bHasNeedGlobalDeformation.Init(false, GroomAsset->HairGroupsData.Num());
 	bHasNeedSimulation.Init(false, GroomAsset->HairGroupsData.Num());
-
+	bHasNeedDeformation.Init(false, GroomAsset->HairGroupsData.Num());
+	
 	bool bHasAnyNeedSimulation = false;
+	bool bHasAnyNeedDeformation = false;
 	bool bHasAnyNeedGlobalDeformation = false;
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
@@ -2379,6 +2384,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			bHasAnyNeedSimulation				= bHasAnyNeedSimulation			|| bHasNeedSimulation[GroupIt];
 			bHasAnyNeedGlobalDeformation		= bHasAnyNeedGlobalDeformation	|| bHasNeedGlobalDeformation[GroupIt];
 		}
+		bHasNeedDeformation[GroupIt] = GroomAsset->IsDeformationEnable(GroupIt);
+		bHasAnyNeedDeformation = bHasAnyNeedDeformation || bHasNeedDeformation[GroupIt];
 	}
 	const bool bHasNeedBindingData = bHasNeedSkinningBinding || bHasAnyNeedGlobalDeformation;
 
@@ -2392,7 +2399,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	}
 	else
 	{
-		LODSelectionType = bHasAnyNeedSimulation ? EHairLODSelectionType::Predicted : EHairLODSelectionType::Immediate;
+		LODSelectionType = (bHasAnyNeedSimulation || bHasAnyNeedDeformation) ? EHairLODSelectionType::Predicted : EHairLODSelectionType::Immediate;
 	}
 
 	// 2. Insure that the binding asset is compatible, otherwise no binding
@@ -2416,6 +2423,28 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		if (USkeletalMeshComponent* ParentSkelMeshComponent = Cast<USkeletalMeshComponent>(ParentMeshComponent))
 		{
 			ValidatedMeshComponent = ParentSkelMeshComponent->SkeletalMesh ? ParentMeshComponent : nullptr;
+		}
+	}
+
+	// Grab deformed mesh if it exists 
+	if(GroomAsset && GroomAsset->DeformedSkeletalMesh)
+	{
+		const USkeleton* TargetSkeleton = GroomAsset->DeformedSkeletalMesh->GetSkeleton();
+		
+		DeformedMeshComponent = nullptr;
+		// Try to find the first component by walking the attachment hierarchy
+		for (USceneComponent* Curr = this; Curr; Curr = Curr->GetAttachParent())
+		{
+			USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(Curr);
+			if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->GetSkeleton() == TargetSkeleton)
+			{
+				DeformedMeshComponent = SkelMeshComp;
+				break;
+			}
+		}
+		if (DeformedMeshComponent)
+		{
+			AddTickPrerequisiteComponent(DeformedMeshComponent);
 		}
 	}
 
@@ -2504,6 +2533,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->Debug.LODForcedIndex = LODForcedIndex;
 		HairGroupInstance->Debug.LODPredictedIndex = LODPredictedIndex;
 		HairGroupInstance->Debug.LODSelectionTypeForDebug = LODSelectionType;
+		HairGroupInstance->DeformedComponent = DeformedMeshComponent;
+		HairGroupInstance->DeformedSection = GroomAsset->DeformedGroupSections.IsValidIndex(GroupIt) ? GroomAsset->DeformedGroupSections[GroupIt] : INDEX_NONE; 
 
 		if (RegisteredMeshComponent)
 		{
@@ -2561,6 +2592,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 				HairGroupInstance->HairGroupPublicData->LODSimulations.Add(LODSimulation);
 				HairGroupInstance->HairGroupPublicData->LODGlobalInterpolations.Add(LODGlobalInterpolation);
 			}
+			HairGroupInstance->HairGroupPublicData->bIsDeformationEnable = GroomAsset->IsDeformationEnable(GroupIt);
 			HairGroupInstance->HairGroupPublicData->SetLODScreenSizes(CPULODScreenSize);
 			HairGroupInstance->HairGroupPublicData->SetLODVisibilities(LODVisibility);
 			HairGroupInstance->HairGroupPublicData->SetLODGeometryTypes(LODGeometryTypes);
@@ -2576,7 +2608,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// * Physics simulation
 		// * RBF deformation.
 		// Therefore, even if simulation is disabled, we need to run partially the update if the binding system is enabled (skin deformation + RBF correction)
-		const bool bNeedGuides = (GroupData.Guides.HasValidData() && (bHasNeedSimulation[GroupIt] || bHasNeedGlobalDeformation[GroupIt])) || (HairGroupInstance->Debug.GroomCacheType == EGroomCacheType::Guides);
+		const bool bNeedGuides = (GroupData.Guides.HasValidData() && (bHasNeedSimulation[GroupIt] || bHasNeedGlobalDeformation[GroupIt] || bHasNeedDeformation[GroupIt])) || (HairGroupInstance->Debug.GroomCacheType == EGroomCacheType::Guides);
 		if (bNeedGuides)
 		{
 			HairGroupInstance->Guides.Data = &GroupData.Guides.BulkData;
@@ -2606,6 +2638,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			const int32 LODIndex = -1;
 			HairGroupInstance->Guides.bIsSimulationEnable = IsSimulationEnable(GroupIt,LODIndex);
 			HairGroupInstance->Guides.bHasGlobalInterpolation = LocalBindingAsset && GroomAsset->IsGlobalInterpolationEnable(GroupIt,LODIndex);
+			HairGroupInstance->Guides.bIsDeformationEnable = GroomAsset->IsDeformationEnable(GroupIt);
 		}
 
 		// LODBias is in the Modifier which is needed for LOD selection regardless if the strands are there or not
@@ -2649,6 +2682,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 						{
 							bNeedDynamicResources = true;
 						}
+						
 					}
 				}
 
@@ -2661,6 +2695,11 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 				// The strands GroomCache needs the Strands.DeformedResource, but the guides GroomCache also needs it for the HairTangentPass
 				if (HairGroupInstance->Debug.GroomCacheType != EGroomCacheType::None)
+				{
+					bNeedDynamicResources = true;
+				}
+				// the bones deformation needs to setup the deformed resources
+				if(HairGroupInstance->HairGroupPublicData->bIsDeformationEnable)
 				{
 					bNeedDynamicResources = true;
 				}
@@ -2746,8 +2785,9 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 
 				const EHairBindingType BindingType	= HairGroupInstance->HairGroupPublicData->GetBindingType(CardsLODIndex);
 				const bool bHasSimulation			= HairGroupInstance->HairGroupPublicData->IsSimulationEnable(CardsLODIndex);
+				const bool bHasDeformation			= HairGroupInstance->HairGroupPublicData->bIsDeformationEnable;
 				const bool bHasGlobalDeformation	= HairGroupInstance->HairGroupPublicData->IsGlobalInterpolationEnable(CardsLODIndex);
-				const bool bNeedDeformedPositions	= bHasSimulation || bHasGlobalDeformation || BindingType == EHairBindingType::Skinning;
+				const bool bNeedDeformedPositions	= bHasSimulation || bHasDeformation || bHasGlobalDeformation || BindingType == EHairBindingType::Skinning;
 				const bool bNeedRootData			= bHasGlobalDeformation || BindingType == EHairBindingType::Skinning;
 
 				// Sanity check
@@ -3365,6 +3405,7 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	{
 		SkelLocalToTransform = RegisteredMeshComponent->GetComponentTransform();
 	}
+	
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
 	const EHairLODSelectionType LocalLODSelectionType = LODSelectionType;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(

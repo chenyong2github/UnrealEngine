@@ -456,29 +456,8 @@ private:
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // RBF weighting
 
-#if WITH_EDITORONLY_DATA
 namespace GroomBinding_RBFWeighting
 {
-	struct FPointsSampler
-	{
-		FPointsSampler(TArray<bool>& ValidPoints, const FVector3f* PointPositions, const int32 NumSamples);
-
-		/** Build the sample position from the sample indices */
-		void BuildPositions(const FVector3f* PointPositions);
-
-		/** Compute the furthest point */
-		void FurthestPoint(const int32 NumPoints, const FVector3f* PointPositions, const uint32 SampleIndex, TArray<bool>& ValidPoints, TArray<float>& PointsDistance);
-
-		/** Compute the starting point */
-		int32 StartingPoint(const TArray<bool>& ValidPoints, int32& NumPoints) const;
-
-		/** List of sampled points */
-		TArray<uint32> SampleIndices;
-
-		/** List of sampled positions */
-		TArray<FVector3f> SamplePositions;
-	};
-
 	int32 FPointsSampler::StartingPoint(const TArray<bool>& ValidPoints, int32& NumPoints) const
 	{
 		int32 StartIndex = -1;
@@ -548,7 +527,10 @@ namespace GroomBinding_RBFWeighting
 			BuildPositions(PointPositions);
 		}
 	}
-
+}
+#if WITH_EDITORONLY_DATA
+namespace GroomBinding_RBFWeighting
+{
 	struct FWeightsBuilder
 	{
 		FWeightsBuilder(const uint32 NumRows, const uint32 NumColumns,
@@ -2127,7 +2109,7 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 				SlowTask.EnterProgressFrame();
 			}
 		}
-
+		
 		GroomBinding_RBFWeighting::ComputeInterpolationWeights(OutHairGroupDatas, BindingAsset->NumInterpolationPoints, BindingAsset->MatchingSection, TargetMeshData.Get(), TransferredPositions);
 		SlowTask.EnterProgressFrame();
 	}

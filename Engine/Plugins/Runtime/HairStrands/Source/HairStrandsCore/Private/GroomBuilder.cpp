@@ -6,6 +6,7 @@
 #include "GroomSettings.h"
 #include "HairDescription.h"
 #include "GroomSettings.h"
+#include "GroomBindingBuilder.h"
 
 #include "Async/ParallelFor.h"
 #include "HAL/IConsoleManager.h"
@@ -48,6 +49,12 @@ namespace FHairStrandsDecimation
 		float CurveDecimationPercentage,
 		float VertexDecimationPercentage,
 		bool bContinuousDecimationReordering,
+		FHairStrandsDatas& OutData);
+
+	void Decimate(
+		const FHairStrandsDatas& InData, 
+		const uint32 NumCurves,
+		const int32 NumVertices,
 		FHairStrandsDatas& OutData);
 }
 
@@ -1027,6 +1034,45 @@ namespace HairInterpolationBuilder
 		return Desc;
 	}
 
+	// Find the vertex along a sim curve 'SimCurveIndex', which has the smallest euclidean distance than the render vertex
+	static FVertexInterpolationDesc FindMatchingVertex(const FVector3f& RenPointPosition, const FHairStrandsDatas& SimStrandsData, const uint32 SimCurveIndex)
+	{
+		const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
+		float MinPointDistance = FLT_MAX;
+		int32 MinPointIndex = 0;
+
+		// Find with with vertex the vertex should be paired
+		const uint32 SimPointCount = SimStrandsData.StrandsCurves.CurvesCount[SimCurveIndex];
+		for (uint32 SimPointIndex = 0; SimPointIndex < SimPointCount-1; ++SimPointIndex)
+		{
+			
+			const float SimRenDistance = (SimStrandsData.StrandsPoints.PointsPosition[SimPointIndex + SimOffset] - RenPointPosition).Size();
+			if (SimRenDistance <= MinPointDistance)
+			{
+				MinPointDistance = SimRenDistance;
+				MinPointIndex = SimPointIndex;
+			}
+		}
+		FVertexInterpolationDesc Desc;
+		const FVector3f EdgeDirection = (SimStrandsData.StrandsPoints.PointsPosition[MinPointIndex +1+ SimOffset] - SimStrandsData.StrandsPoints.PointsPosition[MinPointIndex + SimOffset]).GetSafeNormal();
+		if(((RenPointPosition- SimStrandsData.StrandsPoints.PointsPosition[MinPointIndex + SimOffset]).Dot(EdgeDirection) > 0.0) || (MinPointIndex == 0))
+		{
+			Desc.Index0 = MinPointIndex;
+			Desc.Index1 = MinPointIndex + 1;
+		}
+		else
+		{
+			Desc.Index0 = MinPointIndex-1;
+			Desc.Index1 = MinPointIndex;
+		}
+		
+		const float SimRenDistance0 = (SimStrandsData.StrandsPoints.PointsPosition[Desc.Index0 + SimOffset] - RenPointPosition).Size();
+		const float SimRenDistance1 = (SimStrandsData.StrandsPoints.PointsPosition[Desc.Index1 + SimOffset] - RenPointPosition).Size();
+		
+		Desc.T = SimRenDistance0 / (SimRenDistance0+SimRenDistance1);
+		return Desc;
+	}
+
 	static void BuildInterpolationData(
 		FHairStrandsInterpolationDatas& InterpolationData,
 		const FHairStrandsDatas& SimStrandsData,
@@ -1134,11 +1180,14 @@ namespace HairInterpolationBuilder
 				for (uint32 KIndex = 0; KIndex < FClosestGuides::Count; ++KIndex)
 				{
 					// Find the closest vertex on the guide which matches the strand vertex distance along its curve
-					if (Settings.InterpolationDistance == EHairInterpolationWeight::Parametric)
+					if (Settings.InterpolationDistance == EHairInterpolationWeight::Parametric || Settings.InterpolationDistance == EHairInterpolationWeight::Distance)
 					{
 						const uint32 SimCurveIndex = ClosestGuides.Indices[KIndex];
 						const uint32 SimOffset = SimStrandsData.StrandsCurves.CurvesOffset[SimCurveIndex];
-						const FVertexInterpolationDesc Desc = FindMatchingVertex(RenPointDistance, SimStrandsData, SimCurveIndex);
+						const FVertexInterpolationDesc Desc =  (Settings.InterpolationDistance == EHairInterpolationWeight::Parametric) ?
+							FindMatchingVertex(RenPointDistance, SimStrandsData, SimCurveIndex) :
+							FindMatchingVertex(RenStrandsData.StrandsPoints.PointsPosition[PointGlobalIndex], SimStrandsData, SimCurveIndex);
+						
 						const FVector& SimPointPosition0 = (FVector)SimStrandsData.StrandsPoints.PointsPosition[Desc.Index0 + SimOffset];
 						const FVector& SimPointPosition1 = (FVector)SimStrandsData.StrandsPoints.PointsPosition[Desc.Index1 + SimOffset];
 						const float Weight = 1.0f / FMath::Max(MinWeightDistance, FVector::Distance(RenPointPosition, FMath::Lerp(SimPointPosition0, SimPointPosition1, Desc.T)));
@@ -1794,7 +1843,14 @@ void FGroomBuilder::BuildData(
 			else
 			{
 				OutSim.Reset();
-				FHairStrandsDecimation::Decimate(OutRen, HairToGuideDensity, 1, false, OutSim);
+				if(InSettings.DeformationSettings.bEnableDeformation)
+				{
+					FHairStrandsDecimation::Decimate(OutRen, InSettings.DeformationSettings.NumCurves, InSettings.DeformationSettings.NumPoints, OutSim);
+				}
+				else
+				{
+					FHairStrandsDecimation::Decimate(OutRen, HairToGuideDensity, 1, false, OutSim);
+				}
 			}
 
 			OutGroupInfo.NumGuides			= OutSim.GetNumCurves();
@@ -1924,7 +1980,86 @@ static void DecimateCurve(
 		OutIndices.RemoveAt(ElementToRemove);
 	}
 }
+	
+void Decimate(
+		const FHairStrandsDatas& InData, 
+		const uint32 NumCurves,
+		const int32 NumVertices,
+		FHairStrandsDatas& OutData)
+{
+	const uint32 InCurveCount = InData.StrandsCurves.Num();
+	const uint32 OutCurveCount = FMath::Clamp(NumCurves, 1u, InCurveCount);
+	
+	// Fill root positions and curves offsets for sampling
+	TArray<FVector3f> RootPositions;
+	RootPositions.Init(FVector3f::ZeroVector, InData.GetNumCurves());
+	for(uint32 StrandIndex = 0; StrandIndex < InData.GetNumCurves(); ++StrandIndex)
+	{
+		RootPositions[StrandIndex] =
+			InData.StrandsPoints.PointsPosition[InData.StrandsCurves.CurvesOffset[StrandIndex]];
+	}
+				
+	TArray<bool> ValidPoints;
+	ValidPoints.Init(true, InData.GetNumCurves());
 
+	// Pick NumCurves strands from the guides
+	GroomBinding_RBFWeighting::FPointsSampler PointsSampler(ValidPoints, RootPositions.GetData(), OutCurveCount);
+
+	const uint32 CurveCount = PointsSampler.SampleIndices.Num();
+	uint32 PointCount = CurveCount * NumVertices;
+
+	OutData.StrandsCurves.SetNum(CurveCount);
+	OutData.StrandsPoints.SetNum(PointCount);
+	OutData.HairDensity = InData.HairDensity;
+
+	const bool bHasPrecomputedWeights = InData.StrandsCurves.CurvesClosestGuideIDs.Num() > 0 && InData.StrandsCurves.CurvesClosestGuideWeights.Num() > 0;
+	
+	PointCount = 0;
+	for(uint32 CurveIndex = 0; CurveIndex < CurveCount; ++CurveIndex)
+	{
+		const int32 GuideIndex = PointsSampler.SampleIndices[CurveIndex];
+		const int32 GuideOffset = InData.StrandsCurves.CurvesOffset[GuideIndex];
+		const int32 GuideCount = InData.StrandsCurves.CurvesCount[GuideIndex];
+		
+		const int32 MaxPoints = FMath::Min(GuideCount, NumVertices);
+		const float BoneSpace = FMath::Max(1.0,float(GuideCount-1) / (MaxPoints-1));
+
+		OutData.StrandsCurves.CurvesCount[CurveIndex]  = MaxPoints;
+		OutData.StrandsCurves.CurvesRootUV[CurveIndex] = InData.StrandsCurves.CurvesRootUV[GuideIndex];
+		OutData.StrandsCurves.CurvesOffset[CurveIndex] = PointCount;
+		OutData.StrandsCurves.CurvesLength[CurveIndex] = InData.StrandsCurves.CurvesLength[GuideIndex];
+		if (bHasPrecomputedWeights)
+		{
+			OutData.StrandsCurves.CurvesClosestGuideIDs[CurveIndex] = InData.StrandsCurves.CurvesClosestGuideIDs[GuideIndex];
+			OutData.StrandsCurves.CurvesClosestGuideWeights[CurveIndex] = InData.StrandsCurves.CurvesClosestGuideWeights[GuideIndex];
+		}
+		OutData.StrandsCurves.MaxLength = InData.StrandsCurves.MaxLength;
+		OutData.StrandsCurves.MaxRadius = InData.StrandsCurves.MaxRadius;
+	
+		for(int32 PointIndex = 0; PointIndex < MaxPoints; ++PointIndex, ++PointCount)
+		{
+			const float PointSpace = GuideOffset + PointIndex * BoneSpace;
+	
+			const int32 PointBegin = FMath::Min(FMath::FloorToInt32(PointSpace), GuideOffset + GuideCount-2);
+			const int32 PointEnd = PointBegin+1;
+	
+			const float PointAlpha = PointSpace - PointBegin;
+			
+			OutData.StrandsPoints.PointsPosition[PointCount] = InData.StrandsPoints.PointsPosition[PointBegin] * (1.0-PointAlpha) +
+				InData.StrandsPoints.PointsPosition[PointEnd] * PointAlpha;
+			OutData.StrandsPoints.PointsCoordU[PointCount] = InData.StrandsPoints.PointsCoordU[PointBegin] * (1.0-PointAlpha) +
+				InData.StrandsPoints.PointsCoordU[PointEnd] * PointAlpha;
+			OutData.StrandsPoints.PointsRadius[PointCount] = InData.StrandsPoints.PointsRadius[PointBegin] * (1.0-PointAlpha) +
+				InData.StrandsPoints.PointsRadius[PointEnd] * PointAlpha;
+			OutData.StrandsPoints.PointsBaseColor[PointCount] = InData.StrandsPoints.PointsBaseColor[PointBegin] * (1.0-PointAlpha) +
+				InData.StrandsPoints.PointsBaseColor[PointEnd] * PointAlpha;
+			OutData.StrandsPoints.PointsRoughness[PointCount] = InData.StrandsPoints.PointsRoughness[PointBegin] * (1.0-PointAlpha) +
+				InData.StrandsPoints.PointsRoughness[PointEnd] * PointAlpha;
+		}
+	}
+	HairStrandsBuilder::BuildInternalData(OutData, false);
+}
+	
 void Decimate(
 	const FHairStrandsDatas& InData, 
 	float CurveDecimationPercentage, 

@@ -331,6 +331,7 @@ public:
 	TArray<float>LODScreenSizes;
 	TArray<bool> LODSimulations;
 	TArray<bool> LODGlobalInterpolations;
+	bool bIsDeformationEnable;
 	TArray<EHairGeometryType> LODGeometryTypes;
 
 	TArray<EHairBindingType> BindingTypes;

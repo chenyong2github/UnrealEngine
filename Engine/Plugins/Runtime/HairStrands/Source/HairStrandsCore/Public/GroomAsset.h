@@ -455,6 +455,14 @@ public:
 	UPROPERTY(EditAnywhere, EditFixedSize, BlueprintReadWrite, Category = "HairInterpolation", meta = (ToolTip = "Type of interpolation used (WIP)"))
 	EGroomInterpolationType HairInterpolationType = EGroomInterpolationType::SmoothTransform;
 
+	/** Deformed skeletal mesh that will drive the groom deformation/simulation. For creating this skeletal mesh, enable EnableDeformation within the interpolation settings*/
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "HairInterpolation")
+	TObjectPtr<USkeletalMesh> DeformedSkeletalMesh;
+
+	/** Deformed skeletal mesh mapping from groups to sections */
+	UPROPERTY()
+	TArray<int32> DeformedGroupSections;
+
 	/** Minimum LOD to cook */
 	UPROPERTY(EditAnywhere, Category = "LOD", meta = (DisplayName = "Minimum LOD"))
 	FPerPlatformInt MinLOD;
@@ -553,6 +561,7 @@ public:
 	bool IsVisible(int32 GroupIndex, int32 LODIndex) const;
 	bool IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const;
 	bool IsSimulationEnable() const;
+	bool IsDeformationEnable(int32 GroupIndex) const;
 	bool IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex) const;
 	bool NeedsInterpolationData(int32 GroupIndex) const;
 	bool NeedsInterpolationData() const;
@@ -570,6 +579,7 @@ public:
 
 	// Save out a static mesh based on generated cards
 	void SaveProceduralCards(uint32 CardsGroupIndex);
+	
 #endif
 
 	/** Array of user data stored with the asset */
@@ -640,8 +650,9 @@ public:
 	FString GetDerivedDataKeyForStrands(uint32 GroupIndex);
 	FString GetDerivedDataKeyForMeshes(uint32 GroupIndex);
 
-private:
 	const FHairDescriptionGroups& GetHairDescriptionGroups();
+private:
+	
 	FString BuildDerivedDataKeySuffix(uint32 GroupIndex, const FHairGroupsInterpolation& InterpolationSettings, const FHairGroupsLOD& LODSettings) const;
 	bool IsFullyCached();
 	TUniquePtr<FHairDescriptionBulkData> HairDescriptionBulkData;

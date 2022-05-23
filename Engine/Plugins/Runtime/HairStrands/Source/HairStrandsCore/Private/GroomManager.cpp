@@ -174,6 +174,7 @@ static void RunInternalHairStrandsInterpolation(
 			const uint32 HairLODIndex = Instance->HairGroupPublicData->LODIndex;
 			const EHairBindingType BindingType = Instance->HairGroupPublicData->GetBindingType(HairLODIndex);
 			const bool bSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(HairLODIndex);
+			const bool bDeformationEnable = Instance->HairGroupPublicData->bIsDeformationEnable;
 			const bool bGlobalDeformationEnable = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(HairLODIndex);
 			check(InstanceBindingType == BindingType);
 
@@ -202,7 +203,7 @@ static void RunInternalHairStrandsInterpolation(
 							Instance->Strands.DeformedRootResource,
 							Instance->Strands.DeformedResource);
 					}
-					else if (bSimulationEnable)
+					else if (bSimulationEnable || bDeformationEnable)
 					{
 						check(Instance->Strands.HasValidData());
 
@@ -241,7 +242,7 @@ static void RunInternalHairStrandsInterpolation(
 								CardsInstance.Guides.DeformedRootResource,
 								CardsInstance.Guides.DeformedResource);
 						}
-						else if (bSimulationEnable)
+						else if (bSimulationEnable || bDeformationEnable)
 						{
 							check(CardsInstance.Guides.IsValid());
 							AddHairStrandUpdatePositionOffsetPass(
@@ -261,7 +262,7 @@ static void RunInternalHairStrandsInterpolation(
 			else if (EHairStrandsInterpolationType::SimulationStrands == Type)
 			{
 				// Guide update need to run only if simulation is enabled, or if RBF is enabled (since RFB are transfer through guides)
-				if (bGlobalDeformationEnable || bSimulationEnable)
+				if (bGlobalDeformationEnable || bSimulationEnable || bDeformationEnable)
 				{
 					check(Instance->Guides.IsValid());
 
@@ -322,7 +323,7 @@ static void RunInternalHairStrandsInterpolation(
 						}
 						GraphBuilder.UseExternalAccessMode(Register(GraphBuilder, Instance->Guides.DeformedResource->GetPositionOffsetBuffer(FHairStrandsDeformedResource::EFrameType::Current), ERDGImportedBufferFlags::CreateSRV).Buffer, ERHIAccess::SRVMask);
 					}
-					else if (bSimulationEnable)
+					else if (bSimulationEnable || bDeformationEnable)
 					{
 						check(Instance->Guides.IsValid());
 
@@ -624,8 +625,9 @@ void AddHairStreamingRequest(FHairGroupInstance* Instance, int32 InLODIndex)
 		}
 
 		const bool bSimulationEnable			= Instance->HairGroupPublicData->IsSimulationEnable(LODIndex);
+		const bool bDeformationEnable			= Instance->HairGroupPublicData->bIsDeformationEnable;
 		const bool bGlobalInterpolationEnable	= Instance->HairGroupPublicData->IsGlobalInterpolationEnable(LODIndex);
-		const bool bLODNeedsGuides				= bSimulationEnable || bGlobalInterpolationEnable;
+		const bool bLODNeedsGuides				= bSimulationEnable || bDeformationEnable || bGlobalInterpolationEnable;
 
 		const EHairResourceLoadingType LoadingType = GetHairResourceLoadingType(GeometryType, int32(LODIndex));
 		if (LoadingType != EHairResourceLoadingType::Async || GeometryType == EHairGeometryType::NoneGeometry)
@@ -795,8 +797,9 @@ static void RunHairLODSelection(
 			}
 
 			const bool bSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
+			const bool bDeformationEnable			= Instance->HairGroupPublicData->bIsDeformationEnable;
 			const bool bGlobalInterpolationEnable =  Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
-			const bool bLODNeedsGuides = bSimulationEnable || bGlobalInterpolationEnable;
+			const bool bLODNeedsGuides = bSimulationEnable || bDeformationEnable || bGlobalInterpolationEnable;
 
 			const EHairResourceLoadingType LoadingType = GetHairResourceLoadingType(GeometryType, IntLODIndex);
 			EHairResourceStatus ResourceStatus = EHairResourceStatus::None;
@@ -889,6 +892,7 @@ static void RunHairLODSelection(
 				Instance->BindingType = BindingType;
 				Instance->Guides.bIsSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
 				Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
+				Instance->Guides.bIsDeformationEnable = Instance->HairGroupPublicData->bIsDeformationEnable;
 				Instance->Strands.bIsCullingEnabled = bCullingEnable;
 			}
 

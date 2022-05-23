@@ -47,7 +47,7 @@ public:
 	}
 
 	HAIRSTRANDSCORE_API static void RegisterAssetHelper(const FHairAssetHelper& Helper);
-
+	
 #if WITH_EDITOR
 	static UTexture2D* CreateTexture(const FString& PackgeName, const FIntPoint& Resolution, const FString& Suffix, TTextureAllocation TextureAllocation);
 	static void ResizeTexture(UTexture2D* InTexture, const FIntPoint& Resolution, TTextureAllocation TextureAllocation);
@@ -64,5 +64,8 @@ public:
 	HAIRSTRANDSCORE_API static UGroomBindingAsset* CreateGroomBindingAsset(EGroomBindingMeshType BindingType, const FString& InPackageName, UObject* InParent, UGroomAsset* GroomAsset, UObject* Source, UObject* Target, const int32 NumInterpolationPoints, const int32 MatchingSection);
 
 	static void SaveAsset(UObject* Object);
+
+	static FHairAssetHelper& AssetHelper();
+	
 #endif
 };

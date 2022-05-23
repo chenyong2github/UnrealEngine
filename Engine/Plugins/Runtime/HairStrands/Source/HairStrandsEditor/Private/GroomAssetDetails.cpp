@@ -818,6 +818,13 @@ bool FGroomRenderingDetails::CommonResetToDefault(TSharedPtr<IPropertyHandle> Ch
 			HAIR_RESET1(HairGroupsInterpolation, FHairInterpolationSettings, InterpolationSettings, bRandomizeGuide);
 			HAIR_RESET1(HairGroupsInterpolation, FHairInterpolationSettings, InterpolationSettings, bUseUniqueGuide);
 		}
+
+		{
+			FHairDeformationSettings Default;
+			HAIR_RESET1(HairGroupsInterpolation, FHairDeformationSettings, DeformationSettings, NumCurves);
+			HAIR_RESET1(HairGroupsInterpolation, FHairDeformationSettings, DeformationSettings, NumPoints);
+			HAIR_RESET1(HairGroupsInterpolation, FHairDeformationSettings, DeformationSettings, bEnableDeformation);
+		}
 	}
 
 	// LODs
