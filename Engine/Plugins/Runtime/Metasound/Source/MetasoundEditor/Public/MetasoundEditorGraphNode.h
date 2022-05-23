@@ -91,6 +91,8 @@ public:
 
 	// Sets the node's location, both on this graph member node and on the frontend handle
 	void SetNodeLocation(const FVector2D& InLocation);
+	// Helper function to update node location on frontend handle
+	void UpdateFrontendNodeLocation(const FVector2D& InLocation);
 
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
 	Metasound::Frontend::FConstGraphHandle GetConstRootGraphHandle() const;

@@ -74,17 +74,22 @@ UMetasoundEditorGraphNode::UMetasoundEditorGraphNode(const FObjectInitializer& O
 {
 }
 
-void UMetasoundEditorGraphNode::SetNodeLocation(const FVector2D& InLocation)
+void UMetasoundEditorGraphNode::UpdateFrontendNodeLocation(const FVector2D& InLocation)
 {
 	using namespace Metasound::Frontend;
-
-	NodePosX = FMath::TruncToInt(InLocation.X);
-	NodePosY = FMath::TruncToInt(InLocation.Y);
-
+	
 	FNodeHandle NodeHandle = GetNodeHandle();
 	FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
 	Style.Display.Locations.FindOrAdd(NodeGuid) = InLocation;
 	NodeHandle->SetNodeStyle(Style);
+}
+
+void UMetasoundEditorGraphNode::SetNodeLocation(const FVector2D& InLocation)
+{
+	NodePosX = FMath::TruncToInt(InLocation.X);
+	NodePosY = FMath::TruncToInt(InLocation.Y);
+
+	UpdateFrontendNodeLocation(InLocation);
 }
 
 void UMetasoundEditorGraphNode::PostLoad()

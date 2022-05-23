@@ -1961,4 +1961,18 @@ TSharedPtr<FEdGraphSchemaAction> UMetasoundEditorGraphSchema::GetCreateCommentAc
 	TSharedPtr<FMetasoundGraphSchemaAction_NewComment> Comment = MakeShared<FMetasoundGraphSchemaAction_NewComment>();
 	return StaticCastSharedPtr<FEdGraphSchemaAction, FMetasoundGraphSchemaAction_NewComment>(Comment);
 }
+
+void UMetasoundEditorGraphSchema::SetNodePosition(UEdGraphNode* Node, const FVector2D& Position) const
+{
+	if (UMetasoundEditorGraphNode* MetasoundGraphNode = Cast<UMetasoundEditorGraphNode>(Node))
+	{
+		MetasoundGraphNode->GetMetasoundChecked().Modify();
+		UEdGraphSchema::SetNodePosition(Node, Position);
+		MetasoundGraphNode->UpdateFrontendNodeLocation(Position);
+	}
+	else
+	{
+		UEdGraphSchema::SetNodePosition(Node, Position);
+	}
+}
 #undef LOCTEXT_NAMESPACE
