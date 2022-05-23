@@ -60,7 +60,7 @@ namespace Horde.Agent.Utility
 		/// </summary>
 		public void AddClientView(DirectoryReference baseDir, PerforceViewMap viewMap, int change)
 		{
-			_clients.Add(new ClientView(baseDir, viewMap, change));
+			_clients.Add(new ClientView(baseDir, viewMap.Invert(), change));
 		}
 
 		/// <inheritdoc/>

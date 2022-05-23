@@ -193,14 +193,27 @@ namespace Horde.Agent.Execution
 			}
 		}
 
+		PerforceLogger CreatePerforceLogger(ILogger logger)
+		{
+			PerforceLogger perforceLogger = new PerforceLogger(logger);
+			perforceLogger.AddClientView(_workspace.WorkspaceDir, _workspace.StreamView, _job.Change);
+			if (_autoSdkWorkspace != null)
+			{
+				perforceLogger.AddClientView(_autoSdkWorkspace.WorkspaceDir, _autoSdkWorkspace.StreamView, _job.Change);
+			}
+			return perforceLogger;
+		}
+
 		protected override async Task<bool> SetupAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
-			return await SetupAsync(step, _workspace.WorkspaceDir, _sharedStorageDir, _envVars, logger, cancellationToken);
+			PerforceLogger perforceLogger = CreatePerforceLogger(logger);
+			return await SetupAsync(step, _workspace.WorkspaceDir, _sharedStorageDir, _envVars, perforceLogger, cancellationToken);
 		}
 
 		protected override async Task<bool> ExecuteAsync(BeginStepResponse step, ILogger logger, CancellationToken cancellationToken)
 		{
-			return await ExecuteAsync(step, _workspace.WorkspaceDir, _sharedStorageDir, _envVars, logger, cancellationToken);
+			PerforceLogger perforceLogger = CreatePerforceLogger(logger);
+			return await ExecuteAsync(step, _workspace.WorkspaceDir, _sharedStorageDir, _envVars, perforceLogger, cancellationToken);
 		}
 
 		public override async Task FinalizeAsync(ILogger logger, CancellationToken cancellationToken)
