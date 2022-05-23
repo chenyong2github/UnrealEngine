@@ -89,8 +89,8 @@ public:
 	FOpenVDBCacheData() {}
 	
 	virtual ~FOpenVDBCacheData() 
-	{
-		UnloadAll();
+	{		
+		OpenVDBGrids.Reset();
 		DenseGridPtr = nullptr;
 	}
 
