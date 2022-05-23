@@ -7,7 +7,7 @@
 
 #include "IAssetTypeActions.h"
 #include "AssetTypeCategories.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "AssetToolsModule.h"
 #include "UObject/Object.h"
 #include "SlateGlobals.h"

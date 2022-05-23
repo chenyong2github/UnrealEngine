@@ -8,7 +8,7 @@
 #include "Core/Public/Math/Color.h"
 #include "Core/Public/UObject/NameTypes.h"
 
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 #include "AssetRegistry/IAssetRegistry.h"
 
 /* A filter used by SFilterBar that wraps all the back-end filters into one FFilterBase for convenience */

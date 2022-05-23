@@ -31,6 +31,7 @@
 #include "ContentBrowserMenuContexts.h"
 #include "Widgets/Images/SImage.h"
 #include "Filters/GenericFilter.h"
+#include "AssetRegistry/ARFilter.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 

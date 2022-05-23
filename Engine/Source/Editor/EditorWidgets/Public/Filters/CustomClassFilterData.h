@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Math/Color.h"
-#include "ARFilter.h"
+#include "AssetRegistry/ARFilter.h"
 
 class IAssetTypeActions;
 class UClass;
