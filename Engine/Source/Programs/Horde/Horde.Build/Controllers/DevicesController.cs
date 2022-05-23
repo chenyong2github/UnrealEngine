@@ -726,22 +726,20 @@ namespace Horde.Build.Controllers
 
 			List<DeviceRequestData> requestedDevices = new List<DeviceRequestData>();
 
-			List<string> perfSpecs = new List<string>();
+			HashSet<string> perfSpecs = new HashSet<string> { "Unspecified", "Minimum", "Recommended", "High" };
 
 			foreach (string deviceType in request.DeviceTypes)
 			{
 
 				string platformName = deviceType;
-				string perfSpecName = "Unspecified";
+				string? constraint = null;
 
 				if (deviceType.Contains(':', StringComparison.Ordinal))
 				{
 					string[] tokens = deviceType.Split(":");
 					platformName = tokens[0];
-					perfSpecName = tokens[1];
+					constraint = tokens[1];
 				}
-
-				perfSpecs.Add(perfSpecName);
 
 				DevicePlatformId platformId;
 
@@ -768,22 +766,33 @@ namespace Horde.Build.Controllers
 				List<string> includeModels = new List<string>();
 				List<string> excludeModels = new List<string>();
 
-				if (perfSpecName == "High")
+				if (constraint != null && perfSpecs.Contains(constraint))
 				{
-					string? model = null;
-					if (mapV1.PerfSpecHighMap.TryGetValue(platformId, out model))
+					if (constraint == "High")
 					{
-						includeModels.Add(model);
+						string? model = null;
+						if (mapV1.PerfSpecHighMap.TryGetValue(platformId, out model))
+						{
+							includeModels.Add(model);
+						}
+					}
+					else if (constraint == "Minimum" || constraint == "Recommended")
+					{
+						string? model = null;
+						if (mapV1.PerfSpecHighMap.TryGetValue(platformId, out model))
+						{
+							excludeModels.Add(model);
+						}
 					}
 				}
-
-				if (perfSpecName == "Minimum" || perfSpecName == "Recommended")
+				else if (constraint != null)
 				{
-					string? model = null;
-					if (mapV1.PerfSpecHighMap.TryGetValue(platformId, out model))
+					string? model = platform.Models?.FirstOrDefault(x => x == constraint);
+					if (model == null)
 					{
-						excludeModels.Add(model);
+						return NotFound($"Platform {platform.Id} has no model {model}");
 					}
+					includeModels.Add(constraint);
 				}
 
 				requestedDevices.Add(new DeviceRequestData(platformId, platformName, includeModels, excludeModels));
