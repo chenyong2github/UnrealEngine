@@ -47,6 +47,7 @@ bool FEntityTestBase::SetUp()
 // Processors 
 //----------------------------------------------------------------------//
 UMassTestProcessorBase::UMassTestProcessorBase()
+	: EntityQuery(*this)
 {
 #if WITH_EDITORONLY_DATA
 	bCanShowUpInSettings = false;
