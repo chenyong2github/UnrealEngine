@@ -369,6 +369,8 @@ void FCurveEditor::BindCommands()
 	CommandList->MapAction(FCurveEditorCommands::Get().ClearSelectionRange, FExecuteAction::CreateSP(this, &FCurveEditor::ClearSelectionRange));
 
 	CommandList->MapAction(FCurveEditorCommands::Get().SelectAllKeys, FExecuteAction::CreateSP(this, &FCurveEditor::SelectAllKeys));
+	CommandList->MapAction(FCurveEditorCommands::Get().SelectForward, FExecuteAction::CreateSP(this, &FCurveEditor::SelectForward));
+	CommandList->MapAction(FCurveEditorCommands::Get().SelectBackward, FExecuteAction::CreateSP(this, &FCurveEditor::SelectBackward));
 
 	{
 		FExecuteAction   ToggleInputSnapping     = FExecuteAction::CreateSP(this,   &FCurveEditor::ToggleInputSnapping);
@@ -1020,13 +1022,63 @@ void FCurveEditor::ClearSelectionRange()
 }
 
 void FCurveEditor::SelectAllKeys()
-{		
+{
 	for (FCurveModelID ID : GetEditedCurves())
 	{
 		if (FCurveModel* Curve = FindCurve(ID))
 		{
 			TArray<FKeyHandle> KeyHandles;
 			Curve->GetKeys(*this, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
+			Selection.Add(ID, ECurvePointType::Key, KeyHandles);
+		}
+	}
+}
+
+void FCurveEditor::SelectForward()
+{
+	Selection.Clear();
+
+	TSharedPtr<ITimeSliderController> TimeSliderController = WeakTimeSliderController.Pin();
+	if (!TimeSliderController.IsValid())
+	{
+		return;
+	}
+
+	FFrameRate TickResolution = TimeSliderController->GetTickResolution();
+
+	double CurrentTime = TickResolution.AsSeconds(TimeSliderController->GetScrubPosition());
+
+	for (FCurveModelID ID : GetEditedCurves())
+	{
+		if (FCurveModel* Curve = FindCurve(ID))
+		{
+			TArray<FKeyHandle> KeyHandles;
+			Curve->GetKeys(*this, CurrentTime, TNumericLimits<double>::Max(), TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
+			Selection.Add(ID, ECurvePointType::Key, KeyHandles);
+		}
+	}
+}
+
+void FCurveEditor::SelectBackward()
+{
+	Selection.Clear();
+
+	TSharedPtr<ITimeSliderController> TimeSliderController = WeakTimeSliderController.Pin();
+	if (!TimeSliderController.IsValid())
+	{
+		return;
+	}
+
+	FFrameRate TickResolution = TimeSliderController->GetTickResolution();
+
+	double CurrentTime = TickResolution.AsSeconds(TimeSliderController->GetScrubPosition());
+
+	for (FCurveModelID ID : GetEditedCurves())
+	{
+		if (FCurveModel* Curve = FindCurve(ID))
+		{
+			TArray<FKeyHandle> KeyHandles;
+			Curve->GetKeys(*this, TNumericLimits<double>::Min(), CurrentTime, TNumericLimits<double>::Lowest(), TNumericLimits<double>::Max(), KeyHandles);
 			Selection.Add(ID, ECurvePointType::Key, KeyHandles);
 		}
 	}

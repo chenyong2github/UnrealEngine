@@ -201,6 +201,8 @@ public:
 
 	/** Selection */
 	void SelectAllKeys();
+	void SelectForward();
+	void SelectBackward();
 
 	/** Toggle the expansion state of the selected nodes or all nodes if none selected */
 	void ToggleExpandCollapseNodes(bool bRecursive);
