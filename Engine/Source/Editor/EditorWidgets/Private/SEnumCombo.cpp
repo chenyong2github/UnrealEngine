@@ -162,7 +162,7 @@ FText SEnumComboBox::GetCurrentValueTooltip() const
 TSharedRef<SWidget> SEnumComboBox::OnGetMenuContent()
 {
 	const bool bCloseAfterSelection = !bIsBitflagsEnum;
-	FMenuBuilder MenuBuilder(bCloseAfterSelection, nullptr);
+	FMenuBuilder MenuBuilder(bCloseAfterSelection, nullptr, nullptr, true);
 
 	for (const FEnumInfo& FlagInfo : VisibleEnums)
 	{
