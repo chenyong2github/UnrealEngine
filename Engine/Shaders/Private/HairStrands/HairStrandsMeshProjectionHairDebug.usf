@@ -7,6 +7,8 @@
 
 #define INPUT_ROOT_FRAME 0
 #define INPUT_ROOT_TRIANGLE 1
+#define INPUT_ROOT_SAMPLES 2
+
 uint MaxRootCount;
 float4x4 RootLocalToWorld;
 uint DeformedFrameEnable;
@@ -21,7 +23,10 @@ Buffer<float4>  RestPosition2Buffer;
 
 Buffer<float4>  DeformedPosition0Buffer;
 Buffer<float4>  DeformedPosition1Buffer;
-Buffer<float4>  DeformedPosition2Buffer; 
+Buffer<float4>  DeformedPosition2Buffer;
+
+Buffer<float4> RestSamplePositionsBuffer;
+Buffer<float4> DeformedSamplePositionsBuffer;
 
 void MainVS(
 	uint VertexId : SV_VertexID,
@@ -130,6 +135,37 @@ void MainVS(
 	P = mul(float4(P, 1), RootLocalToWorld).xyz;
 #endif
 
+#if PERMUTATION_INPUT_TYPE == INPUT_ROOT_SAMPLES 
+
+	const uint LineVertex = (VertexId%2);
+	const uint LineIndex = VertexId/2;
+	const uint PointIndex = VertexId/6;
+	const uint AxisIndex = (LineIndex%3);
+	
+	if (LineIndex > MaxRootCount) return;
+
+	float3 N;
+	if(AxisIndex == 0)
+	{
+		N = float3(1,0,0);
+		UVs = float2(1,0);
+	}
+	else if(AxisIndex == 1)
+	{
+		N = float3(0,1,0);
+		UVs = float2(0,1);
+	}
+	else if(AxisIndex == 2)
+	{
+		N = float3(0,0,1);
+		UVs = float2(0.5,0.5);
+	}
+	float3 P = (DeformedFrameEnable > 0) ? DeformedSamplePositionsBuffer[PointIndex].xyz : RestSamplePositionsBuffer[PointIndex].xyz;
+	P = (LineVertex == 0) ? P - 0.5 * N : P + 0.5 * N;
+	P = mul(float4(P, 1), RootLocalToWorld).xyz;
+	
+#endif
+	
 	OutVertexUVs = UVs;
 	OutFaceNormal = N;
 	OutPosition = mul(float4(P,1), LWCHackToFloat(PrimaryView.WorldToClip));
