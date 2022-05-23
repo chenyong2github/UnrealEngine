@@ -311,7 +311,7 @@ public:
 		if (this->AllowAudioVisualData())
 		{
 			// just use the standard texture format name for this texture
-			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, true);
+			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, true, 4, true);
 		}
 	}
 
