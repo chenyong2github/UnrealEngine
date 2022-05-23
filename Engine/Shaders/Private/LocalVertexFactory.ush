@@ -76,7 +76,15 @@ float4 SplineParams[10];
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
 	Buffer<float4> VertexFetch_InstanceTransformBuffer;
 	Buffer<float4> VertexFetch_InstanceLightmapBuffer;
+
+	#define VF_REQUIRES_HITPROXY_INDIRECTION 1
+	int VertexFactoryGetVertexFetchParameter(int ParameterIndex)
+	{
+		return LocalVF.VertexFetch_Parameters[ParameterIndex];
+	}
 #endif //! MANUAL_VERTEX_FETCH
+
+#define VF_REQUIRES_HITPROXY_INDIRECTION 1
 
 /**
  * Per-vertex inputs from bound vertex buffers

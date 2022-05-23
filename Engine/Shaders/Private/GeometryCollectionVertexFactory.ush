@@ -23,6 +23,12 @@
 
 	Buffer<float4> VertexFetch_BoneOriginBuffer;
 	Buffer<float4> VertexFetch_BoneLightmapBuffer;
+
+	#define VF_REQUIRES_HITPROXY_INDIRECTION 1
+	int VertexFactoryGetVertexFetchParameter(int ParameterIndex)
+	{
+		return GeometryCollectionVF.VertexFetch_Parameters[ParameterIndex];
+	}
 #endif
 
 // Since we don't have template functions it will have to be this way.

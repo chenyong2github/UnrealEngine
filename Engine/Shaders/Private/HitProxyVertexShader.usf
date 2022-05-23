@@ -18,6 +18,17 @@
 Buffer<float4> VertexFetch_HitProxyIdBuffer;
 #endif
 
+#ifndef VF_REQUIRES_HITPROXY_INDIRECTION 
+#define VF_REQUIRES_HITPROXY_INDIRECTION 0
+#endif
+
+#if VF_REQUIRES_HITPROXY_INDIRECTION == 0
+	int VertexFactoryGetVertexFetchParameter(int ParameterIndex)
+	{
+		return 0;
+	}
+#endif
+
 struct FHitProxyVSToPS
 {
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
@@ -55,7 +66,7 @@ void Main(
 
 #if USE_PER_VERTEX_HITPROXY_ID
 	#if MANUAL_VERTEX_FETCH
-		Output.InstanceHitProxyId = VertexFetch_HitProxyIdBuffer[(VF_VertexOffset + Input.VertexId)] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
+		Output.InstanceHitProxyId = VertexFetch_HitProxyIdBuffer[(VertexFactoryGetVertexFetchParameter(VF_VertexOffset) + Input.VertexId)] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
 	#else
 		Output.InstanceHitProxyId = float4(0,0,0,0);
 	#endif
