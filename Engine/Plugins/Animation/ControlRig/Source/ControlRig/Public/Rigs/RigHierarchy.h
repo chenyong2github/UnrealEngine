@@ -2822,11 +2822,7 @@ private:
 	 * @param bInitial If true the initial transform will be dirtied
 	 * @param bAffectChildren If set to false children will not move (maintain global).
 	 */
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
 	void PropagateDirtyFlags(FRigTransformElement* InTransformElement, bool bInitial, bool bAffectChildren, bool bComputeOpposed = true, bool bMarkDirty = true) const;
-#else
-	void PropagateDirtyFlags(FRigTransformElement* InTransformElement, bool bInitial, bool bAffectChildren) const;
-#endif
 
 public:
 
@@ -2977,7 +2973,7 @@ private:
 	int32 ResetPoseHash;
 	TArray<bool> ResetPoseIsFilteredOut;
 	TArray<int32> ElementsToRetainLocalTransform;
-
+	
 #if WITH_EDITOR
 
 	// this is mainly used for propagating changes between hierarchies in the direction of blueprint -> CDO -> other instances

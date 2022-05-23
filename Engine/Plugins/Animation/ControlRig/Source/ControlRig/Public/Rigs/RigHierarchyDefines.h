@@ -9,11 +9,6 @@
 
 class URigHierarchy;
 
-// Define to switch between recursive calls for dirty propagation or flat iteration.
-// Based on this each element will either contains only the next tier of elements to dirty (recursive)
-// or a full flattened list of elements to dirty (no need to recurse)
-#define URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION 1
-
 // Debug define which performs a full check on the cache validity for all elements of the hierarchy.
 // This can be useful for debugging cache validity bugs.
 #define URIGHIERARCHY_ENSURE_CACHE_VALIDITY 0

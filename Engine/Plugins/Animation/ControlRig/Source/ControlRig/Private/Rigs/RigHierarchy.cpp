@@ -249,11 +249,7 @@ void URigHierarchy::Load(FArchive& Ar)
 	{
 		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Elements[ElementIndex]))
 		{
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
 			FRigBaseElementParentArray CurrentParents = GetParents(TransformElement, false);
-#else
-			FRigBaseElementParentArray CurrentParents = GetParents(TransformElement, true);
-#endif
 			for (FRigBaseElement* CurrentParent : CurrentParents)
 			{
 				if(FRigTransformElement* TransformParent = Cast<FRigTransformElement>(CurrentParent))
@@ -639,6 +635,8 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 					GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
 					GetControlShapeTransform(ControlElement, ERigTransformType::CurrentLocal);
 				}
+
+				PropagateDirtyFlags(TransformElement, false, true, true, false);
 			}
 		}
 		
@@ -646,6 +644,11 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 		{
 			if(FRigTransformElement* TransformElement = Get<FRigTransformElement>(ElementIndex))
 			{
+				if(TransformElement->Pose.IsDirty(ERigTransformType::CurrentGlobal))
+				{
+					continue;
+				}
+				
 				TransformElement->Pose.MarkDirty(ERigTransformType::CurrentGlobal);
 
 				if(FRigControlElement* ControlElement = Cast<FRigControlElement>(TransformElement))
@@ -653,6 +656,8 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 					ControlElement->Offset.MarkDirty(ERigTransformType::CurrentGlobal);
 					ControlElement->Shape.MarkDirty(ERigTransformType::CurrentGlobal);
 				}
+
+				PropagateDirtyFlags(TransformElement, false, true, false, true);
 			}
 		}
 	}
@@ -3933,11 +3938,7 @@ void URigHierarchy::DestroyElement(FRigBaseElement*& InElement)
 	InElement = nullptr;
 }
 
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
 void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement, bool bInitial, bool bAffectChildren, bool bComputeOpposed, bool bMarkDirty) const
-#else
-void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement, bool bInitial, bool bAffectChildren) const
-#endif
 {
 	if(!bEnableDirtyPropagation)
 	{
@@ -3951,13 +3952,10 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 	const ERigTransformType::Type TypeToCompute = bAffectChildren ? LocalType : GlobalType;
 	const ERigTransformType::Type TypeToDirty = SwapLocalAndGlobal(TypeToCompute);
 
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
 	if(bComputeOpposed)
-#endif
 	{
 		for(const FRigTransformElement::FElementToDirty& ElementToDirty : InTransformElement->ElementsToDirty)
 		{
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementToDirty.Element))
 			{
 				if(ERigTransformType::IsGlobal(TypeToDirty))
@@ -3987,14 +3985,6 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 					continue;
 				}
 			}
-#else
-
-			if(!bAffectChildren && ElementToDirty.HierarchyDistance > 1)
-			{
-				continue;
-			}
-
-#endif
 
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementToDirty.Element))
 			{
@@ -4002,20 +3992,14 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 			}
 			GetTransform(ElementToDirty.Element, TypeToCompute); // make sure the local / global transform is up 2 date
 
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
 			PropagateDirtyFlags(ElementToDirty.Element, bInitial, bAffectChildren, true, false);
-#endif
 		}
 	}
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
 
 	if(bMarkDirty)
-#endif
 	{
 		for(const FRigTransformElement::FElementToDirty& ElementToDirty : InTransformElement->ElementsToDirty)
 		{
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
-
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementToDirty.Element))
 			{
 				if(ERigTransformType::IsGlobal(TypeToDirty))
@@ -4046,15 +4030,6 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 				}
 			}
 						
-#else
-
-			if(!bAffectChildren && ElementToDirty.HierarchyDistance > 1)
-			{
-				continue;
-			}
-			
-#endif
-
 			ElementToDirty.Element->Pose.MarkDirty(TypeToDirty);
 		
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(ElementToDirty.Element))
@@ -4063,16 +4038,10 @@ void URigHierarchy::PropagateDirtyFlags(FRigTransformElement* InTransformElement
 				ControlElement->Shape.MarkDirty(GlobalType);
 			}
 
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
-
 			if(bAffectChildren)
 			{
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
 				PropagateDirtyFlags(ElementToDirty.Element, bInitial, bAffectChildren, false, true);
-#endif
 			}
-			
-#endif
 		}
 	}
 }

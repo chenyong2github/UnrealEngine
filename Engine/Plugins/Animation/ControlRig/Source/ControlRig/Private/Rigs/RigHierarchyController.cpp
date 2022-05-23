@@ -2608,22 +2608,6 @@ void URigHierarchyController::AddElementToDirty(FRigBaseElement* InParent, FRigB
 		const FRigTransformElement::FElementToDirty ElementToDirty(ElementToAdd, InHierarchyDistance);
 		TransformParent->ElementsToDirty.AddUnique(ElementToDirty);
 	}
-
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
-	// nothing to do 
-#else
-	if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InParent))
-	{
-		AddElementToDirty(SingleParentElement->ParentElement, InElementToAdd, InHierarchyDistance + 1);
-	}
-	else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InParent))
-	{
-		for(FRigTransformElement* ParentElement : MultiParentElement->ParentElements)
-		{
-			AddElementToDirty(ParentElement, InElementToAdd, InHierarchyDistance + 1);
-		}
-	}
-#endif
 }
 
 void URigHierarchyController::RemoveElementToDirty(FRigBaseElement* InParent, FRigBaseElement* InElementToRemove) const
@@ -2643,22 +2627,6 @@ void URigHierarchyController::RemoveElementToDirty(FRigBaseElement* InParent, FR
 	{
 		TransformParent->ElementsToDirty.Remove(ElementToRemove);
 	}
-
-#if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
-	// nothing to do 
-#else
-	if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InParent))
-	{
-		RemoveElementToDirty(SingleParentElement->ParentElement, InElementToRemove);
-	}
-	else if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InParent))
-	{
-		for(FRigTransformElement* ParentElement : MultiParentElement->ParentElements)
-		{
-			RemoveElementToDirty(ParentElement, InElementToRemove);
-		}
-	}
-#endif
 }
 
 void URigHierarchyController::ReportWarning(const FString& InMessage) const
