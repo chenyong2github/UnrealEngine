@@ -6,13 +6,6 @@ public class NiagaraEditor : ModuleRules
 {
 	public NiagaraEditor(ReadOnlyTargetRules Target) : base(Target)
 	{
-		// Specific to OpenVDB support
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
-		{
-			bUseRTTI = true;
-			bEnableExceptions = true;
-		}
-
 		PrivateIncludePaths.AddRange(new string[] {
 			"NiagaraEditor/Private",
 			"NiagaraEditor/Private/Toolkits",
@@ -98,17 +91,6 @@ public class NiagaraEditor : ModuleRules
                 "UnrealEd",
             }
         );
-
-		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
-		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"IntelTBB",
-				"Blosc",
-				"zlib",
-				"Boost",
-				"OpenVDB"
-			);
-		}
 
 		PublicIncludePathModuleNames.AddRange(
             new string[] {

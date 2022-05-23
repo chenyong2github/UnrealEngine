@@ -205,7 +205,15 @@ void INiagaraModule::StartupModule()
 #if PLATFORM_WINDOWS
 	// Global registration of  the vdb types.
 	openvdb::initialize();
-	Vec4SGrid::registerGrid();
+	if (!Vec4SGrid::isRegistered())
+	{
+		Vec4SGrid::registerGrid();
+	}
+	
+	if (!Vec4HGrid::isRegistered())
+	{
+		Vec4HGrid::registerGrid();
+	}
 #endif
 
 	FNiagaraWorldManager::OnStartup();

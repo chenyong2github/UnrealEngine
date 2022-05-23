@@ -739,7 +739,7 @@ bool FNiagaraBakerRenderer::ExportVolume(FStringView FilePath, FIntVector ImageS
 	if (FileExtension == TEXT(".vdb"))
 	{
 #if PLATFORM_WINDOWS
-		return FOpenVDBCacheData::WriteImageDataToOpenVDBFile(FilePath, ImageSize, ImageData, false);
+		return OpenVDBTools::WriteImageDataToOpenVDBFile(FilePath, ImageSize, ImageData, false);
 #else
 		return false;
 #endif

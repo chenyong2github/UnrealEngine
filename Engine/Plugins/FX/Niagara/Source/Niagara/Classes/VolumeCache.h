@@ -7,11 +7,6 @@
 #include "UObject/ObjectMacros.h"
 #include "RHI.h"
 
-// @todo: we need builds for OpenVDB for platforms other than windows
-#if PLATFORM_WINDOWS
-#include "NiagaraOpenVDB.h"
-#endif
-
 #include "VolumeCache.generated.h"
 
 class FVolumeCacheData;
@@ -81,30 +76,7 @@ protected:
 	FIntVector DenseResolution;
 };
 
-// @todo: we need builds for OpenVDB for platforms other than windows
-#if PLATFORM_WINDOWS
-class NIAGARA_API FOpenVDBCacheData : public FVolumeCacheData
+namespace OpenVDBTools
 {
-public:
-	FOpenVDBCacheData() {}
-	
-	virtual ~FOpenVDBCacheData() 
-	{		
-		OpenVDBGrids.Reset();
-		DenseGridPtr = nullptr;
-	}
-
-	virtual void Init(FIntVector Resolution);
-	virtual bool LoadFile(FString Path, int frame);
-	virtual bool UnloadFile(int frame);
-	virtual bool LoadRange(FString Path, int Start, int End);
-	virtual void UnloadAll();
-	virtual bool Fill3DTexture_RenderThread(int frame, FTextureRHIRef TextureToFill, FRHICommandListImmediate& RHICmdList);
-
-	static bool WriteImageDataToOpenVDBFile(FStringView FilePath, FIntVector ImageSize, TArrayView<FFloat16Color> ImageData, bool UseFloatGrids = false);
-
-private:	
-	TMap<int32, Vec4SGrid::Ptr> OpenVDBGrids;
-	openvdb::tools::Dense<openvdb::Vec4s, openvdb::tools::MemoryLayout::LayoutXYZ>::Ptr DenseGridPtr;	
-};
-#endif
+	NIAGARA_API bool WriteImageDataToOpenVDBFile(FStringView FilePath, FIntVector ImageSize, TArrayView<FFloat16Color> ImageData, bool UseFloatGrids = false);
+}

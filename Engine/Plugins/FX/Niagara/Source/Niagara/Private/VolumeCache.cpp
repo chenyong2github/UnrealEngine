@@ -6,8 +6,41 @@
 
 #include "VolumeCache.h"
 
+// @todo: we need builds for OpenVDB for platforms other than windows
+#if PLATFORM_WINDOWS
+#include "NiagaraOpenVDB.h"
+#endif
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogVolumeCache, Log, All);
+
+
+// @todo: we need builds for OpenVDB for platforms other than windows
+#if PLATFORM_WINDOWS
+class NIAGARA_API FOpenVDBCacheData : public FVolumeCacheData
+{
+public:
+	FOpenVDBCacheData() {}
+
+	virtual ~FOpenVDBCacheData()
+	{
+		OpenVDBGrids.Reset();
+		DenseGridPtr = nullptr;
+	}
+
+	virtual void Init(FIntVector Resolution);
+	virtual bool LoadFile(FString Path, int frame);
+	virtual bool UnloadFile(int frame);
+	virtual bool LoadRange(FString Path, int Start, int End);
+	virtual void UnloadAll();
+	virtual bool Fill3DTexture_RenderThread(int frame, FTextureRHIRef TextureToFill, FRHICommandListImmediate& RHICmdList);
+	
+private:
+	TMap<int32, Vec4SGrid::Ptr> OpenVDBGrids;
+	openvdb::tools::Dense<openvdb::Vec4s, openvdb::tools::MemoryLayout::LayoutXYZ>::Ptr DenseGridPtr;
+};
+#endif
+
 
 //*****************************************************************************
 //***************************** UVolumeCache ********************************
@@ -97,7 +130,7 @@ FString FVolumeCacheData::GetAssetPath(FString PathFormat, int32 FrameIndex) con
 #if PLATFORM_WINDOWS
 void FOpenVDBCacheData::Init(FIntVector Resolution)
 {
-	DenseGridPtr.reset(new openvdb::tools::Dense<openvdb::Vec4s, openvdb::tools::MemoryLayout::LayoutXYZ>(openvdb::CoordBBox(0, 0, 0, Resolution.X - 1, Resolution.Y - 1, Resolution.Z - 1), openvdb::Vec4s(0.0, 0.0, 0.0, 0.0)));
+	DenseGridPtr.reset(new Vec4Dense(openvdb::CoordBBox(0, 0, 0, Resolution.X - 1, Resolution.Y - 1, Resolution.Z - 1), Vec4(0.0, 0.0, 0.0, 0.0)));
 }
 
 bool FOpenVDBCacheData::LoadFile(FString Path, int frame)
@@ -106,7 +139,7 @@ bool FOpenVDBCacheData::LoadFile(FString Path, int frame)
 	// if the file is loaded at the current frame, return true
 	if (OpenVDBGrids.Contains(frame) && OpenVDBGrids[frame] != nullptr)
 	{
-		openvdb::tools::CopyToDense<Vec4STree, openvdb::tools::Dense<openvdb::Vec4s, openvdb::tools::MemoryLayout::LayoutXYZ>> Copier(OpenVDBGrids[frame]->tree(), *DenseGridPtr);
+		openvdb::tools::CopyToDense<Vec4Tree, Vec4Dense> Copier(OpenVDBGrids[frame]->tree(), *DenseGridPtr);
 		Copier.copy();
 
 		return true;
@@ -130,8 +163,8 @@ bool FOpenVDBCacheData::LoadFile(FString Path, int frame)
 			return false;
 		}
 
-		Vec4SGrid::Ptr ColorGrid;		
-		ColorGrid = openvdb::gridPtrCast<Vec4SGrid>(file.readGrid(openvdb::Name("Color")));		
+		Vec4Grid::Ptr ColorGrid;		
+		ColorGrid = openvdb::gridPtrCast<Vec4Grid>(file.readGrid(openvdb::Name("Color")));		
 
 		if (ColorGrid == nullptr)
 		{
@@ -159,7 +192,7 @@ bool FOpenVDBCacheData::LoadFile(FString Path, int frame)
 			OpenVDBGrids.Add(frame, ColorGrid);
 
 			// load to dense buffer			
-			openvdb::tools::CopyToDense<Vec4STree, openvdb::tools::Dense<openvdb::Vec4s, openvdb::tools::MemoryLayout::LayoutXYZ>> Copier(ColorGrid->tree(), *DenseGridPtr);
+			openvdb::tools::CopyToDense<Vec4Tree, Vec4Dense> Copier(ColorGrid->tree(), *DenseGridPtr);
 			Copier.copy();
 		}
 		catch (openvdb::Exception e)
@@ -228,7 +261,7 @@ bool FOpenVDBCacheData::Fill3DTexture_RenderThread(int frame, FTextureRHIRef Tex
 	return false;
 }
 
-bool FOpenVDBCacheData::WriteImageDataToOpenVDBFile(FStringView FilePath, FIntVector ImageSize, TArrayView<FFloat16Color> ImageData, bool UseFloatGrids)
+bool OpenVDBTools::WriteImageDataToOpenVDBFile(FStringView FilePath, FIntVector ImageSize, TArrayView<FFloat16Color> ImageData, bool UseFloatGrids)
 {
 	openvdb::math::Transform::Ptr TransformPtr = openvdb::math::Transform::createLinearTransform(/*voxel size=*/1.0);
 
@@ -237,7 +270,7 @@ bool FOpenVDBCacheData::WriteImageDataToOpenVDBFile(FStringView FilePath, FIntVe
 	openvdb::FloatGrid::Ptr BGrid;
 	openvdb::FloatGrid::Ptr AGrid;
 
-	Vec4SGrid::Ptr ColorGrid;
+	Vec4Grid::Ptr ColorGrid;
 
 	if (UseFloatGrids)
 	{
@@ -272,21 +305,21 @@ bool FOpenVDBCacheData::WriteImageDataToOpenVDBFile(FStringView FilePath, FIntVe
 					uint32 LinearIndex = x + y * ImageSize.X + z * ImageSize.X * ImageSize.Y;
 					FFloat16Color CurrValue = ImageData[LinearIndex];
 
-					Raccessor.setValue(openvdb::Coord(x, y, z), CurrValue.R);
-					Gaccessor.setValue(openvdb::Coord(x, y, z), CurrValue.G);
-					Baccessor.setValue(openvdb::Coord(x, y, z), CurrValue.B);
-					Aaccessor.setValue(openvdb::Coord(x, y, z), CurrValue.A);
+					Raccessor.setValue(openvdb::Coord(x, y, z), CurrValue.R.GetFloat());
+					Gaccessor.setValue(openvdb::Coord(x, y, z), CurrValue.G.GetFloat());
+					Baccessor.setValue(openvdb::Coord(x, y, z), CurrValue.B.GetFloat());
+					Aaccessor.setValue(openvdb::Coord(x, y, z), CurrValue.A.GetFloat());
 				}	
 			}
 		}
 	}
 	else
 	{
-		ColorGrid = Vec4SGrid::create(openvdb::Vec4s(0.0));
+		ColorGrid = Vec4Grid::create(Vec4(0.0));
 		ColorGrid->setTransform(TransformPtr);
 		ColorGrid->setGridClass(openvdb::GRID_FOG_VOLUME);
 		ColorGrid->setName("Color");
-		Vec4SGrid::Accessor ColorAccessor = ColorGrid->getAccessor();
+		Vec4Grid::Accessor ColorAccessor = ColorGrid->getAccessor();
 
 		for (int z = 0; z < ImageSize.Z; ++z) {
 			for (int y = 0; y < ImageSize.Y; ++y) {
@@ -294,7 +327,7 @@ bool FOpenVDBCacheData::WriteImageDataToOpenVDBFile(FStringView FilePath, FIntVe
 					uint32 LinearIndex = x + y * ImageSize.X + z * ImageSize.X * ImageSize.Y;
 					FFloat16Color CurrValue = ImageData[LinearIndex];
 
-					ColorAccessor.setValue(openvdb::Coord(x, y, z), openvdb::Vec4s(CurrValue.R, CurrValue.G, CurrValue.B, CurrValue.A));
+					ColorAccessor.setValue(openvdb::Coord(x, y, z), Vec4(CurrValue.R.GetFloat(), CurrValue.G.GetFloat(), CurrValue.B.GetFloat(), CurrValue.A.GetFloat()));
 				}
 			}
 		}

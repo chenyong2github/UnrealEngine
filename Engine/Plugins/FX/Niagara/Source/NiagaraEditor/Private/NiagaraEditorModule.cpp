@@ -151,10 +151,6 @@
 #include "NiagaraGraphDataCache.h"
 #include "Misc/ScopedSlowTask.h"
 
-#if PLATFORM_WINDOWS
-#include "NiagaraOpenVDB.h"
-#endif
-
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
 #define LOCTEXT_NAMESPACE "NiagaraEditorModule"
@@ -822,19 +818,6 @@ void FNiagaraEditorModule::PostGarbageCollect()
 
 void FNiagaraEditorModule::StartupModule()
 {
-	// Global registration of  the vdb types.
-#if PLATFORM_WINDOWS
-	openvdb::initialize();
-	try
-	{
-		Vec4SGrid::registerGrid();
-	}
-	catch (openvdb::Exception e)
-	{
-		UE_LOG(LogNiagaraEditor, Warning, TEXT("OpenVDB exception: %s"), ANSI_TO_TCHAR(e.what()));
-	}
-#endif	
-	
 	bThumbnailRenderersRegistered = false;
 
 	FHlslNiagaraTranslator::Init();
