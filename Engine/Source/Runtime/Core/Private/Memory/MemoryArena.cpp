@@ -19,10 +19,6 @@ extern "C" {
 #define USE_SPIN_LOCKS 0
 //#define USE_RECURSIVE_LOCKS 1
 
-#if PLATFORM_PS4
-#	define malloc_getpagesize 4096
-#endif
-
 #include "ThirdParty/dlmalloc/malloc-2.8.6.h"
 
 #if PLATFORM_WINDOWS

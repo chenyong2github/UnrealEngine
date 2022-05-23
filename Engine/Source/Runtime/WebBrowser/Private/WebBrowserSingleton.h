@@ -168,7 +168,7 @@ private:
 	/** List of currently existing browser windows */
 #if WITH_CEF3
 	TArray<TWeakPtr<FCEFWebBrowserWindow>>	WindowInterfaces;
-#elif PLATFORM_IOS || PLATFORM_PS4 || (PLATFORM_ANDROID && USE_ANDROID_JNI)
+#elif PLATFORM_IOS || PLATFORM_SPECIFIC_WEB_BROWSER || (PLATFORM_ANDROID && USE_ANDROID_JNI)
 	TArray<TWeakPtr<IWebBrowserWindow>>	WindowInterfaces;
 #endif
 

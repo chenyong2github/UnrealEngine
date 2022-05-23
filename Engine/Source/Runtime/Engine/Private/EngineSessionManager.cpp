@@ -27,8 +27,14 @@
 
 DEFINE_LOG_CATEGORY(LogEngineSessionManager);
 
+#if !defined(IGNORE_SESSION_SHUTDOWN_IN_DEACTIVATED_STATE)
+	#define IGNORE_SESSION_SHUTDOWN_IN_DEACTIVATED_STATE 0
+#endif
 #if !defined(IGNORE_SESSION_SHUTDOWN_IN_BACKGROUND_STATE)
 	#define IGNORE_SESSION_SHUTDOWN_IN_BACKGROUND_STATE 0
+#endif
+#if !defined(UNABLE_TO_SET_TERMINATING_FLAG)
+	#define UNABLE_TO_SET_TERMINATING_FLAG 0
 #endif
 
 namespace SessionManagerDefs
@@ -45,7 +51,6 @@ namespace SessionManagerDefs
 	static const FString TerminatedSessionToken(TEXT("Terminated"));
 	static const FString DebuggerSessionToken(TEXT("Debugger"));
 	static const FString AbnormalSessionToken(TEXT("AbnormalShutdown"));
-	static const FString PS4SessionToken(TEXT("AbnormalShutdownPS4"));
 	static const FString SessionRecordListSection(TEXT("List"));
 	static const FString EditorSessionRecordSectionPrefix(TEXT("Unreal Engine/Editor Sessions/"));
 	static const FString GameSessionRecordSectionPrefix(TEXT("Unreal Engine/Game Sessions/"));
@@ -445,16 +450,16 @@ void FEngineSessionManager::SendAbnormalShutdownReport(const FSessionRecord& Rec
 
 #if PLATFORM_WINDOWS | PLATFORM_MAC | PLATFORM_UNIX
 	// do nothing
-#elif PLATFORM_PS4
+#elif IGNORE_SESSION_SHUTDOWN_IN_DEACTIVATED_STATE
 	if (Record.bIsDeactivated && !Record.bCrashed)
 	{
-		// Shutting down in deactivated state on PS4 is normal - don't report it
+		// Shutting down in deactivated state on this platform is normal - don't report it
 		return;
 	}
 #elif IGNORE_SESSION_SHUTDOWN_IN_BACKGROUND_STATE
 	if (Record.bIsInBackground && !Record.bCrashed)
 	{
-		// Shutting down in background state on XB1 is normal - don't report it
+		// Shutting down in background state on this platform is normal - don't report it
 		return;
 	}
 #else
@@ -469,13 +474,13 @@ void FEngineSessionManager::SendAbnormalShutdownReport(const FSessionRecord& Rec
 		SessionIdString = SessionId.ToString(EGuidFormats::DigitsWithHyphensInBraces);
 	}
 
-#if !PLATFORM_PS4
+#if !UNABLE_TO_SET_TERMINATING_FLAG
 	FString ShutdownTypeString = Record.bCrashed ? SessionManagerDefs::CrashSessionToken :
 		(Record.bWasEverDebugger ? SessionManagerDefs::DebuggerSessionToken :
 		(Record.bIsTerminating ? SessionManagerDefs::TerminatedSessionToken : SessionManagerDefs::AbnormalSessionToken));
 #else
-	// PS4 cannot set the crash flag so report abnormal shutdowns with a specific token meaning "crash or abnormal shutdown".
-	FString ShutdownTypeString = Record.bWasEverDebugger ? SessionManagerDefs::DebuggerSessionToken : SessionManagerDefs::PS4SessionToken;
+	// Platform cannot set the crash flag so report abnormal shutdowns with a specific token meaning "crash or abnormal shutdown".
+	FString ShutdownTypeString = Record.bWasEverDebugger ? SessionManagerDefs::DebuggerSessionToken : SessionManagerDefs::AbnormalSessionToken + FPlatformProperties::PlatformName();
 #endif
 
 	const FString& RunTypeString = Record.Mode == EEngineSessionManagerMode::Editor ? SessionManagerDefs::EditorValueString : SessionManagerDefs::GameValueString;

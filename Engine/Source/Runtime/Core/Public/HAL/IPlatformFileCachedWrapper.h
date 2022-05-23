@@ -281,12 +281,15 @@ public:
 	}
 	virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override
 	{
+#ifndef PLATFORM_PROVIDES_FILE_CACHE
+#define PLATFORM_PROVIDES_FILE_CACHE 0
+#endif
 		// Default to false on platforms that already do platform file level caching
-		bool bResult = !PLATFORM_PS4 && !PLATFORM_WINDOWS && FPlatformProperties::RequiresCookedData();
+		bool bResult = !PLATFORM_PROVIDES_FILE_CACHE && !PLATFORM_WINDOWS && FPlatformProperties::RequiresCookedData();
 
 		// Allow a choice between shorter load times or less memory on desktop platforms.
 		// Note: this cannot be in config since they aren't read at that point.
-#if (PLATFORM_DESKTOP || PLATFORM_PS4)
+#if (PLATFORM_DESKTOP || PLATFORM_PROVIDES_FILE_CACHE)
 		{
 			if (FParse::Param(CmdLine, TEXT("NoCachedReadFile")))
 			{

@@ -67,8 +67,13 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 // **** The Target Platform ****
 
 // define ONE of these
-#if (defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64) || defined(__WIN32__) || defined(__WINDOWS__)) && !defined(MEMPRO_PLATFORM_XBOXONE) //@EPIC: allow external definition
-	#if defined(_XBOX_ONE) //@EPIC:  allow external definition
+//@EPIC BEGIN external definition of platforms
+#if defined(MEMPRO_PLATFORM_XBOXONE)
+#elif defined(MEMPRO_PLATFORM_PS4)
+#elif defined(MEMPRO_PLATFORM_SWITCH)
+#elif defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64) || defined(__WIN32__)
+//@EPIC END
+	#if defined(_XBOX_ONE)
 		#define MEMPRO_PLATFORM_XBOXONE
 	#elif defined(_XBOX)
 		#define MEMPRO_PLATFORM_XBOX360
@@ -77,12 +82,6 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 	#endif
 #elif defined(__APPLE__)
 	#define MEMPRO_PLATFORM_APPLE
-#elif defined(PS4) || (defined(__UNREAL__) && PLATFORM_PS4)
-	#define MEMPRO_PLATFORM_PS4
-//@EPIC BEGIN: other platforms
-#elif defined(__UNREAL__) && PLATFORM_SWITCH
-	#define MEMPRO_PLATFORM_SWITCH
-//@EPIC END
 #else
 	#define MEMPRO_PLATFORM_UNIX
 #endif

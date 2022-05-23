@@ -32,7 +32,7 @@ FORCEINLINE void DoGamethreadHook(int32 Index)
 }
 #endif
 
-#define TIME_MALLOC (0 && PLATFORM_PS4)
+#define TIME_MALLOC (0)
 
 #if TIME_MALLOC
 

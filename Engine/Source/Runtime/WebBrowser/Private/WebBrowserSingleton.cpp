@@ -451,7 +451,7 @@ FWebBrowserSingleton::~FWebBrowserSingleton()
 		// Shut down CEF.
 		CefShutdown();
 	}
-#elif PLATFORM_IOS || PLATFORM_PS4 || (PLATFORM_ANDROID && USE_ANDROID_JNI)
+#elif PLATFORM_IOS || PLATFORM_SPECIFIC_WEB_BROWSER || (PLATFORM_ANDROID && USE_ANDROID_JNI)
 	{
 		FScopeLock Lock(&WindowInterfacesCS);
 		// Clear this before CefShutdown() below
@@ -634,7 +634,7 @@ TSharedPtr<IWebBrowserWindow> FWebBrowserSingleton::CreateBrowserWindow(const FC
 		WindowInterfaces.Add(NewBrowserWindow);
 	}
 	return NewBrowserWindow;
-#elif PLATFORM_PS4
+#elif PLATFORM_SPECIFIC_WEB_BROWSER
 	// Create new window
 	TSharedPtr<FWebBrowserWindow> NewBrowserWindow = MakeShareable(new FWebBrowserWindow(
 		WindowSettings.InitialURL,
@@ -749,7 +749,7 @@ bool FWebBrowserSingleton::Tick(float DeltaTime)
 		}
 	}
 
-#elif PLATFORM_IOS || PLATFORM_PS4 || (PLATFORM_ANDROID && USE_ANDROID_JNI)
+#elif PLATFORM_IOS || PLATFORM_SPECIFIC_WEB_BROWSER || (PLATFORM_ANDROID && USE_ANDROID_JNI)
 	FScopeLock Lock(&WindowInterfacesCS);
 	bool bIsSlateAwake = FSlateApplication::IsInitialized() && !FSlateApplication::Get().IsSlateAsleep();
 	// Remove any windows that have been deleted and check whether it's currently visible

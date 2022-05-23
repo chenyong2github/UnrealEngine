@@ -434,14 +434,8 @@ FString FPaths::AudioCaptureDir()
 
 FString FPaths::ProjectLogDir()
 {
-#if PLATFORM_PS4
-	const FString* OverrideDir = FPS4PlatformFile::GetOverrideLogDirectory();
-	if (OverrideDir != nullptr)
-	{
-		return *OverrideDir;
-	}
-#elif PLATFORM_SWITCH
-	const FString* OverrideDir = FSwitchPlatformFile::GetOverrideLogDirectory();
+#if defined(OVERRIDE_LOG_DIRECTORY_PLATFORM)
+	const FString* OverrideDir = OVERRIDE_LOG_DIRECTORY_PLATFORM::GetOverrideLogDirectory();
 	if (OverrideDir != nullptr)
 	{
 		return *OverrideDir;

@@ -149,7 +149,7 @@
 		//------------------------------------------------------------------------
 		Platform::Enum Platform::GetPlatformEnum()
 		{
-			//@EPIC: allow external definition + XBOXONE removed
+			//@EPIC: allow external definition + NDA platforms removed
 			#if defined(FRAMEPRO_UNREAL_PLATFORM)
 				return FRAMEPRO_UNREAL_PLATFORM;
 			//@EPIC end
@@ -159,16 +159,12 @@
 				return Platform::Linux;
 			#elif PLATFORM_UNIX
 				return Platform::Linux;
-			#elif PLATFORM_PS4
-				return Platform::PS4;
 			#elif PLATFORM_ANDROID
 				return Platform::Android;
 			#elif PLATFORM_MAC
 				return Platform::Mac;
 			#elif PLATFORM_IOS
 				return Platform::iOS;
-			#elif PLATFORM_SWITCH
-				return Platform::Switch;
 			#else
 				//@EPIC: begin - useful error
 				#error unknown platform or FRAMEPRO_UNREAL_PLATFORM not defined
@@ -177,33 +173,15 @@
 		}
 
 		//------------------------------------------------------------------------
-		namespace PS4ContextSwitches
-		{
-			void* CreateContextSwitchRecorder(Allocator* p_allocator);
-			void DestroyContextSwitchRecorder(void* p_obj, Allocator* p_allocator);
-			bool StartRecordingContextSitches(void* p_obj, Platform::ContextSwitchCallbackFunction callback_function, void* p_context, DynamicString& error, Allocator* p_allocator);
-			void StopRecordingContextSitches(void* p_obj);
-			void FlushContextSwitches(void*);
-		}
-
-		//------------------------------------------------------------------------
 		void* Platform::CreateContextSwitchRecorder(Allocator* p_allocator)
 		{
-			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
-				return PS4ContextSwitches::CreateContextSwitchRecorder(p_allocator);
-			#else
 				return GenericPlatform::CreateContextSwitchRecorder(p_allocator);
-			#endif
 		}
 
 		//------------------------------------------------------------------------
 		void Platform::DestroyContextSwitchRecorder(void* p_context_switch_recorder, Allocator* p_allocator)
 		{
-			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
-				PS4ContextSwitches::DestroyContextSwitchRecorder(p_context_switch_recorder, p_allocator);
-			#else
 				GenericPlatform::DestroyContextSwitchRecorder(p_context_switch_recorder, p_allocator);
-			#endif
 		}
 
 		//------------------------------------------------------------------------
@@ -214,14 +192,6 @@
 			DynamicString& error,
 			Allocator* p_allocator)
 		{
-			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
-				return PS4ContextSwitches::StartRecordingContextSitches(
-					p_context_switch_recorder,
-					p_callback,
-					p_context,
-					error,
-					p_allocator);
-			#else
 				FRAMEPRO_UNREFERENCED(p_allocator);
 
 				return GenericPlatform::StartRecordingContextSitches(
@@ -229,42 +199,28 @@
 					p_callback,
 					p_context,
 					error);
-			#endif
 		}
 
 		//------------------------------------------------------------------------
 		void Platform::StopRecordingContextSitches(void* p_context_switch_recorder)
 		{
-			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
-				PS4ContextSwitches::StopRecordingContextSitches(p_context_switch_recorder);
-			#else
 				GenericPlatform::StopRecordingContextSitches(p_context_switch_recorder);
-			#endif
 		}
 
 		//------------------------------------------------------------------------
 		void Platform::FlushContextSwitches(void* p_context_switch_recorder)
 		{
-			#if PLATFORM_PS4 && FRAMEPRO_PS4_CONTEXT_SWITCH_RECORDING
-				PS4ContextSwitches::FlushContextSwitches(p_context_switch_recorder);
-			#else
 				GenericPlatform::FlushContextSwitches(p_context_switch_recorder);
-			#endif
 		}
 
 		//------------------------------------------------------------------------
-		#if PLATFORM_PS4 && FRAMEPRO_ENUMERATE_ALL_MODULES
-			namespace EnumModulesPS4 { void EnumerateModules(Array<ModulePacket*>& module_packets, Allocator* p_allocator); }
+		#if defined(FRAMEPRO_ENUM_MODULES_PLATFORM) && FRAMEPRO_ENUMERATE_ALL_MODULES
+			namespace FRAMEPRO_ENUM_MODULES_PLATFORM { void EnumerateModules(Array<ModulePacket*>& module_packets, Allocator* p_allocator); }
 		#endif
 
 		//------------------------------------------------------------------------
 		#if PLATFORM_LINUX
 			namespace EnumModulesLinux { void EnumerateModules(Array<ModulePacket*>& module_packets, Allocator* p_allocator); }
-		#endif
-
-		//------------------------------------------------------------------------
-		#if PLATFORM_SWITCH
-			namespace EnumModulesSwitch { void EnumerateModules(Array<ModulePacket*>& module_packets, Allocator* p_allocator); }
 		#endif
 
 		//------------------------------------------------------------------------
@@ -275,10 +231,8 @@
 					EnumModulesWindows::EnumerateModules(module_packets, p_allocator);
 				#elif PLATFORM_LINUX
 					EnumModulesLinux::EnumerateModules(module_packets, p_allocator);
-				#elif PLATFORM_PS4
-					EnumModulesPS4::EnumerateModules(module_packets, p_allocator);
-				#elif PLATFORM_SWITCH
-					EnumModulesSwitch::EnumerateModules(module_packets, p_allocator);
+				#elif defined(FRAMEPRO_ENUM_MODULES_PLATFORM)
+					FRAMEPRO_ENUM_MODULES_PLATFORM::EnumerateModules(module_packets, p_allocator);
 				#else
 					ModulePacket* p_module_packet = (ModulePacket*)p_allocator->Alloc(sizeof(ModulePacket));
 					if (!p_module_packet)

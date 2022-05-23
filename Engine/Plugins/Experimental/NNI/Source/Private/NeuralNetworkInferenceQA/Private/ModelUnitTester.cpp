@@ -5,7 +5,9 @@
 #include "NeuralNetworkInferenceQAUtils.h"
 #include "Misc/Paths.h"
 
-
+#ifndef SKIP_ModelLoadAccuracyAndSpeedTests
+#define SKIP_ModelLoadAccuracyAndSpeedTests 0
+#endif
 
 /* FModelUnitTester axuiliary functions
  *****************************************************************************/
@@ -124,12 +126,12 @@ bool FModelUnitTester::GlobalTest(const FString& InProjectContentDir, const FStr
 	// Run tests
 	UE_LOG(LogNeuralNetworkInferenceQA, Display,
 		TEXT("ENeuralBackEnd::UEOnly test for FModelUnitTester::GlobalTest disabled due to not being compatible with ORT (linking error issues)."));
-#if !PLATFORM_PS4
+#if !SKIP_ModelLoadAccuracyAndSpeedTests
 	return ModelLoadAccuracyAndSpeedTests(InProjectContentDir, InModelZooRelativeDirectory, ModelNames, InputArrayValues, CPUGroundTruths,
 		GPUGroundTruths, CPURepetitionsForUEAndORTBackEnd, GPURepetitionsForUEAndORTBackEnd, CPURepetitionsForUEOnlyBackEnd,
 		GPURepetitionsForUEOnlyBackEnd);
 #else
-	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("ENeuralBackEnd::FModelUnitTester::GlobalTest disabled due to not being compatible with cooked PS4 build"));
+	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("ENeuralBackEnd::FModelUnitTester::GlobalTest disabled due to not being compatible with cooked platform build"));
 	return true; 
 #endif
 }

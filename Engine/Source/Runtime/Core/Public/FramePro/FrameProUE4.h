@@ -44,10 +44,14 @@
 		#define FRAMEPRO_API CORE_API
 
 		// Windows or Linux based platform
-#if !defined(FRAMEPRO_WIN_BASED_PLATFORM) //@EPIC begin - allow external definition + XBOXONE removed
+//@EPIC begin - allow external definition + NDA platforms removed
+#if !defined(FRAMEPRO_WIN_BASED_PLATFORM)
 		#define FRAMEPRO_WIN_BASED_PLATFORM (PLATFORM_WINDOWS)
-#endif //@EPIC: end
-		#define FRAMEPRO_LINUX_BASED_PLATFORM (!FRAMEPRO_WIN_BASED_PLATFORM && !PLATFORM_SWITCH)
+#endif
+#if !defined(FRAMEPRO_LINUX_BASED_PLATFORM)
+		#define FRAMEPRO_LINUX_BASED_PLATFORM (!FRAMEPRO_WIN_BASED_PLATFORM)
+#endif
+//@EPIC: end
 
 		#define FRAMEPRO_USE_TLS_SLOTS 1
 
