@@ -228,6 +228,14 @@ inline RHI_API bool RHISupportsInlineRayTracing(const FStaticShaderPlatform Plat
 	return FDataDrivenShaderPlatformInfo::GetSupportsInlineRayTracing(Platform);
 }
 
+/** Whether this platform can compile ray tracing callable shaders.
+ *  To use at runtime, also check GRHISupportsRayTracing and r.RayTracing CVar (see IsRayTracingEnabled() helper).
+ **/
+inline RHI_API bool RHISupportsRayTracingCallableShaders(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracingCallableShaders(Platform);
+}
+
 /** Can this platform compile mesh shaders with tier0 capability.
  *  To use at runtime, also check GRHISupportsMeshShadersTier0.
  **/

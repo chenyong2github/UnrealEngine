@@ -687,6 +687,11 @@ FORCEINLINE bool ShouldCompileRayTracingShadersForProject(EShaderPlatform Shader
 	}
 }
 
+FORCEINLINE bool ShouldCompileRayTracingCallableShadersForProject(EShaderPlatform ShaderPlatform)
+{
+	return RHISupportsRayTracingCallableShaders(ShaderPlatform) && ShouldCompileRayTracingShadersForProject(ShaderPlatform);
+}
+
 // Returns `true` when running on RT-capable machine, RT support is enabled for the project and by game graphics options.
 // This function may only be called at runtime, never during cooking.
 extern RENDERCORE_API bool IsRayTracingEnabled();
