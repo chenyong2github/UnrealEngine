@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "DatasmithCloth.h"
 #include "MeshDescription.h"
 
 
@@ -10,12 +11,21 @@ struct FDatasmithPayload
 	TArray<class UDatasmithAdditionalData*> AdditionalData;
 };
 
+
 struct FDatasmithMeshElementPayload : public FDatasmithPayload
 {
 	TArray<FMeshDescription> LodMeshes;
 	FMeshDescription CollisionMesh;
 	TArray<FVector3f> CollisionPointCloud; // compatibility, favor the CollisionMesh member
 };
+
+
+// #ue_ds_cloth_doc IDatasmithScene API
+struct FDatasmithClothElementPayload : public FDatasmithPayload
+{
+	FDatasmithCloth Cloth;
+};
+
 
 struct FDatasmithLevelSequencePayload : public FDatasmithPayload
 {

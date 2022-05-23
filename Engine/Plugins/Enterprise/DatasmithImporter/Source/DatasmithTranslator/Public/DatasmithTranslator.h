@@ -13,6 +13,7 @@
 
 class FDatasmithSceneSource;
 class IDatasmithScene;
+class IDatasmithClothElement;
 class IDatasmithMeshElement;
 class IDatasmithLevelSequenceElement;
 
@@ -94,7 +95,16 @@ public:
 	 * @param OutMeshPayload	Actual mesh data from the source
 	 * @returns					Operation succeed
 	 */
-	virtual bool LoadStaticMesh(const TSharedRef< IDatasmithMeshElement > MeshElement, FDatasmithMeshElementPayload& OutMeshPayload) { return false; }
+	virtual bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload) { return false; }
+
+	/**
+	 * Get payload related to the given Element
+	 *
+	 * @param ClothElement       Element for which the payload is required
+	 * @param OutClothPayload    Actual cloth data from the source
+	 * @returns                  Operation succeed
+	 */
+	virtual bool LoadCloth(const TSharedRef<IDatasmithClothElement> ClothElement, FDatasmithClothElementPayload& OutClothPayload) { return false; }
 
 	/**
 	 * Get payload related to the given Element
@@ -103,7 +113,7 @@ public:
 	 * @param OutLevelSequencePayload	Data associated with this element
 	 * @returns							Operation succeed
 	 */
-	virtual bool LoadLevelSequence(const TSharedRef< IDatasmithLevelSequenceElement > LevelSequenceElement, FDatasmithLevelSequencePayload& OutLevelSequencePayload) { return false; }
+	virtual bool LoadLevelSequence(const TSharedRef<IDatasmithLevelSequenceElement> LevelSequenceElement, FDatasmithLevelSequencePayload& OutLevelSequencePayload) { return false; }
 
 	/**
 	 * Get the additional scene import options.

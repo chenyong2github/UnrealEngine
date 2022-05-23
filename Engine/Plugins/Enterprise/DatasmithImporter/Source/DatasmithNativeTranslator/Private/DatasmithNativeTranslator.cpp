@@ -43,6 +43,13 @@ void FDatasmithNativeTranslator::ResolveSceneFilePaths(TSharedRef<IDatasmithScen
 		Mesh->SetFile(*ResolveFilePath(Path, ResourcePaths));
 	}
 
+	for (int32 Index = 0; Index < Scene->GetClothesCount(); ++Index)
+	{
+		const TSharedPtr<IDatasmithClothElement>& Cloth = Scene->GetCloth(Index);
+		const TCHAR* Path = Cloth->GetFile();
+		Cloth->SetFile(*ResolveFilePath(Path, ResourcePaths));
+	}
+
 	for (int32 Index = 0; Index < Scene->GetTexturesCount(); ++Index)
 	{
 		const TSharedPtr<IDatasmithTextureElement>& Tex = Scene->GetTexture(Index);

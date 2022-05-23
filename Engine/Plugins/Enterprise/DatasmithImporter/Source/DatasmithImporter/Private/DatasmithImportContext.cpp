@@ -230,7 +230,7 @@ FDatasmithImportContext::FDatasmithImportContext(const TSharedPtr<UE::DatasmithI
 		{
 			SceneTranslator->GetSceneImportOptions(AdditionalImportOptions);
 		}
-		
+
 		const FString FileName = InExternalSource->GetFallbackFilepath();
 		Options->FileName = FPaths::GetCleanFilename(FileName);
 		Options->FilePath = FPaths::ConvertRelativePathToFull(FileName);
@@ -553,6 +553,11 @@ void FDatasmithImportContext::FInternalReferenceCollector::AddReferencedObjects(
 	for ( TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* >::TIterator It = ImportContext->ImportedStaticMeshes.CreateIterator(); It; ++It )
 	{
 		Collector.AddReferencedObject( It->Value );
+	}
+
+	for (auto& Pair : ImportContext->ImportedClothes)
+	{
+		Collector.AddReferencedObject(Pair.Value);
 	}
 
 	Collector.AddReferencedObjects(ImportContext->ImportedMaterials);

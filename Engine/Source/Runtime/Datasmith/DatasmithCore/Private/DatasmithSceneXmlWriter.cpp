@@ -30,6 +30,7 @@ public:
 
 	static void WriteTexture(FArchive& Archive, int32 Indent, const TCHAR* Prefix, const TCHAR* Name, FDatasmithTextureSampler UV);
 	static void WriteMeshElement(const TSharedPtr< IDatasmithMeshElement >& MeshElement, FArchive& Archive, int32 Indent);
+	static void WriteClothElement(const TSharedPtr< IDatasmithClothElement >& ClothElement, FArchive& Archive, int32 Indent);
 	static void WriteLevelSequenceElement( const TSharedRef< IDatasmithLevelSequenceElement>& SequenceElement, FArchive& Archive, int32 Indent );
 
 	static void WriteLevelVariantSetsElement( const TSharedRef< IDatasmithLevelVariantSetsElement >& LevelVariantSetsElement, FArchive& Archive, int32 Indent );
@@ -354,6 +355,23 @@ void FDatasmithSceneXmlWriterImpl::WriteMeshElement(const TSharedPtr< IDatasmith
 	WriteIndent(Archive, Indent);
 	XmlString = TEXT("</") + FString(DATASMITH_STATICMESHNAME) + TEXT(">") + LINE_TERMINATOR;
 	SerializeToArchive(Archive, XmlString);
+}
+
+void FDatasmithSceneXmlWriterImpl::WriteClothElement(const TSharedPtr<IDatasmithClothElement>& Element, FArchive& Archive, int32 Indent)
+{
+	// #ue_ds_cloth_note: FDatasmithSceneXmlWriterImpl::WriteClothElement
+	WriteIndent(Archive, Indent);
+	FString XmlString = TEXT("<") DATASMITH_CLOTH;
+	XmlString += TEXT(" name=\"") + SanitizeXMLText( Element->GetName() ) + TEXT("\"");
+	XmlString += TEXT(" label=\"") + SanitizeXMLText( Element->GetLabel() ) + TEXT("\"");
+	XmlString += TEXT(">") LINE_TERMINATOR;
+	SerializeToArchive(Archive, XmlString);
+
+	WriteIndent(Archive, Indent + 1);
+	SerializeToArchive(Archive, TEXT("<file path=\"") + SanitizeXMLText(Element->GetFile()) + TEXT("\"/>") LINE_TERMINATOR);
+
+	WriteIndent(Archive, Indent);
+	SerializeToArchive(Archive, TEXT("</") DATASMITH_CLOTH TEXT(">") LINE_TERMINATOR);
 }
 
 void FDatasmithSceneXmlWriterImpl::WriteLevelSequenceElement(const TSharedRef< IDatasmithLevelSequenceElement>& SequenceElement, FArchive& Archive, int32 Indent)
@@ -1920,6 +1938,12 @@ void FDatasmithSceneXmlWriter::Serialize( TSharedRef< IDatasmithScene > Datasmit
 	{
 		TSharedPtr< IDatasmithMeshElement > Mesh = DatasmithScene->GetMesh( MeshIndex );
 		FDatasmithSceneXmlWriterImpl::WriteMeshElement( Mesh, Archive, 1 );
+	}
+
+	for ( int32 Index = 0; Index < DatasmithScene->GetClothesCount(); ++Index )
+	{
+		const TSharedPtr< IDatasmithClothElement >& Cloth = DatasmithScene->GetCloth( Index );
+		FDatasmithSceneXmlWriterImpl::WriteClothElement( Cloth, Archive, 1 );
 	}
 
 	for ( int32 ActorIndex = 0; ActorIndex < DatasmithScene->GetActorsCount(); ++ActorIndex )

@@ -16,7 +16,6 @@
  */
 class IDatasmithImporterModule : public IModuleInterface
 {
-
 public:
 
 	/**
@@ -46,5 +45,9 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGenerateDatasmithImportMenu, struct FToolMenuSection&);
 	virtual FOnGenerateDatasmithImportMenu& OnGenerateDatasmithImportMenu() = 0;
+
+	// #ue_ds_cloth_arch: temp API: Do not use directly.
+	virtual void SetClothImporterExtension(class IDatasmithImporterExt*) = 0;
+	virtual class IDatasmithImporterExt* GetClothImporterExtension() = 0;
 };
 

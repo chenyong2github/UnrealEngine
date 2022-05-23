@@ -24,3 +24,5 @@ struct DATASMITHCORE_API FDatasmithPackedMeshes
 };
 
 DATASMITHCORE_API FDatasmithPackedMeshes GetDatasmithMeshFromFile(const FString& MeshPath);
+DATASMITHCORE_API FDatasmithPackedMeshes GetDatasmithClothFromFile(const FString& Path);
+

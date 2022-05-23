@@ -40,6 +40,8 @@ TSharedPtr< IDatasmithElement > FDatasmithSceneFactory::CreateElement( EDatasmit
 		}
 	case EDatasmithElementType::StaticMesh:
 		return CreateMesh( InName );
+	case EDatasmithElementType::Cloth:
+		return CreateCloth( InName );
 	case EDatasmithElementType::StaticMeshActor:
 		return CreateMeshActor( InName );
 	case EDatasmithElementType::PointLight:
@@ -192,6 +194,11 @@ TSharedRef< IDatasmithKeyValueProperty > FDatasmithSceneFactory::CreateKeyValueP
 TSharedRef< IDatasmithMeshElement > FDatasmithSceneFactory::CreateMesh( const TCHAR* InName )
 {
 	return MakeShared< FDatasmithMeshElementImpl >( InName );
+}
+
+TSharedRef< IDatasmithClothElement > FDatasmithSceneFactory::CreateCloth(const TCHAR* InName)
+{
+	return MakeShared< FDatasmithClothElementImpl >( InName );
 }
 
 TSharedRef< IDatasmithMeshActorElement > FDatasmithSceneFactory::CreateMeshActor( const TCHAR* InName )

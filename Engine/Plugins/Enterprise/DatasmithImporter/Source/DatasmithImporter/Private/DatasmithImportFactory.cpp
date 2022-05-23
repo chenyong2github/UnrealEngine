@@ -262,6 +262,15 @@ namespace DatasmithImportFactoryImpl
 			return false;
 		}
 
+		// CLOTH
+		FDatasmithImporter::ImportClothes( InContext );
+
+		if ( InContext.bUserCancelled )
+		{
+			bOutOperationCancelled = true;
+			return false;
+		}
+
 		// ACTORS
 		if( InContext.ShouldImportActors() )
 		{
@@ -496,7 +505,7 @@ UObject* UDatasmithImportFactory::FactoryCreateFile(UClass* InClass, UObject* In
 		UE_LOG(LogDatasmithImport, Warning, TEXT("Datasmith import error: no suitable external source found for this file path. Abort import."));
 		return nullptr;
 	}
-	
+
 	return CreateFromExternalSource(InClass, InParent, InName, InFlags, ExternalSource.ToSharedRef(), InParms, InWarn, bOutOperationCanceled);
 }
 
@@ -843,7 +852,7 @@ EReimportResult::Type UDatasmithImportFactory::ReimportScene(UDatasmithScene* Sc
 	}
 
 	UDatasmithSceneImportData& AssetImportData = *SceneAsset->AssetImportData;
-	
+
 	TSharedPtr<FExternalSource> ExternalSource = IExternalSourceModule::Get().GetManager().TryGetExternalSourceFromImportData(AssetImportData);
 	if (!ExternalSource)
 	{

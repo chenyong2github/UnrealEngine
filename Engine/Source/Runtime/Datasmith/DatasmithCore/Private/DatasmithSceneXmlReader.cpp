@@ -435,6 +435,20 @@ void FDatasmithSceneXmlReader::ParseMesh(FXmlNode* InNode, TSharedPtr<IDatasmith
 	}
 }
 
+void FDatasmithSceneXmlReader::ParseCloth(FXmlNode* InNode, TSharedPtr<IDatasmithClothElement>& OutElement) const
+{
+	// #ue_ds_cloth: xml read
+	ParseElement( InNode, OutElement.ToSharedRef() );
+
+	for (const FXmlNode* Node : InNode->GetChildrenNodes())
+	{
+		if (Node->GetTag() == TEXT("file"))
+		{
+			OutElement->SetFile(*UnsanitizeXMLText(Node->GetAttribute(TEXT("path"))));
+		}
+	}
+}
+
 void FDatasmithSceneXmlReader::ParseTextureElement(FXmlNode* InNode, TSharedPtr<IDatasmithTextureElement>& OutElement) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithSceneXmlReader::ParseTextureElement);
@@ -1190,6 +1204,18 @@ bool FDatasmithSceneXmlReader::ParseXmlFile(TSharedRef< IDatasmithScene >& OutSc
 			OutScene->AddMesh(Element);
 
 			Objects.Add( Element->GetName(), Element );
+		}
+		// CLOTHES
+		else if (Nodes[i]->GetTag() == DATASMITH_CLOTH)
+		{
+			FString ElementName = Nodes[i]->GetAttribute(TEXT("name"));
+			TSharedPtr< IDatasmithClothElement > Element = FDatasmithSceneFactory::CreateCloth(*ElementName);
+
+			ParseCloth( Nodes[i], Element );
+
+			OutScene->AddCloth(Element);
+
+// 			Objects.Add( Element->GetName(), Element ); // #ue_ds_cloth_todo cloths referencables by other elements
 		}
 		// LEVEL SEQUENCES
 		else if (Nodes[i]->GetTag() == DATASMITH_LEVELSEQUENCENAME)

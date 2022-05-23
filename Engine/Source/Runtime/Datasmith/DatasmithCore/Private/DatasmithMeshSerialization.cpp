@@ -317,3 +317,26 @@ FDatasmithPackedMeshes GetDatasmithMeshFromFile(const FString& MeshPath)
 	return Result;
 }
 
+DATASMITHCORE_API FDatasmithPackedMeshes GetDatasmithClothFromFile(const FString& Path)
+{
+	// #ue_ds_cloth: asset serialization
+	FDatasmithPackedMeshes Result;
+
+	TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileReader(*Path) );
+	if ( !Archive.IsValid() )
+	{
+		UE_LOG(LogDatasmith, Warning, TEXT("Cannot read file %s"), *Path);
+		return Result;
+	}
+
+	Result.Serialize(*Archive);
+
+	if (Archive->IsError())
+	{
+		Result = FDatasmithPackedMeshes{};
+		UE_LOG(LogDatasmith, Warning, TEXT("Failed to read cloth from %s"), *Path);
+	}
+
+	return Result;
+}
+

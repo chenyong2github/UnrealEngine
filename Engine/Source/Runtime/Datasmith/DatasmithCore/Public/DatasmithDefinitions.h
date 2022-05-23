@@ -48,6 +48,7 @@ enum class EDatasmithElementType : uint64
 	MaterialExpression             = 1ull << 31,
 	MaterialExpressionInput        = 1ull << 32,
 	MaterialExpressionOutput       = 1ull << 33,
+	Cloth                          = 1ull << 34,
 };
 
 ENUM_CLASS_FLAGS( EDatasmithElementType ); // Define bitwise operators for EDatasmithElementType
@@ -454,6 +455,8 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 
 #define DATASMITH_ACTORNAME						TEXT("Actor")
 
+#define DATASMITH_CLOTH							TEXT("Cloth")
+
 //ACTOR MESHES
 #define DATASMITH_ACTORMESHNAME					TEXT("ActorMesh")
 
@@ -628,3 +631,4 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 #define DATASMITH_ENVILLUMINATIONMAP			TEXT("Illuminate")
 
 #define DATASMITH_DECALMATERIALNAME				TEXT("DecalMaterial")
+

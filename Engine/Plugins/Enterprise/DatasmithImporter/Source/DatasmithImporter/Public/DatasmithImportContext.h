@@ -21,6 +21,7 @@ struct FDatasmithImportContext;
 class FJsonObject;
 class FMessageLogModule;
 class IDatasmithBaseMaterialElement;
+class IDatasmithClothElement;
 class IDatasmithElement;
 class IDatasmithLevelSequenceElement;
 class IDatasmithLevelVariantSetsElement;
@@ -255,6 +256,8 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 
 	/** Map of imported mesh for each mesh element */
 	TMap< TSharedRef< IDatasmithMeshElement >, UStaticMesh* > ImportedStaticMeshes;
+
+	TMap< TSharedRef< IDatasmithClothElement >, UObject* > ImportedClothes; // UChaosClothAsset
 
 	/** Register IDatasmithMeshElement by their name so they can be searched faster */
 	TMap< FString, TSharedRef < IDatasmithMeshElement > > ImportedStaticMeshesByName;

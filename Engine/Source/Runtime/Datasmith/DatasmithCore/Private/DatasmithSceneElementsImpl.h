@@ -387,6 +387,21 @@ private:
 	TDatasmithReferenceArrayProxy<IDatasmithMaterialIDElement> MaterialSlots;
 };
 
+// #ue_ds_cloth doc: Experimental Element that describes a cloth asset
+class FDatasmithClothElementImpl : public FDatasmithElementImpl< IDatasmithClothElement >
+{
+public:
+	explicit FDatasmithClothElementImpl(const TCHAR* InName);
+
+public:
+	virtual const TCHAR* GetFile() const override { return *(FString&)File; }
+	virtual void SetFile(const TCHAR* InFile) override { File = InFile; }
+
+private:
+	TReflected<FString> File;
+};
+
+
 class FDatasmithMaterialIDElementImpl : public FDatasmithElementImpl< IDatasmithMaterialIDElement >
 {
 public:
@@ -1589,6 +1604,14 @@ public:
 	virtual void RemoveMeshAt(int32 InIndex) override;
 	virtual void EmptyMeshes() override { Meshes.Empty(); }
 
+	virtual void AddCloth(const TSharedPtr< IDatasmithClothElement >& InElement) override;
+	virtual int32 GetClothesCount() const override;
+	virtual TSharedPtr< IDatasmithClothElement > GetCloth(int32 InIndex) override;
+	virtual const TSharedPtr< IDatasmithClothElement >& GetCloth(int32 InIndex) const override;
+	virtual void RemoveCloth(const TSharedPtr< IDatasmithClothElement >& InElement) override;
+	virtual void RemoveClothAt(int32 InIndex) override;
+	virtual void EmptyClothes() override;
+
 	virtual void AddActor(const TSharedPtr< IDatasmithActorElement >& InActor) override { Actors.Add(InActor);  }
 	virtual int32 GetActorsCount() const override { return Actors.Num(); }
 	virtual TSharedPtr< IDatasmithActorElement > GetActor(int32 InIndex) override;
@@ -1649,6 +1672,7 @@ private:
 
 	TDatasmithReferenceArrayProxy<IDatasmithActorElement>            Actors;
 	TDatasmithReferenceArrayProxy<IDatasmithMeshElement>             Meshes;
+	TDatasmithReferenceArrayProxy<IDatasmithClothElement>            Clothes;
 	TDatasmithReferenceArrayProxy<IDatasmithBaseMaterialElement>     Materials;
 	TDatasmithReferenceArrayProxy<IDatasmithTextureElement>          Textures;
 	TDatasmithReferenceArrayProxy<IDatasmithMetaDataElement>         MetaData;
@@ -1670,7 +1694,7 @@ private:
 
 	TReflected<bool> bUseSky;
 
-	// Internal cache for faster metadata access per-element, should be accessed via GetElementToMetaDataCache(), do not use directly.
+	// Internal cache for faster metadata access per-element, should be accessed via GetMetaDataCache(), do not use directly.
 	mutable TMap< TSharedPtr< IDatasmithElement >, TSharedPtr< IDatasmithMetaDataElement> > ElementToMetaDataMap;
 	TMap< TSharedPtr< IDatasmithElement >, TSharedPtr< IDatasmithMetaDataElement> >& GetElementToMetaDataCache() const;
 };

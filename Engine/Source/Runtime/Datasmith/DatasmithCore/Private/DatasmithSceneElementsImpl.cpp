@@ -86,7 +86,6 @@ int32 FDatasmithMeshElementImpl::GetMaterialSlotCount() const
 	return MaterialSlots.Num();
 }
 
-
 TSharedPtr<const IDatasmithMaterialIDElement> FDatasmithMeshElementImpl::GetMaterialSlotAt(int32 Index) const
 {
 	if (MaterialSlots.IsValidIndex(Index))
@@ -105,6 +104,12 @@ TSharedPtr<IDatasmithMaterialIDElement> FDatasmithMeshElementImpl::GetMaterialSl
 	}
 	const TSharedPtr<IDatasmithMaterialIDElement> InvalidMaterialID;
 	return InvalidMaterialID;
+}
+
+FDatasmithClothElementImpl::FDatasmithClothElementImpl(const TCHAR* InName)
+	: FDatasmithElementImpl(InName, EDatasmithElementType::Cloth)
+{
+	Store.RegisterParameter(File, "File");
 }
 
 TSharedPtr< IDatasmithKeyValueProperty > FDatasmithKeyValuePropertyImpl::NullPropertyPtr;
@@ -1097,7 +1102,6 @@ void FDatasmithSceneImpl::SetHost(const TCHAR* InHostname)
 	Hostname = InHostname;
 }
 
-static const TSharedPtr< IDatasmithMeshElement > InvalidMeshElement;
 
 TSharedPtr< IDatasmithMeshElement > FDatasmithSceneImpl::GetMesh(int32 InIndex)
 {
@@ -1119,6 +1123,7 @@ const TSharedPtr< IDatasmithMeshElement >& FDatasmithSceneImpl::GetMesh(int32 In
 	}
 	else
 	{
+		static const TSharedPtr< IDatasmithMeshElement > InvalidMeshElement;
 		return InvalidMeshElement;
 	}
 }
@@ -1129,6 +1134,53 @@ void FDatasmithSceneImpl::RemoveMeshAt(int32 InIndex)
 	{
 		Meshes.RemoveAt(InIndex);
 	}
+}
+
+void FDatasmithSceneImpl::AddCloth(const TSharedPtr< IDatasmithClothElement >& InElement)
+{
+	Clothes.Add(InElement);
+}
+
+int32 FDatasmithSceneImpl::GetClothesCount() const
+{
+	return Clothes.Num();
+}
+
+TSharedPtr< IDatasmithClothElement > FDatasmithSceneImpl::GetCloth(int32 InIndex)
+{
+	if ( Clothes.IsValidIndex( InIndex ) )
+	{
+		return Clothes[InIndex];
+	}
+	return {};
+}
+
+const TSharedPtr< IDatasmithClothElement >& FDatasmithSceneImpl::GetCloth(int32 InIndex) const
+{
+	if ( Clothes.IsValidIndex( InIndex ) )
+	{
+		return Clothes[InIndex];
+	}
+	static TSharedPtr< IDatasmithClothElement > NullCloth;
+	return NullCloth;
+}
+
+void FDatasmithSceneImpl::RemoveCloth(const TSharedPtr< IDatasmithClothElement >& InElement)
+{
+	Clothes.Remove(InElement);
+}
+
+void FDatasmithSceneImpl::RemoveClothAt(int32 InIndex)
+{
+	if (Clothes.IsValidIndex(InIndex))
+	{
+		Clothes.RemoveAt(InIndex);
+	}
+}
+
+void FDatasmithSceneImpl::EmptyClothes()
+{
+	Clothes.Empty();
 }
 
 static const TSharedPtr< IDatasmithMetaDataElement > InvalidMetaData;

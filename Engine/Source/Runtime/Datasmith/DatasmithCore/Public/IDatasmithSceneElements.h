@@ -24,8 +24,6 @@ class IDatasmithLevelVariantSetsElement;
 class DATASMITHCORE_API IDatasmithElement : public DirectLink::ISceneGraphNode
 {
 public:
-	virtual ~IDatasmithElement() {}
-
 	/** returns if this DatasmithElement is of a specified type */
 	virtual bool IsA(EDatasmithElementType Type) const = 0;
 
@@ -236,6 +234,21 @@ protected:
 	virtual void SetLODCount(int32 Count) = 0;
 
 	friend class FDatasmithStaticMeshImporter;
+};
+
+/**
+* #ue_ds_cloth_doc IDatasmithClothElement class: experimental class that describes a cloth asset
+*/
+class DATASMITHCORE_API IDatasmithClothElement : public IDatasmithElement
+{
+public:
+	/** Get the FDatasmithCloth resource filename */
+	virtual const TCHAR* GetFile() const = 0;
+
+	/** Set the FDatasmithCloth resource filename, it can be absolute or relative to the scene file */
+	virtual void SetFile(const TCHAR* InFile) = 0;
+
+// class DATASMITHCORE_API IDatasmithClothPropertiesElement : public IDatasmithElement
 };
 
 /**
@@ -678,8 +691,6 @@ public:
 class DATASMITHCORE_API IDatasmithPostProcessElement : public IDatasmithElement
 {
 public:
-	virtual ~IDatasmithPostProcessElement() {}
-
 	/** Get color filter temperature in Kelvin */
 	virtual float GetTemperature() const = 0;
 
@@ -1590,6 +1601,15 @@ public:
 	* Remove all meshes from the scene
 	*/
 	virtual void EmptyMeshes() = 0;
+
+	// #ue_ds_cloth_doc IDatasmithScene API
+	virtual void AddCloth(const TSharedPtr< IDatasmithClothElement >& InElement) = 0;
+	virtual int32 GetClothesCount() const = 0;
+	virtual TSharedPtr< IDatasmithClothElement > GetCloth(int32 InIndex) = 0;
+	virtual const TSharedPtr< IDatasmithClothElement >& GetCloth(int32 InIndex) const = 0;
+	virtual void RemoveCloth(const TSharedPtr< IDatasmithClothElement >& InElement) = 0;
+	virtual void RemoveClothAt(int32 InIndex) = 0;
+	virtual void EmptyClothes() = 0;
 
 	/**
 	 * Adds an Actor to the scene.

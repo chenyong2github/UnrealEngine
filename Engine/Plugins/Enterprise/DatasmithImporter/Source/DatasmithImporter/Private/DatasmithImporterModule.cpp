@@ -10,9 +10,9 @@
 #include "DatasmithContentEditorStyle.h"
 #include "DatasmithCustomAction.h"
 #include "DatasmithFileProducer.h"
-#include "DatasmithImportFactory.h"
 #include "DatasmithImporterEditorSettings.h"
 #include "DatasmithImporterHelper.h"
+#include "DatasmithImportFactory.h"
 #include "DatasmithScene.h"
 #include "DatasmithStaticMeshImporter.h"
 #include "DatasmithUtils.h"
@@ -59,6 +59,8 @@
 #include "UObject/StrongObjectPtr.h"
 
 #define LOCTEXT_NAMESPACE "DatasmithImporter"
+
+static class IDatasmithImporterExt* GClothImporterExtInstance = nullptr;
 
 /**
  * DatasmithImporter module implementation (private)
@@ -124,6 +126,18 @@ public:
 	bool IsInOfflineMode() const
 	{
 		return GetDefault< UDatasmithImporterEditorSettings >() && GetDefault< UDatasmithImporterEditorSettings >()->bOfflineImporter;
+	}
+
+
+	virtual void SetClothImporterExtension(class IDatasmithImporterExt* InInstance) override
+	{
+		GClothImporterExtInstance = InInstance;
+	}
+
+
+	virtual class IDatasmithImporterExt* GetClothImporterExtension() override
+	{
+		return GClothImporterExtInstance;
 	}
 
 private:
