@@ -9,6 +9,7 @@
 #include "SoundClassGraph/SoundClassGraphSchema.h"
 #include "Sound/SoundClass.h"
 #include "Editor.h"
+#include "EngineAnalytics.h"
 
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
@@ -174,6 +175,12 @@ void FSoundClassEditor::InitSoundClassEditor( const EToolkitMode::Type Mode, con
 			break;
 		}
 	}
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SoundClass.EditorOpened"));
+	}
+
 }
 
 void FSoundClassEditor::BindCommands()

@@ -7,6 +7,7 @@
 #include "AudioEditorModule.h"
 #include "EdGraph/EdGraph.h"
 #include "Editor.h"
+#include "EngineAnalytics.h"
 #include "GraphEditor.h"
 #include "GraphEditAction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -26,7 +27,6 @@
 #include "Toolkits/IToolkitHost.h"
 #include "UObject/Package.h"
 #include "Widgets/Docking/SDockTab.h"
-
 
 #define LOCTEXT_NAMESPACE "SoundSubmixEditor"
 DEFINE_LOG_CATEGORY_STATIC(LogSoundSubmixEditor, Log, All);
@@ -193,6 +193,12 @@ void FSoundSubmixEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<IT
 			break;
 		}
 	}
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.Submix.EditorOpened"));
+	}
+
 }
 
 FSoundSubmixEditor::~FSoundSubmixEditor()

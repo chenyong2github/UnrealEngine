@@ -3,6 +3,7 @@
 #include "SoundCueEditor.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EdGraph/EdGraphNode.h"
+#include "EngineAnalytics.h"
 #include "Modules/ModuleManager.h"
 #include "Styling/AppStyle.h"
 #include "SoundCueGraph/SoundCueGraph.h"
@@ -163,6 +164,11 @@ void FSoundCueEditor::InitSoundCueEditor(const EToolkitMode::Type Mode, const TS
 		SpawnToolkitTab(GraphCanvasTabId, FString(), EToolkitTabSpot::Viewport);
 		SpawnToolkitTab(PropertiesTabId, FString(), EToolkitTabSpot::Details);
 	}*/
+
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SoundCue.EditorOpened"));
+	}
 }
 
 USoundCue* FSoundCueEditor::GetSoundCue() const

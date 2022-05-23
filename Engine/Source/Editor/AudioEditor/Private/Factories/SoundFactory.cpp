@@ -5,6 +5,7 @@
 #include "Audio.h"
 #include "Components/AudioComponent.h"
 #include "ContentBrowserModule.h"
+#include "EngineAnalytics.h"
 #include "IContentBrowserSingleton.h"
 #include "Modules/ModuleManager.h"
 #include "Sound/SoundCue.h"
@@ -597,6 +598,11 @@ UObject* USoundFactory::CreateObject
 		}
 
 		Sound->SetRedrawThumbnail(true);
+
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SoundFactory.SoundWaveImported"));
+		}
 
 		return Sound;
 	}
