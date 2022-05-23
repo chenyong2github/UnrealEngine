@@ -389,7 +389,16 @@ namespace EpicGames.Core
 				{
 					lock (EventParser)
 					{
-						EventParser.WriteLine(message.ToString());
+						int baseIdx = 0;
+						for (int idx = 0; idx < message.Length; idx++)
+						{
+							if (message[idx] == '\n')
+							{
+								EventParser.WriteLine(message.ToString(baseIdx, idx - baseIdx));
+								baseIdx = idx + 1;
+							}
+						}
+						EventParser.WriteLine(message.ToString(baseIdx, message.Length - baseIdx));
 					}
 				}
 			}

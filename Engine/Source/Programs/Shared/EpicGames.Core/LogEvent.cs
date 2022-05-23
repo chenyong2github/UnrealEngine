@@ -278,7 +278,14 @@ namespace EpicGames.Core
 				case JsonTokenType.String:
 					return reader.GetString();
 				case JsonTokenType.Number:
-					return reader.GetInt32();
+					if (reader.TryGetInt32(out int intValue))
+					{
+						return intValue;
+					}
+					else
+					{
+						return reader.GetString();
+					}
 				default:
 					throw new InvalidOperationException("Unhandled property type");
 			}

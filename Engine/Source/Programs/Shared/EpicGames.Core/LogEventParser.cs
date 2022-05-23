@@ -139,13 +139,19 @@ namespace EpicGames.Core
 			if (line.Length > 0 && line[0] == '{')
 			{
 				byte[] data = Encoding.UTF8.GetBytes(line);
-
-				JsonLogEvent jsonEvent;
-				if (JsonLogEvent.TryParse(data, out jsonEvent))
+				try
 				{
-					ProcessData(true);
-					_logger.Log(jsonEvent.Level, jsonEvent.EventId, jsonEvent, null, JsonLogEvent.Format);
-					return;
+					JsonLogEvent jsonEvent;
+					if (JsonLogEvent.TryParse(data, out jsonEvent))
+					{
+						ProcessData(true);
+						_logger.Log(jsonEvent.Level, jsonEvent.EventId, jsonEvent, null, JsonLogEvent.Format);
+						return;
+					}
+				}
+				catch (Exception ex)
+				{
+					_logger.LogError(ex, "Exception while parsing log event");
 				}
 			}
 
