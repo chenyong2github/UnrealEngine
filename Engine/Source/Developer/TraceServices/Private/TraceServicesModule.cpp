@@ -5,6 +5,7 @@
 #include "AnalysisServicePrivate.h"
 #include "ModuleServicePrivate.h"
 #include "Features/IModularFeatures.h"
+#include "Modules/CookProfilerModule.h"
 #include "Modules/TimingProfilerModule.h"
 #include "Modules/LoadTimeProfilerModule.h"
 #include "Modules/StatsModule.h"
@@ -43,6 +44,7 @@ private:
 	TraceServices::FDiagnosticsModule DiagnosticsModule;
 	TraceServices::FPlatformEventsModule PlatformEventsModule;
 	TraceServices::FTasksModule TasksModule;
+	TraceServices::FCookProfilerModule CookProfilingModule;
 };
 
 TSharedPtr<TraceServices::IAnalysisService> FTraceServicesModule::GetAnalysisService()
@@ -91,10 +93,12 @@ void FTraceServicesModule::StartupModule()
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &LoadTimeProfilerModule);
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &MemoryModule);
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &TasksModule);
+	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &CookProfilingModule);
 }
 
 void FTraceServicesModule::ShutdownModule()
 {
+	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &CookProfilingModule);
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &TasksModule);
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &MemoryModule);
 	IModularFeatures::Get().UnregisterModularFeature(TraceServices::ModuleFeatureName, &LoadTimeProfilerModule);

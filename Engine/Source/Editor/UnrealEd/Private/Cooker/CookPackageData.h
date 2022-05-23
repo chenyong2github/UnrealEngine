@@ -527,6 +527,8 @@ private:
 	void OnExitHasPackage();
 	void OnEnterHasPackage();
 
+	void OnPackageDataFirstRequested(FInstigator&& InInstigator);
+
 	TUniquePtr<FGeneratorPackage> GeneratorPackage;
 	FGeneratorPackage* GeneratedOwner;
 	/** Data for each platform that has been interacted with by *this. */

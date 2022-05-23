@@ -10,8 +10,6 @@
 #if OUTPUT_COOKTIMING
 #include <Containers/AllocatorFixedSizeFreeList.h>
 
-UE_TRACE_CHANNEL_DEFINE(CookChannel)
-
 struct FHierarchicalTimerInfo
 {
 public:
@@ -169,6 +167,7 @@ void ClearHierarchyTimers()
 {
 	RootTimerInfo.ClearChildren();
 }
+
 #endif
 
 #if ENABLE_COOK_STATS

@@ -2962,6 +2962,7 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 	UE::Cook::FPackageData* ReportingPackageData)
 {
 	UE_SCOPED_HIERARCHICAL_COOKTIMER_AND_DURATION(LoadPackageForCooking, DetailedCookStats::TickCookOnTheSideLoadPackagesTimeSec);
+	UE_SCOPED_COOK_STAT(PackageData.GetPackageName().ToUnstableInt(), EPackageEventStatType::LoadPackage);
 
 	check(PackageTracker->LoadingPackageData == nullptr);
 	PackageTracker->LoadingPackageData = &PackageData;

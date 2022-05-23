@@ -38,8 +38,6 @@ private:
 	FHierarchicalTimerInfo* PrevTimerInfo;
 };
 
-UE_TRACE_CHANNEL_EXTERN(CookChannel)
-
 #define UE_CREATE_HIERARCHICAL_COOKTIMER(name, incrementScope) \
 			FScopeTimer PREPROCESSOR_JOIN(__HierarchicalCookTimerScope, __LINE__)(__COUNTER__, #name, incrementScope); 
 #define UE_CREATE_TEXT_HIERARCHICAL_COOKTIMER(name, incrementScope) \

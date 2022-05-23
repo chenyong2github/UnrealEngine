@@ -244,8 +244,7 @@ void FPackageData::SetRequestData(const TArrayView<const ITargetPlatform* const>
 	AddCompletionCallback(MoveTemp(InCompletionCallback));
 	if (Instigator.Category == EInstigator::NotYetRequested)
 	{
-		Instigator = MoveTemp(InInstigator);
-		PackageDatas.DebugInstigator(*this);
+		OnPackageDataFirstRequested(MoveTemp(InInstigator));
 	}
 }
 
@@ -772,6 +771,13 @@ void FPackageData::OnEnterHasPackage()
 void FPackageData::OnExitHasPackage()
 {
 	SetPackage(nullptr);
+}
+
+void FPackageData::OnPackageDataFirstRequested(FInstigator&& InInstigator)
+{
+	TracePackage(GetPackageName().ToUnstableInt(), GetPackageName().ToString());
+	Instigator = MoveTemp(InInstigator);
+	PackageDatas.DebugInstigator(*this);
 }
 
 void FPackageData::SetState(EPackageState NextState)

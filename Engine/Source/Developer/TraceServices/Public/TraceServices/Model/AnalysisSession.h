@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
+#include "Misc/AssertionMacros.h"
 
 class FName;
 
@@ -25,6 +26,14 @@ class IProvider
 {
 public:
 	virtual ~IProvider() = default;
+
+	virtual void BeginEdit() const { unimplemented(); }
+	virtual void EndEdit() const { unimplemented(); }
+	virtual void EditAccessCheck() const { unimplemented(); }
+
+	virtual void BeginRead() const { unimplemented(); }
+	virtual void EndRead() const { unimplemented(); }
+	virtual void ReadAccessCheck() const { unimplemented(); }
 };
 
 class IAnalysisSession

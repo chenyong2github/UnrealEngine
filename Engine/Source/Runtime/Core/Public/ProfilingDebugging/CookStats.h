@@ -19,6 +19,14 @@
 template <typename FuncType> class TFunctionRef;
 template <typename T> struct TDecay;
 
+enum class EPackageEventStatType : uint8
+{
+	LoadPackage = 0,
+	SavePackage = 1,
+	BeginCacheForCookedPlatformData = 2,
+	IsCachedCookedPlatformDataLoaded = 3,
+};
+
 #if ENABLE_COOK_STATS
 /**
  * Centralizes the system to gather stats from a cook that need to be collected at the core/engine level.
@@ -423,6 +431,42 @@ struct FDerivedDataUsageStats
 /** any expression inside this block will be compiled out if ENABLE_COOK_STATS is not true. Shorthand for the multi-line #if ENABLE_COOK_STATS guard. */
 #define COOK_STAT(...) __VA_ARGS__
 
+CORE_API UE_TRACE_CHANNEL_EXTERN(CookChannel);
+
+CORE_API void TracePackage(uint64 InId, FString InName);
+CORE_API void TracePackageStat(uint64 InId, uint64 Duration, EPackageEventStatType StatType);
+
+struct FScopedCookStat
+{
+	FScopedCookStat(const FScopedCookStat&) = delete;
+	FScopedCookStat(FScopedCookStat&&) = delete;
+
+	FScopedCookStat(uint64 Id, EPackageEventStatType InStatType)
+		: Id(Id)
+		, StatType(InStatType)
+	{
+		StartTimestamp = FPlatformTime::Cycles64();
+	}
+
+	~FScopedCookStat()
+	{
+		TracePackageStat(Id, FPlatformTime::Cycles64() - StartTimestamp, StatType);
+	}
+
+private:
+	uint64 Id;
+	uint64 StartTimestamp;
+	EPackageEventStatType StatType;
+};
+
+#define UE_SCOPED_COOK_STAT(Id, StatType) \
+	FScopedCookStat  PREPROCESSOR_JOIN(__CookTimerScope, __LINE__)(Id, StatType);
+
 #else
 #define COOK_STAT(...)
+#define UE_SCOPED_COOK_STAT(...)
+
+#define TracePackage(...)
+#define TracePackageStat(...)
+
 #endif

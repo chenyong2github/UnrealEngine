@@ -17,6 +17,7 @@
 
 // Insights
 #include "Insights/ContextSwitches/ContextSwitchesProfilerManager.h"
+#include "Insights/CookProfiler/CookProfilerManager.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/IUnrealInsightsModule.h"
@@ -62,6 +63,7 @@ void FTraceInsightsModule::StartupModule()
 	RegisterComponent(FMemoryProfilerManager::CreateInstance());
 	RegisterComponent(Insights::FTaskGraphProfilerManager::CreateInstance());
 	RegisterComponent(Insights::FContextSwitchesProfilerManager::CreateInstance());
+	RegisterComponent(Insights::FCookProfilerManager::CreateInstance());
 
 #if !WITH_EDITOR
 	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
