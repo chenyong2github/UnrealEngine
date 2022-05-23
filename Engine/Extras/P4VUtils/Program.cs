@@ -116,7 +116,7 @@ namespace P4VUtils
 		{
 			using ILoggerFactory Factory = LoggerFactory.Create(Builder => Builder.AddEpicDefault());//.AddSimpleConsole(Options => { Options.SingleLine = true; Options.IncludeScopes = false; }));
 			ILogger Logger = Factory.CreateLogger<Program>();
-			Log.Logger = Logger;
+			Log.SetInnerLogger(Logger);
 
 			try
 			{
