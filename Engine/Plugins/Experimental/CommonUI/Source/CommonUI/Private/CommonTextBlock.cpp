@@ -545,12 +545,12 @@ void UCommonTextBlock::SynchronizeProperties()
 {
 	UpdateFromStyle();
 
+	Super::SynchronizeProperties();
+
 	if (bAutoCollapseWithEmptyText)
 	{
 		SetVisibility(GetText().IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 	}
-
-	Super::SynchronizeProperties();
 
 	if (CommonUIUtils::ShouldDisplayMobileUISizes())
 	{
