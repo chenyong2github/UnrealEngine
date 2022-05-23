@@ -1134,14 +1134,9 @@ public:
 		else
 		{
 			ImageFormat = ERawImageFormat::BGRA8;
-			// if requested format was DXT1
-			// Unreal assumes that will not encode any alpha channel in the source
-			//	(Unreal's "compress without alpha" just selects DXT1)
-			// the legacy NVTT behavior for DXT1 was to always encode opaque pixels
-			// for DXT1 we use BC1_WithTransparency which will preserve the input A transparency bit
-			//	so we need to force the A's to be 255 coming into Oodle
-			//	so for DXT1 we force bHasAlpha = false
-			// force Oodle to ignore input alpha :
+
+			// if bHasAlpha is off due to bForceNoAlphaChannel, we could still have transparent pixels
+			// force Oodle to read input alpha as opaque :
 			OodlePF = bHasAlpha ? OodleTex_PixelFormat_4_U8_BGRA : OodleTex_PixelFormat_4_U8_BGRx;
 		}
 
@@ -1318,6 +1313,16 @@ public:
 				}
 			}			
 		}
+
+		/*
+		UE_LOG(LogTextureFormatOodle, Display, TEXT("bHasAlpha=%d OodlePF=%d=%s OodleBCN=%d=%s"),
+			(int)bHasAlpha,
+			(int)OodlePF,
+			*FString((VTable->fp_OodleTex_PixelFormat_GetName)(OodlePF)),
+			(int)OodleBCN,
+			*FString((VTable->fp_OodleTex_BC_GetName)(OodleBCN))
+			);
+		*/
 
 		int BytesPerBlock = (VTable->fp_OodleTex_BC_BytesPerBlock)(OodleBCN);
 		int NumBlocksX = (Image.SizeX + 3)/4;
