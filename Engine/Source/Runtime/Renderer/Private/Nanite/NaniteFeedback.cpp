@@ -57,13 +57,13 @@ FFeedbackManager::FFeedbackManager()
 		if (CandidateClusterState.Update(PeakCandidateClusters, MaxCandidateClusters))
 		{
 			UE_LOG(LogRenderer, Warning, TEXT(	"Nanite candidate cluster buffer overflow detected. New high-water mark is %d / %d. "
-												"Increase r.Nanite.MaxNodes to prevent potential visual artifacts."), CandidateClusterState.HighWaterMark, MaxCandidateClusters);
+												"Increase r.Nanite.MaxCandidateClusters to prevent potential visual artifacts."), CandidateClusterState.HighWaterMark, MaxCandidateClusters);
 		}
 		
 		if (VisibleClusterState.Update(PeakVisibleClusters, MaxVisibleClusters))
 		{
 			UE_LOG(LogRenderer, Warning, TEXT(	"Nanite visible cluster buffer overflow detected. New high-water mark is %d / %d. "
-												"Increase r.Nanite.MaxNodes to prevent potential visual artifacts."), VisibleClusterState.HighWaterMark, MaxVisibleClusters);
+												"Increase r.Nanite.MaxVisibleClusters to prevent potential visual artifacts."), VisibleClusterState.HighWaterMark, MaxVisibleClusters);
 		}
 	});
 
