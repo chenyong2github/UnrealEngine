@@ -77,6 +77,7 @@
 #include "AnimationBlueprintEditorSettings.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EdGraphNode_Comment.h"
+#include "EdGraphSchema_K2_Actions.h"
 #include "AnimStateNodeBase.h"
 #include "AnimStateEntryNode.h"
 #include "PersonaUtils.h"
@@ -1703,6 +1704,19 @@ void FAnimationBlueprintEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, 
 void FAnimationBlueprintEditor::CreateEditorModeManager()
 {
 	EditorModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>("Persona").CreatePersonaEditorModeManager());
+}
+
+void FAnimationBlueprintEditor::OnCreateComment()
+{
+	TSharedPtr<SGraphEditor> GraphEditor = FocusedGraphEdPtr.Pin();
+	if (GraphEditor.IsValid())
+	{
+		if (UEdGraph* Graph = GraphEditor->GetCurrentGraph())
+		{
+			FEdGraphSchemaAction_K2AddComment CommentAction;
+			CommentAction.PerformAction(Graph, nullptr, GraphEditor->GetPasteLocation());
+		}
+	}
 }
 
 void FAnimationBlueprintEditor::JumpToHyperlink(const UObject* ObjectReference, bool bRequestRename)

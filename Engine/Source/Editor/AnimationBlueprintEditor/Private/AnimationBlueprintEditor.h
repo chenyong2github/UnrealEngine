@@ -196,6 +196,7 @@ protected:
 	virtual FText GetGraphDecorationString(UEdGraph* InGraph) const override;
 	virtual void OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIsJustBeingCompiled = false) override;
 	virtual void CreateEditorModeManager() override;
+	virtual void OnCreateComment() override;
 	//~ End FBlueprintEditor Interface
 
 	//~ Begin FEditorUndoClient Interface
