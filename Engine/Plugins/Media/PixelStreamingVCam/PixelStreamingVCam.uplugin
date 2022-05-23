@@ -19,8 +19,8 @@
 			"Name": "PixelStreamingVCam",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64", "Linux" ],
-			"BlacklistTargets": [ "Server" ]
+			"PlatformAllowList": [ "Win64", "Linux" ],
+			"TargetDenyList": [ "Server" ]
 		}
 	],
 	"Plugins": [
