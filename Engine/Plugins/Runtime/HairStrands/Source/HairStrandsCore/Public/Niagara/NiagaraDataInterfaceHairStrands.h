@@ -127,6 +127,7 @@ struct FNDIHairStrandsData
 		IterationCount = 20;
 
 		GravityVector = FVector(0.0, 0.0, -981.0);
+		GravityPreloading = 0.0;
 		AirDrag = 0.1;
 		AirVelocity = FVector(0, 0, 0);
 
@@ -195,6 +196,7 @@ struct FNDIHairStrandsData
 			IterationCount = OtherDatas->IterationCount;
 
 			GravityVector = OtherDatas->GravityVector;
+			GravityPreloading = OtherDatas->GravityPreloading;
 			AirDrag = OtherDatas->AirDrag;
 			AirVelocity = OtherDatas->AirVelocity;
 
@@ -291,6 +293,9 @@ struct FNDIHairStrandsData
 
 	/** Acceleration vector in cm/s2 to be used for the gravity*/
 	FVector GravityVector;
+	
+	/** Optimisation of the rest state configuration to compensate from the gravity */
+	float GravityPreloading;
 
 	/** Coefficient between 0 and 1 to be used for the air drag */
 	float AirDrag;
@@ -440,6 +445,8 @@ public:
 	void GetIterationCount(FVectorVMExternalFunctionContext& Context);
 
 	void GetGravityVector(FVectorVMExternalFunctionContext& Context);
+
+	void GetGravityPreloading(FVectorVMExternalFunctionContext& Context);
 
 	void GetAirDrag(FVectorVMExternalFunctionContext& Context);
 

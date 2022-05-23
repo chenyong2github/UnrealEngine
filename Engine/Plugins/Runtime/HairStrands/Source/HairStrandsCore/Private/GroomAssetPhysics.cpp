@@ -8,6 +8,7 @@ FHairSolverSettings::FHairSolverSettings()
 	NiagaraSolver = EGroomNiagaraSolvers::AngularSprings;
 	SubSteps = 5;
 	IterationCount = 5;
+	GravityPreloading = 0.0f;
 }
 
 FHairExternalForces::FHairExternalForces()

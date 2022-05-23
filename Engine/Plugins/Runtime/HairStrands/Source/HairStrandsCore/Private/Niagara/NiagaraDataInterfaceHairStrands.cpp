@@ -36,6 +36,7 @@ static const FName GetSubStepsName("GetSubSteps");
 static const FName GetIterationCountName("GetIterationCount");
 
 static const FName GetGravityVectorName("GetGravityVector");
+static const FName GetGravityPreloadingName("GetGravityPreloading");
 static const FName GetAirDragName("GetAirDrag");
 static const FName GetAirVelocityName("GetAirVelocity");
 
@@ -485,6 +486,7 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 			IterationCount = HairPhysics.SolverSettings.IterationCount;
 
 			GravityVector = HairPhysics.ExternalForces.GravityVector;
+			GravityPreloading = HairPhysics.SolverSettings.GravityPreloading;
 			AirDrag = HairPhysics.ExternalForces.AirDrag;
 			AirVelocity = HairPhysics.ExternalForces.AirVelocity;
 
@@ -544,13 +546,13 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 					const FQuat DeltaRotation = DeltaTransform.GetRotation();
 					
 					// Apply linear velocity scale
-					BoneLinearVelocity = FVector3f(FMath::Clamp(1.f - SimulationSettings.SimulationSetup.LinearVelocityScale, 0.f, 1.f) * DeltaTransform.GetTranslation() / DeltaSeconds);
+					BoneLinearVelocity = FVector3f(FMath::Clamp(SimulationSettings.SimulationSetup.LinearVelocityScale, 0.f, 1.f) * DeltaTransform.GetTranslation() / DeltaSeconds);
 					BoneLinearAcceleration = (BoneLinearVelocity-PreviousBoneLinearVelocity) / DeltaSeconds;
 
 					
 					// Apply angular velocity scale
 					BoneAngularVelocity = (FVector3f)BoneTransform.TransformVector(DeltaRotation.GetRotationAxis() * DeltaRotation.GetAngle() *
-						FMath::Clamp(1.f - SimulationSettings.SimulationSetup.AngularVelocityScale, 0.f, 1.f)) / DeltaSeconds;
+						FMath::Clamp(SimulationSettings.SimulationSetup.AngularVelocityScale, 0.f, 1.f)) / DeltaSeconds;
 					BoneAngularAcceleration = (BoneAngularVelocity-PreviousBoneAngularVelocity) / DeltaSeconds;
 				}
 				else
@@ -1295,6 +1297,16 @@ void UNiagaraDataInterfaceHairStrands::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bRequiresContext = false;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Gravity Vector")));
+
+		OutFunctions.Add(Sig);
+	}
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = GetGravityPreloadingName;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Gravity Preloading")));
 
 		OutFunctions.Add(Sig);
 	}
@@ -2160,6 +2172,12 @@ void UNiagaraDataInterfaceHairStrands::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Hair Strands")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Node Position")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Node Orientation")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Node Mass")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Gravity Vector")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Gravity Preloading")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Bend Stiffness")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Node Thickness")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Rest Length")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Rest Direction")));
 
 		OutFunctions.Add(Sig);
@@ -2275,6 +2293,7 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetStrandSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetSubSteps);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetIterationCount);
 
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetGravityPreloading);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetGravityVector);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetAirDrag);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetAirVelocity);
@@ -2394,6 +2413,11 @@ void UNiagaraDataInterfaceHairStrands::GetVMExternalFunction(const FVMExternalFu
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetGravityVector)::Bind(this, OutFunc);
+	}
+	else if (BindingInfo.Name == GetGravityPreloadingName)
+	{
+		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, GetGravityPreloading)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == GetAirDragName)
 	{
@@ -2727,7 +2751,7 @@ void UNiagaraDataInterfaceHairStrands::GetVMExternalFunction(const FVMExternalFu
 	}
 	else if (BindingInfo.Name == ComputeEdgeDirectionName)
 	{
-		check(BindingInfo.GetNumInputs() == 8 && BindingInfo.GetNumOutputs() == 3);
+		check(BindingInfo.GetNumInputs() == 16 && BindingInfo.GetNumOutputs() == 3);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceHairStrands, ComputeEdgeDirection)::Bind(this, OutFunc);
 	}
 	else if (BindingInfo.Name == UpdateMaterialFrameName)
@@ -2868,6 +2892,17 @@ void UNiagaraDataInterfaceHairStrands::GetGravityVector(FVectorVMExternalFunctio
 		*OutGravityVectorX.GetDestAndAdvance() = InstData->GravityVector.X;
 		*OutGravityVectorY.GetDestAndAdvance() = InstData->GravityVector.Y;
 		*OutGravityVectorZ.GetDestAndAdvance() = InstData->GravityVector.Z;
+	}
+}
+
+void UNiagaraDataInterfaceHairStrands::GetGravityPreloading(FVectorVMExternalFunctionContext& Context)
+{
+	VectorVM::FUserPtrHandler<FNDIHairStrandsData> InstData(Context);
+	VectorVM::FExternalFuncRegisterHandler<float> OutGravityPreloading(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
+	{
+		*OutGravityPreloading.GetDestAndAdvance() = InstData->GravityPreloading;
 	}
 }
 
@@ -4027,9 +4062,10 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 	else if (FunctionInfo.DefinitionName == ComputeEdgeDirectionName)
 	{
 		static const TCHAR *FormatSample = TEXT(R"(
-							void {InstanceFunctionName} (in float3 NodePosition, in float4 NodeOrientation, out float3 OutRestDirection)
+							void {InstanceFunctionName} (in float3 NodePosition, in float4 NodeOrientation, 
+	in float NodeMass, in float3 GravityVector, in float GravityPreloading, in float BendStiffness, in float StrandThickness, in float RestLength, out float3 OutRestDirection)
 							{
-								{HairStrandsContextName} DIHairStrands_ComputeEdgeDirection(DIContext,NodePosition,NodeOrientation,OutRestDirection);
+								{HairStrandsContextName} DIHairStrands_ComputeEdgeDirection(DIContext,NodePosition,NodeOrientation,NodeMass,GravityVector,GravityPreloading,BendStiffness,StrandThickness,RestLength,OutRestDirection);
 							}
 							)");
 		OutHLSL += FString::Format(FormatSample, ArgsSample);

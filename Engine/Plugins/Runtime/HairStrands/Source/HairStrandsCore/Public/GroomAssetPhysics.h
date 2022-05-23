@@ -60,6 +60,10 @@ struct HAIRSTRANDSCORE_API FHairSolverSettings
 	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (EditCondition = "NiagaraSolver == EGroomNiagaraSolvers::CustomSolver", ToolTip = "Custom niagara system to be used if custom solver is picked"))
 	TSoftObjectPtr<UNiagaraSystem> CustomSystem;
 
+	/** Optimisation of the rest state configuration to compensate from the gravity */
+	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (EditCondition = "NiagaraSolver == EGroomNiagaraSolvers::AngularSprings", ToolTip = "Optimisation of the rest state configuration to compensate from the gravity "))
+	float GravityPreloading;
+
 	/** Number of substeps to be used */
 	UPROPERTY(EditAnywhere, Category = "SolverSettings", meta = (ToolTip = "Number of sub steps to be done per frame. The actual solver calls are done at 24 fps"))
 	int32 SubSteps;
@@ -358,13 +362,13 @@ struct HAIRSTRANDSCORE_API FHairSimulationSetup
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Strands simulation is done in local space"))
 	bool bLocalSimulation = true;
 	
-	/** Scaling of the bone world linear velocity contribution */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Scaling of the bone world linear velocity contribution", EditCondition = "bLocalSimulation"))
-	float LinearVelocityScale = 0.0f;
+	/** The amount of linear velocities sent to the local groom space from the reference bone */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "The amount of linear velocities sent to the local groom space from the reference bone", EditCondition = "bLocalSimulation", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	float LinearVelocityScale = 1.0f;
 	
-	/** Scaling of the bone world angular velocity contribution */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Scaling of the bone world angular velocity contribution", EditCondition = "bLocalSimulation"))
-	float AngularVelocityScale = 0.0f;
+	/** The amount of angular velocities sent to the local groom space from the reference bone */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "The amount of angular velocities sent to the local groom space from the reference bone", EditCondition = "bLocalSimulation", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "1"))
+	float AngularVelocityScale = 1.0f;
 
 	/** Bone used for the simulation local space */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Interp, Category = "SimulationSetup", meta = (ToolTip = "Bone used for the simulation local space", EditCondition = "bLocalSimulation"))
