@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "Insights/IUnrealInsightsModule.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
@@ -33,6 +34,8 @@ const FName FNetworkPredictionInsightsModule::InsightsTabName("NetworkPrediction
 
 void FNetworkPredictionInsightsModule::StartupModule()
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/NetworkPredictionInsights"));
+
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &NetworkPredictionTraceModule);
 
 	FNetworkPredictionInsightsManager::Initialize();
@@ -75,6 +78,8 @@ void FNetworkPredictionInsightsModule::StartupModule()
 	FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FNetworkPredictionInsightsModule::InsightsTabName,
 		FOnSpawnTab::CreateLambda([](const FSpawnTabArgs& Args)
 	{
+		LLM_SCOPE_BYNAME(TEXT("Insights/NetworkPredictionInsights"));
+
 		const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 			.TabRole(ETabRole::NomadTab);
 
@@ -98,6 +103,7 @@ void FNetworkPredictionInsightsModule::StartupModule()
 		// This is temp until a more formal local server is done by the insights system.
 		StoreServiceHandle = FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this]
 		{
+			LLM_SCOPE_BYNAME(TEXT("Insights/NetworkPredictionInsights"));
 			IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 			if (!UnrealInsightsModule.GetStoreClient())
 			{
@@ -137,6 +143,8 @@ void FNetworkPredictionInsightsModule::StartupModule()
 
 void FNetworkPredictionInsightsModule::ShutdownModule()
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/NetworkPredictionInsights"));
+
 	if (StoreServiceHandle.IsValid())
 	{
 		FCoreDelegates::OnFEngineLoopInitComplete.Remove(StoreServiceHandle);

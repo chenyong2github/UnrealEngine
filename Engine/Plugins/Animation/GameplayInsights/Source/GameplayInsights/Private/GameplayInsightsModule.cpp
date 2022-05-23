@@ -8,6 +8,7 @@
 #include "Framework/Docking/LayoutExtender.h"
 #include "SAnimGraphSchematicView.h"
 #include "Insights/IUnrealInsightsModule.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
@@ -44,6 +45,8 @@ const FName GameplayInsightsTabs::DocumentTab("DocumentTab");
 
 void FGameplayInsightsModule::StartupModule()
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/GameplayInsights"));
+
 	IModularFeatures::Get().RegisterModularFeature(TraceServices::ModuleFeatureName, &GameplayTraceModule);
 	IModularFeatures::Get().RegisterModularFeature(Insights::TimingViewExtenderFeatureName, &GameplayTimingViewExtender);
 
@@ -173,6 +176,7 @@ void FGameplayInsightsModule::StartupModule()
 		// Create store and start analysis session - should only be done after engine has init and all plugins are loaded
 		FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this]
 		{
+			LLM_SCOPE_BYNAME(TEXT("Insights/GameplayInsights"));
 			IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 			if (!UnrealInsightsModule.GetStoreClient())
 			{
@@ -223,6 +227,8 @@ void FGameplayInsightsModule::StartupModule()
 
 void FGameplayInsightsModule::ShutdownModule()
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/GameplayInsights"));
+
 #if OBJECT_PROPERTY_TRACE_ENABLED
 	FObjectPropertyTrace::Destroy();
 #endif
