@@ -145,6 +145,30 @@ bool URCVirtualPropertyBase::IsValueEqual(URCVirtualPropertyBase* InVirtualPrope
 	return ThisProperty->Identical(ThisValuePtr, CompareValuePtr);
 }
 
+bool URCVirtualPropertyBase::CopyCompleteValue(const FProperty* InTargetProperty, uint8* InTargetValuePtr)
+{
+	const FProperty* SourceProperty = GetProperty();
+
+	if (SourceProperty == nullptr || InTargetProperty == nullptr || InTargetValuePtr == nullptr)
+	{
+		ensureMsgf(false, TEXT("Invalid input passed to CopyCompleteValue"));
+
+		return false;
+	}
+
+	if (SourceProperty->GetClass() != InTargetProperty->GetClass())
+	{
+		ensureMsgf(false, TEXT("Invalid property type passed to CopyCompleteValue.\nExpected: %s, Found: %s"), *SourceProperty->GetClass()->GetName(), *InTargetProperty->GetClass()->GetName());
+
+		return false;
+	}
+
+	SourceProperty->CopyCompleteValue(InTargetValuePtr /*Dest*/, GetValuePtr() /*Source*/);
+
+	return true;
+
+}
+
 struct FRCVirtualPropertyCastHelpers
 {
 	template<typename TPropertyType, typename TValueType>

@@ -65,6 +65,13 @@ public:
 
 	/** Compare this virtual property value with given property value */
 	bool IsValueEqual(URCVirtualPropertyBase* InVirtualProperty);
+
+	/** Copy this virtual property's data onto a given FProperty
+	* 
+	* * @param InTargetProperty - The property onto which our value is to be copied
+	* * @param InTargetValuePtr - The memory location for the target property
+	*/
+	bool CopyCompleteValue(const FProperty* InTargetProperty, uint8* InTargetValuePtr);
 	
 	/** Get Bool value from Virtual Property */
 	UFUNCTION(BlueprintCallable, Category = "Remote Control Behaviour")
