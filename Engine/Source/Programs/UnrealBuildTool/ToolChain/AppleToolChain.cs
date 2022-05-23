@@ -254,11 +254,12 @@ namespace UnrealBuildTool
 		{
 			base.GetCompileArguments_WarningsAndErrors(CompileEnvironment, Arguments);
 
-			// clang 12.00 has a new warning for copies in ranged loops. Instances have all been fixed up (2020/6/26) but
-			// are likely to be reintroduced due to no equivalent on other platforms at this time so disable the warning
-			if (GetClangVersion().Major >= 12)
+			// Flags added in Xcode 13.3 (Apple clang 13.1.6)
+			if (CompilerVersionGreaterOrEqual(13, 0, 0) && CompilerVersionLessThan(13, 1, 6))
 			{
-				Arguments.Add("-Wno-range-loop-analysis");
+				Arguments.Remove("-Wno-unused-but-set-variable");
+				Arguments.Remove("-Wno-unused-but-set-parameter");
+				Arguments.Remove("-Wno-ordered-compare-function-pointers");
 			}
 		}
 
