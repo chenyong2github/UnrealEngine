@@ -15,6 +15,7 @@ UMassUpdateISMProcessor::UMassUpdateISMProcessor()
 	ExecutionFlags = (int32)(EProcessorExecutionFlags::Client | EProcessorExecutionFlags::Standalone);
 
 	ExecutionOrder.ExecuteAfter.Add(UE::Mass::ProcessorGroupNames::Representation);
+	bRequiresGameThreadExecution = true;
 }
 
 void UMassUpdateISMProcessor::ConfigureQueries()
