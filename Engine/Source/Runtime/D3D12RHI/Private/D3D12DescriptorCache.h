@@ -320,24 +320,22 @@ private:
 
 class FD3D12DescriptorCache : public FD3D12DeviceChild, public FD3D12SingleNodeGPUObject
 {
-protected:
-	FD3D12CommandContext* CmdContext;
-
 public:
-	FD3D12OnlineHeap* GetCurrentViewHeap() { return CurrentViewHeap; }
-	FD3D12OnlineHeap* GetCurrentSamplerHeap() { return CurrentSamplerHeap; }
-
+	FD3D12DescriptorCache() = delete;
 	FD3D12DescriptorCache(FRHIGPUMask Node);
 
-	~FD3D12DescriptorCache()
-	{
-		if (LocalViewHeap) { delete(LocalViewHeap); }
-	}
+	~FD3D12DescriptorCache();
+
+	inline bool IsViewHeapOverridden() const { return OverrideViewHeap != nullptr; }
+	inline bool IsSamplerHeapOverridden() const { return OverrideViewHeap != nullptr; }
+
+	inline FD3D12OnlineHeap* GetCurrentViewHeap() const { return CurrentViewHeap; }
+	inline FD3D12OnlineHeap* GetCurrentSamplerHeap() const { return CurrentSamplerHeap; }
 
 	// Checks if the specified descriptor heap has been set on the current command list.
 	bool IsHeapSet(ID3D12DescriptorHeap* const pHeap) const
 	{
-		return (pHeap == pPreviousViewHeap) || (pHeap == pPreviousSamplerHeap);
+		return (pHeap == LastSetViewHeap) || (pHeap == LastSetSamplerHeap);
 	}
 
 	// Notify the descriptor cache every time you start recording a command list.
@@ -347,17 +345,6 @@ public:
 
 	// ------------------------------------------------------
 	// end Descriptor Slot Reservation stuff
-
-	// null views
-
-	FD3D12ViewDescriptorHandle* NullSRV{};
-	FD3D12ViewDescriptorHandle* NullRTV{};
-	FD3D12ViewDescriptorHandle* NullUAV{};
-
-#if USE_STATIC_ROOT_SIGNATURE
-	FD3D12ConstantBufferView* NullCBV{};
-#endif
-	TRefCountPtr<FD3D12SamplerState> DefaultSampler;
 
 	void SetVertexBuffers(FD3D12VertexBufferCache& Cache);
 	void SetRenderTargets(FD3D12RenderTargetView** RenderTargetViewArray, uint32 Count, FD3D12DepthStencilView* DepthStencilTarget);
@@ -392,10 +379,25 @@ public:
 	bool SwitchToContextLocalSamplerHeap();
 	bool SwitchToGlobalSamplerHeap();
 
+	bool SetHeapOverrides(FD3D12DescriptorHeap* InOverrideViewHeap, FD3D12DescriptorHeap* InOverrideSamplerHeap);
+
 	TArray<FD3D12UniqueSamplerTable>& GetUniqueTables() { return UniqueTables; }
 
 	inline bool UsingGlobalSamplerHeap() const { return bUsingGlobalSamplerHeap; }
 	FD3D12SamplerSet& GetLocalSamplerSet() { return LocalSamplerSet; }
+
+	// null views
+	FD3D12ViewDescriptorHandle* NullSRV = nullptr;
+	FD3D12ViewDescriptorHandle* NullRTV = nullptr;
+	FD3D12ViewDescriptorHandle* NullUAV = nullptr;
+
+#if USE_STATIC_ROOT_SIGNATURE
+	FD3D12ConstantBufferView* NullCBV = nullptr;
+#endif
+	TRefCountPtr<FD3D12SamplerState> DefaultSampler;
+
+protected:
+	FD3D12CommandContext* CmdContext = nullptr;
 
 private:
 	// Sets the current descriptor tables on the command list and marks any descriptor tables as dirty if necessary.
@@ -403,13 +405,16 @@ private:
 	bool SetDescriptorHeaps();
 
 	// The previous view and sampler heaps set on the current command list.
-	ID3D12DescriptorHeap* pPreviousViewHeap;
-	ID3D12DescriptorHeap* pPreviousSamplerHeap;
+	ID3D12DescriptorHeap* LastSetViewHeap = nullptr;
+	ID3D12DescriptorHeap* LastSetSamplerHeap = nullptr;
 
-	FD3D12OnlineHeap* CurrentViewHeap;
-	FD3D12OnlineHeap* CurrentSamplerHeap;
+	FD3D12OnlineHeap* CurrentViewHeap = nullptr;
+	FD3D12OnlineHeap* CurrentSamplerHeap = nullptr;
 
-	FD3D12LocalOnlineHeap* LocalViewHeap;
+	FD3D12DescriptorHeap* OverrideViewHeap = nullptr;
+	FD3D12DescriptorHeap* OverrideSamplerHeap = nullptr;
+
+	FD3D12LocalOnlineHeap* LocalViewHeap = nullptr;
 	FD3D12LocalOnlineHeap LocalSamplerHeap;
 	FD3D12SubAllocatedOnlineHeap SubAllocatedViewHeap;
 
@@ -418,7 +423,7 @@ private:
 	TArray<FD3D12UniqueSamplerTable> UniqueTables;
 
 	FD3D12SamplerSet LocalSamplerSet;
-	bool bUsingGlobalSamplerHeap;
+	bool bUsingGlobalSamplerHeap = false;
 
-	uint32 NumLocalViewDescriptors;
+	uint32 NumLocalViewDescriptors = 0;
 };

@@ -450,6 +450,7 @@ protected:
 #endif
 #undef DECLARE_SHADER_TRAITS
 
+	bool InternalSetRootSignature(ED3D12PipelineType InPipelineType, const FD3D12RootSignature* InRootSignature);
 	void InternalSetPipelineState(FD3D12PipelineState* InPipelineState);
 
 private:
@@ -773,6 +774,7 @@ public:
 	template <ED3D12PipelineType PipelineType> 
 	void ApplyState();
 	void ApplySamplers(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage);
+	void ApplyResources(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage);
 	void DirtyStateForNewCommandList();
 	void DirtyState();
 	void DirtyViewDescriptorTables();

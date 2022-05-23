@@ -56,18 +56,18 @@ void FD3D12DescriptorCache::HeapLoopedAround(ERHIDescriptorHeapType InHeapType)
 FD3D12DescriptorCache::FD3D12DescriptorCache(FRHIGPUMask Node)
 	: FD3D12DeviceChild(nullptr)
 	, FD3D12SingleNodeGPUObject(Node)
-	, pPreviousViewHeap(nullptr)
-	, pPreviousSamplerHeap(nullptr)
-	, CurrentViewHeap(nullptr)
-	, CurrentSamplerHeap(nullptr)
-	, LocalViewHeap(nullptr)
 	, LocalSamplerHeap(this)
 	, SubAllocatedViewHeap(this)
 	, SamplerMap(271) // Prime numbers for better hashing
-	, bUsingGlobalSamplerHeap(false)
-	, NumLocalViewDescriptors(0)
 {
-	CmdContext = nullptr;
+}
+
+FD3D12DescriptorCache::~FD3D12DescriptorCache()
+{
+	if (LocalViewHeap)
+	{
+		delete LocalViewHeap;
+	}
 }
 
 void FD3D12DescriptorCache::Init(FD3D12Device* InParent, FD3D12CommandContext* InCmdContext, uint32 InNumLocalViewDescriptors, uint32 InNumSamplerDescriptors)
@@ -87,6 +87,9 @@ void FD3D12DescriptorCache::Init(FD3D12Device* InParent, FD3D12CommandContext* I
 	CurrentViewHeap = &SubAllocatedViewHeap;
 	CurrentSamplerHeap = &LocalSamplerHeap;
 	bUsingGlobalSamplerHeap = false;
+
+	OverrideViewHeap = nullptr;
+	OverrideSamplerHeap = nullptr;
 
 	// Create default views
 	D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
@@ -219,41 +222,50 @@ bool FD3D12DescriptorCache::SetDescriptorHeaps()
 
 	// See if the descriptor heaps changed.
 	bool bHeapChanged = false;
-	ID3D12DescriptorHeap* const pCurrentViewHeap = CurrentViewHeap->GetHeap();
-	if (pPreviousViewHeap != pCurrentViewHeap)
+
+	ID3D12DescriptorHeap* PendingViewHeap = OverrideViewHeap ? OverrideViewHeap->GetHeap() : CurrentViewHeap->GetHeap();
+	if (LastSetViewHeap != PendingViewHeap)
 	{
 		// The view heap changed, so dirty the descriptor tables.
 		bHeapChanged = true;
-		CmdContext->StateCache.DirtyViewDescriptorTables();
 
-		INC_DWORD_STAT_BY(STAT_ViewHeapChanged, pPreviousViewHeap == nullptr ? 0 : 1);	// Don't count the initial set on a command list.
+		if (!OverrideViewHeap)
+		{
+			CmdContext->StateCache.DirtyViewDescriptorTables();
+		}
+
+		INC_DWORD_STAT_BY(STAT_ViewHeapChanged, LastSetViewHeap == nullptr ? 0 : 1);	// Don't count the initial set on a command list.
 	}
 
-	ID3D12DescriptorHeap* const pCurrentSamplerHeap = CurrentSamplerHeap->GetHeap();
-	if (pPreviousSamplerHeap != pCurrentSamplerHeap)
+	ID3D12DescriptorHeap* PendingSamplerHeap = OverrideSamplerHeap ? OverrideSamplerHeap->GetHeap() : CurrentSamplerHeap->GetHeap();
+	if (LastSetSamplerHeap != PendingSamplerHeap)
 	{
 		// The sampler heap changed, so dirty the descriptor tables.
 		bHeapChanged = true;
-		CmdContext->StateCache.DirtySamplerDescriptorTables();
 
-		// Reset the sampler map since it will have invalid entries for the new heap.
-		SamplerMap.Reset();
+		if (!OverrideSamplerHeap)
+		{
+			CmdContext->StateCache.DirtySamplerDescriptorTables();
 
-		INC_DWORD_STAT_BY(STAT_SamplerHeapChanged, pPreviousSamplerHeap == nullptr ? 0 : 1);	// Don't count the initial set on a command list.
+			// Reset the sampler map since it will have invalid entries for the new heap.
+			SamplerMap.Reset();
+		}
+
+		INC_DWORD_STAT_BY(STAT_SamplerHeapChanged, LastSetSamplerHeap == nullptr ? 0 : 1);	// Don't count the initial set on a command list.
 	}
 
 	// Set the descriptor heaps.
 	if (bHeapChanged)
 	{
-		ID3D12DescriptorHeap* /*const*/ ppHeaps[] = { pCurrentViewHeap, pCurrentSamplerHeap };
+		ID3D12DescriptorHeap* ppHeaps[] = { PendingViewHeap, PendingSamplerHeap };
 		CmdContext->CommandListHandle->SetDescriptorHeaps(UE_ARRAY_COUNT(ppHeaps), ppHeaps);
 
-		pPreviousViewHeap = pCurrentViewHeap;
-		pPreviousSamplerHeap = pCurrentSamplerHeap;
+		LastSetViewHeap = PendingViewHeap;
+		LastSetSamplerHeap = PendingSamplerHeap;
 	}
 
-	check(pPreviousSamplerHeap == pCurrentSamplerHeap);
-	check(pPreviousViewHeap == pCurrentViewHeap);
+	check(LastSetSamplerHeap == PendingSamplerHeap);
+	check(LastSetViewHeap == PendingViewHeap);
 	return bHeapChanged;
 }
 
@@ -261,8 +273,8 @@ bool FD3D12DescriptorCache::SetDescriptorHeaps()
 void FD3D12DescriptorCache::SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle)
 {
 	// Clear the previous heap pointers (since it's a new command list) and then set the current descriptor heaps.
-	pPreviousViewHeap = nullptr;
-	pPreviousSamplerHeap = nullptr;
+	LastSetViewHeap = nullptr;
+	LastSetSamplerHeap = nullptr;
 
 	CurrentViewHeap->SetCurrentCommandList(CommandListHandle);
 
@@ -801,6 +813,20 @@ bool FD3D12DescriptorCache::SwitchToGlobalSamplerHeap()
 	return bDescriptorHeapsChanged;
 }
 
+bool FD3D12DescriptorCache::SetHeapOverrides(FD3D12DescriptorHeap* InOverrideViewHeap, FD3D12DescriptorHeap* InOverrideSamplerHeap)
+{
+	bool bDescriptorHeapsChanged = false;
+
+	if (OverrideViewHeap != InOverrideViewHeap || OverrideSamplerHeap != InOverrideSamplerHeap)
+	{
+		OverrideViewHeap = InOverrideViewHeap;
+		OverrideSamplerHeap = InOverrideSamplerHeap;
+
+		bDescriptorHeapsChanged = SetDescriptorHeaps();
+	}
+
+	return bDescriptorHeapsChanged;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FD3D12OnlineHeap

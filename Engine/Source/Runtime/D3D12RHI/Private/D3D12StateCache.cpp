@@ -409,6 +409,47 @@ inline bool ShouldSkipStage(uint32 Stage)
 	return ((Stage == SF_Mesh || Stage == SF_Amplification) && !GRHISupportsMeshShadersTier0);
 }
 
+bool FD3D12StateCacheBase::InternalSetRootSignature(ED3D12PipelineType InPipelineType, const FD3D12RootSignature* InRootSignature)
+{
+	bool bWasRootSignatureChanged = false;
+
+	if (InPipelineType == ED3D12PipelineType::Compute)
+	{
+		if (PipelineState.Compute.bNeedSetRootSignature)
+		{
+			CmdContext->CommandListHandle->SetComputeRootSignature(InRootSignature->GetRootSignature());
+			PipelineState.Compute.bNeedSetRootSignature = false;
+
+			// After setting a root signature, all root parameters are undefined and must be set again.
+			PipelineState.Common.SRVCache.DirtyCompute();
+			PipelineState.Common.UAVCache.DirtyCompute();
+			PipelineState.Common.SamplerCache.DirtyCompute();
+			PipelineState.Common.CBVCache.DirtyCompute();
+
+			bWasRootSignatureChanged = true;
+		}
+	}
+	else if (InPipelineType == ED3D12PipelineType::Graphics)
+	{
+		// See if we need to set a graphics root signature
+		if (PipelineState.Graphics.bNeedSetRootSignature)
+		{
+			CmdContext->CommandListHandle->SetGraphicsRootSignature(InRootSignature->GetRootSignature());
+			PipelineState.Graphics.bNeedSetRootSignature = false;
+
+			// After setting a root signature, all root parameters are undefined and must be set again.
+			PipelineState.Common.SRVCache.DirtyGraphics();
+			PipelineState.Common.UAVCache.DirtyGraphics();
+			PipelineState.Common.SamplerCache.DirtyGraphics();
+			PipelineState.Common.CBVCache.DirtyGraphics();
+
+			bWasRootSignatureChanged = true;
+		}
+	}
+
+	return bWasRootSignatureChanged;
+}
+
 void FD3D12StateCacheBase::InternalSetPipelineState(FD3D12PipelineState* InPipelineState)
 {
 	// See if we need to set our PSO:
@@ -444,48 +485,44 @@ void FD3D12StateCacheBase::ApplyState()
 #endif
 
 	FD3D12CommandListHandle& CommandList = CmdContext->CommandListHandle;
-	const FD3D12RootSignature* pRootSignature = nullptr;
+
+	FD3D12PipelineStateCommonData* PSOCommonData = nullptr;
 
 	// PSO
 	if (PipelineType == ED3D12PipelineType::Compute)
 	{
-		pRootSignature = PipelineState.Compute.CurrentPipelineStateObject->RootSignature;
-
-		// See if we need to set a compute root signature
-		if (PipelineState.Compute.bNeedSetRootSignature)
-		{
-			CommandList->SetComputeRootSignature(pRootSignature->GetRootSignature());
-			PipelineState.Compute.bNeedSetRootSignature = false;
-
-			// After setting a root signature, all root parameters are undefined and must be set again.
-			PipelineState.Common.SRVCache.DirtyCompute();
-			PipelineState.Common.UAVCache.DirtyCompute();
-			PipelineState.Common.SamplerCache.DirtyCompute();
-			PipelineState.Common.CBVCache.DirtyCompute();
-		}
-
-		// Ensure the correct compute PSO is set.
-		InternalSetPipelineState(GetComputePipelineState()->PipelineState);
+		PSOCommonData = GetComputePipelineState();
 	}
 	else if (PipelineType == ED3D12PipelineType::Graphics)
 	{
-		pRootSignature = PipelineState.Graphics.CurrentPipelineStateObject->RootSignature;
+		PSOCommonData = GetGraphicsPipelineState();
+	}
 
-		// See if we need to set a graphics root signature
-		if (PipelineState.Graphics.bNeedSetRootSignature)
-		{
-			CommandList->SetGraphicsRootSignature(pRootSignature->GetRootSignature());
-			PipelineState.Graphics.bNeedSetRootSignature = false;
+	const bool bRootSignatureChanged = InternalSetRootSignature(PipelineType, PSOCommonData->RootSignature);
 
-			// After setting a root signature, all root parameters are undefined and must be set again.
-			PipelineState.Common.SRVCache.DirtyGraphics();
-			PipelineState.Common.UAVCache.DirtyGraphics();
-			PipelineState.Common.SamplerCache.DirtyGraphics();
-			PipelineState.Common.CBVCache.DirtyGraphics();
-		}
+	// Ensure the correct graphics PSO is set.
+	InternalSetPipelineState(PSOCommonData->PipelineState);
 
-		// Ensure the correct graphics PSO is set.
-		InternalSetPipelineState(GetGraphicsPipelineState()->PipelineState);
+	bool bBindlessResources = false;
+	bool bBindlessSamplers = false;
+
+	if (bRootSignatureChanged)
+	{
+		bBindlessResources = PSOCommonData->RootSignature->UsesDynamicResources();
+		bBindlessSamplers = PSOCommonData->RootSignature->UsesDynamicSamplers();
+		
+		FD3D12BindlessDescriptorManager& BindlessManager = GetParentDevice()->GetBindlessDescriptorManager();
+
+		FD3D12DescriptorHeap* ResourceHeap = BindlessManager.GetHeapForType(ERHIDescriptorHeapType::Standard);
+		FD3D12DescriptorHeap* SamplerHeap = BindlessManager.GetHeapForType(ERHIDescriptorHeapType::Sampler);
+
+		checkf(!bBindlessResources || ResourceHeap != nullptr, TEXT("Using dynamic samplers without the bindless sampler heap configured. Please check your configuration."));
+		checkf(!bBindlessSamplers || SamplerHeap != nullptr, TEXT("Using dynamic samplers without the bindless sampler heap configured. Please check your configuration."));
+		
+		DescriptorCache.SetHeapOverrides(
+			bBindlessResources ? BindlessManager.GetHeapForType(ERHIDescriptorHeapType::Standard) : nullptr,
+			bBindlessSamplers ? BindlessManager.GetHeapForType(ERHIDescriptorHeapType::Sampler) : nullptr
+		);
 	}
 
 	// Need to cache compute budget, as we need to reset after PSO changes
@@ -543,7 +580,7 @@ void FD3D12StateCacheBase::ApplyState()
 			bNeedSetDepthBounds = false;
 			CmdContext->SetDepthBounds(PipelineState.Graphics.MinDepth, PipelineState.Graphics.MaxDepth);
 		}
-		
+
 		if (bNeedSetShadingRate)
 		{
 			bNeedSetShadingRate = false;
@@ -555,16 +592,33 @@ void FD3D12StateCacheBase::ApplyState()
 	const uint32 StartStage = PipelineType == ED3D12PipelineType::Graphics ? 0 : SF_Compute;
 	const uint32 EndStage = PipelineType == ED3D12PipelineType::Graphics ? SF_Compute : SF_NumStandardFrequencies;
 
-	const EShaderFrequency UAVStage = PipelineType == ED3D12PipelineType::Graphics ? SF_Pixel : SF_Compute;
-
 	//
 	// Reserve space in descriptor heaps
 	// Since this can cause heap rollover (which causes old bindings to become invalid), the reserve must be done atomically
 	//
 
 	// Samplers
-	ApplySamplers(pRootSignature, StartStage, EndStage);
+	if (!bBindlessSamplers)
+	{
+		ApplySamplers(PSOCommonData->RootSignature, StartStage, EndStage);
+	}
 
+	if (!bBindlessResources)
+	{
+		ApplyResources(PSOCommonData->RootSignature, StartStage, EndStage);
+	}
+
+	// Flush any needed resource barriers
+	CommandList.FlushResourceBarriers();
+
+#if ASSERT_RESOURCE_STATES
+	bool bSucceeded = AssertResourceStates(PipelineType);
+	check(bSucceeded);
+#endif
+}
+
+void FD3D12StateCacheBase::ApplyResources(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage)
+{
 	// Determine what resource bind slots are dirty for the current shaders and how many descriptor table slots we need.
 	// We only set dirty resources that can be used for the upcoming Draw/Dispatch.
 	SRVSlotMask CurrentShaderDirtySRVSlots[SF_NumStandardFrequencies] = {};
@@ -576,6 +630,9 @@ void FD3D12StateCacheBase::ApplyState()
 	uint32 NumCBVs[SF_NumStandardFrequencies] ={};
 #endif
 	uint32 NumViews = 0;
+
+	const EShaderFrequency UAVStage = StartStage == SF_Compute ? SF_Compute : SF_Pixel;
+
 	for (uint32 iTries = 0; iTries < 2; ++iTries)
 	{
 		const UAVSlotMask CurrentShaderUAVRegisterMask = BitMask<UAVSlotMask>(PipelineState.Common.CurrentShaderUAVCounts[UAVStage]);
@@ -666,7 +723,14 @@ void FD3D12StateCacheBase::ApplyState()
 	if (CurrentShaderDirtyUAVSlots)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_D3D12ApplyStateSetUAVTime);
-		DescriptorCache.SetUAVs<UAVStage>(pRootSignature, PipelineState.Common.UAVCache, CurrentShaderDirtyUAVSlots, NumUAVs, ViewHeapSlot);
+		if (UAVStage == SF_Pixel)
+		{
+			DescriptorCache.SetUAVs<SF_Pixel>(pRootSignature, PipelineState.Common.UAVCache, CurrentShaderDirtyUAVSlots, NumUAVs, ViewHeapSlot);
+		}
+		else
+		{
+			DescriptorCache.SetUAVs<SF_Compute>(pRootSignature, PipelineState.Common.UAVCache, CurrentShaderDirtyUAVSlots, NumUAVs, ViewHeapSlot);
+		}
 	}
 
 	// Shader resource views
@@ -680,18 +744,18 @@ void FD3D12StateCacheBase::ApplyState()
 			DescriptorCache.SetSRVs<##Shader>(pRootSignature, SRVCache, CurrentShaderDirtySRVSlots[##Shader], NumSRVs[##Shader], ViewHeapSlot); \
 		}
 
-		if (PipelineType == ED3D12PipelineType::Graphics)
+		if (StartStage == SF_Compute)
+		{
+			// Note that ray tracing pipeline shares state with compute
+			CONDITIONAL_SET_SRVS(SF_Compute);
+		}
+		else
 		{
 			CONDITIONAL_SET_SRVS(SF_Vertex);
 			CONDITIONAL_SET_SRVS(SF_Mesh);
 			CONDITIONAL_SET_SRVS(SF_Amplification);
 			CONDITIONAL_SET_SRVS(SF_Geometry);
 			CONDITIONAL_SET_SRVS(SF_Pixel);
-		}
-		else
-		{
-			// Note that ray tracing pipeline shares state with compute
-			CONDITIONAL_SET_SRVS(SF_Compute);
 		}
 #undef CONDITIONAL_SET_SRVS
 	}
@@ -714,8 +778,12 @@ void FD3D12StateCacheBase::ApplyState()
 			DescriptorCache.SetConstantBuffers<##Shader>(pRootSignature, CBVCache, CurrentShaderDirtyCBVSlots[##Shader]); \
 		}
 #endif
-
-		if (PipelineType == ED3D12PipelineType::Graphics)
+		if (StartStage == SF_Compute)
+		{
+			// Note that ray tracing pipeline shares state with compute
+			CONDITIONAL_SET_CBVS(SF_Compute);
+		}
+		else
 		{
 			CONDITIONAL_SET_CBVS(SF_Vertex);
 			CONDITIONAL_SET_CBVS(SF_Mesh);
@@ -723,21 +791,8 @@ void FD3D12StateCacheBase::ApplyState()
 			CONDITIONAL_SET_CBVS(SF_Geometry);
 			CONDITIONAL_SET_CBVS(SF_Pixel);
 		}
-		else
-		{
-			// Note that ray tracing pipeline shares state with compute
-			CONDITIONAL_SET_CBVS(SF_Compute);
-		}
 #undef CONDITIONAL_SET_CBVS
 	}
-
-	// Flush any needed resource barriers
-	CommandList.FlushResourceBarriers();
-
-#if ASSERT_RESOURCE_STATES
-	bool bSucceeded = AssertResourceStates(PipelineType);
-	check(bSucceeded);
-#endif
 }
 
 void FD3D12StateCacheBase::ApplySamplers(const FD3D12RootSignature* const pRootSignature, uint32 StartStage, uint32 EndStage)

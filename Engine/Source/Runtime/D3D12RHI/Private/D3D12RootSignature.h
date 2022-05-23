@@ -66,23 +66,13 @@ private:
 	// Struct for all the useful info we want per shader stage.
 	struct ShaderStage
 	{
-		ShaderStage()
-			: MaxCBVCount(0u)
-			, MaxSRVCount(0u)
-			, MaxSamplerCount(0u)
-			, MaxUAVCount(0u)
-			, CBVRegisterMask(0u)
-			, bVisible(false)
-		{
-		}
-
 		// TODO: Make these arrays and index into them by type instead of individual variables.
-		uint8 MaxCBVCount;
-		uint8 MaxSRVCount;
-		uint8 MaxSamplerCount;
-		uint8 MaxUAVCount;
-		CBVSlotMask CBVRegisterMask;
-		bool bVisible;
+		uint8 MaxCBVCount = 0;
+		uint8 MaxSRVCount = 0;
+		uint8 MaxSamplerCount = 0;
+		uint8 MaxUAVCount = 0;
+		CBVSlotMask CBVRegisterMask = 0;
+		bool bVisible = false;
 	};
 
 public:
@@ -194,6 +184,9 @@ public:
 	inline bool HasSRVs() const { return bHasSRVs; }
 	inline bool HasCBVs() const { return bHasCBVs; }
 	inline bool HasSamplers() const { return bHasSamplers; }
+	inline bool UsesDynamicResources() const { return bUsesDynamicResources; }
+	inline bool UsesDynamicSamplers() const { return bUsesDynamicSamplers; }
+
 	inline bool HasVS() const { return Stage[SF_Vertex].bVisible; }
 	inline bool HasMS() const { return Stage[SF_Mesh].bVisible; }
 	inline bool HasAS() const { return Stage[SF_Amplification].bVisible; }
@@ -293,7 +286,6 @@ private:
 		*pBindSlot = RootParameterIndex;
 
 		bHasCBVs = true;
-		bHasRDTCBVs = true;
 	}
 
 	inline void SetCBVRDBindSlot(EShaderFrequency SF, uint8 RootParameterIndex)
@@ -318,7 +310,6 @@ private:
 		*pBindSlot = RootParameterIndex;
 
 		bHasCBVs = true;
-		bHasRDCBVs = true;
 	}
 
 	inline void SetUAVRDTBindSlot(EShaderFrequency SF, uint8 RootParameterIndex)
@@ -459,10 +450,10 @@ private:
 	uint8 bHasUAVs : 1;
 	uint8 bHasSRVs : 1;
 	uint8 bHasCBVs : 1;
-	uint8 bHasRDTCBVs : 1;
-	uint8 bHasRDCBVs : 1;
 	uint8 bHasSamplers : 1;
 	uint8 bHasVendorExtensionSpace : 1;
+	uint8 bUsesDynamicResources : 1;
+	uint8 bUsesDynamicSamplers : 1;
 	uint8 bUnused : 1;
 };
 

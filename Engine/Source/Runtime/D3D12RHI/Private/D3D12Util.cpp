@@ -1023,6 +1023,26 @@ static void QuantizeBoundShaderStateCommon(
 	SetBoundShaderStateFlags(OutQBSS, ShaderData);
 }
 
+static bool IsCompatibleWithBindlessSamplers(const FD3D12ShaderData* ShaderData)
+{
+	if (ensure(ShaderData))
+	{
+		return ShaderData->UsesBindlessSamplers()
+			|| ShaderData->ResourceCounts.NumSamplers == 0;
+	}
+	return true;
+}
+
+static bool IsCompatibleWithBindlessResources(const FD3D12ShaderData* ShaderData)
+{
+	if (ensure(ShaderData))
+	{
+		return ShaderData->UsesBindlessResources()
+			|| (ShaderData->ResourceCounts.NumSRVs + ShaderData->ResourceCounts.NumUAVs) == 0;
+	}
+	return true;
+}
+
 void QuantizeBoundShaderState(
 	const D3D12_RESOURCE_BINDING_TIER& ResourceBindingTier,
 	const FD3D12BoundShaderState* const BSS,
@@ -1043,6 +1063,42 @@ void QuantizeBoundShaderState(
 #endif
 	QuantizeBoundShaderStateCommon(QBSS, BSS->GetPixelShader(),         ResourceBindingTier, SV_Pixel, true /*bAllowUAVs*/);
 	QuantizeBoundShaderStateCommon(QBSS, BSS->GetGeometryShader(),      ResourceBindingTier, SV_Geometry);
+
+#if DO_CHECK
+	if (QBSS.bUseDirectlyIndexedResourceHeap || QBSS.bUseDirectlyIndexedSamplerHeap)
+	{
+		struct FGenericShaderPair
+		{
+			const FRHIGraphicsShader* RHI;
+			const FD3D12ShaderData* Data;
+		};
+		const FGenericShaderPair ShaderDatas[] =
+		{
+			{ BSS->GetVertexShader(), BSS->GetVertexShader() },
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+			{ BSS->GetMeshShader(), BSS->GetMeshShader() },
+			{ BSS->GetAmplificationShader(), BSS->GetAmplificationShader() },
+#endif
+			{ BSS->GetPixelShader(), BSS->GetPixelShader() },
+			{ BSS->GetGeometryShader(), BSS->GetGeometryShader() },
+		};
+
+		for (const FGenericShaderPair& ShaderPair : ShaderDatas)
+		{
+			if (ShaderPair.RHI)
+			{
+				if (QBSS.bUseDirectlyIndexedResourceHeap)
+				{
+					checkf(IsCompatibleWithBindlessResources(ShaderPair.Data), TEXT("Mismatched dynamic resource usage. %s doesn't support binding with stages that use dynamic resources"), ShaderPair.RHI->GetShaderName());
+				}
+				if (QBSS.bUseDirectlyIndexedSamplerHeap)
+				{
+					checkf(IsCompatibleWithBindlessSamplers(ShaderPair.Data), TEXT("Mismatched dynamic resource usage. %s doesn't support binding with stages that use dynamic samplers"), ShaderPair.RHI->GetShaderName());
+				}
+			}
+		}
+	}
+#endif
 }
 
 void QuantizeBoundShaderState(

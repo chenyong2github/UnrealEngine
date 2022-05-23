@@ -589,13 +589,14 @@ void FD3D12RootSignature::InternalAnalyzeSignature(const RootSignatureDescType& 
 		bHasUAVs = false;
 		bHasSRVs = false;
 		bHasCBVs = false;
-		bHasRDTCBVs = false;
-		bHasRDCBVs = false;
 		bHasSamplers = false;
 
 		FMemory::Memset(BindSlotOffsetsInDWORDs, 0, sizeof(BindSlotOffsetsInDWORDs));
 		TotalRootSignatureSizeInDWORDs = 0;
 	}
+
+	bUsesDynamicResources = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED) != 0;
+	bUsesDynamicSamplers = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED) != 0;
 
 	const bool bDenyVS = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_DENY_VERTEX_SHADER_ROOT_ACCESS) != 0;
 	const bool bDenyGS = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS) != 0;

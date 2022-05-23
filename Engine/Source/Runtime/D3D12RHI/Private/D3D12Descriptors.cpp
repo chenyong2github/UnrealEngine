@@ -189,6 +189,19 @@ void FD3D12BindlessDescriptorManager::UpdateDeferred(FRHIDescriptorHandle InHand
 	UpdateImmediately(InHandle, InSourceCpuHandle);
 }
 
+FD3D12DescriptorHeap* FD3D12BindlessDescriptorManager::GetHeapForType(ERHIDescriptorHeapType InType)
+{
+	for (FD3D12DescriptorManager& Manager : Managers)
+	{
+		if (Manager.HandlesAllocation(InType))
+		{
+			return Manager.GetHeap();
+		}
+	}
+
+	return nullptr;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FD3D12OnlineDescriptorManager
 

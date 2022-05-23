@@ -105,6 +105,8 @@ public:
 	void UpdateImmediately(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
 	void UpdateDeferred(FRHIDescriptorHandle InHandle, D3D12_CPU_DESCRIPTOR_HANDLE InSourceCpuHandle);
 
+	FD3D12DescriptorHeap* GetHeapForType(ERHIDescriptorHeapType InType);
+
 private:
 	TArray<FD3D12DescriptorManager> Managers;
 };
