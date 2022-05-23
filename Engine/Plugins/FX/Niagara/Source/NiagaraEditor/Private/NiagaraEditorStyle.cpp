@@ -674,6 +674,7 @@ void FNiagaraEditorStyle::InitScalabilityColors()
 
 void FNiagaraEditorStyle::InitScalabilityIcons()
 {
+	Set("NiagaraEditor.Scalability", new IMAGE_BRUSH_SVG("Icons/Scalability/Scalability", Icon20x20));
 	Set("NiagaraEditor.Scalability.System.Feature.Override", new IMAGE_BRUSH_SVG("Icons/Scalability/Override", Icon20x20));
 	Set("NiagaraEditor.Scalability.Preview.ResetPlatform", new IMAGE_BRUSH("Icons/Scalability/ResetPreviewPlatform", Icon20x20));
 }

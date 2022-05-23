@@ -259,7 +259,8 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 						NAME_None, 
 						LOCTEXT("ScalabilityLabel", "Scalability"),
 						LOCTEXT("ScalabilityTooltip", "Turn on scalability mode to optimize your effects for various platforms and quality settings."),
-						FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.SimulationOptions")
+						FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Scalability"),
+						EUserInterfaceActionType::ToggleButton
 					);
 				}
 				ToolbarBuilder.EndSection();

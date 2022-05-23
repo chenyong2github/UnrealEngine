@@ -203,19 +203,10 @@ void FNiagaraSystemToolkitMode_Scalability::ExtendToolbar()
 					ScalabilityToggleAction,
 					NAME_None, 
 					LOCTEXT("ScalabilityLabel", "Scalability"),
-					LOCTEXT("ScalabilityTooltip", "Turn on scalability mode to optimize your effects for various platforms and quality settings."),
-					FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.SimulationOptions")
+					LOCTEXT("ScalabilityTooltip", "Turn off scalability mode."),
+					FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Scalability"),
+					EUserInterfaceActionType::ToggleButton
 				);
-
-				// @todo remove this once preview settings are finalized (tab vs. overlay in graph etc.)
-				// TSharedRef<SHorizontalBox> ViewModeContainer = SNew(SHorizontalBox)
-				// + SHorizontalBox::Slot()
-				// .AutoWidth()
-				// [
-				// 	SNew(SNiagaraScalabilityPreviewSettings, *Toolkit->GetSystemViewModel()->GetScalabilityViewModel())
-				// ];
-				//
-				// ToolbarBuilder.AddWidget(ViewModeContainer);
 			}
 			ToolbarBuilder.EndSection();		
 		}		
