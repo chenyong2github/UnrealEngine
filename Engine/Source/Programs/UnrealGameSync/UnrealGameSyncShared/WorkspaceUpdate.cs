@@ -68,6 +68,7 @@ namespace UnrealGameSync
 
 		public const int DefaultMaxCommandsPerBatch = 200;
 		public const int DefaultMaxSizePerBatch = 128 * 1024 * 1024;
+		public const int DefaultNumSyncErrorRetries = 0;
 
 		public int NumRetries = DefaultNumRetries;
 		public int NumThreads = DefaultNumThreads;
@@ -76,6 +77,8 @@ namespace UnrealGameSync
 
 		public int MaxCommandsPerBatch = DefaultMaxCommandsPerBatch;
 		public int MaxSizePerBatch = DefaultMaxSizePerBatch;
+
+		public int NumSyncErrorRetries = DefaultNumSyncErrorRetries;
 
 
 		public PerforceSyncOptions Clone()
@@ -1630,8 +1633,21 @@ namespace UnrealGameSync
 					}
 				}
 
-				// Sync the files
-				(WorkspaceUpdateResult Result, string StatusMessage) = await StaticSyncFileRevisions(Perforce, Context, SyncCommands, Record => SyncOutput(Record, ThreadLog), CancellationToken);
+				WorkspaceUpdateResult Result = WorkspaceUpdateResult.FailedToSync;
+				string StatusMessage = "";
+
+				int Retries = (null != Context.PerforceSyncOptions) ? Context.PerforceSyncOptions!.NumSyncErrorRetries : 0;
+
+				while (Retries >= 0 && WorkspaceUpdateResult.FailedToSync == Result)
+				{
+					// Sync the files
+					(Result, StatusMessage) = await StaticSyncFileRevisions(Perforce, Context, SyncCommands, Record => SyncOutput(Record, ThreadLog), CancellationToken);
+
+					if (WorkspaceUpdateResult.FailedToSync == Result && --Retries >= 0)
+					{
+						ThreadLog.LogWarning("Sync Errors occurred.  Retrying: Remaining retries " + Retries.ToString());
+					}
+				}
 
 				// If it failed, try to set it on the state if nothing else has failed first
 				if (Result != WorkspaceUpdateResult.Success)
@@ -1672,7 +1688,9 @@ namespace UnrealGameSync
 				}
 				else
 				{
-					return (WorkspaceUpdateResult.FailedToSync, "Aborted sync due to errors.");
+					return (WorkspaceUpdateResult.FailedToSync, "Aborted sync due to errors.. Currently retries on sync error is set at " +
+						((null != Context.PerforceSyncOptions) ? Context.PerforceSyncOptions!.NumSyncErrorRetries : 0).ToString() +
+						" in Options->Application Settings...->Advanced.  You might want to set it higher if you are on a bad connection.");
 				}
 			}
 
