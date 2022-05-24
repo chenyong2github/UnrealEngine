@@ -595,6 +595,7 @@ static void FinalizeBuildSettingsForLayer(
 		if (Options.bUsesRDO)
 		{
 			// If this mapping changes, update the tooltip in TextureEncodingSettings.h
+			// this is an ETextureLossyCompressionAmount
 			switch (OutSettings.LossyCompressionAmount)
 			{
 			default:
