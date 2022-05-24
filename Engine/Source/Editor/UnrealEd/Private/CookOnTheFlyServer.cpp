@@ -4659,6 +4659,7 @@ void FSaveCookedPackageContext::FinishPackage()
 #endif
 			}
 		}
+		COOK_STAT(++DetailedCookStats::NumPackagesSavedForCook);
 	}
 	else if (bReferencedOnlyByEditorOnlyData)
 	{
@@ -7342,7 +7343,7 @@ void UCookOnTheFlyServer::PrintFinishStats()
 	UE_LOG(LogCook, Display, TEXT("Peak Used virtual %u MiB Peak Used physical %u MiB"), MemStats.PeakUsedVirtual / 1024 / 1024, MemStats.PeakUsedPhysical / 1024 / 1024);
 
 	COOK_STAT(UE_LOG(LogCook, Display, TEXT("Packages Cooked: %d, Packages Iteratively Skipped: %d, Total Packages: %d"),
-		UE::SavePackageUtilities::GetNumPackagesSaved(), DetailedCookStats::NumPackagesIterativelySkipped, PackageDatas->GetNumCooked()));
+		DetailedCookStats::NumPackagesSavedForCook, DetailedCookStats::NumPackagesIterativelySkipped, PackageDatas->GetNumCooked()));
 }
 
 TMap<FName, TSet<FName>> UCookOnTheFlyServer::BuildMapDependencyGraph(const ITargetPlatform* TargetPlatform)
@@ -7830,6 +7831,8 @@ void UCookOnTheFlyServer::BeginCookSandbox(FBeginCookContext& BeginContext)
 			}
 		}
 	}
+
+	COOK_STAT(DetailedCookStats::NumPackagesSavedForCook = 0);
 
 #if OUTPUT_COOKTIMING
 	FString PlatformNames;

@@ -187,6 +187,7 @@ namespace DetailedCookStats
 	int32 PeakSaveQueueSize = 0;
 	uint32 NumPreloadedDependencies = 0;
 	uint32 NumPackagesIterativelySkipped = 0;
+	uint32 NumPackagesSavedForCook = 0;
 	FCookStatsManager::FAutoRegisterCallback RegisterCookOnTheFlyServerStats([](FCookStatsManager::AddStatFuncRef AddStat)
 		{
 			AddStat(TEXT("Package.Load"), FCookStatsManager::CreateKeyValueArray(TEXT("NumPreloadedDependencies"), NumPreloadedDependencies));
