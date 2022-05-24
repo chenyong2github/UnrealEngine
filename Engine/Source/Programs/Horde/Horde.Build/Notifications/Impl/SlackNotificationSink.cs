@@ -626,6 +626,23 @@ namespace Horde.Build.Notifications.Impl
 
 			IIssueDetails details = await _issueService.GetIssueDetailsAsync(issue);
 
+			WorkflowConfig? workflow = null;
+			if (details.Spans.Count > 0)
+			{
+				IIssueSpan span = details.Spans[0];
+
+				WorkflowId? workflowId = span.LastFailure.Annotations.WorkflowId;
+				if (workflowId != null)
+				{
+					IStream? stream = await _streamService.GetStreamAsync(span.StreamId);
+					if (stream != null && stream.Config.TryGetWorkflow(workflowId.Value, out workflow))
+					{
+						await CreateOrUpdateWorkflowThreadAsync(issue, span, details.Spans, workflow);
+					}
+				}
+			}
+
+			bool notifyOwner = workflow?.TriageChannel == null;
 			bool notifySuspects = issue.Promoted || details.Spans.Any(x => x.LastFailure.Annotations.NotifySubmitters ?? false);
 
 			HashSet<UserId> userIds = new HashSet<UserId>();
@@ -633,7 +650,7 @@ namespace Horde.Build.Notifications.Impl
 			{
 				userIds.UnionWith(details.Suspects.Select(x => x.AuthorId));
 			}
-			if (issue.OwnerId.HasValue)
+			if (notifyOwner && issue.OwnerId.HasValue)
 			{
 				userIds.Add(issue.OwnerId.Value);
 			}
@@ -650,21 +667,6 @@ namespace Horde.Build.Notifications.Impl
 				else
 				{
 					channels.Add(existingMessage.Recipient);
-				}
-			}
-
-			if (details.Spans.Count > 0)
-			{
-				IIssueSpan span = details.Spans[0];
-
-				WorkflowId? workflowId = span.LastFailure.Annotations.WorkflowId;
-				if (workflowId != null)
-				{
-					IStream? stream = await _streamService.GetStreamAsync(span.StreamId);
-					if(stream != null && stream.Config.TryGetWorkflow(workflowId.Value, out WorkflowConfig? workflow))
-					{
-						await CreateOrUpdateWorkflowThreadAsync(issue, span, details.Spans, workflow);
-					}
 				}
 			}
 
