@@ -64,10 +64,12 @@ DECLARE_GPU_STAT_NAMED(LightCullingVolumeCompute, TEXT("RT Light Culling Volume 
 static void SelectRaytracingLights(
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const FViewInfo& View,
-	TArray<int32>& OutSelectedLights
+	TArray<int32>& OutSelectedLights,
+	uint32& NumOfSkippedRayTracingLights
 )
 {
 	OutSelectedLights.Empty();
+	NumOfSkippedRayTracingLights = 0;
 
 	for (auto Light : Lights)
 	{
@@ -75,9 +77,14 @@ static void SelectRaytracingLights(
 		const bool bAffectReflection = Light.LightSceneInfo->Proxy->AffectReflection();
 		if (bHasStaticLighting || !bAffectReflection) continue;
 
-		OutSelectedLights.Add(Light.LightSceneInfo->Id);
-
-		if (OutSelectedLights.Num() >= RAY_TRACING_LIGHT_COUNT_MAXIMUM) break;
+		if (OutSelectedLights.Num() < RAY_TRACING_LIGHT_COUNT_MAXIMUM)
+		{
+			OutSelectedLights.Add(Light.LightSceneInfo->Id);
+		}
+		else
+		{
+			NumOfSkippedRayTracingLights++;
+		};
 	}
 }
 
@@ -286,14 +293,15 @@ static void SetupRaytracingLightDataPacked(
 TRDGUniformBufferRef<FRaytracingLightDataPacked> CreateRayTracingLightData(
 	FRDGBuilder& GraphBuilder,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
-	const FViewInfo& View)
+	const FViewInfo& View,
+	uint32& NumOfSkippedRayTracingLights)
 {
 	auto* LightData = GraphBuilder.AllocParameters<FRaytracingLightDataPacked>();
 	LightData->CellCount = GetCellsPerDim();
 	LightData->CellScale = CVarRayTracingLightingCellSize.GetValueOnRenderThread() / 2.0f;
 
 	TArray<int32> LightIndices;
-	SelectRaytracingLights(Lights, View, LightIndices);
+	SelectRaytracingLights(Lights, View, LightIndices, NumOfSkippedRayTracingLights);
 
 	// Create light culling volume
 	FRDGBufferRef LightCullVolume;

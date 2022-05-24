@@ -1504,6 +1504,8 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 
 	ReferenceView.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(ReferenceView.RayTracingSubSurfaceProfileTexture, 0);
 
+	uint32 NumOfSkippedRayTracingLights = 0;
+
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		FViewInfo& View = Views[ViewIndex];
@@ -1524,9 +1526,23 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 		else
 		{
 			// This light data is a function of the camera position, so must be computed per view.
-			View.RayTracingLightDataUniformBuffer = CreateRayTracingLightData(GraphBuilder, Scene->Lights, View);
+			View.RayTracingLightDataUniformBuffer = CreateRayTracingLightData(GraphBuilder, Scene->Lights, View, NumOfSkippedRayTracingLights);
 		}
 	}
+
+#if !UE_BUILD_SHIPPING
+	if (!bIsPathTracing && NumOfSkippedRayTracingLights > 0)
+	{
+		OnGetOnScreenMessages.AddLambda([NumOfSkippedRayTracingLights](FScreenMessageWriter& ScreenMessageWriter)->void
+			{
+				FString String = FString::Printf(
+					TEXT("%d light(s) skipped. Active Ray Tracing light count > RAY_TRACING_LIGHT_COUNT_MAXIMUM (%d)."),
+					NumOfSkippedRayTracingLights,
+					RAY_TRACING_LIGHT_COUNT_MAXIMUM);
+				ScreenMessageWriter.DrawLine(FText::FromString(String), 10, FColor::Yellow);
+			});
+	}
+#endif
 
 	return true;
 }

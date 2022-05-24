@@ -58,6 +58,7 @@ static_assert(sizeof(FRTLightingData) == 128, "Unexpected FRTLightingData size."
 TRDGUniformBufferRef<FRaytracingLightDataPacked> CreateRayTracingLightData(
 	FRDGBuilder& GraphBuilder,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
-	const FViewInfo& View);
+	const FViewInfo& View,
+	uint32& NumOfSkippedRayTracingLights);
 
 #endif
