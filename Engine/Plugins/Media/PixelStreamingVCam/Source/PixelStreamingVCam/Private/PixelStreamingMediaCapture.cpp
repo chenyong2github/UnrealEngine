@@ -4,19 +4,14 @@
 #include "PixelStreamingSourceFrame.h"
 #include "Slate/SceneViewport.h"
 
-void UPixelStreamingMediaCapture::OnCustomCapture_RenderingThread(
-	FRHICommandListImmediate& RHICmdList,
-	const FCaptureBaseData& InBaseData,
-	TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData,
-	FTexture2DRHIRef InSourceTexture,
-	FTextureRHIRef TargetableTexture,
-	FResolveParams& ResolveParams,
-	FVector2D CropU,
-	FVector2D CropV)
+void UPixelStreamingMediaCapture::OnRHIResourceCaptured_RenderingThread(
+		const FCaptureBaseData& InBaseData,
+		TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData,
+		FTextureRHIRef InTexture)
 {
 	if (VideoInput)
 	{
-		VideoInput->OnFrame.Broadcast(FPixelStreamingSourceFrame(InSourceTexture));
+		VideoInput->OnFrame.Broadcast(FPixelStreamingSourceFrame(InTexture));
 	}
 }
 

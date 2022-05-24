@@ -13,18 +13,14 @@ class UPixelStreamingMediaCapture : public UMediaCapture
 
 	//~ Begin UMediaCapture interface
 public:
-	virtual void OnCustomCapture_RenderingThread(
-		FRHICommandListImmediate& RHICmdList,
+	virtual void OnRHIResourceCaptured_RenderingThread(
 		const FCaptureBaseData& InBaseData,
 		TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData,
-		FTexture2DRHIRef InSourceTexture,
-		FTextureRHIRef TargetableTexture,
-		FResolveParams& ResolveParams,
-		FVector2D CropU,
-		FVector2D CropV) override;
+		FTextureRHIRef InTexture) override;
+
 	virtual bool CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport) override;
 	virtual bool CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) override;
-	virtual bool ShouldCaptureRHITexture() const { return true; }
+	virtual bool ShouldCaptureRHIResource() const { return true; }
 	virtual void StopCaptureImpl(bool bAllowPendingFrameToBeProcess) override {}
 	//~ End UMediaCapture interface
 
