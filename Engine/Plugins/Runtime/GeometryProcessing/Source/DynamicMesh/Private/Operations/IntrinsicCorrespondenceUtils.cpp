@@ -92,10 +92,28 @@ FVector3d IntrinsicCorrespondenceUtils::AsR3Position(const IntrinsicCorresponden
 /**------------------------------------------------------------------------------
 * FMeshConnection
 *-------------------------------------------------------------------------------*/
-
 IntrinsicCorrespondenceUtils::FMeshConnection::FMeshConnection(const FDynamicMesh3& SurfMesh)
-	:SurfaceMesh(&SurfMesh)
 {
+	Reset(SurfMesh);
+}
+
+void IntrinsicCorrespondenceUtils::FMeshConnection::Reset(TUniquePtr<FDynamicMesh3>& SurfMesh)
+{
+	Reset(*SurfMesh);
+
+	OwnedSurfaceMesh = MoveTemp(SurfMesh);
+	SurfaceMesh = OwnedSurfaceMesh.Get();
+}
+
+void IntrinsicCorrespondenceUtils::FMeshConnection::Reset(const FDynamicMesh3& SurfMesh)
+{
+	OwnedSurfaceMesh.Release();
+
+	SurfaceMesh = &SurfMesh;
+
+	VIDToReferenceEID.Reset();
+	TIDToReferenceEID.Reset();
+
 	// pick local reference directions for each vertex and triangle.
 	const int32 MaxVertexID   = SurfMesh.MaxVertexID();
 	const int32 MaxTriangleID = SurfMesh.MaxTriangleID();
@@ -154,8 +172,33 @@ IntrinsicCorrespondenceUtils::FMeshConnection::FMeshConnection(const FDynamicMes
 *-------------------------------------------------------------------------------*/
 
 IntrinsicCorrespondenceUtils::FNormalCoordinates::FNormalCoordinates(const FDynamicMesh3& SurfMesh)
-	: MyBase(SurfMesh)
+	: MyBase()
 {
+	Reset(SurfMesh);
+}
+
+void IntrinsicCorrespondenceUtils::FNormalCoordinates::Reset(TUniquePtr<FDynamicMesh3>& SurfMesh)
+{
+	MyBase::Reset(SurfMesh);
+
+	RebuildNormalCoordinates(*this->SurfaceMesh);
+}
+
+void IntrinsicCorrespondenceUtils::FNormalCoordinates::Reset(const FDynamicMesh3& SurfMesh)
+{
+	MyBase::Reset(SurfMesh);
+
+	RebuildNormalCoordinates(SurfMesh);
+}
+
+void IntrinsicCorrespondenceUtils::FNormalCoordinates::RebuildNormalCoordinates(const FDynamicMesh3& SurfMesh)
+{
+	NormalCoord.Clear();
+	RoundaboutOrder.Clear();
+
+	RefVertDegree.Reset();
+	EdgeOrder.Reset();
+
 	const int32 MaxEID = SurfMesh.MaxEdgeID();
 	const int32 MaxVID = SurfMesh.MaxVertexID();
 	const int32 MaxTID = SurfMesh.MaxTriangleID();

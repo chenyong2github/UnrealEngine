@@ -96,10 +96,23 @@ namespace IntrinsicCorrespondenceUtils
 	// A Connection stores the information needed to define a local reference direction for each vertex and triangle.
 	struct DYNAMICMESH_API FMeshConnection
 	{
+		FMeshConnection() : SurfaceMesh(nullptr) {};
+
 		FMeshConnection(const FDynamicMesh3& SurfMesh);
-		const FDynamicMesh3* SurfaceMesh;               // Pointer back to original mesh 
-		TArray<int32> VIDToReferenceEID;                // Reference (original mesh) Edge per (original mesh) Vertex, defines local zero angle on tangent plane
-		TArray<int32> TIDToReferenceEID;                // Reference (original mesh) Edge per (original mesh) Triangle, defines local zero angle on tangent plane
+
+		/** Reset the connection to the given (not owned) surface mesh*/
+		void Reset(const FDynamicMesh3& SurfMesh);     
+
+		/** Reset the connection to used a internally owned surface mesh*/
+		void Reset(TUniquePtr<FDynamicMesh3>& SurfMesh);
+		
+
+		
+
+		const FDynamicMesh3* SurfaceMesh;                  // Pointer back the surface mesh used by the connection.  Will agree with OwnedSurfaceMesh if that is not null 
+		TUniquePtr<FDynamicMesh3> OwnedSurfaceMesh;        // Optional, the connection can own a surface mesh.
+		TArray<int32> VIDToReferenceEID;                   // Reference (original mesh) Edge per (original mesh) Vertex, defines local zero angle on tangent plane
+		TArray<int32> TIDToReferenceEID;                   // Reference (original mesh) Edge per (original mesh) Triangle, defines local zero angle on tangent plane
 	};
 
 	/**
@@ -111,7 +124,17 @@ namespace IntrinsicCorrespondenceUtils
 	{
 		typedef FMeshConnection  MyBase;
 
+		FNormalCoordinates(): MyBase() {}
+
 		FNormalCoordinates(const FDynamicMesh3& SurfMesh);
+
+		/** Reset the connection to the given (not owned) surface mesh*/
+		void Reset(const FDynamicMesh3& SurfMesh);
+
+		/** Reset the connection to used an internally owned surface mesh*/
+		void Reset(TUniquePtr<FDynamicMesh3>& SurfMesh);
+
+
 
 		struct FEdgeAndCrossingIdx
 		{
@@ -172,6 +195,10 @@ namespace IntrinsicCorrespondenceUtils
 
 		TArray<int32>             RefVertDegree;   // Per vertex in ref mesh, caches the result of counting the edges in RefMesh.VtxEdgeIter().  
 		TArray<FIndex3i>          EdgeOrder;       // Per surface triangle, per directed edge: number of edges past reference edge traveling ccw.
+
+	protected:
+		/** rebuild the normal coordinate data in this connection. Assumes the base connection data is consistent with this surface mesh*/
+		void RebuildNormalCoordinates(const FDynamicMesh3& SurfMesh);
 	};
 
 
@@ -338,6 +365,7 @@ namespace IntrinsicCorrespondenceUtils
 			CurTriEIDs = Mesh.GetTriEdges(CurTID);
 			IndexOf    = CurTriEIDs.IndexOf(CurEID);
 
+			checkSlow(Mesh.GetTriangle(CurTID)[IndexOf] == VID);
 		} while (CurEID != StartEID);
 
 		return true;

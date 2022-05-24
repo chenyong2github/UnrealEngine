@@ -991,73 +991,95 @@ namespace FNormalCoordSurfaceTraceImpl
 			// where to start when visiting the intrinsic triangles that are adjacent to the startVID
 			const int32 VistorStartEID = IdentifyInitialAdjacentEdge(IntrinsicMesh, StartVID);
 
-			// when visiting each adjacent intrinsic triangle (in CCW order) test if the surface edge we trace is inside this triangle.
-			auto EdgeFinder = [&](int32 IntrinsicTID, int32 IntrinsicEID, int32 IdxOf)->bool
-								{
+			// test for the special case when the StartVID has valence one on the intrinsic mesh (ie a single triangle is wrapped into a cone)
+			const FIndex2i IntrinsicEdgeT  = IntrinsicMesh.GetEdgeT(VistorStartEID);
+			if (IntrinsicEdgeT.A == IntrinsicEdgeT.B)
+			{
+				const int32 IntrinsicEID     = VistorStartEID;
+				const int32 IntrinsicTID     = IntrinsicEdgeT.A;
+				const FIndex3i IntrinsicVIDs = IntrinsicMesh.GetTriangle(IntrinsicTID);
+				const int32 IdxOf            = IntrinsicVIDs.IndexOf(StartVID);
+				const int32 ThisRoundabout   = NCoords.RoundaboutOrder[IntrinsicTID][IdxOf];
+				const bool bOnSurfaceEdge    = NCoords.IsSurfaceEdgeSegment(IntrinsicEID);
+				const bool bEquivalentToSurface = bOnSurfaceEdge  && (ThisRoundabout == OrderOfTraceEID);
 
-
-									const FIndex3i IntrinsicTriEIDs = IntrinsicMesh.GetTriEdges(IntrinsicTID);
-									const int32 ThisRoundabout      = NCoords.RoundaboutOrder[IntrinsicTID][IdxOf];
-									const bool bOnSurfaceEdge       = NCoords.IsSurfaceEdgeSegment(IntrinsicEID);
-									const bool bEquivalentToSurface = bOnSurfaceEdge  && (ThisRoundabout == OrderOfTraceEID);
-									int32 NextRoundabout = -1;
-
-									bool bShouldBreak = false;
-
-									if (bEquivalentToSurface) // test if the current intrinsic edge is the same as the surface mesh trace edge
+				FinderInfo.bIsAlsoSurfaceEdge = bEquivalentToSurface;
+				FinderInfo.TID                = IntrinsicTID;
+				FinderInfo.EID                = IntrinsicEID;
+				FinderInfo.IdxOf              = IdxOf;
+				FinderInfo.FirstRoundabout    = ThisRoundabout;
+				FinderInfo.SecondRoundabout   = ThisRoundabout;
+			}
+			else
+			{ 
+				// when visiting each adjacent intrinsic triangle (in CCW order) test if the surface edge we trace is inside this triangle.
+				auto EdgeFinder = [&](int32 IntrinsicTID, int32 IntrinsicEID, int32 IdxOf)->bool
 									{
-										bShouldBreak = true;
-									}
-									else // test if the edge starts in this intrinsic triangle
-									{
-										const int32 NextIntrinsicEID      = IntrinsicTriEIDs[(IdxOf + 2) % 3];
-										const FIndex2i NextIntrinsicEdgeT = IntrinsicMesh.GetEdgeT(NextIntrinsicEID);
-										const int32 NextIntrinsicTID      = (NextIntrinsicEdgeT.A == IntrinsicTID) ? NextIntrinsicEdgeT.B : NextIntrinsicEdgeT.A;
 
-										if (NextIntrinsicTID != -1)
+
+										const FIndex3i IntrinsicTriEIDs = IntrinsicMesh.GetTriEdges(IntrinsicTID);
+										const int32 ThisRoundabout      = NCoords.RoundaboutOrder[IntrinsicTID][IdxOf];
+										const bool bOnSurfaceEdge       = NCoords.IsSurfaceEdgeSegment(IntrinsicEID);
+										const bool bEquivalentToSurface = bOnSurfaceEdge  && (ThisRoundabout == OrderOfTraceEID);
+										int32 NextRoundabout = -1;
+
+										bool bShouldBreak = false;
+
+										if (bEquivalentToSurface) // test if the current intrinsic edge is the same as the surface mesh trace edge
 										{
-											const int32 NextIndexOf = IntrinsicMesh.GetTriEdges(NextIntrinsicTID).IndexOf(NextIntrinsicEID);
-											NextRoundabout          = NCoords.RoundaboutOrder[NextIntrinsicTID][NextIndexOf];
-											if (NextRoundabout < ThisRoundabout) // Order = {NextRO |zero cut | ThisRO}
+											bShouldBreak = true;
+										}
+										else // test if the edge starts in this intrinsic triangle
+										{
+											const int32 NextIntrinsicEID      = IntrinsicTriEIDs[(IdxOf + 2) % 3];
+											const FIndex2i NextIntrinsicEdgeT = IntrinsicMesh.GetEdgeT(NextIntrinsicEID);
+											const int32 NextIntrinsicTID      = (NextIntrinsicEdgeT.A == IntrinsicTID) ? NextIntrinsicEdgeT.B : NextIntrinsicEdgeT.A;
+
+											if (NextIntrinsicTID != -1)
 											{
-												// we have crossed the zero roundabout cut ( e.g. NextRo = 2oclock and ThisRo = 11oclock)
-												if ( NextRoundabout > OrderOfTraceEID) // Order = {NextRO, Trace | zero cut | ThisRO}
+												const int32 NextIndexOf = IntrinsicMesh.GetTriEdges(NextIntrinsicTID).IndexOf(NextIntrinsicEID);
+												NextRoundabout          = NCoords.RoundaboutOrder[NextIntrinsicTID][NextIndexOf];
+												if (NextRoundabout < ThisRoundabout) // Order = {NextRO |zero cut | ThisRO}
+												{
+													// we have crossed the zero roundabout cut ( e.g. NextRo = 2oclock and ThisRo = 11oclock)
+													if ( NextRoundabout > OrderOfTraceEID) // Order = {NextRO, Trace | zero cut | ThisRO}
+													{
+														bShouldBreak = true;
+													}
+													else 
+													{ 
+														NextRoundabout += ValenceOfStartVID; // Order = {NextRO, | zero cut |, Trace(?), ThisRO}
+													}
+												}
+												checkSlow(IntrinsicMesh.GetTriangle(NextIntrinsicTID)[NextIndexOf] == StartVID);
+												//checkSlow(NextRoundabout != 0 || ThisRoundabout != 0)
+												if ((NextRoundabout > OrderOfTraceEID) && (OrderOfTraceEID >= ThisRoundabout))
 												{
 													bShouldBreak = true;
 												}
-												else 
-												{ 
-													NextRoundabout += ValenceOfStartVID; // Order = {NextRO, | zero cut |, Trace(?), ThisRO}
-												}
 											}
-											checkSlow(IntrinsicMesh.GetTriangle(NextIntrinsicTID)[NextIndexOf] == StartVID);
-											//checkSlow(NextRoundabout != 0 || ThisRoundabout != 0)
-											if ((NextRoundabout > OrderOfTraceEID) && (OrderOfTraceEID >= ThisRoundabout))
+											else // mesh boundary case and we made it to the last triangle w/o finding this edge. it must be in this one.
 											{
 												bShouldBreak = true;
 											}
 										}
-										else // mesh boundary case and we made it to the last triangle w/o finding this edge. it must be in this one.
+
+										if (bShouldBreak)
 										{
-											bShouldBreak = true;
+											FinderInfo.bIsAlsoSurfaceEdge = bEquivalentToSurface;
+											FinderInfo.TID                = IntrinsicTID;
+											FinderInfo.EID                = IntrinsicEID;
+											FinderInfo.IdxOf              = IdxOf;
+											FinderInfo.FirstRoundabout    = ThisRoundabout;
+											FinderInfo.SecondRoundabout   = NextRoundabout;
 										}
-									}
 
-									if (bShouldBreak)
-									{
-										FinderInfo.bIsAlsoSurfaceEdge = bEquivalentToSurface;
-										FinderInfo.TID                = IntrinsicTID;
-										FinderInfo.EID                = IntrinsicEID;
-										FinderInfo.IdxOf              = IdxOf;
-										FinderInfo.FirstRoundabout    = ThisRoundabout;
-										FinderInfo.SecondRoundabout   = NextRoundabout;
-									}
+										return bShouldBreak;
+									};
+				VisitVertexAdjacentElements(IntrinsicMesh, StartVID, VistorStartEID, EdgeFinder);
 
-									return bShouldBreak;
-								};
-			VisitVertexAdjacentElements(IntrinsicMesh, StartVID, VistorStartEID, EdgeFinder);
-
-			checkSlow(FinderInfo.TID != -1); // should have found something!
+				checkSlow(FinderInfo.TID != -1); // should have found something!
+			}
 		}
 
 
@@ -1371,8 +1393,9 @@ namespace FNormalCoordSurfaceTraceImpl
 					const FIndex3i TriBVIDs = HostMesh.GetTriangle(HostEdgeT.B);
 
 					const int32 HostStartVID = StartSurfacePoint.Position.VertexPosition.VID;
-					
-					return (TriAVIDs.IndexOf(HostStartVID) != -1) ? HostEdgeT.A : HostEdgeT.B;
+					const int32 HostTID =  (TriAVIDs.IndexOf(HostStartVID) != -1) ? HostEdgeT.A : HostEdgeT.B;
+					checkSlow(HostMesh.GetTriangle(HostTID).IndexOf(HostStartVID) != -1);
+					return HostTID;
 				}
 				else if (IsEdgePoint(StartSurfacePoint))
 				{
@@ -1741,18 +1764,41 @@ int32 UE::Geometry::FlipToDelaunay(FIntrinsicEdgeFlipMesh& IntrinsicMesh, TSet<i
 * FSimpleIntrinsicEdgeFlipMesh Methods
 *------------------------------------------------------------------------------ */
 
-FSimpleIntrinsicEdgeFlipMesh::FSimpleIntrinsicEdgeFlipMesh(const FDynamicMesh3& SrcMesh) :
-	Vertices(SrcMesh.GetVerticesBuffer()),
-	VertexRefCounts{ SrcMesh.GetVerticesRefCounts() },
-	VertexEdgeLists{ SrcMesh.GetVertexEdges() },
-
-	Triangles{ SrcMesh.GetTrianglesBuffer() },
-	TriangleRefCounts{ SrcMesh.GetTrianglesRefCounts() },
-	TriangleEdges{ SrcMesh.GetTriangleEdges() },
-
-	Edges{ SrcMesh.GetEdgesBuffer() },
-	EdgeRefCounts{ SrcMesh.GetEdgesRefCounts() }
+FSimpleIntrinsicEdgeFlipMesh::FSimpleIntrinsicEdgeFlipMesh(const FDynamicMesh3& SrcMesh)
 {
+	Reset(SrcMesh);
+}
+void FSimpleIntrinsicEdgeFlipMesh::Clear()
+{
+	Vertices.Clear();
+	VertexRefCounts.Clear();
+	VertexEdgeLists.Reset();
+
+	Triangles.Clear();
+	TriangleRefCounts.Clear();
+	TriangleEdges.Clear();
+	
+	Edges.Clear();
+	EdgeRefCounts.Clear();
+
+	EdgeLengths.Clear();
+	InternalAngles.Clear();
+}
+
+void FSimpleIntrinsicEdgeFlipMesh::Reset(const FDynamicMesh3& SrcMesh)
+{
+	Clear();
+
+	Vertices        = SrcMesh.GetVerticesBuffer();
+	VertexRefCounts = SrcMesh.GetVerticesRefCounts();
+	VertexEdgeLists = SrcMesh.GetVertexEdges();
+
+	Triangles         = SrcMesh.GetTrianglesBuffer();
+	TriangleRefCounts = SrcMesh.GetTrianglesRefCounts();
+	TriangleEdges     = SrcMesh.GetTriangleEdges();
+
+	Edges         = SrcMesh.GetEdgesBuffer();
+	EdgeRefCounts = SrcMesh.GetEdgesRefCounts();
 	
 	const int32 MaxEID = MaxEdgeID();
 	EdgeLengths.SetNum(MaxEID);
@@ -2006,6 +2052,16 @@ EMeshResult FSimpleIntrinsicEdgeFlipMesh::FlipEdge(int32 EID, FEdgeFlipInfo& Edg
 		}
 
 		if (TotalAngleAtOrgVert[0] > TMathUtilConstants<double>::Pi - TMathUtilConstants<double>::ZeroTolerance || TotalAngleAtOrgVert[1] > TMathUtilConstants<double>::Pi - TMathUtilConstants<double>::ZeroTolerance)
+		{
+			return EMeshResult::Failed_Unsupported;
+		}
+	}
+
+	// prohibit case where one of the ends of the edge has degree one (this looks like a triangle rolled into a cone ).
+	{
+		FIndex2i EdgeT = GetEdgeT(EID);
+		
+		if (EdgeT.A == EdgeT.B)
 		{
 			return EMeshResult::Failed_Unsupported;
 		}
@@ -2958,9 +3014,10 @@ UE::Geometry::EMeshResult  UE::Geometry::FIntrinsicTriangulation::SplitEdge(int3
 *  FIntrinsicEdgeFlipMesh Methods
 *-------------------------------------------------------------------------------*/
 FIntrinsicEdgeFlipMesh::FIntrinsicEdgeFlipMesh(const FDynamicMesh3& SurfaceMesh)
-	: MyBase(SurfaceMesh)
-	, NormalCoordinates(SurfaceMesh)
 {
+	// construct the intrinsic mesh directly from this surface mesh
+	MyBase::Reset(SurfaceMesh);
+	NormalCoordinates.Reset(SurfaceMesh);
 }
 
 EMeshResult FIntrinsicEdgeFlipMesh::FlipEdge(int32 EID, FEdgeFlipInfo& EdgeFlipInfo)

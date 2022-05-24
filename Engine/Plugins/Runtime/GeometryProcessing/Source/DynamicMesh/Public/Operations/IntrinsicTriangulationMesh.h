@@ -69,12 +69,18 @@ public:
 	/** InvalidID indicates that a vertex/edge/triangle ID is invalid */
 	constexpr static int InvalidID = IndexConstants::InvalidID;
 
+	FSimpleIntrinsicEdgeFlipMesh(){};
+
 	/** Constructor does ID-matching deep copy the basic mesh topology (but no attributes or groups) */
 	FSimpleIntrinsicEdgeFlipMesh(const FDynamicMesh3& SrcMesh);
 
-	FSimpleIntrinsicEdgeFlipMesh() = delete;
 	FSimpleIntrinsicEdgeFlipMesh(const FSimpleIntrinsicEdgeFlipMesh&) = delete;
 
+	/** Discard all data */
+	void Clear();
+
+	/** Reset the mesh to an ID-matching deep copy the basic mesh topology (but no attributes or groups) */
+	void Reset(const FDynamicMesh3& SrcMesh);
 	/**
 	* Flip a single edge in the Intrinsic Mesh.
 	* @param EdgeFlipInfo [out] populated on return.
@@ -241,6 +247,12 @@ public:
 		return Vertices[VertexID];
 	}
 
+	/** @return upper bound on the vertex ID used in the mesh.  i.e. all edge IDs < MaxVertexID*/
+	int32 MaxVertexID() const
+	{
+		return (int32)VertexRefCounts.GetMaxIndex();
+	}
+
 	/** @return upper bound on the triangle ID used in the mesh.  i.e. all triangle IDs < MaxTriangleID */
 	int32 MaxTriangleID() const
 	{
@@ -261,6 +273,13 @@ public:
 	
 	/** @return vertex ids for the three corners of the triangle (e.g. a, b, c)*/
 	inline FIndex3i GetTriangle(int32 TriangleID) const
+	{
+		checkSlow(IsTriangle(TriangleID));
+		return Triangles[TriangleID];
+	}
+
+	/** @return  reference to vertex ids for the three corners of the triangle (e.g. a, b, c)*/
+	inline const FIndex3i& GetTriangleRef(int TriangleID) const
 	{
 		checkSlow(IsTriangle(TriangleID));
 		return Triangles[TriangleID];
@@ -403,11 +422,13 @@ public:
 	/** InvalidID indicates that a vertex/edge/triangle ID is invalid */
 	constexpr static int InvalidID = IndexConstants::InvalidID;
 
+	FSimpleIntrinsicMesh(){};
+
 	/** Constructor does ID-matching deep copy the basic mesh topology (but no attributes or groups) */
 	FSimpleIntrinsicMesh(const FDynamicMesh3& SrcMesh) : MyBase(SrcMesh)
 	{};
 
-	FSimpleIntrinsicMesh() = delete;
+	
 	FSimpleIntrinsicMesh(const FSimpleIntrinsicMesh&) = delete;
 
 
