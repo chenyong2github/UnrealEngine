@@ -132,6 +132,18 @@ protected:
 	virtual FInputActionValue ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime) override;
 };
 
+/** Scalar
+	*  Multiplies the input value by Delta Time this frame
+	*/
+UCLASS(NotBlueprintable, MinimalAPI, meta = (DisplayName = "Scale By Delta Time"))
+class UInputModifierScaleByDeltaTime : public UInputModifier
+{
+	GENERATED_BODY()
+	
+protected:
+	virtual FInputActionValue ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime) override;
+};
+
 /** Negate
 	*  Inverts input per axis
 	*/

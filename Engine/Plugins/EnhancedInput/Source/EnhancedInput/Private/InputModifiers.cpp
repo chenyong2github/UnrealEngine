@@ -20,6 +20,20 @@ FInputActionValue UInputModifierScalar::ModifyRaw_Implementation(const UEnhanced
 		return CurrentValue.Get<FVector>() * Scalar;
 	}
 	return CurrentValue;
+}
+
+/*
+* Scale by Delta Time
+*/
+
+FInputActionValue UInputModifierScaleByDeltaTime::ModifyRaw_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue CurrentValue, float DeltaTime)
+{
+	// Don't try and scale bools
+	if (ensureMsgf(CurrentValue.GetValueType() != EInputActionValueType::Boolean, TEXT("Scale By Delta Time modifier doesn't support boolean values.")))
+	{
+		return CurrentValue.Get<FVector>() * DeltaTime;
+	}
+	return CurrentValue;
 };
 
 
