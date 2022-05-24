@@ -541,6 +541,50 @@ void UInterchangeMaterialFactory::SetupMaterial(UMaterial* Material, const FCrea
 		}
 	}
 
+	// Tangent
+	{
+		FString TangentUid;
+		FString OutputName;
+
+		if(MaterialFactoryNode->GetTangentConnection(TangentUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* TangentNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(TangentUid));
+
+			if(TangentNode)
+			{
+				if(UMaterialExpression* TangentExpression = CreateExpressionsForNode(Material, Arguments, TangentNode, Expressions))
+				{
+					if(FExpressionInput* TangentInput = Material->GetExpressionInputForProperty(MP_Tangent))
+					{
+						TangentExpression->ConnectExpression(TangentInput, GetOutputIndex(*TangentExpression, OutputName));
+					}
+				}
+			}
+		}
+	}
+
+	// Subsurface
+	{
+		FString SubsurfaceColorUid;
+		FString OutputName;
+
+		if(MaterialFactoryNode->GetSubsurfaceConnection(SubsurfaceColorUid, OutputName))
+		{
+			const UInterchangeMaterialExpressionFactoryNode* SubsurfaceColorNode = Cast<UInterchangeMaterialExpressionFactoryNode>(Arguments.NodeContainer->GetNode(SubsurfaceColorUid));
+
+			if(SubsurfaceColorNode)
+			{
+				if(UMaterialExpression* SubsurfaceColorExpression = CreateExpressionsForNode(Material, Arguments, SubsurfaceColorNode, Expressions))
+				{
+					if(FExpressionInput* SubsurfaceColorInput = Material->GetExpressionInputForProperty(MP_SubsurfaceColor))
+					{
+						SubsurfaceColorExpression->ConnectExpression(SubsurfaceColorInput, GetOutputIndex(*SubsurfaceColorExpression, OutputName));
+					}
+				}
+			}
+		}
+	}
+
 	// Opacity
 	{
 		FString OpacityUid;

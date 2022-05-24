@@ -100,6 +100,24 @@ public:
 	bool ConnectOutputToNormal(const FString& ExpressionNodeUid, const FString& OutputName);
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool GetTangentConnection(FString& ExpressionNodeUid, FString& OutputName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectToTangent(const FString& ExpressionNodeUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectOutputToTangent(const FString& ExpressionNodeUid, const FString& OutputName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool GetSubsurfaceConnection(FString& ExpressionNodeUid, FString& OutputName) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectToSubsurface(const FString& ExpressionNodeUid);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
+	bool ConnectOutputToSubsurface(const FString& ExpressionNodeUid, const FString& OutputName);
+
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")
 	bool GetOpacityConnection(FString& ExpressionNodeUid, FString& OutputName) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | MaterialFactory")

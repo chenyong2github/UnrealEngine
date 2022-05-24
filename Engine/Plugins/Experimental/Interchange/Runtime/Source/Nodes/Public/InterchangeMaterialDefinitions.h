@@ -130,6 +130,7 @@ namespace Interchange
 			{
 				const FName EmissiveColor = TEXT("EmissiveColor"); // Type: linear color
 				const FName Normal = TEXT("Normal"); // Type: vector3f
+				const FName Tangent = TEXT("Tangent"); // Type: vector3f
 				const FName Opacity = TEXT("Opacity"); // Type: float
 				const FName Occlusion = TEXT("Occlusion"); // Type: float
 				const FName IndexOfRefraction = TEXT("IOR"); // Type: float
@@ -201,6 +202,16 @@ namespace Interchange
 
 				const FName SheenColor = TEXT("SheenColor"); // Type: vector3
 				const FName SheenRoughness = TEXT("SheenRoughness"); // Type: float
+			}
+		}
+
+		namespace Subsurface
+		{
+			namespace Parameters
+			{
+				using namespace PBR::Parameters;
+
+				const FName SubsurfaceColor = TEXT("SubsurfaceColor"); // Type: linear color
 			}
 		}
 
