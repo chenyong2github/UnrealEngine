@@ -87,7 +87,7 @@ FString FDerivedDataGeometryCollectionCooker::GetPluginSpecificCacheKeySuffix() 
 {
 	return FString::Printf(
 		TEXT("%s_%s_%s_%d_%d"),
-		*Chaos::ChaosVersionString,
+		Chaos::ChaosVersionGUID,
 		*GeometryCollection.GetIdGuid().ToString(),
 		*GeometryCollection.GetStateGuid().ToString(),
 		FDestructionObjectVersion::Type::LatestVersion,
