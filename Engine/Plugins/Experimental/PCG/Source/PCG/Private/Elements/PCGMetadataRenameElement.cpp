@@ -6,6 +6,14 @@
 #include "Metadata/PCGMetadata.h"
 #include "Metadata/PCGMetadataAttribute.h"
 
+TArray<FPCGPinProperties> UPCGMetadataRenameSettings::OutputPinProperties() const
+{
+	TArray<FPCGPinProperties> PinProperties;
+	PinProperties.Emplace(PCGPinConstants::DefaultOutputLabel, EPCGDataType::Any);
+
+	return PinProperties;
+}
+
 FPCGElementPtr UPCGMetadataRenameSettings::CreateElement() const
 {
 	return MakeShared<FPCGMetadataRenameElement>();

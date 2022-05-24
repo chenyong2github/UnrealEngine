@@ -19,6 +19,8 @@ public:
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Metadata; }
 #endif
 
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override;
+
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
 	//~End UPCGSettings interface
