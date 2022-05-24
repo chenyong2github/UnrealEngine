@@ -170,10 +170,6 @@ public:
 		// do nothing in the base class
 	}
 
-	virtual void RefreshSettings() override
-	{
-	}
-
 	virtual int32 GetPlatformOrdinal() const override
 	{
 		return PlatformOrdinal;

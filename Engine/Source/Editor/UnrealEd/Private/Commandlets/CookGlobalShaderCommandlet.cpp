@@ -273,8 +273,6 @@ int32 UCookGlobalShadersCommandlet::Main(const FString& Params)
 			}
 			return 1;
 		}
-
-		TargetPlatform->RefreshSettings();
 	}
 
 	// Get target device

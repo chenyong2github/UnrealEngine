@@ -881,9 +881,6 @@ private:
 	*/
 	void ClearPackageStoreContexts();
 
-	/** Give TargetPlatforms a chance to take action at the beginning of a cook. */
-	void BeginCookTargetPlatforms(const TArrayView<ITargetPlatform* const>& NewTargetPlatforms);
-
 	/**
 	* Initialize shaders for the specified platforms when running cook on the fly.
 	*/

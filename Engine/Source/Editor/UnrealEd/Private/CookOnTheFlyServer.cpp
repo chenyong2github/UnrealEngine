@@ -709,7 +709,6 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 	// Initialize systems that nothing in AddCookOnTheFlyPlatformFromGameThread references
 	// Functions in this section are not dependent upon each other and can be ordered arbitrarily or for async performance
 	BeginCookPackageWriters(BeginContext);
-	BeginCookTargetPlatforms(BeginContext.TargetPlatforms);
 
 	// SaveCurrentIniSettings is done in CookByTheBookFinished for CBTB, but we don't have a definite end point in CookOnTheFly so we write it at the start
 	// This will miss settings that are accessed during the cook
@@ -7916,15 +7915,6 @@ void UCookOnTheFlyServer::ClearPackageStoreContexts()
 	SavePackageContexts.Empty();
 }
 
-void UCookOnTheFlyServer::BeginCookTargetPlatforms(const TArrayView<ITargetPlatform* const>& NewTargetPlatforms)
-{
-	//allow each platform to update its internals before cooking
-	for (ITargetPlatform* TargetPlatform : NewTargetPlatforms)
-	{
-		TargetPlatform->RefreshSettings();
-	}
-}
-
 void UCookOnTheFlyServer::DiscoverPlatformSpecificNeverCookPackages(
 	const TArrayView<const ITargetPlatform* const>& TargetPlatforms, const TArray<FString>& UBTPlatformStrings)
 {
@@ -8017,7 +8007,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	BeginCookEditorSystems();
 	BeginCookEDLCookInfo(BeginContext);
 	BeginCookPackageWriters(BeginContext);
-	BeginCookTargetPlatforms(BeginContext.TargetPlatforms);
 	GenerateInitialRequests(BeginContext);
 	GenerateLocalizationReferences(BeginContext.StartupOptions->CookCultures);
 	InitializePollables();
