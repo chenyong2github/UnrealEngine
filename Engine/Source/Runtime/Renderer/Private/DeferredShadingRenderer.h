@@ -240,6 +240,11 @@ public:
 	 */
 	void GatherLightsAndComputeLightGrid(FRDGBuilder& GraphBuilder, bool bNeedLightGrid, FSortedLightSetSceneInfo &SortedLightSet);
 
+	/** 
+	 * Debug light grid content on screen.
+	 */
+	void DebugLightGrid(FRDGBuilder& GraphBuilder, FSceneTextures& SceneTextures, bool bNeedLightGrid);
+
 	void RenderBasePass(
 		FRDGBuilder& GraphBuilder,
 		FSceneTextures& SceneTextures,

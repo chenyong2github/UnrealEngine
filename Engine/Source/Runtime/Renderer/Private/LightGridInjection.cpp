@@ -28,6 +28,9 @@ LightGridInjection.cpp
 #include "VolumetricCloudRendering.h"
 #include "Components/LightComponent.h"
 #include "Engine/MapBuildDataRegistry.h"
+#include "PixelShaderUtils.h"
+#include "ShaderPrint.h"
+#include "ShaderPrintParameters.h"
 
 int32 GLightGridPixelSize = 64;
 FAutoConsoleVariableRef CVarLightGridPixelSize(
@@ -43,6 +46,18 @@ FAutoConsoleVariableRef CVarLightGridSizeZ(
 	GLightGridSizeZ,
 	TEXT("Number of Z slices in the light grid."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GForwardLightGridDebug = 0;
+FAutoConsoleVariableRef CVarLightGridDebug(
+	TEXT("r.Forward.LightGridDebug"),
+	GForwardLightGridDebug,
+	TEXT("Whether to display on screen culledlight per tile.\n")
+	TEXT(" 0: off (default)\n")
+	TEXT(" 1: on - showing light count onto the depth buffer\n")
+	TEXT(" 2: on - showing max light count per tile accoung for each slice but the last one (culling there is too conservative)\n")
+	TEXT(" 3: on - showing max light count per tile accoung for each slice and the last one \n"),
+	ECVF_RenderThreadSafe
 );
 
 int32 GMaxCulledLightsPerCell = 32;
@@ -176,6 +191,7 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_LIGHT_GRID_INJECTION_CS"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), LightGridInjectionGroupSize);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("LIGHT_LINK_STRIDE"), LightLinkStride);
@@ -213,6 +229,7 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_LIGHT_GRID_COMPACT_CS"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), LightGridInjectionGroupSize);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("LIGHT_LINK_STRIDE"), LightLinkStride);
@@ -912,4 +929,76 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 
 		GraphBuilder.AddPass(RDG_EVENT_NAME("ResolveScreenSpaceShadowMask"), PassParameters, ERDGPassFlags::Raster, [](FRHICommandList&) {});
 	}
+}
+
+class FDebugLightGridPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FDebugLightGridPS);
+	SHADER_USE_PARAMETER_STRUCT(FDebugLightGridPS, FGlobalShader);
+
+	using FPermutationDomain = TShaderPermutationDomain<>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FForwardLightData, Forward)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
+		SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
+		SHADER_PARAMETER(uint32, DebugMode)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
+	{
+		return PermutationVector;
+	}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return EnumHasAllFlags(Parameters.Flags, EShaderPermutationFlags::HasEditorOnlyData);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		// Stay debug and skip optimizations to reduce compilation time on this long shader.
+		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+		OutEnvironment.SetDefine(TEXT("SHADER_DEBUG_LIGHT_GRID_PS"), 1);
+		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FDebugLightGridPS, "/Engine/Private/LightGridInjection.usf", "DebugLightGridPS", SF_Pixel);
+
+bool ShouldVisualizeLightGrid()
+{
+	return GForwardLightGridDebug > 0;
+}
+
+FScreenPassTexture AddVisualizeLightGridPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor, FRDGTextureRef SceneDepthTexture)
+{
+	RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLightGrid");
+
+	if (!ShaderPrint::IsEnabled(View)) { ShaderPrint::SetEnabled(true); }
+	ShaderPrint::RequestSpaceForLines(128);
+	ShaderPrint::RequestSpaceForCharacters(128);
+
+	FDebugLightGridPS::FPermutationDomain PermutationVector;
+	TShaderMapRef<FDebugLightGridPS> PixelShader(View.ShaderMap, PermutationVector);
+	FDebugLightGridPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDebugLightGridPS::FParameters>();
+	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+	PassParameters->Forward = View.ForwardLightingResources.ForwardLightUniformBuffer;
+	ShaderPrint::SetParameters(GraphBuilder, View.ShaderPrintData, PassParameters->ShaderPrintParameters);
+	PassParameters->DepthTexture = SceneDepthTexture ? SceneDepthTexture : GSystemTextures.GetMaxFP16Depth(GraphBuilder);
+	PassParameters->MiniFontTexture = GetMiniFontTexture();
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(ScreenPassSceneColor.Texture, ERenderTargetLoadAction::ELoad);
+	PassParameters->DebugMode = GForwardLightGridDebug;
+
+	FRHIBlendState* PreMultipliedColorTransmittanceBlend = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
+
+	FPixelShaderUtils::AddFullscreenPass<FDebugLightGridPS>(GraphBuilder, View.ShaderMap, RDG_EVENT_NAME("DebugLightGridCS"), PixelShader, PassParameters,
+		ScreenPassSceneColor.ViewRect, PreMultipliedColorTransmittanceBlend);
+
+	return MoveTemp(ScreenPassSceneColor);
 }

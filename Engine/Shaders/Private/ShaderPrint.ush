@@ -166,6 +166,8 @@ FFontColor GetDefaultFontColor()							{ FFontColor Out; Out.Color = float3(1,1,
 
 // Predefined colors
 #define FontWhite		InitFontColor(1, 1, 1)
+#define FontGrey		InitFontColor(0.5, 0.5, 0.5)
+#define FontDarkGrey	InitFontColor(0.25, 0.25, 0.25)
 #define FontBlack		InitFontColor(0, 0, 0)
 #define FontRed			InitFontColor(1, 0, 0)
 #define FontGreen		InitFontColor(0, 1, 0)

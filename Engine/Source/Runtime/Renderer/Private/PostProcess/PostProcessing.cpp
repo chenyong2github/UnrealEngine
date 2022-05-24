@@ -63,6 +63,9 @@ bool IsMobileEyeAdaptationEnabled(const FViewInfo& View);
 
 bool IsValidBloomSetupVariation(bool bUseBloom, bool bUseSun, bool bUseDof, bool bUseEyeAdaptation);
 
+extern FScreenPassTexture AddVisualizeLightGridPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FScreenPassTexture& ScreenPassSceneColor, FRDGTextureRef SceneDepthTexture);
+extern bool ShouldVisualizeLightGrid();
+
 namespace
 {
 TAutoConsoleVariable<float> CVarDepthOfFieldNearBlurSizeThreshold(
@@ -265,6 +268,7 @@ void AddPostProcessingPasses(
 		VisualizeLightCulling,
 		VisualizePostProcessStack,
 		VisualizeStrata,
+		VisualizeLightGrid,
 		VisualizeSkyAtmosphere,
 		VisualizeLevelInstance,
 		SelectionOutline,
@@ -312,6 +316,7 @@ void AddPostProcessingPasses(
 		TEXT("VisualizeLightCulling"),
 		TEXT("VisualizePostProcessStack"),
 		TEXT("VisualizeStrata"),
+		TEXT("VisualizeLightGrid"),
 		TEXT("VisualizeSkyAtmosphere"),
 		TEXT("VisualizeLevelInstance"),
 		TEXT("SelectionOutline"),
@@ -344,6 +349,8 @@ void AddPostProcessingPasses(
 #endif
 	PassSequence.SetEnabled(EPass::VisualizeStrata, Strata::ShouldRenderStrataDebugPasses(View));
 	PassSequence.SetEnabled(EPass::VisualizeLumenScene, LumenVisualizeMode >= 0 && LumenVisualizeMode != VISUALIZE_MODE_OVERVIEW && bPostProcessingEnabled);
+	PassSequence.SetEnabled(EPass::VisualizeLightGrid, ShouldVisualizeLightGrid());
+
 #if WITH_EDITOR
 	PassSequence.SetEnabled(EPass::VisualizeSkyAtmosphere, Scene && View.Family && View.Family->EngineShowFlags.VisualizeSkyAtmosphere&& ShouldRenderSkyAtmosphereDebugPasses(Scene, View.Family->EngineShowFlags));
 	PassSequence.SetEnabled(EPass::VisualizeLevelInstance, GIsEditor && EngineShowFlags.EditingLevelInstance && EngineShowFlags.VisualizeLevelInstanceEditing && !bVisualizeHDR);
@@ -1077,6 +1084,13 @@ void AddPostProcessingPasses(
 		SceneColor = AddFinalPostProcessDebugInfoPasses(GraphBuilder, View, OverrideOutput);
 	}
 #endif
+
+	if (PassSequence.IsEnabled(EPass::VisualizeLightGrid))
+	{
+		FScreenPassRenderTarget OverrideOutput;
+		PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLightGrid, OverrideOutput);
+		SceneColor = AddVisualizeLightGridPass(GraphBuilder, View, SceneColor, SceneDepth.Texture);
+	}
 
 	if (PassSequence.IsEnabled(EPass::VisualizeStrata))
 	{

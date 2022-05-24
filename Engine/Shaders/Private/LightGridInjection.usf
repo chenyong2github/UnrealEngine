@@ -158,6 +158,8 @@ bool IsAabbOutsideInfiniteAcuteConeApprox(float3 ConeVertex, float3 ConeAxis, fl
 	return AabbOutsidePlane(D, AabbExt, Plane);
 }
 
+#if SHADER_LIGHT_GRID_INJECTION_CS
+
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void LightGridInjectionCS(
 	uint3 GroupId : SV_GroupID,
@@ -193,7 +195,6 @@ void LightGridInjectionCS(
 			float4 LightPositionAndRadius = LightViewSpacePositionAndRadius[LocalLightIndex];
 			float3 ViewSpaceLightPosition = LightPositionAndRadius.xyz;
 			float LightRadius = LightPositionAndRadius.w;
-			float4 LightPositionAndInvRadius = ForwardLocalLightBuffer[LocalLightBaseIndex + 0];
 #else // !ENABLE_LIGHT_CULLING_VIEW_SPACE_BUILD_DATA
 			float4 LightPositionAndInvRadius = ForwardLocalLightBuffer[LocalLightBaseIndex + 0];
 			float LightRadius = 1.0f / LightPositionAndInvRadius.w;
@@ -313,6 +314,12 @@ void LightGridInjectionCS(
 	}
 }
 
+#endif // SHADER_LIGHT_GRID_INJECTION_CS
+
+
+
+#if SHADER_LIGHT_GRID_COMPACT_CS
+
 RWBuffer<uint> RWNextCulledLightData;
 Buffer<uint> StartOffsetGrid;
 Buffer<uint> CulledLightLinks;
@@ -406,3 +413,99 @@ void LightGridCompactCS(
 	// Compact reflection captures
 	CompactReverseLinkedList(NumGridCells + GridIndex, NumReflectionCaptures, bFirstThread, bThreadValid);
 }
+
+#endif // SHADER_LIGHT_GRID_COMPACT_CS
+
+
+
+#ifdef SHADER_DEBUG_LIGHT_GRID_PS
+
+#define SUPPORT_CONTACT_SHADOWS 0
+#include "DeferredLightingCommon.ush"
+#include "LightGridCommon.ush"
+#include "/Engine/Private/MiniFontCommon.ush"
+#include "/Engine/Private/ShaderPrint.ush"
+#include "ColorMap.ush"
+
+Texture2D<float4> DepthTexture;
+uint DebugMode;
+
+void DebugLightGridPS(
+	in float4 SVPos : SV_POSITION,
+	out float4 OutLuminanceTransmittance : SV_Target0)
+{
+	ResolvedView = ResolveView();
+
+	const uint EyeIndex = 0;
+	const uint2 PixelPos = SVPos.xy;
+	const uint2 LocalPixelPos = (SVPos.xy - ResolvedView.ViewRectMin.xy);
+
+	// Using View.ViewResolutionFraction to maintain a good look under any dynamic resolution factor.
+	const uint2 PixelPosDynRes = float2(PixelPos) * View.ViewResolutionFraction;
+	const uint2 LocalPixelPosDynRes = float2(LocalPixelPos) * View.ViewResolutionFraction;
+	const uint2 LocalPixelPosDynRes2 = float2(LocalPixelPos+1) * View.ViewResolutionFraction;
+
+	OutLuminanceTransmittance = float4(0, 0, 0, 1);
+
+	if (any(LocalPixelPosDynRes >= uint2(ResolvedView.ViewSizeAndInvSize.xy)))
+	{
+		return;
+	}
+
+	const FLightGridData GridData = GetLightGridData(EyeIndex);
+	uint DebugNumLocalLights = 0;
+
+	uint2 StartPos = uint2(50, 100);
+	FShaderPrintContext Context = InitShaderPrintContext(all(PixelPos == StartPos), StartPos);
+	bool SpecifyDebugSlice = AddCheckbox(Context, TEXT("Specify Slice to debug"), false, GetDefaultFontColor());
+	Newline(Context);
+	float DebugSlice = 0;
+	FFontColor EnableSliceDebugFont = FontDarkGrey; if (SpecifyDebugSlice) { EnableSliceDebugFont = FontWhite; }
+	DebugSlice = AddSlider(Context, TEXT("Slice to debug"), 0.0f, EnableSliceDebugFont, 0.0f, GridData.CulledGridSize.z-1);
+	Newline(Context);
+
+	if (DebugMode == 1 && !SpecifyDebugSlice)
+	{
+		const float SceneDepth = ConvertFromDeviceZ(DepthTexture.Load(int3(PixelPosDynRes, 0)).r);
+
+		const uint GridIndex = ComputeLightGridCellIndex(LocalPixelPosDynRes, SceneDepth, EyeIndex);
+		const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, EyeIndex);
+
+		DebugNumLocalLights = CulledLightsGrid.NumLocalLights;
+	}
+	else
+	{
+		// We do not want to fetch light data from the last slice since in this case the culling will be pretty bad (super large depth turned into a bounding sphere...)
+		// See ComputeCellNearViewDepthFromZSlice.
+		const int StartGridIndexZ = SpecifyDebugSlice ? uint(DebugSlice) : 0;
+		const int EndGridIndexZ   = SpecifyDebugSlice ? StartGridIndexZ+1: (DebugMode == 2 ? GridData.CulledGridSize.z - 1 : GridData.CulledGridSize.z);
+		LOOP
+		for (int SliceIt = StartGridIndexZ; SliceIt < EndGridIndexZ; SliceIt++)
+		{
+			const uint GridIndex = ComputeLightGridCellIndex(uint3(LocalPixelPosDynRes >> GridData.LightGridPixelSizeShift, SliceIt), EyeIndex);
+			const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, EyeIndex);
+		
+			DebugNumLocalLights = max(DebugNumLocalLights, CulledLightsGrid.NumLocalLights);
+		}
+	}
+
+	const uint2 TileTopLeftPixelCoord = (LocalPixelPosDynRes  >> GridData.LightGridPixelSizeShift) << GridData.LightGridPixelSizeShift;
+	const uint2 TileTopLeftPixelCoord2= (LocalPixelPosDynRes2 >> GridData.LightGridPixelSizeShift) << GridData.LightGridPixelSizeShift;
+	const uint TileSize = (0x1 << GridData.LightGridPixelSizeShift) - 1;
+
+	if (DebugNumLocalLights > 0)
+	{
+		OutLuminanceTransmittance.a   = 0.0f;
+		OutLuminanceTransmittance.rgb = GetHSVDebugColor(float(DebugNumLocalLights) / 8.0f);
+		PrintSmallUint(PixelPos, OutLuminanceTransmittance.rgb, float3(0.1, 0.1, 0.1), (TileTopLeftPixelCoord + TileSize/2) / View.ViewResolutionFraction, float(DebugNumLocalLights));
+	}
+
+	if ((TileTopLeftPixelCoord.x <= LocalPixelPosDynRes.x && TileTopLeftPixelCoord2.x >= LocalPixelPosDynRes.x)
+		|| (TileTopLeftPixelCoord.y <= LocalPixelPosDynRes.y && TileTopLeftPixelCoord2.y >= LocalPixelPosDynRes.y))
+	{
+		OutLuminanceTransmittance.rgba = float4(0.25, 0.25, 0.25, 0.0);
+	}
+}
+
+#endif // SHADER_DEBUG_LIGHT_GRID_PS
+
