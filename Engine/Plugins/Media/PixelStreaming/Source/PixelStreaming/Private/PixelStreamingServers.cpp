@@ -49,7 +49,7 @@ namespace UE::PixelStreaming
 			ScriptRunnerParams = FString::Printf(TEXT("/c \"\"%s\" %s\""), *ScriptAbsPath, *ScriptArgs);
 #elif PLATFORM_LINUX
 			ScriptRunner = TEXT("/usr/bin/bash");
-			ScriptRunnerParams = FString::Printf(TEXT(" -- \"%s\" %s"), *ScriptAbsPath, *ScriptArgs);
+			ScriptRunnerParams = FString::Printf(TEXT(" -- \"%s\" %s --nosudo"), *ScriptAbsPath, *ScriptArgs);
 #else
 			UE_LOG(LogPixelStreaming, Error, TEXT("Unsupported platform for Pixel Streaming scripts."));
 			return TSharedPtr<FMonitoredProcess>();

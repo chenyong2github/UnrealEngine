@@ -13,6 +13,14 @@ function initConfig(configFile, defaultConfig){
 	// Using object spread syntax: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax#Spread_in_object_literals
 	let config = {...defaultConfig};
 	try{
+		
+		try {
+			accessSync('configFile', constants.W_OK);
+		} catch (err) {
+			console.log("Config file is readonly, skipping writing config...");
+			return config;
+		}
+		
 		let configData = fs.readFileSync(configFile, 'UTF8');
 		fileConfig = JSON.parse(configData);	
 		config = {...config, ...fileConfig}

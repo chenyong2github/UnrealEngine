@@ -62,7 +62,7 @@ void UVCamPixelStreamingSession::Activate()
 		CirrusProcess = UE::PixelStreaming::Servers::MakeSignallingServer();
 		UE::PixelStreaming::Servers::FLaunchArgs LaunchArgs;
 		LaunchArgs.bEphemeral = false;
-		LaunchArgs.ProcessArgs = FString::Printf(TEXT("--StreamerPort=%s --HttpPort=%s --nosudo"), *FString::FromInt(PortNumber), *FString::FromInt(HttpPort));
+		LaunchArgs.ProcessArgs = FString::Printf(TEXT("--StreamerPort=%s --HttpPort=%s"), *FString::FromInt(PortNumber), *FString::FromInt(HttpPort));
 		CirrusProcess->Launch(LaunchArgs);
 	}
 
