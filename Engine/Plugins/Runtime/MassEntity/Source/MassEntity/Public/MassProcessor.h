@@ -68,8 +68,6 @@ public:
 	
 	const FMassProcessorExecutionOrder& GetExecutionOrder() const { return ExecutionOrder; }
 
-	TConstArrayView<const int32> GetPrerequisiteIndices() const { return DependencyIndices; }
-
 	/** By default fetches requirements declared entity queries registered via RegisterQuery. Processors can override 
 	 *	this function to supply additional requirements */
 	virtual void ExportRequirements(FMassExecutionRequirements& OutRequirements) const;
@@ -133,8 +131,6 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 	friend class UMassCompositeProcessor;
-	TArray<int32> DependencyIndices;
-	TArray<int32> TransientDependencyIndices;
 
 private:
 	/** Stores processor's queries registered via RegisterQuery. 
@@ -186,9 +182,9 @@ protected:
 	virtual void Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context) override;
 
 	/**
-	 *  Called recursively to add processors and composite processors to ChildPipeline based on ProcessorsAndGroups
+	 *  Adds processors in OrderedProcessors to ChildPipeline and builds flat processing graph that's being used in multithreaded mode.
 	 */
-	int32 Populate(TArray<FProcessorDependencySolver::FOrderInfo>& ProcessorsAndGroups, const int32 StartIndex = 0);
+	void Populate(TConstArrayView<FProcessorDependencySolver::FOrderInfo> OrderedProcessors);
 
 	/** RequestedGroupName can indicate a multi-level group name, like so: A.B.C
 	 *  We need to extract the highest-level group name ('A' in the example), and see if it already exists. 
@@ -227,7 +223,4 @@ protected:
 		}
 	};
 	TArray<FProcessorCompletion> CompletionStatus;
-
-	bool bRunInSeparateThread;
-	bool bHasOffThreadSubGroups;
 };

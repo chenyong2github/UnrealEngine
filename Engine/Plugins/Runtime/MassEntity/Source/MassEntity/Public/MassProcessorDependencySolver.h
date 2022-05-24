@@ -63,28 +63,26 @@ struct MASSENTITY_API FMassExecutionRequirements
 	TMassExecutionAccess<FMassExternalSubystemBitSet> RequiredSubsystems;
 };
 
-struct MASSENTITY_API FProcessorDependencySolver
+struct FProcessorDependencySolver
 {
 private:
 	struct FNode
 	{
-		FNode(const FName InName, UMassProcessor* InProcessor) 
-			: Name(InName), Processor(InProcessor)
+		FNode(const FName InName, UMassProcessor* InProcessor, const int32 InNodeIndex = INDEX_NONE) 
+			: Name(InName), Processor(InProcessor), NodeIndex(InNodeIndex)
 		{}
 
 		FName Name = TEXT("");
-		TArray<FNode> SubNodes;
-		TMap<FName, int32> Indices;
 		UMassProcessor* Processor = nullptr;
 		TArray<int32> OriginalDependencies;
 		TArray<int32> TransientDependencies;
 		TArray<FName> ExecuteBefore;
 		TArray<FName> ExecuteAfter;
 		FMassExecutionRequirements Requirements;
+		int32 NodeIndex = INDEX_NONE;
+		TArray<int32> SubNodeIndices;
 
-		int32 FindOrAddGroupNodeIndex(const FString& GroupName);
-		int32 FindNodeIndex(FName InNodeName) const;
-		bool HasDependencies() const;
+		bool IsGroup() const { return Processor == nullptr; }
 	};
 
 	struct FResourceUsage
@@ -128,10 +126,10 @@ public:
 		TArray<FName> Dependencies;
 	};
 
-	FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName = FString());
-	void ResolveDependencies(TArray<FOrderInfo>& OutResult, TConstArrayView<const FName> PriorityNodes = TConstArrayView<const FName>());
+	MASSENTITY_API FProcessorDependencySolver(TArrayView<UMassProcessor*> InProcessors, const FName Name, const FString& InDependencyGraphFileName = FString());
+	MASSENTITY_API void ResolveDependencies(TArray<FOrderInfo>& OutResult);
 
-	static void CreateSubGroupNames(FName InGroupName, TArray<FString>& SubGroupNames);
+	MASSENTITY_API static void CreateSubGroupNames(FName InGroupName, TArray<FString>& SubGroupNames);
 
 protected:
 	// note that internals are protected rather than private to support unit testing
@@ -142,20 +140,21 @@ protected:
 	 * quits.
 	 * @return 'true' if a dependency-less node has been found and added to OutNodeIndices; 'false' otherwise.
 	 */
-	static bool PerformSolverStep(FResourceUsage& ResourceUsage, FNode& RootNode, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices);
+	bool PerformSolverStep(FResourceUsage& ResourceUsage, TArray<int32>& InOutIndicesRemaining, TArray<int32>& OutNodeIndices);
 	
-	static FString NameViewToString(TConstArrayView<FName> View);
+	void CreateNodes(UMassProcessor& Processor);
+	void BuildDependencies();
+	void Solve(TArray<FProcessorDependencySolver::FOrderInfo>& OutResult);
+	void LogNode(const FNode& Node, int Indent = 0);
+	
+	// @todo due to fundamental change to how nodes are organized the graph generation needs reimplementation
+	// friend struct FDumpGraphDependencyUtils;
+	// void DumpGraph(FArchive& LogFile) const;
 
-	void AddNode(FName GroupName, UMassProcessor& Processor);
-	void BuildDependencies(FNode& RootNode);
-	void Solve(FNode& RootNode, TConstArrayView<const FName> PriorityNodes, TArray<FProcessorDependencySolver::FOrderInfo>& OutResult, int LoggingIndent = 0);
-	void LogNode(const FNode& RootNode, const FNode* ParentNode = nullptr, int Indent = 0);
-	void DumpGraph(FArchive& LogFile) const;
-	
 	TArrayView<UMassProcessor*> Processors;
-	FNode GroupRootNode;
 	bool bAnyCyclesDetected = false;
 	FString DependencyGraphFileName;
-
-	friend struct FDumpGraphDependencyUtils;
+	FName CollectionName;
+	TArray<FNode> AllNodes;
+	TMap<FName, int32> NodeIndexMap;
 };

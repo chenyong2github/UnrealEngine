@@ -27,9 +27,6 @@ struct FMassProcessingPhaseConfig
 	UPROPERTY(EditAnywhere, Category = Mass, config, NoClear)
 	TSubclassOf<UMassCompositeProcessor> PhaseGroupClass = UMassCompositeProcessor::StaticClass();
 
-	UPROPERTY(EditAnywhere, Category = Mass, config, NoClear)
-	TArray<FName> OffGameThreadGroupNames;
-
 	UPROPERTY(Transient)
 	TArray<UMassProcessor*> ProcessorCDOs;
 

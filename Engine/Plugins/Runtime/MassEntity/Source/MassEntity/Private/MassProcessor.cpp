@@ -9,16 +9,6 @@
 
 DECLARE_CYCLE_STAT(TEXT("MassProcessor Group Completed"), Mass_GroupCompletedTask, STATGROUP_TaskGraphTasks);
 
-#define PARALLELIZED_TRAFFIC_HACK !MASS_DO_PARALLEL
-
-#if PARALLELIZED_TRAFFIC_HACK
-namespace UE::MassTraffic
-{
-	int32 bParallelizeTraffic = 1;
-	FAutoConsoleVariableRef CVarParallelizeTraffic(TEXT("ai.traffic.parallelize"), bParallelizeTraffic, TEXT("Whether to parallelize traffic or not"), ECVF_Cheat);
-}
-#endif // PARALLELIZED_TRAFFIC_HACK
-
 #if WITH_MASSENTITY_DEBUG
 namespace UE::Mass::Debug
 {
@@ -225,8 +215,6 @@ void UMassProcessor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 //----------------------------------------------------------------------//
 UMassCompositeProcessor::UMassCompositeProcessor()
 	: GroupName(TEXT("None"))
-	, bRunInSeparateThread(false)
-	, bHasOffThreadSubGroups(false)
 {
 	// not auto-registering composite processors since the idea of the global processors list is to indicate all 
 	// the processors doing the work while composite processors are just containers. Having said that subclasses 
@@ -258,14 +246,10 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 			Prerequisites.Add(Events[DependencyIndex]);
 		}
 
-		if (ProcessingNode.Processor)
+		// we don't expect any group nodes at this point. If we get any there's a bug in dependencies solving
+		if (ensure(ProcessingNode.Processor))
 		{
 			Events.Add(ProcessingNode.Processor->DispatchProcessorTasks(EntitySubsystem, ExecutionContext, Prerequisites));
-		}
-		else
-		{
-			Events.Add(FFunctionGraphTask::CreateAndDispatchWhenReady([=](){}
-				, GET_STATID(Mass_GroupCompletedTask), &Prerequisites, ENamedThreads::AnyHiPriThreadHiPriTask));
 		}
 	}
 
@@ -282,16 +266,9 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 				DependenciesDesc += FString::Printf(TEXT("%s, "), *ProcessingFlatGraph[DependencyIndex].Name.ToString());
 			}
 
-			if (ProcessingNode.Processor)
-			{
-				PROCESSOR_LOG(TEXT("Task %u %s%s%s"), Events[i]->GetTraceId(), *ProcessingNode.Processor->GetProcessorName()
-					, DependenciesDesc.Len() > 0 ? TEXT(" depends on ") : TEXT(""), *DependenciesDesc);
-			}
-			else
-			{
-				PROCESSOR_LOG(TEXT("Group %u %s%s%s"), Events[i]->GetTraceId(), *ProcessingNode.Name.ToString()
-					, DependenciesDesc.Len() > 0 ? TEXT(" depends on ") : TEXT(""), *DependenciesDesc);
-			}
+			check(ProcessingNode.Processor);
+			PROCESSOR_LOG(TEXT("Task %u %s%s%s"), Events[i]->GetTraceId(), *ProcessingNode.Processor->GetProcessorName()
+				, DependenciesDesc.Len() > 0 ? TEXT(" depends on ") : TEXT(""), *DependenciesDesc);
 		}
 	}
 #endif // WITH_MASSENTITY_DEBUG
@@ -304,50 +281,10 @@ FGraphEventRef UMassCompositeProcessor::DispatchProcessorTasks(UMassEntitySubsys
 
 void UMassCompositeProcessor::Execute(UMassEntitySubsystem& EntitySubsystem, FMassExecutionContext& Context)
 {
-#if PARALLELIZED_TRAFFIC_HACK
-	if (UE::MassTraffic::bParallelizeTraffic && GetProcessingPhase() == EMassProcessingPhase::PrePhysics)
+	for (UMassProcessor* Proc : ChildPipeline.Processors)
 	{
-		static FName TrafficGroup(TEXT("Traffic"));
-		FMassExecutionContext TrafficExecutionContext;
-		FGraphEventRef TrafficCompletionEvent;
-
-		for (UMassProcessor* Proc : ChildPipeline.Processors)
-		{
-			check(Proc);
-				if (GetProcessingPhase() == EMassProcessingPhase::PrePhysics)
-			{
-				if (const UMassCompositeProcessor* CompProcessor = Cast<UMassCompositeProcessor>(Proc))
-				{
-					if (CompProcessor->GetGroupName() == TrafficGroup)
-					{
-						TrafficExecutionContext = Context;
-						// Needs its own command buffer as it will be in it own thread, will be merged after this loop
-						TrafficExecutionContext.SetDeferredCommandBuffer(MakeShareable(new FMassCommandBuffer()));
-						TrafficCompletionEvent = TGraphTask<FMassProcessorTask>::CreateTask().ConstructAndDispatchWhenReady(EntitySubsystem, TrafficExecutionContext, *Proc, /*bManageCommandBuffer=*/false);
-						continue;
-					}
-				}
-			}
-			Proc->CallExecute(EntitySubsystem, Context);
-		}
-
-		if (TrafficCompletionEvent)
-		{
-			// synchronize with the traffic "thread"
-			TrafficCompletionEvent->Wait();
-			Context.Defer().MoveAppend(TrafficExecutionContext.Defer());
-		}
-
-		return;
-	}
-	else
-#endif // PARALLELIZED_TRAFFIC_HACK
-	{
-		for (UMassProcessor* Proc : ChildPipeline.Processors)
-		{
-			check(Proc);
-			Proc->CallExecute(EntitySubsystem, Context);
-		}
+		check(Proc);
+		Proc->CallExecute(EntitySubsystem, Context);
 	}
 }
 
@@ -375,7 +312,7 @@ void UMassCompositeProcessor::CopyAndSort(const FMassProcessingPhaseConfig& Phas
 	// figure out dependencies
 	FProcessorDependencySolver Solver(TmpPipeline.Processors, GroupName, DependencyGraphFileName);
 	TArray<FProcessorDependencySolver::FOrderInfo> SortedProcessorsAndGroups;
-	Solver.ResolveDependencies(SortedProcessorsAndGroups, PhaseConfig.OffGameThreadGroupNames);
+	Solver.ResolveDependencies(SortedProcessorsAndGroups);
 
 	Populate(SortedProcessorsAndGroups);
 
@@ -388,29 +325,14 @@ void UMassCompositeProcessor::CopyAndSort(const FMassProcessingPhaseConfig& Phas
 	{
 		NameToDependencyIndex.Add(Element.Name, ProcessingFlatGraph.Num());
 
+		// we don't expect to get any "group" nodes here. If it happens it indicates a bug in dependency solving
+		checkSlow(Element.Processor);
 		FDependencyNode& Node = ProcessingFlatGraph.Add_GetRef({ Element.Name, Element.Processor });
 		Node.Dependencies.Reserve(Element.Dependencies.Num());
 		for (FName DependencyName : Element.Dependencies)
 		{
+			checkSlow(DependencyName.IsNone() == false);
 			Node.Dependencies.Add(NameToDependencyIndex.FindChecked(DependencyName));
-		}
-		switch (Element.NodeType)
-		{
-		case EDependencyNodeType::GroupStart:
-			Node.Name = FName(FString::Printf(TEXT("%s_Start"), *Node.Name.ToString()));
-			SuperGroupDependency.Add(ProcessingFlatGraph.Num() - 1);
-			break;
-		case EDependencyNodeType::GroupEnd:
-			Node.Name = FName(FString::Printf(TEXT("%s_End"), *Node.Name.ToString()));
-			SuperGroupDependency.Pop();
-			break;
-		default:
-			// this bit makes all processors withing a group depend on the group starting
-			if (SuperGroupDependency.Num())
-			{
-				Node.Dependencies.Add(SuperGroupDependency.Last());
-			}
-			break;
 		}
 	}
 
@@ -440,74 +362,21 @@ void UMassCompositeProcessor::CopyAndSort(const FMassProcessingPhaseConfig& Phas
 #endif // WITH_MASSENTITY_DEBUG
 }
 
-int32 UMassCompositeProcessor::Populate(TArray<FProcessorDependencySolver::FOrderInfo>& ProcessorsAndGroups, const int32 StartIndex)
+void UMassCompositeProcessor::Populate(TConstArrayView<FProcessorDependencySolver::FOrderInfo> OrderedProcessors)
 {
 	ChildPipeline.Processors.Reset();
 
-	// if processor -> Add
-	// if not processor 
-	//    if "start" -> Create group and pass the InOutProcessorsAndGroups in
-	//    else return (pop out)
-	int32 Index = StartIndex;
-	TMap<FName, int32> NameToIndexMap;
-	bool bOffThreadGroupsFound = false;
 	const FMassProcessingPhaseConfig& PhaseConfig = GET_MASS_CONFIG_VALUE(GetProcessingPhaseConfig(ProcessingPhase));
 
-	while (ProcessorsAndGroups.IsValidIndex(Index))
+	for (const FProcessorDependencySolver::FOrderInfo& ProcessorInfo : OrderedProcessors)
 	{
-		FProcessorDependencySolver::FOrderInfo& Element = ProcessorsAndGroups[Index];
-		ensure(Element.NodeType != EDependencyNodeType::Invalid);
-		
-		if (Element.NodeType == EDependencyNodeType::Processor)
+		if (ensureMsgf(ProcessorInfo.NodeType == EDependencyNodeType::Processor, TEXT("Encountered unexpected EDependencyNodeType while populating %s"), *GetGroupName().ToString()))
 		{
-			check(Element.Processor);
-			check(Element.Processor->GetExecutionOrder().ExecuteInGroup == GroupName || Element.Processor->GetExecutionOrder().ExecuteInGroup.IsNone());
-
-			Element.Processor->DependencyIndices.Reset();
-			for (const FName DependencyName : Element.Dependencies)
-			{
-				Element.Processor->DependencyIndices.Add(NameToIndexMap.FindChecked(DependencyName));
-			}
-
-			NameToIndexMap.Add(Element.Name, ChildPipeline.Processors.Num());
-			ChildPipeline.AppendProcessor(*Element.Processor);
-			++Index;
-		}
-		else if (Element.NodeType == EDependencyNodeType::GroupStart)
-		{
-			UMassCompositeProcessor* GroupProcessor = NewObject<UMassCompositeProcessor>(GetOuter());
-			GroupProcessor->SetGroupName(Element.Name);
-			GroupProcessor->SetProcessingPhase(ProcessingPhase);
-			// if there are no groups explicitly declared as "off game thread" we let everything go, subject to other 
-			// limitations (like some subsystems requiring being run on game thread via TMassExternalSubsystemTraits
-			GroupProcessor->bRunInSeparateThread = (PhaseConfig.OffGameThreadGroupNames.IsEmpty() == true)
-				|| (PhaseConfig.OffGameThreadGroupNames.Find(Element.Name) != INDEX_NONE);
-
-			GroupProcessor->DependencyIndices.Reset();
-			for (const FName DependencyName : Element.Dependencies)
-			{
-				const int32 DependencyIndex = NameToIndexMap.FindChecked(DependencyName);
-				GroupProcessor->DependencyIndices.Add(DependencyIndex);
-			}
-
-			NameToIndexMap.Add(Element.Name, ChildPipeline.Processors.Num());
-			ChildPipeline.AppendProcessor(*GroupProcessor);
-
-			Index = GroupProcessor->Populate(ProcessorsAndGroups, Index + 1) + 1;
-			bOffThreadGroupsFound = (bOffThreadGroupsFound || GroupProcessor->bRunInSeparateThread);
-		}
-		else 
-		{
-			check(Element.NodeType == EDependencyNodeType::GroupEnd);
-			check(Element.Name == GroupName);
-			// done
-			break;
+			checkSlow(ProcessorInfo.Processor);
+			
+			ChildPipeline.AppendProcessor(*ProcessorInfo.Processor);
 		}
 	}
-
-	bHasOffThreadSubGroups = bOffThreadGroupsFound;
-
-	return Index;
 }
 
 void UMassCompositeProcessor::DebugOutputDescription(FOutputDevice& Ar, int32 Indent) const
