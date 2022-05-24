@@ -207,6 +207,12 @@ FMetalResourceViewBase::FMetalResourceViewBase(
 
 FMetalResourceViewBase::~FMetalResourceViewBase()
 {
+	if (TextureView)
+	{
+		SafeReleaseMetalTexture(TextureView);
+		TextureView = nil;
+	}
+	
 	if (bTexture)
 	{
 		if (SourceTexture)

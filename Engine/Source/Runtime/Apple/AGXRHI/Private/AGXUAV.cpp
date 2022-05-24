@@ -155,9 +155,9 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 				   MipLevel == 0
 				&& NumMips == [SourceTextureInternal mipmapLevelCount]
 				&& MetalFormat == [SourceTextureInternal pixelFormat]
-				&& !(bInUAV && SourceTexture->GetDesc().IsTextureCube())
+				&& !(bInUAV && SourceTexture->GetDesc().IsTextureCube())	// @todo: Remove this once Cube UAV supported for all Metal Devices
 				&& InFirstArraySlice == 0
-				&& InNumArraySlices == 0;		// @todo: Remove this once Cube UAV supported for all Metal Devices
+				&& InNumArraySlices == 0;
 
 			if (bUseSourceTex)
 			{
@@ -218,11 +218,17 @@ FAGXResourceViewBase::FAGXResourceViewBase(
 
 FAGXResourceViewBase::~FAGXResourceViewBase()
 {
+	if (TextureView)
+	{
+		FAGXTexture TmpWrapper(TextureView);
+		AGXSafeReleaseMetalTexture(TmpWrapper);
+		TextureView = nil;
+	}
+	
 	if (bTexture)
 	{
 		if (SourceTexture)
 		{
-			[TextureView release];
 			SourceTexture->Release();
 		}
 	}
