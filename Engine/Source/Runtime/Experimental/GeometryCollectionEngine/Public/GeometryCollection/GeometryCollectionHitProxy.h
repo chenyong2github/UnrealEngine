@@ -8,7 +8,9 @@
 
 class UGeometryCollectionComponent;
 
-/** HitProxy with transform index information. */
+/** HitProxy with transform index information.
+ * @todo: These are never actually drawn because the shader is always in per-vertex mode, where it is passed HGeometryCollectionBone (or the whole-object HActor)
+ */
 struct HGeometryCollection : public HActor
 {
 	DECLARE_HIT_PROXY(GEOMETRYCOLLECTIONENGINE_API)

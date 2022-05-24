@@ -316,7 +316,11 @@ public:
 	// FPrimitiveSceneProxy interface.
 #if WITH_EDITOR
 	virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component, TArray<TRefCountPtr<HHitProxy> >& OutHitProxies) override;
-	virtual const FColorVertexBuffer* GetCustomHitProxyIdBuffer() const override { return bEnableBoneSelection ? &HitProxyIdBuffer : nullptr; }
+	virtual const FColorVertexBuffer* GetCustomHitProxyIdBuffer() const override
+	{
+		// Note: Could return nullptr when bEnableBoneSelection is false if the hitproxy shader was made to not require per-vertex hit proxy IDs in that case
+		return &HitProxyIdBuffer;
+	}
 #endif // WITH_EDITOR
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
