@@ -3731,10 +3731,11 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 						0 // no border
 					);
 					
+					FVirtualShadowMapArrayCacheManager* CacheManager = ActiveViewFamily->VirtualShadowMapArray.CacheManager;
 					TSharedPtr<FVirtualShadowMapPerLightCacheEntry> VirtualSmPerLightCacheEntry;
-					if (Scene->VirtualShadowMapArrayCacheManager && Scene->VirtualShadowMapArrayCacheManager->IsValid())
+					if (CacheManager->IsValid())
 					{
-						VirtualSmPerLightCacheEntry = Scene->VirtualShadowMapArrayCacheManager->FindCreateLightCacheEntry(LightSceneInfo->Id);
+						VirtualSmPerLightCacheEntry = CacheManager->FindCreateLightCacheEntry(LightSceneInfo->Id);
 					}
 
 					int32 NumMaps = ProjectedShadowInitializer.bOnePassPointLightShadow ? 6 : 1;
@@ -4910,7 +4911,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 				TSharedPtr<FVirtualShadowMapClipmap> VirtualShadowMapClipmap = TSharedPtr<FVirtualShadowMapClipmap>(new FVirtualShadowMapClipmap(
 					ActiveViewFamily->VirtualShadowMapArray,
-					Scene->VirtualShadowMapArrayCacheManager,
 					LightSceneInfo,
 					WorldToLight,
 					View.ViewMatrices,

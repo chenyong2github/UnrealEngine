@@ -1642,7 +1642,7 @@ void FSceneRenderer::RenderVirtualShadowMaps(FRDGBuilder& GraphBuilder, bool bNa
 		return;
 	}
 
-	FVirtualShadowMapArrayCacheManager *CacheManager = Scene->VirtualShadowMapArrayCacheManager;
+	FVirtualShadowMapArrayCacheManager *CacheManager = ActiveViewFamily->VirtualShadowMapArray.CacheManager;
 
 	// TODO: Separate out the decision about nanite using HZB and stuff like HZB culling invalidations?
 	const bool bVSMUseHZB = VirtualShadowMapArray.UseHzbOcclusion();

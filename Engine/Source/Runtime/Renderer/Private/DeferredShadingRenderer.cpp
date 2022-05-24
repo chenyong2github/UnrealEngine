@@ -2085,7 +2085,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Important that this uses consistent logic throughout the frame, so evaluate once and pass in the flag from here
 	// NOTE: Must be done after  system texture initialization
-	ActiveViewFamily->VirtualShadowMapArray.Initialize(GraphBuilder, Scene->VirtualShadowMapArrayCacheManager, UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
+	// TODO: This doesn't take into account the potential for split screen views with separate shadow caches
+	ActiveViewFamily->VirtualShadowMapArray.Initialize(GraphBuilder, Scene->GetVirtualShadowMapCache(Views[0]), UseVirtualShadowMaps(ShaderPlatform, FeatureLevel));
 
 	// if DDM_AllOpaqueNoVelocity was used, then velocity should have already been rendered as well
 	const bool bIsEarlyDepthComplete = (DepthPass.EarlyZPassMode == DDM_AllOpaque || DepthPass.EarlyZPassMode == DDM_AllOpaqueNoVelocity);
@@ -2826,14 +2827,17 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		Nanite::GStreamingManager.SubmitFrameStreamingRequests(GraphBuilder);
 	}
 
-	if (Scene->VirtualShadowMapArrayCacheManager)
 	{
-		// Do this even if VSMs are disabled this frame to clean up any previously extracted data
-		Scene->VirtualShadowMapArrayCacheManager->ExtractFrameData(
-			GraphBuilder,				
-			ActiveViewFamily->VirtualShadowMapArray,
-			*this,
-			ActiveViewFamily->EngineShowFlags.VirtualShadowMapCaching);
+		FVirtualShadowMapArrayCacheManager* CacheManager = ActiveViewFamily->VirtualShadowMapArray.CacheManager;
+		if (CacheManager)
+		{
+			// Do this even if VSMs are disabled this frame to clean up any previously extracted data
+			CacheManager->ExtractFrameData(
+				GraphBuilder,
+				ActiveViewFamily->VirtualShadowMapArray,
+				*this,
+				ActiveViewFamily->EngineShowFlags.VirtualShadowMapCaching);
+		}
 	}
 
 	// If not all depth is written during the prepass, kick off async compute cloud after basepass

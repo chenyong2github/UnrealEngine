@@ -651,13 +651,14 @@ void FDeferredShadingSceneRenderer::RenderLightShaftBloom(
 	}
 }
 
-void FSceneViewState::TrimHistoryRenderTargets(const FScene* Scene)
+// InScene is passed in, as the Scene pointer in the class itself may be null, if it was allocated without a scene.
+void FSceneViewState::TrimHistoryRenderTargets(const FScene* InScene)
 {
 	for (TMap<const ULightComponent*, TUniquePtr<FTemporalAAHistory>>::TIterator It(LightShaftBloomHistoryRTs); It; ++It)
 	{
 		bool bLightIsUsed = false;
 
-		for (auto LightIt = Scene->Lights.CreateConstIterator(); LightIt; ++LightIt)
+		for (auto LightIt = InScene->Lights.CreateConstIterator(); LightIt; ++LightIt)
 		{
 			const FLightSceneInfo* const LightSceneInfo = LightIt->LightSceneInfo;
 

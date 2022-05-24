@@ -19,7 +19,6 @@ class FVirtualShadowMapClipmap : FRefCountedObject
 public:	
 	FVirtualShadowMapClipmap(
 		FVirtualShadowMapArray& VirtualShadowMapArray,
-		FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager,
 		const FLightSceneInfo& InLightSceneInfo,
 		const FMatrix& WorldToLightRotationMatrix,
 		const FViewMatrices& CameraViewMatrices,

@@ -51,6 +51,7 @@ class USkyLightComponent;
 struct FDynamicMeshVertex;
 class ULightMapVirtualTexture2D;
 class FGPUScenePrimitiveCollector;
+class FVirtualShadowMapArrayCacheManager;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBufferVisualization, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogNaniteVisualization, Log, All);
@@ -253,6 +254,12 @@ public:
 	virtual uint32 GetPathTracingSampleCount() const = 0;
 #endif
 
+	/**
+	* Adds a per-view virtual shadow map cache, which can help performance, at a cost in memory.  Does nothing if one is already present.
+	* Requires the View State to have been originally allocated with a UWorld with a valid Scene pointer.
+	*/
+	virtual void AddVirtualShadowMapCache() {}
+
 protected:
 	// Don't allow direct deletion of the view state, Destroy should be called instead.
 	virtual ~FSceneViewStateInterface() {}
@@ -265,6 +272,9 @@ private:
 	FSceneViewStateInterface*	ViewParent;
 	/** Reference counts the number of children parented to this state. */
 	int32							NumChildren;
+
+	virtual FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache() const { return nullptr; }
+	friend class FScene;
 };
 
 class FFrozenSceneViewMatricesGuard

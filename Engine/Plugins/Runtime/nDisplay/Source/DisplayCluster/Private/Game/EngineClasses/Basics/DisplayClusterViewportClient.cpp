@@ -587,6 +587,8 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 
 					View->CameraConstrainedViewRect = View->UnscaledViewRect;
 
+					// Enable per-view virtual shadow map caching
+					View->State->AddVirtualShadowMapCache();
 
 					{
 						// Save the location of the view.

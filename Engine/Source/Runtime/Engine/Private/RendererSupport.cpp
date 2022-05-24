@@ -42,6 +42,9 @@ static void ClearReferencesToRendererModuleClasses(
 	TMap<const FShaderPipelineType*, FHashedName>& ShaderPipelineTypeNames,
 	TMap<FVertexFactoryType*, FHashedName>& VertexFactoryTypeNames)
 {
+	// Destroy scene view states -- must be called before destroying scenes, as scenes may have references to view states
+	FSceneViewStateReference::DestroyAll();
+
 	// Destroy all renderer scenes
 	for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
 	{
@@ -93,7 +96,6 @@ static void ClearReferencesToRendererModuleClasses(
 	}
 
 	// Destroy misc renderer module classes and remove references
-	FSceneViewStateReference::DestroyAll();
 	FSlateApplication::Get().InvalidateAllViewports();
 
 	// Invalidate cached shader type data

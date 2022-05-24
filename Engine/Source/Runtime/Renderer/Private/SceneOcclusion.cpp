@@ -133,13 +133,14 @@ static FGlobalBoundShaderState GOcclusionTestBoundShaderState;
  * Returns an array of visibility data for the given view position, or NULL if none exists. 
  * The data bits are indexed by VisibilityId of each primitive in the scene.
  * This method decompresses data if necessary and caches it based on the bucket and chunk index in the view state.
+ * InScene is passed in, as the Scene pointer in the class itself may be null, if it was allocated without a scene.
  */
-const uint8* FSceneViewState::GetPrecomputedVisibilityData(FViewInfo& View, const FScene* Scene)
+const uint8* FSceneViewState::GetPrecomputedVisibilityData(FViewInfo& View, const FScene* InScene)
 {
 	const uint8* PrecomputedVisibilityData = NULL;
-	if (Scene->PrecomputedVisibilityHandler && GAllowPrecomputedVisibility && View.Family->EngineShowFlags.PrecomputedVisibility)
+	if (InScene->PrecomputedVisibilityHandler && GAllowPrecomputedVisibility && View.Family->EngineShowFlags.PrecomputedVisibility)
 	{
-		const FPrecomputedVisibilityHandler& Handler = *Scene->PrecomputedVisibilityHandler;
+		const FPrecomputedVisibilityHandler& Handler = *InScene->PrecomputedVisibilityHandler;
 		FViewElementPDI VisibilityCellsPDI(&View, nullptr, nullptr);
 
 		// Draw visibility cell bounds for debugging if enabled
@@ -181,7 +182,7 @@ const uint8* FSceneViewState::GetPrecomputedVisibilityData(FViewInfo& View, cons
 			{
 				// Reuse a cached decompressed chunk if possible
 				if (CachedVisibilityChunk
-					&& CachedVisibilityHandlerId == Scene->PrecomputedVisibilityHandler->GetId()
+					&& CachedVisibilityHandlerId == InScene->PrecomputedVisibilityHandler->GetId()
 					&& CachedVisibilityBucketIndex == PrecomputedVisibilityBucketIndex
 					&& CachedVisibilityChunkIndex == CurrentCell.ChunkIndex)
 				{
@@ -193,7 +194,7 @@ const uint8* FSceneViewState::GetPrecomputedVisibilityData(FViewInfo& View, cons
 					const FCompressedVisibilityChunk& CompressedChunk = Handler.PrecomputedVisibilityCellBuckets[PrecomputedVisibilityBucketIndex].CellDataChunks[CurrentCell.ChunkIndex];
 					CachedVisibilityBucketIndex = PrecomputedVisibilityBucketIndex;
 					CachedVisibilityChunkIndex = CurrentCell.ChunkIndex;
-					CachedVisibilityHandlerId = Scene->PrecomputedVisibilityHandler->GetId();
+					CachedVisibilityHandlerId = InScene->PrecomputedVisibilityHandler->GetId();
 
 					if (CompressedChunk.bCompressed)
 					{

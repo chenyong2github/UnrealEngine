@@ -701,6 +701,17 @@ public:
 	};
 
 	uint32 UniqueID;
+
+	/**
+	 * The scene pointer may be NULL -- it's only filled in if a UWorld with a valid Scene pointer was passed into the original call
+	 * to FSceneViewStateReference::Allocate.  Currently, the Scene pointer in the class is only used for constructing and cleaning up
+	 * the ViewVirtualShadowMapCache member, if the user chooses to enable per-view shadow caching via AddVirtualShadowMapCache().
+	 * If the Scene isn't present, AddVirtualShadowMapCache() has no effect.
+	 * 
+	 * TODO:  deprecate support for allocating an FSceneViewState without a valid Scene...
+	 */
+	FScene* Scene;
+
 	typedef TMap<FSceneViewState::FProjectedShadowKey, FRHIPooledRenderQuery> ShadowKeyOcclusionQueryMap;
 	TArray<ShadowKeyOcclusionQueryMap, TInlineAllocator<FOcclusionQueryHelpers::MaxBufferedOcclusionFrames> > ShadowOcclusionQueryMaps;
 
@@ -1061,6 +1072,8 @@ public:
 
 	FShadingEnergyConservationStateData ShadingEnergyConservationData;
 
+	FVirtualShadowMapArrayCacheManager* ViewVirtualShadowMapCache;
+
 	// call after OnFrameRenderingSetup()
 	virtual uint32 GetCurrentTemporalAASampleIndex() const
 	{
@@ -1125,7 +1138,8 @@ public:
 		}
 	}
 
-	void TrimHistoryRenderTargets(const FScene* Scene);
+	// InScene is passed in, as the Scene pointer in the class itself may be null, if it was allocated without a scene.
+	void TrimHistoryRenderTargets(const FScene* InScene);
 
 	/**
 	 * Calculates and stores the scale factor to apply to motion vectors based on the current game
@@ -1152,8 +1166,9 @@ public:
 	 * Returns an array of visibility data for the given view, or NULL if none exists. 
 	 * The data bits are indexed by VisibilityId of each primitive in the scene.
 	 * This method decompresses data if necessary and caches it based on the bucket and chunk index in the view state.
+	 * InScene is passed in, as the Scene pointer in the class itself may be null, if it was allocated without a scene.
 	 */
-	const uint8* GetPrecomputedVisibilityData(FViewInfo& View, const FScene* Scene);
+	const uint8* GetPrecomputedVisibilityData(FViewInfo& View, const FScene* InScene);
 
 	/**
 	 * Cleans out old entries from the primitive occlusion history, and resets unused pending occlusion queries.
@@ -1512,6 +1527,9 @@ public:
 	{
 		return SequencerState;
 	}
+
+	virtual void AddVirtualShadowMapCache() override;
+	virtual FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache() const override;
 
 	/** Information about visibility/occlusion states in past frames for individual primitives. */
 	TSet<FPrimitiveOcclusionHistory,FPrimitiveOcclusionHistoryKeyFuncs> PrimitiveOcclusionHistorySet;
@@ -2669,6 +2687,9 @@ public:
 	/** An optional FX system associated with the scene. */
 	class FFXSystemInterface* FXSystem;
 
+	/** List of view states associated with the scene. */
+	TArray<FSceneViewState*> ViewStates;
+
 	FPersistentUniformBuffers UniformBuffers;
 
 	/** Instancing state buckets.  These are stored on the scene as they are precomputed at FPrimitiveSceneInfo::AddToScene time. */
@@ -2909,7 +2930,13 @@ public:
 	/** Preshadows that are currently cached in the PreshadowCache render target. */
 	TArray<TRefCountPtr<FProjectedShadowInfo> > CachedPreshadows;
 
-	FVirtualShadowMapArrayCacheManager *VirtualShadowMapArrayCacheManager;
+	/**
+	 * Virtual shadow maps can use a default cache stored in the FScene, or define a separate cache per view (AddVirtualShadowMapCache)
+	 * for improved performance.  A linked list of caches for the FScene is maintained to allow scene updates to be propagated to all
+	 * caches as needed.  If a cache is never used, the GPU resources for it are never allocated, so the overhead of the default cache
+	 * should be minimal when not in use.
+	 */
+	FVirtualShadowMapArrayCacheManager* DefaultVirtualShadowMapCache;
 
 	/** Texture layout that tracks current allocations in the PreshadowCache render target. */
 	FTextureLayout PreshadowCacheLayout;
@@ -3118,6 +3145,9 @@ public:
 	virtual void UpdateParameterCollections(const TArray<FMaterialParameterCollectionInstanceResource*>& InParameterCollections) override;
 
 	virtual bool RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPrimitiveDirtyState PrimitiveDirtyState) override;
+
+	FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache(FSceneView& View) const;
+	void GetAllVirtualShadowMapCacheManagers(TArray<FVirtualShadowMapArrayCacheManager*, SceneRenderingAllocator>& OutCacheManagers) const;
 
 	bool HasSkyAtmosphere() const
 	{
@@ -3373,6 +3403,11 @@ public:
 protected:
 
 private:
+	/**
+	 * Internal view state allocation interface, used by FSceneViewState
+	 */
+	virtual FSceneViewStateInterface* AllocateViewState() override;
+	void RemoveViewState(FSceneViewStateInterface*);
 
 	/**
 	 * Ensures the packed primitive arrays contain the same number of elements.
@@ -3528,6 +3563,8 @@ private:
 
 	/** Whether world settings has bForceNoPrecomputedLighting set */
 	bool bForceNoPrecomputedLighting;
+
+	friend class FSceneViewState;
 };
 
 inline bool ShouldIncludeDomainInMeshPass(EMaterialDomain Domain)

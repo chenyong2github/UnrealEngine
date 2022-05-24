@@ -63,7 +63,6 @@ static float GetLevelRadius(int32 Level)
 
 FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
-	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager,
 	const FLightSceneInfo& InLightSceneInfo,
 	const FMatrix& WorldToLightRotationMatrix,
 	const FViewMatrices& CameraViewMatrices,
@@ -73,6 +72,8 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	  DependentView(InDependentView)
 {
 	check(WorldToLightRotationMatrix.GetOrigin() == FVector(0, 0, 0));	// Should not contain translation or scaling
+
+	FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager = VirtualShadowMapArray.CacheManager;
 
 	const bool bCacheValid = VirtualShadowMapArrayCacheManager && VirtualShadowMapArrayCacheManager->IsValid();
 

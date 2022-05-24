@@ -35,6 +35,7 @@ class UTextureCube;
 class FViewInfo;
 class FSceneRenderer;
 class FInstanceCullingManager;
+class FSceneViewStateInterface;
 struct FHairStrandsInstance;
 struct FLightRenderParameters;
 
@@ -564,8 +565,12 @@ public:
 	virtual bool RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPrimitiveDirtyState PrimitiveDirtyState) { return false; }
 
 protected:
+	virtual FSceneViewStateInterface* AllocateViewState() = 0;
+
 	virtual ~FSceneInterface() {}
 
 	/** This scene's feature level */
 	ERHIFeatureLevel::Type FeatureLevel;
+
+	friend class FSceneViewStateReference;
 };

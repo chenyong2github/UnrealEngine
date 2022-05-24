@@ -98,7 +98,13 @@ public:
 
 	ENGINE_API virtual ~FSceneViewStateReference();
 
-	/** Allocates the Scene view state. */
+	/**
+	 * Allocates the Scene view state.  The first Allocate function accepts a UWorld, rather than an FScene, as the "RecompileRenderer" feature
+	 * involves destroying and reconstructing the FScene.  We need to pull the updated scene pointer from the UWorld in that case, but nothing
+	 * else in the UWorld is accessed.
+	 */
+	ENGINE_API void Allocate(ERHIFeatureLevel::Type FeatureLevel, const UWorld* World);
+
 	ENGINE_API void Allocate(ERHIFeatureLevel::Type FeatureLevel);
 
 	UE_DEPRECATED(5.0, "Allocate must be called with an appropriate RHI Feature Level")
@@ -122,6 +128,7 @@ public:
 	}
 
 private:
+	const UWorld* World;
 	FSceneViewStateInterface* Reference;
 	TLinkedList<FSceneViewStateReference*> GlobalListLink;
 
