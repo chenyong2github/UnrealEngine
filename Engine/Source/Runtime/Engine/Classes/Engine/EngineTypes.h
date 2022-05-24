@@ -850,8 +850,6 @@ enum class ENetworkSmoothingMode : uint8
 	/** Exponential. Faster as you are further from target. */
 	Exponential		UMETA(DisplayName="Exponential"),
 
-	/** Special linear interpolation designed specifically for replays. Not intended as a selectable mode in-editor. */
-	Replay			UMETA(Hidden, DisplayName="Replay"),
 };
 
 // Number of bits used currently from FMaskFilter.

@@ -1164,11 +1164,6 @@ void ACharacter::OnRep_ReplicatedBasedMovement()
 
 void ACharacter::OnRep_ReplicatedMovement()
 {
-	if (CharacterMovement && (CharacterMovement->NetworkSmoothingMode == ENetworkSmoothingMode::Replay))
-	{
-		return;
-	}
-
 	if (GetWorld()->IsPlayingReplay())
 	{
 		Super::OnRep_ReplicatedMovement();
@@ -1198,11 +1193,6 @@ FAnimMontageInstance * ACharacter::GetRootMotionAnimMontageInstance() const
 
 void ACharacter::OnRep_RootMotion()
 {
-	if (CharacterMovement && (CharacterMovement->NetworkSmoothingMode == ENetworkSmoothingMode::Replay))
-	{
-		return;
-	}
-
 	if (GetLocalRole() == ROLE_SimulatedProxy)
 	{
 
