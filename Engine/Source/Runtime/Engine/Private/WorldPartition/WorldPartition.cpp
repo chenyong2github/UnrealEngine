@@ -1309,8 +1309,11 @@ AActor* UWorldPartition::PinActor(const FGuid& ActorGuid)
 	if (PinnedActors)
 	{
 		FWorldPartitionHandle ActorHandle(this, ActorGuid);
-		PinnedActors->AddActor(ActorHandle);
-		return ActorHandle->GetActor();
+		if (ActorHandle.IsValid())
+		{
+			PinnedActors->AddActor(ActorHandle);
+			return ActorHandle->GetActor();
+		}		
 	}
 	return nullptr;
 }
@@ -1320,7 +1323,10 @@ void UWorldPartition::UnpinActor(const FGuid& ActorGuid)
 	if (PinnedActors)
 	{
 		FWorldPartitionHandle ActorHandle(this, ActorGuid);
-		PinnedActors->RemoveActor(ActorHandle);
+		if (ActorHandle.IsValid())
+		{
+			PinnedActors->RemoveActor(ActorHandle);
+		}
 	}
 }
 
@@ -1329,7 +1335,10 @@ bool UWorldPartition::IsActorPinned(const FGuid& ActorGuid) const
 	if (PinnedActors)
 	{
 		FWorldPartitionHandle ActorHandle(const_cast<UWorldPartition*>(this), ActorGuid);
-		return PinnedActors->ContainsActor(ActorHandle);
+		if(ActorHandle.IsValid())
+		{
+			return PinnedActors->ContainsActor(ActorHandle);
+		}
 	}
 	return false;
 }
