@@ -567,6 +567,8 @@ namespace UnrealBuildTool
 				throw new BuildException("No NDK platforms found in {0}", PlatformsFilename);
 			}
 
+			MaxPlatform = Math.Clamp(MaxPlatform, 1, 32);	//Current NDK 25beta4 breaks existing UE NDK to SDK API mapping, so clamp it at 32
+
 			return "android-" + MaxPlatform.ToString();
 		}
 
@@ -590,12 +592,18 @@ namespace UnrealBuildTool
 			Result += " -fno-PIE";
 
 			Result += " -Wno-unused-variable";
-			if (CompilerVersionGreaterOrEqual(13, 0, 0))
+            if (CompilerVersionGreaterOrEqual(13, 0, 0))
+            {
+                Result += " -Wno-unused-but-set-variable";
+                Result += " -Wno-unused-but-set-parameter";
+                Result += " -Wno-ordered-compare-function-pointers";
+            }
+			
+			if (CompilerVersionGreaterOrEqual(14, 0, 0))
 			{
-				Result += " -Wno-unused-but-set-variable";
-				Result += " -Wno-unused-but-set-parameter";
-				Result += " -Wno-ordered-compare-function-pointers";
+				Result += " -Wno-bitwise-instead-of-logical";
 			}
+
 			// this will hide the warnings about static functions in headers that aren't used in every single .cpp file
 			Result += " -Wno-unused-function";
 			// this hides the "enumeration value 'XXXXX' not handled in switch [-Wswitch]" warnings - we should maybe remove this at some point and add UE_LOG(, Fatal, ) to default cases
