@@ -739,6 +739,10 @@ namespace Horde.Build.Controllers
 					string[] tokens = deviceType.Split(":");
 					platformName = tokens[0];
 					constraint = tokens[1];
+					if (constraint.Length == 0)
+					{
+						constraint = null;
+					}
 				}
 
 				DevicePlatformId platformId;
