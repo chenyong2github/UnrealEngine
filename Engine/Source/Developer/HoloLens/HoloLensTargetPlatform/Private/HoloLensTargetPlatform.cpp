@@ -191,17 +191,18 @@ void FHoloLensTargetPlatform::GetReflectionCaptureFormats(TArray<FName>& OutForm
 const static FName NameBC6H(TEXT("BC6H"));
 const static FName NameBC7(TEXT("BC7"));
 const static FName NameRGBA16F(TEXT("RGBA16F"));
-const static FName NameBGRA8(TEXT("BGRA8"));
+const static FName NameDXT5(TEXT("DXT5"));
 const static FName HoloLensRemap[][2] =
 {
 	{ NameBC6H,			NameRGBA16F		},
-	{ NameBC7,			NameBGRA8		},
+	{ NameBC7,			NameDXT5		},
 };
 
 void FHoloLensTargetPlatform::GetTextureFormats(const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const
 {
-	bool bSupportFilteredFloat32Textures = false;
-	GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, false, 4, bSupportFilteredFloat32Textures);
+	const bool bSupportFilteredFloat32Textures = false;
+	const bool bSupportCompressedVolumeTexture = false;
+	GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, bSupportCompressedVolumeTexture, 4, bSupportFilteredFloat32Textures);
 
 	// perform any remapping away from defaults
 	TArray<FName>& LayerFormats = OutFormats.Last();

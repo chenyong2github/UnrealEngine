@@ -192,15 +192,20 @@ public:
 	virtual EPixelFormat GetPixelFormatForImage(const struct FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
 	{
 		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_RGB ||
-			(BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 && !bImageHasAlphaChannel))
+			BuildSettings.TextureFormatName == GTextureFormatNameETC2_RGBA ||
+			BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 )
 		{
-			return PF_ETC2_RGB;
-		}
+			if ( BuildSettings.TextureFormatName == GTextureFormatNameETC2_RGB || !bImageHasAlphaChannel )
+			{
+				// even if Name was RGBA we still use the RGB profile if !bImageHasAlphaChannel
+				//	so that "Compress Without Alpha" can force us to opaque
 
-		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_RGBA ||
-				(BuildSettings.TextureFormatName == GTextureFormatNameAutoETC2 && bImageHasAlphaChannel))
-		{
-			return PF_ETC2_RGBA;
+				return PF_ETC2_RGB;
+			}
+			else
+			{
+				return PF_ETC2_RGBA;
+			}
 		}
 
 		if (BuildSettings.TextureFormatName == GTextureFormatNameETC2_R11)

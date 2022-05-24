@@ -54,7 +54,6 @@ namespace AndroidTexFormat
 {
 	// Compressed Texture Formats
 	const static FName NameDXT1(TEXT("DXT1"));
-	const static FName NameDXT3(TEXT("DXT3"));
 	const static FName NameDXT5(TEXT("DXT5"));
 	const static FName NameDXT5n(TEXT("DXT5n"));
 	const static FName NameAutoDXT(TEXT("AutoDXT"));
@@ -62,25 +61,19 @@ namespace AndroidTexFormat
 	const static FName NameBC5(TEXT("BC5"));
 	const static FName NameBC6H(TEXT("BC6H"));
 	const static FName NameBC7(TEXT("BC7"));
+
 	const static FName NameETC2_RGB(TEXT("ETC2_RGB"));
 	const static FName NameETC2_RGBA(TEXT("ETC2_RGBA"));
 	const static FName NameETC2_R11(TEXT("ETC2_R11"));
 	const static FName NameAutoETC2(TEXT("AutoETC2"));
-	// AFAICT none of these explicitly sized ASTC names are actually valid TextureFormat names
-	const static FName NameASTC_4x4(TEXT("ASTC_4x4"));
-	const static FName NameASTC_6x6(TEXT("ASTC_6x6"));
-	const static FName NameASTC_8x8(TEXT("ASTC_8x8"));
-	const static FName NameASTC_10x10(TEXT("ASTC_10x10"));
-	const static FName NameASTC_12x12(TEXT("ASTC_12x12"));
+
 	const static FName NameAutoASTC(TEXT("ASTC_RGBAuto"));
 	
 	// Uncompressed Texture Formats
 	const static FName NameBGRA8(TEXT("BGRA8"));
 	const static FName NameG8(TEXT("G8"));
-	const static FName NameVU8(TEXT("VU8"));
 	const static FName NameRGBA16F(TEXT("RGBA16F"));
 	const static FName NameR16F(TEXT("R16F"));
-	const static FName NameR5G6B5(TEXT("R5G6B5"));
 
 	//A1RGB555 is mapped to RGB555A1, because OpenGL GL_RGB5_A1 only supports alpha on the lowest bit
 	const static FName NameA1RGB555(TEXT("A1RGB555"));
@@ -88,9 +81,10 @@ namespace AndroidTexFormat
 
 	const static FName GenericRemap[][2] =
 	{
-		{ NameBC6H,			NameRGBA16F					},
-		{ NameBC7,			NameBGRA8					},
+		{ NameA1RGB555,		NameRGB555A1				},
 	};
+	
+	static const FName NameASTC_RGB_HDR(TEXT("ASTC_RGB_HDR"));
 
 	const static FName ASTCRemap[][2] =
 	{
@@ -100,12 +94,9 @@ namespace AndroidTexFormat
 		{ NameDXT5n,		FName(TEXT("ASTC_NormalAG"))},
 		{ NameBC5,			FName(TEXT("ASTC_NormalRG"))},
 		{ NameBC4,			NameETC2_R11				},
-		{ NameBC6H,			NameRGBA16F					},
-		{ NameBC7,			NameBGRA8					},
-		//{ NameBC6H,			FName(TEXT("ASTC_RGB"))		},
-		//{ NameBC7,			NameAutoASTC				},
+		{ NameBC6H,			NameASTC_RGB_HDR			},
+		{ NameBC7,			FName(TEXT("ASTC_RGBA_HQ"))	},
 		{ NameAutoDXT,		NameAutoASTC				},
-		{ NameA1RGB555,		NameRGB555A1				}
 	};
 
 	const static FName ETCRemap[][2] =
@@ -116,12 +107,9 @@ namespace AndroidTexFormat
 		{ NameDXT5n,		NameETC2_RGB	},
 		{ NameBC5,			NameETC2_RGB	},
 		{ NameBC4,			NameETC2_R11	},
-		{ NameBC6H,			NameRGBA16F					},
-		{ NameBC7,			NameBGRA8					},
-		//{ NameBC6H,			NameETC2_RGB	},
-		//{ NameBC7,			NameAutoETC2	},
+		{ NameBC6H,			NameRGBA16F		},
+		{ NameBC7,			NameETC2_RGBA	},
 		{ NameAutoDXT,		NameAutoETC2	},
-		{ NameA1RGB555,		NameRGB555A1	}
 	};
 }
 
@@ -493,6 +481,10 @@ const FStaticMeshLODSettings& FAndroidTargetPlatform::GetStaticMeshLODSettings( 
 
 void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
 {
+	// FAndroidTargetPlatform aside from being the base class for all the concrete android target platforms
+	//	it is also usable on its own as "flavorless" Android
+	//	but I don't understand how that's supposed to work or what that's supposed to mean
+	//	and no information has been forthcoming
 	check(Texture);
 	
 	// Supported in ES3.2 with ASTC
@@ -501,7 +493,8 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 	const bool bSupportFilteredFloat32Textures = false;
 
 	TArray<FName>& LayerFormats = OutFormats.AddDefaulted_GetRef();
-	GetDefaultTextureFormatNamePerLayer(LayerFormats, this, Texture, bSupportCompressedVolumeTexture, 1, bSupportFilteredFloat32Textures);
+	int32 BlockSize = 1; // this looks wrong? should be 4 for FAndroid_DXTTargetPlatform ? - it is wrong, but BlockSize is ignored
+	GetDefaultTextureFormatNamePerLayer(LayerFormats, this, Texture, bSupportCompressedVolumeTexture, BlockSize, bSupportFilteredFloat32Textures);
 
 	for (FName& TextureFormatName : LayerFormats)
 	{
@@ -510,11 +503,11 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 			// forward rendering only needs one channel for shadow maps
 			TextureFormatName = FName(TEXT("G8"));
 		}
-
+		
 		if (Texture->IsA(UTextureCube::StaticClass()))
 		{
 			const UTextureCube* Cube = CastChecked<UTextureCube>(Texture);
-			if (Cube != nullptr)
+			if (Cube != nullptr) 
 			{
 				FTextureFormatSettings FormatSettings;
 				Cube->GetDefaultFormatSettings(FormatSettings);
@@ -545,15 +538,19 @@ FName FAndroidTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) co
 	// currently it forces all ASTC to ETC
 	// this is needed because the runtime virtual texture encoder only supports ETC
 
+	// code dupe with IOSTargetPlatform
+
 	const static FName VTRemap[][2] =
 	{
 		{ { FName(TEXT("ASTC_RGB")) },			{ AndroidTexFormat::NameETC2_RGB } },
 		{ { FName(TEXT("ASTC_RGBA")) },			{ AndroidTexFormat::NameETC2_RGBA } },
+		{ { FName(TEXT("ASTC_RGBA_HQ")) },		{ AndroidTexFormat::NameETC2_RGBA } },
+//		{ { FName(TEXT("ASTC_RGB_HDR")) },		{ NameRGBA16F } }, // ?
 		{ { FName(TEXT("ASTC_RGBAuto")) },		{ AndroidTexFormat::NameAutoETC2 } },
 		{ { FName(TEXT("ASTC_NormalAG")) },		{ AndroidTexFormat::NameETC2_RGB } },
 		{ { FName(TEXT("ASTC_NormalRG")) },		{ AndroidTexFormat::NameETC2_RGB } },
 		{ { AndroidTexFormat::NameDXT1 },		{ AndroidTexFormat::NameETC2_RGB } },
-		{ { AndroidTexFormat::NameDXT5 },		{ AndroidTexFormat::NameAutoETC2 } },
+		{ { AndroidTexFormat::NameDXT5 },		{ AndroidTexFormat::NameETC2_RGBA } },
 		{ { AndroidTexFormat::NameAutoDXT },	{ AndroidTexFormat::NameAutoETC2 } }
 	};
 
@@ -585,20 +582,8 @@ void FAndroidTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) con
 
 void FAndroid_ASTCTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
-	GetAllDefaultTextureFormats(this, OutFormats);
+	FAndroidTargetPlatform::GetAllTextureFormats(OutFormats);
 
-	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
-	{
-		OutFormats.Remove(AndroidTexFormat::GenericRemap[RemapIndex][0]);
-	}
-
-	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
-	{
-		OutFormats.AddUnique(AndroidTexFormat::GenericRemap[RemapIndex][1]);
-	}
-
-	// not supported
-	OutFormats.Remove(AndroidTexFormat::NameDXT3);
 	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::ASTCRemap); ++RemapIndex)
 	{
 		OutFormats.Remove(AndroidTexFormat::ASTCRemap[RemapIndex][0]);
@@ -627,24 +612,49 @@ void FAndroid_ASTCTargetPlatform::GetTextureFormats(const UTexture* Texture, TAr
 			}
 		}
 	}
+	
+	bool bSupportASTCHDR = UsesASTCHDR();
+
+	if ( ! bSupportASTCHDR )
+	{
+		for (FName& TextureFormatName : LayerFormats)
+		{
+			if ( TextureFormatName == AndroidTexFormat::NameASTC_RGB_HDR )
+			{
+				TextureFormatName = AndroidTexFormat::NameRGBA16F;
+			}
+		}
+	}
+}
+
+void FAndroid_DXTTargetPlatform::GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
+{
+	FAndroidTargetPlatform::GetTextureFormats(Texture, OutFormats);
+
+	bool bSupportsDX11Formats = false; // assume Android DXT does not support BC6/7
+
+	if ( ! bSupportsDX11Formats )
+	{
+		TArray<FName>& LayerFormats = OutFormats.Last();
+
+		for (FName& TextureFormatName : LayerFormats)
+		{
+			if ( TextureFormatName == AndroidTexFormat::NameBC6H )
+			{
+				TextureFormatName = AndroidTexFormat::NameRGBA16F;
+			}
+			else if ( TextureFormatName == AndroidTexFormat::NameBC7 )
+			{
+				TextureFormatName = AndroidTexFormat::NameDXT5;
+			}
+		}
+	}
 }
 
 void FAndroid_ETC2TargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
-	GetAllDefaultTextureFormats(this, OutFormats);
+	FAndroidTargetPlatform::GetAllTextureFormats(OutFormats);
 
-	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
-	{
-		OutFormats.Remove(AndroidTexFormat::GenericRemap[RemapIndex][0]);
-	}
-
-	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::GenericRemap); ++RemapIndex)
-	{
-		OutFormats.AddUnique(AndroidTexFormat::GenericRemap[RemapIndex][1]);
-	}
-
-	// not supported
-	OutFormats.Remove(AndroidTexFormat::NameDXT3);
 	for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(AndroidTexFormat::ETCRemap); ++RemapIndex)
 	{
 		OutFormats.Remove(AndroidTexFormat::ETCRemap[RemapIndex][0]);

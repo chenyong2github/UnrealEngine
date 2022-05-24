@@ -2678,6 +2678,8 @@ void UTexture::GetDefaultFormatSettings(FTextureFormatSettings& OutSettings) con
 	OutSettings.CompressionSettings = CompressionSettings;
 	OutSettings.CompressionNone = CompressionNone;
 	OutSettings.CompressionNoAlpha = CompressionNoAlpha;
+	// Texture does not have CompressionForceAlpha
+	OutSettings.CompressionForceAlpha = false;
 	OutSettings.CompressionYCoCg = CompressionYCoCg;
 	OutSettings.SRGB = SRGB;
 }
@@ -2704,6 +2706,9 @@ void UTexture::SetLayerFormatSettings(int32 LayerIndex, const FTextureFormatSett
 		CompressionSettings = InSettings.CompressionSettings;
 		CompressionNone = InSettings.CompressionNone;
 		CompressionNoAlpha = InSettings.CompressionNoAlpha;
+		// CompressionForceAlpha not copied
+		//CompressionForceAlpha = InSettings.CompressionForceAlpha;
+		check( ! InSettings.CompressionForceAlpha );
 		CompressionYCoCg = InSettings.CompressionYCoCg;
 		SRGB = InSettings.SRGB;
 	}
@@ -2866,7 +2871,8 @@ static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITarget
 	return TextureFormatName;
 }
 
-FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, bool bSupportCompressedVolumeTexture, int32 BlockSize, bool bSupportFilteredFloat32Textures )
+FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, 
+	bool bSupportCompressedVolumeTexture, int32 Unused_BlockSize, bool bSupportFilteredFloat32Textures )
 {
 	FName TextureFormatName = NAME_None;
 	bool bOodleTextureSdkVersionIsNone = true;
@@ -2878,7 +2884,6 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 #if WITH_EDITOR
 	// Supported texture format names.
 	static FName NameDXT1(TEXT("DXT1"));
-	static FName NameDXT3(TEXT("DXT3"));
 	static FName NameDXT5(TEXT("DXT5"));
 	static FName NameDXT5n(TEXT("DXT5n"));
 	static FName NameAutoDXT(TEXT("AutoDXT"));
@@ -2957,6 +2962,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		// Also force uncompressed if size of top mip is not a multiple of 4
 		// note that even if top mip is a multiple of 4, lower may not be
 		// we can only choose compression if it's supported by all platforms/RHI's (else check TargetPlatform->SupportsFeature)
+		// note: does not use the passed-in "BlockSize" parameter, hard coded to 4
 		if ( (SizeX < 4) || (SizeY < 4) || (SizeX % 4 != 0) || (SizeY % 4 != 0) )
 		{
 			// don't log if TC was going to map to uncompressed anyway
@@ -3037,9 +3043,7 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		}
 		else
 		{
-			// note CompressionNoAlpha no longer kills alpha on AutoDXT
-			//  CompressionNoAlpha really just means "pick BC1 instead of BC3"
-			//	but if your image is not a multiple of 4 you still get alpha RGBA
+			// note CompressionNoAlpha no longer kills alpha if it's forced to uncompressed (eg. because size is not multiple of 4)
 			TextureFormatName = NameBGRA8;
 		}
 	}
@@ -3113,9 +3117,12 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	{
 		check( FormatSettings.CompressionSettings == TC_Default ||
 			FormatSettings.CompressionSettings == TC_Masks ); 
+
 		if (FormatSettings.CompressionNoAlpha)
 		{
-				// CompressionNoAlpha only affects AutoDXT
+			// CompressionNoAlpha changes AutoDXT to DXT1 early
+			//	this is unnecessary/redundant, I believe
+			//  the later handling of AutoDXT would make this same mapping
 			TextureFormatName = NameDXT1;
 		}
 		else
@@ -3168,13 +3175,14 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 	return ConditionalGetPrefixedFormat(TextureFormatName, TargetPlatform, bOodleTextureSdkVersionIsNone);
 }
 
-void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, bool bSupportCompressedVolumeTexture, int32 BlockSize, bool bSupportFilteredFloat32Textures )
+void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, 
+	bool bSupportCompressedVolumeTexture, int32 Unused_BlockSize, bool bSupportFilteredFloat32Textures )
 {
 #if WITH_EDITOR
 	OutFormatNames.Reserve(Texture->Source.GetNumLayers());
 	for (int32 LayerIndex = 0; LayerIndex < Texture->Source.GetNumLayers(); ++LayerIndex)
 	{
-		OutFormatNames.Add(GetDefaultTextureFormatName(TargetPlatform, Texture, LayerIndex, bSupportCompressedVolumeTexture, BlockSize, bSupportFilteredFloat32Textures));
+		OutFormatNames.Add(GetDefaultTextureFormatName(TargetPlatform, Texture, LayerIndex, bSupportCompressedVolumeTexture, Unused_BlockSize, bSupportFilteredFloat32Textures));
 	}
 #endif // WITH_EDITOR
 }
@@ -3185,7 +3193,6 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 
 #if WITH_EDITOR
 	static FName NameDXT1(TEXT("DXT1"));
-	static FName NameDXT3(TEXT("DXT3"));
 	static FName NameDXT5(TEXT("DXT5"));
 	static FName NameDXT5n(TEXT("DXT5n"));
 	static FName NameAutoDXT(TEXT("AutoDXT"));
@@ -3204,7 +3211,6 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	static FName NameBC7(TEXT("BC7"));
 
 	OutFormats.Add(NameDXT1);
-	OutFormats.Add(NameDXT3);
 	OutFormats.Add(NameDXT5);
 	OutFormats.Add(NameDXT5n);
 	OutFormats.Add(NameAutoDXT);

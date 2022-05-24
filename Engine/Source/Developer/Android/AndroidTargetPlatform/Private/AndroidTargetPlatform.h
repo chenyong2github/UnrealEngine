@@ -230,6 +230,10 @@ public:
 	FAndroid_DXTTargetPlatform(bool bIsClient) : FAndroidTargetPlatform(bIsClient, TEXT("DXT"))
 	{
 	}
+	
+#if WITH_ENGINE
+	virtual void GetTextureFormats(const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const override;
+#endif
 
 	virtual bool SupportsTextureFormatCategory(EAndroidTextureFormatCategory Category) const override
 	{

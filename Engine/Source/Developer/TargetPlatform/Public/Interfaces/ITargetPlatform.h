@@ -511,6 +511,11 @@ public:
 	 * Gets whether the platform uses Mobile AO
 	 */
 	virtual bool UsesMobileAmbientOcclusion() const = 0;
+	
+	/**
+	 * Gets whether the platform uses ASTC HDR
+	 */
+	virtual bool UsesASTCHDR() const = 0;
 
 	/**
 	* Gets the shader formats this platform can use.

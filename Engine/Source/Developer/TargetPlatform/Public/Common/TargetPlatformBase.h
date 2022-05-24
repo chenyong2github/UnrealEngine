@@ -77,6 +77,8 @@ public:
 
 	TARGETPLATFORM_API virtual bool UsesMobileAmbientOcclusion() const override;
 
+	TARGETPLATFORM_API virtual bool UsesASTCHDR() const override;
+
 #if WITH_ENGINE
 	virtual void GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const override
 	{

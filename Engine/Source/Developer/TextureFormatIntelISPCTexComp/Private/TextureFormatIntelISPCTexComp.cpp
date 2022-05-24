@@ -40,7 +40,7 @@ class FIntelISPCTexCompTextureBuildFunction final : public FTextureBuildFunction
 	}
 };
 
-// increment this if you change anything that will affect compression in this file, including FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE
+// increment this if you change anything that will affect compression in this file
 #define BASE_ISPC_DX11_FORMAT_VERSION 4
 
 // For debugging intermediate image results by saving them out as files.
@@ -65,10 +65,18 @@ class FIntelISPCTexCompTextureBuildFunction final : public FTextureBuildFunction
 	#undef DECL_FORMAT_NAME_ENTRY
 #undef ENUM_SUPPORTED_FORMATS
 
+/**
+ * note : ASTC formats are NOT in the GSupportedTextureFormatNames
+ *  so we are not registered to support them
+ *  they will call into TextureFormatASTC and then optionally redirect to here
+ * this just defines the FNames
+ */
 #define ENUM_ASTC_FORMATS(op) \
 	op(ASTC_RGB) \
 	op(ASTC_RGBA) \
 	op(ASTC_RGBAuto) \
+	op(ASTC_RGBA_HQ) \
+	op(ASTC_RGB_HDR) \
 	op(ASTC_NormalAG) \
 	op(ASTC_NormalRG)
 
@@ -138,7 +146,7 @@ struct FBitmapInfoHeader
 void SaveImageAsBMP( FArchive& Ar, const uint8* RawData, int SourceBytesPerPixel, int SizeX, int SizeY )
 {
 	FBitmapFileHeader bmf;
-	FBitmapInfoHeader bmhdr;
+	FBitmapInfoHeader bmh;
 
 	// File header.
 	bmf.bfType = 'B' + (256 * (int32)'M');
@@ -146,23 +154,23 @@ void SaveImageAsBMP( FArchive& Ar, const uint8* RawData, int SourceBytesPerPixel
 	bmf.bfReserved2 = 0;
 	int32 biSizeImage = SizeX * SizeY * 3;
 	bmf.bfOffBits = sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader);
-	bmhdr.biBitCount = 24;
+	bmh.biBitCount = 24;
 
 	bmf.bfSize = bmf.bfOffBits + biSizeImage;
 	Ar << bmf;
 
 	// Info header.
-	bmhdr.biSize = sizeof(FBitmapInfoHeader);
-	bmhdr.biWidth = SizeX;
-	bmhdr.biHeight = SizeY;
-	bmhdr.biPlanes = 1;
-	bmhdr.biCompression = BCBI_RGB;
-	bmhdr.biSizeImage = biSizeImage;
-	bmhdr.biXPelsPerMeter = 0;
-	bmhdr.biYPelsPerMeter = 0;
-	bmhdr.biClrUsed = 0;
-	bmhdr.biClrImportant = 0;
-	Ar << bmhdr;
+	bmh.biSize = sizeof(FBitmapInfoHeader);
+	bmh.biWidth = SizeX;
+	bmh.biHeight = SizeY;
+	bmh.biPlanes = 1;
+	bmh.biCompression = BCBI_RGB;
+	bmh.biSizeImage = biSizeImage;
+	bmh.biXPelsPerMeter = 0;
+	bmh.biYPelsPerMeter = 0;
+	bmh.biClrUsed = 0;
+	bmh.biClrImportant = 0;
+	Ar << bmh;
 
 	bool bIsRGBA16 = (SourceBytesPerPixel == 8);
 
@@ -397,10 +405,10 @@ static void IntelBC7CompressScans(bc7_enc_settings* pEncSettings, FImage* pInIma
 }
 
 #define MAX_QUALITY_BY_SIZE 4
-#define FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE 3
 
 static uint16 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverride)
 {
+	// this is code duped between TextureFormatASTC and TextureFormatISPC
 	if (InFormatConfigOverride)
 	{
 		// If we have an explicit format config, then use it directly
@@ -410,21 +418,51 @@ static uint16 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverr
 		checkf(!FieldView.HasError(), TEXT("Failed to parse DefaultASTCQualityBySize value from FormatConfigOverride"));
 		return CompressionModeValue;
 	}
+	else
+	{
+		// default of 0 == 12x12 ?
+		// BaseEngine.ini sets DefaultASTCQualityBySize to 3 == 6x6
 
-	// start at default quality, then lookup in .ini file
-	int32 CompressionModeValue = 0;
-	GConfig->GetInt(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("DefaultASTCQualityBySize"), CompressionModeValue, GEngineIni);
+		auto GetCompressionModeValue = []() {
+			// start at default quality, then lookup in .ini file
+			int32 CompressionModeValue = 0;
+			GConfig->GetInt(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("DefaultASTCQualityBySize"), CompressionModeValue, GEngineIni);
+	
+			FParse::Value(FCommandLine::Get(), TEXT("-astcqualitybysize="), CompressionModeValue);
+			
+			return FMath::Min<uint32>(CompressionModeValue, MAX_QUALITY_BY_SIZE);
+		};
 
-	FParse::Value(FCommandLine::Get(), TEXT("-astcqualitybysize="), CompressionModeValue);
-	CompressionModeValue = FMath::Min<uint32>(CompressionModeValue, MAX_QUALITY_BY_SIZE);
+		static int32 CompressionModeValue = GetCompressionModeValue();
 
-	return CompressionModeValue;
+		return CompressionModeValue;
+	}
 }
 
-static EPixelFormat GetQualityFormat(int& BlockWidth, int& BlockHeight, const FCbObjectView& InFormatConfigOverride, int32 OverrideSizeValue = -1)
+static EPixelFormat GetASTCQualityFormat(int& BlockWidth, int& BlockHeight, const FTextureBuildSettings& BuildSettings)
 {
+	// code dupe between TextureFormatASTC  and TextureFormatISPC
+
+	const FCbObjectView& InFormatConfigOverride = BuildSettings.FormatConfigOverride;
+	int32 OverrideSizeValue= BuildSettings.CompressionQuality;
+
+	bool bIsNormalMap = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG || BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG);
+	bool bIsHQ = BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBA_HQ;
+	bool bHDRFormat = BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB_HDR;
+	check( ! bHDRFormat ); // HDR not supported here
+	
+	if ( bIsNormalMap )
+	{
+		BlockWidth = BlockHeight = 6;
+		return PF_ASTC_6x6;
+	}
+	else if ( bIsHQ || BuildSettings.bVirtualStreamable )
+	{
+		BlockWidth = BlockHeight = 4;
+		return PF_ASTC_4x4;		
+	}
+
 	// Note: ISPC only supports 8x8 and higher quality, and only one speed (fast)
-	// convert to a string
 	EPixelFormat Format = PF_Unknown;
 	switch (OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue(InFormatConfigOverride))
 	{
@@ -467,6 +505,9 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 	uint8* pInTexels = reinterpret_cast<uint8*>(&pInImage->RawData[0]) + InSliceSize * SliceIndex;
 	uint8* pOutTexels = reinterpret_cast<uint8*>(&pOutImage->RawData[0]) + OutSliceSize * SliceIndex;
 
+	// TextureFormatName at this point should no longer be RGBAuto
+	//	it's mapped to _RGB or _RGBA concretely
+
 	if (pEncSettings->TextureFormatName == GTextureFormatNameASTC_RGB)
 	{
 		// Switch byte order for compressors input (BGRA -> RGBA)
@@ -485,7 +526,7 @@ static void IntelASTCCompressScans(FASTCEncoderSettings* pEncSettings, FImage* p
 			}
 		}
 	}
-	else if (pEncSettings->TextureFormatName == GTextureFormatNameASTC_RGBA)
+	else if (pEncSettings->TextureFormatName == GTextureFormatNameASTC_RGBA || pEncSettings->TextureFormatName == GTextureFormatNameASTC_RGBA_HQ)
 	{
 		// Switch byte order for compressors input (BGRA -> RGBA)
 		for (int y = yStart; y < yEnd; ++y)
@@ -635,16 +676,13 @@ public:
 		return BASE_ISPC_DX11_FORMAT_VERSION;
 	}
 	
-	/*
 	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const override
 	{
-		// @todo Oodle : should log settings here :
-
-		// should store
-		// GetDefaultCompressionBySizeValue() 
-		//return FString::Printf(TEXT("ISPC_%d_%d_%d"), GetQualityVersion(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality), GASTCCompressor, int32(GASTCHDRProfile > 0 && BuildSettings.bHDRSource));
+		// ASTC block size chosen is in PixelFormat
+		EPixelFormat PixelFormat = GetPixelFormatForBuildSettings(BuildSettings);
+		
+ 		return FString::Printf(TEXT("ISPC_%d"), (int)PixelFormat);
 	}
-	*/
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
 	{
@@ -753,13 +791,20 @@ public:
 			{
 				F16Value.Encoded = 0;
 			}
-			// @todo Oodle : should also clamp +Inf to max non-inf value?
+			// @todo Oodle : should also clamp +Inf to max non-inf value? -> yes, like Oodle Texture does
+			//	  maybe also set A to 1.f to match BC6 ?
+
 			//	 note that behavior of the basic F32->F16 conversion was changed,
 			//	 it used to clamp to max val if out of range, now stores inf
 		}
 	}
 
 	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
+	{
+		return GetPixelFormatForBuildSettings(BuildSettings);
+	}
+
+	EPixelFormat GetPixelFormatForBuildSettings(const FTextureBuildSettings& BuildSettings) const
 	{
 		if (BuildSettings.TextureFormatName == GTextureFormatNameBC6H)
 		{
@@ -769,17 +814,11 @@ public:
 		{
 			return PF_BC7;
 		}
-		else if (BuildSettings.bVirtualStreamable)
-		{
-			return PF_ASTC_4x4;
-		}
 		else
 		{
 			int _Width, _Height;
-			bool bIsNormalMap = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG ||
-				BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG);
 
-			return GetQualityFormat(_Width, _Height, BuildSettings.FormatConfigOverride, bIsNormalMap ? FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE : BuildSettings.CompressionQuality);
+			return GetASTCQualityFormat(_Width, _Height, BuildSettings);
 		}
 	}
 
@@ -847,61 +886,43 @@ public:
 		}
 		else
 		{
-			bool bIsRGBColorASTC = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB ||
-				((BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBAuto) && !bImageHasAlphaChannel));
-			bool bIsRGBAColorASTC = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBA ||
-				((BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBAuto) && bImageHasAlphaChannel));
 			bool bIsNormalMap = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG ||
 				BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG);
-
-			if (BuildSettings.bVirtualStreamable)
-			{
-				// Always use 4x4 for streamable VT, to reduce texture format fragmentation
-				BlockWidth = 4;
-				BlockHeight = 4;
-			}
-			else
-			{
-				 GetQualityFormat( BlockWidth, BlockHeight, BuildSettings.FormatConfigOverride, bIsNormalMap ? FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE : BuildSettings.CompressionQuality );
-			}
-			check(CompressedPixelFormat == PF_ASTC_4x4 || !BuildSettings.bVirtualStreamable);
+				
+			bool bHDRImage = BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB_HDR;
+			check( ! bHDRImage ); // HDR not supported here
+			
+			GetASTCQualityFormat( BlockWidth, BlockHeight, BuildSettings );
 
 			FASTCEncoderSettings EncoderSettings;
-			if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG)
-			{
-				GetProfile_astc_alpha_fast(&EncoderSettings, BlockWidth, BlockHeight);
-				EncoderSettings.TextureFormatName = BuildSettings.TextureFormatName;
-				bCompressionSucceeded = true;
-				check(EncoderSettings.block_width!=0);
-			}
-			else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
+			EncoderSettings.TextureFormatName = BuildSettings.TextureFormatName;
+			
+			if ( bIsNormalMap )
 			{
 				GetProfile_astc_fast(&EncoderSettings, BlockWidth, BlockHeight);
-				EncoderSettings.TextureFormatName = BuildSettings.TextureFormatName;
-				bCompressionSucceeded = true;
-				check(EncoderSettings.block_width!=0);
-			}
-			else if (bIsRGBColorASTC)
-			{
-				GetProfile_astc_fast(&EncoderSettings, BlockWidth, BlockHeight);
-				EncoderSettings.TextureFormatName = GTextureFormatNameASTC_RGB;
-				bCompressionSucceeded = true;
-				check(EncoderSettings.block_width!=0);
-			}
-			else if (bIsRGBAColorASTC)
-			{
-				GetProfile_astc_alpha_fast(&EncoderSettings, BlockWidth, BlockHeight);
-				EncoderSettings.TextureFormatName = GTextureFormatNameASTC_RGBA;
-				bCompressionSucceeded = true;
-				check(EncoderSettings.block_width!=0);
 			}
 			else
-			{
-				check(0);
-			}
+			{			
+				if( BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB || !bImageHasAlphaChannel )
+				{
+					// even if Name was RGBA we still use the RGB profile if !bImageHasAlphaChannel
+					//	so that "Compress Without Alpha" can force us to opaque
 
-			if (bCompressionSucceeded)
+					EncoderSettings.TextureFormatName = GTextureFormatNameASTC_RGB; // <- this will force A to 255 in IntelASTCCompressScans
+
+					GetProfile_astc_fast(&EncoderSettings, BlockWidth, BlockHeight);
+				}
+				else
+				{
+					EncoderSettings.TextureFormatName = GTextureFormatNameASTC_RGBA;
+					
+					GetProfile_astc_alpha_fast(&EncoderSettings, BlockWidth, BlockHeight);
+				}
+			}
+			
 			{
+				check(EncoderSettings.block_width!=0);
+
 				FImage Image;
 				InImage.CopyTo(Image, ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
@@ -925,6 +946,8 @@ public:
 
 				FMultithreadedCompression<FASTCEncoderSettings>::Compress(MultithreadSettings, EncoderSettings, Image, OutCompressedImage, &IntelASTCCompressScans, bUseTasks);
 
+				bCompressionSucceeded = true;
+				
 #if DEBUG_SAVE_INTERMEDIATE_IMAGES
 				//@DEBUG (save swizzled/fixed-up input as BMP):
 				if (SaveInputOutput)	// && LocalCounter < 10 && Image.SizeX >= 1024)

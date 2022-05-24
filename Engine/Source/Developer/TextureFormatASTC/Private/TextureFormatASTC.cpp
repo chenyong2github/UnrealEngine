@@ -32,6 +32,7 @@
 *****/
 
 // when GASTCCompressor == 0 ,use TextureFormatIntelISPCTexComp instead of this
+// @@!! does this break DDC2 ?  can TBW see GASTCCompressor ? @todo Oodle fix me
 int32 GASTCCompressor = 0;
 static FAutoConsoleVariableRef CVarASTCCompressor(
 	TEXT("cook.ASTCTextureCompressor"),
@@ -39,25 +40,18 @@ static FAutoConsoleVariableRef CVarASTCCompressor(
 	TEXT("0: IntelISPC, 1: Arm"),
 	ECVF_Default | ECVF_ReadOnly
 );
-int32 GASTCHDRProfile = 0;
-static FAutoConsoleVariableRef CVarAllowASTCHDRProfile(
-	TEXT("cook.AllowASTCHDRProfile"),
-	GASTCHDRProfile,
-	TEXT("whether to allow ASTC HDR profile, the hdr format is only supported on some devices, e.g. Apple A13, Mali-G72, Adreno (TM) 660"),
-	ECVF_Default | ECVF_ReadOnly
-);
+
 #if PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_MAC
 	#define SUPPORTS_ISPC_ASTC	1
 #else
 	#define SUPPORTS_ISPC_ASTC	0
 #endif
 
-// increment this if you change anything that will affect compression in this file, including FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE
+// increment this if you change anything that will affect compression in this file
 #define BASE_ASTC_FORMAT_VERSION 40
 
 #define MAX_QUALITY_BY_SIZE 4
 #define MAX_QUALITY_BY_SPEED 3
-#define FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE 3
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextureFormatASTC, Log, All);
@@ -85,6 +79,8 @@ class FASTCTextureBuildFunction final : public FTextureBuildFunction
 	op(ASTC_RGB) \
 	op(ASTC_RGBA) \
 	op(ASTC_RGBAuto) \
+	op(ASTC_RGBA_HQ) \
+	op(ASTC_RGB_HDR) \
 	op(ASTC_NormalAG) \
 	op(ASTC_NormalRG)
 
@@ -124,6 +120,7 @@ class FASTCTextureBuildFunction final : public FTextureBuildFunction
 
 static int32 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverride)
 {
+	// this is code duped between TextureFormatASTC and TextureFormatISPC
 	if (InFormatConfigOverride)
 	{
 		// If we have an explicit format config, then use it directly
@@ -133,15 +130,25 @@ static int32 GetDefaultCompressionBySizeValue(FCbObjectView InFormatConfigOverri
 		checkf(!FieldView.HasError(), TEXT("Failed to parse DefaultASTCQualityBySize value from FormatConfigOverride"));
 		return CompressionModeValue;
 	}
+	else
+	{
+		// default of 0 == 12x12 ?
+		// BaseEngine.ini sets DefaultASTCQualityBySize to 3 == 6x6
 
-	// start at default quality, then lookup in .ini file
-	int32 CompressionModeValue = 0;
-	GConfig->GetInt(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("DefaultASTCQualityBySize"), CompressionModeValue, GEngineIni);
+		auto GetCompressionModeValue = []() {
+			// start at default quality, then lookup in .ini file
+			int32 CompressionModeValue = 0;
+			GConfig->GetInt(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("DefaultASTCQualityBySize"), CompressionModeValue, GEngineIni);
 	
-	FParse::Value(FCommandLine::Get(), TEXT("-astcqualitybysize="), CompressionModeValue);
-	CompressionModeValue = FMath::Min<uint32>(CompressionModeValue, MAX_QUALITY_BY_SIZE);
-	
-	return CompressionModeValue;
+			FParse::Value(FCommandLine::Get(), TEXT("-astcqualitybysize="), CompressionModeValue);
+			
+			return FMath::Min<uint32>(CompressionModeValue, MAX_QUALITY_BY_SIZE);
+		};
+
+		static int32 CompressionModeValue = GetCompressionModeValue();
+
+		return CompressionModeValue;
+	}
 }
 
 static int32 GetDefaultCompressionBySpeedValue(FCbObjectView InFormatConfigOverride)
@@ -155,32 +162,59 @@ static int32 GetDefaultCompressionBySpeedValue(FCbObjectView InFormatConfigOverr
 		checkf(!FieldView.HasError(), TEXT("Failed to parse DefaultASTCQualityBySpeed value from FormatConfigOverride"));
 		return CompressionModeValue;
 	}
+	else
+	{
 
-	// start at default quality, then lookup in .ini file
-	int32 CompressionModeValue = 0;
-	GConfig->GetInt(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("DefaultASTCQualityBySpeed"), CompressionModeValue, GEngineIni);
+		// default of 0 == "fastest"
+
+		auto GetCompressionModeValue = []() {
+			// start at default quality, then lookup in .ini file
+			int32 CompressionModeValue = 0;
+			GConfig->GetInt(TEXT("/Script/UnrealEd.CookerSettings"), TEXT("DefaultASTCQualityBySpeed"), CompressionModeValue, GEngineIni);
 	
-	FParse::Value(FCommandLine::Get(), TEXT("-astcqualitybyspeed="), CompressionModeValue);
-	CompressionModeValue = FMath::Min<uint32>(CompressionModeValue, MAX_QUALITY_BY_SPEED);
-	
-	return CompressionModeValue;
+			FParse::Value(FCommandLine::Get(), TEXT("-astcqualitybyspeed="), CompressionModeValue);
+			
+			return FMath::Min<uint32>(CompressionModeValue, MAX_QUALITY_BY_SPEED);
+		};
+
+		static int32 CompressionModeValue = GetCompressionModeValue();
+
+		return CompressionModeValue;
+	}
 }
 
-static FString GetQualityString(const FCbObjectView& InFormatConfigOverride, int32 OverrideSizeValue=-1, int32 OverrideSpeedValue=-1)
+static FString GetQualityString(EPixelFormat PixelFormat,const FCbObjectView& InFormatConfigOverride)
 {
 	// convert to a string
 	FString CompressionMode;
-	switch (OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue(InFormatConfigOverride))
+
+	switch (PixelFormat)
 	{
-		case 0:	CompressionMode = TEXT("12x12"); break;
-		case 1:	CompressionMode = TEXT("10x10"); break;
-		case 2:	CompressionMode = TEXT("8x8"); break;
-		case 3:	CompressionMode = TEXT("6x6"); break;
-		case 4:	CompressionMode = TEXT("4x4"); break;
-		default: UE_LOG(LogTemp, Fatal, TEXT("ASTC size quality higher than expected"));
+		case PF_ASTC_12x12:
+		case PF_ASTC_12x12_HDR:
+			CompressionMode = TEXT("12x12"); 
+			break;
+		case PF_ASTC_10x10:
+		case PF_ASTC_10x10_HDR:
+			CompressionMode = TEXT("10x10"); 
+			break;
+		case PF_ASTC_8x8:
+		case PF_ASTC_8x8_HDR:
+			CompressionMode = TEXT("8x8"); 
+			break;
+		case PF_ASTC_6x6:
+		case PF_ASTC_6x6_HDR:
+			CompressionMode = TEXT("6x6");
+			break;
+		case PF_ASTC_4x4:
+		case PF_ASTC_4x4_HDR:
+			CompressionMode = TEXT("4x4");
+			break;
+		default:
+			UE_LOG(LogTemp, Fatal, TEXT("ASTC size quality higher than expected"));
 	}
 	
-	switch (OverrideSpeedValue >= 0 ? OverrideSpeedValue : GetDefaultCompressionBySpeedValue(InFormatConfigOverride))
+	switch ( GetDefaultCompressionBySpeedValue(InFormatConfigOverride) )
 	{
 		case 0:	CompressionMode += TEXT(" -fastest"); break;
 		case 1:	CompressionMode += TEXT(" -fast"); break;
@@ -192,8 +226,32 @@ static FString GetQualityString(const FCbObjectView& InFormatConfigOverride, int
 	return CompressionMode;
 }
 
-static EPixelFormat GetQualityFormat(const FCbObjectView& InFormatConfigOverride, int32 OverrideSizeValue=-1, bool bHDRFormat = false)
+static EPixelFormat GetQualityFormat(const FTextureBuildSettings& BuildSettings)
 {
+	// code dupe between TextureFormatASTC  and TextureFormatISPC
+
+	const FCbObjectView& InFormatConfigOverride = BuildSettings.FormatConfigOverride;
+	int32 OverrideSizeValue= BuildSettings.CompressionQuality;
+
+	bool bIsNormalMap = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG || BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG);
+	bool bIsHQ = BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBA_HQ;
+	bool bHDRFormat = BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB_HDR;
+
+	if ( bIsNormalMap )
+	{
+		return PF_ASTC_6x6;
+	}
+	else if ( bIsHQ )
+	{
+		return PF_ASTC_4x4;
+	}
+	else if (BuildSettings.bVirtualStreamable)
+	{
+		return PF_ASTC_4x4;		
+	}
+
+	// CompressionQuality value here is ETextureCompressionQuality minus 1
+
 	// convert to a string
 	EPixelFormat Format = PF_Unknown;
 	if (bHDRFormat)
@@ -223,12 +281,6 @@ static EPixelFormat GetQualityFormat(const FCbObjectView& InFormatConfigOverride
 	return Format;
 }
 
-static uint16 GetQualityVersion(const FCbObjectView& InFormatConfigOverride, int32 OverrideSizeValue = -1)
-{
-	// top 3 bits for size compression value, and next 3 for speed
-	return ((OverrideSizeValue >= 0 ? OverrideSizeValue : GetDefaultCompressionBySizeValue(InFormatConfigOverride)) << 13) | (GetDefaultCompressionBySpeedValue(InFormatConfigOverride) << 10);
-}
-
 static bool CompressSliceToASTC(
 	const FImageView & SourceImage,
 	FString CompressionParameters,
@@ -236,6 +288,8 @@ static bool CompressSliceToASTC(
 	IImageWrapperModule& ImageWrapperModule
 	)
 {
+	// at this point, SourceImage has been converted to RGBA8 or RGBA16F based on whether
+	//	 the request TextureFormatName is "ASTC_RGB_HDR" or not, so we can ask if "source" is HDR :
 	bool bHDR = ERawImageFormat::IsHDR(SourceImage.Format);
 	
 	EImageFormat FileFormat = bHDR ? EImageFormat::EXR : EImageFormat::PNG;
@@ -443,59 +497,47 @@ public:
 		const FTextureBuildSettings* BuildSettings = nullptr
 	) const override
 	{
-	/*
-	// note/bug , doesn't call through to ISPC :
 #if SUPPORTS_ISPC_ASTC
 		if(GASTCCompressor == 0)
 		{
-			return IntelISPCTexCompFormat.GetVersion(Format,BuildSettings);
+			// set high bit so version numbers of ISPC and ASTC don't overlap :
+			check( BASE_ASTC_FORMAT_VERSION < 0x80 );
+			return 0x80 | IntelISPCTexCompFormat.GetVersion(Format,BuildSettings);
 		}
 #endif
-	*/
 
 		return BASE_ASTC_FORMAT_VERSION;
 	}
 
 	virtual FString GetDerivedDataKeyString(const FTextureBuildSettings& BuildSettings) const override
 	{
-	/*
-	// note/bug : doesn't call through to ISPC !
-	// but it is putting GASTCCompressor in the key
 #if SUPPORTS_ISPC_ASTC
 		if(GASTCCompressor == 0)
 		{
 			return IntelISPCTexCompFormat.GetDerivedDataKeyString(BuildSettings);
 		}
 #endif
-	*/
 
-		return FString::Printf(TEXT("ASTCCmpr_%d_%d_%d"), GetQualityVersion(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality), GASTCCompressor, int32(GASTCHDRProfile > 0 && BuildSettings.bHDRSource));
+		// ASTC block size chosen is in PixelFormat
+		EPixelFormat PixelFormat = GetQualityFormat(BuildSettings);
+		int Speed = GetDefaultCompressionBySpeedValue(BuildSettings.FormatConfigOverride);
+
+ 		return FString::Printf(TEXT("ASTC_%d_%d"), (int)PixelFormat,Speed);
 	}
 
 	virtual FTextureFormatCompressorCaps GetFormatCapabilities() const override
 	{
-		FTextureFormatCompressorCaps RetCaps;
-		// use defaults
-		return RetCaps;
+		return FTextureFormatCompressorCaps(); // Default capabilities.
 	}
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
 	{
-		for (int32 i = 0; i < UE_ARRAY_COUNT(GSupportedTextureFormatNames); ++i)
-		{
-			OutFormats.Add(GSupportedTextureFormatNames[i]);
-		}
+		OutFormats.Append(GSupportedTextureFormatNames, sizeof(GSupportedTextureFormatNames)/sizeof(GSupportedTextureFormatNames[0]) ); 
 	}
 
 	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
 	{
-		// special case for normal maps
-		if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG || BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
-		{
-			return GetQualityFormat(BuildSettings.FormatConfigOverride, FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE);
-		}
-		
-		return GetQualityFormat(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality, Image.Format == ERawImageFormat::RGBA16F);
+		return GetQualityFormat(BuildSettings);
 	}
 
 	virtual bool CompressImage(
@@ -510,56 +552,75 @@ public:
 		if(GASTCCompressor == 0)
 		{
 			// Route ASTC compression work to the ISPC module instead.
+			// note: ISPC can't do HDR, will throw an error
 			return IntelISPCTexCompFormat.CompressImage(InImage, BuildSettings, DebugTexturePathName, bImageHasAlphaChannel, OutCompressedImage);
 		}
 #endif
 
-		// note: BuildSettings.bHDRSource is a weird thing to be checking here
-		//  it should look at whether the requested output format is HDR
-		//  the input->output mapping has already been done, you shouldn't do it again
-		bool bHDRImage = BuildSettings.bHDRSource && GASTCHDRProfile;
-		if ( BuildSettings.bHDRSource && ! GASTCHDRProfile )
-		{
-			UE_LOG(LogTextureFormatASTC, Display, TEXT("HDR Image passed to ASTC but ASTC HDR is disabled, will compress as 8 bit: (%s)"),*FString(DebugTexturePathName));
-		}
+		bool bHDRImage = BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB_HDR;
 
 		// Get Raw Image Data from passed in FImage & convert to BGRA8 or RGBA16F
 		// note: wasteful, often copies image to same format
 		FImage Image;
 		InImage.CopyTo(Image, bHDRImage ? ERawImageFormat::RGBA16F : ERawImageFormat::BGRA8, BuildSettings.GetDestGammaSpace());
 
+		// @todo Oodle : for HDR need to clamp the F16 image in [0,F16_max] (like Oodle Texture does)
+		//	  maybe also set A to 1.f to match BC6 ?
+
 		// Determine the compressed pixel format and compression parameters
 		EPixelFormat CompressedPixelFormat = GetPixelFormatForImage(BuildSettings, Image, bImageHasAlphaChannel);
 
 		FString CompressionParameters = TEXT("");
 
-		bool bIsRGBColor = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB ||
-			((BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBAuto) && !bImageHasAlphaChannel));
-		bool bIsRGBAColor = (BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBA ||
-			((BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBAuto) && bImageHasAlphaChannel));
+		FString QualityString = GetQualityString(CompressedPixelFormat,BuildSettings.FormatConfigOverride);
+		
+		/*
 
-		if (bIsRGBColor)
+		The modes available are:
+
+			-cl : use the linear LDR color profile.
+			-cs : use the sRGB LDR color profile.
+			-ch : use the HDR color profile, tuned for HDR RGB and LDR A.
+			-cH : use the HDR color profile, tuned for HDR RGBA.
+
+			-ch or -cl is added later in CompressSlice
+
+		*/
+
+
+		if (bHDRImage)
 		{
-			if (bHDRImage)
+			CompressionParameters = FString::Printf(TEXT("%s"), *QualityString );
+		}
+		else if ( BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB ||
+			BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBA || 
+			BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBAuto || 
+			BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBA_HQ )
+		{
+
+			if ( BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB ||
+				! bImageHasAlphaChannel )
 			{
-				CompressionParameters = FString::Printf(TEXT("%s %s -cw 1 1 1 0"), *GetQualityString(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT(""));
+				// even if Name was RGBA we still use the RGB profile if !bImageHasAlphaChannel
+				//	so that "Compress Without Alpha" can force us to opaque
+
+				// we need to set alpha to opaque here
+				// can do it using "1" in the bgra swizzle to astcenc
+				
+				CompressionParameters = FString::Printf(TEXT("%s -esw bgr1"), *QualityString );
 			}
 			else
 			{
-				CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -cw 1 1 1 0"), *GetQualityString(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
+				CompressionParameters = FString::Printf(TEXT("%s -esw bgra"), *QualityString );
 			}
-		}
-		else if (bIsRGBAColor)
-		{
-			CompressionParameters = FString::Printf(TEXT("%s %s -esw bgra -cw 1 1 1 1"), *GetQualityString(BuildSettings.FormatConfigOverride, BuildSettings.CompressionQuality), /*BuildSettings.bSRGB ? TEXT("-srgb") :*/ TEXT("") );
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalAG)
 		{
-			CompressionParameters = FString::Printf(TEXT("%s -esw 0g0b -cw 0 1 0 1 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *GetQualityString(BuildSettings.FormatConfigOverride, FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE, -1));
+			CompressionParameters = FString::Printf(TEXT("%s -esw 0g0b -cw 0 1 0 1 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *QualityString);
 		}
 		else if (BuildSettings.TextureFormatName == GTextureFormatNameASTC_NormalRG)
 		{
-			CompressionParameters = FString::Printf(TEXT("%s -esw bg00 -cw 1 1 0 0 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *GetQualityString(BuildSettings.FormatConfigOverride, FORCED_NORMAL_MAP_COMPRESSION_SIZE_VALUE, -1));
+			CompressionParameters = FString::Printf(TEXT("%s -esw bg00 -cw 1 1 0 0 -dblimit 60 -b 2.5 -v 3 1 1 0 50 0 -va 1 1 0 50"), *QualityString);
 		}
 		else
 		{

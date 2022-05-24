@@ -24,10 +24,16 @@ public:
 	{
 		if (FAndroidTargetPlatform::IsUsable())
 		{
+			 // ensure this is only called once
+			check( SinglePlatforms.IsEmpty() );
+
 			for (int32 Type = 0; Type < 2; Type++)
 			{
 				bool bIsClient = Type == 1;
+
 				// flavorless must come first
+				// "flavorless" (aka "vanilla") Android is not well defined and not actually usable
+				//  but Editor wants to see it in the platform list
 				SinglePlatforms.Add(new FAndroidTargetPlatform(bIsClient, nullptr));
 				SinglePlatforms.Add(new FAndroid_ASTCTargetPlatform(bIsClient));
 				SinglePlatforms.Add(new FAndroid_DXTTargetPlatform(bIsClient));

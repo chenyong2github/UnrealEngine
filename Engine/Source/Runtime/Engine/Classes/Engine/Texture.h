@@ -84,11 +84,11 @@ UENUM()
 enum ETextureCompressionQuality
 {
 	TCQ_Default = 0		UMETA(DisplayName="Default"),
-	TCQ_Lowest = 1		UMETA(DisplayName="Lowest"),
-	TCQ_Low = 2			UMETA(DisplayName="Low"),
-	TCQ_Medium = 3		UMETA(DisplayName="Medium"),
-	TCQ_High= 4			UMETA(DisplayName="High"),
-	TCQ_Highest = 5		UMETA(DisplayName="Highest"),
+	TCQ_Lowest = 1		UMETA(DisplayName="Lowest (ASTC 12x12)"),
+	TCQ_Low = 2			UMETA(DisplayName="Low (ASTC 10x10)"),
+	TCQ_Medium = 3		UMETA(DisplayName="Medium (ASTC 8x8)"),
+	TCQ_High= 4			UMETA(DisplayName="High (ASTC 6x6)"),
+	TCQ_Highest = 5		UMETA(DisplayName="Highest (ASTC 4x4)"),
 	TCQ_MAX,
 };
 
@@ -1145,7 +1145,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Adjustments, meta=(DisplayName = "Max Alpha"))
 	float AdjustMaxAlpha;
 
-	/** If enabled, the texture's alpha channel will be discarded during compression */
+	/** If enabled, the texture's alpha channel will be forced to opaque for any compressed texture output format.  Does not apply if output format is uncompressed RGBA. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Compression, meta=(DisplayName="Compress Without Alpha"))
 	uint32 CompressionNoAlpha:1;
 

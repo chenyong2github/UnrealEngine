@@ -570,9 +570,10 @@ void FIOSTargetPlatform::GetReflectionCaptureFormats( TArray<FName>& OutFormats 
 	OutFormats.Add(FName(TEXT("EncodedHDR")));
 }
 
+static const FName NameASTC_RGB_HDR(TEXT("ASTC_RGB_HDR"));
 
 // we remap some of the defaults
-static FName FormatRemap[] =
+static const FName FormatRemap[] =
 {
 	// original				ASTC
 	FName(TEXT("AutoDXT")),	FName(TEXT("ASTC_RGBAuto")),
@@ -581,11 +582,11 @@ static FName FormatRemap[] =
 	FName(TEXT("DXT5n")),	FName(TEXT("ASTC_NormalAG")),
 	FName(TEXT("BC5")),		FName(TEXT("ASTC_NormalRG")),
 	FName(TEXT("BC4")),		FName(TEXT("ETC2_R11")),
-	FName(TEXT("BC6H")),	FName(TEXT("ASTC_RGB")), 
-	FName(TEXT("BC7")),		FName(TEXT("ASTC_RGBAuto"))
+	FName(TEXT("BC6H")),	NameASTC_RGB_HDR,
+	FName(TEXT("BC7")),		FName(TEXT("ASTC_RGBA_HQ"))
 };
-static FName NameBGRA8(TEXT("BGRA8"));
-static FName NameG8 = FName(TEXT("G8"));
+static const FName NameG8(TEXT("G8"));
+static const FName NameRGBA16F(TEXT("RGBA16F"));
 
 void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
 {
@@ -609,18 +610,13 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 		// Compressed volume textures require MTLGPUFamilyApple3 or later
 		// min spec for TVOS is AppleTV HD which is MTLGPUFamilyApple2 (A8)
 		bool bSupportCompressedVolumeTexture = !bIsTVOS && !SupportsA8Devices();
-		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, bSupportCompressedVolumeTexture, BlockSize);
+		bool bSupportFilteredFloat32Textures = false;
+		GetDefaultTextureFormatNamePerLayer(TextureFormatNames, this, Texture, bSupportCompressedVolumeTexture, BlockSize, bSupportFilteredFloat32Textures);
 	}
 
 	// include the formats we want
 	for (FName& TextureFormatName : TextureFormatNames)
 	{
-		if (TextureFormatName == NameBGRA8 || 
-			TextureFormatName == NameG8)
-		{
-			continue;
-		}
-
 		for (int32 RemapIndex = 0; RemapIndex < UE_ARRAY_COUNT(FormatRemap); RemapIndex += 2)
 		{
 			if (TextureFormatName == FormatRemap[RemapIndex])
@@ -630,7 +626,20 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 			}
 		}
 	}
-		
+	
+	bool bSupportASTCHDR = UsesASTCHDR();
+
+	if ( ! bSupportASTCHDR )
+	{
+		for (FName& TextureFormatName : TextureFormatNames)
+		{
+			if ( TextureFormatName == NameASTC_RGB_HDR )
+			{
+				TextureFormatName = NameRGBA16F;
+			}
+		}
+	}
+
 	for (FName& TextureFormatName : OutFormats.Last())
 	{
 		if (Texture->IsA(UTextureCube::StaticClass()))
@@ -675,6 +684,8 @@ FName FIOSTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) const
 	// this then runs again
 	// currently it forces all ASTC to ETC
 	// this is needed because the runtime virtual texture encoder only supports ETC
+	
+	// code dupe with AndroidTargetPlatform
 
 	const static FName NameETC2_RGB(TEXT("ETC2_RGB"));
 	const static FName NameETC2_RGBA(TEXT("ETC2_RGBA"));
@@ -686,6 +697,8 @@ FName FIOSTargetPlatform::FinalizeVirtualTextureLayerFormat(FName Format) const
 		{ { FName(TEXT("ASTC_RGB")) },			{ NameETC2_RGB } },
 		{ { FName(TEXT("ASTC_RGBA")) },			{ NameETC2_RGBA } },
 		{ { FName(TEXT("ASTC_RGBAuto")) },		{ NameAutoETC2 } },
+		{ { FName(TEXT("ASTC_RGBA_HQ")) },		{ NameETC2_RGBA } },
+//		{ { FName(TEXT("ASTC_RGB_HDR")) },		{ NameRGBA16F } }, // ?
 		{ { FName(TEXT("ASTC_NormalAG")) },		{ NameETC2_RGB } },
 		{ { FName(TEXT("ASTC_NormalRG")) },		{ NameETC2_RGB } },
 	};

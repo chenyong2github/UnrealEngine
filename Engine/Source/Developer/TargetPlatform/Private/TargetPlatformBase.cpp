@@ -82,6 +82,19 @@ bool FTargetPlatformBase::UsesMobileAmbientOcclusion() const
 	return CVar ? (CVar->GetInt() != 0) : false;
 }
 
+int32 GASTCHDRProfile = 0;
+static FAutoConsoleVariableRef CVarAllowASTCHDRProfile(
+	TEXT("cook.AllowASTCHDRProfile"),
+	GASTCHDRProfile,
+	TEXT("whether to allow ASTC HDR profile, the hdr format is only supported on some devices, e.g. Apple A13, Mali-G72, Adreno (TM) 660"),
+	ECVF_Default | ECVF_ReadOnly
+);
+
+bool FTargetPlatformBase::UsesASTCHDR() const
+{
+	return GASTCHDRProfile != 0;
+}
+
 static bool IsPluginEnabledForTarget(const IPlugin& Plugin, const FProjectDescriptor* Project, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType)
 {
 	if (!Plugin.GetDescriptor().SupportsTargetPlatform(Platform))
