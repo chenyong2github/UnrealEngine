@@ -1115,6 +1115,9 @@ public:
 			// BC6 is assumed to be a linear-light HDR Image by default
 			// use OodleTex_BCNFlag_BC6_NonRGBData if it is some other kind of data
 			Gamma = EGammaSpace::Linear;
+
+			// TFO just passes the F32 to Oodle
+			// Oodle will convert the F32 to F16 and also clamp in [0,F16_max] (no negatives, no +inf)
 		}
 		else if ((OodleBCN == OodleTex_BC4U || OodleBCN == OodleTex_BC5U) &&
 			Gamma == EGammaSpace::Linear &&			
@@ -1428,7 +1431,7 @@ public:
 					if (OodleErr != OodleTex_Err_OK)
 					{
 						const char * OodleErrStr = (VTable->fp_OodleTex_Err_GetName)(OodleErr);
-						UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture encode failed!? %s"), OodleErrStr );
+						UE_LOG(LogTextureFormatOodle, Warning, TEXT("Oodle Texture encode failed!? %d=%s"), (int)OodleErr, ANSI_TO_TCHAR(OodleErrStr) );
 						bCompressionSucceeded = false;
 						return;
 					}
