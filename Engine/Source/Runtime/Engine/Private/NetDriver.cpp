@@ -381,6 +381,7 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,   bHasReplayConnection(false)
 ,   bMaySendProperties(false)
 ,   bSkipServerReplicateActors(false)
+,   bSkipClearVoicePackets(false)
 ,   bNoTimeouts(false)
 ,   bNeverApplyNetworkEmulationSettings(false)
 ,   bIsPeer(false)
@@ -1551,7 +1552,7 @@ void UNetDriver::ProcessLocalClientPackets()
 
 void UNetDriver::PostTickFlush()
 {
-	if (World)
+	if (World && !bSkipClearVoicePackets)
 	{
 		UOnlineEngineInterface::Get()->ClearVoicePackets(World);
 	}

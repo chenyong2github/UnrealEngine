@@ -927,6 +927,8 @@ protected:
 
 	uint8 bSkipServerReplicateActors : 1;
 
+	uint8 bSkipClearVoicePackets : 1;
+
 public:
 	/**
 	 * If true, ignore timeouts completely.  Should be used only in development
