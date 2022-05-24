@@ -12,7 +12,7 @@ function stressTest() {
 
     let self = this;
     this.play = true;
-    this.maxPeers = 5;
+    this.maxPeers = 2;
     this.totalStreams = 0;
     this.streamCreationIntervalMs = 200;
     this.streamDeletionIntervalMs = 2000;

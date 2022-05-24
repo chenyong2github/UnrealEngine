@@ -163,7 +163,15 @@ function webRtcPlayer(parOptions) {
         return video;
     }
 
+    this.createWebRtcAudio = function() {
+        var audio = document.createElement('audio');
+        audio.id = 'streamingAudio';
+
+        return audio;
+    }
+
     this.video = this.createWebRtcVideo();
+    this.audio = this.createWebRtcAudio();
     this.availableVideoStreams = new Map();
 
     onsignalingstatechange = function(state) {
@@ -217,25 +225,7 @@ function webRtcPlayer(parOptions) {
         // video element has some other media stream that is not associated with this audio track
         else if(self.video.srcObject && self.video.srcObject !== audioMediaStream)
         {
-            // create a new audio element
-            let audioElem = document.createElement("Audio");
-            audioElem.srcObject = audioMediaStream;
-
-            // there is no way to autoplay audio (even muted), so we defer audio until first click
-            if(!self.autoPlayAudio) {
-
-                let clickToPlayAudio = function() {
-                    audioElem.play();
-                    self.video.removeEventListener("click", clickToPlayAudio);
-                };
-
-                self.video.addEventListener("click", clickToPlayAudio);
-            }
-            // we assume the user has clicked somewhere on the page and autoplaying audio will work
-            else {
-                audioElem.play();
-            }
-            console.log('Created new audio element to play seperate audio stream.');
+           self.audio.srcObject = audioMediaStream;
         }
 
     }
