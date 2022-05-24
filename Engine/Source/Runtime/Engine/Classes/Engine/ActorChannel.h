@@ -384,10 +384,10 @@ protected:
 	/** Closes the actor channel but with a 'dormant' flag set so it can be reopened */
 	virtual void BecomeDormant() override;
 
-private:
-
 	/** Handle the replication of subobjects for this actor. Returns true if data was written into the Bunch. */
 	bool DoSubObjectReplication(FOutBunch& Bunch, FReplicationFlags& OutRepFlags);
+
+private:
 
 	/** Replicate Subobjects using the actor's registered list and its replicated actor component list */
 	bool ReplicateRegisteredSubObjects(FOutBunch& Bunch, FReplicationFlags RepFlags);
