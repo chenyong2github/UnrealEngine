@@ -624,7 +624,7 @@ public:
 	virtual void SetSelectedOnly(bool bValue) override
 	{
 		Options.bSelectedOnly = bValue;
-		SetBool(TEXT("SelectedOnly"), bValue);
+		SetBool(TEXT("SelectedOnly"), Options.bSelectedOnly);
 	}
 	virtual bool GetSelectedOnly() override
 	{
@@ -634,7 +634,7 @@ public:
 	virtual void SetAnimatedTransforms(bool bValue) override
 	{
 		Options.bAnimatedTransforms = bValue;
-		SetBool(TEXT("AnimatedTransforms"), bValue);
+		SetBool(TEXT("AnimatedTransforms"), Options.bAnimatedTransforms);
 	}
 
 	virtual bool GetAnimatedTransforms() override
@@ -645,7 +645,7 @@ public:
 	virtual void SetStatSync(bool bValue) override
 	{
 		Options.bStatSync = bValue;
-		SetBool(TEXT("StatExport"), bValue);
+		SetBool(TEXT("StatExport"), Options.bStatSync);
 	}
 
 	virtual bool GetStatSync() override
@@ -657,7 +657,7 @@ public:
 	{
 		
 		Options.TextureResolution = FMath::Clamp(Value, 0, FExportOptions::TextureResolutionMax);
-		SetInt(TEXT("TextureResolution"), Value);
+		SetInt(TEXT("TextureResolution"), Options.TextureResolution);
 	}
 
 	virtual int32 GetTextureResolution() override
@@ -1680,23 +1680,18 @@ public:
 	// Node invalidated:
 	//   - on initial parsing
 	//   - change event received for node itself
-	//   - node up hierachy invalidated - previous or current
+	//   - node up hierarchy invalidated - previous or current
 	//   - node's validity interval is invalid for current time
-	// Possible improvements:
-	//   - do we really need to invalidate hierachy immediately? Might be long task(even though it's just setting flags) 
-	//      - probably do this on Update
-	//          'MarkedForUpdate' => recursively Invalidate(i.e. rebuild)
-	//          separate invalidation to 'Changed'(received event, interval, etc) and 'NeedRebuild'?
-	//            'NeedRebuild' are caused by 'Changed', not just 'invalidated' all.
-	//         - e.g. on initial parsing - only root nodes are 'changed'
-	//         - mark 'changed' as 'need rebuild' and descend to children, if a child has no 'need rebuild' set it, else skip its hierarchy
 
 	void InvalidateNode(FNodeTracker& NodeTracker, bool bCheckCalledInProgress = true)
 	{
-		// We don't expect node chances while Update inprogress(unless Invalidate called explicitly)
 		if (bCheckCalledInProgress)
 		{
-			ensure(!bUpdateInProgress);
+			// We don't expect node changes while Update inprogress(unless Invalidate called explicitly in certain places)
+			if (!ensure(!bUpdateInProgress))
+			{
+				return;
+			}
 		}
 
 		if (NodeTracker.bDeleted)
@@ -2326,9 +2321,19 @@ public:
 
 	void RegisterNodeForMaterial(FNodeTracker& NodeTracker, Mtl* Material)
 	{
+		if (!Material)
+		{
+			return;
+		}
+
 		FMaterialTracker* MaterialTracker = MaterialsCollectionTracker.AddMaterial(Material);
 		NodeTracker.MaterialTrackers.Add(MaterialTracker);
 		MaterialsAssignedToNodes.FindOrAdd(MaterialTracker).Add(&NodeTracker);
+
+		if (NotificationsHandler)
+		{
+			NotificationsHandler->AddMaterial(Material);
+		}
 	}
 
 	virtual void UnregisterNodeForMaterial(FNodeTracker& NodeTracker) override 
@@ -2783,6 +2788,21 @@ public:
 			MaterialsCollectionTracker.InvalidateMaterial(Material);
 		}
 		InvalidateNode(NodeTracker); // Invalidate node that has this material assigned. This is needed to trigger rebuild - exported geometry might change(e.g. multimaterial changed to slots will change on static mesh)
+	}
+
+	virtual void MaterialGraphModified(Mtl* Material) override
+	{
+		MaterialsCollectionTracker.InvalidateMaterial(Material);
+
+		FMaterialTracker* MaterialTracker = MaterialsCollectionTracker.AddMaterial(Material);
+		
+		if (TSet<FNodeTracker*>* NodeTrackersPtr = MaterialsAssignedToNodes.Find(MaterialTracker))
+		{
+			for (FNodeTracker* NodeTracker : *NodeTrackersPtr)
+			{
+				InvalidateNode(*NodeTracker);
+			}
+		}
 	}
 
 	virtual void NodeGeometryChanged(INode* Node) override

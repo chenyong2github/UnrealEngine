@@ -32,6 +32,7 @@ MAX_INCLUDES_END
 // #define CANCEL_DEBUG_ENABLE 1
 
 
+
 void AssignMeshMaterials(TSharedPtr<IDatasmithMeshElement>&MeshElement, Mtl * Material, const TSet<uint16>&SupportedChannels);
 
 class FDatasmithMaxStaticMeshAttributes;
@@ -379,6 +380,8 @@ public:
 	virtual void NodeMaterialGraphModified(FNodeKey NodeKey) = 0;
 	virtual void NodeMaterialGraphModified(INode* NodeKey) = 0;
 
+	virtual void MaterialGraphModified(Mtl* Material) = 0;
+
 	virtual bool IsUpdateInProgress() = 0;
 
 	// Scene modification
@@ -442,6 +445,7 @@ public:
 	void StopSceneChangeTracking();
 
 	void AddNode(INode*);
+	void AddMaterial(Mtl*);
 
 	FString ConvertNotificationCodeToString(int code);
 	void PrepareForUpdate();
