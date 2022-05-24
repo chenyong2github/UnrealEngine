@@ -337,8 +337,7 @@ UObject* UInterchangeStaticMeshFactory::CreateAsset(const FCreateAssetParams& Ar
 			int32 MaterialSlotIndex = StaticMesh->GetMaterialIndexFromImportedMaterialSlotName(SlotNames[PolygonGroupID]);
 					
 			// If no material was found with this slot name, fill out a blank slot instead.
-			// However this should not happen. The translator should have properly set the UInterchangeMeshNode with the slot names used by all LODs.
-			if (!ensure(MaterialSlotIndex != INDEX_NONE))
+			if (MaterialSlotIndex == INDEX_NONE)
 			{
 				MaterialSlotIndex = StaticMesh->GetStaticMaterials().Emplace(UMaterial::GetDefaultMaterial(MD_Surface), SlotNames[PolygonGroupID]);
 			}

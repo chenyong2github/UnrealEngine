@@ -1345,8 +1345,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 				}
 
 				// If we don't have a match, add a new entry to the material list.
-				// However this should not happen. The translator should have properly set the UInterchangeMeshNode with the slot names used by all LODs.
-				if (!ensure(LODMatIndex != INDEX_NONE))
+				if (LODMatIndex == INDEX_NONE)
 				{
 					LODMatIndex = Materials.Add(FSkeletalMaterial(ImportedMaterials[ImportedMaterialIndex].Material.Get(), true, false, ImportedMaterialName, ImportedMaterialName));
 				}

@@ -288,11 +288,12 @@ namespace UE::Interchange::MeshesUtilities
 	{
 		for (const TPair<FString, FString>& SlotMaterialDependency : SlotMaterialDependencies)
 		{
-			const FString MaterialFactoryNodeUid = UInterchangeMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(SlotMaterialDependency.Value);
-			if (UInterchangeMaterialFactoryNode* MaterialFactoryNode = Cast< UInterchangeMaterialFactoryNode>(NodeContainer.GetFactoryNode(MaterialFactoryNodeUid)))
+			const FString MaterialFactoryNodeUid = UInterchangeBaseMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(SlotMaterialDependency.Value);
+			if (UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode = Cast<UInterchangeBaseMaterialFactoryNode>(NodeContainer.GetFactoryNode(MaterialFactoryNodeUid)))
 			{
-				FactoryNode.SetSlotMaterialDependencyUid(SlotMaterialDependency.Key, MaterialFactoryNodeUid);
 				MaterialFactoryNode->SetEnabled(true);
+
+				FactoryNode.SetSlotMaterialDependencyUid(SlotMaterialDependency.Key, MaterialFactoryNodeUid);
 
 				// Create a factory dependency so Material asset are imported before the static mesh asset
 				TArray<FString> FactoryDependencies;
