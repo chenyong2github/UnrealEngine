@@ -146,13 +146,6 @@ void UTextureCube::Serialize(FArchive& Ar)
 		UE_LOG(LogTexture, Log, TEXT("Default maximum texture size for cubemaps generated from long-lat sources has been changed from 512 to unlimited. In order to preserve old behavior for '%s', its maximum texture size has been explicitly set to 512."), *GetPathName());
 	}
 #endif // #if WITH_EDITORONLY_DATA
-
-#if WITH_EDITOR
-	if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked)
-	{
-		BeginCachePlatformData();
-	}
-#endif // #if WITH_EDITOR
 }
 
 void UTextureCube::PostLoad()

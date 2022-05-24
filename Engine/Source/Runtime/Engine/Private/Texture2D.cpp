@@ -444,18 +444,6 @@ void UTexture2D::Serialize(FArchive& Ar)
 	{
 		SerializeCookedPlatformData(Ar);
 	}
-
-#if WITH_EDITOR	
-	if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked && !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker))
-	{
-		// The composite texture may not have been loaded yet. We have to defer caching platform
-		// data until post load.
-		if (CompositeTexture == NULL || CompositeTextureMode == CTM_Disabled || CompositeTexture->HasAnyFlags(RF_LoadCompleted))
-		{
-			BeginCachePlatformData();
-		}
-	}
-#endif // #if WITH_EDITOR
 }
 
 int32 UTexture2D::GetNumResidentMips() const

@@ -1154,14 +1154,14 @@ void FConstraintInstance::PostSerialize(const FArchive& Ar)
 		}
 
 		//Now handle the new linear spring stiffness and damping coefficient
-		if(CVarConstraintAngularStiffnessScale.GetValueOnGameThread() > 0.f)
+		if(CVarConstraintAngularStiffnessScale.GetValueOnAnyThread() > 0.f)
 		{
-			ProfileInstance.LinearLimit.Stiffness *= CVarConstraintAngularStiffnessScale.GetValueOnGameThread() / CVarConstraintLinearStiffnessScale.GetValueOnGameThread();
+			ProfileInstance.LinearLimit.Stiffness *= CVarConstraintAngularStiffnessScale.GetValueOnAnyThread() / CVarConstraintLinearStiffnessScale.GetValueOnAnyThread();
 		}
 
-		if (CVarConstraintAngularDampingScale.GetValueOnGameThread() > 0.f)
+		if (CVarConstraintAngularDampingScale.GetValueOnAnyThread() > 0.f)
 		{
-			ProfileInstance.LinearLimit.Damping *= CVarConstraintAngularDampingScale.GetValueOnGameThread() / CVarConstraintLinearDampingScale.GetValueOnGameThread();
+			ProfileInstance.LinearLimit.Damping *= CVarConstraintAngularDampingScale.GetValueOnAnyThread() / CVarConstraintLinearDampingScale.GetValueOnAnyThread();
 		}
 	}
 }
