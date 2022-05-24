@@ -15,7 +15,8 @@
 #include "Player/mp4/ManifestMP4.h"
 #include "Player/mp4/OptionKeynamesMP4.h"
 
-#define ERRCODE_MP4_INVALID_FILE							1
+#define ERRCODE_MP4_INVALID_FILE	1
+#define ERRCODE_MP4_DOWNLOAD_ERROR	2
 
 
 DECLARE_CYCLE_STAT(TEXT("FPlaylistReaderMP4_WorkerThread"), STAT_ElectraPlayer_MP4_PlaylistWorker, STATGROUP_ElectraPlayer);
@@ -115,7 +116,7 @@ private:
 	TSharedPtrTS<IElectraHttpManager::FReceiveBuffer> 		ReceiveBuffer;
 	TSharedPtrTS<IElectraHttpManager::FProgressListener>	ProgressListener;
 	HTTP::FConnectionInfo									ConnectionInfo;
-	FPODRingbuffer 											Buffer;
+	FWaitableBuffer 										Buffer;
 	int64													ParsePos = 0;
 	int64													ChunkReadOffset = 0;
 	int64													FileSize = -1;
@@ -324,6 +325,7 @@ void FPlaylistReaderMP4::ReadNextChunk(int64 InFromOffset, int64 ChunkSize)
 		Buffer.SetEOD();
 		return;
 	}
+	Buffer.Reset();
 	ProgressListener = MakeSharedTS<IElectraHttpManager::FProgressListener>();
 	ProgressListener->CompletionDelegate = IElectraHttpManager::FProgressListener::FCompletionDelegate::CreateRaw(this, &FPlaylistReaderMP4::HTTPCompletionCallback);
 	ProgressListener->ProgressDelegate   = IElectraHttpManager::FProgressListener::FProgressDelegate::CreateRaw(this, &FPlaylistReaderMP4::HTTPProgressCallback);
@@ -409,7 +411,15 @@ void FPlaylistReaderMP4::WorkerThread()
 		}
 		else
 		{
-			PostError(FString::Printf(TEXT("Failed to parse mp4 \"%s\" with error %u"), *ConnectionInfo.EffectiveURL, parseError), ERRCODE_MP4_INVALID_FILE, UEMEDIA_ERROR_FORMAT_ERROR);
+			// See if there was a download error
+			if (ConnectionInfo.StatusInfo.ErrorDetail.IsError())
+			{
+				PostError(FString::Printf(TEXT("%s while downloading \"%s\""), *ConnectionInfo.StatusInfo.ErrorDetail.GetMessage(), *ConnectionInfo.EffectiveURL), ERRCODE_MP4_DOWNLOAD_ERROR, UEMEDIA_ERROR_READ_ERROR);
+			}
+			else
+			{
+				PostError(FString::Printf(TEXT("Failed to parse mp4 \"%s\" with error %u"), *ConnectionInfo.EffectiveURL, parseError), ERRCODE_MP4_INVALID_FILE, UEMEDIA_ERROR_FORMAT_ERROR);
+			}
 		}
 	}
 
@@ -435,7 +445,7 @@ void FPlaylistReaderMP4::WorkerThread()
 int64 FPlaylistReaderMP4::ReadData(void* IntoBuffer, int64 NumBytesToRead)
 {
 	uint8* OutputBuffer = (uint8*)IntoBuffer;
-	// Do we have enough data in the ringbuffer to satisfy the read?
+	// Do we have enough data in the buffer to satisfy the read?
 	if (Buffer.Num() >= NumBytesToRead)
 	{
 		// Yes. Get the data and return.
@@ -446,7 +456,7 @@ int64 FPlaylistReaderMP4::ReadData(void* IntoBuffer, int64 NumBytesToRead)
 	}
 	else
 	{
-		// Do not have enough data yet or we want to read more than the ringbuffer can hold.
+		// Do not have enough data yet or we want to read more than the buffer can hold?
 		int32 NumBytesToGo = NumBytesToRead;
 		int64 NextChunkReadOffset = ParsePos;
 		while(NumBytesToGo > 0)
@@ -472,6 +482,7 @@ int64 FPlaylistReaderMP4::ReadData(void* IntoBuffer, int64 NumBytesToRead)
 				// Trigger read of next chunk of data.
 				if (!bChunkReadInProgress)
 				{
+					check(Buffer.IsEmpty());
 					// Is the data to read actually used or is it skipped over?
 					if (OutputBuffer)
 					{

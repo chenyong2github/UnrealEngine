@@ -7,37 +7,26 @@
 
 namespace Electra
 {
-
 	/**
-	 * Byte ringbuffer
+	 * A buffer with waiting capability.
 	**/
-	class FPODRingbuffer : private TMediaNoncopyable<FPODRingbuffer>
+	class FWaitableBuffer
 	{
 	public:
-		FPODRingbuffer(int32 InNumBytes = 0)
-			: Data(nullptr)
-			, DataEnd(nullptr)
-			, WritePos(nullptr)
-			, ReadPos(nullptr)
-			, DataSize(0)
-			, NumIn(0)
-			, WaitingForSize(0)
-			, bEOD(false)
-			, bWasAborted(false)
+		FWaitableBuffer() = default;
+		FWaitableBuffer(const FWaitableBuffer&) = delete;
+		FWaitableBuffer& operator=(const FWaitableBuffer&) = delete;
+
+		~FWaitableBuffer()
 		{
-			Allocate(InNumBytes);
-			SizeAvailableSignal.Reset();
-		}
-		~FPODRingbuffer()
-		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			Deallocate();
 		}
 
-		//! Allocates buffer of the specified capacity, destroying any previous buffer.
-		bool Reserve(int32 InNumBytes)
+		// Allocates buffer of the specified capacity, destroying any previous buffer.
+		bool Reserve(int64 InNumBytes)
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			Deallocate();
 			if (Allocate(InNumBytes))
 			{
@@ -47,32 +36,23 @@ namespace Electra
 			return false;
 		}
 
-		//! Enlarges the buffer to the new capacity, retaining the current content.
-		bool EnlargeTo(int32 InNewNumBytes)
+		// Enlarges the buffer to the new capacity, retaining the current content.
+		bool EnlargeTo(int64 InNewNumBytes)
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			// Do we need a bigger capacity?
 			if (InNewNumBytes > Capacity())
 			{
-				// Are we currently empty?
-				if (IsEmpty())
-				{
-					return Reserve(InNewNumBytes);
-				}
-				else
-				{
-					return InternalGrowTo(InNewNumBytes);
-				}
+				return IsEmpty() ? Reserve(InNewNumBytes) : InternalGrowTo(InNewNumBytes);
 			}
 			return true;
 		}
 
-		//! Clears the buffer
+		// Clears the buffer
 		void Reset()
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
-			NumIn = 0;
-			WritePos = ReadPos = Data;
+			FScopeLock Lock(&AccessLock);
+			WritePos = ReadPos = 0;
 			bEOD = false;
 			bWasAborted = false;
 			// Do not modify the "waiter" members. When waiting for data to arrive it needs to continue
@@ -81,52 +61,57 @@ namespace Electra
 				//SizeAvailableSignal.Signal();
 		}
 
-		//! Returns the ringbuffer capacity
-		int32 Capacity() const
+		// Returns the buffer capacity
+		int64 Capacity() const
 		{
+			FScopeLock Lock(&AccessLock);
 			return DataSize;
 		}
 
-		//! Returns the number of bytes in the buffer (amount that can be popped)
-		int32 Num() const
+		// Returns the number of bytes in the buffer (amount that can be popped)
+		int64 Num() const
 		{
-			return NumIn;
+			FScopeLock Lock(&AccessLock);
+			return WritePos - ReadPos;
 		}
 
-		//! Returns the number of free bytes in the buffer (amount that can be pushed)
-		int32 Avail() const
+		// Returns the number of free bytes in the buffer (amount that can be pushed)
+		int64 Avail() const
 		{
-			return DataSize - Num();
+			FScopeLock Lock(&AccessLock);
+			return DataSize - WritePos;
 		}
 
-		//! Checks if the buffer is empty.
+		// Checks if the buffer is empty.
 		bool IsEmpty() const
 		{
 			return Num() == 0;
 		}
 
-		//! Checks if the buffer is full.
+		// Checks if the buffer is full.
 		bool IsFull() const
 		{
 			return Avail() == 0;
 		}
 
-		//! Checks if the buffer has reached the end-of-data marker (marker is set and no more data is in the buffer).
+		// Checks if the buffer has reached the end-of-data marker (marker is set and no more data is in the buffer).
 		bool IsEndOfData() const
 		{
 			return IsEmpty() && bEOD;
 		}
 
-		//! Checks if the end-of-data flag has been set. There may still be data in the buffer though!
+		// Checks if the end-of-data flag has been set. There may still be data in the buffer though!
 		bool GetEOD() const
 		{
 			return bEOD;
 		}
 
-		//! Waits until the specified number of bytes has arrived in the buffer.
-		//! NOTE: This method is somewhat dangerous in that there is no guarantee the required amount will ever arrive.
-		//!       You must also never wait for more data than is the capcacity of the buffer!
-		bool WaitUntilSizeAvailable(int32 SizeNeeded, int32 TimeoutMicroseconds)
+		/*
+			Waits until the specified number of bytes has arrived in the buffer.
+			Note: This method is somewhat dangerous in that there is no guarantee the required amount will ever arrive.
+			      You must also never wait for more data than is the capcacity of the buffer!
+		*/
+		bool WaitUntilSizeAvailable(int64 SizeNeeded, int32 TimeoutMicroseconds)
 		{
 			// Only wait if not at EOD and more data than presently available is asked for.
 			// Otherwise return enough data to be present even if that is not actually the case.
@@ -161,10 +146,10 @@ namespace Electra
 		}
 
 
-		//! Inserts elements into the buffer. Returns true if successful, false if there is no room.
-		bool PushData(const uint8* InData, int32 NumElements, bool bRingbufferPush=true)
+		// Inserts elements into the buffer. Returns true if successful, false if there is no room.
+		bool PushData(const uint8* InData, int64 NumElements)
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			check(!bEOD);
 			// Zero elements can always be pushed...
 			if (NumElements == 0)
@@ -173,26 +158,9 @@ namespace Electra
 			}
 			if (Avail() >= NumElements)
 			{
-				int32 NumBeforeWrap = DataEnd - WritePos;
-				if (NumElements <= NumBeforeWrap)
-				{
-					CopyData(WritePos, InData, NumElements);
-					if ((WritePos += NumElements) == DataEnd)
-					{
-						if (bRingbufferPush)
-						{
-							WritePos = Data;
-						}
-					}
-				}
-				else
-				{
-					CopyData(WritePos, InData, NumBeforeWrap);
-					CopyData(Data, InData + NumBeforeWrap, NumElements - NumBeforeWrap);
-					WritePos = Data + (NumElements - NumBeforeWrap);
-				}
-				NumIn += NumElements;
-				if (NumIn >= WaitingForSize)
+				CopyData(Data + WritePos, InData, NumElements);
+				WritePos += NumElements;
+				if (WritePos >= WaitingForSize)
 				{
 					SizeAvailableSignal.Signal();
 				}
@@ -204,63 +172,20 @@ namespace Electra
 			}
 		}
 
-
-		//! "Opens" a push-block by returning 2 sets of pointers and block sizes where data to be pushed can be stored directly.
-		int32 PushBlockOpen(uint8*& Block1, int32& Block1Size, uint8*& Block2, int32& Block2Size)
-		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
-			int32 av = Avail();
-			int32 NumBeforeWrap = DataEnd - WritePos;
-			Block1 = WritePos;
-			if (av > NumBeforeWrap)
-			{
-				Block1Size = NumBeforeWrap;
-				Block2 = Data;
-				Block2Size = av - NumBeforeWrap;
-			}
-			else
-			{
-				Block1Size = av;
-				Block2 = nullptr;
-				Block2Size = 0;
-			}
-			return av;
-		}
-
-		//! "Closes" a previously opened push block and advances the write pointer by as many bytes as were actually stored.
-		void PushBlockClose(int32 NumElements)
-		{
-			if (NumElements)
-			{
-				FMediaCriticalSection::ScopedLock Lock(AccessLock);
-				if ((WritePos += NumElements) >= DataEnd)
-				{
-					WritePos -= DataSize;
-				}
-				NumIn += NumElements;
-				if (NumIn >= WaitingForSize)
-				{
-					SizeAvailableSignal.Signal();
-				}
-			}
-		}
-
-
-		//! "Pushes" an end-of-data marker signaling that no further data will be pushed. May be called more than once. Ringbuffer must be Reset() before next use.
+		// "Pushes" an end-of-data marker signaling that no further data will be pushed. May be called more than once. Buffer must be Reset() before next use.
 		void SetEOD()
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			bEOD = true;
 			// Signal that data is present to wake any waiters on WaitForData() even though there may be no data in the buffer anymore.
 			SizeAvailableSignal.Signal();
 		}
 
-		//! "Pops" data from the buffer to a destination. At most the specified number of bytes are popped, or fewer if not as many are available.
-		int32 PopData(uint8* OutData, int32 MaxElementsWanted)
+		// "Pops" data from the buffer to a destination. At most the specified number of bytes are popped, or fewer if not as many are available.
+		int64 PopData(uint8* OutData, int64 MaxElementsWanted)
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
-			int32 size = Num();
-			int32 NumBeforeWrap = DataEnd - ReadPos;
+			FScopeLock Lock(&AccessLock);
+			int64 size = Num();
 
 			if (MaxElementsWanted > size)
 			{
@@ -269,23 +194,9 @@ namespace Electra
 			// Copy out or skip over?
 			if (OutData)
 			{
-				// Can copy out without wrap?
-				if (MaxElementsWanted <= NumBeforeWrap)
-				{
-					CopyData(OutData, ReadPos, MaxElementsWanted);
-				}
-				else
-				{
-					CopyData(OutData, ReadPos, NumBeforeWrap);
-					CopyData(OutData + NumBeforeWrap, Data, MaxElementsWanted - NumBeforeWrap);
-				}
+				CopyData(OutData, Data + ReadPos, MaxElementsWanted);
 			}
-
-			if ((ReadPos += MaxElementsWanted) >= DataEnd)
-			{
-				ReadPos -= DataSize;
-			}
-			NumIn -= MaxElementsWanted;
+			ReadPos += MaxElementsWanted;
 			return MaxElementsWanted;
 		}
 
@@ -299,27 +210,50 @@ namespace Electra
 			AccessLock.Unlock();
 		}
 
-		int32 GetLinearReadSize() const
+		int64 GetLinearReadSize() const
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
-			int32 NumBeforeWrap = DataEnd - ReadPos;
-			return NumBeforeWrap;
+			FScopeLock Lock(&AccessLock);
+			return WritePos - ReadPos;
 		}
 
-		// NOTE: Must control Lock()/Unlock() externally!
+		// Must control Lock()/Unlock() externally!
 		const uint8* GetLinearReadData() const
 		{
-			return ReadPos;
+			return Data + ReadPos;
 		}
 		uint8* GetLinearReadData()
 		{
-			return ReadPos;
+			return Data + ReadPos;
 		}
 
+		uint8* GetLinearWriteData(int64 InNumBytesToAppend)
+		{
+			FScopeLock Lock(&AccessLock);
+			int64 Av = Avail();
+			if (InNumBytesToAppend > Av)
+			{
+				bool bOk = IsEmpty() ? Allocate(InNumBytesToAppend) : InternalGrowTo(DataSize + InNumBytesToAppend - Av);
+				check(bOk); (void)bOk;
+			}
+			return Data + WritePos;
+		}
+		void AppendedNewData(int64 InNumAppended)
+		{
+			FScopeLock Lock(&AccessLock);
+			check(!bEOD);
+			if (InNumAppended > 0)
+			{
+				WritePos += InNumAppended;
+				if (WritePos >= WaitingForSize)
+				{
+					SizeAvailableSignal.Signal();
+				}
+			}
+		}
 
 		void Abort()
 		{
-			FMediaCriticalSection::ScopedLock Lock(AccessLock);
+			FScopeLock Lock(&AccessLock);
 			bWasAborted = true;
 			SizeAvailableSignal.Signal();
 		}
@@ -330,15 +264,14 @@ namespace Electra
 		}
 
 	protected:
-		bool Allocate(int32 InSize)
+		bool Allocate(int64 InSize)
 		{
 			if (InSize)
 			{
 				DataSize = InSize;
 				Data = (uint8*)FMemory::Malloc(InSize);
-				DataEnd = Data + DataSize;
-				WritePos = Data;
-				ReadPos = Data;
+				WritePos = 0;
+				ReadPos = 0;
 				return Data != nullptr;
 			}
 			return true;
@@ -348,14 +281,12 @@ namespace Electra
 		{
 			FMemory::Free(Data);
 			Data = nullptr;
-			DataEnd = nullptr;
 			DataSize = 0;
-			NumIn = 0;
-			WritePos = nullptr;
-			ReadPos = nullptr;
+			WritePos = 0;
+			ReadPos = 0;
 		}
 
-		bool InternalGrowTo(int32 InNewNumBytes)
+		bool InternalGrowTo(int64 InNewNumBytes)
 		{
 			// Note: The access mutex must already be held here!
 			check(Data && InNewNumBytes);
@@ -363,21 +294,14 @@ namespace Electra
 			uint8* NewData = (uint8*)FMemory::Realloc(Data, InNewNumBytes);
 			if (NewData)
 			{
-				// Get current read & write offsets
-				int32 ReadOffset = ReadPos - Data;
-				int32 WriteOffset = WritePos - Data;
-				// Set the data pointers up in the new buffer.
 				DataSize = InNewNumBytes;
 				Data = NewData;
-				DataEnd = Data + DataSize;
-				WritePos = Data + WriteOffset;
-				ReadPos = Data + ReadOffset;
 				return true;
 			}
 			return false;
 		}
 
-		void CopyData(uint8* CopyTo, const uint8* CopyFrom, int32 NumElements)
+		void CopyData(uint8* CopyTo, const uint8* CopyFrom, int64 NumElements)
 		{
 			if (NumElements && CopyTo && CopyFrom)
 			{
@@ -385,20 +309,24 @@ namespace Electra
 			}
 		}
 
-		FMediaCriticalSection	AccessLock;
-		FMediaEvent				SizeAvailableSignal;	//!< signaled when WaitingForSize data is present
-		uint8* volatile			Data;					//!< Base address of buffer
-		uint8* volatile			DataEnd;				//!< End address of buffer
-		uint8* volatile			WritePos;				//!< Current write position
-		uint8* volatile			ReadPos;				//!< Current read position
-		volatile int32			DataSize;				//!< Maximum number of bytes in the buffer
-		volatile int32			NumIn;					//!< Current number of bytes in the buffer
-		volatile int32			WaitingForSize;			//!< If waiting for a certain number of bytes to become available
-		volatile bool			bEOD;					//!< true when the last packet of data was pushed into the buffer.
-		volatile bool			bWasAborted;
+		mutable FCriticalSection AccessLock;
+		// Signal which gets set when at least `WaitingForSize` amount of data is present
+		FMediaEvent					SizeAvailableSignal;
+		// Buffer address
+		uint8*						Data = nullptr;
+		// Allocated buffer size
+		uint64						DataSize = 0;
+		// Offset into buffer where to add new data
+		uint64						WritePos = 0;
+		// Offset into buffer from where to read the next data.
+		uint64						ReadPos = 0;
+		// Amount of data necessary to be present for `SizeAvailableSignal` to get set.
+		uint64						WaitingForSize = 0;
+		// Flag indicating that no additional data will be added to the buffer.
+		volatile bool				bEOD = false;	
+		// Flag indicating that reading into the buffer has been aborted.
+		volatile bool				bWasAborted = false;
 	};
-
-
 
 } // namespace Electra
 

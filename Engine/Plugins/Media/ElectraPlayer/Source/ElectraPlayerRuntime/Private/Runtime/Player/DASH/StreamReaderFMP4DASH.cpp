@@ -1684,7 +1684,7 @@ bool FStreamReaderFMP4DASH::FStreamHandler::HasErrored() const
  */
 int64 FStreamReaderFMP4DASH::FStreamHandler::ReadData(void* IntoBuffer, int64 NumBytesToRead)
 {
-	FPODRingbuffer& SourceBuffer = ReadBuffer.ReceiveBuffer->Buffer;
+	FWaitableBuffer& SourceBuffer = ReadBuffer.ReceiveBuffer->Buffer;
 	// Make sure the buffer will have the amount of data we need.
 	while(1)
 	{
@@ -1783,7 +1783,7 @@ int64 FStreamReaderFMP4DASH::FStreamHandler::ReadData(void* IntoBuffer, int64 Nu
  */
 bool FStreamReaderFMP4DASH::FStreamHandler::HasReachedEOF() const
 {
-	const FPODRingbuffer& SourceBuffer = ReadBuffer.ReceiveBuffer->Buffer;
+	const FWaitableBuffer& SourceBuffer = ReadBuffer.ReceiveBuffer->Buffer;
 	return !HasErrored() && SourceBuffer.GetEOD() && (ReadBuffer.ParsePos >= SourceBuffer.Num() || ReadBuffer.ParsePos >= ReadBuffer.MaxParsePos);
 }
 

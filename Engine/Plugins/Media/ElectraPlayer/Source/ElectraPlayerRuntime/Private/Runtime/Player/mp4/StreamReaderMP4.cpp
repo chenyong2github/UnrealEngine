@@ -394,9 +394,6 @@ void FStreamReaderMP4::HandleRequest()
 
 	ReadBuffer.Reset();
 	ReadBuffer.ReceiveBuffer = MakeSharedTS<IElectraHttpManager::FReceiveBuffer>();
-	// Set the receive buffer to an okay-ish size. Too small and the file I/O may block too often and get too slow.
-	ReadBuffer.ReceiveBuffer->Buffer.Reserve(4 << 20);
-	ReadBuffer.ReceiveBuffer->bEnableRingbuffer = true;
 	ReadBuffer.SetCurrentPos(Request->FileStartOffset);
 
 	const FParamDict& Options = PlayerSessionServices->GetOptions();
@@ -595,7 +592,7 @@ void FStreamReaderMP4::HandleRequest()
 
 					SelectedTrack.bIsFirstInSequence = false;
 
-					int64 nr = ReadBuffer.ReadTo(AccessUnit->AUData, (int32)SampleSize);
+					int64 nr = ReadBuffer.ReadTo(AccessUnit->AUData, SampleSize);
 					if (nr == SampleSize)
 					{
 						SelectedTrack.DurationSuccessfullyRead += AccessUnit->Duration;
@@ -744,60 +741,44 @@ void FStreamReaderMP4::WorkerThread()
 }
 
 
-int32 FStreamReaderMP4::FReadBuffer::ReadTo(void* ToBuffer, int32 NumBytes)
+int32 FStreamReaderMP4::FReadBuffer::ReadTo(void* IntoBuffer, int64 NumBytesToRead)
 {
-	FPODRingbuffer& SourceBuffer = ReceiveBuffer->Buffer;
-
-	uint8* OutputBuffer = (uint8*)ToBuffer;
-	// Do we have enough data in the ringbuffer to satisfy the read?
-	if (SourceBuffer.Num() >= NumBytes)
+	FWaitableBuffer& SourceBuffer = ReceiveBuffer->Buffer;
+	// Make sure the buffer will have the amount of data we need.
+	while(1)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_MP4_StreamReader);
-		CSV_SCOPED_TIMING_STAT(ElectraPlayer, MP4_StreamReader);
-
-		// Yes. Get the data and return.
-		int32 NumGot = SourceBuffer.PopData(OutputBuffer, NumBytes);
-		check(NumGot == NumBytes);
-		CurrentPos += NumBytes;
-		return NumBytes;
-	}
-	else
-	{
-		// Do not have enough data yet or we want to read more than the ringbuffer can hold.
-		int32 NumBytesToGo = NumBytes;
-		while(NumBytesToGo > 0)
+		if (!SourceBuffer.WaitUntilSizeAvailable(ParsePos + NumBytesToRead, 1000 * 100))
 		{
 			if (bHasErrored || SourceBuffer.WasAborted() || bAbort)
 			{
 				return -1;
 			}
-			// EOD?
-			if (SourceBuffer.IsEndOfData())
+		}
+		else
+		{
+			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_MP4_StreamReader);
+			CSV_SCOPED_TIMING_STAT(ElectraPlayer, MP4_StreamReader);
+			SourceBuffer.Lock();
+			if (SourceBuffer.Num() >= ParsePos + NumBytesToRead)
 			{
-				return 0;
-			}
-
-			// Get whatever amount of data is currently available to free up the buffer for receiving more data.
-			int32 NumGot;
-			{
-				SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_MP4_StreamReader);
-				CSV_SCOPED_TIMING_STAT(ElectraPlayer, MP4_StreamReader);
-				NumGot = SourceBuffer.PopData(OutputBuffer, NumBytesToGo);
-			}
-			if ((NumBytesToGo -= NumGot) > 0)
-			{
-				if (OutputBuffer)
+				if (IntoBuffer)
 				{
-					OutputBuffer += NumGot;
+					FMemory::Memcpy(IntoBuffer, SourceBuffer.GetLinearReadData() + ParsePos, NumBytesToRead);
 				}
-				// Wait for data to arrive in the ringbuffer.
-				int32 WaitForBytes = NumBytesToGo > SourceBuffer.Capacity() ? SourceBuffer.Capacity() : NumBytesToGo;
-				SourceBuffer.WaitUntilSizeAvailable(WaitForBytes, 1000 * 100);
+				SourceBuffer.Unlock();
+				ParsePos += NumBytesToRead;
+				CurrentPos += NumBytesToRead;
+				return NumBytesToRead;
+			}
+			else
+			{
+				// Return 0 at EOF and -1 on error.
+				SourceBuffer.Unlock();
+				return bHasErrored ? -1 : 0;
 			}
 		}
-		CurrentPos += NumBytes;
-		return NumBytes;
 	}
+	return -1;
 }
 
 

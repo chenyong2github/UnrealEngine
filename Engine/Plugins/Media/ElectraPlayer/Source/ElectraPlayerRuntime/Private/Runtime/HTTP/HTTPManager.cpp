@@ -572,16 +572,6 @@ namespace Electra
 		// Response not yet received.
 		Handle->bResponseReceived = false;
 
-		// Do a quick check that if the request is reading into a ring buffer that there is also a sub-range request size set up.
-		TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
-		// Give a warning to the console about this circumstance if the original request is not ranged.
-		// If it is a range request that goes up to the end of the file we cannot say with certainty if this is a problem
-		// since we do not know how large the response is going to be. It could be a few bytes, it could be gigabytes...
-		if (ReceiveBuffer.IsValid() && ReceiveBuffer->bEnableRingbuffer && !Handle->ActiveResponse.Range.IsSet())
-		{
-			UE_LOG(LogElectraHTTPManager, Warning, TEXT("Receive buffer set to ring buffer mode but no sub range request size specified!"));
-		}
-
 		// This could be for the next sub-range request that we also want to add to the cache!
 		Handle->ActiveResponse.bWasAddedToCache = false;
 
@@ -1261,27 +1251,14 @@ namespace Electra
 						TSharedPtrTS<FReceiveBuffer> ReceiveBuffer = Request->ReceiveBuffer.Pin();
 						if (ReceiveBuffer.IsValid())
 						{
-							int64 BufferPushableSize = 0;
-							bool bBufferUsable = false;
-							// Is it to be used as a linear buffer?
-							if (!ReceiveBuffer->bEnableRingbuffer)
+							int64 RequiredBufferSize = ci.ContentLength > 0 ? ci.ContentLength : 0;
+							int64 BufferSizeAfterPush = ReceiveBuffer->Buffer.Num() + NumDataAvailable;
+							if (BufferSizeAfterPush > RequiredBufferSize)
 							{
-								int64 RequiredBufferSize = ci.ContentLength > 0 ? ci.ContentLength : 0;
-								int64 BufferSizeAfterPush = ReceiveBuffer->Buffer.Num() + NumDataAvailable;
-								if (BufferSizeAfterPush > RequiredBufferSize)
-								{
-									RequiredBufferSize = BufferSizeAfterPush;
-								}
-								bBufferUsable = ReceiveBuffer->Buffer.EnlargeTo(RequiredBufferSize);
-								BufferPushableSize = bBufferUsable ? NumDataAvailable : 0;
+								RequiredBufferSize = BufferSizeAfterPush;
 							}
-							else
-							{
-								// The ring buffer must have been set up to a size the client wants it to have.
-								bBufferUsable = ReceiveBuffer->Buffer.Capacity() > 0;
-								check(bBufferUsable);
-								BufferPushableSize = bBufferUsable ? ReceiveBuffer->Buffer.Avail() : 0;
-							}
+							bool bBufferUsable = ReceiveBuffer->Buffer.EnlargeTo(RequiredBufferSize);
+							int64 BufferPushableSize = bBufferUsable ? NumDataAvailable : 0;
 							if (bBufferUsable)
 							{
 								if (BufferPushableSize)
@@ -1290,7 +1267,7 @@ namespace Electra
 									int64 NewDataSize = 0;
 									Response->GetResponseData().LockBuffer(NewDataPtr, NewDataSize);
 									int64 NumToCopy = BufferPushableSize < NewDataSize ? BufferPushableSize : NewDataSize;
-									bBufferUsable = ReceiveBuffer->Buffer.PushData(NewDataPtr, NumToCopy, ReceiveBuffer->bEnableRingbuffer);
+									bBufferUsable = ReceiveBuffer->Buffer.PushData(NewDataPtr, NumToCopy);
 									Response->GetResponseData().UnlockBuffer(bBufferUsable ? NumToCopy : 0);
 									if (bBufferUsable)
 									{
@@ -1477,28 +1454,22 @@ namespace Electra
 
 	int32 FElectraHttpManager::FFileStream::Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request)
 	{
-		// How much room do we have in the buffer?
-		int32 blkAv1, blkAv2;
-		uint8* blkData1;
-		uint8* blkData2;
-		int32 MaxAvail = RcvBuffer->Buffer.PushBlockOpen(blkData1, blkAv1, blkData2, blkAv2);
-		// How much can we read from the file?
-		int32 NumToRead = FileSizeToGo < MaxAvail ? FileSizeToGo : MaxAvail;
+		int64 NumToRead = FileSizeToGo;
 		if (NumToRead)
 		{
-			if (NumToRead <= blkAv1)
+			void* Dst = (void*) RcvBuffer->Buffer.GetLinearWriteData(NumToRead);
+			if (Dst)
 			{
-				Archive->Serialize(blkData1, NumToRead);
+				Archive->Serialize(Dst, NumToRead);
+				RcvBuffer->Buffer.AppendedNewData(NumToRead);
+				Request->ConnectionInfo.BytesReadSoFar += NumToRead;
+				FileSizeToGo -= NumToRead;
 			}
 			else
 			{
-				Archive->Serialize(blkData1, blkAv1);
-				Archive->Serialize(blkData2, NumToRead - blkAv1);
+				NumToRead = 0;
 			}
-			Request->ConnectionInfo.BytesReadSoFar += NumToRead;
 		}
-		RcvBuffer->Buffer.PushBlockClose(NumToRead);
-		FileSizeToGo -= NumToRead;
 		return NumToRead;
 	}
 
@@ -1598,26 +1569,16 @@ namespace Electra
 
 	int32 FElectraHttpManager::FDataUrl::Read(TSharedPtrTS<FReceiveBuffer> RcvBuffer, TSharedPtrTS<FRequest> Request)
 	{
-		// Not to be used with ring buffers yet.
-		check(!RcvBuffer->bEnableRingbuffer);
-		if (!RcvBuffer->bEnableRingbuffer)
+		if (RcvBuffer->Buffer.EnlargeTo(FileSizeToGo))
 		{
-			if (RcvBuffer->Buffer.EnlargeTo(FileSizeToGo))
+			if (RcvBuffer->Buffer.PushData(Data.GetData() + FileStartOffset, FileSizeToGo))
 			{
-				if (RcvBuffer->Buffer.PushData(Data.GetData() + FileStartOffset, FileSizeToGo))
-				{
-					Request->ConnectionInfo.BytesReadSoFar += FileSizeToGo;
-				}
+				Request->ConnectionInfo.BytesReadSoFar += FileSizeToGo;
 			}
-			int32 NumRead = (int32) FileSizeToGo;
-			FileSizeToGo = 0;
-			return NumRead;
 		}
-		else
-		{
-			// Pretend we read everything so this transfer will end.
-			return FileSizeToGo;
-		}
+		int32 NumRead = (int32) FileSizeToGo;
+		FileSizeToGo = 0;
+		return NumRead;
 	}
 
 

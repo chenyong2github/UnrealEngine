@@ -93,6 +93,7 @@ namespace Electra
 		static const FBoxType BoxType_prft = MAKE_BOX_ATOM('p', 'r', 'f', 't');
 		static const FBoxType BoxType_moof = MAKE_BOX_ATOM('m', 'o', 'o', 'f');
 		static const FBoxType BoxType_mdat = MAKE_BOX_ATOM('m', 'd', 'a', 't');
+		static const FBoxType BoxType_free = MAKE_BOX_ATOM('f', 'r', 'e', 'e');
 
 
 

@@ -103,17 +103,17 @@ public:
 	FStreamReaderHLSfmp4();
 	virtual ~FStreamReaderHLSfmp4();
 
-	virtual UEMediaError Create(IPlayerSessionServices* PlayerSessionService, const CreateParam& InCreateParam) override;
-	virtual void Close() override;
+	UEMediaError Create(IPlayerSessionServices* PlayerSessionService, const CreateParam& InCreateParam) override;
+	void Close() override;
 
 	//! Adds a request to read from a stream
-	virtual EAddResult AddRequest(uint32 CurrentPlaybackSequenceID, TSharedPtrTS<IStreamSegment> Request) override;
+	EAddResult AddRequest(uint32 CurrentPlaybackSequenceID, TSharedPtrTS<IStreamSegment> Request) override;
 
-	//! Cancels any ongoing requests of the given stream type. Silent cancellation will not notify OnFragmentClose() or OnFragmentReachedEOS(). 
-	virtual void CancelRequest(EStreamType StreamType, bool bSilent) override;
+	//! Cancels any ongoing requests of the given stream type. Silent cancellation will not notify OnFragmentClose() or OnFragmentReachedEOS().
+	void CancelRequest(EStreamType StreamType, bool bSilent) override;
 
 	//! Cancels all pending requests.
-	virtual void CancelRequests() override;
+	void CancelRequests() override;
 
 private:
 
@@ -150,21 +150,21 @@ private:
 			virtual ~FStaticResourceRequest()
 			{ }
 
-			virtual EPlaybackResourceType GetResourceType() const override
+			EPlaybackResourceType GetResourceType() const override
 			{ return Type; }
 
-			virtual FString GetResourceURL() const override
+			FString GetResourceURL() const override
 			{ return URL; }
 
-			virtual void SetPlaybackData(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>	PlaybackData) override
+			void SetPlaybackData(TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe>	PlaybackData) override
 			{ Data = PlaybackData; }
 
-			virtual void SignalDataReady() override
+			void SignalDataReady() override
 			{ DoneSignal.Signal(); }
 
 			bool IsDone() const
 			{ return DoneSignal.IsSignaled(); }
-			
+
 			bool WaitDone(int32 WaitMicros)
 			{ return DoneSignal.WaitTimeout(WaitMicros); }
 
@@ -184,6 +184,7 @@ private:
 			AlreadyCached,
 			DownloadError,
 			ParseError,
+			InvalidFormat,
 			LicenseKeyError
 		};
 
@@ -215,6 +216,8 @@ private:
 		FMediaEvent												DownloadCompleteSignal;
 		TSharedPtrTS<IParserISO14496_12>						MP4Parser;
 		int32													NumMOOFBoxesFound = 0;
+		bool													bParsingInitSegment = false;
+		bool													bInvalidMP4 = false;
 
 		TMediaQueueDynamicNoLock<FAccessUnit *>					AccessUnitFIFO;
 		FTimeValue 												DurationSuccessfullyRead;
@@ -240,17 +243,16 @@ private:
 		void HTTPCompletionCallback(const IElectraHttpManager::FRequest* Request);
 		void HTTPUpdateStats(const FTimeValue& CurrentTime, const IElectraHttpManager::FRequest* Request);
 
-
 		bool HasErrored() const;
 
 		// Methods from IParserISO14496_12::IReader
-		virtual int64 ReadData(void* IntoBuffer, int64 NumBytesToRead) override;
-		virtual bool HasReachedEOF() const override;
-		virtual bool HasReadBeenAborted() const override;
-		virtual int64 GetCurrentOffset() const override;
+		int64 ReadData(void* IntoBuffer, int64 NumBytesToRead) override;
+		bool HasReachedEOF() const override;
+		bool HasReadBeenAborted() const override;
+		int64 GetCurrentOffset() const override;
 		// Methods from IParserISO14496_12::IBoxCallback
-		virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnFoundBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
-		virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
+		IParserISO14496_12::IBoxCallback::EParseContinuation OnFoundBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
+		IParserISO14496_12::IBoxCallback::EParseContinuation OnEndOfBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
 	};
 
 	// Currently set to use 2 handlers, one for video and one for audio. This could become a pool of n if we need to stream

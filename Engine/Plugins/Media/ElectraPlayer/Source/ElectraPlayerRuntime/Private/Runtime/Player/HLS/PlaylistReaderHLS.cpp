@@ -236,7 +236,7 @@ private:
 	void InternalHandleOnce();
 
 	void HandleEnqueuedPlaylistDownloads(const FTimeValue& TimeNow);
-	void HandleCompletedPlaylistDownloads(const FTimeValue& TimeNow);
+	void HandleCompletedPlaylistDownloads(FTimeValue& TimeNow);
 	void HandleStaticRequestCompletions(const FTimeValue& TimeNow);
 	void CheckForPlaylistUpdate(const FTimeValue& TimeNow);
 
@@ -766,7 +766,7 @@ void FPlaylistReaderHLS::HandleEnqueuedPlaylistDownloads(const FTimeValue& TimeN
 	EnqueuedPlaylistRequestsLock.Unlock();
 }
 
-void FPlaylistReaderHLS::HandleCompletedPlaylistDownloads(const FTimeValue& TimeNow)
+void FPlaylistReaderHLS::HandleCompletedPlaylistDownloads(FTimeValue& TimeNow)
 {
 	FErrorDetail ParseError;
 	while(CompletedPlaylistRequests.Num())
@@ -783,6 +783,8 @@ void FPlaylistReaderHLS::HandleCompletedPlaylistDownloads(const FTimeValue& Time
 			if (!ConnInfo->StatusInfo.ErrorDetail.IsSet())
 			{
 				ParseError = ParsePlaylist(Request);
+				// Get the current time again which may now be synchronized with the server time.
+				TimeNow = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
 			}
 
 			// Was this an initially required playlist?

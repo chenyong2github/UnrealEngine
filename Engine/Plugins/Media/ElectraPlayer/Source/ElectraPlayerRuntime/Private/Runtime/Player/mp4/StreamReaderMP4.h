@@ -119,6 +119,7 @@ private:
 		{
 			ReceiveBuffer.Reset();
 			CurrentPos = 0;
+			ParsePos = 0;
 			bAbort = false;
 			bHasErrored = false;
 		}
@@ -143,9 +144,10 @@ private:
 		{
 			bHasErrored = true;
 		}
-		int32 ReadTo(void* ToBuffer, int32 NumBytes);
+		int32 ReadTo(void* ToBuffer, int64 NumBytes);
 		TSharedPtrTS<IElectraHttpManager::FReceiveBuffer>	ReceiveBuffer;
 		int64												CurrentPos;
+		int64												ParsePos;
 		bool												bAbort;
 		bool												bHasErrored;
 	};

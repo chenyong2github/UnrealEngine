@@ -220,8 +220,7 @@ namespace Electra
 
 		struct FReceiveBuffer
 		{
-			FPODRingbuffer		Buffer;
-			bool				bEnableRingbuffer = false;
+			FWaitableBuffer		Buffer;
 		};
 
 		struct FParams
