@@ -6,7 +6,6 @@
 #include "CookOnTheFlyMessages.h"
 #include "Modules/ModuleManager.h"
 #include "PackageStoreWriter.h"
-#include "ShaderCompiler.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/PackageName.h"
 #include "UObject/SavePackage.h"
@@ -23,403 +22,26 @@
 #include "MessageEndpoint.h"
 #include "MessageEndpointBuilder.h"
 #include "Cooker/ExternalCookOnTheFlyServer.h"
-
-class FIoStoreCookOnTheFlyNetworkServer
-{
-	static constexpr uint32 ServerSenderId = ~uint32(0);
-
-public:
-	/**
-	 * Connection status
-	 */
-	enum class EConnectionStatus
-	{
-		Disconnected,
-		Connected
-	};
-
-	using FRequestHandler = TFunction<bool(const FName&, bool, const UE::Cook::FCookOnTheFlyRequest&, UE::Cook::FCookOnTheFlyResponse&)>;
-
-	using FClientConnectionHandler = TFunction<bool(const FName&, bool, EConnectionStatus)>;
-
-	using FFillRequest = TFunction<void(FArchive&)>;
-
-	using FProcessResponse = TFunction<bool(FArchive&)>;
-
-	/**
-	 * Cook-on-the-fly connection server options.
-	 */
-	struct FServerOptions
-	{
-		/** The port to listen for new connections. */
-		int32 Port = UE::Cook::DefaultCookOnTheFlyServingPort;
-
-		/** Callback invoked when a client has connected or disconnected. */
-		FClientConnectionHandler HandleClientConnection;
-
-		/** Callback invoked when the server receives a new request. */
-		FRequestHandler HandleRequest;
-	};
-
-	FIoStoreCookOnTheFlyNetworkServer(FServerOptions InOptions)
-		: Options(MoveTemp(InOptions))
-		, ServiceId(FExternalCookOnTheFlyServer::GenerateServiceId())
-	{
-		MessageEndpoint = FMessageEndpoint::Builder("FCookOnTheFly");
-	}
-
-	~FIoStoreCookOnTheFlyNetworkServer()
-	{
-		StopServer();
-	}
-
-	bool StartServer()
-	{
-		const int32 Port = Options.Port > 0 ? Options.Port : UE::Cook::DefaultCookOnTheFlyServingPort;
-		UE_LOG(LogCookOnTheFly, Log, TEXT("Starting COTF server on port '%d'"), Port);
-
-		check(!bIsRunning);
-		bIsRunning = false;
-		bStopRequested = false;
-
-		ISocketSubsystem& SocketSubsystem = *ISocketSubsystem::Get();
-
-		ListenAddr = SocketSubsystem.GetLocalBindAddr(*GLog);
-		ListenAddr->SetPort(Port);
-
-		// create a server TCP socket
-		Socket = SocketSubsystem.CreateSocket(NAME_Stream, TEXT("COTF-Server"), ListenAddr->GetProtocolType());
-
-		if (!Socket)
-		{
-			UE_LOG(LogCookOnTheFly, Error, TEXT("Could not create listen socket"));
-			return false;
-		}
-
-		Socket->SetReuseAddr();
-		Socket->SetNoDelay();
-
-		if (!Socket->Bind(*ListenAddr))
-		{
-			UE_LOG(LogCookOnTheFly, Error, TEXT("Failed to bind socket to address '%s'"), *ListenAddr->ToString(true));
-			return false;
-		}
-
-		if (!Socket->Listen(16))
-		{
-			UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to listen on address '%s'"), *ListenAddr->ToString(true));
-			return false;
-		}
-
-		ListenAddr->SetPort(Socket->GetPortNo());
-
-		ServerThread = AsyncThread([this] { return ServerThreadEntry(); }, 8 * 1024, TPri_AboveNormal);
-
-		UE_LOG(LogCookOnTheFly, Display, TEXT("COTF server is ready for client(s) on '%s'!"), *ListenAddr->ToString(true));
-
-		if (MessageEndpoint.IsValid())
-		{
-			FZenCookOnTheFlyRegisterServiceMessage* RegisterServiceMessage = FMessageEndpoint::MakeMessage<FZenCookOnTheFlyRegisterServiceMessage>();
-			RegisterServiceMessage->ServiceId = ServiceId;
-			RegisterServiceMessage->Port = ListenAddr->GetPort();
-			MessageEndpoint->Publish(RegisterServiceMessage);
-		}
-
-		return true;
-	}
-
-	void StopServer()
-	{
-		if (bIsRunning && !bStopRequested)
-		{
-			bStopRequested = true;
-
-			ISocketSubsystem& SocketSubsystem = *ISocketSubsystem::Get();
-
-			while (bIsRunning)
-			{
-				FPlatformProcess::Sleep(0.25f);
-			}
-
-			for (TUniquePtr<FClient>& Client : Clients)
-			{
-				Client->bStopRequested = true;
-				Client->Socket->Close();
-				Client->Thread.Wait();
-				SocketSubsystem.DestroySocket(Client->Socket);
-			}
-
-			Clients.Empty();
-		}
-	}
-
-	bool BroadcastMessage(const UE::Cook::FCookOnTheFlyMessage& Message, const FName& PlatformName = NAME_None)
-	{
-		using namespace UE::Cook;
-
-		FCookOnTheFlyMessageHeader Header = Message.GetHeader();
-
-		Header.MessageType = Header.MessageType | ECookOnTheFlyMessage::Message;
-		Header.MessageStatus = ECookOnTheFlyMessageStatus::Ok;
-		Header.SenderId = ServerSenderId;
-		Header.CorrelationId = NextCorrelationId++;
-		Header.Timestamp = FDateTime::UtcNow().GetTicks();
-
-		FBufferArchive MessagePayload;
-		MessagePayload.Reserve(Message.TotalSize());
-
-		MessagePayload << Header;
-		MessagePayload << const_cast<TArray<uint8>&>(Message.GetBody());
-
-		UE_LOG(LogCookOnTheFly, Verbose, TEXT("Sending: %s, Size='%lld'"), *Header.ToString(), Message.TotalSize());
-
-		TArray<FClient*, TInlineAllocator<4>> ClientsToBroadcast;
-		{
-			FScopeLock _(&ClintsCriticalSection);
-
-			for (TUniquePtr<FClient>& Client : Clients)
-			{
-				if (PlatformName.IsNone() || Client->PlatformName == PlatformName)
-				{
-					ClientsToBroadcast.Add(Client.Get());
-				}
-			}
-		}
-
-		bool bBroadcasted = true;
-		for (FClient* Client : ClientsToBroadcast)
-		{
-			if (!FNFSMessageHeader::WrapAndSendPayload(MessagePayload, FSimpleAbstractSocket_FSocket(Client->Socket)))
-			{
-				UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to send message '%s' to client '%s' (Id='%d', Platform='%s')"),
-					LexToString(Message.GetHeader().MessageType), *Client->PeerAddr->ToString(true), Client->ClientId, *Client->PlatformName.ToString());
-
-				Client->bIsRunning = false;
-				bBroadcasted = false;
-			}
-
-			Client->LastActivityTime = FPlatformTime::Seconds();
-		}
-
-		return bBroadcasted;
-	}
-
-private:
-	struct FClient
-	{
-		FSocket* Socket = nullptr;
-		TSharedPtr<FInternetAddr> Addr;
-		TSharedPtr<FInternetAddr> PeerAddr;
-		TFuture<void> Thread;
-		TAtomic<bool> bIsRunning{ false };
-		TAtomic<bool> bStopRequested{ false };
-		TAtomic<bool> bIsProcessingRequest{ false };
-		TAtomic<double> LastActivityTime{ 0 };
-		uint32 ClientId = 0;
-		FName PlatformName;
-		bool bIsSingleThreaded = false;
-	};
-
-	void ServerThreadEntry()
-	{
-		using namespace UE::Cook;
-
-		ISocketSubsystem& SocketSubsystem = *ISocketSubsystem::Get();
-		bIsRunning = true;
-
-		while (!bStopRequested)
-		{
-			bool bIsReady = false;
-			if (Socket->WaitForPendingConnection(bIsReady, FTimespan::FromSeconds(0.25f)))
-			{
-				if (bIsReady)
-				{
-					if (FSocket* ClientSocket = Socket->Accept(TEXT("COTF-Client")))
-					{
-						TUniquePtr<FClient> Client = MakeUnique<FClient>();
-						Client->Socket = ClientSocket;
-						Client->Addr = SocketSubsystem.CreateInternetAddr();
-						Client->PeerAddr = SocketSubsystem.CreateInternetAddr();
-						ClientSocket->GetAddress(*Client->Addr);
-						ClientSocket->GetPeerAddress(*Client->PeerAddr);
-						Client->ClientId = NextClientId++;
-						Client->bIsRunning = true;
-						Client->LastActivityTime = FPlatformTime::Seconds();
-						Client->Thread = AsyncThread([this, ConnectedClient = Client.Get()]()
-						{
-							ClientThreadEntry(ConnectedClient);
-						});
-
-						UE_LOG(LogCookOnTheFly, Display, TEXT("New client connected from address '%s' (ID='%d')"), *Client->PeerAddr->ToString(true), Client->ClientId);
-						{
-							FScopeLock _(&ClintsCriticalSection);
-							Clients.Add(MoveTemp(Client));
-						}
-					}
-				}
-			}
-			else
-			{
-				FPlatformProcess::Sleep(0.25f);
-			}
-
-			{
-				FScopeLock _(&ClintsCriticalSection);
-				for (auto It = Clients.CreateIterator(); It; ++It)
-				{
-					TUniquePtr<FClient>& Client = *It;
-					if (!Client->bIsRunning)
-					{
-						UE_LOG(LogCookOnTheFly, Display, TEXT("Closing connection to client on address '%s' (Id='%d', Platform='%s')"),
-							*Client->PeerAddr->ToString(true), Client->ClientId, *Client->PlatformName.ToString());
-
-						Options.HandleClientConnection(Client->PlatformName, Client->bIsSingleThreaded, EConnectionStatus::Disconnected);
-
-						Client->Socket->Close();
-						Client->Thread.Wait();
-						SocketSubsystem.DestroySocket(Client->Socket);
-						It.RemoveCurrent();
-					}
-				}
-			}
-		}
-
-		bIsRunning = false;
-	}
-
-	void ClientThreadEntry(FClient* Client)
-	{
-		while (!bStopRequested && !Client->bStopRequested)
-		{
-			Client->LastActivityTime = FPlatformTime::Seconds();
-			if (!ProcesseRequest(*Client))
-			{
-				break;
-			}
-		}
-
-		Client->bIsRunning = false;
-	}
-
-	bool ProcesseRequest(FClient& Client)
-	{
-		using namespace UE::Cook;
-
-		Client.bIsProcessingRequest = false;
-
-		FArrayReader RequestPayload;
-		if (!FNFSMessageHeader::ReceivePayload(RequestPayload, FSimpleAbstractSocket_FSocket(Client.Socket)))
-		{
-			UE_LOG(LogCookOnTheFly, Warning, TEXT("Unable to receive request from client"));
-			return false;
-		}
-
-		Client.bIsProcessingRequest = true;
-
-		FCookOnTheFlyRequest Request;
-		RequestPayload << Request;
-
-		UE_LOG(LogCookOnTheFly, Verbose, TEXT("Received: %s, Size='%lld'"), *Request.GetHeader().ToString(), Request.TotalSize());
-
-		EnumRemoveFlags(Request.GetHeader().MessageType, ECookOnTheFlyMessage::TypeFlags);
-
-		FCookOnTheFlyResponse Response;
-		bool bRequestOk = false;
-		bool bIsResponse = false;
-
-		switch (Request.GetHeader().MessageType)
-		{
-		case ECookOnTheFlyMessage::Handshake:
-		{
-			ProcessHandshake(Client, Request, Response);
-			bRequestOk = Options.HandleClientConnection(Client.PlatformName, Client.bIsSingleThreaded, EConnectionStatus::Connected);
-			break;
-		}
-		default:
-		{
-			bRequestOk = Options.HandleRequest(Client.PlatformName, Client.bIsSingleThreaded, Request, Response);
-			break;
-		}
-		}
-
-		if (bRequestOk && !bIsResponse)
-		{
-			FCookOnTheFlyMessageHeader& ResponseHeader = Response.GetHeader();
-
-			ResponseHeader.MessageType = Request.GetHeader().MessageType | ECookOnTheFlyMessage::Response;
-			ResponseHeader.SenderId = ServerSenderId;
-			ResponseHeader.CorrelationId = Request.GetHeader().CorrelationId;
-			ResponseHeader.Timestamp = FDateTime::UtcNow().GetTicks();
-
-			Response.SetHeader(ResponseHeader);
-
-			FBufferArchive ResponsePayload;
-			ResponsePayload.Reserve(Response.TotalSize());
-
-			ResponsePayload << Response;
-			bRequestOk = FNFSMessageHeader::WrapAndSendPayload(ResponsePayload, FSimpleAbstractSocket_FSocket(Client.Socket));
-		}
-
-		return bRequestOk;
-	}
-
-	void ProcessHandshake(FClient& Client, UE::Cook::FCookOnTheFlyRequest& HandshakeRequest, UE::Cook::FCookOnTheFlyResponse& Response)
-	{
-		FString PlatformName;
-		FString ProjectName;
-
-		{
-			TUniquePtr<FArchive> Ar = HandshakeRequest.ReadBody();
-			*Ar << PlatformName;
-			*Ar << ProjectName;
-			*Ar << Client.bIsSingleThreaded;
-		}
-
-		if (PlatformName.Len())
-		{
-			Client.PlatformName = FName(*PlatformName);
-		}
-		Response.SetBodyTo(Client.ClientId);
-		Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Ok);
-	}
-
-	FClient* GetClientById(uint32 ClientId)
-	{
-		FScopeLock _(&ClintsCriticalSection);
-
-		for (TUniquePtr<FClient>& Client : Clients)
-		{
-			if (Client->ClientId == ClientId)
-			{
-				return Client.Get();
-			}
-		}
-
-		return nullptr;
-	}
-
-	FIoStoreCookOnTheFlyNetworkServer::FServerOptions Options;
-	TFuture<void> ServerThread;
-	TSharedPtr<FInternetAddr> ListenAddr;
-	FSocket* Socket = nullptr;
-	FCriticalSection ClintsCriticalSection;
-	TArray<TUniquePtr<FClient>> Clients;
-	TAtomic<bool> bIsRunning{ false };
-	TAtomic<bool> bStopRequested{ false };
-	uint32 NextClientId = 1;
-	TAtomic<uint32> NextCorrelationId{ 1 };
-	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
-	const FString ServiceId;
-};
+#include "CookOnTheFlyNetServer.h"
 
 class FIoStoreCookOnTheFlyRequestManager final
 	: public UE::Cook::ICookOnTheFlyRequestManager
 {
 public:
-	FIoStoreCookOnTheFlyRequestManager(UE::Cook::ICookOnTheFlyServer& InCookOnTheFlyServer, const IAssetRegistry* AssetRegistry, UE::Cook::FIoStoreCookOnTheFlyServerOptions InOptions)
+	FIoStoreCookOnTheFlyRequestManager(UE::Cook::ICookOnTheFlyServer& InCookOnTheFlyServer, const IAssetRegistry* AssetRegistry, TSharedRef<UE::Cook::ICookOnTheFlyNetworkServer> InConnectionServer)
 		: CookOnTheFlyServer(InCookOnTheFlyServer)
-		, Options(MoveTemp(InOptions))
+		, ConnectionServer(InConnectionServer)
+		, ServiceId(FExternalCookOnTheFlyServer::GenerateServiceId())
 	{
+		using namespace UE::Cook;
+
+		ConnectionServer->OnClientConnected().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnClientConnected);
+		ConnectionServer->OnClientDisconnected().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnClientDisconnected);
+		ConnectionServer->OnRequest(ECookOnTheFlyMessage::GetCookedPackages).BindRaw(this, &FIoStoreCookOnTheFlyRequestManager::HandleClientRequest);
+		ConnectionServer->OnRequest(ECookOnTheFlyMessage::CookPackage).BindRaw(this, &FIoStoreCookOnTheFlyRequestManager::HandleClientRequest);
+		ConnectionServer->OnRequest(ECookOnTheFlyMessage::RecookPackages).BindRaw(this, &FIoStoreCookOnTheFlyRequestManager::HandleClientRequest);
+
+		MessageEndpoint = FMessageEndpoint::Builder("FCookOnTheFly");
 		TArray<FAssetData> AllAssets;
 		AssetRegistry->GetAllAssets(AllAssets, true);
 		for (const FAssetData& AssetData : AllAssets)
@@ -640,32 +262,19 @@ private:
 	{
 		using namespace UE::Cook;
 
-		ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
-
-		const int32 Port = Options.Port > 0 ? Options.Port : UE::Cook::DefaultCookOnTheFlyServingPort;
-
-		ConnectionServer = MakeUnique<FIoStoreCookOnTheFlyNetworkServer>(FIoStoreCookOnTheFlyNetworkServer::FServerOptions
+		TArray<TSharedPtr<FInternetAddr>> ListenAddresses;
+		if (MessageEndpoint.IsValid() && ConnectionServer->GetAddressList(ListenAddresses))
 		{
-			Port,
-			[this](const FName& PlatformName, bool bIsSingleThreaded, FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus ConnectionStatus)
-			{
-				return HandleClientConnection(PlatformName, bIsSingleThreaded, ConnectionStatus);
-			},
-			[this](const FName& PlatformName, bool bIsSingleThreaded, const FCookOnTheFlyRequest& Request, FCookOnTheFlyResponse& Response)
-			{ 
-				return HandleClientRequest(PlatformName, bIsSingleThreaded, Request, Response);
-			}
-		});
-
-		const bool bServerStarted = ConnectionServer->StartServer();
-
-		return bServerStarted;
+			FZenCookOnTheFlyRegisterServiceMessage* RegisterServiceMessage = FMessageEndpoint::MakeMessage<FZenCookOnTheFlyRegisterServiceMessage>();
+			RegisterServiceMessage->ServiceId = ServiceId;
+			RegisterServiceMessage->Port = ListenAddresses[0]->GetPort();
+			MessageEndpoint->Publish(RegisterServiceMessage);
+		}
+		return true;
 	}
 
 	virtual void Shutdown() override
 	{
-		ConnectionServer->StopServer();
-		ConnectionServer.Reset();
 	}
 
 	virtual void OnPackageGenerated(const FName& PackageName)
@@ -747,95 +356,102 @@ private:
 	}
 
 private:
-	bool HandleClientConnection(const FName& PlatformName, bool bIsSingleThreaded, FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus ConnectionStatus)
+	void OnClientConnected(UE::Cook::ICookOnTheFlyClientConnection& Connection)
 	{
-		if (PlatformName.IsNone())
+		const ITargetPlatform* TargetPlatform = Connection.GetTargetPlatform();
+		if (TargetPlatform)
 		{
-			return true;
-		}
-
-		if (ConnectionStatus == FIoStoreCookOnTheFlyNetworkServer::EConnectionStatus::Connected)
-		{
-			const ITargetPlatform* TargetPlatform = CookOnTheFlyServer.AddPlatform(PlatformName);
-			if (!TargetPlatform)
-			{
-				return false;
-			}
-
 			IPackageStoreWriter* PackageWriter = CookOnTheFlyServer.GetPackageWriter(TargetPlatform).AsPackageStoreWriter();
 			check(PackageWriter); // This class should not be used except when COTFS is using an IPackageStoreWriter
 
+			FName PlatformName = Connection.GetPlatformName();
 			FScopeLock _(&ContextsCriticalSection);
-
 			if (!PlatformContexts.Contains(PlatformName))
 			{
 				TUniquePtr<FPlatformContext>& Context = PlatformContexts.Add(PlatformName, MakeUnique<FPlatformContext>(PlatformName, PackageWriter));
-					
+
 				PackageWriter->GetEntries([&Context](TArrayView<const FPackageStoreEntryResource> Entries,
 					TArrayView<const IPackageStoreWriter::FOplogCookInfo> CookInfos)
-				{
-					Context->AddExistingPackages(Entries, CookInfos);
-				});
+					{
+						Context->AddExistingPackages(Entries, CookInfos);
+					});
 
 				PackageWriter->OnEntryCreated().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageStoreEntryCreated);
 				PackageWriter->OnCommit().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageCooked);
 				PackageWriter->OnMarkUpToDate().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackagesMarkedUpToDate);
 			}
-
-			if (bIsSingleThreaded)
+			FPlatformContext& Context = GetContext(PlatformName);
+			FScopeLock __(&Context.GetLock());
+			if (Connection.GetIsSingleThreaded())
 			{
-				FPlatformContext& Context = GetContext(PlatformName);
-				FScopeLock __(&Context.GetLock());
 				Context.AddSingleThreadedClient();
 			}
-
-			return true;
 		}
-		else
+
+		UE_LOG(LogCookOnTheFly, Display, TEXT("New client connected"));
 		{
-			if (bIsSingleThreaded)
+			FScopeLock _(&ClientsCriticalSection);
+			Clients.Add(&Connection);
+		}
+	}
+
+	void OnClientDisconnected(UE::Cook::ICookOnTheFlyClientConnection& Connection)
+	{
+		{
+			FScopeLock _(&ClientsCriticalSection);
+			Clients.Remove(&Connection);
+		}
+		FName PlatformName = Connection.GetPlatformName();
+		if (!PlatformName.IsNone())
+		{
+			if (Connection.GetIsSingleThreaded())
 			{
 				FPlatformContext& Context = GetContext(PlatformName);
 				FScopeLock __(&Context.GetLock());
 				Context.RemoveSingleThreadedClient();
 			}
-			CookOnTheFlyServer.RemovePlatform(PlatformName);
-			return true;
 		}
 	}
 
-	bool HandleClientRequest(const FName& PlatformName, bool bIsSingleThreaded, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
+	bool HandleClientRequest(UE::Cook::ICookOnTheFlyClientConnection& Connection, const UE::Cook::FCookOnTheFlyRequest& Request)
 	{
-		bool bRequestOk = false;
+		using namespace UE::Cook;
 
 		const double StartTime = FPlatformTime::Seconds();
 
-		UE_LOG(LogCookOnTheFly, Verbose, TEXT("New request, Type='%s', Client='%s'"), LexToString(Request.GetHeader().MessageType), *PlatformName.ToString());
+		UE_LOG(LogCookOnTheFly, Verbose, TEXT("Received: %s, Size='%lld'"), *Request.GetHeader().ToString(), Request.TotalSize());
 
-		switch (Request.GetHeader().MessageType)
-		{
+		FCookOnTheFlyResponse Response(Request);
+		bool bRequestOk = false;
+
+		UE_LOG(LogCookOnTheFly, Verbose, TEXT("New request, Type='%s', Client='%s'"), LexToString(Request.GetHeader().MessageType), *Connection.GetPlatformName().ToString());
+
+		switch (Request.GetMessageType())
+		{ 
 			case UE::Cook::ECookOnTheFlyMessage::CookPackage:
-				bRequestOk = HandleCookPackageRequest(PlatformName, bIsSingleThreaded, Request, Response);
+				bRequestOk = HandleCookPackageRequest(Connection.GetPlatformName(), Connection.GetIsSingleThreaded(), Request, Response);
 				break;
 			case UE::Cook::ECookOnTheFlyMessage::GetCookedPackages:
-				bRequestOk = HandleGetCookedPackagesRequest(PlatformName, Request, Response);
-				break;
-			case UE::Cook::ECookOnTheFlyMessage::RecompileShaders:
-				bRequestOk = HandleRecompileShadersRequest(PlatformName, Request, Response);
+				bRequestOk = HandleGetCookedPackagesRequest(Connection.GetPlatformName(), Request, Response);
 				break;
 			case UE::Cook::ECookOnTheFlyMessage::RecookPackages:
-				bRequestOk = HandleRecookPackagesRequest(PlatformName, Request, Response);
+				bRequestOk = HandleRecookPackagesRequest(Connection.GetPlatformName(), Request, Response);
 				break;
 			default:
-				UE_LOG(LogCookOnTheFly, Fatal, TEXT("Unknown request, Type='%s', Client='%s'"), LexToString(Request.GetHeader().MessageType), *PlatformName.ToString());
-				break;
+				return false;
 		}
 
+		if (!bRequestOk)
+		{
+			Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Error);
+		}
+		bRequestOk = Connection.SendMessage(Response);
+		
 		const double Duration = FPlatformTime::Seconds() - StartTime;
 
 		UE_LOG(LogCookOnTheFly, Verbose, TEXT("Request handled, Type='%s', Client='%s', Status='%s', Duration='%.6lfs'"),
-			LexToString(Request.GetHeader().MessageType),
-			*PlatformName.ToString(),
+			LexToString(Request.GetMessageType()),
+			*Connection.GetPlatformName().ToString(),
 			bRequestOk ? TEXT("Ok") : TEXT("Failed"),
 			Duration);
 
@@ -853,15 +469,17 @@ private:
 			Response.SetStatus(ECookOnTheFlyMessageStatus::Error);
 			return true;
 		}
-		
-		FCompletedPackages CompletedPackages;
+		else
 		{
+			FScopeLock _(&ContextsCriticalSection);
 			FPlatformContext& Context = GetContext(PlatformName);
-			FScopeLock _(&Context.GetLock());
+			FScopeLock __(&Context.GetLock());
+			FCompletedPackages CompletedPackages;
 			Context.GetCompletedPackages(CompletedPackages);
+
+			Response.SetBodyTo(MoveTemp(CompletedPackages));
 		}
 
-		Response.SetBodyTo( MoveTemp(CompletedPackages) );
 		Response.SetStatus(ECookOnTheFlyMessageStatus::Ok);
 
 		return true;
@@ -943,6 +561,40 @@ private:
 		return true;
 	}
 
+	bool BroadcastMessage(const UE::Cook::FCookOnTheFlyMessage& Message, const FName& PlatformName = NAME_None)
+	{
+		using namespace UE::Cook;
+
+		UE_LOG(LogCookOnTheFly, Verbose, TEXT("Sending: %s, Size='%lld'"), *Message.GetHeader().ToString(), Message.TotalSize());
+
+		TArray<ICookOnTheFlyClientConnection*, TInlineAllocator<4>> ClientsToBroadcast;
+		{
+			FScopeLock _(&ClientsCriticalSection);
+
+			for (ICookOnTheFlyClientConnection* Client : Clients)
+			{
+				if (PlatformName.IsNone() || Client->GetPlatformName() == PlatformName)
+				{
+					ClientsToBroadcast.Add(Client);
+				}
+			}
+		}
+
+		bool bBroadcasted = true;
+		for (ICookOnTheFlyClientConnection* Client : ClientsToBroadcast)
+		{
+			if (!Client->SendMessage(Message))
+			{
+				UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to send message '%s' to client (Platform='%s')"),
+					LexToString(Message.GetHeader().MessageType), *Client->GetPlatformName().ToString());
+
+				bBroadcasted = false;
+			}
+		}
+
+		return bBroadcasted;
+	}
+
 	void OnPackageStoreEntryCreated(const IPackageStoreWriter::FEntryCreatedEventArgs& EventArgs)
 	{
 		FPlatformContext& Context = GetContext(EventArgs.PlatformName);
@@ -986,7 +638,7 @@ private:
 				*Ar << ChunkIds;
 			}
 
-			ConnectionServer->BroadcastMessage(Message, EventArgs.PlatformName);
+			BroadcastMessage(Message, EventArgs.PlatformName);
 		}
 
 		FCompletedPackages NewCompletedPackages;
@@ -1043,63 +695,10 @@ private:
 
 			FCookOnTheFlyMessage Message(ECookOnTheFlyMessage::PackagesCooked);
 			Message.SetBodyTo<FCompletedPackages>(MoveTemp(NewCompletedPackages));
-			ConnectionServer->BroadcastMessage(Message, PlatformName);
+			BroadcastMessage(Message, PlatformName);
 		}
 	}
-
-	bool HandleRecompileShadersRequest(const FName& PlatformName, const UE::Cook::FCookOnTheFlyRequest& Request, UE::Cook::FCookOnTheFlyResponse& Response)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(CookOnTheFly::HandleRecompileShadersRequest);
-
-		if (PlatformName.IsNone())
-		{
-			UE_LOG(LogCookOnTheFly, Warning, TEXT("RecompileShadersRequest from editor client"));
-			Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Error);
-			return true;
-		}
-
-		TArray<FString> RecompileModifiedFiles;
-		TArray<uint8> MeshMaterialMaps;
-		TArray<uint8> GlobalShaderMap;
-
-		FShaderRecompileData RecompileData(PlatformName.ToString(), &RecompileModifiedFiles, &MeshMaterialMaps, &GlobalShaderMap);
-		{
-			TUniquePtr<FArchive> Ar = Request.ReadBody();
-			*Ar << RecompileData;
-		}
-
-		RecompileShaders(RecompileData);
-
-		{
-			TUniquePtr<FArchive> Ar = Response.WriteBody();
-			*Ar << MeshMaterialMaps;
-			*Ar << GlobalShaderMap;
-		}
-
-		Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Ok);
-
-		return true;
-	}
-
-	void RecompileShaders(FShaderRecompileData& RecompileData)
-	{
-		FEvent* RecompileCompletedEvent = FPlatformProcess::GetSynchEventFromPool();
-		UE::Cook::FRecompileShaderCompletedCallback RecompileCompleted = [this, RecompileCompletedEvent]()
-		{
-			RecompileCompletedEvent->Trigger();
-		};
-
-		const bool bEnqueued = CookOnTheFlyServer.EnqueueRecompileShaderRequest(UE::Cook::FRecompileShaderRequest
-		{
-			RecompileData, 
-			MoveTemp(RecompileCompleted)
-		});
-		check(bEnqueued);
-
-		RecompileCompletedEvent->Wait();
-		FPlatformProcess::ReturnSynchEventToPool(RecompileCompletedEvent);
-	}
-
+	
 	FPlatformContext& GetContext(const FName& PlatformName)
 	{
 		FScopeLock _(&ContextsCriticalSection);
@@ -1123,8 +722,11 @@ private:
 	}
 
 	UE::Cook::ICookOnTheFlyServer& CookOnTheFlyServer;
-	UE::Cook::FIoStoreCookOnTheFlyServerOptions Options;
-	TUniquePtr<FIoStoreCookOnTheFlyNetworkServer> ConnectionServer;
+	TSharedRef<UE::Cook::ICookOnTheFlyNetworkServer> ConnectionServer;
+	FCriticalSection ClientsCriticalSection;
+	TArray<UE::Cook::ICookOnTheFlyClientConnection*> Clients;
+	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
+	const FString ServiceId;
 	FCriticalSection ContextsCriticalSection;
 	TMap<FName, TUniquePtr<FPlatformContext>> PlatformContexts;
 	FCriticalSection AllKnownPackagesCriticalSection;
@@ -1136,9 +738,9 @@ private:
 namespace UE { namespace Cook
 {
 
-TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, const IAssetRegistry* AssetRegistry, FIoStoreCookOnTheFlyServerOptions Options)
+TUniquePtr<ICookOnTheFlyRequestManager> MakeIoStoreCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, const IAssetRegistry* AssetRegistry, TSharedRef<ICookOnTheFlyNetworkServer> ConnectionServer)
 {
-	return MakeUnique<FIoStoreCookOnTheFlyRequestManager>(CookOnTheFlyServer, AssetRegistry, Options);
+	return MakeUnique<FIoStoreCookOnTheFlyRequestManager>(CookOnTheFlyServer, AssetRegistry, ConnectionServer);
 }
 
 }}

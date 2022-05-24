@@ -8,6 +8,7 @@
 #include "Containers/ChunkedArray.h"
 #include "Serialization/MemoryReader.h"
 #include "CookOnTheFlyMessages.h"
+#include "CookOnTheFly.h"
 
 FCookOnTheFlyPackageStore::FCookOnTheFlyPackageStore(UE::Cook::ICookOnTheFlyServerConnection& InCookOnTheFlyServerConnection)
 	: CookOnTheFlyServerConnection(InCookOnTheFlyServerConnection)
@@ -20,6 +21,7 @@ FCookOnTheFlyPackageStore::FCookOnTheFlyPackageStore(UE::Cook::ICookOnTheFlyServ
 	using namespace UE::ZenCookOnTheFly::Messaging;
 
 	FCookOnTheFlyRequest Request(ECookOnTheFlyMessage::GetCookedPackages);
+	
 	FCookOnTheFlyResponse Response = CookOnTheFlyServerConnection.SendRequest(Request).Get();
 
 	if (Response.IsOk())

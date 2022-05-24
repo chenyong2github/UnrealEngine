@@ -368,10 +368,6 @@ bool FNetworkFileServerClientConnection::ProcessPayload(FArchive& Ar)
 			bSendUnsolicitedFiles = true;
 			break;
 
-		case NFS_Messages::RecompileShaders:
-			ProcessRecompileShaders(Ar, Out);
-			break;
-
 		default:
 
 			UE_LOG(LogFileServer, Error, TEXT("Bad incomming message tag (%d)."), (int32)Msg);
@@ -1011,14 +1007,6 @@ bool FNetworkFileServerClientConnection::ProcessGetFileList( FArchive& In, FArch
 
 	GetSandboxRootDirectories(Sandbox.Get(), SandboxEngine, SandboxProject, SandboxEnginePlatformExtensions, SandboxProjectPlatformExtensions, LocalEngineDir, LocalProjectDir, LocalEnginePlatformExtensionsDir, LocalProjectPlatformExtensionsDir);
 
-
-	// make sure the global shaders are up to date before letting the client read any shaders
-	// @todo: This will probably add about 1/2 second to the boot-up time of the client while the server does this
-	// @note: We assume the delegate will write to the proper sandbox directory, should we pass in SandboxDirectory, or Sandbox?
-	TArray<uint8> GlobalShaderMap;
-	FShaderRecompileData RecompileData(ConnectedPlatformName, SP_NumPlatforms, ODSCRecompileCommand::Global, nullptr, nullptr, &GlobalShaderMap);
-	NetworkFileDelegates->RecompileShadersDelegate.ExecuteIfBound(RecompileData);
-
 	UE_LOG(LogFileServer, Display, TEXT("Getting files for %d directories, game = %s, platform = %s"), RootDirectories.Num(), *GameName, *ConnectedPlatformName);
 	UE_LOG(LogFileServer, Display, TEXT("    Sandbox dir = %s"), *SandboxDirectory);
 
@@ -1287,24 +1275,6 @@ bool FNetworkFileServerClientConnection::PackageFile( FString& Filename, FString
 	Out.Serialize(Contents.GetData(), FileSize);
 	return bRetVal;
 }
-
-
-void FNetworkFileServerClientConnection::ProcessRecompileShaders( FArchive& In, FArchive& Out )
-{
-	TArray<FString> RecompileModifiedFiles;
-	TArray<uint8> MeshMaterialMaps;
-	TArray<uint8> GlobalShaderMap;
-	FShaderRecompileData RecompileData(ConnectedPlatformName, &RecompileModifiedFiles, &MeshMaterialMaps, &GlobalShaderMap);
-
-	In << RecompileData;
-
-	NetworkFileDelegates->RecompileShadersDelegate.ExecuteIfBound(RecompileData);
-
-	// tell other side what to do!
-	Out << MeshMaterialMaps;
-	Out << GlobalShaderMap;
-}
-
 
 bool FNetworkFileServerClientConnection::ProcessSyncFile( FArchive& In, FArchive& Out )
 {

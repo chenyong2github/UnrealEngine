@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NetworkFileServerPlatformProtocol.h"
+#include "PlatformProtocolServer.h"
 #include "HAL/RunnableThread.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "NetworkMessage.h"
-#include "NetworkFileSystemLog.h"
-#include "NetworkFileServerConnection.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetDevice.h"
 #include "Interfaces/ITargetDeviceSocket.h"
@@ -47,86 +45,47 @@ namespace
 }
 
 
-class FNetworkFileServerPlatformProtocol::FConnectionThreaded
-	: public FNetworkFileServerClientConnection
-	, protected FRunnable 
+class FCookOnTheFlyServerPlatformProtocol::FConnectionThreaded
+	: public FCookOnTheFlyClientConnectionBase
 {
 public:
 
-	FConnectionThreaded(ITargetDevicePtr InDevice, ITargetDeviceSocketPtr InSocket, const FNetworkFileServerOptions& InOptions)
-		: FNetworkFileServerClientConnection(InOptions)
+	FConnectionThreaded(FCookOnTheFlyServerPlatformProtocol& InOwner, ITargetDevicePtr InDevice, ITargetDeviceSocketPtr InSocket)
+		: FCookOnTheFlyClientConnectionBase(InOwner)
 		, Device(InDevice)
 		, Socket(InSocket)
 	{
-		Running       = true;
-		StopRequested = false;
+	}
 	
-#if UE_BUILD_DEBUG
-		// This thread needs more space in debug builds as it tries to log messages and such.
-		const static uint32 NetworkFileServerThreadSize = 2 * 1024 * 1024; 
-#else
-		const static uint32 NetworkFileServerThreadSize = 1 * 1024 * 1024; 
-#endif
-		WorkerThread = FRunnableThread::Create(this, TEXT("FNetworkFileServerCustomClientConnection"), NetworkFileServerThreadSize, TPri_AboveNormal);
+	virtual ~FConnectionThreaded()
+	{
+		Device->CloseConnection(Socket);
+		Socket = nullptr;
 	}
 
 
-	virtual bool Init() override
+	virtual void OnInit() override
 	{
 #if PLATFORM_WINDOWS
 		FWindowsPlatformMisc::CoInitialize(ECOMModel::Multithreaded);
 #endif
-
-		return true; 
 	}
 
-	virtual uint32 Run() override
+	virtual void OnExit() override
 	{
-		while (!StopRequested)
-		{
-			// Read a header and payload pair.
-			FArrayReader Payload; 
-			if (!FNFSMessageHeader::ReceivePayload(Payload, FSimpleAbstractSocket_PlatformProtocol(Socket)))
-				break; 
-
-			// Now process the contents of the payload.
-			if ( !FNetworkFileServerClientConnection::ProcessPayload(Payload) )
-			{
-				// Give the processing of the payload a chance to terminate the connection
-				// failed to process message.
-				UE_LOG(LogFileServer, Warning, TEXT("Unable to process payload terminating connection"));
-				break;
-			}
-		}
-
-		return true;
-	}
-
-	virtual void Stop() override
-	{
-		StopRequested = true;
-	}
-
-	virtual void Exit() override
-	{
-		Device->CloseConnection(Socket);
-		Socket = nullptr;
-
 #if PLATFORM_WINDOWS
 		FWindowsPlatformMisc::CoUninitialize();
 #endif
-
-		Running = false; 
 	}
 
-	virtual bool SendPayload( TArray<uint8> &Out ) override
+	virtual bool ReceivePayload(FArrayReader& Payload) override
+	{
+		return FNFSMessageHeader::ReceivePayload(Payload, FSimpleAbstractSocket_PlatformProtocol(Socket));
+	}
+
+	virtual bool SendPayload(const TArray<uint8>& Out) override
 	{
 		return FNFSMessageHeader::WrapAndSendPayload(Out, FSimpleAbstractSocket_PlatformProtocol(Socket));
-	}
-
-	bool IsRunning()
-	{
-		return Running; 
 	}
 
 	FString GetName() const
@@ -139,47 +98,41 @@ public:
 		return Device;
 	}
 
-	~FConnectionThreaded()
-	{
-		WorkerThread->Kill(true);
-	}
-
 private:
-
 	ITargetDevicePtr	   Device;
 	ITargetDeviceSocketPtr Socket;
-
-	std::atomic<bool>      StopRequested;
-	std::atomic<bool>      Running;
-	FRunnableThread*       WorkerThread; 
 };
 
 
-FNetworkFileServerPlatformProtocol::FNetworkFileServerPlatformProtocol(FNetworkFileServerOptions InFileServerOptions)
-	: FileServerOptions(MoveTemp(InFileServerOptions))
+FCookOnTheFlyServerPlatformProtocol::FCookOnTheFlyServerPlatformProtocol(const TArray<ITargetPlatform*>& InTargetPlatforms, const FString& InZenProjectName)
+	: FCookOnTheFlyNetworkServerBase(InTargetPlatforms, InZenProjectName)
+	, TargetPlatforms(InTargetPlatforms)
 {
-	Running       = false;
+	Running = false;
 	StopRequested = false;
+}
 
-	UE_LOG(LogFileServer, Display , TEXT("Unreal Network File Server (custom protocol) starting up..."));
+bool FCookOnTheFlyServerPlatformProtocol::Start()
+{
+	UE_LOG(LogCookOnTheFlyNetworkServer, Display, TEXT("Unreal Network File Server (custom protocol) starting up..."));
 
 	// Check the list of platforms once on start (any missing platforms will be ignored later on to avoid spamming the log).
-	for (ITargetPlatform* TargetPlatform : FileServerOptions.TargetPlatforms)
+	for (ITargetPlatform* TargetPlatform : TargetPlatforms)
 	{
 		if (!TargetPlatform->SupportsFeature(ETargetPlatformFeatures::DirectDataExchange))
 		{
-			UE_LOG(LogFileServer, Error, TEXT("Platform '%s' does not support direct communication with targets (it will be ignored)."), *TargetPlatform->PlatformName());
+			UE_LOG(LogCookOnTheFlyNetworkServer, Error, TEXT("Platform '%s' does not support direct communication with targets (it will be ignored)."), *TargetPlatform->PlatformName());
 		}
 	}
 
 	// Create a thread that will be updating the list of connected target devices.
 	Thread = FRunnableThread::Create(this, TEXT("FNetworkFileServerCustomProtocol"), 8 * 1024, TPri_AboveNormal);
 
-	UE_LOG(LogFileServer, Display, TEXT("Unreal Network File Server is ready for client connections!"));
+	return true;
 }
 
 
-FNetworkFileServerPlatformProtocol::~FNetworkFileServerPlatformProtocol()
+FCookOnTheFlyServerPlatformProtocol::~FCookOnTheFlyServerPlatformProtocol()
 {
 	// Kill the running thread.
 	if (Thread != nullptr)
@@ -192,13 +145,13 @@ FNetworkFileServerPlatformProtocol::~FNetworkFileServerPlatformProtocol()
 }
 
 
-uint32 FNetworkFileServerPlatformProtocol::Run()
+uint32 FCookOnTheFlyServerPlatformProtocol::Run()
 {
 #if PLATFORM_WINDOWS
 	FWindowsPlatformMisc::CoInitialize(ECOMModel::Multithreaded);
 #endif
 
-	Running = true; 
+	Running = true;
 
 	// Go until requested to be done.
 	while (!StopRequested)
@@ -216,13 +169,13 @@ uint32 FNetworkFileServerPlatformProtocol::Run()
 }
 
 
-void FNetworkFileServerPlatformProtocol::Stop()
+void FCookOnTheFlyServerPlatformProtocol::Stop()
 {
 	StopRequested = true;
 }
 
 
-void FNetworkFileServerPlatformProtocol::Exit()
+void FCookOnTheFlyServerPlatformProtocol::Exit()
 {
 	// Close all connections.
 	for (auto* Connection : Connections)
@@ -234,37 +187,30 @@ void FNetworkFileServerPlatformProtocol::Exit()
 }
 
 
-FString FNetworkFileServerPlatformProtocol::GetSupportedProtocol() const
+FString FCookOnTheFlyServerPlatformProtocol::GetSupportedProtocol() const
 {
 	return FString("custom");
 }
 
 
-bool FNetworkFileServerPlatformProtocol::GetAddressList( TArray<TSharedPtr<FInternetAddr> >& OutAddresses ) const
+bool FCookOnTheFlyServerPlatformProtocol::GetAddressList(TArray<TSharedPtr<FInternetAddr> >& OutAddresses) const
 {
 	return 0;
 }
 
 
-bool FNetworkFileServerPlatformProtocol::IsItReadyToAcceptConnections() const
+bool FCookOnTheFlyServerPlatformProtocol::IsReadyToAcceptConnections() const
 {
-	return Running; 
+	return Running;
 }
 
 
-int32 FNetworkFileServerPlatformProtocol::NumConnections() const
+int32 FCookOnTheFlyServerPlatformProtocol::NumConnections() const
 {
-	return Connections.Num(); 
+	return Connections.Num();
 }
 
-
-void FNetworkFileServerPlatformProtocol::Shutdown()
-{
-	Stop();
-}
-
-
-void FNetworkFileServerPlatformProtocol::UpdateConnections()
+void FCookOnTheFlyServerPlatformProtocol::UpdateConnections()
 {
 	RemoveClosedConnections();
 
@@ -272,7 +218,7 @@ void FNetworkFileServerPlatformProtocol::UpdateConnections()
 }
 
 
-void FNetworkFileServerPlatformProtocol::RemoveClosedConnections()
+void FCookOnTheFlyServerPlatformProtocol::RemoveClosedConnections()
 {
 	for (int32 ConnectionIndex = 0; ConnectionIndex < Connections.Num(); ++ConnectionIndex)
 	{
@@ -280,7 +226,7 @@ void FNetworkFileServerPlatformProtocol::RemoveClosedConnections()
 
 		if (!Connection->IsRunning())
 		{
-			UE_LOG(LogFileServer, Display, TEXT("Client %s disconnected."), *Connection->GetName());
+			UE_LOG(LogCookOnTheFlyNetworkServer, Display, TEXT("Client %s disconnected."), *Connection->GetName());
 			Connections.RemoveAtSwap(ConnectionIndex);
 			delete Connection;
 		}
@@ -288,9 +234,9 @@ void FNetworkFileServerPlatformProtocol::RemoveClosedConnections()
 }
 
 
-void FNetworkFileServerPlatformProtocol::AddConnectionsForNewDevices()
+void FCookOnTheFlyServerPlatformProtocol::AddConnectionsForNewDevices()
 {
-	for (ITargetPlatform* TargetPlatform : FileServerOptions.TargetPlatforms)
+	for (ITargetPlatform* TargetPlatform : TargetPlatforms)
 	{
 		if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::DirectDataExchange))
 		{
@@ -300,7 +246,7 @@ void FNetworkFileServerPlatformProtocol::AddConnectionsForNewDevices()
 }
 
 
-void FNetworkFileServerPlatformProtocol::AddConnectionsForNewDevices(ITargetPlatform* TargetPlatform)
+void FCookOnTheFlyServerPlatformProtocol::AddConnectionsForNewDevices(ITargetPlatform* TargetPlatform)
 {
 	TArray<ITargetDevicePtr> TargetDevices;
 
@@ -332,11 +278,16 @@ void FNetworkFileServerPlatformProtocol::AddConnectionsForNewDevices(ITargetPlat
 					{
 						if (Socket->Connected())
 						{
-							FConnectionThreaded* Connection =
-								new FConnectionThreaded(Device, Socket, FileServerOptions);
-
-							Connections.Add(Connection);
-							UE_LOG(LogFileServer, Display, TEXT("Client %s connected."), *Connection->GetName());
+							FConnectionThreaded* Connection = new FConnectionThreaded(*this, Device, Socket);
+							if (Connection->Initialize())
+							{
+								Connections.Add(Connection);
+								UE_LOG(LogCookOnTheFlyNetworkServer, Display, TEXT("Client %s connected."), *Connection->GetName());
+							}
+							else
+							{
+								delete Connection;
+							}
 						}
 						else
 						{

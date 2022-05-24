@@ -11,10 +11,9 @@ namespace UE { namespace Cook
 
 FString FCookOnTheFlyMessageHeader::ToString() const
 {
-	return FString::Printf(TEXT("Message='%s', Status='%s', Sender='%u', CorrelationId='%u'"),
+	return FString::Printf(TEXT("Message='%s', Status='%s', CorrelationId='%u'"),
 		LexToString(MessageType),
 		LexToString(MessageStatus),
-		SenderId,
 		CorrelationId);
 }
 
@@ -25,7 +24,6 @@ FArchive& operator<<(FArchive& Ar, FCookOnTheFlyMessageHeader& Header)
 	
 	Ar << MessageType;
 	Ar << MessageStatus;
-	Ar << Header.SenderId;
 	Ar << Header.CorrelationId;
 	Ar << Header.Timestamp;
 

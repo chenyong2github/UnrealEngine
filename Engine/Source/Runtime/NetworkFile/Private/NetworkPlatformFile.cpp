@@ -17,18 +17,13 @@
 #include "Misc/PackageName.h"
 #include "Misc/PathViews.h"
 #include "SocketSubsystem.h"
-#include "GenericPlatform/GenericPlatformHostCommunication.h"
-
-#if ENABLE_HTTP_FOR_NETWORK_FILE
-#include "HTTPTransport.h"
-#endif
-#include "TCPTransport.h"
-#include "PlatformTransport.h"
 
 #include "HAL/IPlatformFileModule.h"
 #include "Templates/UniquePtr.h"
 
 #include "UObject/Object.h"
+#include "CookOnTheFly.h"
+#include "CookOnTheFlyMessages.h"
 
 DEFINE_LOG_CATEGORY(LogNetworkPlatformFile);
 
@@ -46,7 +41,6 @@ FNetworkPlatformFile::FNetworkPlatformFile()
 	, HeartbeatFrequency(5.0f)
 	, FinishedAsyncNetworkReadUnsolicitedFiles(NULL)
 	, FinishedAsyncWriteUnsolicitedFiles(NULL)
-	, Transport(NULL)
 {
 	TotalWriteTime = 0.0; // total non async time spent writing to disk
 	TotalNetworkSyncTime = 0.0; // total non async time spent syncing to network
@@ -62,77 +56,31 @@ FNetworkPlatformFile::FNetworkPlatformFile()
 bool FNetworkPlatformFile::ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const
 {
 	FString HostIp;
-	return FParse::Value(CmdLine, TEXT("-FileHostIP="), HostIp);
-}
-
-ITransport *CreateTransportForHostAddress(const FString &HostIp )
-{
-	if ( HostIp.StartsWith(TEXT("tcp://")))
+	if (!FParse::Value(CmdLine, TEXT("-FileHostIP="), HostIp))
 	{
-		return new FTCPTransport();
+		return false;
 	}
-
-	if ( HostIp.StartsWith(TEXT("http://")))
-	{
-#if ENABLE_HTTP_FOR_NETWORK_FILE
-		return new FHTTPTransport();
-#endif
-	}
-
-	if ( HostIp.StartsWith(TEXT("platform://")))
-	{
-		if (FPlatformMisc::GetPlatformHostCommunication().Available())
-		{
-			return new FPlatformTransport(EHostProtocol::CookOnTheFly, "CookOnTheFly");
-		}
-		else
-		{
-			UE_LOG(LogNetworkPlatformFile, Warning, TEXT("Platform transport (platform://) not supported for this platform."));
-
-			return nullptr;
-		}
-	}
-
-	// no transport specified assuming tcp
-	return new FTCPTransport();
+	UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
+	TSharedPtr<UE::Cook::ICookOnTheFlyServerConnection> DefaultConnection = CookOnTheFlyModule.GetDefaultServerConnection();
+	return !DefaultConnection.IsValid() || DefaultConnection->GetZenProjectName().IsEmpty();
 }
 
 bool FNetworkPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 {
-	bool bResult = false;
-	FString HostIpString;	
-	if (FParse::Value(CmdLine, TEXT("-FileHostIP="), HostIpString))
+	UE::Cook::ICookOnTheFlyModule& CookOnTheFlyModule = FModuleManager::LoadModuleChecked<UE::Cook::ICookOnTheFlyModule>(TEXT("CookOnTheFly"));
+	Connection = CookOnTheFlyModule.GetDefaultServerConnection();
+	if (!Connection.IsValid())
 	{
-		TArray<FString> HostIpList;
-		if (HostIpString.ParseIntoArray(HostIpList, TEXT("+"), true) > 0)
-		{
-			for (int32 HostIpIndex = 0; !bResult && HostIpIndex < HostIpList.Num(); ++HostIpIndex)
-			{
-				// Try to initialize with each of the IP addresses found in the command line until we 
-				// get a working one.
-
-				// find the correct transport for this ip address 
-				Transport = CreateTransportForHostAddress( HostIpList[HostIpIndex] );
-
-				UE_LOG(LogNetworkPlatformFile, Warning, TEXT("Created transport for %s."), *HostIpList[HostIpIndex]);
-
-				if ( Transport )
-				{
-					bResult = Transport->Initialize( *HostIpList[HostIpIndex] ) && InitializeInternal(Inner, *HostIpList[HostIpIndex]);		
-					if (bResult)
-						break;
-
-					UE_LOG(LogNetworkPlatformFile, Warning, TEXT("Failed to initialize %s."), *HostIpList[HostIpIndex]);
-
-					// try a different host might be a different protocol
-					delete Transport;
-				}
-				Transport = NULL;
-			}
-		}
+		UE_LOG(LogNetworkPlatformFile, Warning, TEXT("No COTF server connection."));
+		return false;
 	}
-
-	return bResult;
+	if (!InitializeInternal(Inner, *Connection->GetHost()))
+	{
+		UE_LOG(LogNetworkPlatformFile, Warning, TEXT("Failed to initialize %s."), *Connection->GetHost());
+		return false;
+	}
+	Connection->OnMessage().AddRaw(this, &FNetworkPlatformFile::OnCookOnTheFlyMessage);
+	return true;
 }
 
 bool FNetworkPlatformFile::InitializeInternal(IPlatformFile* Inner, const TCHAR* HostIP)
@@ -184,6 +132,9 @@ bool FNetworkPlatformFile::InitializeInternal(IPlatformFile* Inner, const TCHAR*
 
 bool FNetworkPlatformFile::SendPayloadAndReceiveResponse(TArray<uint8>& In, TArray<uint8>& Out)
 {
+	using namespace UE::Cook;
+	using namespace UE::ZenCookOnTheFly::Messaging;
+
 	{
 		FScopeLock ScopeLock(&SynchronizationObject);
 		if ( FinishedAsyncNetworkReadUnsolicitedFiles )
@@ -192,13 +143,53 @@ bool FNetworkPlatformFile::SendPayloadAndReceiveResponse(TArray<uint8>& In, TArr
 			FinishedAsyncNetworkReadUnsolicitedFiles = NULL;
 		}
 	}
-	
-	return Transport->SendPayloadAndReceiveResponse( In, Out );
+
+	FCookOnTheFlyRequest Request(ECookOnTheFlyMessage::NetworkPlatformFile);
+	TUniquePtr<FArchive> RequestPayload = Request.WriteBody();
+	RequestPayload->Serialize(In.GetData(), In.Num());
+	FCookOnTheFlyResponse Response = Connection->SendRequest(Request).Get();
+
+	if (!Response.IsOk())
+	{
+		UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to send 'NetworkPlatformFile' request"));
+		return false;
+	}
+
+	TUniquePtr<FArchive> ResponsePayload = Response.ReadBody();
+	Out.SetNum(ResponsePayload->TotalSize());
+	ResponsePayload->Serialize(Out.GetData(), ResponsePayload->TotalSize());
+	return true;
+}
+
+void FNetworkPlatformFile::OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message)
+{
+	using namespace UE::Cook;
+	using namespace UE::ZenCookOnTheFly::Messaging;
+
+	if (Message.GetHeader().MessageType == ECookOnTheFlyMessage::NetworkPlatformFile)
+	{
+		TUniquePtr<FArchive> PayloadReader = Message.ReadBody();
+		TArray<uint8> Payload;
+		Payload.SetNum(PayloadReader->TotalSize());
+		PayloadReader->Serialize(Payload.GetData(), PayloadReader->TotalSize());
+		PendingPayloads.Enqueue(MoveTemp(Payload));
+		NewPayloadEvent->Trigger();
+	}
 }
 
 bool FNetworkPlatformFile::ReceiveResponse(TArray<uint8> &Out )
 {
-	return Transport->ReceiveResponse( Out );
+	for (;;)
+	{
+		NewPayloadEvent->Wait();
+		TOptional<TArray<uint8>> Payload = PendingPayloads.Dequeue();
+		if (!Payload.IsSet())
+		{
+			Out = MoveTemp(Payload.GetValue());
+			break;
+		}
+	}
+	return true;
 }
 
 
@@ -216,7 +207,7 @@ void FNetworkPlatformFile::InitializeAfterSetActive()
 		FArrayReader Response;
 		if (!SendPayloadAndReceiveResponse(Payload, Response))
 		{
-			delete Transport; 
+			Connection.Reset();
 			return; 
 		}
 		else
@@ -416,7 +407,7 @@ FNetworkPlatformFile::~FNetworkPlatformFile()
 			FinishedAsyncWriteUnsolicitedFiles = NULL;
 		}
 		
-		delete Transport; // close our sockets.
+		Connection.Reset(); // close our sockets.
 	}
 }
 
@@ -892,46 +883,30 @@ bool FNetworkPlatformFile::SendWriteMessage(const uint8* Source, int64 BytesToWr
 
 bool FNetworkPlatformFile::SendMessageToServer(const TCHAR* Message, IPlatformFile::IFileServerMessageHandler* Handler)
 {
-	// handle the recompile shaders message
-	// @todo: Maybe we should just send the string message to the server, but then we'd have to 
-	// handle the return from the server in a generic way
+#if WITH_COTF
+	if (!Connection->IsConnected())
+	{
+		return false;
+	}
 	if (FCString::Stricmp(Message, TEXT("RecompileShaders")) == 0)
 	{
-		FNetworkFileArchive Payload(NFS_Messages::RecompileShaders);
-
-		// let the handler fill out the object
-		Handler->FillPayload(Payload);
-
-		FArrayReader Response;
+		UE::Cook::FCookOnTheFlyRequest Request(UE::Cook::ECookOnTheFlyMessage::RecompileShaders);
 		{
-			FScopeLock ScopeLock(&SynchronizationObject);
-			if (!SendPayloadAndReceiveResponse(Payload, Response))
-			{
-				return false;
-			}
+			TUniquePtr<FArchive> Ar = Request.WriteBody();
+			Handler->FillPayload(*Ar);
 		}
 
-		// locally delete any files that were modified on the server, so that any read will recache the file
-		// this has to be done in this class, not in the Handler (which can't access these members)
-		TArray<FString> ModifiedFiles;
-		Response << ModifiedFiles;
-
-		if( InnerPlatformFile != NULL )
+		UE::Cook::FCookOnTheFlyResponse Response = Connection->SendRequest(Request).Get();
+		if (Response.IsOk())
 		{
-			for (int32 Index = 0; Index < ModifiedFiles.Num(); Index++)
-			{
-				InnerPlatformFile->DeleteFile(*ModifiedFiles[Index]);
-				CachedLocalFiles.Remove(ModifiedFiles[Index]);
-				ServerFiles.AddFileOrDirectory(ModifiedFiles[Index], FDateTime::UtcNow());
-			}
+			TUniquePtr<FArchive> Ar = Response.ReadBody();
+			Handler->ProcessResponse(*Ar);
 		}
 
-
-		// let the handler process the response directly
-		Handler->ProcessResponse(Response);
+		return Response.IsOk();
 	}
-
-	return true;
+#endif
+	return false;
 }
 
 

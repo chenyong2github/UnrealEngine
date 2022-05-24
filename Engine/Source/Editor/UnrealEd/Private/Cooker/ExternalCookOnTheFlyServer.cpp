@@ -37,10 +37,10 @@ void FExternalCookOnTheFlyServer::HandleRegisterServiceMessage(const FZenCookOnT
 	}
 	UE_LOG(LogCookOnTheFly, Verbose, TEXT("Accepting service from %s"), *Context->GetSender().ToString());
 	UE::Cook::FCookOnTheFlyHostOptions HostOptions;
-	HostOptions.Hosts.Add(TEXT("127.0.0.1"));
-	HostOptions.Port = Message.Port;
-	ServerConnection = CookOnTheFlyModule.ConnectToServer(HostOptions);
-	if (ServerConnection)
+	HostOptions.Hosts.Add(FString::Printf(TEXT("127.0.0.1:%d"), Message.Port));
+	
+	CookOnTheFlyServerConnection = CookOnTheFlyModule.ConnectToServer(HostOptions);
+	if (CookOnTheFlyServerConnection)
 	{
 		UE_LOG(LogCookOnTheFly, Display, TEXT("Connected to server"));
 		AssetRegistry.OnAssetUpdatedOnDisk().AddRaw(this, &FExternalCookOnTheFlyServer::AssetUpdatedOnDisk);
@@ -67,24 +67,24 @@ void FExternalCookOnTheFlyServer::Tick(float DeltaSeconds)
 
 			UE::Cook::FCookOnTheFlyRequest Request(UE::Cook::ECookOnTheFlyMessage::RecookPackages);
 			Request.SetBodyTo(UE::ZenCookOnTheFly::Messaging::FRecookPackagesRequest{ MoveTemp(PackageIdsToRecook) });
-			UE::Cook::FCookOnTheFlyResponse Response = ServerConnection->SendRequest(Request).Get();
+			UE::Cook::FCookOnTheFlyResponse Response = CookOnTheFlyServerConnection->SendRequest(Request).Get();
 			if (!Response.IsOk())
 			{
 				UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to send RecookPackages request"));
 			}
 		}
 	}
-	if (ServerConnection && !ServerConnection->IsConnected())
+	if (CookOnTheFlyServerConnection && !CookOnTheFlyServerConnection->IsConnected())
 	{
 		AssetRegistry.OnAssetUpdatedOnDisk().RemoveAll(this);
-		ServerConnection.Reset();
+		CookOnTheFlyServerConnection.Reset();
 		UE_LOG(LogCookOnTheFly, Display, TEXT("Disconnected from server"));
 	}
 }
 
 bool FExternalCookOnTheFlyServer::IsTickable() const
 {
-	return ServerConnection.IsValid();
+	return CookOnTheFlyServerConnection.IsValid();
 }
 
 void FExternalCookOnTheFlyServer::AssetUpdatedOnDisk(const FAssetData& AssetData)

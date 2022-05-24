@@ -31,7 +31,7 @@ private:
 	IAssetRegistry& AssetRegistry;
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
 	const FString ServiceId;
-	TUniquePtr<UE::Cook::ICookOnTheFlyServerConnection> ServerConnection;
+	TUniquePtr<UE::Cook::ICookOnTheFlyServerConnection> CookOnTheFlyServerConnection;
 	FCriticalSection AllPackagesToRecookCritical;
 	TSet<FName> AllPackagesToRecook;
 };

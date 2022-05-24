@@ -9,11 +9,6 @@
 #include "IO/PackageStore.h"
 #include "CookOnTheFly.h"
 
-namespace UE { namespace Cook
-{
-	class ICookOnTheFlyServerConnection;
-}}
-
 class FCookOnTheFlyPackageStore final
 	: public FPackageStoreBase
 {

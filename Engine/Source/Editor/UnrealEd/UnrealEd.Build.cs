@@ -212,6 +212,7 @@ public class UnrealEd : ModuleRules
 				"AnimationBlueprintLibrary",
 				"MaterialBaking",
 				"CookOnTheFly",
+				"CookOnTheFlyNetServer",
 				"Zen",
 			}
 		);

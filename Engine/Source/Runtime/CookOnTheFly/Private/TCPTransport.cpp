@@ -6,8 +6,8 @@
 #include "IPAddress.h"
 #include "Sockets.h"
 #include "MultichannelTcpSocket.h"
-#include "NetworkPlatformFile.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "CookOnTheFly.h"
 
 FTCPTransport::FTCPTransport()
 	:FileSocket(NULL)
@@ -46,7 +46,7 @@ bool FTCPTransport::Initialize(const TCHAR* InHostIp)
 	if (bIsValid)
 	{
 		// create the socket
-		FileSocket = SSS->CreateSocket(NAME_Stream, TEXT("FNetworkPlatformFile tcp"), Addr->GetProtocolType());
+		FileSocket = SSS->CreateSocket(NAME_Stream, TEXT("COTF tcp"), Addr->GetProtocolType());
 
 		// try to connect to the server
 		if (FileSocket == nullptr || FileSocket->Connect(*Addr) == false)
@@ -54,7 +54,7 @@ bool FTCPTransport::Initialize(const TCHAR* InHostIp)
 			// on failure, shut it all down
 			SSS->DestroySocket(FileSocket);
 			FileSocket = NULL;
-			UE_LOG(LogNetworkPlatformFile, Error, TEXT("Failed to connect to file server at %s."), *Addr->ToString(true));
+			UE_LOG(LogCookOnTheFly, Error, TEXT("Failed to connect to COTF server at %s."), *Addr->ToString(true));
 		}
 	}
 
@@ -66,54 +66,42 @@ bool FTCPTransport::Initialize(const TCHAR* InHostIp)
 }
 
 
-bool FTCPTransport::SendPayloadAndReceiveResponse(TArray<uint8>& In, TArray<uint8>& Out)
+bool FTCPTransport::SendPayload(const TArray<uint8>& Payload)
 {
-	bool SendResult = false; 
-
 #if USE_MCSOCKET_FOR_NFS
-		SendResult = FNFSMessageHeader::WrapAndSendPayload(In, FSimpleAbstractSocket_FMultichannelTCPSocket(MCSocket, NFS_Channels::Main));
+	return FNFSMessageHeader::WrapAndSendPayload(Payload, FSimpleAbstractSocket_FMultichannelTCPSocket(MCSocket, NFS_Channels::Main));
 #else 	
-		SendResult = FNFSMessageHeader::WrapAndSendPayload(In, FSimpleAbstractSocket_FSocket(FileSocket));
+	return FNFSMessageHeader::WrapAndSendPayload(Payload, FSimpleAbstractSocket_FSocket(FileSocket));
 #endif 
-	
-	if (!SendResult)
-		return false; 
-
-	FArrayReader Response; 
-	bool RetResult = false; 
-#if USE_MCSOCKET_FOR_NFS
-	RetResult = FNFSMessageHeader::ReceivePayload(Response, FSimpleAbstractSocket_FMultichannelTCPSocket(MCSocket, NFS_Channels::Main));
-#else
-	RetResult = FNFSMessageHeader::ReceivePayload(Response, FSimpleAbstractSocket_FSocket(FileSocket));
-#endif 
-
-	if (RetResult)
-	{
-		Out.Append( Response.GetData(), Response.Num()); 
-		return true;
-	}
-
-	return false; 
 }
 
 
-bool FTCPTransport::ReceiveResponse( TArray<uint8> &Out )
+bool FTCPTransport::ReceivePayload(FArrayReader& Payload)
 {
-	FArrayReader Response;
-	bool RetResult = true;
 #if USE_MCSOCKET_FOR_NFS
-	RetResult &= FNFSMessageHeader::ReceivePayload(Response, FSimpleAbstractSocket_FMultichannelTCPSocket(MCSocket, NFS_Channels::Main));
+	return FNFSMessageHeader::ReceivePayload(Payload, FSimpleAbstractSocket_FMultichannelTCPSocket(MCSocket, NFS_Channels::Main));
 #else
-	RetResult &= FNFSMessageHeader::ReceivePayload(Response, FSimpleAbstractSocket_FSocket(FileSocket));
+	return FNFSMessageHeader::ReceivePayload(Payload, FSimpleAbstractSocket_FSocket(FileSocket));
 #endif
+}
 
-	if (RetResult)
-	{
-		Out.Append( Response.GetData(), Response.Num()); 
-		return true;
-	}
+bool FTCPTransport::HasPendingPayload()
+{
+#if USE_MCSOCKET_FOR_NFS
+	return MCSocket->DataAvailable(NFS_Channels::Main) > 0;
+#else
+	uint32 PendingDataSize;
+	return FileSocket->HasPendingData(PendingDataSize);
+#endif
+}
 
-	return false;
+void FTCPTransport::Disconnect()
+{
+#if USE_MCSOCKET_FOR_NFS
+	checkNoEntry();
+#else
+	FileSocket->Close();
+#endif
 }
 
 FTCPTransport::~FTCPTransport()

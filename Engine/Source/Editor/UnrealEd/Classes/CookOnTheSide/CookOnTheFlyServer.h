@@ -124,6 +124,7 @@ namespace UE::Cook
 	class FRequestCluster;
 	class FSaveCookedPackageContext;
 	class ICookOnTheFlyRequestManager;
+	class ICookOnTheFlyNetworkServer;
 	struct FConstructPackageData;
 	struct FCookByTheBookOptions;
 	struct FCookOnTheFlyOptions;
@@ -186,6 +187,7 @@ private:
 	TArray<class INetworkFileServer*> NetworkFileServers;
 	FOnFileModifiedDelegate FileModifiedDelegate;
 	TUniquePtr<UE::Cook::ICookOnTheFlyRequestManager> CookOnTheFlyRequestManager;
+	TSharedPtr<UE::Cook::ICookOnTheFlyNetworkServer> CookOnTheFlyNetworkServer;
 
 	//////////////////////////////////////////////////////////////////////////
 	// General cook options

@@ -2,11 +2,10 @@
 
 #include "PlatformTransport.h"
 #include "NetworkMessage.h"
-#include "NetworkPlatformFile.h"
 #include "HAL/PlatformProcess.h"
 #include "GenericPlatform/GenericPlatformHostSocket.h"
 #include "GenericPlatform/GenericPlatformHostCommunication.h"
-
+#include "CookOnTheFly.h"
 
 namespace
 {
@@ -70,7 +69,7 @@ bool FPlatformTransport::Initialize(const TCHAR* InHostIp)
 		return false;
 	}
 
-	UE_LOG(LogNetworkPlatformFile, Display, TEXT("Waiting for the server to accept the connection (custom protocol)..."));
+	UE_LOG(LogCookOnTheFly, Display, TEXT("Waiting for the server to accept the connection (custom protocol)..."));
 
 	// We need to wait because this transport is a bit different than typical sockets.
 	// In this case, it's the client (game) that enables the communication by opening the socket.
@@ -79,42 +78,15 @@ bool FPlatformTransport::Initialize(const TCHAR* InHostIp)
 }
 
 
-bool FPlatformTransport::SendPayloadAndReceiveResponse(TArray<uint8>& In, TArray<uint8>& Out)
+bool FPlatformTransport::SendPayload(const TArray<uint8>& Payload)
 {
-	bool SendResult = false;
-
-	SendResult = FNFSMessageHeader::WrapAndSendPayload(In, FSimpleAbstractSocket_PlatformProtocol(HostSocket));
-
-	if (!SendResult)
-		return false;
-
-	FArrayReader Response;
-	bool RetResult = false;
-	RetResult = FNFSMessageHeader::ReceivePayload(Response, FSimpleAbstractSocket_PlatformProtocol(HostSocket));
-
-	if (RetResult)
-	{
-		Out.Append(Response.GetData(), Response.Num());
-		return true;
-	}
-
-	return false;
+	return FNFSMessageHeader::WrapAndSendPayload(Payload, FSimpleAbstractSocket_PlatformProtocol(HostSocket));
 }
 
 
-bool FPlatformTransport::ReceiveResponse(TArray<uint8>& Out)
+bool FPlatformTransport::ReceivePayload(FArrayReader& Payload)
 {
-	FArrayReader Response;
-	bool RetResult = true;
-	RetResult &= FNFSMessageHeader::ReceivePayload(Response, FSimpleAbstractSocket_PlatformProtocol(HostSocket));
-
-	if (RetResult)
-	{
-		Out.Append(Response.GetData(), Response.Num());
-		return true;
-	}
-
-	return false;
+	return FNFSMessageHeader::ReceivePayload(Payload, FSimpleAbstractSocket_PlatformProtocol(HostSocket));
 }
 
 
@@ -137,6 +109,20 @@ bool FPlatformTransport::WaitUntilConnected()
 	return HostSocket->GetState() == IPlatformHostSocket::EConnectionState::Connected;
 }
 
+bool FPlatformTransport::HasPendingPayload()
+{
+	checkNoEntry();
+	return false;
+}
+
+void FPlatformTransport::Disconnect()
+{
+	IPlatformHostCommunication& HostCommunication = FPlatformMisc::GetPlatformHostCommunication();
+	if (HostCommunication.Available())
+	{
+		HostCommunication.CloseConnection(HostSocket);
+	}
+}
 
 FPlatformTransport::~FPlatformTransport()
 {

@@ -20,6 +20,8 @@ namespace UnrealBuildTool.Rules
 					"SandboxFile",
 					"TargetPlatform",
 					"DesktopPlatform",
+					"CookOnTheFly",
+					"CookOnTheFlyNetServer"
 				});
 
 			PublicIncludePaths.AddRange(

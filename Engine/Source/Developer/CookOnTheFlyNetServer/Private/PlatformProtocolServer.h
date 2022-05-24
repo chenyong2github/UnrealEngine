@@ -4,25 +4,24 @@
 
 #include "CoreMinimal.h"
 #include "HAL/Runnable.h"
-#include "INetworkFileServer.h"
-#include "INetworkFileSystemModule.h"
+#include "CookOnTheFlyNetServerBase.h"
 
 class ITargetPlatform;
 
 
 /**
  * This class wraps the server thread and network connection.
- * 
+ *
  * It uses ITargetDeviceSocket to exchanging data with the connected targets.
  * This interface is an abstraction for direct pc-target communication as provided
  * by the platforms. IPlatformHostCommunication/IPlatformHostSocket are the
  * corresponding interfaces used on the game side.
- * 
+ *
  * This implementation is based on FNetworkFileServer (the TCP-based server).
  */
-class FNetworkFileServerPlatformProtocol
+class FCookOnTheFlyServerPlatformProtocol
 	: public FRunnable
-	, public INetworkFileServer
+	, public FCookOnTheFlyNetworkServerBase
 {
 public:
 
@@ -31,12 +30,12 @@ public:
 	 *
 	 * @param InFileServerOptions Network file server options
 	 */
-	FNetworkFileServerPlatformProtocol(FNetworkFileServerOptions InFileServerOptions);
+	FCookOnTheFlyServerPlatformProtocol(const TArray<ITargetPlatform*>& TargetPlatforms, const FString& InZenProjectName);
 
 	/**
 	 * Destructor.
 	 */
-	~FNetworkFileServerPlatformProtocol();
+	~FCookOnTheFlyServerPlatformProtocol();
 
 public:
 
@@ -50,15 +49,14 @@ public:
 
 public:
 
-	//~ Begin INetworkFileServer Interface
+	//~ Begin ICookOnTheFlyNetworkServer Interface
 
-	virtual bool    IsItReadyToAcceptConnections() const override;
+	virtual bool    IsReadyToAcceptConnections() const override;
 	virtual bool    GetAddressList(TArray<TSharedPtr<FInternetAddr> >& OutAddresses) const override;
 	virtual FString GetSupportedProtocol() const override;
 	virtual int32   NumConnections() const override;
-	virtual void    Shutdown() override;
-
-	//~ End INetworkFileServer Interface
+	virtual bool    Start() override;
+	//~ End ICookOnTheFlyNetworkServer Interface
 
 private:
 
@@ -70,7 +68,7 @@ private:
 	class FConnectionThreaded;
 
 	// File server options
-	FNetworkFileServerOptions FileServerOptions;
+	TArray<ITargetPlatform*> TargetPlatforms;
 
 	// Holds the server thread object.
 	FRunnableThread* Thread;
@@ -83,5 +81,4 @@ private:
 
 	// Is the Listener thread up and running. 
 	std::atomic<bool> Running;
-
 };

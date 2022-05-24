@@ -7,8 +7,16 @@
 #include "NetworkMessage.h"
 #include "ServerTOC.h"
 #include "Misc/CoreMisc.h" // included for FSelfRegisteringExec
+#include "Containers/SpscQueue.h"
+#include "HAL/Event.h"
 
 class FScopedEvent;
+
+namespace UE { namespace Cook
+{
+	class ICookOnTheFlyServerConnection;
+	class FCookOnTheFlyMessage;
+}}
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNetworkPlatformFile, Log, All);
 
@@ -222,6 +230,8 @@ private:
 	 */
 	void EnsureFileIsLocal(const FString& Filename);
 
+	void OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message);
+
 protected:
 	/**
 	* Does normal path standardization, and also any extra modifications to make string comparisons against
@@ -289,8 +299,9 @@ private:
 	FScopedEvent *FinishedAsyncNetworkReadUnsolicitedFiles;
 	FScopedEvent *FinishedAsyncWriteUnsolicitedFiles;
 
-    // Our network Transport. 
-	class ITransport* Transport; 
+	TSharedPtr<UE::Cook::ICookOnTheFlyServerConnection> Connection;
+	TSpscQueue<TArray<uint8>> PendingPayloads;
+	FEventRef NewPayloadEvent;
 
 	static FString MP4Extension;
 	static FString BulkFileExtension;

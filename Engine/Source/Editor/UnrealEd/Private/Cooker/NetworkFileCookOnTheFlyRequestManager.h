@@ -11,7 +11,8 @@ namespace UE { namespace Cook
 
 class ICookOnTheFlyServer;
 class ICookOnTheFlyRequestManager;
+class ICookOnTheFlyNetworkServer;
 
-TUniquePtr<ICookOnTheFlyRequestManager> MakeNetworkFileCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, const FNetworkFileServerOptions& FileServerOptions);
+TUniquePtr<ICookOnTheFlyRequestManager> MakeNetworkFileCookOnTheFlyRequestManager(ICookOnTheFlyServer& CookOnTheFlyServer, TSharedRef<ICookOnTheFlyNetworkServer> NetworkServer);
 
 }} // namespace UE::Cook

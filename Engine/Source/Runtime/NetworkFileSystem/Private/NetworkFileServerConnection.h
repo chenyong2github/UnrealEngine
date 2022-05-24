@@ -146,14 +146,6 @@ protected:
 	bool PackageFile( FString& Filename, FString& TargetFilename, FArchive& Out);
 
 	/**
-	 * Processes a RecompileShaders message.
-	 *
-	 * @param In -
-	 * @param Out -
-	 */
-	void ProcessRecompileShaders( FArchive& In, FArchive& Out );
-
-	/**
 	 * Processes a heartbeat message.
 	 *
 	 * @param In -

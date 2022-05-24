@@ -13,7 +13,8 @@ public class NetworkFile : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Networking",
-				"Sockets"
+				"Sockets",
+				"CookOnTheFly"
 			});
 
 		PublicIncludePaths.Add("Runtime/CoreUObject/Public/UObject");

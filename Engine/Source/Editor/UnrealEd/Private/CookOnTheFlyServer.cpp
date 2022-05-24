@@ -126,6 +126,7 @@
 #include "UObject/UObjectArray.h"
 #include "UObject/UObjectIterator.h"
 #include "ZenStoreWriter.h"
+#include "CookOnTheFlyNetServer.h"
 
 #define LOCTEXT_NAMESPACE "Cooker"
 
@@ -289,7 +290,7 @@ public:
 		return Cooker.SandboxFile->GetSandboxDirectory();
 	}
 
-	virtual const ITargetPlatform* AddPlatform(const FName& PlatformName) override
+	const ITargetPlatform* AddPlatform(const FName& PlatformName)
 	{
 		UE::Cook::FPlatformManager::FReadScopeLock PlatformScopeLock(Cooker.PlatformManager->ReadLockPlatforms());
 		const ITargetPlatform* TargetPlatform = AddPlatformInternal(PlatformName);
@@ -369,16 +370,6 @@ public:
 				}
 				PackageData->ClearCookProgress();
 			});
-	}
-
-	virtual bool EnqueueRecompileShaderRequest(UE::Cook::FRecompileShaderRequest RecompileShaderRequest) override
-	{
-		UE_LOG(LogCook, Verbose, TEXT("Enqueing recompile shader(s) request, Platform='%s', ShaderPlatform='%d'"),
-			*RecompileShaderRequest.RecompileArguments.PlatformName, RecompileShaderRequest.RecompileArguments.ShaderPlatform);
-
-		Cooker.PackageTracker->RecompileRequests.Enqueue(MoveTemp(RecompileShaderRequest));
-
-		return true;
 	}
 
 	virtual ICookedPackageWriter& GetPackageWriter(const ITargetPlatform* TargetPlatform) override
@@ -533,6 +524,8 @@ TStatId UCookOnTheFlyServer::GetStatId() const
 
 bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyStartupOptions InCookOnTheFlyOptions)
 {
+	using namespace UE::Cook;
+
 	LLM_SCOPE_BYTAG(Cooker);
 #if WITH_COTF
 	check(IsCookOnTheFlyMode());
@@ -569,18 +562,93 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyStartupOptions InCookOn
 	UE_LOG(LogCook, Display, TEXT("Starting '%s' cook-on-the-fly server"),
 		IsUsingZenStore() ? TEXT("Zen") : TEXT("Network File"));
 
-	if (IsUsingZenStore())
+	FCookOnTheFlyNetworkServerOptions NetworkServerOptions;
+	NetworkServerOptions.Protocol = CookOnTheFlyOptions->bPlatformProtocol ? ECookOnTheFlyNetworkServerProtocol::Platform : ECookOnTheFlyNetworkServerProtocol::Tcp;
+	NetworkServerOptions.Port = CookOnTheFlyOptions->bBindAnyPort ? 0 : -1;
+	if (!InCookOnTheFlyOptions.TargetPlatforms.IsEmpty())
 	{
-		UE::Cook::FIoStoreCookOnTheFlyServerOptions ServerOptions;
-		ServerOptions.Port = -1; // Use default
-		CookOnTheFlyRequestManager = UE::Cook::MakeIoStoreCookOnTheFlyRequestManager(*CookOnTheFlyServerInterface, AssetRegistry, MoveTemp(ServerOptions));
+		NetworkServerOptions.TargetPlatforms = InCookOnTheFlyOptions.TargetPlatforms;
 	}
 	else
 	{
-		FNetworkFileServerOptions ServerOptions;
-		ServerOptions.Protocol = CookOnTheFlyOptions->bPlatformProtocol ? NFSP_Platform : NFSP_Tcp;
-		ServerOptions.Port = CookOnTheFlyOptions->bBindAnyPort ? 0 : -1;
-		CookOnTheFlyRequestManager = UE::Cook::MakeNetworkFileCookOnTheFlyRequestManager(*CookOnTheFlyServerInterface, MoveTemp(ServerOptions));
+		NetworkServerOptions.TargetPlatforms = TPM.GetTargetPlatforms();
+	}
+	if (IsUsingZenStore())
+	{
+		NetworkServerOptions.ZenProjectName = FApp::GetZenStoreProjectId();
+	}
+
+	ICookOnTheFlyNetworkServerModule& CookOnTheFlyNetworkServerModule = FModuleManager::LoadModuleChecked<ICookOnTheFlyNetworkServerModule>(TEXT("CookOnTheFlyNetServer"));
+	CookOnTheFlyNetworkServer = CookOnTheFlyNetworkServerModule.CreateServer(NetworkServerOptions);
+
+	CookOnTheFlyNetworkServer->OnClientConnected().AddLambda([this](ICookOnTheFlyClientConnection& Connection)
+		{
+			if (Connection.GetTargetPlatform())
+			{
+				CookOnTheFlyServerInterface->AddPlatform(Connection.GetPlatformName());
+			}
+		});
+
+	CookOnTheFlyNetworkServer->OnRequest(ECookOnTheFlyMessage::RecompileShaders).BindLambda([this](ICookOnTheFlyClientConnection& Connection, const FCookOnTheFlyRequest& Request)
+		{
+			FCookOnTheFlyResponse Response(Request);
+
+			if (!Connection.GetTargetPlatform())
+			{
+				UE_LOG(LogCook, Warning, TEXT("RecompileShadersRequest from editor client"));
+				Response.SetStatus(UE::Cook::ECookOnTheFlyMessageStatus::Error);
+			}
+			else
+			{
+				TArray<FString> RecompileModifiedFiles;
+				TArray<uint8> MeshMaterialMaps;
+				TArray<uint8> GlobalShaderMap;
+
+				FShaderRecompileData RecompileData(Connection.GetTargetPlatform()->PlatformName(), &RecompileModifiedFiles, &MeshMaterialMaps, &GlobalShaderMap);
+				{
+					TUniquePtr<FArchive> Ar = Request.ReadBody();
+					*Ar << RecompileData;
+				}
+
+				FEventRef RecompileCompletedEvent;
+				UE::Cook::FRecompileShaderCompletedCallback RecompileCompleted = [this, &RecompileCompletedEvent]()
+				{
+					RecompileCompletedEvent->Trigger();
+				};
+
+				PackageTracker->RecompileRequests.Enqueue({ RecompileData, MoveTemp(RecompileCompleted) });
+
+				RecompileCompletedEvent->Wait();
+
+				{
+					TUniquePtr<FArchive> Ar = Response.WriteBody();
+					*Ar << MeshMaterialMaps;
+					*Ar << GlobalShaderMap;
+				}
+			}
+			return Connection.SendMessage(Response);
+		});
+
+	if (IsUsingZenStore())
+	{
+		CookOnTheFlyRequestManager = MakeIoStoreCookOnTheFlyRequestManager(*CookOnTheFlyServerInterface, AssetRegistry, CookOnTheFlyNetworkServer.ToSharedRef());
+	}
+	else
+	{
+		CookOnTheFlyRequestManager = MakeNetworkFileCookOnTheFlyRequestManager(*CookOnTheFlyServerInterface, CookOnTheFlyNetworkServer.ToSharedRef());
+	}
+
+	if (CookOnTheFlyNetworkServer->Start())
+	{
+		TArray<TSharedPtr<FInternetAddr>> ListenAddresses;
+		if (CookOnTheFlyNetworkServer->GetAddressList(ListenAddresses))
+		{
+			UE_LOG(LogCook, Display, TEXT("Unreal Network File Server is ready for client connections on %s!"), *ListenAddresses[0]->ToString(true));
+		}
+	}
+	else
+	{
+		UE_LOG(LogCook, Fatal, TEXT("Failed starting Unreal Network file server!"));
 	}
 	BeginCookEditorSystems();
 

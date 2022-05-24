@@ -2,27 +2,28 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Runtime/NetworkFile/Private/ITransport.h"
+#include "CookOnTheFlyServerConnection.h"
 #include "GenericPlatform/GenericPlatformHostSocket.h"
 
 
 /**
  * Implementation of ITransport using IPlatformHostCommunication/IPlatformHostSocket interfaces (custom target and host pc communication).
  */
-class FPlatformTransport : public ITransport
+class FPlatformTransport
+	: public ICookOnTheFlyServerTransport
 {
-
 public:
 
 	FPlatformTransport(int32 InProtocolIndex, const FString& InProtocolName);
 	~FPlatformTransport();
 
-	//~ Begin ITransport interface
+	//~ Begin ICookOnTheFlyServerTransport interface
 	virtual bool Initialize(const TCHAR* HostIp) override;
-	virtual bool SendPayloadAndReceiveResponse(TArray<uint8>& In, TArray<uint8>& Out) override;
-	virtual bool ReceiveResponse(TArray<uint8>& Out) override;
-	//~ End ITransport interface
+	virtual bool SendPayload(const TArray<uint8>& Payload) override;
+	virtual bool ReceivePayload(FArrayReader& Payload) override;
+	virtual bool HasPendingPayload() override;
+	virtual void Disconnect() override;
+	//~ End ICookOnTheFlyServerTransport interface
 
 private:
 

@@ -53,13 +53,6 @@ public:
 	virtual FString GetSandboxDirectory() const = 0;
 	
 	/**
-	 * Add platform to the cook-on-the-fly session.
-	 *
-	 * @param PlatformName The platform name.
-	 */
-	virtual const ITargetPlatform* AddPlatform(const FName& PlatformName) = 0;
-
-	/**
 	 * Remove platform from the cook-on-the-fly session.
 	 *
 	 * @param PlatformName The platform name.
@@ -88,13 +81,6 @@ public:
 	virtual bool EnqueueCookRequest(FCookPackageRequest CookPackageRequest) = 0;
 
 	virtual void MarkPackageDirty(const FName& PackageName) = 0;
-
-	/**
-	 * Enqueue a new shader compile request.
-	 *
-	 * @param RecompileShaderRequest Recompile shader request parameters.
-	 */
-	virtual bool EnqueueRecompileShaderRequest(FRecompileShaderRequest RecompileShaderRequest) = 0;
 
 	/**
 	 * Returns the package store writer for the specified platform.

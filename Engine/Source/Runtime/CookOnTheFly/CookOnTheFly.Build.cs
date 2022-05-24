@@ -9,7 +9,8 @@ public class CookOnTheFly : ModuleRules
         PublicDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
-                "Sockets"
+                "Sockets",
+                "Networking"
             }
         );
     }
