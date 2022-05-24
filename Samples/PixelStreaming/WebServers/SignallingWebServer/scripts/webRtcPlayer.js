@@ -11,9 +11,6 @@ function webRtcPlayer(parOptions) {
     //**********************
     this.cfg = typeof parOptions.peerConnectionOptions !== 'undefined' ? parOptions.peerConnectionOptions : {};
     this.cfg.sdpSemantics = 'unified-plan';
-    // this.cfg.rtcAudioJitterBufferMaxPackets = 10;
-    // this.cfg.rtcAudioJitterBufferFastAccelerate = true;
-    // this.cfg.rtcAudioJitterBufferMinDelayMs = 0;
 
     // If this is true in Chrome 89+ SDP is sent that is incompatible with UE Pixel Streaming 4.26 and below.
     // However 4.27 Pixel Streaming does not need this set to false as it supports `offerExtmapAllowMixed`.
@@ -55,10 +52,15 @@ function webRtcPlayer(parOptions) {
     this.startVideoMuted = typeof parOptions.startVideoMuted !== 'undefined' ? parOptions.startVideoMuted : false;
     this.autoPlayAudio = typeof parOptions.autoPlayAudio !== 'undefined' ? parOptions.autoPlayAudio : true;
 
+    // To force mono playback of WebRTC audio
+    this.forceMonoAudio = urlParams.has('ForceMonoAudio');
+    if(this.forceMonoAudio){
+        console.log("Will attempt to force mono audio by munging the sdp in the browser.")
+    }
+
     // To enable mic in browser use SSL/localhost and have ?useMic in the query string.
     this.useMic = urlParams.has('useMic');
-    if(!this.useMic)
-    {
+    if(!this.useMic){
         console.log("Microphone access is not enabled. Pass ?useMic in the url to enable it.");
     }
 
@@ -258,30 +260,30 @@ function webRtcPlayer(parOptions) {
             // Inform browser we would like binary data as an ArrayBuffer (FF chooses Blob by default!)
             datachannel.binaryType = "arraybuffer";
 
-            datachannel.onopen = function (e) {
-              console.log("Data channel connected");
-              if(self.onDataChannelConnected){
-                self.onDataChannelConnected();
-              }
-            }
+            datachannel.addEventListener('open', e => {
+                console.log(`Data channel connected: ${datachannel.label}(${datachannel.id})`);
+                if(self.onDataChannelConnected){
+                    self.onDataChannelConnected();
+                }
+            });
 
-            datachannel.onclose = function (e) {
-                console.log("Data channel disconnected", e);
-            }
+            datachannel.addEventListener('close', e => {
+                console.log(`Data channel disconnected: ${datachannel.label}(${datachannel.id}`, e);
+            });
 
-            datachannel.onmessage = function (e) {
+            datachannel.addEventListener('message', e => {
                 if (self.onDataChannelMessage){
                     self.onDataChannelMessage(e.data);
                 }
-            }
+            });
 
-            datachannel.onerror = function (e) {
-                console.error("Data channel error", e);
-            }
+            datachannel.addEventListener('error', e => {
+                console.error(`Data channel error: ${datachannel.label}(${datachannel.id}`, e);
+            });
 
             return datachannel;
         } catch (e) { 
-            console.warn('No data channel', e);
+            console.warn('Datachannel setup caused an exception: ', e);
             return null;
         }
     }
@@ -311,11 +313,24 @@ function webRtcPlayer(parOptions) {
 
     mungeSDP = function (offer) {
 
-        // Increase the capture rate of audio so we can have higher quality audio over mic
+        let audioSDP = '';
+
+        // set max bitrate to highest bitrate Opus supports
+        audioSDP += 'maxaveragebitrate=510000;';
+
         if(self.useMic){
-            offer.sdp = offer.sdp.replace('useinbandfec=1', 'useinbandfec=1;sprop-maxcapturerate=48000;maxaveragebitrate=510000');
+            // set the max capture rate to 48khz (so we can send high quality audio from mic)
+            audioSDP += 'sprop-maxcapturerate=48000;';
         }
 
+        // Force mono or stereo based on whether ?forceMono was passed or not
+        audioSDP += self.forceMonoAudio ? 'sprop-stereo=0;stereo=0;' : 'sprop-stereo=1;stereo=1;';
+
+        // enable in-band forward error correction for opus audio
+        audioSDP += 'useinbandfec=1';
+
+        // We use the line 'useinbandfec=1' (which Opus uses) to set our Opus specific audio parameters.
+        offer.sdp = offer.sdp.replace('useinbandfec=1', audioSDP);
     }
     
     setupPeerConnection = function (pc) {
@@ -334,15 +349,18 @@ function webRtcPlayer(parOptions) {
             self.aggregatedStats = {};
 
         return function(stats){
-            //console.log('Printing Stats');
-
-            let newStat = {};
             
+            let newStat = {};
+
+            // store each type of codec we can get stats on
+            newStat.codecs = {};
+
             stats.forEach(stat => {
-//                    console.log(JSON.stringify(stat, undefined, 4));
-                if (stat.type == 'inbound-rtp' 
+
+                // Get the inbound-rtp for video
+                if (stat.type === 'inbound-rtp' 
                     && !stat.isRemote 
-                    && (stat.mediaType == 'video' || stat.id.toLowerCase().includes('video'))) {
+                    && (stat.mediaType === 'video' || stat.id.toLowerCase().includes('video'))) {
 
                     newStat.timestamp = stat.timestamp;
                     newStat.bytesReceived = stat.bytesReceived;
@@ -353,6 +371,12 @@ function webRtcPlayer(parOptions) {
                     newStat.timestampStart = self.aggregatedStats && self.aggregatedStats.timestampStart ? self.aggregatedStats.timestampStart : stat.timestamp;
 
                     if(self.aggregatedStats && self.aggregatedStats.timestamp){
+
+                        // Get the mimetype of the video codec being used
+                        if(stat.codecId && self.aggregatedStats.codecs && self.aggregatedStats.codecs.hasOwnProperty(stat.codecId)){
+                            newStat.videoCodec = self.aggregatedStats.codecs[stat.codecId];
+                        }
+
                         if(self.aggregatedStats.bytesReceived){
                             // bitrate = bits received since last time / number of ms since last time
                             //This is automatically in kbits (where k=1000) since time is in ms and stat we want is in seconds (so a '* 1000' then a '/ 1000' would negate each other)
@@ -382,8 +406,34 @@ function webRtcPlayer(parOptions) {
                     }
                 }
 
+                // Get inbound-rtp for audio
+                if (stat.type === 'inbound-rtp' 
+                    && !stat.isRemote 
+                    && (stat.mediaType === 'audio' || stat.id.toLowerCase().includes('audio'))) {
+
+                    // Get audio bytes received
+                    if(stat.bytesReceived){
+                        newStat.audioBytesReceived = stat.bytesReceived;
+                    }
+
+                    // As we loop back through we may wish to compute some stats based on a delta of the previous time we recorded the stat
+                    if(self.aggregatedStats && self.aggregatedStats.timestamp){
+
+                        // Get the mimetype of the audio codec being used
+                        if(stat.codecId && self.aggregatedStats.codecs && self.aggregatedStats.codecs.hasOwnProperty(stat.codecId)){
+                            newStat.audioCodec = self.aggregatedStats.codecs[stat.codecId];
+                        }
+
+                        // Determine audio bitrate delta over the time period
+                        if(self.aggregatedStats.audioBytesReceived){
+                            newStat.audioBitrate = 8 * (newStat.audioBytesReceived - self.aggregatedStats.audioBytesReceived) / (stat.timestamp - self.aggregatedStats.timestamp);
+                            newStat.audioBitrate = Math.floor(newStat.audioBitrate);
+                        }
+                    }
+                }
+
                 //Read video track stats
-                if(stat.type == 'track' && (stat.trackIdentifier == 'video_label' || stat.kind == 'video')) {
+                if(stat.type === 'track' && (stat.trackIdentifier === 'video_label' || stat.kind === 'video')) {
                     newStat.framesDropped = stat.framesDropped;
                     newStat.framesReceived = stat.framesReceived;
                     newStat.framesDroppedPercentage = stat.framesDropped / stat.framesReceived * 100;
@@ -393,18 +443,25 @@ function webRtcPlayer(parOptions) {
                     newStat.frameWidthStart = self.aggregatedStats && self.aggregatedStats.frameWidthStart ? self.aggregatedStats.frameWidthStart : stat.frameWidth;
                 }
 
-                if(stat.type =='candidate-pair' && stat.hasOwnProperty('currentRoundTripTime') && stat.currentRoundTripTime != 0){
+                if(stat.type ==='candidate-pair' && stat.hasOwnProperty('currentRoundTripTime') && stat.currentRoundTripTime != 0){
                     newStat.currentRoundTripTime = stat.currentRoundTripTime;
                 }
+
+                // Store mimetype of each codec
+                if(newStat.hasOwnProperty('codecs') && stat.type === 'codec' && stat.mimeType && stat.id){
+                    const codecId = stat.id;
+                    const codecType = stat.mimeType.replace("video/", "").replace("audio/", "");
+                    newStat.codecs[codecId] = codecType;
+                }
+
             });
 
-            
             if(self.aggregatedStats.receiveToCompositeMs)
             {
                 newStat.receiveToCompositeMs = self.aggregatedStats.receiveToCompositeMs;
                 self.latencyTestTimings.SetFrameDisplayDeltaTime(self.aggregatedStats.receiveToCompositeMs);
             }
-            
+
             self.aggregatedStats = newStat;
 
             if(self.onAggregatedStats)
@@ -578,25 +635,32 @@ function webRtcPlayer(parOptions) {
         self.pcClient.setRemoteDescription(answer);
     };
 
-    this.receiveData = function(channelData) {
+    this.receiveSFUPeerDataChannelRequest = function(channelData) {
         const sendOptions = {
             ordered: true,
             negotiated: true,
             id: channelData.sendStreamId
         };
-        const sendDataChannel = self.pcClient.createDataChannel('datachannel', sendOptions);
+        const unidirectional = channelData.sendStreamId != channelData.recvStreamId;
+        const sendDataChannel = self.pcClient.createDataChannel(unidirectional ? 'send-datachannel' : 'datachannel', sendOptions);
+        setupDataChannelCallbacks(sendDataChannel);
 
-        if (channelData.sendStreamId != channelData.recvStreamId) {
+        if (unidirectional) {
             const recvOptions = {
                 ordered: true,
                 negotiated: true,
                 id: channelData.recvStreamId
             };
-            const recvDataChannel = self.pcClient.createDataChannel('datachannel', recvOptions);
+            const recvDataChannel = self.pcClient.createDataChannel('recv-datachannel', recvOptions);
+
+            // when recv data channel is "open" we want to let SFU know so it can tell streamer
+            recvDataChannel.addEventListener('open', e => {
+                if(self.onSFURecvDataChannelReady) {
+                    self.onSFURecvDataChannelReady();
+                }
+            });
+
             setupDataChannelCallbacks(recvDataChannel);
-        }
-        else {
-            setupDataChannelCallbacks(sendDataChannel);
         }
         this.dcClient = sendDataChannel;
     }

@@ -2,7 +2,7 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
 # Get stun server data for passing to the container
-source Start_Common.sh
+source common_utils.sh
 set_start_default_values "n" "y" # Only STUN server defaults
 use_args "$@"
 

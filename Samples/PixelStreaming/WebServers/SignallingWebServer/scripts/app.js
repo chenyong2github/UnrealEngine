@@ -18,6 +18,7 @@ let connect_on_load = false;
 let ws;
 const WS_OPEN_STATE = 1;
 
+let inputController = null;
 let qualityController = false;
 let qualityControlOwnershipCheckBox;
 let matchViewportResolution;
@@ -297,6 +298,7 @@ function setupHtmlEvents() {
     setupToggleWithUrlParams("prefer-sfu-tgl", "preferSFU");
     setupToggleWithUrlParams("use-mic-tgl", "useMic");
     setupToggleWithUrlParams("force-turn-tgl", "ForceTURN");
+    setupToggleWithUrlParams("force-mono-tgl", "ForceMonoAudio")
  
     var streamSelector = document.getElementById('stream-select');
     var trackSelector = document.getElementById('track-select');
@@ -580,7 +582,9 @@ const ToClientMessageType = {
     InitialSettings: 7,
     FileExtension: 8,
     FileMimeType: 9,
-    FileContents: 10
+    FileContents: 10,
+    TestEcho: 11,
+	InputControlOwnership: 12
 };
 
 let VideoEncoderQP = "N/A";
@@ -614,13 +618,22 @@ function setupWebRtcPlayer(htmlElement, config) {
             ws.send(answerStr);
 
             if (webRtcPlayerObj.sfu) {
-                // request a data channel (change to as needed based on *something* or just later)
+                // Send data channel setup request to the SFU
                 const requestMsg = { type: "dataChannelRequest" };
                 console.log("%c[Outbound SS message (dataChannelRequest)]", "background: lightgreen; color: black", requestMsg);
                 ws.send(JSON.stringify(requestMsg));
             }
         }
     };
+
+    webRtcPlayerObj.onSFURecvDataChannelReady = function() {
+        if (webRtcPlayerObj.sfu) {
+            // Send SFU a message to let it know browser data channels are ready
+            const requestMsg = { type: "peerDataChannelsReady" };
+            console.log("%c[Outbound SS message (peerDataChannelsReady)]", "background: lightgreen; color: black", requestMsg);
+            ws.send(JSON.stringify(requestMsg));
+        }
+    }
 
     webRtcPlayerObj.onVideoInitialised = function() {
         if (ws && ws.readyState === WS_OPEN_STATE) {
@@ -813,7 +826,13 @@ function setupWebRtcPlayer(htmlElement, config) {
                 qualityControlOwnershipCheckBox.disabled = ownership;
                 qualityControlOwnershipCheckBox.checked = ownership;
             }
-        } else if (view[0] === ToClientMessageType.Response) {
+        } 
+        else if (view[0] === ToClientMessageType.InputControlOwnership) {
+            let ownership = view[1] === 0 ? false : true;
+            console.log("Received input controller message - will your input control the stream: " + ownership);
+            inputController = ownership;
+        } 
+        else if (view[0] === ToClientMessageType.Response) {
             let response = new TextDecoder("utf-16").decode(data.slice(1));
             for (let listener of responseEventListeners.values()) {
                 listener(response);
@@ -898,7 +917,7 @@ function setupWebRtcPlayer(htmlElement, config) {
         } else if (view[0] == ToClientMessageType.FileContents) {
             processFileContents(view);
         } else {
-            console.error(`unrecognized data received, packet ID ${view[0]}`);
+            console.error(`Custom data channel message with message type that is unknown to the Pixel Streaming protocol. Does your ToClientMessageType enum need updating? The message type was: ${view[0]}`);
         }
     };
 
@@ -995,6 +1014,9 @@ function setupStats(){
         qualityStatus.className = `${color}Status`;
 
         statsText += `<div>Duration: ${timeFormat.format(runTimeHours)}:${timeFormat.format(runTimeMinutes)}:${timeFormat.format(runTimeSeconds)}</div>`;
+        statsText += `<div>Controls stream input: ${inputController === null ? "Not sent yet" : (inputController ? "true" : "false")}</div>`;
+        statsText += `<div>Audio codec: ${aggregatedStats.hasOwnProperty('audioCodec') ? aggregatedStats.audioCodec : "Not set" }</div>`;
+        statsText += `<div>Video codec: ${aggregatedStats.hasOwnProperty('videoCodec') ? aggregatedStats.videoCodec : "Not set" }</div>`;
         statsText += `<div>Video Resolution: ${
             aggregatedStats.hasOwnProperty('frameWidth') && aggregatedStats.frameWidth && aggregatedStats.hasOwnProperty('frameHeight') && aggregatedStats.frameHeight ?
                 aggregatedStats.frameWidth + 'x' + aggregatedStats.frameHeight : 'Chrome only'
@@ -1006,7 +1028,8 @@ function setupStats(){
         statsText += `<div>Frames dropped: ${aggregatedStats.hasOwnProperty('framesDropped') ? numberFormat.format(aggregatedStats.framesDropped) : 'Chrome only'}</div>`;
         statsText += `<div>Net RTT (ms): ${aggregatedStats.hasOwnProperty('currentRoundTripTime') ? numberFormat.format(aggregatedStats.currentRoundTripTime * 1000) : 'Can\'t calculate'}</div>`;
         statsText += `<div>Browser receive to composite (ms): ${aggregatedStats.hasOwnProperty('receiveToCompositeMs') ? numberFormat.format(aggregatedStats.receiveToCompositeMs) : 'Chrome only'}</div>`;
-        statsText += `<div style="color: ${color}">Bitrate (kbps): ${aggregatedStats.hasOwnProperty('bitrate') ? numberFormat.format(aggregatedStats.bitrate) : 'Chrome only'}</div>`;
+        statsText += `<div style="color: ${color}">Audio Bitrate (kbps): ${aggregatedStats.hasOwnProperty('audioBitrate') ? numberFormat.format(aggregatedStats.audioBitrate) : 'Chrome only'}</div>`;
+        statsText += `<div style="color: ${color}">Video Bitrate (kbps): ${aggregatedStats.hasOwnProperty('bitrate') ? numberFormat.format(aggregatedStats.bitrate) : 'Chrome only'}</div>`;
         statsText += `<div style="color: ${color}">Video Quantization Parameter: ${VideoEncoderQP}</div>`;
 
         let statsDiv = document.getElementById("stats");
@@ -1071,8 +1094,8 @@ function onWebRtcAnswer(webRTCData) {
     setupStats();
 }
 
-function onWebRtcDatachannel(webRTCData) {
-    webRtcPlayerObj.receiveData(webRTCData);
+function onWebRtcSFUPeerDatachannels(webRTCData) {
+    webRtcPlayerObj.receiveSFUPeerDataChannelRequest(webRTCData);
 }
 
 function onWebRtcIce(iceCandidate) {
@@ -2036,6 +2059,16 @@ function registerKeyboardEvents() {
             e.preventDefault();
         }
     };
+
+    document.onkeypress = function(e) {
+        if (print_inputs) {
+            console.log(`key press ${e.charCode}`);
+        }
+        let data = new DataView(new ArrayBuffer(3));
+        data.setUint8(0, MessageType.KeyPress);
+        data.setUint16(1, e.charCode, true);
+        sendInputData(data.buffer);
+    };
 }
 
 function onExpandOverlay_Click( /* e */ ) {
@@ -2100,7 +2133,7 @@ function connect() {
         } else if(msg.type === 'warning' && msg.warning) {
             console.warn(msg.warning);
         } else if (msg.type === 'peerDataChannels') {
-            onWebRtcDatachannel(msg);
+            onWebRtcSFUPeerDatachannels(msg);
         } else {
             console.error("Invalid SS message type", msg.type);
         }

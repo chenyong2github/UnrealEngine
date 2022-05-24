@@ -1,8 +1,11 @@
 #!/bin/bash
 # Copyright Epic Games, Inc. All Rights Reserved.
+BASH_LOCATION=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+pushd "${BASH_LOCATION}" > /dev/null
 
 source turn_user_pwd.sh
-source Start_Common.sh
+source common_utils.sh
 
 set_start_default_values "y" "n" # TURN server defaults only
 use_args "$@"
@@ -19,7 +22,6 @@ fi
 echo "TURN port: ${turnport}"
 echo ""
 
-pushd "$( dirname "${BASH_SOURCE[0]}" )"
 
 # Hmm, plain text
 realm="PixelStreaming"
@@ -29,10 +31,10 @@ arguments="-p ${turnport} -r $realm -X $publicip -E $localip -L $localip --no-cl
 # Add arguments passed to script to arguments for executable
 arguments+=" ${cirruscmd}"
 
-pushd ../..
+pushd ../.. >/dev/null
 echo "Running: $process $arguments"
 # pause
-sudo $process $arguments &
-popd
+start_process $process $arguments &
+popd >/dev/null # ../..
 
-popd
+popd >/dev/null # BASH_SOURCE

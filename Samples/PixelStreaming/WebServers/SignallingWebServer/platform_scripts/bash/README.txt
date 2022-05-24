@@ -7,7 +7,6 @@ How to use files in this directory:
  - Start_SignallingServer.sh  - Start only the Signalling (STUN) server
  - Start_TURNServer.sh - Start only the TURN server
  - Start_WithTURN_SignallingServer.sh - Start a TURN server and the Cirrus server together
-- The Start_Common.sh file contains shared functions for other Start_.sh scripts and it is not supposed to run alone
 
 - Please note that scripts intended to run need to be executable:  $ chmod +x *.sh  will do that job.
 - The local/cloud Start_*.sh shell scripts can be invoked with the  --help  command line option to see how those can be configured.  The following options can be supplied: --publicip, --turn, --stun.  Please read the --help

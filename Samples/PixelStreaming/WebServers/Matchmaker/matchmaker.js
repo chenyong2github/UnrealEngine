@@ -4,7 +4,7 @@ var enableRESTAPI = true;
 
 const defaultConfig = {
 	// The port clients connect to the matchmaking service over HTTP
-	HttpPort: 90,
+	HttpPort: 80,
 	UseHTTPS: false,
 	// The matchmaking port the signaling service connects to the matchmaker
 	MatchmakerPort: 9999,
@@ -16,7 +16,7 @@ const defaultConfig = {
 // Similar to the Signaling Server (SS) code, load in a config.json file for the MM parameters
 const argv = require('yargs').argv;
 
-var configFile = (typeof argv.configFile != 'undefined') ? argv.configFile.toString() : '.\\config.json';
+var configFile = (typeof argv.configFile != 'undefined') ? argv.configFile.toString() : 'config.json';
 console.log(`configFile ${configFile}`);
 const config = require('./modules/config.js').init(configFile, defaultConfig);
 console.log("Config: " + JSON.stringify(config, null, '\t'));
@@ -89,7 +89,7 @@ if (config.UseHTTPS) {
 // No servers are available so send some simple JavaScript to the client to make
 // it retry after a short period of time.
 function sendRetryResponse(res) {
-	res.send(`All ${cirrusServers.size} Cirrus servers are in use. Retrying in <span id="countdown">10</span> seconds.
+	res.send(`All ${cirrusServers.size} Cirrus servers are in use. Retrying in <span id="countdown">3</span> seconds.
 	<script>
 		var countdown = document.getElementById("countdown").textContent;
 		setInterval(function() {
@@ -108,10 +108,11 @@ function getAvailableCirrusServer() {
 	for (cirrusServer of cirrusServers.values()) {
 		if (cirrusServer.numConnectedClients === 0 && cirrusServer.ready === true) {
 
-			// Check if we had at least 45 seconds since the last redirect, avoiding the 
+			// Check if we had at least 10 seconds since the last redirect, avoiding the 
 			// chance of redirecting 2+ users to the same SS before they click Play.
-			if( cirrusServer.lastRedirect ) {
-				if( ((Date.now() - cirrusServer.lastRedirect) / 1000) < 45 )
+			// In other words, give the user 10 seconds to click play button the claim the server.
+			if( cirrusServer.hasOwnProperty('lastRedirect')) {
+				if( ((Date.now() - cirrusServer.lastRedirect) / 1000) < 10 )
 					continue;
 			}
 			cirrusServer.lastRedirect = Date.now();
@@ -257,6 +258,10 @@ const matchmaker = net.createServer((connection) => {
 			if(cirrusServer) {
 				cirrusServer.numConnectedClients--;
 				console.log(`Client disconnected from Cirrus server ${cirrusServer.address}:${cirrusServer.port}`);
+				if(cirrusServer.numConnectedClients === 0) {
+					// this make this server immediately available for a new client
+					cirrusServer.lastRedirect = 0;
+				}
 			} else {				
 				disconnect(connection);
 			}

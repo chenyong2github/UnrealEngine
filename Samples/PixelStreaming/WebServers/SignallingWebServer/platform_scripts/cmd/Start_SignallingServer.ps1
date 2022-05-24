@@ -9,7 +9,7 @@ print_parameters
 $peerConnectionOptions = "{ \""iceServers\"": [{\""urls\"": [\""stun:" + $global:StunServer + "\""]}] }"
 
 $ProcessExe = "platform_scripts\cmd\node\node.exe"
-$Arguments = @("cirrus", "--peerConnectionOptions=""$peerConnectionOptions""", "--publicIp=$global:PublicIp")
+$Arguments = @("cirrus", "--peerConnectionOptions=""$peerConnectionOptions""", "--PublicIp=$global:PublicIp")
 # Add arguments passed to script to Arguments for executable
 $Arguments += $global:CirrusCmd
 

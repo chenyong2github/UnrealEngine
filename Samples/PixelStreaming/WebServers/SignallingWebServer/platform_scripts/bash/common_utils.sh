@@ -1,12 +1,22 @@
 #!/bin/bash
 # Copyright Epic Games, Inc. All Rights Reserved.
 
-function print_usage {
+function log_msg() { #message
+	if [ ! -z $VERBOSE ]; then
+		echo $1
+	fi
+}
+
+function print_usage() {
  echo "
  Usage:
   ${0} [--help] [--publicip <IP Address>] [--turn <turn server>] [--stun <stun server>] [cirrus options...]
  Where:
   --help will print this message and stop this script.
+  --debug will run all scripts with --inspect
+  --nosudo will run all scripts without \`sudo\` command useful for when run in containers.
+  --verbose will enable additional logging
+  --package-manager <package manager name> specify an alternative package manager to apt-get
   --publicip is used to define public ip address (using default port) for turn server, syntax: --publicip ; it is used for 
     default value: Retrieved from 'curl https://api.ipify.org' or if unsuccessful then set to  127.0.0.1.  It is the IP address of the Cirrus server and the default IP address of the TURN server
   --turn defines what TURN server to be used, syntax: --turn 127.0.0.1:19303
@@ -19,7 +29,7 @@ function print_usage {
  exit 1
 }
 
-function print_parameters {
+function print_parameters() {
  echo ""
  echo "${0} is running with the following parameters:"
  echo "--------------------------------------"
@@ -30,9 +40,9 @@ function print_parameters {
  echo ""
 }
 
-function set_start_default_values {
+function set_start_default_values() {
  # publicip and cirruscmd are always needed
- publicip=$(curl -s https://api.ipify.org > /dev/null)
+ publicip=$(curl -s https://api.ipify.org)
  if [[ -z $publicip ]]; then
   publicip="127.0.0.1"
  fi
@@ -47,9 +57,12 @@ function set_start_default_values {
  fi
 }
 
-function use_args {
+function use_args() {
  while(($#)) ; do
   case "$1" in
+   --debug ) IS_DEBUG=1; shift;;
+   --nosudo ) NO_SUDO=1; shift;;
+   --verbose ) VERBOSE=1; shift;;
    --stun ) stunserver="$2"; shift 2;;
    --turn ) turnserver="$2"; shift 2;;
    --publicip ) publicip="$2"; turnserver="${publicip}:19303"; shift 2;;
@@ -59,6 +72,25 @@ function use_args {
  done
 }
 
-function call_setup_sh {
+function call_setup_sh() {
  bash "setup.sh"
+}
+
+function start_process() {
+	if [ ! -z $NO_SUDO ]; then
+		log_msg "running with sudo removed"
+		eval $(echo "$@" | sed 's/sudo//g')
+	else
+		eval $@
+	fi
+}
+
+function get_version() {
+	local version=$1
+
+	if command -v $version; then
+		version=$($@)
+	fi
+	
+	echo $version | sed -E 's/[^0-9.]//g'
 }

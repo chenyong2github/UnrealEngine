@@ -39,25 +39,33 @@ async function onStreamerOffer(sdp) {
 
   console.log("Sending answer to streamer.");
   signalServer.send(JSON.stringify(answer));
-  streamer = { transport: transport, producers: producers, nextDataStreamId: 0 };
+  streamer = { transport: transport, producers: producers };
 }
 
-function getNextStreamerDataProducerId() {
-  if (!streamer.transport.sctpParameters || typeof streamer.transport.sctpParameters.MIS !== 'number') {
-      throw new TypeError('missing streamer.transport.sctpParameters.MIS');
+function getNextStreamerSCTPId() {
+  if(!streamer){
+    throw new TypeError('Cannot generate an SCTP stream id - streamer was null.');
+  }
+  if (!streamer.transport || !streamer.transport.sctpParameters || typeof streamer.transport.sctpParameters.MIS !== 'number') {
+    throw new TypeError('Streamer was not setup with the following require properties: streamer.transport.sctpParameters.MIS');
   }
   const numStreams = streamer.transport.sctpParameters.MIS;
-  if (!streamer.dataStreamIds)
-      streamer.dataStreamIds = Buffer.alloc(numStreams, 0);
+  if (!streamer.dataStreamIds){
+    streamer.dataStreamIds = Buffer.alloc(numStreams, 0);
+  }
+  if (!streamer.nextDataStreamId) {
+    streamer.nextDataStreamId = 0;
+  }
+
   let sctpStreamId;
-  for (let idx = 0; idx < streamer.dataStreamIds.length; ++idx) {
-      sctpStreamId = (streamer.nextDataStreamId + idx) % streamer.dataStreamIds.length;
+  for (let idx = streamer.nextDataStreamId; idx < streamer.dataStreamIds.length; ++idx) {
+      sctpStreamId = idx % streamer.dataStreamIds.length;
       if (!streamer.dataStreamIds[sctpStreamId]) {
           streamer.nextDataStreamId = sctpStreamId + 1;
           return sctpStreamId;
       }
   }
-  console.log("no available data streams on streamer");
+  console.error("No available SCTP ids, they are all allocated.");
   return -1;
 }
 
@@ -123,52 +131,76 @@ async function onPeerConnected(peerId) {
 
 async function setupPeerDataChannels(peerId) {
   const peer = peers.get(peerId);
-  if (peer) {
-    const streamerDataProducerId = getNextStreamerDataProducerId();
-    if (streamerDataProducerId != -1) {
-      // streamer data producer
-      peer.streamerDataProducer = await streamer.transport.produceData({label: 'datachannel', sctpStreamParameters: {streamId: streamerDataProducerId, ordered: true}});
-
-      // peer data consumer
-      peer.peerDataConsumer = await peer.transport.consumeData({dataProducerId: peer.streamerDataProducer.id});
-
-      // peer data producer
-      peer.peerDataProducer = await peer.transport.produceData({label: 'datachannel', sctpStreamParameters: {streamId: 1, ordered: true}});
-
-      // streamer data consumer
-      peer.streamerDataConsumer = await streamer.transport.consumeData({dataProducerId: peer.peerDataProducer.id});
-
-      const peerSignal = {
-        type: 'peerDataChannels',
-        playerId: peerId,
-        sendStreamId: 1,
-        recvStreamId: peer.peerDataConsumer.sctpStreamParameters.streamId
-      };
-
-      const streamerSignal = {
-        type: "streamerDataChannels",
-        playerId: peerId,
-        sendStreamId: streamerDataProducerId,
-        recvStreamId: peer.streamerDataConsumer.sctpStreamParameters.streamId
-      };
-
-      // peer data connection
-      signalServer.send(JSON.stringify(peerSignal));
-
-      // streamers data connection
-      signalServer.send(JSON.stringify(streamerSignal));
-    }
+  if (!peer) {
+    console.error(`Could not send browser any datachannels for peer=${peerId} because peer was not found.`);
+    return;
   }
+
+  const nextStreamerSCTPStreamId = getNextStreamerSCTPId();
+  const nextPeerSCTPStreamId = getNextStreamerSCTPId();
+
+  console.log(`Attempting streamer SCTP id=${nextStreamerSCTPStreamId}`);
+
+  // streamer data producer (produces data for the peer)
+  peer.streamerDataProducer = await streamer.transport.produceData({label: 'send-datachannel', sctpStreamParameters: {streamId: nextStreamerSCTPStreamId, ordered: true}});
+
+  console.log(`Attempting peer SCTP id=${nextPeerSCTPStreamId}`);
+
+  // peer data producer (produces data for the streamer)
+  peer.peerDataProducer = await peer.transport.produceData({label: 'send-datachannel', sctpStreamParameters: {streamId: nextPeerSCTPStreamId, ordered: true}});
+
+  // peer data consumer (consumes streamer data)
+  peer.peerDataConsumer = await peer.transport.consumeData({ dataProducerId: peer.streamerDataProducer.id });
+
+  // streamer data consumer (consumes peer data)
+  peer.streamerDataConsumer = await streamer.transport.consumeData({ dataProducerId: peer.peerDataProducer.id });
+
+  const peerSignal = {
+    type: 'peerDataChannels',
+    playerId: peerId,
+    sendStreamId: peer.peerDataProducer.sctpStreamParameters.streamId,
+    recvStreamId: peer.peerDataConsumer.sctpStreamParameters.streamId
+  };
+
+  // Send browser a message with a send/recv data channel SCTP stream id
+  signalServer.send(JSON.stringify(peerSignal));
+
 }
 
-function onPeerAnswer(peerId, sdp) {
+async function setupStreamerDataChannelsForPeer(peerId) {
+
+  const peer = peers.get(peerId);
+  if (!peer) {
+    console.error(`Could not send streamer any datachannels for peer=${peerId} because peer was not found.`);
+    return;
+  }
+
+  if(!peer.streamerDataProducer || !peer.streamerDataConsumer){
+    console.error(`There was no streamer data producer/consumer setup for peer=${peerId}. Did you make sure to send "dataChannelRequest" first?`);
+    return;
+  }
+
+  const streamerSignal = {
+    type: "streamerDataChannels",
+    playerId: peerId,
+    sendStreamId: peer.streamerDataProducer.sctpStreamParameters.streamId,
+    recvStreamId: peer.streamerDataConsumer.sctpStreamParameters.streamId
+  };
+
+  // send streamer a message with a send/recv data channel SCTP stream id
+  signalServer.send(JSON.stringify(streamerSignal));
+}
+
+async function onPeerAnswer(peerId, sdp) {
   console.log("Got answer from player %s", peerId);
 
   const consumer = peers.get(peerId);
-  if (!consumer)
+  if (!consumer){
     console.error(`Unable to find player ${peerId}`);
-  else
+  }
+  else{
     consumer.sdpEndpoint.processAnswer(sdp);
+  }
 }
 
 function onPeerDisconnected(peerId) {
@@ -181,6 +213,15 @@ function onPeerDisconnected(peerId) {
     if (peer.peerDataConsumer) {
       peer.peerDataConsumer.close();
       peer.peerDataProducer.close();
+    }
+    if(peer.streamerDataConsumer){
+      // Set the streamer sctp id we generated back to zero indicating it can be reused.
+      if(streamer && streamer.dataStreamIds){
+        const allocatedStreamId = peer.streamerDataProducer.sctpStreamParameters.streamId;
+        const allocatedPeerStreamId = peer.peerDataProducer.sctpStreamParameters.streamId;
+        streamer.dataStreamIds[allocatedStreamId] = 0;
+        streamer.dataStreamIds[allocatedPeerStreamId] = 0;
+      }
       peer.streamerDataConsumer.close();
       peer.streamerDataProducer.close();
     }
@@ -217,6 +258,9 @@ async function onSignallingMessage(message) {
   }
   else if (msg.type == 'dataChannelRequest') {
     setupPeerDataChannels(msg.playerId);
+  }
+  else if (msg.type == 'peerDataChannelsReady') {
+    setupStreamerDataChannelsForPeer(msg.playerId);
   }
   // todo a new message type for force layer switch (for debugging)
   // see: https://mediasoup.org/documentation/v3/mediasoup/api/#consumer-setPreferredLayers

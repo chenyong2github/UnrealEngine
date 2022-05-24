@@ -12,7 +12,7 @@ for arg do
 done
 
 # Get stun server data for passing to the container
-source Start_Common.sh
+source common_utils.sh
 if [ "${USETURN}" = "true" ]; then
 	set_start_default_values "y" "y" # Both TURN and STUN server defaults
 else

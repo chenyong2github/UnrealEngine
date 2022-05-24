@@ -283,15 +283,18 @@ function logOutgoing(destName, msgType, msg) {
 }
 
 // normal peer to peer signalling goes to streamer. SFU streaming signalling goes to the sfu
-function sendMessageToController(msg, skipSFU) {
+function sendMessageToController(msg, skipSFU, skipStreamer = false) {
 	const rawMsg = JSON.stringify(msg);
 	if (sfu && sfu.readyState == 1 && !skipSFU) {
 		logOutgoing("SFU", msg.type, rawMsg);
 		sfu.send(rawMsg);
-	} else if (streamer && streamer.readyState == 1) {
+	} 
+	if (streamer && streamer.readyState == 1 && !skipStreamer) {
 		logOutgoing("Streamer", msg.type, rawMsg);
 		streamer.send(rawMsg);
-	} else {
+	} 
+	
+	if (!sfu && !streamer) {
 		console.error("sendMessageToController: No streamer or SFU connected!\nMSG: %s", rawMsg);
 	}
 }
@@ -507,6 +510,7 @@ playerServer.on('connection', function (ws, req) {
 	const urlParams = new URLSearchParams(parsedUrl.search);
 	const preferSFU = urlParams.has('preferSFU') && urlParams.get('preferSFU') !== 'false';
 	const skipSFU = !preferSFU;
+	const skipStreamer = preferSFU && sfu;
 
 	if(preferSFU && !sfu) {
 		ws.send(JSON.stringify({ type: "warning", warning: "Even though ?preferSFU was specified, there is currently no SFU connected." }));
@@ -545,16 +549,20 @@ playerServer.on('connection', function (ws, req) {
 
 		if (msg.type == 'answer') {
 			msg.playerId = playerId;
-			sendMessageToController(msg, skipSFU);
+			sendMessageToController(msg, skipSFU, skipStreamer);
 		} else if (msg.type == 'iceCandidate') {
 			msg.playerId = playerId;
-			sendMessageToController(msg, skipSFU);
+			sendMessageToController(msg, skipSFU, skipStreamer);
 		} else if (msg.type == 'stats') {
 			console.log(`player ${playerId}: stats\n${msg.data}`);
 		} else if (msg.type == "dataChannelRequest") {
 			msg.playerId = playerId;
-			sendMessageToController(msg, false);
-		} else {
+			sendMessageToController(msg, skipSFU, true);
+		} else if (msg.type == "peerDataChannelsReady") {
+			msg.playerId = playerId;
+			sendMessageToController(msg, skipSFU, true);
+		}
+		else {
 			console.error(`player ${playerId}: unsupported message type: ${msg.type}`);
 			ws.close(1008, 'Unsupported message type');
 			return;
@@ -567,7 +575,7 @@ playerServer.on('connection', function (ws, req) {
 			const player = players.get(playerId);
 			if (player.datachannel) {
 				// have to notify the streamer that the datachannel can be closed
-				sendMessageToController({ type: 'playerDisconnected', playerId: playerId }, true);
+				sendMessageToController({ type: 'playerDisconnected', playerId: playerId }, true, false);
 			}
 			players.delete(playerId);
 			sendMessageToController({ type: 'playerDisconnected', playerId: playerId }, skipSFU);
@@ -598,7 +606,7 @@ playerServer.on('connection', function (ws, req) {
 
 	ws.send(JSON.stringify(clientConfig));
 
-	sendMessageToController({ type: "playerConnected", playerId: playerId, dataChannel: true, sfu: false }, skipSFU);
+	sendMessageToController({ type: "playerConnected", playerId: playerId, dataChannel: true, sfu: false }, skipSFU, skipStreamer);
 	sendPlayersCount();
 });
 
@@ -618,7 +626,7 @@ function disconnectSFUPlayer() {
 		players.get(SFUPlayerId).ws.close(4000, "SFU Disconnected");
 		players.delete(SFUPlayerId);
 	}
-	sendMessageToController({ type: 'playerDisconnected', playerId: SFUPlayerId }, true);
+	sendMessageToController({ type: 'playerDisconnected', playerId: SFUPlayerId }, true, false);
 }
 
 /**

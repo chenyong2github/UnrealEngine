@@ -6,7 +6,7 @@
 pushd "%~dp0"
 
 @Rem Name and version of node that we are downloading
-SET NodeVersion=v17.0.1
+SET NodeVersion=v16.4.2
 SET NodeName=node-%NodeVersion%-win-x64
 
 @Rem Look for a node directory next to this script

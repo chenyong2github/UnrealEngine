@@ -11,6 +11,5 @@ popd () {
 
 # Stop both stun and turn
 pushd "$(dirname ${BASH_SOURCE[0]})"
-#./docker-start-cirrus.sh --with-turn &
-./docker-start-turn.sh &
+./docker-start-cirrus.sh --with-turn &
 popd
