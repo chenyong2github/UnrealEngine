@@ -72,38 +72,38 @@ namespace DecalRendering
 		}
 	}
 
-	FDecalBlendDesc ComputeDecalBlendDesc(EShaderPlatform Platform, FMaterial const* Material)
+	FDecalBlendDesc ComputeDecalBlendDesc(EShaderPlatform Platform, const FMaterial& Material)
 	{
 		FDecalBlendDesc Desc;
 		if (Strata::IsStrataEnabled())
 		{
-			check(Material->IsStrataMaterial());
+			check(Material.IsStrataMaterial());
 
 			const bool bUseDiffuseAlbedoAndF0 =
-				Material->HasMaterialPropertyConnected(EMaterialProperty::MP_DiffuseColor) ||	// This is used for Strata Slab using (DiffuseAlbedo | F0) parameterization
-				Material->HasMaterialPropertyConnected(EMaterialProperty::MP_SpecularColor);	// This is used for Strata Slab using (DiffuseAlbedo | F0) parameterization
+				Material.HasMaterialPropertyConnected(EMaterialProperty::MP_DiffuseColor) ||	// This is used for Strata Slab using (DiffuseAlbedo | F0) parameterization
+				Material.HasMaterialPropertyConnected(EMaterialProperty::MP_SpecularColor);	// This is used for Strata Slab using (DiffuseAlbedo | F0) parameterization
 
-			Desc.BlendMode = Material->GetBlendMode();
-			Desc.bWriteBaseColor = Material->HasMaterialPropertyConnected(EMaterialProperty::MP_BaseColor) || bUseDiffuseAlbedoAndF0;
-			Desc.bWriteNormal = Material->HasMaterialPropertyConnected(EMaterialProperty::MP_Normal);
+			Desc.BlendMode = Material.GetBlendMode();
+			Desc.bWriteBaseColor = Material.HasMaterialPropertyConnected(EMaterialProperty::MP_BaseColor) || bUseDiffuseAlbedoAndF0;
+			Desc.bWriteNormal = Material.HasMaterialPropertyConnected(EMaterialProperty::MP_Normal);
 			Desc.bWriteRoughnessSpecularMetallic =
 				bUseDiffuseAlbedoAndF0 ||
-				Material->HasMaterialPropertyConnected(EMaterialProperty::MP_Metallic) ||
-				Material->HasMaterialPropertyConnected(EMaterialProperty::MP_Specular) ||
-				Material->HasMaterialPropertyConnected(EMaterialProperty::MP_Roughness);
+				Material.HasMaterialPropertyConnected(EMaterialProperty::MP_Metallic) ||
+				Material.HasMaterialPropertyConnected(EMaterialProperty::MP_Specular) ||
+				Material.HasMaterialPropertyConnected(EMaterialProperty::MP_Roughness);
 			Desc.bWriteEmissive=
-				Material->HasMaterialPropertyConnected(EMaterialProperty::MP_EmissiveColor);
+				Material.HasMaterialPropertyConnected(EMaterialProperty::MP_EmissiveColor);
 			Desc.bWriteAmbientOcclusion =
-				Material->HasMaterialPropertyConnected(EMaterialProperty::MP_AmbientOcclusion);
+				Material.HasMaterialPropertyConnected(EMaterialProperty::MP_AmbientOcclusion);
 		}
 		else
 		{
-			Desc.BlendMode = Material->GetBlendMode();
-			Desc.bWriteBaseColor = Material->HasBaseColorConnected();
-			Desc.bWriteNormal = Material->HasNormalConnected();
-			Desc.bWriteRoughnessSpecularMetallic = Material->HasRoughnessConnected() || Material->HasSpecularConnected() || Material->HasMetallicConnected();
-			Desc.bWriteEmissive = Material->HasEmissiveColorConnected();
-			Desc.bWriteAmbientOcclusion = Material->HasAmbientOcclusionConnected();
+			Desc.BlendMode = Material.GetBlendMode();
+			Desc.bWriteBaseColor = Material.HasBaseColorConnected();
+			Desc.bWriteNormal = Material.HasNormalConnected();
+			Desc.bWriteRoughnessSpecularMetallic = Material.HasRoughnessConnected() || Material.HasSpecularConnected() || Material.HasMetallicConnected();
+			Desc.bWriteEmissive = Material.HasEmissiveColorConnected();
+			Desc.bWriteAmbientOcclusion = Material.HasAmbientOcclusionConnected();
 		}
 		FinalizeBlendDesc(Platform, Desc);
 		return Desc;

@@ -78,7 +78,7 @@ enum class EDecalRasterizerState : uint8
 namespace DecalRendering
 {
 	/** Build the packed decal description from a decal material. */
-	FDecalBlendDesc ComputeDecalBlendDesc(EShaderPlatform Platform, FMaterial const* Material);
+	FDecalBlendDesc ComputeDecalBlendDesc(EShaderPlatform Platform, const FMaterial& Material);
 
 	/** Build the packed decal description from a decal material. */
 	FDecalBlendDesc ComputeDecalBlendDesc(EShaderPlatform Platform, FMaterialShaderParameters const& MaterialShaderParameters);

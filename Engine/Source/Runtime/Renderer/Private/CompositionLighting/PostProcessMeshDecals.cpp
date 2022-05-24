@@ -206,7 +206,7 @@ bool FMeshDecalMeshProcessor::TryAddMeshBatch(
 		if (Material.GetRenderingThreadShaderMap())
 		{
 			const EShaderPlatform ShaderPlatform = ViewIfDynamicMeshCommand->GetShaderPlatform();
-			const FDecalBlendDesc DecalBlendDesc = DecalRendering::ComputeDecalBlendDesc(ShaderPlatform, &Material);
+			const FDecalBlendDesc DecalBlendDesc = DecalRendering::ComputeDecalBlendDesc(ShaderPlatform, Material);
 
 			const bool bShouldRender =
 				DecalRendering::IsCompatibleWithRenderStage(DecalBlendDesc, PassDecalStage) &&

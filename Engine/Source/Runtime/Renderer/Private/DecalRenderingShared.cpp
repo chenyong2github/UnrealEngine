@@ -29,7 +29,7 @@ FTransientDecalRenderData::FTransientDecalRenderData(const FScene& InScene, cons
 	MaterialProxy = InDecalProxy->DecalMaterial->GetRenderProxy();
 	MaterialResource = &MaterialProxy->GetMaterialWithFallback(InScene.GetFeatureLevel(), MaterialProxy);
 	check(MaterialProxy && MaterialResource);
-	DecalBlendDesc = DecalRendering::ComputeDecalBlendDesc(InScene.GetShaderPlatform(), MaterialResource);
+	DecalBlendDesc = DecalRendering::ComputeDecalBlendDesc(InScene.GetShaderPlatform(), *MaterialResource);
 }
 
 /**
@@ -209,6 +209,30 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FDeferredDecalAmbientOcclusionPS, TEXT("/Engine
 
 namespace DecalRendering
 {
+	float GetDecalFadeScreenSizeMultiplier()
+	{
+		return CVarDecalFadeScreenSizeMultiplier.GetValueOnRenderThread();
+	}
+
+	float CalculateDecalFadeAlpha(float DecalFadeScreenSize, const FMatrix& ComponentToWorldMatrix, const FViewInfo& View, float FadeMultiplier)
+	{
+		check(View.IsPerspectiveProjection());
+
+		float Distance = (View.ViewMatrices.GetViewOrigin() - ComponentToWorldMatrix.GetOrigin()).Size();
+		float Radius = ComponentToWorldMatrix.GetMaximumAxisScale();
+		float CurrentScreenSize = ((Radius / Distance) * FadeMultiplier);
+
+		// fading coefficient needs to increase with increasing field of view and decrease with increasing resolution
+		// FadeCoeffScale is an empirically determined constant to bring us back roughly to fraction of screen size for FadeScreenSize
+		const float FadeCoeffScale = 600.0f;
+		float FOVFactor = ((2.0f / View.ViewMatrices.GetProjectionMatrix().M[0][0]) / View.ViewRect.Width()) * FadeCoeffScale;
+		float FadeCoeff = DecalFadeScreenSize * FOVFactor;
+		float FadeRange = FadeCoeff * 0.5f;
+
+		float Alpha = (CurrentScreenSize - FadeCoeff) / FadeRange;
+		return FMath::Clamp(Alpha, 0.0f, 1.0f);
+	}
+
 	bool BuildVisibleDecalList(const FScene& Scene, const FViewInfo& View, EDecalRenderStage DecalRenderStage, FTransientDecalRenderDataList* OutVisibleDecals)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(BuildVisibleDecalList);
@@ -225,7 +249,7 @@ namespace DecalRendering
 			return false;
 		}
 
-		const float FadeMultiplier = CVarDecalFadeScreenSizeMultiplier.GetValueOnRenderThread();
+		const float FadeMultiplier = GetDecalFadeScreenSizeMultiplier();
 		const EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
 
 		const bool bIsPerspectiveProjection = View.IsPerspectiveProjection();
@@ -267,19 +291,7 @@ namespace DecalRendering
 				{
 					if (bIsPerspectiveProjection && Data.DecalProxy->FadeScreenSize != 0.0f)
 					{
-						float Distance = (View.ViewMatrices.GetViewOrigin() - ComponentToWorldMatrix.GetOrigin()).Size();
-						float Radius = ComponentToWorldMatrix.GetMaximumAxisScale();
-						float CurrentScreenSize = ((Radius / Distance) * FadeMultiplier);
-
-						// fading coefficient needs to increase with increasing field of view and decrease with increasing resolution
-						// FadeCoeffScale is an empirically determined constant to bring us back roughly to fraction of screen size for FadeScreenSize
-						const float FadeCoeffScale = 600.0f;
-						float FOVFactor = ((2.0f/View.ViewMatrices.GetProjectionMatrix().M[0][0]) / View.ViewRect.Width()) * FadeCoeffScale;
-						float FadeCoeff = Data.DecalProxy->FadeScreenSize * FOVFactor;
-						float FadeRange = FadeCoeff * 0.5f;
-
-						float Alpha = (CurrentScreenSize - FadeCoeff) / FadeRange;
-						Data.FadeAlpha = FMath::Min(Alpha, 1.0f);
+						Data.FadeAlpha = CalculateDecalFadeAlpha(Data.DecalProxy->FadeScreenSize, ComponentToWorldMatrix, View, FadeMultiplier);
 					}
 
 					const bool bShouldRender = Data.FadeAlpha > 0.0f;
