@@ -134,4 +134,9 @@ void FMiscTrace::OutputScreenshot(const TCHAR* Name, uint64 Cycle, uint32 Width,
 
 	check(RemainingSize == 0);
 }
+
+bool FMiscTrace::ShouldTraceScreenshot()
+{
+	return UE_TRACE_CHANNELEXPR_IS_ENABLED(ScreenshotChannel);
+}
 #endif

@@ -69,26 +69,10 @@ void FTraceScreenshot::RequestScreenshot(FString Name)
 
 void FTraceScreenshot::HandleScreenshotData(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData)
 {
-	if (ScreenshotName.IsEmpty())
+	if (SHOULD_TRACE_SCREENSHOT())
 	{
-		ScreenshotName = FDateTime::Now().ToString(TEXT("Screenshot_%Y%m%d_%H%M%S"));
+		TraceScreenshot(InSizeX, InSizeY, InImageData, ScreenshotName, 640);
 	}
-
-	uint64 Cycles = FPlatformTime::Cycles64();
-	UE_LOG(LogCore, Display, TEXT("Tracing Screenshot \"%s\" taken with size: %d x %d"), *ScreenshotName, InSizeX, InSizeY);
-
-	int32 ResizedX = FMath::Min(640, InSizeX);
-	int32 ResizedY = (InSizeY * ResizedX) / InSizeX;
-
-	TArray<FColor> ResizedImage;
-	ResizedImage.SetNum(ResizedX * ResizedY);
-	FImageUtils::ImageResize(InSizeX, InSizeY, InImageData, ResizedX, ResizedY, ResizedImage, false);
-
-	TArray64<uint8> CompressedBitmap;
-	FImageUtils::PNGCompressImageArray(ResizedX, ResizedY, TArrayView64<const FColor>(ResizedImage.GetData(), ResizedImage.Num()), CompressedBitmap);
-
-	TRACE_SCREENSHOT(*ScreenshotName, Cycles, ResizedX, ResizedY, CompressedBitmap);
-	ScreenshotName.Empty();
 }
 
 void FTraceScreenshot::WorldDestroyed(ULevel* InLevel, UWorld* InWorld)
@@ -105,4 +89,37 @@ void FTraceScreenshot::WorldDestroyed(ULevel* InLevel, UWorld* InWorld)
 		}
 		FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
 	}
+}
+
+void FTraceScreenshot::TraceScreenshot(int32 InSizeX, int32 InSizeY, const TArray<FColor>& InImageData, const FString& InScreenshotName, int32 DesiredX)
+{
+	FString ScreenshotName = InScreenshotName;
+	if (ScreenshotName.IsEmpty())
+	{
+		ScreenshotName = FDateTime::Now().ToString(TEXT("Screenshot_%Y%m%d_%H%M%S"));
+	}
+
+	uint64 Cycles = FPlatformTime::Cycles64();
+	UE_LOG(LogCore, Display, TEXT("Tracing Screenshot \"%s\" taken with size: %d x %d"), *ScreenshotName, InSizeX, InSizeY);
+
+	TArray64<uint8> CompressedBitmap;
+	if (DesiredX > 0 && InSizeX != DesiredX)
+	{
+		int32 ResizedX = FMath::Min(640, InSizeX);
+		int32 ResizedY = (InSizeY * ResizedX) / InSizeX;
+
+		TArray<FColor> ResizedImage;
+		ResizedImage.SetNum(ResizedX * ResizedY);
+		FImageUtils::ImageResize(InSizeX, InSizeY, InImageData, ResizedX, ResizedY, ResizedImage, false);
+
+		FImageUtils::PNGCompressImageArray(ResizedX, ResizedY, TArrayView64<const FColor>(ResizedImage.GetData(), ResizedImage.Num()), CompressedBitmap);
+		TRACE_SCREENSHOT(*ScreenshotName, Cycles, ResizedX, ResizedY, CompressedBitmap);
+	}
+	else
+	{
+		FImageUtils::PNGCompressImageArray(InSizeX, InSizeY, TArrayView64<const FColor>(InImageData.GetData(), InImageData.Num()), CompressedBitmap);
+		TRACE_SCREENSHOT(*ScreenshotName, Cycles, InSizeX, InSizeY, CompressedBitmap);
+	}
+
+	ScreenshotName.Empty();
 }

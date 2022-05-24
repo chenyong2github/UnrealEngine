@@ -61,6 +61,8 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "DynamicResolutionState.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/TraceScreenshot.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -2000,6 +2002,11 @@ bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 				if ( FPaths::GetExtension(ScreenShotName).IsEmpty() )
 				{
 					ScreenShotName += TEXT(".png");
+				}
+
+				if (SHOULD_TRACE_SCREENSHOT())
+				{
+					FTraceScreenshot::TraceScreenshot(Size.X, Size.Y, Bitmap, ScreenShotName);
 				}
 
 				// Save the contents of the array to a png file.

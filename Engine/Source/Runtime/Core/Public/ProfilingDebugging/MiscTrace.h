@@ -62,6 +62,7 @@ struct FMiscTrace
 	CORE_API static void OutputEndFrame(ETraceFrameType FrameType);
 
 	CORE_API static void OutputScreenshot(const TCHAR* Name, uint64 Cycle, uint32 Width, uint32 Height, TArray64<uint8> Data);
+	CORE_API static bool ShouldTraceScreenshot();
 
 private:
 	CORE_API static void OutputBookmarkInternal(const void* BookmarkPoint, uint16 EncodedFormatArgsSize, uint8* EncodedFormatArgs);
@@ -85,11 +86,15 @@ private:
 #define TRACE_SCREENSHOT(Name, Cycle, Width, Height, Data) \
 	FMiscTrace::OutputScreenshot(Name, Cycle, Width, Height, Data);
 
+#define SHOULD_TRACE_SCREENSHOT() \
+	FMiscTrace::ShouldTraceScreenshot()
+
 #else
 
 #define TRACE_BOOKMARK(...)
 #define TRACE_BEGIN_FRAME(...)
 #define TRACE_END_FRAME(...)
 #define TRACE_SCREENSHOT(...)
+#define SHOULD_TRACE_SCREENSHOT(...) false
 
 #endif

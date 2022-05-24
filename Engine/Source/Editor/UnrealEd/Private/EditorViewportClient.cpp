@@ -60,6 +60,8 @@
 #include "UnrealWidget.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "Engine/World.h"
+#include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/TraceScreenshot.h"
 
 #include "CustomEditorStaticScreenPercentage.h"
 #include "IImageWrapperModule.h"
@@ -5851,6 +5853,11 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 				{
 					ImageTask->Format = ImageFormat;
 				}
+			}
+
+			if (SHOULD_TRACE_SCREENSHOT())
+			{
+				FTraceScreenshot::TraceScreenshot(BitmapSize.X, BitmapSize.Y, Bitmap, FScreenshotRequest::GetFilename());
 			}
 
 			// Save the bitmap to disk
