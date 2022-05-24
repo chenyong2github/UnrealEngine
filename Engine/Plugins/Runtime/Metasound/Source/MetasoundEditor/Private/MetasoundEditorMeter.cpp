@@ -32,9 +32,9 @@ namespace Metasound
 			return Widget;
 		}
 
-		void FEditorMeter::Init(EAudioBusChannels InMaxBusChannels, int32 InNumChannels)
+		void FEditorMeter::Init(int32 InNumChannels)
 		{
-			check(InNumChannels <= static_cast<int32>(InMaxBusChannels) + 1);
+			check(InNumChannels > 0);
 
 			Settings = TStrongObjectPtr(NewObject<UMeterSettings>());
 			Settings->PeakHoldTime = 4000.0f;
@@ -43,7 +43,7 @@ namespace Metasound
 			Analyzer->Settings = Settings.Get();
 
 			AudioBus = TStrongObjectPtr(NewObject<UAudioBus>());
-			AudioBus->AudioBusChannels = InMaxBusChannels;
+			AudioBus->AudioBusChannels = EAudioBusChannels(InNumChannels - 1);
 
 			ResultsDelegateHandle = Analyzer->OnLatestPerChannelMeterResultsNative.AddRaw(this, &FEditorMeter::OnMeterOutput);
 

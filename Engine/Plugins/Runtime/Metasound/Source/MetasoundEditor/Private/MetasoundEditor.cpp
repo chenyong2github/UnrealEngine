@@ -1150,7 +1150,7 @@ namespace Metasound
 				{
 					OutputMeter = MakeShared<FEditorMeter>();
 				}
-				OutputMeter->Init(EAudioBusChannels::Stereo, MetaSoundSource->NumChannels);
+				OutputMeter->Init(MetaSoundSource->NumChannels);
 			}
 			else
 			{

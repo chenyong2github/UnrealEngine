@@ -24,7 +24,7 @@ namespace Metasound
 
 			void Teardown();
 
-			void Init(EAudioBusChannels InMaxBusChannels, int32 InNumChannels);
+			void Init(int32 InNumChannels);
 
 		protected:
 			void OnMeterOutput(UMeterAnalyzer* InMeterAnalyzer, int32 ChannelIndex, const FMeterResults& InMeterResults);
