@@ -127,13 +127,20 @@ FActorHierarchy::~FActorHierarchy()
 
 static FFolder GetFolderPathFromActorDesc(UWorld* InWorld, const FWorldPartitionActorDesc* InActorDesc)
 {
-	UWorld* World = InActorDesc->GetContainer() ? InActorDesc->GetContainer()->GetTypedOuter<UWorld>() : InWorld;
-	if (World && World->PersistentLevel->IsUsingActorFolders())
+	if (UWorld* OuterWorld = InActorDesc->GetContainer() ? InActorDesc->GetContainer()->GetTypedOuter<UWorld>() : InWorld)
 	{
-		UActorFolder* ActorFolder = World->PersistentLevel->GetActorFolder(InActorDesc->GetFolderGuid());
-		return ActorFolder ? ActorFolder->GetFolder() : FFolder();
+		ULevel* OuterLevel = OuterWorld->PersistentLevel;
+		if (OuterLevel->IsUsingActorFolders())
+		{
+			if (UActorFolder* ActorFolder = OuterLevel->GetActorFolder(InActorDesc->GetFolderGuid()))
+			{
+				return ActorFolder->GetFolder();
+			}
+			return FFolder::GetWorldRootFolder(OuterWorld).GetRootObject();
+		}
+		return FFolder(FFolder::GetWorldRootFolder(OuterWorld).GetRootObject(), InActorDesc->GetFolderPath());
 	}
-	return FFolder(InActorDesc->GetFolderPath());
+	return FFolder::GetInvalidFolder();
 }
 
 FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, bool bCreate)
@@ -195,7 +202,9 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 			}
 
 			// Parent Level Using Actor Folders
-			if (ULevel* OwningLevel = Cast<ULevel>(Folder.GetRootObjectPtr()))
+			ULevel* OwningLevel = Cast<ULevel>(Folder.GetRootObjectPtr());
+			// For the persistent level, fallback on the world
+			if (OwningLevel && !OwningLevel->IsPersistentLevel())
 			{
 				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(OwningLevel))
 				{
@@ -246,13 +255,17 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindOrCreateParentItem(const ISceneOu
 		// Parent Level Using Actor Folders
 		else if (ULevel* OwningLevel = Cast<ULevel>(ParentPath.GetRootObjectPtr()))
 		{
-			if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(OwningLevel))
+			// For the persistent level, fallback on the world
+			if (!OwningLevel->IsPersistentLevel())
 			{
-				return *ParentItem;
-			}
-			else
-			{
-				return bCreate ? Mode->CreateItemFor<FLevelTreeItem>(OwningLevel, true) : nullptr;
+				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(OwningLevel))
+				{
+					return *ParentItem;
+				}
+				else
+				{
+					return bCreate ? Mode->CreateItemFor<FLevelTreeItem>(OwningLevel, true) : nullptr;
+				}
 			}
 		}
 	}
@@ -759,7 +772,8 @@ void FActorHierarchy::OnLevelRemoved(ULevel* InLevel, UWorld* InWorld)
 			HierarchyChangedEvent.Broadcast(EventData);
 		}
 
-		if (InLevel->IsUsingActorFolders())
+		// If either this level or the owning world are using actor folders, remove level's actor folders
+		if (InLevel->IsUsingActorFolders() || InWorld->PersistentLevel->IsUsingActorFolders())
 		{
 			FSceneOutlinerHierarchyChangedData EventData;
 			EventData.Type = FSceneOutlinerHierarchyChangedData::Removed;

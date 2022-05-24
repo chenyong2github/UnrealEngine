@@ -14,7 +14,7 @@ public:
 
 	/* Begin ISceneOutlinerMode Interface */
 	virtual void Rebuild() override;
-	virtual FCreateSceneOutlinerMode CreateFolderPickerMode(const FFolder::FRootObject& InRootObject = FFolder::GetDefaultRootObject()) const override;
+	virtual FCreateSceneOutlinerMode CreateFolderPickerMode(const FFolder::FRootObject& InRootObject = FFolder::GetInvalidRootObject()) const override;
 	virtual void CreateViewContent(FMenuBuilder& MenuBuilder) override;
 	virtual TSharedPtr<FDragDropOperation> CreateDragDropOperation(const FPointerEvent& MouseEvent, const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const override;
 	virtual bool ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload, const FDragDropOperation& Operation) const override;
@@ -46,7 +46,8 @@ public:
 	virtual bool CanPaste() const override;
 	virtual bool CanSupportDragAndDrop() const { return true; }
 	virtual FFolder CreateNewFolder() override;
-	virtual FFolder CreateFolder(const FFolder& ParentPath, const FName& LeafName) override;
+	virtual FFolder GetFolder(const FFolder& ParentPath, const FName& LeafName) override;
+	virtual bool CreateFolder(const FFolder& NewFolder) override;
 	virtual bool ReparentItemToFolder(const FFolder& FolderPath, const FSceneOutlinerTreeItemPtr& Item) override;
 	virtual void SelectFoldersDescendants(const TArray<FFolderTreeItem*>& FolderItems, bool bSelectImmediateChildrenOnly) override;
 	virtual void PinItem(const FSceneOutlinerTreeItemPtr& InItem) override;
@@ -104,8 +105,8 @@ private:
 	void RegisterContextMenu();
 	bool CanPasteFoldersOnlyFromClipboard() const;
 
-	bool GetFolderNamesFromFolders(const TArray<FFolder>& InFolders, TArray<FName>& OutFolders, FFolder::FRootObject& OutCommonRootObject) const;
 	bool GetFolderNamesFromPayload(const FSceneOutlinerDragDropPayload& InPayload, TArray<FName>& OutFolders, FFolder::FRootObject& OutCommonRootObject) const;
+	FFolder GetWorldDefaultRootFolder() const;
 
 	/** Filter factories */
 	static TSharedRef<FSceneOutlinerFilter> CreateShowOnlySelectedActorsFilter();

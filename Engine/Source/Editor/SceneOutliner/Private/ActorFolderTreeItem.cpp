@@ -198,9 +198,9 @@ private:
 		{
 			NewPath = FName(*(NewPath.ToString() / LabelString));
 		}
-		Folder.SetPath(NewPath);
+		FFolder NewFolder(Folder.GetRootObject(), NewPath);
 
-		if (FActorFolders::Get().ContainsFolder(*TreeItem->World.Get(), Folder))
+		if (FActorFolders::Get().ContainsFolder(*TreeItem->World.Get(), NewFolder))
 		{
 			OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "A folder with this name already exists at this level");
 			return false;
@@ -225,7 +225,7 @@ private:
 			{
 				NewPath = FName(*(NewPath.ToString() / InLabel.ToString()));
 			}
-			FFolder TreeItemNewFolder(NewPath, Folder.GetRootObject());
+			FFolder TreeItemNewFolder(Folder.GetRootObject(), NewPath);
 
 			FActorFolders::Get().RenameFolderInWorld(*TreeItem->World.Get(), Folder, TreeItemNewFolder);
 
@@ -254,7 +254,9 @@ FActorFolderTreeItem::FActorFolderTreeItem(const FFolder& InFolder, const TWeakO
 	: FFolderTreeItem(InFolder, Type)
 	, World(InWorld)
 {
-	SetPath(InFolder.GetPath());
+	FFolderTreeItem::SetPath(InFolder.GetPath());
+	// Initialize ActorFolder
+	ActorFolder = InFolder.GetActorFolder();
 }
 
 void FActorFolderTreeItem::OnExpansionChanged()
@@ -321,10 +323,8 @@ void FActorFolderTreeItem::SetPath(const FName& InNewPath)
 {
 	FFolderTreeItem::SetPath(InNewPath);
 
-	if (World.IsValid())
-	{
-		ActorFolder = FWorldPersistentFolders::GetActorFolder(GetFolder(), World.Get());
-	}
+	// Validate that if the item's ActorFolder object is set, that changing the path keeps the same ActorFolder but with a different path
+	check(!ActorFolder.IsValid() || (ActorFolder->GetFolder().GetPath() == Path));
 }
 
 void FActorFolderTreeItem::CreateSubFolder(TWeakPtr<SSceneOutliner> WeakOutliner)
@@ -350,7 +350,18 @@ TSharedRef<SWidget> FActorFolderTreeItem::GenerateLabelWidget(ISceneOutliner& Ou
 
 bool FActorFolderTreeItem::ShouldShowPinnedState() const
 {
-	return GetRootObject() == FFolder::GetDefaultRootObject() && World.IsValid() && !World->IsGameWorld() && World->IsPartitionedWorld();
+	if (World.IsValid() && !World->IsGameWorld() && World->IsPartitionedWorld())
+	{
+		return FFolder::IsRootObjectPersistentLevel(GetRootObject());
+	}
+	return false;
+}
+
+FFolder FActorFolderTreeItem::GetFolder() const
+{
+	// Use Folder resolved by ActorFolder when valid (a null owning world would will fail resolving, see UActorFolder::GetFolder())
+	FFolder Folder = ActorFolder.IsValid() ? ActorFolder->GetFolder() : FFolder::GetInvalidFolder();
+	return Folder.IsValid() ? Folder : FFolderTreeItem::GetFolder();
 }
 
 bool FActorFolderTreeItem::CanInteract() const

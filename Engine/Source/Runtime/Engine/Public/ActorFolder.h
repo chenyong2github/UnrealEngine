@@ -36,7 +36,7 @@ public:
 	UActorFolder* GetParent(bool bSkipDeleted = true) const;
 
 	void SetLabel(const FString& InFolderLabel);
-	FString GetLabel() const { return FolderLabel; }
+	const FString& GetLabel() const { return FolderLabel; }
 
 	// Control whether the folder is initially expanded or not
 	void SetIsInitiallyExpanded(bool bInFolderInitiallyExpanded);
@@ -65,10 +65,13 @@ public:
 	* @param bShouldDirty should dirty or not the level package
 	*/
 	void SetPackageExternal(bool bExternal, bool bShouldDirty = true);
-#endif
 
 private:
+	FName GetPathInternal(UActorFolder* InSkipFolder) const;
+#endif
+
 #if WITH_EDITORONLY_DATA
+private:
 	UPROPERTY()
 	FGuid ParentFolderGuid;
 

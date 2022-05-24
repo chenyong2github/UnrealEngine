@@ -99,13 +99,16 @@ struct UNREALED_API FActorFolders : public FGCObject, public IActorEditorContext
 	//~ End Deprecated
 
 	/** Apply an operation to each actor in the given list of folders. Will stop when operation returns false. */
-	static void ForEachActorInFolders(UWorld& InWorld, const TArray<FName>& Paths, TFunctionRef<bool(AActor*)> Operation, const FFolder::FRootObject& InFolderRootObject = FFolder::GetDefaultRootObject());
+	static void ForEachActorInFolders(UWorld& InWorld, const TArray<FName>& Paths, TFunctionRef<bool(AActor*)> Operation, const FFolder::FRootObject& InFolderRootObject = FFolder::GetInvalidRootObject());
 
 	/** Get an array of actors from a list of folders */
-	static void GetActorsFromFolders(UWorld& InWorld, const TArray<FName>& Paths, TArray<AActor*>& OutActors, const FFolder::FRootObject& InFolderRootObject = FFolder::GetDefaultRootObject());
+	static void GetActorsFromFolders(UWorld& InWorld, const TArray<FName>& Paths, TArray<AActor*>& OutActors, const FFolder::FRootObject& InFolderRootObject = FFolder::GetInvalidRootObject());
 
 	/** Get an array of weak actor pointers from a list of folders */
-	static void GetWeakActorsFromFolders(UWorld& InWorld, const TArray<FName>& Paths, TArray<TWeakObjectPtr<AActor>>& OutActors, const FFolder::FRootObject& InFolderRootObject = FFolder::GetDefaultRootObject());
+	static void GetWeakActorsFromFolders(UWorld& InWorld, const TArray<FName>& Paths, TArray<TWeakObjectPtr<AActor>>& OutActors, const FFolder::FRootObject& InFolderRootObject = FFolder::GetInvalidRootObject());
+
+	/** Tests whether a folder container exists for the specified world */
+	bool IsInitializedForWorld(UWorld& InWorld) const;
 
 	/** Get a default folder name under the specified parent path */
 	FFolder GetDefaultFolderName(UWorld& InWorld, const FFolder& InParentFolder);
@@ -117,7 +120,7 @@ struct UNREALED_API FActorFolders : public FGCObject, public IActorEditorContext
 	FFolder GetFolderName(UWorld& InWorld, const FFolder& InParentFolder, const FName& InLeafName);
 
 	/** Create a new folder in the specified world, of the specified path */
-	void CreateFolder(UWorld& InWorld, const FFolder& InFolder);
+	bool CreateFolder(UWorld& InWorld, const FFolder& InFolder);
 
 	/** Same as CreateFolder, but moves the current actor selection into the new folder as well */
 	void CreateFolderContainingSelection(UWorld& InWorld, const FFolder& InFolder);
@@ -163,6 +166,8 @@ struct UNREALED_API FActorFolders : public FGCObject, public IActorEditorContext
 	void SetActorEditorContextFolder(UWorld& InWorld, const FFolder& InFolder);
 
 private:
+	
+	static FFolder::FRootObject GetWorldFolderRootObject(UWorld& InWorld);
 
 	/** Broadcast when actor folder is created. */
 	void BroadcastOnActorFolderCreated(UWorld& InWorld, const FFolder& InFolder);

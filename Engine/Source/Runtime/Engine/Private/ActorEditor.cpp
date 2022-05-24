@@ -975,12 +975,26 @@ void AActor::ClearActorLabel()
 
 FFolder AActor::GetFolder() const
 {
-	return FFolder(GetFolderPath(), GetFolderRootObject());
+	// Favor building FFolder using guid (if available).
+	// The reason is that a lot of calling functions will try resolving at some point the UActorFolder* from the folder
+	// and the guid implementation is much faster.
+	if (GetWorld() && GetFolderGuid().IsValid())
+	{
+		if (UActorFolder* ActorFolder = GetActorFolder())
+		{
+			return ActorFolder->GetFolder();
+		}
+	}
+	return FFolder(GetFolderRootObject(), GetFolderPath());
 }
 
 FFolder::FRootObject AActor::GetFolderRootObject() const
 {
-	return FFolder::GetOptionalFolderRootObject(GetLevel()).Get(FFolder::GetDefaultRootObject());
+	if (GetWorld())
+	{
+		return FFolder::GetOptionalFolderRootObject(GetLevel()).Get(FFolder::GetInvalidRootObject());
+	}
+	return FFolder::GetInvalidRootObject();
 }
 
 static bool IsUsingActorFolders(const AActor* InActor)
@@ -1023,7 +1037,7 @@ bool AActor::CreateOrUpdateActorFolder()
 	if (!ActorFolder)
 	{
 		check(!FolderPath.IsNone());
-		ActorFolder = FWorldPersistentFolders::GetActorFolder(FFolder(FolderPath, GetFolderRootObject()), GetWorld(), /*bAllowCreate*/ true);
+		ActorFolder = FWorldPersistentFolders::GetActorFolder(FFolder(GetFolderRootObject(), FolderPath), GetWorld(), /*bAllowCreate*/ true);
 	}
 
 	// At this point, actor folder should always be valid
@@ -1048,7 +1062,7 @@ UActorFolder* AActor::GetActorFolder(bool bSkipDeleted) const
 		}
 		else if (!FolderPath.IsNone())
 		{
-			ActorFolder = Level->GetActorFolder(FolderPath, bSkipDeleted);
+			ActorFolder = Level->GetActorFolder(FolderPath);
 		}
 	}
 	return ActorFolder;
@@ -1108,13 +1122,14 @@ FGuid AActor::GetFolderGuid() const
 FName AActor::GetFolderPath() const
 {
 	static const FName RootPath = FFolder::GetEmptyPath();
-	if (!FFolder::GetOptionalFolderRootObject(GetLevel()))
+	UWorld* World = GetWorld();
+	if (World && !FFolder::GetOptionalFolderRootObject(GetLevel()))
 	{
 		return RootPath;
 	}
 	if (IsUsingActorFolders(this))
 	{
-		if (UActorFolder* ActorFolder = GetActorFolder())
+		if (UActorFolder* ActorFolder = World ? GetActorFolder() : nullptr)
 		{
 			return ActorFolder->GetPath();
 		}
@@ -1131,7 +1146,7 @@ void AActor::SetFolderPath(const FName& InNewFolderPath)
 		UWorld* World = GetWorld();
 		if (!InNewFolderPath.IsNone() && World)
 		{
-			FFolder NewFolder(InNewFolderPath, GetFolderRootObject());
+			FFolder NewFolder(GetFolderRootObject(), InNewFolderPath);
 			ActorFolder = FWorldPersistentFolders::GetActorFolder(NewFolder, World);
 			if (!ActorFolder)
 			{

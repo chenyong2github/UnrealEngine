@@ -1658,15 +1658,15 @@ void ULevelStreaming::BroadcastLevelVisibleStatus(UWorld* PersistentWorld, FName
 
 	for (ULevelStreaming* StreamingLevel : LevelsToBroadcast)
 	{
-			if (bVisible)
-			{
-				StreamingLevel->OnLevelShown.Broadcast();
-			}
-			else
-			{
-				StreamingLevel->OnLevelHidden.Broadcast();
-			}
+		if (bVisible)
+		{
+			StreamingLevel->OnLevelShown.Broadcast();
 		}
+		else
+		{
+			StreamingLevel->OnLevelHidden.Broadcast();
+		}
+	}
 }
 
 void ULevelStreaming::SetWorldAsset(const TSoftObjectPtr<UWorld>& NewWorldAsset)
@@ -2038,13 +2038,18 @@ void ULevelStreaming::PostEditUndo()
 TOptional<FFolder::FRootObject> ULevelStreaming::GetFolderRootObject() const
 { 
 	// We consider that if either the loaded level or its world persistent level uses actor folder objects, the loaded level is the folder root object.
-	if (LoadedLevel && 
-		(LoadedLevel != LoadedLevel->GetWorld()->PersistentLevel) && 
-		(LoadedLevel->IsUsingActorFolders() || LoadedLevel->GetWorld()->PersistentLevel->IsUsingActorFolders()))
+	if (LoadedLevel)
 	{
-		return FFolder::FRootObject(LoadedLevel);
+		if (LoadedLevel->IsUsingActorFolders() || LoadedLevel->GetWorld()->PersistentLevel->IsUsingActorFolders())
+		{
+			return FFolder::FRootObject(LoadedLevel);
+		}
+		else
+		{
+			return FFolder::GetWorldRootFolder(LoadedLevel->GetWorld()).GetRootObject();
+		}
 	}
-	return FFolder::GetDefaultRootObject();
+	return TOptional<FFolder::FRootObject>();
 }
 
 const FName& ULevelStreaming::GetFolderPath() const

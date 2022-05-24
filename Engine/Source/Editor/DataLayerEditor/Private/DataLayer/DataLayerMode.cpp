@@ -294,6 +294,11 @@ FText FDataLayerMode::GetStatusText() const
 	}
 }
 
+FFolder::FRootObject FDataLayerMode::GetRootObject() const
+{
+	return FFolder::GetWorldRootFolder(RepresentingWorld.Get()).GetRootObject();
+}
+
 SDataLayerBrowser* FDataLayerMode::GetDataLayerBrowser() const
 {
 	return DataLayerBrowser;

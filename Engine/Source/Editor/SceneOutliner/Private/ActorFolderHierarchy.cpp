@@ -90,7 +90,7 @@ void FActorFolderHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutl
 		return true;
 	});
 
-	if (FFolder::HasRootObject(RootObject))
+	if (FFolder::IsRootObjectValid(RootObject))
 	{
 		UObject* RootObjectPtr = FFolder::GetRootObjectPtr(RootObject);
 		if (ILevelInstanceInterface* RootLevelInstance = Cast<ILevelInstanceInterface>(RootObjectPtr))
@@ -102,9 +102,13 @@ void FActorFolderHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutl
 		}
 		else if (ULevel* RootLevel = Cast<ULevel>(RootObjectPtr))
 		{
-			if (FSceneOutlinerTreeItemPtr ActorItem = Mode->CreateItemFor<FLevelTreeItem>(RootLevel, true))
+			// Don't create a LevelTreeItems for the PersistentLevel
+			if (!RootLevel->IsPersistentLevel())
 			{
-				OutItems.Add(ActorItem);
+				if (FSceneOutlinerTreeItemPtr ActorItem = Mode->CreateItemFor<FLevelTreeItem>(RootLevel, true))
+				{
+					OutItems.Add(ActorItem);
+				}
 			}
 		}
 	}
@@ -114,7 +118,7 @@ void FActorFolderHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutIt
 {
 	check(RepresentingWorld.IsValid());
 
-	if (!FFolder::HasRootObject(RootObject))
+	if (FFolder::IsRootObjectPersistentLevel(RootObject))
 	{
 		if (FSceneOutlinerTreeItemPtr WorldItem = Mode->CreateItemFor<FWorldTreeItem>(RepresentingWorld.Get()))
 		{

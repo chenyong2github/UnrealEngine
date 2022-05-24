@@ -601,8 +601,6 @@ private:
 	/** Get an array of selected folders */
 	void GetSelectedFolders(TArray<FFolderTreeItem*>& OutFolders) const;
 
-	/** Get an array of selected folder names */
-	TArray<FName> GetSelectedFolderNames() const;
 private:
 	/** Tree view event bindings */
 
@@ -676,6 +674,12 @@ private:
 
 	/** Cache folders for cut/copy/paste/duplicate */
 	TArray<FName> CacheFoldersEdit;
+
+	/** CacheFoldersEdit target root object */
+	FFolder::FRootObject CacheFoldersEditRootObject;
+
+	/** Cache folders mapping (old to new) for cut/copy/paste/duplicate */
+	TMap<FName, FName> CacheFolderMap;
 
 	/** Cache clipboard contents for cut/copy */
 	FString CacheClipboardContents;

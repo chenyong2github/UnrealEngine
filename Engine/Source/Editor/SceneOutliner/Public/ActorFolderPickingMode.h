@@ -7,7 +7,7 @@
 class SCENEOUTLINER_API FActorFolderPickingMode : public FActorMode
 {
 public:
-	FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr, const FFolder::FRootObject& InRootObject = FFolder::GetDefaultRootObject());
+	FActorFolderPickingMode(SSceneOutliner* InSceneOutliner, FOnSceneOutlinerItemPicked InOnItemPicked, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay = nullptr, const FFolder::FRootObject& InRootObject = FFolder::GetInvalidRootObject());
 	virtual ~FActorFolderPickingMode() {}
 
 	/* Begin ISceneOutlinerMode Implementation */

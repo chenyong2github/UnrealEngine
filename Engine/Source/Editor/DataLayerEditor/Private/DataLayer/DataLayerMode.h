@@ -56,6 +56,7 @@ public:
 	virtual bool ShowFilterOptions() const override { return true; }
 	virtual FText GetStatusText() const override;
 	virtual FSlateColor GetStatusTextColor() const override { return FSlateColor::UseForeground(); }
+	virtual FFolder::FRootObject GetRootObject() const override;
 
 	virtual void SynchronizeSelection() override;
 	virtual void OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item) override;

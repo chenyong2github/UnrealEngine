@@ -44,6 +44,13 @@ TOptional<FFolder::FRootObject> ULevelStreamingLevelInstanceEditor::GetFolderRoo
 		}
 	}
 
+	if (!LevelInstanceID.IsValid())
+	{
+		// When creating a new level instance, we have an invalid LevelInstanceID (until it gets loaded)
+		// Return the world as root object.
+		return FFolder::GetWorldRootFolder(GetWorld()).GetRootObject();
+	}
+
 	return TOptional<FFolder::FRootObject>();
 }
 

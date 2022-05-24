@@ -465,7 +465,11 @@ void UWorldPartitionLevelStreamingDynamic::OnCleanupLevel()
 // This could become an option in the world outliner when running PIE.
 TOptional<FFolder::FRootObject> UWorldPartitionLevelStreamingDynamic::GetFolderRootObject() const
 {
-	return FFolder::GetDefaultRootObject();
+	if (UWorld* World = GetWorld())
+	{
+		return FFolder::GetWorldRootFolder(World).GetRootObject();
+	}
+	return FFolder::GetInvalidRootObject();
 }
 
 #endif

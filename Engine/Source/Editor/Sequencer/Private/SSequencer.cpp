@@ -3615,8 +3615,10 @@ void SSequencer::OnActorsDropped( FActorDragDropOp& DragDropOp )
 void SSequencer::OnFolderDropped( FFolderDragDropOp& DragDropOp )
 {
 	// Sequencer doesn't support dragging folder with a root object
-	if (FFolder::HasRootObject(DragDropOp.RootObject))
+	if (!FFolder::IsRootObjectPersistentLevel(DragDropOp.RootObject))
+	{
 		return;
+	}
 
 	const FScopedTransaction Transaction(LOCTEXT("DropActors", "Drop Actors"));
 

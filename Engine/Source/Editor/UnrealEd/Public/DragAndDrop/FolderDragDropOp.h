@@ -20,7 +20,7 @@ public:
 	/** Root object of folder (can be invalid) */
 	FFolder::FRootObject RootObject;
 
-	void Init(TArray<FName> InFolders, UWorld* InWorld, const FFolder::FRootObject& InRootObject = FFolder::GetDefaultRootObject())
+	void Init(TArray<FName> InFolders, UWorld* InWorld, const FFolder::FRootObject& InRootObject = FFolder::GetInvalidRootObject())
 	{
 		check(InWorld != nullptr);
 		Folders = MoveTemp(InFolders);

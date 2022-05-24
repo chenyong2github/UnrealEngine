@@ -40,6 +40,7 @@ class SNotificationItem;
 class UActorFolder;
 class IWorldPartitionCell;
 class UWorldPartitionRuntimeCell;
+struct FFolder;
 
 UINTERFACE()
 class ULevelPartitionInterface : public UInterface
@@ -71,8 +72,11 @@ struct ENGINE_API FLevelActorFoldersHelper
 private:
 	static void SetUseActorFolders(ULevel* InLevel, bool bInEnabled);
 	static void AddActorFolder(ULevel* InLevel, UActorFolder* InActorFolder, bool bInShouldDirtyLevel, bool bInShouldBroadcast = true);
+	static void RenameFolder(ULevel* InLevel, const FFolder& InOldFolder, const FFolder& InNewFolder);
+	static void DeleteFolder(ULevel* InLevel, const FFolder& InFolder);
 
 	friend class UWorld;
+	friend class ULevel;
 	friend class UActorFolder;
 	friend class UWorldPartitionConvertCommandlet;
 	friend class FWorldPartitionLevelHelper;
@@ -106,6 +110,24 @@ class UActorContainer : public UObject
 public:
 	UPROPERTY()
 	TMap<FName, TObjectPtr<AActor>> Actors;
+};
+
+USTRUCT()
+struct ENGINE_API FActorFolderSet
+{
+	GENERATED_BODY()
+
+public:
+
+	void Add(UActorFolder* InActorFolder) { ActorFolders.Add(InActorFolder); }
+	int32 Remove(UActorFolder* InActorFolder) { return ActorFolders.Remove(InActorFolder); }
+	bool IsEmpty() const { return ActorFolders.IsEmpty(); }
+	const TSet<TObjectPtr<UActorFolder>>& GetActorFolders() const { return ActorFolders; }
+
+private:
+
+	UPROPERTY(Transient)
+	TSet<TObjectPtr<UActorFolder>> ActorFolders;
 };
 
 /**
@@ -837,6 +859,10 @@ private:
 	UPROPERTY(Transient)
 	TMap<FGuid, TObjectPtr<UActorFolder>> ActorFolders;
 
+	/** Acceleration table used to find an ActorFolder object for a given folder path. */
+	UPROPERTY(Transient)
+	TMap<FString, FActorFolderSet> FolderLabelToActorFolders;
+
 	/** Temporary array containing actor folder objects manually loaded from their external packages (only used while loading the level). */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UActorFolder>> LoadedExternalActorFolders;
@@ -1204,7 +1230,7 @@ public:
 	ENGINE_API UActorFolder* GetActorFolder(const FGuid& InGuid, bool bSkipDeleted = true) const;
 
 	/** Finds the level actor folder by its path. Returns null if not found. */
-	ENGINE_API UActorFolder* GetActorFolder(const FName& InPath, bool bSkipDeleted = true) const;
+	ENGINE_API UActorFolder* GetActorFolder(const FName& InPath) const;
 
 	/** Iterates on all valid level actor folders. */
 	ENGINE_API void ForEachActorFolder(TFunctionRef<bool(UActorFolder*)> Operation, bool bSkipDeleted = false);
@@ -1361,11 +1387,17 @@ private:
 	/** Prepares/fixes actor folder objects once level is fully loaded. */
 	void FixupActorFolders();
 
+	void AddActorFolder(UActorFolder* InActorFolder);
+	void RemoveActorFolder(UActorFolder* InActorFolder);
+	void OnFolderMarkAsDeleted(UActorFolder* InActorFolder);
+	void OnFolderLabelChanged(UActorFolder* InActorFolder, const FString& InOldFolderLabel);
+
 	/** Sets the level to use or not the actor folder objects feature. */
 	void SetUseActorFoldersInternal(bool bInEnabled);
 
 	friend struct FLevelActorFoldersHelper;
 	friend class FWorldPartitionLevelHelper;
+	friend class UActorFolder;
 
 	/** Replace the existing LSA (if set) by spawning a new one based on this level's script blueprint */
 	void RegenerateLevelScriptActor();

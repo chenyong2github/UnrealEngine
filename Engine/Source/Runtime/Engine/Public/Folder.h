@@ -10,32 +10,34 @@
 #include "Misc/Optional.h"
 
 class ULevel;
+class UActorFolder;
+class UWorld;
 
-struct FFolder
+struct ENGINE_API FFolder
 {
 #if WITH_EDITOR
 	typedef FObjectKey FRootObject;
 
-	FFolder(const FName& InPath = GetEmptyPath(), const FRootObject& InRootObject = GetDefaultRootObject())
-		: Path(InPath)
+	// Only used by containers
+	FFolder()
+		: bPathInitialized(true)
+		, Path(GetEmptyPath())
+		, RootObject(GetInvalidRootObject())
+	{}
+
+	FFolder(const FRootObject& InRootObject, const FName& InPath = GetEmptyPath())
+		: bPathInitialized(true)
+		, Path(InPath)
 		, RootObject(InRootObject)
 	{}
 
-	ENGINE_API static TOptional<FRootObject> GetOptionalFolderRootObject(const ULevel* InLevel);
-
-	FORCEINLINE static bool HasRootObject(const FRootObject& Key)
+	FFolder(const FRootObject& InRootObject, const FGuid& InActorFolderGuid)
+		: bPathInitialized(false)
+		, Path(NAME_None)
+		, RootObject(InRootObject)
+		, ActorFolderGuid(InActorFolderGuid)
 	{
-		return Key != GetDefaultRootObject();
-	}
-
-	FORCEINLINE static FName GetEmptyPath()
-	{
-		return NAME_None;
-	}
-
-	FORCEINLINE static FRootObject GetDefaultRootObject()
-	{
-		return FRootObject();
+		check(ActorFolderGuid.IsValid());
 	}
 
 	FORCEINLINE static UObject* GetRootObjectPtr(const FRootObject& InRootObject)
@@ -43,15 +45,34 @@ struct FFolder
 		return InRootObject.ResolveObjectPtr();
 	}
 
-	FORCEINLINE bool HasRootObject() const
+	FORCEINLINE static bool IsRootObjectValid(const FRootObject& Key)
 	{
-		return FFolder::HasRootObject(RootObject);
+		return Key != GetInvalidRootObject();
 	}
 
-	FORCEINLINE FFolder GetParent() const
+	FORCEINLINE static FName GetEmptyPath()
 	{
-		const FName ParentPath(*FPaths::GetPath(Path.ToString()));
-		return FFolder(ParentPath, RootObject);
+		return NAME_None;
+	}
+
+	FORCEINLINE bool IsRootObjectValid() const
+	{
+		return FFolder::IsRootObjectValid(RootObject);
+	}
+
+	FORCEINLINE ULevel* GetRootObjectAssociatedLevel() const
+	{
+		return FFolder::GetRootObjectAssociatedLevel(RootObject);
+	}
+
+	FORCEINLINE bool IsRootObjectPersistentLevel() const
+	{
+		return FFolder::IsRootObjectPersistentLevel(RootObject);
+	}
+
+	FORCEINLINE bool IsValid() const
+	{
+		return IsRootObjectValid();
 	}
 
 	FORCEINLINE bool IsChildOf(const FFolder& InParent) const
@@ -65,32 +86,28 @@ struct FFolder
 
 	FORCEINLINE bool IsNone() const
 	{
-		return Path.IsNone();
+		return GetPath().IsNone();
 	}
 
-	const FRootObject& GetRootObject() const
+	FORCEINLINE const FRootObject& GetRootObject() const
 	{
 		return RootObject;
 	}
 
 	FORCEINLINE UObject* GetRootObjectPtr() const
 	{
-		return GetRootObjectPtr(RootObject);
+		return FFolder::GetRootObjectPtr(RootObject);
 	}
 
-	FORCEINLINE const FName& GetPath() const
+	FORCEINLINE const FGuid& GetActorFolderGuid() const
 	{
-		return Path;
-	}
-
-	FORCEINLINE void SetPath(const FName& InPath)
-	{
-		Path = InPath;
+		return ActorFolderGuid;
 	}
 
 	FORCEINLINE FName GetLeafName() const
 	{
-		FString PathString = Path.ToString();
+		FName PathLocal = GetPath();
+		FString PathString = PathLocal.ToString();
 		int32 LeafIndex = 0;
 		if (PathString.FindLastChar('/', LeafIndex))
 		{
@@ -98,36 +115,49 @@ struct FFolder
 		}
 		else
 		{
-			return Path;
+			return PathLocal;
 		}
 	}
 
 	FORCEINLINE bool operator == (const FFolder& InOther) const
 	{
-		return (Path == InOther.Path) && (RootObject == InOther.RootObject);
+		return (RootObject == InOther.RootObject) && (GetPath() == InOther.GetPath()); // don't check for ActorFolderGuid as it's only used as an accelerator
 	}
 
 	FORCEINLINE bool operator != (const FFolder& InOther) const
 	{
 		return !operator==(InOther);
 	}
-
+	
 	FORCEINLINE FString ToString() const
-	{
-		return Path.ToString();
+	{ 
+		return GetPath().ToString();
 	}
 
 	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FFolder& Folder)
 	{
 		check(!Ar.IsPersistent());
-		return Ar << Folder.Path << Folder.RootObject;
+		return Ar << Folder.bPathInitialized << Folder.Path << Folder.RootObject << Folder.ActorFolderGuid;
 	}
+
+	const FName GetPath() const;
+	FFolder GetParent() const;
+	UActorFolder* GetActorFolder() const;
+
+	// Helpers methods
+	static const FFolder& GetInvalidFolder();
+	static const FRootObject& GetInvalidRootObject();
+	static bool IsRootObjectPersistentLevel(const FRootObject& Key);
+	static TOptional<FRootObject> GetOptionalFolderRootObject(const ULevel* InLevel);
+	static ULevel* GetRootObjectAssociatedLevel(const FRootObject& Key);
+	static FFolder GetWorldRootFolder(UWorld* InWorld);
+	static bool GetFolderPathsAndCommonRootObject(const TArray<FFolder>& InFolders, TArray<FName>& OutFolders, FRootObject& OutCommonRootObject);
 
 private:
 	bool PathIsChildOf(const FString& InPotentialChild, const FString& InParent) const
 	{
 		const int32 ParentLen = InParent.Len();
-		
+
 		// If parent is empty and child isn't, consider that path is child of parent
 		if ((InPotentialChild.Len() > 0) && (ParentLen == 0))
 		{
@@ -145,8 +175,10 @@ private:
 		return PathIsChildOf(InPotentialChild.ToString(), InParent.ToString());
 	}
 
-	FName Path;
+	mutable bool bPathInitialized;
+	mutable FName Path;
 	FRootObject RootObject;
+	mutable FGuid ActorFolderGuid; // Optional : Used to find Level's ActorFolder faster than by using the path
 #endif
 };
 

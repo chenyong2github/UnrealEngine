@@ -4,6 +4,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Styling/AppStyle.h"
 #include "ISceneOutlinerColumn.h"
+#include "ISceneOutlinerMode.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "SceneOutlinerDragDrop.h"
@@ -101,8 +102,12 @@ FReply HandleDrop(TSharedPtr<SSceneOutliner> SceneOutlinerPtr, const FDragDropEv
 	return FReply::Handled();
 }
 
-FReply HandleDropFromWeak(TWeakPtr<SSceneOutliner> SceneOutlinerWeak, const FDragDropEvent& DragDropEvent, ISceneOutlinerTreeItem& DropTarget, FSceneOutlinerDragValidationInfo& ValidationInfo, bool bApplyDrop = false)
+FReply HandleDropFromWeak(TWeakPtr<SSceneOutliner> SceneOutlinerWeak, const FDragDropEvent& DragDropEvent, FSceneOutlinerDragValidationInfo& ValidationInfo, bool bApplyDrop = false)
 {
+	const ISceneOutlinerMode* Mode = SceneOutlinerWeak.IsValid() ? SceneOutlinerWeak.Pin()->GetMode() : nullptr;
+	FFolder::FRootObject RootObject = Mode ? Mode->GetRootObject() : FFolder::GetInvalidRootObject();
+	FFolder RootFolder(RootObject);
+	FFolderTreeItem DropTarget(RootFolder);
 	return HandleDrop(SceneOutlinerWeak.Pin(), DragDropEvent, DropTarget, ValidationInfo, bApplyDrop);
 }
 
@@ -124,9 +129,7 @@ void SSceneOutlinerTreeView::FlashHighlightOnItem( FSceneOutlinerTreeItemPtr Fla
 FReply SSceneOutlinerTreeView::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
 	FSceneOutlinerDragValidationInfo ValidationInfo = FSceneOutlinerDragValidationInfo::Invalid();
-	FFolderTreeItem DropTarget(FFolder(FFolder::GetEmptyPath(), nullptr));
-
-	auto Reply = HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, DropTarget, ValidationInfo);
+	auto Reply = HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, ValidationInfo);
 	if (Reply.IsEventHandled())
 	{
 		UpdateOperationDecorator(DragDropEvent, ValidationInfo);
@@ -146,9 +149,7 @@ void SSceneOutlinerTreeView::OnDragLeave(const FDragDropEvent& DragDropEvent)
 FReply SSceneOutlinerTreeView::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
 	FSceneOutlinerDragValidationInfo ValidationInfo = FSceneOutlinerDragValidationInfo::Invalid();
-	FFolderTreeItem DropTarget(FFolder(FFolder::GetEmptyPath(), nullptr));
-
-	return HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, DropTarget, ValidationInfo, true);
+	return HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, ValidationInfo, true);
 }
 
 FReply SSceneOutlinerTreeRow::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )

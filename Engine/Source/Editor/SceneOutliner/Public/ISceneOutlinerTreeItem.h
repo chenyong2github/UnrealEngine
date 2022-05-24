@@ -121,7 +121,7 @@ public:
 	virtual FSceneOutlinerTreeItemID GetID() const = 0;
 
 	/** Get the optional context object root of a tree item. */
-	virtual FFolder::FRootObject GetRootObject() const { return FFolder::GetDefaultRootObject(); }
+	virtual FFolder::FRootObject GetRootObject() const { return FFolder::GetInvalidRootObject(); }
 
 	/** Get the raw string to display for this tree item - used for sorting */
 	virtual FString GetDisplayString() const = 0;

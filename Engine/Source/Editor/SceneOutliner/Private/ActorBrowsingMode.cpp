@@ -42,7 +42,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogActorBrowser, Log, All);
 
 using FActorFilter = TSceneOutlinerPredicateFilter<FActorTreeItem>;
 using FActorDescFilter = TSceneOutlinerPredicateFilter<FActorDescTreeItem>;
-static const FFolder GWorldRoot(FFolder::GetEmptyPath(), nullptr);
 
 FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
 	: FActorModeInteractive(FActorModeParams(InSceneOutliner, InSpecifiedWorldToDisplay,  /* bHideComponents */ true, /* bHideLevelInstanceHierarchy */ false, /* bHideUnloadedActors */ false))
@@ -560,6 +559,19 @@ void FActorBrowsingMode::RegisterContextMenu()
 											}
 										}
 									}
+								}),
+								FCanExecuteAction::CreateLambda([SceneOutliner]
+								{
+									const FSceneOutlinerItemSelection& Selection = SceneOutliner->GetSelection();
+									if (Selection.SelectedItems.Num() == 1)
+									{
+										FSceneOutlinerTreeItemPtr Item = Selection.SelectedItems[0].Pin();
+										if (FActorFolderTreeItem* FolderItem = Item->CastTo<FActorFolderTreeItem>())
+										{
+											return FolderItem->World.IsValid() && (FolderItem->World->GetCurrentLevel() == FolderItem->GetFolder().GetRootObjectAssociatedLevel());
+										}
+									}
+									return false;
 								})
 							)
 						);
@@ -576,10 +588,13 @@ void FActorBrowsingMode::RegisterContextMenu()
 								if (RepresentingWorld.IsValid())
 								{
 									const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "ClearCurrentActorFolder", "Clear Current Actor Folder"));
-									FActorFolders::Get().SetActorEditorContextFolder(*RepresentingWorld.Get(), FFolder());
+									FActorFolders::Get().SetActorEditorContextFolder(*RepresentingWorld.Get(), FFolder::GetWorldRootFolder(RepresentingWorld.Get()));
 								}
 							}),
-							FCanExecuteAction::CreateLambda([this] { return RepresentingWorld.IsValid() && !FActorFolders::Get().GetActorEditorContextFolder(*RepresentingWorld.Get()).IsNone(); })
+							FCanExecuteAction::CreateLambda([this]
+							{ 
+								return RepresentingWorld.IsValid() && !FActorFolders::Get().GetActorEditorContextFolder(*RepresentingWorld.Get()).IsNone(); 
+							})
 						)
 					);
 				}
@@ -1002,34 +1017,9 @@ bool FActorBrowsingMode::CanPasteFoldersOnlyFromClipboard() const
 	return PasteString.StartsWith("BEGIN FOLDERLIST");
 }
 
-bool FActorBrowsingMode::GetFolderNamesFromFolders(const TArray<FFolder>& InFolders, TArray<FName>& OutFolders, FFolder::FRootObject& OutCommonRootObject) const
-{
-	OutFolders.Reset();
-	OutCommonRootObject = FFolder::GetDefaultRootObject();
-
-	TOptional<FFolder::FRootObject> CommonRootObject;
-	for (const FFolder& Folder : InFolders)
-	{
-		OutFolders.Add(Folder.GetPath());
-		if (!CommonRootObject.IsSet())
-		{
-			CommonRootObject = Folder.GetRootObject();
-		}
-		else if (CommonRootObject.GetValue() != Folder.GetRootObject())
-		{
-			OutFolders.Reset();
-			CommonRootObject.Reset();
-			break;
-		}
-	};
-
-	OutCommonRootObject = CommonRootObject.Get(FFolder::GetDefaultRootObject());
-	return CommonRootObject.IsSet();
-}
-
 bool FActorBrowsingMode::GetFolderNamesFromPayload(const FSceneOutlinerDragDropPayload& InPayload, TArray<FName>& OutFolders, FFolder::FRootObject& OutCommonRootObject) const
 {
-	return GetFolderNamesFromFolders(InPayload.GetData<FFolder>(SceneOutliner::FFolderPathSelector()), OutFolders, OutCommonRootObject);
+	return FFolder::GetFolderPathsAndCommonRootObject(InPayload.GetData<FFolder>(SceneOutliner::FFolderPathSelector()), OutFolders, OutCommonRootObject);
 }
 
 TSharedPtr<FDragDropOperation> FActorBrowsingMode::CreateDragDropOperation(const FPointerEvent& MouseEvent, const TArray<FSceneOutlinerTreeItemPtr>& InTreeItems) const
@@ -1075,7 +1065,7 @@ bool FActorBrowsingMode::ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload
 		{
 			for (const auto& Folder : FolderOp->Folders)
 			{
-				OutPayload.DraggedItems.Add(SceneOutliner->GetTreeItem(FFolder(Folder, FolderOp->RootObject)));
+				OutPayload.DraggedItems.Add(SceneOutliner->GetTreeItem(FFolder(FolderOp->RootObject, Folder)));
 			}
 		}
 		if (const auto& ActorOp = OutlinerOp.GetSubOp<FActorDragDropOp>())
@@ -1097,6 +1087,11 @@ bool FActorBrowsingMode::ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload
 	}
 		
 	return false;
+}
+
+FFolder FActorBrowsingMode::GetWorldDefaultRootFolder() const
+{
+	return FFolder::GetWorldRootFolder(RepresentingWorld.Get());
 }
 
 FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOutlinerTreeItem& DropTarget, const FSceneOutlinerDragDropPayload& Payload) const
@@ -1238,7 +1233,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 		const FWorldTreeItem* WorldItem = DropTarget.CastTo<FWorldTreeItem>();
 		const FLevelTreeItem* LevelItem = DropTarget.CastTo<FLevelTreeItem>();
 		// WorldTreeItem and LevelTreeItem are treated as root folders (path = none), with the difference that LevelTreeItem has a RootObject.
-		const FFolder DestinationPath = FolderItem ? FolderItem->GetFolder() : (LevelItem ? FFolder(FFolder::GetEmptyPath(), FFolder::GetOptionalFolderRootObject(LevelItem->Level.Get()).Get(FFolder::GetDefaultRootObject())) : GWorldRoot);
+		const FFolder DestinationPath = FolderItem ? FolderItem->GetFolder() : (LevelItem ? FFolder(FFolder::GetOptionalFolderRootObject(LevelItem->Level.Get()).Get(FFolder::GetInvalidRootObject())) : GetWorldDefaultRootFolder());
 		const FFolder::FRootObject& DestinationRootObject = DestinationPath.GetRootObject();
 		ILevelInstanceInterface* LevelInstanceTarget = Cast<ILevelInstanceInterface>(DestinationPath.GetRootObjectPtr());
 		if (LevelInstanceTarget && !LevelInstanceTarget->IsEditing())
@@ -1258,7 +1253,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 					const FName Leaf = FEditorFolderUtils::GetLeafName(DraggedFolder);
 					const FName Parent = FEditorFolderUtils::GetParentPath(DraggedFolder);
 
-					if ((CommonFolderRootObject != DestinationRootObject) && FFolder::HasRootObject(CommonFolderRootObject) && FFolder::HasRootObject(DestinationRootObject))
+					if ((CommonFolderRootObject != DestinationRootObject) && FFolder::IsRootObjectValid(CommonFolderRootObject) && FFolder::IsRootObjectValid(DestinationRootObject))
 					{
 						FFormatNamedArguments Args;
 						Args.Add(TEXT("SourceName"), FText::FromName(Leaf));
@@ -1290,7 +1285,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 					const FString DstFolderPath = DestinationPath.IsNone() ? FString() : DestinationPath.ToString();
 					const FString NewPath = DstFolderPath / LeafName;
 
-					if (FActorFolders::Get().ContainsFolder(*RepresentingWorld, FFolder(FName(*NewPath), DestinationRootObject)))
+					if (FActorFolders::Get().ContainsFolder(*RepresentingWorld, FFolder(DestinationRootObject, FName(*NewPath))))
 					{
 						// The folder already exists
 						FFormatNamedArguments Args;
@@ -1345,7 +1340,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 				{
 					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText::Format(LOCTEXT("Error_AttachChildActor", "Cannot move {0} as it is a child actor."), FText::FromString(Actor->GetActorLabel())));
 				}
-				else if ((Actor->GetFolderRootObject() != DestinationRootObject) && FFolder::HasRootObject(Actor->GetFolderRootObject()) && FFolder::HasRootObject(DestinationRootObject))
+				else if ((Actor->GetFolderRootObject() != DestinationRootObject) && FFolder::IsRootObjectValid(Actor->GetFolderRootObject()) && FFolder::IsRootObjectValid(DestinationRootObject))
 				{
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("SourceName"), FText::FromString(Actor->GetActorLabel()));
@@ -1438,7 +1433,7 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 				check(TargetLevelInstance->IsEditing());
 				const FScopedTransaction Transaction(LOCTEXT("UndoAction_MoveActorsToLevelInstance", "Move actors to LevelInstance"));
 
-				const FFolder DestinationPath(FFolder::GetEmptyPath(), FFolder::FRootObject(DropActor));
+				const FFolder DestinationPath = FFolder(FFolder::FRootObject(DropActor));
 				auto MoveToDestination = [&DestinationPath](FFolderTreeItem& Item)
 				{
 					Item.MoveTo(DestinationPath);
@@ -1514,7 +1509,7 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 		const FWorldTreeItem* WorldItem = DropTarget.CastTo<FWorldTreeItem>();
 		const FLevelTreeItem* LevelItem = DropTarget.CastTo<FLevelTreeItem>();
 		// WorldTreeItem and LevelTreeItem are treated as root folders (path = none), with the difference that LevelTreeItem has a RootObject.
-		const FFolder DestinationPath = FolderItem ? FolderItem->GetFolder() : (LevelItem ? FFolder(FFolder::GetEmptyPath(), FFolder::GetOptionalFolderRootObject(LevelItem->Level.Get()).Get(FFolder::GetDefaultRootObject())) : GWorldRoot);
+		const FFolder DestinationPath = FolderItem ? FolderItem->GetFolder() : (LevelItem ? FFolder(FFolder::GetOptionalFolderRootObject(LevelItem->Level.Get()).Get(FFolder::GetInvalidRootObject())) : GetWorldDefaultRootFolder());
 
 		const FScopedTransaction Transaction(LOCTEXT("MoveOutlinerItems", "Move World Outliner Items"));
 
@@ -1539,10 +1534,10 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 					// First mark this object as a parent, then set its children's path
 					ParentActors.Add(Actor);
 
-					const FFolder Folder = Actor->GetFolder();
+					const FFolder SrcFolder = Actor->GetFolder();
 
 					// If the folder root object changes, 1st pass will put actors at root. 2nd pass will set the destination path.
-					FName NewPath = (Folder.GetRootObject() == DestinationPath.GetRootObject()) ? DestinationPath.GetPath() : NAME_None;
+					FName NewPath = (SrcFolder.GetRootObject() == DestinationPath.GetRootObject()) ? DestinationPath.GetPath() : NAME_None;
 					
 					Actor->SetFolderPath(NewPath);
 					FActorEditorUtils::TraverseActorTree_ParentFirst(Actor, [&](AActor* InActor) {
@@ -1551,7 +1546,7 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 						return true;
 						}, false);
 					
-					if ((Actor->GetFolderRootObject() != DestinationPath.GetRootObject()) && !Folder.HasRootObject() && DestinationPath.HasRootObject())
+					if ((Actor->GetFolderRootObject() != DestinationPath.GetRootObject()) && SrcFolder.IsRootObjectPersistentLevel() && (DestinationPath.IsRootObjectValid() && !DestinationPath.IsRootObjectPersistentLevel()))
 					{
 						MovingActorsToValidRootObject.Add(Actor);
 					}
@@ -1593,7 +1588,7 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 				}
 			};
 
-			if (!DestinationPath.HasRootObject())
+			if (DestinationPath.IsRootObjectPersistentLevel())
 			{
 				const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
 				check(LevelInstanceSubsystem);
@@ -1610,9 +1605,13 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 						check(ParentLevelInstance->IsEditing());
 						LevelInstanceActorsToMove.Add(Actor);
 					}
-					else if (Actor->GetFolder().HasRootObject())
+					else
 					{
-						ActorsToMoveToPersistentLevel.Add(Actor);
+						const FFolder ActorSrcFolder = Actor->GetFolder();
+						if (ActorSrcFolder.IsRootObjectValid() && !ActorSrcFolder.IsRootObjectPersistentLevel())
+						{
+							ActorsToMoveToPersistentLevel.Add(Actor);
+						}
 					}
 				});
 
@@ -1668,11 +1667,15 @@ FFolder FActorBrowsingMode::CreateNewFolder()
 	return NewFolderName;
 }
 
-FFolder FActorBrowsingMode::CreateFolder(const FFolder& ParentPath, const FName& LeafName)
+FFolder FActorBrowsingMode::GetFolder(const FFolder& ParentPath, const FName& LeafName)
 {
-	const FFolder NewPath = FActorFolders::Get().GetFolderName(*RepresentingWorld, ParentPath, LeafName);
-	FActorFolders::Get().CreateFolder(*RepresentingWorld, NewPath);
-	return NewPath;
+	// Return a unique folder under the provided parent path & root object and using the provided leaf name
+	return FActorFolders::Get().GetFolderName(*RepresentingWorld, ParentPath, LeafName);
+}
+
+bool FActorBrowsingMode::CreateFolder(const FFolder& NewPath)
+{
+	return FActorFolders::Get().CreateFolder(*RepresentingWorld, NewPath);
 }
 
 bool FActorBrowsingMode::ReparentItemToFolder(const FFolder& FolderPath, const FSceneOutlinerTreeItemPtr& Item)
@@ -1908,7 +1911,7 @@ FCreateSceneOutlinerMode FActorBrowsingMode::CreateFolderPickerMode(const FFolde
 	{
 		if (FWorldTreeItem* WorldItem = NewParent->CastTo<FWorldTreeItem>())
 		{
-			SceneOutliner->MoveSelectionTo(GWorldRoot);
+			SceneOutliner->MoveSelectionTo(GetWorldDefaultRootFolder());
 		}
 		else if (FFolderTreeItem* FolderItem = NewParent->CastTo<FFolderTreeItem>())
 		{
@@ -1916,16 +1919,16 @@ FCreateSceneOutlinerMode FActorBrowsingMode::CreateFolderPickerMode(const FFolde
 		}
 		else if (FActorTreeItem* ActorItem = NewParent->CastTo<FActorTreeItem>())
 		{
-			if (FFolder::HasRootObject(InRootObject))
+			if (FFolder::IsRootObjectValid(InRootObject))
 			{
-				SceneOutliner->MoveSelectionTo(FFolder(FFolder::GetEmptyPath(), InRootObject));
+				SceneOutliner->MoveSelectionTo(FFolder(InRootObject));
 			}
 		}
 		else if (FLevelTreeItem* LevelItem = NewParent->CastTo<FLevelTreeItem>())
 		{
-			if (FFolder::HasRootObject(InRootObject))
+			if (FFolder::IsRootObjectValid(InRootObject))
 			{
-				SceneOutliner->MoveSelectionTo(FFolder(FFolder::GetEmptyPath(), InRootObject));
+				SceneOutliner->MoveSelectionTo(FFolder(InRootObject));
 			}
 		}
 	};
@@ -1985,7 +1988,7 @@ void FActorBrowsingMode::OnDuplicateActorsBegin()
 	// Only a callback in actor browsing mode
 	FFolder::FRootObject CommonRootObject;
 	TArray<FName> SelectedFolderPaths;
-	GetFolderNamesFromFolders(SceneOutliner->GetSelection().GetData<FFolder>(SceneOutliner::FFolderPathSelector()), SelectedFolderPaths, CommonRootObject);
+	FFolder::GetFolderPathsAndCommonRootObject(SceneOutliner->GetSelection().GetData<FFolder>(SceneOutliner::FFolderPathSelector()), SelectedFolderPaths, CommonRootObject);
 	SceneOutliner->PasteFoldersBegin(SelectedFolderPaths);
 }
 

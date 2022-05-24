@@ -976,7 +976,7 @@ private:
 	FName FolderPath;
 
 	/** If the actor's level uses the actor folder objects feature, contains the actor folder unique identifier (invalid=root). */
-	UPROPERTY()
+	UPROPERTY(TextExportTransient)
 	FGuid FolderGuid;
 
 public:

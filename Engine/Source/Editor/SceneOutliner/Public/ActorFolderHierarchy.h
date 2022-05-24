@@ -8,7 +8,7 @@
 class FActorFolderHierarchy : public ISceneOutlinerHierarchy
 {
 public:
-	FActorFolderHierarchy(ISceneOutlinerMode* InMode, const TWeakObjectPtr<UWorld>& World, const FFolder::FRootObject& InRootObject = FFolder::GetDefaultRootObject());
+	FActorFolderHierarchy(ISceneOutlinerMode* InMode, const TWeakObjectPtr<UWorld>& World, const FFolder::FRootObject& InRootObject = FFolder::GetInvalidRootObject());
 	virtual ~FActorFolderHierarchy() {}
 
 

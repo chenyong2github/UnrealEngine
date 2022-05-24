@@ -34,7 +34,7 @@ bool FWorldTransientFolders::RenameFolder(const FFolder& OldPath, const FFolder&
 
 		if (OldPath == Path || Path.IsChildOf(OldPath))
 		{
-			const FFolder NewFolder = FFolder(OldPathToNewPath(OldPathString, NewPathString, FolderPath), RootObject);
+			const FFolder NewFolder = FFolder(RootObject, OldPathToNewPath(OldPathString, NewPathString, FolderPath));
 
 			// Needs to be done this way otherwise case insensitive comparison is used.
 			bool ContainsFolder = false;

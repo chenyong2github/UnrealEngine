@@ -45,8 +45,9 @@ TOptional<FFolder::FRootObject> ULevelStreamingLevelInstance::GetFolderRootObjec
 			return FFolder::FRootObject(Actor);
 		}
 	}
-
-	return TOptional<FFolder::FRootObject>();
+	// When LevelInstance is null, it's because the level instance is being streamed-out. 
+	// Return the world as root object.
+	return FFolder::GetWorldRootFolder(GetWorld()).GetRootObject();
 }
 
 FBox ULevelStreamingLevelInstance::GetBounds() const

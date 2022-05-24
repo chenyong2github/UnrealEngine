@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/WeakObjectPtr.h"
+#include "Misc/Guid.h"
 #include "WorldFoldersImplementation.h"
 #include "WorldPersistentFolders.h"
 #include "WorldTransientFolders.h"
@@ -38,16 +39,29 @@ struct FActorPlacementFolder
 
 	UPROPERTY()
 	TWeakObjectPtr<UObject> RootObjectPtr;
+	
+	UPROPERTY()
+	FGuid ActorFolderGuid;
 
 	void Reset()
 	{
 		Path = NAME_None;
 		RootObjectPtr.Reset();
+		ActorFolderGuid.Invalidate();
+	}
+
+	FActorPlacementFolder& operator = (const FFolder& InOtherFolder)
+	{
+		Path = InOtherFolder.GetPath();
+		RootObjectPtr = InOtherFolder.GetRootObjectPtr();
+		ActorFolderGuid = InOtherFolder.GetActorFolderGuid();
+		return *this;
 	}
 
 	FFolder GetFolder() const
 	{
-		return FFolder(Path, FFolder::FRootObject(RootObjectPtr.Get()));
+		FFolder::FRootObject RootObject = FFolder::FRootObject(RootObjectPtr.Get());
+		return ActorFolderGuid.IsValid() ? FFolder(RootObject, ActorFolderGuid) : FFolder(RootObject, Path);
 	}
 };
 

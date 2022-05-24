@@ -120,7 +120,9 @@ void UActorFolder::SetLabel(const FString& InFolderLabel)
 	if (!FolderLabel.Equals(InFolderLabel, ESearchCase::CaseSensitive))
 	{
 		Modify();
+		FString OldFolderLabel = FolderLabel;
 		FolderLabel = InFolderLabel;
+		GetTypedOuter<ULevel>()->OnFolderLabelChanged(this, OldFolderLabel);
 	}
 }
 
@@ -156,11 +158,65 @@ void UActorFolder::MarkAsDeleted()
 {
 	Modify();
 
+	ULevel* Level = GetTypedOuter<ULevel>();
+	
+	auto HasParent = [](UActorFolder* InFolder, UActorFolder* InParent)
+	{
+		UActorFolder* Parent = InFolder->GetParent(/*bSkipDeleted*/false);
+		while (Parent)
+		{
+			if (Parent == InParent)
+			{
+				return true;
+			}
+			Parent = Parent->GetParent(/*bSkipDeleted*/false);
+		}
+		return false;
+	};
+
+	TArray<UActorFolder*> FoldersToDelete;
+	TMap<UActorFolder*, UActorFolder*> DuplicateFolders;
+	const FName PathToDelete = GetPath();
+	// Find all SubPaths of PathToDelete
+	Level->ForEachActorFolder([this, Level, PathToDelete, &HasParent, &DuplicateFolders, &FoldersToDelete](UActorFolder* ActorFolder)
+	{
+		if (HasParent(ActorFolder, this))
+		{
+			// Get child folder new path if parent is deleted
+			FName ChildFolderNewPath = ActorFolder->GetPathInternal(this);
+			if (UActorFolder* ExistingFolder = Level->GetActorFolder(ChildFolderNewPath))
+			{
+				DuplicateFolders.Add(ActorFolder, ExistingFolder);
+				FoldersToDelete.Add(ActorFolder);
+			}
+		}
+		return true;
+	}, /*bSkipDeleted*/ false);
+
+	// Sort in descending order so children will be deleted before parents
+	FoldersToDelete.Sort([](const UActorFolder& FolderA, const UActorFolder& FolderB)
+	{
+		return FolderB.GetPath().LexicalLess(FolderA.GetPath());
+	});
+	
+	for (UActorFolder* FolderToDelete : FoldersToDelete)
+	{
+		UActorFolder* NewParent = DuplicateFolders.FindChecked(FolderToDelete);
+		// First move duplicate folder under the single folder we keep. Use a unique name to avoid dealing with name clash
+		const FFolder OldFolder = FolderToDelete->GetFolder();
+		const FString NewPath = FString::Printf(TEXT("%s/%s_Duplicate_%s"), *NewParent->GetPath().ToString(), *FolderToDelete->GetLabel(), *FGuid::NewGuid().ToString());
+		const FFolder NewFolder = FFolder(OldFolder.GetRootObject(), FName(NewPath));
+		FLevelActorFoldersHelper::RenameFolder(Level, OldFolder, NewFolder);
+		// Then delete (mark as deleted) this folder
+		FLevelActorFoldersHelper::DeleteFolder(Level, FolderToDelete->GetFolder());
+	}
+
 	// Deleting a folder must not modify actors part of it nor sub folders.
 	// Here, we simply mark the folder as deleted. 
 	// When marked as deleted, the folder will act as a redirector to its parent.
 	check(!bIsDeleted);
 	bIsDeleted = true;
+	Level->OnFolderMarkAsDeleted(this);
 }
 
 UActorFolder* UActorFolder::GetParent(bool bSkipDeleted) const
@@ -170,22 +226,36 @@ UActorFolder* UActorFolder::GetParent(bool bSkipDeleted) const
 
 FName UActorFolder::GetPath() const
 {
-	if (!FFolder::GetOptionalFolderRootObject(GetOuterULevel()))
-	{
-		return NAME_None;
-	}
+	return GetPathInternal(nullptr);
+}
 
-	TStringBuilder<1024> StringBuilder;
+FORCEINLINE void BuildPath(TStringBuilder<512>& OutStringBuilder, const UActorFolder* InSkipFolder, const UActorFolder* InCurrentFolder)
+{
+	if (InCurrentFolder)
+	{
+		BuildPath(OutStringBuilder, InSkipFolder, InCurrentFolder->GetParent());
+		if (InCurrentFolder != InSkipFolder)
+		{
+			if (OutStringBuilder.Len())
+			{
+				OutStringBuilder += TEXT("/");
+			}
+			OutStringBuilder += InCurrentFolder->GetLabel();
+		}
+	}
+};
+
+FName UActorFolder::GetPathInternal(UActorFolder* InSkipFolder) const
+{
+	TStringBuilder<512> StringBuilder;
+	BuildPath(StringBuilder, InSkipFolder, GetParent());
 	if (IsValid())
 	{
+		if (StringBuilder.Len())
+		{
+			StringBuilder += TEXT("/");
+		}
 		StringBuilder += FolderLabel;
-	}
-	UActorFolder* Parent = GetParent();
-	while (Parent)
-	{
-		StringBuilder.Prepend(TEXT("/"));
-		StringBuilder.Prepend(Parent->FolderLabel);
-		Parent = Parent->GetParent();
 	}
 	return FName(*StringBuilder);
 }
@@ -216,7 +286,24 @@ void UActorFolder::Fixup()
 
 FFolder UActorFolder::GetFolder() const
 {
-	return FFolder(GetPath(), FFolder::GetOptionalFolderRootObject(GetOuterULevel()).Get(FFolder::GetDefaultRootObject()));
+	// Resolve FFolder::FRootObject for this ActorFolder using its outer level
+	ULevel* OuterLevel = GetOuterULevel();
+	check(OuterLevel);
+	check(FolderGuid.IsValid());
+	FFolder::FRootObject RootObject = FFolder::GetOptionalFolderRootObject(OuterLevel).Get(FFolder::GetInvalidRootObject());
+	
+	// Detect case where returned root object is different from outer level (this is the case for UWorldPartitionLevelStreamingDynamic::GetFolderRootObject).
+	ULevel* RootObjectAssociatedLevel = FFolder::GetRootObjectAssociatedLevel(RootObject);
+	if (RootObjectAssociatedLevel != OuterLevel)
+	{
+		// Build and return a FFolder using the root object and ActorFolder's path
+		return FFolder(RootObject, GetPath());
+	}
+
+	// Build and return a FFolder using the root object and ActorFolder's guid
+	FFolder Folder = FFolder(RootObject, FolderGuid);
+	check(Folder.GetActorFolder() == this);
+	return Folder;
 }
 
 void UActorFolder::SetPackageExternal(bool bInExternal, bool bShouldDirty)

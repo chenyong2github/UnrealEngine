@@ -71,6 +71,7 @@ Level.cpp: Level-related functions
 #include "Framework/Notifications/NotificationManager.h"
 #include "Settings/LevelEditorMiscSettings.h"
 #include "ExternalPackageHelper.h"
+#include "Folder.h"
 #include "ActorFolder.h"
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
@@ -115,13 +116,54 @@ void FLevelActorFoldersHelper::AddActorFolder(ULevel* InLevel, UActorFolder* InA
 {
 	InLevel->Modify(bInShouldDirtyLevel);
 	check(InActorFolder->GetGuid().IsValid());
-	InLevel->ActorFolders.Add(InActorFolder->GetGuid(), InActorFolder);
+	InLevel->AddActorFolder(InActorFolder);
 
 	if (bInShouldBroadcast)
 	{
 		GEngine->BroadcastActorFolderAdded(InActorFolder);
 	}
 }
+
+void FLevelActorFoldersHelper::RenameFolder(ULevel* InLevel, const FFolder& InOldFolder, const FFolder& InNewFolder)
+{
+	check(InLevel);
+	// This implementation can be called both if FActorFolders is or isn't initialized.
+	if (FActorFolders::Get().IsInitializedForWorld(*InLevel->GetWorld()))
+	{
+		FActorFolders::Get().RenameFolderInWorld(*InLevel->GetWorld(), InOldFolder, InNewFolder);
+	}
+	else
+	{
+		UActorFolder* ActorFolder = InOldFolder.GetActorFolder();
+		check(::IsValid(ActorFolder));
+		UActorFolder* FoundFolder = InNewFolder.GetActorFolder();
+		check(!::IsValid(FoundFolder) || !FoundFolder->GetPath().IsEqual(InNewFolder.GetPath(), ENameCase::CaseSensitive));
+
+		UActorFolder* ParentActorFolder = InNewFolder.GetParent().GetActorFolder();
+		ActorFolder->SetParent(ParentActorFolder);
+		const FString FolderLabel = InNewFolder.GetLeafName().ToString();
+		ActorFolder->SetLabel(FolderLabel);
+		check(ActorFolder->GetPath().IsEqual(InNewFolder.GetPath(), ENameCase::CaseSensitive));
+	}
+};
+
+void FLevelActorFoldersHelper::DeleteFolder(ULevel* InLevel, const FFolder& InFolder)
+{
+	check(InLevel);
+	// This implementation can be called both if FActorFolders is or isn't initialized.
+	if (FActorFolders::Get().IsInitializedForWorld(*InLevel->GetWorld()))
+	{
+		FActorFolders::Get().DeleteFolder(*InLevel->GetWorld(), InFolder);
+	}
+	else
+	{
+		UActorFolder* ActorFolder = InFolder.GetActorFolder();
+		if (::IsValid(ActorFolder))
+		{
+			ActorFolder->MarkAsDeleted();
+		}
+	}
+};
 
 FLevelPartitionOperationScope::FLevelPartitionOperationScope(ULevel* InLevel)
 {
@@ -2451,6 +2493,75 @@ void ULevel::CommitModelSurfaces()
 }
 
 #if WITH_EDITOR
+void ULevel::AddActorFolder(UActorFolder* InActorFolder)
+{
+	Modify(false);
+	check(InActorFolder);
+	const FGuid& FolderGuid = InActorFolder->GetGuid();
+	check(FolderGuid.IsValid());
+	check(!ActorFolders.Contains(FolderGuid));
+	ActorFolders.Add(FolderGuid, InActorFolder);
+	if (!InActorFolder->IsMarkedAsDeleted())
+	{
+		FActorFolderSet& Folders = FolderLabelToActorFolders.FindOrAdd(InActorFolder->GetLabel());
+		Folders.Add(InActorFolder);
+	}
+}
+
+void ULevel::RemoveActorFolder(UActorFolder* InActorFolder)
+{
+	Modify(false);
+	check(InActorFolder);
+	TObjectPtr<UActorFolder> FoundActorFolder;
+	if (ensure(ActorFolders.RemoveAndCopyValue(InActorFolder->GetGuid(), FoundActorFolder)))
+	{
+		if (!InActorFolder->IsMarkedAsDeleted())
+		{
+			FActorFolderSet& Folders = FolderLabelToActorFolders.FindChecked(FoundActorFolder->GetLabel());
+			verify(Folders.Remove(FoundActorFolder));
+		}
+	}
+}
+
+void ULevel::OnFolderMarkAsDeleted(UActorFolder* InActorFolder)
+{
+	check(InActorFolder);
+	check(InActorFolder->IsMarkedAsDeleted());
+	if (ensure(ActorFolders.Contains(InActorFolder->GetGuid())))
+	{
+		Modify(false);
+		FActorFolderSet& Folders = FolderLabelToActorFolders.FindChecked(InActorFolder->GetLabel());
+		verify(Folders.Remove(InActorFolder));
+		if (Folders.IsEmpty())
+		{
+			FolderLabelToActorFolders.Remove(InActorFolder->GetLabel());
+		}
+	}
+}
+
+void ULevel::OnFolderLabelChanged(UActorFolder* InActorFolder, const FString& InOldFolderLabel)
+{
+	check(InActorFolder);
+	if (InOldFolderLabel.IsEmpty())
+	{
+		// We are in the process of creating the actor folder
+		check(!ActorFolders.Contains(InActorFolder->GetGuid()));
+		return;
+	}
+	if (ensure(ActorFolders.Contains(InActorFolder->GetGuid())))
+	{
+		Modify(false);
+		FActorFolderSet& OldLabelFolders = FolderLabelToActorFolders.FindChecked(InOldFolderLabel);
+		verify(OldLabelFolders.Remove(InActorFolder));
+		if (OldLabelFolders.IsEmpty())
+		{
+			FolderLabelToActorFolders.Remove(InOldFolderLabel);
+		}
+		FActorFolderSet& NewLabelFolders = FolderLabelToActorFolders.FindOrAdd(InActorFolder->GetLabel());
+		NewLabelFolders.Add(InActorFolder);
+	}
+}
+
 void ULevel::FixupActorFolders()
 {
 	if (!IsActorFolderObjectsFeatureAvailable())
@@ -2464,39 +2575,66 @@ void ULevel::FixupActorFolders()
 		for (UActorFolder* LoadedActorFolder : LoadedExternalActorFolders)
 		{
 			check(LoadedActorFolder->GetGuid().IsValid());
-			ActorFolders.Add(LoadedActorFolder->GetGuid(), LoadedActorFolder);
+			AddActorFolder(LoadedActorFolder);
 		}
 		LoadedExternalActorFolders.Empty();
+
+		const bool bFixDuplicateFolders = !IsRunningCommandlet();
 	
 		// Discover duplicate paths first to prioritize non-duplicate paths
-		TSet<FName> FolderPaths;
-		TArray<UActorFolder*> DuplicateFolders;
-		ForEachActorFolder([&FolderPaths, &DuplicateFolders](UActorFolder* ActorFolder)
+		TMap<FName, UActorFolder*> ExistingPaths;
+		TArray<UActorFolder*> FoldersToDelete;
+		TMap<UActorFolder*, UActorFolder*> DuplicateFolders;
+		ForEachActorFolder([bFixDuplicateFolders, &ExistingPaths, &DuplicateFolders, &FoldersToDelete](UActorFolder* ActorFolder)
 		{
 			// Detects and clears invalid parent folder
 			ActorFolder->FixupParentFolder();
 
-			bool bIsAlreadyInSet = false;
-			FolderPaths.Add(ActorFolder->GetPath(), &bIsAlreadyInSet);
-			if (bIsAlreadyInSet)
+			if (bFixDuplicateFolders)
 			{
-				DuplicateFolders.Add(ActorFolder);
+				FName FolderPath = ActorFolder->GetPath();
+				UActorFolder** ExistingFolder = ExistingPaths.Find(FolderPath);
+				if (!ExistingFolder)
+				{
+					ExistingPaths.Add(FolderPath, ActorFolder);
+				}
+				else
+				{
+					FoldersToDelete.Add(ActorFolder);
+					DuplicateFolders.Add(ActorFolder, *ExistingFolder);
+				}
 			}
 			return true;
 		}, /*bSkipDeleted*/ true);
 
-		if (!IsRunningCommandlet())
+		if (bFixDuplicateFolders)
 		{
-			// Rename duplicates to a new valid/unique name
-			for (UActorFolder* ActorFolder : DuplicateFolders)
+			// Sort in descending order so children will be deleted before parents
+			FoldersToDelete.Sort([](const UActorFolder& FolderA, const UActorFolder& FolderB)
 			{
-				FFolder Folder = ActorFolder->GetFolder();
-				const FFolder NewPath = FActorFolders::Get().GetFolderName(*GetWorld(), Folder.GetParent(), Folder.GetLeafName());
-				ActorFolder->SetLabel(NewPath.GetLeafName().ToString());
-				bool bIsAlreadyInSet = false;
-				FolderPaths.Add(ActorFolder->GetPath(), &bIsAlreadyInSet);
-				check(!bIsAlreadyInSet);
-				UE_LOG(LogLevel, Warning, TEXT("Found duplicate actor folder %s, renamed to %s."), *Folder.GetPath().ToString(), *NewPath.GetPath().ToString());
+				return FolderB.GetPath().LexicalLess(FolderA.GetPath());
+			});
+
+			for (UActorFolder* FolderToDelete : FoldersToDelete)
+			{
+				UActorFolder* NewParent = DuplicateFolders.FindChecked(FolderToDelete);
+				// First move duplicate folder under the single folder we keep. Use a unique name to avoid dealing with name clash
+				const FFolder OldFolder = FolderToDelete->GetFolder();
+				UE_LOG(LogLevel, Log, TEXT("Merging duplicate actor folder %s."), *OldFolder.GetPath().ToString());
+
+				// Since we can't rename to a dest with the same parent hierarchy, do it in 2 passes.
+				// For example: If we want to rename A/B to A/B/B_Dup123, we need to :
+				// 1- Rename A/B to A/B_Dup123
+				// 2- Rename A/B_Dup123 to A/B/B_Dup123
+				// Then we mark for delete A/B/B_Dup123, so that child actors and folders of A/B/B_Dup123 will be parented back to in A/B.
+				const FString NewPath = FString::Printf(TEXT("%s_%s"), *NewParent->GetPath().ToString(), *FGuid::NewGuid().ToString());
+				const FFolder NewFolder = FFolder(OldFolder.GetRootObject(), FName(NewPath));
+				FLevelActorFoldersHelper::RenameFolder(this, OldFolder, NewFolder);
+				const FString NewPath2 = FString::Printf(TEXT("%s/DuplicateFolder_%s"), *NewParent->GetPath().ToString(), *FolderToDelete->GetLabel(), *FGuid::NewGuid().ToString());
+				const FFolder NewFolder2 = FFolder(OldFolder.GetRootObject(), FName(NewPath2));
+				FLevelActorFoldersHelper::RenameFolder(this, NewFolder, NewFolder2);
+				// Then delete (mark as deleted) this folder
+				FLevelActorFoldersHelper::DeleteFolder(this, FolderToDelete->GetFolder());
 			}
 		}
 	}
@@ -3118,23 +3256,40 @@ bool ULevel::IsUsingExternalObjects() const
 	return IsUsingExternalActors();
 }
 
-UActorFolder* ULevel::GetActorFolder(const FName& InPath, bool bSkipDeleted) const
+static UActorFolder* FindNextFolder(const TMap<FString, FActorFolderSet>& InFolderLabelToActorFolders, const TArray<FString>& InFolderLabels, int32 Index, UActorFolder* ParentFolder)
+{
+	if (const FActorFolderSet* FoundSet = InFolderLabelToActorFolders.Find(InFolderLabels[Index]))
+	{
+		for (const TObjectPtr<UActorFolder>& ActorFolder : FoundSet->GetActorFolders())
+		{
+			if (ActorFolder->GetParent() == ParentFolder)
+			{
+				int32 NextIndex = Index + 1;
+				check(NextIndex <= InFolderLabels.Num());
+
+				if (NextIndex == InFolderLabels.Num())
+				{
+					return ActorFolder;
+				}
+				if (UActorFolder* Found = FindNextFolder(InFolderLabelToActorFolders, InFolderLabels, NextIndex, ActorFolder))
+				{
+					return Found;
+				}
+			}
+		}
+	}
+	return nullptr;
+}
+
+UActorFolder* ULevel::GetActorFolder(const FName& InPath) const
 {
 	if (!InPath.IsNone() && IsUsingActorFolders())
 	{
-		// @todo_ow : Add an acceleration table
-		for (const auto& Pair : ActorFolders)
-		{
-			UActorFolder* ActorFolder = Pair.Value;
-			if (ActorFolder->GetPath() == InPath)
-			{
-				if (bSkipDeleted && ActorFolder->IsMarkedAsDeleted())
-				{
-					return ActorFolder->GetParent();
-				}
-				return ActorFolder;
-			}
-		}
+		TArray<FString> FolderLabels;
+		FString Path = FPaths::RemoveDuplicateSlashes(InPath.ToString());
+		Path.ParseIntoArray(FolderLabels, TEXT("/"));
+		UActorFolder* CurrentFolder = (FolderLabels.Num() > 0) ? FindNextFolder(FolderLabelToActorFolders, FolderLabels, 0, nullptr) : nullptr;
+		return CurrentFolder;
 	}
 	return nullptr;
 }
@@ -3220,8 +3375,10 @@ bool ULevel::SetUseActorFolders(bool bInEnabled, bool bInInteractiveMode)
 		}
 	}
 
-	FScopedTransaction Transaction(LOCTEXT("ChangeUseActorFolders", "Change Use Actor Folder Objects"));
 	SetUseActorFoldersInternal(bInEnabled);
+	// Operation cannot be undone
+	GEditor->ResetTransaction(LOCTEXT("LevelUseActorFolderObjectsResetTrans", "Level Use Actor Folder Objects"));
+
 	return true;
 }
 
@@ -3275,7 +3432,7 @@ void ULevel::CreateOrUpdateActorFolders()
 	{
 		GEngine->BroadcastActorFolderRemoved(ActorFolderToDelete);
 
-		ActorFolders.Remove(ActorFolderToDelete->GetGuid());
+		RemoveActorFolder(ActorFolderToDelete);
 	}
 
 	// Avoid broadcasting if no actor folder were/are part of this level

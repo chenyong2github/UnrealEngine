@@ -42,7 +42,7 @@ bool FWorldPersistentFolders::AddFolder(const FFolder& InFolder)
 
 bool FWorldPersistentFolders::RemoveFolder(const FFolder& InFolder, bool bShouldDeleteFolder)
 {
-	UActorFolder* ActorFolder = GetActorFolder(InFolder);
+	UActorFolder* ActorFolder = InFolder.GetActorFolder();
 	if (!IsValid(ActorFolder))
 	{
 		return false;
@@ -69,9 +69,9 @@ bool FWorldPersistentFolders::RenameFolder(const FFolder& InOldFolder, const FFo
 	check(InOldFolder.GetRootObject() == InNewFolder.GetRootObject());
 	const FFolder::FRootObject& RootObject = InOldFolder.GetRootObject();
 
-	UActorFolder* ActorFolder = GetActorFolder(InOldFolder);
+	UActorFolder* ActorFolder = InOldFolder.GetActorFolder();
 	check(IsValid(ActorFolder));
-	UActorFolder* FoundFolder = GetActorFolder(InNewFolder);
+	UActorFolder* FoundFolder = InNewFolder.GetActorFolder();
 	check(!IsValid(FoundFolder) || !FoundFolder->GetPath().IsEqual(InNewFolder.GetPath(), ENameCase::CaseSensitive));
 
 
@@ -81,7 +81,7 @@ bool FWorldPersistentFolders::RenameFolder(const FFolder& InOldFolder, const FFo
 
 	ModifyFolderAndDetectChanges(Level, RootObject, [this, &ActorFolder, &InNewFolder]()
 	{
-		UActorFolder* ParentActorFolder = GetActorFolder(InNewFolder.GetParent());
+		UActorFolder* ParentActorFolder = InNewFolder.GetParent().GetActorFolder();
 		ActorFolder->SetParent(ParentActorFolder);
 		const FString FolderLabel = InNewFolder.GetLeafName().ToString();
 		ActorFolder->SetLabel(FolderLabel);
@@ -118,8 +118,8 @@ void FWorldPersistentFolders::ModifyFolderAndDetectChanges(ULevel* InLevel, cons
 	{
 		// Update FoldersProperties
 		static FActorFolderProps DefaultFolderProperties;
-		FFolder OldFolder(ChangedFolder.Key, InRootObject);
-		FFolder NewFolder(ChangedFolder.Value, InRootObject);
+		FFolder OldFolder(InRootObject, ChangedFolder.Key);
+		FFolder NewFolder(InRootObject, ChangedFolder.Value);
 		FActorFolderProps* OldFolderProperties = Owner.FoldersProperties.Find(OldFolder);
 		FActorFolderProps FolderProperties = OldFolderProperties ? *OldFolderProperties : DefaultFolderProperties;
 		Owner.FoldersProperties.Remove(OldFolder);
@@ -135,31 +135,21 @@ UActorFolder* FWorldPersistentFolders::GetActorFolder(const FFolder& InFolder, U
 	{
 		return nullptr;
 	}
-	const ULevel* Level = GetRootObjectContainer(InFolder, InWorld);
-	UActorFolder* ActorFolder = Level ? Level->GetActorFolder(InFolder.GetPath(), /*bSkipDeleted*/ false) : nullptr;
+
+	UActorFolder* ActorFolder = InFolder.GetActorFolder();
 	return (!ActorFolder && bInAllowCreate) ? CreateActorFolder(InFolder, InWorld) : ActorFolder;
 }
 
 ULevel* FWorldPersistentFolders::GetRootObjectContainer(const FFolder& InFolder, UWorld* InWorld)
 {
-	const UObject* RootObjectPtr = InFolder.HasRootObject() ? InFolder.GetRootObjectPtr() : InWorld;
-
-	if (const UWorld* WorldPtr = Cast<UWorld>(RootObjectPtr))
+	if (InFolder.IsRootObjectValid())
 	{
-		return WorldPtr->PersistentLevel;
+		return InFolder.GetRootObjectAssociatedLevel();
 	}
-	else if (const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(RootObjectPtr))
+	else if (InWorld)
 	{
-		return LevelInstance->GetLoadedLevel();
+		return InWorld->PersistentLevel;
 	}
-	else if (const ULevel* Level = Cast<ULevel>(RootObjectPtr))
-	{
-		if (UWorld* OuterWorld = Level->GetTypedOuter<UWorld>())
-		{
-			return OuterWorld->PersistentLevel;
-		}
-	}
-
 	return nullptr;
 }
 

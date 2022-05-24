@@ -95,10 +95,6 @@ FActorMode::FActorMode(const FActorModeParams& Params)
 
 	auto FolderPassesFilter = [this](const FFolder& InFolder, bool bInCheckHideLevelInstanceFlag)
 	{
-		if (!InFolder.HasRootObject())
-		{
-			return true;
-		}
 		if (ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(InFolder.GetRootObjectPtr()))
 		{
 			if (LevelInstance->IsEditing())
@@ -316,6 +312,20 @@ void FActorMode::SynchronizeActorSelection()
 bool FActorMode::IsActorDisplayable(const AActor* Actor) const
 {
 	return FActorMode::IsActorDisplayable(SceneOutliner, Actor);
+}
+
+FFolder::FRootObject FActorMode::GetRootObject() const
+{
+	return FFolder::GetWorldRootFolder(RepresentingWorld.Get()).GetRootObject();
+}
+
+FFolder::FRootObject FActorMode::GetPasteTargetRootObject() const
+{
+	if (UWorld* World = RepresentingWorld.Get())
+	{
+		return FFolder::GetOptionalFolderRootObject(World->GetCurrentLevel()).Get(FFolder::GetWorldRootFolder(World).GetRootObject());
+	}
+	return FFolder::GetInvalidRootObject();
 }
 
 bool FActorMode::IsActorDisplayable(const SSceneOutliner* SceneOutliner, const AActor* Actor)

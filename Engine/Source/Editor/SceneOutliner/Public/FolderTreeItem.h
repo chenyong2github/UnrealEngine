@@ -63,7 +63,7 @@ public:
 	virtual void SetPath(const FName& InNewPath);
 	const FName& GetPath() const { return Path; }
 	const FName& GetLeafName() const { return LeafName; }
-	FFolder GetFolder() const { return FFolder(Path, RootObject); }
+	virtual FFolder GetFolder() const { return FFolder(RootObject, Path); }
 	
 	virtual bool ShouldShowPinnedState() const override { return true; }
 	virtual bool HasPinnedStateInfo() const override { return false; }
