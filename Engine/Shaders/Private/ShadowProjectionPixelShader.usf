@@ -270,18 +270,18 @@ void Main(
 		{
 			#if STRATA_ENABLED
 			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, SVPos.xy);
-			const bool bSSSIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
-			const bool bSSSIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
+			const uint SSSType = StrataSubSurfaceHeaderGetSSSType(SSSHeader);
 			#endif
 
 			float Density = 1;
 			if (!bIsEyeOrHair)
 			{
 			#if STRATA_ENABLED
-				if (bSSSIsValid)
+				if (SSSType != SSS_TYPE_INVALID)
 				{
-					float Opacity = bSSSIsProfile ? StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader) : 1.0f;
-					Density = SubsurfaceDensityFromOpacity(Opacity);
+					// Disble accurate SSS transmission if SSS type is no using Diffusion or Diffusion Profile
+					bHasSubsurfaceTransmission = bHasSubsurfaceTransmission && (SSSType >= SSS_TYPE_DIFFUSION);
+					Density = SubsurfaceDensityFromOpacity(StrataSubSurfaceHeaderGetOpacity(SSSHeader));
 				}
 			#else // STRATA_ENABLED
 				Density = SubsurfaceDensityFromOpacity(GBufferData.CustomData.a);
@@ -309,7 +309,7 @@ void Main(
 
 				// For non-profile version, use default transmission parameters (only NormalScale & ExtinctionScale are used)
 				FTransmissionProfileParams TransmissionParams = InitTransmissionProfileParams();
-				if (bSSSIsProfile)
+				if (SSSType == SSS_TYPE_DIFFUSION_PROFILE)
 				{
 					TransmissionParams = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(SSSHeader));
 				}
@@ -459,7 +459,7 @@ void MainOnePassPointLightPS(
 
 	const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, SVPos.xy);
 
-	const bool IsSubsurfaceProfile = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
+	const bool IsSubsurfaceProfile = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
 	const float3 WorldNormal = TopLayerData.WorldNormal;
 	const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(StrataSubSurfaceHeaderGetProfileId(SSSHeader));
 

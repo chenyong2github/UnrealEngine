@@ -218,7 +218,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.MaterialAO						= StrataGetIrradianceAndAO(StrataPixelHeader).MaterialAO;
 	Out.ShadingID						= StrataHeaderIsValid(StrataPixelHeader) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion	= StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
-	Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
+	Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
 	Out.bIsSLW							= StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_SINGLELAYERWATER);
 	Out.bIsHair							= StrataHasShadingModel(StrataPixelHeader, STRATA_BSDF_TYPE_HAIR);
 	Out.bIsFoliage						= false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
@@ -270,7 +270,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFInd
 		Out.MaterialAO						= IrradianceAO.MaterialAO;
 		Out.ShadingID						= SHADINGMODELID_STRATA;
 		Out.DiffuseIndirectSampleOcclusion	= IrradianceAO.DiffuseIndirectSampleOcclusion;
-		Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
+		Out.bNeedsSeparateLightAccumulation = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
 		Out.bIsSLW							= StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_SINGLELAYERWATER;
 		Out.bIsHair							= StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_HAIR;
 		Out.bIsFoliage						= false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'

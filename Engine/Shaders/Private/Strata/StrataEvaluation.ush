@@ -244,7 +244,6 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 		#if STRATA_FASTPATH==0
 			float HazeSafeRoughness		= SafeRoughness;
 		#endif
-			const bool bHasSubsurface	= BSDF_GETSSSTYPE(BSDFContext.BSDF) != SSS_TYPE_INVALID;
 			const bool bHasAnisotropy	= BSDF_GETHASANISOTROPY(BSDFContext.BSDF);
 			const bool bHaziness		= BSDF_GETHASHAZINESS(BSDFContext.BSDF);
 
@@ -294,7 +293,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			Sample.IntegratedDiffuseValue += ShadowTerms.SurfaceShadow * AreaLightContext.NoL * Sample.DiffusePathValue * AreaLightContext.Falloff * AreaLightContext.AreaLight.FalloffColor;
 			Sample.DiffuseColor		= DiffuseColor;
 			Sample.DiffusePDF		= BSDFContext.SatNoL / PI;
-			Sample.bSubsurface		= bHasSubsurface;
+			Sample.bSubsurface		= BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION || BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION_PROFILE;
 
 
 			//
@@ -546,26 +545,59 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			#endif
 
 			////
+			//// Evaluate approximated SSS (using wrap lighting). Temp code. STRATA_TODO: unify evaluation
+			////
+
+			// Simple port of the legacy code to ensure we can reproduce the look first
+			#if STRATA_FASTPATH==0
+			if (BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_WRAP)
+			{
+				const float3 DiffuseColor = float3(1, 1, 1);
+				const float TransmittanceNoL = 1.0f;
+				const FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSMFP(BSDFContext.BSDF));
+				const float3 TransmissionThroughput = IsotropicMediumSlabTransmittance(PM, STRATA_SIMPLEVOLUME_THICKNESS_M, TransmittanceNoL);
+
+				const float VoL = dot(BSDFContext.L, -BSDFContext.V);
+				const float NoH = dot(BSDFContext.N, BSDFContext.H);
+				const float PhaseAnisotropy = clamp(SLAB_SSSPHASEANISOTROPY(BSDFContext.BSDF), -0.98f, 0.98f);
+
+				// Derive scattering distribution
+				// The 'effective' phase function is composed of:
+				// * An anisotropic part: a Henyey-Greenstein function
+				// * An   isotropic part: a lerp between an isotropic phase function and a pseudo-lambertian term to provide surface 'normal' dependence/effect
+				// 
+				// Note: The function ApproximateHG is not correctly normalized, and we should be using HenyeyGreensteinPhase instead. However the look is quite 
+				//       different and we need to handle legacy conversion if we need to change this. 
+				const float IsotropicPhaseFunction = lerp(saturate(NoH) / (2.0f * PI), 1.f / (4.f * PI), abs(PhaseAnisotropy));
+				const float AnisotropicPhaseFunction = ApproximateHG(VoL, PhaseAnisotropy);
+				const float EffectivePhaseFunction = lerp(AnisotropicPhaseFunction, IsotropicPhaseFunction, lerp(1.f, 0.5f, abs(PhaseAnisotropy)));
+
+				Sample.TransmissionPathValue = TransmissionThroughput * EffectivePhaseFunction * DirectionalAlbedo_SpecularTransmission;
+				Sample.TransmissionPDF = 1.0f / (4.0f * PI); // STRATA_TODO this currently match the uniform sphere sampling from StrataImportanceSampleBSDF
+
+				Sample.IntegratedDiffuseValue += ShadowTerms.TransmissionShadow * Sample.TransmissionPathValue * AreaLightContext.AreaLight.FalloffColor * AreaLightContext.Falloff;
+			}
+			#endif
+
+			////
 			//// Evaluate transmitted light through a mesh due to sub surface scattering.
 			////
 
 			#if STRATA_FASTPATH==0 && STRATA_SSS_TRANSMISSION
-			const bool bHasProfile = BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION_PROFILE;
-			if (BSDF_GETSSSTYPE(BSDFContext.BSDF) != SSS_TYPE_INVALID)
+			if (BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION_PROFILE || BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION)
 			{
 				const float ThicknessInCm = DecodeThickness(ShadowTerms.TransmissionThickness) * SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
 
 				float OneOverIOR = 1.0f;
 				float PhaseFunctionAnisotropy = 0.0f;
 				float3 TransmissionThroughput = 1.0f;
-				if (bHasProfile)
+				if (BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 				{
 					const uint ProfileId = StrataSubsurfaceProfileIdTo8bits(SLAB_SSSPROFILEID(BSDFContext.BSDF)); // TODO move this into the PackStrataOut( function, to avoid this decode here
 					const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(ProfileId);
 					TransmissionThroughput	= GetTransmissionProfile(ProfileId, ThicknessInCm).rgb;
 					PhaseFunctionAnisotropy = TransmissionParams.ScatteringDistribution;
 					OneOverIOR				= TransmissionParams.OneOverIOR;
-
 				}
 				else
 				{
@@ -1073,7 +1105,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 			#if STRATA_FASTPATH==0
 			BRANCH
-			if (BSDF_GETISTHIN(BSDFContext.BSDF))
+			if (BSDF_GETISTHIN(BSDFContext.BSDF) || BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_WRAP)
 			{
 				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSMFP(BSDFContext.BSDF));
 

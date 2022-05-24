@@ -221,30 +221,20 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	}
 	else if (ShadingModel == SHADINGMODELID_SUBSURFACE || ShadingModel == SHADINGMODELID_PREINTEGRATED_SKIN)
 	{
-		// Subsurface model has a subsurface color and a base color which are additive through normal warpping. 
-		// We emulate that by adding them together
-		const float3 ModifiedBaseColor = BaseColor + SubSurfaceColor;
+		const float ThicknessInCm = STRATA_SIMPLEVOLUME_THICKNESS_CM;
+		const float3 MFPInCm = TransmittanceToMeanFreePath(SubSurfaceColor, ThicknessInCm * CENTIMETER_TO_METER) * METER_TO_CENTIMETER;
 
-		// For Subsurface and Pre-integrated subsurface opacity acts as lerp between SSS (0) and Opaque(1), 
-		// so we need to (saturate and) inverse with a OneMinus node.
-		float3 SSSMFP = 1.f - saturate(Opacity);
-
-		// Subsurface color is converted into a MFP by taking the subsurface color and multipling it with the 1-Opacity 
-		// and a constant scaling for matching roughly the behavior
-		SSSMFP = SSSMFP * 0.5f;
-
-		// Convert legacy sub-surface scattering model to proper sub-surface material (using screen-space diffusion in raster mode)
-		// STATA_TODO: add something similar to legacy 'wrap' lighting behavior
-		const bool bConvertToSSS = false;
-
-		Top.BaseColor = ModifiedBaseColor;
+		Top.BaseColor = BaseColor;
 		Top.Specular = Specular;
 		Top.Metallic = Metallic;
 		Top.Roughness = Roughness;
 		Top.Anisotropy = Anisotropy;
-		Top.SSSMFP = bConvertToSSS ? SSSMFP : 0;
-		Top.SSSMFPScale = bConvertToSSS ? Opacity : 1.f;
+		Top.SSSMFP = max(1e-05f, MFPInCm); // Ensure the MFP is not null to force the material as have SSS
+		Top.SSSMFPScale = 1.0f;
+		Top.SSSPhaseAniso = 1.0f - Opacity; // Opaque-Thick: isotropic phase function, Thin: forward phase scattering function
 		Top.Emissive = Emissive;
+		Top.UseSSSDiffusion = false;
+		Top.Thickness = ThicknessInCm;
 
 		// No need to take into account opacity weighting for translucent material, as the coverage is assumed to be 1
 		Bot.Weight = 0.f;
@@ -257,10 +247,9 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		// Instead for now we use a mfp of 0 and make the material vanish according to opacity.
 		// All this will be fixed when this material will be converted to LUT.
 		const float Transmittance = saturate(1.f - Opacity);
-		const float Thickness = DefaultThickness;
-		Top.SSSMFP = 0;// TransmittanceToMeanFreePath(Transmittance, Thickness* CENTIMETER_TO_METER)* METER_TO_CENTIMETER;
+		Top.SSSMFP = 0;// MFPInCm;
 		Top.SSSMFPScale = 1.0f;
-		Top.Thickness = Thickness;
+		Top.Thickness = ThicknessInCm;
 
 		FinalWeight = Opacity;
 #endif

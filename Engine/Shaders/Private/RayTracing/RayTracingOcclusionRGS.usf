@@ -625,7 +625,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionRGS)
 			const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerTexture.Load(uint3(PixelCoord, 0)));
 
 			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, PixelCoord);
-			const bool bSSSIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
+			const bool bSSSIsValid = StrataSubSurfaceHeaderGetUseDiffusion(SSSHeader);
 			const bool bSSSIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
 
 			ShadingParameters.bIsValid = TopLayerData.bIsValid;

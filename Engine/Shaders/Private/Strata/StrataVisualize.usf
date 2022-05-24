@@ -118,6 +118,14 @@ void PrintPixelType(inout FShaderPrintContext Ctx, bool bIsSimpleMaterial, bool 
 	else						Print(Ctx, TEXT("Complex "), InColor);
 }
 
+void PrintSSSType(inout FShaderPrintContext Ctx, uint SSSType, FFontColor InColor)
+{
+		 if (SSSType == SSS_TYPE_WRAP)				Print(Ctx, TEXT("Wrap"), InColor);
+	else if (SSSType == SSS_TYPE_DIFFUSION)			Print(Ctx, TEXT("Diffuse"), InColor);
+	else if (SSSType == SSS_TYPE_DIFFUSION_PROFILE)	Print(Ctx, TEXT("Diffusion Profile"), InColor);
+	else /*	(SSSType == SSS_TYPE_INVALID) */		Print(Ctx, TEXT("Invalid"), InColor);
+}
+
 void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing StrataAddressing, FStrataPixelHeader Header, float3 WorldPosition, float3 V)
 {
 	const FFontColor FontBSDF         = FontSilver;
@@ -235,6 +243,12 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			
 			if (BSDF_GETSSSTYPE(BSDF) != SSS_TYPE_INVALID || BSDF_GETISSIMPLEVOLUME(BSDF) || BSDF_GETISTHIN(BSDF))
 			{
+
+			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, StrataAddressing.PixelCoords);
+			const uint SSSType = StrataSubSurfaceHeaderGetSSSType(SSSHeader);
+			const float Opacity = StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader);
+			Print(Context, TEXT(" SSS Type    "), FontBSDFPropName);	PrintSSSType(Context, SSSType, FontYellow);	Newline(Context);
+			Print(Context, TEXT(" SSS Opacity "), FontBSDFPropName);	Print(Context, Opacity, FontBSDFPropValu);	Newline(Context);
 
 			if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE && BSDF_GETISSIMPLEVOLUME(BSDF) == 0)
 			{

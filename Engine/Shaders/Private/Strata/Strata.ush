@@ -457,6 +457,7 @@ struct FStrataBSDF
 // Forward declarations
 
 FParticipatingMedia StrataSlabCreateParticipatingMedia(float3 DiffuseColor, float3 MeanFreePathCentimeters);
+float3 RescaleMFPToComputationSpace(float3 InMFPInCm, float InSrcThicknessInCm, float InDstThicknessInCm);
 void   EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF);
 void   StrataRequestSharedLocalBasisTangent(inout uint Types, uint Index);
 float3 StrataUnpackNormal(uint PackedNormal);
@@ -614,63 +615,127 @@ float GetVarianceFromRoughness(float Roughness)
 struct FStrataSubsurfaceHeader
 {
 	// 2 bits
-//	bool   bIsValid;
-//	bool   bIsProfile;
+	// SSS type:
+	// 0: Invalid
+	// 1: Wrap
+	// 2: Diffusion
+	// 3: Diffusion with profile
 
 	// 30 bits of data.
 	// If  bIsProfile: 8bit profile radius, 8bits ProfileId, 16bits unused
 	// If !bIsProfile: 101010 mean free path
-//	float3 ProfileOrMFP;
 	uint Bytes;
 };
-void StrataSubSurfaceHeaderSetIsValid(inout FStrataSubsurfaceHeader SSSHeader, bool bIsValid)
+#define SSSHEADER_TYPE(Header)	(Header.Bytes & 0x3)
+#define SSSHEADER_TYPE_MASK		(0x00000003)
+
+void StrataSubSurfaceHeaderSetSSSType(inout FStrataSubsurfaceHeader SSSHeader, uint SSSType)
 {
-	SSSHeader.Bytes &= 0xFFFFFFFE;
-	SSSHeader.Bytes |= bIsValid ? 0x1 : 0x0;
+	SSSHeader.Bytes &= (~SSSHEADER_TYPE_MASK);
+	SSSHeader.Bytes |= SSSType;
 }
-void StrataSubSurfaceHeaderSetIsProfile(inout FStrataSubsurfaceHeader SSSHeader, bool bIsProfile)
-{
-	SSSHeader.Bytes &= 0xFFFFFFFD;
-	SSSHeader.Bytes |= bIsProfile ? 0x2 : 0x0;
-}
+
 void StrataSubSurfaceHeaderSetProfile(inout FStrataSubsurfaceHeader SSSHeader, float RadiusScale, uint ProfileId)
 {
-	SSSHeader.Bytes &= 0x00000003;
+	SSSHeader.Bytes &= SSSHEADER_TYPE_MASK;
 	SSSHeader.Bytes |= ProfileId << 24;
 	SSSHeader.Bytes |= uint(saturate(RadiusScale) * 255.0f) << 16;
 }
+
 void StrataSubSurfaceHeaderSetNonProfile(inout FStrataSubsurfaceHeader SSSHeader, float3 MeanFreePath)
 {
-	SSSHeader.Bytes &= 0x00000003;
+	SSSHeader.Bytes &= SSSHEADER_TYPE_MASK;
 	SSSHeader.Bytes |= (Pack10F(MeanFreePath.x) << 22) | (Pack10F(MeanFreePath.y) << 12) | (Pack10F(MeanFreePath.z) << 2);
 }
+
+void StrataSubSurfaceHeaderSetWrap(inout FStrataSubsurfaceHeader SSSHeader, float3 MeanFreePath, float PhaseAnisotropy)
+{
+	// Reinterpret the phase function anisotropy as 'opacity' value
+	// * Forward/Backward phase function == Thin surface (i.e., opacity => 0)
+	// * Isotropic phase function == Thick surface (i.e., opacity => 1)
+	const float Opacity = 1.f-abs(PhaseAnisotropy);
+	SSSHeader.Bytes &= SSSHEADER_TYPE_MASK;
+	SSSHeader.Bytes |= uint(saturate(Opacity) * 255.0f) << 2;
+}
+
 bool StrataSubSurfaceHeaderGetIsValid(in FStrataSubsurfaceHeader SSSHeader)
 {
-	return (SSSHeader.Bytes & 0x1) > 0;
+	return SSSHEADER_TYPE(SSSHeader) != SSS_TYPE_INVALID;
 }
+
+bool StrataSubSurfaceHeaderGetUseDiffusion(in FStrataSubsurfaceHeader SSSHeader)
+{
+	const uint SSSType = SSSHEADER_TYPE(SSSHeader);
+	return SSSType == SSS_TYPE_DIFFUSION || SSSType == SSS_TYPE_DIFFUSION_PROFILE;
+}
+
 bool StrataSubSurfaceHeaderGetIsProfile(in FStrataSubsurfaceHeader SSSHeader)
 {
-	return (SSSHeader.Bytes & 0x2) > 0;
+	return SSSHEADER_TYPE(SSSHeader) == SSS_TYPE_DIFFUSION_PROFILE;
 }
+
+uint StrataSubSurfaceHeaderGetSSSType(in FStrataSubsurfaceHeader SSSHeader)
+{
+	return SSSHEADER_TYPE(SSSHeader);
+}
+
 uint StrataSubSurfaceHeaderGetProfileId(in FStrataSubsurfaceHeader SSSHeader)
 {
-	const bool bIsValidAndProfile = (SSSHeader.Bytes & 0x3) == 0x3;
-	uint ProfileId = bIsValidAndProfile ? (SSSHeader.Bytes >> 24) & 0xFF : StrataSubSurfaceHeaderGetIsValid(SSSHeader) ? SSS_PROFILE_ID_PERPIXEL : SSS_PROFILE_ID_INVALID;
+	const uint SSSType = SSSHEADER_TYPE(SSSHeader);
+	const uint ProfileId = (SSSType == SSS_TYPE_DIFFUSION_PROFILE) ? ((SSSHeader.Bytes >> 24) & 0xFF) : (SSSType == SSS_TYPE_DIFFUSION ? SSS_PROFILE_ID_PERPIXEL : SSS_PROFILE_ID_INVALID);
 	return ProfileId;
 }
+
 float StrataSubSurfaceHeaderGetProfileRadiusScale(in FStrataSubsurfaceHeader SSSHeader)
 {
-	const bool bIsValidAndProfile = (SSSHeader.Bytes & 0x3) == 0x3;
-	uint RadiusScale = bIsValidAndProfile ? (SSSHeader.Bytes >> 16) & 0xFF : 255;
+	const bool bIsValidAndProfile = SSSHEADER_TYPE(SSSHeader) == SSS_TYPE_DIFFUSION_PROFILE;
+	const uint RadiusScale = bIsValidAndProfile ? (SSSHeader.Bytes >> 16) & 0xFF : 255;
 	return float(RadiusScale) * rcp(255.0f);
 }
+
 float3 StrataSubSurfaceHeaderGetMFP(in FStrataSubsurfaceHeader SSSHeader)				// Only when !IsProfile
 {
 	return float3(
 		Unpack10F(SSSHeader.Bytes >> 22),
 		Unpack10F(SSSHeader.Bytes >> 12),
-		Unpack10F(SSSHeader.Bytes >>  2)
-		);
+		Unpack10F(SSSHeader.Bytes >>  2));
+}
+
+float StrataSubSurfaceHeaderGetWrapOpacity(in FStrataSubsurfaceHeader SSSHeader)
+{
+	const uint Opacity = SSSHEADER_TYPE(SSSHeader) == SSS_TYPE_WRAP ? ((SSSHeader.Bytes >> 2) & 0xFF) : 255;
+	return float(Opacity) * rcp(255.0f);
+}
+
+float StrataSubSurfaceHeaderGetOpacity(in FStrataSubsurfaceHeader SSSHeader)
+{
+	const uint SSSType = SSSHEADER_TYPE(SSSHeader);
+
+	// Shadow 'Opacity' is based on legacy shading code
+	// * SSS Wrap              -> StrataSubSurfaceHeaderGetWrapOpacity()
+	// * SSS Diffusion         -> 1
+	// * SSS Diffusion Profile -> StrataSubSurfaceHeaderGetProfileRadiusScale()
+	float Opacity = 1.0f;
+	Opacity = SSSType == SSS_TYPE_DIFFUSION_PROFILE ? StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader) : Opacity;
+	Opacity = SSSType == SSS_TYPE_WRAP ? StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader) : Opacity;
+	return Opacity;
+}
+
+// Legacy conversion function, which translated Strata sub-surface data into 'opacity' for shadow transmission purpose. 
+// Note: When SSS data uses DFMP data, the conversion to opacity is ad-hoc/hacky
+// STRATA_TODO: merge this function with StrataSubSurfaceHeaderGetOpacity()
+float StrataGetOpacityFromSubSurface(FStrataSubsurfaceHeader SSSHeader)
+{
+	const uint SSSType = SSSHEADER_TYPE(SSSHeader);
+	const float ProfileRadiusScale = StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader);
+	const float3 MFP = StrataSubSurfaceHeaderGetMFP(SSSHeader);
+	const float WrapOpacity = StrataSubSurfaceHeaderGetWrapOpacity(SSSHeader);
+
+	float Opacity = 1.0f;
+	Opacity = SSSType == SSS_TYPE_DIFFUSION ? saturate(1.0f - max3(MFP.x, MFP.y, MFP.z)) : Opacity;
+	Opacity = SSSType == SSS_TYPE_DIFFUSION_PROFILE ? ProfileRadiusScale : Opacity;
+	Opacity = SSSType == SSS_TYPE_WRAP ? WrapOpacity : Opacity;
+	return Opacity;
 }
 
 // Stored in second slice as UINT
@@ -1122,8 +1187,9 @@ FStrataData GetStrataSlabBSDF(
 	const bool bSSSProfilePlugged = SSSProfileID > 0.0f;
 	const bool bMFPPlugged = any(SSSMFP > 0);
 	bool bIsThin = bMFPPlugged && Thickness < STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM;
+	bool bHasSSSWrap = !bIsThin && bMFPPlugged && !UseSSSDiffusion;
 	bool bHasSSSProfile = !bIsThin && bSSSProfilePlugged && SSSMFPScale > 0.f;	// When no profile is provide, we use Burley. STRATA_TODO we should clarify as burley is also an option of the profile.
-	bool bHasSSS = bMFPPlugged || bHasSSSProfile;
+	bool bHasSSS = bMFPPlugged || bHasSSSProfile || bHasSSSWrap;
 
 	// Derive roughness and haziness from profile data
 	if (bSSSProfilePlugged)
@@ -1156,13 +1222,20 @@ FStrataData GetStrataSlabBSDF(
 	// If MFP is smaller than the pixel's footprint, remove SSS attributes
 	// The scaling factor 'SSSFootprintScale' is based on empiric tests
 	const float SSSFootprintScale = 3.f;
-	if (all(SSSMFP * SSSFootprintScale < InPixelFootprint.PixelRadiusInWorldSpace))
+	if (all(SSSMFP * SSSFootprintScale < InPixelFootprint.PixelRadiusInWorldSpace) && !bHasSSSWrap)
 	{
 		bHasSSSProfile = false;
 		bHasSSS = false;
 
 		// MFPPlugged is not cleared as it is used for thin surface and thin volumetric
 		// bMFPPlugged = false;
+	}
+
+	// Convert MFP be expressed relative to simple volume thickness
+	if (bHasSSSWrap)
+	{
+		SSSMFP = RescaleMFPToComputationSpace(SSSMFP, Thickness, STRATA_SIMPLEVOLUME_THICKNESS_CM);
+		Thickness = STRATA_SIMPLEVOLUME_THICKNESS_CM;
 	}
 
 	const uint bHasHaziness = Haziness > 0.0f ? 1 : 0;
@@ -1186,7 +1259,7 @@ FStrataData GetStrataSlabBSDF(
 	BSDF_SETEMISSIVE		(StrataData.InlinedBSDF,		Emissive);
 	BSDF_SETHASANISOTROPY	(StrataData.InlinedBSDF,		bHasAnisotropy);
 	BSDF_SETISTOPLAYER		(StrataData.InlinedBSDF,		0);
-	BSDF_SETSSSTYPE			(StrataData.InlinedBSDF,		bHasSSS ? (bHasSSSProfile ? SSS_TYPE_DIFFUSION_PROFILE : SSS_TYPE_DIFFUSION) : SSS_TYPE_INVALID);
+	BSDF_SETSSSTYPE			(StrataData.InlinedBSDF,		bHasSSS ? (bHasSSSWrap ? SSS_TYPE_WRAP : (bHasSSSProfile ? SSS_TYPE_DIFFUSION_PROFILE : SSS_TYPE_DIFFUSION)) : SSS_TYPE_INVALID);
 	BSDF_SETISTHIN			(StrataData.InlinedBSDF,		bIsThin ? 1 : 0);
 	BSDF_SETHASMFP			(StrataData.InlinedBSDF,		bMFPPlugged ? 1 : 0);
 	BSDF_SETHASHAZINESS		(StrataData.InlinedBSDF,		bHasHaziness);
@@ -1225,6 +1298,7 @@ FStrataData GetStrataSlabBSDF(
 	{
 		SLAB_SSSMFP	(StrataData.InlinedBSDF)				= SSSMFP * SSSMFPScale;
 	}
+
 	SLAB_SSSPHASEANISOTROPY(StrataData.InlinedBSDF)			= SSSPhaseAnisotropy;
 
 	SLAB_FUZZ_AMOUNT		(StrataData.InlinedBSDF)		= FuzzAmount;
@@ -2311,6 +2385,13 @@ float StrataSlabDiffuseToVolumeBlend(FParticipatingMedia PM)
 	return Blend * Blend;
 }
 
+float3 RescaleMFPToComputationSpace(float3 InMFPInCm, float InSrcThicknessInCm, float InDstThicknessInCm)
+{
+	// Rescale the BSDF mean free path so to run volumetric material math on a unit slab of medium whose thickness is defined by InDstThicknessInCm
+	// For instance, if thickness is larger => we need to reduce the MFP for the medium to appear visually thicker.
+	return clamp(InMFPInCm * (InDstThicknessInCm / max(STRATA_EPSILON, InSrcThicknessInCm)), 0.0f, Max111110BitsFloat3);
+}
+
 void EnableSlabMFPComputationSpace(inout FStrataBSDF BSDF)
 {
 #if STRATA_INLINE_SHADING
@@ -2320,7 +2401,7 @@ void EnableSlabMFPComputationSpace(inout FStrataBSDF BSDF)
 
 	// Rescale the BSDF mean free path so that we can drop the thickness parameter and run volumetric material math on a unit slab of medium
 	// For instance, if thickness is larger => we need to reduce the MFP for the medium to appear visually thicker.
-	SLAB_SSSMFP(BSDF) = clamp(SLAB_SSSMFP(BSDF) * (STRATA_SIMPLEVOLUME_THICKNESS_CM / max(STRATA_EPSILON, BSDF_GETTHICKNESSCM(BSDF))), 0.0f, Max111110BitsFloat3);
+	SLAB_SSSMFP(BSDF) = RescaleMFPToComputationSpace(SLAB_SSSMFP(BSDF), BSDF_GETTHICKNESSCM(BSDF), STRATA_SIMPLEVOLUME_THICKNESS_CM);
 }
 
 void EnableSlabBSDFSimpleVolumetric(inout FStrataBSDF BSDF)
@@ -2522,18 +2603,6 @@ float StrataGetLegacyShadingModels(in FStrataBSDF BSDF)
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER:						{ return SHADINGMODELID_SINGLELAYERWATER; }
 	}
 	return 0.f;
-}
-
-// Legacy conversion function, which translated Strata sub-surface data into 'opacity' for shadow transmission purpose. 
-// Note: When SSS data uses DFMP data, the conversion to opacity is ad-hoc/hacky
-float StrataGetOpacityFromSubSurface(FStrataSubsurfaceHeader SSSHeader)
-{
-	const bool bIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
-	const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
-	const float ProfileRadiusScale = StrataSubSurfaceHeaderGetProfileRadiusScale(SSSHeader);
-	const float3 MFP = StrataSubSurfaceHeaderGetMFP(SSSHeader);
-
-	return bIsValid ? (bIsProfile ? ProfileRadiusScale : saturate(1.0f - max3(MFP.x, MFP.y, MFP.z))) : 1.0f;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -3387,10 +3456,12 @@ void PackStrataOut(
 							{
 								if (!bIsThin && bHasSSS)
 								{
-									const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSData.Header) || BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE;
-									StrataSubSurfaceHeaderSetIsValid(SSSData.Header, true);
-									StrataSubSurfaceHeaderSetIsProfile(SSSData.Header, bIsProfile);
-									if (bIsProfile)
+									StrataSubSurfaceHeaderSetSSSType(SSSData.Header, BSDF_GETSSSTYPE(BSDF));
+									if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_WRAP)
+									{
+										StrataSubSurfaceHeaderSetWrap(SSSData.Header, SLAB_SSSMFP(BSDF), SLAB_SSSPHASEANISOTROPY(BSDF));
+									}
+									else if (BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 									{
 										StrataSubSurfaceHeaderSetProfile(SSSData.Header, SLAB_SSSPROFILERADIUSSCALE(BSDF), StrataSubsurfaceProfileIdTo8bits(SLAB_SSSPROFILEID(BSDF)));
 									}
@@ -3698,7 +3769,7 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 			// When loading Strata BSDF which have SSS enable, BaseColor and (optionally) Specular value can be overriden 
 			// based on the SSS method used (screen space SSS / checherboarded screen space SSS / ...)
 			#if STRATA_SSS_MATERIAL_OVERRIDE
-			if (!bIsSimpleVolume && !bIsThin)
+			if (BSDF_GETSSSTYPE(OutBSDF) == SSS_TYPE_DIFFUSION || BSDF_GETSSSTYPE(OutBSDF) == SSS_TYPE_DIFFUSION_PROFILE)
 			{
 				const bool bChecker = CheckerFromPixelPos(StrataAddressing.PixelCoords);
 				float3 DiffuseAlbedo = SLAB_DIFFUSEALBEDO(OutBSDF);
