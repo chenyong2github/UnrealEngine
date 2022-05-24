@@ -267,6 +267,7 @@ void UActorDescContainer::RemoveActor(const FGuid& ActorGuid)
 
 void UActorDescContainer::LoadAllActors(TArray<FWorldPartitionReference>& OutReferences)
 {
+	FWorldPartitionLoadingContext::FDeferred LoadingContext;
 	OutReferences.Reserve(OutReferences.Num() + GetActorDescCount());
 	for (FActorDescList::TIterator<> ActorDescIterator(this); ActorDescIterator; ++ActorDescIterator)
 	{

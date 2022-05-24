@@ -526,7 +526,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		}
 
 		// Apply level transform on actors already part of the level
-		if (GetInstanceTransformPtr())
+		if (!GetInstanceTransform().Equals(FTransform::Identity))
 		{
 			check(!OuterWorld->PersistentLevel->bAlreadyMovedActors);
 			for (AActor* Actor : OuterWorld->PersistentLevel->Actors)
@@ -670,20 +670,6 @@ bool UWorldPartition::IsMainWorldPartition() const
 {
 	check(World);
 	return World == GetTypedOuter<UWorld>();
-}
-
-const FTransform& UWorldPartition::GetInstanceTransform() const
-{
-	if (const FTransform* TransformPtr = GetInstanceTransformPtr())
-	{
-		return *TransformPtr;
-	}
-	return FTransform::Identity;
-}
-
-const FTransform* UWorldPartition::GetInstanceTransformPtr() const
-{
-	return InstanceTransform.IsSet() ? &InstanceTransform.GetValue() : nullptr;
 }
 
 void UWorldPartition::OnPostBugItGoCalled(const FVector& Loc, const FRotator& Rot)
@@ -932,22 +918,6 @@ void UWorldPartition::OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc)
 	}
 }
 
-void UWorldPartition::OnActorDescRegistered(const FWorldPartitionActorDesc& ActorDesc) 
-{
-	AActor* Actor = ActorDesc.GetActor();
-	check(Actor);
-	Actor->GetLevel()->AddLoadedActor(Actor, GetInstanceTransformPtr());
-}
-
-void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& ActorDesc) 
-{
-	AActor* Actor = ActorDesc.GetActor();
-	if (IsValidChecked(Actor))
-	{
-		Actor->GetLevel()->RemoveLoadedActor(Actor, GetInstanceTransformPtr());
-	}
-}
-
 bool UWorldPartition::GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const
 {
 	if (InstancingContext.IsInstanced())
@@ -958,7 +928,14 @@ bool UWorldPartition::GetInstancingContext(const FLinkerInstancingContext*& OutI
 	}
 	return false;
 }
+#endif
 
+const FTransform& UWorldPartition::GetInstanceTransform() const
+{
+	return InstanceTransform.IsSet() ? InstanceTransform.GetValue() : Super::GetInstanceTransform();
+}
+
+#if WITH_EDITOR
 bool UWorldPartition::SupportsStreaming() const
 {
 	return World ? World->GetWorldSettings()->SupportsWorldPartitionStreaming() : false;

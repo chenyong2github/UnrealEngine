@@ -69,7 +69,11 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 
 			UnregisterDelegates();
 
-			ActorReferences.Empty();
+			{
+				FWorldPartitionLoadingContext::FDeferred LoadingContext;
+				ActorReferences.Empty();
+			}
+
 			bLoaded = false;
 
 			PostLoadedStateChanged(true);
@@ -127,11 +131,15 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 			FScopedSlowTask SlowTask(ActorsToLoad.Num() + ActorsToUnload.Num(), LOCTEXT("UpdatingLoading", "Updating loading..."));
 			SlowTask.MakeDialog();
 
-			for (FWorldPartitionHandle& ActorToLoad : ActorsToLoad)
 			{
-				SlowTask.EnterProgressFrame(1);
-				FWorldPartitionHandle ActorHandle(WorldPartition, ActorToLoad->GetGuid());
-				AddReferenceToActor(ActorHandle);
+				FWorldPartitionLoadingContext::FDeferred LoadingContext;
+
+				for (FWorldPartitionHandle& ActorToLoad : ActorsToLoad)
+				{
+					SlowTask.EnterProgressFrame(1);
+					FWorldPartitionHandle ActorHandle(WorldPartition, ActorToLoad->GetGuid());
+					AddReferenceToActor(ActorHandle);
+				}
 			}
 
 			for (FWorldPartitionHandle& ActorToUnload : ActorsToUnload)

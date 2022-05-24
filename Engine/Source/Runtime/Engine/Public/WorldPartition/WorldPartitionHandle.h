@@ -17,6 +17,66 @@ struct ENGINE_API FWorldPartitionHandleUtils
 	static bool IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc);
 };
 
+class ENGINE_API FWorldPartitionLoadingContext
+{
+public:
+	/**
+	 * Base class for loading contexts
+	 */
+	class ENGINE_API IContext
+	{
+		friend class FWorldPartitionLoadingContext;
+
+	public:
+		IContext();
+		virtual ~IContext();
+
+	private:
+		virtual void RegisterActor(FWorldPartitionActorDesc* ActorDesc) =0;
+		virtual void UnregisterActor(FWorldPartitionActorDesc* ActorDesc) =0;
+	};
+
+	/**
+	 * Immediate loading context, which will register and unregister actors on demand.
+	 */
+	class ENGINE_API FImmediate : public IContext
+	{
+	private:
+		virtual void RegisterActor(FWorldPartitionActorDesc* ActorDesc) override;
+		virtual void UnregisterActor(FWorldPartitionActorDesc* ActorDesc) override;
+	};
+
+	/**
+	 * Deferred loading context, which will gather actor registrations and unregistrations and
+	 * execute them at the end of scope. This respects ULevel components registrations and
+	 * construction scripts execution logic.
+	 */
+	class ENGINE_API FDeferred : public IContext
+	{
+	public:
+		~FDeferred();
+
+	private:
+		virtual void RegisterActor(FWorldPartitionActorDesc* ActorDesc) override;
+		virtual void UnregisterActor(FWorldPartitionActorDesc* ActorDesc) override;
+
+		struct FContainerOps
+		{
+			TArray<FWorldPartitionActorDesc*> Registrations;
+			TArray<FWorldPartitionActorDesc*> Unregistrations;
+		};
+
+		TMap<UActorDescContainer*, FContainerOps> ContainerOps;
+	};
+
+	static void LoadAndRegisterActor(FWorldPartitionActorDesc* ActorDesc);
+	static void UnloadAndUnregisterActor(FWorldPartitionActorDesc* ActorDesc);
+
+private:
+	static FImmediate DefaultContext;
+	static IContext* ActiveContext;	
+};
+
 template <typename Impl>
 class TWorldPartitionHandle
 {

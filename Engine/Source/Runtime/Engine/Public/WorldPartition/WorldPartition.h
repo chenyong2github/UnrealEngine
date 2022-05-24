@@ -128,14 +128,13 @@ private:
 	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) override;
 	virtual void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc) override;
 
-	virtual void OnActorDescRegistered(const FWorldPartitionActorDesc&) override;
-	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) override;
-
 	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const override;
-	//~ End UActorDescContainer Interface
 #endif
 
 public:
+	virtual const FTransform& GetInstanceTransform() const override;
+	//~ End UActorDescContainer Interface
+
 	//~ Begin UObject Interface
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
 	//~ End UObject Interface
@@ -182,8 +181,6 @@ public:
 
 	bool CanStream() const;
 	bool IsMainWorldPartition() const;
-	const FTransform& GetInstanceTransform() const;
-	const FTransform* GetInstanceTransformPtr() const;
 
 	void Tick(float DeltaSeconds);
 	void UpdateStreamingState();

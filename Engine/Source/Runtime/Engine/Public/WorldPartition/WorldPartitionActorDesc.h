@@ -153,9 +153,6 @@ public:
 
 	virtual bool ShouldBeLoadedByEditor() const { return true; }
 
-	void RegisterActor();
-	void UnregisterActor();
-
 	virtual void Init(const AActor* InActor);
 	virtual void Init(const FWorldPartitionActorDescInitData& DescData);
 

@@ -64,6 +64,8 @@ namespace WorldPartitionHelpers
 {
 	void LoadReferences(UWorldPartition* WorldPartition, const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& InOutActorReferences)
 	{
+		FWorldPartitionLoadingContext::FDeferred LoadingContext;
+
 		if (InOutActorReferences.Contains(ActorGuid))
 		{
 			return;

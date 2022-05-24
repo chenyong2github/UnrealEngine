@@ -37,7 +37,11 @@ public:
 
 	/** Instancing support */
 	virtual bool GetInstancingContext(const FLinkerInstancingContext*& OutInstancingContext, FSoftObjectPathFixupArchive*& OutSoftObjectPathFixupArchive) const { return false; }
+#endif
 
+	virtual const FTransform& GetInstanceTransform() const { return FTransform::Identity; }
+
+#if WITH_EDITOR
 public:
 	DECLARE_EVENT_OneParam(UWorldPartition, FActorDescAddedEvent, FWorldPartitionActorDesc*);
 	FActorDescAddedEvent OnActorDescAddedEvent;
@@ -71,9 +75,6 @@ protected:
 	virtual void OnActorDescRemoved(FWorldPartitionActorDesc* ActorDesc);
 	virtual void OnActorDescUpdating(FWorldPartitionActorDesc* ActorDesc) {}
 	virtual void OnActorDescUpdated(FWorldPartitionActorDesc* ActorDesc) {}
-
-	virtual void OnActorDescRegistered(const FWorldPartitionActorDesc&) {}
-	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) {}
 
 	bool ShouldHandleActorEvent(const AActor* Actor);
 

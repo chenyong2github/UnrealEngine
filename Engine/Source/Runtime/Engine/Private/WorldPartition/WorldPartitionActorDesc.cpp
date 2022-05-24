@@ -494,22 +494,4 @@ void FWorldPartitionActorDesc::Unload()
 		ActorPtr = nullptr;
 	}
 }
-
-void FWorldPartitionActorDesc::RegisterActor()
-{
-	if (AActor* Actor = GetActor())
-	{
-		check(Container);
-		Container->OnActorDescRegistered(*this);
-	}
-}
-
-void FWorldPartitionActorDesc::UnregisterActor()
-{
-	if (AActor* Actor = GetActor())
-	{
-		check(Container);
-		Container->OnActorDescUnregistered(*this);
-	}
-}
 #endif

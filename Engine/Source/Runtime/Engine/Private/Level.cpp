@@ -817,15 +817,46 @@ bool ULevel::IsNetActor(const AActor* Actor)
 #if WITH_EDITOR
 void ULevel::AddLoadedActor(AActor* Actor, const FTransform* TransformToApply)
 {
-	check(Actor->GetLevel() == this);
-	check(IsValidChecked(Actor));
+	AddLoadedActors({ Actor }, TransformToApply);
+}
 
-	int32 ActorIndex;
-	if (!Actors.Find(Actor, ActorIndex))
+void ULevel::AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform* TransformToApply)
+{
+	TArray<AActor*> ActorsQueue;
+	ActorsQueue.Reserve(ActorList.Num());
+
+	TFunction<void(AActor* Actor)> QueueActor = [this, &ActorsQueue, &QueueActor](AActor* Actor)
 	{
-		Actors.Add(Actor);
-		ActorsForGC.Add(Actor);
+		check(Actor);
+		check(Actor->GetLevel() == this);
+		check(IsValidChecked(Actor));
 
+		int32 ActorIndex;
+		if (!Actors.Find(Actor, ActorIndex))
+		{
+			Actors.Add(Actor);
+			ActorsForGC.Add(Actor);
+			ActorsQueue.Add(Actor);
+
+			// Handle child actors
+			Actor->ForEachComponent<UChildActorComponent>(false, [this, &QueueActor](UChildActorComponent* ChildActorComponent)
+			{
+				if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+				{
+					QueueActor(ChildActor);
+				}
+			});
+		}
+	};
+
+	for (AActor* Actor : ActorList)
+	{
+		QueueActor(Actor);
+	}
+
+	// Register all components
+	for (AActor* Actor : ActorsQueue)
+	{
 		if (TransformToApply)
 		{
 			FLevelUtils::FApplyLevelTransformParams TransformParams(this, *TransformToApply);
@@ -834,12 +865,26 @@ void ULevel::AddLoadedActor(AActor* Actor, const FTransform* TransformToApply)
 			FLevelUtils::ApplyLevelTransform(TransformParams);
 		}
 
-		// If components from actors belonging to this level were already registered, do the same for the newly loaded actor.
-		// Otherwise, the new actor components will be registered later once the world initialization is completed, through UpdateWorldComponents()
 		if (bAreComponentsCurrentlyRegistered)
 		{
 			Actor->RegisterAllComponents();
+		}
+	}
+
+	// Rerun construction scripts
+	for (AActor* Actor : ActorsQueue)
+	{
+		if (bAreComponentsCurrentlyRegistered)
+		{
 			Actor->RerunConstructionScripts();
+		}
+	}
+
+	// Finalize actors
+	for (AActor* Actor : ActorsQueue)
+	{
+		if (bAreComponentsCurrentlyRegistered)
+		{
 			GetWorld()->UpdateCullDistanceVolumes(Actor);
 			Actor->MarkComponentsRenderStateDirty();
 		}
@@ -850,51 +895,63 @@ void ULevel::AddLoadedActor(AActor* Actor, const FTransform* TransformToApply)
 		}
 
 		OnLoadedActorAddedToLevelEvent.Broadcast(*Actor);
-
-		// Handle child actors
-		Actor->ForEachComponent<UChildActorComponent>(false, [this](UChildActorComponent* ChildActorComponent)
-		{
-			if (AActor* ChildActor = ChildActorComponent->GetChildActor())
-			{
-				AddLoadedActor(ChildActor);
-			}
-		});
 	}
 }
 
 void ULevel::RemoveLoadedActor(AActor* Actor, const FTransform* TransformToRemove)
 {
-	check(Actor);
-	check(Actor->GetLevel() == this);
-	check(IsValidChecked(Actor));
+	RemoveLoadedActors({ Actor }, TransformToRemove);
+}
 
-	// Handle child actors
-	Actor->ForEachComponent<UChildActorComponent>(false, [this](UChildActorComponent* ChildActorComponent)
+void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransform* TransformToRemove)
+{
+	TArray<AActor*> ActorsQueue;
+	ActorsQueue.Reserve(ActorList.Num());
+
+	TFunction<void(AActor* Actor)> QueueActor = [this, &ActorsQueue, &QueueActor](AActor* Actor)
 	{
-		if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+		check(Actor);
+		check(Actor->GetLevel() == this);
+		check(IsValidChecked(Actor));
+
+		// Handle child actors
+		Actor->ForEachComponent<UChildActorComponent>(false, [this, &QueueActor](UChildActorComponent* ChildActorComponent)
 		{
-			RemoveLoadedActor(ChildActor);
-		}
-	});
+			if (AActor* ChildActor = ChildActorComponent->GetChildActor())
+			{
+				QueueActor(ChildActor);
+			}
+		});
 
-	Actor->UnregisterAllComponents();
-	Actor->RegisterAllActorTickFunctions(false, true);	
+		int32 ActorIndex;
+		verify(Actors.Find(Actor, ActorIndex));
 
-	int32 ActorIndex;
-	verify(Actors.Find(Actor, ActorIndex));
+		Actors[ActorIndex] = nullptr;
+		ActorsForGC.Remove(Actor);
 
-	Actors[ActorIndex] = nullptr;
-	ActorsForGC.Remove(Actor);
+		ActorsQueue.Add(Actor);
+	};
 
-	if (TransformToRemove)
+	for (AActor* Actor : ActorList)
 	{
-		FLevelUtils::FApplyLevelTransformParams TransformParams(this, TransformToRemove->Inverse());
-		TransformParams.Actor = Actor;
-		TransformParams.bDoPostEditMove = true;
-		FLevelUtils::ApplyLevelTransform(TransformParams);
+		QueueActor(Actor);
 	}
 
-	OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
+	for (AActor* Actor : ActorsQueue)
+	{
+		Actor->UnregisterAllComponents();
+		Actor->RegisterAllActorTickFunctions(false, true);
+
+		if (TransformToRemove)
+		{
+			FLevelUtils::FApplyLevelTransformParams TransformParams(this, TransformToRemove->Inverse());
+			TransformParams.Actor = Actor;
+			TransformParams.bDoPostEditMove = true;
+			FLevelUtils::ApplyLevelTransform(TransformParams);
+		}
+
+		OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
+	}
 }
 #endif
 

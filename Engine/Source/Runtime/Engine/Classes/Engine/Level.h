@@ -1026,6 +1026,7 @@ public:
 	 * @param TransformToApply	The transform to apply to this actor if it's not already in the level
 	 */
 	ENGINE_API void AddLoadedActor(AActor* Actor, const FTransform* TransformToApply = nullptr);
+	ENGINE_API void AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform* TransformToApply = nullptr);
 
 	/**
 	 * Remove a dynamically loaded actor from this level.
@@ -1034,6 +1035,7 @@ public:
 	 * @param TransformToRemove	The transform that was applied to this actor when it was added to the level
 	 */
 	ENGINE_API void RemoveLoadedActor(AActor* Actor, const FTransform* TransformToRemove = nullptr);
+	ENGINE_API void RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransform* TransformToRemove = nullptr);
 
 	/** Called when dynamically loaded actor is added to this level */
 	DECLARE_EVENT_OneParam(ULevel, FLoadedActorAddedToLevelEvent, AActor&);

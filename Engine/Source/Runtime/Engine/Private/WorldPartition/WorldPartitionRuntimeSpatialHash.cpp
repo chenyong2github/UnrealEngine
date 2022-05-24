@@ -924,6 +924,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				FilteredActors.Reset(GridCellDataChunk.GetActors().Num());
 				if (GridCellDataChunk.GetActors().Num())
 				{
+					FWorldPartitionLoadingContext::FDeferred LoadingContext;
 					for (const FActorInstance& ActorInstance : GridCellDataChunk.GetActors())
 					{
 						if (bIsMainWorldPartition && !IsRunningCookCommandlet())
@@ -941,7 +942,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 								{
 									// This will load the actor if it isn't already loaded
 									FWorldPartitionReference Reference(WorldPartition, ActorInstance.Actor);
-									AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString());
+									AActor* AlwaysLoadedActor = Reference->GetActor();
 									AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
 
 									// Handle child actors
