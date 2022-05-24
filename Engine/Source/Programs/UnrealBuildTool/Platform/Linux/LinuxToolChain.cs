@@ -12,64 +12,6 @@ using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
-	/// <summary>
-	/// Option flags for the Linux toolchain
-	/// </summary>
-	[Flags]
-	enum LinuxToolChainOptions
-	{
-		/// <summary>
-		/// No custom options
-		/// </summary>
-		None = 0,
-
-		/// <summary>
-		/// Enable address sanitzier
-		/// </summary>
-		EnableAddressSanitizer = 0x1,
-
-		/// <summary>
-		/// Enable thread sanitizer
-		/// </summary>
-		EnableThreadSanitizer = 0x2,
-
-		/// <summary>
-		/// Enable undefined behavior sanitizer
-		/// </summary>
-		EnableUndefinedBehaviorSanitizer = 0x4,
-
-		/// <summary>
-		/// Enable memory sanitizer
-		/// </summary>
-		EnableMemorySanitizer = 0x8,
-
-		/// <summary>
-		/// Enable thin LTO
-		/// </summary>
-		EnableThinLTO = 0x10,
-
-		/// <summary>
-		/// Enable Shared library for the Sanitizers otherwise defaults to Statically linked
-		/// </summary>
-		EnableSharedSanitizer = 0x20,
-
-		/// <summary>
-		/// If should disable using objcopy to split the debug info into its own file or now
-		/// When we support larger the 4GB files with objcopy.exe this can be removed!
-		/// </summary>
-		DisableSplitDebugInfoWithObjCopy = 0x40,
-
-		/// <summary>
-		/// Enable tuning of debug info for LLDB
-		/// </summary>
-		TuneDebugInfoForLLDB = 0x80,
-
-		/// <summary>
-		/// Whether or not to preserve the portable symbol file produced by dump_syms
-		/// </summary>
-		PreservePSYM = 0x100,
-	}
-
 	class LinuxToolChain : ClangToolChain
 	{
 		/** Flavor of the current build (target triplet)*/
@@ -93,12 +35,7 @@ namespace UnrealBuildTool
 		/** Toolchain information to print during the build. */
 		protected string? ToolchainInfo;
 
-		/// <summary>
-		/// Whether to compile with ASan enabled
-		/// </summary>
-		LinuxToolChainOptions Options;
-
-		public LinuxToolChain(string InArchitecture, LinuxPlatformSDK InSDK, LinuxToolChainOptions InOptions = LinuxToolChainOptions.None)
+		public LinuxToolChain(string InArchitecture, LinuxPlatformSDK InSDK, ClangToolChainOptions InOptions = ClangToolChainOptions.None)
 			: this(UnrealTargetPlatform.Linux, InArchitecture, InSDK, InOptions)
 		{
 			MultiArchRoot = PlatformSDK.GetSDKLocation();
@@ -190,12 +127,11 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, LinuxToolChainOptions InOptions = LinuxToolChainOptions.None)
-			: base()
+		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, ClangToolChainOptions InOptions = ClangToolChainOptions.None)
+			: base(InOptions)
 		{
 			Architecture = InArchitecture;
 			PlatformSDK = InSDK;
-			Options = InOptions;
 		}
 
 		public override void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)
@@ -250,7 +186,7 @@ namespace UnrealBuildTool
 			FileItem StrippedFile = FileItem.GetItemByPath(Path.Combine(LinkEnvironment.LocalShadowDirectory.FullName, OutputFile.Location.GetFileName() + "_nodebug"));
 			FileItem DebugFile = FileItem.GetItemByPath(Path.Combine(LinkEnvironment.OutputDirectory.FullName, OutputFile.Location.GetFileNameWithoutExtension() + ".debug"));
 
-			if (Options.HasFlag(LinuxToolChainOptions.PreservePSYM))
+			if (Options.HasFlag(ClangToolChainOptions.PreservePSYM))
 			{
 				SymbolsFile = FileItem.GetItemByPath(Path.Combine(LinkEnvironment.OutputDirectory.FullName, OutputFile.Location.GetFileNameWithoutExtension() + ".psym"));
 			}
@@ -272,7 +208,7 @@ namespace UnrealBuildTool
 				EncodedBinarySymbolsFile.AbsolutePath
 			);
 
-			if (!Options.HasFlag(LinuxToolChainOptions.DisableSplitDebugInfoWithObjCopy) && LinkEnvironment.bCreateDebugInfo)
+			if (!Options.HasFlag(ClangToolChainOptions.DisableSplitDebugInfoWithObjCopy) && LinkEnvironment.bCreateDebugInfo)
 			{
 				if (MaxBinarySizeOverrideForObjcopy > 0 && bUseCmdExe)
 				{
@@ -539,27 +475,27 @@ namespace UnrealBuildTool
 			}
 
 			// ASan
-			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
 			{
 				// Force using the ANSI allocator if ASan is enabled
 				Arguments.Add("-fsanitize=address -DFORCE_ANSI_ALLOCATOR=1");
 			}
 
 			// TSan
-			if (Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 			{
 				// Force using the ANSI allocator if TSan is enabled
 				Arguments.Add("-fsanitize=thread -DFORCE_ANSI_ALLOCATOR=1");
 			}
 
 			// UBSan
-			if (Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
 				Arguments.Add("-fsanitize=undefined -fno-sanitize=vptr");
 			}
 
 			// MSan
-			if (Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
 			{
 				// Force using the ANSI allocator if MSan is enabled
 				// -fsanitize-memory-track-origins adds a 1.5x-2.5x slow down ontop of MSan normal amount of overhead
@@ -626,7 +562,7 @@ namespace UnrealBuildTool
 			// Whether we actually can enable that is checked in CanUseAdvancedLinkerFeatures() earlier
 			if (CompileEnvironment.bAllowLTCG)
 			{
-				if ((Options & LinuxToolChainOptions.EnableThinLTO) != 0)
+				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
 				{
 					Arguments.Add("-flto=thin");
 				}
@@ -639,7 +575,7 @@ namespace UnrealBuildTool
 			//Arguments.Add("-DOPERATOR_NEW_INLINE=FORCENOINLINE");
 
 			bool bRetainFramePointers = CompileEnvironment.bRetainFramePointers
-				|| Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer)
+				|| Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer)
 				|| CompileEnvironment.Configuration == CppConfiguration.Debug;
 
 			if (CompileEnvironment.Configuration == CppConfiguration.Shipping)
@@ -675,7 +611,7 @@ namespace UnrealBuildTool
 					Arguments.Add("-ggnu-pubnames");
 				}
 
-				if (Options.HasFlag(LinuxToolChainOptions.TuneDebugInfoForLLDB))
+				if (Options.HasFlag(ClangToolChainOptions.TuneDebugInfoForLLDB))
 				{
 					Arguments.Add("-glldb");
 				}
@@ -689,14 +625,14 @@ namespace UnrealBuildTool
 			else
 			{
 				// Don't over optimise if using Address/MemorySanitizer or you'll get false positive errors due to erroneous optimisation of necessary Address/MemorySanitizer instrumentation.
-				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
+				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
 				{
 					Arguments.Add("-O1 -g");
 
 					// This enables __asan_default_options() in UnixCommonStartup.h which disables the leak detector
 					Arguments.Add("-DDISABLE_ASAN_LEAK_DETECTOR=1");
 				}
-				else if (Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer))
+				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 				{
 					Arguments.Add("-O1 -g");
 				}
@@ -804,31 +740,31 @@ namespace UnrealBuildTool
 				Result += string.Format(" -Wl,--unresolved-symbols=ignore-in-shared-libs");
 			}
 
-			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) ||
-				Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) ||
-				Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
-				Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
 			{
 				Result += " -g";
 
-				if (Options.HasFlag(LinuxToolChainOptions.EnableSharedSanitizer))
+				if (Options.HasFlag(ClangToolChainOptions.EnableSharedSanitizer))
 				{
 					Result += " -shared-libsan";
 				}
 
-				if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer))
+				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
 				{
 					Result += " -fsanitize=address";
 				}
-				else if (Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer))
+				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 				{
 					Result += " -fsanitize=thread";
 				}
-				else if (Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer))
+				else if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 				{
 					Result += " -fsanitize=undefined";
 				}
-				else if (Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
+				else if (Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
 				{
 					// -fsanitize-memory-track-origins adds a 1.5x-2.5x slow ontop of MSan normal amount of overhead
 					// -fsanitize-memory-track-origins=1 is faster but collects only allocation points but not intermediate stores
@@ -915,7 +851,7 @@ namespace UnrealBuildTool
 			// whether we actually can do that is checked in CanUseAdvancedLinkerFeatures() earlier
 			if (LinkEnvironment.bAllowLTCG)
 			{
-				if ((Options & LinuxToolChainOptions.EnableThinLTO) != 0)
+				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
 				{
 					Result += String.Format(" -flto=thin -Wl,--thinlto-jobs={0}", Utils.GetPhysicalProcessorCount());
 				}
@@ -1026,18 +962,18 @@ namespace UnrealBuildTool
 			Log.TraceInformation("Using {0}", UsingLld(CompileEnvironment.Architecture) ? "lld linker" : "default linker (ld)");
 			Log.TraceInformation("Using {0}", !String.IsNullOrEmpty(LlvmArPath) ? String.Format("llvm-ar : {0}", LlvmArPath) : String.Format("ar and ranlib: {0}, {1}", GetArPath(CompileEnvironment.Architecture), GetRanlibPath(CompileEnvironment.Architecture)));
 
-			if (Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) ||
-				Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) ||
-				Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
-				Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
+				Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
 			{
 				string SanitizerInfo = "Building with:";
-				string StaticOrShared = Options.HasFlag(LinuxToolChainOptions.EnableSharedSanitizer) ? " dynamically" : " statically";
+				string StaticOrShared = Options.HasFlag(ClangToolChainOptions.EnableSharedSanitizer) ? " dynamically" : " statically";
 
-				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableAddressSanitizer) ? StaticOrShared + " linked AddressSanitizer" : "";
-				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableThreadSanitizer) ? StaticOrShared + " linked ThreadSanitizer" : "";
-				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer) ? StaticOrShared + " linked UndefinedBehaviorSanitizer" : "";
-				SanitizerInfo += Options.HasFlag(LinuxToolChainOptions.EnableMemorySanitizer) ? StaticOrShared + " linked MemorySanitizer" : "";
+				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ? StaticOrShared + " linked AddressSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ? StaticOrShared + " linked ThreadSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer) ? StaticOrShared + " linked UndefinedBehaviorSanitizer" : "";
+				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer) ? StaticOrShared + " linked MemorySanitizer" : "";
 
 				Log.TraceInformation(SanitizerInfo);
 			}

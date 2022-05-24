@@ -8,6 +8,100 @@ using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
+	/// <summary>
+	/// Common option flags for the Clang toolchains.
+	/// Usage of these flags is currently inconsistent between various toolchains.
+	/// </summary>
+	[Flags]
+	enum ClangToolChainOptions
+	{
+		/// <summary>
+		/// No custom options
+		/// </summary>
+		None = 0,
+
+		/// <summary>
+		/// Enable address sanitzier
+		/// </summary>
+		EnableAddressSanitizer = 1 << 0,
+
+		/// <summary>
+		/// Enable hardware address sanitzier
+		/// </summary>
+		EnableHWAddressSanitizer = 1 << 1,
+
+		/// <summary>
+		/// Enable thread sanitizer
+		/// </summary>
+		EnableThreadSanitizer = 1 << 2,
+
+		/// <summary>
+		/// Enable undefined behavior sanitizer
+		/// </summary>
+		EnableUndefinedBehaviorSanitizer = 1 << 3,
+
+		/// <summary>
+		/// Enable minimal undefined behavior sanitizer
+		/// </summary>
+		EnableMinimalUndefinedBehaviorSanitizer = 1 << 4,
+
+		/// <summary>
+		/// Enable memory sanitizer
+		/// </summary>
+		EnableMemorySanitizer = 1 << 5,
+
+		/// <summary>
+		/// Enable Shared library for the Sanitizers otherwise defaults to Statically linked
+		/// </summary>
+		EnableSharedSanitizer = 1 << 6,
+
+		/// <summary>
+		/// Enables link time optimization (LTO). Link times will significantly increase.
+		/// </summary>
+		EnableLinkTimeOptimization = 1 << 7,
+
+		/// <summary>
+		/// Enable thin LTO
+		/// </summary>
+		EnableThinLTO = 1 << 8,
+
+		/// <summary>
+		/// If should disable using objcopy to split the debug info into its own file or now
+		/// When we support larger the 4GB files with objcopy.exe this can be removed!
+		/// </summary>
+		DisableSplitDebugInfoWithObjCopy = 1 << 9,
+
+		/// <summary>
+		/// Enable tuning of debug info for LLDB
+		/// </summary>
+		TuneDebugInfoForLLDB = 1 << 10,
+
+		/// <summary>
+		/// Whether or not to preserve the portable symbol file produced by dump_syms
+		/// </summary>
+		PreservePSYM = 1 << 11,
+
+		/// <summary>
+		/// (Apple toolchains) Whether we're outputting a dylib instead of an executable
+		/// </summary>
+		OutputDylib = 1 << 12,
+
+		/// <summary>
+		/// Enables the creation of custom symbol files used for runtime symbol resolution.
+		/// </summary>
+		GenerateSymbols = 1 << 13,
+
+		/// <summary>
+		/// Enables live code editing
+		/// </summary>
+		EnableLiveCodeEditing = 1 << 14,
+
+		/// <summary>
+		/// Enables dead code/data stripping and common code folding.
+		/// </summary>
+		EnableDeadStripping = 1 << 15
+	}
+
 	abstract class ClangToolChain : ISPCToolChain
 	{
 		// The Clang version being used to compile
@@ -16,8 +110,11 @@ namespace UnrealBuildTool
 		protected int ClangVersionMinor = -1;
 		protected int ClangVersionPatch = -1;
 
-		public ClangToolChain() : base()
+		protected ClangToolChainOptions Options;
+
+		public ClangToolChain(ClangToolChainOptions InOptions) : base()
 		{
+			Options = InOptions;
 		}
 
 		/// <summary>

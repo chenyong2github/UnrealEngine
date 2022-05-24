@@ -149,7 +149,7 @@ namespace UnrealBuildTool
 	{
 		protected FileReference? ProjectFile;
 
-		public AppleToolChain(FileReference? InProjectFile)
+		public AppleToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions) : base(InOptions)
 		{
 			ProjectFile = InProjectFile;
 		}

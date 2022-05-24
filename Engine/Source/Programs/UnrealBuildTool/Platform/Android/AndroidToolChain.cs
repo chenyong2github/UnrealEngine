@@ -12,43 +12,6 @@ using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
-	/// <summary>
-	/// Option flags for the Android toolchain
-	/// </summary>
-	[Flags]
-	enum AndroidToolChainOptions
-	{
-		/// <summary>
-		/// No custom options
-		/// </summary>
-		None = 0,
-
-		/// <summary>
-		/// Enable address sanitizer
-		/// </summary>
-		EnableAddressSanitizer = 0x1,
-
-		/// <summary>
-		/// Enable HW address sanitizer
-		/// </summary>
-		EnableHWAddressSanitizer = 0x2,
-
-		/// <summary>
-		/// Enable thread sanitizer
-		/// </summary>
-		EnableThreadSanitizer = 0x4,
-
-		/// <summary>
-		/// Enable undefined behavior sanitizer
-		/// </summary>
-		EnableUndefinedBehaviorSanitizer = 0x8,
-
-		/// <summary>
-		/// Enable undefined behavior sanitizer
-		/// </summary>
-		EnableMinimalUndefinedBehaviorSanitizer = 0x10,
-	}
-
 	class AndroidToolChain : ClangToolChain, IAndroidToolChain
 	{
 		public static readonly string[] AllCpuSuffixes =
@@ -100,8 +63,6 @@ namespace UnrealBuildTool
 
 		// the list of architectures we will compile for
 		protected List<string>? Arches = null;
-
-		private AndroidToolChainOptions Options;
 
 		// the "-android" suffix paths here are vcpkg triplets for the android platform
 		static private Dictionary<string, string[]> AllArchNames = new Dictionary<string, string[]> {
@@ -159,16 +120,17 @@ namespace UnrealBuildTool
 		protected bool bEnableGcSections = true;
 
 		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches)
-			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, AndroidToolChainOptions.None)
+			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ClangToolChainOptions.None)
 		{
 		}
 
-		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, AndroidToolChainOptions ToolchainOptions)
+		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ClangToolChainOptions ToolchainOptions)
 			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ToolchainOptions)
 		{
 		}
 
-		protected AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, bool bAllowMissingNDK, AndroidToolChainOptions ToolchainOptions)
+		protected AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, bool bAllowMissingNDK, ClangToolChainOptions ToolchainOptions)
+			: base(ToolchainOptions)
 		{
 			Options = ToolchainOptions;
 			ProjectFile = InProjectFile;
@@ -2213,23 +2175,23 @@ namespace UnrealBuildTool
 
 		public ClangSanitizer BuildWithSanitizer()
 		{
-			if (Options.HasFlag(AndroidToolChainOptions.EnableAddressSanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
 			{
 				return ClangSanitizer.Address;
 			}
-			else if (Options.HasFlag(AndroidToolChainOptions.EnableHWAddressSanitizer))
+			else if (Options.HasFlag(ClangToolChainOptions.EnableHWAddressSanitizer))
 			{
 				return ClangSanitizer.HwAddress;
 			}
-			else if (Options.HasFlag(AndroidToolChainOptions.EnableThreadSanitizer))
+			else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 			{
 				return ClangSanitizer.Thread;
 			}
-			else if (Options.HasFlag(AndroidToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			else if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
 				return ClangSanitizer.UndefinedBehavior;
 			}
-			else if (Options.HasFlag(AndroidToolChainOptions.EnableMinimalUndefinedBehaviorSanitizer))
+			else if (Options.HasFlag(ClangToolChainOptions.EnableMinimalUndefinedBehaviorSanitizer))
 			{
 				return ClangSanitizer.UndefinedBehaviorMinimal;
 			}

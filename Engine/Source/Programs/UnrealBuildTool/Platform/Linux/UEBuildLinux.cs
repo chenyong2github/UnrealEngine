@@ -547,20 +547,20 @@ namespace UnrealBuildTool
 		/// <returns>New toolchain instance.</returns>
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
-			LinuxToolChainOptions Options = LinuxToolChainOptions.None;
+			ClangToolChainOptions Options = ClangToolChainOptions.None;
 
 			if (Target.LinuxPlatform.bEnableAddressSanitizer)
 			{
-				Options |= LinuxToolChainOptions.EnableAddressSanitizer;
+				Options |= ClangToolChainOptions.EnableAddressSanitizer;
 
 				if (Target.LinkType != TargetLinkType.Monolithic)
 				{
-					Options |= LinuxToolChainOptions.EnableSharedSanitizer;
+					Options |= ClangToolChainOptions.EnableSharedSanitizer;
 				}
 			}
 			if (Target.LinuxPlatform.bEnableThreadSanitizer)
 			{
-				Options |= LinuxToolChainOptions.EnableThreadSanitizer;
+				Options |= ClangToolChainOptions.EnableThreadSanitizer;
 
 				if (Target.LinkType != TargetLinkType.Monolithic)
 				{
@@ -569,16 +569,16 @@ namespace UnrealBuildTool
 			}
 			if (Target.LinuxPlatform.bEnableUndefinedBehaviorSanitizer)
 			{
-				Options |= LinuxToolChainOptions.EnableUndefinedBehaviorSanitizer;
+				Options |= ClangToolChainOptions.EnableUndefinedBehaviorSanitizer;
 
 				if (Target.LinkType != TargetLinkType.Monolithic)
 				{
-					Options |= LinuxToolChainOptions.EnableSharedSanitizer;
+					Options |= ClangToolChainOptions.EnableSharedSanitizer;
 				}
 			}
 			if (Target.LinuxPlatform.bEnableMemorySanitizer)
 			{
-				Options |= LinuxToolChainOptions.EnableMemorySanitizer;
+				Options |= ClangToolChainOptions.EnableMemorySanitizer;
 
 				if (Target.LinkType != TargetLinkType.Monolithic)
 				{
@@ -587,7 +587,7 @@ namespace UnrealBuildTool
 			}
 			if (Target.bAllowLTCG && Target.bPreferThinLTO)
 			{
-				Options |= LinuxToolChainOptions.EnableThinLTO;
+				Options |= ClangToolChainOptions.EnableThinLTO;
 			}
 
 			// When building a monolithic editor we have to avoid using objcopy.exe as it cannot handle files
@@ -597,17 +597,17 @@ namespace UnrealBuildTool
 				(Target.LinkType == TargetLinkType.Monolithic) &&
 				(Target.Type == TargetType.Editor))
 			{
-				Options |= LinuxToolChainOptions.DisableSplitDebugInfoWithObjCopy;
+				Options |= ClangToolChainOptions.DisableSplitDebugInfoWithObjCopy;
 			}
 
 			if (Target.LinuxPlatform.bTuneDebugInfoForLLDB)
 			{
-				Options |= LinuxToolChainOptions.TuneDebugInfoForLLDB;
+				Options |= ClangToolChainOptions.TuneDebugInfoForLLDB;
 			}
 
 			if (Target.LinuxPlatform.bPreservePSYM)
 			{
-				Options |= LinuxToolChainOptions.PreservePSYM;
+				Options |= ClangToolChainOptions.PreservePSYM;
 			}
 
 			// Disable color logging if we are on a build machine

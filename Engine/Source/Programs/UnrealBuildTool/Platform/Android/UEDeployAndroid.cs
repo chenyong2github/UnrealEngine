@@ -4982,7 +4982,7 @@ namespace UnrealBuildTool
 			// file and instead pushes files directly via deploy
 			AndroidTargetRules TargetRules = new AndroidTargetRules();
 			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), TargetRules);
-			AndroidToolChainOptions Options = AndroidPlatform.CreateToolChainOptions(TargetRules);
+			ClangToolChainOptions Options = AndroidPlatform.CreateToolChainOptions(TargetRules);
 			AndroidToolChain ToolChain = new AndroidToolChain(ProjectFile, false, null, null, Options);
 
 			SavePackageInfo(ProjectName, ProjectDirectory.FullName, Type, bSkipGradleBuild);

@@ -376,7 +376,7 @@ namespace UnrealBuildTool
 		/// <returns>New toolchain instance.</returns>
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
-			MacToolChainOptions Options = MacToolChainOptions.None;
+			ClangToolChainOptions Options = ClangToolChainOptions.None;
 
 			string? AddressSanitizer = Environment.GetEnvironmentVariable("ENABLE_ADDRESS_SANITIZER");
 			string? ThreadSanitizer = Environment.GetEnvironmentVariable("ENABLE_THREAD_SANITIZER");
@@ -384,19 +384,19 @@ namespace UnrealBuildTool
 
 			if(Target.MacPlatform.bEnableAddressSanitizer || (AddressSanitizer != null && AddressSanitizer == "YES"))
 			{
-				Options |= MacToolChainOptions.EnableAddressSanitizer;
+				Options |= ClangToolChainOptions.EnableAddressSanitizer;
 			}
 			if(Target.MacPlatform.bEnableThreadSanitizer || (ThreadSanitizer != null && ThreadSanitizer == "YES"))
 			{
-				Options |= MacToolChainOptions.EnableThreadSanitizer;
+				Options |= ClangToolChainOptions.EnableThreadSanitizer;
 			}
 			if(Target.MacPlatform.bEnableUndefinedBehaviorSanitizer || (UndefSanitizerMode != null && UndefSanitizerMode == "YES"))
 			{
-				Options |= MacToolChainOptions.EnableUndefinedBehaviorSanitizer;
+				Options |= ClangToolChainOptions.EnableUndefinedBehaviorSanitizer;
 			}
 			if(Target.bShouldCompileAsDLL)
 			{
-				Options |= MacToolChainOptions.OutputDylib;
+				Options |= ClangToolChainOptions.OutputDylib;
 			}
 
 			return new MacToolChain(Target.ProjectFile, Options);

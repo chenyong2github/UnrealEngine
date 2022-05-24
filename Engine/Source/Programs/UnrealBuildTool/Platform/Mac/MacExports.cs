@@ -138,7 +138,7 @@ namespace UnrealBuildTool
 		/// <param name="TargetFile">The output file</param>
 		public static void StripSymbols(FileReference SourceFile, FileReference TargetFile)
 		{
-			MacToolChain ToolChain = new MacToolChain(null, MacToolChainOptions.None);
+			MacToolChain ToolChain = new MacToolChain(null, ClangToolChainOptions.None);
 			ToolChain.StripSymbols(SourceFile, TargetFile);
 		}		
 	}

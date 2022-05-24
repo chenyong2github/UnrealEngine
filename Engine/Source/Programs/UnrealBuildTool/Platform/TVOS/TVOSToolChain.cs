@@ -26,7 +26,7 @@ namespace UnrealBuildTool
 	class TVOSToolChain : IOSToolChain
 	{
 		public TVOSToolChain(ReadOnlyTargetRules InTarget, TVOSProjectSettings InProjectSettings)
-			: base(InTarget, InProjectSettings, () => new TVOSToolChainSettings())
+			: base(InTarget, InProjectSettings, () => new TVOSToolChainSettings(), ClangToolChainOptions.None)
 		{
 		}
 

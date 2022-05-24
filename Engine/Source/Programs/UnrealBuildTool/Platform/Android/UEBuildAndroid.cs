@@ -485,28 +485,28 @@ namespace UnrealBuildTool
 			};
 		}
 
-		static public AndroidToolChainOptions CreateToolChainOptions(AndroidTargetRules TargetRules)
+		static public ClangToolChainOptions CreateToolChainOptions(AndroidTargetRules TargetRules)
 		{
-			AndroidToolChainOptions Options = AndroidToolChainOptions.None;
+			ClangToolChainOptions Options = ClangToolChainOptions.None;
 			if (TargetRules.bEnableAddressSanitizer)
 			{
-				Options |= AndroidToolChainOptions.EnableAddressSanitizer;
+				Options |= ClangToolChainOptions.EnableAddressSanitizer;
 			}
 			else if (TargetRules.bEnableHWAddressSanitizer)
 			{
-				Options |= AndroidToolChainOptions.EnableHWAddressSanitizer;
+				Options |= ClangToolChainOptions.EnableHWAddressSanitizer;
 			}
 			if (TargetRules.bEnableThreadSanitizer)
 			{
-				Options |= AndroidToolChainOptions.EnableThreadSanitizer;
+				Options |= ClangToolChainOptions.EnableThreadSanitizer;
 			}
 			if (TargetRules.bEnableUndefinedBehaviorSanitizer)
 			{
-				Options |= AndroidToolChainOptions.EnableUndefinedBehaviorSanitizer;
+				Options |= ClangToolChainOptions.EnableUndefinedBehaviorSanitizer;
 			}
 			else if (TargetRules.bEnableMinimalUndefinedBehaviorSanitizer)
 			{
-				Options |= AndroidToolChainOptions.EnableMinimalUndefinedBehaviorSanitizer;
+				Options |= ClangToolChainOptions.EnableMinimalUndefinedBehaviorSanitizer;
 			}
 
 			return Options;
@@ -515,14 +515,14 @@ namespace UnrealBuildTool
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
 			bool bUseLdGold = Target.bUseUnityBuild;
-			AndroidToolChainOptions Options = CreateToolChainOptions(Target.AndroidPlatform.TargetRules);
+			ClangToolChainOptions Options = CreateToolChainOptions(Target.AndroidPlatform.TargetRules);
 			return new AndroidToolChain(Target.ProjectFile, bUseLdGold, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Options);
 		}
 		public virtual UEToolChain CreateTempToolChainForProject(FileReference? ProjectFile)
 		{
 			AndroidTargetRules TargetRules = new AndroidTargetRules();
 			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), TargetRules);
-			AndroidToolChainOptions Options = CreateToolChainOptions(TargetRules);
+			ClangToolChainOptions Options = CreateToolChainOptions(TargetRules);
 			return new AndroidToolChain(ProjectFile, true, null, null, Options);
 		}
 

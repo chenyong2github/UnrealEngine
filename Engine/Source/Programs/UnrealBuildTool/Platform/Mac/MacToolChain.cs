@@ -68,51 +68,13 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
-	/// Option flags for the Mac toolchain
-	/// </summary>
-	[Flags]
-	enum MacToolChainOptions
-	{
-		/// <summary>
-		/// No custom options
-		/// </summary>
-		None = 0,
-
-		/// <summary>
-		/// Enable address sanitzier
-		/// </summary>
-		EnableAddressSanitizer = 0x1,
-
-		/// <summary>
-		/// Enable thread sanitizer
-		/// </summary>
-		EnableThreadSanitizer = 0x2,
-
-		/// <summary>
-		/// Enable undefined behavior sanitizer
-		/// </summary>
-		EnableUndefinedBehaviorSanitizer = 0x4,
-
-		/// <summary>
-		/// Whether we're outputting a dylib instead of an executable
-		/// </summary>
-		OutputDylib = 0x08,
-	}
-
-	/// <summary>
 	/// Mac toolchain wrapper
 	/// </summary>
 	class MacToolChain : AppleToolChain
 	{
-		/// <summary>
-		/// Whether to compile with ASan enabled
-		/// </summary>
-		MacToolChainOptions Options;
-
-		public MacToolChain(FileReference? InProjectFile, MacToolChainOptions InOptions)
-			: base(InProjectFile)
+		public MacToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions)
+			: base(InProjectFile, InOptions)
 		{
-			this.Options = InOptions;			
 		}
 
 		public static Lazy<MacToolChainSettings> SettingsPrivate = new Lazy<MacToolChainSettings>(() => new MacToolChainSettings(false));
@@ -214,15 +176,15 @@ namespace UnrealBuildTool
 				Arguments.Add("-fvisibility-ms-compat");
 				Arguments.Add("-fvisibility-inlines-hidden");
 			}
-			if (Options.HasFlag(MacToolChainOptions.EnableAddressSanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
 			{
 				Arguments.Add("-fsanitize=address");
 			}
-			if (Options.HasFlag(MacToolChainOptions.EnableThreadSanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 			{
 				Arguments.Add("-fsanitize=thread");
 			}
-			if (Options.HasFlag(MacToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
 				Arguments.Add("-fsanitize=undefined");
 			}					
@@ -248,11 +210,11 @@ namespace UnrealBuildTool
 			if (CompileEnvironment.bOptimizeCode && !bStaticAnalysis)
 			{
 				// Don't over optimise if using AddressSanitizer or you'll get false positive errors due to erroneous optimisation of necessary AddressSanitizer instrumentation.
-				if (Options.HasFlag(MacToolChainOptions.EnableAddressSanitizer))
+				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
 				{
 					Arguments.Add("-O1 -g -fno-optimize-sibling-calls -fno-omit-frame-pointer");
 				}
-				else if (Options.HasFlag(MacToolChainOptions.EnableThreadSanitizer))
+				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 				{
 					Arguments.Add("-O1 -g");
 				}
@@ -305,18 +267,18 @@ namespace UnrealBuildTool
 			Result += " -dead_strip";
 			Result += " -Wl,-fatal_warnings";
 
-			if (Options.HasFlag(MacToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(MacToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(MacToolChainOptions.EnableUndefinedBehaviorSanitizer))
+			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) || Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 			{
 				Result += " -g";
-				if (Options.HasFlag(MacToolChainOptions.EnableAddressSanitizer))
+				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
 				{
 					Result += " -fsanitize=address";
 				}
-				else if (Options.HasFlag(MacToolChainOptions.EnableThreadSanitizer))
+				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 				{
 					Result += " -fsanitize=thread";
 				}
-				else if (Options.HasFlag(MacToolChainOptions.EnableUndefinedBehaviorSanitizer))
+				else if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 				{
 					Result += " -fsanitize=undefined";
 				}
@@ -1435,7 +1397,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if ((BinaryLinkEnvironment.bIsBuildingDLL && (Options & MacToolChainOptions.OutputDylib) == 0) || (BinaryLinkEnvironment.bIsBuildingConsoleApplication && Executable.Name.EndsWith("-Cmd")))
+			if ((BinaryLinkEnvironment.bIsBuildingDLL && (Options & ClangToolChainOptions.OutputDylib) == 0) || (BinaryLinkEnvironment.bIsBuildingConsoleApplication && Executable.Name.EndsWith("-Cmd")))
 			{
 				return OutputFiles;
 			}

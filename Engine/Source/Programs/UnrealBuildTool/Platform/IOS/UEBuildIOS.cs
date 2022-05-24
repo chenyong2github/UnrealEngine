@@ -1202,18 +1202,18 @@ namespace UnrealBuildTool
 		/// <returns>New toolchain instance.</returns>
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
-			IOSToolChainOptions Options = IOSToolChainOptions.None;
+			ClangToolChainOptions Options = ClangToolChainOptions.None;
 			if (Target.IOSPlatform.bEnableAddressSanitizer)
 			{
-				Options |= IOSToolChainOptions.EnableAddressSanitizer;
+				Options |= ClangToolChainOptions.EnableAddressSanitizer;
 			}
 			if (Target.IOSPlatform.bEnableThreadSanitizer)
 			{
-				Options |= IOSToolChainOptions.EnableThreadSanitizer;
+				Options |= ClangToolChainOptions.EnableThreadSanitizer;
 			}
 			if (Target.IOSPlatform.bEnableUndefinedBehaviorSanitizer)
 			{
-				Options |= IOSToolChainOptions.EnableUndefinedBehaviorSanitizer;
+				Options |= ClangToolChainOptions.EnableUndefinedBehaviorSanitizer;
 			}
 
 			IOSProjectSettings ProjectSettings = ReadProjectSettings(Target.ProjectFile);
