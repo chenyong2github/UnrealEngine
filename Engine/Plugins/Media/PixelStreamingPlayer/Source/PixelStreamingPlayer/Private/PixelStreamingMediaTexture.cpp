@@ -84,14 +84,14 @@ void UPixelStreamingMediaTexture::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-float UPixelStreamingMediaTexture::GetSurfaceHeight() const
-{
-	return CurrentResource != nullptr ? CurrentResource->GetSizeY() : 0.0f;
-}
-
 float UPixelStreamingMediaTexture::GetSurfaceWidth() const
 {
 	return CurrentResource != nullptr ? CurrentResource->GetSizeX() : 0.0f;
+}
+
+float UPixelStreamingMediaTexture::GetSurfaceHeight() const
+{
+	return CurrentResource != nullptr ? CurrentResource->GetSizeY() : 0.0f;
 }
 
 void UPixelStreamingMediaTexture::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)

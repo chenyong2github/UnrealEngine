@@ -19,12 +19,19 @@ class PIXELSTREAMINGPLAYER_API UPixelStreamingMediaTexture : public UTexture, pu
 
 protected:
 	// UTexture implementation
-	virtual void BeginDestroy() override;
-	virtual float GetSurfaceHeight() const override;
-	virtual float GetSurfaceWidth() const override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	virtual EMaterialValueType GetMaterialType() const override;
+
 	virtual FTextureResource* CreateResource() override;
+	virtual EMaterialValueType GetMaterialType() const override;
+	virtual float GetSurfaceWidth() const override;
+	virtual float GetSurfaceHeight() const override;
+	virtual float GetSurfaceDepth() const override { return 0; }
+	virtual uint32 GetSurfaceArraySize() const override { return 0; }
+	virtual ETextureClass GetTextureClass() const { return ETextureClass::Other2DNoSource; }
+
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+
+	// UObject overrides.
+	virtual void BeginDestroy() override;
 
 	// from rtc::VideoSinkInterface<webrtc::VideoFrame>
 	virtual void OnFrame(const webrtc::VideoFrame& frame) override;
