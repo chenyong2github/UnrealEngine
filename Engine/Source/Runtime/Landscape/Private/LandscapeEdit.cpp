@@ -4418,6 +4418,16 @@ uint32 ULandscapeInfo::GetGridSize(uint32 InGridSizeInComponents) const
 	return InGridSizeInComponents * ComponentSizeQuads;
 }
 
+bool ULandscapeInfo::AreNewLandscapeActorsSpatiallyLoaded() const
+{
+	if (ALandscape* Landscape = LandscapeActor.Get())
+	{
+		return Landscape->bAreNewLandscapeActorsSpatiallyLoaded;
+	}
+	
+	return false;
+}
+
 ALandscapeProxy* ULandscapeInfo::MoveComponentsToLevel(const TArray<ULandscapeComponent*>& InComponents, ULevel* TargetLevel, FName NewProxyName)
 {
 	ALandscape* Landscape = LandscapeActor.Get();

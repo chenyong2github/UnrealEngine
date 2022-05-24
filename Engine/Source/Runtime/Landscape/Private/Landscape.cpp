@@ -3523,6 +3523,7 @@ ALandscapeSplineActor* ULandscapeInfo::CreateSplineActor(const FVector& Location
 	ALandscapeSplineActor* SplineActor = World->SpawnActor<ALandscapeSplineActor>(Location, FRotator::ZeroRotator, SpawnParams);
 	SplineActor->GetSharedProperties(this);
 	SplineActor->GetSplinesComponent()->ShowSplineEditorMesh(true);
+	SplineActor->SetIsSpatiallyLoaded(AreNewLandscapeActorsSpatiallyLoaded());
 	RegisterSplineActor(SplineActor);
 	return SplineActor;
 }

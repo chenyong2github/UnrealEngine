@@ -341,12 +341,10 @@ public:
 	LANDSCAPE_API void ForceLayersFullUpdate();
 	LANDSCAPE_API void InitializeLandscapeLayersWeightmapUsage();
 
-#if WITH_EDITOR
 	LANDSCAPE_API bool ComputeLandscapeLayerBrushInfo(FTransform& OutLandscapeTransform, FIntPoint& OutLandscapeSize, FIntPoint& OutLandscapeRenderTargetSize);
 	void RequestProxyLayersWeightmapUsageUpdate();
 	void UpdateProxyLayersWeightmapUsage();
 	void ValidateProxyLayersWeightmapUsage() const;
-#endif // WITH_EDITOR
 
 private:
 	bool SupportsEditLayersLocalMerge();
@@ -437,6 +435,10 @@ private:
 public:
 
 #if WITH_EDITORONLY_DATA
+	/** Landscape actor has authority on default streaming behavior for new actors : LandscapeStreamingProxies & LandscapeSplineActors */
+	UPROPERTY(EditAnywhere, Category = WorldPartition)
+	bool bAreNewLandscapeActorsSpatiallyLoaded = true;
+
 	UPROPERTY(EditAnywhere, Category=Landscape)
 	bool bCanHaveLayersContent = false;
 

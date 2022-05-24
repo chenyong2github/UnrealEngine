@@ -26,7 +26,7 @@ public:
 	virtual ULandscapeInfo* GetLandscapeInfo() const override;
 		
 #if WITH_EDITOR
-	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return true; }
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 
 	void GetSharedProperties(ULandscapeInfo* InLandscapeInfo);

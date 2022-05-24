@@ -31,6 +31,7 @@ public:
 	virtual AActor* GetSceneOutlinerParent() const override;
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return true; }
 #endif
 	//~ End UObject Interface
 
