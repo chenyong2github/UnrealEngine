@@ -1814,15 +1814,18 @@ public:
 	FDeferredDecalProxy(const UDecalComponent* InComponent);
 
 	/**
-	 * Updates the decal proxy's cached transform.
+	 * Updates the decal proxy's cached transform and bounds.
 	 * @param InComponentToWorldIncludingDecalSize - The new component-to-world transform including the DecalSize
+	 * @param InBounds - The new world-space bounds including the DecalSize
 	 */
-	void SetTransformIncludingDecalSize(const FTransform& InComponentToWorldIncludingDecalSize);
+	void SetTransformIncludingDecalSize(const FTransform& InComponentToWorldIncludingDecalSize, const FBoxSphereBounds& InBounds);
 
 	void InitializeFadingParameters(float AbsSpawnTime, float FadeDuration, float FadeStartDelay, float FadeInDuration, float FadeInStartDelay);
 
 	/** @return True if the decal is visible in the given view. */
 	bool IsShown( const FSceneView* View ) const;
+
+	inline const FBoxSphereBounds& GetBounds() const { return Bounds; }
 
 	/** Pointer back to the game thread decal component. */
 	const UDecalComponent* Component;
@@ -1838,6 +1841,8 @@ private:
 
 	/** Whether or not the decal should be drawn in the editor. */
 	bool DrawInEditor;
+
+	FBoxSphereBounds Bounds;
 
 public:
 
