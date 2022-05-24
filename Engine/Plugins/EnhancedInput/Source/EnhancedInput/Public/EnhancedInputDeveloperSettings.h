@@ -8,7 +8,7 @@
 #include "EnhancedInputDeveloperSettings.generated.h"
 
 /** Developer settings for Enhanced Input */
-UCLASS(config = Input, defaultconfig)
+UCLASS(config = Input, defaultconfig, meta = (DisplayName = "Enhanced Input"))
 class ENHANCEDINPUT_API UEnhancedInputDeveloperSettings : public UDeveloperSettingsBackedByCVars
 {
 	GENERATED_BODY()

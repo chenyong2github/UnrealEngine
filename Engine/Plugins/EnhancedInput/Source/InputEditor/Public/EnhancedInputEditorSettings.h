@@ -27,7 +27,7 @@ struct FDefaultContextSetting
 };
 
 /** Settings for the Enhanced Input Editor Subsystem that are persistent between a project's users */
-UCLASS(config = Input, defaultconfig)
+UCLASS(config = Input, defaultconfig, meta = (DisplayName = "Enhanced Input (Editor Only)"))
 class UEnhancedInputEditorProjectSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
