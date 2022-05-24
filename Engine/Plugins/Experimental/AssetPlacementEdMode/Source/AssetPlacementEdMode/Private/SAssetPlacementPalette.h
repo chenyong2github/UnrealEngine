@@ -97,6 +97,7 @@ private:
 	void OnResetPaletteAssetClicked();
 	void OnSavePaletteAssetClicked();
 	EVisibility GetContentBrowserMirrorVisibility() const;
+	EVisibility GetPaletteAssetPropertyBoxVisible() const;
 	void OnContentBrowserMirrorButtonClicked(ECheckBoxState InState);
 	void OnContentBrowserSelectionChanged(const TArray<FAssetData>& NewSelectedAssets, bool bIsPrimaryBrowser);
 	void SetupContentBrowserMirroring(bool bInMirrorContentBrowser);
