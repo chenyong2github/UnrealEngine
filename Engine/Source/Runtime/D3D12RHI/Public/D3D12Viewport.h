@@ -243,6 +243,8 @@ private:
 	TRefCountPtr<FD3D12Texture> SDRDummyBackBuffer_RenderThread;
 	FD3D12Texture* SDRBackBuffer_RHIThread;
 	EPixelFormat SDRPixelFormat;
+	EDisplayColorGamut DisplayColorGamut;
+	EDisplayOutputFormat DisplayOutputFormat;
 
 	/** A fence value used to track the GPU's progress. */
 	FD3D12Fence Fence;

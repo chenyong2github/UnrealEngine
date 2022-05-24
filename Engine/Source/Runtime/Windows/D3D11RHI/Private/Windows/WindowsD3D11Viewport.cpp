@@ -44,6 +44,8 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	ValidState(0),
 	PixelFormat(InPreferredPixelFormat),
 	PixelColorSpace(EColorSpaceAndEOTF::ERec709_sRGB),
+	DisplayColorGamut(EDisplayColorGamut::sRGB_D65),
+	DisplayOutputFormat(EDisplayOutputFormat::SDR_sRGB),
 	bIsFullscreen(bInIsFullscreen),
 	bAllowTearing(false),
 	FrameSyncEvent(InD3DRHI)
@@ -343,12 +345,7 @@ void FD3D11Viewport::CheckHDRMonitorStatus()
 	{
 		FlushRenderingCommands();
 
-		static const auto CVarHDRColorGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
-		const EDisplayColorGamut DisplayGamut = EDisplayColorGamut(CVarHDRColorGamut->GetValueOnAnyThread());
-		static const auto CVarHDROutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
-		const EDisplayOutputFormat OutputDevice = EDisplayOutputFormat(CVarHDROutputDevice->GetValueOnAnyThread());
-
-		EnsureColorSpace(SwapChain, DisplayGamut, OutputDevice, PixelFormat);
+		EnsureColorSpace(SwapChain, DisplayColorGamut, DisplayOutputFormat, PixelFormat);
 	}
 	
 	{
@@ -403,6 +400,11 @@ void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 			}
 		}
 	}
+}
+
+void FD3D11DynamicRHI::RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
+{
+	OutDisplayInformation.Append(DisplayList);
 }
 
 #include "Windows/HideWindowsPlatformTypes.h"

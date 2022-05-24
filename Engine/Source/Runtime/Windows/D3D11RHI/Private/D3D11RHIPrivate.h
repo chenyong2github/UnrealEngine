@@ -16,6 +16,7 @@
 #include "Containers/ResourceArray.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "HDRHelper.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogD3D11RHI, Log, All);
 
@@ -677,6 +678,7 @@ public:
 	virtual ID3D11RenderTargetView* RHIGetRenderTargetView(FRHITexture* InTexture, int32 InMipIndex = 0, int32 InArraySliceIndex = -1) const final override;
 	virtual ID3D11ShaderResourceView* RHIGetShaderResourceView(FRHITexture* InTexture) const final override;
 	virtual void                  RHIRegisterWork(uint32 NumPrimitives) final override;
+	virtual void				  RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation) final override;
 
 	// Accessors.
 	ID3D11Device* GetDevice() const
@@ -922,6 +924,8 @@ protected:
 	uint32 HDRDetectedDisplayIndex;
 	uint32 HDRDetectedDisplayIHVIndex;
 
+	FDisplayInformationArray DisplayList;
+
 	bool bRenderDoc = false;
 
 public:
@@ -1049,6 +1053,8 @@ protected:
 	void IntelMetricsDicoveryEndFrame();
 	double IntelMetricsDicoveryGetGPUTime();
 #endif
+
+	bool SetupDisplayHDRMetaData();
 
 	friend struct FD3DGPUProfiler;
 

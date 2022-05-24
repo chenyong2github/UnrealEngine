@@ -849,6 +849,10 @@ public:
 		return nullptr;
 	}
 
+	virtual void RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
+	{
+	}
+
 	virtual void RHIAdvanceFrameFence() {};
 
 	// Only relevant with an RHI thread, this advances the backbuffer for the purpose of GetViewportBackBuffer
@@ -1627,6 +1631,10 @@ FORCEINLINE IRHITransientResourceAllocator* RHICreateTransientResourceAllocator(
 	return GDynamicRHI->RHICreateTransientResourceAllocator();
 }
 
+FORCEINLINE void RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
+{
+	GDynamicRHI->RHIGetDisplaysInformation(OutDisplayInformation);
+}
 
 #if RHI_RAYTRACING
 

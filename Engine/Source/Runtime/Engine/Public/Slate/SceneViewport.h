@@ -242,7 +242,9 @@ public:
 	virtual FReply OnViewportActivated(const FWindowActivateEvent& InActivateEvent) override;
 	virtual void OnViewportDeactivated(const FWindowActivateEvent& InActivateEvent) override;
 	virtual FIntPoint GetSize() const override { return GetSizeXY(); }
-	
+	virtual EDisplayColorGamut GetDisplayColorGamut() const override;
+	virtual EDisplayOutputFormat GetDisplayOutputFormat() const override;
+
 	void SetViewportSize(uint32 NewSizeX,uint32 NewSizeY);
 	void SetFixedViewportSize(uint32 NewSizeX, uint32 NewSizeY);
 
@@ -443,6 +445,9 @@ private:
 
 	/** Tracks the number of touches currently active on the viewport */
 	int32 NumTouches;
+
+	EDisplayColorGamut DisplayColorGamut;
+	EDisplayOutputFormat DisplayOutputFormat;
 
 	/** The optional gamma value to use for this viewport */
 	TOptional<float> ViewportGammaOverride;

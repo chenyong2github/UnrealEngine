@@ -2033,6 +2033,8 @@ private:
 	ERHIDescriptorHeapType Type{ ERHIDescriptorHeapType::count };
 };
 
+using FDisplayInformationArray = TArray<struct FDisplayInformation>;
+
 inline bool IsPCPlatform(const FStaticShaderPlatform Platform)
 {
 	return FDataDrivenShaderPlatformInfo::GetIsPC(Platform);

@@ -472,12 +472,10 @@ static void SetHDRMonitorModeAMD(uint32 IHVDisplayIndex, bool bEnableHDR, EDispl
 /** Enable HDR meta data transmission */
 void FD3D11DynamicRHI::EnableHDR()
 {
-	static const auto CVarHDRColorGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
-	static const auto CVarHDROutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
-
 	if ( GRHISupportsHDROutput && IsHDREnabled() )
 	{
-		const EDisplayOutputFormat OutputDevice = (EDisplayOutputFormat)CVarHDROutputDevice->GetValueOnAnyThread();
+		const EDisplayOutputFormat OutputDevice = HDRGetDefaultDisplayOutputFormat();
+		const EDisplayColorGamut DisplayGamut = HDRGetDefaultDisplayColorGamut();
 
 		const float DisplayMaxOutputNits = (OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084 || OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB) ? 2000.f : 1000.f;
 		const float DisplayMinOutputNits = 0.0f;	// Min output of the display
@@ -489,7 +487,7 @@ void FD3D11DynamicRHI::EnableHDR()
 			SetHDRMonitorModeNVIDIA(
 				HDRDetectedDisplayIHVIndex,
 				true,
-				EDisplayColorGamut(CVarHDRColorGamut->GetValueOnAnyThread()),
+				DisplayGamut,
 				DisplayMaxOutputNits,
 				DisplayMinOutputNits,
 				DisplayMaxCLL,
@@ -500,7 +498,7 @@ void FD3D11DynamicRHI::EnableHDR()
 			SetHDRMonitorModeAMD(
 				HDRDetectedDisplayIHVIndex,
 				true,
-				EDisplayColorGamut(CVarHDRColorGamut->GetValueOnAnyThread()),
+				DisplayGamut,
 				DisplayMaxOutputNits,
 				DisplayMinOutputNits,
 				DisplayMaxCLL,
@@ -553,19 +551,19 @@ void FD3D11DynamicRHI::ShutdownHDR()
 	}
 }
 
-static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
+bool FD3D11DynamicRHI::SetupDisplayHDRMetaData()
 {
-	check(D3DRHI && D3DRHI->GetDevice());
-	ID3D11Device* Direct3DDevice = D3DRHI->GetDevice();
+	check(GetDevice());
 
 	// Default to primary display
-	D3DRHI->SetHDRDetectedDisplayIndices(0, 0);
+	SetHDRDetectedDisplayIndices(0, 0);
 	
+	DisplayList.Empty();
+
 #if WITH_EDITOR
 	// Determines if any displays support HDR
 	bool bSupportsHDROutput = false;
 	{
-		const FD3D11Adapter& Adapter = D3DRHI->GetAdapter();
 		IDXGIAdapter* DXGIAdapter = Adapter.DXGIAdapter;
 		if (!DXGIAdapter)
 		{
@@ -597,6 +595,12 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 
 					bSupportsHDROutput = true;
 				}
+
+				FDisplayInformation DisplayInformation{};
+				DisplayInformation.bHDRSupported = bDisplaySupportsHDROutput;
+				const RECT& DisplayCoords = OutputDesc.DesktopCoordinates;
+				DisplayInformation.DesktopCoordinates = FIntRect(DisplayCoords.left, DisplayCoords.top, DisplayCoords.right, DisplayCoords.bottom);
+				DisplayList.Add(DisplayInformation);
 			}
 		}
 	}
@@ -615,6 +619,7 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 	uint32 ForcedDisplayIndex = 0;
 	bool bForcedDisplay = FParse::Value(FCommandLine::Get(), TEXT("FullscreenDisplay="), ForcedDisplayIndex);
 
+	bool bSupportsHDROutput = false;
 	for (; true; ++DisplayIndex)
 	{
 		TRefCountPtr<IDXGIOutput> DXGIOutput;
@@ -631,7 +636,11 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 
 		DXGI_OUTPUT_DESC OutputDesc;
 		DXGIOutput->GetDesc(&OutputDesc);
-		
+		FDisplayInformation DisplayInformation{};
+		const RECT& DisplayCoords = OutputDesc.DesktopCoordinates;
+		DisplayInformation.DesktopCoordinates = FIntRect(DisplayCoords.left, DisplayCoords.top, DisplayCoords.right, DisplayCoords.bottom);
+		DisplayInformation.bHDRSupported = false;
+
 		if (IsRHIDeviceNVIDIA())
 		{
 #ifdef NVAPI_INTERFACE
@@ -648,12 +657,14 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 
 				if (NVAPI_OK == NvAPI_Disp_GetHdrCapabilities(DisplayId, &HdrCapabilities))
 				{		
-					if (HdrCapabilities.isST2084EotfSupported)
+					// we're only choosing the first supported HDR monitor
+					if (HdrCapabilities.isST2084EotfSupported && !bSupportsHDROutput)
 					{
 						UE_LOG(LogD3D11RHI, Log, TEXT("HDR output is supported on display %i (NvId: 0x%x)."), DisplayIndex, DisplayId);
-						D3DRHI->SetHDRDetectedDisplayIndices(DisplayIndex, DisplayId);
-						return true;
+						SetHDRDetectedDisplayIndices(DisplayIndex, DisplayId);
+						bSupportsHDROutput = true;
 					}
+					DisplayInformation.bHDRSupported = HdrCapabilities.isST2084EotfSupported;
 				}
 			}
 			else if (Status != NVAPI_ERROR && Status != NVAPI_NVIDIA_DEVICE_NOT_FOUND)
@@ -678,12 +689,14 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 					{
 						// AGS has flags for HDR10 and Dolby Vision instead of a flag for the ST2084 transfer function.
 						// Both HDR10 and Dolby Vision use the ST2084 EOTF.
-						if (DisplayInfo.HDR10 != 0 || DisplayInfo.dolbyVision != 0)
+						bool DisplaySupportsHDR = (DisplayInfo.HDR10 != 0 || DisplayInfo.dolbyVision != 0);
+						if (DisplaySupportsHDR && !bSupportsHDROutput)
 						{
 							UE_LOG(LogD3D11RHI, Log, TEXT("HDR output is supported on display %i (AMD Device: 0x%x, Display: 0x%x)."), DisplayIndex, AMDDeviceIndex, AMDDisplayIndex);
-							D3DRHI->SetHDRDetectedDisplayIndices(DisplayIndex, (uint32)(AMDDeviceIndex << 16) | (uint32)AMDDisplayIndex);
-							return true;
+							SetHDRDetectedDisplayIndices(DisplayIndex, (uint32)(AMDDeviceIndex << 16) | (uint32)AMDDisplayIndex);
+							bSupportsHDROutput = true;
 						}
+						DisplayInformation.bHDRSupported = DisplaySupportsHDR;
 					}
 				}
 			}
@@ -693,9 +706,10 @@ static bool SupportsHDROutput(FD3D11DynamicRHI* D3DRHI)
 		{
 			// Not yet implemented
 		}
+		DisplayList.Add(DisplayInformation);
 	}
 
-	return false;
+	return bSupportsHDROutput;
 #endif
 }
 
@@ -2204,7 +2218,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 #endif
 		
 		{
-			GRHISupportsHDROutput = SupportsHDROutput(this);
+			GRHISupportsHDROutput = SetupDisplayHDRMetaData();
 		}
 
 		// Add device overclock state to crash context

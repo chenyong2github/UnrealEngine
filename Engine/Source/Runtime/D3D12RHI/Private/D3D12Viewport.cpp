@@ -7,6 +7,7 @@
 #include "D3D12RHIPrivate.h"
 #include "RenderCore.h"
 #include "Engine/RendererSettings.h"
+#include "HDRHelper.h"
 
 namespace D3D12RHI
 {
@@ -568,10 +569,19 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 		}
 	}
 
+	RECT WindowRect = {};
+#if PLATFORM_WINDOWS
+	GetWindowRect(WindowHandle, &WindowRect);
+#endif
+	FVector2D WindowTopLeft((float)WindowRect.left, (float)WindowRect.top);
+	FVector2D WindowBottomRight((float)WindowRect.right, (float)WindowRect.bottom);
+	bool bHDREnabled;
+	HDRGetMetaData(DisplayOutputFormat, DisplayColorGamut, bHDREnabled, WindowTopLeft, WindowBottomRight, (void*)WindowHandle);
+
 	ResizeInternal();
 
 	// Enable HDR if desired.
-	if (CheckHDRSupport())
+	if (bHDREnabled)
 	{
 		EnableHDR();
 	}
@@ -910,7 +920,7 @@ void FD3D12Viewport::IssueFrameEvent()
 
 bool FD3D12Viewport::CheckHDRSupport()
 {
-	return GRHISupportsHDROutput && IsHDREnabled();
+	return IsHDREnabled();
 }
 
 EPixelFormat GetDefaultBackBufferPixelFormat()

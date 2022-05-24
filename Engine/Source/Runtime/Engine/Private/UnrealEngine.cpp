@@ -257,6 +257,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 
 #include "Engine/InstancedStaticMesh.h"
 #include "IDeviceProfileSelectorModule.h"
+#include "HDRHelper.h"
 
 #if WITH_DUMPGPU
 	#include "RenderGraph.h"
@@ -868,7 +869,12 @@ void ENGINE_API HDRSettingChangedSinkCallback()
 	}
 
 	bool bIsHDREnabled = CVarHDROutputEnabled->GetValueOnAnyThread() != 0;
-	
+	if (bIsHDREnabled && !IsHDREnabled())
+	{
+		UE_LOG(LogConsoleResponse, Display, TEXT("Tried to enable HDR display output but unsupported, forcing off."));
+		bIsHDREnabled = false;
+	}
+
 	if(bIsHDREnabled != GRHIIsHDREnabled)
 	{
 		// We'll naively fall back to 1000 if DisplayNits is 0
@@ -884,26 +890,10 @@ void ENGINE_API HDRSettingChangedSinkCallback()
 			DisplayNitLevel = 1000;
 		}
 		
-		EDisplayOutputFormat OutputDevice = EDisplayOutputFormat::SDR_sRGB;
-		EDisplayColorGamut ColorGamut = EDisplayColorGamut::sRGB_D65;
-		
-		// If we are turning HDR on we must set the appropriate OutputDevice and ColorGamut.
-		// If we are turning it off, we'll reset back to 0/0
-		if(bIsHDREnabled)
-		{
-			FPlatformMisc::ChooseHDRDeviceAndColorGamut(GRHIVendorId, DisplayNitLevel, OutputDevice, ColorGamut);
-		}
-		
-		static IConsoleVariable* CVarHDROutputDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
-		static IConsoleVariable* CVarHDRColorGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
-		check(CVarHDROutputDevice);
-		check(CVarHDRColorGamut);
-		
-		CVarHDROutputDevice->Set((int32)OutputDevice, ECVF_SetByDeviceProfile);
-		CVarHDRColorGamut->Set((int32)ColorGamut, ECVF_SetByDeviceProfile);
-		
+		HDRConfigureCVars(bIsHDREnabled, DisplayNitLevel, false);
+
 		// Now set the HDR setting.
-		GRHIIsHDREnabled = CVarHDROutputEnabled->GetValueOnAnyThread() != 0;
+		GRHIIsHDREnabled = IsHDREnabled();
 	}
 }
 

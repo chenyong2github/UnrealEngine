@@ -35,53 +35,6 @@ TAutoConsoleVariable<float> CVarTonemapperSharpen(
 	TEXT("   1: full strength"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-// Note: Enables or disables HDR support for a project. Typically this would be set on a per-project/per-platform basis in defaultengine.ini
-TAutoConsoleVariable<int32> CVarAllowHDR(
-	TEXT("r.AllowHDR"),
-	0,
-	TEXT("Creates an HDR compatible swap-chain and enables HDR display output.")
-	TEXT("0: Disabled (default)\n")
-	TEXT("1: Allow HDR, if supported by the platform and display \n"),
-	ECVF_ReadOnly);
-
-// Note: These values are directly referenced in code. They are set in code at runtime and therefore cannot be set via ini files
-// Please update all paths if changing
-TAutoConsoleVariable<int32> CVarDisplayColorGamut(
-	TEXT("r.HDR.Display.ColorGamut"),
-	0,
-	TEXT("Color gamut of the output display:\n")
-	TEXT("0: Rec709 / sRGB, D65 (default)\n")
-	TEXT("1: DCI-P3, D65\n")
-	TEXT("2: Rec2020 / BT2020, D65\n")
-	TEXT("3: ACES, D60\n")
-	TEXT("4: ACEScg, D60\n"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
-TAutoConsoleVariable<int32> CVarDisplayOutputDevice(
-	TEXT("r.HDR.Display.OutputDevice"),
-	0,
-	TEXT("Device format of the output display:\n")
-	TEXT("0: sRGB (LDR)\n")
-	TEXT("1: Rec709 (LDR)\n")
-	TEXT("2: Explicit gamma mapping (LDR)\n")
-	TEXT("3: ACES 1000 nit ST-2084 (Dolby PQ) (HDR)\n")
-	TEXT("4: ACES 2000 nit ST-2084 (Dolby PQ) (HDR)\n")
-	TEXT("5: ACES 1000 nit ScRGB (HDR)\n")
-	TEXT("6: ACES 2000 nit ScRGB (HDR)\n")
-	TEXT("7: Linear EXR (HDR)\n")
-	TEXT("8: Linear final color, no tone curve (HDR)\n")
-	TEXT("9: Linear final color with tone curve\n"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-	
-TAutoConsoleVariable<int32> CVarHDROutputEnabled(
-	TEXT("r.HDR.EnableHDROutput"),
-	0,
-	TEXT("Creates an HDR compatible swap-chain and enables HDR display output.")
-	TEXT("0: Disabled (default)\n")
-	TEXT("1: Enable hardware-specific implementation\n"),
-	ECVF_RenderThreadSafe
-	);
-
 TAutoConsoleVariable<float> CVarTonemapperGamma(
 	TEXT("r.TonemapperGamma"),
 	0.0f,
@@ -271,8 +224,6 @@ bool ShouldCompileDesktopPermutation(const FGlobalShaderPermutationParameters& P
 
 FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSceneViewFamily& Family)
 {
-	static TConsoleVariableData<int32>* CVarOutputGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
-	static TConsoleVariableData<int32>* CVarOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
 	static TConsoleVariableData<float>* CVarOutputGamma = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.TonemapperGamma"));
 
 	EDisplayOutputFormat OutputDeviceValue;
@@ -291,8 +242,7 @@ FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSce
 	}
 	else
 	{
-		OutputDeviceValue = static_cast<EDisplayOutputFormat>(CVarOutputDevice->GetValueOnRenderThread());
-		OutputDeviceValue = static_cast<EDisplayOutputFormat>(FMath::Clamp(static_cast<int32>(OutputDeviceValue), 0, static_cast<int32>(EDisplayOutputFormat::MAX) - 1));
+		OutputDeviceValue = Family.RenderTarget->GetDisplayOutputFormat();
 	}
 
 	float Gamma = CVarOutputGamma->GetValueOnRenderThread();
@@ -316,7 +266,7 @@ FTonemapperOutputDeviceParameters GetTonemapperOutputDeviceParameters(const FSce
 	FTonemapperOutputDeviceParameters Parameters;
 	Parameters.InverseGamma = InvDisplayGammaValue;
 	Parameters.OutputDevice = static_cast<uint32>(OutputDeviceValue);
-	Parameters.OutputGamut = CVarOutputGamut->GetValueOnRenderThread();
+	Parameters.OutputGamut = static_cast<uint32>(Family.RenderTarget->GetDisplayColorGamut());
 	return Parameters;
 }
 

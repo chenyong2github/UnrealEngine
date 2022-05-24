@@ -32,6 +32,7 @@
 #include "ID3D12DynamicRHI.h"
 #include "GPUProfiler.h"
 #include "ShaderCore.h"
+#include "HDRHelper.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogD3D12RHI, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogD3D12GapRecorder, Log, All);
@@ -393,6 +394,7 @@ public:
 	virtual FTexture2DRHIRef RHIGetViewportBackBuffer(FRHIViewport* Viewport) final override;
 	virtual void RHIAliasTextureResources(FTextureRHIRef& DestTexture, FTextureRHIRef& SrcTexture) final override;
 	virtual FTextureRHIRef RHICreateAliasedTexture(FTextureRHIRef& SourceTexture) final override;
+	virtual void RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation) final override;
 	virtual void RHIAdvanceFrameFence() final override;
 	virtual void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport) final override;
 	virtual void RHIAcquireThreadOwnership() final override;
@@ -1200,6 +1202,8 @@ public:
 
 	FRHIBuffer* CreateBuffer(const FRHIBufferCreateInfo& CreateInfo, const TCHAR* DebugName, ERHIAccess InitialState, ID3D12ResourceAllocator* ResourceAllocator);
 
+	bool SetupDisplayHDRMetaData();
+
 protected:
 
 	FD3D12Texture* CreateTextureFromResource(bool bTextureArray, bool bCubeTexture, EPixelFormat Format, ETextureCreateFlags TexCreateFlags, const FClearValueBinding& ClearValueBinding, ID3D12Resource* Resource);
@@ -1240,6 +1244,8 @@ protected:
 	HANDLE FlipEvent;
 
 	const bool bAllowVendorDevice;
+
+	FDisplayInformationArray DisplayList;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

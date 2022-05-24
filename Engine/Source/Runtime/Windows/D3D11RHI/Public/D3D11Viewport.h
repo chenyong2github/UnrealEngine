@@ -143,6 +143,8 @@ protected:
 	TAtomic<uint32> ValidState;
 	EPixelFormat PixelFormat;
 	EColorSpaceAndEOTF PixelColorSpace;
+	EDisplayColorGamut DisplayColorGamut;
+	EDisplayOutputFormat DisplayOutputFormat;
 	bool bIsFullscreen;
 	bool bAllowTearing;
 

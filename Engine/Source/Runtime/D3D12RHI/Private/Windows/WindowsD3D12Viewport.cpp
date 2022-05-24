@@ -52,6 +52,8 @@ FD3D12Viewport::FD3D12Viewport(class FD3D12Adapter* InParent, HWND InWindowHandl
 	SDRDummyBackBuffer_RenderThread(nullptr),
 	SDRBackBuffer_RHIThread(nullptr),
 	SDRPixelFormat(PF_B8G8R8A8),
+	DisplayColorGamut(EDisplayColorGamut::sRGB_D65),
+	DisplayOutputFormat(EDisplayOutputFormat::SDR_sRGB),
 	Fence(InParent, FRHIGPUMask::All(), L"Viewport Fence"),
 	LastSignaledValue(0)
 #if WITH_MGPU
@@ -397,27 +399,22 @@ void FD3D12Viewport::EnableHDR()
 {
 	if ( GRHISupportsHDROutput && IsHDREnabled() )
 	{
-		static const auto CVarHDROutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
-		const EDisplayOutputFormat OutputDevice = EDisplayOutputFormat(CVarHDROutputDevice->GetValueOnAnyThread());
-
-		const float DisplayMaxOutputNits = (OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084 || OutputDevice == EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB) ? 2000.f : 1000.f;
+		const float DisplayMaxOutputNits = (DisplayOutputFormat == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084 || DisplayOutputFormat == EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB) ? 2000.f : 1000.f;
 		const float DisplayMinOutputNits = 0.0f;	// Min output of the display
 		const float DisplayMaxCLL = 0.0f;			// Max content light level in lumens (0.0 == unknown)
 		const float DisplayFALL = 0.0f;				// Frame average light level (0.0 == unknown)
 
 		// Ideally we can avoid setting TV meta data and instead the engine can do tone mapping based on the
 		// actual current display properties (display mapping).
-		static const auto CVarHDRColorGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
-		const EDisplayColorGamut DisplayGamut = EDisplayColorGamut(CVarHDRColorGamut->GetValueOnAnyThread());
 		SetHDRTVMode(true,
-			DisplayGamut,
+			DisplayColorGamut,
 			DisplayMaxOutputNits,
 			DisplayMinOutputNits,
 			DisplayMaxCLL,
 			DisplayFALL);
 
 		// Ensure we have the correct color space set.
-		EnsureColorSpace(DisplayGamut, OutputDevice);
+		EnsureColorSpace(DisplayColorGamut, DisplayOutputFormat);
 	}
 }
 
@@ -542,12 +539,17 @@ void FD3D12Viewport::EnsureColorSpace(EDisplayColorGamut DisplayGamut, EDisplayO
 	if (ColorSpace != NewColorSpace)
 	{
 		uint32 ColorSpaceSupport = 0;
-		if (SUCCEEDED(SwapChain4->CheckColorSpaceSupport(NewColorSpace, &ColorSpaceSupport)) &&
-			((ColorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0))
+		HRESULT hr = SwapChain4->CheckColorSpaceSupport(NewColorSpace, &ColorSpaceSupport);
+		FString NewColorSpaceName = GetDXGIColorSpaceString(NewColorSpace);
+		if (SUCCEEDED(hr) && ((ColorSpaceSupport & DXGI_SWAP_CHAIN_COLOR_SPACE_SUPPORT_FLAG_PRESENT) != 0))
 		{
 			VERIFYD3D12RESULT(SwapChain4->SetColorSpace1(NewColorSpace));
-			UE_LOG(LogD3D12RHI, Log, TEXT("Setting color space on swap chain (%#016llx): %s"), SwapChain4.GetReference(), *GetDXGIColorSpaceString(NewColorSpace));
+			UE_LOG(LogD3D12RHI, Log, TEXT("Setting color space on swap chain (%#016llx): %s"), SwapChain4.GetReference(), *NewColorSpaceName);
 			ColorSpace = NewColorSpace;
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Error, TEXT("Warning: unabled to set color space %s to the swapchain: verify EDisplayOutputFormat / swapchain format"), *NewColorSpaceName);
 		}
 	}
 }
@@ -611,5 +613,10 @@ void FD3D12Viewport::OnResumeRendering()
 
 void FD3D12Viewport::OnSuspendRendering()
 {}
+
+void FD3D12DynamicRHI::RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
+{
+	OutDisplayInformation.Append(DisplayList);
+}
 
 #include "Windows/HideWindowsPlatformTypes.h"

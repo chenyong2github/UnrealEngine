@@ -34,8 +34,6 @@ namespace
 
 FDeviceEncodingOnlyOutputDeviceParameters GetDeviceEncodingOnlyOutputDeviceParameters(const FSceneViewFamily& Family)
 {
-	static TConsoleVariableData<int32>* CVarOutputGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
-	static TConsoleVariableData<int32>* CVarOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
 	static TConsoleVariableData<float>* CVarOutputGamma = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.TonemapperGamma"));
 
 	EDisplayOutputFormat OutputDeviceValue;
@@ -54,8 +52,7 @@ FDeviceEncodingOnlyOutputDeviceParameters GetDeviceEncodingOnlyOutputDeviceParam
 	}
 	else
 	{
-		OutputDeviceValue = static_cast<EDisplayOutputFormat>(CVarOutputDevice->GetValueOnRenderThread());
-		OutputDeviceValue = static_cast<EDisplayOutputFormat>(FMath::Clamp(static_cast<int32>(OutputDeviceValue), 0, static_cast<int32>(EDisplayOutputFormat::MAX) - 1));
+		OutputDeviceValue = Family.RenderTarget->GetDisplayOutputFormat();
 	}
 
 	float Gamma = CVarOutputGamma->GetValueOnRenderThread();
@@ -79,7 +76,7 @@ FDeviceEncodingOnlyOutputDeviceParameters GetDeviceEncodingOnlyOutputDeviceParam
 	FDeviceEncodingOnlyOutputDeviceParameters Parameters;
 	Parameters.InverseGamma = (FVector3f)InvDisplayGammaValue;
 	Parameters.OutputDevice = static_cast<uint32>(OutputDeviceValue);
-	Parameters.OutputGamut = CVarOutputGamut->GetValueOnRenderThread();
+	Parameters.OutputGamut = static_cast<uint32>(Family.RenderTarget->GetDisplayColorGamut());
 	return Parameters;
 }
 

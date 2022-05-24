@@ -365,16 +365,18 @@ static bool SupportsDepthBoundsTest(FD3D12DynamicRHI* D3DRHI)
 	return D3DRHI->GetAdapter().IsDepthBoundsTestSupported();
 }
 
-static bool SupportsHDROutput(FD3D12DynamicRHI* D3DRHI)
+bool FD3D12DynamicRHI::SetupDisplayHDRMetaData()
 {
 	// Determines if any displays support HDR
-	check(D3DRHI && D3DRHI->GetNumAdapters() >= 1);
+	check(GetNumAdapters() >= 1);
+
+	DisplayList.Empty();
 
 	bool bSupportsHDROutput = false;
-	const int32 NumAdapters = D3DRHI->GetNumAdapters();
+	const int32 NumAdapters = GetNumAdapters();
 	for (int32 AdapterIndex = 0; AdapterIndex < NumAdapters; ++AdapterIndex)
 	{
-		FD3D12Adapter& Adapter = D3DRHI->GetAdapter(AdapterIndex);
+		FD3D12Adapter& Adapter = GetAdapter(AdapterIndex);
 		IDXGIAdapter* DXGIAdapter = Adapter.GetAdapter();
 
 		for (uint32 DisplayIndex = 0; true; ++DisplayIndex)
@@ -402,6 +404,11 @@ static bool SupportsHDROutput(FD3D12DynamicRHI* D3DRHI)
 
 					bSupportsHDROutput = true;
 				}
+				FDisplayInformation DisplayInformation{};
+				DisplayInformation.bHDRSupported = bDisplaySupportsHDROutput;
+				const RECT& DisplayCoords = OutputDesc.DesktopCoordinates;
+				DisplayInformation.DesktopCoordinates = FIntRect(DisplayCoords.left, DisplayCoords.top, DisplayCoords.right, DisplayCoords.bottom);
+				DisplayList.Add(DisplayInformation);
 			}
 		}
 	}
@@ -1401,12 +1408,12 @@ void FD3D12DynamicRHI::Init()
 	GSupportsDepthBoundsTest = SupportsDepthBoundsTest(this);
 
 	{
-		GRHISupportsHDROutput = SupportsHDROutput(this);
+		GRHISupportsHDROutput = SetupDisplayHDRMetaData();
 
 		// Specify the desired HDR pixel format.
 		// Possible values are:
 		//	1) PF_FloatRGBA - FP16 format that allows for linear gamma. This is the current engine default.
-		//					r.HDR.Display.ColorGamut = 2 (Rec2020 / BT2020)
+		//					r.HDR.Display.ColorGamut = 0 (sRGB which is the same gamut as ScRGB)
 		//					r.HDR.Display.OutputDevice = 5 or 6 (ScRGB)
 		//	2) PF_A2B10G10R10 - Save memory vs FP16 as well as allow for possible performance improvements 
 		//						in fullscreen by avoiding format conversions.

@@ -21,6 +21,7 @@
 #include "IHeadMountedDisplay.h"
 #include "IXRTrackingSystem.h"
 #include "StereoRenderTargetManager.h"
+#include "HDRHelper.h"
 
 DEFINE_LOG_CATEGORY(LogViewport);
 
@@ -63,6 +64,8 @@ FSceneViewport::FSceneViewport( FViewportClient* InViewportClient, TSharedPtr<SV
 	, CurrentBufferedTargetIndex(0)
 	, NextBufferedTargetIndex(0)
 	, NumTouches(0)
+	, DisplayColorGamut(EDisplayColorGamut::sRGB_D65)
+	, DisplayOutputFormat(EDisplayOutputFormat::SDR_sRGB)
 {
 	bIsSlateViewport = true;
 	ViewportType = NAME_SceneViewport;
@@ -369,14 +372,30 @@ void FSceneViewport::OnDrawViewport( const FGeometry& AllottedGeometry, const FS
 	{
 		FIntPoint DrawSize = FIntPoint( FMath::RoundToInt( AllottedGeometry.GetDrawSize().X ), FMath::RoundToInt( AllottedGeometry.GetDrawSize().Y ) );
 		bool bIsHDREnabled = IsHDREnabled();
-		if( GetSizeXY() != DrawSize || bIsHDREnabled != bHDRViewport)
+
+		SWindow* PaintWindow = OutDrawElements.GetPaintWindow();
+		bool bHDRStale = (bIsHDREnabled != bHDRViewport);
+		if (PaintWindow)
 		{
-			bHDRViewport = bIsHDREnabled;
-			TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow( ViewportWidget.Pin().ToSharedRef() );
-			if ( Window.IsValid() )
+			bool bNewHDREnabled;
+			EDisplayColorGamut NewDisplayColorGamut;
+			EDisplayOutputFormat NewDisplayOutputFormat;
+			HDRGetMetaData(NewDisplayOutputFormat, NewDisplayColorGamut, bNewHDREnabled, PaintWindow->GetPositionInScreen(), PaintWindow->GetPositionInScreen() + PaintWindow->GetSizeInScreen(), PaintWindow->GetNativeWindow()->GetOSWindowHandle());
+			// if we manage to get data for the window, we can ignore the global toggle IsHDREnabled since HDRGetMetaData will take both the global flag and the monitor properties
+			bHDRStale = DisplayOutputFormat != NewDisplayOutputFormat;
+			bHDRStale |= DisplayColorGamut != NewDisplayColorGamut;
+			bHDRStale |= bHDRViewport != bNewHDREnabled;
+		}
+
+	    if (GetSizeXY() != DrawSize || bHDRStale)
+		{
+			TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(ViewportWidget.Pin().ToSharedRef());
+			if (Window.IsValid())
 			{
 				//@HACK VREDITOR
 				//check(Window.IsValid());
+                // This makes sure that by the time when we call HDRGetMetaData again in UpdateViewportRHI, we still provide the same inputs so we don't re-create the swapchain on a per-frame basis
+				ensure(PaintWindow == Window.Get());
 
 				// In the stereo case, the HMD display size drives the base RT size, separate from the PIE mirror window
 				const bool bResizeTargetValid = Window->IsViewportSizeDrivenByWindow() || 
@@ -1222,6 +1241,16 @@ FReply FSceneViewport::OnViewportActivated(const FWindowActivateEvent& InActivat
 	return FReply::Unhandled();
 }
 
+EDisplayColorGamut FSceneViewport::GetDisplayColorGamut() const
+{
+	return DisplayColorGamut;
+}
+
+EDisplayOutputFormat FSceneViewport::GetDisplayOutputFormat() const
+{
+	return DisplayOutputFormat;
+}
+
 void FSceneViewport::OnViewportDeactivated(const FWindowActivateEvent& InActivateEvent)
 {
 	// We backup if we have capture for us on activation, however we also maintain "true" if it's already true!
@@ -1662,6 +1691,22 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 
 		if( !bDestroyed )
 		{
+			TSharedPtr<SWidget> PinnedViewport = ViewportWidget.Pin();
+			void* OSWindow = nullptr;
+			FVector2D WindowTopLeft = FVector2D(0.0f, 0.0f);
+			FVector2D WindowBottomRight = FVector2D(0.0f, 0.0f);
+			if (PinnedViewport.IsValid())
+			{
+				TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(PinnedViewport.ToSharedRef());
+				if (Window.IsValid())
+				{
+					OSWindow = Window->GetNativeWindow()->GetOSWindowHandle();
+					WindowTopLeft = Window->GetPositionInScreen();
+					WindowBottomRight = Window->GetPositionInScreen() + Window->GetSizeInScreen();
+				}
+			}
+			HDRGetMetaData(DisplayOutputFormat, DisplayColorGamut, bHDRViewport, WindowTopLeft, WindowBottomRight, OSWindow);
+
 			BeginInitResource(this);
 			
 			FRenderCommandFence InitResourceFence;
@@ -1670,7 +1715,6 @@ void FSceneViewport::UpdateViewportRHI(bool bDestroyed, uint32 NewSizeX, uint32 
 
 			FSlateRenderer* Renderer = FSlateApplication::Get().GetRenderer();
 
-			TSharedPtr<SWidget> PinnedViewport = ViewportWidget.Pin();
 			if (PinnedViewport.IsValid())
 			{
 				TSharedPtr<SWindow> Window = FSlateApplication::Get().FindWidgetWindow(PinnedViewport.ToSharedRef());

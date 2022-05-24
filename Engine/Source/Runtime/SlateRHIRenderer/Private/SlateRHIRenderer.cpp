@@ -34,6 +34,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Rendering/RenderingCommon.h"
 #include "IHeadMountedDisplayModule.h"
+#include "HDRHelper.h"
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Rendering"), STAT_SlateRenderingRTTime, STATGROUP_Slate);
 
@@ -377,9 +378,9 @@ void FSlateRHIRenderer::CreateViewport(const TSharedRef<SWindow> Window)
 
 		// SDR format holds the requested format in non HDR mode
 		NewInfo->SDRPixelFormat = NewInfo->PixelFormat;
-		bool HDREnabled = IsHDREnabled();
-		NewInfo->bSceneHDREnabled = HDREnabled;
-		if (HDREnabled)
+		HDRGetMetaData(NewInfo->HDRDisplayOutputFormat, NewInfo->HDRDisplayColorGamut, NewInfo->bSceneHDREnabled, Window->GetPositionInScreen(), Window->GetPositionInScreen() + Window->GetSizeInScreen(), NewInfo->OSWindow);
+
+		if (NewInfo->bSceneHDREnabled)
 		{
 			NewInfo->PixelFormat = GRHIHDRDisplayOutputFormat;
 		}
@@ -401,30 +402,23 @@ void FSlateRHIRenderer::CreateViewport(const TSharedRef<SWindow> Window)
 	}
 }
 
-void FSlateRHIRenderer::ConditionalResizeViewport(FViewportInfo* ViewInfo, uint32 Width, uint32 Height, bool bFullscreen)
+void FSlateRHIRenderer::ConditionalResizeViewport(FViewportInfo* ViewInfo, uint32 Width, uint32 Height, bool bFullscreen, SWindow* Window)
 {
 	checkSlow(IsThreadSafeForSlateRendering());
 
 	// Force update if HDR output state changes
-	static const auto CVarHDRColorGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
-	static const auto CVarHDROutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
 
 	bool bHDREnabled = IsHDREnabled();
-	int32 HDRColorGamut = CVarHDRColorGamut ? CVarHDRColorGamut->GetValueOnAnyThread() : 0;
-	int32 HDROutputDevice = CVarHDROutputDevice ? CVarHDROutputDevice->GetValueOnAnyThread() : 0;
+	EDisplayColorGamut HDRColorGamut = HDRGetDefaultDisplayColorGamut();
+	EDisplayOutputFormat HDROutputDevice = HDRGetDefaultDisplayOutputFormat();
 
-	bool bHDRStale = GRHISupportsHDROutput && ViewInfo && (
-		((ViewInfo->PixelFormat == GRHIHDRDisplayOutputFormat) != bHDREnabled)	// HDR toggled
-#if PLATFORM_WINDOWS
-		|| ((IsRHIDeviceNVIDIA() || IsRHIDeviceAMD()) &&						// Vendor-specific mastering data updates
-		((bHDREnabled && ViewInfo->HDRColorGamut != HDRColorGamut)				// Color gamut changed
-			|| (bHDREnabled && ViewInfo->HDROutputDevice != HDROutputDevice)))	// Output device changed
-#endif
-		);
-
-	if (ViewInfo && (ViewInfo->bSceneHDREnabled != bHDREnabled))
+	bool bHDRStale = false;
+	if (ViewInfo)
 	{
-		bHDRStale = true;
+		HDRGetMetaData(HDROutputDevice, HDRColorGamut, bHDREnabled, Window->GetPositionInScreen(), Window->GetPositionInScreen() + Window->GetSizeInScreen(), ViewInfo->OSWindow);
+		bHDRStale |= HDROutputDevice != ViewInfo->HDRDisplayOutputFormat;
+		bHDRStale |= HDRColorGamut != ViewInfo->HDRDisplayColorGamut;
+		bHDRStale |= bHDREnabled != ViewInfo->bSceneHDREnabled;
 	}
 
 	if (IsInGameThread() && !IsInSlateThread() && ViewInfo && (bHDRStale || ViewInfo->Height != Height || ViewInfo->Width != Width || ViewInfo->bFullscreen != bFullscreen || !IsValidRef(ViewInfo->ViewportRHI)))
@@ -465,8 +459,8 @@ void FSlateRHIRenderer::ConditionalResizeViewport(FViewportInfo* ViewInfo, uint3
 		ViewInfo->bFullscreen = bFullscreen;
 
 		ViewInfo->PixelFormat = bHDREnabled ? GRHIHDRDisplayOutputFormat : ViewInfo->SDRPixelFormat;
-		ViewInfo->HDRColorGamut = HDRColorGamut;
-		ViewInfo->HDROutputDevice = HDROutputDevice;
+		ViewInfo->HDRDisplayColorGamut = HDRColorGamut;
+		ViewInfo->HDRDisplayOutputFormat = HDROutputDevice;
 		ViewInfo->bSceneHDREnabled = bHDREnabled;
 
 		PreResizeBackBufferDelegate.Broadcast(&ViewInfo->ViewportRHI);
@@ -512,7 +506,7 @@ void FSlateRHIRenderer::UpdateFullscreenState(const TSharedRef<SWindow> Window, 
 			ResY = ViewInfo->DesiredHeight;
 		}
 
-		ConditionalResizeViewport(ViewInfo, ResX, ResY, bFullscreen);
+		ConditionalResizeViewport(ViewInfo, ResX, ResY, bFullscreen, &Window.Get());
 	}
 }
 
@@ -591,14 +585,12 @@ public:
 	}
 	FCompositeLUTGenerationPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList)
+	void SetParameters(FRHICommandList& RHICmdList, EDisplayOutputFormat DisplayOutputFormat, EDisplayColorGamut DisplayColorGamut)
 	{
-		static const auto CVarOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
-		static const auto CVarOutputGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
 		static const auto CVarOutputGamma = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.TonemapperGamma"));
 
-		int32 OutputDeviceValue = CVarOutputDevice->GetValueOnRenderThread();
-		int32 OutputGamutValue = CVarOutputGamut->GetValueOnRenderThread();
+		int32 OutputDeviceValue = (int32)DisplayOutputFormat;
+		int32 OutputGamutValue = (int32)DisplayColorGamut;
 		float Gamma = CVarOutputGamma->GetValueOnRenderThread();
 
 		if (PLATFORM_APPLE && Gamma == 0.0f)
@@ -791,7 +783,7 @@ void RenderSlateBatch(FTexture2DRHIRef SlateRenderTarget, bool bClear, bool bIsH
 	}
 }
 
-inline bool CompositeUIWithHdrRenderTarget()
+inline bool CompositeUIWithHdrRenderTarget(const FViewportInfo* ViewInfo)
 {
 	// Optional off-screen UI composition during HDR rendering
 	static const auto CVarCompositeMode = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.UI.CompositeMode"));
@@ -799,7 +791,7 @@ inline bool CompositeUIWithHdrRenderTarget()
 	const bool bSupportsUIComposition = GRHISupportsHDROutput && GSupportsVolumeTextureRendering && SupportsUICompositionRendering(GetFeatureLevelShaderPlatform(GMaxRHIFeatureLevel));
 	const bool bCompositeUI = bSupportsUIComposition
 		&& CVarCompositeMode && CVarCompositeMode->GetValueOnAnyThread() != 0
-		&& IsHDREnabled();
+		&& ViewInfo->bSceneHDREnabled;
 
 	return bCompositeUI;
 }
@@ -834,16 +826,13 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 		GetRendererModule().InitializeSystemTextures(RHICmdList);
 
-		const bool bCompositeUI = CompositeUIWithHdrRenderTarget();
+		const bool bCompositeUI = CompositeUIWithHdrRenderTarget(&ViewportInfo);
 
 		const int32 CompositionLUTSize = 32;
 
 		// Only need to update LUT on settings change
-		static const auto CVarHDROutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
-		static const auto CVarHDROutputGamut = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.ColorGamut"));
-
-		const int32 HDROutputDevice = CVarHDROutputDevice ? CVarHDROutputDevice->GetValueOnRenderThread() : (int32)EDisplayOutputFormat::SDR_sRGB;
-		const int32 HDROutputGamut = CVarHDROutputGamut ? CVarHDROutputGamut->GetValueOnRenderThread() : 0;
+		const int32 HDROutputDevice = (int32)ViewportInfo.HDRDisplayOutputFormat;
+		const int32 HDROutputGamut = (int32)ViewportInfo.HDRDisplayColorGamut;
 
 		bool bLUTStale = ViewportInfo.ColorSpaceLUTOutputDevice != HDROutputDevice || ViewportInfo.ColorSpaceLUTOutputGamut != HDROutputGamut;
 
@@ -929,8 +918,22 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			{
 				bClear = true; // Force a clear of the UI buffer to black
 
-				// Grab HDR backbuffer
-				TransitionAndCopyTexture(RHICmdList, FinalBuffer, ViewportInfo.HDRSourceRT->GetRHI(), {});
+#if WITH_EDITOR
+				// in editor mode, we actually don't render to the true backbuffer, but to BufferedRT. The Scene image is rendered in the backbuffer with Slate
+				// We add it with FSlateElementBatcher::AddViewportElement and render it with RenderSlateBatch
+				if (WindowElementList.GetBatchDataHDR().GetRenderBatches().Num() > 0)
+				{
+					FRHIRenderPassInfo RPInfo(FinalBuffer, ERenderTargetActions::Clear_Store);
+					TransitionRenderPassTargets(RHICmdList, RPInfo);
+					RHICmdList.BeginRenderPass(RPInfo, TEXT("Clear back buffer"));
+					RHICmdList.EndRenderPass();
+				}
+				else
+#endif
+				{
+    				// Grab HDR backbuffer
+					TransitionAndCopyTexture(RHICmdList, FinalBuffer, ViewportInfo.HDRSourceRT->GetRHI(), {});
+				}
 
 				// UI backbuffer is temp target
 				BackBuffer = ViewportInfo.UITargetRT->GetRHI();
@@ -965,7 +968,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			RHICmdList.BeginDrawingViewport(ViewportInfo.ViewportRHI, FTextureRHIRef());
 			RHICmdList.SetViewport(0, 0, 0, ViewportWidth, ViewportHeight, 0.0f);
 
-			bool bHdrTarget = IsHDREnabled() && !bCompositeUI;
+			bool bHdrTarget = ViewportInfo.bSceneHDREnabled && !bCompositeUI;
 			RenderSlateBatch(BackBuffer, bClear, bHdrTarget, ViewportInfo, ViewMatrix, BatchData, RHICmdList, ViewportWidth, ViewportHeight, DrawCommandParams, RenderingPolicy, PostProcessBuffer);
 
 			if (bCompositeUI)
@@ -1020,7 +1023,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 							GeometryShader->SetParameters(RHICmdList, VolumeBounds.MinZ);
 						}
 #endif
-						PixelShader->SetParameters(RHICmdList);
+						PixelShader->SetParameters(RHICmdList, ViewportInfo.HDRDisplayOutputFormat, ViewportInfo.HDRDisplayColorGamut);
 
 						RasterizeToVolumeTexture(RHICmdList, VolumeBounds);
 					}
@@ -1329,7 +1332,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 				}
 
 				bool bCompositeHDRViewports = ElementBatcher->CompositeHDRViewports();
-				ElementBatcher->SetCompositeHDRViewports(CompositeUIWithHdrRenderTarget());
+				ElementBatcher->SetCompositeHDRViewports(CompositeUIWithHdrRenderTarget(ViewInfo));
 				// Add all elements for this window to the element batcher
 				ElementBatcher->AddElements(ElementList);
 				ElementBatcher->SetCompositeHDRViewports(bCompositeHDRViewports);
@@ -1363,7 +1366,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 				if (Window->IsViewportSizeDrivenByWindow())
 				{
 					// Resize the viewport if needed
-					ConditionalResizeViewport(ViewInfo, ViewInfo->DesiredWidth, ViewInfo->DesiredHeight, IsViewportFullscreen(*Window));
+					ConditionalResizeViewport(ViewInfo, ViewInfo->DesiredWidth, ViewInfo->DesiredHeight, IsViewportFullscreen(*Window), Window);
 				}
 
 				// Tell the rendering thread to draw the windows

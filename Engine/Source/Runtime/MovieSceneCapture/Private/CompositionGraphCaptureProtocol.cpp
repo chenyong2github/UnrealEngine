@@ -7,12 +7,14 @@
 #include "Engine/Scene.h"
 #include "Materials/MaterialInterface.h"
 #include "SceneView.h"
+#include "Slate/SceneViewport.h"
 #include "Engine/Engine.h"
 #include "SceneViewExtension.h"
 #include "Materials/Material.h"
 #include "BufferVisualizationData.h"
 #include "MovieSceneCaptureModule.h"
 #include "MovieSceneCaptureSettings.h"
+#include "HDRHelper.h"
 
 struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 {
@@ -29,23 +31,9 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 		CVarDumpFrames = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BufferVisualizationDumpFrames"));
 		CVarDumpFramesAsHDR = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BufferVisualizationDumpFramesAsHDR"));
 		CVarHDRCompressionQuality = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SaveEXR.CompressionQuality"));
-		CVarDumpGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
-		CVarDumpDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
 
 		RestoreDumpHDR = CVarDumpFramesAsHDR->GetInt();
 		RestoreHDRCompressionQuality = CVarHDRCompressionQuality->GetInt();
-		RestoreDumpGamut = (EDisplayColorGamut)CVarDumpGamut->GetInt();
-		RestoreDumpDevice = (EDisplayOutputFormat)CVarDumpDevice->GetInt();
-
-		if (CaptureGamut == HCGM_Linear)
-		{
-			CVarDumpGamut->Set((int32)EDisplayColorGamut::DCIP3_D65);
-			CVarDumpDevice->Set((int32)EDisplayOutputFormat::HDR_LinearEXR);
-		}
-		else
-		{
-			CVarDumpGamut->Set((int32)CaptureGamut);
-		}
 
 		Disable();
 	}
@@ -53,9 +41,6 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 	virtual ~FFrameCaptureViewExtension()
 	{
 		Disable();
-
-		CVarDumpGamut->Set((int32)RestoreDumpGamut);
-		CVarDumpDevice->Set((int32)RestoreDumpDevice);
 	}
 
 	bool IsEnabled() const
@@ -161,13 +146,9 @@ private:
 	IConsoleVariable* CVarDumpFrames;
 	IConsoleVariable* CVarDumpFramesAsHDR;
 	IConsoleVariable* CVarHDRCompressionQuality;
-	IConsoleVariable* CVarDumpGamut;
-	IConsoleVariable* CVarDumpDevice;
 
 	int32 RestoreDumpHDR;
 	int32 RestoreHDRCompressionQuality;
-	EDisplayColorGamut RestoreDumpGamut;
-	EDisplayOutputFormat RestoreDumpDevice;
 };
 
 bool UCompositionGraphCaptureProtocol::SetupImpl()
@@ -193,6 +174,23 @@ bool UCompositionGraphCaptureProtocol::SetupImpl()
 	}
 	PostProcessingMaterialPtr = Cast<UMaterialInterface>(PostProcessingMaterial.TryLoad());
 	ViewExtension = FSceneViewExtensions::NewExtension<FFrameCaptureViewExtension>(IncludeRenderPasses.Value, bCaptureFramesInHDR, HDRCompressionQuality, OverrideCaptureGamut, PostProcessingMaterialPtr, bDisableScreenPercentage);
+
+	EDisplayOutputFormat DisplayOutputFormat = HDRGetDefaultDisplayOutputFormat();
+	EDisplayColorGamut DisplayColorGamut = HDRGetDefaultDisplayColorGamut();
+	bool bHDREnabled = IsHDREnabled() && GRHISupportsHDROutput;
+
+	if (CaptureGamut == HCGM_Linear)
+	{
+		DisplayColorGamut = EDisplayColorGamut::DCIP3_D65;
+		DisplayOutputFormat = EDisplayOutputFormat::HDR_LinearEXR;
+	}
+	else
+	{
+		DisplayColorGamut = (EDisplayColorGamut)CaptureGamut.GetValue();
+	}
+
+	TSharedPtr<SWindow> CustomWindow = InitSettings->SceneViewport->FindWindow();
+	HDRAddCustomMetaData(CustomWindow->GetNativeWindow()->GetOSWindowHandle(), DisplayOutputFormat, DisplayColorGamut, bHDREnabled);
 
 	return true;
 }
@@ -240,6 +238,9 @@ void UCompositionGraphCaptureProtocol::OnLoadConfigImpl(FMovieSceneCaptureSettin
 
 void UCompositionGraphCaptureProtocol::FinalizeImpl()
 {
+	TSharedPtr<SWindow> CustomWindow = InitSettings->SceneViewport->FindWindow();
+	HDRRemoveCustomMetaData(CustomWindow->GetNativeWindow()->GetOSWindowHandle());
+
 	ViewExtension->Disable(true);
 }
 

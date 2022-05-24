@@ -91,9 +91,9 @@ struct FViewportInfo : public FRenderResource
 	/** The desired SDR pixel format for this viewport */
 	EPixelFormat SDRPixelFormat;
 	/** Color gamut for output to HDR display */
-	int32 HDRColorGamut;
+	EDisplayColorGamut HDRDisplayColorGamut;
 	/** Device format for output to HDR display */
-	int32 HDROutputDevice;
+	EDisplayOutputFormat HDRDisplayOutputFormat;
 
 	IViewportRenderTargetProvider* RTProvider;
 	
@@ -120,6 +120,8 @@ struct FViewportInfo : public FRenderResource
 			bFullscreen(false),
 			PixelFormat(EPixelFormat::PF_Unknown),
 			SDRPixelFormat(EPixelFormat::PF_Unknown),
+			HDRDisplayColorGamut(EDisplayColorGamut::sRGB_D65),
+			HDRDisplayOutputFormat(EDisplayOutputFormat::SDR_sRGB),
 			RTProvider(nullptr),
 			bHDREnabled(false),
 			bSceneHDREnabled(false)
@@ -253,7 +255,7 @@ private:
 	 * @param Height		The height that we shoudl size to
 	 * @param bFullscreen	If we should be in fullscreen
 	 */
-	void ConditionalResizeViewport( FViewportInfo* ViewportInfo, uint32 Width, uint32 Height, bool bFullscreen );
+	void ConditionalResizeViewport( FViewportInfo* ViewportInfo, uint32 Width, uint32 Height, bool bFullscreen, SWindow* Window);
 	
 	/** 
 	 * Creates necessary resources to render a window and sends draw commands to the rendering thread

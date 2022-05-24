@@ -16,6 +16,7 @@
 #include "MovieSceneCaptureModule.h"
 #include "MovieSceneCaptureSettings.h"
 #include "ImageWriteQueue.h"
+#include "HDRHelper.h"
 
 struct FImageFrameData : IFramePayload
 {
@@ -206,34 +207,32 @@ bool UImageSequenceProtocol_EXR::SetupImpl()
 		bCompressed = HDRCompressionQuality != (int32)EImageCompressionQuality::Uncompressed;
 	}
 
-	IConsoleVariable* CVarDumpGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
-	IConsoleVariable* CVarDumpDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
-
-	RestoreColorGamut = (EDisplayColorGamut)CVarDumpGamut->GetInt();
-	RestoreOutputDevice = (EDisplayOutputFormat)CVarDumpDevice->GetInt();
+	EDisplayOutputFormat DisplayOutputFormat = HDRGetDefaultDisplayOutputFormat();
+	EDisplayColorGamut DisplayColorGamut = HDRGetDefaultDisplayColorGamut();
+	bool bHDREnabled = IsHDREnabled() && GRHISupportsHDROutput;
 
 	if (CaptureGamut == HCGM_Linear)
 	{
-		CVarDumpGamut->Set((int32)EDisplayColorGamut::DCIP3_D65);
-		CVarDumpDevice->Set((int32)EDisplayOutputFormat::HDR_LinearEXR);
+		DisplayColorGamut = EDisplayColorGamut::DCIP3_D65;
+		DisplayOutputFormat = EDisplayOutputFormat::HDR_LinearEXR;
 	}
 	else
 	{
-		CVarDumpGamut->Set(CaptureGamut);
+		DisplayColorGamut = (EDisplayColorGamut)CaptureGamut.GetValue();
 	}
+
+	TSharedPtr<SWindow> CustomWindow = InitSettings->SceneViewport->FindWindow();
+	HDRAddCustomMetaData(CustomWindow->GetNativeWindow()->GetOSWindowHandle(), DisplayOutputFormat, DisplayColorGamut, bHDREnabled);
 
 	return Super::SetupImpl();
 }
 
 void UImageSequenceProtocol_EXR::FinalizeImpl()
 {
+	TSharedPtr<SWindow> CustomWindow = InitSettings->SceneViewport->FindWindow();
+	HDRRemoveCustomMetaData(CustomWindow->GetNativeWindow()->GetOSWindowHandle());
+
 	Super::FinalizeImpl();
-
-	IConsoleVariable* CVarDumpGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
-	IConsoleVariable* CVarDumpDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
-
-	CVarDumpGamut->Set((int32)RestoreColorGamut);
-	CVarDumpDevice->Set((int32)RestoreOutputDevice);
 }
 
 void UImageSequenceProtocol_EXR::AddFormatMappingsImpl(TMap<FString, FStringFormatArg>& FormatMappings) const

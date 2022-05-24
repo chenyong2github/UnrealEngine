@@ -9,6 +9,7 @@
 #include "UniformBuffer.h"
 #include "Modules/ModuleManager.h"
 #include "Shader.h"
+#include "HDRHelper.h"
 
 void UpdateShaderDevelopmentMode();
 
@@ -305,17 +306,65 @@ RENDERCORE_API int32 GetCVarForceLODShadow_AnyThread()
 	return Ret;
 }
 
+FMatrix44f FVirtualTextureUniformData::Invalid = FMatrix44f::Identity;
+
+// Note: Enables or disables HDR support for a project. Typically this would be set on a per-project/per-platform basis in defaultengine.ini
+TAutoConsoleVariable<int32> CVarAllowHDR(
+	TEXT("r.AllowHDR"),
+	0,
+	TEXT("Creates an HDR compatible swap-chain and enables HDR display output.")
+	TEXT("0: Disabled (default)\n")
+	TEXT("1: Allow HDR, if supported by the platform and display \n"),
+	ECVF_ReadOnly);
+
+// Note: These values are directly referenced in code. They are set in code at runtime and therefore cannot be set via ini files
+// Please update all paths if changing
+TAutoConsoleVariable<int32> CVarDisplayColorGamut(
+	TEXT("r.HDR.Display.ColorGamut"),
+	0,
+	TEXT("Color gamut of the output display:\n")
+	TEXT("0: Rec709 / sRGB, D65 (default)\n")
+	TEXT("1: DCI-P3, D65\n")
+	TEXT("2: Rec2020 / BT2020, D65\n")
+	TEXT("3: ACES, D60\n")
+	TEXT("4: ACEScg, D60\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> CVarDisplayOutputDevice(
+	TEXT("r.HDR.Display.OutputDevice"),
+	0,
+	TEXT("Device format of the output display:\n")
+	TEXT("0: sRGB (LDR)\n")
+	TEXT("1: Rec709 (LDR)\n")
+	TEXT("2: Explicit gamma mapping (LDR)\n")
+	TEXT("3: ACES 1000 nit ST-2084 (Dolby PQ) (HDR)\n")
+	TEXT("4: ACES 2000 nit ST-2084 (Dolby PQ) (HDR)\n")
+	TEXT("5: ACES 1000 nit ScRGB (HDR)\n")
+	TEXT("6: ACES 2000 nit ScRGB (HDR)\n")
+	TEXT("7: Linear EXR (HDR)\n")
+	TEXT("8: Linear final color, no tone curve (HDR)\n")
+	TEXT("9: Linear final color with tone curve\n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarHDRNits(
+	TEXT("r.HDR.DisplayNitsLevel"),
+	0,
+	TEXT("The configured display output nit level, assuming HDR output is enabled."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarHDROutputEnabled(
+	TEXT("r.HDR.EnableHDROutput"),
+	0,
+	TEXT("Creates an HDR compatible swap-chain and enables HDR display output.")
+	TEXT("0: Disabled (default)\n")
+	TEXT("1: Enable hardware-specific implementation\n"),
+	ECVF_RenderThreadSafe
+);
+
 RENDERCORE_API bool IsHDREnabled()
 {
-	static const auto CVarHDROutputEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.EnableHDROutput"));
-	if (CVarHDROutputEnabled)
-	{
-		if (CVarHDROutputEnabled->GetValueOnAnyThread() != 0)
-		{
-			return true;
-		}
-	}
-	return false;
+	return GRHISupportsHDROutput && CVarHDROutputEnabled.GetValueOnAnyThread() != 0;
 }
 
 RENDERCORE_API bool IsHDRAllowed()
@@ -330,13 +379,178 @@ RENDERCORE_API bool IsHDRAllowed()
 		return false;
 	}
 
-	static const auto CVarHDRAllow = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowHDR"));
-	if (CVarHDRAllow && CVarHDRAllow->GetValueOnAnyThread() != 0)
+	return (CVarAllowHDR.GetValueOnAnyThread() != 0);
+}
+
+RENDERCORE_API EDisplayOutputFormat HDRGetDefaultDisplayOutputFormat()
+{
+	return static_cast<EDisplayOutputFormat>(FMath::Clamp(CVarDisplayOutputDevice.GetValueOnAnyThread(), 0, static_cast<int32>(EDisplayOutputFormat::MAX) - 1));
+}
+
+RENDERCORE_API EDisplayColorGamut HDRGetDefaultDisplayColorGamut()
+{
+	return static_cast<EDisplayColorGamut>(FMath::Clamp(CVarDisplayColorGamut.GetValueOnAnyThread(), 0, static_cast<int32>(EDisplayColorGamut::MAX) - 1));
+}
+
+struct FHDRMetaData
+{
+	EDisplayOutputFormat DisplayOutputFormat;
+	EDisplayColorGamut DisplayColorGamut;
+	uint32 MaximumLuminanceInNits;
+	bool bHDRSupported;
+};
+
+
+inline FHDRMetaData HDRGetDefaultMetaData()
+{
+	FHDRMetaData HDRMetaData{};
+	HDRMetaData.DisplayOutputFormat = HDRGetDefaultDisplayOutputFormat();
+	HDRMetaData.DisplayColorGamut = HDRGetDefaultDisplayColorGamut();
+	HDRMetaData.bHDRSupported = IsHDREnabled() && GRHISupportsHDROutput;
+	HDRMetaData.MaximumLuminanceInNits = CVarHDRNits.GetValueOnAnyThread();
+	return HDRMetaData;
+}
+
+inline int32 WindowDisplayIntersectionArea(FIntRect WindowRect, FIntRect DisplayRect)
+{
+	return FMath::Max<int32>(0, FMath::Min<int32>(WindowRect.Max.X, DisplayRect.Max.X) - FMath::Max<int32>(WindowRect.Min.X, DisplayRect.Min.X)) *
+		FMath::Max<int32>(0, FMath::Min<int32>(WindowRect.Max.Y, DisplayRect.Max.Y) - FMath::Max<int32>(WindowRect.Min.Y, DisplayRect.Min.Y));
+}
+
+TMap<void*, FHDRMetaData> GWindowsWithDefaultParams;
+FCriticalSection GWindowsWithDefaultParamsCS;
+
+RENDERCORE_API void HDRAddCustomMetaData(void* OSWindow, EDisplayOutputFormat DisplayOutputFormat, EDisplayColorGamut DisplayColorGamut, bool bHDREnabled)
+{
+	ensure(OSWindow != nullptr);
+	if (OSWindow == nullptr)
 	{
+		return;
+	}
+	FHDRMetaData HDRMetaData{};
+	HDRMetaData.DisplayOutputFormat = DisplayOutputFormat;
+	HDRMetaData.DisplayColorGamut = DisplayColorGamut;
+	HDRMetaData.bHDRSupported = bHDREnabled;
+	HDRMetaData.MaximumLuminanceInNits = CVarHDRNits.GetValueOnAnyThread();
+
+	FScopeLock Lock(&GWindowsWithDefaultParamsCS);
+	GWindowsWithDefaultParams.Add(OSWindow, HDRMetaData);
+}
+
+RENDERCORE_API void HDRRemoveCustomMetaData(void* OSWindow)
+{
+	ensure(OSWindow != nullptr);
+	if (OSWindow == nullptr)
+	{
+		return;
+	}
+	FScopeLock Lock(&GWindowsWithDefaultParamsCS);
+	GWindowsWithDefaultParams.Remove(OSWindow);
+}
+
+bool HdrHasWindowParamsFromCVars(void* OSWindow, FHDRMetaData& HDRMetaData)
+{
+	if (GWindowsWithDefaultParams.Num() == 0)
+	{
+		return false;
+	}
+	FScopeLock Lock(&GWindowsWithDefaultParamsCS);
+	FHDRMetaData* FoundHDRMetaData = GWindowsWithDefaultParams.Find(OSWindow);
+	if (FoundHDRMetaData)
+	{
+		HDRMetaData = *FoundHDRMetaData;
 		return true;
 	}
 
 	return false;
 }
 
-FMatrix44f FVirtualTextureUniformData::Invalid = FMatrix44f::Identity;
+RENDERCORE_API void HDRGetMetaData(EDisplayOutputFormat& OutDisplayOutputFormat, EDisplayColorGamut& OutDisplayColorGamut, bool& OutbHDRSupported, 
+								   const FVector2D& WindowTopLeft, const FVector2D& WindowBottomRight, void* OSWindow)
+{
+	FHDRMetaData HDRMetaData;
+
+#if WITH_EDITOR
+	// this has priority over IsHDREnabled because MovieSceneCapture might request custom parameters
+	if (HdrHasWindowParamsFromCVars(OSWindow, HDRMetaData))
+	{
+		return;
+	}
+#endif
+	
+	HDRMetaData = HDRGetDefaultMetaData();
+
+	OutDisplayOutputFormat = HDRMetaData.DisplayOutputFormat;
+	OutDisplayColorGamut = HDRMetaData.DisplayColorGamut;
+	OutbHDRSupported = HDRMetaData.bHDRSupported;
+	if (!IsHDREnabled() || OSWindow == nullptr)
+	{
+		return;
+	}
+
+	FDisplayInformationArray DisplayList;
+	RHIGetDisplaysInformation(DisplayList);
+	// In case we have 1 display or less, the CVars that were setup do represent the state of the displays
+	if (DisplayList.Num() <= 1)
+	{
+		return;
+	}
+
+	FIntRect WindowRect((int32)WindowTopLeft.X, (int32)WindowTopLeft.Y, (int32)WindowBottomRight.X, (int32)WindowBottomRight.Y);
+	int32 BestDisplayForWindow = 0;
+	int32 BestArea = 0;
+	for (int32 DisplayIndex = 0; DisplayIndex < DisplayList.Num(); ++DisplayIndex)
+	{
+		// Compute the intersection
+		int32 CurrentArea = WindowDisplayIntersectionArea(WindowRect, DisplayList[DisplayIndex].DesktopCoordinates);
+		if (CurrentArea > BestArea)
+		{
+			BestDisplayForWindow = DisplayIndex;
+			BestArea = CurrentArea;
+		}
+	}
+
+	OutbHDRSupported = DisplayList[BestDisplayForWindow].bHDRSupported;
+	OutDisplayOutputFormat = EDisplayOutputFormat::SDR_sRGB;
+	OutDisplayColorGamut = EDisplayColorGamut::sRGB_D65;
+
+	if (OutbHDRSupported)
+	{
+		FPlatformMisc::ChooseHDRDeviceAndColorGamut(GRHIVendorId, CVarHDRNits.GetValueOnAnyThread(), OutDisplayOutputFormat, OutDisplayColorGamut);
+	}
+
+}
+
+RENDERCORE_API void HDRConfigureCVars(bool bIsHDREnabled, uint32 DisplayNits, bool bFromGameSettings)
+{
+	if (bIsHDREnabled && !GRHISupportsHDROutput)
+	{
+		UE_LOG(LogRendererCore, Warning, TEXT("Trying to enable HDR but it is not supported by the RHI: IsHDREnabled will return false"));
+		bIsHDREnabled = false;
+	}
+
+	EDisplayOutputFormat OutputDevice = EDisplayOutputFormat::SDR_sRGB;
+	EDisplayColorGamut ColorGamut = EDisplayColorGamut::sRGB_D65;
+
+	// If we are turning HDR on we must set the appropriate OutputDevice and ColorGamut.
+	// If we are turning it off, we'll reset back to 0/0
+	if (bIsHDREnabled)
+	{
+		FPlatformMisc::ChooseHDRDeviceAndColorGamut(GRHIVendorId, DisplayNits, OutputDevice, ColorGamut);
+	}
+
+	//CVarHDRNits is ECVF_SetByCode as it's only a mean of communicating the information from UGameUserSettings to the rest of the engine
+	if (bIsHDREnabled)
+	{
+		CVarHDROutputEnabled->Set(1, bFromGameSettings ? ECVF_SetByGameSetting : ECVF_SetByCode);
+		CVarHDRNits->Set((int32)DisplayNits, ECVF_SetByCode);
+	}
+	else
+	{
+		CVarHDROutputEnabled->Set(0, bFromGameSettings ? ECVF_SetByGameSetting : ECVF_SetByCode);
+		CVarHDRNits->Set(0, ECVF_SetByCode);
+	}
+
+	CVarDisplayOutputDevice->Set((int32)OutputDevice, ECVF_SetByDeviceProfile);
+	CVarDisplayColorGamut->Set((int32)ColorGamut, ECVF_SetByDeviceProfile);
+}

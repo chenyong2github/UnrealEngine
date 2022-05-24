@@ -6,6 +6,7 @@
 
 #include "D3D11RHIPrivate.h"
 #include "RenderCore.h"
+#include "HDRHelper.h"
 #include "Engine/RendererSettings.h"
 #include "HAL/ThreadHeartBeat.h"
 
@@ -311,6 +312,15 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, GetSwapChainFlags()), OldState, NewState, D3DRHI->GetDevice());
 		}
 	}
+
+	RECT WindowRect = {};
+#if PLATFORM_WINDOWS
+	GetWindowRect(WindowHandle, &WindowRect);
+#endif
+	FVector2D WindowTopLeft((float)WindowRect.left, (float)WindowRect.top);
+	FVector2D WindowBottomRight((float)WindowRect.right, (float)WindowRect.bottom);
+	bool bHDREnabled;
+	HDRGetMetaData(DisplayOutputFormat, DisplayColorGamut, bHDREnabled, WindowTopLeft, WindowBottomRight, (void*)WindowHandle);
 
 	// Float RGBA backbuffers are requested whenever HDR mode is desired
 	if (PixelFormat == GRHIHDRDisplayOutputFormat && bIsFullscreen)
