@@ -90,6 +90,8 @@ namespace StaticMeshCompilingManagerImpl
 FStaticMeshCompilingManager::FStaticMeshCompilingManager()
 	: Notification(GetAssetNameFormat())
 {
+	StaticMeshCompilingManagerImpl::EnsureInitializedCVars();
+
 	PostReachabilityAnalysisHandle = FCoreUObjectDelegates::PostReachabilityAnalysis.AddRaw(this, &FStaticMeshCompilingManager::OnPostReachabilityAnalysis);
 }
 
@@ -161,8 +163,6 @@ FQueuedThreadPool* FStaticMeshCompilingManager::GetThreadPool() const
 	static FQueuedThreadPoolDynamicWrapper* GStaticMeshThreadPool = nullptr;
 	if (GStaticMeshThreadPool == nullptr && FAssetCompilingManager::Get().GetThreadPool() != nullptr)
 	{
-		StaticMeshCompilingManagerImpl::EnsureInitializedCVars();
-
 		// Static meshes will be scheduled on the asset thread pool, where concurrency limits might by dynamically adjusted depending on memory constraints.
 		GStaticMeshThreadPool = new FQueuedThreadPoolDynamicWrapper(FAssetCompilingManager::Get().GetThreadPool(), -1, [](EQueuedWorkPriority) { return EQueuedWorkPriority::Low; });
 
@@ -212,8 +212,6 @@ bool FStaticMeshCompilingManager::IsAsyncStaticMeshCompilationEnabled() const
 	{
 		return false;
 	}
-
-	StaticMeshCompilingManagerImpl::EnsureInitializedCVars();
 
 	return CVarAsyncStaticMeshStandard.AsyncCompilation.GetValueOnAnyThread() != 0;
 }

@@ -62,6 +62,7 @@ namespace SkeletalMeshCompilingManagerImpl
 FSkeletalMeshCompilingManager::FSkeletalMeshCompilingManager()
 	: Notification(GetAssetNameFormat())
 {
+	SkeletalMeshCompilingManagerImpl::EnsureInitializedCVars();
 }
 
 FName FSkeletalMeshCompilingManager::GetAssetTypeName() const
@@ -101,8 +102,6 @@ FQueuedThreadPool* FSkeletalMeshCompilingManager::GetThreadPool() const
 	static FQueuedThreadPoolDynamicWrapper* GSkeletalMeshThreadPool = nullptr;
 	if (GSkeletalMeshThreadPool == nullptr && FAssetCompilingManager::Get().GetThreadPool() != nullptr)
 	{
-		SkeletalMeshCompilingManagerImpl::EnsureInitializedCVars();
-
 		// For now, skeletal mesh have almost no high-level awareness of their async behavior.
 		// Let them build first to avoid game-thread stalls as much as possible.
 		TFunction<EQueuedWorkPriority(EQueuedWorkPriority)> PriorityMapper = [](EQueuedWorkPriority) { return EQueuedWorkPriority::Highest; };
@@ -165,8 +164,6 @@ bool FSkeletalMeshCompilingManager::IsAsyncCompilationEnabled() const
 	{
 		return false;
 	}
-
-	SkeletalMeshCompilingManagerImpl::EnsureInitializedCVars();
 
 	return CVarAsyncSkeletalMeshStandard.AsyncCompilation.GetValueOnAnyThread() != 0;
 }

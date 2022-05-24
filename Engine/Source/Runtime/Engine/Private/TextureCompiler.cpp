@@ -80,6 +80,7 @@ namespace TextureCompilingManagerImpl
 FTextureCompilingManager::FTextureCompilingManager()
 	: Notification(GetAssetNameFormat())
 {
+	TextureCompilingManagerImpl::EnsureInitializedCVars();
 }
 
 FName FTextureCompilingManager::GetStaticAssetTypeName()
@@ -134,8 +135,6 @@ FQueuedThreadPool* FTextureCompilingManager::GetThreadPool() const
 	static FQueuedThreadPoolWrapper* GTextureThreadPool = nullptr;
 	if (GTextureThreadPool == nullptr && FAssetCompilingManager::Get().GetThreadPool() != nullptr)
 	{
-		TextureCompilingManagerImpl::EnsureInitializedCVars();
-
 		const auto TexturePriorityMapper = [](EQueuedWorkPriority TexturePriority) { return FMath::Max(TexturePriority, EQueuedWorkPriority::Low); };
 
 		// Textures will be scheduled on the asset thread pool, where concurrency limits might by dynamically adjusted depending on memory constraints.
@@ -187,8 +186,6 @@ bool FTextureCompilingManager::IsAsyncTextureCompilationEnabled() const
 	{
 		return false;
 	}
-
-	TextureCompilingManagerImpl::EnsureInitializedCVars();
 
 	return CVarAsyncTextureStandard.AsyncCompilation.GetValueOnAnyThread() != 0;
 }

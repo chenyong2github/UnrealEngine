@@ -192,32 +192,42 @@ namespace AsyncCompilationHelpers
 	{
 		if (InExperimentalSettingsName != NAME_None)
 		{
-			auto UpdateCVarFromSettings =
-				[&InCVarAsyncCompilation, InExperimentalSettingsName]
+			// We cannot try to get the UEditorExperimentalSettings until all the class properties
+			// have been linked otherwise the CDO wouldn't be able to initialize properties
+			// from the ini files which would most likely end up with the default value of
+			// async compilation being disabled. This obviously has the effect of async compilation
+			// being disabled during boot until the object system is ready and settings can be read.
+			FDelayedAutoRegisterHelper(EDelayedRegisterRunPhase::ObjectSystemReady,
+				[&InCVarAsyncCompilation, InExperimentalSettingsName]()
 				{
-					const UEditorExperimentalSettings* Settings = GetDefault<UEditorExperimentalSettings>();
-					FProperty* Property = Settings->GetClass()->FindPropertyByName(InExperimentalSettingsName);
-					if (Property)
-					{
-						if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
+					auto UpdateCVarFromSettings =
+						[&InCVarAsyncCompilation, InExperimentalSettingsName]
 						{
-							bool bIsEnabled = BoolProperty->GetPropertyValue(BoolProperty->ContainerPtrToValuePtr<void>(Settings));
-							InCVarAsyncCompilation->Set(bIsEnabled ? 1 : 0, ECVF_SetByProjectSetting);
-						}
-					}
-				};
+							const UEditorExperimentalSettings* Settings = GetDefault<UEditorExperimentalSettings>();
+							FProperty* Property = Settings->GetClass()->FindPropertyByName(InExperimentalSettingsName);
+							if (Property)
+							{
+								if (FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property))
+								{
+									bool bIsEnabled = BoolProperty->GetPropertyValue(BoolProperty->ContainerPtrToValuePtr<void>(Settings));
+									InCVarAsyncCompilation->Set(bIsEnabled ? 1 : 0, ECVF_SetByProjectSetting);
+								}
+							}
+						};
 
-			GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddLambda(
-				[UpdateCVarFromSettings, InExperimentalSettingsName](FName Name)
-				{
-					if (Name == InExperimentalSettingsName)
-					{
-						UpdateCVarFromSettings();
-					}
+					GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddLambda(
+						[UpdateCVarFromSettings, InExperimentalSettingsName](FName Name)
+						{
+							if (Name == InExperimentalSettingsName)
+							{
+								UpdateCVarFromSettings();
+							}
+						}
+					);
+
+					UpdateCVarFromSettings();
 				}
 			);
-
-			UpdateCVarFromSettings();
 		}
 
 		FString Value;

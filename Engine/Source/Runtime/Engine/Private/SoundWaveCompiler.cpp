@@ -60,6 +60,7 @@ namespace SoundWaveCompilingManagerImpl
 FSoundWaveCompilingManager::FSoundWaveCompilingManager()
 	: Notification(GetAssetNameFormat())
 {
+	SoundWaveCompilingManagerImpl::EnsureInitializedCVars();
 }
 
 FName FSoundWaveCompilingManager::GetStaticAssetTypeName()
@@ -92,8 +93,6 @@ FQueuedThreadPool* FSoundWaveCompilingManager::GetThreadPool() const
 	static FQueuedThreadPoolWrapper* GSoundWaveThreadPool = nullptr;
 	if (GSoundWaveThreadPool == nullptr && FAssetCompilingManager::Get().GetThreadPool() != nullptr)
 	{
-		SoundWaveCompilingManagerImpl::EnsureInitializedCVars();
-
 		const auto SoundWavePriorityMapper = [](EQueuedWorkPriority SoundWavePriority) { return FMath::Max(SoundWavePriority, EQueuedWorkPriority::Low); };
 
 		// SoundWaves will be scheduled on the asset thread pool, where concurrency limits might by dynamically adjusted depending on memory constraints.
@@ -137,8 +136,6 @@ bool FSoundWaveCompilingManager::IsAsyncSoundWaveCompilationEnabled() const
 	{
 		return false;
 	}
-
-	SoundWaveCompilingManagerImpl::EnsureInitializedCVars();
 
 	return CVarAsyncSoundWaveStandard.AsyncCompilation.GetValueOnAnyThread() != 0;
 }

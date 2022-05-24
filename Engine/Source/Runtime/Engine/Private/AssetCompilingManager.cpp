@@ -200,6 +200,8 @@ TArrayView<IAssetCompilingManager* const> FAssetCompilingManager::GetRegisteredM
 FAssetCompilingManager::FAssetCompilingManager()
 {
 #if WITH_EDITOR
+	AssetCompilingManagerImpl::EnsureInitializedCVars();
+
 	RegisterManager(&FStaticMeshCompilingManager::Get());
 	RegisterManager(&FSkeletalMeshCompilingManager::Get());
 	RegisterManager(&FTextureCompilingManager::Get());
@@ -214,8 +216,6 @@ FQueuedThreadPool* FAssetCompilingManager::GetThreadPool() const
 	static FQueuedThreadPoolWrapper* GAssetThreadPool = nullptr;
 	if (GAssetThreadPool == nullptr && GLargeThreadPool != nullptr)
 	{
-		AssetCompilingManagerImpl::EnsureInitializedCVars();
-
 		// We limit concurrency to half the workers because asset compilation is hard on total memory and memory bandwidth and can run slower when going wider than actual cores.
 		// Most asset also have some form of inner parallelism during compilation.
 		// Recently found out that GThreadPool and GLargeThreadPool have the same amount of workers, so can't rely on GThreadPool to be our limiter here.
