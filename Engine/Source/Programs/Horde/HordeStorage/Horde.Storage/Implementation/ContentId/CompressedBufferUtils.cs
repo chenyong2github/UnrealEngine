@@ -3,6 +3,7 @@
 using System;
 using System.Buffers.Binary;
 using System.IO;
+using Datadog.Trace;
 using Force.Crc32;
 using Jupiter.Implementation;
 using Jupiter.Utils;
@@ -193,6 +194,8 @@ namespace Horde.Storage.Implementation
             }
 
             {
+                using IScope _ = Tracer.Instance.StartActive("web.hash");
+
                 // only read the first 20 bytes of the hash field as IoHashes are 20 bytes and not 32 bytes
                 byte[] slicedHash = new byte[20];
                 Array.Copy(header.RawHash, 0, slicedHash, 0, 20);

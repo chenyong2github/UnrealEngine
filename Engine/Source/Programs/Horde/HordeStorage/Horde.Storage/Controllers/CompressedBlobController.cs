@@ -286,15 +286,64 @@ namespace Horde.Storage.Controllers
             }
         }
 
-        private async Task<ContentId> PutImpl(NamespaceId ns, ContentId id, IBufferedPayload payload)
+        [HttpPost("{ns}")]
+        [Authorize("Storage.write")]
+        [DisableRequestSizeLimit]
+        [RequiredContentType(CustomMediaTypeNames.UnrealCompressedBuffer)]
+        public async Task<IActionResult> Post(
+            [Required] NamespaceId ns)
         {
-            // decompress the content and generate a identifier from it to verify the identifier we got
+            ActionResult? result = await _requestHelper.HasAccessToNamespace(User, Request, ns);
+            if (result != null)
+            {
+                return result;
+            }
+
+            _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
+
+            using IBufferedPayload payload = await _bufferedPayloadFactory.CreateFromRequest(Request);
+
+            try
+            {
+                ContentId identifier = await PutImpl(ns, null, payload);
+
+                return Ok(new
+                {
+                    Identifier = identifier.ToString()
+                });
+            }
+            catch (HashMismatchException e)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
+                });
+            }
+        }
+
+        private async Task<ContentId> PutImpl(NamespaceId ns, ContentId? id, IBufferedPayload payload)
+        {
+            // decompress the content and generate a identifier from it to verify the identifier we got if we got one
             await using Stream decompressStream = payload.GetStream();
             // TODO: we should add a overload for decompress content that can work on streams, otherwise we are still limited to 2GB compressed blobs
             byte[] decompressedContent = _compressedBufferUtils.DecompressContent(await decompressStream.ToByteArray());
 
             await using MemoryStream decompressedStream = new MemoryStream(decompressedContent);
-            ContentId identifierDecompressedPayload = ContentId.FromContentHash(await _storage.VerifyContentMatchesHash(decompressedStream, id));
+            ContentId identifierDecompressedPayload;
+            if (id != null)
+            {
+                identifierDecompressedPayload = ContentId.FromContentHash(await _storage.VerifyContentMatchesHash(decompressedStream, id));
+            }
+            else
+            {
+                ContentHash blobHash;
+                {
+                    using IScope _ = Tracer.Instance.StartActive("web.hash");
+                    blobHash = await BlobIdentifier.FromStream(decompressedStream);
+                }
+
+                identifierDecompressedPayload = ContentId.FromContentHash(blobHash);
+            }
 
             BlobIdentifier identifierCompressedPayload;
             {
