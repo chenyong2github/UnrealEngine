@@ -25,7 +25,7 @@ UNSYNC_THIRD_PARTY_INCLUDES_START
 #include <flat_hash_map.hpp>
 UNSYNC_THIRD_PARTY_INCLUDES_END
 
-#define UNSYNC_VERSION_STR "1.0.39"
+#define UNSYNC_VERSION_STR "1.0.40"
 
 namespace unsync {
 
@@ -2646,6 +2646,8 @@ ToPath(const std::wstring_view& Str)
 bool  // TODO: return a TResult
 SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 {
+	FTimePoint TimeBegin = TimePointNow();
+
 	const bool bFileSystemSource = SyncOptions.SourceType == ESyncSourceType::FileSystem;
 	const bool bServerSource	 = SyncOptions.SourceType == ESyncSourceType::Server;
 
@@ -2846,7 +2848,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	bool			   bBaseDirectoryManifestValid = false;
 	bool			   bQuickDifferencePossible	   = false;
 
-	if (SyncOptions.bQuickDifference && SourceDirectoryManifest.Options.ChunkingAlgorithmId == EChunkingAlgorithmID::VariableBlocks
+	if (!SyncOptions.bFullDifference && SourceDirectoryManifest.Options.ChunkingAlgorithmId == EChunkingAlgorithmID::VariableBlocks
 		&& PathExists(BaseManifestPath))
 	{
 		bBaseDirectoryManifestValid = LoadDirectoryManifest(BaseDirectoryManifest, BasePath, BaseManifestPath);
@@ -2861,7 +2863,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 
 	if (bQuickDifferencePossible)
 	{
-		UNSYNC_VERBOSE(L"Quick file difference is allowed");
+		UNSYNC_VERBOSE(L"Quick file difference is allowed (use --full-diff option to override)");
 	}
 
 	for (const auto& SourceManifestIt : SourceDirectoryManifest.Files)
@@ -2934,12 +2936,12 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 
 			if (!BaseFileAttrib.bValid)
 			{
-				UNSYNC_VERBOSE(L"Dirty file: '%ls' (no base data)", SourceFilename.c_str());
+				UNSYNC_VERBOSE2(L"Dirty file: '%ls' (no base data)", SourceFilename.c_str());
 				StatFullCopy++;
 			}
 			else
 			{
-				UNSYNC_VERBOSE(L"Dirty file: '%ls'", SourceManifestIt.first.c_str());
+				UNSYNC_VERBOSE2(L"Dirty file: '%ls'", SourceManifestIt.first.c_str());
 				StatPartialCopy++;
 
 				if (bFileSystemSource && SyncOptions.bValidateSourceFiles && !SourceAttribCache.Exists(ResolvedSourceFilePath) &&
@@ -3300,18 +3302,27 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		UNSYNC_ASSERT(RemainingSourceBytes == 0);
 
 		bool bAllBackgroundTasksSucceeded = true;
+		uint32 NumBackgroundSyncFiles = 0;
+		uint64 DownloadedBackgroundBytes = 0;
 		for (const BackgroundTaskResult& Item : BackgroundTaskResults)
 		{
 			if (Item.SyncResult.Succeeded())
 			{
-				UNSYNC_VERBOSE(L"Copied '%ls' (%ls, background)",
+				UNSYNC_VERBOSE2(L"Copied '%ls' (%ls, background)",
 							   Item.TargetFilePath.wstring().c_str(),
 							   Item.bIsPartialCopy ? L"partial" : L"full");
+				++NumBackgroundSyncFiles;
+				DownloadedBackgroundBytes += Item.SyncResult.SourceBytes;
 			}
 			else
 			{
 				bAllBackgroundTasksSucceeded = false;
 			}
+		}
+
+		if (NumBackgroundSyncFiles)
+		{
+			UNSYNC_VERBOSE(L"Background file copies: %d (%.2f MB)", NumBackgroundSyncFiles, SizeMb(DownloadedBackgroundBytes));
 		}
 
 		if (!bAllBackgroundTasksSucceeded)
@@ -3359,6 +3370,9 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 	UNSYNC_VERBOSE(L"Skipped files: %d, full copies: %d, partial copies: %d", StatSkipped, StatFullCopy, StatPartialCopy);
 	UNSYNC_VERBOSE(L"Copied from source: %.2f MB, copied from base: %.2f MB", SizeMb(StatSourceBytes), SizeMb(StatBaseBytes));
 	UNSYNC_VERBOSE(L"Sync completed %ls", bSyncSucceeded ? L"successfully" : L"with errors (see log for details)");
+
+	double ElapsedSeconds = DurationSec(TimeBegin, TimePointNow());
+	UNSYNC_VERBOSE2(L"Sync time: %.2f seconds", ElapsedSeconds);
 
 	return bSyncSucceeded;
 }

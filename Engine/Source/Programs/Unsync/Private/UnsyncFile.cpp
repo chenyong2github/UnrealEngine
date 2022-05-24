@@ -548,17 +548,17 @@ GetFileAttrib(const FPath& Path, FFileAttributeCache* AttribCache)
 {
 	FileAttributes Result;
 
+	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
+
 	if (AttribCache)
 	{
-		auto It = AttribCache->Map.find(Path);
+		auto It = AttribCache->Map.find(ExtendedPath);
 		if (It != AttribCache->Map.end())
 		{
 			Result = It->second;
 			return Result;
 		}
 	}
-
-	FPath ExtendedPath = MakeExtendedAbsolutePath(Path);
 
 	WIN32_FILE_ATTRIBUTE_DATA AttributeData;
 	BOOL					  Ok = GetFileAttributesExW(ExtendedPath.c_str(), GetFileExInfoStandard, &AttributeData);

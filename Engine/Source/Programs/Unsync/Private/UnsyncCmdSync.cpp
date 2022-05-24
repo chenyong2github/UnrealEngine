@@ -13,7 +13,10 @@ CmdSync(const FCmdSyncOptions& Options)
 	FPath			ResolvedSource = Options.Filter ? Options.Filter->Resolve(Options.Source) : Options.Source;
 
 	UNSYNC_VERBOSE(L"Sync source: '%ls'", Options.Source.wstring().c_str());
-	UNSYNC_VERBOSE(L"-- resolved: '%ls'", ResolvedSource.wstring().c_str());
+	if (Options.Source != ResolvedSource)
+	{
+		UNSYNC_VERBOSE(L"-- resolved: '%ls'", ResolvedSource.wstring().c_str());
+	}
 	UNSYNC_VERBOSE(L"Sync target: '%ls'", Options.Target.wstring().c_str());
 
 	const bool bSourcePathExists	 = PathExists(ResolvedSource, ErrorCode);
@@ -26,7 +29,7 @@ CmdSync(const FCmdSyncOptions& Options)
 	{
 		UNSYNC_VERBOSE(L"Manifest override: %ls", Options.SourceManifestOverride.wstring().c_str());
 
-		if (Options.Remote.IsValid() && Options.bQuickSourceValidation)
+		if (Options.Remote.IsValid() && !Options.bFullSourceScan)
 		{
 			bSourceFileSystemRequired = false;
 		}
@@ -65,8 +68,8 @@ CmdSync(const FCmdSyncOptions& Options)
 			SyncOptions.Remote				   = &Options.Remote;
 			SyncOptions.SyncFilter			   = Options.Filter;
 			SyncOptions.bCleanup			   = Options.bCleanup;
-			SyncOptions.bValidateSourceFiles   = !Options.bQuickSourceValidation;
-			SyncOptions.bQuickDifference	   = Options.bQuickDifference;
+			SyncOptions.bValidateSourceFiles   = Options.bFullSourceScan;
+			SyncOptions.bFullDifference		   = Options.bFullDifference;
 			SyncOptions.bValidateTargetFiles   = Options.bValidateTargetFiles;
 
 			return SyncDirectory(SyncOptions) ? 0 : 1;

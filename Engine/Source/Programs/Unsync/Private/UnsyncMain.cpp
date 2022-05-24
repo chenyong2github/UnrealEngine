@@ -68,15 +68,23 @@ InnerMain(int Argc, char** Argv)
 	bool					 bAllowInsecureTls		= false;
 	bool					 bUseTls				= false;
 	bool					 bUseDebugMode			= false;
-	bool					 bQuickSyncMode			= false;
-	bool					 bQuickDifference		= false;
-	bool					 bQuickSourceValidation = false;
 	bool					 bIncrementalMode		= false;
 	bool					 bNoOutputValidation	= false;
 	bool					 bNoCleanupAfterSync	= false;
+	bool					 bFullSourceScan		= false;
+	bool					 bFullDifference		= false;
 	int32					 CompressionLevel		= 3;
 	uint32					 DiffBlockSize			= uint32(4_KB);
 	uint32					 HashOrSyncBlockSize	= uint32(64_KB);
+
+	struct FDeprecatedOptions
+	{
+		bool bQuickSyncMode = false;
+		bool bQuickDifference = false;
+		bool bQuickSourceValidation = false;
+	} DeprecatedOptions;
+
+	const std::string HiddenGroupId; // CLI11 uses an empty string group name to mark arguments that should be hidden
 
 #if UNSYNC_USE_TLS
 	auto AddTlsOptions = [&CacertFilenameUtf8, &bUseTls, &bAllowInsecureTls](CLI::App* App)
@@ -161,15 +169,40 @@ InnerMain(int Argc, char** Argv)
 						HttpHeaderFilenameUtf8,
 						"Text file that contains any extra HTTP headers to pass to the remote server (auth tokens, etc.)");
 	SubSync->add_flag("--no-cleanup", bNoCleanupAfterSync, "Do not delete local files that aren't in the manifest after a successful sync");
-	SubSync->add_flag("--quick",
-					  bQuickSyncMode,
-					  "Quick sync mode that skips some of the validation steps (enables all '--quick-*' options)");
-	SubSync->add_flag("--quick-source-validation",
-					  bQuickSourceValidation,
-					  "Skip checking if all source files are present before starting a sync");
-	SubSync->add_flag("--quick-difference",
-					  bQuickDifference,
-					  "Allow computing file difference based on previous sync manifest and file timestamps");
+
+	// Deprecated --quick flag
+	SubSync
+		->add_flag("--quick",
+				   DeprecatedOptions.bQuickSyncMode,
+				   "Quick sync mode that skips some of the validation steps (enables all '--quick-*' options)")
+		->group(HiddenGroupId);
+
+	// Deprecated --quick-source-validation flag
+	SubSync
+		->add_flag("--quick-source-validation",
+				   DeprecatedOptions.bQuickSourceValidation,
+				   "Skip checking if all source files are present before starting a sync")
+		->group(HiddenGroupId);
+
+	// Deprecatred --quick-difference flag
+	SubSync
+		->add_flag("--quick-difference",
+				   DeprecatedOptions.bQuickDifference,
+				   "Allow computing file difference based on previous sync manifest and file timestamps")
+		->group(HiddenGroupId);
+
+	SubSync->add_flag("--full-diff",
+					  bFullDifference,
+					  "Run the full binary differencing algorithm on local files, even if there there is a compatible local directory "
+					  "manifest and file timestamps/sizes match. This is an extra precaution that will handle any unexpected local file "
+					  "modifications, but it should not be needed in a common case.");
+
+	SubSync->add_flag("--full-source-scan",
+					  bFullSourceScan,
+					  "Perform a full scan of the source directory to check that all files are present and their timestamps/sizes match "
+					  "the manifest. This is an extra precaution that will detect any missing or invalid remote files before running the "
+					  "sync process, however this can be very slow when dealing with large numbers of files and directories.");
+
 	SubSync->add_flag("--no-output-validation", bNoOutputValidation, "Skip final patched file block hash validation (DANGEROUS)");
 	SubSync->add_option("-b, --block", HashOrSyncBlockSize, "Block size in bytes (default=64KB)");
 	SubCommands.push_back(SubSync);
@@ -198,6 +231,7 @@ InnerMain(int Argc, char** Argv)
 	{
 		Subcommand->add_flag("-d, --dry, --dry-run", GDryRun, "Don't write any outputs to disk");
 		Subcommand->add_flag("-v, --verbose", GLogVerbose, "Verbose logging");
+		Subcommand->add_flag("--very-verbose", GLogVeryVerbose, "Very verbose logging");
 		Subcommand->add_flag("--progress", GLogProgress, "Output @progress and @status markers");
 		Subcommand->add_option("--threads", GMaxThreads, "Limit worker threads to specified number");
 		Subcommand->add_flag("--buffered-files", GForceBufferedFiles, "Always use buffered file IO");
@@ -219,10 +253,31 @@ InnerMain(int Argc, char** Argv)
 	_setmode(_fileno(stdout), _O_U8TEXT);
 #endif	// UNSYNC_PLATFORM_WINDOWS
 
-	if (bQuickSyncMode)
+	if (GLogVeryVerbose)
 	{
-		bQuickSourceValidation = true;
-		bQuickDifference	   = true;
+		// Force verbose mode if very-verbose flag is present
+		GLogVerbose = true;
+	}
+
+	if (DeprecatedOptions.bQuickSyncMode)
+	{
+		UNSYNC_WARNING(
+			L"Quick mode is now the default and --quick flag is deprecated. Use --full-source-scan and --full-diff options to enable legacy "
+			L"default behavior.");
+	}
+
+	if (DeprecatedOptions.bQuickSourceValidation)
+	{
+		UNSYNC_WARNING(
+			L"Quick mode is now the default and --quick-source-validation flag is deprecated. Use --full-source-scan to enable legacy behavior "
+			L"that scans source directory.");
+	}
+
+	if (DeprecatedOptions.bQuickDifference)
+	{
+		UNSYNC_WARNING(
+			L"Quick mode is now the default and --quick-difference flag is deprecated. Use --full-diff to enable legacy behavior performs "
+			L"full binary difference of local files even if timestamps and sizes match.");
 	}
 
 	if (bUseDebugMode)
@@ -330,6 +385,15 @@ InnerMain(int Argc, char** Argv)
 	FPath SourceManifestFilename = NormalizeFilenameUtf8(SourceManifestFilenameUtf8);
 
 	UNSYNC_VERBOSE(L"UNSYNC %hs", GetVersionString().c_str());
+
+	if (GLogVeryVerbose)
+	{
+		UNSYNC_VERBOSE(L"Very verbose logging is enabled");
+	}
+	else if (GLogVerbose)
+	{
+		UNSYNC_VERBOSE(L"Verbose logging is enabled");
+	}
 
 	if (GDryRun)
 	{
@@ -546,8 +610,8 @@ InnerMain(int Argc, char** Argv)
 		SyncOptions.Target				   = TargetFilename;
 		SyncOptions.SourceManifestOverride = SourceManifestFilename;
 		SyncOptions.Remote				   = RemoteDesc;
-		SyncOptions.bQuickDifference	   = bQuickDifference;
-		SyncOptions.bQuickSourceValidation = bQuickSourceValidation;
+		SyncOptions.bFullDifference		   = bFullDifference;
+		SyncOptions.bFullSourceScan		   = bFullSourceScan;
 		SyncOptions.bCleanup			   = !bNoCleanupAfterSync;
 		SyncOptions.BlockSize			   = HashOrSyncBlockSize;
 		SyncOptions.Filter				   = &SyncFilter;

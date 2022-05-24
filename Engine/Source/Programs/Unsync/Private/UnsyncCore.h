@@ -346,8 +346,7 @@ struct FSyncDirectoryOptions
 	bool			   bCleanup	  = false;	// whether to cleanup any files in the target directory that are not in the source manifest file
 	bool			   bValidateSourceFiles = true;	 // whether to check that all source files declared in the manifest are present/valid
 	bool			   bValidateTargetFiles = true;	 // WARNING: turning this off is intended only for testing/profiling
-	bool bQuickDifference = false;	// whether file difference could be computed quickly based only on source and base manifests (for
-									// variable chunking mode only)
+	bool			   bFullDifference = true;	// whether to run full file difference algorithm, even when there is an existing manifest
 };
 
 bool SyncDirectory(const FSyncDirectoryOptions& SyncOptions);

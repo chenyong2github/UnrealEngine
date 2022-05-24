@@ -18,9 +18,9 @@ struct FCmdSyncOptions
 
 	FRemoteDesc Remote;
 
-	bool bQuickDifference		= false;
-	bool bQuickSourceValidation = false;
-	bool bCleanup				= false;
+	bool bFullDifference = false;
+	bool bFullSourceScan = false;
+	bool bCleanup		 = false;
 
 	bool bValidateTargetFiles = true;  // WARNING: turning this off is intended only for testing/profiling
 
