@@ -14,13 +14,13 @@
 #include "MeshMaterialShader.h"
 #include "MeshPassProcessor.inl"
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVLMVoxelizationParams, )
+BEGIN_UNIFORM_BUFFER_STRUCT(FVLMVoxelizationParams, )
 	SHADER_PARAMETER(FVector4f, VolumeCenter)
 	SHADER_PARAMETER(FVector4f, VolumeExtent)
 	SHADER_PARAMETER(int32, VolumeMaxDim)
-	SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
-	SHADER_PARAMETER_UAV(RWTexture3D<uint4>, IndirectionTexture)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint4>, IndirectionTexture)
+END_UNIFORM_BUFFER_STRUCT()
 
 typedef TUniformBufferRef<FVLMVoxelizationParams> FVLMVoxelizationUniformBufferRef;
 
@@ -186,7 +186,7 @@ class FClearVolumeCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector, VolumeSize)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -209,7 +209,7 @@ class FVoxelizeImportanceVolumeCS : public FGlobalShader
 		SHADER_PARAMETER(FIntVector, VolumeSize)
 		SHADER_PARAMETER(FVector3f, ImportanceVolumeMin)
 		SHADER_PARAMETER(FVector3f, ImportanceVolumeMax)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVLMVoxelizationParams, VLMVoxelizationParams)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -231,7 +231,7 @@ class FDilateVolumeCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector, VolumeSize)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -252,8 +252,8 @@ class FDownsampleVolumeCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(int32, bIsHighestMip)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolumePrevMip)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolumePrevMip)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -274,7 +274,7 @@ class FCountNumBricksCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector, VolumeSize)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
 		SHADER_PARAMETER_UAV(RWBuffer<int>, BrickAllocatorParameters)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -297,7 +297,7 @@ class FGatherBrickRequestsCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntVector, VolumeSize)
 		SHADER_PARAMETER(int32, BrickSize)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
 		SHADER_PARAMETER_UAV(RWBuffer<int>, BrickAllocatorParameters)
 		SHADER_PARAMETER_UAV(RWBuffer<uint4>, BrickRequests)
 	END_SHADER_PARAMETER_STRUCT()
@@ -322,8 +322,8 @@ class FSplatVolumeCS : public FGlobalShader
 		SHADER_PARAMETER(FIntVector, VolumeSize)
 		SHADER_PARAMETER(int32, BrickSize)
 		SHADER_PARAMETER(int32, bIsHighestMip)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint>, VoxelizeVolume)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint4>, IndirectionTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, VoxelizeVolume)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint4>, IndirectionTexture)
 		SHADER_PARAMETER_UAV(RWBuffer<int>, BrickAllocatorParameters)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -349,7 +349,7 @@ class FStitchBorderCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, FrameNumber)
 		SHADER_PARAMETER(int32, NumTotalBricks)
 		SHADER_PARAMETER(int32, BrickBatchOffset)
-		SHADER_PARAMETER_UAV(RWTexture3D<uint4>, IndirectionTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint4>, IndirectionTexture)
 		SHADER_PARAMETER_UAV(RWBuffer<uint4>, BrickRequests)
 		SHADER_PARAMETER_TEXTURE(Texture3D<float4>, AmbientVector)
 		SHADER_PARAMETER_UAV(RWTexture3D<float3>, OutAmbientVector)
