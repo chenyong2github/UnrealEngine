@@ -571,6 +571,13 @@ void UCommonButtonBase::SetIsInteractionEnabled(bool bInIsInteractionEnabled)
 	}
 }
 
+void UCommonButtonBase::SetHideInputAction(bool bInHideInputAction)
+{
+	bHideInputAction = bInHideInputAction;
+
+	UpdateInputActionWidgetVisibility();
+}
+
 bool UCommonButtonBase::IsInteractionEnabled() const
 {
 	ESlateVisibility Vis = GetVisibility(); // hidden or collapsed should have 'bInteractionEnabled' set false, but sometimes they don't :(

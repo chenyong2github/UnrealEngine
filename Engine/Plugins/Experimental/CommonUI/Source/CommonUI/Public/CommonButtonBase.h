@@ -300,6 +300,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
 	void SetIsInteractionEnabled(bool bInIsInteractionEnabled);
 
+	UFUNCTION(BlueprintCallable, Category = "Common Button|Setters")
+	void SetHideInputAction(bool bInHideInputAction);
+
 	/** Is this button currently interactable? (use instead of GetIsEnabled) */
 	UFUNCTION(BlueprintCallable, Category = "Common Button|Getters")
 	bool IsInteractionEnabled() const;
