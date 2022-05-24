@@ -1277,7 +1277,11 @@ int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxTy
 	//todo: this is horribly slow, need adjacency information
 	const FReal SearchDist2 = SearchDist * SearchDist;
 
-	FAABB3 QueryBounds(Position - FVec3(SearchDist), Position + FVec3(SearchDist));
+	const FVec3 InvScale = 1 / Scale;
+	const FVec3 ScaledPosition = Position * InvScale;
+	const FVec3 ScaledSearchDist = SearchDist * InvScale;
+	const FVec3 AbsScaledSearchDist(FMath::Abs(ScaledSearchDist[0]), FMath::Abs(ScaledSearchDist[1]), FMath::Abs(ScaledSearchDist[2]));
+	const FAABB3 QueryBounds(ScaledPosition - AbsScaledSearchDist, ScaledPosition + AbsScaledSearchDist);
 
 	const TArray<int32> PotentialIntersections = FastBVH.FindAllIntersections(QueryBounds);
 	const FReal Epsilon = 1e-4f;

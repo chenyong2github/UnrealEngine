@@ -141,6 +141,39 @@ namespace ChaosTest
 			EXPECT_EQ(Tri->FindMostOpposingFaceScaled(FVec3(0, 0, 0), FVec3(0, 0, -1), INDEX_NONE, 100.0, MirrorScale), 2);		
 
 		}
+
+		// Simple Non-uniform scale (Actual bug regression test)
+		{
+			// 2 triangles
+			FTriangleMeshImplicitObject::ParticlesType Particles;
+			Particles.AddParticles(6);
+			// in z-y plane
+			Particles.X(0) = FVec3(0, 0, 0);
+			Particles.X(1) = FVec3(0, 100, 0);
+			Particles.X(2) = FVec3(0, 0, 100);
+
+			// In x-z plane
+			Particles.X(3) = FVec3(0, 0, 0);
+			Particles.X(4) = FVec3(100, 0, 0);
+			Particles.X(5) = FVec3(0, 0, 100);
+
+
+			TArray<TVec3<int32>> Indices;
+			Indices.Emplace(0, 1, 2);
+			Indices.Emplace(3, 4, 5);
+			TArray<uint16> DummyMaterials;
+			TUniquePtr<FTriangleMeshImplicitObject> Tri = MakeUnique<FTriangleMeshImplicitObject>(MoveTemp(Particles), MoveTemp(Indices), MoveTemp(DummyMaterials));
+
+			const FVec3 Scale(10, 1, 1);
+			TImplicitObjectScaledGeneric<FReal, 3> ScaledTri(MakeSerializable(Tri), nullptr, Scale);
+
+			// Make sure we find the correct face when at 200 units away from origin on x-axes. The scaling will ensure that the point is on the face. using 1 unit search distance
+			EXPECT_EQ(ScaledTri.FindMostOpposingFace(FVec3(200, 0, 0), FVec3(0,1,0), INDEX_NONE, 1.0f), 1);
+			// Change direction and increase search distance, to hit other face
+			EXPECT_EQ(ScaledTri.FindMostOpposingFace(FVec3(200, 0, 0), FVec3(-1, 0, 0), INDEX_NONE, 201.0f), 0);
+			// Reduce search distance so that we don't hit the best face
+			EXPECT_EQ(ScaledTri.FindMostOpposingFace(FVec3(200, 0, 0), FVec3(-1, 0, 0), INDEX_NONE, 199.0f), 1);
+		}
 	}
 
 
