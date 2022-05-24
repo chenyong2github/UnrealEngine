@@ -620,7 +620,8 @@ bool FSourceControlBackend::PushData(TArrayView<FPushRequest> Requests)
 
 		if (FilesToAdd.IsEmpty())
 		{
-			return true;
+			// If we have no files to add then we should skip to the next batch
+			continue;
 		}
 
 		{
