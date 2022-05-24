@@ -31,7 +31,7 @@ void FOnlineVoiceEOSPlus::Initialize()
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::Initialize] BaseVoiceInterface delegates not bound. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::Initialize] BaseVoiceInterface delegates not bound. Base interface not valid"));
 	}
 }
 
@@ -47,7 +47,7 @@ IVoiceEnginePtr FOnlineVoiceEOSPlus::CreateVoiceEngine()
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::CreateVoiceEngine] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::CreateVoiceEngine] Unable to call method in base interface. Base interface not valid"));
 	}
 	
 	return Result;
@@ -61,7 +61,7 @@ void FOnlineVoiceEOSPlus::ProcessMuteChangeNotification()
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::ProcessMuteChangeNotification] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::ProcessMuteChangeNotification] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -73,7 +73,7 @@ void FOnlineVoiceEOSPlus::StartNetworkedVoice(uint8 LocalUserNum)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::StartNetworkedVoice] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::StartNetworkedVoice] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -85,7 +85,7 @@ void FOnlineVoiceEOSPlus::StopNetworkedVoice(uint8 LocalUserNum)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::StopNetworkedVoice] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::StopNetworkedVoice] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -99,7 +99,7 @@ bool FOnlineVoiceEOSPlus::RegisterLocalTalker(uint32 LocalUserNum)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::RegisterLocalTalker] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::RegisterLocalTalker] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -113,7 +113,7 @@ void FOnlineVoiceEOSPlus::RegisterLocalTalkers()
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::RegisterLocalTalkers] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::RegisterLocalTalkers] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -127,7 +127,7 @@ bool FOnlineVoiceEOSPlus::UnregisterLocalTalker(uint32 LocalUserNum)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::UnregisterLocalTalker] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::UnregisterLocalTalker] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -141,7 +141,7 @@ void FOnlineVoiceEOSPlus::UnregisterLocalTalkers()
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::UnregisterLocalTalkers] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::UnregisterLocalTalkers] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -170,7 +170,7 @@ bool FOnlineVoiceEOSPlus::RegisterRemoteTalker(const FUniqueNetId& UniqueId)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::RegisterRemoteTalker] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::RegisterRemoteTalker] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -201,7 +201,7 @@ bool FOnlineVoiceEOSPlus::UnregisterRemoteTalker(const FUniqueNetId& UniqueId)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::UnregisterRemoteTalker] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::UnregisterRemoteTalker] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -215,7 +215,7 @@ void FOnlineVoiceEOSPlus::RemoveAllRemoteTalkers()
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::RemoveAllRemoteTalkers] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::RemoveAllRemoteTalkers] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -229,7 +229,7 @@ bool FOnlineVoiceEOSPlus::IsHeadsetPresent(uint32 LocalUserNum)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::IsHeadsetPresent] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::IsHeadsetPresent] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -245,7 +245,7 @@ bool FOnlineVoiceEOSPlus::IsLocalPlayerTalking(uint32 LocalUserNum)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::IsLocalPlayerTalking] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::IsLocalPlayerTalking] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -276,7 +276,7 @@ bool FOnlineVoiceEOSPlus::IsRemotePlayerTalking(const FUniqueNetId& UniqueId)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::IsRemotePlayerTalking] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::IsRemotePlayerTalking] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -307,7 +307,7 @@ bool FOnlineVoiceEOSPlus::IsMuted(uint32 LocalUserNum, const FUniqueNetId& Uniqu
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::IsMuted] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::IsMuted] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -338,7 +338,7 @@ bool FOnlineVoiceEOSPlus::MuteRemoteTalker(uint8 LocalUserNum, const FUniqueNetI
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::MuteRemoteTalker] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::MuteRemoteTalker] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -369,7 +369,7 @@ bool FOnlineVoiceEOSPlus::UnmuteRemoteTalker(uint8 LocalUserNum, const FUniqueNe
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::UnmuteRemoteTalker] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::UnmuteRemoteTalker] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -385,7 +385,7 @@ TSharedPtr<FVoicePacket> FOnlineVoiceEOSPlus::SerializeRemotePacket(FArchive& Ar
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::SerializeRemotePacket] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::SerializeRemotePacket] Unable to call method in base interface. Base interface not valid"));
 	}
 	
 	return Result;
@@ -401,7 +401,7 @@ TSharedPtr<FVoicePacket> FOnlineVoiceEOSPlus::GetLocalPacket(uint32 LocalUserNum
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::GetLocalPacket] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::GetLocalPacket] Unable to call method in base interface. Base interface not valid"));
 	}
 	
 	return Result;
@@ -417,7 +417,7 @@ int32 FOnlineVoiceEOSPlus::GetNumLocalTalkers()
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::GetNumLocalTalkers] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::GetNumLocalTalkers] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return Result;
@@ -431,7 +431,7 @@ void FOnlineVoiceEOSPlus::ClearVoicePackets()
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::ClearVoicePackets] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::ClearVoicePackets] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -443,7 +443,7 @@ void FOnlineVoiceEOSPlus::Tick(float DeltaTime)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::Tick] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::Tick] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -457,7 +457,7 @@ FString FOnlineVoiceEOSPlus::GetVoiceDebugState() const
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineVoiceEOSPlus::GetVoiceDebugState] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineVoiceEOSPlus::GetVoiceDebugState] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return Result;

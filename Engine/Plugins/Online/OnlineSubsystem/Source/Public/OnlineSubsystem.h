@@ -74,6 +74,13 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("VoiceInt"), STAT_Voice_Interface, STATGROUP_Onli
 	UE_CLOG(Conditional, LogOnline, Verbosity, TEXT("%s%s"), ONLINE_LOG_PREFIX, *FString::Printf(Format, ##__VA_ARGS__)); \
 }
 
+#define UE_LOG_ONLINE_ONCE(Verbosity, Format, ...) \
+{ \
+	static bool bLogged = false; \
+	UE_CLOG_ONLINE(!bLogged, Verbosity, Format, ##__VA_ARGS__); \
+	bLogged = true; \
+}
+
 /** Forward declarations of all interface classes */
 typedef TSharedPtr<class IOnlineSession, ESPMode::ThreadSafe> IOnlineSessionPtr;
 typedef TSharedPtr<class IOnlineFriends, ESPMode::ThreadSafe> IOnlineFriendsPtr;

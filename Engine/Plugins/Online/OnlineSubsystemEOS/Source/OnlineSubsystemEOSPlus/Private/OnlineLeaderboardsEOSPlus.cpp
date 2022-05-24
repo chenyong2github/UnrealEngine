@@ -74,7 +74,7 @@ bool FOnlineLeaderboardsEOSPlus::ReadLeaderboards(const TArray< FUniqueNetIdRef 
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::ReadLeaderboards] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::ReadLeaderboards] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	EOSPlus->ExecuteNextTick([this]() {
@@ -94,7 +94,7 @@ bool FOnlineLeaderboardsEOSPlus::ReadLeaderboardsForFriends(int32 LocalUserNum, 
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::ReadLeaderboardsForFriends] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::ReadLeaderboardsForFriends] Unable to call method in base interface. Base interface not valid."));
 
 		EOSPlus->ExecuteNextTick([this]() {
 			TriggerOnLeaderboardReadCompleteDelegates(false);
@@ -114,7 +114,7 @@ bool FOnlineLeaderboardsEOSPlus::ReadLeaderboardsAroundRank(int32 Rank, uint32 R
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::ReadLeaderboardsAroundRank] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::ReadLeaderboardsAroundRank] Unable to call method in base interface. Base interface not valid."));
 
 		EOSPlus->ExecuteNextTick([this]() {
 			TriggerOnLeaderboardReadCompleteDelegates(false);
@@ -160,7 +160,7 @@ void FOnlineLeaderboardsEOSPlus::FreeStats(FOnlineLeaderboardRead& ReadObject)
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::FreeStats] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::FreeStats] Unable to call method in base interface. Base interface not valid."));
 	}
 }
 
@@ -200,7 +200,7 @@ bool FOnlineLeaderboardsEOSPlus::FlushLeaderboards(const FName& SessionName)
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::FlushLeaderboards] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::FlushLeaderboards] Unable to call method in base interface. Base interface not valid."));
 
 		EOSPlus->ExecuteNextTick([this, SessionName]() {
 			TriggerOnLeaderboardFlushCompleteDelegates(SessionName, false);
@@ -220,7 +220,7 @@ bool FOnlineLeaderboardsEOSPlus::WriteOnlinePlayerRatings(const FName& SessionNa
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::WriteOnlinePlayerRatings] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineLeaderboardsEOSPlus::WriteOnlinePlayerRatings] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;

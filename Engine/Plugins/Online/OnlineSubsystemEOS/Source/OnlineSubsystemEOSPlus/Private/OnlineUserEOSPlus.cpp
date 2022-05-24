@@ -322,7 +322,7 @@ bool FOnlineUserEOSPlus::QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueN
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::QueryUserInfo] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineUserEOSPlus::QueryUserInfo] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	EOSPlus->ExecuteNextTick([this, LocalUserNum, BaseUserIds]() {
@@ -349,7 +349,7 @@ bool FOnlineUserEOSPlus::GetAllUserInfo(int32 LocalUserNum, TArray<TSharedRef<FO
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetAllUserInfo] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineUserEOSPlus::GetAllUserInfo] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -451,7 +451,7 @@ void FOnlineUserEOSPlus::GetExternalIdMappings(const FExternalIdQueryOptions& Qu
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetExternalIdMappings] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineUserEOSPlus::GetExternalIdMappings] Unable to call method in base interface. Base interface not valid."));
 	}
 }
 
@@ -466,7 +466,7 @@ FUniqueNetIdPtr FOnlineUserEOSPlus::GetExternalIdMapping(const FExternalIdQueryO
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineUserEOSPlus::GetExternalIdMapping] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineUserEOSPlus::GetExternalIdMapping] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return Result;

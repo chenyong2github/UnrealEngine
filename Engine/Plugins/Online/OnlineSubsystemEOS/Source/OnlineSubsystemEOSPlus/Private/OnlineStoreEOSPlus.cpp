@@ -88,7 +88,7 @@ void FOnlineStoreEOSPlus::GetCategories(TArray<FOnlineStoreCategory>& OutCategor
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::GetCategories] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineStoreEOSPlus::GetCategories] Unable to call method in base interface. Base interface not valid."));
 	}
 }
 
@@ -156,7 +156,7 @@ void FOnlineStoreEOSPlus::GetOffers(TArray<FOnlineStoreOfferRef>& OutOffers) con
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::GetOffers] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineStoreEOSPlus::GetOffers] Unable to call method in base interface. Base interface not valid."));
 	}
 }
 
@@ -170,7 +170,7 @@ TSharedPtr<FOnlineStoreOffer> FOnlineStoreEOSPlus::GetOffer(const FUniqueOfferId
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::GetOffer] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineStoreEOSPlus::GetOffer] Unable to call method in base interface. Base interface not valid."));
 	}
 	
 	return Result;

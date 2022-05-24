@@ -51,7 +51,7 @@ bool FOnlineExternalUIEOSPlus::ShowLoginUI(const int ControllerIndex, bool bShow
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowLoginUI] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowLoginUI] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -67,7 +67,7 @@ bool FOnlineExternalUIEOSPlus::ShowAccountCreationUI(const int ControllerIndex, 
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowAccountCreationUI] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowAccountCreationUI] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -83,7 +83,7 @@ bool FOnlineExternalUIEOSPlus::ShowFriendsUI(int32 LocalUserNum)
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowFriendsUI] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowFriendsUI] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -99,7 +99,7 @@ bool FOnlineExternalUIEOSPlus::ShowInviteUI(int32 LocalUserNum, FName SessionNam
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowInviteUI] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowInviteUI] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -115,7 +115,7 @@ bool FOnlineExternalUIEOSPlus::ShowAchievementsUI(int32 LocalUserNum)
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowAchievementsUI] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowAchievementsUI] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -131,7 +131,7 @@ bool FOnlineExternalUIEOSPlus::ShowLeaderboardUI(const FString& LeaderboardName)
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowLeaderboardUI] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowLeaderboardUI] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -147,7 +147,7 @@ bool FOnlineExternalUIEOSPlus::ShowWebURL(const FString& Url, const FShowWebUrlP
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowWebURL] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowWebURL] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -163,7 +163,7 @@ bool FOnlineExternalUIEOSPlus::CloseWebURL()
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::CloseWebURL] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::CloseWebURL] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -234,7 +234,7 @@ bool FOnlineExternalUIEOSPlus::ShowStoreUI(int32 LocalUserNum, const FShowStoreP
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowStoreUI] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowStoreUI] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;
@@ -250,7 +250,7 @@ bool FOnlineExternalUIEOSPlus::ShowSendMessageUI(int32 LocalUserNum, const FShow
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowSendMessageUI] Unable to call method in base interface. Base interface not valid."));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineExternalUIEOSPlus::ShowSendMessageUI] Unable to call method in base interface. Base interface not valid."));
 	}
 
 	return bResult;

@@ -53,7 +53,7 @@ bool FOnlineTitleFileEOSPlus::GetFileContents(const FString& FileName, TArray<ui
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineTitleFileEOSPlus::GetFileContents] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineTitleFileEOSPlus::GetFileContents] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -69,7 +69,7 @@ bool FOnlineTitleFileEOSPlus::ClearFiles()
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineTitleFileEOSPlus::ClearFiles] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineTitleFileEOSPlus::ClearFiles] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -85,7 +85,7 @@ bool FOnlineTitleFileEOSPlus::ClearFile(const FString& FileName)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineTitleFileEOSPlus::ClearFile] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineTitleFileEOSPlus::ClearFile] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -99,7 +99,7 @@ void FOnlineTitleFileEOSPlus::DeleteCachedFiles(bool bSkipEnumerated)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineTitleFileEOSPlus::DeleteCachedFiles] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineTitleFileEOSPlus::DeleteCachedFiles] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -113,7 +113,7 @@ bool FOnlineTitleFileEOSPlus::EnumerateFiles(const FPagedQuery& Page)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineTitleFileEOSPlus::EnumerateFiles] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineTitleFileEOSPlus::EnumerateFiles] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
@@ -127,7 +127,7 @@ void FOnlineTitleFileEOSPlus::GetFileList(TArray<FCloudFileHeader>& Files)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineTitleFileEOSPlus::GetFileList] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineTitleFileEOSPlus::GetFileList] Unable to call method in base interface. Base interface not valid"));
 	}
 }
 
@@ -141,7 +141,7 @@ bool FOnlineTitleFileEOSPlus::ReadFile(const FString& FileName)
 	}
 	else
 	{
-		UE_LOG_ONLINE(VeryVerbose, TEXT("[FOnlineTitleFileEOSPlus::ReadFile] Unable to call method in base interface. Base interface not valid"));
+		UE_LOG_ONLINE_ONCE(Warning, TEXT("[FOnlineTitleFileEOSPlus::ReadFile] Unable to call method in base interface. Base interface not valid"));
 	}
 
 	return bResult;
