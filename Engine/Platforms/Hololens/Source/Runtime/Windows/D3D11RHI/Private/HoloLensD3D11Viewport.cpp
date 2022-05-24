@@ -240,3 +240,7 @@ void FD3D11Viewport::ResetSwapChainInternal(bool bIgnoreFocus)
 		}
 	}
 }
+
+void FD3D11DynamicRHI::RHIGetDisplaysInformation(FDisplayInformationArray& OutDisplayInformation)
+{
+}

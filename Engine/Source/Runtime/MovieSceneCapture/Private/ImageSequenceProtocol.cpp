@@ -16,6 +16,7 @@
 #include "MovieSceneCaptureModule.h"
 #include "MovieSceneCaptureSettings.h"
 #include "ImageWriteQueue.h"
+#include "Widgets/SWindow.h"
 #include "HDRHelper.h"
 
 struct FImageFrameData : IFramePayload

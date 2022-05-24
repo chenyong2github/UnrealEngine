@@ -14,7 +14,9 @@
 #include "BufferVisualizationData.h"
 #include "MovieSceneCaptureModule.h"
 #include "MovieSceneCaptureSettings.h"
+#include "Widgets/SWindow.h"
 #include "HDRHelper.h"
+
 
 struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 {
