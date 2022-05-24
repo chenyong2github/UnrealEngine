@@ -166,9 +166,9 @@ PyTypeObject InitializePyWrapperNameType()
 	};
 
 	static PyMethodDef PyMethods[] = {
-		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_CLASS, "X.cast(object) -> Name -- cast the given object to this Unreal name type" },
-		{ "is_valid", PyCFunctionCast(&FMethods::IsValid), METH_NOARGS, "x.is_valid() -> bool -- is this Unreal name valid?" },
-		{ "is_none", PyCFunctionCast(&FMethods::IsNone), METH_NOARGS, "x.is_none() -> bool -- is this Unreal name set to NAME_None?" },
+		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_CLASS, "cast(cls, object: object) -> Name -- cast the given object to this Unreal name type" },
+		{ "is_valid", PyCFunctionCast(&FMethods::IsValid), METH_NOARGS, "is_valid(self) -> bool -- is this Unreal name valid?" },
+		{ "is_none", PyCFunctionCast(&FMethods::IsNone), METH_NOARGS, "is_none(self) -> bool -- is this Unreal name set to NAME_None?" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
 

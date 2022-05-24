@@ -1490,20 +1490,21 @@ PyTypeObject InitializePyWrapperMapType()
 		}
 	};
 
+	// NOTE: _KeyType = typing.TypeVar('_KeyType'), _ValueType = typing.TypeVar('_ValueType'), Type/Iterable/Tuple/Union/List/ItemsView/KeysView/ValuesView are defines in the Python typing module.
 	static PyMethodDef PyMethods[] = {
-		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "X.cast(key, value, obj) -> Map -- cast the given object to this Unreal map type" },
-		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "x.__copy__() -> Map -- copy this Unreal map" },
-		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "x.copy() -> Map -- copy this Unreal map" },
-		{ "clear", PyCFunctionCast(&FMethods::Clear), METH_NOARGS, "x.clear() -> None -- remove all items from this Unreal map" },
-		{ "fromkeys", PyCFunctionCast(&FMethods::FromKeys), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "X.fromkeys(sequence, value=None) -> Map -- returns a new Unreal map of keys from the sequence using the given value (types are inferred)" },
-		{ "get", PyCFunctionCast(&FMethods::Get), METH_VARARGS | METH_KEYWORDS, "x.get(key, default=None) -> value -- x[key] if key in x, otherwise default" },
-		{ "setdefault", PyCFunctionCast(&FMethods::SetDefault), METH_VARARGS | METH_KEYWORDS, "x.setdefault(key, default=None) -> value -- set key to default if key not in x and return the new value of key" },
-		{ "pop", PyCFunctionCast(&FMethods::Pop), METH_VARARGS | METH_KEYWORDS, "x.pop(key, default=None) -> value -- remove key and return its value, or default if key not present, or raise KeyError if no default" },
-		{ "popitem", PyCFunctionCast(&FMethods::PopItem), METH_NOARGS, "x.popitem() -> pair -- remove and return an arbitrary pair from this Unreal map, or raise KeyError if the map is empty" },
-		{ "update", PyCFunctionCast(&FMethods::Update), METH_VARARGS | METH_KEYWORDS, "x.update(...) -> None -- update this Unreal map from the given mapping or sequence pairs type or key->value arguments" },
-		{ "items", PyCFunctionCast(&FMethods::Items), METH_NOARGS, "x.items() -> view -- a set-like view of the key->value pairs of this Unreal map" },
-		{ "keys", PyCFunctionCast(&FMethods::Keys), METH_NOARGS, "x.keys() -> view -- a set-like view of the keys of this Unreal map" },
-		{ "values", PyCFunctionCast(&FMethods::Values), METH_NOARGS, "x.values() -> view -- a view of the values of this Unreal map" },
+		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "cast(cls, key: Type[_KeyType], value: Type[_ValueType], obj: object) -> Map[_KeyType, _ValueType] -- cast the given object to this Unreal map type" },
+		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "__copy__(self) -> Map[_KeyType, _ValueType] -- copy this Unreal map" },
+		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "copy(self) -> Map[_KeyType, _ValueType] -- copy this Unreal map" },
+		{ "clear", PyCFunctionCast(&FMethods::Clear), METH_NOARGS, "clear(self) -> None -- remove all items from this Unreal map" },
+		{ "fromkeys", PyCFunctionCast(&FMethods::FromKeys), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "fromkeys(cls, sequence: Iterable[_KeyType], value: _ValueType) -> Map[_KeyType, _ValueType] -- returns a new Unreal map of keys from the sequence using the given value (types are inferred)" },
+		{ "get", PyCFunctionCast(&FMethods::Get), METH_VARARGS | METH_KEYWORDS, "get(self, key: _KeyType, default: _ValueType=...) -> _ValueType -- x[key] if key in x, otherwise default" },
+		{ "setdefault", PyCFunctionCast(&FMethods::SetDefault), METH_VARARGS | METH_KEYWORDS, "setdefault(self, key: _KeyType, default: _ValueType=...) -> _ValueType -- set key to default if key not in x and return the value of key" },
+		{ "pop", PyCFunctionCast(&FMethods::Pop), METH_VARARGS | METH_KEYWORDS, "pop(self, key: _KeyType, default: _ValueType=...) -> _ValueType -- remove key and return its value, or default if key not present, or raise KeyError if no default" },
+		{ "popitem", PyCFunctionCast(&FMethods::PopItem), METH_NOARGS, "popitem(self) -> Tuple[_KeyType, _ValueType] -- remove and return an arbitrary pair from this Unreal map, or raise KeyError if the map is empty" },
+		{ "update", PyCFunctionCast(&FMethods::Update), METH_VARARGS | METH_KEYWORDS, "update(self, pairs: Union[Mapping[_KeyType, _ValueType], Iterable[Tuple[_KeyType, _ValueType]], Iterable[List[Union[_KeyType, _ValueType]]]]) -> None -- update this Unreal map from the given mapping or sequence pairs type or key->value arguments" },
+		{ "items", PyCFunctionCast(&FMethods::Items), METH_NOARGS, "items(self) -> ItemsView[_KeyType, _ValueType] -- a set-like view of the key->value pairs of this Unreal map" },
+		{ "keys", PyCFunctionCast(&FMethods::Keys), METH_NOARGS, "keys(self) -> KeysView[_KeyType] -- a set-like view of the keys of this Unreal map" },
+		{ "values", PyCFunctionCast(&FMethods::Values), METH_NOARGS, "values(self) -> ValuesView[_ValueType] -- a view of the values of this Unreal map" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
 

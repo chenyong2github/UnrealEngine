@@ -16,6 +16,8 @@
 #include "PyConversion.h"
 #include "PyGIL.h"
 #include "PyCore.h"
+#include "PyEditor.h"
+#include "PyEngine.h"
 #include "PyFileWriter.h"
 #include "PythonScriptPluginSettings.h"
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -38,9 +40,7 @@
 
 #if WITH_PYTHON
 
-namespace UE
-{
-namespace Python
+namespace UE::Python
 {
 
 /**
@@ -117,8 +117,287 @@ void SetBreakFunction(FPyWrapperStructMetaData& MetaData, UFunction* BreakFunc)
 };
 
 
-} // namespace Python
-} // namespace UE
+static bool GGeneratingOnlineDoc = false;
+
+void SetGeneratingOnlineDoc(bool bGeneratingOnlineDoc)
+{
+	GGeneratingOnlineDoc = bGeneratingOnlineDoc;
+}
+
+bool IsGeneratingOnlineDoc()
+{
+	return GGeneratingOnlineDoc;
+}
+
+bool ShouldEllipseParamDefaultValue(const FString& DefaultValue)
+{
+	// Some default values might not parse because they use undeclared types.
+	const bool bEnsureDefaultValueParses = (PyGenUtil::GetTypeHintingMode() == ETypeHintingMode::TypeChecker || IsGeneratingOnlineDoc());
+
+	if (bEnsureDefaultValueParses)
+	{
+		// Don't ellipse the default value if it is a simple Python expression. We want to the default value with "..." when the
+		// expression might refer to types that aren't declared yet. We can use undeclared type for type hint, but not for default
+		// value. The stub types are not written in a strict order so one type can refer another that was written later. For sake
+		// of simplicity, just keep simple default values, ellipse all others to the user detriment. :(
+		return	!(DefaultValue.IsNumeric() ||      // int or float
+					DefaultValue == TEXT("True") ||  // bool
+					DefaultValue == TEXT("False") || // bool
+					DefaultValue == TEXT("[]") ||    // list
+					DefaultValue == TEXT("{}") ||    // dict
+					DefaultValue == TEXT("()") ||    // tuple.
+					(DefaultValue.StartsWith("'") && DefaultValue.EndsWith("'")) || // string
+					(DefaultValue.StartsWith("\"") && DefaultValue.EndsWith("\""))); // string
+	}
+	return false;
+};
+
+/**
+ * Parses a Python doc string to find a method declaration that starts with the method name and ends with "--". For example
+ * if a given doc string is "xyz.log(arg: Any) -> None -- log the given argument as information in the LogPython category"
+ * the method "log(arg: Any) -> None" will be returned as the declaration if the searched method was "log".
+ */
+bool ParseMethodDeclarationFromDocString(const FString& InDocString, const FString& InMethodName, FString& OutMethodDecl)
+{
+	int32 BeginFuncDeclPos = InDocString.Find(InMethodName, ESearchCase::CaseSensitive, ESearchDir::FromStart, 0);
+	if (BeginFuncDeclPos == INDEX_NONE)
+	{
+		return false;
+	}
+
+	int32 EndFuncDeclPos = InDocString.Find(TEXT("--"), ESearchCase::CaseSensitive, ESearchDir::FromStart, BeginFuncDeclPos);
+	if (EndFuncDeclPos == INDEX_NONE)
+	{
+		return false;
+	}
+
+	OutMethodDecl = InDocString.Mid(BeginFuncDeclPos, EndFuncDeclPos - BeginFuncDeclPos);
+	return true;
+}
+
+/**
+ * Reads the human written doc string of a non-reflected function and try to extract a well-formed methods declaration containing
+ * type hinting. The function aims to generate type hints for the raw C/C++ functions that are not reflected but still exposed. If
+ * the function fails to find a well-formed and type hinted declaration in the doc string, it returns the generic signature
+ * 'def funcName(*args, **kargs):' that doesn't hint for types, but will still allow a form of auto-completion in Python text editors.
+ * Since raw C/C++ function doc strings are handwritten, they need extra caution to avoid errors. The function cannot check the
+ * types being handwritten, so the burden is put on the function provider to keep the declaration accurate.
+ * 
+ * To be successfully parsed, the type hinted declaration from the doc string must be well formed. See format below in the implementation.
+ * Any malformed declaration will be rejected and the function will fallback on the genric form.
+ */
+FString GenerateMethodDecl(const PyMethodDef* MethodDef, const FString& ModuleOrClass, bool bIsClassMethod = false, bool bIsMemberMethod = false)
+{
+	// Parse the Python method declared in the doc string check if it is a valid type hinted declaration and possibly fix it to make it well-formed.
+	auto TryParsingDocStringMethodDecl = [bIsClassMethod, bIsMemberMethod](const FStringView& InMethodDecl, const FStringView& InMethodName, FString& OutMethodDeclWithHints)
+	{
+		int32 OpenParenthesisPos = InMethodDecl.Find(TEXT("("));
+		if (OpenParenthesisPos == INDEX_NONE)
+		{
+			return false;
+		}
+
+		int32 CloseParenthesisPos = INDEX_NONE;
+		if (!InMethodDecl.FindLastChar(TEXT(')'), CloseParenthesisPos))
+		{
+			return false;
+		}
+
+		FStringView ReturnTypeDelimiter(TEXT("->"));
+		int32 ReturnTypeDelimiterPos = InMethodDecl.Find(ReturnTypeDelimiter, CloseParenthesisPos);
+		if (ReturnTypeDelimiterPos == INDEX_NONE)
+		{
+			return false;
+		}
+
+		// Check if the return type is hinted.
+		int32 BeginReturnTypePos = ReturnTypeDelimiterPos + ReturnTypeDelimiter.Len(); // After the ->
+		FStringView ReturnType = InMethodDecl.SubStr(BeginReturnTypePos, InMethodDecl.Len() - BeginReturnTypePos).TrimStartAndEnd();
+		if (ReturnType.Len() <= 0)
+		{
+			return false;
+		}
+
+		int32 ParamCount = 0;
+		FString Params;
+
+		bool bClsOrSelfParamFound = false;
+
+		// Check if the parameters are correcly hinted.
+		int32 ParamsLen = CloseParenthesisPos - OpenParenthesisPos;
+		if (ParamsLen > 1)
+		{
+			FStringView AllParamsString = InMethodDecl.SubStr(OpenParenthesisPos + 1, ParamsLen - 1); // +1 and -1 to exclude the parenthesis.
+
+			bool bLastParamReached = false;
+			int32 StartParamPos = 0;
+			do
+			{
+				// Find the end of a parameter declaration, caring for commas that aren't parameter separator, but part of the type hint, like in
+				// Callable[[int, int], str] or Union[int, str, float]. We need to skip the content of [] to find the end of a parameter declaration.
+				int BracketCount = 0;
+				int CurrPos = StartParamPos;
+				int EndParamPos = INDEX_NONE;
+				for (TCHAR Ch : AllParamsString.SubStr(StartParamPos, AllParamsString.Len() - StartParamPos))
+				{
+					if (Ch == TEXT('['))
+					{
+						++BracketCount;
+					}
+					else if (Ch == TEXT(']'))
+					{
+						--BracketCount;
+					}
+					else if (Ch == TEXT(','))
+					{
+						if (BracketCount == 0) // Outside [], the comma separates parameters.
+						{
+							EndParamPos = CurrPos;
+							break;
+						}
+					}
+					++CurrPos;
+				}
+
+				// Check if the parameters declaration is correctly formed.
+				FStringView ParamDecl;
+
+				if (EndParamPos != INDEX_NONE)
+				{
+					ParamDecl = AllParamsString.SubStr(StartParamPos, EndParamPos - StartParamPos);
+				}
+				else
+				{
+					ParamDecl = AllParamsString.SubStr(StartParamPos, AllParamsString.Len() - StartParamPos);
+					bLastParamReached = true;
+				}
+
+				// Search for parameter type hint separator.
+				const int32 NameTypeSeparatorPos = ParamDecl.Find(TEXT(":"));
+
+				// Those special doesn't require type hint, but they can if needed.
+				bool bIsSelf = ParamDecl.StartsWith(TEXT("self"));
+				bool bIsCls = ParamDecl.StartsWith(TEXT("cls"));
+				bool bParamTypeHinted = NameTypeSeparatorPos != INDEX_NONE;
+				bClsOrSelfParamFound |= bIsSelf || bIsCls;
+
+				if (!bParamTypeHinted && !bIsSelf && !bIsCls)
+				{
+					return false; // Invalid declaration: the param is not type hinted.
+				}
+
+				FStringView ParamName;
+				FStringView ParamTypeAndOptDefaultValue;
+				if (bParamTypeHinted)
+				{
+					ParamName = ParamDecl.SubStr(0, NameTypeSeparatorPos).TrimStartAndEnd();
+					ParamTypeAndOptDefaultValue = ParamDecl.SubStr(NameTypeSeparatorPos + 1, ParamDecl.Len() - NameTypeSeparatorPos).TrimStartAndEnd();
+
+					if (ParamName.Len() == 0 || ParamTypeAndOptDefaultValue.Len() == 0)
+					{
+						return false;
+					}
+				}
+				else // Only 'self' or 'cls' case should remain.
+				{
+					ParamName = ParamDecl.TrimStartAndEnd();
+					if (ParamName != TEXT("self") && ParamName != TEXT("cls"))
+					{
+						return false;
+					}
+				}
+
+				// Check if the paramType declaration also embeds a default value.
+				const int32 DefaultValueSeparatorPos = ParamTypeAndOptDefaultValue.Find(TEXT("="));
+				if (DefaultValueSeparatorPos == INDEX_NONE)
+				{
+					Params += PyGenUtil::PythonizeMethodParam(FString(ParamName), FString(ParamTypeAndOptDefaultValue)); // No default value found.
+				}
+				else
+				{
+					FString ParamType(ParamTypeAndOptDefaultValue.SubStr(0, DefaultValueSeparatorPos).TrimStartAndEnd());
+					FString ParamDefaultValue(ParamTypeAndOptDefaultValue.SubStr(DefaultValueSeparatorPos + 1, ParamTypeAndOptDefaultValue.Len() - DefaultValueSeparatorPos).TrimStartAndEnd());
+					if (ShouldEllipseParamDefaultValue(ParamDefaultValue))
+					{
+						ParamDefaultValue = TEXT("...");
+					}
+					Params += PyGenUtil::PythonizeMethodParam(FString(ParamName), FString(ParamType), FString(ParamDefaultValue));
+				}
+
+				if (!bLastParamReached)
+				{
+					Params += TEXT(", ");
+				}
+
+				StartParamPos = EndParamPos + 1; // +1 to start after the comma.
+				++ParamCount;
+			}
+			while (!bLastParamReached);
+		}
+
+		OutMethodDeclWithHints = TEXT("def ");
+		OutMethodDeclWithHints += InMethodName;
+		OutMethodDeclWithHints += TEXT("(");
+
+		if (bIsClassMethod && !bClsOrSelfParamFound)
+		{
+			OutMethodDeclWithHints += FString::Printf(TEXT("cls%s"), ParamCount > 0 ? TEXT(", ") : TEXT(""));
+		}
+		else if (bIsMemberMethod && !bClsOrSelfParamFound)
+		{
+			OutMethodDeclWithHints += FString::Printf(TEXT("self%s"), ParamCount > 0 ? TEXT(", ") : TEXT(""));
+		}
+
+		// All parameters type hint format was properly formed. Add them to the declaration.
+		OutMethodDeclWithHints += Params;
+
+		OutMethodDeclWithHints += TEXT(")");
+		OutMethodDeclWithHints += TEXT(" -> ");
+		OutMethodDeclWithHints += ReturnType;
+		OutMethodDeclWithHints += TEXT(":");
+
+		// The DocString contains a function declaration with properly formed with type hints. It is assumed to be a 'correct' declaration, but
+		// that doc string is handwritten, so human errors are possible and types might be incorrect.
+		return true;
+	};
+
+	FString DocString = UTF8_TO_TCHAR(MethodDef->ml_doc);
+	FString MethodName = UTF8_TO_TCHAR(MethodDef->ml_name);
+	FString MethodDecl;
+
+	if (PyGenUtil::IsTypeHintingEnabled())
+	{
+		// Try extracting type hinting from the doc string. If the Doc string appears to be well-formed, it is likely because the writer
+		// took time to type-hint it correctly.
+		if (ParseMethodDeclarationFromDocString(DocString, MethodName, MethodDecl))
+		{
+			FString WellFormedMethodDeclWithHints;
+			if (TryParsingDocStringMethodDecl(MethodDecl, MethodName, WellFormedMethodDeclWithHints))
+			{
+				return WellFormedMethodDeclWithHints;
+			}
+		}
+	}
+
+	// Failed to extract a well-formed type hinted method declaration from the doc string. Fallback to the generic and safe declaration.
+	const bool bHasKeywords = !!(MethodDef->ml_flags & METH_KEYWORDS);
+	if (bIsClassMethod)
+	{
+		MethodDecl = FString::Printf(TEXT("def %s(cls, *args%s):"), *MethodName, bHasKeywords ? TEXT(", **kwargs") : TEXT(""));
+	}
+	else if (bIsMemberMethod)
+	{
+		MethodDecl = FString::Printf(TEXT("def %s(self, *args%s):"), *MethodName, bHasKeywords ? TEXT(", **kwargs") : TEXT(""));
+	}
+	else
+	{
+		MethodDecl = FString::Printf(TEXT("def %s(*args%s):"), *MethodName, bHasKeywords ? TEXT(", **kwargs") : TEXT(""));
+	}
+
+	return MethodDecl;
+}
+
+} // namespace UE::Python
 
 
 
@@ -1217,7 +1496,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 		{
 			if (HostClass->IsChildOf(InFunc->GetOwnerClass()))
 			{
-				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptConstantHost' but the host type (%s) is a child of the the class type of the static function. This is not allowed."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName(), *HostClass->GetName());
+				REPORT_PYTHON_GENERATION_ISSUE(Error, TEXT("Function '%s.%s' is marked as 'ScriptConstantHost' but the host type (%s) is a child of the class type of the static function. This is not allowed."), *InFunc->GetOwnerClass()->GetName(), *InFunc->GetName(), *HostClass->GetName());
 				return;
 			}
 		}
@@ -2307,6 +2586,12 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 	FPyScopedGIL GIL;
 	FPyFileWriter PythonScript;
 
+	if (PyGenUtil::IsTypeHintingEnabled())
+	{
+		// Must be at the top of the file. This allows type hinting using types not yet declared. Like Object, Text, Name, etc.
+		PythonScript.WriteLine(TEXT("from __future__ import annotations")); // https://docs.python.org/3.7/whatsnew/3.7.html#pep-563-postponed-evaluation-of-annotations)
+	}
+
 	TUniquePtr<FPyOnlineDocsWriter> OnlineDocsWriter;
 	TSharedPtr<FPyOnlineDocsModule> OnlineDocsUnrealModule;
 	TSharedPtr<FPyOnlineDocsSection> OnlineDocsNativeTypesSection;
@@ -2324,6 +2609,8 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 		OnlineDocsClassTypesSection = OnlineDocsWriter->CreateSection(TEXT("Class Types"));
 		OnlineDocsEnumTypesSection = OnlineDocsWriter->CreateSection(TEXT("Enum Types"));
 		OnlineDocsDelegateTypesSection = OnlineDocsWriter->CreateSection(TEXT("Delegate Types"));
+
+		UE::Python::SetGeneratingOnlineDoc(true);
 	}
 
 	// Process additional Python files
@@ -2340,7 +2627,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 		{
 			const FString PythonBaseModuleName = PyGenUtil::GetModulePythonName(ModuleName, false);
 			const FString PythonModuleName = FString::Printf(TEXT("unreal_%s"), *PythonBaseModuleName);
-		
+
 			FString ModuleFilename;
 			if (PyUtil::IsModuleAvailableForImport(*PythonModuleName, &PyUtil::GetOnDiskUnrealModulesCache(), &ModuleFilename))
 			{
@@ -2413,6 +2700,16 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 		{
 			PythonScript.WriteNewLine();
 		}
+
+		if (PyGenUtil::IsTypeHintingEnabled())
+		{
+			PythonScript.WriteLine(TEXT("from typing import Any, Callable, Dict, ItemsView, Iterable, Iterator, KeysView, List, Mapping, MutableMapping, MutableSequence, MutableSet, Optional, Set, Tuple, Type, TypeVar, Union, ValuesView"));
+			PythonScript.WriteLine(TEXT("_T = TypeVar('_T')"));                 // For casting operations.
+			PythonScript.WriteLine(TEXT("_ElemType = TypeVar('_ElemType')"));   // For Array, FixedArray, Set classes along with casting operations.
+			PythonScript.WriteLine(TEXT("_KeyType = TypeVar('_KeyType')"));     // For Mapping[KV, KT] used by Map class.
+			PythonScript.WriteLine(TEXT("_ValueType = TypeVar('_ValueType')")); // For Mapping[KV, KT] used by Map class.
+			PythonScript.WriteNewLine();
+		}
 	}
 
 	// Process native glue code
@@ -2424,11 +2721,12 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 	{
 		for (PyMethodDef* MethodDef = NativePythonModule.PyModuleMethods; MethodDef && MethodDef->ml_name; ++MethodDef)
 		{
-			const bool bHasKeywords = !!(MethodDef->ml_flags & METH_KEYWORDS);
-			PythonScript.WriteLine(FString::Printf(TEXT("def %s(*args%s):"), UTF8_TO_TCHAR(MethodDef->ml_name), bHasKeywords ? TEXT(", **kwargs") : TEXT("")));
+			// Try parsing the doc string to extract the function declaration with type hinting.
+			FString MethodDecl = UE::Python::GenerateMethodDecl(MethodDef, TEXT("unreal"));
+			PythonScript.WriteLine(MethodDecl);
 			PythonScript.IncreaseIndent();
 			PythonScript.WriteDocString(UTF8_TO_TCHAR(MethodDef->ml_doc));
-			PythonScript.WriteLine(TEXT("pass"));
+			PythonScript.WriteLine(TEXT("...")); // pass
 			PythonScript.DecreaseIndent();
 			PythonScript.WriteNewLine();
 
@@ -2553,7 +2851,59 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedTypes(const EPyOnlineDocs
 void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType, const PyGenUtil::FGeneratedWrappedType* GeneratedTypeData, FPyFileWriter& OutPythonScript, FPyOnlineDocsSection* OutOnlineDocsSection)
 {
 	const FString PyTypeName = UTF8_TO_TCHAR(PyType->tp_name);
-	OutPythonScript.WriteLine(FString::Printf(TEXT("class %s(%s):"), *PyTypeName, UTF8_TO_TCHAR(PyType->tp_base->tp_name)));
+
+	// If type hinting is configured for IDE auto-completion:
+	//     - Be nice to the user, don't bother him with type coercion (typing.Union) or None type validation (typing.Optional), show the raw Unreal types.
+	//     - Be nice to the user, don't ellipse non-parsing default values.
+	// 
+	// If type hinting is configure for type checking:
+	//    - Support known type coercions for method parameters (typing.Union[])
+	//    - Tag Object-like object as potentially 'None' using typing.Optional[]. We cannot know when an Object-like an input parameter or return value can be None,
+	//      so opt for the safe side and mark them all as Optional. That's might mislead users into thinking that some parameter/values can be None while in reality, they can't.
+	//    - Don't coerce returned type. Our API which largely reflect C++ returns one defined type, not something like Union[Name, str]
+	//    - Returned unreal.Array/unreal.Set/unreal.Map are a bit annoying to hint. For example, Array[Name] is hinted to accepts Name
+	//      param for example 'array.append("a name")' will fail type checker even though this works. User will have to do 'a.append(Name("my name"))'
+	//    - If an API returns an unreal.Array[T]/unreal.Set[T]/unreal.Map[T] and T is a type that can None such as an unreal.Array[unreal.Object],
+	//      then the return type will be Array[Optional[Object]] to allow having None type in there, which is also a bit annoying to work with.
+	//
+	// If type hinting is off:
+	//    - Use strict typing for return values to aid auto-complete (we also only care about the type and
+	//      not the value, so structs can be default constructed)
+	//
+	// Always default construct date as default value to avoid setting the generated date as the default value.
+
+	const PyGenUtil::EPythonizeFlags PythonizeMethodParamFlags = PyGenUtil::IsTypeHintingEnabled()
+		? (PyGenUtil::GetTypeHintingMode() == ETypeHintingMode::AutoCompletion
+			? PyGenUtil::EPythonizeFlags::DefaultConstructDateTime | PyGenUtil::EPythonizeFlags::WithTypeHinting // For IDE auto-completion.
+			: PyGenUtil::EPythonizeFlags::DefaultConstructDateTime | PyGenUtil::EPythonizeFlags::WithTypeHinting | PyGenUtil::EPythonizeFlags::WithTypeCoercion | PyGenUtil::EPythonizeFlags::WithOptionalType) // For type checker.
+		: PyGenUtil::EPythonizeFlags::DefaultConstructDateTime; // hinting is off.
+
+	const PyGenUtil::EPythonizeFlags PythonizeMethodReturnTypeFlags = PyGenUtil::IsTypeHintingEnabled()
+		? (PyGenUtil::GetTypeHintingMode() == ETypeHintingMode::AutoCompletion
+			? PyGenUtil::EPythonizeFlags::WithTypeHinting  // For IDE auto-completion.
+			: PyGenUtil::EPythonizeFlags::WithTypeHinting | PyGenUtil::EPythonizeFlags::WithOptionalType) // For type checker.
+		: PyGenUtil::EPythonizeFlags::DefaultConstructStructs | PyGenUtil::EPythonizeFlags::DefaultConstructDateTime | PyGenUtil::EPythonizeFlags::UseStrictTyping; // hinting is off.
+
+	if (PyGenUtil::IsTypeHintingEnabled() &&  (PyTypeName == TEXT("Array") || PyTypeName == TEXT("FixedArray")))
+	{
+		// Implies that _ElemType = TypeVar('_ElemType') is already written to the file.
+		OutPythonScript.WriteLine(FString::Printf(TEXT("class %s(%s, MutableSequence[_ElemType]):"), *PyTypeName, UTF8_TO_TCHAR(PyType->tp_base->tp_name)));
+	}
+	else if (PyGenUtil::IsTypeHintingEnabled() && PyTypeName == TEXT("Set"))
+	{
+		// Implies that _ElemType = TypeVar('_ElemType') is already written to the file.
+		OutPythonScript.WriteLine(FString::Printf(TEXT("class %s(%s, MutableSet[_ElemType]):"), *PyTypeName, UTF8_TO_TCHAR(PyType->tp_base->tp_name)));
+	}
+	else if (PyGenUtil::IsTypeHintingEnabled() && PyTypeName == TEXT("Map"))
+	{
+		// Implies that: _KeyType = TypeVar('_KeyType') and _ValueType = TypeVar('_ValueType') are already written to the file.
+		OutPythonScript.WriteLine(FString::Printf(TEXT("class %s(%s, MutableMapping[_KeyType, _ValueType]):"), *PyTypeName, UTF8_TO_TCHAR(PyType->tp_base->tp_name)));
+	}
+	else
+	{
+		OutPythonScript.WriteLine(FString::Printf(TEXT("class %s(%s):"), *PyTypeName, UTF8_TO_TCHAR(PyType->tp_base->tp_name)));
+	}
+
 	OutPythonScript.IncreaseIndent();
 	OutPythonScript.WriteDocString(UTF8_TO_TCHAR(PyType->tp_doc));
 
@@ -2570,7 +2920,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 		}
 		
 		// We use strict typing for return values to aid auto-complete (we also only care about the type and not the value, so structs can be default constructed)
-		static const uint32 PythonizeValueFlags = PyGenUtil::EPythonizeValueFlags::UseStrictTyping | PyGenUtil::EPythonizeValueFlags::DefaultConstructStructs;
+		static const PyGenUtil::EPythonizeFlags PythonizeValueFlags = PyGenUtil::EPythonizeFlags::UseStrictTyping | PyGenUtil::EPythonizeFlags::DefaultConstructStructs;
 
 		// If we have multiple return values and the main return value is a bool, skip it (to mimic PyGenUtils::PackReturnValues)
 		int32 ReturnPropIndex = 0;
@@ -2586,7 +2936,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 			const PyGenUtil::FGeneratedWrappedMethodParameter& ReturnParam = InOutputParams[ReturnPropIndex];
 			return PyGenUtil::PythonizeValue(ReturnParam.ParamProp, ReturnParam.ParamProp->ContainerPtrToValuePtr<void>(InBaseParamsAddr), PythonizeValueFlags);
 		}
-		else
+		else // Returns a tuple
 		{
 			FString FunctionReturnStr = TEXT("(");
 			for (int32 PackedPropIndex = 0; ReturnPropIndex < InOutputParams.Num(); ++ReturnPropIndex, ++PackedPropIndex)
@@ -2603,71 +2953,81 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 		}
 	};
 
-	auto ExportConstantValue = [&OutPythonScript, &PyTypeName](const TCHAR* InConstantName, const TCHAR* InConstantDocString, const FString& InConstantValue)
+	auto ExportConstant = [&OutPythonScript, &PyTypeName](const TCHAR* InConstantName, const FString& InConstantType, const FString& InConstantValue, const TCHAR* InConstantDocString)
 	{
 		FString ConstantValue(InConstantValue);
 
 		// Ensure that constant type is not same type as host type
 		if (ConstantValue.StartsWith(PyTypeName, ESearchCase::CaseSensitive) && (ConstantValue[PyTypeName.Len()] == TEXT('(')))
 		{
-			ConstantValue = TEXT("None");
+			ConstantValue = PyGenUtil::IsTypeHintingEnabled() ? TEXT("") : TEXT("None");
 		}
 
 		if (*InConstantDocString == 0)
 		{
 			// No docstring
-			OutPythonScript.WriteLine(FString::Printf(TEXT("%s = %s"), InConstantName, *ConstantValue));
+			ConstantValue.IsEmpty()
+				? OutPythonScript.WriteLine(FString::Printf(TEXT("%s%s"), InConstantName, InConstantType.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(": %s"), *InConstantType)))
+				: OutPythonScript.WriteLine(FString::Printf(TEXT("%s%s = %s"), InConstantName, InConstantType.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(": %s"), *InConstantType), *ConstantValue));
+			
 		}
 		else
 		{
 			if (FCString::Strchr(InConstantDocString, TEXT('\n')))
 			{
 				// Multi-line docstring
-				OutPythonScript.WriteLine(FString::Printf(TEXT("%s = %s"), InConstantName, *ConstantValue));
+				ConstantValue.IsEmpty()
+					? OutPythonScript.WriteLine(FString::Printf(TEXT("%s%s"), InConstantName, InConstantType.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(": %s"), *InConstantType)))
+					: OutPythonScript.WriteLine(FString::Printf(TEXT("%s%s = %s"), InConstantName, InConstantType.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(": %s"), *InConstantType), *ConstantValue));
+
 				OutPythonScript.WriteDocString(InConstantDocString);
 				OutPythonScript.WriteNewLine();
 			}
 			else
 			{
 				// Single-line docstring
-				OutPythonScript.WriteLine(FString::Printf(TEXT("%s = %s  #: %s"), InConstantName, *ConstantValue, InConstantDocString));
+				ConstantValue.IsEmpty()
+					? OutPythonScript.WriteLine(FString::Printf(TEXT("%s%s #: %s"), InConstantName, InConstantType.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(": %s"), *InConstantType), InConstantDocString))
+					: OutPythonScript.WriteLine(FString::Printf(TEXT("%s%s = %s #: %s"), InConstantName, InConstantType.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(": %s"), *InConstantType), *ConstantValue, InConstantDocString));
 			}
 		}
 	};
 
-	auto ExportGetSet = [&OutPythonScript](const TCHAR* InGetSetName, const TCHAR* InGetSetDocString, const TCHAR* InGetReturnValue, const bool InReadOnly)
+	auto ExportGetSet = [&OutPythonScript](const TCHAR* InGetSetMethodName, const TCHAR* InGetSetDocString, const TCHAR* InGetterReturnValue, const TCHAR* InGetterReturnType, const TCHAR* InSetterParam, const bool InReadOnly)
 	{
 		// Getter
 		OutPythonScript.WriteLine(TEXT("@property"));
-		OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self):"), InGetSetName));
+		OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self)%s%s:"), InGetSetMethodName, *InGetterReturnType != 0 ? TEXT(" -> ") : TEXT(""), InGetterReturnType));
 		OutPythonScript.IncreaseIndent();
 		OutPythonScript.WriteDocString(InGetSetDocString);
-		OutPythonScript.WriteLine(FString::Printf(TEXT("return %s"), InGetReturnValue));
+		PyGenUtil::IsTypeHintingEnabled()
+			? OutPythonScript.WriteLine(TEXT("...")) // No need to add a return value to help auto-complete/type checker when the type is hinted in the signature.
+			: OutPythonScript.WriteLine(FString::Printf(TEXT("return %s"), InGetterReturnValue));
 		OutPythonScript.DecreaseIndent();
 
 		if (!InReadOnly)
 		{
 			// Setter
-			OutPythonScript.WriteLine(FString::Printf(TEXT("@%s.setter"), InGetSetName));
-			OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self, value):"), InGetSetName));
+			OutPythonScript.WriteLine(FString::Printf(TEXT("@%s.setter"), InGetSetMethodName));
+			PyGenUtil::IsTypeHintingEnabled()
+				? OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self, %s) -> None:"), InGetSetMethodName, *InSetterParam != 0 ? InSetterParam : TEXT("value")))
+				: OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self, value):"), InGetSetMethodName));
 			OutPythonScript.IncreaseIndent();
-			OutPythonScript.WriteLine(TEXT("pass"));
+			OutPythonScript.WriteLine(TEXT("...")); // pass
 			OutPythonScript.DecreaseIndent();
 		}
 	};
 
-	auto ExportGeneratedMethod = [&OutPythonScript, &GetFunctionReturnValue](const PyGenUtil::FGeneratedWrappedMethod& InTypeMethod)
+	auto ExportGeneratedMethod = [PythonizeMethodParamFlags, PythonizeMethodReturnTypeFlags, &OutPythonScript, &GetFunctionReturnValue](const PyGenUtil::FGeneratedWrappedMethod& InTypeMethod)
 	{
 		FString MethodArgsStr;
 		FString FirstDefaultedParamName;
 		for (const PyGenUtil::FGeneratedWrappedMethodParameter& MethodParam : InTypeMethod.MethodFunc.InputParams)
 		{
 			MethodArgsStr += TEXT(", ");
-			MethodArgsStr += UTF8_TO_TCHAR(MethodParam.ParamName.GetData());
 			if (MethodParam.ParamDefaultValue.IsSet())
 			{
-				MethodArgsStr += TEXT("=");
-				MethodArgsStr += PyGenUtil::PythonizeDefaultValue(MethodParam.ParamProp, MethodParam.ParamDefaultValue.GetValue());
+				MethodArgsStr += PyGenUtil::PythonizeMethodParam(MethodParam, PythonizeMethodParamFlags, UE::Python::ShouldEllipseParamDefaultValue);
 				if (FirstDefaultedParamName.IsEmpty())
 				{
 					FirstDefaultedParamName = MethodParam.ParamProp->GetName();
@@ -2678,7 +3038,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 				// Some UFUNCTION has their default values declared as 'meta' invisible to C++ compiler, but Python generated glue will use that. Sometime, the next parameter(s) are
 				// not defaulted. This creates invalid Python declarations. In stub, this is legal to use "..." to indicate a default param value without specifying the exact value.
 				// That's a workaround for faulty method declarations and the C++ code should be fixed.
-				MethodArgsStr += TEXT("=...");
+				MethodArgsStr += PyGenUtil::PythonizeMethodParam(MethodParam, PythonizeMethodParamFlags | PyGenUtil::EPythonizeFlags::AddMissingDefaultValueEllipseWorkaround);
 
 				// Left as 'Verbose' until we fix known cases. Once fixed, we should turn this into a 'Warning'.
 				REPORT_PYTHON_GENERATION_ISSUE(Verbose, TEXT("The function '%s' is missing default values for param '%s'. All params after the first defaulted param '%s' (likely from meta data) should be defaulted. The Python stub defaulted missing default values."), 
@@ -2686,39 +3046,56 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 					MethodParam.ParamProp != nullptr ? *MethodParam.ParamProp->GetName() : TEXT("Unknown"),
 					*FirstDefaultedParamName);
 			}
+			else
+			{
+				MethodArgsStr += PyGenUtil::PythonizeMethodParam(MethodParam, PythonizeMethodParamFlags, UE::Python::ShouldEllipseParamDefaultValue);
+			}
 		}
 
-		FString MethodReturnStr;
+		// Either the type or the value, depending if type hinting is on/off.
+		FString MethodReturnValueStr;
+		FString MethodReturnType;
 		if (InTypeMethod.MethodFunc.Func)
 		{
-			FStructOnScope FuncParams(InTypeMethod.MethodFunc.Func);
-			MethodReturnStr = GetFunctionReturnValue(FuncParams.GetStructMemory(), InTypeMethod.MethodFunc.OutputParams);
+			if (PyGenUtil::IsTypeHintingEnabled())
+			{
+				MethodReturnType = PyGenUtil::PythonizeMethodReturnType(InTypeMethod.MethodFunc.OutputParams, PythonizeMethodReturnTypeFlags);
+			}
+			else
+			{
+				FStructOnScope FuncParams(InTypeMethod.MethodFunc.Func);
+				MethodReturnValueStr = GetFunctionReturnValue(FuncParams.GetStructMemory(), InTypeMethod.MethodFunc.OutputParams);
+			}
 		}
 		else
 		{
-			MethodReturnStr = TEXT("None");
+			MethodReturnType = TEXT("None");
+			MethodReturnValueStr = TEXT("None");
 		}
 
 		const bool bIsClassMethod = !!(InTypeMethod.MethodFlags & METH_CLASS);
 		if (bIsClassMethod)
 		{
 			OutPythonScript.WriteLine(TEXT("@classmethod"));
-			OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(cls%s):"), UTF8_TO_TCHAR(InTypeMethod.MethodName.GetData()), *MethodArgsStr));
+			OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(cls%s)%s%s:"), UTF8_TO_TCHAR(InTypeMethod.MethodName.GetData()), *MethodArgsStr, !MethodReturnType.IsEmpty() ? TEXT(" -> ") : TEXT(""), *MethodReturnType));
 		}
 		else
 		{
-			OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self%s):"), UTF8_TO_TCHAR(InTypeMethod.MethodName.GetData()), *MethodArgsStr));
+			OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self%s)%s%s:"), UTF8_TO_TCHAR(InTypeMethod.MethodName.GetData()), *MethodArgsStr, !MethodReturnType.IsEmpty() ? TEXT(" -> ") : TEXT(""), *MethodReturnType));
 		}
 		OutPythonScript.IncreaseIndent();
 		OutPythonScript.WriteDocString(UTF8_TO_TCHAR(InTypeMethod.MethodDoc.GetData()));
-		OutPythonScript.WriteLine(FString::Printf(TEXT("return %s"), *MethodReturnStr));
+		PyGenUtil::IsTypeHintingEnabled()
+			? OutPythonScript.WriteLine(TEXT("...")) // Omit the return value, the return type is hinted in the method signature.
+			: OutPythonScript.WriteLine(FString::Printf(TEXT("return %s"), *MethodReturnValueStr));
 		OutPythonScript.DecreaseIndent();
 	};
 
-	auto ExportGeneratedConstant = [&ExportConstantValue, &GetFunctionReturnValue](const PyGenUtil::FGeneratedWrappedConstant& InTypeConstant)
+	auto ExportGeneratedConstant = [PythonizeMethodReturnTypeFlags, &ExportConstant, &GetFunctionReturnValue](const PyGenUtil::FGeneratedWrappedConstant& InTypeConstant)
 	{
 		// Resolve the constant value
 		FString ConstantValueStr;
+		FString ConstantType;
 		if (InTypeConstant.ConstantFunc.Func && InTypeConstant.ConstantFunc.InputParams.Num() == 0)
 		{
 			UClass* Class = InTypeConstant.ConstantFunc.Func->GetOwnerClass();
@@ -2728,25 +3105,44 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 			PyUtil::InvokeFunctionCall(Obj, InTypeConstant.ConstantFunc.Func, FuncParams.GetStructMemory(), TEXT("export generated constant"));
 			PyErr_Clear(); // Clear any errors in case InvokeFunctionCall failed
 
-			ConstantValueStr = GetFunctionReturnValue(FuncParams.GetStructMemory(), InTypeConstant.ConstantFunc.OutputParams);
+			if (PyGenUtil::IsTypeHintingEnabled())
+			{
+				// If type hinting is enabled, just export the constant name and type.
+				ConstantType = PyGenUtil::PythonizeMethodReturnType(InTypeConstant.ConstantFunc.OutputParams, PythonizeMethodReturnTypeFlags);
+			}
+			else
+			{
+				ConstantValueStr = GetFunctionReturnValue(FuncParams.GetStructMemory(), InTypeConstant.ConstantFunc.OutputParams);
+			}
+		}
+		else // Cannot resove type/value.
+		{
+			ConstantType = TEXT("object");
+			ConstantValueStr = TEXT("None");
+		}
+		ExportConstant(UTF8_TO_TCHAR(InTypeConstant.ConstantName.GetData()), ConstantType, ConstantValueStr, UTF8_TO_TCHAR(InTypeConstant.ConstantDoc.GetData()));
+	};
+
+	auto ExportGeneratedGetSet = [PythonizeMethodParamFlags, PythonizeMethodReturnTypeFlags, &ExportGetSet](const PyGenUtil::FGeneratedWrappedGetSet& InGetSet)
+	{
+		const bool bIsReadOnly = InGetSet.Prop.Prop->HasAnyPropertyFlags(PropertyAccessUtil::RuntimeReadOnlyFlags);
+		const FString SetterParamDecl = PyGenUtil::PythonizeMethodParam(TEXT("value"), InGetSet.Prop.Prop, PythonizeMethodParamFlags);
+		if (PyGenUtil::IsTypeHintingEnabled())
+		{
+			// No need to add a return value to help auto-complete/type checker when the type is hinted in the signature.
+			const FString GetterReturnType = PyGenUtil::PythonizeMethodReturnType(InGetSet.Prop.Prop, PythonizeMethodReturnTypeFlags);
+			ExportGetSet(UTF8_TO_TCHAR(InGetSet.GetSetName.GetData()), UTF8_TO_TCHAR(InGetSet.GetSetDoc.GetData()), /*ReturnValue*/TEXT(""), *GetterReturnType, *SetterParamDecl, bIsReadOnly);
 		}
 		else
 		{
-			ConstantValueStr = TEXT("None");
+			// We use strict typing for return values to aid auto-complete (we also only care about the type and not the value, so structs can be default constructed)
+			static const PyGenUtil::EPythonizeFlags PythonizeValueFlags = PyGenUtil::EPythonizeFlags::UseStrictTyping | PyGenUtil::EPythonizeFlags::DefaultConstructStructs;
+			const FString GetterReturnValue = PyGenUtil::PythonizeDefaultValue(InGetSet.Prop.Prop, FString(), PythonizeValueFlags);
+			ExportGetSet(UTF8_TO_TCHAR(InGetSet.GetSetName.GetData()), UTF8_TO_TCHAR(InGetSet.GetSetDoc.GetData()), *GetterReturnValue, /*ReturnType*/TEXT(""), *SetterParamDecl, bIsReadOnly);
 		}
-		ExportConstantValue(UTF8_TO_TCHAR(InTypeConstant.ConstantName.GetData()), UTF8_TO_TCHAR(InTypeConstant.ConstantDoc.GetData()), ConstantValueStr);
 	};
 
-	auto ExportGeneratedGetSet = [&ExportGetSet](const PyGenUtil::FGeneratedWrappedGetSet& InGetSet)
-	{
-		// We use strict typing for return values to aid auto-complete (we also only care about the type and not the value, so structs can be default constructed)
-		static const uint32 PythonizeValueFlags = PyGenUtil::EPythonizeValueFlags::UseStrictTyping | PyGenUtil::EPythonizeValueFlags::DefaultConstructStructs;
-		const FString GetReturnValue = PyGenUtil::PythonizeDefaultValue(InGetSet.Prop.Prop, FString(), PythonizeValueFlags);
-		const bool bIsReadOnly = InGetSet.Prop.Prop->HasAnyPropertyFlags(PropertyAccessUtil::RuntimeReadOnlyFlags);
-		ExportGetSet(UTF8_TO_TCHAR(InGetSet.GetSetName.GetData()), UTF8_TO_TCHAR(InGetSet.GetSetDoc.GetData()), *GetReturnValue, bIsReadOnly);
-	};
-
-	auto ExportGeneratedOperator = [&OutPythonScript](const PyGenUtil::FGeneratedWrappedOperatorStack& InOpStack, const PyGenUtil::FGeneratedWrappedOperatorSignature& InOpSignature)
+	auto ExportGeneratedOperator = [&OutPythonScript, &PyTypeName](const PyGenUtil::FGeneratedWrappedOperatorStack& InOpStack, const PyGenUtil::FGeneratedWrappedOperatorSignature& InOpSignature)
 	{
 		auto AppendFunctionTooltip = [](const UFunction* InFunc, const TCHAR* InIdentation, FString& OutStr)
 		{
@@ -2788,10 +3184,29 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 			AppendFunctionTooltip(InOpStack.Funcs[0].Func, TEXT(""), OpDocString);
 		}
 
-		OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self%s):"), InOpSignature.PyFuncName, (InOpSignature.OtherType == PyGenUtil::FGeneratedWrappedOperatorSignature::EType::None ? TEXT("") : TEXT(", other"))));
+		// Python complains if __eq__() and __ne__() overriding the 'object' methods don't have the other parameter as 'object' type.
+		FString OtherParamType = (FCString::Strcmp(InOpSignature.PyFuncName, TEXT("__eq__")) == 0 || FCString::Strcmp(InOpSignature.PyFuncName, TEXT("__ne__")) == 0) ? TEXT("object") : PyTypeName;
+
+		PyGenUtil::IsTypeHintingEnabled()
+			? OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self%s) -> %s:"),
+				InOpSignature.PyFuncName,
+				(InOpSignature.OtherType == PyGenUtil::FGeneratedWrappedOperatorSignature::EType::None ? TEXT("") : *FString::Printf(TEXT(", other: %s"),*OtherParamType)),
+				(InOpSignature.ReturnType == PyGenUtil::FGeneratedWrappedOperatorSignature::EType::Bool ? TEXT("bool") : TEXT("None"))))
+			: OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self%s):"), InOpSignature.PyFuncName, (InOpSignature.OtherType == PyGenUtil::FGeneratedWrappedOperatorSignature::EType::None ? TEXT("") : TEXT(", other"))));
 		OutPythonScript.IncreaseIndent();
 		OutPythonScript.WriteDocString(OpDocString);
-		OutPythonScript.WriteLine(InOpSignature.ReturnType == PyGenUtil::FGeneratedWrappedOperatorSignature::EType::Bool ? TEXT("return False") : TEXT("return None"));
+
+		PyGenUtil::IsTypeHintingEnabled()
+			? OutPythonScript.WriteLine(TEXT("...")) // No need to add a return value to help auto-complete/type checker when the type is hinted in the signature.
+			: OutPythonScript.WriteLine(InOpSignature.ReturnType == PyGenUtil::FGeneratedWrappedOperatorSignature::EType::Bool ? TEXT("return False") : TEXT("return None"));
+		OutPythonScript.DecreaseIndent();
+	};
+
+	auto ExportNoBodyMethod = [&OutPythonScript](const TCHAR* MethodDecl)
+	{
+		OutPythonScript.WriteLine(MethodDecl);
+		OutPythonScript.IncreaseIndent();
+		OutPythonScript.WriteLine(TEXT("...")); // pass
 		OutPythonScript.DecreaseIndent();
 	};
 
@@ -2814,9 +3229,6 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 			{
 				TSharedPtr<const FPyWrapperStructMetaData> StructMetaData = StaticCastSharedPtr<FPyWrapperStructMetaData>(GeneratedTypeData->MetaData);
 				check(StructMetaData.IsValid());
-				
-				// Don't export FDateTime values for struct __init__ as they can be non-deterministic
-				static const uint32 PythonizeValueFlags = PyGenUtil::EPythonizeValueFlags::DefaultConstructDateTime;
 
 				// Python can only support 255 parameters, so if we have more than that for this struct just use the generic __init__ function
 				FString InitParamsStr;
@@ -2827,12 +3239,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 					for (const PyGenUtil::FGeneratedWrappedMethodParameter& InitParam : StructMetaData->MakeFunc.InputParams)
 					{
 						InitParamsStr += TEXT(", ");
-						InitParamsStr += UTF8_TO_TCHAR(InitParam.ParamName.GetData());
-						if (InitParam.ParamDefaultValue.IsSet())
-						{
-							InitParamsStr += TEXT("=");
-							InitParamsStr += PyGenUtil::PythonizeDefaultValue(InitParam.ParamProp, InitParam.ParamDefaultValue.GetValue(), PythonizeValueFlags);
-						}
+						InitParamsStr += PyGenUtil::PythonizeMethodParam(InitParam, PythonizeMethodParamFlags, UE::Python::ShouldEllipseParamDefaultValue);
 					}
 				}
 				else if (StructMetaData->InitParams.Num() <= 255)
@@ -2843,23 +3250,16 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 					for (const PyGenUtil::FGeneratedWrappedMethodParameter& InitParam : StructMetaData->InitParams)
 					{
 						InitParamsStr += TEXT(", ");
-						InitParamsStr += UTF8_TO_TCHAR(InitParam.ParamName.GetData());
-						if (InitParam.ParamDefaultValue.IsSet())
-						{
-							InitParamsStr += TEXT("=");
-							InitParamsStr += PyGenUtil::PythonizeValue(InitParam.ParamProp, InitParam.ParamProp->ContainerPtrToValuePtr<void>(StructData.GetStructMemory()), PythonizeValueFlags);
-						}
+						InitParamsStr += PyGenUtil::PythonizeMethodParam(InitParam, PythonizeMethodParamFlags, UE::Python::ShouldEllipseParamDefaultValue);
 					}
 				}
 
 				if (!bWriteDefaultInit)
 				{
 					bHasExportedClassData = true;
-
-					OutPythonScript.WriteLine(FString::Printf(TEXT("def __init__(self%s):"), *InitParamsStr));
-					OutPythonScript.IncreaseIndent();
-					OutPythonScript.WriteLine(TEXT("pass"));
-					OutPythonScript.DecreaseIndent();
+					PyGenUtil::IsTypeHintingEnabled()
+						? ExportNoBodyMethod(*FString::Printf(TEXT("def __init__(self%s) -> None:"), *InitParamsStr))
+						: ExportNoBodyMethod(*FString::Printf(TEXT("def __init__(self%s):"), *InitParamsStr));
 				}
 			}
 			else if (MetaGuid == FPyWrapperEnumMetaData::StaticTypeId())
@@ -2871,31 +3271,31 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 		}
 		else if (PyType == &PyWrapperObjectType)
 		{
-			bWriteDefaultInit = false;
 			bHasExportedClassData = true;
+			bWriteDefaultInit = false;
 
-			OutPythonScript.WriteLine(TEXT("def __init__(self, outer=None, name=\"None\"):"));
-			OutPythonScript.IncreaseIndent();
-			OutPythonScript.WriteLine(TEXT("pass"));
-			OutPythonScript.DecreaseIndent();
+			PyGenUtil::IsTypeHintingEnabled()
+				? ExportNoBodyMethod(TEXT("def __init__(self, outer: Optional[Object] = None, name: Union[Name, str]=\"None\") -> None:"))
+				: ExportNoBodyMethod(TEXT("def __init__(self, outer=None, name=\"None\"):"));
 		}
 		else if (PyType == &PyWrapperEnumType)
 		{
 			// Enums don't really have an __init__ function at runtime, so just give them a default one (with no arguments)
+			bHasExportedClassData = true;
 			bWriteDefaultInit = false;
-
-			OutPythonScript.WriteLine(TEXT("def __init__(self):"));
-			OutPythonScript.IncreaseIndent();
-			OutPythonScript.WriteLine(TEXT("pass"));
-			OutPythonScript.DecreaseIndent();
+			PyGenUtil::IsTypeHintingEnabled()
+				? ExportNoBodyMethod(TEXT("def __init__(self) -> None:"))
+				: ExportNoBodyMethod(TEXT("def __init__(self):"));
 		}
 		else if (PyType == &PyWrapperEnumValueDescrType)
 		{
-			bWriteDefaultInit = false;
 			bHasExportedClassData = true;
+			bWriteDefaultInit = false;
 
 			// This is a special internal decorator type used to define enum entries, which is why it has __get__ as well as __init__
-			OutPythonScript.WriteLine(TEXT("def __init__(self, enum, name, value):"));
+			PyGenUtil::IsTypeHintingEnabled()
+				? OutPythonScript.WriteLine(TEXT("def __init__(self, enum: Any, name: str, value: int) -> None:"))
+				: OutPythonScript.WriteLine(TEXT("def __init__(self, enum, name, value):"));
 			OutPythonScript.IncreaseIndent();
 			OutPythonScript.WriteLine(TEXT("self.enum = enum"));
 			OutPythonScript.WriteLine(TEXT("self.name = name"));
@@ -2914,13 +3314,136 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 			OutPythonScript.DecreaseIndent();
 		}
 
+		if (PyGenUtil::IsTypeHintingEnabled())
+		{
+			if (PyType == &PyWrapperArrayType || PyType == &PyWrapperFixedArrayType)
+			{
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+
+				// WARNING: The parameter name used with __init__ must be 'type' and 'len' to allow named parameters.
+				PyType == &PyWrapperFixedArrayType
+					? ExportNoBodyMethod(TEXT("def __init__(self, type: type, len: int) -> None:"))
+					: ExportNoBodyMethod(TEXT("def __init__(self, type: type) -> None:"));
+
+				ExportNoBodyMethod(TEXT("def __setitem__(self, index: int, value: _ElemType) -> None:"));
+				ExportNoBodyMethod(TEXT("def __getitem__(self, index: int) -> _ElemType:"));
+			}
+			else if (PyType == &PyWrapperSetType)
+			{
+				// WARNING: The parameter name used with __init__ must be 'type' to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, type: type) -> None:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyWrapperMapType)
+			{
+				// WARNING: The parameter name used with __init__ must be 'key' and 'value' to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, key: type, value: type) -> None:"));
+				bWriteDefaultInit = false;
+
+				ExportNoBodyMethod(TEXT("def __setitem__(self, key: _KeyType, value: _ValueType) -> None:"));
+				ExportNoBodyMethod(TEXT("def __getitem__(self, key: _KeyType) -> _ValueType:"));
+			}
+			else if (PyType == &PyWrapperNameType)
+			{
+				ExportNoBodyMethod(TEXT("def __init__(self, value: Union[Name, str] = \"None\") -> None:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyWrapperTextType)
+			{
+				ExportNoBodyMethod(TEXT("def __init__(self, value: Union[Text, str] = \"\") -> None:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyWrapperFieldPathType)
+			{
+				ExportNoBodyMethod(TEXT("def __init__(self, value: Union[FieldPath, str] = \"\") -> None:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyScopedSlowTaskType) // Type defined in PyCore.cpp
+			{
+				// WARNING: Parameter names must match the ones from PyCore.cpp to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, work: float, desc: Union[Text, str] = \"\", enabled: bool = True) -> None:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyScopedEditorTransactionType) // Type defined in PyEditor.cpp
+			{
+				// WARNING: Parameter names must match the ones from PyEditor.cpp to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, desc: Union[Text, str]) -> None:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyActorIteratorType || PyType == &PySelectedActorIteratorType) // Type defined in PyEngine.cpp
+			{
+				// WARNING: Parameter names must match the ones from PyEngine.cpp to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, world: World, type: Union[Class, type] = ...) -> None:"));
+				ExportNoBodyMethod(TEXT("def __iter__(self) -> Iterator[Any]:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyObjectIteratorType)
+			{
+				// WARNING: Parameter names must match the ones from PyEngine.cpp to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, type: Union[Class, type] = ...) -> None:"));
+				ExportNoBodyMethod(TEXT("def __iter__(self) -> Iterator[Any]:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyTypeIteratorType || PyType == &PyClassIteratorType || PyType == &PyStructIteratorType)
+			{
+				// WARNING: Parameter names must match the ones from PyEngine.cpp to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, type: type) -> None:"));
+				if (PyType == &PyClassIteratorType)
+				{
+					ExportNoBodyMethod(TEXT("def __iter__(self) -> Iterator[Class]:"));
+				}
+				else if (PyType == &PyStructIteratorType)
+				{
+					ExportNoBodyMethod(TEXT("def __iter__(self) -> Iterator[ScriptStruct]:"));
+				}
+				else// if (PyType == &PyTypeIteratorType) -> The last remaining.
+				{
+					ExportNoBodyMethod(TEXT("def __iter__(self) -> Iterator[type]:"));
+				}
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyFPropertyDefType)
+			{
+				// WARNING: Parameter names must match the ones from PyEngine.cpp to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, type: type, meta: Optional[Dict[str, str]], getter: Optional[str], setter: Optional[str]) -> None:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyUFunctionDefType)
+			{
+				// WARNING: Parameter names must match the ones from PyEngine.cpp to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, func: Any, meta: Optional[Dict[str, str]], ret: Optional[Any], params: Optional[Sequence[Any]], override: Optional[bool], static: Optional[bool], pure: Optional[bool], getter: Optional[bool], setter: Optional[bool]) -> None:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+			else if (PyType == &PyUValueDefType)
+			{
+				// WARNING: Parameter names must match the ones from PyEngine.cpp to allow named parameters.
+				ExportNoBodyMethod(TEXT("def __init__(self, val: object, meta: Optional[Dict[str, str]]) -> None:"));
+				bWriteDefaultInit = false;
+				bHasExportedClassData = true;
+			}
+		}
+
 		if (bWriteDefaultInit)
 		{
 			bHasExportedClassData = true;
-			
-			OutPythonScript.WriteLine(TEXT("def __init__(self, *args, **kwargs):"));
+
+			PyGenUtil::IsTypeHintingEnabled()
+				? OutPythonScript.WriteLine(TEXT("def __init__(self, *args: Any, **kwargs: Any) -> None:"))
+				: OutPythonScript.WriteLine(TEXT("def __init__(self, *args, **kwargs):"));
 			OutPythonScript.IncreaseIndent();
-			OutPythonScript.WriteLine(TEXT("pass"));
+			OutPythonScript.WriteLine(TEXT("...")); // pass
 			OutPythonScript.DecreaseIndent();
 		}
 	}
@@ -2969,7 +3492,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 
 		bHasExportedClassData = true;
 
-		ExportGetSet(UTF8_TO_TCHAR(GetSetDef->name), UTF8_TO_TCHAR(GetSetDef->doc), TEXT("None"), /*IsReadOnly*/false);
+		ExportGetSet(UTF8_TO_TCHAR(GetSetDef->name), UTF8_TO_TCHAR(GetSetDef->doc), /*ReturnValue*/TEXT("None"), /*GetterReturnTypeDecl*/TEXT(""), /*ParamNameAndTypeDecl*/TEXT(""), /*IsReadOnly*/false);
 	}
 
 	for (PyMethodDef* MethodDef = PyType->tp_methods; MethodDef && MethodDef->ml_name; ++MethodDef)
@@ -2981,15 +3504,15 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 		if (bIsClassMethod)
 		{
 			OutPythonScript.WriteLine(TEXT("@classmethod"));
-			OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(cls, *args%s):"), UTF8_TO_TCHAR(MethodDef->ml_name), bHasKeywords ? TEXT(", **kwargs") : TEXT("")));
+			OutPythonScript.WriteLine(UE::Python::GenerateMethodDecl(MethodDef, PyTypeName, /*bIsClassMethod*/true));
 		}
 		else
 		{
-			OutPythonScript.WriteLine(FString::Printf(TEXT("def %s(self, *args%s):"), UTF8_TO_TCHAR(MethodDef->ml_name), bHasKeywords ? TEXT(", **kwargs") : TEXT("")));
+			OutPythonScript.WriteLine(UE::Python::GenerateMethodDecl(MethodDef, PyTypeName, /*bIsClassMethod*/false, /*bIsMemberMethod*/true));
 		}
 		OutPythonScript.IncreaseIndent();
 		OutPythonScript.WriteDocString(UTF8_TO_TCHAR(MethodDef->ml_doc));
-		OutPythonScript.WriteLine(TEXT("pass"));
+		OutPythonScript.WriteLine(TEXT("...")); // pass
 		OutPythonScript.DecreaseIndent();
 	}
 
@@ -3040,13 +3563,24 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 				ExportGeneratedMethod(*DynamicMethod);
 			}
 
+			// Avoid exporting method __truediv__ twice becauses it is used for both / and /= operator.
+			bool bTrueDivExported = false;
 			for (int32 OpTypeIndex = 0; OpTypeIndex < (int32)PyGenUtil::EGeneratedWrappedOperatorType::Num; ++OpTypeIndex)
 			{
 				const PyGenUtil::FGeneratedWrappedOperatorStack& OpStack = StructMetaData->OpStacks[OpTypeIndex];
 				if (OpStack.Funcs.Num() > 0)
 				{
 					const PyGenUtil::FGeneratedWrappedOperatorSignature& OpSignature = PyGenUtil::FGeneratedWrappedOperatorSignature::OpTypeToSignature((PyGenUtil::EGeneratedWrappedOperatorType)OpTypeIndex);
-					ExportGeneratedOperator(OpStack, OpSignature);
+
+					if (FCString::Strcmp(OpSignature.PyFuncName, TEXT("__truediv__")) != 0)
+					{
+						ExportGeneratedOperator(OpStack, OpSignature);
+					}
+					else if (!bTrueDivExported)
+					{
+						ExportGeneratedOperator(OpStack, OpSignature);
+						bTrueDivExported = true;
+					}
 				}
 			}
 
@@ -3081,7 +3615,10 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 						EntryDoc.InsertAt(0, *FString::Printf(TEXT("%s: "), *EntryValue));
 					}
 
-					ExportConstantValue(*EntryName, *EntryDoc, FString::Printf(TEXT("_EnumEntry(\"%s\", \"%s\", %s)"), *PyTypeName, *EntryName, *EntryValue));
+					// The enum value types reported by the engine using print(type(unreal.SomeEnum.SOME_VALUE)) would be 'class SomeEnum' but _EnumEntry class is unrelated.
+					PyGenUtil::IsTypeHintingEnabled()
+						? ExportConstant(*EntryName, PyTypeName, /*Value*/FString(), *EntryDoc)
+						: ExportConstant(*EntryName, /*TypeHint*/FString(), FString::Printf(TEXT("_EnumEntry(\"%s\", \"%s\", %s)"), *PyTypeName, *EntryName, *EntryValue), *EntryDoc);
 				}
 			}
 		}
@@ -3089,7 +3626,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 
 	if (!bHasExportedClassData)
 	{
-		OutPythonScript.WriteLine(TEXT("pass"));
+		OutPythonScript.WriteLine(TEXT("...")); // pass
 	}
 
 	OutPythonScript.DecreaseIndent();

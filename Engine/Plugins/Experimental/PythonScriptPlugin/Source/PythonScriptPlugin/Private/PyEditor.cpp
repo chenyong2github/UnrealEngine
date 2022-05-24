@@ -118,9 +118,9 @@ PyTypeObject InitializePyScopedEditorTransactionType()
 	};
 
 	static PyMethodDef PyMethods[] = {
-		{ "__enter__", PyCFunctionCast(&FMethods::EnterScope), METH_NOARGS, "x.__enter__() -> self -- begin this transaction" },
-		{ "__exit__", PyCFunctionCast(&FMethods::ExitScope), METH_VARARGS | METH_KEYWORDS, "x.__exit__(type, value, traceback) -> None -- end this transaction" },
-		{ "cancel", PyCFunctionCast(&FMethods::Cancel), METH_NOARGS, "x.cancel() -> None -- cancel this transaction" },
+		{ "__enter__", PyCFunctionCast(&FMethods::EnterScope), METH_NOARGS, "__enter__(self) -> ScopedEditorTransaction -- begin this transaction" },
+		{ "__exit__", PyCFunctionCast(&FMethods::ExitScope), METH_VARARGS | METH_KEYWORDS, "__exit__(self, type: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[TracebackType]) -> bool -- end this transaction" },
+		{ "cancel", PyCFunctionCast(&FMethods::Cancel), METH_NOARGS, "cancel(self) -> None -- cancel this transaction" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
 
@@ -202,8 +202,8 @@ static PyObject* GetEditorSubsystem(FPyScopedEditorTransaction* InSelf, PyObject
 }
 
 PyMethodDef PyEditorMethods[] = {
-	{ "get_engine_subsystem", PyCFunctionCast(&PyEditor::GetEngineSubsystem), METH_VARARGS, "unreal.get_engine_subsystem() -> subsystem -- returns the requested subsystem could be null" },
-	{ "get_editor_subsystem", PyCFunctionCast(&PyEditor::GetEditorSubsystem), METH_VARARGS, "unreal.get_editor_subsystem() -> subsystem -- returns the requested subsystem could be null" },
+	{ "get_engine_subsystem", PyCFunctionCast(&PyEditor::GetEngineSubsystem), METH_VARARGS, "get_engine_subsystem(subsystem : Union[Class, type]) -> Any -- returns the requested Engine subsystem or None" },
+	{ "get_editor_subsystem", PyCFunctionCast(&PyEditor::GetEditorSubsystem), METH_VARARGS, "get_editor_subsystem(subsystem : Union[Class, type]) -> Any -- returns the requested Editor subsystem or None" },
 	{ nullptr, nullptr, 0, nullptr }
 };
 

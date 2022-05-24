@@ -649,11 +649,11 @@ PyTypeObject InitializePyScopedSlowTaskType()
 	};
 
 	static PyMethodDef PyMethods[] = {
-		{ "__enter__", PyCFunctionCast(&FMethods::EnterScope), METH_NOARGS, "x.__enter__() -> self -- begin this slow task" },
-		{ "__exit__", PyCFunctionCast(&FMethods::ExitScope), METH_VARARGS | METH_KEYWORDS, "x.__exit__(type, value, traceback) -> None -- end this slow task" },
-		{ "make_dialog_delayed", PyCFunctionCast(&FMethods::MakeDialogDelayed), METH_VARARGS | METH_KEYWORDS, "x.make_dialog_delayed(delay, can_cancel=False, allow_in_pie=False) -> None -- creates a new dialog for this slow task after the given time threshold. If the task completes before this time, no dialog will be shown" },
-		{ "make_dialog", PyCFunctionCast(&FMethods::MakeDialog), METH_VARARGS | METH_KEYWORDS, "x.make_dialog(can_cancel=False, allow_in_pie=False) -> None -- creates a new dialog for this slow task, if there is currently not one open" },
-		{ "enter_progress_frame", PyCFunctionCast(&FMethods::EnterProgressFrame), METH_VARARGS | METH_KEYWORDS, "x.enter_progress_frame(work=1.0, desc=Text()) -> None -- indicate that we are to enter a frame that will take up the specified amount of work (completes any previous frames)" },
+		{ "__enter__", PyCFunctionCast(&FMethods::EnterScope), METH_NOARGS, "__enter__(self) -> ScopedSlowTask -- begin this slow task" },
+		{ "__exit__", PyCFunctionCast(&FMethods::ExitScope), METH_VARARGS | METH_KEYWORDS, "__exit__(self, type: Optional[Type[BaseException]], value: Optional[BaseException], traceback: Optional[TracebackType]) -> bool -- end this slow task" },
+		{ "make_dialog_delayed", PyCFunctionCast(&FMethods::MakeDialogDelayed), METH_VARARGS | METH_KEYWORDS, "make_dialog_delayed(self, delay: float, can_cancel: bool = False, allow_in_pie: bool = False) -> None -- creates a new dialog for this slow task after the given time delay (in seconds). If the task completes before this time, no dialog will be shown" },
+		{ "make_dialog", PyCFunctionCast(&FMethods::MakeDialog), METH_VARARGS | METH_KEYWORDS, "make_dialog(self, can_cancel: bool = False, allow_in_pie: bool = False) -> None -- creates a new dialog for this slow task, if there is currently not one open" },
+		{ "enter_progress_frame", PyCFunctionCast(&FMethods::EnterProgressFrame), METH_VARARGS | METH_KEYWORDS, "enter_progress_frame(self, work: float = 1.0, desc: Union[Text, str] = \"\") -> None -- indicate that we are to enter a frame that will take up the specified amount of work (completes any previous frames)" },
 		{ "should_cancel", PyCFunctionCast(&FMethods::ShouldCancel), METH_NOARGS, "x.should_cancel() -> bool -- True if the user has requested that the slow task be canceled" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
@@ -1247,7 +1247,8 @@ PyObject* NewObject(PyObject* InSelf, PyObject* InArgs, PyObject* InKwds)
 			return nullptr;
 		}
 
-		if (PyOuterObj && !PyConversion::Nativize(PyOuterObj, ObjectOuter))
+		// If PyOuterObj is None, Nativize() will convert 'PyOuterObj=None' into 'nullptr'. That will overwrite the desired default value 'transient package'.
+		if (PyOuterObj && PyOuterObj != Py_None && !PyConversion::Nativize(PyOuterObj, ObjectOuter))
 		{
 			PyUtil::SetPythonError(PyExc_TypeError, TEXT("new_object"), *FString::Printf(TEXT("Failed to convert 'outer' (%s) to 'Object'"), *PyUtil::GetFriendlyTypename(PyOuterObj)));
 			return nullptr;
@@ -1799,36 +1800,39 @@ PyObject* UnregisterPythonShutdownCallback(PyObject* InSelf, PyObject* InArgs)
 	Py_RETURN_NONE;
 }
 
+// NOTE: Several functions like 'new_object' are marked as returning 'Any' because the exact return type cannot be deduced from the Class type. We could mark them as returning base 'Object'
+//       type, but that would force user to cast down to please type checker while the returned type is already the exact requested type. For example, the instruction
+//       'o: PyTestObject = unreal.new_object(unreal.PyTestObject.static_class())' must pass type checker and if new_object() was to return Object, it would not be automatically cast down.
 PyMethodDef PyCoreMethods[] = {
-	{ "log", PyCFunctionCast(&Log), METH_VARARGS, "x.log(str) -> None -- log the given argument as information in the LogPython category" },
-	{ "log_warning", PyCFunctionCast(&LogWarning), METH_VARARGS, "x.log_warning(str) -> None -- log the given argument as a warning in the LogPython category" },
-	{ "log_error", PyCFunctionCast(&LogError), METH_VARARGS, "x.log_error(str) -> None -- log the given argument as an error in the LogPython category" },
-	{ "log_flush", PyCFunctionCast(&LogFlush), METH_NOARGS, "x.log_flush() -> None -- flush the log to disk" },
-	{ "reload", PyCFunctionCast(&Reload), METH_VARARGS, "x.reload(str) -> None -- reload the given Unreal Python module" },
-	{ "load_module", PyCFunctionCast(&LoadModule), METH_VARARGS, "x.load_module(str) -> None -- load the given Unreal module and generate any Python code for its reflected types" },
-	{ "new_object", PyCFunctionCast(&NewObject), METH_VARARGS | METH_KEYWORDS, "x.new_object(type, outer=Transient, name=Default, base_type=Object) -> Object -- create an Unreal object of the given class (and optional outer and name), optionally validating its type" },
-	{ "find_object", PyCFunctionCast(&FindObject), METH_VARARGS | METH_KEYWORDS, "x.find_object(outer, name, type=Object, follow_redirectors=True) -> Object -- find an already loaded Unreal object with the given outer and name, optionally validating its type" },
-	{ "load_object", PyCFunctionCast(&LoadObject), METH_VARARGS | METH_KEYWORDS, "x.load_object(outer, name, type=Object, follow_redirectors=True) -> Object -- load an Unreal object with the given outer and name, optionally validating its type" },
-	{ "load_class", PyCFunctionCast(&LoadClass), METH_VARARGS | METH_KEYWORDS, "x.load_class(outer, name, type=Object) -> Class -- load an Unreal class with the given outer and name, optionally validating its base type" },
-	{ "find_asset", PyCFunctionCast(&FindAsset), METH_VARARGS | METH_KEYWORDS, "x.find_asset(name, type=Object, follow_redirectors=True) -> Object -- find an already loaded Unreal asset with the given name, optionally validating its type" },
-	{ "load_asset", PyCFunctionCast(&LoadAsset), METH_VARARGS | METH_KEYWORDS, "x.load_asset(name, type=Object, follow_redirectors=True) -> Object -- load an Unreal asset with the given name, optionally validating its type" },
-	{ "find_package", PyCFunctionCast(&FindPackage), METH_VARARGS, "x.find_package(name) -> Package -- find an already loaded Unreal package with the given name" },
-	{ "load_package", PyCFunctionCast(&LoadPackage), METH_VARARGS, "x.load_package(name) -> Package -- load an Unreal package with the given name" },
-	{ "get_default_object", PyCFunctionCast(&GetDefaultObject), METH_VARARGS, "x.get_default_object(type) -> Object -- get the Unreal class default object (CDO) of the given type" },
-	{ "purge_object_references", PyCFunctionCast(&PurgeObjectReferences), METH_VARARGS | METH_KEYWORDS, "x.purge_object_references(obj, include_inners=True) -> None -- purge all references to the given Unreal object from any living Python objects" },
-	{ "generate_class", PyCFunctionCast(&GenerateClass), METH_VARARGS, "x.generate_class(type) -> None -- generate an Unreal class for the given Python type" },
-	{ "generate_struct", PyCFunctionCast(&GenerateStruct), METH_VARARGS, "x.generate_struct(type) -> None -- generate an Unreal struct for the given Python type" },
-	{ "generate_enum", PyCFunctionCast(&GenerateEnum), METH_VARARGS, "x.generate_enum(type) -> None -- generate an Unreal enum for the given Python type" },
-	{ "flush_generated_type_reinstancing", PyCFunctionCast(&FlushGeneratedTypeReinstancing), METH_NOARGS, "x.flush_generated_type_reinstancing() -> None -- flush any pending reinstancing requests for Python generated types" },
-	{ "get_type_from_class", PyCFunctionCast(&GetTypeFromClass), METH_VARARGS, "x.get_type_from_class(class) -> type -- get the best matching Python type for the given Unreal class" },
-	{ "get_type_from_struct", PyCFunctionCast(&GetTypeFromStruct), METH_VARARGS, "x.get_type_from_struct(struct) -> type -- get the best matching Python type for the given Unreal struct" },
-	{ "get_type_from_enum", PyCFunctionCast(&GetTypeFromEnum), METH_VARARGS, "x.get_type_from_enum(enum) -> type -- get the best matching Python type for the given Unreal enum" },
-	{ "register_python_shutdown_callback", PyCFunctionCast(&RegisterPythonShutdownCallback), METH_VARARGS, "x.register_python_shutdown_callback(callable) -> _DelegateHandle -- register the given callable (with no input arguments) as a callback to execute immediately before Python shutdown"},
-	{ "unregister_python_shutdown_callback", PyCFunctionCast(&UnregisterPythonShutdownCallback), METH_VARARGS, "x.unregister_python_shutdown_callback(handle) -> None -- unregister the given handle from a previous call to register_python_shutdown_callback"},
-	{ "NSLOCTEXT", PyCFunctionCast(&CreateLocalizedText), METH_VARARGS, "x.NSLOCTEXT(ns, key, source) -> Text -- create a localized Text from the given namespace, key, and source string" },
-	{ "LOCTABLE", PyCFunctionCast(&CreateLocalizedTextFromStringTable), METH_VARARGS, "x.LOCTABLE(id, key) -> Text -- get a localized Text from the given string table id and key" },
-	{ "is_editor", PyCFunctionCast(&IsEditor), METH_NOARGS, "x.is_editor() -> Bool -- tells if the editor is running or not" },
-	{ "get_interpreter_executable_path", PyCFunctionCast(&GetInterpreterExecutablePath), METH_NOARGS, "x.get_interpreter_executable_path() -> str -- get the path to the Python interpreter executable of the Python SDK this plugin was compiled against" },
+	{ "log", PyCFunctionCast(&Log), METH_VARARGS, "log(arg: Any) -> None -- log the given argument as information in the LogPython category" },
+	{ "log_warning", PyCFunctionCast(&LogWarning), METH_VARARGS, "log_warning(arg: Any) -> None -- log the given argument as a warning in the LogPython category" },
+	{ "log_error", PyCFunctionCast(&LogError), METH_VARARGS, "log_error(arg: Any) -> None -- log the given argument as an error in the LogPython category" },
+	{ "log_flush", PyCFunctionCast(&LogFlush), METH_NOARGS, "log_flush() -> None -- flush the log to disk." },
+	{ "reload", PyCFunctionCast(&Reload), METH_VARARGS, "reload(module: str) -> None -- reload the given Unreal Python module." },
+	{ "load_module", PyCFunctionCast(&LoadModule), METH_VARARGS, "load_module(module: str) -> None -- load the given Unreal module and generate any Python code for its reflected types" },
+	{ "new_object", PyCFunctionCast(&NewObject), METH_VARARGS | METH_KEYWORDS, "new_object(type: Union[Class, type], outer: Optional[Object]=None, name: Union[Name, str]=\"\", base_type: Optional[Object]=None) -> Any -- create an Unreal object of the given class (and optional outer and name), optionally validating its type" },
+	{ "find_object", PyCFunctionCast(&FindObject), METH_VARARGS | METH_KEYWORDS, "find_object(outer: Optional[Object], name: str, type: Union[Class, type]=Object.static_class(), follow_redirectors: bool=True) -> Any -- find an already loaded Unreal object with the given outer and name, optionally validating its type" },
+	{ "load_object", PyCFunctionCast(&LoadObject), METH_VARARGS | METH_KEYWORDS, "load_object(outer: Optional[Object], name: str, type: Union[Class, type]=Object.static_class(), follow_redirectors: bool=True) -> Any -- load an Unreal object with the given outer and name, optionally validating its type" },
+	{ "load_class", PyCFunctionCast(&LoadClass), METH_VARARGS | METH_KEYWORDS, "load_class(outer: Optional[Object], name: str, type: Union[Class, type]=Object.static_class()) -> Optional[Class] -- load an Unreal class with the given outer and name, optionally validating its base type" },
+	{ "find_asset", PyCFunctionCast(&FindAsset), METH_VARARGS | METH_KEYWORDS, "find_asset(name: str, type: Union[Class, type]=Object.static_class(), follow_redirectors: bool = True) -> Any -- find an already loaded Unreal asset with the given name, optionally validating its type" },
+	{ "load_asset", PyCFunctionCast(&LoadAsset), METH_VARARGS | METH_KEYWORDS, "load_asset(name: str, type: Union[Class, type]=Object.static_class(), follow_redirectors: bool = True) -> Any -- load an Unreal asset with the given name, optionally validating its type" },
+	{ "find_package", PyCFunctionCast(&FindPackage), METH_VARARGS, "find_package(name: str) -> Optional[Package] -- find an already loaded Unreal package with the given name" },
+	{ "load_package", PyCFunctionCast(&LoadPackage), METH_VARARGS, "load_package(name: str) -> Optional[Package] -- load an Unreal package with the given name" },
+	{ "get_default_object", PyCFunctionCast(&GetDefaultObject), METH_VARARGS, "get_default_object(type: Union[Class, type]) -> Any -- get the Unreal class default object (CDO) of the given type" },
+	{ "purge_object_references", PyCFunctionCast(&PurgeObjectReferences), METH_VARARGS | METH_KEYWORDS, "purge_object_references(obj: Object, include_inners: bool = True) -> None -- purge all references to the given Unreal object from any living Python objects" },
+	{ "generate_class", PyCFunctionCast(&GenerateClass), METH_VARARGS, "generate_class(class_type: type) -> None -- generate an Unreal class for the given Python type" },
+	{ "generate_struct", PyCFunctionCast(&GenerateStruct), METH_VARARGS, "generate_struct(struct_type: type) -> None -- generate an Unreal struct for the given Python type" },
+	{ "generate_enum", PyCFunctionCast(&GenerateEnum), METH_VARARGS, "generate_enum(enum_type: type) -> None -- generate an Unreal enum for the given Python type" },
+	{ "flush_generated_type_reinstancing", PyCFunctionCast(&FlushGeneratedTypeReinstancing), METH_NOARGS, "flush_generated_type_reinstancing() -> None -- flush any pending reinstancing requests for Python generated types" },
+	{ "get_type_from_class", PyCFunctionCast(&GetTypeFromClass), METH_VARARGS, "get_type_from_class(class_: Class) -> type -- get the best matching Python type for the given Unreal class" },
+	{ "get_type_from_struct", PyCFunctionCast(&GetTypeFromStruct), METH_VARARGS, "get_type_from_struct(struct: Struct) -> type -- get the best matching Python type for the given Unreal struct" },
+	{ "get_type_from_enum", PyCFunctionCast(&GetTypeFromEnum), METH_VARARGS, "get_type_from_enum(enum: Enum) -> type -- get the best matching Python type for the given Unreal enum" },
+	{ "register_python_shutdown_callback", PyCFunctionCast(&RegisterPythonShutdownCallback), METH_VARARGS, "register_python_shutdown_callback(callable: Callable[[], None]) -> object -- register the given callable (with no input arguments) as a callback to execute immediately before Python shutdown"},
+	{ "unregister_python_shutdown_callback", PyCFunctionCast(&UnregisterPythonShutdownCallback), METH_VARARGS, "unregister_python_shutdown_callback(handle: object) -> None -- unregister the given handle from a previous call to register_python_shutdown_callback"},
+	{ "NSLOCTEXT", PyCFunctionCast(&CreateLocalizedText), METH_VARARGS, "NSLOCTEXT(ns: str, key: str, source: str) -> Text -- create a localized Text from the given namespace, key, and source string" },
+	{ "LOCTABLE", PyCFunctionCast(&CreateLocalizedTextFromStringTable), METH_VARARGS, "LOCTABLE(id: Union[Name, str], key: str) -> Text -- get a localized Text from the given string table id and key" },
+	{ "is_editor", PyCFunctionCast(&IsEditor), METH_NOARGS, "is_editor() -> bool -- tells if the editor is running or not" },
+	{ "get_interpreter_executable_path", PyCFunctionCast(&GetInterpreterExecutablePath), METH_NOARGS, "get_interpreter_executable_path() -> str -- get the path to the Python interpreter executable of the Python SDK this plugin was compiled against" },
 	{ nullptr, nullptr, 0, nullptr }
 };
 

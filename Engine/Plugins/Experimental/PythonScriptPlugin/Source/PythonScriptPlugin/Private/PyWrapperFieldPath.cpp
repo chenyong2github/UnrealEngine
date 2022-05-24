@@ -191,10 +191,10 @@ PyTypeObject InitializePyWrapperFieldPathType()
 	};
 
 	static PyMethodDef PyMethods[] = {
-		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_CLASS, "X.cast(obj: Any) -> FieldPath -- cast the given object to this Unreal field path type" },
-		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "x.__copy__() -> FieldPath -- copy this Unreal field path" },
-		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "x.copy() -> FieldPath -- copy this Unreal field path" },
-		{ "is_valid", PyCFunctionCast(&FMethods::IsValid), METH_NOARGS, "x.is_valid() -> bool -- whether this Unreal field path refers to an existing Unreal field" },
+		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_CLASS, "cast(cls, obj: object) -> FieldPath -- cast the given object to this Unreal field path type" },
+		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "__copy__(self) -> FieldPath -- copy this Unreal field path" },
+		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "copy(self) -> FieldPath -- copy this Unreal field path" },
+		{ "is_valid", PyCFunctionCast(&FMethods::IsValid), METH_NOARGS, "is_valid(self) -> bool -- whether this Unreal field path refers to an existing Unreal field" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
 

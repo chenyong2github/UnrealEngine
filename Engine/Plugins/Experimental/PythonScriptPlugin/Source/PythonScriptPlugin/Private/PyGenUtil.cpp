@@ -77,8 +77,8 @@ const FName NativeMakeFuncMetaDataKey = TEXT("NativeMakeFunc");
 const FName ReturnValueKey = TEXT("ReturnValue");
 const TCHAR* HiddenMetaDataKey = TEXT("Hidden");
 
-
 TSharedPtr<IBreakIterator> NameBreakIterator;
+static ETypeHintingMode GTypeHintingMode = ETypeHintingMode::Off; // Use through SetTypeHintingMode()/IsTypeHintingEnabled()
 
 
 void FNativePythonModule::AddType(PyTypeObject* InType)
@@ -2165,14 +2165,14 @@ FParsedTooltip ParseTooltip(FStringView InTooltip)
 	return ParsedTooltip;
 }
 
-void PythonizeStructValueImpl(const UScriptStruct* InStruct, const void* InStructValue, const uint32 InFlags, FString& OutPythonDefaultValue);
+void PythonizeStructValueImpl(const UScriptStruct* InStruct, const void* InStructValue, const EPythonizeFlags InFlags, FString& OutPythonDefaultValue);
 
-void PythonizeValueImpl(const FProperty* InProp, const void* InPropValue, const uint32 InFlags, FString& OutPythonDefaultValue)
+void PythonizeValueImpl(const FProperty* InProp, const void* InPropValue, const EPythonizeFlags InFlags, FString& OutPythonDefaultValue)
 {
 	static const bool bIsForDocString = false;
 
-	const bool bIncludeUnrealNamespace = !!(InFlags & EPythonizeValueFlags::IncludeUnrealNamespace);
-	const bool bUseStrictTyping = !!(InFlags & EPythonizeValueFlags::UseStrictTyping);
+	const bool bIncludeUnrealNamespace = EnumHasAnyFlags(InFlags, EPythonizeFlags::IncludeUnrealNamespace);
+	const bool bUseStrictTyping = EnumHasAnyFlags(InFlags, EPythonizeFlags::UseStrictTyping);
 
 	const TCHAR* UnrealNamespace = bIncludeUnrealNamespace ? TEXT("unreal.") : TEXT("");
 
@@ -2350,12 +2350,12 @@ void PythonizeValueImpl(const FProperty* InProp, const void* InPropValue, const 
 	}
 }
 
-void PythonizeStructValueImpl(const UScriptStruct* InStruct, const void* InStructValue, const uint32 InFlags, FString& OutPythonDefaultValue)
+void PythonizeStructValueImpl(const UScriptStruct* InStruct, const void* InStructValue, const EPythonizeFlags InFlags, FString& OutPythonDefaultValue)
 {
-	const bool bIncludeUnrealNamespace = !!(InFlags & EPythonizeValueFlags::IncludeUnrealNamespace);
-	const bool bUseStrictTyping = !!(InFlags & EPythonizeValueFlags::UseStrictTyping);
-	const bool bDefaultConstructStructs = !!(InFlags & EPythonizeValueFlags::DefaultConstructStructs);
-	const bool bDefaultConstructDateTime = !!(InFlags & EPythonizeValueFlags::DefaultConstructDateTime);
+	const bool bIncludeUnrealNamespace = EnumHasAnyFlags(InFlags, EPythonizeFlags::IncludeUnrealNamespace);
+	const bool bUseStrictTyping = EnumHasAnyFlags(InFlags, EPythonizeFlags::UseStrictTyping);
+	const bool bDefaultConstructStructs = EnumHasAnyFlags(InFlags, EPythonizeFlags::DefaultConstructStructs);
+	const bool bDefaultConstructDateTime = EnumHasAnyFlags(InFlags, EPythonizeFlags::DefaultConstructDateTime);
 
 	const TCHAR* UnrealNamespace = bIncludeUnrealNamespace ? TEXT("unreal.") : TEXT("");
 
@@ -2447,18 +2447,125 @@ void PythonizeStructValueImpl(const UScriptStruct* InStruct, const void* InStruc
 		: TEXT("]");
 }
 
-FString PythonizeValue(const FProperty* InProp, const void* InPropValue, const uint32 InFlags)
+FString PythonizeValue(const FProperty* InProp, const void* InPropValue, const EPythonizeFlags InFlags)
 {
 	FString PythonValue;
 	PythonizeValueImpl(InProp, InPropValue, InFlags, PythonValue);
 	return PythonValue;
 }
 
-FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultValue, const uint32 InFlags)
+FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultValue, const EPythonizeFlags InFlags)
 {
 	PyUtil::FPropValueOnScope PropValue(PyUtil::FConstPropOnScope::ExternalReference(InProp));
 	PyUtil::ImportDefaultValue(InProp, PropValue.GetValue(), InDefaultValue);
 	return PythonizeValue(InProp, PropValue.GetValue(), InFlags);
+}
+
+FString PythonizeMethodParam(const FGeneratedWrappedMethodParameter& MethodParam, EPythonizeFlags InPythonizeFlags, const TFunction<bool(const FString&)>& ShouldEllipseDefaultValue)
+{
+	bool bWithTypeHinting = EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeHinting);
+	bool bIncludeUnrealNamespace = EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::IncludeUnrealNamespace);
+	bool bEllipseMissingDefaultValue = EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::AddMissingDefaultValueEllipseWorkaround);
+
+	FString ParamName(UTF8_TO_TCHAR(MethodParam.ParamName.GetData()));
+	FString ParamType(bWithTypeHinting ? GetPropertyTypePythonName(MethodParam.ParamProp, bIncludeUnrealNamespace, /*bIsForDocString*/false, InPythonizeFlags) : FString());
+	FString DefaultValue;
+
+	if (bEllipseMissingDefaultValue && !MethodParam.ParamDefaultValue.IsSet())
+	{
+		DefaultValue = TEXT("..."); // Add the missing default value.
+	}
+	else if (MethodParam.ParamDefaultValue.IsSet())
+	{
+		DefaultValue = PyGenUtil::PythonizeDefaultValue(MethodParam.ParamProp, MethodParam.ParamDefaultValue.GetValue(), InPythonizeFlags);
+		if (ShouldEllipseDefaultValue && ShouldEllipseDefaultValue(DefaultValue))
+		{
+			DefaultValue = TEXT("..."); // In some context (like generated stub), the default value might refer to not-yet declared types, which is illegal
+		}
+	}
+
+	return PythonizeMethodParam(ParamName, ParamType, DefaultValue);
+}
+
+FString PythonizeMethodParam(const FString& InParamName, const FProperty* ParamProp, EPythonizeFlags InPythonizeFlags)
+{
+	bool bWithTypeHinting = EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeHinting);
+	bool bIncludeUnrealNamespace = EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::IncludeUnrealNamespace);
+
+	FString ParamType(bWithTypeHinting ? GetPropertyTypePythonName(ParamProp, bIncludeUnrealNamespace, /*bIsForDocString*/false, InPythonizeFlags) : FString());
+
+	return PythonizeMethodParam(InParamName, ParamType);
+}
+
+FString PythonizeMethodParam(const FString& InParamName, const FString& InParamType, const FString& InDefaultValue)
+{
+	return InDefaultValue.IsEmpty()
+		? InParamType.IsEmpty() ? FString::Printf(TEXT("%s"), *InParamName) : FString::Printf(TEXT("%s: %s"), *InParamName, *InParamType)
+		: InParamType.IsEmpty() ? FString::Printf(TEXT("%s = %s"), *InParamName, *InDefaultValue) : FString::Printf(TEXT("%s: %s = %s"), *InParamName, *InParamType, *InDefaultValue);
+}
+
+FString PythonizeMethodReturnType(const TArray<PyGenUtil::FGeneratedWrappedMethodParameter>& InOutputParams, EPythonizeFlags InPythonizeFlags)
+{
+	// If type hinting is disabled, return type is not specified with the method signature.
+	if (!EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeHinting))
+	{
+		return FString();
+	}
+	if (InOutputParams.Num() == 0)
+	{
+		return TEXT("None");
+	}
+
+	bool bIncludeUnrealNamespace = EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::IncludeUnrealNamespace);
+	bool bCanReturnNone = false;
+
+	// If we have multiple return values and the main return value is a bool, skip it (to mimic PyGenUtils::PackReturnValues)
+	int32 ReturnPropIndex = 0;
+	if (InOutputParams.Num() > 1 && InOutputParams[0].ParamProp->HasAnyPropertyFlags(CPF_ReturnParm) && InOutputParams[0].ParamProp->IsA<FBoolProperty>())
+	{
+		ReturnPropIndex = 1; // Start packing at the 1st out value
+		bCanReturnNone = true; // When the C++ function returns false, the Python methods returns None, otherwise, it returns the output parameter(s) as a single value or a tuple.
+	}
+
+	// Do we need to return a packed tuple, or just a single value?
+	const int32 NumPropertiesToPack = InOutputParams.Num() - ReturnPropIndex;
+	if (NumPropertiesToPack == 1)
+	{
+		const PyGenUtil::FGeneratedWrappedMethodParameter& ReturnParam = InOutputParams[ReturnPropIndex];
+		if (bCanReturnNone)
+		{
+			return FString::Printf(TEXT("Optional[%s]"), *PyGenUtil::GetPropertyTypePythonName(ReturnParam.ParamProp, bIncludeUnrealNamespace, /*bIsForDocString*/false, InPythonizeFlags));
+		}
+		return PyGenUtil::GetPropertyTypePythonName(ReturnParam.ParamProp, bIncludeUnrealNamespace, /*bIsForDocString*/false, InPythonizeFlags);
+	}
+	else // Returns a tuple
+	{
+		FString ReturnType;
+		ReturnType = bCanReturnNone ? TEXT("Optional[Tuple[") : TEXT("Tuple[");
+		for (int32 PackedPropIndex = 0; ReturnPropIndex < InOutputParams.Num(); ++ReturnPropIndex, ++PackedPropIndex)
+		{
+			if (PackedPropIndex > 0)
+			{
+				ReturnType += TEXT(", ");
+			}
+			const PyGenUtil::FGeneratedWrappedMethodParameter& ReturnParam = InOutputParams[ReturnPropIndex];
+			ReturnType += PyGenUtil::GetPropertyTypePythonName(ReturnParam.ParamProp, bIncludeUnrealNamespace, /*bIsForDocString*/false, InPythonizeFlags);
+		}
+		ReturnType += (bCanReturnNone ? TEXT("]]") : TEXT("]"));
+		return ReturnType;
+	}
+}
+
+FString PythonizeMethodReturnType(const FProperty* InProp, EPythonizeFlags InPythonizeFlags)
+{
+	// If type hinting is disabled, return type is not specified with the method signature.
+	if (!EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeHinting))
+	{
+		return FString();
+	}
+
+	bool bIncludeUnrealNamespace = EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::IncludeUnrealNamespace);
+	return PyGenUtil::GetPropertyTypePythonName(InProp, bIncludeUnrealNamespace, /*bIsForDocString*/false, InPythonizeFlags);
 }
 
 const UObject* GetAssetTypeRegistryType(const UObject* InObj)
@@ -2993,15 +3100,25 @@ TArray<FString> GetDeprecatedPropertyPythonNames(const FProperty* InProp)
 	return PropNames;
 }
 
-FString GetPropertyTypePythonName(const FProperty* InProp, const bool InIncludeUnrealNamespace, const bool InIsForDocString)
+FString GetPropertyTypePythonName(const FProperty* InProp, const bool InIncludeUnrealNamespace, const bool InIsForDocString, EPythonizeFlags InPythonizeFlags)
 {
+	const TCHAR* UnrealNamespace = InIncludeUnrealNamespace ? TEXT("unreal.") : TEXT("");
+
+	auto GetTypeWithCoercionHint = [InPythonizeFlags, UnrealNamespace](const TCHAR* TypeName) -> FString
+	{
+		if (EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeCoercion))
+		{
+			// Supports using a python string in place of a unreal.Name() or unreal.Text().
+			return FString::Printf(TEXT("Union[%s%s, str]"), UnrealNamespace, TypeName);
+		}
+		return FString::Printf(TEXT("%s%s"), UnrealNamespace, TypeName);
+	};
+
 #define GET_PROPERTY_TYPE(TYPE, VALUE)				\
 		if (CastField<const TYPE>(InProp) != nullptr)	\
 		{											\
 			return (VALUE);							\
 		}
-
-	const TCHAR* UnrealNamespace = InIncludeUnrealNamespace ? TEXT("unreal.") : TEXT("");
 
 	GET_PROPERTY_TYPE(FBoolProperty, TEXT("bool"))
 	GET_PROPERTY_TYPE(FInt8Property, InIsForDocString ? TEXT("int8") : TEXT("int"))
@@ -3014,8 +3131,8 @@ FString GetPropertyTypePythonName(const FProperty* InProp, const bool InIncludeU
 	GET_PROPERTY_TYPE(FFloatProperty, TEXT("float"))
 	GET_PROPERTY_TYPE(FDoubleProperty, InIsForDocString ? TEXT("double") : TEXT("float"))
 	GET_PROPERTY_TYPE(FStrProperty, TEXT("str"))
-	GET_PROPERTY_TYPE(FNameProperty, InIncludeUnrealNamespace ? TEXT("unreal.Name") : TEXT("Name"))
-	GET_PROPERTY_TYPE(FTextProperty, InIncludeUnrealNamespace ? TEXT("unreal.Text") : TEXT("Text"))
+	GET_PROPERTY_TYPE(FNameProperty, GetTypeWithCoercionHint(TEXT("Name")))
+	GET_PROPERTY_TYPE(FTextProperty, GetTypeWithCoercionHint(TEXT("Text")))
 	GET_PROPERTY_TYPE(FFieldPathProperty, InIncludeUnrealNamespace ? TEXT("unreal.FieldPath") : TEXT("FieldPath"))
 
 	if (const FByteProperty* ByteProp = CastField<const FByteProperty>(InProp))
@@ -3033,24 +3150,36 @@ FString GetPropertyTypePythonName(const FProperty* InProp, const bool InIncludeU
 	{
 		return FString::Printf(TEXT("%s%s"), UnrealNamespace, *GetEnumPythonName(EnumProp->GetEnum()));
 	}
-	if (InIsForDocString)
+	if (const FClassProperty* ClassProp = CastField<const FClassProperty>(InProp))
 	{
-		if (const FClassProperty* ClassProp = CastField<const FClassProperty>(InProp))
+		if (InIsForDocString)
 		{
 			return FString::Printf(TEXT("type(%s%s)"), UnrealNamespace, *GetClassPythonName(ClassProp->PropertyClass));
+		}
+		else if (EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeCoercion))
+		{
+			// If type hinting is enabled and the context allows type coercion (for an input parameters), the implementation support taking a 'type' in place of a 'Class'.
+			return FString::Printf(TEXT("Union[%sClass, type]"), UnrealNamespace);
 		}
 	}
 	if (const FObjectPropertyBase* ObjProp = CastField<const FObjectPropertyBase>(InProp))
 	{
-		return FString::Printf(TEXT("%s%s"), UnrealNamespace, *GetClassPythonName(ObjProp->PropertyClass));
+		return (EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithOptionalType))
+			? FString::Printf(TEXT("Optional[%s%s]"), UnrealNamespace, *GetClassPythonName(ObjProp->PropertyClass)) // None can be assigned to object.
+			: FString::Printf(TEXT("%s%s"), UnrealNamespace, *GetClassPythonName(ObjProp->PropertyClass));
 	}
 	if (const FInterfaceProperty* InterfaceProp = CastField<const FInterfaceProperty>(InProp))
 	{
-		return FString::Printf(TEXT("%s%s"), UnrealNamespace, *GetClassPythonName(InterfaceProp->InterfaceClass));
+		return (EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithOptionalType))
+			? FString::Printf(TEXT("Optional[%s%s]"), UnrealNamespace, *GetClassPythonName(InterfaceProp->InterfaceClass)) // None can be assigned to Interface.
+			: FString::Printf(TEXT("%s%s"), UnrealNamespace, *GetClassPythonName(InterfaceProp->InterfaceClass));
 	}
 	if (const FStructProperty* StructProp = CastField<const FStructProperty>(InProp))
 	{
-		return FString::Printf(TEXT("%s%s"), UnrealNamespace, *GetStructPythonName(StructProp->Struct));
+		// If type hinting is enabled and the context allows type coercion (for an input parameters), the implementation support several types in place of the struct.
+		return (EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeCoercion))
+			? FString::Printf(TEXT("Union[%s%s, Iterable[Any], Mapping[str, Any]]"), UnrealNamespace, *GetStructPythonName(StructProp->Struct))
+			: FString::Printf(TEXT("%s%s"), UnrealNamespace, *GetStructPythonName(StructProp->Struct));
 	}
 	if (const FDelegateProperty* DelegateProp = CastField<const FDelegateProperty>(InProp))
 	{
@@ -3062,15 +3191,35 @@ FString GetPropertyTypePythonName(const FProperty* InProp, const bool InIncludeU
 	}
 	if (const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(InProp))
 	{
-		return FString::Printf(TEXT("%sArray(%s)"), UnrealNamespace, *GetPropertyTypePythonName(ArrayProperty->Inner, InIncludeUnrealNamespace, InIsForDocString));
+		// If type hinting is enabled and the context allows type coercion (for an input parameters), the implementation support any Iterable[T] in place of an Array[T]
+		return EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeCoercion)
+			? FString::Printf(TEXT("Iterable[%s]"), *GetPropertyTypePythonName(ArrayProperty->Inner, InIncludeUnrealNamespace, InIsForDocString, InPythonizeFlags))
+			: FString::Printf(TEXT("Array[%s]"), *GetPropertyTypePythonName(ArrayProperty->Inner, InIncludeUnrealNamespace, InIsForDocString, InPythonizeFlags));
+
 	}
 	if (const FSetProperty* SetProperty = CastField<const FSetProperty>(InProp))
 	{
-		return FString::Printf(TEXT("%sSet(%s)"), UnrealNamespace, *GetPropertyTypePythonName(SetProperty->ElementProp, InIncludeUnrealNamespace, InIsForDocString));
+		// If type hinting is enabled and the context allows type coercion (for an input parameters), the implementation support any Iterable[T] in place of a Set[T]
+		return EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeCoercion)
+			? FString::Printf(TEXT("Iterable[%s]"), *GetPropertyTypePythonName(SetProperty->ElementProp, InIncludeUnrealNamespace, InIsForDocString, InPythonizeFlags))
+			: FString::Printf(TEXT("%sSet[%s]"), UnrealNamespace, *GetPropertyTypePythonName(SetProperty->ElementProp, InIncludeUnrealNamespace, InIsForDocString, InPythonizeFlags));
 	}
 	if (const FMapProperty* MapProperty = CastField<const FMapProperty>(InProp))
 	{
-		return FString::Printf(TEXT("%sMap(%s, %s)"), UnrealNamespace, *GetPropertyTypePythonName(MapProperty->KeyProp, InIncludeUnrealNamespace, InIsForDocString), *GetPropertyTypePythonName(MapProperty->ValueProp, InIncludeUnrealNamespace, InIsForDocString));
+		// If type hinting is enabled and the context allows type coercion (for an input parameters).
+		if (EnumHasAnyFlags(InPythonizeFlags, EPythonizeFlags::WithTypeCoercion))
+		{
+			// When an unreal.Map() is expected, the implementation will successfully parse Mapping, list of 2-element tuples or even list of list.
+			FString KeyTypeDecl   = GetPropertyTypePythonName(MapProperty->KeyProp, InIncludeUnrealNamespace, InIsForDocString, InPythonizeFlags);
+			FString ValueTypeDecl = GetPropertyTypePythonName(MapProperty->ValueProp, InIncludeUnrealNamespace, InIsForDocString, InPythonizeFlags);
+			return FString::Printf(TEXT("Union[Mapping[%s, %s], Iterable[Tuple[%s, %s]], List[List[Union[%s, %s]]]]"), *KeyTypeDecl, *ValueTypeDecl, *KeyTypeDecl, *ValueTypeDecl, *KeyTypeDecl, *ValueTypeDecl);
+		}
+		else
+		{
+			return FString::Printf(TEXT("%sMap[%s, %s]"), UnrealNamespace,
+				*GetPropertyTypePythonName(MapProperty->KeyProp, InIncludeUnrealNamespace, InIsForDocString, InPythonizeFlags),
+				*GetPropertyTypePythonName(MapProperty->ValueProp, InIncludeUnrealNamespace, InIsForDocString, InPythonizeFlags));
+		}
 	}
 
 	return InIsForDocString ? TEXT("'undefined'") : TEXT("type");
@@ -3199,6 +3348,27 @@ bool SaveGeneratedTextFile(const TCHAR* InFilename, FStringView InFileContents, 
 
 	// File up-to-date, return success
 	return true;
+}
+
+void SetTypeHintingMode(ETypeHintingMode InMode)
+{
+	GTypeHintingMode = InMode;
+}
+
+ETypeHintingMode GetTypeHintingMode()
+{
+	if (!IsTypeHintingEnabled()) // Can be disable if the Python version is too old.
+	{
+		return ETypeHintingMode::Off;
+	}
+	return GTypeHintingMode;
+}
+
+bool IsTypeHintingEnabled()
+{
+	// In 3.7, a feature allowing usage of non-declared types in type hints was added (from __future__ import annotations) and the engine
+	// doesn't output types in a strict declaration/usage order, so this is required to correctly type.
+	return PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 7 && GTypeHintingMode != ETypeHintingMode::Off;
 }
 
 }

@@ -7,6 +7,28 @@
 #include "Engine/DeveloperSettings.h"
 #include "PythonScriptPluginSettings.generated.h"
 
+UENUM()
+enum class ETypeHintingMode : uint8
+{
+	/** Turn off type hinting. */
+	Off,
+
+	/**
+	 * When generating the Python stub and to some extend the Docstrings, enables type hinting (PEP 484) to get the best experience
+	 * with a Python IDE auto-completion. The hinting will list the exact input types, omit type coercions and will assume all reflected
+	 * unreal.Object cannot be None which is not true, but will let the function signature easy to read.
+	 */
+	AutoCompletion,
+
+	/**
+	 * Enables type hinting for static type checking. Hint as close as possible the real supported types including
+	 * possible type coercions. Because the UE reflection API doesn't provide all the required information, some tradeoffs
+	 * are required that do not always reflect the reality. For example, reflected UObject will always be marked as
+	 * 'possibly None'. While this is true in some contexts, it is not true all the time.
+	 */
+	TypeChecker,
+};
+
 /**
  * Configure the Python plug-in.
  */
@@ -102,6 +124,15 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true))
 	bool bDeveloperMode;
+
+	/**
+	 * Should the generated Python stub and API documentation have type hints. This enables standard Python type hinting (PEP 484) for the classes,
+	 * structs, methods, properties, constants, etc. exposed by the engine. If the developer mode is enabled and the Python IDE configured to use
+	 * the generated Python stub, types will be displayed in auto-completion popup and used by the IDE static type checkers. This has no effects on
+	 * the execution of the code. (Requires Python >= 3.7)
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true))
+	ETypeHintingMode TypeHintingMode = ETypeHintingMode::AutoCompletion;
 
 	/** Should Python scripts be available in the Content Browser? */
 	UPROPERTY(config, EditAnywhere, Category=Python, meta=(ConfigRestartRequired=true))

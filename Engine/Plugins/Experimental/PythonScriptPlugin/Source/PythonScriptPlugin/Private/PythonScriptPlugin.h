@@ -12,6 +12,7 @@
 #include "Framework/Commands/InputChord.h"
 #include "Kismet2/EnumEditorUtils.h"
 #include "UObject/StrongObjectPtr.h"
+#include "PythonScriptPluginSettings.h"
 
 class FPythonScriptPlugin;
 class FPythonScriptRemoteExecution;
@@ -175,6 +176,8 @@ private:
 	static void UnregisterModulePaths(const FString& InFilesystemPath);
 
 	static bool IsDeveloperModeEnabled();
+
+	static ETypeHintingMode GetTypeHintingMode();
 
 	void OnAssetRenamed(const FAssetData& Data, const FString& OldName);
 

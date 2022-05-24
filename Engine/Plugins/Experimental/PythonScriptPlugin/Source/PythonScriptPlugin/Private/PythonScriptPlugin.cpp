@@ -817,6 +817,9 @@ void FPythonScriptPlugin::InitializePython()
 			PyUtil::EnableDeveloperWarnings();
 		}
 
+		// Check if the user wants type hinting. (In the stub and/or Docstrings).
+		PyGenUtil::SetTypeHintingMode(GetTypeHintingMode());
+
 		// Initialize our custom method type as we'll need it when generating bindings
 		InitializePyMethodWithClosure();
 
@@ -1538,6 +1541,11 @@ void FPythonScriptPlugin::UnregisterModulePaths(const FString& InFilesystemPath)
 bool FPythonScriptPlugin::IsDeveloperModeEnabled()
 {
 	return GetDefault<UPythonScriptPluginSettings>()->bDeveloperMode || GetDefault<UPythonScriptPluginUserSettings>()->bDeveloperMode;
+}
+
+ETypeHintingMode FPythonScriptPlugin::GetTypeHintingMode()
+{
+	return GetDefault<UPythonScriptPluginUserSettings>()->TypeHintingMode;
 }
 
 void FPythonScriptPlugin::OnAssetRenamed(const FAssetData& Data, const FString& OldName)

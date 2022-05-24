@@ -6,6 +6,7 @@
 #include "PyPtr.h"
 #include "PyConstant.h"
 #include "PyMethodWithClosure.h"
+#include "PythonScriptPluginSettings.h"
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtr.h"
@@ -866,18 +867,28 @@ namespace PyGenUtil
 		Upper,
 	};
 
-	/** Flags controlling the behavior of PythonizeValue */
-	namespace EPythonizeValueFlags
+	/** Flags controlling the behavior of PythonizeValue/PythonizeMethodParam/PythonizeMethodReturnType. */
+	enum class EPythonizeFlags
 	{
-		enum EFlags
-		{
-			None = 0,
-			IncludeUnrealNamespace = 1<<0,
-			UseStrictTyping = 1<<1,
-			DefaultConstructStructs = 1<<2,
-			DefaultConstructDateTime = 1<<3,
-		};
+		None = 0,
+		IncludeUnrealNamespace = 1<<0,
+		UseStrictTyping = 1<<1,
+		DefaultConstructStructs = 1<<2,
+		DefaultConstructDateTime = 1<<3,
+
+		/** Type hinting is enabled. */
+		WithTypeHinting = 1<<4,
+
+		/** If the type of a value being hinted can be None, wrap the type in Optional[T], which is an alias to Union[T, None]. */
+		WithOptionalType = 1<<5,
+
+		/** Declare the type along with it known type coercion. For example [unreal.Name, str] because a string can be passed in place of a Name. */
+		WithTypeCoercion = 1<<6,
+
+		/** In method declaration, add '...' as default value even if no default value was found. Used in stub generation to workaround 'non-defaulted param after defaulted param' coming from the 'malformed' UFUNCTION. */
+		AddMissingDefaultValueEllipseWorkaround = 1<<7,
 	};
+	ENUM_CLASS_FLAGS(EPythonizeFlags)
 
 	/** Context information passed to PythonizeTooltip */
 	struct FPythonizeTooltipContext
@@ -1086,10 +1097,25 @@ namespace PyGenUtil
 	FParsedTooltip ParseTooltip(FStringView InTooltip);
 
 	/** Given a property and its value, convert it into something that could be used in a Python script */
-	FString PythonizeValue(const FProperty* InProp, const void* InPropValue, const uint32 InFlags = EPythonizeValueFlags::None);
+	FString PythonizeValue(const FProperty* InProp, const void* InPropValue, const EPythonizeFlags InPythonizeFlags = EPythonizeFlags::None);
 
 	/** Given a property and its default value, convert it into something that could be used in a Python script */
-	FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultValue, const uint32 InFlags = EPythonizeValueFlags::None);
+	FString PythonizeDefaultValue(const FProperty* InProp, const FString& InDefaultValue, const EPythonizeFlags InPythonizeFlags = EPythonizeFlags::None);
+
+	/** Given a generated method parameter, extract the name, type and default value and format a parameter declaration usable in a Python method signature according to the specified flags. */
+	FString PythonizeMethodParam(const FGeneratedWrappedMethodParameter& InMethodParam, EPythonizeFlags InPythonizeFlags = EPythonizeFlags::None, const TFunction<bool(const FString&)>& ShouldEllipseDefaultValue = TFunction<bool(const FString&)>());
+
+	/** Given a property and a name, format a parameter declaration usable in a Python method signature according to the specified flags. */
+	FString PythonizeMethodParam(const FString& InParamName, const FProperty* ParamProp, EPythonizeFlags InPythonizeFlags = EPythonizeFlags::None);
+
+	/** Given a param name and optional param type and default value, format a parameter declaration usable in a Python method signature. */
+	FString PythonizeMethodParam(const FString& InParamName, const FString& InParamType = FString(), const FString& InDefaultValue = FString());
+
+	/** Given list of return parameter, format the return type declaration usable in the Python method signature according to the flags. */
+	FString PythonizeMethodReturnType(const TArray<PyGenUtil::FGeneratedWrappedMethodParameter>& InOutputParams, EPythonizeFlags InPythonizeFlags = EPythonizeFlags::None);
+
+	/** Given a property, format a return type declaration usable in the Python method signature according to the flags. */
+	FString PythonizeMethodReturnType(const FProperty* InProp, EPythonizeFlags InPythonizeFlags = EPythonizeFlags::None);
 
 	/** Get the type that should be used with the Python type registry for an asset (eg, a Blueprint asset should use its generated class) */
 	const UObject* GetAssetTypeRegistryType(const UObject* InObj);
@@ -1167,7 +1193,7 @@ namespace PyGenUtil
 	TArray<FString> GetDeprecatedPropertyPythonNames(const FProperty* InProp);
 
 	/** Get the Python name of the given property */
-	FString GetPropertyTypePythonName(const FProperty* InProp, const bool InIncludeUnrealNamespace = false, const bool InIsForDocString = true);
+	FString GetPropertyTypePythonName(const FProperty* InProp, const bool InIncludeUnrealNamespace = false, const bool InIsForDocString = true, const EPythonizeFlags PythonizeFlags = EPythonizeFlags::None);
 
 	/** Get the Python type of the given property */
 	FString GetPropertyPythonType(const FProperty* InProp);
@@ -1193,6 +1219,26 @@ namespace PyGenUtil
 
 	/** Save a generated text file to disk as UTF-8 (only writes the file if the contents differs, unless forced) */
 	bool SaveGeneratedTextFile(const TCHAR* InFilename, FStringView InFileContents, const bool InForceWrite = false);
+
+	/**
+	 * Whether Python type hints should be generated. This is only effective if Python interpreter version has the support. This
+	 * affects the Python stub and docstrings. The function must be called before Python glue and the stub are generated. It
+	 * can be set from the user settings or forced to a value for a specific purpose, like generating the online doc.
+	 */
+	void SetTypeHintingMode(ETypeHintingMode InMode);
+
+	/**
+	 * Return the effecting type hinting mode.
+	 * @see SetTypeHintingMode.
+	 */
+	ETypeHintingMode GetTypeHintingMode();
+
+	/**
+	 * Whether the stub and docstrings are type hinted during glue/stub generation. Default to false. This doesn't read
+	 * the user settings, but rather the value set with SetTypeHintingMode(). The function always returns false if
+	 * the linked Python interpreter version is older than 3.7.
+	 */
+	bool IsTypeHintingEnabled();
 }
 
 #endif	// WITH_PYTHON

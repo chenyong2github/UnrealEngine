@@ -440,20 +440,21 @@ PyTypeObject InitializePyWrapperTextType()
 		}
 	};
 
+	// NOTE: Union/Mapping are defines in the Python typing module.
 	static PyMethodDef PyMethods[] = {
-		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_CLASS, "X.cast(object) -> Text -- cast the given object to this Unreal text type" },
-		{ "as_number", PyCFunctionCast(&FMethods::AsNumber), METH_VARARGS | METH_CLASS, "X.as_number(num) -> Text -- convert the given number to a culture correct Unreal text representation" },
-		{ "as_percent", PyCFunctionCast(&FMethods::AsPercent), METH_VARARGS | METH_CLASS, "X.as_percent(num) -> Text -- convert the given number to a culture correct Unreal text percentgage representation" },
-		{ "as_currency", PyCFunctionCast(&FMethods::AsCurrency), METH_VARARGS | METH_CLASS, "X.as_currency(val, code) -> Text -- convert the given number (specified in the smallest unit for the given currency) to a culture correct Unreal text currency representation" },
+		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_CLASS, "cast(cls, object: object) -> Text -- cast the given object to this Unreal text type" },
+		{ "as_number", PyCFunctionCast(&FMethods::AsNumber), METH_VARARGS | METH_CLASS, "as_number(cls, num: float) -> Text -- convert the given number to a culture correct Unreal text representation" },
+		{ "as_percent", PyCFunctionCast(&FMethods::AsPercent), METH_VARARGS | METH_CLASS, "as_percent(cls, num: float) -> Text -- convert the given number to a culture correct Unreal text percentgage representation" },
+		{ "as_currency", PyCFunctionCast(&FMethods::AsCurrency), METH_VARARGS | METH_CLASS, "as_currency(cls, val: int, code: str) -> Text -- convert the given number (specified in the smallest unit for the given currency i.e. 650 for $6.50) to a culture correct Unreal text currency representation" },
 		// todo: datetime?
-		{ "is_empty", PyCFunctionCast(&FMethods::IsEmpty), METH_NOARGS, "x.is_empty() -> bool -- is this Unreal text empty?" },
-		{ "is_empty_or_whitespace", PyCFunctionCast(&FMethods::IsEmptyOrWhitespace), METH_NOARGS, "x.is_empty_or_whitespace() -> bool -- is this Unreal text empty or only whitespace?" },
-		{ "is_transient", PyCFunctionCast(&FMethods::IsTransient), METH_NOARGS, "x.is_transient() -> bool -- is this Unreal text transient?" },
-		{ "is_culture_invariant", PyCFunctionCast(&FMethods::IsEmptyOrWhitespace), METH_NOARGS, "x.is_culture_invariant() -> bool -- is this Unreal text culture invariant?" },
-		{ "is_from_string_table", PyCFunctionCast(&FMethods::IsFromStringTable), METH_NOARGS, "x.is_from_string_table() -> bool -- is this Unreal text referencing a string table entry?" },
-		{ "to_lower", PyCFunctionCast(&FMethods::ToLower), METH_NOARGS, "x.to_lower() -> Text -- convert this Unreal text to lowercase in a culture correct way" },
-		{ "to_upper", PyCFunctionCast(&FMethods::ToUpper), METH_NOARGS, "x.to_upper() -> Text -- convert this Unreal text to uppercase in a culture correct way" },
-		{ "format", PyCFunctionCast(&FMethods::Format), METH_VARARGS | METH_KEYWORDS, "x.format(...) -> Text -- use this Unreal text as a format pattern and generate a new text using the format arguments (may be a mapping, sequence, or set of (optionally named) arguments)" },
+		{ "is_empty", PyCFunctionCast(&FMethods::IsEmpty), METH_NOARGS, "is_empty(self) -> bool -- is this Unreal text empty?" },
+		{ "is_empty_or_whitespace", PyCFunctionCast(&FMethods::IsEmptyOrWhitespace), METH_NOARGS, "is_empty_or_whitespace(self) -> bool -- is this Unreal text empty or only whitespace?" },
+		{ "is_transient", PyCFunctionCast(&FMethods::IsTransient), METH_NOARGS, "is_transient(self) -> bool -- is this Unreal text transient?" },
+		{ "is_culture_invariant", PyCFunctionCast(&FMethods::IsEmptyOrWhitespace), METH_NOARGS, "is_culture_invariant(self) -> bool -- is this Unreal text culture invariant?" },
+		{ "is_from_string_table", PyCFunctionCast(&FMethods::IsFromStringTable), METH_NOARGS, "is_from_string_table(self) -> bool -- is this Unreal text referencing a string table entry?" },
+		{ "to_lower", PyCFunctionCast(&FMethods::ToLower), METH_NOARGS, "to_lower(self) -> Text -- convert this Unreal text to lowercase in a culture correct way" },
+		{ "to_upper", PyCFunctionCast(&FMethods::ToUpper), METH_NOARGS, "to_upper(self) -> Text -- convert this Unreal text to uppercase in a culture correct way" },
+		{ "format", PyCFunctionCast(&FMethods::Format), METH_VARARGS | METH_KEYWORDS, "format(self, *args: Union[Mapping[str, object], object], **named_args: object) -> Text -- use this Unreal text as a format pattern and generate a new text using the format arguments (may be a mapping[arg_name, arg] or comma separed (optionally named) arguments)" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
 

@@ -201,7 +201,7 @@ PyObject* GetBlueprintGeneratedTypes(PyObject* InSelf, PyObject* InArgs)
 }
 
 PyMethodDef PyEngineMethods[] = {
-	{ "get_blueprint_generated_types", PyCFunctionCast(&GetBlueprintGeneratedTypes), METH_VARARGS, "x.get_blueprint_generated_types(...) -> tuple(type)/type/None -- get the Python types (will return a tuple for multiple types) for the given set of Blueprint asset paths (may be a sequence type or set of arguments)" },
+	{ "get_blueprint_generated_types", PyCFunctionCast(&GetBlueprintGeneratedTypes), METH_VARARGS, "get_blueprint_generated_types(paths: Iterable[str]) -> Optional[Union[type, Tuple[type, ...]]] -- get the Python types (will return a tuple for multiple types) for the given set of Blueprint asset paths (may be a sequence type or set of arguments)" },
 	{ nullptr, nullptr, 0, nullptr }
 };
 

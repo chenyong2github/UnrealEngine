@@ -205,3 +205,111 @@ int32 UPyTestObjectLibrary::GetOtherConstantValue()
 {
 	return 20;
 }
+
+
+FString UPyTestTypeHint::GetStringConst()
+{
+	return FString("Foo");
+}
+
+int32 UPyTestTypeHint::GetIntConst()
+{
+	return 777;
+}
+
+
+UPyTestTypeHint::UPyTestTypeHint()
+{
+	ObjectProp = NewObject<UPyTestObject>();
+}
+
+UPyTestTypeHint::UPyTestTypeHint(bool bParam1, int32 Param2, float Param3, const FString& Param4, const FText& Param5)
+	: BoolProp(bParam1)
+	, IntProp(Param2)
+	, FloatProp(Param3)
+	, StringProp(Param4)
+	, TextProp(Param5)
+{
+}
+
+bool UPyTestTypeHint::CheckBoolTypeHints(bool bParam1, bool bParam2, bool bParam3)
+{
+	return true;
+}
+
+int32 UPyTestTypeHint::CheckIntegerTypeHints(uint8 Param1, int32 Param2, int64 Param3)
+{
+	return 0;
+}
+
+double UPyTestTypeHint::CheckFloatTypeHints(float Param1, double Param2, float Param3, double Param4)
+{
+	return 0.0;
+}
+
+EPyTestEnum UPyTestTypeHint::CheckEnumTypeHints(EPyTestEnum Param1, EPyTestEnum Param2)
+{
+	return EPyTestEnum::One;
+}
+
+FString UPyTestTypeHint::CheckStringTypeHints(const FString& Param1, const FString& Param2)
+{
+	return FString();
+}
+
+FName UPyTestTypeHint::CheckNameTypeHints(const FName& Param1, const FName& Param2)
+{
+	return FName();
+}
+
+FText UPyTestTypeHint::CheckTextTypeHints(const FText& Param1, const FText& Param2)
+{
+	return FText::GetEmpty();
+}
+
+TFieldPath<FProperty> UPyTestTypeHint::CheckFieldPathTypeHints(const TFieldPath<FProperty> Param1)
+{
+	return TFieldPath<FProperty>();
+}
+
+FPyTestStruct UPyTestTypeHint::CheckStructTypeHints(const FPyTestStruct& Param1, const FPyTestStruct& Param2)
+{
+	return FPyTestStruct();
+}
+
+UPyTestObject* UPyTestTypeHint::CheckObjectTypeHints(const UPyTestObject* Param1, const UPyTestObject* Param3)
+{
+	return nullptr;
+}
+
+TArray<FText> UPyTestTypeHint::CheckArrayTypeHints(const TArray<FString>& Param1, const TArray<FName>& Param2, const TArray<FText>& Param3, const TArray<UObject*>& Param4)
+{
+	return TArray<FText>();
+}
+
+TSet<FName> UPyTestTypeHint::CheckSetTypeHints(const TSet<FString>& Param1, const TSet<FName>& Param2, const TSet<UObject*>& Param4)
+{
+	return TSet<FName>();
+}
+
+TMap<FString, UObject*> UPyTestTypeHint::CheckMapTypeHints(const TMap<int, FString>& Param1, const TMap<int, FName>& Param2, const TMap<int, FText>& Param3, const TMap<int, UObject*>& Param4)
+{
+	return TMap<FString, UObject*>();
+}
+
+FPyTestDelegate& UPyTestTypeHint::CheckDelegateTypeHints(const FPyTestDelegate& Param1)
+{
+	return DelegateProp;
+}
+
+bool UPyTestTypeHint::CheckStaticFunction(bool Param1, int32 Param2, double Param3, const FString& Param4)
+{
+	return true;
+}
+
+int UPyTestTypeHint::CheckTupleReturnType(UPARAM(ref) FString& InOutString)
+{
+	InOutString = TEXT("Foo");
+	return 0;
+}
+

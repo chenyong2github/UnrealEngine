@@ -1474,26 +1474,27 @@ PyTypeObject InitializePyWrapperSetType()
 		}
 	};
 
+	// NOTE: _ElemType = typing.TypeVar('_ElemType') and Type/Iterable are defined by the Python typing module.
 	static PyMethodDef PyMethods[] = {
-		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "X.cast(type, obj) -> Set -- cast the given object to this Unreal set type" },
-		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "x.__copy__() -> Set -- copy this Unreal set" },
-		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "x.copy() -> Set -- copy this Unreal set" },
-		{ "add", PyCFunctionCast(&FMethods::Add), METH_VARARGS, "x.add(value) -> None -- add the given value to this Unreal set if not already present" },
-		{ "discard", PyCFunctionCast(&FMethods::Discard), METH_VARARGS, "x.discard(value) -> None -- remove the given value from this Unreal set, or do nothing if not present" },
-		{ "remove", PyCFunctionCast(&FMethods::Remove), METH_VARARGS, "x.remove(value) -> None -- remove the given value from this Unreal set, or raise KeyError if not present" },
-		{ "pop", PyCFunctionCast(&FMethods::Pop), METH_NOARGS, "x.pop() -> value -- remove and return an arbitrary value from this Unreal set, or raise KeyError if the set is empty" },
-		{ "clear", PyCFunctionCast(&FMethods::Clear), METH_NOARGS, "x.clear() -> None -- remove all values from this Unreal set" },
-		{ "difference", PyCFunctionCast(&FMethods::Difference), METH_VARARGS, "x.difference(...) -> Set -- return the difference between this Unreal set and the other iterables passed for comparison (ie, all values that are in this set but not the others)" },
-		{ "difference_update", PyCFunctionCast(&FMethods::DifferenceUpdate), METH_VARARGS, "x.difference_update(...) -> None -- make this set the difference between this Unreal set and the other iterables passed for comparison (ie, all values that are in this set but not the others)" },
-		{ "intersection", PyCFunctionCast(&FMethods::Intersection), METH_VARARGS, "x.intersection(...) -> Set -- return the intersection between this Unreal set and the other iterables passed for comparison (ie, values that are common to all of the sets)" },
-		{ "intersection_update", PyCFunctionCast(&FMethods::IntersectionUpdate), METH_VARARGS, "x.intersection_update(...) -> None -- make this set the intersection between this Unreal set and the other iterables passed for comparison (ie, values that are common to all of the sets)" },
-		{ "symmetric_difference", PyCFunctionCast(&FMethods::SymmetricDifference), METH_VARARGS, "x.symmetric_difference(other) -> Set -- return the symmetric difference between this Unreal set and another (ie, values that are in exactly one of the sets)" },
-		{ "symmetric_difference_update", PyCFunctionCast(&FMethods::SymmetricDifferenceUpdate), METH_VARARGS, "x.symmetric_difference_update(other) -> None -- make this set the symmetric difference between this Unreal set and another (ie, values that are in exactly one of the sets)" },
-		{ "union", PyCFunctionCast(&FMethods::Union), METH_VARARGS, "x.union(...) -> Set -- return the union between this Unreal set and the other iterables passed for comparison (ie, values that are in any set)" },
-		{ "update", PyCFunctionCast(&FMethods::Update), METH_VARARGS, "x.update(...) -> None -- make this set the union between this Unreal set and the other iterables passed for comparison (ie, values that are in any set)" },
-		{ "isdisjoint", PyCFunctionCast(&FMethods::IsDisjoint), METH_VARARGS, "x.isdisjoint(other) -> bool -- return True if there is a null intersection between this Unreal set and another" },
-		{ "issubset", PyCFunctionCast(&FMethods::IsSubset), METH_VARARGS, "x.issubset(other) -> bool -- return True if another set contains this Unreal set" },
-		{ "issuperset", PyCFunctionCast(&FMethods::IsSuperset), METH_VARARGS, "x.issuperset(other) -> bool -- return True if this Unreal set contains another" },
+		{ "cast", PyCFunctionCast(&FMethods::Cast), METH_VARARGS | METH_KEYWORDS | METH_CLASS, "cast(cls, type: Type[_ElemType], obj: object) -> Set[_ElemType] -- cast the given object to this Unreal set type" },
+		{ "__copy__", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "__copy__(self) -> Set[_ElemType] -- copy this Unreal set" },
+		{ "copy", PyCFunctionCast(&FMethods::Copy), METH_NOARGS, "copy(self) -> Set[_ElemType] -- copy this Unreal set" },
+		{ "add", PyCFunctionCast(&FMethods::Add), METH_VARARGS, "add(self, value: _ElemType) -> None -- add the given value to this Unreal set if not already present" },
+		{ "discard", PyCFunctionCast(&FMethods::Discard), METH_VARARGS, "discard(self, value: _ElemType) -> None -- remove the given value from this Unreal set, or do nothing if not present" },
+		{ "remove", PyCFunctionCast(&FMethods::Remove), METH_VARARGS, "remove(self, value: _ElemType) -> None -- remove the given value from this Unreal set, or raise KeyError if not present" },
+		{ "pop", PyCFunctionCast(&FMethods::Pop), METH_NOARGS, "pop(self) -> _ElemType -- remove and return an arbitrary value from this Unreal set, or raise KeyError if the set is empty" },
+		{ "clear", PyCFunctionCast(&FMethods::Clear), METH_NOARGS, "clear(self) -> None -- remove all values from this Unreal set" },
+		{ "difference", PyCFunctionCast(&FMethods::Difference), METH_VARARGS, "difference(self, *iterable: Iterable[_ElemType]) -> Set[_ElemType] -- return the difference between this Unreal set and the other iterables passed for comparison (ie, all values that are in this set but not the others)" },
+		{ "difference_update", PyCFunctionCast(&FMethods::DifferenceUpdate), METH_VARARGS, "difference_update(self, *iterables: Iterable[_ElemType]) -> None -- make this set the difference between this Unreal set and the other iterables passed for comparison (ie, all values that are in this set but not the others)" },
+		{ "intersection", PyCFunctionCast(&FMethods::Intersection), METH_VARARGS, "intersection(self, *iterables: Iterable[_ElemType]) -> Set[_ElemType] -- return the intersection between this Unreal set and the other iterables passed for comparison (ie, values that are common to all of the sets)" },
+		{ "intersection_update", PyCFunctionCast(&FMethods::IntersectionUpdate), METH_VARARGS, "intersection_update(self, *iterables: Iterable[_ElemType]) -> None -- make this set the intersection between this Unreal set and the other iterables passed for comparison (ie, values that are common to all of the sets)" },
+		{ "symmetric_difference", PyCFunctionCast(&FMethods::SymmetricDifference), METH_VARARGS, "symmetric_difference(self, other: Iterable[_ElemType]) -> Set[_ElemType] -- return the symmetric difference between this Unreal set and another (ie, values that are in exactly one of the sets)" },
+		{ "symmetric_difference_update", PyCFunctionCast(&FMethods::SymmetricDifferenceUpdate), METH_VARARGS, "symmetric_difference_update(self, other: Iterable[_ElemType]) -> None -- make this set the symmetric difference between this Unreal set and another (ie, values that are in exactly one of the sets)" },
+		{ "union", PyCFunctionCast(&FMethods::Union), METH_VARARGS, "union(self, *iterables: Iterable[_ElemType]) -> Set[_ElemType] -- return the union between this Unreal set and the other iterables passed for comparison (ie, values that are in any set)" },
+		{ "update", PyCFunctionCast(&FMethods::Update), METH_VARARGS, "update(self, *iterables: Iterable[_ElemType]) -> None -- make this set the union between this Unreal set and the other iterables passed for comparison (ie, values that are in any set)" },
+		{ "isdisjoint", PyCFunctionCast(&FMethods::IsDisjoint), METH_VARARGS, "isdisjoint(self, other: Iterable[_ElemType]) -> bool -- return True if there is a null intersection between this Unreal set and another" },
+		{ "issubset", PyCFunctionCast(&FMethods::IsSubset), METH_VARARGS, "issubset(self, other: Iterable[_ElemType]) -> bool -- return True if another set contains this Unreal set" },
+		{ "issuperset", PyCFunctionCast(&FMethods::IsSuperset), METH_VARARGS, "issuperset(self, other: Iterable[_ElemType]) -> bool -- return True if this Unreal set contains another" },
 		{ nullptr, nullptr, 0, nullptr }
 	};
 
