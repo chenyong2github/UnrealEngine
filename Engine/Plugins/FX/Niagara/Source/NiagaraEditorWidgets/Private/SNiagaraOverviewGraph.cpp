@@ -102,6 +102,20 @@ void SNiagaraOverviewGraph::Construct(const FArguments& InArgs, TSharedRef<FNiag
 		FIsActionChecked(),
 		FIsActionButtonVisible::CreateSP(this, &SNiagaraOverviewGraph::CanAddEmitters)
 	);
+
+	Commands->MapAction(
+		FNiagaraEditorCommands::Get().HideDisabledModules,
+		FExecuteAction::CreateLambda([=]()
+		{
+			UNiagaraStackEditorData& EditorData = ViewModel->GetSystemViewModel()->GetEditorData().GetStackEditorData();
+			EditorData.bHideDisabledModules = !EditorData.bHideDisabledModules;
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([=]()
+		{
+			UNiagaraStackEditorData& EditorData = ViewModel->GetSystemViewModel()->GetEditorData().GetStackEditorData();
+			return EditorData.bHideDisabledModules;
+		}));
 	
 	GraphEditor = SNew(SGraphEditor)
 		.AdditionalCommands(Commands)

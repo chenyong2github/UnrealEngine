@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SNiagaraOverviewStack.h"
+
+#include "IDocumentation.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemEditorData.h"
 #include "ScopedTransaction.h"
@@ -43,19 +45,16 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Widgets/SToolTip.h"
 #include "Styling/AppStyle.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Subsystems/AssetEditorSubsystem.h"
-#include "Widgets/Colors/SColorBlock.h"
 #include "NiagaraEditorStyle.h"
 #include "NiagaraEditorUtilities.h"
 #include "ScopedTransaction.h"
 #include "Styling/StyleColors.h"
-#include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "ViewModels/Stack/NiagaraStackRendererItem.h"
-#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Layout/SWrapBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraOverviewStack"
@@ -289,9 +288,16 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override
 	{
-		UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(StackEntry);
-		if (ModuleItem != nullptr)
+		if (UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(StackEntry))
 		{
+			// if the user double-clicks a collapsed module we uncollapse it
+			UNiagaraStackEditorData& StackEditorData = ModuleItem->GetSystemViewModel()->GetEditorData().GetStackEditorData();
+			if (ModuleItem->GetIsEnabled() == false && StackEditorData.bHideDisabledModules)
+			{
+				StackEditorData.bHideDisabledModules = false;
+				return FReply::Handled();
+			}
+			
 			const UNiagaraNodeFunctionCall& ModuleFunctionCall = ModuleItem->GetModuleNode();
 			if (ModuleFunctionCall.FunctionScript != nullptr)
 			{
@@ -382,9 +388,9 @@ private:
 	}
 
 private:
-	UNiagaraStackViewModel* StackViewModel;
-	UNiagaraStackEntry* StackEntry;
-	UNiagaraSystemScalabilityViewModel* ScalabilityViewModel;
+	UNiagaraStackViewModel* StackViewModel = nullptr;
+	UNiagaraStackEntry* StackEntry = nullptr;
+	UNiagaraSystemScalabilityViewModel* ScalabilityViewModel = nullptr;
 	TSharedPtr<SOverlay> ScalabilityOverlay;
 	TSharedPtr<FNiagaraStackCommandContext> StackCommandContext;
 	FSlateColor ExcludedFromScalabilityColor;
@@ -392,7 +398,7 @@ private:
 	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel;
 	const FSlateBrush* ExpandedImage = nullptr;
 	const FSlateBrush* CollapsedImage = nullptr;
-	bool bScalabilityModeActive;
+	bool bScalabilityModeActive = false;
 	mutable TOptional<uint32> ChildrenCount;
 	mutable TOptional<FSlateColor> IssueHighlightColor;
 };
@@ -1112,8 +1118,25 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 				OptionsBox
 			];
 		}
-		
-		Content = ContentBox;	
+
+		if (StackModuleItem)
+		{
+			SAssignNew(Content, SWidgetSwitcher)
+		   .WidgetIndex_Lambda([StackModuleItem, this]() { return (StackViewModel->ShouldHideDisabledModules() && StackModuleItem->GetIsEnabled() == false) ? 1 : 0; })
+		   + SWidgetSwitcher::Slot()
+		   [
+			   ContentBox
+		   ]
+		   + SWidgetSwitcher::Slot()
+		   [
+			   SNew(SBox)
+			   .HeightOverride(4)
+		   ];
+		}
+		else
+		{
+			Content = ContentBox;
+		}
 		RowStyle = &FNiagaraEditorWidgetsStyle::Get().GetWidgetStyle<FTableRowStyle>("NiagaraEditor.SystemOverview.TableViewRow.Item");
 	}
 	else if (Item->IsA<UNiagaraStackItemGroup>())

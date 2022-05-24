@@ -73,6 +73,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> IsolateSelectedEmitters;
 	TSharedPtr<FUICommandInfo> DisableSelectedEmitters;
+	TSharedPtr<FUICommandInfo> HideDisabledModules;
 
 	TSharedPtr<FUICommandInfo> CollapseStackToHeaders;
 

@@ -407,6 +407,16 @@ TSharedPtr<UNiagaraStackViewModel::FTopLevelViewModel> UNiagaraStackViewModel::G
 	return TSharedPtr<FTopLevelViewModel>();
 }
 
+bool UNiagaraStackViewModel::ShouldHideDisabledModules() const
+{
+	if (SystemViewModel.IsValid())
+	{
+		UNiagaraSystemEditorData& EditorData = SystemViewModel.Pin()->GetEditorData();
+		return EditorData.GetStackEditorData().bHideDisabledModules;
+	}
+	return false;
+}
+
 void UNiagaraStackViewModel::CollapseToHeadersRecursive(TArray<UNiagaraStackEntry*> Entries)
 {
 	for (UNiagaraStackEntry* Entry : Entries)

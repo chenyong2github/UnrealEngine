@@ -21,9 +21,11 @@
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
+#include "NiagaraEditorCommands.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterEditorData.h"
 #include "NiagaraMessages.h"
+#include "NiagaraSystemEditorData.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
@@ -374,6 +376,11 @@ bool FNiagaraStackEditorWidgetsUtilities::AddStackItemContextMenuActions(FMenuBu
 			}
 
 			UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(&StackItem);
+
+			if (ModuleItem && ModuleItem->GetIsEnabled() == false)
+			{
+				MenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().HideDisabledModules);
+			}
 			
 			if (ModuleItem && ModuleItem->GetModuleNode().ContainsDebugSwitch())
 			{

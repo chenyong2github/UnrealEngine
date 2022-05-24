@@ -133,7 +133,6 @@ public:
 	void CollapseToHeaders();
 	
 	void UndismissAllIssues();
-
 	bool HasDismissedStackIssues();
 
 	const TArray<TSharedRef<FTopLevelViewModel>>& GetTopLevelViewModels() const;
@@ -141,12 +140,11 @@ public:
 	TSharedPtr<FTopLevelViewModel> GetTopLevelViewModelForEntry(UNiagaraStackEntry& InEntry) const;
 
 	void Reset();
-
 	bool HasIssues() const;
-
 	void Refresh() { bRefreshPending = true; }
-
 	void RequestValidationUpdate() { bValidatorUpdatePending = true; }
+
+	bool ShouldHideDisabledModules() const;
 
 	void InvalidateCachedParameterUsage();
 

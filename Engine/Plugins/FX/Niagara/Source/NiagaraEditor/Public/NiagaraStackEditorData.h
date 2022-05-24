@@ -156,6 +156,9 @@ public:
 	/* Gets a reference to the dismissed stack issue array */
 	NIAGARAEDITOR_API const TArray<FString>& GetDismissedStackIssueIds();
 
+	UPROPERTY()
+	bool bHideDisabledModules = false;
+
 private:
 	TMap<FString, bool> StackEntryKeyToRenamePendingMap;
 

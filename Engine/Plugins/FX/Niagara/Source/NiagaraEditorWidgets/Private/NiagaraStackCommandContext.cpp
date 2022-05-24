@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraStackCommandContext.h"
+
+#include "NiagaraEditorCommands.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraSystemEditorData.h"
 #include "ViewModels/Stack/NiagaraStackClipboardUtilities.h"
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 
@@ -12,6 +15,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackCommandContext"
 
@@ -103,6 +107,27 @@ void FNiagaraStackCommandContext::SetupCommands()
 	Commands->MapAction(FGenericCommands::Get().Rename, FUIAction(
 		FExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::RenameSelectedEntries),
 		FCanExecuteAction::CreateSP(this, &FNiagaraStackCommandContext::CanRenameSelectedEntries)));
+
+	Commands->MapAction(
+		FNiagaraEditorCommands::Get().HideDisabledModules,
+		FExecuteAction::CreateLambda([this]()
+		{
+			if (SelectedEntries.Num() > 0)
+			{
+				UNiagaraStackEditorData& EditorData = SelectedEntries[0]->GetSystemViewModel()->GetEditorData().GetStackEditorData();
+				EditorData.bHideDisabledModules = !EditorData.bHideDisabledModules;
+			}
+		}),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([this]()
+		{
+			if (SelectedEntries.Num() > 0)
+			{
+				UNiagaraStackEditorData& EditorData = SelectedEntries[0]->GetSystemViewModel()->GetEditorData().GetStackEditorData();
+				return EditorData.bHideDisabledModules;
+			}
+			return false;
+		}));
 }
 
 bool FNiagaraStackCommandContext::CanCutSelectedEntries() const
