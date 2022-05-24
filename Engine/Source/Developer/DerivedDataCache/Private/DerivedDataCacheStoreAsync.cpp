@@ -186,7 +186,7 @@ void FCacheStoreAsync::Execute(
 	{
 		Invoke(OnExecute, *InnerCache, Requests, Owner, [this, COOK_STAT(OnAddStats,) OnComplete = MoveTemp(OnComplete)](auto&& Response)
 		{
-			if (COOK_STAT(auto Timer = Invoke(OnAddStats, UsageStats)); Response.Status == EStatus::Ok)
+			if (COOK_STAT(auto Timer = Invoke(OnAddStats, UsageStats);) Response.Status == EStatus::Ok)
 			{
 				COOK_STAT(Timer.AddHit(0));
 			}
