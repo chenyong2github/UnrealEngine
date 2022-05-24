@@ -222,7 +222,7 @@ namespace P4VUtils
 
 		static string GetToolName(XmlElement ToolNode)
 		{
-			return ToolNode.SelectSingleNode("Definition").SelectSingleNode("Name").InnerText;
+			return ToolNode.SelectSingleNode("Definition")?.SelectSingleNode("Name")?.InnerText ?? string.Empty;
 		}
 
 		// returns true if all tools were removed
@@ -230,8 +230,15 @@ namespace P4VUtils
 		{
 			int ToolsChecked = 0;
 			int ToolsRemoved = 0;
+
+			XmlNodeList? CustomToolDefList = RootNode.SelectNodes("CustomToolDef");
+			if (CustomToolDefList == null)
+			{
+				return false;
+			}
+
 			// Removes tools explicitly calling the assembly location identified above - i assume as a way to "filter" only those we explicitly added (@Ben.Marsh) - nochecking, remove this comment once verified.
-			foreach (XmlNode? ChildNode in RootNode.SelectNodes("CustomToolDef"))
+			foreach (XmlNode? ChildNode in CustomToolDefList)
 			{
 				XmlElement? ChildElement = ChildNode as XmlElement;
 				if (ChildElement != null)
@@ -356,7 +363,13 @@ namespace P4VUtils
 		}
 		static void RemoveCustomToolsFromFolders(XmlElement RootNode, FileReference DotNetLocation, FileReference AssemblyLocation, ILogger Logger)
 		{
-			foreach (XmlNode? ChildNode in RootNode.SelectNodes("CustomToolFolder"))
+			XmlNodeList? CustomToolFolderList = RootNode.SelectNodes("CustomToolFolder");
+			if(CustomToolFolderList == null)
+			{
+				return;
+			}
+
+			foreach (XmlNode? ChildNode in CustomToolFolderList)
 			{
 				if (ChildNode != null)
 				{

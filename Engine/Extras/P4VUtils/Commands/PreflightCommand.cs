@@ -134,7 +134,7 @@ namespace P4VUtils.Commands
 							"[CANCEL] - To cancel the request";
 					string Caption = "Your CL will fail to auto-submit unless fixed";
 
-					string Response = null;
+					string Response = String.Empty;
 
 					if (OperatingSystem.IsWindows())
 					{
@@ -152,8 +152,8 @@ namespace P4VUtils.Commands
 						using (Process Proc = Process.Start(SI)!)
 						{
 							StreamReader Reader = Proc.StandardOutput;
-							Response = Reader.ReadToEnd().Trim();
-							Response = Response.Replace("button returned:", "");
+							Response = (await Reader.ReadToEndAsync()).Trim();
+							Response = Response.Replace("button returned:", "", StringComparison.OrdinalIgnoreCase);
 						}
 					}
 					else
