@@ -598,16 +598,21 @@ namespace P4VUtils.Commands
 
 		private static string FindEngineFromPath(string path)
 		{
-			DirectoryInfo directoryToSearch = new DirectoryInfo(Path.GetDirectoryName(path));
-
-			while (directoryToSearch != null)
+			string? directoryName = Path.GetDirectoryName(path);
+			
+			if (!String.IsNullOrEmpty(directoryName))
 			{
-				if (IsValidRootDirectory(directoryToSearch.ToString()))
-				{
-					return NormalizeDirectoryName(directoryToSearch.ToString());
-				}
+				DirectoryInfo? directoryToSearch = new DirectoryInfo(directoryName);
 
-				directoryToSearch = Directory.GetParent(directoryToSearch.ToString());
+				while (directoryToSearch != null)
+				{
+					if (IsValidRootDirectory(directoryToSearch.ToString()))
+					{
+						return NormalizeDirectoryName(directoryToSearch.ToString());
+					}
+
+					directoryToSearch = Directory.GetParent(directoryToSearch.ToString());
+				}
 			}
 
 			return string.Empty;
