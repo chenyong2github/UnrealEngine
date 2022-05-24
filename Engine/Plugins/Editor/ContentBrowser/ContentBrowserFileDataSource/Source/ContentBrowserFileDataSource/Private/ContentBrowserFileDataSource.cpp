@@ -1545,10 +1545,12 @@ bool UContentBrowserFileDataSource::IsKnownFileMount(const FName InMountPath, FS
 		{
 			if (OutDiskPath)
 			{
-					*OutDiskPath = MountPathStrView;
-					*OutDiskPath = FPaths::ConvertRelativePathToFull(*FileMountMountRootStr, *RegisteredFileMount.Value.DiskPath);
-			}
+				*OutDiskPath = MountPathStrView;
+				OutDiskPath->RightChopInline(FileMountMountRootStr.Len());
 
+				FString Path = FPaths::ConvertRelativePathToFull(*FileMountMountRootStr, *RegisteredFileMount.Value.DiskPath);
+				*OutDiskPath = Path.Append(*OutDiskPath); 
+			}
 			return true;
 		}
 	}
