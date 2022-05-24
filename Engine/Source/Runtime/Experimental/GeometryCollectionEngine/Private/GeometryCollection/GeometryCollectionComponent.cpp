@@ -2382,6 +2382,9 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 		{
 			InitializeEmbeddedGeometry();
 		}
+
+		// initialize the component per level damage threshold from the asset defaults 
+		DamageThreshold = RestCollection->DamageThreshold;
 		
 		//ResetDynamicCollection();
 	}
