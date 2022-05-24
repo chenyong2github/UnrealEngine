@@ -170,7 +170,10 @@ TSharedRef<SWidget> FMaterialItemView::CreateValueContent(IDetailLayoutBuilder& 
 {	
 	// Always consider the InActorComponent's asset location (BP, Level, etc.) as part of the OwnerAssetArray
 	TArray<FAssetData> AssetDataArray = OwnerAssetDataArray;
-	AssetDataArray.Add((FAssetData)InActorComponent->GetOuter());
+	if (InActorComponent)
+	{
+		AssetDataArray.Add((FAssetData)InActorComponent->GetOuter());
+	}
 
 	return
 		SNew(SVerticalBox)
