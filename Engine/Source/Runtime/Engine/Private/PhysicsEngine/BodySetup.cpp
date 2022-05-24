@@ -814,7 +814,7 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(TArray<TSharedPtr<Chaos::FCon
 					CHAOS_LOG(LogPhysics, Warning, TEXT("InReader.ConvexImplicitObjects.Num() [%d], AggGeom.ConvexElems.Num() [%d]"),
 						   ConvexImplicits.Num(), AggGeom.ConvexElems.Num());
 				}
-				CHAOS_LOG(LogPhysics, Warning, TEXT("TConvex Name:%s, Element [%d] has no Geometry"), *FullName, ElementIndex);
+				UE_LOG(LogPhysics, Warning, TEXT("TConvex Name:%s, Element [%d] has no Geometry"), *FullName, ElementIndex);
 			}
 		}
 		ConvexImplicits.Reset();
