@@ -579,12 +579,12 @@ public:
 
 struct FMeshProcessorShaders
 {
-	mutable TShaderRef<FShader> VertexShader;
-	mutable TShaderRef<FShader> PixelShader;
-	mutable TShaderRef<FShader> GeometryShader;
-	mutable TShaderRef<FShader> ComputeShader;
+	TShaderRef<FShader> VertexShader;
+	TShaderRef<FShader> PixelShader;
+	TShaderRef<FShader> GeometryShader;
+	TShaderRef<FShader> ComputeShader;
 #if RHI_RAYTRACING
-	mutable TShaderRef<FShader> RayTracingShader;
+	TShaderRef<FShader> RayTracingShader;
 #endif
 
 	TShaderRef<FShader> GetShader(EShaderFrequency Frequency) const

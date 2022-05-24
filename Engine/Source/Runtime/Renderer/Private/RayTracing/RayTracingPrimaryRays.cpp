@@ -144,7 +144,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingPrimaryRaysView(
 	PassParameters->PrimaryRayFlags = (uint32)Flags;
 	PassParameters->TLAS = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;
+	PassParameters->LightDataPacked = View.RayTracingLightDataUniformBuffer;
 
 	PassParameters->SceneTextures = SceneTextureParameters;
 

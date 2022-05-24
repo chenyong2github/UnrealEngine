@@ -531,7 +531,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	CommonParameters.TLAS                    = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 	CommonParameters.SceneTextures           = SceneTextures;
 	CommonParameters.ViewUniformBuffer       = View.ViewUniformBuffer;
-	CommonParameters.LightDataPacked         = View.RayTracingLightData.UniformBuffer;
+	CommonParameters.LightDataPacked         = View.RayTracingLightDataUniformBuffer;
 	CommonParameters.ReflectionStruct        = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	CommonParameters.ReflectionCapture       = View.ReflectionCaptureUniformBuffer;
 	CommonParameters.Forward                 = View.ForwardLightingResources.ForwardLightUniformBuffer;

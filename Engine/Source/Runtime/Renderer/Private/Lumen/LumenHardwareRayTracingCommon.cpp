@@ -182,7 +182,7 @@ void SetLumenHardwareRayTracingSharedParameters(
 	SharedParameters->TLAS = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 
 	// Lighting data
-	SharedParameters->LightDataPacked = View.RayTracingLightData.UniformBuffer;
+	SharedParameters->LightDataPacked = View.RayTracingLightDataUniformBuffer;
 
 	// Inline
 	SharedParameters->HitGroupData = View.LumenHardwareRayTracingHitDataBufferSRV;

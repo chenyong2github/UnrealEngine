@@ -1524,7 +1524,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 		else
 		{
 			// This light data is a function of the camera position, so must be computed per view.
-			View.RayTracingLightData = CreateRayTracingLightData(GraphBuilder, Scene->Lights, View);
+			View.RayTracingLightDataUniformBuffer = CreateRayTracingLightData(GraphBuilder, Scene->Lights, View);
 		}
 	}
 
@@ -1709,7 +1709,7 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	FBuildAccelerationStructurePassParams* PassParams = GraphBuilder.AllocParameters<FBuildAccelerationStructurePassParams>();
 	PassParams->RayTracingSceneScratchBuffer = Scene->RayTracingScene.BuildScratchBuffer;
 	PassParams->DynamicGeometryScratchBuffer = DynamicGeometryScratchBuffer;
-	PassParams->LightDataPacked = bIsPathTracing ? nullptr : ReferenceView.RayTracingLightData.UniformBuffer; // accessed by FRayTracingLightingMS
+	PassParams->LightDataPacked = bIsPathTracing ? nullptr : ReferenceView.RayTracingLightDataUniformBuffer; // accessed by FRayTracingLightingMS
 
 	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 		[this, PassParams, bIsPathTracing, &ReferenceView, bAnyLumenHardwareInlineRayTracingPassEnabled](FRHICommandListImmediate& RHICmdList)

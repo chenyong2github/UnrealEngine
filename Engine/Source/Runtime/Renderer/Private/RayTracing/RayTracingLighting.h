@@ -55,7 +55,7 @@ struct FRTLightingData
 
 static_assert(sizeof(FRTLightingData) == 128, "Unexpected FRTLightingData size.");
 
-FRayTracingLightData CreateRayTracingLightData(
+TRDGUniformBufferRef<FRaytracingLightDataPacked> CreateRayTracingLightData(
 	FRDGBuilder& GraphBuilder,
 	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
 	const FViewInfo& View);

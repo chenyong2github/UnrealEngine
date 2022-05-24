@@ -675,7 +675,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 
 	CommonParameters.TLAS = View.GetRayTracingSceneLayerViewChecked(ERayTracingSceneLayer::Base);
 	CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
-	CommonParameters.LightDataPacked = View.RayTracingLightData.UniformBuffer;
+	CommonParameters.LightDataPacked = View.RayTracingLightDataUniformBuffer;
 
 	CommonParameters.SceneTextures = SceneTextureParameters;
 	SetupSkyLightVisibilityRaysParameters(GraphBuilder, View, &CommonParameters.SkyLightVisibilityRaysData);
