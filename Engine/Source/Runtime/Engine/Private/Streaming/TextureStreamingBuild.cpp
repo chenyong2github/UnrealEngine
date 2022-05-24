@@ -437,11 +437,11 @@ uint32 FStreamingTextureBuildInfo::ComputeHash() const
 }
 #endif
 
-bool FStreamingTextureLevelContext::UseTextureStreamingBuiltData = true;
-FAutoConsoleCommand FStreamingTextureLevelContext::UseTextureStreamingBuiltDataCommand(
+static int32 GUseTextureStreamingBuiltData = 1;
+static FAutoConsoleVariableRef CVarUseTextureStreamingBuiltData(
 	TEXT("r.Streaming.UseTextureStreamingBuiltData"),
-	TEXT("Turn on/off usage of texture streaming built data (0 to turn off)."),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args) { FStreamingTextureLevelContext::UseTextureStreamingBuiltData = (Args.Num() != 1) || (Args[0] != TEXT("0")); }));
+	GUseTextureStreamingBuiltData,
+	TEXT("Turn on/off usage of texture streaming built data (0 to turn off)."));
 
 FStreamingTextureLevelContext::FStreamingTextureLevelContext(EMaterialQualityLevel::Type InQualityLevel, const UPrimitiveComponent* Primitive)
 	: TextureGuidToLevelIndex(nullptr)
@@ -544,7 +544,7 @@ void FStreamingTextureLevelContext::UpdateQualityAndFeatureLevel(EMaterialQualit
 
 bool FStreamingTextureLevelContext::CanUseTextureStreamingBuiltData() const
 {
-	return bIsBuiltDataValid && FStreamingTextureLevelContext::UseTextureStreamingBuiltData;
+	return bIsBuiltDataValid && GUseTextureStreamingBuiltData != 0;
 }
 
 FStreamingTextureLevelContext::~FStreamingTextureLevelContext()

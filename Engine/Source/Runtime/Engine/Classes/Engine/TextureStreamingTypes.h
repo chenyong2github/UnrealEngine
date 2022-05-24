@@ -253,10 +253,6 @@ class ENGINE_API FStreamingTextureLevelContext
 	int32* GetBuildDataIndexRef(UTexture* Texture, bool bForceUpdate = false);
 	void UpdateQualityAndFeatureLevel(EMaterialQualityLevel::Type InQualityLevel, ERHIFeatureLevel::Type InFeatureLevel, const ULevel* InLevel = nullptr);
 
-	/** Console command used to turn on/off usage of texture streaming built data. */
-	static class FAutoConsoleCommand UseTextureStreamingBuiltDataCommand;
-	static bool UseTextureStreamingBuiltData;
-
 public:
 
 	// Needs InLevel to use precomputed data from 
