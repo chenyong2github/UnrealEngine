@@ -459,7 +459,17 @@ void FSubtitleManager::DisplaySubtitles(FCanvas* InCanvas, FIntRect& InSubtitleR
 				FActiveSubtitle* Subtitle = ActiveSubtitles.Find(HighestPriorityID);
 				DisplaySubtitle(InCanvas, Subtitle, InSubtitleRegion, FLinearColor::White);
 			}
-			else
+			else if (ActiveMovieSubtitles.Num() > 0)
+			{
+				for (const auto& It : ActiveMovieSubtitles)
+				{
+					if (It.Value.IsValid())
+					{
+						DisplaySubtitle(InCanvas, It.Value.Get(), InSubtitleRegion, FLinearColor::White);
+					}
+				}
+			} 
+			else 
 			{
 				CurrentSubtitleHeight = 0.0f;
 			}

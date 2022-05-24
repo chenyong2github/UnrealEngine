@@ -444,6 +444,7 @@ public:
 	FString CurrentUrl;
 	EBinkMediaPlayerBinkDrawStyle CurrentDrawStyle;
 	int32 CurrentLayerDepth;
+	int32 CurrentHasSubtitles;
 
 	/** Holds a delegate that is executed when media has been opened or closed. */
 	FOnMediaChanged MediaChangedEvent;
