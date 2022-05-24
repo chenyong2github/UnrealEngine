@@ -23,11 +23,14 @@ namespace UE::PixelStreaming
 		 **/
 		struct PIXELSTREAMING_API FLaunchArgs
 		{
+			// Arguments passed to the actual server when its process is started.
+			FString ProcessArgs = TEXT("");
+
 			// If true, will copy to a temp directory and when finished delete itself. If false, will launch from Samples/PixelStreaming/WebServers/*.
 			bool bEphemeral = true;
 
-			// Arguments passed to the actual server when its process is started.
-			FString ProcessArgs = TEXT("");
+			// If true poll until ready
+			bool bPollUntilReady = false;
 
 			// Reconnection timeout in seconds
 			float ReconnectionTimeoutSeconds = 30.0f;
@@ -141,6 +144,7 @@ namespace UE::PixelStreaming
 			float LastReconnectionTimeSeconds = 0.0f;
 			bool bAllowedToTick = true;
 			bool bTimedOut = false;
+			bool bPollUntilReady = false;
 		};
 
 		/* -------------- Static utility methods for working with Pixel Streaming servers. ----------------- */

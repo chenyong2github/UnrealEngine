@@ -42,6 +42,7 @@ namespace UE::PixelStreaming::Servers
 		TSharedPtr<FServerBase> SignallingServer = MakeSignallingServer();
 		FLaunchArgs LaunchArgs;
 		LaunchArgs.bEphemeral = true;
+		LaunchArgs.bPollUntilReady = false;
 
 		SignallingServer->Launch(LaunchArgs);
 
@@ -61,6 +62,7 @@ namespace UE::PixelStreaming::Servers
 		TSharedPtr<FServerBase> SignallingServer = MakeSignallingServer();
 		FLaunchArgs LaunchArgs;
 		LaunchArgs.bEphemeral = true;
+		LaunchArgs.bPollUntilReady = true;
 
 		SignallingServer->OnReady.AddLambda([this](TMap<EEndpoint, FString> Endpoints) {
 			TestTrue("Server was ready.", true);

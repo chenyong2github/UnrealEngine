@@ -30,7 +30,7 @@ namespace UE::PixelStreaming
 			return FPaths::ConvertRelativePathToFull(FPaths::RootDir() / SamplesRelativePath);
 		}
 
-		TSharedPtr<FMonitoredProcess> LaunchScriptChildProcess(FString ScriptAbsPath, FString ScriptArgs)
+		TSharedPtr<FMonitoredProcess> LaunchScriptChildProcess(FString ScriptAbsPath, FString ScriptArgs, FString LogPrefix)
 		{
 			// Check if the binary actually exists
 			IPlatformFile& FileManager = FPlatformFileManager::Get().GetPlatformFile();
@@ -56,6 +56,11 @@ namespace UE::PixelStreaming
 #endif
 
 			TSharedPtr<FMonitoredProcess> ChildProcess = MakeShared<FMonitoredProcess>(ScriptRunner, ScriptRunnerParams, true, true);
+
+			// Bind to output so we can capture the output in the log
+			ChildProcess->OnOutput().BindLambda([LogPrefix](FString Output) {
+				UE_LOG(LogPixelStreaming, Log, TEXT("%s - %s"), *LogPrefix, *Output);
+			});
 
 			// Run the child process
 			UE_LOG(LogPixelStreaming, Log, TEXT("Launch child process - %s %s"), *ScriptRunner, *ScriptRunnerParams);
@@ -197,12 +202,7 @@ namespace UE::PixelStreaming
 			CopyServerTo(ExistingServerAbsPath, NewServerPath);
 
 			FString ScriptAbsPath = AddPlatformScripts(NewServerPath);
-			TSharedPtr<FMonitoredProcess> ServerProcess = LaunchScriptChildProcess(ScriptAbsPath, Args);
-
-			// Bind to output so we can capture the output in the log
-			ServerProcess->OnOutput().BindLambda([ServerName](FString Output) {
-				UE_LOG(LogPixelStreaming, Log, TEXT("%s - %s"), *ServerName, *Output);
-			});
+			TSharedPtr<FMonitoredProcess> ServerProcess = LaunchScriptChildProcess(ScriptAbsPath, Args, ServerName);
 
 			// Bind to the cancel and delete the server folder
 			ServerProcess->OnCanceled().BindLambda([NewServerPath]() {
@@ -240,7 +240,7 @@ namespace UE::PixelStreaming
 			else
 			{
 				OutLaunchAbsPath = ServerAbsPath;
-				return LaunchScriptChildProcess(AddPlatformScripts(ServerAbsPath), LaunchArgs.ProcessArgs);
+				return LaunchScriptChildProcess(AddPlatformScripts(ServerAbsPath), LaunchArgs.ProcessArgs, FPaths::GetPathLeaf(ServerAbsPath));
 			}
 
 			/* Note this has not handled waiting for server to become ready, that is server specific and is therefore handled in say `LaunchCirrus` */
@@ -334,6 +334,7 @@ namespace UE::PixelStreaming
 		void FServerBase::Launch(FLaunchArgs& InLaunchArgs)
 		{
 			LaunchArgs = InLaunchArgs;
+			bPollUntilReady = false;
 			ServerProcess = LaunchImpl(InLaunchArgs, ServerRootAbsPath, Endpoints);
 			bHasLaunched = true;
 			PollingStartedSeconds = FPlatformTime::Seconds();
@@ -366,6 +367,12 @@ namespace UE::PixelStreaming
 
 		void FServerBase::Tick(float DeltaTime)
 		{
+			// No need to do polling if polling is turned off
+			if (!bPollUntilReady)
+			{
+				return;
+			}
+
 			// No need to start polling if we have not launched or we have already concluded the server is ready.
 			if (!bHasLaunched || bIsReady)
 			{
@@ -445,6 +452,11 @@ namespace UE::PixelStreaming
 
 		protected:
 			/* Begin FServerBase interface */
+			void Stop() override
+			{
+				UE_LOG(LogPixelStreaming, Log, TEXT("Stopping Cirrus signalling server."));
+				FServerBase::Stop();
+			}
 
 			TSharedPtr<FMonitoredProcess> LaunchImpl(FLaunchArgs& InLaunchArgs, FString& OutServerPath, TMap<EEndpoint, FString>& OutEndPoints) override
 			{
@@ -458,15 +470,20 @@ namespace UE::PixelStreaming
 
 				// Construct endpoint urls
 				const FString SignallingStreamerUrl = FString::Printf(TEXT("ws://localhost:%s"), *StreamerPort);
+				const FString WebserverUrl = FString::Printf(TEXT("http://localhost:%s"), *HttpPort);
 				OutEndPoints.Add(EEndpoint::Signalling_Streamer, SignallingStreamerUrl);
 				OutEndPoints.Add(EEndpoint::Signalling_Players, FString::Printf(TEXT("ws://localhost:%s"), *HttpPort));
 				OutEndPoints.Add(EEndpoint::Signalling_SFU, FString::Printf(TEXT("ws://localhost:%s"), *SFUPort));
 				OutEndPoints.Add(EEndpoint::Signalling_Matchmaker, FString::Printf(TEXT("ws://localhost:%s"), *MatchmakerPort));
-				OutEndPoints.Add(EEndpoint::Signalling_Webserver, FString::Printf(TEXT("http://localhost:%s"), *HttpPort));
+				OutEndPoints.Add(EEndpoint::Signalling_Webserver, WebserverUrl);
 
 				TSharedPtr<FMonitoredProcess> CirrusProcess = LaunchServer(CirrusDir, InLaunchArgs, OutServerPath);
+				UE_LOG(LogPixelStreaming, Log, TEXT("Cirrus signalling server running at: %s"), *WebserverUrl);
 
-				Probe = MakeUnique<FWebSocketProbe>(SignallingStreamerUrl);
+				if (bPollUntilReady)
+				{
+					Probe = MakeUnique<FWebSocketProbe>(SignallingStreamerUrl);
+				}
 
 				return CirrusProcess;
 			}

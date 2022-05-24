@@ -9,7 +9,7 @@
 #include "Slate/SceneViewport.h"
 #include "Engine/TextureRenderTarget2D.h"
 #if WITH_EDITOR
-#include "LevelEditorViewport.h"
+	#include "LevelEditorViewport.h"
 #endif
 #include "VCamPixelStreamingSession.generated.h"
 
@@ -32,7 +32,11 @@ public:
 	// Network port number - change this only if connecting multiple RemoteSession devices to the same PC
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	int32 PortNumber = 8888;
-
+	
+	// Http webserver port number - e.g. Go to http://localhost:YourPort to access the streamed VCam output. Warning Ports below 1024 require sudo under Linux so it is recommended to use a higher port on that platform.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
+	int32 HttpPort = 80;
+	
 	// If using the output from a Composure Output Provider, specify it here
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	int32 FromComposureOutputProviderIndex = INDEX_NONE;
@@ -51,6 +55,9 @@ protected:
 
 	UPROPERTY(Transient)
 	UPixelStreamingMediaCapture* MediaCapture = nullptr;
+
+private:
+	void StopSignallingServer();
 
 private:
 	FHitResult LastViewportTouchResult;

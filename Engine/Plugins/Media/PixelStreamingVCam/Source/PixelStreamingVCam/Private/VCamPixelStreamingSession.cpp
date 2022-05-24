@@ -5,6 +5,7 @@
 #include "PixelStreamingServers.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "Containers/UnrealString.h"
+#include "Async/Async.h"
 
 DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
 namespace VCamPixelStreamingSession
@@ -61,7 +62,7 @@ void UVCamPixelStreamingSession::Activate()
 		CirrusProcess = UE::PixelStreaming::Servers::MakeSignallingServer();
 		UE::PixelStreaming::Servers::FLaunchArgs LaunchArgs;
 		LaunchArgs.bEphemeral = false;
-		LaunchArgs.ProcessArgs = FString::Printf(TEXT("--StreamerPort=%s"), *FString::FromInt(PortNumber));
+		LaunchArgs.ProcessArgs = FString::Printf(TEXT("--StreamerPort=%s --HttpPort=%s --nosudo"), *FString::FromInt(PortNumber), *FString::FromInt(HttpPort));
 		CirrusProcess->Launch(LaunchArgs);
 	}
 
@@ -98,13 +99,35 @@ void UVCamPixelStreamingSession::Activate()
 	Super::Activate();
 }
 
+void UVCamPixelStreamingSession::StopSignallingServer()
+{
+	if (CirrusProcess.IsValid())
+	{
+		CirrusProcess->Stop();
+	}
+}
+
 void UVCamPixelStreamingSession::Deactivate()
 {
 	if (MediaCapture)
 	{
+
+		if (MediaOutput && MediaOutput->GetStreamer())
+		{
+			// Shutting streamer down before closing signalling server prevents an ugly websocket disconnect showing in the log
+			MediaOutput->GetStreamer()->StopStreaming();
+			StopSignallingServer();
+		}
+
 		MediaCapture->StopCapture(true);
 		MediaCapture = nullptr;
 	}
+	else
+	{
+		// There is not media capture we defensively clean up the signalling server if it exists.
+		StopSignallingServer();
+	}
+
 	Super::Deactivate();
 	if (bUsingDummyUMG)
 	{
@@ -112,11 +135,6 @@ void UVCamPixelStreamingSession::Deactivate()
 		bUsingDummyUMG = false;
 	}
 
-	if(CirrusProcess.IsValid())
-	{
-		CirrusProcess->Stop();
-	}
-	
 	UEditorPerformanceSettings* Settings = GetMutableDefault<UEditorPerformanceSettings>();
 	Settings->bThrottleCPUWhenNotForeground = bOldThrottleCPUWhenNotForeground;
 	Settings->PostEditChange();
