@@ -166,6 +166,15 @@ bool UInterchangeGenericMaterialPipeline::IsSheenModel(const UInterchangeShaderG
 	return bHasSheenColorInput;
 }
 
+bool UInterchangeGenericMaterialPipeline::IsSubsurfaceModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
+{
+	using namespace UE::Interchange::Materials::Subsurface;
+
+	const bool bHasSubsurfaceColorInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::SubsurfaceColor);
+
+	return bHasSubsurfaceColorInput;
+}
+
 bool UInterchangeGenericMaterialPipeline::IsThinTranslucentModel(const UInterchangeShaderGraphNode* ShaderGraphNode) const
 {
 	using namespace UE::Interchange::Materials::ThinTranslucent;
@@ -573,6 +582,38 @@ bool UInterchangeGenericMaterialPipeline::HandleClearCoat(const UInterchangeShad
 	if (bShadingModelHandled)
 	{
 		MaterialFactoryNode->SetCustomShadingModel(EMaterialShadingModel::MSM_ClearCoat);
+	}
+
+	return bShadingModelHandled;
+}
+
+bool UInterchangeGenericMaterialPipeline::HandleSubsurface(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
+{
+	using namespace UE::Interchange::Materials::Subsurface;
+
+	bool bShadingModelHandled = false;
+
+	// Subsurface Color
+	{
+		const bool bHasInput = UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Parameters::SubsurfaceColor);
+
+		if(bHasInput)
+		{
+			TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+				CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Parameters::SubsurfaceColor.ToString(), MaterialFactoryNode->GetUniqueID());
+
+			if(ExpressionFactoryNode.Get<0>())
+			{
+				MaterialFactoryNode->ConnectOutputToSubsurface(ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+			}
+
+			bShadingModelHandled = true;
+		}
+	}
+
+	if(bShadingModelHandled)
+	{
+		MaterialFactoryNode->SetCustomShadingModel(EMaterialShadingModel::MSM_Subsurface);
 	}
 
 	return bShadingModelHandled;
@@ -1378,7 +1419,10 @@ UInterchangeMaterialFactoryNode* UInterchangeGenericMaterialPipeline::CreateMate
 	{
 		if (!HandleClearCoat(ShaderGraphNode, MaterialFactoryNode))
 		{
-			HandleSheen(ShaderGraphNode, MaterialFactoryNode);
+			if(!HandleSheen(ShaderGraphNode, MaterialFactoryNode))
+			{
+				HandleSubsurface(ShaderGraphNode, MaterialFactoryNode);
+			}
 		}
 	}
 
@@ -1407,6 +1451,10 @@ UInterchangeMaterialInstanceFactoryNode* UInterchangeGenericMaterialPipeline::Cr
 	else if (IsSheenModel(ShaderGraphNode))
 	{
 		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/SheenMaterial.SheenMaterial'"));
+	}
+	else if(IsSubsurfaceModel(ShaderGraphNode))
+	{
+		MaterialInstanceFactoryNode->SetCustomParent(TEXT("Material'/Interchange/Materials/SubsurfaceMaterial.SubsurfaceMaterial'"));
 	}
 	else if (IsPBRModel(ShaderGraphNode))
 	{
