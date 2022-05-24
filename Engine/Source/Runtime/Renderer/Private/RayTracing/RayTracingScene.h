@@ -13,6 +13,7 @@
 #include "Misc/MemStack.h"
 #include "Containers/ArrayView.h"
 #include "PrimitiveSceneProxy.h"
+#include "MeshPassProcessor.h"
 
 class FGPUScene;
 class FRHIRayTracingScene;
@@ -79,10 +80,11 @@ public:
 
 	// Persistent storage for ray tracing instance descriptors.
 	// Cleared every frame without releasing memory to avoid large heap allocations.
-	// This must be filled before calling BeginCreateTask().
+	// This must be filled before calling Create().
 	TArray<FRayTracingGeometryInstance> Instances;
 
-	uint32 NumTotalSegments = 0;
+	uint32 NumCallableShaderSlots = 0;
+	TArray<FRayTracingShaderCommand> CallableCommands;
 
 	// Geometries which still have a pending build request but are used this frame and require a force build.
 	TArray<const FRayTracingGeometry*> GeometriesToBuild;

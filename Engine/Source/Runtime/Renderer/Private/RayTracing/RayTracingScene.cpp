@@ -40,7 +40,8 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 		Instances,
 		NumLayers,
 		RAY_TRACING_NUM_SHADER_SLOTS,
-		RAY_TRACING_NUM_MISS_SHADER_SLOTS);
+		RAY_TRACING_NUM_MISS_SHADER_SLOTS,
+		NumCallableShaderSlots);
 
 	RayTracingSceneRHI = SceneWithGeometryInstances.Scene;
 
@@ -73,7 +74,7 @@ void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUSce
 	{
 		const uint64 ScratchAlignment = GRHIRayTracingScratchBufferAlignment;
 		FRDGBufferDesc ScratchBufferDesc;
-		ScratchBufferDesc.Usage = EBufferUsageFlags::UnorderedAccess | EBufferUsageFlags::StructuredBuffer;
+		ScratchBufferDesc.Usage = EBufferUsageFlags::RayTracingScratch | EBufferUsageFlags::StructuredBuffer;
 		ScratchBufferDesc.BytesPerElement = uint32(ScratchAlignment);
 		ScratchBufferDesc.NumElements = uint32(FMath::DivideAndRoundUp(SizeInfo.BuildScratchSize, ScratchAlignment));
 
@@ -275,6 +276,8 @@ void FRayTracingScene::Reset()
 	WaitForTasks();
 
 	Instances.Reset();
+	NumCallableShaderSlots = 0;
+	CallableCommands.Reset();
 	GeometriesToBuild.Reset();
 	UsedCoarseMeshStreamingHandles.Reset();
 
@@ -288,6 +291,9 @@ void FRayTracingScene::ResetAndReleaseResources()
 	Reset();
 
 	Instances.Empty();
+	CallableCommands.Empty();
+	GeometriesToBuild.Empty();
+	UsedCoarseMeshStreamingHandles.Empty();
 	RayTracingSceneBuffer = nullptr;
 	RayTracingSceneRHI = nullptr;
 }

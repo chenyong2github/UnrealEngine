@@ -1484,6 +1484,9 @@ public:
 	TArray<FRayTracingLocalShaderBindingWriter*>	RayTracingMaterialBindings; // One per binding task
 	FGraphEventRef									RayTracingMaterialBindingsTask;
 
+	TArray<FRayTracingLocalShaderBindingWriter*>	RayTracingCallableBindings; // One per binding task
+	FGraphEventRef									RayTracingCallableBindingsTask;
+
 	// Common resources used for lighting in ray tracing effects
 	TRefCountPtr<FRHITexture>						RayTracingSubSurfaceProfileTexture;
 	FShaderResourceViewRHIRef						RayTracingSubSurfaceProfileSRV;

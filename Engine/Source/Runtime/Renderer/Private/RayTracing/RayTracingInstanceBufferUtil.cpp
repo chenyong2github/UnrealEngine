@@ -23,7 +23,8 @@ FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances
 	TArrayView<FRayTracingGeometryInstance> Instances,
 	uint8 NumLayers,
 	uint32 NumShaderSlotsPerGeometrySegment,
-	uint32 NumMissShaderSlots)
+	uint32 NumMissShaderSlots,
+	uint32 NumCallableShaderSlots)
 {
 	const uint32 NumSceneInstances = Instances.Num();
 
@@ -38,6 +39,7 @@ FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances
 	Initializer.DebugName = FName(TEXT("FRayTracingScene"));
 	Initializer.ShaderSlotsPerGeometrySegment = NumShaderSlotsPerGeometrySegment;
 	Initializer.NumMissShaderSlots = NumMissShaderSlots;
+	Initializer.NumCallableShaderSlots = NumCallableShaderSlots;
 	Initializer.PerInstanceGeometries.SetNumUninitialized(NumSceneInstances);
 	Initializer.BaseInstancePrefixSum.SetNumUninitialized(NumSceneInstances);
 	Initializer.SegmentPrefixSum.SetNumUninitialized(NumSceneInstances);

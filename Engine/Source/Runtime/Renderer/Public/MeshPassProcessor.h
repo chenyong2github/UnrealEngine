@@ -2064,7 +2064,7 @@ public:
 	FRHIRayTracingShader* MaterialShader = nullptr;
 	uint32 MaterialShaderIndex = UINT_MAX;
 
-	uint32 GeometrySegmentIndex = ~0u;
+	uint32 GeometrySegmentIndex = UINT_MAX;
 	uint8 InstanceMask = 0xFF;
 
 	bool bCastRayTracedShadows = true;
@@ -2169,4 +2169,18 @@ private:
 	FRayTracingMeshCommandOneFrameArray& VisibleCommands;
 	uint32 GeometrySegmentIndex;
 	uint32 RayTracingInstanceIndex;
+};
+
+class FRayTracingShaderCommand
+{
+public:
+	FMeshDrawShaderBindings ShaderBindings;
+
+	FRHIRayTracingShader* Shader = nullptr;
+	uint32 ShaderIndex = UINT_MAX;
+
+	uint32 SlotInScene = UINT_MAX;
+
+	/** Sets ray tracing shader on the command and allocates room for the shader bindings. */
+	RENDERER_API void SetShader(const TShaderRef<FShader>& Shader);
 };

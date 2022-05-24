@@ -1732,57 +1732,79 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	{
 		check(ReferenceView.RayTracingMaterialPipeline || ReferenceView.RayTracingMaterialBindings.Num() == 0);
 
-		if (ReferenceView.RayTracingMaterialPipeline && ReferenceView.RayTracingMaterialBindings.Num())
+		if (ReferenceView.RayTracingMaterialPipeline && (ReferenceView.RayTracingMaterialBindings.Num() || ReferenceView.RayTracingCallableBindings.Num()))
 		{
-			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ReferenceView.RayTracingMaterialBindingsTask, ENamedThreads::GetRenderThread_Local());
-
 			// Gather bindings from all chunks and submit them all as a single batch to allow RHI to bind all shader parameters in parallel.
 
-			uint32 NumTotalBindings = 0;
-
-			for (FRayTracingLocalShaderBindingWriter* BindingWriter : ReferenceView.RayTracingMaterialBindings)
+			auto MergeAndSetBindings =
+				[
+					&RHICmdList,
+					RayTracingScene = ReferenceView.GetRayTracingSceneChecked(),
+					Pipeline = ReferenceView.RayTracingMaterialPipeline
+				](TConstArrayView<FRayTracingLocalShaderBindingWriter*> Bindings, ERayTracingBindingType BindingType)
 			{
-				const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
-				while (Chunk)
-				{
-					NumTotalBindings += Chunk->Num;
-					Chunk = Chunk->Next;
-				}
-			}
+				uint32 NumTotalBindings = 0;
 
-			const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
-			FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
-				? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
-				: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
-
-			uint32 MergedBindingIndex = 0;
-			for (FRayTracingLocalShaderBindingWriter* BindingWriter : ReferenceView.RayTracingMaterialBindings)
-			{
-				const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
-				while (Chunk)
+				for (FRayTracingLocalShaderBindingWriter* BindingWriter : Bindings)
 				{
-					const uint32 Num = Chunk->Num;
-					for (uint32_t i = 0; i < Num; ++i)
+					const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
+					while (Chunk)
 					{
-						MergedBindings[MergedBindingIndex] = Chunk->Bindings[i];
-						MergedBindingIndex++;
+						NumTotalBindings += Chunk->Num;
+						Chunk = Chunk->Next;
 					}
-					Chunk = Chunk->Next;
 				}
-			}
 
-			const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
-			RHICmdList.SetRayTracingHitGroups(
-				ReferenceView.GetRayTracingSceneChecked(),
-				ReferenceView.RayTracingMaterialPipeline,
-				NumTotalBindings, MergedBindings,
-				bCopyDataToInlineStorage);
+				if (NumTotalBindings == 0)
+				{
+					return;
+				}
+
+				const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
+				FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
+					? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
+					: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
+
+				uint32 MergedBindingIndex = 0;
+				for (FRayTracingLocalShaderBindingWriter* BindingWriter : Bindings)
+				{
+					const FRayTracingLocalShaderBindingWriter::FChunk* Chunk = BindingWriter->GetFirstChunk();
+					while (Chunk)
+					{
+						const uint32 Num = Chunk->Num;
+						for (uint32_t i = 0; i < Num; ++i)
+						{
+							MergedBindings[MergedBindingIndex] = Chunk->Bindings[i];
+							MergedBindingIndex++;
+						}
+						Chunk = Chunk->Next;
+					}
+				}
+
+				const bool bCopyDataToInlineStorage = false; // Storage is already allocated from RHICmdList, no extra copy necessary
+				RHICmdList.SetRayTracingBindings(
+					RayTracingScene,
+					Pipeline,
+					NumTotalBindings, MergedBindings,
+					BindingType,
+					bCopyDataToInlineStorage);
+			};
+
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ReferenceView.RayTracingMaterialBindingsTask, ENamedThreads::GetRenderThread_Local());
+			MergeAndSetBindings(ReferenceView.RayTracingMaterialBindings, ERayTracingBindingType::HitGroup);
+
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(ReferenceView.RayTracingCallableBindingsTask, ENamedThreads::GetRenderThread_Local());
+			MergeAndSetBindings(ReferenceView.RayTracingCallableBindings, ERayTracingBindingType::CallableShader);
 
 			// Move the ray tracing binding container ownership to the command list, so that memory will be
 			// released on the RHI thread timeline, after the commands that reference it are processed.
-			RHICmdList.EnqueueLambda([Ptrs = MoveTemp(ReferenceView.RayTracingMaterialBindings)](FRHICommandListImmediate&)
+			RHICmdList.EnqueueLambda([PtrsA = MoveTemp(ReferenceView.RayTracingMaterialBindings), PtrsB = MoveTemp(ReferenceView.RayTracingCallableBindings)](FRHICommandListImmediate&)
 			{
-				for (auto Ptr : Ptrs)
+				for (auto Ptr : PtrsA)
+				{
+					delete Ptr;
+				}
+				for (auto Ptr : PtrsB)
 				{
 					delete Ptr;
 				}

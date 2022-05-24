@@ -703,97 +703,152 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 
 	FViewInfo& ReferenceView = Views[0];
 
-	const uint32 NumTotalMeshCommands = ReferenceView.VisibleRayTracingMeshCommands.Num();
-	const uint32 TargetCommandsPerTask = 4096; // Granularity chosen based on profiling Infiltrator scene to balance wall time speedup and total CPU thread time.
-	const uint32 NumTasks = FMath::Max(1u, FMath::DivideAndRoundUp(NumTotalMeshCommands, TargetCommandsPerTask));
-	const uint32 CommandsPerTask = FMath::DivideAndRoundUp(NumTotalMeshCommands, NumTasks); // Evenly divide commands between tasks (avoiding potential short last task)
-
-	FGraphEventArray TaskList;
-	TaskList.Reserve(NumTasks);
-	View.RayTracingMaterialBindings.SetNum(NumTasks);
-	
-	for (uint32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
+	// material hit groups
 	{
-		const uint32 FirstTaskCommandIndex = TaskIndex * CommandsPerTask;
-		const FVisibleRayTracingMeshCommand* MeshCommands = ReferenceView.VisibleRayTracingMeshCommands.GetData() + FirstTaskCommandIndex;
-		const uint32 NumCommands = FMath::Min(CommandsPerTask, NumTotalMeshCommands - FirstTaskCommandIndex);
+		const uint32 NumTotalMeshCommands = ReferenceView.VisibleRayTracingMeshCommands.Num();
+		const uint32 TargetCommandsPerTask = 4096; // Granularity chosen based on profiling Infiltrator scene to balance wall time speedup and total CPU thread time.
+		const uint32 NumTasks = FMath::Max(1u, FMath::DivideAndRoundUp(NumTotalMeshCommands, TargetCommandsPerTask));
+		const uint32 CommandsPerTask = FMath::DivideAndRoundUp(NumTotalMeshCommands, NumTasks); // Evenly divide commands between tasks (avoiding potential short last task)
 
-		FRayTracingLocalShaderBindingWriter* BindingWriter = new FRayTracingLocalShaderBindingWriter();
-		View.RayTracingMaterialBindings[TaskIndex] = BindingWriter;
+		FGraphEventArray TaskList;
+		TaskList.Reserve(NumTasks);
+		View.RayTracingMaterialBindings.SetNum(NumTasks);
 
-		TaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
-		[PipelineState, BindingWriter, MeshCommands, NumCommands, bEnableMaterials, bEnableShadowMaterials,
-			DefaultClosestHitMaterialIndex, OpaqueShadowMaterialIndex, HiddenMaterialIndex, TaskIndex]()
+		for (uint32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
 		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(BindRayTracingMaterialPipelineTask);
+			const uint32 FirstTaskCommandIndex = TaskIndex * CommandsPerTask;
+			const FVisibleRayTracingMeshCommand* MeshCommands = ReferenceView.VisibleRayTracingMeshCommands.GetData() + FirstTaskCommandIndex;
+			const uint32 NumCommands = FMath::Min(CommandsPerTask, NumTotalMeshCommands - FirstTaskCommandIndex);
 
-			for (uint32 CommandIndex = 0; CommandIndex < NumCommands; ++CommandIndex)
-			{
-				const FVisibleRayTracingMeshCommand VisibleMeshCommand = MeshCommands[CommandIndex];
-				const FRayTracingMeshCommand& MeshCommand = *VisibleMeshCommand.RayTracingMeshCommand;
+			FRayTracingLocalShaderBindingWriter* BindingWriter = new FRayTracingLocalShaderBindingWriter();
+			View.RayTracingMaterialBindings[TaskIndex] = BindingWriter;
 
-				int32 HitGroupIndex = DefaultClosestHitMaterialIndex; // Force the same shader to be used on all geometry unless materials are enabled
-
-				if (bEnableMaterials)
+			TaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
+				[PipelineState, BindingWriter, MeshCommands, NumCommands, bEnableMaterials, bEnableShadowMaterials,
+				DefaultClosestHitMaterialIndex, OpaqueShadowMaterialIndex, HiddenMaterialIndex, TaskIndex]()
 				{
-					const int32 FoundIndex = FindRayTracingHitGroupIndex(PipelineState, MeshCommand.MaterialShader, false);
-					if (FoundIndex != INDEX_NONE)
-					{
-						HitGroupIndex = FoundIndex;
-					}
-					else
-					{
-						HitGroupIndex = DefaultClosestHitMaterialIndex;
-					}
-				}
+					TRACE_CPUPROFILER_EVENT_SCOPE(BindRayTracingMaterialPipelineTask);
 
-				// Bind primary material shader
-
-				{
-					MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
-						VisibleMeshCommand.InstanceIndex,
-						MeshCommand.GeometrySegmentIndex,
-						HitGroupIndex,
-						RAY_TRACING_SHADER_SLOT_MATERIAL);
-				}
-
-				// Bind shadow shader
-
-				if (MeshCommand.bCastRayTracedShadows)
-				{
-					if (MeshCommand.bOpaque || !bEnableShadowMaterials)
+					for (uint32 CommandIndex = 0; CommandIndex < NumCommands; ++CommandIndex)
 					{
-						FRayTracingLocalShaderBindings& Binding = BindingWriter->AddWithExternalParameters();
-						Binding.InstanceIndex = VisibleMeshCommand.InstanceIndex;
-						Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
-						Binding.ShaderSlot = RAY_TRACING_SHADER_SLOT_SHADOW;
-						Binding.ShaderIndexInPipeline = OpaqueShadowMaterialIndex;
+						const FVisibleRayTracingMeshCommand VisibleMeshCommand = MeshCommands[CommandIndex];
+						const FRayTracingMeshCommand& MeshCommand = *VisibleMeshCommand.RayTracingMeshCommand;
+
+						int32 HitGroupIndex = DefaultClosestHitMaterialIndex; // Force the same shader to be used on all geometry unless materials are enabled
+
+						if (bEnableMaterials)
+						{
+							const int32 FoundIndex = FindRayTracingHitGroupIndex(PipelineState, MeshCommand.MaterialShader, false);
+							if (FoundIndex != INDEX_NONE)
+							{
+								HitGroupIndex = FoundIndex;
+							}
+							else
+							{
+								HitGroupIndex = DefaultClosestHitMaterialIndex;
+							}
+						}
+
+						// Bind primary material shader
+
+						{
+							MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
+								VisibleMeshCommand.InstanceIndex,
+								MeshCommand.GeometrySegmentIndex,
+								HitGroupIndex,
+								RAY_TRACING_SHADER_SLOT_MATERIAL);
+						}
+
+						// Bind shadow shader
+
+						if (MeshCommand.bCastRayTracedShadows)
+						{
+							if (MeshCommand.bOpaque || !bEnableShadowMaterials)
+							{
+								FRayTracingLocalShaderBindings& Binding = BindingWriter->AddWithExternalParameters();
+								Binding.InstanceIndex = VisibleMeshCommand.InstanceIndex;
+								Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
+								Binding.ShaderSlot = RAY_TRACING_SHADER_SLOT_SHADOW;
+								Binding.ShaderIndexInPipeline = OpaqueShadowMaterialIndex;
+							}
+							else
+							{
+								// Masked materials require full material evaluation with any-hit shader.
+								// Full CHS is bound, however material evaluation is skipped for shadow rays using a dynamic branch on a ray payload flag.
+								MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
+									VisibleMeshCommand.InstanceIndex,
+									MeshCommand.GeometrySegmentIndex,
+									HitGroupIndex,
+									RAY_TRACING_SHADER_SLOT_SHADOW);
+							}
+						}
+						else
+						{
+							FRayTracingLocalShaderBindings& Binding = BindingWriter->AddWithExternalParameters();
+							Binding.InstanceIndex = VisibleMeshCommand.InstanceIndex;
+							Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
+							Binding.ShaderSlot = RAY_TRACING_SHADER_SLOT_SHADOW;
+							Binding.ShaderIndexInPipeline = HiddenMaterialIndex;
+						}
 					}
-					else
-					{
-						// Masked materials require full material evaluation with any-hit shader.
-						// Full CHS is bound, however material evaluation is skipped for shadow rays using a dynamic branch on a ray payload flag.
-						MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(BindingWriter,
-							VisibleMeshCommand.InstanceIndex,
-							MeshCommand.GeometrySegmentIndex,
-							HitGroupIndex,
-							RAY_TRACING_SHADER_SLOT_SHADOW);
-					}
-				}
-				else
-				{
-					FRayTracingLocalShaderBindings& Binding = BindingWriter->AddWithExternalParameters();
-					Binding.InstanceIndex = VisibleMeshCommand.InstanceIndex;
-					Binding.SegmentIndex = MeshCommand.GeometrySegmentIndex;
-					Binding.ShaderSlot = RAY_TRACING_SHADER_SLOT_SHADOW;
-					Binding.ShaderIndexInPipeline = HiddenMaterialIndex;
-				}
-			}
-		},
-		TStatId(), nullptr, ENamedThreads::AnyThread));
+				},
+				TStatId(), nullptr, ENamedThreads::AnyThread));
+		}
+
+		View.RayTracingMaterialBindingsTask = FFunctionGraphTask::CreateAndDispatchWhenReady([]() {}, TStatId(), &TaskList, ENamedThreads::AnyHiPriThreadHiPriTask);
 	}
 
-	View.RayTracingMaterialBindingsTask = FFunctionGraphTask::CreateAndDispatchWhenReady([]() {}, TStatId(), &TaskList, ENamedThreads::AnyHiPriThreadHiPriTask);
+	if(bCallableShadersSupported)
+	{
+		const int32 DefaultCallableShaderIndex = FindRayTracingCallableShaderIndex(PipelineState, DefaultCallableShader, true);
+
+		const uint32 TargetCommandsPerTask = 4096;
+
+		const uint32 NumTotalCallableCommands = Scene->RayTracingScene.CallableCommands.Num();
+		const uint32 NumTasks = FMath::Max(1u, FMath::DivideAndRoundUp(NumTotalCallableCommands, TargetCommandsPerTask));
+		const uint32 CommandsPerTask = FMath::DivideAndRoundUp(NumTotalCallableCommands, NumTasks); // Evenly divide commands between tasks (avoiding potential short last task)
+
+		FGraphEventArray TaskList;
+		TaskList.Reserve(NumTasks);
+		View.RayTracingCallableBindings.SetNum(NumTasks);
+
+		for (uint32 TaskIndex = 0; TaskIndex < NumTasks; ++TaskIndex)
+		{
+			const uint32 TaskBaseCommandIndex = TaskIndex * CommandsPerTask;
+			const FRayTracingShaderCommand* TaskCallableCommands = Scene->RayTracingScene.CallableCommands.GetData() + TaskBaseCommandIndex;
+			const uint32 NumCommands = FMath::Min(CommandsPerTask, NumTotalCallableCommands - TaskBaseCommandIndex);
+
+			FRayTracingLocalShaderBindingWriter* BindingWriter = new FRayTracingLocalShaderBindingWriter();
+			View.RayTracingCallableBindings[TaskIndex] = BindingWriter;
+
+			TaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
+				[PipelineState, BindingWriter, TaskCallableCommands, NumCommands, bEnableMaterials, DefaultCallableShaderIndex, TaskIndex]()
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(BindRayTracingMaterialPipelineTask);
+
+					for (uint32 CommandIndex = 0; CommandIndex < NumCommands; ++CommandIndex)
+					{
+						const FRayTracingShaderCommand& CallableCommand = TaskCallableCommands[CommandIndex];
+
+						int32 CallableShaderIndex = DefaultCallableShaderIndex; // Force the same shader to be used on all geometry unless materials are enabled
+
+						if (bEnableMaterials)
+						{
+							const int32 FoundIndex = FindRayTracingCallableShaderIndex(PipelineState, CallableCommand.Shader, false);
+							if (FoundIndex != INDEX_NONE)
+							{
+								CallableShaderIndex = FoundIndex;
+							}
+						}
+
+						CallableCommand.ShaderBindings.SetRayTracingShaderBindings(BindingWriter, CallableShaderIndex, CallableCommand.SlotInScene);
+					}
+				},
+				TStatId(), nullptr, ENamedThreads::AnyThread));
+		}
+
+		View.RayTracingCallableBindingsTask = FFunctionGraphTask::CreateAndDispatchWhenReady([]() {}, TStatId(), &TaskList, ENamedThreads::AnyHiPriThreadHiPriTask);
+	}
 
 	return PipelineState;
 }

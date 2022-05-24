@@ -61,7 +61,8 @@ RENDERER_API FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeom
 	TArrayView<FRayTracingGeometryInstance> Instances,
 	uint8 NumLayers,
 	uint32 NumShaderSlotsPerGeometrySegment,
-	uint32 NumMissShaderSlots);
+	uint32 NumMissShaderSlots,
+	uint32 NumCallableShaderSlots = 0);
 
 UE_DEPRECATED(5.1, "Specify NumLayers instead.")
 RENDERER_API FRayTracingSceneWithGeometryInstances CreateRayTracingSceneWithGeometryInstances(

@@ -782,6 +782,18 @@ void FRayTracingMeshCommand::SetShaders(const FMeshProcessorShaders& Shaders)
 	MaterialShader = Shaders.RayTracingShader.GetRayTracingShader();
 	ShaderBindings.Initialize(Shaders);
 }
+
+void FRayTracingShaderCommand::SetShader(const TShaderRef<FShader>& InShader)
+{
+	check(InShader->GetFrequency() == SF_RayCallable || InShader->GetFrequency() == SF_RayMiss);
+	ShaderIndex = InShader.GetRayTracingCallableShaderLibraryIndex();
+	Shader = InShader.GetRayTracingShader();
+
+	FMeshProcessorShaders Shaders;
+	Shaders.RayTracingShader = InShader;
+
+	ShaderBindings.Initialize(Shaders);
+}
 #endif // RHI_RAYTRACING
 
 void FMeshDrawCommand::SetDrawParametersAndFinalize(
