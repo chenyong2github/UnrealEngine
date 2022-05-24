@@ -373,7 +373,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		for (UMaterialInterface* VisMaterial : View->FinalPostProcessSettings.BufferVisualizationOverviewMaterials)
 		{
 			// If this was just to contribute to the history buffer, no need to go any further.
-			if (InSampleState.bDiscardResult)
+			if (InOutSampleState.bDiscardResult)
 			{
 				continue;
 			}
