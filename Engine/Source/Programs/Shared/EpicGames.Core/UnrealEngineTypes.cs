@@ -1423,6 +1423,11 @@ namespace EpicGames.Core
 		NewerVersionExists = 0x01000000,
 
 		/// <summary>
+		/// If set, this struct will have CanEditChange on it in the editor to determine if a child property can be edited
+		/// </summary>
+		CanEditChange = 0x02000000,
+
+		/// <summary>
 		/// Struct flags that are automatically inherited
 		/// </summary>
 		Inherit = HasInstancedReference | Atomic,
