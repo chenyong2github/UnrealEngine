@@ -43,7 +43,7 @@ uint MaterialPass_LightChannelMask;
 struct FEvaluateOutput
 {
 	FHairSample NodeData;
-	float2 NodeVelocity;
+	float4 NodeVelocity;
 };
 
 struct FHairVertexData
@@ -147,13 +147,13 @@ FEvaluateOutput Evaluate(
 	
 
 	#if 1
-	float2 EncodedVelocity = 0;
+	float4 EncodedVelocity = 0;
 	{
 		const float4 ScreenPos		= mul(float4(Velocity_World_P.xyz, 1), ResolvedView.TranslatedWorldToClip);
 		const float4 PrevScreenPos	= mul(float4(Velocity_World_P_Prev.xyz, 1), ResolvedView.PrevTranslatedWorldToClip);
 
-		const float2 Velocity	= Calculate3DVelocity(ScreenPos, PrevScreenPos).xy;
-		EncodedVelocity			= EncodeVelocityToTexture(float3(Velocity, 0.0)).xy;
+		const float3 Velocity	= Calculate3DVelocity(ScreenPos, PrevScreenPos);
+		EncodedVelocity			= EncodeVelocityToTexture(Velocity);
 	}
 	#endif
 

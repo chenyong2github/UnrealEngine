@@ -20,7 +20,7 @@ float CoverageThreshold;
 uint bNeedClear;
 
 Texture2D<uint> NodeIndex;
-Buffer<float2> NodeVelocity;
+Buffer<float4> NodeVelocity;
 StructuredBuffer<FPackedHairVis> NodeVis; 
 Texture2D<float> CoverageTexture;
 
@@ -46,9 +46,9 @@ Buffer<uint2> TileDataBuffer;
 RWTexture2D<uint> OutResolveMaskTexture;
 
 #if PERMUTATION_OUTPUT_FORMAT == 0
-float2 ToOutput(float2 In) { return In; }
+float2 ToOutput(float4 In) { return In.xy; }
 #else
-float4 ToOutput(float2 In) { return float4(In, 0, 0); }
+float4 ToOutput(float4 In) { return In; }
 #endif
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
@@ -70,21 +70,21 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint2 InGroupId : SV_G
 	const FNodeDesc NodeDesc = DecodeNodeDesc(NodeIndex.Load(uint3(PixelCoord, 0)));
 	bool bNeedFastResolve = false;
 	bool bValidVelocity = false;
-	float2 OutEncodedVelocity = 0;
+	float4 OutEncodedVelocity = 0;
 	if (NodeDesc.Count > 0)
 	{
 		// Store final sort node data 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-		float2 AverageVelocity = 0;
+		float3 AverageVelocity = 0;
 		#endif
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
-		float2 ClosestEncodedVelocity = 0;
+		float4 ClosestEncodedVelocity = 0;
 		float ClosestDepth = 0; // Inverse-Z
 		#endif		
 
 		#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
-		float2 MaxEncodedVelocity = 0;
+		float4 MaxEncodedVelocity = 0;
 		float MaxVelocityMagnitude2 = 0;
 		#endif		
 
@@ -95,10 +95,10 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint2 InGroupId : SV_G
 			for (uint NodeIt = 0; NodeIt < NodeDesc.Count; ++NodeIt)
 			{
 				const uint SampleIndex = NodeDesc.Offset + NodeIt;
-				const float2 EncodedVelocity = NodeVelocity[SampleIndex];
+				const float4 EncodedVelocity = NodeVelocity[SampleIndex];
 
 				#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-				AverageVelocity += DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
+				AverageVelocity += DecodeVelocityFromTexture(EncodedVelocity);
 				#endif			
 
 				#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
@@ -111,7 +111,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint2 InGroupId : SV_G
 				#endif
 
 				#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
-				const float2 CurrentVelocity = DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
+				const float4 CurrentVelocity = DecodeVelocityFromTexture(EncodedVelocity);
 				const float CurrentVelocityMagnitude2 = dot(CurrentVelocity, CurrentVelocity);
 				if (CurrentVelocityMagnitude2 > MaxVelocityMagnitude2)
 				{
@@ -123,11 +123,11 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint2 InGroupId : SV_G
 				// If the velocity is above a certain threshold, the pixel will be resolve with a fast resolved. 
 				// This will result into a sharper, but more noisy output. However it sill avoid getting smearing 
 				// from TAA.
-				bNeedFastResolve = bNeedFastResolve || NeedFastResolve(EncodedVelocity, VelocityThreshold);
+				bNeedFastResolve = bNeedFastResolve || NeedFastResolve(EncodedVelocity.xy, VelocityThreshold);
 			}
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-			OutEncodedVelocity = EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1u), 0.0)).xy;
+			OutEncodedVelocity = EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1u)));
 			#endif		
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST

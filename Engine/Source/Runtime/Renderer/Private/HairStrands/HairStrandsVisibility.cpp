@@ -705,7 +705,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVisibilityMaterialPassUniformParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairVis>, NodeVis)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, IndirectArgs)
 	SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FPackedHairSample>, OutNodeData)
-	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float2>, OutNodeVelocity)
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, OutNodeVelocity)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FVisibilityMaterialPassUniformParameters, "MaterialPassParameters", SceneTextures);
 
@@ -770,7 +770,6 @@ static FRDGBufferRef AddUpdateSampleCoveragePass(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 struct FMaterialPassOutput
 {
-	static const EPixelFormat VelocityFormat = PF_G16R16;
 	FRDGBufferRef NodeData = nullptr;
 	FRDGBufferRef NodeVelocity = nullptr;
 	FRDGTextureRef SampleLightingTexture = nullptr;
@@ -795,9 +794,13 @@ static FMaterialPassOutput AddHairMaterialPass(
 
 	const uint32 MaxNodeCount = CompactNodeVis->Desc.NumElements;
 
+	// Sanity check
+	const EPixelFormat VelocityFormat = FVelocityRendering::GetFormat(ViewInfo->GetShaderPlatform());
+	check(VelocityFormat == PF_A16B16G16R16 || VelocityFormat == PF_G16R16);
+		
 	FMaterialPassOutput Output;
 	Output.NodeData				 = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(HairStrandsVisibilityInternal::NodeData), MaxNodeCount), TEXT("Hair.CompactNodeData"));
-	Output.NodeVelocity			 = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, CompactNodeVis->Desc.NumElements), TEXT("Hair.CompactNodeVelocity"));
+	Output.NodeVelocity			 = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(VelocityFormat == PF_G16R16 ? 4 : 8, CompactNodeVis->Desc.NumElements), TEXT("Hair.CompactNodeVelocity"));
 	Output.SampleLightingTexture = AddClearLightSamplePass(GraphBuilder, ViewInfo, MaxNodeCount, CompactNodeCounter);
 
 	const uint32 ResolutionDim = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(MaxNodeCount)));
@@ -848,7 +851,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 			UniformParameters->NodeCoord = GraphBuilder.CreateSRV(CompactNodeCoord, FHairStrandsVisibilityData::NodeCoordFormat);
 			UniformParameters->IndirectArgs = GraphBuilder.CreateSRV(IndirectArgBuffer);
 			UniformParameters->OutNodeData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.NodeData));
-			UniformParameters->OutNodeVelocity = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.NodeVelocity, FMaterialPassOutput::VelocityFormat));
+			UniformParameters->OutNodeVelocity = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.NodeVelocity, VelocityFormat));
 
 			PassParameters->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
 		}
@@ -1015,6 +1018,7 @@ static void AddHairVelocityPass(
 	const FIntPoint Resolution = OutVelocityTexture->Desc.Extent;
 	OutResolveMaskTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Resolution, PF_R8_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("Hair.VelocityResolveMaskTexture"));
 
+	const EPixelFormat VelocityFormat = FVelocityRendering::GetFormat(View.GetShaderPlatform());
 	check(OutVelocityTexture->Desc.Format == PF_G16R16 || OutVelocityTexture->Desc.Format == PF_A16B16G16R16);
 	const bool bTwoChannelsOutput = OutVelocityTexture->Desc.Format == PF_G16R16;
 
@@ -1030,7 +1034,7 @@ static void AddHairVelocityPass(
 	PassParameters->CoverageThreshold = GetHairWriteVelocityCoverageThreshold();
 	PassParameters->NodeIndex = NodeIndex;
 	PassParameters->NodeVis = GraphBuilder.CreateSRV(NodeVis);
-	PassParameters->NodeVelocity = GraphBuilder.CreateSRV(NodeVelocity, FMaterialPassOutput::VelocityFormat);
+	PassParameters->NodeVelocity = GraphBuilder.CreateSRV(NodeVelocity, VelocityFormat);
 	PassParameters->CoverageTexture = CoverageTexture;
 	PassParameters->OutVelocityTexture = GraphBuilder.CreateUAV(OutVelocityTexture);
 	PassParameters->OutResolveMaskTexture = GraphBuilder.CreateUAV(OutResolveMaskTexture);
