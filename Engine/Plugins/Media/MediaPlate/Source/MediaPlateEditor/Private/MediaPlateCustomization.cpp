@@ -76,6 +76,8 @@ void FMediaPlateCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuil
 	TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(
 		GET_MEMBER_NAME_CHECKED(UMediaPlateComponent, MediaPlaylist));
 	PlaylistGroup.HeaderProperty(PropertyHandle);
+	PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this,
+		&FMediaPlateCustomization::OnPlaylistChanged));
 
 	// Add media source.
 	PlaylistGroup.AddWidgetRow()
@@ -538,6 +540,12 @@ FString FMediaPlateCustomization::GetMediaSourcePath() const
 	}
 
 	return Path;
+}
+
+void FMediaPlateCustomization::OnPlaylistChanged()
+{
+	StopMediaPlates();
+	UpdateMediaPath();
 }
 
 void FMediaPlateCustomization::OnMediaSourceChanged(const FAssetData& AssetData)

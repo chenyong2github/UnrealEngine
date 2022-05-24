@@ -77,6 +77,11 @@ private:
 	FString GetMediaSourcePath() const;
 
 	/**
+	 * Called when the playlist changes.
+	 */
+	void OnPlaylistChanged();
+
+	/**
 	 * Called when the media source widget changes.
 	 */
 	void OnMediaSourceChanged(const FAssetData& AssetData);
