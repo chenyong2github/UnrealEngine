@@ -12,6 +12,7 @@
 #include "GroomCache.h"
 #include "HairStrandsInterface.h"
 #include "SceneView.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Containers/ResourceArray.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "HAL/ConsoleManager.h"

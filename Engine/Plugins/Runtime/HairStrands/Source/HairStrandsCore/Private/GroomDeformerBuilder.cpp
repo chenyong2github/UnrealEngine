@@ -1,10 +1,13 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomDeformerBuilder.h"
 #include "GroomBuilder.h"
 #include "HairStrandsCore.h"
+#include "Animation/Skeleton.h"
+#include "Materials/Material.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "PhysicsEngine/PhysicsAsset.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "GroomAsset.h"
 

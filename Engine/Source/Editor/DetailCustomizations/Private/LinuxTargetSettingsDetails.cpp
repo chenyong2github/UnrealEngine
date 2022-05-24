@@ -27,6 +27,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformModule.h"
 #include "SExternalImageReference.h"
+#include "RHIDefinitions.h"
 #include "RHIShaderFormatDefinitions.inl"
 
 #if WITH_ENGINE
