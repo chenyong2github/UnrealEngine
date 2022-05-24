@@ -438,10 +438,12 @@ void FConcertClientPackageManager::HandlePackageDirtyStateChanged(UPackage* InPa
 {
 	check(!InPackage->HasAnyFlags(RF_Transient) || InPackage != GetTransientPackage());
 
-	// Dirty packages are tracked for purge/reload, but 'compiled in' and
-	// 'in memory' cannot be hot purged/reloaded.
+	// Dirty packages are tracked for purge/reload, but 'compiled in',
+	// 'in memory', or temporary packages cannot be hot purged/reloaded.
 	//
-	if (InPackage->IsDirty() && !InPackage->HasAnyPackageFlags(PKG_CompiledIn | PKG_InMemoryOnly))
+	if (InPackage->IsDirty() &&
+			!InPackage->HasAnyPackageFlags(PKG_CompiledIn | PKG_InMemoryOnly) &&
+			!FPackageName::IsTempPackage(InPackage->GetName()))
 	{
 		DirtyPackages.Add(InPackage->GetFName());
 	}
