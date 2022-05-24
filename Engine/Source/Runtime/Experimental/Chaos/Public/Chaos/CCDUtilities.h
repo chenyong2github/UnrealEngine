@@ -54,7 +54,6 @@ namespace Chaos
 	{
 		FPBDCollisionConstraint* SweptConstraint;
 		FCCDParticle* Particle[2];
-		FReal PhiThreshold;
 		int32 Island;
 		int32 ProcessedCount; // The number of times this constraint is processed in the current frame.
 		int32 FastMovingKinematicIndex;
@@ -63,17 +62,15 @@ namespace Chaos
 		FCCDConstraint()
 			: SweptConstraint(nullptr)
 			, Particle{ nullptr, nullptr }
-			, PhiThreshold(0)
 			, Island(INDEX_NONE)
 			, ProcessedCount(0)
 			, FastMovingKinematicIndex(INDEX_NONE)
 			, NetImpulse(0)
 		{}
 
-		FCCDConstraint(FPBDCollisionConstraint* const InConstraint, FCCDParticle* InParticle[], const FVec3 Displacements[], const FReal InPhiThreshold)
+		FCCDConstraint(FPBDCollisionConstraint* const InConstraint, FCCDParticle* InParticle[], const FVec3 Displacements[])
 			: SweptConstraint(InConstraint)
 			, Particle{ InParticle[0], InParticle[1] }
-			, PhiThreshold(InPhiThreshold)
 			, Island(INDEX_NONE)
 			, ProcessedCount(0)
 			, FastMovingKinematicIndex(GetFastMovingKinematicIndex(InConstraint, Displacements))
@@ -100,6 +97,7 @@ namespace Chaos
 		void AssignConstraintIslandsAndRecordConstraintNum();
 		void GroupConstraintsWithIslands();
 		void ApplyIslandSweptConstraints(const int32 Island, const FReal Dt);
+		void ApplyIslandSweptConstraints2(const int32 Island, const FReal Dt);
 		void ResetIslandParticles(const int32 Island);
 		void ResetIslandConstraints(const int32 Island);
 		void AdvanceParticleXToTOI(FCCDParticle *CCDParticle, const FReal TOI, const FReal Dt) const;

@@ -43,16 +43,4 @@ namespace Chaos
 		const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
 		return GJKContactPoint2(A, B, ATM, BToATM, InitialDir, ShapePadding);
 	}
-
-	inline FContactPoint GenericConvexConvexContactPoint(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal ShapePadding)
-	{
-		// This expands to a switch of switches that calls the inner function with the appropriate concrete implicit types
-		return Utilities::CastHelperNoUnwrap(A, ATM, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
-			{
-				return Utilities::CastHelperNoUnwrap(B, BTM, [&](const auto& BDowncast, const FRigidTransform3& BFullTM)
-					{
-						return GJKContactPoint(ADowncast, AFullTM, BDowncast, BFullTM, FVec3(1, 0, 0), ShapePadding);
-					});
-			});
-	}
 }

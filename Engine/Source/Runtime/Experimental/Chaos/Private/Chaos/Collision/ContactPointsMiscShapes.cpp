@@ -24,43 +24,45 @@ extern int32 ConstraintsDetailedStats;
 
 namespace Chaos
 {
-
 	template <typename GeometryB>
-	FContactPoint GJKImplicitSweptContactPoint(const FImplicitObject& A, const FRigidTransform3& AStartTransform, const GeometryB& B, const FRigidTransform3& BTransform, const FVec3& Dir, const FReal Length, FReal& TOI)
+	FContactPoint GJKImplicitSweptContactPoint(const FImplicitObject& A, const FRigidTransform3& AStartTransform, const GeometryB& B, const FRigidTransform3& BTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI)
 	{
 		FContactPoint Contact;
 		const FRigidTransform3 AToBTM = AStartTransform.GetRelativeTransform(BTransform);
 		const FVec3 LocalDir = BTransform.InverseTransformVectorNoScale(Dir);
 
-		FReal OutTime = FLT_MAX;
-		int32 FaceIndex = -1;
+		FReal TOI = TNumericLimits<FReal>::Max();
+		FReal Phi = TNumericLimits<FReal>::Max();
+		int32 FaceIndex = INDEX_NONE;
 		FVec3 FaceNormal;
 		FVec3 Location, Normal;
 
 		Utilities::CastHelper(A, AStartTransform, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
-				// @todo(chaos): handle instances with margin
-				if (B.SweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, FaceNormal, 0.0f, true))
+				if (B.SweepGeomCCD(ADowncast, AToBTM, LocalDir, Length, IgnorePenetration, TargetPenetration, TOI, Phi, Location, Normal, FaceIndex, FaceNormal))
 				{
-					// @todo(chaos): margin
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 					Contact.ShapeContactPoints[1] = Location;
 					Contact.ShapeContactNormal = Normal;
-					const FVec3 ContactNormal = BTransform.TransformVectorNoScale(Normal);
-					ComputeSweptContactPhiAndTOIHelper(ContactNormal, Dir, Length, OutTime, TOI, Contact.Phi);
+					Contact.Phi = Phi;
+					Contact.FaceIndex = FaceIndex;
+					OutTOI = TOI;
 				}
 			});
 
 		return Contact;
 	}
 
-	void ComputeSweptContactPhiAndTOIHelper(const FVec3& ContactNormal, const FVec3& Dir, const FReal& Length, const FReal& HitTime, FReal& OutTOI, FReal& OutPhi)
+	// GJKRaycast Time output depends on whether there was initial overlap.
+	// For no initial overlap, Time is the Distance along the sweep where the contact occurs
+	// For initial overlap, Time is the Phi value (separation, so negative)
+	void ComputeSweptContactPhiAndTOIHelper(const FReal DirDotNormal, const FReal& Length, const FReal& HitTime, FReal& OutTOI, FReal& OutPhi)
 	{
 		if (HitTime >= 0.0f)
 		{
 			// We subtract length to get the total penetration at at end of frame.
 			// Project penetration vector onto geometry normal for correct phi.
-			FReal Dot = FMath::Abs(FVec3::DotProduct(ContactNormal, -Dir));
+			FReal Dot = -DirDotNormal;
 			OutPhi = (HitTime - Length) * Dot;
 
 			// TOI is between [0,1], used to compute particle position
@@ -73,6 +75,120 @@ namespace Chaos
 			// OutTime is penetration value of MTD.
 			OutPhi = HitTime;
 			OutTOI = 0.0f;
+		}
+	}
+
+	void ComputeSweptContactPhiAndTOIHelper(const FVec3& ContactNormal, const FVec3& Dir, const FReal& Length, const FReal& HitTime, FReal& OutTOI, FReal& OutPhi)
+	{
+		const FReal DirDotNormal = FMath::Abs(FVec3::DotProduct(ContactNormal, Dir));
+		ComputeSweptContactPhiAndTOIHelper(DirDotNormal, Length, HitTime, OutTOI, OutPhi);
+	}
+
+	// Calculate Phi at the start and end of a raycast, given the ray information and sweep result
+	bool ComputeSweptContactStartAndEndPhi(const FReal TOI, const FReal Phi, const FReal DirDotNormal, const FReal Length, FReal& StartPhi, FReal& EndPhi)
+	{
+		StartPhi = TNumericLimits<FReal>::Max();
+		EndPhi = TNumericLimits<FReal>::Max();
+		if (TOI <= FReal(1))
+		{
+			// Modify TOI so we ignore separating and shallow CCD contacts
+			// NOTE (See GJKRaycast2): If initially penetrating, Phi is the separation at the start of the sweep.
+			// But if not initially penetrating Phi is the separation at the end of the sweep
+			// @todo(chaos): The way Phi is set for sweeps is quite confusing - can we make this better?
+			if (TOI <= FReal(0))
+			{
+				StartPhi = Phi;
+				EndPhi = StartPhi + DirDotNormal * Length;
+			}
+			else
+			{
+				EndPhi = Phi;
+				StartPhi = EndPhi - DirDotNormal * Length;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	// Use the ray start and end Phi to calculate the time when Phi was equal to TargetPhi. Also ignore separating rays and
+	// those where penatration is belocw some threshold at the end of the sweep.
+	FReal ComputeSweptContactTimeToTargetPhi(const FReal StartPhi, const FReal EndPhi, const FReal IgnorePhi, const FReal TargetPhi)
+	{
+		const FReal InfiniteTOI = TNumericLimits<FReal>::Max();
+		const FReal MovementTolerance = KINDA_SMALL_NUMBER;
+
+		// If we end up separated at TOI=1 ignore the contact
+		if (EndPhi > 0)
+		{
+			return InfiniteTOI;
+		}
+
+		// If contact is moving in the right direction or not moving ignore the contact
+		if (EndPhi > StartPhi - MovementTolerance)
+		{
+			return InfiniteTOI;
+		}
+
+		// If we penetrate by less than the IgnorePhi, treat it as TOI=1. This mean no CCD impulse and the non-CCD 
+		// solve is expected to handle it. This improves the behaviour when we are sliding along a surface at
+		// above CCD speeds - we don't want to handle TOI events with the floor
+		if (EndPhi > IgnorePhi)
+		{
+			return FReal(1);
+		}
+
+		// If we penetrate by more than the TargetPhi we roll back to the TOI-plus-a-bit leaving some penetration
+		// for the main solver to resolve. Note that is CCDRemainderPenetration is non-zero, secondary sweeps are
+		// more likely to encounter an bad edge collision.
+		const FReal TOI = (TargetPhi - StartPhi) / (EndPhi - StartPhi);
+
+		return FMath::Clamp(TOI, FReal(0), FReal(1));
+	}
+
+	// Modify the time of impact so that the contact depth is TargetPenetration. If penetration at T=1 is less than TargetPenetration, TOI will be "infinity".
+	// Returns true if we have a TOI less than 1 (i.e., a contact at TargetPenetration or more that needs CCD processing)
+	bool ComputeSweptContactTOIAndPhiAtTargetPenetration(const FReal DirDotNormal, const FReal SweepLength, const FReal HitDistance, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi)
+	{
+		// Parse the GJK result to get TOI and Phi (Interpretation depends on whether TOI=0 or not - see GJKRaycast2)
+		FReal HitTOI, HitPhi;
+		ComputeSweptContactPhiAndTOIHelper(DirDotNormal, SweepLength, HitDistance, HitTOI, HitPhi);
+
+		// Calculate the Phis at the start and end of the sweep
+		FReal StartPhi, EndPhi;
+		ComputeSweptContactStartAndEndPhi(HitTOI, HitPhi, DirDotNormal, SweepLength, StartPhi, EndPhi);
+
+		// Calculate the time to reach a depth of TargetPenetration (ignoring those penetrating by less than IgnorePenetration at the end)
+		const FReal IgnorePhi = -IgnorePenetration;
+		const FReal TargetPhi = -TargetPenetration;
+		const FReal TargetTOI = ComputeSweptContactTimeToTargetPhi(StartPhi, EndPhi, IgnorePhi, TargetPhi);
+
+		OutTOI = TargetTOI;
+		OutPhi = (TargetTOI == 0) ? StartPhi : TargetPhi;
+
+		return (OutTOI < FReal(1));
+	}
+
+	bool ComputeSweptContactTOIAndPhiAtTargetPenetration(const FVec3& ContactNormal, const FVec3& Dir, const FReal SweepLength, const FReal HitDistance, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi)
+	{
+		const FReal DirDotNormal = FVec3::DotProduct(ContactNormal, Dir);
+		return ComputeSweptContactTOIAndPhiAtTargetPenetration(DirDotNormal, SweepLength, HitDistance, IgnorePenetration, TargetPenetration, OutTOI, OutPhi);
+	}
+
+	// Calculate TOI to leave objects penetrating by TargetPhi. This is used by the legacy path that finds the first contacting shape pair and then ignores all others after that
+	// even if they would have a smaller TOI at TargetPenetration. It is only called if the low level sweep code has not already called ComputeSweptContactTOIAndPhiAtTargetPenetration. 
+	// See CVars::bCCDNewTargetDepthMode
+	void LegacyComputeSweptContactTOIAndPhiAtTargetPenetration(const FReal DirDotNormal, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& InOutTOI, FReal& InOutPhi)
+	{
+		if (InOutTOI <= 1)
+		{
+			if (InOutTOI != 0)
+			{
+				InOutPhi = (FReal(1) - InOutTOI) * Length * DirDotNormal;
+			}
+			FReal StartPhi, EndPhi;
+			ComputeSweptContactStartAndEndPhi(InOutTOI, InOutPhi, DirDotNormal, Length, StartPhi, EndPhi);
+			InOutTOI = ComputeSweptContactTimeToTargetPhi(StartPhi, EndPhi, -IgnorePenetration, -TargetPenetration);
+			InOutPhi = (InOutTOI == 0) ? StartPhi : -TargetPenetration;
 		}
 	}
 
@@ -145,7 +261,7 @@ namespace Chaos
 
 	// A is the implicit here, we want to return a contact point on B (trimesh)
 	template <typename GeometryA>
-	FContactPoint GJKImplicitScaledTriMeshSweptContactPoint(const FImplicitObject& A, const FRigidTransform3& AStartTransform, const TImplicitObjectScaled<FTriangleMeshImplicitObject>& B, const FRigidTransform3& BTransform, const FVec3& Dir, const FReal Length, FReal& TOI)
+	FContactPoint GJKImplicitScaledTriMeshSweptContactPoint(const FImplicitObject& A, const FRigidTransform3& AStartTransform, const TImplicitObjectScaled<FTriangleMeshImplicitObject>& B, const FRigidTransform3& BTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI)
 	{
 		FContactPoint Contact;
 		const FRigidTransform3 AToBTM = AStartTransform.GetRelativeTransform(BTransform);
@@ -156,22 +272,20 @@ namespace Chaos
 			return FContactPoint();
 		}
 
-		FReal OutTime = FLT_MAX;
-		FVec3 Location, Normal;
-		int32 FaceIndex = -1;
-		Chaos::FVec3 FaceNormal;
-
 		Utilities::CastHelper(A, AStartTransform, [&](const auto& ADowncast, const FRigidTransform3& AFullTM)
 			{
-				// @todo(chaos): handle Instanced with margin
-				if (B.LowLevelSweepGeom(ADowncast, AToBTM, LocalDir, Length, OutTime, Location, Normal, FaceIndex, FaceNormal, 0.0f, true))
+				FReal TOI, Phi;
+				FVec3 Location, Normal;
+				int32 FaceIndex = -1;
+				Chaos::FVec3 FaceNormal;
+				if (B.LowLevelSweepGeomCCD(ADowncast, AToBTM, LocalDir, Length, IgnorePenetration, TargetPenetration, TOI, Phi, Location, Normal, FaceIndex, FaceNormal))
 				{
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPositionNoScale(Location);
 					Contact.ShapeContactPoints[1] = Location;
 					Contact.ShapeContactNormal = Normal;
-
-					const FVec3& ContactNormal = BTransform.TransformVectorNoScale(Normal);
-					ComputeSweptContactPhiAndTOIHelper(ContactNormal, Dir, Length, OutTime, TOI, Contact.Phi);
+					Contact.Phi = Phi;
+					Contact.FaceIndex = FaceIndex;
+					OutTOI = TOI;
 				}
 			});
 
@@ -284,15 +398,15 @@ namespace Chaos
 	}
 
 	template<typename TriMeshType>
-	FContactPoint SphereTriangleMeshSweptContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, FReal& TOI)
+	FContactPoint SphereTriangleMeshSweptContactPoint(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI)
 	{
 		if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = B.template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 		{
-			return GJKImplicitScaledTriMeshSweptContactPoint<TSphere<FReal, 3>>(A, ATransform, *ScaledTriangleMesh, BStartTransform, Dir, Length, TOI);
+			return GJKImplicitScaledTriMeshSweptContactPoint<TSphere<FReal, 3>>(A, ATransform, *ScaledTriangleMesh, BStartTransform, Dir, Length, IgnorePenetration, TargetPenetration, TOI);
 		}
 		else if (const FTriangleMeshImplicitObject* TriangleMesh = B.template GetObject<const FTriangleMeshImplicitObject>())
 		{
-			return GJKImplicitSweptContactPoint(TSphere<FReal, 3>(A), ATransform, *TriangleMesh, BStartTransform, Dir, Length, TOI);
+			return GJKImplicitSweptContactPoint(TSphere<FReal, 3>(A), ATransform, *TriangleMesh, BStartTransform, Dir, Length, IgnorePenetration, TargetPenetration, TOI);
 		}
 
 		ensure(false);
@@ -329,16 +443,16 @@ namespace Chaos
 	}
 
 	template <typename TriMeshType>
-	FContactPoint CapsuleTriangleMeshSweptContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, FReal& TOI)
+	FContactPoint CapsuleTriangleMeshSweptContactPoint(const FCapsule& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI)
 	{
 		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_CapsuleTriangleMeshSweptContactPoint, ConstraintsDetailedStats);
 		if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = B.template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 		{
-			return GJKImplicitScaledTriMeshSweptContactPoint<FCapsule>(A, ATransform, *ScaledTriangleMesh, BStartTransform, Dir, Length, TOI);
+			return GJKImplicitScaledTriMeshSweptContactPoint<FCapsule>(A, ATransform, *ScaledTriangleMesh, BStartTransform, Dir, Length, IgnorePenetration, TargetPenetration, TOI);
 		}
 		else if (const FTriangleMeshImplicitObject* TriangleMesh = B.template GetObject<const FTriangleMeshImplicitObject>())
 		{
-			return GJKImplicitSweptContactPoint(A, ATransform, *TriangleMesh, BStartTransform, Dir, Length, TOI);
+			return GJKImplicitSweptContactPoint(A, ATransform, *TriangleMesh, BStartTransform, Dir, Length, IgnorePenetration, TargetPenetration, TOI);
 		}
 
 		ensure(false);
@@ -365,16 +479,16 @@ namespace Chaos
 	}
 
 	template <typename TriMeshType>
-	FContactPoint ConvexTriangleMeshSweptContactPoint(const FImplicitObject& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, FReal& TOI)
+	FContactPoint ConvexTriangleMeshSweptContactPoint(const FImplicitObject& A, const FRigidTransform3& ATransform, const TriMeshType& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI)
 	{
 		CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_ConvexTriangleMeshSweptContactPoint, ConstraintsDetailedStats);
 		if (const TImplicitObjectScaled<FTriangleMeshImplicitObject>* ScaledTriangleMesh = B.template GetObject<const TImplicitObjectScaled<FTriangleMeshImplicitObject>>())
 		{
-			return GJKImplicitScaledTriMeshSweptContactPoint<FConvex>(A, ATransform, *ScaledTriangleMesh, BStartTransform, Dir, Length, TOI);
+			return GJKImplicitScaledTriMeshSweptContactPoint<FConvex>(A, ATransform, *ScaledTriangleMesh, BStartTransform, Dir, Length, IgnorePenetration, TargetPenetration, TOI);
 		}
 		else if (const FTriangleMeshImplicitObject* TriangleMesh = B.template GetObject<const FTriangleMeshImplicitObject>())
 		{
-			return GJKImplicitSweptContactPoint(A, ATransform, *TriangleMesh, BStartTransform, Dir, Length, TOI);
+			return GJKImplicitSweptContactPoint(A, ATransform, *TriangleMesh, BStartTransform, Dir, Length, IgnorePenetration, TargetPenetration, TOI);
 		}
 
 		ensure(false);
@@ -418,14 +532,14 @@ namespace Chaos
 
 
 	// Template  Instantiations
-	template FContactPoint GJKImplicitSweptContactPoint<FHeightField>(const FImplicitObject& A, const FRigidTransform3& AStartTransform, const FHeightField& B, const FRigidTransform3& BTransform, const FVec3& Dir, const FReal Length, FReal& TOI);
+	template FContactPoint GJKImplicitSweptContactPoint<FHeightField>(const FImplicitObject& A, const FRigidTransform3& AStartTransform, const FHeightField& B, const FRigidTransform3& BTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
 
-	template FContactPoint SphereTriangleMeshSweptContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, FReal& TOI);
-	template FContactPoint SphereTriangleMeshSweptContactPoint<FTriangleMeshImplicitObject>(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, FReal& TOI);
-	template FContactPoint CapsuleTriangleMeshSweptContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FCapsule& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, FReal& TOI);
-	template FContactPoint CapsuleTriangleMeshSweptContactPoint<FTriangleMeshImplicitObject>(const FCapsule& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, FReal& TOI);
-	template FContactPoint ConvexTriangleMeshSweptContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FImplicitObject& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, FReal& TOI);
-	template FContactPoint ConvexTriangleMeshSweptContactPoint<FTriangleMeshImplicitObject>(const FImplicitObject& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, FReal& TOI);
+	template FContactPoint SphereTriangleMeshSweptContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
+	template FContactPoint SphereTriangleMeshSweptContactPoint<FTriangleMeshImplicitObject>(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
+	template FContactPoint CapsuleTriangleMeshSweptContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FCapsule& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
+	template FContactPoint CapsuleTriangleMeshSweptContactPoint<FTriangleMeshImplicitObject>(const FCapsule& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
+	template FContactPoint ConvexTriangleMeshSweptContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FImplicitObject& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
+	template FContactPoint ConvexTriangleMeshSweptContactPoint<FTriangleMeshImplicitObject>(const FImplicitObject& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BStartTransform, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI);
 	template FContactPoint BoxTriangleMeshContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const FImplicitBox3& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding);
 	template FContactPoint BoxTriangleMeshContactPoint<FTriangleMeshImplicitObject>(const FImplicitBox3& A, const FRigidTransform3& ATransform, const FTriangleMeshImplicitObject& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding);
 	template FContactPoint SphereTriangleMeshContactPoint<TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>>(const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const TImplicitObjectScaled<class Chaos::FTriangleMeshImplicitObject, 1>& B, const FRigidTransform3& BTransform, const FReal CullDistance, const FReal ShapePadding);

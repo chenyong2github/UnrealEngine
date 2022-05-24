@@ -79,11 +79,11 @@ namespace Chaos
 		float ChaosDebugDrawConvexExplodeDistance = 0.0f;
 		FAutoConsoleVariableRef CVarChaosDebugDrawConvexExplodeDistance(TEXT("p.Chaos.DebugDraw.ConvexExplodeDistance"), ChaosDebugDrawConvexExplodeDistance, TEXT("Explode convex edges by this amount (useful for looking at convex integrity)"));
 
-		float ChaosDebugDrawCCDDuration = 2.0f;
-		FAutoConsoleVariableRef CVarChaosDebugDrawCCDDuration(TEXT("p.Chaos.DebugDraw.CCDDuration"), ChaosDebugDrawCCDDuration, TEXT("How long CCD debug draw should remain on screen"));
+		float ChaosDebugDrawCCDDuration = 0.0f;
+		FAutoConsoleVariableRef CVarChaosDebugDrawCCDDuration(TEXT("p.Chaos.DebugDraw.CCDDuration"), ChaosDebugDrawCCDDuration, TEXT("How long CCD debug draw should remain on screen in seconds. 0 for 1 frame."));
 
 		float ChaosDebugDrawCollisionDuration = 0.0f;
-		FAutoConsoleVariableRef CVarChaosDebugDrawCollisionDuration(TEXT("p.Chaos.DebugDraw.CollisionDuration"), ChaosDebugDrawCollisionDuration, TEXT("How long Collision debug draw should remain on screen"));
+		FAutoConsoleVariableRef CVarChaosDebugDrawCollisionDuration(TEXT("p.Chaos.DebugDraw.CollisionDuration"), ChaosDebugDrawCollisionDuration, TEXT("How long Collision debug draw should remain on screen in seconds. 0 for 1 frame."));
 
 
 		// NOTE: These settings should never really be used - they are the fallback defaults
@@ -1043,6 +1043,7 @@ namespace Chaos
 
 			DrawParticleCCDCollisionShapeImpl(SpaceTransform, CCDConstraint.Particle[0], bShowStartPos, ShapeColor, Duration, Settings);
 			DrawParticleCCDCollisionShapeImpl(SpaceTransform, CCDConstraint.Particle[1], bShowStartPos, ShapeColor, Duration, Settings);
+			DrawCollisionImpl(SpaceTransform, CCDConstraint.SweptConstraint, 1.0f, Duration, Settings);
 		}
 
 		void DrawCCDCollisionImpulseImpl(const FRigidTransform3& SpaceTransform, const FCCDConstraint& CCDConstraint, const int32 ManifoldPointIndex, const FVec3& Impulse, const FChaosDebugDrawSettings& Settings)

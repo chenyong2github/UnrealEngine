@@ -82,8 +82,8 @@ namespace Chaos
 	bool bChaos_Collision_UseGJK2 = false;
 	FAutoConsoleVariableRef CVarChaos_Collision_UseGJK2(TEXT("p.Chaos.Collision.UseGJK2"), bChaos_Collision_UseGJK2, TEXT(""));
 
-	bool bChaos_Collision_OneSidedTriangleMesh = false;
-	bool bChaos_Collision_OneSidedHeightfield = false;
+	bool bChaos_Collision_OneSidedTriangleMesh = true;
+	bool bChaos_Collision_OneSidedHeightfield = true;
 	FAutoConsoleVariableRef CVarChaos_Collision_OneSidedTriangleMesh(TEXT("p.Chaos.Collision.OneSidedTriangleMesh"), bChaos_Collision_OneSidedTriangleMesh, TEXT(""));
 	FAutoConsoleVariableRef CVarChaos_Collision_OneSidedHeightfield(TEXT("p.Chaos.Collision.OneSidedHeightfield"), bChaos_Collision_OneSidedHeightfield, TEXT(""));
 
@@ -92,7 +92,6 @@ namespace Chaos
 		// Forward delarations we need from CollisionRestitution.cpp
 
 		FContactPoint BoxBoxContactPoint(const FImplicitBox3& Box1, const FImplicitBox3& Box2, const FRigidTransform3& Box1TM, const FRigidTransform3& Box2TM, const FReal ShapePadding);
-		FContactPoint GenericConvexConvexContactPoint(const FImplicitObject& A, const FRigidTransform3& ATM, const FImplicitObject& B, const FRigidTransform3& BTM, const FReal ShapePadding);
 
 		//////////////////////////
 		// Box Box

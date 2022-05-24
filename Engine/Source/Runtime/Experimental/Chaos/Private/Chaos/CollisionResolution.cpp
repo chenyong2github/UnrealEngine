@@ -45,7 +45,6 @@ DECLARE_CYCLE_STAT(TEXT("Collisions::ConstructConstraintsInternal"), STAT_Collis
 DECLARE_CYCLE_STAT(TEXT("Collisions::FindAllIntersectingClusteredObjects"), STAT_Collisions_FindAllIntersectingClusteredObjects, STATGROUP_ChaosCollision);
 DECLARE_CYCLE_STAT(TEXT("Collisions::ConstructGenericConvexConvexConstraints"), STAT_Collisions_ConstructGenericConvexConvexConstraints, STATGROUP_ChaosCollision);
 DECLARE_CYCLE_STAT(TEXT("Collisions::ConstructGenericConvexConvexConstraintsSwept"), STAT_Collisions_ConstructGenericConvexConvexConstraintsSwept, STATGROUP_ChaosCollision);
-DECLARE_CYCLE_STAT(TEXT("Collisions::SetSweptConstraintTOI"), STAT_Collisions_SetSweptConstraintTOI, STATGROUP_ChaosCollision);
 DECLARE_CYCLE_STAT(TEXT("Collisions::UpdateConstraintFromGeometryInternal"), STAT_Collisions_UpdateConstraintFromGeometryInternal, STATGROUP_ChaosCollision);
 DECLARE_CYCLE_STAT(TEXT("Collisions::UpdateGenericConvexConvexConstraint"), STAT_Collisions_UpdateGenericConvexConvexConstraint, STATGROUP_ChaosCollision);
 DECLARE_CYCLE_STAT(TEXT("Collisions::UpdateConvexTriangleMeshConstraint"), STAT_Collisions_UpdateConvexTriangleMeshConstraint, STATGROUP_ChaosCollision);
@@ -72,9 +71,6 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumParticlePairs"), STAT_ChaosCollisionCoun
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumShapePairs"), STAT_ChaosCollisionCounter_NumShapePairs, STATGROUP_ChaosCollisionCounters);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumContactsCreated"), STAT_ChaosCollisionCounter_NumContactsCreated, STATGROUP_ChaosCollisionCounters);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumContactUpdates"), STAT_ChaosCollisionCounter_NumContactUpdates, STATGROUP_ChaosCollisionCounters);
-
-Chaos::FRealSingle CCDAllowedDepthBoundsScale = 0.1f;
-FAutoConsoleVariableRef CVarCCDAllowedDepthBoundsScale(TEXT("p.Chaos.CCD.AllowedDepthBoundsScale"), CCDAllowedDepthBoundsScale, TEXT("When rolling back to TOI, allow (smallest bound's extent) * AllowedDepthBoundsScale, instead of rolling back to exact TOI w/ penetration = 0."));
 
 int32 CCDUseGenericSweptConvexConstraints = 1;
 FAutoConsoleVariableRef CVarUseGenericSweptConvexConstraints(TEXT("p.Chaos.CCD.UseGenericSweptConvexConstraints"), CCDUseGenericSweptConvexConstraints, TEXT("Use generic convex convex swept constraint generation for convex shape pairs which don't have specialized implementations."));
@@ -174,7 +170,9 @@ namespace Chaos
 				return false;
 			}
 
-			bool bUseCCD = CCDHelpers::DeltaExceedsThreshold(*Particle0, *Particle1);
+			bool bUseCCD = CCDHelpers::DeltaExceedsThreshold(
+				Particle0->CCDAxisThreshold(), DeltaX0, FConstGenericParticleHandle(Particle0)->Q(),
+				Particle1->CCDAxisThreshold(), DeltaX1, FConstGenericParticleHandle(Particle1)->Q());
 
 			if (bUseCCD)
 			{
@@ -194,37 +192,6 @@ namespace Chaos
 			}
 
 			return bUseCCD;
-		}
-
-		// Initializes TimeOfImpact and adjusts Phi for TOI.
-		// @todo(chaos): this repeats normal calculation and dot product - move to ComputeSweptContactPhiAndTOIHelper?
-		void SetSweptConstraintTOI(TGeometryParticleHandle<FReal, 3>* Particle, const FReal TOI, const FReal Length, const FVec3& Dir, FPBDCollisionConstraint& SweptConstraint)
-		{
-			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_SetSweptConstraintTOI, ConstraintsDetailedStats);
-
-			if (TOI <= FReal(1))
-			{
-				const FVec3 ContactNormal = SweptConstraint.CalculateWorldContactNormal();
-				const FReal DirDotNormal = FVec3::DotProduct(Dir, ContactNormal);
-
-				// Modify TOI so we ignore separating and shallow CCD contacts
-				// NOTE (See GJKRaycast2): If initially penetrating, Phi is the separation at the start of the sweep.
-				// But if not initially penetrating Phi is the separation at the end of the sweep
-				// @todo(chaos): The way Phi is set for sweeps is quite confusing - can we make this better?
-				FReal StartPhi, EndPhi;
-				if (TOI <= FReal(0))
-				{
-					StartPhi = SweptConstraint.GetPhi();
-					EndPhi = StartPhi + DirDotNormal * Length;
-				}
-				else
-				{
-					EndPhi = SweptConstraint.GetPhi();
-					StartPhi = EndPhi - DirDotNormal * Length;
-				}
-
-				SweptConstraint.CCDTimeOfImpact = SweptConstraint.CalculateModifiedSweptTOI(StartPhi, EndPhi);
-			}
 		}
 
 		// Add the contact to the manifold (or update the existing point). Disable the contact if the contact distance is greater than the Cull Distance
@@ -724,8 +691,8 @@ namespace Chaos
 		void UpdateSphereHeightFieldConstraintSwept(TGeometryParticleHandle<FReal, 3>* Particle0, const TSphere<FReal, 3>& A, const FRigidTransform3& ATransform, const FHeightField& B, const FRigidTransform3& BTransform, const FVec3& Dir, const FReal Length, const FReal Dt, FPBDCollisionConstraint& Constraint)
 		{
 			FReal TOI = 1.0f;
-			UpdateContactPointNoCull(Constraint, GJKImplicitSweptContactPoint(A, ATransform, B, BTransform, Dir, Length, TOI), Dt, CCDNoCullAllShapePairs);
-			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
+			UpdateContactPointNoCull(Constraint, GJKImplicitSweptContactPoint(A, ATransform, B, BTransform, Dir, Length, Constraint.GetCCDEnablePenetration(), Constraint.GetCCDTargetPenetration(), TOI), Dt, CCDNoCullAllShapePairs);
+			Constraint.SetCCDTimeOfImpact(TOI);
 		}
 
 		template<typename T_TRAITS>
@@ -918,8 +885,8 @@ namespace Chaos
 		void UpdateSphereTriangleMeshConstraintSwept(TGeometryParticleHandle<FReal, 3>* Particle0, const TSphere<FReal, 3>& Sphere0, const FRigidTransform3& WorldTransform0, const TriMeshType& TriangleMesh1, const FRigidTransform3& WorldTransform1, const FVec3& Dir, const FReal Length, const FReal Dt, FPBDCollisionConstraint& Constraint)
 		{
 			FReal TOI = 1.0f;
-			UpdateContactPointNoCull(Constraint, SphereTriangleMeshSweptContactPoint(Sphere0, WorldTransform0, TriangleMesh1, WorldTransform1, Dir, Length, TOI), Dt, CCDNoCullAllShapePairs);
-			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
+			UpdateContactPointNoCull(Constraint, SphereTriangleMeshSweptContactPoint(Sphere0, WorldTransform0, TriangleMesh1, WorldTransform1, Dir, Length, Constraint.GetCCDEnablePenetration(), Constraint.GetCCDTargetPenetration(), TOI), Dt, CCDNoCullAllShapePairs);
+			Constraint.SetCCDTimeOfImpact(TOI);
 		}
 
 		template<typename T_TRAITS>
@@ -1165,8 +1132,8 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateCapsuleHeightFieldConstraintSwept, ConstraintsDetailedStats);
 			FReal TOI = 1.0f;
-			UpdateContactPointNoCull(Constraint, GJKImplicitSweptContactPoint(A, ATransform, B, BTransform, Dir, Length, TOI), Dt, CCDNoCullAllShapePairs);
-			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
+			UpdateContactPointNoCull(Constraint, GJKImplicitSweptContactPoint(A, ATransform, B, BTransform, Dir, Length, Constraint.GetCCDEnablePenetration(), Constraint.GetCCDTargetPenetration(), TOI), Dt, CCDNoCullAllShapePairs);
+			Constraint.SetCCDTimeOfImpact(TOI);
 		}
 
 		template<typename T_TRAITS>
@@ -1228,8 +1195,8 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateCapsuleTriangleMeshConstraint, ConstraintsDetailedStats);
 			FReal TOI = 1.0f;
-			UpdateContactPointNoCull(Constraint, CapsuleTriangleMeshSweptContactPoint(Capsule0, WorldTransform0, TriangleMesh1, WorldTransform1, Dir, Length, TOI), Dt, CCDNoCullAllShapePairs);
-			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
+			UpdateContactPointNoCull(Constraint, CapsuleTriangleMeshSweptContactPoint(Capsule0, WorldTransform0, TriangleMesh1, WorldTransform1, Dir, Length, Constraint.GetCCDEnablePenetration(), Constraint.GetCCDTargetPenetration(), TOI), Dt, CCDNoCullAllShapePairs);
+			Constraint.SetCCDTimeOfImpact(TOI);
 		}
 
 		template<typename T_TRAITS>
@@ -1296,7 +1263,7 @@ namespace Chaos
 		}
 
 		//
-		// Generic Convex - Convex (actualy concrete type could be anything)
+		// Generic Convex - Convex (actual concrete type could be anything)
 		//
 
 		void UpdateGenericConvexConvexConstraint(const FImplicitObject& Implicit0, const FRigidTransform3& WorldTransform0, const FImplicitObject& Implicit1, const FRigidTransform3& WorldTransform1, const FReal Dt, FPBDCollisionConstraint& Constraint)
@@ -1312,8 +1279,8 @@ namespace Chaos
 			FReal TOI = TNumericLimits<FReal>::Max();
 			const FRigidTransform3& EndWorldTransform0 = Constraint.GetShapeWorldTransform0();
 			const FRigidTransform3& EndWorldTransform1 = Constraint.GetShapeWorldTransform1();
-			UpdateContactPointNoCull(Constraint, GenericConvexConvexContactPointSwept(Implicit0, StartWorldTransform0, EndWorldTransform0, Implicit1, StartWorldTransform1, EndWorldTransform1, Dir, Length, TOI), Dt);
-			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
+			UpdateContactPointNoCull(Constraint, GenericConvexConvexContactPointSwept(Implicit0, StartWorldTransform0, EndWorldTransform0, Implicit1, StartWorldTransform1, EndWorldTransform1, Dir, Length, Constraint.GetCCDEnablePenetration(), Constraint.GetCCDTargetPenetration(), TOI), Dt);
+			Constraint.SetCCDTimeOfImpact(TOI);
 		}
 
 
@@ -1375,8 +1342,8 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateConvexHeightFieldConstraintSwept, ConstraintsDetailedStats);
 			FReal TOI = 1.0f;
-			UpdateContactPointNoCull(Constraint, GJKImplicitSweptContactPoint(A, ATransform, B, BTransform, Dir, Length, TOI), Dt, CCDNoCullAllShapePairs);
-			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
+			UpdateContactPointNoCull(Constraint, GJKImplicitSweptContactPoint(A, ATransform, B, BTransform, Dir, Length, Constraint.GetCCDEnablePenetration(), Constraint.GetCCDTargetPenetration(), TOI), Dt, CCDNoCullAllShapePairs);
+			Constraint.SetCCDTimeOfImpact(TOI);
 		}
 
 		template<typename T_TRAITS>
@@ -1432,8 +1399,8 @@ namespace Chaos
 		{
 			CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_Collisions_UpdateConvexTriangleMeshConstraintSwept, ConstraintsDetailedStats);
 			FReal TOI = 1.0f;
-			UpdateContactPointNoCull(Constraint, ConvexTriangleMeshSweptContactPoint(Convex0, WorldTransform0, TriangleMesh1, WorldTransform1, Dir, Length, TOI), Dt, CCDNoCullAllShapePairs);
-			SetSweptConstraintTOI(Particle0, TOI, Length, Dir, Constraint);
+			UpdateContactPointNoCull(Constraint, ConvexTriangleMeshSweptContactPoint(Convex0, WorldTransform0, TriangleMesh1, WorldTransform1, Dir, Length, Constraint.GetCCDEnablePenetration(), Constraint.GetCCDTargetPenetration(), TOI), Dt, CCDNoCullAllShapePairs);
+			Constraint.SetCCDTimeOfImpact(TOI);
 		}
 
 		template<typename T_TRAITS>
@@ -1722,6 +1689,8 @@ namespace Chaos
 			const FVec3 DeltaX1 = Constraint.GetShapeWorldTransform1().GetTranslation() - WorldTransform1.GetLocation();
 			bool bUseCCD = ShouldUseCCD(Particle0, DeltaX0, Particle1, DeltaX1, DirCCD, LengthCCD, false);
 
+			Constraint.SetCCDTimeOfImpact(TNumericLimits<FReal>::Max());
+
 			if (bUseCCD)
 			{
 				const EContactShapesType ShapePairType = Constraint.GetShapesType();
@@ -1817,9 +1786,7 @@ namespace Chaos
 				}
 			}
 
-			Constraint.CCDTimeOfImpact = TNumericLimits<FReal>::Max(); // CCD will not be used for this constraint
-			// Do a normal non-swept update if we reach this point - Not required for now, since this will be done in solver
-			// UpdateConstraintFromGeometryImpl<UpdateType>(*(Constraint.As<FPBDCollisionConstraint>()), WorldTransform0, WorldTransform1, Dt);
+			// CCD will not be used for this constraint this tick
 			return false;
 		}
 

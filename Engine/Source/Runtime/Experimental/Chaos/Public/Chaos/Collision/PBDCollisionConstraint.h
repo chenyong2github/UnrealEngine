@@ -307,10 +307,28 @@ namespace Chaos
 		void SetCCDEnabled(const bool bCCDEnabled)
 		{ 
 			CCDType = bCCDEnabled ? ECollisionCCDType::Enabled : ECollisionCCDType::Disabled;
-			if (bCCDEnabled && (CCDPenetrationThreshold == FReal(0)))
+
+			// Initialize the CCD thresholds (one time only)
+			if (bCCDEnabled && (CCDEnablePenetration == FReal(0)))
 			{
 				InitCCDThreshold();
 			}
+		}
+
+		/**
+		 * @brief If CCD is enabled, contacts deeper than this will be handled by CCD
+		*/
+		FReal GetCCDEnablePenetration() const
+		{
+			return CCDEnablePenetration;
+		}
+
+		/**
+		 * @brief If CCD is enabled and processed the contact, CCD resolution leaves up to this much penetration
+		*/
+		FReal GetCCDTargetPenetration() const
+		{
+			return CCDTargetPenetration;
 		}
 
 		//
@@ -524,17 +542,6 @@ namespace Chaos
 			}
 		}
 
-		/**
-		 * @brief Update the contact depth and TOI based on the current shape world transforms and the given start transforms
-		*/
-		void UpdateSweptManifoldPoints(const FVec3& ShapeStartWorldPosition0, const FVec3& ShapeStartWorldPosition1, const FReal Dt);
-
-		/**
-		 * @brief return the TOI to use for CCD given the start and end separations
-		 * We ignore separated and separating contacts, and modify TOI to leave some minimim overlap.
-		*/
-		FReal CalculateModifiedSweptTOI(const FReal StartPhi, const FReal EndPhi);
-
 		// The GJK warm-start data. This is updated directly in the narrow phase
 		FGJKSimplexData& GetGJKWarmStartData() { return GJKWarmStartData; }
 
@@ -573,6 +580,16 @@ namespace Chaos
 		{
 			ResetSavedManifoldPoints();
 		}
+
+		/**
+		 * @brief Time of impact from CCD sweep test if CCD is activate.Otherwise undefined.
+		*/
+		FReal GetCCDTimeOfImpact() const { return CCDTimeOfImpact; }
+
+		/**
+		 * @brief Set the CCD TOI from the collision detection sweep
+		*/
+		void SetCCDTimeOfImpact(const FReal TOI) { CCDTimeOfImpact = TOI; }
 
 		/**
 		 * \brief Store the results of CCD contact resolution, if active
@@ -707,11 +724,19 @@ namespace Chaos
 	public:
 		FVec3 AccumulatedImpulse;					// @todo(chaos): we need to accumulate angular impulse separately
 
+	private:
 		// Value in range [0,1] used to interpolate P between [X,P] that we will rollback to when solving at time of impact.
 		FReal CCDTimeOfImpact;
-		FReal CCDPenetrationThreshold;
 
-	private:
+		// The penetration at which CCD contacts get processed following a CCD sweep test.
+		// NOTE: also see GeometryParticle CCDAxisThreshold, which is used to determine when to enable sweeping during collision detection.
+		// Calculated from particle pair properties when constraint is created.
+		FReal CCDEnablePenetration;
+
+		// The penetration we leave behind when rolling back to a CCD time of impact. Should be less than or equal to CCDEnablePenetration.
+		// Calculated from particle pair properties when constraint is created.
+		FReal CCDTargetPenetration;
+
 		FPBDCollisionConstraintContainerCookie ContainerCookie;
 		EContactShapesType ShapesType;
 		ECollisionCCDType CCDType;

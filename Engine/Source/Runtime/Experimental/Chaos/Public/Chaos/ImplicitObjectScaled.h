@@ -671,6 +671,44 @@ public:
 		return false;
 	}
 
+	/** This is a low level function and assumes the internal object has a SweepGeom function. Should not be called directly. See GeometryQueries.h : SweepQuery */
+	template <typename QueryGeomType>
+	bool LowLevelSweepGeomCCD(const QueryGeomType& B, const TRigidTransform<T, d>& BToATM, const TVector<T, d>& LocalDir, const T Length, const FReal IgnorePenetration, const FReal TargetPenetration, T& OutTOI, T& OutPhi, TVector<T, d>& LocalPosition, TVector<T, d>& LocalNormal, int32& OutFaceIndex, TVector<T, d>& OutFaceNormal) const
+	{
+		ensure(Length > 0);
+		ensure(FMath::IsNearlyEqual(LocalDir.SizeSquared(), (T)1, (T)UE_KINDA_SMALL_NUMBER));
+
+		const TVector<T, d> UnscaledDirDenorm = MInvScale * LocalDir;
+		const T LengthScale = UnscaledDirDenorm.Size();
+		if (ensure(LengthScale > TNumericLimits<T>::Min()))
+		{
+			const T LengthScaleInv = 1.f / LengthScale;
+			const T UnscaledLength = Length * LengthScale;
+			const TVector<T, d> UnscaledDir = UnscaledDirDenorm * LengthScaleInv;
+
+			TVector<T, d> UnscaledPosition;
+			TVector<T, d> UnscaledNormal;
+			T TOI;
+			T Phi;
+
+			TRigidTransform<T, d> BToATMNoScale(BToATM.GetLocation() * MInvScale, BToATM.GetRotation());
+
+			if (MObject->SweepGeomCCD(B, BToATMNoScale, UnscaledDir, UnscaledLength, IgnorePenetration, TargetPenetration, TOI, Phi, UnscaledPosition, UnscaledNormal, OutFaceIndex, OutFaceNormal, MScale))
+			{
+				if (TOI < FReal(1))
+				{
+					OutTOI = TOI;
+					OutPhi = Phi;
+					LocalPosition = MScale * UnscaledPosition;
+					LocalNormal = (MInvScale * UnscaledNormal).GetSafeNormal();
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
 	template <typename QueryGeomType>
 	bool GJKContactPoint(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
 	{

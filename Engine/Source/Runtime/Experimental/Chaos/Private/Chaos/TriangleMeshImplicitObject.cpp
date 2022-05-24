@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Collision/ContactPoint.h"
+#include "Chaos/Collision/ContactPointsMiscShapes.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/CollisionOneShotManifolds.h"
 #include "Chaos/Capsule.h"
@@ -15,6 +16,11 @@
 
 namespace Chaos
 {
+	namespace CVars
+	{
+		extern bool bCCDNewTargetDepthMode;
+	}
+
 	extern FRealSingle Chaos_Collision_EdgePrunePlaneDistance;
 
 	// Note that if this is re-enabled when previously off, the cooked trimeshes won't have the vertex map serialized, so the change will not take effect until re-cooked.
@@ -1150,6 +1156,164 @@ struct FTriangleMeshSweepVisitor
 
 };
 
+template <typename QueryGeomType, typename IdxType>
+struct FTriangleMeshSweepVisitorCCD
+{
+	FTriangleMeshSweepVisitorCCD(const FTriangleMeshImplicitObject& InTriMesh, const TArray<TVec3<IdxType>>& InElements, const QueryGeomType& InQueryGeom,
+		const FVec3& InScaledDirNormalized, const FReal InLengthScale, const FReal InLength, const FRigidTransform3& InScaledStartTM, FVec3 InTriMeshScale, FReal InCullsBackFaceSweepsCode, const FReal InIgnorePenetration, const FReal InTargetPenetration)
+		: OutDistance(TNumericLimits<FRealSingle>::Max())
+		, OutPhi(TNumericLimits<FRealSingle>::Max())
+		, OutFaceIndex(INDEX_NONE)
+		, TriMesh(InTriMesh)
+		, Elements(InElements)
+		, QueryGeom(InQueryGeom)
+		, IgnorePenetration(InIgnorePenetration)
+		, TargetPenetration(InTargetPenetration)
+		, CullsBackFaceSweepsCode(InCullsBackFaceSweepsCode)
+		, LengthScale(FRealSingle(InLengthScale))
+		, Length(FRealSingle(InLength))
+		, TriMeshScale(InTriMeshScale)
+	{
+		VectorScaledDirNormalized = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(InScaledDirNormalized.X, InScaledDirNormalized.Y, InScaledDirNormalized.Z, 0.0));
+		VectorCullsBackFaceSweepsCode = MakeVectorRegisterFloatFromDouble(VectorLoadFloat1(&InCullsBackFaceSweepsCode));
+
+		const UE::Math::TQuat<FReal>& RotationDouble = InScaledStartTM.GetRotation();
+		RotationSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(RotationDouble.X, RotationDouble.Y, RotationDouble.Z, RotationDouble.W));
+
+		const UE::Math::TVector<FReal>& TranslationDouble = InScaledStartTM.GetTranslation();
+		TranslationSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TranslationDouble.X, TranslationDouble.Y, TranslationDouble.Z, 0.0));
+
+		// Normalize rotation
+		RotationSimd = VectorNormalizeSafe(RotationSimd, GlobalVectorConstants::Float0001);
+		RayDirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(InScaledDirNormalized[0], InScaledDirNormalized[1], InScaledDirNormalized[2], 0.0));
+	}
+
+	const void* GetQueryData() const { return nullptr; }
+	const void* GetSimData() const { return nullptr; }
+
+	/** Return a pointer to the payload on which we are querying the acceleration structure */
+	const void* GetQueryPayload() const
+	{
+		return nullptr;
+	}
+
+	bool VisitOverlap(const TSpatialVisitorData<int32>& VisitData)
+	{
+		check(false);
+		return true;
+	}
+
+	bool VisitRaycast(const TSpatialVisitorData<int32>& VisitData, FRealSingle& CurDataLength)
+	{
+		check(false);
+		return true;
+	}
+
+	bool VisitSweep(const TSpatialVisitorData<int32>& VisitData, FRealSingle& CurDataLength)
+	{
+		const int32 TriIdx = VisitData.Payload;
+
+		const VectorRegister4Float TriMeshScaleVector = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(TriMeshScale.X, TriMeshScale.Y, TriMeshScale.Z, 0.0));
+
+		const TParticles<FRealSingle, 3>& Particles = TriMesh.MParticles;
+
+		const TVector<FRealSingle, 3>& AVec = Particles.X(Elements[TriIdx][0]);
+		const TVector<FRealSingle, 3>& BVec = Particles.X(Elements[TriIdx][1]);
+		const TVector<FRealSingle, 3>& CVec = Particles.X(Elements[TriIdx][2]);
+
+		VectorRegister4Float A = MakeVectorRegister(AVec.X, AVec.Y, AVec.Z, 0.0f);
+		VectorRegister4Float B = MakeVectorRegister(BVec.X, BVec.Y, BVec.Z, 0.0f);
+		VectorRegister4Float C = MakeVectorRegister(CVec.X, CVec.Y, CVec.Z, 0.0f);
+
+		A = VectorMultiply(A, TriMeshScaleVector);
+		B = VectorMultiply(B, TriMeshScaleVector);
+		C = VectorMultiply(C, TriMeshScaleVector);
+
+		FTriangleRegister Tri(A, B, C);
+		const VectorRegister4Float TriNormal = VectorCross(VectorSubtract(B, A), VectorSubtract(C, A));
+
+		if (CullsBackFaceSweepsCode != 0)
+		{
+			const VectorRegister4Float ReturnTrue = VectorCompareGT(VectorMultiply(VectorDot3(TriNormal, VectorScaledDirNormalized), VectorCullsBackFaceSweepsCode), VectorZero());
+			if (VectorMaskBits(ReturnTrue))
+			{
+				return true;
+			}
+		}
+
+		// If we are definitely penetrating by less than IgnorePenetration at T=1, we can ignore this triangle
+		// Checks the query geometry support point along the normal at the sweep end point
+		VectorRegister4Float IgnorePenetrationSimd = MakeVectorRegisterFloatFromDouble(VectorSetFloat1(IgnorePenetration));
+		VectorRegister4Float LengthSimd = MakeVectorRegisterFloatFromDouble(VectorSetFloat1(LengthScale * Length));
+		VectorRegister4Float EndPointSimd = VectorAdd(TranslationSimd, VectorMultiply(RayDirSimd, LengthSimd));
+		VectorRegister4Float TriangleNormalSimd = VectorNormalize(VectorCross(VectorSubtract(B, A), VectorSubtract(C, A)));
+		VectorRegister4Float OtherTriangleNormalSimd = VectorQuaternionInverseRotateVector(RotationSimd, TriangleNormalSimd);
+		VectorRegister4Float OtherTrianglePositionSimd = VectorQuaternionInverseRotateVector(RotationSimd, VectorSubtract(A, EndPointSimd));
+		VectorRegister4Float OtherSupportSimd = QueryGeom.SupportCoreSimd(VectorNegate(OtherTriangleNormalSimd), 0);
+		VectorRegister4Float MaxDepthSimd = VectorDot3(VectorSubtract(OtherTrianglePositionSimd, OtherSupportSimd), OtherTriangleNormalSimd);
+		if (VectorMaskBits(VectorCompareLT(MaxDepthSimd, IgnorePenetrationSimd)))
+		{
+			return true;
+		}
+
+		FRealSingle Distance;
+		VectorRegister4Float PositionSimd, NormalSimd;
+		if (GJKRaycast2ImplSimd(Tri, QueryGeom, RotationSimd, TranslationSimd, RayDirSimd, LengthScale * CurDataLength, Distance, PositionSimd, NormalSimd, true, GlobalVectorConstants::Float1000))
+		{
+			const VectorRegister4Float DirDotNormalSimd = VectorDot3(RayDirSimd, NormalSimd);
+			FReal DirDotNormal;
+			VectorStoreFloat1(DirDotNormalSimd, &DirDotNormal);
+
+			// Calculate the time to reach a depth of TargetPenetration
+			FReal TargetTOI, TargetPhi;
+			ComputeSweptContactTOIAndPhiAtTargetPenetration(DirDotNormal, LengthScale * CurDataLength, FReal(Distance), IgnorePenetration, TargetPenetration, TargetTOI, TargetPhi);
+
+			// TargetDistance is local scale, OutDistance is local scale.
+			const FRealSingle TargetDistance = FRealSingle(TargetTOI) * CurDataLength;
+			if (TargetDistance < CurDataLength)
+			{
+				CurDataLength = TargetDistance;
+
+				// Transform results back into world scale and save
+				FVec3 HitPosition;
+				FVec3 HitNormal;
+				FRealSingle TOI;	// Unused
+				VectorStoreFloat3(MakeVectorRegisterDouble(PositionSimd), &HitPosition);
+				VectorStoreFloat3(MakeVectorRegisterDouble(NormalSimd), &HitNormal);
+				TransformSweepOutputsHelper(TriMeshScale, HitNormal, HitPosition, LengthScale, TargetDistance, OutNormal, OutPosition, TOI);
+				OutDistance = TargetDistance;
+				OutPhi = TargetPhi;
+				OutFaceIndex = TriIdx;
+			}
+		}
+
+		return (CurDataLength > 0);
+	}
+
+	FReal OutDistance;
+	FReal OutPhi;
+	FVec3 OutPosition;
+	FVec3 OutNormal;
+	int32 OutFaceIndex;
+
+private:
+	const FTriangleMeshImplicitObject& TriMesh;
+	const TArray<TVec3<IdxType>>& Elements;
+	const QueryGeomType& QueryGeom;
+	const FReal IgnorePenetration;
+	const FReal TargetPenetration;
+	const FReal CullsBackFaceSweepsCode; // 0: no culling, 1/-1: winding order
+	const FRealSingle LengthScale;
+	const FRealSingle Length;
+	const FVec3 TriMeshScale;
+
+	VectorRegister4Float RotationSimd;
+	VectorRegister4Float TranslationSimd;
+	VectorRegister4Float RayDirSimd;
+	VectorRegister4Float VectorScaledDirNormalized;
+	VectorRegister4Float VectorCullsBackFaceSweepsCode; // 0: no culling, 1/-1: winding order
+};
+
 void ComputeScaledSweepInputs(FVec3 TriMeshScale, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length,
 	FVec3& OutScaledDirNormalized, FReal& OutLengthScale, FRigidTransform3& OutScaledStartTM)
 {
@@ -1270,6 +1434,106 @@ bool FTriangleMeshImplicitObject::SweepGeom(const TImplicitObjectScaled<FConvex>
 {
 	return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, Thickness, bComputeMTD, TriMeshScale);
 }
+
+
+template<typename QueryGeomType>
+bool FTriangleMeshImplicitObject::SweepGeomCCDImp(const QueryGeomType& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal InIgnorePenetration, const FReal InTargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FVec3& TriMeshScale) const
+{
+	// Compute scaled sweep inputs to cache in visitor.
+	FVec3 ScaledDirNormalized;
+	FReal LengthScale;
+	FRigidTransform3 ScaledStartTM;
+	ComputeScaledSweepInputs(TriMeshScale, StartTM, Dir, Length, ScaledDirNormalized, LengthScale, ScaledStartTM);
+
+	bool bHit = false;
+	auto LambdaHelper = [&](const auto& Elements)
+	{
+		// Emulate the old TargetPenetration mode which always uses the first contact encountered, as opposed to the first contact which reaches a depth of TargetPenetration
+		const FReal IgnorePenetration = CVars::bCCDNewTargetDepthMode ? InIgnorePenetration : 0;
+		const FReal TargetPenetration = CVars::bCCDNewTargetDepthMode ? InTargetPenetration : 0;
+
+		const FReal CullsBackFaceRaycastCode = bCullsBackFaceRaycast ? GetWindingOrder(TriMeshScale) : 0.f;
+		using VisitorType = FTriangleMeshSweepVisitorCCD<QueryGeomType, decltype(Elements[0][0])>;
+		VisitorType SQVisitor(*this, Elements, QueryGeom, ScaledDirNormalized, LengthScale, Length, ScaledStartTM, TriMeshScale, CullsBackFaceRaycastCode, IgnorePenetration, TargetPenetration);
+
+		const FAABB3 QueryBounds = QueryGeom.CalculateTransformedBounds(FRigidTransform3(FVec3::ZeroVector, StartTM.GetRotation()));
+		const FVec3 InvTriMeshScale = SafeInvScale(TriMeshScale);
+		const FVec3 StartPoint = QueryBounds.Center() * InvTriMeshScale + StartTM.GetLocation();
+		const FVec3 Inflation = QueryBounds.Extents() * InvTriMeshScale.GetAbs() * 0.5;
+		FastBVH.template Sweep<VisitorType>(StartPoint, Dir, Length, Inflation, SQVisitor);
+
+		FReal TOI = (Length > 0) ? SQVisitor.OutDistance / Length : FReal(0);
+		FReal Phi = SQVisitor.OutPhi;
+
+		// @todo(chaos): Legacy path to be removed when fully tested. See ComputeSweptContactTOIAndPhiAtTargetPenetration
+		if (!CVars::bCCDNewTargetDepthMode)
+		{
+			LegacyComputeSweptContactTOIAndPhiAtTargetPenetration(FVec3::DotProduct(Dir, SQVisitor.OutNormal), LengthScale * Length, InIgnorePenetration, InTargetPenetration, TOI, Phi);
+		}
+
+		if (TOI <= 1)
+		{
+			OutTOI = TOI;
+			OutPhi = Phi;
+			OutPosition = SQVisitor.OutPosition;
+			OutNormal = SQVisitor.OutNormal;
+			OutFaceIndex = SQVisitor.OutFaceIndex;
+			OutFaceNormal = GetFaceNormal(OutFaceIndex);
+			bHit = true;
+		}
+	};
+
+	if (MElements.RequiresLargeIndices())
+	{
+		LambdaHelper(MElements.GetLargeIndexBuffer());
+	}
+	else
+	{
+		LambdaHelper(MElements.GetSmallIndexBuffer());
+	}
+	return bHit;
+}
+
+bool FTriangleMeshImplicitObject::SweepGeomCCD(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FVec3& TriMeshScale) const
+{
+	return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, TriMeshScale);
+}
+
+bool FTriangleMeshImplicitObject::SweepGeomCCD(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FVec3& TriMeshScale) const
+{
+	return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, TriMeshScale);
+}
+
+bool FTriangleMeshImplicitObject::SweepGeomCCD(const FCapsule& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FVec3& TriMeshScale) const
+{
+	return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, TriMeshScale);
+}
+
+bool FTriangleMeshImplicitObject::SweepGeomCCD(const FConvex& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FVec3& TriMeshScale) const
+{
+	return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, TriMeshScale);
+}
+
+bool FTriangleMeshImplicitObject::SweepGeomCCD(const TImplicitObjectScaled<TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FVec3& TriMeshScale) const
+{
+	return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, TriMeshScale);
+}
+
+bool FTriangleMeshImplicitObject::SweepGeomCCD(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FVec3& TriMeshScale) const
+{
+	return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, TriMeshScale);
+}
+
+bool FTriangleMeshImplicitObject::SweepGeomCCD(const TImplicitObjectScaled<FCapsule>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FVec3& TriMeshScale) const
+{
+	return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, TriMeshScale);
+}
+
+bool FTriangleMeshImplicitObject::SweepGeomCCD(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FVec3& TriMeshScale) const
+{
+	return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex, OutFaceNormal, TriMeshScale);
+}
+
 
 template <typename IdxType>
 int32 FTriangleMeshImplicitObject::FindMostOpposingFace(const TArray<TVec3<IdxType>>& Elements, const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist, const FVec3& Scale) const

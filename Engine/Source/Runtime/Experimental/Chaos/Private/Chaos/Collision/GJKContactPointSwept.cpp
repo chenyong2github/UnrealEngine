@@ -9,7 +9,7 @@
 namespace Chaos
 {
 	template <typename GeometryA, typename GeometryB>
-	FContactPoint GJKContactPointSwept(const GeometryA& A, const FRigidTransform3& AStartTM, const FRigidTransform3& AEndTM, const GeometryB& B, const FRigidTransform3& BStartTM, const FRigidTransform3& BEndTM, const FVec3& Dir, const FReal Length, FReal& TOI)
+	FContactPoint GJKContactPointSwept(const GeometryA& A, const FRigidTransform3& AStartTM, const FRigidTransform3& AEndTM, const GeometryB& B, const FRigidTransform3& BStartTM, const FRigidTransform3& BEndTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI)
 	{
 		FContactPoint Contact;
 		/** B could be static or dynamic. In both cases, we compute contact point in B local space.  
@@ -23,53 +23,47 @@ namespace Chaos
 		const FRigidTransform3 AToBTM = ATM.GetRelativeTransform(BTM);
 		const FVec3 LocalDir = BStartTM.InverseTransformVectorNoScale(Dir); 
 
-		FReal OutTime;
+		FReal Distance;
 		FVec3 Location, Normal;
-		if (GJKRaycast2(B, A, AToBTM, LocalDir, Length, OutTime, Location, Normal, (FReal)0, true))
+		if (GJKRaycast2(B, A, AToBTM, LocalDir, Length, Distance, Location, Normal, (FReal)0, true))
 		{
-			// GJK output is all in the local space of B. We need to transform the B-relative position and the normal in to B-space
-			FRigidTransform3 ATOITM, BTOITM;
-			if (OutTime > 0.f)
+			const FReal DirDotNormal = FVec3::DotProduct(LocalDir, Normal);
+			FReal TargetTOI, TargetPhi;
+			if (ComputeSweptContactTOIAndPhiAtTargetPenetration(DirDotNormal, Length, Distance, IgnorePenetration, TargetPenetration, TargetTOI, TargetPhi))
 			{
-				TOI = OutTime / Length; // OutTime is a distance :|
-				ATOITM = FRigidTransform3(AStartTM.GetLocation() * (1 - TOI) + AEndTM.GetLocation() * TOI, AEndTM.GetRotation());
-				BTOITM = FRigidTransform3(BStartTM.GetLocation() * (1 - TOI) + BEndTM.GetLocation() * TOI, BEndTM.GetRotation());
-			}
-			else
-			{
-				TOI = 0.f;
-				ATOITM = ATM;
-				BTOITM = BTM;
-			}
+				// GJK output is all in the local space of B. We need to transform the B-relative position and the normal in to B-space
+				FRigidTransform3 ATOITM, BTOITM;
+				if (Distance > 0.f)
+				{
+					ATOITM = FRigidTransform3(AStartTM.GetLocation() * (1 - TargetTOI) + AEndTM.GetLocation() * TargetTOI, AEndTM.GetRotation());
+					BTOITM = FRigidTransform3(BStartTM.GetLocation() * (1 - TargetTOI) + BEndTM.GetLocation() * TargetTOI, BEndTM.GetRotation());
+				}
+				else
+				{
+					ATOITM = ATM;
+					BTOITM = BTM;
+				}
 
-			const FVec3 WorldLocation = BTOITM.TransformPosition(Location);
-			const FVec3 WorldNormal = BTOITM.TransformVectorNoScale(Normal);
-			Contact.ShapeContactPoints[0] = ATOITM.InverseTransformPosition(WorldLocation);
-			Contact.ShapeContactPoints[1] = Location;
-			Contact.ShapeContactNormal = Normal;
-
-			if (OutTime > 0.f)
-			{
-				const FReal Dot = FVec3::DotProduct(WorldNormal, Dir);
-				Contact.Phi = (Length - OutTime) * Dot;
-			}
-			else // initial penetration case
-			{
-				Contact.Phi = OutTime;
+				const FVec3 WorldLocation = BTOITM.TransformPosition(Location);
+				Contact.ShapeContactPoints[0] = ATOITM.InverseTransformPosition(WorldLocation);
+				Contact.ShapeContactPoints[1] = Location;
+				Contact.ShapeContactNormal = Normal;
+				Contact.Phi = TargetPhi;
+				OutTOI = TargetTOI;
 			}
 		}
 
 		return Contact;
 	}
 
-	FContactPoint GenericConvexConvexContactPointSwept(const FImplicitObject& A, const FRigidTransform3& AStartTM, const FRigidTransform3& AEndTM, const FImplicitObject& B, const FRigidTransform3& BStartTM, const FRigidTransform3& BEndTM, const FVec3& Dir, const FReal Length, FReal& TOI)
+	FContactPoint GenericConvexConvexContactPointSwept(const FImplicitObject& A, const FRigidTransform3& AStartTM, const FRigidTransform3& AEndTM, const FImplicitObject& B, const FRigidTransform3& BStartTM, const FRigidTransform3& BEndTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& TOI)
 	{
 		// This expands to a switch of switches that calls the inner function with the appropriate concrete implicit types
 		return Utilities::CastHelperNoUnwrap(A, AStartTM, AEndTM, [&](const auto& ADowncast, const FRigidTransform3& AFullStartTM, const FRigidTransform3& AFullEndTM)
 		{
 			return Utilities::CastHelperNoUnwrap(B, BStartTM, BEndTM, [&](const auto& BDowncast, const FRigidTransform3& BFullStartTM, const FRigidTransform3& BFullEndTM)
 			{
-				return GJKContactPointSwept(ADowncast, AFullStartTM, AFullEndTM, BDowncast, BFullStartTM, BFullEndTM, Dir, Length, TOI);
+				return GJKContactPointSwept(ADowncast, AFullStartTM, AFullEndTM, BDowncast, BFullStartTM, BFullEndTM, Dir, Length, IgnorePenetration, TargetPenetration, TOI);
 			});
 		});
 	}

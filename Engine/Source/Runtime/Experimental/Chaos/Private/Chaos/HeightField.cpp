@@ -2,6 +2,7 @@
 
 #include "Chaos/HeightField.h"
 #include "Chaos/Collision/ContactPoint.h"
+#include "Chaos/Collision/ContactPointsMiscShapes.h"
 #include "Chaos/Collision/PBDCollisionConstraint.h"
 #include "Chaos/CollisionOneShotManifolds.h"
 #include "Chaos/Core.h"
@@ -20,6 +21,11 @@
 
 namespace Chaos
 {
+	namespace CVars
+	{
+		extern bool bCCDNewTargetDepthMode;
+	}
+
 	extern FRealSingle Chaos_Collision_EdgePrunePlaneDistance;
 
 	extern bool bChaos_Collision_OneSidedHeightfield;
@@ -456,6 +462,197 @@ namespace Chaos
 		FVec3 Inflation3D;
 
 	};
+
+	template<typename GeomQueryType>
+	class THeightfieldSweepVisitorCCD
+	{
+	public:
+
+		THeightfieldSweepVisitorCCD(const typename FHeightField::FDataType* InData, const GeomQueryType& InQueryGeom, const FRigidTransform3& InStartTM, const FVec3& InDir, const FReal Length, const FReal InIgnorePenetration, const FReal InTargetPenetration)
+			: OutDistance(TNumericLimits<FReal>::Max())
+			, OutPhi(TNumericLimits<FReal>::Max())
+			, OutFaceIndex(INDEX_NONE)
+			, HfData(InData)
+			, StartTM(InStartTM)
+			, OtherGeom(InQueryGeom)
+			, IgnorePenetration(InIgnorePenetration)
+			, TargetPenetration(InTargetPenetration)
+		{
+			const FAABB3 QueryBounds = InQueryGeom.BoundingBox();
+			const FVec3 StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
+			const FVec3 Inflation3D = QueryBounds.Extents() * FReal(0.5);
+
+			const VectorRegister4Float LengthSimd = MakeVectorRegisterFloatFromDouble(VectorSetFloat1(Length));
+			StartPointSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(StartPoint.X, StartPoint.Y, StartPoint.Z, 0.0));
+			DirSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegister(InDir.X, InDir.Y, InDir.Z, 0.0));
+			EndPointSimd = VectorAdd(StartPointSimd, VectorMultiply(DirSimd, LengthSimd));
+			RotationSimd = MakeVectorRegisterFloatFromDouble(StartTM.GetRotationRegister());
+			ParallelSimd = VectorCompareLT(VectorAbs(DirSimd), GlobalVectorConstants::SmallNumber);
+			InvDirSimd = VectorBitwiseNotAnd(ParallelSimd, VectorDivide(VectorOne(), DirSimd));
+			Inflation3DSimd = MakeVectorRegisterFloatFromDouble(VectorAbs(MakeVectorRegister(Inflation3D.X, Inflation3D.Y, Inflation3D.Z, 0.0)));
+
+			// @todo(chaos): do we really need this?
+			RotationSimd = VectorNormalizeSafe(RotationSimd, GlobalVectorConstants::Float0001);
+		}
+
+		bool VisitSweep(int32 CellIndex, FReal& CurrentLength)
+		{
+			// Skip holes
+			if (HfData->MaterialIndices.IsValidIndex(CellIndex))
+			{
+				const bool bHole = (HfData->MaterialIndices[CellIndex] == TNumericLimits<uint8>::Max());
+				if (bHole)
+				{
+					return true;
+				}
+			}
+
+			auto TestTriangle = [&](int32 FaceIndex, const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& C) -> bool
+			{
+				// Convert into A-relative positions to get better precision
+				FTriangleRegister Triangle(VectorZero(), VectorSubtract(B, A), VectorSubtract(C, A));
+				VectorRegister4Float TranslationSimd = MakeVectorRegisterFloatFromDouble(VectorSubtract(StartTM.GetTranslationRegister(), A));
+
+				// If we are definitely penetrating by less than IgnorePenetration at T=1, we can ignore this triangle
+				// Checks the query geometry support point along the normal at the sweep end point
+				VectorRegister4Float IgnorePenetrationSimd = MakeVectorRegisterFloatFromDouble(VectorSetFloat1(IgnorePenetration));
+				VectorRegister4Float TriangleNormalSimd = VectorNormalize(VectorCross(VectorSubtract(B, A), VectorSubtract(C, A)));
+				VectorRegister4Float OtherTriangleNormalSimd = VectorQuaternionInverseRotateVector(RotationSimd, TriangleNormalSimd);
+				VectorRegister4Float OtherTrianglePositionSimd = VectorQuaternionInverseRotateVector(RotationSimd, VectorSubtract(A, EndPointSimd));
+				VectorRegister4Float OtherSupportSimd = OtherGeom.SupportCoreSimd(VectorNegate(OtherTriangleNormalSimd), 0);
+				VectorRegister4Float MaxDepthSimd = VectorDot3(VectorSubtract(OtherTrianglePositionSimd, OtherSupportSimd), OtherTriangleNormalSimd);
+				if (VectorMaskBits(VectorCompareLT(MaxDepthSimd, IgnorePenetrationSimd)))
+				{
+					return true;
+				}
+
+				FRealSingle Distance;
+				VectorRegister4Float PositionSimd, NormalSimd;
+				if (GJKRaycast2ImplSimd(Triangle, OtherGeom, RotationSimd, TranslationSimd, DirSimd, FRealSingle(CurrentLength), Distance, PositionSimd, NormalSimd, true, GlobalVectorConstants::Float1000))
+				{
+					// Convert back from A-relative positions
+					PositionSimd = VectorAdd(PositionSimd, A);
+
+					const VectorRegister4Float DirDotNormalSimd = VectorDot3(DirSimd, NormalSimd);
+					FReal DirDotNormal;
+					VectorStoreFloat1(DirDotNormalSimd, &DirDotNormal);
+
+					// Calculate the time to reach a depth of TargetPenetration
+					FReal TargetTOI, TargetPhi;
+					ComputeSweptContactTOIAndPhiAtTargetPenetration(DirDotNormal, CurrentLength, FReal(Distance), IgnorePenetration, TargetPenetration, TargetTOI, TargetPhi);
+
+					// If this hit is closest, store the result
+					const FReal TargetDistance = TargetTOI * CurrentLength;
+					if (TargetDistance < CurrentLength)
+					{
+						CurrentLength = TargetDistance;
+
+						VectorStoreFloat3(MakeVectorRegisterDouble(NormalSimd), &OutNormal);
+						VectorStoreFloat3(MakeVectorRegisterDouble(PositionSimd), &OutPosition);
+						OutDistance = TargetDistance;
+						OutPhi = TargetPhi;
+						OutFaceIndex = FaceIndex;
+					}
+				}
+
+				return (CurrentLength > 0);
+			};
+
+
+			VectorRegister4Float Points[4];
+			FAABBVectorized CellBounds;
+			const int32 VertexIndex = HfData->CellIndexToVertexIndex(CellIndex);
+			HfData->GetPointsAndBoundsScaledSimd(VertexIndex, Points, CellBounds);
+			CellBounds.Thicken(Inflation3DSimd);
+
+			if (CellBounds.RaycastFast(StartPointSimd, InvDirSimd, ParallelSimd, VectorSetFloat1(static_cast<FRealSingle>(CurrentLength))))
+			{
+				const int32 TriIndex0 = 2 * CellIndex + 0;
+				const int32 TriIndex1 = 2 * CellIndex + 1;
+				if (!TestTriangle(TriIndex0, Points[0], Points[1], Points[3]))
+				{
+					return false;
+				}
+				if (!TestTriangle(TriIndex1, Points[0], Points[3], Points[2]))
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		FReal OutDistance;
+		FReal OutPhi;
+		FVec3 OutPosition;
+		FVec3 OutNormal;
+		int32 OutFaceIndex;
+
+	private:
+		const typename FHeightField::FDataType* HfData;
+		const FRigidTransform3 StartTM;
+		const GeomQueryType& OtherGeom;
+		FReal IgnorePenetration;
+		FReal TargetPenetration;
+
+		VectorRegister4Float StartPointSimd;
+		VectorRegister4Float EndPointSimd;
+		VectorRegister4Float InvDirSimd;
+		VectorRegister4Float DirSimd;
+		VectorRegister4Float RotationSimd;
+		VectorRegister4Float ParallelSimd;
+		VectorRegister4Float Inflation3DSimd;
+	};
+
+	/**
+	 * Call the triangle visitor on all the triangles that are swept through by the InQueryBounds along the vector InDir. Bounds and direction
+	 * are in heightfield space.
+	 * 
+	 * The visitor signature must be:
+	 * 
+	 *		bool(int32 FaceIndex, const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& C, FRealSingle& CurrentDistance)
+	 * 
+	 * The visitor must return true if we should continue processing other triangles. It must update the current hit distance if the
+	 * passed in triangle is accepted and closer. The vertex positions passed to the triangle visitor are in heightfield space.
+	*/
+	template<typename TriangleVisitor>
+	class THeightfieldTriangleGenerator
+	{
+	public:
+		THeightfieldTriangleGenerator(const typename FHeightField::FDataType* InData, const TriangleVisitor& InTriangleVisitor)
+			: HfData(InData)
+			, TriangleVisitor(InTriangleVisitor)
+		{
+		}
+
+		bool VisitSweep(int32 CellIndex, FReal& CurrentLength)
+		{
+			const int32 VertexIndex = HfData->CellIndexToVertexIndex(CellIndex);
+			VectorRegister4Float Points[4];
+			FAABBVectorized CellBounds;
+			HfData->GetPointsAndBoundsScaledSimd(VertexIndex, Points, CellBounds);
+
+			const int32 TriIndex0 = CellIndex * 2 + 0;
+			const int32 TriIndex1 = CellIndex * 2 + 1;
+
+			if (!InTriangleVisitor(TriIndex0, Points[0], Points[1], Points[3], CurrentLength))
+			{
+				return false;
+			}
+
+			if (!InTriangleVisitor(TriIndex1, Points[0], Points[3], Points[2], CurrentLength))
+			{
+				return false;
+			}
+
+			return true;
+		}
+
+	private:
+		const typename FHeightField::FDataType* HfData;
+		TriangleVisitor InTriangleVisitor;
+	};
+
 
 	template<typename BufferType>
 	void BuildGeomData(TArrayView<BufferType> BufferView, TArrayView<uint8> MaterialIndexView, int32 NumRows, int32 NumCols, const FVec3& InScale, TUniqueFunction<FReal(const BufferType)> ToRealFunc, typename FHeightField::FDataType& OutData, FAABB3& OutBounds)
@@ -2183,6 +2380,83 @@ namespace Chaos
 	bool FHeightField::SweepGeom(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, FReal& OutTime, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal, const FReal Thickness, bool bComputeMTD) const
 	{
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
+	}
+
+	template <typename QueryGeomType>
+	bool FHeightField::SweepGeomCCDImp(const QueryGeomType& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal InIgnorePenetration, const FReal InTargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex) const
+	{
+		// Emulate the old TargetPenetration mode which always uses the first contact encountered, as opposed to the first contact which reaches a depth of TargetPenetration
+		const FReal IgnorePenetration = CVars::bCCDNewTargetDepthMode ? InIgnorePenetration : 0;
+		const FReal TargetPenetration = CVars::bCCDNewTargetDepthMode ? InTargetPenetration : 0;
+
+		bool bHit = false;
+		THeightfieldSweepVisitorCCD<QueryGeomType> SQVisitor(&GeomData, QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration);
+		const FAABB3 QueryBounds = QueryGeom.BoundingBox();
+		const FVec3 StartPoint = StartTM.TransformPositionNoScale(QueryBounds.Center());
+
+		const FVec3 Inflation3D = QueryBounds.Extents() * FReal(0.5);
+		GridSweep(StartPoint, Dir, Length, Inflation3D, SQVisitor);
+
+		FReal TOI = (Length > 0) ? SQVisitor.OutDistance / Length : FReal(0);
+		FReal Phi = SQVisitor.OutPhi;
+
+		// @todo(chaos): Legacy path to be removed when fully tested. See ComputeSweptContactTOIAndPhiAtTargetPenetration
+		if (!CVars::bCCDNewTargetDepthMode)
+		{
+			LegacyComputeSweptContactTOIAndPhiAtTargetPenetration(FVec3::DotProduct(Dir, SQVisitor.OutNormal), Length, InIgnorePenetration, InTargetPenetration, TOI, Phi);
+		}
+
+		if (TOI <= 1)
+		{
+			OutTOI = TOI;
+			OutPhi = Phi;
+			OutPosition = SQVisitor.OutPosition;
+			OutNormal = SQVisitor.OutNormal;
+			OutFaceIndex = SQVisitor.OutFaceIndex;
+			bHit = true;
+		}
+
+		return bHit;
+	}
+
+	bool FHeightField::SweepGeomCCD(const TSphere<FReal, 3>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal) const
+	{
+		return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex);
+	}
+
+	bool FHeightField::SweepGeomCCD(const TBox<FReal, 3>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal) const
+	{
+		return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex);
+	}
+
+	bool FHeightField::SweepGeomCCD(const FCapsule& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal) const
+	{
+		return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex);
+	}
+
+	bool FHeightField::SweepGeomCCD(const FConvex& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal) const
+	{
+		return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex);
+	}
+
+	bool FHeightField::SweepGeomCCD(const TImplicitObjectScaled<TSphere<FReal, 3>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal) const
+	{
+		return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex);
+	}
+
+	bool FHeightField::SweepGeomCCD(const TImplicitObjectScaled<TBox<FReal, 3>>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal) const
+	{
+		return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex);
+	}
+
+	bool FHeightField::SweepGeomCCD(const TImplicitObjectScaled<FCapsule>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal) const
+	{
+		return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex);
+	}
+
+	bool FHeightField::SweepGeomCCD(const TImplicitObjectScaled<FConvex>& QueryGeom, const FRigidTransform3& StartTM, const FVec3& Dir, const FReal Length, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi, FVec3& OutPosition, FVec3& OutNormal, int32& OutFaceIndex, FVec3& OutFaceNormal) const
+	{
+		return SweepGeomCCDImp(QueryGeom, StartTM, Dir, Length, IgnorePenetration, TargetPenetration, OutTOI, OutPhi, OutPosition, OutNormal, OutFaceIndex);
 	}
 
 	void FHeightField::VisitTriangles(const FAABB3& QueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const
