@@ -11,6 +11,20 @@ using EpicGames.Core;
 namespace Horde.Build.Logs
 {
 	/// <summary>
+	/// Exception thrown trying to parse log output
+	/// </summary>
+	public class LogTextParseException : Exception
+	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public LogTextParseException(string message, Exception? ex)
+			: base(message, ex)
+		{
+		}
+	}
+
+	/// <summary>
 	/// Interface for log data
 	/// </summary>
 	public interface ILogText
@@ -237,7 +251,14 @@ namespace Horde.Build.Logs
 				}
 
 				// Convert the line to plain text
-				Length = ConvertToPlainText(inputLine, _internalData, Length);
+				try
+				{
+					Length = ConvertToPlainText(inputLine, _internalData, Length);
+				}
+				catch (Exception ex)
+				{
+					throw new LogTextParseException($"Exception while parsing log text as JSON. Line: {Encoding.UTF8.GetString(inputLine)}", ex);
+				}
 				_internalLineOffsets.Add(Length);
 			}
 		}
