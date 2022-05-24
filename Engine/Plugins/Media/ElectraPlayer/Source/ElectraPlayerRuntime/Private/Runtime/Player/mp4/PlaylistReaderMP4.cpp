@@ -304,13 +304,13 @@ void FPlaylistReaderMP4::HTTPCompletionCallback(const IElectraHttpManager::FRequ
 void FPlaylistReaderMP4::ClearRequest()
 {
 	FScopeLock lock(&Lock);
-	ProgressListener.Reset();
-	ReceiveBuffer.Reset();
 	if (Request.IsValid())
 	{
 		PlayerSessionServices->GetHTTPManager()->RemoveRequest(Request, false);
 		Request.Reset();
 	}
+	ProgressListener.Reset();
+	ReceiveBuffer.Reset();
 }
 
 void FPlaylistReaderMP4::ReadNextChunk(int64 InFromOffset, int64 ChunkSize)
