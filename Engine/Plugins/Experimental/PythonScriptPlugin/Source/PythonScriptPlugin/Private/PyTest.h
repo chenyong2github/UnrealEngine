@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "PyTestInterface.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "UObject/ObjectPtr.h"
 #include "PyTest.generated.h"
 
 /**
@@ -387,7 +388,7 @@ public:
 	FPyTestStruct StructProp;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
-	UPyTestObject* ObjectProp = nullptr;
+	TObjectPtr<UPyTestObject> ObjectProp = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TArray<FString> StrArrayProp;
@@ -399,7 +400,7 @@ public:
 	TArray<FText> TextArrayProp;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
-	TArray<UObject*> ObjectArrayProp;
+	TArray<TObjectPtr<UObject>> ObjectArrayProp;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Python|Internal")
 	TSet<FString> SetProp;
