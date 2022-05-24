@@ -484,6 +484,7 @@ void FAnimNode_LinkedAnimGraph::HandleObjectsReplaced(const TMap<UObject*, UObje
 			if(UAnimInstance* ReinstancedTargetInstance = Cast<UAnimInstance>(*ReinstancedTarget))
 			{
 				DynamicUnlink(ThisTargetInstance);
+				SetTargetInstance(ReinstancedTargetInstance);
 				DynamicLink(ReinstancedTargetInstance);
 			}
 		}

@@ -1637,7 +1637,7 @@ public:
 	void DispatchQueuedAnimEvents();
 
 #if WITH_EDITOR
-	// Helper function to handle reinstancing
-	void HandleAnimInstanceReplaced();
+	// Helper function to handle reinstancing in editor
+	virtual void HandleAnimInstanceReplaced();
 #endif
 };

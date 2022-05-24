@@ -224,6 +224,18 @@ void FAnimNode_RigidBody::GatherDebugData(FNodeDebugData& DebugData)
 	}
 }
 
+void FAnimNode_RigidBody::Initialize_AnyThread(const FAnimationInitializeContext& Context)
+{
+	Super::Initialize_AnyThread(Context);
+
+#if WITH_EDITOR
+	if(GIsReinstancing)
+	{
+		InitPhysics(Cast<UAnimInstance>(Context.GetAnimInstanceObject()));
+	}
+#endif
+}
+
 FTransform SpaceToWorldTransform(ESimulationSpace Space, const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
 {
 	switch (Space)
