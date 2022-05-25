@@ -357,15 +357,23 @@ FText FStateTreeEditor::GetStatisticsText() const
 		return FText::GetEmpty();
 	}
 
-	const FStateTreeInstanceData& InstanceDataDefaultValue = StateTree->GetInstanceDataDefaultValue();
-	const FText RuntimeSizeText = FText::AsMemory(InstanceDataDefaultValue.GetEstimatedMemoryUsage());
-	const FText RuntimeNumNodesText = FText::AsNumber(InstanceDataDefaultValue.GetNumItems());
 
-	const FStateTreeInstanceData& SharedInstanceData = StateTree->GetSharedInstanceData();
-	const FText SharedSizeText = FText::AsMemory(SharedInstanceData.GetEstimatedMemoryUsage());
-	const FText SharedNumNodesText = FText::AsNumber(SharedInstanceData.GetNumItems());
+	TArray<FStateTreeMemoryUsage> MemoryUsages = StateTree->CalculateEstimatedMemoryUsage();
+	if (MemoryUsages.IsEmpty())
+	{
+		return FText::GetEmpty();
+	}
 
-	return FText::Format(LOCTEXT("RuntimeSize", "Runtime size: {0}, {1} nodes\nShared size: {2}, {3} nodes"), RuntimeSizeText, RuntimeNumNodesText, SharedSizeText, SharedNumNodesText);
+	TArray<FText> Rows;
+
+	for (const FStateTreeMemoryUsage& Usage : MemoryUsages)
+	{
+		const FText SizeText = FText::AsMemory(Usage.EstimatedMemoryUsage);
+		const FText NumNodesText = FText::AsNumber(Usage.NodeCount);
+		Rows.Add(FText::Format(LOCTEXT("UsageRow", "{0}: {1}, {2} nodes"), FText::FromString(Usage.Name), SizeText, NumNodesText));
+	}
+
+	return FText::Join(FText::FromString(TEXT("\n")), Rows);
 }
 
 void FStateTreeEditor::HandleModelAssetChanged()

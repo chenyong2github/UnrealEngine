@@ -29,7 +29,7 @@ FMassStateTreeInstanceHandle UMassStateTreeSubsystem::AllocateInstanceData(const
 	}
 
 	FMassStateTreeInstanceDataItem& Item = InstanceDataArray[Index];
-	Item.InstanceData.CopyFrom(*this, StateTree->GetInstanceDataDefaultValue());
+	Item.InstanceData.Reset();
 	
 	return FMassStateTreeInstanceHandle::Make(Index, Item.Generation);
 }

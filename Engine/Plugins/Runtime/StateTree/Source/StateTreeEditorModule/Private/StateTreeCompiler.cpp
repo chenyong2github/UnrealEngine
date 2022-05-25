@@ -37,7 +37,7 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 	StateTree->Parameters = TreeData->RootParameters.Parameters;
 	
 	// Mark parameters as binding source
-	StateTree->DefaultParametersDataViewIndex = BindingsCompiler.AddSourceStruct(
+	StateTree->ParametersDataViewIndex = BindingsCompiler.AddSourceStruct(
 		{ TEXT("Parameters"), StateTree->Parameters.GetPropertyBagStruct(), EStateTreeBindableStructSource::TreeParameter, TreeData->RootParameters.ID });
 	
 	// Mark all named external values as binding source
@@ -74,6 +74,10 @@ bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
 		return false;
 	}
 
+	StateTree->Nodes = Nodes;
+	StateTree->DefaultInstanceData.Init(*StateTree, InstanceStructs, InstanceObjects);
+	StateTree->SharedInstanceData.Init(*StateTree, SharedInstanceStructs, SharedInstanceObjects);
+	
 	BindingsCompiler.Finalize();
 
 	if (!StateTree->Link())
@@ -110,7 +114,7 @@ UStateTreeState* FStateTreeCompiler::GetState(const FGuid& StateID)
 bool FStateTreeCompiler::CreateStates()
 {
 	// Create item for the runtime execution state
-	StateTree->Instances.Add(FInstancedStruct::Make<FStateTreeExecutionState>());
+	InstanceStructs.Add(FInstancedStruct::Make<FStateTreeExecutionState>());
 
 	// Create main tree (omit subtrees)
 	for (UStateTreeState* SubTree : TreeData->SubTrees)
@@ -162,8 +166,6 @@ bool FStateTreeCompiler::CreateStateRecursive(UStateTreeState& State, const FSta
 	SourceStates.Add(&State);
 	IDToState.Add(State.ID, StateIdx);
 
-	check(StateTree->Instances.Num() <= int32(MAX_uint16));
-
 	// Child states
 	check(StateTree->States.Num() <= int32(MAX_uint16));
 	CompactState.ChildrenBegin = uint16(StateTree->States.Num());
@@ -210,8 +212,8 @@ bool FStateTreeCompiler::CreateConditions(UStateTreeState& State, TConstArrayVie
 
 bool FStateTreeCompiler::CreateEvaluators()
 {
-	check(StateTree->Nodes.Num() <= int32(MAX_uint16));
-	StateTree->EvaluatorsBegin = uint16(StateTree->Nodes.Num());
+	check(Nodes.Num() <= int32(MAX_uint16));
+	StateTree->EvaluatorsBegin = uint16(Nodes.Num());
 
 	for (FStateTreeEditorNode& EvalNode : TreeData->Evaluators)
 	{
@@ -221,7 +223,7 @@ bool FStateTreeCompiler::CreateEvaluators()
 		}
 	}
 	
-	const int32 EvaluatorsNum = StateTree->Nodes.Num() - int32(StateTree->EvaluatorsBegin);
+	const int32 EvaluatorsNum = Nodes.Num() - int32(StateTree->EvaluatorsBegin);
 	check(EvaluatorsNum <= int32(MAX_uint16));
 	StateTree->EvaluatorsNum = uint16(EvaluatorsNum);
 
@@ -243,8 +245,8 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 		{
 			// Both linked and subtree has instance data describing their parameters.
 			// This allows to resolve the binding paths and lets us have bindable parameters when transitioned into a parameterized subtree directly.
-			FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
-			const int32 InstanceIndex = StateTree->Instances.Num() - 1;
+			FInstancedStruct& Instance = InstanceStructs.AddDefaulted_GetRef();
+			const int32 InstanceIndex = InstanceStructs.Num() - 1;
 
 			check(InstanceIndex <= int32(MAX_uint16));
 			CompactState.ParameterInstanceIndex = InstanceIndex;
@@ -286,8 +288,8 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 		}
 		
 		// Create tasks
-		check(StateTree->Nodes.Num() <= int32(MAX_uint16));
-		CompactState.TasksBegin = uint16(StateTree->Nodes.Num());
+		check(Nodes.Num() <= int32(MAX_uint16));
+		CompactState.TasksBegin = uint16(Nodes.Num());
 
 		for (FStateTreeEditorNode& TaskNode : SourceState->Tasks)
 		{
@@ -302,7 +304,7 @@ bool FStateTreeCompiler::CreateStateTasksAndParameters()
 			return false;
 		}
 	
-		const int32 TasksNum = StateTree->Nodes.Num() - int32(CompactState.TasksBegin);
+		const int32 TasksNum = Nodes.Num() - int32(CompactState.TasksBegin);
 		check(TasksNum <= int32(MAX_uint8));
 		CompactState.TasksNum = uint8(TasksNum);
 	}
@@ -321,14 +323,14 @@ bool FStateTreeCompiler::CreateStateTransitions()
 		FStateTreeCompilerLogStateScope LogStateScope(SourceState, Log);
 		
 		// Enter conditions.
-		CompactState.EnterConditionsBegin = uint16(StateTree->Nodes.Num());
+		CompactState.EnterConditionsBegin = uint16(Nodes.Num());
 		if (!CreateConditions(*SourceState, SourceState->EnterConditions))
 		{
 			Log.Reportf(EMessageSeverity::Error,
 				TEXT("Failed to create state enter condition."));
 			return false;
 		}
-		CompactState.EnterConditionsNum = uint8(uint16(StateTree->Nodes.Num()) - CompactState.EnterConditionsBegin);
+		CompactState.EnterConditionsNum = uint8(uint16(Nodes.Num()) - CompactState.EnterConditionsBegin);
 
 		// Linked state
 		if (SourceState->Type == EStateTreeStateType::Linked)
@@ -367,18 +369,18 @@ bool FStateTreeCompiler::CreateStateTransitions()
 		CompactState.TransitionsBegin = uint16(StateTree->Transitions.Num());
 		for (FStateTreeTransition& Transition : SourceState->Transitions)
 		{
-			FCompactStateTransition& BakedTransition = StateTree->Transitions.AddDefaulted_GetRef();
-			BakedTransition.Event = Transition.Event;
-			BakedTransition.Type = Transition.State.Type;
-			BakedTransition.GateDelay = (uint8)FMath::Clamp(FMath::CeilToInt(Transition.GateDelay * 10.0f), 0, 255);
-			BakedTransition.State = FStateTreeHandle::Invalid;
-			if (!ResolveTransitionState(*SourceState, Transition.State, BakedTransition.State))
+			FCompactStateTransition& CompactTransition = StateTree->Transitions.AddDefaulted_GetRef();
+			CompactTransition.Event = Transition.Event;
+			CompactTransition.Type = Transition.State.Type;
+			CompactTransition.GateDelay = (uint8)FMath::Clamp(FMath::CeilToInt(Transition.GateDelay * 10.0f), 0, 255);
+			CompactTransition.State = FStateTreeHandle::Invalid;
+			if (!ResolveTransitionState(*SourceState, Transition.State, CompactTransition.State))
 			{
 				return false;
 			}
 			// Note: Unset transition is allowed here. It can be used to mask a transition at parent.
 
-			BakedTransition.ConditionsBegin = uint16(StateTree->Nodes.Num());
+			CompactTransition.ConditionsBegin = uint16(Nodes.Num());
 			if (!CreateConditions(*SourceState, Transition.Conditions))
 			{
 				Log.Reportf(EMessageSeverity::Error,
@@ -386,7 +388,7 @@ bool FStateTreeCompiler::CreateStateTransitions()
 					*Transition.State.Name.ToString());
 				return false;
 			}
-			BakedTransition.ConditionsNum = uint8(uint16(StateTree->Nodes.Num()) - BakedTransition.ConditionsBegin);
+			CompactTransition.ConditionsNum = uint8(uint16(Nodes.Num()) - CompactTransition.ConditionsBegin);
 		}
 		CompactState.TransitionsNum = uint8(uint16(StateTree->Transitions.Num()) - CompactState.TransitionsBegin);
 	}
@@ -454,10 +456,8 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 	}
 
 	// Copy the condition
-	FInstancedStruct& Item = StateTree->Nodes.AddDefaulted_GetRef();
-	Item = CondNode.Node;
-
-	FStateTreeConditionBase& Cond = Item.GetMutable<FStateTreeConditionBase>();
+	const FInstancedStruct& Node = Nodes.Add_GetRef(CondNode.Node);
+	FStateTreeConditionBase& Cond = Node.GetMutable<FStateTreeConditionBase>();
 
 	Cond.Operand = Operand;
 	Cond.DeltaIndent = DeltaIndent;
@@ -465,13 +465,10 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 	if (CondNode.Instance.IsValid())
 	{
 		// Struct instance
-		FInstancedStruct& Instance = StateTree->SharedInstances.AddDefaulted_GetRef();
-		const int32 InstanceIndex = StateTree->SharedInstances.Num() - 1;
-		
-		Instance = CondNode.Instance;
+		const int32 InstanceIndex = SharedInstanceStructs.Add(CondNode.Instance);
 	
 		// Create binding source struct descriptor.
-		StructDesc.Struct = Instance.GetScriptStruct();
+		StructDesc.Struct = CondNode.Instance.GetScriptStruct();
 		StructDesc.Name = Cond.Name;
 
 		check(InstanceIndex <= int32(MAX_uint16));
@@ -484,9 +481,7 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 		check(CondNode.InstanceObject != nullptr);
 		
 		UObject* Instance = DuplicateObject(CondNode.InstanceObject, StateTree);
-		
-		StateTree->InstanceObjects.Add(Instance);
-		const int32 InstanceIndex = StateTree->SharedInstanceObjects.Num() - 1;
+		const int32 InstanceIndex = SharedInstanceObjects.Add(Instance);
 		
 		// Create binding source struct descriptor.
 		StructDesc.Struct = Instance->GetClass();
@@ -524,7 +519,7 @@ bool FStateTreeCompiler::CreateCondition(UStateTreeState& State, const FStateTre
 
 bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEditorNode& TaskNode)
 {
-	// Silently ignore empty items.
+	// Silently ignore empty nodes.
 	if (!TaskNode.Node.IsValid())
 	{
 		return true;
@@ -536,7 +531,7 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEdit
 	StructDesc.Name = TaskNode.Node.GetScriptStruct()->GetFName();
 	StructDesc.DataSource = EStateTreeBindableStructSource::Task;
 
-	// Check that item has valid instance initialized.
+	// Check that node has valid instance initialized.
 	if (!TaskNode.Instance.IsValid() && TaskNode.InstanceObject == nullptr)
 	{
 		Log.Reportf(EMessageSeverity::Error, StructDesc,
@@ -545,21 +540,16 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEdit
 	}
 
 	// Copy the task
-	FInstancedStruct& Item = StateTree->Nodes.AddDefaulted_GetRef();
-	Item = TaskNode.Node;
-	
-	FStateTreeTaskBase& Task = Item.GetMutable<FStateTreeTaskBase>();
+	const FInstancedStruct& Node = Nodes.Add_GetRef(TaskNode.Node);
+	FStateTreeTaskBase& Task = Node.GetMutable<FStateTreeTaskBase>();
 
 	if (TaskNode.Instance.IsValid())
 	{
 		// Struct Instance
-		FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
-		const int32 InstanceIndex = StateTree->Instances.Num() - 1;
-
-		Instance = TaskNode.Instance;
+		const int32 InstanceIndex = InstanceStructs.Add(TaskNode.Instance);
 
 		// Create binding source struct descriptor.
-		StructDesc.Struct = Instance.GetScriptStruct();
+		StructDesc.Struct = TaskNode.Instance.GetScriptStruct();
 		StructDesc.Name = Task.Name;
 
 		check(InstanceIndex <= int32(MAX_uint16));
@@ -572,9 +562,7 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEdit
 		check(TaskNode.InstanceObject != nullptr);
 
 		UObject* Instance = DuplicateObject(TaskNode.InstanceObject, StateTree);
-
-		StateTree->InstanceObjects.Add(Instance);
-		const int32 InstanceIndex = StateTree->InstanceObjects.Num() - 1;
+		const int32 InstanceIndex = InstanceObjects.Add(Instance);
 
 		// Create binding source struct descriptor.
 		StructDesc.Struct = Instance->GetClass();
@@ -613,7 +601,7 @@ bool FStateTreeCompiler::CreateTask(UStateTreeState& State, const FStateTreeEdit
 
 bool FStateTreeCompiler::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
 {
-	// Silently ignore empty items.
+	// Silently ignore empty nodes.
 	if (!EvalNode.Node.IsValid())
 	{
 		return true;
@@ -625,7 +613,7 @@ bool FStateTreeCompiler::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
     StructDesc.Name = EvalNode.Node.GetScriptStruct()->GetFName();
 	StructDesc.DataSource = EStateTreeBindableStructSource::Evaluator;
 
-    // Check that item has valid instance initialized.
+    // Check that node has valid instance initialized.
     if (!EvalNode.Instance.IsValid() && EvalNode.InstanceObject == nullptr)
     {
         Log.Reportf(EMessageSeverity::Error, StructDesc,
@@ -634,21 +622,16 @@ bool FStateTreeCompiler::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
     }
 
 	// Copy the evaluator
-	FInstancedStruct& Item = StateTree->Nodes.AddDefaulted_GetRef();
-	Item = EvalNode.Node;
-
-	FStateTreeEvaluatorBase& Eval = Item.GetMutable<FStateTreeEvaluatorBase>();
+	const FInstancedStruct& Node = Nodes.Add_GetRef(EvalNode.Node);
+	FStateTreeEvaluatorBase& Eval = Node.GetMutable<FStateTreeEvaluatorBase>();
 
 	if (EvalNode.Instance.IsValid())
 	{
 		// Struct Instance
-		FInstancedStruct& Instance = StateTree->Instances.AddDefaulted_GetRef();
-		const int32 InstanceIndex = StateTree->Instances.Num() - 1;
-
-		Instance = EvalNode.Instance;
+		const int32 InstanceIndex = InstanceStructs.Add(EvalNode.Instance);
 
 		// Create binding source struct descriptor.
-		StructDesc.Struct = Instance.GetScriptStruct();
+		StructDesc.Struct = EvalNode.Instance.GetScriptStruct();
 		StructDesc.Name = Eval.Name;
 
 		check(InstanceIndex <= int32(MAX_uint16));
@@ -661,9 +644,7 @@ bool FStateTreeCompiler::CreateEvaluator(const FStateTreeEditorNode& EvalNode)
 		check(EvalNode.InstanceObject != nullptr);
 
 		UObject* Instance = DuplicateObject(EvalNode.InstanceObject, StateTree);
-
-		StateTree->InstanceObjects.Add(Instance);
-		const int32 InstanceIndex = StateTree->InstanceObjects.Num() - 1;
+		const int32 InstanceIndex = InstanceObjects.Add(Instance);
 
 		// Create binding source struct descriptor.
 		StructDesc.Struct = Instance->GetClass();

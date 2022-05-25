@@ -3,7 +3,6 @@
 #pragma once
 
 #include "StateTree.h"
-#include "InstancedStruct.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTreeInstanceData.h"
 #include "StateTreeExecutionContext.generated.h"
@@ -19,6 +18,12 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 
 	/** Currently active states */
 	FStateTreeActiveStates ActiveStates;
+
+	/** Index of the first task struct in the currently initialized instance data. */
+	uint16 FirstTaskStructIndex = 0;
+	
+	/** Index of the first task object in the currently initialized instance data. */
+	uint16 FirstTaskObjectIndex = 0;
 
 	/** The index of the task that failed during enter state. Exit state uses it to call ExitState() symmetrically. */
 	uint16 EnterStateFailedTaskIndex = MAX_uint16;
@@ -276,7 +281,9 @@ protected:
 
 	/** Callback when gated transition is triggered. Contexts that are event based can use this to trigger a future event. */
 	virtual void BeginGatedTransition(const FStateTreeExecutionState& Exec) {};
-	
+
+	void UpdateInstanceData(FStateTreeInstanceData& InstanceData, const FStateTreeActiveStates& CurrentActiveStates, const FStateTreeActiveStates& NextActiveStates);
+
 	/**
 	 * Handles logic for entering State. EnterState is called on new active Evaluators and Tasks that are part of the re-planned tree.
 	 * Re-planned tree is from the transition target up to the leaf state. States that are parent to the transition target state
@@ -298,27 +305,25 @@ protected:
 	void StateCompleted(FStateTreeInstanceData& InstanceData);
 
 	/**
-	 * Ticks evaluators of CurrentState and all of it's parent states.
-	 * If TickEvaluatorsForSelect() is called multiple times per frame (i.e. during selection when visiting new states), each state and evaluator is ticked only once.
-	 */
-	void TickEvaluatorsForSelect(FStateTreeInstanceData& InstanceData, const FStateTreeHandle CurrentState, const EStateTreeEvaluationType EvalType, const float DeltaTime);
-
-	/**
 	 * Ticks global evaluators by delta time.
 	 */
 	void TickEvaluators(FStateTreeInstanceData& InstanceData, const float DeltaTime);
+
+	void StartEvaluators(FStateTreeInstanceData& InstanceData);
+
+	void StopEvaluators(FStateTreeInstanceData& InstanceData);
 
 	/**
 	 * Ticks tasks of all active states starting from current state by delta time.
 	 * @return Run status returned by the tasks.
 	 */
-	EStateTreeRunStatus TickTasks(FStateTreeInstanceData& InstanceData, const FStateTreeExecutionState& Exec, const float DeltaTime);
+	EStateTreeRunStatus TickTasks(FStateTreeInstanceData& InstanceData, const float DeltaTime);
 
 	/**
 	 * Checks all conditions at given range
 	 * @return True if all conditions pass.
 	 */
-	bool TestAllConditions(const uint32 ConditionsOffset, const uint32 ConditionsNum);
+	bool TestAllConditions(const int32 ConditionsOffset, const int32 ConditionsNum);
 
 	/**
 	 * Triggers transitions based on current run status. CurrentStatus is used to select which transitions events are triggered.
@@ -360,41 +365,23 @@ protected:
 		return StorageType == EStateTreeStorage::External ? *ExternalInstanceData : InternalInstanceData;
 	}
 
-	/** @return View to an Evaluator, a Task, or a Condition instance data. */
-	FStateTreeDataView GetInstanceData(const FStateTreeInstanceData& InstanceData, const bool bIsObject, const int32 Index) const
-	{
-		if (UNLIKELY(bIsObject == true))
-		{
-			return FStateTreeDataView(InstanceData.GetMutableObject(Index));
-		}
-		
-		return FStateTreeDataView(InstanceData.GetMutable(Index));
-	}
-
 	/** @return StateTree execution state from the instance storage. */
 	static FStateTreeExecutionState& GetExecState(FStateTreeInstanceData& InstanceData)
 	{
-		return InstanceData.GetMutable<FStateTreeExecutionState>(0);
+		return InstanceData.GetMutableStruct(0).GetMutable<FStateTreeExecutionState>();
 	}
 
 	/** @return const StateTree execution state from the instance storage. */
 	static const FStateTreeExecutionState& GetExecState(const FStateTreeInstanceData& InstanceData)
 	{
-		return InstanceData.Get<FStateTreeExecutionState>(0);
+		return InstanceData.GetStruct(0).Get<FStateTreeExecutionState>();
 	}
 
 	/** Sets up parameter data view for a linked state and copies bound properties. */
-	void UpdateLinkedStateParameters(FStateTreeInstanceData& InstanceData, const FCompactStateTreeState& State);
+	void UpdateLinkedStateParameters(const FStateTreeInstanceData& InstanceData, const FCompactStateTreeState& State, const uint16 ParameterInstanceIndex);
 
 	/** Sets up parameter data view for subtree state. */
-	void UpdateSubtreeStateParameters(FStateTreeInstanceData& InstanceData, const FCompactStateTreeState& State);
-
-	/** @return StateTree node at specified index. */
-	template <typename T>
-	const T& GetNode(const int32 Index) const
-	{
-		return StateTree->Nodes[Index].template Get<T>();
-	}
+	void UpdateSubtreeStateParameters(const FStateTreeInstanceData& InstanceData, const FCompactStateTreeState& State);
 	
 	/** @return String describing state status for logging and debug. */
 	FString GetStateStatusString(const FStateTreeExecutionState& ExecState) const;

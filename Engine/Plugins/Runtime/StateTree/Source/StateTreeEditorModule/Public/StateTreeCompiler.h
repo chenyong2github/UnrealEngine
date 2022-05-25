@@ -3,6 +3,7 @@
 #pragma once
 
 #include "StateTreeTypes.h"
+#include "InstancedStruct.h"
 #include "StateTreePropertyBindingCompiler.h"
 #include "StateTreeCompilerLog.h"
 
@@ -19,12 +20,14 @@ struct FStateTreeStateLink;
 struct STATETREEEDITORMODULE_API FStateTreeCompiler
 {
 public:
+
 	explicit FStateTreeCompiler(FStateTreeCompilerLog& InLog)
 		: Log(InLog)
 	{
 	}
 	
 	bool Compile(UStateTree& InStateTree);
+	
 private:
 
 	bool ResolveTransitionState(const UStateTreeState& SourceState, const FStateTreeStateLink& Link, FStateTreeHandle& OutTransitionHandle) const;
@@ -45,10 +48,19 @@ private:
 	bool GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;
 
+	void CalculateEstimatedMemoryUsage();
+
 	FStateTreeCompilerLog& Log;
 	UStateTree* StateTree = nullptr;
 	UStateTreeEditorData* TreeData = nullptr;
 	TMap<FGuid, int32> IDToState;
 	TArray<UStateTreeState*> SourceStates;
+
+	TArray<FInstancedStruct> Nodes;
+	TArray<FInstancedStruct> InstanceStructs;
+	TArray<FInstancedStruct> SharedInstanceStructs;
+	TArray<TObjectPtr<UObject>> InstanceObjects;
+	TArray<TObjectPtr<UObject>> SharedInstanceObjects;
+	
 	FStateTreePropertyBindingCompiler BindingsCompiler;
 };

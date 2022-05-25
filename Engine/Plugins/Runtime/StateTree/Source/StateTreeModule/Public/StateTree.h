@@ -6,6 +6,7 @@
 #include "StateTreeTypes.h"
 #include "StateTreeSchema.h"
 #include "InstancedStruct.h"
+#include "InstancedStructArray.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTreeInstanceData.h"
 #include "StateTree.generated.h"
@@ -22,6 +23,8 @@ struct STATETREEMODULE_API FStateTreeCustomVersion
 		SharedInstanceData,
 		// Moved evaluators to be global.
 		GlobalEvaluators,
+		// Moved instance data to arrays.
+		InstanceDataArrays,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -35,6 +38,31 @@ private:
 	FStateTreeCustomVersion() {}
 };
 
+
+#if WITH_EDITOR
+/** Struct containing information about the StateTree runtime memory usage. */
+struct FStateTreeMemoryUsage
+{
+	FStateTreeMemoryUsage() = default;
+	FStateTreeMemoryUsage(const FString InName, const FStateTreeHandle InHandle = FStateTreeHandle::Invalid)
+		: Name(InName)
+		, Handle(InHandle)
+	{
+	}
+	
+	void AddUsage(FConstStructView View);
+	void AddUsage(const UObject* Object);
+
+	FString Name;
+	FStateTreeHandle Handle;
+	int32 NodeCount = 0;
+	int32 EstimatedMemoryUsage = 0;
+	int32 ChildNodeCount = 0;
+	int32 EstimatedChildMemoryUsage = 0;
+};
+#endif
+
+
 /**
  * StateTree asset. Contains the StateTree definition in both editor and runtime (baked) formats.
  */
@@ -44,9 +72,6 @@ class STATETREEMODULE_API UStateTree : public UDataAsset
 	GENERATED_BODY()
 
 public:
-
-	/** @return Default value for the instance data. */
-	const FStateTreeInstanceData& GetInstanceDataDefaultValue() const { return InstanceDataDefaultValue; }
 
 	/**
 	 * @todo: This should return different data for each thread.
@@ -72,6 +97,9 @@ public:
 #if WITH_EDITOR
 	/** Resets the compiled data to empty. */
 	void ResetCompiled();
+
+	/** Calculates runtime memory usage for different sections of the tree. */
+	TArray<FStateTreeMemoryUsage> CalculateEstimatedMemoryUsage() const;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -106,11 +134,39 @@ private:
      * Used during linking, or to invalidate the linked data when data version is old (requires recompile). 
 	 */
 	void ResetLinked();
-	
-	// Properties
 
+	// Data created during compilation, source data in EditorData.
+	
+	/** Schema used to compile the StateTree. */
 	UPROPERTY(Instanced)
 	TObjectPtr<UStateTreeSchema> Schema = nullptr;
+
+	/** Runtime states, root state at index 0 */
+	UPROPERTY()
+	TArray<FCompactStateTreeState> States;
+
+	/** Runtime transitions. */
+	UPROPERTY()
+	TArray<FCompactStateTransition> Transitions;
+
+	/** Evaluators, Tasks, and Condition nodes. */
+	UPROPERTY()
+	FInstancedStructArray Nodes;
+
+	/** Default node instance data (e.g. evaluators, tasks). */
+	UPROPERTY()
+	FStateTreeInstanceData DefaultInstanceData;
+
+	/** Shared node instance data (e.g. conditions). */
+	UPROPERTY()
+	FStateTreeInstanceData SharedInstanceData;
+
+	/** List of names external data enforced by the schema, created at compilation. */
+	UPROPERTY()
+	TArray<FStateTreeExternalDataDesc> NamedExternalDataDescs;
+
+	UPROPERTY()
+	FStateTreePropertyBindings PropertyBindings;
 
 	/**
 	 * Parameters that could be used for bindings within the Tree.
@@ -120,64 +176,34 @@ private:
 	UPROPERTY()
 	FInstancedPropertyBag Parameters;
 
-	/** Evaluators, Tasks, and Condition items */
+	/** Data view index of the tree Parameters */
 	UPROPERTY()
-	TArray<FInstancedStruct> Nodes;
+	int32 ParametersDataViewIndex = INDEX_NONE;
 
-	/** Evaluators, Tasks, and Conditions runtime data. */
+	/** Index of first evaluator in Nodes. */
 	UPROPERTY()
-	TArray<FInstancedStruct> Instances;
+	uint16 EvaluatorsBegin = 0;
 
-	/** Blueprint based Evaluators, Tasks, and Conditions runtime data. */
+	/** Number of evaluators. */
 	UPROPERTY()
-	TArray<TObjectPtr<UObject>> InstanceObjects;
+	uint16 EvaluatorsNum = 0;
 
-	/** Conditions runtime data. */
-	UPROPERTY()
-	TArray<FInstancedStruct> SharedInstances;
-
-	/** Blueprint Conditions runtime data. */
-	UPROPERTY()
-	TArray<TObjectPtr<UObject>> SharedInstanceObjects;
-
-	UPROPERTY(Transient)
-	FStateTreeInstanceData InstanceDataDefaultValue;
-
-	UPROPERTY(Transient)
-	FStateTreeInstanceData SharedInstanceData;
-
+	// Data created during linking.
+	
 	/** List of external data required by the state tree, created during linking. */
 	UPROPERTY(Transient)
 	TArray<FStateTreeExternalDataDesc> ExternalDataDescs;
 
-	/** List of names external data enforced by the schema, created at compilation. */
-	UPROPERTY()
-	TArray<FStateTreeExternalDataDesc> NamedExternalDataDescs;
-
-	UPROPERTY()
-	uint16 EvaluatorsBegin = 0;
-	
-	UPROPERTY()
-	uint16 EvaluatorsNum = 0;
-
-	UPROPERTY(Transient)
-	int32 NumDataViews = 0;
-
+	/** Base index of external data, created during linking. */
 	UPROPERTY(Transient)
 	int32 ExternalDataBaseIndex = 0;
 
-	/** Data view index of the tree parameters */
-	UPROPERTY()
-	int32 DefaultParametersDataViewIndex = INDEX_NONE;
-	
-	UPROPERTY()
-	FStateTreePropertyBindings PropertyBindings;
+	/** Total number of data views, created during linking. */
+	UPROPERTY(Transient)
+	int32 NumDataViews = 0;
 
-	UPROPERTY()
-	TArray<FCompactStateTreeState> States;
-
-	UPROPERTY()
-	TArray<FCompactStateTransition> Transitions;
+	/** True if the StateTree was linked successfully. */
+	bool bIsLinked = false;
 
 	friend struct FStateTreeInstance;
 	friend struct FStateTreeExecutionContext;

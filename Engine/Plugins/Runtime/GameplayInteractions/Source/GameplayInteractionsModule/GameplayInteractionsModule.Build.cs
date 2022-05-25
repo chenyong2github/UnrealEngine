@@ -19,7 +19,8 @@ namespace UnrealBuildTool.Rules
 					"GameplayTasks",
 					"MassEntity",
 					"SmartObjectsModule",
-					"StateTreeModule"
+					"StateTreeModule",
+					"StructUtils",
 				}
 			);
 		}

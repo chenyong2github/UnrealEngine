@@ -3,6 +3,8 @@
 #include "StateTree.h"
 #include "StateTreeLinker.h"
 #include "StateTreeNodeBase.h"
+#include "StateTreeTaskBase.h"
+#include "StateTreeEvaluatorBase.h"
 
 const FGuid FStateTreeCustomVersion::GUID(0x28E21331, 0x501F4723, 0x8110FA64, 0xEA10DA1E);
 FCustomVersionRegistration GRegisterStateTreeCustomVersion(FStateTreeCustomVersion::GUID, FStateTreeCustomVersion::LatestVersion, TEXT("StateTreeAsset"));
@@ -10,32 +12,28 @@ FCustomVersionRegistration GRegisterStateTreeCustomVersion(FStateTreeCustomVersi
 bool UStateTree::IsReadyToRun() const
 {
 	// Valid tree must have at least one state and valid instance data.
-	return States.Num() > 0 && InstanceDataDefaultValue.IsValid();
+	return States.Num() > 0 && bIsLinked;
 }
 
 #if WITH_EDITOR
 void UStateTree::ResetCompiled()
 {
+	Schema = nullptr;
 	States.Reset();
 	Transitions.Reset();
-
-	Schema = nullptr;
-	Parameters.Reset();
 	Nodes.Reset();
-	Instances.Reset();
-	InstanceObjects.Reset();
-	ExternalDataDescs.Reset();
+	DefaultInstanceData.Reset();
+	SharedInstanceData.Reset();
 	NamedExternalDataDescs.Reset();
 	PropertyBindings.Reset();
+	Parameters.Reset();
 
+	ParametersDataViewIndex = INDEX_NONE;
+	
 	EvaluatorsBegin = 0;
 	EvaluatorsNum = 0;
 
-	NumDataViews = 0;
-	ExternalDataBaseIndex = 0;
-	DefaultParametersDataViewIndex = INDEX_NONE;
-
-	InstanceDataDefaultValue.Reset();
+	ResetLinked();
 }
 
 void UStateTree::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
@@ -53,7 +51,7 @@ void UStateTree::PostLoad()
 
 	const int32 CurrentVersion = GetLinkerCustomVersion(FStateTreeCustomVersion::GUID);
 
-	if (CurrentVersion < FStateTreeCustomVersion::SharedInstanceData)
+	if (CurrentVersion < FStateTreeCustomVersion::InstanceDataArrays)
 	{
 		ResetLinked();
 		UE_LOG(LogStateTree, Error, TEXT("%s: StateTree compiled data in older format. Please recompile the StateTree asset."), *GetName());
@@ -85,12 +83,10 @@ void UStateTree::Serialize(FStructuredArchiveRecord Record)
 
 void UStateTree::ResetLinked()
 {
-	InstanceDataDefaultValue.Reset();
-	SharedInstanceData.Reset();
-	
+	bIsLinked = false;
 	ExternalDataDescs.Reset();
-	NumDataViews = 0;
 	ExternalDataBaseIndex = 0;
+	NumDataViews = 0;
 }
 
 bool UStateTree::Link()
@@ -98,14 +94,20 @@ bool UStateTree::Link()
 	// Initialize the instance data default value.
 	// This data will be used to allocate runtime instance on all StateTree users.
 	ResetLinked();
+
+	if (!DefaultInstanceData.IsValid())
+	{
+		UE_LOG(LogStateTree, Error, TEXT("%s: StartTree does not have instance data. Please recompile the StateTree asset."), *GetName());
+		return false;
+	}
 	
 	// Update property bag structs before resolving binding.
-	TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
-	TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
+	const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
+	const TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
 
-	if (SourceStructs.IsValidIndex(DefaultParametersDataViewIndex))
+	if (SourceStructs.IsValidIndex(ParametersDataViewIndex))
 	{
-		SourceStructs[DefaultParametersDataViewIndex].Struct = Parameters.GetPropertyBagStruct();
+		SourceStructs[ParametersDataViewIndex].Struct = Parameters.GetPropertyBagStruct();
 	}
 	
 	for (const FCompactStateTreeState& State : States)
@@ -120,7 +122,7 @@ bool UStateTree::Link()
 			}
 
 			// Subtree is a bind source, update bag struct.
-			const FCompactStateTreeParameters& Params = Instances[State.ParameterInstanceIndex].GetMutable<FCompactStateTreeParameters>();
+			const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex).GetMutable<FCompactStateTreeParameters>();
 			FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex];
 			Desc.Struct = Params.Parameters.GetPropertyBagStruct();
 		}
@@ -135,10 +137,10 @@ bool UStateTree::Link()
 				return false;
 			}
 
-			const FCompactStateTreeParameters& Params = Instances[State.ParameterInstanceIndex].GetMutable<FCompactStateTreeParameters>();
+			const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex).GetMutable<FCompactStateTreeParameters>();
 
 			// Check that the bag in linked state matches.
-			const FCompactStateTreeParameters& LinkedStateParams = Instances[LinkedState.ParameterInstanceIndex].GetMutable<FCompactStateTreeParameters>();
+			const FCompactStateTreeParameters& LinkedStateParams = DefaultInstanceData.GetMutableStruct(LinkedState.ParameterInstanceIndex).GetMutable<FCompactStateTreeParameters>();
 
 			if (LinkedStateParams.Parameters.GetPropertyBagStruct() != Params.Parameters.GetPropertyBagStruct())
 			{
@@ -161,8 +163,9 @@ bool UStateTree::Link()
 	FStateTreeLinker Linker(Schema);
 	Linker.SetExternalDataBaseIndex(PropertyBindings.GetSourceStructNum());
 	
-	for (FInstancedStruct& Node : Nodes)
+	for (int32 Index = 0; Index < Nodes.Num(); Index++)
 	{
+		const FStructView Node = Nodes[Index];
 		if (FStateTreeNodeBase* NodePtr = Node.GetMutablePtr<FStateTreeNodeBase>())
 		{
 			Linker.SetCurrentInstanceDataType(NodePtr->GetInstanceDataType(), NodePtr->DataViewIndex);
@@ -180,16 +183,174 @@ bool UStateTree::Link()
 	ExternalDataDescs = Linker.GetExternalDataDescs();
 	NumDataViews = ExternalDataBaseIndex + ExternalDataDescs.Num();
 
-	if (Instances.Num() > 0 || InstanceObjects.Num() > 0)
-	{
-		InstanceDataDefaultValue.Initialize(*this, Instances, InstanceObjects);
-	}
-
-	if (SharedInstances.Num())
-	{
-		SharedInstanceData.Initialize(*this, SharedInstances, SharedInstanceObjects);
-	}
-
+	bIsLinked = true;
 	
 	return true;
 }
+
+#if WITH_EDITOR
+
+void FStateTreeMemoryUsage::AddUsage(FConstStructView View)
+{
+	if (const UScriptStruct* ScriptStruct = View.GetScriptStruct())
+	{
+		EstimatedMemoryUsage = Align(EstimatedMemoryUsage, ScriptStruct->GetMinAlignment());
+		EstimatedMemoryUsage += ScriptStruct->GetStructureSize();
+	}
+}
+
+void FStateTreeMemoryUsage::AddUsage(const UObject* Object)
+{
+	if (Object != nullptr)
+	{
+		check(Object->GetClass());
+		EstimatedMemoryUsage += Object->GetClass()->GetStructureSize();
+	}
+}
+
+TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
+{
+	TArray<FStateTreeMemoryUsage> MemoryUsages;
+	TArray<TPair<int32, int32>> StateLinks;
+
+	if (States.IsEmpty() || !Nodes.IsValid() || !DefaultInstanceData.IsValid())
+	{
+		return MemoryUsages;
+	}
+
+	const int32 TreeMemUsageIndex = MemoryUsages.Emplace(TEXT("State Tree Max"));
+	const int32 EvalMemUsageIndex = MemoryUsages.Emplace(TEXT("Evaluators"));
+	const int32 SharedMemUsageIndex = MemoryUsages.Emplace(TEXT("Shared Data"));
+
+	auto GetRootStateHandle = [this](const FStateTreeHandle InState) -> FStateTreeHandle
+	{
+		FStateTreeHandle Result = InState;
+		while (Result.IsValid() && States[Result.Index].Parent.IsValid())
+		{
+			Result = States[Result.Index].Parent;
+		}
+		return Result;		
+	};
+
+	auto GetUsageIndexForState = [&MemoryUsages, this](const FStateTreeHandle InStateHandle) -> int32
+	{
+		check(InStateHandle.IsValid());
+		
+		const int32 FoundMemUsage = MemoryUsages.IndexOfByPredicate([InStateHandle](const FStateTreeMemoryUsage& MemUsage) { return MemUsage.Handle == InStateHandle; });
+		if (FoundMemUsage != INDEX_NONE)
+		{
+			return FoundMemUsage;
+		}
+
+		const FCompactStateTreeState& CompactState = States[InStateHandle.Index];
+		
+		return MemoryUsages.Emplace(TEXT("State ") + CompactState.Name.ToString(), InStateHandle);
+	};
+
+	for (int32 Index = 0; Index < States.Num(); Index++)
+	{
+		const FStateTreeHandle StateHandle((uint16)Index);
+		const FCompactStateTreeState& CompactState = States[Index];
+		const FStateTreeHandle ParentHandle = GetRootStateHandle(StateHandle);
+		const int32 ParentUsageIndex = GetUsageIndexForState(ParentHandle);
+		FStateTreeMemoryUsage& MemUsage = MemoryUsages[ParentUsageIndex];
+
+		MemUsage.NodeCount += CompactState.TasksNum;
+
+		if (CompactState.Type == EStateTreeStateType::Linked)
+		{
+			const int32 LinkedUsageIndex = GetUsageIndexForState(CompactState.LinkedState);
+			StateLinks.Emplace(ParentUsageIndex, LinkedUsageIndex);
+
+			MemUsage.NodeCount++;
+			MemUsage.AddUsage(DefaultInstanceData.GetStruct(CompactState.ParameterInstanceIndex));
+		}
+		
+		for (int32 TaskIndex = CompactState.TasksBegin; TaskIndex < (CompactState.TasksBegin + CompactState.TasksNum); TaskIndex++)
+		{
+			const FStateTreeTaskBase& Task = Nodes[TaskIndex].Get<FStateTreeTaskBase>();
+			if (Task.bInstanceIsObject == false)
+			{
+				MemUsage.NodeCount++;
+				MemUsage.AddUsage(DefaultInstanceData.GetStruct(Task.InstanceIndex));
+			}
+			else
+			{
+				MemUsage.NodeCount++;
+				MemUsage.AddUsage(DefaultInstanceData.GetMutableObject(Task.InstanceIndex));
+			}
+		}
+	}
+
+	// Accumulate linked states.
+	for (int32 Index = StateLinks.Num() - 1; Index >= 0; Index--)
+	{
+		FStateTreeMemoryUsage& ParentUsage = MemoryUsages[StateLinks[Index].Get<0>()];
+		const FStateTreeMemoryUsage& LinkedUsage = MemoryUsages[StateLinks[Index].Get<1>()];
+		const int32 LinkedTotalUsage = LinkedUsage.EstimatedMemoryUsage + LinkedUsage.EstimatedChildMemoryUsage;
+		if (LinkedTotalUsage > ParentUsage.EstimatedChildMemoryUsage)
+		{
+			ParentUsage.EstimatedChildMemoryUsage = LinkedTotalUsage;
+			ParentUsage.ChildNodeCount = LinkedUsage.NodeCount + LinkedUsage.ChildNodeCount;
+		}
+	}
+
+	// Evaluators
+	FStateTreeMemoryUsage& EvalMemUsage = MemoryUsages[EvalMemUsageIndex];
+	for (int32 EvalIndex = EvaluatorsBegin; EvalIndex < (EvaluatorsBegin + EvaluatorsNum); EvalIndex++)
+	{
+		const FStateTreeEvaluatorBase& Eval = Nodes[EvalIndex].Get<FStateTreeEvaluatorBase>();
+		if (Eval.bInstanceIsObject == false)
+		{
+			EvalMemUsage.AddUsage(DefaultInstanceData.GetMutableStruct(Eval.InstanceIndex));
+		}
+		else
+		{
+			EvalMemUsage.AddUsage(DefaultInstanceData.GetMutableObject(Eval.InstanceIndex));
+		}
+	}
+
+	// Estimate highest combined usage.
+	FStateTreeMemoryUsage& TreeMemUsage = MemoryUsages[TreeMemUsageIndex];
+
+	// Exec state
+	TreeMemUsage.AddUsage(DefaultInstanceData.GetStruct(0));
+	TreeMemUsage.NodeCount++;
+
+	TreeMemUsage.EstimatedMemoryUsage += EvalMemUsage.EstimatedMemoryUsage;
+	TreeMemUsage.NodeCount += EvalMemUsage.NodeCount;
+
+	// FStateTreeInstanceData overhead.
+	TreeMemUsage.EstimatedMemoryUsage += sizeof(FStateTreeInstanceData);
+	// FInstancedStructArray overhead.
+	TreeMemUsage.EstimatedMemoryUsage += TreeMemUsage.NodeCount * 16;
+	
+	int32 MaxSubtreeUsage = 0;
+	int32 MaxSubtreeNodeCount = 0;
+	
+	for (const FStateTreeMemoryUsage& MemUsage : MemoryUsages)
+	{
+		if (MemUsage.Handle.IsValid())
+		{
+			const int32 TotalUsage = MemUsage.EstimatedMemoryUsage + MemUsage.EstimatedChildMemoryUsage;
+			if (TotalUsage > MaxSubtreeUsage)
+			{
+				MaxSubtreeUsage = TotalUsage;
+				MaxSubtreeNodeCount = MemUsage.NodeCount + MemUsage.ChildNodeCount;
+			}
+		}
+	}
+
+	TreeMemUsage.EstimatedMemoryUsage += MaxSubtreeUsage;
+	TreeMemUsage.NodeCount += MaxSubtreeNodeCount;
+
+	if (SharedInstanceData.IsValid())
+	{
+		FStateTreeMemoryUsage& SharedMemUsage = MemoryUsages[SharedMemUsageIndex];
+		SharedMemUsage.NodeCount = SharedInstanceData.GetNumItems();
+		SharedMemUsage.EstimatedMemoryUsage = SharedInstanceData.GetEstimatedMemoryUsage();
+	}
+
+	return MemoryUsages;
+}
+#endif // WITH_EDITOR
