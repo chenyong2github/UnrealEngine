@@ -136,9 +136,9 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public static string NormalizeCommandLinePath(FileSystemReference Reference)
+		public static new string NormalizeCommandLinePath(FileSystemReference Reference)
 		{
-			// Try to use a relative path to shorten command line length and to enabled remote distribution where absolute paths are not desired
+			// Try to use a relative path to shorten command line length and to enable remote distribution where absolute paths are not desired
 			if (Reference.IsUnderDirectory(Unreal.EngineDirectory))
 			{
 				string RelativePath = Reference.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
@@ -150,7 +150,7 @@ namespace UnrealBuildTool
 			return Reference.FullName;
 		}
 
-		public static string NormalizeCommandLinePath(FileItem Item)
+		public static new string NormalizeCommandLinePath(FileItem Item)
 		{
 			return NormalizeCommandLinePath(Item.Location);
 		}

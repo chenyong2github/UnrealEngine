@@ -118,32 +118,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Normalize a path for use in a command line, making it relative to Engine/Source if under the root directory
-		/// </summary>
-		/// <param name="Reference">The FileSystemReference to normalize</param>
-		/// <returns>Normalized path as a string</returns>
-		protected static string NormalizeCommandLinePath(FileSystemReference Reference)
-		{
-			// Try to use a relative path to shorten command line length.
-			if (Reference.IsUnderDirectory(Unreal.RootDirectory))
-			{
-				return Reference.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory).Replace("\\", "/");
-			}
-
-			return Reference.FullName.Replace("\\", "/");
-		}
-
-		/// <summary>
-		/// Normalize a path for use in a command line, making it relative if under the Root Directory
-		/// </summary>
-		/// <param name="Item">The FileItem to normalize</param>
-		/// <returns>Normalized path as a string</returns>
-		protected static string NormalizeCommandLinePath(FileItem Item)
-		{
-			return NormalizeCommandLinePath(Item.Location);
-		}
-
-		/// <summary>
 		/// Sanitizes a preprocessor definition argument if needed.
 		/// </summary>
 		/// <param name="Definition">A string in the format "foo=bar" or "foo".</param>
