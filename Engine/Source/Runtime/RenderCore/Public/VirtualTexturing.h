@@ -229,9 +229,16 @@ struct FVTRequestPageResult
 /** Describes a location to write a single layer of a VT tile */
 struct FVTProduceTargetLayer
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FVTProduceTargetLayer() = default;
+	FVTProduceTargetLayer(const FVTProduceTargetLayer&) = default;
+	FVTProduceTargetLayer& operator=(const FVTProduceTargetLayer&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** The texture to write to. */
 	FRHITexture* TextureRHI = nullptr;
-	/** The UAV to write to. This may be nullptr if no suitable UAV can be created for the texture format.  */
+	
+	UE_DEPRECATED(5.1, "UnorderedAccessViewRHI is deprecated. Register the pooled render target with RDG instead.")
 	FRHIUnorderedAccessView* UnorderedAccessViewRHI = nullptr;
 	/**
 	 * Pooled render target. For FRDGBuilder::RegisterExternalTexture() which only accepts pooled render targets.

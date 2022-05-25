@@ -97,11 +97,6 @@ public:
 		return bSRGB ? TextureSRV_SRGB[Layer] : TextureSRV[Layer];
 	}
 
-	FRHIUnorderedAccessView* GetPhysicalTextureUAV(int32 Layer) const
-	{
-		return TextureUAV[Layer];
-	}
-	
 	TRefCountPtr<IPooledRenderTarget> GetPhysicalTexturePooledRenderTarget(int32 Layer) const
 	{
 		check(PooledRenderTarget[Layer].IsValid());
@@ -126,7 +121,6 @@ private:
 	TRefCountPtr<IPooledRenderTarget> PooledRenderTarget[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	FShaderResourceViewRHIRef TextureSRV[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	FShaderResourceViewRHIRef TextureSRV_SRGB[VIRTUALTEXTURE_SPACE_MAXLAYERS];
-	FUnorderedAccessViewRHIRef TextureUAV[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 
 	uint32 TextureSizeInTiles;
 	uint32 NumRefs;

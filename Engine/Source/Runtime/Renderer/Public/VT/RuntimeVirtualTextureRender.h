@@ -34,7 +34,8 @@ namespace RuntimeVirtualTexture
 	{
 		/** Physical texture to render to. */
 		FRHITexture* Texture = nullptr;
-		/** Unordered access view of physical texture to render to. If this exists we can render to it directly instead of using RHICopyTexture(). */
+
+		UE_DEPRECATED(5.1, "UAV is deprecated. Register the pooled render target with RDG instead.")
 		FRHIUnorderedAccessView* UAV = nullptr;
 
 		struct IPooledRenderTarget* PooledRenderTarget = nullptr;

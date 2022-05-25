@@ -151,11 +151,6 @@ void FVirtualTexturePhysicalSpace::InitRHI()
 
 		SRVCreateInfo.SRGBOverride = SRGBO_Default;
 		TextureSRV_SRGB[Layer] = RHICreateShaderResourceView(TextureRHI, SRVCreateInfo);
-
-		if (bCreateAliasedUAV)
-		{
-			TextureUAV[Layer] = PooledRenderTarget[Layer]->GetUAV();
-		}
 	}
 }
 
@@ -166,7 +161,6 @@ void FVirtualTexturePhysicalSpace::ReleaseRHI()
 		GRenderTargetPool.FreeUnusedResource(PooledRenderTarget[Layer]);
 		TextureSRV[Layer].SafeRelease();
 		TextureSRV_SRGB[Layer].SafeRelease();
-		TextureUAV[Layer].SafeRelease();
 	}
 }
 
