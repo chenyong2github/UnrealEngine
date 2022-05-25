@@ -639,29 +639,29 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		}
 
 		FMVVMViewBlueprintCompiler* Self = this;
-		auto AddBinding = [Self](UWidgetBlueprintGeneratedClass* Class, const TArrayView<FString> Getters, const FString& Setter, const FMemberReference& ConversionFunctionReference) -> TValueOrError<FCompilerBinding, FString>
+		auto AddBinding = [Self](UWidgetBlueprintGeneratedClass* Class, const TArrayView<TArray<UE::MVVM::FMVVMConstFieldVariant>> GetterFields, TArrayView<UE::MVVM::FMVVMConstFieldVariant> SetterFields, const FMemberReference& ConversionFunctionReference) -> TValueOrError<FCompilerBinding, FString>
 		{
 			FCompilerBinding Result;
 
-			for (const FString& Getter : Getters)
+			for (const TArrayView<UE::MVVM::FMVVMConstFieldVariant>& GetterField : GetterFields)
 			{
 				// Generate a path to read the value at runtime
-				TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FieldPathResult = Self->BindingLibraryCompiler.AddFieldPath(Class, Getter, true);
+				TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FieldPathResult = Self->BindingLibraryCompiler.AddFieldPath(GetterField, true);
 				if (FieldPathResult.HasError())
 				{
 					return MakeError(FString::Printf(TEXT("Couldn't create the source field path '%s'. %s")
-						, *Getter
+						, *::UE::MVVM::FieldPathHelper::ToString(GetterField)
 						, *FieldPathResult.GetError()));
 				}
 				Result.SourceRead.Add(FieldPathResult.GetValue());
 			}
 
 			{
-				TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FieldPathResult = Self->BindingLibraryCompiler.AddFieldPath(Class, Setter, false);
+				TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FieldPathResult = Self->BindingLibraryCompiler.AddFieldPath(SetterFields, false);
 				if (FieldPathResult.HasError())
 				{
 					return MakeError(FString::Printf(TEXT("Couldn't create the destination field path '%s'. %s")
-						, *Setter
+						, *::UE::MVVM::FieldPathHelper::ToString(SetterFields)
 						, *FieldPathResult.GetError()));
 				}
 				Result.DestinationWrite = FieldPathResult.GetValue();
@@ -711,7 +711,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 
 		if (IsForwardBinding(Binding.BindingType))
 		{
-			const FBindingSourceContext BindingSourceContext = CreateBindingSourceContext(BlueprintView, Binding.ViewModelPath);
+			const FBindingSourceContext BindingSourceContext = CreateBindingSourceContext(BlueprintView, Class, Binding.ViewModelPath);
 			if (BindingSourceContext.bIsRootWidget && BindingSourceContext.SourceClass == nullptr)
 			{
 				AddErrorForBinding(Binding, BlueprintView, TEXT("Internal error. The binding could not find its source."));
@@ -733,35 +733,22 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				continue;
 			}
 
-			TArray<FString> Getters;
+			TArray<TArray<UE::MVVM::FMVVMConstFieldVariant>> GetterFields;
 			//if (Binding.Conversion.HasConversionFunction && has read values defined (that are not the default one))
 			//{
 			//  Add the read values for the conversion function
 			//}
 			//else
 			{
-				Getters.Add(BindingSourceContext.PropertyPath);
+				GetterFields.Add(BindingSourceContext.PropertyPath);
 			}
 
-			FString Setter;
+			TArray<UE::MVVM::FMVVMConstFieldVariant> SetterPath;
 			{
-				FName DestinationName = Binding.WidgetPath.GetWidgetName();
-				checkf(!DestinationName.IsNone(), TEXT("The destination should have been checked and set bAreSourceContextsValid."));
-				const bool bSourceIsUserWidget = DestinationName == Class->ClassGeneratedBy->GetFName();
-				if (bSourceIsUserWidget)
-				{
-					Setter = CreatePropertyPath(FName(), Binding.WidgetPath.GetBasePropertyPath());
-				}
-				else
-				{
-					const int32 DestinationVariableContextIndex = SourceContexts.IndexOfByPredicate([DestinationName](const FCompilerSourceContext& Other) { return Other.PropertyName == DestinationName; });
-					check(DestinationVariableContextIndex != INDEX_NONE);
-
-					Setter = CreatePropertyPath(SourceContexts[DestinationVariableContextIndex].PropertyName, Binding.WidgetPath.GetBasePropertyPath());
-				}
+				SetterPath = CreateBindingDestinationPath(BlueprintView, Class, Binding.WidgetPath);
 			}
 
-			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.SourceToDestinationFunction);
+			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, GetterFields, SetterPath, Binding.Conversion.SourceToDestinationFunction);
 			if (AddBindingResult.HasError())
 			{
 				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));
@@ -802,28 +789,22 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				continue;
 			}
 
-			TArray<FString> Getters;
+			TArray<TArray<UE::MVVM::FMVVMConstFieldVariant>> GetterFields;
 			//if (Binding.Conversion.HasConversionFunction && has read values defined (that are not the default one))
 			//{
 			//  Add the read values for the conversion function
 			//}
 			//else
 			{
-				Getters.Add(BindingSourceContext.PropertyPath);
+				GetterFields.Add(BindingSourceContext.PropertyPath);
 			}
 
-			FString Setter;
+			TArray<UE::MVVM::FMVVMConstFieldVariant> SetterPath;
 			{
-				const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(Binding.ViewModelPath.GetViewModelId());
-				check(SourceViewModelContext);
-				FName DestinationName = SourceViewModelContext->GetViewModelName();
-				const int32 DestinationVariableContextIndex = SourceContexts.IndexOfByPredicate([DestinationName](const FCompilerSourceContext& Other) { return Other.PropertyName == DestinationName; });
-				check(DestinationVariableContextIndex != INDEX_NONE);
-
-				Setter = CreatePropertyPath(SourceContexts[DestinationVariableContextIndex].PropertyName, Binding.ViewModelPath.GetBasePropertyPath());
+				SetterPath = CreateBindingDestinationPath(BlueprintView, Class, Binding.ViewModelPath);
 			}
 
-			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, Getters, Setter, Binding.Conversion.DestinationToSourceFunction);
+			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, GetterFields, SetterPath, Binding.Conversion.DestinationToSourceFunction);
 			if (AddBindingResult.HasError())
 			{
 				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));
@@ -902,62 +883,103 @@ const FMVVMViewBlueprintCompiler::FCompilerSourceCreatorContext* FMVVMViewBluepr
 }
 
 
-FMVVMViewBlueprintCompiler::FBindingSourceContext FMVVMViewBlueprintCompiler::CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& PropertyPath) const
+FMVVMViewBlueprintCompiler::FBindingSourceContext FMVVMViewBlueprintCompiler::CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath) const
 {
 	FBindingSourceContext Result;
 
-	// Todo the path may contains an other INotifyFieldValueChanged
+	if (PropertyPath.IsEmpty())
+	{
+		ensureAlwaysMsgf(false, TEXT("Not supported yet."));
+		return Result;
+	}
+
+	// Todo the path may contains another INotifyFieldValueChanged
 	TArray<FName> Paths = PropertyPath.GetPaths();
 	if (Paths.Num() > 0)
 	{
 		Result.FieldId = Paths[0];
 	}
 
+	if (PropertyPath.IsFromViewModel())
 	{
+		Result.bIsRootWidget = false;
+
 		const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(PropertyPath.GetViewModelId());
 		check(SourceViewModelContext);
 		const FName SourceName = SourceViewModelContext->GetViewModelName();
 		Result.CompilerSourceContextIndex = SourceContexts.IndexOfByPredicate([SourceName](const FCompilerSourceContext& Other) { return Other.PropertyName == SourceName; });
 		check(Result.CompilerSourceContextIndex != INDEX_NONE);
-	}
 
-	Result.SourceClass = SourceContexts[Result.CompilerSourceContextIndex].Class;
-	Result.PropertyPath = CreatePropertyPath(SourceContexts[Result.CompilerSourceContextIndex].PropertyName, PropertyPath.GetBasePropertyPath());
-	Result.bIsRootWidget = false;
+		Result.SourceClass = SourceContexts[Result.CompilerSourceContextIndex].Class;
+		Result.PropertyPath = CreatePropertyPath(Class, SourceContexts[Result.CompilerSourceContextIndex].PropertyName, PropertyPath.GetFields());
+	}
+	else if (PropertyPath.IsFromWidget())
+	{
+		const FName SourceName = PropertyPath.GetWidgetName();
+		Result.bIsRootWidget = SourceName == Class->ClassGeneratedBy->GetFName();
+		if (Result.bIsRootWidget)
+		{
+			Result.CompilerSourceContextIndex = INDEX_NONE;
+			Result.SourceClass = Class->ClassGeneratedBy->GetClass();
+			Result.PropertyPath = CreatePropertyPath(Class, FName(), PropertyPath.GetFields());
+		}
+		else
+		{
+			Result.CompilerSourceContextIndex = SourceContexts.IndexOfByPredicate([SourceName](const FCompilerSourceContext& Other) { return Other.PropertyName == SourceName; });
+			check(Result.CompilerSourceContextIndex != INDEX_NONE);
+			Result.SourceClass = SourceContexts[Result.CompilerSourceContextIndex].Class;
+			Result.PropertyPath = CreatePropertyPath(Class, SourceContexts[Result.CompilerSourceContextIndex].PropertyName, PropertyPath.GetFields());
+		}
+	}
+	else
+	{
+		ensureAlwaysMsgf(false, TEXT("Not supported yet."));
+	}
 
 	return Result;
 }
 
 
-FMVVMViewBlueprintCompiler::FBindingSourceContext FMVVMViewBlueprintCompiler::CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath) const
+TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreateBindingDestinationPath(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath) const
 {
-	FBindingSourceContext Result;
-
-	const FName SourceName = PropertyPath.GetWidgetName();
-	Result.bIsRootWidget = SourceName == Class->ClassGeneratedBy->GetFName();
-
-	// Todo the path may contains an other INotifyFieldValueChanged
-	TArray<FName> Paths = PropertyPath.GetPaths();
-	if (Paths.Num() > 0)
+	if (PropertyPath.IsEmpty())
 	{
-		Result.FieldId = Paths[0];
+		ensureAlwaysMsgf(false, TEXT("Not supported yet."));
+		return TArray<FMVVMConstFieldVariant>();
 	}
 
-	if (Result.bIsRootWidget)
+	if (PropertyPath.IsFromViewModel())
 	{
-		Result.CompilerSourceContextIndex = INDEX_NONE;
-		Result.SourceClass = Class->ClassGeneratedBy->GetClass();
-		Result.PropertyPath = CreatePropertyPath(FName(), PropertyPath.GetBasePropertyPath());
+		const FMVVMBlueprintViewModelContext* SourceViewModelContext = BlueprintView->FindViewModel(PropertyPath.GetViewModelId());
+		check(SourceViewModelContext);
+		FName DestinationName = SourceViewModelContext->GetViewModelName();
+		const int32 DestinationVariableContextIndex = SourceContexts.IndexOfByPredicate([DestinationName](const FCompilerSourceContext& Other) { return Other.PropertyName == DestinationName; });
+		check(DestinationVariableContextIndex != INDEX_NONE);
+
+		return CreatePropertyPath(Class, SourceContexts[DestinationVariableContextIndex].PropertyName, PropertyPath.GetFields());
+	}
+	else if (PropertyPath.IsFromWidget())
+	{
+		FName DestinationName = PropertyPath.GetWidgetName();
+		checkf(!DestinationName.IsNone(), TEXT("The destination should have been checked and set bAreSourceContextsValid."));
+		const bool bSourceIsUserWidget = DestinationName == Class->ClassGeneratedBy->GetFName();
+		if (bSourceIsUserWidget)
+		{
+			return CreatePropertyPath(Class, FName(), PropertyPath.GetFields());
+		}
+		else
+		{
+			const int32 DestinationVariableContextIndex = SourceContexts.IndexOfByPredicate([DestinationName](const FCompilerSourceContext& Other) { return Other.PropertyName == DestinationName; });
+			check(DestinationVariableContextIndex != INDEX_NONE);
+
+			return CreatePropertyPath(Class, SourceContexts[DestinationVariableContextIndex].PropertyName, PropertyPath.GetFields());
+		}
 	}
 	else
 	{
-		Result.CompilerSourceContextIndex = SourceContexts.IndexOfByPredicate([SourceName](const FCompilerSourceContext& Other) { return Other.PropertyName == SourceName; });
-		check(Result.CompilerSourceContextIndex != INDEX_NONE);
-		Result.SourceClass = SourceContexts[Result.CompilerSourceContextIndex].Class;
-		Result.PropertyPath = CreatePropertyPath(SourceContexts[Result.CompilerSourceContextIndex].PropertyName, PropertyPath.GetBasePropertyPath());
+		ensureAlwaysMsgf(false, TEXT("Not supported yet."));
+		return CreatePropertyPath(Class, FName(), PropertyPath.GetFields());
 	}
-
-	return Result;
 }
 
 
@@ -978,6 +1000,20 @@ FString FMVVMViewBlueprintCompiler::CreatePropertyPath(FName PropertyName, FStri
 		}
 	}
 	return Builder.ToString();
+}
+
+
+TArray<FMVVMConstFieldVariant> FMVVMViewBlueprintCompiler::CreatePropertyPath(const UClass* Class, FName PropertyName, TArray<FMVVMConstFieldVariant> Properties) const
+{
+	if (PropertyName.IsNone())
+	{
+		return Properties;
+	}
+
+	check(Class);
+	FMVVMConstFieldVariant NewProperty = BindingHelper::FindFieldByName(Class, FMVVMBindingName(PropertyName));
+	Properties.Insert(NewProperty, 0);
+	return Properties;
 }
 
 } //namespace

@@ -140,6 +140,11 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldIdHandle, FString> FCompile
 {
 	Impl->bCompiled = false;
 
+	if (FieldId.IsNone())
+	{
+		return MakeError(TEXT("The Field/Property is not defined."));
+	}
+
 	if (!SourceClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
 	{
 		return MakeError(FString::Printf(TEXT("'%s' doesn't implement the NotifyFieldValueChanged interface.")
@@ -181,17 +186,31 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 {
 	Impl->bCompiled = false;
 
-	TValueOrError<TArray<FMVVMFieldVariant>, FString> GeneratedField = FieldPathHelper::GenerateFieldPathList(InSourceClass, InFieldPath, bInRead);
+	TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GeneratedField = FieldPathHelper::GenerateFieldPathList(InSourceClass, InFieldPath, bInRead);
 	if (GeneratedField.HasError())
 	{
 		return MakeError(GeneratedField.StealError());
 	}
 
-	return AddFieldPath(MakeArrayView(GeneratedField.GetValue()), bInRead);
+	return AddFieldPathImpl(MakeArrayView(GeneratedField.GetValue()), bInRead);
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPath(TArrayView<FMVVMFieldVariant> InFieldPath, bool bInRead)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPath(TArrayView<FMVVMConstFieldVariant> InFieldPath, bool bInRead)
+{
+	Impl->bCompiled = false;
+
+	TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GeneratedField = FieldPathHelper::GenerateFieldPathList(InFieldPath, bInRead);
+	if (GeneratedField.HasError())
+	{
+		return MakeError(GeneratedField.StealError());
+	}
+
+	return AddFieldPathImpl(MakeArrayView(GeneratedField.GetValue()), bInRead);
+}
+
+
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPathImpl(TArrayView<FMVVMConstFieldVariant> InFieldPath, bool bInRead)
 {
 	Impl->bCompiled = false;
 
@@ -322,7 +341,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 
 	check(ExpectedType);
 
-	TValueOrError<TArray<FMVVMFieldVariant>, FString> GeneratedField = FieldPathHelper::GenerateFieldPathList(InSourceClass, InFieldPath, bInRead);
+	TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GeneratedField = FieldPathHelper::GenerateFieldPathList(InSourceClass, InFieldPath, bInRead);
 	if (GeneratedField.HasError())
 	{
 		return MakeError(GeneratedField.StealError());
@@ -351,7 +370,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 		return MakeError(FString::Printf(TEXT("The field does not return a '%s'."), *ExpectedType->GetName()));
 	}
 
-	return AddFieldPath(MakeArrayView(GeneratedField.GetValue()), bInRead);
+	return AddFieldPathImpl(MakeArrayView(GeneratedField.GetValue()), bInRead);
 }
 
 

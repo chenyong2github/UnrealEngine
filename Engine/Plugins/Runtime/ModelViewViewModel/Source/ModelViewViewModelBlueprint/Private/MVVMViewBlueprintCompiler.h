@@ -70,10 +70,11 @@ private:
 
 	void AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const UMVVMBlueprintView* BlueprintView, const FString& Message) const;
 
-	FBindingSourceContext CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const FMVVMBlueprintPropertyPath& PropertyPath) const;
 	FBindingSourceContext CreateBindingSourceContext(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath) const;
+	TArray<FMVVMConstFieldVariant> CreateBindingDestinationPath(const UMVVMBlueprintView* BlueprintView, const UWidgetBlueprintGeneratedClass* Class, const FMVVMBlueprintPropertyPath& PropertyPath) const;
 
 	FString CreatePropertyPath(FName PropertyName, FString PropertyPath) const;
+	TArray<FMVVMConstFieldVariant> CreatePropertyPath(const UClass* Class, FName PropertyName, TArray<FMVVMConstFieldVariant> Properties) const;
 
 private:
 	struct FCompilerSourceContext
@@ -136,7 +137,7 @@ private:
 		// or Widget.Field.SubProperty
 		// or Field.SubProperty (if the widget is the userwidget)
 		// if its the destination then the Field is not necessary
-		FString PropertyPath;
+		TArray<UE::MVVM::FMVVMConstFieldVariant> PropertyPath;
 		int32 CompilerSourceContextIndex = INDEX_NONE;
 		bool bIsRootWidget = false;
 	};

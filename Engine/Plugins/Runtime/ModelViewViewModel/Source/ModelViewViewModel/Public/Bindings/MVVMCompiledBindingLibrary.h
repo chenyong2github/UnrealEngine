@@ -255,6 +255,7 @@ public:
 		InvalidSource,
 		InvalidDestination,
 		InvalidConversionFunction,
+		InvalidCast,
 	};
 
 	/** Fetch the FProperty and UFunction. */

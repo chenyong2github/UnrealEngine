@@ -205,8 +205,14 @@ TValueOrError<void, FMVVMCompiledBindingLibrary::EExecutionFailingReason> FMVVMC
 	check(!Destination.GetObjectVariant().IsNull());
 	check(!Source.GetFieldVariant().IsEmpty());
 	check(!Destination.GetFieldVariant().IsEmpty());
-	check(Source.GetObjectVariant().GetOwner()->IsChildOf(Source.GetFieldVariant().GetOwner()));
-	check(Destination.GetObjectVariant().GetOwner()->IsChildOf(Destination.GetFieldVariant().GetOwner()));
+	if (Source.GetObjectVariant().GetOwner()->IsChildOf(Source.GetFieldVariant().GetOwner()))
+	{
+		return MakeError(EExecutionFailingReason::InvalidCast);
+	}
+	if (Destination.GetObjectVariant().GetOwner()->IsChildOf(Destination.GetFieldVariant().GetOwner()))
+	{
+		return MakeError(EExecutionFailingReason::InvalidCast);
+	}
 
 	if (ConversionFunction.GetFunction())
 	{

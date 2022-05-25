@@ -162,7 +162,7 @@ public:
 	TValueOrError<FFieldPathHandle, FString> AddFieldPath(TSubclassOf<UObject> SourceClass, FStringView FieldPath, bool bRead);
 	
 	/** */
-	TValueOrError<FFieldPathHandle, FString> AddFieldPath(TArrayView<UE::MVVM::FMVVMFieldVariant> FieldPath, bool bRead);
+	TValueOrError<FFieldPathHandle, FString> AddFieldPath(TArrayView<UE::MVVM::FMVVMConstFieldVariant> FieldPath, bool bRead);
 
 	/** */
 	TValueOrError<FFieldPathHandle, FString> AddObjectFieldPath(TSubclassOf<UObject> SourceClass, FStringView FieldPath, UClass* ExpectedType, bool bRead);
@@ -191,6 +191,9 @@ public:
 	TValueOrError<FCompileResult, FString> Compile();
 
 private:
+	/** */
+	TValueOrError<FFieldPathHandle, FString> AddFieldPathImpl(TArrayView<UE::MVVM::FMVVMConstFieldVariant> FieldPath, bool bRead);
+
 	TPimplPtr<Private::FCompiledBindingLibraryCompilerImpl> Impl;
 };
 

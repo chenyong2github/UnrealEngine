@@ -5,6 +5,7 @@
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Types/MVVMBindingName.h"
 #include "Types/MVVMFieldVariant.h"
+#include "UObject/Class.h"
 
 #include "MVVMPropertyPath.generated.h"
 
@@ -29,21 +30,40 @@ public:
 	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
 	FName GetFieldName() const
 	{
-		// Resolve any redirectors 
-		FName Path = FName();
+		// Resolve any redirectors
 		if (!BindingReference.GetMemberName().IsNone())
 		{
-			if (BindingKind == EBindingKind::Property && BindingReference.ResolveMember<FProperty>())
+			if (BindingKind == EBindingKind::Property)
 			{
-				Path = BindingReference.GetMemberName();
+				if (BindingReference.IsLocalScope())
+				{
+					if (UPackage* Package = BindingReference.GetMemberParentPackage())
+					{
+						UObjectBase* FoundObject = FindObjectWithOuter(Package, UScriptStruct::StaticClass(), *BindingReference.GetMemberScopeName());
+						if (UScriptStruct* Struct = Cast<UScriptStruct>(static_cast<UObject*>(FoundObject)))
+						{
+							if (const FProperty* FoundProperty = FindUFieldOrFProperty<FProperty>(Struct, BindingReference.GetMemberName(), EFieldIterationFlags::IncludeAll))
+							{
+								return FoundProperty->GetFName();
+							}
+						}
+					}
+				}
+				else if (BindingReference.ResolveMember<FProperty>())
+				{
+					return BindingReference.GetMemberName();
+				}
 			}
-			else if (BindingKind == EBindingKind::Function && BindingReference.ResolveMember<UFunction>())
+			else if (BindingKind == EBindingKind::Function)
 			{
-				Path = BindingReference.GetMemberName();
+				if (BindingReference.ResolveMember<UFunction>())
+				{
+					return BindingReference.GetMemberName();
+				}
 			}
 		}
 
-		return Path;
+		return FName();
 	}
 
 	/** */
@@ -53,7 +73,24 @@ public:
 		{
 			if (BindingKind == EBindingKind::Property)
 			{
-				return UE::MVVM::FMVVMConstFieldVariant(BindingReference.ResolveMember<FProperty>());
+				if (BindingReference.IsLocalScope())
+				{
+					if (UPackage* Package = BindingReference.GetMemberParentPackage())
+					{
+						UObjectBase* FoundObject = FindObjectWithOuter(Package, UScriptStruct::StaticClass(), *BindingReference.GetMemberScopeName());
+						if (UScriptStruct* Struct = Cast<UScriptStruct>(static_cast<UObject*>(FoundObject)))
+						{
+							if (const FProperty* FoundProperty = FindUFieldOrFProperty<FProperty>(Struct, BindingReference.GetMemberName(), EFieldIterationFlags::IncludeAll))
+							{
+								return UE::MVVM::FMVVMConstFieldVariant(FoundProperty);
+							}
+						}
+					}
+				}
+				else
+				{
+					return UE::MVVM::FMVVMConstFieldVariant(BindingReference.ResolveMember<FProperty>());
+				}
 			}
 			else if (BindingKind == EBindingKind::Function)
 			{
@@ -63,12 +100,7 @@ public:
 		return UE::MVVM::FMVVMConstFieldVariant();
 	}
 
-	FMemberReference GetBindingReference() const
-	{
-		// Note: Prefer copy since FName & FGuid, FString should be empty based on our usage
-		return BindingReference;
-	}
-
+	/** */
 	void SetBindingReference(UE::MVVM::FMVVMConstFieldVariant InField)
 	{
 		if (InField.IsEmpty())
@@ -77,7 +109,7 @@ public:
 			return;
 		}
 
-		BindingReference = InField.CreateMemberReference();
+		BindingReference = CreateMemberReference(InField);
 
 		if (InField.IsProperty())
 		{
@@ -93,11 +125,13 @@ public:
 		}
 	}
 
+	/** */
 	void Reset()
 	{
 		BindingReference = FMemberReference();
 	}
 
+	/** */
 	void SetDeprecatedBindingReference(const FMemberReference& InBindingReference, EBindingKind InBindingKind)
 	{
 		BindingReference = InBindingReference;
@@ -113,8 +147,37 @@ public:
 	{
 		return !operator==(Other);
 	}
-};
 
+private:
+	/**
+	 * Create a serializable member reference from this field.
+	 */
+	static FMemberReference CreateMemberReference(UE::MVVM::FMVVMConstFieldVariant InField)
+	{
+		FMemberReference BindingReference = FMemberReference();
+		if (InField.IsProperty())
+		{
+			const FProperty* Property = InField.GetProperty();
+			if (Property->GetOwnerClass())
+			{
+				BindingReference.SetFromField<FProperty>(Property, false);
+			}
+			else
+			{
+				BindingReference.SetGlobalField(Property->GetFName(), Property->GetOutermost());
+				BindingReference.SetLocalMember(Property->GetFName(), Property->GetOwnerStruct(), FGuid());
+			}
+		}
+		else if (InField.IsFunction())
+		{
+			// Functions should never be self context references
+			const UFunction* Function = InField.GetFunction();
+			bool bSelfContext = false;
+			BindingReference.SetFromField<UFunction>(Function, bSelfContext);
+		}
+		return BindingReference;
+	}
+};
 
 /**
  * Base path to properties for MVVM view models and widgets.
@@ -160,6 +223,20 @@ public:
 		return Result;
 	}
 
+	/** Get the binding name, resolves reference deprecation / redirectors / etc before returning */
+	TArray<UE::MVVM::FMVVMConstFieldVariant> GetFields() const
+	{
+		TArray<UE::MVVM::FMVVMConstFieldVariant> Result;
+		Result.Reserve(Paths.Num());
+
+		for (const FMVVMBlueprintFieldPath& Path : Paths)
+		{
+			Result.Add(Path.GetField());
+		}
+
+		return Result;
+	}
+
 	bool BasePropertyPathContains(UE::MVVM::FMVVMConstFieldVariant Field) const
 	{
 		return Paths.ContainsByPredicate([Field](const FMVVMBlueprintFieldPath& FieldPath) { return FieldPath.GetField() == Field;  });
@@ -168,7 +245,10 @@ public:
 	void SetBasePropertyPath(UE::MVVM::FMVVMConstFieldVariant InField)
 	{
 		Paths.Reset();
-		Paths.AddDefaulted_GetRef().SetBindingReference(InField);
+		if (!InField.IsEmpty() && !InField.GetName().IsNone())
+		{
+			Paths.AddDefaulted_GetRef().SetBindingReference(InField);
+		}
 	}
 
 	void ResetBasePropertyPath()
