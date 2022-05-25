@@ -338,6 +338,20 @@ void UControlRigComponent::Initialize()
 			CR->RequestInit();
 		}
 	}
+
+	// we want to make sure all components driven by control rig component tick
+	// after the control rig component such that by the time they tick they can
+	// send the latest data for rendering
+	USceneComponent* LastComponent = nullptr;
+	for (FControlRigComponentMappedElement& MappedElement : MappedElements)
+	{
+		if (LastComponent != MappedElement.SceneComponent && MappedElement.SceneComponent != nullptr)
+		{
+			
+			MappedElement.SceneComponent->AddTickPrerequisiteComponent(this);
+			LastComponent = MappedElement.SceneComponent;
+		}
+	}
 }
 
 void UControlRigComponent::Update(float DeltaTime)
@@ -1509,26 +1523,6 @@ void UControlRigComponent::TransferOutputs()
 						ComponentsToTick.AddUnique(Cast<USkeletalMeshComponent>(MappedElement.SceneComponent));
 						Proxy->StoredCurves.FindOrAdd((SmartName::UID_Type)MappedElement.SubIndex) = ControlRig->GetHierarchy()->GetCurveValue(MappedElement.ElementIndex);
 					}
-				}
-			}
-		}
-
-		for (USkeletalMeshComponent* SkeletalMeshComponent : ComponentsToTick)
-		{
-			if (SkeletalMeshComponent)
-			{
-				if (SkeletalMeshComponent->IsValidLowLevel() &&
-					!SkeletalMeshComponent->HasAnyFlags(RF_BeginDestroyed) &&
-					IsValid(SkeletalMeshComponent))
-				{
-					SkeletalMeshComponent->TickAnimation(0.f, false);
-					SkeletalMeshComponent->UpdateLODStatus();
-					SkeletalMeshComponent->RefreshBoneTransforms();
-					SkeletalMeshComponent->RefreshSlaveComponents();
-					SkeletalMeshComponent->UpdateComponentToWorld();
-					SkeletalMeshComponent->FinalizeBoneTransform();
-					SkeletalMeshComponent->MarkRenderTransformDirty();
-					SkeletalMeshComponent->MarkRenderDynamicDataDirty();
 				}
 			}
 		}
