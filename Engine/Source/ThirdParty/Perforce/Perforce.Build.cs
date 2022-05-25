@@ -35,6 +35,7 @@ public class Perforce : ModuleRules
 		else
 		{
 			string LibFolder = "lib/";
+			string IncludeName = "include";
 			string IncludeSuffix = "";
 			string LibPrefix = "";
 			string LibPostfixAndExt = ".";
@@ -49,19 +50,23 @@ public class Perforce : ModuleRules
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
 			{
-				P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2014.1/";
-				LibFolder += "linux/" + Target.Architecture;
+				// Linux has upper case Lib/Include vs mac's 2021.2 version
+				LibFolder = "Lib/";
+				IncludeName = "Include";
+				P4APIPath = Target.UEThirdPartySourceDirectory + "Perforce/p4api-2018.1/";
+				LibFolder += "Linux";
+				IncludeSuffix += "/Linux";
 			}
 
 			LibPrefix = P4APIPath + LibFolder + "/";
 			LibPostfixAndExt = ".a";
 
-			PublicSystemIncludePaths.Add(P4APIPath + "include" + IncludeSuffix);
+			PublicSystemIncludePaths.Add(P4APIPath + IncludeName + IncludeSuffix);
 			PublicAdditionalLibraries.Add(LibPrefix + "libclient" + LibPostfixAndExt);
 
 			if (Target.Platform != UnrealTargetPlatform.Win64 && Target.Platform != UnrealTargetPlatform.Mac)
 			{
-				PublicAdditionalLibraries.Add(LibPrefix + "libp4sslstub" + LibPostfixAndExt);
+				PrivateDependencyModuleNames.Add("SSL");
 			}
 
 			if (Target.Platform == UnrealTargetPlatform.Mac)
