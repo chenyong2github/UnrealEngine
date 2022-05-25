@@ -36,7 +36,7 @@ public:
 	 * Locates a runtime object to animate from the provided tree of widgets.
 	 * @return the runtime object to animate or null if not found
 	 */
-	UMG_API UObject* FindRuntimeObject(UWidgetTree& WidgetTree, UUserWidget& UserWidget) const;
+	UMG_API UObject* FindRuntimeObject(const UWidgetTree& WidgetTree, UUserWidget& UserWidget) const;
 
 	/**
 	 * Compares two widget animation bindings for equality.

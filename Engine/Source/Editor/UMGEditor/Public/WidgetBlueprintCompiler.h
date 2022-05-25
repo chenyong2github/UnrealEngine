@@ -58,6 +58,12 @@ protected:
 
 	void ValidateWidgetNames();
 
+	/**
+	 * Checks if the animations' bindings are valid. Shows a compiler warning if any of the animations have a null track, urging the user
+	 * to delete said track to avoid performance hitches when playing said null tracks in large user widgets.
+	*/
+	void ValidateWidgetAnimations();
+
 	// FKismetCompilerContext
 	virtual UEdGraphSchema_K2* CreateSchema() override;
 	virtual void CreateFunctionList() override;
