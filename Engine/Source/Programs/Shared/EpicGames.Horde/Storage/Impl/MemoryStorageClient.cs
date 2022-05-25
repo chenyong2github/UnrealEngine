@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -42,6 +43,8 @@ namespace EpicGames.Horde.Storage.Impl
 
 		/// <inheritdoc/>
 		public Dictionary<(NamespaceId, BucketId, RefId), IRef> Refs { get; } = new Dictionary<(NamespaceId, BucketId, RefId), IRef>();
+
+		private FakeCompressor _compressor = new FakeCompressor();
 
 		/// <inheritdoc/>
 		public Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
@@ -86,12 +89,33 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public async Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream compressedStream, CancellationToken cancellationToken = default)
 		{
-			using MemoryStream memoryStream = new MemoryStream();
-			await compressedStream.CopyToAsync(memoryStream, cancellationToken);
-			byte[] compressedData = memoryStream.ToArray();
+			using MemoryStream compressedStreamMs = new ();
+			await compressedStream.CopyToAsync(compressedStreamMs, cancellationToken);
+			byte[] compressedData = compressedStreamMs.ToArray();
 			IoHash compressedHash = IoHash.Compute(compressedData);
+
+			byte[] decompressedData = await _compressor.DecompressToMemoryAsync(compressedData, cancellationToken);
+			IoHash computedDecompressedHash = IoHash.Compute(decompressedData);
+			if (computedDecompressedHash != uncompressedHash)
+			{
+				throw new ArgumentException("Supplied uncompressed hash does not match hash of uncompressed data");
+			}
+
 			Blobs[(namespaceId, compressedHash)] = compressedData;
 			UncompressedToCompressedHash[(namespaceId, uncompressedHash)] = compressedHash;
+		}
+
+		/// <inheritdoc/>
+		public async Task<IoHash> WriteCompressedBlobAsync(NamespaceId namespaceId, Stream compressedStream, CancellationToken cancellationToken = default)
+		{
+			using MemoryStream compressedStreamMs = new();
+			await compressedStream.CopyToAsync(compressedStreamMs, cancellationToken);
+			byte[] decompressedData = await _compressor.DecompressToMemoryAsync(compressedStreamMs.ToArray(), cancellationToken);
+			IoHash decompressedHash = IoHash.Compute(decompressedData);
+			compressedStreamMs.Seek(0, SeekOrigin.Begin);
+
+			await WriteCompressedBlobAsync(namespaceId, decompressedHash, compressedStreamMs, cancellationToken);
+			return decompressedHash;
 		}
 
 		/// <inheritdoc/>
@@ -141,6 +165,97 @@ namespace EpicGames.Horde.Storage.Impl
 		{
 			Refs[(namespaceId, bucketId, refId)] = new Ref(namespaceId, bucketId, refId, value);
 			return Task.FromResult(new List<IoHash>());
+		}
+	}
+	
+	/// <summary>
+	/// Fake compressor used for testing. Simply prepends the data with const prefix.
+	/// Allows for easy debugging and is enough to cause a changed hash.
+	/// </summary>
+	public class FakeCompressor
+	{
+		private readonly byte[] _prefix = Encoding.UTF8.GetBytes("FAKECOMP-");
+		
+		/// <summary>
+		/// Compress data
+		/// </summary>
+		/// <param name="input">Data to be compressed</param>
+		/// <param name="output">Compressed data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task CompressAsync(Stream input, Stream output, CancellationToken cancellationToken = default)
+		{
+			await output.WriteAsync(_prefix, cancellationToken);
+			await input.CopyToAsync(output, cancellationToken);
+		}
+
+		/// <summary>
+		/// Decompress data
+		/// </summary>
+		/// <param name="input">Data to be decompressed</param>
+		/// <param name="output">Decompressed data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task DecompressAsync(Stream input, Stream output, CancellationToken cancellationToken = default)
+		{
+			using MemoryStream ms = new();
+			using BinaryReader reader = new(input);
+			byte[] prefixRead = reader.ReadBytes(_prefix.Length);
+			if (!_prefix.SequenceEqual(prefixRead))
+			{
+				throw new ArgumentException($"Input stream is not compressed. Missing fake prefix!");
+			}
+			await input.CopyToAsync(output, cancellationToken);
+		}
+		
+		/// <summary>
+		/// Compress data to memory
+		/// </summary>
+		/// <param name="input">Data to be compressed</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Compressed data</returns>
+		public async Task<byte[]> CompressToMemoryAsync(byte[] input, CancellationToken cancellationToken = default)
+		{
+			using MemoryStream inputMs = new (input);
+			using MemoryStream outputMs = new ();
+			await CompressAsync(inputMs, outputMs, cancellationToken);
+			return outputMs.ToArray();
+		}
+		
+		/// <summary>
+		/// Decompress data to memory
+		/// </summary>
+		/// <param name="input">Data to be decompressed</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Decompressed data</returns>
+		public async Task<byte[]> DecompressToMemoryAsync(byte[] input, CancellationToken cancellationToken = default)
+		{
+			using MemoryStream inputMs = new (input);
+			using MemoryStream outputMs = new ();
+			await DecompressAsync(inputMs, outputMs, cancellationToken);
+			return outputMs.ToArray();
+		}
+		
+		/// <summary>
+		/// Compress data to memory
+		/// </summary>
+		/// <param name="input">Data to be compressed</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Compressed data</returns>
+		public async Task<string> CompressToMemoryAsync(string input, CancellationToken cancellationToken = default)
+		{
+			byte[] output = await CompressToMemoryAsync(Encoding.UTF8.GetBytes(input), cancellationToken);
+			return Encoding.UTF8.GetString(output);
+		}
+		
+		/// <summary>
+		/// Decompress data to memory
+		/// </summary>
+		/// <param name="input">Data to be decompressed</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Decompressed data</returns>
+		public async Task<string> DecompressToMemoryAsync(string input, CancellationToken cancellationToken = default)
+		{
+			byte[] output = await DecompressToMemoryAsync(Encoding.UTF8.GetBytes(input), cancellationToken);
+			return Encoding.UTF8.GetString(output);
 		}
 	}
 }

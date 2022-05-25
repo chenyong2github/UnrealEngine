@@ -203,6 +203,15 @@ namespace EpicGames.Horde.Storage
 		Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream compressedStream, CancellationToken cancellationToken = default);
 		
 		/// <summary>
+		/// Writes a compressed blob to storage and calculates hash
+		/// </summary>
+		/// <param name="namespaceId">Namespace to operate on</param>
+		/// <param name="compressedStream">Compressed stream to write</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Hash of uncompressed blob</returns>
+		Task<IoHash> WriteCompressedBlobAsync(NamespaceId namespaceId, Stream compressedStream, CancellationToken cancellationToken = default);
+		
+		/// <summary>
 		/// Checks if the given blob exists
 		/// </summary>
 		/// <param name="namespaceId">Namespace to operate on</param>

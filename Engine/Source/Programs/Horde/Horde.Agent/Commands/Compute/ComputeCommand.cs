@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -91,7 +92,7 @@ namespace Horde.Agent.Commands
 
 		readonly Stopwatch _timer = Stopwatch.StartNew();
 
-		static (DirectoryTree, IoHash) CreateSandbox(DirectoryInfo baseDirInfo, Dictionary<IoHash, byte[]> uploadList)
+		static (DirectoryTree, IoHash) CreateSandbox(DirectoryInfo baseDirInfo, Dictionary<IoHash, (byte[] data, bool isCompressed)> uploadList)
 		{
 			DirectoryTree tree = new DirectoryTree();
 
@@ -105,9 +106,10 @@ namespace Horde.Agent.Commands
 			foreach (FileInfo fileInfo in baseDirInfo.EnumerateFiles())
 			{
 				byte[] data = File.ReadAllBytes(fileInfo.FullName);
+				bool isCompressedBuffer = IsDataCompressedBuffer(data);
 				IoHash hash = IoHash.Compute(data);
-				uploadList[hash] = data;
-				tree.Files.Add(new FileNode(fileInfo.Name, hash, fileInfo.Length, (int)fileInfo.Attributes, false));
+				uploadList[hash] = (data, isCompressedBuffer);
+				tree.Files.Add(new FileNode(fileInfo.Name, hash, fileInfo.Length, (int)fileInfo.Attributes, isCompressedBuffer));
 			}
 			tree.Files.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
 
@@ -183,7 +185,7 @@ namespace Horde.Agent.Commands
 
 				AddLocalScope("setup");
 
-				Dictionary<IoHash, byte[]> blobs = new Dictionary<IoHash, byte[]>();
+				Dictionary<IoHash, (byte[] data, bool isCompressed)> blobs = new ();
 				(_, IoHash sandboxHash) = CreateSandbox(InputDir.ToDirectoryInfo(), blobs);
 
 				AddLocalScope("scan");
@@ -234,15 +236,49 @@ namespace Horde.Agent.Commands
 			return 0;
 		}
 
-		static IoHash AddCbObject<T>(Dictionary<IoHash, byte[]> hashToData, T source)
+		static IoHash AddCbObject<T>(Dictionary<IoHash, (byte[] data, bool isCompressed)> hashToData, T source)
 		{
 			CbObject obj = CbSerializer.Serialize<T>(source);
 			IoHash hash = obj.GetHash();
-			hashToData[hash] = obj.GetView().ToArray();
+			hashToData[hash] = (obj.GetView().ToArray(), false);
 			return hash;
 		}
 
-		static async Task UploadSandbox(IComputeClusterInfo cluster, IStorageClient storageClient, Dictionary<IoHash, byte[]> uploadList, ILogger logger)
+		/// <summary>
+		/// Rudimentary check if the data is a compressed buffer
+		/// Not intended for production use, just for the ComputeCommand uploading.
+		/// </summary>
+		/// <param name="data"></param>
+		/// <returns>True if compressed buffer</returns>
+		public static bool IsDataCompressedBuffer(byte[] data)
+		{
+			const int HeaderLength = 64;
+			const uint ExpectedMagic = 0xb7756362;
+			const uint CompressionMethodNone = 0x0;
+			
+			if (data.Length < HeaderLength)
+			{
+				return false;
+			}
+
+			using MemoryStream ms = new (data);
+			using BinaryReader reader = new (ms);
+			uint magic = reader.ReadUInt32();
+			uint crc32 = reader.ReadUInt32();
+			uint method = reader.ReadByte();
+			
+			bool needsByteSwap = BitConverter.IsLittleEndian;
+			if (needsByteSwap)
+			{
+				magic = BinaryPrimitives.ReverseEndianness(magic);
+				crc32 = BinaryPrimitives.ReverseEndianness(crc32);
+				method = BinaryPrimitives.ReverseEndianness(method);
+			}
+			
+			return magic == ExpectedMagic && method > CompressionMethodNone;
+		}
+
+		static async Task UploadSandbox(IComputeClusterInfo cluster, IStorageClient storageClient, Dictionary<IoHash, (byte[] data, bool isCompressed)> uploadList, ILogger logger)
 		{
 			int totalUploaded = 0;
 			int totalSkipped = 0;
@@ -250,7 +286,7 @@ namespace Horde.Agent.Commands
 			int skippedBytes = 0;
 
 			List<Task> tasks = new List<Task>();
-			foreach ((IoHash hash, byte[] data) in uploadList)
+			foreach ((IoHash hash, (byte[] data, bool isCompressed)) in uploadList)
 			{
 				int index = tasks.Count;
 				async Task UploadItemAsync()
@@ -263,8 +299,18 @@ namespace Horde.Agent.Commands
 					}
 					else
 					{
-						await storageClient.WriteBlobFromMemoryAsync(cluster.NamespaceId, hash, data);
-						logger.LogInformation("Uploaded blob {Idx}/{Count}: {Hash} ({Bytes} bytes)", index, uploadList.Count, hash, data.Length);
+						if (isCompressed)
+						{
+							using MemoryStream ms = new(data);
+							IoHash uncompressedHash = await storageClient.WriteCompressedBlobAsync(cluster.NamespaceId, ms);
+							logger.LogInformation("Uploaded compressed blob {Idx}/{Count}: {Hash} (compressed hash {CompressedHash} - {Bytes} bytes)", index, uploadList.Count, uncompressedHash, hash, data.Length);
+						}
+						else
+						{
+							await storageClient.WriteBlobFromMemoryAsync(cluster.NamespaceId, hash, data);
+							logger.LogInformation("Uploaded blob {Idx}/{Count}: {Hash} ({Bytes} bytes)", index, uploadList.Count, hash, data.Length);
+						}
+						
 						Interlocked.Increment(ref totalUploaded);
 						Interlocked.Add(ref uploadedBytes, data.Length);
 					}
@@ -276,7 +322,7 @@ namespace Horde.Agent.Commands
 			logger.LogInformation("Uploaded {UploadedCount} blobs ({UploadedBytes} bytes), Skipped {SkippedCount} blobs ({SkippedBytes} bytes)", totalUploaded, uploadedBytes, totalSkipped, skippedBytes);
 		}
 
-		private async Task<ComputeTaskStatus> ExecuteAction(ILogger logger, IComputeClient computeClient, IStorageClient storageClient, ClusterId clusterId, ComputeTask task, Dictionary<IoHash, byte[]> uploadList)
+		private async Task<ComputeTaskStatus> ExecuteAction(ILogger logger, IComputeClient computeClient, IStorageClient storageClient, ClusterId clusterId, ComputeTask task, Dictionary<IoHash, (byte[] data, bool isCompressed)> uploadList)
 		{
 			IComputeClusterInfo cluster = await computeClient.GetClusterInfoAsync(clusterId);
 

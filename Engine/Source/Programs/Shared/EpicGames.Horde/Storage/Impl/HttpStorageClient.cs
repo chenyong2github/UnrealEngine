@@ -180,6 +180,26 @@ namespace EpicGames.Horde.Storage.Impl
 		}
 
 		/// <inheritdoc/>
+		public async Task<IoHash> WriteCompressedBlobAsync(NamespaceId namespaceId, Stream compressedStream, CancellationToken cancellationToken = default)
+		{
+			StreamContent content = new (compressedStream);
+			content.Headers.ContentType = new MediaTypeHeaderValue("application/x-ue-comp");
+			content.Headers.ContentLength = compressedStream.Length;
+
+			using HttpRequestMessage request = new (HttpMethod.Post, $"api/v1/compressed-blobs/{namespaceId}");
+			request.Content = content;
+
+			HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken);
+			response.EnsureSuccessStatusCode();
+			
+			using (Stream responseStream = await response.Content.ReadAsStreamAsync(cancellationToken))
+			{
+				WriteBlobResponse? responseMessage = await JsonSerializer.DeserializeAsync<WriteBlobResponse>(responseStream, cancellationToken: cancellationToken);
+				return responseMessage!.Identifier;
+			}
+		}
+
+		/// <inheritdoc/>
 		public async Task<bool> HasBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
 			using HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Head, $"api/v1/blobs/{namespaceId}/{hash}");

@@ -118,7 +118,13 @@ namespace Horde.Build.Storage.Services
 		/// <inheritdoc/>
 		public Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream stream, CancellationToken cancellationToken = default)
 		{
-			throw new NotImplementedException();
+			throw new NotSupportedException();
+		}
+
+		/// <inheritdoc/>
+		public Task<IoHash> WriteCompressedBlobAsync(NamespaceId namespaceId, Stream compressedStream, CancellationToken cancellationToken = default)
+		{
+			throw new NotSupportedException();
 		}
 
 		/// <inheritdoc/>

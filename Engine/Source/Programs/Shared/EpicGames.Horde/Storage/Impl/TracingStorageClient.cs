@@ -61,8 +61,16 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public Task WriteCompressedBlobAsync(NamespaceId namespaceId, IoHash uncompressedHash, Stream stream, CancellationToken cancellationToken = default)
 		{
-			_logger.LogDebug("Writing compressed blob {NamespaceId}/{UncompressedHash}", namespaceId, uncompressedHash);
+			_logger.LogDebug("Writing compressed blob {NamespaceId}/{UncompressedHash} (pre-calculated)", namespaceId, uncompressedHash);
 			return _inner.WriteCompressedBlobAsync(namespaceId, uncompressedHash, stream, cancellationToken);
+		}
+
+		/// <inheritdoc/>
+		public async Task<IoHash> WriteCompressedBlobAsync(NamespaceId namespaceId, Stream compressedStream, CancellationToken cancellationToken = default)
+		{
+			IoHash uncompressedHash = await _inner.WriteCompressedBlobAsync(namespaceId, compressedStream, cancellationToken);
+			_logger.LogDebug("Writing compressed blob {NamespaceId}/{UncompressedHash}", namespaceId, uncompressedHash);
+			return uncompressedHash;
 		}
 
 		/// <inheritdoc/>
