@@ -353,10 +353,7 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 				{
 					return MeshMode;
 				})
-				.OnValueChanged_Lambda([this](EMediaTextureVisibleMipsTiles Mode)
-				{
-					MeshMode = Mode;
-				})
+				.OnValueChanged(this, &FMediaPlateCustomization::SetMeshMode)
 
 			+ SSegmentedControl<EMediaTextureVisibleMipsTiles>::Slot(EMediaTextureVisibleMipsTiles::Plane)
 				.Text(LOCTEXT("Plane", "Plane"))
@@ -422,6 +419,33 @@ void FMediaPlateCustomization::AddMeshCustomization(IDetailCategoryBuilder& Medi
 EVisibility FMediaPlateCustomization::ShouldShowMeshPlaneWidgets() const
 {
 	return (MeshMode == EMediaTextureVisibleMipsTiles::Plane) ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+void FMediaPlateCustomization::SetMeshMode(EMediaTextureVisibleMipsTiles InMode)
+{
+	if (MeshMode != InMode)
+	{
+		MeshMode = InMode;
+		for (const TWeakObjectPtr<UMediaPlateComponent>& MediaPlatePtr : MediaPlatesList)
+		{
+			UMediaPlateComponent* MediaPlate = MediaPlatePtr.Get();
+			if (MediaPlate != nullptr)
+			{
+				// Update the setting in the media plate.
+				MediaPlate->VisibleMipsTilesCalculations = MeshMode;
+
+				// Set the appropriate mesh.
+				if (MeshMode == EMediaTextureVisibleMipsTiles::Plane)
+				{
+					MeshCustomization.SetPlaneMesh(MediaPlate);
+				}
+				else if (MeshMode == EMediaTextureVisibleMipsTiles::Sphere)
+				{
+					MeshCustomization.SetSphereMesh(MediaPlate);
+				}
+			}
+		}
+	}
 }
 
 TSharedRef<SWidget> FMediaPlateCustomization::OnGetAspectRatios()

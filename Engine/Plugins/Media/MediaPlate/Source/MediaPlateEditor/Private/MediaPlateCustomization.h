@@ -6,6 +6,7 @@
 #include "Editor.h"
 #include "IDetailCustomization.h"
 #include "Input/Reply.h"
+#include "MediaPlateCustomizationMesh.h"
 #include "MediaTextureTracker.h"
 
 class IDetailCategoryBuilder;
@@ -46,6 +47,9 @@ private:
 	/** Whether we have a plane, sphere, etc. */
 	EMediaTextureVisibleMipsTiles MeshMode;
 
+	/** Handles mesh stuff. */
+	FMediaPlateCustomizationMesh MeshCustomization;
+
 	/**
 	 * Adds widgets for editing the mesh.
 	 */
@@ -55,6 +59,11 @@ private:
 	 * Controls visibility for widgets for plane meshes.
 	 */
 	EVisibility ShouldShowMeshPlaneWidgets() const;
+
+	/**
+	 * Call this to switch between planes, spheres, etc.
+	 */
+	void SetMeshMode(EMediaTextureVisibleMipsTiles InMode);
 
 	/**
 	 * Returns menu options for all aspect ratio presets.

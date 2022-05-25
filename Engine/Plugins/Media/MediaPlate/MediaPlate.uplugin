@@ -39,6 +39,11 @@
 			"Name": "MediaPlayerEditor",
 			"TargetAllowList": [ "Editor" ],
 			"Enabled": true
-		}
+		},
+		{
+			"Name": "MeshModelingToolset",
+			"TargetAllowList": [ "Editor" ],
+			"Enabled": true
+		},
 	]
 }
