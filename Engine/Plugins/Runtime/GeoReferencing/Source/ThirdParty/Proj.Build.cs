@@ -21,9 +21,9 @@ public class PROJ : ModuleRules
 		}
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
-            PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-osx", "include"));
+            PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64_arm64-osx", "include"));
 
-            string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-osx", "lib");
+            string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64_arm64-osx", "lib");
             PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
         }
         else if (Target.Platform == UnrealTargetPlatform.IOS)

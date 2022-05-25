@@ -91,7 +91,7 @@ _EOF_
 ) > /tmp/__cmake_toolchain.cmake
 
 elif [ `uname` == "Darwin" ]; then
-  VCPKG_TRIPLETS+=( overlay-x64-osx )
+  VCPKG_TRIPLETS+=( overlay-x64_arm64-osx )
   VCPKG_TRIPLETS+=( overlay-arm64-ios )
 fi
 
