@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
 using System;
@@ -351,6 +351,9 @@ namespace UnrealBuildTool
 			{
 				Arguments.Add("-Wundef" + (CompileEnvironment.bUndefinedIdentifierWarningsAsErrors ? "" : " -Wno-error=undef"));
 			}
+
+			// always use absolute paths for errors, this can help IDEs go to the error properly
+			Arguments.Add("-fdiagnostics-absolute-paths");
 		}
 
 		/// <summary>

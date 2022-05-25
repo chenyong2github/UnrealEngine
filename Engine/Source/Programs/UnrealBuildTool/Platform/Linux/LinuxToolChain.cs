@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -542,8 +542,6 @@ namespace UnrealBuildTool
 					Arguments.Add("-fcolor-diagnostics");
 				}
 			}
-
-			Arguments.Add("-fdiagnostics-absolute-paths"); // output full paths to the files when the build fails
 
 			// Profile Guided Optimization (PGO) and Link Time Optimization (LTO)
 			// Whether we actually can enable that is checked in CanUseAdvancedLinkerFeatures() earlier
