@@ -134,6 +134,7 @@ struct FComplexScenario : FDependencySolverBase
 		{
 			UMassTestProcessorBase* Proc = Processors.Add_GetRef(NewObject<UMassTestProcessor_D>());
 			Proc->GetMutableExecutionOrder().ExecuteBefore.Add(UMassTestProcessor_A::StaticClass()->GetFName());
+			Proc->GetMutableExecutionOrder().ExecuteBefore.Add(TEXT("X.Y"));
 		}
 
 		{
@@ -152,13 +153,9 @@ struct FComplexScenario : FDependencySolverBase
 	{
 		Solve();
 
-		// dump all the group information from the Result collection for easier ordering testing
 		for (int32 i = 0; i < Result.Num(); ++i)
 		{
-			if (Result[i].NodeType != EDependencyNodeType::Processor)
-			{
-				Result.RemoveAt(i--, 1, /*bAllowShrinking=*/false);
-			}
+			AITEST_EQUAL("We expect only processor nodes in the results", Result[i].NodeType, EDependencyNodeType::Processor);
 		}
 
 		AITEST_TRUE("D is the only fully dependency-less processor so should be first", Result[0].Name == GetProcessorName<UMassTestProcessor_D>());		

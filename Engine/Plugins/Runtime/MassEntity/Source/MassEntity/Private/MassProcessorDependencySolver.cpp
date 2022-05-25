@@ -207,27 +207,25 @@ void FProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
 	check(Processor.GetClass());
 	const FName ProcName = Processor.GetClass()->GetFName();
 
-	check(NodeIndexMap.Find(ProcName) == nullptr);
-
-	// first check if a node for this Processor has been added, due to duplicates or some other processor given this 
-	// processor as a dependency by name
-	const int32 NodeIndex = AllNodes.Num();
-	NodeIndexMap.Add(ProcName, NodeIndex);
-	AllNodes.Add({ ProcName, &Processor, NodeIndex });
+	if (NodeIndexMap.Find(ProcName) != nullptr)
+	{
+		UE_LOG(LogMass, Warning, TEXT("%s Processor %s already registered. Duplicates are not supported.")
+			, ANSI_TO_TCHAR(__FUNCTION__), *ProcName.ToString());
+		return;
+	}
 
 	const FMassProcessorExecutionOrder& ExecutionOrder = Processor.GetExecutionOrder();
 
-	AllNodes[NodeIndex].ExecuteAfter.Append(ExecutionOrder.ExecuteAfter);
-	AllNodes[NodeIndex].ExecuteBefore.Append(ExecutionOrder.ExecuteBefore);
-	Processor.ExportRequirements(AllNodes[NodeIndex].Requirements);
-
+	// first figure out the groups so that the group nodes come before the processor nodes, this is required for child
+	// nodes to inherit group's dependencies like in scenarios where some processor required to ExecuteBefore a given group
+	int32 ParentGroupNodeIndex = INDEX_NONE;
 	if (ExecutionOrder.ExecuteInGroup.IsNone() == false)
 	{
 		TArray<FString> AllGroupNames;
 		CreateSubGroupNames(ExecutionOrder.ExecuteInGroup, AllGroupNames);
 	
 		check(AllGroupNames.Num() > 0);
-		int32 ParentGroupNodeIndex = INDEX_NONE;
+
 		for (const FString& GroupName : AllGroupNames)
 		{
 			const FName GroupFName(GroupName);
@@ -253,8 +251,18 @@ void FProcessorDependencySolver::CreateNodes(UMassProcessor& Processor)
 			}
 
 		}
+	}
 
-		check(ParentGroupNodeIndex > 0);
+	const int32 NodeIndex = AllNodes.Num();
+	NodeIndexMap.Add(ProcName, NodeIndex);
+	FNode& ProcessorNode = AllNodes.Add_GetRef({ ProcName, &Processor, NodeIndex });
+
+	ProcessorNode.ExecuteAfter.Append(ExecutionOrder.ExecuteAfter);
+	ProcessorNode.ExecuteBefore.Append(ExecutionOrder.ExecuteBefore);
+	Processor.ExportRequirements(ProcessorNode.Requirements);
+
+	if (ParentGroupNodeIndex > 0)
+	{
 		AllNodes[ParentGroupNodeIndex].SubNodeIndices.Add(NodeIndex);
 	}
 }
@@ -291,8 +299,9 @@ void FProcessorDependencySolver::BuildDependencies()
 	//	else, if Name represents a group:
 	//		- append all group's child node names to ExecuteAfter
 	// 
-	for (FNode& Node : AllNodes)
+	for (int32 NodeIndex = 0; NodeIndex < AllNodes.Num(); ++NodeIndex)
 	{
+		FNode& Node = AllNodes[NodeIndex];
 		for (int i = 0; i < Node.ExecuteAfter.Num(); ++i)
 		{
 			const FName& AfterDependencyName = Node.ExecuteAfter[i];
@@ -317,6 +326,33 @@ void FProcessorDependencySolver::BuildDependencies()
 			{
 				UE_LOG(LogMass, Log, TEXT("Unable to find dependency \"%s\" declared by %s"), *AfterDependencyName.ToString()
 					, *Node.Name.ToString());
+			}
+		}
+
+		// if this node is a group push all the dependencies down on all the children
+		// by design all child nodes come after group nodes so the child nodes' dependencies have not been processed yet
+		if (Node.IsGroup() && Node.SubNodeIndices.Num())
+		{
+			for (int32 PrerequisiteNodeIndex : Node.OriginalDependencies)
+			{
+				checkSlow(PrerequisiteNodeIndex != NodeIndex);
+				// in case of processor nodes we can store it directly
+				if (AllNodes[PrerequisiteNodeIndex].IsGroup() == false)
+				{
+					for (int32 ChildNodeIndex : Node.SubNodeIndices)
+					{
+						AllNodes[ChildNodeIndex].OriginalDependencies.AddUnique(PrerequisiteNodeIndex);
+					}
+				}
+				// special case - if dependency is a group and we haven't processed that group yet, we need to add it by name
+				else if (PrerequisiteNodeIndex > NodeIndex)
+				{
+					const FName& PrerequisiteName = AllNodes[PrerequisiteNodeIndex].Name;
+					for (int32 ChildNodeIndex : Node.SubNodeIndices)
+					{
+						AllNodes[ChildNodeIndex].ExecuteAfter.AddUnique(PrerequisiteName);
+					}
+				}
 			}
 		}
 	}
