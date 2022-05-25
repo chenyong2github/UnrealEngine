@@ -269,7 +269,7 @@ protected:
 
 private:
 	bool bStateChanged;
-	FWorldPartitionHandle ActorToRemove;	
+	FWorldPartitionHandle ActorToRemove;
 };
 #endif
 

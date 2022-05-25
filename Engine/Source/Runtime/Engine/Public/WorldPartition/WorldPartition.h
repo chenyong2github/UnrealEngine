@@ -31,6 +31,7 @@ class IStreamingGenerationErrorHandler;
 class FLoaderAdapterAlwaysLoadedActors;
 class FLoaderAdapterPinnedActors;
 class FHLODActorDesc;
+class UHLODLayer;
 class UCanvas;
 class ULevel;
 
@@ -152,6 +153,9 @@ public:
 
 	FBox GetWorldBounds() const;
 	FBox GetEditorWorldBounds() const;
+	
+	UHLODLayer* GetDefaultHLODLayer() const { return DefaultHLODLayer; }
+	void SetDefaultHLODLayer(UHLODLayer* InDefaultHLODLayer) { DefaultHLODLayer = InDefaultHLODLayer; }
 	void GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly);
 
 	// Debugging Methods
@@ -237,15 +241,14 @@ public:
 	UPROPERTY()
 	TObjectPtr<UWorldPartitionRuntimeHash> RuntimeHash;
 
-#if WITH_EDITOR
 private:
+#if WITH_EDITOR
 	bool bForceGarbageCollection;
 	bool bForceGarbageCollectionPurge;
 	bool bIsPIE;
 #endif
 
 #if WITH_EDITORONLY_DATA
-public:
 	// Default HLOD layer
 	UPROPERTY(EditAnywhere, Category=WorldPartition, meta = (DisplayName = "Default HLOD Layer", EditCondition="bEnableStreaming", EditConditionHides, HideEditConditionToggle))
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
@@ -253,7 +256,6 @@ public:
 	TArray<FWorldPartitionReference> LoadedSubobjects;
 #endif
 
-private:
 	EWorldPartitionInitState InitState;
 	TOptional<FTransform> InstanceTransform;
 

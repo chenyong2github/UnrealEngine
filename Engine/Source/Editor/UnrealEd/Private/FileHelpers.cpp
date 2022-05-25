@@ -759,11 +759,11 @@ static bool SaveWorld(UWorld* World,
 
 					if (bIsTempPackage)
 					{
-						if (UHLODLayer* CurrentHLODLayer = RenamedWorldPartition->DefaultHLODLayer)
+						if (UHLODLayer* CurrentHLODLayer = RenamedWorldPartition->GetDefaultHLODLayer())
 						{
 							CurrentHLODLayer = UHLODLayer::DuplicateHLODLayersSetup(CurrentHLODLayer, NewPackageName, NewWorldAssetName);
 							
-							RenamedWorldPartition->DefaultHLODLayer = CurrentHLODLayer;
+							RenamedWorldPartition->SetDefaultHLODLayer(CurrentHLODLayer);
 
 							while (CurrentHLODLayer)
 							{

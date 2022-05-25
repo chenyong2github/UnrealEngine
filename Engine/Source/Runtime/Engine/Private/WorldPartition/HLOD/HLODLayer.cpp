@@ -49,7 +49,7 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const AActor* InActor)
 		// Fallback to the world partition default HLOD layer
 		if (UWorldPartition* WorldPartition = InActor->GetWorld()->GetWorldPartition())
 		{
-			return WorldPartition->DefaultHLODLayer;
+			return WorldPartition->GetDefaultHLODLayer();
 		}
 	}
 
@@ -71,7 +71,7 @@ UHLODLayer* UHLODLayer::GetHLODLayer(const FWorldPartitionActorDescView& InActor
 	if (bIsHLOD0)
 	{
 		// Fallback to the world partition default HLOD layer
-		return InWorldPartition->DefaultHLODLayer;
+		return InWorldPartition->GetDefaultHLODLayer();
 	}
 
 	return nullptr;
