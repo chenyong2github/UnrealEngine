@@ -26,11 +26,10 @@ public:
 	virtual ~UCameraAnimationSequenceSubsystem();
 
 	/** Gets the Sequencer linker owned by this sybsystem */
-	UMovieSceneEntitySystemLinker* GetLinker() { return Linker; }
+	UMovieSceneEntitySystemLinker* GetLinker(bool bAutoCreate = true);
 
 private:
 	// Begin USubsystem
-	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	// End USubsystem
 	

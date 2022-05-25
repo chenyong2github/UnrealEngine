@@ -24,14 +24,6 @@ UCameraAnimationSequenceSubsystem::~UCameraAnimationSequenceSubsystem()
 {
 }
 
-void UCameraAnimationSequenceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
-{
-	Super::Initialize(Collection);
-
-	Linker = NewObject<UMovieSceneEntitySystemLinker>(this, TEXT("CameraAnimationSequenceSubsystemLinker"));
-	Runner.AttachToLinker(Linker);
-}
-
 void UCameraAnimationSequenceSubsystem::Deinitialize()
 {
 	// We check if the runner still has a valid pointer on the linker because the linker could
@@ -43,6 +35,16 @@ void UCameraAnimationSequenceSubsystem::Deinitialize()
 	Linker = nullptr;
 
 	Super::Deinitialize();
+}
+
+UMovieSceneEntitySystemLinker* UCameraAnimationSequenceSubsystem::GetLinker(bool bAutoCreate)
+{
+	if (!Linker && bAutoCreate)
+	{
+		Linker = NewObject<UMovieSceneEntitySystemLinker>(this, TEXT("CameraAnimationSequenceSubsystemLinker"));
+		Runner.AttachToLinker(Linker);
+	}
+	return Linker;
 }
 
 #undef LOCTEXT_NAMESPACE
