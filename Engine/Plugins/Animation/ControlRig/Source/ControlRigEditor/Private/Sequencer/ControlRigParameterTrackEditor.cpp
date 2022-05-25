@@ -926,9 +926,19 @@ void SBakeToAnimAndControlRigOptionsWindow::Construct(const FArguments& InArgs)
 
 FReply SBakeToAnimAndControlRigOptionsWindow::OnResetToDefaultClick() const
 {
-	ExportOptions->ResetToDefault();
-	//Refresh the view to make sure the custom UI are updating correctly
-	DetailsView->SetObject(ExportOptions, true);
+	if (ExportOptions)
+	{
+		ExportOptions->ResetToDefault();
+		//Refresh the view to make sure the custom UI are updating correctly
+		DetailsView->SetObject(ExportOptions, true);
+	}
+
+	if (BakeSettings)
+	{
+		BakeSettings->Reset();
+		DetailsView2->SetObject(BakeSettings, true);
+	}
+	
 	return FReply::Handled();
 }
 

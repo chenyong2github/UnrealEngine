@@ -15,11 +15,14 @@ public:
 	GENERATED_BODY()
 	/** Reduce Keys */
 	UPROPERTY(EditAnywhere, Category = "Reduce Keys")
-	bool bReduceKeys;
+	bool bReduceKeys = false;
 
 	/** Reduce Keys Tolerance*/
 	UPROPERTY(EditAnywhere, Category = "Reduce Keys")
-	float Tolerance;
+	float Tolerance = 0.001f;
+
+	/** Resets the default properties. */
+	void Reset();
 };
 
 
