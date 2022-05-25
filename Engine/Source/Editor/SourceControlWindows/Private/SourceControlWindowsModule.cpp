@@ -116,7 +116,7 @@ bool FSourceControlWindowsModule::CanShowChangelistsTab() const
 {
 	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
 
-	return (SourceControlModule.IsEnabled() && SourceControlModule.GetProvider().IsAvailable()) || FUncontrolledChangelistsModule::Get().IsEnabled();
+	return (SourceControlModule.IsEnabled() && SourceControlModule.GetProvider().IsAvailable() && SourceControlModule.GetProvider().UsesChangelists()) || FUncontrolledChangelistsModule::Get().IsEnabled();
 }
 
 #undef LOCTEXT_NAMESPACE
