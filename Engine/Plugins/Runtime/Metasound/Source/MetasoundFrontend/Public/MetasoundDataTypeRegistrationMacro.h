@@ -57,22 +57,37 @@ namespace Metasound
 		static constexpr bool Value = true;
 	};
 
+	/** Enables or disables using a data type in constructor vertices. 
+	 * By default this is true and all data types that support copy assignment
+	 * and copy construction. */
+	template<typename ... Type>
+	struct TEnableConstructorVertex
+	{
+		static constexpr bool Value = true;
+	};
+
 	namespace MetasoundDataTypeRegistrationPrivate
 	{
-		// Helper utility to test if we can transmit a datatype between a send and a receive node.
+		// Helper utility to test if we a datatype is copyable
 		template <typename TDataType>
-		struct TIsTransmittable
+		struct TIsCopyable
 		{
 		private:
 			static constexpr bool bIsCopyConstructible = std::is_copy_constructible<TDataType>::value;
 			static constexpr bool bIsCopyAssignable = std::is_copy_assignable<TDataType>::value;
 
-			static constexpr bool bCanBeTransmitted = bIsCopyConstructible && bIsCopyAssignable;
-
 		public:
-
-			static constexpr bool Value = bCanBeTransmitted;
+			static constexpr bool Value = bIsCopyConstructible && bIsCopyAssignable;
 		};
+
+		// Helper utility to test if we can transmit a datatype between a send and a receive node.
+		template <typename TDataType>
+		struct TIsTransmittable
+		{
+			static constexpr bool Value = TIsCopyable<TDataType>::Value;
+		};
+
+
 
 		// Specialization of TIsTransmittable<> for TArray to handle lax TArray copy constructor 
 		// definition. This can be removed once updates to TArray are merged into the same codebase.
@@ -236,6 +251,7 @@ namespace Metasound
 			RegistryInfo.bIsEnum = TEnumTraits<TDataType>::bIsEnum;
 			RegistryInfo.bIsVariable = TIsVariable<TDataType>::Value;
 			RegistryInfo.bIsTransmittable = TIsTransmittable<TDataType>::Value;
+			RegistryInfo.bIsConstructorType = TIsCopyable<TDataType>::Value && TEnableConstructorVertex<TDataType>::Value;
 			
 			if constexpr (std::is_base_of<UObject, UClassToUse>::value)
 			{
@@ -370,6 +386,7 @@ namespace Metasound
 						VariableDeferredAccessorClass = Metasound::Frontend::GenerateClass(VariableDeferredAccessorPrototype.GetMetadata(), EMetasoundFrontendClassType::VariableDeferredAccessor);
 					}
 				}
+
 				virtual ~FDataTypeRegistryEntry() {}
 
 				virtual const Frontend::FDataTypeRegistryInfo& GetDataTypeInfo() const override

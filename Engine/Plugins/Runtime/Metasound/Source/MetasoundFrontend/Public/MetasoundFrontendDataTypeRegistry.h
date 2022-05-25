@@ -55,6 +55,9 @@ namespace Metasound
 			// Is true if is a Variable type
 			bool bIsVariable = false;
 
+			// Is true if the data type can be used in on constructor vertices. 
+			bool bIsConstructorType = false;
+
 			// If provided in registration call, UClass this datatype was registered with
 			UClass* ProxyGeneratorClass = nullptr;
 
