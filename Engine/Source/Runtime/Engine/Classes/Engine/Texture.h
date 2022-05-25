@@ -843,14 +843,15 @@ struct FTexturePlatformData
 		}
 	};
 
-	/** This is the key for the FetchOrBuild variant of our Cache. We assume that uniqueness
+	/** 
+		The keys for both types of fetches. We assume that uniqueness
 	*	for that is equivalent to uniqueness if we use both FetchFirst and FetchOrBuild. This
-	*	is used as the key in to CookedPlatformData, as well as to determine if we are already
-	*	cooking the data the editor needs in CachePlatformData. 
+	*	is used as the key in to CookedPlatformData, as well as to determine if we need to recache.
 	*	Note that since this is read on the game thread constantly in CachePlatformData, it
 	*	must be written to on the game thread to avoid false recaches.
 	*/
 	TVariant<FString, FStructuredDerivedDataKey> FetchOrBuildDerivedDataKey;
+	TVariant<FString, FStructuredDerivedDataKey> FetchFirstDerivedDataKey;
 
 	/** Async cache task if one is outstanding. */
 	struct FTextureAsyncCacheDerivedDataTask* AsyncTask;

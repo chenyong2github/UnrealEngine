@@ -636,13 +636,21 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 		FetchOrBuildMetadata = *InFetchOrBuildMetadata;
 	}
 
-	// FetchOrBuildDerivedDataKey needs to be assigned on the create thread.
+	// Keys need to be assigned on the create thread.
 	{
 		FString LocalKeySuffix;
 		GetTextureDerivedDataKeySuffix(Texture, BuildSettingsPerLayerFetchOrBuild.GetData(), LocalKeySuffix);
 		FString DDK;
 		GetTextureDerivedDataKeyFromSuffix(LocalKeySuffix, DDK);
 		InDerivedData->FetchOrBuildDerivedDataKey.Emplace<FString>(DDK);
+	}
+	if (BuildSettingsPerLayerFetchFirst.Num())
+	{
+		FString LocalKeySuffix;
+		GetTextureDerivedDataKeySuffix(Texture, BuildSettingsPerLayerFetchFirst.GetData(), LocalKeySuffix);
+		FString DDK;
+		GetTextureDerivedDataKeyFromSuffix(LocalKeySuffix, DDK);
+		InDerivedData->FetchFirstDerivedDataKey.Emplace<FString>(DDK);
 	}
 
 	// At this point, the texture *MUST* have a valid GUID.
@@ -1191,6 +1199,7 @@ public:
 		{
 			// If the keys are the same, ignore fetch first.
 			FBuildDefinition FetchDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, *InSettingsFetchFirst, bUseCompositeTexture);
+			DerivedData.FetchFirstDerivedDataKey.Emplace<FTexturePlatformData::FStructuredDerivedDataKey>(GetKey(FetchDefinition, Texture, bUseCompositeTexture));
 			if (FetchDefinition.GetKey() != FetchOrBuildDefinition.GetKey())
 			{
 				bBuildKicked = true;
