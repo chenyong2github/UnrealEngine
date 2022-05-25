@@ -2,8 +2,9 @@
 
 #pragma once
 
+#include "IMessageContext.h"
 
-/**
+/*
  * Interface for message bridges.
  *
  * A message bridge connects a message bus with another messaging system. It is really just a regular
@@ -48,6 +49,14 @@ public:
 	 * @see Disable, Enable
 	 */
 	virtual bool IsEnabled() const = 0;
+
+	/**
+	 * Provides the endpoint guid for the given address.
+	 *
+	 * @param MessageAddress to find remote endpoint guid.
+	 * @return FGuid which may be invalid.
+	 */
+	virtual FGuid LookupAddress(const FMessageAddress& InAddress) = 0;
 
 public:
 

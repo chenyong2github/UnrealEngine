@@ -103,6 +103,20 @@ bool FMessageBridge::IsEnabled() const
 	return Enabled;
 }
 
+FGuid FMessageBridge::LookupAddress(const FMessageAddress &InAddress)
+{
+	if (InAddress.IsValid())
+	{
+		TArray<FGuid> RemoteNodes = AddressBook.GetNodesFor({InAddress});
+		ensure(RemoteNodes.Num() <= 1);
+		if (RemoteNodes.Num()>0 && RemoteNodes[0].IsValid())
+		{
+			return RemoteNodes[0];
+		}
+	}
+	return {};
+}
+
 
 /* IMessageReceiver interface
  *****************************************************************************/

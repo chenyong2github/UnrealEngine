@@ -63,6 +63,7 @@ public:
 	virtual void Disable() override;
 	virtual void Enable() override;
 	virtual bool IsEnabled() const override;
+	virtual FGuid LookupAddress(const FMessageAddress& InAddress);
 
 public:
 
