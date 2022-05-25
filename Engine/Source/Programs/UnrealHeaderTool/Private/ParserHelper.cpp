@@ -111,6 +111,22 @@ bool FPropertyBase::IsByteEnumOrByteEnumStaticArray() const
 	return Enum->GetCppForm() != UEnum::ECppForm::EnumClass;
 }
 
+bool FPropertyBase::ContainsEditorOnlyProperties() const
+{
+	if (Type == CPT_Struct)
+	{
+		check(ScriptStructDef);
+		for (const TSharedRef<FUnrealPropertyDefinitionInfo>& PropDef : ScriptStructDef->GetProperties())
+		{
+			if (PropDef->IsEditorOnlyProperty() || PropDef->GetPropertyBase().ContainsEditorOnlyProperties())
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 bool FPropertyBase::MatchesType(const FPropertyBase& Other, bool bDisallowGeneralization, bool bIgnoreImplementedInterfaces/* = false*/, bool bEmulateSameType/* = false*/) const
 {
 	check(Type != CPT_None || !bDisallowGeneralization);

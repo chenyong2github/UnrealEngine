@@ -97,6 +97,25 @@ namespace UE::UnrealHeaderTool::Exceptions::Private
 
 		FResults::MarkWarning();
 	}
+
+	void LogInfoInternal(const FString& Filename, int32 Line, const FString& Message)
+	{
+		TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
+
+		FString FormattedErrorMessage;
+		if (Filename.IsEmpty())
+		{
+			FormattedErrorMessage = FString::Printf(TEXT("Info: %s\r\n"), *Message);
+		}
+		else
+		{
+			FormattedErrorMessage = FString::Printf(TEXT("%s(%d): Info: %s\r\n"), *Filename, Line, *Message);
+		}
+
+		UE_LOG(LogCompile, Log, TEXT("%s"), *FormattedErrorMessage);
+		GWarn->Log(ELogVerbosity::Display, FormattedErrorMessage);
+	}
+
 }
 
 void FResults::LogError(const FUHTMessageProvider& Context, const TCHAR* ErrorMsg, ECompilationResult::Type InResult)
@@ -136,6 +155,31 @@ void FResults::LogWarning(const FUHTMessageProvider& Context, const TCHAR* Error
 		};
 
 		FGraphEventRef EventRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(LogWarningTask), TStatId(), nullptr, ENamedThreads::GameThread);
+
+		FScopeLock Lock(&ErrorTasksCS);
+		ErrorTasks.Add(EventRef);
+	}
+}
+
+void FResults::LogInfo(const FUHTMessageProvider& Context, const TCHAR* InfoMsg)
+{
+	using namespace UE::UnrealHeaderTool::Exceptions::Private;
+
+	FString Filename = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Context.GetFilename());
+	int32 Line = Context.GetLineNumber();
+
+	if (IsInGameThread())
+	{
+		LogInfoInternal(Filename, Line, InfoMsg);
+	}
+	else
+	{
+		auto LogInfoTask = [Filename = MoveTemp(Filename), Line, Message = FString(InfoMsg)]()
+		{
+			LogInfoInternal(Filename, Line, Message);
+		};
+
+		FGraphEventRef EventRef = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(LogInfoTask), TStatId(), nullptr, ENamedThreads::GameThread);
 
 		FScopeLock Lock(&ErrorTasksCS);
 		ErrorTasks.Add(EventRef);

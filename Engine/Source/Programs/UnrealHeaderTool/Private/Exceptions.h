@@ -132,6 +132,13 @@ struct FResults
 	static void LogWarning(const FUHTMessageProvider& Context, const TCHAR* ErrorMsg);
 
 	/**
+	 * Log an info for the given source file where the type is defined
+	 * @param Context The context of the warning
+	 * @param InfoMsg The text of the information
+	 */
+	static void LogInfo(const FUHTMessageProvider& Context, const TCHAR* InfoMsg);
+
+	/**
 	 * Invoke the given lambda in a try block catching all supported exception types.
 	 * @param InLambda The code to be executed in the try block
 	 */
@@ -316,6 +323,16 @@ public:
 		FString ResultString = FString::Printf(InFmt, InArgs ...);
 		FResults::LogWarning(*this, *ResultString);
 	}
+
+	/**
+	 * Log an info
+	 * @param InText The text of the info
+	 */
+	void LogInfo(const FString& InText) const
+	{
+		FResults::LogInfo(*this, *InText);
+	}
+
 };
 
 template <typename T>

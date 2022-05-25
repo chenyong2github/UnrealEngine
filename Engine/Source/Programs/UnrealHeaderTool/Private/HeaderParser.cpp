@@ -3122,15 +3122,6 @@ void FHeaderParser::GetVarType(
 		}
 	}
 
-	// Validate if we are using editor only data in a class or struct definition
-	if ((Flags & CPF_EditorOnly) != 0)
-	{
-		if (OwnerClassDef && OwnerClassDef->HasAnyClassFlags(CLASS_Optional))
-		{
-			LogError(TEXT("Cannot specify an editor only property inside an optional class."));
-		}
-	}
-
 	// Store the start and end positions of the parsed type
 	if (ParsedVarIndexRange)
 	{
@@ -4621,6 +4612,20 @@ void FHeaderParser::GetVarType(
 		else
 		{
 			Throwf(TEXT("'Instanced' is only allowed on an object property, an array of objects, a set of objects, or a map with an object value type."));
+		}
+	}
+
+	// Validate if we are using editor only data in a class or struct definition
+	if (OwnerClassDef && OwnerClassDef->HasAnyClassFlags(CLASS_Optional))
+	{
+		if (VarProperty.IsEditorOnlyProperty())
+		{
+			LogError(TEXT("Cannot specify editor only property inside an optional class."));
+		}
+		else if (VarProperty.ContainsEditorOnlyProperties())
+		{
+			// TODO: this should technically be an error, but some code already relies on this at this time and should hence 
+			LogInfo(TEXT("Do not specify struct property containing editor only properties inside an optional class."));
 		}
 	}
 

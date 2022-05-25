@@ -329,6 +329,13 @@ public:
 		return Type == CPT_Delegate && IsPrimitiveOrPrimitiveStaticArray();
 	}
 
+	bool IsEditorOnlyProperty() const
+	{
+		return (PropertyFlags & CPF_EditorOnly) != 0;
+	}
+
+	bool ContainsEditorOnlyProperties() const;
+
 	bool PassCPPArgsByRef() const
 	{
 		if (ArrayType == EArrayType::Dynamic || ArrayType == EArrayType::Set || MapKeyProp.IsValid())
