@@ -536,9 +536,9 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 				Chaos::FPhysicsSolver* Solver = PhysScene->GetSolver();
 				check(Solver);
 
-				const APlayerController::FClientFrameInfo& ClientFrameInfo = PlayerController->GetClientFrameInfo();
-				LocalFrameOffset = ClientFrameInfo.GetLocalFrameOffset();
-				NumPredictedFrames = Solver->GetCurrentFrame() - ClientFrameInfo.LastProcessedInputFrame;
+				LocalFrameOffset = PlayerController->GetLocalToServerAsyncPhysicsTickOffset();
+				//TODO: as we send physics updates down we need to record latest seen
+				//NumPredictedFrames = Solver->GetCurrentFrame() - ClientFrameInfo.LastProcessedInputFrame;
 			}
 		}
 	}

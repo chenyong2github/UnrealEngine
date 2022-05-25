@@ -436,6 +436,8 @@ namespace Chaos
 			return IsUsingAsyncResults() && UseAsyncInterpolation;
 		}
 
+		FReal GetAsyncDeltaTime() const { return AsyncDt; }
+
 		void SetMaxDeltaTime_External(float InMaxDeltaTime)
 		{
 			MMaxDeltaTime = InMaxDeltaTime;

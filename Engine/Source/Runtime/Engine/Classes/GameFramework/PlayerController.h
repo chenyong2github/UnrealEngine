@@ -209,6 +209,16 @@ protected:
 	virtual void ApplyInputMode(FReply& SlateOperations, class UGameViewportClient& GameViewportClient) const override;
 };
 
+USTRUCT()
+struct FAsyncPhysicsTimestamp
+{
+	GENERATED_BODY()
+	UPROPERTY()
+	int32 ServerFrame = INDEX_NONE;
+
+	UPROPERTY()
+	int32 LocalFrame = INDEX_NONE;
+};
 
 /**
  * PlayerControllers are used by human players to control Pawns.
@@ -353,6 +363,21 @@ public:
 	/** Get the async physics data to execute logic off of. This data should not be modified and will NOT make its way back. Must be used during async tick */
 	UFUNCTION(BlueprintPure, Category = PlayerController)
 	const UAsyncPhysicsData* GetAsyncPhysicsDataToConsume() const;
+
+	/** Enqueues a command to run at the time specified by AsyncPhysicsTimestamp. Note that if the time specified was missed the command is triggered as soon as possible as part of the async tick.
+		These commands are all run on the game thread. If you want to run on the physics thread see FPhysicsSolverBase::RegisterSimOneShotCallback
+
+		If OwningObject is not null this command will only fire as long as the object is still alive. This allows a lambda to still use the owning object's data for read/write (assuming data is designed for async physics tick)
+	*/
+	void ExecuteAsyncPhysicsCommand(const FAsyncPhysicsTimestamp& AsyncPhysicsTimestamp, UObject* OwningObject, const TFunction<void()>& Command);
+
+	/** Generates a timestamp for the upcoming physics step (plus any pending time). Useful for synchronizing client and server events on a specific physics step */
+	FAsyncPhysicsTimestamp GetAsyncPhysicsTimestamp(float DeltaSeconds = 0.f);
+
+	/** Returns the current estimated offset between the local async physics step and the server. This is useful for dealing with low level synchronization.
+		In general it's recommended to use GetAsyncPhysicsTimestamp which accounts for the offset automatically*/
+	int32 GetLocalToServerAsyncPhysicsTickOffset() const { return LocalToServerAsyncPhysicsTickOffset; }
+	
 
 private:
 
@@ -2158,85 +2183,38 @@ private:
 	/** If true, prevent any haptic effects from playing */
 	bool bDisableHaptics : 1;
 
-public: 
+	/** The estimated offset between the local async physics tick frame number and the server's
+	*	This is used to synchronize events that happen in the async physics tick */
+	int32 LocalToServerAsyncPhysicsTickOffset;
 
-	/**
-	 * Frame number exchange. This doesn't inherently do anything but is used by the network prediction physics system.
-	 * This may be moved out at some point.
-	 * 
-	 * This is meant ot provide a mechanism for client side prediction to correlate client input and server frame numbers.
-	 * Frame is a loose concept here. It doesn't necessary mean GFrameNumber. Its just an arbitrary increasing sequence of numbers that is used
-	 * to label disrete units of client->Server input. For example the main thread may tick at a high variable rate but input is generated at a fixed
-	 * step interval.
-	 */
+	/** The latest server step we've received an offset correction for. This allows us to ignore out of order corrections that arrive late */
+	int32 ClientLatestCorrectedOffsetServerStep = INDEX_NONE;
 
-	struct FInputCmdBuffer
-	{
-		int32 HeadFrame() const { return LastWritten; }
-		int32 TailFrame() const { return FMath::Max(0, LastWritten - Buffer.Num() + 1); }
-		TArray<uint8>& Write(int32 Frame) { LastWritten = FMath::Max(Frame, LastWritten); return Buffer[Frame % Buffer.Num()]; }
-		const TArray<uint8>& Get(int32 Frame) const { return Buffer[Frame % Buffer.Num()]; }
+	/** The latest physics step we've sent to the server. Due to async we need to avoid duplicate sends */
+	int32 ClientLatestAsyncPhysicsStepSent = INDEX_NONE;
 
-	private:
-		int32 LastWritten = INDEX_NONE;
-		TStaticArray<TArray<uint8>, 16> Buffer;
-	};
+	/** The latest server step we've received a time dilation for. Needed for out of order updates */
+	int32 ClientLatestTimeDilationServerStep = INDEX_NONE;
 
-	FInputCmdBuffer& GetInputBuffer() { return InputBuffer; }
+	/** The server tells the client to speed up or slow down in order to keep its buffer full */
+	float ServerAsyncPhysicsTimeDilationToSend = 1.f;
 
-	// -------------------------------------------------------------------------
-	// Client
-	// -------------------------------------------------------------------------
+	/** The server records the latest timestamp it has to correct. This is used to update client (which may not happen on every physics step) */
+	FAsyncPhysicsTimestamp ServerLatestTimestampToCorrect;
 
-	struct FClientFrameInfo
-	{
-		int32 LastRecvInputFrame = INDEX_NONE;	// The latest inputcmd that the server acknowledged receiving, but not yet processed (this is our frame number that we gave them)
-		int32 LastProcessedInputFrame = INDEX_NONE; // The latest InputCmd that the server actually processed (this is our frame number that we gave them)
-		int32 LastRecvServerFrame = INDEX_NONE; // the latest ServerFrame number that the processing of LastRecvInputFrame happened on (Server's local frame number)
+	/** The set of timestamps the client has sent to the server. Sorted by local frame number */
+	TArray<FAsyncPhysicsTimestamp> ServerPendingTimestamps;
 
-		int8 QuantizedTimeDilation = 1; // Server sent this to this client, telling them to dilate local time either catch up or slow down
-		float TargetNumBufferedCmds = 0.f;
+	void UpdateServerAsyncPhysicsTickOffset();
 
-		int32 GetLocalFrameOffset() const { return LastProcessedInputFrame - LastRecvServerFrame; }
-	};	
+	UFUNCTION(Server, Unreliable)
+	void ServerSendLatestAsyncPhysicsTimestamp(FAsyncPhysicsTimestamp Timestamp);
 
-	// Client pushes input data locally. RPC is sent here but also includes redundant data
-	void PushClientInput(int32 ClientInputFrame, TArray<uint8>& Data);
+	UFUNCTION(Client, Unreliable)
+	void ClientCorrectionAsyncPhysicsTimestamp(FAsyncPhysicsTimestamp Timestamp);
 
-	// Client says "Here is input frame number X" (and then calls other RPCs to deliver InputCmd payload)
-	UFUNCTION(Server, unreliable)
-	void ServerRecvClientInputFrame(int32 RecvClientInputFrame, const TArray<uint8>& Data);
+	UFUNCTION(Client, Unreliable)
+	void ClientAckTimeDilation(float TimeDilation, int32 ServerStep);
 
-	const FClientFrameInfo& GetClientFrameInfo() const { return ClientFrameInfo; }
-	FClientFrameInfo& GetClientFrameInfo() { return ClientFrameInfo; }
-
-	// -------------------------------------------------------------------------
-	// Server
-	// -------------------------------------------------------------------------
-
-	struct FServerFrameInfo
-	{
-		int32 LastProcessedInputFrame = INDEX_NONE;	// The last client frame number we processed. "processed" is arbitrary and we are informed about when commands are processed via SetServerProessedInputFrame
-		int32 LastLocalFrame = INDEX_NONE; // The local frame number that we processed the latest client input frame on. Again, processed is arbitrary and set via SetServerProessedInputFrame
-		int32 LastSentLocalFrame = INDEX_NONE;	// Tracks the latest LastLocalFrame that we sent to the client. Just to prevent redundantly sending info via RPC
-
-		float TargetTimeDilation = 1.f;
-		int8 QuantizedTimeDilation = 1; // Server sets this to tell client to slowdown or speed up
-		float TargetNumBufferedCmds = 1.f; // How many buffered cmds the server thinks this client should ideally have to absorb PL and latency variance
-		bool bFault = true;
-	};
-
-	// We call this in ::SendClientAdjustment to tell the client what the last processed input frame was for him and on what local frame number it was processed
-	UFUNCTION(Client, unreliable)
-	void ClientRecvServerAckFrame(int32 LastProcessedInputFrame, int32 RecvServerFrameNumber, int8 TimeDilation);
-
-	UFUNCTION(Client, unreliable)
-	void ClientRecvServerAckFrameDebug(uint8 NumBuffered, float TargetNumBufferedCmds);
-
-	FServerFrameInfo& GetServerFrameInfo() { return ServerFrameInfo; };
-private:
-
-	FInputCmdBuffer InputBuffer;
-	FClientFrameInfo ClientFrameInfo;
-	FServerFrameInfo ServerFrameInfo;
+	virtual void AsyncPhysicsTickActor(float DeltaTime, float SimTime) override;
 };

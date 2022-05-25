@@ -56,37 +56,7 @@ namespace InputCmdCVars
 	static FAutoConsoleVariableRef CVarLerpTargetNumBufferedCmdsAggresively(TEXT("p.net.LerpTargetNumBufferedCmdsAggresively"), LerpTargetNumBufferedCmdsAggresively, TEXT("Aggresively lerp towards TargetNumBufferedCmds. Reduces server side buffering but can cause more artifacts."));
 }
 
-
-// --------------------------------------------------------------------------------------------------------------------------------------------------
-//	Client InputCmd Stream stuff
-// --------------------------------------------------------------------------------------------------------------------------------------------------
-
-
-int8 QuantizeTimeDilation(float F)
-{
-	if (F == 1.f)
-	{
-		return 0;
-	}
-
-	float Normalized = FMath::Clamp<float>((F - 1.f) / InputCmdCVars::MaxTimeDilationMag, -1.f, 1.f);
-	return (int8)(Normalized * 128.f);
-}
-
-float DeQuantizeTimeDilation(int8 i)
-{
-	if (i == 0)
-	{
-		return 1.f;
-	}
-
-	float Normalized = (float)i / 128.f;
-	float Uncompressed = 1.f + (Normalized * InputCmdCVars::MaxTimeDilationMag);
-	return Uncompressed;
-}
-
-
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnDispatchPhysicsTick, int32 PhysicsStep, int32 NumSteps, int32 ServerFrame);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDispatchPhysicsTick, int32 PhysicsStep, int32 NumSteps);
 
 struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 {
@@ -99,152 +69,8 @@ struct FAsyncPhysicsInputRewindCallback : public Chaos::IRewindCallback
 
 	virtual void InjectInputs_External(int32 PhysicsStep, int32 NumSteps) override
 	{
-		int32 LocalOffset = 0;
-		if (World->GetNetMode() == NM_Client)
-		{
-			if (APlayerController* PC = World->GetFirstPlayerController())
-			{
-				APlayerController::FClientFrameInfo& ClientFrameInfo = PC->GetClientFrameInfo();
-
-				if (ClientFrameInfo.LastProcessedInputFrame != INDEX_NONE)
-				{
-					LocalOffset = ClientFrameInfo.GetLocalFrameOffset();
-				}
-			}
-		}
-		DispatchPhysicsTick.Broadcast(PhysicsStep, NumSteps, PhysicsStep - LocalOffset);
+		DispatchPhysicsTick.Broadcast(PhysicsStep, NumSteps);
 	}
-
-	virtual void ProcessInputs_External(int32 PhysicsStep, const TArray<Chaos::FSimCallbackInputAndObject>& SimCallbackInputs)
-	{
-		CachedServerFrame = PhysicsStep;
-
-		if (World->GetNetMode() == NM_Client)
-		{
-			int32 LocalOffset = 0;
-			if (APlayerController* PC = World->GetFirstPlayerController())
-			{
-				// ------------------------------------------------
-				// Send RPC to server telling them what (client/local) physics step we are running
-				//	* Note that SendData is empty because of the existing API, should change this
-				// ------------------------------------------------	
-
-				TArray<uint8> SendData;
-				PC->PushClientInput(PhysicsStep, SendData);
-
-				// -----------------------------------------------------------------
-				// Calculate latest frame offset to map server frame to local frame
-				// -----------------------------------------------------------------
-				APlayerController::FClientFrameInfo& ClientFrameInfo = PC->GetClientFrameInfo();
-
-				if (ClientFrameInfo.LastProcessedInputFrame != INDEX_NONE)
-				{
-					const int32 FrameOffset = ClientFrameInfo.GetLocalFrameOffset();
-					
-					CachedServerFrame = PhysicsStep - FrameOffset; // Local = Server + Offset
-				}
-
-				// -----------------------------------------------------------------
-				// Apply local TIme Dilation based on server's recommendation.
-				// This speeds up or slows down our consumption of real time (by like < 1%)
-				// Ultimately this causes us to send InputCmds at a lower or higher rate in
-				// order to keep server side buffer at optimal capacity. 
-				// Optimal capacity = as small as possible without ever "missing" a frame (e.g, minimal buffer yet always a new fresh cmd to consume server side)
-				// -----------------------------------------------------------------
-				const float RealTimeDilation = DeQuantizeTimeDilation(ClientFrameInfo.QuantizedTimeDilation);
-
-				if (InputCmdCVars::TimeDilationEnabled > 0)
-				{
-					FPhysScene* PhysScene = World->GetPhysicsScene();
-					PhysScene->SetNetworkDeltaTimeScale(RealTimeDilation);
-				}
-			}
-		}
-		else
-		{
-			// -----------------------------------------------
-			// Server: "consume" an InputCmd from each Player Controller
-			// All this means in this context is updating FServerFrameInfo:: LastProcessedInputFrame, LastLocalFrame
-			// (E.g, telling each client what "Input" of theirs we were processing and our local physics frame number.
-			// In cases where the buffer has a fault, we calculate a suggested time dilation to temporarily make client speed up 
-			// or slow down their input cmd production.
-			// -----------------------------------------------
-
-			const bool bForceFault = InputCmdCVars::ForceFault > 0;
-			InputCmdCVars::ForceFault = FMath::Max(0, InputCmdCVars::ForceFault - 1);
-
-			for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
-			{
-				if (APlayerController* PC = Iterator->Get())
-				{
-					APlayerController::FServerFrameInfo& FrameInfo = PC->GetServerFrameInfo();
-					APlayerController::FInputCmdBuffer& InputBuffer = PC->GetInputBuffer();
-
-					{
-						const int32 NumBufferedInputCmds = bForceFault ? 0 : (InputBuffer.HeadFrame() - FrameInfo.LastProcessedInputFrame);
-
-						// Check Overflow
-						if (NumBufferedInputCmds > InputCmdCVars::MaxBufferedCmds)
-						{
-							UE_LOG(LogPhysics, Warning, TEXT("[Remote.Input] overflow %d %d -> %d"), InputBuffer.HeadFrame(), FrameInfo.LastProcessedInputFrame, NumBufferedInputCmds);
-							FrameInfo.LastProcessedInputFrame = InputBuffer.HeadFrame() - InputCmdCVars::MaxBufferedCmds + 1;
-						}
-
-						// Check fault - we are waiting for Cmds to reach TargetNumBufferedCmds before continuing
-						if (FrameInfo.bFault)
-						{
-							if (NumBufferedInputCmds < (int32)FrameInfo.TargetNumBufferedCmds)
-							{
-								// Skip this because it is in fault. We will use the prev input for this frame.
-								UE_CLOG(FrameInfo.LastProcessedInputFrame != INDEX_NONE, LogPhysics, Warning, TEXT("[Remote.Input] in fault. Reusing Inputcmd. (Client) Input: %d. (Server) Local Frame: %d"), FrameInfo.LastProcessedInputFrame, FrameInfo.LastLocalFrame);
-								return;
-							}
-							FrameInfo.bFault = false;
-						}
-						else if (NumBufferedInputCmds <= 0)
-						{
-							// No Cmds to process, enter fault state. Increment TargetNumBufferedCmds each time this happens.
-							// TODO: We should have something to bring this back down (which means skipping frames) we don't want temporary poor conditions to cause permanent high input buffering
-							FrameInfo.bFault = true;
-							FrameInfo.TargetNumBufferedCmds = FMath::Min(FrameInfo.TargetNumBufferedCmds + InputCmdCVars::TargetNumBufferedCmdsDeltaOnFault, InputCmdCVars::MaxTargetNumBufferedCmds);
-
-							UE_CLOG(FrameInfo.LastProcessedInputFrame != INDEX_NONE, LogPhysics, Warning, TEXT("[Remote.Input] ENTERING fault. New Target: %.2f. (Client) Input: %d. (Server) Local Frame: %d"), FrameInfo.TargetNumBufferedCmds, FrameInfo.LastProcessedInputFrame, FrameInfo.LastLocalFrame);
-							return;
-						}
-
-						float TargetTimeDilation = 1.f;
-						if (NumBufferedInputCmds < (int32)FrameInfo.TargetNumBufferedCmds)
-						{
-							TargetTimeDilation += InputCmdCVars::MaxTimeDilationMag; // Tell client to speed up, we are starved on cmds
-						}
-						/*else if (NumBufferedInputCmds > (int32)FrameInfo.TargetNumBufferedCmds)
-						{
-							TargetTimeDilation -= InputCmdCVars::MaxTimeDilationMag; // Tell client to slow down, we have too many buffered cmds
-
-							if (InputCmdCVars::LerpTargetNumBufferedCmdsAggresively == 0)
-							{
-								// When non aggressive, only lerp when we are above our limit
-								FrameInfo.TargetNumBufferedCmds = FMath::Lerp(FrameInfo.TargetNumBufferedCmds, InputCmdCVars::TargetNumBufferedCmds, InputCmdCVars::TargetNumBufferedCmdsAlpha);
-							}
-						}*/
-
-						FrameInfo.TargetTimeDilation = FMath::Lerp(FrameInfo.TargetTimeDilation, TargetTimeDilation, InputCmdCVars::TimeDilationAlpha);
-						FrameInfo.QuantizedTimeDilation = QuantizeTimeDilation(TargetTimeDilation);
-
-						if (InputCmdCVars::LerpTargetNumBufferedCmdsAggresively != 0)
-						{
-							// When aggressive, always lerp towards target
-							FrameInfo.TargetNumBufferedCmds = FMath::Lerp(FrameInfo.TargetNumBufferedCmds, InputCmdCVars::TargetNumBufferedCmds, InputCmdCVars::TargetNumBufferedCmdsAlpha);
-						}
-
-						FrameInfo.LastProcessedInputFrame++;
-						FrameInfo.LastLocalFrame = PhysicsStep;
-					}
-				}
-			}
-		}
-	}
-
 
 	// Updates the TMap on PhysScene that stores (non interpolated) physics data for replication.
 	// 
@@ -401,7 +227,7 @@ void UAsyncPhysicsInputComponent::ServerRPCBufferInput_Implementation(UAsyncPhys
 	//BufferedData.Add(NewData);
 }
 
-void UAsyncPhysicsInputComponent::OnDispatchPhysicsTick(int32 PhysicsStep, int32 NumSteps, int32 ServerFrame)
+void UAsyncPhysicsInputComponent::OnDispatchPhysicsTick(int32 PhysicsStep, int32 NumSteps)
 {
 	ensureMsgf(DataClass != nullptr, TEXT("You must call SetDataClass after creating the component"));
 	if (!ensure(DataToWrite != nullptr))
@@ -416,6 +242,8 @@ void UAsyncPhysicsInputComponent::OnDispatchPhysicsTick(int32 PhysicsStep, int32
 	{
 		if (PC->IsLocalController())
 		{
+			const int32 LocalToServerOffset = PC->GetLocalToServerAsyncPhysicsTickOffset();
+			const int32 ServerFrame = PhysicsStep + LocalToServerOffset;
 			UAsyncPhysicsData* DataToSend = DataToWrite;
 			DataToWrite = DuplicateObject((UAsyncPhysicsData*)DataClass->GetDefaultObject(), nullptr);
 			for (int32 Step = 0; Step < NumSteps; ++Step)
@@ -426,7 +254,7 @@ void UAsyncPhysicsInputComponent::OnDispatchPhysicsTick(int32 PhysicsStep, int32
 					//TODO: should probably given user opportunity to modify this per sub-step. For example a jump instruction should only happen on first sub-step
 					DataToSend = DuplicateObject(DataToSend, nullptr);
 				}
-				DataToSend->ServerFrame = ServerFrame + 1 + Step;
+				DataToSend->ServerFrame = ServerFrame + 1 + Step;	//why do we need + 1?
 				BufferedData.Add(DataToSend);
 			}
 		}

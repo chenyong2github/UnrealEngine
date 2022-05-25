@@ -71,6 +71,13 @@ DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_Update
 #include "Editor.h"
 #endif
 
+struct FPendingAsyncPhysicsCommand
+{
+	int32 PhysicsStep;
+	TWeakObjectPtr<UObject> OwningObject;
+	TFunction<void()> Command;
+};
+
 class FAsyncPhysicsTickCallback : public Chaos::TSimCallbackObject<>
 {
 public:
@@ -82,9 +89,30 @@ public:
 
 	TSet<UActorComponent*> AsyncPhysicsTickComponents;
 	TSet<AActor*> AsyncPhysicsTickActors;
+	TArray<FPendingAsyncPhysicsCommand> PendingCommands;
 	virtual void OnPreSimulate_Internal() override
 	{
 		using namespace Chaos;
+
+		for(int32 Idx = 0; Idx < PendingCommands.Num(); ++Idx)
+		{
+			const int32 CurrentFrame = static_cast<FPBDRigidsSolver*>(GetSolver())->GetCurrentFrame();
+			
+			FPendingAsyncPhysicsCommand* PendingCommand = &PendingCommands[Idx];
+			bool bRemove = PendingCommand->OwningObject.IsStale();
+			if(!bRemove && PendingCommands[Idx].PhysicsStep <= CurrentFrame)
+			{
+				PendingCommands[Idx].Command();
+				bRemove = true;
+			}
+
+			if(bRemove)
+			{
+				PendingCommands.RemoveAt(Idx);	//Need to keep functions in order. If this is slow we could try going in reverse order, but expecting number of commands to be low per frame
+				--Idx;
+			}
+		}
+
 		const FReal DeltaTime = GetDeltaTime_Internal();
 		const FReal SimTime = GetSimTime_Internal();
 		//TODO: handle case where callbacks modify AsyncPhysicsTickComponents or AsyncPhysicsTickActors
@@ -1886,6 +1914,12 @@ void FPhysScene_Chaos::UnregisterAsyncPhysicsTickActor(AActor* Actor)
 	{
 		AsyncPhysicsTickCallback->AsyncPhysicsTickActors.Remove(Actor);
 	}
+}
+
+void FPhysScene_Chaos::EnqueueAsyncPhysicsCommand(int32 PhysicsStep, UObject* OwningObject, const TFunction<void()>& Command)
+{
+	EnableAsyncPhysicsTickCallback();
+	AsyncPhysicsTickCallback->PendingCommands.Add({ PhysicsStep, TWeakObjectPtr<UObject>(OwningObject), Command });
 }
 
 TSharedPtr<IPhysicsReplicationFactory> FPhysScene_Chaos::PhysicsReplicationFactory;

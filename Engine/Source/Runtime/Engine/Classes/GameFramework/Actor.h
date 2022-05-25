@@ -467,10 +467,12 @@ private:
 	/** Set if an Actor tries to be destroyed while it is beginning play so that once BeginPlay ends we can issue the destroy call. */
 	uint8 bActorWantsDestroyDuringBeginPlay : 1;
 	
+protected:
 	/** Whether to use use the async physics tick with this actor. */
 	UPROPERTY(EditAnywhere, Category=Physics)
 	uint8 bAsyncPhysicsTickEnabled : 1;
 
+private:
 	/** Enum defining if BeginPlay has started or finished */
 	enum class EActorBeginPlayState : uint8
 	{
