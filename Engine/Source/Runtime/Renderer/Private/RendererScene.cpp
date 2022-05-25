@@ -3128,10 +3128,15 @@ void FScene::UpdateLightTransform_RenderThread(FLightSceneInfo* LightSceneInfo, 
 			LightSceneInfo->RemoveFromScene();
 		}
 
+		// Invalidate the path tracer if the transform actually changed
+		// NOTE: Position is derived from the Matrix, so there is no need to check it separately
+		if( !Parameters.LightToWorld.Equals(LightSceneInfo->Proxy->LightToWorld, SMALL_NUMBER) )
+		{
+			InvalidatePathTracedOutput();
+		}
+
 		// Update the light's transform and position.
 		LightSceneInfo->Proxy->SetTransform(Parameters.LightToWorld,Parameters.Position);
-
-		InvalidatePathTracedOutput();
 
 		// Also update the LightSceneInfoCompact
 		if( bHasId )
