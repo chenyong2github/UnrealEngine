@@ -2727,6 +2727,88 @@ public:
 		return GetStructPathName();
 	}
 
+	/**
+	 * Utility function that tries to find a type (class/struct/enum) given a path name or a short name however it will throw a warning (with a callstack) if it's the latter.
+	 * Useful for tracking down and fixing remaining places that use short class names.
+	 * This function is slow and should not be used in performance critical situations
+	 * @param TypeClass Class of the expected type. Must be a subclass of UField
+	 * @param InShortNameOrPathName Class name
+	 * @return Pointer to a type object if successful, nullptr otherwise
+	 */
+	static UField* TryFindTypeSlow(UClass* TypeClass, const FString& InPathNameOrShortName, EFindFirstObjectOptions InOptions = EFindFirstObjectOptions::None);
+
+	/**
+	 * Utility function that tries to find a type (class/struct/enum) given a path name or a short name however it will throw a warning (with a callstack) if it's the latter.
+	 * Useful for tracking down and fixing remaining places that use short class names.
+	 * This function is slow and should not be used in performance critical situations
+	 * @param InShortNameOrPathName Class name
+	 * @return Pointer to a type object if successful, false otherwise
+	 */
+	template <typename T>
+	static T* TryFindTypeSlow(const FString& InShortNameOrPathName, EFindFirstObjectOptions InOptions = EFindFirstObjectOptions::None)
+	{
+		return (T*)TryFindTypeSlow(T::StaticClass(), InShortNameOrPathName, InOptions);
+	}
+
+	/**
+	 * Utility function that tries to find a type (class/struct/enum) given a path name or a short name however it will throw a warning (with a callstack) if it's the latter.
+	 * Useful for tracking down and fixing remaining places that use short class names.
+	 * This function is slow and should not be used in performance critical situations
+	 * This version of TryFindType will not assert when saving package or when collecting garbage
+	 * @param TypeClass Class of the expected type. Must be a subclass of UField
+	 * @param InShortNameOrPathName Class name
+	 * @return Pointer to a type object if successful, nullptr otherwise
+	 */
+	static UField* TryFindTypeSlowSafe(UClass* TypeClass, const FString& InPathNameOrShortName, EFindFirstObjectOptions InOptions = EFindFirstObjectOptions::None);
+
+	/**
+	 * Utility function that tries to find a type (class/struct/enum) given a path name or a short name however it will throw a warning (with a callstack) if it's the latter.
+	 * Useful for tracking down and fixing remaining places that use short class names.
+	 * This function is slow and should not be used in performance critical situations
+	 * This version of TryFindType will not assert when saving package or when collecting garbage
+	 * @param InShortNameOrPathName Class name
+	 * @return Pointer to a type object if successful, nullptr otherwise
+	 */
+	template <typename T>
+	static T* TryFindTypeSlowSafe(const FString& InShortNameOrPathName, EFindFirstObjectOptions InOptions = EFindFirstObjectOptions::None)
+	{
+		return (T*)TryFindTypeSafe(T::StaticClass(), InShortNameOrPathName, InOptions);
+	}
+
+	/**
+	 * Tries to convert short class name to class path name. This will only work if the class exists in memory
+	 * This function is slow and should not be used in performance critical situations
+	 * @param TypeClass Expected Class of the type that needs to be converted (UEnum / UStruct / UClass)
+	 * @param InShortClassName Short class name. If this parameter is already a path name then it's going to be returned as FTopLevelAssetPath
+	 * @param AmbiguousMessageVerbosity Verbosity with which to log a message if class name is ambiguous 
+	 * @param AmbiguousClassMessage Additional message to log when class name is ambiguous (e.g. current operation) 
+	 * @return Class path name if successful. Empty FTopLevelAssetPath otherwise.
+	 */
+	static FTopLevelAssetPath TryConvertShortTypeNameToPathName(UClass* TypeClass, const FString& InShortTypeName, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* AmbiguousClassMessage = nullptr);
+
+	/**
+	 * Tries to convert short class name to class path name. This will only work if the class exists in memory
+	 * @param InShortClassName Short class name. If this parameter is already a path name then it's going to be returned as FTopLevelAssetPath
+	 * @param AmbiguousMessageVerbosity Verbosity with which to log a message if class name is ambiguous
+	 * @param AmbiguousClassMessage Additional message to log when class name is ambiguous (e.g. current operation)
+	 * @return Class path name if successful. Empty FTopLevelAssetPath otherwise.
+	 */
+	template <typename T>
+	static FTopLevelAssetPath TryConvertShortTypeNameToPathName(const FString& InShortTypeName, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* AmbiguousClassMessage = nullptr)
+	{
+		return TryConvertShortTypeNameToPathName(T::StaticClass(), InShortTypeName, AmbiguousMessageVerbosity, AmbiguousClassMessage);
+	}
+
+	/**
+	 * Tries to fix an export path containing short class name. Will not modify the input InOutExportPathToFix if a fixup
+	 * was not necessary or unsuccessful
+	 * @param InOutExportPathToFix Export path (Class'/Path/To.Object')
+	 * @param AmbiguousMessageVerbosity Verbosity with which to log a message if class name is ambiguous
+	 * @param AmbiguousClassMessage Additional message to log when class name is ambiguous (e.g. current operation)
+	 * @return True if the short path was successfully fixed. False if the provided export path did not contain short class name or the short path could not be fixed.
+	 */
+	static bool TryFixShortClassNameExportPath(FString& InOutExportPathToFix, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* AmbiguousClassMessage = nullptr);
+
 #if WITH_EDITOR
 	/** Provides access to C++ type info. */
 	const ICppClassTypeInfo* GetCppTypeInfo() const

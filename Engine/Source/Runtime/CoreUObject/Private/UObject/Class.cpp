@@ -52,6 +52,7 @@
 #include "Math/InterpCurvePoint.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/TopLevelAssetPath.h"
+#include "HAL/PlatformStackWalk.h"
 
 // This flag enables some expensive class tree validation that is meant to catch mutations of 
 // the class tree outside of SetSuperStruct. It has been disabled because loading blueprints 
@@ -5754,6 +5755,103 @@ const FString UClass::GetConfigName() const
 		FConfigCacheIni::LoadGlobalIniFile(ConfigGameName, *ClassConfigName.ToString());
 		return ConfigGameName;
 	}
+}
+
+UField* UClass::TryFindTypeSlow(UClass* TypeClass, const FString& InPathNameOrShortName, EFindFirstObjectOptions InOptions)
+{
+	checkf(TypeClass && TypeClass->IsChildOf(UField::StaticClass()), TEXT("TryFindType requires a valid TypeClass parameter which is a subclass of UField. \"%s\" provided."), *GetFullNameSafe(TypeClass));
+
+	UField* FoundType = nullptr;
+	if (!InPathNameOrShortName.IsEmpty())
+	{
+		if (!FPackageName::IsShortPackageName(InPathNameOrShortName))
+		{
+			FoundType = (UField*)StaticFindObject(TypeClass, nullptr, *InPathNameOrShortName, !!(InOptions & EFindFirstObjectOptions::ExactClass));
+		}
+		else
+		{
+			// RobM: I can't decide if this should be an ensure. Maybe in the future?
+			TStringBuilder<1024> Callstack;
+			ANSICHAR Buffer[1024];			
+			uint64 StackFrames[10];
+			uint32 NumStackFrames = FPlatformStackWalk::CaptureStackBackTrace(StackFrames, UE_ARRAY_COUNT(StackFrames));
+			for (uint32 Idx = 0; Idx < NumStackFrames; Idx++)
+			{
+				Buffer[0] = '\0';
+				FPlatformStackWalk::ProgramCounterToHumanReadableString(Idx, StackFrames[Idx], Buffer, sizeof(Buffer));
+				ANSICHAR* TrimmedBuffer = FCStringAnsi::Strstr(Buffer, "!");
+				if (!TrimmedBuffer)
+				{
+					TrimmedBuffer = Buffer;
+				}
+				else
+				{
+					TrimmedBuffer++;
+				}
+				Callstack.Append(TrimmedBuffer);
+				Callstack.Append(TEXT("\r\n"));
+			}
+			
+			FoundType = (UField*)StaticFindFirstObject(TypeClass, *InPathNameOrShortName, InOptions | EFindFirstObjectOptions::EnsureIfAmbiguous | EFindFirstObjectOptions::NativeFirst, ELogVerbosity::Error, TEXT("TryFindType"));
+
+			UE_LOG(LogClass, Warning, TEXT("Short type name \"%s\" provided for TryFindType. Please convert it to a path name (suggested: \"%s\"). Callstack:\r\n%s"), *InPathNameOrShortName, *GetPathNameSafe(FoundType), Callstack.GetData());
+		}
+	}
+	return FoundType;
+}
+
+UField* UClass::TryFindTypeSlowSafe(UClass* TypeClass, const FString& InPathNameOrShortName, EFindFirstObjectOptions InOptions)
+{
+	if (!UE::IsSavingPackage(nullptr) && !IsGarbageCollectingAndLockingUObjectHashTables())
+	{
+		return TryFindTypeSlow(TypeClass, InPathNameOrShortName, InOptions);
+	}
+	return nullptr;
+}
+
+FTopLevelAssetPath UClass::TryConvertShortTypeNameToPathName(UClass* TypeClass, const FString& InShortTypeName, ELogVerbosity::Type AmbiguousMessageVerbosity /*= ELogVerbosity::NoLogging*/, const TCHAR* AmbiguousClassMessage /*= nullptr*/)
+{
+	checkf(TypeClass && TypeClass->IsChildOf(UField::StaticClass()), TEXT("TryConvertShortTypeNameToPathName requires a valid TypeClass parameter which is a subclass of UField. \"%s\" provided."), *GetFullNameSafe(TypeClass));
+
+	if (InShortTypeName.IsEmpty())
+	{
+		return FTopLevelAssetPath();
+	}
+	else if (!FPackageName::IsShortPackageName(InShortTypeName))
+	{
+		return FTopLevelAssetPath(InShortTypeName);
+	}
+	else
+	{
+		FTopLevelAssetPath Result;
+		UField* FoundType = (UField*)StaticFindFirstObject(TypeClass, *InShortTypeName, EFindFirstObjectOptions::EnsureIfAmbiguous | EFindFirstObjectOptions::NativeFirst, AmbiguousMessageVerbosity, AmbiguousClassMessage);
+		if (FoundType)
+		{
+			// UField does not define a GetFieldPathName so do what GetStructPathName does (this is the only place that needs it)
+			checkf(FoundType->GetOuter() == FoundType->GetOutermost(), TEXT("Trying to construct FTopLevelAssetPath for nested type: \"%s\""), *FoundType->GetPathName());
+			Result = FTopLevelAssetPath(FoundType->GetOuter()->GetFName(), FoundType->GetFName());
+		}
+		return Result;
+	}
+}
+
+bool UClass::TryFixShortClassNameExportPath(FString& InOutExportPathToFix, ELogVerbosity::Type AmbiguousMessageVerbosity /*= ELogVerbosity::NoLogging*/, const TCHAR* AmbiguousClassMessage /*= nullptr*/)
+{
+	FString ClassName;
+	FString ObjectPath;
+	if (FPackageName::ParseExportTextPath(*InOutExportPathToFix, &ClassName, &ObjectPath))
+	{
+		if (FPackageName::IsShortPackageName(ClassName))
+		{
+			FTopLevelAssetPath ClassPathName = UClass::TryConvertShortTypeNameToPathName<UClass>(ClassName, AmbiguousMessageVerbosity, AmbiguousClassMessage);
+			if (!ClassPathName.IsNull())
+			{
+				InOutExportPathToFix = FObjectPropertyBase::GetExportPath(ClassPathName, ObjectPath);
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 #if WITH_EDITOR || HACK_HEADER_GENERATOR

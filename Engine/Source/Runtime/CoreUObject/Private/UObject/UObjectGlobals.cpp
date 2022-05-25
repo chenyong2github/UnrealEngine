@@ -530,12 +530,20 @@ bool StaticFindAllObjectsSafe(TArray<UObject*>& OutFoundObjects, UClass* ObjectC
 UObject* StaticFindFirstObject(UClass* Class, const TCHAR* Name, EFindFirstObjectOptions Options /*= EFindFirstObjectOptions::None*/, ELogVerbosity::Type AmbiguousMessageVerbosity /*= ELogVerbosity::Warning*/, const TCHAR* InCurrentOperation /*= nullptr*/)
 {
 	UObject* Result = nullptr;
-	// Don't resolve the name since we're searching in any package
-	FString InName = Name;
-	ConstructorHelpers::StripObjectClass(InName);
-	FName ObjectName(*InName, FNAME_Add);
+	FName ObjectName;
+	if (!FCString::Strchr(Name, TCHAR('\'')))
+	{
+		// Skip unnecessary allocations in StripObjectClass
+		ObjectName = FName(Name, FNAME_Add);
+	}
+	else
+	{
+		FString InName = Name;
+		ConstructorHelpers::StripObjectClass(InName);
+		ObjectName = FName(*InName, FNAME_Add);
+	}
 
-	if (AmbiguousMessageVerbosity == ELogVerbosity::NoLogging)
+	if (AmbiguousMessageVerbosity == ELogVerbosity::NoLogging && !(Options & (EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous)))
 	{
 		Result = StaticFindFirstObjectFastInternal(Class, ObjectName, !!(Options & EFindFirstObjectOptions::ExactClass));
 	}
@@ -544,37 +552,71 @@ UObject* StaticFindFirstObject(UClass* Class, const TCHAR* Name, EFindFirstObjec
 		TArray<UObject*> FoundObjects;
 		if (StaticFindAllObjectsFast(FoundObjects, Class, ObjectName, !!(Options & EFindFirstObjectOptions::ExactClass)))
 		{
-			Result = FoundObjects[0];
-			if (AmbiguousMessageVerbosity != ELogVerbosity::NoLogging && FoundObjects.Num() > 1)
-			{
-				TStringBuilder<256> Message;
-				Message.Append(TEXT("StaticFindFirstObject: Ambiguous object name "));
-				Message.Append(Name);
-				if (InCurrentOperation)
+			if (FoundObjects.Num() > 1)
+			{				
+				if (!!(Options & EFindFirstObjectOptions::NativeFirst))
 				{
-					Message.Append(TEXT(" while "));
-					Message.Append(InCurrentOperation);
-				}
-				Message.Append(TEXT(", will return "));
-				Message.Append(Result->GetPathName());
-				Message.Append(TEXT(" but could also be: "));
-				for (int32 ObjectIndex = 1; ObjectIndex < FoundObjects.Num(); ++ObjectIndex)
-				{
-					Message.Append(FoundObjects[ObjectIndex]->GetPathName());
-					if (ObjectIndex < FoundObjects.Num() - 1)
+					// Prioritize native class instances or native type objects
+					for (UObject* FoundObject : FoundObjects)
 					{
-						Message.Append(TEXT(","));
+						if (FoundObject->IsA<UField>())
+						{
+							// If we were looking for a 'type' (UEnum / UClass / UScriptStruct) object priotize native types
+							if (FoundObject->GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn))
+							{
+								Result = FoundObject;
+								break;
+							}
+						}
+						else if (FoundObject->GetClass()->GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn))
+						{
+							Result = FoundObject;
+							// Don't break yet, maybe we can find a native type (see above) which is usually what we're after anyway
+						}
+					}
+					if (!Result)
+					{
+						Result = FoundObjects[0];
 					}
 				}
 
-				if (AmbiguousMessageVerbosity == ELogVerbosity::Fatal)
+				if (AmbiguousMessageVerbosity != ELogVerbosity::NoLogging || !!(Options & EFindFirstObjectOptions::EnsureIfAmbiguous))
 				{
-					UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s"), *Message.ToString());
+					TStringBuilder<256> Message;
+					Message.Append(TEXT("StaticFindFirstObject: Ambiguous object name "));
+					Message.Append(Name);
+					if (InCurrentOperation)
+					{
+						Message.Append(TEXT(" while "));
+						Message.Append(InCurrentOperation);
+					}
+					Message.Append(TEXT(", will return "));
+					Message.Append(Result->GetPathName());
+					Message.Append(TEXT(" but could also be: "));
+					for (int32 ObjectIndex = 1; ObjectIndex < FoundObjects.Num(); ++ObjectIndex)
+					{
+						Message.Append(FoundObjects[ObjectIndex]->GetPathName());
+						if (ObjectIndex < FoundObjects.Num() - 1)
+						{
+							Message.Append(TEXT(","));
+						}
+					}
+
+					if (AmbiguousMessageVerbosity == ELogVerbosity::Fatal)
+					{
+						UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s"), *Message.ToString());
+					}
+					else if (AmbiguousMessageVerbosity != ELogVerbosity::NoLogging)
+					{
+						GLog->CategorizedLogf(TEXT("LogUObjectGlobals"), AmbiguousMessageVerbosity, TEXT("%s"), *Message.ToString());
+					}
+
+					ensureAlwaysMsgf(!(Options & EFindFirstObjectOptions::EnsureIfAmbiguous), TEXT("%s"), *Message.ToString());
 				}
-				else
-				{
-					GLog->CategorizedLogf(TEXT("LogUObjectGlobals"), AmbiguousMessageVerbosity, TEXT("%s"), *Message.ToString());
-				}
+			}
+			else
+			{
+				Result = FoundObjects[0];
 			}
 		}
 	}

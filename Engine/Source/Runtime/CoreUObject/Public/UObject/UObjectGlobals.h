@@ -372,13 +372,16 @@ COREUOBJECT_API bool StaticFindAllObjectsSafe(TArray<UObject*>& OutFoundObjects,
 enum class EFindFirstObjectOptions
 {
 	None = 0, // Unused / defaults to Quiet
-	ExactClass = 1 << 1 // Whether to require an exact match with the passed in class
+	ExactClass = 1 << 1, // Whether to require an exact match with the passed in class
+	NativeFirst = 1 << 2, // If multiple results are found, prioritize native classes or native class instances
+	EnsureIfAmbiguous = 1 << 3 // Ensure if multiple results are found
 };
 ENUM_CLASS_FLAGS(EFindFirstObjectOptions);
 
 /**
- * Tries to find the first objects matching the search paramters in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
- *
+ * Tries to find the first object matching the search paramters in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
+ * If multiple objects share the same name the returned object is random and not based on its time of creation unless otherwise specified in Options (see EFindFirstObjectOptions::NativeFirst)
+ * 
  * @param	Class						The to be found object's class
  * @param	Name						The object path to search for an object, relative to InOuter
  * @param	Options						Search options
@@ -392,6 +395,7 @@ COREUOBJECT_API UObject* StaticFindFirstObject(UClass* Class, const TCHAR* Name,
 /**
  * Tries to find the first objects matching the search paramters in memory. This will handle fully qualified paths of the form /path/packagename.object:subobject and resolve references for you.
  * This version of StaticFindFirstObject will not assert on GIsSavingPackage or IsGarbageCollecting()
+ * If multiple objects share the same name the returned object is random and not based on its time of creation unless otherwise specified in Options (see EFindFirstObjectOptions::NativeFirst)
  * 
  * @param	Class						The to be found object's class
  * @param	Name						The object path to search for an object, relative to InOuter

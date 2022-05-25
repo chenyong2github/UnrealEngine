@@ -2659,8 +2659,23 @@ public:
 	static bool ParseObjectPropertyValue( const FProperty* Property, UObject* OwnerObject, UClass* RequiredMetaClass, uint32 PortFlags, const TCHAR*& Buffer, UObject*& out_ResolvedValue, FUObjectSerializeContext* InSerializeContext = nullptr, bool bAllowAnyPackage = true );
 	static UObject* FindImportedObject( const FProperty* Property, UObject* OwnerObject, UClass* ObjectClass, UClass* RequiredMetaClass, const TCHAR* Text, uint32 PortFlags = 0, FUObjectSerializeContext* InSerializeContext = nullptr, bool bAllowAnyPackage = true );
 	
-	// Returns the qualified export path for a given object, parent, and export root scope
-	static FString GetExportPath(const UObject* Object, const UObject* Parent, const UObject* ExportRootScope, const uint32 PortFlags);
+	/**
+	 * Returns the qualified export path for a given object, parent, and export root scope
+	 * @param Object Object to get the export path for
+	 * @param Parent Outer of the Object used as a root object for generating the Objects path name
+	 * @param ExportRootScope Similar to Parent but used when exporting from one package or graph to another package or graph
+	 * @param PortFlags Property port flags
+	 * @return A string representing the export path of an object, usually in the form of /ClassPackage.ClassName'/Package/Path.Object'
+	 */
+	static FString GetExportPath(const UObject* Object, const UObject* Parent = nullptr, const UObject* ExportRootScope = nullptr, const uint32 PortFlags = PPF_None);
+
+	/**
+	 * Returns the qualified export path given a class path name and object path name
+	 * @param ClassPathName Class path name
+	 * @param ObjectPathName of the Object used as a root object for generating the Objects path name
+	 * @return A string representing the export path of an object in the form of /ClassPackage.ClassName'/Package/Path.Object'
+	 */
+	static FString GetExportPath(FTopLevelAssetPath ClassPathName, const FString& ObjectPathName);
 
 	// Helper method for sharing code with FObjectPtrProperty even though one doesn't inherit from the other
 	static bool StaticIdentical(UObject* A, UObject* B, uint32 PortFlags);

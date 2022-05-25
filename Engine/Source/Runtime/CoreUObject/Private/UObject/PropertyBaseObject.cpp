@@ -179,7 +179,12 @@ void FObjectPropertyBase::AddReferencedObjects(FReferenceCollector& Collector)
 	Super::AddReferencedObjects( Collector );
 }
 
-FString FObjectPropertyBase::GetExportPath(const UObject* Object, const UObject* Parent, const UObject* ExportRootScope, const uint32 PortFlags)
+FString FObjectPropertyBase::GetExportPath(FTopLevelAssetPath ClassPathName, const FString& ObjectPathName)
+{
+	return FString::Printf(TEXT("%s.%s'%s'"), *ClassPathName.GetPackageName().ToString(), *ClassPathName.GetAssetName().ToString(), *ObjectPathName);
+}
+
+FString FObjectPropertyBase::GetExportPath(const UObject* Object, const UObject* Parent /*= nullptr*/, const UObject* ExportRootScope /*= nullptr*/, const uint32 PortFlags /*= PPF_None*/)
 {
 	bool bExportFullyQualified = true;
 
@@ -216,13 +221,13 @@ FString FObjectPropertyBase::GetExportPath(const UObject* Object, const UObject*
 	// Take the path name relative to the stopping point outermost ptr.
 	// This is so that cases like a component referencing a component in another actor work correctly when pasted
 	FString PathName = Object->GetPathName(StopOuter);
-	int32 ResultIdx = 0;
 	// Object names that contain invalid characters and paths that contain spaces must be put into quotes to be handled correctly
 	if (PortFlags & PPF_Delimited)
 	{
 		PathName = FString::Printf(TEXT("\"%s\""), *PathName.ReplaceQuotesWithEscapedQuotes());
 	}
-	return FString::Printf( TEXT("%s'%s'"), *Object->GetClass()->GetName(), *PathName );
+	FTopLevelAssetPath ClassPathName = Object->GetClass()->GetClassPathName();
+	return GetExportPath(ClassPathName, *PathName);
 }
 
 void FObjectPropertyBase::ExportText_Internal( FString& ValueStr, const void* PropertyValueOrContainer, EPropertyPointerType PropertyPointerType, const void* DefaultValue, UObject* Parent, int32 PortFlags, UObject* ExportRootScope ) const
