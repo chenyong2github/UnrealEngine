@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Online/OnlineMeta.h"
+#include "Containers/UnrealString.h"
 
 namespace UE::Online {
 
@@ -22,6 +23,7 @@ inline FString ToLogString(uint32 Value);
 inline FString ToLogString(int32 Value);
 inline FString ToLogString(uint64 Value);
 inline FString ToLogString(int64 Value);
+inline FString ToLogString(bool Value);
 template <typename T> std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value);
 template <typename T> std::enable_if_t<TModels<Meta::COnlineMetadataAvailable, T>::Value, FString> ToLogString(const T& Value);
 
@@ -155,6 +157,11 @@ inline FString ToLogString(uint64 Value)
 inline FString ToLogString(int64 Value)
 {
 	return FString::Printf(TEXT("%lli"), Value);
+}
+
+inline FString ToLogString(bool Value)
+{
+	return ::LexToString(Value);
 }
 
 inline FString ToLogString(FPlatformUserId PlatformUserId)

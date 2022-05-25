@@ -291,9 +291,11 @@ private:
 
 using FOnlineAccountIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FAccount>;
 using FOnlineLobbyIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FLobby>;
+using FOnlineSessionIdHandle = TOnlineIdHandle<OnlineIdHandleTags::FSession>;
 
 COREONLINE_API FString ToLogString(const FOnlineAccountIdHandle& Id);
 COREONLINE_API FString ToLogString(const FOnlineLobbyIdHandle& Id);
+COREONLINE_API FString ToLogString(const FOnlineSessionIdHandle& Id);
 
 template<typename IdType>
 inline uint32 GetTypeHash(const TOnlineIdHandle<IdType>& Handle)
@@ -312,6 +314,7 @@ public:
 };
 
 using IOnlineAccountIdRegistry = IOnlineIdRegistry<OnlineIdHandleTags::FAccount>;
+using IOnlineSessionIdRegistry = IOnlineIdRegistry<OnlineIdHandleTags::FSession>;
 
 class FOnlineIdRegistryRegistry
 {

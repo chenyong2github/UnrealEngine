@@ -18,6 +18,7 @@ using IFriendsPtr = TSharedPtr<class IFriends>;
 using IPresencePtr = TSharedPtr<class IPresence>;
 using IExternalUIPtr = TSharedPtr<class IExternalUI>;
 using ILobbiesPtr = TSharedPtr<class ILobbies>;
+using ISessionsPtr = TSharedPtr<class ISessions>;
 using IConnectivityPtr = TSharedPtr<class IConnectivity>;
 using IPrivilegesPtr = TSharedPtr<class IPrivileges>;
 
@@ -29,6 +30,7 @@ struct FGetResolvedConnectString
 	{
 		FOnlineAccountIdHandle LocalUserId;
 		FOnlineLobbyIdHandle LobbyId;
+		FOnlineSessionIdHandle SessionId;
 		FName PortType;
 	};
 
@@ -76,6 +78,12 @@ public:
 	 * @return lobbies implementation, may be null if not implemented for this service
 	 */
 	virtual ILobbiesPtr GetLobbiesInterface() = 0;
+
+	/**
+	 * Get the sessions implementation
+	 * @return sessions implementation, may be null if not implemented for this service
+	 */
+	virtual ISessionsPtr GetSessionsInterface() = 0;
 
 	/**
 	 * 

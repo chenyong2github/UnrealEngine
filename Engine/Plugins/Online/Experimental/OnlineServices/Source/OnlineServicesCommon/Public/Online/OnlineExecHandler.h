@@ -67,8 +67,12 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, int32& Value);
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint32& Value);
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, int64& Value);
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint64& Value);
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, bool& Value);
 template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TArray<T>& Array);
 template <typename T, typename U> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TMap<T, U>& Map);
+template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSharedPtr<T>& Ptr);
+template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSharedRef<T>& Ref);
+template <typename T> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOptional<T>& Optional);
 template <typename... Ts> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TVariant<Ts...>& Variant);
 template <typename IdType> inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOnlineIdHandle<IdType>& Value);
 template <typename T> std::enable_if_t<!TModels<Meta::COnlineMetadataAvailable, T>::Value, bool> ParseOnlineExecParams(const TCHAR*& Cmd, T& Value);
@@ -171,6 +175,21 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, uint64& Value)
 	return true;
 }
 
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, bool& Value)
+{
+	FString Token;
+	if (FParse::Token(Cmd, Token, true))
+	{
+		Value = FCString::ToBool(*Token);
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
+}
+
 inline bool ParseOnlineExecParams(const TCHAR*& Cmd, FPlatformUserId& Value)
 {
 	FString Token;
@@ -249,6 +268,28 @@ inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TMap<T, U>& Map)
 	{
 		return false;
 	}
+	return true;
+}
+
+
+template <typename T>
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSharedPtr<T>& Ptr)
+{
+	// TODO: This is a temporary stub implementation
+	return true;
+}
+
+template <typename T>
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TSharedRef<T>& Ref)
+{
+	// TODO: This is a temporary stub implementation
+	return true;
+}
+
+template <typename T>
+inline bool ParseOnlineExecParams(const TCHAR*& Cmd, TOptional<T>& Optional)
+{
+	// TODO: This is a temporary stub implementation
 	return true;
 }
 
