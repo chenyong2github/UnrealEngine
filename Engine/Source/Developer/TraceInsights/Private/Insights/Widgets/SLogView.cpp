@@ -741,6 +741,8 @@ void SLogView::InitCommandList()
 
 void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	LLM_SCOPE_BYTAG(Insights);
+
 	int32 NewMessageCount = 0;
 
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();

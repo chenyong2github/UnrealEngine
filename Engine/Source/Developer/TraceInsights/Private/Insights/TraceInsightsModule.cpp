@@ -4,6 +4,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/Notifications/NotificationManager.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "ISourceCodeAccessModule.h"
 #include "ISourceCodeAccessor.h"
@@ -34,6 +35,8 @@
 
 DEFINE_LOG_CATEGORY(TraceInsights);
 
+LLM_DEFINE_TAG(Insights);
+
 IMPLEMENT_MODULE(FTraceInsightsModule, TraceInsights);
 
 FString FTraceInsightsModule::UnrealInsightsLayoutIni;
@@ -44,6 +47,8 @@ FString FTraceInsightsModule::UnrealInsightsLayoutIni;
 
 void FTraceInsightsModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(Insights);
+
 	ITraceServicesModule& TraceServicesModule = FModuleManager::LoadModuleChecked<ITraceServicesModule>("TraceServices");
 	TraceAnalysisService = TraceServicesModule.GetAnalysisService();
 	TraceModuleService = TraceServicesModule.GetModuleService();
@@ -78,6 +83,8 @@ void FTraceInsightsModule::StartupModule()
 PRAGMA_DISABLE_OPTIMIZATION
 void FTraceInsightsModule::ShutdownModule()
 {
+	LLM_SCOPE_BYTAG(Insights);
+
 	FInsightsManager::Get()->WaitOnInProgressAsyncOps();
 
 #if !WITH_EDITOR
@@ -150,6 +157,7 @@ void FTraceInsightsModule::RegisterComponent(TSharedPtr<IInsightsComponent> Comp
 {
 	if (Component.IsValid())
 	{
+		LLM_SCOPE_BYTAG(Insights);
 		Components.Add(Component.ToSharedRef());
 		Component->Initialize(*this);
 	}
@@ -161,6 +169,7 @@ void FTraceInsightsModule::UnregisterComponent(TSharedPtr<IInsightsComponent> Co
 {
 	if (Component.IsValid())
 	{
+		LLM_SCOPE_BYTAG(Insights);
 		Component->Shutdown();
 		Components.Remove(Component.ToSharedRef());
 	}

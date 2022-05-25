@@ -10,8 +10,6 @@
 #include "Styling/StyleColors.h"
 #include "Styling/ToolBarStyle.h"
 
-LLM_DEFINE_TAG(Insights);
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FInsightsStyle
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -24,7 +22,7 @@ void FInsightsStyle::Initialize()
 {
 	LLM_SCOPE_BYNAME(TEXT("Insights/Style"));
 
-	// The core style must be initialized before the editor style
+	// The core style must be initialized before the Insights style
 	FSlateApplication::InitializeCoreStyle();
 
 	if (!StyleInstance.IsValid())

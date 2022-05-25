@@ -45,6 +45,7 @@
 #include "Insights/InsightsStyle.h"
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 #include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
+#include "Insights/Log.h"
 #include "Insights/Table/Widgets/STableTreeView.h"
 #include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/Tests/TimingProfilerTests.h"
@@ -307,6 +308,8 @@ void STimingView::HideAllDefaultTracks()
 
 void STimingView::Reset(bool bIsFirstReset)
 {
+	LLM_SCOPE_BYTAG(Insights);
+
 	const FInsightsSettings& Settings = FInsightsManager::Get()->GetSettings();
 
 	if (!bIsFirstReset)
@@ -519,6 +522,8 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	FStopwatch TickStopwatch;
 	TickStopwatch.Start();
+
+	LLM_SCOPE_BYTAG(Insights);
 
 	ThisGeometry = AllottedGeometry;
 
@@ -3933,6 +3938,7 @@ void STimingView::ToggleEventFilterByEventType(const uint64 EventType)
 	}
 	else
 	{
+		LLM_SCOPE_BYTAG(Insights);
 		TSharedRef<FTimingEventFilterByEventType> NewEventFilter = MakeShared<FTimingEventFilterByEventType>(EventType);
 		NewEventFilter->SetFilterByTrackTypeName(true);
 		NewEventFilter->SetTrackTypeName(FThreadTimingTrack::GetStaticTypeName());
@@ -4733,6 +4739,8 @@ void STimingView::QuickFind_Execute()
 {
 	using namespace Insights;
 
+	LLM_SCOPE_BYTAG(Insights);
+
 	if (!QuickFindVm.IsValid())
 	{
 		TSharedPtr<FFilterConfigurator> NewFilterConfigurator = MakeShared<FFilterConfigurator>();
@@ -5021,6 +5029,7 @@ void STimingView::FindLastEvent()
 
 void STimingView::FilterAllTracks()
 {
+	LLM_SCOPE_BYTAG(Insights);
 	FilterConfigurator = MakeShared<Insights::FFilterConfigurator>(*QuickFindVm->GetFilterConfigurator());
 	for (auto& Entry : AllTracks)
 	{
@@ -5032,6 +5041,7 @@ void STimingView::FilterAllTracks()
 
 void STimingView::ClearFilters()
 {
+	LLM_SCOPE_BYTAG(Insights);
 	FilterConfigurator.Reset();
 	for (auto& Entry : AllTracks)
 	{

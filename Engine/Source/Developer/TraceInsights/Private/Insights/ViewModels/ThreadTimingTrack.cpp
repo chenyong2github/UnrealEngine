@@ -18,6 +18,7 @@
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/ITimingViewSession.h"
+#include "Insights/Log.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/Filters.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
@@ -466,6 +467,8 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 		{
 			TimingProfilerTimelineCount = CurrentTimingProfilerTimelineCount;
 			LoadTimeProfilerTimelineCount = CurrentLoadTimeProfilerTimelineCount;
+
+			LLM_SCOPE_BYTAG(Insights);
 
 			// Check if we have a GPU track.
 			if (!GpuTrack.IsValid())
@@ -1734,6 +1737,8 @@ bool FThreadTimingTrack::TimerIndexToTimerId(uint32 InTimerIndex, uint32& OutTim
 
 void FThreadTimingTrack::OnFilterTrackClicked()
 {
+	LLM_SCOPE_BYTAG(Insights);
+
 	if (!FilterConfigurator.IsValid())
 	{
 		FilterConfigurator = MakeShared<FFilterConfigurator>();

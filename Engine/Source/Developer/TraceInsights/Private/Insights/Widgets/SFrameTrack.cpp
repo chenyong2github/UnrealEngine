@@ -19,6 +19,7 @@
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
+#include "Insights/Log.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/FrameTrackHelper.h"
@@ -228,6 +229,7 @@ TSharedRef<FFrameTrackSeries> SFrameTrack::FindOrAddSeries(int32 FrameType)
 	}
 	else
 	{
+		LLM_SCOPE_BYTAG(Insights);
 		TSharedRef<FFrameTrackSeries> SeriesRef = MakeShared<FFrameTrackSeries>(FrameType);
 		SeriesMap.Add(FrameType, SeriesRef);
 		return SeriesRef;
@@ -281,6 +283,7 @@ void SFrameTrack::UpdateState()
 		{
 			TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(FrameType);
 
+			LLM_SCOPE_BYTAG(Insights);
 			FFrameTrackSeriesBuilder Builder(*SeriesPtr, Viewport);
 
 			FramesProvider.EnumerateFrames(static_cast<ETraceFrameType>(FrameType), StartIndex, EndIndex, [&Builder](const TraceServices::FFrame& Frame)
@@ -348,6 +351,7 @@ FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 
 							if (Y >= TopY && Y < BottomY)
 							{
+								LLM_SCOPE_BYTAG(Insights);
 								return FFrameTrackSampleRef(SeriesPtr, MakeShared<FFrameTrackSample>(Sample));
 							}
 						}
