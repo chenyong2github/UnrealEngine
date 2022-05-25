@@ -4,6 +4,8 @@
 #include "InstancedStructArray.h"
 #include "StructUtilsTestTypes.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/MemoryReader.h"
 
 #define LOCTEXT_NAMESPACE "StructUtilsTests"
 
