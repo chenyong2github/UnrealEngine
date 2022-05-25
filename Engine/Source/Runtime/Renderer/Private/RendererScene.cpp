@@ -4347,7 +4347,7 @@ void FScene::UpdatePrimitiveVelocityState_RenderThread(FPrimitiveSceneInfo* Prim
 	else if (PrimitiveSceneInfo->bRegisteredWithVelocityData)
 	{
 		PrimitiveSceneInfo->bRegisteredWithVelocityData = false;
-		VelocityData.RemoveFromScene(PrimitiveSceneInfo->PrimitiveComponentId);
+		VelocityData.RemoveFromScene(PrimitiveSceneInfo->PrimitiveComponentId, true);
 	}
 }
 
@@ -4710,7 +4710,7 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRDGBuilder& GraphBuilder, bool bAsync
 				if (PrimitiveSceneInfo->bRegisteredWithVelocityData)
 				{
 					// Remove primitive's motion blur information.
-					VelocityData.RemoveFromScene(PrimitiveSceneInfo->PrimitiveComponentId);
+					VelocityData.RemoveFromScene(PrimitiveSceneInfo->PrimitiveComponentId, false);
 				}
 
 				// Unlink the primitive from its shadow parent.

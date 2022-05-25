@@ -2470,13 +2470,20 @@ public:
 		}
 	}
 
-	void RemoveFromScene(FPrimitiveComponentId PrimitiveComponentId)
+	void RemoveFromScene(FPrimitiveComponentId PrimitiveComponentId, bool bImmediate)
 	{
-		FComponentVelocityData* VelocityData = ComponentData.Find(PrimitiveComponentId);
-
-		if (VelocityData)
+		if (bImmediate)
 		{
-			VelocityData->PrimitiveSceneInfo = nullptr;
+			ComponentData.Remove(PrimitiveComponentId);
+		}
+		else
+		{
+			FComponentVelocityData* VelocityData = ComponentData.Find(PrimitiveComponentId);
+
+			if (VelocityData)
+			{
+				VelocityData->PrimitiveSceneInfo = nullptr;
+			}
 		}
 	}
 
