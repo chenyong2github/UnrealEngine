@@ -96,6 +96,13 @@ public:
 		return HasAnyInternalFlags(EInternalObjectFlags::Native);
 	}
 
+	bool IsGarbage() const
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return HasAnyInternalFlags(EInternalObjectFlags::Garbage | EInternalObjectFlags::PendingKill);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
+
 	int32 GetOwnerIndex() const
 	{
 		return ClusterRootIndex;
