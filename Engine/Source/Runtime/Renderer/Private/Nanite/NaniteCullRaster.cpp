@@ -2502,7 +2502,7 @@ void AddPass_Rasterize(
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
 		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI(); // TODO: PROG_RASTER - Support depth clip as a rasterizer bin and remove shader permutations
-		GraphicsPSOInit.PrimitiveType = bUsePrimitiveShader || bUseMeshShader ? PT_PointList : PT_TriangleList;
+		GraphicsPSOInit.PrimitiveType = bUsePrimitiveShader ? PT_PointList : PT_TriangleList;
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = bUseMeshShader ? nullptr : GEmptyVertexDeclaration.VertexDeclarationRHI;
 
 		FHWRasterizePS::FParameters Parameters = *RasterPassParameters;
