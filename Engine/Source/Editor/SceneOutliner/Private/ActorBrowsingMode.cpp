@@ -34,6 +34,7 @@
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
+#include "Misc/ScopedSlowTask.h"
 #include "EditorLevelUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorBrowser, Log, All);
@@ -1873,9 +1874,13 @@ void FActorBrowsingMode::PinSelectedItems()
 		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
 		GEditor->SelectNone(/*bNoteSelectionChange=*/false, /*bDeselectBSPSurfs=*/true);
 
-		Selection.ForEachItem([this](const FSceneOutlinerTreeItemPtr& TreeItem)
+		FScopedSlowTask SlowTask(Selection.Num(), LOCTEXT("LoadingActors", "Loading actors..."));
+		SlowTask.MakeDialogDelayed(1.0f);
+
+		Selection.ForEachItem([this, &SlowTask](const FSceneOutlinerTreeItemPtr& TreeItem)
 		{
 			PinItem(TreeItem);
+			SlowTask.EnterProgressFrame(1);
 			return true;
 		});
 
@@ -1895,9 +1900,13 @@ void FActorBrowsingMode::UnpinSelectedItems()
 	{
 		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
 
-		Selection.ForEachItem([this](const FSceneOutlinerTreeItemPtr& TreeItem)
+		FScopedSlowTask SlowTask(Selection.Num(), LOCTEXT("UnloadingActors", "Unloading actors..."));
+		SlowTask.MakeDialogDelayed(1.f);
+
+		Selection.ForEachItem([this, &SlowTask](const FSceneOutlinerTreeItemPtr& TreeItem)
 		{
 			UnpinItem(TreeItem);
+			SlowTask.EnterProgressFrame(1);
 			return true;
 		});
 
