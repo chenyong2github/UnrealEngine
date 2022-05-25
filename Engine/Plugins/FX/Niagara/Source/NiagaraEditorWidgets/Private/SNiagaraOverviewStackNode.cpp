@@ -26,6 +26,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/SBoxPanel.h"
 #include "NiagaraRendererProperties.h"
+#include "NiagaraSettings.h"
 #include "NiagaraEditorSettings.h"
 #include "SGraphPanel.h"
 #include "Widgets/SWidget.h"
@@ -194,6 +195,22 @@ TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateTitleRightWidget()
 			]
 		]
 
+		// scalability indicator
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SBox)
+			.WidthOverride(16.f)
+			.HeightOverride(16.f)
+			[
+				SNew(SImage)
+				.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scalability"))
+				.Visibility(this, &SNiagaraOverviewStackNode::GetScalabilityIndicatorVisibility)
+				.ToolTipText(FText::FormatOrdered(LOCTEXT("ScalabilityIndicatorToolTip",
+					"This {0} has scalability set up. Inspecting and editing scalability is accessible by using scalability mode from the toolbar."), EmitterHandleViewModelWeak.IsValid() ? FText::FromString("emitter") : FText::FromString("system")))
+			]
+		]
+	
 		// issue/error icon
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -378,6 +395,29 @@ void SNiagaraOverviewStackNode::CreateBottomSummaryExpander()
 				.Image(this, &SNiagaraOverviewStackNode::GetSummaryViewButtonBrush)
 		]		
 	];
+}
+
+EVisibility SNiagaraOverviewStackNode::GetScalabilityIndicatorVisibility() const
+{
+	TSharedPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel = EmitterHandleViewModelWeak.Pin();
+
+	if(EmitterHandleViewModel.IsValid())
+	{
+		if(FVersionedNiagaraEmitterData* EmitterData = EmitterHandleViewModel->GetEmitterHandle()->GetInstance().GetEmitterData())
+		{
+			bool bIsQualityLevelMaskSetup = EmitterData->Platforms.QualityLevelMask != INDEX_NONE;
+			bool bIsScalabilitySetup = EmitterData->ScalabilityOverrides.Overrides.Num() != 0 || (bIsQualityLevelMaskSetup && EmitterData->Platforms.QualityLevelMask != FNiagaraPlatformSet::GetFullQualityLevelMask(GetDefault<UNiagaraSettings>()->QualityLevels.Num())); 
+			return bIsScalabilitySetup ? EVisibility::Visible : EVisibility::Collapsed;
+		}
+	}
+
+	if(UNiagaraSystem* System = OverviewStackNode->GetOwningSystem())
+	{
+		bool bIsScalabilitySetup = System->GetOverrideScalabilitySettings();
+		return bIsScalabilitySetup ? EVisibility::Visible : EVisibility::Collapsed; 
+	}
+	
+	return EVisibility::Collapsed;
 }
 
 TSharedRef<SWidget> SNiagaraOverviewStackNode::CreateNodeContentArea()
@@ -811,11 +851,6 @@ FSlateColor SNiagaraOverviewStackNode::GetScalabilityTintAlpha() const
 void SNiagaraOverviewStackNode::OnScalabilityModeChanged(bool bActive)
 {
 	bScalabilityModeActive = bActive;
-}
-
-EVisibility SNiagaraOverviewStackNode::GetScalabilityBarVisibility() const
-{
-	return bScalabilityModeActive ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SNiagaraOverviewStackNode::ShowExcludedOverlay() const

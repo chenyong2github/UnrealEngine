@@ -398,6 +398,17 @@ FOnGetWorkflowMode& FNiagaraSystemViewModel::OnGetWorkflowMode()
 	return OnGetWorkflowModeDelegate;
 }
 
+void FNiagaraSystemViewModel::SetWorkflowMode(FName WorkflowMode)
+{
+	check(OnChangeWorkflowModeDelegate.IsBound());
+	OnChangeWorkflowModeDelegate.Execute(WorkflowMode);
+}
+
+FNiagaraSystemViewModel::FOnChangeWorkflowMode& FNiagaraSystemViewModel::OnChangeWorkflowMode()
+{
+	return OnChangeWorkflowModeDelegate;
+}
+
 TSharedPtr<FNiagaraEmitterHandleViewModel> FNiagaraSystemViewModel::AddEmitterFromAssetData(const FAssetData& AssetData)
 {
 	UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(AssetData.GetAsset());

@@ -44,6 +44,7 @@ protected:
 
 	void CreateBottomSummaryExpander();
 private:
+	EVisibility GetScalabilityIndicatorVisibility() const;
 	EVisibility GetIssueIconVisibility() const;
 	EVisibility GetEnabledCheckBoxVisibility() const;
 	ECheckBoxState GetEnabledCheckState() const;
@@ -56,7 +57,6 @@ private:
 	FSlateColor GetToggleIsolateImageColor() const;
 	FSlateColor GetScalabilityTintAlpha() const;
 	void OnScalabilityModeChanged(bool bActive);
-	EVisibility GetScalabilityBarVisibility() const;
 	EVisibility ShowExcludedOverlay() const;
 	float GetGraphZoomDistanceAlphaMultiplier() const;
 	void SetIsHoveringThumbnail(const FGeometry& InGeometry, const FPointerEvent& InEvent, const bool bInHoveringThumbnail)
@@ -71,7 +71,7 @@ private:
 	{
 		return bIsHoveringThumbnail;
 	}
-
+	
 	FReply OnCycleThroughIssues();
 	FReply OpenParentEmitter();
 	FText OpenParentEmitterTooltip() const;

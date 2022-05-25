@@ -14,8 +14,6 @@ TSharedRef<IDetailCustomization> FNiagaraSystemDetails::MakeInstance()
 
 void FNiagaraSystemDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailLayout)
 {
-	if(GNiagaraScalabilityModeEnabled)
-	{
-		InDetailLayout.HideCategory("Scalability");
-	}
+	// we display the scalability category within scalability mode, which is why we hide it here
+	InDetailLayout.HideCategory("Scalability");
 }

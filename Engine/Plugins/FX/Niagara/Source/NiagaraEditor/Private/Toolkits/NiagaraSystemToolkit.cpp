@@ -68,17 +68,6 @@ DECLARE_CYCLE_STAT(TEXT("Niagara - SystemToolkit - OnApply"), STAT_NiagaraEditor
 const FName FNiagaraSystemToolkit::DefaultModeName(TEXT("Default"));
 const FName FNiagaraSystemToolkit::ScalabilityModeName(TEXT("Scalability"));
 
-int32 GNiagaraScalabilityModeEnabled = 1;
-
-// @TODO Remove cvar when scalability mode is going in properly
-static const TCHAR* NiagaraEnableScalabilityMode = TEXT("fx.Niagara.EnableScalabilityMode");
-static FAutoConsoleVariableRef CVarNiagaraScalabilityModeEnabled(
-	NiagaraEnableScalabilityMode,
-	GNiagaraScalabilityModeEnabled,
-	TEXT("Enable the scalability mode inside Niagara emitters and systems. \n"),
-	ECVF_Default
-);
-
 IConsoleVariable* FNiagaraSystemToolkit::VmStatEnabledVar = IConsoleManager::Get().FindConsoleVariable(TEXT("vm.DetailedVMScriptStats"));
 
 static int32 GbLogNiagaraSystemChanges = 0;
@@ -294,6 +283,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->OnRequestFocusTab().AddSP(this, &FNiagaraSystemToolkit::OnViewModelRequestFocusTab);
 	SystemViewModel->OnGetWorkflowMode().BindSP(this, &FNiagaraSystemToolkit::GetCurrentMode);
+	SystemViewModel->OnChangeWorkflowMode().BindSP(this, &FNiagaraSystemToolkit::SetCurrentMode);
 	SystemViewModel->GetDocumentViewModel()->InitializePreTabManager(SharedThis(this));
 	
 	constexpr bool bCreateDefaultStandaloneMenu = true;

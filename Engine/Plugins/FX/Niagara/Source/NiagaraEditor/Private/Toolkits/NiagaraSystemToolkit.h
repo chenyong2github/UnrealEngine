@@ -41,8 +41,6 @@ class FNiagaraSystemToolkitParameterDefinitionsPanelViewModel;
 class FNiagaraScriptStatsViewModel;
 class FNiagaraBakerViewModel;
 
-extern int32 GNiagaraScalabilityModeEnabled;
-
 /** Viewer/editor for a NiagaraSystem
 */
 class FNiagaraSystemToolkit : public FWorkflowCentricApplication, public FGCObject, public FEditorUndoClient

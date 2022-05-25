@@ -243,28 +243,25 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 				);
 			}
 			ToolbarBuilder.EndSection();
-
-			if(GNiagaraScalabilityModeEnabled)
+			
+			ToolbarBuilder.BeginSection("Scalability");
 			{
-				ToolbarBuilder.BeginSection("Scalability");
+				FUIAction ScalabilityToggleAction(FExecuteAction::CreateRaw(Toolkit, &FNiagaraSystemToolkit::SetCurrentMode, FNiagaraSystemToolkit::ScalabilityModeName));
+				ScalabilityToggleAction.GetActionCheckState = FGetActionCheckState::CreateLambda([Toolkit]()
 				{
-					FUIAction ScalabilityToggleAction(FExecuteAction::CreateRaw(Toolkit, &FNiagaraSystemToolkit::SetCurrentMode, FNiagaraSystemToolkit::ScalabilityModeName));
-					ScalabilityToggleAction.GetActionCheckState = FGetActionCheckState::CreateLambda([Toolkit]()
-					{
-						return Toolkit->GetCurrentMode() == FNiagaraSystemToolkit::ScalabilityModeName ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-					});
-					
-					ToolbarBuilder.AddToolBarButton(
-						ScalabilityToggleAction,
-						NAME_None, 
-						LOCTEXT("ScalabilityLabel", "Scalability"),
-						LOCTEXT("ScalabilityTooltip", "Turn on scalability mode to optimize your effects for various platforms and quality settings."),
-						FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Scalability"),
-						EUserInterfaceActionType::ToggleButton
-					);
-				}
-				ToolbarBuilder.EndSection();
+					return Toolkit->GetCurrentMode() == FNiagaraSystemToolkit::ScalabilityModeName ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				});
+				
+				ToolbarBuilder.AddToolBarButton(
+					ScalabilityToggleAction,
+					NAME_None, 
+					LOCTEXT("ScalabilityLabel", "Scalability"),
+					LOCTEXT("ScalabilityTooltip", "Turn on scalability mode to optimize your effects for various platforms and quality settings."),
+					FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.Scalability"),
+					EUserInterfaceActionType::ToggleButton
+				);
 			}
+			ToolbarBuilder.EndSection(
 
 			if (Toolkit->HasEmitter())
 			{

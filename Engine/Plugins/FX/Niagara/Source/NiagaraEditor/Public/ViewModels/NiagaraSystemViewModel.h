@@ -126,6 +126,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnExternalRenameParameter, const FNiagaraVariableBase&, const FNiagaraVariableBase&, UNiagaraEmitter*);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExternalRemoveParameter, const FNiagaraVariableBase&,  UNiagaraEmitter*);
 
+	DECLARE_DELEGATE_OneParam(FOnChangeWorkflowMode, FName /* WorkflowMode */)
 public:
 	struct FEmitterHandleToDuplicate
 	{
@@ -216,6 +217,11 @@ public:
 
 	/** Gets the delegate which is called any time the array of emitter handle view models changes. */
 	NIAGARAEDITOR_API FOnGetWorkflowMode& OnGetWorkflowMode();
+
+	NIAGARAEDITOR_API void SetWorkflowMode(FName WorkflowMode);
+	
+	/** Gets the delegate that is bound to the owning toolkit's SetCurrentMode function. */
+	NIAGARAEDITOR_API FOnChangeWorkflowMode& OnChangeWorkflowMode();
 	
 	/** Adds a new emitter to the System from an emitter asset data. */
 	NIAGARAEDITOR_API TSharedPtr<FNiagaraEmitterHandleViewModel> AddEmitterFromAssetData(const FAssetData& AssetData);
@@ -594,6 +600,9 @@ private:
 
 	/** A delegate to retrieve the current workflow mode from the toolkit. */
 	FOnGetWorkflowMode OnGetWorkflowModeDelegate;
+
+	/** A delegate that calls the toolkit's set current mode function */
+	FOnChangeWorkflowMode OnChangeWorkflowModeDelegate;
 	
 	/** A delegate which is used to generate the content for the add menu in sequencer. */
 	FOnGetAddMenuContent OnGetSequencerAddMenuContent;

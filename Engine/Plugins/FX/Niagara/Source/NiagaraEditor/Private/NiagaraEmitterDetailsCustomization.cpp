@@ -46,11 +46,9 @@ void FNiagaraEmitterDetails::CustomizeDetails(IDetailLayoutBuilder& InDetailLayo
 			}
 		}
 	}
-	
-	if(GNiagaraScalabilityModeEnabled)
-	{
-		InDetailLayout.HideCategory("Scalability");
-	}
+
+	// we display the scalability category within scalability mode, which is why we hide it here
+	InDetailLayout.HideCategory("Scalability");
 }
 
 TSharedRef<IDetailCustomization> FNiagaraEmitterScalabilityDetails::MakeInstance()

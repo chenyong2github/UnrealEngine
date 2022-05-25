@@ -320,6 +320,8 @@ struct NIAGARA_API FNiagaraPlatformSet
 	static int32 GetMinQualityLevel();
 	static int32 GetMaxQualityLevel();
 	static int32 GetAvailableQualityLevelMask();
+	static int32 GetFullQualityLevelMask(int32 NumQualityLevels);
+	
 public:
 
 	//Runtime public API

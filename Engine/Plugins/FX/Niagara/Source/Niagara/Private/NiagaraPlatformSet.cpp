@@ -238,6 +238,18 @@ int32 FNiagaraPlatformSet::GetAvailableQualityLevelMask()
 	return CachedAvailableQualityLevelMask;
 }
 
+int32 FNiagaraPlatformSet::GetFullQualityLevelMask(int32 NumQualityLevels)
+{
+	int32 QualityLevelMask = 0;
+	
+	for (int32 QL = 0; QL < NumQualityLevels; ++QL)
+	{
+		QualityLevelMask |= (1 << QL);
+	}
+
+	return QualityLevelMask;
+}
+
 void FNiagaraPlatformSet::OnQualityLevelChanged(IConsoleVariable* Variable)
 {
 	int32 NewQualityLevel = Variable->GetInt();
