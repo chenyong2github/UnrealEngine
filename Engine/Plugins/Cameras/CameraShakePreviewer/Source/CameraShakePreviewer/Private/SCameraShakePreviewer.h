@@ -79,6 +79,8 @@ private:
 
 	void AddPostProcessBlend(const FPostProcessSettings& Settings, float Weight);
 
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
+
 private:
 	APreviewPlayerCameraManager* PreviewCamera;
 	UCameraModifier_CameraShake* PreviewCameraShake;

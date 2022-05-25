@@ -77,6 +77,25 @@ FCameraShakePreviewUpdater::FCameraShakePreviewUpdater()
 {
 	PreviewCameraShake = CastChecked<UCameraModifier_CameraShake>(
 			PreviewCamera->AddNewCameraModifier(UCameraModifier_CameraShake::StaticClass()));
+
+	// Handle camera shakes being recompiled.
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FCameraShakePreviewUpdater::OnObjectsReplaced);
+}
+
+void FCameraShakePreviewUpdater::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+{
+	// If a camera shake gets recompiled, we just stop and discard it.
+	TArray<FActiveCameraShakeInfo> ActiveCameraShakes;
+	PreviewCameraShake->GetActiveCameraShakes(ActiveCameraShakes);
+
+	for (const FActiveCameraShakeInfo& ActiveCameraShake : ActiveCameraShakes)
+	{
+		UObject* NewShakeInstance = ReplacementMap.FindRef(ActiveCameraShake.ShakeInstance);
+		if (NewShakeInstance)
+		{
+			PreviewCameraShake->RemoveCameraShake(ActiveCameraShake.ShakeInstance, true);
+		}
+	}
 }
 
 void FCameraShakePreviewUpdater::Tick(float DeltaTime)
