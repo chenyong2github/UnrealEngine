@@ -24,6 +24,16 @@ IPlatformInputDeviceMapper& IPlatformInputDeviceMapper::Get()
 	return *StaticManager;
 }
 
+IPlatformInputDeviceMapper::IPlatformInputDeviceMapper()
+{
+	BindCoreDelegates();
+}
+
+IPlatformInputDeviceMapper::~IPlatformInputDeviceMapper()
+{
+	UnbindCoreDelegates();
+}
+
 int32 IPlatformInputDeviceMapper::GetAllInputDevicesForUser(const FPlatformUserId UserId, TArray<FInputDeviceId>& OutInputDevices) const
 {
 	OutInputDevices.Reset();
@@ -231,17 +241,33 @@ bool IPlatformInputDeviceMapper::Internal_ChangeInputDeviceUserMapping(FInputDev
 	return true;
 }
 
+void IPlatformInputDeviceMapper::BindCoreDelegates()
+{
+	FCoreDelegates::OnUserLoginChangedEvent.AddRaw(this, &IPlatformInputDeviceMapper::OnUserLoginChangedEvent);
+}
+
+void IPlatformInputDeviceMapper::UnbindCoreDelegates()
+{
+	FCoreDelegates::OnUserLoginChangedEvent.RemoveAll(this);
+}
+
 ///////////////////////////////////////////////////////////////////////////
 // FGenericPlatformInputDeviceMapper
 
 FGenericPlatformInputDeviceMapper::FGenericPlatformInputDeviceMapper(const bool InbUsingControllerIdAsUserId, const bool InbShouldBroadcastLegacyDelegates)
-	: bUsingControllerIdAsUserId(InbUsingControllerIdAsUserId)
+	: IPlatformInputDeviceMapper()
+	, bUsingControllerIdAsUserId(InbUsingControllerIdAsUserId)
 	, bShouldBroadcastLegacyDelegates(InbShouldBroadcastLegacyDelegates)
 {
 	// Set the last input device id to be the default of 0, that way any new devices will have
 	// an index of 1 or higher and we can use the Default Input Device as a fallback for any
 	// unpaired input devices without an owning PlatformUserId
 	LastInputDeviceId = GetDefaultInputDevice();
+	LastPlatformUserId = GetPrimaryPlatformUser();
+
+	// By default map the Default Input device to the Primary platform user in a connected state. This ensures that the SlateApplication has a 
+	// "Default" user to deal with representing the keyboard and mouse
+	Internal_MapInputDeviceToUser(GetDefaultInputDevice(), GetPrimaryPlatformUser(), EInputDeviceConnectionState::Connected);
 }
 
 FPlatformUserId FGenericPlatformInputDeviceMapper::GetUserForUnpairedInputDevices() const
@@ -250,6 +276,13 @@ FPlatformUserId FGenericPlatformInputDeviceMapper::GetUserForUnpairedInputDevice
 	// you create a static const FPlatformUserID with a value of 0 to start out as the "Unpaired"
 	// user that input devices can then map to
 	return PLATFORMUSERID_NONE;
+}
+
+FPlatformUserId FGenericPlatformInputDeviceMapper::GetPrimaryPlatformUser() const
+{
+	// Most platforms will want the primary user to be 0
+	static const FPlatformUserId PrimaryPlatformUser = FPlatformUserId::CreateFromInternalId(0);
+	return PrimaryPlatformUser;
 }
 
 FInputDeviceId FGenericPlatformInputDeviceMapper::GetDefaultInputDevice() const
@@ -305,6 +338,36 @@ bool FGenericPlatformInputDeviceMapper::IsUsingControllerIdAsUserId() const
 bool FGenericPlatformInputDeviceMapper::ShouldBroadcastLegacyDelegates() const
 {
 	return bShouldBroadcastLegacyDelegates;
+}
+
+void FGenericPlatformInputDeviceMapper::OnUserLoginChangedEvent(bool bLoggedIn, int32 RawPlatformUserId, int32 UserIndex)
+{
+	// Attain the FPlatformUserId from the raw int32 that will be given by the Platform code
+	FPlatformUserId LoggedOutPlatformUserId = PLATFORMUSERID_NONE;
+	FInputDeviceId DummyInputDevice = INPUTDEVICEID_NONE;
+	RemapControllerIdToPlatformUserAndDevice(RawPlatformUserId, LoggedOutPlatformUserId, DummyInputDevice);
+	
+	// A new user has logged in
+	if (bLoggedIn)
+	{
+		// TODO: As of right now there is no logic that needs to run when a new platform user logs in, but there may be in the future
+	}
+	// A platform user has logged out
+	else
+	{
+		// Remap any input devices that the logged out platform user had to the "Unpaired" user
+		FPlatformUserId UnkownUserId = GetUserForUnpairedInputDevices();
+		if (LoggedOutPlatformUserId != UnkownUserId)
+		{
+			TArray<FInputDeviceId> InputDevices;
+			GetAllInputDevicesForUser(LoggedOutPlatformUserId, InputDevices);
+
+			for (FInputDeviceId DeviceId : InputDevices)
+			{
+				Internal_ChangeInputDeviceUserMapping(DeviceId, UnkownUserId, LoggedOutPlatformUserId);
+			}
+		}
+	}
 }
 
 FPlatformUserId FGenericPlatformInputDeviceMapper::AllocateNewUserId()

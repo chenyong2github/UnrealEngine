@@ -29,10 +29,10 @@ public:
 	/** Get the platform input device mapper */
 	static IPlatformInputDeviceMapper& Get();
 	
-	IPlatformInputDeviceMapper() = default;
+	IPlatformInputDeviceMapper();
 	
 	/** Virtual destructor */
-	virtual ~IPlatformInputDeviceMapper() = default;
+	virtual ~IPlatformInputDeviceMapper();
 	
 	/**
 	 * Populates the OutInputDevices array with any InputDeviceID's that are mapped to the given platform user
@@ -78,6 +78,14 @@ public:
 
 	/** Returns true if the given input device is mapped to the unpaired platform user id. */
 	virtual bool IsInputDeviceMappedToUnpairedUser(const FInputDeviceId InputDevice) const;
+
+	/**
+	 * Returns the 'Primary' Platform user for this platform.
+	 * This typcially has an internal ID of '0' and is used as the default platform user to
+	 * map devices such as the keyboard and mouse that don't get assigned unique ID's from their
+	 * owning platform code.
+	 */
+	virtual FPlatformUserId GetPrimaryPlatformUser() const = 0;
 	
 	/** Returns the default device id used for things like keyboard/mouse input */
 	virtual FInputDeviceId GetDefaultInputDevice() const = 0;
@@ -179,6 +187,21 @@ public:
 protected:
 
 	/**
+	* Binds to any core delegates that the platform may broadcast. By default it is only the OnUserLoginChangedEvent delegate. 
+	* Called during the constructor of this device mapper.
+	*/
+	virtual void BindCoreDelegates();
+	
+	/** 
+	* Unbind from any delegates that have been hooked into.
+	* Called during the destructor of this device mapper.
+	*/
+	virtual void UnbindCoreDelegates();
+
+	/** Callback for when FCoreDelegates::FOnUserLoginChangedEvent is broadcasted */
+	virtual void OnUserLoginChangedEvent(bool bLoggedIn, int32 UserId, int32 UserIndex) = 0;
+	
+	/**
 	 * If true, this device mapper is operating in a backward compatible mode where there is a
 	 * 1:1 mapping between controller id and user id
 	 */
@@ -226,6 +249,7 @@ public:
 	
 	/** This is unsupported by default and will return PLATFORMUSERID_NONE on the generic platform */  
 	virtual FPlatformUserId GetUserForUnpairedInputDevices() const override;
+	virtual FPlatformUserId GetPrimaryPlatformUser() const override;
 	virtual FInputDeviceId GetDefaultInputDevice() const override;
 
 	virtual bool RemapControllerIdToPlatformUserAndDevice(int32 ControllerId, FPlatformUserId& InOutUserId, FInputDeviceId& OutInputDeviceId) override;
@@ -234,6 +258,12 @@ public:
 	virtual bool ShouldBroadcastLegacyDelegates() const override;
 	
 protected:
+
+	/** 
+	* Callback for when FCoreDelegates::FOnUserLoginChangedEvent is broadcasted.
+	* If the user has logged out, then remap any input devices that the user had to the "Unpaired" user on this platform.
+	*/
+	virtual void OnUserLoginChangedEvent(bool bLoggedIn, int32 RawPlatformUserId, int32 UserIndex) override;
 	
 	/** Allocates a new user id when a user becomes active, will return none if no more can be created */
 	virtual FPlatformUserId AllocateNewUserId() override;
