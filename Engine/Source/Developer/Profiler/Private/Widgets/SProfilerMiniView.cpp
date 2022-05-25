@@ -11,8 +11,8 @@
 #include "Fonts/FontMeasure.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
-#include "Styling/AppStyle.h"
 #include "ProfilerSession.h"
+#include "../ProfilerStyle.h"
 
 
 SProfilerMiniView::SProfilerMiniView()
@@ -102,8 +102,8 @@ int32 SProfilerMiniView::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 	// Rendering info.
 	const bool bEnabled = ShouldBeEnabled( bParentEnabled );
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* MiniViewArea = FAppStyle::GetBrush( "Profiler.LineGraphArea" );
-	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush( "WhiteTexture" );
+	const FSlateBrush* MiniViewArea = FProfilerStyle::Get().GetBrush( "Brushes.White25" );
+	const FSlateBrush* WhiteBrush = FProfilerStyle::Get().GetBrush( "Brushes.White" );
 
 	PaintState = new((void*)PaintStateMemory) FSlateOnPaintState( AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, DrawEffects );
 
@@ -248,7 +248,7 @@ int32 SProfilerMiniView::OnPaint( const FPaintArgs& Args, const FGeometry& Allot
 			OutDrawElements,
 			LayerId,
 			AllottedGeometry.ToPaintGeometry( FVector2D( SelectionBoxX0, 0.0f ), FVector2D( SelectionBoxX1 - SelectionBoxX0, AllottedGeometry.Size.Y ) ),
-			FAppStyle::GetBrush( "PlainBorder" ),
+			FProfilerStyle::Get().GetBrush( "PlainBorder" ),
 			DrawEffects,
 			FColorList::Green
 		);

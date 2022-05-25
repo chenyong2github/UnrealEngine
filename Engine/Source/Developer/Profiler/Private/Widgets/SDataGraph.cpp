@@ -21,10 +21,10 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SButton.h"
-#include "Styling/AppStyle.h"
 #include "ProfilerDataProvider.h"
 #include "ProfilerManager.h"
 #include "Widgets/StatDragDropOp.h"
+#include "../ProfilerStyle.h"
 
 #define LOCTEXT_NAMESPACE "SDataGraph"
 
@@ -104,7 +104,7 @@ public:
 			[
 				SNew(STextBlock)
 				.ColorAndOpacity( TextColor )
-				.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+				.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 				.Text( this, &SDataGraphSummary::SummaryInformation_GetGroupName )
 			]
 
@@ -117,7 +117,7 @@ public:
 			[
 				SNew(STextBlock)
 				.ColorAndOpacity( TextColor )
-				.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+				.TextStyle(FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 				.Text( this, &SDataGraphSummary::SummaryInformation_GetStatName )
 			]
 
@@ -130,7 +130,7 @@ public:
 			[
 				SNew(STextBlock)
 				.ColorAndOpacity( TextColor )
-				.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+				.TextStyle(FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 				.Text( this, &SDataGraphSummary::SummaryInformation_GetSummary )
 			]
 		];
@@ -306,8 +306,8 @@ int32 SDataGraph::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	// Rendering info.
 	const bool bEnabled  = ShouldBeEnabled( bParentEnabled );
 	ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* TimelineAreaBrush = FAppStyle::GetBrush("Profiler.LineGraphArea");
-	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteTexture");
+	const FSlateBrush* TimelineAreaBrush = FProfilerStyle::Get().GetBrush("Brushes.White25");
+	const FSlateBrush* WhiteBrush = FProfilerStyle::Get().GetBrush("Brushes.White");
 
 	/** Width of the alloted geometry that is used to draw a data graph. */
 	const float AreaX0 = 0.0f;

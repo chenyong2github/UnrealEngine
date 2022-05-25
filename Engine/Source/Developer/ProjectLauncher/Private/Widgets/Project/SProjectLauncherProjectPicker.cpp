@@ -101,7 +101,6 @@ TSharedRef<SWidget> SProjectLauncherProjectPicker::MakeProjectWidget()
 				[
 					// project selector
 					SNew(SComboButton)
-					.ComboButtonStyle(FAppStyle::Get(), "Launcher.ComboButton")
 					.ButtonContent()
 					[
 						SNew(STextBlock)

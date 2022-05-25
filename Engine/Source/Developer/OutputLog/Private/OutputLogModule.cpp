@@ -10,14 +10,23 @@
 #include "SDebugConsole.h"
 #include "SOutputLog.h"
 #include "SDeviceOutputLog.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
-#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+
 #include "Widgets/Docking/SDockTab.h"
 #include "Misc/ConfigCacheIni.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "ISettingsModule.h"
 #endif
+
+#if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
+#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructure.h"
+#include "Editor/WorkspaceMenuStructure/Public/WorkspaceMenuStructureModule.h"
+#include "OutputLogSettings.h"
+#endif
+
+#include "Internationalization/Internationalization.h"
+#include "OutputLogStyle.h"
 
 IMPLEMENT_MODULE(FOutputLogModule, OutputLog);
 
@@ -98,20 +107,34 @@ TSharedRef<SDockTab> FOutputLogModule::SpawnDeviceOutputLogTab(const FSpawnTabAr
 
 void FOutputLogModule::StartupModule()
 {
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::OutputLogTabName, FOnSpawnTab::CreateRaw(this, &FOutputLogModule::SpawnOutputLogTab))
-		.SetDisplayName(NSLOCTEXT("UnrealEditor", "OutputLogTab", "Output Log"))
-		.SetTooltipText(NSLOCTEXT("UnrealEditor", "OutputLogTooltipText", "Open the Output Log tab."))
-		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory())
-		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Log.TabIcon"));
-
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName, FOnSpawnTab::CreateRaw(this, &FOutputLogModule::SpawnDeviceOutputLogTab))
-		.SetDisplayName(NSLOCTEXT("UnrealEditor", "DeviceOutputLogTab", "Device Output Log"))
-		.SetTooltipText(NSLOCTEXT("UnrealEditor", "DeviceOutputLogTooltipText", "Open the Device Output Log tab."))
-		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory())
-		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Log.TabIcon"));
+	FOutputLogStyle::Get();
 
 #if WITH_EDITOR
+	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
+	if (SettingsModule)
+	{
+		SettingsModule->RegisterSettings("Editor", "General", "Output Log",
+			NSLOCTEXT("OutputLog", "OutputLogSettingsName", "Output Log"),
+			NSLOCTEXT("OutputLog", "OutputLogSettingsDescription", "Set up preferences for the Output Log appearance and workflow."),
+			GetMutableDefault<UOutputLogSettings>()
+		);
+	}
+
 	FEditorDelegates::BeginPIE.AddRaw(this, &FOutputLogModule::ClearOnPIE);
+#endif
+
+#if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::OutputLogTabName, FOnSpawnTab::CreateRaw(this, &FOutputLogModule::SpawnOutputLogTab))
+		.SetDisplayName(NSLOCTEXT("OutputLog", "OutputLogTab", "Output Log"))
+		.SetTooltipText(NSLOCTEXT("OutputLog", "OutputLogTooltipText", "Open the Output Log tab."))
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory())
+		.SetIcon(FSlateIcon(FOutputLogStyle::Get().GetStyleSetName(), "Log.TabIcon"));
+
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName, FOnSpawnTab::CreateRaw(this, &FOutputLogModule::SpawnDeviceOutputLogTab))
+		.SetDisplayName(NSLOCTEXT("OutputLog", "DeviceOutputLogTab", "Device Output Log"))
+		.SetTooltipText(NSLOCTEXT("OutputLog", "DeviceOutputLogTooltipText", "Open the Device Output Log tab."))
+		.SetGroup(WorkspaceMenu::GetMenuStructure().GetDeveloperToolsLogCategory())
+		.SetIcon(FSlateIcon(FOutputLogStyle::Get().GetStyleSetName(), "Log.TabIcon"));
 #endif
 
 	OutputLogHistory = MakeShareable(new FOutputLogHistory);
@@ -119,16 +142,18 @@ void FOutputLogModule::StartupModule()
 
 void FOutputLogModule::ShutdownModule()
 {
+#if WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 	if (FSlateApplication::IsInitialized())
 	{
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OutputLogModule::OutputLogTabName);
 		FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(OutputLogModule::DeviceOutputLogTabName);
 	}
+#endif
 
 #if WITH_EDITOR
 	FEditorDelegates::BeginPIE.RemoveAll(this);
 #endif
-
+	FOutputLogStyle::Shutdown();
 	OutputLogHistory.Reset();
 }
 

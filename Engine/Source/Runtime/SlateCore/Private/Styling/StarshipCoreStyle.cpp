@@ -16,6 +16,7 @@
 #include "Styling/SegmentedControlStyle.h"
 #include "Styling/StyleColors.h"
 #include "Styling/CoreStyle.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but Style->RootToContentDir is how the core style is set up
 #define RootToContentDir Style->RootToContentDir
@@ -391,6 +392,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("Icons.EyeDropper", new IMAGE_BRUSH_SVG("Starship/Common/EyeDropper", Icon16x16));
 		Style->Set("Icons.C++", new IMAGE_BRUSH_SVG("Starship/Common/CPP", Icon16x16));
 
+		Style->Set("Icons.Advanced", new IMAGE_BRUSH_SVG("Starship/Common/Advanced", Icon16x16));
 		Style->Set("Icons.Rotate90Clockwise", new IMAGE_BRUSH_SVG("Starship/Common/Rotate90Clockwise", Icon16x16));
 		Style->Set("Icons.Rotate90CounterClockwise", new IMAGE_BRUSH_SVG("Starship/Common/Rotate90CounterClockwise", Icon16x16));
 		Style->Set("Icons.Rotate180", new IMAGE_BRUSH_SVG("Starship/Common/Rotate180", Icon16x16));
@@ -799,6 +801,107 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("SyntaxHighlight.NodeAttributeKey", FTextBlockStyle(SmallMonospacedText).SetColorAndOpacity(FLinearColor(FColor(0xffb40000)))); // red
 		Style->Set("SyntaxHighlight.NodeAttribueAssignment", FTextBlockStyle(SmallMonospacedText).SetColorAndOpacity(FLinearColor(FColor(0xffb2b400)))); // yellow
 		Style->Set("SyntaxHighlight.NodeAttributeValue", FTextBlockStyle(SmallMonospacedText).SetColorAndOpacity(FLinearColor(FColor(0xffb46100)))); // orange
+	}
+
+	// Logging defaults
+	{
+		Style->Set("Log.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/OutputLog", Icon16x16));
+
+		const FTextBlockStyle NormalLogText = FTextBlockStyle(NormalText)
+			.SetFont(DEFAULT_FONT("Mono", 9))
+			.SetColorAndOpacity(FStyleColors::Foreground)
+			.SetSelectedBackgroundColor(FStyleColors::Highlight)
+			.SetHighlightColor(FStyleColors::Black);
+
+		Style->Set("Log.Normal", NormalLogText);
+
+		Style->Set("Log.Warning", FTextBlockStyle(NormalLogText)
+			.SetColorAndOpacity(FStyleColors::Warning)
+		);
+
+		Style->Set("Log.Error", FTextBlockStyle(NormalLogText)
+			.SetColorAndOpacity(FStyleColors::Error)
+		);
+
+		Style->Set("Log.TextBox", FEditableTextBoxStyle(NormalEditableTextBoxStyle)
+			.SetBackgroundImageNormal(BOX_BRUSH("Common/WhiteGroupBorder", FMargin(4.0f / 16.0f)))
+			.SetBackgroundImageHovered(BOX_BRUSH("Common/WhiteGroupBorder", FMargin(4.0f / 16.0f)))
+			.SetBackgroundImageFocused(BOX_BRUSH("Common/WhiteGroupBorder", FMargin(4.0f / 16.0f)))
+			.SetBackgroundImageReadOnly(BOX_BRUSH("Common/WhiteGroupBorder", FMargin(4.0f / 16.0f)))
+			.SetBackgroundColor(FStyleColors::Recessed)
+		);
+	}
+
+	// Project Launcher
+	{
+		Style->Set("Launcher.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/ProjectLauncher", Icon16x16));
+		Style->Set("Launcher.Tabs.Tools", new IMAGE_BRUSH("/Icons/icon_tab_Tools_16x", Icon16x16));
+		
+
+		Style->Set("Launcher.Run", new IMAGE_BRUSH("Launcher/Launcher_Run", Icon40x40));
+		Style->Set("Launcher.EditSettings", new IMAGE_BRUSH("Launcher/Launcher_EditSettings", Icon40x40));
+		Style->Set("Launcher.Back", new IMAGE_BRUSH("Launcher/Launcher_Back", Icon32x32));
+		Style->Set("Launcher.Back.Small", new IMAGE_BRUSH("Launcher/Launcher_Back", Icon32x32));
+		Style->Set("Launcher.Delete", new IMAGE_BRUSH("Launcher/Launcher_Delete", Icon32x32));
+
+		Style->Set("Launcher.Instance_Commandlet", new IMAGE_BRUSH("Launcher/Instance_Commandlet", Icon25x25));
+		Style->Set("Launcher.Instance_Editor", new IMAGE_BRUSH("Launcher/Instance_Editor", Icon25x25));
+		Style->Set("Launcher.Instance_Game", new IMAGE_BRUSH("Launcher/Instance_Game", Icon25x25));
+		Style->Set("Launcher.Instance_Other", new IMAGE_BRUSH("Launcher/Instance_Other", Icon25x25));
+		Style->Set("Launcher.Instance_Server", new IMAGE_BRUSH("Launcher/Instance_Server", Icon25x25));
+		Style->Set("Launcher.Instance_Unknown", new IMAGE_BRUSH("Launcher/Instance_Unknown", Icon25x25));
+		Style->Set("LauncherCommand.DeployBuild", new IMAGE_BRUSH("Launcher/Launcher_Deploy", Icon40x40));
+		Style->Set("LauncherCommand.QuickLaunch", new IMAGE_BRUSH_SVG("Starship/Launcher/PaperAirplane", Icon20x20));
+		Style->Set("LauncherCommand.CreateBuild", new IMAGE_BRUSH("Launcher/Launcher_Build", Icon40x40));
+		Style->Set("LauncherCommand.AdvancedBuild", new IMAGE_BRUSH("Launcher/Launcher_Advanced", Icon40x40));
+		Style->Set("LauncherCommand.AdvancedBuild.Medium", new IMAGE_BRUSH("Launcher/Launcher_Advanced", Icon25x25));
+		Style->Set("LauncherCommand.AdvancedBuild.Small", new IMAGE_BRUSH("Launcher/Launcher_Advanced", Icon20x20));
+
+#if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA && (WITH_EDITOR || WITH_UNREAL_DEVELOPER_TOOLS)
+
+		Style->Set("Launcher.Platform.AllPlatforms", new IMAGE_BRUSH("Launcher/All_Platforms_24x", Icon24x24));
+		Style->Set("Launcher.Platform.AllPlatforms.Large", new IMAGE_BRUSH("Launcher/All_Platforms_128x", Icon64x64));
+		Style->Set("Launcher.Platform.AllPlatforms.XLarge", new IMAGE_BRUSH("Launcher/All_Platforms_128x", Icon128x128));
+		for (auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+		{
+			const FDataDrivenPlatformInfo& PlatformInfo = Pair.Value;
+
+			// some platforms may specify a "rooted" path in the platform extensions directory, so look for that case here, and use a different path for the brush
+			FString NormalIconPath = PlatformInfo.GetIconPath(EPlatformIconSize::Normal);
+			if (!NormalIconPath.IsEmpty())
+			{
+				if (NormalIconPath.StartsWith(TEXT("/Platforms/")))
+				{
+#define PLATFORM_IMAGE_BRUSH( PlatformPath, ... ) FSlateImageBrush( PlatformPath.Replace(TEXT("/Platforms/"), *FPaths::EnginePlatformExtensionsDir()) + TEXT(".png") , __VA_ARGS__ )
+					Style->Set(PlatformInfo.GetIconStyleName(EPlatformIconSize::Normal), new PLATFORM_IMAGE_BRUSH(NormalIconPath, Icon24x24));
+					Style->Set(PlatformInfo.GetIconStyleName(EPlatformIconSize::Large), new PLATFORM_IMAGE_BRUSH(PlatformInfo.GetIconPath(EPlatformIconSize::Large), Icon64x64));
+					Style->Set(PlatformInfo.GetIconStyleName(EPlatformIconSize::XLarge), new PLATFORM_IMAGE_BRUSH(PlatformInfo.GetIconPath(EPlatformIconSize::XLarge), Icon128x128));
+				}
+				else
+				{
+					const FString PathPrefix = FPaths::EngineContentDir() / TEXT("Editor/Slate");
+#define DEVELOPER_IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush(PathPrefix / RelativePath + TEXT(".png"), __VA_ARGS__ )
+					Style->Set(PlatformInfo.GetIconStyleName(EPlatformIconSize::Normal), new DEVELOPER_IMAGE_BRUSH(*NormalIconPath, Icon24x24));
+					Style->Set(PlatformInfo.GetIconStyleName(EPlatformIconSize::Large), new DEVELOPER_IMAGE_BRUSH(*PlatformInfo.GetIconPath(EPlatformIconSize::Large), Icon64x64));
+					Style->Set(PlatformInfo.GetIconStyleName(EPlatformIconSize::XLarge), new DEVELOPER_IMAGE_BRUSH(*PlatformInfo.GetIconPath(EPlatformIconSize::XLarge), Icon128x128));
+#undef DEVELOPER_IMAGE_BRUSH
+				}
+			}
+		}
+
+		for (const FPreviewPlatformMenuItem& Item : FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems())
+		{
+			if (!Item.ActiveIconPath.IsEmpty())
+			{
+				Style->Set(Item.ActiveIconName, new PLATFORM_IMAGE_BRUSH(Item.ActiveIconPath, Icon40x40));
+			}
+			if (!Item.InactiveIconPath.IsEmpty())
+			{
+				Style->Set(Item.InactiveIconName, new PLATFORM_IMAGE_BRUSH(Item.InactiveIconPath, Icon40x40));
+			}
+		}
+#endif
+
 	}
 
 	return Style;

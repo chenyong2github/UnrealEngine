@@ -10,11 +10,11 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/SToolTip.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Styling/AppStyle.h"
 #include "ProfilerSession.h"
 #include "ProfilerManager.h"
 #include "Widgets/StatDragDropOp.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "../ProfilerStyle.h"
 
 #define LOCTEXT_NAMESPACE "SFiltersAndPresets"
 
@@ -23,15 +23,15 @@ struct SFiltersAndPresetsHelper
 {
 	static const FSlateBrush* GetIconForGroup()
 	{
-		return FAppStyle::GetBrush( TEXT( "Profiler.Misc.GenericGroup" ) );
+		return FProfilerStyle::Get().GetBrush( TEXT( "Profiler.Misc.GenericGroup" ) );
 	}
 
 	static const FSlateBrush* GetIconForStatType( const EProfilerSampleTypes::Type StatType )
 	{
-		const FSlateBrush* HierarchicalTimeIcon = FAppStyle::GetBrush( TEXT( "Profiler.Type.Hierarchical" ) );
-		const FSlateBrush* NumberIntIcon        = FAppStyle::GetBrush( TEXT( "Profiler.Type.NumberInt" ) );
-		const FSlateBrush* NumberFloatIcon      = FAppStyle::GetBrush( TEXT( "Profiler.Type.NumberFloat" ) );
-		const FSlateBrush* MemoryIcon           = FAppStyle::GetBrush( TEXT( "Profiler.Type.Memory" ) );
+		const FSlateBrush* HierarchicalTimeIcon = FProfilerStyle::Get().GetBrush( TEXT( "Profiler.Type.Hierarchical" ) );
+		const FSlateBrush* NumberIntIcon        = FProfilerStyle::Get().GetBrush( TEXT( "Profiler.Type.NumberInt" ) );
+		const FSlateBrush* NumberFloatIcon      = FProfilerStyle::Get().GetBrush( TEXT( "Profiler.Type.NumberFloat" ) );
+		const FSlateBrush* MemoryIcon           = FProfilerStyle::Get().GetBrush( TEXT( "Profiler.Type.Memory" ) );
 
 		const FSlateBrush* const StatIcons[ EProfilerSampleTypes::InvalidOrMax ] =
 		{
@@ -104,7 +104,7 @@ protected:
 		.ColumnSpan( 3 )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.TooltipBold") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.TooltipBold") )
 			.Text( LOCTEXT("NoStatData","There is no data for this stat") )
 		];
 		RowPos++;
@@ -119,7 +119,7 @@ protected:
 		.ColumnSpan( 3 )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.TooltipBold") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.TooltipBold") )
 			.Text( LOCTEXT("StatInstance","Stat information for profiler instance") )
 		];
 
@@ -128,7 +128,7 @@ protected:
 		.ColumnSpan( 3 )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			.Text( FText::FromString(InstanceName) )
 		];
 
@@ -145,7 +145,7 @@ protected:
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.TooltipBold") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.TooltipBold") )
 			.Text( LOCTEXT("GroupDesc","Group:") )
 		];
 
@@ -154,7 +154,7 @@ protected:
 		.ColumnSpan( 2 )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			.Text( FText::FromName(ProfilerStat.OwningGroup().Name() ))
 		];
 		RowPos++;
@@ -163,7 +163,7 @@ protected:
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.TooltipBold") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.TooltipBold") )
 			.Text( LOCTEXT("NameDesc","Name:") )
 		];
 
@@ -172,7 +172,7 @@ protected:
 		.ColumnSpan( 2 )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			.Text( FText::FromName(ProfilerStat.Name()) )
 		];
 		RowPos++;
@@ -181,7 +181,7 @@ protected:
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.TooltipBold") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.TooltipBold") )
 			.Text( LOCTEXT("TypeDesc","Type:") )
 		];
 
@@ -205,7 +205,7 @@ protected:
 			[
 				SNew(STextBlock)
 				.Text( FText::FromString(EProfilerSampleTypes::ToDescription(SampleType)) )
-				.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+				.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			]
 		];
 		RowPos++;
@@ -220,7 +220,7 @@ protected:
 		.ColumnSpan( 3 )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.TooltipBold") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.TooltipBold") )
 			.Text( LOCTEXT("ValueDesc","Value") )
 		];
 		RowPos++;
@@ -229,7 +229,7 @@ protected:
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			.Text(FText::Format(LOCTEXT("MinDesc", "Min: {0}"), FText::FromString(Aggregated.GetFormattedValue(FProfilerAggregatedStat::EMinValue))))
 		];
 
@@ -237,7 +237,7 @@ protected:
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			.Text(FText::Format(LOCTEXT("AvgDesc", "Avg: {0}"), FText::FromString(Aggregated.GetFormattedValue(FProfilerAggregatedStat::EAvgValue))))
 		];
 
@@ -245,7 +245,7 @@ protected:
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			.Text(FText::Format(LOCTEXT("MaxDesc", "Max: {0}"), FText::FromString(Aggregated.GetFormattedValue(FProfilerAggregatedStat::EMaxValue))))
 		];
 		RowPos++;
@@ -265,7 +265,7 @@ protected:
 		.ColumnSpan( 3 )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.TooltipBold") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.TooltipBold") )
 			.Text(FText::Format(LOCTEXT("CallsFramesPctDesc", "Calls Frames with call: {0}"), FText::FromString(Aggregated.GetFormattedValue(FProfilerAggregatedStat::EFramesWithCallPct))))
 		];
 		RowPos++;
@@ -274,7 +274,7 @@ protected:
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			.Text(FText::Format(LOCTEXT("MinDesc", "Min: {0}"), FText::FromString(Aggregated.GetFormattedValue(FProfilerAggregatedStat::EMinNumCalls))))
 		];
 
@@ -282,7 +282,7 @@ protected:
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			.Text(FText::Format(LOCTEXT("AvgDesc", "Avg: {0}"), FText::FromString(Aggregated.GetFormattedValue(FProfilerAggregatedStat::EAvgNumCalls))))
 		];
 
@@ -290,7 +290,7 @@ protected:
 		.Padding( 2.0f )
 		[
 			SNew(STextBlock)
-			.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+			.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 			.Text(FText::Format(LOCTEXT("MaxDesc", "Max: {0}"), FText::FromString(Aggregated.GetFormattedValue(FProfilerAggregatedStat::EMaxNumCalls))))
 		];
 		RowPos++;
@@ -425,7 +425,7 @@ public:
 				SNew( STextBlock )
 				.Text( this, &SGroupAndStatTableRow::GetText )
 				.HighlightText( InArgs._HighlightText )
-				.TextStyle( FAppStyle::Get(), TEXT("Profiler.Tooltip") )
+				.TextStyle( FProfilerStyle::Get(), TEXT("Profiler.Tooltip") )
 				.ColorAndOpacity( this, &SGroupAndStatTableRow::GetColorAndOpacity )
 			]
 
@@ -437,7 +437,7 @@ public:
 			[
 				SNew( SImage )
 				.Visibility( !InGroupOrStatNode->IsGroup() ? EVisibility::Visible : EVisibility::Collapsed )
-				.Image( FAppStyle::GetBrush("Profiler.Tooltip.HintIcon10") )
+				.Image(FProfilerStyle::Get().GetBrush("Profiler.Tooltip.HintIcon10") )
 				.ToolTip( Tooltip )
 			]
 		];
@@ -1047,7 +1047,7 @@ void SFiltersAndPresets::RecreateSortByOptionsSources()
 TSharedRef<SWidget> SFiltersAndPresets::GetToggleButtonForStatType( const EProfilerSampleTypes::Type StatType )
 {
 	return SNew( SCheckBox )
-		.Style( FAppStyle::Get(), "ToggleButtonCheckbox" )
+		.Style( FProfilerStyle::Get(), "ToggleButtonCheckbox" )
 		.HAlign( HAlign_Center )
 		.Padding( 2.0f )
 		.OnCheckStateChanged( this, &SFiltersAndPresets::FilterByStatType_OnCheckStateChanged, StatType )
@@ -1070,7 +1070,7 @@ TSharedRef<SWidget> SFiltersAndPresets::GetToggleButtonForStatType( const EProfi
 				[
 					SNew( STextBlock )
 						.Text( FText::FromString(EProfilerSampleTypes::ToName( StatType )) )
-						.TextStyle( FAppStyle::Get(), TEXT("Profiler.Caption") )
+						.ColorAndOpacity(FSlateColor::UseForeground() )
 				]
 		];
 }

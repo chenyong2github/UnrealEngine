@@ -7,6 +7,7 @@
 #include "SAutomationWindow.h"
 
 #include "IAutomationWindowModule.h"
+#include "AutomationWindowStyle.h"
 
 
 /**
@@ -42,10 +43,12 @@ public:
 
 	virtual void StartupModule( ) override
 	{
+		FAutomationWindowStyle::Get();
 	}
 
 	virtual void ShutdownModule( ) override
 	{
+		FAutomationWindowStyle::Shutdown();
 		ShutdownDelegate.ExecuteIfBound();	
 	}
 

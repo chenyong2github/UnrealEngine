@@ -5,7 +5,6 @@
 #if !CRASH_REPORT_UNATTENDED_ONLY
 
 #include "CrashReportClientStyle.h"
-#include "Styling/SlateStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Images/SThrobber.h"
 #include "CrashDescription.h"
@@ -85,7 +84,7 @@ void SCrashReportClient::ConstructDetailedDialog(const TSharedRef<FCrashReportCl
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FCrashReportClientStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 
@@ -119,7 +118,6 @@ void SCrashReportClient::ConstructDetailedDialog(const TSharedRef<FCrashReportCl
 				SNew( SRichTextBlock )
 				.Text(CrashDetailedMessage)
 				.AutoWrapText(true)
-				.DecoratorStyleSet( &FCoreStyle::Get() )
 				+ SRichTextBlock::HyperlinkDecorator( TEXT("browser"), FSlateHyperlinkRun::FOnClick::CreateStatic( &OnBrowserLinkClicked ) )
 			]
 
@@ -343,7 +341,7 @@ void SCrashReportClient::ConstructSimpleDialog(const TSharedRef<FCrashReportClie
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+		.BorderImage(FCrashReportClientStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 		[
 			SNew(SVerticalBox)
 
@@ -369,7 +367,6 @@ void SCrashReportClient::ConstructSimpleDialog(const TSharedRef<FCrashReportClie
 				SNew( SRichTextBlock )
 				.Text(CrashDetailedMessage)
 				.AutoWrapText(true)
-				.DecoratorStyleSet( &FCoreStyle::Get() )
 				+ SRichTextBlock::HyperlinkDecorator( TEXT("browser"), FSlateHyperlinkRun::FOnClick::CreateStatic( &OnBrowserLinkClicked ) )
 			]
 

@@ -11,7 +11,7 @@
 #include "Widgets/Notifications/SProgressBar.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Styling/AppStyle.h"
+#include "AutomationWindowStyle.h"
 #include "AutomationTestExcludelist.h"
 #include "SAutomationWindow.h"
 
@@ -25,6 +25,7 @@
 #endif
 
 #include "Widgets/Input/SHyperlink.h"
+#include "SSimpleButton.h"
 
 #define LOCTEXT_NAMESPACE "AutomationTestItem"
 
@@ -45,8 +46,6 @@ void SAutomationTestItem::Construct( const FArguments& InArgs, const TSharedRef<
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& ColumnName )
 {
-	FSlateFontInfo ItemEditorFont = FAppStyle::GetFontStyle(TEXT("NormalFont"));
-
 	if( ColumnName == AutomationTestWindowConstants::Title)
 	{
 		TSharedRef<SWidget> TestNameWidget = SNullWidget::NullWidget;
@@ -56,7 +55,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		{
 #if WITH_EDITOR
 			TestNameWidget = SNew(SHyperlink)
-				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAutomationWindowStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate_Lambda([=] {
 					GEngine->Exec(nullptr, *TestStatus->GetOpenCommand());
 				})
@@ -67,7 +66,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		{
 #if WITH_EDITOR
 			TestNameWidget = SNew(SHyperlink)
-				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAutomationWindowStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate_Lambda([=] {
 					FString AssetPath = TestStatus->GetAssetPath();
 					FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
@@ -90,7 +89,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 		else if ( !TestStatus->GetSourceFile().IsEmpty() )
 		{
 			TestNameWidget = SNew(SHyperlink)
-				.Style(FAppStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.Style(FAutomationWindowStyle::Get(), "Common.GotoNativeCodeHyperlink")
 				.OnNavigate_Lambda([=] { FSlateApplication::Get().GotoLineInSource(TestStatus->GetSourceFile(), TestStatus->GetSourceFileLine()); })
 				.Text(FText::FromString(TestStatus->GetDisplayNameWithDecoration()));
 		}
@@ -148,7 +147,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 				HBox->AddSlot()
 					[
 						SNew( SImage )
-						.Image( FAppStyle::GetBrush("Automation.Participant") )
+						.Image(FAutomationWindowStyle::Get().GetBrush("Automation.Participant") )
 					];
 				HBox->AddSlot()
 					[
@@ -165,7 +164,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 					.HAlign(HAlign_Center)
 					[
 						SNew( SImage )
-						.Image( FAppStyle::GetBrush("Automation.ParticipantsWarning") )
+						.Image(FAutomationWindowStyle::Get().GetBrush("Automation.ParticipantsWarning") )
 						.ToolTipText( LOCTEXT("ParticipantsWarningToolTip", "Some tests require multiple participants") )
 					];
 			}
@@ -189,7 +188,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 				.FillWidth(1.0)
 				[			
 					SNew(SBorder)
-					.BorderImage( FAppStyle::GetBrush("ErrorReporting.Box") )
+					.BorderImage(FAutomationWindowStyle::Get().GetBrush("ErrorReporting.Box") )
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.Padding( FMargin(3,0) )
@@ -231,7 +230,7 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 				.FillWidth(1.0)
 				[
 					SNew(SBorder)
-					.BorderImage( FAppStyle::GetBrush("ErrorReporting.Box") )
+					.BorderImage(FAutomationWindowStyle::Get().GetBrush("ErrorReporting.Box") )
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
 					.Padding( FMargin(3,0) )
@@ -291,16 +290,11 @@ TSharedRef<SWidget> SAutomationTestItem::GenerateWidgetForColumn( const FName& C
 			.HAlign(HAlign_Center)
 			.AutoWidth()
 			[
-				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				SNew(SSimpleButton)
+				.Icon(FAutomationWindowStyle::Get().GetBrush("Icons.Edit"))
 				.Visibility(this, &SAutomationTestItem::IsDirectlyExcluded_GetVisibility)
 				.ToolTipText(LOCTEXT("EditExcludeOptions", "Edit exclude options"))
 				.OnClicked(FOnClicked::CreateSP(this, &SAutomationTestItem::OnEditExcludeOptionsClicked))
-				[
-					SNew(SImage)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				.Image(FAppStyle::Get().GetBrush("Icons.Edit"))
-				]
 #endif
 			];
 	}
@@ -320,11 +314,11 @@ const FSlateBrush* SAutomationTestItem::GetSmokeTestImage() const
 	{
 		if ( TestStatus->IsParent() )
 		{
-			ImageToUse = FAppStyle::GetBrush("Automation.SmokeTest");
+			ImageToUse = FAutomationWindowStyle::Get().GetBrush("Automation.SmokeTest");
 		}
 		else
 		{
-			ImageToUse = FAppStyle::GetBrush("Automation.SmokeTestParent");
+			ImageToUse = FAutomationWindowStyle::Get().GetBrush("Automation.SmokeTestParent");
 		}
 	}
 
@@ -598,32 +592,32 @@ const FSlateBrush* SAutomationTestItem::ItemStatus_StatusImage(const int32 Clust
 			//If there were ANY warnings in the results
 			if (CompleteState.NumEnabledTestsWarnings || CompleteState.NumDisabledTestsWarnings)
 			{
-				ImageToUse = FAppStyle::GetBrush("Automation.Warning");
+				ImageToUse = FAutomationWindowStyle::Get().GetBrush("Automation.Warning");
 			}
 			else
 			{
-				ImageToUse = FAppStyle::GetBrush("Automation.Success");
+				ImageToUse = FAutomationWindowStyle::Get().GetBrush("Automation.Success");
 			}
 		}
 		break;
 
 	case EAutomationState::Fail:
-		ImageToUse = FAppStyle::GetBrush("Automation.Fail");
+		ImageToUse = FAutomationWindowStyle::Get().GetBrush("Automation.Fail");
 		break;
 
 	case EAutomationState::NotRun:
 		{
-			ImageToUse = FAppStyle::GetBrush("Automation.NotRun");
+			ImageToUse = FAutomationWindowStyle::Get().GetBrush("Automation.NotRun");
 		}
 		break;
 
 	case EAutomationState::Skipped:
-		ImageToUse = FAppStyle::GetBrush("Automation.Skipped");
+		ImageToUse = FAutomationWindowStyle::Get().GetBrush("Automation.Skipped");
 		break;
 
 	default:
 	case EAutomationState::InProcess:
-		ImageToUse = FAppStyle::GetBrush("Automation.InProcess");
+		ImageToUse = FAutomationWindowStyle::Get().GetBrush("Automation.InProcess");
 		break;
 	}
 

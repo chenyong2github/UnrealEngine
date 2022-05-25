@@ -7,6 +7,7 @@
 #include "Math/Color.h"
 #include "Math/Vector2D.h"
 #include "CrashReportClientApp.h"
+#include "Styling/StyleColors.h"
 
 #if !CRASH_REPORT_UNATTENDED_ONLY
 
@@ -115,6 +116,8 @@ TSharedRef< FSlateStyleSet > FCrashReportClientStyle::Create()
 		.SetPadding( FMargin( 0.0f ) );
 
 	Style.Set( "RichText.Hyperlink", DarkHyperlink );
+
+	Style.Set("ToolPanel.GroupBorder", new FSlateColorBrush(FStyleColors::Panel));
 
 	return StyleRef;
 }

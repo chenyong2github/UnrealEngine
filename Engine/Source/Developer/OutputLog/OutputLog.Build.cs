@@ -14,7 +14,8 @@ public class OutputLog : ModuleRules
 				"Slate",
 				"SlateCore",
                 "TargetPlatform",
-                "DesktopPlatform"
+                "DesktopPlatform",
+				"ToolWidgets"
 			}
 		);
 

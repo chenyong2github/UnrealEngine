@@ -39,7 +39,8 @@ void FUserInterfaceCommand::Run(  )
 	FConfigCacheIni::InitializeConfigSystem();
 	GetTargetPlatformManager();
 
-	FCoreStyle::ResetToDefault();
+	// Crank up a normal Slate application using the platform's standalone renderer.
+	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
 
 	// load required modules
 	FModuleManager::Get().LoadModuleChecked("Messaging");
@@ -112,7 +113,6 @@ void FUserInterfaceCommand::Run(  )
 
 void FUserInterfaceCommand::InitializeSlateApplication( const FString& LayoutIni )
 {
-	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
 	FSlateApplication::InitHighDPI(true);
 
 	FGlobalTabmanager::Get()->SetApplicationTitle(NSLOCTEXT("UnrealFrontend", "AppTitle", "Unreal Frontend"));

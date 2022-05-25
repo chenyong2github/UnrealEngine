@@ -24,7 +24,7 @@
 #include "OutputLogModule.h"
 #include "WidgetDrawerConfig.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
-#include "Settings/EditorStyleSettings.h"
+#include "OutputLog/Public/OutputLogSettings.h"
 
 #define LOCTEXT_NAMESPACE "StatusBar"
 
@@ -264,7 +264,7 @@ bool UStatusBarSubsystem::ToggleDebugConsole(TSharedRef<SWindow> ParentWindow, b
 	// Get the global output log tab if it exists. If it exists and is in the same editor as the status bar we'll focus that instead
 	TSharedPtr<SDockTab> MainOutputLogTab = OutputLogModule.GetOutputLogTab();
 	
-	const bool bCycleToOutputLogDrawer = GetDefault<UEditorStyleSettings>()->bCycleToOutputLogDrawer || bAlwaysToggleDrawer;
+	const bool bCycleToOutputLogDrawer = GetDefault<UOutputLogSettings>()->bCycleToOutputLogDrawer || bAlwaysToggleDrawer;
 
 	for (auto StatusBar : StatusBars)
 	{

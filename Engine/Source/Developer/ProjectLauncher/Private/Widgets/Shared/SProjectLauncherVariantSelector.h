@@ -72,7 +72,7 @@ public:
 			// build configuration menu
 			SNew(SComboButton)
 			.VAlign(VAlign_Center)
-			.ComboButtonStyle(FAppStyle::Get(), "Launcher.ComboButton")
+			.ComboButtonStyle(FAppStyle::Get(), "ComboButton")
 			.ButtonContent()
 			[
 				SNew(STextBlock)

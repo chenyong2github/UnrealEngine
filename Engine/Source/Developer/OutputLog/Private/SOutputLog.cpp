@@ -17,7 +17,6 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Views/SListView.h"
-#include "Styling/AppStyle.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Images/SImage.h"
@@ -30,10 +29,9 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "OutputLogModule.h"
 #include "Widgets/Text/SlateEditableTextTypes.h"
+#include "OutputLogSettings.h"
+#include "OutputLogStyle.h"
 
-#if WITH_EDITOR
-#include "Settings/EditorStyleSettings.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "SOutputLog"
 
@@ -181,7 +179,7 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 			[
 				SNew(SComboButton)
 				.IsEnabled(this, &SConsoleInputBox::IsCommandExecutorMenuEnabled)
-				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.ComboButtonStyle(FOutputLogStyle::Get(), "SimpleComboButton")
 				.ContentPadding(0)
 				.OnGetMenuContent(this, &SConsoleInputBox::GetCommandExecutorMenuContent)
 				.ButtonContent()
@@ -195,7 +193,7 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 					[
 						SNew(SImage)
 						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FAppStyle::Get().GetBrush("DebugConsole.Icon"))
+						.Image(FOutputLogStyle::Get().GetBrush("DebugConsole.Icon"))
 					]
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
@@ -210,7 +208,7 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 			+SHorizontalBox::Slot()
 			[
 				SAssignNew(InputText, SMultiLineEditableTextBox)
-				.Font(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
+				.Font(FOutputLogStyle::Get().GetWidgetStyle<FTextBlockStyle>("Log.Normal").Font)
 				.HintText(this, &SConsoleInputBox::GetActiveCommandExecutorHintText)
 				.AllowMultiLine(this, &SConsoleInputBox::GetActiveCommandExecutorAllowMultiLine)
 				.OnTextCommitted(this, &SConsoleInputBox::OnTextCommitted)
@@ -225,7 +223,7 @@ void SConsoleInputBox::Construct(const FArguments& InArgs)
 		.MenuContent
 		(
 			SNew(SBorder)
-			.BorderImage(FAppStyle::GetBrush("Menu.Background"))
+			.BorderImage(FOutputLogStyle::Get().GetBrush("Menu.Background"))
 			.Padding( FMargin(2) )
 			[
 				SNew(SBox)
@@ -315,7 +313,7 @@ TSharedRef<ITableRow> SConsoleInputBox::MakeSuggestionListItemWidget(TSharedPtr<
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(SanitizedText))
-			.TextStyle(FAppStyle::Get(), "Log.Normal")
+			.TextStyle(FOutputLogStyle::Get(), "Log.Normal")
 			.HighlightText(Suggestions.SuggestionsHighlight)
 			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
@@ -844,10 +842,7 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 		MakeDirty();
 	}
 
-
-#if WITH_EDITOR
-	ELogCategoryColorizationMode CategoryColorizationMode = GetDefault<UEditorStyleSettings>()->CategoryColorizationMode;
-#endif
+	const ELogCategoryColorizationMode CategoryColorizationMode = GetDefault<UOutputLogSettings>()->CategoryColorizationMode;
 
 	TArray<FTextLayout::FNewLineData> LinesToAdd;
 	LinesToAdd.Reserve(NumPendingMessages);
@@ -879,13 +874,13 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 
 		++NumAddedMessages;
 
-		const FTextBlockStyle& MessageTextStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>(Message->Style);
+		const FTextBlockStyle& MessageTextStyle = FOutputLogStyle::Get().GetWidgetStyle<FTextBlockStyle>(Message->Style);
 
 		TSharedRef<FString> LineText = Message->Message;
 
 		TArray<TSharedRef<IRun>> Runs;
 
-#if WITH_EDITOR
+
 		switch (CategoryColorizationMode)
 		{
 		case ELogCategoryColorizationMode::None:
@@ -941,9 +936,6 @@ void FOutputLogTextLayoutMarshaller::AppendPendingMessagesToTextLayout()
 			}
 			break;
 		}
-#else
-		Runs.Add(FSlateTextRun::Create(FRunInfo(), LineText, MessageTextStyle));
-#endif
 
 		if (!Message->Category.IsNone() && (Message->Category == CategoryToHighlight))
 		{
@@ -1058,8 +1050,8 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 	MessagesTextMarshaller = FOutputLogTextLayoutMarshaller::Create(InArgs._Messages, &Filter);
 
 	MessagesTextBox = SNew(SMultiLineEditableTextBox)
-		.Style(FAppStyle::Get(), "Log.TextBox")
-		.TextStyle(FAppStyle::Get(), "Log.Normal")
+		.Style(FOutputLogStyle::Get(), "Log.TextBox")
+		.TextStyle(FOutputLogStyle::Get(), "Log.Normal")
 		.Marshaller(MessagesTextMarshaller)
 		.IsReadOnly(true)
 		.AlwaysShowScrollbars(true)
@@ -1093,7 +1085,7 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 			.HAlign(HAlign_Left)
 			[
 				SNew(SComboButton)
-				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.ComboButtonStyle(FOutputLogStyle::Get(), "SimpleComboButton")
 				.ToolTipText(LOCTEXT("AddFilterToolTip", "Add an output log filter."))
 				.OnGetMenuContent(this, &SOutputLog::MakeAddFilterMenu)
 				.ButtonContent()
@@ -1103,7 +1095,7 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 					.AutoWidth()
 					[
 						SNew(SImage)
-						.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+						.Image(FOutputLogStyle::Get().GetBrush("Icons.Filter"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 					+SHorizontalBox::Slot()
@@ -1128,7 +1120,7 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 			.AutoWidth()
 			[
 				SNew(SComboButton)
-				.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+				.ComboButtonStyle(FOutputLogStyle::Get(), "SimpleComboButton")
 				.OnGetMenuContent(this, &SOutputLog::GetViewButtonContent, InArgs._SettingsMenuFlags)
 				.ButtonContent()
 				[
@@ -1138,7 +1130,7 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 					.VAlign(VAlign_Center)
 					[
 						SNew(SImage)
-						.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+						.Image(FOutputLogStyle::Get().GetBrush("Icons.Settings"))
 						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 					+ SHorizontalBox::Slot()
@@ -1179,7 +1171,7 @@ void SOutputLog::Construct( const FArguments& InArgs, bool bCreateDrawerDockButt
 
 #if WITH_EDITOR
 	// Listen for style changes
-	UEditorStyleSettings* Settings = GetMutableDefault<UEditorStyleSettings>();
+	UOutputLogSettings* Settings = GetMutableDefault<UOutputLogSettings>();
 	SettingsWatchHandle = Settings->OnSettingChanged().AddRaw(this, &SOutputLog::HandleSettingChanged);
 #endif
 
@@ -1199,7 +1191,7 @@ SOutputLog::~SOutputLog()
 #if WITH_EDITOR
 	if (UObjectInitialized() && !GExitPurge)
 	{
-		UEditorStyleSettings* Settings = GetMutableDefault<UEditorStyleSettings>();
+		UOutputLogSettings* Settings = GetMutableDefault<UOutputLogSettings>();
 		Settings->OnSettingChanged().Remove(SettingsWatchHandle);
 	}
 #endif
@@ -1264,13 +1256,11 @@ bool SOutputLog::CreateLogMessages( const TCHAR* V, ELogVerbosity::Type Verbosit
 
 		// Determine how to format timestamps
 		static ELogTimes::Type LogTimestampMode = ELogTimes::None;
-#if WITH_EDITOR
 		if (UObjectInitialized() && !GExitPurge)
 		{
 			// Logging can happen very late during shutdown, even after the UObject system has been torn down, hence the init check above
-			LogTimestampMode = GetDefault<UEditorStyleSettings>()->LogTimestampMode;
+			LogTimestampMode = GetDefault<UOutputLogSettings>()->LogTimestampMode;
 		}
-#endif
 
 		const int32 OldNumMessages = OutMessages.Num();
 
@@ -1464,15 +1454,19 @@ void SOutputLog::Refresh()
 
 bool SOutputLog::IsWordWrapEnabled() const
 {
-	bool WordWrapEnabled = false;
-	GConfig->GetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogWordWrap"), WordWrapEnabled, GEditorPerProjectIni);
-	return WordWrapEnabled;
+	const UOutputLogSettings* Settings = GetDefault<UOutputLogSettings>();
+	return Settings ? Settings->bEnableOutputLogWordWrap : false;
 }
 
 void SOutputLog::SetWordWrapEnabled(ECheckBoxState InValue)
 {
-	const bool WordWrapEnabled = (InValue == ECheckBoxState::Checked);
-	GConfig->SetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogWordWrap"), WordWrapEnabled, GEditorPerProjectIni);
+	const bool bWordWrapEnabled = (InValue == ECheckBoxState::Checked);
+	UOutputLogSettings* Settings = GetMutableDefault<UOutputLogSettings>();
+	if (Settings)
+	{
+		Settings->bEnableOutputLogWordWrap = bWordWrapEnabled;
+		Settings->SaveConfig();
+	}
 
 	if (!bIsUserScrolled)
 	{
@@ -1480,18 +1474,24 @@ void SOutputLog::SetWordWrapEnabled(ECheckBoxState InValue)
 	}
 }
 
+#if WITH_EDITOR
 bool SOutputLog::IsClearOnPIEEnabled() const
 {
-	bool ClearOnPIEEnabled = false;
-	GConfig->GetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), ClearOnPIEEnabled, GEditorPerProjectIni);
-	return ClearOnPIEEnabled;
+	const UOutputLogSettings* Settings = GetDefault<UOutputLogSettings>();
+	return Settings ? Settings->bEnableOutputLogClearOnPIE : false;
 }
 
 void SOutputLog::SetClearOnPIE(ECheckBoxState InValue)
 {
-	const bool ClearOnPIEEnabled = (InValue == ECheckBoxState::Checked);
-	GConfig->SetBool(TEXT("/Script/UnrealEd.EditorPerProjectUserSettings"), TEXT("bEnableOutputLogClearOnPIE"), ClearOnPIEEnabled, GEditorPerProjectIni);
+	const bool bClearOnPIEEnabled = (InValue == ECheckBoxState::Checked);
+	UOutputLogSettings* Settings = GetMutableDefault<UOutputLogSettings>();
+	if (Settings)
+	{
+		Settings->bEnableOutputLogClearOnPIE = bClearOnPIEEnabled;
+		Settings->SaveConfig();
+	}
 }
+#endif
 
 void SOutputLog::BuildInitialLogCategoryFilter(const FArguments& InArgs)
 {
@@ -1804,7 +1804,7 @@ TSharedRef<SWidget> SOutputLog::GetViewButtonContent(EOutputLogSettingsMenuFlags
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("FindSourceFile", "Open Source Location"),
 			LOCTEXT("FindSourceFileTooltip", "Opens the folder containing the source of the Output Log."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "OutputLog.OpenSourceLocation"),
+			FSlateIcon(FOutputLogStyle::Get().GetStyleSetName(), "OutputLog.OpenSourceLocation"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SOutputLog::OpenLogFileInExplorer)
 			)
@@ -1817,7 +1817,7 @@ TSharedRef<SWidget> SOutputLog::GetViewButtonContent(EOutputLogSettingsMenuFlags
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("OpenInExternalEditor", "Open In External Editor"),
 			LOCTEXT("OpenInExternalEditorTooltip", "Opens the Output Log in the default external editor."),
-			FSlateIcon(FAppStyle::GetAppStyleSetName(), "OutputLog.OpenInExternalEditor"),
+			FSlateIcon(FOutputLogStyle::Get().GetStyleSetName(), "OutputLog.OpenInExternalEditor"),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SOutputLog::OpenLogFileInExternalEditor)
 			)
@@ -1833,7 +1833,7 @@ TSharedRef<SWidget> SOutputLog::CreateDrawerDockButton()
 	{
 		return
 			SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.ButtonStyle(FOutputLogStyle::Get(), "SimpleButton")
 			.ToolTipText(LOCTEXT("DockInLayout_Tooltip", "Docks this output log in the current layout.\nThe drawer will still be usable as a temporary log."))
 			.ContentPadding(FMargin(1, 0))
 			.Visibility_Lambda(
@@ -1851,7 +1851,7 @@ TSharedRef<SWidget> SOutputLog::CreateDrawerDockButton()
 				[
 					SNew(SImage)
 					.ColorAndOpacity(FSlateColor::UseForeground())
-					.Image(FAppStyle::Get().GetBrush("Icons.Layout"))
+					.Image(FOutputLogStyle::Get().GetBrush("Icons.Layout"))
 				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)

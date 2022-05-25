@@ -3,17 +3,17 @@
 #include "SDeviceOutputLog.h"
 #include "Framework/Text/TextLayout.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Input/SComboButton.h"
 #include "Misc/ScopeLock.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
 #include "Framework/Commands/UIAction.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Styling/AppStyle.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PlatformInfo.h"
+#include "OutputLogStyle.h"
+#include "SSimpleComboButton.h"
 
 static bool IsSupportedPlatform(ITargetPlatform* Platform)
 {
@@ -29,8 +29,8 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 	MessagesTextMarshaller = FOutputLogTextLayoutMarshaller::Create(TArray<TSharedPtr<FOutputLogMessage>>(), &Filter);
 
 	MessagesTextBox = SNew(SMultiLineEditableTextBox)
-		.Style(FAppStyle::Get(), "Log.TextBox")
-		.TextStyle(FAppStyle::Get(), "Log.Normal")
+		.Style(FOutputLogStyle::Get(), "Log.TextBox")
+		.TextStyle(FOutputLogStyle::Get(), "Log.Normal")
 		.ForegroundColor(FLinearColor::Gray)
 		.Marshaller(MessagesTextMarshaller)
 		.IsReadOnly(true)
@@ -59,8 +59,7 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 				.AutoWidth()
 				[
 					SAssignNew(TargetDeviceComboButton, SComboButton)
-					.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
-					.ForegroundColor(FLinearColor::White)
+					.ForegroundColor(FSlateColor::UseForeground())
 					.OnGetMenuContent(this, &SDeviceOutputLog::MakeDeviceComboButtonMenu)
 					.ContentPadding(FMargin(4.0f, 0.0f))
 					.ButtonContent()
@@ -81,7 +80,7 @@ void SDeviceOutputLog::Construct( const FArguments& InArgs )
 						.VAlign(VAlign_Center)
 						[
 							SNew(STextBlock)
-							.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
+							.Font(FOutputLogStyle::Get().GetFontStyle("NormalFontBold"))
 							.Text(this, &SDeviceOutputLog::GetSelectedTargetDeviceText)
 						]
 					]
@@ -278,7 +277,7 @@ void SDeviceOutputLog::AddDeviceEntry(ITargetDeviceRef TargetDevice)
 	TSharedPtr<FTargetDeviceEntry> DeviceEntry = MakeShareable(new FTargetDeviceEntry());
 	
 	DeviceEntry->DeviceId = TargetDevice->GetId();
-	DeviceEntry->DeviceIconBrush = FAppStyle::GetBrush(DeviceIconStyleName);
+	DeviceEntry->DeviceIconBrush = FOutputLogStyle::Get().GetBrush(DeviceIconStyleName);
 	DeviceEntry->DeviceWeakPtr = TargetDevice;
 	
 	DeviceList.Add(DeviceEntry);
@@ -364,7 +363,7 @@ const FSlateBrush* SDeviceOutputLog::GetTargetDeviceBrush(FTargetDeviceEntryPtr 
 	}
 	else
 	{
-		return FAppStyle::GetBrush("Launcher.Instance_Unknown");
+		return FOutputLogStyle::Get().GetBrush("Launcher.Instance_Unknown");
 	}
 }
 

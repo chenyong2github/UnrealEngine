@@ -286,6 +286,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = PlayInEditor, meta = (DisplayName="Stream Sub-Levels during Play in Editor", ToolTip="Prefer to stream sub-levels from the disk instead of duplicating editor sub-levels"))
 	uint32 bPreferToStreamLevelsInPIE:1;
 
+	/** Should warnings and errors in the Output Log during "Play in Editor" be promoted to the message log? */
+	UPROPERTY(EditAnywhere, config, Category = PlayInEditor)
+	bool bPromoteOutputLogWarningsDuringPIE;
+
 public:
 	/** The width of the new view port window in pixels (0 = use the desktop's screen resolution). */
 	UPROPERTY(config, EditAnywhere, Category=GameViewportSettings, meta=(ClampMin=0))

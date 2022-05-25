@@ -16,8 +16,8 @@
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
-#include "Styling/AppStyle.h"
 #include "ProfilerManager.h"
+#include "../ProfilerStyle.h"
 
 
 #define LOCTEXT_NAMESPACE "SProfilerSettings"
@@ -167,7 +167,7 @@ void SProfilerSettings::AddFooter( const TSharedRef<SGridPanel>& Grid, int32& Ro
 				.VAlign( VAlign_Center )
 				[
 					SNew( SImage )
-					.Image( FAppStyle::GetBrush("Profiler.Misc.Save16") )
+					.Image( FProfilerStyle::Get().GetBrush("Icons.Save") )
 				]
 
 				+SHorizontalBox::Slot()
@@ -195,7 +195,7 @@ void SProfilerSettings::AddFooter( const TSharedRef<SGridPanel>& Grid, int32& Ro
 				.VAlign( VAlign_Center )
 				[
 					SNew( SImage )
-					.Image( FAppStyle::GetBrush("Profiler.Misc.Reset16") )
+					.Image(FProfilerStyle::Get().GetBrush("Profiler.Misc.Reset16") )
 				]
 
 				+SHorizontalBox::Slot()

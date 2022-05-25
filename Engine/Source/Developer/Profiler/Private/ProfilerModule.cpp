@@ -11,6 +11,7 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SProfilerWindow.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "ProfilerStyle.h"
 
 /**
  * Implements the FProfilerModule module.
@@ -22,7 +23,10 @@ public:
 
 	virtual TSharedRef<SWidget> CreateProfilerWindow( const TSharedRef<ISessionManager>& InSessionManager, const TSharedRef<SDockTab>& ConstructUnderMajorTab ) override;
 
-	virtual void StartupModule() override { }
+	virtual void StartupModule() override 
+	{ 
+		FProfilerStyle::Get();
+	}
 	virtual void ShutdownModule() override;
 
 	virtual bool SupportsDynamicReloading() override
@@ -65,6 +69,7 @@ TSharedRef<SWidget> FProfilerModule::CreateProfilerWindow( const TSharedRef<ISes
 
 void FProfilerModule::ShutdownModule()
 {
+	FProfilerStyle::Shutdown();
 #if STATS
 	if (FProfilerManager::Get().IsValid())
 	{

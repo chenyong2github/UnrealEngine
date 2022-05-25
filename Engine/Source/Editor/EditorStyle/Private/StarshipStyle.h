@@ -122,10 +122,6 @@ public:
 		const FSlateColor HighlightColor;
 		const FSlateColor WindowHighlightColor;
 
-		const FSlateColor LogColor_SelectionBackground;
-		const FSlateColor LogColor_Normal;
-		const FSlateColor LogColor_Command;
-
 		// These are common colors used thruout the editor in mutliple style elements
 		const FSlateColor InheritedFromBlueprintTextColor;
 

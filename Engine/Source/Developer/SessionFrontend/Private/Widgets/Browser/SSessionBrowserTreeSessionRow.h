@@ -82,7 +82,7 @@ public:
 		STableRow<TSharedPtr<FSessionBrowserSessionTreeItem>>::ConstructInternal(
 			STableRow<TSharedPtr<FSessionBrowserSessionTreeItem>>::FArguments()
 				.ShowSelection(false)
-				.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow"),
+				.Style(FAppStyle::Get(), "TableView.Row"),
 			InOwnerTableView
 		);
 	}
@@ -153,15 +153,11 @@ private:
 	{
 		if (IsHovered())
 		{
-			return IsItemExpanded()
-				? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered")
-				: FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+			return FAppStyle::GetBrush("Brushes.Hover");
 		}
 		else
 		{
-			return IsItemExpanded()
-				? FAppStyle::GetBrush("DetailsView.CategoryTop")
-				: FAppStyle::GetBrush("DetailsView.CollapsedCategory");
+			return FAppStyle::GetBrush("Brushes.Header");
 		}
 	}
 

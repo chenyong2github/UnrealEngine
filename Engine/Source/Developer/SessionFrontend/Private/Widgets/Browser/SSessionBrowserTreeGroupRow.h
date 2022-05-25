@@ -18,6 +18,7 @@
 #include "Styling/AppStyle.h"
 #include "Models/SessionBrowserTreeItems.h"
 #include "Widgets/Images/SImage.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SSessionBrowserTreeRow"
 
@@ -75,7 +76,8 @@ public:
 							.VAlign(VAlign_Center)
 							[
 								SNew(SImage)
-									.Image(this, &SSessionBrowserTreeGroupRow::HandlePullDownImage)
+								.Image(this, &SSessionBrowserTreeGroupRow::HandlePullDownImage)
+								.ColorAndOpacity(IsHovered() ? FStyleColors::ForegroundHover : FStyleColors::Foreground)
 							]
 					]
 			];
@@ -83,7 +85,7 @@ public:
 		STableRow<TSharedPtr<FSessionBrowserGroupTreeItem>>::ConstructInternal(
 			STableRow<TSharedPtr<FSessionBrowserGroupTreeItem>>::FArguments()
 				.ShowSelection(false)
-				.Style(FAppStyle::Get(), "DetailsView.TreeView.TableRow"),
+				.Style(FAppStyle::Get(), "TableView.Row"),
 			InOwnerTableView
 		);
 	}
@@ -114,15 +116,11 @@ private:
 	{
 		if (IsHovered())
 		{
-			return IsItemExpanded()
-				? FAppStyle::GetBrush("DetailsView.CategoryTop_Hovered")
-				: FAppStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+			return FAppStyle::GetBrush("Brushes.Hover");
 		}
 		else
 		{
-			return IsItemExpanded()
-				? FAppStyle::GetBrush("DetailsView.CategoryTop")
-				: FAppStyle::GetBrush("DetailsView.CollapsedCategory");
+			return FAppStyle::GetBrush("Brushes.Header");
 		}
 	}
 
@@ -150,18 +148,9 @@ private:
 	/** Gets the image for the pull-down icon. */
 	const FSlateBrush* HandlePullDownImage() const
 	{
-		if (IsHovered())
-		{
-			return IsItemExpanded()
-				? FAppStyle::GetBrush("DetailsView.PulldownArrow.Up.Hovered")
-				: FAppStyle::GetBrush("DetailsView.PulldownArrow.Down.Hovered");
-		}
-		else
-		{
-			return IsItemExpanded()
-				? FAppStyle::GetBrush("DetailsView.PulldownArrow.Up")
-				: FAppStyle::GetBrush("DetailsView.PulldownArrow.Down");
-		}
+		return IsItemExpanded()
+			? FAppStyle::GetBrush("Icons.ChevronUp")
+			: FAppStyle::GetBrush("Icons.ChevronDown");
 	}
 
 private:

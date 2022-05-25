@@ -332,7 +332,7 @@ void FLevelEditorModule::ShutdownModule()
 
 	// Clear out some globals that may be referencing this module
 	SetLevelEditorTabManager(nullptr);
-	WorkspaceMenu::GetModule().ResetLevelEditorCategory();
+	WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory()->ClearItems();
 
 	if (FSlateApplication::IsInitialized() && FModuleManager::Get().IsModuleLoaded("SlateReflector"))
 	{

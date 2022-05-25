@@ -2,10 +2,7 @@
 
 #include "TaskGraphStyle.h"
 #include "Styling/SlateStyleRegistry.h"
-
-#define IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush( RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
-#define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
-#define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
+#include "Styling/SlateStyleMacros.h"
 
 TSharedPtr< FTaskGraphStyle::FStyle > FTaskGraphStyle::StyleInstance;
 
@@ -24,9 +21,9 @@ void FTaskGraphStyle::FStyle::Initialize()
 	StyleInstance->Set( "StatsHeader", new BOX_BRUSH( "Common/TableViewHeader", 4.f/32.f ) );
 	StyleInstance->Set( "TaskGraph.ContentAreaBrush", new BOX_BRUSH( "/Docking/TabContentArea", FMargin(4/16.0f) ) );
 	StyleInstance->Set( "TaskGraph.Background", new BOX_BRUSH( "Common/ProgressBar_Background", FMargin(5.f/12.f) ) );
-	StyleInstance->Set( "TaskGraph.Normal", new BOX_BRUSH( "Common/TaskGraph_Normal", FMargin(5.f/12.f) ) );
-	StyleInstance->Set( "TaskGraph.Selected", new BOX_BRUSH( "Common/TaskGraph_Selected", FMargin(5.f/12.f) ) );
-	StyleInstance->Set( "TaskGraph.Mono", new BOX_BRUSH( "Common/TaskGraph_Mono", FMargin(5.f/12.f) ) );
+	StyleInstance->Set( "TaskGraph.Normal", new CORE_BOX_BRUSH( "Common/TaskGraph_Normal", FMargin(5.f/12.f) ) );
+	StyleInstance->Set( "TaskGraph.Selected", new CORE_BOX_BRUSH( "Common/TaskGraph_Selected", FMargin(5.f/12.f) ) );
+	StyleInstance->Set( "TaskGraph.Mono", new CORE_BOX_BRUSH( "Common/TaskGraph_Mono", FMargin(5.f/12.f) ) );
 	StyleInstance->Set( "TaskGraph.BorderPadding", FVector2D(1,0) );
 	StyleInstance->Set( "TaskGraph.SortUp", new IMAGE_BRUSH( "Common/SortUpArrow", FVector2D(8,4) ) );
 	StyleInstance->Set( "TaskGraph.SortDown", new IMAGE_BRUSH( "Common/SortDownArrow", FVector2D(8,4) ) );

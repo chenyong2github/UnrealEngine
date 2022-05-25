@@ -62,7 +62,7 @@ public:
 		STableRow<ILauncherProfilePtr>::ConstructInternal(
 			STableRow::FArguments()
 			.ShowSelection(false)
-			.Style(FAppStyle::Get(), "Launcher.NoHoverTableRow"),
+			.Style(FAppStyle::Get(), "TableView.Row"),
 			InOwnerTableView
 			);
 

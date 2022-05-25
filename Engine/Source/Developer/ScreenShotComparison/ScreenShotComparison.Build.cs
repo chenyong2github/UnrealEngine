@@ -15,7 +15,7 @@ public class ScreenShotComparison : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"AutomationController",
-				
+				"ToolWidgets",
 				"InputCore",
 				"ScreenShotComparisonTools",
 				"Slate",

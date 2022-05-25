@@ -99,7 +99,7 @@ public:
 				.AutoHeight()
 				[
 					SNew(STextBlock)
-					.TextStyle(FAppStyle::Get(), "LargeText")
+					.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
 					.Text(this, &SProjectLauncherProgress::GetSelectedProfileNameText)
 				]
 

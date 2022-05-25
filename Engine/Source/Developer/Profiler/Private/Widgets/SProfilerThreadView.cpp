@@ -86,8 +86,8 @@ int32 SProfilerThreadView::OnPaint( const FPaintArgs& Args, const FGeometry& All
 	// Rendering info.
 	const bool bEnabled = ShouldBeEnabled( bParentEnabled );
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* BackgroundBrush = FAppStyle::GetBrush( "Profiler.LineGraphArea" );
-	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush( "WhiteTexture" );
+	const FSlateBrush* BackgroundBrush = FAppStyle::GetBrush( "Brushes.White25" );
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush( "Brushes.White" );
 
 	// Paint state for this call to OnPaint, valid only in this scope.
 	PaintState = new((void*)PaintStateMemory) FSlateOnPaintState( AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, DrawEffects );

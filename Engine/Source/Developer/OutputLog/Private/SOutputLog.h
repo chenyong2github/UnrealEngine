@@ -461,9 +461,11 @@ private:
 
 	void SetWordWrapEnabled(ECheckBoxState InValue);
 
+#if WITH_EDITOR
 	bool IsClearOnPIEEnabled() const;
 
 	void SetClearOnPIE(ECheckBoxState InValue);
+#endif
 
 	FSlateColor GetViewButtonForegroundColor() const;
 

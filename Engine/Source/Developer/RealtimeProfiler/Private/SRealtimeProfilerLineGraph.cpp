@@ -112,8 +112,8 @@ int32 SRealtimeProfilerLineGraph::OnPaint( const FPaintArgs& Args, const FGeomet
 	// Rendering info
 	bool bEnabled = ShouldBeEnabled( bParentEnabled );
 	ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
-	const FSlateBrush* TimelineAreaBrush = FAppStyle::GetBrush("Profiler.LineGraphArea");
-	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteTexture");
+	const FSlateBrush* TimelineAreaBrush = FAppStyle::GetBrush("Brushes.White25");
+	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("Brushes.White");
 
 
 	// Draw timeline background

@@ -113,22 +113,20 @@ void SDeviceBrowserFilterBar::Construct(const FArguments& InArgs, TSharedRef<FDe
 			[
 				// platform filter
 				SNew(SComboButton)
-					.ComboButtonStyle(FAppStyle::Get(), "ToolbarComboButton")
-					.ForegroundColor(FLinearColor::White)
-					.ButtonContent()
-					[
-						SNew(STextBlock)
-						.TextStyle(FAppStyle::Get(), "Launcher.Filters.Text")
-						.Text(LOCTEXT("PlatformFiltersComboButtonText", "Platform Filters"))
-					]
-					.ContentPadding(0.0f)
-					.MenuContent()
-					[
-						SAssignNew(PlatformListView, SListView<TSharedPtr<FDeviceBrowserFilterEntry> >)
-							.ItemHeight(24.0f)
-							.ListItemsSource(&Filter->GetFilteredPlatforms())
-							.OnGenerateRow_Lambda(PlatformListViewGenerateRow)
-					]
+				.ButtonContent()
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::Get().GetFontStyle("NormalBold"))
+					.Text(LOCTEXT("PlatformFiltersComboButtonText", "Platform Filters"))
+				]
+				.ContentPadding(0.0f)
+				.MenuContent()
+				[
+					SAssignNew(PlatformListView, SListView<TSharedPtr<FDeviceBrowserFilterEntry> >)
+					.ItemHeight(24.0f)
+					.ListItemsSource(&Filter->GetFilteredPlatforms())
+					.OnGenerateRow_Lambda(PlatformListViewGenerateRow)
+				]
 			]
 
 		+ SHorizontalBox::Slot()
