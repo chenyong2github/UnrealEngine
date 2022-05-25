@@ -2144,7 +2144,7 @@ void FRHICommandListBase::WaitForRHIThreadTasks()
 DECLARE_CYCLE_STAT(TEXT("RTTask completion join"), STAT_HandleRTThreadTaskCompletion_Join, STATGROUP_RHICMDLIST);
 void FRHICommandListBase::HandleRTThreadTaskCompletion(const FGraphEventRef& MyCompletionGraphEvent)
 {
-	check(!IsImmediate() && !IsInRHIThread());
+	check(!IsImmediate());
 	for (int32 Index = 0; Index < RTTasks.Num(); Index++)
 	{
 		if (RTTasks[Index].IsValid() && !RTTasks[Index]->IsComplete())
