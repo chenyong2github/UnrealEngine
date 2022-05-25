@@ -10,16 +10,6 @@ namespace Dataflow
 {
 	class FNode;
 
-	struct FFilename
-	{
-		FString Filename;
-		FMD5Hash FileHash;
-
-		FFilename() {}
-		FFilename(const FString& File) : Filename(File) {}
-	};
-
-
 	template<class T>
 	struct DATAFLOWCORE_API TPropertyParameters {
 		FName Name = FName("");
