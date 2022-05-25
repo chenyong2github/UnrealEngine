@@ -279,7 +279,7 @@ void FMeshUtilities::GenerateSignedDistanceFieldVolumeData(
 
 		TArray<FVector3f> SampleDirections;
 		{
-			const int32 NumVoxelDistanceSamples = bUsePointQuery ? 120 : 1200;
+			const int32 NumVoxelDistanceSamples = bUsePointQuery ? 49 : 576;
 			FRandomStream RandomStream(0);
 			MeshUtilities::GenerateStratifiedUniformHemisphereSamples(NumVoxelDistanceSamples, RandomStream, SampleDirections);
 			TArray<FVector3f> OtherHemisphereSamples;

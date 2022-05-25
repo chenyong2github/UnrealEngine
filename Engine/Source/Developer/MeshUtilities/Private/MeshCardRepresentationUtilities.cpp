@@ -716,7 +716,7 @@ void InitSurfelScene(
 	}
 
 	// Generate random ray directions over a hemisphere
-	constexpr uint32 NumRayDirectionsOverHemisphere = 64;
+	constexpr uint32 NumRayDirectionsOverHemisphere = 36;
 	TArray<FVector3f> RayDirectionsOverHemisphere;
 	{
 		FRandomStream RandomStream(0);
