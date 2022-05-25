@@ -614,6 +614,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	// Nanite supports distance field representation for fully opaque meshes.
 	bSupportsDistanceFieldRepresentation = CombinedMaterialRelevance.bOpaque;
 
+	bEvaluateWorldPositionOffset = !IsOptimizedWPO() || Component->bEvaluateWorldPositionOffset;
+
 #if RHI_RAYTRACING
 	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
 	if (ValidLODIndex != INDEX_NONE && RenderData->LODResources[ValidLODIndex].RayTracingGeometry.Initializer.GeometryType == RTGT_Procedural)
