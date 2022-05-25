@@ -4,7 +4,6 @@
 
 #include "IMediaModule.h"
 #include "ImgMediaEditorModule.h"
-#include "ImgMediaMipMapInfo.h"
 #include "ImgMediaSource.h"
 #include "GameFramework/Actor.h"
 #include "Misc/Paths.h"

@@ -8,13 +8,12 @@
 #include "IMediaSamples.h"
 #include "IMediaTextureSample.h"
 #include "IMediaView.h"
-#include "ImgMediaMipMapInfo.h"
+#include "Assets/ImgMediaMipMapInfo.h"
 #include "Misc/FrameRate.h"
 #include "Templates/SharedPointer.h"
 
 class FImgMediaGlobalCache;
 class FImgMediaLoaderWork;
-class FImgMediaMipMapInfo;
 class FImgMediaScheduler;
 class FImgMediaTextureSample;
 class FMediaTimeStamp;

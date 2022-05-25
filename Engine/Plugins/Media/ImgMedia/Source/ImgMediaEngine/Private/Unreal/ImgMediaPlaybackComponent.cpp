@@ -3,7 +3,6 @@
 #include "Unreal/ImgMediaPlaybackComponent.h"
 
 #include "Components/PrimitiveComponent.h"
-#include "ImgMediaMipMapInfo.h"
 #include "Materials/MaterialInterface.h"
 #include "MediaTexture.h"
 #include "MediaTextureTracker.h"

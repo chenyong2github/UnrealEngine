@@ -14,9 +14,6 @@ class IDetailLayoutBuilder;
 class IPropertyHandle;
 class SEditableTextBox;
 
-class FImgMediaMipMapInfo;
-struct FImgMediaMipMapCameraInfo;
-
 /**
  * Implements a details view customization for the UImgMediaSource class.
  */

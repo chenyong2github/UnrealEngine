@@ -20,7 +20,6 @@
 #include "IImgMediaModule.h"
 #include "IImgMediaReader.h"
 #include "ImgMediaLoaderWork.h"
-#include "ImgMediaMipMapInfo.h"
 #include "ImgMediaScheduler.h"
 #include "ImgMediaTextureSample.h"
 

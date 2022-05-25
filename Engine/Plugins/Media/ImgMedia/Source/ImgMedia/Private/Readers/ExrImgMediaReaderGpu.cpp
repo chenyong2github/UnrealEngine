@@ -12,7 +12,6 @@
 #include "ExrReaderGpu.h"
 #include "RHICommandList.h"
 #include "ExrSwizzlingShader.h"
-#include "ImgMedia/Public/ImgMediaMipMapInfo.h"
 #include "SceneUtils.h"
 
 
