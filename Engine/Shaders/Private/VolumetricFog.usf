@@ -304,8 +304,6 @@ void InjectShadowedLocalLightPS(
 		LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
 		LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;
 
-		FRectTexture RectTexture = InitRectTexture(LightData);
-
 		float VolumetricScatteringIntensity = DeferredLightUniforms.VolumetricScatteringIntensity;
 
 		float3 L = 0;
@@ -350,7 +348,7 @@ void InjectShadowedLocalLightPS(
 			{
 				FRect Rect = GetRect(ToLight, LightData);
 
-				Lighting = IntegrateLight(Rect, RectTexture);
+				Lighting = IntegrateLight(Rect);
 			}
 			else
 			{
@@ -728,8 +726,6 @@ void LightScatteringCS(
 				LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
 				LightData.bRectLight = LightData.RectLightBarnLength > -2.0f;
 
-				FRectTexture RectTexture = InitRectTexture(LightData);
-
 				float3 LightColor = LightData.Color;
 
 				float3 L = 0;
@@ -741,7 +737,7 @@ void LightScatteringCS(
 				{
 					FRect Rect = GetRect( ToLight, LightData );
 
-					Lighting = IntegrateLight(Rect, RectTexture);
+					Lighting = IntegrateLight(Rect);
 				}
 				else
 				{

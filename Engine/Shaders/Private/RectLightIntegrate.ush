@@ -44,7 +44,7 @@ bool RayHitRect( float3 L, FRect Rect )
 	return t >= 0 && InExtentX && InExtentY;
 }
 
-float IntegrateLight( FRect Rect, FRectTexture SourceTexture )
+float IntegrateLight( FRect Rect )
 {
 	// No visibile rect light due to barn door occlusion
 	if (Rect.Extent.x == 0 || Rect.Extent.y == 0) return 0;
@@ -63,8 +63,6 @@ float IntegrateLight( FRect Rect, FRectTexture SourceTexture )
 #else	// Drobot
 	float3 L = RectIrradianceApproxDrobot( 0, Rect, Falloff, NoL );
 #endif
-
-	float3 FalloffColor = SampleSourceTexture( L, Rect, SourceTexture);
 	
 	return Falloff;
 }
@@ -87,8 +85,6 @@ FAreaLightIntegrateContext CreateRectIntegrateContext( float Roughness, half3 N,
 #else	// Drobot
 	float3 L = RectIrradianceApproxDrobot( N, Rect, Falloff, NoL );
 #endif
-
-	float3 FalloffColor = SampleSourceTexture( L, Rect, SourceTexture );
 
 #if CHEAP_RECT
 	float3 R = reflect( -V, N );
@@ -238,6 +234,8 @@ FAreaLightIntegrateContext CreateRectIntegrateContext( float Roughness, half3 N,
 	Out.NoL = NoL;
 	Out.Falloff = Falloff;
 #else
+	float3 FalloffColor = SampleSourceTexture( L, Rect, SourceTexture );
+
 	Out.AreaLight.SphereSinAlpha = 0;
 	Out.AreaLight.SphereSinAlphaSoft = 0;
 	Out.AreaLight.LineCosSubtended = 1;

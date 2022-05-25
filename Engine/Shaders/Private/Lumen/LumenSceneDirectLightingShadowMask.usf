@@ -175,7 +175,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 		if (LightData.bRectLight)
 		{
 			FRect Rect = GetRect(ToLight, LightData);
-			Attenuation = IntegrateLight(Rect, InitRectTexture(LightData));
+			Attenuation = IntegrateLight(Rect);
 		}
 		else
 		{

@@ -398,8 +398,6 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 
 		LightAccumulator.EstimatedCost += 0.3f;		// add the cost of getting the shadow terms
 
-		const FRectTexture SourceTexture = InitRectTexture(LightData);
-
 		BRANCH
 		if( Shadow.SurfaceShadow + Shadow.TransmissionShadow > 0 )
 		{
@@ -413,7 +411,7 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 			{
 				FRect Rect = GetRect( ToLight, LightData );
 
-				Lighting = IntegrateLight( Rect, SourceTexture);
+				Lighting = IntegrateLight( Rect );
 			}
 			else
 			{
@@ -430,6 +428,7 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 			if (LightData.bRectLight)
 			{
 				FRect Rect = GetRect( ToLight, LightData );
+				const FRectTexture SourceTexture = InitRectTexture(LightData);
 
 				#if REFERENCE_QUALITY
 					Lighting = IntegrateBxDF( GBuffer, N, V, Rect, Shadow, SourceTexture, SVPos );

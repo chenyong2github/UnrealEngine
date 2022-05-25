@@ -60,7 +60,7 @@ float3 StrataForwardLightingCommon(
 					LightMask = 0.0f; // Rect light can be non visible due to barn door occlusion
 				}
 				AreaLightContext = CreateRectIntegrateContext(Roughness, StrataBSDFContext.N, StrataBSDFContext.V, Rect, RectTexture);
-				Lighting = IntegrateLight(Rect, RectTexture);
+				Lighting = IntegrateLight(Rect);
 
 				// We must have the evaluate inside the if due to the rectlight texture: it must be now be ambiguous which texture is going ot be used.
 				// After te compilation, a local resource must map to a unique global resource (the default or the actual rect light texture).
