@@ -666,6 +666,7 @@ void FUdpMessageProcessor::ProcessDataSegment(FInboundSegment& Segment, FNodeInf
 		}
 	}
 
+	NodeInfo.Statistics.TotalBytesReceived += DataChunk.Data.Num();
 	NodeInfo.Statistics.PacketsReceived++;
 	ReassembledMessage->Reassemble(DataChunk.SegmentNumber, DataChunk.SegmentOffset, DataChunk.Data, CurrentTime);
 
@@ -1014,6 +1015,7 @@ FSentSegmentInfo FUdpMessageProcessor::SendNextSegmentForMessageId(FNodeInfo& No
 	NodeInfo.Statistics.TotalBytesSent += SentInfo.BytesSent;
 	NodeInfo.Statistics.IPv4AsString = NodeInfo.Endpoint.ToString();
 	NodeInfo.Statistics.PacketsInFlight = NodeInfo.InflightSegments.Num();
+	NodeInfo.Statistics.BytesInflight = NodeInfo.InflightSegments.Num() * UDP_MESSAGING_SEGMENT_SIZE;
 	return MoveTemp(SentInfo);
 }
 

@@ -14,6 +14,15 @@ struct FMessageTransportStatistics
 	/** Total number of bytes sent to the destination endpoint.*/
 	uint64 TotalBytesSent = 0;
 
+	/** Total number of bytes lost to the destination endpoint. */
+	uint64 TotalBytesLost = 0;
+
+	/** Total number of bytes received from endpoint. */
+	uint64 TotalBytesReceived = 0;
+	
+	/** Number of bytes currently in flight waiting for. */
+	uint64 BytesInflight = 0;
+
 	/** Total number of packets sent to the destination. */
 	uint64 PacketsSent = 0;
 
@@ -23,7 +32,7 @@ struct FMessageTransportStatistics
 	/** Number of packets acknowledged. */
 	uint64 PacketsAcked = 0;
 
-	/** Number of packets received by this endpoint. */
+	/** Number of packets received from this endpoint. */
 	uint64 PacketsReceived = 0;
 
 	/** Current packets in flight waiting for */

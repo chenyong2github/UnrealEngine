@@ -356,6 +356,8 @@ class FUdpMessageProcessor
 				}
 				return bIsLost;
 			});
+
+			Statistics.TotalBytesLost += SegmentsLost * UDP_MESSAGING_SEGMENT_SIZE;
 			Statistics.PacketsLost += SegmentsLost;
 			return SegmentsLost;
 		}
