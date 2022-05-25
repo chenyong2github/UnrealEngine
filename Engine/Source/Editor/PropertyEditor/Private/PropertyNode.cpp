@@ -4,6 +4,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/ArchiveReplaceObjectRef.h"
 #include "Components/ActorComponent.h"
+#include "Containers/Deque.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/UserDefinedStruct.h"
 #include "EditConditionContext.h"
@@ -868,24 +869,42 @@ bool FPropertyNode::GetChildNode(const int32 ChildArrayIndex, TSharedPtr<FProper
 
 TSharedPtr<FPropertyNode> FPropertyNode::FindChildPropertyNode( const FName InPropertyName, bool bRecurse )
 {
-	// Search Children
-	for (const TSharedPtr<FPropertyNode>& ChildNode : ChildNodes)
-	{
-		if( ChildNode->GetProperty() && ChildNode->GetProperty()->GetFName() == InPropertyName )
-		{
-			return ChildNode;
-		}
-	}
+	// search children breadth-first, so that identically-named properties are first picked up in top-level classes, eg:
+	// class UFoo 
+	// { 
+	//    struct FBar
+	//    { 
+	//       int ID; 
+	//    } Bar;
+	//    int ID;
+	// };
+	// depth-first search would find FBar::ID before UFoo::ID when searching for "ID", which is rarely what was intended
 
-	if (bRecurse)
+	TDeque<TSharedPtr<FPropertyNode>> NodesToSearch;
+
+	auto PushAll = [&NodesToSearch](const TArray<TSharedPtr<FPropertyNode>>& Nodes)
 	{
-		for (const TSharedPtr<FPropertyNode>& ChildNode : ChildNodes)
+		NodesToSearch.Reserve(NodesToSearch.Num() + Nodes.Num());
+		for (const TSharedPtr<FPropertyNode>& Node : Nodes)
 		{
-			TSharedPtr<FPropertyNode> PropertyNode = ChildNode->FindChildPropertyNode(InPropertyName, bRecurse);
-			if (PropertyNode.IsValid())
-			{
-				return PropertyNode;
-			}
+			NodesToSearch.PushLast(Node);
+		}
+	};
+
+	PushAll(ChildNodes);
+	while (!NodesToSearch.IsEmpty())
+	{
+		TSharedPtr<FPropertyNode> Node = NodesToSearch.First();
+		NodesToSearch.PopFirst();
+
+		if (Node->GetProperty() && Node->GetProperty()->GetFName() == InPropertyName)
+		{
+			return Node;
+		}
+
+		if (bRecurse)
+		{
+			PushAll(Node->ChildNodes);
 		}
 	}
 

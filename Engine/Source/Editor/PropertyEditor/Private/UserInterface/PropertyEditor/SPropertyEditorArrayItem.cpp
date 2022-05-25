@@ -22,7 +22,7 @@
 			FText::GetFormatPatternParameters(TitleFormatter->Format, OutParameterNames);
 			for (const FString& ParameterName : OutParameterNames)
 			{
-				TSharedPtr<IPropertyHandle> Handle = RootProperty->GetChildHandle(FName(*ParameterName), false /*bRecurse*/);
+				TSharedPtr<IPropertyHandle> Handle = RootProperty->GetChildHandle(FName(*ParameterName), true);
 				if (Handle.IsValid())
 				{
 					TitleFormatter->PropertyHandles.Add(Handle);
@@ -38,7 +38,7 @@
 		}
 		else // Support the old style where it was just a name of a property with no formatting.
 		{
-			TSharedPtr<IPropertyHandle> Handle = RootProperty->GetChildHandle(FName(*TitlePropertyRaw), false /*bRecurse*/);
+			TSharedPtr<IPropertyHandle> Handle = RootProperty->GetChildHandle(FName(*TitlePropertyRaw), true);
 			if (Handle.IsValid())
 			{
 				TitleFormatter->PropertyHandles.Add(Handle);
