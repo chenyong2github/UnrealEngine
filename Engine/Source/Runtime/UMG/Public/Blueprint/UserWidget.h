@@ -212,7 +212,7 @@ class UMG_API UUserWidget : public UWidget, public INamedSlotInterface
 public:
 	UUserWidget(const FObjectInitializer& ObjectInitializer);
 
-	//UObject interface
+	//~ Begin UObject interface
 	virtual class UWorld* GetWorld() const override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void BeginDestroy() override;
@@ -225,6 +225,12 @@ public:
 
 	EWidgetTickFrequency GetDesiredTickFrequency() const { return TickFrequency; }
 
+	/**
+	 * Returns the BlueprintGeneratedClass that generated the WidgetTree.
+	 * A child UserWidget that extends a parent UserWidget will not have a new WidgetTree.
+	 * The child UserWidget will have the same WidgetTree as the parent UserWidget.
+	 * This function returns the parent UserWidget's BlueprintClass.
+	 */
 	UWidgetBlueprintGeneratedClass* GetWidgetTreeOwningClass() const;
 
 	void UpdateCanTick();
@@ -236,7 +242,7 @@ protected:
 	void InitializeNamedSlots(bool bReparentToWidgetTree);
 
 public:
-	//UVisual interface
+	//~ Begin UVisual interface
 	virtual void ReleaseSlateResources(bool bReleaseChildren) override;
 	//~ End UVisual Interface
 
@@ -244,11 +250,11 @@ public:
 	virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
 
-	// UNamedSlotInterface Begin
+	//~ Begin UNamedSlotInterface Begin
 	virtual void GetSlotNames(TArray<FName>& SlotNames) const override;
 	virtual UWidget* GetContentForSlot(FName SlotName) const override;
 	virtual void SetContentForSlot(FName SlotName, UWidget* Content) override;
-	// UNamedSlotInterface End
+	//~ UNamedSlotInterface End
 
 	/**
 	 * Adds it to the game's viewport and fills the entire screen, unless SetDesiredSizeInViewport is called

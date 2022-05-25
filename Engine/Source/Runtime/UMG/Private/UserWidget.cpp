@@ -1350,9 +1350,9 @@ void UUserWidget::NativeOnInitialized()
 		UInputDelegateBinding::BindInputDelegates(GetClass(), PC->InputComponent, this);		
 	}
 	
-	if (UWidgetBlueprintGeneratedClass* Class = GetWidgetTreeOwningClass())
+	if (UWidgetBlueprintGeneratedClass* BPClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()))
 	{
-		Class->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
+		BPClass->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
 			{
 				Extension->Initialize(this);
 			});
@@ -1369,9 +1369,9 @@ void UUserWidget::NativeOnInitialized()
 void UUserWidget::NativePreConstruct()
 {
 	const bool bIsDesignTime = IsDesignTime();
-	if (UWidgetBlueprintGeneratedClass* Class = GetWidgetTreeOwningClass())
+	if (UWidgetBlueprintGeneratedClass* BPClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()))
 	{
-		Class->ForEachExtension([this, bIsDesignTime](UWidgetBlueprintGeneratedClassExtension* Extension)
+		BPClass->ForEachExtension([this, bIsDesignTime](UWidgetBlueprintGeneratedClassExtension* Extension)
 			{
 				Extension->PreConstruct(this, bIsDesignTime);
 			});
@@ -1382,9 +1382,9 @@ void UUserWidget::NativePreConstruct()
 
 void UUserWidget::NativeConstruct()
 {
-	if (UWidgetBlueprintGeneratedClass* Class = GetWidgetTreeOwningClass())
+	if (UWidgetBlueprintGeneratedClass* BPClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()))
 	{
-		Class->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
+		BPClass->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
 			{
 				Extension->Construct(this);
 			});
@@ -1404,9 +1404,9 @@ void UUserWidget::NativeDestruct()
 		Extension->Destruct();
 	}
 
-	if (UWidgetBlueprintGeneratedClass* Class = GetWidgetTreeOwningClass())
+	if (UWidgetBlueprintGeneratedClass* BPClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass()))
 	{
-		Class->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
+		BPClass->ForEachExtension([this](UWidgetBlueprintGeneratedClassExtension* Extension)
 			{
 				Extension->Destruct(this);
 			});
