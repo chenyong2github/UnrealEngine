@@ -578,7 +578,7 @@ public:
 		}
 
 		// Lock so only one thread does init :
-		nvTextureToolsHandleLock.Lock();
+		FScopeLock HandleLock(&nvTextureToolsHandleLock);
 		
 		// double check inside lock :
 		if ( nvTextureToolsHandle != nullptr )
@@ -594,8 +594,6 @@ public:
 		{
 			nvTextureToolsHandle = FPlatformProcess::GetDllHandle(*(FPaths::EngineDir() / TEXT("Binaries/ThirdParty/nvTextureTools/Win64/nvtt_64.dll")));
 		}
-
-		nvTextureToolsHandleLock.Unlock();
 #endif	//PLATFORM_WINDOWS
 	}
 
