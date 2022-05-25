@@ -145,12 +145,6 @@ namespace UE::MVVM::Private
 	static TArray<FMVVMAvailableBinding> GetBindingsList(TSubclassOf<UMVVMViewModelBase> Class)
 	{
 		TArray<FMVVMAvailableBinding> ViewModelAvailableBindingsList = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetViewModelAvailableBindings(Class);
-		const TArray<UE::MVVM::FMVVMConstFieldVariant> ChildViewModels = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->GetChildViewModels(Class);
-		for (const UE::MVVM::FMVVMConstFieldVariant& Field : ChildViewModels)
-		{
-			ViewModelAvailableBindingsList.Add(FMVVMAvailableBinding(FMVVMBindingName(Field.GetName()), true, false));
-		}
-
 		return ViewModelAvailableBindingsList;
 	}
 } //namespace UE::MVVM::Private
