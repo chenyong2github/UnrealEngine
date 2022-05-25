@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
+#include "Dataflow/DataflowNodeParameters.h"
+
+class UDataflowEdNode;
 
 class FDataflowEditorCommandsImpl : public TCommands<FDataflowEditorCommandsImpl>
 {
@@ -29,8 +32,23 @@ class DATAFLOWEDITOR_API FDataflowEditorCommands
 {
 public:
 	static void Register();
+	static void Unregister();
 
 	static const FDataflowEditorCommandsImpl& Get();
 
-	static void Unregister();
+	/*
+	*  EvaluateNodes
+	*/
+	static void EvaluateNodes(const FGraphPanelSelectionSet& SelectedNodes, const Dataflow::FContext& InContext);
+	
+	/*
+	*  DeleteNodes
+	*/
+	static void DeleteNodes(UDataflow* Graph, const FGraphPanelSelectionSet& SelectedNodes);
+	
+	/*
+	*  OnSelectedNodesChanged
+	*/
+	static void OnSelectedNodesChanged(TSharedPtr<IDetailsView> PropertiesEditor, UObject* Asset, UDataflow* Graph, const TSet<UObject*>& NewSelection);
+
 };

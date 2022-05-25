@@ -74,47 +74,19 @@ void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, c
 	}
 }
 
+
+
 void FDataflowEditorToolkit::EvaluateNode()
 {
-	if (UDataflow* Graph = dynamic_cast<UDataflow*>(GraphEditor->GetCurrentGraph()))
-	{
-		if (TSharedPtr<Dataflow::FGraph> DataflowGraph = Graph->GetDataflow())
-		{
-			for (UObject* Ode : GetSelectedNodes())
-			{
-				if (UDataflowEdNode* Node = dynamic_cast<UDataflowEdNode*>(Ode))
-				{
-					if (TSharedPtr<Dataflow::FNode> DataflowNode = DataflowGraph->FindBaseNode(Node->GetDataflowNodeGuid()))
-					{
-						for (Dataflow::FConnection* NodeOutput : DataflowNode->GetOutputs())
-						{
-							DataflowNode->Evaluate({0.f}, NodeOutput);
-						}
-					}
-				}
-			}
-		}
-	}
+	Dataflow::FContext Context(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
+	FDataflowEditorCommands::EvaluateNodes(GetSelectedNodes(), Context);
 }
 
 void FDataflowEditorToolkit::DeleteNode()
 {
 	if (UDataflow* Graph = dynamic_cast<UDataflow*>(GraphEditor->GetCurrentGraph()))
 	{
-		if (TSharedPtr<Dataflow::FGraph> DataflowGraph = Graph->GetDataflow())
-		{
-			for (UObject* Ode : GetSelectedNodes())
-			{
-				if (UDataflowEdNode* EdNode = dynamic_cast<UDataflowEdNode*>(Ode))
-				{
-					if (TSharedPtr<Dataflow::FNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
-					{
-						Graph->RemoveNode(EdNode);
-						DataflowGraph->RemoveNode(DataflowNode);
-					}
-				}
-			}
-		}
+		FDataflowEditorCommands::DeleteNodes(Graph, GetSelectedNodes());
 	}
 }
 
@@ -129,8 +101,11 @@ FGraphPanelSelectionSet FDataflowEditorToolkit::GetSelectedNodes() const
 
 void FDataflowEditorToolkit::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
+	if (UDataflow* Graph = dynamic_cast<UDataflow*>(GraphEditor->GetCurrentGraph()))
+	{
+		FDataflowEditorCommands::OnSelectedNodesChanged(PropertiesEditor, Dataflow, Graph, NewSelection);
+	}
 }
-
 
 
 TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit)
