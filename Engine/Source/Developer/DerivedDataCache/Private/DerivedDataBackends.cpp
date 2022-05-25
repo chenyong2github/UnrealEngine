@@ -68,7 +68,7 @@ ILegacyCacheStore* CreateHttpCacheStore(
 IMemoryCacheStore* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Filename, bool bWriting, bool bCompressed);
 ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
-ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace);
+ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace);
 
 /**
  * This class is used to create a singleton that represents the derived data cache hierarchy and all of the wrappers necessary
@@ -1014,8 +1014,14 @@ public:
 			Namespace = FApp::GetProjectName();
 			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'Namespace', falling back to '%s'"), NodeName, *Namespace);
 		}
+		FString StructuredNamespace;
+		if (!FParse::Value(Entry, TEXT("StructuredNamespace="), StructuredNamespace))
+		{
+			StructuredNamespace = Namespace;
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'StructuredNamespace', falling back using Namespace option: '%s'"), NodeName, *StructuredNamespace);
+		}
 
-		if (ILegacyCacheStore* Backend = CreateZenCacheStore(NodeName, *ServiceUrl, *Namespace))
+		if (ILegacyCacheStore* Backend = CreateZenCacheStore(NodeName, *ServiceUrl, *Namespace, *StructuredNamespace))
 		{
 			return Backend;
 		}

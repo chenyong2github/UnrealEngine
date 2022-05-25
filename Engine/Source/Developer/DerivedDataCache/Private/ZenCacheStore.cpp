@@ -79,7 +79,7 @@ public:
 	 * @param ServiceUrl	Base url to the service including schema.
 	 * @param Namespace		Namespace to use.
 	 */
-	FZenCacheStore(const TCHAR* ServiceUrl, const TCHAR* Namespace);
+	FZenCacheStore(const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace);
 
 	~FZenCacheStore();
 
@@ -154,7 +154,7 @@ private:
 	EGetResult GetZenData(const FCacheKey& Key, ECachePolicy CachePolicy, FCbPackage& OutPackage) const;
 
 	bool IsServiceReady();
-	static FString MakeLegacyZenKey(const TCHAR* CacheKey);
+	FString MakeLegacyZenKey(const TCHAR* CacheKey);
 	static void AppendZenUri(const FCacheKey& CacheKey, FStringBuilderBase& Out);
 	static void AppendZenUri(const FCacheKey& CacheKey, const FValueId& Id, FStringBuilderBase& Out);
 	static void AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Out);
@@ -163,6 +163,7 @@ private:
 
 private:
 	FString Namespace;
+	FString StructuredNamespace;
 	UE::Zen::FScopeZenService ZenService;
 	mutable FDerivedDataCacheUsageStats UsageStats;
 	TUniquePtr<UE::Zen::FZenHttpRequestPool> RequestPool;
@@ -179,8 +180,10 @@ private:
 
 FZenCacheStore::FZenCacheStore(
 	const TCHAR* InServiceUrl,
-	const TCHAR* InNamespace)
+	const TCHAR* InNamespace,
+	const TCHAR* InStructuredNamespace)
 	: Namespace(InNamespace)
+	, StructuredNamespace(InStructuredNamespace)
 	, ZenService(InServiceUrl)
 {
 	if (IsServiceReady())
@@ -458,7 +461,12 @@ FZenCacheStore::PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, Zen
 FString FZenCacheStore::MakeLegacyZenKey(const TCHAR* CacheKey)
 {
 	FIoHash KeyHash = FIoHash::HashBuffer(CacheKey, FCString::Strlen(CacheKey) * sizeof(TCHAR));
-	return FString::Printf(TEXT("/z$/legacy/%s"), *LexToString(KeyHash));
+	if (Namespace == "ue4.ddc")
+	{
+		// TODO: DE:20220525 Remove once we have deployed shared instances with namespace support
+		return FString::Printf(TEXT("/z$/legacy/%s"), *LexToString(KeyHash));
+	}
+	return FString::Printf(TEXT("/z$/%s/legacy/%s"), *Namespace, *LexToString(KeyHash));
 }
 
 void FZenCacheStore::AppendZenUri(const FCacheKey& CacheKey, FStringBuilderBase& Out)
@@ -645,6 +653,7 @@ void FZenCacheStore::Put(
 			{
 				ECachePolicy BatchDefaultPolicy = Batch[0].Policy.GetRecordPolicy();
 				BatchWriter << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
+				BatchWriter.AddString(ANSITEXTVIEW("Namespace"), StructuredNamespace);
 
 				BatchWriter.BeginArray(ANSITEXTVIEW("Requests"));
 				for (const FCachePutRequest& Request : Batch)
@@ -757,7 +766,7 @@ void FZenCacheStore::Get(
 			{
 				ECachePolicy BatchDefaultPolicy = Batch[0].Policy.GetRecordPolicy();
 				BatchRequest << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
-				BatchRequest.AddString(ANSITEXTVIEW("Namespace"), Namespace);
+				BatchRequest.AddString(ANSITEXTVIEW("Namespace"), StructuredNamespace);
 
 				BatchRequest.BeginArray(ANSITEXTVIEW("Requests"));
 				for (const FCacheGetRequest& Request : Batch)
@@ -879,7 +888,7 @@ void FZenCacheStore::PutValue(
 			{
 				ECachePolicy BatchDefaultPolicy = Batch[0].Policy;
 				BatchWriter << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
-				BatchWriter.AddString(ANSITEXTVIEW("Namespace"), Namespace);
+				BatchWriter.AddString(ANSITEXTVIEW("Namespace"), StructuredNamespace);
 
 				BatchWriter.BeginArray("Requests");
 				for (const FCachePutValueRequest& Request : Batch)
@@ -991,7 +1000,7 @@ void FZenCacheStore::GetValue(
 				{
 					ECachePolicy BatchDefaultPolicy = Batch[0].Policy;
 					BatchRequest << ANSITEXTVIEW("DefaultPolicy") << *WriteToString<128>(BatchDefaultPolicy);
-					BatchRequest.AddString(ANSITEXTVIEW("Namespace"), Namespace);
+					BatchRequest.AddString(ANSITEXTVIEW("Namespace"), StructuredNamespace);
 
 					BatchRequest.BeginArray("Requests");
 					for (const FCacheGetValueRequest& Request : Batch)
@@ -1119,7 +1128,7 @@ void FZenCacheStore::GetChunks(
 			{
 				ECachePolicy DefaultPolicy = Batch[0].Policy;
 				BatchRequest << ANSITEXTVIEW("DefaultPolicy") << WriteToString<128>(DefaultPolicy);
-				BatchRequest.AddString(ANSITEXTVIEW("Namespace"), Namespace);
+				BatchRequest.AddString(ANSITEXTVIEW("Namespace"), StructuredNamespace);
 
 				BatchRequest.BeginArray(ANSITEXTVIEW("ChunkRequests"));
 				for (const FCacheGetChunkRequest& Request : Batch)
@@ -1231,9 +1240,9 @@ void FZenCacheStore::GetChunks(
 	TRACE_COUNTER_SUBTRACT(ZenDDC_ChunkRequestCount, int64(Requests.Num()));
 }
 
-ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace)
+ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace)
 {
-	FZenCacheStore* Backend = new FZenCacheStore(ServiceUrl, Namespace);
+	FZenCacheStore* Backend = new FZenCacheStore(ServiceUrl, Namespace, StructuredNamespace);
 	if (Backend->IsUsable())
 	{
 		return Backend;
@@ -1250,7 +1259,7 @@ ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Servi
 namespace UE::DerivedData
 {
 
-ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace)
+ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace)
 {
 	return nullptr;
 }
