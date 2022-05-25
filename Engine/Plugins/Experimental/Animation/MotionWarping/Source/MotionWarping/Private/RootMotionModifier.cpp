@@ -271,16 +271,13 @@ FQuat URootMotionModifier_Warp::WarpRotation(const FTransform& RootMotionDelta, 
 		return FQuat::Identity;
 	}
 
-	const FTransform& CharacterTransform = CharacterOwner->GetActorTransform();
-	const FQuat CurrentRotation = CharacterTransform.GetRotation();
-	const FQuat TargetRotation = GetTargetRotation();
+	const FQuat TotalRootMotionRotation = RootMotionTotal.GetRotation();
+	const FQuat CurrentRotation = CharacterOwner->GetActorQuat() * CharacterOwner->GetBaseRotationOffset();
+	const FQuat TargetRotation = CurrentRotation.Inverse() * (GetTargetRotation() * CharacterOwner->GetBaseRotationOffset());
 	const float TimeRemaining = (EndTime - PreviousPosition) * WarpRotationTimeMultiplier;
-	const FQuat RemainingRootRotationInWorld = RootMotionTotal.GetRotation();
-	const FQuat CurrentPlusRemainingRootMotion = RemainingRootRotationInWorld * CurrentRotation;
-	const float PercentThisStep = FMath::Clamp(DeltaSeconds / TimeRemaining, 0.f, 1.f);
-	const FQuat TargetRotThisFrame = FQuat::Slerp(CurrentPlusRemainingRootMotion, TargetRotation, PercentThisStep);
-	const FQuat DeltaOut = TargetRotThisFrame * CurrentPlusRemainingRootMotion.Inverse();
-
+	const float Alpha = FMath::Clamp(DeltaSeconds / TimeRemaining, 0.f, 1.f);
+	const FQuat TargetRotThisFrame = FQuat::Slerp(TotalRootMotionRotation, TargetRotation, Alpha);
+	const FQuat DeltaOut = TargetRotThisFrame * TotalRootMotionRotation.Inverse();
 	return (DeltaOut * RootMotionDelta.GetRotation());
 }
 
@@ -292,7 +289,7 @@ void URootMotionModifier_Warp::PrintLog(const FString& Name, const FTransform& O
 		const float CapsuleHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 		const FVector CurrentLocation = (CharacterOwner->GetActorLocation() - FVector(0.f, 0.f, CapsuleHalfHeight));
 		const FVector CurrentToTarget = (GetTargetLocation() - CurrentLocation).GetSafeNormal2D();
-		const FVector FutureLocation = CurrentLocation + (bInLocalSpace ? (CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(WarpedRootMotion)).GetTranslation() : WarpedRootMotion.GetTranslation());
+		const FVector FutureLocation = CurrentLocation + (CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(WarpedRootMotion)).GetTranslation();
 		const FRotator CurrentRotation = CharacterOwner->GetActorRotation();
 		const FRotator FutureRotation = (WarpedRootMotion.GetRotation() * CharacterOwner->GetActorQuat()).Rotator();
 		const float Dot = FVector::DotProduct(CharacterOwner->GetActorForwardVector(), CurrentToTarget);
@@ -344,16 +341,9 @@ FTransform UDEPRECATED_RootMotionModifier_SimpleWarp::ProcessRootMotion(const FT
 		const float HorizontalOriginal = RootMotionTotal.GetTranslation().Size2D();
 		const float HorizontalTranslationWarped = !FMath::IsNearlyZero(HorizontalOriginal) ? ((HorizontalDelta * HorizontalTarget) / HorizontalOriginal) : 0.f;
 
-		if (bInLocalSpace)
-		{
-			const FTransform MeshRelativeTransform = FTransform(CharacterOwner->GetBaseRotationOffset(), CharacterOwner->GetBaseTranslationOffset());
-			const FTransform MeshTransform = MeshRelativeTransform * CharacterOwner->GetActorTransform();
-			DeltaTranslation = MeshTransform.InverseTransformPositionNoScale(GetTargetLocation()).GetSafeNormal2D() * HorizontalTranslationWarped;
-		}
-		else
-		{
-			DeltaTranslation = (GetTargetLocation() - CharacterTransform.GetLocation()).GetSafeNormal2D() * HorizontalTranslationWarped;
-		}
+		const FTransform MeshRelativeTransform = FTransform(CharacterOwner->GetBaseRotationOffset(), CharacterOwner->GetBaseTranslationOffset());
+		const FTransform MeshTransform = MeshRelativeTransform * CharacterOwner->GetActorTransform();
+		DeltaTranslation = MeshTransform.InverseTransformPositionNoScale(GetTargetLocation()).GetSafeNormal2D() * HorizontalTranslationWarped;
 
 		if (!bIgnoreZAxis)
 		{

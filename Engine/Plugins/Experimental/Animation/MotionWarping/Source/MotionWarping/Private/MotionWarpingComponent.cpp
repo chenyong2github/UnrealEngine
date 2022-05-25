@@ -226,8 +226,7 @@ void UMotionWarpingComponent::InitializeComponent()
 	UCharacterMovementComponent* CharacterMovementComp = CharacterOwner.IsValid() ? CharacterOwner->GetCharacterMovement() : nullptr;
 	if (CharacterMovementComp)
 	{
-		CharacterMovementComp->ProcessRootMotionPreConvertToWorld.BindUObject(this, &UMotionWarpingComponent::ProcessRootMotionPreConvertToWorld);
-		CharacterMovementComp->ProcessRootMotionPostConvertToWorld.BindUObject(this, &UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld);
+ 		CharacterMovementComp->ProcessRootMotionPreConvertToWorld.BindUObject(this, &UMotionWarpingComponent::ProcessRootMotionPreConvertToWorld);
 	}
 }
 
@@ -423,30 +422,7 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPreConvertToWorld(const FTr
 	// Apply Local Space Modifiers
 	for (URootMotionModifier* Modifier : Modifiers)
 	{
-		if (Modifier->GetState() == ERootMotionModifierState::Active && Modifier->bInLocalSpace)
-		{
-			FinalRootMotion = Modifier->ProcessRootMotion(FinalRootMotion, DeltaSeconds);
-		}
-	}
-
-	return FinalRootMotion;
-}
-
-FTransform UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld(const FTransform& InRootMotion, UCharacterMovementComponent* CharacterMovementComponent, float DeltaSeconds)
-{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (FMotionWarpingCVars::CVarMotionWarpingDisable.GetValueOnGameThread() > 0)
-	{
-		return InRootMotion;
-	}
-#endif
-
-	FTransform FinalRootMotion = InRootMotion;
-
-	// Apply World Space Modifiers
-	for (URootMotionModifier* Modifier : Modifiers)
-	{
-		if (Modifier->GetState() == ERootMotionModifierState::Active && !Modifier->bInLocalSpace)
+		if (Modifier->GetState() == ERootMotionModifierState::Active)
 		{
 			FinalRootMotion = Modifier->ProcessRootMotion(FinalRootMotion, DeltaSeconds);
 		}
@@ -467,8 +443,8 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld(const FT
 				WarpedRootMotionAccum = ActorFeetLocation;
 			}
 
-			OriginalRootMotionAccum = OriginalRootMotionAccum.GetValue() + InRootMotion.GetLocation();
-			WarpedRootMotionAccum = WarpedRootMotionAccum.GetValue() + FinalRootMotion.GetLocation();
+			OriginalRootMotionAccum = OriginalRootMotionAccum.GetValue() + (CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(FTransform(InRootMotion.GetLocation()))).GetLocation();
+			WarpedRootMotionAccum = WarpedRootMotionAccum.GetValue() + (CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(FTransform(FinalRootMotion.GetLocation()))).GetLocation();
 
 			DrawDebugPoint(GetWorld(), OriginalRootMotionAccum.GetValue(), PointSize, FColor::Red, false, DrawDebugDuration, 0);
 			DrawDebugPoint(GetWorld(), WarpedRootMotionAccum.GetValue(), PointSize, FColor::Green, false, DrawDebugDuration, 0);

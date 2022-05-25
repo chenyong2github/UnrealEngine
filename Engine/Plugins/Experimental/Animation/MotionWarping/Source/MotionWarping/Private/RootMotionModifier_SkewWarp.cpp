@@ -136,7 +136,6 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 	if (CurrentPosition > EndTime)
 	{
 		ExtraRootMotion = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), EndTime, CurrentPosition);
-		ExtraRootMotion = CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(ExtraRootMotion);
 	}
 
 	if (bWarpTranslation && !RootMotionDelta.GetTranslation().IsNearlyZero())
@@ -144,10 +143,9 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 		const float CapsuleHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 		const FQuat CurrentRotation = CharacterOwner->GetActorQuat();
 		const FVector CurrentLocation = (CharacterOwner->GetActorLocation() - CurrentRotation.GetUpVector() * CapsuleHalfHeight);
-		const FTransform CurrentTransform = FTransform(CurrentRotation, CurrentLocation);
 
-		const FVector DeltaTranslation = CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(RootMotionDelta).GetLocation();
-		const FVector TotalTranslation = CharacterOwner->GetMesh()->ConvertLocalRootMotionToWorld(RootMotionTotal).GetLocation();
+		const FVector DeltaTranslation = RootMotionDelta.GetLocation();
+		const FVector TotalTranslation = RootMotionTotal.GetLocation();
 
 		FVector TargetLocation = GetTargetLocation();
 		if (bIgnoreZAxis)
@@ -155,7 +153,10 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 			TargetLocation.Z = CurrentLocation.Z;
 		}
 
-		const FVector WarpedTranslation = WarpTranslation(CurrentTransform, DeltaTranslation, TotalTranslation, TargetLocation) + ExtraRootMotion.GetLocation();
+		const FTransform MeshTransform = FTransform(CharacterOwner->GetBaseRotationOffset(), CharacterOwner->GetBaseTranslationOffset()) * CharacterOwner->GetActorTransform();
+		TargetLocation = MeshTransform.InverseTransformPositionNoScale(TargetLocation);
+
+		const FVector WarpedTranslation = WarpTranslation(FTransform::Identity, DeltaTranslation, TotalTranslation, TargetLocation) + ExtraRootMotion.GetLocation();
 		FinalRootMotion.SetTranslation(WarpedTranslation);
 	}
 
@@ -202,7 +203,7 @@ URootMotionModifier_SkewWarp* URootMotionModifier_SkewWarp::AddRootMotionModifie
 		NewModifier->bWarpRotation = bInWarpRotation;
 		NewModifier->RotationType = InRotationType;
 		NewModifier->WarpRotationTimeMultiplier = InWarpRotationTimeMultiplier;
-		
+
 		InMotionWarpingComp->AddModifier(NewModifier);
 
 		return NewModifier;

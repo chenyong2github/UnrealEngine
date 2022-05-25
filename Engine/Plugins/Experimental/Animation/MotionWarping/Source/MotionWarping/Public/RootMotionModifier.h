@@ -86,10 +86,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Defaults")
 	float Weight = 0.f;
 
-	/** Whether this modifier runs before the extracted root motion is converted to world space or after */
-	UPROPERTY(BlueprintReadOnly, Category = "Defaults")
-	bool bInLocalSpace = false;
-
 	/** Character owner transform at the time this modifier becomes active */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Defaults")
 	FTransform StartTransform;
@@ -328,7 +324,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
 	FVector Scale = FVector(1.f);
 
-	URootMotionModifier_Scale(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) { bInLocalSpace = true; }
+	URootMotionModifier_Scale(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
 
 	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) override
 	{

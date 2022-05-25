@@ -193,6 +193,4 @@ protected:
 	bool FindAndUpdateWarpTarget(const FMotionWarpingTarget& WarpTarget);
 
 	FTransform ProcessRootMotionPreConvertToWorld(const FTransform& InRootMotion, class UCharacterMovementComponent* CharacterMovementComponent, float DeltaSeconds);
-	
-	FTransform ProcessRootMotionPostConvertToWorld(const FTransform& InRootMotion, class UCharacterMovementComponent* CharacterMovementComponent, float DeltaSeconds);
 };
