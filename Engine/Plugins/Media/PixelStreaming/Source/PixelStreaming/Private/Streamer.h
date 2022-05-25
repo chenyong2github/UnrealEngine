@@ -46,7 +46,6 @@ namespace UE::PixelStreaming
 		IPixelStreamingAudioSink* GetUnlistenedAudioSink() override;
 		FStreamingStartedEvent& OnStreamingStarted() override;
 		FStreamingStoppedEvent& OnStreamingStopped() override;
-		virtual void RegisterCreateInputDevice(IPixelStreamingInputDevice::FCreateInputDeviceFunc& InCreateInputDevice) override;
 		/** End IPixelStreamingStreamer implementation */
 		
 		/** Own methods */
@@ -69,10 +68,6 @@ namespace UE::PixelStreaming
 		virtual void OnSignallingDisconnected(int32 StatusCode, const FString& Reason, bool bWasClean) override;
 		virtual void OnSignallingError(const FString& ErrorMsg) override;
 		/** End ISignallingServerConnectionObserver implementation */
-
-		/** IInputDevice implementation */
-		virtual TSharedPtr<IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
-		/** End IInputDevice implementation */
 
 		/** Own methods */
 		void SendFreezeFrame(TArray<FColor> RawData, const FIntRect& Rect);
@@ -143,7 +138,5 @@ namespace UE::PixelStreaming
 
 		FStreamingStartedEvent StreamingStartedEvent;
 		FStreamingStoppedEvent StreamingStoppedEvent;
-
-		TSharedPtr<FStreamerInputDevices> StreamerInputDevices;
 	};
 } // namespace UE::PixelStreaming

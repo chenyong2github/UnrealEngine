@@ -13,19 +13,19 @@ function initConfig(configFile, defaultConfig){
 	// Using object spread syntax: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax#Spread_in_object_literals
 	let config = {...defaultConfig};
 	try{
-		
+		let configData = fs.readFileSync(configFile, 'UTF8');
+		fileConfig = JSON.parse(configData);	
+		config = {...config, ...fileConfig}
+
 		try {
 			accessSync('configFile', constants.W_OK);
+			// Update config file with any additional defaults (does not override existing values if default has changed)
+			fs.writeFileSync(configFile, JSON.stringify(config, null, '\t'), 'UTF8');
 		} catch (err) {
 			console.log("Config file is readonly, skipping writing config...");
 			return config;
 		}
 		
-		let configData = fs.readFileSync(configFile, 'UTF8');
-		fileConfig = JSON.parse(configData);	
-		config = {...config, ...fileConfig}
-		// Update config file with any additional defaults (does not override existing values if default has changed)
-		fs.writeFileSync(configFile, JSON.stringify(config, null, '\t'), 'UTF8');
 	} catch(err) {
 		if (err.code === 'ENOENT') {
 			console.log("No config file found, writing defaults to log file " + configFile);

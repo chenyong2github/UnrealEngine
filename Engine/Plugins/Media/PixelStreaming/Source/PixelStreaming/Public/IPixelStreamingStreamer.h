@@ -9,12 +9,10 @@
 #include "Slate/SceneViewport.h"
 #include "IPixelStreamingInputDevice.h"
 #include "IPixelStreamingAudioSink.h"
-#include "IInputDevice.h"
-#include "IInputDeviceModule.h"
 
 class UTexture2D;
 
-class PIXELSTREAMING_API IPixelStreamingStreamer : public IInputDeviceModule
+class PIXELSTREAMING_API IPixelStreamingStreamer
 {
 public:
 	virtual ~IPixelStreamingStreamer() = default;
@@ -129,10 +127,4 @@ public:
 	 * @return - The bindable OnStreamingStopped event.
 	 */
 	virtual FStreamingStoppedEvent& OnStreamingStopped() = 0;
-
-	/**
-	 * Register a lambda that returns a IInputDevice
-	 * @param InCreateInputeDevice - A lambda that will return input device
-	*/
-	virtual void RegisterCreateInputDevice(IPixelStreamingInputDevice::FCreateInputDeviceFunc& InCreateInputDevice) = 0;
 };

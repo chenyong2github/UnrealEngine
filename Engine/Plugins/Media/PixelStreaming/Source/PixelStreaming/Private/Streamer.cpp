@@ -42,14 +42,10 @@ namespace UE::PixelStreaming
 		{ 
 			PlayerSessions.DeleteAllPlayerSessions(true);
 		});
-		StreamerInputDevices = MakeShared<FStreamerInputDevices>(FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler());
-		SetInputDevice(StreamerInputDevices->CreateInputDevice());
-		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 	}
 
 	FStreamer::~FStreamer()
 	{
-		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 		FStats::Get()->RemoveSessions(&PlayerSessions);
 		StopStreaming();
 		P2PPeerConnectionFactory = nullptr;
@@ -218,11 +214,7 @@ namespace UE::PixelStreaming
 		return StreamingStoppedEvent;
 	}
 
-	void FStreamer::RegisterCreateInputDevice(IPixelStreamingInputDevice::FCreateInputDeviceFunc& InCreateInputDevice)
-	{
-		checkf(StreamerInputDevices, TEXT("StreamerInputDevices does not exist yet"));
-		StreamerInputDevices->OverrideInputDevice(InCreateInputDevice);
-	}
+
 	/** 
 	 * End IPixelStreamingStreamer implementation
 	 */
@@ -373,19 +365,6 @@ namespace UE::PixelStreaming
 	/** 
 	 * End ISignallingServerConnectionObserver implementation
 	 */
-
-
-	/** 
-	 * IInputDevice implementation
-	 */	
-	TSharedPtr<IInputDevice> FStreamer::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
-	{
-		return StreamerInputDevices;
-	}
-	/** 
-	 * End IInputDevice implementation
-	 */
-
 
 	/** 
 	 * Own methods

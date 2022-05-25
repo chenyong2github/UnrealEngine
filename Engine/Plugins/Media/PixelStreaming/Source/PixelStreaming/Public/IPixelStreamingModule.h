@@ -15,6 +15,8 @@
 #include "api/video_codecs/video_encoder_factory.h"
 #include "api/video/video_frame.h"
 #include "api/video/video_sink_interface.h"
+#include "IInputDevice.h"
+#include "IInputDeviceModule.h"
 
 class UPixelStreamingInput;
 class IPixelStreamingStreamer;
@@ -23,7 +25,7 @@ class IPixelStreamingClient;
 /**
  * The public interface of the Pixel Streaming module.
  */
-class PIXELSTREAMING_API IPixelStreamingModule : public IModuleInterface
+class PIXELSTREAMING_API IPixelStreamingModule : public IInputDeviceModule
 {
 public:
 	/**
@@ -145,4 +147,10 @@ public:
 	 * @param Func The lambda to execute with each streamer
 	 */
 	virtual void ForEachStreamer(const TFunction<void(TSharedPtr<IPixelStreamingStreamer>)>& Func) = 0;
+
+	/**
+	 * Register a lambda that returns a IInputDevice
+	 * @param InCreateInputeDevice - A lambda that will return input device
+	*/
+	virtual void RegisterCreateInputDevice(IPixelStreamingInputDevice::FCreateInputDeviceFunc& InCreateInputDevice) = 0;
 };

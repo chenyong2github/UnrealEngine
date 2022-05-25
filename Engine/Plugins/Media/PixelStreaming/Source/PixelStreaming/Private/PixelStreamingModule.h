@@ -6,7 +6,7 @@
 #include "RHI.h"
 #include "Tickable.h"
 #include "InputDevice.h"
-
+#include "StreamerInputDevices.h"
 
 class UPixelStreamingInput;
 class SWindow;
@@ -46,6 +46,8 @@ namespace UE::PixelStreaming
 		virtual void ForEachStreamer(const TFunction<void(TSharedPtr<IPixelStreamingStreamer>)>& Func) override;
 		/** End IPixelStreamingModule implementation */
 
+		virtual void RegisterCreateInputDevice(IPixelStreamingInputDevice::FCreateInputDeviceFunc& InCreateInputDevice) override;
+
 	private:
 		/** IModuleInterface implementation */
 		void StartupModule() override;
@@ -55,17 +57,21 @@ namespace UE::PixelStreaming
 		// Own methods
 		void InitDefaultStreamer();
 		bool IsPlatformCompatible() const;
+
+		virtual TSharedPtr<IInputDevice> CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler) override;
+
 	private:
 		bool bModuleReady = false;
 		static IPixelStreamingModule* PixelStreamingModule;
 
 		FReadyEvent ReadyEvent;
-		
+
 		TArray<UPixelStreamingInput*> InputComponents;
 		TUniquePtr<FVideoSourceGroup> ExternalVideoSourceGroup;
-		
 
 		mutable FCriticalSection StreamersCS;
 		TMap<FString, TSharedPtr<IPixelStreamingStreamer>> Streamers;
+
+		TSharedPtr<FStreamerInputDevices> StreamerInputDevices;
 	};
 } // namespace UE::PixelStreaming

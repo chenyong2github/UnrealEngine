@@ -80,6 +80,9 @@ namespace UE::PixelStreaming
 
 		const ERHIInterfaceType RHIType = GDynamicRHI ? RHIGetInterfaceType() : ERHIInterfaceType::Hidden;
 
+		StreamerInputDevices = MakeShared<FStreamerInputDevices>(FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler());
+		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
+
 		// only D3D11/D3D12/Vulkan is supported
 		if (RHIType == ERHIInterfaceType::D3D11 || RHIType == ERHIInterfaceType::D3D12 || RHIType == ERHIInterfaceType::Vulkan)
 		{
@@ -122,6 +125,8 @@ namespace UE::PixelStreaming
 		FPixelStreamingPeerConnection::Shutdown();
 
 		rtc::CleanupSSL();
+
+		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 	}
 	/** 
 	 * End IModuleInterface implementation 
@@ -203,6 +208,8 @@ namespace UE::PixelStreaming
 			FScopeLock Lock(&StreamersCS);
 			Streamers.Add(StreamerId, NewStreamer);
 		}
+
+		NewStreamer->SetInputDevice(StreamerInputDevices->CreateInputDevice());
 		return NewStreamer;
 	}
 
@@ -313,7 +320,6 @@ namespace UE::PixelStreaming
 		UPixelStreamingDelegates::CreateInstance();
 		verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
 
-
 		FString SignallingServerURL;
 		if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingURL="), SignallingServerURL))
 		{
@@ -380,6 +386,17 @@ namespace UE::PixelStreaming
 		}
 
 		return bCompatible;
+	}
+
+	TSharedPtr<IInputDevice> FPixelStreamingModule::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
+	{
+		return StreamerInputDevices;
+	}
+
+	void FPixelStreamingModule::RegisterCreateInputDevice(IPixelStreamingInputDevice::FCreateInputDeviceFunc& InCreateInputDevice)
+	{
+		checkf(StreamerInputDevices, TEXT("StreamerInputDevices does not exist yet"));
+		StreamerInputDevices->OverrideInputDevice(InCreateInputDevice);
 	}
 	/**
 	 * End own methods

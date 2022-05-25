@@ -228,17 +228,37 @@ try {
 }
 
 if(config.EnableWebserver) {
+
+	// Request has been sent to site root, send the homepage file
 	app.get('/', isAuthenticated('/login'), function (req, res) {
 		homepageFile = (typeof config.HomepageFile != 'undefined' && config.HomepageFile != '') ? config.HomepageFile.toString() : defaultConfig.HomepageFile;
-		homepageFilePath = path.join(__dirname, homepageFile)
+		
+		let pathsToTry = [ path.join(__dirname, homepageFile), path.join(__dirname, '/Public', homepageFile), path.join(__dirname, '/custom_html', homepageFile) ];
+		let selectedPathToTry = null;
 
-		fs.access(homepageFilePath, (err) => {
+		// Try a few paths, see if any resolve to a homepage file the user has set
+		for(let pathToTry of pathsToTry){
+			if(fs.existsSync(pathToTry)){
+				selectedPathToTry = pathToTry;
+				break;
+			}
+		}
+
+		// Catch file doesn't exist, and send back 404 if not
+		if(selectedPathToTry == null){
+			console.error('Unable to locate file ' + homepageFile)
+			res.status(404).send('Unable to locate file ' + homepageFile);
+			return;
+		}
+
+		// Access the file on disk, send the file for browser to display it
+		fs.access(selectedPathToTry, (err) => {
 			if (err) {
-				console.error('Unable to locate file ' + homepageFilePath)
+				console.error('Unable to locate file ' + homepageFile)
 				res.status(404).send('Unable to locate file ' + homepageFile);
 			}
 			else {
-				res.sendFile(homepageFilePath);
+				res.sendFile(selectedPathToTry);
 			}
 		});
 	});
