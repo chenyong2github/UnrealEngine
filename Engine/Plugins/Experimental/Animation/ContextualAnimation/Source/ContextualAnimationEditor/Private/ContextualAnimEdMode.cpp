@@ -86,27 +86,24 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 
 		if (const UContextualAnimSceneInstance* SceneInstance = ViewModel->GetSceneInstance())
 		{
-			const UContextualAnimSceneAsset* SceneAsset = ViewModel->GetSceneAsset();
-			const int32 VariantIdx = ViewModel->GetActiveSceneVariantIdx();
+			const UContextualAnimSceneAsset& SceneAsset = SceneInstance->GetSceneAsset();
+			const FContextualAnimSceneBindings& Bindings = SceneInstance->GetBindings();
 
 			// Draw Scene Pivots
-			if (SceneAsset->Variants.IsValidIndex(VariantIdx))
+			if(const FContextualAnimSceneSection* Section = SceneAsset.GetSection(Bindings.GetSectionIdx()))
 			{
-				for(const FTransform& ScenePivot : SceneAsset->Variants[VariantIdx].ScenePivots)
+				if(const FContextualAnimSet* AnimSet = Section->GetAnimSet(Bindings.GetAnimSetIdx()))
 				{
-					DrawCoordinateSystem(PDI, ScenePivot.GetLocation(), ScenePivot.Rotator(), 50.f, SDPG_Foreground);
+					for (const FTransform& ScenePivot : AnimSet->ScenePivots)
+					{
+						DrawCoordinateSystem(PDI, ScenePivot.GetLocation(), ScenePivot.Rotator(), 50.f, SDPG_Foreground);
+					}
 				}
-			}
-
-			FTransform PrimaryActorTransform = FTransform::Identity;
-			if (const FContextualAnimSceneBinding* Binding = SceneInstance->FindBindingByRole(SceneAsset->GetPrimaryRole()))
-			{
-				PrimaryActorTransform = Binding->GetTransform();
 			}
 
 			const EShowIKTargetsDrawMode IKTargetsDrawMode = ViewportClient->GetShowIKTargetsDrawMode();
 
-			for (const FContextualAnimSceneBinding& Binding : SceneInstance->GetBindings())
+			for (const FContextualAnimSceneBinding& Binding : Bindings)
 			{
 				// Draw IK Targets
 				if (IKTargetsDrawMode == EShowIKTargetsDrawMode::All || (IKTargetsDrawMode == EShowIKTargetsDrawMode::Selected && Binding.GetActor() == SelectedActor.Get()))
@@ -115,14 +112,17 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 				}
 
 				// Draw Selection Criteria
-				if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(Binding.GetRoleDef().Name, VariantIdx))
+				if(const FContextualAnimSceneBinding* PrimaryBinding = Bindings.FindBindingByRole(SceneAsset.GetPrimaryRole()))
 				{
-					for (int32 CriterionIdx = 0; CriterionIdx < AnimTrack->SelectionCriteria.Num(); CriterionIdx++)
+					const FTransform PrimaryTransform = PrimaryBinding->GetTransform();
+
+					const FContextualAnimTrack& AnimTrack = Binding.GetAnimTrack();
+					for (int32 CriterionIdx = 0; CriterionIdx < AnimTrack.SelectionCriteria.Num(); CriterionIdx++)
 					{
-						if(const UContextualAnimSelectionCriterion* Criterion = AnimTrack->SelectionCriteria[CriterionIdx])
+						if(const UContextualAnimSelectionCriterion* Criterion = AnimTrack.SelectionCriteria[CriterionIdx])
 						{
 							FLinearColor DrawColor = FLinearColor::White;
-							if (Criterion->DoesQuerierPassCondition(FContextualAnimSceneBindingContext(PrimaryActorTransform), Binding.GetContext()))
+							if (Criterion->DoesQuerierPassCondition(FContextualAnimSceneBindingContext(PrimaryTransform), Binding.GetContext()))
 							{
 								DrawColor = FLinearColor::Green;
 							}
@@ -134,8 +134,8 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 								const int32 LastIndex = Spatial->PolygonPoints.Num() - 1;
 								for (int32 Idx = 0; Idx <= LastIndex; Idx++)
 								{
-									const FVector P0 = PrimaryActorTransform.TransformPositionNoScale(Spatial->PolygonPoints[Idx]);
-									const FVector P1 = PrimaryActorTransform.TransformPositionNoScale(Spatial->PolygonPoints[Idx == LastIndex ? 0 : Idx + 1]);
+									const FVector P0 = PrimaryTransform.TransformPositionNoScale(Spatial->PolygonPoints[Idx]);
+									const FVector P1 = PrimaryTransform.TransformPositionNoScale(Spatial->PolygonPoints[Idx == LastIndex ? 0 : Idx + 1]);
 
 									PDI->DrawLine(P0, P1, DrawColor, SDPG_Foreground, 2.f);
 
@@ -143,18 +143,18 @@ void FContextualAnimEdMode::Render(const FSceneView* View, FViewport* Viewport, 
 
 									PDI->DrawLine(P0, P0 + FVector::UpVector * Spatial->Height, DrawColor, SDPG_Foreground, 2.f);
 
-									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(Binding.GetRoleDef().Name, VariantIdx, CriterionIdx, Idx)));
+									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.Role, CriterionIdx, Idx)));
 									PDI->DrawPoint(P0, FLinearColor::Black, 15.f, SDPG_Foreground);
 									PDI->SetHitProxy(nullptr);
 
-									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(Binding.GetRoleDef().Name, VariantIdx, CriterionIdx, Idx + 4)));
+									PDI->SetHitProxy(new HSelectionCriterionHitProxy(FSelectionCriterionHitProxyData(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.Role, CriterionIdx, Idx + 4)));
 									PDI->DrawPoint(P0 + FVector::UpVector * Spatial->Height, FLinearColor::Black, 15.f, SDPG_Foreground);
 									PDI->SetHitProxy(nullptr);
 								}
 							}
 							else if (const UContextualAnimSelectionCriterion_Facing* Facing = Cast<UContextualAnimSelectionCriterion_Facing>(Criterion))
 							{
-								const FTransform Transform = AnimTrack->GetAlignmentTransformAtEntryTime() * PrimaryActorTransform;
+								const FTransform Transform = AnimTrack.GetAlignmentTransformAtEntryTime() * PrimaryTransform;
 								UContextualAnimUtilities::DrawSector(*PDI, Transform.GetLocation(), Transform.GetRotation().GetForwardVector(), 0.f, 30.f, -Facing->MaxAngle, Facing->MaxAngle, DrawColor, SDPG_World, 1.f);
 							}
 						}
@@ -256,7 +256,7 @@ bool FContextualAnimEdMode::InputDelta(FEditorViewportClient* InViewportClient, 
 			if (SelectedSelectionCriterionData.IsValid())
 			{
 				const UContextualAnimSceneAsset* SceneAsset = ViewModel->GetSceneAsset();
-				if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectedSelectionCriterionData.RoleName, SelectedSelectionCriterionData.VariantIdx))
+				if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectedSelectionCriterionData.SectionIdx, SelectedSelectionCriterionData.AnimSetIdx, SelectedSelectionCriterionData.RoleName))
 				{
 					if(AnimTrack->SelectionCriteria.IsValidIndex(SelectedSelectionCriterionData.CriterionIdx))
 					{
@@ -323,7 +323,7 @@ bool FContextualAnimEdMode::ShouldDrawWidget() const
 	if (ViewModel && SelectedSelectionCriterionData.IsValid())
 	{
 		const UContextualAnimSceneAsset* SceneAsset = ViewModel->GetSceneAsset();
-		if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectedSelectionCriterionData.RoleName, SelectedSelectionCriterionData.VariantIdx))
+		if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectedSelectionCriterionData.SectionIdx, SelectedSelectionCriterionData.AnimSetIdx, SelectedSelectionCriterionData.RoleName))
 		{
 			const int32 Idx = SelectedSelectionCriterionData.CriterionIdx;
 			if (AnimTrack->SelectionCriteria.IsValidIndex(Idx) && AnimTrack->SelectionCriteria[Idx]->GetClass()->IsChildOf<UContextualAnimSelectionCriterion_TriggerArea>())
@@ -372,7 +372,7 @@ FVector FContextualAnimEdMode::GetWidgetLocation() const
 			if (const UContextualAnimSceneInstance* SceneInstance = ViewModel->GetSceneInstance())
 			{
 				const UContextualAnimSceneAsset* SceneAsset = ViewModel->GetSceneAsset();
-				if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectedSelectionCriterionData.RoleName, SelectedSelectionCriterionData.VariantIdx))
+				if (const FContextualAnimTrack* AnimTrack = SceneAsset->GetAnimTrack(SelectedSelectionCriterionData.SectionIdx, SelectedSelectionCriterionData.AnimSetIdx, SelectedSelectionCriterionData.RoleName))
 				{
 					if (AnimTrack->SelectionCriteria.IsValidIndex(SelectedSelectionCriterionData.CriterionIdx))
 					{

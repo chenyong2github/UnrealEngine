@@ -52,7 +52,7 @@ private:
 	void ExtendToolbar();
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
-	TSharedRef<SWidget> BuildVariantsMenu();
+	TSharedRef<SWidget> BuildNewAnimSetWidget();
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
@@ -66,7 +66,7 @@ private:
 
 	TSharedPtr<FContextualAnimViewModel> ViewModel;
 
-	TSharedPtr<FStructOnScope> NewVariantWidgetStruct;
+	TSharedPtr<FStructOnScope> NewAnimSetWidgetStruct;
 };
 
 

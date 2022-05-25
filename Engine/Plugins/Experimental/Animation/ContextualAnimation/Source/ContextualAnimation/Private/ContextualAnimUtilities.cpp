@@ -131,14 +131,14 @@ void UContextualAnimUtilities::DrawDebugPose(const UWorld* World, const UAnimSeq
 	}
 }
 
-void UContextualAnimUtilities::DrawDebugScene(const UWorld* World, const UContextualAnimSceneAsset* SceneAsset, int32 VariantIdx, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness)
+void UContextualAnimUtilities::DrawDebugAnimSet(const UWorld* World, const UContextualAnimSceneAsset& SceneAsset, const FContextualAnimSet& AnimSet, float Time, const FTransform& ToWorldTransform, const FColor& Color, float LifeTime, float Thickness)
 {
-	if (World && SceneAsset)
+	if (World)
 	{
-		SceneAsset->ForEachAnimTrack(VariantIdx, [=](const FContextualAnimTrack& AnimTrack)
+		for(const FContextualAnimTrack& AnimTrack : AnimSet.Tracks)
 		{
-			const FTransform Transform = (SceneAsset->GetMeshToComponentForRole(AnimTrack.Role) * AnimTrack.GetAlignmentTransformAtTime(Time)) * ToWorldTransform;
-			
+			const FTransform Transform = (SceneAsset.GetMeshToComponentForRole(AnimTrack.Role) * AnimTrack.GetAlignmentTransformAtTime(Time)) * ToWorldTransform;
+
 			if (const UAnimSequenceBase* Animation = AnimTrack.Animation)
 			{
 				DrawDebugPose(World, Animation, Time, Transform, Color, LifeTime, Thickness);
@@ -147,9 +147,7 @@ void UContextualAnimUtilities::DrawDebugScene(const UWorld* World, const UContex
 			{
 				DrawDebugCoordinateSystem(World, Transform.GetLocation(), Transform.Rotator(), 50.f, false, LifeTime, 0, Thickness);
 			}
-
-			return UE::ContextualAnim::EForEachResult::Continue;
-		});
+		}
 	}
 }
 
@@ -263,14 +261,16 @@ bool UContextualAnimUtilities::BP_CreateContextualAnimSceneBindings(const UConte
 {
 	if(SceneAsset == nullptr || !SceneAsset->HasValidData())
 	{
-		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimUtilities::FindBestVariantForActors Failed. Reason: Invalid or Empty SceneAsset (%s)"), *GetNameSafe(SceneAsset));
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimUtilities::BP_CreateContextualAnimSceneBindings Failed. Reason: Invalid or Empty SceneAsset (%s)"), *GetNameSafe(SceneAsset));
 		return false;
 	}
 
-	for (int32 VariantIdx = 0; VariantIdx < SceneAsset->GetTotalVariants(); VariantIdx++)
+	const int32 SectionIdx = 0; // Always start from the first section
+	const int32 NumSets = SceneAsset->GetNumAnimSetsInSection(SectionIdx);
+	for (int32 AnimSetIdx = 0; AnimSetIdx < NumSets; AnimSetIdx++)
 	{
 		OutBindings.Reset();
-		if(FContextualAnimSceneBindings::TryCreateBindings(*SceneAsset, VariantIdx, Params, OutBindings))
+		if(FContextualAnimSceneBindings::TryCreateBindings(*SceneAsset, SectionIdx, AnimSetIdx, Params, OutBindings))
 		{
 			return true;
 		}
@@ -279,18 +279,19 @@ bool UContextualAnimUtilities::BP_CreateContextualAnimSceneBindings(const UConte
 	return false;
 }
 
-bool UContextualAnimUtilities::CalculateScenePivotForAlignmentSection(const FContextualAnimAlignmentSectionData& AligmentSectionData, const FContextualAnimSceneBindings& Bindings, FTransform& OutScenePivot)
+
+bool UContextualAnimUtilities::CalculateAnimSetPivot(const FContextualAnimSetPivotDefinition& AnimSetPivotDef, const FContextualAnimSceneBindings& Bindings, FTransform& OutScenePivot)
 {
-	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByRole(AligmentSectionData.Origin))
+	if (const FContextualAnimSceneBinding* Binding = Bindings.FindBindingByRole(AnimSetPivotDef.Origin))
 	{
-		if (AligmentSectionData.bAlongClosestDistance)
+		if (AnimSetPivotDef.bAlongClosestDistance)
 		{
-			if (const FContextualAnimSceneBinding* OtherBinding = Bindings.FindBindingByRole(AligmentSectionData.OtherRole))
+			if (const FContextualAnimSceneBinding* OtherBinding = Bindings.FindBindingByRole(AnimSetPivotDef.OtherRole))
 			{
 				const FTransform T1 = Binding->GetTransform();
 				const FTransform T2 = OtherBinding->GetTransform();
 
-				OutScenePivot.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), AligmentSectionData.Weight));
+				OutScenePivot.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), AnimSetPivotDef.Weight));
 				OutScenePivot.SetRotation((T2.GetLocation() - T1.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
 				return true;
 			}
@@ -323,22 +324,21 @@ void UContextualAnimUtilities::BP_SceneBindings_AddOrUpdateWarpTargetsForBinding
 	const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset();
 	if(ensureAlways(SceneAsset))
 	{
-		for (const FContextualAnimAlignmentSectionData& AlignmentSection : SceneAsset->GetAlignmentSections())
+		const int32 SectionIdx = Bindings.GetSectionIdx();
+		for (const FContextualAnimSetPivotDefinition& PivotDef : SceneAsset->GetAnimSetPivotDefinitionsInSection(SectionIdx))
 		{
 			FTransform ScenePivot = FTransform::Identity;
-			if (UContextualAnimUtilities::CalculateScenePivotForAlignmentSection(AlignmentSection, Bindings, ScenePivot))
+			if (UContextualAnimUtilities::CalculateAnimSetPivot(PivotDef, Bindings, ScenePivot))
 			{
 				for (const FContextualAnimSceneBinding& Binding : Bindings)
 				{
-					//@TODO: Cache this
-					const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(AlignmentSection.WarpTargetName);
-
-					const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(AlignmentSection.WarpTargetName, Time);
-					const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivot);
-
 					if (UMotionWarpingComponent* MotionWarpComp = Binding.GetActor()->FindComponentByClass<UMotionWarpingComponent>())
 					{
-						MotionWarpComp->AddOrUpdateWarpTargetFromTransform(AlignmentSection.WarpTargetName, WarpTarget);
+						//@TODO: Cache this
+						const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(PivotDef.Name);
+						const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(PivotDef.Name, Time);
+						const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivot);
+						MotionWarpComp->AddOrUpdateWarpTargetFromTransform(PivotDef.Name, WarpTarget);
 					}
 				}
 			}
@@ -352,7 +352,7 @@ FTransform UContextualAnimUtilities::BP_SceneBindings_GetAlignmentTransformForRo
 
 	if(const UContextualAnimSceneAsset* SceneAsset = Bindings.GetSceneAsset())
 	{
-		Result = SceneAsset->GetAlignmentTransformForRoleRelativeToOtherRole(Role, RelativeToRole, Bindings.GetVariantIdx(), Time);
+		Result = SceneAsset->GetAlignmentTransformForRoleRelativeToOtherRoleInSection(Bindings.GetSectionIdx(), Bindings.GetAnimSetIdx(), Role, RelativeToRole, Time);
 	}
 
 	return Result;

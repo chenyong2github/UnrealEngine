@@ -91,7 +91,10 @@ struct CONTEXTUALANIMATION_API FContextualAnimTrack
 	FName Role = NAME_None;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
-	int32 VariantIdx = INDEX_NONE;
+	int32 SectionIdx = INDEX_NONE;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Defaults")
+	int32 AnimSetIdx = INDEX_NONE;
 
 	float GetSyncTimeForWarpSection(int32 WarpSectionIndex) const;
 	float GetSyncTimeForWarpSection(const FName& WarpSectionName) const;
@@ -103,6 +106,8 @@ struct CONTEXTUALANIMATION_API FContextualAnimTrack
 	float FindBestAnimStartTime(const FVector& LocalLocation) const;
 
 	bool DoesQuerierPassSelectionCriteria(const FContextualAnimSceneBindingContext& PrimaryActorData, const FContextualAnimSceneBindingContext& QuerierData) const;
+
+	FTransform GetRootTransformAtTime(float Time) const;
 
 	static const FContextualAnimTrack EmptyTrack;
 };
@@ -210,16 +215,17 @@ struct FContextualAnimRoleDefinition
 	FTransform MeshToComponent = FTransform(FRotator(0.f, -90.f, 0.f));
 };
 
-// FContextualAnimAlignmentSectionData
+// FContextualAnimSetPivotDefinition
 ///////////////////////////////////////////////////////////////////////
 
+/** Rules used to compute the pivot for a AnimSet */
 USTRUCT(BlueprintType)
-struct FContextualAnimAlignmentSectionData
+struct FContextualAnimSetPivotDefinition
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	FName WarpTargetName = NAME_None;
+	FName Name = NAME_None;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults", meta = (GetOptions = "GetRoles"))
 	FName Origin = NAME_None;
@@ -288,6 +294,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBinding
 
 	/** Returns the track in the scene asset used by this actor */
 	FORCEINLINE const FContextualAnimTrack& GetAnimTrack() const { check(AnimTrackPtr);  return *AnimTrackPtr; }
+	FORCEINLINE void SetAnimTrack(const FContextualAnimTrack& InAnimTrack) { AnimTrackPtr = &InAnimTrack; }
 
 	/** Returns the role definition used by this actor */
 	FORCEINLINE const FContextualAnimRoleDefinition& GetRoleDef() const { check(RoleDefPtr); return *RoleDefPtr; }
@@ -335,13 +342,6 @@ private:
 
 	/** Ptr back to the scene instance we belong to (if any) */
 	TWeakObjectPtr<const UContextualAnimSceneInstance> SceneInstancePtr = nullptr;
-
-#if WITH_EDITOR
-public:
-	/** Guid only used in editor to bind this actor to sequencer */
-	FGuid Guid;
-#endif
-
 };
 
 USTRUCT(BlueprintType)
@@ -359,15 +359,9 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 		return Role != NAME_None ? Data.FindByPredicate([&Role](const auto& Item) { return Item.GetAnimTrack().Role == Role; }) : nullptr;
 	}
 
-#if WITH_EDITOR
-	const FContextualAnimSceneBinding* FindBindingByGuid(const FGuid& Guid) const
-	{
-		return Guid.IsValid() ? Data.FindByPredicate([&Guid](const auto& Item) { return Item.Guid == Guid; }) : nullptr;
-	}
-#endif
-
 	FORCEINLINE const UContextualAnimSceneAsset* GetSceneAsset() const { return Num() > 0 ? &Data[0].GetSceneAsset() : nullptr; }
-	FORCEINLINE int32 GetVariantIdx() const { return Num() > 0 ? Data[0].GetAnimTrack().VariantIdx : INDEX_NONE; }
+	FORCEINLINE int32 GetSectionIdx() const { return Num() > 0 ? Data[0].GetAnimTrack().SectionIdx : INDEX_NONE; }
+	FORCEINLINE int32 GetAnimSetIdx() const { return Num() > 0 ? Data[0].GetAnimTrack().AnimSetIdx : INDEX_NONE; }
 	FORCEINLINE int32 Num() const { return Data.Num(); }
 	FORCEINLINE int32 Add(const FContextualAnimSceneBinding& NewData) { return Data.Add(NewData); }
 	FORCEINLINE void Reset() { return Data.Reset(); }
@@ -378,7 +372,7 @@ struct CONTEXTUALANIMATION_API FContextualAnimSceneBindings
 	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForIteratorType      end() { return Data.end(); }
 	FORCEINLINE TArray<FContextualAnimSceneBinding>::RangedForConstIteratorType end() const { return Data.end(); }
 
-	static bool TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 VariantIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings);
+	static bool TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, int32 AnimSetIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings);
 
 private:
 
@@ -396,20 +390,23 @@ struct FContextualAnimStartSceneParams
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	TMap<FName, FContextualAnimSceneBindingContext> RoleToActorMap;
 
-	/** Desired variant. If INDEX_NONE the Manager will attempt to find the best variant to use by running the selection criteria */
+	/** Desired set. If INDEX_NONE the Manager will attempt to find the best set to use (in the first section) by running the selection criteria */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	int32 VariantIdx = INDEX_NONE;
+	int32 AnimSetIdx = INDEX_NONE;
 
 	void Reset()
 	{
 		RoleToActorMap.Reset();
-		VariantIdx = INDEX_NONE;
+		AnimSetIdx = INDEX_NONE;
 	}
 };
 
 ///////////////////////////////////////////////////////////////////////
 
-/** Stores the result of a query function */
+/** 
+ * Stores the result of a query function 
+ * @TODO: Only used by UContextualAnimSceneAsset::Query. Kept around only to do not break existing content. It will go away in the future.
+ */
 USTRUCT(BlueprintType)
 struct FContextualAnimQueryResult
 {
@@ -428,20 +425,23 @@ struct FContextualAnimQueryResult
 	float AnimStartTime = 0.f;
 
 	UPROPERTY(BlueprintReadWrite, Category = "Defaults")
-	int32 VariantIdx = INDEX_NONE;
+	int32 AnimSetIdx = INDEX_NONE;
 
 	void Reset()
 	{
 		Animation.Reset();
 		EntryTransform = SyncTransform = FTransform::Identity;
 		AnimStartTime = 0.f;
-		VariantIdx = INDEX_NONE;
+		AnimSetIdx = INDEX_NONE;
 	}
 
-	FORCEINLINE bool IsValid() const { return VariantIdx != INDEX_NONE; }
+	FORCEINLINE bool IsValid() const { return AnimSetIdx != INDEX_NONE; }
 };
 
-/** Stores the parameters passed into query function */
+/** 
+ * Stores the parameters passed into query function 
+ * @TODO: Only used by UContextualAnimSceneAsset::Query. Kept around only to do not break existing content. It will go away in the future.
+ */
 USTRUCT(BlueprintType)
 struct FContextualAnimQueryParams
 {

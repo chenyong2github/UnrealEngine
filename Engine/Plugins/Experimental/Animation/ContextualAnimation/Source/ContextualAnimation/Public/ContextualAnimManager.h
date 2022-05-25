@@ -44,7 +44,7 @@ public:
 	/** Starts an scene instance with the supplied actors for each role ignoring selection criteria */
 	UContextualAnimSceneInstance* ForceStartScene(const UContextualAnimSceneAsset& SceneAsset, const FContextualAnimStartSceneParams& Params);
 	
-	/** Attempts to start an scene instance with the supplied actors using the first valid variant based on selection criteria */
+	/** Attempts to start an scene instance with the supplied actors using the first valid set based on selection criteria */
 	UContextualAnimSceneInstance* TryStartScene(const UContextualAnimSceneAsset& SceneAsset, const FContextualAnimStartSceneParams& Params);
 
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Manager")
@@ -61,7 +61,7 @@ public:
 
 	FORCEINLINE const TSet<UContextualAnimSceneActorComponent*>& GetSceneActorCompContainer() const { return SceneActorCompContainer; };
 
-	/** Attempts to start an scene instance with the supplied actors using the first valid variant based on selection criteria */
+	/** Attempts to start an scene instance with the supplied actors using the first valid set based on selection criteria */
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Manager", meta = (DisplayName = "Try Start Scene"))
 	UContextualAnimSceneInstance* BP_TryStartScene(const UContextualAnimSceneAsset* SceneAsset, const FContextualAnimStartSceneParams& Params);
 

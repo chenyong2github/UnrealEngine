@@ -83,10 +83,6 @@ public:
 	const FContextualAnimSceneBinding* FindBindingByActor(const AActor* Actor) const { return Bindings.FindBindingByActor(Actor); }
 	const FContextualAnimSceneBinding* FindBindingByRole(const FName& Role) const { return Bindings.FindBindingByRole(Role); }
 
-#if WITH_EDITOR
-	const FContextualAnimSceneBinding* FindBindingByGuid(const FGuid& Guid) const { return Bindings.FindBindingByGuid(Guid); }
-#endif
-
 	UFUNCTION(BlueprintCallable, Category = "Contextual Anim|Scene Instance")
 	AActor* GetActorByRole(FName Role) const;
 
@@ -98,7 +94,7 @@ protected:
 	/** Tells the scene actor to leave the scene (stop animation) */
 	void Leave(FContextualAnimSceneBinding& Binding);
 
-	bool TransitionTo(FContextualAnimSceneBinding& Binding, const FName& ToSectionName);
+	bool TransitionTo(FContextualAnimSceneBinding& Binding, const FContextualAnimTrack& AnimTrack);
 
 	/** Helper function to set ignore collision between the supplied actor and all the other actors in this scene */
 	void SetIgnoreCollisionWithOtherActors(AActor* Actor, bool bValue) const;
@@ -122,4 +118,7 @@ private:
 	FContextualAnimSceneBindings Bindings;
 
 	TArray<TTuple<FName, FTransform>> AlignmentSectionToScenePivotList;
+
+	/** Helper to play an AnimSequenceBase as montage. If Animation is not a montage it plays it as dynamic montage  */
+	UAnimMontage* PlayAnimation(UAnimInstance& AnimInstance, UAnimSequenceBase& Animation);
 };

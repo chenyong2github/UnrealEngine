@@ -10,15 +10,17 @@ class FContextualAnimViewModel;
 
 struct FSelectionCriterionHitProxyData
 {
+	int32 SectionIdx = INDEX_NONE;
+	int32 AnimSetIdx = INDEX_NONE;
 	FName RoleName = NAME_None;
-	int32 VariantIdx = INDEX_NONE;
 	int32 CriterionIdx = INDEX_NONE;
 	int32 DataIdx = INDEX_NONE;
 
 	FSelectionCriterionHitProxyData(){}
-	FSelectionCriterionHitProxyData(const FName& InRoleName, int32 InVariantIdx, int32 InCriterionIdx, int32 InDataIdx)
-		: RoleName(InRoleName)
-		, VariantIdx(InVariantIdx)
+	FSelectionCriterionHitProxyData(int32 InSectionIdx, int32 InAnimSetIdx, const FName& InRoleName, int32 InCriterionIdx, int32 InDataIdx)
+		: SectionIdx(InSectionIdx)
+		, AnimSetIdx(InAnimSetIdx)
+		, RoleName(InRoleName)
 		, CriterionIdx(InCriterionIdx)
 		, DataIdx(InDataIdx)
 	{}
@@ -26,7 +28,8 @@ struct FSelectionCriterionHitProxyData
 	void Reset()
 	{
 		RoleName = NAME_None;
-		VariantIdx = INDEX_NONE;
+		SectionIdx = INDEX_NONE;
+		AnimSetIdx = INDEX_NONE;
 		CriterionIdx = INDEX_NONE;
 		DataIdx = INDEX_NONE;
 	}
@@ -34,7 +37,8 @@ struct FSelectionCriterionHitProxyData
 	bool IsValid() const 
 	{ 
 		return	RoleName != NAME_None && 
-				VariantIdx != INDEX_NONE && 
+				SectionIdx != INDEX_NONE &&
+				AnimSetIdx != INDEX_NONE && 
 				CriterionIdx != INDEX_NONE; 
 	}
 };

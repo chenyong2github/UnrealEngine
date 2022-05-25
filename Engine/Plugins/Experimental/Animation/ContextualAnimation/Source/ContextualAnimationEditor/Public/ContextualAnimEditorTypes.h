@@ -35,16 +35,20 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FName GoalName = NAME_None;
 
+	UPROPERTY()
+	int32 SectionIdx = INDEX_NONE;
+
 	UContextualAnimNewIKTargetParams(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer) {}
 
 	// ~IBoneReferenceSkeletonProvider Interface
 	virtual USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle = nullptr) override;
 
-	void Reset(const FName& InSourceRole, const UContextualAnimSceneAsset& InSceneAsset);
+	void Reset(const UContextualAnimSceneAsset& InSceneAsset, const UAnimSequenceBase& InAnimation);
 
 	bool HasValidData() const;
 
 	const UContextualAnimSceneAsset& GetSceneAsset() const;
+	int32 GetSectionIdx() const { return SectionIdx; }
 
 	UFUNCTION()
 	TArray<FString> GetTargetRoleOptions() const;
@@ -59,7 +63,7 @@ private:
 };
 
 USTRUCT()
-struct FContextualAnimNewVariantData
+struct FContextualAnimNewAnimSetData
 {
 	GENERATED_BODY()
 
@@ -73,12 +77,15 @@ struct FContextualAnimNewVariantData
 	bool bRequiresFlyingMode = false;
 };
 
-/** Struct used to construct the widget for adding a new variant */
+/** Struct used to construct the widget for adding a new set */
 USTRUCT()
-struct FContextualAnimNewVariantParams
+struct FContextualAnimNewAnimSetParams
 {
 	GENERATED_BODY()
 
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FName SectionName = NAME_Default;
+
 	UPROPERTY(EditAnywhere, EditFixedSize, Category = "Settings", meta = (TitleProperty = "RoleName"))
-	TArray<FContextualAnimNewVariantData> Data;
+	TArray<FContextualAnimNewAnimSetData> Data;
 };

@@ -1,10 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ContextualAnimMovieSceneSequence.h"
-#include "Tracks/MovieSceneEventTrack.h"
-#include "Tracks/MovieSceneSkeletalAnimationTrack.h"
-#include "Tracks/MovieSceneActorReferenceTrack.h"
 #include "ContextualAnimMovieSceneNotifyTrack.h"
+#include "ContextualAnimMovieSceneTrack.h"
 #include "ContextualAnimViewModel.h"
 
 UContextualAnimMovieSceneSequence::UContextualAnimMovieSceneSequence(const FObjectInitializer& ObjectInitializer)
@@ -15,11 +13,8 @@ UContextualAnimMovieSceneSequence::UContextualAnimMovieSceneSequence(const FObje
 
 ETrackSupport UContextualAnimMovieSceneSequence::IsTrackSupported(TSubclassOf<class UMovieSceneTrack> InTrackClass) const
 { 
-	//@TODO: Remove UMovieSceneSkeletalAnimationTrack and UMovieSceneEventTrack from here after adding a custom track to represent the animation
-	if (InTrackClass == UMovieSceneSkeletalAnimationTrack::StaticClass() ||
-		InTrackClass == UMovieSceneEventTrack::StaticClass() ||
-		InTrackClass == UMovieSceneActorReferenceTrack::StaticClass() ||
-		InTrackClass == UContextualAnimMovieSceneNotifyTrack::StaticClass())
+	if (InTrackClass == UContextualAnimMovieSceneNotifyTrack::StaticClass() || 
+		InTrackClass == UContextualAnimMovieSceneTrack::StaticClass())
 	{
 		return ETrackSupport::Supported;
 	}

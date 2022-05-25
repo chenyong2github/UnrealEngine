@@ -18,13 +18,15 @@ class UContextualAnimSceneInstance;
 class UMovieScene;
 class UMovieSceneTrack;
 class UMovieSceneSection;
+class UContextualAnimMovieSceneTrack;
 class UContextualAnimMovieSceneNotifyTrack;
 class UContextualAnimMovieSceneNotifySection;
 class UAnimSequenceBase;
 class IDetailsView;
 class IStructureDetailsView;
+class UContextualAnimNewIKTargetParams;
 struct FMovieSceneSectionMovedParams;
-struct FContextualAnimNewVariantParams;
+struct FContextualAnimNewAnimSetParams;
 struct FContextualAnimTrack;
 
 class FContextualAnimViewModel : public TSharedFromThis<FContextualAnimViewModel>, public FGCObject
@@ -48,22 +50,23 @@ public:
 	UContextualAnimMovieSceneSequence* GetMovieSceneSequence() const { return MovieSceneSequence; }
 	UContextualAnimSceneAsset* GetSceneAsset() const { return SceneAsset; }
 	UContextualAnimSceneInstance* GetSceneInstance() const { return SceneInstance.Get(); }
+	UContextualAnimMovieSceneTrack* FindMasterTrackByRole(const FName& Role) const;
 
-	void AddNewVariant(const FContextualAnimNewVariantParams& Params);
+	void AddNewAnimSet(const FContextualAnimNewAnimSetParams& Params);
 
-	UAnimSequenceBase* FindAnimationByGuid(const FGuid& Guid) const;
+	void AddNewIKTarget(const UContextualAnimNewIKTargetParams& Params);
 
 	void AnimationModified(UAnimSequenceBase& Animation);
 
-	void SetActiveSceneVariantIdx(int32 Index);
-
-	int32 GetActiveSceneVariantIdx() const { return ActiveSceneVariantIdx; }
+	void SetActiveAnimSetForSection(int32 SectionIdx, int32 AnimSetIdx);
 
 	void OnPreviewActorClassChanged();
 
 	void ToggleSimulateMode();
 	bool IsSimulateModeActive() { return bIsSimulateModeActive; }
 	void StartSimulation();
+
+	void UpdatePreviewActorTransform(const FContextualAnimSceneBinding& Binding, float Time);
 
 private:
 
@@ -86,7 +89,8 @@ private:
 
 	TWeakObjectPtr<UContextualAnimSceneInstance> SceneInstance;
 
-	int32 ActiveSceneVariantIdx = 0;
+	/** Active anim set for each section. Key = SectionIdx, Value = AnimSetIdx  */
+	TMap<int32, int32> ActiveAnimSetMap;
 
 	/** The previous play status for sequencer time line. */
 	EMovieScenePlayerStatus::Type PreviousSequencerStatus;
@@ -100,9 +104,6 @@ private:
 	bool bIsSimulateModeActive = false;
 
 	FContextualAnimStartSceneParams StartSceneParams;
-
-	/** Container for the animations on the time line. Should be removed once we add a proper animation track */
-	TArray<UAnimSequenceBase*> AnimsBeingEdited;
 
 	AActor* SpawnPreviewActor(const FContextualAnimTrack& AnimTrack);
 

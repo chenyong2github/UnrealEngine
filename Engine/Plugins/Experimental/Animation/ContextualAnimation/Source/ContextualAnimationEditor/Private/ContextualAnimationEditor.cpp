@@ -4,6 +4,7 @@
 #include "ContextualAnimEdMode.h"
 #include "ContextualAnimEditorStyle.h"
 #include "ContextualAnimTypeActions.h"
+#include "ContextualAnimMovieSceneTrackEditor.h"
 #include "ContextualAnimMovieSceneNotifyTrackEditor.h"
 #include "ContextualAnimAssetEditorCommands.h"
 #include "DetailCustomizations/ContextualAnimNotifySectionDetailCustom.h"
@@ -35,6 +36,7 @@ void FContextualAnimationEditorModule::StartupModule()
 	// Register MovieSceneAnimNotifyTrackEditor
 	ISequencerModule& SequencerModule = FModuleManager::LoadModuleChecked< ISequencerModule >("Sequencer");
 	MovieSceneAnimNotifyTrackEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FContextualAnimMovieSceneNotifyTrackEditor::CreateTrackEditor));
+	MovieSceneAnimNotifyTrackEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&FContextualAnimMovieSceneTrackEditor::CreateTrackEditor));
 
 	// Register Detail Customizations
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");;

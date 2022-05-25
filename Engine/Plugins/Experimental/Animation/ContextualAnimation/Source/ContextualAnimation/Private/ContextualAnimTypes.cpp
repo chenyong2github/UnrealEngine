@@ -11,6 +11,7 @@
 #include "ContextualAnimSelectionCriterion.h"
 #include "ContextualAnimSceneActorComponent.h"
 #include "ContextualAnimSceneAsset.h"
+#include "GameFramework/Character.h"
 
 DEFINE_LOG_CATEGORY(LogContextualAnim);
 
@@ -188,6 +189,17 @@ bool FContextualAnimTrack::DoesQuerierPassSelectionCriteria(const FContextualAni
 	return true;
 }
 
+FTransform FContextualAnimTrack::GetRootTransformAtTime(float Time) const
+{
+	FTransform RootTransform = FTransform::Identity;
+	if (Animation)
+	{
+		RootTransform = UContextualAnimUtilities::ExtractRootTransformFromAnimation(Animation, Time);
+	}
+
+	return RootTransform * MeshToScene;
+}
+
 // FContextualAnimSceneBindingContext
 ///////////////////////////////////////////////////////////////////////
 
@@ -290,13 +302,13 @@ int32 FContextualAnimSceneBinding::GetCurrentSectionIndex() const
 
 const FContextualAnimIKTargetDefContainer& FContextualAnimSceneBinding::GetIKTargetDefs() const
 {
-	return GetSceneAsset().GetIKTargetDefsForRole(GetAnimTrack().Role);
+	return GetSceneAsset().GetIKTargetDefsForRoleInSection(GetAnimTrack().SectionIdx, GetAnimTrack().Role);
 }
 
 // FContextualAnimSceneBindings
 ///////////////////////////////////////////////////////////////////////
 
-bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 VariantIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings)
+bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneAsset& SceneAsset, int32 SectionIdx, int32 AnimSetIdx, const TMap<FName, FContextualAnimSceneBindingContext>& Params, FContextualAnimSceneBindings& OutBindings)
 {
 	check(SceneAsset.HasValidData());
 
@@ -316,15 +328,15 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 	// First, try to bind primary track. 
 	// @TODO: Revisit this, passing the same data twice (as primary and querier) feels weird, but this allow us to run the selection mechanism even on the primary actor.
 
-	const FContextualAnimTrack* PrimaryAnimTrack = SceneAsset.GetAnimTrack(PrimaryRole, VariantIdx);
+	const FContextualAnimTrack* PrimaryAnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, PrimaryRole);
 	if (PrimaryAnimTrack && PrimaryAnimTrack->DoesQuerierPassSelectionCriteria(*PrimaryPtr, *PrimaryPtr))
 	{
 		OutBindings.Add(FContextualAnimSceneBinding(*PrimaryPtr, SceneAsset, *PrimaryAnimTrack));
 	}
 	else
 	{
-		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Can't find valid track for primary actor. SceneAsset: %s Role: %s Actor: %s Variant: %d"),
-			*GetNameSafe(&SceneAsset), *PrimaryRole.ToString(), *GetNameSafe(PrimaryPtr->GetActor()), VariantIdx);
+		UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Can't find valid track for primary actor. SceneAsset: %s Role: %s Actor: %s SectionIdx: %d AnimSetIdx: %d"),
+			*GetNameSafe(&SceneAsset), *PrimaryRole.ToString(), *GetNameSafe(PrimaryPtr->GetActor()), SectionIdx, AnimSetIdx);
 
 		return false;
 	}
@@ -336,15 +348,15 @@ bool FContextualAnimSceneBindings::TryCreateBindings(const UContextualAnimSceneA
 		FName RoleToBind = Pair.Key;
 		if (RoleToBind != PrimaryRole)
 		{
-			const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(RoleToBind, VariantIdx);
+			const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, AnimSetIdx, RoleToBind);
 			if (AnimTrack && AnimTrack->DoesQuerierPassSelectionCriteria(*PrimaryPtr, Pair.Value))
 			{
 				OutBindings.Add(FContextualAnimSceneBinding(Pair.Value, SceneAsset, *AnimTrack));
 			}
 			else
 			{
-				UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Can't find valid track for secondary actor. SceneAsset: %s Role: %s Actor: %s Variant: %d"),
-					*GetNameSafe(&SceneAsset), *RoleToBind.ToString(), *GetNameSafe(Pair.Value.GetActor()), VariantIdx);
+				UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimSceneBindings::TryCreateBindings Failed. Reason: Can't find valid track for secondary actor. SceneAsset: %s Role: %s Actor: %s SectionIdx: %d AnimSetIdx: %d"),
+					*GetNameSafe(&SceneAsset), *RoleToBind.ToString(), *GetNameSafe(Pair.Value.GetActor()), SectionIdx, AnimSetIdx);
 
 				return false;
 			}

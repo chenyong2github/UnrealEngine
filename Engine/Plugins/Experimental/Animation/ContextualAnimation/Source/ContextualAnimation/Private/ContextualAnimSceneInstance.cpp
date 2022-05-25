@@ -43,6 +43,27 @@ AActor* UContextualAnimSceneInstance::GetActorByRole(FName Role) const
 	return Binding ? Binding->GetActor() : nullptr;
 }
 
+UAnimMontage* UContextualAnimSceneInstance::PlayAnimation(UAnimInstance& AnimInstance, UAnimSequenceBase& Animation)
+{
+	if (UAnimMontage* AnimMontage = Cast<UAnimMontage>(&Animation))
+	{
+		const float Duration = AnimInstance.Montage_Play(AnimMontage, 1.f, EMontagePlayReturnType::MontageLength);
+		return (Duration > 0.f) ? AnimMontage : nullptr;
+	}
+	else
+	{
+		//@TODO: Expose all these on the AnimTrack
+		const FName SlotName = FName(TEXT("DefaultSlot"));
+		const float BlendInTime = 0.25f;
+		const float BlendOutTime = 0.25f;
+		const float InPlayRate = 1.f;
+		const int32 LoopCount = 1;
+		const float BlendOutTriggerTime = -1.f;
+		const float InTimeToStartMontageAt = 0.f;
+		return AnimInstance.PlaySlotAnimationAsDynamicMontage(&Animation, SlotName, BlendInTime, BlendOutTime, InPlayRate, LoopCount, BlendOutTriggerTime, InTimeToStartMontageAt);
+	}
+}
+
 void UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 {
 	AActor* Actor = Binding.GetActor();
@@ -55,29 +76,13 @@ void UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 	{
 		if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 		{
-			// Keep montage support for now but might go away soon
-			if (UAnimMontage* AnimMontage = Cast<UAnimMontage>(Animation))
+			if(UAnimMontage* Montage = PlayAnimation(*AnimInstance, *Animation))
 			{
-				AnimInstance->Montage_Play(AnimMontage, 1.f, EMontagePlayReturnType::MontageLength);
+				AnimInstance->OnPlayMontageNotifyBegin.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyBeginReceived);
+				AnimInstance->OnPlayMontageNotifyEnd.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyEndReceived);
+				AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 			}
-			else
-			{
-				//@TODO: Expose all these on the AnimTrack
-				const FName SlotName = FName(TEXT("DefaultSlot"));
-				const float BlendInTime = 0.25f;
-				const float BlendOutTime = 0.25f;
-				const float InPlayRate = 1.f;
-				const int32 LoopCount = 1;
-				const float BlendOutTriggerTime = -1.f;
-				const float InTimeToStartMontageAt = 0.f;
-				AnimInstance->PlaySlotAnimationAsDynamicMontage(Binding.GetAnimTrack().Animation, SlotName, BlendInTime, BlendOutTime, InPlayRate, LoopCount, BlendOutTriggerTime, InTimeToStartMontageAt);
-			}
-
-			AnimInstance->OnPlayMontageNotifyBegin.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyBeginReceived);
-			AnimInstance->OnPlayMontageNotifyEnd.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnNotifyEndReceived);
-			AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 		}
-
 
 		//@TODO: Temp, until we have a way to switch between movement mode using AnimNotifyState
 		if (Binding.GetAnimTrack().bRequireFlyingMode)
@@ -97,8 +102,7 @@ void UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 			const FTransform ScenePivotRuntime = Pair.Value;
 			const float Time = Binding.GetAnimTrack().GetSyncTimeForWarpSection(WarpTargetName);
 			const FTransform TransformRelativeToScenePivot = Binding.GetAnimTrack().AlignmentData.ExtractTransformAtTime(WarpTargetName, Time);
-			const FTransform WarpTarget = (TransformRelativeToScenePivot * ScenePivotRuntime);
-
+			const FTransform WarpTarget = TransformRelativeToScenePivot * ScenePivotRuntime;
 			MotionWarpComp->AddOrUpdateWarpTargetFromTransform(WarpTargetName, WarpTarget);
 		}
 	}
@@ -120,56 +124,32 @@ void UContextualAnimSceneInstance::Join(FContextualAnimSceneBinding& Binding)
 
 void UContextualAnimSceneInstance::Leave(FContextualAnimSceneBinding& Binding)
 {
-	// Check if we have an exit section and transition to it, otherwise just stop the montage
-	static const FName ExitSectionName = FName(TEXT("Exit"));
-	if(TransitionTo(Binding, ExitSectionName) == false)
+	if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
 	{
-		AActor* Actor = Binding.GetActor();
-		if (UAnimInstance* AnimInstance = Binding.GetAnimInstance())
+		if (UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage())
 		{
-			UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage();
-			if (CurrentMontage)
-			{
-				AnimInstance->Montage_Stop(CurrentMontage->BlendOut.GetBlendTime(), CurrentMontage);
-			}
+			AnimInstance->Montage_Stop(CurrentMontage->BlendOut.GetBlendTime(), CurrentMontage);
 		}
 	}
 }
 
-bool UContextualAnimSceneInstance::TransitionTo(FContextualAnimSceneBinding& Binding, const FName& ToSectionName)
+bool UContextualAnimSceneInstance::TransitionTo(FContextualAnimSceneBinding& Binding, const FContextualAnimTrack& AnimTrack)
 {
+	check(AnimTrack.Animation != Binding.GetAnimTrack().Animation);
+	check(AnimTrack.Role == Binding.GetRoleDef().Name);
+
 	UAnimInstance* AnimInstance = Binding.GetAnimInstance();
 	if (AnimInstance == nullptr)
 	{		
 		return false;
 	}
 
-	UAnimMontage* CurrentMontage = AnimInstance->GetCurrentActiveMontage();
-	if (CurrentMontage == nullptr)
-	{
-		UE_LOG(LogContextualAnim, Log, TEXT("UContextualAnimSceneInstance::TransitionTo. Actor is not playing any montage. Actor: %s ToSectionName: %s"),
-			*GetNameSafe(Binding.GetActor()), *ToSectionName.ToString());
-
-		return false;
-	}
-
-	const int32 SectionIdx = CurrentMontage->GetSectionIndex(ToSectionName);
-	if (SectionIdx == INDEX_NONE)
-	{
-		UE_LOG(LogContextualAnim, Log, TEXT("UContextualAnimSceneInstance::TransitionTo. Invalid Section. Actor: %s CurrentMontage: %s ToSectionName: %s"),
-			*GetNameSafe(Binding.GetActor()), *GetNameSafe(CurrentMontage), *ToSectionName.ToString());
-
-		return false;
-	}
-
-	UE_LOG(LogContextualAnim, Verbose, TEXT("UContextualAnimSceneInstance::TransitionTo. Actor: %s CurrentMontage: %s ToSectionName: %s"),
-		*GetNameSafe(Binding.GetActor()), *GetNameSafe(CurrentMontage), *ToSectionName.ToString());
-
 	// Unbind blend out delegate for a moment so we don't get it during the transition
+	// @TODO: Replace this with the TGuardValue 'pattern', similar to what we do in the editor for OnAnimNotifyChanged
 	AnimInstance->OnMontageBlendingOut.RemoveDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 
-	AnimInstance->Montage_Play(CurrentMontage, 1.f);
-	AnimInstance->Montage_JumpToSection(ToSectionName, CurrentMontage);
+	PlayAnimation(*AnimInstance, *AnimTrack.Animation);
+	Binding.AnimTrackPtr = &AnimTrack;
 
 	AnimInstance->OnMontageBlendingOut.AddUniqueDynamic(this, &UContextualAnimSceneInstance::OnMontageBlendingOut);
 
@@ -178,31 +158,13 @@ bool UContextualAnimSceneInstance::TransitionTo(FContextualAnimSceneBinding& Bin
 
 void UContextualAnimSceneInstance::Start()
 {
-	for (const FContextualAnimAlignmentSectionData AligmentData : SceneAsset->GetAlignmentSections())
+	const int32 SectionIdx = 0; // Always start from the first section
+	for (const FContextualAnimSetPivotDefinition& Def : SceneAsset->GetAnimSetPivotDefinitionsInSection(SectionIdx))
 	{
 		FTransform ScenePivotRuntime = FTransform::Identity;
-		if (const FContextualAnimSceneBinding* Binding = FindBindingByRole(AligmentData.Origin))
-		{
-			if (AligmentData.bAlongClosestDistance)
-			{
-				if (const FContextualAnimSceneBinding* OtherBinding = FindBindingByRole(AligmentData.OtherRole))
-				{
-					const FTransform T1 = Binding->GetTransform();
-					const FTransform T2 = OtherBinding->GetTransform();
-
-					ScenePivotRuntime.SetLocation(FMath::Lerp<FVector>(T1.GetLocation(), T2.GetLocation(), AligmentData.Weight));
-					ScenePivotRuntime.SetRotation((T2.GetLocation() - T1.GetLocation()).GetSafeNormal2D().ToOrientationQuat());
-				}
-			}
-			else
-			{
-				ScenePivotRuntime = Binding->GetTransform();
-			}
-		}
-
-		AlignmentSectionToScenePivotList.Add(MakeTuple(AligmentData.WarpTargetName, ScenePivotRuntime));
+		UContextualAnimUtilities::CalculateAnimSetPivot(Def, Bindings, ScenePivotRuntime);
+		AlignmentSectionToScenePivotList.Add(MakeTuple(Def.Name, ScenePivotRuntime));
 	}
-	
 
 	for (auto& Binding : Bindings)
 	{

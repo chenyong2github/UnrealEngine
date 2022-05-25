@@ -100,6 +100,12 @@ UContextualAnimSceneInstance* UContextualAnimManager::GetSceneWithActor(AActor* 
 
 UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UContextualAnimSceneAsset& SceneAsset, const FContextualAnimStartSceneParams& Params)
 {
+	if(Params.RoleToActorMap.Num() == 0)
+	{
+		UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::ForceStartScene. Can't start scene. Reason: Empty Params. SceneAsset: %s"), *GetNameSafe(&SceneAsset));
+		return nullptr;
+	}
+
 	FContextualAnimSceneBindings Bindings;
 	for (const auto& Pair : Params.RoleToActorMap)
 	{
@@ -114,7 +120,8 @@ UContextualAnimSceneInstance* UContextualAnimManager::ForceStartScene(const UCon
 			return nullptr;
 		}
 
-		const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(RoleToBind, Params.VariantIdx);
+		const int32 SectionIdx = 0; // Always start from the first section
+		const FContextualAnimTrack* AnimTrack = SceneAsset.GetAnimTrack(SectionIdx, Params.AnimSetIdx, RoleToBind);
 		if (AnimTrack == nullptr)
 		{
 			UE_LOG(LogContextualAnim, Warning, TEXT("UContextualAnimManager::ForceStartScene. Can't start scene. Reason: Can't find anim track for '%s'. SceneAsset: %s"), 
@@ -151,19 +158,20 @@ UContextualAnimSceneInstance* UContextualAnimManager::BP_TryStartScene(const UCo
 
 UContextualAnimSceneInstance* UContextualAnimManager::TryStartScene(const UContextualAnimSceneAsset& SceneAsset, const FContextualAnimStartSceneParams& Params)
 {
+	const int32 SectionIdx = 0; // Always start from the first section
 	FContextualAnimSceneBindings Bindings;
 
 	bool bSuccess = false;
-	if (Params.VariantIdx != INDEX_NONE)
+	if (Params.AnimSetIdx != INDEX_NONE)
 	{
-		bSuccess = FContextualAnimSceneBindings::TryCreateBindings(SceneAsset, Params.VariantIdx, Params.RoleToActorMap, Bindings);
+		bSuccess = FContextualAnimSceneBindings::TryCreateBindings(SceneAsset, SectionIdx, Params.AnimSetIdx, Params.RoleToActorMap, Bindings);
 	}
 	else
 	{
-		const int32 VariantsNum = SceneAsset.GetTotalVariants();
-		for (int32 VariantIdx = 0; VariantIdx < VariantsNum; VariantIdx++)
+		const int32 NumSets = SceneAsset.GetNumAnimSetsInSection(SectionIdx);
+		for (int32 AnimSetIdx = 0; AnimSetIdx < NumSets; AnimSetIdx++)
 		{
-			if (FContextualAnimSceneBindings::TryCreateBindings(SceneAsset, VariantIdx, Params.RoleToActorMap, Bindings))
+			if (FContextualAnimSceneBindings::TryCreateBindings(SceneAsset, SectionIdx, AnimSetIdx, Params.RoleToActorMap, Bindings))
 			{
 				bSuccess = true;
 				break;

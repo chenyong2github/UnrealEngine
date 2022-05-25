@@ -203,10 +203,10 @@ void FContextualAnimAssetEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuil
 
 	ToolbarBuilder.AddComboButton(
 		FUIAction(),
-		FOnGetContent::CreateSP(this, &FContextualAnimAssetEditorToolkit::BuildVariantsMenu),
-		LOCTEXT("Variants_Label", "Variants"),
+		FOnGetContent::CreateSP(this, &FContextualAnimAssetEditorToolkit::BuildNewAnimSetWidget),
+		LOCTEXT("NewSet_Label", "New Set"),
 		FText::GetEmpty(),
-		FSlateIcon()
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.Plus")
 	);
 
 	ToolbarBuilder.AddToolBarButton(
@@ -218,101 +218,66 @@ void FContextualAnimAssetEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuil
 	);
 }
 
-TSharedRef<SWidget> FContextualAnimAssetEditorToolkit::BuildVariantsMenu()
+TSharedRef<SWidget> FContextualAnimAssetEditorToolkit::BuildNewAnimSetWidget()
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, GetToolkitCommands());
 
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	FDetailsViewArgs Args;
+	Args.bHideSelectionTip = true;
+	Args.bAllowSearch = false;
+	Args.bAllowFavoriteSystem = false;
+
+	NewAnimSetWidgetStruct = MakeShared<FStructOnScope>(FContextualAnimNewAnimSetParams::StaticStruct());
+	FContextualAnimNewAnimSetParams* Params = (FContextualAnimNewAnimSetParams*)NewAnimSetWidgetStruct->GetStructMemory();
+
+	const TArray<FName> Roles = ViewModel->GetSceneAsset()->GetRoles();
+	for (FName Role : Roles)
 	{
-		MenuBuilder.BeginSection(NAME_None, LOCTEXT("CreateNewVariant", "New Variant"));
+		FContextualAnimNewAnimSetData Entry;
+		Entry.RoleName = Role;
+		Params->Data.Add(Entry);
+	}
 
-		MenuBuilder.AddSubMenu(
-			LOCTEXT("NewVariant", "New Variant"),
-			FText::GetEmpty(),
-			FNewMenuDelegate::CreateLambda([this](FMenuBuilder& MenuBuilder){
-			
-				FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	TSharedRef<IStructureDetailsView> StructureDetailsView = PropertyModule.CreateStructureDetailView(Args, FStructureDetailsViewArgs(), NewAnimSetWidgetStruct);
 
-				FDetailsViewArgs Args;
-				Args.bHideSelectionTip = true;
-				Args.bAllowSearch = false;
-				Args.bAllowFavoriteSystem = false;
-
-				NewVariantWidgetStruct = MakeShared<FStructOnScope>(FContextualAnimNewVariantParams::StaticStruct());
-				FContextualAnimNewVariantParams* Params = (FContextualAnimNewVariantParams*)NewVariantWidgetStruct->GetStructMemory();
-
-				const TArray<FName> Roles = ViewModel->GetSceneAsset()->GetRoles();
-				for (FName Role : Roles)
+	MenuBuilder.AddWidget(
+		SNew(SBox)
+		.MinDesiredWidth(500.0f)
+		.MaxDesiredWidth(500.f)
+		.MaxDesiredHeight(400.0f)
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			[
+				StructureDetailsView->GetWidget().ToSharedRef()
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.Padding(5)
+			[
+				SNew(SButton)
+				.HAlign(HAlign_Center)
+				.ContentPadding(FAppStyle::GetMargin("StandardDialog.ContentPadding"))
+				.Text(LOCTEXT("OK", "OK"))
+				.OnClicked_Lambda([this]()
 				{
-					FContextualAnimNewVariantData Entry;
-					Entry.RoleName = Role;
-					Params->Data.Add(Entry);
-				}
+					FContextualAnimNewAnimSetParams* Params = (FContextualAnimNewAnimSetParams*)NewAnimSetWidgetStruct->GetStructMemory();
+					check(Params);
 
-				TSharedRef<IStructureDetailsView> StructureDetailsView = PropertyModule.CreateStructureDetailView(Args, FStructureDetailsViewArgs(), NewVariantWidgetStruct);
+					ViewModel->AddNewAnimSet(*Params);
 
-				MenuBuilder.AddWidget(
-					SNew(SBox)
-					.MinDesiredWidth(500.0f)
-					.MaxDesiredWidth(500.f)
-					.MaxDesiredHeight(400.0f)
-					[
-						SNew(SVerticalBox)
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						.HAlign(HAlign_Fill)
-						[
-							StructureDetailsView->GetWidget().ToSharedRef()
-						]
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						.HAlign(HAlign_Fill)
-						[
-							SNew(SButton)
-							.ContentPadding(3)
-							.VAlign(VAlign_Center)
-							.HAlign(HAlign_Center)
-							.OnClicked_Lambda([this]()
-							{
-								FContextualAnimNewVariantParams* Params = (FContextualAnimNewVariantParams*)NewVariantWidgetStruct->GetStructMemory();
-								check(Params);
+					FSlateApplication::Get().DismissAllMenus();
 
-								ViewModel->AddNewVariant(*Params);
-
-								FSlateApplication::Get().DismissAllMenus();
-
-								return FReply::Handled();
-							})
-						.Text(LOCTEXT("OK", "OK"))
-						]
-					],
-					FText(), true, false);
-			}),
-			false,
-			FSlateIcon()
-		);
-
-		MenuBuilder.EndSection();
-	}
-
-	{
-		MenuBuilder.BeginSection(NAME_None, LOCTEXT("Variants_Label", "Variants"));
-		{
-			const UContextualAnimSceneAsset* SceneAsset = GetSceneAsset();
-			const int32 TotalVariants = SceneAsset->GetTotalVariants();
-			for (int32 Idx = 0; Idx < TotalVariants; Idx++)
-			{
-				MenuBuilder.AddMenuEntry(
-					FText::FromString(FString::Printf(TEXT("%d"), Idx)),
-					FText::GetEmpty(),
-					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateLambda([this, Idx]() {
-						ViewModel->SetActiveSceneVariantIdx(Idx);
-					})));
-			}
-		}
-		MenuBuilder.EndSection();
-	}
+					return FReply::Handled();
+				})
+			]
+		], FText(), true, false);
 
 	return MenuBuilder.MakeWidget();
 }

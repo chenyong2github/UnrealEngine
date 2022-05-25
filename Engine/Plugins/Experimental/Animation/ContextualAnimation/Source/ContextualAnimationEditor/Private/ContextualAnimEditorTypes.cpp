@@ -7,14 +7,18 @@
 // UContextualAnimNewIKTargetParams
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-void UContextualAnimNewIKTargetParams::Reset(const FName& InSourceRole, const UContextualAnimSceneAsset& InSceneAsset)
+void UContextualAnimNewIKTargetParams::Reset(const UContextualAnimSceneAsset& InSceneAsset, const UAnimSequenceBase& InAnimation)
 {
+	const FContextualAnimTrack* AnimTrack = InSceneAsset.FindAnimTrackByAnimation(&InAnimation);
+	check(AnimTrack);
+
 	CachedRoles = InSceneAsset.GetRoles();
-	check(CachedRoles.Contains(InSourceRole));
+	check(CachedRoles.Contains(AnimTrack->Role));
 
 	SceneAssetPtr = &InSceneAsset;
 
-	SourceRole = InSourceRole;
+	SectionIdx = AnimTrack->SectionIdx;
+	SourceRole = AnimTrack->Role;
 	GoalName = NAME_None;
 	TargetBone = FBoneReference();
 	SourceBone = FBoneReference();
@@ -43,20 +47,36 @@ USkeleton* UContextualAnimNewIKTargetParams::GetSkeleton(bool& bInvalidSkeletonI
 {
 	bInvalidSkeletonIsError = false;
 
-	const FContextualAnimTrack* AnimTrack = nullptr;
+	FName Role = NAME_None;
 	if (PropertyHandle)
 	{
 		if (PropertyHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UContextualAnimNewIKTargetParams, SourceBone))
 		{
-			AnimTrack = GetSceneAsset().GetAnimTrack(SourceRole, 0);
+			Role = SourceRole;
 		}
 		else if (PropertyHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UContextualAnimNewIKTargetParams, TargetBone))
 		{
-			AnimTrack = GetSceneAsset().GetAnimTrack(TargetRole, 0);
+			Role = TargetRole;
 		}
 	}
 
-	return (AnimTrack && AnimTrack->Animation) ? AnimTrack->Animation->GetSkeleton() : nullptr;
+	USkeleton* Skeleton = nullptr;
+	if(Role != NAME_None)
+	{
+		// Iterate over the AnimTracks until find the first track with animation and pull the skeleton from there.
+		GetSceneAsset().ForEachAnimTrack([&Skeleton, Role](const FContextualAnimTrack& AnimTrack)
+			{
+				if (AnimTrack.Role == Role && AnimTrack.Animation)
+				{
+					Skeleton = AnimTrack.Animation->GetSkeleton();
+					return UE::ContextualAnim::EForEachResult::Break;
+				}
+
+				return UE::ContextualAnim::EForEachResult::Continue;
+			});
+	}
+
+	return Skeleton;
 }
 
 TArray<FString> UContextualAnimNewIKTargetParams::GetTargetRoleOptions() const

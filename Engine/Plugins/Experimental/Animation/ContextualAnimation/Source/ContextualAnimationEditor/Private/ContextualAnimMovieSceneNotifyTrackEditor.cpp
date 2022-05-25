@@ -165,10 +165,10 @@ void FContextualAnimMovieSceneNotifyTrackEditor::BuildNewIKTargetSubMenu(FMenuBu
 		MenuBuilder.BeginSection(NAME_None, LOCTEXT("AvailableIKTargets", "Available IK Targets"));
 
 		const UContextualAnimSceneAsset* SceneAsset = GetMovieSceneSequence().GetViewModel().GetSceneAsset();
-		const FName Role = SceneAsset->FindRoleByAnimation(&Track->GetAnimation());
-		check(Role != NAME_None);
+		const FContextualAnimTrack* AnimTrack = SceneAsset->FindAnimTrackByAnimation(&Track->GetAnimation());
+		check(AnimTrack);
 
-		const FContextualAnimIKTargetDefContainer& IKTargets = SceneAsset->GetIKTargetDefsForRole(Role);
+		const FContextualAnimIKTargetDefContainer& IKTargets = SceneAsset->GetIKTargetDefsForRoleInSection(AnimTrack->SectionIdx, AnimTrack->Role);
 		for (const FContextualAnimIKTargetDefinition& IKTargetDef : IKTargets.IKTargetDefs)
 		{
 			const FName GoalName = IKTargetDef.GoalName;
@@ -207,11 +207,7 @@ void FContextualAnimMovieSceneNotifyTrackEditor::BuildNewIKTargetWidget(FMenuBui
 	
 	check(NewIKTargetParams);
 
-	const UContextualAnimSceneAsset* SceneAsset = GetMovieSceneSequence().GetViewModel().GetSceneAsset();
-	const FName SourceRole = SceneAsset->FindRoleByAnimation(&Track->GetAnimation());
-	check(SourceRole != NAME_None);
-
-	NewIKTargetParams->Reset(SourceRole, *SceneAsset);
+	NewIKTargetParams->Reset(*GetMovieSceneSequence().GetViewModel().GetSceneAsset(), Track->GetAnimation());
 
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
@@ -247,34 +243,10 @@ void FContextualAnimMovieSceneNotifyTrackEditor::BuildNewIKTargetWidget(FMenuBui
 				.IsEnabled_Lambda([this](){ return NewIKTargetParams->HasValidData(); })
 				.OnClicked_Lambda([this, Track, RowIndex]()
 				{
-					UContextualAnimSceneAsset* SceneAsset = GetMovieSceneSequence().GetViewModel().GetSceneAsset();
-					check(SceneAsset);
-
-					// Add IK Target definition to the scene asset
-					FContextualAnimIKTargetDefinition IKTargetDef;
-					IKTargetDef.GoalName = NewIKTargetParams->GoalName;
-					IKTargetDef.BoneName = NewIKTargetParams->SourceBone.BoneName;
-					IKTargetDef.Provider = NewIKTargetParams->Provider;
-					IKTargetDef.TargetRoleName = NewIKTargetParams->TargetRole;
-					IKTargetDef.TargetBoneName = NewIKTargetParams->TargetBone.BoneName;
-
-					if(FContextualAnimIKTargetDefContainer* ContainerPtr = SceneAsset->RoleToIKTargetDefsMap.Find(NewIKTargetParams->SourceRole))
-					{
-						ContainerPtr->IKTargetDefs.AddUnique(IKTargetDef);
-					}
-					else
-					{
-						FContextualAnimIKTargetDefContainer Container;
-						Container.IKTargetDefs.AddUnique(IKTargetDef);
-						SceneAsset->RoleToIKTargetDefsMap.Add(NewIKTargetParams->SourceRole, Container);
-					}
-
-					SceneAsset->PrecomputeData();
-
-					SceneAsset->MarkPackageDirty();
+					GetMovieSceneSequence().GetViewModel().AddNewIKTarget(*NewIKTargetParams);
 
 					// Create IK section for the newly created target
-	 				CreateNewIKSection(Track, RowIndex, IKTargetDef.GoalName);
+	 				CreateNewIKSection(Track, RowIndex, NewIKTargetParams->GoalName);
 
 					FSlateApplication::Get().DismissAllMenus();
 
@@ -327,10 +299,11 @@ void FContextualAnimMovieSceneNotifyTrackEditor::AddNewNotifyTrack(TArray<FGuid>
 		return NameToTest;
 	};
 
-	for (const FGuid& ObjectBinding : ObjectBindings)
+	// @TODO: Commented out for now until we add the new behavior where the user needs to double-click on the animation to edit the notifies
+	/*for (const FGuid& ObjectBinding : ObjectBindings)
 	{
-		UAnimSequenceBase* Animation = GetMovieSceneSequence().GetViewModel().FindAnimationByGuid(ObjectBinding);
-		check(Animation);
+ 		UAnimSequenceBase* Animation = GetMovieSceneSequence().GetViewModel().FindAnimationByGuid(ObjectBinding);
+ 		check(Animation);
 
 		// Copied from AnimTimelineTrack_Notifies.cpp/FAnimTimelineTrack_Notifies::AddTrack()
 
@@ -349,7 +322,7 @@ void FContextualAnimMovieSceneNotifyTrackEditor::AddNewNotifyTrack(TArray<FGuid>
 		MovieSceneTrack->Initialize(*Animation, NewNotifyTrack);
 	}
 
-	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);*/
 }
 
 bool FContextualAnimMovieSceneNotifyTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const
