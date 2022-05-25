@@ -234,6 +234,10 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		{
 			Result = IntToColor(HierarchyOffset);
 		}
+		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_COUNT)
+		{
+			Result = IntToColor(GetMaterialCount(Cluster));
+		}
 		else if (VisualizeMode == NANITE_VISUALIZE_MATERIAL_MODE)
 		{
 			Result = IsMaterialFastPath(Cluster) ? float3(0, 1, 0) : float3(1, 0, 0);

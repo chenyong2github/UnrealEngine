@@ -39,6 +39,7 @@ void FNaniteVisualizationData::Initialize()
 		AddVisualizationMode(TEXT("MaterialZMin"), LOCTEXT("MaterialZMin", "Material Z Min"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_Z_MIN, true);
 		AddVisualizationMode(TEXT("MaterialZMax"), LOCTEXT("MaterialZMax", "Material Z Max"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_Z_MAX, true);
 		AddVisualizationMode(TEXT("MaterialZDelta"), LOCTEXT("MaterialZDelta", "Material Z Delta"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_Z_DELTA, true);
+		AddVisualizationMode(TEXT("MaterialCount"), LOCTEXT("MaterialCount", "Material Count"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_COUNT, true);
 		AddVisualizationMode(TEXT("MaterialMode"), LOCTEXT("MaterialMode", "Material Mode"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_MODE, true);
 		AddVisualizationMode(TEXT("MaterialIndex"), LOCTEXT("MaterialIndex", "Material Index"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_INDEX, true);
 		AddVisualizationMode(TEXT("HitProxyID"), LOCTEXT("HitProxyID", "Hit Proxy ID"), FModeType::Advanced, NANITE_VISUALIZE_HIT_PROXY_DEPTH, true);

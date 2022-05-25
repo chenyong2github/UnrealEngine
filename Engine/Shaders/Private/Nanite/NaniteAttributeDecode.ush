@@ -145,6 +145,19 @@ bool IsMaterialFastPath(FCluster InCluster)
 	return (InCluster.Material0Length > 0);
 }
 
+uint GetMaterialCount(FCluster InCluster)
+{
+	if (IsMaterialFastPath(InCluster))
+	{
+		const uint Material2Length = InCluster.NumTris - InCluster.Material0Length - InCluster.Material1Length;
+		return 1 + (InCluster.Material1Length > 0) + (Material2Length > 0);
+	}
+	else
+	{
+		return InCluster.MaterialTableLength;
+	}
+}
+
 uint GetRelativeMaterialIndex(FCluster InCluster, uint InTriIndex)
 {
 	uint MaterialIndex = 0xFFFFFFFF;
