@@ -216,7 +216,7 @@ struct FActiveLoggers
 		return Algo::AllOf(Loggers, [](const TWeakPtr<FConcertLogger, ESPMode::ThreadSafe>& Logger)
 		{
 			TSharedPtr<FConcertLogger, ESPMode::ThreadSafe> LoggerPtr = Logger.Pin();
-			return !LoggerPtr.IsValid() && LoggerPtr->IsLogging();
+			return LoggerPtr.IsValid() && LoggerPtr->IsLogging();
 		});
 	}
 
