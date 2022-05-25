@@ -135,7 +135,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 			);
 
 		TempNaniteDisplacedMesh->bIsEditable = false;
-
+		TempNaniteDisplacedMesh->Parameters = InParameters;
 		return TempNaniteDisplacedMesh;
 	}
 	else
