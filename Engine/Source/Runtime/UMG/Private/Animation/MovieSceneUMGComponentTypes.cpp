@@ -83,7 +83,7 @@ FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 
 	CustomWidgetTransformAccessors.Add(UWidget::StaticClass(), "RenderTransform", &GetRenderTransform, &SetRenderTransform);
 
-	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Margin)
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Margin, TEXT("Apply FMargin Properties"))
 	.AddComposite(BuiltInComponents->FloatResult[0], &FMargin::Left)
 	.AddComposite(BuiltInComponents->FloatResult[1], &FMargin::Top)
 	.AddComposite(BuiltInComponents->FloatResult[2], &FMargin::Right)
@@ -91,7 +91,7 @@ FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 	.SetBlenderSystem<UMovieScenePiecewiseFloatBlenderSystem>()
 	.Commit();
 
-	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(WidgetTransform)
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(WidgetTransform, TEXT("Call UUserWidget::SetRenderTransform"))
 	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediateWidgetTransform::TranslationX)
 	.AddComposite(BuiltInComponents->FloatResult[1], &FIntermediateWidgetTransform::TranslationY)
 	.AddComposite(BuiltInComponents->FloatResult[2], &FIntermediateWidgetTransform::Rotation)

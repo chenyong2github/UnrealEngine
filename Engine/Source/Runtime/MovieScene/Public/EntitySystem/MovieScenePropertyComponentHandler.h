@@ -24,9 +24,6 @@ namespace UE
 namespace MovieScene
 {
 
-DECLARE_CYCLE_STAT(TEXT("Apply properties"), MovieSceneEval_ApplyProperties,  STATGROUP_MovieSceneECS);
-
-
 
 template<typename PropertyTraits, typename MetaDatatype, typename MetaDataIndices, typename CompositeIndices, typename ...CompositeTypes>
 struct TPropertyComponentHandlerImpl;
@@ -346,7 +343,7 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
 		.ReadAllOf(Composites[CompositeIndices].ComponentTypeID.ReinterpretCast<CompositeTypes>()...)
 		.FilterAll({ Definition.PropertyType })
-		.SetStat(GET_STATID(MovieSceneEval_ApplyProperties))
+		.SetStat(Definition.StatID)
 		.SetDesiredThread(Linker->EntityManager.GetGatherThread())
 		.template Dispatch_PerAllocation<CompleteSetterTask>(&Linker->EntityManager, InPrerequisites, &Subsequents, Definition.CustomPropertyRegistration);
 
@@ -366,7 +363,7 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 			.FilterAny({ CompletePropertyMask })
 			.FilterAll({ Definition.PropertyType })
 			.FilterOut(CompletePropertyMask)
-			.SetStat(GET_STATID(MovieSceneEval_ApplyProperties))
+			.SetStat(Definition.StatID)
 			.SetDesiredThread(Linker->EntityManager.GetGatherThread())
 			.template Dispatch_PerAllocation<PartialSetterTask>(&Linker->EntityManager, InPrerequisites, &Subsequents, Definition.CustomPropertyRegistration, Composites);
 		}
@@ -605,6 +602,11 @@ struct TPropertyDefinitionBuilder
 	{
 		Definition->CustomPropertyRegistration = InCustomAccessors;
 		return *this;
+	}
+
+	TPropertyDefinitionBuilder<PropertyTraits>& SetStat(TStatId InStatID)
+	{
+		Definition->StatID = InStatID;
 	}
 
 	template<typename BlenderSystemType>

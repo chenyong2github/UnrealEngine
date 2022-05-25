@@ -568,14 +568,14 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	// --------------------------------------------------------------------------------------------
 	// Set up bool properties
-	BuiltInComponents->PropertyRegistry.DefineProperty(Bool)
+	BuiltInComponents->PropertyRegistry.DefineProperty(Bool, TEXT("Apply bool Properties"))
 	.AddSoleChannel(BuiltInComponents->BoolResult)
 	.SetBlenderSystem<UMovieScenePiecewiseBoolBlenderSystem>()
 	.SetCustomAccessors(&Accessors.Bool)
 	.Commit();
 
 	// Set up FTransform properties
-	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Transform)
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Transform, TEXT("Apply FTransform Properties"))
 	.AddComposite(BuiltInComponents->DoubleResult[0], &FIntermediate3DTransform::T_X)
 	.AddComposite(BuiltInComponents->DoubleResult[1], &FIntermediate3DTransform::T_Y)
 	.AddComposite(BuiltInComponents->DoubleResult[2], &FIntermediate3DTransform::T_Z)
@@ -590,7 +590,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	// --------------------------------------------------------------------------------------------
 	// Set up byte properties
-	BuiltInComponents->PropertyRegistry.DefineProperty(Byte)
+	BuiltInComponents->PropertyRegistry.DefineProperty(Byte, TEXT("Apply Byte Properties"))
 	.AddSoleChannel(BuiltInComponents->ByteResult)
 	.SetBlenderSystem<UMovieScenePiecewiseByteBlenderSystem>()
 	.SetCustomAccessors(&Accessors.Byte)
@@ -598,7 +598,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	// --------------------------------------------------------------------------------------------
 	// Set up enum properties
-	BuiltInComponents->PropertyRegistry.DefineProperty(Enum)
+	BuiltInComponents->PropertyRegistry.DefineProperty(Enum, TEXT("Apply Enum Properties"))
 	.AddSoleChannel(BuiltInComponents->ByteResult)
 	.SetBlenderSystem<UMovieScenePiecewiseEnumBlenderSystem>()
 	.SetCustomAccessors(&Accessors.Enum)
@@ -606,7 +606,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	// --------------------------------------------------------------------------------------------
 	// Set up integer properties
-	BuiltInComponents->PropertyRegistry.DefineProperty(Integer)
+	BuiltInComponents->PropertyRegistry.DefineProperty(Integer, TEXT("Apply Integer Properties"))
 	.AddSoleChannel(BuiltInComponents->IntegerResult)
 	.SetBlenderSystem<UMovieScenePiecewiseIntegerBlenderSystem>()
 	.SetCustomAccessors(&Accessors.Integer)
@@ -614,7 +614,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	// --------------------------------------------------------------------------------------------
 	// Set up float properties
-	BuiltInComponents->PropertyRegistry.DefineProperty(Float)
+	BuiltInComponents->PropertyRegistry.DefineProperty(Float, TEXT("Apply float Properties"))
 	.AddSoleChannel(BuiltInComponents->FloatResult[0])
 	.SetBlenderSystem<UMovieScenePiecewiseFloatBlenderSystem>()
 	.SetCustomAccessors(&Accessors.Float)
@@ -622,7 +622,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	// --------------------------------------------------------------------------------------------
 	// Set up double properties
-	BuiltInComponents->PropertyRegistry.DefineProperty(Double)
+	BuiltInComponents->PropertyRegistry.DefineProperty(Double, TEXT("Apply Double Properties"))
 	.AddSoleChannel(BuiltInComponents->DoubleResult[0])
 	.SetBlenderSystem<UMovieScenePiecewiseDoubleBlenderSystem>()
 	.SetCustomAccessors(&Accessors.Double)
@@ -630,7 +630,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	// --------------------------------------------------------------------------------------------
 	// Set up color properties
-	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Color)
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Color, TEXT("Apply Color Properties"))
 	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediateColor::R)
 	.AddComposite(BuiltInComponents->FloatResult[1], &FIntermediateColor::G)
 	.AddComposite(BuiltInComponents->FloatResult[2], &FIntermediateColor::B)
@@ -662,7 +662,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	// --------------------------------------------------------------------------------------------
 	// Set up vector properties
-	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(FloatVector)
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(FloatVector, TEXT("Apply FloatVector Properties"))
 	.AddComposite(BuiltInComponents->FloatResult[0], &FFloatIntermediateVector::X)
 	.AddComposite(BuiltInComponents->FloatResult[1], &FFloatIntermediateVector::Y)
 	.AddComposite(BuiltInComponents->FloatResult[2], &FFloatIntermediateVector::Z)
@@ -671,7 +671,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	.SetCustomAccessors(&Accessors.FloatVector)
 	.Commit(FFloatVectorHandler());
 
-	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(DoubleVector)
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(DoubleVector, TEXT("Apply DoubleVector Properties"))
 	.AddComposite(BuiltInComponents->DoubleResult[0], &FDoubleIntermediateVector::X)
 	.AddComposite(BuiltInComponents->DoubleResult[1], &FDoubleIntermediateVector::Y)
 	.AddComposite(BuiltInComponents->DoubleResult[2], &FDoubleIntermediateVector::Z)
@@ -682,7 +682,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 
 	// --------------------------------------------------------------------------------------------
 	// Set up FEulerTransform properties
-	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(EulerTransform)
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(EulerTransform, TEXT("Apply FEulerTransform Properties"))
 	.AddComposite(BuiltInComponents->DoubleResult[0], &FIntermediate3DTransform::T_X)
 	.AddComposite(BuiltInComponents->DoubleResult[1], &FIntermediate3DTransform::T_Y)
 	.AddComposite(BuiltInComponents->DoubleResult[2], &FIntermediate3DTransform::T_Z)
@@ -700,7 +700,7 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	{
 		Accessors.ComponentTransform.Add(USceneComponent::StaticClass(), "Transform", &GetComponentTransform, &SetComponentTransformAndVelocity);
 
-		BuiltInComponents->PropertyRegistry.DefineCompositeProperty(ComponentTransform)
+		BuiltInComponents->PropertyRegistry.DefineCompositeProperty(ComponentTransform, TEXT("Call USceneComponent::SetRelativeTransform"))
 		.AddComposite(BuiltInComponents->DoubleResult[0], &FIntermediate3DTransform::T_X)
 		.AddComposite(BuiltInComponents->DoubleResult[1], &FIntermediate3DTransform::T_Y)
 		.AddComposite(BuiltInComponents->DoubleResult[2], &FIntermediate3DTransform::T_Z)
