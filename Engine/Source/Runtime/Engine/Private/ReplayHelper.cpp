@@ -1897,12 +1897,7 @@ bool FReplayHelper::ReadDemoFrame(UNetConnection* Connection, FArchive& Ar, TArr
 
 	int32 ReadCurrentLevelIndex = 0;
 
-	uint32 PlaybackVersion = PlaybackDemoHeader.Version;
-
-	if (PlaybackVersion >= HISTORY_MULTIPLE_LEVELS)
-	{
-		Ar << ReadCurrentLevelIndex;
-	}
+	Ar << ReadCurrentLevelIndex;
 
 	float TimeSeconds = 0.0f;
 
@@ -1913,7 +1908,6 @@ bool FReplayHelper::ReadDemoFrame(UNetConnection* Connection, FArchive& Ar, TArr
 		*OutTime = TimeSeconds;
 	}
 
-	if (PlaybackVersion >= HISTORY_LEVEL_STREAMING_FIXES)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Demo_ReceiveExports"), Demo_ReceiveExports, STATGROUP_Net);
 		CastChecked<UPackageMapClient>(Connection->PackageMap)->ReceiveExportData(Ar);

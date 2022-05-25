@@ -185,28 +185,8 @@ struct FNetworkDemoHeader
 		Ar << Header.NetworkChecksum;
 		Ar << Header.EngineNetworkProtocolVersion;
 		Ar << Header.GameNetworkProtocolVersion;
-
-		if (Header.Version >= HISTORY_HEADER_GUID)
-		{
-			Ar << Header.Guid;
-		}
-
-		if (Header.Version >= HISTORY_SAVE_FULL_ENGINE_VERSION)
-		{
-			Ar << Header.EngineVersion;
-		}
-		else
-		{
-			// Previous versions only stored the changelist
-			uint32 Changelist = 0;
-			Ar << Changelist;
-
-			if (Ar.IsLoading())
-			{
-				// We don't have any valid information except the changelist.
-				Header.EngineVersion.Set(0, 0, 0, Changelist, FString());
-			}
-		}
+		Ar << Header.Guid;
+		Ar << Header.EngineVersion;
 
 		if (Header.Version >= HISTORY_SAVE_PACKAGE_VERSION_UE)
 		{
@@ -240,32 +220,8 @@ struct FNetworkDemoHeader
 			}
 		}
 
-		if (Header.Version < HISTORY_MULTIPLE_LEVELS)
-		{
-			FString LevelName;
-			Ar << LevelName;
-			Header.LevelNamesAndTimes.Add(FLevelNameAndTime(LevelName, 0));
-		}
-		else if (Header.Version == HISTORY_MULTIPLE_LEVELS)
-		{
-			TArray<FString> LevelNames;
-			Ar << LevelNames;
-
-			for (const FString& LevelName : LevelNames)
-			{
-				Header.LevelNamesAndTimes.Add(FLevelNameAndTime(LevelName, 0));
-			}
-		}
-		else
-		{
-			Ar << Header.LevelNamesAndTimes;
-		}
-
-		if (Header.Version >= HISTORY_HEADER_FLAGS)
-		{
-			Ar << Header.HeaderFlags;
-		}
-
+		Ar << Header.LevelNamesAndTimes;
+		Ar << Header.HeaderFlags;
 		Ar << Header.GameSpecificData;
 
 		if (Header.Version >= HISTORY_RECORDING_METADATA)

@@ -3616,30 +3616,24 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 				PacketOffset += CheckpointArchive->Tell();
 
-				if (PlaybackVersion >= HISTORY_MULTIPLE_LEVELS)
+				int32 LevelIndex = INDEX_NONE;
+				*CheckpointArchive << LevelIndex;
+
+				if (bDeltaCheckpoint)
 				{
-					int32 LevelIndex = INDEX_NONE;
-					*CheckpointArchive << LevelIndex;
+					TUniquePtr<FDeltaCheckpointData>& CheckpointData = PlaybackDeltaCheckpointData.Emplace_GetRef(new FDeltaCheckpointData());
+
+					ReplayHelper.ReadDeletedStartupActors(ServerConnection, *CheckpointArchive, CheckpointData->DestroyedNetStartupActors);
+					ReplayHelper.PlaybackDeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
+
+					*CheckpointArchive << CheckpointData->DestroyedDynamicActors;
+					*CheckpointArchive << CheckpointData->ChannelsToClose;
 				}
-
-				if (PlaybackVersion >= HISTORY_DELETED_STARTUP_ACTORS)
+				else
 				{
-					if (bDeltaCheckpoint)
-					{
-						TUniquePtr<FDeltaCheckpointData>& CheckpointData = PlaybackDeltaCheckpointData.Emplace_GetRef(new FDeltaCheckpointData());
+					ReplayHelper.PlaybackDeletedNetStartupActors.Empty();
 
-						ReplayHelper.ReadDeletedStartupActors(ServerConnection, *CheckpointArchive, CheckpointData->DestroyedNetStartupActors);
-						ReplayHelper.PlaybackDeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
-
-						*CheckpointArchive << CheckpointData->DestroyedDynamicActors;
-						*CheckpointArchive << CheckpointData->ChannelsToClose;
-					}
-					else
-					{
-						ReplayHelper.PlaybackDeletedNetStartupActors.Empty();
-
-						ReplayHelper.ReadDeletedStartupActors(ServerConnection, *CheckpointArchive, ReplayHelper.PlaybackDeletedNetStartupActors);
-					}
+					ReplayHelper.ReadDeletedStartupActors(ServerConnection, *CheckpointArchive, ReplayHelper.PlaybackDeletedNetStartupActors);
 				}
 
 				CheckpointArchive->Seek(PacketOffset);
@@ -3889,12 +3883,9 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 	uint32 PlaybackVersion = GetPlaybackDemoVersion();
 
-	if (PlaybackVersion >= HISTORY_MULTIPLE_LEVELS)
+	if (GotoCheckpointArchive->TotalSize() > 0)
 	{
-		if (GotoCheckpointArchive->TotalSize() > 0)
-		{
-			*GotoCheckpointArchive << LevelForCheckpoint;
-		}
+		*GotoCheckpointArchive << LevelForCheckpoint;
 	}
 
 	check(World);
@@ -4224,32 +4215,26 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			*GotoCheckpointArchive << PacketOffset;
 		}
 
-		if (PlaybackVersion >= HISTORY_MULTIPLE_LEVELS)
-		{
-			int32 LevelIndex = INDEX_NONE;
-			*GotoCheckpointArchive << LevelIndex;
-		}
+		int32 LevelIndex = INDEX_NONE;
+		*GotoCheckpointArchive << LevelIndex;
 
 		// Load net startup actors that need to be destroyed
-		if (PlaybackVersion >= HISTORY_DELETED_STARTUP_ACTORS)
+		if (bDeltaCheckpoint)
 		{
-			if (bDeltaCheckpoint)
-			{
-				TUniquePtr<FDeltaCheckpointData>& CheckpointData = PlaybackDeltaCheckpointData.Emplace_GetRef(new FDeltaCheckpointData());
+			TUniquePtr<FDeltaCheckpointData>& CheckpointData = PlaybackDeltaCheckpointData.Emplace_GetRef(new FDeltaCheckpointData());
 
-				ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, CheckpointData->DestroyedNetStartupActors);
+			ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, CheckpointData->DestroyedNetStartupActors);
 
-				ReplayHelper.PlaybackDeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
+			ReplayHelper.PlaybackDeletedNetStartupActors.Append(CheckpointData->DestroyedNetStartupActors);
 
-				*GotoCheckpointArchive << CheckpointData->DestroyedDynamicActors;
-				*GotoCheckpointArchive << CheckpointData->ChannelsToClose;
-			}
-			else
-			{
-				ReplayHelper.PlaybackDeletedNetStartupActors.Empty();
+			*GotoCheckpointArchive << CheckpointData->DestroyedDynamicActors;
+			*GotoCheckpointArchive << CheckpointData->ChannelsToClose;
+		}
+		else
+		{
+			ReplayHelper.PlaybackDeletedNetStartupActors.Empty();
 
-				ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, ReplayHelper.PlaybackDeletedNetStartupActors);
-			}
+			ReplayHelper.ReadDeletedStartupActors(ServerConnection, *GotoCheckpointArchive, ReplayHelper.PlaybackDeletedNetStartupActors);
 		}
 
 		int32 NumValues = 0;
