@@ -169,6 +169,13 @@ void UK2Node_BaseAsyncTask::AllocateDefaultPins()
 
 			if (bPinGood)
 			{
+				// Check for a display name override
+				const FString& PinDisplayName = Param->GetMetaData(FBlueprintMetadata::MD_DisplayName);
+				if (!PinDisplayName.IsEmpty())
+				{
+					Pin->PinFriendlyName = FText::FromString(PinDisplayName);
+				}
+				
 				//Flag pin as read only for const reference property
 				Pin->bDefaultValueIsIgnored = Param->HasAllPropertyFlags(CPF_ConstParm | CPF_ReferenceParm) && (!Function->HasMetaData(FBlueprintMetadata::MD_AutoCreateRefTerm) || Pin->PinType.IsContainer());
 
