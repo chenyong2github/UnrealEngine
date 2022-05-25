@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/ModuleService.h"
+
+#include "Features/IModularFeatures.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "ModuleServicePrivate.h"
 #include "UObject/NameTypes.h"
-#include "Features/IModularFeatures.h"
+
+LLM_DECLARE_TAG(Insights_TraceServices);
 
 namespace TraceServices
 {
@@ -21,6 +25,7 @@ void FModuleService::Initialize()
 	{
 		return;
 	}
+
 	TArray<IModule*> Modules = IModularFeatures::Get().GetModularFeatureImplementations<IModule>(ModuleFeatureName);
 	for (IModule* Module : Modules)
 	{
@@ -101,6 +106,7 @@ void FModuleService::SetModuleEnabled(const FName& ModuleName, bool bEnabled)
 
 void FModuleService::OnAnalysisBegin(IAnalysisSession& Session)
 {
+	LLM_SCOPE_BYTAG(Insights_TraceServices);
 	FScopeLock Lock(&CriticalSection);
 	Initialize();
 	for (IModule* Module : EnabledModules)

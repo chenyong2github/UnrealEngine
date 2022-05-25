@@ -60,6 +60,8 @@ void FMiscTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 void FMiscTraceAnalyzer::OnThreadInfo(const FThreadInfo& ThreadInfo)
 {
+	LLM_SCOPE_BYNAME(TEXT("Insights/FMiscTraceAnalyzer"));
+
 	uint32 ThreadId = ThreadInfo.GetId();
 	FString Name = ThreadInfo.GetName();
 
