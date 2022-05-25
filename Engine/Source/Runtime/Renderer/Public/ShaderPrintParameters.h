@@ -71,6 +71,7 @@ namespace ShaderPrint
 	 */
 	RENDERER_API void RequestSpaceForCharacters(uint32 MaxElementCount);
 	RENDERER_API void RequestSpaceForLines(uint32 MaxElementCount);
+	RENDERER_API void RequestSpaceForTriangles(uint32 MaxElementCount);
 
 	/** Structure containing setup for shader print capturing. */
 	struct RENDERER_API FShaderPrintSetup
