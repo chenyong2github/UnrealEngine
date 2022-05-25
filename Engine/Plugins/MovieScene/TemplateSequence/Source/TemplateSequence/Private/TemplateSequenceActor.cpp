@@ -77,7 +77,7 @@ void ATemplateSequenceActor::TickFromSequenceTickManager(float DeltaSeconds)
 {
 	if (SequencePlayer)
 	{
-		SequencePlayer->Update(DeltaSeconds);
+		SequencePlayer->UpdateAsync(DeltaSeconds);
 	}
 }
 
