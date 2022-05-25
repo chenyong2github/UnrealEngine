@@ -13,11 +13,6 @@ VirtualShadowMapProjectionSpot.ush:
 #include "VirtualShadowMapProjectionCommon.ush"
 #include "VirtualShadowMapSMRTCommon.ush"
 
-#ifndef SMRT_ADAPTIVE_RAY_COUNT
-#define SMRT_ADAPTIVE_RAY_COUNT 0
-#endif
-
-
 struct FSMRTSingleRayState
 {
 	int VirtualShadowMapId;
@@ -275,7 +270,8 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 	float CotMaxRayAngleFromLight,
 	const float Noise,
 	const bool bCullBackface,
-	float3 WorldNormal)
+	float3 WorldNormal,
+	bool bUseAdaptiveRayCount)
 {
 	const uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
 	const float3 ToLight = Light.TranslatedWorldPosition - TranslatedWorldPosition;
@@ -369,43 +365,45 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			Result.PhysicalTexelAddress = RayState.PhysicalTexelAddress;
 			Result.OccluderDistance = SMRTResult.OccluderDistance;
 
-#if SMRT_ADAPTIVE_RAY_COUNT && COMPILER_SUPPORTS_WAVE_VOTE
-			if( i == 0 )
+			if (bUseAdaptiveRayCount)
 			{
-				bool bHit = SMRTResult.bValidHit;
-				#if 0			// Disabled heuristic penumbra size path for now as it creates some speckle artifacts near the edges of sharp shadows
-					if( bHit )
-					{
-					#if 0
-						//float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, SMRTResult.OccluderDistance );
-						//float PixelBluringRadius = ProjectWorldDistanceToPixelDistance( SceneDepth, WorldBluringRadius );
-						float WorldBluringRadius = Light.SourceRadius * SMRTResult.OccluderDistance / max( DistToLight - SMRTResult.OccluderDistance, 0.001 );
-						float PixelBluringRadius = WorldBluringRadius * View.ViewSizeAndInvSize.x * 0.5 / ( SceneDepth * View.ClipToView[0][0] );
-						bHit = PixelBluringRadius > 2;
-					#else
-						bHit = SMRTResult.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
+				if( i == 0 )
+				{
+					bool bHit = SMRTResult.bValidHit;
+					#if 0			// Disabled heuristic penumbra size path for now as it creates some speckle artifacts near the edges of sharp shadows
+						if( bHit )
+						{
+						#if 0
+							//float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, SMRTResult.OccluderDistance );
+							//float PixelBluringRadius = ProjectWorldDistanceToPixelDistance( SceneDepth, WorldBluringRadius );
+							float WorldBluringRadius = Light.SourceRadius * SMRTResult.OccluderDistance / max( DistToLight - SMRTResult.OccluderDistance, 0.001 );
+							float PixelBluringRadius = WorldBluringRadius * View.ViewSizeAndInvSize.x * 0.5 / ( SceneDepth * View.ClipToView[0][0] );
+							bHit = PixelBluringRadius > 2;
+						#else
+							bHit = SMRTResult.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
+						#endif
+						}
 					#endif
-					}
-				#endif
 
-				// All lanes miss or hit something close enough to not be noisy.
-				bool bAllLanesMiss = WaveActiveAllTrue( !bHit );
-				if( bAllLanesMiss )
+					// All lanes miss or hit something close enough to not be noisy.
+					bool bAllLanesMiss = WaveActiveAllTrue( !bHit );
+					if( bAllLanesMiss )
+					{
+						break;
+					}
+				}
+				else if( i == 1 )
 				{
-					break;
+					// After 2 iterations and all have hit, must be in umbra.
+					// TODO: Modify this heuristic based on ray counts to avoid blocky artifacts in near-umbra
+					bool bAllLanesHit = WaveActiveAllTrue( RayMissCount == 0 );
+					if( bAllLanesHit )
+					{
+						break;
+					}
 				}
 			}
-			else if( i == 1 )
-			{
-				// After 2 iterations and all have hit, must be in umbra.
-				// TODO: Modify this heuristic based on ray counts to avoid blocky artifacts in near-umbra
-				bool bAllLanesHit = WaveActiveAllTrue( RayMissCount == 0 );
-				if( bAllLanesHit )
-				{
-					break;
-				}
-			}
-#endif
+
 			uint Seed = asuint( StepOffset );
 			StepOffset = ( EvolveSobolSeed( Seed ) >> 8 ) * 5.96046447754e-08; // * 2^-24;
 		}

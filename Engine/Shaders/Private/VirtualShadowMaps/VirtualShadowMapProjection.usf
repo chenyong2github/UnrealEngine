@@ -151,11 +151,12 @@ float VirtualShadowMapScreenRayCast(
 	return RayLength;
 }
 
-float3 GetEstimatedGeoWorldNormal(float3 TranslatedWorldPosition, FProjectionShadingInfo ShadingInfo)
+// NOTE: Not currently used by occasionally useful for testing
+float3 GetEstimatedGeoWorldNormal(float3 TranslatedWorldPosition, float3 ShadingNormal)
 {
 	// Figure out slope, we do world space since that is the space where we might override using the shading normal...
-	float3 TranslatedWorldPositionDDX = DDX(TranslatedWorldPosition);
-	float3 TranslatedWorldPositionDDY = DDY(TranslatedWorldPosition);
+	float3 TranslatedWorldPositionDDX = ddx_fine(TranslatedWorldPosition);
+	float3 TranslatedWorldPositionDDY = ddy_fine(TranslatedWorldPosition);
 	float3 EstimatedGeoWorldNormal = cross(TranslatedWorldPositionDDX, TranslatedWorldPositionDDY);
 
 	// Handle NaNs; will cause it to revert to shading normal below
@@ -166,9 +167,9 @@ float3 GetEstimatedGeoWorldNormal(float3 TranslatedWorldPosition, FProjectionSha
 	// NOTE: Gbuffer normal is not the surface normal for hair; hair lighting takes a different path but possibly
 	// necessary to do some sort of special casing here (disable normal offset and biasing entirely?).
 	// If the estimated geo normal is too far out we assume it's broken (derivative includes other surfaces or background) and fall back to the shading normal
-	if (dot(ShadingInfo.WorldNormal, EstimatedGeoWorldNormal) < 0.25f)
+	if (dot(ShadingNormal, EstimatedGeoWorldNormal) < 0.25f)
 	{
-		EstimatedGeoWorldNormal = ShadingInfo.WorldNormal;
+		EstimatedGeoWorldNormal = ShadingNormal;
 	}
 #endif
 
@@ -210,6 +211,8 @@ int SMRTSamplesPerRay;
 float SMRTRayLengthScale;			// Directional lights
 float SMRTCotMaxRayAngleFromLight;	// Spot/point lights
 float SMRTTexelDitherScale;			// Currently only directional lights
+float SMRTWorldDitherScale;			// Currently only directional lights
+uint bSMRTUseAdaptiveRayCount;
 
 // One pass projection
 RWTexture2D< uint4 > OutShadowMaskBits;
@@ -268,9 +271,9 @@ FVirtualShadowMapSampleResult ProjectLight(
 	BRANCH
 	if (bInLightRegion && bValidPixel)
 	{
-		const bool bBackfaceCull = (bCullBackfacingPixels != 0) && !bIsHairInput && !ShadingInfo.bIsSubsurface;
-
-		const float3 WorldNormal = (bIsHairInput || ShadingInfo.bIsHair) ? L : ShadingInfo.WorldNormal;
+		const bool bBackfaceCull = (bCullBackfacingPixels > 0) && !bIsHairInput && !ShadingInfo.bIsSubsurface;
+		
+		float3 WorldNormal = (bIsHairInput || ShadingInfo.bIsHair) ? L : ShadingInfo.WorldNormal;
 		TranslatedWorldPosition += WorldNormal * NormalBiasLength;
 
 		// Do not run contact shadow when computing the hair shadow mask (i.e. shadow mask applied on hair, has the scene 
@@ -292,6 +295,8 @@ FVirtualShadowMapSampleResult ProjectLight(
 
 		if (SMRTRayCount > 0)
 		{
+			const bool bUseAdaptiveRayCount = bSMRTUseAdaptiveRayCount > 0;
+
 		#if DIRECTIONAL_LIGHT
 			Result = TraceDirectional(
 				VirtualShadowMapId,
@@ -306,7 +311,9 @@ FVirtualShadowMapSampleResult ProjectLight(
 				Noise,
 				bBackfaceCull,
 				WorldNormal,
-				SMRTTexelDitherScale);
+				SMRTTexelDitherScale,
+				SMRTWorldDitherScale,
+				bUseAdaptiveRayCount);
 		#else
 			Result = TraceLocalLight(
 				VirtualShadowMapId,
@@ -320,7 +327,8 @@ FVirtualShadowMapSampleResult ProjectLight(
 				SMRTCotMaxRayAngleFromLight,
 				Noise,
 				bBackfaceCull,
-				WorldNormal);
+				WorldNormal,
+				bUseAdaptiveRayCount);
 		#endif // DIRECTIONAL_LIGHT
 		}
 		else

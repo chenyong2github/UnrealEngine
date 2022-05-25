@@ -101,11 +101,18 @@ static TAutoConsoleVariable<int32> CVarSMRTAdaptiveRayCount(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarSMRTTexelDitherScale(
-	TEXT( "r.Shadow.Virtual.SMRT.TexelDitherScale" ),
+static TAutoConsoleVariable<float> CVarSMRTTexelDitherScaleDirectional(
+	TEXT( "r.Shadow.Virtual.SMRT.TexelDitherScaleDirectional" ),
 	2.0f,
-	TEXT( "Applies a dither to the shadow map ray casts to help hide aliasing due to insufficient shadow resolution.\n" )
-	TEXT( "This is usually desirable, but it can occasionally cause shadows from thin geometry to separate from their casters at shallow light angles." ),
+	TEXT( "Applies a dither to the shadow map ray casts for directional lights to help hide aliasing due to insufficient shadow resolution.\n" )
+	TEXT( "Setting this too high can cause shadows light leaks near occluders." ),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarSMRTWorldDitherScaleDirectional(
+	TEXT( "r.Shadow.Virtual.SMRT.WorldDitherScaleDirectional" ),
+	0.0f,
+	TEXT( "Applies a world." ),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -199,19 +206,20 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCS, FGlobalShader)
 	
 	class FDirectionalLightDim		: SHADER_PERMUTATION_BOOL("DIRECTIONAL_LIGHT");
-	class FSMRTAdaptiveRayCountDim	: SHADER_PERMUTATION_BOOL("SMRT_ADAPTIVE_RAY_COUNT");
 	class FSMRTExtrapolateSlopeDim	: SHADER_PERMUTATION_BOOL("SMRT_EXTRAPOLATE_WITH_SLOPE");
 	class FOnePassProjectionDim		: SHADER_PERMUTATION_BOOL("ONE_PASS_PROJECTION");
 	class FHairStrandsDim			: SHADER_PERMUTATION_BOOL("HAS_HAIR_STRANDS");
 	class FVisualizeOutputDim		: SHADER_PERMUTATION_BOOL("VISUALIZE_OUTPUT");
+	// -1 means dynamic count
+	class FSMRTStaticSampleCount	: SHADER_PERMUTATION_RANGE_INT("SMRT_TEMPLATE_STATIC_SAMPLES_PER_RAY", -1, 2);
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FDirectionalLightDim,
 		FOnePassProjectionDim,
-		FSMRTAdaptiveRayCountDim,
 		FHairStrandsDim,
 		FVisualizeOutputDim,
-		FSMRTExtrapolateSlopeDim>;
+		FSMRTExtrapolateSlopeDim,
+		FSMRTStaticSampleCount>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
@@ -228,6 +236,8 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(float, SMRTRayLengthScale)
 		SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
 		SHADER_PARAMETER(float, SMRTTexelDitherScale)
+		SHADER_PARAMETER(float, SMRTWorldDitherScale)
+		SHADER_PARAMETER(uint32, bSMRTUseAdaptiveRayCount)
 		SHADER_PARAMETER(uint32, InputType)
 		SHADER_PARAMETER(uint32, bCullBackfacingPixels)
 		// One pass projection parameters
@@ -252,10 +262,8 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FSMRTAdaptiveRayCountDim>())
-		{
-			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
-		}
+		// TODO: We may no longer need this with SM6 requirement, but shouldn't hurt
+		OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
 
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 		if (FDataDrivenShaderPlatformInfo::GetSupportsRealTypes(Parameters.Platform) == ERHIFeatureSupport::RuntimeGuaranteed)
@@ -296,9 +304,10 @@ static void RenderVirtualShadowMapProjectionCommon(
 	const FLightSceneProxy* LightProxy = nullptr,
 	int32 VirtualShadowMapId = INDEX_NONE)
 {
+	check(GRHISupportsWaveOperations);
+
 	// Use hair strands data (i.e., hair voxel tracing) only for Gbuffer input for casting hair shadow onto opaque geometry.
 	const bool bHasHairStrandsData = HairStrands::HasViewHairStrandsData(View);
-	const bool bAdaptiveRayCount = GRHISupportsWaveOperations && CVarSMRTAdaptiveRayCount.GetValueOnRenderThread() != 0;
 
 	FVirtualShadowMapProjectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FVirtualShadowMapProjectionCS::FParameters >();
 	PassParameters->SamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
@@ -309,7 +318,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->NormalBias = GetNormalBiasForShader();
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->bCullBackfacingPixels = VirtualShadowMapArray.ShouldCullBackfacingPixels() ? 1 : 0;
-	PassParameters->SMRTTexelDitherScale = CVarSMRTTexelDitherScale.GetValueOnRenderThread();
+	PassParameters->bSMRTUseAdaptiveRayCount = CVarSMRTAdaptiveRayCount.GetValueOnRenderThread() != 0 ? 1 : 0;
 	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 	if (bHasHairStrandsData)
 	{
@@ -342,6 +351,8 @@ static void RenderVirtualShadowMapProjectionCommon(
 		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayDirectional.GetValueOnRenderThread();
 		PassParameters->SMRTRayLengthScale = CVarSMRTRayLengthScaleDirectional.GetValueOnRenderThread();
 		PassParameters->SMRTCotMaxRayAngleFromLight = 0.0f;	// unused in this path
+		PassParameters->SMRTTexelDitherScale = CVarSMRTTexelDitherScaleDirectional.GetValueOnRenderThread();
+		PassParameters->SMRTWorldDitherScale = CVarSMRTWorldDitherScaleDirectional.GetValueOnRenderThread();
 	}
 	else
 	{
@@ -349,6 +360,8 @@ static void RenderVirtualShadowMapProjectionCommon(
 		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayLocal.GetValueOnRenderThread();
 		PassParameters->SMRTRayLengthScale = 0.0f;		// unused in this path
 		PassParameters->SMRTCotMaxRayAngleFromLight = 1.0f / FMath::Tan(CVarSMRTMaxRayAngleFromLight.GetValueOnRenderThread());
+		PassParameters->SMRTTexelDitherScale = 0.0f;	// not yet implemented
+		PassParameters->SMRTWorldDitherScale = 0.0f;	// not yet implemented
 	}
 	
 	bool bDebugOutput = false;
@@ -365,13 +378,17 @@ static void RenderVirtualShadowMapProjectionCommon(
 	}
 #endif
 
+	// If the requested samples per ray matches one of our static permutations, pick that one
+	// Otherwise use the dynamic samples per ray permutation (-1).
+	int StaticSamplesPerRay = PassParameters->SMRTSamplesPerRay == 0 ? PassParameters->SMRTSamplesPerRay : -1;
+
 	FVirtualShadowMapProjectionCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FDirectionalLightDim >( bDirectionalLight );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FOnePassProjectionDim >( bOnePassProjection );
-	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTAdaptiveRayCountDim >( bAdaptiveRayCount );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTExtrapolateSlopeDim >( CVarSMRTExtrapolateWithSlope.GetValueOnRenderThread() != 0 );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >( bHasHairStrandsData );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FVisualizeOutputDim >( bDebugOutput );
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTStaticSampleCount >( StaticSamplesPerRay );
 
 	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >( PermutationVector );
 	ClearUnusedGraphResources( ComputeShader, PassParameters );
@@ -380,8 +397,10 @@ static void RenderVirtualShadowMapProjectionCommon(
 	const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp( ProjectionRect.Size(), 8 );
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%s,Input:%s%s)", 
-			bAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"), 
+		RDG_EVENT_NAME("VirtualShadowMapProjection(RayCount:%u(%s),SamplesPerRay:%u,Input:%s%s)",
+			PassParameters->SMRTRayCount,
+			PassParameters->bSMRTUseAdaptiveRayCount ? TEXT("Adaptive") : TEXT("Static"), 
+			PassParameters->SMRTSamplesPerRay,
 			ToString(InputType),
 			bDebugOutput ? TEXT(",Debug") : TEXT("")),
 		ComputeShader,

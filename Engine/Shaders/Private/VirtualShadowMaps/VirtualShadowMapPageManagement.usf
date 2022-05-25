@@ -428,7 +428,7 @@ void CreateCachedPageMappings(uint2 ThreadId : SV_DispatchThreadID)
 				PrevPageAddress += OffsetScale * (PrevProjection.ClipmapCornerOffset - Projection.ClipmapCornerOffset);
 			}
 
-			if (all(PrevPageAddress >= 0) && all(PrevPageAddress < (VSM_LEVEL0_DIM_PAGES_XY >> MipLevel)))
+			if (all(PrevPageAddress >= 0) && all(PrevPageAddress < (uint(VSM_LEVEL0_DIM_PAGES_XY) >> MipLevel)))
 			{
 				uint PrevGlobalOffset = CalcPageOffset(PrevVirtualShadowMapId, MipLevel, uint2(PrevPageAddress));
 
@@ -1126,7 +1126,8 @@ COND_OUTPUT_LEVEL(4)
 [numthreads(TILE_THREAD_GROUP_SIZE_XY, TILE_THREAD_GROUP_SIZE_XY, 1)]
 void BuildHZBPerPageCS(uint GroupThreadIndex : SV_GroupIndex, uint GroupIndex : SV_GroupID)
 {
-	uint2 SrcTileOffset = GetTileOffset(GroupIndex, PhysicalPagesForHzb);
+	// We don't care about the array index here (not doing a static/dynamic split - HZB only for static)
+	uint2 SrcTileOffset = GetTileOffset(GroupIndex, PhysicalPagesForHzb).xy;
 
 	uint2 RemappedGroupThreadIndex = InitialTilePixelPositionForReduction2x2(LOG2_TILE_SIZE_XY - 1U, GroupThreadIndex);
 

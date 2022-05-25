@@ -18,6 +18,11 @@ Required parameters before including this file:
 // included multiple times as our hacky way to generate template-like instantiations
 // before HLSL supports templates natively.
 
+// If defined, unrolls the loop and ignores the NumSteps parameter in favor of the define
+#ifndef SMRT_TEMPLATE_STATIC_SAMPLES_PER_RAY
+#define SMRT_TEMPLATE_STATIC_SAMPLES_PER_RAY -1
+#endif
+
 FSMRTResult SMRTRayCast(
 	inout SMRT_TEMPLATE_RAY_STRUCT RayState,
 	int NumSteps,
@@ -38,6 +43,10 @@ FSMRTResult SMRTRayCast(
 	const float DeltaTimeBias = 2.0 * TimeScale * ( TimeBias - 0.5 * TimeScale );
 
 	bool bValidHit =  false;
+#if SMRT_TEMPLATE_STATIC_SAMPLES_PER_RAY >= 0
+	NumSteps = SMRT_TEMPLATE_STATIC_SAMPLES_PER_RAY;
+	[unroll]
+#endif
 	for (int i = 0; i <= NumSteps; i++)
 	{
 		const float SampleTime	= i == NumSteps ? 0 : Pow2( TimeScale * i + TimeBias );
@@ -64,7 +73,7 @@ FSMRTResult SMRTRayCast(
 			{
 				// Add a small relative error to the comparison to avoid missing surfaces due to numeric precision issues
 				// Without this there are occasionally flickering fireflies in fully shadowed regions with SMRT
-				const float EpsScale = 1.02f;
+				const float EpsScale = 1.5f;
 				const float CompareTolerance = abs(Sample.CompareToleranceScale * DeltaTime) * EpsScale;
 				const bool bBehind = (SampleDepth - ReferenceDepth) > CompareTolerance;
 
