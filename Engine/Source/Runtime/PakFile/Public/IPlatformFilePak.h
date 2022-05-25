@@ -2162,6 +2162,14 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	 */
 	void RegisterEncryptionKey(const FGuid& InEncryptionKeyGuid, const FAES::FAESKey& InKey);
 
+	/**
+	 * Checks with any current chunk installation system if the given pak file is installed
+	 * 
+	 * @param InFilename  the pak filename to check
+	 * @return whether the pak file is installed
+	 */
+	static bool IsPakFileInstalled(const FString& InFilename);
+
 public:
 
 	//~ For visibility of overloads we don't override
