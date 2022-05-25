@@ -13,6 +13,9 @@ public:
 	TArray<FVector2f> SimPosition;
 	TArray<FVector3f> SimRestPosition;
 	TArray<uint32> SimTriangleIndices;
+
+public:
+	bool IsValid() { return SimRestPosition.Num() == SimPosition.Num() && SimTriangleIndices.Num() % 3 == 0; }
 };
 
 /*
