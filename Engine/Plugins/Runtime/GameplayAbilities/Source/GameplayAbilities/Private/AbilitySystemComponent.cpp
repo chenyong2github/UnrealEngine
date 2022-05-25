@@ -238,7 +238,10 @@ void UAbilitySystemComponent::BeginPlay()
 	{
 		for (UAttributeSet* ReplicatedAttribute : SpawnedAttributes)
 		{
-			AddReplicatedSubObject(ReplicatedAttribute);
+			if (ReplicatedAttribute)
+			{
+				AddReplicatedSubObject(ReplicatedAttribute);
+			}
 		}
 	}
 }
@@ -2827,12 +2830,15 @@ void UAbilitySystemComponent::SetSpawnedAttributes(const TArray<UAttributeSet*>&
 	// Add the elements from the new list
 	for (UAttributeSet* NewAttribute : NewSpawnedAttributes)
 	{
-		AddSpawnedAttribute(NewAttribute);
-
-		AActor* ActorOwner = NewAttribute->GetTypedOuter<AActor>();
-		if (ActorOwner)
+		if (NewAttribute)
 		{
-			ActorOwner->OnEndPlay.AddUniqueDynamic(this, &UAbilitySystemComponent::OnSpawnedAttributesEndPlayed);
+			AddSpawnedAttribute(NewAttribute);
+
+			AActor* ActorOwner = NewAttribute->GetTypedOuter<AActor>();
+			if (ActorOwner)
+			{
+				ActorOwner->OnEndPlay.AddUniqueDynamic(this, &UAbilitySystemComponent::OnSpawnedAttributesEndPlayed);
+			}
 		}
 	}
 
@@ -2841,6 +2847,10 @@ void UAbilitySystemComponent::SetSpawnedAttributes(const TArray<UAttributeSet*>&
 
 void UAbilitySystemComponent::AddSpawnedAttribute(UAttributeSet* Attribute)
 {
+	if (Attribute == nullptr)
+	{
+		return;
+	}
 
 	if (SpawnedAttributes.Find(Attribute) == INDEX_NONE)
 	{
@@ -2972,7 +2982,7 @@ void UAbilitySystemComponent::OnSpawnedAttributesEndPlayed(AActor* InActor, EEnd
 	for (int32 Index = SpawnedAttributes.Num() - 1; Index >= 0; --Index)
 	{
 		UAttributeSet* AttributeSet = SpawnedAttributes[Index];
-		if (AttributeSet->GetTypedOuter<AActor>() == InActor)
+		if (AttributeSet && AttributeSet->GetTypedOuter<AActor>() == InActor)
 		{
 			if (IsUsingRegisteredSubObjectList())
 			{

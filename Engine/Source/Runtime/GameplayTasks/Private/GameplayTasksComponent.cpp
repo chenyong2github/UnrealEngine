@@ -198,10 +198,13 @@ void UGameplayTasksComponent::OnRep_SimulatedTasks(const TArray<UGameplayTask*>&
 		// Find if any tasks got removed
 		for (UGameplayTask* OldSimulatedTask : PreviousSimulatedTasks)
 		{
-			const bool bIsRemoved = SimulatedTasks.Find(OldSimulatedTask) == INDEX_NONE;
-			if (bIsRemoved)
+			if (OldSimulatedTask)
 			{
-				RemoveReplicatedSubObject(OldSimulatedTask);
+				const bool bIsRemoved = SimulatedTasks.Find(OldSimulatedTask) == INDEX_NONE;
+				if (bIsRemoved)
+				{
+					RemoveReplicatedSubObject(OldSimulatedTask);
+				}
 			}
 		}
 	}
@@ -726,6 +729,11 @@ TArray<UGameplayTask*>& UGameplayTasksComponent::GetSimulatedTasks_Mutable()
 
 bool UGameplayTasksComponent::AddSimulatedTask(UGameplayTask* NewTask)
 {
+	if (NewTask == nullptr)
+	{
+		return false;
+	}
+
 	if (SimulatedTasks.Find(NewTask) == INDEX_NONE)
 	{
 		SimulatedTasks.Add(NewTask);
@@ -762,7 +770,10 @@ void UGameplayTasksComponent::SetSimulatedTasks(const TArray<UGameplayTask*>& Ne
 		// Unregister all current tasks
 		for (UGameplayTask* OldGameplayTask : SimulatedTasks)
 		{
-			RemoveReplicatedSubObject(OldGameplayTask);
+			if (OldGameplayTask)
+			{
+				RemoveReplicatedSubObject(OldGameplayTask);
+			}
 		}
 
 		SimulatedTasks.Reset(NewSimulatedTasks.Num());
@@ -770,8 +781,11 @@ void UGameplayTasksComponent::SetSimulatedTasks(const TArray<UGameplayTask*>& Ne
 		// Register the new tasks
 		for (UGameplayTask* NewGameplayTask : NewSimulatedTasks)
 		{
-			AddReplicatedSubObject(NewGameplayTask, COND_SkipOwner);
-			SimulatedTasks.Add(NewGameplayTask);
+			if (NewGameplayTask)
+			{
+				AddReplicatedSubObject(NewGameplayTask, COND_SkipOwner);
+				SimulatedTasks.Add(NewGameplayTask);
+			}
 		}
 	}
 	else
