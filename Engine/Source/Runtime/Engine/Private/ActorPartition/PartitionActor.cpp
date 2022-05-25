@@ -45,7 +45,7 @@ bool APartitionActor::IsUserManaged() const
 	return true;
 }
 
-bool APartitionActor::ShouldIncludeGridSizeInName(UWorld* InWorld) const
+bool APartitionActor::ShouldIncludeGridSizeInName(UWorld* InWorld, const FActorPartitionIdentifier& InIdentifier) const
 {
 	return InWorld->GetWorldSettings()->bIncludeGridSizeInNameForPartitionedActors;
 }

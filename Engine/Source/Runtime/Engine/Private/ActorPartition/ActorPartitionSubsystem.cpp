@@ -254,7 +254,7 @@ public:
 				ActorNameBuilder += TEXT("_");
 			}
 
-			if (InActorPartitionId.GetClass()->GetDefaultObject<APartitionActor>()->ShouldIncludeGridSizeInName(World))
+			if (InActorPartitionId.GetClass()->GetDefaultObject<APartitionActor>()->ShouldIncludeGridSizeInName(World, InActorPartitionId))
 			{
 				ActorNameBuilder += FString::Printf(TEXT("%d_"), InGridSize);
 			}

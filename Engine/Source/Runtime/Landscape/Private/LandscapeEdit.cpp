@@ -4137,6 +4137,14 @@ void ALandscape::PostRegisterAllComponents()
 	}
 }
 
+void ALandscape::PostActorCreated()
+{
+	Super::PostActorCreated();
+
+	// Newly spawned Landscapes always set this value to true
+	bIncludeGridSizeInNameForLandscapeActors = true;
+}
+
 bool ALandscape::ShouldImport(FString* ActorPropString, bool IsMovingLevel)
 {
 	return GetWorld() != nullptr && !GetWorld()->IsGameWorld();
@@ -5232,6 +5240,27 @@ bool ALandscapeStreamingProxy::GetReferencedContentObjects(TArray<UObject*>& Obj
 	}
 
 	return true;
+}
+
+bool ALandscapeStreamingProxy::ShouldIncludeGridSizeInName(UWorld* InWorld, const FActorPartitionIdentifier& InIdentifier) const
+{
+	// Always return true if this world setting flag is true
+	if (Super::ShouldIncludeGridSizeInName(InWorld, InIdentifier))
+	{
+		return true;
+	}
+
+	if (ULandscapeInfo* LandscapeInfo = ULandscapeInfo::Find(InWorld, InIdentifier.GetGridGuid()))
+	{
+		if (ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get())
+		{
+			// This new flag is to support Landscapes that were created with bIncludeGridSizeInNameForPartitionedActors == false or 
+			// that were reconfigured with FLandscapeConfigHelper::ChangeGridSize
+			return Landscape->bIncludeGridSizeInNameForLandscapeActors;
+		}
+	}
+
+	return false;
 }
 
 bool ALandscape::CanDeleteSelectedActor(FText& OutReason) const

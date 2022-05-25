@@ -243,6 +243,7 @@ public:
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditUndo() override;
 	virtual void PostRegisterAllComponents() override;
+	virtual void PostActorCreated() override;
 	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override;
 	virtual void PostEditImport() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
@@ -438,6 +439,10 @@ public:
 	/** Landscape actor has authority on default streaming behavior for new actors : LandscapeStreamingProxies & LandscapeSplineActors */
 	UPROPERTY(EditAnywhere, Category = WorldPartition)
 	bool bAreNewLandscapeActorsSpatiallyLoaded = true;
+
+	/** If true, LandscapeStreamingProxy actors have the grid size included in their name, for backward compatibility we also check the AWorldSettings::bIncludeGridSizeInNameForPartitionedActors */
+	UPROPERTY()
+	bool bIncludeGridSizeInNameForLandscapeActors = false;
 
 	UPROPERTY(EditAnywhere, Category=Landscape)
 	bool bCanHaveLayersContent = false;

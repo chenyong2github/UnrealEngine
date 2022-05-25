@@ -4969,7 +4969,7 @@ uint32 AInstancedFoliageActor::GetDefaultGridSize(UWorld* InWorld) const
 	return InWorld->GetWorldSettings()->InstancedFoliageGridSize;
 }
 
-bool AInstancedFoliageActor::ShouldIncludeGridSizeInName(UWorld* InWorld) const
+bool AInstancedFoliageActor::ShouldIncludeGridSizeInName(UWorld* InWorld, const FActorPartitionIdentifier& InIdentifier) const
 {
 	return InWorld->GetWorldSettings()->bIncludeGridSizeInNameForFoliageActors;
 }

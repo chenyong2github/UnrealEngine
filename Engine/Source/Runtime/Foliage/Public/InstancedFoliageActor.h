@@ -15,7 +15,10 @@
 
 #include "InstancedFoliageActor.generated.h"
 
+#if WITH_EDITOR
 class UProceduralFoliageComponent;
+struct FActorPartitionIdentifier;
+#endif
 
 // Function for filtering out hit components during FoliageTrace
 typedef TFunction<bool(const UPrimitiveComponent*)> FFoliageTraceFilterFunc;
@@ -99,7 +102,7 @@ public:
 	FOLIAGE_API void DetectFoliageTypeChangeAndUpdate();
 
 	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const override;
-	virtual bool ShouldIncludeGridSizeInName(UWorld* InWorld) const override;
+	virtual bool ShouldIncludeGridSizeInName(UWorld* InWorld, const FActorPartitionIdentifier& InIdentifier) const override;
 
 	// Delegate type for selection change events
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSelectionChanged, bool, const TArray<AActor*>&);

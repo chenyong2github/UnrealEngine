@@ -9,7 +9,11 @@
 #include "LandscapeStreamingProxy.generated.h"
 
 class ALandscape;
+
+#if WITH_EDITOR
 class UMaterialInterface;
+struct FActorPartitionIdentifier;
+#endif
 
 UCLASS(MinimalAPI, notplaceable)
 class ALandscapeStreamingProxy : public ALandscapeProxy
@@ -32,6 +36,7 @@ public:
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
 	virtual bool GetReferencedContentObjects(TArray<UObject*>& Objects) const override;
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return true; }
+	virtual bool ShouldIncludeGridSizeInName(UWorld* InWorld, const FActorPartitionIdentifier& InIdentifier) const override;
 #endif
 	//~ End UObject Interface
 

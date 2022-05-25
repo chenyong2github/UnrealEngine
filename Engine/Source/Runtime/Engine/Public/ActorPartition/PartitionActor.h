@@ -6,7 +6,9 @@
 #include "Misc/Guid.h"
 #include "PartitionActor.generated.h"
 
-class UBoxComponent;
+#if WITH_EDITOR
+struct FActorPartitionIdentifier;
+#endif
 
 // Actor base class for instance containers placed on a grid.
 // See UActorPartitionSubsystem.
@@ -23,7 +25,7 @@ public:
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 	virtual uint32 GetDefaultGridSize(UWorld* InWorld) const PURE_VIRTUAL(APartitionActor, return 0;)
-	virtual bool ShouldIncludeGridSizeInName(UWorld * InWorld) const;
+	virtual bool ShouldIncludeGridSizeInName(UWorld * InWorld, const FActorPartitionIdentifier& InIdentifier) const;
 	virtual FGuid GetGridGuid() const { return FGuid(); }
 	virtual bool IsUserManaged() const override;
 #endif
