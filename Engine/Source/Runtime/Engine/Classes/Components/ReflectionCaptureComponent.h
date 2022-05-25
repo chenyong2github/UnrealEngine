@@ -107,8 +107,11 @@ class UReflectionCaptureComponent : public USceneComponent
 	/** Gets the radius that bounds the shape's influence, used for culling. */
 	virtual float GetInfluenceBoundingRadius() const PURE_VIRTUAL(UReflectionCaptureComponent::GetInfluenceBoundingRadius,return 0;);
 
-	/** Called each tick to recapture and queued reflection captures. */
-	ENGINE_API static void UpdateReflectionCaptureContents(UWorld* WorldToUpdate, const TCHAR* CaptureReason = nullptr, bool bVerifyOnlyCapturing = false, bool bCapturingForMobile = false);
+	/**
+	  * Generally called each tick to recapture any queued reflection captures.  In some cases, it's also called from Editor utility functions or commands.
+	  * Set "bInsideTick" to true if called from inside a Tick function, indicating a render frame is already active, and the capture doesn't need to start one.
+	  */
+	ENGINE_API static void UpdateReflectionCaptureContents(UWorld* WorldToUpdate, const TCHAR* CaptureReason = nullptr, bool bVerifyOnlyCapturing = false, bool bCapturingForMobile = false, bool bInsideTick = false);
 
 	ENGINE_API class FReflectionCaptureMapBuildData* GetMapBuildData() const;
 

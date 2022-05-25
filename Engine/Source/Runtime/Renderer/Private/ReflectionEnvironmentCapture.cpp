@@ -742,7 +742,7 @@ int32 NumUniqueReflectionCaptures(const TSparseArray<UReflectionCaptureComponent
  * Allocates reflection captures in the scene's reflection cubemap array and updates them by recapturing the scene.
  * Existing captures will only be uploaded.  Must be called from the game thread.
  */
-void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
+void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing, bool bCapturingForMobile, bool bInsideTick)
 {
 	if (NewCaptures.Num() > 0)
 	{
@@ -827,7 +827,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 					});
 
 				// Recapture all reflection captures now that we have reallocated the cubemap array
-				UpdateAllReflectionCaptures(CaptureReason, ReflectionCaptureSize, bVerifyOnlyCapturing, bCapturingForMobile);
+				UpdateAllReflectionCaptures(CaptureReason, ReflectionCaptureSize, bVerifyOnlyCapturing, bCapturingForMobile, bInsideTick);
 			}
 			else
 			{
@@ -852,7 +852,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 
 					if (bAllocated)
 					{
-						CaptureOrUploadReflectionCapture(CurrentComponent, ReflectionCaptureSize, bVerifyOnlyCapturing, bCapturingForMobile);
+						CaptureOrUploadReflectionCapture(CurrentComponent, ReflectionCaptureSize, bVerifyOnlyCapturing, bCapturingForMobile, bInsideTick);
 					}
 				}
 
@@ -878,7 +878,7 @@ void FScene::AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent
 }
 
 /** Updates the contents of all reflection captures in the scene.  Must be called from the game thread. */
-void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, int32 ReflectionCaptureSize, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
+void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, int32 ReflectionCaptureSize, bool bVerifyOnlyCapturing, bool bCapturingForMobile, bool bInsideTick)
 {
 	if (IsReflectionEnvironmentAvailable(GetFeatureLevel()))
 	{
@@ -902,7 +902,7 @@ void FScene::UpdateAllReflectionCaptures(const TCHAR* CaptureReason, int32 Refle
 
 			CaptureIndex++;
 			UReflectionCaptureComponent* CurrentComponent = *It;
-			CaptureOrUploadReflectionCapture(CurrentComponent, ReflectionCaptureSize, bVerifyOnlyCapturing, bCapturingForMobile);
+			CaptureOrUploadReflectionCapture(CurrentComponent, ReflectionCaptureSize, bVerifyOnlyCapturing, bCapturingForMobile, bInsideTick);
 		}
 
 		EndReflectionCaptureSlowTask(NumCapturesForStatus);
@@ -1088,7 +1088,8 @@ void CaptureSceneIntoScratchCubemap(
 	bool bLowerHemisphereIsBlack, 
 	bool bCaptureEmissiveOnly,
 	const FLinearColor& LowerHemisphereColor,
-	bool bCapturingForMobile
+	bool bCapturingForMobile,
+	bool bInsideTick
 	)
 {
 	int32 SupersampleCaptureFactor = FMath::Clamp(GSupersampleCaptureFactor, MinSupersampleCaptureFactor, MaxSupersampleCaptureFactor);
@@ -1116,7 +1117,7 @@ void CaptureSceneIntoScratchCubemap(
 
 	for (int32 CubeFace = 0; CubeFace < CubeFace_MAX; CubeFace++)
 	{
-		if( !bCapturingForSkyLight )
+		if( !bCapturingForSkyLight && !bInsideTick )
 		{
 			// Alert the RHI that we're rendering a new frame
 			// Not really a new frame, but it will allow pooling mechanisms to update, like the uniform buffer pool
@@ -1209,11 +1210,11 @@ void CaptureSceneIntoScratchCubemap(
 		FSceneRenderer* SceneRenderer = FSceneRenderer::CreateSceneRenderer(&ViewFamily, nullptr);
 
 		ENQUEUE_RENDER_COMMAND(CaptureCommand)(
-			[SceneRenderer, &ReflectionCubemapTexture, CubeFace, CubemapSize, bCapturingForSkyLight, bLowerHemisphereIsBlack, LowerHemisphereColor, bCapturingForMobile](FRHICommandListImmediate& RHICmdList)
+			[SceneRenderer, &ReflectionCubemapTexture, CubeFace, CubemapSize, bCapturingForSkyLight, bLowerHemisphereIsBlack, LowerHemisphereColor, bCapturingForMobile, bInsideTick](FRHICommandListImmediate& RHICmdList)
 		{
 			CaptureSceneToScratchCubemap(RHICmdList, SceneRenderer, ReflectionCubemapTexture, (ECubeFace)CubeFace, CubemapSize, bCapturingForSkyLight, bLowerHemisphereIsBlack, LowerHemisphereColor, bCapturingForMobile);
 
-			if (!bCapturingForSkyLight)
+			if (!bCapturingForSkyLight && !bInsideTick)
 			{
 				RHICmdList.EndFrame();
 			}
@@ -1249,7 +1250,7 @@ void CopyToSceneArray(FRDGBuilder& GraphBuilder, FScene* Scene, FRDGTexture* Fil
  * Updates the contents of the given reflection capture by rendering the scene. 
  * This must be called on the game thread.
  */
-void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* CaptureComponent, int32 ReflectionCaptureSize, bool bVerifyOnlyCapturing, bool bCapturingForMobile)
+void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* CaptureComponent, int32 ReflectionCaptureSize, bool bVerifyOnlyCapturing, bool bCapturingForMobile, bool bInsideTick)
 {
 	if (IsReflectionEnvironmentAvailable(GetFeatureLevel()))
 	{
@@ -1328,7 +1329,7 @@ void FScene::CaptureOrUploadReflectionCapture(UReflectionCaptureComponent* Captu
 				// Reflection Captures are a form of static lighting, so only capture scene elements that are static
 				// However if the project has static lighting disabled, Reflection Captures can still be made to work by capturing Movable lights
 				bool const bCaptureStaticSceneOnly = CVarReflectionCaptureStaticSceneOnly.GetValueOnGameThread() != 0 && bAllowStaticLighting;
-				CaptureSceneIntoScratchCubemap(this, *ReflectionCubemapTexture, CaptureComponent->GetComponentLocation() + CaptureComponent->CaptureOffset, ReflectionCaptureSize, false, bCaptureStaticSceneOnly, 0, false, false, FLinearColor(), bCapturingForMobile);
+				CaptureSceneIntoScratchCubemap(this, *ReflectionCubemapTexture, CaptureComponent->GetComponentLocation() + CaptureComponent->CaptureOffset, ReflectionCaptureSize, false, bCaptureStaticSceneOnly, 0, false, false, FLinearColor(), bCapturingForMobile, bInsideTick);
 			}
 			else if (CaptureComponent->ReflectionSourceType == EReflectionSourceType::SpecifiedCubemap)
 			{
@@ -1459,7 +1460,7 @@ void FScene::UpdateSkyCaptureContents(
 		{
 			const bool bStaticSceneOnly = CaptureComponent->Mobility == EComponentMobility::Static;
 			const bool bCapturingForMobile = false;
-			CaptureSceneIntoScratchCubemap(this, *ReflectionCubemapTexture, CaptureComponent->GetComponentLocation(), CubemapResolution, true, bStaticSceneOnly, CaptureComponent->SkyDistanceThreshold, bLowerHemisphereIsBlack, bCaptureEmissiveOnly, LowerHemisphereColor, bCapturingForMobile);
+			CaptureSceneIntoScratchCubemap(this, *ReflectionCubemapTexture, CaptureComponent->GetComponentLocation(), CubemapResolution, true, bStaticSceneOnly, CaptureComponent->SkyDistanceThreshold, bLowerHemisphereIsBlack, bCaptureEmissiveOnly, LowerHemisphereColor, bCapturingForMobile, false);
 		}
 		else if (CaptureComponent->SourceType == SLS_SpecifiedCubemap)
 		{

@@ -196,8 +196,12 @@ FString FPreviewScene::GetReferencerName() const
 
 void FPreviewScene::UpdateCaptureContents()
 {
+	// This function is called from FAdvancedPreviewScene::Tick, FBlueprintEditor::Tick, and FThumbnailPreviewScene::Tick,
+	// so assume we are inside a Tick function.
+	const bool bInsideTick = true;
+
 	USkyLightComponent::UpdateSkyCaptureContents(PreviewWorld);
-	UReflectionCaptureComponent::UpdateReflectionCaptureContents(PreviewWorld);
+	UReflectionCaptureComponent::UpdateReflectionCaptureContents(PreviewWorld, nullptr, false, false, bInsideTick);
 }
 
 void FPreviewScene::ClearLineBatcher()

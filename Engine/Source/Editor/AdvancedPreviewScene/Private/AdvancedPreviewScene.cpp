@@ -250,7 +250,8 @@ void FAdvancedPreviewScene::Tick(float DeltaTime)
 		InstancedSkyMaterial->SetScalarParameterValueEditorOnly(FName("CubemapRotation"), Profile.LightingRigRotation / 360.0f);
 		InstancedSkyMaterial->PostEditChange();
 
-		UReflectionCaptureComponent::UpdateReflectionCaptureContents(PreviewWorld);
+		const bool bInsideTick = true;
+		UReflectionCaptureComponent::UpdateReflectionCaptureContents(PreviewWorld, nullptr, false, false, bInsideTick);
 		PreviewWorld->UpdateAllSkyCaptures();
 
 		PreviousRotation = Profile.LightingRigRotation;

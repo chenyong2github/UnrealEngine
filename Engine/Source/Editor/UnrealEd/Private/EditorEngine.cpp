@@ -1680,13 +1680,14 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	}
 
 	static bool bFirstTick = true;
+	const bool bInsideTick = true;
 
 	// Skip updating reflection captures on the first update as the level will not be ready to display
 	if (!bFirstTick)
 	{
 		// Update sky light first because sky diffuse will be visible in reflection capture indirect specular
 		USkyLightComponent::UpdateSkyCaptureContents(EditorContext.World());
-		UReflectionCaptureComponent::UpdateReflectionCaptureContents(EditorContext.World());
+		UReflectionCaptureComponent::UpdateReflectionCaptureContents(EditorContext.World(), nullptr, false, false, bInsideTick);
 	}
 
 	EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::BeginFrame);
@@ -1795,7 +1796,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 					{
 						// Update sky light first because sky diffuse will be visible in reflection capture indirect specular
 						USkyLightComponent::UpdateSkyCaptureContents(PlayWorld);
-						UReflectionCaptureComponent::UpdateReflectionCaptureContents(PlayWorld);
+						UReflectionCaptureComponent::UpdateReflectionCaptureContents(PlayWorld, nullptr, false, false, bInsideTick);
 					}
 
 					FKismetDebugUtilities::NotifyDebuggerOfEndOfGameFrame(PieContext.World());

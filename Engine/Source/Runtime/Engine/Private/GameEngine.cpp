@@ -1845,9 +1845,11 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			// This won't work with actual level streaming though
 			if (Context.World()->AreAlwaysLoadedLevelsLoaded())
 			{
+				const bool bInsideTick = true;
+
 				// Update sky light first because it's considered direct lighting, sky diffuse will be visible in reflection capture indirect specular
 				USkyLightComponent::UpdateSkyCaptureContents(Context.World());
-				UReflectionCaptureComponent::UpdateReflectionCaptureContents(Context.World());
+				UReflectionCaptureComponent::UpdateReflectionCaptureContents(Context.World(), nullptr, false, false, bInsideTick);
 			}
 		}
 
