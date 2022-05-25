@@ -80,6 +80,11 @@ namespace UnrealBuildTool
 		abstract public ShellType ShellType { get; }
 
 		/// <summary>
+		/// The executable binary suffix for this platform
+		/// </summary>
+		abstract public string BinarySuffix { get; }
+
+		/// <summary>
 		/// Class that holds information about a running process
 		/// </summary>
 		public class ProcessInfo
@@ -228,46 +233,32 @@ namespace UnrealBuildTool
 
 	class WindowsBuildHostPlatform : BuildHostPlatform
 	{
-		public override UnrealTargetPlatform Platform
-		{
-			get { return UnrealTargetPlatform.Win64; }
-		}
+		public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Win64;
 
-		public override FileReference Shell
-		{
-			get { return new FileReference(Environment.GetEnvironmentVariable("COMSPEC")!); }
-		}
+		public override FileReference Shell => new FileReference(Environment.GetEnvironmentVariable("COMSPEC")!);
 
-		public override ShellType ShellType
-		{
-			get { return ShellType.Cmd; }
-		}
+		public override ShellType ShellType => ShellType.Cmd;
+
+		public override string BinarySuffix => ".exe";
 
 		internal override IEnumerable<ProjectFileFormat> GetDefaultProjectFileFormats()
 		{
 			yield return ProjectFileFormat.VisualStudio;
-			#if __VPROJECT_AVAILABLE__
-				yield return ProjectFileFormat.VProject;
-			#endif
+#if __VPROJECT_AVAILABLE__
+			yield return ProjectFileFormat.VProject;
+#endif
 		}
 	}
 
 	class MacBuildHostPlatform : BuildHostPlatform
 	{
-		public override UnrealTargetPlatform Platform
-		{
-			get { return UnrealTargetPlatform.Mac; }
-		}
+		public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Mac;
 
-		public override FileReference Shell
-		{
-			get { return new FileReference("/bin/sh"); }
-		}
+		public override FileReference Shell => new FileReference("/bin/sh");
 
-		public override ShellType ShellType
-		{
-			get { return ShellType.Sh; }
-		}
+		public override ShellType ShellType => ShellType.Sh;
+
+		public override string BinarySuffix => string.Empty;
 
 		/// <summary>
 		/// Currently Mono returns incomplete process names in Process.GetProcesses() so we need to parse 'ps' output.
@@ -372,28 +363,21 @@ namespace UnrealBuildTool
 		internal override IEnumerable<ProjectFileFormat> GetDefaultProjectFileFormats()
 		{
 			yield return ProjectFileFormat.XCode;
-			#if __VPROJECT_AVAILABLE__
-				yield return ProjectFileFormat.VProject;
-			#endif
+#if __VPROJECT_AVAILABLE__
+			yield return ProjectFileFormat.VProject;
+#endif
 		}
 	}
 
 	class LinuxBuildHostPlatform : BuildHostPlatform
 	{
-		public override UnrealTargetPlatform Platform
-		{
-			get { return UnrealTargetPlatform.Linux; }
-		}
+		public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Linux;
 
-		public override FileReference Shell
-		{
-			get { return new FileReference("/bin/sh"); }
-		}
+		public override FileReference Shell => new FileReference("/bin/sh");
 
-		public override ShellType ShellType
-		{
-			get { return ShellType.Sh; }
-		}
+		public override ShellType ShellType => ShellType.Sh;
+
+		public override string BinarySuffix => string.Empty;
 
 		/// <summary>
 		/// Currently Mono returns incomplete process names in Process.GetProcesses() so we need to use /proc
@@ -423,9 +407,9 @@ namespace UnrealBuildTool
 		{
 			yield return ProjectFileFormat.Make;
 			yield return ProjectFileFormat.VisualStudioCode;
-			#if __VPROJECT_AVAILABLE__
-				yield return ProjectFileFormat.VProject;
-			#endif
+#if __VPROJECT_AVAILABLE__
+			yield return ProjectFileFormat.VProject;
+#endif
 		}
 	}
 }
