@@ -119,7 +119,10 @@ FConcertClientPackageManager::~FConcertClientPackageManager()
 		}
 	}
 
-	// The persistent level should always be reloaded when using external objects.
+	// If the persistent level uses external objects, its package should be
+	// reloaded as long as the package hasn't been marked for purge. If it has
+	// been marked for purge, then it must have only existed in the sandbox
+	// that was just discarded, so it should not be reloaded.
 	UWorld* CurrentWorld = ConcertSyncClientUtil::GetCurrentWorld();
 	if (CurrentWorld)
 	{
@@ -127,7 +130,7 @@ FConcertClientPackageManager::~FConcertClientPackageManager()
 		if (PersistentLevel && PersistentLevel->IsUsingExternalObjects())
 		{
 			const FName PackageName = PersistentLevel->GetPackage()->GetFName();
-			if (!PackagesPendingHotReload.Contains(PackageName))
+			if (!PackagesPendingPurge.Contains(PackageName) && !PackagesPendingHotReload.Contains(PackageName))
 			{
 				PackagesPendingHotReload.Add(PackageName);
 			}
