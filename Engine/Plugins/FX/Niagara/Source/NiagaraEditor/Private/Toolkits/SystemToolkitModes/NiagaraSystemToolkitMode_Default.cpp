@@ -261,7 +261,7 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 					EUserInterfaceActionType::ToggleButton
 				);
 			}
-			ToolbarBuilder.EndSection(
+			ToolbarBuilder.EndSection();
 
 			if (Toolkit->HasEmitter())
 			{
