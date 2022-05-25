@@ -1,0 +1,66 @@
+{
+	"FileVersion": 3,
+	"bIsPluginExtension": true,
+	"SupportedTargetPlatforms": [
+		"HoloLens"
+	],
+	"Modules": [
+		{
+			"Name": "WindowsMixedRealityRuntimeSettings",
+			"Type": "Runtime",
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "WindowsMixedRealityHMD",
+			"Type": "Runtime",
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "WindowsMixedRealitySpatialInput",
+			"Type": "Runtime",
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "WindowsMixedRealityHandTracking",
+			"Type": "Runtime",
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "WindowsMixedRealityEyeTracker",
+			"Type": "Runtime",
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "WindowsMixedRealityRHI",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "WindowsMixedRealityInputSimulation",
+			"Type": "Runtime",
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "HoloLensAR",
+			"Type": "Runtime",
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		}
+	]
+}

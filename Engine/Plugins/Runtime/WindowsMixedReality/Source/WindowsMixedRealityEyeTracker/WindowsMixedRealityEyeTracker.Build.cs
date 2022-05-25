@@ -7,9 +7,10 @@ using Microsoft.Win32;
 
 namespace UnrealBuildTool.Rules
 {
-	public class WindowsMixedRealityEyeTracker :
-		ModuleRules
+	public class WindowsMixedRealityEyeTracker : ModuleRules
 	{
+		protected virtual bool bWithWindowsMixedReality { get => Target.Platform == UnrealTargetPlatform.Win64; }
+
 		public WindowsMixedRealityEyeTracker(ReadOnlyTargetRules Target)
 			: base(Target)
 		{
@@ -17,8 +18,7 @@ namespace UnrealBuildTool.Rules
 
             AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
 
-            if (Target.Platform == UnrealTargetPlatform.Win64 ||
-				Target.Platform == UnrealTargetPlatform.HoloLens)
+            if (bWithWindowsMixedReality)
 			{
 				PublicDependencyModuleNames.AddRange(
 					new string[]

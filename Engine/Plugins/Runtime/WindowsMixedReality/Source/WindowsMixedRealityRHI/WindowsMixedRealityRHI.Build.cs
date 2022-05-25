@@ -8,7 +8,9 @@ namespace UnrealBuildTool.Rules
 {
     public class WindowsMixedRealityRHI : ModuleRules
     {
-        private string ModulePath
+		protected virtual bool bSupportedPlatform { get => Target.Platform == UnrealTargetPlatform.Win64; }
+
+		private string ModulePath
         {
             get { return ModuleDirectory; }
         }
@@ -27,8 +29,7 @@ namespace UnrealBuildTool.Rules
         {
             bEnableExceptions = true;
 
-            if (Target.Platform == UnrealTargetPlatform.Win64 ||
-                Target.Platform == UnrealTargetPlatform.HoloLens)
+            if (bSupportedPlatform)
             {
                 PublicDependencyModuleNames.AddRange(
                     new string[]
@@ -63,7 +64,7 @@ namespace UnrealBuildTool.Rules
 
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
 
-				if (Target.Platform != UnrealTargetPlatform.HoloLens)
+				if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 				{
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 					AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelExtensionsFramework");
@@ -89,10 +90,6 @@ namespace UnrealBuildTool.Rules
                 if (Target.Platform == UnrealTargetPlatform.Win64)
                 {
                     PrivateIncludePaths.Add("../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows");
-                }
-                else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-                {
-                    PrivateIncludePaths.Add("../../../../Platforms/HoloLens/Source/Runtime/Windows/D3D11RHI/Private");
                 }
 
                 PCHUsage = PCHUsageMode.NoSharedPCHs;

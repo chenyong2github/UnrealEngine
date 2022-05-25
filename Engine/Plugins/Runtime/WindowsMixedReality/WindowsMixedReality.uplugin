@@ -15,8 +15,7 @@
 	"IsBetaVersion": false,
 	"Installed": false,
 	"SupportedTargetPlatforms": [
-		"Win64",
-		"HoloLens"
+		"Win64"
 	],
 	"Modules": [
 		{
@@ -24,8 +23,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"PlatformAllowList": [
-				"Win64",
-				"HoloLens"
+				"Win64"
 			]
 		},
 		{
@@ -33,8 +31,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"PlatformAllowList": [
-				"Win64",
-				"HoloLens"
+				"Win64"
 			]
 		},
 		{
@@ -42,8 +39,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
 			"PlatformAllowList": [
-				"Win64",
-				"HoloLens"
+				"Win64"
 			]
 		},
 		{
@@ -51,8 +47,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"PlatformAllowList": [
-				"Win64",
-				"HoloLens"
+				"Win64"
 			]
 		},
 		{
@@ -61,7 +56,6 @@
 			"LoadingPhase": "PostEngineInit",
 			"PlatformAllowList": [
 				"Win64",
-				"HoloLens"
 			]
 		},
 		{
@@ -69,16 +63,7 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
 			"PlatformAllowList": [
-				"Win64",
-				"HoloLens"
-			]
-		},
-		{
-			"Name": "WindowsMixedRealityRHI",
-			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"PlatformAllowList": [
-				"HoloLens"
+				"Win64"
 			]
 		},
 		{
@@ -94,7 +79,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"PlatformAllowList": [
-				"HoloLens",
 				"Win64"
 			]
 		}

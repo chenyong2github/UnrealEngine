@@ -60,8 +60,7 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.Add("UnrealEd");
             }
 
-            if (Target.Platform == UnrealTargetPlatform.Win64 ||
-                Target.Platform == UnrealTargetPlatform.HoloLens)
+            if (Target.Platform == UnrealTargetPlatform.Win64)
             {	
                 bEnableExceptions = true;
 
