@@ -5560,7 +5560,7 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 	case EAddGeneratedTilesTimeSlicedState::AddTiles:
 	{
 		if (DetourMesh != nullptr
-			&& (UE::NavMesh::Private::IsWorldPartitionedDynamicNavmesh(*DestNavMesh) && IsInActiveSet(FIntPoint(TileX, TileY)))
+			&& (!UE::NavMesh::Private::IsWorldPartitionedDynamicNavmesh(*DestNavMesh) || IsInActiveSet(FIntPoint(TileX, TileY)))
 			&& SyncTimeSlicedData.AddGenTilesLayerIndex != INDEX_NONE)
 		{
 			for (; SyncTimeSlicedData.AddGenTilesLayerIndex < TileGenerator.GetDirtyLayersMask().Num(); ++SyncTimeSlicedData.AddGenTilesLayerIndex)
@@ -5624,7 +5624,7 @@ TArray<uint32> FRecastNavMeshGenerator::AddGeneratedTiles(FRecastTileGenerator& 
 	const int32 FirstDirtyTileIndex = TileGenerator.GetDirtyLayersMask().Find(true);
 
 	if (DetourMesh != nullptr
-		&& (UE::NavMesh::Private::IsWorldPartitionedDynamicNavmesh(*DestNavMesh) && IsInActiveSet(FIntPoint(TileX, TileY)))
+		&& (!UE::NavMesh::Private::IsWorldPartitionedDynamicNavmesh(*DestNavMesh) || IsInActiveSet(FIntPoint(TileX, TileY)))
 		&& FirstDirtyTileIndex != INDEX_NONE)
 	{
 		TArray<FNavMeshTileData> TileLayers = TileGenerator.GetNavigationData();
