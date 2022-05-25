@@ -214,7 +214,7 @@ void SComponentClassCombo::GenerateFilteredComponentList()
 					if(!bAllowEntry)
 					{
 						const FString FriendlyComponentName = GetSanitizedComponentName(CurrentEntry);
-						TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(FriendlyComponentName));
+						bAllowEntry = TextFilter->TestTextFilter(FBasicStringFilterExpressionContext(FriendlyComponentName));
 					}
 				}
 			}
