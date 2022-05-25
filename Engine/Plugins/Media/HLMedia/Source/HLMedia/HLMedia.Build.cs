@@ -44,32 +44,25 @@ public class HLMedia : ModuleRules
 
         var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
-        if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
+        PrivateDependencyModuleNames.AddRange(new string[] 
         {
-            PrivateDependencyModuleNames.AddRange(new string[] 
-            {
-                "HLMediaLibrary",
-                "D3D11RHI",
-				"D3D12RHI"
-            });
+            "HLMediaLibrary",
+            "D3D11RHI",
+			"D3D12RHI"
+        });
 
-            PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/HLMediaLibrary/inc"));
+        PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/ThirdParty/HLMediaLibrary/inc"));
 
-            PublicSystemLibraries.Add("mfplat.lib");
-            PublicSystemLibraries.Add("mfreadwrite.lib");
-            PublicSystemLibraries.Add("mfuuid.lib");
+        PublicSystemLibraries.Add("mfplat.lib");
+        PublicSystemLibraries.Add("mfreadwrite.lib");
+        PublicSystemLibraries.Add("mfuuid.lib");
 			
-			// For D3D11on12
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12", "DX11");
-        }
+		// For D3D11on12
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12", "DX11");
 
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             PrivateIncludePaths.Add(Path.Combine(EngineDir, "Source/Runtime/Windows/D3D11RHI/Private/Windows"));
-        }
-        else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-        {
-            PrivateIncludePaths.Add(Path.Combine(EngineDir, "Platforms/HoloLens/Source/Runtime/Windows/D3D11RHI/Private"));
         }
     }
 }

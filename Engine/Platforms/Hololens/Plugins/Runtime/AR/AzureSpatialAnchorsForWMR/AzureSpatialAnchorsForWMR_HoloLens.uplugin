@@ -1,0 +1,32 @@
+{
+	"FileVersion": 3,
+	"bIsPluginExtension": true,
+	"SupportedTargetPlatforms": [
+		"HoloLens"
+	],
+	"Modules": [
+		{
+			"Name": "AzureSpatialAnchorsForWMR",
+			"Type": "Runtime",
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "AzureSpatialAnchors",
+			"Enabled": true,
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		},
+		{
+			"Name": "WindowsMixedReality",
+			"Enabled": true,
+			"PlatformAllowList": [
+				"HoloLens"
+			]
+		}
+	]
+}

@@ -21,7 +21,6 @@
 			"LoadingPhase": "Default",
 			"PlatformAllowList": [
 				"Android",
-				"HoloLens",
 				"IOS",
 				"Linux",
 				"Mac",

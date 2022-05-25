@@ -5,11 +5,12 @@ using UnrealBuildTool;
 
 public class PROJ : ModuleRules
 {
+	protected readonly string VcPkgInstalled = "vcpkg-installed";
+
 	public PROJ(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 		bEnableExceptions = true;
-		string VcPkgInstalled = "vcpkg-installed";
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
@@ -32,27 +33,6 @@ public class PROJ : ModuleRules
             string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-arm64-ios", "lib");
             PublicAdditionalLibraries.Add(Path.Combine(LibPath, "libproj.a"));
         }
-		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64) // emulation target, bBuildForEmulation
-			{
-				PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-uwp", "include"));
-
-				string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-uwp", "lib");
-				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "proj.lib"));
-			}
-			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64) // device target, bBuildForDevice
-			{
-				PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-arm64-uwp", "include"));
-
-				string LibPath = Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-arm64-uwp", "lib");
-				PublicAdditionalLibraries.Add(Path.Combine(LibPath, "proj.lib"));
-			}
-			else
-			{
-				throw new System.Exception("Unknown architecture for HoloLens platform!");
-			}
-		}
 		else if(Target.Platform == UnrealTargetPlatform.Linux)
 		{
 			PublicSystemIncludePaths.Add(Path.Combine(ModuleDirectory, VcPkgInstalled, "overlay-x64-linux", "include"));

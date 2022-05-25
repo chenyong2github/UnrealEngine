@@ -50,9 +50,6 @@ public class OpenXRAR : ModuleRules
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-        {
-        }
 
 		PublicIncludePathModuleNames.Add("OpenXR");
 

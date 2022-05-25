@@ -19,25 +19,25 @@
 			"Name": "HLMedia",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": [ "Win64", "HoloLens" ]
+			"PlatformAllowList": [ "Win64" ]
 		},
 		{
 			"Name": "HLMediaEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"PlatformAllowList": [ "Win64", "HoloLens" ]
+			"PlatformAllowList": [ "Win64" ]
 		},
 		{
 			"Name": "HLMediaFactory",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
-			"PlatformAllowList": [ "Win64", "HoloLens" ]
+			"PlatformAllowList": [ "Win64" ]
 		},
 		{
 			"Name": "HLMediaFactory",
 			"Type": "RuntimeNoCommandlet",
 			"LoadingPhase": "PostEngineInit",
-			"PlatformAllowList": [ "Win64", "HoloLens" ]
+			"PlatformAllowList": [ "Win64" ]
 		}
 	]
 }
