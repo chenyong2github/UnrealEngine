@@ -278,55 +278,77 @@ void FIKRetargetEditorController::PlayAnimationAsset(UAnimationAsset* AssetToPla
 	if (AssetToPlay && SourceAnimInstance.IsValid())
 	{
 		SourceAnimInstance->SetAnimationAsset(AssetToPlay);
-		PreviousAsset = AssetToPlay;
-		// tell asset to output the retargeted pose
-		AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
+		SourceAnimInstance->SetPlaying(true);
+		AnimThatWasPlaying = AssetToPlay;
+		// ensure we are running the retargeter so you can see the animation
+		SetRetargeterMode(ERetargeterOutputMode::RunRetarget);
 	}
 }
 
-void FIKRetargetEditorController::PlayPreviousAnimationAsset() const
+void FIKRetargetEditorController::SetRetargeterMode(ERetargeterOutputMode Mode)
 {
-	if (PreviousAsset)
+	const bool bWasEditingPose = IsEditingPose();
+	FEditorModeTools& EditorModeManager = Editor.Pin()->GetEditorModeManager();
+	UIKRetargeter* Asset = AssetController->GetAsset();
+	
+	switch (Mode)
 	{
-		SourceAnimInstance->SetAnimationAsset(PreviousAsset);
-		// tell asset to output the retarget
-		AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
+		case ERetargeterOutputMode::EditRetargetPose:
+			bWasPlayingAnim = SourceAnimInstance->IsPlaying();
+			EditorModeManager.DeactivateMode(FIKRetargetDefaultMode::ModeName);
+			EditorModeManager.ActivateMode(FIKRetargetEditPoseMode::ModeName);
+			Asset->SetOutputMode(ERetargeterOutputMode::EditRetargetPose);
+			break;
+		
+		case ERetargeterOutputMode::RunRetarget:
+			EditorModeManager.DeactivateMode(FIKRetargetEditPoseMode::ModeName);
+			EditorModeManager.ActivateMode(FIKRetargetDefaultMode::ModeName);
+			Asset->SetOutputMode(ERetargeterOutputMode::RunRetarget);
+			if (bWasEditingPose)
+			{
+				// must reinitialize after editing the retarget pose
+				AssetController->BroadcastNeedsReinitialized();
+				if (bWasPlayingAnim)
+				{
+					// continue playing whatever animation asset was last used
+					SourceAnimInstance->SetAnimationAsset(AnimThatWasPlaying);
+				}
+			}
+			break;
+
+		case ERetargeterOutputMode::ShowRetargetPose:
+			EditorModeManager.DeactivateMode(FIKRetargetEditPoseMode::ModeName);
+			EditorModeManager.ActivateMode(FIKRetargetDefaultMode::ModeName);
+			Asset->SetOutputMode(ERetargeterOutputMode::ShowRetargetPose);
+			// stop playback of animations
+			SourceAnimInstance->SetPlaying(false);
+			// put source back in ref pose
+			SourceSkelMeshComponent->ShowReferencePose(true);
+			// have to move component back to offset position because ShowReferencePose() sets it back to origin
+			AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, SourceSkelMeshComponent);
+			break;
+
+		default:
+			checkNoEntry();
 	}
 }
 
-void FIKRetargetEditorController::HandleGoToRetargetPose() const
+void FIKRetargetEditorController::HandleGoToRetargetPose()
 {
-	Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
-	Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetDefaultMode::ModeName);
-
-	// put source back in ref pose
-	SourceSkelMeshComponent->ShowReferencePose(true);
-	// have to move component back to offset position because ShowReferencePose() sets it back to origin
-	AddOffsetAndUpdatePreviewMeshPosition(FVector::ZeroVector, SourceSkelMeshComponent);
-	// tell asset to output the retarget pose
-	AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::ShowRetargetPose);
+	SetRetargeterMode(ERetargeterOutputMode::ShowRetargetPose);
 }
 
-void FIKRetargetEditorController::HandleEditPose() const
+void FIKRetargetEditorController::HandleEditPose()
 {
 	if (IsEditingPose())
 	{
 		// stop pose editing
-		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetEditPoseMode::ModeName);
-		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetDefaultMode::ModeName);
-		AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
-		
-		// must reinitialize after editing the retarget pose
-		AssetController->BroadcastNeedsReinitialized();
-		// continue playing whatever animation asset was last used
-		PlayPreviousAnimationAsset();
+		SetRetargeterMode(ERetargeterOutputMode::RunRetarget);
 	}
 	else
 	{
 		// start pose editing
-		Editor.Pin()->GetEditorModeManager().DeactivateMode(FIKRetargetDefaultMode::ModeName);
-		Editor.Pin()->GetEditorModeManager().ActivateMode(FIKRetargetEditPoseMode::ModeName);
-		AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::EditRetargetPose);
+		SetRetargeterMode(ERetargeterOutputMode::EditRetargetPose);
 	}
 }
 

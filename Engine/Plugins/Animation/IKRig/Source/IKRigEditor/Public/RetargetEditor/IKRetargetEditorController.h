@@ -99,14 +99,18 @@ public:
 
 	/** Sequence Browser**/
 	void PlayAnimationAsset(UAnimationAsset* AssetToPlay);
-	void PlayPreviousAnimationAsset() const;
-	UAnimationAsset* PreviousAsset = nullptr;
 	/** END Sequence Browser */
+
+	/** Set viewport / editor tool mode */
+	void SetRetargeterMode(ERetargeterOutputMode Mode);
+	UAnimationAsset* AnimThatWasPlaying = nullptr;
+	bool bWasPlayingAnim = false;
+	/** END viewport / editor tool mode */
 
 	/* START RETARGET POSES */
 	
 	/** go to retarget pose */
-	void HandleGoToRetargetPose() const;
+	void HandleGoToRetargetPose();
 	
 	/** toggle current retarget pose */
 	TArray<TSharedPtr<FName>> PoseNames;
@@ -114,7 +118,7 @@ public:
 	void OnPoseSelected(TSharedPtr<FName> InPoseName, ESelectInfo::Type SelectInfo) const;
 	
 	/** edit retarget poses */
-	void HandleEditPose() const;
+	void HandleEditPose();
 	bool CanEditPose() const;
 	bool IsEditingPose() const;
 

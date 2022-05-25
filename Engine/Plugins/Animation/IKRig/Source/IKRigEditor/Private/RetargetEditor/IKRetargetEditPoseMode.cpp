@@ -427,8 +427,6 @@ void FIKRetargetEditPoseMode::Exit()
 		return;
 	}
 
-	Controller->AssetController->GetAsset()->SetOutputMode(ERetargeterOutputMode::RunRetarget);
-
 	IPersonaEditMode::Exit();
 }
 
