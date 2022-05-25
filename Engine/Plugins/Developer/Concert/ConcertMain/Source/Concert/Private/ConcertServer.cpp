@@ -642,16 +642,6 @@ bool FConcertServer::DestroySession(const FGuid& SessionId, FText& OutFailureRea
 	return Response.ResponseCode == EConcertResponseCode::Success;
 }
 
-TArray<FConcertSessionClientInfo> FConcertServer::GetSessionClients(const FGuid& SessionId) const
-{
-	TSharedPtr<IConcertServerSession> ServerSession = GetLiveSession(SessionId);
-	if (ServerSession)
-	{
-		return ServerSession->GetSessionClients();
-	}
-	return TArray<FConcertSessionClientInfo>();
-}
-
 TArray<FConcertSessionInfo> FConcertServer::GetLiveSessionInfos() const
 {
 	TArray<FConcertSessionInfo> SessionsInfo;
@@ -1434,7 +1424,7 @@ TFuture<FConcertAdmin_GetSessionClientsResponse> FConcertServer::HandleGetSessio
 	const FConcertAdmin_GetSessionClientsRequest* Message = Context.GetMessage<FConcertAdmin_GetSessionClientsRequest>();
 
 	FConcertAdmin_GetSessionClientsResponse ResponseData;
-	ResponseData.SessionClients = GetSessionClients(Message->SessionId);
+	ResponseData.SessionClients = ConcertUtil::GetSessionClients(*this, Message->SessionId);
 	
 	return FConcertAdmin_GetSessionClientsResponse::AsFuture(MoveTemp(ResponseData));
 }

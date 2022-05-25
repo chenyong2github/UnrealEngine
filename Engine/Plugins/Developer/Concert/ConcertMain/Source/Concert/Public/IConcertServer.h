@@ -172,11 +172,4 @@ public:
 	 * @return true if the session was found and destroyed
 	 */
 	virtual bool DestroySession(const FGuid& SessionId, FText& OutFailureReason) = 0;
-
-	/**
-	 * Get the list of clients for a session
-	 * @param SessionId The session ID
-	 * @return A list of clients connected to the session
-	 */
-	virtual TArray<FConcertSessionClientInfo> GetSessionClients(const FGuid& SessionId) const = 0;
 };

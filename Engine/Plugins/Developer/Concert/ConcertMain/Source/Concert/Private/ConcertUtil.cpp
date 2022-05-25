@@ -5,6 +5,8 @@
 #include "HAL/FileManager.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertLogger.h"
+#include "ConcertServerSession.h"
+#include "IConcertServer.h"
 
 bool ConcertUtil::DeleteDirectoryTree(const TCHAR* InDirectoryToDelete, const TCHAR* InMoveToDirBeforeDelete)
 {
@@ -58,3 +60,28 @@ void ConcertUtil::SetVerboseLogging(bool bInState)
 	FConcertLogger::SetVerboseLogging(bInState);
 }
 
+TArray<FConcertSessionClientInfo> ConcertUtil::GetSessionClients(IConcertServer& Server, const FGuid& SessionId)
+{
+	TSharedPtr<IConcertServerSession> ServerSession = Server.GetLiveSession(SessionId);
+	if (ServerSession)
+	{
+		return ServerSession->GetSessionClients();
+	}
+	return TArray<FConcertSessionClientInfo>();
+}
+
+TOptional<FConcertSessionClientInfo> ConcertUtil::GetConnectedClientInfo(IConcertServer& Server, const FGuid& ClientEndpointId)
+{
+	for (const TSharedPtr<IConcertServerSession>& ServerSession : Server.GetLiveSessions())
+	{
+		for (const FConcertSessionClientInfo& ClientInfo : ServerSession->GetSessionClients())
+		{
+			if (ClientEndpointId == ClientInfo.ClientEndpointId)
+			{
+				return ClientInfo;
+			}
+		}
+	}
+
+	return {};
+}
