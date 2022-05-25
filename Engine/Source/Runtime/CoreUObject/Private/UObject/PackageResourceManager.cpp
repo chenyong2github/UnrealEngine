@@ -270,6 +270,17 @@ bool IsEditorDomainEnabled()
 		{
 			return false;
 		}
+
+		if (FParse::Param(FCommandLine::Get(), TEXT("NoEditorDomain")))
+		{
+			return false;
+		}
+
+		if (FParse::Param(FCommandLine::Get(), TEXT("EditorDomain")))
+		{
+			return true;
+		}
+
 		bool bEnabledByConfig = true;
 		GConfig->GetBool(TEXT("EditorDomain"), TEXT("EditorDomainEnabled"), bEnabledByConfig, GEditorIni);
 		if (GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainEnabled"), bEnabledByConfig, GEditorIni))
