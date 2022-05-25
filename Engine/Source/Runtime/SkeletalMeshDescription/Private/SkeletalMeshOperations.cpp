@@ -24,7 +24,7 @@ void FSkeletalMeshOperations::AppendSkinWeight(const FMeshDescription& SourceMes
 
 	TargetMesh.SuspendVertexIndexing();
 	
-	for (const FVertexID& SourceVertexID : SourceMesh.Vertices().GetElementIDs())
+	for (const FVertexID SourceVertexID : SourceMesh.Vertices().GetElementIDs())
 	{
 		const FVertexID TargetVertexID = FVertexID(AppendSettings.SourceVertexIDOffset + SourceVertexID.GetValue());
 		FVertexBoneWeightsConst SourceBoneWeights = SourceVertexSkinWeights.Get(SourceVertexID);

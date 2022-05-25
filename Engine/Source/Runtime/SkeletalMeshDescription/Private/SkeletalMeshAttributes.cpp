@@ -57,7 +57,7 @@ TArray<FName> FSkeletalMeshAttributesShared::GetSkinWeightProfileNames() const
 	TArray<FName> SkinWeightProfileNames;
 	bool bHasDefault = false; 
 
-	for (const FName AttributeName: AllAttributeNames)
+	for (const FName& AttributeName: AllAttributeNames)
 	{
 		if (AttributeName == MeshAttribute::Vertex::SkinWeights)
 		{
