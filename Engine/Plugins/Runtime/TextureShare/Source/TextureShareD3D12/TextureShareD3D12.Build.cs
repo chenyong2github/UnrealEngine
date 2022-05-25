@@ -27,7 +27,7 @@ public class TextureShareD3D12 : ModuleRules
 			PrecompileForTargets = PrecompileTargetsType.None;
 		}
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.HoloLens)
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 		}

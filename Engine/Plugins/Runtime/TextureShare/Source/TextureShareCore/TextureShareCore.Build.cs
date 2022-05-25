@@ -42,7 +42,7 @@ public class TextureShareCore : ModuleRules
 
 		string TextureShareLibPlatformName = Target.Platform.ToString();
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicDefinitions.Add("TEXTURESHARELIB_PLATFORM_WINDOWS=1");
 			TextureShareLibPlatformName = "Windows";
