@@ -11,6 +11,7 @@ using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -31,15 +32,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		private static int MaxPathWarningLength = 260;
 
-		public VCToolChain(ReadOnlyTargetRules Target)
+		public VCToolChain(ReadOnlyTargetRules Target, ILogger Logger)
+			: base(Logger)
 		{
 			this.Target = Target;
 			this.EnvVars = Target.WindowsPlatform.Environment!;
 
-			Log.TraceLog("Compiler: {0}", EnvVars.CompilerPath);
-			Log.TraceLog("Linker: {0}", EnvVars.LinkerPath);
-			Log.TraceLog("Library Manager: {0}", EnvVars.LibraryManagerPath);
-			Log.TraceLog("Resource Compiler: {0}", EnvVars.ResourceCompilerPath);
+			Logger.LogDebug("Compiler: {Path}", EnvVars.CompilerPath);
+			Logger.LogDebug("Linker: {Path}", EnvVars.LinkerPath);
+			Logger.LogDebug("Library Manager: {Path}", EnvVars.LibraryManagerPath);
+			Logger.LogDebug("Resource Compiler: {Path}", EnvVars.ResourceCompilerPath);
 
 			if (Target.WindowsPlatform.ObjSrcMapFile != null)
 			{
@@ -210,7 +212,7 @@ namespace UnrealBuildTool
 			Arguments.Add($"/Fp\"{UsingPchFilePath}\"");
 		}
 
-		public static void AddPreprocessedFile(List<string> Arguments, FileItem PreprocessedFile)
+		public static void AddPreprocessedFile(List<string> Arguments, FileItem PreprocessedFile, ILogger Logger)
 		{
 			string PreprocessedFileString = NormalizeCommandLinePath(PreprocessedFile);
 			Arguments.Add("/P"); // Preprocess
@@ -218,7 +220,7 @@ namespace UnrealBuildTool
 			Arguments.Add($"/Fi\"{PreprocessedFileString}\""); // Preprocess to a file
 
 			// this is parsed by external tools wishing to open this file directly.
-			Log.TraceInformation("PreProcessPath: " + PreprocessedFile);
+			Logger.LogInformation("PreProcessPath: {Path}", PreprocessedFile);
 		}
 
 		public static void AddObjectFile(List<string> Arguments, FileItem ObjectFile)
@@ -1380,7 +1382,7 @@ namespace UnrealBuildTool
 
 					if (!ProjectFileGenerator.bGenerateProjectFiles)
 					{
-						CompileDepsAction.WriteResponseFile(Graph);
+						CompileDepsAction.WriteResponseFile(Graph, Logger);
 					}
 
 					CompileAction.ActionType = ActionType.CompileModuleInterface;
@@ -1418,7 +1420,7 @@ namespace UnrealBuildTool
 
 				if (!ProjectFileGenerator.bGenerateProjectFiles)
 				{
-					CompileAction.WriteResponseFile(Graph);
+					CompileAction.WriteResponseFile(Graph, Logger);
 				}
 
 				// When compiling with SN-DBS, modules that contain a #import must be built locally
@@ -1465,10 +1467,12 @@ namespace UnrealBuildTool
 			return ParseTimingInfoAction;
 		}
 
-		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
+		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
 		{
 			if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
 			{
+				TargetMakefile Makefile = MakefileBuilder.Makefile;
+
 				List<IExternalAction> ParseTimingActions = Makefile.Actions.Where(x => x.ActionType == ActionType.ParseTimingInfo).ToList();
 				List<FileItem> TimingJsonFiles = ParseTimingActions.SelectMany(a => a.ProducedItems.Where(i => i.HasExtension(".cta"))).ToList();
 				Makefile.OutputItems.AddRange(TimingJsonFiles);
@@ -1492,7 +1496,7 @@ namespace UnrealBuildTool
 						$"-CompileTimingFile={ExpectedCompileTimeFile}",
 					};
 
-					Action AggregateTimingInfoAction = Makefile.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
+					Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
 					AggregateTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 					AggregateTimingInfoAction.bCanExecuteRemotely = false;
@@ -2015,7 +2019,7 @@ namespace UnrealBuildTool
 			}
 
 			// Allow the toolchain to adjust/process the link arguments
-			ModifyFinalLinkArguments(LinkEnvironment, Arguments, bBuildImportLibraryOnly );
+			ModifyFinalLinkArguments(LinkEnvironment, Arguments, bBuildImportLibraryOnly);
 
 			// Create a response file for the linker, unless we're generating IntelliSense data
 			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
@@ -2062,8 +2066,8 @@ namespace UnrealBuildTool
 			// Allow remote linking. Note that this may be overriden by the executor (eg. XGE.bAllowRemoteLinking)
 			LinkAction.bCanExecuteRemotely = true;
 
-			Log.TraceVerbose("     Linking: " + LinkAction.StatusDescription);
-			Log.TraceVerbose("     Command: " + LinkAction.CommandArguments);
+			Logger.LogDebug("     Linking: {StatusDescription}", LinkAction.StatusDescription);
+			Logger.LogDebug("     Command: {CommandArguments}", LinkAction.CommandArguments);
 
 			return OutputFile;
 		}
@@ -2074,7 +2078,7 @@ namespace UnrealBuildTool
 			{
 				// The linker expects the .pgd and any .pgc files to be in the output directory.
 				// Copy the files there and make them writable...
-				Log.TraceInformation("...copying the profile guided optimization files to output directory...");
+				Logger.LogInformation("...copying the profile guided optimization files to output directory...");
 
 				string[] PGDFiles = Directory.GetFiles(LinkEnvironment.PGODirectory!, "*.pgd");
 				string[] PGCFiles = Directory.GetFiles(LinkEnvironment.PGODirectory!, "*.pgc");
@@ -2085,13 +2089,13 @@ namespace UnrealBuildTool
 				}
 				else if (PGDFiles.Length == 0)
 				{
-					Log.TraceWarning("No .pgd files found in \"{0}\".", LinkEnvironment.PGODirectory);
+					Logger.LogWarning("No .pgd files found in \"{PgoDir}\".", LinkEnvironment.PGODirectory);
 					return false;
 				}
 
 				if (PGCFiles.Length == 0)
 				{
-					Log.TraceWarning("No .pgc files found in \"{0}\".", LinkEnvironment.PGODirectory);
+					Logger.LogWarning("No .pgc files found in \"{PgoDir}\".", LinkEnvironment.PGODirectory);
 					return false;
 				}
 
@@ -2101,7 +2105,7 @@ namespace UnrealBuildTool
 				// Copy the .pgd to the linker output directory, renaming it to match the PGO filename prefix.
 				string PGDFile = PGDFiles.First();
 				string DestPGDFile = Path.Combine(LinkEnvironment.OutputDirectory.FullName, LinkEnvironment.PGOFilenamePrefix + ".pgd");
-				Log.TraceInformation("{0} -> {1}", PGDFile, DestPGDFile);
+				Logger.LogInformation("{Source} -> {Target}", PGDFile, DestPGDFile);
 				File.Copy(PGDFile, DestPGDFile, true);
 				File.SetAttributes(DestPGDFile, FileAttributes.Normal);
 
@@ -2112,7 +2116,7 @@ namespace UnrealBuildTool
 					string DestFileName = string.Format("{0}!{1}.pgc", LinkEnvironment.PGOFilenamePrefix, ++PGCFileIndex);
 					string DestFilePath = Path.Combine(LinkEnvironment.OutputDirectory.FullName, DestFileName);
 
-					Log.TraceInformation("{0} -> {1}", SrcFilePath, DestFilePath);
+					Logger.LogInformation("{Source} -> {Target}", SrcFilePath, DestFilePath);
 					File.Copy(SrcFilePath, DestFilePath, true);
 					File.SetAttributes(DestFilePath, FileAttributes.Normal);
 				}
@@ -2138,7 +2142,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					Log.TraceWarning("PGO Optimize build will be disabled");
+					Logger.LogWarning("PGO Optimize build will be disabled");
 					bPGOOptimize = false;
 				}
 			}
@@ -2192,10 +2196,10 @@ namespace UnrealBuildTool
 		/// Gets the default include paths for the given platform.
 		/// </summary>
 		[SupportedOSPlatform("windows")]
-		public static string GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler, string? CompilerVersion)
+		public static string GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler, string? CompilerVersion, ILogger Logger)
 		{
 			// Make sure we've got the environment variables set up for this target
-			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, Platform, WindowsArchitecture.x64, CompilerVersion, null, null);
+			VCEnvironment EnvVars = VCEnvironment.Create(Compiler, Platform, WindowsArchitecture.x64, CompilerVersion, null, null, Logger);
 
 			// Also add any include paths from the INCLUDE environment variable.  MSVC is not necessarily running with an environment that
 			// matches what UBT extracted from the vcvars*.bat using SetEnvironmentVariablesFromBatchFile().  We'll use the variables we

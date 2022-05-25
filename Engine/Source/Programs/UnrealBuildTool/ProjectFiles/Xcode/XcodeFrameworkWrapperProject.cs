@@ -7,6 +7,7 @@ using System.Linq;
 using System.Collections.Generic;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool.ProjectFiles.Xcode
 {

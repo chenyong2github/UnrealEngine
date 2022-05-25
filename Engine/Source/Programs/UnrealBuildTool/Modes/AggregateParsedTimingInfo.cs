@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -28,14 +29,14 @@ namespace UnrealBuildTool
 		private ConcurrentBag<TimingData> AggregateFunctions = new ConcurrentBag<TimingData>();
 		private object AddFileLock = new object();
 
-		public override int Execute(CommandLineArguments Arguments)
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			FileReference ManifestFile = Arguments.GetFileReference("-ManifestFile=");
 			string[] ParsedFileNames = FileReference.ReadAllLines(ManifestFile);
 
 			// Load all the file timing data and summarize them for the aggregate.
 			FileTimingData = new TimingData("Files", TimingDataType.Summary);
-			Parallel.ForEach(ParsedFileNames, new ParallelOptions() { MaxDegreeOfParallelism = 4 }, ParseTimingDataFile);
+			Parallel.ForEach(ParsedFileNames, new ParallelOptions() { MaxDegreeOfParallelism = 4 }, x => ParseTimingDataFile(x, Logger));
 
 			// Create aggregate summary. Duration is the duration of the files in the aggregate.
 			string AggregateName = Arguments.GetString("-Name=");
@@ -49,7 +50,7 @@ namespace UnrealBuildTool
 
 			// Write out aggregate summary.
 			string OutputFile = Path.Combine(ManifestFile.Directory.FullName, String.Format("{0}.cta", AggregateName));
-			Log.TraceLog("Writing {0}", OutputFile);
+			Logger.LogDebug("Writing {OutputFile}", OutputFile);
 			using (BinaryWriter Writer = new BinaryWriter(File.Open(OutputFile, FileMode.Create)))
 			{
 				// Write out the aggregate data.
@@ -104,9 +105,9 @@ namespace UnrealBuildTool
 			AggregateData.ExclusiveDuration -= GroupedTimingData.InclusiveDuration;
 		}
 
-		private void ParseTimingDataFile(string ParsedFileName)
+		private void ParseTimingDataFile(string ParsedFileName, ILogger Logger)
 		{
-			Log.TraceLog("Parsing {0}", ParsedFileName);
+			Logger.LogDebug("Parsing {ParsedFileName}", ParsedFileName);
 			// Convert input file back into summary objects.
 			using (BinaryReader Reader = new BinaryReader(File.Open(ParsedFileName, FileMode.Open, FileAccess.Read)))
 			{

@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -474,8 +475,9 @@ namespace UnrealBuildTool
 		/// <param name="InPlatforms">The platforms to write the project files for</param>
 		/// <param name="InConfigurations">The configurations to add to the project files</param>
 		/// <param name="PlatformProjectGenerators">The registered platform project generators</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True on success</returns>
-		public virtual bool WriteProjectFile(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		public virtual bool WriteProjectFile(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			throw new BuildException("UnrealBuildTool cannot automatically generate this project type because WriteProjectFile() was not overridden.");
 		}
@@ -486,8 +488,9 @@ namespace UnrealBuildTool
 		/// <param name="InPlatforms">The platforms to write the project files for</param>
 		/// <param name="InConfigurations">The configurations to add to the project files</param>
 		/// <param name="PlatformProjectGenerators">The registered platform project generators</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>List of project files written</returns>
-		public virtual List<Tuple<ProjectFile, string>>? WriteDebugProjectFiles(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		public virtual List<Tuple<ProjectFile, string>>? WriteDebugProjectFiles(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			return null;
 		}

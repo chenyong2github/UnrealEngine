@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.IO;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -14,10 +15,10 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Loads JunkManifest.txt file and removes all junk files/folders defined in it.
 		/// </summary>
-		static public void DeleteJunk()
+		static public void DeleteJunk(ILogger Logger)
 		{
 			List<string> JunkManifest = LoadJunkManifest();
-			DeleteAllJunk(JunkManifest);
+			DeleteAllJunk(JunkManifest, Logger);
 		}
 
 		/// <summary>
@@ -94,7 +95,8 @@ namespace UnrealBuildTool
 		/// Goes through each entry from the junk manifest and deletes it.
 		/// </summary>
 		/// <param name="JunkManifest">JunkManifest.txt entries.</param>
-		static private void DeleteAllJunk(List<string> JunkManifest)
+		/// <param name="Logger">Logger for output</param>
+		static private void DeleteAllJunk(List<string> JunkManifest, ILogger Logger)
 		{
 			foreach (string Junk in JunkManifest)
 			{
@@ -111,27 +113,27 @@ namespace UnrealBuildTool
 							string[] FilesToDelete = Directory.GetFiles(DirectoryToLookIn, FileName, SearchOption.TopDirectoryOnly);
 							foreach (string JunkFile in FilesToDelete)
 							{
-								DeleteFile(JunkFile);
+								DeleteFile(JunkFile, Logger);
 							}
 
 							// Delete all subdirectories with the specified folder
 							string[] DirectoriesToDelete = Directory.GetDirectories(DirectoryToLookIn, FileName, SearchOption.TopDirectoryOnly);
 							foreach (string JunkFolder in DirectoriesToDelete)
 							{
-								DeleteDirectory(JunkFolder);
+								DeleteDirectory(JunkFolder, Logger);
 							}
 						}
 					}
 					else
 					{
 						// Delete single file
-						DeleteFile(Junk);
+						DeleteFile(Junk, Logger);
 					}
 				}
 				else if (Directory.Exists(Junk))
 				{
 					// Delete the selected folder and all its contents
-					DeleteDirectory(Junk);
+					DeleteDirectory(Junk, Logger);
 				}
 			}
 		}
@@ -161,17 +163,18 @@ namespace UnrealBuildTool
 		/// Deletes a directory recursively gracefully handling all exceptions.
 		/// </summary>
 		/// <param name="DirectoryPath">Path.</param>
-		static private void DeleteDirectory(string DirectoryPath)
+		/// <param name="Logger">Logger for output</param>
+		static private void DeleteDirectory(string DirectoryPath, ILogger Logger)
 		{
 			try
 			{
-				Log.TraceInformation("Deleting junk directory: \"{0}\".", DirectoryPath);
+				Logger.LogInformation("Deleting junk directory: \"{Dir}\".", DirectoryPath);
 				Directory.Delete(DirectoryPath, true);
 			}
 			catch (Exception Ex)
 			{
 				// Ignore all exceptions
-				Log.TraceInformation("Unable to delete junk directory: \"{0}\". Error: {1}", DirectoryPath, Ex.Message.TrimEnd());
+				Logger.LogInformation("Unable to delete junk directory: \"{Dir}\". Error: {Ex}", DirectoryPath, Ex.Message.TrimEnd());
 			}
 		}
 
@@ -179,17 +182,18 @@ namespace UnrealBuildTool
 		/// Deletes a file gracefully handling all exceptions.
 		/// </summary>
 		/// <param name="Filename">Filename.</param>
-		static private void DeleteFile(string Filename)
+		/// <param name="Logger">Logger for output</param>
+		static private void DeleteFile(string Filename, ILogger Logger)
 		{
 			try
 			{
-				Log.TraceInformation("Deleting junk file: \"{0}\".", Filename);
+				Logger.LogInformation("Deleting junk file: \"{File}\".", Filename);
 				File.Delete(Filename);
 			}
 			catch (Exception Ex)
 			{
 				// Ingore all exceptions
-				Log.TraceInformation("Unable to delete junk file: \"{0}\". Error: {1}", Filename, Ex.Message.TrimEnd());
+				Logger.LogInformation("Unable to delete junk file: \"{File}\". Error: {Ex}", Filename, Ex.Message.TrimEnd());
 			}
 		}
 	}

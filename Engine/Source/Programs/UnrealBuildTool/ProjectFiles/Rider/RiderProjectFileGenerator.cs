@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -67,7 +68,7 @@ namespace UnrealBuildTool
 		public override bool ShouldGenerateIntelliSenseData() => true;
 
 		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName,
-			DirectoryReference InIntermediateProjectFilesDirectory)
+			DirectoryReference InIntermediateProjectFilesDirectory, ILogger Logger)
 		{
 			DirectoryReference.Delete(InPrimaryProjectDirectory);
 		}
@@ -91,9 +92,9 @@ namespace UnrealBuildTool
 			return projectFile;
 		}
 
-		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
-			using (ProgressWriter Progress = new ProgressWriter("Writing project files...", true))
+			using (ProgressWriter Progress = new ProgressWriter("Writing project files...", true, Logger))
 			{
 				List<ProjectFile> ProjectsToGenerate = new List<ProjectFile>(GeneratedProjectFiles);
 				if (ProjectNames.Any())
@@ -117,10 +118,10 @@ namespace UnrealBuildTool
 					
 					if (UEBuildPlatform.IsPlatformAvailable(it))
 						return true;
-					Log.TraceWarning(
-						"Platform {0} is not a valid platform to build. Check that the SDK is installed properly",
+					Logger.LogWarning(
+						"Platform {Platform} is not a valid platform to build. Check that the SDK is installed properly",
 						it);
-					Log.TraceWarning("Platform will be ignored in project file generation");
+					Logger.LogWarning("Platform will be ignored in project file generation");
 					return false;
 				}).ToList();
 
@@ -136,7 +137,7 @@ namespace UnrealBuildTool
 					if(CurProject != null)
 					{
 						if (!CurProject.WriteProjectFile(FilteredPlatforms, ConfigurationsToGenerate.ToList(),
-							PlatformProjectGenerators, Minimize))
+							PlatformProjectGenerators, Minimize, Logger))
 						{
 							return false;
 						}
@@ -166,6 +167,7 @@ namespace UnrealBuildTool
 		private void AddProjectsForAllTargets(
 			PlatformProjectGeneratorCollection PlatformProjectGenerators,
 			List<FileReference> AllGames,
+			ILogger Logger,
 			out ProjectFile? EngineProject,
 			out List<ProjectFile> GameProjects,
 			out Dictionary<FileReference, ProjectFile> ProgramProjects)
@@ -177,7 +179,7 @@ namespace UnrealBuildTool
 
 			// Find all of the target files.  This will filter out any modules or targets that don't
 			// belong to platforms we're generating project files for.
-			List<FileReference> AllTargetFiles = DiscoverTargets(AllGames);
+			List<FileReference> AllTargetFiles = DiscoverTargets(AllGames, Logger);
 
 			// Sort the targets by name. When we have multiple targets of a given type for a project, we'll use the order to determine which goes in the primary project file (so that client names with a suffix will go into their own project).
 			AllTargetFiles = AllTargetFiles.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase).ToList();
@@ -217,18 +219,18 @@ namespace UnrealBuildTool
 						AllGames.FirstOrDefault(x => TargetFilePath.IsUnderDirectory(x.Directory));
 					if (CheckProjectFile == null)
 					{
-						RulesAssembly = RulesCompiler.CreateEngineRulesAssembly(false, false, false);
+						RulesAssembly = RulesCompiler.CreateEngineRulesAssembly(false, false, false, Logger);
 					}
 					else
 					{
-						RulesAssembly = RulesCompiler.CreateProjectRulesAssembly(CheckProjectFile, false, false, false);
+						RulesAssembly = RulesCompiler.CreateProjectRulesAssembly(CheckProjectFile, false, false, false, Logger);
 					}
 
 					// Create target rules for all of the platforms and configuration combinations that we want to enable support for.
 					// Just use the current platform as we only need to recover the target type and both should be supported for all targets...
 					TargetRules TargetRulesObject = RulesAssembly.CreateTargetRules(TargetName,
 						BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, "", CheckProjectFile,
-						null);
+						null, Logger);
 
 					bool IsProgramTarget = false;
 
@@ -305,7 +307,7 @@ namespace UnrealBuildTool
 					ProjectFile ProjectFile = FindOrAddProject(ProjectFilePath, BaseFolder,
 						true, out bProjectAlreadyExisted);
 					ProjectFile.IsForeignProject =
-						CheckProjectFile != null && !NativeProjects.IsNativeProject(CheckProjectFile);
+						CheckProjectFile != null && !NativeProjects.IsNativeProject(CheckProjectFile, Logger);
 					ProjectFile.IsGeneratedProject = true;
 					ProjectFile.IsStubProject = UnrealBuildTool.IsProjectInstalled();
 					if (TargetRulesObject.bBuildInSolutionByDefault.HasValue)
@@ -385,7 +387,7 @@ namespace UnrealBuildTool
 							.Where(x => UEBuildPlatform.TryGetBuildPlatform(x, out _)).ToArray(),
 						CreateRulesDelegate: (Platform, Configuration) =>
 							RulesAssembly.CreateTargetRules(TargetName, Platform, Configuration, "", CheckProjectFile,
-								null)
+								null, Logger)
 					);
 
 					ProjectFile.ProjectTargets.Add(ProjectTarget);
@@ -399,20 +401,20 @@ namespace UnrealBuildTool
 						ProjectFile.AddFilesToProject(AllSubTargetFilesPerTarget[TargetName], BaseFolder);
 					}
 
-					Log.TraceVerbose("Generating target {0} for {1}", TargetRulesObject.Type.ToString(),
+					Logger.LogDebug("Generating target {Target} for {Project}", TargetRulesObject.Type.ToString(),
 						ProjectFilePath);
 				}
 			}
 		}
 		
-		private void SetupSupportedPlatformsAndConfigurations()
+		private void SetupSupportedPlatformsAndConfigurations(ILogger Logger)
 		{
 			string SupportedPlatformNames;
-			SetupSupportedPlatformsAndConfigurations(true, out SupportedPlatformNames);
+			SetupSupportedPlatformsAndConfigurations(true, Logger, out SupportedPlatformNames);
 		}
 		
 		public override bool GenerateProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators,
-			String[] arguments)
+			String[] arguments, ILogger Logger)
 		{
 			ConfigureProjectFileGeneration();
 
@@ -443,23 +445,23 @@ namespace UnrealBuildTool
 					DirectoryReference.Combine(PrimaryProjectPath, "Intermediate", "ProjectFiles");
 			}
 
-			SetupSupportedPlatformsAndConfigurations();
+			SetupSupportedPlatformsAndConfigurations(Logger);
 
-			Log.TraceVerbose("Detected supported platforms: " + SupportedPlatforms);
+			Logger.LogDebug("Detected supported platforms: {Platforms}", SupportedPlatforms);
 
-			List<FileReference> AllGameProjects = FindGameProjects();
+			List<FileReference> AllGameProjects = FindGameProjects(Logger);
 
-			GatherProjects(PlatformProjectGenerators, AllGameProjects);
+			GatherProjects(PlatformProjectGenerators, AllGameProjects, Logger);
 
-			WriteProjectFiles(PlatformProjectGenerators);
-			Log.TraceVerbose("Project generation complete ({0} generated, {1} imported)", GeneratedProjectFiles.Count,
+			WriteProjectFiles(PlatformProjectGenerators, Logger);
+			Logger.LogDebug("Project generation complete ({NumGenerated} generated, {NumImported} imported)", GeneratedProjectFiles.Count,
 				OtherProjectFiles.Count);
 
 			return true;
 		}
 
 		private void GatherProjects(PlatformProjectGeneratorCollection PlatformProjectGenerators,
-			List<FileReference> AllGameProjects)
+			List<FileReference> AllGameProjects, ILogger Logger)
 		{ 
 			ProjectFile? EngineProject = null;
 			List<ProjectFile>? GameProjects = null;
@@ -467,8 +469,8 @@ namespace UnrealBuildTool
 			Dictionary<FileReference, ProjectFile>? ProgramProjects = null;
 
 			// Setup buildable projects for all targets
-			AddProjectsForAllTargets(PlatformProjectGenerators, AllGameProjects, out EngineProject,
-				out GameProjects, out ProgramProjects);
+			AddProjectsForAllTargets(PlatformProjectGenerators, AllGameProjects, Logger,
+				out EngineProject, out GameProjects, out ProgramProjects);
 
 			AddProjectsForMods(GameProjects, ModProjects);
 			AddAllGameProjects(GameProjects);
@@ -489,7 +491,7 @@ namespace UnrealBuildTool
 		}
 
 		protected override bool WritePrimaryProjectFile(ProjectFile? ProjectFile,
-			PlatformProjectGeneratorCollection PlatformProjectGenerators)
+			PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			return true;
 		}

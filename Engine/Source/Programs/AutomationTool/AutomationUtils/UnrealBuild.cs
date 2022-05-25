@@ -951,12 +951,12 @@ namespace AutomationTool
 
 		public bool CanUseXGE(UnrealTargetPlatform Platform)
 		{
-			return PlatformExports.CanUseXGE(Platform);
+			return PlatformExports.CanUseXGE(Platform, Log.Logger);
 		}
 
 		public bool CanUseParallelExecutor(UnrealTargetPlatform Platform)
 		{
-			return PlatformExports.CanUseParallelExecutor(Platform);
+			return PlatformExports.CanUseParallelExecutor(Platform, Log.Logger);
 		}
 
 		private bool ParseParam(string Name)

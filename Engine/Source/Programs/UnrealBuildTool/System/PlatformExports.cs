@@ -7,6 +7,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -104,18 +105,20 @@ namespace UnrealBuildTool
 		/// Check whether the given platform supports XGE
 		/// </summary>
 		/// <param name="Platform">Platform to check</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the platform supports XGE</returns>
-		public static bool CanUseXGE(UnrealTargetPlatform Platform)
+		public static bool CanUseXGE(UnrealTargetPlatform Platform, ILogger Logger)
 		{
-			return UEBuildPlatform.IsPlatformAvailable(Platform) && UEBuildPlatform.GetBuildPlatform(Platform).CanUseXGE() && XGE.IsAvailable();
+			return UEBuildPlatform.IsPlatformAvailable(Platform) && UEBuildPlatform.GetBuildPlatform(Platform).CanUseXGE() && XGE.IsAvailable(Logger);
 		}
 
 		/// <summary>
 		/// Check whether the given platform supports the parallel executor in UAT
 		/// </summary>
 		/// <param name="Platform">Platform to check</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the platform supports the parallel executor in UAT</returns>
-		public static bool CanUseParallelExecutor(UnrealTargetPlatform Platform)
+		public static bool CanUseParallelExecutor(UnrealTargetPlatform Platform, ILogger Logger)
 		{
 			return UEBuildPlatform.IsPlatformAvailable(Platform) && UEBuildPlatform.GetBuildPlatform(Platform).CanUseParallelExecutor();
 		}
@@ -156,14 +159,15 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Initialize UBT in the context of another host process (presumably UAT)
 		/// </summary>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if initialization was successful</returns>
-		public static bool Initialize()
+		public static bool Initialize(ILogger Logger)
 		{
 			// Read the XML configuration files
-			XmlConfig.ReadConfigFiles(null);
+			XmlConfig.ReadConfigFiles(null, Logger);
 
 			// Register all the platform classes
-			UEBuildPlatform.RegisterPlatforms(false, false);
+			UEBuildPlatform.RegisterPlatforms(false, false, Logger);
 			return true;
 		}
 	}

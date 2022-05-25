@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -33,7 +34,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns></returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -52,16 +54,16 @@ namespace UnrealBuildTool
 			RulesAssembly Assembly;
 			if (ProjectFile != null)
 			{
-				Assembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile);
+				Assembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, Logger);
 			}
 			else
 			{
-				Assembly = RulesCompiler.CreateEngineRulesAssembly(BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile);
+				Assembly = RulesCompiler.CreateEngineRulesAssembly(BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, Logger);
 			}
 
 			// Write information about these targets
-			WriteTargetInfo(ProjectFile, Assembly, OutputFile, Arguments);
-			Log.TraceInformation("Written {0}", OutputFile);
+			WriteTargetInfo(ProjectFile, Assembly, OutputFile, Arguments, Logger);
+			Logger.LogInformation("Written {OutputFile}", OutputFile);
 			return 0;
 		}
 
@@ -89,7 +91,8 @@ namespace UnrealBuildTool
 		/// <param name="Assembly">The rules assembly for this target</param>
 		/// <param name="OutputFile">Output file to write to</param>
 		/// <param name="Arguments"></param>
-		public static void WriteTargetInfo(FileReference? ProjectFile, RulesAssembly Assembly, FileReference OutputFile, CommandLineArguments Arguments)
+		/// <param name="Logger">Logger for output</param>
+		public static void WriteTargetInfo(FileReference? ProjectFile, RulesAssembly Assembly, FileReference OutputFile, CommandLineArguments Arguments, ILogger Logger)
 		{
 			// Construct all the targets in this assembly
 			List<string> TargetNames = new List<string>();
@@ -115,12 +118,12 @@ namespace UnrealBuildTool
 					try
 					{
 						string Architecture = UEBuildPlatform.GetBuildPlatform(BuildHostPlatform.Current.Platform).GetDefaultArchitecture(ProjectFile);
-						TargetRules = Assembly.CreateTargetRules(TargetName, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, Architecture, ProjectFile, Arguments);
+						TargetRules = Assembly.CreateTargetRules(TargetName, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development, Architecture, ProjectFile, Arguments, Logger);
 					}
 					catch (Exception Ex)
 					{
-						Log.TraceWarning("Unable to construct target rules for {0}", TargetName);
-						Log.TraceVerbose(ExceptionUtils.FormatException(Ex));
+						Logger.LogWarning("Unable to construct target rules for {TargetName}", TargetName);
+						Logger.LogDebug("{Ex}", ExceptionUtils.FormatException(Ex));
 						continue;
 					}
 

@@ -10,6 +10,7 @@ using Microsoft.Win32;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -162,8 +163,8 @@ namespace UnrealBuildTool
 		public static readonly Version MinimumSDKVersionRecommended = new Version(10, 0, 17763, 0);
 		public static readonly Version MaximumSDKVersionTested = new Version(10, 0, 18362, int.MaxValue);
 
-		public HoloLensPlatform(MicrosoftPlatformSDK InSDK) 
-			: base(UnrealTargetPlatform.HoloLens, InSDK)
+		public HoloLensPlatform(MicrosoftPlatformSDK InSDK, ILogger InLogger) 
+			: base(UnrealTargetPlatform.HoloLens, InSDK, InLogger)
 		{
 		}
 
@@ -206,7 +207,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					Target.HoloLensPlatform.Compiler = WindowsPlatform.GetDefaultCompiler(Target.ProjectFile, Architecture);
+					Target.HoloLensPlatform.Compiler = WindowsPlatform.GetDefaultCompiler(Target.ProjectFile, Architecture, Logger);
 				}
 			}
 
@@ -239,7 +240,7 @@ namespace UnrealBuildTool
 			// Be resilient to SDKs being uninstalled but still referenced in the INI file
 			VersionNumber? SelectedWindowsSdkVersion;
 			DirectoryReference? SelectedWindowsSdkDir;
-			if (WindowsPlatform.TryGetWindowsSdkDir(Target.HoloLensPlatform.Win10SDKVersionString, out SelectedWindowsSdkVersion, out SelectedWindowsSdkDir))
+			if (WindowsPlatform.TryGetWindowsSdkDir(Target.HoloLensPlatform.Win10SDKVersionString, Logger, out SelectedWindowsSdkVersion, out SelectedWindowsSdkDir))
 			{
 				Target.WindowsPlatform.WindowsSdkVersion = Target.HoloLensPlatform.Win10SDKVersionString;
 			}
@@ -258,15 +259,15 @@ namespace UnrealBuildTool
 
 				if (Target.HoloLensPlatform.Win10SDKVersion < MinimumSDKVersionRecommended)
 				{
-					Log.TraceWarning("Your Windows SDK version {0} is older than the minimum recommended version ({1}) for HoloLens.  Consider upgrading.", Target.HoloLensPlatform.Win10SDKVersion, MinimumSDKVersionRecommended);
+					Logger.LogWarning("Your Windows SDK version {SdkVer} is older than the minimum recommended version ({RecommendedVer}) for HoloLens.  Consider upgrading.", Target.HoloLensPlatform.Win10SDKVersion, MinimumSDKVersionRecommended);
 				}
 				else if (Target.HoloLensPlatform.Win10SDKVersion > MaximumSDKVersionTested)
 				{
-					Log.TraceInformationOnce("Your Windows SDK version ({0}) for HoloLens is newer than the highest tested with this version of UBT ({1}).  This is probably fine, but if you encounter issues consider using an earlier SDK.", Target.HoloLensPlatform.Win10SDKVersion, MaximumSDKVersionTested);
+					Log.TraceInformationOnce("Your Windows SDK version ({SdkVer}) for HoloLens is newer than the highest tested with this version of UBT ({MaxTestedVer}).  This is probably fine, but if you encounter issues consider using an earlier SDK.", Target.HoloLensPlatform.Win10SDKVersion, MaximumSDKVersionTested);
 				}
 			}
 
-			HoloLensExports.InitWindowsSdkToolPath(Target.HoloLensPlatform.Win10SDKVersion.ToString());
+			HoloLensExports.InitWindowsSdkToolPath(Target.HoloLensPlatform.Win10SDKVersion.ToString(), Logger);
 
 			// ISPC currently doesn't support Windows-AArch64
 			Target.bCompileISPC = false;
@@ -299,12 +300,12 @@ namespace UnrealBuildTool
 			return base.GetBinaryExtension(InBinaryType);
 		}
 
-		internal static DirectoryReference? GetCppCXMetadataLocation(WindowsCompiler Compiler, string CompilerVersion, WindowsArchitecture Architecture)
+		internal static DirectoryReference? GetCppCXMetadataLocation(WindowsCompiler Compiler, string CompilerVersion, WindowsArchitecture Architecture, ILogger Logger)
 		{
 			VersionNumber? SelectedToolChainVersion;
 			DirectoryReference? SelectedToolChainDir;
 			DirectoryReference? SelectedRedistDir;
-			if (!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, Architecture, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
+			if (!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, Architecture, Logger, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 			{
 				return null;
 			}
@@ -347,11 +348,11 @@ namespace UnrealBuildTool
 			return LatestVersion;
 		}
 
-		internal static string GetLatestMetadataPathForApiContract(string ApiContract, WindowsCompiler Compiler)
+		internal static string GetLatestMetadataPathForApiContract(string ApiContract, WindowsCompiler Compiler, ILogger Logger)
 		{
 			DirectoryReference? SDKFolder;
 			VersionNumber? SDKVersion;
-			if (!WindowsPlatform.TryGetWindowsSdkDir("Latest", out SDKVersion, out SDKFolder))
+			if (!WindowsPlatform.TryGetWindowsSdkDir("Latest", Logger, out SDKVersion, out SDKFolder))
 			{
 				return string.Empty;
 			}
@@ -462,7 +463,7 @@ namespace UnrealBuildTool
 		/// <param name="Receipt">Information about the target being deployed</param>
 		public override void Deploy(TargetReceipt Receipt)
 		{
-			new HoloLensDeploy().PrepTargetForDeployment(Receipt);
+			new HoloLensDeploy(Logger).PrepTargetForDeployment(Receipt);
 		}
 
 		/// <summary>
@@ -516,7 +517,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		internal static void ExpandWinMDReferences(ReadOnlyTargetRules Target, string SDKFolder, string SDKVersion, ref List<string> WinMDReferences)
+		internal static void ExpandWinMDReferences(ReadOnlyTargetRules Target, string SDKFolder, string SDKVersion, ref List<string> WinMDReferences, ILogger Logger)
 		{
 			// Code below will fail when not using the Win10 SDK.  Early out to avoid warning spam.
 			if (!Target.WindowsPlatform.bUseWindowsSDK10)
@@ -557,7 +558,7 @@ namespace UnrealBuildTool
 						}
 						else
 						{
-							Log.TraceWarning("Unable to resolve location for HoloLens WinMD api contract {0}, file {1}", WinMDRef, ExpandedWinMDRef);
+							Logger.LogWarning("Unable to resolve location for HoloLens WinMD api contract {Contract}, file {File}", WinMDRef, ExpandedWinMDRef);
 						}
 					}
 				}
@@ -582,7 +583,7 @@ namespace UnrealBuildTool
 			List<string> AlwaysReferenceContracts = new List<string>();
 			AlwaysReferenceContracts.Add("Windows.Foundation.FoundationContract");
 			AlwaysReferenceContracts.Add("Windows.Foundation.UniversalApiContract");
-			ExpandWinMDReferences(Target, Win10SDKRoot!, Target.HoloLensPlatform.Win10SDKVersion!.ToString(), ref AlwaysReferenceContracts);
+			ExpandWinMDReferences(Target, Win10SDKRoot!, Target.HoloLensPlatform.Win10SDKVersion!.ToString(), ref AlwaysReferenceContracts, Logger);
 
 			StringBuilder WinMDReferenceArguments = new StringBuilder();
 			foreach (string WinMDReference in AlwaysReferenceContracts)
@@ -731,7 +732,7 @@ namespace UnrealBuildTool
 		/// <returns>New toolchain instance.</returns>
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
-			return new HoloLensToolChain(Target);
+			return new HoloLensToolChain(Target, Logger);
 		}
 
 		/// <summary>
@@ -757,14 +758,14 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Register the platform with the UEBuildPlatform class
 		/// </summary>
-		public override void RegisterBuildPlatforms()
+		public override void RegisterBuildPlatforms(ILogger Logger)
 		{
 			if (OperatingSystem.IsWindows())
 			{
 				// for GetValidSoftwareVersionRange reasons we probably want a HoloLensePlatformSDK class
-				MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK();
+				MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK(Logger);
 
-				UEBuildPlatform.RegisterBuildPlatform(new HoloLensPlatform(SDK));
+				UEBuildPlatform.RegisterBuildPlatform(new HoloLensPlatform(SDK, Logger), Logger);
 				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);
 				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.HoloLens);
 			}

@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -27,15 +28,16 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code (always zero)</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
-			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, false, false, false);
+			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, false, false, false, Logger);
 			foreach(TargetDescriptor TargetDescriptor in TargetDescriptors)
 			{
 				// Create the target
-				UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptor, false, false, false);
+				UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptor, false, false, false, Logger);
 
 				// Get the output file
 				FileReference? OutputFile = TargetDescriptor.AdditionalArguments.GetFileReferenceOrDefault("-OutputFile=", null);
@@ -55,7 +57,7 @@ namespace UnrealBuildTool
 						Arguments.ApplyTo(BuildConfiguration);
 
 						// Create the makefile
-						TargetMakefile Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDescriptor);
+						TargetMakefile Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDescriptor, Logger);
 						List<LinkedAction> Actions = Makefile.Actions.ConvertAll(x => new LinkedAction(x, TargetDescriptor));
 						ActionGraph.Link(Actions);
 
@@ -66,14 +68,14 @@ namespace UnrealBuildTool
 						// Execute these actions
 						if (PrerequisiteActions.Count > 0)
 						{
-							Log.TraceInformation("Exeucting actions that produce source files...");
-							ActionGraph.ExecuteActions(BuildConfiguration, PrerequisiteActions, new List<TargetDescriptor> { TargetDescriptor });
+							Logger.LogInformation("Exeucting actions that produce source files...");
+							ActionGraph.ExecuteActions(BuildConfiguration, PrerequisiteActions, new List<TargetDescriptor> { TargetDescriptor }, Logger);
 						}
 					}
 				}
 
 				// Write the output file
-				Log.TraceInformation("Writing {0}...", OutputFile);
+				Logger.LogInformation("Writing {OutputFile}...", OutputFile);
 				Target.ExportJson(OutputFile);
 			}
 			return 0;

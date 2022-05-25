@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -80,52 +81,63 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Implementation of IActionGraphBuilder which discards all unnecessary operations
 	/// </summary>
-	class NullActionGraphBuilder : IActionGraphBuilder
+	sealed class NullActionGraphBuilder : IActionGraphBuilder
 	{
+		private readonly ILogger Logger;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="InLogger"></param>
+		public NullActionGraphBuilder(ILogger InLogger)
+		{
+			Logger = InLogger;
+		}
+
 		/// <inheritdoc/>
 		public void AddAction(IExternalAction Action)
 		{
 		}
 
 		/// <inheritdoc/>
-		public virtual void CreateIntermediateTextFile(FileItem FileItem, string Contents)
+		public void CreateIntermediateTextFile(FileItem FileItem, string Contents)
 		{
-			Utils.WriteFileIfChanged(FileItem, Contents);
+			Utils.WriteFileIfChanged(FileItem, Contents, Logger);
 		}
 
 		/// <inheritdoc/>
-		public virtual void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines)
+		public void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines)
 		{
-			Utils.WriteFileIfChanged(FileItem, ContentLines);
+			Utils.WriteFileIfChanged(FileItem, ContentLines, Logger);
 		}
 
 		/// <inheritdoc/>
-		public virtual void AddSourceDir(DirectoryItem SourceDir)
-		{
-		}
-
-		/// <inheritdoc/>
-		public virtual void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles)
+		public void AddSourceDir(DirectoryItem SourceDir)
 		{
 		}
 
 		/// <inheritdoc/>
-		public virtual void AddFileToWorkingSet(FileItem File)
+		public void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles)
 		{
 		}
 
 		/// <inheritdoc/>
-		public virtual void AddCandidateForWorkingSet(FileItem File)
+		public void AddFileToWorkingSet(FileItem File)
 		{
 		}
 
 		/// <inheritdoc/>
-		public virtual void AddDiagnostic(string Message)
+		public void AddCandidateForWorkingSet(FileItem File)
 		{
 		}
 
 		/// <inheritdoc/>
-		public virtual void SetOutputItemsForModule(string ModuleName, FileItem[] OutputItems)
+		public void AddDiagnostic(string Message)
+		{
+		}
+
+		/// <inheritdoc/>
+		public void SetOutputItemsForModule(string ModuleName, FileItem[] OutputItems)
 		{
 		}
 	}

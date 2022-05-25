@@ -7,6 +7,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -21,9 +22,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// 
 		/// </summary>
-		public HoloLensExports()
+		public HoloLensExports(ILogger Logger)
 		{
-			InnerDeploy = new HoloLensDeploy();
+			InnerDeploy = new HoloLensDeploy(Logger);
 		}
 
 		/// <summary>
@@ -71,10 +72,11 @@ namespace UnrealBuildTool
 		/// 
 		/// </summary>
 		/// <param name="SdkVersion"></param>
+		/// <param name="Logger"></param>
 		/// <returns></returns>
-		public static bool InitWindowsSdkToolPath(string SdkVersion)
+		public static bool InitWindowsSdkToolPath(string SdkVersion, ILogger Logger)
 		{
-			return HoloLensToolChain.InitWindowsSdkToolPath(SdkVersion);
+			return HoloLensToolChain.InitWindowsSdkToolPath(SdkVersion, Logger);
 		}
 
 		/// <summary>
@@ -82,10 +84,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="DLCFile"></param>
 		/// <param name="OutputDirectory"></param>
-		public static void CreateManifestForDLC(FileReference DLCFile, DirectoryReference OutputDirectory)
+		/// <param name="Logger"></param>
+		public static void CreateManifestForDLC(FileReference DLCFile, DirectoryReference OutputDirectory, ILogger Logger)
 		{
 			string IntermediateDirectory = DirectoryReference.Combine(DLCFile.Directory, "Intermediate", "Deploy").FullName;
-			new HoloLensManifestGenerator().CreateManifest(UnrealTargetPlatform.HoloLens, WindowsArchitecture.ARM64, OutputDirectory.FullName, IntermediateDirectory, DLCFile, DLCFile.Directory.FullName, new List<UnrealTargetConfiguration>(), new List<string>(), null);
+			new HoloLensManifestGenerator(Logger).CreateManifest(UnrealTargetPlatform.HoloLens, WindowsArchitecture.ARM64, OutputDirectory.FullName, IntermediateDirectory, DLCFile, DLCFile.Directory.FullName, new List<UnrealTargetConfiguration>(), new List<string>(), null);
 		}
 
 		/// <summary>

@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -94,21 +95,22 @@ namespace UnrealBuildTool
 			/// </summary>
 			/// <param name="Location">File to store the cache</param>
 			/// <param name="BaseDir">Base directory for files that this cache should store data for</param>
-			public CachePartition(FileReference Location, DirectoryReference BaseDir)
+			/// <param name="Logger">Logger for output</param>
+			public CachePartition(FileReference Location, DirectoryReference BaseDir, ILogger Logger)
 			{
 				this.Location = Location;
 				this.BaseDir = BaseDir;
 
 				if (FileReference.Exists(Location))
 				{
-					Read();
+					Read(Logger);
 				}
 			}
 
 			/// <summary>
 			/// Reads data for this dependency cache from disk
 			/// </summary>
-			public void Read()
+			public void Read(ILogger Logger)
 			{
 				try
 				{
@@ -117,7 +119,7 @@ namespace UnrealBuildTool
 						int Version = Reader.ReadInt();
 						if (Version != CurrentVersion)
 						{
-							Log.TraceLog("Unable to read dependency cache from {0}; version {1} vs current {2}", Location, Version, CurrentVersion);
+							Logger.LogDebug("Unable to read dependency cache from {File}; version {Version} vs current {CurrentVersion}", Location, Version, CurrentVersion);
 							return;
 						}
 
@@ -131,8 +133,8 @@ namespace UnrealBuildTool
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceWarning("Unable to read {0}. See log for additional information.", Location);
-					Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+					Logger.LogWarning("Unable to read {Location}. See log for additional information.", Location);
+					Logger.LogDebug("{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 				}
 			}
 
@@ -191,12 +193,13 @@ namespace UnrealBuildTool
 		/// Gets the produced module from a dependencies file
 		/// </summary>
 		/// <param name="InputFile">The dependencies file</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="OutModule">The produced module name</param>
 		/// <returns>True if a produced module was found</returns>
-		public bool TryGetProducedModule(FileItem InputFile, [NotNullWhen(true)] out string? OutModule)
+		public bool TryGetProducedModule(FileItem InputFile, ILogger Logger, [NotNullWhen(true)] out string? OutModule)
 		{
 			DependencyInfo? Info;
-			if (TryGetDependencyInfo(InputFile, out Info) && Info.ProducedModule != null)
+			if (TryGetDependencyInfo(InputFile, Logger, out Info) && Info.ProducedModule != null)
 			{
 				OutModule = Info.ProducedModule;
 				return true;
@@ -212,12 +215,13 @@ namespace UnrealBuildTool
 		/// Attempts to get a list of imported modules for the given file
 		/// </summary>
 		/// <param name="InputFile">The dependency file to query</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="OutImportedModules">List of imported modules</param>
 		/// <returns>True if a list of imported modules was obtained</returns>
-		public bool TryGetImportedModules(FileItem InputFile, [NotNullWhen(true)] out List<(string Name, string BMI)>? OutImportedModules)
+		public bool TryGetImportedModules(FileItem InputFile, ILogger Logger, [NotNullWhen(true)] out List<(string Name, string BMI)>? OutImportedModules)
 		{
 			DependencyInfo? Info;
-			if (TryGetDependencyInfo(InputFile, out Info))
+			if (TryGetDependencyInfo(InputFile, Logger, out Info))
 			{
 				OutImportedModules = Info.ImportedModules;
 				return OutImportedModules != null;
@@ -233,12 +237,13 @@ namespace UnrealBuildTool
 		/// Attempts to read the dependencies from the given input file
 		/// </summary>
 		/// <param name="InputFile">File to be read</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="OutDependencyItems">Receives a list of output items</param>
 		/// <returns>True if the input file exists and the dependencies were read</returns>
-		public bool TryGetDependencies(FileItem InputFile, [NotNullWhen(true)] out List<FileItem>? OutDependencyItems)
+		public bool TryGetDependencies(FileItem InputFile, ILogger Logger, [NotNullWhen(true)] out List<FileItem>? OutDependencyItems)
 		{
 			DependencyInfo? Info;
-			if (TryGetDependencyInfo(InputFile, out Info))
+			if (TryGetDependencyInfo(InputFile, Logger, out Info))
 			{
 				OutDependencyItems = Info.Files;
 				return true;
@@ -254,9 +259,10 @@ namespace UnrealBuildTool
 		/// Attempts to read the dependencies from the given input file
 		/// </summary>
 		/// <param name="InputFile">File to be read</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="OutInfo">The dependency info</param>
 		/// <returns>True if the input file exists and the dependencies were read</returns>
-		private bool TryGetDependencyInfo(FileItem InputFile, [NotNullWhen(true)] out DependencyInfo? OutInfo)
+		private bool TryGetDependencyInfo(FileItem InputFile, ILogger Logger, [NotNullWhen(true)] out DependencyInfo? OutInfo)
 		{
 			if (!InputFile.Exists)
 			{
@@ -274,7 +280,7 @@ namespace UnrealBuildTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceLog("Unable to read {0}:\n{1}", InputFile, ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogDebug("Unable to read {File}:\n{Ex}", InputFile, ExceptionUtils.FormatExceptionDetails(Ex));
 				OutInfo = null;
 				return false;
 			}
@@ -336,8 +342,9 @@ namespace UnrealBuildTool
 		/// <param name="Configuration">Configuration being built</param>
 		/// <param name="TargetType">The target type</param>
 		/// <param name="Architecture">The target architecture</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Dependency cache hierarchy for the given project</returns>
-		public void Mount(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, string Architecture)
+		public void Mount(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, string Architecture, ILogger Logger)
 		{
 			if (ProjectFile == null || !Unreal.IsEngineInstalled())
 			{
@@ -352,13 +359,13 @@ namespace UnrealBuildTool
 				}
 
 				FileReference EngineCacheLocation = FileReference.Combine(Unreal.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture, false), AppName, Configuration.ToString(), "DependencyCache.bin");
-				FindOrAddPartition(EngineCacheLocation, Unreal.EngineDirectory);
+				FindOrAddPartition(EngineCacheLocation, Unreal.EngineDirectory, Logger);
 			}
 
 			if (ProjectFile != null)
 			{
 				FileReference ProjectCacheLocation = FileReference.Combine(ProjectFile.Directory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture, false), TargetName, Configuration.ToString(), "DependencyCache.bin");
-				FindOrAddPartition(ProjectCacheLocation, ProjectFile.Directory);
+				FindOrAddPartition(ProjectCacheLocation, ProjectFile.Directory, Logger);
 			}
 		}
 
@@ -367,8 +374,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Location">File to store the cache</param>
 		/// <param name="BaseDir">Base directory for files that this cache should store data for</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Reference to a dependency cache with the given settings</returns>
-		void FindOrAddPartition(FileReference Location, DirectoryReference BaseDir)
+		void FindOrAddPartition(FileReference Location, DirectoryReference BaseDir, ILogger Logger)
 		{
 			lock (GlobalPartitions)
 			{
@@ -377,7 +385,7 @@ namespace UnrealBuildTool
 					CachePartition? Partition;
 					if (!GlobalPartitions.TryGetValue(Location, out Partition))
 					{
-						Partition = new CachePartition(Location, BaseDir);
+						Partition = new CachePartition(Location, BaseDir, Logger);
 						GlobalPartitions.Add(Location, Partition);
 					}
 					Partitions.Add(Partition);

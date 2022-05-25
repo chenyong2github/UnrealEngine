@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -37,7 +38,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			bool bSuccess = true;
 			return bSuccess;
@@ -243,7 +244,8 @@ namespace UnrealBuildTool
 		/// Adds the include directory to the list, after converting it to an absolute path to UnrealEngine root directory.
 		/// </summary>
 		/// <param name="FileContent">File content.</param>
-		private void WriteIncludeSection(ref StringBuilder FileContent)
+		/// <param name="Logger"></param>
+		private void WriteIncludeSection(ref StringBuilder FileContent, ILogger Logger)
 		{
 			List<string> IncludeDirectories = new List<string>();
 			List<string> SystemIncludeDirectories = new List<string>();
@@ -259,7 +261,7 @@ namespace UnrealBuildTool
 				KDevelopProjectFile? KDevelopProject = CurProject as KDevelopProjectFile;
 				if (KDevelopProject == null)
 				{
-					Log.TraceInformation("KDevelopProject == null");
+					Logger.LogInformation("KDevelopProject == null");
 					continue;
 				}
 
@@ -367,7 +369,8 @@ namespace UnrealBuildTool
 		/// Write the defines section to the .kdev4/$ProjectName.kdev4 project file.
 		/// </summary>
 		/// <param name="FileContent">File content.</param>
-		private void WriteDefineSection(ref StringBuilder FileContent)
+		/// <param name="Logger">Logger for output</param>
+		private void WriteDefineSection(ref StringBuilder FileContent, ILogger Logger)
 		{
 			String Key = "";
 			String Value = "";
@@ -379,7 +382,7 @@ namespace UnrealBuildTool
 				KDevelopProjectFile? KDevelopProject = CurProject as KDevelopProjectFile;
 				if (KDevelopProject == null)
 				{
-					Log.TraceInformation("KDevelopProject == null");
+					Logger.LogInformation("KDevelopProject == null");
 					continue;
 				}
 
@@ -438,7 +441,7 @@ namespace UnrealBuildTool
 		}
 
 		/// Simple Place to call all the Write*Section functions.
-		private bool WriteKDevelopPro()
+		private bool WriteKDevelopPro(ILogger Logger)
 		{
 			// RAKE! Take one KDevelopProjectFileContent and pass
 			// it through each function that writes out the sections.
@@ -458,8 +461,8 @@ namespace UnrealBuildTool
 			WriteKDevPrimaryProjectSection(ref KDevelopPrimaryFileContent, PrimaryProjectName);
 
 			WriteCommandSection(ref KDevelopFileContent);
-			WriteIncludeSection(ref IncludesFileContent);
-			WriteDefineSection(ref DefinesFileContent);
+			WriteIncludeSection(ref IncludesFileContent, Logger);
+			WriteDefineSection(ref DefinesFileContent, Logger);
 			WriteExcludeSection(ref KDevelopFileContent);
 
 			// Write the primary kdev file.
@@ -476,18 +479,18 @@ namespace UnrealBuildTool
 			string FullDefinesFileName = Path.Combine(FullPrimaryProjectPath, DefinesFileName);
 			string FullIncludesFileName = Path.Combine(FullPrimaryProjectPath, IncludesFileName);
 
-			WriteFileIfChanged(FullDefinesFileName, DefinesFileContent.ToString());
-			WriteFileIfChanged(FullIncludesFileName, IncludesFileContent.ToString());
+			WriteFileIfChanged(FullDefinesFileName, DefinesFileContent.ToString(), Logger);
+			WriteFileIfChanged(FullIncludesFileName, IncludesFileContent.ToString(), Logger);
 
-			return WriteFileIfChanged(FullKDevelopPrimaryFileName, KDevelopPrimaryFileContent.ToString()) &&
-			WriteFileIfChanged(FullKDevelopFileName, KDevelopFileContent.ToString());
+			return WriteFileIfChanged(FullKDevelopPrimaryFileName, KDevelopPrimaryFileContent.ToString(), Logger) &&
+			WriteFileIfChanged(FullKDevelopFileName, KDevelopFileContent.ToString(), Logger);
 		}
 
 		/// ProjectFileGenerator interface
 		//protected override bool WritePrimaryProjectFile( ProjectFile UBTProject )
-		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
-			return WriteKDevelopPro();
+			return WriteKDevelopPro(Logger);
 		}
 
 		/// ProjectFileGenerator interface
@@ -503,7 +506,7 @@ namespace UnrealBuildTool
 		}
 
 		/// ProjectFileGenerator interface
-		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory, ILogger Logger)
 		{
 		}
 	}

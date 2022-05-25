@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -23,7 +24,7 @@ namespace UnrealBuildTool
 			}
 		}
 		
-		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath, ILogger Logger)
 		{
 			FileReference PrimaryProjDeleteFilename = FileReference.Combine(InPrimaryProjectDirectory, InPrimaryProjectName + ".wkst");
 			if (FileReference.Exists(PrimaryProjDeleteFilename))
@@ -40,8 +41,8 @@ namespace UnrealBuildTool
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceInformation("Error while trying to clean project files path {0}. Ignored.", InIntermediateProjectFilesPath);
-					Log.TraceInformation("\t" + Ex.Message);
+					Logger.LogInformation("Error while trying to clean project files path {InIntermediateProjectFilesPath}. Ignored.", InIntermediateProjectFilesPath);
+					Logger.LogInformation("\t{Ex}", Ex.Message);
 				}
 			}
 		}
@@ -51,7 +52,7 @@ namespace UnrealBuildTool
 			return new EddieProjectFile(InitFilePath, BaseDir);
 		}
 		
-		private bool WriteEddieWorkset()
+		private bool WriteEddieWorkset(ILogger Logger)
 		{
 			bool bSuccess = false;
 			
@@ -86,20 +87,20 @@ namespace UnrealBuildTool
 			string ProjectName = PrimaryProjectName;
 			string FilePath = PrimaryProjectPath + "/" + ProjectName + ".wkst";
 			
-			bSuccess = WriteFileIfChanged(FilePath, WorksetDataContent.ToString(), new UTF8Encoding());
+			bSuccess = WriteFileIfChanged(FilePath, WorksetDataContent.ToString(), Logger, new UTF8Encoding());
 			
 			return bSuccess;
 		}
 		
-		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
-			return WriteEddieWorkset();
+			return WriteEddieWorkset(Logger);
 		}
 		
-		protected override void ConfigureProjectFileGeneration(string[] Arguments, ref bool IncludeAllPlatforms)
+		protected override void ConfigureProjectFileGeneration(string[] Arguments, ref bool IncludeAllPlatforms, ILogger Logger)
 		{
 			// Call parent implementation first
-			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms);
+			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms, Logger);
 
 			if (bGeneratingGameProjectFiles)
 			{

@@ -7,6 +7,7 @@ using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -211,7 +212,7 @@ namespace UnrealBuildTool
 				return "cmake-definitions" + CMakeExtension;
 			}
 		}
-		
+
 
 		/// <summary>
 		/// Writes the primary project file (e.g. Visual Studio Solution file)
@@ -219,7 +220,8 @@ namespace UnrealBuildTool
 		/// <param name="UBTProject">The UnrealBuildTool project</param>
 		/// <param name="PlatformProjectGenerators">The registered platform project generators</param>
 		/// <returns>True if successful</returns>
-		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		/// <param name="Logger"></param>
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			return true;
 		}
@@ -244,7 +246,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private bool WriteCMakeLists()
+		private bool WriteCMakeLists(ILogger Logger)
 		{
 			string BuildCommand;
 			const string CMakeSectionEnd = " )\n\n";
@@ -289,7 +291,7 @@ namespace UnrealBuildTool
 				HostArchitecture = "Linux";
 				BuildCommand = "cd \"" + UnrealRootPath + "\" && bash \"" + UnrealRootPath + "/Engine/Build/BatchFiles/" + HostArchitecture + "/Build.sh\"";
 
-				string? CompilerPath = LinuxCommon.WhichClang();
+				string? CompilerPath = LinuxCommon.WhichClang(Logger);
 				SetCompiler = "set(CMAKE_CXX_COMPILER " + CompilerPath + ")\n\n";
 			}
 			else
@@ -391,7 +393,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create SourceFiles, HeaderFiles, and ConfigFiles sections.
-			List<FileReference> AllModuleFiles = DiscoverModules(FindGameProjects(), null);
+			List<FileReference> AllModuleFiles = DiscoverModules(FindGameProjects(Logger), null);
 			foreach (FileReference CurModuleFile in AllModuleFiles)
 			{
 				List<FileReference> FoundFiles = SourceFileSearch.FindModuleSourceFiles(CurModuleFile);
@@ -595,19 +597,19 @@ namespace UnrealBuildTool
 			string FullFileName = Path.Combine(PrimaryProjectPath.FullName, ProjectFileName);
 
 			// Write out CMake files
-			bool bWriteMakeList = WriteFileIfChanged(FullFileName, CMakefileContent.ToString());
-			bool bWriteEngineHeaders = WriteFileIfChanged(EngineHeadersFilePath, CMakeEngineHeaderFilesList.ToString());
-			bool bWriteProjectHeaders = WriteFileIfChanged(ProjectHeadersFilePath, CMakeProjectHeaderFilesList.ToString());
-			bool bWriteEngineSources = WriteFileIfChanged(EngineSourcesFilePath, CMakeEngineSourceFilesList.ToString());
-			bool bWriteProjectSources = WriteFileIfChanged(ProjectSourcesFilePath, CMakeProjectSourceFilesList.ToString());
-			bool bWriteIncludes = WriteFileIfChanged(IncludeFilePath, IncludeDirectoriesList.ToString());
-			bool bWriteDefinitions = WriteFileIfChanged(DefinitionsFilePath, PreprocessorDefinitionsList.ToString());
-			bool bWriteEngineConfigs = WriteFileIfChanged(EngineConfigsFilePath, CMakeEngineConfigFilesList.ToString());
-			bool bWriteProjectConfigs = WriteFileIfChanged(ProjectConfigsFilePath, CMakeProjectConfigFilesList.ToString());
-			bool bWriteEngineShaders = WriteFileIfChanged(EngineShadersFilePath, CMakeEngineShaderFilesList.ToString());
-			bool bWriteProjectShaders = WriteFileIfChanged(ProjectShadersFilePath, CMakeProjectShaderFilesList.ToString());
-			bool bWriteEngineCS = WriteFileIfChanged(EngineCSFilePath, CMakeEngineCSFilesList.ToString());
-			bool bWriteProjectCS = WriteFileIfChanged(ProjectCSFilePath, CMakeProjectCSFilesList.ToString());			
+			bool bWriteMakeList = WriteFileIfChanged(FullFileName, CMakefileContent.ToString(), Logger);
+			bool bWriteEngineHeaders = WriteFileIfChanged(EngineHeadersFilePath, CMakeEngineHeaderFilesList.ToString(), Logger);
+			bool bWriteProjectHeaders = WriteFileIfChanged(ProjectHeadersFilePath, CMakeProjectHeaderFilesList.ToString(), Logger);
+			bool bWriteEngineSources = WriteFileIfChanged(EngineSourcesFilePath, CMakeEngineSourceFilesList.ToString(), Logger);
+			bool bWriteProjectSources = WriteFileIfChanged(ProjectSourcesFilePath, CMakeProjectSourceFilesList.ToString(), Logger);
+			bool bWriteIncludes = WriteFileIfChanged(IncludeFilePath, IncludeDirectoriesList.ToString(), Logger);
+			bool bWriteDefinitions = WriteFileIfChanged(DefinitionsFilePath, PreprocessorDefinitionsList.ToString(), Logger);
+			bool bWriteEngineConfigs = WriteFileIfChanged(EngineConfigsFilePath, CMakeEngineConfigFilesList.ToString(), Logger);
+			bool bWriteProjectConfigs = WriteFileIfChanged(ProjectConfigsFilePath, CMakeProjectConfigFilesList.ToString(), Logger);
+			bool bWriteEngineShaders = WriteFileIfChanged(EngineShadersFilePath, CMakeEngineShaderFilesList.ToString(), Logger);
+			bool bWriteProjectShaders = WriteFileIfChanged(ProjectShadersFilePath, CMakeProjectShaderFilesList.ToString(), Logger);
+			bool bWriteEngineCS = WriteFileIfChanged(EngineCSFilePath, CMakeEngineCSFilesList.ToString(), Logger);
+			bool bWriteProjectCS = WriteFileIfChanged(ProjectCSFilePath, CMakeProjectCSFilesList.ToString(), Logger);			
 
 			// Return success flag if all files were written out successfully
 			return bWriteMakeList &&
@@ -726,9 +728,9 @@ namespace UnrealBuildTool
 
 		#region ProjectFileGenerator implementation
 
-		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
-			return WriteCMakeLists();
+			return WriteCMakeLists(Logger);
 		}
 
 		/// <summary>
@@ -746,9 +748,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected bool bIncludeTVOSTargets = false;
 
-		protected override void ConfigureProjectFileGeneration(String[] Arguments, ref bool IncludeAllPlatforms)
+		protected override void ConfigureProjectFileGeneration(String[] Arguments, ref bool IncludeAllPlatforms, ILogger Logger)
 		{
-			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms);
+			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms, Logger);
 			// Check for minimal build targets to speed up cmake processing
 			foreach (string CurArgument in Arguments)
 			{
@@ -778,7 +780,7 @@ namespace UnrealBuildTool
 			return new CMakefileProjectFile(InitFilePath, BaseDir);
 		}
 
-		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory, ILogger Logger)
 		{
 			// Remove Project File
 			FileReference PrimaryProjectFile = FileReference.Combine(InPrimaryProjectDirectory, ProjectFileName);

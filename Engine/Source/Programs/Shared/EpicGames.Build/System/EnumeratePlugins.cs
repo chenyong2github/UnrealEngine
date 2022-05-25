@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -132,9 +133,10 @@ namespace UnrealBuildBase
 		/// </summary>
 		/// <param name="ProjectFile">Path to the project file</param>
 		/// <param name="FoundPlugins">Collection of plugins to build</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="Plugins">Collection of built plugins</param>
 		/// <returns>True if the plugins compiled</returns>
-		public static bool BuildUbtPlugins(FileReference? ProjectFile, IEnumerable<FileReference> FoundPlugins,
+		public static bool BuildUbtPlugins(FileReference? ProjectFile, IEnumerable<FileReference> FoundPlugins, ILogger Logger,
 			out (FileReference ProjectFile, FileReference TargetAssembly)[]? Plugins)
 		{
 			bool bBuildSuccess = true;
@@ -156,13 +158,13 @@ namespace UnrealBuildBase
 					{
 						if (Log.OutputFile != null)
 						{
-							Log.TraceInformation($"Building {Count} plugins (see Log '{Log.OutputFile}' for more details)");
+							Logger.LogInformation("Building {Count} plugins (see Log '{LogFile}' for more details)", Count, Log.OutputFile);
 						}
 						else
 						{
-							Log.TraceInformation($"Building {Count} plugins");
+							Logger.LogInformation("Building {Count} plugins", Count);
 						}
-					}
+					}, Logger
 				);
 				
 				// Add any built plugins back into the cache

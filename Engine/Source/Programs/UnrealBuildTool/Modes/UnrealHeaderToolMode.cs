@@ -11,6 +11,7 @@ using System.IO;
 using System.Reflection;
 using System.Text;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool.Modes
 {
@@ -534,7 +535,7 @@ namespace UnrealBuildTool.Modes
 			public bool External;
 		}
 
-		private static bool RunScriptTest(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, string Script)
+		private static bool RunScriptTest(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, string Script, ILogger Logger)
 		{
 			string InPath = Path.Combine(TestDirectory, Script);
 			string OutPath = Path.Combine(TestOutputDirectory, Script);
@@ -743,7 +744,7 @@ namespace UnrealBuildTool.Modes
 				// We trim the ends because it is too easy to leave off the ending CRLF in the script file.
 				if (ScriptFragments[ConsoleIndex].Body.ToString().TrimEnd() != SBConsole.ToString().TrimEnd())
 				{
-					Log.TraceError("Console output failed to match");
+					Logger.LogError("Console output failed to match");
 					bSuccess = false;
 				}
 
@@ -754,19 +755,19 @@ namespace UnrealBuildTool.Modes
 					{
 						if (ScriptFragments[Index].Body.ToString().TrimEnd() != KVP.Value.TrimEnd())
 						{
-							Log.TraceError($"Output \"{KVP.Key}\" failed to match");
+							Logger.LogError("Output \"{Key}\" failed to match", KVP.Key);
 							bSuccess = false;
 						}
 						OutputFragments.Remove(KVP.Key);
 					}
 					else
 					{
-						Log.TraceError($"Output \"{KVP.Key}\" not found in test script");
+						Logger.LogError("Output \"{Key}\" not found in test script", KVP.Key);
 					}
 				}
 				foreach (KeyValuePair<string, int> KVP in OutputFragments)
 				{
-					Log.TraceError($"Output \"{KVP.Key}\" in test script but not generated");
+					Logger.LogError("Output \"{Key}\" in test script but not generated", KVP.Key);
 				}
 
 				// Create the complete output.  Output includes all of the source fragments and console fragments
@@ -802,42 +803,42 @@ namespace UnrealBuildTool.Modes
 				}
 				catch (Exception E)
 				{
-					Log.TraceError("Unable to write test result to \"{0}\"", E.Message);
+					Logger.LogError(E, "Unable to write test result to \"{Ex}\"", E.Message);
 				}
 			}
 
 			if (bSuccess)
 			{
-				Log.TraceInformation("Test {0} succeeded", InPath);
+				Logger.LogInformation("Test {InPath} succeeded", InPath);
 			}
 			else
 			{
-				Log.TraceError("Test {0} failed", InPath);
+				Logger.LogError("Test {InPath} failed", InPath);
 			}
 			return bSuccess;
 		}
 
-		private static bool RunScriptTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, List<string> Scripts)
+		private static bool RunScriptTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, List<string> Scripts, ILogger Logger)
 		{
 			bool bResult = true;
 			foreach (string Script in Scripts)
 			{
-				bResult &= RunScriptTest(Tables, Config, Options, TestDirectory, TestOutputDirectory, Script);
+				bResult &= RunScriptTest(Tables, Config, Options, TestDirectory, TestOutputDirectory, Script, Logger);
 			}
 			return bResult;
 		}
 
-		private static bool RunDirectoryTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, List<string> Directories)
+		private static bool RunDirectoryTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, List<string> Directories, ILogger Logger)
 		{
 			bool bResult = true;
 			foreach (string Directory in Directories)
 			{
-				bResult &= RunTests(Tables, Config, Options, Path.Combine(TestDirectory, Directory), Path.Combine(TestOutputDirectory, Directory));
+				bResult &= RunTests(Tables, Config, Options, Path.Combine(TestDirectory, Directory), Path.Combine(TestOutputDirectory, Directory), Logger);
 			}
 			return bResult;
 		}
 
-		private static bool RunTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory)
+		private static bool RunTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, string TestDirectory, string TestOutputDirectory, ILogger Logger)
 		{
 			// Create output directory
 			Directory.CreateDirectory(TestOutputDirectory);
@@ -864,11 +865,11 @@ namespace UnrealBuildTool.Modes
 			Manifests.Sort(StringComparer.OrdinalIgnoreCase);
 
 			return
-				RunScriptTests(Tables, Config, Options, TestDirectory, TestOutputDirectory, Scripts) &&
-				RunDirectoryTests(Tables, Config, Options, TestDirectory, TestOutputDirectory, Directories);
+				RunScriptTests(Tables, Config, Options, TestDirectory, TestOutputDirectory, Scripts, Logger) &&
+				RunDirectoryTests(Tables, Config, Options, TestDirectory, TestOutputDirectory, Directories, Logger);
 		}
 
-		public static bool RunTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options)
+		public static bool RunTests(UhtTables Tables, IUhtConfig Config, UhtGlobalOptions Options, ILogger Logger)
 		{
 			DirectoryReference EngineSourceProgramDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Source", "Programs");
 			string TestDirectory = FileReference.Combine(EngineSourceProgramDirectory, "UnrealBuildTool.Tests", "UHT").FullName;
@@ -883,11 +884,11 @@ namespace UnrealBuildTool.Modes
 			{ }
 
 			// Collect a list of all the test scripts
-			Log.TraceInformation("Running tests in {0}", TestDirectory);
-			Log.TraceInformation("Output can be compared in {0}", TestOutputDirectory);
+			Logger.LogInformation("Running tests in {TestDirectory}", TestDirectory);
+			Logger.LogInformation("Output can be compared in {TestOutputDirectory}", TestOutputDirectory);
 
 			// Run the tests on the directory
-			return RunTests(Tables, Config, Options, TestDirectory, TestOutputDirectory);
+			return RunTests(Tables, Config, Options, TestDirectory, TestOutputDirectory, Logger);
 		}
 	}
 
@@ -977,7 +978,8 @@ namespace UnrealBuildTool.Modes
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			try
 			{
@@ -1039,7 +1041,7 @@ namespace UnrealBuildTool.Modes
 				// If we are running test scripts
 				if (Options.bTest)
 				{
-					return UhtTestHarness.RunTests(Tables, Config, Options) ? (int)CompilationResult.Succeeded : (int)CompilationResult.OtherCompilationError;
+					return UhtTestHarness.RunTests(Tables, Config, Options, Logger) ? (int)CompilationResult.Succeeded : (int)CompilationResult.OtherCompilationError;
 				}
 
 				string? ProjectFile = null;
@@ -1048,17 +1050,17 @@ namespace UnrealBuildTool.Modes
 				if (TargetArgumentIndex >= 0)
 				{
 					CommandLineArguments LocalArguments = new(new string[] { Arguments[TargetArgumentIndex] });
-					List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(LocalArguments, false, false, false);
+					List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(LocalArguments, false, false, false, Logger);
 					if (TargetDescriptors.Count == 0)
 					{
-						Log.TraceError("No target descriptors found.");
+						Logger.LogError("No target descriptors found.");
 						return (int)CompilationResult.OtherCompilationError;
 					}
 
 					TargetDescriptor TargetDesc = TargetDescriptors[0];
 
 					// Create the target
-					UEBuildTarget Target = UEBuildTarget.Create(TargetDesc, false, false, false);
+					UEBuildTarget Target = UEBuildTarget.Create(TargetDesc, false, false, false, Logger);
 
 					// Create the makefile for the target and export the module information
 					using ISourceFileWorkingSet WorkingSet = new EmptySourceFileWorkingSet();
@@ -1069,7 +1071,7 @@ namespace UnrealBuildTool.Modes
 					Arguments.ApplyTo(BuildConfiguration);
 
 					// Create the makefile
-					TargetMakefile Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDesc, true);
+					TargetMakefile Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDesc, Logger, true);
 
 					FileReference ModuleInfoFileName = ExternalExecution.GetUHTModuleInfoFileName(Makefile, Target.TargetName);
 					FileReference DepsFileName = ExternalExecution.GetUHTDepsFileName(ModuleInfoFileName);
@@ -1136,8 +1138,8 @@ namespace UnrealBuildTool.Modes
 			catch (Exception Ex)
 			{
 				// Unhandled exception.
-				Log.TraceError("Unhandled exception: {0}", ExceptionUtils.FormatException(Ex));
-				Log.TraceLog(ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogError(Ex, "Unhandled exception: {Ex}", ExceptionUtils.FormatException(Ex));
+				Logger.LogDebug(Ex, "Unhandled exception: {Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 				return (int)CompilationResult.OtherCompilationError;
 			}
 		}

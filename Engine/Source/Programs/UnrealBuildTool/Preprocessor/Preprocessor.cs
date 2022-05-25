@@ -12,6 +12,7 @@ using System.Collections.Concurrent;
 using EpicGames.Core;
 using System.Diagnostics.CodeAnalysis;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -384,9 +385,10 @@ namespace UnrealBuildTool
 		/// <param name="Fragments">Lists of fragments that are parsed</param>
 		/// <param name="OuterContext">Outer context information, for error messages</param>
 		/// <param name="SourceFileCache">Cache for source files</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="bShowIncludes">Show all the included files, in order</param>
 		/// <param name="bIgnoreMissingIncludes">Suppress exceptions if an include path can not be resolved</param>
-		public void ParseFile(FileItem File, List<SourceFileFragment> Fragments, PreprocessorContext? OuterContext, SourceFileMetadataCache SourceFileCache, bool bShowIncludes = false, bool bIgnoreMissingIncludes = false)
+		public void ParseFile(FileItem File, List<SourceFileFragment> Fragments, PreprocessorContext? OuterContext, SourceFileMetadataCache SourceFileCache, ILogger Logger, bool bShowIncludes = false, bool bIgnoreMissingIncludes = false)
 		{
 			// If the file has already been included and had a #pragma once directive, don't include it again
 			if(PragmaOnceFiles.Contains(File))
@@ -402,7 +404,7 @@ namespace UnrealBuildTool
 			// Output a trace of the included files
 			if(bShowIncludes)
 			{
-				Log.TraceInformation("Note: including file: {0}", File.Location);
+				Logger.LogInformation("Note: including file: {FileLocation}", File.Location);
 			}
 
 			// If the file had a header guard, and the macro is still defined, don't include it again
@@ -429,7 +431,7 @@ namespace UnrealBuildTool
 						// Parse the included file
 						if (IncludedFile != null)
 						{
-							ParseFile(IncludedFile, Fragments, Context, SourceFileCache, bShowIncludes, bIgnoreMissingIncludes);
+							ParseFile(IncludedFile, Fragments, Context, SourceFileCache, Logger, bShowIncludes, bIgnoreMissingIncludes);
 						}
 					}
 					Context.MarkupIdx++;

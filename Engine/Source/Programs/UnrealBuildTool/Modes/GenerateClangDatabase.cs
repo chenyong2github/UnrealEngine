@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -27,7 +28,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -51,7 +53,7 @@ namespace UnrealBuildTool
 			UEBuildModuleCPP.bForceAddGeneratedCodeIncludePath = true;
 
 			// Parse all the target descriptors
-			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile);
+			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, Logger);
 
 			// Generate the compile DB for each target
 			using (ISourceFileWorkingSet WorkingSet = new EmptySourceFileWorkingSet())
@@ -64,15 +66,15 @@ namespace UnrealBuildTool
 					TargetDescriptor.AdditionalArguments = TargetDescriptor.AdditionalArguments.Append(new string[] { "-NoPCH", "-DisableUnity" });
 
 					// Create a makefile for the target
-					UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled);
+					UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, Logger);
 
 					// Find the location of the compiler
-					FileReference ClangPath = FindClangCompiler(Target);
+					FileReference ClangPath = FindClangCompiler(Target, Logger);
 
 					bool IsWindowsClang = ClangPath.GetFileName().Equals("clang-cl.exe", StringComparison.OrdinalIgnoreCase);
 
 					// Create all the binaries and modules
-					CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles();
+					CppCompileEnvironment GlobalCompileEnvironment = Target.CreateCompileEnvironmentForProjectFiles(Logger);
 					foreach (UEBuildBinary Binary in Target.Binaries)
 					{
 						CppCompileEnvironment BinaryCompileEnvironment = Binary.CreateBinaryCompileEnvironment(GlobalCompileEnvironment);
@@ -170,8 +172,9 @@ namespace UnrealBuildTool
 		/// Searches for the Clang compiler for the given platform.
 		/// </summary>
 		/// <param name="Target">The build platform to use to search for the Clang compiler.</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>The path to the Clang compiler.</returns>
-		private static FileReference FindClangCompiler(UEBuildTarget Target)
+		private static FileReference FindClangCompiler(UEBuildTarget Target, ILogger Logger)
 		{
 			UnrealTargetPlatform HostPlatform = BuildHostPlatform.Current.Platform;
 
@@ -179,13 +182,14 @@ namespace UnrealBuildTool
 			{
 				VCEnvironment Environment = VCEnvironment.Create(WindowsCompiler.Clang, Target.Platform,
 					Target.Rules.WindowsPlatform.Architecture, null,
-					Target.Rules.WindowsPlatform.WindowsSdkVersion, null);
+					Target.Rules.WindowsPlatform.WindowsSdkVersion, null,
+					Logger);
 
 				return Environment.CompilerPath;
 			}
 			else if (OperatingSystem.IsLinux())
 			{
-				string? Clang = LinuxCommon.WhichClang();
+				string? Clang = LinuxCommon.WhichClang(Logger);
 
 				if (Clang != null)
 				{
@@ -194,7 +198,7 @@ namespace UnrealBuildTool
 			}
 			else if (OperatingSystem.IsMacOS())
 			{
-				MacToolChainSettings Settings = new MacToolChainSettings(false);
+				MacToolChainSettings Settings = new MacToolChainSettings(false, Logger);
 				DirectoryReference? ToolchainDir = DirectoryReference.FromString(Settings.ToolchainDir);
 
 				if (ToolchainDir != null)

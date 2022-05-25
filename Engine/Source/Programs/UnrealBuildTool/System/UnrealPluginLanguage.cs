@@ -11,6 +11,7 @@ using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -527,10 +528,12 @@ namespace UnrealBuildTool
 		private Dictionary<string, UPLContext> Contexts;
 		private int ContextIndex;
 		private string? LastError;
+		private ILogger Logger;
 
-		public UnrealPluginLanguage(FileReference? InProjectFile, List<string> InXMLFiles, List<string> InArchitectures, string InXMLNameSpace, string InRootDefinition, UnrealTargetPlatform InTargetPlatform)
+		public UnrealPluginLanguage(FileReference? InProjectFile, List<string> InXMLFiles, List<string> InArchitectures, string InXMLNameSpace, string InRootDefinition, UnrealTargetPlatform InTargetPlatform, ILogger InLogger)
 		{
 			ProjectFile = InProjectFile;
+			Logger = InLogger;
 
 			LastError = null;
 
@@ -548,7 +551,7 @@ namespace UnrealBuildTool
 			foreach (string Basename in InXMLFiles)
 			{
 				string Filename = Path.Combine(PathPrefix, Basename.Replace("\\", "/"));
-				Log.TraceInformation("UPL: {0}", Filename);
+				Logger.LogInformation("UPL: {FileName}", Filename);
 				if (File.Exists(Filename))
 				{
 					string PluginDir = Path.GetDirectoryName(Filename)!;
@@ -560,14 +563,14 @@ namespace UnrealBuildTool
 					catch (Exception e)
 					{
 						LastError = String.Format("Unreal Plugin file {0} parsing failed! {1}", Filename, e);
-						Log.TraceError("\n{0}", LastError);
+						Logger.LogError("\n{LastError}", LastError);
 					}
 				}
 				else
 				{
 					LastError = String.Format("Unreal Plugin file {0} missing!", Filename);
-					Log.TraceError("\n{0}", LastError);
-					Log.TraceInformation("\nCWD: {0}", Directory.GetCurrentDirectory());
+					Logger.LogError("\n{LastError}", LastError);
+					Logger.LogInformation("\nCWD: {Cwd}", Directory.GetCurrentDirectory());
 				}
 			}
 		}
@@ -674,7 +677,7 @@ namespace UnrealBuildTool
 			{
 				if (!GlobalContext.BoolVariables.TryGetValue(Condition, out Result))
 				{
-					Log.TraceWarning("\nMissing condition '{0}' in '{1}' (skipping instruction)", Condition, TraceNodeString(Node));
+					Logger.LogWarning("\nMissing condition '{Condition}' in '{Node}' (skipping instruction)", Condition, TraceNodeString(Node));
 					return false;
 				}
 			}
@@ -816,7 +819,7 @@ namespace UnrealBuildTool
 			int Result = 0;
 			if (!int.TryParse(Input, out Result))
 			{
-				Log.TraceWarning("\nInvalid integer '{0}' in '{1}' (defaulting to 0)", Input, TraceNodeString(Node));
+				Logger.LogWarning("\nInvalid integer '{Input}' in '{Node}' (defaulting to 0)", Input, TraceNodeString(Node));
 			}
 			return Result;
 		}
@@ -829,7 +832,7 @@ namespace UnrealBuildTool
 			{
 				if (bRequired)
 				{
-					Log.TraceWarning("\nMissing attribute '{0}' in '{1}' (skipping instruction)", AttributeName, TraceNodeString(Node));
+					Logger.LogWarning("\nMissing attribute '{Attribute}' in '{Node}' (skipping instruction)", AttributeName, TraceNodeString(Node));
 				}
 				return Fallback;
 			}
@@ -845,7 +848,7 @@ namespace UnrealBuildTool
 			{
 				if (bRequired)
 				{
-					Log.TraceWarning("\nMissing attribute '{0}' in '{1}' (skipping instruction)", AttributeName, TraceNodeString(Node));
+					Logger.LogWarning("\nMissing attribute '{Attribute}' in '{Node}' (skipping instruction)", AttributeName, TraceNodeString(Node));
 				}
 				return Fallback;
 			}
@@ -865,19 +868,19 @@ namespace UnrealBuildTool
 			if (!ConfigCache.TryGetValue(baseIniName, out config))
 			{
 				// note: use our own ConfigCacheIni since EngineConfiguration.cs only parses RequiredSections!
-				config = ConfigCacheIni_UPL.CreateConfigCacheIni_UPL(TargetPlatform, baseIniName, DirectoryReference.FromFile(ProjectFile));
+				config = ConfigCacheIni_UPL.CreateConfigCacheIni_UPL(TargetPlatform, baseIniName, DirectoryReference.FromFile(ProjectFile), Logger);
 				ConfigCache.Add(baseIniName, config);
 			}
 			return config;
 		}
 
-		private static bool FilesAreDifferent(string SourceFilename, string DestFilename)
+		private static bool FilesAreDifferent(string SourceFilename, string DestFilename, ILogger Logger)
 		{
 			// source must exist
 			FileInfo SourceInfo = new FileInfo(SourceFilename);
 			if (!SourceInfo.Exists)
 			{
-				Log.TraceInformation("File {0} does not exist", SourceFilename);
+				Logger.LogInformation("File {SourceFilename} does not exist", SourceFilename);
 				return false;
 			}
 
@@ -905,7 +908,7 @@ namespace UnrealBuildTool
 			return false;
 		}
 
-		private static void CopyFileDirectory(string SourceDir, string DestDir, bool bForce = false)
+		private static void CopyFileDirectory(string SourceDir, string DestDir, ILogger Logger, bool bForce = false)
 		{
 			if (!Directory.Exists(SourceDir))
 			{
@@ -918,7 +921,7 @@ namespace UnrealBuildTool
 				// make the dst filename with the same structure as it was in SourceDir
 				string DestFilename = Path.Combine(DestDir, Utils.MakePathRelativeTo(Filename, SourceDir));
 
-				if (bForce || FilesAreDifferent(Filename, DestFilename))
+				if (bForce || FilesAreDifferent(Filename, DestFilename, Logger))
 				{
 					if (File.Exists(DestFilename))
 					{
@@ -943,7 +946,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static void DeleteFiles(string Filespec)
+		private static void DeleteFiles(string Filespec, ILogger Logger)
 		{
 			string BaseDir = Path.GetDirectoryName(Filespec)!;
 			string Mask = Path.GetFileName(Filespec);
@@ -958,7 +961,7 @@ namespace UnrealBuildTool
 			{
 				File.SetAttributes(Filename, FileAttributes.Normal);
 				File.Delete(Filename);
-				Log.TraceInformation("\nDeleted file {0}", Filename);
+				Logger.LogInformation("\nDeleted file {Filename}", Filename);
 			}
 		}
 
@@ -1065,7 +1068,7 @@ namespace UnrealBuildTool
 				XElement Node = ExecutionStack.Pop();
 				if (bGlobalTrace || CurrentContext.bTrace)
 				{
-					Log.TraceInformation("Execute: '{0}'", TraceNodeString(Node));
+					Logger.LogInformation("Execute: '{Node}'", TraceNodeString(Node));
 				}
 				switch (Node.Name.ToString())
 				{
@@ -1077,7 +1080,7 @@ namespace UnrealBuildTool
 								CurrentContext.bTrace = StringToBool(Enable);
 								if (!bGlobalTrace && CurrentContext.bTrace)
 								{
-									Log.TraceInformation("Context: '{0}' using Architecture='{1}', NodeName='{2}', Input='{3}'", CurrentContext.StringVariables["PluginDir"], Architecture, NodeName, Input);
+									Logger.LogInformation("Context: '{Context}' using Architecture='{Arch}', NodeName='{NodeName}', Input='{Input}'", CurrentContext.StringVariables["PluginDir"], Architecture, NodeName, Input);
 								}
 							}
 						}
@@ -1087,9 +1090,9 @@ namespace UnrealBuildTool
 						{
 							if (!bGlobalTrace && !CurrentContext.bTrace)
 							{
-								Log.TraceInformation("Context: '{0}' using Architecture='{1}', NodeName='{2}', Input='{3}'", CurrentContext.StringVariables["PluginDir"], Architecture, NodeName, Input);
+								Logger.LogInformation("Context: '{Context}' using Architecture='{Arch}', NodeName='{NodeName}', Input='{Input}'", CurrentContext.StringVariables["PluginDir"], Architecture, NodeName, Input);
 							}
-							Log.TraceInformation("Variables:\n{0}", DumpContext(CurrentContext));
+							Logger.LogInformation("Variables:\n{Variables}", DumpContext(CurrentContext));
 						}
 						break;
 
@@ -1106,7 +1109,7 @@ namespace UnrealBuildTool
 
 							if (bGlobalTrace || CurrentContext.bTrace)
 							{
-								Log.TraceInformation("Context: '{0}' using Architecture='{1}', NodeName='{2}', Input='{3}'", CurrentContext.StringVariables["PluginDir"], Architecture, NodeName, Input);
+								Logger.LogInformation("Context: '{Context}' using Architecture='{Arch}', NodeName='{NodeName}', Input='{Input}'", CurrentContext.StringVariables["PluginDir"], Architecture, NodeName, Input);
 							}
 						}
 						break;
@@ -1233,7 +1236,7 @@ namespace UnrealBuildTool
 							string? Text = GetAttribute(CurrentContext, Node, "text");
 							if (Text != null)
 							{
-								Log.TraceInformation("{0}", Text);
+								Logger.LogInformation("{Message}", Text);
 							}
 						}
 						break;
@@ -1272,7 +1275,7 @@ namespace UnrealBuildTool
 										{
 											if (!GlobalContext.ElementVariables.TryGetValue(Tag.Substring(1), out Target))
 											{
-												Log.TraceWarning("\nMissing element variable '{0}' in '{1}' (skipping instruction)", Tag, TraceNodeString(Node));
+												Logger.LogWarning("Missing element variable '{Tag}' in '{Node}' (skipping instruction)", Tag, TraceNodeString(Node));
 												continue;
 											}
 										}
@@ -1309,7 +1312,7 @@ namespace UnrealBuildTool
 										{
 											if (!GlobalContext.ElementVariables.TryGetValue(Tag.Substring(1), out Target))
 											{
-												Log.TraceWarning("\nMissing element variable '{0}' in '{1}' (skipping instruction)", Tag, TraceNodeString(Node));
+												Logger.LogInformation("\nMissing element variable '{Tag}' in '{Node}' (skipping instruction)", Tag, TraceNodeString(Node));
 												continue;
 											}
 										}
@@ -1545,7 +1548,7 @@ namespace UnrealBuildTool
 								{
 									if (!GlobalContext.ElementVariables.TryGetValue(Name, out Element))
 									{
-										Log.TraceWarning("\nMissing element variable '{0}' in '{1}' (skipping instruction)", Name, TraceNodeString(Node));
+										Logger.LogWarning("Missing element variable '{Name}' in '{Node}' (skipping instruction)", Name, TraceNodeString(Node));
 										continue;
 									}
 								}
@@ -1558,7 +1561,7 @@ namespace UnrealBuildTool
 										{
 											if (!GlobalContext.ElementVariables.TryGetValue(Tag.Substring(1), out Target))
 											{
-												Log.TraceWarning("\nMissing element variable '{0}' in '{1}' (skipping instruction)", Tag, TraceNodeString(Node));
+												Logger.LogWarning("Missing element variable '{Name}' in '{Node}' (skipping instruction)", Tag, TraceNodeString(Node));
 												continue;
 											}
 										}
@@ -1606,7 +1609,7 @@ namespace UnrealBuildTool
 										{
 											if (!GlobalContext.ElementVariables.TryGetValue(Tag.Substring(1), out Target))
 											{
-												Log.TraceWarning("\nMissing element variable '{0}' in '{1}' (skipping instruction)", Tag, TraceNodeString(Node));
+												Logger.LogWarning("Missing element variable '{Tag}' in '{Node}' (skipping instruction)", Tag, TraceNodeString(Node));
 												continue;
 											}
 										}
@@ -1714,7 +1717,7 @@ namespace UnrealBuildTool
 								if (File.Exists(Src))
 								{
 									// check to see if newer than last time we copied
-									if (bForce || FilesAreDifferent(Src, Dst))
+									if (bForce || FilesAreDifferent(Src, Dst, Logger))
 									{
 										if (File.Exists(Dst))
 										{
@@ -1723,7 +1726,7 @@ namespace UnrealBuildTool
 										}
 										Directory.CreateDirectory(Path.GetDirectoryName(Dst)!);
 										File.Copy(Src, Dst, true);
-										Log.TraceInformation("\nFile {0} copied to {1}", Src, Dst);
+										Logger.LogInformation("File {Src} copied to {Dst}", Src, Dst);
 
 										// remove any read only flags and keep timestamp
 										FileInfo DestFileInfo = new FileInfo(Dst);
@@ -1733,7 +1736,7 @@ namespace UnrealBuildTool
 								}
 								else
 								{
-									Log.TraceInformation("\nFile {0} does not exist, not copied!", Src);
+									Logger.LogInformation("File {Src} does not exist, not copied!", Src);
 								}
 							}
 						}
@@ -1746,8 +1749,8 @@ namespace UnrealBuildTool
 							bool bForce = StringToBool(GetAttribute(CurrentContext, Node, "force", true, false, "true"));
 							if (Src != null && Dst != null)
 							{
-								CopyFileDirectory(Src, Dst, bForce);
-								Log.TraceInformation("\nDirectory {0} copied to {1}", Src, Dst, bForce);
+								CopyFileDirectory(Src, Dst, Logger, bForce);
+								Logger.LogInformation("\nDirectory {Src} copied to {Dst} ({Force})", Src, Dst, bForce);
 							}
 						}
 						break;
@@ -1759,12 +1762,12 @@ namespace UnrealBuildTool
 							{
 								if (Filespec.Contains(":") || Filespec.Contains(".."))
 								{
-									Log.TraceInformation("\nFilespec {0} not allowed; ignored.", Filespec);
+									Logger.LogInformation("\nFilespec {FileSpec} not allowed; ignored.", Filespec);
 								}
 								else
 								{
 									// force relative to BuildDir (and only from global context so someone doesn't try to be clever)
-									DeleteFiles(Path.Combine(GlobalContext.StringVariables["BuildDir"], Filespec));
+									DeleteFiles(Path.Combine(GlobalContext.StringVariables["BuildDir"], Filespec), Logger);
 								}
 							}
 						}
@@ -2205,7 +2208,7 @@ namespace UnrealBuildTool
 										{
 											if (!GlobalContext.ElementVariables.TryGetValue(Tag.Substring(1), out Element))
 											{
-												Log.TraceWarning("\nMissing element variable '{0}' in '{1}' (skipping instruction)", Tag, TraceNodeString(Node));
+												Logger.LogWarning("Missing element variable '{Tag}' in '{Node}' (skipping instruction)", Tag, TraceNodeString(Node));
 												continue;
 											}
 										}
@@ -2232,7 +2235,7 @@ namespace UnrealBuildTool
 										{
 											if (!GlobalContext.ElementVariables.TryGetValue(Tag.Substring(1), out Element))
 											{
-												Log.TraceWarning("\nMissing element variable '{0}' in '{1}' (skipping instruction)", Tag, TraceNodeString(Node));
+												Logger.LogWarning("Missing element variable '{Tag}' in '{Node}' (skipping instruction)", Tag, TraceNodeString(Node));
 												continue;
 											}
 										}
@@ -2271,7 +2274,7 @@ namespace UnrealBuildTool
 										{
 											if (!GlobalContext.ElementVariables.TryGetValue(Tag.Substring(1), out Element))
 											{
-												Log.TraceWarning("\nMissing element variable '{0}' in '{1}' (skipping instruction)", Tag, TraceNodeString(Node));
+												Logger.LogWarning("Missing element variable '{Tag}' in '{Node}' (skipping instruction)", Tag, TraceNodeString(Node));
 												continue;
 											}
 										}
@@ -2280,7 +2283,7 @@ namespace UnrealBuildTool
 
 								if (Element.Value == null)
 								{
-									Log.TraceWarning("\nExpected text in element '{0}' in '{1}' but found none (skipping instruction)", Element.Name.ToString(), TraceNodeString(Node));
+									Logger.LogWarning("Expected text in element '{Element}' in '{Node}' but found none (skipping instruction)", Element.Name.ToString(), TraceNodeString(Node));
 									continue;
 								}
 
@@ -2413,7 +2416,7 @@ namespace UnrealBuildTool
 									}
 									catch (Exception e)
 									{
-										Log.TraceError("\nXML parsing {0} failed! {1} (skipping instruction)", Parse, e);
+										Logger.LogError(e, "XML parsing {Parse} failed! {Ex} (skipping instruction)", Parse, e);
 									}
 								}
 							}
@@ -2421,7 +2424,7 @@ namespace UnrealBuildTool
 						break;
 
 					default:
-						Log.TraceWarning("\nUnknown command: {0}", Node.Name);
+						Logger.LogWarning("Unknown command: {Name}", Node.Name);
 						break;
 				}
 			}
@@ -2487,13 +2490,13 @@ namespace UnrealBuildTool
 					}
 				}
 
-				Log.TraceInformation("UPL Init: {0}", Arch);
+				Logger.LogInformation("UPL Init: {Arch}", Arch);
 				ProcessPluginNode(Arch, "init", "");
 			}
 
 			if (bGlobalTrace)
 			{
-				Log.TraceInformation("\nVariables:\n{0}", DumpVariables());
+				Logger.LogInformation("\nVariables:\n{Variables}", DumpVariables());
 			}
 		}
 
@@ -2568,7 +2571,7 @@ namespace UnrealBuildTool
 		static Dictionary<string, ConfigCacheIni_UPL> BaseIniCache = new Dictionary<string, ConfigCacheIni_UPL>();
 
 		// static creation functions for ini files
-		public static ConfigCacheIni_UPL CreateConfigCacheIni_UPL(UnrealTargetPlatform Platform, string BaseIniName, DirectoryReference? ProjectDirectory, DirectoryReference? EngineDirectory = null)
+		public static ConfigCacheIni_UPL CreateConfigCacheIni_UPL(UnrealTargetPlatform Platform, string BaseIniName, DirectoryReference? ProjectDirectory, ILogger Logger, DirectoryReference? EngineDirectory = null)
 		{
 			if (EngineDirectory == null)
 			{
@@ -2578,7 +2581,7 @@ namespace UnrealBuildTool
 			// cache base ini for use as the seed for the rest
 			if (!BaseIniCache.ContainsKey(BaseIniName))
 			{
-				BaseIniCache.Add(BaseIniName, new ConfigCacheIni_UPL(BuildHostPlatform.Current.Platform, BaseIniName, null, EngineDirectory, EngineOnly: true));
+				BaseIniCache.Add(BaseIniName, new ConfigCacheIni_UPL(BuildHostPlatform.Current.Platform, BaseIniName, null, Logger, EngineDirectory, EngineOnly: true));
 			}
 
 			// build the new ini and cache it for later re-use
@@ -2586,7 +2589,7 @@ namespace UnrealBuildTool
 			string Key = GetIniPlatformName(Platform) + BaseIniName + EngineDirectory.FullName + (ProjectDirectory != null ? ProjectDirectory.FullName : "");
 			if (!IniCache.ContainsKey(Key))
 			{
-				IniCache.Add(Key, new ConfigCacheIni_UPL(Platform, BaseIniName, ProjectDirectory, EngineDirectory, BaseCache: BaseCache));
+				IniCache.Add(Key, new ConfigCacheIni_UPL(Platform, BaseIniName, ProjectDirectory, Logger, EngineDirectory, BaseCache: BaseCache));
 			}
 			return IniCache[Key];
 		}
@@ -2650,10 +2653,11 @@ namespace UnrealBuildTool
 		/// Constructor. Parses a single ini file. No Platform settings, no engine hierarchy. Do not use this with ini files that have hierarchy!
 		/// </summary>
 		/// <param name="Filename">The ini file to load</param>
-		public ConfigCacheIni_UPL(FileReference Filename) : this()
+		/// <param name="Logger"></param>
+		public ConfigCacheIni_UPL(FileReference Filename, ILogger Logger) : this()
 		{
 			bIsMergingConfigs = false;
-			ParseIniFile(Filename);
+			ParseIniFile(Filename, Logger);
 		}
 
 		/// <summary>
@@ -2661,9 +2665,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="BaseIniName">Ini name (Engine, Editor, etc)</param>
 		/// <param name="ProjectDirectory">Project path</param>
+		/// <param name="Logger">Logger for </param>
 		/// <param name="EngineDirectory"></param>
-		public ConfigCacheIni_UPL(string BaseIniName, string? ProjectDirectory, string? EngineDirectory = null)
-			: this(BuildHostPlatform.Current.Platform, BaseIniName, ProjectDirectory, EngineDirectory)
+		public ConfigCacheIni_UPL(string BaseIniName, string? ProjectDirectory, ILogger Logger, string? EngineDirectory = null)
+			: this(BuildHostPlatform.Current.Platform, BaseIniName, ProjectDirectory, Logger, EngineDirectory)
 		{
 		}
 
@@ -2672,9 +2677,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="BaseIniName">Ini name (Engine, Editor, etc)</param>
 		/// <param name="ProjectDirectory">Project path</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="EngineDirectory"></param>
-		public ConfigCacheIni_UPL(string BaseIniName, DirectoryReference ProjectDirectory, DirectoryReference? EngineDirectory = null)
-			: this(BuildHostPlatform.Current.Platform, BaseIniName, ProjectDirectory, EngineDirectory)
+		public ConfigCacheIni_UPL(string BaseIniName, DirectoryReference ProjectDirectory, ILogger Logger, DirectoryReference? EngineDirectory = null)
+			: this(BuildHostPlatform.Current.Platform, BaseIniName, ProjectDirectory, Logger, EngineDirectory)
 		{
 		}
 
@@ -2684,10 +2690,12 @@ namespace UnrealBuildTool
 		/// <param name="ProjectDirectory">Project path</param>
 		/// <param name="Platform">Target platform</param>
 		/// <param name="BaseIniName">Ini name (Engine, Editor, etc)</param>
+		/// <param name="Logger"></param>
 		/// <param name="EngineDirectory"></param>
-		public ConfigCacheIni_UPL(UnrealTargetPlatform Platform, string BaseIniName, string? ProjectDirectory, string? EngineDirectory = null)
+		public ConfigCacheIni_UPL(UnrealTargetPlatform Platform, string BaseIniName, string? ProjectDirectory, ILogger Logger, string? EngineDirectory = null)
 			: this(Platform, BaseIniName, 
 				  (ProjectDirectory == null) ? null : new DirectoryReference(ProjectDirectory), 
+				  Logger,
 				  (EngineDirectory == null) ? null : new DirectoryReference(EngineDirectory))
 		{
 		}
@@ -2698,10 +2706,11 @@ namespace UnrealBuildTool
 		/// <param name="ProjectDirectory">Project path</param>
 		/// <param name="Platform">Target platform</param>
 		/// <param name="BaseIniName">Ini name (Engine, Editor, etc)</param>
+		/// <param name="Logger"></param>
 		/// <param name="EngineDirectory"></param>
 		/// <param name="EngineOnly"></param>
 		/// <param name="BaseCache"></param>
-		public ConfigCacheIni_UPL(UnrealTargetPlatform Platform, string BaseIniName, DirectoryReference? ProjectDirectory, DirectoryReference? EngineDirectory = null, bool EngineOnly = false, ConfigCacheIni_UPL? BaseCache = null) : this()
+		public ConfigCacheIni_UPL(UnrealTargetPlatform Platform, string BaseIniName, DirectoryReference? ProjectDirectory, ILogger Logger, DirectoryReference? EngineDirectory = null, bool EngineOnly = false, ConfigCacheIni_UPL? BaseCache = null) : this()
 		{
 			bIsMergingConfigs = true;
 			if (EngineDirectory == null)
@@ -2722,7 +2731,7 @@ namespace UnrealBuildTool
 				{
 					if (FileReference.Exists(IniFileName))
 					{
-						ParseIniFile(IniFileName);
+						ParseIniFile(IniFileName, Logger);
 					}
 				}
 			}
@@ -2732,7 +2741,7 @@ namespace UnrealBuildTool
 				{
 					if (FileReference.Exists(IniFileName))
 					{
-						ParseIniFile(IniFileName);
+						ParseIniFile(IniFileName, Logger);
 					}
 				}
 			}
@@ -3023,7 +3032,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Loads and parses ini file.
 		/// </summary>
-		public void ParseIniFile(FileReference Filename)
+		public void ParseIniFile(FileReference Filename, ILogger Logger)
 		{
 			String[]? IniLines = null;
 			List<Command>? Commands = null;
@@ -3037,7 +3046,7 @@ namespace UnrealBuildTool
 				}
 				catch (Exception ex)
 				{
-					Log.TraceInformation("Error reading ini file: " + Filename + " Exception: " + ex.Message);
+					Logger.LogInformation("Error reading ini file: {Filename} Exception: {Ex}", Filename, ex.Message);
 				}
 			}
 			else

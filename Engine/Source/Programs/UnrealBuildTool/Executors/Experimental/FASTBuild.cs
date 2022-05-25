@@ -23,6 +23,7 @@ using System.Runtime.Serialization;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -156,11 +157,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FASTBuild(int MaxLocalActions, bool bCompactOutput)
+		public FASTBuild(int MaxLocalActions, bool bCompactOutput, ILogger Logger)
 		{
 			XmlConfig.ApplyTo(this);
 
-			this.LocalExecutor = new ParallelExecutor(MaxLocalActions, bCompactOutput);
+			this.LocalExecutor = new ParallelExecutor(MaxLocalActions, bCompactOutput, Logger);
 		}
 
 		public override string Name
@@ -229,7 +230,7 @@ namespace UnrealBuildTool
 			return FBuildCoordinator;
 		}
 
-		public static bool IsAvailable()
+		public static bool IsAvailable(ILogger Logger)
 		{
 			string? ExecutablePath = GetExecutablePath();
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
@@ -270,7 +271,7 @@ namespace UnrealBuildTool
 				if (File.Exists(FBuildExecutablePath))
 					return true;
 
-				Log.TraceWarning($"FBuildExecutablePath '{FBuildExecutablePath}' doesn't exist! Attempting to find executable in PATH.");
+				Logger.LogWarning("FBuildExecutablePath '{FBuildExecutablePath}' doesn't exist! Attempting to find executable in PATH.", FBuildExecutablePath);
 			}
 
 			// Get the name of the FASTBuild executable.
@@ -298,7 +299,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			Log.TraceError("FASTBuild disabled. Unable to find any executable to use.");
+			Logger.LogError("FASTBuild disabled. Unable to find any executable to use.");
 			return false;
 		}
 
@@ -389,7 +390,7 @@ namespace UnrealBuildTool
 			),
 		};
 
-		private bool DetectBuildType(IEnumerable<LinkedAction> Actions)
+		private bool DetectBuildType(IEnumerable<LinkedAction> Actions, ILogger Logger)
 		{
 			foreach (LinkedAction Action in Actions)
 			{
@@ -398,16 +399,16 @@ namespace UnrealBuildTool
 					if (BuildTypeSearchParam.Item2(Action).Contains(BuildTypeSearchParam.Item1))
 					{
 						BuildType = BuildTypeSearchParam.Item3;
-						Log.TraceInformation($"Detected build type as {BuildTypeSearchParam.Item1.ToString()} from '{BuildTypeSearchParam.Item2(Action)}' using search term '{BuildTypeSearchParam.Item1}'");
+						Logger.LogInformation("Detected build type as {Type} from '{From}' using search term '{Term}'", BuildTypeSearchParam.Item1.ToString(), BuildTypeSearchParam.Item2(Action), BuildTypeSearchParam.Item1);
 						return true;
 					}
 				}
 			}
 
-			Log.TraceError("Couldn't detect build type from actions! Unsupported platform?");
+			Logger.LogError("Couldn't detect build type from actions! Unsupported platform?");
 			foreach (LinkedAction Action in Actions)
 			{
-				PrintActionDetails(Action);
+				PrintActionDetails(Action, Logger);
 			}
 			return false;
 		}
@@ -426,7 +427,7 @@ namespace UnrealBuildTool
 		}
 
 		[SupportedOSPlatform("windows")]
-		public override bool ExecuteActions(List<LinkedAction> Actions)
+		public override bool ExecuteActions(List<LinkedAction> Actions, ILogger Logger)
 		{
 			if (Actions.Count <= 0)
 				return true;
@@ -454,7 +455,7 @@ namespace UnrealBuildTool
 
 			if (PreCompileActions.Any())
 			{
-				bool bResult = LocalExecutor.ExecuteActions(PreCompileActions);
+				bool bResult = LocalExecutor.ExecuteActions(PreCompileActions, Logger);
 
 				if (!bResult)
 					return false;
@@ -465,14 +466,14 @@ namespace UnrealBuildTool
 
 			if (CompileActions.Any())
 			{
-				if (!DetectBuildType(CompileActions))
+				if (!DetectBuildType(CompileActions, Logger))
 					return false;
 
 				string FASTBuildFilePath = Path.Combine(Unreal.EngineDirectory.FullName, "Intermediate", "Build", "fbuild.bff");
-				if (!CreateBffFile(CompileActions, FASTBuildFilePath))
+				if (!CreateBffFile(CompileActions, FASTBuildFilePath, Logger))
 					return false;
 
-				if (!ExecuteBffFile(FASTBuildFilePath))
+				if (!ExecuteBffFile(FASTBuildFilePath, Logger))
 					return false;
 			}
 
@@ -483,7 +484,7 @@ namespace UnrealBuildTool
 
 			if (PostCompileActions.Any())
 			{
-				bool bResult = LocalExecutor.ExecuteActions(PostCompileActions);
+				bool bResult = LocalExecutor.ExecuteActions(PostCompileActions, Logger);
 
 				if (!bResult)
 					return false;
@@ -515,7 +516,7 @@ namespace UnrealBuildTool
 				.Replace("$(CommonProgramFiles)", "$CommonProgramFiles$");
 		}
 
-		private Dictionary<string, string> ParseCommandLineOptions(string LocalToolName, string CompilerCommandLine, string[] SpecialOptions, bool SaveResponseFile = false)
+		private Dictionary<string, string> ParseCommandLineOptions(string LocalToolName, string CompilerCommandLine, string[] SpecialOptions, ILogger Logger, bool SaveResponseFile = false)
 		{
 			Dictionary<string, string> ParsedCompilerOptions = new Dictionary<string, string>();
 
@@ -575,8 +576,8 @@ namespace UnrealBuildTool
 				catch (Exception e)
 				{
 					if (!string.IsNullOrEmpty(e.Message))
-						Log.TraceInformation(e.Message);
-					Log.TraceError("Looks like a response file in: " + CompilerCommandLine + ", but we could not load it! " + e.Message);
+						Logger.LogInformation("{Message}", e.Message);
+					Logger.LogError("Looks like a response file in: {CompilerCommandLine}, but we could not load it! {Ex}", CompilerCommandLine, e.Message);
 					ResponseFilePath = "";
 				}
 			}
@@ -645,7 +646,7 @@ namespace UnrealBuildTool
 						}
 						if (!AddedToken)
 						{
-							Log.TraceWarning("Warning! Looks like an unterminated string in tokens. Adding PartialToken and hoping for the best. Command line: " + CompilerCommandLine);
+							Logger.LogWarning("Warning! Looks like an unterminated string in tokens. Adding PartialToken and hoping for the best. Command line: {CompilerCommandLine}", CompilerCommandLine);
 							ProcessedTokens.Add(PartialToken);
 						}
 					}
@@ -766,7 +767,7 @@ namespace UnrealBuildTool
 			return ParsedCompilerOptions;
 		}
 
-		private string GetOptionValue(Dictionary<string, string> OptionsDictionary, string Key, LinkedAction Action, bool ProblemIfNotFound = false)
+		private string GetOptionValue(Dictionary<string, string> OptionsDictionary, string Key, LinkedAction Action, ILogger Logger, bool ProblemIfNotFound = false)
 		{
 			string? Value = string.Empty;
 			if (OptionsDictionary.TryGetValue(Key, out Value))
@@ -776,8 +777,8 @@ namespace UnrealBuildTool
 
 			if (ProblemIfNotFound)
 			{
-				Log.TraceWarning("We failed to find " + Key + ", which may be a problem.");
-				Log.TraceWarning("Action.CommandArguments: " + Action.CommandArguments);
+				Logger.LogWarning("We failed to find {Key}, which may be a problem.", Key);
+				Logger.LogWarning("Action.CommandArguments: {CommandArguments}", Action.CommandArguments);
 			}
 
 			return String.Empty;
@@ -806,7 +807,7 @@ namespace UnrealBuildTool
 		}
 
 		[SupportedOSPlatform("windows")]
-		private void WriteEnvironmentSetup()
+		private void WriteEnvironmentSetup(ILogger Logger)
 		{
 			VCEnvironment? VCEnv = null;
 
@@ -816,12 +817,12 @@ namespace UnrealBuildTool
 				// it probably means we are building for another platform.
                 if(BuildType == FBBuildType.Windows)
                 {
-					VCEnv = VCEnvironment.Create(WindowsPlatform.GetDefaultCompiler(null, WindowsArchitecture.x64), UnrealTargetPlatform.Win64, WindowsArchitecture.x64, null, null, null);
+					VCEnv = VCEnvironment.Create(WindowsPlatform.GetDefaultCompiler(null, WindowsArchitecture.x64, Logger), UnrealTargetPlatform.Win64, WindowsArchitecture.x64, null, null, null, Logger);
 				}
             }
 			catch (Exception)
 			{
-				Log.TraceWarning("Failed to get Visual Studio environment.");
+				Logger.LogWarning("Failed to get Visual Studio environment.");
 			}
 
 			// Copy environment into a case-insensitive dictionary for easier key lookups
@@ -870,7 +871,7 @@ namespace UnrealBuildTool
 
 					default:
 						string exceptionString = "Error: Unsupported Visual Studio Version.";
-						Log.TraceError(exceptionString);
+						Logger.LogError("{Ex}", exceptionString);
 						throw new BuildException(exceptionString);
 				}
 
@@ -969,13 +970,13 @@ namespace UnrealBuildTool
 
 					if (MsvcCRTRedistVersion.Length > 0)
 					{
-						Log.TraceInformation("Couldn't find redist path for given MsvcCRTRedistVersion {" + MsvcCRTRedistVersion.ToString()
-						+ "} (in BuildConfiguration.xml). \n\t...Using this path instead: {" + PrefferedMSVCRedistPath.ToString() + "}");
+						Logger.LogInformation("Couldn't find redist path for given MsvcCRTRedistVersion {MsvcCRTRedistVersion}"
+						+ " (in BuildConfiguration.xml). \n\t...Using this path instead: {PrefferedMSVCRedistPath}", MsvcCRTRedistVersion, PrefferedMSVCRedistPath);
 					}
 					else
 					{
-						Log.TraceInformation("Using path : {" + PrefferedMSVCRedistPath.ToString() + "} for vccorlib_.dll (MSVC redist)..." +
-							"\n\t...Add an entry for MsvcCRTRedistVersion in BuildConfiguration.xml to specify a version number");
+						Logger.LogInformation("Using path : {PrefferedMSVCRedistPath} for vccorlib_.dll (MSVC redist)..." +
+							"\n\t...Add an entry for MsvcCRTRedistVersion in BuildConfiguration.xml to specify a version number", PrefferedMSVCRedistPath.ToString());
 					}
 
 				}
@@ -1057,7 +1058,7 @@ namespace UnrealBuildTool
 			AddText("}\n\n"); //End Settings
 		}
 
-		private void AddCompileAction(LinkedAction Action, IEnumerable<LinkedAction> DependencyActions)
+		private void AddCompileAction(LinkedAction Action, IEnumerable<LinkedAction> DependencyActions, ILogger Logger)
 		{
 			string CompilerName = GetCompilerName();
 			if (Action.CommandPath.FullName.Contains("rc.exe"))
@@ -1066,13 +1067,13 @@ namespace UnrealBuildTool
 			}
 
 			string[] SpecialCompilerOptions = { "/Fo", "/fo", "/Yc", "/Yu", "/Fp", "-o", "-dependencies=", "-compiler=" };
-			var ParsedCompilerOptions = ParseCommandLineOptions(Action.CommandPath.GetFileName(), Action.CommandArguments, SpecialCompilerOptions);
+			var ParsedCompilerOptions = ParseCommandLineOptions(Action.CommandPath.GetFileName(), Action.CommandArguments, SpecialCompilerOptions, Logger);
 
-			string OutputObjectFileName = GetOptionValue(ParsedCompilerOptions, IsMSVC() ? "/Fo" : "-o", Action, ProblemIfNotFound: !IsMSVC());
+			string OutputObjectFileName = GetOptionValue(ParsedCompilerOptions, IsMSVC() ? "/Fo" : "-o", Action, Logger, ProblemIfNotFound: !IsMSVC());
 
 			if (IsMSVC() && string.IsNullOrEmpty(OutputObjectFileName)) // Didn't find /Fo, try /fo
 			{
-				OutputObjectFileName = GetOptionValue(ParsedCompilerOptions, "/fo", Action, ProblemIfNotFound: true);
+				OutputObjectFileName = GetOptionValue(ParsedCompilerOptions, "/fo", Action, Logger, ProblemIfNotFound: true);
 			}
 
 			if (string.IsNullOrEmpty(OutputObjectFileName)) //No /Fo or /fo, we're probably in trouble.
@@ -1088,7 +1089,7 @@ namespace UnrealBuildTool
 
 			IntermediatePath = IsApple() ? IntermediatePath.Replace("\\", "/") : IntermediatePath;
 
-			string InputFile = GetOptionValue(ParsedCompilerOptions, "InputFile", Action, ProblemIfNotFound: true);
+			string InputFile = GetOptionValue(ParsedCompilerOptions, "InputFile", Action, Logger, ProblemIfNotFound: true);
 			if (string.IsNullOrEmpty(InputFile))
 			{
 				throw new Exception("We have no InputFile. Bailing. Our Action.CommandArguments were: " + Action.CommandArguments);
@@ -1104,7 +1105,7 @@ namespace UnrealBuildTool
 				AddText("\t.AllowDistribution = false\n");
 			}
 
-			string OtherCompilerOptions = GetOptionValue(ParsedCompilerOptions, "OtherOptions", Action);
+			string OtherCompilerOptions = GetOptionValue(ParsedCompilerOptions, "OtherOptions", Action, Logger);
 			string CompilerOutputExtension = ".unset";
 			string CLFilterParams = "";
 			string ShowIncludesParam = "";
@@ -1116,8 +1117,8 @@ namespace UnrealBuildTool
 
 			if (ParsedCompilerOptions.ContainsKey("/Yc")) //Create PCH
 			{
-				string PCHIncludeHeader = GetOptionValue(ParsedCompilerOptions, "/Yc", Action, ProblemIfNotFound: true);
-				string PCHOutputFile = GetOptionValue(ParsedCompilerOptions, "/Fp", Action, ProblemIfNotFound: true);
+				string PCHIncludeHeader = GetOptionValue(ParsedCompilerOptions, "/Yc", Action, Logger, ProblemIfNotFound: true);
+				string PCHOutputFile = GetOptionValue(ParsedCompilerOptions, "/Fp", Action, Logger, ProblemIfNotFound: true);
 
 				AddText($"\t.CompilerOptions = '{CLFilterParams}\"%1\" /Fo\"%2\" /Fp\"{PCHOutputFile}\" /Yu\"{PCHIncludeHeader}\" {OtherCompilerOptions} '\n");
 
@@ -1128,8 +1129,8 @@ namespace UnrealBuildTool
 			}
 			else if (ParsedCompilerOptions.ContainsKey("/Yu")) //Use PCH
 			{
-				string PCHIncludeHeader = GetOptionValue(ParsedCompilerOptions, "/Yu", Action, ProblemIfNotFound: true);
-				string PCHOutputFile = GetOptionValue(ParsedCompilerOptions, "/Fp", Action, ProblemIfNotFound: true);
+				string PCHIncludeHeader = GetOptionValue(ParsedCompilerOptions, "/Yu", Action, Logger, ProblemIfNotFound: true);
+				string PCHOutputFile = GetOptionValue(ParsedCompilerOptions, "/Fp", Action, Logger, ProblemIfNotFound: true);
 				string PCHToForceInclude = PCHOutputFile.Replace(".pch", "");
 				AddText($"\t.CompilerOptions = '{CLFilterParams}\"%1\" /Fo\"%2\" /Fp\"{PCHOutputFile}\" /Yu\"{PCHIncludeHeader}\" /FI\"{PCHToForceInclude}\" {OtherCompilerOptions} {ShowIncludesParam} '\n");
 				string InputFileExt = Path.GetExtension(InputFile);
@@ -1172,7 +1173,7 @@ namespace UnrealBuildTool
 			AddText("}\n\n");
 		}
 
-		private void AddLinkAction(LinkedAction Action, IEnumerable<LinkedAction> DependencyActions)
+		private void AddLinkAction(LinkedAction Action, IEnumerable<LinkedAction> DependencyActions, ILogger Logger)
 		{
 			string[] SpecialLinkerOptions = IsApple() ? new string[] { "-o" } : new string[] { "/OUT:", "@", "-o" };
 
@@ -1186,31 +1187,31 @@ namespace UnrealBuildTool
 				CommandArgsToParse = SplitCommandArgs[0];
 			}
 
-			Dictionary<string, string> ParsedLinkerOptions = ParseCommandLineOptions(Action.CommandPath.GetFileName(), CommandArgsToParse, SpecialLinkerOptions, SaveResponseFile: true);
+			Dictionary<string, string> ParsedLinkerOptions = ParseCommandLineOptions(Action.CommandPath.GetFileName(), CommandArgsToParse, SpecialLinkerOptions, Logger, SaveResponseFile: true);
 
 			string OutputFile;
 
 			if (IsMSVC())
 			{
-				OutputFile = GetOptionValue(ParsedLinkerOptions, "/OUT:", Action, ProblemIfNotFound: true);
+				OutputFile = GetOptionValue(ParsedLinkerOptions, "/OUT:", Action, Logger, ProblemIfNotFound: true);
 			}
 			else // Apple
 			{
-				OutputFile = GetOptionValue(ParsedLinkerOptions, "-o", Action, ProblemIfNotFound: false);
+				OutputFile = GetOptionValue(ParsedLinkerOptions, "-o", Action, Logger, ProblemIfNotFound: false);
 				if (string.IsNullOrEmpty(OutputFile))
 				{
-					OutputFile = GetOptionValue(ParsedLinkerOptions, "InputFile", Action, ProblemIfNotFound: true);
+					OutputFile = GetOptionValue(ParsedLinkerOptions, "InputFile", Action, Logger, ProblemIfNotFound: true);
 				}
 			}
 
 			if (string.IsNullOrEmpty(OutputFile))
 			{
-				Log.TraceError("Failed to find output file. Bailing.");
+				Logger.LogError("Failed to find output file. Bailing.");
 				return;
 			}
 
-			string ResponseFilePath = GetOptionValue(ParsedLinkerOptions, "@", Action);
-			string OtherCompilerOptions = GetOptionValue(ParsedLinkerOptions, "OtherOptions", Action);
+			string ResponseFilePath = GetOptionValue(ParsedLinkerOptions, "@", Action, Logger);
+			string OtherCompilerOptions = GetOptionValue(ParsedLinkerOptions, "OtherOptions", Action, Logger);
 
 			IEnumerable<LinkedAction>? PrebuildDependencies = null;
 
@@ -1270,7 +1271,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					AddText(string.Format("\t.LibrarianAdditionalInputs = {{ '{0}' }} \n", GetOptionValue(ParsedLinkerOptions, "InputFile", Action, ProblemIfNotFound: true)));
+					AddText(string.Format("\t.LibrarianAdditionalInputs = {{ '{0}' }} \n", GetOptionValue(ParsedLinkerOptions, "InputFile", Action, Logger, ProblemIfNotFound: true)));
 				}
 
 				AddText($"\t.LibrarianOutput = '{OutputFile}' \n");
@@ -1316,7 +1317,7 @@ namespace UnrealBuildTool
 				AddText($"Executable('{ActionToActionString(Action)}')\n{{ \n");
 				AddText("\t.Linker = '$MacToolchainDir$/clang++' \n");
 
-				string InputFile = GetOptionValue(ParsedLinkerOptions, "InputFile", Action, ProblemIfNotFound: true);
+				string InputFile = GetOptionValue(ParsedLinkerOptions, "InputFile", Action, Logger, ProblemIfNotFound: true);
 				if (!string.IsNullOrEmpty(InputFile))
 				{
 					LinkedAction? InputFileAction = DependencyActions
@@ -1362,23 +1363,23 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceError("Failed to add link action!");
-				PrintActionDetails(Action);
+				Logger.LogError("Failed to add link action!");
+				PrintActionDetails(Action, Logger);
 			}
 		}
 
-		private void PrintActionDetails(LinkedAction ActionToPrint)
+		private void PrintActionDetails(LinkedAction ActionToPrint, ILogger Logger)
 		{
-			Log.TraceInformation(ActionToActionString(ActionToPrint));
-			Log.TraceInformation($"Action Type: {ActionToPrint.ActionType.ToString()}");
-			Log.TraceInformation($"Action CommandPath: {ActionToPrint.CommandPath.FullName}");
-			Log.TraceInformation($"Action CommandArgs: {ActionToPrint.CommandArguments}");
+			Logger.LogInformation("{Action}", ActionToActionString(ActionToPrint));
+			Logger.LogInformation("Action Type: {Type}", ActionToPrint.ActionType.ToString());
+			Logger.LogInformation("Action CommandPath: {Path}", ActionToPrint.CommandPath.FullName);
+			Logger.LogInformation("Action CommandArgs: {Args}", ActionToPrint.CommandArguments);
 		}
 
 		private MemoryStream? bffOutputMemoryStream = null;
 
 		[SupportedOSPlatform("windows")]
-		private bool CreateBffFile(IEnumerable<LinkedAction> Actions, string BffFilePath)
+		private bool CreateBffFile(IEnumerable<LinkedAction> Actions, string BffFilePath, ILogger Logger)
 		{
 			try
 			{
@@ -1388,7 +1389,7 @@ namespace UnrealBuildTool
 				AddText(";* Autogenerated bff - see FASTBuild.cs for how this file was generated. *\n");
 				AddText(";*************************************************************************\n\n");
 
-				WriteEnvironmentSetup(); //Compiler, environment variables and base paths
+				WriteEnvironmentSetup(Logger); //Compiler, environment variables and base paths
 
 				foreach (LinkedAction Action in Actions)
 				{
@@ -1404,14 +1405,14 @@ namespace UnrealBuildTool
 					switch (Action.ActionType)
 					{
 						case ActionType.Compile:
-							AddCompileAction(Action, DependencyActions);
+							AddCompileAction(Action, DependencyActions, Logger);
 							break;
 						case ActionType.Link:
-							AddLinkAction(Action, DependencyActions);
+							AddLinkAction(Action, DependencyActions, Logger);
 							break;
 						default:
-							Log.TraceWarning("FASTBuild is ignoring an unsupported action!");
-							PrintActionDetails(Action);
+							Logger.LogWarning("FASTBuild is ignoring an unsupported action!");
+							PrintActionDetails(Action, Logger);
 							break;
 					}
 				}
@@ -1437,14 +1438,14 @@ namespace UnrealBuildTool
 			}
 			catch (Exception e)
 			{
-				Log.TraceError("Exception while creating bff file: " + e.ToString());
+				Logger.LogError("Exception while creating bff file: {Ex}", e.ToString());
 				return false;
 			}
 
 			return true;
 		}
 
-		private bool ExecuteBffFile(string BffFilePath)
+		private bool ExecuteBffFile(string BffFilePath, ILogger Logger)
 		{
 			string CacheArgument = "";
 
@@ -1476,7 +1477,7 @@ namespace UnrealBuildTool
 			// Basically we want FB to stupidly compile what UBT tells it to.
 			string FBCommandLine	= $"-monitor -summary {DistArgument} {CacheArgument} {IDEArgument} -clean -config \"{BffFilePath}\" {NoStopOnErrorArgument} {ForceRemoteArgument}";
 
-			Log.TraceInformation($"FBuild Command Line Arguments: '{FBCommandLine}");
+			Logger.LogInformation("FBuild Command Line Arguments: '{FBCommandLine}", FBCommandLine);
 
 			string FBExecutable		= GetExecutablePath()!;
 			string WorkingDirectory	= Path.GetFullPath(Path.Combine(Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory()), "Source"));
@@ -1513,7 +1514,7 @@ namespace UnrealBuildTool
 				DataReceivedEventHandler OutputEventHandler = (Sender, Args) =>
 				{
 					if (Args.Data != null)
-						Log.TraceInformation(Args.Data);
+						Logger.LogInformation("{Output}", Args.Data);
 				};
 
 				FBProcess.OutputDataReceived += OutputEventHandler;
@@ -1529,7 +1530,7 @@ namespace UnrealBuildTool
 			}
 			catch (Exception e)
 			{
-				Log.TraceError("Exception launching fbuild process. Is it in your path?" + e.ToString());
+				Logger.LogError("Exception launching fbuild process. Is it in your path? {Ex}", e.ToString());
 				return false;
 			}
 		}

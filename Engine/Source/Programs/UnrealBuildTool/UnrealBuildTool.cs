@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
@@ -448,7 +449,8 @@ namespace UnrealBuildTool
 			FileReference? RunFile = null;
 			SingleInstanceMutex? Mutex = null;
 			JsonTracer? Tracer = null;
-			
+
+			ILogger Logger = Log.Logger;
 			try
 			{
 				// Start capturing performance info
@@ -480,7 +482,7 @@ namespace UnrealBuildTool
 
 				if (Options.TraceWrites != null)
 				{
-					Log.TraceInformation($"All attempts to write to \"{Options.TraceWrites}\" via WriteFileIfChanged() will be logged");
+					Logger.LogInformation("All attempts to write to \"{TraceWrites}\" via WriteFileIfChanged() will be logged", Options.TraceWrites);
 					Utils.WriteFileIfChangedTrace = Options.TraceWrites;
 				}
 
@@ -511,7 +513,7 @@ namespace UnrealBuildTool
 					// Try to get the correct mode
 					if(!ModeNameToType.TryGetValue(Options.Mode, out ModeType))
 					{
-						Log.TraceError("No mode named '{0}'. Available modes are:\n  {1}", Options.Mode, String.Join("\n  ", ModeNameToType.Keys));
+						Logger.LogError("No mode named '{Name}'. Available modes are:\n  {ModeList}", Options.Mode, String.Join("\n  ", ModeNameToType.Keys));
 						return 1;
 					}
 				}
@@ -543,7 +545,7 @@ namespace UnrealBuildTool
 						using(SingleInstanceMutex XmlConfigMutex = new SingleInstanceMutex(XmlConfigMutexName, true))
 						{
 							FileReference? XmlConfigCache = Arguments.GetFileReferenceOrDefault("-XmlConfigCache=", null);
-							XmlConfig.ReadConfigFiles(XmlConfigCache);
+							XmlConfig.ReadConfigFiles(XmlConfigCache, Logger);
 						}
 					}
 				
@@ -592,21 +594,21 @@ namespace UnrealBuildTool
 				{
 					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{
-						UEBuildPlatform.RegisterPlatforms(false, false);
+						UEBuildPlatform.RegisterPlatforms(false, false, Logger);
 					}
 				}
 				if ((ModeOptions & ToolModeOptions.BuildPlatformsHostOnly) != 0)
 				{
 					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{
-						UEBuildPlatform.RegisterPlatforms(false, true);
+						UEBuildPlatform.RegisterPlatforms(false, true, Logger);
 					}
 				}
 				if ((ModeOptions & ToolModeOptions.BuildPlatformsForValidation) != 0)
 				{
 					using (GlobalTracer.Instance.BuildSpan("UEBuildPlatform.RegisterPlatforms()").StartActive())
 					{
-						UEBuildPlatform.RegisterPlatforms(true, false);
+						UEBuildPlatform.RegisterPlatforms(true, false, Logger);
 					}
 				}
 
@@ -614,31 +616,31 @@ namespace UnrealBuildTool
 				ToolMode Mode = (ToolMode)Activator.CreateInstance(ModeType)!;
 
 				// Execute the mode
-				int Result = Mode.Execute(Arguments);
+				int Result = Mode.Execute(Arguments, Logger);
 				if((ModeOptions & ToolModeOptions.ShowExecutionTime) != 0)
 				{
-					Log.TraceInformation("Total execution time: {0:0.00} seconds", Timeline.Elapsed.TotalSeconds);
+					Logger.LogInformation("Total execution time: {Time:0.00} seconds", Timeline.Elapsed.TotalSeconds);
 				}
 				return Result;
 			}
 			catch (CompilationResultException Ex)
 			{
 				// Used to return a propagate a specific exit code after an error has occurred. Does not log any message.
-				Log.TraceLog(ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogDebug(Ex, "{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 				return (int)Ex.Result;
 			}
 			catch (BuildException Ex)
 			{
 				// BuildExceptions should have nicely formatted messages. We can log these directly.
-				Log.TraceError(ExceptionUtils.FormatException(Ex));
-				Log.TraceLog(ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogError(Ex, "{Ex}", ExceptionUtils.FormatException(Ex));
+				Logger.LogDebug(Ex, "{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 				return (int)CompilationResult.OtherCompilationError;
 			}
 			catch (Exception Ex)
 			{
 				// Unhandled exception.
-				Log.TraceError("Unhandled exception: {0}", ExceptionUtils.FormatException(Ex));
-				Log.TraceLog(ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogError(Ex, "Unhandled exception: {Ex}", ExceptionUtils.FormatException(Ex));
+				Logger.LogDebug(Ex, "Unhandled exception: {Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 				return (int)CompilationResult.OtherCompilationError;
 			}
 			finally
@@ -649,10 +651,10 @@ namespace UnrealBuildTool
 					FileMetadataPrefetch.Stop();
 				}
 
-				Utils.LogWriteFileIfChangedActivity();
+				Utils.LogWriteFileIfChangedActivity(Logger);
 
 				// Print out all the performance info
-				Timeline.Print(TimeSpan.FromMilliseconds(20.0), LogEventType.Log);
+				Timeline.Print(TimeSpan.FromMilliseconds(20.0), LogLevel.Debug, Logger);
 
 				// Make sure we flush the logs however we exit
 				Trace.Close();

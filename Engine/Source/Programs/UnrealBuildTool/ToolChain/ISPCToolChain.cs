@@ -6,12 +6,17 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
 	abstract class ISPCToolChain : UEToolChain
 	{
+		public ISPCToolChain(ILogger InLogger) : base(InLogger)
+		{
+		}
+
 		/// <summary>
 		/// Get CPU Instruction set targets for ISPC.
 		/// </summary>
@@ -40,12 +45,12 @@ namespace UnrealBuildTool
 					case "-arm64": ISPCTargets.Add("neon"); break;
 					case "-x86": ISPCTargets.AddRange(new string[] { "sse4", "sse2" }); break;
 					case "-x64": ISPCTargets.AddRange(new string[] { "sse4", "sse2" }); break;
-					default: Log.TraceWarning("Invalid Android architecture for ISPC. At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build"); break;
+					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build"); break;
 				}
 			}
 			else
 			{
-				Log.TraceWarning("Unsupported ISPC platform target!");
+				Logger.LogWarning("Unsupported ISPC platform target!");
 			}
 
 			return ISPCTargets;
@@ -78,7 +83,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceWarning("Unsupported ISPC platform target!");
+				Logger.LogWarning("Unsupported ISPC platform target!");
 			}
 
 			return ISPCOS;
@@ -112,12 +117,12 @@ namespace UnrealBuildTool
 					case "-arm64": ISPCArch += "aarch64"; break;
 					case "-x86": ISPCArch += "x86"; break;
 					case "-x64": ISPCArch += "x86-64"; break;
-					default: Log.TraceWarning("Invalid Android architecture for ISPC. At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build"); break;
+					default: Logger.LogWarning("Invalid Android architecture for ISPC. At least one architecture (armv7, x86, etc) needs to be selected in the project settings to build"); break;
 				}
 			}
 			else
 			{
-				Log.TraceWarning("Unsupported ISPC platform target!");
+				Logger.LogWarning("Unsupported ISPC platform target!");
 			}
 
 			return ISPCArch;
@@ -160,7 +165,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceWarning("Unsupported ISPC host!");
+				Logger.LogWarning("Unsupported ISPC host!");
 			}
 
 			return Path.Combine(ISPCCompilerPathCommon, ISPCArchitecturePath, "ispc" + ExeExtension);
@@ -183,7 +188,7 @@ namespace UnrealBuildTool
 
 				if (!File.Exists(CompilerPath))
 				{
-					Log.TraceWarning("No ISPC compiler at {0}", CompilerPath);
+					Logger.LogWarning("No ISPC compiler at {CompilerPath}", CompilerPath);
 					CompilerVersion = new Version(-1, -1);
 				}
 
@@ -214,7 +219,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceWarning("Unsupported ISPC platform target!");
+				Logger.LogWarning("Unsupported ISPC platform target!");
 			}
 
 			return Format;
@@ -241,7 +246,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceWarning("Unsupported ISPC platform target!");
+				Logger.LogWarning("Unsupported ISPC platform target!");
 			}
 
 			return Suffix;
@@ -497,7 +502,7 @@ namespace UnrealBuildTool
 
 				Result.GeneratedHeaderFiles.Add(TargetFileItem);
 
-				Log.TraceVerbose("   ISPC Generating Header " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
+				Logger.LogDebug("   ISPC Generating Header {StatusDescription}: \"{CommandPath}\" {CommandArguments}", CompileAction.StatusDescription, CompileAction.CommandPath, CompileAction.CommandArguments);
 			}
 
 			return Result;
@@ -682,7 +687,7 @@ namespace UnrealBuildTool
 				// Add the source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(ISPCFile);
 
-				Log.TraceVerbose("   ISPC Compiling " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
+				Logger.LogDebug("   ISPC Compiling {StatusDescription}: \"{CommandPath}\" {CommandArguments}", CompileAction.StatusDescription, CompileAction.CommandPath, CompileAction.CommandArguments);
 			}
 
 			return Result;

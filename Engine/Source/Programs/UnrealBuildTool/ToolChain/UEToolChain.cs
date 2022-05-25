@@ -4,14 +4,18 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
 	abstract class UEToolChain
 	{
-		public UEToolChain()
+		protected readonly ILogger Logger;
+
+		public UEToolChain(ILogger InLogger)
 		{
+			Logger = InLogger;
 		}
 
 		public virtual void SetEnvironmentVariables()
@@ -92,7 +96,7 @@ namespace UnrealBuildTool
 		{
 		}
 
-		public virtual void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
+		public virtual void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
 		{
 		}
 
@@ -132,9 +136,9 @@ namespace UnrealBuildTool
 		/// <param name="ToolArg">Argument that will be passed to the tool</param>
 		/// <param name="Expression">null, or a Regular expression to capture in the output</param>
 		/// <returns></returns>
-		public static string? RunToolAndCaptureOutput(FileReference Command, string ToolArg, string? Expression = null)
+		protected string? RunToolAndCaptureOutput(FileReference Command, string ToolArg, string? Expression = null)
 		{
-			string ProcessOutput = Utils.RunLocalProcessAndReturnStdOut(Command.FullName, ToolArg);
+			string ProcessOutput = Utils.RunLocalProcessAndReturnStdOut(Command.FullName, ToolArg, Logger);
 
 			if (string.IsNullOrEmpty(Expression))
 			{
@@ -152,7 +156,7 @@ namespace UnrealBuildTool
 		/// <param name="VersionArg">Argument that will result in the version string being shown (it's ok this is a byproduct of a command that returns an error)</param>
 		/// <param name="VersionExpression">Regular expression to capture the version. By default we look for four integers separated by periods, with the last two optional</param>
 		/// <returns></returns>
-		public static Version RunToolAndCaptureVersion(FileReference Command, string VersionArg, string VersionExpression = @"(\d+\.\d+(\.\d+)?(\.\d+)?)")
+		public Version RunToolAndCaptureVersion(FileReference Command, string VersionArg, string VersionExpression = @"(\d+\.\d+(\.\d+)?(\.\d+)?)")
 		{
 			string? ProcessOutput = RunToolAndCaptureOutput(Command, VersionArg, VersionExpression);
 
@@ -163,7 +167,7 @@ namespace UnrealBuildTool
 				return ToolVersion;
 			}
 
-			Log.TraceWarning("Unable to retrieve version from {0} {1}", Command, VersionArg);
+			Logger.LogWarning("Unable to retrieve version from {Command} {Arg}", Command, VersionArg);
 
 			return new Version(0, 0);
 		}

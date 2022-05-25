@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -263,12 +264,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">List of command line arguments</param>
 		/// <returns>Always zero, or throws an exception</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 			Arguments.CheckAllArgumentsUsed();
 
-			Log.TraceInformation("{0}", OutputFile!.GetFileName());
+			Logger.LogInformation("{File}", OutputFile!.GetFileName());
 
 			// Read the input files
 			string[] InputFileLines = FileReference.ReadAllLines(InputFileList!);
@@ -331,7 +333,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			Log.TraceInformation("Written {0} {1} to {2}.", UniqueItems.Count, (UniqueItems.Count == 1)? "diagnostic" : "diagnostics", OutputFile.FullName);
+			Logger.LogInformation("Written {NumItems} {Noun} to {File}.", UniqueItems.Count, (UniqueItems.Count == 1)? "diagnostic" : "diagnostics", OutputFile.FullName);
 			return 0;
 		}
 	}
@@ -347,11 +349,12 @@ namespace UnrealBuildTool
 		UnrealTargetPlatform Platform;
 		Version AnalyzerVersion;
 
-		public PVSToolChain(ReadOnlyTargetRules Target)
+		public PVSToolChain(ReadOnlyTargetRules Target, ILogger Logger)
+			: base(Logger)
 		{
 			this.Target = Target;
 			Platform = Target.Platform;
-			InnerToolChain = new VCToolChain(Target);
+			InnerToolChain = new VCToolChain(Target, Logger);
 
 			AnalyzerFile = FileReference.Combine(Unreal.RootDirectory, "Engine", "Restricted", "NoRedist", "Extras", "ThirdPartyNotUE", "PVS-Studio", "PVS-Studio.exe");
 			if (!FileReference.Exists(AnalyzerFile))
@@ -381,7 +384,7 @@ namespace UnrealBuildTool
 				if (!String.IsNullOrEmpty(ApplicationSettings.UserName) && !String.IsNullOrEmpty(ApplicationSettings.SerialNumber))
 				{
 					LicenseFile = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "PVS", "PVS-Studio.lic");
-					Utils.WriteFileIfChanged(LicenseFile, String.Format("{0}\n{1}\n", ApplicationSettings.UserName, ApplicationSettings.SerialNumber));
+					Utils.WriteFileIfChanged(LicenseFile, String.Format("{0}\n{1}\n", ApplicationSettings.UserName, ApplicationSettings.SerialNumber), Logger);
 				}
 			}
 			else
@@ -518,14 +521,14 @@ namespace UnrealBuildTool
 				FileItem? SourceFileItem = PreprocessAction.SourceFile;
 				if (SourceFileItem == null)
 				{
-					Log.TraceWarning("Unable to find source file from command producing: {0}", String.Join(", ", PreprocessActions[Idx].ProducedItems.Select(x => x.Location.GetFileName())));
+					Logger.LogWarning("Unable to find source file from command producing: {File}", String.Join(", ", PreprocessActions[Idx].ProducedItems.Select(x => x.Location.GetFileName())));
 					continue;
 				}
 
 				FileItem? PreprocessedFileItem = PreprocessAction.PreprocessedFile;
 				if (PreprocessedFileItem == null)
 				{
-					Log.TraceWarning("Unable to find preprocessed output file from {0}", SourceFileItem.Location.GetFileName());
+					Logger.LogWarning("Unable to find preprocessed output file from {File}", SourceFileItem.Location.GetFileName());
 					continue;
 				}
 
@@ -613,7 +616,7 @@ namespace UnrealBuildTool
 			throw new BuildException("Unable to link with PVS toolchain.");
 		}
 
-		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
+		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
 		{
 			FileReference OutputFile;
 			if (Target.ProjectFile == null)
@@ -625,14 +628,15 @@ namespace UnrealBuildTool
 				OutputFile = FileReference.Combine(Target.ProjectFile.Directory, "Saved", "PVS-Studio", String.Format("{0}.pvslog", Target.Name));
 			}
 
+			TargetMakefile Makefile = MakefileBuilder.Makefile;
 			List<FileReference> InputFiles = Makefile.OutputItems.Select(x => x.Location).Where(x => x.HasExtension(".pvslog")).ToList();
 
 			// Collect the sourcefile items off of the Compile action added in CompileCPPFiles so that in SingleFileCompile mode the PVSGather step is also not filtered out
 			List<FileItem> CompileSourceFiles = Makefile.Actions.OfType<VCCompileAction>().Select(x => x.SourceFile!).ToList();
 
-			FileItem InputFileListItem = Makefile.CreateIntermediateTextFile(OutputFile.ChangeExtension(".input"), InputFiles.Select(x => x.FullName));
+			FileItem InputFileListItem = MakefileBuilder.CreateIntermediateTextFile(OutputFile.ChangeExtension(".input"), InputFiles.Select(x => x.FullName));
 
-			Action AnalyzeAction = Makefile.CreateAction(ActionType.Compile);
+			Action AnalyzeAction = MakefileBuilder.CreateAction(ActionType.Compile);
 			AnalyzeAction.ActionType = ActionType.PostBuildStep;
 			AnalyzeAction.CommandDescription = "Process PVS-Studio Results";
 			AnalyzeAction.CommandPath = Unreal.DotnetPath;

@@ -7,6 +7,7 @@ using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -48,13 +49,13 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			bool bSuccess = true;
 			return bSuccess;
 		}
 
-		private bool WriteMakefile()
+		private bool WriteMakefile(ILogger Logger)
 		{
 			string GameProjectFile = "";
 			string BuildCommand = "";
@@ -181,14 +182,14 @@ namespace UnrealBuildTool
 
 			MakefileContent.Append("\n.PHONY: $(TARGETS)\n");
 			FileReference FullFileName = FileReference.Combine(PrimaryProjectPath, FileName);
-			return WriteFileIfChanged(FullFileName.FullName, MakefileContent.ToString());
+			return WriteFileIfChanged(FullFileName.FullName, MakefileContent.ToString(), Logger);
 		}
 
 		/// ProjectFileGenerator interface
 		//protected override bool WritePrimaryProjectFile( ProjectFile UBTProject )
-		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
-			return WriteMakefile();
+			return WriteMakefile(Logger);
 		}
 
 		/// ProjectFileGenerator interface
@@ -204,7 +205,7 @@ namespace UnrealBuildTool
 		}
 
 		/// ProjectFileGenerator interface
-		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory, ILogger Logger)
 		{
 		}
 	}

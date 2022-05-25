@@ -91,7 +91,7 @@ namespace EpicGames.Core
 			{
 				errorMessage.AppendFormat("\n{0}", line);
 			}
-			return errorMessage.ToString();
+			return errorMessage.Replace("\r\n", "\n").ToString();
 		}
 
 		/// <summary>
@@ -142,7 +142,7 @@ namespace EpicGames.Core
 					}
 				}
 			}
-			return message.ToString();
+			return message.Replace("\r\n", "\n").ToString();
 		}
 	}
 }

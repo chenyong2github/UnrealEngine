@@ -9,6 +9,7 @@ using System.Linq;
 using Microsoft.Win32;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -35,8 +36,8 @@ namespace UnrealBuildTool
 		/** Toolchain information to print during the build. */
 		protected string? ToolchainInfo;
 
-		public LinuxToolChain(string InArchitecture, LinuxPlatformSDK InSDK, ClangToolChainOptions InOptions = ClangToolChainOptions.None)
-			: this(UnrealTargetPlatform.Linux, InArchitecture, InSDK, InOptions)
+		public LinuxToolChain(string InArchitecture, LinuxPlatformSDK InSDK, ClangToolChainOptions InOptions, ILogger InLogger)
+			: this(UnrealTargetPlatform.Linux, InArchitecture, InSDK, InOptions, InLogger)
 		{
 			MultiArchRoot = PlatformSDK.GetSDKLocation();
 			BaseLinuxPath = PlatformSDK.GetBaseLinuxPathForArchitecture(InArchitecture);
@@ -57,12 +58,12 @@ namespace UnrealBuildTool
 				ToolchainInfo = "system toolchain";
 
 				// use native linux toolchain
-				ClangPath = LinuxCommon.WhichClang();
-				ArPath = LinuxCommon.Which("ar");
-				LlvmArPath = LinuxCommon.Which("llvm-ar");
-				RanlibPath = LinuxCommon.Which("ranlib");
-				StripPath = LinuxCommon.Which("strip");
-				ObjcopyPath = LinuxCommon.Which("objcopy");
+				ClangPath = LinuxCommon.WhichClang(Logger);
+				ArPath = LinuxCommon.Which("ar", Logger);
+				LlvmArPath = LinuxCommon.Which("llvm-ar", Logger);
+				RanlibPath = LinuxCommon.Which("ranlib", Logger);
+				StripPath = LinuxCommon.Which("strip", Logger);
+				ObjcopyPath = LinuxCommon.Which("objcopy", Logger);
 
 				// When compiling on Linux, use a faster way to relink circularly dependent libraries.
 				// Race condition between actions linking to the .so and action overwriting it is avoided thanks to inodes
@@ -81,7 +82,7 @@ namespace UnrealBuildTool
 				if (String.IsNullOrEmpty(MultiArchRoot))
 				{
 					MultiArchRoot = BaseLinuxPath;
-					Log.TraceInformation("Using LINUX_ROOT (deprecated, consider LINUX_MULTIARCH_ROOT)");
+					Logger.LogInformation("Using LINUX_ROOT (deprecated, consider LINUX_MULTIARCH_ROOT)");
 				}
 
 				BaseLinuxPath = BaseLinuxPath.Replace("\"", "").Replace('\\', '/');
@@ -127,8 +128,8 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, ClangToolChainOptions InOptions = ClangToolChainOptions.None)
-			: base(InOptions)
+		public LinuxToolChain(UnrealTargetPlatform InPlatform, string InArchitecture, LinuxPlatformSDK InSDK, ClangToolChainOptions InOptions, ILogger InLogger)
+			: base(InOptions, InLogger)
 		{
 			Architecture = InArchitecture;
 			PlatformSDK = InSDK;
@@ -948,17 +949,17 @@ namespace UnrealBuildTool
 			return Explanation;
 		}
 
-		protected void PrintBuildDetails(CppCompileEnvironment CompileEnvironment)
+		protected void PrintBuildDetails(CppCompileEnvironment CompileEnvironment, ILogger Logger)
 		{
-			Log.TraceInformation("------- Build details --------");
-			Log.TraceInformation("Using {0}.", ToolchainInfo);
-			Log.TraceInformation("Using clang ({0}) version '{1}' (string), {2} (major), {3} (minor), {4} (patch)",
+			Logger.LogInformation("------- Build details --------");
+			Logger.LogInformation("Using {ToolchainInfo}.", ToolchainInfo);
+			Logger.LogInformation("Using clang ({ClangPath}) version '{ClangVersionString}' (string), {ClangVersionMajor} (major), {ClangVersionMinor} (minor), {ClangVersionPatch} (patch)",
 				ClangPath, ClangVersionString, ClangVersionMajor, ClangVersionMinor, ClangVersionPatch);
 
 			// inform the user which C++ library the engine is going to be compiled against - important for compatibility with third party code that uses STL
-			Log.TraceInformation("Using {0} standard C++ library.", ShouldUseLibcxx(CompileEnvironment.Architecture) ? "bundled libc++" : "compiler default (most likely libstdc++)");
-			Log.TraceInformation("Using {0}", UsingLld(CompileEnvironment.Architecture) ? "lld linker" : "default linker (ld)");
-			Log.TraceInformation("Using {0}", !String.IsNullOrEmpty(LlvmArPath) ? String.Format("llvm-ar : {0}", LlvmArPath) : String.Format("ar and ranlib: {0}, {1}", GetArPath(CompileEnvironment.Architecture), GetRanlibPath(CompileEnvironment.Architecture)));
+			Logger.LogInformation("Using {Lib} standard C++ library.", ShouldUseLibcxx(CompileEnvironment.Architecture) ? "bundled libc++" : "compiler default (most likely libstdc++)");
+			Logger.LogInformation("Using {Linker}", UsingLld(CompileEnvironment.Architecture) ? "lld linker" : "default linker (ld)");
+			Logger.LogInformation("Using {LlvmAr}", !String.IsNullOrEmpty(LlvmArPath) ? String.Format("llvm-ar : {0}", LlvmArPath) : String.Format("ar and ranlib: {0}, {1}", GetArPath(CompileEnvironment.Architecture), GetRanlibPath(CompileEnvironment.Architecture)));
 
 			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ||
 				Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer) ||
@@ -973,41 +974,41 @@ namespace UnrealBuildTool
 				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer) ? StaticOrShared + " linked UndefinedBehaviorSanitizer" : "";
 				SanitizerInfo += Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer) ? StaticOrShared + " linked MemorySanitizer" : "";
 
-				Log.TraceInformation(SanitizerInfo);
+				Logger.LogInformation("{SanitizerInfo}", SanitizerInfo);
 			}
 
 			// Also print other once-per-build information
 			if (bUseFixdeps)
 			{
-				Log.TraceInformation("Using old way to relink circularly dependent libraries (with a FixDeps step).");
+				Logger.LogInformation("Using old way to relink circularly dependent libraries (with a FixDeps step).");
 			}
 			else
 			{
-				Log.TraceInformation("Using fast way to relink  circularly dependent libraries (no FixDeps).");
+				Logger.LogInformation("Using fast way to relink  circularly dependent libraries (no FixDeps).");
 			}
 
 			if (CompileEnvironment.bPGOOptimize)
 			{
-				Log.TraceInformation("Using PGO (profile guided optimization).");
-				Log.TraceInformation("  Directory for PGO data files='{0}'", CompileEnvironment.PGODirectory);
-				Log.TraceInformation("  Prefix for PGO data files='{0}'", CompileEnvironment.PGOFilenamePrefix);
+				Logger.LogInformation("Using PGO (profile guided optimization).");
+				Logger.LogInformation("  Directory for PGO data files='{CompileEnvironmentPGODirectory}'", CompileEnvironment.PGODirectory);
+				Logger.LogInformation("  Prefix for PGO data files='{CompileEnvironmentPGOFilenamePrefix}'", CompileEnvironment.PGOFilenamePrefix);
 			}
 
 			if (CompileEnvironment.bPGOProfile)
 			{
-				Log.TraceInformation("Using PGI (profile guided instrumentation).");
+				Logger.LogInformation("Using PGI (profile guided instrumentation).");
 			}
 
 			if (CompileEnvironment.bAllowLTCG)
 			{
-				Log.TraceInformation("Using LTO (link-time optimization).");
+				Logger.LogInformation("Using LTO (link-time optimization).");
 			}
 
 			if (bSuppressPIE)
 			{
-				Log.TraceInformation("Compiler is set up to generate position independent executables by default, but we're suppressing it.");
+				Logger.LogInformation("Compiler is set up to generate position independent executables by default, but we're suppressing it.");
 			}
-			Log.TraceInformation("------------------------------");
+			Logger.LogInformation("------------------------------");
 		}
 
 		public override CPPOutput CompileCPPFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph)
@@ -1020,7 +1021,7 @@ namespace UnrealBuildTool
 
 			if (!bHasPrintedBuildDetails)
 			{
-				PrintBuildDetails(CompileEnvironment);
+				PrintBuildDetails(CompileEnvironment, Logger);
 
 				bHasPrintedBuildDetails = true;
 			}
@@ -1217,7 +1218,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates an action to archive all the .o files into single .a file
 		/// </summary>
-		public FileItem CreateArchiveAndIndex(LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph)
+		public FileItem CreateArchiveAndIndex(LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			// Create an archive action
 			Action ArchiveAction = Graph.CreateAction(ActionType.Link);
@@ -1286,11 +1287,11 @@ namespace UnrealBuildTool
 			return OutputFile;
 		}
 
-		public FileItem? FixDependencies(LinkEnvironment LinkEnvironment, FileItem Executable, IActionGraphBuilder Graph)
+		public FileItem? FixDependencies(LinkEnvironment LinkEnvironment, FileItem Executable, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			if (bUseFixdeps)
 			{
-				Log.TraceVerbose("Adding postlink step");
+				Logger.LogDebug("Adding postlink step");
 
 				bool bUseCmdExe = BuildHostPlatform.Current.ShellType == ShellType.Cmd;
 				FileReference ShellBinary = BuildHostPlatform.Current.Shell;
@@ -1364,7 +1365,7 @@ namespace UnrealBuildTool
 
 			if (LinkEnvironment.bIsBuildingLibrary || bBuildImportLibraryOnly)
 			{
-				return CreateArchiveAndIndex(LinkEnvironment, Graph);
+				return CreateArchiveAndIndex(LinkEnvironment, Graph, Logger);
 			}
 
 			// Create an action that invokes the linker.
@@ -1670,7 +1671,7 @@ namespace UnrealBuildTool
 
 			string LinkScriptName = string.Format((bUseCmdExe ? "Link-{0}.link.bat" : "Link-{0}.link.sh"), OutputFile.Location.GetFileName());
 			string LinkScriptFullPath = Path.Combine(LinkEnvironment.LocalShadowDirectory!.FullName, LinkScriptName);
-			Log.TraceVerbose("Creating link script: {0}", LinkScriptFullPath);
+			Logger.LogDebug("Creating link script: {LinkScriptFullPath}", LinkScriptFullPath);
 			Directory.CreateDirectory(Path.GetDirectoryName(LinkScriptFullPath)!);
 			using (StreamWriter LinkWriter = File.CreateText(LinkScriptFullPath))
 			{
@@ -1740,7 +1741,7 @@ namespace UnrealBuildTool
 					if (!bHasWipedFixDepsScript)
 					{
 						bHasWipedFixDepsScript = true;
-						Log.TraceVerbose("Creating script: {0}", FixDepsScriptPath);
+						Logger.LogDebug("Creating script: {FixDepsScriptPath}", FixDepsScriptPath);
 						Directory.CreateDirectory(Path.GetDirectoryName(FixDepsScriptPath)!);
 						using (StreamWriter Writer = File.CreateText(FixDepsScriptPath))
 						{
@@ -1831,7 +1832,7 @@ namespace UnrealBuildTool
 					string RelinkScriptName = string.Format((bUseCmdExe ? "Relink-{0}.bat" : "Relink-{0}.sh"), OutputFile.Location.GetFileName());
 					string RelinkScriptFullPath = Path.Combine(LinkEnvironment.LocalShadowDirectory.FullName, RelinkScriptName);
 
-					Log.TraceVerbose("Creating script: {0}", RelinkScriptFullPath);
+					Logger.LogDebug("Creating script: {RelinkScriptFullPath}", RelinkScriptFullPath);
 					Directory.CreateDirectory(Path.GetDirectoryName(RelinkScriptFullPath)!);
 					using (StreamWriter RelinkWriter = File.CreateText(RelinkScriptFullPath))
 					{
@@ -1918,7 +1919,7 @@ namespace UnrealBuildTool
 					return OutputFiles;
 				}
 
-				FileItem? FixDepsOutputFile = FixDependencies(BinaryLinkEnvironment, Executable, Graph);
+				FileItem? FixDepsOutputFile = FixDependencies(BinaryLinkEnvironment, Executable, Graph, Logger);
 				if (FixDepsOutputFile != null)
 				{
 					OutputFiles.Add(FixDepsOutputFile);
@@ -1936,7 +1937,7 @@ namespace UnrealBuildTool
 			return OutputFiles;
 		}
 
-		public void StripSymbols(FileReference SourceFile, FileReference TargetFile)
+		public void StripSymbols(FileReference SourceFile, FileReference TargetFile, ILogger Logger)
 		{
 			if (SourceFile != TargetFile)
 			{
@@ -1949,7 +1950,7 @@ namespace UnrealBuildTool
 			StartInfo.Arguments = "--strip-debug \"" + TargetFile.FullName + "\"";
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
-			Utils.RunLocalProcessAndLogOutput(StartInfo);
+			Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 		}
 	}
 }

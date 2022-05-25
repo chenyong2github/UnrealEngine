@@ -789,7 +789,7 @@ namespace Turnkey.Commands
 							TurnkeyUtils.Log("Further, you can edit this in the Packaging Settings in the editor as needed");
 
 							// add this setting in to the ProjectSettings section
-							ConfigCache.WriteSettingToDefaultConfig(ConfigHierarchyType.Game, ProjectFile.Directory, ConfigCache.ConfigDefaultUpdateType.AddArrayEntry, SettingsSection, "ProjectCustomBuilds", ValueText);
+							ConfigCache.WriteSettingToDefaultConfig(ConfigHierarchyType.Game, ProjectFile.Directory, ConfigCache.ConfigDefaultUpdateType.AddArrayEntry, SettingsSection, "ProjectCustomBuilds", ValueText, Log.Logger);
 							ConfigCache.InvalidateCaches();
 						}
 					}

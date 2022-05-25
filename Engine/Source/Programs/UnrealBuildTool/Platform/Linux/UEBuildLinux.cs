@@ -8,6 +8,7 @@ using System.IO;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -162,14 +163,14 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public LinuxPlatform(LinuxPlatformSDK InSDK) 
-			: this(UnrealTargetPlatform.Linux, InSDK)
+		public LinuxPlatform(LinuxPlatformSDK InSDK, ILogger Logger) 
+			: this(UnrealTargetPlatform.Linux, InSDK, Logger)
 		{
 			SDK = InSDK;
 		}
 
-		public LinuxPlatform(UnrealTargetPlatform UnrealTarget, LinuxPlatformSDK InSDK)
-			: base(UnrealTarget, InSDK)
+		public LinuxPlatform(UnrealTargetPlatform UnrealTarget, LinuxPlatformSDK InSDK, ILogger Logger)
+			: base(UnrealTarget, InSDK, Logger)
 		{
 			SDK = InSDK;
 		}
@@ -452,12 +453,7 @@ namespace UnrealBuildTool
 				(Target.Platform == UnrealTargetPlatform.LinuxArm64 ? "1" : "0"));
 		}
 
-		/// <summary>
-		/// Setup the target environment for building
-		/// </summary>
-		/// <param name="Target">Settings for the target being compiled</param>
-		/// <param name="CompileEnvironment">The compile environment for this target</param>
-		/// <param name="LinkEnvironment">The link environment for this target</param>
+		/// <inheritdoc/>
 		public override void SetUpEnvironment(ReadOnlyTargetRules Target, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment)
 		{
 			// During the native builds, check the system includes as well (check toolchain when cross-compiling?)
@@ -616,21 +612,23 @@ namespace UnrealBuildTool
 				Log.ColorConsoleOutput = false;
 			}
 
-			return new LinuxToolChain(Target.Architecture, SDK, Options);
+			return new LinuxToolChain(Target.Architecture, SDK, Options, Logger);
 		}
 
-		/// <summary>
-		/// Deploys the given target
-		/// </summary>
-		/// <param name="Receipt">Receipt for the target being deployed</param>
+		/// <inheritdoc/>
 		public override void Deploy(TargetReceipt Receipt)
 		{
-			new UEDeployLinux().PrepTargetForDeployment(Receipt);
+			new UEDeployLinux(Logger).PrepTargetForDeployment(Receipt);
 		}
 	}
 
 	class UEDeployLinux: UEBuildDeploy
 	{
+		public UEDeployLinux(ILogger InLogger)
+			: base(InLogger)
+		{
+		}
+
 		public override bool PrepTargetForDeployment(TargetReceipt Receipt)
 		{
 			return base.PrepTargetForDeployment(Receipt);
@@ -647,18 +645,18 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Register the platform with the UEBuildPlatform class
 		/// </summary>
-		public override void RegisterBuildPlatforms()
+		public override void RegisterBuildPlatforms(ILogger Logger)
 		{
-			LinuxPlatformSDK SDK = new LinuxPlatformSDK();
-			LinuxPlatformSDK SDKArm64 = new LinuxPlatformSDK();
+			LinuxPlatformSDK SDK = new LinuxPlatformSDK(Logger);
+			LinuxPlatformSDK SDKArm64 = new LinuxPlatformSDK(Logger);
 
 			// Register this build platform for Linux x86-64 and Arm64
-			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.Linux, SDK));
+			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.Linux, SDK, Logger), Logger);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Linux);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Unix);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Linux, UnrealPlatformGroup.Desktop);
 
-			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.LinuxArm64, SDKArm64));
+			UEBuildPlatform.RegisterBuildPlatform(new LinuxPlatform(UnrealTargetPlatform.LinuxArm64, SDKArm64, Logger), Logger);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxArm64, UnrealPlatformGroup.Linux);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxArm64, UnrealPlatformGroup.Unix);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.LinuxArm64, UnrealPlatformGroup.Desktop);

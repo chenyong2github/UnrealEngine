@@ -410,7 +410,7 @@ chmod +x {0}
 
 	public override void StripSymbols(FileReference SourceFile, FileReference TargetFile)
 	{
-		LinuxExports.StripSymbols(SourceFile, TargetFile);
+		LinuxExports.StripSymbols(SourceFile, TargetFile, Log.Logger);
 	}
 }
 

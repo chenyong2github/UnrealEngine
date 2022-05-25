@@ -308,7 +308,7 @@ public class IOSPlatform : Platform
 			// if non-interactive, we can just run directly in the current shell
 			if (!bInteractive)
 			{
-				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut(Command, Params, out ExitCode, true);
+				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut(Command, Params, Log.Logger, out ExitCode);
 			}
 			else
 			{
@@ -338,7 +338,7 @@ public class IOSPlatform : Platform
 
 				Console.WriteLine("\n\n\n{0}\n\n\n", Params);
 
-				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("osascript", Params, out ExitCode, true);
+				UnrealBuildTool.Utils.RunLocalProcessAndReturnStdOut("osascript", Params, Log.Logger, out ExitCode);
 				if (ExitCode == 0)
 				{
 					ExitCode = int.Parse(File.ReadAllText(ReturnCodeFilename));
@@ -621,7 +621,7 @@ public class IOSPlatform : Platform
 	{
 		FileReference TargetReceiptFileName = GetTargetReceiptFileName(Config, InExecutablePath, InEngineDir, InProjectDirectory, bIsUEGame);
 
-		return IOSExports.PrepForUATPackageOrDeploy(Config, ProjectFile, InProjectName, InProjectDirectory, InExecutablePath, InEngineDir, bForDistribution, CookFlavor, bIsDataDeploy, bCreateStubIPA, TargetReceiptFileName);
+		return IOSExports.PrepForUATPackageOrDeploy(Config, ProjectFile, InProjectName, InProjectDirectory, InExecutablePath, InEngineDir, bForDistribution, CookFlavor, bIsDataDeploy, bCreateStubIPA, TargetReceiptFileName, Log.Logger);
 	}
 
 
@@ -648,7 +648,7 @@ public class IOSPlatform : Platform
 	public virtual bool DeployGeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, DirectoryReference ProjectDirectory, bool bIsUEGame, string GameName, bool bIsClient, string ProjectName, DirectoryReference InEngineDir, DirectoryReference AppDirectory, string InExecutablePath, out bool bSupportsPortrait, out bool bSupportsLandscape)
 	{
 		FileReference TargetReceiptFileName = GetTargetReceiptFileName(Config, InExecutablePath, InEngineDir, ProjectDirectory, bIsUEGame);
-		return IOSExports.GeneratePList(ProjectFile, Config, ProjectDirectory, bIsUEGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, TargetReceiptFileName, out bSupportsPortrait, out bSupportsLandscape);
+		return IOSExports.GeneratePList(ProjectFile, Config, ProjectDirectory, bIsUEGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, TargetReceiptFileName, Log.Logger, out bSupportsPortrait, out bSupportsLandscape);
 	}
 
 	protected string MakeIPAFileName(UnrealTargetConfiguration TargetConfiguration, ProjectParams Params, DeploymentContext SC, bool bAllowDistroPrefix)
@@ -875,7 +875,7 @@ public class IOSPlatform : Platform
 
 		StageLaunchScreenStoryboard(Params, SC);
 
-		IOSExports.GenerateAssetCatalog(Params.RawProjectPath, new FileReference(FullExePath), new DirectoryReference(CombinePaths(Params.BaseStageDirectory, (TargetPlatformType == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"))), TargetPlatformType);
+		IOSExports.GenerateAssetCatalog(Params.RawProjectPath, new FileReference(FullExePath), new DirectoryReference(CombinePaths(Params.BaseStageDirectory, (TargetPlatformType == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"))), TargetPlatformType, Log.Logger);
 
 		bCreatedIPA = false;
 		bool bNeedsIPA = false;
@@ -1704,7 +1704,7 @@ public class IOSPlatform : Platform
 				string IdeviceFSArgs = "-b " + "\"" + BundleIdentifier + " -x " + Directory.GetCurrentDirectory() + "\\CommandsToPush.txt -u " + "\"" + Params.DeviceNames[0];
 				IdeviceFSArgs = GetLibimobileDeviceNetworkedArgument(IdeviceFSArgs, Params.DeviceNames[0]);
 
-				Utils.RunLocalProcessAndReturnStdOut(DeviceFS, IdeviceFSArgs, out ExitCode, true);
+				Utils.RunLocalProcessAndReturnStdOut(DeviceFS, IdeviceFSArgs, Log.Logger, out ExitCode);
 				if (ExitCode != 0)
 				{
 					throw new AutomationException("Failed to deploy manifest to mobile device.");
@@ -2256,7 +2256,7 @@ public class IOSPlatform : Platform
 
 	public override void StripSymbols(FileReference SourceFile, FileReference TargetFile)
 	{
-		IOSExports.StripSymbols(PlatformType, SourceFile, TargetFile);
+		IOSExports.StripSymbols(PlatformType, SourceFile, TargetFile, Log.Logger);
 	}
 
 

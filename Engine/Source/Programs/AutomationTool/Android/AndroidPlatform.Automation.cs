@@ -3874,7 +3874,7 @@ public class AndroidPlatform : Platform
 
 	public override void StripSymbols(FileReference SourceFile, FileReference TargetFile)
 	{
-		AndroidExports.StripSymbols(SourceFile, TargetFile);
+		AndroidExports.StripSymbols(SourceFile, TargetFile, Log.Logger);
 	}
 }
 

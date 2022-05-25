@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -112,7 +113,8 @@ namespace UnrealBuildTool
 
 		protected ClangToolChainOptions Options;
 
-		public ClangToolChain(ClangToolChainOptions InOptions) : base()
+		public ClangToolChain(ClangToolChainOptions InOptions, ILogger InLogger) 
+			: base(InLogger)
 		{
 			Options = InOptions;
 		}

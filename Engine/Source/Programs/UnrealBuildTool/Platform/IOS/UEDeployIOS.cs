@@ -11,12 +11,14 @@ using System.Diagnostics;
 using System.Xml.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
 	class UEDeployIOS : UEBuildDeploy
 	{
-		public UEDeployIOS()
+		public UEDeployIOS(ILogger InLogger)
+			: base(InLogger)
 		{
 		}
 
@@ -196,7 +198,7 @@ namespace UnrealBuildTool
 			return result;
 		}
 
-		public static string GetMinimumOSVersion(string MinVersion)
+		public static string GetMinimumOSVersion(string MinVersion, ILogger Logger)
 		{
 			string MinVersionToReturn = "";
 			switch (MinVersion)
@@ -208,14 +210,14 @@ namespace UnrealBuildTool
 					MinVersionToReturn = "15.0";
 					break;
 				default:
-					Log.TraceWarning("MinimumiOSVersion {0} specified in ini file is no longer supported, defaulting to 14.0", MinVersion);
+					Logger.LogWarning("MinimumiOSVersion {MinVersion} specified in ini file is no longer supported, defaulting to 14.0", MinVersion);
 					MinVersionToReturn = "14.0";
 					break;
 			}
 			return MinVersionToReturn;
 		}
 
-		public static bool GenerateIOSPList(FileReference? ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, UnrealPluginLanguage? UPL, string? BundleID, bool bBuildAsFramework, out bool bSupportsPortrait, out bool bSupportsLandscape)
+		public static bool GenerateIOSPList(FileReference? ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, UnrealPluginLanguage? UPL, string? BundleID, bool bBuildAsFramework, ILogger Logger, out bool bSupportsPortrait, out bool bSupportsLandscape)
 		{
 			// generate the Info.plist for future use
 			string BuildDirectory = ProjectDirectory + "/Build/IOS";
@@ -330,7 +332,7 @@ namespace UnrealBuildTool
 			// minimum iOS version
 			string MinVersionSetting = "";
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "MinimumiOSVersion", out MinVersionSetting);
-			string MinVersion  = GetMinimumOSVersion(MinVersionSetting);
+			string MinVersion  = GetMinimumOSVersion(MinVersionSetting, Logger);
 
 			// Get Facebook Support details
 			bool bEnableFacebookSupport = true;
@@ -505,13 +507,13 @@ namespace UnrealBuildTool
 				{
 					string outputStoryboard = LaunchStoryboard + "c";
 					string argsStoryboard = "--compile " + outputStoryboard + " " + LaunchStoryboard;
-					string stdOutLaunchScreen = Utils.RunLocalProcessAndReturnStdOut("ibtool", argsStoryboard);
+					string stdOutLaunchScreen = Utils.RunLocalProcessAndReturnStdOut("ibtool", argsStoryboard, Logger);
 
-					Log.TraceInformation("LaunchScreen Storyboard compilation results : " + stdOutLaunchScreen);
+					Logger.LogInformation("LaunchScreen Storyboard compilation results : {Results}", stdOutLaunchScreen);
 				}
 				else
 				{
-					Log.TraceWarning("Custom Launchscreen compilation storyboard only compatible on Mac for now");
+					Logger.LogWarning("Custom Launchscreen compilation storyboard only compatible on Mac for now");
 				}
 			}
 
@@ -686,7 +688,7 @@ namespace UnrealBuildTool
 
  		public bool GeneratePList(FileReference ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, TargetReceipt Receipt, out bool bSupportsPortrait, out bool bSupportsLandscape)
 		{
-			List<string> UPLScripts = CollectPluginDataPaths(Receipt.AdditionalProperties);
+			List<string> UPLScripts = CollectPluginDataPaths(Receipt.AdditionalProperties, Logger);
 			VersionNumber? SdkVersion = GetSdkVersion(Receipt);
 			bool bBuildAsFramework = GetCompileAsDll(Receipt);
 			return GeneratePList(ProjectFile, Config, ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, UPLScripts, "", bBuildAsFramework, out bSupportsPortrait, out bSupportsLandscape);
@@ -719,12 +721,12 @@ namespace UnrealBuildTool
 
 			string RelativeEnginePath = Unreal.EngineDirectory.MakeRelativeTo(DirectoryReference.GetCurrentDirectory());
 
-			UnrealPluginLanguage UPL = new UnrealPluginLanguage(ProjectFile, UPLScripts, ProjectArches, "", "", UnrealTargetPlatform.IOS);
+			UnrealPluginLanguage UPL = new UnrealPluginLanguage(ProjectFile, UPLScripts, ProjectArches, "", "", UnrealTargetPlatform.IOS, Logger);
 
 			// Passing in true for distribution is not ideal here but given the way that ios packaging happens and this call chain it seems unavoidable for now, maybe there is a way to correctly pass it in that I can't find?
 			UPL.Init(ProjectArches, true, RelativeEnginePath, BundlePath, ProjectDirectory, Config.ToString(), false);
 
-			return GenerateIOSPList(ProjectFile, Config, ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, UPL, BundleID, bBuildAsFramework, out bSupportsPortrait, out bSupportsLandscape);
+			return GenerateIOSPList(ProjectFile, Config, ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, UPL, BundleID, bBuildAsFramework, Logger, out bSupportsPortrait, out bSupportsLandscape);
 		}
 
 		protected virtual void CopyCloudResources(string InEngineDir, string AppDirectory)
@@ -732,7 +734,7 @@ namespace UnrealBuildTool
 			CopyFiles(InEngineDir + "/Build/IOS/Cloud", AppDirectory, "*.*", true);
 		}
 
-		protected virtual void CopyCustomLaunchScreenResources(string InEngineDir, string AppDirectory, string BuildDirectory)
+		protected virtual void CopyCustomLaunchScreenResources(string InEngineDir, string AppDirectory, string BuildDirectory, ILogger Logger)
 		{
 			if (Directory.Exists(BuildDirectory + "/Resources/Interface/LaunchScreen.storyboardc"))
 			{
@@ -741,7 +743,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceWarning("Custom LaunchScreen Storyboard is checked but no compiled Storyboard could be found. Custom Storyboard compilation is only Mac compatible for now. Fallback to default Launchscreen");
+				Logger.LogWarning("Custom LaunchScreen Storyboard is checked but no compiled Storyboard could be found. Custom Storyboard compilation is only Mac compatible for now. Fallback to default Launchscreen");
 				CopyStandardLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory);
 			}
 		}
@@ -761,11 +763,11 @@ namespace UnrealBuildTool
 
 		}
 
-		protected virtual void CopyLaunchScreenResources(string InEngineDir, string AppDirectory, string BuildDirectory)
+		protected virtual void CopyLaunchScreenResources(string InEngineDir, string AppDirectory, string BuildDirectory, ILogger Logger)
 		{
 			if (VersionUtilities.bCustomLaunchscreenStoryboard)
 			{
-				CopyCustomLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory);
+				CopyCustomLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory, Logger);
 			}
 			else
 			{
@@ -774,16 +776,16 @@ namespace UnrealBuildTool
 
 			if (!File.Exists(AppDirectory + "/LaunchScreen.storyboardc/LaunchScreen.nib"))
 			{
-				Log.TraceError("Launchscreen.storyboard ViewController needs an ID named LaunchScreen");
+				Logger.LogError("Launchscreen.storyboard ViewController needs an ID named LaunchScreen");
 			}
 		}
 
-		protected virtual void CopyLocalizationsResources(string InEngineDir, string AppDirectory, string BuildDirectory, string IntermediateDir)
+		protected virtual void CopyLocalizationsResources(string InEngineDir, string AppDirectory, string BuildDirectory, string IntermediateDir, ILogger Logger)
 		{
 			string LocalizationsPath = BuildDirectory + "/Resources/Localizations";
 			if (Directory.Exists(LocalizationsPath))
 			{
-				Log.TraceInformation("Copy localizations from Resources {0}, {1}", LocalizationsPath, AppDirectory);
+				Logger.LogInformation("Copy localizations from Resources {LocalizationsPath}, {AppDirectory}", LocalizationsPath, AppDirectory);
 				CopyFolder(BuildDirectory + "/Resources/Localizations", AppDirectory, true, delegate(string InFilename)
 				{
 					if (Path.GetFileName(InFilename).Equals(".DS_Store")) return false;
@@ -794,13 +796,13 @@ namespace UnrealBuildTool
 
 		public bool PrepForUATPackageOrDeploy(UnrealTargetConfiguration Config, FileReference ProjectFile, string InProjectName, string InProjectDirectory, string InExecutablePath, string InEngineDir, bool bForDistribution, string CookFlavor, bool bIsDataDeploy, bool bCreateStubIPA, TargetReceipt Receipt)
 		{
-			List<string> UPLScripts = CollectPluginDataPaths(Receipt.AdditionalProperties);
+			List<string> UPLScripts = CollectPluginDataPaths(Receipt.AdditionalProperties, Logger);
 			VersionNumber? SdkVersion = GetSdkVersion(Receipt);
 			bool bBuildAsFramework = GetCompileAsDll(Receipt);
 			return PrepForUATPackageOrDeploy(Config, ProjectFile, InProjectName, InProjectDirectory, InExecutablePath, InEngineDir, bForDistribution, CookFlavor, bIsDataDeploy, bCreateStubIPA, UPLScripts, "", bBuildAsFramework);
 		}
 
-		void CopyAllProvisions(string ProvisionDir)
+		void CopyAllProvisions(string ProvisionDir, ILogger Logger)
 		{
 			try
 			{
@@ -813,11 +815,11 @@ namespace UnrealBuildTool
 				string LocalProvisionFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library/MobileDevice/Provisioning Profiles");
 				if (!Directory.Exists(LocalProvisionFolder))
 				{
-					Log.TraceLog("Local Provision Folder {0} not found, attempting to create...", LocalProvisionFolder);
+					Logger.LogDebug("Local Provision Folder {LocalProvisionFolder} not found, attempting to create...", LocalProvisionFolder);
 					Directory.CreateDirectory(LocalProvisionFolder);
 					if(Directory.Exists(LocalProvisionFolder))
 					{
-						Log.TraceLog("Local Provision Folder {0} created successfully.", LocalProvisionFolder);
+						Logger.LogDebug("Local Provision Folder {LocalProvisionFolder} created successfully.", LocalProvisionFolder);
 					}
 					else
 					{
@@ -844,7 +846,7 @@ namespace UnrealBuildTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceError(Ex.ToString());
+				Logger.LogError("{Message}", Ex.ToString());
 				throw;
 			}
 		}
@@ -937,12 +939,12 @@ namespace UnrealBuildTool
 			if (!File.Exists(ProvisionWithPrefix) || Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
 			{
 				// copy all provisions from the game directory, the engine directory, notforlicensees directory, and, if defined, the ProvisionDirectory.
-				CopyAllProvisions(BuildDirectory);
-				CopyAllProvisions(InEngineDir + "/Build/IOS");
+				CopyAllProvisions(BuildDirectory, Logger);
+				CopyAllProvisions(InEngineDir + "/Build/IOS", Logger);
 				string? ProvisionDirectory = Environment.GetEnvironmentVariable("ProvisionDirectory");
 				if (!string.IsNullOrWhiteSpace(ProvisionDirectory))
 				{
-					CopyAllProvisions(ProvisionDirectory);
+					CopyAllProvisions(ProvisionDirectory, Logger);
 				}
 			}
 
@@ -994,16 +996,16 @@ namespace UnrealBuildTool
 			if (SubDir == GetTargetPlatformName())
 			{
 				string BuildDirectoryFortvOS = InProjectDirectory + "/Build/IOS";
-				CopyLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectoryFortvOS);
+				CopyLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectoryFortvOS, Logger);
 			}
 			else
 			{
-				CopyLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory);
+				CopyLaunchScreenResources(InEngineDir, AppDirectory, BuildDirectory, Logger);
 			}
 
 			if (!bCreateStubIPA)
 			{
-				CopyLocalizationsResources(InEngineDir, AppDirectory, BuildDirectory, IntermediateDirectory);
+				CopyLocalizationsResources(InEngineDir, AppDirectory, BuildDirectory, IntermediateDirectory, Logger);
 
 				CopyCloudResources(InProjectDirectory, AppDirectory);
 
@@ -1030,7 +1032,7 @@ namespace UnrealBuildTool
 
 		public override bool PrepTargetForDeployment(TargetReceipt Receipt)
 		{
-			List<string> UPLScripts = CollectPluginDataPaths(Receipt.AdditionalProperties);
+			List<string> UPLScripts = CollectPluginDataPaths(Receipt.AdditionalProperties, Logger);
 			bool bBuildAsFramework = GetCompileAsDll(Receipt);
 			return PrepTargetForDeployment(Receipt.ProjectFile, Receipt.TargetName, Receipt.Platform, Receipt.Configuration, UPLScripts, false, "", bBuildAsFramework);
 		}
@@ -1069,13 +1071,13 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		public static List<string> CollectPluginDataPaths(List<ReceiptProperty> ReceiptProperties)
+		public static List<string> CollectPluginDataPaths(List<ReceiptProperty> ReceiptProperties, ILogger Logger)
 		{
 			List<string> PluginExtras = new List<string>();
 			if (ReceiptProperties == null)
 			{
-				Log.TraceInformation("Receipt is NULL");
-				//Log.TraceInformation("Receipt is NULL");
+				Logger.LogInformation("Receipt is NULL");
+				//Logger.LogInformation("Receipt is NULL");
 				return PluginExtras;
 			}
 
@@ -1088,7 +1090,7 @@ namespace UnrealBuildTool
 				if (PluginExtras.FirstOrDefault(x => x == PluginPath) == null)
 				{
 					PluginExtras.Add(PluginPath);
-					Log.TraceInformation("IOSPlugin: {0}", PluginPath);
+					Logger.LogInformation("IOSPlugin: {PluginPath}", PluginPath);
 				}
 			}
 			return PluginExtras;

@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -225,7 +226,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Parse crypto settings from INI file
 		/// </summary>
-		public static CryptoSettings ParseCryptoSettings(DirectoryReference? InProjectDirectory, UnrealTargetPlatform InTargetPlatform)
+		public static CryptoSettings ParseCryptoSettings(DirectoryReference? InProjectDirectory, UnrealTargetPlatform InTargetPlatform, ILogger Logger)
 		{
 			CryptoSettings Settings = new CryptoSettings();
 			
@@ -282,11 +283,11 @@ namespace UnrealBuildTool
 				{
 					if (EncryptionKeyString.Length < 32)
 					{
-						Log.WriteLine(LogEventType.Warning, "AES key parsed from encryption.ini is too short. It must be 32 bytes, so will be padded with 0s, giving sub-optimal security!");
+						Logger.LogWarning("AES key parsed from encryption.ini is too short. It must be 32 bytes, so will be padded with 0s, giving sub-optimal security!");
 					}
 					else if (EncryptionKeyString.Length > 32)
 					{
-						Log.WriteLine(LogEventType.Warning, "AES key parsed from encryption.ini is too long. It must be 32 bytes, so will be truncated!");
+						Logger.LogWarning("AES key parsed from encryption.ini is too long. It must be 32 bytes, so will be truncated!");
 					}
 
 					Settings.EncryptionKey.Key = ParseAnsiStringToByteArray(EncryptionKeyString, 32);

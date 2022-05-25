@@ -10,6 +10,7 @@ using System.Xml;
 using System.Globalization;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -155,11 +156,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates all the modules referenced by this target.
 		/// </summary>
-		public void CreateAllDependentModules(UEBuildModule.CreateModuleDelegate CreateModule)
+		public void CreateAllDependentModules(UEBuildModule.CreateModuleDelegate CreateModule, ILogger Logger)
 		{
 			foreach (UEBuildModule Module in Modules)
 			{
-				Module.RecursivelyCreateModules(CreateModule, "Target");
+				Module.RecursivelyCreateModules(CreateModule, "Target", Logger);
 			}
 		}
 
@@ -174,8 +175,9 @@ namespace UnrealBuildTool
 		/// <param name="WorkingSet">The working set of source files</param>
 		/// <param name="ExeDir">Directory containing the output executable</param>
 		/// <param name="Graph">The graph being built</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Set of built products</returns>
-		public List<FileItem> Build(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment, List<FileReference> SpecificFilesToCompile, ISourceFileWorkingSet WorkingSet, DirectoryReference ExeDir, IActionGraphBuilder Graph)
+		public List<FileItem> Build(ReadOnlyTargetRules Target, UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment, List<FileReference> SpecificFilesToCompile, ISourceFileWorkingSet WorkingSet, DirectoryReference ExeDir, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			// Return nothing if we're using precompiled binaries. If we're not linking, we might want just one module to be compiled (eg. a foreign plugin), so allow any actions to run.
 			if (bUsePrecompiled && !(Target.LinkType == TargetLinkType.Monolithic && Target.bDisableLinking))
@@ -184,7 +186,7 @@ namespace UnrealBuildTool
 			}
 
 			// Setup linking environment.
-			LinkEnvironment BinaryLinkEnvironment = SetupBinaryLinkEnvironment(Target, ToolChain, LinkEnvironment, CompileEnvironment, SpecificFilesToCompile, WorkingSet, ExeDir, Graph);
+			LinkEnvironment BinaryLinkEnvironment = SetupBinaryLinkEnvironment(Target, ToolChain, LinkEnvironment, CompileEnvironment, SpecificFilesToCompile, WorkingSet, ExeDir, Graph, Logger);
 
 			// If we're generating projects, we only need include paths and definitions, there is no need to run the linking logic.
 			if (ProjectFileGenerator.bGenerateProjectFiles)
@@ -589,7 +591,7 @@ namespace UnrealBuildTool
 		/// Checks whether the binary output paths are appropriate for the distribution
 		/// level of its direct module dependencies
 		/// </summary>
-		public bool CheckRestrictedFolders(List<DirectoryReference> RootDirectories, Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache)
+		public bool CheckRestrictedFolders(List<DirectoryReference> RootDirectories, Dictionary<UEBuildModule, Dictionary<RestrictedFolder, DirectoryReference>> ModuleRestrictedFolderCache, ILogger Logger)
 		{
 			// Find all the modules we depend on
 			Dictionary<UEBuildModule, UEBuildModule?> ModuleReferencedBy = new Dictionary<UEBuildModule, UEBuildModule?>();
@@ -647,7 +649,7 @@ namespace UnrealBuildTool
 							{
 								ReferenceChain.Insert(0, ReferencedModule.Name);
 							}
-							Log.TraceError("Output binary \"{0}\" is not in a {1} folder, but references \"{2}\" via {3}.", OutputFilePath, Pair.Key.ToString(), Pair.Value, String.Join(" -> ", ReferenceChain));
+							Logger.LogError("Output binary \"{OutputFilePath}\" is not in a {Folder} folder, but references \"{ReferenceFile}\" via {ReferenceChain}.", OutputFilePath, Pair.Key.ToString(), Pair.Value, String.Join(" -> ", ReferenceChain));
 							bResult = false;
 						}
 					}
@@ -693,7 +695,7 @@ namespace UnrealBuildTool
 			return BinaryCompileEnvironment;
 		}
 
-		private LinkEnvironment SetupBinaryLinkEnvironment(ReadOnlyTargetRules Target, UEToolChain ToolChain, LinkEnvironment LinkEnvironment, CppCompileEnvironment CompileEnvironment, List<FileReference> SpecificFilesToCompile, ISourceFileWorkingSet WorkingSet, DirectoryReference ExeDir, IActionGraphBuilder Graph)
+		private LinkEnvironment SetupBinaryLinkEnvironment(ReadOnlyTargetRules Target, UEToolChain ToolChain, LinkEnvironment LinkEnvironment, CppCompileEnvironment CompileEnvironment, List<FileReference> SpecificFilesToCompile, ISourceFileWorkingSet WorkingSet, DirectoryReference ExeDir, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			LinkEnvironment BinaryLinkEnvironment = new LinkEnvironment(LinkEnvironment);
 			HashSet<UEBuildModule> LinkEnvironmentVisitedModules = new HashSet<UEBuildModule>();
@@ -712,8 +714,8 @@ namespace UnrealBuildTool
 				if (Module.Binary == null || Module.Binary == this)
 				{
 					// Compile each module.
-					Log.TraceVerbose("Compile module: " + Module.Name);
-					LinkInputFiles = Module.Compile(Target, ToolChain, BinaryCompileEnvironment, SpecificFilesToCompile, WorkingSet, Graph);
+					Logger.LogDebug("Compile module: {ModuleName}", Module.Name);
+					LinkInputFiles = Module.Compile(Target, ToolChain, BinaryCompileEnvironment, SpecificFilesToCompile, WorkingSet, Graph, Logger);
 
 					// Save the module outputs. In monolithic builds, this is just the object files.
 					if (Target.LinkType == TargetLinkType.Monolithic)

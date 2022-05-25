@@ -8,6 +8,7 @@ using System.Text;
 using EpicGames.Core;
 using OpenTracing.Util;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -98,12 +99,13 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">Command-line arguments</param>
 		/// <returns>One of the values of ECompilationResult</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
 			// Write the command line
-			Log.TraceLog("Command line: {0}", Environment.CommandLine);
+			Logger.LogDebug("Command line: {EnvironmentCommandLine}", Environment.CommandLine);
 
 			// Grab the environment.
 			UnrealBuildTool.InitialEnvironment = Environment.GetEnvironmentVariables();
@@ -143,7 +145,7 @@ namespace UnrealBuildTool
 			// Check the root path length isn't too long
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 && Unreal.RootDirectory.FullName.Length > BuildConfiguration.MaxRootPathLength)
 			{
-				Log.TraceWarning("Running from a path with a long directory name (\"{0}\" = {1} characters). Root paths shorter than {2} characters are recommended to avoid exceeding maximum path lengths on Windows.", Unreal.RootDirectory, Unreal.RootDirectory.FullName.Length, BuildConfiguration.MaxRootPathLength);
+				Logger.LogWarning("Running from a path with a long directory name (\"{Path}\" = {NumChars} characters). Root paths shorter than {MaxChars} characters are recommended to avoid exceeding maximum path lengths on Windows.", Unreal.RootDirectory, Unreal.RootDirectory.FullName.Length, BuildConfiguration.MaxRootPathLength);
 			}
 
 			// now that we know the available platforms, we can delete other platforms' junk. if we're only building specific modules from the editor, don't touch anything else (it may be in use).
@@ -151,7 +153,7 @@ namespace UnrealBuildTool
 			{
 				using (GlobalTracer.Instance.BuildSpan("DeleteJunk()").StartActive())
 				{
-					JunkDeleter.DeleteJunk();
+					JunkDeleter.DeleteJunk(Logger);
 				}
 			}
 
@@ -163,7 +165,7 @@ namespace UnrealBuildTool
 				// Parse all the target descriptors
 				using (GlobalTracer.Instance.BuildSpan("TargetDescriptor.ParseCommandLine()").StartActive())
 				{
-					TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile);
+					TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, Logger);
 				}
 
 				// Hack for specific files compile; don't build the ShaderCompileWorker target that's added to the command line for generated project files
@@ -177,7 +179,7 @@ namespace UnrealBuildTool
 				{
 					CleanMode CleanMode = new CleanMode();
 					CleanMode.bSkipPreBuildTargets = bSkipPreBuildTargets;
-					CleanMode.Clean(TargetDescriptors.Where(D => D.bRebuild).ToList(), BuildConfiguration);
+					CleanMode.Clean(TargetDescriptors.Where(D => D.bRebuild).ToList(), BuildConfiguration, Logger);
 				}
 
 
@@ -190,8 +192,8 @@ namespace UnrealBuildTool
 						FileReference BaseLogFile = Log.OutputFile ?? new FileReference(BaseLogFileName);
 						FileReference RemoteLogFile = FileReference.Combine(BaseLogFile.Directory, BaseLogFile.GetFileNameWithoutExtension() + "_Remote.txt");
 
-						RemoteMac RemoteMac = new RemoteMac(TargetDesc.ProjectFile);
-						if (!RemoteMac.Build(TargetDesc, RemoteLogFile, bSkipPreBuildTargets))
+						RemoteMac RemoteMac = new RemoteMac(TargetDesc.ProjectFile, Logger);
+						if (!RemoteMac.Build(TargetDesc, RemoteLogFile, bSkipPreBuildTargets, Logger))
 						{
 							return (int)CompilationResult.Unknown;
 						}
@@ -234,16 +236,16 @@ namespace UnrealBuildTool
 					}
 
 					// Create the working set provider per group.
-					using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(Unreal.RootDirectory, ProjectDirs))
+					using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(Unreal.RootDirectory, ProjectDirs, Logger))
 					{
-						Build(TargetDescriptors, BuildConfiguration, WorkingSet, Options, WriteOutdatedActionsFile, bSkipPreBuildTargets);
+						Build(TargetDescriptors, BuildConfiguration, WorkingSet, Options, WriteOutdatedActionsFile, Logger, bSkipPreBuildTargets);
 					}
 				}
 			}
 			finally
 			{
 				// Check if anything failed during our run, and act accordingly.
-				ProcessCoreDumps(SaveCrashDumpDirectory);
+				ProcessCoreDumps(SaveCrashDumpDirectory, Logger);
 
 				// Save all the caches
 				SourceFileMetadataCache.SaveAll();
@@ -260,15 +262,16 @@ namespace UnrealBuildTool
 		/// <param name="WorkingSet">The source file working set</param>
 		/// <param name="Options">Additional options for the build</param>
 		/// <param name="WriteOutdatedActionsFile">Files to write the list of outdated actions to (rather than building them)</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="bSkipPreBuildTargets">If true then only the current target descriptors will be built.</param>
 		/// <returns>Result from the compilation</returns>
-		public static void Build(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference? WriteOutdatedActionsFile, bool bSkipPreBuildTargets = false)
+		public static void Build(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ISourceFileWorkingSet WorkingSet, BuildOptions Options, FileReference? WriteOutdatedActionsFile, ILogger Logger, bool bSkipPreBuildTargets = false)
 		{
 			List<TargetMakefile> TargetMakefiles = new List<TargetMakefile>();
 
 			for (int Idx = 0; Idx < TargetDescriptors.Count; ++Idx)
 			{
-				TargetMakefile NewMakefile = CreateMakefile(BuildConfiguration, TargetDescriptors[Idx], WorkingSet);
+				TargetMakefile NewMakefile = CreateMakefile(BuildConfiguration, TargetDescriptors[Idx], WorkingSet, Logger);
 				TargetMakefiles.Add(NewMakefile);
 				if (!bSkipPreBuildTargets)
 				{
@@ -283,7 +286,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			Build(TargetMakefiles.ToArray(), TargetDescriptors, BuildConfiguration, Options, WriteOutdatedActionsFile);
+			Build(TargetMakefiles.ToArray(), TargetDescriptors, BuildConfiguration, Options, WriteOutdatedActionsFile, Logger);
 		}
 
 		/// <summary>
@@ -294,19 +297,20 @@ namespace UnrealBuildTool
 		/// <param name="BuildConfiguration">Current build configuration</param>
 		/// <param name="Options">Additional options for the build</param>
 		/// <param name="WriteOutdatedActionsFile">Files to write the list of outdated actions to (rather than building them)</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Result from the compilation</returns>
-		static void Build(TargetMakefile[] Makefiles, List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, BuildOptions Options, FileReference? WriteOutdatedActionsFile)
+		static void Build(TargetMakefile[] Makefiles, List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, BuildOptions Options, FileReference? WriteOutdatedActionsFile, ILogger Logger)
 		{
 			// Execute the build
 			if ((Options & BuildOptions.SkipBuild) == 0)
 			{
 				// Make sure that none of the actions conflict with any other (producing output files differently, etc...)
-				ActionGraph.CheckForConflicts(Makefiles.SelectMany(x => x.Actions));
+				ActionGraph.CheckForConflicts(Makefiles.SelectMany(x => x.Actions), Logger);
 
 				// Check we don't exceed the nominal max path length
 				using (GlobalTracer.Instance.BuildSpan("ActionGraph.CheckPathLengths").StartActive())
 				{
-					ActionGraph.CheckPathLengths(BuildConfiguration, Makefiles.SelectMany(x => x.Actions));
+					ActionGraph.CheckPathLengths(BuildConfiguration, Makefiles.SelectMany(x => x.Actions), Logger);
 				}
 
 				// Create a QueuedAction instance for each action in the makefiles
@@ -320,7 +324,7 @@ namespace UnrealBuildTool
 				Dictionary<FileReference, FileReference>? InitialPatchedOldLocationToNewLocation = null;
 				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
 				{
-					InitialPatchedOldLocationToNewLocation = HotReload.Setup(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], QueuedActions[TargetIdx], BuildConfiguration);
+					InitialPatchedOldLocationToNewLocation = HotReload.Setup(TargetDescriptors[TargetIdx], Makefiles[TargetIdx], QueuedActions[TargetIdx], BuildConfiguration, Logger);
 				}
 
 				// Merge the action graphs together
@@ -368,7 +372,7 @@ namespace UnrealBuildTool
 					using (GlobalTracer.Instance.BuildSpan("Reading dependency cache").StartActive())
 					{
 						TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
-						CppDependencies.Mount(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture);
+						CppDependencies.Mount(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture, Logger);
 					}
 				}
 
@@ -377,13 +381,13 @@ namespace UnrealBuildTool
 				if (ModuleDependencyActions.Count > 0)
 				{
 					Dictionary<LinkedAction, bool> PreprocessActionToOutdatedFlag = new Dictionary<LinkedAction, bool>();
-					ActionGraph.GatherAllOutdatedActions(ModuleDependencyActions, History, PreprocessActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+					ActionGraph.GatherAllOutdatedActions(ModuleDependencyActions, History, PreprocessActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
 
 					List<LinkedAction> PreprocessActions = PreprocessActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
 					if (PreprocessActions.Count > 0)
 					{
-						Log.TraceInformation("Updating module dependencies...");
-						ActionGraph.ExecuteActions(BuildConfiguration, PreprocessActions, TargetDescriptors);
+						Logger.LogInformation("Updating module dependencies...");
+						ActionGraph.ExecuteActions(BuildConfiguration, PreprocessActions, TargetDescriptors, Logger);
 
 						foreach (FileItem ProducedItem in PreprocessActions.SelectMany(x => x.ProducedItems))
 						{
@@ -411,13 +415,13 @@ namespace UnrealBuildTool
 							if (CppModulesAction != null && CppModulesAction.CompiledModuleInterfaceFile != null)
 							{
 								string? ProducedModule;
-								if (CppDependencies.TryGetProducedModule(ModuleDependencyAction.DependencyListFile!, out ProducedModule))
+								if (CppDependencies.TryGetProducedModule(ModuleDependencyAction.DependencyListFile!, Logger, out ProducedModule))
 								{
 									ModuleOutputs[ProducedModule] = CppModulesAction.CompiledModuleInterfaceFile;
 								}
 
 								List<(string Name, string BMI)>? ImportedModules;
-								if (CppDependencies.TryGetImportedModules(ModuleDependencyAction.DependencyListFile!, out ImportedModules))
+								if (CppDependencies.TryGetImportedModules(ModuleDependencyAction.DependencyListFile!, Logger, out ImportedModules))
 								{
 									ModuleImports[CppModulesAction.CompiledModuleInterfaceFile] = ImportedModules.Select(x => x.Name).ToList();
 								}
@@ -481,7 +485,7 @@ namespace UnrealBuildTool
 					// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.
 					if (TargetDescriptor.SpecificFilesToCompile.Count == 0)
 					{
-						ActionGraph.GatherAllOutdatedActions(PrerequisiteActions, History, ActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+						ActionGraph.GatherAllOutdatedActions(PrerequisiteActions, History, ActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
 					}
 					else
 					{
@@ -512,22 +516,22 @@ namespace UnrealBuildTool
 						}
 						else
 						{
-							MergedActionsToExecute = HotReload.PatchActionsForTarget(BuildConfiguration, TargetDescriptors[Idx], Makefiles[Idx], PrerequisiteActions, MergedActionsToExecute, InitialPatchedOldLocationToNewLocation);
+							MergedActionsToExecute = HotReload.PatchActionsForTarget(BuildConfiguration, TargetDescriptors[Idx], Makefiles[Idx], PrerequisiteActions, MergedActionsToExecute, InitialPatchedOldLocationToNewLocation, Logger);
 						}
 						HotReloadTargetIdx = Idx;
 					}
 					else if (MergedActionsToExecute.Count > 0)
 					{
-						HotReload.CheckForLiveCodingSessionActive(TargetDescriptors[Idx], Makefiles[Idx], BuildConfiguration);
+						HotReload.CheckForLiveCodingSessionActive(TargetDescriptors[Idx], Makefiles[Idx], BuildConfiguration, Logger);
 					}
 				}	
 
 				if (HotReloadTargetIdx != -1)
 				{
-					Log.TraceLog("Re-evaluating action graph");
+					Logger.LogDebug("Re-evaluating action graph");
 					// Re-check the graph to remove any LiveCoding actions added by PatchActionsForTarget() that are already up to date.
 					Dictionary<LinkedAction, bool> LiveActionToOutdatedFlag = new Dictionary<LinkedAction, bool>(MergedActionsToExecute.Count);
-					ActionGraph.GatherAllOutdatedActions(MergedActionsToExecute, History, LiveActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+					ActionGraph.GatherAllOutdatedActions(MergedActionsToExecute, History, LiveActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
 					List<LinkedAction> LiveCodingActionsToExecute = LiveActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
 					ActionGraph.Link(LiveCodingActionsToExecute);
 					MergedActionsToExecute = LiveCodingActionsToExecute;
@@ -545,7 +549,7 @@ namespace UnrealBuildTool
 							Result.AppendFormat("\n{0}", EngineChange.FullName);
 						}
 						Result.Append("\n\nPlease rebuild from an IDE instead.");
-						Log.TraceError("{0}", Result.ToString());
+						Logger.LogError("{Result}", Result.ToString());
 						throw new CompilationResultException(CompilationResult.FailedDueToEngineChange);
 					}
 				}
@@ -560,7 +564,7 @@ namespace UnrealBuildTool
 				}
 
 				// Delete produced items that are outdated.
-				ActionGraph.DeleteOutdatedProducedItems(MergedActionsToExecute);
+				ActionGraph.DeleteOutdatedProducedItems(MergedActionsToExecute, Logger);
 
 				// Save all the action histories now that files have been removed. We have to do this after deleting produced items to ensure that any
 				// items created during the build don't have the wrong command line.
@@ -572,17 +576,17 @@ namespace UnrealBuildTool
 				// Execute the actions
 				if ((Options & BuildOptions.XGEExport) != 0)
 				{
-					OutputToolchainInfo(TargetDescriptors, Makefiles);
+					OutputToolchainInfo(TargetDescriptors, Makefiles, Logger);
 
 					// Just export to an XML file
 					using (GlobalTracer.Instance.BuildSpan("XGE.ExportActions()").StartActive())
 					{
-						XGE.ExportActions(MergedActionsToExecute);
+						XGE.ExportActions(MergedActionsToExecute, Logger);
 					}
 				}
 				else if (WriteOutdatedActionsFile != null)
 				{
-					OutputToolchainInfo(TargetDescriptors, Makefiles);
+					OutputToolchainInfo(TargetDescriptors, Makefiles, Logger);
 
 					// Write actions to an output file
 					using (GlobalTracer.Instance.BuildSpan("ActionGraph.WriteActions").StartActive())
@@ -597,23 +601,30 @@ namespace UnrealBuildTool
 					{
 						if (TargetDescriptors.Any(x => !x.bQuiet))
 						{
-							Log.TraceInformation((TargetDescriptors.Count == 1)? "Target is up to date" : "Targets are up to date");
+							if (TargetDescriptors.Count == 1)
+							{
+								Logger.LogInformation("Target is up to date");
+							}
+							else
+							{
+								Logger.LogInformation("Targets are up to date");
+							}
 						}
 					}
 					else
 					{
 						if (TargetDescriptors.Any(x => !x.bQuiet))
 						{
-							Log.TraceInformation("Building {0}...", StringUtils.FormatList(TargetDescriptors.Select(x => x.Name).Distinct()));
+							Logger.LogInformation("Building {Targets}...", StringUtils.FormatList(TargetDescriptors.Select(x => x.Name).Distinct()));
 						}
 
-						OutputToolchainInfo(TargetDescriptors, Makefiles);
+						OutputToolchainInfo(TargetDescriptors, Makefiles, Logger);
 
 						ActionExecutor.SetMemoryPerActionOverride(Makefiles.Select(x => x.MemoryPerActionGB).Max());
 
 						using (GlobalTracer.Instance.BuildSpan("ActionGraph.ExecuteActions()").StartActive())
 						{
-							ActionGraph.ExecuteActions(BuildConfiguration, MergedActionsToExecute, TargetDescriptors);
+							ActionGraph.ExecuteActions(BuildConfiguration, MergedActionsToExecute, TargetDescriptors, Logger);
 						}
 					}
 
@@ -623,7 +634,7 @@ namespace UnrealBuildTool
 						if (Makefile.bDeployAfterCompile)
 						{
 							TargetReceipt Receipt = TargetReceipt.Read(Makefile.ReceiptFile);
-							Log.TraceInformation("Deploying {0} {1} {2}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
+							Logger.LogInformation("Deploying {ReceiptTargetName} {ReceiptPlatform} {ReceiptConfiguration}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
 
 							UEBuildPlatform.GetBuildPlatform(Receipt.Platform).Deploy(Receipt);
 						}
@@ -637,7 +648,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="TargetDescriptors">List of targets being built</param>
 		/// <param name="Makefiles">Matching array of makefiles for each target</param>
-		static void OutputToolchainInfo(List<TargetDescriptor> TargetDescriptors, TargetMakefile[] Makefiles)
+		/// <param name="Logger">Logger for output</param>
+		static void OutputToolchainInfo(List<TargetDescriptor> TargetDescriptors, TargetMakefile[] Makefiles, ILogger Logger)
 		{
 			List<int> OutputIndices = new List<int>();
 			for (int Idx = 0; Idx < TargetDescriptors.Count; Idx++)
@@ -652,7 +664,7 @@ namespace UnrealBuildTool
 			{
 				foreach(string Diagnostic in Makefiles[OutputIndices[0]].Diagnostics)
 				{
-					Log.TraceInformation("{0}", Diagnostic);
+					Logger.LogInformation("{Diagnostic}", Diagnostic);
 				}
 			}
 			else
@@ -661,7 +673,7 @@ namespace UnrealBuildTool
 				{
 					foreach(string Diagnostic in Makefiles[OutputIndex].Diagnostics)
 					{
-						Log.TraceInformation("{0}: {1}", TargetDescriptors[OutputIndex].Name, Diagnostic);
+						Logger.LogInformation("{Name}: {Diagnostic}", TargetDescriptors[OutputIndex].Name, Diagnostic);
 					}
 				}
 			}
@@ -673,8 +685,9 @@ namespace UnrealBuildTool
 		/// <param name="BuildConfiguration">The build configuration</param>
 		/// <param name="TargetDescriptor">Target being built</param>
 		/// <param name="WorkingSet">Set of source files which are part of the working set</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Makefile for the given target</returns>
-		static TargetMakefile CreateMakefile(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, ISourceFileWorkingSet WorkingSet)
+		static TargetMakefile CreateMakefile(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, ISourceFileWorkingSet WorkingSet, ILogger Logger)
 		{
 			// Get the path to the makefile for this target
 			FileReference? MakefileLocation = null;
@@ -690,10 +703,10 @@ namespace UnrealBuildTool
 				using (GlobalTracer.Instance.BuildSpan("TargetMakefile.Load()").StartActive())
 				{
 					string? ReasonNotLoaded;
-					Makefile = TargetMakefile.Load(MakefileLocation, TargetDescriptor.ProjectFile, TargetDescriptor.Platform, TargetDescriptor.AdditionalArguments.GetRawArray(), out ReasonNotLoaded);
+					Makefile = TargetMakefile.Load(MakefileLocation, TargetDescriptor.ProjectFile, TargetDescriptor.Platform, TargetDescriptor.AdditionalArguments.GetRawArray(), Logger, out ReasonNotLoaded);
 					if (Makefile == null)
 					{
-						Log.TraceInformation("Creating makefile for {0} ({1})", TargetDescriptor.Name, ReasonNotLoaded);
+						Logger.LogInformation("Creating makefile for {TargetDescriptorName} ({ReasonNotLoaded})", TargetDescriptor.Name, ReasonNotLoaded);
 					}
 				}
 			}
@@ -705,7 +718,7 @@ namespace UnrealBuildTool
 				// Execute the scripts. We have to invalidate all cached file info after doing so, because we don't know what may have changed.
 				if(Makefile.PreBuildScripts.Length > 0)
 				{
-					Utils.ExecuteCustomBuildSteps(Makefile.PreBuildScripts);
+					Utils.ExecuteCustomBuildSteps(Makefile.PreBuildScripts, Logger);
 					DirectoryItem.ResetAllCachedInfo_SLOW();
 				}
 
@@ -714,9 +727,9 @@ namespace UnrealBuildTool
 
 				// Check that the makefile is still valid
 				string? Reason;
-				if(!TargetMakefile.IsValidForSourceFiles(Makefile, TargetDescriptor.ProjectFile, TargetDescriptor.Platform, WorkingSet, out Reason))
+				if(!TargetMakefile.IsValidForSourceFiles(Makefile, TargetDescriptor.ProjectFile, TargetDescriptor.Platform, WorkingSet, Logger, out Reason))
 				{
-					Log.TraceInformation("Invalidating makefile for {0} ({1})", TargetDescriptor.Name, Reason);
+					Logger.LogInformation("Invalidating makefile for {TargetDescriptorName} ({Reason})", TargetDescriptor.Name, Reason);
 					Makefile = null;
 				}
 			}
@@ -728,7 +741,7 @@ namespace UnrealBuildTool
 				UEBuildTarget Target;
 				using (GlobalTracer.Instance.BuildSpan("UEBuildTarget.Create()").StartActive())
 				{
-					Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled);
+					Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, Logger);
 				}
 
 				// Create the pre-build scripts
@@ -737,14 +750,14 @@ namespace UnrealBuildTool
 				// Execute the pre-build scripts
 				if(!bHasRunPreBuildScripts)
 				{
-					Utils.ExecuteCustomBuildSteps(PreBuildScripts);
+					Utils.ExecuteCustomBuildSteps(PreBuildScripts, Logger);
 					bHasRunPreBuildScripts = true;
 				}
 
 				// Build the target
 				using (GlobalTracer.Instance.BuildSpan("UEBuildTarget.Build()").StartActive())
 				{
-					Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDescriptor);
+					Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDescriptor, Logger);
 				}
 
 				Makefile.MemoryPerActionGB = Target.Rules.MemoryPerActionGB;
@@ -784,7 +797,7 @@ namespace UnrealBuildTool
 				// If the target needs UHT to be run, we'll go ahead and do that now
 				if (Makefile.UObjectModules.Count > 0)
 				{
-					ExternalExecution.ExecuteHeaderToolIfNecessary(BuildConfiguration, TargetDescriptor.ProjectFile, Makefile, TargetDescriptor.Name, WorkingSet);
+					ExternalExecution.ExecuteHeaderToolIfNecessary(BuildConfiguration, TargetDescriptor.ProjectFile, Makefile, TargetDescriptor.Name, WorkingSet, Logger);
 				}
 
 #if __VPROJECT_AVAILABLE__
@@ -792,7 +805,7 @@ namespace UnrealBuildTool
 				if (Makefile.VNIModules.Count > 0)
 				{
 
-					VNIExecution.ExecuteVNITool(Makefile, TargetDescriptor);
+					VNIExecution.ExecuteVNITool(Makefile, TargetDescriptor, Logger);
 				}
 #endif
 			}
@@ -865,7 +878,7 @@ namespace UnrealBuildTool
 			return new List<LinkedAction>(OutputItemToProducingAction.Values);
 		}
 
-		void ProcessCoreDumps(DirectoryReference? SaveCrashDumpDirectory)
+		void ProcessCoreDumps(DirectoryReference? SaveCrashDumpDirectory, ILogger Logger)
 		{
 			if (SaveCrashDumpDirectory == null)
 			{
@@ -902,7 +915,7 @@ namespace UnrealBuildTool
 					{
 						if (FileReference.GetLastWriteTime(CrashDump) > UBTStartTime)
 						{
-							Log.TraceWarning($"Crash dump {CrashDump} was created duing UnrealBuildTool execution");
+							Logger.LogWarning("Crash dump {CrashDump} was created duing UnrealBuildTool execution", CrashDump);
 							FoundCrashDumps.Add(CrashDump);
 						}
 					}
@@ -935,7 +948,7 @@ namespace UnrealBuildTool
 						{
 							if (TmpFile.HasExtension(".dmp") && FileReference.GetLastWriteTime(TmpFile) > UBTStartTime)
 							{
-								Log.TraceWarning($"Crash dump {TmpFile} was created duing UnrealBuildTool execution");
+								Logger.LogWarning("Crash dump {TmpFile} was created duing UnrealBuildTool execution", TmpFile);
 								FoundCrashDumps.Add(TmpFile);
 							}
 						}
@@ -952,7 +965,7 @@ namespace UnrealBuildTool
 				DirectoryReference.CreateDirectory(SaveCrashDumpDirectory);
 				foreach (FileReference CrashDump in FoundCrashDumps)
 				{
-					Log.TraceInformation($"Copying {CrashDump} to {SaveCrashDumpDirectory}");
+					Logger.LogInformation("Copying {CrashDump} to {SaveCrashDumpDirectory}", CrashDump, SaveCrashDumpDirectory);
 					try
 					{
 						FileReference.Copy(CrashDump, FileReference.Combine(SaveCrashDumpDirectory, CrashDump.GetFileName()));
@@ -960,7 +973,7 @@ namespace UnrealBuildTool
 					catch(Exception Ex)
 					{
 						// don't stop if there was a problem copying one of the files
-						Log.TraceWarning($"Failed to copy crash dump {CrashDump}: {ExceptionUtils.FormatException(Ex)}");
+						Logger.LogWarning("Failed to copy crash dump {CrashDump}: {Ex}", CrashDump, ExceptionUtils.FormatException(Ex));
 					}
 				}
 			}

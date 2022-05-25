@@ -4,6 +4,7 @@ using EpicGames.Core;
 using System.Linq;
 using System.IO;
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -12,13 +13,20 @@ namespace UnrealBuildTool
 	/// </summary>
 	abstract class UEBuildDeploy
 	{
+		protected readonly ILogger Logger;
+
+		public UEBuildDeploy(ILogger InLogger)
+		{
+			Logger = InLogger;
+		}
+
 		protected bool CopyFilesRecursively(string FromDir, string ToDir)
 		{
 			var FromDirInfo = new DirectoryInfo(FromDir);
 
 			if (!FromDirInfo.Exists)
 			{
-				Log.TraceError($"Cannot copy files, source directory not found: {FromDirInfo.FullName}");
+				Logger.LogError("Cannot copy files, source directory not found: {FromDir}", FromDirInfo.FullName);
 				return false;
 			}
 
@@ -40,7 +48,7 @@ namespace UnrealBuildTool
 					FromFile.CopyTo(ToDestFile, true);
 				} catch (Exception ex)
 				{
-					Log.TraceError($"Error while copying {FromFile.Name} from {FromDir} to {ToDir}: {ex}");
+					Logger.LogError(ex, "Error while copying {FromFile} from {FromDir} to {ToDir}: {Ex}", FromFile, FromDir, ToDir, ex);
 					return false;
 				}
 			}

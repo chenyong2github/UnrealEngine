@@ -9,6 +9,7 @@ using System.Text;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -19,12 +20,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string XcodeDeveloperDir = "xcode-select";
 
-		public AppleToolChainSettings(bool bVerbose)
+		public AppleToolChainSettings(bool bVerbose, ILogger Logger)
 		{
-			SelectXcode(ref XcodeDeveloperDir, bVerbose);
+			SelectXcode(ref XcodeDeveloperDir, bVerbose, Logger);
 		}
 
-		private static void SelectXcode(ref string DeveloperDir, bool bVerbose)
+		private static void SelectXcode(ref string DeveloperDir, bool bVerbose, ILogger Logger)
 		{
 			string Reason = "hardcoded";
 
@@ -33,7 +34,7 @@ namespace UnrealBuildTool
 				Reason = "xcode-select";
 
 				// on the Mac, run xcode-select directly
-				DeveloperDir = Utils.RunLocalProcessAndReturnStdOut("xcode-select", "--print-path");
+				DeveloperDir = Utils.RunLocalProcessAndReturnStdOut("xcode-select", "--print-path", Logger);
 
 				// make sure we get a full path
 				if (Directory.Exists(DeveloperDir) == false)
@@ -68,7 +69,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected void SelectSDK(string BaseSDKDir, string OSPrefix, ref string PlatformSDKVersion, bool bVerbose)
+		protected void SelectSDK(string BaseSDKDir, string OSPrefix, ref string PlatformSDKVersion, bool bVerbose, ILogger Logger)
 		{
 			if (PlatformSDKVersion == "latest")
 			{
@@ -127,8 +128,8 @@ namespace UnrealBuildTool
 				catch (Exception Ex)
 				{
 					// on any exception, just use the backup version
-					Log.TraceInformation("Triggered an exception while looking for SDK directory in Xcode.app");
-					Log.TraceInformation("{0}", Ex.ToString());
+					Logger.LogInformation("Triggered an exception while looking for SDK directory in Xcode.app");
+					Logger.LogInformation("{Ex}", Ex.ToString());
 				}
 			}
 
@@ -140,7 +141,7 @@ namespace UnrealBuildTool
 
 			if (bVerbose && !ProjectFileGenerator.bGenerateProjectFiles)
 			{
-				Log.TraceInformation("Compiling with {0} SDK {1}", OSPrefix, PlatformSDKVersion);
+				Logger.LogInformation("Compiling with {Os} SDK {Sdk}", OSPrefix, PlatformSDKVersion);
 			}
 		}
 	}
@@ -149,7 +150,7 @@ namespace UnrealBuildTool
 	{
 		protected FileReference? ProjectFile;
 
-		public AppleToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions) : base(InOptions)
+		public AppleToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions, ILogger InLogger) : base(InOptions, InLogger)
 		{
 			ProjectFile = InProjectFile;
 		}
@@ -172,7 +173,7 @@ namespace UnrealBuildTool
 			StartInfo.Arguments = String.Format("\"{0}\" -S", TargetFile.FullName);
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
-			Utils.RunLocalProcessAndLogOutput(StartInfo);
+			Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 		}
 
 		static Version? ClangVersion = null;
@@ -282,13 +283,13 @@ namespace UnrealBuildTool
 			Arguments.Add("-fpascal-strings");
 		}
 
-		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)
+		protected string GetDsymutilPath(ILogger Logger, out string ExtraOptions, bool bIsForLTOBuild=false)
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");
 
 			// dsymutil before 10.0.1 has a bug that causes issues, it's fixed in autosdks but not everyone has those set up so for the timebeing we have
 			// a version in P4 - first determine if we need it
-			string DsymutilVersionString = Utils.RunLocalProcessAndReturnStdOut(DsymutilLocation.FullName, "-version");
+			string DsymutilVersionString = Utils.RunLocalProcessAndReturnStdOut(DsymutilLocation.FullName, "-version", Logger);
 
 			bool bUseInstalledDsymutil = true;
 			int Major = 0, Minor = 0, Patch = 0;

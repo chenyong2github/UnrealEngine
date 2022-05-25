@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -268,13 +269,14 @@ namespace UnrealBuildTool
 		/// Read all of the plugins found in the project specified additional plugin directories
 		/// </summary>
 		/// <param name="AdditionalDirectory">The additional directory to scan</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>List of the found PluginInfo objects</returns>
-		public static IReadOnlyList<PluginInfo> ReadAdditionalPlugins(DirectoryReference AdditionalDirectory)
+		public static IReadOnlyList<PluginInfo> ReadAdditionalPlugins(DirectoryReference AdditionalDirectory, ILogger Logger)
 		{
 			DirectoryReference FullPath = DirectoryReference.Combine(AdditionalDirectory, "");
 			if (!DirectoryReference.Exists(FullPath))
 			{
-				Log.TraceWarning("AdditionalPluginDirectory {0} not found. Path should be relative to the project", FullPath);
+				Logger.LogWarning("AdditionalPluginDirectory {FullPath} not found. Path should be relative to the project", FullPath);
 			}
 			return ReadPluginsFromDirectory(AdditionalDirectory, "", PluginType.External);
 		}

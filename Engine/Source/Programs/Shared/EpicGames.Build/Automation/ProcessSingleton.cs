@@ -1,6 +1,7 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -30,17 +31,17 @@ namespace UnrealBuildBase
 		/// </summary>
 		/// <param name="Main"></param>
 		/// <param name="bWaitForUATMutex"></param>
-		public static async Task<ExitCode> RunSingleInstanceAsync(Func<Task<ExitCode>> Main, bool bWaitForUATMutex)
+		public static async Task<ExitCode> RunSingleInstanceAsync(Func<Task<ExitCode>> Main, bool bWaitForUATMutex, ILogger Logger)
 		{
 			// Need to execute this logic on a background thread, since mutex ownership on Linux has thread affinity (ie. mutexes be released on the
 			// same thread that acquires it, which is not guaranteed through an async continuation)
 			TaskCompletionSource<ExitCode> Result = new TaskCompletionSource<ExitCode>();
-			Thread Thread = new Thread(() => RunSingleInstanceThread(Main, Result, bWaitForUATMutex));
+			Thread Thread = new Thread(() => RunSingleInstanceThread(Main, Result, bWaitForUATMutex, Logger));
 			Thread.Start();
 			return await Result.Task;
 		}
 
-		public static void RunSingleInstanceThread(Func<Task<ExitCode>> Main, TaskCompletionSource<ExitCode> Result, bool bWaitForUATMutex)
+		public static void RunSingleInstanceThread(Func<Task<ExitCode>> Main, TaskCompletionSource<ExitCode> Result, bool bWaitForUATMutex, ILogger Logger)
 		{
 			try
 			{
@@ -57,12 +58,12 @@ namespace UnrealBuildBase
 					{
 						if (bWaitForUATMutex)
 						{
-							Log.TraceWarning("Another instance of UAT at '{0}' is running, and the -WaitForUATMutex parameter has been used. Waiting for other UAT to finish...", EntryAssemblyLocation);
+							Logger.LogWarning("Another instance of UAT at '{File}' is running, and the -WaitForUATMutex parameter has been used. Waiting for other UAT to finish...", EntryAssemblyLocation);
 							int Seconds = 0;
 							while (WaitMutexNoExceptions(SingleInstanceMutex, 15 * 1000) == false)
 							{
 								Seconds += 15;
-								Log.TraceInformation("Still waiting for Mutex. {0} seconds has passed...", Seconds);
+								Logger.LogInformation("Still waiting for Mutex. {TimeSeconds} seconds has passed...", Seconds);
 							}
 						}
 						else

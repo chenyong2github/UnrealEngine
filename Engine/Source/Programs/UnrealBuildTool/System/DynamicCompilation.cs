@@ -14,6 +14,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Emit;
+using Microsoft.Extensions.Logging;
 using System.Reflection.Metadata;
 using Microsoft.CodeAnalysis.Text;
 using System.Runtime.InteropServices;
@@ -33,13 +34,14 @@ namespace UnrealBuildTool
 		/// <param name="SourceFiles">Set of source files</param>
 		/// <param name="AssemblyManifestFilePath">File containing information about this assembly, like which source files it was built with and engine version</param>
 		/// <param name="OutputAssemblyPath">Output path for the assembly</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the assembly needs to be built</returns>
-		private static bool RequiresCompilation(HashSet<FileReference> SourceFiles, FileReference AssemblyManifestFilePath, FileReference OutputAssemblyPath)
+		private static bool RequiresCompilation(HashSet<FileReference> SourceFiles, FileReference AssemblyManifestFilePath, FileReference OutputAssemblyPath, ILogger Logger)
 		{
 			// Do not compile the file if it's installed
 			if (UnrealBuildTool.IsFileInstalled(OutputAssemblyPath))
 			{
-				Log.TraceLog("Skipping {0}: File is installed", OutputAssemblyPath);
+				Logger.LogDebug("Skipping {OutputAssemblyPath}: File is installed", OutputAssemblyPath);
 				return false;
 			}
 
@@ -47,7 +49,7 @@ namespace UnrealBuildTool
 			FileItem OutputAssemblyInfo = FileItem.GetItemByFileReference(OutputAssemblyPath);
 			if (!OutputAssemblyInfo.Exists)
 			{
-				Log.TraceLog("Compiling {0}: Assembly does not exist", OutputAssemblyPath);
+				Logger.LogDebug("Compiling {OutputAssemblyPath}: Assembly does not exist", OutputAssemblyPath);
 				return true;
 			}
 
@@ -58,7 +60,7 @@ namespace UnrealBuildTool
 			FileItem UnrealBuildToolDllItem = FileItem.GetItemByFileReference(Unreal.UnrealBuildToolDllPath);
 			if (UnrealBuildToolDllItem.LastWriteTimeUtc > OutputAssemblyInfo.LastWriteTimeUtc)
 			{
-				Log.TraceLog("Compiling {0}: {1} is newer", OutputAssemblyPath, UnrealBuildToolDllItem.Name);
+				Logger.LogDebug("Compiling {OutputAssemblyPath}: {UnrealBuildToolDllItemName} is newer", OutputAssemblyPath, UnrealBuildToolDllItem.Name);
 				return true;
 			}
 
@@ -68,7 +70,7 @@ namespace UnrealBuildTool
 			FileItem AssemblySourceListFile = FileItem.GetItemByFileReference(AssemblyManifestFilePath);
 			if (!AssemblySourceListFile.Exists)
 			{
-				Log.TraceLog("Compiling {0}: Missing source file list ({1})", OutputAssemblyPath, AssemblyManifestFilePath);
+				Logger.LogDebug("Compiling {OutputAssemblyPath}: Missing source file list ({AssemblyManifestFilePath})", OutputAssemblyPath, AssemblyManifestFilePath);
 				return true;
 			}
 
@@ -79,7 +81,7 @@ namespace UnrealBuildTool
 			string EngineVersionCurrent = FormatVersionNumber(ReadOnlyBuildVersion.Current);
 			if (EngineVersionManifest != EngineVersionCurrent)
 			{
-				Log.TraceLog("Compiling {0}: Engine Version changed from {1} to {2}", OutputAssemblyPath, EngineVersionManifest, EngineVersionCurrent);
+				Logger.LogDebug("Compiling {OutputAssemblyPath}: Engine Version changed from {EngineVersionManifest} to {EngineVersionCurrent}", OutputAssemblyPath, EngineVersionManifest, EngineVersionCurrent);
 				return true;
 			}
 
@@ -104,7 +106,7 @@ namespace UnrealBuildTool
 			{
 				if(!SourceFileItems.Contains(CurrentSourceFileItem))
 				{
-					Log.TraceLog("Compiling {0}: Removed source file ({1})", OutputAssemblyPath, CurrentSourceFileItem);
+					Logger.LogDebug("Compiling {OutputAssemblyPath}: Removed source file ({CurrentSourceFileItem})", OutputAssemblyPath, CurrentSourceFileItem);
 					return true;
 				}
 			}
@@ -112,7 +114,7 @@ namespace UnrealBuildTool
 			{
 				if(!CurrentSourceFileItems.Contains(SourceFileItem))
 				{
-					Log.TraceLog("Compiling {0}: Added source file ({1})", OutputAssemblyPath, SourceFileItem);
+					Logger.LogDebug("Compiling {OutputAssemblyPath}: Added source file ({SourceFileItem})", OutputAssemblyPath, SourceFileItem);
 					return true;
 				}
 			}
@@ -122,7 +124,7 @@ namespace UnrealBuildTool
 			{
 				if(SourceFileItem.LastWriteTimeUtc > OutputAssemblyInfo.LastWriteTimeUtc)
 				{
-					Log.TraceLog("Compiling {0}: {1} is newer", OutputAssemblyPath, SourceFileItem);
+					Logger.LogDebug("Compiling {OutputAssemblyPath}: {SourceFileItem} is newer", OutputAssemblyPath, SourceFileItem);
 					return true;
 				}
 			}
@@ -160,7 +162,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static Assembly? CompileAssembly(FileReference OutputAssemblyPath, HashSet<FileReference> SourceFileNames, List<string>? ReferencedAssembies, List<string>? PreprocessorDefines = null, bool TreatWarningsAsErrors = false)
+		private static Assembly? CompileAssembly(FileReference OutputAssemblyPath, HashSet<FileReference> SourceFileNames, ILogger Logger, List<string>? ReferencedAssembies, List<string>? PreprocessorDefines = null, bool TreatWarningsAsErrors = false)
 		{
 			CSharpParseOptions ParseOptions = new CSharpParseOptions(
 				languageVersion:LanguageVersion.Latest, 
@@ -178,7 +180,7 @@ namespace UnrealBuildTool
 				IEnumerable<Diagnostic> Diagnostics = Tree.GetDiagnostics();
 				if (Diagnostics.Any())
 				{
-					Log.TraceWarning($"Errors generated while parsing '{SourceFileName.FullName}'");
+					Logger.LogWarning("Errors generated while parsing '{SourceFileName}'", SourceFileName);
 					LogDiagnostics(Tree.GetDiagnostics());
 					return null;
 				}
@@ -220,6 +222,7 @@ namespace UnrealBuildTool
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Text.RegularExpressions").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Console").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("System.Runtime.Extensions").Location));
+			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("Microsoft.Extensions.Logging.Abstractions").Location));
 			MetadataReferences.Add(MetadataReference.CreateFromFile(Assembly.Load("netstandard").Location));
 			
 			// process start dependencies
@@ -288,13 +291,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="OutputAssemblyPath">Full path to the assembly to be created</param>
 		/// <param name="SourceFileNames">List of source file name</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="ReferencedAssembies"></param>
 		/// <param name="PreprocessorDefines"></param>
 		/// <param name="DoNotCompile"></param>
 		/// <param name="ForceCompile"></param>
 		/// <param name="TreatWarningsAsErrors"></param>
 		/// <returns>The assembly that was loaded</returns>
-		public static Assembly? CompileAndLoadAssembly(FileReference OutputAssemblyPath, HashSet<FileReference> SourceFileNames, List<string>? ReferencedAssembies = null, List<string>? PreprocessorDefines = null, bool DoNotCompile = false, bool ForceCompile = false, bool TreatWarningsAsErrors = false)
+		public static Assembly? CompileAndLoadAssembly(FileReference OutputAssemblyPath, HashSet<FileReference> SourceFileNames, ILogger Logger, List<string>? ReferencedAssembies = null, List<string>? PreprocessorDefines = null, bool DoNotCompile = false, bool ForceCompile = false, bool TreatWarningsAsErrors = false)
 		{
 			// Check to see if the resulting assembly is compiled and up to date
 			FileReference AssemblyManifestFilePath = FileReference.Combine(OutputAssemblyPath.Directory, Path.GetFileNameWithoutExtension(OutputAssemblyPath.FullName) + "Manifest.json");
@@ -302,7 +306,7 @@ namespace UnrealBuildTool
 			bool bNeedsCompilation = ForceCompile;
 			if (!DoNotCompile)
 			{
-				bNeedsCompilation = RequiresCompilation(SourceFileNames, AssemblyManifestFilePath, OutputAssemblyPath);
+				bNeedsCompilation = RequiresCompilation(SourceFileNames, AssemblyManifestFilePath, OutputAssemblyPath, Logger);
 			}
 
 			// Load the assembly to ensure it is correct
@@ -316,12 +320,12 @@ namespace UnrealBuildTool
 				}
 				catch (FileLoadException Ex)
 				{
-					Log.TraceInformation(String.Format("Unable to load the previously-compiled assembly file '{0}'.  Unreal Build Tool will try to recompile this assembly now.  (Exception: {1})", OutputAssemblyPath, Ex.Message));
+					Logger.LogInformation("Unable to load the previously-compiled assembly file '{File}'.  Unreal Build Tool will try to recompile this assembly now.  (Exception: {Ex})", OutputAssemblyPath, Ex.Message);
 					bNeedsCompilation = true;
 				}
 				catch (BadImageFormatException Ex)
 				{
-					Log.TraceInformation(String.Format("Compiled assembly file '{0}' appears to be for a newer CLR version or is otherwise invalid.  Unreal Build Tool will try to recompile this assembly now.  (Exception: {1})", OutputAssemblyPath, Ex.Message));
+					Logger.LogInformation("Compiled assembly file '{File}' appears to be for a newer CLR version or is otherwise invalid.  Unreal Build Tool will try to recompile this assembly now.  (Exception: {Ex})", OutputAssemblyPath, Ex.Message);
 					bNeedsCompilation = true;
 				}
 				catch (FileNotFoundException)
@@ -339,7 +343,7 @@ namespace UnrealBuildTool
 			{
 				using (GlobalTracer.Instance.BuildSpan(String.Format("Compiling rules assembly ({0})", OutputAssemblyPath.GetFileName())).StartActive())
 				{
-					CompiledAssembly = CompileAssembly(OutputAssemblyPath, SourceFileNames, ReferencedAssembies, PreprocessorDefines, TreatWarningsAsErrors);
+					CompiledAssembly = CompileAssembly(OutputAssemblyPath, SourceFileNames, Logger, ReferencedAssembies, PreprocessorDefines, TreatWarningsAsErrors);
 				}
 
 				using (JsonWriter Writer = new JsonWriter(AssemblyManifestFilePath))

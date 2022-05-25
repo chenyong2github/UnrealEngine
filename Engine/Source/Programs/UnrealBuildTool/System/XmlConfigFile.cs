@@ -10,6 +10,7 @@ using System.Xml;
 using System.Xml.Schema;
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -64,9 +65,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="File">The file to load</param>
 		/// <param name="Schema">The schema to validate against</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="OutConfigFile">If successful, the document that was read</param>
 		/// <returns>True if the document could be read, false otherwise</returns>
-		public static bool TryRead(FileReference File, XmlSchema Schema, [NotNullWhen(true)] out XmlConfigFile? OutConfigFile)
+		public static bool TryRead(FileReference File, XmlSchema Schema, ILogger Logger, [NotNullWhen(true)] out XmlConfigFile? OutConfigFile)
 		{
 			XmlConfigFile ConfigFile = new XmlConfigFile(File);
 
@@ -102,13 +104,13 @@ namespace UnrealBuildTool
 				// Check that the root element is valid. If not, we didn't actually validate against the schema.
 				if (ConfigFile.DocumentElement?.Name != RootElementName)
 				{
-					Log.TraceError("Script does not have a root element called '{0}'", RootElementName);
+					Logger.LogError("Script does not have a root element called '{RootElementName}'", RootElementName);
 					OutConfigFile = null;
 					return false;
 				}
 				if (ConfigFile.DocumentElement.NamespaceURI != SchemaNamespaceURI)
 				{
-					Log.TraceError("Script root element is not in the '{0}' namespace (add the xmlns=\"{0}\" attribute)", SchemaNamespaceURI);
+					Logger.LogError("Script root element is not in the '{NamespaceUri}' namespace (add the xmlns=\"{NamespaceUri2}\" attribute)", SchemaNamespaceURI, SchemaNamespaceURI);
 					OutConfigFile = null;
 					return false;
 				}

@@ -6,6 +6,7 @@ using System.Text;
 using System.Diagnostics;
 using System.IO;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -35,8 +36,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		private bool AGDEInstalled = false;
 
-		public AndroidProjectGenerator(CommandLineArguments Arguments)
-			: base(Arguments)
+		public AndroidProjectGenerator(CommandLineArguments Arguments, ILogger Logger)
+			: base(Arguments, Logger)
 		{
 			if (OperatingSystem.IsWindows())
 			{
@@ -94,7 +95,7 @@ namespace UnrealBuildTool
 
 			if (VSDebugCommandLineOptionPresent && VSDebuggingEnabled == false)
 			{
-				Log.TraceWarning("Android SDK tools have to be installed to use this.  Please Install Visual C++ for Cross-Platform Mobile Development https://msdn.microsoft.com/en-us/library/dn707598.aspx");
+				Logger.LogWarning("Android SDK tools have to be installed to use this.  Please Install Visual C++ for Cross-Platform Mobile Development https://msdn.microsoft.com/en-us/library/dn707598.aspx");
 			}
 
 			return VSDebuggingEnabled;
@@ -129,7 +130,7 @@ namespace UnrealBuildTool
 			if (String.IsNullOrEmpty(PlatformToolsetVersion))
 			{
 				// future maintainer: add toolset version and verify that the rest of the msbuild path, version, and location in ProgramFiles(x86) is still valid
-				Log.TraceInformation("Android project generation needs to be updated for this version of Visual Studio.");
+				Logger.LogInformation("Android project generation needs to be updated for this version of Visual Studio.");
 				return false;
 			}
 
@@ -177,7 +178,7 @@ namespace UnrealBuildTool
 
 			if (!NsightInstalled)
 			{
-				Log.TraceInformation("\nNsight Tegra {0}.{1} found, but Nsight Tegra 1.5 or higher is required for debugging support.", NsightVersion.ProductMajorPart, NsightVersion.ProductMinorPart);
+				Logger.LogInformation("\nNsight Tegra {NsightVersionProductMajorPart}.{NsightVersionProductMinorPart} found, but Nsight Tegra 1.5 or higher is required for debugging support.", NsightVersion.ProductMajorPart, NsightVersion.ProductMinorPart);
 			}
 
 			return NsightInstalled;
@@ -239,7 +240,6 @@ namespace UnrealBuildTool
 		/// <param name="InPlatform">  The UnrealTargetPlatform being built</param>
 		/// <param name="ProjectFileFormat"></param>
 		/// <param name="ProjectFileBuilder">String builder for the project file</param>
-		/// <returns>string    The custom property import lines for the project file; Empty string if it doesn't require one</returns>
 		public override void GetAdditionalVisualStudioPropertyGroups(UnrealTargetPlatform InPlatform, VCProjectFileFormat ProjectFileFormat, StringBuilder ProjectFileBuilder)
 		{
 			if (AGDEInstalled || IsVSAndroidSupportInstalled() || !IsNsightInstalled(ProjectFileFormat))
@@ -472,7 +472,7 @@ namespace UnrealBuildTool
 								"	</ItemGroup>" + ProjectFileGenerator.NewLine +
 								"</Project>";
 
-			ProjectFileGenerator.WriteFileIfChanged(ProjectFileGenerator.IntermediateProjectFilesPath + "\\" + FileName, FileText);
+			ProjectFileGenerator.WriteFileIfChanged(ProjectFileGenerator.IntermediateProjectFilesPath + "\\" + FileName, FileText, Logger);
 
 		}
 
@@ -505,7 +505,7 @@ namespace UnrealBuildTool
 								"	</PropertyGroup>" + ProjectFileGenerator.NewLine +
 								"</Project>";
 
-			ProjectFileGenerator.WriteFileIfChanged(ProjectFileGenerator.IntermediateProjectFilesPath + "\\" + FileName, FileText);
+			ProjectFileGenerator.WriteFileIfChanged(ProjectFileGenerator.IntermediateProjectFilesPath + "\\" + FileName, FileText, Logger);
 
 		}
 
@@ -730,7 +730,7 @@ namespace UnrealBuildTool
                                 "	<ImportGroup Label=\"ExtensionTargets\" /> " + ProjectFileGenerator.NewLine +
 								"</Project>";
 			
-			bool Success = ProjectFileGenerator.WriteFileIfChanged(ProjectFileGenerator.IntermediateProjectFilesPath + "\\" + FileName, FileText);
+			bool Success = ProjectFileGenerator.WriteFileIfChanged(ProjectFileGenerator.IntermediateProjectFilesPath + "\\" + FileName, FileText, Logger);
 
 			FileReference ProjectFilePath = FileReference.Combine(ProjectFileGenerator.IntermediateProjectFilesPath, FileName);
 			AndroidDebugProjectFile Project = new AndroidDebugProjectFile(ProjectFilePath, ProjectFile.BaseDir);
@@ -779,8 +779,9 @@ namespace UnrealBuildTool
 		/// <param name="SolutionConfiguration">The solution configuration</param>
 		/// <param name="SolutionPlatform">The solution platform</param>
 		/// <param name="PlatformProjectGenerators">Set of platform project generators</param>
+		/// <param name="Logger"></param>
 		/// <returns>Project context matching the given solution context</returns>
-		public override MSBuildProjectContext GetMatchingProjectContext(TargetType SolutionTarget, UnrealTargetConfiguration SolutionConfiguration, UnrealTargetPlatform SolutionPlatform, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		public override MSBuildProjectContext GetMatchingProjectContext(TargetType SolutionTarget, UnrealTargetConfiguration SolutionConfiguration, UnrealTargetPlatform SolutionPlatform, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			return new MSBuildProjectContext("Debug", "ARM"){ bBuildByDefault = (SolutionPlatform == UnrealTargetPlatform.Android) };
 		}

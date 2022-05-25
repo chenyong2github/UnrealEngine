@@ -15,6 +15,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -123,7 +124,7 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		public static bool IsHostOnVpn(string HostName)
+		public static bool IsHostOnVpn(string HostName, ILogger Logger)
 		{
 			// If there aren't any defined subnets, just early out
 			if (VpnSubnets == null || VpnSubnets.Length == 0)
@@ -164,12 +165,12 @@ namespace UnrealBuildTool
 			}
 			catch (Exception Ex)
 			{
-				Log.TraceWarning("Unable to check whether host {0} is connected to VPN:\n{1}", HostName, ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogWarning("Unable to check whether host {HostName} is connected to VPN:\n{Ex}", HostName, ExceptionUtils.FormatExceptionDetails(Ex));
 			}
 			return false;
 		}
 
-		public static bool IsAvailable()
+		public static bool IsAvailable(ILogger Logger)
 		{
 			// Check the executable exists on disk
 			if (SCERoot == null || !File.Exists(SNDBSBuildExe))
@@ -187,7 +188,7 @@ namespace UnrealBuildTool
 			if (!bAllowOverVpn && VpnSubnets != null && VpnSubnets.Length > 0)
 			{
 				string? BrokerHost;
-				if (TryGetBrokerHost(out BrokerHost) && IsHostOnVpn(BrokerHost))
+				if (TryGetBrokerHost(out BrokerHost) && IsHostOnVpn(BrokerHost, Logger))
 				{
 					return false;
 				}
@@ -196,7 +197,7 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		public override bool ExecuteActions(List<LinkedAction> Actions)
+		public override bool ExecuteActions(List<LinkedAction> Actions, ILogger Logger)
 		{
 			if (Actions.Count == 0)
 				return true;
@@ -264,15 +265,15 @@ namespace UnrealBuildTool
 			{
 				StartInfo.Arguments += " -k";
 			}
-			return ExecuteProcessWithProgressMarkup(StartInfo, Actions.Count);
+			return ExecuteProcessWithProgressMarkup(StartInfo, Actions.Count, Logger);
 		}
 
 		/// <summary>
 		/// Executes the process, parsing progress markup as part of the output.
 		/// </summary>
-		private bool ExecuteProcessWithProgressMarkup(ProcessStartInfo SnDbsStartInfo, int NumActions)
+		private bool ExecuteProcessWithProgressMarkup(ProcessStartInfo SnDbsStartInfo, int NumActions, ILogger Logger)
 		{
-			using (ProgressWriter Writer = new ProgressWriter("Compiling C++ source files...", false))
+			using (ProgressWriter Writer = new ProgressWriter("Compiling C++ source files...", false, Logger))
 			{
 				int NumCompletedActions = 0;
 				string CurrentStatus = "";
@@ -289,14 +290,14 @@ namespace UnrealBuildTool
 
 							Text = Args.Data.Substring(ProgressMarkupPrefix.Length).Trim();
 							var ActionInfo = Text.Split(':');
-							Log.TraceInformation($"[{NumCompletedActions}/{NumActions}] {ActionInfo[0]} {ActionInfo[1]}");
+							Logger.LogInformation("[{NumCompletedActions}/{NumActions}] {ActionInfo0} {ActionInfo1}", NumCompletedActions, NumActions, ActionInfo[0], ActionInfo[1]);
 							CurrentStatus = ActionInfo[1];
 							return;
 						}
 						// Suppress redundant tool output of status we already printed (e.g., msvc cl prints compile unit name always)
 						if (!Text.Equals(CurrentStatus))
 						{
-							Log.TraceInformation(Text);
+							Logger.LogInformation("{Output}", Text);
 						}
 					}
 				};
@@ -322,7 +323,7 @@ namespace UnrealBuildTool
 						LocalProcess.BeginErrorReadLine();
 					}
 
-					Log.TraceInformation("Distributing {0} action{1} to SN-DBS",
+					Logger.LogInformation("Distributing {NumAction} action{ActionS} to SN-DBS",
 						NumActions,
 						NumActions == 1 ? "" : "s");
 

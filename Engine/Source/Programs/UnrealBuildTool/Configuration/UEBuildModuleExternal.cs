@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -14,8 +15,8 @@ namespace UnrealBuildTool
 	/// </summary>
 	class UEBuildModuleExternal : UEBuildModule
 	{
-		public UEBuildModuleExternal(ModuleRules Rules, DirectoryReference IntermediateDirectory)
-			: base(Rules, IntermediateDirectory)
+		public UEBuildModuleExternal(ModuleRules Rules, DirectoryReference IntermediateDirectory, ILogger Logger)
+			: base(Rules, IntermediateDirectory, Logger)
 		{
 		}
 	}

@@ -221,7 +221,7 @@ namespace Turnkey
 //					TurnkeyUtils.Log("Info: Processing manifest: {0}", LocalManifestPath);
 
 					// read in the .xml
-					TurnkeyManifest Manifest = Utils.ReadClass<TurnkeyManifest>(LocalManifestPath);
+					TurnkeyManifest Manifest = Utils.ReadClass<TurnkeyManifest>(LocalManifestPath, Log.Logger);
 					Manifest.PostDeserialize();
 
 					Manifests.Add(Manifest);
@@ -245,7 +245,7 @@ namespace Turnkey
 
 		public void Write(string Path)
 		{
-			Utils.WriteClass<TurnkeyManifest>(this, Path, "");
+			Utils.WriteClass<TurnkeyManifest>(this, Path, "", Log.Logger);
 		}
 	}
 }

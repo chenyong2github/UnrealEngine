@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -38,7 +39,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			bool bSuccess = true;
 			return bSuccess;
@@ -91,7 +92,7 @@ namespace UnrealBuildTool
 		{
 		}
 
-		private bool WriteQMakePro()
+		private bool WriteQMakePro(ILogger Logger)
 		{
 			// Some more stuff borrowed from Mac side of things.
 			List<string> IncludeDirectories = new List<string>();
@@ -120,7 +121,7 @@ namespace UnrealBuildTool
 				QMakefileProjectFile? QMakeProject = CurProject as QMakefileProjectFile;
 				if (QMakeProject == null)
 				{
-					Log.TraceInformation("QMakeProject == null");
+					Logger.LogInformation("QMakeProject == null");
 					continue;
 				}
 
@@ -149,7 +150,7 @@ namespace UnrealBuildTool
 				QMakefileProjectFile? QMakeProject = CurProject as QMakefileProjectFile;
 				if (QMakeProject == null)
 				{
-					Log.TraceInformation("QMakeProject == null");
+					Logger.LogInformation("QMakeProject == null");
 					continue;
 				}
 
@@ -162,7 +163,7 @@ namespace UnrealBuildTool
 
 					if (!DefinesAndValues.Contains(define))
 					{
-						// Log.TraceInformation (CurDefine);
+						// Logger.LogInformation (CurDefine);
 						if (string.IsNullOrEmpty(value))
 						{
 							DefinesAndValues.Add("\t");
@@ -265,7 +266,7 @@ namespace UnrealBuildTool
 			);
 
 			// Create SourceFiles, HeaderFiles, and ConfigFiles sections.
-			List<FileReference> AllModuleFiles = DiscoverModules(FindGameProjects(), null);
+			List<FileReference> AllModuleFiles = DiscoverModules(FindGameProjects(Logger), null);
 			foreach (FileReference CurModuleFile in AllModuleFiles)
 			{
 				List<FileReference> FoundFiles = SourceFileSearch.FindModuleSourceFiles(CurModuleFile);
@@ -400,21 +401,21 @@ namespace UnrealBuildTool
 			string FullQMakeHeaderPriFileName = Path.Combine(PrimaryProjectPath.FullName, QMakeHeaderPriFileName);
 			string FullQMakeConfigPriFileName = Path.Combine(PrimaryProjectPath.FullName, QMakeConfigPriFileName);
 
-			WriteFileIfChanged(FullQMakeDefinesFileName, QMakeDefinesPriFileContent.ToString());
-			WriteFileIfChanged(FullQMakeIncludesFileName, QMakeIncludesPriFileContent.ToString());
-			WriteFileIfChanged(FullQMakeSourcePriFileName, QMakeSourcePriFileContent.ToString());
+			WriteFileIfChanged(FullQMakeDefinesFileName, QMakeDefinesPriFileContent.ToString(), Logger);
+			WriteFileIfChanged(FullQMakeIncludesFileName, QMakeIncludesPriFileContent.ToString(), Logger);
+			WriteFileIfChanged(FullQMakeSourcePriFileName, QMakeSourcePriFileContent.ToString(), Logger);
 
-			WriteFileIfChanged(FullQMakeHeaderPriFileName, QMakeHeaderPriFileContent.ToString());
-			WriteFileIfChanged(FullQMakeConfigPriFileName, QMakeConfigPriFileContent.ToString());
+			WriteFileIfChanged(FullQMakeHeaderPriFileName, QMakeHeaderPriFileContent.ToString(), Logger);
+			WriteFileIfChanged(FullQMakeConfigPriFileName, QMakeConfigPriFileContent.ToString(), Logger);
 
-			return WriteFileIfChanged(FullFileName, QMakeFileContent.ToString());
+			return WriteFileIfChanged(FullFileName, QMakeFileContent.ToString(), Logger);
 		}
 
 		/// ProjectFileGenerator interface
 		//protected override bool WritePrimaryProjectFile( ProjectFile UBTProject )
-		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
-			return WriteQMakePro();
+			return WriteQMakePro(Logger);
 		}
 
 		/// ProjectFileGenerator interface
@@ -430,7 +431,7 @@ namespace UnrealBuildTool
 		}
 
 		/// ProjectFileGenerator interface
-		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory, ILogger Logger)
 		{
 		}
 	}

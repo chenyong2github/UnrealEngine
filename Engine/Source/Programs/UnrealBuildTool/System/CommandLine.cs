@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -56,9 +57,17 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">List of arguments. Parsed arguments will be removed from this list when the function returns.</param>
 		/// <param name="TargetObject">Object to receive the parsed arguments. Fields in this object should be marked up with CommandLineArgumentAttribute's to indicate how they should be parsed.</param>
-		public static void ParseArguments(IEnumerable<string> Arguments, object TargetObject)
+		public static void ParseArguments(IEnumerable<string> Arguments, object TargetObject) => ParseArguments(Arguments, TargetObject, Log.Logger);
+
+		/// <summary>
+		/// Parse the given list of arguments and apply them to the given object
+		/// </summary>
+		/// <param name="Arguments">List of arguments. Parsed arguments will be removed from this list when the function returns.</param>
+		/// <param name="TargetObject">Object to receive the parsed arguments. Fields in this object should be marked up with CommandLineArgumentAttribute's to indicate how they should be parsed.</param>
+		/// <param name="Logger">Logger for output</param>
+		public static void ParseArguments(IEnumerable<string> Arguments, object TargetObject, ILogger Logger)
 		{
-			ParseAndRemoveArguments(Arguments.ToList(), TargetObject);
+			ParseAndRemoveArguments(Arguments.ToList(), TargetObject, Logger);
 		}
 
 		private static Type NonNullableType(Type type)
@@ -76,7 +85,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">List of arguments. Parsed arguments will be removed from this list when the function returns.</param>
 		/// <param name="TargetObject">Object to receive the parsed arguments. Fields in this object should be marked up with CommandLineArgumentAttribute's to indicate how they should be parsed.</param>
-		public static void ParseAndRemoveArguments(List<string> Arguments, object TargetObject)
+		/// <param name="Logger">Logger for output</param>
+		public static void ParseAndRemoveArguments(List<string> Arguments, object TargetObject, ILogger Logger)
 		{
 			// Build a mapping from name to field and attribute for this object
 			Dictionary<string, Parameter> PrefixToParameter = new Dictionary<string, Parameter>(StringComparer.InvariantCultureIgnoreCase);
@@ -133,24 +143,24 @@ namespace UnrealBuildTool
 						{
 							if(EqualsIdx != -1)
 							{
-								Log.WriteLine(LogEventType.Warning, "Cannot specify a value for {0}", Parameter.Prefix);
+								Logger.LogWarning("Cannot specify a value for {ParameterPrefix}", Parameter.Prefix);
 							}
 							else
 							{
-								AssignValue(Parameter, Parameter.Attribute.Value, TargetObject, AssignedFieldToParameter);
+								AssignValue(Parameter, Parameter.Attribute.Value, TargetObject, AssignedFieldToParameter, Logger);
 							}
 						}
 						else if(EqualsIdx != -1)
 						{
-							AssignValue(Parameter, Argument.Substring(EqualsIdx + 1), TargetObject, AssignedFieldToParameter);
+							AssignValue(Parameter, Argument.Substring(EqualsIdx + 1), TargetObject, AssignedFieldToParameter, Logger);
 						}
 						else if(NonNullableType(Parameter.FieldInfo.FieldType) == typeof(bool))
 						{
-							AssignValue(Parameter, "true", TargetObject, AssignedFieldToParameter);
+							AssignValue(Parameter, "true", TargetObject, AssignedFieldToParameter, Logger);
 						}
 						else
 						{
-							Log.WriteLine(LogEventType.Warning, "Missing value for {0}", Parameter.Prefix);
+							Logger.LogWarning("Missing value for {ParameterPrefix}", Parameter.Prefix);
 						}
 
 						// Remove the argument from the list
@@ -186,17 +196,18 @@ namespace UnrealBuildTool
 		/// Checks that the list of arguments is empty. If not, throws an exception listing them.
 		/// </summary>
 		/// <param name="RemainingArguments">List of remaining arguments</param>
-		public static void CheckNoRemainingArguments(List<string> RemainingArguments)
+		/// <param name="Logger">Logger for output</param>
+		public static void CheckNoRemainingArguments(List<string> RemainingArguments, ILogger Logger)
 		{
 			if(RemainingArguments.Count > 0)
 			{
 				if(RemainingArguments.Count == 1)
 				{
-					Log.TraceWarning("Invalid argument: {0}", RemainingArguments[0]);
+					Logger.LogWarning("Invalid argument: {Arg}", RemainingArguments[0]);
 				}
 				else
 				{
-					Log.TraceWarning("Invalid arguments:\n{0}", String.Join("\n", RemainingArguments));
+					Logger.LogWarning("Invalid arguments:\n{Args}", String.Join("\n", RemainingArguments));
 				}
 			}
 		}
@@ -208,7 +219,8 @@ namespace UnrealBuildTool
 		/// <param name="Text">Argument text</param>
 		/// <param name="TargetObject">The target object to assign values to</param>
 		/// <param name="AssignedFieldToParameter">Maps assigned fields to the parameter that wrote to it. Used to detect duplicate and conflicting arguments.</param>
-		static void AssignValue(Parameter Parameter, string Text, object TargetObject, Dictionary<FieldInfo, Parameter> AssignedFieldToParameter)
+		/// <param name="Logger">Logger for output</param>
+		static void AssignValue(Parameter Parameter, string Text, object TargetObject, Dictionary<FieldInfo, Parameter> AssignedFieldToParameter, ILogger Logger)
 		{
 			// Check if the field type implements ICollection<>. If so, we can take multiple values.
 			Type? CollectionType = null;
@@ -228,7 +240,7 @@ namespace UnrealBuildTool
 				object? Value;
 				if(!TryParseValue(Parameter.FieldInfo.FieldType, Text, out Value))
 				{
-					Log.WriteLine(LogEventType.Warning, "Invalid value for {0}... - ignoring {1}", Parameter.Prefix, Text);
+					Logger.LogWarning("Invalid value for {ParameterPrefix}... - ignoring {Text}", Parameter.Prefix, Text);
 					return;
 				}
 
@@ -241,11 +253,11 @@ namespace UnrealBuildTool
 					{
 						if(PreviousParameter.Prefix == Parameter.Prefix)
 						{
-							Log.WriteLine(LogEventType.Warning, "Conflicting {0} arguments - ignoring", Parameter.Prefix);
+							Logger.LogWarning("Conflicting {ParameterPrefix} arguments - ignoring", Parameter.Prefix);
 						}
 						else
 						{
-							Log.WriteLine(LogEventType.Warning, "{0} conflicts with {1} - ignoring", Parameter.Prefix, PreviousParameter.Prefix);
+							Logger.LogWarning("{ParameterPrefix} conflicts with {PreviousParameterPrefix} - ignoring", Parameter.Prefix, PreviousParameter.Prefix);
 						}
 					}
 					return;
@@ -278,7 +290,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.WriteLine(LogEventType.Warning, "'{0}' is not a valid value for -{1}=... - ignoring", Item, Parameter.Prefix);
+						Logger.LogWarning("'{Item}' is not a valid value for -{ParameterPrefix}=... - ignoring", Item, Parameter.Prefix);
 					}
 				}
 			}

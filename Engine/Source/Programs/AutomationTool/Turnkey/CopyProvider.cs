@@ -10,6 +10,7 @@ using System.IO;
 using AutomationTool;
 using Ionic.Zip;
 using UnrealBuildTool;
+using EpicGames.Core;
 
 namespace Turnkey
 {
@@ -167,7 +168,7 @@ namespace Turnkey
 							TurnkeyUtils.Log("7zip decompressing {0} to {1}...", OutputPath, DecompressLocation);
 
 							int ExitCode = UnrealBuildTool.Utils.RunLocalProcessAndLogOutput(TurnkeyUtils.ExpandVariables("$(EngineDir)/Restricted/NotForLicensees/Extras/ThirdPartyNotUE/7-Zip/7z.exe"),
-								string.Format("x -o{0} {1}", DecompressLocation, OutputPath));
+								string.Format("x -o{0} {1}", DecompressLocation, OutputPath), Log.Logger);
 							if (ExitCode != 0)
 							{
 								TurnkeyUtils.Log("Failed to uncompress a .7z file {0}", OutputPath);

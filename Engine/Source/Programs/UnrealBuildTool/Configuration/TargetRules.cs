@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -324,6 +325,11 @@ namespace UnrealBuildTool
 		/// File containing the platform/group-specific type for this target
 		/// </summary>
 		internal FileReference? TargetSourceFile { get; set; }
+
+		/// <summary>
+		/// Logger for output relating to this target. Set before the constructor is run from <see cref="RulesCompiler"/>
+		/// </summary>
+		internal ILogger Logger { get; set; }
 
 		/// <summary>
 		/// Platform that this target is being built for.
@@ -650,7 +656,7 @@ namespace UnrealBuildTool
 		public bool bBuildEditor
 		{
 			get { return (Type == TargetType.Editor || bCompileAgainstEditor); }
-			set { Log.TraceWarning("Setting {0}.bBuildEditor is deprecated. Set {0}.Type instead.", GetType().Name); }
+			set { Logger.LogWarning("Setting {Type}.bBuildEditor is deprecated. Set {Type}.Type instead.", GetType().Name); }
 		}
 
 		/// <summary>
@@ -1835,6 +1841,12 @@ namespace UnrealBuildTool
 			this.Version = Target.Version;
 			this.WindowsPlatform = new WindowsTargetRules(this);
 
+			// Make sure the logger was initialized by the caller
+			if (Logger == null)
+			{
+				throw new NotSupportedException("Logger property must be initialized by the caller.");
+			}
+
 			// Read settings from config files
 			Dictionary<ConfigDependencyKey, IReadOnlyList<string>?> ConfigValues = new Dictionary<ConfigDependencyKey, IReadOnlyList<string>?>();
 			foreach (object ConfigurableObject in GetConfigurableObjects())
@@ -1878,7 +1890,7 @@ namespace UnrealBuildTool
 			}
 
 			// Setup macros for signing and encryption keys
-			EncryptionAndSigning.CryptoSettings CryptoSettings = EncryptionAndSigning.ParseCryptoSettings(CryptoSettingsDir, Platform);
+			EncryptionAndSigning.CryptoSettings CryptoSettings = EncryptionAndSigning.ParseCryptoSettings(CryptoSettingsDir, Platform, Logger);
 			if (CryptoSettings.IsAnyEncryptionEnabled())
 			{
 				ProjectDefinitions.Add(String.Format("IMPLEMENT_ENCRYPTION_KEY_REGISTRATION()=UE_REGISTER_ENCRYPTION_KEY({0})", FormatHexBytes(CryptoSettings.EncryptionKey!.Key!)));
@@ -2139,7 +2151,7 @@ namespace UnrealBuildTool
 						Diagnostics.Add(String.Format(FormatString, ModifiedSetting.Item1, ModifiedSetting.Item2));
 					}
 				}
-				Diagnostics.Add(String.Format("[Upgrade] Suppress this message by setting 'DefaultBuildSettings = BuildSettingsVersion.{1};' in {2}, and explicitly overriding settings that differ from the new defaults.", Version, (BuildSettingsVersion)(BuildSettingsVersion.Latest - 1), File!.GetFileName()));
+				Diagnostics.Add(String.Format("[Upgrade] Suppress this message by setting 'DefaultBuildSettings = BuildSettingsVersion.{0};' in {1}, and explicitly overriding settings that differ from the new defaults.", (BuildSettingsVersion)(BuildSettingsVersion.Latest - 1), File!.GetFileName()));
 				Diagnostics.Add("[Upgrade]");
 			}
 
@@ -2153,7 +2165,7 @@ namespace UnrealBuildTool
 				Diagnostics.Add("[Upgrade]");
 			}
 
-			Log.TraceLog("Using EngineIncludeOrderVersion.{0} for target {1}", IncludeOrderVersion, File!.GetFileName());
+			Logger.LogDebug("Using EngineIncludeOrderVersion.{Version} for target {Target}", IncludeOrderVersion, File!.GetFileName());
 		}
 	}
 

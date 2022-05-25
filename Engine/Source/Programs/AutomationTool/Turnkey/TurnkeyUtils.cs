@@ -227,7 +227,7 @@ namespace Turnkey
 			}
 
 			// sort the discovered projects
-			foreach (FileReference NativeProject in NativeProjects.EnumerateProjectFiles())
+			foreach (FileReference NativeProject in NativeProjects.EnumerateProjectFiles(EpicGames.Core.Log.Logger))
 			{
 				DirectoryReference ProjectDir = NativeProject.Directory;
 				ProjectMode Mode = ProjectMode.Normal;

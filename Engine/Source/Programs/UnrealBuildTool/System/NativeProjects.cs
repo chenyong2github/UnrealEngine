@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -35,9 +36,10 @@ namespace UnrealBuildTool
 		/// Get the project folder for the given target name
 		/// </summary>
 		/// <param name="InTargetName">Name of the target of interest</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="OutProjectFileName">The project filename</param>
 		/// <returns>True if the target was found</returns>
-		public static bool TryGetProjectForTarget(string InTargetName, [NotNullWhen(true)] out FileReference? OutProjectFileName)
+		public static bool TryGetProjectForTarget(string InTargetName, ILogger Logger, [NotNullWhen(true)] out FileReference? OutProjectFileName)
 		{
 			if(CachedTargetNameToProjectFile == null)
 			{
@@ -46,7 +48,7 @@ namespace UnrealBuildTool
 					if(CachedTargetNameToProjectFile == null)
 					{
 						Dictionary<string, FileReference> TargetNameToProjectFile = new Dictionary<string, FileReference>();
-						foreach(FileReference ProjectFile in EnumerateProjectFiles())
+						foreach(FileReference ProjectFile in EnumerateProjectFiles(Logger))
 						{
 							foreach (DirectoryReference ExtensionDir in Unreal.GetExtensionDirs(ProjectFile.Directory))
 							{

@@ -11,6 +11,7 @@ using System.Security.Cryptography;
 using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -52,20 +53,21 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="Location">File to store this history in</param>
-		public ActionHistoryLayer(FileReference Location)
+		/// <param name="Logger">Logger for output</param>
+		public ActionHistoryLayer(FileReference Location, ILogger Logger)
 		{
 			this.Location = Location;
 
 			if(FileReference.Exists(Location))
 			{
-				Load();
+				Load(Logger);
 			}
 		}
 
 		/// <summary>
 		/// Attempts to load this action history from disk
 		/// </summary>
-		void Load()
+		void Load(ILogger Logger)
 		{
 			try
 			{
@@ -74,7 +76,7 @@ namespace UnrealBuildTool
 					int Version = Reader.ReadInt();
 					if(Version != CurrentVersion)
 					{
-						Log.TraceLog("Unable to read action history from {0}; version {1} vs current {2}", Location, Version, CurrentVersion);
+						Logger.LogDebug("Unable to read action history from {Location}; version {Version} vs current {CurrentVersion}", Location, Version, CurrentVersion);
 						return;
 					}
 
@@ -83,8 +85,8 @@ namespace UnrealBuildTool
 			}
 			catch(Exception Ex)
 			{
-				Log.TraceWarning("Unable to read {0}. See log for additional information.", Location);
-				Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogWarning("Unable to read {Location}. See log for additional information.", Location);
+				Logger.LogDebug("{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 			}
 		}
 
@@ -270,8 +272,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="File">The file to update</param>
 		/// <param name="Attributes">The new attributes</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the attributes were updated, false otherwise</returns>
-		public bool UpdateProducingAttributes(FileItem File, string Attributes)
+		public bool UpdateProducingAttributes(FileItem File, string Attributes, ILogger Logger)
 		{
 			FileReference LayerLocation = GetLayerLocationForFile(File.Location);
 
@@ -283,7 +286,7 @@ namespace UnrealBuildTool
 					Layer = Layers.FirstOrDefault(x => x.Location == LayerLocation);
 					if(Layer == null)
 					{
-						Layer = new ActionHistoryLayer(LayerLocation);
+						Layer = new ActionHistoryLayer(LayerLocation, Logger);
 
 						List<ActionHistoryLayer> NewLayers = new List<ActionHistoryLayer>(Layers);
 						NewLayers.Add(Layer);
@@ -426,18 +429,19 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="File">The output file to look for</param>
 		/// <param name="Attributes">Receives the Attributes used to produce this file</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the output item exists</returns>
-		public bool UpdateProducingAttributes(FileItem File, string Attributes)
+		public bool UpdateProducingAttributes(FileItem File, string Attributes, ILogger Logger)
 		{
 			foreach (ActionHistoryPartition Partition in Partitions)
 			{
 				if (File.Location.IsUnderDirectory(Partition.BaseDir))
 				{
-					return Partition.UpdateProducingAttributes(File, Attributes);
+					return Partition.UpdateProducingAttributes(File, Attributes, Logger);
 				}
 			}
 
-			Log.TraceWarning("File {0} is not under any action history root directory", File.Location);
+			Logger.LogWarning("File {FileLocation} is not under any action history root directory", File.Location);
 			return false;
 		}
 

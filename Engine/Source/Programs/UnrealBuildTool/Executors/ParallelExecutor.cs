@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -89,12 +90,12 @@ namespace UnrealBuildTool
 
 		private static readonly char[] LineEndingSplit = new char[] { '\n', '\r' };
 
-		public static int GetDefaultNumParallelProcesses()
+		public static int GetDefaultNumParallelProcesses(ILogger Logger)
 		{
 			double MemoryPerActionBytesComputed = Math.Max(MemoryPerActionBytes, MemoryPerActionBytesOverride);
 			if (MemoryPerActionBytesComputed > MemoryPerActionBytes)
 			{
-				Log.TraceInformation($"Overriding MemoryPerAction with target-defined value of {MemoryPerActionBytesComputed / 1024 / 1024 / 1024} bytes");
+				Logger.LogInformation("Overriding MemoryPerAction with target-defined value of {Memory} bytes", MemoryPerActionBytesComputed / 1024 / 1024 / 1024);
 			}
 
 			return Utils.GetMaxActionsToExecuteInParallel(MaxProcessorCount, ProcessorCountMultiplier, Convert.ToInt64(MemoryPerActionBytesComputed));
@@ -105,7 +106,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="MaxLocalActions">How many actions to execute in parallel</param>
 		/// <param name="bCompactOutput">Should output be written in a compact fashion</param>
-		public ParallelExecutor(int MaxLocalActions, bool bCompactOutput)
+		/// <param name="Logger">Logger for output</param>
+		public ParallelExecutor(int MaxLocalActions, bool bCompactOutput, ILogger Logger)
 		{
 			XmlConfig.ApplyTo(this);
 
@@ -117,7 +119,7 @@ namespace UnrealBuildTool
 			else
 			{
 				// Figure out how many processors to use
-				NumParallelProcesses = GetDefaultNumParallelProcesses();
+				NumParallelProcesses = GetDefaultNumParallelProcesses(Logger);
 			}
 
 			this.bCompactOutput = bCompactOutput;
@@ -166,7 +168,7 @@ namespace UnrealBuildTool
 		/// Executes the specified actions locally.
 		/// </summary>
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
-		public override bool ExecuteActions(List<LinkedAction> InputActions)
+		public override bool ExecuteActions(List<LinkedAction> InputActions, ILogger Logger)
 		{
 			int NumCompletedActions = 0;
 			int TotalActions = InputActions.Count;
@@ -174,9 +176,9 @@ namespace UnrealBuildTool
 
 			using ManagedProcessGroup ProcessGroup = new ManagedProcessGroup();
 			using SemaphoreSlim MaxProcessSemaphore = new SemaphoreSlim(ActualNumParallelProcesses, ActualNumParallelProcesses);
-			using ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false);
+			using ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false, Logger);
 
-			Log.TraceInformation($"Building {TotalActions} {(TotalActions == 1 ? "action" : "actions")} with {ActualNumParallelProcesses} {(ActualNumParallelProcesses == 1 ? "process" : "processes")}...");
+			Logger.LogInformation("Building {NumActions} {Actions} with {NumProcesses} {Processes}...", TotalActions, (TotalActions == 1 ? "action" : "actions"), ActualNumParallelProcesses, (ActualNumParallelProcesses == 1 ? "process" : "processes"));
 
 			Dictionary<LinkedAction, Task<ExecuteResults>> ExecuteTasks = new Dictionary<LinkedAction, Task<ExecuteResults>>();
 			List<Task> LogTasks = new List<Task>();
@@ -195,13 +197,13 @@ namespace UnrealBuildTool
 				}
 
 				Task<ExecuteResults> ExecuteTask = CreateExecuteTask(Action, InputActions, ExecuteTasks, ProcessGroup, MaxProcessSemaphore, CancellationToken);
-				Task LogTask = ExecuteTask.ContinueWith(antecedent => LogCompletedAction(Action, antecedent, CancellationTokenSource, ProgressWriter, TotalActions, ref NumCompletedActions), CancellationToken);
+				Task LogTask = ExecuteTask.ContinueWith(antecedent => LogCompletedAction(Action, antecedent, CancellationTokenSource, ProgressWriter, TotalActions, ref NumCompletedActions, Logger), CancellationToken);
 
 				ExecuteTasks.Add(Action, ExecuteTask);
 				LogTasks.Add(LogTask);
 			}
 
-			Task SummaryTask = Task.Factory.ContinueWhenAll(LogTasks.ToArray(), (AntecedentTasks) => TraceSummary(ExecuteTasks, ProcessGroup), CancellationToken);
+			Task SummaryTask = Task.Factory.ContinueWhenAll(LogTasks.ToArray(), (AntecedentTasks) => TraceSummary(ExecuteTasks, ProcessGroup, Logger), CancellationToken);
 			SummaryTask.Wait();
 
 			// Return if all tasks succeeded
@@ -309,7 +311,7 @@ namespace UnrealBuildTool
 
 		private static int s_previousLineLength = -1;
 
-		protected void LogCompletedAction(LinkedAction Action, Task<ExecuteResults> ExecuteTask, CancellationTokenSource CancellationTokenSource, ProgressWriter ProgressWriter, int TotalActions, ref int NumCompletedActions)
+		protected void LogCompletedAction(LinkedAction Action, Task<ExecuteResults> ExecuteTask, CancellationTokenSource CancellationTokenSource, ProgressWriter ProgressWriter, int TotalActions, ref int NumCompletedActions, ILogger Logger)
 		{
 			List<string> LogLines = new List<string>();
 			int ExitCode = int.MaxValue;
@@ -350,7 +352,7 @@ namespace UnrealBuildTool
 				// Cancelled
 				if (ExitCode == int.MaxValue)
 				{
-					Log.TraceInformation($"[{CompletedActions}/{TotalActions}] {Description} cancelled");
+					Logger.LogInformation("[{CompletedActions}/{TotalActions}] {Description} cancelled", CompletedActions, TotalActions, Description);
 					return;
 				}
 
@@ -363,7 +365,7 @@ namespace UnrealBuildTool
 
 				if (bLogActionCommandLines)
 				{
-					Log.TraceLog($"[{CompletedActions}/{TotalActions}]{TargetDetails} Command: {Action.CommandPath} {Action.CommandArguments}");
+					Logger.LogDebug("[{CompletedActions}/{TotalActions}]{TargetDetails} Command: {CommandPath} {CommandArguments}", CompletedActions, TotalActions, TargetDetails, Action.CommandPath, Action.CommandArguments);
 				}
 
 				string CompilationTimes = "";
@@ -398,7 +400,7 @@ namespace UnrealBuildTool
 
 				s_previousLineLength = message.Length;
 
-				Log.TraceInformation(message);
+				Logger.LogInformation("{Message}", message);
 				foreach (string Line in LogLines.Skip(Action.bShouldOutputStatusDescription ? 0 : 1))
 				{
 					// suppress library creation messages when writing compact output
@@ -407,7 +409,7 @@ namespace UnrealBuildTool
 						continue;
 					}
 
-					Log.TraceInformation(Line);
+					Logger.LogInformation("{Message}", Line);
 
 					// Prevent overwriting of logged lines
 					s_previousLineLength = -1;
@@ -418,9 +420,9 @@ namespace UnrealBuildTool
 					// BEGIN TEMPORARY TO CATCH PVS-STUDIO ISSUES
 					if (LogLines.Count == 0)
 					{
-						Log.TraceError($"{TargetDetails} {Description}: Exited with error code {ExitCode}");
-						Log.TraceInformation($"{TargetDetails} {Description}: WorkingDirectory {Action.WorkingDirectory}");
-						Log.TraceInformation($"{TargetDetails} {Description}: {Action.CommandPath} {Action.CommandArguments}");
+						Logger.LogError("{TargetDetails} {Description}: Exited with error code {ExitCode}", TargetDetails, Description, ExitCode);
+						Logger.LogInformation("{TargetDetails} {Description}: WorkingDirectory {WorkingDirectory}", TargetDetails, Description, Action.WorkingDirectory);
+						Logger.LogInformation("{TargetDetails} {Description}: {CommandPath} {CommandArguments}", TargetDetails, Description, Action.CommandPath, Action.CommandArguments);
 					}
 					// END TEMPORARY
 
@@ -436,40 +438,40 @@ namespace UnrealBuildTool
 			}
 		}
 
-		protected static void TraceSummary(Dictionary<LinkedAction, Task<ExecuteResults>> Tasks, ManagedProcessGroup ProcessGroup)
+		protected static void TraceSummary(Dictionary<LinkedAction, Task<ExecuteResults>> Tasks, ManagedProcessGroup ProcessGroup, ILogger Logger)
 		{
 			if (!bShowCompilationTimes)
 			{
 				return;
 			}
 
-			Log.TraceInformation("");
+			Logger.LogInformation("");
 			if (ProcessGroup.TotalProcessorTime.Ticks > 0)
 			{
-				Log.TraceInformation($"Total CPU Time: {ProcessGroup.TotalProcessorTime.TotalSeconds} s");
-				Log.TraceInformation("");
+				Logger.LogInformation("Total CPU Time: {TotalSeconds} s", ProcessGroup.TotalProcessorTime.TotalSeconds);
+				Logger.LogInformation("");
 			}
 
 			var CompletedTasks = Tasks.Where(x => x.Value.Status == TaskStatus.RanToCompletion).OrderByDescending(x => x.Value.Result.ExecutionTime).Take(20);
 
 			if (CompletedTasks.Any())
 			{
-				Log.TraceInformation($"Compilation Time Top {CompletedTasks.Count()}");
-				Log.TraceInformation("");
+				Logger.LogInformation("Compilation Time Top {CompletedTaskCount}", CompletedTasks.Count());
+				Logger.LogInformation("");
 				foreach (var Pair in CompletedTasks)
 				{
 					string Description = $"{(Pair.Key.Inner.CommandDescription ?? Pair.Key.Inner.CommandPath.GetFileNameWithoutExtension())} {Pair.Key.Inner.StatusDescription}".Trim();
 					if (Pair.Value.Result.ProcessorTime.Ticks > 0)
 					{
-						Log.TraceInformation($"{Description} [ Wall Time {Pair.Value.Result.ExecutionTime.TotalSeconds:0.00} s / CPU Time {Pair.Value.Result.ProcessorTime.TotalSeconds:0.00} s ]");
+						Logger.LogInformation("{Description} [ Wall Time {ExecutionTime:0.00} s / CPU Time {ProcessorTime:0.00} s ]", Description, Pair.Value.Result.ExecutionTime.TotalSeconds, Pair.Value.Result.ProcessorTime.TotalSeconds);
 					}
 					else
 					{
-						Log.TraceInformation($"{Description} [ Time {Pair.Value.Result.ExecutionTime.TotalSeconds:0.00} s ]");
+						Logger.LogInformation("{Description} [ Time {ExecutionTime:0.00} s ]", Description, Pair.Value.Result.ExecutionTime.TotalSeconds);
 					}
 
 				}
-				Log.TraceInformation("");
+				Logger.LogInformation("");
 			}
 		}
 	}
@@ -482,6 +484,6 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Maximum number of processes that should be used for execution
 		/// </summary>
-		public static int MaxParallelProcesses { get { return ParallelExecutor.GetDefaultNumParallelProcesses(); } }
+		public static int GetMaxParallelProcesses(ILogger Logger) => ParallelExecutor.GetDefaultNumParallelProcesses(Logger);
 	}
 }

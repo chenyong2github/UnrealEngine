@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -26,7 +27,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			// Apply the arguments
 			Arguments.ApplyTo(this);
@@ -34,7 +36,7 @@ namespace UnrealBuildTool
 
 			// Execute the deploy
 			TargetReceipt Receipt = TargetReceipt.Read(ReceiptFile!);
-			Log.WriteLine(LogEventType.Console, "Deploying {0} {1} {2}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
+			Logger.LogInformation("Deploying {ReceiptTargetName} {ReceiptPlatform} {ReceiptConfiguration}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
 			UEBuildPlatform.GetBuildPlatform(Receipt.Platform).Deploy(Receipt);
 
 			return (int)CompilationResult.Succeeded;

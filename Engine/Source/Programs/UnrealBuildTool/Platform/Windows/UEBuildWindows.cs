@@ -10,6 +10,7 @@ using EpicGames.Core;
 using System.Diagnostics.CodeAnalysis;
 using UnrealBuildBase;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -427,7 +428,7 @@ namespace UnrealBuildTool
 			{
 				try
 				{
-					return MicrosoftPlatformSDK.FindVisualStudioInstallations(Environment!.Compiler).Select(x => x.BaseDir.FullName).FirstOrDefault();
+					return MicrosoftPlatformSDK.FindVisualStudioInstallations(Environment!.Compiler, Target.Logger).Select(x => x.BaseDir.FullName).FirstOrDefault();
 				}
 				catch(Exception) // Find function will throw if there is no visual studio installed! This can happen w/ clang builds
 				{
@@ -765,8 +766,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InPlatform">Creates a windows platform with the given enum value</param>
 		/// <param name="InSDK">The installed Windows SDK</param>
-		public WindowsPlatform(UnrealTargetPlatform InPlatform, MicrosoftPlatformSDK InSDK)
-			: base(InPlatform, InSDK)
+		/// <param name="InLogger">Logger instance</param>
+		public WindowsPlatform(UnrealTargetPlatform InPlatform, MicrosoftPlatformSDK InSDK, ILogger InLogger)
+			: base(InPlatform, InSDK, InLogger)
 		{
 			SDK = InSDK;
 		}
@@ -788,7 +790,7 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		protected virtual VCEnvironment CreateVCEnvironment(TargetRules Target)
 		{
-			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null);
+			return VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Logger);
 		}
 
 		/// <summary>
@@ -822,23 +824,23 @@ namespace UnrealBuildTool
 			else if (Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.None && 
 			         Target.WindowsPlatform.StaticAnalyzerOutputType != WindowsStaticAnalyzerOutputType.Text)
 			{
-				Log.TraceInformation("Defaulting static analyzer output type to text");
+				Logger.LogInformation("Defaulting static analyzer output type to text");
 			}
 
 			// Set the compiler version if necessary
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Default)
 			{
-				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2019, Target.WindowsPlatform.Architecture))
+				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2019, Target.WindowsPlatform.Architecture, Logger))
 				{
 					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2019;
 				}
-				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2022, Target.WindowsPlatform.Architecture))
+				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2022, Target.WindowsPlatform.Architecture, Logger))
 				{
 					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2022;
 				}
 				else
 				{
-					Target.WindowsPlatform.Compiler = GetDefaultCompiler(Target.ProjectFile, Target.WindowsPlatform.Architecture);
+					Target.WindowsPlatform.Compiler = GetDefaultCompiler(Target.ProjectFile, Target.WindowsPlatform.Architecture, Logger);
 				}
 			}
 
@@ -920,12 +922,12 @@ namespace UnrealBuildTool
 		/// Gets the default compiler which should be used, if it's not set explicitly by the target, command line, or config file.
 		/// </summary>
 		/// <returns>The default compiler version</returns>
-		internal static WindowsCompiler GetDefaultCompiler(FileReference? ProjectFile, WindowsArchitecture Architecture)
+		internal static WindowsCompiler GetDefaultCompiler(FileReference? ProjectFile, WindowsArchitecture Architecture, ILogger Logger)
 		{
 			// If there's no specific compiler set, try to pick the matching compiler for the selected IDE
 			if (ProjectFileGeneratorSettings.Format != null)
 			{
-				foreach(ProjectFileFormat Format in ProjectFileGeneratorSettings.ParseFormatList(ProjectFileGeneratorSettings.Format))
+				foreach(ProjectFileFormat Format in ProjectFileGeneratorSettings.ParseFormatList(ProjectFileGeneratorSettings.Format, Logger))
 				{
 					if (Format == ProjectFileFormat.VisualStudio2019)
 					{
@@ -967,33 +969,33 @@ namespace UnrealBuildTool
 			}
 
 			// Second, default based on what's installed, test for 2019 first
-			if (MicrosoftPlatformSDK.HasValidCompiler(WindowsCompiler.VisualStudio2019, Architecture))
+			if (MicrosoftPlatformSDK.HasValidCompiler(WindowsCompiler.VisualStudio2019, Architecture, Logger))
 			{
 				return WindowsCompiler.VisualStudio2019;
 			}
-			else if (MicrosoftPlatformSDK.HasValidCompiler(WindowsCompiler.VisualStudio2022, Architecture))
+			else if (MicrosoftPlatformSDK.HasValidCompiler(WindowsCompiler.VisualStudio2022, Architecture, Logger))
 			{
 				return WindowsCompiler.VisualStudio2022;
 			}
 
 			// If we do have a Visual Studio installation, but we're missing just the C++ parts, warn about that.
-			if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019) != null)
+			if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019, Logger) != null)
 			{
 				string ToolSetWarning = Architecture == WindowsArchitecture.x64 ?
 					"MSVC v142 - VS 2019 C++ x64/x86 build tools (Latest)" :
 					"MSVC v142 - VS 2019 C++ ARM64 build tools (Latest)";
-				Log.TraceWarning("Visual Studio 2019 is installed, but is missing the C++ toolchain. Please verify that the \"{0}\" component is selected in the Visual Studio 2019 installation options.", ToolSetWarning);
+				Logger.LogWarning("Visual Studio 2019 is installed, but is missing the C++ toolchain. Please verify that the \"{Component}\" component is selected in the Visual Studio 2019 installation options.", ToolSetWarning);
 			}
-			else if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022) != null)
+			else if (TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022, Logger) != null)
 			{
 				string ToolSetWarning = Architecture == WindowsArchitecture.x64 ?
 					"MSVC v143 - VS 2022 C++ x64/x86 build tools (Latest)" :
 					"MSVC v143 - VS 2022 C++ ARM64 build tools (Latest)";
-				Log.TraceWarning("Visual Studio 2022 is installed, but is missing the C++ toolchain. Please verify that the \"{0}\" component is selected in the Visual Studio 2022 installation options.", ToolSetWarning);
+				Logger.LogWarning("Visual Studio 2022 is installed, but is missing the C++ toolchain. Please verify that the \"{Component}\" component is selected in the Visual Studio 2022 installation options.", ToolSetWarning);
 			}
 			else
 			{
-				Log.TraceWarning("No Visual C++ installation was found. Please download and install Visual Studio 2019 or 2022 with C++ components.");
+				Logger.LogWarning("No Visual C++ installation was found. Please download and install Visual Studio 2019 or 2022 with C++ components.");
 			}
 
 			// Finally, default to VS2019 anyway
@@ -1015,10 +1017,11 @@ namespace UnrealBuildTool
 		/// Visual Studio.
 		/// </summary>
 		/// <param name="Compiler">Version of the toolchain to look for.</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the directory was found, false otherwise.</returns>
-		public static IEnumerable<DirectoryReference>? TryGetVSInstallDirs(WindowsCompiler Compiler)
+		public static IEnumerable<DirectoryReference>? TryGetVSInstallDirs(WindowsCompiler Compiler, ILogger Logger)
 		{
-			List<VisualStudioInstallation> Installations = MicrosoftPlatformSDK.FindVisualStudioInstallations(Compiler);
+			List<VisualStudioInstallation> Installations = MicrosoftPlatformSDK.FindVisualStudioInstallations(Compiler, Logger);
 			if(Installations.Count == 0)
 			{
 				return null;
@@ -1032,10 +1035,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Compiler">Compiler to check for</param>
 		/// <param name="Architecture">Architecture the compiler must support</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the given compiler is installed</returns>
-		public static bool HasCompiler(WindowsCompiler Compiler, WindowsArchitecture Architecture)
+		public static bool HasCompiler(WindowsCompiler Compiler, WindowsArchitecture Architecture, ILogger Logger)
 		{
-			return MicrosoftPlatformSDK.HasCompiler(Compiler, Architecture);
+			return MicrosoftPlatformSDK.HasCompiler(Compiler, Architecture, Logger);
 		}
 
 		/// <summary>
@@ -1044,13 +1048,14 @@ namespace UnrealBuildTool
 		/// <param name="Compiler">Major version of the compiler to use</param>
 		/// <param name="CompilerVersion">The minimum compiler version to use</param>
 		/// <param name="Architecture">Architecture that is required</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="OutToolChainVersion">Receives the chosen toolchain version</param>
 		/// <param name="OutToolChainDir">Receives the directory containing the toolchain</param>
 		/// <param name="OutRedistDir">Receives the optional directory containing redistributable components</param>
 		/// <returns>True if the toolchain directory was found correctly</returns>
-		public static bool TryGetToolChainDir(WindowsCompiler Compiler, string? CompilerVersion, WindowsArchitecture Architecture, [NotNullWhen(true)] out VersionNumber? OutToolChainVersion, [NotNullWhen(true)] out DirectoryReference? OutToolChainDir, out DirectoryReference? OutRedistDir)
+		public static bool TryGetToolChainDir(WindowsCompiler Compiler, string? CompilerVersion, WindowsArchitecture Architecture, ILogger Logger, [NotNullWhen(true)] out VersionNumber? OutToolChainVersion, [NotNullWhen(true)] out DirectoryReference? OutToolChainDir, out DirectoryReference? OutRedistDir)
 		{
-			return MicrosoftPlatformSDK.TryGetToolChainDir(Compiler, CompilerVersion, Architecture, out OutToolChainVersion, out OutToolChainDir, out OutRedistDir);
+			return MicrosoftPlatformSDK.TryGetToolChainDir(Compiler, CompilerVersion, Architecture, Logger, out OutToolChainVersion, out OutToolChainDir, out OutRedistDir);
 		}
 
 		public static string GetArchitectureSubpath(WindowsArchitecture arch)
@@ -1081,9 +1086,9 @@ namespace UnrealBuildTool
 
 
 		[SupportedOSPlatform("windows")]
-		public static bool TryGetWindowsSdkDir(string? DesiredVersion, [NotNullWhen(true)] out VersionNumber? OutSdkVersion, [NotNullWhen(true)] out DirectoryReference? OutSdkDir)
+		public static bool TryGetWindowsSdkDir(string? DesiredVersion, ILogger Logger, [NotNullWhen(true)] out VersionNumber? OutSdkVersion, [NotNullWhen(true)] out DirectoryReference? OutSdkDir)
 		{
-			return MicrosoftPlatformSDK.TryGetWindowsSdkDir(DesiredVersion, out OutSdkVersion, out OutSdkDir);
+			return MicrosoftPlatformSDK.TryGetWindowsSdkDir(DesiredVersion, Logger, out OutSdkVersion, out OutSdkDir);
 		}
 
 
@@ -1455,11 +1460,11 @@ namespace UnrealBuildTool
 		{
 			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio)
 			{
-				return new PVSToolChain(Target);
+				return new PVSToolChain(Target, Logger);
 			}
 			else
 			{
-				return new VCToolChain(Target);
+				return new VCToolChain(Target, Logger);
 			}
 		}
 
@@ -1484,12 +1489,17 @@ namespace UnrealBuildTool
 		/// <param name="Receipt">Receipt for the target being deployed</param>
 		public override void Deploy(TargetReceipt Receipt)
 		{
-			new UEDeployWindows().PrepTargetForDeployment(Receipt);
+			new UEDeployWindows(Logger).PrepTargetForDeployment(Receipt);
 		}
 	}
 
 	class UEDeployWindows : UEBuildDeploy
 	{
+		public UEDeployWindows(ILogger InLogger)
+			: base(InLogger)
+		{
+		}
+
 		public override bool PrepTargetForDeployment(TargetReceipt Receipt)
 		{
 			return base.PrepTargetForDeployment(Receipt);
@@ -1506,12 +1516,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Register the platform with the UEBuildPlatform class
 		/// </summary>
-		public override void RegisterBuildPlatforms()
+		public override void RegisterBuildPlatforms(ILogger Logger)
 		{
-			MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK();
+			MicrosoftPlatformSDK SDK = new MicrosoftPlatformSDK(Logger);
 
 			// Register this build platform for Win64 (no more Win32)
-			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win64, SDK));
+			UEBuildPlatform.RegisterBuildPlatform(new WindowsPlatform(UnrealTargetPlatform.Win64, SDK, Logger), Logger);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win64, UnrealPlatformGroup.Windows);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win64, UnrealPlatformGroup.Microsoft);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Win64, UnrealPlatformGroup.Desktop);

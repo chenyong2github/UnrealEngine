@@ -13,6 +13,7 @@ using EpicGames.Core;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -48,12 +49,13 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="bVerbose">Whether to output verbose logging</param>
-		public MacToolChainSettings(bool bVerbose) : base(bVerbose)
+		/// <param name="Logger">Logger for output</param>
+		public MacToolChainSettings(bool bVerbose, ILogger Logger) : base(bVerbose, Logger)
 		{
 			BaseSDKDir = XcodeDeveloperDir + "Platforms/MacOSX.platform/Developer/SDKs";
 			ToolchainDir = XcodeDeveloperDir + "Toolchains/XcodeDefault.xctoolchain/usr/bin/";
 
-			SelectSDK(BaseSDKDir, "MacOSX", ref MacOSSDKVersion, bVerbose);
+			SelectSDK(BaseSDKDir, "MacOSX", ref MacOSSDKVersion, bVerbose, Logger);
 
 			// convert to float for easy comparison
 			if(String.IsNullOrWhiteSpace(MacOSSDKVersion))
@@ -72,12 +74,12 @@ namespace UnrealBuildTool
 	/// </summary>
 	class MacToolChain : AppleToolChain
 	{
-		public MacToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions)
-			: base(InProjectFile, InOptions)
+		public MacToolChain(FileReference? InProjectFile, ClangToolChainOptions InOptions, ILogger InLogger)
+			: base(InProjectFile, InOptions, InLogger)
 		{
 		}
 
-		public static Lazy<MacToolChainSettings> SettingsPrivate = new Lazy<MacToolChainSettings>(() => new MacToolChainSettings(false));
+		public static Lazy<MacToolChainSettings> SettingsPrivate = new Lazy<MacToolChainSettings>(() => new MacToolChainSettings(false, Log.Logger));
 
 		public static MacToolChainSettings Settings
 		{
@@ -126,7 +128,7 @@ namespace UnrealBuildTool
 			// validation, because sometimes this is called from a shell script and quoting messes up		
 			if (!Target.Architecture.All(C => char.IsLetterOrDigit(C) || C == '_' || C == '+'))
 			{
-				Log.TraceError("Architecture '{0}' contains invalid characters", Target.Architecture);
+				throw new BuildException($"Architecture '{Target.Architecture}' contains invalid characters");
 			}			
 
 			SetupXcodePaths(true);
@@ -608,7 +610,7 @@ namespace UnrealBuildTool
 			return GameName;
 		}
 
-		private void AddLibraryPathToRPaths(string Library, string ExeAbsolutePath, ref List<string> RPaths, ref string LinkCommand, bool bIsBuildingAppBundle)
+		private void AddLibraryPathToRPaths(string Library, string ExeAbsolutePath, ref List<string> RPaths, ref string LinkCommand, bool bIsBuildingAppBundle, ILogger Logger)
 		{
 			string LibraryFullPath = Path.GetFullPath(Library);
  			string LibraryDir = Path.GetDirectoryName(LibraryFullPath)!;
@@ -666,7 +668,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.TraceWarning("Unexpected third party dylib location when generating RPATH entries: {0}. Skipping.", LibraryFullPath);
+						Logger.LogWarning("Unexpected third party dylib location when generating RPATH entries: {LibraryFullPath}. Skipping.", LibraryFullPath);
 					}
 
 					// For staged code-based games we need additional entry if the game is not stored directly in the engine's root directory
@@ -773,7 +775,7 @@ namespace UnrealBuildTool
 						LinkCommand += string.Format(" \"{0}\"", Path.GetFullPath(AdditionalLibrary));
 					}
 
-					AddLibraryPathToRPaths(AdditionalLibrary, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle);
+					AddLibraryPathToRPaths(AdditionalLibrary, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle, Logger);
 				}
 
 				foreach (string AdditionalLibrary in LinkEnvironment.DelayLoadDLLs)
@@ -786,7 +788,7 @@ namespace UnrealBuildTool
 
 					LinkCommand += string.Format(" -weak_library \"{0}\"", Path.GetFullPath(AdditionalLibrary));
 
-					AddLibraryPathToRPaths(AdditionalLibrary, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle);
+					AddLibraryPathToRPaths(AdditionalLibrary, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle, Logger);
 				}
 			}
 
@@ -819,7 +821,7 @@ namespace UnrealBuildTool
 				foreach (KeyValuePair<string, bool> Framework in AllFrameworks)
 				{
 					LinkCommand += AddFrameworkToLinkCommand(Framework.Key, Framework.Value ? "-weak_framework" : "-framework");
-					AddLibraryPathToRPaths(Framework.Key, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle);
+					AddLibraryPathToRPaths(Framework.Key, AbsolutePath, ref RPaths, ref LinkCommand, bIsBuildingAppBundle, Logger);
 				}
 			}
 
@@ -995,7 +997,7 @@ namespace UnrealBuildTool
 						}
 						else
 						{
-							Log.TraceWarning("Found {0} Target.cs files for {1} in alldir search of directory {2}", TargetFiles.Length, GameName, Directory.GetCurrentDirectory());
+							Logger.LogWarning("Found {NumFiles} Target.cs files for {GameName} in alldir search of directory {Dir}", TargetFiles.Length, GameName, Directory.GetCurrentDirectory());
 						}
 					}
 					else
@@ -1117,7 +1119,8 @@ namespace UnrealBuildTool
 		/// <param name="MachOBinary">FileItem describing the executable or dylib to generate debug info for</param>
 		/// <param name="LinkEnvironment"></param>
 		/// <param name="Graph">List of actions to be executed. Additional actions will be added to this list.</param>
-		public FileItem GenerateDebugInfo(FileItem MachOBinary, LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph)
+		/// <param name="Logger">Logger for output</param>
+		public FileItem GenerateDebugInfo(FileItem MachOBinary, LinkEnvironment LinkEnvironment, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			string BinaryPath = MachOBinary.AbsolutePath;
 			if (BinaryPath.Contains(".app"))
@@ -1150,7 +1153,7 @@ namespace UnrealBuildTool
 			// a problem where dsymutil would exit with an error saying the input file did not exist.
 			// Note that the source and dest are switched from a copy command
 			string ExtraOptions;
-			string DsymutilPath = GetDsymutilPath(out ExtraOptions, bIsForLTOBuild: false);
+			string DsymutilPath = GetDsymutilPath(Logger, out ExtraOptions, bIsForLTOBuild: false);
 
 			string ArgumentString = "-c \"";
 			ArgumentString += string.Format("for i in {{1..30}}; ");
@@ -1353,8 +1356,10 @@ namespace UnrealBuildTool
 
 		private List<FileItem> DebugInfoFiles = new List<FileItem>();
 
-		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefile Makefile)
+		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
 		{
+			TargetMakefile Makefile = MakefileBuilder.Makefile;
+
 			// Re-add any .dSYM files that may have been stripped out.
 			List<string> OutputFiles = Makefile.OutputItems.Select(Item => Path.ChangeExtension(Item.FullName, ".dSYM")).Distinct().ToList();
 			foreach (FileItem DebugItem in DebugInfoFiles)
@@ -1389,7 +1394,7 @@ namespace UnrealBuildTool
 				// We want dsyms to be created after all dylib dependencies are fixed. If FixDylibDependencies action was not created yet, save the info for later.
 				if (FixDylibOutputFile != null)
 				{
-					DebugInfoFiles.Add(GenerateDebugInfo(Executable, BinaryLinkEnvironment, Graph));
+					DebugInfoFiles.Add(GenerateDebugInfo(Executable, BinaryLinkEnvironment, Graph, Logger));
 				}
 				else
 				{
@@ -1414,7 +1419,7 @@ namespace UnrealBuildTool
 			// Add dsyms that we couldn't add before FixDylibDependencies action was created
 			foreach (FileItem Exe in ExecutablesThatNeedDsyms)
 			{
-				DebugInfoFiles.Add(GenerateDebugInfo(Exe, BinaryLinkEnvironment, Graph));
+				DebugInfoFiles.Add(GenerateDebugInfo(Exe, BinaryLinkEnvironment, Graph, Logger));
 			}
 			ExecutablesThatNeedDsyms.Clear();
 

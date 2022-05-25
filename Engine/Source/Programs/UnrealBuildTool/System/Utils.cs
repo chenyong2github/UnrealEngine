@@ -14,6 +14,7 @@ using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -274,29 +275,29 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Runs a local process and pipes the output to the log
 		/// </summary>
-		public static int RunLocalProcessAndLogOutput(ProcessStartInfo StartInfo)
+		public static int RunLocalProcessAndLogOutput(ProcessStartInfo StartInfo, ILogger Logger)
 		{
 			Process LocalProcess = new Process();
 			LocalProcess.StartInfo = StartInfo;
-			LocalProcess.OutputDataReceived += (Sender, Args) => { LocalProcessOutput(Args, false); };
-			LocalProcess.ErrorDataReceived += (Sender, Args) => { LocalProcessOutput(Args, true); };
+			LocalProcess.OutputDataReceived += (Sender, Args) => { LocalProcessOutput(Args, false, Logger); };
+			LocalProcess.ErrorDataReceived += (Sender, Args) => { LocalProcessOutput(Args, true, Logger); };
 			return RunLocalProcess(LocalProcess);
 		}
 
 		/// <summary>
 		/// Output a line of text from a local process. Implemented as a separate function to give a useful function name in the UAT log prefix.
 		/// </summary>
-		static void LocalProcessOutput(DataReceivedEventArgs Args, bool bIsError)
+		static void LocalProcessOutput(DataReceivedEventArgs Args, bool bIsError, ILogger Logger)
 		{
 			if(Args != null && Args.Data != null)
 			{
 				if(bIsError)
 				{
-					Log.TraceError(Args.Data.TrimEnd());
+					Logger.LogError("{Message}", Args.Data.TrimEnd());
 				}
 				else
 				{
-					Log.TraceInformation(Args.Data.TrimEnd());
+					Logger.LogInformation("{Message}", Args.Data.TrimEnd());
 				}
 			}
 		}
@@ -304,7 +305,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Runs a local process and pipes the output to a file
 		/// </summary>
-		public static int RunLocalProcessAndPrintfOutput(ProcessStartInfo StartInfo)
+		public static int RunLocalProcessAndPrintfOutput(ProcessStartInfo StartInfo, ILogger Logger)
 		{
 			string AppName = Path.GetFileNameWithoutExtension(StartInfo.FileName);
 			string LogFilenameBase = string.Format("{0}_{1}", AppName, DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss"));
@@ -368,7 +369,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.TraceInformation(data);
+						Logger.LogInformation("{Output}", data);
 					}
 				}
 			};
@@ -379,7 +380,7 @@ namespace UnrealBuildTool
 			var ExitCode = RunLocalProcess(LocalProcess);
 			if(ExitCode != 0 && !string.IsNullOrEmpty(LogFilename))
 			{
-				Log.TraceError("Process \'{0}\' failed. Details are in \'{1}\'", AppName, LogFilename);
+				Logger.LogError("Process \'{AppName}\' failed. Details are in \'{LogFilename}\'", AppName, LogFilename);
 			}
 
 			return ExitCode;
@@ -389,9 +390,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Runs a local process and pipes the output to the log
 		/// </summary>
-		public static int RunLocalProcessAndLogOutput(string Command, string Args)
+		public static int RunLocalProcessAndLogOutput(string Command, string Args, ILogger Logger)
 		{
-			return RunLocalProcessAndLogOutput(new ProcessStartInfo(Command, Args));
+			return RunLocalProcessAndLogOutput(new ProcessStartInfo(Command, Args), Logger);
 		}
 
 		/// <summary>
@@ -400,10 +401,19 @@ namespace UnrealBuildTool
 		/// <returns>The entire StdOut generated from the process as a single trimmed string</returns>
 		/// <param name="Command">Command to run</param>
 		/// <param name="Args">Arguments to Command</param>
-		public static string RunLocalProcessAndReturnStdOut(string Command, string Args)
+		public static string RunLocalProcessAndReturnStdOut(string Command, string Args) => RunLocalProcessAndReturnStdOut(Command, Args, null);
+
+		/// <summary>
+		/// Runs a command line process, and returns simple StdOut output. This doesn't handle errors or return codes
+		/// </summary>
+		/// <returns>The entire StdOut generated from the process as a single trimmed string</returns>
+		/// <param name="Command">Command to run</param>
+		/// <param name="Args">Arguments to Command</param>
+		/// <param name="Logger">Logger for output</param>
+		public static string RunLocalProcessAndReturnStdOut(string Command, string Args, ILogger? Logger)
 		{
 			int ExitCode;
-			return RunLocalProcessAndReturnStdOut(Command, Args, out ExitCode);	
+			return RunLocalProcessAndReturnStdOut(Command, Args, Logger, out ExitCode);	
 		}
 
 		/// <summary>
@@ -413,8 +423,27 @@ namespace UnrealBuildTool
 		/// <param name="Command">Command to run</param>
 		/// <param name="Args">Arguments to Command</param>
 		/// <param name="ExitCode">The return code from the process after it exits</param>
+		public static string RunLocalProcessAndReturnStdOut(string Command, string? Args, out int ExitCode) => RunLocalProcessAndReturnStdOut(Command, Args, null, out ExitCode);
+
+		/// <summary>
+		/// Runs a command line process, and returns simple StdOut output.
+		/// </summary>
+		/// <returns>The entire StdOut generated from the process as a single trimmed string</returns>
+		/// <param name="Command">Command to run</param>
+		/// <param name="Args">Arguments to Command</param>
+		/// <param name="ExitCode">The return code from the process after it exits</param>
 		/// <param name="LogOutput">Whether to also log standard output and standard error</param>
-		public static string RunLocalProcessAndReturnStdOut(string Command, string? Args, out int ExitCode, bool LogOutput = false)
+		public static string RunLocalProcessAndReturnStdOut(string Command, string? Args, out int ExitCode, bool LogOutput) => RunLocalProcessAndReturnStdOut(Command, Args, LogOutput? Log.Logger : null, out ExitCode);
+
+		/// <summary>
+		/// Runs a command line process, and returns simple StdOut output.
+		/// </summary>
+		/// <returns>The entire StdOut generated from the process as a single trimmed string</returns>
+		/// <param name="Command">Command to run</param>
+		/// <param name="Args">Arguments to Command</param>
+		/// <param name="Logger">Logger for output. No output if null.</param>
+		/// <param name="ExitCode">The return code from the process after it exits</param>
+		public static string RunLocalProcessAndReturnStdOut(string Command, string? Args, ILogger? Logger, out int ExitCode)
 		{
 			// Process Arguments follow windows conventions in .NET Core
 			// Which means single quotes ' are not considered quotes.
@@ -442,16 +471,16 @@ namespace UnrealBuildTool
 				StreamReader ErrorReader = LocalProcess.StandardError;
 				// trim off any extraneous new lines, helpful for those one-line outputs
 				ErrorOutput = ErrorReader.ReadToEnd().Trim();
-				if (LogOutput)
+				if (Logger != null)
 				{
 					if(FullOutput.Length > 0)
 					{
-						Log.TraceInformation(FullOutput);
+						Logger.LogInformation("{Output}", FullOutput);
 					}
 
 					if (ErrorOutput.Length > 0)
 					{
-						Log.TraceError(ErrorOutput);
+						Logger.LogError("{Output}", ErrorOutput);
 					}
 				}
 
@@ -497,9 +526,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="SupportedPlatforms">List of supported platforms</param>
 		/// <param name="bIncludeUnbuildablePlatforms">If true, add platforms that are present but not available for compiling</param>
+		/// <param name="Logger"></param>
 		/// 
 		/// <returns>List of unsupported platforms in string format</returns>
-		public static List<string> MakeListOfUnsupportedPlatforms(List<UnrealTargetPlatform> SupportedPlatforms, bool bIncludeUnbuildablePlatforms)
+		public static List<string> MakeListOfUnsupportedPlatforms(List<UnrealTargetPlatform> SupportedPlatforms, bool bIncludeUnbuildablePlatforms, ILogger Logger)
 		{
 			// Make a list of all platform name strings that we're *not* currently compiling, to speed
 			// up file path comparisons later on
@@ -801,8 +831,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <typeparam name="T">The type to read</typeparam>
 		/// <param name="FileName">The XML file to read from</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>New deserialized instance of type T</returns>
-		static public T ReadClass<T>(string FileName) where T : new()
+		static public T ReadClass<T>(string FileName, ILogger Logger) where T : new()
 		{
 			T Instance = new T();
 			StreamReader? XmlStream = null;
@@ -822,7 +853,7 @@ namespace UnrealBuildTool
 			}
 			catch (Exception E)
 			{
-				Log.TraceInformation(E.Message);
+				Logger.LogInformation("{Output}", E.Message);
 			}
 			finally
 			{
@@ -843,8 +874,9 @@ namespace UnrealBuildTool
 		/// <param name="Data">Object to write</param>
 		/// <param name="FileName">File to write to</param>
 		/// <param name="DefaultNameSpace">Default namespace for the output elements</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the file was written successfully</returns>
-		static public bool WriteClass<T>(T Data, string FileName, string DefaultNameSpace)
+		static public bool WriteClass<T>(T Data, string FileName, string DefaultNameSpace, ILogger Logger)
 		{
 			bool bSuccess = true;
 			StreamWriter? XmlStream = null;
@@ -873,7 +905,7 @@ namespace UnrealBuildTool
 			}
 			catch (Exception E)
 			{
-				Log.TraceInformation(E.Message);
+				Logger.LogInformation("{Message}", E.Message);
 				bSuccess = false;
 			}
 			finally
@@ -1300,8 +1332,9 @@ namespace UnrealBuildTool
 		/// Executes a list of custom build step scripts
 		/// </summary>
 		/// <param name="ScriptFiles">List of script files to execute</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the steps succeeded, false otherwise</returns>
-		public static void ExecuteCustomBuildSteps(FileReference[] ScriptFiles)
+		public static void ExecuteCustomBuildSteps(FileReference[] ScriptFiles, ILogger Logger)
 		{
 			UnrealTargetPlatform HostPlatform = BuildHostPlatform.Current.Platform;
 			foreach(FileReference ScriptFile in ScriptFiles)
@@ -1318,7 +1351,7 @@ namespace UnrealBuildTool
 					StartInfo.Arguments = String.Format("\"{0}\"", ScriptFile.FullName);
 				}
 
-				int ReturnCode = Utils.RunLocalProcessAndLogOutput(StartInfo);
+				int ReturnCode = Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 				if(ReturnCode != 0)
 				{
 					throw new BuildException("Custom build step {0} {1} terminated with exit code {2}", StartInfo.FileName, StartInfo.Arguments, ReturnCode);
@@ -1412,11 +1445,34 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Location">Location of the file</param>
 		/// <param name="Contents">New contents of the file</param>
+		/// <param name="Logger">Logger for output</param>
+		internal static void WriteFileIfChanged(FileReference Location, string Contents, ILogger Logger)
+		{
+			WriteFileIfChanged(Location, Contents, StringComparison.Ordinal, Logger);
+		}
+
+		/// <summary>
+		/// Writes a file if the contents have changed
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="Contents">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
-		internal static void WriteFileIfChanged(FileReference Location, string Contents, StringComparison Comparison = StringComparison.Ordinal)
+		/// <param name="Logger">Logger for output</param>
+		internal static void WriteFileIfChanged(FileReference Location, string Contents, StringComparison Comparison, ILogger Logger)
 		{
 			FileItem FileItem = FileItem.GetItemByFileReference(Location);
-			WriteFileIfChanged(FileItem, Contents, Comparison);
+			WriteFileIfChanged(FileItem, Contents, Comparison, Logger);
+		}
+
+		/// <summary>
+		/// Writes a file if the contents have changed
+		/// </summary>
+		/// <param name="Location">Location of the file</param>
+		/// <param name="ContentLines">New contents of the file</param>
+		/// <param name="Logger">Logger for output</param>
+		internal static void WriteFileIfChanged(FileReference Location, IEnumerable<string> ContentLines, ILogger Logger)
+		{
+			WriteFileIfChanged(Location, ContentLines, StringComparison.Ordinal, Logger);
 		}
 
 		/// <summary>
@@ -1425,10 +1481,11 @@ namespace UnrealBuildTool
 		/// <param name="Location">Location of the file</param>
 		/// <param name="ContentLines">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
-		internal static void WriteFileIfChanged(FileReference Location, IEnumerable<string> ContentLines, StringComparison Comparison = StringComparison.Ordinal)
+		/// <param name="Logger">Logger for output</param>
+		internal static void WriteFileIfChanged(FileReference Location, IEnumerable<string> ContentLines, StringComparison Comparison, ILogger Logger)
 		{
 			FileItem FileItem = FileItem.GetItemByFileReference(Location);
-			WriteFileIfChanged(FileItem, ContentLines, Comparison);
+			WriteFileIfChanged(FileItem, ContentLines, Comparison, Logger);
 		}
 
 		/// <summary>
@@ -1439,13 +1496,13 @@ namespace UnrealBuildTool
 		static internal FileReference? WriteFileIfChangedTrace = null;
 		static internal string WriteFileIfChangedContext = "";
 
-		static void RecordWriteFileIfChanged(FileReference File, bool bNew, bool bChanged)
+		static void RecordWriteFileIfChanged(FileReference File, bool bNew, bool bChanged, ILogger Logger)
 		{
 			int NewWriteRequestCount = 1;
 			int NewActualWriteCount = bChanged ? 1 : 0;
 
 			bool bOverrideLogEventType = FileReference.Equals(WriteFileIfChangedTrace, File);
-			LogEventType OverrideType = LogEventType.Console;
+			LogLevel OverrideType = LogLevel.Information;
 
 			string Prefix = "";
 			if (bOverrideLogEventType)
@@ -1472,22 +1529,22 @@ namespace UnrealBuildTool
 					{
 						if (bNew)
 						{
-							Log.WriteLine(bOverrideLogEventType ? OverrideType : LogEventType.Warning,
-								$"{Prefix}Writing a file that previously existed was not overwritten and then removed: \"{File}\"{Context}");
+							Logger.Log(bOverrideLogEventType ? OverrideType : LogLevel.Warning,
+								"{Prefix}Writing a file that previously existed was not overwritten and then removed: \"{File}\"{Context}", Prefix, File, Context);
 						}
 						else
 						{
 							if (bChanged)
 							{
-								Log.WriteLine(bOverrideLogEventType ? OverrideType : LogEventType.Warning,
-									$"{Prefix}Writing a file that previously was not written \"{File}\"{Context}");
+								Logger.Log(bOverrideLogEventType ? OverrideType : LogLevel.Warning,
+									"{Prefix}Writing a file that previously was not written \"{File}\"{Context}", Prefix, File, Context);
 							}
 							else
 							{
 								if (bOverrideLogEventType)
 								{
-									Log.WriteLine(OverrideType,
-										$"{Prefix}Not writing a file that was previously not written: \"{File}\"{Context}");
+									Logger.Log(OverrideType,
+										"{Prefix}Not writing a file that was previously not written: \"{File}\"{Context}", Prefix, File, Context);
 								}
 
 							}
@@ -1497,22 +1554,22 @@ namespace UnrealBuildTool
 					{
 						if (bNew)
 						{
-							Log.WriteLine(bOverrideLogEventType ? OverrideType : LogEventType.Warning,
-								$"{Prefix}Re-writing a file that was previously written and then removed: \"{File}\"{Context}");
+							Logger.Log(bOverrideLogEventType ? OverrideType : LogLevel.Warning,
+								"{Prefix}Re-writing a file that was previously written and then removed: \"{File}\"{Context}", Prefix, File, Context);
 						}
 						else
 						{
 							if (bChanged)
 							{
-								Log.WriteLine(bOverrideLogEventType ? OverrideType : LogEventType.Warning,
-									$"{Prefix}Re-writing a file that was previously written: \"{File}\"{Context}");
+								Logger.Log(bOverrideLogEventType ? OverrideType : LogLevel.Warning,
+									"{Prefix}Re-writing a file that was previously written: \"{File}\"{Context}", Prefix, File, Context);
 							}
 							else
 							{
 								if (bOverrideLogEventType)
 								{
-									Log.WriteLine(OverrideType,
-										$"{Prefix}Not writing a file that was previously written: \"{File}\"{Context}");
+									Logger.Log(OverrideType,
+										"{Prefix}Not writing a file that was previously written: \"{File}\"{Context}", Prefix, File, Context);
 								}
 							}
 						}
@@ -1524,17 +1581,17 @@ namespace UnrealBuildTool
 					{
 						if (bNew)
 						{
-							Log.TraceInformation($"{Prefix}Writing new file: \"{File}\"{Context}");
+							Logger.LogInformation("{Prefix}Writing new file: \"{File}\"{Context}", Prefix, File, Context);
 						}
 						else
 						{
 							if (bChanged)
 							{
-								Log.TraceInformation($"{Prefix}Writing changed file: \"{File}\"{Context}");
+								Logger.LogInformation("{Prefix}Writing changed file: \"{File}\"{Context}", Prefix, File, Context);
 							}
 							else
 							{
-								Log.TraceInformation($"{Prefix}Not writing unchanged file: \"{File}\"{Context}");
+								Logger.LogInformation("{Prefix}Not writing unchanged file: \"{File}\"{Context}", Prefix, File, Context);
 							}
 						}
 					}
@@ -1544,7 +1601,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		internal static void LogWriteFileIfChangedActivity()
+		internal static void LogWriteFileIfChangedActivity(ILogger Logger)
 		{
 			int TotalRequests = 0;
 			int TotalWrites = 0;
@@ -1554,7 +1611,18 @@ namespace UnrealBuildTool
 				TotalWrites += Actual;
 			}
 
-			Log.TraceLog($"WriteFileIfChanged() wrote {TotalWrites} changed files of {TotalRequests} requested writes.");
+			Logger.LogDebug("WriteFileIfChanged() wrote {TotalWrites} changed files of {TotalRequests} requested writes.", TotalWrites, TotalRequests);
+		}
+
+		/// <summary>
+		/// Writes a file if the contents have changed
+		/// </summary>
+		/// <param name="FileItem">Location of the file</param>
+		/// <param name="Contents">New contents of the file</param>
+		/// <param name="Logger">Logger for output</param>
+		internal static void WriteFileIfChanged(FileItem FileItem, string Contents, ILogger Logger)
+		{
+			WriteFileIfChanged(FileItem, Contents, StringComparison.Ordinal, Logger);
 		}
 
 		/// <summary>
@@ -1563,7 +1631,8 @@ namespace UnrealBuildTool
 		/// <param name="FileItem">Location of the file</param>
 		/// <param name="Contents">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
-		internal static void WriteFileIfChanged(FileItem FileItem, string Contents, StringComparison Comparison = StringComparison.Ordinal)
+		/// <param name="Logger">Logger for output</param>
+		internal static void WriteFileIfChanged(FileItem FileItem, string Contents, StringComparison Comparison, ILogger Logger)
 		{
 			// Only write the file if its contents have changed.
 			FileReference Location = FileItem.Location;
@@ -1573,7 +1642,7 @@ namespace UnrealBuildTool
 				FileReference.WriteAllText(Location, Contents, GetEncodingForString(Contents));
 				FileItem.ResetCachedInfo();
 
-				RecordWriteFileIfChanged(FileItem.Location, bNew: true, bChanged: true);
+				RecordWriteFileIfChanged(FileItem.Location, bNew: true, bChanged: true, Logger);
 			}
 			else
 			{
@@ -1583,23 +1652,23 @@ namespace UnrealBuildTool
 					FileReference BackupFile = new FileReference(FileItem.FullName + ".old");
 					try
 					{
-						Log.TraceLog("Updating {0}: contents have changed. Saving previous version to {1}.", FileItem, BackupFile);
+						Logger.LogDebug("Updating {File}: contents have changed. Saving previous version to {BackupFile}.", FileItem.Location, BackupFile);
 						FileReference.Delete(BackupFile);
 						FileReference.Move(Location, BackupFile);
 					}
 					catch (Exception Ex)
 					{
-						Log.TraceWarning("Unable to rename {0} to {1}", FileItem, BackupFile);
-						Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+						Logger.LogWarning("Unable to rename {FileItem} to {BackupFile}", FileItem, BackupFile);
+						Logger.LogDebug(Ex, "{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 					}
 					FileReference.WriteAllText(Location, Contents, GetEncodingForString(Contents));
 					FileItem.ResetCachedInfo();
 
-					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: true);
+					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: true, Logger);
 				}
 				else
 				{ 
-					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: false);
+					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: false, Logger);
 				}
 			}
 		}
@@ -1609,8 +1678,20 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="FileItem">Location of the file</param>
 		/// <param name="ContentLines">New contents of the file</param>
+		/// <param name="Logger">Logger for output</param>
+		internal static void WriteFileIfChanged(FileItem FileItem, IEnumerable<string> ContentLines, ILogger Logger)
+		{
+			WriteFileIfChanged(FileItem, ContentLines, StringComparison.Ordinal, Logger);
+		}
+
+		/// <summary>
+		/// Writes a file if the contents have changed
+		/// </summary>
+		/// <param name="FileItem">Location of the file</param>
+		/// <param name="ContentLines">New contents of the file</param>
 		/// <param name="Comparison">The type of string comparison to use</param>
-		internal static void WriteFileIfChanged(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison Comparison = StringComparison.Ordinal)
+		/// <param name="Logger">Logger for output</param>
+		internal static void WriteFileIfChanged(FileItem FileItem, IEnumerable<string> ContentLines, StringComparison Comparison, ILogger Logger)
 		{
 			// Only write the file if its contents have changed.
 			FileReference Location = FileItem.Location;
@@ -1621,7 +1702,7 @@ namespace UnrealBuildTool
 				FileReference.WriteAllLines(Location, ContentLines, GetEncodingForStrings(ContentLines));
 				FileItem.ResetCachedInfo();
 
-				RecordWriteFileIfChanged(FileItem.Location, bNew: true, bChanged: true);
+				RecordWriteFileIfChanged(FileItem.Location, bNew: true, bChanged: true, Logger);
 			}
 			else
 			{
@@ -1631,23 +1712,23 @@ namespace UnrealBuildTool
 					FileReference BackupFile = new FileReference($"{FileItem.FullName}.old");
 					try
 					{
-						Log.TraceLog($"Updating {FileItem}: contents have changed. Saving previous version to {BackupFile}.");
+						Logger.LogDebug("Updating {FileItem}: contents have changed. Saving previous version to {BackupFile}.", FileItem.Location, BackupFile);
 						FileReference.Delete(BackupFile);
 						FileReference.Move(Location, BackupFile);
 					}
 					catch (Exception Ex)
 					{
-						Log.TraceWarning($"Unable to rename {FileItem} to {BackupFile}");
-						Log.TraceLog(ExceptionUtils.FormatExceptionDetails(Ex));
+						Logger.LogWarning("Unable to rename {FileItem} to {BackupFile}", FileItem, BackupFile);
+						Logger.LogDebug(Ex, "{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 					}
 					FileReference.WriteAllLines(Location, ContentLines, GetEncodingForStrings(ContentLines));
 					FileItem.ResetCachedInfo();
 
-					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: true);
+					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: true, Logger);
 				}
 				else
 				{ 
-					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: false);
+					RecordWriteFileIfChanged(FileItem.Location, bNew: false, bChanged: false, Logger);
 				}
 			}
 		}

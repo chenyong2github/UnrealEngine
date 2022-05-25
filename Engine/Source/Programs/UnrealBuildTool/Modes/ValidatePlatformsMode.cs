@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -38,7 +39,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			// Output a message if there are any arguments that are still unused
 			Arguments.ApplyTo(this);
@@ -62,11 +64,11 @@ namespace UnrealBuildTool
 
 				if (BuildPlatform != null && BuildPlatform.HasRequiredSDKsInstalled() == SDKStatus.Valid)
 				{
-					Log.TraceInformation("##PlatformValidate: {0} VALID {1}", Platform.ToString(), PlatformSDKString);
+					Logger.LogInformation("##PlatformValidate: {Platform} VALID {PlatformSdkString}", Platform.ToString(), PlatformSDKString);
 				}
 				else
 				{
-					Log.TraceInformation("##PlatformValidate: {0} INVALID {1}", Platform.ToString(), PlatformSDKString);
+					Logger.LogInformation("##PlatformValidate: {Platform} INVALID {PlatformSdkString}", Platform.ToString(), PlatformSDKString);
 				}
 			} 
 			return 0;

@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -573,20 +574,21 @@ namespace UnrealBuildTool
 		/// <param name="Section">Name of the section with the Key in it</param>
 		/// <param name="Key">Key to update</param>
 		/// <param name="Value">Value to write for te Key</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns></returns>		
-		public static bool WriteSettingToDefaultConfig(ConfigHierarchyType ConfigType, DirectoryReference ProjectDir, ConfigDefaultUpdateType UpdateType, string Section, string Key, string Value)
+		public static bool WriteSettingToDefaultConfig(ConfigHierarchyType ConfigType, DirectoryReference ProjectDir, ConfigDefaultUpdateType UpdateType, string Section, string Key, string Value, ILogger Logger)
 		{
 			FileReference DefaultConfigFile = GetDefaultConfigFileReference(ConfigType, ProjectDir);
 
 			if (!FileReference.Exists(DefaultConfigFile))
 			{
-				Log.TraceWarning($"Failed to find config file '{DefaultConfigFile.FullName}' to update");
+				Logger.LogWarning("Failed to find config file '{DefaultConfigFile}' to update", DefaultConfigFile);
 				return false;
 			}
 
 			if (File.GetAttributes(DefaultConfigFile.FullName).HasFlag(FileAttributes.ReadOnly))
 			{
-				Log.TraceWarning($"Config file '{DefaultConfigFile.FullName}' is read-only, unable to write setting {Key}");
+				Logger.LogWarning("Config file '{ConfigFile}' is read-only, unable to write setting {Key}", DefaultConfigFile.FullName, Key);
 				return false;
 			}
 

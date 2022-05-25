@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -182,11 +183,12 @@ namespace UnrealBuildTool
 		/// Exports this object as Json
 		/// </summary>
 		/// <param name="FileName">The filename to write to</param>
-		public void WriteIfModified(FileReference FileName)
+		/// <param name="Logger">Logger for output</param>
+		public void WriteIfModified(FileReference FileName, ILogger Logger)
 		{
 			using StringWriter Writer = new StringWriter();
 			Write(Writer);
-			Utils.WriteFileIfChanged(FileName, Writer.ToString());
+			Utils.WriteFileIfChanged(FileName, Writer.ToString(), Logger);
 		}
 
 		/// <summary>

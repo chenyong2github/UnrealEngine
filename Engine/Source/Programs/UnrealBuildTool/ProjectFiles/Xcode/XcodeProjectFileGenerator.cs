@@ -6,6 +6,7 @@ using System.Text;
 using System.IO;
 using EpicGames.Core;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -78,7 +79,7 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// </summary>
-		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesPath, ILogger Logger)
 		{
 			DirectoryReference PrimaryProjDeleteFilename = DirectoryReference.Combine(InPrimaryProjectDirectory, InPrimaryProjectName + ".xcworkspace");
 			if (DirectoryReference.Exists(PrimaryProjDeleteFilename))
@@ -95,8 +96,8 @@ namespace UnrealBuildTool
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceInformation("Error while trying to clean project files path {0}. Ignored.", InIntermediateProjectFilesPath);
-					Log.TraceInformation("\t" + Ex.Message);
+					Logger.LogInformation("Error while trying to clean project files path {InIntermediateProjectFilesPath}. Ignored.", InIntermediateProjectFilesPath);
+					Logger.LogInformation("\t{Ex}", Ex.Message);
 				}
 			}
 		}
@@ -112,7 +113,7 @@ namespace UnrealBuildTool
 			return new XcodeProjectFile(InitFilePath, BaseDir, bForDistribution, BundleIdentifier, AppName);
 		}
 
-		private bool WriteWorkspaceSettingsFile(string Path)
+		private bool WriteWorkspaceSettingsFile(string Path, ILogger Logger)
 		{
 			StringBuilder WorkspaceSettingsContent = new StringBuilder();
 			WorkspaceSettingsContent.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ProjectFileGenerator.NewLine);
@@ -137,10 +138,10 @@ namespace UnrealBuildTool
 			WorkspaceSettingsContent.Append("\t<string>Default</string>" + ProjectFileGenerator.NewLine);
 			WorkspaceSettingsContent.Append("</dict>" + ProjectFileGenerator.NewLine);
 			WorkspaceSettingsContent.Append("</plist>" + ProjectFileGenerator.NewLine);
-			return WriteFileIfChanged(Path, WorkspaceSettingsContent.ToString(), new UTF8Encoding());
+			return WriteFileIfChanged(Path, WorkspaceSettingsContent.ToString(), Logger, new UTF8Encoding());
 		}
 
-		private bool WriteWorkspaceSharedSettingsFile(string Path)
+		private bool WriteWorkspaceSharedSettingsFile(string Path, ILogger Logger)
 		{
 			StringBuilder WorkspaceSettingsContent = new StringBuilder();
 			WorkspaceSettingsContent.Append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + ProjectFileGenerator.NewLine);
@@ -153,10 +154,10 @@ namespace UnrealBuildTool
             WorkspaceSettingsContent.Append("\t<true/>" + ProjectFileGenerator.NewLine);
 			WorkspaceSettingsContent.Append("</dict>" + ProjectFileGenerator.NewLine);
 			WorkspaceSettingsContent.Append("</plist>" + ProjectFileGenerator.NewLine);
-			return WriteFileIfChanged(Path, WorkspaceSettingsContent.ToString(), new UTF8Encoding());
+			return WriteFileIfChanged(Path, WorkspaceSettingsContent.ToString(), Logger, new UTF8Encoding());
 		}
 
-		private bool WriteXcodeWorkspace()
+		private bool WriteXcodeWorkspace(ILogger Logger)
 		{
 			bool bSuccess = true;
 
@@ -181,7 +182,7 @@ namespace UnrealBuildTool
 						// Filter out anything that isn't an XC project, and that shouldn't be in the workspace
 						IEnumerable<XcodeProjectFile> SupportedProjects =
 								CurFolder.ChildProjects.OfType<XcodeProjectFile>()
-									.Where(P => P.ShouldIncludeProjectInWorkspace())
+									.Where(P => P.ShouldIncludeProjectInWorkspace(Logger))
 									.OrderBy(P => P.ProjectFilePath.GetFileName());
 
 						foreach (XcodeProjectFile XcodeProject in SupportedProjects)
@@ -237,22 +238,22 @@ namespace UnrealBuildTool
 				ProjectName += ProjectFilePlatform == XcodeProjectFilePlatform.Mac ? "_Mac" : (ProjectFilePlatform == XcodeProjectFilePlatform.iOS ? "_IOS" : "_TVOS");
 			}
 			string WorkspaceDataFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/contents.xcworkspacedata";
-			bSuccess = WriteFileIfChanged(WorkspaceDataFilePath, WorkspaceDataContent.ToString(), new UTF8Encoding());
+			bSuccess = WriteFileIfChanged(WorkspaceDataFilePath, WorkspaceDataContent.ToString(), Logger, new UTF8Encoding());
 			if (bSuccess)
 			{
 				string WorkspaceSettingsFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/xcuserdata/" + Environment.UserName + ".xcuserdatad/WorkspaceSettings.xcsettings";
-				bSuccess = WriteWorkspaceSettingsFile(WorkspaceSettingsFilePath);
+				bSuccess = WriteWorkspaceSettingsFile(WorkspaceSettingsFilePath, Logger);
 				string WorkspaceSharedSettingsFilePath = PrimaryProjectPath + "/" + ProjectName + ".xcworkspace/xcshareddata/WorkspaceSettings.xcsettings";
-				bSuccess = WriteWorkspaceSharedSettingsFile(WorkspaceSharedSettingsFilePath);
+				bSuccess = WriteWorkspaceSharedSettingsFile(WorkspaceSharedSettingsFilePath, Logger);
 			}
 
 
 			return bSuccess;
 		}
 
-		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
-			return WriteXcodeWorkspace();
+			return WriteXcodeWorkspace(Logger);
 		}
 
 		[Flags]
@@ -273,15 +274,11 @@ namespace UnrealBuildTool
 		/// Should we generate a special project to use for tvOS signing instead of a normal one
 		static public bool bGeneratingRunTVOSProject = false;
 
-		/// <summary>
-		/// Configures project generator based on command-line options
-		/// </summary>
-		/// <param name="Arguments">Arguments passed into the program</param>
-		/// <param name="IncludeAllPlatforms">True if all platforms should be included</param>
-		protected override void ConfigureProjectFileGeneration(string[] Arguments, ref bool IncludeAllPlatforms)
+		/// <inheritdoc/>
+		protected override void ConfigureProjectFileGeneration(string[] Arguments, ref bool IncludeAllPlatforms, ILogger Logger)
 		{
 			// Call parent implementation first
-			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms);
+			base.ConfigureProjectFileGeneration(Arguments, ref IncludeAllPlatforms, Logger);
 			ProjectFilePlatform = IncludeAllPlatforms ? XcodeProjectFilePlatform.All : XcodeProjectFilePlatform.Mac;
 
 			foreach (string CurArgument in Arguments)

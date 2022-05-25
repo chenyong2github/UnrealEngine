@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -23,7 +24,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InPlatform">  The UnrealTargetPlatform to register with</param>
 		/// <param name="InProjectGenerator">The UEPlatformProjectGenerator instance to use for the InPlatform</param>
-		public void RegisterPlatformProjectGenerator(UnrealTargetPlatform InPlatform, PlatformProjectGenerator InProjectGenerator)
+		/// <param name="Logger">Logger for output</param>
+		public void RegisterPlatformProjectGenerator(UnrealTargetPlatform InPlatform, PlatformProjectGenerator InProjectGenerator, ILogger Logger)
 		{
 			// Make sure the build platform is legal
 			UEBuildPlatform? BuildPlatform;
@@ -31,7 +33,7 @@ namespace UnrealBuildTool
 			{
 				if (ProjectGeneratorDictionary.ContainsKey(InPlatform) == true)
 				{
-					Log.TraceInformation("RegisterPlatformProjectGenerator Warning: Registering project generator {0} for {1} when it is already set to {2}",
+					Logger.LogInformation("RegisterPlatformProjectGenerator Warning: Registering project generator {Generator} for {Platform} when it is already set to {ExistingGenerator}",
 						InProjectGenerator.ToString(), InPlatform.ToString(), ProjectGeneratorDictionary[InPlatform].ToString());
 					ProjectGeneratorDictionary[InPlatform] = InProjectGenerator;
 				}
@@ -42,7 +44,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceVerbose("Skipping project file generator registration for {0} due to no valid BuildPlatform.", InPlatform.ToString());
+				Logger.LogDebug("Skipping project file generator registration for {Platform} due to no valid BuildPlatform.", InPlatform.ToString());
 			}
 		}
 
@@ -62,7 +64,7 @@ namespace UnrealBuildTool
 			{
 				return null;
 			}
-			throw new BuildException("GetPlatformProjectGenerator: No PlatformProjectGenerator found for {0}", InPlatform.ToString());
+			throw new BuildException("GetPlatformProjectGenerator: No PlatformProjectGenerator found for {Platform}", InPlatform.ToString());
 		}
 
 		/// <summary>
@@ -100,7 +102,7 @@ namespace UnrealBuildTool
 		{
 			if (ProjectGeneratorDictionary.ContainsKey(InPlatform) == true)
 			{
-				ProjectGeneratorDictionary[InPlatform].GenerateGameProperties(Configuration, VCProjectFileContent, TargetType, RootDirectory, TargetFilePath); ;
+				ProjectGeneratorDictionary[InPlatform].GenerateGameProperties(Configuration, VCProjectFileContent, TargetType, RootDirectory, TargetFilePath);
 			}
 			return true;
 		}

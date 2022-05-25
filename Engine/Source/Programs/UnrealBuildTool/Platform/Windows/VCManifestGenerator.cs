@@ -12,6 +12,7 @@ using System.Text;
 using System.Diagnostics;
 using UnrealBuildBase;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -78,11 +79,17 @@ namespace UnrealBuildTool
 		protected Dictionary<string,string>? ManifestFiles; // Dst, Src
 
 		/// <summary>
+		/// Logger for output
+		/// </summary>
+		protected readonly ILogger Logger;
+
+		/// <summary>
 		/// Create a manifest generator for the given platform variant.
 		/// </summary>
-		public VCManifestGenerator( UnrealTargetPlatform InPlatform )
+		public VCManifestGenerator( UnrealTargetPlatform InPlatform, ILogger InLogger )
 		{
-			this.Platform = InPlatform;
+			Platform = InPlatform;
+			Logger = InLogger;
 		}
 
 		/// <summary>
@@ -102,7 +109,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Attempts to create the given directory
 		/// </summary>
-		protected static bool CreateCheckDirectory(string TargetDirectory)
+		protected static bool CreateCheckDirectory(string TargetDirectory, ILogger Logger)
 		{
 			if (!Directory.Exists(TargetDirectory))
 			{
@@ -112,12 +119,12 @@ namespace UnrealBuildTool
 				}
 				catch (Exception)
 				{
-					Log.TraceError("Could not create directory {0}.", TargetDirectory);
+					Logger.LogError("Could not create directory {TargetDir}.", TargetDirectory);
 					return false;
 				}
 				if (!Directory.Exists(TargetDirectory))
 				{
-					Log.TraceError("Path {0} does not exist or is not a directory.", TargetDirectory);
+					Logger.LogError("Path {TargetDir} does not exist or is not a directory.", TargetDirectory);
 					return false;
 				}
 			}
@@ -162,13 +169,14 @@ namespace UnrealBuildTool
 
 			if (ExitCode == 0)
 			{
-				Log.TraceVerbose(ProcessOutput.ToString());
+				Logger.LogDebug("Output", ProcessOutput.ToString());
 				return true;
 			}
 			else
 			{
-				Log.TraceInformation(ProcessOutput.ToString());
-				Log.TraceError(Path.GetFileName(PriExecutable) + " returned an error.\nExit code:" + ExitCode );
+				Logger.LogInformation("Output", ProcessOutput.ToString());
+				Logger.LogError("{File} returned an error.", Path.GetFileName(PriExecutable));
+				Logger.LogError("Exit code: {Code}", ExitCode);
 				return false;
 			}
         }
@@ -221,8 +229,8 @@ namespace UnrealBuildTool
 			}
 			if (CompletedVersionString == null || CompletedVersionString.Length <= 0)
 			{
-				Log.TraceError("Invalid package version {0}. Package versions must be in the format #.#.#.# where # is a number 0-65535.", InVersionNumber);
-				Log.TraceError("Consider setting [{0}]:PackageVersion to provide a specific value.", IniSection_PlatformTargetSettings);
+				Logger.LogError("Invalid package version {Ver}. Package versions must be in the format #.#.#.# where # is a number 0-65535.", InVersionNumber);
+				Logger.LogError("Consider setting [{IniSection}]:PackageVersion to provide a specific value.", IniSection_PlatformTargetSettings);
 			}
 			return CompletedVersionString;
 		}
@@ -240,7 +248,7 @@ namespace UnrealBuildTool
 			}
 			if (ReturnVal == null || ReturnVal.Length <= 0)
 			{
-				Log.TraceError("Invalid application ID {0}. Application IDs must only contain letters and numbers. And they must begin with a letter.", InApplicationId);
+				Logger.LogError("Invalid application ID {AppId}. Application IDs must only contain letters and numbers. And they must begin with a letter.", InApplicationId);
 			}
 			return ReturnVal;
 		}
@@ -309,7 +317,7 @@ namespace UnrealBuildTool
 				return "#" + R.ToString("X2") + G.ToString("X2") + B.ToString("X2");
 			}
 
-			Log.TraceWarning("Failed to parse color config value. Using default.");
+			Logger.LogWarning("Failed to parse color config value. Using default.");
 			return DefaultValue;
 		}
 
@@ -325,13 +333,13 @@ namespace UnrealBuildTool
 			var StaleResourceFiles = TargetResourceInstances.Where(X => !ManifestFiles!.ContainsKey(X)).ToList();
 			if (StaleResourceFiles.Any())
 			{
-				Log.TraceVerbose("Removing stale manifest resource files...");
+				Logger.LogDebug("Removing stale manifest resource files...");
 				foreach (string StaleResourceFile in StaleResourceFiles)
 				{
 					// try to delete the file & the directory that contains it
 					try
 					{
-						Log.TraceVerbose($"\tremoving {Utils.MakePathRelativeTo(StaleResourceFile, OutputPath!)}");
+						Logger.LogDebug("    removing {Path}", Utils.MakePathRelativeTo(StaleResourceFile, OutputPath!));
 						FileUtils.ForceDeleteFile(StaleResourceFile);
 						if (!Directory.EnumerateFileSystemEntries(Path.GetDirectoryName(StaleResourceFile)!).Any())
 						{
@@ -340,7 +348,7 @@ namespace UnrealBuildTool
 					}
 					catch (Exception E)
 					{
-						Log.TraceError($"\tCould not remove {StaleResourceFile} - {E.Message}.");
+						Logger.LogError("    Could not remove {StaleResourceFile} - {Message}.", StaleResourceFile, E.Message);
 					}
 				}
 			}
@@ -408,7 +416,7 @@ namespace UnrealBuildTool
 			}
 
 			// If the target resource folder doesn't exist yet, create it
-			if (!CreateCheckDirectory(TargetPath))
+			if (!CreateCheckDirectory(TargetPath, Logger))
 			{
 				return false;
 			}
@@ -429,9 +437,9 @@ namespace UnrealBuildTool
 			foreach (string SourceResourceFile in SourceResourceInstances)
 			{
 				string TargetResourcePath = Path.Combine(TargetPath, SourceResourceFile.Substring(SourcePath.Length + 1));
-				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)!))
+				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)!, Logger))
 				{
-					Log.TraceError("Unable to create intermediate directory {0}.", Path.GetDirectoryName(TargetResourcePath));
+					Logger.LogError("Unable to create intermediate directory {IntDir}.", Path.GetDirectoryName(TargetResourcePath));
 					continue;
 				}
 				AddFileReference(SourceResourceFile, TargetResourcePath, bIsGeneratedFile:false);
@@ -493,7 +501,7 @@ namespace UnrealBuildTool
 				return UpdatedFiles;
 			}
 
-			Log.TraceVerbose("Updating manifest resource files...");
+			Logger.LogDebug("Updating manifest resource files...");
 
 			// copy over any new or updated files
 			foreach ( var ManifestFilePair in ManifestFiles! )
@@ -516,14 +524,21 @@ namespace UnrealBuildTool
 					}
 					catch (Exception E)
 					{
-						Log.TraceError($"\tCould not replace file {TargetPath} - {E.Message}");
+						Logger.LogError("    Could not replace file {TargetPath} - {Message}", TargetPath, E.Message);
 					}
 				}
 
 				// copy new version
 				try
 				{
-					Log.TraceVerbose($"\t{(bFileExists ? "updating" : "adding")} {Utils.MakePathRelativeTo(TargetPath, OutputPath!)}");
+					if (bFileExists)
+					{
+						Logger.LogDebug("    updating {Path}", Utils.MakePathRelativeTo(TargetPath, OutputPath!));
+					}
+					else
+					{
+						Logger.LogDebug("    adding {Path}", Utils.MakePathRelativeTo(TargetPath, OutputPath!));
+					}
 
 					Directory.CreateDirectory(Path.GetDirectoryName(TargetPath)!);
 					File.Copy(SourcePath, TargetPath);
@@ -534,7 +549,7 @@ namespace UnrealBuildTool
 				}
 				catch (Exception E)
 				{
-					Log.TraceError($"\tUnable to copy file {TargetPath} - {E.Message}");
+					Logger.LogError("    Unable to copy file {TargetPath} - {Message}", TargetPath, E.Message);
 				}
 			}
 
@@ -556,7 +571,7 @@ namespace UnrealBuildTool
 				Dictionary<string, string>? Values;
 				if (!ConfigHierarchy.TryParse(DefaultCultureScratchValue, out Values))
 				{
-					Log.TraceError("Invalid default culture string resources: \"{0}\". Unable to add resource entry.", DefaultCultureScratchValue);
+					Logger.LogError("Invalid default culture string resources: \"{Culture}\". Unable to add resource entry.", DefaultCultureScratchValue);
 					return "";
 				}
 
@@ -582,7 +597,7 @@ namespace UnrealBuildTool
 						|| !SeparatedCultureValues.ContainsKey("CultureStringResources")
 						|| !SeparatedCultureValues.ContainsKey("CultureId"))
 					{
-						Log.TraceError("Invalid per-culture resource: \"{0}\". Unable to add resource entry.", CultureCombinedValues);
+						Logger.LogError("Invalid per-culture resource: \"{Culture}\". Unable to add resource entry.", CultureCombinedValues);
 						continue;
 					}
 
@@ -592,7 +607,7 @@ namespace UnrealBuildTool
 						Dictionary<string, string>? CultureStringResources;
 						if (!ConfigHierarchy.TryParse(SeparatedCultureValues["CultureStringResources"], out CultureStringResources))
 						{
-							Log.TraceError("Invalid culture string resources: \"{0}\". Unable to add resource entry.", CultureCombinedValues);
+							Logger.LogError("Invalid culture string resources: \"{Culture}\". Unable to add resource entry.", CultureCombinedValues);
 							continue;
 						}
 
@@ -663,7 +678,7 @@ namespace UnrealBuildTool
 			// Check that we have a valid number of cultures
 			if (CulturesToStage!.Count < 1 || CulturesToStage.Count >= MaxResourceEntries)
 			{
-				Log.TraceWarning("Incorrect number of cultures to stage. There must be between 1 and {0} cultures selected.", MaxResourceEntries);
+				Logger.LogWarning("Incorrect number of cultures to stage. There must be between 1 and {MaxCultures} cultures selected.", MaxResourceEntries);
 			}
 
 			// Create the culture list. This list is unordered except that the default language must be first which we already took care of above.
@@ -676,15 +691,15 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Get the package identity name string
 		/// </summary>
-		protected string GetIdentityPackageName( string? TargetName)
+		protected string GetIdentityPackageName(string? TargetName)
 		{
             // Read the PackageName from config
 			var DefaultName = (ProjectFile != null) ? ProjectFile.GetFileNameWithoutAnyExtensions() : (TargetName ?? "DefaultUEProject");
             var PackageName = Regex.Replace(GetConfigString("PackageName", "ProjectName", DefaultName), "[^-.A-Za-z0-9]", "");
             if (string.IsNullOrWhiteSpace(PackageName))
             {
-                Log.TraceError("Invalid package name {0}. Package names must only contain letters, numbers, dash, and period and must be at least one character long.", PackageName);
-                Log.TraceError("Consider using the setting [{0}]:PackageName to provide a specific value.", IniSection_PlatformTargetSettings);
+                Logger.LogError("Invalid package name {Name}. Package names must only contain letters, numbers, dash, and period and must be at least one character long.", PackageName);
+                Logger.LogError("Consider using the setting [{IniSection}]:PackageName to provide a specific value.", IniSection_PlatformTargetSettings);
             }
 
 			// If specified in the project settings append the users machine name onto the package name to allow sharing of devkits without stomping of deploys
@@ -795,23 +810,23 @@ namespace UnrealBuildTool
 			// Check parameter values are valid.
 			if (InTargetConfigs.Count != InExecutables.Count)
 			{
-				Log.TraceError("The number of target configurations ({0}) and executables ({1}) passed to manifest generation do not match.", InTargetConfigs.Count, InExecutables.Count);
+				Logger.LogError("The number of target configurations ({NumConfigs}) and executables ({NumExes}) passed to manifest generation do not match.", InTargetConfigs.Count, InExecutables.Count);
 				return null;
 			}
 			if (InTargetConfigs.Count < 1)
 			{
-				Log.TraceError("The number of target configurations is zero, so we cannot generate a manifest.");
+				Logger.LogError("The number of target configurations is zero, so we cannot generate a manifest.");
 				return null;
 			}
 
-			if (!CreateCheckDirectory(InOutputPath))
+			if (!CreateCheckDirectory(InOutputPath, Logger))
 			{
-				Log.TraceError("Failed to create output directory \"{0}\".", InOutputPath);
+				Logger.LogError("Failed to create output directory \"{OutputDir}\".", InOutputPath);
 				return null;
 			}
-			if (!CreateCheckDirectory(InIntermediatePath))
+			if (!CreateCheckDirectory(InIntermediatePath, Logger))
 			{
-				Log.TraceError("Failed to create intermediate directory \"{0}\".", InIntermediatePath);
+				Logger.LogError("Failed to create intermediate directory \"{IntDir}\".", InIntermediatePath);
 				return null;
 			}
 
@@ -833,7 +848,7 @@ namespace UnrealBuildTool
 				GameIni.GetString("/Script/UnrealEd.ProjectPackagingSettings", "DefaultCulture", out DefaultCulture);
 				if (CulturesToStageWithDuplicates == null || CulturesToStageWithDuplicates.Count < 1)
 				{
-					Log.TraceError("At least one culture must be selected to stage.");
+					Logger.LogError("At least one culture must be selected to stage.");
 					return null;
 				}
 
@@ -842,12 +857,12 @@ namespace UnrealBuildTool
 			if (DefaultCulture == null || DefaultCulture.Length < 1)
 			{
 				DefaultCulture = CulturesToStage[0];
-				Log.TraceWarning("A default culture must be selected to stage. Using {0}.", DefaultCulture);
+				Logger.LogWarning("A default culture must be selected to stage. Using {DefaultCulture}.", DefaultCulture);
 			}
 			if (!CulturesToStage.Contains(DefaultCulture))
 			{
 				DefaultCulture = CulturesToStage[0];
-				Log.TraceWarning("The default culture must be one of the staged cultures. Using {0}.", DefaultCulture);
+				Logger.LogWarning("The default culture must be one of the staged cultures. Using {DefaultCulture}.", DefaultCulture);
 			}
 
 			List<string>? PerCultureValues;
@@ -858,7 +873,7 @@ namespace UnrealBuildTool
 					Dictionary<string, string>? SeparatedCultureValues;
 					if (!ConfigHierarchy.TryParse(CultureCombinedValues, out SeparatedCultureValues))
 					{
-						Log.TraceWarning("Invalid per-culture resource value: {0}", CultureCombinedValues);
+						Logger.LogWarning("Invalid per-culture resource value: {Culture}", CultureCombinedValues);
 						continue;
 					}
 
@@ -877,15 +892,15 @@ namespace UnrealBuildTool
 			// Only warn if shipping, we can run without translated cultures they're just needed for cert
 			else if (InTargetConfigs.Contains(UnrealTargetConfiguration.Shipping))
 			{
-				Log.TraceInformation("Staged culture mappings not setup in the editor. See Per Culture Resources in the {0} Target Settings.", Platform.ToString() );
+				Logger.LogInformation("Staged culture mappings not setup in the editor. See Per Culture Resources in the {Platform} Target Settings.", Platform.ToString() );
 			}
 
 			// Clean out the resources intermediate path so that we know there are no stale binary files.
 			string IntermediateResourceDirectory = Path.Combine(IntermediatePath, BuildResourceSubPath);
 			FileUtils.ForceDeleteDirectory(IntermediateResourceDirectory);
-			if (!CreateCheckDirectory(IntermediateResourceDirectory))
+			if (!CreateCheckDirectory(IntermediateResourceDirectory, Logger))
 			{
-				Log.TraceError("Could not create directory {0}.", IntermediateResourceDirectory);
+				Logger.LogError("Could not create directory {IntDir}.", IntermediateResourceDirectory);
 				return null;
 			}
 
@@ -899,14 +914,14 @@ namespace UnrealBuildTool
 			{
 				string IntermediateStringResourcePath = Path.Combine(IntermediateResourceDirectory, Culture);
 				string IntermediateStringResourceFile = Path.Combine(IntermediateStringResourcePath, "resources.resw");
-				if (!CreateCheckDirectory(IntermediateStringResourcePath))
+				if (!CreateCheckDirectory(IntermediateStringResourcePath, Logger))
 				{
-					Log.TraceWarning("Culture {0} resources not staged.", Culture);
+					Logger.LogWarning("Culture {Culture} resources not staged.", Culture);
 					CulturesToStage.Remove(Culture);
 					if (Culture == DefaultCulture)
 					{
 						DefaultCulture = CulturesToStage[0];
-						Log.TraceWarning("Default culture skipped. Using {0} as default culture.", DefaultCulture);
+						Logger.LogWarning("Default culture skipped. Using {DefaultCulture} as default culture.", DefaultCulture);
 					}
 					continue;
 				}
@@ -996,7 +1011,7 @@ namespace UnrealBuildTool
 				}
 				catch (Exception E)
 				{
-					Log.TraceError($"cannot remove old pri file: {TargetResourceIndexFile} - {E.Message}");
+					Logger.LogError("cannot remove old pri file: {TargetResourceIndexFile} - {Message}", TargetResourceIndexFile, E.Message);
 				}
 
 				// Generate the Package Resource Index
@@ -1007,7 +1022,7 @@ namespace UnrealBuildTool
 					MakePriCommandLine += " /indexName \"" + IdentityName + "\"";
 				}
 
-				Log.TraceVerbose($"\tgenerating {Utils.MakePathRelativeTo(TargetResourceIndexFile, OutputPath!)}");
+				Logger.LogDebug("    generating {Path}", Utils.MakePathRelativeTo(TargetResourceIndexFile, OutputPath!));
 				RunMakePri(MakePriCommandLine);
 				UpdatedFilePaths.Add(TargetResourceIndexFile);
 			}
@@ -1015,7 +1030,7 @@ namespace UnrealBuildTool
 			// Report if nothing was changed
 			if (!bHadStaleResources && !UpdatedFilePaths.Any())
 			{
-				Log.TraceVerbose($"Manifest resource files are up to date");
+				Logger.LogDebug($"Manifest resource files are up to date");
 			}
 
 			return UpdatedFilePaths;

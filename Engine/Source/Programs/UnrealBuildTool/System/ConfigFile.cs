@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildTool;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -221,10 +222,7 @@ namespace UnrealBuildTool
 							// Otherwise add it to the current section or add a new one
 							if(CurrentSection != null)
 							{
-								if(!TryAddConfigLine(CurrentSection, Line, StartIdx, EndIdx, DefaultAction))
-								{
-									Log.TraceWarning("Couldn't parse '{0}' in {1} of {2}", Line, CurrentSection, Location.FullName);
-								}
+								TryAddConfigLine(CurrentSection, Line, StartIdx, EndIdx, DefaultAction);
 								break;
 							}
 
@@ -262,10 +260,7 @@ namespace UnrealBuildTool
 					if (CurrentSection != null)
 					{
 						string IniKeyValue = Setting.Substring(Setting.IndexOf(':') + 1);
-						if (!TryAddConfigLine(CurrentSection, IniKeyValue, 0, IniKeyValue.Length, DefaultAction))
-						{
-							Log.TraceWarning("Couldn't parse '{0}'", IniKeyValue);
-						}
+						TryAddConfigLine(CurrentSection, IniKeyValue, 0, IniKeyValue.Length, DefaultAction);
 					}
 				}
 			}

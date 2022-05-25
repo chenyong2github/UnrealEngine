@@ -450,7 +450,7 @@ public class Win64Platform : Platform
 		StartInfo.Arguments = String.Format("\"{0}\" \"{1}\" -p", SourceFile.FullName, TargetFile.FullName);
 		StartInfo.UseShellExecute = false;
 		StartInfo.CreateNoWindow = true;
-		Utils.RunLocalProcessAndLogOutput(StartInfo);
+		Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 		if (bStripInPlace)
 		{
@@ -489,7 +489,7 @@ public class Win64Platform : Platform
 				StartInfo.Arguments = string.Format("add /f \"@{0}\" /s \"{1}\" /t \"{2}\"", TempFileName, TempSymStoreDir, Product);
 				StartInfo.UseShellExecute = false;
 				StartInfo.CreateNoWindow = true;
-				if (Utils.RunLocalProcessAndLogOutput(StartInfo) != 0)
+				if (Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger) != 0)
 				{
 					return false;
 				}

@@ -7,15 +7,96 @@ using System.Linq;
 using System.Reflection;
 using EpicGames.Core;
 using EpicGames.UHT.Utils;
+using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
 {
+	class TargetMakefileBuilder : IActionGraphBuilder
+	{
+		private readonly ILogger Logger;
+		public TargetMakefile Makefile { get; }
+
+		public TargetMakefileBuilder(TargetMakefile InMakefile, ILogger InLogger)
+		{
+			Logger = InLogger;
+			Makefile = InMakefile;
+		}
+
+
+		/// <inheritdoc/>
+		public void AddAction(IExternalAction Action)
+		{
+			Makefile.Actions.Add(Action);
+		}
+
+		/// <inheritdoc/>
+		public void CreateIntermediateTextFile(FileItem FileItem, string Contents)
+		{
+			// Write the file
+			Utils.WriteFileIfChanged(FileItem.Location, Contents, Logger);
+
+			// Reset the file info, in case it already knows about the old file
+			Makefile.InternalDependencies.Add(FileItem);
+			FileItem.ResetCachedInfo();
+		}
+
+		/// <inheritdoc/>
+		public void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines)
+		{
+			// Write the file
+			Utils.WriteFileIfChanged(FileItem, ContentLines, Logger);
+
+			// Reset the file info, in case it already knows about the old file
+			Makefile.InternalDependencies.Add(FileItem);
+			FileItem.ResetCachedInfo();
+		}
+
+		/// <inheritdoc/>
+		public void AddSourceDir(DirectoryItem SourceDir)
+		{
+			Makefile.SourceDirectories.Add(SourceDir);
+		}
+
+		/// <inheritdoc/>
+		public void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles)
+		{
+			Makefile.DirectoryToSourceFiles[SourceDir] = SourceFiles;
+		}
+
+		/// <inheritdoc/>
+		public void AddDiagnostic(string Message)
+		{
+			if (!Makefile.Diagnostics.Contains(Message))
+			{
+				Makefile.Diagnostics.Add(Message);
+			}
+		}
+
+		/// <inheritdoc/>
+		public void AddFileToWorkingSet(FileItem File)
+		{
+			Makefile.WorkingSet.Add(File);
+		}
+
+		/// <inheritdoc/>
+		public void AddCandidateForWorkingSet(FileItem File)
+		{
+			Makefile.CandidatesForWorkingSet.Add(File);
+		}
+
+		/// <inheritdoc/>
+		public void SetOutputItemsForModule(string ModuleName, FileItem[] OutputItems)
+		{
+			Makefile.ModuleNameToOutputItems[ModuleName] = OutputItems;
+		}
+	}
+
 	/// <summary>
 	/// Cached list of actions that need to be executed to build a target, along with the information needed to determine whether they are valid.
 	/// </summary>
-	class TargetMakefile : IActionGraphBuilder
+	class TargetMakefile
 	{
 		/// <summary>
 		/// The version number to write
@@ -380,9 +461,10 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile">Path to the project file</param>
 		/// <param name="Platform">Platform for this makefile</param>
 		/// <param name="Arguments">Command line arguments for this target</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="ReasonNotLoaded">If the function returns null, this string will contain the reason why</param>
 		/// <returns>The loaded makefile, or null if it failed for some reason.  On failure, the 'ReasonNotLoaded' variable will contain information about why</returns>
-		public static TargetMakefile? Load(FileReference MakefilePath, FileReference? ProjectFile, UnrealTargetPlatform Platform, string[] Arguments, out string? ReasonNotLoaded)
+		public static TargetMakefile? Load(FileReference MakefilePath, FileReference? ProjectFile, UnrealTargetPlatform Platform, string[] Arguments, ILogger Logger, out string? ReasonNotLoaded)
 		{
 			FileInfo MakefileInfo;
 			using (GlobalTracer.Instance.BuildSpan("Checking dependent timestamps").StartActive())
@@ -400,7 +482,7 @@ namespace UnrealBuildTool
 				FileInfo BuildVersionFileInfo = new FileInfo(BuildVersion.GetDefaultFileName().FullName);
 				if (BuildVersionFileInfo.Exists && MakefileInfo.LastWriteTime.CompareTo(BuildVersionFileInfo.LastWriteTime) < 0)
 				{
-					Log.TraceLog("Existing makefile is older than Build.version, ignoring it");
+					Logger.LogDebug("Existing makefile is older than Build.version, ignoring it");
 					ReasonNotLoaded = "Build.version is newer";
 					return null;
 				}
@@ -413,7 +495,7 @@ namespace UnrealBuildTool
 					if (!ProjectFileInfo.Exists || MakefileInfo.LastWriteTime.CompareTo(ProjectFileInfo.LastWriteTime) < 0)
 					{
 						// .uproject file is newer than makefile
-						Log.TraceLog("Makefile is older than .uproject file, ignoring it");
+						Logger.LogDebug("Makefile is older than .uproject file, ignoring it");
 						ReasonNotLoaded = ".uproject file is newer";
 						return null;
 					}
@@ -424,7 +506,7 @@ namespace UnrealBuildTool
 				if (MakefileInfo.LastWriteTime.CompareTo(UnrealBuildToolTimestamp) < 0)
 				{
 					// UnrealBuildTool was compiled more recently than the makefile
-					Log.TraceLog("Makefile is older than UnrealBuildTool assembly, ignoring it");
+					Logger.LogDebug("Makefile is older than UnrealBuildTool assembly, ignoring it");
 					ReasonNotLoaded = "UnrealBuildTool assembly is newer";
 					return null;
 				}
@@ -434,7 +516,7 @@ namespace UnrealBuildTool
 				if (MakefileInfo.LastWriteTime.CompareTo(UhtTimestamp) < 0)
 				{
 					// UnrealBuildTool was compiled more recently than the makefile
-					Log.TraceLog("Makefile is older than EpicGames.UHT assembly, ignoring it");
+					Logger.LogDebug("Makefile is older than EpicGames.UHT assembly, ignoring it");
 					ReasonNotLoaded = "EpicGames.UHT assembly is newer";
 					return null;
 				}
@@ -445,7 +527,7 @@ namespace UnrealBuildTool
 					FileInfo InputFileInfo = new FileInfo(InputFile.Location.FullName);
 					if (InputFileInfo.LastWriteTime > MakefileInfo.LastWriteTime)
 					{
-						Log.TraceLog("Makefile is older than BuildConfiguration.xml, ignoring it");
+						Logger.LogDebug("Makefile is older than BuildConfiguration.xml, ignoring it");
 						ReasonNotLoaded = "BuildConfiguration.xml is newer";
 						return null;
 					}
@@ -480,8 +562,8 @@ namespace UnrealBuildTool
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceWarning("Failed to read makefile: {0}", Ex.Message);
-					Log.TraceLog("Exception: {0}", Ex.ToString());
+					Logger.LogWarning("Failed to read makefile: {ExMessage}", Ex.Message);
+					Logger.LogDebug(Ex, "Exception: {Ex}", Ex.ToString());
 					ReasonNotLoaded = "couldn't read existing makefile";
 					return null;
 				}
@@ -507,8 +589,8 @@ namespace UnrealBuildTool
 				string CurrentExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
 				if(String.Compare(CurrentExternalMetadata, Makefile.ExternalMetadata, StringComparison.Ordinal) != 0)
 				{
-					Log.TraceLog("Old metadata:\n", Makefile.ExternalMetadata);
-					Log.TraceLog("New metadata:\n", CurrentExternalMetadata);
+					Logger.LogDebug("Old metadata:\n", Makefile.ExternalMetadata);
+					Logger.LogDebug("New metadata:\n", CurrentExternalMetadata);
 					ReasonNotLoaded = "build metadata has changed";
 					return null;
 				}
@@ -520,7 +602,7 @@ namespace UnrealBuildTool
 					if ((Plugins != null) != (Makefile.UbtPlugins != null) ||
 						(Plugins != null && !Enumerable.SequenceEqual(Plugins, Makefile.UbtPlugins!)))
 					{
-						Log.TraceLog("Available UBT plugins changed");
+						Logger.LogDebug("Available UBT plugins changed");
 						ReasonNotLoaded = "Available UBT plugins changed";
 						return null;
 					}
@@ -536,9 +618,9 @@ namespace UnrealBuildTool
 						BaseDirectories.Add(ProjectFile.Directory);
 					}
 					HashSet<FileReference> EnabledPlugins = new HashSet<FileReference>(Makefile.EnabledUbtPlugins);
-					if (!CompileScriptModule.AreScriptModulesUpToDate(EnabledPlugins, BaseDirectories))
+					if (!CompileScriptModule.AreScriptModulesUpToDate(EnabledPlugins, BaseDirectories, Logger))
 					{
-						Log.TraceLog("Enabled UBT plugins need to be recompiled");
+						Logger.LogDebug("Enabled UBT plugins need to be recompiled");
 						ReasonNotLoaded = "Enabled UBT plugins need to be recompiled";
 						return null;
 					}
@@ -557,9 +639,10 @@ namespace UnrealBuildTool
 		/// <param name="ProjectFile">Path to the project file</param>
 		/// <param name="Platform">The platform being built</param>
 		/// <param name="WorkingSet">The current working set of source files</param>
+		/// <param name="Logger">Logger for output diagnostics</param>
 		/// <param name="ReasonNotLoaded">If the makefile is not valid, is set to a message describing why</param>
 		/// <returns>True if the makefile is valid, false otherwise</returns>
-		public static bool IsValidForSourceFiles(TargetMakefile Makefile, FileReference? ProjectFile, UnrealTargetPlatform Platform, ISourceFileWorkingSet WorkingSet, out string? ReasonNotLoaded)
+		public static bool IsValidForSourceFiles(TargetMakefile Makefile, FileReference? ProjectFile, UnrealTargetPlatform Platform, ISourceFileWorkingSet WorkingSet, ILogger Logger, out string? ReasonNotLoaded)
 		{
 			using (GlobalTracer.Instance.BuildSpan("TargetMakefile.IsValidForSourceFiles()").StartActive())
 			{
@@ -604,13 +687,13 @@ namespace UnrealBuildTool
 				{
 					if (!ExternalDependency.Exists)
 					{
-						Log.TraceLog("{0} has been deleted since makefile was built.", ExternalDependency.Location);
+						Logger.LogDebug("{File} has been deleted since makefile was built.", ExternalDependency.Location);
 						ReasonNotLoaded = string.Format("{0} deleted", ExternalDependency.Location.GetFileName());
 						return false;
 					}
 					if(ExternalDependency.LastWriteTimeUtc > Makefile.CreateTimeUtc)
 					{
-						Log.TraceLog("{0} has been modified since makefile was built.", ExternalDependency.Location);
+						Logger.LogDebug("{File} has been modified since makefile was built.", ExternalDependency.Location);
 						ReasonNotLoaded = string.Format("{0} modified", ExternalDependency.Location.GetFileName());
 						return false;
 					}
@@ -621,13 +704,13 @@ namespace UnrealBuildTool
 				{
 					if (!InternalDependency.Exists)
 					{
-						Log.TraceLog("{0} has been deleted since makefile was written.", InternalDependency.Location);
+						Logger.LogDebug("{File} has been deleted since makefile was written.", InternalDependency.Location);
 						ReasonNotLoaded = string.Format("{0} deleted", InternalDependency.Location.GetFileName());
 						return false;
 					}
 					if (InternalDependency.LastWriteTimeUtc > Makefile.ModifiedTimeUtc)
 					{
-						Log.TraceLog("{0} has been modified since makefile was written.", InternalDependency.Location);
+						Logger.LogDebug("{File} has been modified since makefile was written.", InternalDependency.Location);
 						ReasonNotLoaded = string.Format("{0} modified", InternalDependency.Location.GetFileName());
 						return false;
 					}
@@ -639,14 +722,14 @@ namespace UnrealBuildTool
 					FileItem PluginFileItem = FileItem.GetItemByFileReference(PluginFile);
 					if(!Makefile.PluginFiles.Contains(PluginFileItem))
 					{
-						Log.TraceLog("{0} has been added", PluginFile.GetFileName());
+						Logger.LogDebug("{File} has been added", PluginFile.GetFileName());
 						ReasonNotLoaded = string.Format("{0} has been added", PluginFile.GetFileName());
 						return false;
 					}
 				}
 
 				// Load the metadata cache
-				SourceFileMetadataCache MetadataCache = SourceFileMetadataCache.CreateHierarchy(ProjectFile);
+				SourceFileMetadataCache MetadataCache = SourceFileMetadataCache.CreateHierarchy(ProjectFile, Logger);
 
 				// Find the set of files that contain reflection markup
 				ConcurrentBag<FileItem> NewFilesWithMarkupBag = new ConcurrentBag<FileItem>();
@@ -678,7 +761,7 @@ namespace UnrealBuildTool
 				{
 					if (!WorkingSet.Contains(SourceFile) && SourceFile.LastWriteTimeUtc > Makefile.CreateTimeUtc)
 					{
-						Log.TraceLog("{0} was part of source working set and now is not; invalidating makefile", SourceFile.AbsolutePath);
+						Logger.LogDebug("{File} was part of source working set and now is not; invalidating makefile", SourceFile.Location);
 						ReasonNotLoaded = string.Format("working set of source files changed");
 						return false;
 					}
@@ -689,7 +772,7 @@ namespace UnrealBuildTool
 				{
 					if (WorkingSet.Contains(SourceFile) && SourceFile.LastWriteTimeUtc > Makefile.CreateTimeUtc)
 					{
-						Log.TraceLog("{0} was part of source working set and now is not", SourceFile.AbsolutePath);
+						Logger.LogDebug("{File} was part of source working set and now is not", SourceFile.Location);
 						ReasonNotLoaded = string.Format("working set of source files changed");
 						return false;
 					}
@@ -772,73 +855,6 @@ namespace UnrealBuildTool
 		{
 			DirectoryReference BaseDirectory = DirectoryReference.FromFile(ProjectFile) ?? Unreal.EngineDirectory;
 			return FileReference.Combine(BaseDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture, false), TargetName, Configuration.ToString(), "Makefile.bin");
-		}
-
-		/// <inheritdoc/>
-		public void AddAction(IExternalAction Action)
-		{
-			Actions.Add(Action);
-		}
-
-		/// <inheritdoc/>
-		public void CreateIntermediateTextFile(FileItem FileItem, string Contents)
-		{
-			// Write the file
-			Utils.WriteFileIfChanged(FileItem.Location, Contents);
-
-			// Reset the file info, in case it already knows about the old file
-			InternalDependencies.Add(FileItem);
-			FileItem.ResetCachedInfo();
-		}
-
-		/// <inheritdoc/>
-		public void CreateIntermediateTextFile(FileItem FileItem, IEnumerable<string> ContentLines)
-		{
-			// Write the file
-			Utils.WriteFileIfChanged(FileItem, ContentLines);
-
-			// Reset the file info, in case it already knows about the old file
-			InternalDependencies.Add(FileItem);
-			FileItem.ResetCachedInfo();
-		}
-
-		/// <inheritdoc/>
-		public void AddSourceDir(DirectoryItem SourceDir)
-		{
-			SourceDirectories.Add(SourceDir);
-		}
-
-		/// <inheritdoc/>
-		public void AddSourceFiles(DirectoryItem SourceDir, FileItem[] SourceFiles)
-		{
-			DirectoryToSourceFiles[SourceDir] = SourceFiles;
-		}
-
-		/// <inheritdoc/>
-		public void AddDiagnostic(string Message)
-		{
-			if(!Diagnostics.Contains(Message))
-			{
-				Diagnostics.Add(Message);
-			}
-		}
-
-		/// <inheritdoc/>
-		public void AddFileToWorkingSet(FileItem File)
-		{
-			WorkingSet.Add(File);
-		}
-
-		/// <inheritdoc/>
-		public void AddCandidateForWorkingSet(FileItem File)
-		{
-			CandidatesForWorkingSet.Add(File);
-		}
-
-		/// <inheritdoc/>
-		public void SetOutputItemsForModule(string ModuleName, FileItem[] OutputItems)
-		{
-			ModuleNameToOutputItems[ModuleName] = OutputItems;
 		}
 	}
 }

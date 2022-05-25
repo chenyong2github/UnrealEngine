@@ -6,6 +6,7 @@ using Microsoft.Build.Execution;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Graph;
 using Microsoft.Build.Locator;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,18 +16,28 @@ using System.Text.Json;
 
 namespace EpicGames.MsBuild
 {
+	using ILogger = Microsoft.Extensions.Logging.ILogger;
+	using IBuildLogger = Microsoft.Build.Framework.ILogger;
+
 	public static class CsProjBuilder
 	{
-		class MLogger : ILogger
+		class MLogger : IBuildLogger
 		{
-			LoggerVerbosity ILogger.Verbosity { get => LoggerVerbosity.Normal; set => throw new NotImplementedException(); }
-			string ILogger.Parameters { get => throw new NotImplementedException(); set { } }
+			ILogger Inner;
+
+			LoggerVerbosity IBuildLogger.Verbosity { get => LoggerVerbosity.Normal; set => throw new NotImplementedException(); }
+			string IBuildLogger.Parameters { get => throw new NotImplementedException(); set { } }
 
 			public bool bVeryVerboseLog = false;
 
 			bool bFirstError = true;
 
-			void ILogger.Initialize(IEventSource EventSource)
+			public MLogger(ILogger InInner)
+			{
+				Inner = InInner;
+			}
+
+			void IBuildLogger.Initialize(IEventSource EventSource)
 			{
 				EventSource.ProjectStarted += new ProjectStartedEventHandler(eventSource_ProjectStarted);
 				EventSource.TaskStarted += new TaskStartedEventHandler(eventSource_TaskStarted);
@@ -41,39 +52,32 @@ namespace EpicGames.MsBuild
 				if (bFirstError)
 				{
 					Trace.WriteLine("");
-					Log.WriteLine(LogEventType.Console, "");
+					Log.Logger.LogInformation("");
 					bFirstError = false;
 				}
-				string Message = $"{e.File}({e.LineNumber},{e.ColumnNumber}): error {e.Code}: {e.Message} ({e.ProjectFile})";
-				Trace.WriteLine(Message); // double-clickable message in VS output
-				Log.WriteLine(LogEventType.Console, Message);
+				Log.Logger.LogError("{File}({Line},{Column}): error {Code}: {Message} ({ProjectFile})", new FileReference(e.File), new LogValue(LogValueType.LineNumber, e.LineNumber.ToString()), new LogValue(LogValueType.ColumnNumber, e.ColumnNumber.ToString()), new LogValue(LogValueType.ErrorCode, e.Code), e.Message, new FileReference(e.ProjectFile));
 			}
 
 			void eventSource_WarningRaised(object Sender, BuildWarningEventArgs e)
 			{
-				string Message = $"{e.File}({e.LineNumber},{e.ColumnNumber}): warning {e.Code}: {e.Message} ({e.ProjectFile})";
-
-
 				{
 					// workaround for warnings that appear after revert of net6.0 upgrade. Delete this block when the net6.0 upgrade is done.
 					// ...\Engine\Binaries\ThirdParty\DotNet\Windows\sdk\3.1.403\Microsoft.Common.CurrentVersion.targets(3036,5): warning MSB3088: Could not read state file "obj\Development\[projectname].csproj.GenerateResource.cache". The input stream is not a valid binary format.
 					// The starting contents (in bytes) are: 06-01-01-00-00-00-01-19-50-72-6F-70-65-72-74-69-65 ... (...\[projectname].csproj)
 					if (String.Equals(e.Code, "MSB3088", StringComparison.Ordinal))
 					{
-						Log.TraceLog("Suppressed warning: " + Message);
+						Log.Logger.LogDebug("{File}({Line},{Column}): suppressed warning {Code}: {Message} ({ProjectFile})", new FileReference(e.File), new LogValue(LogValueType.LineNumber, e.LineNumber.ToString()), new LogValue(LogValueType.ColumnNumber, e.ColumnNumber.ToString()), new LogValue(LogValueType.ErrorCode, e.Code), e.Message, new FileReference(e.ProjectFile));
 						return;
 					}
 				}
 
 				if (bFirstError)
                 {
-					Trace.WriteLine("");
-					Log.WriteLine(LogEventType.Console, "");
+					Log.Logger.LogInformation("");
 					bFirstError = false;
                 }
 
-				Trace.WriteLine(Message); // double-clickable message in VS output
-				Log.WriteLine(LogEventType.Console, Message);
+				Log.Logger.LogWarning("{File}({Line},{Column}): warning {Code}: {Message} ({ProjectFile})", new FileReference(e.File), new LogValue(LogValueType.LineNumber, e.LineNumber.ToString()), new LogValue(LogValueType.ColumnNumber, e.ColumnNumber.ToString()), new LogValue(LogValueType.ErrorCode, e.Code), e.Message, new FileReference(e.ProjectFile));
 			}
 
 			void eventSource_MessageRaised(object Sender, BuildMessageEventArgs e)
@@ -83,7 +87,7 @@ namespace EpicGames.MsBuild
 					//if (!String.Equals(e.SenderName, "ResolveAssemblyReference"))
 					//if (e.Message.Contains("atic"))
 					{
-						Log.WriteLine(LogEventType.Console, $"{e.SenderName}: {e.Message}");
+						Log.Logger.LogDebug("{SenderName}: {Message}", e.SenderName, e.Message);
 					}
 				}
 			}
@@ -92,7 +96,7 @@ namespace EpicGames.MsBuild
 			{
 				if (bVeryVerboseLog)
 				{
-					Log.WriteLine(LogEventType.Console, $"{e.SenderName}: {e.Message}");
+					Log.Logger.LogDebug("{SenderName}: {Message}", e.SenderName, e.Message);
 				}
 			}
 
@@ -100,7 +104,7 @@ namespace EpicGames.MsBuild
 			{
 				if (bVeryVerboseLog)
 				{
-					Log.WriteLine(LogEventType.Console, $"{e.SenderName}: {e.Message}");
+					Log.Logger.LogDebug("{SenderName}: {Message}", e.SenderName, e.Message);
 				}
 			}
 
@@ -108,11 +112,11 @@ namespace EpicGames.MsBuild
 			{
 				if (bVeryVerboseLog)
 				{
-					Log.WriteLine(LogEventType.Console, $"{e.SenderName}: {e.Message}");
+					Log.Logger.LogDebug("{SenderName}: {Message}", e.SenderName, e.Message);
 				}
 			}
 
-			void ILogger.Shutdown()
+			void IBuildLogger.Shutdown()
 			{
 			}
 		}
@@ -142,18 +146,18 @@ namespace EpicGames.MsBuild
 		}
 
 		public static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> Build(HashSet<FileReference> FoundProjects,
-			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, Action<int> OnBuildingProjects)
+			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, Action<int> OnBuildingProjects, ILogger Logger)
 		{
 
 			// Register the MS build path prior to invoking the internal routine.  By not having the internal routine
 			// inline, we avoid having the issue of the Microsoft.Build libraries being resolved prior to the build path
 			// being set.
 			RegisterMsBuildPath(Hook);
-			return BuildInternal(FoundProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories, OnBuildingProjects);
+			return BuildInternal(FoundProjects, bForceCompile, out bBuildSuccess, Hook, BaseDirectories, OnBuildingProjects, Logger);
 		}
 
 		private static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> BuildInternal(HashSet<FileReference> FoundProjects,
-			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, Action<int> OnBuildingProjects)
+			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, Action<int> OnBuildingProjects, ILogger Logger)
 		{
 			Dictionary<string, string> GlobalProperties = new Dictionary<string, string>
 			{
@@ -167,9 +171,9 @@ namespace EpicGames.MsBuild
 
 			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> BuildRecords = new Dictionary<FileReference, (CsProjBuildRecord, FileReference)>();
 
-			using var ProjectCollection = new ProjectCollection(GlobalProperties);
-			var Projects = new Dictionary<string, Project>();
-			var	SkippedProjects = new HashSet<string>();
+			using ProjectCollection ProjectCollection = new ProjectCollection(GlobalProperties);
+			Dictionary<string, Project> Projects = new Dictionary<string, Project>();
+			HashSet<string> SkippedProjects = new HashSet<string>();
 
 			// Microsoft.Build.Evaluation.Project provides access to information stored in the .csproj xml that is 
 			// not available when using Microsoft.Build.Execution.ProjectInstance (used later in this function and
@@ -193,20 +197,20 @@ namespace EpicGames.MsBuild
 						}
 						catch (Microsoft.Build.Exceptions.InvalidProjectFileException IPFEx)
 						{
-							Log.TraceError($"Could not load project file {ProjectPath}");
-							Log.TraceError(IPFEx.BaseMessage);
+							Logger.LogError("Could not load project file {ProjectPath}", ProjectPath);
+							Logger.LogError("{Message}", IPFEx.BaseMessage);
 
 							if (!String.IsNullOrEmpty(ReferencedBy))
 							{
-								Log.TraceError($"Referenced by: {ReferencedBy}");
+								Logger.LogError("Referenced by: {ReferencedBy}", ReferencedBy);
 							}
 							if (Projects.Count > 0)
 							{
-								Log.TraceError("See the log file for the list of previously loaded projects.");
-								Log.TraceLog("Loaded projects (most recently loaded first):");
+								Logger.LogError("See the log file for the list of previously loaded projects.");
+								Logger.LogError("Loaded projects (most recently loaded first):");
 								foreach (string Path in Projects.Keys.Reverse())
 								{
-									Log.TraceLog($"  {Path}");
+									Logger.LogError("  {Path}", Path);
 								}
 							}
 							throw IPFEx;
@@ -219,7 +223,7 @@ namespace EpicGames.MsBuild
 							if (Project.GetProperty("TargetFramework").EvaluatedValue.Contains("windows", StringComparison.Ordinal))
 							{
 								SkippedProjects.Add(ProjectPath);
-								Log.TraceInformation($"Skipping windows-only project {ProjectPath}");
+								Logger.LogInformation("Skipping windows-only project {ProjectPath}", ProjectPath);
 								return;
 							}
 						}
@@ -274,7 +278,7 @@ namespace EpicGames.MsBuild
 				}
 
 				// References: e.g. Ionic.Zip.Reduced.dll, fastJSON.dll
-				foreach (var Item in Project.GetItems("Reference"))
+				foreach (ProjectItem Item in Project.GetItems("Reference"))
 				{
 					BuildRecord.Dependencies.Add(Item.GetMetadataValue("HintPath"));
 				}
@@ -327,7 +331,7 @@ namespace EpicGames.MsBuild
 				// This also returns a lot more information than we care for - MSBuildGlob objects,
 				// which have a range of precomputed values. It may be possible to take source for
 				// GetAllGlobs() and construct a version that does less.
-				var Globs = Project.GetAllGlobs();
+				List<GlobResult> Globs = Project.GetAllGlobs();
 
 				// FileMatcher.IsMatch() requires directory separators in glob strings to match the
 				// local flavor. There's probably a better way.
@@ -336,7 +340,7 @@ namespace EpicGames.MsBuild
 					char Sep = Path.DirectorySeparatorChar;
 					char NotSep = Sep == '/' ? '\\' : '/'; // AltDirectorySeparatorChar isn't always what we need (it's '/' on Mac)
 
-					var Chars = GlobString.ToCharArray();
+					char[] Chars = GlobString.ToCharArray();
 					int P = 0;
 					for (int I = 0; I < GlobString.Length; ++I, ++P)
 					{
@@ -360,7 +364,7 @@ namespace EpicGames.MsBuild
 					return new string(Chars, 0, P);
 				}
 
-				foreach (var Glob in Globs)
+				foreach (GlobResult Glob in Globs)
 				{
 					if (String.Equals("None", Glob.ItemElement.ItemType, StringComparison.Ordinal))
 					{
@@ -397,7 +401,7 @@ namespace EpicGames.MsBuild
 
 			if (bForceCompile)
 			{
-				Log.TraceLog("Script modules will build: '-Compile' on command line");
+				Logger.LogDebug("Script modules will build: '-Compile' on command line");
 				BuildProjectGraph = InputProjectGraph;
 			}
 			else
@@ -422,7 +426,7 @@ namespace EpicGames.MsBuild
 			if (BuildProjectGraph != null)
 			{
 				OnBuildingProjects(BuildProjectGraph.EntryPointNodes.Count);
-				bBuildSuccess = BuildProjects(BuildProjectGraph, GlobalProperties);
+				bBuildSuccess = BuildProjects(BuildProjectGraph, GlobalProperties, Logger);
 			}
 			else
 			{
@@ -443,14 +447,14 @@ namespace EpicGames.MsBuild
 				if (FileReference.WriteAllTextIfDifferent(BuildRecordPath,
 					JsonSerializer.Serialize<CsProjBuildRecord>(BuildRecord, new JsonSerializerOptions { WriteIndented = true })))
 				{
-					Log.TraceLog($"Wrote script module build record to {BuildRecordPath}");
+					Logger.LogDebug("Wrote script module build record to {BuildRecordPath}", BuildRecordPath);
 				}
 			}
 
 			// todo: re-verify build records after a build to verify that everything is actually up to date
 
 			// even if only a subset was built, this function returns the full list of target assembly paths
-			var OutDict = new Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)>();
+			Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)> OutDict = new Dictionary<FileReference, (CsProjBuildRecord BuildRecord, FileReference BuildRecordPath)>();
 			foreach (ProjectGraphNode EntryPointNode in InputProjectGraph.EntryPointNodes)
 			{
 				FileReference ProjectPath = FileReference.FromString(EntryPointNode.ProjectInstance.FullPath);
@@ -459,10 +463,10 @@ namespace EpicGames.MsBuild
 			return OutDict;
 		}
 
-		private static bool BuildProjects(ProjectGraph ProjectGraph, Dictionary<string, string> GlobalProperties)
+		private static bool BuildProjects(ProjectGraph ProjectGraph, Dictionary<string, string> GlobalProperties, ILogger Logger)
 		{
-			var StartTime = DateTime.UtcNow;
-			var Logger = new MLogger();
+			DateTime StartTime = DateTime.UtcNow;
+			MLogger BuildLogger = new MLogger(Logger);
 
 			string[] TargetsToBuild = { "Restore", "Build" };
 
@@ -470,15 +474,15 @@ namespace EpicGames.MsBuild
 
 			foreach (string TargetToBuild in TargetsToBuild)
 			{
-				var GraphRequest = new GraphBuildRequestData(ProjectGraph, new string[] { TargetToBuild });
+				GraphBuildRequestData GraphRequest = new GraphBuildRequestData(ProjectGraph, new string[] { TargetToBuild });
 
-				var BuildMan = BuildManager.DefaultBuildManager;
+				BuildManager BuildMan = BuildManager.DefaultBuildManager;
 
-				var BuildParameters = new BuildParameters();
+				BuildParameters BuildParameters = new BuildParameters();
 				BuildParameters.AllowFailureWithoutError = false;
 				BuildParameters.DetailedSummary = true;
 
-				BuildParameters.Loggers = new List<ILogger> { Logger };
+				BuildParameters.Loggers = new List<IBuildLogger> { BuildLogger };
 				BuildParameters.MaxNodeCount = 1; // msbuild bug - more than 1 here and the build stalls. Likely related to https://github.com/dotnet/msbuild/issues/1941
 
 				BuildParameters.OnlyLogCriticalEvents = false;
@@ -486,24 +490,24 @@ namespace EpicGames.MsBuild
 
 				BuildParameters.GlobalProperties = GlobalProperties;
 
-				Log.TraceInformation($" {TargetToBuild}...");
+				Logger.LogInformation(" {TargetToBuild}...", TargetToBuild);
 
 				GraphBuildResult BuildResult = BuildMan.Build(BuildParameters, GraphRequest);
 
 				if (BuildResult.OverallResult == BuildResultCode.Failure)
 				{
-					Log.TraceInformation("");
-					foreach (var NodeResult in BuildResult.ResultsByNode)
+					Logger.LogInformation("");
+					foreach (KeyValuePair<ProjectGraphNode, BuildResult> NodeResult in BuildResult.ResultsByNode)
 					{
 						if (NodeResult.Value.OverallResult == BuildResultCode.Failure)
 						{
-							Log.TraceError($"  Failed to build: {NodeResult.Key.ProjectInstance.FullPath}");
+							Logger.LogError("  Failed to build: {ProjectPath}", new FileReference(NodeResult.Key.ProjectInstance.FullPath));
 						}
 					}
 					Result = false;
 				}
 			}
-			Log.TraceInformation("Build projects time: {0:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
+			Logger.LogInformation("Build projects time: {TimeSeconds:0.00} s", (DateTime.UtcNow - StartTime).TotalMilliseconds / 1000);
 
 			return Result;
 		}

@@ -44,7 +44,7 @@ namespace Gauntlet
 				MergeCommandBuilder.AppendFormat(" \"{0}\"", ProfRawFile);
 			}
 
-			int ReturnCode = UnrealBuildTool.Utils.RunLocalProcessAndLogOutput(new ProcessStartInfo(AndroidLlvmProfdataPath, string.Format("merge{0} -o \"{1}\"", MergeCommandBuilder, LocalProfDataFile)));
+			int ReturnCode = UnrealBuildTool.Utils.RunLocalProcessAndLogOutput(new ProcessStartInfo(AndroidLlvmProfdataPath, string.Format("merge{0} -o \"{1}\"", MergeCommandBuilder, LocalProfDataFile)), EpicGames.Core.Log.Logger);
 			if (ReturnCode != 0)
 			{
 				throw new AutomationException(string.Format("{0} failed to merge profraw data. Error code {1}. ({2} {3})", Path.GetFileName(AndroidLlvmProfdataPath), ReturnCode, MergeCommandBuilder, LocalProfDataFile));

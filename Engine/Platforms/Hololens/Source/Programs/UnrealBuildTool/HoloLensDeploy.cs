@@ -9,6 +9,7 @@ using System.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -22,12 +23,17 @@ namespace UnrealBuildTool
 		private FileReference? SignToolPath;
 		private string Extension = ".appx";
 
+		public HoloLensDeploy(ILogger InLogger)
+			: base(InLogger)
+		{
+		}
+
 		/// <summary>
 		/// Utility function to delete a file
 		/// </summary>
 		void DeployHelper_DeleteFile(string InFileToDelete)
 		{
-			Log.TraceInformation("HoloLensDeploy.DeployHelper_DeleteFile({0})", InFileToDelete);
+			Logger.LogInformation("HoloLensDeploy.DeployHelper_DeleteFile({File})", InFileToDelete);
 			if (File.Exists(InFileToDelete) == true)
 			{
 				FileAttributes attributes = File.GetAttributes(InFileToDelete);
@@ -46,10 +52,10 @@ namespace UnrealBuildTool
 		bool CopySourceToDestDir(string InSourceDirectory, string InDestinationDirectory, string InWildCard,
 			bool bInIncludeSubDirectories, bool bInRemoveDestinationOrphans)
 		{
-			Log.TraceInformation("HoloLensDeploy.CopySourceToDestDir({0}, {1}, {2},...)", InSourceDirectory, InDestinationDirectory, InWildCard);
+			Logger.LogInformation("HoloLensDeploy.CopySourceToDestDir({SourceDir}, {DestDir}, {Wildcard},...)", InSourceDirectory, InDestinationDirectory, InWildCard);
 			if (Directory.Exists(InSourceDirectory) == false)
 			{
-				Log.TraceInformation("Warning: CopySourceToDestDir - SourceDirectory does not exist: {0}", InSourceDirectory);
+				Logger.LogInformation("Warning: CopySourceToDestDir - SourceDirectory does not exist: {SourceDir}", InSourceDirectory);
 				return false;
 			}
 
@@ -91,7 +97,7 @@ namespace UnrealBuildTool
 					}
 					catch (Exception exceptionMessage)
 					{
-						Log.TraceInformation("Failed to copy {0} to deployment: {1}", SourceFile, exceptionMessage);
+						Logger.LogInformation("Failed to copy {Source} to deployment: {Ex}", SourceFile, exceptionMessage);
 					}
 				}
 			}
@@ -105,7 +111,7 @@ namespace UnrealBuildTool
 					string DestFilename = DestFile.Replace(InDestinationDirectory, "");
 					if (FilesInSource.Contains(DestFilename.ToUpperInvariant()) == false)
 					{
-						Log.TraceInformation("Destination file does not exist in Source - DELETING: {0}", DestFile);
+						Logger.LogInformation("Destination file does not exist in Source - DELETING: {File}", DestFile);
 						//FileAttributes attributes = File.GetAttributes(DestFile);
 						try
 						{
@@ -113,7 +119,7 @@ namespace UnrealBuildTool
 						}
 						catch (Exception exceptionMessage)
 						{
-							Log.TraceInformation("Failed to delete {0} from deployment: {1}", DestFile, exceptionMessage);
+							Logger.LogInformation("Failed to delete {DestFile} from deployment: {Ex}", DestFile, exceptionMessage);
 						}
 					}
 				}
@@ -142,13 +148,13 @@ namespace UnrealBuildTool
 						DeployHelper_DeleteFile(InDest);
 					}
 				}
-				Log.TraceInformation("HoloLensDeploy.CopyFile({0}, {1}, {2})", InSource, InDest, bForce);
+				Logger.LogInformation("HoloLensDeploy.CopyFile({Source}, {Dest}, {Force})", InSource, InDest, bForce);
 				File.Copy(InSource, InDest, true);
 				File.SetAttributes(InDest, File.GetAttributes(InDest) & ~FileAttributes.ReadOnly);
 			}
 			else
 			{
-				Log.TraceInformation("HoloLensDeploy: File didn't exist - {0}", InSource);
+				Logger.LogInformation("HoloLensDeploy: File didn't exist - {Source}", InSource);
 			}
 		}
 
@@ -317,7 +323,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.TraceError("Wrong path to resource \'{0}\', the resource should be in \'{1}\'", ResourceFile.FullName, ResourceFolder.FullName);
+						Logger.LogError("Wrong path to resource \'{Resource}\', the resource should be in \'{Folder}\'", ResourceFile.FullName, ResourceFolder.FullName);
 						throw new BuildException("Failed to generate AppX file.  See log for details.");
 					}
 				}
@@ -420,7 +426,7 @@ namespace UnrealBuildTool
 			}
 			catch (Exception exceptionMessage)
 			{
-				Log.TraceError("Failed to delete {0} from deployment: {1}", OutputAppX, exceptionMessage);
+				Logger.LogError("Failed to delete {Output} from deployment: {Ex}", OutputAppX, exceptionMessage);
 				throw new BuildException("Failed to generate AppX file.  See log for details.");
 			}
 
@@ -437,7 +443,7 @@ namespace UnrealBuildTool
 			var StartInfo = new ProcessStartInfo(MakeAppXPath!.FullName, MakeAppXCommandLine);
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
-			var ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo);
+			var ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo, Logger);
 			if (ExitCode < 0)
 			{
 				throw new BuildException("Failed to generate AppX file.  See log for details.");
@@ -449,14 +455,14 @@ namespace UnrealBuildTool
 				StartInfo = new ProcessStartInfo(SignToolPath!.FullName, SignToolCommandLine);
 				StartInfo.UseShellExecute = false;
 				StartInfo.CreateNoWindow = true;
-				ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo);
+				ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo, Logger);
 				if (ExitCode < 0)
 				{
 					throw new BuildException("Failed to generate AppX file.  See log for details.");
 				}
 			}
 
-			Log.TraceInformation("AppX successfully packaged to \'{0}{1}\'", OutputName, Extension);
+			Logger.LogInformation("AppX successfully packaged to \'{Output}{Ext}\'", OutputName, Extension);
 			NewReceipt.BuildProducts.Add(new BuildProduct(new FileReference(OutputAppX), BuildProductType.Package));
 		}
 
@@ -478,7 +484,7 @@ namespace UnrealBuildTool
 		{
 			// Use the project name if possible - InTarget.AppName changes for 'Client'/'Server' builds
 			string ProjectName = Receipt.ProjectFile != null ? Receipt.ProjectFile.GetFileNameWithoutAnyExtensions() : Receipt.Launch!.GetFileNameWithoutExtension();
-			Log.TraceInformation("Prepping {0} for deployment to {1}", ProjectName, Receipt.Platform.ToString());
+			Logger.LogInformation("Prepping {Project} for deployment to {Platform}", ProjectName, Receipt.Platform.ToString());
 			System.DateTime PrepDeployStartTime = DateTime.UtcNow;
 
 			// Note: TargetReceipt.Read now expands path variables internally.
@@ -495,7 +501,7 @@ namespace UnrealBuildTool
 			{
 				SDK = Results.First().Value;
 			}
-			HoloLensExports.InitWindowsSdkToolPath(SDK);
+			HoloLensExports.InitWindowsSdkToolPath(SDK, Logger);
 
 			AddWinMDReferencesFromReceipt(Receipt, Receipt.ProjectDir != null ? Receipt.ProjectDir : Unreal.EngineDirectory, Unreal.EngineDirectory.ParentDirectory!.FullName, SDK);
 
@@ -514,7 +520,7 @@ namespace UnrealBuildTool
 			string AbsoluteExeDirectory = Path.GetDirectoryName(ExePaths[0])!;
 			UnrealTargetPlatform Platform = UnrealTargetPlatform.HoloLens;
 			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, "Intermediate", "Deploy", WindowsExports.GetArchitectureSubpath(Arch));
-			List<string> UpdatedFiles = new HoloLensManifestGenerator().CreateManifest(Platform, Arch, AbsoluteExeDirectory, IntermediateDirectory, Receipt.ProjectFile, Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, TargetConfigs, ExePaths, WinMDReferences)!;
+			List<string> UpdatedFiles = new HoloLensManifestGenerator(Logger).CreateManifest(Platform, Arch, AbsoluteExeDirectory, IntermediateDirectory, Receipt.ProjectFile, Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, TargetConfigs, ExePaths, WinMDReferences)!;
 
 			PrepForUATPackageOrDeploy(Receipt.ProjectFile, ProjectName, Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : Unreal.EngineDirectory.FullName, Arch, TargetConfigs, ExePaths, RelativeEnginePath, false, "", false);
 			MakePackage(Receipt, NewReceipt, Arch, UpdatedFiles);
@@ -524,7 +530,7 @@ namespace UnrealBuildTool
 
 			// Log out the time taken to deploy...
 			double PrepDeployDuration = (DateTime.UtcNow - PrepDeployStartTime).TotalSeconds;
-			Log.TraceInformation("HoloLens deployment preparation took {0:0.00} seconds", PrepDeployDuration);
+			Logger.LogInformation("HoloLens deployment preparation took {Time:0.00} seconds", PrepDeployDuration);
 
 			return true;
 		}
@@ -544,7 +550,7 @@ namespace UnrealBuildTool
 						DestPath = Dep.Path.FullName.Replace(Unreal.EngineDirectory.FullName, Path.Combine(DestRelativeTo, "Engine"));
 						DestPath = DestPath.Replace(SourceProjectDir.FullName, Path.Combine(DestRelativeTo, SourceProjectDir.GetDirectoryName()));
 						DestPath = Utils.MakePathRelativeTo(DestPath, DestRelativeTo);
-						WinMDReferences.Add(new WinMDRegistrationInfo(new FileReference(WinMDFile), DestPath, SDKVersion));
+						WinMDReferences.Add(new WinMDRegistrationInfo(new FileReference(WinMDFile), DestPath, SDKVersion, Logger));
 					}
 				}
 			}

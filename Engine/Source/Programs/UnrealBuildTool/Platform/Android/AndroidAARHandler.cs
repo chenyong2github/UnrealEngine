@@ -11,6 +11,7 @@ using System.IO;
 using EpicGames.Core;
 
 using Ionic.Zip;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -60,16 +61,17 @@ namespace UnrealBuildTool
 		/// Add a new respository path to search for AAR and JAR files
 		/// </summary>
 		/// <param name="RepositoryPath">Directory containing the repository</param>
-		public void AddRepository(string RepositoryPath)
+		/// <param name="Logger">Logger for output</param>
+		public void AddRepository(string RepositoryPath, ILogger Logger)
 		{
 			if (Directory.Exists(RepositoryPath))
 			{
-				Log.TraceInformation("Added repository: {0}", RepositoryPath);
+				Logger.LogInformation("Added repository: {RepositoryPath}", RepositoryPath);
 				Repositories!.Add(RepositoryPath);
 			}
 			else
 			{
-				Log.TraceWarning("AddRepository: Directory {0} not found!", RepositoryPath);
+				Logger.LogWarning("AddRepository: Directory {RepositoryPath} not found!", RepositoryPath);
 			}
 		}
 
@@ -78,7 +80,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="RepositoryPath">Root directory containing the repository</param>
 		/// <param name="SearchPattern">Search pattern to match</param>
-		public void AddRepositories(string RepositoryPath, string SearchPattern)
+		/// <param name="Logger">Logger for output</param>
+		public void AddRepositories(string RepositoryPath, string SearchPattern, ILogger Logger)
 		{
 			if (Directory.Exists(RepositoryPath))
 			{
@@ -93,7 +96,7 @@ namespace UnrealBuildTool
 					{
 						if (SearchPath.Contains(SearchPattern))
 						{
-							Log.TraceInformation("Added repository: {0}", SearchPath);
+							Logger.LogInformation("Added repository: {SearchPath}", SearchPath);
 							Repositories!.Add(SearchPath);
 						}
 						else
@@ -105,20 +108,20 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceInformation("AddRepositories: Directory {0} not found; ignored", RepositoryPath);
+				Logger.LogInformation("AddRepositories: Directory {RepositoryPath} not found; ignored", RepositoryPath);
 			}
 		}
 
-		public void DumpAAR()
+		public void DumpAAR(ILogger Logger)
 		{
-			Log.TraceInformation("ALL DEPENDENCIES");
+			Logger.LogInformation("ALL DEPENDENCIES");
 			foreach (AndroidAAREntry Entry in AARList!)
 			{
-				Log.TraceInformation("{0}", Entry.Filename);
+				Logger.LogInformation("{EntryFilename}", Entry.Filename);
 			}
 			foreach (AndroidAAREntry Entry in JARList!)
 			{
-				Log.TraceInformation("{0}", Entry.Filename);
+				Logger.LogInformation("{EntryFilename}", Entry.Filename);
 			}
 		}
 
@@ -194,7 +197,7 @@ namespace UnrealBuildTool
 		// clean up the version (Maven version info here: https://docs.oracle.com/middleware/1212/core/MAVEN/maven_version.htm)
 		// only going to handle a few cases, not proper ranges (keeps the rightmost valid version which should be highest)
 		// will still return something but will include an error in log, but don't want to throw an exception
-		private string CleanupVersion(string Filename, string InVersion)
+		private string CleanupVersion(string Filename, string InVersion, ILogger Logger)
 		{
 			string WorkVersion = InVersion;
 
@@ -216,7 +219,7 @@ namespace UnrealBuildTool
 			// if not left with a possibly valid number, stop
 			if (!HasAnyVersionCharacters(WorkVersion))
 			{
-				Log.TraceError("AAR Dependency file {0} version unknown! {1}", Filename, InVersion);
+				Logger.LogError("AAR Dependency file {Filename} version unknown! {InVersion}", Filename, InVersion);
 				return InVersion;
 			}
 
@@ -230,7 +233,7 @@ namespace UnrealBuildTool
 			}
 
 			// give an error, not likely going to work, though
-			Log.TraceError("AAR Dependency file {0} version unknown! {1}", Filename, InVersion);
+			Logger.LogError("AAR Dependency file {Filename} version unknown! {InVersion}", Filename, InVersion);
 			return InVersion;
 		}
 
@@ -240,12 +243,13 @@ namespace UnrealBuildTool
 		/// <param name="PackageName">Name of the package the JAR belongs to in repository</param>
 		/// <param name="BaseName">Directory in repository containing the JAR</param>
 		/// <param name="Version">Version of the AAR to use</param>
-		public void AddNewJAR(string PackageName, string BaseName, string Version)
+		/// <param name="Logger">Logger instance</param>
+		public void AddNewJAR(string PackageName, string BaseName, string Version, ILogger Logger)
 		{
 			string? BasePath = FindPackageFile(PackageName, BaseName, Version);
 			if (BasePath == null)
 			{
-				Log.TraceError("AAR: Unable to find package {0}!", PackageName + "/" + BaseName);
+				Logger.LogError("AAR: Unable to find package {Package}!", PackageName + "/" + BaseName);
 				return;
 			}
 			string BaseFilename = Path.Combine(BasePath, BaseName + "-" + Version);
@@ -263,7 +267,7 @@ namespace UnrealBuildTool
 						return;
 					}
 
-					Log.TraceInformation("AAR: {0}: {1} newer than {2}", JARList[JARIndex].BaseName, Version, JARList[JARIndex].Version);
+					Logger.LogInformation("AAR: {BaseName}: {Version1} newer than {Version2}", JARList[JARIndex].BaseName, Version, JARList[JARIndex].Version);
 
 					// This is a newer version; remove old one
 					JARList.RemoveAt(JARIndex);
@@ -271,7 +275,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			//Log.TraceInformation("JAR: {0}", BaseName);
+			//Logger.LogInformation("JAR: {BaseName}", BaseName);
 			AndroidAAREntry AAREntry = new AndroidAAREntry(BaseName, Version, BaseFilename);
 			JARList.Add(AAREntry);
 
@@ -286,13 +290,13 @@ namespace UnrealBuildTool
 				}
 				catch (Exception e)
 				{
-					Log.TraceError("AAR Dependency file {0} parsing error! {1}", DependencyFilename, e);
+					Logger.LogError("AAR Dependency file {File} parsing error! {Ex}", DependencyFilename, e);
 					return;
 				}
 			}
 			else
 			{
-				Log.TraceError("AAR: Dependency file {0} missing!", DependencyFilename);
+				Logger.LogError("AAR: Dependency file {DependencyFilename} missing!", DependencyFilename);
 				return;
 			}
 
@@ -308,11 +312,11 @@ namespace UnrealBuildTool
 			{
 				string DepGroupId = GetElementValue(DependNode, GroupIdName, "");
 				string DepArtifactId = GetElementValue(DependNode, ArtifactIdName, "");
-				string DepVersion = CleanupVersion(DependencyFilename + "." + DepGroupId + "." + DepArtifactId, GetElementValue(DependNode, VersionName, ""));
+				string DepVersion = CleanupVersion(DependencyFilename + "." + DepGroupId + "." + DepArtifactId, GetElementValue(DependNode, VersionName, ""), Logger);
 				string DepScope = GetElementValue(DependNode, ScopeName, "compile");
 				string DepType = GetElementValue(DependNode, TypeName, "jar");
 
-				//Log.TraceInformation("Dependency: {0} {1} {2} {3} {4}", DepGroupId, DepArtifactId, DepVersion, DepScope, DepType);
+				//Logger.LogInformation("Dependency: {DepGroupId} {DepArtifactId} {DepVersion} {DepScope} {DepType}", DepGroupId, DepArtifactId, DepVersion, DepScope, DepType);
 
 				// ignore test scope
 				if (DepScope == "test")
@@ -322,11 +326,11 @@ namespace UnrealBuildTool
 
 				if (DepType == "aar")
 				{
-					AddNewAAR(DepGroupId, DepArtifactId, DepVersion);
+					AddNewAAR(DepGroupId, DepArtifactId, DepVersion, Logger);
 				}
 				else if (DepType == "jar")
 				{
-					AddNewJAR(DepGroupId, DepArtifactId, DepVersion);
+					AddNewJAR(DepGroupId, DepArtifactId, DepVersion, Logger);
 				}
 			}
 		}
@@ -337,8 +341,9 @@ namespace UnrealBuildTool
 		/// <param name="PackageName">Name of the package the AAR belongs to in repository</param>
 		/// <param name="BaseName">Directory in repository containing the AAR</param>
 		/// <param name="Version">Version of the AAR to use</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="HandleDependencies">Optionally process POM file for dependencies (default)</param>
-		public void AddNewAAR(string PackageName, string BaseName, string Version, bool HandleDependencies = true)
+		public void AddNewAAR(string PackageName, string BaseName, string Version, ILogger Logger, bool HandleDependencies = true)
 		{
 			if (!HandleDependencies)
 			{
@@ -350,7 +355,7 @@ namespace UnrealBuildTool
 			string? BasePath = FindPackageFile(PackageName, BaseName, Version);
 			if (BasePath == null)
 			{
-				Log.TraceError("AAR: Unable to find package {0}!", PackageName + "/" + BaseName);
+				Logger.LogError("AAR: Unable to find package {Package}!", PackageName + "/" + BaseName);
 				return;
 			}
 			string BaseFilename = Path.Combine(BasePath, BaseName + "-" + Version);
@@ -368,7 +373,7 @@ namespace UnrealBuildTool
 						return;
 					}
 
-					Log.TraceInformation("AAR: {0}: {1} newer than {2}", AARList[AARIndex].BaseName, Version, AARList[AARIndex].Version);
+					Logger.LogInformation("AAR: {BaseName}: {Version1} newer than {Version2}", AARList[AARIndex].BaseName, Version, AARList[AARIndex].Version);
 
 					// This is a newer version; remove old one
 					// @TODO: be smarter about dependency cleanup (newer AAR might not need older dependencies)
@@ -377,7 +382,7 @@ namespace UnrealBuildTool
 				}
 			}
 
-			//Log.TraceInformation("AAR: {0}", BaseName);
+			//Logger.LogInformation("AAR: {BaseName}", BaseName);
 			AndroidAAREntry AAREntry = new AndroidAAREntry(BaseName, Version, BaseFilename);
 			AARList.Add(AAREntry);
 
@@ -397,13 +402,13 @@ namespace UnrealBuildTool
 				}
 				catch (Exception e)
 				{
-					Log.TraceError("AAR Dependency file {0} parsing error! {1}", DependencyFilename, e);
+					Logger.LogError("AAR Dependency file {File} parsing error! {Ex}", DependencyFilename, e);
 					return;
 				}
 			}
 			else
 			{
-				Log.TraceError("AAR: Dependency file {0} missing!", DependencyFilename);
+				Logger.LogError("AAR: Dependency file {DependencyFilename} missing!", DependencyFilename);
 				return;
 			}
 
@@ -419,11 +424,11 @@ namespace UnrealBuildTool
 			{
 				string DepGroupId = GetElementValue(DependNode, GroupIdName, "");
 				string DepArtifactId = GetElementValue(DependNode, ArtifactIdName, "");
-				string DepVersion = CleanupVersion(DependencyFilename + "." + DepGroupId + "." + DepArtifactId, GetElementValue(DependNode, VersionName, ""));
+				string DepVersion = CleanupVersion(DependencyFilename + "." + DepGroupId + "." + DepArtifactId, GetElementValue(DependNode, VersionName, ""), Logger);
 				string DepScope = GetElementValue(DependNode, ScopeName, "compile");
 				string DepType = GetElementValue(DependNode, TypeName, "jar");
 
-				//Log.TraceInformation("Dependency: {0} {1} {2} {3} {4}", DepGroupId, DepArtifactId, DepVersion, DepScope, DepType);
+				//Logger.LogInformation("Dependency: {DepGroupId} {DepArtifactId} {DepVersion} {DepScope} {DepType}", DepGroupId, DepArtifactId, DepVersion, DepScope, DepType);
 
 				// ignore test scope
 				if (DepScope == "test")
@@ -436,12 +441,12 @@ namespace UnrealBuildTool
 					// Add dependency
 					AAREntry.AddDependency(DepArtifactId, DepVersion);
 
-					AddNewAAR(DepGroupId, DepArtifactId, DepVersion);
+					AddNewAAR(DepGroupId, DepArtifactId, DepVersion, Logger);
 				}
 				else
 				if (DepType == "jar")
 				{
-					AddNewJAR(DepGroupId, DepArtifactId, DepVersion);
+					AddNewJAR(DepGroupId, DepArtifactId, DepVersion, Logger);
 				}
 			}
 		}
@@ -467,7 +472,8 @@ namespace UnrealBuildTool
 		/// Copies the required JAR files to the provided directory
 		/// </summary>
 		/// <param name="DestinationPath">Destination path for JAR files</param>
-		public void CopyJARs(string DestinationPath)
+		/// <param name="Logger">Logger for output</param>
+		public void CopyJARs(string DestinationPath, ILogger Logger)
 		{
 			MakeDirectoryIfRequired(DestinationPath);
 			DestinationPath = Path.Combine(DestinationPath, "libs");
@@ -478,15 +484,15 @@ namespace UnrealBuildTool
 				string Filename = Entry.Filename + ".jar";
 				string BaseName = Path.GetFileName(Filename);
 				string TargetPath = Path.Combine(DestinationPath, BaseName);
-                //Log.TraceInformation("Attempting to copy JAR {0} {1} {2}", Filename, BaseName, TargetPath);
+                //Logger.LogInformation("Attempting to copy JAR {Filename} {BaseName} {TargetPath}", Filename, BaseName, TargetPath);
 
                 if (!File.Exists(Filename))
                 {
-                    Log.TraceInformation("JAR doesn't exist! {0}", Filename);
+                    Logger.LogInformation("JAR doesn't exist! {Filename}", Filename);
                 }
                 if (!File.Exists(TargetPath))
 				{
-					Log.TraceInformation("Copying JAR {0}", BaseName);
+					Logger.LogInformation("Copying JAR {BaseName}", BaseName);
 					File.Copy(Filename, TargetPath);
 				}
 			}
@@ -497,13 +503,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="DestinationPath">Destination path for AAR files</param>
 		/// <param name="AppPackageName">Name of the package these AARs are being used with</param>
-		public void ExtractAARs(string DestinationPath, string AppPackageName)
+		/// <param name="Logger">Logger for output</param>
+		public void ExtractAARs(string DestinationPath, string AppPackageName, ILogger Logger)
 		{
 			MakeDirectoryIfRequired(DestinationPath);
 			DestinationPath = Path.Combine(DestinationPath, "JavaLibs");
 			MakeDirectoryIfRequired(DestinationPath);
 
-			Log.TraceInformation("Extracting AARs");
+			Logger.LogInformation("Extracting AARs");
 			foreach (AndroidAAREntry Entry in AARList!)
 			{
 				string BaseName = Path.GetFileName(Entry.Filename);
@@ -513,8 +520,8 @@ namespace UnrealBuildTool
 				string TargetManifestFileName = Path.Combine(TargetPath, "AndroidManifest.xml");
 				if (!File.Exists(TargetManifestFileName))
 				{
-					Log.TraceInformation("Extracting AAR {0}", BaseName);
-					/*IEnumerable<string> FileNames =*/ UnzipFiles(Entry.Filename + ".aar", TargetPath);
+					Logger.LogInformation("Extracting AAR {BaseName}", BaseName);
+					/*IEnumerable<string> FileNames =*/ UnzipFiles(Entry.Filename + ".aar", TargetPath, Logger);
 
 					// Must have a src directory (even if empty)
 					string SrcDirectory = Path.Combine(TargetPath, "src");
@@ -560,7 +567,7 @@ namespace UnrealBuildTool
 							}
 							catch (Exception e)
 							{
-								Log.TraceError("AAR Manifest file {0} parsing error! {1}", ManifestFilename, e);
+								Logger.LogError("AAR Manifest file {ManifestFile} parsing error! {Ex}", ManifestFilename, e);
 							}
 						}
 
@@ -594,8 +601,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="ZipFileName">Name of the zip file</param>
 		/// <param name="BaseDirectory">Output directory</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>List of files written</returns>
-		public static IEnumerable<string> UnzipFiles(string ZipFileName, string BaseDirectory)
+		public static IEnumerable<string> UnzipFiles(string ZipFileName, string BaseDirectory, ILogger Logger)
 		{
 			// manually extract the files. There was a problem with the Ionic.Zip library that required this on non-PC at one point,
 			// but that problem is now fixed. Leaving this code as is as we need to return the list of created files and fix up their permissions anyway.
@@ -613,7 +621,7 @@ namespace UnrealBuildTool
 						string _ZipName = Path.GetFileNameWithoutExtension(ZipFileName);
 						string NewOutputFileName = Path.Combine(Path.GetDirectoryName(OutputFileName)!,
 							_ZipName + '-' + Path.GetFileNameWithoutExtension(OutputFileName) + '.' + Path.GetExtension(OutputFileName));
-						Log.TraceInformation("Changed FileName {0} => {1}", Entry.FileName, NewOutputFileName);
+						Logger.LogInformation("Changed FileName {EntryFileName} => {NewOutputFileName}", Entry.FileName, NewOutputFileName);
 						OutputFileName = NewOutputFileName;
 					}
 

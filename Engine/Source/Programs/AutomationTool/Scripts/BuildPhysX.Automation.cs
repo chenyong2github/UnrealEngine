@@ -282,7 +282,7 @@ public sealed class BuildPhysX : BuildCommand
 			StartInfo.WorkingDirectory = CMakeTargetDirectory.FullName;
 			StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetConfiguration);
 
-			if (Utils.RunLocalProcessAndLogOutput(StartInfo) != 0)
+			if (Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger) != 0)
 			{
 				throw new AutomationException("Unable to generate projects for {0}.", TargetLib.ToString() + ", " + FriendlyName);
 			}
@@ -399,7 +399,7 @@ public sealed class BuildPhysX : BuildCommand
 			LogInformation("Working in: {0}", StartInfo.WorkingDirectory);
 			LogInformation("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
 
-			if (Utils.RunLocalProcessAndLogOutput(StartInfo) != 0)
+			if (Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger) != 0)
 			{
 				throw new AutomationException("Unabled to build {0}. Build process failed.", Makefile);
 			}
@@ -1083,14 +1083,14 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 			StartInfo.RedirectStandardError = true;
 
 			LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
-			Utils.RunLocalProcessAndLogOutput(StartInfo);
+			Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 			// BreakpadSymbolEncoder
 			StartInfo.FileName = BreakpadSymbolEncoderPath.FullName + ExeSuffix;
 			StartInfo.Arguments = PSymbolFile.FullName + " " + SymbolFile.FullName;
 
 			LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
-			Utils.RunLocalProcessAndLogOutput(StartInfo);
+			Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 			// Clean up the Temp *.psym file, as they are no longer needed
 			InternalUtils.SafeDeleteFile(PSymbolFile.FullName);
@@ -1104,7 +1104,7 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 					StrippedFile.FullName;
 
 				LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
-				Utils.RunLocalProcessAndLogOutput(StartInfo);
+				Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 				// objcopy --only-keep-debug sofile.so sofile.debug
 				StartInfo.FileName = ObjcopyPath.FullName + ExeSuffix;
@@ -1113,7 +1113,7 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 					DebugFile.FullName;
 
 				LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
-				Utils.RunLocalProcessAndLogOutput(StartInfo);
+				Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 				// objcopy --add-gnu-debuglink=sofile.debug sofile_stripped sofile.so
 				StartInfo.FileName = ObjcopyPath.FullName + ExeSuffix;
@@ -1123,7 +1123,7 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 					SOFile.FullName;
 
 				LogInformation("Running: '{0} {1}'", StartInfo.FileName, StartInfo.Arguments);
-				Utils.RunLocalProcessAndLogOutput(StartInfo);
+				Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 				GeneratedDebugSymbols.Add(SOFile.FullName, true);
 			}
@@ -1292,7 +1292,7 @@ class BuildPhysX_Mac : BuildPhysX.TargetPlatform
 			StartInfo.RedirectStandardError = true;
 
 			LogInformation("Running: 'lipo {0}'", StartInfo.Arguments);
-			if (Utils.RunLocalProcessAndLogOutput(StartInfo) != 0)
+			if (Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger) != 0)
 			{
 				LogError("Failed to create universal binary for {0}", LibFile);
 			}

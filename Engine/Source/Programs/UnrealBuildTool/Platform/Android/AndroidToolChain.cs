@@ -9,6 +9,7 @@ using System.Linq;
 using Microsoft.Win32;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -119,18 +120,18 @@ namespace UnrealBuildTool
 
 		protected bool bEnableGcSections = true;
 
-		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches)
-			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ClangToolChainOptions.None)
+		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ILogger InLogger)
+			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ClangToolChainOptions.None, InLogger)
 		{
 		}
 
-		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ClangToolChainOptions ToolchainOptions)
-			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ToolchainOptions)
+		public AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
+			: this(InProjectFile, bInUseLdGold, InAdditionalArches, InAdditionalGPUArches, false, ToolchainOptions, InLogger)
 		{
 		}
 
-		protected AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, bool bAllowMissingNDK, ClangToolChainOptions ToolchainOptions)
-			: base(ToolchainOptions)
+		protected AndroidToolChain(FileReference? InProjectFile, bool bInUseLdGold, IReadOnlyList<string>? InAdditionalArches, IReadOnlyList<string>? InAdditionalGPUArches, bool bAllowMissingNDK, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
+			: base(ToolchainOptions, InLogger)
 		{
 			Options = ToolchainOptions;
 			ProjectFile = InProjectFile;
@@ -150,7 +151,7 @@ namespace UnrealBuildTool
 
 			// by default tools chains don't parse arguments, but we want to be able to check the -architectures flag defined above. This is
 			// only necessary when AndroidToolChain is used during UAT
-			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), this);
+			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), this, Logger);
 
 			if (AdditionalArches.Count == 0 && ArchitectureArg.Count > 0)
 			{
@@ -180,23 +181,23 @@ namespace UnrealBuildTool
 
 			if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePathWindows64)))
 			{
-				Log.TraceVerbose("        Found Windows 64 bit versions of toolchain");
+				Logger.LogDebug("        Found Windows 64 bit versions of toolchain");
 				ArchitecturePath = ArchitecturePathWindows64;
 			}
 			else if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePathWindows32)))
 			{
-				Log.TraceVerbose("        Found Windows 32 bit versions of toolchain");
+				Logger.LogDebug("        Found Windows 32 bit versions of toolchain");
 				ArchitecturePath = ArchitecturePathWindows32;
 			}
 			else if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePathMac)))
 			{
-				Log.TraceVerbose("        Found Mac versions of toolchain");
+				Logger.LogDebug("        Found Mac versions of toolchain");
 				ArchitecturePath = ArchitecturePathMac;
 				ExeExtension = "";
 			}
 			else if (Directory.Exists(Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePathLinux)))
 			{
-				Log.TraceVerbose("        Found Linux versions of toolchain");
+				Logger.LogDebug("        Found Linux versions of toolchain");
 				ArchitecturePath = ArchitecturePathLinux;
 				ExeExtension = "";
 			}
@@ -232,7 +233,7 @@ namespace UnrealBuildTool
 			ClangPath = Utils.CollapseRelativeDirectories(Path.Combine(NDKPath, @"toolchains/llvm", ArchitecturePath, @"bin/clang++" + ExeExtension));
 
 			// Android (6317467 based on r365631c1) clang version 9.0.8 
-			AndroidClangBuild = Utils.RunLocalProcessAndReturnStdOut(ClangPath, "--version");
+			AndroidClangBuild = Utils.RunLocalProcessAndReturnStdOut(ClangPath, "--version", Logger);
 			try
 			{
 				AndroidClangBuild = Regex.Match(AndroidClangBuild, @"(\w+) based on").Groups[1].ToString();
@@ -243,7 +244,7 @@ namespace UnrealBuildTool
 			}
 			catch
 			{
-				Log.TraceWarning("Failed to retreive build version from {0}", AndroidClangBuild);
+				Logger.LogWarning("Failed to retreive build version from {AndroidClangBuild}", AndroidClangBuild);
 				AndroidClangBuild = "unknown";
 			}
 
@@ -1048,7 +1049,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		void GenerateEmptyLinkFunctionsForRemovedModules(List<FileItem> SourceFiles, string ModuleName, DirectoryReference OutputDirectory, IActionGraphBuilder Graph)
+		void GenerateEmptyLinkFunctionsForRemovedModules(List<FileItem> SourceFiles, string ModuleName, DirectoryReference OutputDirectory, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			// Only add to Launch module
 			if (!ModuleName.Equals("Launch"))
@@ -1163,7 +1164,7 @@ namespace UnrealBuildTool
 				// Directly added NDK files for NDK extensions
 				ModifySourceFiles(CompileEnvironment, InputFiles, ModuleName);
 				// Deal with dynamic modules removed by architecture
-				GenerateEmptyLinkFunctionsForRemovedModules(InputFiles, ModuleName, OutputDir, Graph);
+				GenerateEmptyLinkFunctionsForRemovedModules(InputFiles, ModuleName, OutputDir, Graph, Logger);
 
 				bHasHandledLaunchModule = true;
 			}
@@ -1567,7 +1568,7 @@ namespace UnrealBuildTool
 
 					Result.GeneratedHeaderFiles.Add(TargetFileItem);
 
-					Log.TraceVerbose("   ISPC Generating Header " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
+					Logger.LogDebug("   ISPC Generating Header {StatusDescription}: \"{CommandPath}\" {CommandArguments}", CompileAction.StatusDescription, CompileAction.CommandPath, CompileAction.CommandArguments);
 				}
 			}
 
@@ -1772,7 +1773,7 @@ namespace UnrealBuildTool
 
 					Result.ObjectFiles.AddRange(FinalISPCObjFiles);
 
-					Log.TraceVerbose("   ISPC Compiling " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
+					Logger.LogDebug("   ISPC Compiling {StatusDescription}: \"{CommandPath}\" {CommandArguments}", CompileAction.StatusDescription, CompileAction.CommandPath, CompileAction.CommandArguments);
 				}
 			}
 
@@ -1999,7 +2000,7 @@ namespace UnrealBuildTool
 					SetupActionToExecuteCompilerThroughShell(ref LinkAction, LinkAction.CommandPath.FullName, LinkAction.CommandArguments, "Link");
 				}
 
-				//Log.TraceInformation("Link: {0} {1}", LinkAction.CommandPath.FullName, LinkAction.CommandArguments);
+				//Logger.LogInformation("Link: {LinkActionCommandPathFullName} {LinkActionCommandArguments}", LinkAction.CommandPath.FullName, LinkAction.CommandArguments);
 
 				// Windows can run into an issue with too long of a commandline when clang tries to call ld to link.
 				// To work around this we call clang to just get the command it would execute and generate a
@@ -2105,11 +2106,11 @@ namespace UnrealBuildTool
 			*/
 		}
 
-		public static void OutputReceivedDataEventHandler(Object Sender, DataReceivedEventArgs Line)
+		public static void OutputReceivedDataEventHandler(Object Sender, DataReceivedEventArgs Line, ILogger Logger)
 		{
 			if ((Line != null) && (Line.Data != null))
 			{
-				Log.TraceInformation(Line.Data);
+				Logger.LogInformation("{Output}", Line.Data);
 			}
 		}
 
@@ -2136,7 +2137,7 @@ namespace UnrealBuildTool
 			return StripExe;
 		}
 
-		public void StripSymbols(FileReference SourceFile, FileReference TargetFile)
+		public void StripSymbols(FileReference SourceFile, FileReference TargetFile, ILogger Logger)
 		{
 			if (SourceFile != TargetFile)
 			{
@@ -2149,7 +2150,7 @@ namespace UnrealBuildTool
 			StartInfo.Arguments = " --strip-debug \"" + TargetFile.FullName + "\"";
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
-			Utils.RunLocalProcessAndLogOutput(StartInfo);
+			Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 		}
 
 		protected virtual void SetupActionToExecuteCompilerThroughShell(ref Action CompileOrLinkAction, string CommandPath, string CommandArguments, string CommandDescription)

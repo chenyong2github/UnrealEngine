@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace UnrealBuildTool
 {
@@ -129,13 +131,13 @@ namespace UnrealBuildTool
 	{
 		UEBuildPlatformSDK SDK;
 
-		public AndroidPlatform(UnrealTargetPlatform InTargetPlatform, UEBuildPlatformSDK InSDK) 
-			: base(InTargetPlatform, InSDK)
+		public AndroidPlatform(UnrealTargetPlatform InTargetPlatform, UEBuildPlatformSDK InSDK, ILogger InLogger) 
+			: base(InTargetPlatform, InSDK, InLogger)
 		{
 			SDK = InSDK;
 		}
 
-		public AndroidPlatform(AndroidPlatformSDK InSDK) : this(UnrealTargetPlatform.Android, InSDK)
+		public AndroidPlatform(AndroidPlatformSDK InSDK, ILogger InLogger) : this(UnrealTargetPlatform.Android, InSDK, InLogger)
 		{
 		}
 
@@ -216,7 +218,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public virtual bool HasSpecificDefaultBuildConfig(UnrealTargetPlatform Platform, DirectoryReference ProjectPath)
+		public virtual bool HasSpecificDefaultBuildConfig(UnrealTargetPlatform Platform, DirectoryReference ProjectPath, ILogger Logger)
 		{
 			string[] BoolKeys = new string[] {
 				"bBuildForArm64", "bBuildForX8664", 
@@ -228,7 +230,7 @@ namespace UnrealBuildTool
 
 			// look up Android specific settings
 			if (!DoProjectSettingsMatchDefault(Platform, ProjectPath, "/Script/AndroidRuntimeSettings.AndroidRuntimeSettings",
-				BoolKeys, null, StringKeys))
+				BoolKeys, null, StringKeys, Logger))
 			{
 				return false;
 			}
@@ -238,7 +240,7 @@ namespace UnrealBuildTool
 		public override bool HasDefaultBuildConfig(UnrealTargetPlatform Platform, DirectoryReference ProjectPath)
 		{
 			// @todo Lumin: This is kinda messy - better way?
-			if (HasSpecificDefaultBuildConfig(Platform, ProjectPath) == false)
+			if (HasSpecificDefaultBuildConfig(Platform, ProjectPath, Logger) == false)
 			{
 				return false;
 			}
@@ -362,12 +364,12 @@ namespace UnrealBuildTool
 		{
 		}
 
-		public virtual void SetUpSpecificEnvironment(ReadOnlyTargetRules Target, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment)
+		public virtual void SetUpSpecificEnvironment(ReadOnlyTargetRules Target, CppCompileEnvironment CompileEnvironment, LinkEnvironment LinkEnvironment, ILogger Logger)
 		{
 			string NDKPath = Environment.GetEnvironmentVariable("NDKROOT")!;
 			NDKPath = NDKPath.Replace("\"", "");
 
-			AndroidToolChain ToolChain = new AndroidToolChain(Target.ProjectFile, false, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures);
+			AndroidToolChain ToolChain = new AndroidToolChain(Target.ProjectFile, false, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Logger);
 
 			// figure out the NDK version
 			string? NDKToolchainVersion = SDK.GetInstalledVersion();
@@ -377,7 +379,7 @@ namespace UnrealBuildTool
 			// PLATFORM_ANDROID_NDK_VERSION is in the form 150100, where 15 is major version, 01 is the letter (1 is 'a'), 00 indicates beta revision if letter is 00
 			CompileEnvironment.Definitions.Add(string.Format("PLATFORM_ANDROID_NDK_VERSION={0}", NDKVersionInt));
 
-			Log.TraceInformation("NDK toolchain: {0}, NDK version: {1}, ClangVersion: {2}", NDKToolchainVersion, NDKVersionInt, ToolChain.GetClangVersionString());
+			Logger.LogInformation("NDK toolchain: {Version}, NDK version: {NdkVersion}, ClangVersion: {ClangVersion}", NDKToolchainVersion, NDKVersionInt, ToolChain.GetClangVersionString());
 
 			CompileEnvironment.Definitions.Add("PLATFORM_DESKTOP=0");
 			CompileEnvironment.Definitions.Add("PLATFORM_CAN_SUPPORT_EDITORONLY_DATA=0");
@@ -439,7 +441,7 @@ namespace UnrealBuildTool
 
 			if (Target.bPGOOptimize || Target.bPGOProfile)
 			{
-				Log.TraceInformation("PGO {0} build", Target.bPGOOptimize ? "optimize" : "profile");
+				Logger.LogInformation("PGO {PgoType} build", Target.bPGOOptimize ? "optimize" : "profile");
 				if(Target.bPGOOptimize)
 				{
 					CompileEnvironment.PGODirectory = Path.Combine(DirectoryReference.FromFile(Target.ProjectFile)!.FullName, "Platforms", "Android", "Build", "PGO");
@@ -448,14 +450,14 @@ namespace UnrealBuildTool
 					LinkEnvironment.PGODirectory = CompileEnvironment.PGODirectory;
 					LinkEnvironment.PGOFilenamePrefix = CompileEnvironment.PGOFilenamePrefix;
 
-					Log.TraceInformation("PGO Dir: {0}", CompileEnvironment.PGODirectory);
-					Log.TraceInformation("PGO Prefix: {0}", CompileEnvironment.PGOFilenamePrefix);
+					Logger.LogInformation("PGO Dir: {PgoDir}", CompileEnvironment.PGODirectory);
+					Logger.LogInformation("PGO Prefix: {PgoPrefix}", CompileEnvironment.PGOFilenamePrefix);
 				}
 			}
 
 			CompileEnvironment.Definitions.Add("INT64_T_TYPES_NOT_LONG_LONG=1");
 
-			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment);
+			SetUpSpecificEnvironment(Target, CompileEnvironment, LinkEnvironment, Logger);
 
 			// deliberately not linking stl or stdc++ here (c++_shared is default)
 			LinkEnvironment.SystemLibraries.Add("c");
@@ -516,24 +518,21 @@ namespace UnrealBuildTool
 		{
 			bool bUseLdGold = Target.bUseUnityBuild;
 			ClangToolChainOptions Options = CreateToolChainOptions(Target.AndroidPlatform.TargetRules);
-			return new AndroidToolChain(Target.ProjectFile, bUseLdGold, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Options);
+			return new AndroidToolChain(Target.ProjectFile, bUseLdGold, Target.AndroidPlatform.Architectures, Target.AndroidPlatform.GPUArchitectures, Options, Logger);
 		}
 		public virtual UEToolChain CreateTempToolChainForProject(FileReference? ProjectFile)
 		{
 			AndroidTargetRules TargetRules = new AndroidTargetRules();
-			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), TargetRules);
+			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), TargetRules, Logger);
 			ClangToolChainOptions Options = CreateToolChainOptions(TargetRules);
-			return new AndroidToolChain(ProjectFile, true, null, null, Options);
+			return new AndroidToolChain(ProjectFile, true, null, null, Options, Logger);
 		}
 
-		/// <summary>
-		/// Deploys the given target
-		/// </summary>
-		/// <param name="Receipt">Receipt for the target being deployed</param>
+		/// <inheritdoc/>
 		public override void Deploy(TargetReceipt Receipt)
 		{
 			// do not package data if building via UBT
-			new UEDeployAndroid(Receipt.ProjectFile, false).PrepTargetForDeployment(Receipt);
+			new UEDeployAndroid(Receipt.ProjectFile, false, Logger).PrepTargetForDeployment(Receipt);
 		}
 	}
 
@@ -545,12 +544,12 @@ namespace UnrealBuildTool
 			get { return UnrealTargetPlatform.Android; }
 		}
 
-		public override void RegisterBuildPlatforms()
+		public override void RegisterBuildPlatforms(ILogger Logger)
 		{
-			AndroidPlatformSDK SDK = new AndroidPlatformSDK();
+			AndroidPlatformSDK SDK = new AndroidPlatformSDK(Logger);
 
 			// Register this build platform
-			UEBuildPlatform.RegisterBuildPlatform(new AndroidPlatform(SDK));
+			UEBuildPlatform.RegisterBuildPlatform(new AndroidPlatform(SDK, Logger), Logger);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Android, UnrealPlatformGroup.Android);
 		}
 	}

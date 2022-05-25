@@ -10,13 +10,15 @@ using System.Diagnostics;
 using System.Xml.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
 	class UEDeployTVOS : UEDeployIOS
 	{
 
-        public UEDeployTVOS()
+        public UEDeployTVOS(ILogger InLogger)
+			: base(InLogger)
         {
         }
 
@@ -25,7 +27,7 @@ namespace UnrealBuildTool
 			return "TVOS";
 		}
 
-		public static bool GenerateTVOSPList(string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, UnrealPluginLanguage? UPL, string? BundleID)
+		public static bool GenerateTVOSPList(string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, UnrealPluginLanguage? UPL, string? BundleID, ILogger Logger)
 		{
 			// @todo tvos: THIS!
 
@@ -74,7 +76,7 @@ namespace UnrealBuildTool
 			// minimum iOS version
 			string MinVersionSetting = "";
 			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "MinimumiOSVersion", out MinVersionSetting);
-			string MinVersion = GetMinimumOSVersion(MinVersionSetting);
+			string MinVersion = GetMinimumOSVersion(MinVersionSetting, Logger);
 
 			// extra plist data
 			string ExtraData = "";
@@ -204,7 +206,7 @@ namespace UnrealBuildTool
 		public override bool GeneratePList(FileReference? ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, List<string> UPLScripts, string? BundleID, bool bBuildAsFramework, out bool bSupportsPortrait, out bool bSupportsLandscape)
 		{
 			bSupportsLandscape = bSupportsPortrait = true;
-			return GenerateTVOSPList(ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, null, BundleID);
+			return GenerateTVOSPList(ProjectDirectory, bIsUnrealGame, GameName, bIsClient, ProjectName, InEngineDir, AppDirectory, null, BundleID, Logger);
 		}
 	}
 }

@@ -16,6 +16,7 @@ using Ionic.Zlib;
 using EpicGames.Core;
 using System.Security.Cryptography.X509Certificates;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -48,11 +49,11 @@ namespace UnrealBuildTool
 		public readonly string DevicePlatformName;
 		public readonly string SimulatorPlatformName;
 
-		public IOSToolChainSettings() : this("iPhoneOS", "iPhoneSimulator")
+		public IOSToolChainSettings(ILogger Logger) : this("iPhoneOS", "iPhoneSimulator", Logger)
 		{
 		}
 
-		protected IOSToolChainSettings(string DevicePlatformName, string SimulatorPlatformName) : base(true)
+		protected IOSToolChainSettings(string DevicePlatformName, string SimulatorPlatformName, ILogger Logger) : base(true, Logger)
 		{
 			XmlConfig.ApplyTo(this);
 
@@ -65,7 +66,7 @@ namespace UnrealBuildTool
 			ToolchainDir = XcodeDeveloperDir + "Toolchains/XcodeDefault.xctoolchain/usr/bin/";
 
 			// make sure SDK is selected
-			SelectSDK(BaseSDKDir, DevicePlatformName, ref IOSSDKVersion, true);
+			SelectSDK(BaseSDKDir, DevicePlatformName, ref IOSSDKVersion, true, Logger);
 
 			// convert to float for easy comparison
 			IOSSDKVersionFloat = float.Parse(IOSSDKVersion, System.Globalization.CultureInfo.InvariantCulture);
@@ -89,13 +90,13 @@ namespace UnrealBuildTool
 		public readonly ReadOnlyTargetRules? Target;
 		protected IOSProjectSettings ProjectSettings;
 
-		public IOSToolChain(ReadOnlyTargetRules? Target, IOSProjectSettings InProjectSettings, ClangToolChainOptions ToolchainOptions)
-			: this(Target, InProjectSettings, () => new IOSToolChainSettings(), ToolchainOptions)
+		public IOSToolChain(ReadOnlyTargetRules? Target, IOSProjectSettings InProjectSettings, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
+			: this(Target, InProjectSettings, () => new IOSToolChainSettings(InLogger), ToolchainOptions, InLogger)
 		{
 		}
 
-		protected IOSToolChain(ReadOnlyTargetRules? Target, IOSProjectSettings InProjectSettings, Func<IOSToolChainSettings> InCreateSettings, ClangToolChainOptions ToolchainOptions)
-			: base((Target == null) ? null : Target.ProjectFile, ToolchainOptions)
+		protected IOSToolChain(ReadOnlyTargetRules? Target, IOSProjectSettings InProjectSettings, Func<IOSToolChainSettings> InCreateSettings, ClangToolChainOptions ToolchainOptions, ILogger InLogger)
+			: base((Target == null) ? null : Target.ProjectFile, ToolchainOptions, InLogger)
 		{
 			this.Target = Target;
 			ProjectSettings = InProjectSettings;
@@ -662,7 +663,7 @@ namespace UnrealBuildTool
 									|| SourceFile.AbsolutePath.Contains("SWidget.cpp") || SourceText.Contains("SWidget.cpp") || SourceFile.AbsolutePath.Contains("SCanvas.cpp") || SourceText.Contains("SCanvas.cpp") || SourceFile.AbsolutePath.Contains("ShaderCore.cpp") || SourceText.Contains("ShaderCore.cpp")
 									|| SourceFile.AbsolutePath.Contains("ParticleSystemRender.cpp") || SourceText.Contains("ParticleSystemRender.cpp")))
 								{
-									Log.TraceInformation("Forcing {0} to --O3!", SourceFile.AbsolutePath);
+									Logger.LogInformation("Forcing {SourceFileAbsolutePath} to --O3!", SourceFile.AbsolutePath);
 
 									AllArgs = AllArgs.Replace("-Oz", "-O3");
 								}*/
@@ -695,7 +696,7 @@ namespace UnrealBuildTool
 				{
 					if (Framework.ZipFile != null)
 					{
-						FileItem ExtractedTokenFile = ExtractFramework(Framework, Graph);
+						FileItem ExtractedTokenFile = ExtractFramework(Framework, Graph, Logger);
 						CompileAction.PrerequisiteItems.Add(ExtractedTokenFile);
 					}
 				}
@@ -760,7 +761,7 @@ namespace UnrealBuildTool
 			{
 				if (Framework.ZipFile != null)
 				{
-					FileItem ExtractedTokenFile = ExtractFramework(Framework, Graph);
+					FileItem ExtractedTokenFile = ExtractFramework(Framework, Graph, Logger);
 					LinkAction.PrerequisiteItems.Add(ExtractedTokenFile);
 				}
 			}
@@ -946,7 +947,8 @@ namespace UnrealBuildTool
 		/// <param name="Executable">FileItem describing the executable to generate debug info for</param>
 		/// <param name="bIsForLTOBuild">Was this build made with LTO enabled?</param>
 		/// <param name="Graph">List of actions to be executed. Additional actions will be added to this list.</param>
-		private List<FileItem> GenerateDebugInfo(FileItem Executable, bool bIsForLTOBuild, IActionGraphBuilder Graph)
+		/// <param name="Logger">Logger for output</param>
+		private List<FileItem> GenerateDebugInfo(FileItem Executable, bool bIsForLTOBuild, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			// Make a file item for the source and destination files
 			string FullDestPathRoot = GetdSYMPath(Executable);
@@ -960,7 +962,7 @@ namespace UnrealBuildTool
 			GenDebugAction.WorkingDirectory = GetMacDevSrcRoot();
 			GenDebugAction.CommandPath = BuildHostPlatform.Current.Shell;
 			string ExtraOptions;
-			string DsymutilPath = GetDsymutilPath(out ExtraOptions, bIsForLTOBuild: bIsForLTOBuild);
+			string DsymutilPath = GetDsymutilPath(Logger, out ExtraOptions, bIsForLTOBuild: bIsForLTOBuild);
 			if (ProjectSettings.bGeneratedSYMBundle)
 			{
 				GenDebugAction.CommandArguments = string.Format("-c \"rm -rf \\\"{2}\\\"; \\\"{0}\\\" \\\"{1}\\\" {4} -o \\\"{2}\\\"; cd \\\"{2}/..\\\"; zip -r -y -1 {3}.zip {3}\"",
@@ -970,7 +972,7 @@ namespace UnrealBuildTool
 					Path.GetFileName(FullDestPathRoot),
 					ExtraOptions);
 				GenDebugAction.ProducedItems.Add(ZipOutputFile);
-				Log.TraceInformation("Zip file: " + ZipOutputFile.AbsolutePath);
+				Logger.LogInformation("Zip file: {File}", ZipOutputFile.AbsolutePath);
 			}
 			else
 			{
@@ -1138,7 +1140,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		FileItem ExtractFramework(UEBuildFramework Framework, IActionGraphBuilder Graph)
+		FileItem ExtractFramework(UEBuildFramework Framework, IActionGraphBuilder Graph, ILogger Logger)
 		{
 			if (Framework.ZipFile == null)
 			{
@@ -1380,7 +1382,7 @@ namespace UnrealBuildTool
 			// For IOS/tvOS, generate the dSYM file if needed or requested
 			if (Target!.IOSPlatform.bGeneratedSYM)
 			{
-				List<FileItem> Files = GenerateDebugInfo(Executable, BinaryLinkEnvironment.bAllowLTCG, Graph);
+				List<FileItem> Files = GenerateDebugInfo(Executable, BinaryLinkEnvironment.bAllowLTCG, Graph, Logger);
 				foreach (FileItem item in Files)
 				{
 					OutputFiles.Add(item);
@@ -1439,9 +1441,9 @@ namespace UnrealBuildTool
 			// Generate the app bundle
 			if (!Target.bDisableLinking)
 			{
-				Log.TraceInformation("Adding PostBuildSync action");
+				Logger.LogInformation("Adding PostBuildSync action");
 
-				List<string> UPLScripts = UEDeployIOS.CollectPluginDataPaths(BinaryLinkEnvironment.AdditionalProperties);
+				List<string> UPLScripts = UEDeployIOS.CollectPluginDataPaths(BinaryLinkEnvironment.AdditionalProperties, Logger);
 				VersionNumber SdkVersion = VersionNumber.Parse(Settings.Value.IOSSDKVersion);
 
 				Dictionary<string, DirectoryReference> FrameworkNameToSourceDir = new Dictionary<string, DirectoryReference>();
@@ -1539,11 +1541,11 @@ namespace UnrealBuildTool
 			//This chunk looks to be required to pipe output to VS giving information on the status of a remote build.
 			public bool OutputReceivedDataEventHandlerEncounteredError = false;
 			public string OutputReceivedDataEventHandlerEncounteredErrorMessage = "";
-			public void OutputReceivedDataEventHandler(Object Sender, DataReceivedEventArgs Line)
+			public void OutputReceivedDataEventHandler(Object Sender, DataReceivedEventArgs Line, ILogger Logger)
 			{
 				if ((Line != null) && (Line.Data != null))
 				{
-					Log.TraceInformation(Line.Data);
+					Logger.LogInformation("{Message}", Line.Data);
 
 					foreach (string ErrorToken in ErrorMessageTokens)
 					{
@@ -1557,25 +1559,25 @@ namespace UnrealBuildTool
 				}
 			}
 
-			public void OutputReceivedDataEventLogger(Object Sender, DataReceivedEventArgs Line)
+			public void OutputReceivedDataEventLogger(Object Sender, DataReceivedEventArgs Line, ILogger Logger)
 			{
 				if ((Line != null) && (Line.Data != null))
 				{
-					Log.TraceInformation(Line.Data);
+					Logger.LogInformation("{Output}", Line.Data);
 				}
 			}
 		}
 
-		private static void GenerateCrashlyticsData(string DsymZip, string ProjectDir, string ProjectName)
+		private static void GenerateCrashlyticsData(string DsymZip, string ProjectDir, string ProjectName, ILogger Logger)
 		{
-			Log.TraceInformation("Generating and uploading Crashlytics Data");
+			Logger.LogInformation("Generating and uploading Crashlytics Data");
 
 			// Clean this folder as it's used for extraction
 			string TempPath = Path.Combine(Unreal.EngineDirectory.FullName, "Intermediate", "Unzipped");
 
 			if (Directory.Exists(TempPath))
 			{
-				Log.TraceInformation("Deleting temp path {0}", TempPath);
+				Logger.LogInformation("Deleting temp path {TempPath}", TempPath);
 				Directory.Delete(TempPath, true);
 			}
 
@@ -1592,8 +1594,8 @@ namespace UnrealBuildTool
 
 				ProcessOutput Output = new ProcessOutput();
 
-				FabricProcess.OutputDataReceived += new DataReceivedEventHandler(Output.OutputReceivedDataEventHandler);
-				FabricProcess.ErrorDataReceived += new DataReceivedEventHandler(Output.OutputReceivedDataEventHandler);
+				FabricProcess.OutputDataReceived += new DataReceivedEventHandler((s, e) => Output.OutputReceivedDataEventHandler(s, e, Logger));
+				FabricProcess.ErrorDataReceived += new DataReceivedEventHandler((s, e) => Output.OutputReceivedDataEventHandler(s, e, Logger));
 
 				Utils.RunLocalProcess(FabricProcess);
 				if (Output.OutputReceivedDataEventHandlerEncounteredError)
@@ -1603,7 +1605,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		internal static bool GenerateProjectFiles(FileReference? ProjectFile, string[] Arguments)
+		internal static bool GenerateProjectFiles(FileReference? ProjectFile, string[] Arguments, ILogger Logger)
 		{
 			ProjectFileGenerator.bGenerateProjectFiles = true;
 			try
@@ -1611,11 +1613,11 @@ namespace UnrealBuildTool
 				CommandLineArguments CmdLine = new CommandLineArguments(Arguments);
 
 				PlatformProjectGeneratorCollection PlatformProjectGenerators = new PlatformProjectGeneratorCollection();
-				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.IOS, new IOSProjectGenerator(CmdLine));
-				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.TVOS, new TVOSProjectGenerator(CmdLine));
+				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.IOS, new IOSProjectGenerator(CmdLine, Logger), Logger);
+				PlatformProjectGenerators.RegisterPlatformProjectGenerator(UnrealTargetPlatform.TVOS, new TVOSProjectGenerator(CmdLine, Logger), Logger);
 
 				XcodeProjectFileGenerator Generator = new XcodeProjectFileGenerator(ProjectFile, CmdLine);
-				return Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments);
+				return Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments, Logger);
 			}
 			finally
 			{
@@ -1628,7 +1630,7 @@ namespace UnrealBuildTool
 			return FileReference.Combine(Executable.Directory, "Payload", TargetName + ".app", TargetName);
 		}
 
-		private static void WriteEntitlements(IOSPostBuildSyncTarget Target)
+		private static void WriteEntitlements(IOSPostBuildSyncTarget Target, ILogger Logger)
 		{
 			string AppName = Target.TargetName;
 			FileReference? MobileProvisionFile;
@@ -1684,7 +1686,7 @@ namespace UnrealBuildTool
 			return ProjectDirectory;
 		}
 
-		private static void GenerateFrameworkWrapperIfNonexistent(IOSPostBuildSyncTarget Target)
+		private static void GenerateFrameworkWrapperIfNonexistent(IOSPostBuildSyncTarget Target, ILogger Logger)
 		{
 			DirectoryReference ProjectDirectory = GetActualProjectDirectory(Target.ProjectFile);
 			DirectoryReference WrapperDirectory = DirectoryReference.Combine(ProjectDirectory, "Wrapper");
@@ -1715,7 +1717,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public static void PostBuildSync(IOSPostBuildSyncTarget Target)
+		public static void PostBuildSync(IOSPostBuildSyncTarget Target, ILogger Logger)
 		{
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, GetActualProjectDirectory(Target.ProjectFile), UnrealTargetPlatform.IOS);
 			string? BundleID;
@@ -1749,7 +1751,7 @@ namespace UnrealBuildTool
 
 					PathToDsymZip = Path.Combine(Target.OutputPath.Directory.ParentDirectory!.FullName, Target.OutputPath.GetFileName() + ".dSYM.zip");
 
-					GenerateFrameworkWrapperIfNonexistent(Target);
+					GenerateFrameworkWrapperIfNonexistent(Target, Logger);
 
 					// do not perform any of the .app creation below
 					bPerformFullAppCreation = false;
@@ -1760,7 +1762,7 @@ namespace UnrealBuildTool
 
 			if (!Target.bSkipCrashlytics)
 			{
-				GenerateCrashlyticsData(PathToDsymZip, Target.ProjectDirectory.FullName, AppName);
+				GenerateCrashlyticsData(PathToDsymZip, Target.ProjectDirectory.FullName, AppName, Logger);
 			}
 
 			// only make the app if needed
@@ -1927,7 +1929,7 @@ namespace UnrealBuildTool
 						Writer.WriteLine(String.Format("rm -rf \"{0}\"", FrameworkPayloadDirectory));
 
 						// Build the framework wrapper
-						CmdLine = new IOSToolChainSettings().XcodeDeveloperDir + "usr/bin/xcodebuild" +
+						CmdLine = new IOSToolChainSettings(Logger).XcodeDeveloperDir + "usr/bin/xcodebuild" +
 							" -project \"" + WrapperProject + "\"" +
 								" -configuration \"" + ConfigName + "\"" +
 							" -scheme '" + SchemeName + "'" +
@@ -1940,7 +1942,7 @@ namespace UnrealBuildTool
 					else
 					{
 						// code sign the project
-						CmdLine = new IOSToolChainSettings().XcodeDeveloperDir + "usr/bin/xcodebuild" +
+						CmdLine = new IOSToolChainSettings(Logger).XcodeDeveloperDir + "usr/bin/xcodebuild" +
 							" -workspace \"" + XcodeWorkspaceDir + "\"" +
 								" -configuration \"" + ConfigName + "\"" +
 							" -scheme '" + SchemeName + "'" +
@@ -1962,11 +1964,11 @@ namespace UnrealBuildTool
 				{
 				    if (AppName == "UnrealGame" || AppName == "UnrealClient" || Target.ProjectFile == null || Target.ProjectFile.IsUnderDirectory(Unreal.EngineDirectory))
 				    {
-					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), "-bundleID=" + BundleID, "-includetemptargets", "-appname=" + AppName });
+					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), "-bundleID=" + BundleID, "-includetemptargets", "-appname=" + AppName }, Logger);
 				    }
 				    else
 				    {
-					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game", "-bundleID=" + BundleID, "-includetemptargets" });
+					    GenerateProjectFiles(Target.ProjectFile, new string[] { "-platforms=" + (Target.Platform == UnrealTargetPlatform.IOS ? "IOS" : "TVOS"), "-NoIntellIsense", (Target.Platform == UnrealTargetPlatform.IOS ? "-iosdeployonly" : "-tvosdeployonly"), "-ignorejunk", (Target.bForDistribution ? "-distribution" : "-development"), String.Format("-project={0}", Target.ProjectFile), "-game", "-bundleID=" + BundleID, "-includetemptargets" }, Logger);
 				    }
 				    // Make sure it exists
 				    if (!DirectoryReference.Exists(XcodeWorkspaceDir!))
@@ -1976,14 +1978,14 @@ namespace UnrealBuildTool
 				}
 
 				// ensure the plist, entitlements, and provision files are properly copied
-				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
+				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS(Logger) : new UEDeployTVOS(Logger));
 				DeployHandler.ForDistribution = Target.bForDistribution;
 				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.bCreateStubIPA, BundleID, Target.bBuildAsFramework);
 
-				Log.TraceInformation("Executing {0}", SignProjectScript);
+				Logger.LogInformation("Executing {Script}", SignProjectScript);
 
 				// write the entitlements file (building remotely)
-				WriteEntitlements(Target);
+				WriteEntitlements(Target, Logger);
 
 				Process SignProcess = new Process();
 				SignProcess.StartInfo.WorkingDirectory = RemoteShadowDirectoryMac;
@@ -1993,8 +1995,8 @@ namespace UnrealBuildTool
 
 				ProcessOutput Output = new ProcessOutput();
 
-				SignProcess.OutputDataReceived += new DataReceivedEventHandler(Output.OutputReceivedDataEventHandler);
-				SignProcess.ErrorDataReceived += new DataReceivedEventHandler(Output.OutputReceivedDataEventHandler);
+				SignProcess.OutputDataReceived += new DataReceivedEventHandler((s, e) => Output.OutputReceivedDataEventHandler(s, e, Logger));
+				SignProcess.ErrorDataReceived += new DataReceivedEventHandler((s, e) => Output.OutputReceivedDataEventHandler(s, e, Logger));
 
 				Output.OutputReceivedDataEventHandlerEncounteredError = false;
 				Output.OutputReceivedDataEventHandlerEncounteredErrorMessage = "";
@@ -2011,7 +2013,7 @@ namespace UnrealBuildTool
 						CleanWriter.WriteLine("security list-keychain -s login.keychain");
 					}
 
-					Log.TraceInformation("Executing {0}", CleanProjectScript);
+					Logger.LogInformation("Executing {Script}", CleanProjectScript);
 
 					Process CleanProcess = new Process();
 					CleanProcess.StartInfo.WorkingDirectory = RemoteShadowDirectoryMac;
@@ -2020,8 +2022,8 @@ namespace UnrealBuildTool
 
 					ProcessOutput CleanOutput = new ProcessOutput();
 
-					SignProcess.OutputDataReceived += new DataReceivedEventHandler(CleanOutput.OutputReceivedDataEventLogger);
-					SignProcess.ErrorDataReceived += new DataReceivedEventHandler(CleanOutput.OutputReceivedDataEventLogger);
+					SignProcess.OutputDataReceived += new DataReceivedEventHandler((s, e) => CleanOutput.OutputReceivedDataEventLogger(s, e, Logger));
+					SignProcess.ErrorDataReceived += new DataReceivedEventHandler((s, e) => CleanOutput.OutputReceivedDataEventLogger(s, e, Logger));
 
 					Utils.RunLocalProcess(CleanProcess);
 				}
@@ -2055,12 +2057,12 @@ namespace UnrealBuildTool
 			else
 			{
 				// ensure the plist, entitlements, and provision files are properly copied
-				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS() : new UEDeployTVOS());
+				UEDeployIOS DeployHandler = (Target.Platform == UnrealTargetPlatform.IOS ? new UEDeployIOS(Logger) : new UEDeployTVOS(Logger));
 				DeployHandler.ForDistribution = Target.bForDistribution;
 				DeployHandler.PrepTargetForDeployment(Target.ProjectFile, Target.TargetName, Target.Platform, Target.Configuration, Target.UPLScripts, Target.bCreateStubIPA, BundleID, Target.bBuildAsFramework);
 
 				// write the entitlements file (building on Mac)
-				WriteEntitlements(Target);
+				WriteEntitlements(Target, Logger);
 			}
 
 			{
@@ -2077,7 +2079,7 @@ namespace UnrealBuildTool
 					// For now, this is hard coded, but we need to loop over all modules, and copy bundled assets that need it
 					string LocalDest = LocalFrameworkAssets + "/" + Pair.Key;
 
-					Log.TraceInformation("Copying bundled asset... LocalSource: {0}, LocalDest: {1}", Pair.Value, LocalDest);
+					Logger.LogInformation("Copying bundled asset... LocalSource: {Source}, LocalDest: {Target}", Pair.Value, LocalDest);
 
 					string ResultsText;
 					RunExecutableAndWait("cp", String.Format("-R -L \"{0}\" \"{1}\"", Pair.Value, LocalDest), out ResultsText);

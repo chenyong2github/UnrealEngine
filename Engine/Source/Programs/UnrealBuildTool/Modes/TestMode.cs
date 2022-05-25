@@ -3,6 +3,7 @@
 using System.Collections.Generic;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -16,7 +17,8 @@ namespace UnrealBuildTool
 		/// Main entry point
 		/// </summary>
 		/// <param name="Arguments">Command-line arguments</param>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -26,9 +28,9 @@ namespace UnrealBuildTool
 			XmlConfig.ApplyTo(BuildConfiguration);
 
 			// Parse all the targets being built
-			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, false, false, false);
+			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, false, false, false, Logger);
 
-			BuildTests(TargetDescriptors, BuildConfiguration);
+			BuildTests(TargetDescriptors, BuildConfiguration, Logger);
 
 			return 0;
 		}
@@ -43,7 +45,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="TargetDescriptors">Target descriptors</param>
 		/// <param name="BuildConfiguration">Current build configuration</param>
-		public static void BuildTests(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration)
+		/// <param name="Logger"></param>
+		public static void BuildTests(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ILogger Logger)
 		{
 			List<TargetDescriptor> TestTargetDescriptors = new List<TargetDescriptor>();
 
@@ -55,9 +58,9 @@ namespace UnrealBuildTool
 				TestTargetDescriptors.Add(TestsTargetDescriptor);
 			}
 
-			using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(Unreal.RootDirectory, new HashSet<DirectoryReference>()))
+			using (ISourceFileWorkingSet WorkingSet = SourceFileWorkingSet.Create(Unreal.RootDirectory, new HashSet<DirectoryReference>(), Logger))
 			{
-				BuildMode.Build(TestTargetDescriptors, BuildConfiguration, WorkingSet, BuildOptions.None, null);
+				BuildMode.Build(TestTargetDescriptors, BuildConfiguration, WorkingSet, BuildOptions.None, null, Logger);
 			}
 		}
 	}

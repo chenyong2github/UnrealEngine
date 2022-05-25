@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 using EpicGames.Core;
 using UnrealBuildBase;
@@ -25,12 +26,12 @@ namespace UnrealBuildTool
 	[SupportedOSPlatform("windows")]
 	class HoloLensToolChain : VCToolChain
 	{
-		public HoloLensToolChain(ReadOnlyTargetRules Target)
-			: base(Target)
+		public HoloLensToolChain(ReadOnlyTargetRules Target, ILogger Logger)
+			: base(Target, Logger)
 		{
 			// by default tools chains don't parse arguments, but we want to be able to check the -architectures flag defined above. This is
 			// only necessary when AndroidToolChain is used during UAT
-			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), this);
+			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), this, Logger);
 		}
 
 		protected override void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -148,20 +149,20 @@ namespace UnrealBuildTool
 		private static DirectoryReference? CurrentWindowsSdkBinDir = null;
 		private static Version? CurrentWindowsSdkVersion;
 
-		public static bool InitWindowsSdkToolPath(string SdkVersion)
+		public static bool InitWindowsSdkToolPath(string SdkVersion, ILogger Logger)
 		{
 			if (string.IsNullOrEmpty(SdkVersion))
 			{
-				Log.TraceError("WinSDK version is empty");
+				Logger.LogError("WinSDK version is empty");
 				return false;
 			}
 
 			VersionNumber OutSdkVersion;
 			DirectoryReference OutSdkDir;
 
-			if (!WindowsPlatform.TryGetWindowsSdkDir(SdkVersion, out OutSdkVersion!, out OutSdkDir!))
+			if (!WindowsPlatform.TryGetWindowsSdkDir(SdkVersion, Logger, out OutSdkVersion!, out OutSdkDir!))
 			{
-				Log.TraceError("Failed to find WinSDK " + SdkVersion);
+				Logger.LogError("Failed to find WinSDK {SdkVersion}", SdkVersion);
 				return false;
 			}
 
@@ -169,7 +170,7 @@ namespace UnrealBuildTool
 
 			if(!DirectoryReference.Exists(WindowsSdkBinDir))
 			{
-				Log.TraceError("WinSDK " + SdkVersion + " doesn't exit");
+				Logger.LogError("WinSDK {SdkVersion} doesn't exit", SdkVersion);
 				return false;
 			}
 

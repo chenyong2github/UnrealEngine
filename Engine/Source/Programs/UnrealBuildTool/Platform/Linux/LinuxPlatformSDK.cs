@@ -6,6 +6,7 @@ using System.IO;
 using EpicGames.Core;
 using System.Text.RegularExpressions;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 ///////////////////////////////////////////////////////////////////
 // If you are looking for supported version numbers, look in the
@@ -16,6 +17,11 @@ namespace UnrealBuildTool
 {
 	partial class LinuxPlatformSDK : UEBuildPlatformSDK
 	{
+		public LinuxPlatformSDK(ILogger Logger)
+			: base(Logger)
+		{
+		}
+
 		public override string GetAutoSDKPlatformName()
 		{
 			return TargetPlatformName;
@@ -255,7 +261,7 @@ namespace UnrealBuildTool
 
 			if (ForceUseSystemCompiler())
 			{
-				if (!String.IsNullOrEmpty(LinuxCommon.WhichClang()))
+				if (!String.IsNullOrEmpty(LinuxCommon.WhichClang(Logger)))
 				{
 					return SDKStatus.Valid;
 				}

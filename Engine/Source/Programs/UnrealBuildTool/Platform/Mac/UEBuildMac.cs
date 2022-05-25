@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using EpicGames.Core;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -100,7 +101,7 @@ namespace UnrealBuildTool
 
 	class MacPlatform : UEBuildPlatform
 	{
-		public MacPlatform(UEBuildPlatformSDK InSDK) : base(UnrealTargetPlatform.Mac, InSDK)
+		public MacPlatform(UEBuildPlatformSDK InSDK, ILogger InLogger) : base(UnrealTargetPlatform.Mac, InSDK, InLogger)
 		{
 		}
 
@@ -115,7 +116,7 @@ namespace UnrealBuildTool
 		}
 
 		public override void ResetTarget(TargetRules Target)
-		{			
+		{
 		}
 
 		public override void ValidateTarget(TargetRules Target)
@@ -399,16 +400,13 @@ namespace UnrealBuildTool
 				Options |= ClangToolChainOptions.OutputDylib;
 			}
 
-			return new MacToolChain(Target.ProjectFile, Options);
+			return new MacToolChain(Target.ProjectFile, Options, Logger);
 		}
 
-		/// <summary>
-		/// Deploys the given target
-		/// </summary>
-		/// <param name="Receipt">Receipt for the target being deployed</param>
+		/// <inheritdoc/>
 		public override void Deploy(TargetReceipt Receipt)
 		{
-			new UEDeployMac().PrepTargetForDeployment(Receipt);
+			new UEDeployMac(Logger).PrepTargetForDeployment(Receipt);
 		}
 	}
 
@@ -422,12 +420,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Register the platform with the UEBuildPlatform class
 		/// </summary>
-		public override void RegisterBuildPlatforms()
+		public override void RegisterBuildPlatforms(ILogger Logger)
 		{
-			MacPlatformSDK SDK = new MacPlatformSDK();
+			MacPlatformSDK SDK = new MacPlatformSDK(Logger);
 
 			// Register this build platform for Mac
-			UEBuildPlatform.RegisterBuildPlatform(new MacPlatform(SDK));
+			UEBuildPlatform.RegisterBuildPlatform(new MacPlatform(SDK, Logger), Logger);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Mac, UnrealPlatformGroup.Apple);
 			UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.Mac, UnrealPlatformGroup.Desktop);
 		}

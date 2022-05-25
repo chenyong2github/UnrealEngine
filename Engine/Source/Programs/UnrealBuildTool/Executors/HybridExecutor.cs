@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -31,11 +32,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public HybridExecutor(List<TargetDescriptor> TargetDescriptors, int InMaxLocalActions, bool bCompactOutput, ActionExecutor? InLocalExecutor = null, ActionExecutor? InRemoteExecutor = null)
+		public HybridExecutor(List<TargetDescriptor> TargetDescriptors, int InMaxLocalActions, bool bCompactOutput, ILogger Logger, ActionExecutor? InLocalExecutor = null, ActionExecutor? InRemoteExecutor = null)
 		{
 			MaxLocalActions = InMaxLocalActions;
-			LocalExecutor = InLocalExecutor ?? new ParallelExecutor(MaxLocalActions, bCompactOutput);
-			RemoteExecutor = InRemoteExecutor ?? (XGE.IsAvailable() ? (ActionExecutor)new XGE() : new SNDBS(TargetDescriptors));
+			LocalExecutor = InLocalExecutor ?? new ParallelExecutor(MaxLocalActions, bCompactOutput, Logger);
+			RemoteExecutor = InRemoteExecutor ?? (XGE.IsAvailable(Logger) ? (ActionExecutor)new XGE() : new SNDBS(TargetDescriptors));
 
 			XmlConfig.ApplyTo(this);
 
@@ -49,9 +50,9 @@ namespace UnrealBuildTool
 		/// Tests whether this executor can be used
 		/// </summary>
 		/// <returns>True if the executor may be used</returns>
-		public static bool IsAvailable()
+		public static bool IsAvailable(ILogger Logger)
 		{
-			return (XGE.IsAvailable() || SNDBS.IsAvailable()) && ParallelExecutor.IsAvailable();
+			return (XGE.IsAvailable(Logger) || SNDBS.IsAvailable(Logger)) && ParallelExecutor.IsAvailable();
 		}
 
 		/// <summary>
@@ -63,8 +64,9 @@ namespace UnrealBuildTool
 		/// Execute the given actions
 		/// </summary>
 		/// <param name="ActionsToExecute">Actions to be executed</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the build succeeded, false otherwise</returns>
-		public override bool ExecuteActions(List<LinkedAction> ActionsToExecute)
+		public override bool ExecuteActions(List<LinkedAction> ActionsToExecute, ILogger Logger)
 		{
 			// Find the number of dependants for each action
 			Dictionary<LinkedAction, int> ActionToNumDependents = ActionsToExecute.ToDictionary(x => x, x => 0);
@@ -125,13 +127,13 @@ namespace UnrealBuildTool
 			}
 
 			// Execute the remote actions
-			if (RemoteActionsToExecute.Count > 0 && !RemoteExecutor.ExecuteActions(RemoteActionsToExecute))
+			if (RemoteActionsToExecute.Count > 0 && !RemoteExecutor.ExecuteActions(RemoteActionsToExecute, Logger))
 			{
 				return false;
 			}
 
 			// Pass all the local actions through to the parallel executor
-			if (LocalActionsToExecute.Count > 0 && !LocalExecutor.ExecuteActions(LocalActionsToExecute))
+			if (LocalActionsToExecute.Count > 0 && !LocalExecutor.ExecuteActions(LocalActionsToExecute, Logger))
 			{
 				return false;
 			}

@@ -12,6 +12,7 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using UnrealBuildBase;
 
 namespace UnrealBuildTool
@@ -67,7 +68,8 @@ namespace UnrealBuildTool
 		/// Initialize the config system with the given types
 		/// </summary>
 		/// <param name="OverrideCacheFile">Force use of the cached XML config without checking if it's valid (useful for remote builds)</param>
-		public static void ReadConfigFiles(FileReference? OverrideCacheFile)
+		/// <param name="Logger">Logger for output</param>
+		public static void ReadConfigFiles(FileReference? OverrideCacheFile, ILogger Logger)
 		{
 			// Find all the configurable types
 			List<Type> ConfigTypes = FindConfigurableTypes();
@@ -132,7 +134,7 @@ namespace UnrealBuildTool
 						new Dictionary<Type, Dictionary<XmlConfigData.TargetMember, XmlConfigData.ValueInfo>>();
 					foreach(FileReference InputFile in InputFileLocations)
 					{
-						if(!TryReadFile(InputFile, CategoryToFields, TypeToValues, Schema))
+						if(!TryReadFile(InputFile, CategoryToFields, TypeToValues, Schema, Logger))
 						{
 							throw new BuildException("Failed to properly read XML file : {0}", InputFile.FullName);
 						}
@@ -241,6 +243,8 @@ namespace UnrealBuildTool
 					return CachedInputFiles;
 				}
 
+				ILogger Logger = Log.Logger;
+				
 				// Find all the input file locations
 				List<InputFile> InputFilesFound = new List<InputFile>(4);
 
@@ -255,14 +259,14 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.TraceLog($"No config file at {NotForLicenseesConfigLocation}");
+						Logger.LogDebug("No config file at {NotForLicenseesConfigLocation}", NotForLicenseesConfigLocation);
 					}
 
 					// Check for the user config file under /Engine/Saved/UnrealBuildTool
 					FileReference UserConfigLocation = FileReference.Combine(Unreal.EngineDirectory, "Saved", "UnrealBuildTool", "BuildConfiguration.xml");
 					if (!FileReference.Exists(UserConfigLocation))
 					{
-						Log.TraceLog($"Creating default config file at {UserConfigLocation}");
+						Logger.LogDebug("Creating default config file at {UserConfigLocation}", UserConfigLocation);
 						CreateDefaultConfigFile(UserConfigLocation);
 					}
 					InputFilesFound.Add(new InputFile(UserConfigLocation, "User"));
@@ -275,7 +279,7 @@ namespace UnrealBuildTool
 					FileReference AppDataConfigLocation = FileReference.Combine(new DirectoryReference(AppDataFolder), "Unreal Engine", "UnrealBuildTool", "BuildConfiguration.xml");
 					if (!FileReference.Exists(AppDataConfigLocation))
 					{
-						Log.TraceLog($"Creating default config file at {AppDataConfigLocation}");
+						Logger.LogDebug("Creating default config file at {AppDataConfigLocation}", AppDataConfigLocation);
 						CreateDefaultConfigFile(AppDataConfigLocation);
 					}
 					InputFilesFound.Add(new InputFile(AppDataConfigLocation, "Global (AppData)"));
@@ -292,16 +296,16 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.TraceLog($"No config file at {PersonalConfigLocation}");
+						Logger.LogDebug("No config file at {PersonalConfigLocation}", PersonalConfigLocation);
 					}
 				}
 
 				CachedInputFiles = InputFilesFound.ToArray();
 
-				Log.TraceLog("Configuration will be read from:");
+				Logger.LogDebug("Configuration will be read from:");
 				foreach (InputFile InputFile in InputFiles)
 				{
-					Log.TraceLog($"  {InputFile.Location.FullName}");
+					Logger.LogDebug("  {File}", InputFile.Location.FullName);
 				}
 
 				return CachedInputFiles;
@@ -329,6 +333,7 @@ namespace UnrealBuildTool
 		/// <param name="TargetObject">The object instance to be configured</param>
 		public static void ApplyTo(object TargetObject)
 		{
+			ILogger Logger = Log.Logger;
 			for (Type? TargetType = TargetObject.GetType(); TargetType != null; TargetType = TargetType.BaseType)
 			{ 
 				XmlConfigData.ValueInfo[]? FieldValues;
@@ -343,16 +348,13 @@ namespace UnrealBuildTool
 							// Check if setting has been deprecated
 							if (FieldValue.XmlConfigAttribute.Deprecated)
 							{
-								Log.TraceWarning($"Deprecated setting found in \"{FieldValue.SourceFile}\":");
-								Log.TraceWarning(
-									$"The setting \"{FieldValue.Target.MemberInfo.Name}\" is deprecated. Support for this setting will be removed in a future version of Unreal Engine.");
+								Logger.LogWarning("Deprecated setting found in \"{SourceFile}\":", FieldValue.SourceFile);
+								Logger.LogWarning("The setting \"{Setting}\" is deprecated. Support for this setting will be removed in a future version of Unreal Engine.", FieldValue.Target.MemberInfo.Name);
 
 								if (FieldValue.XmlConfigAttribute.NewAttributeName != null)
 								{
-									Log.TraceWarning(
-										$"Use \"{FieldValue.XmlConfigAttribute.NewAttributeName}\" in place of \"{FieldValue.Target.MemberInfo.Name}\"");
-									Log.TraceInformation(
-										$"The value provided for deprecated setting \"{FieldValue.Target.MemberInfo.Name}\" will be applied to \"{FieldValue.XmlConfigAttribute.NewAttributeName}\"");
+									Logger.LogWarning("Use \"{NewAttributeName}\" in place of \"{OldAttributeName}\"", FieldValue.XmlConfigAttribute.NewAttributeName, FieldValue.Target.MemberInfo.Name);
+									Logger.LogInformation("The value provided for deprecated setting \"{OldName}\" will be applied to \"{NewName}\"", FieldValue.Target.MemberInfo.Name, FieldValue.XmlConfigAttribute.NewAttributeName);
 
 									TargetToWrite = GetTargetMember(TargetType, FieldValue.XmlConfigAttribute.NewAttributeName) ?? TargetToWrite;
 								}
@@ -669,13 +671,14 @@ namespace UnrealBuildTool
 		/// <param name="CategoryToFields">Lookup for configurable fields by category</param>
 		/// <param name="TypeToValues">Map of types to fields and their associated values</param>
 		/// <param name="Schema">Schema to validate against</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the file was read successfully</returns>
 		static bool TryReadFile(FileReference Location, Dictionary<string, Dictionary<string, XmlConfigData.TargetMember>> CategoryToFields,
-			Dictionary<Type, Dictionary<XmlConfigData.TargetMember, XmlConfigData.ValueInfo>> TypeToValues, XmlSchema Schema)
+			Dictionary<Type, Dictionary<XmlConfigData.TargetMember, XmlConfigData.ValueInfo>> TypeToValues, XmlSchema Schema, ILogger Logger)
 		{
 			// Read the XML file, and validate it against the schema
 			XmlConfigFile? ConfigFile;
-			if(!XmlConfigFile.TryRead(Location, Schema, out ConfigFile))
+			if(!XmlConfigFile.TryRead(Location, Schema, Logger, out ConfigFile))
 			{
 				return false;
 			}
@@ -821,7 +824,8 @@ namespace UnrealBuildTool
 		/// Generates documentation files for the available settings, by merging the XML documentation from the compiler.
 		/// </summary>
 		/// <param name="OutputFile">The documentation file to write</param>
-		public static void WriteDocumentation(FileReference OutputFile)
+		/// <param name="Logger">Logger for output</param>
+		public static void WriteDocumentation(FileReference OutputFile, ILogger Logger)
 		{
 			// Find all the configurable types
 			List<Type> ConfigTypes = FindConfigurableTypes();
@@ -855,11 +859,11 @@ namespace UnrealBuildTool
 			// Generate the documentation file
 			if(OutputFile.HasExtension(".udn"))
 			{
-				WriteDocumentationUDN(OutputFile, InputDocumentation, CategoryToFields);
+				WriteDocumentationUDN(OutputFile, InputDocumentation, CategoryToFields, Logger);
 			}
 			else if(OutputFile.HasExtension(".html"))
 			{
-				WriteDocumentationHTML(OutputFile, InputDocumentation, CategoryToFields);
+				WriteDocumentationHTML(OutputFile, InputDocumentation, CategoryToFields, Logger);
 			}
 			else
 			{
@@ -867,7 +871,7 @@ namespace UnrealBuildTool
 			}
 
 			// Success!
-			Log.TraceInformation("Written documentation to {0}.", OutputFile);
+			Logger.LogInformation("Written documentation to {OutputFile}.", OutputFile);
 		}
 
 		/// <summary>
@@ -876,7 +880,8 @@ namespace UnrealBuildTool
 		/// <param name="OutputFile">The output file</param>
 		/// <param name="InputDocumentation">The XML documentation for this assembly</param>
 		/// <param name="CategoryToFields">Map of string to types to fields</param>
-		private static void WriteDocumentationUDN(FileReference OutputFile, XmlDocument InputDocumentation, Dictionary<string, Dictionary<string, XmlConfigData.TargetMember>> CategoryToFields)
+		/// <param name="Logger">Logger for output</param>
+		private static void WriteDocumentationUDN(FileReference OutputFile, XmlDocument InputDocumentation, Dictionary<string, Dictionary<string, XmlConfigData.TargetMember>> CategoryToFields, ILogger Logger)
 		{
 			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
 			{
@@ -898,7 +903,7 @@ namespace UnrealBuildTool
 					{
 						// Get the XML comment for this field
 						List<string>? Lines;
-						if(!RulesDocumentation.TryGetXmlComment(InputDocumentation, FieldPair.Value.MemberInfo, out Lines) || Lines.Count == 0)
+						if(!RulesDocumentation.TryGetXmlComment(InputDocumentation, FieldPair.Value.MemberInfo, Logger, out Lines) || Lines.Count == 0)
 						{
 							continue;
 						}
@@ -928,7 +933,8 @@ namespace UnrealBuildTool
 		/// <param name="OutputFile">The output file</param>
 		/// <param name="InputDocumentation">The XML documentation for this assembly</param>
 		/// <param name="CategoryToFields">Map of string to types to fields</param>
-		private static void WriteDocumentationHTML(FileReference OutputFile, XmlDocument InputDocumentation, Dictionary<string, Dictionary<string, XmlConfigData.TargetMember>> CategoryToFields)
+		/// <param name="Logger">Logger for output</param>
+		private static void WriteDocumentationHTML(FileReference OutputFile, XmlDocument InputDocumentation, Dictionary<string, Dictionary<string, XmlConfigData.TargetMember>> CategoryToFields, ILogger Logger)
 		{
 			using (StreamWriter Writer = new StreamWriter(OutputFile.FullName))
 			{
@@ -946,7 +952,7 @@ namespace UnrealBuildTool
 					{
 						// Get the XML comment for this field
 						List<string>? Lines;
-						if (!RulesDocumentation.TryGetXmlComment(InputDocumentation, FieldPair.Value.MemberInfo, out Lines) || Lines.Count == 0)
+						if (!RulesDocumentation.TryGetXmlComment(InputDocumentation, FieldPair.Value.MemberInfo, Logger, out Lines) || Lines.Count == 0)
 						{
 							continue;
 						}

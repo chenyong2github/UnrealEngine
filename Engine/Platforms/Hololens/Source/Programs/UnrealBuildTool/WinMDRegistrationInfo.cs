@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -74,9 +75,9 @@ namespace UnrealBuildTool
 
 			VersionNumber? OutSdkVersion;
 			DirectoryReference? OutSdkDir;
-			if (!WindowsPlatform.TryGetWindowsSdkDir(SdkVersion, out OutSdkVersion, out OutSdkDir))
+			if (!WindowsPlatform.TryGetWindowsSdkDir(SdkVersion, Logger, out OutSdkVersion, out OutSdkDir))
 			{
-				Log.TraceError("Failed to find WinSDK " + SdkVersion);
+				Logger.LogError("Failed to find WinSDK {SdkVersion}", SdkVersion);
 				throw new Exception("Failed to find WinSDK");
 			}
 
@@ -107,7 +108,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.TraceWarning("Unable to resolve location for HoloLens WinMD api contract {0}, file {1}", WinMDRef, ExpandedWinMDRef);
+						Logger.LogWarning("Unable to resolve location for HoloLens WinMD api contract {Contract}, file {File}", WinMDRef, ExpandedWinMDRef);
 					}
 				}
 			}
@@ -115,15 +116,20 @@ namespace UnrealBuildTool
 			return ExpandedWinMDReferences;
 		}
 
+		private readonly ILogger Logger;
+
 		/// <summary>
 		/// WinMD reference info
 		/// </summary>
 		/// <param name="InWindMDSourcePath"></param>
 		/// <param name="InPackageRelativeDllPath"></param>
 		/// <param name="SdkVersion"></param>
+		/// <param name="InLogger"></param>
 		[SupportedOSPlatform("windows")]
-		public WinMDRegistrationInfo(FileReference InWindMDSourcePath, string InPackageRelativeDllPath, string SdkVersion)
+		public WinMDRegistrationInfo(FileReference InWindMDSourcePath, string InPackageRelativeDllPath, string SdkVersion, ILogger InLogger)
 		{
+			Logger = InLogger;
+
 			PackageRelativeDllPath = InPackageRelativeDllPath;
 			ResolveSearchPaths.Add(InWindMDSourcePath.Directory.FullName);
 			List<string> WinMDAssemblies = ExpandWinMDReferences(SdkVersion, new string[] {

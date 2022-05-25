@@ -397,7 +397,7 @@ namespace AutomationToolDriver
 				bool bWaitForUATMutex = AutomationToolCommandLine.IsSetGlobal("-WaitForUATMutex");
 
 				// Don't allow simultaneous execution of AT (in the same branch)
-				ReturnCode = await ProcessSingleton.RunSingleInstanceAsync(MainProc, bWaitForUATMutex);
+				ReturnCode = await ProcessSingleton.RunSingleInstanceAsync(MainProc, bWaitForUATMutex, Log.Logger);
 			}
 			catch (Exception Ex)
             {
@@ -434,7 +434,8 @@ namespace AutomationToolDriver
 					out bBuildSuccess, (int Count) =>
                     {
 						Logger.LogInformation("Building {Count} projects (see Log 'Engine/Programs/AutomationTool/Saved/Logs/Log.txt' for more details)", Count);
-					});
+					},
+					Log.Logger);
 
 			if (!bBuildSuccess)
             {

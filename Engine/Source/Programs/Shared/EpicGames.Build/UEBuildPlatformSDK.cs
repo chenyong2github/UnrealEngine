@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.Core
 {
@@ -51,6 +52,7 @@ namespace EpicGames.Core
 		{
 			Name = "Unknown";
 		}
+
 		public SDKDescriptor(string InName, string? InMin, string? InMax, string? InCurrent, string? InGroupName, SDKCollection? Collection)
 		{
 			Name = InName;
@@ -286,8 +288,11 @@ namespace EpicGames.Core
 	{
 		// Public SDK handling, not specific to AutoSDK
 
-		public UEBuildPlatformSDK()
+		protected readonly ILogger Logger;
+
+		public UEBuildPlatformSDK(ILogger InLogger)
 		{
+			Logger = InLogger;
 		}
 
 		#region Global SDK Registration
@@ -1302,7 +1307,7 @@ namespace EpicGames.Core
 		{
 			if (!IsAutoSDKSafe())
 			{
-				Log.TraceLog(GetAutoSDKPlatformName() + " attempted to run SDK hook which could have damaged manual SDK install!");
+				Logger.LogDebug("{Platform} attempted to run SDK hook which could have damaged manual SDK install!", GetAutoSDKPlatformName());
 				return false;
 			}
 			if (SDKVersionString != "")
@@ -1312,7 +1317,7 @@ namespace EpicGames.Core
 
 				if (File.Exists(HookExe))
 				{
-					Log.TraceLog("Running {0} hook {1}", Hook, HookExe);
+					Logger.LogDebug("Running {Hook} hook {HookExe}", Hook, HookExe);
 
 					// run it
 					Process HookProcess = new Process();
@@ -1349,7 +1354,7 @@ namespace EpicGames.Core
 
 					if (HookProcess.ExitCode != 0)
 					{
-						Log.TraceLog("Hook exited uncleanly (returned {0}), considering it failed.", HookProcess.ExitCode);
+						Logger.LogDebug("Hook exited uncleanly (returned {ExitCode}), considering it failed.", HookProcess.ExitCode);
 						return false;
 					}
 
@@ -1357,12 +1362,12 @@ namespace EpicGames.Core
 				}
 				else
 				{
-					Log.TraceLog("File {0} does not exist", HookExe);
+					Logger.LogDebug("File {HookExe} does not exist", HookExe);
 				}
 			}
 			else
 			{
-				Log.TraceLog("Version string is blank for {0}. Can't determine {1} hook.", PlatformSDKRoot, Hook.ToString());
+				Logger.LogDebug("Version string is blank for {SdkRoot}. Can't determine {Hook} hook.", PlatformSDKRoot, Hook.ToString());
 			}
 
 			return bHookCanBeNonExistent;
@@ -1401,8 +1406,8 @@ namespace EpicGames.Core
 						string[] Parts = VariableString.Split('=');
 						if (Parts.Length != 2)
 						{
-							Log.TraceLog("Incorrect environment variable declaration:");
-							Log.TraceLog(VariableString);
+							Logger.LogDebug("Incorrect environment variable declaration:");
+							Logger.LogDebug("{VariableString}", VariableString);
 							return false;
 						}
 
@@ -1433,7 +1438,7 @@ namespace EpicGames.Core
 					{
 						string EnvVarName = EnvVarNames[i];
 						string EnvVarValue = EnvVarValues[i];
-						Log.TraceVerbose("Setting variable '{0}' to '{1}'", EnvVarName, EnvVarValue);
+						Logger.LogDebug("Setting variable '{Name}' to '{Value}'", EnvVarName, EnvVarValue);
 						Environment.SetEnvironmentVariable(EnvVarName, EnvVarValue);
 					}
 
@@ -1448,7 +1453,7 @@ namespace EpicGames.Core
                     }
                     else
                     {
-                        Log.TraceVerbose("Path environment variable is null during AutoSDK");
+                        Logger.LogDebug("Path environment variable is null during AutoSDK");
                     }
 
 					List<String> ModifiedPathVars = new List<string>();
@@ -1461,7 +1466,7 @@ namespace EpicGames.Core
 						{
 							if (PathVar.IndexOf(PathRemove, StringComparison.OrdinalIgnoreCase) >= 0)
 							{
-								Log.TraceVerbose("Removing Path: '{0}'", PathVar);
+								Logger.LogDebug("Removing Path: '{Path}'", PathVar);
 								ModifiedPathVars.Remove(PathVar);
 							}
 						}
@@ -1475,7 +1480,7 @@ namespace EpicGames.Core
 						{
 							if (String.Compare(PathAdd, PathVar, true) == 0)
 							{
-								Log.TraceVerbose("Removing Path: '{0}'", PathVar);
+								Logger.LogDebug("Removing Path: '{Path}'", PathVar);
 								ModifiedPathVars.Remove(PathVar);
 							}
 						}
@@ -1486,7 +1491,7 @@ namespace EpicGames.Core
 					{
 						if (!ModifiedPathVars.Contains(PathAdd))
 						{
-							Log.TraceVerbose("Adding Path: '{0}'", PathAdd);
+							Logger.LogDebug("Adding Path: '{Path}'", PathAdd);
 							ModifiedPathVars.Add(PathAdd);
 						}
 					}
@@ -1521,7 +1526,7 @@ namespace EpicGames.Core
 			}
 			else
 			{
-				Log.TraceLog("Cannot set up environment for {1} because command file {2} does not exist.", PlatformSDKRoot, EnvVarFile);
+				Logger.LogDebug("Cannot set up environment for {SdkRoot} because command file {EnvVarFile} does not exist.", PlatformSDKRoot, EnvVarFile);
 			}
 
 			return false;
@@ -1685,7 +1690,7 @@ namespace EpicGames.Core
 					// if the user doesn't want AutoSDK for this platform, then do nothing
 					if (string.Compare(DesiredSDKLevel, "NONE", true) == 0)
 					{
-						Log.TraceLog($"Skipping AutoSDK for {PlatformName} because NONE was specified as the desired AutoSDK level");
+						Logger.LogDebug("Skipping AutoSDK for {PlatformName} because NONE was specified as the desired AutoSDK level", PlatformName);
 						return;
 					}
 
@@ -1699,7 +1704,7 @@ namespace EpicGames.Core
 					// switch over (note that version string can be empty)
 					if (!RunAutoSDKHooks(AutoSDKRoot, CurrentSDKString, CurrentSDKLevel, SDKHookType.Uninstall))
 					{
-						Log.TraceLog("Failed to uninstall currently installed SDK {0}", CurrentSDKString);
+						Logger.LogDebug("Failed to uninstall currently installed SDK {SdkVersion}", CurrentSDKString);
 						InvalidateCurrentlyInstalledAutoSDK();
 						return;
 					}
@@ -1708,7 +1713,7 @@ namespace EpicGames.Core
 
 					if (!RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), DesiredSDKLevel, SDKHookType.Install, false))
 					{
-						Log.TraceLog("Failed to install required SDK {0}.  Attemping to uninstall", GetAutoSDKDirectoryForMainVersion());
+						Logger.LogDebug("Failed to install required SDK {SdkVersion}.  Attemping to uninstall", GetAutoSDKDirectoryForMainVersion());
 						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), DesiredSDKLevel, SDKHookType.Uninstall, false);
 						return;
 					}
@@ -1716,7 +1721,7 @@ namespace EpicGames.Core
 					string EnvVarFile = Path.Combine(AutoSDKRoot, SDKEnvironmentVarsFile);
 					if (!File.Exists(EnvVarFile))
 					{
-						Log.TraceLog("Installation of required SDK {0}.  Did not generate Environment file {1}", GetAutoSDKDirectoryForMainVersion(), EnvVarFile);
+						Logger.LogDebug("Installation of required SDK {SdkVersion}.  Did not generate Environment file {EnvVarFile}", GetAutoSDKDirectoryForMainVersion(), EnvVarFile);
 						RunAutoSDKHooks(AutoSDKRoot, GetAutoSDKDirectoryForMainVersion(), DesiredSDKLevel, SDKHookType.Uninstall, false);
 						return;
 					}
@@ -1762,7 +1767,7 @@ namespace EpicGames.Core
 			// load environment variables from current SDK
 			if (!SetupEnvironmentFromAutoSDK(PlatformSDKRoot))
 			{
-				Log.TraceLog("Failed to load environment from required SDK {0}", GetAutoSDKDirectoryForMainVersion());
+				Logger.LogDebug("Failed to load environment from required SDK {SdkRoot}", GetAutoSDKDirectoryForMainVersion());
 				InvalidateCurrentlyInstalledAutoSDK();
 				return SDKStatus.Invalid;
 			}

@@ -6,6 +6,7 @@ using System.Text;
 using System.Diagnostics;
 using System.IO;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -14,12 +15,16 @@ namespace UnrealBuildTool
 	/// </summary>
 	abstract class PlatformProjectGenerator
 	{
+		protected readonly ILogger Logger;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Arguments">Command line arguments passed to the project generator</param>
-		public PlatformProjectGenerator(CommandLineArguments Arguments)
+		/// <param name="Logger">Logger for output</param>
+		public PlatformProjectGenerator(CommandLineArguments Arguments, ILogger Logger)
 		{
+			this.Logger = Logger;
 		}
 
 		/// <summary>

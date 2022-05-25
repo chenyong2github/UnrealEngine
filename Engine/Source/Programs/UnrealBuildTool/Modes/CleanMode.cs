@@ -11,6 +11,7 @@ using EpicGames.Core;
 using OpenTracing;
 using OpenTracing.Util;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -38,7 +39,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">Command-line arguments</param>
 		/// <returns>One of the values of ECompilationResult</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -48,16 +50,16 @@ namespace UnrealBuildTool
 			Arguments.ApplyTo(BuildConfiguration);
 
 			// Parse all the targets being built
-			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, bSkipRulesCompile, BuildConfiguration.bForceRulesCompile);
+			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, Logger);
 
-			Clean(TargetDescriptors, BuildConfiguration);
+			Clean(TargetDescriptors, BuildConfiguration, Logger);
 
 			return 0;
 		}
 
-		public void Clean(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration)
+		public void Clean(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration, ILogger Logger)
 		{
-			using ScopedTimer CleanTimer = new ScopedTimer("CleanMode.Clean()");
+			using ScopedTimer CleanTimer = new ScopedTimer("CleanMode.Clean()", Logger);
 			using IScope Scope = GlobalTracer.Instance.BuildSpan("CleanMode.Clean()").StartActive();
 
 			if (TargetDescriptors.Count == 0)
@@ -100,23 +102,23 @@ namespace UnrealBuildTool
 			}
 
 			// Output the list of targets that we're cleaning
-			Log.TraceInformation("Cleaning {0} binaries...", StringUtils.FormatList(TargetDescriptors.Select(x => x.Name).Distinct()));
+			Logger.LogInformation("Cleaning {TargetNames} binaries...", StringUtils.FormatList(TargetDescriptors.Select(x => x.Name).Distinct()));
 
 			// Loop through all the targets, and clean them all
 			HashSet<FileReference> FilesToDelete = new HashSet<FileReference>();
 			HashSet<DirectoryReference> DirectoriesToDelete = new HashSet<DirectoryReference>();
 
-			using (ScopedTimer GatherTimer = new ScopedTimer("Find paths to clean"))
+			using (ScopedTimer GatherTimer = new ScopedTimer("Find paths to clean", Logger))
 			{
 				for (int Idx = 0; Idx < TargetDescriptors.Count; ++Idx)
 				{
 					TargetDescriptor TargetDescriptor = TargetDescriptors[Idx];
 
 					// Create the rules assembly
-					RulesAssembly RulesAssembly = RulesCompiler.CreateTargetRulesAssembly(TargetDescriptor.ProjectFile, TargetDescriptor.Name, bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, TargetDescriptor.ForeignPlugin);
+					RulesAssembly RulesAssembly = RulesCompiler.CreateTargetRulesAssembly(TargetDescriptor.ProjectFile, TargetDescriptor.Name, bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, TargetDescriptor.ForeignPlugin, Logger);
 
 					// Create the rules object
-					ReadOnlyTargetRules Target = new ReadOnlyTargetRules(RulesAssembly.CreateTargetRules(TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, TargetDescriptor.Architecture, TargetDescriptor.ProjectFile, TargetDescriptor.AdditionalArguments));
+					ReadOnlyTargetRules Target = new ReadOnlyTargetRules(RulesAssembly.CreateTargetRules(TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, TargetDescriptor.Architecture, TargetDescriptor.ProjectFile, TargetDescriptor.AdditionalArguments, Logger));
 
 					if (!bSkipPreBuildTargets && Target.PreBuildTargets.Count > 0)
 					{
@@ -216,7 +218,7 @@ namespace UnrealBuildTool
 			}
 
 			// Ensure no overlap between directories
-			using (ScopedTimer Timer = new ScopedTimer("Ensure no directory overlap"))
+			using (ScopedTimer Timer = new ScopedTimer("Ensure no directory overlap", Logger))
 			{
 				HashSet<DirectoryReference> SubdirectoriesToDelete = new(DirectoriesToDelete.Count);
 				foreach (DirectoryReference Directory in DirectoriesToDelete)
@@ -235,7 +237,7 @@ namespace UnrealBuildTool
 			}
 
 			// Remove any files that are contained within one of the directories
-			using (ScopedTimer Time = new ScopedTimer("Ensure no file overlap"))
+			using (ScopedTimer Time = new ScopedTimer("Ensure no file overlap", Logger))
 			{
 				FilesToDelete.RemoveWhere(File =>
 				{
@@ -253,14 +255,14 @@ namespace UnrealBuildTool
 
 			var DeleteDirectories = Task.Run(() =>
 			{
-				using ScopedTimer Timer = new ScopedTimer($"Delete {DirectoriesToDelete.Count} directories");
+				using ScopedTimer Timer = new ScopedTimer($"Delete {DirectoriesToDelete.Count} directories", Logger);
 				Parallel.ForEach(DirectoriesToDelete, DirectoryToDelete =>
 				{
-					using ScopedTimer Timer = new ScopedTimer($"Delete directory '{DirectoryToDelete}'", bIncreaseIndent: false);
+					using ScopedTimer Timer = new ScopedTimer($"Delete directory '{DirectoryToDelete}'", Logger, bIncreaseIndent: false);
 
 					if (DirectoryReference.Exists(DirectoryToDelete))
 					{
-						Log.TraceVerbose($"    Deleting {DirectoryToDelete}{Path.DirectorySeparatorChar}...");
+						Logger.LogDebug("    Deleting {DirectoryToDelete}...", $"{DirectoryToDelete}{Path.DirectorySeparatorChar}");
 
 						try
 						{
@@ -276,12 +278,12 @@ namespace UnrealBuildTool
 
 			var DeleteFiles = Task.Run(() =>
 			{
-				using ScopedTimer Timer = new ScopedTimer($"Delete {FilesToDelete.Count} files");
+				using ScopedTimer Timer = new ScopedTimer($"Delete {FilesToDelete.Count} files", Logger);
 				Parallel.ForEach(FilesToDelete, FileToDelete =>
 				{
 					if (FileReference.Exists(FileToDelete))
 					{
-						Log.TraceVerbose($"    Deleting {FileToDelete}...");
+						Logger.LogDebug("    Deleting {FileToDelete}...", FileToDelete);
 
 						try
 						{
@@ -304,8 +306,8 @@ namespace UnrealBuildTool
 				TargetDescriptor TargetDescriptor = TargetDescriptors[Idx];
 				if (RemoteMac.HandlesTargetPlatform(TargetDescriptor.Platform))
 				{
-					RemoteMac RemoteMac = new RemoteMac(TargetDescriptor.ProjectFile);
-					RemoteMac.Clean(TargetDescriptor);
+					RemoteMac RemoteMac = new RemoteMac(TargetDescriptor.ProjectFile, Logger);
+					RemoteMac.Clean(TargetDescriptor, Logger);
 				}
 			}
 		}

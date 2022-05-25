@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -18,6 +19,11 @@ namespace UnrealBuildTool
 		/// Global setting controlling whether to output markup
 		/// </summary>
 		public static bool bWriteMarkup = false;
+
+		/// <summary>
+		/// Logger for output
+		/// </summary>
+		ILogger Logger;
 
 		/// <summary>
 		/// The name to include with the status message
@@ -39,9 +45,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="InMessage">The message to display before the progress percentage</param>
 		/// <param name="bInUpdateStatus">Whether to write messages to the console</param>
-		public ProgressWriter(string InMessage, bool bInUpdateStatus)
+		/// <param name="InLogger">Logger for output</param>
+		public ProgressWriter(string InMessage, bool bInUpdateStatus, ILogger InLogger)
 		{
 			Message = InMessage;
+			Logger = InLogger;
 			if(bInUpdateStatus)
 			{
 				Status = new LogStatusScope(InMessage);
@@ -75,7 +83,7 @@ namespace UnrealBuildTool
 				CurrentProgressString = ProgressString;
 				if (bWriteMarkup)
 				{
-					Log.WriteLine(LogEventType.Console, "@progress '{0}' {1}", Message, ProgressString);
+					Logger.LogInformation("@progress '{Message}' {ProgressString}", Message, ProgressString);
 				}
 				if(Status != null)
 				{

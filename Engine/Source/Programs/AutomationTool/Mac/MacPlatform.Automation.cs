@@ -689,6 +689,6 @@ public class MacPlatform : Platform
 
 	public override void StripSymbols(FileReference SourceFile, FileReference TargetFile)
 	{
-		MacExports.StripSymbols(SourceFile, TargetFile);
+		MacExports.StripSymbols(SourceFile, TargetFile, Log.Logger);
 	}
 }

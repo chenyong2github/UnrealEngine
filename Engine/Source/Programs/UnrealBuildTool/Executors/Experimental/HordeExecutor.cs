@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Serialization;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -279,7 +280,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="MaxLocalActions">How many local actions to execute in parallel</param>
 		/// <param name="bCompactOutput"></param>
-		public HordeExecutor(int MaxLocalActions, bool bCompactOutput) : base(MaxLocalActions, bCompactOutput)
+		/// <param name="Logger"></param>
+		public HordeExecutor(int MaxLocalActions, bool bCompactOutput, ILogger Logger) : base(MaxLocalActions, bCompactOutput, Logger)
 		{
 			XmlConfig.ApplyTo(this);
 		}
@@ -332,7 +334,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static bool LaunchZen(ManagedProcessGroup ProcessGroup, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ManagedProcess? ZenProcess)
+		private static bool LaunchZen(ManagedProcessGroup ProcessGroup, ILogger Logger, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ManagedProcess? ZenProcess)
 		{
 			ZenProcess = null;
 			try
@@ -341,19 +343,19 @@ namespace UnrealBuildTool
 
 				if (!EngineConfig.GetBool("Zen", "AutoLaunch", out bool AutoLaunch) || !AutoLaunch)
 				{
-					Log.TraceWarning("Unable to launch zenserver: '[Zen] AutoLaunch' not enabled in Engine config");
+					Logger.LogWarning("Unable to launch zenserver: '[Zen] AutoLaunch' not enabled in Engine config");
 					return false;
 				}
 
 				if (!EngineConfig.GetString("Zen.AutoLaunch", "DataPath", out string DataPath) || string.IsNullOrEmpty(DataPath))
 				{
-					Log.TraceWarning("Unable to launch zenserver: '[Zen.AutoLaunch] DataPath' not set in Engine config");
+					Logger.LogWarning("Unable to launch zenserver: '[Zen.AutoLaunch] DataPath' not set in Engine config");
 					return false;
 				}
 
 				if (!EngineConfig.GetString("Zen.AutoLaunch", "ExtraArgs", out string ExtraArgs) || string.IsNullOrEmpty(ExtraArgs))
 				{
-					Log.TraceWarning("Unable to launch zenserver: '[Zen.AutoLaunch] ExtraArgs' not set in Engine config");
+					Logger.LogWarning("Unable to launch zenserver: '[Zen.AutoLaunch] ExtraArgs' not set in Engine config");
 					return false;
 				}
 
@@ -375,7 +377,7 @@ namespace UnrealBuildTool
 
 					if (CommonPath == null)
 					{
-						Log.TraceWarning("Unable to launch zenserver: data-dir root directory not found");
+						Logger.LogWarning("Unable to launch zenserver: data-dir root directory not found");
 						return false;
 					}
 
@@ -385,7 +387,7 @@ namespace UnrealBuildTool
 				DirectoryReference? DataPathReference = DirectoryReference.FromString(DataPath);
 				if (DataPathReference == null || DataPathReference.ParentDirectory == null)
 				{
-					Log.TraceWarning("Unable to launch zenserver: data-dir not found");
+					Logger.LogWarning("Unable to launch zenserver: data-dir not found");
 					return false;
 				}
 
@@ -393,13 +395,13 @@ namespace UnrealBuildTool
 				FileReference ZenSourcePath = FileReference.Combine(Unreal.EngineDirectory, "Binaries", BuildHostPlatform.Current.Platform.ToString(), $"zenserver{(RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".exe" : "")}");
 				FileReference ZenDestPath = FileReference.Combine(DataPathReference.ParentDirectory, "Install", ZenSourcePath.GetFileName());
 
-				Log.TraceInformation($"Copying zenserver to '{ZenDestPath}'");
+				Logger.LogInformation("Copying zenserver to '{ZenDestPath}'", ZenDestPath);
 				DirectoryReference.CreateDirectory(DataPathReference);
 				DirectoryReference.CreateDirectory(ZenDestPath.Directory);
 				FileReference.MakeWriteable(ZenDestPath);
 				FileReference.Copy(ZenSourcePath, ZenDestPath, true);
 
-				Log.TraceInformation($"Launching zenserver with data-dir '{DataPathReference.FullName}'...");
+				Logger.LogInformation("Launching zenserver with data-dir '{DataPathReference}'...", DataPathReference);
 				ZenProcess = new ManagedProcess(ProcessGroup, ZenDestPath.FullName, $"--port 1337 --data-dir \"{DataPathReference.FullName}\" {ExtraArgs}", ZenDestPath.Directory.FullName, null, ProcessPriorityClass.Normal);
 
 				return true;
@@ -415,7 +417,7 @@ namespace UnrealBuildTool
 		/// Executes the specified actions locally.
 		/// </summary>
 		/// <returns>True if all the tasks successfully executed, or false if any of them failed.</returns>
-		public override bool ExecuteActions(List<LinkedAction> InputActions)
+		public override bool ExecuteActions(List<LinkedAction> InputActions, ILogger Logger)
 		{
 			int NumCompletedActions = 0;
 			int TotalActions = InputActions.Count;
@@ -427,7 +429,7 @@ namespace UnrealBuildTool
 			{
 				const double TotalWaitTime = 10.0;
 				DateTime WaitStartTime = DateTime.Now;
-				if (LaunchZenServer && LaunchZen(ProcessGroup, out ZenProcess))
+				if (LaunchZenServer && LaunchZen(ProcessGroup, Logger, out ZenProcess))
 				{
 					while ((DateTime.Now - WaitStartTime).TotalSeconds < TotalWaitTime)
 					{
@@ -442,26 +444,27 @@ namespace UnrealBuildTool
 				{
 					if (LaunchZenServer)
 					{
-						Log.TraceError($"Unable to establish connection to zenserver after {TotalWaitTime}s");
+						Logger.LogError("Unable to establish connection to zenserver after {TotalWaitTime}s", TotalWaitTime);
 						return false;
 					}
 					Log.TraceInformationOnce("Unable to establish connection to zenserver, disabling HordeExecutor");
-					return base.ExecuteActions(InputActions);
+					return base.ExecuteActions(InputActions, Logger);
 				}
 				else
 				{
-					Log.TraceInformation($"Established connection to zenserver in {(DateTime.Now - WaitStartTime).TotalSeconds}s");
+					Logger.LogInformation("Established connection to zenserver in {Time}s", (DateTime.Now - WaitStartTime).TotalSeconds);
 				}
 			}
 
 			using SemaphoreSlim MaxProcessSemaphore = new SemaphoreSlim(ActualNumParallelProcesses, ActualNumParallelProcesses);
 			using SemaphoreSlim MaxRemoteProcessSemaphore = new SemaphoreSlim(NumRemoteParallelProcesses, NumRemoteParallelProcesses);
-			using ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false);
+			using ProgressWriter ProgressWriter = new ProgressWriter("Compiling C++ source code...", false, Logger);
 
-			Log.TraceInformation($"Building {TotalActions} {(TotalActions == 1 ? "action" : "actions")} with {ActualNumParallelProcesses} local {(ActualNumParallelProcesses == 1 ? "process" : "processes")} and {NumRemoteParallelProcesses} remote {(NumRemoteParallelProcesses == 1 ? "process" : "processes")} ...");
+			Logger.LogInformation("Building {NumActions} {Actions} with {NumLocalProcesses} local {LocalProcesses} and {NumRemoteProcesses} remote {RemoteProcesses}...", TotalActions, (TotalActions == 1) ? "action" : "actions", ActualNumParallelProcesses, (ActualNumParallelProcesses == 1) ? "process" : "processes", NumRemoteParallelProcesses, (NumRemoteParallelProcesses == 1) ? "process" : "processes");
+
 			if (RemoteProcessOnly)
 			{
-				Log.TraceWarning("Processing all distributable actions remotely. This is not recommended unless testing remote compute.");
+				Logger.LogWarning("Processing all distributable actions remotely. This is not recommended unless testing remote compute.");
 			}
 
 			Dictionary<LinkedAction, Task<ExecuteResults>> ExecuteTasks = new Dictionary<LinkedAction, Task<ExecuteResults>>();
@@ -480,22 +483,22 @@ namespace UnrealBuildTool
 					continue;
 				}
 
-				Task<ExecuteResults> ExecuteTask = CreateRemoteExecuteTask(Action, ExecuteTasks, ProcessGroup, MaxProcessSemaphore, MaxRemoteProcessSemaphore, CancellationToken);
-				Task LogTask = ExecuteTask.ContinueWith(antecedent => LogCompletedAction(Action, antecedent, CancellationTokenSource, ProgressWriter, TotalActions, ref NumCompletedActions), CancellationToken);
+				Task<ExecuteResults> ExecuteTask = CreateRemoteExecuteTask(Action, ExecuteTasks, ProcessGroup, MaxProcessSemaphore, MaxRemoteProcessSemaphore, CancellationToken, Logger);
+				Task LogTask = ExecuteTask.ContinueWith(antecedent => LogCompletedAction(Action, antecedent, CancellationTokenSource, ProgressWriter, TotalActions, ref NumCompletedActions, Logger), CancellationToken);
 
 				ExecuteTasks.Add(Action, ExecuteTask);
 				LogTasks.Add(LogTask);
 			}
 
-			Task.Factory.ContinueWhenAll(LogTasks.ToArray(), (AntecedentTasks) => TraceSummary(ExecuteTasks, ProcessGroup), CancellationToken)
-				.ContinueWith(antecedent => TraceRemoteSummary(ExecuteTasks))
+			Task.Factory.ContinueWhenAll(LogTasks.ToArray(), (AntecedentTasks) => TraceSummary(ExecuteTasks, ProcessGroup, Logger), CancellationToken)
+				.ContinueWith(antecedent => TraceRemoteSummary(ExecuteTasks, Logger))
 				.Wait();
 
 			// Return if all tasks succeeded
 			return ExecuteTasks.Values.All(x => x.Result.ExitCode == 0);
 		}
 
-		private static void TraceStats(List<RemoteExecuteResults> RemoteExecuteResults, string Description, string StartTime, string EndTime)
+		private static void TraceStats(List<RemoteExecuteResults> RemoteExecuteResults, string Description, string StartTime, string EndTime, ILogger Logger)
 		{
 			var Results = RemoteExecuteResults.Where(x => x.Timepoints.ContainsKey(StartTime) && x.Timepoints.ContainsKey(EndTime)).ToArray();
 			if (Results.Length == 0)
@@ -503,35 +506,35 @@ namespace UnrealBuildTool
 				return;
 			}
 
-			Log.TraceInformation($"  {Description}:");
-			Log.TraceInformation($"    Total {Results.Sum(x => (x.Timepoints[EndTime] - x.Timepoints[StartTime]).TotalSeconds):0.00}");
-			Log.TraceInformation($"    Avg   {Results.Average(x => (x.Timepoints[EndTime] - x.Timepoints[StartTime]).TotalSeconds):0.00}");
-			Log.TraceInformation($"    Min   {Results.Min(x => (x.Timepoints[EndTime] - x.Timepoints[StartTime]).TotalSeconds):0.00}");
-			Log.TraceInformation($"    Max   {Results.Max(x => (x.Timepoints[EndTime] - x.Timepoints[StartTime]).TotalSeconds):0.00}");
+			Logger.LogInformation("  {Description}:", Description);
+			Logger.LogInformation("    Total {Total:0.00}", Results.Sum(x => (x.Timepoints[EndTime] - x.Timepoints[StartTime]).TotalSeconds));
+			Logger.LogInformation("    Avg   {Average:0.00}", Results.Average(x => (x.Timepoints[EndTime] - x.Timepoints[StartTime]).TotalSeconds));
+			Logger.LogInformation("    Min   {Min:0.00}", Results.Min(x => (x.Timepoints[EndTime] - x.Timepoints[StartTime]).TotalSeconds));
+			Logger.LogInformation("    Max   {Max:0.00}", Results.Max(x => (x.Timepoints[EndTime] - x.Timepoints[StartTime]).TotalSeconds));
 		}
 
-		private static void TraceRemoteSummary(Dictionary<LinkedAction, Task<ExecuteResults>> Tasks)
+		private static void TraceRemoteSummary(Dictionary<LinkedAction, Task<ExecuteResults>> Tasks, ILogger Logger)
 		{
 			// TODO: Beautify summary
 			List<ExecuteResults> LocalExecuteResults = Tasks.Values.Where(x => x.IsCompletedSuccessfully && x.Result.ExitCode == 0 && !(x.Result is RemoteExecuteResults)).Select(x => x.Result).ToList();
 			List<RemoteExecuteResults> RemoteExecuteResults = Tasks.Values.Where(x => x.IsCompletedSuccessfully && x.Result.ExitCode == 0 && x.Result is RemoteExecuteResults).Select(x => (RemoteExecuteResults)x.Result).ToList();
-			Log.TraceInformation("");
-			Log.TraceInformation($"Successful Tasks Run: Local {LocalExecuteResults.Count} Remote {RemoteExecuteResults.Count}");
-			TraceStats(RemoteExecuteResults, "ubt iohash", "ubt-queue-dispatched", "ubt-hash-files");
-			TraceStats(RemoteExecuteResults, "ubt put files", "ubt-hash-files", "ubt-put-files");
-			TraceStats(RemoteExecuteResults, "zen queue wait", "zen-queue-added", "zen-queue-dispatched");
-			TraceStats(RemoteExecuteResults, "zen put horde", "zen-storage-build-ref", "zen-storage-put-ref");
-			TraceStats(RemoteExecuteResults, "horde queue wait", "horde-queue-added", "horde-queue-dispatched");
-			TraceStats(RemoteExecuteResults, "horde prepare sandbox", "horde-execution-start", "horde-execution-download-input");
-			TraceStats(RemoteExecuteResults, "horde execute", "horde-execution-download-input", "horde-execution-execute");
-			TraceStats(RemoteExecuteResults, "horde upload results", "horde-execution-execute", "horde-execution-upload-ref");
-			TraceStats(RemoteExecuteResults, "zen queue results wait", "zen-complete-queue-added", "zen-complete-queue-dispatched");
-			TraceStats(RemoteExecuteResults, "zen get horde", "zen-complete-queue-dispatched", "zen-storage-get-blobs");
-			TraceStats(RemoteExecuteResults, "zen finalize", "zen-storage-get-blobs", "zen-queue-complete");
-			Log.TraceInformation("");
+			Logger.LogInformation("");
+			Logger.LogInformation("Successful Tasks Run: Local {LocalCount} Remote {RemoteCount}", LocalExecuteResults.Count, RemoteExecuteResults.Count);
+			TraceStats(RemoteExecuteResults, "ubt iohash", "ubt-queue-dispatched", "ubt-hash-files", Logger);
+			TraceStats(RemoteExecuteResults, "ubt put files", "ubt-hash-files", "ubt-put-files", Logger);
+			TraceStats(RemoteExecuteResults, "zen queue wait", "zen-queue-added", "zen-queue-dispatched", Logger);
+			TraceStats(RemoteExecuteResults, "zen put horde", "zen-storage-build-ref", "zen-storage-put-ref", Logger);
+			TraceStats(RemoteExecuteResults, "horde queue wait", "horde-queue-added", "horde-queue-dispatched", Logger);
+			TraceStats(RemoteExecuteResults, "horde prepare sandbox", "horde-execution-start", "horde-execution-download-input", Logger);
+			TraceStats(RemoteExecuteResults, "horde execute", "horde-execution-download-input", "horde-execution-execute", Logger);
+			TraceStats(RemoteExecuteResults, "horde upload results", "horde-execution-execute", "horde-execution-upload-ref", Logger);
+			TraceStats(RemoteExecuteResults, "zen queue results wait", "zen-complete-queue-added", "zen-complete-queue-dispatched", Logger);
+			TraceStats(RemoteExecuteResults, "zen get horde", "zen-complete-queue-dispatched", "zen-storage-get-blobs", Logger);
+			TraceStats(RemoteExecuteResults, "zen finalize", "zen-storage-get-blobs", "zen-queue-complete", Logger);
+			Logger.LogInformation("");
 		}
 
-		private static Task<ExecuteResults> CreateRemoteExecuteTask(LinkedAction Action, Dictionary<LinkedAction, Task<ExecuteResults>> ExecuteTasks, ManagedProcessGroup ProcessGroup, SemaphoreSlim MaxProcessSemaphore, SemaphoreSlim MaxRemoteProcessSemaphore, CancellationToken CancellationToken)
+		private static Task<ExecuteResults> CreateRemoteExecuteTask(LinkedAction Action, Dictionary<LinkedAction, Task<ExecuteResults>> ExecuteTasks, ManagedProcessGroup ProcessGroup, SemaphoreSlim MaxProcessSemaphore, SemaphoreSlim MaxRemoteProcessSemaphore, CancellationToken CancellationToken, ILogger Logger)
 		{
 			Task<ExecuteResults> ActionTask;
 			if (Action.PrerequisiteActions.Count == 0)
@@ -552,7 +555,7 @@ namespace UnrealBuildTool
 				{
 					if (!ExecuteTasks.ContainsKey(PrerequisiteAction))
 					{
-						ExecuteTasks.Add(PrerequisiteAction, CreateRemoteExecuteTask(PrerequisiteAction, ExecuteTasks, ProcessGroup, MaxProcessSemaphore, MaxRemoteProcessSemaphore, CancellationToken));
+						ExecuteTasks.Add(PrerequisiteAction, CreateRemoteExecuteTask(PrerequisiteAction, ExecuteTasks, ProcessGroup, MaxProcessSemaphore, MaxRemoteProcessSemaphore, CancellationToken, Logger));
 					}
 					PrerequisiteTasks.Add(ExecuteTasks[PrerequisiteAction]);
 				}
@@ -574,7 +577,7 @@ namespace UnrealBuildTool
 					{
 						return Task.FromResult(ancendent.Result);
 					}
-					Log.TraceInformation($"Remote execute for {(Action.CommandDescription ?? Action.CommandPath.GetFileNameWithoutExtension())} {Action.StatusDescription} failed, rescheduling for local execution.");
+					Logger.LogInformation("Remote execute for {CommandDescription} {StatusDescription} failed, rescheduling for local execution.", (Action.CommandDescription ?? Action.CommandPath.GetFileNameWithoutExtension()), Action.StatusDescription);
 					return ExecuteAction(Array.Empty<Task<ExecuteResults>>(), Action, ProcessGroup, MaxProcessSemaphore, CancellationToken);
 				},
 				CancellationToken,

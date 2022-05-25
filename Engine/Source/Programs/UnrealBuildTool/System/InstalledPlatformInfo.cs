@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.IO;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -150,7 +151,7 @@ namespace UnrealBuildTool
 			// Unused, but allows timing call of the static constructor
 		}
 
-		private static void ParsePlatformConfiguration(string PlatformConfiguration)
+		private static void ParsePlatformConfiguration(string PlatformConfiguration)//, ILogger Logger)
 		{
 			// Trim whitespace at the beginning.
 			PlatformConfiguration = PlatformConfiguration.Trim();
@@ -168,7 +169,7 @@ namespace UnrealBuildTool
 			}
 			if (Configuration == UnrealTargetConfiguration.Unknown)
 			{
-				Log.TraceWarning("Unable to read configuration from {0}", PlatformConfiguration);
+//				Logger.LogWarning("Unable to read configuration from {PlatformConfiguration}", PlatformConfiguration);
 				bCanCreateEntry = false;
 			}
 
@@ -177,7 +178,7 @@ namespace UnrealBuildTool
 			{
 				if (!UnrealTargetPlatform.IsValidName(PlatformName))
 				{
-					Log.TraceWarning("Unable to read platform from {0}", PlatformConfiguration);
+//					Logger.LogWarning("Unable to read platform from {PlatformConfiguration}", PlatformConfiguration);
 					bCanCreateEntry = false;
 				}
 			}
@@ -188,13 +189,13 @@ namespace UnrealBuildTool
 			{
 				if (!Enum.TryParse(PlatformTypeName, out PlatformType))
 				{
-					Log.TraceWarning("Unable to read Platform Type from {0}, defaulting to Game", PlatformConfiguration);
+//					Logger.LogWarning("Unable to read Platform Type from {PlatformConfiguration}, defaulting to Game", PlatformConfiguration);
 					PlatformType = TargetType.Game;
 				}
 			}
 			if (PlatformType == TargetType.Program)
 			{
-				Log.TraceWarning("Program is not a valid PlatformType for an Installed Platform, defaulting to Game");
+//				Logger.LogWarning("Program is not a valid PlatformType for an Installed Platform, defaulting to Game");
 				PlatformType = TargetType.Game;
 			}
 
@@ -215,7 +216,7 @@ namespace UnrealBuildTool
 			}
 			if (ProjectType == EProjectType.Unknown)
 			{
-				Log.TraceWarning("Unable to read project type from {0}", PlatformConfiguration);
+//				Logger.LogWarning("Unable to read project type from {PlatformConfiguration}", PlatformConfiguration);
 				bCanCreateEntry = false;
 			}
 

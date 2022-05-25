@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -383,15 +384,16 @@ namespace UnrealBuildTool
 		/// Writes the response file with the action's arguments
 		/// </summary>
 		/// <param name="Graph">The graph builder</param>
-		public void WriteResponseFile(IActionGraphBuilder Graph)
+		/// <param name="Logger">Logger for output</param>
+		public void WriteResponseFile(IActionGraphBuilder Graph, ILogger Logger)
 		{
 			if (ResponseFile != null)
 			{
-				Graph.CreateIntermediateTextFile(ResponseFile, GetCompilerArguments());
+				Graph.CreateIntermediateTextFile(ResponseFile, GetCompilerArguments(Logger));
 			}
 		}
 
-		public List<string> GetCompilerArguments()
+		public List<string> GetCompilerArguments(ILogger Logger)
 		{
 			List<string> Arguments = new List<string>();
 			if (SourceFile != null)
@@ -433,10 +435,10 @@ namespace UnrealBuildTool
 
 			if (PreprocessedFile != null)
 			{
-				VCToolChain.AddPreprocessedFile(Arguments, PreprocessedFile);
+				VCToolChain.AddPreprocessedFile(Arguments, PreprocessedFile, Logger);
 
 				// this is parsed by external tools wishing to open this file directly.
-				Log.TraceInformation("PreProcessPath: " + PreprocessedFile);
+				Logger.LogInformation("PreProcessPath: {File}", PreprocessedFile);
 			}
 
 			if (ObjectFile != null)

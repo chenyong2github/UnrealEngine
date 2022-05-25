@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -18,7 +19,7 @@ namespace UnrealBuildTool
 	{
 		const string TimingDataRegex = @"^\t\t(?<Indent>\t*)(?<Name>[^\t]+):\s*(?<Duration>[0-9\.]+)s$";
 
-		public override int Execute(CommandLineArguments Arguments)
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			FileReference InputFile = Arguments.GetFileReference("-TimingFile=");
 

@@ -113,7 +113,7 @@ namespace AutomationTool
 				}
 				
 				// Initialize UBT
-				if (!UnrealBuildTool.PlatformExports.Initialize())
+				if (!UnrealBuildTool.PlatformExports.Initialize(Log.Logger))
 				{
 					Log.TraceInformation("Failed to initialize UBT");
 					return ExitCode.Error_Unknown;

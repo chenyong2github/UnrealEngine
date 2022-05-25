@@ -201,7 +201,7 @@ namespace AutomationTool
             }
 
 			// Check if encryption or signing is enabled
-			EncryptionAndSigning.CryptoSettings Settings = EncryptionAndSigning.ParseCryptoSettings(RawProjectPath.Directory, Platform);
+			EncryptionAndSigning.CryptoSettings Settings = EncryptionAndSigning.ParseCryptoSettings(RawProjectPath.Directory, Platform, Log.Logger);
 			if (Settings.IsAnyEncryptionEnabled() || Settings.IsPakSigningEnabled())
 			{
 				OutReason = "encryption/signing is enabled";
@@ -770,7 +770,7 @@ namespace AutomationTool
 						typeof(UnrealBuildTool.PlatformExports).Assembly.Location
 					};
 			List<string> PreprocessorDefinitions = RulesAssembly.GetPreprocessorDefinitions();
-			Assembly TargetsDLL = DynamicCompilation.CompileAndLoadAssembly(TargetsDllFilename, new HashSet<FileReference>(TargetScripts), ReferencedAssemblies, PreprocessorDefinitions, DoNotCompile);
+			Assembly TargetsDLL = DynamicCompilation.CompileAndLoadAssembly(TargetsDllFilename, new HashSet<FileReference>(TargetScripts), Log.Logger, ReferencedAssemblies, PreprocessorDefinitions, DoNotCompile);
 			Type[] AllCompiledTypes = TargetsDLL.GetTypes();
 			foreach (Type TargetType in AllCompiledTypes)
 			{
@@ -897,7 +897,7 @@ namespace AutomationTool
 			}
 
 			// Search NativeProjects (sibling folders).
-			IEnumerable<FileReference> Projects = NativeProjects.EnumerateProjectFiles();
+			IEnumerable<FileReference> Projects = NativeProjects.EnumerateProjectFiles(Log.Logger);
 
 			FileReference ProjectPath = Projects.Where(R => string.Equals(R.GetFileName(), ProjectFile, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
 
@@ -1019,7 +1019,7 @@ namespace AutomationTool
 
         public BranchInfo()
         {
-            IEnumerable<FileReference> ProjectFiles = UnrealBuildTool.NativeProjects.EnumerateProjectFiles();
+            IEnumerable<FileReference> ProjectFiles = UnrealBuildTool.NativeProjects.EnumerateProjectFiles(Log.Logger);
 			foreach (FileReference InfoEntry in ProjectFiles)
 			{
 				AllProjects.Add(new BranchUProject(InfoEntry));

@@ -7,6 +7,7 @@ using EpicGames.Core;
 using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 ///////////////////////////////////////////////////////////////////
 // If you are looking for supported version numbers, look in the
@@ -18,6 +19,11 @@ namespace UnrealBuildTool
 {
 	internal partial class ApplePlatformSDK : UEBuildPlatformSDK
 	{
+		public ApplePlatformSDK(ILogger Logger)
+			: base(Logger)
+		{
+		}
+
 		public override bool TryConvertVersionToInt(string? StringValue, out UInt64 OutValue, string? Hint)
 		{
 			return UnrealBuildBase.ApplePlatformSDK.TryConvertVersionToInt(StringValue, out OutValue);

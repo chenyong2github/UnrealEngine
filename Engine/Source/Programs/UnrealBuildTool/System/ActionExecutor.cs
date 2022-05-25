@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 
@@ -28,7 +29,7 @@ namespace UnrealBuildTool
 			MemoryPerActionBytesOverride = Math.Max(MemoryPerActionBytesOverride, MemoryPerActionOverrideGB * 1024 * 1024 * 1024);
 		}
 
-		public abstract bool ExecuteActions(List<LinkedAction> ActionsToExecute);
+		public abstract bool ExecuteActions(List<LinkedAction> ActionsToExecute, ILogger Logger);
 	}
 
 }

@@ -8,6 +8,7 @@ using System.Xml;
 using System.Xml.Linq;
 using EpicGames.Core;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -47,7 +48,7 @@ namespace UnrealBuildTool
 				return ".project";
 			}
 		}
-		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		protected override bool WritePrimaryProjectFile(ProjectFile? UBTProject, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			string SolutionFileName = PrimaryProjectName + SolutionExtension;
 			string CodeCompletionFile = PrimaryProjectName + CodeCompletionFileName;
@@ -291,7 +292,7 @@ namespace UnrealBuildTool
 			return new CodeLiteProject(InitFilePath, BaseDir, OnlyGameProject);
 		}
 
-		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory)
+		public override void CleanProjectFiles(DirectoryReference InPrimaryProjectDirectory, string InPrimaryProjectName, DirectoryReference InIntermediateProjectFilesDirectory, ILogger Logger)
 		{
 			// TODO Delete all files here. Not finished yet.
 			string SolutionFileName = InPrimaryProjectName + SolutionExtension;
@@ -324,8 +325,8 @@ namespace UnrealBuildTool
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceInformation("Error while trying to clean project files path {0}. Ignored.", InIntermediateProjectFilesDirectory);
-					Log.TraceInformation("\t" + Ex.Message);
+					Logger.LogInformation("Error while trying to clean project files path {InIntermediateProjectFilesDirectory}. Ignored.", InIntermediateProjectFilesDirectory);
+					Logger.LogInformation("\t{Ex}", Ex.Message);
 				}
 			}
 		}

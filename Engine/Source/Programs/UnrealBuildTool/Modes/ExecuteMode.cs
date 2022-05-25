@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using OpenTracing.Util;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -30,7 +31,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">Command-line arguments</param>
 		/// <returns>One of the values of ECompilationResult</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -58,8 +60,8 @@ namespace UnrealBuildTool
 			// Execute the actions
 			using (GlobalTracer.Instance.BuildSpan("ActionGraph.ExecuteActions()").StartActive())
 			{
-				List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, false, false, false);
-				ActionGraph.ExecuteActions(BuildConfiguration, Actions, TargetDescriptors);
+				List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, false, false, false, Logger);
+				ActionGraph.ExecuteActions(BuildConfiguration, Actions, TargetDescriptors, Logger);
 			}
 
 			return 0;

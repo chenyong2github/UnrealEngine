@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
@@ -138,14 +139,15 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="TargetDescriptor">The target being built</param>
 		/// <param name="BuildConfiguration">Global build configuration</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Default hotreload mode</returns>
-		public static HotReloadMode GetDefaultMode(TargetDescriptor TargetDescriptor, BuildConfiguration BuildConfiguration)
+		public static HotReloadMode GetDefaultMode(TargetDescriptor TargetDescriptor, BuildConfiguration BuildConfiguration, ILogger Logger)
 		{
 			if (TargetDescriptor.HotReloadModuleNameToSuffix.Count > 0 && TargetDescriptor.ForeignPlugin == null)
 			{
 				return HotReloadMode.FromEditor;
 			}
-			else if (BuildConfiguration.bAllowHotReloadFromIDE && HotReload.ShouldDoHotReloadFromIDE(BuildConfiguration, TargetDescriptor))
+			else if (BuildConfiguration.bAllowHotReloadFromIDE && HotReload.ShouldDoHotReloadFromIDE(BuildConfiguration, TargetDescriptor, Logger))
 			{
 				return HotReloadMode.FromIDE;
 			}
@@ -162,7 +164,8 @@ namespace UnrealBuildTool
 		/// <param name="Makefile">Makefile for the targe</param>
 		/// <param name="Actions">Actions for this target</param>
 		/// <param name="BuildConfiguration">Global build configuration</param>
-		public static Dictionary<FileReference, FileReference>? Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> Actions, BuildConfiguration BuildConfiguration)
+		/// <param name="Logger">Logger for output</param>
+		public static Dictionary<FileReference, FileReference>? Setup(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> Actions, BuildConfiguration BuildConfiguration, ILogger Logger)
 		{
 			Dictionary<FileReference, FileReference>? PatchedOldLocationToNewLocation = null;
 
@@ -178,7 +181,7 @@ namespace UnrealBuildTool
 			}
 			else if (TargetDescriptor.HotReloadMode == HotReloadMode.Default)
 			{
-				TargetDescriptor.HotReloadMode = GetDefaultMode(TargetDescriptor, BuildConfiguration);
+				TargetDescriptor.HotReloadMode = GetDefaultMode(TargetDescriptor, BuildConfiguration, Logger);
 			}
 
 			// Apply the previous hot reload state
@@ -189,7 +192,7 @@ namespace UnrealBuildTool
 				{
 					// Delete the previous state file
 					FileReference StateFile = HotReloadState.GetLocation(TargetDescriptor);
-					HotReload.DeleteTemporaryFiles(StateFile);
+					HotReload.DeleteTemporaryFiles(StateFile, Logger);
 				}
 			}
 			else
@@ -211,10 +214,10 @@ namespace UnrealBuildTool
 			return PatchedOldLocationToNewLocation;
 		}
 
-		public static void CheckForLiveCodingSessionActive(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, BuildConfiguration BuildConfiguration)
+		public static void CheckForLiveCodingSessionActive(TargetDescriptor TargetDescriptor, TargetMakefile Makefile, BuildConfiguration BuildConfiguration, ILogger Logger)
 		{
 			// Guard against a live coding session for this target being active
-			if (BuildConfiguration.bAllowHotReloadFromIDE && TargetDescriptor.HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile))
+			if (BuildConfiguration.bAllowHotReloadFromIDE && TargetDescriptor.HotReloadMode != HotReloadMode.LiveCoding && TargetDescriptor.ForeignPlugin == null && HotReload.IsLiveCodingSessionActive(Makefile, Logger))
 			{
 				throw new BuildException("Unable to build while Live Coding is active. Exit the editor and game, or press Ctrl+Alt+F11 if iterating on code in the editor or game");
 			}
@@ -224,8 +227,9 @@ namespace UnrealBuildTool
 		/// Checks whether a live coding session is currently active for a target. If so, we don't want to allow modifying any object files before they're loaded.
 		/// </summary>
 		/// <param name="Makefile">Makefile for the target being built</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if a live coding session is active, false otherwise</returns>
-		static bool IsLiveCodingSessionActive(TargetMakefile Makefile)
+		static bool IsLiveCodingSessionActive(TargetMakefile Makefile, ILogger Logger)
 		{
 			// Find the first output executable
 			FileReference Executable = Makefile.ExecutableFile;
@@ -245,7 +249,7 @@ namespace UnrealBuildTool
 						MutexName.Append(Character);
 					}
 				}
-				Log.TraceLog("Checking for live coding mutex: {0}", MutexName);
+				Logger.LogDebug("Checking for live coding mutex: {MutexName}", MutexName);
 
 				// Try to open the mutex
 				Mutex? Mutex;
@@ -261,7 +265,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Checks if the editor is currently running and this is a hot-reload
 		/// </summary>
-		static bool ShouldDoHotReloadFromIDE(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDesc)
+		static bool ShouldDoHotReloadFromIDE(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDesc, ILogger Logger)
 		{
 			// Check if Hot-reload is disabled globally for this project
 			ConfigHierarchy Hierarchy = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(TargetDesc.ProjectFile), TargetDesc.Platform);
@@ -401,7 +405,7 @@ namespace UnrealBuildTool
 								}
 								catch
 								{
-									Log.TraceLog("Failed to delete EditorRun file for exited process: {0}", EditorInstanceFile.GetFileName());
+									Logger.LogDebug("Failed to delete EditorRun file for exited process: {Process}", EditorInstanceFile.GetFileName());
 								}
 								continue;
 							}
@@ -445,7 +449,8 @@ namespace UnrealBuildTool
 		/// Delete all temporary files created by previous hot reload invocations
 		/// </summary>
 		/// <param name="HotReloadStateFile">Location of the state file</param>
-		public static void DeleteTemporaryFiles(FileReference HotReloadStateFile)
+		/// <param name="Logger">Logger for output</param>
+		public static void DeleteTemporaryFiles(FileReference HotReloadStateFile, ILogger Logger)
 		{
 			if(FileReference.Exists(HotReloadStateFile))
 			{
@@ -457,7 +462,7 @@ namespace UnrealBuildTool
 				}
 				catch(Exception Ex)
 				{
-					Log.TraceWarning("Unable to read hot reload state file: {0}", HotReloadStateFile);
+					Logger.LogWarning("Unable to read hot reload state file: {HotReloadStateFile}", HotReloadStateFile);
 					Log.WriteException(Ex, null);
 					return;
 				}
@@ -475,7 +480,7 @@ namespace UnrealBuildTool
 						{
 							throw new BuildException(Ex, "Unable to delete hot-reload file: {0}", Location);
 						}
-						Log.TraceInformation("Deleted hot-reload file: {0}", Location);
+						Logger.LogInformation("Deleted hot-reload file: {Location}", Location);
 					}
 				}
 
@@ -526,12 +531,13 @@ namespace UnrealBuildTool
 		/// <param name="PrerequisiteActions">The actions to execute</param>
 		/// <param name="TargetActionsToExecute">Actions to execute for this target</param>
 		/// <param name="InitialPatchedOldLocationToNewLocation">Collection of all the renamed as part of module reload requests.  Can be null</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Set of actions to execute</returns>
-		public static List<LinkedAction> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> PrerequisiteActions, List<LinkedAction> TargetActionsToExecute, Dictionary<FileReference, FileReference>? InitialPatchedOldLocationToNewLocation)
+		public static List<LinkedAction> PatchActionsForTarget(BuildConfiguration BuildConfiguration, TargetDescriptor TargetDescriptor, TargetMakefile Makefile, List<LinkedAction> PrerequisiteActions, List<LinkedAction> TargetActionsToExecute, Dictionary<FileReference, FileReference>? InitialPatchedOldLocationToNewLocation, ILogger Logger)
 		{
 			// Get the dependency history
 			CppDependencyCache CppDependencies = new CppDependencyCache();
-			CppDependencies.Mount(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture);
+			CppDependencies.Mount(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture, Logger);
 
 			ActionHistory History = new ActionHistory();
 			if(TargetDescriptor.ProjectFile != null)
@@ -577,7 +583,7 @@ namespace UnrealBuildTool
 						FileReference.WriteAllLines(new FileReference(TargetDescriptor.LiveCodingModules.FullName + ".out"), ProtectedOutputFiles.Select(x => x.ToString()));
 						foreach (FileReference ProtectedOutputFile in ProtectedOutputFiles)
 						{
-							Log.TraceInformation("Module {0} is not currently enabled for Live Coding", ProtectedOutputFile);
+							Logger.LogInformation("Module {ProtectedOutputFile} is not currently enabled for Live Coding", ProtectedOutputFile);
 						}
 
 						// Note the issue but continue processing to allow the limit to generate an error if hit.
@@ -587,21 +593,21 @@ namespace UnrealBuildTool
 
 				// Filter the prerequisite actions down to just the compile actions, then recompute all the actions to execute
 				PrerequisiteActions = new List<LinkedAction>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
-				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
 
 				// Update the action graph with these new paths
 				Dictionary<FileReference, FileReference> OriginalFileToPatchedFile = new Dictionary<FileReference, FileReference>();
-				HotReload.PatchActionGraphForLiveCoding(PrerequisiteActions, OriginalFileToPatchedFile);
+				HotReload.PatchActionGraphForLiveCoding(PrerequisiteActions, OriginalFileToPatchedFile, Logger);
 
 				// Get a new list of actions to execute now that the graph has been modified
-				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
 
 				// Check to see if we exceed the limit for live coding actions
 				if (TargetDescriptor.LiveCodingLimit > 0 && TargetDescriptor.LiveCodingLimit < TargetActionsToExecute.Count)
 				{
-					Log.TraceInformation("The live coding request of {0} actions exceeds the number of allowed actions of {1}", TargetActionsToExecute.Count, TargetDescriptor.LiveCodingLimit);
-					Log.TraceInformation("This limit helps to prevent the situation where seemingly simple changes result in large scale rebuilds.");
-					Log.TraceInformation("It can also help to detect when the engine needs to be rebuilt outside of Live Coding due to compiler changes.");
+					Logger.LogInformation("The live coding request of {TargetActionsToExecuteCount} actions exceeds the number of allowed actions of {TargetDescriptorLiveCodingLimit}", TargetActionsToExecute.Count, TargetDescriptor.LiveCodingLimit);
+					Logger.LogInformation("This limit helps to prevent the situation where seemingly simple changes result in large scale rebuilds.");
+					Logger.LogInformation("It can also help to detect when the engine needs to be rebuilt outside of Live Coding due to compiler changes.");
 					Result = CompilationResult.LiveCodingLimitError;
 				}
 
@@ -691,7 +697,7 @@ namespace UnrealBuildTool
 				Dictionary<FileReference, FileReference> PatchedOldLocationToNewLocation = HotReload.PatchActionGraph(PrerequisiteActions, OldLocationToNewLocation);
 
 				// Get a new list of actions to execute now that the graph has been modified
-				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
 
 				// Record all of the updated locations directly associated with actions.
 				if (InitialPatchedOldLocationToNewLocation != null)
@@ -801,7 +807,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Actions">Set of actions</param>
 		/// <param name="OriginalFileToPatchedFile">Dictionary that receives a map of original object file to patched object file</param>
-		public static void PatchActionGraphForLiveCoding(IEnumerable<LinkedAction> Actions, Dictionary<FileReference, FileReference> OriginalFileToPatchedFile)
+		/// <param name="Logger"></param>
+		public static void PatchActionGraphForLiveCoding(IEnumerable<LinkedAction> Actions, Dictionary<FileReference, FileReference> OriginalFileToPatchedFile, ILogger Logger)
 		{
 			foreach (LinkedAction Action in Actions)
 			{
@@ -925,7 +932,7 @@ namespace UnrealBuildTool
 						}
 					}
 
-					Utils.WriteFileIfChanged(NewResponseFile, ResponseLines);
+					Utils.WriteFileIfChanged(NewResponseFile, ResponseLines, Logger);
 
 					Arguments[ResponseFileIdx] = "@" + NewResponseFile.FullName;
 

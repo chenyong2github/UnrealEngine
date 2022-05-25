@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool.Modes
 {
@@ -21,7 +22,8 @@ namespace UnrealBuildTool.Modes
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 
@@ -31,7 +33,7 @@ namespace UnrealBuildTool.Modes
 			Arguments.ApplyTo(BuildConfiguration);
 
 			// Parse all the target descriptors
-			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile);
+			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, Logger);
 
 			// Generate the compile DB for each target
 			using (ISourceFileWorkingSet WorkingSet = new EmptySourceFileWorkingSet())
@@ -40,7 +42,7 @@ namespace UnrealBuildTool.Modes
 				Dictionary<FileReference, string> FileToCommand = new Dictionary<FileReference, string>();
 				foreach (TargetDescriptor TargetDescriptor in TargetDescriptors)
 				{
-					AnalyzeTarget(TargetDescriptor, BuildConfiguration);
+					AnalyzeTarget(TargetDescriptor, BuildConfiguration, Logger);
 				}
 			}
 
@@ -68,10 +70,10 @@ namespace UnrealBuildTool.Modes
 			}
 		}
 
-		private void AnalyzeTarget(TargetDescriptor TargetDescriptor, BuildConfiguration BuildConfiguration)
+		private void AnalyzeTarget(TargetDescriptor TargetDescriptor, BuildConfiguration BuildConfiguration, ILogger Logger)
 		{
 			// Create a makefile for the target
-			UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled);
+			UEBuildTarget Target = UEBuildTarget.Create(TargetDescriptor, BuildConfiguration.bSkipRulesCompile, BuildConfiguration.bForceRulesCompile, BuildConfiguration.bUsePrecompiled, Logger);
 			DirectoryReference.CreateDirectory(Target.ReceiptFileName.Directory);
 
 			// Find the shortest path from the target to each module
@@ -212,22 +214,22 @@ namespace UnrealBuildTool.Modes
 			// Warn about any missing modules
 			foreach (UEBuildModule MissingModule in MissingModules.OrderBy(x => x.Name))
 			{
-				Log.TraceWarning("Missing module '{0}'", MissingModule.Name);
+				Logger.LogWarning("Missing module '{MissingModuleName}'", MissingModule.Name);
 			}
 
 			// Generate the dependency graph between modules
 			FileReference DependencyGraphFile = Target.ReceiptFileName.ChangeExtension(".Dependencies.gexf");
-			Log.TraceInformation("Writing dependency graph to {0}...", DependencyGraphFile);
+			Logger.LogInformation("Writing dependency graph to {DependencyGraphFile}...", DependencyGraphFile);
 			WriteDependencyGraph(Target, ModuleToInfo, DependencyGraphFile);
 
 			// Generate the dependency graph between modules
 			FileReference ShortestPathGraphFile = Target.ReceiptFileName.ChangeExtension(".ShortestPath.gexf");
-			Log.TraceInformation("Writing shortest-path graph to {0}...", ShortestPathGraphFile);
+			Logger.LogInformation("Writing shortest-path graph to {ShortestPathGraphFile}...", ShortestPathGraphFile);
 			WriteShortestPathGraph(Target, ModuleToInfo, ShortestPathGraphFile);
 
 			// Write all the target stats as a text file
 			FileReference TextFile = Target.ReceiptFileName.ChangeExtension(".txt");
-			Log.TraceInformation("Writing module information to {0}", TextFile);
+			Logger.LogInformation("Writing module information to {TextFile}", TextFile);
 			using (StreamWriter Writer = new StreamWriter(TextFile.FullName))
 			{
 				Writer.WriteLine("All modules in {0}, ordered by number of indirect references", Target.TargetName);
@@ -250,7 +252,7 @@ namespace UnrealBuildTool.Modes
 
 			// Write all the target stats as a CSV file
 			FileReference CsvFile = Target.ReceiptFileName.ChangeExtension(".csv");
-			Log.TraceInformation("Writing module information to {0}", CsvFile);
+			Logger.LogInformation("Writing module information to {CsvFile}", CsvFile);
 			using (StreamWriter Writer = new StreamWriter(CsvFile.FullName))
 			{
 				List<string> Columns = new List<string>();

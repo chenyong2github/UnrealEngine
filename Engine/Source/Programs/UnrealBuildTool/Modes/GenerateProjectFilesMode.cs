@@ -11,6 +11,7 @@ using EpicGames.Core;
 using System.Diagnostics;
 using UnrealBuildBase;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -59,7 +60,8 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Arguments">Command line arguments</param>
 		/// <returns>Exit code</returns>
-		public override int Execute(CommandLineArguments Arguments)
+		/// <param name="Logger"></param>
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			// Apply any command line arguments to this class
 			Arguments.ApplyTo(this);
@@ -73,7 +75,7 @@ namespace UnrealBuildTool
 
 			// Parse rocket-specific arguments.
 			FileReference? ProjectFile;
-			TryParseProjectFileArgument(Arguments, out ProjectFile);
+			TryParseProjectFileArgument(Arguments, Logger, out ProjectFile);
 
 			// Warn if there are explicit project file formats specified
 			if (ProjectFileFormats.Count > 0 && !bAutomated)
@@ -94,7 +96,7 @@ namespace UnrealBuildTool
 				}
 				Configuration.Append("  </ProjectFileGenerator>\n");
 				Configuration.Append("</Configuration>\n");
-				Log.TraceWarning("{0}", Configuration.ToString());
+				Logger.LogWarning("{Configuration}", Configuration.ToString());
 			}
 
 			// If there aren't any formats set, read the default project file format from the config file
@@ -103,7 +105,7 @@ namespace UnrealBuildTool
 				// Read from the XML config
 				if (!String.IsNullOrEmpty(ProjectFileGeneratorSettings.Format))
 				{
-					ProjectFileFormats.UnionWith(ProjectFileGeneratorSettings.ParseFormatList(ProjectFileGeneratorSettings.Format));
+					ProjectFileFormats.UnionWith(ProjectFileGeneratorSettings.ParseFormatList(ProjectFileGeneratorSettings.Format, Logger));
 				}
 
 				// Read from the editor config
@@ -131,8 +133,8 @@ namespace UnrealBuildTool
 					{
 						if(DisablePlatformProjectGenerators == null || !DisablePlatformProjectGenerators.Any(x => x.Equals(Platform.ToString(), StringComparison.OrdinalIgnoreCase)))
 						{
-							Log.TraceVerbose("Registering project generator {0} for {1}", CheckType, Platform);
-							PlatformProjectGenerators.RegisterPlatformProjectGenerator(Platform, Generator);
+							Logger.LogDebug("Registering project generator {CheckType} for {Platform}", CheckType, Platform);
+							PlatformProjectGenerators.RegisterPlatformProjectGenerator(Platform, Generator, Logger);
 						}
 					}
 				}
@@ -140,7 +142,7 @@ namespace UnrealBuildTool
 
 			// print out any errors to the log
 			List<string> BadPlatformNames = new List<string>();
-			Log.TraceLog("\n---   SDK INFO START   ---");
+			Logger.LogDebug("\n---   SDK INFO START   ---");
 			foreach (string PlatformName in UnrealTargetPlatform.GetValidPlatformNames())
 			{
 				UEBuildPlatformSDK? SDK = UEBuildPlatformSDK.GetSDKForPlatform(PlatformName);
@@ -157,10 +159,10 @@ namespace UnrealBuildTool
 			if (BadPlatformNames.Count > 0)
 			{
 				Log.TraceInformationOnce("\nSome Platforms were skipped due to invalid SDK setup: {0}.\nSee the log file for detailed information\n\n", string.Join(", ", BadPlatformNames));
-				Log.TraceInformation("");
+				Logger.LogInformation("");
 			}
-			Log.TraceLog("---   SDK INFO END   ---");
-			Log.TraceLog("");
+			Logger.LogDebug("---   SDK INFO END   ---");
+			Logger.LogDebug("");
 
 			// Create each project generator and run it
 			List<ProjectFileGenerator> Generators = new List<ProjectFileGenerator>();
@@ -231,7 +233,7 @@ namespace UnrealBuildTool
 			foreach(ProjectFileGenerator Generator in Generators)
 			{
 				ProjectFileGenerator.Current = Generator;
-				bool bGenerateSuccess = Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments.GetRawArray());
+				bool bGenerateSuccess = Generator.GenerateProjectFiles(PlatformProjectGenerators, Arguments.GetRawArray(), Logger);
 				ProjectFileGenerator.Current = null;
 
 				if (!bGenerateSuccess)
@@ -246,9 +248,10 @@ namespace UnrealBuildTool
 		/// Try to parse the project file from the command line
 		/// </summary>
 		/// <param name="Arguments">The command line arguments</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="ProjectFile">The project file that was parsed</param>
 		/// <returns>True if the project file was parsed, false otherwise</returns>
-		private static bool TryParseProjectFileArgument(CommandLineArguments Arguments, [NotNullWhen(true)] out FileReference? ProjectFile)
+		private static bool TryParseProjectFileArgument(CommandLineArguments Arguments, ILogger Logger, [NotNullWhen(true)] out FileReference? ProjectFile)
 		{
 			string? CandidateProjectPath = null;
 
@@ -283,7 +286,7 @@ namespace UnrealBuildTool
 					string ProjectName = CandidateProjectFile.ChangeExtension("uproject").GetFileName();
 
 					// check native project paths (uprojectdirs)
-					IEnumerable<FileReference> NativeProjectFiles = NativeProjects.EnumerateProjectFiles();
+					IEnumerable<FileReference> NativeProjectFiles = NativeProjects.EnumerateProjectFiles(Logger);
 
 					CandidateProjectFile = NativeProjectFiles.Where(F => F.GetFileName().Equals(ProjectName, StringComparison.InvariantCultureIgnoreCase)).FirstOrDefault();
 				}
@@ -294,7 +297,7 @@ namespace UnrealBuildTool
 					throw new Exception(string.Format("Unable to find project file based on argument {0}", CandidateProjectPath));
 				}
 
-				Log.TraceVerbose("Resolved project argument {0} to {1}", CandidateProjectPath, CandidateProjectFile);
+				Logger.LogDebug("Resolved project argument {CandidateProjectPath} to {CandidateProjectFile}", CandidateProjectPath, CandidateProjectFile);
 				ProjectFile = CandidateProjectFile;
 				return true;
 			}

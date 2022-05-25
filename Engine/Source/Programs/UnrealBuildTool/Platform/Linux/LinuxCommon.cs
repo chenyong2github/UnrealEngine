@@ -8,12 +8,13 @@ using System.IO;
 using System.Linq;
 using Microsoft.Win32;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
 	class LinuxCommon
 	{
-		public static string? Which(string name)
+		public static string? Which(string name, ILogger Logger)
 		{
 			Process proc = new Process();
 			proc.StartInfo.FileName = "/bin/sh";
@@ -27,7 +28,7 @@ namespace UnrealBuildTool
 			proc.WaitForExit();
 
 			string? path = proc.StandardOutput.ReadLine();
-			Log.TraceVerbose(String.Format("which {0} result: ({1}) {2}", name, proc.ExitCode, path));
+			Logger.LogDebug("which {Name} result: ({ExitCode}) {Path}", name, proc.ExitCode, path);
 
 			if (proc.ExitCode == 0 && String.IsNullOrEmpty(proc.StandardError.ReadToEnd()))
 			{
@@ -36,7 +37,7 @@ namespace UnrealBuildTool
 			return null;
 		}
 
-		public static string? WhichClang()
+		public static string? WhichClang(ILogger Logger)
 		{
 			string? InternalSDKPath = UEBuildPlatform.GetSDK(UnrealTargetPlatform.Linux)?.GetInternalSDKPath();
 			if (!String.IsNullOrEmpty(InternalSDKPath))
@@ -48,7 +49,7 @@ namespace UnrealBuildTool
 			string? ClangPath;
 			foreach (string ClangName in ClangNames)
 			{
-				ClangPath = Which(ClangName);
+				ClangPath = Which(ClangName, Logger);
 				if (!String.IsNullOrEmpty(ClangPath))
 				{
 					return ClangPath;

@@ -7,6 +7,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Text.RegularExpressions;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
 
 namespace UnrealBuildBase
@@ -137,10 +138,9 @@ namespace UnrealBuildBase
 		/// <returns>The entire StdOut generated from the process as a single trimmed string</returns>
 		/// <param name="Command">Command to run</param>
 		/// <param name="Args">Arguments to Command</param>
-		private static string RunLocalProcessAndReturnStdOut(string Command, string Args)
+		private static string RunLocalProcessAndReturnStdOut(string Command, string Args, ILogger? Logger = null)
 		{
-			int ExitCode;
-			return RunLocalProcessAndReturnStdOut(Command, Args, out ExitCode);	
+			return RunLocalProcessAndReturnStdOut(Command, Args, out _, Logger);	
 		}
 
 		/// <summary>
@@ -150,8 +150,8 @@ namespace UnrealBuildBase
 		/// <param name="Command">Command to run</param>
 		/// <param name="Args">Arguments to Command</param>
 		/// <param name="ExitCode">The return code from the process after it exits</param>
-		/// <param name="LogOutput">Whether to also log standard output and standard error</param>
-		private static string RunLocalProcessAndReturnStdOut(string Command, string? Args, out int ExitCode, bool LogOutput = false)
+		/// <param name="Logger">Whether to also log standard output and standard error</param>
+		private static string RunLocalProcessAndReturnStdOut(string Command, string? Args, out int ExitCode, ILogger? Logger = null)
 		{
 			// Process Arguments follow windows conventions in .NET Core
 			// Which means single quotes ' are not considered quotes.
@@ -181,16 +181,16 @@ namespace UnrealBuildBase
 					StreamReader ErrorReader = LocalProcess.StandardError;
 					// trim off any extraneous new lines, helpful for those one-line outputs
 					ErrorOutput = ErrorReader.ReadToEnd().Trim();
-					if (LogOutput)
+					if (Logger != null)
 					{
 						if (FullOutput.Length > 0)
 						{
-							Log.TraceInformation(FullOutput);
+							Logger.LogInformation("{Message}", FullOutput);
 						}
 
 						if (ErrorOutput.Length > 0)
 						{
-							Log.TraceError(ErrorOutput);
+							Logger.LogError("{Message}", ErrorOutput);
 						}
 					}
 

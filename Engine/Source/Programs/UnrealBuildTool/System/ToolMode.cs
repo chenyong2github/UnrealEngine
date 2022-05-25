@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -98,7 +99,8 @@ namespace UnrealBuildTool
 		/// Entry point for this command.
 		/// </summary>
 		/// <param name="Arguments">List of command line arguments</param>
+		/// <param name="Logger"></param>
 		/// <returns>Exit code for the process</returns>
-		public abstract int Execute(CommandLineArguments Arguments);
+		public abstract int Execute(CommandLineArguments Arguments, ILogger Logger);
 	}
 }

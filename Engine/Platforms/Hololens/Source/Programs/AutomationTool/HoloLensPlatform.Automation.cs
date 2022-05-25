@@ -512,7 +512,7 @@ namespace HoloLens.Automation
 				Windows10SDKVersion = "Latest";
 			}
 
-			if(!HoloLensExports.InitWindowsSdkToolPath(Windows10SDKVersion))
+			if(!HoloLensExports.InitWindowsSdkToolPath(Windows10SDKVersion, Log.Logger))
 			{
 				throw new AutomationException(ExitCode.Error_Arguments, "Wrong WinSDK toolchain selected on \'Platforms/HoloLens/Toolchain\' page. Please check.");
 			}
@@ -596,7 +596,7 @@ namespace HoloLens.Automation
 			{
 				// Stage all the build products
 				DirectoryReference ProjectBinariesFolder = Params.GetProjectBinariesPathForPlatform(PlatformType);
-				HoloLensExports DeployExports = new HoloLensExports();
+				HoloLensExports DeployExports = new HoloLensExports(Log.Logger);
 				foreach (StageTarget Target in SC.StageTargets)
 				{
 					string ArchString = Target.Receipt.Architecture;
@@ -725,7 +725,7 @@ namespace HoloLens.Automation
 		private void PackagePakFiles(ProjectParams Params, DeploymentContext SC, string OutputNameBase)
 		{
 			string IntermediateDirectory = Path.Combine(SC.ProjectRoot.FullName, "Intermediate", "Deploy", "neutral");
-			var ListResources = new HoloLensManifestGenerator().CreateAssetsManifest(SC.StageTargetPlatform.PlatformType, SC.StageDirectory.FullName, IntermediateDirectory, SC.RawProjectPath, SC.ProjectRoot.FullName);
+			var ListResources = new HoloLensManifestGenerator(Log.Logger).CreateAssetsManifest(SC.StageTargetPlatform.PlatformType, SC.StageDirectory.FullName, IntermediateDirectory, SC.RawProjectPath, SC.ProjectRoot.FullName);
 
 			string OutputName = OutputNameBase + "_pak";
 
@@ -1236,7 +1236,7 @@ namespace HoloLens.Automation
 			StartInfo.Arguments = String.Format("\"{0}\" \"{1}\" -p", SourceFile.FullName, TargetFile.FullName);
 			StartInfo.UseShellExecute = false;
 			StartInfo.CreateNoWindow = true;
-			Utils.RunLocalProcessAndLogOutput(StartInfo);
+			Utils.RunLocalProcessAndLogOutput(StartInfo, Log.Logger);
 
 			if (bStripInPlace)
 			{
@@ -1751,7 +1751,7 @@ namespace HoloLens.Automation
 		private string[] GetPathToVCLibsPackages(bool UseDebugCrt, WindowsCompiler Compiler)
 		{
 			List<DirectoryReference> SdkRootDirs = new List<DirectoryReference>();
-			WindowsExports.EnumerateSdkRootDirs(SdkRootDirs);
+			WindowsExports.EnumerateSdkRootDirs(SdkRootDirs, Log.Logger);
 			
 			string VCVersionFragment;
             switch (Compiler)
@@ -1839,7 +1839,7 @@ namespace HoloLens.Automation
 			}
 
 
-			HoloLensExports.CreateManifestForDLC(Params.DLCFile, SC.StageDirectory);
+			HoloLensExports.CreateManifestForDLC(Params.DLCFile, SC.StageDirectory, Log.Logger);
 		}
 
 		private static List<string> AcceptThumbprints = new List<string>();

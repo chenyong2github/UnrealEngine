@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -19,10 +20,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="SourceFile"></param>
 		/// <param name="TargetFile"></param>
-		public static void StripSymbols(FileReference SourceFile, FileReference TargetFile)
+		/// <param name="Logger">Logger for output</param>
+		public static void StripSymbols(FileReference SourceFile, FileReference TargetFile, ILogger Logger)
 		{
-			LinuxToolChain ToolChain = new LinuxToolChain(LinuxPlatform.DefaultHostArchitecture, new LinuxPlatformSDK());
-			ToolChain.StripSymbols(SourceFile, TargetFile);
+			LinuxToolChain ToolChain = new LinuxToolChain(LinuxPlatform.DefaultHostArchitecture, new LinuxPlatformSDK(Logger), ClangToolChainOptions.None, Logger);
+			ToolChain.StripSymbols(SourceFile, TargetFile, Logger);
 		}
 	}
 }

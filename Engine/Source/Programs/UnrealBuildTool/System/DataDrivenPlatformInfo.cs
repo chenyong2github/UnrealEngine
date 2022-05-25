@@ -7,6 +7,7 @@ using System.Text;
 using EpicGames.Core;
 using System.IO;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {

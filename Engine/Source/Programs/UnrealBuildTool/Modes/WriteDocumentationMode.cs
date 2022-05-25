@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -42,7 +43,7 @@ namespace UnrealBuildTool
 		/// Entry point for this command
 		/// </summary>
 		/// <returns></returns>
-		public override int Execute(CommandLineArguments Arguments)
+		public override int Execute(CommandLineArguments Arguments, ILogger Logger)
 		{
 			Arguments.ApplyTo(this);
 			Arguments.CheckAllArgumentsUsed();
@@ -50,13 +51,13 @@ namespace UnrealBuildTool
 			switch(Type)
 			{
 				case DocumentationType.BuildConfiguration:
-					XmlConfig.WriteDocumentation(OutputFile);
+					XmlConfig.WriteDocumentation(OutputFile, Logger);
 					break;
 				case DocumentationType.ModuleRules:
-					RulesDocumentation.WriteDocumentation(typeof(ModuleRules), OutputFile);
+					RulesDocumentation.WriteDocumentation(typeof(ModuleRules), OutputFile, Logger);
 					break;
 				case DocumentationType.TargetRules:
-					RulesDocumentation.WriteDocumentation(typeof(TargetRules), OutputFile);
+					RulesDocumentation.WriteDocumentation(typeof(TargetRules), OutputFile, Logger);
 					break;
 				default:
 					throw new BuildException("Invalid documentation type: {0}", Type);

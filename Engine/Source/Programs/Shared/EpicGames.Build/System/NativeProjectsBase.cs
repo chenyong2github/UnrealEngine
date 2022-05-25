@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildBase
 {
@@ -43,7 +44,7 @@ namespace UnrealBuildBase
 		/// <summary>
 		/// Retrieve the list of base directories for native projects
 		/// </summary>
-		public static IEnumerable<DirectoryReference> EnumerateBaseDirectories()
+		public static IEnumerable<DirectoryReference> EnumerateBaseDirectories(ILogger Logger)
 		{
 			if(CachedBaseDirectories == null)
 			{
@@ -68,7 +69,7 @@ namespace UnrealBuildBase
 										}
 										else
 										{
-											Log.TraceWarning("Project search path '{0}' referenced by '{1}' is not under '{2}', ignoring.", TrimLine, RootFile, Unreal.RootDirectory);
+											Logger.LogWarning("Project search path '{SearchPath}' referenced by '{ProjectDirFile}' is not under '{RootDir}', ignoring.", TrimLine, RootFile, Unreal.RootDirectory);
 										}
 									}
 								}
@@ -85,7 +86,7 @@ namespace UnrealBuildBase
 		/// Returns a list of all the projects
 		/// </summary>
 		/// <returns>List of projects</returns>
-		public static IEnumerable<FileReference> EnumerateProjectFiles()
+		public static IEnumerable<FileReference> EnumerateProjectFiles(ILogger Logger)
 		{
 			if(CachedProjectFiles == null)
 			{
@@ -94,7 +95,7 @@ namespace UnrealBuildBase
 					if(CachedProjectFiles == null)
 					{
 						HashSet<FileReference> ProjectFiles = new HashSet<FileReference>();
-						foreach(DirectoryReference BaseDirectory in EnumerateBaseDirectories())
+						foreach(DirectoryReference BaseDirectory in EnumerateBaseDirectories(Logger))
 						{
 							if(DirectoryLookupCache.DirectoryExists(BaseDirectory))
 							{
@@ -158,10 +159,11 @@ namespace UnrealBuildBase
 		/// Checks if a given project is a native project
 		/// </summary>
 		/// <param name="ProjectFile">The project file to check</param>
+		/// <param name="Logger"></param>
 		/// <returns>True if the given project is a native project</returns>
-		public static bool IsNativeProject(FileReference ProjectFile)
+		public static bool IsNativeProject(FileReference ProjectFile, ILogger Logger)
 		{
-			EnumerateProjectFiles();
+			EnumerateProjectFiles(Logger);
 			return CachedProjectFiles!.Contains(ProjectFile);
 		}
 	}

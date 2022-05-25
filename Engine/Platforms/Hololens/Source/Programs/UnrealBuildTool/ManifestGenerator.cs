@@ -11,6 +11,7 @@ using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -54,6 +55,19 @@ namespace UnrealBuildTool
 		private bool IsDlc;
 		private Dictionary<string, string>? ParsedDlcInfo;
 
+		/// <summary>
+		/// Logger for output
+		/// </summary>
+		protected readonly ILogger Logger;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="InLogger"></param>
+		public HoloLensManifestGenerator(ILogger InLogger)
+		{
+			Logger = InLogger;
+		}
 
 		/// <summary>
 		/// Retrieve a package configuration option from the deprecated [AppxManifest] INI settings and return the value.
@@ -101,13 +115,13 @@ namespace UnrealBuildTool
 				int LenOfSetting = BaseSetting.Substring(NextSetting + 1).IndexOfAny(VariableMarkers);
 				if (LenOfSetting < 0)
 				{
-					Log.TraceError("Could not parse setting {0}. Unmatched variable symbol '{1}'", LookupString, BaseSetting[NextSetting]);
+					Logger.LogError("Could not parse setting {Str}. Unmatched variable symbol '{Var}'", LookupString, BaseSetting[NextSetting]);
 					return InterprettedSetting + BaseSetting;
 				}
 				if (BaseSetting[NextSetting] != BaseSetting[NextSetting + LenOfSetting + 1])
 				{
 					// Probable nested operators
-					Log.TraceError("Could not parse setting {0}. Mismatched variable symbols '{1}' and '{2}'", LookupString, BaseSetting[NextSetting], BaseSetting[NextSetting + LenOfSetting + 1]);
+					Logger.LogError("Could not parse setting {Str}. Mismatched variable symbols '{Var1}' and '{Var2}'", LookupString, BaseSetting[NextSetting], BaseSetting[NextSetting + LenOfSetting + 1]);
 					return InterprettedSetting + BaseSetting;
 				}
 
@@ -147,7 +161,7 @@ namespace UnrealBuildTool
 							string InsertSource = Path.Combine(ProjectPath!, VariableName.Substring(VariableName.IndexOf(':') + 1));
 							if (!File.Exists(InsertSource))
 							{
-								Log.TraceWarning("Invalid path for insertion: {0}", InsertSource);
+								Logger.LogWarning("Invalid path for insertion: {Insert}", InsertSource);
 								// @todo: Can't think of a way to insert valid XML in this case, so it's just going to be left out.
 								// It would be better at least to insert something that would lead back here (as is done with
 								// "InvalidIniValue" above.
@@ -160,7 +174,7 @@ namespace UnrealBuildTool
 							}
 							catch (Exception)
 							{
-								Log.TraceWarning("Error while trying to read data for insert from {0}.", InsertSource);
+								Logger.LogWarning("Error while trying to read data for insert from {Insert}.", InsertSource);
 								// @todo: Can't think of a way to insert valid XML in this case, so it's just going to be left out.
 								// It would be better at least to insert something that would lead back here (as is done with
 								// "InvalidIniValue" above.
@@ -316,7 +330,7 @@ namespace UnrealBuildTool
 						}
 						else
 						{
-							Log.TraceWarning("Unable to parse AppxManifest variable value for {0}.", VariableName);
+							Logger.LogWarning("Unable to parse AppxManifest variable value for {VariableName}.", VariableName);
 							// @todo: Is there any better way to handle not finding the value? If we leave a value blank it will
 							// likely produce invalid XML and be difficult to trace. At least this hardcoded string should lead
 							// users back here.
@@ -350,12 +364,12 @@ namespace UnrealBuildTool
 				}
 				catch (Exception)
 				{
-					Log.TraceError("Could not create directory {0}.", TargetDirectory);
+					Logger.LogError("Could not create directory {TargetDir}.", TargetDirectory);
 					return false;
 				}
 				if (!Directory.Exists(TargetDirectory))
 				{
-					Log.TraceError("Path {0} does not exist or is not a directory.", TargetDirectory);
+					Logger.LogError("Path {TargetDir} does not exist or is not a directory.", TargetDirectory);
 					return false;
 				}
 			}
@@ -370,7 +384,7 @@ namespace UnrealBuildTool
 		{
 			if (!File.Exists(IntermediatePath))
 			{
-				Log.TraceError("Tried to copy non-existant intermediate file {0}.", IntermediatePath);
+				Logger.LogError("Tried to copy non-existant intermediate file {IntermediatePath}.", IntermediatePath);
 				return;
 			}
 
@@ -395,7 +409,7 @@ namespace UnrealBuildTool
 					}
 					catch (Exception)
 					{
-						Log.TraceError("Could not replace file {0}.", TargetPath);
+						Logger.LogError("Could not replace file {TargetPath}.", TargetPath);
 						return;
 					}
 				}
@@ -410,7 +424,7 @@ namespace UnrealBuildTool
 				}
 				catch (Exception)
 				{
-					Log.TraceError("Unable to copy file {0}.", TargetPath);
+					Logger.LogError("Unable to copy file {TargetPath}.", TargetPath);
 					return;
 				}
 				UpdatedFilePaths!.Add(TargetPath);
@@ -474,7 +488,7 @@ namespace UnrealBuildTool
 				string TargetResourcePath = Path.Combine(TargetPath, SourceResourceFile.Substring(SourcePath.Length + 1));
 				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)!))
 				{
-					Log.TraceError("Unable to create intermediate directory {0}.", Path.GetDirectoryName(TargetResourcePath));
+					Logger.LogError("Unable to create intermediate directory {IntermediateDir}.", Path.GetDirectoryName(TargetResourcePath));
 					continue;
 				}
 				if (!File.Exists(TargetResourcePath))
@@ -485,7 +499,7 @@ namespace UnrealBuildTool
 					}
 					catch (Exception)
 					{
-						Log.TraceError("Unable to copy file {0} to {1}.", SourceResourceFile, TargetResourcePath);
+						Logger.LogError("Unable to copy file {SourceFile} to {TargetFile}.", SourceResourceFile, TargetResourcePath);
 						return false;
 					}
 				}
@@ -503,7 +517,7 @@ namespace UnrealBuildTool
 				string TargetResourcePath = Path.Combine(TargetPath, SourceResourceFile.Substring(SourcePath.Length + 1));
 				if (!CreateCheckDirectory(Path.GetDirectoryName(TargetResourcePath)!))
 				{
-					Log.TraceError("Unable to create intermediate directory {0}.", Path.GetDirectoryName(TargetResourcePath));
+					Logger.LogError("Unable to create intermediate directory {IntDir}.", Path.GetDirectoryName(TargetResourcePath));
 					continue;
 				}
 				if (!File.Exists(TargetResourcePath))
@@ -514,7 +528,7 @@ namespace UnrealBuildTool
 					}
 					catch (Exception)
 					{
-						Log.TraceError("Unable to copy file {0} to {1}.", SourceResourceFile, TargetResourcePath);
+						Logger.LogError("Unable to copy file {SourceFile} to {TargetFile}.", SourceResourceFile, TargetResourcePath);
 						throw;
 					}
 				}
@@ -570,7 +584,7 @@ namespace UnrealBuildTool
 						}
 						catch (Exception)
 						{
-							Log.TraceError("Could not remove stale resource file {0}.", TargetResourceFile);
+							Logger.LogError("Could not remove stale resource file {TargetFile}.", TargetResourceFile);
 						}
 					}
 				}
@@ -616,14 +630,14 @@ namespace UnrealBuildTool
 						}
 						catch (Exception)
 						{
-							Log.TraceWarning("Could not remove file {0} to remove directory {1}.", FileToRemove, InDirectoryToDelete);
+							Logger.LogWarning("Could not remove file {File} to remove directory {Dir}.", FileToRemove, InDirectoryToDelete);
 						}
 					}
 					Directory.Delete(InDirectoryToDelete, true);
 				}
 				catch (Exception)
 				{
-					Log.TraceWarning("Could not remove directory {0}.", InDirectoryToDelete);
+					Logger.LogWarning("Could not remove directory {Dir}.", InDirectoryToDelete);
 				}
 			}
 
@@ -677,7 +691,7 @@ namespace UnrealBuildTool
                     continue;
                 }
 
-                Log.TraceLog("Looking at file: " + IniFileName.FullName);
+                Logger.LogDebug("Looking at file: {File}", IniFileName.FullName);
                 projectIniFilePaths.Add(IniFileName.FullName);
 
                 bool isInDesiredSection = false;
@@ -698,7 +712,7 @@ namespace UnrealBuildTool
 
 					if (line.StartsWith(keyName.Trim() + "="))
                     {
-                        Log.TraceLog("Found string match.");
+                        Logger.LogDebug("Found string match.");
                         iniUpdated = true;
                         rewriteCurrentFile = true;
 
@@ -747,17 +761,17 @@ namespace UnrealBuildTool
 			// Check parameter values are valid
 			if (InTargetConfigs.Count != InExecutables.Count)
 			{
-				Log.TraceError("The number of target configurations ({0}) and executables ({1}) passed to manifest generation do not match.", InTargetConfigs.Count, InExecutables.Count);
+				Logger.LogError("The number of target configurations ({ConfigCount}) and executables ({ExeCount}) passed to manifest generation do not match.", InTargetConfigs.Count, InExecutables.Count);
 				return null;
 			}
 			if (File.Exists(InOutputPath))
 			{
-				Log.TraceWarning("InOutputPath {0} is a file. Should be a directory. Continuing using parent directory.", InOutputPath);
+				Logger.LogWarning("InOutputPath {InOutputPath} is a file. Should be a directory. Continuing using parent directory.", InOutputPath);
 				InOutputPath = Path.GetDirectoryName(InOutputPath)!;
 			}
 			if (File.Exists(InIntermediatePath))
 			{
-				Log.TraceWarning("InIntermediatePath {0} is a file. Should be a directory. Continuing using parent directory.", InIntermediatePath);
+				Logger.LogWarning("InIntermediatePath {IntPath} is a file. Should be a directory. Continuing using parent directory.", InIntermediatePath);
 				InIntermediatePath = Path.GetDirectoryName(InIntermediatePath)!;
 			}
 			if (!CreateCheckDirectory(InOutputPath))
@@ -803,7 +817,7 @@ namespace UnrealBuildTool
 				}
 				catch (Exception)
 				{
-					Log.TraceError("Could not create directory {0}.", IntermediateResourceDirectory);
+					Logger.LogError("Could not create directory {IntDir}.", IntermediateResourceDirectory);
 					return null;
 				}
 			}
@@ -841,7 +855,7 @@ namespace UnrealBuildTool
 
 					if (ParsedDlcInfo == null)
 					{
-						Log.TraceWarning("Could not map {0} to a Store identity.  Using a temporary identity to enable local deployment.  For Store upload configure identity in the HoloLens Project Settings.", InProjectFile);
+						Logger.LogWarning("Could not map {ProjectFile} to a Store identity.  Using a temporary identity to enable local deployment.  For Store upload configure identity in the HoloLens Project Settings.", InProjectFile);
 						ParsedDlcInfo = new Dictionary<string, string>();
 						ParsedDlcInfo["PluginName"] = InProjectFile.GetFileNameWithoutExtension();
 						ParsedDlcInfo["PackageIdentityName"] = ParsedDlcInfo["PluginName"];
@@ -878,7 +892,7 @@ namespace UnrealBuildTool
 			GameIni.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "CulturesToStage", out CulturesToStageWithDuplicates);
 			if (CulturesToStageWithDuplicates == null || CulturesToStageWithDuplicates.Count < 1)
 			{
-				Log.TraceError("At least one culture must be selected to stage.");
+				Logger.LogError("At least one culture must be selected to stage.");
 				return null;
 			}
 
@@ -896,7 +910,7 @@ namespace UnrealBuildTool
 				string IntermediateStringResourceFile = Path.Combine(IntermediateStringResourcePath, "resources.resw");
 				if (!CreateCheckDirectory(IntermediateStringResourcePath))
 				{
-					Log.TraceWarning("Failed to create {0}.  Culture {1} resources not staged.", IntermediateStringResourcePath, Culture);
+					Logger.LogWarning("Failed to create {Path}.  Culture {Culture} resources not staged.", IntermediateStringResourcePath, Culture);
 					CulturesToStage.RemoveAt(i);
 					--i;
 					continue;
@@ -906,7 +920,7 @@ namespace UnrealBuildTool
 
 			if (CulturesToStage.Count == 0)
 			{
-				Log.TraceError("Failed to create intermediate files for any culture.  Manifest could not be generated.");
+				Logger.LogError("Failed to create intermediate files for any culture.  Manifest could not be generated.");
 				return null;
 			}
 
@@ -917,7 +931,7 @@ namespace UnrealBuildTool
                 string currentVersion;
                 if (GameIni.GetString("/Script/EngineSettings.GeneralProjectSettings", "ProjectVersion", out currentVersion))
                 {
-                    Log.TraceLog("Automatically incrementing version. Starting version is " + currentVersion);
+                    Logger.LogDebug("Automatically incrementing version. Starting version is {Version}", currentVersion);
 
                     string[] versionEntries = currentVersion.Split(new char[] { '.' });
                     if (versionEntries.Length == 4)
@@ -926,22 +940,22 @@ namespace UnrealBuildTool
                         versionEntryToIncrement++;
 
                         string newVersion = string.Concat(versionEntries[0], ".", versionEntries[1], ".", versionEntryToIncrement, ".", versionEntries[3]);
-                        Log.TraceLog("Writing new version string: " + newVersion);
+                        Logger.LogDebug("Writing new version string: {Version}", newVersion);
 
                         // Update GameIni with newVersion.
                         if (!UpdateProjectIniString(InProjectFile, TargetPlatform, "/Script/EngineSettings.GeneralProjectSettings", "ProjectVersion", newVersion))
                         {
-                            Log.TraceWarning("Auto incrementing the project version was unsuccessful.");
+                            Logger.LogWarning("Auto incrementing the project version was unsuccessful.");
                         }
                     }
                     else
                     {
-                        Log.TraceWarning("Auto increment was desired, but the number of decimals in the version string was unexpected.");
+                        Logger.LogWarning("Auto increment was desired, but the number of decimals in the version string was unexpected.");
                     }
                 }
                 else
                 {
-                    Log.TraceWarning("Auto increment was desired, but the existing version could not be identified.");
+                    Logger.LogWarning("Auto increment was desired, but the existing version could not be identified.");
                 }
             }
 
@@ -1023,7 +1037,7 @@ namespace UnrealBuildTool
 				StartInfo.UseShellExecute = false;
 				StartInfo.RedirectStandardOutput = true;
 				StartInfo.CreateNoWindow = true;
-				int ExitCode = Utils.RunLocalProcessAndLogOutput(StartInfo);
+				int ExitCode = Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 				if (ExitCode < 0)
 				{
 					throw new BuildException("Failed to generate config file for Package Resource Index.  See log for details.");
@@ -1102,7 +1116,7 @@ namespace UnrealBuildTool
 					}
 					catch (Exception)
 					{
-						Log.TraceError("Could not delete file {0}.", OldPri);
+						Logger.LogError("Could not delete file {File}.", OldPri);
 					}
 				}
 
@@ -1116,7 +1130,7 @@ namespace UnrealBuildTool
 				StartInfo.CreateNoWindow = true;
 				StartInfo.StandardErrorEncoding = System.Text.Encoding.Unicode;
 				StartInfo.StandardOutputEncoding = System.Text.Encoding.Unicode;
-				ExitCode = Utils.RunLocalProcessAndLogOutput(StartInfo);
+				ExitCode = Utils.RunLocalProcessAndLogOutput(StartInfo, Logger);
 				if (ExitCode < 0)
 				{
 					throw new BuildException("Failed to generate Package Resource Index file.  See log for details.");
@@ -1144,12 +1158,12 @@ namespace UnrealBuildTool
 		{
 			if (File.Exists(InOutputPath))
 			{
-				Log.TraceWarning("InOutputPath {0} is a file. Should be a directory. Continuing using parent directory.", InOutputPath);
+				Logger.LogWarning("InOutputPath {InOutputPath} is a file. Should be a directory. Continuing using parent directory.", InOutputPath);
 				InOutputPath = Path.GetDirectoryName(InOutputPath)!;
 			}
 			if (File.Exists(InIntermediatePath))
 			{
-				Log.TraceWarning("InIntermediatePath {0} is a file. Should be a directory. Continuing using parent directory.", InIntermediatePath);
+				Logger.LogWarning("InIntermediatePath {InIntermediatePath} is a file. Should be a directory. Continuing using parent directory.", InIntermediatePath);
 				InIntermediatePath = Path.GetDirectoryName(InIntermediatePath)!;
 			}
 			if (!CreateCheckDirectory(InOutputPath))
@@ -1183,7 +1197,7 @@ namespace UnrealBuildTool
 				}
 				catch (Exception)
 				{
-					Log.TraceError("Could not create directory {0}.", IntermediateResourceDirectory);
+					Logger.LogError("Could not create directory {IntDir}.", IntermediateResourceDirectory);
 					return null;
 				}
 			}
@@ -1221,7 +1235,7 @@ namespace UnrealBuildTool
 
 					if (ParsedDlcInfo == null)
 					{
-						Log.TraceWarning("Could not map {0} to a Store identity.  Using a temporary identity to enable local deployment.  For Store upload configure identity in the HoloLens Project Settings.", InProjectFile);
+						Logger.LogWarning("Could not map {ProjectFile} to a Store identity.  Using a temporary identity to enable local deployment.  For Store upload configure identity in the HoloLens Project Settings.", InProjectFile);
 						ParsedDlcInfo = new Dictionary<string, string>();
 						ParsedDlcInfo["PluginName"] = InProjectFile.GetFileNameWithoutExtension();
 						ParsedDlcInfo["PackageIdentityName"] = ParsedDlcInfo["PluginName"];
@@ -1258,7 +1272,7 @@ namespace UnrealBuildTool
 			GameIni.GetArray("/Script/UnrealEd.ProjectPackagingSettings", "CulturesToStage", out CulturesToStageWithDuplicates);
 			if (CulturesToStageWithDuplicates == null || CulturesToStageWithDuplicates.Count < 1)
 			{
-				Log.TraceError("At least one culture must be selected to stage.");
+				Logger.LogError("At least one culture must be selected to stage.");
 				return null;
 			}
 
@@ -1276,7 +1290,7 @@ namespace UnrealBuildTool
 				string IntermediateStringResourceFile = Path.Combine(IntermediateStringResourcePath, "resources.resw");
 				if (!CreateCheckDirectory(IntermediateStringResourcePath))
 				{
-					Log.TraceWarning("Failed to create {0}.  Culture {1} resources not staged.", IntermediateStringResourcePath, Culture);
+					Logger.LogWarning("Failed to create {Path}.  Culture {Culture} resources not staged.", IntermediateStringResourcePath, Culture);
 					CulturesToStage.RemoveAt(i);
 					--i;
 					continue;
@@ -1286,7 +1300,7 @@ namespace UnrealBuildTool
 
 			if (CulturesToStage.Count == 0)
 			{
-				Log.TraceError("Failed to create intermediate files for any culture.  Manifest could not be generated.");
+				Logger.LogError("Failed to create intermediate files for any culture.  Manifest could not be generated.");
 				return null;
 			}
 
@@ -1355,7 +1369,7 @@ namespace UnrealBuildTool
 					}
 					else
 					{
-						Log.TraceError("Unable to stage package logo.");
+						Logger.LogError("Unable to stage package logo.");
 					}
 
 					XmlElement ResourcePackageParam = AppxManifestXmlDocument.CreateElement("ResourcePackage");
@@ -1694,7 +1708,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{ 
-					Log.TraceVerbose("No localized value for {0} in culture {1}.  Neutral value ({2}) will be used", ResourceEntryName, CulturesToStage[i], NeutralValue);
+					Logger.LogDebug("No localized value for {ResourceName} in culture {Culture}.  Neutral value ({Neutral}) will be used", ResourceEntryName, CulturesToStage[i], NeutralValue);
 				}
 			}
 
@@ -1748,12 +1762,12 @@ namespace UnrealBuildTool
 				}
 				else if (bNodeRequired)
 				{
-					Log.TraceError("Node {0} that requires a value is empty.", Child.Name);
+					Logger.LogError("Node {Name} that requires a value is empty.", Child.Name);
 				}
 			}
 			else if (bNodeRequired)
 			{
-				Log.TraceError("Unable to create required manifest entry");
+				Logger.LogError("Unable to create required manifest entry");
 			}
 		}
 
@@ -1831,8 +1845,8 @@ namespace UnrealBuildTool
 			string ReturnVal = Regex.Replace(InPackageName, "[^-.A-Za-z0-9]", "");
 			if (ReturnVal == null || ReturnVal.Length <= 0)
 			{
-				Log.TraceError("Invalid package name {0}. Package names must only contain letters, numbers, dash, and period and must be at least one character long.", InPackageName);
-				Log.TraceError("Consider using the setting [/Script/HoloLensPlatformEditor.HoloLensTargetSettings]:PackageName to provide a HoloLens specific value.");
+				Logger.LogError("Invalid package name {PackageName}. Package names must only contain letters, numbers, dash, and period and must be at least one character long.", InPackageName);
+				Logger.LogError("Consider using the setting [/Script/HoloLensPlatformEditor.HoloLensTargetSettings]:PackageName to provide a HoloLens specific value.");
 				ReturnVal = String.Empty;
 			}
 			return ReturnVal;
@@ -1911,7 +1925,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceError("Unable to stage package logo.");
+				Logger.LogError("Unable to stage package logo.");
 			}
 
 			return Properties;
@@ -1997,7 +2011,7 @@ namespace UnrealBuildTool
 			// Check that we have a valid number of cultures.
 			if (CulturesToStage!.Count < 1 || CulturesToStage.Count >= MaxResourceEntries)
 			{
-				Log.TraceWarning("Incorrect number of cultures to stage. There must be between 1 and {0} cultures selected.", MaxResourceEntries);
+				Logger.LogWarning("Incorrect number of cultures to stage. There must be between 1 and {MaxEntries} cultures selected.", MaxResourceEntries);
 			}
 
 			// Create the culture list.
@@ -2024,12 +2038,12 @@ namespace UnrealBuildTool
 
 			if (TargetConfigs.Count < 1)
 			{
-				Log.TraceError("No configurations to deploy");
+				Logger.LogError("No configurations to deploy");
 				return Applications;
 			}
 			if (TargetConfigs.Count != Executables.Count)
 			{
-				Log.TraceError("The number of executables does not match the number of configurations.");
+				Logger.LogError("The number of executables does not match the number of configurations.");
 				return Applications;
 			}
 
@@ -2056,8 +2070,8 @@ namespace UnrealBuildTool
 			}
 			if (ReturnVal == null || ReturnVal.Length <= 0)
 			{
-				Log.TraceError("Invalid application ID {0}. Application IDs must only contain letters and numbers. And they must begin with a letter.", InApplicationId);
-				Log.TraceError("Consider using the setting [/Script/HoloLensPlatformEditor.HoloLensTargetSettings]:ValidateApplicationName to provide a HoloLens specific value.");
+				Logger.LogError("Invalid application ID {ApplicationId}. Application IDs must only contain letters and numbers. And they must begin with a letter.", InApplicationId);
+				Logger.LogError("Consider using the setting [/Script/HoloLensPlatformEditor.HoloLensTargetSettings]:ValidateApplicationName to provide a HoloLens specific value.");
 				ReturnVal = String.Empty;
 			}
 			return ReturnVal;
@@ -2137,7 +2151,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceError("Unable to stage application logo.");
+				Logger.LogError("Unable to stage application logo.");
 			}
 
 			XmlAttribute SmallLogo = AppxManifestXmlDocument.CreateAttribute("Square44x44Logo");
@@ -2148,7 +2162,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceError("Unable to stage application small logo.");
+				Logger.LogError("Unable to stage application small logo.");
 			}
 
 			XmlNode SplashScreen = GetSplashScreen(ApplicationIndex);
@@ -2191,10 +2205,10 @@ namespace UnrealBuildTool
 					StartInfo.UseShellExecute = false;
 					StartInfo.RedirectStandardOutput = true;
 					StartInfo.CreateNoWindow = true;
-					int ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo);
+					int ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo, Logger);
 					if (ExitCode < 0)
 					{
-						Log.TraceError("GLTF packaging failed. See log for details.");
+						Logger.LogError("GLTF packaging failed. See log for details.");
 						throw new BuildException("GLTF packaging failed. See log for details.");
 					}
 					File.SetLastWriteTimeUtc(to, File.GetLastWriteTimeUtc(from));
@@ -2209,7 +2223,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceError("Unable to stage application wide logo.");
+				Logger.LogError("Unable to stage application wide logo.");
 			}
 
 			bool bUseNameForLogo;
@@ -2255,7 +2269,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				Log.TraceError("Unable to stage splash screen image.");
+				Logger.LogError("Unable to stage splash screen image.");
 			}
 
 			return SplashScreen;
@@ -2388,7 +2402,7 @@ namespace UnrealBuildTool
 
 			DirectoryReference SDKRootFolder;
 			VersionNumber? version;
-			if (WindowsPlatform.TryGetWindowsSdkDir("Latest", out version, out SDKRootFolder!))
+			if (WindowsPlatform.TryGetWindowsSdkDir("Latest", Logger, out version, out SDKRootFolder!))
 			{
 				SDKVersion = version.ToString();
 			}
@@ -2397,11 +2411,11 @@ namespace UnrealBuildTool
 			PhoneSchemaFolder = DirectoryReference.Combine(SDKRootFolder, "Extension SDKs", "WindowsMobile", SDKVersion.ToString(), "Include", "WinRT");
 
 			IEnumerable<DirectoryReference>? VSInstallDirs;
-			if (null != (VSInstallDirs = WindowsPlatform.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019)))
+			if (null != (VSInstallDirs = WindowsPlatform.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2019, Logger)))
 			{
 				VSSchemaFolder = DirectoryReference.Combine(VSInstallDirs.First(), "Xml", "Schemas");
 			}
-			else if (null != (VSInstallDirs = WindowsPlatform.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022)))
+			else if (null != (VSInstallDirs = WindowsPlatform.TryGetVSInstallDirs(WindowsCompiler.VisualStudio2022, Logger)))
 			{
 				VSSchemaFolder = DirectoryReference.Combine(VSInstallDirs.First(), "Xml", "Schemas");
 			}
@@ -2462,14 +2476,14 @@ namespace UnrealBuildTool
 			}
 			catch (System.Xml.Schema.XmlSchemaException e)
 			{
-				string InvalidSchemaWarning =
+				const string InvalidSchemaWarning =
 					"\r\n" +
-					"{0}({1}): {2}\r\n" +
+					"{File}({Line}): {Message}\r\n" +
 					"XML schema failed to compile; validation of the final AppxManifest.xml will be skipped.\r\n" +
 					"If your AppxManifest.xml is valid then this is harmless, but if it contains invalid content you may encounter packaging or deployment errors.\r\n" +
 					"Updating your Windows SDK and/or Visual Studio installation may correct the schema problems and simplify diagnosis of invalid content.\r\n";
 
-				Log.TraceWarning(InvalidSchemaWarning, e.SourceUri, e.LineNumber, e.Message);
+				Logger.LogWarning(InvalidSchemaWarning, e.SourceUri, e.LineNumber, e.Message);
 				return;
 			}
 
@@ -2482,12 +2496,12 @@ namespace UnrealBuildTool
 				switch (args.Severity)
 				{
 					case System.Xml.Schema.XmlSeverityType.Error:
-						Log.TraceError(args.Message);
+						Logger.LogError("{Message}", args.Message);
 						ValidationSucceeded = false;
 						break;
 
 					case System.Xml.Schema.XmlSeverityType.Warning:
-						Log.TraceWarning(args.Message);
+						Logger.LogWarning("{Message}", args.Message);
 						break;
 
 					default:

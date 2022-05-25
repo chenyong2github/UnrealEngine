@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using System.Linq;
 using System.Text;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -146,7 +147,7 @@ namespace UnrealBuildTool
 			}
 		}
 		
-		private void EmitProject(StringBuilder Content, Dictionary<string, EddieFolder> Folders)
+		private void EmitProject(StringBuilder Content, Dictionary<string, EddieFolder> Folders, ILogger Logger)
 		{
 			foreach (KeyValuePair<string, EddieFolder> CurGroup in Folders)
 			{
@@ -163,7 +164,7 @@ namespace UnrealBuildTool
                 
                         ProjectFileContent.Append("AddFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\" \"" + (CurGroup.Value.FullPath != null ? CurGroup.Value.FullPath : CurGroup.Value.Path) + "\"" + ProjectFileGenerator.NewLine);
                 
-                        EmitProject(ProjectFileContent, CurGroup.Value.Folders);
+                        EmitProject(ProjectFileContent, CurGroup.Value.Folders, Logger);
                         
                         foreach (EddieSourceFile File in CurGroup.Value.Files)
                         {
@@ -173,13 +174,13 @@ namespace UnrealBuildTool
                         
                         ProjectFileContent.Append("EndFileGroup \"" + Path.GetFileName(CurGroup.Key) + "\"" + ProjectFileGenerator.NewLine);
                 
-                        ProjectFileGenerator.WriteFileIfChanged(CurGroup.Value.WorksetPath!, ProjectFileContent.ToString(), new UTF8Encoding());
+                        ProjectFileGenerator.WriteFileIfChanged(CurGroup.Value.WorksetPath!, ProjectFileContent.ToString(), Logger, new UTF8Encoding());
                     
                         Content.Append("AddFile \"" + Path.GetFileName(CurGroup.Key) + "\" \"" + CurGroup.Value.WorksetPath + "\"" + ProjectFileGenerator.NewLine);
                     }
                     else
                     {
-                        EmitProject(Content, CurGroup.Value.Folders);
+                        EmitProject(Content, CurGroup.Value.Folders, Logger);
                         
                         foreach (EddieSourceFile File in CurGroup.Value.Files)
                         {
@@ -192,7 +193,7 @@ namespace UnrealBuildTool
 			}
 		}
 		
-		public override bool WriteProjectFile(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators)
+		public override bool WriteProjectFile(List<UnrealTargetPlatform> InPlatforms, List<UnrealTargetConfiguration> InConfigurations, PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
 		{
 			bool bSuccess = false;
 			
@@ -214,9 +215,9 @@ namespace UnrealBuildTool
 			ProjectFileContent.Append("AddWorkset \"" + this.ToString() + ".wkst\" \"" + ProjectFilePath.FullName + "\"" + ProjectFileGenerator.NewLine);
 			
 			ParseSourceFilesIntoGroups();
-			EmitProject(ProjectFileContent, Folders);
+			EmitProject(ProjectFileContent, Folders, Logger);
 			
-			bSuccess = ProjectFileGenerator.WriteFileIfChanged(ProjectFilePath.FullName, ProjectFileContent.ToString(), new UTF8Encoding());
+			bSuccess = ProjectFileGenerator.WriteFileIfChanged(ProjectFilePath.FullName, ProjectFileContent.ToString(), Logger, new UTF8Encoding());
 			
 			return bSuccess;
 		}

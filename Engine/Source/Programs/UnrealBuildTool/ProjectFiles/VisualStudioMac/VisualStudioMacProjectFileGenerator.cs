@@ -9,6 +9,7 @@ using System.Xml;
 using System.Xml.Linq;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -66,7 +67,7 @@ namespace UnrealBuildTool
         /// Writes the project files to disk
         /// </summary>
         /// <returns>True if successful</returns>
-        protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators)
+        protected override bool WriteProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators, ILogger Logger)
         {
 			// This can be reset by higher level code when it detects that we don't have
 			// VS2019 installed (TODO - add custom format for Mac?)
@@ -80,7 +81,7 @@ namespace UnrealBuildTool
             OtherProjectFiles.RemoveAll(x => !IsValidProject(x));
             AutomationProjectFiles.RemoveAll(x => !IsValidProject(x));
 
-            if (!base.WriteProjectFiles(PlatformProjectGenerators))
+            if (!base.WriteProjectFiles(PlatformProjectGenerators, Logger))
             {
                 return false;
             }

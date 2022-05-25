@@ -10,6 +10,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 using OpenTracing.Util;
 using UnrealBuildBase;
 
@@ -93,6 +94,11 @@ namespace UnrealBuildTool
 		bool bModified;
 
 		/// <summary>
+		/// Logger for output
+		/// </summary>
+		ILogger Logger;
+
+		/// <summary>
 		/// Regex that matches C++ code with UObject declarations which we will need to generated code for.
 		/// </summary>
 		static readonly Regex ReflectionMarkupRegex = new Regex("^\\s*U(CLASS|STRUCT|ENUM|INTERFACE|DELEGATE)\\b", RegexOptions.Compiled | RegexOptions.Multiline);
@@ -118,11 +124,13 @@ namespace UnrealBuildTool
 		/// <param name="Location">File to store the cache</param>
 		/// <param name="BaseDir">Base directory for files that this cache should store data for</param>
 		/// <param name="Parent">The parent cache to use</param>
-		private SourceFileMetadataCache(FileReference Location, DirectoryReference BaseDir, SourceFileMetadataCache? Parent)
+		/// <param name="Logger">Logger for output</param>
+		private SourceFileMetadataCache(FileReference Location, DirectoryReference BaseDir, SourceFileMetadataCache? Parent, ILogger Logger)
 		{
 			this.Location = Location;
 			this.BaseDirectory = BaseDir;
 			this.Parent = Parent;
+			this.Logger = Logger;
 
 			if(FileReference.Exists(Location))
 			{
@@ -269,21 +277,22 @@ namespace UnrealBuildTool
 		/// Creates a cache hierarchy for a particular target
 		/// </summary>
 		/// <param name="ProjectFile">Project file for the target being built</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Dependency cache hierarchy for the given project</returns>
-		public static SourceFileMetadataCache CreateHierarchy(FileReference? ProjectFile)
+		public static SourceFileMetadataCache CreateHierarchy(FileReference? ProjectFile, ILogger Logger)
 		{
 			SourceFileMetadataCache? Cache = null;
 
 			if(ProjectFile == null || !Unreal.IsEngineInstalled())
 			{
 				FileReference EngineCacheLocation = FileReference.Combine(Unreal.EngineDirectory, "Intermediate", "Build", "SourceFileCache.bin");
-				Cache = FindOrAddCache(EngineCacheLocation, Unreal.EngineDirectory, Cache);
+				Cache = FindOrAddCache(EngineCacheLocation, Unreal.EngineDirectory, Cache, Logger);
 			}
 
 			if(ProjectFile != null)
 			{
 				FileReference ProjectCacheLocation = FileReference.Combine(ProjectFile.Directory, "Intermediate", "Build", "SourceFileCache.bin");
-				Cache = FindOrAddCache(ProjectCacheLocation, ProjectFile.Directory, Cache);
+				Cache = FindOrAddCache(ProjectCacheLocation, ProjectFile.Directory, Cache, Logger);
 			}
 
 			return Cache!;
@@ -312,8 +321,9 @@ namespace UnrealBuildTool
 		/// <param name="Location">File to store the cache</param>
 		/// <param name="BaseDirectory">Base directory for files that this cache should store data for</param>
 		/// <param name="Parent">The parent cache to use</param>
+		/// <param name="Logger"></param>
 		/// <returns>Reference to a dependency cache with the given settings</returns>
-		static SourceFileMetadataCache FindOrAddCache(FileReference Location, DirectoryReference BaseDirectory, SourceFileMetadataCache? Parent)
+		static SourceFileMetadataCache FindOrAddCache(FileReference Location, DirectoryReference BaseDirectory, SourceFileMetadataCache? Parent, ILogger Logger)
 		{
 			lock(Caches)
 			{
@@ -325,7 +335,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					Cache = new SourceFileMetadataCache(Location, BaseDirectory, Parent);
+					Cache = new SourceFileMetadataCache(Location, BaseDirectory, Parent, Logger);
 					Caches.Add(Location, Cache);
 				}
 				return Cache;
@@ -352,7 +362,7 @@ namespace UnrealBuildTool
 					int Version = Reader.ReadInt();
 					if(Version != CurrentVersion)
 					{
-						Log.TraceLog("Unable to read dependency cache from {0}; version {1} vs current {2}", Location, Version, CurrentVersion);
+						Logger.LogDebug("Unable to read dependency cache from {File}; version {Version} vs current {CurrentVersion}", Location, Version, CurrentVersion);
 						return;
 					}
 
@@ -383,8 +393,8 @@ namespace UnrealBuildTool
 			}
 			catch(Exception Ex)
 			{
-				Log.TraceWarning("Unable to read {0}. See log for additional information.", Location);
-				Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+				Logger.LogWarning("Unable to read {Location}. See log for additional information.", Location);
+				Logger.LogDebug(Ex, "{Ex}", ExceptionUtils.FormatExceptionDetails(Ex));
 			}
 		}
 

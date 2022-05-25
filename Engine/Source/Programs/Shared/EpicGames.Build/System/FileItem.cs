@@ -9,6 +9,7 @@ using System.Threading;
 using System.Runtime.Serialization;
 using EpicGames.Core;
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildBase
 {
@@ -210,7 +211,7 @@ namespace UnrealBuildBase
 		/// <summary>
 		/// Deletes the file.
 		/// </summary>
-		public void Delete()
+		public void Delete(ILogger Logger)
 		{
 			Debug.Assert(Exists);
 
@@ -239,15 +240,15 @@ namespace UnrealBuildBase
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceInformation("Failed to delete file '" + AbsolutePath + "'");
-					Log.TraceInformation("    Exception: " + Ex.Message);
+					Logger.LogInformation(Ex, "Failed to delete file '{Location}'", Location);
+					Logger.LogInformation("    Exception: {Message}", Ex.Message);
 					if (DeleteTryCount < MaxRetryCount)
 					{
-						Log.TraceInformation("Attempting to retry...");
+						Logger.LogInformation("Attempting to retry...");
 					}
 					else
 					{
-						Log.TraceInformation("ERROR: Exhausted all retries!");
+						Logger.LogError("ERROR: Exhausted all retries!");
 					}
 				}
 			}

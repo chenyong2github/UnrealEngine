@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 using UnrealBuildBase;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -31,7 +32,7 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public static void WriteDocumentation(Type RulesType, FileReference OutputFile)
+		public static void WriteDocumentation(Type RulesType, FileReference OutputFile, ILogger Logger)
 		{
 			// Get the path to the XML documentation
 			FileReference InputDocumentationFile = new FileReference(Assembly.GetExecutingAssembly().Location).ChangeExtension(".xml");
@@ -54,7 +55,7 @@ namespace UnrealBuildTool
 				if(!Field.FieldType.IsClass || !Field.FieldType.Name.EndsWith("TargetRules"))
 				{
 					List<string>? Lines;
-					if (TryGetXmlComment(InputDocumentation, Field, out Lines))
+					if (TryGetXmlComment(InputDocumentation, Field, Logger, out Lines))
 					{
 						SettingInfo Setting = new SettingInfo(Field.Name, Field.FieldType, Lines);
 						if (Field.IsInitOnly)
@@ -75,7 +76,7 @@ namespace UnrealBuildTool
 				if (!Property.PropertyType.IsClass || !Property.PropertyType.Name.EndsWith("TargetRules"))
 				{
 					List<string>? Lines;
-					if (TryGetXmlComment(InputDocumentation, Property, out Lines))
+					if (TryGetXmlComment(InputDocumentation, Property, Logger, out Lines))
 					{
 						SettingInfo Setting = new SettingInfo(Property.Name, Property.PropertyType, Lines);
 						if (Property.SetMethod == null)
@@ -115,7 +116,7 @@ namespace UnrealBuildTool
 			}
 
 			// Success!
-			Log.TraceInformation("Written documentation to {0}.", OutputFile);
+			Logger.LogInformation("Written documentation to {OutputFile}.", OutputFile);
 		}
 
 		static void WriteDocumentationUDN(FileReference OutputFile, List<SettingInfo> ReadOnlySettings, List<SettingInfo> ReadWriteSettings)
@@ -156,11 +157,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Documentation">The XML documentation</param>
 		/// <param name="Field">The member to search for</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="Lines">Receives the description for the requested field</param>
 		/// <returns>True if a comment was found for the field</returns>
-		public static bool TryGetXmlComment(XmlDocument Documentation, FieldInfo Field, [NotNullWhen(true)] out List<string>? Lines)
+		public static bool TryGetXmlComment(XmlDocument Documentation, FieldInfo Field, ILogger Logger, [NotNullWhen(true)] out List<string>? Lines)
 		{
-			return TryGetXmlComment(Documentation, $"F:{Field.DeclaringType}.{Field.Name}", out Lines);
+			return TryGetXmlComment(Documentation, $"F:{Field.DeclaringType}.{Field.Name}", Logger, out Lines);
 		}
 
 		/// <summary>
@@ -168,11 +170,12 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Documentation">The XML documentation</param>
 		/// <param name="Property">The member to search for</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="Lines">Receives the description for the requested field</param>
 		/// <returns>True if a comment was found for the field</returns>
-		public static bool TryGetXmlComment(XmlDocument Documentation, PropertyInfo Property, [NotNullWhen(true)] out List<string>? Lines)
+		public static bool TryGetXmlComment(XmlDocument Documentation, PropertyInfo Property, ILogger Logger, [NotNullWhen(true)] out List<string>? Lines)
 		{
-			return TryGetXmlComment(Documentation, $"P:{Property.DeclaringType}.{Property.Name}", out Lines);
+			return TryGetXmlComment(Documentation, $"P:{Property.DeclaringType}.{Property.Name}", Logger, out Lines);
 		}
 
 		/// <summary>
@@ -180,17 +183,18 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Documentation">The XML documentation</param>
 		/// <param name="Member">The member to search for (field or property)</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="Lines">Receives the description for the requested member</param>
 		/// <returns>True if a comment was found for the member</returns>
-		public static bool TryGetXmlComment(XmlDocument Documentation, MemberInfo Member, [NotNullWhen(true)] out List<string>? Lines)
+		public static bool TryGetXmlComment(XmlDocument Documentation, MemberInfo Member, ILogger Logger, [NotNullWhen(true)] out List<string>? Lines)
 		{
 			if (Member is FieldInfo)
 			{
-				return TryGetXmlComment(Documentation, (Member as FieldInfo)!, out Lines);
+				return TryGetXmlComment(Documentation, (Member as FieldInfo)!, Logger, out Lines);
 			}
 			else if (Member is PropertyInfo)
 			{
-				return TryGetXmlComment(Documentation, (Member as PropertyInfo)!, out Lines);
+				return TryGetXmlComment(Documentation, (Member as PropertyInfo)!, Logger, out Lines);
 			}
 
 			Lines = null;
@@ -203,9 +207,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Documentation">The XML documentation</param>
 		/// <param name="MemberName">The member to search for</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <param name="Lines">Receives the description for the requested field</param>
 		/// <returns>True if a comment was found for the field</returns>
-		public static bool TryGetXmlComment(XmlDocument Documentation, string MemberName, [NotNullWhen(true)] out List<string>? Lines)
+		public static bool TryGetXmlComment(XmlDocument Documentation, string MemberName, ILogger Logger, [NotNullWhen(true)] out List<string>? Lines)
 		{
 			HashSet<string> VisitedProperties = new HashSet<string>(StringComparer.Ordinal);
 
@@ -261,7 +266,7 @@ namespace UnrealBuildTool
 
 			if (!bExclude)
 			{
-				Log.TraceWarning("Missing XML comment for {0}", Regex.Replace(MemberName, @"^[A-Z]:", ""));
+				Logger.LogWarning("Missing XML comment for {Member}", Regex.Replace(MemberName, @"^[A-Z]:", ""));
 			}
 			Lines = null;
 			return false;

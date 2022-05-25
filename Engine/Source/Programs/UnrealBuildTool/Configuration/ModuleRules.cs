@@ -498,7 +498,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					Log.TraceWarning("Cannot apply build order override, file doesn't exist: {0}", File.AbsolutePath);
+					throw new BuildException($"Cannot apply build order override, file doesn't exist: {File.AbsolutePath}");
 				}
 			}
 

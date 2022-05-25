@@ -11,6 +11,7 @@ using System.Text;
 using EpicGames.Core;
 using UnrealBuildBase;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
@@ -103,8 +104,9 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		/// <param name="Params">Main constructor parameters</param>
+		/// <param name="Logger">Logger for output</param>
 		[SupportedOSPlatform("windows")]
-		public VCEnvironment(VCEnvironmentParameters Params)
+		public VCEnvironment(VCEnvironmentParameters Params, ILogger Logger)
 		{
 			this.Compiler = Params.Compiler;
 			this.CompilerDir = Params.CompilerDir;
@@ -132,7 +134,7 @@ namespace UnrealBuildTool
 			ResourceCompilerPath = GetResourceCompilerToolPath(Params.Platform, WindowsSdkDir, WindowsSdkVersion);
 
 			// Get all the system include paths
-			SetupEnvironment(Params.Platform);
+			SetupEnvironment(Params.Platform, Logger);
 		}
 
 		/// <summary>
@@ -310,7 +312,7 @@ namespace UnrealBuildTool
 		/// Sets up the standard compile environment for the toolchain
 		/// </summary>
 		[SupportedOSPlatform("windows")]
-		private void SetupEnvironment(UnrealTargetPlatform Platform)
+		private void SetupEnvironment(UnrealTargetPlatform Platform, ILogger Logger)
 		{
 			string ArchFolder = WindowsExports.GetArchitectureSubpath(Architecture);
 
@@ -323,7 +325,7 @@ namespace UnrealBuildTool
 			// If we're on >= Visual Studio 2015 and using pre-Windows 10 SDK, we need to find a Windows 10 SDK and add the UCRT include paths
 			if(ToolChain.IsMSVC() && WindowsSdkVersion < new VersionNumber(10))
 			{
-				KeyValuePair<VersionNumber, DirectoryReference> Pair = MicrosoftPlatformSDK.FindUniversalCrtDirs().OrderByDescending(x => x.Key).FirstOrDefault();
+				KeyValuePair<VersionNumber, DirectoryReference> Pair = MicrosoftPlatformSDK.FindUniversalCrtDirs(Logger).OrderByDescending(x => x.Key).FirstOrDefault();
 				if(Pair.Key == null || Pair.Key < new VersionNumber(10))
 				{
 					throw new BuildException("{0} requires the Universal CRT to be installed.", WindowsPlatform.GetCompilerName(ToolChain));
@@ -390,20 +392,21 @@ namespace UnrealBuildTool
 		/// <param name="CompilerVersion">The specific toolchain version to use</param>
 		/// <param name="WindowsSdkVersion">Version of the Windows SDK to use</param>
 		/// <param name="SuppliedSdkDirectoryForVersion">If specified, this is the SDK directory to use, otherwise, attempt to look up via registry. If specified, the WindowsSdkVersion is used directly</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>New environment object with paths for the given settings</returns>
 		[SupportedOSPlatform("windows")]
-		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion)
+		public static VCEnvironment Create(WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, ILogger Logger)
 		{
-			return Create( new VCEnvironmentParameters(Compiler, Platform, Architecture, CompilerVersion, WindowsSdkVersion, SuppliedSdkDirectoryForVersion) );
+			return Create( new VCEnvironmentParameters(Compiler, Platform, Architecture, CompilerVersion, WindowsSdkVersion, SuppliedSdkDirectoryForVersion, Logger), Logger );
 		}
 
 		/// <summary>
 		/// Creates an environment with the given parameters
 		/// </summary>
 		[SupportedOSPlatform("windows")]
-		public static VCEnvironment Create( VCEnvironmentParameters Params)
+		public static VCEnvironment Create( VCEnvironmentParameters Params, ILogger Logger)
 		{
-			return new VCEnvironment(Params);
+			return new VCEnvironment(Params, Logger);
 		}
 
 
@@ -445,7 +448,7 @@ namespace UnrealBuildTool
 		public VersionNumber WindowsSdkVersion;
 
 		/// <summary>Optional directory for redistributable items (DLLs etc)</summary>
-		public DirectoryReference? RedistDir;	   
+		public DirectoryReference? RedistDir;
 
 		/// <summary>
 		/// Creates VC environment construction parameters with the given settings
@@ -456,15 +459,16 @@ namespace UnrealBuildTool
 		/// <param name="CompilerVersion">The specific toolchain version to use</param>
 		/// <param name="WindowsSdkVersion">Version of the Windows SDK to use</param>
 		/// <param name="SuppliedSdkDirectoryForVersion">If specified, this is the SDK directory to use, otherwise, attempt to look up via registry. If specified, the WindowsSdkVersion is used directly</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>Creation parameters for VC environment</returns>
 		[SupportedOSPlatform("windows")]
-		public VCEnvironmentParameters (WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion)
+		public VCEnvironmentParameters (WindowsCompiler Compiler, UnrealTargetPlatform Platform, WindowsArchitecture Architecture, string? CompilerVersion, string? WindowsSdkVersion, string? SuppliedSdkDirectoryForVersion, ILogger Logger)
 		{
 			// Get the compiler version info
 			VersionNumber? SelectedCompilerVersion;
 			DirectoryReference? SelectedCompilerDir;
 			DirectoryReference? SelectedRedistDir;
-			if(!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, Architecture, out SelectedCompilerVersion, out SelectedCompilerDir, out SelectedRedistDir))
+			if(!WindowsPlatform.TryGetToolChainDir(Compiler, CompilerVersion, Architecture, Logger, out SelectedCompilerVersion, out SelectedCompilerDir, out SelectedRedistDir))
 			{
 				throw new BuildException("{0}{1} {2} must be installed in order to build this target.", WindowsPlatform.GetCompilerName(Compiler), String.IsNullOrEmpty(CompilerVersion)? "" : String.Format(" ({0})", CompilerVersion), Architecture.ToString());
 			}
@@ -475,11 +479,11 @@ namespace UnrealBuildTool
 			DirectoryReference? SelectedToolChainDir;
 			if(Compiler.IsClang())
 			{
-				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, null, Architecture, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
+				if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2019, null, Architecture, Logger, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 				{
 					ToolChain = WindowsCompiler.VisualStudio2019;
 				}
-				else if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2022, null, Architecture, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
+				else if (WindowsPlatform.TryGetToolChainDir(WindowsCompiler.VisualStudio2022, null, Architecture, Logger, out SelectedToolChainVersion, out SelectedToolChainDir, out SelectedRedistDir))
 				{
 					ToolChain = WindowsCompiler.VisualStudio2022;
 				}
@@ -510,7 +514,7 @@ namespace UnrealBuildTool
 			}
 			else
 			{
-				if (!WindowsPlatform.TryGetWindowsSdkDir(WindowsSdkVersion, out SelectedWindowsSdkVersion, out SelectedWindowsSdkDir))
+				if (!WindowsPlatform.TryGetWindowsSdkDir(WindowsSdkVersion, Logger, out SelectedWindowsSdkVersion, out SelectedWindowsSdkDir))
 				{
 					throw new BuildException("Windows SDK{0} must be installed in order to build this target.", String.IsNullOrEmpty(WindowsSdkVersion) ? "" : String.Format(" ({0})", WindowsSdkVersion));
 				}
