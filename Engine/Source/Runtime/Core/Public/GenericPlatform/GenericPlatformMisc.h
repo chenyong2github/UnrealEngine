@@ -1157,6 +1157,11 @@ public:
 	 */
 	static const TCHAR* GamePersistentDownloadDir();
 
+	/**
+	 *	Return the temporary directory
+	 */
+	static const TCHAR* GameTemporaryDownloadDir();
+
 	static const TCHAR* GeneratedConfigDir();
 
 	static const TCHAR* GetUBTPlatform();

@@ -1377,6 +1377,11 @@ const TCHAR* FGenericPlatformMisc::GamePersistentDownloadDir()
 	return *GamePersistentDownloadDir;
 }
 
+const TCHAR* FGenericPlatformMisc::GameTemporaryDownloadDir()
+{
+	return nullptr;
+}
+
 const TCHAR* FGenericPlatformMisc::GeneratedConfigDir()
 {
 	static FString Dir = FPaths::ProjectSavedDir() / TEXT("Config/");
