@@ -2821,7 +2821,7 @@ public:
 	FSkyLightSceneProxy* SkyLight;
 
 	/** Contains the sky env map irradiance as spherical harmonics. */
-	FRWBufferStructured SkyIrradianceEnvironmentMap;
+	TRefCountPtr<FRDGPooledBuffer> SkyIrradianceEnvironmentMap;
 
 	/** The SkyView LUT used when rendering sky material sampling this lut into the realtime capture sky env map. It must be generated at the skylight position*/
 	TRefCountPtr<IPooledRenderTarget> RealTimeReflectionCaptureSkyAtmosphereViewLutTexture;

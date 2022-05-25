@@ -4932,7 +4932,10 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 	CreateIndirectCapsuleShadows();
 
 	// This must happen before we start initialising and using views.
-	UpdateSkyIrradianceGpuBuffer(RHICmdList);
+	if (Scene)
+	{
+		UpdateSkyIrradianceGpuBuffer(RHICmdList, ActiveViewFamily->EngineShowFlags, Scene->SkyLight, Scene->SkyIrradianceEnvironmentMap);
+	}
 
 	DispatchToRHIThread();
 

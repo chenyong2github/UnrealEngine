@@ -132,7 +132,7 @@ class FComputeSkyEnvMapDiffuseIrradianceCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(TextureCube, SourceCubemapTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SourceCubemapSampler)
-		SHADER_PARAMETER_UAV(RWStructuredBuffer, OutIrradianceEnvMapSH)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, OutIrradianceEnvMapSH)
 		SHADER_PARAMETER(float, UniformSampleSolidAngle)
 		SHADER_PARAMETER(uint32, MipIndex)
 	END_SHADER_PARAMETER_STRUCT()
@@ -834,14 +834,9 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 	auto RenderCubeFaces_DiffuseIrradiance = [&](TRefCountPtr<IPooledRenderTarget>& SourceCubemap)
 	{
-		// ComputeDiffuseIrradiance using N uniform samples
-		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionToUAV"), [SkyIrradianceEnvironmentMap = SkyIrradianceEnvironmentMap.Buffer](FRHIComputeCommandList& RHICmdList)
-		{
-			RHICmdList.Transition({ SkyIrradianceEnvironmentMap, ERHIAccess::Unknown, ERHIAccess::UAVCompute });
-		});
-
 		FRDGTextureRef SourceCubemapTexture = GraphBuilder.RegisterExternalTexture(SourceCubemap);
 		FRDGTextureSRVRef SourceCubemapTextureSRV = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SourceCubemapTexture));
+		FRDGBuffer* SkyIrradianceEnvironmentMapRDG = GraphBuilder.RegisterExternalBuffer(SkyIrradianceEnvironmentMap);
 
 		TShaderMapRef<FComputeSkyEnvMapDiffuseIrradianceCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
 
@@ -851,7 +846,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		FComputeSkyEnvMapDiffuseIrradianceCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeSkyEnvMapDiffuseIrradianceCS::FParameters>();
 		PassParameters->SourceCubemapSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->SourceCubemapTexture = SourceCubemapTextureSRV;
-		PassParameters->OutIrradianceEnvMapSH = SkyIrradianceEnvironmentMap.UAV;
+		PassParameters->OutIrradianceEnvMapSH = GraphBuilder.CreateUAV(SkyIrradianceEnvironmentMapRDG);
 		PassParameters->UniformSampleSolidAngle = UniformSampleSolidAngle;
 
 		// For 64 uniform samples on the unit sphere, we roughly have 10 samples per face.
@@ -863,10 +858,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		const FIntVector NumGroups = FIntVector(1, 1, 1);
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ComputeSkyEnvMapDiffuseIrradianceCS"), ComputeShader, PassParameters, NumGroups);
 
-		AddPass(GraphBuilder, RDG_EVENT_NAME("TransitionToSRV"), [SkyIrradianceEnvironmentMap = SkyIrradianceEnvironmentMap.Buffer](FRHICommandList& RHICmdList)
-		{
-			RHICmdList.Transition({ SkyIrradianceEnvironmentMap, ERHIAccess::UAVCompute, ERHIAccess::SRVMask });
-		});
+		ExternalAccessQueue.Add(SkyIrradianceEnvironmentMapRDG, ERHIAccess::SRVMask);
 	};
 
 	const uint32 LastMipLevel = CubeMipCount - 1;

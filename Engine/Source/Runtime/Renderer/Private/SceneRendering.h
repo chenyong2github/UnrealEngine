@@ -2040,9 +2040,6 @@ public:
 
 	static int32 GetRefractionQuality(const FSceneViewFamily& ViewFamily);
 
-	/** Create/Update the scene view irradiance buffer from CPU data or empty if generated fully on GPU. */
-	void UpdateSkyIrradianceGpuBuffer(FRHICommandListImmediate& RHICmdList);
-
 	/** Common function to render a sky using shared LUT resources from any view point (if not using the SkyView and AerialPerspective textures). */
 	void RenderSkyAtmosphereInternal(
 		FRDGBuilder& GraphBuilder,
