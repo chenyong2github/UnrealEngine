@@ -5,6 +5,9 @@ using System.IO;
 
 public class IntelTBB : ModuleRules
 {
+	protected virtual bool bUseWinTBB { get => Target.Platform.IsInGroup(UnrealPlatformGroup.Windows); }
+	protected virtual bool bIncludeDLLRuntimeDependencies { get => true; }
+
 	public IntelTBB(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
@@ -15,8 +18,7 @@ public class IntelTBB : ModuleRules
 
 		PublicSystemIncludePaths.Add(IntelTBBIncludePath);		
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) ||
-			(Target.Platform == UnrealTargetPlatform.HoloLens))
+		if (bUseWinTBB)
 		{
 			string PlatformSubPath = "Win64";
 			string IntelTBBBinaries = Path.Combine(Target.UEThirdPartyBinariesDirectory, "Intel", "TBB", "Win64");
@@ -42,7 +44,7 @@ public class IntelTBB : ModuleRules
 				PublicDefinitions.Add("TBB_USE_DEBUG=1");
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBB, "tbb_debug.lib"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBBMalloc, "tbbmalloc_debug.lib"));
-				if (Target.Platform != UnrealTargetPlatform.HoloLens)
+				if (bIncludeDLLRuntimeDependencies)
 				{
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb_debug.dll"), Path.Combine(LibDirTBB, "tbb_debug.dll"));
 					RuntimeDependencies.Add(Path.Combine(LibDirTBB, "tbb_debug.pdb"), StagedFileType.DebugNonUFS);
@@ -52,7 +54,7 @@ public class IntelTBB : ModuleRules
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBB, "tbb.lib"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBBMalloc, "tbbmalloc.lib"));
-				if (Target.Platform != UnrealTargetPlatform.HoloLens)
+				if (bIncludeDLLRuntimeDependencies)
 				{
 					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBBinaries, "tbb.dll"));
 					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "tbb.pdb"), StagedFileType.DebugNonUFS);

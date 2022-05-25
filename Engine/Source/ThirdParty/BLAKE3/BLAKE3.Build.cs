@@ -6,13 +6,13 @@ using System.IO;
 public class BLAKE3 : ModuleRules
 {
 	protected readonly string Version = "1.3.1";
+	protected string VersionPath { get => Path.Combine(ModuleDirectory, Version); }
+	protected string LibraryPath { get => Path.Combine(VersionPath, "lib"); }
 
 	public BLAKE3(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		string VersionPath = Path.Combine(ModuleDirectory, Version);
-		string LibraryPath = Path.Combine(VersionPath, "lib");
 
 		PublicSystemIncludePaths.Add(Path.Combine(VersionPath, "c"));
 
@@ -40,17 +40,6 @@ public class BLAKE3 : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "TVOS", "Release", "libBLAKE3.a"));
-		}
-		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "HoloLens", "arm64", "Release", "BLAKE3.lib"));
-			}
-			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "HoloLens", "x64", "Release", "BLAKE3.lib"));
-			}
 		}
 	}
 }

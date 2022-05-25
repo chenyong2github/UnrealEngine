@@ -6,18 +6,16 @@ using System.IO;
 public class zlib : ModuleRules
 {
 	protected readonly string Version = "1.2.12";
+	protected string VersionPath { get => Path.Combine(ModuleDirectory, Version); }
+	protected string LibraryPath { get => Path.Combine(VersionPath, "lib"); }
 
 	public zlib(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		string VersionPath = Path.Combine(ModuleDirectory, Version);
-		string LibraryPath = Path.Combine(VersionPath, "lib");
-
 		PublicSystemIncludePaths.Add(Path.Combine(VersionPath, "include"));
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.HoloLens)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
 			{

@@ -7,6 +7,9 @@ using UnrealBuildTool;
 public class HLMediaLibrary : ModuleRules
 {
 	public const string LibraryName = "HLMediaLibrary";
+	
+	protected virtual string Platform { get => "Windows"; }
+	protected virtual bool bSupportedPlatform { get => Target.Platform == UnrealTargetPlatform.Win64; }
 
 	public HLMediaLibrary(ReadOnlyTargetRules Target) : base(Target)
 	{
@@ -18,7 +21,6 @@ public class HLMediaLibrary : ModuleRules
 
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		string Platform = (Target.Platform == UnrealTargetPlatform.HoloLens) ? "HoloLens" : "Windows";
 		string Config = Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release";
 		string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
 		string SubPath = Path.Combine(Platform, Config, Arch);
@@ -28,8 +30,7 @@ public class HLMediaLibrary : ModuleRules
 		string dll = String.Format("{0}.dll", LibraryName);
 
 		// windows desktop x64 target
-		if (Target.Platform == UnrealTargetPlatform.Win64 ||
-			Target.Platform == UnrealTargetPlatform.HoloLens)
+		if (bSupportedPlatform)
 		{
 			// Add the import library
 			PublicAdditionalLibraries.Add(Path.Combine(LibPath, String.Format("{0}.lib", LibraryName)));

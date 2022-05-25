@@ -4,6 +4,13 @@ using UnrealBuildTool;
 
 public class AudioFormatOpus : ModuleRules
 {
+	protected virtual bool bWithLibOpus { get => (
+			(Target.Platform == UnrealTargetPlatform.Win64) ||
+			Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ||
+			(Target.Platform == UnrealTargetPlatform.Mac)
+		); 
+	}
+
 	public AudioFormatOpus(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PrivateIncludePathModuleNames.Add("TargetPlatform");
@@ -15,11 +22,7 @@ public class AudioFormatOpus : ModuleRules
 			}
 		);
 
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.HoloLens) ||
-			Target.IsInPlatformGroup(UnrealPlatformGroup.Linux) ||
-			(Target.Platform == UnrealTargetPlatform.Mac)
-		)
+		if (bWithLibOpus)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,
 				"libOpus"

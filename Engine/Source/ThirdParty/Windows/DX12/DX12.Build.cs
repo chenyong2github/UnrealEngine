@@ -4,6 +4,8 @@ using EpicGames.Core;
 
 public class DX12 : ModuleRules
 {
+	protected virtual bool bSupportsD3D12Core { get => Target.Platform.IsInGroup(UnrealPlatformGroup.Windows); }
+
 	public DX12(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
@@ -22,13 +24,9 @@ public class DX12 : ModuleRules
 					LibDir + "dxguid.lib",
 				});
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			PublicSystemLibraries.Add("dxgi.lib"); // For DXGIGetDebugInterface1
-		}
 
 		// D3D12Core runtime. Currently x64 only, but ARM64 can also be supported if necessary.
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		if (bSupportsD3D12Core && Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
 		{
 			PublicDefinitions.Add("D3D12_CORE_ENABLED=1");
 
@@ -55,7 +53,7 @@ public class DX12 : ModuleRules
 					"$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/x64/d3d12SDKLayers.dll");
 			}
 		}
-		else
+		else if (!bSupportsD3D12Core)
 		{
 			PublicDefinitions.Add("D3D12_CORE_ENABLED=0");
 		}
@@ -66,7 +64,7 @@ public class DX12 : ModuleRules
 				"d3d12.dll"
 			});
 
-		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows) || Target.Platform == UnrealTargetPlatform.HoloLens)
+		if (bSupportsD3D12Core)
 		{
 			PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
