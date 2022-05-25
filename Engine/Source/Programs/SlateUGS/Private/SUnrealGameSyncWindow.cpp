@@ -12,7 +12,6 @@
 #include "Widgets/Colors/SSimpleGradient.h"
 
 #include "Styling/AppStyle.h"
-#include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "UGSWindow"
 

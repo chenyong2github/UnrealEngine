@@ -12,7 +12,6 @@ public class SlateUGSTarget : TargetRules
 		LinkType = TargetLinkType.Monolithic;
 
 		LaunchModuleName = "SlateUGS";
-		ExtraModuleNames.Add("EditorStyle");
 
 		bBuildDeveloperTools = false;
 

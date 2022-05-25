@@ -18,7 +18,6 @@ public class SlateUGS : ModuleRules
 				"SlateCore",
 				"StandaloneRenderer",
 				"ToolWidgets",
-				"EditorStyle",
 			}
 		);
 
