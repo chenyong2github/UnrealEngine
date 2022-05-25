@@ -78,18 +78,36 @@ void UTickableTransformConstraint::SetChildGlobalTransform(const FTransform& InG
 {
 	if(ChildTRSHandle->IsValid())
 	{
-		ChildTRSHandle->SetTransform(InGlobal);
+		ChildTRSHandle->SetGlobalTransform(InGlobal);
+	}
+}
+
+void UTickableTransformConstraint::SetChildLocalTransform(const FTransform& InLocal) const
+{
+	if(ChildTRSHandle->IsValid())
+	{
+		ChildTRSHandle->SetLocalTransform(InLocal);
 	}
 }
 
 FTransform UTickableTransformConstraint::GetChildGlobalTransform() const
 {
-	return ChildTRSHandle->IsValid() ? ChildTRSHandle->GetTransform() : FTransform::Identity;
+	return ChildTRSHandle->IsValid() ? ChildTRSHandle->GetGlobalTransform() : FTransform::Identity;
+}
+
+FTransform UTickableTransformConstraint::GetChildLocalTransform() const
+{
+	return ChildTRSHandle->IsValid() ? ChildTRSHandle->GetLocalTransform() : FTransform::Identity;
 }
 
 FTransform UTickableTransformConstraint::GetParentGlobalTransform() const
 {
-	return ParentTRSHandle->IsValid() ? ParentTRSHandle->GetTransform() : FTransform::Identity;
+	return ParentTRSHandle->IsValid() ? ParentTRSHandle->GetGlobalTransform() : FTransform::Identity;
+}
+
+FTransform UTickableTransformConstraint::GetParentLocalTransform() const
+{
+	return ParentTRSHandle->IsValid() ? ParentTRSHandle->GetLocalTransform() : FTransform::Identity;
 }
 
 /** 
@@ -263,7 +281,7 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 			return;
 		}
 		
-		const FTransform ParentTransform = ParentTRSHandle->GetTransform();
+		const FTransform ParentTransform = ParentTRSHandle->GetGlobalTransform();
 
 		FTransform TargetTransform = OffsetTransform * ParentTransform;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)

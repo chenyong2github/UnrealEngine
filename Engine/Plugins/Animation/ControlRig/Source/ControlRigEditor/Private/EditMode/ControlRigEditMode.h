@@ -333,7 +333,7 @@ public:
 	int32 GetNumSelectedRigElements(uint32 InTypes, UControlRig* InControlRig) const;
 
 	/** Get all of the selected Controls*/
-	void GetAllSelectedControls(TMap<UControlRig*, TArray<FRigElementKey>>& OutSelectedControls);
+	void GetAllSelectedControls(TMap<UControlRig*, TArray<FRigElementKey>>& OutSelectedControls) const;
 
 	/** Get all of the ControlRigs, maybe not valid anymore */
 	TArrayView<const TWeakObjectPtr<UControlRig>> GetControlRigs() const;

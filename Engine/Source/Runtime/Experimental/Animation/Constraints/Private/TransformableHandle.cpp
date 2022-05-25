@@ -25,17 +25,12 @@ void UTransformableHandle::PostLoad()
 UTransformableComponentHandle::~UTransformableComponentHandle()
 {}
 
-void UTransformableComponentHandle::PostLoad()
-{
-	Super::PostLoad();
-}
-
 bool UTransformableComponentHandle::IsValid() const
 {
 	return Component.IsValid();
 }
 
-void UTransformableComponentHandle::SetTransform(const FTransform& InGlobal) const
+void UTransformableComponentHandle::SetGlobalTransform(const FTransform& InGlobal) const
 {
 	if(Component.IsValid())
 	{
@@ -43,7 +38,20 @@ void UTransformableComponentHandle::SetTransform(const FTransform& InGlobal) con
 	}
 }
 
-FTransform UTransformableComponentHandle::GetTransform() const
+void UTransformableComponentHandle::SetLocalTransform(const FTransform& InLocal) const
+{
+	if(Component.IsValid())
+	{
+		Component->SetRelativeTransform(InLocal);
+	}
+}
+
+FTransform UTransformableComponentHandle::GetLocalTransform() const
+{
+	return Component.IsValid() ? Component->GetRelativeTransform() : FTransform::Identity;
+}
+
+FTransform UTransformableComponentHandle::GetGlobalTransform() const
 {
 	return Component.IsValid() ? Component->GetComponentTransform() : FTransform::Identity;
 }

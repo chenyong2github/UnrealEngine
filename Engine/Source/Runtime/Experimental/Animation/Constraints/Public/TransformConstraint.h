@@ -41,15 +41,21 @@ public:
 	TObjectPtr<UTransformableHandle> ChildTRSHandle;
 
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Offset")
 	bool bMaintainOffset = true;
 
 	/** @todo document */
+	// UPROPERTY(EditAnywhere, Category="Weight", meta = (Input, ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	UPROPERTY(meta = (Input, ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float Weight = 1.f;
 	
 	/** @todo document. */
 	int64 GetType() const;
+
+	/** @todo document */
+	FTransform GetChildGlobalTransform() const;
+	/** @todo document */
+	FTransform GetChildLocalTransform() const;
 		
 protected:
 	/** @todo document */
@@ -60,12 +66,13 @@ protected:
 	
 	/** @todo document */
 	void SetChildGlobalTransform(const FTransform& InGlobal) const;
-
 	/** @todo document */
-	FTransform GetChildGlobalTransform() const;
+	void SetChildLocalTransform(const FTransform& InLocal) const;
 
 	/** @todo document */
 	FTransform GetParentGlobalTransform() const;
+	/** @todo document */
+	FTransform GetParentLocalTransform() const;
 
 	/** @todo document */
 	UPROPERTY()
@@ -98,7 +105,7 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Offset")
 	FVector OffsetTranslation = FVector::ZeroVector;
 };
 
@@ -122,7 +129,7 @@ protected:
 	virtual void ComputeOffset() override;
 	
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Offset")
 	FQuat OffsetRotation = FQuat::Identity;
 };
 
@@ -146,7 +153,7 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Offset")
 	FVector OffsetScale = FVector::OneVector;
 };
 
@@ -170,7 +177,7 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Offset")
 	FTransform OffsetTransform = FTransform::Identity;
 };
 
@@ -194,7 +201,7 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, Category="Offset")
 	FTransform OffsetTransform = FTransform::Identity;
 };
 

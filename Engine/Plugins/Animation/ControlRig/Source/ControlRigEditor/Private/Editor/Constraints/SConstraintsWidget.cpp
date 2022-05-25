@@ -15,7 +15,10 @@
 #include "TransformConstraint.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"
-
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "PropertyEditorModule.h"
+#include "DetailsViewArgs.h"
+#include "Tools/ConstraintBaker.h"
 
 #define LOCTEXT_NAMESPACE "SConstraintsWidget"
 
@@ -351,6 +354,19 @@ void SEditableConstraintItem::Construct(
 			ConstraintsWidget.Pin()->RemoveItem(ConstraintItem);
 		}
 	});
+
+	auto GetFont = [this]()
+	{
+		UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
+		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+		UTickableConstraint* Constraint = Controller.GetConstraint(ConstraintItem->Name);
+		if (!Constraint)
+		{
+			return IDetailLayoutBuilder::GetDetailFont();
+		}
+
+		return Constraint->Active ? IDetailLayoutBuilder::GetDetailFont() : IDetailLayoutBuilder::GetDetailFontItalic();
+	};
 	
 	ChildSlot
 	.Padding(FMargin(8.f, 2.f, 12.f, 2.f))
@@ -401,7 +417,7 @@ void SEditableConstraintItem::Construct(
 						const FString TextStr = FString::Printf(TEXT("%s (%s)"), *InItem->Name.ToString(), *InItem->ParentName.ToString());
 						return FText::FromString(TextStr);
 					})
-					.Font( IDetailLayoutBuilder::GetDetailFont() )
+					.Font_Lambda(GetFont)
 				]
 			]
 		]
@@ -432,7 +448,7 @@ void SEditableConstraintItem::Construct(
 			})
 			.IsEnabled_Lambda([this]()
 			{
-				return ConstraintsWidget.IsValid() ? !ConstraintsWidget.Pin()->IsFirstItem(ConstraintItem) : false;
+				return ConstraintsWidget.IsValid() ? ConstraintsWidget.Pin()->CanMoveUp(ConstraintItem) : false;
 			})
 			.ToolTipText(LOCTEXT("MoveConstraintUp", "Move this constraint up in the list."))
 			[
@@ -462,7 +478,7 @@ void SEditableConstraintItem::Construct(
 			})
 			.IsEnabled_Lambda([this]()
 			{
-				return ConstraintsWidget.IsValid() ? !ConstraintsWidget.Pin()->IsLastItem(ConstraintItem) : false;
+				return ConstraintsWidget.IsValid() ? ConstraintsWidget.Pin()->CanMoveDown(ConstraintItem) : false;
 			})
 			.ToolTipText(LOCTEXT("MoveConstraintDown", "Move this constraint down in the list."))
 			[
@@ -505,6 +521,7 @@ void SConstraintsEditionWidget::Construct(const FArguments& InArgs)
 				.SelectionMode(ESelectionMode::Single)
 				.ListItemsSource( &ListItems )
 				.OnGenerateRow(this, &SConstraintsEditionWidget::OnGenerateWidgetForItem)
+				.OnContextMenuOpening(this, &SConstraintsEditionWidget::CreateContextMenu)
 			]
 		]
 	];
@@ -566,18 +583,35 @@ TSharedRef<ITableRow> SConstraintsEditionWidget::OnGenerateWidgetForItem(
 	];
 }
 
-bool SConstraintsEditionWidget::IsFirstItem(const TSharedPtr<FEditableConstraintItem>& Item) const
+bool SConstraintsEditionWidget::CanMoveUp(const TSharedPtr<FEditableConstraintItem>& Item) const
 {
-	return ListItems.Num() > 1 && ListItems[0] == Item; 
+	const int32 NumItems = ListItems.Num();
+	if (NumItems < 2)
+	{
+		return false;
+	}
+	
+	return ListItems[0] != Item; 
 }
 
-bool SConstraintsEditionWidget::IsLastItem(const TSharedPtr<FEditableConstraintItem>& Item) const
+bool SConstraintsEditionWidget::CanMoveDown(const TSharedPtr<FEditableConstraintItem>& Item) const
 {
-	return ListItems.Num() > 1 && ListItems.Last() == Item;
+	const int32 NumItems = ListItems.Num();
+	if (NumItems < 2)
+	{
+		return false;
+	}
+	
+	return ListItems.Last() != Item;
 }
 
 void SConstraintsEditionWidget::MoveItemUp(const TSharedPtr<FEditableConstraintItem>& Item)
 {
+	if (!CanMoveUp(Item))
+	{
+		return;
+	}
+	
 	const int32 Index = ListItems.IndexOfByKey(Item);
 	if (Index > 0 && ListItems.IsValidIndex(Index))
 	{
@@ -595,6 +629,11 @@ void SConstraintsEditionWidget::MoveItemUp(const TSharedPtr<FEditableConstraintI
 
 void SConstraintsEditionWidget::MoveItemDown(const TSharedPtr<FEditableConstraintItem>& Item)
 {
+	if (!CanMoveDown(Item))
+	{
+		return;
+	}
+	
 	const int32 Index = ListItems.IndexOfByKey(Item);
 	if (ListItems.IsValidIndex(Index))
 	{
@@ -671,6 +710,81 @@ void SConstraintsEditionWidget::OnActorSelectionChanged(const TArray<UObject*>& 
 	// NOTE we use this delegate to trigger an tree update, however, control actors are not selected as they are 
 	// Temporary Editor Actors so NewSelection won't contain the controls
 	InvalidateConstraintList();
+}
+
+TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
+{
+	const TArray<TSharedPtr<FEditableConstraintItem>> Selection = ListView->GetSelectedItems();
+	if (Selection.IsEmpty())
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	const int32 Index = ListItems.IndexOfByKey(Selection[0]);
+	if (!ListItems.IsValidIndex(Index))
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+	UTickableConstraint* Constraint = Controller.GetConstraint(ListItems[Index]->Name);
+	if (!Constraint)
+	{
+		return SNullWidget::NullWidget;
+	}
+	
+	static constexpr bool CloseAfterSelection = true;
+	FMenuBuilder MenuBuilder(CloseAfterSelection, nullptr);
+
+	FDetailsViewArgs DetailsViewArgs;
+	{
+		DetailsViewArgs.bAllowSearch = false;
+		DetailsViewArgs.bCustomFilterAreaLocation = true;
+		DetailsViewArgs.bCustomNameAreaLocation = true;
+		DetailsViewArgs.bHideSelectionTip = true;
+		DetailsViewArgs.bLockable = false;
+		DetailsViewArgs.bSearchInitialKeyFocus = true;
+		DetailsViewArgs.bUpdatesFromSelection = false;
+		DetailsViewArgs.bShowOptions = false;
+		DetailsViewArgs.bShowModifiedPropertiesOption = false;
+		DetailsViewArgs.ColumnWidth = 0.45f;
+	}
+	
+	TSharedRef<IDetailsView> DetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
+
+	TArray<TWeakObjectPtr<UObject>> ConstrainsToEdit;
+	ConstrainsToEdit.Add(Constraint);
+	
+	DetailsView->SetObjects(ConstrainsToEdit);
+
+	// constraint details
+	MenuBuilder.BeginSection("EditConstraint", LOCTEXT("EditConstraintHeader", "Edit Constraint"));
+	{
+		MenuBuilder.AddWidget(DetailsView, FText::GetEmpty(), true);
+	}
+	MenuBuilder.EndSection();
+
+	// baking (note that this will probably be moved)
+	MenuBuilder.BeginSection("BakeConstraint", LOCTEXT("BakeConstraintHeader", "Bake Constraint"));
+	{
+		MenuBuilder.AddMenuEntry(
+		LOCTEXT("BakeConstraintDoIt", "Do It"),
+		FText::Format(LOCTEXT("BakeConstraintDoItTooltip", "Bake {0} transforms."), FText::FromName(ListItems[Index]->Name)),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([Constraint]()
+		{
+			if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
+			{
+				FConstraintBaker::DoIt(TransformConstraint);
+			}
+		})),
+		NAME_None,
+		EUserInterfaceActionType::Button);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION

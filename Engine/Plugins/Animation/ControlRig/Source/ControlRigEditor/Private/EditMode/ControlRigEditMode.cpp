@@ -2411,13 +2411,13 @@ void FControlRigEditMode::ToggleControlShapeTransformEdit()
 	}
 }
 
-void FControlRigEditMode::GetAllSelectedControls(TMap<UControlRig*, TArray<FRigElementKey>>& OutSelectedControls)
+void FControlRigEditMode::GetAllSelectedControls(TMap<UControlRig*, TArray<FRigElementKey>>& OutSelectedControls) const
 {
-	for (TWeakObjectPtr<UControlRig>& RuntimeRigPtr : RuntimeControlRigs)
+	for (const TWeakObjectPtr<UControlRig>& RuntimeRigPtr : RuntimeControlRigs)
 	{
 		if (UControlRig* ControlRig = RuntimeRigPtr.Get())
 		{
-			if (URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
+			if (const URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
 			{
 				TArray<FRigElementKey> SelectedControls = Hierarchy->GetSelectedKeys(ERigElementType::Control);
 				if (SelectedControls.Num() > 0)

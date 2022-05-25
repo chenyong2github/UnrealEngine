@@ -81,13 +81,24 @@ public:
 	UPROPERTY()
 	FConstraintTickFunction ConstraintTick;
 
+	/** Evaluates the constraint in a context where it's mot done thru the ConstraintTick's tick function. */
+	void Evaluate() const;
+	
 	/** @todo document */
 	virtual uint32 GetTargetHash() const PURE_VIRTUAL(GetTargetHash, return 0;);
 	
 #if WITH_EDITOR
 	/** @todo document */
 	virtual FName GetLabel() const;
-#endif
+
+	// UObject interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End of UObject interface
+	#endif
+
+	/** @todo documentation. */
+	UPROPERTY(EditAnywhere, DisplayName="Active State", Category="Constraint")
+	bool Active = true;
 };
 
 /** 
@@ -182,6 +193,12 @@ public:
 	/** Remove the constraint at the given index. */
 	void RemoveConstraint(const int32 InConstraintIndex) const;
 
+	/** @todo document */
+	UTickableConstraint* GetConstraint(const FName& InConstraintName) const;
+
+	/** @todo document */
+	UTickableConstraint* GetConstraint(const int32 InConstraintIndex) const;
+	
 	/** Get read-only access to the array of constraints. */
 	const TArray< TObjectPtr<UTickableConstraint> >& GetConstrainsArray() const;
 	

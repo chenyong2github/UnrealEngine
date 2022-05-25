@@ -65,11 +65,34 @@ FString FConstraintTickFunction::DiagnosticMessage()
  * UTickableConstraint
  **/
 
+void UTickableConstraint::Evaluate() const
+{
+	ConstraintTick.EvaluateFunctions();
+}
+
 #if WITH_EDITOR
+
 FName UTickableConstraint::GetLabel() const
 {
 	return GetFName();
 }
+
+void UTickableConstraint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableConstraint, Active))
+	{
+		ConstraintTick.SetTickFunctionEnable(Active);
+		if (Active)
+		{
+			Evaluate();
+		}
+	}
+}
+
+
 #endif
 
 /** 
@@ -334,6 +357,33 @@ void FConstraintsManagerController::RemoveConstraint(const int32 InConstraintInd
 	{
 		DestroyManager();
 	}
+}
+
+UTickableConstraint* FConstraintsManagerController::GetConstraint(const FName& InConstraintName) const
+{
+	const int32 Index = GetConstraintIndex(InConstraintName);
+	if (Index == INDEX_NONE)
+	{
+		return nullptr;	
+	}
+	
+	return GetConstraint(Index);
+}
+
+UTickableConstraint* FConstraintsManagerController::GetConstraint(const int32 InConstraintIndex) const
+{
+	UConstraintsManager* Manager = FindManager();
+	if (!Manager)
+	{
+		return nullptr;	
+	}
+	
+	if (!Manager->Constraints.IsValidIndex(InConstraintIndex))
+	{
+		return nullptr;	
+	}
+
+	return Manager->Constraints[InConstraintIndex];
 }
 
 TArray< TObjectPtr<UTickableConstraint> > FConstraintsManagerController::GetParentConstraints(

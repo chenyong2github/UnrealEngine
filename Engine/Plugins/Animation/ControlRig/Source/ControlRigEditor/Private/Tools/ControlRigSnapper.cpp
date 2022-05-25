@@ -29,6 +29,7 @@
 #include "MovieSceneToolHelpers.h"
 #include "LevelSequencePlayer.h"
 #include "LevelSequenceActor.h"
+#include "Tools/BakingHelper.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigSnapper"
 
@@ -100,16 +101,7 @@ int32 FControlRigSnapperSelection::NumSelected() const
 
 TWeakPtr<ISequencer> FControlRigSnapper::GetSequencer()
 {
-	TWeakPtr<ISequencer> WeakSequencer = nullptr;
-	//if getting sequencer from level sequence need to use the current(master), not the focused
-	ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
-	if (LevelSequence)
-	{
-		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(LevelSequence, false);
-		ILevelSequenceEditorToolkit* LevelSequenceEditor = static_cast<ILevelSequenceEditorToolkit*>(AssetEditor);
-		WeakSequencer = LevelSequenceEditor ? LevelSequenceEditor->GetSequencer() : nullptr;
-	}
-	return WeakSequencer;
+	return FBakingHelper::GetSequencer();
 }
 
 static bool LocalGetControlRigControlTransforms(IMovieScenePlayer* Player, const TOptional<FFrameNumber>& CurrentFrame, UMovieSceneSequence* MovieSceneSequence, FMovieSceneSequenceIDRef Template, FMovieSceneSequenceTransform& RootToLocalTransform,
@@ -192,37 +184,18 @@ struct FGuidAndActor
 	FGuid Guid;
 	AActor* Actor;
 
-	bool SetTransform(ISequencer* Sequencer, const TArray<FFrameNumber>& Frames,
-		const TArray<FTransform>& WorldTransformsToSnapTo, const UControlRigSnapSettings* SnapSettings)
+	bool SetTransform(
+		ISequencer* Sequencer, const TArray<FFrameNumber>& Frames,
+		const TArray<FTransform>& WorldTransformsToSnapTo, const UControlRigSnapSettings* SnapSettings) const
 	{
-		if (!Sequencer || !Sequencer->GetFocusedMovieSceneSequence())
-		{
-			return false;
-		}
-		UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
-
-		UMovieScene3DTransformTrack* TransformTrack = MovieScene->FindTrack<UMovieScene3DTransformTrack>(Guid);
-		if (!TransformTrack)
-		{
-			MovieScene->Modify();
-			TransformTrack = MovieScene->AddTrack<UMovieScene3DTransformTrack>(Guid);
-		}
-		TransformTrack->Modify();
-
-		bool bSectionAdded = false;
-		UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(TransformTrack->FindOrAddSection(0, bSectionAdded));
+		// get section
+		const UMovieScene3DTransformSection* TransformSection = FBakingHelper::GetTransformSection(Sequencer, Guid);
 		if (!TransformSection)
 		{
 			return false;
 		}
 
-		TransformSection->Modify();
-
-		if (bSectionAdded)
-		{
-			TransformSection->SetRange(TRange<FFrameNumber>::All());
-		}
-
+		// fill parent transforms
 		TArray<FTransform> ParentWorldTransforms; 
 		AActor* ParentActor = Actor->GetAttachParentActor();
 		if (ParentActor)
@@ -240,137 +213,40 @@ struct FGuidAndActor
 			}
 		}
 
-		TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
-		for (int32 Index = 0; Index < Frames.Num(); ++Index)
-		{
-			const FFrameNumber& Frame = Frames[Index];
-			FTransform ParentTransform = ParentWorldTransforms[Index];
-			FTransform WorldTransform = WorldTransformsToSnapTo[Index];
-			FTransform LocalTransform = WorldTransform.GetRelativeTransform(ParentTransform);
-			FVector Location = LocalTransform.GetLocation();
-			FRotator Rotation = LocalTransform.GetRotation().Rotator();
-			FVector Scale3D = LocalTransform.GetScale3D();
-			if (Index == 0) 
-			{
-				if (SnapSettings->bSnapPosition)
-				{
-					if (!Channels[0]->GetDefault().IsSet())
-					{
-						Channels[0]->SetDefault(Location.X);
-					}
-					if (!Channels[1]->GetDefault().IsSet())
-					{
-						Channels[1]->SetDefault(Location.Y);
-					}
-					if (!Channels[2]->GetDefault().IsSet())
-					{
-						Channels[2]->SetDefault(Location.Z);
-					}
-				}
-				if (SnapSettings->bSnapRotation)
-				{
-					if (!Channels[3]->GetDefault().IsSet())
-					{
-						Channels[3]->SetDefault(Rotation.Roll);
-					}
-					if (!Channels[4]->GetDefault().IsSet())
-					{
-						Channels[4]->SetDefault(Rotation.Pitch);
-					}
-					if (!Channels[5]->GetDefault().IsSet())
-					{
-						Channels[5]->SetDefault(Rotation.Yaw);
-					}
-				}
-				if (SnapSettings->bSnapScale)
-				{
-					if (!Channels[6]->GetDefault().IsSet())
-					{
-						Channels[6]->SetDefault(Scale3D.X);
-					}
-					if (!Channels[7]->GetDefault().IsSet())
-					{
-						Channels[7]->SetDefault(Scale3D.Y);
-					}
-					if (!Channels[8]->GetDefault().IsSet())
-					{
-						Channels[8]->SetDefault(Scale3D.Z);
-					}
-				}
-			}
-
-			if (SnapSettings->bSnapPosition)
-			{
-				TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[0]->GetData();
-				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.X);
-				ChannelData = Channels[1]->GetData();
-				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.Y);
-				ChannelData = Channels[2]->GetData();
-				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.Z);
-			}
-			if (SnapSettings->bSnapRotation)
-			{
-				//todo winding
-				TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[3]->GetData();
-				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Rotation.Roll);
-				ChannelData = Channels[4]->GetData();
-				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Rotation.Pitch);
-				ChannelData = Channels[5]->GetData();
-				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Rotation.Yaw);
-			}
-			if (SnapSettings->bSnapScale)
-			{
-				TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[6]->GetData();
-				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Scale3D.X);
-				ChannelData = Channels[7]->GetData();
-				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Scale3D.X);
-				ChannelData = Channels[8]->GetData();
-				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Scale3D.X);
-			}		
-		}
-		//now we need to set auto tangents
+		// fill channels to key
+		EMovieSceneTransformChannel Channels;
 		if (SnapSettings->bSnapPosition)
 		{
-			Channels[0]->AutoSetTangents();
-			Channels[1]->AutoSetTangents();
-			Channels[2]->AutoSetTangents();		
+			EnumAddFlags(Channels, EMovieSceneTransformChannel::Translation);
 		}
 		if (SnapSettings->bSnapRotation)
 		{
-			Channels[3]->AutoSetTangents();
-			Channels[4]->AutoSetTangents();
-			Channels[5]->AutoSetTangents();
+			EnumAddFlags(Channels, EMovieSceneTransformChannel::Rotation);
 		}
 		if (SnapSettings->bSnapScale)
 		{
-			Channels[6]->AutoSetTangents();
-			Channels[7]->AutoSetTangents();
-			Channels[8]->AutoSetTangents();
+			EnumAddFlags(Channels, EMovieSceneTransformChannel::Scale);
 		}
+
+		// compute local transforms
+		TArray<FTransform> LocalTransforms;
+		LocalTransforms.Reserve(Frames.Num());
+		for (int32 Index = 0; Index < Frames.Num(); ++Index)
+		{
+			const FTransform& ParentTransform = ParentWorldTransforms[Index];
+			const FTransform& WorldTransform = WorldTransformsToSnapTo[Index];
+			LocalTransforms.Add(WorldTransform.GetRelativeTransform(ParentTransform));
+		}
+
+		// add keys
+		FBakingHelper::AddTransformKeys(TransformSection, Frames, LocalTransforms, Channels);
+
+		// notify
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 
 		return true;
 	}
 };
-
-static void CalculateFramesToSnap(ISequencer* InSequencer, UMovieScene* MovieScene, FFrameNumber StartFrame, FFrameNumber EndFrame, TArray<FFrameNumber>& OutFrames)
-{
-	if(StartFrame > EndFrame)
-	{
-		Swap(StartFrame, EndFrame);
-	}
-	
-	FFrameRate TickResolution = MovieScene->GetTickResolution();
-	FFrameRate DisplayResolution = MovieScene->GetDisplayRate();
-
-	FFrameNumber StartTimeInDisplay = FFrameRate::TransformTime(FFrameTime(StartFrame), TickResolution, DisplayResolution).FloorToFrame();
-	FFrameNumber EndTimeInDisplay = FFrameRate::TransformTime(FFrameTime(EndFrame), TickResolution, DisplayResolution).CeilToFrame();
-	for (FFrameNumber DisplayFrameNumber = StartTimeInDisplay; DisplayFrameNumber <= EndTimeInDisplay; ++DisplayFrameNumber)
-	{
-		FFrameNumber TickFrameNumber = FFrameRate::TransformTime(FFrameTime(DisplayFrameNumber), DisplayResolution, TickResolution).FrameNumber;
-		OutFrames.Add(TickFrameNumber);
-	}
-}
 
 //returns true if world is calculated, false if there are no parents
 static bool CalculateWorldTransformsFromParents(ISequencer* Sequencer, const FControlRigSnapperSelection& ParentToSnap,
@@ -443,7 +319,7 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 		MovieScene->Modify();
 		
 		TArray<FFrameNumber> Frames;
-		CalculateFramesToSnap(Sequencer,MovieScene, StartFrame, EndFrame, Frames);
+		FBakingHelper::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
 
 		TArray<FTransform> WorldTransformToSnap;
 		bool bSnapToFirstFrameNotParents = !CalculateWorldTransformsFromParents(Sequencer, ParentToSnap, Frames, WorldTransformToSnap);

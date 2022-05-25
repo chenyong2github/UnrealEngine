@@ -26,10 +26,14 @@ public:
 	/** Sanity check to ensure the handle is safe to use. */
 	virtual bool IsValid() const PURE_VIRTUAL(IsValid, return false;);
 	
-	/** Sets the transform of the underlying transformable object. */
-	virtual void SetTransform(const FTransform& InGlobal) const PURE_VIRTUAL(SetTransform, );
+	/** Sets the global transform of the underlying transformable object. */
+	virtual void SetGlobalTransform(const FTransform& InGlobal) const PURE_VIRTUAL(SetGlobalTransform, );
+	/** Sets the local transform of the underlying transformable object in it's parent space. */
+	virtual void SetLocalTransform(const FTransform& InLocal) const PURE_VIRTUAL(SetLocalTransform, );
 	/** Gets the transform of the underlying transformable object. */
-	virtual FTransform GetTransform() const PURE_VIRTUAL(GetTransform, return FTransform::Identity;);
+	virtual FTransform GetGlobalTransform() const PURE_VIRTUAL(GetGlobalTransform, return FTransform::Identity;);
+	/** Gets the local transform of the underlying transformable object in it's parent space. */
+	virtual FTransform GetLocalTransform() const PURE_VIRTUAL(GetLocalTransform, return FTransform::Identity;);
 
 	/**
 	 * Returns the target object containing the tick function (returned in GetTickFunction).
@@ -67,13 +71,15 @@ public:
 	
 	/** @todo document */
 	virtual bool IsValid() const override;
-
-	virtual void PostLoad() override;
 	
 	/** @todo document */
-	virtual void SetTransform(const FTransform& InGlobal) const override;
+	virtual void SetGlobalTransform(const FTransform& InGlobal) const override;
+	/** Sets the local transform of the underlying transformable object in it's parent space. */
+	virtual void SetLocalTransform(const FTransform& InLocal) const override;
 	/** @todo document */
-	virtual FTransform GetTransform() const override;
+	virtual FTransform GetGlobalTransform() const override;
+	/** @todo document */
+	virtual FTransform GetLocalTransform() const override;
 
 	/** @todo document */
 	virtual UObject* GetPrerequisiteObject() const override;

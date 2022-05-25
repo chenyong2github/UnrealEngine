@@ -1495,32 +1495,35 @@ void FControlRigParameterTrackEditor::OnAddTransformKeysForSelectedObjects(EMovi
 	{
 		return;
 	}
-
-	FControlRigEditMode* ControlRigEditMode = GetEditMode();
-	if (ControlRigEditMode)
+	
+	const FControlRigEditMode* ControlRigEditMode = GetEditMode();
+	if (!ControlRigEditMode)
 	{
-		TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
-		ControlRigEditMode->GetAllSelectedControls(SelectedControls);
+		return;
+	}
 
-		for (TPair<UControlRig*, TArray<FRigElementKey>>& Selection : SelectedControls)
+	TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
+	ControlRigEditMode->GetAllSelectedControls(SelectedControls);
+
+	const EControlRigContextChannelToKey ChannelsToKey = static_cast<EControlRigContextChannelToKey>(Channel); 
+	
+	for (const TPair<UControlRig*, TArray<FRigElementKey>>& Selection : SelectedControls)
 	{
-			UControlRig* ControlRig = Selection.Key;
-		FString OurName = ControlRig->GetName();
-		FName Name(*OurName);
-		if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
+		UControlRig* ControlRig = Selection.Key;
+		if (const TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
 		{
-			TArray<FName> ControlNames = ControlRig->CurrentControlSelection();
-			for (const FName& ControlName : ControlNames)
+			if (USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject()))
 			{
-				USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
-				if (Component)
+				const FName Name(*ControlRig->GetName());
+			
+				const TArray<FName> ControlNames = ControlRig->CurrentControlSelection();
+				for (const FName& ControlName : ControlNames)
 				{
-					AddControlKeys(Component, ControlRig, Name, ControlName, (EControlRigContextChannelToKey)Channel, ESequencerKeyMode::ManualKeyForced, FLT_MAX);
+					AddControlKeys(Component, ControlRig, Name, ControlName, ChannelsToKey, ESequencerKeyMode::ManualKeyForced, FLT_MAX);
 				}
 			}
 		}
 	}
-}
 }
 
 //function to evaluate a Control and Set it on the ControlRig
@@ -2765,7 +2768,14 @@ FKeyPropertyResult FControlRigParameterTrackEditor::AddKeysToControlRig(
 	return KeyPropertyResult;
 }
 
-void FControlRigParameterTrackEditor::AddControlKeys(USceneComponent* InSceneComp, UControlRig* InControlRig, FName ControlRigName, FName RigControlName, EControlRigContextChannelToKey ChannelsToKey, ESequencerKeyMode KeyMode, float InLocalTime)
+void FControlRigParameterTrackEditor::AddControlKeys(
+	USceneComponent* InSceneComp,
+	UControlRig* InControlRig,
+	FName ControlRigName,
+	FName RigControlName,
+	EControlRigContextChannelToKey ChannelsToKey,
+	ESequencerKeyMode KeyMode,
+	float InLocalTime)
 {
 	if (KeyMode == ESequencerKeyMode::ManualKey || (GetSequencer().IsValid() && !GetSequencer()->IsAllowedToChange()))
 	{

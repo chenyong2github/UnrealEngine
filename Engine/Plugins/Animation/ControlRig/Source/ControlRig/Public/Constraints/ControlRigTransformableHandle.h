@@ -8,13 +8,14 @@
 
 class UControlRig;
 class USkeletalMeshComponent;
+struct FRigControlElement;
 
 /**
  * UTransformableControlHandle
  */
 
 UCLASS()
-class UTransformableControlHandle : public UTransformableHandle 
+class CONTROLRIG_API UTransformableControlHandle : public UTransformableHandle 
 {
 	GENERATED_BODY()
 	
@@ -26,9 +27,13 @@ public:
 	virtual bool IsValid() const override;
 
 	/** @todo document */
-	virtual void SetTransform(const FTransform& InGlobal) const override;
+	virtual void SetGlobalTransform(const FTransform& InGlobal) const override;
 	/** @todo document */
-	virtual FTransform GetTransform() const  override;
+	virtual void SetLocalTransform(const FTransform& InLocal) const override;
+	/** @todo document */
+	virtual FTransform GetGlobalTransform() const  override;
+	/** @todo document */
+	virtual FTransform GetLocalTransform() const  override;
 
 	/** @todo document */
 	virtual UObject* GetPrerequisiteObject() const override;
@@ -55,4 +60,7 @@ private:
 
 	/** @todo document */
 	USkeletalMeshComponent* GetSkeletalMesh() const;
+
+	/** @todo document */
+	FRigControlElement* GetControlElement() const;
 };

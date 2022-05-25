@@ -38,21 +38,16 @@ bool UTransformableControlHandle::IsValid() const
 
 // NOTE should we cache the skeletal mesh and the CtrlIndex to avoid looking for if every time
 // probably not for handling runtime changes
-void UTransformableControlHandle::SetTransform(const FTransform& InGlobal) const
+void UTransformableControlHandle::SetGlobalTransform(const FTransform& InGlobal) const
 {
-	if (!ControlRig.IsValid() || ControlName == NAME_None)
+	const FRigControlElement* ControlElement = GetControlElement();
+	if (!ControlElement)
 	{
 		return;
 	}
 
 	const USkeletalMeshComponent* SkeletalMeshComponent = GetSkeletalMesh();
 	if (!SkeletalMeshComponent)
-	{
-		return;
-	}
-
-	const FRigControlElement* ControlElement = ControlRig->FindControl(ControlName);
-	if (!ControlElement)
 	{
 		return;
 	}
@@ -65,22 +60,48 @@ void UTransformableControlHandle::SetTransform(const FTransform& InGlobal) const
 	Hierarchy->SetGlobalTransform(CtrlIndex, InGlobal.GetRelativeTransform(ComponentTransform));
 }
 
+void UTransformableControlHandle::SetLocalTransform(const FTransform& InLocal) const
+{
+	const FRigControlElement* ControlElement = GetControlElement();
+	if (!ControlElement)
+	{
+		return;
+	}
+	
+	URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+	const FRigElementKey& ControlKey = ControlElement->GetKey();
+	const int32 CtrlIndex = Hierarchy->GetIndex(ControlKey);
+	
+	Hierarchy->SetLocalTransform(CtrlIndex, InLocal);
+}
+
 // NOTE should we cache the skeletal mesh and the CtrlIndex to avoid looking for if every time
 // probably not for handling runtime changes
-FTransform UTransformableControlHandle::GetTransform() const
+FTransform UTransformableControlHandle::GetGlobalTransform() const
 {
-	if (!ControlRig.IsValid() || ControlName == NAME_None)
+	const FRigControlElement* ControlElement = GetControlElement();
+	if (!ControlElement)
 	{
 		return FTransform::Identity;
 	}
-
+	
 	const USkeletalMeshComponent* SkeletalMeshComponent = GetSkeletalMesh();
 	if (!SkeletalMeshComponent)
 	{
 		return FTransform::Identity;
 	}
 
-	const FRigControlElement* ControlElement = ControlRig->FindControl(ControlName);
+	const FRigElementKey& ControlKey = ControlElement->GetKey();
+	const URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
+	const int32 CtrlIndex = Hierarchy->GetIndex(ControlKey);
+
+	const FTransform& ComponentTransform = SkeletalMeshComponent->GetComponentTransform();
+	return Hierarchy->GetGlobalTransform(CtrlIndex) * ComponentTransform;
+}
+
+FTransform UTransformableControlHandle::GetLocalTransform() const
+{
+	const FRigControlElement* ControlElement = GetControlElement();
 	if (!ControlElement)
 	{
 		return FTransform::Identity;
@@ -90,8 +111,7 @@ FTransform UTransformableControlHandle::GetTransform() const
 	const URigHierarchy* Hierarchy = ControlRig->GetHierarchy();
 	const int32 CtrlIndex = Hierarchy->GetIndex(ControlKey);
 
-	const FTransform& ComponentTransform = SkeletalMeshComponent->GetComponentTransform();
-	return Hierarchy->GetGlobalTransform(CtrlIndex) * ComponentTransform;
+	return Hierarchy->GetLocalTransform(CtrlIndex);
 }
 
 UObject* UTransformableControlHandle::GetPrerequisiteObject() const
@@ -118,6 +138,16 @@ USkeletalMeshComponent* UTransformableControlHandle::GetSkeletalMesh() const
 {
 	const TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig.IsValid() ? ControlRig->GetObjectBinding() : nullptr;
 	return ObjectBinding ? Cast<USkeletalMeshComponent>(ObjectBinding->GetBoundObject()) : nullptr;
+}
+
+FRigControlElement* UTransformableControlHandle::GetControlElement() const
+{
+	if (!ControlRig.IsValid() || ControlName == NAME_None)
+	{
+		return nullptr;
+	}
+
+	return ControlRig->FindControl(ControlName);
 }
 
 #if WITH_EDITOR

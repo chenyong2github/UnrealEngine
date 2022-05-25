@@ -211,8 +211,8 @@ public:
 	void OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh);
 
 	/**  */
-	bool IsFirstItem(const TSharedPtr<FEditableConstraintItem>& Item) const;
-	bool IsLastItem(const TSharedPtr<FEditableConstraintItem>& Item) const;
+	bool CanMoveUp(const TSharedPtr<FEditableConstraintItem>& Item) const;
+	bool CanMoveDown(const TSharedPtr<FEditableConstraintItem>& Item) const;
 
 	/**  */
 	void MoveItemUp(const TSharedPtr<FEditableConstraintItem>& Item);
@@ -229,6 +229,9 @@ private:
 	/** Generates a widget for the specified item */
 	TSharedRef<ITableRow> OnGenerateWidgetForItem(ItemSharedPtr InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
+	/** @todo documentation. */
+	TSharedPtr< SWidget > CreateContextMenu();
+	
 	void RegisterSelectionChanged();
 	void UnregisterSelectionChanged();
 	
