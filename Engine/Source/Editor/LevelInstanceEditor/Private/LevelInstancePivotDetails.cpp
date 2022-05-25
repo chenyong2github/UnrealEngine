@@ -11,7 +11,8 @@
 #include "Engine/Brush.h"
 #include "Engine/World.h"
 #include "LevelInstance/LevelInstanceInterface.h"
-#include "LevelInstance/LevelInstanceEditorPivotActor.h"
+#include "LevelInstance/LevelInstanceEditorPivotInterface.h"
+#include "LevelInstance/LevelInstanceEditorPivot.h"
 
 #define LOCTEXT_NAMESPACE "FLevelInstancePivotDetails"
 
@@ -34,7 +35,7 @@ void FLevelInstancePivotDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 		return;
 	}
 
-	TWeakObjectPtr<ALevelInstancePivot> EditingObject = Cast<ALevelInstancePivot>(EditingObjects[0].Get());
+	TWeakObjectPtr<AActor> EditingObject = Cast<AActor>(EditingObjects[0].Get());
 
 	UWorld* World = EditingObject->GetWorld();
 
@@ -105,17 +106,17 @@ void FLevelInstancePivotDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBu
 		];
 }
 
-bool FLevelInstancePivotDetails::IsApplyButtonEnabled(TWeakObjectPtr<ALevelInstancePivot> LevelInstancePivot) const
+bool FLevelInstancePivotDetails::IsApplyButtonEnabled(TWeakObjectPtr<AActor> LevelInstancePivot) const
 {
 	return PivotType != ELevelInstancePivotType::Actor || PivotActor.IsValid();
 }
 
-FReply FLevelInstancePivotDetails::OnApplyButtonClicked(TWeakObjectPtr<ALevelInstancePivot> LevelInstancePivot)
+FReply FLevelInstancePivotDetails::OnApplyButtonClicked(TWeakObjectPtr<AActor> LevelInstancePivot)
 {
 	if (LevelInstancePivot.IsValid())
 	{
 		FScopedTransaction Transaction(LOCTEXT("ChangePivot", "Change Level Instance Pivot"));
-		LevelInstancePivot->SetPivot(PivotType, PivotActor.Get());
+		FLevelInstanceEditorPivotHelper::SetPivot(CastChecked<ILevelInstanceEditorPivotInterface>(LevelInstancePivot.Get()), PivotType, PivotActor.Get());
 	}
 	return FReply::Handled();
 }

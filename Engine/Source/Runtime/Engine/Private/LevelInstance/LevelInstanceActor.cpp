@@ -12,6 +12,7 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/LevelInstance/LevelInstanceActorDesc.h"
+#include "LevelInstance/LevelInstanceEditorPivotActor.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "LevelInstanceActor"
@@ -102,6 +103,11 @@ void ALevelInstance::OnLevelInstanceLoaded()
 ULevelInstanceComponent* ALevelInstance::GetLevelInstanceComponent() const
 {
 	return Cast<ULevelInstanceComponent>(RootComponent);
+}
+
+TSubclassOf<AActor> ALevelInstance::GetEditorPivotClass() const
+{
+	return ALevelInstancePivot::StaticClass();
 }
 
 TUniquePtr<FWorldPartitionActorDesc> ALevelInstance::CreateClassActorDesc() const

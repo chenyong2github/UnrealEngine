@@ -8,7 +8,7 @@
 #include "LevelInstance/LevelInstanceTypes.h"
 #include "Input/Reply.h"
 
-class ALevelInstancePivot;
+class AActor;
 
 class FLevelInstancePivotDetails : public IDetailCustomization
 {
@@ -24,9 +24,9 @@ private:
 	/** Use MakeInstance to create an instance of this class */
 	FLevelInstancePivotDetails();
 
-	bool IsApplyButtonEnabled(TWeakObjectPtr<ALevelInstancePivot> LevelInstancePivot) const;
-	FReply OnApplyButtonClicked(TWeakObjectPtr<ALevelInstancePivot> LevelInstancePivot);
-	
+	bool IsApplyButtonEnabled(TWeakObjectPtr<AActor> LevelInstancePivot) const;
+	FReply OnApplyButtonClicked(TWeakObjectPtr<AActor> LevelInstancePivot);
+
 	int32 GetSelectedPivotType() const;
 	void OnSelectedPivotTypeChanged(int32 NewValue, ESelectInfo::Type SelectionType);
 
@@ -40,7 +40,7 @@ private:
 	FText GetSelectedPivotActorText() const;
 	void OnSelectedPivotActorChanged(TSharedPtr<FActorInfo> NewValue, ESelectInfo::Type SelectionType);
 	bool IsPivotActorSelectionEnabled() const;
-	
+
 	// Settings for Apply button
 	ELevelInstancePivotType PivotType;
 	TWeakObjectPtr<AActor> PivotActor;

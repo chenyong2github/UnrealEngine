@@ -46,6 +46,8 @@ class ENGINE_API ILevelInstanceInterface
 	virtual ELevelInstanceRuntimeBehavior GetDesiredRuntimeBehavior() const = 0;
 
 	virtual ELevelInstanceRuntimeBehavior GetDefaultRuntimeBehavior() const = 0;
+
+	virtual TSubclassOf<AActor> GetEditorPivotClass() const { return nullptr; }
 #endif
 	// Pure Interface End
 		

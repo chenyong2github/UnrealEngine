@@ -5,7 +5,7 @@
 #if WITH_EDITOR
 #include "LevelInstance/LevelInstanceInterface.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
-#include "LevelInstance/LevelInstanceEditorPivotActor.h"
+#include "LevelInstance/LevelInstanceEditorPivot.h"
 #include "EditorLevelUtils.h"
 #include "Editor.h"
 #include "Engine/LevelBounds.h"
@@ -109,7 +109,7 @@ ULevelStreamingLevelInstanceEditor* ULevelStreamingLevelInstanceEditor::Load(ILe
 		}
 
 		// Create special actor that will handle changing the pivot of this level
-		ALevelInstancePivot::Create(LevelInstance, LevelStreaming);
+		FLevelInstanceEditorPivotHelper::Create(LevelInstance, LevelStreaming);
 
 		return LevelStreaming;
 	}

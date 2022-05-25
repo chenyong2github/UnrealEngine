@@ -6,39 +6,20 @@
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 #include "LevelInstance/LevelInstanceTypes.h"
+#include "LevelInstance/LevelInstanceEditorPivotInterface.h"
 #include "LevelInstanceEditorPivotActor.generated.h"
 
-class ILevelInstanceInterface;
-class ULevelStreaming;
-
-/**
- * 
- */
 UCLASS(transient, notplaceable, hidecategories=(Rendering,Replication,Collision,Partition,Input,HLOD,Actor,Cooking))
-class ENGINE_API ALevelInstancePivot : public AActor
+class ENGINE_API ALevelInstancePivot : public AActor, public ILevelInstanceEditorPivotInterface
 {
 	GENERATED_UCLASS_BODY()
 
 #if WITH_EDITOR
 public:
-	static ALevelInstancePivot* Create(ILevelInstanceInterface* LevelInstance, ULevelStreaming* LevelStreaming);
-	
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override { return false; }
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
 	virtual bool ShouldExport() override { return false; }
-	void SetPivot(ELevelInstancePivotType PivotType, AActor* PivotActor = nullptr);
-private:
-	void SetLevelInstanceID(const FLevelInstanceID& InLevelInstanceID) { LevelInstanceID = InLevelInstanceID; }
-	const FLevelInstanceID& GetLevelInstanceID() const { return LevelInstanceID; }
-	void UpdateOffset();
-#endif
-
-private:
-#if WITH_EDITORONLY_DATA
-	FLevelInstanceID LevelInstanceID;
-	FTransform SpawnTransform;
-	FVector OriginalPivotOffset;
 #endif
 };
