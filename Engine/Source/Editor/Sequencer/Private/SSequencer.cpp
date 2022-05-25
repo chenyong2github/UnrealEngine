@@ -1106,7 +1106,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 }
 PRAGMA_ENABLE_OPTIMIZATION
 
-void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBindings)
+void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBindings, TSharedRef<FUICommandList> CurveEditorSharedBindings)
 {
 	auto CanPasteFromHistory = [this]{
 		if (!HasFocusedDescendants() && !HasKeyboardFocus())
@@ -1201,7 +1201,7 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 	{
 		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
 		{
-			TrackFilter->BindCommands(SequencerCommandBindings, SequencerPtr.Pin());
+			TrackFilter->BindCommands(SequencerCommandBindings, CurveEditorSharedBindings, SequencerPtr.Pin());
 		}
 	}
 }
@@ -1748,7 +1748,7 @@ TSharedRef<SWidget> SSequencer::MakeAddMenu()
 TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 {
 	TSharedPtr<FExtender> Extender = FExtender::Combine(AddMenuExtenders);
-	FMenuBuilder MenuBuilder(false, nullptr, Extender);
+	FMenuBuilder MenuBuilder(false, SequencerPtr.Pin()->GetCommandBindings(), Extender);
 
 	// let track editors & object bindings populate the menu
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();

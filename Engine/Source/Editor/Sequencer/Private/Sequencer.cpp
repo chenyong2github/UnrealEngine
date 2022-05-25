@@ -13378,10 +13378,12 @@ void FSequencer::BindCommands()
 	CurveEditorSharedBindings->MapAction(Commands.AddRotationKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddRotationKey));
 	CurveEditorSharedBindings->MapAction(Commands.AddScaleKey, *SequencerCommandBindings->GetActionForCommand(Commands.AddScaleKey));
 
+	CurveEditorSharedBindings->MapAction(Commands.ResetFilters, *SequencerCommandBindings->GetActionForCommand(Commands.ResetFilters));
+
 	GetCurveEditor()->GetCommands()->Append(CurveEditorSharedBindings);
 
 	// bind widget specific commands
-	SequencerWidget->BindCommands(SequencerCommandBindings);
+	SequencerWidget->BindCommands(SequencerCommandBindings, CurveEditorSharedBindings);
 }
 
 void FSequencer::BuildAddTrackMenu(class FMenuBuilder& MenuBuilder)

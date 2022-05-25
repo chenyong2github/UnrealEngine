@@ -180,7 +180,7 @@ FText FSequencerTrackFilter_Animated::GetToolTipText() const
 	return Tooltip;
 }
 
-void FSequencerTrackFilter_Animated::BindCommands(TSharedRef<FUICommandList> CommandBindings, TWeakPtr<ISequencer> Sequencer)
+void FSequencerTrackFilter_Animated::BindCommands(TSharedRef<FUICommandList> SequencerBindings, TSharedRef<FUICommandList> CurveEditorBindings, TWeakPtr<ISequencer> Sequencer)
 {
 	// See comment above
 	if (!FSequencerTrackFilter_AnimatedCommands::IsRegistered())
@@ -190,11 +190,13 @@ void FSequencerTrackFilter_Animated::BindCommands(TSharedRef<FUICommandList> Com
 
 	const FSequencerTrackFilter_AnimatedCommands& Commands = FSequencerTrackFilter_AnimatedCommands::Get();
 
-	CommandBindings->MapAction(
+	SequencerBindings->MapAction(
 		Commands.ToggleAnimatedTracks,
 		FExecuteAction::CreateLambda( [this, Sequencer]{ Sequencer.Pin()->SetTrackFilterEnabled(GetDisplayName(), !Sequencer.Pin()->IsTrackFilterEnabled(GetDisplayName())); } ),
 		FCanExecuteAction::CreateLambda( [this, Sequencer]{ return true; } ),
 		FIsActionChecked::CreateLambda( [this, Sequencer]{ return Sequencer.Pin()->IsTrackFilterEnabled(GetDisplayName()); } ) );
+
+	CurveEditorBindings->MapAction(Commands.ToggleAnimatedTracks, *SequencerBindings->GetActionForCommand(Commands.ToggleAnimatedTracks));
 }
 
 #undef LOCTEXT_NAMESPACE

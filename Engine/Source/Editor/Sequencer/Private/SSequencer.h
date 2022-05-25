@@ -288,7 +288,7 @@ public:
 
 	void Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSequencer);
 
-	void BindCommands(TSharedRef<FUICommandList> SequencerCommandBindings);
+	void BindCommands(TSharedRef<FUICommandList> SequencerCommandBindings, TSharedRef<FUICommandList> CurveEditorSharedBindings);
 	
 	~SSequencer();
 	

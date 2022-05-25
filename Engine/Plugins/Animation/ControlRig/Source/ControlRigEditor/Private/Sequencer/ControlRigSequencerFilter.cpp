@@ -87,7 +87,7 @@ public:
 		return Tooltip;
 	}
 
-	virtual void BindCommands(TSharedRef<FUICommandList> CommandBindings, TWeakPtr<ISequencer> Sequencer) override
+	virtual void BindCommands(TSharedRef<FUICommandList> SequencerBindings, TSharedRef<FUICommandList> CurveEditorBindings, TWeakPtr<ISequencer> Sequencer) override
 	{
 		// See comment above
 		if (!FSequencerTrackFilter_ControlRigControlsCommands::IsRegistered())
@@ -97,11 +97,13 @@ public:
 
 		const FSequencerTrackFilter_ControlRigControlsCommands& Commands = FSequencerTrackFilter_ControlRigControlsCommands::Get();
 
-		CommandBindings->MapAction(
+		SequencerBindings->MapAction(
 			Commands.ToggleControlRigControls,
 			FExecuteAction::CreateLambda([this, Sequencer] { Sequencer.Pin()->SetTrackFilterEnabled(GetDisplayName(), !Sequencer.Pin()->IsTrackFilterEnabled(GetDisplayName())); }),
 			FCanExecuteAction::CreateLambda([this, Sequencer] { return true; }),
 			FIsActionChecked::CreateLambda([this, Sequencer] { return Sequencer.Pin()->IsTrackFilterEnabled(GetDisplayName()); }));
+
+		CurveEditorBindings->MapAction(Commands.ToggleControlRigControls, *SequencerBindings->GetActionForCommand(Commands.ToggleControlRigControls));
 	}
 };
 
@@ -199,7 +201,7 @@ public:
 		return Tooltip;
 	}
 
-	virtual void BindCommands(TSharedRef<FUICommandList> CommandBindings, TWeakPtr<ISequencer> Sequencer) override
+	virtual void BindCommands(TSharedRef<FUICommandList> SequencerBindings, TSharedRef<FUICommandList> CurveEditorBindings, TWeakPtr<ISequencer> Sequencer) override
 	{
 		// See comment above
 		if (!FSequencerTrackFilter_ControlRigSelectedControlsCommands::IsRegistered())
@@ -209,11 +211,13 @@ public:
 
 		const FSequencerTrackFilter_ControlRigSelectedControlsCommands& Commands = FSequencerTrackFilter_ControlRigSelectedControlsCommands::Get();
 
-		CommandBindings->MapAction(
+		SequencerBindings->MapAction(
 			Commands.ToggleControlRigSelectedControls,
 			FExecuteAction::CreateLambda([this, Sequencer] { Sequencer.Pin()->SetTrackFilterEnabled(GetDisplayName(), !Sequencer.Pin()->IsTrackFilterEnabled(GetDisplayName())); }),
 			FCanExecuteAction::CreateLambda([this, Sequencer] { return true; }),
 			FIsActionChecked::CreateLambda([this, Sequencer] { return Sequencer.Pin()->IsTrackFilterEnabled(GetDisplayName()); }));
+
+		CurveEditorBindings->MapAction(Commands.ToggleControlRigSelectedControls, *SequencerBindings->GetActionForCommand(Commands.ToggleControlRigSelectedControls));
 	}
 };
 
