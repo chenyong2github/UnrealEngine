@@ -151,7 +151,6 @@ void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTa
 
 			// use last frame's POV
 			ViewTarget.POV = GetLastFrameCameraCacheView();
-			BlendParams = TransitionParams;
 			BlendTimeToGo = TransitionParams.BlendTime;
 
 			AssignViewTarget(NewTarget, PendingViewTarget, TransitionParams);
@@ -189,6 +188,10 @@ void APlayerCameraManager::SetViewTarget(class AActor* NewTarget, struct FViewTa
 		}
 		PendingViewTarget.Target = NULL;
 	}
+
+	// update the blend params after all the assignment logic so that sub-classes can compare
+	// the old vs new parameters if needed.
+	BlendParams = TransitionParams;
 }
 
 
