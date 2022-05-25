@@ -102,29 +102,6 @@ public class ICU : ModuleRules
 			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, VSVersionFolderName, UseDebugLibs ? "Debug" : "Release", "icu.lib"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			string PlatformICULibPath = Path.Combine(ICULibPath, VSVersionFolderName, Target.WindowsPlatform.GetArchitectureSubpath(), "lib");
-
-			string[] LibraryNameStems =
-			{
-				"dt",   // Data
-				"uc",   // Unicode Common
-				"in",   // Internationalization
-				"le",   // Layout Engine
-				"lx",   // Layout Extensions
-				"io"	// Input/Output
-			};
-			string LibraryNamePostfix = UseDebugLibs ? "d" : string.Empty;
-
-			// Library Paths
-			foreach (string Stem in LibraryNameStems)
-			{
-				string LibraryName = "sicu" + Stem + LibraryNamePostfix + "." + "lib";
-				PublicAdditionalLibraries.Add(Path.Combine(PlatformICULibPath, LibraryName));
-			}
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(ICULibPath, UseDebugLibs ? "libicud.a" : "libicu.a"));

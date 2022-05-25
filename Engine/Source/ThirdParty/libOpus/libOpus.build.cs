@@ -44,28 +44,6 @@ public class libOpus : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(OpusBinaryPath, "opus.lib"));
 			PublicAdditionalLibraries.Add(Path.Combine(OpusBinaryPath, "opus_sse41.lib"));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
-			{
-				LibraryPath += "Windows/VS2012/";
-				LibraryPath += "x64/";
-			}
-			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
-			{
-				LibraryPath += "Windows/VS" + (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2019 ? "2015" : "2012");
-				LibraryPath += "/ARM64/";
-			}
-			
-
-			LibraryPath += "Release/";
-
- 			PublicAdditionalLibraries.Add(LibraryPath + "silk_common.lib");
- 			PublicAdditionalLibraries.Add(LibraryPath + "silk_float.lib");
- 			PublicAdditionalLibraries.Add(LibraryPath + "celt.lib");
-			PublicAdditionalLibraries.Add(LibraryPath + "opus.lib");
-			PublicAdditionalLibraries.Add(LibraryPath + "speex_resampler.lib");
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			string OpusPath = LibraryPath + "/Mac/libopus.a";

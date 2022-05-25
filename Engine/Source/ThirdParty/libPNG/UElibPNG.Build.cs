@@ -58,26 +58,6 @@ public class UElibPNG : ModuleRules
 			string LibFileName = "libpng" + (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "d" : "") + "_64.lib";
 			PublicAdditionalLibraries.Add(Path.Combine(LibDir, LibFileName));
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			string PlatformSubpath = Target.Platform.ToString();
-			LibDir = Path.Combine(LibPNGPath, PlatformSubpath, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
-			{
-				LibDir = Path.Combine(LibDir, Target.WindowsPlatform.GetArchitectureSubpath());
-			}
-
-			string LibFileName = "libpng";
-			if(Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
-			{
-				LibFileName += "d";
-			}
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
-			{
-				LibFileName += "_64";
-			}
-			PublicAdditionalLibraries.Add(Path.Combine(LibDir, LibFileName + ".lib"));
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicAdditionalLibraries.Add(Path.Combine(LibPNGPath, "Mac", "libpng.a"));

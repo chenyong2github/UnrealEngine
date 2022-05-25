@@ -30,17 +30,6 @@ public class DX11 : ModuleRules
 					}
 				);
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			PublicSystemIncludePaths.Add(DirectXSDKDir + "/Include");
-
-			PublicSystemLibraries.AddRange(
-				new string[] {
-				"dxguid.lib",
-				}
-				);
-		}
-
 	}
 }
 

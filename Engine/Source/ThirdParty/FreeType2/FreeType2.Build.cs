@@ -85,19 +85,6 @@ public class FreeType2 : ModuleRules
 
 			PublicAdditionalLibraries.Add(LibPath);
 		}
-		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
-		{
-			string PlatformSubpath = "Win64";
-
-			LibPath = Path.Combine(FreeType2LibPath, PlatformSubpath,
-					"VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
-			{
-				LibPath = Path.Combine(LibPath, Target.WindowsPlatform.GetArchitectureSubpath());
-			}
-
-			PublicAdditionalLibraries.Add(Path.Combine(LibPath, "freetype26MT.lib"));
-		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			LibPath = Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT
