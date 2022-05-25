@@ -97,9 +97,9 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
 	float SmartCacheTimeToLookAhead = 0.2f;
 
-	/** Specify type of mesh used for visible mips and tiles calculations.
-	 * Use /MediaPlate/SM_MediaPlateScreen for the plane.
-	 * Use /Engine/BasicShapes/Sphere for the sphere.
+	/**
+	 * Specify type of mesh used for visible mips and tiles calculations.
+	 * (Using the provided plane and sphere meshes only.)
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "MediaPlate")
 	EMediaTextureVisibleMipsTiles VisibleMipsTilesCalculations;

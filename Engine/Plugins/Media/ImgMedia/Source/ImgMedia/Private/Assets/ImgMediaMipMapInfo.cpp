@@ -461,7 +461,7 @@ namespace {
 				return;
 			}
 
-			const float DefaultSphereRadius = 160.0f;
+			const float DefaultSphereRadius = 50.0f;
 
 			for (const FImgMediaViewInfo& ViewInfo : InViewInfos)
 			{
@@ -487,7 +487,7 @@ namespace {
 						FVector2D TileCornerSpherical = FVector2D(UE_PI * TileCornerUV.Y, UE_TWO_PI * TileCornerUV.X);
 						
 						// Adjust spherical coordinates to default sphere UVs
-						TileCornerSpherical.Y = -UE_HALF_PI - TileCornerSpherical.Y;
+						TileCornerSpherical.Y = -TileCornerSpherical.Y;
 
 						FVector TileCorner = TileCornerSpherical.SphericalToUnitCartesian() * DefaultSphereRadius;
 						TileCorner = Mesh->GetComponentTransform().TransformPosition(TileCorner);
@@ -507,6 +507,17 @@ namespace {
 							VisibleTiles[0].SetVisible(TileX, AdjacentY);
 							VisibleTiles[0].SetVisible(AdjacentX, AdjacentY);
 						}
+
+#if false
+#if WITH_EDITOR
+						// Enable this to draw a sphere where each tile is.
+						Async(EAsyncExecution::TaskGraphMainThread, [TileCorner]()
+							{
+								UWorld* World = GEditor->GetEditorWorldContext().World();
+								DrawDebugPoint(World, TileCorner, 5.0f, FColor::Red, false, 0.05f);
+							});
+#endif // WITH_EDITOR
+#endif // false
 					}
 				}
 
