@@ -1020,14 +1020,14 @@ void FLevelEditorSequencerIntegration::AttachOutlinerColumn()
 
 	FSceneOutlinerColumnInfo SpawnColumnInfo(ESceneOutlinerColumnVisibility::Visible, 11, 
 		FCreateSceneOutlinerColumn::CreateRaw( this, &FLevelEditorSequencerIntegration::CreateSequencerSpawnableColumn),
-		true, TOptional<float>(), LOCTEXT("SpawnableColumnName", "SpawnableInfo"));
+		true, TOptional<float>(), LOCTEXT("SpawnableColumnName", "Spawnable"));
 
 	SceneOutlinerModule.RegisterDefaultColumnType< Sequencer::FSequencerSpawnableColumn >(SpawnColumnInfo);
 	AcquiredResources.Add([=]{ this->DetachOutlinerColumn(); });
 
 	FSceneOutlinerColumnInfo ColumnInfo(ESceneOutlinerColumnVisibility::Visible, 15, 
 		FCreateSceneOutlinerColumn::CreateRaw( this, &FLevelEditorSequencerIntegration::CreateSequencerInfoColumn), 
-		true, TOptional<float>(), LOCTEXT("SequencerColumnName", "SequencerInfo"));
+		true, TOptional<float>(), LOCTEXT("SequencerColumnName", "Sequencer"));
 
 	SceneOutlinerModule.RegisterDefaultColumnType< Sequencer::FSequencerInfoColumn >(ColumnInfo);
 

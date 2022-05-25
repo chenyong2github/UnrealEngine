@@ -5,6 +5,8 @@
 #include "Widgets/Images/SImage.h"
 #include "GameFramework/Actor.h"
 
+#define LOCTEXT_NAMESPACE "SpawnableInfoColumn"
+
 namespace Sequencer
 {
 
@@ -27,7 +29,7 @@ SHeaderRow::FColumn::FArguments FSequencerSpawnableColumn::ConstructHeaderRowCol
 		.VAlignHeader(VAlign_Center)
 		.HAlignCell(HAlign_Left) // Note the icon has some baked in right alignment, so we are compensating here
 		.VAlignCell(VAlign_Center)
-		.DefaultTooltip(FText::FromName(GetColumnID()))
+		.DefaultTooltip(LOCTEXT("SpawnableColumnTooltip", "Whether this actor is spawned by Sequencer"))
 		.HeaderContentPadding(FMargin(0.0))
 		[
 			SNew(SImage)
@@ -59,3 +61,5 @@ const FSlateBrush* FSequencerSpawnableColumn::GetSpawnableIcon( FSceneOutlinerTr
 }
 
 }// End Sequencer namespace
+
+#undef LOCTEXT_NAMESPACE

@@ -76,17 +76,16 @@ FName FSequencerInfoColumn::GetID()
 	return IDName;
 }
 
-
 FName FSequencerInfoColumn::GetColumnID()
 {
 	return GetID();
 }
 
-
 SHeaderRow::FColumn::FArguments FSequencerInfoColumn::ConstructHeaderRowColumn()
 {
 	return SHeaderRow::Column(GetColumnID())
-		.DefaultLabel(LOCTEXT("ItemLabel_HeaderText", "Sequence"))
+		.DefaultLabel(LOCTEXT("SequencerColumn", "Sequence"))
+		.DefaultTooltip(LOCTEXT("SequencerColumnTooltip", "The sequence that this actor is referenced from"))
 		.FillWidth( 5.0f );
 }
 
@@ -112,12 +111,10 @@ const TSharedRef< SWidget > FSequencerInfoColumn::ConstructRowWidget(FSceneOutli
 	return HorizontalBox;
 }
 
-
 void FSequencerInfoColumn::PopulateSearchStrings( const ISceneOutlinerTreeItem& Item, TArray< FString >& OutSearchStrings ) const
 {
 	OutSearchStrings.Add(Item.GetDisplayString());
 }
-
 
 void FSequencerInfoColumn::SortItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems, const EColumnSortMode::Type SortMode) const
 {
