@@ -951,7 +951,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 								.VAlign(VAlign_Bottom)
 								[
 									SAssignNew(SequencerTreeFilterStatusBar, SSequencerTreeFilterStatusBar, InSequencer)	
-									.Visibility( EVisibility::SelfHitTestInvisible )				
+									.Visibility(this, &SSequencer::GetStatusBarVisibility)
 								]
 							]
 						]
@@ -2316,6 +2316,7 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleShowSelectedNodesOnly );
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleCombinedKeyframes );
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleChannelColors );
+	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleShowStatusBar );
 	MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleShowPreAndPostRoll );
 
 	// Menu entry for zero padding
@@ -3869,6 +3870,11 @@ EVisibility SSequencer::GetBottomTimeSliderVisibility() const
 EVisibility SSequencer::GetTimeRangeVisibility() const
 {
 	return GetSequencerSettings()->GetShowRangeSlider() ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+EVisibility SSequencer::GetStatusBarVisibility() const
+{
+	return GetSequencerSettings()->GetShowStatusBar() ? EVisibility::SelfHitTestInvisible : EVisibility::Hidden;
 }
 
 EFrameNumberDisplayFormats SSequencer::GetTimeDisplayFormat() const

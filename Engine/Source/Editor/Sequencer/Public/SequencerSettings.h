@@ -284,6 +284,11 @@ public:
 	/** Set whether to show channel colors */
 	void SetShowChannelColors(bool bInShowChannelColors);
 
+	/** @return true if showing status bar */
+	bool GetShowStatusBar() const;
+	/** Set whether to show status bar */
+	void SetShowStatusBar(bool bInShowStatusBar);
+
 	/** @return Whether the given channel has curve extents */
 	bool HasKeyAreaCurveExtents(const FString& ChannelName) const;
 	/** @ Remove curve extents for the given channel */
@@ -533,6 +538,10 @@ protected:
 	/** Enable or disable displaying channel bar colors for vector properties. */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)
 	bool bShowChannelColors;
+
+	/** Enable or disable displaying the status bar for number of items. */
+	UPROPERTY(config, EditAnywhere, Category = Timeline)
+	bool bShowStatusBar;
 
 	/** The key area curve extents, stored per channel name */
 	UPROPERTY(config, EditAnywhere, Category = Timeline)

@@ -12766,6 +12766,14 @@ void FSequencer::BindCommands()
 		FIsActionChecked::CreateLambda( [this]{ return Settings->GetShowChannelColors(); } ) );
 
 	SequencerCommandBindings->MapAction(
+		Commands.ToggleShowStatusBar,
+		FExecuteAction::CreateLambda([this] {
+			Settings->SetShowStatusBar(!Settings->GetShowStatusBar());
+		}),
+		FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateLambda([this] { return Settings->GetShowStatusBar(); }));
+
+	SequencerCommandBindings->MapAction(
 		Commands.ToggleShowSelectedNodesOnly,
 		FExecuteAction::CreateLambda( [this]{
 			Settings->SetShowSelectedNodesOnly( !Settings->GetShowSelectedNodesOnly() );

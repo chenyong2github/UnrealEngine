@@ -47,6 +47,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bShowCombinedKeyframes = true;
 	bInfiniteKeyAreas = false;
 	bShowChannelColors = false;
+	bShowStatusBar = true;
 	ReduceKeysTolerance = KINDA_SMALL_NUMBER;
 	KeyAreaHeightWithCurves = SequencerLayoutConstants::KeyAreaHeight;
 	bDeleteKeysWhenTrimming = true;
@@ -577,6 +578,20 @@ void USequencerSettings::SetShowChannelColors(bool InbShowChannelColors)
 	if (bShowChannelColors != InbShowChannelColors)
 	{
 		bShowChannelColors = InbShowChannelColors;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetShowStatusBar() const
+{
+	return bShowStatusBar;
+}
+
+void USequencerSettings::SetShowStatusBar(bool InbShowStatusBar)
+{
+	if (bShowStatusBar != InbShowStatusBar)
+	{
+		bShowStatusBar = InbShowStatusBar;
 		SaveConfig();
 	}
 }

@@ -346,6 +346,9 @@ public:
 	/** Toggles whether to show channel colors in the track area. */
 	TSharedPtr< FUICommandInfo > ToggleChannelColors;
 
+	/** Toggles whether to show the status bar. */
+	TSharedPtr< FUICommandInfo > ToggleShowStatusBar;
+
 	/** Turns auto scroll on and off. */
 	TSharedPtr< FUICommandInfo > ToggleAutoScroll;
 

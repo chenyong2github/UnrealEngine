@@ -581,6 +581,9 @@ private:
 	/** Gets whether or not the time range should be visible. */
 	EVisibility GetTimeRangeVisibility() const;
 
+	/** Gets whether the status bar should be visible. */
+	EVisibility GetStatusBarVisibility() const;
+
 	/** What is the preferred display format for time values. */
 	EFrameNumberDisplayFormats GetTimeDisplayFormat() const;
 
