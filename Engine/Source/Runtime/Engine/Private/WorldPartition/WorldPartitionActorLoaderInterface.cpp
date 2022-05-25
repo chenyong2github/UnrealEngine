@@ -59,11 +59,6 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::Unload()
 				ActorsToUnload.Emplace(WorldPartition, ActorRefToUnload.Key);
 			}
 			
-			if (!AllowUnloadingActors(ActorsToUnload))
-			{
-				return false;
-			}
-			
 			UnregisterDelegates();
 
 			FScopedSlowTask SlowTask(1, LOCTEXT("UpdatingLoading", "Updating loading..."));
@@ -143,7 +138,7 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::PassDataLayersFilter(c
 	return true;
 }
 
-bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
+void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 {
 	if (bLoaded)
 	{
@@ -166,11 +161,7 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 				}
 			});
 
-			if (!AllowUnloadingActors(ActorsToUnload))
-			{
-				return false;
-			}
-
+			if (ActorsToLoad.Num() || ActorsToUnload.Num())
 			{
 				FWorldPartitionLoadingContext::FDeferred LoadingContext;
 
@@ -203,63 +194,6 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 			PostLoadedStateChanged(ActorsToUnload.Num() > 0);
 		}
 	}
-
-	return true;
-}
-
-bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::AllowUnloadingActors(const TArray<FWorldPartitionHandle>& ActorsToUnload) const
-{
-	if (IsRunningCommandlet())
-	{
-		return true;
-	}
-
-	TSet<UPackage*> ModifiedPackages;
-	TMap<FWorldPartitionHandle, int32> UnloadCount;
-
-	// Count the number of times we are referencing each actor to unload
-	for (const FWorldPartitionHandle& ActorToUnload : ActorsToUnload)
-	{
-		const TMap<FGuid, FWorldPartitionReference>& ActorToUnloadRefs = ActorReferences.FindChecked(ActorToUnload->GetGuid());
-
-		for (const TPair<FGuid, FWorldPartitionReference>& ActorToUnloadRef : ActorToUnloadRefs)
-		{
-			UnloadCount.FindOrAdd(ActorToUnloadRef.Value, 0)++;
-		}
-	}
-
-	for (const TPair<FWorldPartitionHandle, int32>& Pair : UnloadCount)
-	{
-		const FWorldPartitionHandle& ActorHandle = Pair.Key;
-
-		// Only prompt if the actor will get unloaded by the unloading cells
-		if (ActorHandle->GetHardRefCount() == Pair.Value)
-		{
-			if (AActor* LoadedActor = ActorHandle->GetActor())
-			{
-				if (UPackage* ActorPackage = LoadedActor->GetExternalPackage(); ActorPackage && ActorPackage->IsDirty())
-				{
-					ModifiedPackages.Add(ActorPackage);
-				}
-			}
-		}
-	}
-
-	if (ModifiedPackages.Num())
-	{
-		const FText Title = LOCTEXT("SaveActorsTitle", "Save Actor(s)");
-		const FText Message = LOCTEXT("SaveActorsMessage", "Save Actor(s) before unloading them.");
-
-		FEditorFileUtils::EPromptReturnCode RetCode = FEditorFileUtils::PromptForCheckoutAndSave(ModifiedPackages.Array(), false, true, Title, Message, nullptr, false, true);
-		check(RetCode != FEditorFileUtils::PR_Failure);
-
-		if (RetCode == FEditorFileUtils::PR_Cancelled)
-		{
-			return false;
-		}
-	}
-
-	return true;
 }
 
 bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::ShouldActorBeLoaded(const FWorldPartitionHandle& Actor) const
@@ -319,13 +253,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::RemoveReferenceToActor
 
 void IWorldPartitionActorLoaderInterface::ILoaderAdapter::OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation)
 {
-	if (!RefreshLoadedState())
-	{
-		// Temporary measure: reset transactions if the user cancels saving to avoid inconsistencies. The next step is to change that
-		// behavior in order to keep dirty actors in memory instead of asking to save them when unloading, in preparation of in editor
-		// camera loading.
-		GEditor->ResetTransaction(LOCTEXT("LoadingEditorActorResetTrans", "Editor Actors Loading State Changed"));
-	}
+	RefreshLoadedState();
 }
 #endif
 

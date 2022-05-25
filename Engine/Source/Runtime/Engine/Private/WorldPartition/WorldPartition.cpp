@@ -221,12 +221,21 @@ public:
 		Load();
 	}
 
-	void AddActor(FWorldPartitionHandle& ActorHandle)
+	void AddActor(FWorldPartitionHandle& ActorHandle, bool bImmediate)
 	{
 		if (!ContainsActor(ActorHandle))
 		{
 			Actors.Add(ActorHandle);
-			bStateChanged = true;
+
+			if (bImmediate)
+			{
+				RefreshLoadedState();
+				bStateChanged = false;
+			}
+			else
+			{
+				bStateChanged = true;
+			}
 		}
 	}
 
@@ -235,12 +244,8 @@ public:
 		if (ContainsActor(ActorHandle))
 		{
 			ActorToRemove = ActorHandle;
-
-			if (RefreshLoadedState())
-			{
-				Actors.Remove(ActorHandle);
-			}
-
+			RefreshLoadedState();
+			Actors.Remove(ActorHandle);
 			ActorToRemove.Reset();
 		}
 	}
@@ -334,6 +339,25 @@ void UWorldPartition::OnGCPostReachabilityAnalysis()
 					}
 					return true;
 				}, false);
+			}
+		}
+	}
+}
+
+void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
+{
+	if (AActor* Actor = AActor::FindActorInPackage(Package); ShouldHandleActorEvent(Actor))
+	{
+		if (FWorldPartitionHandle ActorHandle(this, Actor->GetActorGuid()); ActorHandle.IsValid())
+		{
+			if (Package->IsDirty())
+			{
+				DirtyActors.Add(ActorHandle, Actor);
+			}
+			else if (PinnedActors)
+			{
+				PinnedActors->AddActor(ActorHandle, /*bImmediate*/true);
+				DirtyActors.Remove(ActorHandle);
 			}
 		}
 	}
@@ -651,6 +675,8 @@ void UWorldPartition::Uninitialize()
 
 		WorldDataLayersActor = FWorldPartitionReference();
 
+		DirtyActors.Empty();
+
 		EditorHash = nullptr;
 #endif		
 
@@ -713,6 +739,7 @@ void UWorldPartition::RegisterDelegates()
 			FCoreUObjectDelegates::PostReachabilityAnalysis.AddUObject(this, &UWorldPartition::OnGCPostReachabilityAnalysis);
 			GEditor->OnPostBugItGoCalled().AddUObject(this, &UWorldPartition::OnPostBugItGoCalled);
 			GEditor->OnEditorClose().AddUObject(this, &UWorldPartition::SavePerUserSettings);
+			UPackage::PackageDirtyStateChangedEvent.AddUObject(this, &UWorldPartition::OnPackageDirtyStateChanged);
 		}
 	}
 #endif
@@ -755,6 +782,7 @@ void UWorldPartition::UnregisterDelegates()
 
 			GEditor->OnPostBugItGoCalled().RemoveAll(this);
 			GEditor->OnEditorClose().RemoveAll(this);
+			UPackage::PackageDirtyStateChangedEvent.RemoveAll(this);
 		}
 	}
 #endif
@@ -1079,6 +1107,29 @@ bool UWorldPartition::ResolveSubobject(const TCHAR* SubObjectPath, UObject*& Out
 	return false;
 }
 
+void UWorldPartition::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+#if WITH_EDITOR
+	// We need to keep all dirty actors alive, mainly for deleted actors. Normally, these actors are only referenced
+	// by the transaction buffer, but we clear it when unloading regions, etc. and we don't want these actors to die.
+	// Also, we must avoid reporting these references when not collecting garbage, as code such as package deletion
+	// will skip packages with actors still referenced (via GatherObjectReferencersForDeletion).
+	if (IsGarbageCollecting())
+	{
+		UWorldPartition* This = CastChecked<UWorldPartition>(InThis);
+	
+		Collector.AllowEliminatingReferences(false);
+		for (auto [ActorReference, Actor] : This->DirtyActors)
+		{
+			Collector.AddReferencedObject(Actor);
+		}
+		Collector.AllowEliminatingReferences(true);
+	}
+#endif
+
+	Super::AddReferencedObjects(InThis, Collector);
+}
+
 void UWorldPartition::Tick(float DeltaSeconds)
 {
 #if WITH_EDITOR
@@ -1319,7 +1370,7 @@ AActor* UWorldPartition::PinActor(const FGuid& ActorGuid)
 		FWorldPartitionHandle ActorHandle(this, ActorGuid);
 		if (ActorHandle.IsValid())
 		{
-			PinnedActors->AddActor(ActorHandle);
+			PinnedActors->AddActor(ActorHandle, /*bImmediate*/false);
 			return ActorHandle->GetActor();
 		}		
 	}

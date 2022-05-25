@@ -113,6 +113,7 @@ private:
 	void SavePerUserSettings();
 		
 	void OnGCPostReachabilityAnalysis();
+	void OnPackageDirtyStateChanged(UPackage* Package);
 
 	// PIE/Game Methods
 	void OnPreBeginPIE(bool bStartSimulate);
@@ -138,6 +139,7 @@ public:
 
 	//~ Begin UObject Interface
 	virtual bool ResolveSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bLoadIfExists) override;
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface
 
 #if WITH_EDITOR
@@ -254,6 +256,8 @@ private:
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
 
 	TArray<FWorldPartitionReference> LoadedSubobjects;
+
+	TMap<FWorldPartitionReference, AActor*> DirtyActors;
 #endif
 
 	EWorldPartitionInitState InitState;

@@ -52,17 +52,9 @@ public:
 		// Actors filtering
 		bool PassActorDescFilter(const FWorldPartitionHandle& Actor) const;
 		bool PassDataLayersFilter(const FWorldPartitionHandle& Actor) const;
-
-		/**
-		 * Refresh the loaded state of this loader adatper.
-		 *
-		 * @return true if the operation was successful, false otherwise (operation was cancelled by the user
-		 *         if actors needed resaving, etc.
-		 */
-		bool RefreshLoadedState();
+		void RefreshLoadedState();
 
 		void PostLoadedStateChanged(bool bUnloadedActors);
-		bool AllowUnloadingActors(const TArray<FWorldPartitionHandle>& ActorsToUnload) const;
 		void AddReferenceToActor(FWorldPartitionHandle& Actor);
 		void RemoveReferenceToActor(FWorldPartitionHandle& Actor);
 		void OnActorDataLayersEditorLoadingStateChanged(bool bFromUserOperation);		
