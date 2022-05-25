@@ -196,7 +196,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPath(TArrayView<FMVVMConstFieldVariant> InFieldPath, bool bInRead)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPath(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bInRead)
 {
 	Impl->bCompiled = false;
 
@@ -210,7 +210,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompi
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPathImpl(TArrayView<FMVVMConstFieldVariant> InFieldPath, bool bInRead)
+TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FCompiledBindingLibraryCompiler::AddFieldPathImpl(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bInRead)
 {
 	Impl->bCompiled = false;
 
@@ -434,7 +434,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompile
 }
 
 
-TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompiledBindingLibraryCompiler::AddBinding(TArrayView<FFieldPathHandle> InSourceHandles, FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle)
+TValueOrError<FCompiledBindingLibraryCompiler::FBindingHandle, FString> FCompiledBindingLibraryCompiler::AddBinding(TArrayView<const FFieldPathHandle> InSourceHandles, FFieldPathHandle InDestinationHandle, FFieldPathHandle InConversionFunctionHandle)
 {
 	Impl->bCompiled = false;
 

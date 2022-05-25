@@ -165,7 +165,7 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TSu
  *				PropertyD and PropertyE cannot have Getter/BlueprintGetter if they are FStructProperty
  *		* We can only have one Setter/BlueprintSetter in the path
  */
-TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(const TArrayView<FMVVMConstFieldVariant> InFieldPath, bool bForSourceBinding)
+TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TArrayView<const FMVVMConstFieldVariant> InFieldPath, bool bForSourceBinding)
 {
 	if (InFieldPath.Num() == 0)
 	{
@@ -232,7 +232,7 @@ TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(con
 }
 
 
-FString ToString(const TArrayView<FMVVMFieldVariant> Fields)
+FString ToString(TArrayView<const FMVVMFieldVariant> Fields)
 {
 	TStringBuilder<512> Builder;
 	for (int32 Index = 0; Index < Fields.Num(); ++Index)
@@ -247,7 +247,7 @@ FString ToString(const TArrayView<FMVVMFieldVariant> Fields)
 }
 
 
-FString ToString(const TArrayView<FMVVMConstFieldVariant> Fields)
+FString ToString(TArrayView<const FMVVMConstFieldVariant> Fields)
 {
 	TStringBuilder<512> Builder;
 	for (int32 Index = 0; Index < Fields.Num(); ++Index)

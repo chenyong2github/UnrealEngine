@@ -16,11 +16,11 @@ namespace UE::MVVM::FieldPathHelper
 	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TSubclassOf<UObject> From, FStringView FieldPath, bool bForSourceBinding);
 
 	/** */
-	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(const TArrayView<FMVVMConstFieldVariant>, bool bForSourceBinding);
+	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<TArray<FMVVMConstFieldVariant>, FString> GenerateFieldPathList(TArrayView<const FMVVMConstFieldVariant>, bool bForSourceBinding);
 
 	/** */
-	UE_NODISCARD MODELVIEWVIEWMODEL_API FString ToString(const TArrayView<FMVVMFieldVariant> Fields);
-	UE_NODISCARD MODELVIEWVIEWMODEL_API FString ToString(const TArrayView<FMVVMConstFieldVariant> Fields);
+	UE_NODISCARD MODELVIEWVIEWMODEL_API FString ToString(TArrayView<const FMVVMFieldVariant> Fields);
+	UE_NODISCARD MODELVIEWVIEWMODEL_API FString ToString(TArrayView<const FMVVMConstFieldVariant> Fields);
 
 	/** */
 	UE_NODISCARD MODELVIEWVIEWMODEL_API TValueOrError<UObject*, void> EvaluateObjectProperty(const FFieldContext& InSource);

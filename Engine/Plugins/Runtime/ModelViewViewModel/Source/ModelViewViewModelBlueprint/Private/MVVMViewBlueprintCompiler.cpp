@@ -643,7 +643,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		{
 			FCompilerBinding Result;
 
-			for (const TArrayView<UE::MVVM::FMVVMConstFieldVariant>& GetterField : GetterFields)
+			for (const TArray<UE::MVVM::FMVVMConstFieldVariant>& GetterField : GetterFields)
 			{
 				// Generate a path to read the value at runtime
 				TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FieldPathResult = Self->BindingLibraryCompiler.AddFieldPath(GetterField, true);
