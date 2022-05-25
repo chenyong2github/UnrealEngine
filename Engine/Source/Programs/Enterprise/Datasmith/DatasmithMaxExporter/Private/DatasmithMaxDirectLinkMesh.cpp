@@ -45,7 +45,7 @@ public:
 	}
 };
 
-FRenderMeshForConversion GetMeshForGeomObject(TimeValue CurrentTime, INode* Node)
+FRenderMeshForConversion GetMeshForGeomObject(TimeValue CurrentTime, INode* Node, const FTransform& Pivot)
 {
 	// todo: baseline exporter uses GetBaseObject which takes result of EvalWorldState
 	// and searched down DerivedObject pipeline(by taking GetObjRef) 
@@ -58,6 +58,7 @@ FRenderMeshForConversion GetMeshForGeomObject(TimeValue CurrentTime, INode* Node
 
 	FRenderMeshForConversion Result(Node, RenderMesh, bNeedsDelete);
 	Result.SetValidityInterval(ValidityInterval);
+	Result.SetPivot(Pivot);
 	return MoveTemp(Result);
 }
 
@@ -102,7 +103,7 @@ INode* GetCollisionNode(ISceneTracker& SceneTracker, INode* Node, const FDatasmi
 }
 
 
-FRenderMeshForConversion GetMeshForCollision(TimeValue CurrentTime, ISceneTracker& SceneTracker, INode* Node)
+FRenderMeshForConversion GetMeshForCollision(TimeValue CurrentTime, ISceneTracker& SceneTracker, INode* Node, bool bBakePivot)
 {
 	// source: FDatasmithMaxMeshExporter::ExportMesh
 	FDatasmithConverter Converter;
@@ -112,8 +113,6 @@ FRenderMeshForConversion GetMeshForCollision(TimeValue CurrentTime, ISceneTracke
 	FTransform CollisionPivot;
 	if (CollisionNode)
 	{
-
-		bool bBakePivot = false; // todo: bake collision pivot if render mesh pivot is baked
 
 		FTransform ColliderPivot = FDatasmithMaxSceneExporter::GetPivotTransform(CollisionNode, Converter.UnitToCentimeter);
 
@@ -155,9 +154,8 @@ FRenderMeshForConversion GetMeshForCollision(TimeValue CurrentTime, ISceneTracke
 	{
 		return FRenderMeshForConversion();
 	}
-	FRenderMeshForConversion RenderMesh = GetMeshForGeomObject(CurrentTime, CollisionNode);
-	RenderMesh.SetPivot(CollisionPivot);
-	return MoveTemp(RenderMesh);
+
+	return GetMeshForGeomObject(CurrentTime, CollisionNode, CollisionPivot);
 }
 
 
@@ -310,15 +308,13 @@ void SetNormalForAFace(FDatasmithMesh& DatasmithMesh, int32 Index, const FVector
 	DatasmithMesh.SetNormal(Index * 3 + 2, NormalVector.X, NormalVector.Y, NormalVector.Z);
 }
 
-bool FillDatasmithMeshFromBoundingBox(TimeValue CurrentTime, FDatasmithMesh& DatasmithMesh, INode* ExportNode, FTransform Pivot)
+bool FillDatasmithMeshFromBoundingBox(TimeValue CurrentTime, FDatasmithMesh& DatasmithMesh, const GeomUtils::FRenderMeshForConversion& MaxMesh)
 {
-	if (!ExportNode)
+	if (!MaxMesh.GetNode())
 	{
 		return false;
 	}
 	FDatasmithConverter Converter;
-
-	FRenderMeshForConversion MaxMesh = GetMeshForGeomObject(CurrentTime, ExportNode);
 
 	if (!MaxMesh.IsValid())
 	{
@@ -343,7 +339,7 @@ bool FillDatasmithMeshFromBoundingBox(TimeValue CurrentTime, FDatasmithMesh& Dat
 	for (int32 i = 0; i < 8; i++)
 	{
 		FVector Vertex = Converter.toDatasmithVector(BoundingBox[i]);
-		Vertex = Pivot.TransformPosition(Vertex);
+		Vertex = MaxMesh.GetPivot().TransformPosition(Vertex);
 		DatasmithMesh.SetVertex(i, Vertex.X, Vertex.Y, Vertex.Z);
 	}
 
@@ -351,7 +347,7 @@ bool FillDatasmithMeshFromBoundingBox(TimeValue CurrentTime, FDatasmithMesh& Dat
 
 	Matrix3 RotationMatrix;
 	RotationMatrix.IdentityMatrix();
-	Quat ObjectOffsetRotation = ExportNode->GetObjOffsetRot();
+	Quat ObjectOffsetRotation = MaxMesh.GetNode()->GetObjOffsetRot();
 	RotateMatrix(RotationMatrix, ObjectOffsetRotation);
 	Point3 Point;
 	FVector NormalVector;
@@ -557,7 +553,7 @@ bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMes
 	if (DatasmithAttributes && DatasmithAttributes->GetExportMode() == EStaticMeshExportMode::BoundingBox)
 	{
 		FDatasmithMesh DatasmithMesh;
-		if (GeomUtils::FillDatasmithMeshFromBoundingBox(CurrentTime, DatasmithMesh, MeshSource.Node, FTransform::Identity))
+		if (GeomUtils::FillDatasmithMeshFromBoundingBox(CurrentTime, DatasmithMesh, MeshSource.RenderMesh))
 		{
 			Scene.AddMeshElement(MeshConverted.DatasmithMeshElement, DatasmithMesh, nullptr);
 			return true;
@@ -574,7 +570,6 @@ bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMes
 
 	MeshConversionParams RenderMeshParams = {
 		MeshSource.RenderMesh.GetNode(),
-		*MeshSource.MeshName,
 		MeshSource.RenderMesh,
 		MeshSource.bConsolidateMaterialIds
 	};
@@ -614,9 +609,8 @@ bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMes
 
 		MeshConversionParams CollisionParams = {
 			MeshSource.CollisionMesh.GetNode(),
-			nullptr,
 			MeshSource.CollisionMesh,
-			true
+			true // Consolidate material ids into single mesh for collision
 		};
 
 		if (GeomUtils::CreateDatasmithMeshFromMaxMesh(DatasmithCollisionMesh, CollisionParams, SupportedChannelsDummy, UVChannelsMapDummy))

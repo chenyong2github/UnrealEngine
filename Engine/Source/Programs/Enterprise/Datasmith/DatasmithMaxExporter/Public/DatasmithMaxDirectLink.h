@@ -306,7 +306,7 @@ public:
 	GeomUtils::FRenderMeshForConversion RenderMesh; // Extracted render mesh
 	bool bConsolidateMaterialIds; // Whether to join all materials id into single material slot for render mesh (used when a geometry doesn't have a multimaterial assigned)
 
-	GeomUtils::FRenderMeshForConversion CollisionMesh; 
+	GeomUtils::FRenderMeshForConversion CollisionMesh;
 };
 
 
@@ -415,7 +415,6 @@ public:
 struct MeshConversionParams
 {
 	INode* Node; // Node, this geom object created from
-	const TCHAR* MeshName;
 	const GeomUtils::FRenderMeshForConversion& RenderMesh; // Extracted render mesh
 	bool bConsolidateMaterialIds; // Whether to join all materials id into single material slot (used when a geometry doesn't have a multimaterial assigned)
 };

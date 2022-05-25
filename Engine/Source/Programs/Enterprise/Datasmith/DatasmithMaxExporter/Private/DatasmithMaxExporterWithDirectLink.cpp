@@ -166,6 +166,8 @@ struct FInstances: FNoncopyable
 	// Datasmith mesh conversion results
 	FMeshConverted Converted;
 	Interval ValidityInterval;
+	bool bShouldBakePivot; // Pivot(when it's common for all instances) should be baked into vertices in order to avoid creating extra actors
+	FTransform BakePivot; // The pivot transform to bake vertices with
 
 	bool HasMesh()
 	{
@@ -2205,15 +2207,58 @@ public:
 			return;
 		}
 
+		bool bInitial = true;
+		bool bShouldBakePivot = true;
+		FTransform BakePivot = FTransform::Identity;
+
 		for (FNodeTracker* NodeTrackerPtr : Instances.NodeTrackers)
 		{
 			FNodeTracker& NodeTracker = *NodeTrackerPtr;
 			ClearNodeFromDatasmithScene(NodeTracker);
 			if (ensure(NodeTracker.GetConverter().ConverterType == FNodeConverter::MeshNode))
 			{
-				static_cast<FMeshNodeConverter&>(NodeTracker.GetConverter()).bMaterialsAssignedToStaticMesh = false;
+				FMeshNodeConverter& Converter = static_cast<FMeshNodeConverter&>(NodeTracker.GetConverter());
+				Converter.bMaterialsAssignedToStaticMesh = false;
+
+				// Pivot considerations
+				// - Single instance
+				//     a. identity pivot => bShouldBakePivot = false
+				//     b. non-identity pivot => bShouldBakePivot = true (and set BakePivot)
+				// - Multiple nodes
+				//     a. Identity ALL pivots => bShouldBakePivot = false
+				//     b. EQUAL non-Identity ALL pivots => bShouldBakePivot = true
+				//     c. NOT equal pivots => bShouldBakePivot = false, add warning
+				FTransform Pivot;
+				GetPivotTransform(NodeTracker, Pivot);
+
+				if (bInitial)
+				{
+					if (Pivot.Equals(BakePivot))
+					{
+						bShouldBakePivot = false;
+					}
+					else
+					{
+						BakePivot = Pivot;
+						bShouldBakePivot = true;
+					}
+
+					bInitial = false;
+				}
+				else
+				{
+					if (!Pivot.Equals(BakePivot))
+					{
+						bShouldBakePivot = false;
+
+						LogWarning(FString::Printf(TEXT("Multiple different pivots on instances of object %s."), NodeTracker.Node->GetName()));
+					}
+				}
 			}
 		}
+
+		Instances.bShouldBakePivot = bShouldBakePivot;
+		Instances.BakePivot = BakePivot;
 
 		// Export static mesh using first lucky node
 		// todo: possible optimization to reuse previous node. Somehow. 
@@ -2295,8 +2340,10 @@ public:
 		return true;
 	}
 
-	void GetNodeObjectTransform(FNodeTracker& NodeTracker, FDatasmithConverter Converter, FTransform& ObjectTransform)
+	void GetNodeObjectTransform(FNodeTracker& NodeTracker, FTransform& ObjectTransform)
 	{
+		FDatasmithConverter Converter;
+
 		FVector Translation, Scale;
 		FQuat Rotation;
 
@@ -2394,6 +2441,12 @@ public:
 		}
 	}
 
+	void GetPivotTransform(FNodeTracker& NodeTracker, FTransform& Pivot)
+	{
+		FDatasmithConverter Converter;
+		Pivot = FDatasmithMaxSceneExporter::GetPivotTransform(NodeTracker.Node, Converter.UnitToCentimeter);
+	}
+
 	virtual void ConvertGeometryNodeToDatasmith(FNodeTracker& NodeTracker, FMeshNodeConverter& MeshConverter) override
 	{
 		FInstances* InstancesPtr = InstancesManager.GetInstancesForNodeTracker(NodeTracker);
@@ -2403,15 +2456,15 @@ public:
 		}
 		FInstances& Instances = *InstancesPtr;
 
-		FDatasmithConverter Converter;
-
 		FTransform ObjectTransform;
-		GetNodeObjectTransform(NodeTracker, Converter, ObjectTransform);
+		GetNodeObjectTransform(NodeTracker, ObjectTransform);
 
-		FTransform Pivot = FDatasmithMaxSceneExporter::GetPivotTransform(NodeTracker.Node, Converter.UnitToCentimeter);
+		FTransform Pivot;
+		GetPivotTransform(NodeTracker, Pivot);
 
-		// Create separate actor only when there are multiple instances, 
-		bool bNeedPivotComponent = !Pivot.Equals(FTransform::Identity) && (Instances.NodeTrackers.Num() > 1) && Instances.HasMesh();  
+		bool bPivotBakedInMesh = Instances.bShouldBakePivot;
+		// Create separate actor only when there are multiple instances
+		bool bNeedPivotComponent = !bPivotBakedInMesh && !Pivot.Equals(FTransform::Identity) && (Instances.NodeTrackers.Num() > 1) && Instances.HasMesh();  
 
 		TSharedPtr<IDatasmithActorElement> DatasmithActorElement;
 		TSharedPtr<IDatasmithMeshActorElement> DatasmithMeshActor;
@@ -2453,15 +2506,16 @@ public:
 		}
 
 		// Set transforms
+
+		// Remove pivot from the node actor transform when pivot is baked or separate component is created for pivot
+		FTransform NodeTransform = (bPivotBakedInMesh || bNeedPivotComponent) ? (Pivot.Inverse() * ObjectTransform) : ObjectTransform;
+
+		DatasmithActorElement->SetTranslation(NodeTransform.GetTranslation());
+		DatasmithActorElement->SetScale(NodeTransform.GetScale3D());
+		DatasmithActorElement->SetRotation(NodeTransform.GetRotation());
+
 		if (bNeedPivotComponent) 
 		{
-			// Remove pivot from the node actor transform
-			FTransform NodeTransform = Pivot.Inverse() * ObjectTransform;
-
-			DatasmithActorElement->SetTranslation(NodeTransform.GetTranslation());
-			DatasmithActorElement->SetScale(NodeTransform.GetScale3D());
-			DatasmithActorElement->SetRotation(NodeTransform.GetRotation());
-
 			// Setup mesh actor with (relative)pivot transform
 			DatasmithMeshActor->SetTranslation(Pivot.GetTranslation());
 			DatasmithMeshActor->SetRotation(Pivot.GetRotation());
@@ -2469,14 +2523,6 @@ public:
 			DatasmithMeshActor->SetIsAComponent( true );
 
 			DatasmithActorElement->AddChild(DatasmithMeshActor, EDatasmithActorAttachmentRule::KeepRelativeTransform);
-		}
-		else
-		{
-			FTransform NodeTransform = ObjectTransform;
-
-			DatasmithActorElement->SetTranslation(NodeTransform.GetTranslation());
-			DatasmithActorElement->SetScale(NodeTransform.GetScale3D());
-			DatasmithActorElement->SetRotation(NodeTransform.GetRotation());
 		}
 
 		FNodeConverted& Converted = NodeTracker.CreateConverted();
@@ -2531,8 +2577,8 @@ public:
 
 		FMeshConverterSource MeshSource = {
 			Node, MeshName,
-			GeomUtils::GetMeshForGeomObject(CurrentSyncPoint.Time, Node), false,
-			GeomUtils::GetMeshForCollision(CurrentSyncPoint.Time, *this, Node),
+			GeomUtils::GetMeshForGeomObject(CurrentSyncPoint.Time, Node, Instances.bShouldBakePivot ? Instances.BakePivot : FTransform::Identity), false,
+			GeomUtils::GetMeshForCollision(CurrentSyncPoint.Time, *this, Node, Instances.bShouldBakePivot),
 		};
 
 		Instances.ValidityInterval = MeshSource.RenderMesh.GetValidityInterval() & MeshSource.CollisionMesh.GetValidityInterval();
@@ -2588,9 +2634,8 @@ public:
 			NodeTracker.GetConverted().DatasmithActorElement->SetLayer(*NodeTracker.Layer->Name);
 		}
 
-		FDatasmithConverter Converter;
 		FTransform ObjectTransform;
-		GetNodeObjectTransform(NodeTracker, Converter, ObjectTransform);
+		GetNodeObjectTransform(NodeTracker, ObjectTransform);
 
 		FTransform NodeTransform = ObjectTransform;
 		TSharedRef<IDatasmithActorElement> DatasmithActorElement = NodeTracker.GetConverted().DatasmithActorElement.ToSharedRef();
