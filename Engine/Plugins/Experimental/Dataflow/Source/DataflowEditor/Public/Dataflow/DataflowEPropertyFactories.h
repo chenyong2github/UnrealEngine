@@ -10,6 +10,9 @@
 #include "IDetailCustomization.h"
 #include "Misc/Optional.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SCheckBox.h"
 
 namespace Dataflow
 {
