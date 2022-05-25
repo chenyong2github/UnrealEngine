@@ -8,6 +8,7 @@
 #include "DataflowEditorToolkit.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowAssetActions.h"
+#include "Dataflow/DataflowEPropertyCustomizations.h"
 #include "Dataflow/DataflowSNodeFactories.h"
 
 #define LOCTEXT_NAMESPACE "DataflowEditor"
@@ -23,6 +24,8 @@ void IDataflowEditorPlugin::StartupModule()
 	IAssetTools& AssetTools = AssetToolsModule.Get();
 	AssetTools.RegisterAssetTypeActions(MakeShareable(DataflowAssetActions));
 
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+	PropertyEditorModule.RegisterCustomClassLayout(UDataflowSEditorObject::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FDataflowSEditorCustomization::MakeInstance));
 
 	DataflowSNodeFactory = MakeShareable(new FDataflowSNodeFactory());
 	FEdGraphUtilities::RegisterVisualNodeFactory(DataflowSNodeFactory);

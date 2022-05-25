@@ -6,6 +6,16 @@
 
 namespace Dataflow
 {
+
+	void FNode::AddProperty(FProperty* InPtr)
+	{
+		for (FProperty* In : Properties)
+		{
+			ensureMsgf(!In->GetName().IsEqual(InPtr->GetName()), TEXT("Add Property Failed: Existing Node property already defined with name (%s)"), *InPtr->GetName().ToString());
+		}
+		Properties.Add(InPtr);
+	}
+
 	void FNode::AddInput(FConnection* InPtr)
 	{ 
 		for (FConnection* In : Inputs)
@@ -66,6 +76,15 @@ namespace Dataflow
 			}
 		}
 		return nullptr;
+	}
+
+
+	void FNode::SerializeInternal(FArchive& Ar) 
+	{
+		for (FProperty* Prop : GetProperties())
+		{
+			Prop->Serialize(Ar);
+		}
 	}
 
 }

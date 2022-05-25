@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowConnection.h"
+#include "Dataflow/DataflowProperty.h"
 #include "Dataflow/DataflowNodeParameters.h"
 
 namespace Dataflow
@@ -21,12 +22,14 @@ namespace Dataflow
 	{
 		friend class FGraph;
 		friend class FConnection;
+		friend class FProperty;
 
 		FGuid Guid;
 		FName Name;
 
 		TArray< FConnection* > Inputs;
 		TArray< FConnection* > Outputs;
+		TArray< FProperty* > Properties;
 	public:
 
 		FNode(const FNodeParameters& Param, FGuid InGuid = FGuid::NewGuid())
@@ -49,7 +52,11 @@ namespace Dataflow
 		virtual void Evaluate(const FContext& Context, FConnection*) const { ensure(false); }
 		void InvalidateOutputs();
 
-		virtual void SerializeInternal(FArchive& Ar) {};
+		virtual void SerializeInternal(FArchive& Ar);
+
+		void AddProperty(FProperty* InPtr);
+		const TArray< FProperty* >& GetProperties() const { return Properties; }
+		TArray< FProperty* >& GetProperties() { return Properties; }
 
 		void AddInput(FConnection* InPtr);
 		const TArray< FConnection* >& GetInputs() const { return Inputs; }
