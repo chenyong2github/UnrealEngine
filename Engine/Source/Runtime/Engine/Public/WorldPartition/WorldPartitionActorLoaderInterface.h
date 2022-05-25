@@ -49,6 +49,10 @@ public:
 		void RegisterDelegates();
 		void UnregisterDelegates();
 
+		// Actors filtering
+		bool PassActorDescFilter(const FWorldPartitionHandle& Actor) const;
+		bool PassDataLayersFilter(const FWorldPartitionHandle& Actor) const;
+
 		/**
 		 * Refresh the loaded state of this loader adatper.
 		 *

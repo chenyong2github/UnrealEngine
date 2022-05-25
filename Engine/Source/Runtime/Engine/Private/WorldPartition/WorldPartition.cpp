@@ -253,7 +253,7 @@ protected:
 	//~ Begin IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 	virtual bool ShouldActorBeLoaded(const FWorldPartitionHandle& ActorHandle) const override
 	{
-		return (ActorHandle != ActorToRemove) && FLoaderAdapterList::ShouldActorBeLoaded(ActorHandle);
+		return (ActorHandle != ActorToRemove) && PassDataLayersFilter(ActorHandle);
 	}
 	//~ End IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 
