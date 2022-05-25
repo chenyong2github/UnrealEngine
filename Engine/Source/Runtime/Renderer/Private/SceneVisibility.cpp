@@ -3337,9 +3337,9 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 	}
 	
 	const bool bIsHairStrandsCompatible = ViewRelevance.bHairStrands && IsHairStrandsEnabled(EHairStrandsShaderType::All, View.GetShaderPlatform());
-	if (bIsHairStrandsCompatible && HairStrands::IsHairVisible(MeshBatch))
+	if (bIsHairStrandsCompatible)
 	{
-		if (HairStrands::IsHairStrandsVF(MeshBatch.Mesh))
+		if (HairStrands::IsHairStrandsVF(MeshBatch.Mesh) && HairStrands::IsHairVisible(MeshBatch))
 		{
 			View.HairStrandsMeshElements.AddUninitialized(1);
 			FMeshBatchAndRelevance& BatchAndProxy = View.HairStrandsMeshElements.Last();
