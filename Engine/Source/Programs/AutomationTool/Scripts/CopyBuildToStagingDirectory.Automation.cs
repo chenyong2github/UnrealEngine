@@ -3677,7 +3677,8 @@ namespace AutomationScripts
 
 					string OriginalFilename = StagingFile.Key;
 					string NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(OriginalFilename));
-					if(Path.GetExtension(NoExtension) == ".m")
+					string AdditionalExtension = Path.GetExtension(NoExtension);
+					if (AdditionalExtension == ".m" || AdditionalExtension == ".o")
 					{
 						// Hack around .m.ubulk files having a double extension
 						NoExtension = CombinePaths(Path.GetDirectoryName(OriginalFilename), Path.GetFileNameWithoutExtension(NoExtension));
