@@ -12,11 +12,19 @@
 #include "IKeyArea.h"
 #include "Misc/FrameRate.h"
 
+namespace UE
+{
+namespace Sequencer
+{
+class FChannelModel;
+}
+}
+
 /** Simple structure that caches the sorted key times for a given key area */
 struct FSequencerCachedKeys
 {
-	FSequencerCachedKeys(TSharedRef<IKeyArea> InKeyArea)
-		: KeyArea(InKeyArea)
+	FSequencerCachedKeys(TSharedPtr<UE::Sequencer::FChannelModel> InChannel)
+		: WeakChannel(InChannel)
 	{}
 
 	/**
@@ -29,9 +37,9 @@ struct FSequencerCachedKeys
 	void GetKeysInRange(const TRange<double>& Range, TArrayView<const double>* OutTimes, TArrayView<const FFrameNumber>* OutKeyFrames, TArrayView<const FKeyHandle>* OutHandles) const;
 
 	/** Get the key area this cache was generated for, or nullptr if the cache has never been updated */
-	const TSharedPtr<IKeyArea>& GetKeyArea() const
+	TSharedPtr<UE::Sequencer::FChannelModel> GetChannel() const
 	{
-		return KeyArea;
+		return WeakChannel.Pin();
 	}
 
 private:
@@ -47,6 +55,6 @@ private:
 	FFrameRate CachedTickResolution;
 
 	/** The key area this cache is for */
-	TSharedPtr<IKeyArea> KeyArea;
+	TWeakPtr<UE::Sequencer::FChannelModel> WeakChannel;
 };
 

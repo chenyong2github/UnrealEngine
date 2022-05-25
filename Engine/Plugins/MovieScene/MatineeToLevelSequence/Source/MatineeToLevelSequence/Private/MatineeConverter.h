@@ -109,7 +109,7 @@ T* FMatineeConverter::AddPropertyTrack(FName InPropertyName, AActor* InActor, co
 
 		if (ChildPossessable)
 		{
-			ChildPossessable->SetParent(PossessableGuid);
+			ChildPossessable->SetParent(PossessableGuid, NewMovieScene);
 		}
 
 		// cbb: String manipulations to get the property path in the right form for sequencer

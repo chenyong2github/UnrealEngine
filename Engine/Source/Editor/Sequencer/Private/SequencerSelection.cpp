@@ -2,16 +2,46 @@
 
 #include "SequencerSelection.h"
 #include "MovieSceneSection.h"
-#include "DisplayNodes/SequencerObjectBindingNode.h"
-#include "DisplayNodes/SequencerTrackNode.h"
 #include "SequencerCommonHelpers.h"
+
+#include "MVVM/SharedViewModelData.h"
+#include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/Extensions/IObjectBindingExtension.h"
+#include "MVVM/Extensions/ISelectableExtension.h"
+#include "MVVM/SectionModelStorageExtension.h"
 
 FSequencerSelection::FSequencerSelection()
 	: SerialNumber(0)
 	, SuspendBroadcastCount(0)
 	, bOutlinerNodeSelectionChangedBroadcastPending(false)
 	, bEmptySelectedOutlinerNodesWithSectionsPending(false)
+	, bNodesWithSelectedKeysOrSectionsDirty(false)
 {
+}
+
+TSharedPtr<UE::Sequencer::FViewModel> FSequencerSelection::GetRootModel() const
+{
+	return RootModel;
+}
+
+void FSequencerSelection::SetRootModel(TSharedPtr<UE::Sequencer::FViewModel> InRootModel)
+{
+	if (RootModel && HierarchyChangedHandle.IsValid())
+	{
+		RootModel->GetSharedData()->UnsubscribeFromHierarchyChanged(RootModel, HierarchyChangedHandle);
+		HierarchyChangedHandle = FDelegateHandle();
+	}
+
+	RootModel = InRootModel;
+
+	if (RootModel)
+	{
+		FSimpleMulticastDelegate& HierarchyChanged = RootModel->GetSharedData()->SubscribeToHierarchyChanged(RootModel);
+		HierarchyChangedHandle = HierarchyChanged.AddRaw(this, &FSequencerSelection::OnHierarchyChanged);
+	}
 }
 
 const TSet<FSequencerSelectedKey>& FSequencerSelection::GetSelectedKeys() const
@@ -19,18 +49,76 @@ const TSet<FSequencerSelectedKey>& FSequencerSelection::GetSelectedKeys() const
 	return SelectedKeys;
 }
 
-const TSet<TWeakObjectPtr<UMovieSceneSection>>& FSequencerSelection::GetSelectedSections() const
+TSet<TWeakObjectPtr<UMovieSceneSection>> FSequencerSelection::GetSelectedSections() const
 {
-	return SelectedSections;
+	using namespace UE::Sequencer;
+
+	TSet<TWeakObjectPtr<UMovieSceneSection>> Sections;
+
+	for (const TWeakPtr<FViewModel>& TrackAreaModel : SelectedTrackAreaItems)
+	{
+		if (TSharedPtr<FViewModel> Pinned = TrackAreaModel.Pin())
+		{
+			FSectionModel* Section = Pinned->CastThis<FSectionModel>();
+			if (Section && Section->GetSection())
+			{
+				Sections.Add(Section->GetSection());
+			}
+		}
+	}
+
+	return Sections;
 }
 
-const TSet<TSharedRef<FSequencerDisplayNode>>& FSequencerSelection::GetSelectedOutlinerNodes() const
+const TSet<TWeakPtr<UE::Sequencer::FViewModel>>& FSequencerSelection::GetSelectedOutlinerItems() const
 {
-	return SelectedOutlinerNodes;
+	return SelectedOutlinerItems;
 }
 
-const TSet<TSharedRef<FSequencerDisplayNode>>& FSequencerSelection::GetNodesWithSelectedKeysOrSections() const
+const TSet<TWeakPtr<UE::Sequencer::FViewModel>>& FSequencerSelection::GetSelectedTrackAreaItems() const
 {
+	return SelectedTrackAreaItems;
+}
+
+const TSet<TWeakPtr<UE::Sequencer::FViewModel>>& FSequencerSelection::GetNodesWithSelectedKeysOrSections() const
+{
+	using namespace UE::Sequencer;
+
+	if (!bNodesWithSelectedKeysOrSectionsDirty)
+	{
+		return NodesWithSelectedKeysOrSections;
+	}
+
+	bNodesWithSelectedKeysOrSectionsDirty = false;
+	NodesWithSelectedKeysOrSections.Empty();
+
+	// Handle selected keys
+	for (const FSequencerSelectedKey& Key : SelectedKeys)
+	{
+		if (TSharedPtr<FChannelModel> Channel = Key.WeakChannel.Pin())
+		{
+			TViewModelPtr<IOutlinerExtension> Outliner = Channel->GetLinkedOutlinerItem();
+			if (Outliner)
+			{
+				NodesWithSelectedKeysOrSections.Add(Outliner.AsModel());
+			}
+		}
+	}
+
+	// Handle selected track area items
+	for (TWeakPtr<FViewModel> WeakTrackAreaModel : SelectedTrackAreaItems)
+	{
+		TSharedPtr<FViewModel> TrackAreaModel = WeakTrackAreaModel.Pin();
+		if (TrackAreaModel)
+		{
+			TViewModelPtr<IOutlinerExtension> OutlinerItem = TrackAreaModel->FindAncestorOfType<IOutlinerExtension>();
+			if (OutlinerItem)
+			{
+				NodesWithSelectedKeysOrSections.Add(OutlinerItem.AsModel());
+			}
+		}
+	}
+
 	return NodesWithSelectedKeysOrSections;
 }
 
@@ -39,19 +127,9 @@ FSequencerSelection::FOnSelectionChanged& FSequencerSelection::GetOnKeySelection
 	return OnKeySelectionChanged;
 }
 
-FSequencerSelection::FOnSelectionChanged& FSequencerSelection::GetOnSectionSelectionChanged()
-{
-	return OnSectionSelectionChanged;
-}
-
 FSequencerSelection::FOnSelectionChanged& FSequencerSelection::GetOnOutlinerNodeSelectionChanged()
 {
 	return OnOutlinerNodeSelectionChanged;
-}
-
-FSequencerSelection::FOnSelectionChanged& FSequencerSelection::GetOnNodesWithSelectedKeysOrSectionsChanged()
-{
-	return OnNodesWithSelectedKeysOrSectionsChanged;
 }
 
 FSequencerSelection::FOnSelectionChangedObjectGuids& FSequencerSelection::GetOnOutlinerNodeSelectionChangedObjectGuids()
@@ -61,27 +139,24 @@ FSequencerSelection::FOnSelectionChangedObjectGuids& FSequencerSelection::GetOnO
 
 TArray<FGuid> FSequencerSelection::GetBoundObjectsGuids()
 {
-	TArray<FGuid> OutGuids;
-	TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = GetNodesWithSelectedKeysOrSections();
-	if (SelectedNodes.Num() == 0)
-	{
-		SelectedNodes = GetSelectedOutlinerNodes();
-	}
-	for (TSharedRef<FSequencerDisplayNode> Node : SelectedNodes)
-	{
-		TSharedPtr<FSequencerObjectBindingNode> ObjectNode = Node->FindParentObjectBindingNode();
-		if (Node->GetType() == ESequencerNode::Object)
-		{
-			ObjectNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
-		}
-		else
-		{
-			ObjectNode = Node->FindParentObjectBindingNode();
-		}
+	using namespace UE::Sequencer;
 
-		if (ObjectNode.IsValid())
+	TArray<FGuid> OutGuids;
+	TSet<TWeakPtr<FViewModel>> SelectedItems = GetNodesWithSelectedKeysOrSections();
+	if (SelectedItems.Num() == 0)
+	{
+		SelectedItems = GetSelectedOutlinerItems();
+	}
+	for (TWeakPtr<FViewModel> WeakModel : SelectedItems)
+	{
+		TSharedPtr<FViewModel> Model = WeakModel.Pin();
+		if (Model)
 		{
-			OutGuids.Add(ObjectNode->GetObjectBinding());
+			TSharedPtr<IObjectBindingExtension> ObjectBinding = Model->FindAncestorOfType<IObjectBindingExtension>(true);
+			if (ObjectBinding)
+			{
+				OutGuids.Add(ObjectBinding->GetObjectGuid());
+			}
 		}
 	}
 
@@ -90,22 +165,19 @@ TArray<FGuid> FSequencerSelection::GetBoundObjectsGuids()
 
 TArray<UMovieSceneTrack*> FSequencerSelection::GetSelectedTracks() const
 {
-	TArray<UMovieSceneTrack*> OutTracks;
-	
-	for (const TSharedRef<FSequencerDisplayNode>& SelectedNode : SelectedOutlinerNodes)
-	{
-		TSharedPtr<FSequencerDisplayNode> CurrentNode = SelectedNode;
-		while (CurrentNode.IsValid() && CurrentNode->GetType() != ESequencerNode::Track)
-		{
-			CurrentNode = CurrentNode->GetParent();
-		}
+	using namespace UE::Sequencer;
 
-		if (CurrentNode.IsValid())
+	TArray<UMovieSceneTrack*> OutTracks;
+
+	for (TWeakPtr<FViewModel> WeakModel : SelectedOutlinerItems)
+	{
+		TSharedPtr<FViewModel> Model = WeakModel.Pin();
+		if (Model)
 		{
-			UMovieSceneTrack* SelectedTrack = StaticCastSharedPtr<FSequencerTrackNode>(CurrentNode)->GetTrack();
-			if (SelectedTrack != nullptr)
+			TSharedPtr<FTrackModel> Track = Model->FindAncestorOfType<FTrackModel>(true);
+			if (Track)
 			{
-				OutTracks.Add(SelectedTrack);
+				OutTracks.Add(Track->GetTrack());
 			}
 		}
 	}
@@ -113,11 +185,67 @@ TArray<UMovieSceneTrack*> FSequencerSelection::GetSelectedTracks() const
 	return OutTracks;
 }
 
+void FSequencerSelection::AddToSelection(TSharedPtr<UE::Sequencer::FViewModel> InModel)
+{
+	if (InModel->IsA<UE::Sequencer::IOutlinerExtension>())
+	{
+		AddToOutlinerSelection(InModel);
+	}
+	else
+	{
+		AddToTrackAreaSelection(InModel);
+	}
+}
+
+void FSequencerSelection::AddToTrackAreaSelection(TSharedPtr<UE::Sequencer::FViewModel> InModel)
+{
+	using namespace UE::Sequencer;
+
+	ISelectableExtension* Selectable = InModel->CastThis<ISelectableExtension>();
+	if (Selectable && Selectable->IsSelectable() == ESelectionIntent::Never)
+	{
+		return;
+	}
+
+	bNodesWithSelectedKeysOrSectionsDirty = true;
+	++SerialNumber;
+	SelectedTrackAreaItems.Add(InModel);
+
+	if (TSharedPtr<IOutlinerExtension> ParentItem = InModel->FindAncestorOfType<IOutlinerExtension>())
+	{
+		ParentItem->ToggleSelectionState(EOutlinerSelectionState::HasSelectedTrackAreaItems, true);
+	}
+
+	if (FSectionModel* SectionModel = InModel->CastThis<FSectionModel>())
+	{
+		if (UMovieSceneSection* Section = SectionModel->GetSection())
+		{
+			if ( IsBroadcasting() )
+			{
+				OnSectionSelectionChanged.Broadcast();
+				OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
+			}
+
+			// Deselect any outliner nodes that aren't within the trunk of this section
+			EmptySelectedOutlinerNodesWithoutSections(TArray<UMovieSceneSection*>{Section});
+		}
+	}
+}
+
 void FSequencerSelection::AddToSelection(const FSequencerSelectedKey& Key)
 {
+	using namespace UE::Sequencer;
+
+	bNodesWithSelectedKeysOrSectionsDirty = true;
 	++SerialNumber;
 
 	SelectedKeys.Add(Key);
+
+	if (TViewModelPtr<IOutlinerExtension> OutlinerItem = Key.WeakChannel.Pin()->GetLinkedOutlinerItem())
+	{
+		OutlinerItem->ToggleSelectionState(EOutlinerSelectionState::HasSelectedKeys, true);
+	}
+
 	if ( IsBroadcasting() )
 	{
 		OnKeySelectionChanged.Broadcast();
@@ -135,116 +263,139 @@ void FSequencerSelection::AddToSelection(const FSequencerSelectedKey& Key)
 	}
 }
 
-void FSequencerSelection::AddToSelection(UMovieSceneSection* Section)
+void FSequencerSelection::AddToOutlinerSelection(TSharedPtr<UE::Sequencer::FViewModel> InModel)
 {
-	++SerialNumber;
+	using namespace UE::Sequencer;
 
-	SelectedSections.Add(Section);
-	if ( IsBroadcasting() )
+	ISelectableExtension* Selectable = InModel->CastThis<ISelectableExtension>();
+	if (Selectable && Selectable->IsSelectable() == ESelectionIntent::Never)
 	{
-		OnSectionSelectionChanged.Broadcast();
-		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
-
-		// Deselect any outliner nodes that aren't within the trunk of this section
-		if (Section)
-		{
-			TArray<UMovieSceneSection*> Sections;
-			Sections.Add(Section);
-		
-			EmptySelectedOutlinerNodesWithoutSections(Sections);
-		}
+		return;
 	}
-	else
-	{	
-		bEmptySelectedOutlinerNodesWithSectionsPending = true;
-	}
-}
 
-void FSequencerSelection::AddToSelection(TSharedRef<FSequencerDisplayNode> OutlinerNode)
-{
 	++SerialNumber;
 
-	SelectedOutlinerNodes.Add(OutlinerNode);
+	SelectedOutlinerItems.Add(InModel);
+	if (IOutlinerExtension* OutlinerItem = InModel->CastThis<IOutlinerExtension>())
+	{
+		OutlinerItem->SetSelectionState(EOutlinerSelectionState::SelectedDirectly);
+	}
+
 	if ( IsBroadcasting() )
 	{
 		OnOutlinerNodeSelectionChanged.Broadcast();
 		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
 	}
+
 	EmptySelectedKeys();
-	EmptySelectedSections();
-	EmptyNodesWithSelectedKeysOrSections();
+	EmptySelectedTrackAreaItems();
 }
 
-void FSequencerSelection::AddToSelection(const TArray<TSharedRef<FSequencerDisplayNode>>& OutlinerNodes)
+void FSequencerSelection::AddToSelection(const TArrayView<TSharedPtr<UE::Sequencer::FViewModel>>& InModels)
 {
+	using namespace UE::Sequencer;
+
 	++SerialNumber;
 
-	SelectedOutlinerNodes.Append(OutlinerNodes);
+	for (TSharedPtr<FViewModel> InModel : InModels)
+	{
+		SelectedOutlinerItems.Add(InModel);
+		if (IOutlinerExtension* OutlinerItem = InModel->CastThis<IOutlinerExtension>())
+		{
+			OutlinerItem->SetSelectionState(EOutlinerSelectionState::SelectedDirectly);
+		}
+	}
+
 	if (IsBroadcasting())
 	{
 		OnOutlinerNodeSelectionChanged.Broadcast();
 		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
 	}
+
 	EmptySelectedKeys();
-	EmptySelectedSections();
-	EmptyNodesWithSelectedKeysOrSections();
+	EmptySelectedTrackAreaItems();
 }
 
-void FSequencerSelection::AddToNodesWithSelectedKeysOrSections(TSharedRef<FSequencerDisplayNode> OutlinerNode)
+void FSequencerSelection::AddToSelection(const TArrayView<TSharedRef<UE::Sequencer::FViewModel>>& InModels)
 {
+	using namespace UE::Sequencer;
+
 	++SerialNumber;
 
-	NodesWithSelectedKeysOrSections.Add(OutlinerNode);
-	if ( IsBroadcasting() )
+	for (TSharedRef<FViewModel> InModel : InModels)
 	{
-		++SerialNumber;
-		OnNodesWithSelectedKeysOrSectionsChanged.Broadcast();
+		SelectedOutlinerItems.Add(InModel);
+		if (IOutlinerExtension* OutlinerItem = InModel->CastThis<IOutlinerExtension>())
+		{
+			OutlinerItem->SetSelectionState(EOutlinerSelectionState::SelectedDirectly);
+		}
+	}
+
+	if (IsBroadcasting())
+	{
+		OnOutlinerNodeSelectionChanged.Broadcast();
 		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
 	}
+
+	EmptySelectedKeys();
+	EmptySelectedTrackAreaItems();
 }
 
 
 void FSequencerSelection::RemoveFromSelection(const FSequencerSelectedKey& Key)
 {
+	using namespace UE::Sequencer;
+
+	bNodesWithSelectedKeysOrSectionsDirty = true;
 	++SerialNumber;
 
 	SelectedKeys.Remove(Key);
+
+	if (TViewModelPtr<IOutlinerExtension> OutlinerItem = Key.WeakChannel.Pin()->GetLinkedOutlinerItem())
+	{
+		OutlinerItem->ToggleSelectionState(EOutlinerSelectionState::HasSelectedKeys, false);
+	}
+
 	if ( IsBroadcasting() )
 	{
 		OnKeySelectionChanged.Broadcast();
 	}
 }
 
-void FSequencerSelection::RemoveFromSelection(UMovieSceneSection* Section)
+void FSequencerSelection::RemoveFromSelection(TWeakPtr<UE::Sequencer::FViewModel> InModel)
 {
-	++SerialNumber;
-
-	SelectedSections.Remove(Section);
-	if ( IsBroadcasting() )
+	if (TSharedPtr<UE::Sequencer::FViewModel> InModelPtr = InModel.Pin())
 	{
-		OnSectionSelectionChanged.Broadcast();
+		RemoveFromSelection(InModelPtr);
 	}
 }
 
-void FSequencerSelection::RemoveFromSelection(TSharedRef<FSequencerDisplayNode> OutlinerNode)
+void FSequencerSelection::RemoveFromSelection(TSharedPtr<UE::Sequencer::FViewModel> OutlinerNode)
 {
+	if (OutlinerNode)
+	{
+		RemoveFromSelection(OutlinerNode.ToSharedRef());
+	}
+}
+
+void FSequencerSelection::RemoveFromSelection(TSharedRef<UE::Sequencer::FViewModel> OutlinerNode)
+{
+	using namespace UE::Sequencer;
+
+	bNodesWithSelectedKeysOrSectionsDirty = true;
 	++SerialNumber;
 
-	SelectedOutlinerNodes.Remove(OutlinerNode);
+	SelectedOutlinerItems.Remove(OutlinerNode);
+	SelectedTrackAreaItems.Remove(OutlinerNode);
+
+	if (IOutlinerExtension* OutlinerItem = OutlinerNode->CastThis<IOutlinerExtension>())
+	{
+		OutlinerItem->SetSelectionState(EOutlinerSelectionState::None);
+	}
+
 	if ( IsBroadcasting() )
 	{
 		OnOutlinerNodeSelectionChanged.Broadcast();
-	}
-}
-
-void FSequencerSelection::RemoveFromNodesWithSelectedKeysOrSections(TSharedRef<FSequencerDisplayNode> OutlinerNode)
-{
-	++SerialNumber;
-
-	NodesWithSelectedKeysOrSections.Remove(OutlinerNode);
-	if ( IsBroadcasting() )
-	{
-		OnNodesWithSelectedKeysOrSectionsChanged.Broadcast();
 	}
 }
 
@@ -253,92 +404,142 @@ bool FSequencerSelection::IsSelected(const FSequencerSelectedKey& Key) const
 	return SelectedKeys.Contains(Key);
 }
 
-bool FSequencerSelection::IsSelected(UMovieSceneSection* Section) const
+bool FSequencerSelection::IsSelected(TWeakPtr<UE::Sequencer::FViewModel> InModel) const
 {
-	return SelectedSections.Contains(Section);
+	return SelectedOutlinerItems.Contains(InModel) || SelectedTrackAreaItems.Contains(InModel);
 }
 
-bool FSequencerSelection::IsSelected(TSharedRef<FSequencerDisplayNode> OutlinerNode) const
+bool FSequencerSelection::NodeHasSelectedKeysOrSections(TWeakPtr<UE::Sequencer::FViewModel> InModel) const
 {
-	return SelectedOutlinerNodes.Contains(OutlinerNode);
-}
-
-bool FSequencerSelection::NodeHasSelectedKeysOrSections(TSharedRef<FSequencerDisplayNode> OutlinerNode) const
-{
-	return NodesWithSelectedKeysOrSections.Contains(OutlinerNode);
+	return GetNodesWithSelectedKeysOrSections().Contains(InModel);
 }
 
 void FSequencerSelection::Empty()
 {
+	using namespace UE::Sequencer;
+
+	bNodesWithSelectedKeysOrSectionsDirty = true;
 	++SerialNumber;
 
+	FSectionModelStorageExtension* SectionModelStorage = RootModel->CastDynamicChecked<FSectionModelStorageExtension>();
+	for (const FSequencerSelectedKey& Key : SelectedKeys)
+	{
+		if (TSharedPtr<FSectionModel> SectionModel = SectionModelStorage->FindModelForSection(Key.Section))
+		{
+			for (TSharedPtr<IOutlinerExtension> ParentItem : SectionModel->GetAncestorsOfType<IOutlinerExtension>(true))
+			{
+				ParentItem->SetSelectionState(EOutlinerSelectionState::None);
+			}
+		}
+	}
+	for (TWeakPtr<FViewModel> WeakModel : SelectedTrackAreaItems)
+	{
+		if (TSharedPtr<FViewModel> Model = WeakModel.Pin())
+		{
+			for (TSharedPtr<IOutlinerExtension> ParentOutlinerItem : Model->GetAncestorsOfType<IOutlinerExtension>())
+			{
+				ParentOutlinerItem->SetSelectionState(EOutlinerSelectionState::None);
+			}
+		}
+	}
+	for (TWeakPtr<FViewModel> WeakModel : SelectedOutlinerItems)
+	{
+		if (TSharedPtr<FViewModel> Model = WeakModel.Pin())
+		{
+			if (IOutlinerExtension* OutlinerItem = Model->CastThis<IOutlinerExtension>())
+			{
+				OutlinerItem->SetSelectionState(EOutlinerSelectionState::None);
+			}
+		}
+	}
+
 	EmptySelectedKeys();
-	EmptySelectedSections();
 	EmptySelectedOutlinerNodes();
-	EmptyNodesWithSelectedKeysOrSections();
+	EmptySelectedTrackAreaItems();
 }
 
 void FSequencerSelection::EmptySelectedKeys()
 {
+	using namespace UE::Sequencer;
+
 	if (!SelectedKeys.Num())
 	{
 		return;
 	}
 
+	bNodesWithSelectedKeysOrSectionsDirty = true;
 	++SerialNumber;
 
+	FSectionModelStorageExtension* SectionModelStorage = RootModel->CastDynamicChecked<FSectionModelStorageExtension>();
+	for (const FSequencerSelectedKey& Key : SelectedKeys)
+	{
+		if (TViewModelPtr<IOutlinerExtension> OutlinerItem = Key.WeakChannel.Pin()->GetLinkedOutlinerItem())
+		{
+			OutlinerItem->ToggleSelectionState(EOutlinerSelectionState::HasSelectedKeys, false);
+		}
+	}
 	SelectedKeys.Empty();
+
 	if ( IsBroadcasting() )
 	{
 		OnKeySelectionChanged.Broadcast();
 	}
 }
 
-void FSequencerSelection::EmptySelectedSections()
+void FSequencerSelection::EmptySelectedTrackAreaItems()
 {
-	if (!SelectedSections.Num())
-	{
-		return;
-	}
+	using namespace UE::Sequencer;
 
-	++SerialNumber;
-
-	SelectedSections.Empty();
-	if ( IsBroadcasting() )
+	if (SelectedTrackAreaItems.Num() > 0)
 	{
-		OnSectionSelectionChanged.Broadcast();
+		bNodesWithSelectedKeysOrSectionsDirty = true;
+		++SerialNumber;
+
+		for (TWeakPtr<FViewModel> WeakModel : SelectedTrackAreaItems)
+		{
+			if (TSharedPtr<FViewModel> Model = WeakModel.Pin())
+			{
+				for (TSharedPtr<IOutlinerExtension> ParentOutlinerItem : Model->GetAncestorsOfType<IOutlinerExtension>())
+				{
+					ParentOutlinerItem->SetSelectionState(EOutlinerSelectionState::None);
+				}
+			}
+		}
+		SelectedTrackAreaItems.Empty();
+
+		if ( IsBroadcasting() )
+		{
+			OnSectionSelectionChanged.Broadcast();
+		}
 	}
 }
 
 void FSequencerSelection::EmptySelectedOutlinerNodes()
 {
-	if (!SelectedOutlinerNodes.Num())
+	using namespace UE::Sequencer;
+
+	if (!SelectedOutlinerItems.Num())
 	{
 		return;
 	}
 
 	++SerialNumber;
 
-	SelectedOutlinerNodes.Empty();
+	for (TWeakPtr<FViewModel> WeakModel : SelectedOutlinerItems)
+	{
+		if (TSharedPtr<FViewModel> Model = WeakModel.Pin())
+		{
+			if (IOutlinerExtension* OutlinerItem = Model->CastThis<IOutlinerExtension>())
+			{
+				OutlinerItem->SetSelectionState(EOutlinerSelectionState::None);
+			}
+		}
+	}
+	SelectedOutlinerItems.Empty();
+
 	if ( IsBroadcasting() )
 	{
 		OnOutlinerNodeSelectionChanged.Broadcast();
-	}
-}
-
-void FSequencerSelection::EmptyNodesWithSelectedKeysOrSections()
-{
-	if (!NodesWithSelectedKeysOrSections.Num())
-	{
-		return;
-	}
-
-	++SerialNumber;
-
-	NodesWithSelectedKeysOrSections.Empty();
-	if ( IsBroadcasting() )
-	{
-		OnNodesWithSelectedKeysOrSectionsChanged.Broadcast();
 	}
 }
 
@@ -361,35 +562,34 @@ bool FSequencerSelection::IsBroadcasting()
 
 void FSequencerSelection::EmptySelectedOutlinerNodesWithoutSections(const TArray<UMovieSceneSection*>& Sections)
 {
-	TSet<TSharedRef<FSequencerDisplayNode>> LocalSelectedOutlinerNodes = SelectedOutlinerNodes;
+	using namespace UE::Sequencer;
+
+	TSet<TWeakPtr<UE::Sequencer::FViewModel>> LocalSelectedOutlinerItems = SelectedOutlinerItems;
 
 	SuspendBroadcast();
 	bool bRemoved = false;
-	for (auto SelectedOutlinerNode : LocalSelectedOutlinerNodes)
+	for (TWeakPtr<FViewModel> WeakSelectedModel : LocalSelectedOutlinerItems)
 	{
-		TSet<TSharedRef<FSequencerDisplayNode> > TrunkNodes;
-		TrunkNodes.Add(SelectedOutlinerNode);
-		SequencerHelpers::GetDescendantNodes(SelectedOutlinerNode, TrunkNodes);
-		
-		bool bFoundMatch = false;
-		for (auto TrunkIt = TrunkNodes.CreateConstIterator(); TrunkIt && !bFoundMatch; ++TrunkIt)
+		TSharedPtr<FViewModel> SelectedModel = WeakSelectedModel.Pin();
+		if (!SelectedModel)
 		{
-			TSet<TWeakObjectPtr<UMovieSceneSection>> AllSections;
-			SequencerHelpers::GetAllSections(*TrunkIt, AllSections);
+			continue;
+		}
 
-			for (auto SectionIt = AllSections.CreateConstIterator(); SectionIt && !bFoundMatch; ++SectionIt)
+		bool bFoundMatch = false;
+
+		for (TSharedPtr<FSectionModel> SectionModel : SelectedModel->GetDescendantsOfType<FSectionModel>())
+		{
+			if (Sections.Contains(SectionModel->GetSection()))
 			{
-				if (Sections.Contains(*SectionIt))
-				{
-					bFoundMatch = true;
-					break;
-				}
+				bFoundMatch = true;
+				break;
 			}
 		}
 
 		if (!bFoundMatch)
 		{
-			RemoveFromSelection(SelectedOutlinerNode);
+			RemoveFromSelection(WeakSelectedModel);
 			bRemoved = true;
 		}
 	}
@@ -421,7 +621,7 @@ void FSequencerSelection::Tick()
 		bEmptySelectedOutlinerNodesWithSectionsPending = false;
 
 		TArray<UMovieSceneSection*> Sections;
-		for (TWeakObjectPtr<UMovieSceneSection> SelectedSection : SelectedSections)
+		for (TWeakObjectPtr<UMovieSceneSection> SelectedSection : GetSelectedSections())
 		{
 			if (SelectedSection.IsValid())
 			{
@@ -438,6 +638,74 @@ void FSequencerSelection::Tick()
 		}
 
 		EmptySelectedOutlinerNodesWithoutSections(Sections);
+	}
+}
+
+void FSequencerSelection::OnHierarchyChanged()
+{
+	// This is an esoteric hack that ensures we re-synchronize external (ie Actor)
+	// selection when models are removed from the tree. Doing so ensures that
+	// FSequencer::SynchronizeExternalSelectionWithSequencerSelection is called within
+	// the scope of GIsTransacting being true, which prevents that function from creating new
+	// transactions for the selection synchronization. This is important because otherwise
+	// the undo/redo stack gets wiped by actor selections when undoing if the selection is
+	// not identical
+	RevalidateSelection();
+}
+
+void FSequencerSelection::RevalidateSelection()
+{
+	using namespace UE::Sequencer;
+
+	bNodesWithSelectedKeysOrSectionsDirty = true;
+
+	const int32 NumSelectedKeys = SelectedKeys.Num();
+	const int32 NumSelectedTrackAreaItems = SelectedTrackAreaItems.Num();
+	const int32 NumSelectedOutlinerItems = SelectedOutlinerItems.Num();
+
+	for (auto It = SelectedKeys.CreateIterator(); It; ++It)
+	{
+		if (!It->Section || !It->WeakChannel.Pin().Get())
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	for (auto It = SelectedTrackAreaItems.CreateIterator(); It; ++It)
+	{
+		if (It->Pin().Get() == nullptr)
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	for (auto It = SelectedOutlinerItems.CreateIterator(); It; ++It)
+	{
+		if (It->Pin().Get() == nullptr)
+		{
+			It.RemoveCurrent();
+		}
+	}
+
+	if (NumSelectedKeys != SelectedKeys.Num())
+	{
+		++SerialNumber;
+
+		OnKeySelectionChanged.Broadcast();
+	}
+
+	if (NumSelectedTrackAreaItems != SelectedTrackAreaItems.Num())
+	{
+		++SerialNumber;
+
+		OnSectionSelectionChanged.Broadcast();
+		OnOutlinerNodeSelectionChangedObjectGuids.Broadcast();
+	}
+
+	if (NumSelectedOutlinerItems != SelectedOutlinerItems.Num())
+	{
+		++SerialNumber;
+		OnOutlinerNodeSelectionChanged.Broadcast();
 	}
 }
 

@@ -70,6 +70,8 @@ EVisibility SSequencerTreeFilterStatusBar::GetVisibilityFromFilter() const
 
 void SSequencerTreeFilterStatusBar::UpdateText()
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
 	if (!ensureAlways(Sequencer))
 	{
@@ -80,18 +82,18 @@ void SSequencerTreeFilterStatusBar::UpdateText()
 	FLinearColor NewColor = FLinearColor::White;
 
 	const TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
-	const TSet<TSharedRef<FSequencerDisplayNode>>& SelectedNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
+	const TSet<TWeakPtr<FViewModel>>& SelectedOutlinerItems = Sequencer->GetSelection().GetSelectedOutlinerItems();
 
 	FFormatNamedArguments NamedArgs;
 	NamedArgs.Add("Total", NodeTree->GetTotalDisplayNodeCount());
 
-	const bool bHasSelection = SelectedNodes.Num() != 0;
+	const bool bHasSelection = SelectedOutlinerItems.Num() != 0;
 	const bool bHasFilter = NodeTree->HasActiveFilter();
 	const int32 NumFiltered = NodeTree->GetFilteredDisplayNodeCount();
 
 	if (bHasSelection)
 	{
-		NamedArgs.Add("NumSelected", SelectedNodes.Num());
+		NamedArgs.Add("NumSelected", SelectedOutlinerItems.Num());
 	}
 
 	if (bHasFilter)

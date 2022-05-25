@@ -5,6 +5,7 @@
 #include "SequencerKeyParams.h"
 #include "Containers/Array.h"
 #include "Misc/FrameNumber.h"
+#include "MVVM/ViewModelPtr.h"
 
 class IKeyArea;
 class ISequencer;
@@ -12,15 +13,14 @@ class ISequencerSection;
 
 class UMovieSceneTrack;
 
-class FSequencerTrackNode;
-class FSequencerDisplayNode;
-class FSequencerSectionKeyAreaNode;
-
 namespace UE
 {
 namespace Sequencer
 {
 
+class ITrackExtension;
+class FViewModel;
+class FChannelGroupModel;
 
 /**
  * Temporary structure used for consistent add-key behavior for a set of display nodes
@@ -31,19 +31,15 @@ struct SEQUENCER_API FAddKeyOperation
 	/**
 	 * Construct an operation from any set of display nodes. Each node in the set will receive keys for all decendant key areas.
 	 *
-	 * @param InNodes A set of all the nodes to key
-	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
+	 * @param InModels A set of all the models to key
 	 */
-	static FAddKeyOperation FromNodes(const TSet<TSharedRef<FSequencerDisplayNode>>& InNodes, bool bJustVisible = false);
+	static FAddKeyOperation FromNodes(const TSet<TWeakPtr<FViewModel>>& InModels);
 
 
 	/**
 	 * Construct an operation from a single display node. Every key area underneath this node will receive keys.
-	 * 
-	 * @param InNode Node to key
-	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
 	 */
-	static FAddKeyOperation FromNode(TSharedRef<FSequencerDisplayNode> InNode, bool bJustVisible = false);
+	static FAddKeyOperation FromNode(TWeakPtr<FViewModel> InModel);
 
 
 	/**
@@ -66,19 +62,17 @@ private:
 	 * Add a set of nodes to this operation that have already had child nodes removed (ie only parent nodes should exist in the set)
 	 *
 	 * @param InNodes     A set of nodes to add to this operation that contains no child nodes
-	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
 	 */
-	void AddPreFilteredNodes(TArrayView<const TSharedRef<FSequencerDisplayNode>> InNodes, bool bJustVisible);
+	void AddPreFilteredNodes(TArrayView<const TWeakPtr<FViewModel>> InNodes);
 
 
 	/**
 	 * Add any keyable areas to the list of potential things to key
 	 *
-	 * @param InTrackNode           The current track node
+	 * @param InTrackEditor         The track editor
 	 * @param InKeyAnythingBeneath  A node to search within for key areas
-	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
 	 */
-	bool ConsiderKeyableAreas(FSequencerTrackNode* InTrackNode, FSequencerDisplayNode* InKeyAnythingBeneath, bool bJustVisible);
+	bool ConsiderKeyableAreas(TSharedPtr<ITrackExtension> InTrackModel, FViewModelPtr InKeyAnythingBeneath);
 
 
 	/**
@@ -86,18 +80,8 @@ private:
 	 *
 	 * @param InTrackNode         The current track node
 	 * @param InKeyAreaNode       The key area node to add key areas from
-	 * @param bJustVisible Only do it on visible key area nodes, so we can respect filtering when keying
 	 */
-	bool ProcessKeyAreaNode(FSequencerTrackNode* InTrackNode, const FSequencerSectionKeyAreaNode* InKeyAreaNode, bool bJustVisible);
-
-
-	/**
-	 * Add a key area to this operation
-	 *
-	 * @param InTrackNode         The current track node
-	 * @param InKeyArea           The key area to add
-	 */
-	bool ProcessKeyArea(FSequencerTrackNode* InTrackNode, TSharedPtr<IKeyArea> InKeyArea);
+	bool ProcessKeyArea(TSharedPtr<ITrackExtension> InTrackModel, TViewModelPtr<FChannelGroupModel> InChannelGroupModel);
 
 
 	/**
@@ -122,6 +106,6 @@ private:
 	TMap<ISequencerTrackEditor*, FKeyOperation> OperationsByTrackEditor;
 };
 
-
 } // namespace Sequencer
 } // namespace UE
+

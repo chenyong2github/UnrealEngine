@@ -4,9 +4,14 @@
 
 #include "ISequencer.h"
 #include "ISequencerTrackEditor.h"
-#include "DisplayNodes/SequencerDisplayNode.h"
-#include "DisplayNodes/SequencerTrackNode.h"
-#include "DisplayNodes/SequencerSectionKeyAreaNode.h"
+#include "IKeyArea.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/ViewModels/SequenceModel.h"
+#include "MVVM/ViewModels/OutlinerViewModel.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/Extensions/ITrackExtension.h"
 
 #include "Algo/Find.h"
 
@@ -16,17 +21,16 @@ namespace UE
 namespace Sequencer
 {
 
-
-FAddKeyOperation FAddKeyOperation::FromNodes(const TSet<TSharedRef<FSequencerDisplayNode>>& InNodes, bool bJustVisible)
+FAddKeyOperation FAddKeyOperation::FromNodes(const TSet<TWeakPtr<FViewModel>>& InNodes)
 {
 	FAddKeyOperation Operation;
 
-	TArray<TSharedRef<FSequencerDisplayNode>> FilteredNodes;
+	TArray<TWeakPtr<FViewModel>> FilteredNodes;
 
 	// Remove any child nodes that have a parent also included in the set
-	for (const TSharedRef<FSequencerDisplayNode>& ProspectiveNode : InNodes)
+	for (const TWeakPtr<FViewModel>& ProspectiveNode : InNodes)
 	{
-		TSharedPtr<FSequencerDisplayNode> Parent = ProspectiveNode->GetParent();
+		TSharedPtr<FViewModel> Parent = ProspectiveNode.Pin()->GetParent();
 		while (Parent)
 		{
 			if (InNodes.Contains(Parent.ToSharedRef()))
@@ -42,14 +46,14 @@ FAddKeyOperation FAddKeyOperation::FromNodes(const TSet<TSharedRef<FSequencerDis
 		continue;
 	}
 
-	Operation.AddPreFilteredNodes(FilteredNodes, bJustVisible);
+	Operation.AddPreFilteredNodes(FilteredNodes);
 	return Operation;
 }
 
-FAddKeyOperation FAddKeyOperation::FromNode(TSharedRef<FSequencerDisplayNode> InNode, bool bJustVisible)
+FAddKeyOperation FAddKeyOperation::FromNode(TWeakPtr<FViewModel> InNode)
 {
 	FAddKeyOperation Operation;
-	Operation.AddPreFilteredNodes(MakeArrayView(&InNode, 1), bJustVisible);
+	Operation.AddPreFilteredNodes(MakeArrayView(&InNode, 1));
 	return Operation;
 }
 
@@ -66,80 +70,61 @@ FAddKeyOperation FAddKeyOperation::FromKeyAreas(ISequencerTrackEditor* TrackEdit
 	return Operation;
 }
 
-void FAddKeyOperation::AddPreFilteredNodes(TArrayView<const TSharedRef<FSequencerDisplayNode>> FilteredNodes, bool bJustVisible)
+void FAddKeyOperation::AddPreFilteredNodes(TArrayView<const TWeakPtr<FViewModel>> FilteredNodes)
 {
-	auto KeyChildTrackArea = [this, bJustVisible](FSequencerDisplayNode& InNode)
+	TSharedPtr<FSequenceModel> SequenceModel;
+	const TArray<FViewModelTypeID> TypeIDs({ ITrackExtension::ID, IOutlinerExtension::ID });
+	for (const TWeakPtr<FViewModel>& FilteredNode : FilteredNodes)
 	{
-		if (InNode.GetType() == ESequencerNode::Track)
+		TSharedPtr<FViewModel> Node = FilteredNode.Pin();
+		TSharedPtr<FViewModel> ParentModel = Node->FindAncestorOfTypes(MakeArrayView(TypeIDs));
+		if (ParentModel)
 		{
-			FSequencerTrackNode* TrackNode = static_cast<FSequencerTrackNode*>(&InNode);
-			if (TrackNode->GetSubTrackMode() != FSequencerTrackNode::ESubTrackMode::ParentTrack)
-			{
-				// Consider everything underneath this track for keying
-				this->ConsiderKeyableAreas(TrackNode, TrackNode, bJustVisible);
-			}
-		}
-		return true;
-	};
-
-	for (const TSharedRef<FSequencerDisplayNode>& Node : FilteredNodes)
-	{
-		if (TSharedPtr<FSequencerTrackNode> ParentTrack = Node->FindParentTrackNode())
-		{
-			ConsiderKeyableAreas(ParentTrack.Get(), &Node.Get(), bJustVisible);
+			ConsiderKeyableAreas(ParentModel->CastThisShared<ITrackExtension>(), Node);
 		}
 		else
 		{
-			Node->Traverse_ParentFirst(KeyChildTrackArea, true/*bIncludeThisNode*/, bJustVisible);
-		}
-	}
-}
-
-bool FAddKeyOperation::ConsiderKeyableAreas(FSequencerTrackNode* InTrackNode, FSequencerDisplayNode* KeyAnythingBeneath, bool bJustVisible)
-{
-	bool bKeyedAnything = false;
-
-	auto Traversal = [this, InTrackNode, &bKeyedAnything, bJustVisible](FSequencerDisplayNode& InNode)
-	{
-		if (InNode.GetType() == ESequencerNode::Track)
-		{
-			FSequencerTrackNode* ThisTrackNode = static_cast<FSequencerTrackNode*>(&InNode);
-
-			if (TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode = ThisTrackNode->GetTopLevelKeyNode())
+			constexpr bool bIncludeThis = true;
+			for (FParentFirstChildIterator Child(FilteredNode.Pin(), bIncludeThis); Child; ++Child)
 			{
-				bKeyedAnything |= this->ProcessKeyAreaNode(ThisTrackNode, KeyAreaNode.Get(), bJustVisible);
+				if (Child->IsA<ITrackExtension>() && Child->IsA<IOutlinerExtension>())
+				{
+					TSharedPtr<ITrackExtension> TrackExtension = Child->CastThisShared<ITrackExtension>();
+					ConsiderKeyableAreas(TrackExtension, *Child);
+				}
 			}
 		}
-
-		if (InNode.GetType() == ESequencerNode::KeyArea)
-		{
-			bKeyedAnything |= this->ProcessKeyAreaNode(InTrackNode, static_cast<FSequencerSectionKeyAreaNode*>(&InNode), bJustVisible);
-		}
-		return true;
-	};
-	KeyAnythingBeneath->Traverse_ParentFirst(Traversal, true/*bIncludeThisNode*/, bJustVisible);
-
-	return bKeyedAnything;
+	}
 }
 
-bool FAddKeyOperation::ProcessKeyAreaNode(FSequencerTrackNode* InTrackNode, const FSequencerSectionKeyAreaNode* KeyAreaNode, bool bJustVisible)
+bool FAddKeyOperation::ConsiderKeyableAreas(TSharedPtr<ITrackExtension> InTrackModel, FViewModelPtr KeyAnythingBeneath)
 {
 	bool bKeyedAnything = false;
-	if (bJustVisible == false || InTrackNode->IsVisible())
+
+	constexpr bool bIncludeThis = true;
+	for (TParentFirstChildIterator<FChannelGroupModel> ChannelGroupModelIt(KeyAnythingBeneath->AsShared(), bIncludeThis); ChannelGroupModelIt; ++ChannelGroupModelIt)
 	{
-		for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNode->GetAllKeyAreas())
-		{
-			bKeyedAnything |= ProcessKeyArea(InTrackNode, KeyArea);
-		}
+		bKeyedAnything |= ProcessKeyArea(InTrackModel, *ChannelGroupModelIt);
 	}
 
 	return bKeyedAnything;
 }
 
-bool FAddKeyOperation::ProcessKeyArea(FSequencerTrackNode* InTrackNode, TSharedPtr<IKeyArea> InKeyArea)
+bool FAddKeyOperation::ProcessKeyArea(TSharedPtr<ITrackExtension> InTrackModel, TViewModelPtr<FChannelGroupModel> InChannelGroupModel)
 {
-	ISequencerTrackEditor* TrackEditor = &InTrackNode->GetTrackEditor();
-	return ProcessKeyArea(TrackEditor, InKeyArea);
+	bool bKeyedAnything = false;
+	ISequencerTrackEditor* TrackEditor = InTrackModel->GetTrackEditor().Get();
+
+	constexpr bool bIncludeThis = true;
+	for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : InChannelGroupModel->GetChannels())
+	{
+		if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
+		{
+			bKeyedAnything |= ProcessKeyArea(TrackEditor, Channel->GetKeyArea());
+		}
+	}
+
+	return bKeyedAnything;
 }
 
 bool FAddKeyOperation::ProcessKeyArea(ISequencerTrackEditor* InTrackEditor, TSharedPtr<IKeyArea> InKeyArea)
@@ -176,3 +161,4 @@ FKeyOperation& FAddKeyOperation::GetTrackOperation(ISequencerTrackEditor* TrackE
 
 } // namespace Sequencer
 } // namespace UE
+

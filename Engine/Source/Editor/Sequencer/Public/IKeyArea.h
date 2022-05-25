@@ -259,7 +259,7 @@ public:
 	 * @param SrcEnvironment   The environment the source data was copied from
 	 * @param DstEnvironment   The environment we're pasting into
 	 */
-	void PasteKeys(const FMovieSceneClipboardKeyTrack& KeyTrack, const FMovieSceneClipboardEnvironment& SrcEnvironment, const FSequencerPasteEnvironment& DstEnvironment);
+	TArray<FKeyHandle> PasteKeys(const FMovieSceneClipboardKeyTrack& KeyTrack, const FMovieSceneClipboardEnvironment& SrcEnvironment, const FSequencerPasteEnvironment& DstEnvironment);
 
 
 	/**

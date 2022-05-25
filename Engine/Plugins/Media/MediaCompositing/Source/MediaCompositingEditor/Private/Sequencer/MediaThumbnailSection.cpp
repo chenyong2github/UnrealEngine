@@ -20,6 +20,7 @@
 #include "CommonMovieSceneTools.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
+#include "TimeToPixel.h"
 
 #include "MovieSceneMediaData.h"
 
@@ -276,6 +277,8 @@ void FMediaThumbnailSection::DrawFilmBorder(FSequencerSectionPainter& InPainter,
 
 void FMediaThumbnailSection::DrawLoopIndicators(FSequencerSectionPainter& InPainter, FTimespan MediaDuration, FVector2D SectionSize) const
 {
+	using namespace UE::Sequencer;
+
 	static const FSlateBrush* GenericBrush = FCoreStyle::Get().GetBrush("GenericWhiteBox");
 
 	UMovieSceneMediaSection* MediaSection = Cast<UMovieSceneMediaSection>(Section);
@@ -305,6 +308,8 @@ void FMediaThumbnailSection::DrawLoopIndicators(FSequencerSectionPainter& InPain
 
 void FMediaThumbnailSection::DrawSampleStates(FSequencerSectionPainter& InPainter, FTimespan MediaDuration, FVector2D SectionSize, const TRangeSet<FTimespan>& RangeSet, const FLinearColor& Color) const
 {
+	using namespace UE::Sequencer;
+
 	static const FSlateBrush* GenericBrush = FCoreStyle::Get().GetBrush("GenericWhiteBox");
 
 	UMovieSceneMediaSection* MediaSection = Cast<UMovieSceneMediaSection>(Section);

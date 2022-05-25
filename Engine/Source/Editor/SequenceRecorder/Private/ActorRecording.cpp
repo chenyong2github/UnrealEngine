@@ -373,7 +373,7 @@ void UActorRecording::FindOrAddFolder(UMovieScene* MovieScene)
 	{
 		FolderToUse = NewObject<UMovieSceneFolder>(MovieScene, NAME_None, RF_Transactional);
 		FolderToUse->SetFolderName(FolderName);
-		MovieScene->GetRootFolders().Add(FolderToUse);
+		MovieScene->AddRootFolder(FolderToUse);
 	}
 
 	FolderToUse->AddChildObjectBinding(Guid);
@@ -641,7 +641,7 @@ TSharedPtr<FMovieSceneAnimationSectionRecorder> UActorRecording::StartRecordingC
 	FMovieScenePossessable* ChildPossessable = OwnerMovieScene->FindPossessable(PossessableGuid);
 	if (ensure(ChildPossessable))
 	{
-		ChildPossessable->SetParent(Guid);
+		ChildPossessable->SetParent(Guid, OwnerMovieScene);
 	}
 
 	FMovieSceneSpawnable* ParentSpawnable = OwnerMovieScene->FindSpawnable(Guid);

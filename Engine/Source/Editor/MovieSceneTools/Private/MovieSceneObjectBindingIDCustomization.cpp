@@ -40,13 +40,22 @@ void FMovieSceneObjectBindingIDCustomization::BindTo(TSharedRef<ISequencer> Oute
 
 void FMovieSceneObjectBindingIDCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
+	using namespace UE::Sequencer;
+
 	StructProperty = PropertyHandle;
 
 	Initialize();
 
 	auto IsAcceptable = [](TSharedPtr<FDragDropOperation> Operation)
 	{
-		return Operation->IsOfType<FSequencerObjectBindingDragDropOp>() && static_cast<FSequencerObjectBindingDragDropOp*>(Operation.Get())->GetDraggedBindings().Num() == 1;
+		using namespace UE::Sequencer;
+		if (!Operation->IsOfType<FSequencerObjectBindingDragDropOp>())
+		{
+			return false;
+		}
+
+		FSequencerObjectBindingDragDropOp* DragDropOp = static_cast<FSequencerObjectBindingDragDropOp*>(Operation.Get());
+		return DragDropOp->GetDraggedRebindableBindings().Num() == 1;
 	};
 
 	HeaderRow
@@ -90,10 +99,12 @@ void FMovieSceneObjectBindingIDCustomization::CustomizeHeader(TSharedRef<IProper
 
 FReply FMovieSceneObjectBindingIDCustomization::OnDrop(const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent)
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencerObjectBindingDragDropOp> SequencerOp = InDragDropEvent.GetOperationAs<FSequencerObjectBindingDragDropOp>();
 	if (SequencerOp)
 	{
-		TArray<UE::MovieScene::FFixedObjectBindingID> Bindings = SequencerOp->GetDraggedBindings();
+		TArray<UE::MovieScene::FFixedObjectBindingID> Bindings = SequencerOp->GetDraggedRebindableBindings();
 		if (Bindings.Num() == 1)
 		{
 			SetBindingId(Bindings[0]);

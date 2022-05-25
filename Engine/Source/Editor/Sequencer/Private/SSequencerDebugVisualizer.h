@@ -18,13 +18,17 @@
 
 class FArrangedChildren;
 class SSequencerDebugSlot;
-struct FMovieSceneEvaluationField;
 struct FTimeToPixel;
+struct FMovieSceneEvaluationField;
 
-namespace UE { namespace MovieScene {
+namespace UE
+{
+namespace MovieScene
+{
 	class FEntityManager;
 	struct FMovieSceneEntityID;
-} }
+}
+}
 
 class SSequencerDebugVisualizer : public SVerticalBox
 {

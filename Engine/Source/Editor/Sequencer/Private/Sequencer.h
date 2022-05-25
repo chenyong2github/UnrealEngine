@@ -11,7 +11,6 @@
 #include "UObject/WeakInterfacePtr.h"
 #include "Widgets/SWidget.h"
 #include "SequencerNodeTree.h"
-#include "DisplayNodes/SequencerDisplayNode.h"
 #include "UObject/GCObject.h"
 #include "MovieSceneSequenceID.h"
 #include "IMovieScenePlayer.h"
@@ -46,8 +45,6 @@ class APlayerController;
 class FLevelEditorViewportClient;
 class FMenuBuilder;
 class FMovieSceneClipboard;
-class FSequencerObjectBindingNode;
-class FSequencerTrackNode;
 class FViewportClient;
 class IDetailKeyframeHandler;
 class IAssetViewport;
@@ -55,6 +52,7 @@ class IMenu;
 class FCurveEditor;
 class ISequencerEditTool;
 class FSequencerKeyCollection;
+class FSequencerOutlinerSelectionHandler;
 class FObjectBindingTagCache;
 class ISequencerTrackEditor;
 class ISequencerEditorObjectBinding;
@@ -70,7 +68,6 @@ struct FMovieSceneTimeController;
 struct FMovieSceneSequencePlaybackParams;
 struct FMovieScenePossessable;
 struct FTransformData;
-struct ISequencerHotspot;
 struct FKeyAttributes;
 struct FNotificationInfo;
 struct FEditorViewportViewModifierParams;
@@ -79,12 +76,22 @@ enum class EMapChangeType : uint8;
 
 namespace UE
 {
-namespace MovieScene
-{
+	namespace MovieScene
+	{
 
-	struct FInitialValueCache;
+		struct FInitialValueCache;
 
-} // namespace MovieScene
+	} // namespace MovieScene
+
+	namespace Sequencer
+	{
+
+		struct FViewModelTypeID;
+		class FSequenceModel;
+		class FSequencerEditorViewModel;
+		class FViewModel;
+
+	} // namespace Sequencer
 } // namespace UE
 
 
@@ -97,6 +104,8 @@ class FSequencer final
 	, public FEditorUndoClient
 	, public FTickableEditorObject
 {
+	using FViewModel = UE::Sequencer::FViewModel;
+
 public:
 
 	/** Constructor */
@@ -205,6 +214,7 @@ public:
 	void ZoomOutViewRange();
 
 public:
+
 	/** Gets the tree of nodes which is used to populate the animation outliner. */
 	TSharedRef<FSequencerNodeTree> GetNodeTree()
 	{
@@ -321,14 +331,14 @@ public:
 	 *
 	 * @param	PossessableGuid		The guid of the possessable to convert
 	 */
-	void ConvertToSpawnable(TSharedRef<FSequencerObjectBindingNode> NodeToBeConverted);
+	void ConvertToSpawnable(TSharedRef<UE::Sequencer::FObjectBindingModel> NodeToBeConverted);
 
 	/**
 	 * Converts the specified spawnable GUID to a possessable
 	 *
 	 * @param	SpawnableGuid		The guid of the spawnable to convert
 	 */
-	void ConvertToPossessable(TSharedRef<FSequencerObjectBindingNode> NodeToBeConverted);
+	void ConvertToPossessable(TSharedRef<UE::Sequencer::FObjectBindingModel> NodeToBeConverted);
 
 	/**
 	 * Converts all the currently selected nodes to be spawnables, if possible
@@ -384,7 +394,7 @@ public:
 	 * @param NodeToBeDeleted	Node with data that should be deleted
 	 * @return true if anything was deleted, otherwise false.
 	 */
-	bool OnRequestNodeDeleted( TSharedRef<const FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState );
+	bool OnRequestNodeDeleted( TSharedRef<FViewModel> NodeToBeDeleted, const bool bKeepState );
 
 	/** Zooms to the edges of all currently selected sections and keys. */
 	void ZoomToFit();
@@ -524,22 +534,22 @@ public:
 	void RemoveActorsFromBinding(FGuid ObjectBinding, const TArray<AActor*>& InActors);
 
 	/** Called when a user executes the delete node menu item */
-	void DeleteNode(TSharedRef<FSequencerDisplayNode> NodeToBeDeleted, const bool bKeepState);
+	void DeleteNode(TSharedRef<FViewModel> NodeToBeDeleted, const bool bKeepState);
 	void DeleteSelectedNodes(const bool bKeepState);
 
 	/** @return The list of nodes which must be moved to move the current selected nodes */
-	TArray<TSharedRef<FSequencerDisplayNode> > GetSelectedNodesToMove();
-	TArray<TSharedRef<FSequencerDisplayNode> > GetSelectedNodesInFolders();
+	TArray<TSharedRef<FViewModel>> GetSelectedNodesToMove();
+	TArray<TSharedRef<FViewModel>> GetSelectedNodesInFolders();
 
 	/** Called when a user executes the move to new folder menu item */
 	void MoveSelectedNodesToNewFolder();
 	void RemoveSelectedNodesFromFolders();
-	void MoveNodeToFolder(TSharedRef<FSequencerDisplayNode> NodeToMove, UMovieSceneFolder* DestinationFolder);
+	void MoveNodeToFolder(TSharedRef<FViewModel> NodeToMove, UMovieSceneFolder* DestinationFolder);
 	void MoveSelectedNodesToFolder(UMovieSceneFolder* DestinationFolder);
 
 	/** Called when a user executes the copy track menu item */
-	void CopySelectedObjects(TArray<TSharedPtr<FSequencerObjectBindingNode>>& ObjectNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
-	void CopySelectedTracks(TArray<TSharedPtr<FSequencerTrackNode>>& TrackNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
+	void CopySelectedObjects(TArray<TSharedPtr<UE::Sequencer::FObjectBindingModel>>& ObjectNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
+	void CopySelectedTracks(TArray<TSharedPtr<UE::Sequencer::FViewModel>>& TrackNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
 	void CopySelectedFolders(const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
 	void ExportObjectsToText(const TArray<UObject*>& ObjectsToExport, /*out*/ FString& ExportedText);
 
@@ -585,7 +595,7 @@ public:
 	bool CanRekey() const;
 	void Rekey();
 
-	void SelectKey(UMovieSceneSection* InSection, TSharedPtr<IKeyArea> InKeyArea, FKeyHandle KeyHandle, bool bToggle);
+	void SelectKey(UMovieSceneSection* InSection, TSharedPtr<UE::Sequencer::FChannelModel> InChannel, FKeyHandle KeyHandle, bool bToggle);
 
 	/** Updates the external selection to match the current sequencer selection. */
 	void SynchronizeExternalSelectionWithSequencerSelection();
@@ -668,31 +678,12 @@ public:
 	void ExportToCameraAnim();
 
 public:
-	
-	/** Access the currently active track area edit tool */
-	const ISequencerEditTool* GetEditTool() const;
-
-	/** Get the current active hotspot */
-	TSharedPtr<ISequencerHotspot> GetHotspot() const;
-
-	/** Set the hotspot to something else */
-	void SetHotspot(TSharedPtr<ISequencerHotspot> NewHotspot);
-
-protected:
-
-	/** The current hotspot that can be set from anywhere to initiate drags */
-	TSharedPtr<ISequencerHotspot> Hotspot;
-
-public:
 
 	/** Put the sequencer in a horizontally auto-scrolling state with the given rate */
 	void StartAutoscroll(float UnitsPerS);
 
 	/** Stop the sequencer from auto-scrolling */
 	void StopAutoscroll();
-
-	/** Scroll the sequencer vertically by the specified number of slate units */
-	void VerticalScroll(float ScrollAmountUnits);
 
 	/**
 	 * Update auto-scroll mechanics as a result of a new time position
@@ -732,6 +723,7 @@ public:
 	virtual FMovieSceneRootEvaluationTemplateInstance& GetEvaluationTemplate() override { return RootTemplateInstance; }
 	virtual void ResetToNewRootSequence(UMovieSceneSequence& NewSequence) override;
 	virtual void FocusSequenceInstance(UMovieSceneSubSection& InSubSection) override;
+	virtual TSharedPtr<UE::Sequencer::FEditorViewModel> GetViewModel() const override;
 	virtual void SuppressAutoEvaluation(UMovieSceneSequence* Sequence, const FGuid& InSequenceSignature) override;
 	virtual EAutoChangeMode GetAutoChangeMode() const override;
 	virtual void SetAutoChangeMode(EAutoChangeMode AutoChangeMode) override;
@@ -831,6 +823,7 @@ public:
 	virtual FGuid MakeNewSpawnable(UObject& SourceObject, UActorFactory* ActorFactory = nullptr, bool bSetupDefaults = true) override;
 	virtual bool IsReadOnly() const override;
 	virtual void ExternalSelectionHasChanged() override { SynchronizeSequencerSelectionWithExternalSelection(); }
+	virtual TSharedPtr<ISequencerTrackEditor> GetTrackEditor(UMovieSceneTrack* InTrack) override;
 	virtual void ObjectImplicitlyAdded(UObject* InObject) const override;
 	virtual void ObjectImplicitlyRemoved(UObject* InObject) const override;
 
@@ -1056,6 +1049,8 @@ protected:
 	// End of FEditorUndoClient
 
 	void OnSelectedOutlinerNodesChanged();
+	// Called on Tick after OnSelectedOutlinerNodesChanged has been called
+	void HandleSelectedOutlinerNodesChanged();
 
 	void AddNodeGroupsCollectionChangedDelegate();
 	void RemoveNodeGroupsCollectionChangedDelegate();
@@ -1065,7 +1060,7 @@ protected:
 public:
 	void AddSelectedNodesToNewNodeGroup();
 	void AddSelectedNodesToExistingNodeGroup(UMovieSceneNodeGroup* NodeGroup);
-	void AddNodesToExistingNodeGroup(const TArray<TSharedRef<FSequencerDisplayNode>>& Nodes, UMovieSceneNodeGroup* NodeGroup);
+	void AddNodesToExistingNodeGroup(const TArray<TWeakPtr<UE::Sequencer::FViewModel>>& Nodes, UMovieSceneNodeGroup* NodeGroup);
 
 	void ClearFilters();
 
@@ -1105,7 +1100,7 @@ private:
 	void CalculateSelectedFolderAndPath(TArray<UMovieSceneFolder*>& OutSelectedParentFolders, FString& OutNewNodePath);
 
 	/** Returns the tail folder from the given Folder Path, creating each folder if needed. */
-	UMovieSceneFolder* CreateFoldersRecursively(const TArray<FName>& FolderPath, int32 FolderPathIndex, UMovieScene* OwningMovieScene, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& FoldersToSearch);
+	UMovieSceneFolder* CreateFoldersRecursively(const TArray<FName>& FolderPaths, int32 FolderPathIndex, UMovieScene* OwningMovieScene, UMovieSceneFolder* ParentFolder, TArrayView<UMovieSceneFolder* const> FoldersToSearch);
 
 	/** Create set playback start transport control */
 	TSharedRef<SWidget> OnCreateTransportSetPlaybackStart();
@@ -1120,7 +1115,7 @@ private:
 	TSharedRef<SWidget> OnCreateTransportSetPlaybackEnd();
 
 	/** Select keys and/or sections in a display node that fall into the current selection range. */
-	void SelectInSelectionRange(const TSharedRef<FSequencerDisplayNode>& DisplayNode, const TRange<FFrameNumber>& SelectionRange, bool bSelectKeys, bool bSelectSections);
+	void SelectInSelectionRange(const TSharedPtr<UE::Sequencer::FViewModel>& Item, const TRange<FFrameNumber>& SelectionRange, bool bSelectKeys, bool bSelectSections);
 	
 	/** Create loop mode transport control */
 	TSharedRef<SWidget> OnCreateTransportLoopMode();
@@ -1195,6 +1190,7 @@ private:
 
 	/** List of tools we own */
 	TArray<TSharedPtr<ISequencerTrackEditor>> TrackEditors;
+	TMap<FObjectKey, TSharedPtr<ISequencerTrackEditor>> TrackEditorsByType;
 
 	/** List of object bindings we can use */
 	TArray<TSharedPtr<ISequencerEditorObjectBinding>> ObjectBindings;
@@ -1204,7 +1200,10 @@ private:
 
 	/** Main sequencer widget */
 	TSharedPtr<SSequencer> SequencerWidget;
-	
+
+	/** Selection handler for interfacing with sequencer selection */
+	TSharedPtr<FSequencerOutlinerSelectionHandler> SelectionHandler;
+
 	/** Spawn register for keeping track of what is spawned */
 	TSharedPtr<FMovieSceneSpawnRegister> SpawnRegister;
 
@@ -1459,6 +1458,8 @@ private:
 	TOptional<TTuple<TWeakObjectPtr<UMovieSceneSequence>, FGuid>> SuppressAutoEvalSignature;
 
 	TUniquePtr<FObjectBindingTagCache> ObjectBindingTagCache;
+
+	TSharedPtr<UE::Sequencer::FSequencerEditorViewModel> ViewModel;
 
 	struct FCachedViewState
 	{

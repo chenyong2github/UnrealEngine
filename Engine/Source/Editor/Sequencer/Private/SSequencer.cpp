@@ -3,6 +3,12 @@
 #include "SSequencer.h"
 #include "Engine/Blueprint.h"
 #include "MovieSceneSequence.h"
+#include "MVVM/ViewModels/CategoryModel.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/Extensions/IRenameableExtension.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/ViewModels/SequencerOutlinerViewModel.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "MovieScene.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
@@ -13,6 +19,7 @@
 #include "Modules/ModuleManager.h"
 #include "Editor.h"
 #include "IDetailsView.h"
+#include "IKeyArea.h"
 #include "Widgets/Layout/SBorder.h"
 #include "ISequencerEditTool.h"
 #include "Layout/WidgetPath.h"
@@ -39,8 +46,6 @@
 #include "LevelEditorViewport.h"
 #include "Widgets/Navigation/SBreadcrumbTrail.h"
 #include "SequencerCommands.h"
-#include "DisplayNodes/SequencerObjectBindingNode.h"
-#include "DisplayNodes/SequencerTrackNode.h"
 #include "Widgets/Input/SNumericDropDown.h"
 #include "SequencerCommonHelpers.h"
 #include "ISequencerWidgetsModule.h"
@@ -48,8 +53,8 @@
 #include "SequencerTimeSliderController.h"
 #include "SequencerToolMenuContext.h"
 #include "SSequencerSectionOverlay.h"
-#include "SSequencerTrackArea.h"
-#include "SSequencerTrackOutliner.h"
+#include "MVVM/Views/STrackAreaView.h"
+#include "MVVM/Views/SSequencerTrackAreaView.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
@@ -57,12 +62,12 @@
 #include "DragAndDrop/FolderDragDropOp.h"
 #include "DragAndDrop/CompositeDragDropOp.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "SSequencerTreeView.h"
+#include "MVVM/Views/SOutlinerView.h"
 #include "MovieSceneTrackEditor.h"
 #include "SSequencerSplitterOverlay.h"
 #include "SequencerHotspots.h"
 #include "SSequencerTimePanel.h"
-#include "VirtualTrackArea.h"
+#include "MVVM/ViewModels/VirtualTrackArea.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "SequencerContextMenus.h"
 #include "Math/UnitConversion.h"
@@ -325,6 +330,8 @@ private:
 PRAGMA_DISABLE_OPTIMIZATION
 void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSequencer)
 {
+	using namespace UE::Sequencer;
+
 	SequencerPtr = InSequencer;
 	bIsActiveTimerRegistered = false;
 	bUserIsSelecting = false;
@@ -446,8 +453,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		SequencerWidgets.CreateTimeRangeSlider(TimeSliderControllerRef)
 	);
 
-	OnGetAddMenuContent = InArgs._OnGetAddMenuContent;
-	OnBuildCustomContextMenuForGuid = InArgs._OnBuildCustomContextMenuForGuid;
 	OnGetPlaybackSpeeds = InArgs._OnGetPlaybackSpeeds;
 
 	RootCustomization.AddMenuExtender = InArgs._AddMenuExtender;
@@ -467,27 +472,25 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	TSharedRef<SScrollBar> PinnedAreaScrollBar = SNew(SScrollBar)
 		.Thickness(FVector2D(9.0f, 9.0f));
-	
-	SAssignNew(TrackOutliner, SSequencerTrackOutliner);
 
-	SAssignNew(PinnedTrackArea, SSequencerTrackArea, TimeSliderControllerRef, InSequencer);
-	SAssignNew(PinnedTreeView, SSequencerTreeView, InSequencer->GetNodeTree(), PinnedTrackArea.ToSharedRef())
+	SAssignNew(PinnedTrackArea, SSequencerTrackAreaView, InSequencer->GetViewModel()->GetTrackArea(), TimeSliderControllerRef);
+	SAssignNew(PinnedTreeView, SOutlinerView, InSequencer->GetViewModel()->GetOutliner(), PinnedTrackArea.ToSharedRef())
+		.SelectionHandler(InArgs._SelectionHandler)
 		.ExternalScrollbar(PinnedAreaScrollBar)
-		.Clipping(EWidgetClipping::ClipToBounds)
-		.OnGetContextMenuContent(FOnGetContextMenuContent::CreateSP(this, &SSequencer::GetContextMenuContent));
+		.Clipping(EWidgetClipping::ClipToBounds);
 
-	PinnedTrackArea->SetTreeView(PinnedTreeView);
+	PinnedTrackArea->SetOutliner(PinnedTreeView);
 	PinnedTrackArea->SetShowPinned(true);
 	PinnedTrackArea->SetIsSlave(true);
 	PinnedTreeView->SetShowPinned(true);
 
-	SAssignNew(TrackArea, SSequencerTrackArea, TimeSliderControllerRef, InSequencer);
-	SAssignNew(TreeView, SSequencerTreeView, InSequencer->GetNodeTree(), TrackArea.ToSharedRef())
+	SAssignNew(TrackArea, SSequencerTrackAreaView, InSequencer->GetViewModel()->GetTrackArea(), TimeSliderControllerRef);
+	SAssignNew(TreeView, SOutlinerView, InSequencer->GetViewModel()->GetOutliner(), TrackArea.ToSharedRef())
+		.SelectionHandler(InArgs._SelectionHandler)
 		.ExternalScrollbar(ScrollBar)
-		.Clipping(EWidgetClipping::ClipToBounds)
-		.OnGetContextMenuContent(FOnGetContextMenuContent::CreateSP(this, &SSequencer::GetContextMenuContent));
+		.Clipping(EWidgetClipping::ClipToBounds);
 
-	TrackArea->SetTreeView(TreeView);
+	TrackArea->SetOutliner(TreeView);
 
 	TreeView->AddSlaveTreeView(PinnedTreeView);
 
@@ -1097,7 +1100,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	ApplySequencerCustomization(RootCustomization);
 
 	InSequencer->GetSelection().GetOnKeySelectionChanged().AddSP(this, &SSequencer::HandleKeySelectionChanged);
-	InSequencer->GetSelection().GetOnSectionSelectionChanged().AddSP(this, &SSequencer::HandleSectionSelectionChanged);
 	InSequencer->GetSelection().GetOnOutlinerNodeSelectionChanged().AddSP(this, &SSequencer::HandleOutlinerNodeSelectionChanged);
 
 	ResetBreadcrumbs();
@@ -1234,11 +1236,6 @@ void SSequencer::OpenTickResolutionOptions()
 	WeakTickResolutionOptionsWindow = TickResolutionOptionsWindow;
 }
 
-const ISequencerEditTool* SSequencer::GetEditTool() const
-{
-	return TrackArea->GetEditTool();
-}
-
 
 void SSequencer::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FEditPropertyChain* PropertyThatChanged)
 {
@@ -1294,20 +1291,17 @@ void SSequencer::HandleKeySelectionChanged()
 }
 
 
-void SSequencer::HandleSectionSelectionChanged()
-{
-}
-
-
 void SSequencer::HandleOutlinerNodeSelectionChanged()
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	if (!Sequencer.IsValid())
 	{
 		return;
 	}
 
-	const TSet<TSharedRef<FSequencerDisplayNode>>& SelectedDisplayNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
+	const TSet<TWeakPtr<FViewModel>>& SelectedDisplayNodes = Sequencer->GetSelection().GetSelectedOutlinerItems();
 
 	TSharedPtr<FCurveEditor> CurveEditor = Sequencer->GetCurveEditor();
 	if (CurveEditor && CurveEditorTree)
@@ -1321,7 +1315,7 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 				SequencerSelectionCurveEditorFilter = MakeShared<FSequencerSelectionCurveFilter>();
 			}
 
-			SequencerSelectionCurveEditorFilter->Update(Sequencer->GetSelection().GetSelectedOutlinerNodes(), SequencerSettings->GetAutoExpandTreeView());
+			SequencerSelectionCurveEditorFilter->Update(Sequencer->GetSelection().GetSelectedOutlinerItems(), SequencerSettings->GetAutoExpandTreeView());
 
 			CurveEditor->GetTree()->AddFilter(SequencerSelectionCurveEditorFilter);
 		}
@@ -1334,20 +1328,15 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 
 		if (GetSequencerSettings()->ShouldSyncCurveEditorSelection())
 		{
-			//since Selection ticks before any filter is applied and the curve editor tree is udpated in FSequencer::Tick we need to sync 
-			//the curve editor on the next tick so the filter is applied first, otherwise the curve tree hierarchy won't be up to date
-			//and the curve may not be found.
-			GEditor->GetTimerManager()->SetTimerForNextTick([Sequencer, this]()
+			TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
+			CurveEditor->SuspendBroadcast();
+			// Clear the tree selection
+			CurveEditorTree->ClearSelection();
+			for (TWeakPtr<FViewModel> Node : SelectedDisplayNodes)
 			{
-				const TSet<TSharedRef<FSequencerDisplayNode>>& SelectedDisplayNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
-				TSharedPtr<FCurveEditor> CurveEditor = Sequencer->GetCurveEditor();
-				TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
-				CurveEditor->SuspendBroadcast();
-				// Clear the tree selection
-				CurveEditorTree->ClearSelection();
-				for (TSharedRef<FSequencerDisplayNode> Node : SelectedDisplayNodes)
+				if (ICurveEditorTreeItemExtension* CurveEditorItem = ICastable::CastWeakPtr<ICurveEditorTreeItemExtension>(Node))
 				{
-					FCurveEditorTreeItemID CurveEditorTreeItem = NodeTree->FindCurveEditorTreeItem(Node);
+					FCurveEditorTreeItemID CurveEditorTreeItem = CurveEditorItem->GetCurveEditorItemID();
 					if (CurveEditorTreeItem != FCurveEditorTreeItemID::Invalid())
 					{
 						if (!CurveEditorTree->IsItemSelected(CurveEditorTreeItem))
@@ -1357,8 +1346,8 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 						}
 					}
 				}
-				CurveEditor->ResumeBroadcast();
-			});
+			}
+			CurveEditor->ResumeBroadcast();
 		}
 	}
 
@@ -1742,40 +1731,15 @@ void SSequencer::PopulateToolBar(UToolMenu* InMenu)
 	}
 }
 
-void SSequencer::GetContextMenuContent(FMenuBuilder& MenuBuilder)
-{
-	// let toolkits populate the menu
-	MenuBuilder.BeginSection("MainMenu");
-	OnGetAddMenuContent.ExecuteIfBound(MenuBuilder, SequencerPtr.Pin().ToSharedRef());
-	MenuBuilder.EndSection();
-
-	// let track editors & object bindings populate the menu
-	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
-
-	// Always create the section so that we afford extension
-	MenuBuilder.BeginSection("ObjectBindings");
-	if (Sequencer.IsValid())
-	{
-		Sequencer->BuildAddObjectBindingsMenu(MenuBuilder);
-	}
-	MenuBuilder.EndSection();
-
-	// Always create the section so that we afford extension
-	MenuBuilder.BeginSection("AddTracks");
-	if (Sequencer.IsValid())
-	{
-		Sequencer->BuildAddTrackMenu(MenuBuilder);
-	}
-	MenuBuilder.EndSection();
-}
-
-
 TSharedRef<SWidget> SSequencer::MakeAddMenu()
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FExtender> Extender = FExtender::Combine(AddMenuExtenders);
 	FMenuBuilder MenuBuilder(true, nullptr, Extender);
 	{
-		GetContextMenuContent(MenuBuilder);
+		TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+		Sequencer->GetViewModel()->GetOutliner()->CastThisChecked<FSequencerOutlinerViewModel>()->BuildContextMenu(MenuBuilder);
 	}
 
 	return MenuBuilder.MakeWidget();
@@ -2050,7 +2014,6 @@ void SSequencer::ResetFilters()
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	Sequencer->GetNodeTree()->RemoveAllFilters();
 	OnEnableAllNodeGroupFilters(false);
-	OnEnableAllLevelFilters(false);
 }
 
 void SSequencer::OnEnableAllFilters()
@@ -3067,97 +3030,38 @@ EActiveTimerReturnType SSequencer::EnsureSlateTickDuringPlayback(double InCurren
 	return EActiveTimerReturnType::Stop;
 }
 
-
-void RestoreSelectionState(const TArray<TSharedRef<FSequencerDisplayNode>>& DisplayNodes, TSet<FString>& SelectedPathNames, FSequencerSelection& SequencerSelection)
-{
-	for (TSharedRef<FSequencerDisplayNode> DisplayNode : DisplayNodes)
-	{
-		if (SelectedPathNames.Contains(DisplayNode->GetPathName()))
-		{
-			SequencerSelection.AddToSelection(DisplayNode);
-		}
-
-		RestoreSelectionState(DisplayNode->GetChildNodes(), SelectedPathNames, SequencerSelection);
-	}
-}
-
 void SSequencer::UpdateLayoutTree()
 {
+	using namespace UE::Sequencer;
+
 	TrackArea->Empty();
 	PinnedTrackArea->Empty();
 
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	if ( Sequencer.IsValid() )
 	{
-		// Cache the selected path names so selection can be restored after the update.
-		TSet<FString> SelectedPathNames;
-		// Cache selected keys
-		TSet<FSequencerSelectedKey> SelectedKeys = Sequencer->GetSelection().GetSelectedKeys();
-		TSet<TWeakObjectPtr<UMovieSceneSection> > SelectedSections = Sequencer->GetSelection().GetSelectedSections();
-
-		for (TSharedRef<const FSequencerDisplayNode> SelectedDisplayNode : Sequencer->GetSelection().GetSelectedOutlinerNodes().Array())
-		{
-			FString PathName = SelectedDisplayNode->GetPathName();
-			if ( FName(*PathName).IsNone() == false )
-			{
-				SelectedPathNames.Add(PathName);
-			}
-		}
-
-		// Add any additional paths that have been added by the user for nodes that may not exist yet but we want them to be selected
-		// after the node tree is updated and we restore selections.
-		SelectedPathNames.Append(AdditionalSelectionsToAdd);
-
-		// Suspend broadcasting selection changes because we don't want unnecessary rebuilds.
-		Sequencer->GetSelection().SuspendBroadcast();
-
 		// Update the node tree
 		Sequencer->GetNodeTree()->Update();
 
-		// Restore the selection state. This is still needed to apply the AdditionalSelectionsToAdd hack.
-		RestoreSelectionState(Sequencer->GetNodeTree()->GetRootNodes(), SelectedPathNames, SequencerPtr.Pin()->GetSelection());	// Update to actor selection.
-
 		// This must come after the selection state has been restored so that the tree and curve editor are populated with the correctly selected nodes
 		TreeView->Refresh();
-		
-		// If we've manually specified an additional selection to add it's because the item was newly created.
-		// Now that the treeview has been refreshed and selection restored, we'll try to focus the first item
-		// so that the view scrolls down when things are added to the bottom.
-		if (AdditionalSelectionsToAdd.Num() > 0)
-		{
-			FString NodePath = AdditionalSelectionsToAdd[0];
-
-			for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetNodeTree()->GetAllNodes())
-			{
-				if (Node->GetPathName() == NodePath)
-				{
-					auto Parent = Node->GetParent();
-					while (Parent.IsValid())
-					{
-						TreeView->SetItemExpansion(Parent->AsShared(), true);
-						PinnedTreeView->SetItemExpansion(Parent->AsShared(), true);
-						Parent = Parent->GetParent();
-					}
-
-					TreeView->RequestScrollIntoView(Node);
-					break;
-				}
-			}
-		}
-
-		AdditionalSelectionsToAdd.Empty();
 
 		if (!NodePathToRename.IsEmpty())
 		{
-			for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetNodeTree()->GetAllNodes())
+			TArray<TSharedPtr<FViewModel>> AllNodes;
+			Sequencer->GetNodeTree()->GetAllNodes(AllNodes);
+			for (TSharedPtr<FViewModel> Node : AllNodes)
 			{
-				if (Node->GetPathName() == NodePathToRename)
+				const FString CurNodePath = IOutlinerExtension::GetPathName(Node);
+				if (CurNodePath == NodePathToRename)
 				{
-					GEditor->GetTimerManager()->SetTimerForNextTick([Node]()
+					GEditor->GetTimerManager()->SetTimerForNextTick([Node]
 					{
-						Node->OnRenameRequested().Broadcast();
-					}
-					);
+						if (IRenameableExtension* Rename = Node->CastThis<IRenameableExtension>())
+						{
+							Rename->OnRenameRequested().Broadcast();
+						}
+					});
 					break;
 				}
 			}
@@ -3170,19 +3074,21 @@ void SSequencer::UpdateLayoutTree()
 
 			TSharedPtr<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
 			const bool bHasSoloNodes = NodeTree->HasSoloNodes();
-			for (TSharedRef<FSequencerDisplayNode> Node : NodeTree->GetAllNodes())
+
+			for (TViewModelPtr<IOutlinerExtension> OutlinerItem
+				: Sequencer->GetNodeTree()->GetRootNode()->GetDescendantsOfType<IOutlinerExtension>())
 			{
-				if (Node->GetType() == ESequencerNode::Track)
+				TViewModelPtr<ITrackExtension> TrackNode = OutlinerItem.ImplicitCast();
+				if (TrackNode)
 				{
-					FSequencerTrackNode& TrackNode = static_cast<FSequencerTrackNode&>(Node.Get());
-					UMovieSceneTrack* Track = TrackNode.GetTrack();
-					bool bDisableEval = NodeTree->IsNodeMute(&Node.Get()) || (bHasSoloNodes && !NodeTree->IsNodeSolo(&Node.Get()));
-					if (TrackNode.GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
+					UMovieSceneTrack* Track = TrackNode->GetTrack();
+					bool bDisableEval = NodeTree->IsNodeMute(OutlinerItem) || (bHasSoloNodes && !NodeTree->IsNodeSolo(OutlinerItem));
+					if (TrackNode->GetRowIndex() > 0)
 					{
-						if (bDisableEval != Track->IsRowEvalDisabled(TrackNode.GetRowIndex()))
+						if (bDisableEval != Track->IsRowEvalDisabled(TrackNode->GetRowIndex()))
 						{
 							Track->Modify();
-							Track->SetRowEvalDisabled(bDisableEval, TrackNode.GetRowIndex());
+							Track->SetRowEvalDisabled(bDisableEval, TrackNode->GetRowIndex());
 							bAnyChanged = true;
 						}
 					}
@@ -3202,9 +3108,6 @@ void SSequencer::UpdateLayoutTree()
 				Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::TrackValueChanged);
 			}
 		}
-
-		// Continue broadcasting selection changes
-		Sequencer->GetSelection().ResumeBroadcast();
 		
 		if (NodeGroupManager.IsValid())
 		{
@@ -3421,6 +3324,8 @@ void SSequencer::OnFocusChanging( const FWeakWidgetPath& PreviousFocusPath, cons
 
 void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 {
+	using namespace UE::Sequencer;
+
 	FSequencer& SequencerRef = *SequencerPtr.Pin();
 
 	TArray< UObject* > DroppedObjects;
@@ -3465,20 +3370,19 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 		GWarn->EndSlowTask();
 	}
 
-	const TSet< TSharedRef<FSequencerDisplayNode> >& SelectedNodes = SequencerPtr.Pin()->GetSelection().GetSelectedOutlinerNodes();
+	const TSet<TWeakPtr<FViewModel>>& SelectedNodes = SequencerPtr.Pin()->GetSelection().GetSelectedOutlinerItems();
 	FGuid TargetObjectGuid;
 	// if exactly one object node is selected, we have a target object guid
-	TSharedPtr<const FSequencerDisplayNode> DisplayNode;
+	TSharedPtr<const FViewModel> DisplayNode;
 	if (SelectedNodes.Num() == 1)
 	{
-		for (TSharedRef<const FSequencerDisplayNode> SelectedNode : SelectedNodes )
+		for (TWeakPtr<const FViewModel> SelectedNode : SelectedNodes )
 		{
-			DisplayNode = SelectedNode;
+			DisplayNode = SelectedNode.Pin();
 		}
-		if (DisplayNode.IsValid() && DisplayNode->GetType() == ESequencerNode::Object)
+		if (const FObjectBindingModel* ObjectBindingNode = DisplayNode->CastThis<FObjectBindingModel>())
 		{
-			TSharedPtr<const FSequencerObjectBindingNode> ObjectBindingNode = StaticCastSharedPtr<const FSequencerObjectBindingNode>(DisplayNode);
-			TargetObjectGuid = ObjectBindingNode->GetObjectBinding();
+			TargetObjectGuid = ObjectBindingNode->GetObjectGuid();
 		}
 	}
 
@@ -3676,9 +3580,15 @@ FText SSequencer::GetRootAnimationName() const
 }
 
 
-TSharedPtr<SSequencerTreeView> SSequencer::GetTreeView() const
+TSharedPtr<UE::Sequencer::SOutlinerView> SSequencer::GetTreeView() const
 {
 	return TreeView;
+}
+
+
+TSharedPtr<UE::Sequencer::SOutlinerView> SSequencer::GetPinnedTreeView() const
+{
+	return PinnedTreeView;
 }
 
 
@@ -3719,14 +3629,16 @@ void SSequencer::StepToPreviousCameraKey()
 
 void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	if ( Sequencer.IsValid() )
 	{
-		TSet< TSharedRef<FSequencerDisplayNode> > Nodes;
+		TSet<TViewModelPtr<IOutlinerExtension>> Nodes;
 
 		if ( bCameraOnly )
 		{
-			TSet<TSharedRef<FSequencerDisplayNode>> RootNodes( Sequencer->GetNodeTree()->GetRootNodes() );
+			TSet<TViewModelPtr<IOutlinerExtension>> RootNodes(Sequencer->GetNodeTree()->GetRootNodes());
 
 			TSet<TWeakObjectPtr<AActor> > LockedActors;
 			for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
@@ -3741,33 +3653,43 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 				}
 			}
 
-			for ( auto RootNode : RootNodes )
+			for (TViewModelPtr<IOutlinerExtension> RootNode : RootNodes)
 			{
-				TSharedRef<FSequencerObjectBindingNode> ObjectBindingNode = StaticCastSharedRef<FSequencerObjectBindingNode>( RootNode );
-
-				for (TWeakObjectPtr<>& Object : Sequencer->FindObjectsInCurrentSequence(ObjectBindingNode->GetObjectBinding()))
+				TSharedPtr<FObjectBindingModel> ObjectBindingNode = RootNode.ImplicitCast();
+				if (ObjectBindingNode)
 				{
-					AActor* RuntimeActor = Cast<AActor>( Object.Get() );
-					if ( RuntimeActor != nullptr && LockedActors.Contains( RuntimeActor ) )
+					for (TWeakObjectPtr<>& Object : Sequencer->FindObjectsInCurrentSequence(ObjectBindingNode->GetObjectGuid()))
 					{
-						Nodes.Add( RootNode );
+						AActor* RuntimeActor = Cast<AActor>( Object.Get() );
+						if ( RuntimeActor != nullptr && LockedActors.Contains( RuntimeActor ) )
+						{
+							Nodes.Add(RootNode);
+						}
 					}
 				}
 			}
 		}
 		else
 		{
-			const TSet< TSharedRef<FSequencerDisplayNode> >& SelectedNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
-			Nodes = SelectedNodes;
-
+			Nodes.Reserve(Sequencer->GetSelection().GetSelectedOutlinerItems().Num());
+			for (const TWeakPtr<FViewModel>& WeakModel : Sequencer->GetSelection().GetSelectedOutlinerItems())
+			{
+				TViewModelPtr<IOutlinerExtension> Model = WeakModel.Pin();
+				if (Model)
+				{
+					Nodes.Add(Model);
+				}
+			}
 			if ( Nodes.Num() == 0 )
 			{
-				TSet<TSharedRef<FSequencerDisplayNode>> RootNodes( Sequencer->GetNodeTree()->GetRootNodes() );
-				for ( auto RootNode : RootNodes )
+				TSet<TViewModelPtr<IOutlinerExtension>> RootNodes(Sequencer->GetNodeTree()->GetRootNodes());
+				for (TViewModelPtr<IOutlinerExtension> RootNode : RootNodes)
 				{
-					Nodes.Add( RootNode );
-
-					SequencerHelpers::GetDescendantNodes( RootNode, Nodes );
+					Nodes.Add(RootNode);
+					for (TViewModelPtr<IOutlinerExtension> Child : RootNode.AsModel()->GetDescendantsOfType<IOutlinerExtension>())
+					{
+						Nodes.Add(Child);
+					}
 				}
 			}
 		}
@@ -3781,14 +3703,14 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 			TOptional<FFrameNumber> StepToTime;
 
 			auto It = Nodes.CreateConstIterator();
-			bool bExpand = !( *It ).Get().IsExpanded();
+			bool bExpand = !( *It )->IsExpanded();
 
-			for ( auto Node : Nodes )
+			for (TViewModelPtr<IOutlinerExtension> Node : Nodes)
 			{
 				TArray<FFrameNumber> AllTimes;
 
 				TSet<TSharedPtr<IKeyArea>> KeyAreas;
-				SequencerHelpers::GetAllKeyAreas( Node, KeyAreas );
+				SequencerHelpers::GetAllKeyAreas( Node.AsModel(), KeyAreas );
 				for ( TSharedPtr<IKeyArea> KeyArea : KeyAreas )
 				{
 					if (KeyArea->GetOwningSection())
@@ -3798,7 +3720,7 @@ void SSequencer::StepToKey(bool bStepToNextKey, bool bCameraOnly)
 				}
 
 				TSet<TWeakObjectPtr<UMovieSceneSection> > Sections;
-				SequencerHelpers::GetAllSections( Node, Sections );
+				SequencerHelpers::GetAllSections( Node.AsModel(), Sections );
 
 				for ( TWeakObjectPtr<UMovieSceneSection> Section : Sections )
 				{
@@ -4037,22 +3959,29 @@ FPaintPlaybackRangeArgs SSequencer::GetSectionPlaybackRangeArgs() const
 }
 
 
-FVirtualTrackArea SSequencer::GetVirtualTrackArea(const SSequencerTrackArea* InTrackArea) const
+UE::Sequencer::FVirtualTrackArea SSequencer::GetVirtualTrackArea(const UE::Sequencer::STrackAreaView* InTrackArea) const
 {
-	const SSequencerTrackArea* TargetTrackArea = TrackArea.Get();
-	TSharedPtr<SSequencerTreeView> TargetTreeView = TreeView;
+	using namespace UE::Sequencer;
+
+	TSharedPtr<UE::Sequencer::FEditorViewModel> EditorViewModel = SequencerPtr.Pin()->GetViewModel();
+	FTrackAreaViewModel& TrackAreaViewModel = *EditorViewModel->GetTrackArea().Get();
+
+	const STrackAreaView* TargetTrackArea = TrackArea.Get();
+	TSharedPtr<SOutlinerView> TargetTreeView = TreeView;
 	
 	if (InTrackArea != nullptr)
 	{
 		TargetTrackArea = InTrackArea;
-		TargetTreeView = TargetTrackArea->GetTreeView().Pin();
+		//TargetTreeView = TargetTrackArea->GetTreeView().Pin();
 	}
 
-	return FVirtualTrackArea(*SequencerPtr.Pin(), *TargetTreeView.Get(), TargetTrackArea->GetCachedGeometry());
+	return FVirtualTrackArea(TrackAreaViewModel, *TargetTreeView.Get(), TargetTrackArea->GetCachedGeometry());
 }
 
 FPasteContextMenuArgs SSequencer::GeneratePasteArgs(FFrameNumber PasteAtTime, TSharedPtr<FMovieSceneClipboard> Clipboard)
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	if (GetSequencerSettings()->GetIsSnapEnabled())
 	{
@@ -4070,7 +3999,7 @@ FPasteContextMenuArgs SSequencer::GeneratePasteArgs(FFrameNumber PasteAtTime, TS
 	FVirtualTrackArea VirtualTrackArea = GetVirtualTrackArea();
 
 	// Paste into the currently selected sections, or hit test the mouse position as a last resort
-	TArray<TSharedRef<FSequencerDisplayNode>> PasteIntoNodes;
+	TArray<TViewModelPtr<IOutlinerExtension>> PasteIntoNodes;
 	{
 		TSet<TWeakObjectPtr<UMovieSceneSection>> Sections = Sequencer->GetSelection().GetSelectedSections();
 		
@@ -4081,28 +4010,37 @@ FPasteContextMenuArgs SSequencer::GeneratePasteArgs(FFrameNumber PasteAtTime, TS
 
 		for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
 		{
-			if (TOptional<FSectionHandle> Handle = Sequencer->GetNodeTree()->GetSectionHandle(WeakSection.Get()))
+			if (TSharedPtr<FSectionModel> Handle = Sequencer->GetNodeTree()->GetSectionModel(WeakSection.Get()))
 			{
-				PasteIntoNodes.Add(Handle->GetTrackNode());
+				TViewModelPtr<IOutlinerExtension> TrackModel = Handle->GetParentTrackModel().ImplicitCast();
+				if (TrackModel)
+				{
+					PasteIntoNodes.Add(TrackModel);
+				}
 			}
 		}
 
-		auto SelectedNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
-		for (const TSharedRef<FSequencerDisplayNode>& SelectedNode : SelectedNodes)
+		TArray<TSharedRef<FViewModel>> SelectedNodes;
+		Sequencer->GetSelection().GetSelectedOutlinerItems(SelectedNodes);
+		for (const TSharedRef<FViewModel>& SelectedNode : SelectedNodes)
 		{
-			if (SelectedNode->GetType() == ESequencerNode::Category || SelectedNode->GetType() == ESequencerNode::Track || SelectedNode->GetType() == ESequencerNode::KeyArea)
+			if (SelectedNode->IsA<FCategoryGroupModel>() || SelectedNode->IsA<ITrackExtension>() || SelectedNode->IsA<FChannelGroupModel>())
 			{
-				PasteIntoNodes.Add(SelectedNode);
+				TViewModelPtr<IOutlinerExtension> TrackModel(SelectedNode);
+				if (TrackModel)
+				{
+					PasteIntoNodes.Add(TrackModel);
+				}
 			}
 		}
 	}
 
 	if (PasteIntoNodes.Num() == 0)
 	{
-		TSharedPtr<FSequencerDisplayNode> Node = VirtualTrackArea.HitTestNode(LocalMousePosition.Y);
+		TSharedPtr<FViewModel> Node = VirtualTrackArea.HitTestNode(LocalMousePosition.Y);
 		if (Node.IsValid())
 		{
-			PasteIntoNodes.Add(Node.ToSharedRef());
+			PasteIntoNodes.Add(FViewModelPtr(Node).ImplicitCast());
 		}
 	}
 
@@ -4111,8 +4049,10 @@ FPasteContextMenuArgs SSequencer::GeneratePasteArgs(FFrameNumber PasteAtTime, TS
 
 void SSequencer::OnPaste()
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
-	TSet<TSharedRef<FSequencerDisplayNode>> SelectedNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
+	const TSet<TWeakPtr<FViewModel>>& SelectedNodes = Sequencer->GetSelection().GetSelectedOutlinerItems();
 	if (SelectedNodes.Num() == 0)
 	{
 		if (!OpenPasteMenu())
@@ -4127,8 +4067,6 @@ void SSequencer::OnPaste()
 			OpenPasteMenu();
 		}
 	}
-
-	
 }
 
 bool SSequencer::CanPaste()
@@ -4227,11 +4165,6 @@ void SSequencer::PasteFromHistory()
 EVisibility SSequencer::GetDebugVisualizerVisibility() const
 {
 	return GetSequencerSettings()->ShouldShowDebugVisualization() ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-void SSequencer::BuildCustomContextMenuForGuid(FMenuBuilder& MenuBuilder, FGuid ObjectBinding)
-{
-	OnBuildCustomContextMenuForGuid.ExecuteIfBound(MenuBuilder, ObjectBinding);
 }
 
 double SSequencer::GetSpinboxDelta() const

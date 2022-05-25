@@ -30,6 +30,7 @@ public class MovieSceneTools : ModuleRules
 				"UnrealEd",
 				"Sequencer",
                 "EditorWidgets",
+				"SequencerCore",
             }
         );
 

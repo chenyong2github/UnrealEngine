@@ -4,6 +4,7 @@
 #include "Rendering/DrawElements.h"
 #include "Styling/AppStyle.h"
 #include "CommonMovieSceneTools.h"
+#include "TimeToPixel.h"
 
 /* SSequencerShotFilterOverlay interface
  *****************************************************************************/

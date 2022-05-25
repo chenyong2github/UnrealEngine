@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
-#include "Sequencer.h"
+#include "Framework/DelayedDrag.h"
 #include "ISequencerEditTool.h"
+#include "Sequencer.h"
 
 class FSlateWindowElementList;
 
@@ -14,7 +15,7 @@ class FSlateWindowElementList;
  * Abstract base class for edit tools.
  */
 class FSequencerEditTool
-	: public ISequencerEditTool
+	: public UE::Sequencer::ISequencerEditTool
 {
 public:
 
@@ -74,7 +75,7 @@ public:
 		return FCursorReply::Unhandled();
 	}
 
-	virtual ISequencer& GetSequencer() const override
+	ISequencer& GetSequencer() const
 	{
 		return Sequencer;
 	}
@@ -84,3 +85,24 @@ protected:
 	/** This edit tool's sequencer */
 	FSequencer& Sequencer;
 };
+
+namespace UE
+{
+namespace Sequencer
+{
+
+struct FDelayedDrag_Hotspot : FDelayedDrag
+{
+	FDelayedDrag_Hotspot(FVector2D InInitialPosition, FKey InApplicableKey, TSharedPtr<ITrackAreaHotspot> InHotspot)
+		: FDelayedDrag(InInitialPosition, InApplicableKey)
+		, Hotspot(MoveTemp(InHotspot))
+	{
+		SetTriggerScaleFactor(0.1f);
+	}
+
+	TSharedPtr<ITrackAreaHotspot> Hotspot;
+};
+
+
+} // namespace Sequencer
+} // namespace UE

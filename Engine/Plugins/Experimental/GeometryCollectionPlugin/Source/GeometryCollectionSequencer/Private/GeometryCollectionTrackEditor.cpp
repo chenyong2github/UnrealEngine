@@ -29,6 +29,7 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "Styling/SlateIconFinder.h"
 #include "LevelSequence.h"
+#include "TimeToPixel.h"
 
 namespace GeometryCollectionEditorConstants
 {
@@ -97,6 +98,8 @@ float FGeometryCollectionTrackSection::GetSectionHeight() const
 
 int32 FGeometryCollectionTrackSection::OnPaintSection( FSequencerSectionPainter& Painter ) const
 {
+	using namespace UE::Sequencer;
+
 	const ESlateDrawEffect DrawEffects = Painter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 	
 	const FTimeToPixel& TimeToPixelConverter = Painter.GetTimeConverter();

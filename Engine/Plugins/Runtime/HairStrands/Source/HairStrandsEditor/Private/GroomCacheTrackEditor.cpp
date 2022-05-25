@@ -13,6 +13,7 @@
 #include "SequencerSectionPainter.h"
 #include "SequencerUtilities.h"
 #include "Styling/SlateIconFinder.h"
+#include "TimeToPixel.h"
 
 namespace GroomCacheEditorConstants
 {
@@ -76,6 +77,8 @@ float FGroomCacheSection::GetSectionHeight() const
 
 int32 FGroomCacheSection::OnPaintSection(FSequencerSectionPainter& Painter) const
 {
+	using namespace UE::Sequencer;
+
 	const ESlateDrawEffect DrawEffects = Painter.bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
 	const FTimeToPixel& TimeToPixelConverter = Painter.GetTimeConverter();

@@ -4,7 +4,6 @@
 
 #include "Online/CoreOnline.h"
 #include "OnlineSubsystemTypes.h"
-
 #include "Misc/ScopeRWLock.h"
 
 namespace UE::Online {

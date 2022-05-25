@@ -334,7 +334,7 @@ UMovieSceneSubTrack* FSequencerPlaylistItemPlayer_Sequence::GetOrCreateWorkingTr
 	{
 		FolderToUse = NewObject<UMovieSceneFolder>(RootScene, NAME_None, RF_Transactional);
 		FolderToUse->SetFolderName(PlaylistFolderName);
-		RootScene->GetRootFolders().Add(FolderToUse);
+		//RootScene->GetRootFolders().Add(FolderToUse);
 	}
 
 	FolderToUse->AddChildMasterTrack(NewWorkingTrack);

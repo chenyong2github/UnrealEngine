@@ -621,7 +621,7 @@ UMovieSceneFolder* UTakeRecorderSources::AddFolderForSource(const UTakeRecorderS
 	{
 		FolderToUse = NewObject<UMovieSceneFolder>(InMovieScene, NAME_None, RF_Transactional);
 		FolderToUse->SetFolderName(FolderName);
-		InMovieScene->GetRootFolders().Add(FolderToUse);
+		InMovieScene->AddRootFolder(FolderToUse);
 	}
 
 	// We want to expand these folders in the Sequencer UI (since these are visible as they record).

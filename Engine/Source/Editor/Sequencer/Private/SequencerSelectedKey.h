@@ -12,6 +12,16 @@ struct FFrameNumber;
 class IKeyArea;
 class UMovieSceneSection;
 
+namespace UE
+{
+namespace Sequencer
+{
+
+class FChannelModel;
+
+} // namespace Sequencer 
+} // namespace UE
+
 /**
  * Represents a selected key in the sequencer
  */
@@ -21,41 +31,43 @@ struct FSequencerSelectedKey
 	UMovieSceneSection* Section;
 
 	/** Key area providing the key */
-	TSharedPtr<IKeyArea> KeyArea;
+	TWeakPtr<UE::Sequencer::FChannelModel> WeakChannel;
 
 	/** Index of the key in the key area */
-	TOptional<FKeyHandle> KeyHandle;
+	FKeyHandle KeyHandle;
 
 public:
 
 	/** Create and initialize a new instance. */
-	FSequencerSelectedKey(UMovieSceneSection& InSection, TSharedPtr<IKeyArea> InKeyArea, FKeyHandle InKeyHandle)
+	FSequencerSelectedKey(UMovieSceneSection& InSection, TWeakPtr<UE::Sequencer::FChannelModel> InChannel, FKeyHandle InKeyHandle)
 		: Section(&InSection)
-		, KeyArea(MoveTemp(InKeyArea))
+		, WeakChannel(MoveTemp(InChannel))
 		, KeyHandle(InKeyHandle)
 	{}
 
 	/** Default constructor. */
 	FSequencerSelectedKey()
 		: Section(nullptr)
-		, KeyArea(nullptr)
-		, KeyHandle()
+		, KeyHandle(FKeyHandle::Invalid())
 	{}
 
 	/** @return Whether or not this is a valid selected key */
-	bool IsValid() const { return Section != nullptr && KeyArea.IsValid() && KeyHandle.IsSet(); }
+	bool IsValid() const
+	{
+		return Section != nullptr && WeakChannel.Pin().IsValid()
+			&& KeyHandle != FKeyHandle::Invalid();
+	}
 
 	friend uint32 GetTypeHash(const FSequencerSelectedKey& SelectedKey)
 	{
-		return GetTypeHash(SelectedKey.Section) ^ GetTypeHash(SelectedKey.KeyArea) ^ 
-			(SelectedKey.KeyHandle.IsSet() ? GetTypeHash(SelectedKey.KeyHandle.GetValue()) : 0);
+		return GetTypeHash(SelectedKey.Section) ^ GetTypeHash(SelectedKey.WeakChannel)
+			 ^ GetTypeHash(SelectedKey.KeyHandle);
 	} 
 
 	bool operator==(const FSequencerSelectedKey& OtherKey) const
 	{
-		return Section == OtherKey.Section && KeyArea == OtherKey.KeyArea &&
-			KeyHandle.IsSet() && OtherKey.KeyHandle.IsSet() &&
-			KeyHandle.GetValue() == OtherKey.KeyHandle.GetValue();
+		return Section == OtherKey.Section && WeakChannel == OtherKey.WeakChannel
+			&& KeyHandle == OtherKey.KeyHandle;
 	}
 };
 

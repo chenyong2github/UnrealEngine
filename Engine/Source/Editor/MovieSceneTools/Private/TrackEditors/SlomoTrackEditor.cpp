@@ -92,6 +92,7 @@ void FSlomoTrackEditor::HandleAddSlomoTrackMenuEntryExecute()
 	UMovieSceneSection* NewSection = SlomoTrack->CreateNewSection();
 	check(NewSection);
 
+	SlomoTrack->Modify();
 	SlomoTrack->AddSection(*NewSection);
 
 	if (GetSequencer().IsValid())

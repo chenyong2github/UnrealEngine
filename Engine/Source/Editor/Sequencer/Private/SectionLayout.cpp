@@ -2,23 +2,32 @@
 
 #include "SectionLayout.h"
 #include "Layout/Geometry.h"
-#include "Sequencer.h"
-#include "SequencerSettings.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/ViewModels/CategoryModel.h"
+#include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "Algo/Sort.h"
+
+namespace UE
+{
+namespace Sequencer
+{
 
 bool FSectionLayoutElementKeyFuncs::Matches(const FSectionLayoutElement& A, const FSectionLayoutElement& B)
 {
-	if (A.GetDisplayNode() != B.GetDisplayNode())
+	if (A.GetModel() != B.GetModel())
 	{
 		return false;
 	}
-	TArrayView<const TSharedRef<IKeyArea>> KeyAreasA = A.GetKeyAreas(), KeyAreasB = B.GetKeyAreas();
-	if (KeyAreasA.Num() != KeyAreasB.Num())
+	TArrayView<const TWeakPtr<FChannelModel>> ChannelsA = A.GetChannels(), ChannelsB = B.GetChannels();
+	if (ChannelsA.Num() != ChannelsB.Num())
 	{
 		return false;
 	}
-	for (int32 Index = 0; Index < KeyAreasA.Num(); ++Index)
+	for (int32 Index = 0; Index < ChannelsA.Num(); ++Index)
 	{
-		if (KeyAreasA[Index] != KeyAreasB[Index])
+		if (ChannelsA[Index] != ChannelsB[Index])
 		{
 			return false;
 		}
@@ -28,74 +37,47 @@ bool FSectionLayoutElementKeyFuncs::Matches(const FSectionLayoutElement& A, cons
 
 uint32 FSectionLayoutElementKeyFuncs::GetKeyHash(const FSectionLayoutElement& Key)
 {
-	uint32 Hash = GetTypeHash(Key.GetDisplayNode()) ;
-	for (TSharedRef<IKeyArea> KeyArea : Key.GetKeyAreas())
+	uint32 Hash = GetTypeHash(Key.GetModel()) ;
+	for (TWeakPtr<FChannelModel> Channel : Key.GetChannels())
 	{
-		Hash = HashCombine(GetTypeHash(KeyArea), Hash);
+		Hash = HashCombine(GetTypeHash(Channel), Hash);
 	}
 	return Hash;
 }
 
-FSectionLayoutElement FSectionLayoutElement::FromGroup(const TSharedRef<FSequencerDisplayNode>& InNode, UMovieSceneSection* InSection, float InOffset)
+FSectionLayoutElement FSectionLayoutElement::FromGroup(const TSharedPtr<FViewModel>& InGroup, const TSharedPtr<FViewModel>& InChannelRoot, float InOffset, float InHeight)
 {
-	TArray< TSharedRef<FSequencerSectionKeyAreaNode> > ChildKeyAreaNodes;
-	const bool bJustVisible = true;
-	InNode->GetChildKeyAreaNodesRecursively(ChildKeyAreaNodes, bJustVisible);
-
 	FSectionLayoutElement Tmp;
 	Tmp.Type = Group;
 
-	for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : ChildKeyAreaNodes)
+	for (TSharedPtr<FChannelModel> Channel : InChannelRoot->GetDescendantsOfType<FChannelModel>())
 	{
-		TSharedPtr<IKeyArea> KeyArea = KeyAreaNode->GetKeyArea(InSection);
-		if (KeyArea.IsValid())
-		{
-			Tmp.KeyAreas.Add(KeyArea.ToSharedRef());
-		}
+		Tmp.WeakChannels.Add(Channel);
 	}
 	Tmp.LocalOffset = InOffset;
-	Tmp.Height = InNode->GetNodeHeight();
-	Tmp.DisplayNode = InNode;
+	Tmp.Height = InHeight;
+	Tmp.DataModel = InGroup;
 	return Tmp;
 }
 
-FSectionLayoutElement FSectionLayoutElement::FromKeyAreaNode(const TSharedRef<FSequencerSectionKeyAreaNode>& InKeyAreaNode, UMovieSceneSection* InSection, float InOffset)
+FSectionLayoutElement FSectionLayoutElement::FromChannel(const TSharedPtr<FChannelModel>& InChannel, float InOffset, float InHeight)
 {
 	FSectionLayoutElement Tmp;
 	Tmp.Type = Single;
-	TSharedPtr<IKeyArea> KeyArea = InKeyAreaNode->GetKeyArea(InSection);
-	if (KeyArea.IsValid())
-	{
-		Tmp.KeyAreas.Add(KeyArea.ToSharedRef());
-	}
+	Tmp.WeakChannels.Add(InChannel);
 	Tmp.LocalOffset = InOffset;
-	Tmp.DisplayNode = InKeyAreaNode;
-	Tmp.Height = InKeyAreaNode->GetNodeHeight();
+	Tmp.Height = InHeight;
+	Tmp.DataModel = InChannel;
 	return Tmp;
 }
 
-FSectionLayoutElement FSectionLayoutElement::FromTrack(const TSharedRef<FSequencerTrackNode>& InTrackNode, UMovieSceneSection* InSection, float InOffset)
-{
-	FSectionLayoutElement Tmp;
-	Tmp.Type = Single;
-	TSharedPtr<IKeyArea> KeyArea = InTrackNode->GetTopLevelKeyNode()->GetKeyArea(InSection);
-	if (KeyArea.IsValid())
-	{
-		Tmp.KeyAreas.Add(KeyArea.ToSharedRef());
-	}
-	Tmp.LocalOffset = InOffset;
-	Tmp.DisplayNode = InTrackNode;
-	Tmp.Height = InTrackNode->GetNodeHeight();
-	return Tmp;
-}
-
-FSectionLayoutElement FSectionLayoutElement::EmptySpace(const TSharedRef<FSequencerDisplayNode>& InNode, float InOffset)
+FSectionLayoutElement FSectionLayoutElement::EmptySpace(const TSharedPtr<FViewModel>& InModel, float InOffset, float InHeight)
 {
 	FSectionLayoutElement Tmp;
 	Tmp.Type = Single;
 	Tmp.LocalOffset = InOffset;
-	Tmp.DisplayNode = InNode;
-	Tmp.Height = InNode->GetNodeHeight();
+	Tmp.Height = InHeight;
+	Tmp.DataModel = InModel;
 	return Tmp;
 }
 
@@ -114,14 +96,14 @@ float FSectionLayoutElement::GetHeight() const
 	return Height;
 }
 
-TArrayView<const TSharedRef<IKeyArea>> FSectionLayoutElement::GetKeyAreas() const
+TArrayView<const TWeakPtr<FChannelModel>> FSectionLayoutElement::GetChannels() const
 {
-	return KeyAreas;
+	return WeakChannels;
 }
 
-TSharedPtr<FSequencerDisplayNode> FSectionLayoutElement::GetDisplayNode() const
+TSharedPtr<FViewModel> FSectionLayoutElement::GetModel() const
 {
-	return DisplayNode;
+	return DataModel.Pin();
 }
 
 FGeometry FSectionLayoutElement::ComputeGeometry(const FGeometry& SectionAreaGeometry) const
@@ -132,69 +114,100 @@ FGeometry FSectionLayoutElement::ComputeGeometry(const FGeometry& SectionAreaGeo
 	);
 }
 
-FSectionLayout::FSectionLayout(FSequencerTrackNode& TrackNode, int32 InSectionIndex)
+FSectionLayout::FSectionLayout(TSharedPtr<UE::Sequencer::FSectionModel> SectionModel)
+	: Height(0.f)
 {
-	UMovieSceneSection* Section = TrackNode.GetSections()[InSectionIndex]->GetSectionObject();
+	using namespace UE::Sequencer;
 
-	auto SetupKeyArea = [this, Section](FSequencerDisplayNode& Node, float Offset){
+	float VerticalOffset = 0.f;
+	bool bLayoutChildren = true;
 
-		if (Node.GetType() == ESequencerNode::KeyArea && static_cast<FSequencerSectionKeyAreaNode&>(Node).GetKeyArea(Section).IsValid())
+	// First layout the parent
+	if (TSharedPtr<FTrackModel> ParentTrackModel = StaticCastSharedPtr<FTrackModel>(SectionModel->GetParent()))
+	{
+		const bool bIsExpanded = ParentTrackModel->IsExpanded();
+		const FOutlinerSizing ParentSizing = ParentTrackModel->GetOutlinerSizing();
+		VerticalOffset += ParentSizing.PaddingTop;
+		const float ParentModelHeight = ParentSizing.Height;
+
+		if (!bIsExpanded)
 		{
-			Elements.Add(FSectionLayoutElement::FromKeyAreaNode(
-				StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Node.AsShared()),
-				Section,
-				Offset
-			));
-		}
-		else if (Node.GetType() == ESequencerNode::Track && static_cast<FSequencerTrackNode&>(Node).GetTopLevelKeyNode().IsValid())
-		{
-			Elements.Add(FSectionLayoutElement::FromTrack(
-				StaticCastSharedRef<FSequencerTrackNode>(Node.AsShared()),
-				Section,
-				Offset
-			));
-		}
-		else if (Node.GetChildNodes().Num() && !Node.IsExpanded())
-		{
-			Elements.Add(FSectionLayoutElement::FromGroup(
-				Node.AsShared(),
-				Section,
-				Offset
-			));
+			Elements.Add(FSectionLayoutElement::FromGroup(ParentTrackModel, SectionModel, VerticalOffset, ParentModelHeight));
 		}
 		else
 		{
-			// It's benign space
-			Elements.Add(FSectionLayoutElement::EmptySpace(
-				Node.AsShared(),
-				Offset
-			));
+			Elements.Add(FSectionLayoutElement::EmptySpace(ParentTrackModel, VerticalOffset, ParentModelHeight));
 		}
 
-	};
+		VerticalOffset += ParentModelHeight + ParentSizing.PaddingBottom;
+		Height = VerticalOffset;
 
-	float VerticalOffset = 0.f;
-
-	// First, layout the parent
-	{
-		VerticalOffset += TrackNode.GetNodePadding().Top;
-
-		SetupKeyArea(TrackNode, VerticalOffset);
-
-		VerticalOffset += TrackNode.GetNodeHeight() + TrackNode.GetNodePadding().Bottom;
+		// Don't layout children if the parent is collapsed or filtered out.
+		bLayoutChildren = bIsExpanded && !ParentTrackModel->IsFilteredOut();
 	}
 
-	// Then any children
-	TrackNode.TraverseVisible_ParentFirst([&](FSequencerDisplayNode& Node){
-		
-		VerticalOffset += Node.GetNodePadding().Top;
+	if (!bLayoutChildren)
+	{
+		// No need to sort out layout elements since there's only one.
+		return;
+	}
 
-		SetupKeyArea(Node, VerticalOffset);
+	// Then layout the children
+	for (FParentFirstChildIterator ChildIt = SectionModel->GetDescendants(); ChildIt; ++ChildIt)
+	{
+		TSharedPtr<FViewModel> Model = *ChildIt;
 
-		VerticalOffset += Node.GetNodeHeight() + Node.GetNodePadding().Bottom;
-		return true;
+		bLayoutChildren = true;
+		FOutlinerSizing ChildSizing;
 
-	}, false);
+		if (FLinkedOutlinerExtension* LinkedOutlinerExtension = Model->CastThis<FLinkedOutlinerExtension>())
+		{
+			TSharedPtr<IOutlinerExtension> LinkedOutlinerItem = LinkedOutlinerExtension->GetLinkedOutlinerItem();
+			const bool bIsFilteredOut = !LinkedOutlinerItem || LinkedOutlinerItem->IsFilteredOut();
+			if (bIsFilteredOut)
+			{
+				continue;
+			}
+
+			bLayoutChildren = LinkedOutlinerItem->IsExpanded();
+			ChildSizing = LinkedOutlinerItem->GetOutlinerSizing();
+		}
+		else if (IGeometryExtension* GeometryExtension = Model->CastThis<IGeometryExtension>())
+		{
+			FVirtualGeometry Geometry = GeometryExtension->GetVirtualGeometry();
+			ChildSizing = FOutlinerSizing(Geometry.GetHeight());
+		}
+		else
+		{
+			ensure(false);
+		}
+
+		VerticalOffset += ChildSizing.PaddingTop;
+		const float ChildModelHeight = ChildSizing.Height;
+
+		if (TSharedPtr<FChannelModel> Channel = Model->CastThisShared<FChannelModel>())
+		{
+			Elements.Add(FSectionLayoutElement::FromChannel(Channel, VerticalOffset, ChildModelHeight));
+		}
+		else if (Model->HasChildren() && !bLayoutChildren)
+		{
+			Elements.Add(FSectionLayoutElement::FromGroup(Model, Model, VerticalOffset, ChildModelHeight));
+		}
+		else
+		{
+			Elements.Add(FSectionLayoutElement::EmptySpace(Model, VerticalOffset, ChildModelHeight));
+		}
+
+		VerticalOffset += ChildModelHeight + ChildSizing.PaddingBottom;
+		Height = VerticalOffset;
+
+		if (!bLayoutChildren)
+		{
+			ChildIt.IgnoreCurrentChildren();
+		}
+	}
+
+	Algo::SortBy(Elements, &FSectionLayoutElement::GetOffset);
 }
 
 const TArray<FSectionLayoutElement>& FSectionLayout::GetElements() const
@@ -204,9 +217,8 @@ const TArray<FSectionLayoutElement>& FSectionLayout::GetElements() const
 
 float FSectionLayout::GetTotalHeight() const
 {
-	if (Elements.Num())
-	{
-		return Elements.Last().GetOffset() + Elements.Last().GetDisplayNode()->GetNodePadding().Combined() + Elements.Last().GetHeight();
-	}
-	return 0.f;
+	return Height;
 }
+
+} // namespace Sequencer
+} //namespace UE

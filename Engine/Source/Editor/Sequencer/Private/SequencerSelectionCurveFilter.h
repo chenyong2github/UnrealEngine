@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Tree/CurveEditorTreeFilter.h"
-#include "DisplayNodes/SequencerDisplayNode.h"
-
 
 /**
  * A specialized filter for showing items in the curve editor selected from the sequencer panel.
@@ -23,36 +21,42 @@ struct FSequencerSelectionCurveFilter : FCurveEditorTreeFilter
 	/**
 	 * Adds all selected nodes and their object parents to the NodesToFilter set
 	 */
-	void Update(const TSet<TSharedRef<FSequencerDisplayNode>>& SelectedNodes, const bool bExpandTreeToSelectedNodes = true)
+	void Update(const TSet<TWeakPtr<UE::Sequencer::FViewModel>>& SelectedNodes, const bool bExpandTreeToSelectedNodes = true)
 	{
+		using namespace UE::Sequencer;
+
 		NodesToFilter.Empty(SelectedNodes.Num());
 
-		for (const TSharedRef<FSequencerDisplayNode>& SelectedNode : SelectedNodes)
+		for (const TWeakPtr<FViewModel>& WeakSelectedNode : SelectedNodes)
 		{
-			NodesToFilter.Add(SelectedNode);
-
-			TSharedPtr<FSequencerDisplayNode> Parent = SelectedNode->GetParent();
-			while (Parent.IsValid())
+			if (TSharedPtr<FViewModel> SelectedNode = WeakSelectedNode.Pin())
 			{
-				if (Parent->GetType() == ESequencerNode::Object)
-				{
-					NodesToFilter.Add(Parent.ToSharedRef());
-					break;
-				}
+				NodesToFilter.Add(WeakSelectedNode);
 
-				Parent = Parent->GetParent();
+				TSharedPtr<FViewModel> Parent = SelectedNode->GetParent();
+				while (Parent.IsValid())
+				{
+					if (Parent->IsA<IObjectBindingExtension>())
+					{
+						NodesToFilter.Add(Parent);
+						break;
+					}
+
+					Parent = Parent->GetParent();
+				}
 			}
 		}
 
 		bExpandToMatchedItems = bExpandTreeToSelectedNodes;
 	}
 
-	bool Match(TSharedRef<const FSequencerDisplayNode> InNode) const
+	bool Match(TSharedRef<const UE::Sequencer::FViewModel> InNode) const
 	{
 		return NodesToFilter.Contains(InNode);
 	}
 
 private:
 
-	TSet<TSharedRef<const FSequencerDisplayNode>> NodesToFilter;
+	TSet<TWeakPtr<const UE::Sequencer::FViewModel>> NodesToFilter;
 };
+

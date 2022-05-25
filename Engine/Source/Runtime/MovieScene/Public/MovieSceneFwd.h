@@ -9,6 +9,20 @@
 #include "MovieSceneSequenceID.h"
 #include "HAL/PreprocessorHelpers.h"
 
+#ifndef UE_MOVIESCENE_EVENTS
+	#define UE_MOVIESCENE_EVENTS WITH_EDITOR
+#endif
+
+namespace UE
+{
+namespace MovieScene
+{
+
+class ISequenceDataEventHandler;
+
+} // namespace MovieScene
+} // namespace UE
+
 UENUM()
 namespace EMovieScenePlayerStatus
 {

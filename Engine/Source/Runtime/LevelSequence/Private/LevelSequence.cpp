@@ -605,7 +605,7 @@ FGuid ULevelSequence::FindOrAddBinding(UObject* InObject)
 		FMovieScenePossessable* ChildPossessable = MovieScene->FindPossessable(NewGuid);
 		if (ensure(ChildPossessable))
 		{
-			ChildPossessable->SetParent(ParentGuid);
+			ChildPossessable->SetParent(ParentGuid, MovieScene);
 		}
 
 		FMovieSceneSpawnable* ParentSpawnable = MovieScene->FindSpawnable(ParentGuid);

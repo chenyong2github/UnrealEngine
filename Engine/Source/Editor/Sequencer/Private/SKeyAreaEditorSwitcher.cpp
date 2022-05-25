@@ -5,15 +5,21 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Sequencer.h"
-#include "SKeyNavigationButtons.h"
+#include "SequencerCommonHelpers.h"
 #include "IKeyArea.h"
-#include "DisplayNodes/SequencerSectionKeyAreaNode.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/Extensions/IObjectBindingExtension.h"
+#include "MVVM/Views/SKeyNavigationButtons.h"
 
-void SKeyAreaEditorSwitcher::Construct(const FArguments& InArgs, TSharedRef<FSequencerSectionKeyAreaNode> InKeyAreaNode)
+namespace UE
 {
-	WeakKeyAreaNode = InKeyAreaNode;
+namespace Sequencer
+{
 
-	Rebuild();
+void SKeyAreaEditorSwitcher::Construct(const FArguments& InArgs, TSharedPtr<FChannelGroupModel> InModel, TWeakPtr<ISequencer> InWeakSequencer)
+{
+	WeakModel = InModel;
+	WeakSequencer = InWeakSequencer;
 }
 
 int32 SKeyAreaEditorSwitcher::GetWidgetIndex() const
@@ -23,8 +29,9 @@ int32 SKeyAreaEditorSwitcher::GetWidgetIndex() const
 
 void SKeyAreaEditorSwitcher::Rebuild()
 {
-	TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode = WeakKeyAreaNode.Pin();
-	if (!KeyAreaNode.IsValid())
+	TSharedPtr<FChannelGroupModel> Model     = WeakModel.Pin();
+	TSharedPtr<ISequencer>         Sequencer = WeakSequencer.Pin();
+	if (!Model || !Sequencer)
 	{
 		// Empty our cache so we don't persistently rebuild
 		CachedKeyAreas.Empty();
@@ -37,10 +44,7 @@ void SKeyAreaEditorSwitcher::Rebuild()
 		return;
 	}
 
-	const bool bIsEnabled = !KeyAreaNode->GetSequencer().IsReadOnly();
-
-	// Update the cached list so we know when to rebuild next
-	CachedKeyAreas = KeyAreaNode->GetAllKeyAreas();
+	const bool bIsEnabled = !Sequencer->IsReadOnly();
 
 	// Index 0 is always the spacer node
 	VisibleIndex = 0;
@@ -54,8 +58,8 @@ void SKeyAreaEditorSwitcher::Rebuild()
 			SNullWidget::NullWidget
 		];
 
-	TSharedPtr<FSequencerObjectBindingNode> ParentObjectBinding = KeyAreaNode->FindParentObjectBindingNode();
-	FGuid ObjectBindingID = ParentObjectBinding.IsValid() ? ParentObjectBinding->GetObjectBinding() : FGuid();
+	TSharedPtr<IObjectBindingExtension> ParentObjectBinding = Model->FindAncestorOfType<IObjectBindingExtension>();
+	FGuid ObjectBindingID = ParentObjectBinding.IsValid() ? ParentObjectBinding->GetObjectGuid() : FGuid();
 
 	for (TSharedRef<IKeyArea> KeyArea : CachedKeyAreas)
 	{
@@ -76,7 +80,7 @@ void SKeyAreaEditorSwitcher::Rebuild()
 				.MinDesiredWidth(100)
 				.HAlign(HAlign_Left)
 				[
-					KeyArea->CreateKeyEditor(KeyAreaNode->GetSequencer().AsShared(), ObjectBindingID)
+					KeyArea->CreateKeyEditor(Sequencer, ObjectBindingID)
 				]
 			];
 		}
@@ -90,11 +94,14 @@ void SKeyAreaEditorSwitcher::Rebuild()
 
 void SKeyAreaEditorSwitcher::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 {
-	TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode = WeakKeyAreaNode.Pin();
-	if (!KeyAreaNode.IsValid())
+	TSharedPtr<FChannelGroupModel> Model = WeakModel.Pin();
+	TSharedPtr<ISequencer>         Sequencer = WeakSequencer.Pin();
+	if (!Model || !Sequencer)
 	{
 		if (CachedKeyAreas.Num() != 0)
 		{
+			CachedKeyAreas.Empty();
+
 			// Node is not valid but we have a valid cache - we need to rebuild the switcher now
 			Rebuild();
 		}
@@ -102,8 +109,11 @@ void SKeyAreaEditorSwitcher::Tick( const FGeometry& AllottedGeometry, const doub
 	}
 	else
 	{
-		if (CachedKeyAreas != KeyAreaNode->GetAllKeyAreas())
+		TArray<TSharedRef<IKeyArea>> NewCachedKeyAreas = Model->GetAllKeyAreas();
+		if (CachedKeyAreas != NewCachedKeyAreas)
 		{
+			Swap(CachedKeyAreas, NewCachedKeyAreas);
+
 			// Node is valid but now has a different set of key areas. Must rebuild the widgets.
 			Rebuild();
 		}
@@ -114,7 +124,7 @@ void SKeyAreaEditorSwitcher::Tick( const FGeometry& AllottedGeometry, const doub
 			AllSections.Add(KeyArea->GetOwningSection());
 		}
 
-		const int32 ActiveKeyArea = SequencerHelpers::GetSectionFromTime(AllSections, KeyAreaNode->GetSequencer().GetLocalTime().Time.FrameNumber);
+		const int32 ActiveKeyArea = SequencerHelpers::GetSectionFromTime(AllSections, Sequencer->GetLocalTime().Time.FrameNumber);
 		if (ActiveKeyArea != INDEX_NONE)
 		{
 			// Index 0 is the spacer node, so add 1 to the key area index to get the widget index
@@ -126,3 +136,6 @@ void SKeyAreaEditorSwitcher::Tick( const FGeometry& AllottedGeometry, const doub
 		}
 	}
 }
+
+} // namespace Sequencer
+} // namespace UE

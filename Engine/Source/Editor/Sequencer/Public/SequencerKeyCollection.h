@@ -7,11 +7,19 @@
 #include "Misc/FrameNumber.h"
 #include "Misc/Guid.h"
 #include "Misc/OptionalFwd.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
 #include "Templates/SharedPointer.h"
 
 class UMovieSceneSection;
-class FSequencerDisplayNode;
 class IKeyArea;
+
+namespace UE
+{
+namespace Sequencer
+{
+	class FViewModel;
+}
+}
 
 template<typename> class TRange;
 
@@ -23,17 +31,19 @@ enum class EFindKeyDirection
 
 struct FSequencerKeyCollectionSignature
 {
+	using FViewModel = UE::Sequencer::FViewModel;
+
 	FSequencerKeyCollectionSignature()
 	{}
 
 	/** Initialize this key collection from the specified nodes. Only gathers keys from those explicitly specified. */
-	SEQUENCER_API static FSequencerKeyCollectionSignature FromNodes(const TArray<FSequencerDisplayNode*>& InNodes, FFrameNumber InDuplicateThreshold);
+	SEQUENCER_API static FSequencerKeyCollectionSignature FromNodes(const TArray<TSharedRef<FViewModel>>& InNodes, FFrameNumber InDuplicateThreshold);
 
 	/** Initialize this key collection from the specified nodes. Gathers keys from all child nodes. */
-	SEQUENCER_API static FSequencerKeyCollectionSignature FromNodesRecursive(const TArray<FSequencerDisplayNode*>& InNodes, FFrameNumber InDuplicateThreshold);
+	SEQUENCER_API static FSequencerKeyCollectionSignature FromNodesRecursive(const TArray<TSharedRef<FViewModel>>& InNodes, FFrameNumber InDuplicateThreshold);
 
 	/** Initialize this key collection from the specified node and section index. */
-	SEQUENCER_API static FSequencerKeyCollectionSignature FromNodeRecursive(FSequencerDisplayNode& InNode, UMovieSceneSection* InSection, FFrameNumber InDuplicateThreshold);
+	SEQUENCER_API static FSequencerKeyCollectionSignature FromNodeRecursive(TSharedRef<FViewModel> InNode, UMovieSceneSection* InSection, FFrameNumber InDuplicateThreshold);
 
 	/** Compare this signature for inequality with another */
 	SEQUENCER_API friend bool operator!=(const FSequencerKeyCollectionSignature& A, const FSequencerKeyCollectionSignature& B);

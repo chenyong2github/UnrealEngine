@@ -3,14 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DisplayNodes/SequencerDisplayNode.h"
+#include "SequencerHotspots.h"
 #include "Sequencer.h"
 #include "SequencerClipboardReconciler.h"
 #include "ScopedTransaction.h"
 #include "Channels/MovieSceneChannelHandle.h"
 #include "Curves/RealCurve.h"
+#include "MVVM/ViewModelPtr.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
 
-struct FEasingAreaHandle;
 struct FSequencerSelectedKey;
 class FMenuBuilder;
 class UMovieSceneSection;
@@ -98,7 +99,7 @@ private:
 struct FPasteContextMenuArgs
 {
 	/** Paste the clipboard into the specified array of sequencer nodes, at the given time */
-	static FPasteContextMenuArgs PasteInto(TArray<TSharedRef<FSequencerDisplayNode>> InNodes, FFrameNumber InTime, TSharedPtr<FMovieSceneClipboard> InClipboard = nullptr)
+	static FPasteContextMenuArgs PasteInto(TArray<UE::Sequencer::TViewModelPtr<UE::Sequencer::IOutlinerExtension>> InNodes, FFrameNumber InTime, TSharedPtr<FMovieSceneClipboard> InClipboard = nullptr)
 	{
 		FPasteContextMenuArgs Args;
 		Args.Clipboard = InClipboard;
@@ -123,7 +124,7 @@ struct FPasteContextMenuArgs
 	FFrameNumber PasteAtTime;
 
 	/** Optional user-supplied nodes to paste into */
-	TArray<TSharedRef<FSequencerDisplayNode>> DestinationNodes;
+	TArray<UE::Sequencer::TViewModelPtr<UE::Sequencer::IOutlinerExtension>> DestinationNodes;
 };
 
 struct FPasteContextMenu : TSharedFromThis<FPasteContextMenu>
@@ -156,7 +157,7 @@ private:
 	bool PasteInto(int32 DestinationIndex, FName KeyAreaName, TSet<FSequencerSelectedKey>& NewSelection);
 	void EndPasteInto(bool bAnythingPasted, const TSet<FSequencerSelectedKey>& NewSelection);
 
-	void GatherPasteDestinationsForNode(FSequencerDisplayNode& InNode, UMovieSceneSection* InSection, const FName& CurrentScope, TMap<FName, FSequencerClipboardReconciler>& Map);
+	void GatherPasteDestinationsForNode(const UE::Sequencer::TViewModelPtr<UE::Sequencer::IOutlinerExtension>& InNode, UMovieSceneSection* InSection, const FName& CurrentScope, TMap<FName, FSequencerClipboardReconciler>& Map);
 
 	/** The sequencer */
 	TSharedRef<FSequencer> Sequencer;
@@ -239,11 +240,11 @@ private:
  */
 struct FEasingContextMenu : TSharedFromThis<FEasingContextMenu>
 {
-	static void BuildMenu(FMenuBuilder& MenuBuilder, const TArray<FEasingAreaHandle>& InEasings, FSequencer& Sequencer, FFrameTime InMouseDownTime);
+	static void BuildMenu(FMenuBuilder& MenuBuilder, const TArray<UE::Sequencer::FEasingAreaHandle>& InEasings, FSequencer& Sequencer, FFrameTime InMouseDownTime);
 
 private:
 
-	FEasingContextMenu(const TArray<FEasingAreaHandle>& InEasings, FSequencer& InSequencer)
+	FEasingContextMenu(const TArray<UE::Sequencer::FEasingAreaHandle>& InEasings, FSequencer& InSequencer)
 		: Easings(InEasings)
 		, Sequencer(StaticCastSharedRef<FSequencer>(InSequencer.AsShared()))
 
@@ -270,7 +271,7 @@ private:
 
 	void SetAutoEasing(bool bAutoEasing);
 
-	TArray<FEasingAreaHandle> Easings;
+	TArray<UE::Sequencer::FEasingAreaHandle> Easings;
 
 	/** The sequencer */
 	TSharedRef<FSequencer> Sequencer;

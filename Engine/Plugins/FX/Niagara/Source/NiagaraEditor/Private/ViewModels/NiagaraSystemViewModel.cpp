@@ -1487,16 +1487,16 @@ void FNiagaraSystemViewModel::RefreshSequencerTracks()
 			EmitterHandleIdToTrackMap.Add(EmitterHandleViewModel->GetId(), EmitterTrack);
 		}
 
-		TArray<UMovieSceneFolder*>& MovieSceneRootFolders = NiagaraSequence->GetMovieScene()->GetRootFolders();
-		MovieSceneRootFolders.Empty();
+		UMovieScene* MovieScene = NiagaraSequence->GetMovieScene();
+		MovieScene->EmptyRootFolders();
 
 		const UNiagaraSystemEditorData& SystemEditorData = GetEditorData();
 		UNiagaraSystemEditorFolder& RootFolder = SystemEditorData.GetRootFolder();
 		for (const UNiagaraSystemEditorFolder* RootChildFolder : RootFolder.GetChildFolders())
 		{
-			UMovieSceneFolder* MovieSceneRootFolder = NewObject<UMovieSceneFolder>(NiagaraSequence->GetMovieScene(), RootChildFolder->GetFolderName(), RF_Transactional);
+			UMovieSceneFolder* MovieSceneRootFolder = NewObject<UMovieSceneFolder>(MovieScene, RootChildFolder->GetFolderName(), RF_Transactional);
 			MovieSceneRootFolder->SetFolderName(RootChildFolder->GetFolderName());
-			MovieSceneRootFolders.Add(MovieSceneRootFolder);
+			MovieScene->AddRootFolder(MovieSceneRootFolder);
 			PopulateChildMovieSceneFoldersFromNiagaraFolders(RootChildFolder, MovieSceneRootFolder, EmitterHandleIdToTrackMap);
 		}
 		Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
@@ -1896,7 +1896,7 @@ void FNiagaraSystemViewModel::UpdateSimulationFromParameterChange()
 	}
 }
 
-void PopulateNiagaraFoldersFromMovieSceneFolders(const TArray<UMovieSceneFolder*>& MovieSceneFolders, const TArray<UMovieSceneTrack*>& MovieSceneTracks, UNiagaraSystemEditorFolder* ParentFolder)
+void PopulateNiagaraFoldersFromMovieSceneFolders(TArrayView<UMovieSceneFolder* const> MovieSceneFolders, const TArray<UMovieSceneTrack*>& MovieSceneTracks, UNiagaraSystemEditorFolder* ParentFolder)
 {
 	TArray<FName> ValidFolderNames;
 	for (UMovieSceneFolder* MovieSceneFolder : MovieSceneFolders)
@@ -2054,7 +2054,7 @@ void FNiagaraSystemViewModel::SequencerDataChanged(EMovieSceneDataChangeType Dat
 		}
 
 		TArray<UMovieSceneTrack*> RootTracks;
-		TArray<UMovieSceneFolder*> RootFolders = NiagaraSequence->GetMovieScene()->GetRootFolders();
+		TArrayView<UMovieSceneFolder* const> RootFolders = NiagaraSequence->GetMovieScene()->GetRootFolders();
 		if (RootFolders.Num() != 0 || GetEditorData().GetRootFolder().GetChildFolders().Num() != 0)
 		{
 			PopulateNiagaraFoldersFromMovieSceneFolders(RootFolders, RootTracks, &GetEditorData().GetRootFolder());

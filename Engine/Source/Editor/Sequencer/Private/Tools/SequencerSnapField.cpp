@@ -3,64 +3,67 @@
 #include "Tools/SequencerSnapField.h"
 #include "MovieScene.h"
 #include "SSequencer.h"
-#include "SSequencerTreeView.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MovieSceneSequence.h"
 #include "ISequencerSection.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/Views/SOutlinerView.h"
+#include "MVVM/Extensions/ISnappableExtension.h"
 
-struct FSnapGridVisitor : ISequencerEntityVisitor
+struct FSnapGridVisitor : ISequencerEntityVisitor, UE::Sequencer::ISnapField
 {
-	FSnapGridVisitor(ISequencerSnapCandidate& InCandidate, uint32 EntityMask)
+	FSnapGridVisitor(UE::Sequencer::ISnapCandidate& InCandidate, uint32 EntityMask)
 		: ISequencerEntityVisitor(EntityMask)
 		, Candidate(InCandidate)
 	{}
 
-	virtual void VisitKey(FKeyHandle KeyHandle, FFrameNumber KeyTime, const TSharedPtr<IKeyArea>& KeyArea, UMovieSceneSection* Section, TSharedRef<FSequencerDisplayNode>) const
+	virtual void VisitKey(FKeyHandle KeyHandle, FFrameNumber KeyTime, const UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel>& Channel, UMovieSceneSection* Section) const
 	{
-		if (Candidate.IsKeyApplicable(KeyHandle, KeyArea, Section))
+		using namespace UE::Sequencer;
+
+		if (Candidate.IsKeyApplicable(KeyHandle, Channel))
 		{
-			Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::Key, KeyTime });
+			Snaps.Add(FSnapPoint{ FSnapPoint::Key, KeyTime });
 		}
 	}
-	virtual void VisitSection(UMovieSceneSection* Section, TSharedRef<FSequencerDisplayNode> Node) const
+	virtual void VisitDataModel(UE::Sequencer::FViewModel* DataModel) const
 	{
-		if (Candidate.AreSectionBoundsApplicable(Section))
-		{
-			if (Section->HasStartFrame())
-			{
-				Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::SectionBounds, Section->GetInclusiveStartFrame() });
-			}
+		using namespace UE::Sequencer;
 
-			if (Section->HasEndFrame())
-			{
-				Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::SectionBounds, Section->GetExclusiveEndFrame() });
-			}
-		}
-
-		if (Candidate.AreSectionCustomSnapsApplicable(Section))
+		if (ISnappableExtension* Snappable = DataModel->CastThis<ISnappableExtension>())
 		{
-			TArray<FFrameNumber> CustomSnaps;
-			Section->GetSnapTimes(CustomSnaps, false);
-			for (FFrameNumber Time : CustomSnaps)
-			{
-				Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::CustomSection, Time });
-			}
+			Snappable->AddToSnapField(Candidate, *const_cast<FSnapGridVisitor*>(this));
 		}
 	}
 
-	ISequencerSnapCandidate& Candidate;
-	mutable TArray<FSequencerSnapPoint> Snaps;
+	virtual void AddSnapPoint(const UE::Sequencer::FSnapPoint& SnapPoint) override
+	{
+		Snaps.Add(SnapPoint);
+	}
+
+	UE::Sequencer::ISnapCandidate& Candidate;
+	mutable TArray<UE::Sequencer::FSnapPoint> Snaps;
 };
 
-FSequencerSnapField::FSequencerSnapField(const FSequencer& InSequencer, ISequencerSnapCandidate& Candidate, uint32 EntityMask)
+FSequencerSnapField::FSequencerSnapField(const FSequencer& InSequencer, UE::Sequencer::ISnapCandidate& Candidate, uint32 EntityMask)
 {
-	TSharedPtr<SSequencerTreeView> TreeView = StaticCastSharedRef<SSequencer>(InSequencer.GetSequencerWidget())->GetTreeView();
+	Initialize(InSequencer, Candidate, EntityMask);
+	Finalize();
+}
 
-	TArray<TSharedRef<FSequencerDisplayNode>> VisibleNodes;
-	for (const SSequencerTreeView::FCachedGeometry& Geometry : TreeView->GetAllVisibleNodes())
-	{
-		VisibleNodes.Add(Geometry.Node);
-	}
+void FSequencerSnapField::AddExplicitSnap(UE::Sequencer::FSnapPoint InSnap)
+{
+	SortedSnaps.Add(InSnap);
+}
+
+void FSequencerSnapField::Initialize(const FSequencer& InSequencer, UE::Sequencer::ISnapCandidate& Candidate, uint32 EntityMask)
+{
+	using namespace UE::Sequencer;
+
+	TSharedPtr<SOutlinerView> TreeView = StaticCastSharedRef<SSequencer>(InSequencer.GetSequencerWidget())->GetTreeView();
+
+	TArray<TViewModelPtr<IOutlinerExtension>> VisibleItems;
+	TreeView->GetVisibleItems(VisibleItems);
 
 	TRange<double> ViewRange = InSequencer.GetViewRange();
 	FSequencerEntityWalker Walker(
@@ -69,53 +72,71 @@ FSequencerSnapField::FSequencerSnapField(const FSequencer& InSequencer, ISequenc
 
 	// Traverse the visible space, collecting snapping times as we go
 	FSnapGridVisitor Visitor(Candidate, EntityMask);
-	Walker.Traverse(Visitor, VisibleNodes);
+	for (const TViewModelPtr<IOutlinerExtension>& Item : VisibleItems)
+	{
+		Walker.Traverse(Visitor, Item);
+	}
 
 	// Add the playback range start/end bounds as potential snap candidates
 	TRange<FFrameNumber> PlaybackRange = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
 	if(UE::MovieScene::DiscreteSize(PlaybackRange) > 0)
 	{
-		Visitor.Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::PlaybackRange, UE::MovieScene::DiscreteInclusiveLower(PlaybackRange)});
-		Visitor.Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::PlaybackRange, UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange)});
+		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::PlaybackRange, UE::MovieScene::DiscreteInclusiveLower(PlaybackRange)});
+		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::PlaybackRange, UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange)});
 	}
 
 	// Add the current time as a potential snap candidate
-	Visitor.Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::CurrentTime, InSequencer.GetLocalTime().Time.FrameNumber });
+	Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::CurrentTime, InSequencer.GetLocalTime().Time.FrameNumber });
 
 	// Add the selection range bounds as a potential snap candidate
 	TRange<FFrameNumber> SelectionRange = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetSelectionRange();
 	if (UE::MovieScene::DiscreteSize(SelectionRange) > 0)
 	{
-		Visitor.Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::InOutRange, UE::MovieScene::DiscreteInclusiveLower(SelectionRange)});
-		Visitor.Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::InOutRange, UE::MovieScene::DiscreteExclusiveUpper(SelectionRange) - 1});
+		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::InOutRange, UE::MovieScene::DiscreteInclusiveLower(SelectionRange)});
+		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::InOutRange, UE::MovieScene::DiscreteExclusiveUpper(SelectionRange) - 1});
 	}
 
 	// Add in the marked frames
 	for (const FMovieSceneMarkedFrame& MarkedFrame : InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->GetMarkedFrames())
 	{
-		Visitor.Snaps.Add( FSequencerSnapPoint{ FSequencerSnapPoint::Mark, MarkedFrame.FrameNumber } );
+		Visitor.Snaps.Add( FSnapPoint{ FSnapPoint::Mark, MarkedFrame.FrameNumber } );
 	}
 
 	// Add in the global marked frames
 	for (const FMovieSceneMarkedFrame& MarkedFrame : InSequencer.GetGlobalMarkedFrames())
 	{
-		Visitor.Snaps.Add(FSequencerSnapPoint{ FSequencerSnapPoint::Mark, MarkedFrame.FrameNumber });
+		Visitor.Snaps.Add(FSnapPoint{ FSnapPoint::Mark, MarkedFrame.FrameNumber });
 	}
 
+
+	if (SortedSnaps.Num() == 0)
+	{
+		SortedSnaps = MoveTemp(Visitor.Snaps);
+	}
+	else
+	{
+		SortedSnaps.Append(Visitor.Snaps);
+	}
+}
+
+void FSequencerSnapField::Finalize()
+{
+	using namespace UE::Sequencer;
+
 	// Sort
-	Visitor.Snaps.Sort([](const FSequencerSnapPoint& A, const FSequencerSnapPoint& B){
+	SortedSnaps.Sort([](const FSnapPoint& A, const FSnapPoint& B){
 		return A.Time < B.Time;
 	});
 
 	// Remove duplicates
-	for (int32 Index = 0; Index < Visitor.Snaps.Num(); ++Index)
+	for (int32 Index = 0; Index < SortedSnaps.Num(); ++Index)
 	{
-		const FFrameNumber CurrentTime = Visitor.Snaps[Index].Time;
+		const FFrameNumber CurrentTime = SortedSnaps[Index].Time;
 
 		int32 NumToMerge = 0;
-		for (int32 DuplIndex = Index + 1; DuplIndex < Visitor.Snaps.Num(); ++DuplIndex)
+		for (int32 DuplIndex = Index + 1; DuplIndex < SortedSnaps.Num(); ++DuplIndex)
 		{
-			if (CurrentTime != Visitor.Snaps[DuplIndex].Time)
+			if (CurrentTime != SortedSnaps[DuplIndex].Time)
 			{
 				break;
 			}
@@ -124,11 +145,9 @@ FSequencerSnapField::FSequencerSnapField(const FSequencer& InSequencer, ISequenc
 
 		if (NumToMerge)
 		{
-			Visitor.Snaps.RemoveAt(Index + 1, NumToMerge, false);
+			SortedSnaps.RemoveAt(Index + 1, NumToMerge, false);
 		}
 	}
-
-	SortedSnaps = MoveTemp(Visitor.Snaps);
 }
 
 TOptional<FFrameNumber> FSequencerSnapField::Snap(FFrameNumber InTime, int32 Threshold) const

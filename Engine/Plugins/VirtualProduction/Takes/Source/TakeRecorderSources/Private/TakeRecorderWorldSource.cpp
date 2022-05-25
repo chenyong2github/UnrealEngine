@@ -196,7 +196,7 @@ void UTakeRecorderWorldSource::AutotrackActors(class ULevelSequence* InSequence,
 	{
 		FolderToUse = NewObject<UMovieSceneFolder>(MovieScene, NAME_None, RF_Transactional);
 		FolderToUse->SetFolderName(AutotrackedFolderName);
-		MovieScene->GetRootFolders().Add(FolderToUse);
+		MovieScene->AddRootFolder(FolderToUse);
 	}
 
 	for (FGuid AddedGuid : AddedGuids)

@@ -3,34 +3,21 @@
 #include "SequencerKeyCollection.h"
 #include "MovieSceneSection.h"
 #include "IKeyArea.h"
-#include "DisplayNodes/SequencerDisplayNode.h"
-#include "DisplayNodes/SequencerTrackNode.h"
-#include "DisplayNodes/SequencerSectionKeyAreaNode.h"
-#include "Sequencer.h"
-#include "SequencerSettings.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
 
-FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodes(const TArray<FSequencerDisplayNode*>& InNodes, FFrameNumber InDuplicateThresholdTime)
+FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodes(const TArray<TSharedRef<FViewModel>>& InNodes, FFrameNumber InDuplicateThresholdTime)
 {
+	using namespace UE::Sequencer;
+
 	FSequencerKeyCollectionSignature Result;
 	Result.DuplicateThresholdTime = InDuplicateThresholdTime;
 
-	for (const FSequencerDisplayNode* Node : InNodes)
+	for (const TSharedRef<FViewModel>& Node : InNodes)
 	{
-		const FSequencerSectionKeyAreaNode* KeyAreaNode = nullptr;
-
-		check(Node);
-		if (Node->GetType() == ESequencerNode::KeyArea)
+		for (TViewModelPtr<const FChannelGroupModel> ChannelGroupModel : Node->GetChildrenOfType<FChannelGroupModel>())
 		{
-			KeyAreaNode = static_cast<const FSequencerSectionKeyAreaNode*>(Node);
-		}
-		else if (Node->GetType() == ESequencerNode::Track)
-		{
-			KeyAreaNode = static_cast<const FSequencerTrackNode*>(Node)->GetTopLevelKeyNode().Get();
-		}
-
-		if (KeyAreaNode)
-		{
-			for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNode->GetAllKeyAreas())
+			for (const TSharedRef<IKeyArea>& KeyArea : ChannelGroupModel->GetAllKeyAreas())
 			{
 				const UMovieSceneSection* Section = KeyArea->GetOwningSection();
 				Result.KeyAreaToSignature.Add(KeyArea, Section ? Section->GetSignature() : FGuid());
@@ -41,26 +28,25 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodes(con
 	return Result;
 }
 
-FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodesRecursive(const TArray<FSequencerDisplayNode*>& InNodes, FFrameNumber InDuplicateThresholdTime)
+FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodesRecursive(const TArray<TSharedRef<FViewModel>>& InNodes, FFrameNumber InDuplicateThresholdTime)
 {
+	using namespace UE::Sequencer;
+
 	FSequencerKeyCollectionSignature Result;
 	Result.DuplicateThresholdTime = InDuplicateThresholdTime;
 
-	TArray<TSharedRef<FSequencerSectionKeyAreaNode>> AllKeyAreaNodes;
+	TArray<TSharedPtr<FChannelGroupModel>> AllKeyAreaNodes;
 	AllKeyAreaNodes.Reserve(36);
-	const bool bJustVisible = true;
-
-	for (FSequencerDisplayNode* Node : InNodes)
+	for (const TSharedRef<FViewModel>& Node : InNodes)
 	{
-		if (Node->GetType() == ESequencerNode::KeyArea)
+		const bool bIncludeThis = true;
+		for (const TViewModelPtr<FChannelGroupModel>& KeyAreaNode : Node->GetDescendantsOfType<FChannelGroupModel>(bIncludeThis))
 		{
-			AllKeyAreaNodes.Add(StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Node->AsShared()));
+			AllKeyAreaNodes.Add(KeyAreaNode);
 		}
-
-		Node->GetChildKeyAreaNodesRecursively(AllKeyAreaNodes, bJustVisible);
 	}
 
-	for (const TSharedRef<FSequencerSectionKeyAreaNode>& Node : AllKeyAreaNodes)
+	for (const TSharedPtr<FChannelGroupModel>& Node : AllKeyAreaNodes)
 	{
 		for (const TSharedRef<IKeyArea>& KeyArea : Node->GetAllKeyAreas())
 		{
@@ -72,18 +58,21 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodesRecu
 	return Result;
 }
 
-FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodeRecursive(FSequencerDisplayNode& InNode, UMovieSceneSection* InSection, FFrameNumber InDuplicateThresholdTime)
+FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodeRecursive(TSharedRef<FViewModel> InNode, UMovieSceneSection* InSection, FFrameNumber InDuplicateThresholdTime)
 {
+	using namespace UE::Sequencer;
+
 	FSequencerKeyCollectionSignature Result;
 	Result.DuplicateThresholdTime = InDuplicateThresholdTime;
 
-	TArray<TSharedRef<FSequencerSectionKeyAreaNode>> AllKeyAreaNodes;
+	TArray<TSharedPtr<FChannelGroupModel>> AllKeyAreaNodes;
 	AllKeyAreaNodes.Reserve(36);
+	for (TSharedPtr<FChannelGroupModel> KeyAreaNode : InNode->GetDescendantsOfType<FChannelGroupModel>(true))
+	{
+		AllKeyAreaNodes.Add(KeyAreaNode);
+	}
 
-	const bool bJustVisible = true;
-	InNode.GetChildKeyAreaNodesRecursively(AllKeyAreaNodes, bJustVisible);
-
-	for (const auto& Node : AllKeyAreaNodes)
+	for (const TSharedPtr<FChannelGroupModel>& Node : AllKeyAreaNodes)
 	{
 		TSharedPtr<IKeyArea> KeyArea = Node->GetKeyArea(InSection);
 		if (KeyArea.IsValid())

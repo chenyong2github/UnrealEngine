@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerUtilities.h"
+#include "Misc/Attribute.h"
 #include "Misc/Paths.h"
 #include "Layout/Margin.h"
 #include "Fonts/SlateFontInfo.h"
@@ -12,7 +13,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/AppStyle.h"
-#include "SequencerTrackNode.h"
 #include "MovieSceneTrack.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneTimeHelpers.h"
@@ -23,12 +23,14 @@
 #include "ISequencer.h"
 #include "Sequencer.h"
 #include "SequencerNodeTree.h"
-#include "DisplayNodes/SequencerObjectBindingNode.h"
 #include "ScopedTransaction.h"
 #include "UObject/Package.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "FileHelpers.h"
 #include "LevelSequence.h"
+#include "MVVM/Extensions/IObjectBindingExtension.h"
+#include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/Views/ViewUtilities.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
@@ -36,18 +38,6 @@ PRAGMA_DISABLE_OPTIMIZATION
 
 #define LOCTEXT_NAMESPACE "FSequencerUtilities"
 
-static EVisibility GetRolloverVisibility(TAttribute<bool> HoverState, TWeakPtr<SComboButton> WeakComboButton)
-{
-	TSharedPtr<SComboButton> ComboButton = WeakComboButton.Pin();
-	if (HoverState.Get() || ComboButton->IsOpen())
-	{
-		return EVisibility::SelfHitTestInvisible;
-	}
-	else
-	{
-		return EVisibility::Collapsed;
-	}
-}
 
 static EVisibility GetRolloverVisibility(TAttribute<bool> HoverState, TWeakPtr<SButton> WeakButton)
 {
@@ -64,51 +54,8 @@ static EVisibility GetRolloverVisibility(TAttribute<bool> HoverState, TWeakPtr<S
 
 TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnGetContent MenuContent, const TAttribute<bool>& HoverState, TWeakPtr<ISequencer> InSequencer)
 {
-	FSlateFontInfo SmallLayoutFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
-
-	TSharedRef<STextBlock> ComboButtonText = SNew(STextBlock)
-		.Text(HoverText)
-		.Font(SmallLayoutFont)
-		.ColorAndOpacity( FSlateColor::UseForeground() );
-
-	TSharedRef<SComboButton> ComboButton =
-
-		SNew(SComboButton)
-		.HasDownArrow(false)
-		.IsFocusable(true)
-		.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-		.ForegroundColor( FSlateColor::UseForeground() )
-		.IsEnabled_Lambda([=]() { return InSequencer.IsValid() ? !InSequencer.Pin()->IsReadOnly() : false; })
-		.OnGetMenuContent(MenuContent)
-		.ContentPadding(FMargin(5, 2))
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		.ButtonContent()
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(FMargin(0,0,2,0))
-			[
-				SNew(SImage)
-				.ColorAndOpacity( FSlateColor::UseForeground() )
-				.Image(FAppStyle::GetBrush("Plus"))
-			]
-
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				ComboButtonText
-			]
-		];
-
-	TAttribute<EVisibility> Visibility = TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(GetRolloverVisibility, HoverState, TWeakPtr<SComboButton>(ComboButton)));
-	ComboButtonText->SetVisibility(Visibility);
-
-	return ComboButton;
+	TAttribute<bool> IsEnabled = MakeAttributeLambda([InSequencer]() -> bool { return InSequencer.IsValid() ? !InSequencer.Pin()->IsReadOnly() : false; });
+	return UE::Sequencer::MakeAddButton(HoverText, MenuContent, HoverState, IsEnabled);
 }
 
 TSharedRef<SWidget> FSequencerUtilities::MakeAddButton(FText HoverText, FOnClicked OnClicked, const TAttribute<bool>& HoverState, TWeakPtr<ISequencer> InSequencer)
@@ -284,6 +231,9 @@ void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, U
 
 void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UMovieSceneSection>>& InSections, TWeakPtr<ISequencer> InSequencer)
 {
+	using namespace UE::MovieScene;
+	using namespace UE::Sequencer;
+
 	auto Execute = [InSections, InSequencer](EMovieSceneBlendType BlendType)
 	{
 		FScopedTransaction Transaction(LOCTEXT("SetBlendType", "Set Blend Type"));
@@ -309,19 +259,19 @@ void FSequencerUtilities::PopulateMenu_SetBlendType(FMenuBuilder& MenuBuilder, c
 				{
 					if (UMovieSceneSection* Section = WeakSection.Get())
 					{
-						TOptional<FSectionHandle> SectionHandle = SequencerNodeTree->GetSectionHandle(Section);
+						TSharedPtr<FSectionModel> SectionHandle = SequencerNodeTree->GetSectionModel(Section);
 						if (!SectionHandle)
 						{
 							continue;
 						}
 
-						TSharedPtr<FSequencerObjectBindingNode> ParentObjectBindingNode = SectionHandle->GetTrackNode()->FindParentObjectBindingNode();
+						TSharedPtr<IObjectBindingExtension> ParentObjectBindingNode = SectionHandle->FindAncestorOfType<IObjectBindingExtension>();
 						if (!ParentObjectBindingNode.IsValid())
 						{
 							continue;
 						}
 
-						for (TWeakObjectPtr<> BoundObject : Sequencer->FindObjectsInCurrentSequence(ParentObjectBindingNode->GetObjectBinding()))
+						for (TWeakObjectPtr<> BoundObject : Sequencer->FindObjectsInCurrentSequence(ParentObjectBindingNode->GetObjectGuid()))
 						{
 							if (AActor* BoundActor = Cast<AActor>(BoundObject))
 							{
@@ -529,7 +479,7 @@ FGuid FSequencerUtilities::DoAssignActor(ISequencer * InSequencerPtr, AActor* Ac
 		FMovieScenePossessable* ThisPossessable = OwnerMovieScene->FindPossessable(NewPossessable.GetGuid());
 		if (ensure(ThisPossessable))
 		{
-			ThisPossessable->SetParent(NewGuid);
+			ThisPossessable->SetParent(NewGuid, OwnerMovieScene);
 		}
 	};
 
@@ -558,7 +508,7 @@ FGuid FSequencerUtilities::DoAssignActor(ISequencer * InSequencerPtr, AActor* Ac
 					if (!bComponentWasUpdated)
 					{
 						FMovieScenePossessable* ThisPossessable = OwnerMovieScene->FindPossessable(ComponentGuid);
-						ThisPossessable->SetParent(FGuid());
+						ThisPossessable->SetParent(FGuid(), OwnerMovieScene);
 					}
 				}
 			}
@@ -594,7 +544,10 @@ FGuid FSequencerUtilities::DoAssignActor(ISequencer * InSequencerPtr, AActor* Ac
 
 	// Try to fix up folders
 	TArray<UMovieSceneFolder*> FoldersToCheck;
-	FoldersToCheck.Append(InSequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene()->GetRootFolders());
+	for (UMovieSceneFolder* Folder : InSequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene()->GetRootFolders())
+	{
+		FoldersToCheck.Add(Folder);
+	}
 	bool bFolderFound = false;
 	while (FoldersToCheck.Num() > 0 && bFolderFound == false)
 	{

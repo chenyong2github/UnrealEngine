@@ -942,6 +942,11 @@ void STableViewBase::ClearWidgets()
 	ItemsPanel->ClearItems();
 }
 
+const FChildren* STableViewBase::GetConstructedTableItems() const
+{
+	return ItemsPanel->GetChildren();
+}
+
 void STableViewBase::InsertPinnedWidget( const TSharedRef<SWidget> & WidgetToInset )
 {
 	PinnedItemsPanel->AddSlot(0)

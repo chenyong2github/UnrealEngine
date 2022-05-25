@@ -406,7 +406,7 @@ void UTakeRecorderActorSource::CreateSectionRecordersRecursive(UObject* ObjectTo
 		FMovieScenePossessable* ChildPossessable = MovieScene->FindPossessable(Guid);
 		if (ensure(ChildPossessable))
 		{
-			ChildPossessable->SetParent(CachedObjectBindingGuid);
+			ChildPossessable->SetParent(CachedObjectBindingGuid, MovieScene);
 		}
 
 		FMovieSceneSpawnable* ParentSpawnable = MovieScene->FindSpawnable(CachedObjectBindingGuid);

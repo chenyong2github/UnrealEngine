@@ -250,11 +250,6 @@ void FMovieSceneTrackEditor::OnRelease()
 { 
 }
 
-int32 FMovieSceneTrackEditor::PaintTrackArea(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle)
-{
-	return LayerId;
-}
-
 void FMovieSceneTrackEditor::Tick(float DeltaTime) 
 { 
 }

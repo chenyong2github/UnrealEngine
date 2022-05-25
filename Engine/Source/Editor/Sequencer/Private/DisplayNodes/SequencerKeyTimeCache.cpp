@@ -1,13 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerKeyTimeCache.h"
+#include "MVVM/ViewModels/ChannelModel.h"
 #include "MovieSceneSection.h"
 #include "Algo/Sort.h"
 #include "Algo/BinarySearch.h"
 
 bool FSequencerCachedKeys::Update(FFrameRate SourceResolution)
 {
-	UMovieSceneSection* Section = KeyArea->GetOwningSection();
+	using namespace UE::Sequencer;
+
+	TSharedPtr<FChannelModel> Channel = WeakChannel.Pin();
+	if (!Channel)
+	{
+		return false;
+	}
+
+	UMovieSceneSection* Section = Channel->GetSection();
 	if (!Section || !CachedSignature.IsValid() || Section->GetSignature() != CachedSignature || SourceResolution != CachedTickResolution)
 	{
 		CachedSignature = Section ? Section->GetSignature() : FGuid();
@@ -16,7 +25,7 @@ bool FSequencerCachedKeys::Update(FFrameRate SourceResolution)
 		CachedKeyFrames.Reset();
 
 		TArray<FKeyHandle> Handles;
-		KeyArea->GetKeyInfo(&Handles, &CachedKeyFrames);
+		Channel->GetKeyArea()->GetKeyInfo(&Handles, &CachedKeyFrames);
 
 		CachedKeyTimes.Reset(CachedKeyFrames.Num());
 		CachedKeyHandles.Reset(CachedKeyFrames.Num());

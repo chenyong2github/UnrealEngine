@@ -9,6 +9,7 @@
 #include "MovieScene.h"
 #include "ISequencer.h"
 #include "CommonMovieSceneTools.h"
+#include "TimeToPixel.h"
 
 #define LOCTEXT_NAMESPACE "SCinematicTransportRange"
 
@@ -93,6 +94,8 @@ void SCinematicTransportRange::OnMouseCaptureLost(const FCaptureLostEvent& Captu
 
 void SCinematicTransportRange::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	using namespace UE::Sequencer;
+
 	ISequencer* Sequencer = GetSequencer();
 	if (Sequencer)
 	{
@@ -163,6 +166,8 @@ void SCinematicTransportRange::DrawKeys(const FGeometry& AllottedGeometry, FSlat
 
 int32 SCinematicTransportRange::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
+	using namespace UE::Sequencer;
+
 	ISequencer* Sequencer = GetSequencer();
 
 	const ESlateDrawEffect DrawEffects = bParentEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;

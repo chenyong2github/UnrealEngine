@@ -15,11 +15,14 @@
 #include "SequencerSectionPainter.h"
 #include "ISequencer.h"
 #include "ControlRigSpaceChannelEditors.h"
+#include "MVVM/Views/STrackAreaView.h"
 
 ECurveEditorViewID FControlRigSpaceChannelCurveModel::ViewID = ECurveEditorViewID::Invalid;
 
 FControlRigSpaceChannelCurveModel::FControlRigSpaceChannelCurveModel(TMovieSceneChannelHandle<FMovieSceneControlRigSpaceChannel> InChannel, UMovieSceneSection* OwningSection, TWeakPtr<ISequencer> InWeakSequencer)
 {
+	using namespace UE::Sequencer;
+	
 	FMovieSceneChannelProxy* NewChannelProxy = &OwningSection->GetChannelProxy();
 	ChannelHandle = NewChannelProxy->MakeHandle<FMovieSceneControlRigSpaceChannel>(InChannel.GetChannelIndex());
 	if (FMovieSceneChannelProxy* ChannelProxy = InChannel.GetChannelProxy())
@@ -31,7 +34,7 @@ FControlRigSpaceChannelCurveModel::FControlRigSpaceChannelCurveModel(TMovieScene
 	WeakSequencer = InWeakSequencer;
 	SupportedViews = ViewID;
 
-	Color = FSequencerSectionPainter::BlendColor(OwningSection->GetTypedOuter<UMovieSceneTrack>()->GetColorTint());
+	Color = STrackAreaView::BlendDefaultTrackColor(OwningSection->GetTypedOuter<UMovieSceneTrack>()->GetColorTint());
 }
 
 FControlRigSpaceChannelCurveModel::~FControlRigSpaceChannelCurveModel()

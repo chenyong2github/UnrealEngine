@@ -6,13 +6,51 @@
 #include "Input/CursorReply.h"
 #include "Styling/SlateBrush.h"
 #include "SequencerSelectedKey.h"
-#include "ISequencerHotspot.h"
+#include "MVVM/ViewModels/TrackAreaViewModel.h"
+#include "MVVM/Views/ITrackAreaHotspot.h"
+#include "Sequencer.h"
 
 class FMenuBuilder;
-class ISequencer;
-class ISequencerEditToolDragOperation;
 class FSequencerTrackNode;
 class ISequencerSection;
+
+namespace UE
+{
+namespace Sequencer
+{
+
+class FSectionModel;
+class ISequencerEditToolDragOperation;
+
+struct FHotspotSelectionManager
+{
+	const FPointerEvent* MouseEvent;
+	FSequencerSelection* Selection;
+	FSequencer* Sequencer;
+
+	bool bForceSelect;
+	bool bAddingToSelection;
+
+	FHotspotSelectionManager(const FPointerEvent* InMouseEvent, FSequencer* InSequencer);
+	~FHotspotSelectionManager();
+
+	void ConditionallyClearSelection();
+
+	void ToggleKeys(TArrayView<const FSequencerSelectedKey> InKeys);
+	void ToggleModel(TSharedPtr<FViewModel> InModel);
+
+	void SelectKeysExclusive(TArrayView<const FSequencerSelectedKey> InKeys);
+	void SelectModelExclusive(TSharedPtr<FViewModel> InModel);
+};
+
+struct IMouseHandlerHotspot
+{
+	UE_SEQUENCER_DECLARE_VIEW_MODEL_TYPE_ID(IMouseHandlerHotspot);
+
+	virtual ~IMouseHandlerHotspot(){}
+
+	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) = 0;
+};
 
 enum class ESequencerEasingType
 {
@@ -21,88 +59,109 @@ enum class ESequencerEasingType
 
 /** A hotspot representing a key */
 struct FKeyHotspot
-	: ISequencerHotspot
+	: ITrackAreaHotspot, IMouseHandlerHotspot
 {
-	FKeyHotspot(TArray<FSequencerSelectedKey> InKeys)
+	UE_SEQUENCER_DECLARE_CASTABLE(FKeyHotspot, ITrackAreaHotspot, IMouseHandlerHotspot);
+
+	FKeyHotspot(TArray<FSequencerSelectedKey> InKeys, TWeakPtr<FSequencer> InWeakSequencer)
 		: Keys(MoveTemp(InKeys))
+		, WeakSequencer(InWeakSequencer)
 	{ }
 
-	virtual ESequencerHotspot GetType() const override { return ESequencerHotspot::Key; }
-	virtual void UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const override;
+	virtual void UpdateOnHover(FTrackAreaViewModel& InTrackArea) const override;
 	virtual TOptional<FFrameNumber> GetTime() const override;
-	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& Sequencer, FFrameTime MouseDownTime) override;
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override;
+
+	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) override;
 
 	/** The keys that are part of this hotspot */
 	TArray<FSequencerSelectedKey> Keys;
+	TWeakPtr<FSequencer> WeakSequencer;
 };
 
-
 /** A hotspot representing a section */
-struct FSectionHotspot
-	: ISequencerHotspot
+struct FSectionHotspotBase
+	: ITrackAreaHotspot, IMouseHandlerHotspot
 {
-	FSectionHotspot(UMovieSceneSection* InSection)
-		: WeakSection(InSection)
+	UE_SEQUENCER_DECLARE_CASTABLE(FSectionHotspotBase, ITrackAreaHotspot, IMouseHandlerHotspot);
+
+	FSectionHotspotBase(TWeakPtr<FSectionModel> InSectionModel, TWeakPtr<FSequencer> InWeakSequencer)
+		: WeakSectionModel(InSectionModel)
+		, WeakSequencer(InWeakSequencer)
 	{ }
 
-	virtual ESequencerHotspot GetType() const override { return ESequencerHotspot::Section; }
-	virtual void UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const override;
+	virtual void UpdateOnHover(FTrackAreaViewModel& InTrackArea) const override;
 	virtual TOptional<FFrameNumber> GetTime() const override;
 	virtual TOptional<FFrameTime> GetOffsetTime() const override;
-	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(ISequencer&) override { return nullptr; }
-	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& Sequencer, FFrameTime MouseDownTime) override;
+	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(const FPointerEvent& MouseEvent) override { return nullptr; }
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override;
 
-	/** The section */
-	TWeakObjectPtr<UMovieSceneSection> WeakSection;
+	/** IMouseHandlerHotspot */
+	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) override;
+
+	UMovieSceneSection* GetSection() const;
+
+	/** The section model */
+	TWeakPtr<FSectionModel> WeakSectionModel;
+	TWeakPtr<FSequencer> WeakSequencer;
+};
+
+/** A hotspot representing a section */
+struct FSectionHotspot : FSectionHotspotBase
+{
+	UE_SEQUENCER_DECLARE_CASTABLE(FSectionHotspot, FSectionHotspotBase);
+
+	FSectionHotspot(TWeakPtr<FSectionModel> InSectionModel, TWeakPtr<FSequencer> InWeakSequencer)
+		: FSectionHotspotBase(InSectionModel, InWeakSequencer)
+	{ }
+
+	/** IMouseHandlerHotspot */
+	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) override;
 };
 
 
 /** A hotspot representing a resize handle on a section */
-struct FSectionResizeHotspot
-	: ISequencerHotspot
+struct FSectionResizeHotspot : FSectionHotspotBase
 {
+	UE_SEQUENCER_DECLARE_CASTABLE(FSectionResizeHotspot, FSectionHotspotBase);
+
 	enum EHandle
 	{
 		Left,
 		Right
 	};
 
-	FSectionResizeHotspot(EHandle InHandleType, UMovieSceneSection* InSection) : WeakSection(InSection), HandleType(InHandleType) {}
+	FSectionResizeHotspot(EHandle InHandleType, TWeakPtr<FSectionModel> InSectionModel, TWeakPtr<FSequencer> InWeakSequencer)
+		: FSectionHotspotBase(InSectionModel, InWeakSequencer)
+		, HandleType(InHandleType)
+	{}
 
-	virtual ESequencerHotspot GetType() const override { return HandleType == Left ? ESequencerHotspot::SectionResize_L : ESequencerHotspot::SectionResize_R; }
-	virtual void UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const override;
+	virtual void UpdateOnHover(FTrackAreaViewModel& InTrackArea) const override;
 	virtual TOptional<FFrameNumber> GetTime() const override;
-	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(ISequencer& Sequencer) override;
+	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(const FPointerEvent& MouseEvent) override;
 	virtual FCursorReply GetCursor() const { return FCursorReply::Cursor( EMouseCursor::ResizeLeftRight ); }
 	virtual const FSlateBrush* GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const;
-
-	/** The section */
-	TWeakObjectPtr<UMovieSceneSection> WeakSection;
-
-private:
 
 	EHandle HandleType;
 };
 
 
 /** A hotspot representing a resize handle on a section's easing */
-struct FSectionEasingHandleHotspot
-	: ISequencerHotspot
+struct FSectionEasingHandleHotspot : FSectionHotspotBase
 {
-	FSectionEasingHandleHotspot(ESequencerEasingType InHandleType, UMovieSceneSection* InSection) : WeakSection(InSection), HandleType(InHandleType) {}
+	UE_SEQUENCER_DECLARE_CASTABLE(FSectionEasingHandleHotspot, FSectionHotspotBase);
 
-	virtual ESequencerHotspot GetType() const override { return HandleType == ESequencerEasingType::In ? ESequencerHotspot::EaseInHandle : ESequencerHotspot::EaseOutHandle; }
-	virtual void UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const override;
-	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& Sequencer, FFrameTime MouseDownTime) override;
+	FSectionEasingHandleHotspot(ESequencerEasingType InHandleType, TWeakPtr<FSectionModel> InSectionModel, TWeakPtr<FSequencer> InWeakSequencer)
+		: FSectionHotspotBase(InSectionModel, InWeakSequencer)
+		, HandleType(InHandleType)
+	{}
+
+	virtual void UpdateOnHover(FTrackAreaViewModel& InTrackArea) const override;
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override;
 	virtual TOptional<FFrameNumber> GetTime() const override;
-	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(ISequencer& Sequencer) override;
+	virtual TSharedPtr<ISequencerEditToolDragOperation> InitiateDrag(const FPointerEvent& MouseEvent) override;
 	virtual FCursorReply GetCursor() const { return FCursorReply::Cursor( EMouseCursor::ResizeLeftRight ); }
 	virtual const FSlateBrush* GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const;
-
-	/** Handle to the section */
-	TWeakObjectPtr<UMovieSceneSection> WeakSection;
-
-private:
 
 	ESequencerEasingType HandleType;
 };
@@ -110,21 +169,31 @@ private:
 
 struct FEasingAreaHandle
 {
-	TWeakObjectPtr<UMovieSceneSection> WeakSection;
+	TWeakPtr<FSectionModel> WeakSectionModel;
 	ESequencerEasingType EasingType;
 };
 
 /** A hotspot representing an easing area for multiple sections */
-struct FSectionEasingAreaHotspot
-	: FSectionHotspot
+struct FSectionEasingAreaHotspot : FSectionHotspotBase
 {
-	FSectionEasingAreaHotspot(const TArray<FEasingAreaHandle>& InEasings, UMovieSceneSection* InVisibleSection) : FSectionHotspot(InVisibleSection), Easings(InEasings) {}
+	UE_SEQUENCER_DECLARE_CASTABLE(FSectionEasingAreaHotspot, FSectionHotspotBase);
 
-	virtual ESequencerHotspot GetType() const override { return ESequencerHotspot::EasingArea; }
-	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& Sequencer, FFrameTime MouseDownTime) override;
+	FSectionEasingAreaHotspot(const TArray<FEasingAreaHandle>& InEasings, TWeakPtr<FSectionModel> InSectionModel, TWeakPtr<FSequencer> InWeakSequencer)
+		: FSectionHotspotBase(InSectionModel, InWeakSequencer)
+		, Easings(InEasings)
+	{}
 
-	bool Contains(UMovieSceneSection* InSection) const { return Easings.ContainsByPredicate([=](const FEasingAreaHandle& InHandle){ return InHandle.WeakSection == InSection; }); }
+	virtual bool PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime) override;
+
+	/** IMouseHandlerHotspot */
+	virtual void HandleMouseSelection(FHotspotSelectionManager& SelectionManager) override;
+
+	bool Contains(UMovieSceneSection* InSection) const;
 
 	/** Handles to the easings that exist on this hotspot */
 	TArray<FEasingAreaHandle> Easings;
 };
+
+
+} // namespace Sequencer
+} // namespace UE

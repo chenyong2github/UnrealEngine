@@ -421,6 +421,9 @@ public:
 	/** Toggle piloting the last camera or the camera cut camera */
 	TSharedPtr< FUICommandInfo > TogglePilotCamera;
 
+	/** Forcibly refresh the UI */
+	TSharedPtr< FUICommandInfo > RefreshUI;
+
 	/**
 	 * Initialize commands
 	 */

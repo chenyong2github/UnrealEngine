@@ -3,11 +3,18 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DisplayNodes/SequencerDisplayNode.h"
-#include "DisplayNodes/SequencerSectionKeyAreaNode.h"
-#include "DisplayNodes/SequencerTrackNode.h"
 
 struct FGeometry;
+
+namespace UE
+{
+namespace Sequencer
+{
+
+class FViewModel;
+class FChannelModel;
+class FSectionModel;
+class FTrackModel;
 
 /** A layout element specifying the geometry required to render a key area */
 struct FSectionLayoutElement
@@ -16,16 +23,13 @@ struct FSectionLayoutElement
 	enum EType { Single, Group };
 
 	/** Construct this element from a grouped key area */
-	static FSectionLayoutElement FromGroup(const TSharedRef<FSequencerDisplayNode>& InNode, UMovieSceneSection* InSection, float InOffset);
+	static FSectionLayoutElement FromGroup(const TSharedPtr<FViewModel>& InGroup, const TSharedPtr<FViewModel>& InChannelRoot, float InOffset, float InHeight);
 
 	/** Construct this element from a single Key area node */
-	static FSectionLayoutElement FromKeyAreaNode(const TSharedRef<FSequencerSectionKeyAreaNode>& InKeyAreaNode, UMovieSceneSection* InSection, float InOffset);
+	static FSectionLayoutElement FromChannel(const TSharedPtr<FChannelModel>& InChannel, float InOffset, float InHeight);
 
 	/** Construct this element from a single Key area node */
-	static FSectionLayoutElement FromTrack(const TSharedRef<FSequencerTrackNode>& InTrackNode, UMovieSceneSection* InSection, float InOffset);
-
-	/** Construct this element from a single Key area node */
-	static FSectionLayoutElement EmptySpace(const TSharedRef<FSequencerDisplayNode>& InNode, float InOffset);
+	static FSectionLayoutElement EmptySpace(const TSharedPtr<FViewModel>& InNode, float InOffset, float InHeight);
 
 	/** Retrieve the type of this layout element */
 	EType GetType() const;
@@ -37,10 +41,10 @@ struct FSectionLayoutElement
 	float GetHeight() const;
 
 	/** Access all the key areas that this layout element represents */
-	TArrayView<const TSharedRef<IKeyArea>> GetKeyAreas() const;
+	TArrayView<const TWeakPtr<FChannelModel>> GetChannels() const;
 
 	/** Access the display node that this layout element was generated for */
-	TSharedPtr<FSequencerDisplayNode> GetDisplayNode() const;
+	TSharedPtr<FViewModel> GetModel() const;
 
 	/** Computes the geometry for this layout as a child of the specified section area geometry */
 	FGeometry ComputeGeometry(const FGeometry& SectionAreaGeometry) const;
@@ -48,10 +52,10 @@ struct FSectionLayoutElement
 private:
 
 	/** Pointer to the key area that we were generated from */
-	TArray<TSharedRef<IKeyArea>, TInlineAllocator<1>> KeyAreas;
+	TArray<TWeakPtr<FChannelModel>, TInlineAllocator<1>> WeakChannels;
 
 	/** The specific node that this key area relates to */
-	TSharedPtr<FSequencerDisplayNode> DisplayNode;
+	TWeakPtr<FViewModel> DataModel;
 
 	/** The type of this layout element */
 	EType Type;
@@ -69,7 +73,7 @@ class FSectionLayout
 public:
 
 	/** Constructor that takes a display node, and the index of the section to layout */
-	FSectionLayout(FSequencerTrackNode& TrackNode, int32 SectionIndex);
+	FSectionLayout(TSharedPtr<UE::Sequencer::FSectionModel> SectionModel);
 
 	/** Get all layout elements that we generated */
 	const TArray<FSectionLayoutElement>& GetElements() const;
@@ -80,6 +84,8 @@ public:
 private:
 	/** Array of layout elements that we generated */
 	TArray<FSectionLayoutElement> Elements;
+
+	float Height;
 };
 
 /** Key funcs for using a section layout element as a key. Intentionally not supported implicitly due to performance reasons. */
@@ -94,3 +100,7 @@ struct FSectionLayoutElementKeyFuncs
 	static bool Matches(const FSectionLayoutElement& A, const FSectionLayoutElement& B);
 	static uint32 GetKeyHash(const FSectionLayoutElement& Key);
 };
+
+} // namespace Sequencer
+} // namespace UE
+

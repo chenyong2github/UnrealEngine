@@ -2,9 +2,15 @@
 
 #include "Tools/SequencerEntityVisitor.h"
 #include "IKeyArea.h"
-#include "DisplayNodes/SequencerTrackNode.h"
 #include "MovieSceneTrack.h"
 #include "MovieSceneTimeHelpers.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/CategoryModel.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/Extensions/ITrackLaneExtension.h"
+#include "MVVM/Extensions/IGeometryExtension.h"
 
 FSequencerEntityRange::FSequencerEntityRange(const TRange<double>& InRange, FFrameRate InTickResolution)
 	: TickResolution(InTickResolution)
@@ -25,21 +31,25 @@ bool FSequencerEntityRange::IntersectSection(const UMovieSceneSection* InSection
 	return (InSection->GetRange() / TickResolution).Overlaps(Range);
 }
 
-bool FSequencerEntityRange::IntersectNode(TSharedRef<FSequencerDisplayNode> InNode) const
+bool FSequencerEntityRange::IntersectKeyArea(TSharedPtr<UE::Sequencer::FViewModel> InNode, float VirtualKeyHeight) const
 {
-	if (VerticalTop.IsSet())
+	using namespace UE::Sequencer;
+
+	IGeometryExtension* GeometryExtension = InNode->CastThis<IGeometryExtension>();
+	if (VerticalTop.IsSet() && GeometryExtension)
 	{
-		return InNode->GetVirtualTop() <= VerticalBottom.GetValue() && InNode->GetVirtualBottom() >= VerticalTop.GetValue();
+		const FVirtualGeometry VirtualGeometry = GeometryExtension->GetVirtualGeometry();
+		const float NodeCenter = VirtualGeometry.GetTop() + VirtualGeometry.GetHeight()/2;
+		return NodeCenter + VirtualKeyHeight/2 > VerticalTop.GetValue() && NodeCenter - VirtualKeyHeight/2 < VerticalBottom.GetValue();
 	}
 	return true;
 }
 
-bool FSequencerEntityRange::IntersectKeyArea(TSharedRef<FSequencerDisplayNode> InNode, float VirtualKeyHeight) const
+bool FSequencerEntityRange::IntersectVertical(float Top, float Bottom) const
 {
 	if (VerticalTop.IsSet())
 	{
-		const float NodeCenter = InNode->GetVirtualTop() + (InNode->GetVirtualBottom() - InNode->GetVirtualTop())/2;
-		return NodeCenter + VirtualKeyHeight/2 > VerticalTop.GetValue() && NodeCenter - VirtualKeyHeight/2 < VerticalBottom.GetValue();
+		return Top <= VerticalBottom.GetValue() && Bottom >= VerticalTop.GetValue();
 	}
 	return true;
 }
@@ -48,101 +58,145 @@ FSequencerEntityWalker::FSequencerEntityWalker(const FSequencerEntityRange& InRa
 	: Range(InRange), VirtualKeySize(InVirtualKeySize)
 {}
 
-/* @todo: Could probably optimize this by not walking every single node, and binary searching the begin<->end ranges instead */
-void FSequencerEntityWalker::Traverse(const ISequencerEntityVisitor& Visitor, const TArray< TSharedRef<FSequencerDisplayNode> >& Nodes)
+void FSequencerEntityWalker::Traverse(const ISequencerEntityVisitor& Visitor, TSharedPtr<UE::Sequencer::FViewModel> Item)
 {
-	for (const TSharedRef<FSequencerDisplayNode>& Child : Nodes)
+	using namespace UE::Sequencer;
+
+	IOutlinerExtension* OutlinerItem = Item->CastThis<IOutlinerExtension>();
+	if (!OutlinerItem || !OutlinerItem->IsFilteredOut())
 	{
-		if (!Child->IsHidden())
-		{
-			ConditionallyIntersectNode(Visitor, Child);
-		}
+		ConditionallyIntersectModel(Visitor, Item);
 	}
 }
 
-void FSequencerEntityWalker::ConditionallyIntersectNode(const ISequencerEntityVisitor& Visitor, const TSharedRef<FSequencerDisplayNode>& InNode)
+void FSequencerEntityWalker::ConditionallyIntersectModel(const ISequencerEntityVisitor& Visitor, const TSharedPtr<UE::Sequencer::FViewModel>& DataModel)
 {
-	if (Range.IntersectNode(InNode))
-	{
-		// Visit sections within this track
-		if (InNode->GetType() == ESequencerNode::Track && Visitor.CheckEntityMask(ESequencerEntity::Section))
-		{
-			TSharedRef<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(InNode);
+	using namespace UE::Sequencer;
 
-			for (TSharedRef<ISequencerSection> SectionInterface : TrackNode->GetSections())
+	const ITrackAreaExtension* TrackArea         = DataModel->CastThis<ITrackAreaExtension>();
+	const IGeometryExtension*  GeometryExtension = DataModel->CastThis<IGeometryExtension>();
+	if (GeometryExtension && TrackArea)
+	{
+		const FTrackAreaParameters TrackAreaParameters = TrackArea->GetTrackAreaParameters();
+		const FVirtualGeometry     VirtualGeometry     = GeometryExtension->GetVirtualGeometry();
+
+		const float Height = TrackAreaParameters.LaneType == ETrackAreaLaneType::Nested
+			? VirtualGeometry.NestedBottom - VirtualGeometry.Top
+			: VirtualGeometry.Height;
+
+		if (Range.IntersectVertical(VirtualGeometry.Top, VirtualGeometry.Top + Height))
+		{
+			for (const TViewModelPtr<ITrackLaneExtension>& TrackLane
+				: DataModel->GetChildrenOfType<ITrackLaneExtension>(EViewModelListType::TrackArea))
 			{
-				UMovieSceneSection* Section = SectionInterface->GetSectionObject();
-				if (Range.IntersectSection(Section))
+				FTrackLaneVirtualAlignment Alignment = TrackLane->ArrangeVirtualTrackLaneView();
+				if (!Alignment.IsVisible())
 				{
-					Visitor.VisitSection(Section, InNode);
+					continue;
+				}
+
+				FTrackLaneVerticalArrangement VerticalArrange = Alignment.VerticalAlignment.ArrangeWithin(Height);
+
+				if (Range.IntersectVertical(
+							VirtualGeometry.Top + VerticalArrange.Offset,
+							VirtualGeometry.Top + VerticalArrange.Offset + VerticalArrange.Height) )
+				{
+					if (Range.Range.Overlaps(Alignment.Range / Range.TickResolution))
+					{
+						Visitor.VisitDataModel(TrackLane.AsModel().Get());
+
+						if (TViewModelPtr<FChannelModel> ChannelModel = TrackLane.ImplicitCast())
+						{
+							VisitChannel(Visitor, ChannelModel);
+						}
+					}
 				}
 			}
-		}
 
-		if (InNode->GetType() == ESequencerNode::Track || InNode->GetType() == ESequencerNode::KeyArea || InNode->GetType() == ESequencerNode::Category)
-		{
-			if (Range.IntersectKeyArea(InNode, VirtualKeySize.Y))
+			if (Range.IntersectKeyArea(DataModel, VirtualKeySize.Y))
 			{
-				VisitKeyAnyAreas(Visitor, InNode, !InNode->IsExpanded());
+				const IOutlinerExtension* OutlinerItem = DataModel->CastThis<IOutlinerExtension>();
+				const bool bIsExpanded = !OutlinerItem || OutlinerItem->IsExpanded();
+				VisitAnyChannels(Visitor, DataModel.ToSharedRef(), !bIsExpanded);
 			}
 		}
 	}
 
 	// Iterate into expanded nodes
-	if (InNode->IsExpanded())
+	const IOutlinerExtension* OutlinerExtension = DataModel->CastThis<IOutlinerExtension>();
+	if (OutlinerExtension == nullptr || OutlinerExtension->IsExpanded())
 	{
-		for (const TSharedRef<FSequencerDisplayNode>& Child : InNode->GetChildNodes())
+		for (TSharedPtr<UE::Sequencer::FViewModel> Child : DataModel->GetChildren(EViewModelListType::Outliner))
 		{
 			// Do not visit nodes that are currently filtered out
-			if (!Child->IsHidden())
+			const IOutlinerExtension* OutlinerItem = DataModel->CastThis<IOutlinerExtension>();
+			if (!OutlinerItem || !OutlinerItem->IsFilteredOut())
 			{
-				ConditionallyIntersectNode(Visitor, Child);
+				ConditionallyIntersectModel(Visitor, Child);
 			}
 		}
 	}
 }
 
-void FSequencerEntityWalker::VisitKeyAnyAreas(const ISequencerEntityVisitor& Visitor, const TSharedRef<FSequencerDisplayNode>& InNode, bool bAnyParentCollapsed )
+void FSequencerEntityWalker::VisitAnyChannels(const ISequencerEntityVisitor& Visitor, const TSharedRef<UE::Sequencer::FViewModel>& InNode, bool bAnyParentCollapsed )
 {
+	using namespace UE::Sequencer;
+
 	if (!Visitor.CheckEntityMask(ESequencerEntity::Key))
 	{
 		return;
 	}
 
-	TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode;
-	if (InNode->GetType() == ESequencerNode::KeyArea)
+	// If this node has or is a key area, visit all the keys on the track
+	FChannelGroupModel* ChannelGroup = nullptr;
+	if (FChannelGroupModel* ChannelGroupNode = InNode->CastThis<FChannelGroupModel>())
 	{
-		KeyAreaNode = StaticCastSharedRef<FSequencerSectionKeyAreaNode>(InNode);
+		ChannelGroup = ChannelGroupNode;
 	}
-	else if (InNode->GetType() == ESequencerNode::Track)
+	if (FTrackModel* TrackModel = InNode->CastThis<FTrackModel>())
 	{
-		KeyAreaNode = StaticCastSharedRef<FSequencerTrackNode>(InNode)->GetTopLevelKeyNode();
+		// TODO: Top-level channel group -- there used to be only one at most but this assumption isn't necessarily true anymore
+		for (const TViewModelPtr<FChannelGroupModel>& TopLevelChannel : TrackModel->GetTopLevelChannels().IterateSubList<FChannelGroupModel>())
+		{
+			ChannelGroup = TopLevelChannel.Get();
+			break;
+		}
 	}
 
-	// If this node has or is a key area, visit all the keys on the track
-	if (KeyAreaNode)
+	if (ChannelGroup)
 	{
-		for (TSharedRef<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
+		for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : ChannelGroup->GetChannels())
 		{
-			UMovieSceneSection* Section = KeyArea->GetOwningSection();
-			if (Section)
+			if (TViewModelPtr<FChannelModel> Channel = WeakChannel.Pin())
 			{
-				VisitKeyArea(Visitor, KeyArea, Section, InNode);
+				VisitChannel(Visitor, Channel);
 			}
 		}
 	}
 	// Otherwise it might be a collapsed node that contains key areas as children. If so we visit them as if they were a part of this track so that key groupings are visited properly.
 	else if (bAnyParentCollapsed)
 	{
-		for (TSharedRef<FSequencerDisplayNode> ChildNode : InNode->GetChildNodes())
+		const IOutlinerExtension* OutlinerItem = InNode->CastThis<IOutlinerExtension>();
+		const bool bIsExpanded = !OutlinerItem || OutlinerItem->IsExpanded();
+
+		for (TSharedPtr<FViewModel> ChildNode : InNode->GetChildren(EViewModelListType::Outliner))
 		{
-			VisitKeyAnyAreas(Visitor, ChildNode, bAnyParentCollapsed || !InNode->IsExpanded());
+			VisitAnyChannels(Visitor, ChildNode.ToSharedRef(), bAnyParentCollapsed || !bIsExpanded);
 		}
 	}
 }
 
-void FSequencerEntityWalker::VisitKeyArea(const ISequencerEntityVisitor& Visitor, const TSharedRef<IKeyArea>& KeyArea, UMovieSceneSection* Section, const TSharedRef<FSequencerDisplayNode>& InNode)
+void FSequencerEntityWalker::VisitChannel(const ISequencerEntityVisitor& Visitor, const UE::Sequencer::TViewModelPtr<UE::Sequencer::FChannelModel>& Channel)
 {
+	using namespace UE::Sequencer;
+
+	TSharedPtr<IKeyArea> KeyArea = Channel->GetKeyArea();
+	UMovieSceneSection* Section = KeyArea->GetOwningSection();
+	if (!Section)
+	{
+		return;
+	}
+
 	TArray<FKeyHandle> Handles;
 	TArray<FFrameNumber> Times;
 
@@ -158,6 +212,6 @@ void FSequencerEntityWalker::VisitKeyArea(const ISequencerEntityVisitor& Visitor
 
 	for (int32 Index = 0; Index < Times.Num(); ++Index)
 	{
-		Visitor.VisitKey(Handles[Index], Times[Index], KeyArea, Section, InNode);
+		Visitor.VisitKey(Handles[Index], Times[Index], Channel, Section);
 	}
 }

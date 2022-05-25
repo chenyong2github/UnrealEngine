@@ -9,30 +9,38 @@
 #include "Widgets/SCompoundWidget.h"
 #include "SequencerSelectedKey.h"
 #include "Rendering/RenderingCommon.h"
-#include "DisplayNodes/SequencerTrackNode.h"
 #include "SectionLayout.h"
 #include "SequencerKeyRenderer.h"
-#include "SequencerKeyTimeCache.h"
+#include "DisplayNodes/SequencerKeyTimeCache.h"
+
+#include "EventHandlers/ISignedObjectEventHandler.h"
+#include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/Extensions/ITrackLaneExtension.h"
 
 class FPaintArgs;
 class FSequencer;
 class FSequencerSectionPainter;
 class FSlateWindowElementList;
-struct ISequencerHotspot;
 
-class SSequencerSection : public SCompoundWidget
+namespace UE
+{
+namespace Sequencer
+{
+
+class FSectionModel;
+struct ITrackAreaHotspot;
+
+class SSequencerSection : public SCompoundWidget, public ITrackLaneWidget, public UE::MovieScene::ISignedObjectEventHandler
 {
 public:
 	SLATE_BEGIN_ARGS( SSequencerSection )
 	{}
 	SLATE_END_ARGS()
 
-	void Construct( const FArguments& InArgs, TSharedRef<FSequencerTrackNode> SectionNode, int32 SectionIndex );
+	void Construct( const FArguments& InArgs, TSharedPtr<FSequencer> Sequencer, TSharedPtr<FSectionModel> InSectionModel);
+	~SSequencerSection();
 
 	TSharedPtr<ISequencerSection> GetSectionInterface() const { return SectionInterface; }
-
-	/** Caches the parent geometry to be given to section interfaces that need it on tick */
-	void CacheParentGeometry(const FGeometry& InParentGeometry) { ParentGeometry = InParentGeometry; }
 
 	virtual FVector2D ComputeDesiredSize(float) const override;
 
@@ -80,15 +88,23 @@ private:
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
 
+	/*~ ITrackLaneWidget Interface */
+	virtual FTrackLaneScreenAlignment GetAlignment(const FTimeToPixel& TimeToPixel, const FGeometry& InParentGeometry) const override;
+	virtual int32 GetOverlapPriority() const override;
+	virtual void ReportParentGeometry(const FGeometry& InParentGeometry) override;
+	virtual TSharedRef<const SWidget> AsWidget() const override { return AsShared(); }
+	virtual bool AcceptsChildren() const override { return true; }
+	virtual void AddChildLane(TSharedPtr<ITrackLaneWidget> ChildWidget) override;
+
 	/**
 	 * Paint the easing handles for this section
 	 */
-	void PaintEasingHandles( FSequencerSectionPainter& InPainter, FLinearColor SelectionColor, const ISequencerHotspot* Hotspot ) const;
+	void PaintEasingHandles( FSequencerSectionPainter& InPainter, FLinearColor SelectionColor, TSharedPtr<ITrackAreaHotspot> Hotspot ) const;
 
 	/**
 	 * Draw the section resize handles.
 	 */
-	void DrawSectionHandles( const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId, ESlateDrawEffect DrawEffects, FLinearColor SelectionColor, const ISequencerHotspot* Hotspot ) const;
+	void DrawSectionHandles( const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId, ESlateDrawEffect DrawEffects, FLinearColor SelectionColor, TSharedPtr<ITrackAreaHotspot> Hotspot ) const;
 
 	/** @return the sequencer interface */
 	FSequencer& GetSequencer() const;
@@ -102,6 +118,18 @@ private:
 	 * Ensure that the cached array of underlapping sections is up to date
 	 */
 	void UpdateUnderlappingSegments();
+
+	/**
+	 * Retrieve the tooltip text for this section
+	 */
+	FText GetToolTipText() const;
+
+	/**
+	 * Check whether this section widget is enabled or not
+	 */
+	bool IsEnabled() const;
+
+	void OnModifiedIndirectly(UMovieSceneSignedObject* Object) override;
 
 public:
 
@@ -120,17 +148,16 @@ public:
 	/**
 	 * Check to see whether the specified section is highlighted
 	 */
-	static bool IsSectionHighlighted(UMovieSceneSection* InSection, const ISequencerHotspot* Hotspot);
+	static bool IsSectionHighlighted(UMovieSceneSection* InSection, TSharedPtr<ITrackAreaHotspot> Hotspot);
 
 private:
+	TWeakPtr<FSequencer> Sequencer;
 	/** Interface to section data */
 	TSharedPtr<ISequencerSection> SectionInterface;
-	/** Section area where this section resides */
-	TSharedPtr<FSequencerTrackNode> ParentSectionArea;
+	/** Section model */
+	TWeakPtr<FSectionModel> WeakSectionModel;
 	/** Cached layout generated each tick */
 	TOptional<FSectionLayout> Layout;
-	/** The index of this section in the parent section area */
-	int32 SectionIndex;
 	/** Cached parent geometry to pass down to any section interfaces that need it during tick */
 	FGeometry ParentGeometry;
 	/** The end time for a throbbing animation for selected sections */
@@ -140,13 +167,18 @@ private:
 	/** Handle offset amount in pixels */
 	float HandleOffsetPx;
 	/** Array of segments that define other sections that reside below this one */
-	TArray<FSequencerOverlapRange> UnderlappingSegments;
+	TArray<FOverlappingSections> UnderlappingSegments;
 	/** Array of segments that define other sections that reside below this one */
-	TArray<FSequencerOverlapRange> UnderlappingEasingSegments;
-	/** The signature of the track last time the overlapping segments were updated */
-	FGuid CachedTrackSignature;
+	TArray<FOverlappingSections> UnderlappingEasingSegments;
 	/** structure responsible for rendering keys  */
-	UE::Sequencer::FKeyRenderer KeyRenderer;
+	FKeyRenderer KeyRenderer;
+
+	MovieScene::TNonIntrusiveEventHandler<MovieScene::ISignedObjectEventHandler> TrackModifiedBinding;
+
 
 	friend struct FSequencerSectionPainterImpl;
 };
+
+} // namespace Sequencer
+} // namespace UE
+

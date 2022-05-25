@@ -335,6 +335,11 @@ public:
 	 */
 	MOVIESCENE_API void PostSerialize(const FArchive& Ar);
 
+	bool HasCustomInitialize() const
+	{
+		return TrackTemplate.IsValid() && TrackTemplate->HasCustomInitialize();
+	}
+
 public:
 
 	/**

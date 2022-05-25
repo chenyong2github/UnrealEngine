@@ -206,21 +206,19 @@ void IKeyArea::CopyKeys(FMovieSceneClipboardBuilder& ClipboardBuilder, TArrayVie
 	}
 }
 
-void IKeyArea::PasteKeys(const FMovieSceneClipboardKeyTrack& KeyTrack, const FMovieSceneClipboardEnvironment& SrcEnvironment, const FSequencerPasteEnvironment& DstEnvironment)
+TArray<FKeyHandle> IKeyArea::PasteKeys(const FMovieSceneClipboardKeyTrack& KeyTrack, const FMovieSceneClipboardEnvironment& SrcEnvironment, const FSequencerPasteEnvironment& DstEnvironment)
 {
+	TArray<FKeyHandle> PastedKeys;
+
 	ISequencerChannelInterface* EditorInterface = FindChannelEditorInterface();
 	FMovieSceneChannel* Channel = ChannelHandle.Get();
 	UMovieSceneSection* OwningSection = GetOwningSection();
 	if (EditorInterface && Channel && OwningSection)
 	{
-		TArray<FKeyHandle> PastedKeys;
 		EditorInterface->PasteKeys_Raw(Channel, OwningSection, KeyTrack, SrcEnvironment, DstEnvironment, PastedKeys);
-
-		for (FKeyHandle KeyHandle : PastedKeys)
-		{
-			DstEnvironment.ReportPastedKey(KeyHandle, *this);
-		}
 	}
+
+	return PastedKeys;
 }
 
 FText GetOwningObjectBindingName(UMovieSceneTrack* InTrack, ISequencer& InSequencer)

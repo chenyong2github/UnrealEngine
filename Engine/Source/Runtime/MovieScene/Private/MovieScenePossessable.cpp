@@ -6,6 +6,7 @@
 #include "MovieSceneSequenceID.h"
 #include "MovieScene.h"
 #include "IMovieScenePlayer.h"
+#include "EventHandlers/ISequenceDataEventHandler.h"
 
 bool FMovieScenePossessable::BindSpawnableObject(FMovieSceneSequenceID SequenceID, UObject* Object, IMovieScenePlayer* Player)
 {
@@ -18,4 +19,18 @@ bool FMovieScenePossessable::BindSpawnableObject(FMovieSceneSequenceID SequenceI
 	}
 
 	return false;
+}
+
+void FMovieScenePossessable::SetParent(const FGuid& InParentGuid)
+{
+	ParentGuid = InParentGuid;
+}
+
+void FMovieScenePossessable::SetParent(const FGuid& InParentGuid, UMovieScene* Owner)
+{
+	if (ParentGuid != InParentGuid)
+	{
+		ParentGuid = InParentGuid;
+		Owner->EventHandlers.Trigger(&UE::MovieScene::ISequenceDataEventHandler::OnBindingParentChanged, Guid, InParentGuid);
+	}
 }

@@ -1,16 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerEdMode.h"
+#include "MVVM/ViewModels/ObjectBindingModel.h"
+#include "MVVM/ViewModels/SequenceModel.h"
+#include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ObjectBindingModelStorageExtension.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/Views/STrackAreaView.h"
 #include "EditorViewportClient.h"
 #include "Curves/KeyHandle.h"
 #include "ISequencer.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
-#include "DisplayNodes/SequencerDisplayNode.h"
+#include "IKeyArea.h"
 #include "Sequencer.h"
 #include "Framework/Application/SlateApplication.h"
-#include "DisplayNodes/SequencerObjectBindingNode.h"
-#include "DisplayNodes/SequencerTrackNode.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 #include "SequencerCommonHelpers.h"
 #include "MovieSceneHitProxy.h"
@@ -484,6 +489,8 @@ void FSequencerEdMode::AddReferencedObjects(FReferenceCollector& Collector)
 
 void FSequencerEdMode::OnKeySelected(FViewport* Viewport, HMovieSceneKeyProxy* KeyProxy)
 {
+	using namespace UE::Sequencer;
+
 	if (!KeyProxy)
 	{
 		return;
@@ -516,16 +523,14 @@ void FSequencerEdMode::OnKeySelected(FViewport* Viewport, HMovieSceneKeyProxy* K
 			for (const FTrajectoryKey::FData& KeyData : KeyProxy->Key.KeyData)
 			{
 				UMovieSceneSection* Section = KeyData.Section.Get();
-				TOptional<FSectionHandle> SectionHandle = Sequencer->GetNodeTree()->GetSectionHandle(Section);
+				TSharedPtr<FSectionModel> SectionHandle = Sequencer->GetNodeTree()->GetSectionModel(Section);
 				if (SectionHandle && KeyData.KeyHandle.IsSet())
 				{
-					TArray<TSharedRef<FSequencerSectionKeyAreaNode>> KeyAreaNodes;
-					SectionHandle->GetTrackNode()->GetChildKeyAreaNodesRecursively(KeyAreaNodes);
-
-					for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
+					TParentFirstChildIterator<FChannelGroupModel> KeyAreaNodes = SectionHandle->GetParentTrackModel().AsModel()->GetDescendantsOfType<FChannelGroupModel>();
+					for (const TViewModelPtr<FChannelGroupModel>& KeyAreaNode : KeyAreaNodes)
 					{
-						TSharedPtr<IKeyArea> KeyArea = KeyAreaNode->GetKeyArea(Section);
-						if (KeyArea.IsValid() && KeyArea->GetName() == KeyData.ChannelName)
+						TSharedPtr<FChannelModel> Channel = KeyAreaNode->GetChannel(Section);
+						if (Channel && Channel->GetKeyArea()->GetName() == KeyData.ChannelName)
 						{
 							if (!bChangedSelection)
 							{
@@ -533,7 +538,7 @@ void FSequencerEdMode::OnKeySelected(FViewport* Viewport, HMovieSceneKeyProxy* K
 								bChangedSelection = true;
 							}
 
-							Sequencer->SelectKey(Section, KeyArea, KeyData.KeyHandle.GetValue(), bToggleSelection);
+							Sequencer->SelectKey(Section, Channel, KeyData.KeyHandle.GetValue(), bToggleSelection);
 							break;
 						}
 					}
@@ -597,6 +602,7 @@ void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<ISequencer>& Sequence
 											UMovieScene3DTransformTrack* TransformTrack, TArrayView<const TWeakObjectPtr<>> BoundObjects, const bool bIsSelected)
 {
 	using namespace UE::MovieScene;
+	using namespace UE::Sequencer;
 
 	const bool bHitTesting = PDI && PDI->IsHitTesting();
 
@@ -640,7 +646,7 @@ void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<ISequencer>& Sequence
 
 	TArray<UMovieScene3DTransformSection*> AllSectionsScratch;
 
-	FLinearColor TrackColor = FSequencerSectionPainter::BlendColor(TransformTrack->GetColorTint());
+	FLinearColor TrackColor = STrackAreaView::BlendDefaultTrackColor(TransformTrack->GetColorTint());
 	FColor       KeyColor   = TrackColor.ToFColor(true);
 
 	// Draw one line per-track (should only really ever be one)
@@ -769,6 +775,7 @@ void FSequencerEdMode::DrawTransformTrack(const TSharedPtr<ISequencer>& Sequence
 
 void FSequencerEdMode::DrawTracks3D(FPrimitiveDrawInterface* PDI)
 {
+	using namespace UE::Sequencer;
 
 	if (CVarUseOldSequencerMotionTrails->GetBool() == false)
 	{
@@ -791,42 +798,38 @@ void FSequencerEdMode::DrawTracks3D(FPrimitiveDrawInterface* PDI)
 		// Gather a map of object bindings to their implict selection state
 		TMap<const FMovieSceneBinding*, bool> ObjectBindingNodesSelectionMap;
 
+		FObjectBindingModelStorageExtension* ObjectStorage = Sequencer->GetViewModel()->GetRootModel()->CastDynamic<FObjectBindingModelStorageExtension>();
+		check(ObjectStorage);
+
 		const FSequencerSelection& Selection = Sequencer->GetSelection();
-		const TSharedRef<FSequencerNodeTree>& NodeTree  = Sequencer->GetNodeTree();
+		const TSharedRef<FSequencerNodeTree>& NodeTree = Sequencer->GetNodeTree();
 		for (const FMovieSceneBinding& Binding : Sequence->GetMovieScene()->GetBindings())
 		{
-			TSharedPtr<FSequencerObjectBindingNode> ObjectBindingNode = NodeTree->FindObjectBindingNode(Binding.GetObjectGuid());
-			if (!ObjectBindingNode.IsValid())
+			TSharedPtr<FObjectBindingModel> ObjectBindingNode = ObjectStorage->FindModelForObjectBinding(Binding.GetObjectGuid());
+			if (!ObjectBindingNode)
 			{
 				continue;
 			}
 
 			bool bSelected = false;
-			auto Traverse_IsSelected = [&Selection, &bSelected](FSequencerDisplayNode& InNode)
+			for (TSharedPtr<FViewModel> Child : ObjectBindingNode->GetDescendants())
 			{
-				TSharedRef<FSequencerDisplayNode> Shared = InNode.AsShared();
-				if (Selection.IsSelected(Shared) || Selection.NodeHasSelectedKeysOrSections(Shared))
+				if (Selection.IsSelected(Child) || Selection.NodeHasSelectedKeysOrSections(Child))
 				{
 					bSelected = true;
 					// Stop traversing
-					return false;
+					break;
 				}
-
-				return true;
-			};
-
-			ObjectBindingNode->Traverse_ParentFirst(Traverse_IsSelected, true);
+			}
 
 			// If one of our parent is selected, we're considered selected
-			TSharedPtr<FSequencerDisplayNode> ParentNode = ObjectBindingNode->GetParent();
-			while (!bSelected && ParentNode.IsValid())
+			for (TSharedPtr<FViewModel> Parent : ObjectBindingNode->GetAncestors())
 			{
-				if (Selection.IsSelected(ParentNode.ToSharedRef()) || Selection.NodeHasSelectedKeysOrSections(ParentNode.ToSharedRef()))
+				if (Selection.IsSelected(Parent) || Selection.NodeHasSelectedKeysOrSections(Parent))
 				{
 					bSelected = true;
+					break;
 				}
-
-				ParentNode = ParentNode->GetParent();
 			}
 
 			ObjectBindingNodesSelectionMap.Add(&Binding, bSelected);

@@ -1,25 +1,159 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerHotspots.h"
-#include "DisplayNodes/SequencerObjectBindingNode.h"
+#include "MVVM/Extensions/IObjectBindingExtension.h"
 #include "SequencerCommonHelpers.h"
 #include "SSequencer.h"
 #include "Tools/EditToolDragOperations.h"
 #include "SequencerContextMenus.h"
-#include "SSequencerTrackArea.h"
+#include "MVVM/Views/STrackAreaView.h"
 #include "Tools/SequencerEditTool_Movement.h"
 #include "Tools/SequencerEditTool_Selection.h"
-#include "SequencerTrackNode.h"
 #include "Widgets/Layout/SBox.h"
 #include "Styling/AppStyle.h"
 #include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "MovieSceneTimeHelpers.h"
+#include "SequencerCommonHelpers.h"
+
+#include "MVVM/ViewModels/SectionModel.h"
 
 #define LOCTEXT_NAMESPACE "SequencerHotspots"
 
+namespace UE
+{
+namespace Sequencer
+{
 
-void FKeyHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const
+UE_SEQUENCER_DEFINE_CASTABLE(FKeyHotspot);
+UE_SEQUENCER_DEFINE_CASTABLE(FSectionEasingAreaHotspot);
+UE_SEQUENCER_DEFINE_CASTABLE(FSectionEasingHandleHotspot);
+UE_SEQUENCER_DEFINE_CASTABLE(FSectionHotspot);
+UE_SEQUENCER_DEFINE_CASTABLE(FSectionHotspotBase);
+UE_SEQUENCER_DEFINE_CASTABLE(FSectionResizeHotspot);
+
+UE_SEQUENCER_DEFINE_VIEW_MODEL_TYPE_ID(IMouseHandlerHotspot);
+
+FHotspotSelectionManager::FHotspotSelectionManager(const FPointerEvent* InMouseEvent, FSequencer* InSequencer)
+	: MouseEvent(InMouseEvent)
+	, Selection(&InSequencer->GetSelection())
+	, Sequencer(InSequencer)
+{
+	Selection->SuspendBroadcast();
+
+	bForceSelect = !MouseEvent->IsControlDown();
+	bAddingToSelection = MouseEvent->IsShiftDown() || MouseEvent->IsControlDown();
+
+	if (MouseEvent->GetEffectingButton() != EKeys::RightMouseButton)
+	{
+		// When single-clicking without the RMB, we always wipe the current selection
+		ConditionallyClearSelection();
+	}
+}
+
+FHotspotSelectionManager::~FHotspotSelectionManager()
+{
+	Selection->ResumeBroadcast();
+}
+
+void FHotspotSelectionManager::ConditionallyClearSelection()
+{
+	if (!bAddingToSelection)
+	{
+		Selection->EmptySelectedTrackAreaItems();
+		Selection->EmptySelectedKeys();
+
+		bAddingToSelection = true;
+	}
+}
+
+void FHotspotSelectionManager::ToggleKeys(TArrayView<const FSequencerSelectedKey> InKeys)
+{
+	for (const FSequencerSelectedKey& Key : InKeys)
+	{
+		const bool bIsSelected = Selection->IsSelected(Key);
+		if (bIsSelected && bForceSelect)
+		{
+			continue;
+		}
+
+		if (!bIsSelected)
+		{
+			Selection->AddToSelection(Key);
+		}
+		else
+		{
+			Selection->RemoveFromSelection(Key);
+		}
+	}
+}
+
+void FHotspotSelectionManager::ToggleModel(TSharedPtr<FViewModel> InModel)
+{
+	const bool bIsSelected = Selection->IsSelected(InModel);
+	if (bIsSelected && bForceSelect)
+	{
+		return;
+	}
+
+	TSharedPtr<ISelectableExtension> Selectable = InModel->CastThisShared<ISelectableExtension>();
+	if (!Selectable)
+	{
+		return;
+	}
+	else if (MouseEvent->GetEffectingButton() == EKeys::RightMouseButton && !EnumHasAnyFlags(Selectable->IsSelectable(), ESelectionIntent::ContextMenu))
+	{
+		return;
+	}
+	else if (MouseEvent->GetEffectingButton() == EKeys::LeftMouseButton && !EnumHasAnyFlags(Selectable->IsSelectable(), ESelectionIntent::PersistentSelection))
+	{
+		return;
+	}
+
+	if (!bIsSelected)
+	{
+		Selection->AddToSelection(InModel);
+	}
+	else
+	{
+		Selection->RemoveFromSelection(InModel);
+	}
+}
+
+void FHotspotSelectionManager::SelectKeysExclusive(TArrayView<const FSequencerSelectedKey> InKeys)
+{
+	for (const FSequencerSelectedKey& Key : InKeys)
+	{
+		if (!Selection->IsSelected(Key))
+		{
+			ConditionallyClearSelection();
+			Selection->AddToSelection(Key);
+		}
+	}
+}
+
+void FHotspotSelectionManager::SelectModelExclusive(TSharedPtr<FViewModel> InModel)
+{
+	if (!Selection->IsSelected(InModel))
+	{
+		ConditionallyClearSelection();
+		Selection->AddToSelection(InModel);
+	}
+}
+
+void FKeyHotspot::HandleMouseSelection(FHotspotSelectionManager& SelectionManager)
+{
+	if (SelectionManager.MouseEvent->GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		SelectionManager.SelectKeysExclusive(Keys);
+	}
+	else
+	{
+		SelectionManager.ToggleKeys(Keys);
+	}
+}
+
+void FKeyHotspot::UpdateOnHover(FTrackAreaViewModel& InTrackArea) const
 {
 	InTrackArea.AttemptToActivateTool(FSequencerEditTool_Movement::Identifier);
 }
@@ -38,31 +172,54 @@ TOptional<FFrameNumber> FKeyHotspot::GetTime() const
 	return Time;
 }
 
-bool FKeyHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& InSequencer, FFrameTime MouseDownTime)
+bool FKeyHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime)
 {
-	FSequencer& Sequencer = static_cast<FSequencer&>(InSequencer);
-	FKeyContextMenu::BuildMenu(MenuBuilder, Sequencer);
+	if (TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin())
+	{
+		FKeyContextMenu::BuildMenu(MenuBuilder, *Sequencer);
+	}
 	return true;
 }
 
-TOptional<FFrameNumber> FSectionHotspot::GetTime() const
+UMovieSceneSection* FSectionHotspotBase::GetSection() const
 {
-	UMovieSceneSection* ThisSection = WeakSection.Get();
+	if (TSharedPtr<FSectionModel> Model = WeakSectionModel.Pin())
+	{
+		return Model->GetSection();
+	}
+	return nullptr;
+}
+
+void FSectionHotspotBase::HandleMouseSelection(FHotspotSelectionManager& SelectionManager)
+{
+	// Base-class only handles RMB selection so that the other handles and interactive controls
+	// that act as hotspots and still operate correctly with Left click
+	TSharedPtr<FSectionModel> Section = WeakSectionModel.Pin();
+	if (Section && SelectionManager.MouseEvent->GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		SelectionManager.SelectModelExclusive(Section);
+	}
+}
+
+TOptional<FFrameNumber> FSectionHotspotBase::GetTime() const
+{
+	UMovieSceneSection* ThisSection = GetSection();
 	return ThisSection && ThisSection->HasStartFrame() ? ThisSection->GetInclusiveStartFrame() : TOptional<FFrameNumber>();
 }
 
-TOptional<FFrameTime> FSectionHotspot::GetOffsetTime() const
+TOptional<FFrameTime> FSectionHotspotBase::GetOffsetTime() const
 {
-	UMovieSceneSection* ThisSection = WeakSection.Get();
+	UMovieSceneSection* ThisSection = GetSection();
 	return ThisSection ? ThisSection->GetOffsetTime() : TOptional<FFrameTime>();
 }
 
-void FSectionHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const
+void FSectionHotspotBase::UpdateOnHover(FTrackAreaViewModel& InTrackArea) const
 {
-	UMovieSceneSection* ThisSection = WeakSection.Get();
+	UMovieSceneSection* ThisSection = GetSection();
 
 	// Move sections if they are selected
-	if (InSequencer.GetSelection().IsSelected(ThisSection))
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	if (Sequencer->GetSelection().IsSelected(WeakSectionModel))
 	{
 		InTrackArea.AttemptToActivateTool(FSequencerEditTool_Movement::Identifier);
 	}
@@ -93,28 +250,38 @@ void FSectionHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer
 	}
 }
 
-bool FSectionHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& InSequencer, FFrameTime MouseDownTime)
+bool FSectionHotspotBase::PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime)
 {
-	UMovieSceneSection* ThisSection = WeakSection.Get();
+	TSharedPtr<FSectionModel> SectionModel = WeakSectionModel.Pin();
+	UMovieSceneSection*       ThisSection  = SectionModel ? SectionModel->GetSection() : nullptr;
 	if (ThisSection)
 	{
-		FSequencer& Sequencer = static_cast<FSequencer&>(InSequencer);
-		FSectionContextMenu::BuildMenu(MenuBuilder, Sequencer, MouseDownTime);
+		TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+		FSectionContextMenu::BuildMenu(MenuBuilder, *Sequencer, MouseDownTime);
 
-		TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(ThisSection);
-		if (SectionHandle.IsSet())
-		{
-			FGuid ObjectBinding = SectionHandle->GetTrackNode()->GetObjectGuid();
-			SectionHandle->GetSectionInterface()->BuildSectionContextMenu(MenuBuilder, ObjectBinding);
-		}
+		TSharedPtr<IObjectBindingExtension> ObjectBinding = SectionModel->FindAncestorOfType<IObjectBindingExtension>();
+		SectionModel->GetSectionInterface()->BuildSectionContextMenu(MenuBuilder, ObjectBinding ? ObjectBinding->GetObjectGuid() : FGuid());
 	}
 
 	return true;
 }
 
+void FSectionHotspot::HandleMouseSelection(FHotspotSelectionManager& SelectionManager)
+{
+	TSharedPtr<FSectionModel> Section = WeakSectionModel.Pin();
+	if (Section && SelectionManager.MouseEvent->GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		SelectionManager.ToggleModel(Section);
+	}
+	else
+	{
+		FSectionHotspotBase::HandleMouseSelection(SelectionManager);
+	}
+}
+
 TOptional<FFrameNumber> FSectionResizeHotspot::GetTime() const
 {
-	UMovieSceneSection* ThisSection = WeakSection.Get();
+	UMovieSceneSection* ThisSection = GetSection();
 	if (!ThisSection)
 	{
 		return TOptional<FFrameNumber>();
@@ -122,24 +289,22 @@ TOptional<FFrameNumber> FSectionResizeHotspot::GetTime() const
 	return HandleType == Left ? ThisSection->GetInclusiveStartFrame() : ThisSection->GetExclusiveEndFrame();
 }
 
-void FSectionResizeHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const
+void FSectionResizeHotspot::UpdateOnHover(FTrackAreaViewModel& InTrackArea) const
 {
 	InTrackArea.AttemptToActivateTool(FSequencerEditTool_Movement::Identifier);
 }
 
-TSharedPtr<ISequencerEditToolDragOperation> FSectionResizeHotspot::InitiateDrag(ISequencer& Sequencer)
+TSharedPtr<ISequencerEditToolDragOperation> FSectionResizeHotspot::InitiateDrag(const FPointerEvent& MouseEvent)
 {
-	UMovieSceneSection* ThisSection = WeakSection.Get();
-
-	if (ThisSection && !Sequencer.GetSelection().GetSelectedSections().Contains(ThisSection))
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+	if (!Sequencer->GetSelection().IsSelected(WeakSectionModel))
 	{
-		Sequencer.GetSelection().Empty();
-		Sequencer.GetSelection().AddToSelection(ThisSection);
-		SequencerHelpers::UpdateHoveredNodeFromSelectedSections(static_cast<FSequencer&>(Sequencer));
+		Sequencer->GetSelection().Empty();
+		Sequencer->GetSelection().AddToSelection(WeakSectionModel.Pin());
 	}
 
 	const bool bIsSlipping = false;
-	return MakeShareable( new FResizeSection(static_cast<FSequencer&>(Sequencer), Sequencer.GetSelection().GetSelectedSections(), HandleType == Right, bIsSlipping) );
+	return MakeShareable( new FResizeSection(*Sequencer, Sequencer->GetSelection().GetSelectedSections(), HandleType == Right, bIsSlipping) );
 }
 
 const FSlateBrush* FSectionResizeHotspot::GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
@@ -150,13 +315,13 @@ const FSlateBrush* FSectionResizeHotspot::GetCursorDecorator(const FGeometry& My
 	}
 	else
 	{
-		return ISequencerHotspot::GetCursorDecorator(MyGeometry, CursorEvent);
+		return ITrackAreaHotspot::GetCursorDecorator(MyGeometry, CursorEvent);
 	}
 }
 
 TOptional<FFrameNumber> FSectionEasingHandleHotspot::GetTime() const
 {
-	UMovieSceneSection* ThisSection = WeakSection.Get();
+	UMovieSceneSection* ThisSection = GetSection();
 	if (ThisSection)
 	{
 		if (HandleType == ESequencerEasingType::In && !ThisSection->GetEaseInRange().IsEmpty())
@@ -171,20 +336,24 @@ TOptional<FFrameNumber> FSectionEasingHandleHotspot::GetTime() const
 	return TOptional<FFrameNumber>();
 }
 
-void FSectionEasingHandleHotspot::UpdateOnHover(SSequencerTrackArea& InTrackArea, ISequencer& InSequencer) const
+void FSectionEasingHandleHotspot::UpdateOnHover(FTrackAreaViewModel& InTrackArea) const
 {
 	InTrackArea.AttemptToActivateTool(FSequencerEditTool_Movement::Identifier);
 }
 
-bool FSectionEasingHandleHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& Sequencer, FFrameTime MouseDownTime)
+bool FSectionEasingHandleHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime)
 {
-	FEasingContextMenu::BuildMenu(MenuBuilder, { FEasingAreaHandle{WeakSection, HandleType} }, static_cast<FSequencer&>(Sequencer), MouseDownTime);
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+
+	FEasingContextMenu::BuildMenu(MenuBuilder, { FEasingAreaHandle{WeakSectionModel, HandleType} }, *Sequencer, MouseDownTime);
 	return true;
 }
 
-TSharedPtr<ISequencerEditToolDragOperation> FSectionEasingHandleHotspot::InitiateDrag(ISequencer& Sequencer)
+TSharedPtr<ISequencerEditToolDragOperation> FSectionEasingHandleHotspot::InitiateDrag(const FPointerEvent& MouseEvent)
 {
-	return MakeShareable( new FManipulateSectionEasing(static_cast<FSequencer&>(Sequencer), WeakSection, HandleType == ESequencerEasingType::In) );
+	UMovieSceneSection* Section = GetSection();
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	return MakeShareable( new FManipulateSectionEasing(*static_cast<FSequencer*>(Sequencer.Get()), Section, HandleType == ESequencerEasingType::In) );
 }
 
 const FSlateBrush* FSectionEasingHandleHotspot::GetCursorDecorator(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const
@@ -192,23 +361,43 @@ const FSlateBrush* FSectionEasingHandleHotspot::GetCursorDecorator(const FGeomet
 	return FAppStyle::Get().GetBrush(TEXT("Sequencer.CursorDecorator_EasingHandle"));
 }
 
-bool FSectionEasingAreaHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, ISequencer& InSequencer, FFrameTime MouseDownTime)
+bool FSectionEasingAreaHotspot::PopulateContextMenu(FMenuBuilder& MenuBuilder, FFrameTime MouseDownTime)
 {
-	FSequencer& Sequencer = static_cast<FSequencer&>(InSequencer);
-	FEasingContextMenu::BuildMenu(MenuBuilder, Easings, Sequencer, MouseDownTime);
+	using namespace UE::Sequencer;
 
-	UMovieSceneSection* ThisSection = WeakSection.Get();
+	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin();
+	FEasingContextMenu::BuildMenu(MenuBuilder, Easings, *Sequencer, MouseDownTime);
+
+	TSharedPtr<FSectionModel> SectionModel = WeakSectionModel.Pin();
+	UMovieSceneSection*       ThisSection  = SectionModel ? SectionModel->GetSection() : nullptr;
 	if (ThisSection)
 	{
-		TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(ThisSection);
-		if (SectionHandle.IsSet())
-		{
-			FGuid ObjectBinding = SectionHandle->GetTrackNode()->GetObjectGuid();
-			SectionHandle->GetSectionInterface()->BuildSectionContextMenu(MenuBuilder, ObjectBinding);
-		}
+		TSharedPtr<IObjectBindingExtension> ObjectBinding = SectionModel->FindAncestorOfType<IObjectBindingExtension>();
+		SectionModel->GetSectionInterface()->BuildSectionContextMenu(MenuBuilder, ObjectBinding ? ObjectBinding->GetObjectGuid() : FGuid());
 	}
 
 	return true;
 }
+
+void FSectionEasingAreaHotspot::HandleMouseSelection(FHotspotSelectionManager& SelectionManager)
+{
+	TSharedPtr<FSectionModel> Section = WeakSectionModel.Pin();
+	if (Section && SelectionManager.MouseEvent->GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		SelectionManager.ToggleModel(Section);
+	}
+	else
+	{
+		FSectionHotspotBase::HandleMouseSelection(SelectionManager);
+	}
+}
+
+bool FSectionEasingAreaHotspot::Contains(UMovieSceneSection* InSection) const
+{
+	return Easings.ContainsByPredicate([=](const FEasingAreaHandle& InHandle){ return InHandle.WeakSectionModel.Pin()->GetSection() == InSection; });
+}
+
+} // namespace Sequencer
+} // namespace UE
 
 #undef LOCTEXT_NAMESPACE

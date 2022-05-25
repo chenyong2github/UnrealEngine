@@ -368,6 +368,17 @@ bool UMovieSceneSection::IsReadOnly() const
 	return false;
 }
 
+void UMovieSceneSection::SetRowIndex(int32 NewRowIndex)
+{
+	const int32 OldRowIndex = RowIndex;
+	RowIndex = NewRowIndex;
+
+	if (OldRowIndex != RowIndex)
+	{
+		EventHandlers.Trigger(&UE::MovieScene::ISectionEventHandler::OnRowChanged, this);
+	}
+}
+
 void UMovieSceneSection::GetOverlappingSections(TArray<UMovieSceneSection*>& OutSections, bool bSameRow, bool bIncludeThis)
 {
 	UMovieSceneTrack* Track = GetTypedOuter<UMovieSceneTrack>();

@@ -119,10 +119,10 @@ private:
 	struct FCachedKeyDrawInformation
 	{
 		/** Construction from the key area this represents */
-		FCachedKeyDrawInformation(TSharedRef<IKeyArea> KeyArea)
+		FCachedKeyDrawInformation(TSharedPtr<UE::Sequencer::FChannelModel> Channel)
 			: NextUnhandledIndex(0)
 			, PreserveToIndex(0)
-			, CachedKeyPositions(KeyArea)
+			, CachedKeyPositions(Channel)
 		{}
 
 

@@ -67,7 +67,7 @@ namespace MovieSceneAudioSectionPrivate
 #if WITH_EDITOR
 			FMovieSceneChannelMetaData Data;
 			FText TextName = FText::FromName(InName);	
-			Data.SetIdentifiers(InName, TextName, TextName);
+			Data.SetIdentifiers(FName(InName.ToString() + GetGeneratedTypeName<ChannelType>()), TextName, TextName);
 			InChannelProxyData.Add(const_cast<ChannelType&>(InChannel), Data, TMovieSceneExternalValue<ValueType>::Make());
 #else //WITH_EDITOR
 			InChannelProxyData.Add(const_cast<ChannelType&>(InChannel));

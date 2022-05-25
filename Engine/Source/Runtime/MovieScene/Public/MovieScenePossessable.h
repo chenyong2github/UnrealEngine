@@ -14,6 +14,7 @@
 
 #include "MovieScenePossessable.generated.h"
 
+class UMovieScene;
 class IMovieScenePlayer;
 
 /**
@@ -124,15 +125,15 @@ public:
 		return ParentGuid;
 	}
 
+	UE_DEPRECATED(5.1, "Please use the overload that takes a UMovieScene* to ensure that events are triggered correctly")
+	MOVIESCENE_API void SetParent(const FGuid& InParentGuid);
+
 	/**
 	 * Set the guid of this possessable's parent
 	 *
 	 * @param InParentGuid The guid of this possessable's parent.
 	 */
-	void SetParent(const FGuid& InParentGuid)
-	{
-		ParentGuid = InParentGuid;
-	}
+	MOVIESCENE_API void SetParent(const FGuid& InParentGuid, UMovieScene* Owner);
 
 	/** Array of tags that can be used for grouping and categorizing. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Actor)

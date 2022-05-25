@@ -1700,7 +1700,7 @@ TrackType* FUsdLevelSequenceHelperImpl::AddTrack( const FName& TrackName, const 
 			{
 				if ( FMovieScenePossessable* ComponentPossessable = MovieScene->FindPossessable( ComponentBinding ) )
 				{
-					ComponentPossessable->SetParent( ActorBinding );
+					ComponentPossessable->SetParent( ActorBinding, MovieScene );
 				}
 			}
 

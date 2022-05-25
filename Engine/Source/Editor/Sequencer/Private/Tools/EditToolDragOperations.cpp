@@ -7,8 +7,15 @@
 #include "Sequencer.h"
 #include "SequencerSettings.h"
 #include "SequencerCommonHelpers.h"
-#include "VirtualTrackArea.h"
-#include "SequencerTrackNode.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/SectionModelStorageExtension.h"
+#include "MVVM/Extensions/IDraggableTrackAreaExtension.h"
+#include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/TrackRowModel.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/ViewModels/TrackAreaViewModel.h"
+#include "MVVM/ViewModels/VirtualTrackArea.h"
 #include "Algo/AllOf.h"
 #include "MovieSceneTimeHelpers.h"
 #include "Modules/ModuleManager.h"
@@ -16,26 +23,26 @@
 #include "Channels/MovieSceneChannelProxy.h"
 #include "ISequencerModule.h"
 
-struct FInvalidKeyAndSectionSnappingCandidates : ISequencerSnapCandidate
+struct FInvalidKeyAndSectionSnappingCandidates : UE::Sequencer::ISnapCandidate
 {
 	/**
-	 * Keys and Sections added to this ISequencerSnapCandidate will be ignored as potential candidates for snapping.
+	 * Keys and Sections added to this ISnapField will be ignored as potential candidates for snapping.
 	 */
-	FInvalidKeyAndSectionSnappingCandidates(const TSet<FSequencerSelectedKey>& InKeysToIgnore, const TArray<TWeakObjectPtr<UMovieSceneSection>>& InSectionsToIgnore)
+	FInvalidKeyAndSectionSnappingCandidates(const TSet<FSequencerSelectedKey>& InKeysToIgnore, const TSet<UMovieSceneSection*>& InSectionsToIgnore)
 	{
 		KeysToExclude = InKeysToIgnore;
-		for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : InSectionsToIgnore)
-		{
-			SectionsToExclude.Add(WeakSection.Get());
-		}
+		SectionsToExclude = InSectionsToIgnore;
 	}
 
-	virtual bool IsKeyApplicable(FKeyHandle KeyHandle, const TSharedPtr<IKeyArea>& KeyArea, UMovieSceneSection* Section) override
+	virtual bool IsKeyApplicable(FKeyHandle KeyHandle, const UE::Sequencer::FViewModelPtr& Owner) const override
 	{
-		return !KeysToExclude.Contains(FSequencerSelectedKey(*Section, KeyArea, KeyHandle));
+		using namespace UE::Sequencer;
+
+		TSharedPtr<FChannelModel> Channel = Owner.ImplicitCast();
+		return !Channel || (!KeysToExclude.Contains(FSequencerSelectedKey(*Channel->GetSection(), Channel, KeyHandle)) && !SectionsToExclude.Contains(Channel->GetSection()));
 	}
 
-	virtual bool AreSectionBoundsApplicable(UMovieSceneSection* Section) override
+	virtual bool AreSectionBoundsApplicable(UMovieSceneSection* Section) const override
 	{
 		return !SectionsToExclude.Contains(Section);
 	}
@@ -92,24 +99,20 @@ int32 FEditToolDragOperation::OnPaint(const FGeometry& AllottedGeometry, const F
 	return LayerId;
 }
 
-void FEditToolDragOperation::BeginTransaction( TArray< TWeakObjectPtr<UMovieSceneSection> >& Sections, const FText& TransactionDesc )
+void FEditToolDragOperation::BeginTransaction( TSet<UMovieSceneSection*>& Sections, const FText& TransactionDesc )
 {
 	// Begin an editor transaction and mark the section as transactional so it's state will be saved
 	Transaction.Reset( new FScopedTransaction(TransactionDesc) );
 
-	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); )
+	for (auto It = Sections.CreateIterator(); It; ++It)
 	{
-		UMovieSceneSection* SectionObj = Sections[SectionIndex].Get();
+		UMovieSceneSection* SectionObj = *It;
 
 		SectionObj->SetFlags( RF_Transactional );
 		// Save the current state of the section
-		if (SectionObj->TryModify())
+		if (!SectionObj->TryModify())
 		{
-			++SectionIndex;
-		}
-		else
-		{
-			Sections.RemoveAt(SectionIndex);
+			It.RemoveCurrent();
 		}
 	}
 }
@@ -122,15 +125,28 @@ void FEditToolDragOperation::EndTransaction()
 
 FResizeSection::FResizeSection( FSequencer& InSequencer, const TSet<TWeakObjectPtr<UMovieSceneSection>>& InSections, bool bInDraggingByEnd, bool bInIsSlipping )
 	: FEditToolDragOperation( InSequencer )
-	, Sections( InSections.Array() )
 	, bDraggingByEnd(bInDraggingByEnd)
 	, bIsSlipping(bInIsSlipping)
 	, MouseDownTime(0)
 {
+	Sections.Reserve(InSections.Num());
+
+	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : InSections)
+	{
+		UMovieSceneSection* Section = WeakSection.Get();
+		if (Section)
+		{
+			Sections.Add(Section);
+		}
+	}
 }
 
-void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
+	using namespace UE::Sequencer;
+
+	UE::MovieScene::FScopedSignedObjectModifyDefer DeferMarkAsChanged;
+
 	BeginTransaction( Sections, NSLOCTEXT("Sequencer", "DragSectionEdgeTransaction", "Resize section") );
 
 	MouseDownTime = VirtualTrackArea.PixelToFrame(LocalMousePos.X);
@@ -145,14 +161,8 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 	bool bIsDilating = MouseEvent.IsControlDown();
 	PreDragSectionData.Empty();
 
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+	for (UMovieSceneSection* Section : Sections)
 	{
-		UMovieSceneSection* Section = WeakSection.Get();
-		if (Section == nullptr)
-		{
-			continue;
-		}
-
 		if (bIsDilating)
 		{
 			// Populate the resize data for this section
@@ -160,12 +170,12 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 			ResizeData.MovieSection = Section;
 			ResizeData.InitialRange = Section->GetRange();
 
-			TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(Section);
+			TSharedPtr<FSectionModel> SectionHandle = Sequencer.GetNodeTree()->GetSectionModel(Section);
 			if (SectionHandle)
 			{
 				//Tell section that may not have keys it's starting to dilate (e.g. skeletal tracks will cache play rate).
 				SectionHandle->GetSectionInterface()->BeginDilateSection();
-				ResizeData.SequencerSection = &SectionHandle->GetSectionInterface().Get();
+				ResizeData.SequencerSection = SectionHandle->GetSectionInterface().Get();
 			}
 
 			// Add the key times for all keys of all channels on this section
@@ -184,7 +194,7 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 			}
 			PreDragSectionData.Emplace(ResizeData);
 		}
-		else if (TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(Section))
+		else if (TSharedPtr<FSectionModel> SectionHandle = Sequencer.GetNodeTree()->GetSectionModel(Section))
 		{
 			if (bIsSlipping)
 			{
@@ -200,7 +210,7 @@ void FResizeSection::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D Loca
 	}
 }
 
-void FResizeSection::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FResizeSection::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
 	bool bIsDilating = MouseEvent.IsControlDown();
 
@@ -211,17 +221,14 @@ void FResizeSection::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalM
 		TSet<UMovieSceneTrack*> Tracks;
 		FMovieSceneSectionMovedParams SectionMovedParams(EPropertyChangeType::ValueSet);
 		EMovieSceneSectionMovedResult SectionMovedResult(EMovieSceneSectionMovedResult::None);
-		for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : Sections)
+		for (UMovieSceneSection* Section : Sections)
 		{
-			if (UMovieSceneSection* Section = WeakSection.Get())
+			if (UMovieSceneTrack* OuterTrack = Section->GetTypedOuter<UMovieSceneTrack>())
 			{
-				if (UMovieSceneTrack* OuterTrack = Section->GetTypedOuter<UMovieSceneTrack>())
-				{
-					OuterTrack->Modify();
-					SectionMovedResult |= OuterTrack->OnSectionMoved(*Section, SectionMovedParams);
+				OuterTrack->Modify();
+				SectionMovedResult |= OuterTrack->OnSectionMoved(*Section, SectionMovedParams);
 
-					Tracks.Add(OuterTrack);
-				}
+				Tracks.Add(OuterTrack);
 			}
 		}
 		for (UMovieSceneTrack* Track : Tracks)
@@ -242,8 +249,12 @@ void FResizeSection::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalM
 	}
 }
 
-void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
+	using namespace UE::Sequencer;
+
+	UE::MovieScene::FScopedSignedObjectModifyDefer DeferMarkAsChanged(true);
+
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
 
 	bool bIsDilating = MouseEvent.IsControlDown();
@@ -260,12 +271,9 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 	if ( Settings->GetIsSnapEnabled() )
 	{
 		TArray<FFrameNumber> SectionTimes;
-		for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : Sections)
+		for (UMovieSceneSection* Section : Sections)
 		{
-			if (UMovieSceneSection* Section = WeakSection.Get())
-			{
-				SectionTimes.Add(SectionInitTimes[Section] + DeltaTime);
-			}
+			SectionTimes.Add(SectionInitTimes[Section] + DeltaTime);
 		}
 
 		float SnapThresholdPx = VirtualTrackArea.PixelToSeconds(PixelSnapWidth) - VirtualTrackArea.PixelToSeconds(0.f);
@@ -293,7 +301,6 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 	
 	/********************************************************************/
 	EMovieSceneSectionMovedResult SectionMovedResult(EMovieSceneSectionMovedResult::None);
-
 	if (bIsDilating)
 	{
 		for(FPreDragSectionData Data: PreDragSectionData)
@@ -386,16 +393,15 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 		}
 	}
 	/********************************************************************/
-	else for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : Sections)
+	else for (UMovieSceneSection* Section : Sections)
 	{
-		UMovieSceneSection* Section = WeakSection.Get();
-		TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(Section);
+		TSharedPtr<FSectionModel> SectionHandle = Sequencer.GetNodeTree()->GetSectionModel(Section);
 		if (!SectionHandle)
 		{
 			continue;
 		}
 
-		TSharedRef<ISequencerSection> SectionInterface = SectionHandle->GetSectionInterface();
+		TSharedPtr<ISequencerSection> SectionInterface = SectionHandle->GetSectionInterface();
 
 		FFrameNumber NewTime = SectionInitTimes[Section] + DeltaTime;
 
@@ -455,14 +461,11 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 
 	{
 		TSet<UMovieSceneTrack*> Tracks;
-		for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+		for (UMovieSceneSection* Section : Sections)
 		{
-			if (UMovieSceneSection* Section = WeakSection.Get())
+			if (UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>())
 			{
-				if (UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>())
-				{
-					Tracks.Add(Track);
-				}
+				Tracks.Add(Track);
 			}
 		}
 		for (UMovieSceneTrack* Track : Tracks)
@@ -481,7 +484,7 @@ void FResizeSection::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMous
 	}
 }
 
-void FDuplicateKeysAndSections::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FDuplicateKeysAndSections::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
 	// Begin an editor transaction and mark the section as transactional so it's state will be saved
 	BeginTransaction( Sections, NSLOCTEXT("Sequencer", "DuplicateKeysTransaction", "Duplicate Keys or Sections") );
@@ -500,12 +503,8 @@ void FDuplicateKeysAndSections::OnBeginDrag(const FPointerEvent& MouseEvent, FVe
 	// so we don't need to actually use the new key handles.
 	DuplicateKeys(KeysAsArray, NewKeyHandles);
 
-	// Duplicate our selections as well.
-	bool bDelayedStructureRebuild = false;
-
-	for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : Sections)
+	for (UMovieSceneSection* SectionToDuplicate : Sections)
 	{
-		UMovieSceneSection* SectionToDuplicate = WeakSection.Get();
 		if (!SectionToDuplicate)
 		{
 			continue;
@@ -515,21 +514,13 @@ void FDuplicateKeysAndSections::OnBeginDrag(const FPointerEvent& MouseEvent, FVe
 		UMovieSceneTrack* OwningTrack = SectionToDuplicate->GetTypedOuter<UMovieSceneTrack>();
 		OwningTrack->Modify();
 		OwningTrack->AddSection(*DuplicatedSection);
-
-		bDelayedStructureRebuild = true;
 	}
 
 	// Now start the move drag
 	FMoveKeysAndSections::OnBeginDrag(MouseEvent, LocalMousePos, VirtualTrackArea);
-
-	if (bDelayedStructureRebuild)
-	{
-		// We need to rebuild the track layout now so that the newly added section shows up, otherwise it won't show up until a section is vertically rearranged.
-		Sequencer.NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
-	}
 }
 
-void FDuplicateKeysAndSections::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FDuplicateKeysAndSections::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
 	FMoveKeysAndSections::OnEndDrag(MouseEvent, LocalMousePos, VirtualTrackArea);
 
@@ -544,8 +535,10 @@ FManipulateSectionEasing::FManipulateSectionEasing( FSequencer& InSequencer, TWe
 {
 }
 
-void FManipulateSectionEasing::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FManipulateSectionEasing::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
+	using namespace UE::Sequencer;
+
 	Transaction.Reset( new FScopedTransaction(NSLOCTEXT("Sequencer", "DragSectionEasing", "Change Section Easing")) );
 
 	UMovieSceneSection* Section = WeakSection.Get();
@@ -562,15 +555,17 @@ void FManipulateSectionEasing::OnBeginDrag(const FPointerEvent& MouseEvent, FVec
 	if (Settings->GetSnapSectionTimesToSections())
 	{
 		// Construct a snap field of all section bounds
-		ISequencerSnapCandidate SnapCandidates;
+		ISnapCandidate SnapCandidates;
 		SnapField = FSequencerSnapField(Sequencer, SnapCandidates, ESequencerEntity::Section);
 	}
 
 	InitValue = bEaseIn ? Section->Easing.GetEaseInDuration() : Section->Easing.GetEaseOutDuration();
 }
 
-void FManipulateSectionEasing::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FManipulateSectionEasing::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
+	UE::MovieScene::FScopedSignedObjectModifyDefer DeferMarkAsChanged(true);
+
 	ESequencerScrubberStyle ScrubStyle = Sequencer.GetScrubStyle();
 
 	FFrameRate TickResolution  = Sequencer.GetFocusedTickResolution();
@@ -625,6 +620,8 @@ void FManipulateSectionEasing::OnDrag(const FPointerEvent& MouseEvent, FVector2D
 
 	const int32 MaxEasingDuration = Section->HasStartFrame() && Section->HasEndFrame() ? UE::MovieScene::DiscreteSize(Section->GetRange()) : TNumericLimits<int32>::Max() / 2;
 
+	Section->Modify();
+
 	if (bEaseIn)
 	{
 		Section->Easing.bManualEaseIn = true;
@@ -635,63 +632,68 @@ void FManipulateSectionEasing::OnDrag(const FPointerEvent& MouseEvent, FVector2D
 		Section->Easing.bManualEaseOut = true;
 		Section->Easing.ManualEaseOutDuration = FMath::Clamp(InitValue.Get(0) - DeltaTime.RoundToFrame().Value, 0, MaxEasingDuration);
 	}
-
-	UMovieSceneTrack* OuterTrack = Section->GetTypedOuter<UMovieSceneTrack>();
-	if (OuterTrack)
-	{
-		OuterTrack->MarkAsChanged();
-	}
-
-	Sequencer.NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::TrackValueChanged );
 }
 
-void FManipulateSectionEasing::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FManipulateSectionEasing::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
 	EndTransaction();
 }
 
 
-FMoveKeysAndSections::FMoveKeysAndSections(FSequencer& InSequencer, const TSet<FSequencerSelectedKey>& InSelectedKeys, const TSet<TWeakObjectPtr<UMovieSceneSection>>& InSelectedSections, bool InbHotspotWasSection)
+FMoveKeysAndSections::FMoveKeysAndSections(FSequencer& InSequencer, ESequencerMoveOperationType MoveType)
 	: FEditToolDragOperation(InSequencer)
-	, bHotspotWasSection(InbHotspotWasSection)
 {
-	// Filter out the keys on sections that are read only
-	for (const FSequencerSelectedKey& SelectedKey : InSelectedKeys)
+	using namespace UE::Sequencer;
+
+	bAllowVerticalMovement = HotspotCast<FSectionHotspotBase>(InSequencer.GetViewModel()->GetTrackArea()->GetHotspot()) != nullptr;
+
+	if (EnumHasAnyFlags(MoveType, ESequencerMoveOperationType::MoveKeys))
 	{
-		if (!SelectedKey.Section->IsReadOnly())
+		// Filter out the keys on sections that are read only
+		for (const FSequencerSelectedKey& SelectedKey : Sequencer.GetSelection().GetSelectedKeys())
 		{
-			Keys.Add(SelectedKey);
+			if (!SelectedKey.Section->IsReadOnly())
+			{
+				Keys.Add(SelectedKey);
+			}
 		}
+
+		KeysAsArray = Keys.Array();
 	}
 
-	KeysAsArray = Keys.Array();
 
-	for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : InSelectedSections)
+	if (EnumHasAnyFlags(MoveType, ESequencerMoveOperationType::MoveSections))
 	{
-		const UMovieSceneSection* SelectedSection = WeakSection.Get();
-		Sections.AddUnique(WeakSection);
-
-		UMovieScene* MovieScene = InSequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
-		if (MovieScene)
+		for (TWeakPtr<FViewModel> WeakSelectedModel : Sequencer.GetSelection().GetSelectedTrackAreaItems())
 		{
-			// If the section is in a group, we also want to add the sections it is grouped with
-			const FMovieSceneSectionGroup* SectionGroup = MovieScene->GetSectionGroup(*SelectedSection);
-			if (SectionGroup)
+			if (TSharedPtr<IDraggableTrackAreaExtension> DraggableItem = ICastable::CastWeakPtrShared<IDraggableTrackAreaExtension>(WeakSelectedModel))
 			{
-				for (TWeakObjectPtr<UMovieSceneSection> WeakGroupedSection : *SectionGroup)
-				{
-					// Verify sections are still valid, and are not infinite.
-					if (WeakGroupedSection.IsValid())
-					{
-						Sections.AddUnique(WeakGroupedSection);
-					}
-				}
+				DraggableItem->OnBeginDrag(*this);
 			}
 		}
 	}
 }
 
-void FMoveKeysAndSections::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FMoveKeysAndSections::AddSnapTime(FFrameNumber SnapTime)
+{
+	RelativeSnapOffsets.Add(SnapTime);
+}
+
+void FMoveKeysAndSections::AddModel(TSharedPtr<UE::Sequencer::FViewModel> Model)
+{
+	using namespace UE::Sequencer;
+
+	if (FSectionModel* SectionModel = Model->CastThis<FSectionModel>())
+	{
+		Sections.Add(SectionModel->GetSection());
+	}
+	if (TSharedPtr<IDraggableTrackAreaExtension> DraggableItem = Model->CastThisShared<IDraggableTrackAreaExtension>())
+	{
+		DraggedItems.Add(DraggableItem);
+	}
+}
+
+void FMoveKeysAndSections::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
 	// Early out if we've somehow started a drag operation without any sections or keys. This prevents an empty Undo/Redo Transaction from being created.
 	if (!Sections.Num() && !Keys.Num())
@@ -703,39 +705,24 @@ void FMoveKeysAndSections::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2
 
 	// Tell the Snap Field to ignore our currently selected keys and sections. We can snap to the edges of non-selected
 	// sections and keys. The actual snapping field will add other sequencer data (play ranges, playheads, etc.) as snap targets.
-	FInvalidKeyAndSectionSnappingCandidates AvoidSnapCanidates(Keys, Sections); 
+	FInvalidKeyAndSectionSnappingCandidates AvoidSnapCanidates(Keys, Sections);
 	SnapField = FSequencerSnapField(Sequencer, AvoidSnapCanidates );
 
 	// Store the frame time of the mouse so we can see how far we've moved from the starting point.
-	MouseTimePrev = VirtualTrackArea.PixelToFrame(LocalMousePos.X).FloorToFrame();
+	MouseTimePrev = VirtualTrackArea.PixelToFrame(LocalMousePos.X).RoundToFrame();
 
-	// Now we store a relative offset to each key and section from the start position. This allows us to know how far away from
-	// the mouse each valid key/section was so we can restore their offset if needed.
-	RelativeOffsets.Reserve(Sections.Num() + Keys.Num());
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+	// Convert initial snapoffsets so they are relative to the mouse time
+	for (FFrameNumber& RelativeTime : RelativeSnapOffsets)
 	{
-		UMovieSceneSection* Section = WeakSection.Get();
-		FRelativeOffset Offset;
-
-		if (Section->HasStartFrame())
-		{
-			Offset.StartOffset = Section->GetInclusiveStartFrame() - MouseTimePrev;
-		}
-		if (Section->HasEndFrame())
-		{
-			Offset.EndOffset = Section->GetExclusiveEndFrame() - MouseTimePrev;
-		}
-
-		RelativeOffsets.Add(Offset);
+		RelativeTime = (RelativeTime - MouseTimePrev).FloorToFrame();
 	}
 
 	// Sections can be dragged vertically to adjust their row up or down, so we need to store what row each section is currently on. A section
 	// can be dragged above all other sections - this is accomplished by moving all other sections down. We store the row indices for all sections
 	// in all tracks that we're modifying so we can get them later to move them.
 	TSet<UMovieSceneTrack*> Tracks;
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+	for (UMovieSceneSection* Section : Sections)
 	{
-		UMovieSceneSection* Section = WeakSection.Get();
 		Tracks.Add(Section->GetTypedOuter<UMovieSceneTrack>());
 	}
 	for (UMovieSceneTrack* Track : Tracks)
@@ -752,22 +739,21 @@ void FMoveKeysAndSections::OnBeginDrag(const FPointerEvent& MouseEvent, FVector2
 	KeyTimes.SetNum(Keys.Num());
 	GetKeyTimes(KeysAsArray, KeyTimes);
 
+	const int32 StartNum = RelativeSnapOffsets.Num();
+	RelativeSnapOffsets.SetNumUninitialized(StartNum + KeyTimes.Num());
 	for (int32 Index = 0; Index < KeyTimes.Num(); ++Index)
 	{
-		// Key offsets use only the Start offset and don't set the End offset as they do not represent ranges.
-		FRelativeOffset KeyOffset;
-		KeyOffset.StartOffset = KeyTimes[Index] - MouseTimePrev;
-
-		// These are packed with our Section Offsets (ToDo: Is this actually a good idea?)
-		RelativeOffsets.Add(KeyOffset);
+		RelativeSnapOffsets[StartNum + Index] = (KeyTimes[Index] - MouseTimePrev).RoundToFrame();
 	}
 
 	// Keys can be moved within sections without the section itself being moved, so we need to call Modify on any section that owns a key that isn't also being moved.
 	ModifyNonSelectedSections();
 }
 
-void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
+	UE::MovieScene::FScopedSignedObjectModifyDefer DeferMarkAsChanged(true);
+
 	if (!Sections.Num() && !Keys.Num())
 	{
 		return;
@@ -796,17 +782,11 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 		const bool bSnapToInterval = (KeysAsArray.Num() > 0 && Settings->GetSnapKeyTimesToInterval()) || (Sections.Num() > 0 && Settings->GetSnapSectionTimesToInterval());
 		const bool bSnapToLikeTypes = (KeysAsArray.Num() > 0 && Settings->GetSnapKeyTimesToKeys()) || (Sections.Num() > 0 && Settings->GetSnapSectionTimesToSections());
 
-		// RelativeOffsets contains both our sections and our keys, and we add them all as potential things that can snap to stuff.
-		for (const FRelativeOffset& Offset : RelativeOffsets)
+		// RelativeSnapOffsets contains both our sections and our keys, and we add them all as potential things that can snap to stuff.
+		ValidSnapMarkers.SetNumUninitialized(RelativeSnapOffsets.Num());
+		for (int32 Index = 0; Index < RelativeSnapOffsets.Num(); ++Index)
 		{
-			if (Offset.StartOffset.IsSet())
-			{
-				ValidSnapMarkers.Add((Offset.StartOffset.GetValue() + MouseTime).FloorToFrame());
-			}
-			if (Offset.EndOffset.IsSet())
-			{
-				ValidSnapMarkers.Add((Offset.EndOffset.GetValue() + MouseTime).FloorToFrame());
-			}
+			ValidSnapMarkers[Index] = (RelativeSnapOffsets[Index] + MouseTime).FloorToFrame();
 		}
 
 		// Now we'll try and snap all of these points to the closest valid snap marker (which may be a section or interval)
@@ -854,18 +834,14 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 	// Get a list of the unique tracks in this selection and update their easing so previews draw interactively as you drag.
 	TSet<UMovieSceneTrack*> Tracks;
 	FMovieSceneSectionMovedParams SectionMovedParams(EPropertyChangeType::Interactive);
-	EMovieSceneSectionMovedResult SectionMovedResult(EMovieSceneSectionMovedResult::None);
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+	for (UMovieSceneSection* Section : Sections)
 	{
-		if (UMovieSceneTrack* Track = WeakSection.Get()->GetTypedOuter<UMovieSceneTrack>())
+		if (UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>())
 		{
-			Track->Modify();
-			SectionMovedResult |= Track->OnSectionMoved(*WeakSection.Get(), SectionMovedParams);
-
+			Track->OnSectionMoved(*Section, SectionMovedParams);
 			Tracks.Add(Track);
 		}
 	}
-	bSectionMovementModifiedStructure |= (SectionMovedResult != EMovieSceneSectionMovedResult::None);
 
 	for (UMovieSceneTrack* Track : Tracks)
 	{
@@ -883,8 +859,12 @@ void FMoveKeysAndSections::OnDrag(const FPointerEvent& MouseEvent, FVector2D Loc
 	}
 }
 
-void FMoveKeysAndSections::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea)
+void FMoveKeysAndSections::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const UE::Sequencer::FVirtualTrackArea& VirtualTrackArea)
 {
+	using namespace UE::Sequencer;
+
+	UE::MovieScene::FScopedSignedObjectModifyDefer DeferMarkAsChanged;
+
 	if (!Sections.Num() && !Keys.Num())
 	{
 		return;
@@ -894,37 +874,29 @@ void FMoveKeysAndSections::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D 
 	ModifiedNonSelectedSections.Empty();
 
 	// Tracks can tell us if the row indexes for any sections were changed during our drag/drop operation.
-	bool bRowIndicesChanged = false;
 	TSet<UMovieSceneTrack*> Tracks;
 
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+	for (UMovieSceneSection* Section : Sections)
 	{
 		// Grab only unique tracks as multiple sections can reside on the same track.
-		Tracks.Add(WeakSection.Get()->GetTypedOuter<UMovieSceneTrack>());
+		Tracks.Add(Section->GetTypedOuter<UMovieSceneTrack>());
 	}
 
 	for (UMovieSceneTrack* Track : Tracks)
 	{
 		// Ensure all of the tracks have updated the row indices for their sections
-		bRowIndicesChanged |= Track->FixRowIndices();
-	}
-
-	if (bRowIndicesChanged)
-	{
-		Sequencer.NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+		Track->FixRowIndices();
 	}
 
 	FMovieSceneSectionMovedParams SectionMovedParams(EPropertyChangeType::ValueSet);
-	EMovieSceneSectionMovedResult SectionMovedResult(EMovieSceneSectionMovedResult::None);
-	for (const TWeakObjectPtr<UMovieSceneSection>& WeakSection : Sections)
+	for (UMovieSceneSection* Section : Sections)
 	{
-		UMovieSceneSection* Section = WeakSection.Get();
 		UMovieSceneTrack* OuterTrack = Cast<UMovieSceneTrack>(Section->GetOuter());
 
 		if (OuterTrack)
 		{
 			OuterTrack->Modify();
-			SectionMovedResult |= OuterTrack->OnSectionMoved(*Section, SectionMovedParams);
+			OuterTrack->OnSectionMoved(*Section, SectionMovedParams);
 		}
 	}
 
@@ -933,12 +905,15 @@ void FMoveKeysAndSections::OnEndDrag(const FPointerEvent& MouseEvent, FVector2D 
 		Track->UpdateEasing();
 	}
 
-	EndTransaction();
-
-	if (SectionMovedResult != EMovieSceneSectionMovedResult::None)
+	for (TWeakPtr<IDraggableTrackAreaExtension> WeakDraggableItem : DraggedItems)
 	{
-		Sequencer.NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+		if (TSharedPtr<IDraggableTrackAreaExtension> DraggableItem = WeakDraggableItem.Pin())
+		{
+			DraggableItem->OnEndDrag(*this);
+		}
 	}
+
+	EndTransaction();
 }
 
 void FMoveKeysAndSections::ModifyNonSelectedSections()
@@ -961,18 +936,20 @@ void FMoveKeysAndSections::ModifyNonSelectedSections()
 
 TRange<FFrameNumber> FMoveKeysAndSections::GetSectionBoundaries(const UMovieSceneSection* Section)
 {
+	using namespace UE::Sequencer;
+
 	// Find the borders of where you can drag to
 	FFrameNumber LowerBound = TNumericLimits<int32>::Lowest(), UpperBound = TNumericLimits<int32>::Max();
 
 	// Find the track node for this section
-	TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(Section);
+	TSharedPtr<FSectionModel> SectionHandle = Sequencer.GetNodeTree()->GetSectionModel(Section);
 	if (SectionHandle)
 	{
 		// Get the closest borders on either side
-		const TArray< TSharedRef<ISequencerSection> >& AllSections = SectionHandle->GetTrackNode()->GetSections();
-		for (TSharedRef<ISequencerSection> SectionInterface : AllSections)
+		TViewModelPtr<ITrackAreaExtension> TrackModel = SectionHandle->FindAncestorOfType<ITrackAreaExtension>();
+		for (const TViewModelPtr<FSectionModel>& SectionModel : TrackModel->GetTrackAreaModelListAs<FSectionModel>())
 		{
-			const UMovieSceneSection* TestSection = SectionInterface->GetSectionObject();
+			const UMovieSceneSection* TestSection = SectionModel->GetSection();
 			if (!TestSection || Sections.Contains(TestSection))
 			{
 				continue;
@@ -1000,10 +977,9 @@ TOptional<FFrameNumber> FMoveKeysAndSections::GetMovementDeltaX(FFrameTime Mouse
 	const FFrameNumber MouseDeltaTime = (MouseTime - MouseTimePrev).FloorToFrame();
 
 	// Disallow movement if any of the sections can't move
-	for (int32 Index = 0; Index < Sections.Num(); ++Index)
+	for (UMovieSceneSection* Section : Sections)
 	{
 		// If we're moving a section that is blending with something then it's OK if it overlaps stuff, the blend amount will get updated at the end.
-		UMovieSceneSection* Section = Sections[Index].Get();
 		if (!Section)
 		{
 			continue;
@@ -1109,6 +1085,8 @@ TOptional<FFrameNumber> FMoveKeysAndSections::GetMovementDeltaX(FFrameTime Mouse
 
 bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D VirtualMousePos, FVector2D LocalMousePos, TOptional<FFrameNumber> MaxDeltaX, FFrameNumber DesiredDeltaX)
 {
+	using namespace UE::Sequencer;
+
 	// Don't try to process moving sections if we don't have any sections.
 	if (Sections.Num() == 0)
 	{
@@ -1117,40 +1095,49 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 
 	// If sections are all on different rows or from different tracks, don't set row indices for anything because it leads to odd behavior.
 	bool bSectionsAreOnDifferentRows = false;
-	int32 FirstRowIndex = Sections[0].Get()->GetRowIndex();
+	int32 FirstRowIndex = -1;
 	UMovieSceneTrack* FirstTrack = nullptr;
 
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+	for (UMovieSceneSection* Section : Sections)
 	{
-		UMovieSceneSection* Section = WeakSection.Get();
-		if (Section)
+		UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
+		if (FirstRowIndex == -1)
 		{
-			UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
-			if (FirstRowIndex != Section->GetRowIndex())
+			FirstRowIndex = Section->GetRowIndex();
+		}
+		if (FirstRowIndex != Section->GetRowIndex())
+		{
+			bSectionsAreOnDifferentRows = true;
+		}
+		if (FirstTrack)
+		{
+			if (FirstTrack != Track)
 			{
 				bSectionsAreOnDifferentRows = true;
 			}
-			if (FirstTrack)
-			{
-				if (FirstTrack != Track)
-				{
-					bSectionsAreOnDifferentRows = true;
-				}
-			}
-			else
-			{
-				FirstTrack = Track;
-			}
+		}
+		else
+		{
+			FirstTrack = Track;
 		}
 	}
 
-	TArray<TSharedRef<FSequencerTrackNode> > TrackNodes;
+	TArray<TSharedPtr<FViewModel>> Tracks;
+
+	// @todo_sequencer_mvvm: really this code should all be operating on models rather than looking directly at UMovieSceneSections and tracks
+	FSectionModelStorageExtension* SectionStorage = Sequencer.GetViewModel()->GetRootModel()->CastDynamic<FSectionModelStorageExtension>();
 
 	bool bRowIndexChanged = false;
-	for (TWeakObjectPtr<UMovieSceneSection> WeakSection : Sections)
+	for (UMovieSceneSection* Section : Sections)
 	{
-		UMovieSceneSection* Section = WeakSection.Get();
-		UMovieSceneTrack* Track = Section->GetTypedOuter<UMovieSceneTrack>();
+		TSharedPtr<FSectionModel>      SectionModel = SectionStorage->FindModelForSection(Section);
+		TSharedPtr<FViewModel> TrackModel   = SectionModel ? SectionModel->GetParentTrackModel() : nullptr;
+		if (!SectionModel || !TrackModel)
+		{
+			continue;
+		}
+
+		UMovieSceneTrack* Track = TrackModel->CastThis<ITrackExtension>()->GetTrack();
 
 		const TArray<UMovieSceneSection*>& AllSections = Track->GetAllSections();
 
@@ -1163,20 +1150,16 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 			}
 		}
 
-		TOptional<FSectionHandle> SectionHandle = Sequencer.GetNodeTree()->GetSectionHandle(Section);
-		if (!SectionHandle)
-		{
-			continue;
-		}
-
-		TSharedRef<FSequencerTrackNode> TrackNode = SectionHandle->GetTrackNode();
-		TrackNodes.AddUnique(TrackNode);
+		Tracks.AddUnique(TrackModel);
 
 		int32 TargetRowIndex = Section->GetRowIndex();
 
+		// @todo_sequencer_mvvm: need to go through this dragging code and figure out what's going on and what it means
+		//                       now that models and views have separated concerns
+
 		// Handle vertical dragging to re-arrange tracks. We don't support vertical rearranging if you're dragging via
 		// a key, as the built in offset causes it to always jump down a row even without moving the mouse.
-		if (Track->SupportsMultipleRows() && AllSections.Num() > 1 && bHotspotWasSection)
+		if (Track->SupportsMultipleRows() && AllSections.Num() > 1 && bAllowVerticalMovement)
 		{
 			// Compute the max row index whilst disregarding the one we're dragging
 			int32 MaxRowIndex = 0;
@@ -1189,51 +1172,54 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 			}
 
 			// Handle sub-track and non-sub-track dragging
-			if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::None)
+			if (TrackModel->IsA<FTrackModel>())
 			{
 				const int32 NumRows = FMath::Max(Section->GetRowIndex() + 1, MaxRowIndex);
 
 				// Find the total height of the track - this is necessary because tracks may contain key areas, but they will not use sub tracks unless there is more than one row
-				float VirtualSectionBottom = 0.f;
-				TrackNode->TraverseVisible_ParentFirst([&](FSequencerDisplayNode& Node) { VirtualSectionBottom = Node.GetVirtualBottom(); return true; }, true);
+				const FVirtualGeometry VirtualGeometry = TrackModel->CastThis<FTrackModel>()->GetVirtualGeometry();
 
 				// Assume same height rows
-				const float VirtualSectionTop = TrackNode->GetVirtualTop();
-				const float VirtualSectionHeight = VirtualSectionBottom - TrackNode->GetVirtualTop();
-
+				const float VirtualSectionHeight = VirtualGeometry.NestedBottom - VirtualGeometry.Top;
 				const float VirtualRowHeight = VirtualSectionHeight / NumRows;
-				const float MouseOffsetWithinRow = VirtualMousePos.Y - (VirtualSectionTop + (VirtualRowHeight * TargetRowIndex));
+				const float MouseOffsetWithinRow = VirtualMousePos.Y - (VirtualGeometry.Top + (VirtualRowHeight * TargetRowIndex));
 
 				if (MouseOffsetWithinRow < VirtualRowHeight || MouseOffsetWithinRow > VirtualRowHeight)
 				{
-					const int32 NewIndex = FMath::FloorToInt((VirtualMousePos.Y - VirtualSectionTop) / VirtualRowHeight);
+					const int32 NewIndex = FMath::FloorToInt((VirtualMousePos.Y - VirtualGeometry.Top) / VirtualRowHeight);
 					TargetRowIndex = FMath::Clamp(NewIndex, 0, MaxRowIndex);
 				}
 
 				// If close to the top of the row, move else everything down
-				if (VirtualMousePos.Y <= VirtualSectionTop || LocalMousePos.Y <= 0)
+				if (VirtualMousePos.Y <= VirtualGeometry.Top || LocalMousePos.Y <= 0)
 				{
 					TargetRowIndex = -1;
 				}
 			}
-			else if (TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::SubTrack)
+			else if (TrackModel->IsA<FTrackRowModel>())
 			{
-				TSharedPtr<FSequencerTrackNode> ParentTrack = StaticCastSharedPtr<FSequencerTrackNode>(TrackNode->GetParent());
+				TSharedPtr<FTrackModel> ParentTrack = TrackModel->FindAncestorOfType<FTrackModel>();
 				if (ensure(ParentTrack.IsValid()))
 				{
-					for (int32 ChildIndex = 0; ChildIndex < ParentTrack->GetChildNodes().Num(); ++ChildIndex)
+					int32 ChildIndex = 0;
+					for (TSharedPtr<FViewModel> ChildNode : ParentTrack->GetChildren())
 					{
-						TSharedRef<FSequencerDisplayNode> ChildNode = ParentTrack->GetChildNodes()[ChildIndex];
-						float VirtualSectionTop = ChildNode->GetVirtualTop();
-						float VirtualSectionBottom = 0.f;
-						ChildNode->TraverseVisible_ParentFirst([&](FSequencerDisplayNode& Node) { VirtualSectionBottom = Node.GetVirtualBottom(); return true; }, true);
+						FVirtualGeometry ChildVirtualGeometry;
+						if (IGeometryExtension* ChildGeometryExtension = ChildNode->CastThis<IGeometryExtension>())
+						{
+							ChildVirtualGeometry = ChildGeometryExtension->GetVirtualGeometry();
+						}
+
+						float VirtualSectionTop = ChildVirtualGeometry.Top;
+						float VirtualSectionBottom = ChildVirtualGeometry.NestedBottom;
 
 						if (ChildIndex == 0 && (VirtualMousePos.Y <= VirtualSectionTop || LocalMousePos.Y <= 0))
 						{
 							TargetRowIndex = 0;
-							for (TSharedRef<ISequencerSection> TrackSection : TrackNode->GetSections())
+							FTrackRowModel* TrackRowModel = TrackModel->CastThis<FTrackRowModel>();
+							for (TSharedPtr<FSectionModel> SectionNode : TrackRowModel->GetTrackAreaModelListAs<FSectionModel>())
 							{
-								if (!Sections.Contains(TrackSection->GetSectionObject()))
+								if (!Sections.Contains(SectionNode->GetSection()))
 								{
 									TargetRowIndex = -1;
 									break;
@@ -1250,6 +1236,8 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 						{
 							TargetRowIndex = ChildIndex + 1;
 						}
+
+						++ChildIndex;
 					}
 				
 					// Track if we're expanding a parent track so we can unexpand it if we stop targeting it
@@ -1257,20 +1245,20 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 					{
 						if (!ParentTrack->IsExpanded() && ParentTrack != ExpandedParentTrack)
 						{
-							if (ExpandedParentTrack.IsValid())
+							if (TSharedPtr<FTrackModel> ExpandedParentTrackPinned = ExpandedParentTrack.Pin())
 							{
-								ExpandedParentTrack->SetExpansionState(false);
+								ExpandedParentTrackPinned->SetExpansion(false);
 								ExpandedParentTrack = nullptr;
 							}
 							ExpandedParentTrack = ParentTrack;
-							ParentTrack->SetExpansionState(true);
+							ParentTrack->SetExpansion(true);
 						}
 					}
-					else if (ExpandedParentTrack.IsValid())
+					else if (TSharedPtr<FTrackModel> ExpandedParentTrackPinned = ExpandedParentTrack.Pin())
 					{
-						ExpandedParentTrack->SetExpansionState(false);
+						ExpandedParentTrackPinned->SetExpansion(false);
 						ExpandedParentTrack = nullptr;
-					}				
+					}
 				}
 			}
 		}
@@ -1352,27 +1340,30 @@ bool FMoveKeysAndSections::HandleSectionMovement(FFrameTime MouseTime, FVector2D
 	{
 		PrevMousePosY = LocalMousePos.Y;
 
+		// @todo_sequence_mvvm: Fix this code as well - is it necessary if we no longer destructively re-populate the tree when data changes?
 		// Expand track node if it wasn't already expanded. This ensures that multi row tracks will show multiple rows if regenerated
-		for (TSharedRef<FSequencerTrackNode> TrackNode : TrackNodes)
-		{
-			if (!TrackNode->IsExpanded() && TrackNode->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::None)
-			{
-				TArray<TSharedRef<ISequencerSection> > TrackNodeSections = TrackNode->GetSections();
-				if (TrackNodeSections.Num() && TrackNodeSections[0]->GetSectionObject())
-				{
-					int32 SectionFirstRowIndex = TrackNodeSections[0]->GetSectionObject()->GetRowIndex();
+		//for (TSharedPtr<FViewModel> TrackModel : Tracks)
+		//{
+		//	IOutlinerExtension* OutlinerExtension = TrackModel->CastThis<IOutlinerExtension>(TrackModel);
+		//	bool bIsTrackExpanded = (!OutlinerExtension || OutlinerExtension->IsExpanded());
+		//	if (!bIsTrackExpanded && TrackModel->GetSubTrackMode() == FSequencerTrackNode::ESubTrackMode::None)
+		//	{
+		//		TArray<TSharedRef<ISequencerSection> > TrackNodeSections = TrackModel->GetSections();
+		//		if (TrackNodeSections.Num() && TrackNodeSections[0]->GetSectionObject())
+		//		{
+		//			int32 SectionFirstRowIndex = TrackNodeSections[0]->GetSectionObject()->GetRowIndex();
 
-					for (TSharedRef<ISequencerSection> TrackNodeSection : TrackNodeSections)
-					{
-						if (TrackNodeSection->GetSectionObject() && SectionFirstRowIndex != TrackNodeSection->GetSectionObject()->GetRowIndex())
-						{
-							TrackNode->SetExpansionState(true);
-							break;
-						}
-					}
-				}
-			}
-		}
+		//			for (TSharedRef<ISequencerSection> TrackNodeSection : TrackNodeSections)
+		//			{
+		//				if (TrackNodeSection->GetSectionObject() && SectionFirstRowIndex != TrackNodeSection->GetSectionObject()->GetRowIndex())
+		//				{
+		//					TrackNode->SetExpansion(true);
+		//					break;
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
 	}
 
 	return bRowIndexChanged;
@@ -1444,11 +1435,13 @@ void FMoveKeysAndSections::HandleKeyMovement(TOptional<FFrameNumber> MaxDeltaX, 
 		}
 	}
 
+	// Explicitly mark everything as changed to ensure that the UI is responsive during a drag
 	for (TWeakObjectPtr<UMovieSceneSection> Section : ModifiedNonSelectedSections)
 	{
 		if (Section.Get())
 		{
 			Section.Get()->MarkAsChanged();
+			Section.Get()->BroadcastChanged();
 		}
 	}
 }

@@ -500,7 +500,7 @@ AActor* FSerializedRecorder::SetActorPossesableOrSpawnable(UMovieSceneSequence* 
 		{
 			FolderToUse = NewObject<UMovieSceneFolder>(MovieScene, NAME_None, RF_Transactional);
 			FolderToUse->SetFolderName(ActorHeader.FolderName);
-			MovieScene->GetRootFolders().Add(FolderToUse);
+			MovieScene->AddRootFolder(FolderToUse);
 		}
 
 		FolderToUse->AddChildObjectBinding(ActorHeader.Guid);
@@ -525,7 +525,7 @@ void FSerializedRecorder::SetComponentPossessable(UMovieSceneSequence* InMovieSc
 
 		// Set up parent/child guids for possessables within spawnables
 		FMovieScenePossessable* ChildPossessablePtr = InMovieScene->FindPossessable(ActorProperty.Guid);
-		ChildPossessablePtr->SetParent(ActorHeader.Guid);
+		ChildPossessablePtr->SetParent(ActorHeader.Guid, InMovieScene);
 		
 		FMovieSceneSpawnable* ParentSpawnable = InMovieScene->FindSpawnable(ActorHeader.Guid);
 		if (ParentSpawnable)

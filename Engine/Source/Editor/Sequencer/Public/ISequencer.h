@@ -32,6 +32,7 @@ class FSequencerKeyCollection;
 class UMovieSceneSequence;
 class UMovieSceneSubSection;
 class UMovieSceneCinematicShotSection;
+class ISequencerTrackEditor;
 class IDetailsView;
 class IKeyArea;
 enum class EMapChangeType : uint8;
@@ -40,6 +41,16 @@ class FCurveEditor;
 struct FMovieSceneSequencePlaybackParams;
 struct FMovieSceneChannelMetaData;
 class IToolkitHost;
+
+namespace UE
+{
+namespace Sequencer
+{
+
+class FEditorViewModel;
+
+} // namespace Sequencer
+} // namespace UE
 
 /**
  * Defines auto change modes.
@@ -232,6 +243,11 @@ public:
 	 * @param Section The sub-movie scene section containing the sequence instance to get.
 	 */
 	virtual void FocusSequenceInstance(UMovieSceneSubSection& Section) = 0;
+
+	/**
+	 * Retrieve the top level view model for this sequence
+	 */
+	virtual TSharedPtr<UE::Sequencer::FEditorViewModel> GetViewModel() const = 0;
 
 	/**
 	 * Suppresses automatic evaluation the specified sequence and signature are the only difference that would prompt a re-evaluation
@@ -707,6 +723,12 @@ public:
 	* @see SetSelectionRange, SetSelectionRangeEnd, SetSelectionRangeStart
 	*/
 	virtual TRange<FFrameNumber> GetSelectionRange() const = 0;
+
+	/**
+	* Retrieve or create a track editor for the specified track
+	*/
+	virtual TSharedPtr<ISequencerTrackEditor> GetTrackEditor(UMovieSceneTrack* InTrack) = 0;
+
 public:
 
 	/**
@@ -777,3 +799,4 @@ protected:
 	FOnGetIsRecording GetIsRecording;
 	FOnGetCanRecord GetCanRecord;
 };
+

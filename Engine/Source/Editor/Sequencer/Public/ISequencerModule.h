@@ -24,6 +24,8 @@ class IToolkitHost;
 class UMovieSceneSequence;
 struct FSequencerInitParams;
 
+namespace UE { namespace Sequencer { class FTrackModel; } }
+
 enum class ECurveEditorTreeFilterType : uint32;
 
 /** Forward declaration for the default templated channel interface. Include SequencerChannelInterface.h for full definition. */
@@ -50,6 +52,12 @@ DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<ISequencerTrackEditor>, FOnCreateTra
 /** A delegate which will create an object binding handler. */
 DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<ISequencerEditorObjectBinding>, FOnCreateEditorObjectBinding, TSharedRef<ISequencer>);
 
+/** A delegate which will create a track model. */
+DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<UE::Sequencer::FTrackModel>, FOnCreateTrackModel, UMovieSceneTrack*);
+
+/** A delegate that is executed when adding menu content. */
+DECLARE_DELEGATE_OneParam(FOnGetContextMenuContent, FMenuBuilder& /*MenuBuilder*/);
+
 /** A delegate that is executed when adding menu content. */
 DECLARE_DELEGATE_TwoParams(FOnGetAddMenuContent, FMenuBuilder& /*MenuBuilder*/, TSharedRef<ISequencer>);
 
@@ -70,8 +78,10 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPreSequencerInit, TSharedRef<ISequence
  */
 struct FSequencerViewParams
 {
+	/** Called when building the add track menu */
 	FOnGetAddMenuContent OnGetAddMenuContent;
 
+	/** Called when building a context menu for an object binding */
 	FOnBuildCustomContextMenuForGuid OnBuildCustomContextMenuForGuid;
 
 	/** Called when this sequencer has received user focus */
@@ -205,6 +215,21 @@ public:
 	 * @param InHandle	Handle to the delegate to unregister
 	 */
 	virtual void UnRegisterTrackEditor(FDelegateHandle InHandle) = 0;
+
+	/**
+	 * Registers a delegate that will create a track view model for a given track
+	 *
+	 * @param InCreator Delegate to register
+	 * @return A handle to the newly-added delegate
+	 */
+	virtual FDelegateHandle RegisterTrackModel(FOnCreateTrackModel InCreator) = 0;
+
+	/**
+	 * Unregisters a previously registered delegate for creating track view models
+	 *
+	 * @param InHandle Handle to the delegate to unregister
+	 */
+	virtual void UnregisterTrackModel(FDelegateHandle InHandle) = 0;
 
 	/** 
 	 * Registers a delegate that will be called when a sequencer is created

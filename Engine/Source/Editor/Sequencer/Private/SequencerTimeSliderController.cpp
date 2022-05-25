@@ -21,7 +21,6 @@
 #include "MovieSceneTimeHelpers.h"
 #include "CommonFrameRates.h"
 #include "Sequencer.h"
-#include "SequencerDisplayNode.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
@@ -1748,6 +1747,8 @@ bool FSequencerTimeSliderController::HitTestMark(const FScrubRangeToScreen& Rang
 
 FFrameTime FSequencerTimeSliderController::SnapTimeToNearestKey(const FPointerEvent& MouseEvent, const FScrubRangeToScreen& RangeToScreen, float CursorPos, FFrameTime InTime) const
 {
+	using namespace UE::Sequencer;
+
 	if (!WeakSequencer.IsValid())
 	{
 		return InTime;
@@ -1759,7 +1760,7 @@ FFrameTime FSequencerTimeSliderController::SnapTimeToNearestKey(const FPointerEv
 
 		// If there are any tracks selected we'll find the nearest key only on that track. If there are no keys selected,
 		// we will try to find the nearest keys on all tracks. This mirrors the behavior of the Jump to Next Keyframe commands.
-		const TSet< TSharedRef<FSequencerDisplayNode> >& SelectedNodes = WeakSequencer.Pin()->GetSelection().GetSelectedOutlinerNodes();
+		const TSet< TWeakPtr<FViewModel> >& SelectedNodes = WeakSequencer.Pin()->GetSelection().GetSelectedOutlinerItems();
 		if (SelectedNodes.Num() == 0)
 		{
 			EnumAddFlags(NearestKeyOption, ENearestKeyOption::NKO_SearchAllTracks);

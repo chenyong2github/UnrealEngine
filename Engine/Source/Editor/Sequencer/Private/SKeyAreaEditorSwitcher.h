@@ -5,9 +5,16 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
-class FSequencerSectionKeyAreaNode;
 class SOverlay;
 class IKeyArea;
+class ISequencer;
+
+namespace UE
+{
+namespace Sequencer
+{
+
+class FChannelGroupModel;
 
 class SKeyAreaEditorSwitcher : public SCompoundWidget
 {
@@ -16,7 +23,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Construct the widget */
-	void Construct(const FArguments& InArgs, TSharedRef<FSequencerSectionKeyAreaNode> InKeyAreaNode);
+	void Construct(const FArguments& InArgs, TSharedPtr<FChannelGroupModel> InModel, TWeakPtr<ISequencer> InWeakSequencer);
 
 	/** Rebuild this widget from its cached key area node */
 	void Rebuild();
@@ -35,7 +42,13 @@ private:
 	/** Index of the currently visible key editor */
 	int32 VisibleIndex;
 	/** The key area to which we relate */
-	TWeakPtr<FSequencerSectionKeyAreaNode> WeakKeyAreaNode;
+	TWeakPtr<FChannelGroupModel> WeakModel;
+	/** The sequencer we belong to */
+	TWeakPtr<ISequencer> WeakSequencer;
 	/** Key areas cached from the node */
 	TArray<TSharedRef<IKeyArea>> CachedKeyAreas;
 };
+
+
+} // namespace Sequencer
+} // namespace UE

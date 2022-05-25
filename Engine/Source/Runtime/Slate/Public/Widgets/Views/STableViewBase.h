@@ -246,7 +246,9 @@ protected:
 
 	/** Add a WidgetToAppend to the bottom of the view. */
 	void AppendWidget( const TSharedRef<ITableRow>& WidgetToAppend );
-	
+
+	const FChildren* GetConstructedTableItems() const;
+
 	/**
 	 * Remove all the widgets from the view.
 	 */

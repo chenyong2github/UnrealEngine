@@ -8,6 +8,13 @@
 #include "Sequencer.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
+#include "ISequencerSection.h"
+#include "SequencerHotspots.h"
+#include "MVVM/Extensions/IHoveredExtension.h"
+#include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/Extensions/LinkedOutlinerExtension.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/ViewModels/SequencerTrackAreaViewModel.h"
 
 namespace UE
 {
@@ -38,7 +45,7 @@ FKeyRenderer::FCachedState::FCachedState(const FSequencerSectionPainter& InPaint
 
 	// Gather keys for a region larger than the view range to ensure we draw keys that are only just offscreen.
 	// Compute visible range taking into account a half-frame offset for keys, plus half a key width for keys that are partially offscreen
-	TRange<FFrameNumber> SectionRange   = InPainter.Section.GetRange();
+	TRange<FFrameNumber> SectionRange   = InPainter.SectionModel->GetRange();
 	const double         HalfKeyWidth   = 0.5f * (TimeToPixelConverter.PixelToSeconds(SequencerSectionConstants::KeySize.X) - TimeToPixelConverter.PixelToSeconds(0));
 	TRange<double>       VisibleRange   = UE::MovieScene::DilateRange(Sequencer->GetViewRange(), -HalfKeyWidth, HalfKeyWidth);
 	TRange<FFrameNumber> ValidKeyRange  = Sequencer->GetSubSequenceRange().Get(MovieScene->GetPlaybackRange());
@@ -84,15 +91,18 @@ FKeyRenderer::ECacheFlags FKeyRenderer::FCachedState::CompareTo(const FCachedSta
 
 FKeyRenderer::FKeyDrawBatch::FKeyDrawBatch(const FSectionLayoutElement& LayoutElement)
 {
-	for (TSharedRef<IKeyArea> KeyArea : LayoutElement.GetKeyAreas())
+	for (TWeakPtr<FChannelModel> WeakChannel : LayoutElement.GetChannels())
 	{
-		KeyDrawInfo.Emplace(KeyArea);
+		if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
+		{
+			KeyDrawInfo.Emplace(Channel);
+		}
 	}
 }
 
 void FKeyRenderer::FCachedKeyDrawInformation::DrawExtra(FSequencerSectionPainter& Painter, const FGeometry& KeyGeometry) const
 {
-	CachedKeyPositions.GetKeyArea()->DrawExtra(Painter, KeyGeometry);
+	CachedKeyPositions.GetChannel()->GetKeyArea()->DrawExtra(Painter, KeyGeometry);
 }
 
 FKeyRenderer::ECacheFlags FKeyRenderer::FCachedKeyDrawInformation::UpdateViewIndependentData(FFrameRate TickResolution)
@@ -127,7 +137,7 @@ void FKeyRenderer::FCachedKeyDrawInformation::CacheViewDependentData(const TRang
 				if (HeadNum > 0)
 				{
 					NewDrawParams.SetNum(HeadNum);
-					CachedKeyPositions.GetKeyArea()->DrawKeys(HandlesInRange.Slice(0, HeadNum), NewDrawParams);
+					CachedKeyPositions.GetChannel()->GetKeyArea()->DrawKeys(HandlesInRange.Slice(0, HeadNum), NewDrawParams);
 				}
 
 				NewDrawParams.Append(DrawParams.GetData() + PreserveStart, PreserveNum);
@@ -138,7 +148,7 @@ void FKeyRenderer::FCachedKeyDrawInformation::CacheViewDependentData(const TRang
 				if (TailNum > 0)
 				{
 					NewDrawParams.SetNum(FramesInRange.Num());
-					CachedKeyPositions.GetKeyArea()->DrawKeys(HandlesInRange.Slice(TailStart, TailNum), TArrayView<FKeyDrawParams>(NewDrawParams).Slice(TailStart, TailNum));
+					CachedKeyPositions.GetChannel()->GetKeyArea()->DrawKeys(HandlesInRange.Slice(TailStart, TailNum), TArrayView<FKeyDrawParams>(NewDrawParams).Slice(TailStart, TailNum));
 				}
 
 				DrawParams = MoveTemp(NewDrawParams);
@@ -153,7 +163,7 @@ void FKeyRenderer::FCachedKeyDrawInformation::CacheViewDependentData(const TRang
 			if (TimesInRange.Num())
 			{
 				// Draw these keys
-				CachedKeyPositions.GetKeyArea()->DrawKeys(HandlesInRange, DrawParams);
+				CachedKeyPositions.GetChannel()->GetKeyArea()->DrawKeys(HandlesInRange, DrawParams);
 			}
 		}
 
@@ -197,12 +207,12 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 	FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
 	const FTimeToPixel& TimeToPixelConverter = InPainter.GetTimeConverter();
 
-	TSharedPtr<ISequencerHotspot> Hotspot = Sequencer->GetHotspot();
+	TSharedPtr<FKeyHotspot> KeyHotspot = HotspotCast<FKeyHotspot>(Sequencer->GetViewModel()->GetTrackArea()->GetHotspot());
 	TArrayView<const FSequencerSelectedKey> HoveredKeys;
 
-	if (Hotspot.IsValid() && Hotspot->GetType() == ESequencerHotspot::Key)
+	if (KeyHotspot)
 	{
-		HoveredKeys = static_cast<FKeyHotspot*>(Hotspot.Get())->Keys;
+		HoveredKeys = KeyHotspot->Keys;
 	}
 
 	const TSet<FSequencerSelectedKey>& SelectedKeys = Sequencer->GetSelection().GetSelectedKeys();
@@ -364,11 +374,11 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 
 				// Avoid creating FSequencerSelectedKeys unless absolutely necessary
 				FKeyHandle ThisKeyHandle = Info.HandlesInRange[Info.NextUnhandledIndex];
-				const TSharedPtr<IKeyArea>& ThisKeyArea = Info.CachedKeyPositions.GetKeyArea();
+				TSharedPtr<FChannelModel> ThisChannel = Info.CachedKeyPositions.GetChannel();
 
 				if (bHasAnySelection)
 				{
-					FSequencerSelectedKey TestKey(InPainter.Section, ThisKeyArea, ThisKeyHandle);
+					FSequencerSelectedKey TestKey(*InPainter.SectionModel->GetSection(), ThisChannel, ThisKeyHandle);
 					if (SelectedKeys.Contains(TestKey))
 					{
 						++NumSelected;
@@ -376,7 +386,7 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 				}
 				if (bHasAnySelectionPreview)
 				{
-					FSequencerSelectedKey TestKey(InPainter.Section, ThisKeyArea, ThisKeyHandle);
+					FSequencerSelectedKey TestKey(*InPainter.SectionModel->GetSection(), ThisChannel, ThisKeyHandle);
 
 					if (const ESelectionPreviewState* SelectionPreviewState = SelectionPreview.Find(TestKey))
 					{
@@ -386,7 +396,7 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 				}
 				if (bHasAnyHoveredKeys)
 				{
-					FSequencerSelectedKey TestKey(InPainter.Section, ThisKeyArea, ThisKeyHandle);
+					FSequencerSelectedKey TestKey(*InPainter.SectionModel->GetSection(), ThisChannel, ThisKeyHandle);
 					NumHovered += int32(HoveredKeys.Contains(TestKey));
 				}
 
@@ -458,8 +468,8 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 
 	for (FCachedKeyDrawInformation& Info : KeyDrawInfo)
 	{
-		const TSharedPtr<IKeyArea>& ThisKeyArea = Info.CachedKeyPositions.GetKeyArea();
-		const FMovieSceneChannelHandle& Channel = ThisKeyArea.Get()->GetChannel();
+		const TSharedPtr<IKeyArea>& ThisKeyArea = Info.CachedKeyPositions.GetChannel()->GetKeyArea();
+		const FMovieSceneChannelHandle& Channel = ThisKeyArea->GetChannel();
 
 		const FName ChannelTypeName = Channel.GetChannelTypeName();
 
@@ -471,7 +481,7 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 
 		if (ChannelTypeName == FloatChannelTypeName)
 		{
-			FMovieSceneFloatChannel* FloatChannel = ThisKeyArea.Get()->GetChannel().Cast<FMovieSceneFloatChannel>().Get();
+			FMovieSceneFloatChannel* FloatChannel = ThisKeyArea->GetChannel().Cast<FMovieSceneFloatChannel>().Get();
 			if (!FloatChannel || !FloatChannel->GetShowCurve())
 			{
 				continue;
@@ -511,7 +521,7 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 		}
 		else if (ChannelTypeName == DoubleChannelTypeName)
 		{
-			FMovieSceneDoubleChannel* DoubleChannel = ThisKeyArea.Get()->GetChannel().Cast<FMovieSceneDoubleChannel>().Get();
+			FMovieSceneDoubleChannel* DoubleChannel = ThisKeyArea->GetChannel().Cast<FMovieSceneDoubleChannel>().Get();
 			if (!DoubleChannel || !DoubleChannel->GetShowCurve())
 			{
 				continue;
@@ -761,12 +771,12 @@ void FKeyRenderer::DrawLayoutElement(FSequencer* Sequencer, const FSequencerSect
 {
 	FGeometry KeyAreaGeometry = LayoutElement.ComputeGeometry(SectionPainter.SectionGeometry);
 
-	TArrayView<const TSharedRef<IKeyArea>> KeyAreas = LayoutElement.GetKeyAreas();
+	TArrayView<const TWeakPtr<FChannelModel>> WeakChannels = LayoutElement.GetChannels();
 
 	TOptional<FLinearColor> ChannelColor;
-	if (KeyAreas.Num() == 1 && Sequencer->GetSequencerSettings()->GetShowChannelColors())
+	if (WeakChannels.Num() == 1 && Sequencer->GetSequencerSettings()->GetShowChannelColors())
 	{
-		ChannelColor = KeyAreas[0]->GetColor();
+		ChannelColor = WeakChannels[0].Pin()->GetKeyArea()->GetColor();
 	}
 
 	FSequencerSelection& Selection = Sequencer->GetSelection();
@@ -793,19 +803,18 @@ void FKeyRenderer::DrawLayoutElement(FSequencer* Sequencer, const FSequencerSect
 		); 
 	}
 
-	TSharedPtr<FSequencerDisplayNode> DisplayNode = LayoutElement.GetDisplayNode();
-	if (DisplayNode.IsValid())
+	FLinkedOutlinerExtension* LinkedOutlinerItem = LayoutElement.GetModel() ? LayoutElement.GetModel()->CastThis<FLinkedOutlinerExtension>() : nullptr;
+	TSharedPtr<FViewModel> Model = LinkedOutlinerItem ? LinkedOutlinerItem->GetLinkedOutlinerItem().AsModel() : LayoutElement.GetModel();
+	if (Model)
 	{
-		TSharedRef<FSequencerDisplayNode> DisplayNodeRef = DisplayNode.ToSharedRef();
-
 		FLinearColor HighlightColor;
 		bool bDrawHighlight = false;
-		if (Sequencer->GetSelection().NodeHasSelectedKeysOrSections(DisplayNodeRef))
+		if (Sequencer->GetSelection().NodeHasSelectedKeysOrSections(Model))
 		{
 			bDrawHighlight = true;
 			HighlightColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.15f);
 		}
-		else if (DisplayNode->IsHovered())
+		else if (Model->CastThis<IHoveredExtension>())
 		{
 			bDrawHighlight = true;
 			HighlightColor = FLinearColor(1.0f, 1.0f, 1.0f, 0.05f);
@@ -827,7 +836,7 @@ void FKeyRenderer::DrawLayoutElement(FSequencer* Sequencer, const FSequencerSect
 
 		// --------------------------------------------
 		// Draw display node selection tint
-		if (Selection.IsSelected(DisplayNodeRef))
+		if (Selection.IsSelected(Model))
 		{
 			FSlateDrawElement::MakeBox(
 				SectionPainter.DrawElements,
@@ -842,7 +851,7 @@ void FKeyRenderer::DrawLayoutElement(FSequencer* Sequencer, const FSequencerSect
 
 	// --------------------------------------------
 	// Draw section selection tint
-	const bool bSectionSelected = Selection.IsSelected(&SectionPainter.Section);
+	const bool bSectionSelected = Selection.IsSelected(SectionPainter.SectionModel);
 	if (bSectionSelected && Args.SectionThrobValue != 0.f)
 	{
 		FSlateDrawElement::MakeBox(
@@ -894,7 +903,7 @@ void FKeyRenderer::UpdateKeyLayouts(FSequencer* Sequencer, const FSequencerSecti
 		{
 			break;
 		}
-		if (LayoutElement.GetKeyAreas().Num() == 0)
+		if (LayoutElement.GetChannels().Num() == 0)
 		{
 			continue;
 		}

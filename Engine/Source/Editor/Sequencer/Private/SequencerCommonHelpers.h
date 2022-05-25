@@ -3,10 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "DisplayNodes/SequencerDisplayNode.h"
 #include "Widgets/Input/SNumericDropDown.h"
 #include "Containers/ArrayView.h"
 #include "Misc/FrameNumber.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/ViewModelHierarchy.h"
 
 #define LOCTEXT_NAMESPACE "SequencerHelpers"
 
@@ -14,13 +15,31 @@ class FSequencer;
 class IKeyArea;
 class UMovieSceneSection;
 
+namespace UE
+{
+namespace Sequencer
+{
+
+class FChannelModel;
+
+} // namespace Sequencer
+} // namespace UE
+
+
 class SequencerHelpers
 {
 public:
+	using FViewModel = UE::Sequencer::FViewModel;
+
 	/**
 	 * Gets the key areas from the requested node
 	 */
-	static void GetAllKeyAreas(TSharedPtr<FSequencerDisplayNode> DisplayNode, TSet<TSharedPtr<IKeyArea>>& KeyAreas);
+	static void GetAllKeyAreas(TSharedPtr<FViewModel> DataModel, TSet<TSharedPtr<IKeyArea>>& KeyAreas);
+
+	/**
+	 * Gets the channels from the requested node
+	 */
+	static void GetAllChannels(TSharedPtr<FViewModel> DataModel, TSet<TSharedPtr<UE::Sequencer::FChannelModel>>& Channels);
 
 	/**
 	 * Get the section index that relates to the specified time
@@ -31,28 +50,12 @@ public:
 	/**
 	 * Get descendant nodes
 	 */
-	static void GetDescendantNodes(TSharedRef<FSequencerDisplayNode> DisplayNode, TSet<TSharedRef<FSequencerDisplayNode> >& Nodes);
+	static void GetDescendantNodes(TSharedRef<FViewModel> DataModel, TSet<TSharedRef<FViewModel> >& Nodes);
 
 	/**
 	 * Gets all sections from the requested node
 	 */
-	static void GetAllSections(TSharedRef<FSequencerDisplayNode> DisplayNode, TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections);
-
-	/**
-	 * Validate that the nodes with selected keys or sections actually are true
-	 */
-
-	static void ValidateNodesWithSelectedKeysOrSections(FSequencer& Sequencer);
-
-	/**
-	 * Update the nodes with selected sections from the hovered node
-	 */
-	static void UpdateHoveredNodeFromSelectedSections(FSequencer& Sequencer);
-
-	/**
-	 * Update the nodes with selected keys from the hovered node
-	 */
-	static void UpdateHoveredNodeFromSelectedKeys(FSequencer& Sequencer);
+	static void GetAllSections(TSharedPtr<FViewModel> DataModel, TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections);
 
 	/**
 	 * Perform default selection for the specified mouse event, based on the current hotspot

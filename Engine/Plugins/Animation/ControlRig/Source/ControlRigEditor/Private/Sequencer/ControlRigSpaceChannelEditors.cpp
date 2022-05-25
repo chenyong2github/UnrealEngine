@@ -58,6 +58,7 @@
 #include "Rendering/DrawElements.h"
 #include "Fonts/FontMeasure.h"
 #include "CurveEditorSettings.h"
+#include "TimeToPixel.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditMode"
 
@@ -1525,6 +1526,8 @@ void FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(	UControlRig* Control
 
 void DrawExtra(FMovieSceneControlRigSpaceChannel* Channel, const UMovieSceneSection* Owner,const FGeometry& AllottedGeometry, FSequencerSectionPainter& Painter)
 {
+	using namespace UE::Sequencer;
+
 	if (const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(Owner))
 	{
 		TArray<FKeyBarCurveModel::FBarRange> Ranges = FControlRigSpaceChannelHelpers::FindRanges(Channel, Owner);

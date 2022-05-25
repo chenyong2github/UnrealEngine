@@ -552,7 +552,7 @@ UObject* FCameraAnimToTemplateSequenceConverter::ConvertSingleCameraAnimToTempla
 			UCameraComponent* CameraComponent = CameraTemplate->GetCameraComponent();
 			CameraComponentBindingID = NewMovieScene->AddPossessable(CameraComponent->GetName(), CameraComponent->GetClass());
 			FMovieScenePossessable* CameraComponentPossessable = NewMovieScene->FindPossessable(CameraComponentBindingID);
-			CameraComponentPossessable->SetParent(SpawnableGuid);
+			CameraComponentPossessable->SetParent(SpawnableGuid, NewMovieScene);
 			NewSequence->BindPossessableObject(CameraComponentBindingID, *CameraComponent, nullptr);
 		}
 	};

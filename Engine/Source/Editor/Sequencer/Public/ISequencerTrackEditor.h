@@ -207,8 +207,8 @@ public:
 	/** Called when the instance of this track editor is released */
 	virtual void OnRelease() = 0;
 
-	/** Allows the track editor to paint on a track area. */
-	virtual int32 PaintTrackArea(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle) = 0;
+	UE_DEPRECATED(5.0, "This function is no longer used.")
+	virtual int32 PaintTrackArea(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle) { return LayerId; }
 
 	/**
 	 * Returns whether a track class is supported by this tool.

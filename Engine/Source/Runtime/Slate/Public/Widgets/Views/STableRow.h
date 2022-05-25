@@ -84,7 +84,8 @@ public:
 	DECLARE_DELEGATE_RetVal_ThreeParams(TOptional<EItemDropZone>, FOnCanAcceptDrop, const FDragDropEvent&, EItemDropZone, ItemType);
 	/** Delegate signature for handling the drop of FDragDropEvent onto target of type ItemType */
 	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnAcceptDrop, const FDragDropEvent&, EItemDropZone, ItemType);
-
+	/** Delegate signature for painting drop indicators. */
+	DECLARE_DELEGATE_RetVal_EightParams(int32, FOnPaintDropIndicator, EItemDropZone, const FPaintArgs&, const FGeometry&, const FSlateRect&, FSlateWindowElementList&, int32, const FWidgetStyle&, bool);
 public:
 
 	SLATE_BEGIN_ARGS( STableRow< ItemType > )
@@ -119,6 +120,11 @@ public:
 		 *      This is our chance to handle the drop by reordering items and calling for a list refresh.
 		 */
 		SLATE_EVENT( FOnAcceptDrop,    OnAcceptDrop )
+
+		/**
+		 * Used for painting drop indicators
+		 */
+		SLATE_EVENT( FOnPaintDropIndicator, OnPaintDropIndicator )
 
 		// Low level DragAndDrop
 		SLATE_EVENT( FOnDragDetected,      OnDragDetected )
@@ -303,6 +309,18 @@ public:
 	}
 #endif
 
+	/** Retrieves a brush for rendering a drop indicator for the specified drop zone */
+	const FSlateBrush* GetDropIndicatorBrush(EItemDropZone InItemDropZone) const
+	{
+		switch (InItemDropZone)
+		{
+			case EItemDropZone::AboveItem: return &Style->DropIndicator_Above; break;
+			default:
+			case EItemDropZone::OntoItem: return &Style->DropIndicator_Onto; break;
+			case EItemDropZone::BelowItem: return &Style->DropIndicator_Below; break;
+		};
+	}
+
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override
 	{
 		TSharedRef< ITypedTableView<ItemType> > OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
@@ -327,50 +345,57 @@ public:
 
 		if (ItemDropZone.IsSet())
 		{
-			// Draw feedback for user dropping an item above, below, or onto a row.
-			const FSlateBrush* DropIndicatorBrush = [&]()
+			if (PaintDropIndicatorEvent.IsBound())
 			{
-				switch (ItemDropZone.GetValue())
-				{
-					case EItemDropZone::AboveItem: return &Style->DropIndicator_Above; break;
-					default:
-					case EItemDropZone::OntoItem: return &Style->DropIndicator_Onto; break;
-					case EItemDropZone::BelowItem: return &Style->DropIndicator_Below; break;
-				};
-			}();
-
-			if (OwnerTable->Private_GetOrientation() == Orient_Vertical)
-			{
-				FSlateDrawElement::MakeBox
-				(
-					OutDrawElements,
-					LayerId++,
-					AllottedGeometry.ToPaintGeometry(),
-					DropIndicatorBrush,
-					ESlateDrawEffect::None,
-					DropIndicatorBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
-				);
+				LayerId = PaintDropIndicatorEvent.Execute(ItemDropZone.GetValue(), Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 			}
 			else
 			{
-				// Reuse the drop indicator asset for horizontal, by rotating the drawn box 90 degrees.
-				const FVector2D LocalSize(AllottedGeometry.GetLocalSize());
-				const FVector2D Pivot(LocalSize * 0.5f);
-				const FVector2D RotatedLocalSize(LocalSize.Y, LocalSize.X);
-				FSlateLayoutTransform RotatedTransform(Pivot - RotatedLocalSize * 0.5f);	// Make the box centered to the alloted geometry, so that it can be rotated around the center.
-
-				FSlateDrawElement::MakeRotatedBox(
-					OutDrawElements,
-					LayerId++,
-					AllottedGeometry.ToPaintGeometry(RotatedLocalSize, RotatedTransform),
-					DropIndicatorBrush,
-					ESlateDrawEffect::None,
-					-UE_HALF_PI,	// 90 deg CCW
-					RotatedLocalSize * 0.5f,	// Relative center to the flipped
-					FSlateDrawElement::RelativeToElement,
-					DropIndicatorBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
-				);
+				OnPaintDropIndicator(ItemDropZone.GetValue(), Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 			}
+		}
+
+		return LayerId;
+	}
+
+	virtual int32 OnPaintDropIndicator( EItemDropZone InItemDropZone, const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
+	{
+		TSharedRef< ITypedTableView<ItemType> > OwnerTable = OwnerTablePtr.Pin().ToSharedRef();
+
+		// Draw feedback for user dropping an item above, below, or onto a row.
+		const FSlateBrush* DropIndicatorBrush = GetDropIndicatorBrush(InItemDropZone);
+
+		if (OwnerTable->Private_GetOrientation() == Orient_Vertical)
+		{
+			FSlateDrawElement::MakeBox
+			(
+				OutDrawElements,
+				LayerId++,
+				AllottedGeometry.ToPaintGeometry(),
+				DropIndicatorBrush,
+				ESlateDrawEffect::None,
+				DropIndicatorBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+			);
+		}
+		else
+		{
+			// Reuse the drop indicator asset for horizontal, by rotating the drawn box 90 degrees.
+			const FVector2D LocalSize(AllottedGeometry.GetLocalSize());
+			const FVector2D Pivot(LocalSize * 0.5f);
+			const FVector2D RotatedLocalSize(LocalSize.Y, LocalSize.X);
+			FSlateLayoutTransform RotatedTransform(Pivot - RotatedLocalSize * 0.5f);	// Make the box centered to the alloted geometry, so that it can be rotated around the center.
+
+			FSlateDrawElement::MakeRotatedBox(
+				OutDrawElements,
+				LayerId++,
+				AllottedGeometry.ToPaintGeometry(RotatedLocalSize, RotatedTransform),
+				DropIndicatorBrush,
+				ESlateDrawEffect::None,
+				-UE_HALF_PI,	// 90 deg CCW
+				RotatedLocalSize * 0.5f,	// Relative center to the flipped
+				FSlateDrawElement::RelativeToElement,
+				DropIndicatorBrush->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
+			);
 		}
 
 		return LayerId;
@@ -1197,6 +1222,9 @@ protected:
 
 	/** @see STableRow's OnAcceptDrop event */
 	FOnAcceptDrop OnAcceptDrop;
+
+	/** Optional delegate for painting drop indicators */
+	FOnPaintDropIndicator PaintDropIndicatorEvent;
 
 	/** Are we currently dragging/dropping over this item? */
 	TOptional<EItemDropZone> ItemDropZone;

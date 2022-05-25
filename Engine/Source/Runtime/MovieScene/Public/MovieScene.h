@@ -16,6 +16,7 @@
 #include "MovieSceneObjectBindingID.h"
 #include "MovieSceneFrameMigration.h"
 #include "MovieSceneTimeController.h"
+#include "EventHandlers/MovieSceneDataEventContainer.h"
 #include "MovieScene.generated.h"
 
 struct FMovieSceneTimeController;
@@ -357,6 +358,8 @@ public:
 #endif
 
 public:
+
+	UE::MovieScene::TDataEventContainer<UE::MovieScene::ISequenceDataEventHandler> EventHandlers;
 
 	/**
 	 * Add a spawnable to this movie scene's list of owned blueprints.
@@ -878,7 +881,42 @@ public:
 	/**
 	 * Gets the root folders for this movie scene.
 	 */
-	TArray<UMovieSceneFolder*>& GetRootFolders();
+	TArrayView<UMovieSceneFolder* const> GetRootFolders();
+
+	/**
+	 * Gets a copy of the root folders for this movie scene.
+	 */
+	void GetRootFolders(TArray<UMovieSceneFolder*>& InRootFolders);
+
+	/**
+	 * Gets the number of root folders in this movie scene.
+	 */
+	int32 GetNumRootFolders() const;
+
+	/**
+	 * Gets the i-th root folder for this movie scene.
+	 */
+	UMovieSceneFolder* GetRootFolder(int32 FolderIndex) const;
+
+	/**
+	 * Adds a root folder for this movie scene.
+	 */
+	void AddRootFolder(UMovieSceneFolder* Folder);
+
+	/**
+	 * Removes a root folder for this movie scene (does not delete tracks or objects contained within)
+	 */
+	int32 RemoveRootFolder(UMovieSceneFolder* Folder);
+
+	/**
+	 * Removes a root folder for this movie scene (does not delete tracks or objects contained within)
+	 */
+	bool RemoveRootFolder(int32 FolderIndex);
+
+	/**
+	 * Removes all root folders from this movie scene (does not delete tracks or objects contained within)
+	 */
+	void EmptyRootFolders();
 
 	/**
 	 * Gets the nodes marked as solo in the editor, as node tree paths
@@ -960,6 +998,10 @@ public:
 	 * @return The editor only data for use with this movie scene
 	 */
 	FMovieSceneEditorData& GetEditorData()
+	{
+		return EditorData;
+	}
+	const FMovieSceneEditorData& GetEditorData() const
 	{
 		return EditorData;
 	}

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
 #include "Layout/SlateRect.h"
 #include "Layout/Geometry.h"
 
@@ -11,6 +11,15 @@ class UMovieSceneSection;
 class UMovieSceneTrack;
 struct FTimeToPixel;
 class IKeyArea;
+
+namespace UE
+{
+namespace Sequencer
+{
+	class FSectionModel;
+}
+}
+
 
 struct FKeyAreaElement
 {
@@ -28,7 +37,7 @@ class SEQUENCER_API FSequencerSectionPainter
 {
 public:
 	/** Constructor */
-	FSequencerSectionPainter(FSlateWindowElementList& OutDrawElements, const FGeometry& InSectionGeometry, UMovieSceneSection& Section);
+	FSequencerSectionPainter(FSlateWindowElementList& OutDrawElements, const FGeometry& InSectionGeometry, TSharedPtr<UE::Sequencer::FSectionModel> Section);
 
 	/** Virtual destructor */
 	virtual ~FSequencerSectionPainter();
@@ -53,7 +62,11 @@ public:
 public:
 
 	/** The movie scene section we're painting */
+	UE_DEPRECATED(5.1, "Please use SectionModel->GetSection() instead")
 	UMovieSceneSection& Section;
+
+	/** The section we are painting */
+	TSharedPtr<UE::Sequencer::FSectionModel> SectionModel;
 
 	/** List of slate draw elements - publicly modifiable */
 	FSlateWindowElementList& DrawElements;

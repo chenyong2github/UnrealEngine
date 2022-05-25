@@ -7,7 +7,6 @@
 #include "CollectionManagerTypes.h"
 #include "Styling/SlateIconFinder.h"
 #include "Styling/AppStyle.h"
-#include "SequencerDisplayNode.h"
 #include "MovieSceneSequence.h"
 
 #include "Tracks/MovieSceneAudioTrack.h"

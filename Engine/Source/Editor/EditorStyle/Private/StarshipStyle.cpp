@@ -2122,6 +2122,11 @@ void FStarshipEditorStyle::FStyle::SetupSequencerStyles()
 		Set("Sequencer.Section.BackgroundText", DEFAULT_FONT("Bold", 24));
 		Set("Sequencer.Section.EmptySpace", new BOX_BRUSH(TEXT("Sequencer/EmptySpace"), FMargin(0.f, 7.f / 14.f)));
 
+		Set("Sequencer.LayerBar.Background",  new BOX_BRUSH(TEXT("Sequencer/LayerBarBackground"), FMargin(4.f / 16.f)));
+		Set("Sequencer.LayerBar.Border",      new BORDER_BRUSH(TEXT("Sequencer/LayerBarBorder"), FMargin(4.f / 16.f)));
+		Set("Sequencer.LayerBar.HandleLeft",  new BOX_BRUSH(TEXT("Sequencer/LayerBarHandleLeft"), FMargin(4.f / 16.f)));
+		Set("Sequencer.LayerBar.HandleRight", new BOX_BRUSH(TEXT("Sequencer/LayerBarHandleRight"), FMargin(4.f / 16.f)));
+
 		Set("Sequencer.ExposedNamePill_BG", new BOX_BRUSH(TEXT("Sequencer/ExposedNamePill_BG"), FMargin(14.f / 30.f), FLinearColor(1.f, 1.f, 1.f, .8f)));
 		Set("Sequencer.ExposedNamePill", FButtonStyle()
 			.SetNormal(  BOX_BRUSH(TEXT("Sequencer/ExposedNamePill_BG"), FMargin(14.f / 30.f), FLinearColor(1.f, 1.f, 1.f, .8f)) )

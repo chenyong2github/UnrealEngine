@@ -123,7 +123,7 @@ UMovieSceneFolder* FMatineeConverter::FindOrAddFolder(UMovieScene* MovieScene, F
 	{
 		FolderToUse = NewObject<UMovieSceneFolder>(MovieScene, NAME_None, RF_Transactional);
 		FolderToUse->SetFolderName(FolderName);
-		MovieScene->GetRootFolders().Add(FolderToUse);
+		MovieScene->AddRootFolder(FolderToUse);
 	}
 
 	return FolderToUse;
@@ -153,7 +153,7 @@ FGuid FMatineeConverter::FindComponentGuid(AActor* GroupActor, UMovieSceneSequen
 		{
 			ComponentGUID = NewMovieScene->AddPossessable(SkelMeshComponent->GetName(), SkelMeshComponent->GetClass());
 			FMovieScenePossessable* ChildPossesable = NewMovieScene->FindPossessable(ComponentGUID);
-			ChildPossesable->SetParent(PossessableGuid);
+			ChildPossesable->SetParent(PossessableGuid, NewMovieScene);
 			NewSequence->BindPossessableObject(ComponentGUID, *SkelMeshComponent, GroupActor->GetWorld());
 		}
 	}
@@ -170,7 +170,7 @@ FGuid FMatineeConverter::FindComponentGuid(AActor* GroupActor, UMovieSceneSequen
 		{
 			ComponentGUID = NewMovieScene->AddPossessable(StaticMeshComponent->GetName(), StaticMeshComponent->GetClass());
 			FMovieScenePossessable* ChildPossesable = NewMovieScene->FindPossessable(ComponentGUID);
-			ChildPossesable->SetParent(PossessableGuid);
+			ChildPossesable->SetParent(PossessableGuid, NewMovieScene);
 			NewSequence->BindPossessableObject(ComponentGUID, *StaticMeshComponent, GroupActor->GetWorld());
 		}
 	}

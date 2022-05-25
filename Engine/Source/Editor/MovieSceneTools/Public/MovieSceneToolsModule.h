@@ -124,6 +124,9 @@ private:
 	FDelegateHandle CameraShakeSourceShakeCreateEditorHandle;
 	FDelegateHandle CVarTrackCreateEditorHandle;
 
+	FDelegateHandle CameraCutTrackModelHandle;
+	FDelegateHandle CinematicShotTrackModelHandle;
+
 	FDelegateHandle GenerateEventEntryPointsHandle;
 	FDelegateHandle FixupPayloadParameterNameHandle;
 	FDelegateHandle UpgradeLegacyEventEndpointHandle;

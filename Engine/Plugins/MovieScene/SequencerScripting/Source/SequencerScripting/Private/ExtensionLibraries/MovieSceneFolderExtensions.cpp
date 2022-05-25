@@ -65,7 +65,8 @@ TArray<UMovieSceneFolder*> UMovieSceneFolderExtensions::GetChildFolders(UMovieSc
 		return TArray<UMovieSceneFolder*>();
 	}
 
-	return Folder->GetChildFolders();
+	TArray<UMovieSceneFolder*> Result(Folder->GetChildFolders());
+	return Result;
 }
 
 bool UMovieSceneFolderExtensions::AddChildFolder(UMovieSceneFolder* TargetFolder, UMovieSceneFolder* FolderToAdd)

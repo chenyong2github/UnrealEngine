@@ -1,63 +1,96 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SequencerCommonHelpers.h"
-#include "SequencerSelectedKey.h"
-#include "DisplayNodes/SequencerSectionKeyAreaNode.h"
-#include "DisplayNodes/SequencerObjectBindingNode.h"
-#include "DisplayNodes/SequencerTrackNode.h"
-#include "Sequencer.h"
-#include "SSequencer.h"
-#include "ISequencerHotspot.h"
-#include "SSequencerSection.h"
-#include "SSequencerTreeView.h"
-#include "VirtualTrackArea.h"
-#include "SequencerContextMenus.h"
-#include "IDetailsView.h"
-#include "IStructureDetailsView.h"
 #include "FrameNumberDetailsCustomization.h"
+#include "IDetailsView.h"
+#include "ISequencerSection.h"
+#include "IStructureDetailsView.h"
+#include "MVVM/Extensions/ITrackAreaExtension.h"
+#include "MVVM/ViewModels/ChannelModel.h"
+#include "MVVM/ViewModels/ViewModelIterators.h"
+#include "MVVM/ViewModels/ObjectBindingModel.h"
+#include "MVVM/ViewModels/SectionModel.h"
+#include "MVVM/ViewModels/TrackModel.h"
+#include "MVVM/ViewModels/ViewModel.h"
+#include "MVVM/ViewModels/OutlinerViewModel.h"
+#include "MVVM/ViewModels/SequencerEditorViewModel.h"
+#include "MVVM/ViewModels/VirtualTrackArea.h"
+#include "MVVM/Views/ITrackAreaHotspot.h"
+#include "Modules/ModuleManager.h"
+#include "MovieScene.h"
 #include "MovieSceneSectionDetailsCustomization.h"
 #include "MovieSceneSequence.h"
-#include "MovieScene.h"
-#include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "SSequencer.h"
+#include "Sequencer.h"
+#include "SequencerContextMenus.h"
+#include "SequencerSelectedKey.h"
 #include "Styling/CoreStyle.h"
 
-void SequencerHelpers::GetAllKeyAreas(TSharedPtr<FSequencerDisplayNode> DisplayNode, TSet<TSharedPtr<IKeyArea>>& KeyAreas)
+void SequencerHelpers::GetAllChannels(TSharedPtr<FViewModel> DataModel, TSet<TSharedPtr<UE::Sequencer::FChannelModel>>& Channels)
 {
-	TArray<TSharedPtr<FSequencerDisplayNode>> NodesToCheck;
-	NodesToCheck.Add(DisplayNode);
-	while (NodesToCheck.Num() > 0)
-	{
-		TSharedPtr<FSequencerDisplayNode> NodeToCheck = NodesToCheck[0];
-		NodesToCheck.RemoveAt(0);
+	using namespace UE::Sequencer;
 
-		if (NodeToCheck->GetType() == ESequencerNode::Track)
+	if (DataModel)
+	{
+		constexpr bool bIncludeThis = true;
+		for (const FViewModelPtr& Child : DataModel->GetDescendants(bIncludeThis))
 		{
-			TSharedPtr<FSequencerTrackNode> TrackNode = StaticCastSharedPtr<FSequencerTrackNode>(NodeToCheck);
-			TArray<TSharedRef<FSequencerSectionKeyAreaNode>> KeyAreaNodes;
-			TrackNode->GetChildKeyAreaNodesRecursively(KeyAreaNodes);
-			for (TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode : KeyAreaNodes)
+			if (TSharedPtr<ITrackAreaExtension> TrackArea = Child.ImplicitCast())
 			{
-				for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
+				for (const FViewModelPtr& TrackAreaModel : TrackArea->GetTrackAreaModelList())
 				{
-					KeyAreas.Add(KeyArea);
+					if (TViewModelPtr<FChannelModel> Channel = TrackAreaModel.ImplicitCast())
+					{
+						Channels.Add(Channel);
+					}
 				}
+			}
+			else if (TSharedPtr<FChannelModel> Channel = Child.ImplicitCast())
+			{
+				Channels.Add(Channel);
 			}
 		}
-		else
+	}
+}
+
+void SequencerHelpers::GetAllKeyAreas(TSharedPtr<FViewModel> DataModel, TSet<TSharedPtr<IKeyArea>>& Channels)
+{
+	using namespace UE::Sequencer;
+
+	if (DataModel)
+	{
+		constexpr bool bIncludeThis = true;
+		for (const FViewModelPtr& Child : DataModel->GetDescendants(bIncludeThis))
 		{
-			if (NodeToCheck->GetType() == ESequencerNode::KeyArea)
+			if (TSharedPtr<ITrackAreaExtension> TrackArea = Child.ImplicitCast())
 			{
-				TSharedPtr<FSequencerSectionKeyAreaNode> KeyAreaNode = StaticCastSharedPtr<FSequencerSectionKeyAreaNode>(NodeToCheck);
-				for (TSharedPtr<IKeyArea> KeyArea : KeyAreaNode->GetAllKeyAreas())
+				for (const FViewModelPtr& TrackAreaModel : TrackArea->GetTrackAreaModelList())
 				{
-					KeyAreas.Add(KeyArea);
+					if (TViewModelPtr<FChannelModel> Channel = TrackAreaModel.ImplicitCast())
+					{
+						Channels.Add(Channel->GetKeyArea());
+					}
 				}
 			}
-			for (TSharedRef<FSequencerDisplayNode> ChildNode : NodeToCheck->GetChildNodes())
+			else if (TSharedPtr<FChannelModel> Channel = Child.ImplicitCast())
 			{
-				NodesToCheck.Add(ChildNode);
+				Channels.Add(Channel->GetKeyArea());
 			}
+		}
+	}
+}
+
+void SequencerHelpers::GetAllSections(TSharedPtr<FViewModel> DataModel, TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections)
+{
+	using namespace UE::Sequencer;
+
+	if (DataModel)
+	{
+		constexpr bool bIncludeThis = true;
+		for (TSharedPtr<FSectionModel> Section : TParentFirstChildIterator<FSectionModel>(DataModel, bIncludeThis))
+		{
+			Sections.Add(Section->GetSection());
 		}
 	}
 }
@@ -116,79 +149,51 @@ int32 SequencerHelpers::GetSectionFromTime(TArrayView<UMovieSceneSection* const>
 	return MostRelevantIndex;
 }
 
-void SequencerHelpers::GetDescendantNodes(TSharedRef<FSequencerDisplayNode> DisplayNode, TSet<TSharedRef<FSequencerDisplayNode>>& Nodes)
+void SequencerHelpers::GetDescendantNodes(TSharedRef<FViewModel> DataModel, TSet<TSharedRef<FViewModel>>& Nodes)
 {
-	for (auto ChildNode : DisplayNode.Get().GetChildNodes())
-	{
-		Nodes.Add(ChildNode);
+	using namespace UE::Sequencer;
 
-		GetDescendantNodes(ChildNode, Nodes);
+	for (TSharedPtr<FViewModel> ChildNode : DataModel->GetChildren())
+	{
+		if (ChildNode->IsA<IOutlinerExtension>())
+		{
+			Nodes.Add(ChildNode.ToSharedRef());
+		}
+
+		GetDescendantNodes(ChildNode.ToSharedRef(), Nodes);
 	}
 }
 
-void SequencerHelpers::GetAllSections(TSharedRef<FSequencerDisplayNode> DisplayNode, TSet<TWeakObjectPtr<UMovieSceneSection>>& Sections)
+bool IsSectionSelectedInNode(FSequencer& Sequencer, TSharedPtr<UE::Sequencer::FViewModel> InModel)
 {
-	TSet<TSharedRef<FSequencerDisplayNode> > AllNodes;
-	AllNodes.Add(DisplayNode);
-	GetDescendantNodes(DisplayNode, AllNodes);
+	using namespace UE::Sequencer;
 
-	for (auto NodeToCheck : AllNodes)
+	if (ITrackAreaExtension* TrackArea = InModel->CastThis<ITrackAreaExtension>())
 	{
-		TSet<TSharedPtr<IKeyArea> > KeyAreas;
-		GetAllKeyAreas(NodeToCheck, KeyAreas);
-		
-		for (auto KeyArea : KeyAreas)
+		for (TSharedPtr<FViewModel> TrackAreaModel : TrackArea->GetTrackAreaModelList())
 		{
-			UMovieSceneSection* OwningSection = KeyArea->GetOwningSection();
-			if (OwningSection != nullptr)
+			constexpr bool bIncludeThis = true;
+			for (TSharedPtr<FSectionModel> Section : TParentFirstChildIterator<FSectionModel>(TrackAreaModel, bIncludeThis))
 			{
-				Sections.Add(OwningSection);	
-			}
-		}
-
-		if (NodeToCheck->GetType() == ESequencerNode::Track)
-		{
-			TSharedRef<const FSequencerTrackNode> TrackNode = StaticCastSharedRef<const FSequencerTrackNode>( NodeToCheck );
-			UMovieSceneTrack* Track = TrackNode->GetTrack();
-			if (Track != nullptr)
-			{
-				for (TSharedRef<ISequencerSection> TrackSection : TrackNode->GetSections())
+				if (Sequencer.GetSelection().IsSelected(Section))
 				{
-					if (UMovieSceneSection* Section = TrackSection->GetSectionObject())
-					{
-						Sections.Add(Section);
-					}
+					return true;
 				}
 			}
 		}
 	}
-}
 
-bool IsSectionSelectedInNode(FSequencer& Sequencer, TSharedRef<FSequencerDisplayNode> InNode)
-{
-	if (InNode->GetType() == ESequencerNode::Track)
-	{
-		TSharedRef<FSequencerTrackNode> TrackNode = StaticCastSharedRef<FSequencerTrackNode>(InNode);
-
-		for (auto Section : TrackNode->GetSections())
-		{
-			if (Sequencer.GetSelection().IsSelected(Section->GetSectionObject()))
-			{
-				return true;
-			}
-		}
-	}
 	return false;
 }
 
-bool AreKeysSelectedInNode(FSequencer& Sequencer, TSharedRef<FSequencerDisplayNode> InNode)
+bool AreKeysSelectedInNode(FSequencer& Sequencer, TSharedPtr<UE::Sequencer::FViewModel> InModel)
 {
-	TSet<TSharedPtr<IKeyArea>> KeyAreas;
-	SequencerHelpers::GetAllKeyAreas(InNode, KeyAreas);
+	TSet<TSharedPtr<UE::Sequencer::FChannelModel>> Channels;
+	SequencerHelpers::GetAllChannels(InModel, Channels);
 
 	for (const FSequencerSelectedKey& Key : Sequencer.GetSelection().GetSelectedKeys())
 	{
-		if (KeyAreas.Contains(Key.KeyArea))
+		if (Channels.Contains(Key.WeakChannel.Pin()))
 		{
 			return true;
 		}
@@ -197,195 +202,29 @@ bool AreKeysSelectedInNode(FSequencer& Sequencer, TSharedRef<FSequencerDisplayNo
 	return false;
 }
 
-void SequencerHelpers::ValidateNodesWithSelectedKeysOrSections(FSequencer& Sequencer)
-{
-	TArray<TSharedRef<FSequencerDisplayNode>> NodesToRemove;
-
-	for (auto Node : Sequencer.GetSelection().GetNodesWithSelectedKeysOrSections())
-	{
-		if (!IsSectionSelectedInNode(Sequencer, Node) && !AreKeysSelectedInNode(Sequencer, Node))
-		{
-			NodesToRemove.Add(Node);
-		}
-	}
-
-	for (auto Node : NodesToRemove)
-	{
-		Sequencer.GetSelection().RemoveFromNodesWithSelectedKeysOrSections(Node);
-	}
-}
-
-void SequencerHelpers::UpdateHoveredNodeFromSelectedSections(FSequencer& Sequencer)
-{
-	FSequencerSelection& Selection = Sequencer.GetSelection();
-
-	TSharedRef<SSequencer> SequencerWidget = StaticCastSharedRef<SSequencer>(Sequencer.GetSequencerWidget());
-	TSharedPtr<FSequencerDisplayNode> HoveredNode = SequencerWidget->GetTreeView()->GetNodeTree()->GetHoveredNode();
-	if (!HoveredNode.IsValid())
-	{
-		return;
-	}
-
-	if (IsSectionSelectedInNode(Sequencer, HoveredNode.ToSharedRef()))
-	{
-		Selection.AddToNodesWithSelectedKeysOrSections(HoveredNode.ToSharedRef());
-	}
-	else
-	{
-		Selection.RemoveFromNodesWithSelectedKeysOrSections(HoveredNode.ToSharedRef());
-	}
-}
-
-
-void SequencerHelpers::UpdateHoveredNodeFromSelectedKeys(FSequencer& Sequencer)
-{
-	FSequencerSelection& Selection = Sequencer.GetSelection();
-
-	TSharedRef<SSequencer> SequencerWidget = StaticCastSharedRef<SSequencer>(Sequencer.GetSequencerWidget());
-	TSharedPtr<FSequencerDisplayNode> HoveredNode = SequencerWidget->GetTreeView()->GetNodeTree()->GetHoveredNode();
-	if (!HoveredNode.IsValid())
-	{
-		return;
-	}
-
-	if (AreKeysSelectedInNode(Sequencer, HoveredNode.ToSharedRef()))
-	{
-		Selection.AddToNodesWithSelectedKeysOrSections(HoveredNode.ToSharedRef());
-	}
-	else
-	{
-		Selection.RemoveFromNodesWithSelectedKeysOrSections(HoveredNode.ToSharedRef());
-	}
-}
-
 
 void SequencerHelpers::PerformDefaultSelection(FSequencer& Sequencer, const FPointerEvent& MouseEvent)
 {
-	FSequencerSelection& Selection = Sequencer.GetSelection();
-	Selection.SuspendBroadcast();
+	using namespace UE::Sequencer;
 
 	// @todo: selection in transactions
-	auto ConditionallyClearSelection = [&]{
-		if (!MouseEvent.IsShiftDown() && !MouseEvent.IsControlDown())
-		{			
-			Selection.EmptySelectedSections();
-			Selection.EmptySelectedKeys();
-			Selection.EmptyNodesWithSelectedKeysOrSections();
-		}
-	};
-
-	TSharedPtr<ISequencerHotspot> Hotspot = Sequencer.GetHotspot();
-	if (!Hotspot.IsValid())
+	FHotspotSelectionManager SelectionManager(&MouseEvent, &Sequencer);
+	TSharedPtr<ITrackAreaHotspot> Hotspot = Sequencer.GetViewModel()->GetTrackArea()->GetHotspot();
+	if (TSharedPtr<IMouseHandlerHotspot> MouseHandler = HotspotCast<IMouseHandlerHotspot>(Hotspot))
 	{
-		ConditionallyClearSelection();
-		Selection.ResumeBroadcast();
-		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
-		return;
-	}
-
-	// Handle right-click selection separately since we never deselect on right click (except for clearing on exclusive selection)
-	if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
-	{
-		if (Hotspot->GetType() == ESequencerHotspot::Key)
-		{
-			bool bHasClearedSelection = false;
-			for (const FSequencerSelectedKey& Key : static_cast<FKeyHotspot*>(Hotspot.Get())->Keys)
-			{
-				if (!Selection.IsSelected(Key))
-				{
-					if (!bHasClearedSelection)
-					{
-						ConditionallyClearSelection();
-						bHasClearedSelection = true;
-					}
-					Selection.AddToSelection(Key);
-				}
-			}
-		}
-		else if (Hotspot->GetType() == ESequencerHotspot::Section || Hotspot->GetType() == ESequencerHotspot::EasingArea)
-		{
-			UMovieSceneSection* Section = static_cast<FSectionHotspot*>(Hotspot.Get())->WeakSection.Get();
-			if (!Selection.IsSelected(Section))
-			{
-				ConditionallyClearSelection();
-				Selection.AddToSelection(Section);
-			}
-		}
-		else if (Hotspot->GetType() == ESequencerHotspot::SectionResize_L || Hotspot->GetType() == ESequencerHotspot::SectionResize_R)
-		{
-			UMovieSceneSection* Section = static_cast<FSectionResizeHotspot*>(Hotspot.Get())->WeakSection.Get();
-			if (!Selection.IsSelected(Section))
-			{
-				ConditionallyClearSelection();
-				Selection.AddToSelection(Section);
-			}
-		}
-
-		if (Hotspot->GetType() == ESequencerHotspot::Key)
-		{
-			UpdateHoveredNodeFromSelectedKeys(Sequencer);
-		}
-		else
-		{
-			UpdateHoveredNodeFromSelectedSections(Sequencer);
-		}
-		
-		Selection.ResumeBroadcast();
-		return;
-	}
-
-	// Normal selection
-	ConditionallyClearSelection();
-
-	bool bForceSelect = !MouseEvent.IsControlDown();
-		
-	if (Hotspot->GetType() == ESequencerHotspot::Key)
-	{
-		for (const FSequencerSelectedKey& Key : static_cast<FKeyHotspot*>(Hotspot.Get())->Keys)
-		{
-			if (bForceSelect || !Selection.IsSelected(Key))
-			{
-				Selection.AddToSelection(Key);
-			}
-			else
-			{
-				Selection.RemoveFromSelection(Key);
-			}
-		}
-	}
-	else if (Hotspot->GetType() == ESequencerHotspot::Section || Hotspot->GetType() == ESequencerHotspot::EasingArea)
-	{
-		UMovieSceneSection* Section = static_cast<FSectionHotspot*>(Hotspot.Get())->WeakSection.Get();
-
-		// Never allow infinite sections to be selected through normal click (they're only selectable through right click)
-		if (Section->GetRange() != TRange<FFrameNumber>::All())
-		{
-			if (bForceSelect || !Selection.IsSelected(Section))
-			{
-				Selection.AddToSelection(Section);
-			}
-			else
-			{
-				Selection.RemoveFromSelection(Section);
-			}
-		}
-	}
-
-	if (Hotspot->GetType() == ESequencerHotspot::Key)
-	{
-		UpdateHoveredNodeFromSelectedKeys(Sequencer);
+		MouseHandler->HandleMouseSelection(SelectionManager);
 	}
 	else
 	{
-		UpdateHoveredNodeFromSelectedSections(Sequencer);
+		// No hotspot so clear the selection if we're not adding to it
+		SelectionManager.ConditionallyClearSelection();
 	}
-
-	Selection.ResumeBroadcast();
-	Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
 }
 
 TSharedPtr<SWidget> SequencerHelpers::SummonContextMenu(FSequencer& Sequencer, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
+	using namespace UE::Sequencer;
+
 	// @todo sequencer replace with UI Commands instead of faking it
 
 	// Attempt to paste into either the current node selection, or the clicked on track
@@ -401,9 +240,9 @@ TSharedPtr<SWidget> SequencerHelpers::SummonContextMenu(FSequencer& Sequencer, c
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, Sequencer.GetCommandBindings(), nullptr, false, &FCoreStyle::Get(), true, NAME_None, bInRecursivelySearchable);
 
-	TSharedPtr<ISequencerHotspot> Hotspot = Sequencer.GetHotspot();
+	TSharedPtr<ITrackAreaHotspot> Hotspot = Sequencer.GetViewModel()->GetTrackArea()->GetHotspot();
 
-	if (Hotspot.IsValid() && Hotspot->PopulateContextMenu(MenuBuilder, Sequencer, PasteAtTime))
+	if (Hotspot.IsValid() && Hotspot->PopulateContextMenu(MenuBuilder, PasteAtTime))
 	{
 		return MenuBuilder.MakeWidget();
 	}
@@ -453,6 +292,8 @@ private:
 
 void SequencerHelpers::AddPropertiesMenu(FSequencer& Sequencer, FMenuBuilder& MenuBuilder, const TArray<TWeakObjectPtr<UObject>>& Sections)
 {
+	using namespace UE::Sequencer;
+
 	TSharedRef<SSectionDetailsNotifyHookWrapper> DetailsNotifyWrapper = SNew(SSectionDetailsNotifyHookWrapper);
 	FDetailsViewArgs DetailsViewArgs;
 	{
@@ -486,16 +327,16 @@ void SequencerHelpers::AddPropertiesMenu(FSequencer& Sequencer, FMenuBuilder& Me
 	{
 		if (Section.IsValid())
 		{
-			TOptional<FSectionHandle> SectionHandle = SequencerNodeTree->GetSectionHandle(Cast<UMovieSceneSection>(Section));
+			TSharedPtr<FSectionModel> SectionHandle = SequencerNodeTree->GetSectionModel(Cast<UMovieSceneSection>(Section));
 			if (SectionHandle)
 			{
-				TSharedRef<ISequencerSection> SectionInterface = SectionHandle->GetSectionInterface();
+				TSharedPtr<ISequencerSection> SectionInterface = SectionHandle->GetSectionInterface();
 				FSequencerSectionPropertyDetailsViewCustomizationParams CustomizationDetails(
-					SectionInterface, Sequencer.AsShared(), SectionHandle->GetTrackNode()->GetTrackEditor());
-				TSharedPtr<FSequencerObjectBindingNode> ParentObjectBindingNode = SectionHandle->GetTrackNode()->FindParentObjectBindingNode();
+					SectionInterface.ToSharedRef(), Sequencer.AsShared(), *SectionHandle->GetParentTrackExtension()->GetTrackEditor().Get());
+				TSharedPtr<FObjectBindingModel> ParentObjectBindingNode = SectionHandle->FindAncestorOfType<FObjectBindingModel>();
 				if (ParentObjectBindingNode.IsValid())
 				{
-					CustomizationDetails.ParentObjectBindingGuid = ParentObjectBindingNode->GetObjectBinding();
+					CustomizationDetails.ParentObjectBindingGuid = ParentObjectBindingNode->GetObjectGuid();
 				}
 				SectionInterface->CustomizePropertiesDetailsView(DetailsView, CustomizationDetails);
 			}

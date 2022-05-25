@@ -2,6 +2,7 @@
 
 #include "SequencerClipboardReconciler.h"
 #include "IKeyArea.h"
+#include "MVVM/ViewModels/ChannelModel.h"
 
 TMap<FName, TArray<FName>> FSequencerClipboardReconciler::KeyAreaAliases;
 
@@ -70,7 +71,7 @@ bool FSequencerClipboardReconciler::PasteImpl(const FSequencerPasteEnvironment& 
 	for (auto& MetaDataPair : MetaData)
 	{
 		const TArray<FMovieSceneClipboardKeyTrack>& SrcArray = Clipboard->GetKeyTrackGroups()[MetaDataPair.Value.SourceGroup];
-		FKeyAreaArray& DstArray = PasteDestination[MetaDataPair.Key];
+		TArray<TSharedPtr<UE::Sequencer::FChannelModel>>& DstArray = PasteDestination[MetaDataPair.Key];
 
 		int32 SrcIndex = 0;
 		int32 DstIndex = 0;
@@ -81,18 +82,28 @@ bool FSequencerClipboardReconciler::PasteImpl(const FSequencerPasteEnvironment& 
 		{
 			for (auto& IndexPair : MetaDataPair.Value.DestToSrcMap)
 			{
-				if (UMovieSceneSection* Section = DstArray[DstIndex]->GetOwningSection())
+				if (UMovieSceneSection* Section = DstArray[DstIndex]->GetSection())
 				{
-					DstArray[IndexPair.Key]->PasteKeys(SrcArray[IndexPair.Value], Clipboard->GetEnvironment(), PasteEnvironment);
+					TArray<FKeyHandle> PastedKeys =  DstArray[IndexPair.Key]->GetKeyArea()->PasteKeys(SrcArray[IndexPair.Value], Clipboard->GetEnvironment(), PasteEnvironment);
+
+					for (FKeyHandle KeyHandle : PastedKeys)
+					{
+						PasteEnvironment.ReportPastedKey(KeyHandle, DstArray[IndexPair.Key]);
+					}
 					bAnythingPasted = true;
 				}
 			}
 		}
 		else for (; SrcIndex < SrcArray.Num() && DstIndex < DstArray.Num();)
 		{
-			if (UMovieSceneSection* Section = DstArray[DstIndex]->GetOwningSection())
+			if (UMovieSceneSection* Section = DstArray[DstIndex]->GetSection())
 			{
-				DstArray[DstIndex]->PasteKeys(SrcArray[SrcIndex], Clipboard->GetEnvironment(), PasteEnvironment);
+				TArray<FKeyHandle> PastedKeys = DstArray[DstIndex]->GetKeyArea()->PasteKeys(SrcArray[SrcIndex], Clipboard->GetEnvironment(), PasteEnvironment);
+				for (FKeyHandle KeyHandle : PastedKeys)
+				{
+					PasteEnvironment.ReportPastedKey(KeyHandle, DstArray[DstIndex]);
+				}
+
 				bAnythingPasted = true;
 			}
 
@@ -127,13 +138,13 @@ bool FSequencerClipboardReconciler::PasteImpl(const FSequencerPasteEnvironment& 
 	return bAnythingPasted;
 }
 
-bool FSequencerClipboardReconciler::FindMatchingGroup(const FKeyAreaArray& Destination, const TArray<FMovieSceneClipboardKeyTrack>& Source, TMap<int32, int32>& Map, bool bAllowAliases)
+bool FSequencerClipboardReconciler::FindMatchingGroup(const TArray<TSharedPtr<UE::Sequencer::FChannelModel>>& Destination, const TArray<FMovieSceneClipboardKeyTrack>& Source, TMap<int32, int32>& Map, bool bAllowAliases)
 {
 	// If we find an exact match, we use custom
 	bool bFoundMatch = false;
 	for (int32 DstIndex = 0; DstIndex < Destination.Num(); ++DstIndex)
 	{
-		FName DstName = Destination[DstIndex]->GetName();
+		FName DstName = Destination[DstIndex]->GetKeyArea()->GetName();
 
 		const int32 SourceIndex = Source.IndexOfByPredicate([&](const FMovieSceneClipboardKeyTrack& Track){
 

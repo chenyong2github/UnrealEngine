@@ -160,7 +160,9 @@ void FFadeTrackEditor::HandleAddFadeTrackMenuEntryExecute()
 	UMovieSceneSection* NewSection = FadeTrack->CreateNewSection();
 	check(NewSection);
 
+	FadeTrack->Modify();
 	FadeTrack->AddSection(*NewSection);
+
 	if (GetSequencer().IsValid())
 	{
 		GetSequencer()->OnAddTrack(FadeTrack, FGuid());

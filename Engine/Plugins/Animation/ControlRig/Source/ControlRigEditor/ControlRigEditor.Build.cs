@@ -54,6 +54,7 @@ namespace UnrealBuildTool.Rules
                     "MovieScene",
                     "MovieSceneTracks",
                     "MovieSceneTools",
+                    "SequencerCore",
                     "Sequencer",
 					"LevelSequenceEditor",
                     "ClassViewer",

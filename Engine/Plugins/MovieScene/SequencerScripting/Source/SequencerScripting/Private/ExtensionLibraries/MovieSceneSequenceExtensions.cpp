@@ -1005,7 +1005,7 @@ UMovieSceneFolder* UMovieSceneSequenceExtensions::AddRootFolderToSequence(UMovie
 		MovieScene->Modify();
 		NewFolder = NewObject<UMovieSceneFolder>(MovieScene);
 		NewFolder->SetFolderName(FName(*NewFolderName));
-		MovieScene->GetRootFolders().Add(NewFolder);
+		MovieScene->AddRootFolder(NewFolder);
 	}
 #endif
 
@@ -1032,7 +1032,7 @@ void UMovieSceneSequenceExtensions::RemoveRootFolderFromSequence(UMovieSceneSequ
 	if (FolderMovieScene)
 	{
 		FolderMovieScene->Modify();
-		const int32 NumFoldersRemoved = FolderMovieScene->GetRootFolders().Remove(Folder);
+		const int32 NumFoldersRemoved = FolderMovieScene->RemoveRootFolder(Folder);
 		if (NumFoldersRemoved == 0)
 		{
 			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("The specified folder '%s' is not a root folder"),

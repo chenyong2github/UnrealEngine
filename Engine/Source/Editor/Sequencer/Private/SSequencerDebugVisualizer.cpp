@@ -16,6 +16,7 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/EntityAllocationIterator.h"
 #include "EntitySystem/MovieSceneComponentRegistry.h"
+#include "TimeToPixel.h"
 
 #define LOCTEXT_NAMESPACE "SSequencerDebugVisualizer"
 

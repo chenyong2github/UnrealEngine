@@ -2,11 +2,12 @@
 
 #include "SSequencerGroupManager.h"
 
+#include "MVVM/Extensions/IOutlinerExtension.h"
+#include "MVVM/Extensions/IGroupableExtension.h"
 #include "Sequencer.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
-#include "DisplayNodes/SequencerDisplayNode.h"
-#include "SequencerDisplayNodeDragDropOp.h"
+#include "SequencerOutlinerItemDragDropOp.h"
 #include "SequencerUtilities.h"
 #include "SlateOptMacros.h"
 #include "Widgets/SNullWidget.h"
@@ -245,7 +246,9 @@ private:
 
 	TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone InItemDropZone, TSharedPtr<FSequencerNodeGroupTreeNode> SequencerGroupTreeNode)
 	{
-		TSharedPtr<FSequencerDisplayNodeDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FSequencerDisplayNodeDragDropOp>();
+		using namespace UE::Sequencer;
+
+		TSharedPtr<FSequencerOutlinerDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FSequencerOutlinerDragDropOp>();
 		if (DragDropOp.IsValid())
 		{
 			DragDropOp->ResetToDefaultToolTip();
@@ -254,7 +257,7 @@ private:
 			if (SequencerGroupTreeNode->GetType() == FSequencerNodeGroupTreeNode::Type::GroupNode)
 			{
 				AllowedDropZone = EItemDropZone::OntoItem;
-				DragDropOp->CurrentHoverText = FText::Format(LOCTEXT("DragDropAddItemsFormat", "Add {0} item(s)"), FText::AsNumber(DragDropOp->GetDraggedNodes().Num()));
+				DragDropOp->CurrentHoverText = FText::Format(LOCTEXT("DragDropAddItemsFormat", "Add {0} item(s)"), FText::AsNumber(DragDropOp->GetDraggedViewModels().Num()));
 			}
 
 			if (AllowedDropZone.IsSet() == false)
@@ -268,7 +271,9 @@ private:
 
 	FReply OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone InItemDropZone, TSharedPtr<FSequencerNodeGroupTreeNode> SequencerGroupTreeNode)
 	{
-		TSharedPtr<FSequencerDisplayNodeDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FSequencerDisplayNodeDragDropOp>();
+		using namespace UE::Sequencer;
+
+		TSharedPtr<FSequencerOutlinerDragDropOp> DragDropOp = DragDropEvent.GetOperationAs<FSequencerOutlinerDragDropOp>();
 		if (DragDropOp.IsValid())
 		{
 			TSharedPtr<SSequencerGroupManager> SequencerGroupManager = WeakSequencerGroupManager.Pin();
@@ -278,7 +283,12 @@ private:
 				if (SequencerGroupTreeNode->GetType() == FSequencerNodeGroupTreeNode::Type::GroupNode)
 				{
 					TSharedPtr<FSequencerNodeGroupNode> NodeGroupNode = StaticCastSharedPtr<FSequencerNodeGroupNode>(SequencerGroupTreeNode);
-					Sequencer->AddNodesToExistingNodeGroup(DragDropOp->GetDraggedNodes(), NodeGroupNode->Group);
+					TArray<TWeakPtr<FViewModel>> DraggedNodes;
+					for (const TWeakViewModelPtr<IOutlinerExtension>& DraggedNode : DragDropOp->GetDraggedViewModels())
+					{
+						DraggedNodes.Add(DraggedNode);
+					}
+					Sequencer->AddNodesToExistingNodeGroup(DraggedNodes, NodeGroupNode->Group);
 
 					return FReply::Handled();
 				}
@@ -356,6 +366,8 @@ SSequencerGroupManager::~SSequencerGroupManager()
 
 void SSequencerGroupManager::UpdateTree()
 {
+	using namespace UE::Sequencer;
+
 	TSharedPtr<FSequencer> Sequencer = WeakSequencer.Pin(); 
 	UMovieScene* MovieScene = GetMovieScene();
 
@@ -387,10 +399,10 @@ void SSequencerGroupManager::UpdateTree()
 		NodeGroupsTree.Add(SequencerGroupNode);
 		for (const FString& NodePath : NodeGroup->GetNodes())
 		{
-			const FSequencerDisplayNode* Node = NodeTree->GetNodeAtPath(NodePath);
+			TViewModelPtr<IOutlinerExtension> Node = NodeTree->GetNodeAtPath(NodePath);
 			if (Node)
 			{
-				TSharedPtr<FSequencerGroupItemNode> SequencerGroupItemNode = MakeShared<FSequencerGroupItemNode>(Node->GetDisplayName(), NodePath, SequencerGroupNode);
+				TSharedPtr<FSequencerGroupItemNode> SequencerGroupItemNode = MakeShared<FSequencerGroupItemNode>(Node->GetLabel(), NodePath, SequencerGroupNode);
 				SequencerGroupNode->Children.Add(SequencerGroupItemNode);
 				AllNodeGroupItems.Add(NodePath);
 			}
@@ -456,6 +468,8 @@ void SSequencerGroupManager::Tick(const FGeometry& AllottedGeometry, const doubl
 
 const FSlateBrush* SSequencerGroupManager::GetIconBrush(TSharedPtr<FSequencerNodeGroupTreeNode> NodeGroupTreeNode) const
 {
+	using namespace UE::Sequencer;
+
 	if (NodeGroupTreeNode->GetType() == FSequencerNodeGroupTreeNode::Type::ItemNode)
 	{
 		TSharedPtr<FSequencerGroupItemNode> SequencerGroupItemNode = StaticCastSharedPtr<FSequencerGroupItemNode>(NodeGroupTreeNode);
@@ -464,10 +478,16 @@ const FSlateBrush* SSequencerGroupManager::GetIconBrush(TSharedPtr<FSequencerNod
 		{
 			return nullptr;
 		}
+
 		TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
-		const FSequencerDisplayNode* Node = NodeTree->GetNodeAtPath(SequencerGroupItemNode->Path);
-		
-		return Node ? Node->GetIconBrush() : nullptr;
+
+		// @todo_sequencer_mvvm: This is literally walking the entire tree to find a node by its path.
+		//                       Worse still, it is doing so every frame, for every group node :/
+		TViewModelPtr<IOutlinerExtension> OutlinerNode = NodeTree->GetNodeAtPath(SequencerGroupItemNode->Path);
+		if (OutlinerNode)
+		{
+			return OutlinerNode->GetIconBrush();
+		}
 	}
 
 	return nullptr;
@@ -621,6 +641,8 @@ void SSequencerGroupManager::SelectSelectedItemsInSequencer()
 
 void SSequencerGroupManager::SelectItemsSelectedInSequencer()
 {
+	using namespace UE::Sequencer;
+
 	if (bSynchronizingSelection)
 	{
 		return;
@@ -634,21 +656,29 @@ void SSequencerGroupManager::SelectItemsSelectedInSequencer()
 		return;
 	}
 
-	const TSet<TSharedRef<FSequencerDisplayNode>>& SequencerSelectedNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
+	const TSet<TWeakPtr<FViewModel>>& SelectedModels = Sequencer->GetSelection().GetSelectedOutlinerItems();
+
+	TStringBuilder<128> TempString;
 
 	// Build a list of the nodepaths that we want to consider for selection
 	TSet<FString> NodesPathsToSelect;
-	for (const TSharedRef<const FSequencerDisplayNode> Node : SequencerSelectedNodes)
+	for (TWeakPtr<FViewModel> WeakModel : SelectedModels)
 	{
-		const FSequencerDisplayNode* BaseNode = Node->GetBaseNode();
-		ESequencerNode::Type NodeType = BaseNode->GetType();
-
-		if (NodeType == ESequencerNode::Track || NodeType == ESequencerNode::Object || NodeType == ESequencerNode::Folder)
+		TSharedPtr<FViewModel> Model = WeakModel.Pin();
+		if (!Model)
 		{
-			FString NodePath = BaseNode->GetPathName();
-			if (AllNodeGroupItems.Contains(NodePath))
+			continue;
+		}
+
+		TViewModelPtr<IGroupableExtension> Groupable = Model->FindAncestorOfType<IGroupableExtension>(true);
+		if (Groupable)
+		{
+			TempString.Reset();
+			Groupable->GetIdentifierForGrouping(TempString);
+
+			if (AllNodeGroupItems.Contains(TempString.ToString()))
 			{
-				NodesPathsToSelect.Add(NodePath);
+				NodesPathsToSelect.Add(TempString.ToString());
 			}
 		}
 	}

@@ -10,6 +10,8 @@
 #include "MovieSceneFrameMigration.h"
 #include "MovieSceneSignedObject.h"
 #include "Evaluation/Blending/MovieSceneBlendType.h"
+#include "EventHandlers/ISectionEventHandler.h"
+#include "EventHandlers/MovieSceneDataEventContainer.h"
 
 #if UE_ENABLE_INCLUDE_ORDER_DEPRECATED_IN_5_1
 #include "Misc/FrameTime.h"
@@ -205,6 +207,8 @@ public:
 
 	UPROPERTY(EditAnywhere, Category="Section", meta=(ShowOnlyInnerProperties))
 	FMovieSceneSectionEvalOptions EvalOptions;
+
+	UE::MovieScene::TDataEventContainer<UE::MovieScene::ISectionEventHandler> EventHandlers;
 
 public:
 
@@ -463,7 +467,7 @@ public:
 
 	/** Sets this section's new row index */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Section")
-	void SetRowIndex(int32 NewRowIndex) {RowIndex = NewRowIndex;}
+	MOVIESCENE_API void SetRowIndex(int32 NewRowIndex);
 
 	/** Gets the row index for this section */
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")

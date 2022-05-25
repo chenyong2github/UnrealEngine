@@ -268,7 +268,7 @@ void UMovieSceneBindingExtensions::SetParent(const FSequencerBindingProxy& InBin
 		if (Possessable)
 		{
 			MovieScene->Modify();
-			Possessable->SetParent(InParentBinding.BindingID);
+			Possessable->SetParent(InParentBinding.BindingID, MovieScene);
 		}
 	}
 }
