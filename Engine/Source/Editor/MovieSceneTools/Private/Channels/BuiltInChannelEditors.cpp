@@ -414,12 +414,20 @@ TSharedRef<SWidget> CreateKeyEditor(const TMovieSceneChannelHandle<FMovieSceneOb
 			return Obj ? Obj->GetPathName() : FString();
 		};
 
+		TArray<FAssetData> AssetDataArray;
+		if (InSequencer.IsValid())
+		{
+			UMovieSceneSequence* Sequence = InSequencer.Pin()->GetFocusedMovieSceneSequence();
+			AssetDataArray.Add((FAssetData)Sequence);
+		}
+
 		return SNew(SObjectPropertyEntryBox)
 		.DisplayBrowse(true)
 		.DisplayUseSelected(false)
 		.ObjectPath_Lambda(GetObjectPathLambda)
 		.AllowedClass(RawChannel->GetPropertyClass())
-		.OnObjectChanged_Lambda(OnSetObjectLambda);
+		.OnObjectChanged_Lambda(OnSetObjectLambda)
+		.OwnerAssetDataArray(AssetDataArray);
 	}
 
 	return SNullWidget::NullWidget;
