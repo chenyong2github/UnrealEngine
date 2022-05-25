@@ -378,7 +378,6 @@ void FUVEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToolBarBu
 
 	if (PaletteIndex == ToolsTabName)
 	{
-		ToolbarBuilder.AddToolBarButton(Commands.IslandConformalUnwrapAction);
 		ToolbarBuilder.AddToolBarButton(Commands.SewAction);
 		ToolbarBuilder.AddToolBarButton(Commands.SplitAction);
 

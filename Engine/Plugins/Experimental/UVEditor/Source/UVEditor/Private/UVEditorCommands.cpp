@@ -39,7 +39,6 @@ void FUVEditorCommands::RegisterCommands()
 	UI_COMMAND(SplitAction, "Split",
 	           "Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie vertices.",
 	           EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(IslandConformalUnwrapAction, "IslUnw", "Apply a conformal unwrap to selected UV islands", EUserInterfaceActionType::Button, FInputChord());
 
 	// These allow us to link up to pressed keys
 	UI_COMMAND(AcceptOrCompleteActiveTool, "Accept", "Accept the active tool", EUserInterfaceActionType::Button, FInputChord(EKeys::Enter));
