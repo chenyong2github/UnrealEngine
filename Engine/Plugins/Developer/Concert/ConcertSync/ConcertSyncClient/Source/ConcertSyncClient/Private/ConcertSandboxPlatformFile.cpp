@@ -56,41 +56,6 @@ bool FlushPackageFile(const FString& InFilename, FName* OutPackageName = nullptr
 	return false;
 }
 
-#if WITH_EDITOR
-
-FDirectoryWatcherModule& GetDirectoryWatcherModule()
-{
-	static const FName DirectoryWatcherModuleName = TEXT("DirectoryWatcher");
-	return FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(DirectoryWatcherModuleName);
-}
-
-FDirectoryWatcherModule* GetDirectoryWatcherModuleIfLoaded()
-{
-	static const FName DirectoryWatcherModuleName = TEXT("DirectoryWatcher");
-	if (FModuleManager::Get().IsModuleLoaded(DirectoryWatcherModuleName))
-	{
-		return &FModuleManager::GetModuleChecked<FDirectoryWatcherModule>(DirectoryWatcherModuleName);
-	}
-	return nullptr;
-}
-
-IDirectoryWatcher* GetDirectoryWatcher()
-{
-	FDirectoryWatcherModule& DirectoryWatcherModule = GetDirectoryWatcherModule();
-	return DirectoryWatcherModule.Get();
-}
-
-IDirectoryWatcher* GetDirectoryWatcherIfLoaded()
-{
-	if (FDirectoryWatcherModule* DirectoryWatcherModule = GetDirectoryWatcherModuleIfLoaded())
-	{
-		return DirectoryWatcherModule->Get();
-	}
-	return nullptr;
-}
-
-#endif
-
 }
 
 FConcertSandboxPlatformFile::FConcertSandboxPlatformFile(const FString& InSandboxRootPath)
@@ -111,7 +76,7 @@ FConcertSandboxPlatformFile::~FConcertSandboxPlatformFile()
 	FPackageName::OnContentPathDismounted().RemoveAll(this);
 
 #if WITH_EDITOR
-	if (IDirectoryWatcher* DirectoryWatcher = ConcertSandboxPlatformFileUtil::GetDirectoryWatcherIfLoaded())
+	if (IDirectoryWatcher* DirectoryWatcher = ConcertSyncClientUtil::GetDirectoryWatcherIfLoaded())
 	{
 		for (FSandboxMountPoint& SandboxMountPoint : SandboxMountPoints)
 		{
@@ -1002,21 +967,19 @@ void FConcertSandboxPlatformFile::DiscardSandbox(TArray<FName>& OutPackagesPendi
 
 #if WITH_EDITOR
 	// Notify that the sandboxed directories have been restored to their original state
-	if (FDirectoryWatcherModule* DirectoryWatcherModule = ConcertSandboxPlatformFileUtil::GetDirectoryWatcherModuleIfLoaded())
+	if (FDirectoryWatcherModule* DirectoryWatcherModule = ConcertSyncClientUtil::GetDirectoryWatcherModuleIfLoaded())
 	{
 		if (FileChanges.Num() > 0)
 		{
 			DirectoryWatcherModule->RegisterExternalChanges(FileChanges);
-			if (IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule->Get())
-			{
-				// Force the directory watcher to process the file changes
-				// immediately. This ensures that the Asset Registry is
-				// brought up to date especially after file/package deletes,
-				// since we may not otherwise Tick() before packages are hot
-				// reloaded and stale entries could still be present in the
-				// registry.
-				DirectoryWatcher->Tick(0.0f);
-			}
+
+			// Force a sync of the Asset Registry immediately to process the
+			// file changes. This ensures that the Asset Registry is brought
+			// up to date especially after file/package deletes, since
+			// otherwise it may not get updated before packages are hot
+			// reloaded and stale entries could still be present in the
+			// registry.
+			ConcertSyncClientUtil::SynchronizeAssetRegistry();
 		}
 	}
 #endif
@@ -1111,7 +1074,7 @@ void FConcertSandboxPlatformFile::RegisterContentMountPath(const FString& InCont
 
 		FSandboxMountPoint& SandboxMountPoint = SandboxMountPoints.Add_GetRef(FSandboxMountPoint{ FConcertSandboxPlatformFilePath(MoveTemp(AbsoluteNonSandboxPath), MoveTemp(AbsoluteSandboxPath)) });
 #if WITH_EDITOR
-		if (IDirectoryWatcher* DirectoryWatcher = ConcertSandboxPlatformFileUtil::GetDirectoryWatcher())
+		if (IDirectoryWatcher* DirectoryWatcher = ConcertSyncClientUtil::GetDirectoryWatcher())
 		{
 			DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(SandboxMountPoint.Path.GetSandboxPath(), IDirectoryWatcher::FDirectoryChanged::CreateRaw(this, &FConcertSandboxPlatformFile::OnDirectoryChanged, SandboxMountPoint.Path), SandboxMountPoint.OnDirectoryChangedHandle, IDirectoryWatcher::IncludeDirectoryChanges);
 		}
@@ -1130,7 +1093,7 @@ void FConcertSandboxPlatformFile::UnregisterContentMountPath(const FString& InCo
 #if WITH_EDITOR
 			if (bShouldRemove && InSandboxMountPoint.OnDirectoryChangedHandle.IsValid())
 			{
-				if (IDirectoryWatcher* DirectoryWatcher = ConcertSandboxPlatformFileUtil::GetDirectoryWatcherIfLoaded())
+				if (IDirectoryWatcher* DirectoryWatcher = ConcertSyncClientUtil::GetDirectoryWatcherIfLoaded())
 				{
 					DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(InSandboxMountPoint.Path.GetSandboxPath(), InSandboxMountPoint.OnDirectoryChangedHandle);
 					InSandboxMountPoint.OnDirectoryChangedHandle.Reset();
@@ -1231,7 +1194,7 @@ void FConcertSandboxPlatformFile::NotifyFileDeleted(const FConcertSandboxPlatfor
 	}
 
 #if WITH_EDITOR
-	if (FDirectoryWatcherModule* DirectoryWatcherModule = ConcertSandboxPlatformFileUtil::GetDirectoryWatcherModuleIfLoaded())
+	if (FDirectoryWatcherModule* DirectoryWatcherModule = ConcertSyncClientUtil::GetDirectoryWatcherModuleIfLoaded())
 	{
 		FFileChangeData FileChange(InPath.GetNonSandboxPath(), FFileChangeData::FCA_Removed);
 		DirectoryWatcherModule->RegisterExternalChanges(TArrayView<const FFileChangeData>(&FileChange, 1));
@@ -1345,7 +1308,7 @@ void FConcertSandboxPlatformFile::OnDirectoryChanged(const TArray<FFileChangeDat
 		return;
 	}
 
-	if (FDirectoryWatcherModule* DirectoryWatcherModule = ConcertSandboxPlatformFileUtil::GetDirectoryWatcherModuleIfLoaded())
+	if (FDirectoryWatcherModule* DirectoryWatcherModule = ConcertSyncClientUtil::GetDirectoryWatcherModuleIfLoaded())
 	{
 		TArray<FFileChangeData> RemappedFileChanges;
 		RemappedFileChanges.Reserve(FileChanges.Num());

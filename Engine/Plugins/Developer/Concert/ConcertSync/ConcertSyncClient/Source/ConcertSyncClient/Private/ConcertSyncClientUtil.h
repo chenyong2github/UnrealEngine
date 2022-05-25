@@ -6,6 +6,11 @@
 #include "Misc/EnumClassFlags.h"
 #include "Containers/ArrayView.h"
 
+#if WITH_EDITOR
+	#include "DirectoryWatcherModule.h"
+	#include "IDirectoryWatcher.h"
+#endif
+
 class UObject;
 class UPackage;
 class UStruct;
@@ -89,6 +94,43 @@ namespace ConcertSyncClientUtil
 	void FlushPackageLoading(const FName InPackageName);
 
 	void FlushPackageLoading(const FString& InPackageName, bool bForceBulkDataLoad = true);
+
+#if WITH_EDITOR
+	/** Gets the DirectoryWatcher module.
+	 *
+	 *  The module will be loaded if it is not currently loaded.
+	 * 
+	 *  @return: the DirectoryWatcher module
+	 */
+	FDirectoryWatcherModule& GetDirectoryWatcherModule();
+
+	/** Gets the DirectoryWatcher module if it is currently loaded.
+	 *
+	 *  @return: a pointer to the DirectoryWatcher module if is currently loaded, or nullptr otherwise
+	 */
+	FDirectoryWatcherModule* GetDirectoryWatcherModuleIfLoaded();
+
+	/** Gets the directory watcher.
+	 *
+	 *  The DirectoryWatcher module will be loaded if it is not currently loaded.
+	 *
+	 *  @return: the directory watcher if the platform supports directory watching, or nullptr otherwise
+	 */
+	IDirectoryWatcher* GetDirectoryWatcher();
+
+	/** Gets the directory watcher if the DirectoryWatcher module is currently loaded.
+	 *
+	 *  @return: the directory watcher if the DirectoryWatcher module is currently loaded and the platform supports directory watching, or nullptr otherwise
+	 */
+	IDirectoryWatcher* GetDirectoryWatcherIfLoaded();
+#endif // WITH_EDITOR
+
+	/** Synchronizes the Asset Registry.
+	 * 
+	 *  This ensures that any pending file changes are completed and that the
+	 *  Asset Registry is updated to correctly reflect those changes.
+	 */
+	void SynchronizeAssetRegistry();
 
 	void HotReloadPackages(TArrayView<const FName> InPackageNames);
 

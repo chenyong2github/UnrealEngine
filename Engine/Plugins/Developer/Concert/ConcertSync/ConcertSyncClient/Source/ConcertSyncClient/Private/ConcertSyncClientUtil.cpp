@@ -30,15 +30,18 @@
 #include "Framework/Application/SlateApplication.h"
 
 #if WITH_EDITOR
+	#include "DirectoryWatcherModule.h"
 	#include "Editor.h"
-	#include "UnrealEdGlobals.h"
 	#include "Editor/UnrealEdEngine.h"
+	#include "FileHelpers.h"
+	#include "GameMapsSettings.h"
+	#include "IDirectoryWatcher.h"
+	#include "Modules/ModuleManager.h"
+	#include "ObjectTools.h"	
 	#include "PackageTools.h"
-	#include "ObjectTools.h"
 	#include "Selection.h"
 	#include "Subsystems/AssetEditorSubsystem.h"
-	#include "GameMapsSettings.h"
-	#include "FileHelpers.h"
+	#include "UnrealEdGlobals.h"
 #endif
 
 namespace ConcertSyncClientUtil
@@ -377,6 +380,54 @@ void FlushPackageLoading(const FString& InPackageName, bool bForceBulkDataLoad)
 			ExistingPackage->GetLinker()->Detach();
 		}
 	}
+}
+
+#if WITH_EDITOR
+
+FDirectoryWatcherModule& GetDirectoryWatcherModule()
+{
+	static const FName DirectoryWatcherModuleName = TEXT("DirectoryWatcher");
+	return FModuleManager::LoadModuleChecked<FDirectoryWatcherModule>(DirectoryWatcherModuleName);
+}
+
+FDirectoryWatcherModule* GetDirectoryWatcherModuleIfLoaded()
+{
+	static const FName DirectoryWatcherModuleName = TEXT("DirectoryWatcher");
+	if (FModuleManager::Get().IsModuleLoaded(DirectoryWatcherModuleName))
+	{
+		return &FModuleManager::GetModuleChecked<FDirectoryWatcherModule>(DirectoryWatcherModuleName);
+	}
+	return nullptr;
+}
+
+IDirectoryWatcher* GetDirectoryWatcher()
+{
+	FDirectoryWatcherModule& DirectoryWatcherModule = GetDirectoryWatcherModule();
+	return DirectoryWatcherModule.Get();
+}
+
+IDirectoryWatcher* GetDirectoryWatcherIfLoaded()
+{
+	if (FDirectoryWatcherModule* DirectoryWatcherModule = GetDirectoryWatcherModuleIfLoaded())
+	{
+		return DirectoryWatcherModule->Get();
+	}
+	return nullptr;
+}
+
+#endif // WITH_EDITOR
+
+void SynchronizeAssetRegistry()
+{
+#if WITH_EDITOR
+	IDirectoryWatcher* DirectoryWatcher = GetDirectoryWatcherIfLoaded();
+	if (!DirectoryWatcher)
+	{
+		return;
+	}
+
+	DirectoryWatcher->Tick(0.0f);
+#endif // WITH_EDITOR
 }
 
 void HotReloadPackages(TArrayView<const FName> InPackageNames)
