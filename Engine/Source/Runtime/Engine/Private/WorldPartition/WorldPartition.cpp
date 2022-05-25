@@ -216,6 +216,7 @@ class FLoaderAdapterPinnedActors: public FLoaderAdapterList
 public:
 	FLoaderAdapterPinnedActors(UWorld* InWorld)
 		: FLoaderAdapterList(InWorld)
+		, bStateChanged(false)
 	{
 		Load();
 	}
@@ -225,7 +226,7 @@ public:
 		if (!ContainsActor(ActorHandle))
 		{
 			Actors.Add(ActorHandle);
-			RefreshLoadedState();
+			bStateChanged = true;
 		}
 	}
 
@@ -249,6 +250,15 @@ public:
 		return Actors.Contains(ActorHandle);
 	}
 
+	void Tick(float DeltaSeconds)
+	{
+		if (bStateChanged)
+		{
+			RefreshLoadedState();
+			bStateChanged = false;
+		}
+	}
+
 protected:
 	//~ Begin IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 	virtual bool ShouldActorBeLoaded(const FWorldPartitionHandle& ActorHandle) const override
@@ -258,7 +268,8 @@ protected:
 	//~ End IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 
 private:
-	FWorldPartitionHandle ActorToRemove;
+	bool bStateChanged;
+	FWorldPartitionHandle ActorToRemove;	
 };
 #endif
 
@@ -1082,6 +1093,11 @@ void UWorldPartition::Tick(float DeltaSeconds)
 	if (EditorHash)
 	{
 		EditorHash->Tick(DeltaSeconds);
+	}
+
+	if (PinnedActors)
+	{
+		PinnedActors->Tick(DeltaSeconds);
 	}
 
 	if (bForceGarbageCollection)

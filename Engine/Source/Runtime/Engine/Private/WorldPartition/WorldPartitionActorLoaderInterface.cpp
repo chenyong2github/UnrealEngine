@@ -171,23 +171,32 @@ bool IWorldPartitionActorLoaderInterface::ILoaderAdapter::RefreshLoadedState()
 				return false;
 			}
 
-			FScopedSlowTask SlowTask(ActorsToLoad.Num() + ActorsToUnload.Num(), LOCTEXT("UpdatingLoading", "Updating loading..."));
-			SlowTask.MakeDialogDelayed(1.0f);
-
 			{
 				FWorldPartitionLoadingContext::FDeferred LoadingContext;
 
-				for (FWorldPartitionHandle& ActorToLoad : ActorsToLoad)
+				if (ActorsToLoad.Num())
 				{
-					SlowTask.EnterProgressFrame(1);
-					FWorldPartitionHandle ActorHandle(WorldPartition, ActorToLoad->GetGuid());
-					AddReferenceToActor(ActorHandle);
+					FScopedSlowTask SlowTask(ActorsToLoad.Num(), LOCTEXT("ActorsLoading", "Loading actors..."));
+					SlowTask.MakeDialogDelayed(1.0f);
+
+					for (FWorldPartitionHandle& ActorToLoad : ActorsToLoad)
+					{
+						FWorldPartitionHandle ActorHandle(WorldPartition, ActorToLoad->GetGuid());
+						AddReferenceToActor(ActorHandle);
+						SlowTask.EnterProgressFrame(1);
+					}
 				}
 
-				for (FWorldPartitionHandle& ActorToUnload : ActorsToUnload)
+				if (ActorsToUnload.Num())
 				{
-					SlowTask.EnterProgressFrame(1);
-					RemoveReferenceToActor(ActorToUnload);
+					FScopedSlowTask SlowTask(ActorsToUnload.Num(), LOCTEXT("ActorsUnoading", "Unloading actors..."));
+					SlowTask.MakeDialogDelayed(1.0f);
+
+					for (FWorldPartitionHandle& ActorToUnload : ActorsToUnload)
+					{
+						RemoveReferenceToActor(ActorToUnload);
+						SlowTask.EnterProgressFrame(1);
+					}
 				}
 			}
 

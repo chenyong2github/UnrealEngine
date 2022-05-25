@@ -854,6 +854,9 @@ void ULevel::AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform*
 		QueueActor(Actor);
 	}
 
+	FScopedSlowTask SlowTask(ActorsQueue.Num() * 3, LOCTEXT("RegisteringActors", "Registering actors..."));
+	SlowTask.MakeDialogDelayed(1.0f);
+
 	// Register all components
 	for (AActor* Actor : ActorsQueue)
 	{
@@ -869,6 +872,8 @@ void ULevel::AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform*
 		{
 			Actor->RegisterAllComponents();
 		}
+
+		SlowTask.EnterProgressFrame(1);
 	}
 
 	// Rerun construction scripts
@@ -878,6 +883,8 @@ void ULevel::AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform*
 		{
 			Actor->RerunConstructionScripts();
 		}
+
+		SlowTask.EnterProgressFrame(1);
 	}
 
 	// Finalize actors
@@ -895,6 +902,8 @@ void ULevel::AddLoadedActors(const TArray<AActor*>& ActorList, const FTransform*
 		}
 
 		OnLoadedActorAddedToLevelEvent.Broadcast(*Actor);
+
+		SlowTask.EnterProgressFrame(1);
 	}
 }
 
@@ -937,6 +946,9 @@ void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransfo
 		QueueActor(Actor);
 	}
 
+	FScopedSlowTask SlowTask(ActorsQueue.Num(), LOCTEXT("UnregisteringActors", "Unregistering actors..."));
+	SlowTask.MakeDialogDelayed(1.0f);
+
 	for (AActor* Actor : ActorsQueue)
 	{
 		Actor->UnregisterAllComponents();
@@ -951,6 +963,8 @@ void ULevel::RemoveLoadedActors(const TArray<AActor*>& ActorList, const FTransfo
 		}
 
 		OnLoadedActorRemovedFromLevelEvent.Broadcast(*Actor);
+
+		SlowTask.EnterProgressFrame(1);
 	}
 }
 #endif
