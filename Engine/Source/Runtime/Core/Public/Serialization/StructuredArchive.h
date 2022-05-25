@@ -218,21 +218,21 @@ private:
 #endif
 
 namespace UE::StructuredArchive::Private
+{
+	FORCEINLINE FArchive& GetUnderlyingArchiveImpl(FStructuredArchive& StructuredArchive)
 	{
-	FORCEINLINE FArchive& GetUnderlyingArchiveImpl(FStructuredArchive& Ar)
-	{
-		return Ar.GetUnderlyingArchive();
+		return StructuredArchive.GetUnderlyingArchive();
 	}
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
-	FORCEINLINE FElementId GetCurrentSlotElementIdImpl(FStructuredArchive& Ar)
+	FORCEINLINE FElementId GetCurrentSlotElementIdImpl(FStructuredArchive& StructuredArchive)
 	{
-		return Ar.CurrentSlotElementId;
+		return StructuredArchive.CurrentSlotElementId;
 	}
 #endif
 
-	FORCEINLINE FArchiveFormatterType& GetFormatterImpl(FStructuredArchive& Ar)
+	FORCEINLINE FArchiveFormatterType& GetFormatterImpl(FStructuredArchive& StructuredArchive)
 	{
-		return Ar.Formatter;
-		}
+		return StructuredArchive.Formatter;
 	}
+}

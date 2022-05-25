@@ -19,8 +19,8 @@ class FStructuredArchiveMap;
 
 namespace UE::StructuredArchive::Private
 {
-	FElementId GetCurrentSlotElementIdImpl(FStructuredArchive& Ar);
-	FArchiveFormatterType& GetFormatterImpl(FStructuredArchive& Ar);
+	FElementId GetCurrentSlotElementIdImpl(FStructuredArchive& StructuredArchive);
+	FArchiveFormatterType& GetFormatterImpl(FStructuredArchive& StructuredArchive);
 }
 
 /**
@@ -102,7 +102,7 @@ public:
 	FORCEINLINE bool IsFilled() const
 	{
 #if WITH_TEXT_ARCHIVE_SUPPORT
-		return UE::StructuredArchive::Private::GetCurrentSlotElementIdImpl(Ar) != ElementId;
+		return UE::StructuredArchive::Private::GetCurrentSlotElementIdImpl(StructuredArchive) != ElementId;
 #else
 		return true;
 #endif
@@ -235,37 +235,37 @@ FORCEINLINE_DEBUGGABLE void operator<<(FStructuredArchiveSlot Slot, TArray<uint8
 	//////////// FStructuredArchiveSlot ////////////
 	FORCEINLINE FStructuredArchiveRecord FStructuredArchiveSlot::EnterRecord()
 	{
-		return FStructuredArchiveRecord(FStructuredArchiveRecord::EPrivateToken{}, Ar);
+		return FStructuredArchiveRecord(FStructuredArchiveRecord::EPrivateToken{}, StructuredArchive);
 	}
 
 	FORCEINLINE FStructuredArchiveArray FStructuredArchiveSlot::EnterArray(int32& Num)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).EnterArray(Num);
-		return FStructuredArchiveArray(FStructuredArchiveArray::EPrivateToken{}, Ar);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).EnterArray(Num);
+		return FStructuredArchiveArray(FStructuredArchiveArray::EPrivateToken{}, StructuredArchive);
 	}
 
 	FORCEINLINE FStructuredArchiveStream FStructuredArchiveSlot::EnterStream()
 	{
-		return FStructuredArchiveStream(FStructuredArchiveStream::EPrivateToken{}, Ar);
+		return FStructuredArchiveStream(FStructuredArchiveStream::EPrivateToken{}, StructuredArchive);
 	}
 
 	FORCEINLINE FStructuredArchiveMap FStructuredArchiveSlot::EnterMap(int32& Num)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).EnterMap(Num);
-		return FStructuredArchiveMap(FStructuredArchiveMap::EPrivateToken{}, Ar);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).EnterMap(Num);
+		return FStructuredArchiveMap(FStructuredArchiveMap::EPrivateToken{}, StructuredArchive);
 	}
 
 	FORCEINLINE FStructuredArchiveSlot FStructuredArchiveSlot::EnterAttribute(FArchiveFieldName FieldName)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).EnterAttribute(FieldName);
-		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, Ar);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).EnterAttribute(FieldName);
+		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, StructuredArchive);
 	}
 
 	FORCEINLINE TOptional<FStructuredArchiveSlot> FStructuredArchiveSlot::TryEnterAttribute(FArchiveFieldName FieldName, bool bEnterWhenWriting)
 	{
-		if (UE::StructuredArchive::Private::GetFormatterImpl(Ar).TryEnterAttribute(FieldName, bEnterWhenWriting))
+		if (UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).TryEnterAttribute(FieldName, bEnterWhenWriting))
 		{
-			return TOptional<FStructuredArchiveSlot>(InPlace, FStructuredArchiveSlot::EPrivateToken{}, Ar);
+			return TOptional<FStructuredArchiveSlot>(InPlace, FStructuredArchiveSlot::EPrivateToken{}, StructuredArchive);
 		}
 		else
 		{
@@ -275,119 +275,119 @@ FORCEINLINE_DEBUGGABLE void operator<<(FStructuredArchiveSlot Slot, TArray<uint8
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (uint8& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (uint16& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (uint32& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (uint64& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (int8& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (int16& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (int32& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (int64& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (float& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (double& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (bool& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (FString& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (FName& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (UObject*& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (FText& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (FWeakObjectPtr& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (FSoftObjectPath& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (FSoftObjectPtr& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (FLazyObjectPtr& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::operator<< (FObjectPtr& Value)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Value);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Value);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::Serialize(TArray<uint8>& Data)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Data);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Data);
 	}
 
 	FORCEINLINE void FStructuredArchiveSlot::Serialize(void* Data, uint64 DataSize)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).Serialize(Data, DataSize);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).Serialize(Data, DataSize);
 	}
 
 	//////////// FStructuredArchiveRecord ////////////
 
 	FORCEINLINE FStructuredArchiveSlot FStructuredArchiveRecord::EnterField(FArchiveFieldName Name)
 	{
-		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, Ar);
+		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, StructuredArchive);
 	}
 
 	FORCEINLINE FStructuredArchiveRecord FStructuredArchiveRecord::EnterRecord(FArchiveFieldName Name)
@@ -412,9 +412,9 @@ FORCEINLINE_DEBUGGABLE void operator<<(FStructuredArchiveSlot Slot, TArray<uint8
 
 	FORCEINLINE TOptional<FStructuredArchiveSlot> FStructuredArchiveRecord::TryEnterField(FArchiveFieldName Name, bool bEnterWhenWriting)
 	{
-		if (UE::StructuredArchive::Private::GetFormatterImpl(Ar).TryEnterField(Name, bEnterWhenWriting))
+		if (UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).TryEnterField(Name, bEnterWhenWriting))
 		{
-			return TOptional<FStructuredArchiveSlot>(InPlace, FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, Ar));
+			return TOptional<FStructuredArchiveSlot>(InPlace, FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, StructuredArchive));
 		}
 		else
 		{
@@ -426,22 +426,22 @@ FORCEINLINE_DEBUGGABLE void operator<<(FStructuredArchiveSlot Slot, TArray<uint8
 
 	FORCEINLINE FStructuredArchiveSlot FStructuredArchiveArray::EnterElement()
 	{
-		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, Ar);
+		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, StructuredArchive);
 	}
 
 	//////////// FStructuredArchiveStream ////////////
 
 	FORCEINLINE FStructuredArchiveSlot FStructuredArchiveStream::EnterElement()
 	{
-		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, Ar);
+		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, StructuredArchive);
 	}
 
 	//////////// FStructuredArchiveMap ////////////
 
 	FORCEINLINE FStructuredArchiveSlot FStructuredArchiveMap::EnterElement(FString& Name)
 	{
-		UE::StructuredArchive::Private::GetFormatterImpl(Ar).EnterMapElement(Name);
-		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, Ar);
+		UE::StructuredArchive::Private::GetFormatterImpl(StructuredArchive).EnterMapElement(Name);
+		return FStructuredArchiveSlot(FStructuredArchiveSlot::EPrivateToken{}, StructuredArchive);
 	}
 
 #endif

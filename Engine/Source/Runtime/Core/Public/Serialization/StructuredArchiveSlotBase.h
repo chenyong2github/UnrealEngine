@@ -74,29 +74,29 @@ namespace UE::StructuredArchive::Private
 
 	public:
 #if WITH_TEXT_ARCHIVE_SUPPORT
-		FORCEINLINE explicit FSlotBase(EPrivateToken, FStructuredArchive& InAr, int32 InDepth, FElementId InElementId)
+		FORCEINLINE explicit FSlotBase(EPrivateToken, FStructuredArchive& InStructuredArchive, int32 InDepth, FElementId InElementId)
 			: FSlotPosition(InDepth, InElementId)
-			, Ar(InAr)
+			, StructuredArchive(InStructuredArchive)
 		{
 		}
 #else
-		FORCEINLINE explicit FSlotBase(EPrivateToken, FStructuredArchive& InAr)
-			: Ar(InAr)
+		FORCEINLINE explicit FSlotBase(EPrivateToken, FStructuredArchive& InStructuredArchive)
+			: StructuredArchive(InStructuredArchive)
 		{
 		}
 #endif
 
 		FArchive& GetUnderlyingArchive() const
 		{
-			return GetUnderlyingArchiveImpl(Ar);
+			return GetUnderlyingArchiveImpl(StructuredArchive);
 		}
 
 		const FArchiveState& GetArchiveState() const
 		{
-			return GetUnderlyingArchiveImpl(Ar).GetArchiveState();
+			return GetUnderlyingArchiveImpl(StructuredArchive).GetArchiveState();
 		}
 
 	protected:
-		FStructuredArchive& Ar;
+		FStructuredArchive& StructuredArchive;
 	};
 }

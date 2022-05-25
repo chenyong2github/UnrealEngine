@@ -6,25 +6,25 @@
 
 FStructuredArchiveChildReader::FStructuredArchiveChildReader(FStructuredArchiveSlot InSlot)
 	: OwnedFormatter(nullptr)
-	, Archive(nullptr)
+	, StructuredArchive(nullptr)
 {
-	FStructuredArchiveFormatter* Formatter = &InSlot.Ar.Formatter;
+	FStructuredArchiveFormatter* Formatter = &InSlot.StructuredArchive.Formatter;
 	if (InSlot.GetUnderlyingArchive().IsTextFormat())
 	{
-		Formatter = OwnedFormatter = InSlot.Ar.Formatter.CreateSubtreeReader();
+		Formatter = OwnedFormatter = InSlot.StructuredArchive.Formatter.CreateSubtreeReader();
 	}
 
-	Archive = new FStructuredArchive(*Formatter);
-	Root.Emplace(Archive->Open());
+	StructuredArchive = new FStructuredArchive(*Formatter);
+	Root.Emplace(StructuredArchive->Open());
 	InSlot.EnterRecord();
 }
 
 FStructuredArchiveChildReader::~FStructuredArchiveChildReader()
 {
 	Root.Reset();
-	Archive->Close();
-	delete Archive;
-	Archive = nullptr;
+	StructuredArchive->Close();
+	delete StructuredArchive;
+	StructuredArchive = nullptr;
 
 	// If this is a text archive, we'll have created a subtree reader that our contained archive is using as 
 	// its formatter. We need to clean it up now.

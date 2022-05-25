@@ -33,7 +33,7 @@ public:
 
 private:
 	FStructuredArchiveFormatter* OwnedFormatter;
-	FStructuredArchive* Archive;
+	FStructuredArchive* StructuredArchive;
 	TOptional<FStructuredArchiveSlot> Root;
 };
 
@@ -41,15 +41,15 @@ private:
 
 FORCEINLINE FStructuredArchiveChildReader::FStructuredArchiveChildReader(FStructuredArchiveSlot InSlot)
 	: OwnedFormatter(nullptr)
-	, Archive(nullptr)
+	, StructuredArchive(nullptr)
 {
-	Archive = new FStructuredArchive(InSlot.Ar.Formatter);
-	Root.Emplace(Archive->Open());
+	StructuredArchive = new FStructuredArchive(InSlot.StructuredArchive.Formatter);
+	Root.Emplace(StructuredArchive->Open());
 }
 
 FORCEINLINE FStructuredArchiveChildReader::~FStructuredArchiveChildReader()
 {
-	delete Archive;
+	delete StructuredArchive;
 }
 
 #endif
