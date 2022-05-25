@@ -1200,11 +1200,19 @@ namespace HoloLens.Automation
 		public override bool IsSupported { get { return true; } }
 		public override bool UseAbsLog { get { return false; } }
 		public override bool LaunchViaUFE { get { return false; } }
+		public override string ICUDataVersion { get { return "icudt53l"; } }
+
 
 		public override List<string> GetDebugFileExtensions()
 		{
 			return new List<string> { ".pdb", ".map" };
 		}
+
+		protected override string GetPlatformExeExtension()
+		{
+			return ".exe";
+		}
+
 
 		public override void StripSymbols(FileReference SourceFile, FileReference TargetFile)
 		{

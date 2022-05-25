@@ -23,7 +23,6 @@ using UnrealBuildBase;
 public sealed class BuildPlugin : BuildCommand
 {
 	const string AndroidArchitectures = "armv7+arm64";
-	const string HoloLensArchitecture = "arm64+x64";
 	string UnrealBuildToolDllRelativePath = @"Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll";
 	FileReference UnrealBuildToolDll;
 
@@ -143,6 +142,54 @@ public sealed class BuildPlugin : BuildCommand
 		return FileReference.Combine(HostProjectPluginDir, PluginFile.GetFileName());
 	}
 
+	public abstract class TargetPlatform : CommandUtils
+	{
+		[Obsolete("Deprecated in UE5.1; function signature changed")]
+		public abstract void CompilePluginWithUBT(string UBTExe, FileReference HostProjectFile, FileReference HostProjectPluginFile, PluginDescriptor Plugin, string TargetName, TargetType TargetType, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, List<FileReference> ManifestFileNames, string InAdditionalArgs);
+
+		public abstract void CompilePluginWithUBT(FileReference UnrealBuildToolDll, FileReference HostProjectFile, FileReference HostProjectPluginFile, PluginDescriptor Plugin, string TargetName, TargetType TargetType, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, List<FileReference> ManifestFileNames, string InAdditionalArgs);
+
+	};
+
+	private static TargetPlatform GetTargetPlatform( UnrealTargetPlatform Platform )
+	{
+		// Grab all the non-abstract subclasses of TargetPlatform from the executing assembly.
+		var AvailablePlatformTypes = from Assembly in ScriptManager.AllScriptAssemblies
+									 from Type in Assembly.GetTypes()
+									 where !Type.IsAbstract && Type.IsAssignableTo(typeof(TargetPlatform))
+									 select Type;
+
+		var PlatformTypeMap = new Dictionary<string, Type>();
+
+		foreach (var Type in AvailablePlatformTypes)
+		{
+			int Index = Type.Name.IndexOf('_');
+			if (Index == -1)
+			{
+				throw new BuildException("Invalid BuildPluginCommand target platform type found: {0}", Type);
+			}
+
+			PlatformTypeMap.Add(Type.Name, Type);
+		}
+
+		var SelectedPlatform = $"BuildPlugin_{Platform.ToString}";
+		if (!PlatformTypeMap.ContainsKey(SelectedPlatform))
+		{
+			return null;
+		}
+
+		var SelectedType = PlatformTypeMap[SelectedPlatform];
+		TargetPlatform TargetPlatform = (TargetPlatform)Activator.CreateInstance(SelectedType);
+		if (TargetPlatform == null)
+		{
+			throw new BuildException("The target platform \"{0}\" could not be constructed.", SelectedPlatform);
+		}
+
+		return TargetPlatform;
+	}
+
+
+
 	[Obsolete("Deprecated in UE5.1; function signature changed")]
 	public static FileReference[] CompilePlugin(string UBTExe, FileReference HostProjectFile, FileReference HostProjectPluginFile, PluginDescriptor Plugin, List<UnrealTargetPlatform> HostPlatforms, List<UnrealTargetPlatform> TargetPlatforms, string AdditionalArgs = "")
 	{
@@ -248,23 +295,10 @@ public sealed class BuildPlugin : BuildCommand
 		// Add these modules to the build agenda
 		if(bCompilePlatform)
 		{
-			if (Platform == UnrealTargetPlatform.HoloLens)
+			TargetPlatform TargetPlatform = GetTargetPlatform(Platform);
+			if (TargetPlatform != null)
 			{
-				// Make sure to save the manifests for each architecture with unique names so they don't get overwritten.
-				// This fixes packaging issues when building from binary engine releases, where the build produces a manifest for the plugin for ARM64, which
-				// then gets overwritten by the manifest for x64. Then during packaging, the plugin is referencing a manifest for the wrong architecture.
-				foreach (string Arch in HoloLensArchitecture.Split('+'))
-				{
-					FileReference ManifestFileName = FileReference.Combine(HostProjectFile.Directory, "Saved", String.Format("Manifest-{0}-{1}-{2}-{3}.xml", TargetName, Platform, Configuration, Arch));
-					ManifestFileNames.Add(ManifestFileName);
-					string Arguments = String.Format("-plugin={0} -iwyu -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
-					Arguments += String.Format(" -Architecture={0}", Arch);
-					if (!String.IsNullOrEmpty(InAdditionalArgs))
-					{
-						Arguments += InAdditionalArgs;
-					}
-					CommandUtils.RunUBT(CmdEnv, UBTExe, HostProjectFile, TargetName, Platform, Configuration, Arguments);
-				}
+				TargetPlatform.CompilePluginWithUBT(UBTExe, HostProjectFile, HostProjectPluginFile, Plugin, TargetName, TargetType, Platform, Configuration, ManifestFileNames, InAdditionalArgs );
 			}
 			else
 			{
@@ -308,23 +342,11 @@ public sealed class BuildPlugin : BuildCommand
 		// Add these modules to the build agenda
 		if(bCompilePlatform)
 		{
-			if (Platform == UnrealTargetPlatform.HoloLens)
+			TargetPlatform TargetPlatform = GetTargetPlatform(Platform);
+
+			if (TargetPlatform != null)
 			{
-				// Make sure to save the manifests for each architecture with unique names so they don't get overwritten.
-				// This fixes packaging issues when building from binary engine releases, where the build produces a manifest for the plugin for ARM64, which
-				// then gets overwritten by the manifest for x64. Then during packaging, the plugin is referencing a manifest for the wrong architecture.
-				foreach (string Arch in HoloLensArchitecture.Split('+'))
-				{
-					FileReference ManifestFileName = FileReference.Combine(HostProjectFile.Directory, "Saved", String.Format("Manifest-{0}-{1}-{2}-{3}.xml", TargetName, Platform, Configuration, Arch));
-					ManifestFileNames.Add(ManifestFileName);
-					string Arguments = String.Format("-plugin={0} -iwyu -noubtmakefiles -manifest={1} -nohotreload", CommandUtils.MakePathSafeToUseWithCommandLine(HostProjectPluginFile.FullName), CommandUtils.MakePathSafeToUseWithCommandLine(ManifestFileName.FullName));
-					Arguments += String.Format(" -Architecture={0}", Arch);
-					if (!String.IsNullOrEmpty(InAdditionalArgs))
-					{
-						Arguments += InAdditionalArgs;
-					}
-					CommandUtils.RunUBT(CmdEnv, UnrealBuildToolDll, HostProjectFile, TargetName, Platform, Configuration, Arguments);
-				}
+				TargetPlatform.CompilePluginWithUBT(UnrealBuildToolDll, HostProjectFile, HostProjectPluginFile, Plugin, TargetName, TargetType, Platform, Configuration, ManifestFileNames, InAdditionalArgs);
 			}
 			else
 			{

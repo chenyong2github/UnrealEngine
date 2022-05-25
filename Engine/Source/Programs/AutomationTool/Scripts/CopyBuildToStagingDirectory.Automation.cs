@@ -889,13 +889,6 @@ namespace AutomationScripts
 					SC.PlatformCookDir = CookOutputDir;
 					SC.MetadataDir = DirectoryReference.Combine(CookOutputDir, SC.ShortProjectName, "Metadata");
 
-					// Work out which ICU data version we use for this platform
-					var ICUDataVersion = "icudt64l";
-					if (SC.StageTargetPlatform.PlatformType == UnrealTargetPlatform.HoloLens)
-					{
-						ICUDataVersion = "icudt53l";
-					}
-
 					// Initialize internationalization preset.
 					string InternationalizationPreset = GetInternationalizationPreset(Params, PlatformGameConfig);
 
@@ -916,6 +909,7 @@ namespace AutomationScripts
 					}
 
 					// Stage ICU internationalization data from Engine.
+					var ICUDataVersion = SC.StageTargetPlatform.ICUDataVersion;
 					SC.StageFiles(StagedFileType.UFS, DirectoryReference.Combine(SC.LocalRoot, "Engine", "Content", "Internationalization", InternationalizationPreset, ICUDataVersion), StageFilesSearch.AllDirectories, new StagedDirectoryReference(String.Format("Engine/Content/Internationalization/{0}", ICUDataVersion)));
 
 					// Engine ufs (content)

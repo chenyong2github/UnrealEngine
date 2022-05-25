@@ -688,6 +688,14 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Returns the ICU data version we use for this platform
+		/// </summary>
+		public virtual string ICUDataVersion
+		{
+			get { return "icudt64l"; }
+		}
+
+		/// <summary>
 		/// Returns true if the platform wants patches to generate a small .pak file containing the difference
 		/// of current data against a shipped pak file.
 		/// </summary>
@@ -857,7 +865,7 @@ namespace AutomationTool
 				return PlatformExeExtension;
 			}
 
-			if (Target == UnrealTargetPlatform.Win64 || Target == UnrealTargetPlatform.HoloLens)
+			if (Target == UnrealTargetPlatform.Win64)
 			{
 				return ".exe";
 			}
