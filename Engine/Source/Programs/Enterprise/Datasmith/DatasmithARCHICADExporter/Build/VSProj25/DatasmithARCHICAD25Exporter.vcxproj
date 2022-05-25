@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseUEWDbg|x64">
+      <Configuration>ReleaseUEWDbg</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="ReleaseUE|x64">
       <Configuration>ReleaseUE</Configuration>
       <Platform>x64</Platform>
@@ -32,6 +36,10 @@
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <PlatformToolset>v142</PlatformToolset>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <PlatformToolset>v142</PlatformToolset>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -46,6 +54,11 @@
     <Import Project="..\Config\DatasmithArchicadExporter.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'" Label="PropertySheets">
+    <Import Project="$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props')" />
+    <Import Project="DatasmithARCHICAD25Exporter.props" />
+    <Import Project="..\Config\DatasmithArchicadExporter.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'" Label="PropertySheets">
     <Import Project="$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(LocalAppData)\Microsoft\VisualStudio\10.0\Microsoft.Cpp.$(Platform).user.props')" />
     <Import Project="DatasmithARCHICAD25Exporter.props" />
     <Import Project="..\Config\DatasmithArchicadExporter.props" />
@@ -65,6 +78,12 @@
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">
+    <IntDir>$(UEIntermediateDir)\DatasmithArchiCADExporter25\</IntDir>
+    <OutDir>$(EnginePath)\Binaries\Win64\DatasmithArchiCADExporter\ArchiCAD25\</OutDir>
+    <TargetExt>.apx</TargetExt>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">
     <IntDir>$(UEIntermediateDir)\DatasmithArchiCADExporter25\</IntDir>
     <OutDir>$(EnginePath)\Binaries\Win64\DatasmithArchiCADExporter\ArchiCAD25\</OutDir>
     <TargetExt>.apx</TargetExt>
@@ -238,6 +257,59 @@ popd
       <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
       <DelayLoadDLLs />
       <AdditionalDependencies>ACAP_STAT.lib;RS\Win\RSImp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+    </Link>
+    <PostBuildEvent>
+      <Command>echo Copying files
+
+copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.dll" $(OutDir) /Y
+copy "$(EnginePath)\Binaries\Win64\DatasmithUE4ArchiCAD\DatasmithUE4ArchiCAD.pdb" $(OutDir) /Y
+</Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">
+    <ClCompile>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <WarningLevel>Level3</WarningLevel>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <Optimization>MaxSpeed</Optimization>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <MinimalRebuild>false</MinimalRebuild>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <BufferSecurityCheck>true</BufferSecurityCheck>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(OutDir)$(ProjectName).pdb</ProgramDataBaseFileName>
+      <BrowseInformation>false</BrowseInformation>
+      <BrowseInformationFile>$(IntDir)</BrowseInformationFile>
+      <CallingConvention>FastCall</CallingConvention>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DisableSpecificWarnings>4996;5208;4251;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <AdditionalIncludeDirectories>$(ACSDKPATH)\Support\Modules\RS;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <OutputFile>$(OutDir)$(ProjectName).apx</OutputFile>
+      <SubSystem>NotSet</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <EntryPointSymbol>DllMainEntry</EntryPointSymbol>
+      <TargetMachine>MachineX64</TargetMachine>
+      <ImportLibrary>
+      </ImportLibrary>
+      <LinkDLL>true</LinkDLL>
+      <AdditionalOptions>/export:GetExportedFuncAddrs,%401 /export:SetImportedFuncAddrs,%402 %(AdditionalOptions)</AdditionalOptions>
+      <DelayLoadDLLs>
+      </DelayLoadDLLs>
+      <AdditionalDependencies>ACAP_STAT.lib;RS\Win\RSImp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>echo Copying files
@@ -356,10 +428,16 @@ cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modu
 cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /I ".\..\..\Resources\RINT" /utf-8 /DWINDOWS /DAUTO_SYNC=$(AUTO_SYNC) /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
 "$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)RO\%FileName%.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)RO\%FileName%.grc.rc2" -w 2
 </Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">set FileName=DatasmithARCHICADExporterFix
+cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modules\DGLib" /I ".\..\..\Private" /I ".\..\..\Resources\RINT" /utf-8 /DWINDOWS /DAUTO_SYNC=$(AUTO_SYNC) /Fi"$(OutDir)RO\%FileName%.grc.rc2.i" "..\..\Resources\RFIX\%FileName%.grc"
+"$(ACSDKPATH)\Support\Tools\Win\ResConv.exe" -m r -D WINDOWS -T W -q utf8 1252 -i "$(OutDir)RO\%FileName%.grc.rc2.i" -p "..\..\Resources\RFIX\Images" -o "$(OutDir)RO\%FileName%.grc.rc2" -w 2
+</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the non-localized GRC file...</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">Compiling the non-localized GRC file...</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">Compiling the non-localized GRC file...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)\RO\$(SolutionName)Fix.grc.rc2;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">$(OutDir)\RO\$(SolutionName)Fix.grc.rc2;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">$(OutDir)\RO\$(SolutionName)Fix.grc.rc2;%(Outputs)</Outputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -371,12 +449,16 @@ cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modu
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(SolutionName).res" "..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(SolutionName).res" "..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">rc /i "$(ACSDKPATH)\Support\Inc" /i "$(ACSDKPATH)\Support\Modules\DGLib" /i "$(OutDir)\RO" /fo"$(OutDir)$(SolutionName).res" "..\..\Resources\RFIX.WIN\DatasmithARCHICADExporter.rc2"</Command>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling the RC2 file...</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">Compiling the RC2 file...</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">Compiling the RC2 file...</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)$(SolutionName).res;%(Outputs)</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">$(OutDir)$(SolutionName).res;%(Outputs)</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">$(OutDir)$(SolutionName).res;%(Outputs)</Outputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
       <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">$(OutDir)RO\$(SolutionName)Fix.grc.rc2;%(AdditionalInputs)</AdditionalInputs>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -391,11 +473,13 @@ cl /nologo /X /EP /P /I "$(ACSDKPATH)\Support\Inc" /I "$(ACSDKPATH)\Support\Modu
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">true</ExcludedFromBuild>
     </None>
     <None Include="..\..\Resources\RINT\fr.lproj\DatasmithARCHICADExporter.grc">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseUE|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseUEWDbg|x64'">true</ExcludedFromBuild>
     </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
