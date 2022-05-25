@@ -9,7 +9,7 @@
 namespace UE::PixelStreaming
 {
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameMetadataTest, "PixelStreaming.FrameMetadata", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameMetadataTest, "System.Plugins.PixelStreaming.FrameMetadata", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 	bool FFrameMetadataTest::RunTest(const FString& Parameters)
 	{
 		FPixelStreamingFrameMetadata Metadata;

@@ -9,7 +9,7 @@
 namespace UE::PixelStreaming
 {
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSourceFrameTest, "PixelStreaming.SourceFrame", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FSourceFrameTest, "System.Plugins.PixelStreaming.SourceFrame", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 	bool FSourceFrameTest::RunTest(const FString& Parameters)
 	{
 		FRHITextureCreateDesc TextureDesc =

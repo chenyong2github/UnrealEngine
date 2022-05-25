@@ -124,7 +124,7 @@ namespace UE::PixelStreaming
 		}
 	};
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAdaptProcessTest, "PixelStreaming.AdaptProcess", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAdaptProcessTest, "System.Plugins.PixelStreaming.AdaptProcess", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 	bool FAdaptProcessTest::RunTest(const FString& Parameters)
 	{
 		const int32 MockFrame1Width = 32;
@@ -204,7 +204,7 @@ namespace UE::PixelStreaming
 		return true;
 	}
 
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameAdapterTest, "PixelStreaming.FrameAdapterTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter)
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFrameAdapterTest, "System.Plugins.PixelStreaming.FrameAdapterTest", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
 	bool FFrameAdapterTest::RunTest(const FString& Parameters)
 	{
 		TSharedPtr<FPixelStreamingVideoInput> MockVideoInput = MakeShared<FPixelStreamingVideoInput>();
