@@ -201,13 +201,9 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 				check(IsValidChecked(Actor));
 				if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(Actor->GetActorGuid()))
 				{
-					// Pin the actor handle on the actor to prevent unloading it when unhashing
-					FWorldPartitionHandle ExistingActorHandle(ExistingActorDesc);
-					FWorldPartitionHandlePinRefScope ExistingActorHandlePin(ExistingActorHandle);
+					OnActorDescUpdating(ExistingActorDesc->Get());
 
 					TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(Actor->CreateActorDesc());
-
-					OnActorDescUpdating(ExistingActorDesc->Get());
 
 					// Transfer any internal values not coming from the actor
 					NewActorDesc->TransferFrom(ExistingActorDesc->Get());
