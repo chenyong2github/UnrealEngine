@@ -46,6 +46,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The full name of the Engine/Source directory
 		/// </summary>
+		[Obsolete("Replace with Unreal.EngineSourceDirectory")]
 		public static readonly DirectoryReference EngineSourceDirectory = DirectoryReference.Combine(Unreal.EngineDirectory, "Source");
 
 		/// <summary>
@@ -498,7 +499,7 @@ namespace UnrealBuildTool
 
 				// Change the working directory to be the Engine/Source folder. We are likely running from Engine/Binaries/DotNET
 				// This is critical to be done early so any code that relies on the current directory being Engine/Source will work.
-				DirectoryReference.SetCurrentDirectory(UnrealBuildTool.EngineSourceDirectory);
+				DirectoryReference.SetCurrentDirectory(Unreal.EngineSourceDirectory);
 
 				// Register encodings from Net FW as this is required when using Ionic as we do in multiple toolchains
 				Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);

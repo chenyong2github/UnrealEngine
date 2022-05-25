@@ -256,7 +256,7 @@ namespace UnrealBuildTool
 					string CPPFileString = CPPFile.AbsolutePath;
 					if (CPPFile.Location.IsUnderDirectory(Unreal.RootDirectory))
 					{
-						CPPFileString = CPPFile.Location.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
+						CPPFileString = CPPFile.Location.MakeRelativeTo(Unreal.EngineSourceDirectory);
 					}
 					OutputUnityCPPWriter.WriteLine("#include \"{0}\"", CPPFileString.Replace('\\', '/'));
 				}

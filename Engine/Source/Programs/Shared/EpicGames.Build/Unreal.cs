@@ -122,6 +122,11 @@ namespace UnrealBuildBase
 		public static readonly DirectoryReference EngineDirectory = DirectoryReference.Combine(RootDirectory, "Engine");
 
 		/// <summary>
+		/// The full name of the Engine/Source directory
+		/// </summary>
+		public static readonly DirectoryReference EngineSourceDirectory = DirectoryReference.Combine(EngineDirectory, "Source");
+
+		/// <summary>
 		/// The path to UBT
 		/// </summary>
 		[Obsolete("Deprecated in UE5.1; to launch UnrealBuildTool, use this dll as the first argument with DonetPath")]

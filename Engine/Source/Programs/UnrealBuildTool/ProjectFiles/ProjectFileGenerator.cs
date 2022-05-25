@@ -1382,7 +1382,7 @@ namespace UnrealBuildTool
 					throw new BuildException("A valid game project was not found in the specified location (" + OnlyGameProject.Directory.FullName + ")");
 				}
 
-				bool bInstalledEngineWithSource = Unreal.IsEngineInstalled() && DirectoryReference.Exists(UnrealBuildTool.EngineSourceDirectory);
+				bool bInstalledEngineWithSource = Unreal.IsEngineInstalled() && DirectoryReference.Exists(Unreal.EngineSourceDirectory);
 
 				bIncludeEngineSource = !Unreal.IsEngineInstalled() || bInstalledEngineWithSource;
 				bIncludeDocumentation = false;
@@ -1812,7 +1812,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		private void AddUnrealBuildToolProject(PrimaryProjectFolder ProgramsFolder)
 		{
-			DirectoryReference ProgramsDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs");
+			DirectoryReference ProgramsDirectory = DirectoryReference.Combine(Unreal.EngineSourceDirectory, "Programs");
 
 			FileReference ProjectFileName = FileReference.Combine(ProgramsDirectory, "UnrealBuildTool", "UnrealBuildTool.csproj");
 			if (FileReference.Exists(ProjectFileName))
@@ -1851,7 +1851,7 @@ namespace UnrealBuildTool
 		{
 			VCSharpProjectFile Project;
 
-			FileReference ProjectFileName = FileReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs", ProjectName, Path.GetFileName(ProjectName) + ".csproj");
+			FileReference ProjectFileName = FileReference.Combine(Unreal.EngineSourceDirectory, "Programs", ProjectName, Path.GetFileName(ProjectName) + ".csproj");
 
 			FileInfo Info = new FileInfo(ProjectFileName.FullName);
 			if (Info.Exists)
@@ -2332,7 +2332,7 @@ namespace UnrealBuildTool
 			GetPlatformSpecializationsSubTargetsForAllTargets(AllTargetFiles, out AllSubTargetFiles, out AllSubTargetFilesPerTarget);
 
 			// Get some standard directories
-			//DirectoryReference EngineSourceProgramsDirectory = DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs");
+			//DirectoryReference EngineSourceProgramsDirectory = DirectoryReference.Combine(Unreal.EngineSourceDirectory, "Programs");
 
 			// Keep a cache of the default editor target for each project so that we don't have to interrogate the configs for each target
 			Dictionary<string, string?> DefaultProjectEditorTargetCache = new Dictionary<string, string?>();

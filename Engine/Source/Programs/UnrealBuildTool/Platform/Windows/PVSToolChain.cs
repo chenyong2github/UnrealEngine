@@ -584,7 +584,7 @@ namespace UnrealBuildTool
 				Action AnalyzeAction = Graph.CreateAction(ActionType.Compile);
 				AnalyzeAction.CommandDescription = "Analyzing";
 				AnalyzeAction.StatusDescription = BaseFileName;
-				AnalyzeAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				AnalyzeAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				AnalyzeAction.CommandPath = AnalyzerFile;
 
 				StringBuilder Arguments = new StringBuilder();
@@ -637,7 +637,7 @@ namespace UnrealBuildTool
 			AnalyzeAction.CommandDescription = "Process PVS-Studio Results";
 			AnalyzeAction.CommandPath = Unreal.DotnetPath;
 			AnalyzeAction.CommandArguments = $"\"{Unreal.UnrealBuildToolDllPath}\" -Mode=PVSGather -Input=\"{InputFileListItem.Location}\" -Output=\"{OutputFile}\" ";
-			AnalyzeAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			AnalyzeAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			AnalyzeAction.PrerequisiteItems.Add(InputFileListItem);
 			AnalyzeAction.PrerequisiteItems.AddRange(Makefile.OutputItems);
 			AnalyzeAction.PrerequisiteItems.AddRange(CompileSourceFiles);

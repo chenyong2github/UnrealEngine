@@ -880,7 +880,7 @@ namespace UnrealBuildTool
 					Writer.WriteValue(MakePathString(CompilerPath, bInAbsolute: true, bForceSkipQuotes: true));
 					Writer.WriteValue($"@{MakePathString(ResponseFile, bInAbsolute: true, bForceSkipQuotes: true)}");
 					Writer.WriteArrayEnd();
-					Writer.WriteValue("directory", UnrealBuildTool.EngineSourceDirectory.ToString());
+					Writer.WriteValue("directory", Unreal.EngineSourceDirectory.ToString());
 					Writer.WriteObjectEnd();
 				}
 				Writer.WriteArrayEnd();

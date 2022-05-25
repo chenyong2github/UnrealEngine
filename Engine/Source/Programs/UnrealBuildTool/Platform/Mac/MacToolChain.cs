@@ -1080,7 +1080,7 @@ namespace UnrealBuildTool
 		FileItem FixDylibDependencies(LinkEnvironment LinkEnvironment, FileItem Executable, IActionGraphBuilder Graph)
 		{
 			Action FixDylibAction = Graph.CreateAction(ActionType.PostBuildStep);
-			FixDylibAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			FixDylibAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			FixDylibAction.CommandPath = BuildHostPlatform.Current.Shell;
 			FixDylibAction.CommandDescription = "";
 

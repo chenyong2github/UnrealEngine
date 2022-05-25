@@ -1377,7 +1377,7 @@ namespace UnrealBuildTool
 					FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, new List<string> { AllArguments });
 					string ResponseArgument = string.Format("@\"{0}\"", ResponseFileName);
 
-					CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+					CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 					if(bExecuteCompilerThroughShell)
 					{
 						SetupActionToExecuteCompilerThroughShell(ref CompileAction, ClangPath!, ResponseArgument, "Compile");
@@ -1459,7 +1459,7 @@ namespace UnrealBuildTool
 				{
 					Action CompileAction = Graph.CreateAction(ActionType.Compile);
 					CompileAction.CommandDescription = "Compile";
-					CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+					CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 					CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
 					CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
 					CompileAction.CommandVersion = GetISPCHostCompilerVersion(BuildHostPlatform.Current.Platform).ToString();
@@ -1558,7 +1558,7 @@ namespace UnrealBuildTool
 					{
 						CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
 					}
-					CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+					CopyAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 					CopyAction.PrerequisiteItems.Add(SourceFileItem);
 					CopyAction.ProducedItems.Add(TargetFileItem);
 					CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
@@ -1596,7 +1596,7 @@ namespace UnrealBuildTool
 				{
 					Action CompileAction = Graph.CreateAction(ActionType.Compile);
 					CompileAction.CommandDescription = "Compile";
-					CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+					CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 					CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
 					CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
 
@@ -1762,7 +1762,7 @@ namespace UnrealBuildTool
 						{
 							CopyAction.CommandArguments = String.Format("-c 'cp -f \"{0}\" \"{1}\"'", SourceFile.FullName, TargetFile.FullName);
 						}
-						CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+						CopyAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 						CopyAction.PrerequisiteItems.Add(SourceFileItem);
 						CopyAction.ProducedItems.Add(TargetFileItem);
 						CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
@@ -1805,7 +1805,7 @@ namespace UnrealBuildTool
 
 				// Create an action that invokes the linker.
 				Action LinkAction = Graph.CreateAction(ActionType.Link);
-				LinkAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				LinkAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 
 				if (LinkEnvironment.bIsBuildingLibrary)
 				{

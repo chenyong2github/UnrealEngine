@@ -14,7 +14,7 @@ namespace UnrealBuildTool
 		public override string ProjectFileExtension => ".json";
 
 		private readonly DirectoryReference EngineSourceProgramsDirectory =
-			DirectoryReference.Combine(UnrealBuildTool.EngineSourceDirectory, "Programs");
+			DirectoryReference.Combine(Unreal.EngineSourceDirectory, "Programs");
 
 		private readonly CommandLineArguments Arguments;
 		
@@ -203,7 +203,7 @@ namespace UnrealBuildTool
 					{
 						WantProjectFileForTarget = bIncludeEnginePrograms;
 					}
-					else if (TargetFilePath.IsUnderDirectory(UnrealBuildTool.EngineSourceDirectory))
+					else if (TargetFilePath.IsUnderDirectory(Unreal.EngineSourceDirectory))
 					{
 						WantProjectFileForTarget = bIncludeEngineSource;
 					}

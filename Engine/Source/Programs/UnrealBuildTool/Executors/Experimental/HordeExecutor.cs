@@ -716,10 +716,10 @@ namespace UnrealBuildTool
 
 			ZenWorker? Worker = new ZenWorker
 			{
-				Path = Action.CommandPath.IsUnderDirectory(Unreal.RootDirectory) ? Action.CommandPath.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory) : Action.CommandPath.FullName,
-				WorkingDirectory = UnrealBuildTool.EngineSourceDirectory.MakeRelativeTo(Unreal.RootDirectory),
+				Path = Action.CommandPath.IsUnderDirectory(Unreal.RootDirectory) ? Action.CommandPath.MakeRelativeTo(Unreal.EngineSourceDirectory) : Action.CommandPath.FullName,
+				WorkingDirectory = Unreal.EngineSourceDirectory.MakeRelativeTo(Unreal.RootDirectory),
 				Arguments = new List<string>() { Action.CommandArguments.Trim() },
-				Directories = new List<string>() { UnrealBuildTool.EngineSourceDirectory.MakeRelativeTo(Unreal.RootDirectory) },
+				Directories = new List<string>() { Unreal.EngineSourceDirectory.MakeRelativeTo(Unreal.RootDirectory) },
 				HostPlatform = BuildHostPlatform.Current.Platform.ToString(),
 				Cores = 1,
 				Memory = MemoryPerActionBytesOverride > 0 ? (long)MemoryPerActionBytesOverride : 1 * 1024 * 1024 * 1024, // 1 GB default

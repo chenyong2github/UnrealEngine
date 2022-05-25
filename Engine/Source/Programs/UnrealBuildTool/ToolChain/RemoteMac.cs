@@ -508,7 +508,7 @@ namespace UnrealBuildTool
 					StringBuilder Arguments = new StringBuilder("ExportCertificate");
 					if(TargetDesc.ProjectFile == null)
 					{
-						Arguments.AppendFormat(" \"{0}\"", UnrealBuildTool.EngineSourceDirectory);
+						Arguments.AppendFormat(" \"{0}\"", Unreal.EngineSourceDirectory);
 					}
 					else
 					{

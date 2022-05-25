@@ -124,7 +124,7 @@ namespace UnrealBuildTool
 		{
 			if (!Path.IsPathRooted(PathString))
 			{
-				string ResolvedPath = Path.Combine(UnrealBuildTool.EngineSourceDirectory.FullName, PathString);
+				string ResolvedPath = Path.Combine(Unreal.EngineSourceDirectory.FullName, PathString);
 				if (ResolvedPath.Length > MaxPathWarningLength)
 				{
 					Log.TraceWarningOnce($"Relative path '{PathString}' when resolved will have length '{ResolvedPath.Length}' which is greater than MAX_PATH (260) and may cause unexpected errors with the MSVC toolchain.");
@@ -141,7 +141,7 @@ namespace UnrealBuildTool
 			// Try to use a relative path to shorten command line length and to enable remote distribution where absolute paths are not desired
 			if (Reference.IsUnderDirectory(Unreal.EngineDirectory))
 			{
-				string RelativePath = Reference.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
+				string RelativePath = Reference.MakeRelativeTo(Unreal.EngineSourceDirectory);
 				CheckCommandLinePathLength(RelativePath);
 				return RelativePath;
 			}
@@ -1455,7 +1455,7 @@ namespace UnrealBuildTool
 			}
 
 			Action ParseTimingInfoAction = Graph.CreateRecursiveAction<ParseMsvcTimingInfoMode>(ActionType.ParseTimingInfo, ParseTimingArguments);
-			ParseTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			ParseTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			ParseTimingInfoAction.StatusDescription = Path.GetFileName(TimingFile.AbsolutePath);
 			ParseTimingInfoAction.bCanExecuteRemotely = true;
 			ParseTimingInfoAction.bCanExecuteRemotelyWithSNDBS = true;
@@ -1493,7 +1493,7 @@ namespace UnrealBuildTool
 					};
 
 					Action AggregateTimingInfoAction = Makefile.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
-					AggregateTimingInfoAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+					AggregateTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
 					AggregateTimingInfoAction.bCanExecuteRemotely = false;
 					AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
@@ -1551,7 +1551,7 @@ namespace UnrealBuildTool
 			{
 				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.CommandDescription = "Resource";
-				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				CompileAction.CommandPath = EnvVars.ResourceCompilerPath;
 				CompileAction.StatusDescription = Path.GetFileName(RCFile.AbsolutePath);
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
@@ -1728,7 +1728,7 @@ namespace UnrealBuildTool
 			CompileAction.ProducedItems.Add(ObjectFile);
 			CompileAction.DeleteItems.Add(FileItem.GetItemByFileReference(OutputFile));
 			CompileAction.StatusDescription = TypeLibrary.Header;
-			CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			CompileAction.CommandPath = EnvVars.CompilerPath;
 			CompileAction.CommandArguments = String.Join(" ", Arguments);
 			CompileAction.bShouldOutputStatusDescription = Target.WindowsPlatform.Compiler.IsClang();
@@ -1739,7 +1739,7 @@ namespace UnrealBuildTool
 			TouchAction.CommandDescription = "Touch";
 			TouchAction.CommandPath = BuildHostPlatform.Current.Shell;
 			TouchAction.CommandArguments = $"/C \"copy /b \"{OutputFile.FullName}\"+,, \"{OutputFile.FullName}\" 1>nul:\"";
-			TouchAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			TouchAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			TouchAction.PrerequisiteItems.Add(ObjectFile);
 			TouchAction.ProducedItems.Add(FileItem.GetItemByFileReference(OutputFile));
 			TouchAction.StatusDescription = OutputFile.GetFileName();
@@ -2028,7 +2028,7 @@ namespace UnrealBuildTool
 			// Create an action that invokes the linker.
 			Action LinkAction = Graph.CreateAction(ActionType.Link);
 			LinkAction.CommandDescription = "Link";
-			LinkAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+			LinkAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			if(bIsBuildingLibraryOrImportLibrary)
 			{
 				LinkAction.CommandPath = EnvVars.LibraryManagerPath;

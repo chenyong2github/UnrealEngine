@@ -277,8 +277,8 @@ namespace UnrealBuildTool
 					else
 					{
 						// Parse the source and target patterns
-						FilePattern SourcePattern = new FilePattern(UnrealBuildTool.EngineSourceDirectory, Module.ExpandPathVariables(Dependency.SourcePath, OutputDir, ExeDir));
-						FilePattern TargetPattern = new FilePattern(UnrealBuildTool.EngineSourceDirectory, Module.ExpandPathVariables(Dependency.Path, OutputDir, ExeDir));
+						FilePattern SourcePattern = new FilePattern(Unreal.EngineSourceDirectory, Module.ExpandPathVariables(Dependency.SourcePath, OutputDir, ExeDir));
+						FilePattern TargetPattern = new FilePattern(Unreal.EngineSourceDirectory, Module.ExpandPathVariables(Dependency.Path, OutputDir, ExeDir));
 
 						// Skip non-essential single files if they do not exist
 						if (Dependency.Type == StagedFileType.DebugNonUFS && !SourcePattern.ContainsWildcards() && !FileReference.Exists(SourcePattern.GetSingleFile()))

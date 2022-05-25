@@ -2087,7 +2087,7 @@ namespace UnrealBuildTool
 					{
 						PostBuildStepAction.CommandArguments = String.Format("\"{0}\" && touch \"{1}\"", PostBuildScript, OutputFile);
 					}
-					PostBuildStepAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+					PostBuildStepAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 					PostBuildStepAction.StatusDescription = String.Format("Executing post build script ({0})", PostBuildScript.GetFileName());
 					PostBuildStepAction.bCanExecuteRemotely = false;
 					PostBuildStepAction.PrerequisiteItems.Add(FileItem.GetItemByFileReference(ReceiptFileName));
@@ -2233,7 +2233,7 @@ namespace UnrealBuildTool
 
 				// Create the action
 				Action WriteMetadataAction = Makefile.CreateRecursiveAction<WriteMetadataMode>(ActionType.WriteMetadata, WriteMetadataArguments.ToString());
-				WriteMetadataAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				WriteMetadataAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				WriteMetadataAction.StatusDescription = StatusDescription;
 				WriteMetadataAction.bCanExecuteRemotely = false;
 				WriteMetadataAction.bUseActionHistory = false; // Different files for each target; do not want to invalidate based on this.
@@ -3820,7 +3820,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.Definitions.Add("USE_XMA2_FOR_STREAMING=1");
 
 			// Add the 'Engine/Source' path as a global include path for all modules
-			GlobalCompileEnvironment.UserIncludePaths.Add(UnrealBuildTool.EngineSourceDirectory);
+			GlobalCompileEnvironment.UserIncludePaths.Add(Unreal.EngineSourceDirectory);
 
 			//@todo.PLATFORM: Do any platform specific tool chain initialization here if required
 
@@ -4447,7 +4447,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static string NormalizeIncludePath(DirectoryReference Directory)
 		{
-			return Utils.CleanDirectorySeparators(Directory.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory), '/');
+			return Utils.CleanDirectorySeparators(Directory.MakeRelativeTo(Unreal.EngineSourceDirectory), '/');
 		}
 
 		/// <summary>

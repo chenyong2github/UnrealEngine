@@ -140,7 +140,7 @@ namespace UnrealBuildTool
 		/// <returns>Path to ISPC compiler</returns>
 		public virtual string GetISPCHostCompilerPath(UnrealTargetPlatform Platform)
 		{
-			string ISPCCompilerPathCommon = Path.Combine(UnrealBuildTool.EngineSourceDirectory.FullName, "ThirdParty", "Intel", "ISPC", "bin");
+			string ISPCCompilerPathCommon = Path.Combine(Unreal.EngineSourceDirectory.FullName, "ThirdParty", "Intel", "ISPC", "bin");
 			string ISPCArchitecturePath = "";
 			string ExeExtension = ".exe";
 
@@ -329,7 +329,7 @@ namespace UnrealBuildTool
 			// Try to use a relative path to shorten command line length.
 			if (Reference.IsUnderDirectory(Unreal.RootDirectory))
 			{
-				return Reference.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory).Replace("\\", "/");
+				return Reference.MakeRelativeTo(Unreal.EngineSourceDirectory).Replace("\\", "/");
 			}
 
 			return Reference.FullName.Replace("\\", "/");
@@ -419,7 +419,7 @@ namespace UnrealBuildTool
 			{
 				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.CommandDescription = "Compile";
-				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
 				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
 
@@ -488,7 +488,7 @@ namespace UnrealBuildTool
 				{
 					CopyAction.CommandArguments = $"-c 'cp -f \"\"{SourceFile}\"\" \"\"{TargetFile}\"'";
 				}
-				CopyAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				CopyAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				CopyAction.PrerequisiteItems.Add(SourceFileItem);
 				CopyAction.ProducedItems.Add(TargetFileItem);
 				CopyAction.StatusDescription = TargetFileItem.Location.GetFileName();
@@ -591,7 +591,7 @@ namespace UnrealBuildTool
 			{
 				Action CompileAction = Graph.CreateAction(ActionType.Compile);
 				CompileAction.CommandDescription = "Compile";
-				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				CompileAction.CommandPath = new FileReference(GetISPCHostCompilerPath(BuildHostPlatform.Current.Platform));
 				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
 

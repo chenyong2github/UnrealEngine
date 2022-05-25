@@ -159,7 +159,7 @@ namespace UnrealBuildTool
 		#region Implementation of IAction
 
 		IEnumerable<FileItem> IExternalAction.DeleteItems => DeleteItems;
-		public DirectoryReference WorkingDirectory => UnrealBuildTool.EngineSourceDirectory;
+		public DirectoryReference WorkingDirectory => Unreal.EngineSourceDirectory;
 		string IExternalAction.CommandDescription => "Compile";
 		bool IExternalAction.bIsGCCCompiler => false;
 		bool IExternalAction.bProducesImportLibrary => false;

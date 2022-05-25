@@ -156,7 +156,7 @@ namespace UnrealBuildTool
 						Writer.WriteObjectStart();
 						Writer.WriteValue("file", FileCommandPair.Key.FullName);
 						Writer.WriteValue("command", FileCommandPair.Value);
-						Writer.WriteValue("directory", UnrealBuildTool.EngineSourceDirectory.ToString());
+						Writer.WriteValue("directory", Unreal.EngineSourceDirectory.ToString());
 						Writer.WriteObjectEnd();
 					}
 					Writer.WriteArrayEnd();

@@ -1089,7 +1089,7 @@ namespace UnrealBuildTool
 					string FileString = File.AbsolutePath;
 					if (File.Location.IsUnderDirectory(Unreal.RootDirectory))
 					{
-						FileString = File.Location.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
+						FileString = File.Location.MakeRelativeTo(Unreal.EngineSourceDirectory);
 					}
 					FileString = FileString.Replace('\\', '/');
 					Writer.WriteLine("// Dedicated PCH for {0}", FileString);
@@ -1277,7 +1277,7 @@ namespace UnrealBuildTool
 				string IncludeFileString = IncludedFile.AbsolutePath;
 				if (IncludedFile.Location.IsUnderDirectory(Unreal.RootDirectory))
 				{
-					IncludeFileString = IncludedFile.Location.MakeRelativeTo(UnrealBuildTool.EngineSourceDirectory);
+					IncludeFileString = IncludedFile.Location.MakeRelativeTo(Unreal.EngineSourceDirectory);
 				}
 				IncludeFileString = IncludeFileString.Replace('\\', '/');
 				Writer.WriteLine("// PCH for {0}", IncludeFileString);

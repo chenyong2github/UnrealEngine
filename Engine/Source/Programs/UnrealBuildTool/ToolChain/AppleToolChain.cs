@@ -156,7 +156,7 @@ namespace UnrealBuildTool
 
 		protected DirectoryReference GetMacDevSrcRoot()
 		{
-			return UnrealBuildTool.EngineSourceDirectory;
+			return Unreal.EngineSourceDirectory;
 		}
 
 		protected void StripSymbolsWithXcode(FileReference SourceFile, FileReference TargetFile, string ToolchainDir)
