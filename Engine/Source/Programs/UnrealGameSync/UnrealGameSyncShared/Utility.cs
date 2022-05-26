@@ -40,6 +40,7 @@ namespace UnrealGameSync
 			".c",
 			".cc",
 			".cpp",
+			".inl",
 			".m",
 			".mm",
 			".rc",
