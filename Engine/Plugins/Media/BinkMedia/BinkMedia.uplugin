@@ -22,7 +22,6 @@
 			"LoadingPhase" : "PreLoadingScreen",
 			"TargetDenyList": [ "Server" ],
 			"PlatformDenyList": [ 
-				"HoloLens",
 				"tvOS"
 			]
 		},

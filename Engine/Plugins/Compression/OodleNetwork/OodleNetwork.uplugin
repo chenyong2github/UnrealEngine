@@ -17,10 +17,7 @@
     {
       "Name": "OodleNetworkHandlerComponent",
       "Type": "Runtime",
-      "LoadingPhase": "Default",
-	  "PlatformDenyList": [ 
-		"HoloLens"
-      ]
+      "LoadingPhase": "Default"
     }
   ]
 }
