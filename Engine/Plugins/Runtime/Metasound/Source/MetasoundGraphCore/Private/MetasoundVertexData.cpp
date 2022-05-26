@@ -18,21 +18,12 @@ namespace Metasound
 
 			switch (InDataVertex.AccessType)
 			{
-				case EDataReferenceAccessType::None:
-					bIsCompatible = true;
+				case EVertexAccessType::Reference:
+					// Reference vertices can accept read, write and value types
+					bIsCompatible = (EDataReferenceAccessType::Read == ReferenceAccessType) || (EDataReferenceAccessType::Write == ReferenceAccessType) || (EDataReferenceAccessType::Value == ReferenceAccessType);
 					break;
 
-				case EDataReferenceAccessType::Read:
-					// Read vertices can be a read, write or value data reference type
-					bIsCompatible = EDataReferenceAccessType::None != ReferenceAccessType;
-					break;
-
-				case EDataReferenceAccessType::Write:
-					// Write vertices require a write data reference type
-					bIsCompatible = EDataReferenceAccessType::Write == ReferenceAccessType;
-					break;
-
-				case EDataReferenceAccessType::Value:
+				case EVertexAccessType::Value:
 					// value vertices require a value data reference type
 					bIsCompatible = EDataReferenceAccessType::Value == ReferenceAccessType;
 					break;

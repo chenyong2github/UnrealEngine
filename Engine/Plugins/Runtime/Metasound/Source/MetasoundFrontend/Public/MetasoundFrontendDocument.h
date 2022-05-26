@@ -47,6 +47,13 @@ namespace Metasound
 	} // namespace Frontend
 } // namespace Metasound
 
+// Describes how a vertex accesses the data connected to it. 
+UENUM()
+enum class EMetasoundFrontendVertexAccessType
+{
+	Reference,	//< The vertex accesses data by reference.
+	Value 		//< The vertex accesses data by value.
+};
 
 UENUM()
 enum class EMetasoundFrontendClassType : uint8
@@ -679,6 +686,9 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendClassVertex : public FMetasoundFr
 	UPROPERTY(EditAnywhere, Category = CustomView)
 	FMetasoundFrontendVertexMetadata Metadata;
 #endif // WITH_EDITORONLY_DATA
+
+	UPROPERTY()
+	EMetasoundFrontendVertexAccessType AccessType = EMetasoundFrontendVertexAccessType::Reference;
 
 	// Splits name into namespace & parameter name
 	void SplitName(FName& OutNamespace, FName& OutParameterName) const;

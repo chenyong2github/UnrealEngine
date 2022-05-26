@@ -152,3 +152,18 @@ namespace Metasound
 		return !(InLHS == InRHS);
 	}
 }
+
+FString LexToString(Metasound::EVertexAccessType InAccessType)
+{
+	using namespace Metasound;
+
+	switch (InAccessType)
+	{
+		case EVertexAccessType::Value:
+			return TEXT("Value");
+
+		case EVertexAccessType::Reference:
+		default:
+			return TEXT("Reference");
+	}
+}

@@ -23,6 +23,13 @@ namespace Metasound
 		bool bIsAdvancedDisplay = false;
 	};
 
+	/** Describe how the vertex will access connected data. */
+	enum class EVertexAccessType
+	{
+		Reference, //< Vertex accesses the data references
+		Value      //< Vertex accesses the data value.
+	};
+
 
 	/** FDataVertex
 	 *
@@ -42,7 +49,7 @@ namespace Metasound
 		 * @InMetadata - Metadata pertaining to given vertex.
 		 * @InAccessType - The access type of the vertex.
 		 */
-		FDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EDataReferenceAccessType InAccessType)
+		FDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EVertexAccessType InAccessType)
 		: VertexName(InVertexName)
 		, DataTypeName(InDataTypeName)
 #if WITH_EDITORONLY_DATA
@@ -67,7 +74,7 @@ namespace Metasound
 #endif // WITH_EDITORONLY_DATA
 
 		/** Access type of the vertex. */
-		EDataReferenceAccessType AccessType;
+		EVertexAccessType AccessType;
 
 		UE_DEPRECATED(5.1, "GetVertexName() is deprecated. Use VertexName")
 		const FVertexName& GetVertexName() const
@@ -180,7 +187,7 @@ namespace Metasound
 		FInputDataVertex() = default;
 
 		/** Construct an FInputDataVertex. */
-		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EDataReferenceAccessType InAccessType=EDataReferenceAccessType::Read)
+		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EVertexAccessType InAccessType=EVertexAccessType::Reference)
 			: FDataVertex(InVertexName, InDataTypeName, InMetadata, InAccessType)
 			, LiteralFactory(FLiteral::FNone{})
 		{
@@ -188,16 +195,16 @@ namespace Metasound
 
 		/** Construct an FInputDataVertex with a default literal. */
 		template<typename LiteralValueType>
-		UE_DEPRECATED(5.1, "Use constructor with EDataReferenceAccessType argument.")
+		UE_DEPRECATED(5.1, "Use constructor with EVertexAccessType argument.")
 		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, const LiteralValueType& InLiteralValue)
-			: FDataVertex(InVertexName, InDataTypeName, InMetadata, EDataReferenceAccessType::Read)
+			: FDataVertex(InVertexName, InDataTypeName, InMetadata, EVertexAccessType::Reference)
 			, LiteralFactory(InLiteralValue)
 		{
 		}
 
 		/** Construct an FInputDataVertex with a default literal. */
 		template<typename LiteralValueType>
-		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EDataReferenceAccessType InAccessType, const LiteralValueType& InLiteralValue)
+		FInputDataVertex(const FVertexName& InVertexName, const FName& InDataTypeName, const FDataVertexMetadata& InMetadata, EVertexAccessType InAccessType, const LiteralValueType& InLiteralValue)
 			: FDataVertex(InVertexName, InDataTypeName, InMetadata, InAccessType)
 			, LiteralFactory(InLiteralValue)
 		{
@@ -227,14 +234,14 @@ namespace Metasound
 
 		template<typename... ArgTypes>
 		TInputDataVertex(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata, ArgTypes&&... Args)
-		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EDataReferenceAccessType::Read, Forward<ArgTypes>(Args)...)
+		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EVertexAccessType::Reference, Forward<ArgTypes>(Args)...)
 		{
 		}
 
 		template<typename... ArgTypes>
  		UE_DEPRECATED(5.1, "TInputDataVertex constructor without explicit FDataVertexMatadata is deprecated. Use constructor which accepts TDataVertexMetadata")
 		TInputDataVertex(const FVertexName& InVertexName, const FText& InDescription, ArgTypes&&... Args)
-		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, EDataReferenceAccessType::Read, Forward<ArgTypes>(Args)...)
+		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, EVertexAccessType::Reference, Forward<ArgTypes>(Args)...)
 		{
 		}
 	};
@@ -252,7 +259,7 @@ namespace Metasound
 
 		template<typename... ArgTypes>
 		TInputConstructorVertex(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata, ArgTypes&&... Args)
-		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EDataReferenceAccessType::Value, Forward<ArgTypes>(Args)...)
+		: FInputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EVertexAccessType::Value, Forward<ArgTypes>(Args)...)
 		{
 		}
 	};
@@ -281,14 +288,14 @@ namespace Metasound
 
 		template<typename... ArgTypes>
 		TOutputDataVertex(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata, ArgTypes&&... Args)
-		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EDataReferenceAccessType::Read, Forward<ArgTypes>(Args)...)
+		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EVertexAccessType::Reference, Forward<ArgTypes>(Args)...)
 		{
 		}
 
 		template<typename... ArgTypes>
  		UE_DEPRECATED(5.1, "TOutputDataVertex constructor without explicit FDataVertexMatadata is deprecated. Use constructor which accepts TDataVertexMetadata")
 		TOutputDataVertex(const FVertexName& InVertexName, const FText& InDescription, ArgTypes&&... Args)
-		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, EDataReferenceAccessType::Read, Forward<ArgTypes>(Args)...)
+		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), { InDescription }, EVertexAccessType::Reference, Forward<ArgTypes>(Args)...)
 		{
 		}
 	};
@@ -308,7 +315,7 @@ namespace Metasound
 
 		template<typename... ArgTypes>
 		TOutputConstructorVertex(const FVertexName& InVertexName, const FDataVertexMetadata& InMetadata, ArgTypes&&... Args)
-		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EDataReferenceAccessType::Value, Forward<ArgTypes>(Args)...)
+		: FOutputDataVertex(InVertexName, GetMetasoundDataTypeName<DataType>(), InMetadata, EVertexAccessType::Value, Forward<ArgTypes>(Args)...)
 		{
 		}
 	};
@@ -661,3 +668,7 @@ namespace Metasound
 		FGuid InstanceID;
 	};
 }
+
+/** Convert EVertexAccessType to string */
+METASOUNDGRAPHCORE_API FString LexToString(Metasound::EVertexAccessType InAccessType);
+
