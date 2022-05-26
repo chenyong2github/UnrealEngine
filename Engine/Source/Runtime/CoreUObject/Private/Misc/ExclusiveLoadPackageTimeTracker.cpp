@@ -55,31 +55,32 @@ void FExclusiveLoadPackageTimeTracker::InternalPushLoadPackage(FName PackageName
 
 void FExclusiveLoadPackageTimeTracker::InternalPopLoadPackage(UPackage* LoadedPackage, UObject* LoadedAsset)
 {
+	// Resolve the classname first to avoid having to take a lock on the object hash table inside another lock
+	// which can cause deadlock.
+	FName ClassName = UnknownAssetName;
+	if (LoadedAsset)
+	{
+		ClassName = LoadedAsset->GetClass()->GetFName();
+	}
+	else if (LoadedPackage)
+	{
+		ForEachObjectWithPackage(LoadedPackage, [&ClassName](UObject* Object)
+		{
+			if (Object && Object->IsAsset())
+			{
+				ClassName = Object->GetClass()->GetFName();
+				return false;
+			}
+			return true;
+		}, false);
+	}
+
 	FScopeLock Lock(&TimesCritical);
 	if (ensure(TimeStack.Num() > 0))
 	{
 		const double CurrentTime = FPlatformTime::Seconds();
 		FLoadTime& Time = TimeStack.Last();
 		Time.ExclusiveTime += (CurrentTime - Time.LastStartTime);
-
-		FName ClassName = UnknownAssetName;
-		if (LoadedAsset)
-		{
-			ClassName = LoadedAsset->GetClass()->GetFName();
-		}
-		else if (LoadedPackage)
-		{
-
-			ForEachObjectWithPackage(LoadedPackage, [&ClassName](UObject* Object)
-			{
-				if (Object && Object->IsAsset())
-				{
-					ClassName = Object->GetClass()->GetFName();
-					return false;
-				}
-				return true;
-			}, false);
-		}
 
 		double InclusiveTime = CurrentTime - Time.OriginalStartTime;
 		FLoadTime* LoadTimePtr = LoadTimes.Find(Time.TimeName);
