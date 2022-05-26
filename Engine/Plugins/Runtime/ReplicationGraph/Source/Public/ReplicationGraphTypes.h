@@ -865,6 +865,8 @@ struct FGlobalActorReplicationInfoMap
 	{
 		None = 0,
 		WarnAlreadyDependant = 1 << 0,
+		WarnParentNotRegistered = 1 << 1,
+		AllWarnings = WarnAlreadyDependant | WarnParentNotRegistered
 	};
 
 	REPLICATIONGRAPH_API void AddDependentActor(AActor* Parent, AActor* Child, FGlobalActorReplicationInfoMap::EWarnFlag WarnFlag = FGlobalActorReplicationInfoMap::EWarnFlag::None);
