@@ -39,6 +39,10 @@
 		{
 			"Name": "ChaosSolverPlugin",
 			"Enabled": true
+		},
+		{
+			"Name": "Dataflow",
+			"Enabled": true
 		}
 	]
 }

@@ -23,9 +23,11 @@ namespace UnrealBuildTool.Rules
                     "FieldSystemEngine",
 	                "ChaosSolverEngine",
 					"NetCore",
-                    "IntelISPC"
-                }
-                );
+					"IntelISPC",
+					"DataflowCore",
+					"DataflowEngine"
+				}
+				);
 
 			PrivateIncludePathModuleNames.Add("DerivedDataCache");
 

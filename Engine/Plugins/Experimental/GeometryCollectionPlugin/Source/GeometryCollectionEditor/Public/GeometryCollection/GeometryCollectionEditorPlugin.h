@@ -6,6 +6,8 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "GeometryCollection/GeometryCollectionProviderEditor.h"
+#include "Templates/SharedPointer.h"
+#include "Toolkits/IToolkit.h"
 
 
 class ISlateStyle;
@@ -13,6 +15,8 @@ class FSlateStyleSet;
 class FAssetTypeActions_GeometryCollection;
 class FAssetTypeActions_GeometryCollectionCache;
 class FGeometryCollectionAssetBroker;
+class FAssetEditorToolkit;
+class IToolkitHost;
 
 /**
  * The public interface to this module
@@ -22,6 +26,12 @@ class IGeometryCollectionEditorPlugin : public IModuleInterface
 public:
 	virtual void StartupModule();
 	virtual void ShutdownModule();
+
+	/**
+	*  Create a custom asset editor.
+	*
+	*/
+	TSharedRef<FAssetEditorToolkit> CreateGeometryCollectionAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* GeometryCollectionAsset);
 
 
 	/**

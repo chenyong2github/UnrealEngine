@@ -7,6 +7,7 @@
 #include "Rendering/NaniteResources.h"
 #include "InstanceUniformShaderParameters.h"
 #include "GeometryCollection/ManagedArray.h"
+#include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "Chaos/ChaosSolverActor.h"
 
@@ -18,6 +19,7 @@ class FGeometryCollection;
 class FManagedArrayCollection;
 struct FGeometryCollectionSection;
 struct FSharedSimulationParameters;
+class UDataflow;
 
 USTRUCT(BlueprintType)
 struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSource
@@ -605,6 +607,13 @@ public:
 	* Update the convex geometry on the collection.
 	*/
 	void UpdateConvexGeometry();
+
+
+	//
+	// Dataflow
+	//
+	UPROPERTY(EditAnywhere, Category = "Procedural")
+	TObjectPtr<UDataflow> Dataflow;
 
 private:
 #if WITH_EDITOR

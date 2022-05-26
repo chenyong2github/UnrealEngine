@@ -5,6 +5,7 @@
 
 #include "AssetToolsModule.h"
 #include "CoreMinimal.h"
+#include "Dataflow/GeometryCollectionNodes.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
@@ -18,6 +19,7 @@
 #include "GeometryCollection/GeometryCollectionThumbnailRenderer.h"
 #include "GeometryCollection/GeometryCollectionSelectRigidBodyEdMode.h"
 #include "GeometryCollection/GeometryCollectionSelectionCommands.h"
+#include "GeometryCollection/Dataflow/GeometryCollectionEditorToolkit.h"
 #include "HAL/ConsoleManager.h"
 #include "Features/IModularFeatures.h"
 #include "GeometryCollection/DetailCustomizations/GeomComponentCacheCustomization.h"
@@ -27,6 +29,8 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/CoreStyle.h"
 #include "ToolMenus.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "Toolkits/IToolkitHost.h"
 
 IMPLEMENT_MODULE( IGeometryCollectionEditorPlugin, GeometryCollectionEditor )
 
@@ -257,6 +261,10 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 	// Register tool menus - delayed until ToolMenus module is loaded
 	UToolMenus::RegisterStartupCallback(
 		FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &IGeometryCollectionEditorPlugin::RegisterMenus));
+
+	// Dataflow 
+	Dataflow::GeometryCollectionEngineAssetNodes();
+
 }
 
 
@@ -329,4 +337,12 @@ void IGeometryCollectionEditorPlugin::RegisterMenus()
 		Section.AddMenuEntry(FGeometryCollectionSelectionCommands::Get().SelectNone);
 		Section.AddMenuEntry(FGeometryCollectionSelectionCommands::Get().SelectInverseGeometry);
 	}
+}
+
+
+TSharedRef<FAssetEditorToolkit> IGeometryCollectionEditorPlugin::CreateGeometryCollectionAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* GeometryCollectionAsset)
+{
+	TSharedPtr<FGeometryCollectionEditorToolkit> NewGeometryCollectionAssetEditor = MakeShared<FGeometryCollectionEditorToolkit>();
+	NewGeometryCollectionAssetEditor->InitGeometryCollectionAssetEditor(Mode, InitToolkitHost, GeometryCollectionAsset);
+	return StaticCastSharedPtr<FAssetEditorToolkit>(NewGeometryCollectionAssetEditor).ToSharedRef();
 }

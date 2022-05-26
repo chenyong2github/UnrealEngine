@@ -1,9 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GeometryCollection/AssetTypeActions_GeometryCollection.h"
+
+#include "GeometryCollection/Dataflow/GeometryCollectionEditorToolkit.h"
+#include "GeometryCollection/GeometryCollectionEditorPlugin.h"
 #include "ThumbnailRendering/SceneThumbnailInfo.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "ToolMenus.h"
+
+bool bGeometryCollectionDataflowEditor = false;
+FAutoConsoleVariableRef CVarGeometryCollectionDataflowEditor(TEXT("p.Chaos.GeometryCollection.DataflowEditor"), bGeometryCollectionDataflowEditor, TEXT("Enable dataflow asset editor on geometry collection assets(Curently Dev-Only)"));
+
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -33,5 +40,24 @@ void FAssetTypeActions_GeometryCollection::GetActions(const TArray<UObject*>& In
 	// IconPath = Plugin->GetBaseDir() / TEXT("Resources/Icon128.png");
 }
 
+void FAssetTypeActions_GeometryCollection::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<class IToolkitHost> EditWithinLevelEditor)
+{
+	if (bGeometryCollectionDataflowEditor)
+	{
+		EToolkitMode::Type Mode = EditWithinLevelEditor.IsValid() ? EToolkitMode::WorldCentric : EToolkitMode::Standalone;
+		for (auto ObjIt = InObjects.CreateConstIterator(); ObjIt; ++ObjIt)
+		{
+			if (auto Object = Cast<UGeometryCollection>(*ObjIt))
+			{
+				IGeometryCollectionEditorPlugin* EditorModule = &FModuleManager::LoadModuleChecked<IGeometryCollectionEditorPlugin>("GeometryCollectionEditor");
+				EditorModule->CreateGeometryCollectionAssetEditor(Mode, EditWithinLevelEditor, Object);
+			}
+		}
+	}
+	else
+	{ 
+		FAssetTypeActions_Base::OpenAssetEditor(InObjects,EditWithinLevelEditor);
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

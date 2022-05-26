@@ -34,6 +34,10 @@ namespace UnrealBuildTool.Rules
 					"StaticMeshDescription",
 					"LevelEditor",
 					"InputCore",
+					"GraphEditor",
+					"DataflowCore",
+					"DataflowEngine",
+					"DataflowEditor",
 				}
 			);
 
