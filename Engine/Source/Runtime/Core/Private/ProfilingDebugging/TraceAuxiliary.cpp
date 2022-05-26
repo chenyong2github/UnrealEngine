@@ -58,6 +58,7 @@ CSV_DEFINE_CATEGORY(Trace, true);
 ////////////////////////////////////////////////////////////////////////////////
 DECLARE_STATS_GROUP(TEXT("TraceLog"), STATGROUP_Trace, STATCAT_Advanced);
 DECLARE_MEMORY_STAT(TEXT("Memory used"), STAT_TraceMemoryUsed, STATGROUP_Trace);
+DECLARE_MEMORY_STAT(TEXT("Important event cache"), STAT_TraceCacheAllocated, STATGROUP_Trace);
 DECLARE_MEMORY_STAT(TEXT("Important event cache used"), STAT_TraceCacheUsed, STATGROUP_Trace);
 DECLARE_MEMORY_STAT(TEXT("Important event cache waste"), STAT_TraceCacheWaste, STATGROUP_Trace);
 DECLARE_MEMORY_STAT(TEXT("Sent"), STAT_TraceSent, STATGROUP_Trace);
@@ -587,6 +588,7 @@ void FTraceAuxiliaryImpl::StartEndFramePump()
 			UE::Trace::FStatistics Stats;
 			UE::Trace::GetStatistics(Stats);
 			SET_MEMORY_STAT(STAT_TraceMemoryUsed, Stats.MemoryUsed);
+			SET_MEMORY_STAT(STAT_TraceCacheAllocated, Stats.CacheAllocated);
 			SET_MEMORY_STAT(STAT_TraceCacheUsed, Stats.CacheUsed);
 			SET_MEMORY_STAT(STAT_TraceCacheWaste, Stats.CacheWaste);
 			SET_MEMORY_STAT(STAT_TraceSent, Stats.BytesSent);
@@ -735,11 +737,11 @@ static void TraceAuxiliaryStatus()
 	constexpr double MiB = 1.0 / (1024.0 * 1024.0);
 	UE_LOG(LogConsoleResponse, Display, TEXT("- Memory used: %.02f MiB"),
 		double(Stats.MemoryUsed) * MiB);
-	// Stats.CacheWaste is actually the total size of allocated buffers.
-	UE_LOG(LogConsoleResponse, Display, TEXT("- Important Events cache: %.02f MiB (%.02f MiB used + %0.02f MiB waste)"),
-		double(Stats.CacheWaste) * MiB,
+	UE_LOG(LogConsoleResponse, Display, TEXT("- Important Events cache: %.02f MiB (%.02f MiB used + %0.02f MiB unused | %0.02f MiB waste)"),
+		double(Stats.CacheAllocated) * MiB,
 		double(Stats.CacheUsed) * MiB,
-		double(Stats.CacheWaste - Stats.CacheUsed) * MiB);
+		double(Stats.CacheAllocated - Stats.CacheUsed) * MiB,
+		double(Stats.CacheWaste) * MiB);
 	UE_LOG(LogConsoleResponse, Display, TEXT("- Sent: %.02f MiB"),
 		double(Stats.BytesSent) * MiB);
 

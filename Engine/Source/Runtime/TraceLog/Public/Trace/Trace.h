@@ -93,8 +93,9 @@ struct FStatistics
 	uint64		BytesSent;
 	uint64		BytesTraced;
 	uint64		MemoryUsed;
-	uint32		CacheUsed;		// Important-marked events are
-	uint32		CacheWaste;		// stored in the cache.
+	uint32		CacheAllocated;	// Total memory allocated in cache buffers
+	uint32		CacheUsed;		// Used cache memory; Important-marked events are stored in the cache.
+	uint32		CacheWaste;		// Unused memory from retired cache buffers
 };
 
 UE_TRACE_API void	SetMemoryHooks(AllocFunc Alloc, FreeFunc Free) UE_TRACE_IMPL();

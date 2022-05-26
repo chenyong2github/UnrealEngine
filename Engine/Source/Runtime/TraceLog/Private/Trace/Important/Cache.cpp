@@ -50,6 +50,10 @@ extern FStatistics		GTraceStatistics;
 ////////////////////////////////////////////////////////////////////////////////
 static FCacheBuffer* Writer_CacheCreateBuffer(uint32 Size)
 {
+#if TRACE_PRIVATE_STATISTICS
+	GTraceStatistics.CacheAllocated += Size;
+#endif
+
 	void* Block = Writer_MemoryAllocate(sizeof(FCacheBuffer) + Size, alignof(FCacheBuffer));
 	auto* Buffer = (FCacheBuffer*)Block;
 	Buffer->Size = Size;
