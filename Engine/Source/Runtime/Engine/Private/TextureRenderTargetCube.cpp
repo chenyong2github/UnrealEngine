@@ -263,6 +263,20 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 
 		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
 
+		// Create the RHI target surface used for rendering to
+		{
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create2D(TEXT("FTextureRenderTargetCubeResource"))
+				.SetExtent(Owner->SizeX, Owner->SizeX)
+				.SetFormat(Owner->GetFormat())
+				.SetNumMips(Owner->GetNumMips())
+				.SetFlags(TexCreateFlags | ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
+				.SetClearValue(FClearValueBinding(Owner->ClearColor))
+				.SetInitialState(ERHIAccess::SRVMask);
+
+			RenderTargetTextureRHI = RHICreateTexture(Desc);
+		}
+
 		AddToDeferredUpdateList(true);
 	}
 
@@ -306,14 +320,27 @@ void FTextureRenderTargetCubeResource::UpdateDeferredResource(FRHICommandListImm
 		return;
 	}
 
-	RHICmdList.Transition(FRHITransitionInfo(TextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+	RHICmdList.Transition(FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::Unknown, ERHIAccess::RTV));
+
+	ClearRenderTarget(RHICmdList, RenderTargetTextureRHI);
+
+	RHICmdList.Transition({
+		FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::RTV, ERHIAccess::CopySrc),
+		FRHITransitionInfo(TextureRHI, ERHIAccess::Unknown, ERHIAccess::CopyDest)
+	});
+
+	FRHICopyTextureInfo CopyInfo;
 
 	for(int32 FaceIdx = CubeFace_PosX; FaceIdx < CubeFace_MAX; FaceIdx++)
 	{
-		ClearRenderTarget(RHICmdList, TextureRHI, 0, FaceIdx);
+		CopyInfo.DestSliceIndex = FaceIdx;
+		RHICmdList.CopyTexture(RenderTargetTextureRHI, TextureRHI, CopyInfo);
 	}
 
-	RHICmdList.Transition(FRHITransitionInfo(TextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
+	RHICmdList.Transition({
+		FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::CopySrc, ERHIAccess::SRVMask),
+		FRHITransitionInfo(TextureRHI, ERHIAccess::CopyDest, ERHIAccess::SRVMask)
+	});
 }
 
 /** 

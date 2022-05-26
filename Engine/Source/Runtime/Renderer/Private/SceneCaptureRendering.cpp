@@ -1248,8 +1248,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 					[SceneRenderer, TextureRenderTarget, EventName, TargetFace](FRHICommandListImmediate& RHICmdList)
 					{
 						FRHICopyTextureInfo CopyInfo;
-						CopyInfo.SourceSliceIndex = TargetFace;
-						CopyInfo.DestSliceIndex   = TargetFace; 
+						CopyInfo.DestSliceIndex = TargetFace;
 						UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTarget, TextureRenderTarget, EventName, CopyInfo, false, FGenerateMipsParams(), false, true, false);
 					}
 				);
