@@ -10,6 +10,11 @@
 #include "RHIDefinitions.h"
 #include "ShaderParameters.h"
 #include "UniformBuffer.h"
+#include "Math/SHMath.h"
+
+class FRDGPooledBuffer;
+class FSkyLightSceneProxy;
+struct FEngineShowFlags;
 
 extern bool IsReflectionEnvironmentAvailable(ERHIFeatureLevel::Type InFeatureLevel);
 extern bool IsReflectionCaptureAvailable();

@@ -3,6 +3,7 @@
 #include "UObject/PackageResourceManager.h"
 
 #include "Async/AsyncFileHandle.h"
+#include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/PackageSegment.h"
 #include "Misc/PreloadableFile.h"

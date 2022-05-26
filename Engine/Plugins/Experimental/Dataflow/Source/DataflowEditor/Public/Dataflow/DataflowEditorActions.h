@@ -7,7 +7,9 @@
 #include "Styling/AppStyle.h"
 #include "Dataflow/DataflowNodeParameters.h"
 
+class IDetailsView;
 class UDataflowEdNode;
+typedef TSet<class UObject*> FGraphPanelSelectionSet;
 
 class FDataflowEditorCommandsImpl : public TCommands<FDataflowEditorCommandsImpl>
 {

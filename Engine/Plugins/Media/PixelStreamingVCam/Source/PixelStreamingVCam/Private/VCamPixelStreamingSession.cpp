@@ -6,6 +6,7 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "Containers/UnrealString.h"
 #include "Async/Async.h"
+#include "Modules/ModuleManager.h"
 
 DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
 namespace VCamPixelStreamingSession
