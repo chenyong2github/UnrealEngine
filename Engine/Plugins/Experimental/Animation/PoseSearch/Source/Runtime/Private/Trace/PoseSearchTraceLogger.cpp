@@ -22,10 +22,6 @@ UE_TRACE_EVENT_BEGIN(PoseSearch, MotionMatchingState)
 	UE_TRACE_EVENT_FIELD(int32, ContinuingPoseIdx)
 	UE_TRACE_EVENT_FIELD(float[], QueryVector)
 	UE_TRACE_EVENT_FIELD(float[], QueryVectorNormalized)
-	UE_TRACE_EVENT_FIELD(float[], ChannelWeightScales)
-	UE_TRACE_EVENT_FIELD(float[], HistoryWeightScales)
-	UE_TRACE_EVENT_FIELD(float[], PredictionWeightScales)
-	UE_TRACE_EVENT_FIELD(bool, DebugDisableWeights)
 	UE_TRACE_EVENT_FIELD(float, AssetPlayerTime)
 	UE_TRACE_EVENT_FIELD(float, DeltaTime)
 	UE_TRACE_EVENT_FIELD(float, SimLinearVelocity)
@@ -69,23 +65,6 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext, c
 	TRACE_OBJECT(AnimInstance);
 	UObject* SkeletalMeshComponent = AnimInstance->GetOuter();
 
-	float ChannelWeightScales[] =
-	{
-		State.Weights.PoseDynamicWeights.ChannelWeightScale,
-		State.Weights.TrajectoryDynamicWeights.ChannelWeightScale
-	};
-
-	float HistoryWeightScales[] =
-	{
-		State.Weights.PoseDynamicWeights.HistoryWeightScale,
-		State.Weights.TrajectoryDynamicWeights.HistoryWeightScale
-	};
-	float PredictionWeightScales[] =
-	{
-		State.Weights.PoseDynamicWeights.PredictionWeightScale,
-		State.Weights.TrajectoryDynamicWeights.PredictionWeightScale
-	};
-
 	UE_TRACE_LOG(PoseSearch, MotionMatchingState, PoseSearchChannel)
 		<< MotionMatchingState.Cycle(FPlatformTime::Cycles64())
 		<< MotionMatchingState.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
@@ -99,10 +78,6 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext, c
 		<< MotionMatchingState.ContinuingPoseIdx(State.ContinuingPoseIdx)
 		<< MotionMatchingState.QueryVector(State.QueryVector.GetData(), State.QueryVector.Num())
 		<< MotionMatchingState.QueryVectorNormalized(State.QueryVectorNormalized.GetData(), State.QueryVectorNormalized.Num())
-		<< MotionMatchingState.ChannelWeightScales(ChannelWeightScales, UE_ARRAY_COUNT(ChannelWeightScales))
-		<< MotionMatchingState.HistoryWeightScales(HistoryWeightScales, UE_ARRAY_COUNT(HistoryWeightScales))
-		<< MotionMatchingState.PredictionWeightScales(PredictionWeightScales, UE_ARRAY_COUNT(PredictionWeightScales))
-		<< MotionMatchingState.DebugDisableWeights(State.Weights.bDebugDisableWeights)
 		<< MotionMatchingState.AssetPlayerTime(State.AssetPlayerTime)
 		<< MotionMatchingState.DeltaTime(State.DeltaTime)
 		<< MotionMatchingState.SimLinearVelocity(State.SimLinearVelocity)

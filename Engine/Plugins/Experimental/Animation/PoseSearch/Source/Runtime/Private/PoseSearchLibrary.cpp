@@ -283,21 +283,6 @@ bool FMotionMatchingState::CanAdvance(float DeltaTime, bool& bOutAdvanceToFollow
 	return false;
 }
 
-void FMotionMatchingState::ComposeQuery(const UPoseSearchDatabase* Database, const FTrajectorySampleRange& Trajectory)
-{
-	FPoseSearchFeatureVectorBuilder Goal;
-	Goal.Init(Database->Schema);
-	Goal.BuildFromTrajectory(Trajectory);
-
-	// Merge goal features into the query vector
-	if (ComposedQuery.IsCompatible(Goal))
-	{
-		ComposedQuery.MergeReplace(Goal);
-	}
-
-	ComposedQuery.Normalize(*Database->GetSearchIndex());
-}
-
 static void RequestInertialBlend(const FAnimationUpdateContext& Context, float BlendTime)
 {
 	// Use inertial blending to smooth over the transition
@@ -373,6 +358,11 @@ void UpdateMotionMatchingState(
 	// Record Current Pose Index for Debugger
 	int32 CurrentPoseIdx = InOutMotionMatchingState.DbPoseIdx;
 
+	FQueryBuildingContext QueryBuildingContext(InOutMotionMatchingState.ComposedQuery);
+	QueryBuildingContext.Schema = Database->Schema;
+	QueryBuildingContext.History = nullptr;
+	QueryBuildingContext.Trajectory = &Trajectory;
+
 	// Build the search query. This is done even when we don't search 
 	// since we still want to record it for debugging purposes.
 	if (InOutMotionMatchingState.DbPoseIdx != INDEX_NONE)
@@ -384,29 +374,16 @@ void UpdateMotionMatchingState(
 	}
 	else
 	{
-		// When we don't have an active pose in the database, 
-		// initialize the search query from the pose history provider
-		bool bPoseHistoryFound = false;
-
+		InOutMotionMatchingState.ComposedQuery.ResetFeatures();
 		IPoseHistoryProvider* PoseHistoryProvider = Context.GetMessage<IPoseHistoryProvider>();
 		if (PoseHistoryProvider)
 		{
-			FPoseHistory& History = PoseHistoryProvider->GetPoseHistory();
-
-			bPoseHistoryFound = InOutMotionMatchingState.ComposedQuery.TrySetPoseFeatures(
-				&History,
-				Context.AnimInstanceProxy->GetRequiredBones());
-		}
-
-		// If no pose history provider or no pose found in history, then just reset/zero
-		if (!bPoseHistoryFound)
-		{
-			InOutMotionMatchingState.ComposedQuery.ResetFeatures();
+			QueryBuildingContext.History = &PoseHistoryProvider->GetPoseHistory();
 		}
 	}
 
-	// Update features in the query with the latest input trajectory
-	InOutMotionMatchingState.ComposeQuery(Database, Trajectory);
+	BuildQuery(QueryBuildingContext);
+	InOutMotionMatchingState.ComposedQuery.Normalize(*Database->GetSearchIndex());
 
 	// Check if we can advance. Includes the case where we can advance but only by switching to a follow up asset.
 	bool bAdvanceToFollowUpAsset = false;
@@ -431,7 +408,7 @@ void UpdateMotionMatchingState(
 		}
 
 		// Update weight groups
-		InOutMotionMatchingState.WeightsContext.Update(Settings.Weights, Database);
+		InOutMotionMatchingState.WeightsContext.Update(Database);
 
 		// Search the database for the nearest match to the updated query vector
 		FSearchResult SearchResult = Search(SearchContext);
@@ -571,7 +548,6 @@ void UpdateMotionMatchingState(
 		// @TODO: Change this to only be the previous query, not persistently updated (i.e. if throttled)?
 		TraceState.QueryVector = InOutMotionMatchingState.ComposedQuery.GetValues();
 		TraceState.QueryVectorNormalized = InOutMotionMatchingState.ComposedQuery.GetNormalizedValues();
-		TraceState.Weights = Settings.Weights;
 		TraceState.DbPoseIdx = InOutMotionMatchingState.DbPoseIdx;
 		TraceState.DatabaseId = FObjectTrace::GetObjectId(Database);
 		TraceState.ContinuingPoseIdx = CurrentPoseIdx;

@@ -24,6 +24,7 @@ struct FPoseSearchDatabaseDerivedData
 {
 	GENERATED_BODY()
 
+	UPROPERTY()
 	FPoseSearchIndex SearchIndex;
 
 #if WITH_EDITORONLY_DATA

@@ -6,6 +6,8 @@
 #include "Animation/AnimSequence.h"
 #include "Animation/BlendSpace.h"
 
+#include "UObject/Class.h"
+
 #if WITH_EDITOR
 #include "Serialization/BulkDataRegistry.h"
 #endif // WITH_EDITOR
@@ -213,13 +215,16 @@ namespace UE::PoseSearch
 	{
 		if (IsValid(Schema))
 		{
-			InOutWriter.Update(&Schema->bUseTrajectoryVelocities, sizeof(Schema->bUseTrajectoryVelocities));
-			InOutWriter.Update(&Schema->bUseTrajectoryPositions, sizeof(Schema->bUseTrajectoryPositions));
-			InOutWriter.Update(&Schema->bUseTrajectoryForwardVectors, sizeof(Schema->bUseTrajectoryForwardVectors));
-			InOutWriter.Update(MakeMemoryView(Schema->SampledBones));
-			InOutWriter.Update(MakeMemoryView(Schema->PoseSampleTimes));
-			InOutWriter.Update(MakeMemoryView(Schema->TrajectorySampleTimes));
-			InOutWriter.Update(MakeMemoryView(Schema->TrajectorySampleDistances));
+			for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Schema->Channels)
+			{
+				if (Channel)
+				{
+					const FBlake3Hash& ChannelClassHash = Channel->GetClass()->GetSchemaHash(false);
+					InOutWriter.Update(MakeMemoryView(ChannelClassHash.GetBytes()));
+
+					Channel->GenerateDDCKey(InOutWriter);
+				}
+			}
 			InOutWriter.Update(&Schema->DataPreprocessor, sizeof(Schema->DataPreprocessor));
 			InOutWriter.Update(&Schema->EffectiveDataPreprocessor, sizeof(Schema->EffectiveDataPreprocessor));
 			InOutWriter.Update(&Schema->SamplingInterval, sizeof(Schema->SamplingInterval));

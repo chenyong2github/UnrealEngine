@@ -27,7 +27,6 @@ struct FTraceMotionMatchingStateMessage : FTraceMessage
 	float ElapsedPoseJumpTime = -1.0f;
 	TArray<float> QueryVector;
 	TArray<float> QueryVectorNormalized;
-	FPoseSearchDynamicWeightParams Weights;
 	int32 DbPoseIdx = INDEX_NONE;
 	uint64 DatabaseId = INDEX_NONE;
 	int32 ContinuingPoseIdx = INDEX_NONE;

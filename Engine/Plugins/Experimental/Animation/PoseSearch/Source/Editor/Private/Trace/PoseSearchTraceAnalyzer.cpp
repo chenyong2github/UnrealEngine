@@ -62,21 +62,6 @@ bool FTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 				Message.DatabaseSequenceFilter = EventData.GetArrayView<bool>("DatabaseSequenceFilter");
 				Message.DatabaseBlendSpaceFilter = EventData.GetArrayView<bool>("DatabaseBlendSpaceFilter");
 
-				TArrayView<const float> ChannelWeightScales = EventData.GetArrayView<float>("ChannelWeightScales");
-				TArrayView<const float> HistoryWeightScales = EventData.GetArrayView<float>("HistoryWeightScales");
-				TArrayView<const float> PredictionWeightScales = EventData.GetArrayView<float>("PredictionWeightScales");
-
-				if ((ChannelWeightScales.Num() == 2) && (HistoryWeightScales.Num() == 2) && (PredictionWeightScales.Num() == 2))
-				{
-					Message.Weights.PoseDynamicWeights.ChannelWeightScale = ChannelWeightScales[0];
-					Message.Weights.TrajectoryDynamicWeights.ChannelWeightScale = ChannelWeightScales[1];
-					Message.Weights.PoseDynamicWeights.HistoryWeightScale = HistoryWeightScales[0];
-					Message.Weights.TrajectoryDynamicWeights.HistoryWeightScale = HistoryWeightScales[1];
-					Message.Weights.PoseDynamicWeights.PredictionWeightScale = PredictionWeightScales[0];
-					Message.Weights.TrajectoryDynamicWeights.PredictionWeightScale = PredictionWeightScales[1];
-					Message.Weights.bDebugDisableWeights = EventData.GetValue<bool>("DebugDisableWeights");
-				}
-
 				// Common data
 				Message.NodeId = NodeId;
 				Message.AnimInstanceId = AnimInstanceId;

@@ -44,9 +44,6 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	TArrayView<const float> QueryVector;
 	TArrayView<const float> QueryVectorNormalized;
 
-	/** Runtime weights */
-	FPoseSearchDynamicWeightParams Weights;
-
 	/** If true, groups are being filtered by DatabaseGroupQuery */
 	TArrayView<const bool> DatabaseSequenceFilter;
 

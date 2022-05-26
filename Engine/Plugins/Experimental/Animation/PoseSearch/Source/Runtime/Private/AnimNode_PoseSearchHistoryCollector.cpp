@@ -32,6 +32,7 @@ public:
 
 }}} // namespace UE::PoseSearch::Private
 
+
 /////////////////////////////////////////////////////
 // FAnimNode_PoseSearchHistoryCollector
 
@@ -60,6 +61,8 @@ void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Outp
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread);
 
+	using namespace UE::PoseSearch;
+
 	Source.Evaluate(Output);
 
 	FText ErrorText;
@@ -70,8 +73,8 @@ void FAnimNode_PoseSearchHistoryCollector::Evaluate_AnyThread(FPoseContext& Outp
 		Output.AnimInstanceProxy->GetComponentTransform(),
 		&ErrorText,
 		bUseRootMotion ?
-		UE::PoseSearch::EPoseHistoryRootUpdateMode::RootMotionDelta :
-		UE::PoseSearch::EPoseHistoryRootUpdateMode::ComponentTransformDelta))
+		FPoseHistory::ERootUpdateMode::RootMotionDelta :
+		FPoseHistory::ERootUpdateMode::ComponentTransformDelta))
 	{
 		Output.LogMessage(EMessageSeverity::Error, ErrorText);
 	}

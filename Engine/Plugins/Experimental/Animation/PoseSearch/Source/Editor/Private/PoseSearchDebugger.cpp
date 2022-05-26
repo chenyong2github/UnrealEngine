@@ -265,25 +265,44 @@ void UPoseSearchMeshComponent::UpdatePose(const FUpdateContext& UpdateContext)
 
 namespace UE::PoseSearch {
 
+struct FChannelCostRange
+{
+	float Min = MAX_flt;
+	float Max = -MAX_flt;
+	float Delta = 1.0f;
+};
+
 class FDebuggerDatabaseRowData : public TSharedFromThis<FDebuggerDatabaseRowData>
 {
 public:
 	FDebuggerDatabaseRowData() = default;
 	
-	float GetPoseCost() const { return PoseCostDetails.ChannelCosts.Num() ? PoseCostDetails.ChannelCosts[0] : 0.0f; }
-	float GetTrajectoryCost() const { return PoseCostDetails.ChannelCosts.Num() >= 3 ? PoseCostDetails.ChannelCosts[1] + PoseCostDetails.ChannelCosts[2] : 0.0f; }
+	float GetChannelCost(int32 ChannelIdx) const
+	{
+		return PoseCostDetails.ChannelCosts.IsValidIndex(ChannelIdx)
+			? PoseCostDetails.ChannelCosts[ChannelIdx]
+			: 0.0f;
+	}
+	
 	float GetAddendsCost() const { return PoseCostDetails.NotifyCostAddend + PoseCostDetails.MirrorMismatchCostAddend; }
 
-	void CalculateColors(float CostMin, float CostDelta, float PoseCostMin, float PoseCostDelta, float TrajectoryCostMin, float TrajectoryCostDelta)
+	void CalculateColors(FChannelCostRange TotalCostRange, TArrayView<const FChannelCostRange> ChannelCostRanges)
 	{
-		const float CostColorBlend = (PoseCostDetails.PoseCost.TotalCost - CostMin) / CostDelta;
+		const float CostColorBlend = (PoseCostDetails.PoseCost.TotalCost - TotalCostRange.Min) / TotalCostRange.Delta;
 		CostColor = LinearColorBlend(FLinearColor::Green, FLinearColor::Red, CostColorBlend);
 
-		const float PoseCostColorBlend = (GetPoseCost() - PoseCostMin) / PoseCostDelta;
-		PoseCostColor = LinearColorBlend(FLinearColor::Green, FLinearColor::Red, PoseCostColorBlend);
+		ChannelCostColors.SetNum(ChannelCostRanges.Num());
+		for (int32 ChannelIdx = 0; ChannelIdx != ChannelCostRanges.Num(); ++ChannelIdx)
+		{
+			const FChannelCostRange& CostRange = ChannelCostRanges[ChannelIdx];
+			const float ColorBlend = (GetChannelCost(ChannelIdx) - CostRange.Min) / CostRange.Delta;
+			ChannelCostColors[ChannelIdx] = LinearColorBlend(FLinearColor::Green, FLinearColor::Red, ColorBlend);
+		}
+	}
 
-		const float TrajectoryCostColorBlend = (GetTrajectoryCost() - TrajectoryCostMin) / TrajectoryCostDelta;
-		TrajectoryCostColor = LinearColorBlend(FLinearColor::Green, FLinearColor::Red, TrajectoryCostColorBlend);
+	FLinearColor GetChannelCostColor (int32 ChannelIdx) const
+	{
+		return ChannelCostColors.IsValidIndex(ChannelIdx) ? ChannelCostColors[ChannelIdx] : FLinearColor::White;
 	}
 
 	ESearchIndexAssetType AssetType = ESearchIndexAssetType::Invalid;
@@ -298,8 +317,7 @@ public:
 	FVector BlendParameters = FVector::Zero();
 	FPoseCostDetails PoseCostDetails;
 	FLinearColor CostColor = FLinearColor::White;
-	FLinearColor PoseCostColor = FLinearColor::White;
-	FLinearColor TrajectoryCostColor = FLinearColor::White;
+	TArray<FLinearColor> ChannelCostColors;
 };
 
 namespace DebuggerDatabaseColumns
@@ -311,9 +329,12 @@ namespace DebuggerDatabaseColumns
 			: SortIndex(InSortIndex)
 			, bEnabled(InEnabled)
 		{
+			ColumnId = FName(FString::Printf(TEXT("Column %d"), SortIndex));
 		}
 
 		virtual ~IColumn() = default;
+
+		FName ColumnId;
 
 		/** Sorted left to right based on this index */
 		int32 SortIndex = 0;
@@ -322,7 +343,7 @@ namespace DebuggerDatabaseColumns
 		/** Disabled selectively with view options */
 		bool bEnabled = false;
 
-		virtual FName GetName() const = 0;
+		virtual FText GetLabel() const = 0;
 
 		using FRowDataRef = TSharedRef<FDebuggerDatabaseRowData>;
 		using FSortPredicate = TFunctionRef<bool(const FRowDataRef&, const FRowDataRef&)>;
@@ -364,8 +385,8 @@ namespace DebuggerDatabaseColumns
 	struct FPoseIdx : ITextColumn
 	{
 		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelPoseIndex", "Pose Index"); }
 
 		virtual FSortPredicate GetSortPredicate() const override
 		{
@@ -377,13 +398,12 @@ namespace DebuggerDatabaseColumns
 			return FText::AsNumber(Row->PoseIdx, &FNumberFormattingOptions::DefaultNoGrouping());
 		}
 	};
-	const FName FPoseIdx::Name = "Pose Index";
 
 	struct FAssetName : IColumn
 	{
 		using IColumn::IColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelAssetName", "Asset"); }
 		
 		virtual FSortPredicate GetSortPredicate() const override
 		{
@@ -407,13 +427,12 @@ namespace DebuggerDatabaseColumns
 					});
 		}
 	};
-	const FName FAssetName::Name = "Asset";
 
 	struct FAssetType : ITextColumn
 	{
 		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelAssetType", "Type"); }
 
 		virtual FSortPredicate GetSortPredicate() const override
 		{
@@ -437,13 +456,12 @@ namespace DebuggerDatabaseColumns
 			}
 		}
 	};
-	const FName FAssetType::Name = "Type";
 
 	struct FFrame : ITextColumn
 	{
 		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelFrame", "Frame"); }
 		
 		virtual FSortPredicate GetSortPredicate() const override
 		{
@@ -477,13 +495,12 @@ namespace DebuggerDatabaseColumns
 			}
 		}
 	};
-	const FName FFrame::Name = "Frame";
 
 	struct FCost : ITextColumn
 	{
 		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelCost", "Cost"); }
 		
 		virtual FSortPredicate GetSortPredicate() const override
 		{
@@ -500,61 +517,46 @@ namespace DebuggerDatabaseColumns
 			return Row->CostColor;
 		}
 	};
-	const FName FCost::Name = "Cost";
 
-
-	struct FPoseCostColumn : ITextColumn
+	struct FChannelCostColumn : ITextColumn
 	{
-		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
-		
+		struct FParams
+		{
+			int32 SortIndex;
+			bool bEnabled = true;
+			int32 ChannelIdx;
+		};
+
+		FChannelCostColumn(const FParams& Params)
+			: ITextColumn(Params.SortIndex, Params.bEnabled)
+			, ChannelIdx(Params.ChannelIdx)
+		{}
+
+		virtual FText GetLabel() const override { return FText::Format(LOCTEXT("ColumnLabelChannelCost", "Cost[{0}]"), ChannelIdx); }
+
 		virtual FSortPredicate GetSortPredicate() const override
 		{
-			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetPoseCost() < Row1->GetPoseCost(); };
+			return [this](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetChannelCost(ChannelIdx) < Row1->GetChannelCost(ChannelIdx); };
 		}
 
 		virtual FText GetRowText(const FRowDataRef& Row) const override
 		{
-			return FText::AsNumber(Row->GetPoseCost());
+			return FText::AsNumber(Row->GetChannelCost(ChannelIdx));
 		}
 
 		virtual FSlateColor GetColorAndOpacity(const FRowDataRef& Row) const override
 		{
-			return Row->PoseCostColor;
+			return Row->GetChannelCostColor(ChannelIdx);
 		}
+
+		int32 ChannelIdx = -1;
 	};
-	const FName FPoseCostColumn::Name = "Pose Cost";
-
-
-	struct FTrajectoryCost : ITextColumn
-	{
-		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
-		
-		virtual FSortPredicate GetSortPredicate() const override
-		{
-			return [](const FRowDataRef& Row0, const FRowDataRef& Row1) -> bool { return Row0->GetTrajectoryCost() < Row1->GetTrajectoryCost(); };
-		}
-		
-		virtual FText GetRowText(const FRowDataRef& Row) const override
-		{
-			return FText::AsNumber(Row->GetTrajectoryCost());
-        }
-
-		virtual FSlateColor GetColorAndOpacity(const FRowDataRef& Row) const override
-		{
-			return Row->TrajectoryCostColor;
-		}
-	};
-	const FName FTrajectoryCost::Name = "Trajectory Cost";
 
 	struct FCostModifier : ITextColumn
 	{
 		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelCostModifier", "Cost Modifier"); }
 
 		virtual FSortPredicate GetSortPredicate() const override
 		{
@@ -566,13 +568,12 @@ namespace DebuggerDatabaseColumns
 			return FText::AsNumber(Row->GetAddendsCost());
 		}
 	};
-	const FName FCostModifier::Name = "Cost Modifier";
 
 	struct FMirrored : ITextColumn
 	{
 		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelMirrored", "Mirrored"); }
 
 		virtual FSortPredicate GetSortPredicate() const override
 		{
@@ -584,13 +585,12 @@ namespace DebuggerDatabaseColumns
 			return FText::Format(LOCTEXT("Mirrored", "{0}"), { Row->bMirrored } );
 		}
 	};
-	const FName FMirrored::Name = "Mirrored";
 
 	struct FLooping : ITextColumn
 	{
 		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelLooping", "Looping"); }
 
 		virtual FSortPredicate GetSortPredicate() const override
 		{
@@ -602,13 +602,12 @@ namespace DebuggerDatabaseColumns
 			return FText::Format(LOCTEXT("Looping", "{0}"), { Row->bLooping });
 		}
 	};
-	const FName FLooping::Name = "Looping";
 
 	struct FBlendParameters : ITextColumn
 	{
 		using ITextColumn::ITextColumn;
-		static const FName Name;
-		virtual FName GetName() const override { return Name; }
+
+		virtual FText GetLabel() const override { return LOCTEXT("ColumnLabelBlendParams", "Blend Parameters"); }
 
 		virtual FSortPredicate GetSortPredicate() const override
 		{
@@ -640,8 +639,6 @@ namespace DebuggerDatabaseColumns
 			}
 		}
 	};
-	const FName FBlendParameters::Name = "Blend Parameters";
-
 }
 
 
@@ -773,15 +770,14 @@ void SDebuggerDatabaseView::RefreshColumns()
 	for(TPair<FName, TSharedRef<IColumn>>& ColumnPair : Columns)
 	{
 		IColumn& Column = ColumnPair.Value.Get();
-		const FName& ColumnName = Column.GetName();
 		if(ColumnPair.Value->bEnabled)
 		{
 			SHeaderRow::FColumn::FArguments ColumnArgs = SHeaderRow::FColumn::FArguments()
-				.ColumnId(ColumnName)
-				.DefaultLabel(FText::FromName(ColumnName))
-				.SortMode(this, &SDebuggerDatabaseView::GetColumnSortMode, ColumnName)
+				.ColumnId(Column.ColumnId)
+				.DefaultLabel(Column.GetLabel())
+				.SortMode(this, &SDebuggerDatabaseView::GetColumnSortMode, Column.ColumnId)
 				.OnSort(this, &SDebuggerDatabaseView::OnColumnSortModeChanged)
-				.FillWidth(this, &SDebuggerDatabaseView::GetColumnWidth, ColumnName)
+				.FillWidth(this, &SDebuggerDatabaseView::GetColumnWidth, Column.ColumnId)
 				.VAlignCell(VAlign_Center)
 				.VAlignHeader(VAlign_Center)
 				.HAlignHeader(HAlign_Center)
@@ -790,16 +786,16 @@ void SDebuggerDatabaseView::RefreshColumns()
 			FilteredDatabaseView.HeaderRow->AddColumn(ColumnArgs);
 			
 			// Every time the active column is changed, update the database column
-			ActiveView.HeaderRow->AddColumn(ColumnArgs.OnWidthChanged(this, &SDebuggerDatabaseView::OnColumnWidthChanged, ColumnName));
+			ActiveView.HeaderRow->AddColumn(ColumnArgs.OnWidthChanged(this, &SDebuggerDatabaseView::OnColumnWidthChanged, Column.ColumnId));
 			
-			ContinuingPoseView.HeaderRow->AddColumn(ColumnArgs.OnWidthChanged(this, &SDebuggerDatabaseView::OnColumnWidthChanged, ColumnName));
+			ContinuingPoseView.HeaderRow->AddColumn(ColumnArgs.OnWidthChanged(this, &SDebuggerDatabaseView::OnColumnWidthChanged, Column.ColumnId));
 		}
 	}
 }
 
 void SDebuggerDatabaseView::AddColumn(TSharedRef<DebuggerDatabaseColumns::IColumn>&& Column)
 {
-	Columns.Add(Column->GetName(), Column);
+	Columns.Add(Column->ColumnId, Column);
 }
 
 EColumnSortMode::Type SDebuggerDatabaseView::GetColumnSortMode(const FName ColumnId) const
@@ -1005,7 +1001,7 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	check(ContinuingPoseView.Rows.Num() == 1);
 
 	FPoseSearchWeightsContext StateWeights;
-	StateWeights.Update(State.Weights, &Database);
+	StateWeights.Update(&Database);
 
 	UE::PoseSearch::FSearchContext SearchContext;
 	SearchContext.SetSource(&Database);
@@ -1068,61 +1064,56 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 
 void SDebuggerDatabaseView::ComputeFilteredDatabaseRowsColors()
 {
-	float CostMin = MAX_flt;
-	float CostMax = -MAX_flt;
-
-	float PoseCostMin = MAX_flt;
-	float PoseCostMax = -MAX_flt;
-
-	float TrajectoryCostMin = MAX_flt;
-	float TrajectoryCostMax = -MAX_flt;
-
+	FChannelCostRange CostRange;
+	TArray<FChannelCostRange> ChannelCostRanges;
 	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : FilteredDatabaseView.Rows)
 	{
 		const float Cost = Row->PoseCostDetails.PoseCost.TotalCost;
-		CostMin = FMath::Min(CostMin, Cost);
-		CostMax = FMath::Max(CostMax, Cost);
+		CostRange.Min = FMath::Min(CostRange.Min, Cost);
+		CostRange.Max = FMath::Max(CostRange.Max, Cost);
 
-		const float PoseCost = Row->GetPoseCost();
-		PoseCostMin = FMath::Min(PoseCostMin, PoseCost);
-		PoseCostMax = FMath::Max(PoseCostMax, PoseCost);
+		const int32 NumChannels = Row->PoseCostDetails.ChannelCosts.Num();
+		if (ChannelCostRanges.Num() < NumChannels)
+		{
+			ChannelCostRanges.SetNum(NumChannels);
+		}
 
-		const float TrajectoryCost = Row->GetTrajectoryCost();
-		TrajectoryCostMin = FMath::Min(TrajectoryCostMin, TrajectoryCost);
-		TrajectoryCostMax = FMath::Max(TrajectoryCostMax, TrajectoryCost);
+		for (int32 ChannelIdx = 0; ChannelIdx != NumChannels; ++ChannelIdx)
+		{
+			ChannelCostRanges[ChannelIdx].Min = FMath::Min(ChannelCostRanges[ChannelIdx].Min, Row->PoseCostDetails.ChannelCosts[ChannelIdx]);
+			ChannelCostRanges[ChannelIdx].Max = FMath::Max(ChannelCostRanges[ChannelIdx].Max, Row->PoseCostDetails.ChannelCosts[ChannelIdx]);
+		}
 	}
 
-	float CostDelta = CostMax - CostMin;
-	if (FMath::IsNearlyZero(CostDelta))
+	CostRange.Delta = CostRange.Max - CostRange.Min;
+	if (FMath::IsNearlyZero(CostRange.Delta))
 	{
-		CostDelta = 1.f;
+		CostRange.Delta = 1.f;
 	}
 
-	float PoseCostDelta = PoseCostMax - PoseCostMin;
-	if (FMath::IsNearlyZero(PoseCostDelta))
+	for (int32 ChannelIdx = 0; ChannelIdx != ChannelCostRanges.Num(); ++ChannelIdx)
 	{
-		PoseCostDelta = 1.f;
-	}
-
-	float TrajectoryCostDelta = TrajectoryCostMax - TrajectoryCostMin;
-	if (FMath::IsNearlyZero(TrajectoryCostDelta))
-	{
-		TrajectoryCostDelta = 1.f;
+		FChannelCostRange ChannelCostRange = ChannelCostRanges[ChannelIdx];
+		ChannelCostRange.Delta = ChannelCostRange.Max - ChannelCostRange.Min;
+		if (FMath::IsNearlyZero(ChannelCostRange.Delta))
+		{
+			ChannelCostRange.Delta = 1.f;
+		}
 	}
 
 	for (const TSharedRef<FDebuggerDatabaseRowData>& Row : FilteredDatabaseView.Rows)
 	{
-		Row->CalculateColors(CostMin, CostDelta, PoseCostMin, PoseCostDelta, TrajectoryCostMin, TrajectoryCostDelta);
+		Row->CalculateColors(CostRange, ChannelCostRanges);
 	}
 
 	if (!ActiveView.Rows.IsEmpty())
 	{
-		ActiveView.Rows[0]->CalculateColors(CostMin, CostDelta, PoseCostMin, PoseCostDelta, TrajectoryCostMin, TrajectoryCostDelta);
+		ActiveView.Rows[0]->CalculateColors(CostRange, ChannelCostRanges);
 	}
 
 	if (!ContinuingPoseView.Rows.IsEmpty())
 	{
-		ContinuingPoseView.Rows[0]->CalculateColors(CostMin, CostDelta, PoseCostMin, PoseCostDelta, TrajectoryCostMin, TrajectoryCostDelta);
+		ContinuingPoseView.Rows[0]->CalculateColors(CostRange, ChannelCostRanges);
 	}
 }
 
@@ -1158,17 +1149,38 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 
 	// @TODO: Support runtime reordering of these indices
 	// Construct all column types
-	AddColumn(MakeShared<FAssetName>(0));
-	AddColumn(MakeShared<FAssetType>(1));
-	AddColumn(MakeShared<FCost>(2));
-	AddColumn(MakeShared<FPoseCostColumn>(3));
-	AddColumn(MakeShared<FTrajectoryCost>(4));
-	AddColumn(MakeShared<FCostModifier>(5));
-	AddColumn(MakeShared<FFrame>(6));
-	AddColumn(MakeShared<FMirrored>(7));
-	AddColumn(MakeShared<FLooping>(8));
-	AddColumn(MakeShared<FBlendParameters>(9));
-	AddColumn(MakeShared<FPoseIdx>(10));
+	int32 ColumnIdx = 0;
+	AddColumn(MakeShared<FAssetName>(ColumnIdx++));
+	AddColumn(MakeShared<FAssetType>(ColumnIdx++));
+
+	auto CostColumn = MakeShared<FCost>(ColumnIdx++);
+	AddColumn(CostColumn);
+
+	int32 ChannelIdx = 0;
+	FChannelCostColumn::FParams ChannelCostParams;
+	ChannelCostParams.ChannelIdx = ChannelIdx++;
+	ChannelCostParams.SortIndex = ColumnIdx++;
+	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
+
+	ChannelCostParams.ChannelIdx = ChannelIdx++;
+	ChannelCostParams.SortIndex = ColumnIdx++;
+	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
+
+	ChannelCostParams.ChannelIdx = ChannelIdx++;
+	ChannelCostParams.SortIndex = ColumnIdx++;
+	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
+
+	ChannelCostParams.ChannelIdx = ChannelIdx++;
+	ChannelCostParams.SortIndex = ColumnIdx++;
+	AddColumn(MakeShared<FChannelCostColumn>(ChannelCostParams));
+
+
+	AddColumn(MakeShared<FCostModifier>(ColumnIdx++));
+	AddColumn(MakeShared<FFrame>(ColumnIdx++));
+	AddColumn(MakeShared<FMirrored>(ColumnIdx++));
+	AddColumn(MakeShared<FLooping>(ColumnIdx++));
+	AddColumn(MakeShared<FBlendParameters>(ColumnIdx++));
+	AddColumn(MakeShared<FPoseIdx>(ColumnIdx++));
 
 	// Active Row
 	ActiveView.HeaderRow = SNew(SHeaderRow);
@@ -1451,7 +1463,7 @@ void SDebuggerDatabaseView::Construct(const FArguments& InArgs)
 		]
 	];
 	
-	SortColumn = FCost::Name;
+	SortColumn = CostColumn->ColumnId;
 	SortMode = EColumnSortMode::Ascending;
 
 	// Active and Continuing Pose view scroll bars only for indenting the columns to align w/ database
@@ -1803,16 +1815,6 @@ void SDebuggerView::DrawFeatures(
 		if (Options.bDisable)
 		{
 			return;
-		}
-
-		if (Options.bDrawPoseFeatures)
-		{
-			InDrawParams.Flags |= EDebugDrawFlags::IncludePose;
-		}
-
-		if (Options.bDrawTrajectoryFeatures)
-		{
-			InDrawParams.Flags |= EDebugDrawFlags::IncludeTrajectory;
 		}
 
 		if (Options.bDrawBoneNames)
@@ -2594,10 +2596,10 @@ void FDebuggerViewModel::UpdateAsset()
 		const float DT = static_cast<float>(FApp::GetDeltaTime()) * AssetPlayRate;
 		const float PlayLength = AnimAsset->GetPlayLength();
 
-		const float DistanceHorizon = Database->Schema->GetTrajectoryFutureDistanceHorizon();
-		const bool bExceededDistanceHorizon = Component->LastRootMotionDelta.GetTranslation().Size() > DistanceHorizon;
-		const float TimeHorizon = Database->Schema->GetTrajectoryFutureTimeHorizon();
-		const bool bExceededTimeHorizon = (AssetSkeleton.Time - AssetData.StartTime) > TimeHorizon;
+		const FFloatRange DistanceRange = Database->Schema->GetHorizonRange(EPoseSearchFeatureDomain::Distance);
+		const bool bExceededDistanceHorizon = !DistanceRange.IsEmpty() && (Component->LastRootMotionDelta.GetTranslation().Size() > DistanceRange.GetUpperBoundValue());
+		const FFloatRange TimeRange = Database->Schema->GetHorizonRange(EPoseSearchFeatureDomain::Time);
+		const bool bExceededTimeHorizon = !TimeRange.IsEmpty() && ((AssetSkeleton.Time - AssetData.StartTime) > TimeRange.GetUpperBoundValue());
 		const bool bExceededHorizon = bExceededDistanceHorizon && bExceededTimeHorizon;
 		if (bAssetLooping)
 		{
