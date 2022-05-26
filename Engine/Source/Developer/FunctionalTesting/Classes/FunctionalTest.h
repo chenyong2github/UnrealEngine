@@ -557,7 +557,7 @@ public:
 
 public:
 	
-	/** ACtors registered this way will be automatically destroyed (by limiting their lifespan)
+	/** Actors registered this way will be automatically destroyed (by limiting their lifespan)
 	 *	on test finish */
 	UFUNCTION(BlueprintCallable, Category="Development", meta=(Keywords = "Delete"))
 	virtual void RegisterAutoDestroyActor(AActor* ActorToAutoDestroy);
@@ -571,6 +571,7 @@ public:
 
 #if WITH_EDITOR
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 
 	static void OnSelectObject(UObject* NewSelection);
 #endif // WITH_EDITOR
@@ -579,6 +580,9 @@ public:
 	virtual void OnConstruction(const FTransform& Transform) override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+#if WITH_EDITOR
+	virtual bool CanChangeIsSpatiallyLoadedFlag() const { return false; }
+#endif
 	// AActor interface end
 
 	UFUNCTION(BlueprintCallable, Category = "Functional Testing")

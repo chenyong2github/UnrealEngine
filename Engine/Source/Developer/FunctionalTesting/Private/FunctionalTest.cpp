@@ -193,6 +193,8 @@ AFunctionalTest::AFunctionalTest( const FObjectInitializer& ObjectInitializer )
 		TestName->SetRelativeRotation(FRotator(0, 0, 0));
 		TestName->SetupAttachment(RootComponent);
 	}
+
+	bIsSpatiallyLoaded = false;
 #endif
 }
 
@@ -549,6 +551,18 @@ void AFunctionalTest::PostEditChangeProperty( struct FPropertyChangedEvent& Prop
 				}
 			}
 		}
+	}
+}
+
+void AFunctionalTest::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+
+	if (IsPackageExternal() && IsEnabled())
+	{
+		const FString TestActor = GetActorLabel() + TEXT("|") + GetName();
+		const TCHAR* TestCategory = IsEditorOnlyObject(this) ? TEXT("TestNameEditor") : TEXT("TestName");
+		OutTags.Add(UObject::FAssetRegistryTag(TestCategory, TestActor, UObject::FAssetRegistryTag::TT_Hidden));
 	}
 }
 
