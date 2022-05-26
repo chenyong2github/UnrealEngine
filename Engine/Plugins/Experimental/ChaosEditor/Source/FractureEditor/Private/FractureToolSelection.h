@@ -84,8 +84,11 @@ public:
 
 	/** Fraction of bones to keep in the selection: If less than 1, bones will be randomly excluded from the selection filter */
 	UPROPERTY(EditAnywhere, Category = FilterSettings, meta = (ClampMin = ".00001", UIMin = ".01", UIMax = "1"))
-	double KeepFrac = 1;
+	double KeepFraction = 1;
 
+	/** Seed to use for randomization when deciding which bones to keep w/ the Keep Fraction*/
+	UPROPERTY(EditAnywhere, Category = FilterSettings)
+	int RandomSeed = 1;
 };
 
 
