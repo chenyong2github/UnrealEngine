@@ -127,6 +127,18 @@ bool AOnlineBeaconClient::InitClient(FURL& URL)
 							// Send the player unique Id at login
 							BeaconConnection->PlayerId = LocalPlayer->GetPreferredUniqueNetId();
 						}
+						else
+						{
+							// Fall back to querying the identity interface.
+							if (IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(World))
+							{
+								TArray<TSharedPtr<FUserOnlineAccount> > UserAccounts = IdentityPtr->GetAllUserAccounts();
+								if (!UserAccounts.IsEmpty())
+								{
+									BeaconConnection->PlayerId = UserAccounts[0]->GetUserId();
+								}
+							}
+						}
 					}
 
 #if NETCONNECTION_HAS_SETENCRYPTIONKEY

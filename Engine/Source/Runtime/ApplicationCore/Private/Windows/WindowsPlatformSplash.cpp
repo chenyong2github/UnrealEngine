@@ -50,6 +50,7 @@ static HFONT GSplashScreenSmallTextFontHandle = NULL;
 static HFONT GSplashScreenNormalTextFontHandle = NULL;
 static HFONT GSplashScreenTitleTextFontHandle = NULL;
 static FCriticalSection GSplashScreenSynchronizationObject;
+static TAtomic<bool> GSplashExitRequested = false;
 
 
 
@@ -543,6 +544,7 @@ uint32 WINAPI StartSplashScreenThread( LPVOID unused )
 			int32 CurrentOpacityByte = 0;
 
 			MSG message;
+			bool bIsWindowDestructionStarted = false;
 			bool bIsSplashFinished = false;
 			while( !bIsSplashFinished )
 			{
@@ -578,6 +580,12 @@ uint32 WINAPI StartSplashScreenThread( LPVOID unused )
 				{
 					// Give up some time
 					FPlatformProcess::Sleep( 1.0f / 60.0f );
+				}
+
+				if (GSplashExitRequested && !bIsWindowDestructionStarted)
+				{
+					DestroyWindow(GSplashScreenWnd);
+					bIsWindowDestructionStarted = true;
 				}
 			}
 		}
@@ -679,6 +687,7 @@ void FWindowsPlatformSplash::Show()
 			}
 			
 			GSplashScreenFileName = SplashPath;
+			GSplashExitRequested = false;
 			DWORD ThreadID = 0;
 			GSplashScreenThread = CreateThread(NULL, 128 * 1024, (LPTHREAD_START_ROUTINE)StartSplashScreenThread, (LPVOID)NULL, STACK_SIZE_PARAM_IS_A_RESERVATION, &ThreadID);
 #if	STATS
@@ -695,8 +704,8 @@ void FWindowsPlatformSplash::Hide()
 		TRACE_CPUPROFILER_EVENT_SCOPE(FWindowsPlatformSplash::Hide);
 		if(GSplashScreenWnd)
 		{
-			// Send message to splash screen window to destroy itself
-			PostMessageW(GSplashScreenWnd, WM_DESTROY, 0, 0);
+			// The window must be destroyed from the creating thread to prevent leaking resources.
+			GSplashExitRequested = true;
 		}
 
 		// Wait for splash screen thread to finish

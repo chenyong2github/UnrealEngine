@@ -198,7 +198,7 @@ void UUpdateManager::CheckComplete(EUpdateCompletionStatus Result, bool bUpdateT
 	UE_LOG(LogHotfixManager, Display, TEXT("CheckComplete %s"), UpdateCompletionEnum ? *UpdateCompletionEnum->GetNameStringByValue((int64)Result) : TEXT("Invalid"));
 
 	UGameInstance* GameInstance = GetGameInstance();
-	bool bIsServer = GameInstance->IsDedicatedServerInstance();
+	bool bIsServer = GameInstance ? GameInstance->IsDedicatedServerInstance() : false;
 
 #if !UE_BUILD_SHIPPING
 	int32 DbgVal = CVarDebugUpdateManager.GetValueOnGameThread();
@@ -263,11 +263,9 @@ void UUpdateManager::StartPatchCheck()
 {
 	ensure(ChecksEnabled());
 
-	UGameInstance* GameInstance = GetGameInstance();
-	check(GameInstance);
-
 	SetUpdateState(EUpdateState::CheckingForPatch);
-	if (GameInstance->IsDedicatedServerInstance() || !bCurrentUpdatePatchCheckEnabled)
+	UGameInstance* GameInstance = GetGameInstance();
+	if ((GameInstance && GameInstance->IsDedicatedServerInstance()) || !bCurrentUpdatePatchCheckEnabled)
 	{
 		PatchCheckComplete(EPatchCheckResult::NoPatchRequired);
 		return;
