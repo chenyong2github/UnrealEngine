@@ -96,7 +96,11 @@ FLiveLinkTimedDataInput::FLiveLinkTimedDataInput(FLiveLinkClient* InClient, FGui
 
 FLiveLinkTimedDataInput::~FLiveLinkTimedDataInput()
 {
-	ITimeManagementModule::Get().GetTimedDataInputCollection().Remove(this);
+	ITimeManagementModule* TimeManagementModule = FModuleManager::GetModulePtr<ITimeManagementModule>("TimeManagement");
+	if (TimeManagementModule)
+	{
+		TimeManagementModule->GetTimedDataInputCollection().Remove(this);
+	}
 }
 
 FText FLiveLinkTimedDataInput::GetDisplayName() const
