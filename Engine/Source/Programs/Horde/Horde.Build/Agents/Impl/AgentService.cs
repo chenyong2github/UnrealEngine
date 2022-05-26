@@ -480,7 +480,7 @@ namespace Horde.Build.Services
 			catch (Exception ex)
 			{
 				_logger.LogError(ex, "Exception while trying to assign lease");
-				return Task.FromException<(ITaskSource, AgentLease)?>(ex);
+				return Task.FromResult<(ITaskSource, AgentLease)?>(null);
 			}
 		}
 
