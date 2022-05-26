@@ -161,7 +161,7 @@ FGBufferBinding FindGBufferBindingByName(const FGBufferInfo& GBufferInfo, const 
 			PixelFormat = PF_G16R16;
 			break;
 		case GBT_Float_16_16_16_16:
-			PixelFormat = PF_A16B16G16R16;
+			PixelFormat = PF_FloatRGBA;
 			break;
 		case GBT_Invalid:
 		default:
