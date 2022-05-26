@@ -17,7 +17,6 @@
 	"SupportedTargetPlatforms": [
 		"Win64",
 		"Linux",
-		"HoloLens",
 		"Android"
 	],
 	"Modules": [
@@ -28,7 +27,6 @@
 			"PlatformAllowList": [
 				"Win64",
 				"Linux",
-				"HoloLens",
 				"Android"
 			]
 		}

@@ -17,10 +17,9 @@
 	"Installed" : false,
 	"SupportedTargetPlatforms": [
 		"Win64",
-		"HoloLens",
 		"Android",
 		"IOS",
-        "Mac"
+        	"Mac"
 	],
 	"Modules": [
 		{
@@ -28,10 +27,9 @@
 			"Type": "Runtime",
 			"PlatformAllowList": [
 				"Win64",
-				"HoloLens",
 				"Android",
 				"IOS",
-                "Mac"
+				"Mac"
 			]
 		}
 	]
