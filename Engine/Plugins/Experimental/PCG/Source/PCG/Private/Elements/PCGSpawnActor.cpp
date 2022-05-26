@@ -5,6 +5,7 @@
 #include "Helpers/PCGActorHelpers.h"
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
+#include "PCGManagedResource.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "GameFramework/Actor.h"
@@ -174,13 +175,15 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 					SpawnParams.Owner = TargetActor;
 					SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
+					UPCGManagedActors* ManagedActors = NewObject<UPCGManagedActors>(Context->SourceComponent);
+
 					for (const FPCGPoint& Point : Points)
 					{
 						AActor* GeneratedActor = TargetActor->GetWorld()->SpawnActor(Settings->TemplateActorClass, &Point.Transform, SpawnParams);
 						GeneratedActor->Tags.Add(PCGHelpers::DefaultPCGActorTag);
 						GeneratedActor->AttachToActor(TargetActor, FAttachmentTransformRules::KeepWorldTransform);
 
-						Context->SourceComponent->AddToGeneratedActors(GeneratedActor);
+						ManagedActors->GeneratedActors.Add(GeneratedActor);
 
 						// If the actor spawned has a PCG component, either generate it or mark it as generated if we pass through its inputs
 						TArray<UPCGComponent*> PCGComponents;
@@ -198,6 +201,8 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 							}
 						}
 					}
+
+					Context->SourceComponent->AddToManagedResources(ManagedActors);
 
 					PCGE_LOG(Verbose, "Generated %d actors", Points.Num());
 				}

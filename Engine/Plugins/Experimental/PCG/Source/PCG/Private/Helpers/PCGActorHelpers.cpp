@@ -5,6 +5,7 @@
 #include "PCGHelpers.h"
 
 #include "PCGComponent.h"
+#include "PCGManagedResource.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/InheritableComponentHandler.h"
@@ -22,19 +23,27 @@
 #include "ObjectTools.h"
 #endif
 
-UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, const UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
+UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTargetActor, UPCGComponent* InSourceComponent, const FPCGISMCBuilderParameters& InParams)
 {
 	UStaticMesh* InMesh = InParams.Mesh;
 	const TArray<UMaterialInterface*>& InMaterials = InParams.MaterialOverrides;
 
 	check(InTargetActor != nullptr && InMesh != nullptr);
+	check(InSourceComponent);
 
 	TArray<UInstancedStaticMeshComponent*> ISMCs;
-	InTargetActor->GetComponents<UInstancedStaticMeshComponent>(ISMCs);
+	InSourceComponent->ForEachManagedResource([&ISMCs](UPCGManagedResource* InResource)
+	{
+		if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
+		{
+			ISMCs.Add(Resource->GetComponent());
+		}
+	});
 
 	for (UInstancedStaticMeshComponent* ISMC : ISMCs)
 	{
-		if (ISMC->GetStaticMesh() == InMesh &&
+		if (ISMC && 
+			ISMC->GetStaticMesh() == InMesh &&
 			(!InSourceComponent || ISMC->ComponentTags.Contains(InSourceComponent->GetFName())))
 		{
 			// If materials are provided, we'll make sure they match to the already set materials.
@@ -120,6 +129,11 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 	}
 	
 	ISMC->ComponentTags.Add(PCGHelpers::DefaultPCGTag);
+
+	// Create managed resource on source component
+	UPCGManagedISMComponent* Resource = NewObject<UPCGManagedISMComponent>(InSourceComponent);
+	Resource->GeneratedComponent = ISMC;
+	InSourceComponent->AddToManagedResources(Resource);
 
 	return ISMC;
 }

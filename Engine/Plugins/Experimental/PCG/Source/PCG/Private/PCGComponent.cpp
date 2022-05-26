@@ -4,6 +4,7 @@
 #include "PCGGraph.h"
 #include "PCGHelpers.h"
 #include "PCGVolume.h"
+#include "PCGManagedResource.h"
 #include "Data/PCGDifferenceData.h"
 #include "Data/PCGIntersectionData.h"
 #include "Data/PCGLandscapeData.h"
@@ -27,6 +28,7 @@
 #include "LandscapeInfo.h"
 #include "LandscapeSplineActor.h"
 #include "LandscapeSplinesComponent.h"
+#include "Misc/ScopeLock.h"
 #include "WorldPartition/WorldPartition.h"
 
 #if WITH_EDITOR
@@ -74,14 +76,24 @@ void UPCGComponent::SetGraph(UPCGGraph* InGraph)
 	}
 
 	OnGraphChanged(Graph, true, false);
-#endif	
+#endif
 }
 
-void UPCGComponent::AddToGeneratedActors(AActor* InActor)
+void UPCGComponent::AddToManagedResources(UPCGManagedResource* InResource)
 {
-	if (InActor)
+	if (InResource)
 	{
-		GeneratedActors.Add(InActor);
+		FScopeLock ResourcesLock(&GeneratedResourcesLock);
+		GeneratedResources.Add(InResource);
+	}
+}
+
+void UPCGComponent::ForEachManagedResource(TFunctionRef<void(UPCGManagedResource*)> Func)
+{
+	FScopeLock ResourcesLock(&GeneratedResourcesLock);
+	for (TObjectPtr<UPCGManagedResource> ManagedResource : GeneratedResources)
+	{
+		Func(ManagedResource);
 	}
 }
 
@@ -276,6 +288,8 @@ void UPCGComponent::PostProcessGraph(const FBox& InNewBounds, bool bInGenerated)
 
 	if (bInGenerated)
 	{
+		CleanupUnusedManagedResources();
+
 		bGenerated = true;
 
 #if WITH_EDITOR
@@ -335,7 +349,7 @@ void UPCGComponent::CleanupInternal(bool bRemoveComponents)
 	UPCGActorHelpers::DeleteActors(GetWorld(), ActorsToDelete.Array());
 }
 
-void UPCGComponent::CleanupInternal(bool bRemoveComponents, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
+void UPCGComponent::CleanupInternal(bool bHardCleanup, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
 {
 	if (!bGenerated || IsPartitioned())
 	{
@@ -345,48 +359,28 @@ void UPCGComponent::CleanupInternal(bool bRemoveComponents, TSet<TSoftObjectPtr<
 	Modify();
 	bGenerated = false;
 
-	// TODO: remove any ISM, HISM on this actor that were created by the PCG execution
-	// TODO: call recursively on actors generated through this + delete them.
-	TArray<UInstancedStaticMeshComponent*> ISMCs;
-	GetOwner()->GetComponents<UInstancedStaticMeshComponent>(ISMCs);
-
-	for (UInstancedStaticMeshComponent* ISMC : ISMCs)
+	FScopeLock ResourcesLock(&GeneratedResourcesLock);
+	for (int32 ResourceIndex = GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
 	{
-		if (ISMC->ComponentTags.Contains(GetFName()))
+		check(GeneratedResources[ResourceIndex]);
+		if (GeneratedResources[ResourceIndex]->Release(bHardCleanup, OutActorsToDelete))
 		{
-			if (bRemoveComponents || ISMC->ComponentTags.Contains(PCGHelpers::DefaultPCGDebugTag))
-			{
-				ISMC->DestroyComponent();
-			}
-			else
-			{
-				ISMC->ClearInstances();
-				ISMC->UpdateBounds();
-			}
+			GeneratedResources.RemoveAtSwap(ResourceIndex);
 		}
 	}
+}
 
-	// Cleanup recursively before deleting the actor(s)
-	OutActorsToDelete.Append(GeneratedActors);
-
-	TArray<UPCGComponent*> ComponentsToCleanup;
-
-	for (TSoftObjectPtr<AActor> GeneratedActor : GeneratedActors)
+void UPCGComponent::CleanupUnusedManagedResources()
+{
+	FScopeLock ResourcesLock(&GeneratedResourcesLock);
+	for (int32 ResourceIndex = GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
 	{
-		if (GeneratedActor.IsValid())
+		check(GeneratedResources[ResourceIndex]);
+		if (GeneratedResources[ResourceIndex]->ReleaseIfUnused())
 		{
-			GeneratedActor.Get()->GetComponents<UPCGComponent>(ComponentsToCleanup);
-
-			for (UPCGComponent* Component : ComponentsToCleanup)
-			{
-				Component->CleanupInternal(/*bRemoveComponents=*/false, OutActorsToDelete);
-			}
-
-			ComponentsToCleanup.Reset();
+			GeneratedResources.RemoveAtSwap(ResourceIndex);
 		}
 	}
-
-	GeneratedActors.Reset();
 }
 
 void UPCGComponent::BeginPlay()
@@ -436,6 +430,31 @@ void UPCGComponent::PostLoad()
 	{
 		ExcludedTags.Append(ExclusionTags_DEPRECATED);
 		ExclusionTags_DEPRECATED.Reset();
+	}
+
+	/** Deprecation code, should be removed once generated data has been updated */
+	if (bGenerated && GeneratedResources.Num() == 0)
+	{
+		TArray<UInstancedStaticMeshComponent*> ISMCs;
+		GetOwner()->GetComponents<UInstancedStaticMeshComponent>(ISMCs);
+
+		for (UInstancedStaticMeshComponent* ISMC : ISMCs)
+		{
+			if (ISMC->ComponentTags.Contains(GetFName()))
+			{
+				UPCGManagedISMComponent* ManagedComponent = NewObject<UPCGManagedISMComponent>(this);
+				ManagedComponent->GeneratedComponent = ISMC;
+				GeneratedResources.Add(ManagedComponent);
+			}
+		}
+
+		if (GeneratedActors_DEPRECATED.Num() > 0)
+		{
+			UPCGManagedActors* ManagedActors = NewObject<UPCGManagedActors>(this);
+			ManagedActors->GeneratedActors = GeneratedActors_DEPRECATED;
+			GeneratedResources.Add(ManagedActors);
+			GeneratedActors_DEPRECATED.Reset();
+		}
 	}
 #endif
 
@@ -560,17 +579,25 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 void UPCGComponent::PreEditUndo()
 {
+	// Here we will keep a copy of flags that we require to keep through the undo
+	// so we can have a consistent state
+	LastGeneratedBoundsPriorToUndo = LastGeneratedBounds;
+
 	// We don't know what is changing so remove all callbacks
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
 	}
 
+	if (bGenerated)
+	{
+		// Cleanup so managed resources are cleaned in all cases
+		Cleanup(/*bRemoveComponents=*/true, /*bSave=*/PCGComponent::bSaveOnCleanupAndGenerate);
+		// Put back generated flag to its original value so it is captured properly
+		bGenerated = true;
+	}	
+	
 	TeardownTrackingCallbacks();
-	// Here we will keep a copy of flags that we require to keep through the undo
-	// so we can have a consistent state
-	bWasGeneratedPriorToUndo = bGenerated;
-	LastGeneratedBoundsPriorToUndo = LastGeneratedBounds;
 }
 
 void UPCGComponent::PostEditUndo()
@@ -586,14 +613,8 @@ void UPCGComponent::PostEditUndo()
 	RefreshTrackingData();
 	DirtyGenerated(/*bDirtyCachedInput=*/true);
 	DirtyCacheForAllTrackedTags();
-	
-	if (bWasGeneratedPriorToUndo && !bGenerated)
-	{
-		// Need to reset the generated flag to go through the Cleanup
-		bGenerated = true;
-		Cleanup(/*bRemoveComponents=*/true, /*bSave=*/PCGComponent::bSaveOnCleanupAndGenerate);
-	}
-	else
+
+	if (bGenerated)
 	{
 		Refresh();
 	}

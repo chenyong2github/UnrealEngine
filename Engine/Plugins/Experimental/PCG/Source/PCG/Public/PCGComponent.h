@@ -11,6 +11,7 @@
 
 class UPCGComponent;
 class UPCGGraph;
+class UPCGManagedResource;
 class UPCGData;
 class ALandscape;
 
@@ -35,6 +36,7 @@ class PCG_API UPCGComponent : public UActorComponent
 	GENERATED_BODY()
 
 	friend class UPCGSubsystem;
+	friend class UPCGManagedActors;
 
 public:
 	/** ~Begin UObject interface */
@@ -59,7 +61,8 @@ public:
 	UPCGGraph* GetGraph() const { return Graph; }
 	void SetGraph(UPCGGraph* InGraph);
 
-	void AddToGeneratedActors(AActor* InActor);
+	void AddToManagedResources(UPCGManagedResource* InResource);
+	void ForEachManagedResource(TFunctionRef<void(UPCGManagedResource*)> InFunction);
 
 	/** Transactionable methods to be called from details UI */
 	void Generate();
@@ -137,6 +140,7 @@ private:
 	void CleanupInternal(bool bRemoveComponents);
 	void CleanupInternal(bool bRemoveComponents, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete);
 	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated);
+	void CleanupUnusedManagedResources();
 
 	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds);
 
@@ -194,15 +198,19 @@ private:
 	UPROPERTY()
 	TSet<TWeakObjectPtr<AActor>> CachedExcludedActors; 
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TSet<TSoftObjectPtr<AActor>> GeneratedActors;
+	TSet<TSoftObjectPtr<AActor>> GeneratedActors_DEPRECATED;
+#endif
+
+	UPROPERTY()
+	TArray<TObjectPtr<UPCGManagedResource>> GeneratedResources;
 
 	UPROPERTY()
 	FBox LastGeneratedBounds = FBox(EForceInit::ForceInit);
 
 #if WITH_EDITOR
 	bool bIsGenerating = false;
-	bool bWasGeneratedPriorToUndo = false;
 	FBox LastGeneratedBoundsPriorToUndo = FBox(EForceInit::ForceInit);
 	FPCGTagToSettingsMap CachedTrackedTagsToSettings;
 #endif
@@ -216,4 +224,6 @@ private:
 	TMap<TWeakObjectPtr<AActor>, TSet<TObjectPtr<UObject>>> CachedTrackedActorToDependencies;
 	bool bActorToTagsMapPopulated = false;
 #endif
+
+	FCriticalSection GeneratedResourcesLock;
 };
