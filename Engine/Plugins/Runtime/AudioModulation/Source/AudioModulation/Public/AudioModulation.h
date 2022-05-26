@@ -92,7 +92,7 @@ namespace AudioModulation
 	AUDIOMODULATION_API void IterateModulationManagers(TFunctionRef<void(FAudioModulationManager&)> InFunction);
 } // namespace AudioModulation
 
-class FAudioModulationPluginFactory : public IAudioModulationFactory
+class AUDIOMODULATION_API FAudioModulationPluginFactory : public IAudioModulationFactory
 {
 public:
 	virtual const FName& GetDisplayName() const override
@@ -104,7 +104,7 @@ public:
 	virtual TAudioModulationPtr CreateNewModulationPlugin(FAudioDevice* OwningDevice) override;
 };
 
-class FAudioModulationModule : public IModuleInterface
+class AUDIOMODULATION_API FAudioModulationModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override;
