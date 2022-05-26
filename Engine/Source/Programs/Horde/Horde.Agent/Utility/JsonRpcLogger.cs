@@ -285,10 +285,10 @@ namespace Horde.Agent.Parser
 							AddEvent(jsonLogEvent.Data.Span, lineIndex, EventSeverity.Error, events);
 						}
 
-						writer.Write(jsonLogEvent.Data.Span);
-						writer.Write(newline);
+						int lineCount = jsonLogEvent.GetMessageLineCount();
+						WriteEvent(jsonLogEvent.Data.Span, lineCount, writer);
 
-						lineIndex++;
+						lineIndex += lineCount;
 					}
 					else
 					{
@@ -359,6 +359,42 @@ namespace Horde.Agent.Parser
 					}
 					break;
 				}
+			}
+		}
+
+		static readonly Utf8String s_newline = "\n";
+		static readonly Utf8String s_comma = ",";
+
+		public static void WriteEvent(ReadOnlySpan<byte> span, int lineCount, ArrayBufferWriter<byte> writer)
+		{
+			int insertIdx = span.Length;
+			if(lineCount > 1)
+			{
+				int endIdx = span.Length - 1;
+				while (endIdx > 0 && span[endIdx] == ' ')
+				{
+					endIdx--;
+				}
+				if(span[endIdx] == '}')
+				{
+					insertIdx = endIdx;
+				}
+			}
+
+			for (int idx = 0; idx < lineCount; idx++)
+			{
+				writer.Write(span.Slice(0, insertIdx));
+				if (insertIdx < span.Length)
+				{
+					writer.Write(s_comma);
+					using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(writer, new JsonWriterOptions { SkipValidation = true }))
+					{
+						jsonWriter.WriteNumber(LogEventPropertyName.Line, idx);
+						jsonWriter.WriteNumber(LogEventPropertyName.LineCount, lineCount);
+					}
+					writer.Write(span.Slice(insertIdx));
+				}
+				writer.Write(s_newline);
 			}
 		}
 

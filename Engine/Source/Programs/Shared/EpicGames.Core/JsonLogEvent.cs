@@ -135,6 +135,58 @@ namespace EpicGames.Core
 			return (LogLevel)result;
 		}
 
+		static readonly Utf8String s_newlineEscaped = "\\n";
+
+		/// <summary>
+		/// Count the number of lines in the message field of a log event
+		/// </summary>
+		/// <returns>Number of lines in the message</returns>
+		public int GetMessageLineCount()
+		{
+			if (Data.Span.IndexOf(s_newlineEscaped.Span) != -1)
+			{
+				Utf8JsonReader reader = new Utf8JsonReader(Data.Span);
+				if (reader.Read() && reader.TokenType == JsonTokenType.StartObject)
+				{
+					while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
+					{
+						ReadOnlySpan<byte> propertyName = reader.ValueSpan;
+						if (!reader.Read())
+						{
+							break;
+						}
+						else if (propertyName.SequenceEqual(LogEventPropertyName.Message) && reader.TokenType == JsonTokenType.String)
+						{
+							return CountLines(reader.ValueSpan);
+						}
+					}
+				}
+			}
+			return 1;
+		}
+		
+		/// <summary>
+		/// Counts the number of newlines in an escaped JSON string
+		/// </summary>
+		/// <param name="str">The escaped string</param>
+		/// <returns></returns>
+		static int CountLines(ReadOnlySpan<byte> str)
+		{
+			int lines = 1;
+			for (int idx = 0; idx < str.Length - 1; idx++)
+			{
+				if (str[idx] == '\\')
+				{
+					if (str[idx + 1] == 'n')
+					{
+						lines++;
+					}
+					idx++;
+				}
+			}
+			return lines;
+		}
+
 		/// <summary>
 		/// Formats an event as a string
 		/// </summary>
