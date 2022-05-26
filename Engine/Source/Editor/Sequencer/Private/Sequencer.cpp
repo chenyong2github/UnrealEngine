@@ -7092,7 +7092,7 @@ void FSequencer::GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyArea
 			NodesToKey.Add(Node.ToSharedRef());
 
 			// No need to gather key areas from binding/tracks because they have no key areas
-			if (Node->IsA<IObjectBindingExtension>() || Node->IsA<ITrackExtension>())
+			if (Node->IsA<IObjectBindingExtension>() || Node->IsA<ITrackExtension>() || Node->IsA<FFolderModel>())
 			{
 				continue;
 			}
@@ -7113,7 +7113,7 @@ void FSequencer::GetSelectedKeyAreas(TArray<const IKeyArea*>& OutSelectedKeyArea
 	for (TSharedRef<FViewModel> Node : NodesToKey)
 	{
 		//if object or track selected we don't want all of the children only if spefically selected.
-		if (!Node->IsA<ITrackExtension>() && !Node->IsA<IObjectBindingExtension>())
+		if (!Node->IsA<ITrackExtension>() && !Node->IsA<IObjectBindingExtension>() && !Node->IsA<FFolderModel>())
 		{
 			SequencerHelpers::GetAllKeyAreas(Node, KeyAreas);
 		}
