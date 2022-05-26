@@ -27,11 +27,14 @@ public class Blosc : ModuleRules
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libblosc" + LibPostfix + ".lib"));
 		}
-		else
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			string Err = "Platform " + Target.Platform + " not supported!";
-			System.Console.WriteLine(Err);
-			throw new BuildException(Err);
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"Mac",
+				"lib");
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libblosc" + LibPostfix + ".a"));
 		}
 	}
 }

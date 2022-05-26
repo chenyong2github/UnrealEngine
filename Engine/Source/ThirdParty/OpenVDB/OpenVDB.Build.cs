@@ -25,7 +25,6 @@ public class OpenVDB : ModuleRules
 		PublicDefinitions.Add("OPENVDB_OPENEXR_STATICLIB");
 		PublicDefinitions.Add("NOMINMAX");
 
-		// Only building for Windows
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Windows))
 		{
 			string LibDirectory = Path.Combine(
@@ -36,11 +35,19 @@ public class OpenVDB : ModuleRules
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libopenvdb.lib"));
 		}
+		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		{
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"Mac",
+				"lib");
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libopenvdb.a"));
+		}
 		else
 		{
-			const string error = "OpenVDB can only be used under Windows 64-bit!";
-			System.Console.WriteLine(error);
-			throw new BuildException(error);
+			// OpenVDB is currently only supported on Windows and Mac.
+			return;
 		}
 
 		PublicDependencyModuleNames.AddRange(
