@@ -21,6 +21,7 @@ namespace Gauntlet
 		public int RAMInGB { get; set; }
 		public string RenderMode { get; set; }
 		public string RHI { get; set; }
+		public string AppInstanceLog { get; set; }
 	}
 	public class UnrealAutomationComparisonFiles
 	{
@@ -83,7 +84,7 @@ namespace Gauntlet
 		public string FullTestPath { get; set; }
 		public string ArtifactName { get; set; }
 		public TestStateType State { get; set; }
-		public string DeviceInstance { get; set; }
+		public List<string> DeviceInstance { get; set; }
 		public float Duration { get; set; }
 		public string DateTime { get; set; }
 		public int Warnings { get; set; }

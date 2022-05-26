@@ -1264,6 +1264,8 @@ namespace Gauntlet
 				string HordeArtifactPath = GetCachedConfiguration().HordeArtifactPath;
 				Log.Verbose("Reading json Unreal Automated test report from {0}", JsonReportPath);
 				UnrealAutomatedTestPassResults JsonTestPassResults = UnrealAutomatedTestPassResults.LoadFromJson(JsonReportPath);
+				var MainRole = GetCachedConfiguration().GetMainRequiredRole();
+				string LastTestWithCriticalFailure = string.Empty;
 				if (JsonTestPassResults.InProcess > 0)
 				{
 					// The test pass did not run completely
@@ -1280,14 +1282,31 @@ namespace Gauntlet
 								break;
 							}
 						}
-						if (FatalError != null)
+						var Test = JsonTestPassResults.Tests.FirstOrDefault((T => T.State == TestStateType.InProcess));
+						if (!String.IsNullOrEmpty(Test.TestDisplayName))
 						{
-							var Test = JsonTestPassResults.Tests.FirstOrDefault((T => T.State == TestStateType.InProcess));
-							if (!String.IsNullOrEmpty(Test.TestDisplayName))
+							LastTestWithCriticalFailure = Test.FullTestPath;
+							string ErrorMessage = "Engine encountered a critical failure. \n";
+							if (FatalError != null)
 							{
-								Test.AddError("Engine encountered a critical failure. \n" + FatalError.FormatForLog());
-								JsonTestPassResults.WriteToJson(JsonReportPath);
+								ErrorMessage += FatalError.FormatForLog();
 							}
+							else
+							{
+								ErrorMessage += "No callstack found in the log.";
+							}
+							Test.AddError(ErrorMessage);
+							if (Retries >= MaxRetries || JsonTestPassResults.NotRun == 0)
+							{
+								// Setting the test as fail because no retry will be done anymore.
+								// The InProcess state won't be used for pass resume
+								Test.State = TestStateType.Fail;
+								if (Retries >= MaxRetries)
+								{
+									Test.AddWarning(string.Format("Session reached maximum of retries({0}) to resume on critical failure!", Retries));
+								}
+							}
+							JsonTestPassResults.WriteToJson(JsonReportPath);
 						}
 					}
 				}
@@ -1312,7 +1331,13 @@ namespace Gauntlet
 								{
 									string LogName = Path.GetFullPath(Artifact.LogPath).Replace(Path.GetFullPath(Context.Options.LogDir), "").TrimStart(Path.DirectorySeparatorChar);
 									TempReport.AttachArtifact(Artifact.LogPath, LogName);
+									// Reference last run instance log
+									if(Artifact.SessionRole.RoleType == MainRole.Type)
+									{
+										JsonTestPassResults.Devices.Last().AppInstanceLog = LogName.Replace("\\", "/");
+									}
 								}
+								JsonTestPassResults.WriteToJson(JsonReportPath);
 							}
 							// Discard the report as we are going to do another pass.
 							return null;
@@ -1320,6 +1345,18 @@ namespace Gauntlet
 						else
 						{
 							Log.Error("Reach maximum of retries({0}) to resume on critical failure!", Retries);
+							// Adding a note to the report about why the not-run are not going to be run
+							string Message = string.Format("Session reached maximum of retries({0}) to resume on critical failure!", Retries);
+							if (!string.IsNullOrEmpty(LastTestWithCriticalFailure))
+							{
+								Message += string.Format(" \nLast critical failure was caught on {0}", LastTestWithCriticalFailure);
+							}
+							var NotRunTests = JsonTestPassResults.Tests.Where((T => T.State == TestStateType.NotRun));
+							foreach(var Test in NotRunTests)
+							{
+								Test.AddInfo(Message);
+							}
+							JsonTestPassResults.WriteToJson(JsonReportPath);
 						}
 					}
 				}
@@ -1337,9 +1374,9 @@ namespace Gauntlet
 				HordeTestPassResults.PreFlightChange = GetCachedConfiguration().PreFlightChange;
 				// Metadata
 				// With UE Test Automation, we care only for one role.
-				var MainRole = new List<UnrealTestRole>() { GetCachedConfiguration().GetMainRequiredRole() };
-				SetReportMetadata(HordeTestPassResults, MainRole);
-				SetReportMetadata(CopyTestPassResults, MainRole); // Set the metadata to the old report too
+				var RoleList = new List<UnrealTestRole>() { MainRole };
+				SetReportMetadata(HordeTestPassResults, RoleList);
+				SetReportMetadata(CopyTestPassResults, RoleList); // Set the metadata to the old report too
 				// Attached test Artifacts
 				if (SessionArtifacts != null)
 				{
@@ -1347,6 +1384,11 @@ namespace Gauntlet
 					{
 						string LogName = Path.GetFullPath(Artifact.LogPath).Replace(Path.GetFullPath(Context.Options.LogDir), "").TrimStart(Path.DirectorySeparatorChar);
 						HordeTestPassResults.AttachArtifact(Artifact.LogPath, LogName);
+						// Reference last run instance log
+						if (Artifact.SessionRole.RoleType == MainRole.Type)
+						{
+							HordeTestPassResults.Devices.Last().AppInstanceLog = LogName.Replace("\\", "/");
+						}
 					}
 				}
 				return HordeTestPassResults;

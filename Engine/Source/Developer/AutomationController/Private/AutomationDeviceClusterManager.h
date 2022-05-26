@@ -56,6 +56,10 @@ public:
 	/** The name of the current RHI */
 	UPROPERTY()
 	FString RHI;
+
+	/** The path to the application instance log */
+	UPROPERTY()
+	FString AppInstanceLog;
 };
 
 /**

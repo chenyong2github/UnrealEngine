@@ -473,7 +473,7 @@ namespace Gauntlet
 						ConvertedTestResult.TestDisplayName = InTestResult.TestDisplayName;
 						ConvertedTestResult.FullTestPath = InTestResult.FullTestPath;
 						ConvertedTestResult.State = InTestResult.State;
-						ConvertedTestResult.DeviceInstance = InTestResult.DeviceInstance;
+						ConvertedTestResult.DeviceInstance = InTestResult.DeviceInstance.FirstOrDefault();
 						Guid TestGuid = Guid.NewGuid();
 						ConvertedTestResult.ArtifactName = TestGuid + ".json";
 						InTestResult.ArtifactName = ConvertedTestResult.ArtifactName;
@@ -563,7 +563,7 @@ namespace Gauntlet
 				public string TestUID { get; set; }
 				public string Suite { get; set; }
 				public TestStateType State { get; set; }
-				public string DeviceAppInstanceName { get; set; }
+				public List<string> DeviceAppInstanceName { get; set; }
 				public uint ErrorCount { get; set; }
 				public uint WarningCount { get; set; }
 				public string ErrorHashAggregate { get; set; }
@@ -572,13 +572,13 @@ namespace Gauntlet
 				// not part of json output
 				public List<TestEvent> Events;
 				public SortedSet<string> ErrorHashes;
-				public TestResult(string InName, string InSuite, TestStateType InState, string InDevice, string InDateTime)
+				public TestResult(string InName, string InSuite, TestStateType InState, List<string> InDevices, string InDateTime)
 				{
 					Name = InName;
 					TestUID = GenerateHash(Name);
 					Suite = InSuite;
 					State = InState;
-					DeviceAppInstanceName = InDevice;
+					DeviceAppInstanceName = InDevices;
 					ErrorHashes = new SortedSet<string>();
 					ErrorHashAggregate = "";
 					DateTime = InDateTime;
@@ -640,9 +640,9 @@ namespace Gauntlet
 					Tests = new Dictionary<string, TestResult>();
 					TestResultsTestDataUID = Guid.NewGuid().ToString();
 				}
-				public TestResult NewTestResult(string InName, string InSuite, TestStateType InState, string InDevice, string InDateTime)
+				public TestResult NewTestResult(string InName, string InSuite, TestStateType InState, List<string> InDevices, string InDateTime)
 				{
-					TestResult NewItem = new TestResult(InName, InSuite, InState, InDevice, InDateTime);
+					TestResult NewItem = new TestResult(InName, InSuite, InState, InDevices, InDateTime);
 					Tests[NewItem.TestUID] = NewItem;
 					return NewItem;
 				}
@@ -651,11 +651,13 @@ namespace Gauntlet
 			{
 				public string Name { get; set; }
 				public string AppInstanceName { get; set; }
+				public string AppInstanceLog { get; set; }
 				public Dictionary<string, string> Metadata { get; set; }
-				public Device(string InName, string InInstance)
+				public Device(string InName, string InInstance, string InInstanceLog)
 				{
 					Name = InName;
 					AppInstanceName = InInstance;
+					AppInstanceLog = InInstanceLog;
 					Metadata = new Dictionary<string, string>();
 				}
 				public void SetMetaData(string Key, string Value)
@@ -783,9 +785,9 @@ namespace Gauntlet
 
 			private string CurrentTestUID;
 
-			private Device NewDevice(string InName, string InInstance)
+			private Device NewDevice(string InName, string InInstance, string InInstanceLog = null)
 			{
-				Device NewItem = new Device(InName, InInstance);
+				Device NewItem = new Device(InName, InInstance, InInstanceLog);
 				Devices.Add(NewItem);
 				return NewItem;
 			}
@@ -813,27 +815,56 @@ namespace Gauntlet
 				return TestSessionInfo.Tests[CurrentTestUID];
 			}
 
-			public void SetTest(string InName, string InSuite, string InDevice, string InDateTime = null)
+			/// <summary>
+			/// Add a Test entry and set it as current test
+			/// </summary>
+			/// <param name="InName"></param>
+			/// <param name="InSuite"></param>
+			/// <param name="InDevice"></param>
+			/// <param name="InDateTime"></param>
+			public void SetTest(string InName, string InSuite, List<string> InDevices, string InDateTime = null)
 			{
-				TestResult Test = TestSessionInfo.NewTestResult(InName, InSuite, TestStateType.Unknown, InDevice, InDateTime ?? DateTime.Now.ToString("yyyy.MM.dd-HH.mm.ss"));
+				TestResult Test = TestSessionInfo.NewTestResult(InName, InSuite, TestStateType.Unknown, InDevices, InDateTime);
 				CurrentTestUID = Test.TestUID;
 				// Index the test result data.
 				TestResults[Test.TestUID] = new TestResultData(Test);
 			}
+			/// <summary>
+			/// Set current test state
+			/// </summary>
+			/// <param name="InState"></param>
 			public void SetTestState(TestStateType InState)
 			{
 				TestResult CurrentTest = GetCurrentTest();
 				CurrentTest.State = InState;
 			}
+			/// <summary>
+			/// Set current test time elapse in second
+			/// </summary>
+			/// <param name="InTimeElapseSec"></param>
 			public void SetTestTimeElapseSec(float InTimeElapseSec)
 			{
 				TestResult CurrentTest = GetCurrentTest();
 				CurrentTest.TimeElapseSec = InTimeElapseSec;
 			}
+			/// <summary>
+			/// Add event to current test
+			/// </summary>
+			/// <param name="InType"></param>
+			/// <param name="InMessage"></param>
+			/// <param name="InContext"></param>
 			public override void AddEvent(EventType InType, string InMessage, object InContext = null)
 			{
 				AddEvent(InType, InMessage, "gauntlet", InContext == null ? null : InContext.ToString());
 			}
+			/// <summary>
+			/// Overload of AddEvent, add even to current test with date time
+			/// </summary>
+			/// <param name="InType"></param>
+			/// <param name="InMessage"></param>
+			/// <param name="InTag"></param>
+			/// <param name="InContext"></param>
+			/// <param name="InDateTime"></param>
 			public void AddEvent(EventType InType, string InMessage, string InTag, string InContext = null, string InDateTime = null)
 			{
 				TestResult CurrentTest = GetCurrentTest();
@@ -843,6 +874,13 @@ namespace Gauntlet
 					IndexTestError(Event.Hash, CurrentTest.TestUID, InMessage, InTag);
 				}
 			}
+			/// <summary>
+			/// Add artifact to last test event
+			/// </summary>
+			/// <param name="InTag"></param>
+			/// <param name="InFilePath"></param>
+			/// <param name="InReferencePath"></param>
+			/// <returns></returns>
 			public bool AddArtifactToLastEvent(string InTag, string InFilePath, string InReferencePath = null)
 			{
 				TestEvent LastEvent = GetCurrentTest().GetLastEvent();
@@ -891,7 +929,7 @@ namespace Gauntlet
 				{
 					foreach (UnrealAutomationDevice InDevice in InTestPassResults.Devices)
 					{
-						Device ConvertedDevice = OutTestPassResults.NewDevice(InDevice.DeviceName, InDevice.Instance);
+						Device ConvertedDevice = OutTestPassResults.NewDevice(InDevice.DeviceName, InDevice.Instance, InDevice.AppInstanceLog);
 						ConvertedDevice.SetMetaData("platform", InDevice.Platform);
 						ConvertedDevice.SetMetaData("os_version", InDevice.OSVersion);
 						ConvertedDevice.SetMetaData("model", InDevice.Model);
@@ -908,6 +946,12 @@ namespace Gauntlet
 				{
 					foreach (UnrealAutomatedTestResult InTestResult in InTestPassResults.Tests)
 					{
+						string TestDateTime = InTestResult.DateTime;
+						if (TestDateTime == "0001.01.01-00.00.00")
+						{
+							// Special case: when UE Test DateTime is set this way, it means the value was 0 or null before getting converted to json.
+							TestDateTime = null;
+						}
 						OutTestPassResults.SetTest(InTestResult.FullTestPath, InSuite, InTestResult.DeviceInstance, InTestResult.DateTime);
 						foreach (UnrealAutomationEntry InTestEntry in InTestResult.Entries)
 						{
@@ -930,6 +974,12 @@ namespace Gauntlet
 							{
 								Context = string.Format("{0} @line:{1}", InTestEntry.Filename, InTestEntry.LineNumber.ToString());
 							}
+							// Tag critical failure as crash
+							if (InTestEntry.Event.Type == EventType.Error && Tag == "entry" && InTestEntry.Event.Message.Contains("critical failure"))
+							{
+								Tag = "crash";
+							}
+
 							OutTestPassResults.AddEvent(InTestEntry.Event.Type, InTestEntry.Event.Message, Tag, Context, InTestEntry.Timestamp);
 							bool IsInfo = InTestEntry.Event.Type == EventType.Info;
 							// Add Artifacts
@@ -999,7 +1049,7 @@ namespace Gauntlet
 								{
 									foreach(var Item in FailedToAttached)
 									{
-										OutTestPassResults.AddEvent(EventType.Warning, string.Format("Failed to attached Artifact {0}.", FailedToAttached));
+										OutTestPassResults.AddEvent(EventType.Warning, string.Format("Failed to attached Artifact {0}.", Item));
 									}
 								}
 							}

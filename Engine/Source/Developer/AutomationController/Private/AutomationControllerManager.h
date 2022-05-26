@@ -37,7 +37,7 @@ public:
 	EAutomationState State;
 
 	UPROPERTY()
-	FString DeviceInstance;
+	TArray<FString> DeviceInstance;
 
 	UPROPERTY()
 	float Duration;

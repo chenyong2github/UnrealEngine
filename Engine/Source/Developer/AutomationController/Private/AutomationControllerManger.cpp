@@ -534,7 +534,6 @@ void FAutomationControllerManager::CollectTestResults(TSharedPtr<IAutomationRepo
 		FAutomatedTestResult& TestResult = JsonTestPassResults.GetTestResult(Report);
 		TestResult.SetEvents(Results.GetEntries(), Results.GetWarningTotal(), Results.GetErrorTotal());
 		TestResult.SetArtifacts(Results.Artifacts);
-		TestResult.DeviceInstance = Results.GameInstance;
 		TestResult.Duration = Results.Duration;
 
 		JsonTestPassResults.TotalDuration += Results.Duration;
@@ -724,25 +723,16 @@ void FAutomationControllerManager::ExecuteNextTask( int32 ClusterIndex, OUT bool
 					TArray<FMessageAddress> DeviceAddresses = DeviceClusterManager.GetDevicesReservedForTest(ClusterIndex, NextTest);
 					if (DeviceAddresses.Num() == NextTest->GetNumParticipantsRequired())
 					{
+						TArray<FString> GameInstances;
+
 						// Send it to each device
 						for (int32 AddressIndex = 0; AddressIndex < DeviceAddresses.Num(); ++AddressIndex)
 						{
 							FAutomationTestResults TestResults;
-							TSharedPtr< IAutomationReport > Test = TestsRunThisPass[AddressIndex];
-
-							UE_LOG(LogAutomationController, Display, AutomationTestStarting, *Test->GetDisplayName(), *Test->GetFullTestPath());
-							TestResults.State = EAutomationState::InProcess;
-
-							if (JsonTestPassResults.IsRequired && bResumeRunTest)
-							{
-								JsonTestPassResults.UpdateTestResultStatus(NextTest, TestResults.State);
-								// Save the whole pass report so that if the next test triggers a critical failure we are not left with no pass report and we can resume.
-								GenerateJsonTestPassSummary(JsonTestPassResults);
-							}
-
 							TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, DeviceIndex);
+							TestResults.State = EAutomationState::InProcess;
+							GameInstances.Add(TestResults.GameInstance);
 							NextTest->SetResults(ClusterIndex, CurrentTestPass, TestResults);
-							NextTest->ResetNetworkCommandResponses();
 
 							// Mark the device as busy
 							FMessageAddress DeviceAddress = DeviceAddresses[AddressIndex];
@@ -755,6 +745,19 @@ void FAutomationControllerManager::ExecuteNextTask( int32 ClusterIndex, OUT bool
 							// Add a test so we can check later if the device is still active
 							TestRunningArray.Add(FTestRunningInfo(DeviceAddress));
 						}
+
+						UE_LOG(LogAutomationController, Display, AutomationTestStarting, *NextTest->GetDisplayName(), *NextTest->GetFullTestPath());
+
+						if (JsonTestPassResults.IsRequired && bResumeRunTest)
+						{
+							JsonTestPassResults.UpdateTestResultStatus(NextTest, EAutomationState::InProcess);
+							FAutomatedTestResult& TestResult = JsonTestPassResults.GetTestResult(NextTest);
+							TestResult.DeviceInstance = GameInstances;
+							// Save the whole pass report so that if the next test triggers a critical failure we are not left with no pass report and we can resume.
+							GenerateJsonTestPassSummary(JsonTestPassResults);
+						}
+
+						NextTest->ResetNetworkCommandResponses();
 					}
 				}
 			}
@@ -777,7 +780,6 @@ void FAutomationControllerManager::ExecuteNextTask( int32 ClusterIndex, OUT bool
 			{
 				FAutomationTestResults TestResults;
 				TestResults.State = EAutomationState::Skipped;
-				TestResults.GameInstance = DeviceClusterManager.GetClusterDeviceName(ClusterIndex, 0);
 				TestResults.AddEvent(FAutomationEvent(EAutomationEventType::Warning, FString::Printf(TEXT("Skipped because the test needed %d devices to participate, Only had %d available."), CurrentTest->GetNumParticipantsRequired(), DeviceClusterManager.GetNumDevicesInCluster(ClusterIndex))));
 
 				CurrentTest->SetResults(ClusterIndex, CurrentTestPass, TestResults);
