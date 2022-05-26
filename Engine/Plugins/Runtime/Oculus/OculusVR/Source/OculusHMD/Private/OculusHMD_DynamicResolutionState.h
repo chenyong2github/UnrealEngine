@@ -25,8 +25,8 @@ public:
 	virtual void SetupMainViewFamily(class FSceneViewFamily& ViewFamily) override;
 
 protected:
-	virtual float GetResolutionFractionApproximation() const override;
-	virtual float GetResolutionFractionUpperBound() const override;
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsApproximation() const override;
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const override;
 	virtual void SetEnabled(bool bEnable) override;
 	virtual bool IsEnabled() const override;
 	virtual void ProcessEvent(EDynamicResolutionStateEvent Event) override;

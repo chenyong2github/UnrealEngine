@@ -720,14 +720,14 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 						GEngine->EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::BeginDynamicResolutionRendering);
 						ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
 							ViewFamily,
-							DynamicResolutionStateInfos.ResolutionFractionApproximation,
-							DynamicResolutionStateInfos.ResolutionFractionUpperBound));
+							DynamicResolutionStateInfos.ResolutionFractionApproximations[GDynamicPrimaryResolutionFraction],
+							DynamicResolutionStateInfos.ResolutionFractionUpperBounds[GDynamicPrimaryResolutionFraction]));
 					}
 
 	#if CSV_PROFILER
-					if (DynamicResolutionStateInfos.ResolutionFractionApproximation >= 0.0f)
+					if (DynamicResolutionStateInfos.ResolutionFractionApproximations[GDynamicPrimaryResolutionFraction] >= 0.0f)
 					{
-						CSV_CUSTOM_STAT_GLOBAL(DynamicResolutionPercentage, DynamicResolutionStateInfos.ResolutionFractionApproximation * 100.0f, ECsvCustomStatOp::Set);
+						CSV_CUSTOM_STAT_GLOBAL(DynamicResolutionPercentage, DynamicResolutionStateInfos.ResolutionFractionApproximations[GDynamicPrimaryResolutionFraction] * 100.0f, ECsvCustomStatOp::Set);
 					}
 	#endif
 				}

@@ -123,6 +123,10 @@ FBudget::FBudget(const TCHAR* InName, FHeuristicSettings (*InHeuristicSettingsGe
 	, GlobalListLink(this)
 {
 	check(InName);
+
+	AnsiName.SetNumZeroed(FCString::Strlen(InName) + 1);
+	FCStringAnsi::Strcpy(AnsiName.GetData(), AnsiName.Num(), TCHAR_TO_ANSI(InName));
+
 	GlobalListLink.LinkHead(FBudget::GetGlobalList());
 	BudgetId = GRDSGlobalListLinkSize;
 	GRDSGlobalListLinkSize++;

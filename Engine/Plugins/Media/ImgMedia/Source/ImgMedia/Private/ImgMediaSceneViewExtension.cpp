@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ImgMediaSceneViewExtension.h"
+#include "DynamicResolutionState.h"
 
 #include "SceneView.h"
 
@@ -32,7 +33,8 @@ void FImgMediaSceneViewExtension::BeginRenderViewFamily(FSceneViewFamily& InView
 
 	if (InViewFamily.GetScreenPercentageInterface())
 	{
-		ResolutionFraction *= InViewFamily.GetPrimaryResolutionFractionUpperBound();
+		DynamicRenderScaling::TMap<float> UpperBounds = InViewFamily.GetScreenPercentageInterface()->GetResolutionFractionsUpperBound();
+		ResolutionFraction *= UpperBounds[GDynamicPrimaryResolutionFraction];
 	}
 
 	static const auto CVarMinAutomaticViewMipBiasOffset = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ViewTextureMipBias.Offset"));

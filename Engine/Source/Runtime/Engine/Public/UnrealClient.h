@@ -17,6 +17,7 @@
 #include "HitProxies.h"
 #include "RenderGraphDefinitions.h"
 #include "Elements/Framework/TypedElementListFwd.h"
+#include "DynamicRenderScaling.h"
 
 class FCanvas;
 class FViewport;
@@ -256,7 +257,7 @@ struct FStatUnitData
 	TArray<float> FrameTimes;
 	TArray<float> RHITTimes;
 	TArray<float> InputLatencyTimes;
-	TArray<float> ResolutionFractions;
+	DynamicRenderScaling::TMap<TArray<float>> ResolutionFractions;
 #endif //!UE_BUILD_SHIPPING
 
 	FStatUnitData()
@@ -285,10 +286,14 @@ struct FStatUnitData
 		FrameTimes.AddZeroed(NumberOfSamples);
 		RHITTimes.AddZeroed(NumberOfSamples);
 		InputLatencyTimes.AddZeroed(NumberOfSamples);
-		ResolutionFractions.Reserve(NumberOfSamples);
-		for (int32 i = 0; i < NumberOfSamples; i++)
+		for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
 		{
-			ResolutionFractions.Add(-1.0f);
+			const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+			ResolutionFractions[Budget].Reserve(NumberOfSamples);
+			for (int32 i = 0; i < NumberOfSamples; i++)
+			{
+				ResolutionFractions[Budget].Add(-1.0f);
+			}
 		}
 #endif //!UE_BUILD_SHIPPING
 	}

@@ -290,7 +290,7 @@ public:
 		// Allocate new inflight frame.
 		if (bRecordThisFrame)
 		{
-			check(GRHISupportsGPUTimestampBubblesRemoval);
+			check(DynamicRenderScaling::IsSupported());
 
 			if (!QueryPool.IsValid())
 			{
@@ -464,7 +464,8 @@ namespace DynamicRenderScaling
 
 FRDGScope::FRDGScope(FRDGBuilder& InGraphBuilder, const DynamicRenderScaling::FBudget& InBudget)
 	: GraphBuilder(InGraphBuilder)
-	, bIsEnabled(GRDGTimingPool.IsRecordingThisFrame(InBudget))
+	, Budget(InBudget)
+	, bIsEnabled(GRDGTimingPool.IsRecordingThisFrame(InBudget) && !GraphBuilder.GPUScopeStacks.IsTimingScopeAlreadyEnabled(InBudget))
 {
 	if (bIsEnabled)
 	{
@@ -476,8 +477,13 @@ FRDGScope::~FRDGScope()
 {
 	if (bIsEnabled)
 	{
-		GraphBuilder.GPUScopeStacks.EndTimingScope();
+		GraphBuilder.GPUScopeStacks.EndTimingScope(Budget);
 	}
+}
+
+bool IsSupported()
+{
+	return GRHISupportsGPUTimestampBubblesRemoval;
 }
 
 void BeginFrame(const DynamicRenderScaling::TMap<bool>& bIsBudgetEnabled)

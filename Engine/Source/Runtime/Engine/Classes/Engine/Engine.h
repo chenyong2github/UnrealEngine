@@ -20,6 +20,7 @@
 #include "AudioDeviceManager.h"
 #include "Templates/UniqueObj.h"
 #include "Containers/Ticker.h"
+#include "DynamicRenderScaling.h"
 #include "Engine.generated.h"
 
 #define WITH_DYNAMIC_RESOLUTION (!UE_SERVER)
@@ -132,10 +133,10 @@ struct FDynamicResolutionStateInfos
 
 	// Approximation of the resolution fraction being applied. This is only an approximation because
 	// of non (and unecessary) thread safety of this value between game thread, and render thread.
-	float ResolutionFractionApproximation;
+	DynamicRenderScaling::TMap<float> ResolutionFractionApproximations;
 
 	// Maximum resolution fraction set, always MaxResolutionFraction >= ResolutionFractionApproximation.
-	float ResolutionFractionUpperBound;
+	DynamicRenderScaling::TMap<float> ResolutionFractionUpperBounds;
 };
 
 

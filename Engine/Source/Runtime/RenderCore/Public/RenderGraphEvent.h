@@ -348,6 +348,7 @@ public:
 
 private:
 	FRDGBuilder& GraphBuilder;
+	const DynamicRenderScaling::FBudget& Budget;
 	const bool bIsEnabled;
 };
 
@@ -770,16 +771,27 @@ struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
 	FRDGGPUScopeStacksByPipeline(FRDGAllocator& Allocator)
 		: Graphics(Allocator)
 		, AsyncCompute(Allocator)
-	{}
+	{
+		IsTimingIsEnabled.SetAll(false);
+	}
+
+	inline bool IsTimingScopeAlreadyEnabled(const DynamicRenderScaling::FBudget& Budget) const
+	{
+		return IsTimingIsEnabled[Budget];
+	}
 
 	inline void BeginTimingScope(const DynamicRenderScaling::FBudget& Budget)
 	{
+		check(!IsTimingIsEnabled[Budget]);
+		IsTimingIsEnabled[Budget] = true;
 		Graphics.Timing.BeginScope(Budget);
 		AsyncCompute.Timing.BeginScope(Budget);
 	}
 
-	inline void EndTimingScope()
+	inline void EndTimingScope(const DynamicRenderScaling::FBudget& Budget)
 	{
+		check(IsTimingIsEnabled[Budget]);
+		IsTimingIsEnabled[Budget] = false;
 		Graphics.Timing.EndScope();
 		AsyncCompute.Timing.EndScope();
 	}
@@ -830,6 +842,9 @@ struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
 
 	FRDGGPUScopeStacks Graphics;
 	FRDGGPUScopeStacks AsyncCompute;
+
+private:
+	DynamicRenderScaling::TMap<bool> IsTimingIsEnabled;
 };
 
 //////////////////////////////////////////////////////////////////////////

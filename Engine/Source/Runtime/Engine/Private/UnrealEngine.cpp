@@ -12274,8 +12274,8 @@ void UEngine::RestoreSelectedMaterialColor()
 void UEngine::GetDynamicResolutionCurrentStateInfos(FDynamicResolutionStateInfos& OutInfos) const
 {
 	OutInfos.Status = EDynamicResolutionStatus::Unsupported;
-	OutInfos.ResolutionFractionApproximation = -1.0f;
-	OutInfos.ResolutionFractionUpperBound = -1.0f;
+	OutInfos.ResolutionFractionApproximations.SetAll(-1.0f);
+	OutInfos.ResolutionFractionUpperBounds.SetAll(-1.0f);
 
 	#if WITH_DYNAMIC_RESOLUTION
 	{
@@ -12293,15 +12293,16 @@ void UEngine::GetDynamicResolutionCurrentStateInfos(FDynamicResolutionStateInfos
 		else if (ForceResolutionFraction > 0)
 		{
 			OutInfos.Status = EDynamicResolutionStatus::DebugForceEnabled;
-			OutInfos.ResolutionFractionApproximation = ForceResolutionFraction;
-			OutInfos.ResolutionFractionUpperBound = DynamicResolutionState->GetResolutionFractionUpperBound();
+			OutInfos.ResolutionFractionApproximations = DynamicResolutionState->GetResolutionFractionsApproximation();
+			OutInfos.ResolutionFractionApproximations[GDynamicPrimaryResolutionFraction] = ForceResolutionFraction;
+			OutInfos.ResolutionFractionUpperBounds = DynamicResolutionState->GetResolutionFractionsUpperBound();
 		}
 		#endif
 		else if (DynamicResolutionState->IsEnabled())
 		{
 			OutInfos.Status = EDynamicResolutionStatus::Enabled;
-			OutInfos.ResolutionFractionApproximation = DynamicResolutionState->GetResolutionFractionApproximation();
-			OutInfos.ResolutionFractionUpperBound = DynamicResolutionState->GetResolutionFractionUpperBound();
+			OutInfos.ResolutionFractionApproximations = DynamicResolutionState->GetResolutionFractionsApproximation();
+			OutInfos.ResolutionFractionUpperBounds = DynamicResolutionState->GetResolutionFractionsUpperBound();
 		}
 		else if (bIsDynamicResolutionPaused)
 		{
@@ -12313,7 +12314,13 @@ void UEngine::GetDynamicResolutionCurrentStateInfos(FDynamicResolutionStateInfos
 		}
 
 		// Min to ensure consistency when changing ResolutionFractionUpperBound setting.
-		OutInfos.ResolutionFractionApproximation = FMath::Min(OutInfos.ResolutionFractionApproximation, OutInfos.ResolutionFractionUpperBound);
+		for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
+		{
+			const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+			OutInfos.ResolutionFractionApproximations[Budget] = FMath::Min(
+				OutInfos.ResolutionFractionApproximations[Budget],
+				OutInfos.ResolutionFractionUpperBounds[Budget]);
+		}
 	}
 	#endif // !WITH_DYNAMIC_RESOLUTION
 }

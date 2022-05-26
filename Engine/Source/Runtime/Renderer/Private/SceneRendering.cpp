@@ -77,6 +77,7 @@
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "RectLightTextureManager.h"
+#include "DynamicResolutionState.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -532,9 +533,14 @@ public:
 		check(MaxResolutionFraction > 0.0f);
 	}
 
-	virtual float GetPrimaryResolutionFractionUpperBound() const override
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const override
 	{
-		return MaxResolutionFraction;
+		DynamicRenderScaling::TMap<float> ResolutionFractions;
+		if (ViewFamily.EngineShowFlags.ScreenPercentage)
+		{
+			ResolutionFractions[GDynamicPrimaryResolutionFraction] = MaxResolutionFraction;
+		}
+		return ResolutionFractions;
 	}
 
 	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override
@@ -550,15 +556,9 @@ public:
 			ForkedViewFamily, /* GlobalResolutionFraction = */ MaxResolutionFraction);
 	}
 
-	virtual float GetPrimaryResolutionFraction_RenderThread() const override
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractions_RenderThread() const override
 	{
 		check(IsInRenderingThread());
-
-		// Early return if no screen percentage should be done.
-		if (!ViewFamily.EngineShowFlags.ScreenPercentage)
-		{
-			return 1.0f;
-		}
 
 		uint32 FrameId = 0;
 
@@ -567,7 +567,14 @@ public:
 		{
 			FrameId = ViewState->GetFrameIndex(8);
 		}
-		return FrameId == 0 ? MaxResolutionFraction : FMath::Lerp(MinResolutionFraction, MaxResolutionFraction, 0.5f + 0.5f * FMath::Cos((FrameId + 0.25) * PI / 8));
+
+		DynamicRenderScaling::TMap<float> ResolutionFractions;
+		if (ViewFamily.EngineShowFlags.ScreenPercentage)
+		{
+			ResolutionFractions[GDynamicPrimaryResolutionFraction] =
+				FrameId == 0 ? MaxResolutionFraction : FMath::Lerp(MinResolutionFraction, MaxResolutionFraction, 0.5f + 0.5f * FMath::Cos((FrameId + 0.25) * PI / 8));
+		}
+		return ResolutionFractions;
 	}
 
 private:
@@ -2724,7 +2731,8 @@ FIntPoint FSceneRenderer::GetDesiredInternalBufferSize(const FSceneViewFamily& V
 		return DesiredBufferSize;
 	}
 
-	float PrimaryResolutionFractionUpperBound = ViewFamily.GetPrimaryResolutionFractionUpperBound();
+	DynamicRenderScaling::TMap<float> DynamicResolutionUpperBounds = ViewFamily.GetScreenPercentageInterface()->GetResolutionFractionsUpperBound();
+	float PrimaryResolutionFractionUpperBound = DynamicResolutionUpperBounds[GDynamicPrimaryResolutionFraction];
 
 	// Compute final resolution fraction.
 	float ResolutionFractionUpperBound = PrimaryResolutionFractionUpperBound * ViewFamily.SecondaryViewFraction;
@@ -2766,9 +2774,18 @@ void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHIC
 {
 	check(IsInRenderingThread());
 
+	// Read the resolution data.
+	{
+		check(ActiveViewFamily->ScreenPercentageInterface);
+		ActiveViewFamily->DynamicResolutionUpperBounds = ActiveViewFamily->ScreenPercentageInterface->GetResolutionFractionsUpperBound();
+		ActiveViewFamily->DynamicResolutionFractions = ActiveViewFamily->ScreenPercentageInterface->GetResolutionFractions_RenderThread();
+	}
+
 	// If not supporting screen percentage, bypass all computation.
 	if (!ActiveViewFamily->SupportsScreenPercentage())
 	{
+		ActiveViewFamily->DynamicResolutionFractions[GDynamicPrimaryResolutionFraction] = 1.0f;
+
 		// The base pass have to respect FSceneView::UnscaledViewRect.
 		for (FViewInfo& View : Views)
 		{
@@ -2812,8 +2829,7 @@ void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHIC
 		}
 	}
 
-	check(ActiveViewFamily->ScreenPercentageInterface);
-	float PrimaryResolutionFraction = ActiveViewFamily->ScreenPercentageInterface->GetPrimaryResolutionFraction_RenderThread();
+	float PrimaryResolutionFraction = ActiveViewFamily->DynamicResolutionFractions[GDynamicPrimaryResolutionFraction];
 	{
 		// Ensure screen percentage show flag is respected. Prefer to check() rather rendering at a differen screen percentage
 		// to make sure the renderer does not lie how a frame as been rendering to a dynamic resolution heuristic.
@@ -2823,7 +2839,7 @@ void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHIC
 		}
 
 		// Make sure the screen percentage interface has not lied to the renderer about the upper bound.
-		checkf(PrimaryResolutionFraction <= ActiveViewFamily->GetPrimaryResolutionFractionUpperBound(),
+		checkf(PrimaryResolutionFraction <= ActiveViewFamily->DynamicResolutionUpperBounds[GDynamicPrimaryResolutionFraction],
 			TEXT("ISceneViewFamilyScreenPercentage::GetPrimaryResolutionFractionUpperBound() should not lie to the renderer."));
 
 		check(ISceneViewFamilyScreenPercentage::IsValidResolutionFraction(PrimaryResolutionFraction));

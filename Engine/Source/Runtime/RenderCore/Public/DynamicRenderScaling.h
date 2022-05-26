@@ -87,6 +87,11 @@ public:
 		return Name;
 	}
 
+	inline const char* GetAnsiName() const
+	{
+		return AnsiName.GetData();
+	}
+
 	/* Returns the settings of the heuristic for this budget. */
 	inline const FHeuristicSettings& GetSettings() const
 	{
@@ -105,6 +110,7 @@ public:
 
 private:
 	const TCHAR* Name;
+	TArray<char> AnsiName;
 	FHeuristicSettings(*HeuristicSettingsGetter)(void);
 	TLinkedList<FBudget*> GlobalListLink;
 	FHeuristicSettings CachedSettings;
@@ -128,10 +134,12 @@ public:
 	TMap()
 	{
 		Array.SetNum(FBudget::GetGlobalListSize());
+#if !UE_BUILD_SHIPPING
 		for (TLinkedList<FBudget*>::TIterator BudgetIt(FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
 		{
 			Array[BudgetIt->BudgetId].Name = BudgetIt->GetName();
 		}
+#endif
 	}
 
 	TMap(const Type& Value)
@@ -179,7 +187,9 @@ public:
 private:
 	struct FItem
 	{
+#if !UE_BUILD_SHIPPING
 		const TCHAR* Name = nullptr;
+#endif
 		Type Value;
 	};
 	TArray<FItem, TInlineAllocator<kInlineAllocatedBudgets>> Array;
@@ -200,6 +210,9 @@ inline float GetPercentageCVarToFraction(const TAutoConsoleVariable<float>& Perc
 {
 	return PercentageToFraction(Percentage.GetValueOnAnyThread());
 }
+
+/** Returns whether the DynamicRenderScaling API is supported */
+RENDERCORE_API bool IsSupported();
 
 /** Updates all FBudget::GetSettings() with their new FHeuristicSettings. */
 RENDERCORE_API void UpdateHeuristicsSettings();

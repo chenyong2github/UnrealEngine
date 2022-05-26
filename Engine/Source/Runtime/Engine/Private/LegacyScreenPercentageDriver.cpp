@@ -3,6 +3,7 @@
 #include "LegacyScreenPercentageDriver.h"
 #include "UnrealEngine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "DynamicResolutionState.h"
 
 
 static TAutoConsoleVariable<int32> CVarScreenPercentageMode(
@@ -118,33 +119,38 @@ FLegacyScreenPercentageDriver::FLegacyScreenPercentageDriver(
 	}
 }
 
-float FLegacyScreenPercentageDriver::GetPrimaryResolutionFractionUpperBound() const
+DynamicRenderScaling::TMap<float> FLegacyScreenPercentageDriver::GetResolutionFractionsUpperBound() const
 {
-	if (!ViewFamily.EngineShowFlags.ScreenPercentage)
+	DynamicRenderScaling::TMap<float> UpperBounds;
+	UpperBounds.SetAll(1.0f);
+
+	if (ViewFamily.EngineShowFlags.ScreenPercentage)
 	{
-		return 1.0f;
+		UpperBounds[GDynamicPrimaryResolutionFraction] = FMath::Clamp(
+			GlobalResolutionFractionUpperBound,
+			ISceneViewFamilyScreenPercentage::kMinResolutionFraction,
+			ISceneViewFamilyScreenPercentage::kMaxResolutionFraction);
 	}
 
-	return FMath::Clamp(
-		GlobalResolutionFractionUpperBound,
-		ISceneViewFamilyScreenPercentage::kMinResolutionFraction,
-		ISceneViewFamilyScreenPercentage::kMaxResolutionFraction);
+	return UpperBounds;
 }
 
-float FLegacyScreenPercentageDriver::GetPrimaryResolutionFraction_RenderThread() const
+DynamicRenderScaling::TMap<float> FLegacyScreenPercentageDriver::GetResolutionFractions_RenderThread() const
 {
 	check(IsInRenderingThread());
 
-	// Early return if no screen percentage should be done.
-	if (!ViewFamily.EngineShowFlags.ScreenPercentage)
+	DynamicRenderScaling::TMap<float> ResolutionFractions;
+	ResolutionFractions.SetAll(1.0f);
+
+	if (ViewFamily.EngineShowFlags.ScreenPercentage)
 	{
-		return 1.0f;
+		ResolutionFractions[GDynamicPrimaryResolutionFraction] = FMath::Clamp(
+			GlobalResolutionFraction,
+			ISceneViewFamilyScreenPercentage::kMinResolutionFraction,
+			ISceneViewFamilyScreenPercentage::kMaxResolutionFraction);
 	}
 
-	return FMath::Clamp(
-		GlobalResolutionFraction,
-		ISceneViewFamilyScreenPercentage::kMinResolutionFraction,
-		ISceneViewFamilyScreenPercentage::kMaxResolutionFraction);
+	return ResolutionFractions;
 }
 
 ISceneViewFamilyScreenPercentage* FLegacyScreenPercentageDriver::Fork_GameThread(

@@ -1857,6 +1857,10 @@ public:
 	FViewFamilyInfo(const FSceneViewFamily& InViewFamily);
 	virtual ~FViewFamilyInfo();
 
+	/** All the dynamic scaling informations */
+	DynamicRenderScaling::TMap<float> DynamicResolutionFractions;
+	DynamicRenderScaling::TMap<float> DynamicResolutionUpperBounds;
+
 	FMeshElementCollector MeshCollector;
 
 	FMeshElementCollector RayTracingCollector;

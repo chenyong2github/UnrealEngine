@@ -7,6 +7,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "DynamicRenderScaling.h"
+
+
+/** Dynamic resolution of the primary ScreenPercentage. */
+extern ENGINE_API DynamicRenderScaling::FBudget GDynamicPrimaryResolutionFraction;
 
 
 /** Game thread events for dynamic resolution state. */
@@ -48,10 +54,10 @@ public:
 protected:
 
 	/** Returns a non thread safe aproximation of the current resolution fraction applied on render thread, mostly used for stats and analytic. */
-	virtual float GetResolutionFractionApproximation() const = 0;
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsApproximation() const = 0;
 
 	/** Returns the max resolution resolution fraction. */
-	virtual float GetResolutionFractionUpperBound() const = 0;
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const = 0;
 
 	/** Enables/Disables dynamic resolution. This is only called by GEngine automatically. */
 	virtual void SetEnabled(bool bEnable) = 0;

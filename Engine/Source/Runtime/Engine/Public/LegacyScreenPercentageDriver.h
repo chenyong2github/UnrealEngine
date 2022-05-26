@@ -41,8 +41,8 @@ private:
 
 
 	// Implements ISceneViewFamilyScreenPercentage
-	virtual float GetPrimaryResolutionFractionUpperBound() const override;
-	virtual float GetPrimaryResolutionFraction_RenderThread() const override;
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const override;
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractions_RenderThread() const override;
 	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override;
 };
 

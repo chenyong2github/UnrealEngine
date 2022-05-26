@@ -68,14 +68,20 @@ void FDynamicResolutionState::SetupMainViewFamily(class FSceneViewFamily& ViewFa
 	}
 }
 
-float FDynamicResolutionState::GetResolutionFractionApproximation() const
+DynamicRenderScaling::TMap<float> FDynamicResolutionState::GetResolutionFractionsApproximation() const
 {
-	return ResolutionFraction;
+	DynamicRenderScaling::TMap<float> ResolutionFractions;
+	ResolutionFractions.SetAll(1.0f);
+	ResolutionFractions[GDynamicPrimaryResolutionFraction] = ResolutionFraction;
+	return ResolutionFractions;
 }
 
-float FDynamicResolutionState::GetResolutionFractionUpperBound() const
+DynamicRenderScaling::TMap<float> FDynamicResolutionState::GetResolutionFractionsUpperBound() const
 {
-	return ResolutionFractionUpperBound;
+	DynamicRenderScaling::TMap<float> ResolutionFractions;
+	ResolutionFractions.SetAll(1.0f);
+	ResolutionFractions[GDynamicPrimaryResolutionFraction] = ResolutionFractionUpperBound;
+	return ResolutionFractions;
 }
 
 void FDynamicResolutionState::SetEnabled(bool bEnable)

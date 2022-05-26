@@ -68,6 +68,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "CustomStaticScreenPercentage.h"
 #include "ObjectTrace.h"
+#include "DynamicResolutionState.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -1412,16 +1413,32 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 				GEngine->EmitDynamicResolutionEvent(EDynamicResolutionStateEvent::BeginDynamicResolutionRendering);
 				ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
 					ViewFamily,
-					DynamicResolutionStateInfos.ResolutionFractionApproximation,
-					DynamicResolutionStateInfos.ResolutionFractionUpperBound));
+					DynamicResolutionStateInfos.ResolutionFractionApproximations[GDynamicPrimaryResolutionFraction],
+					DynamicResolutionStateInfos.ResolutionFractionUpperBounds[GDynamicPrimaryResolutionFraction]));
 
 				bUsesDynamicResolution = true;
 			}
 
+			// Feed approximated resolution fraction to CSV
 			#if CSV_PROFILER
-			if (DynamicResolutionStateInfos.ResolutionFractionApproximation >= 0.0f)
+			if (DynamicResolutionStateInfos.ResolutionFractionApproximations[GDynamicPrimaryResolutionFraction] >= 0.0f)
 			{
-				CSV_CUSTOM_STAT_GLOBAL(DynamicResolutionPercentage, DynamicResolutionStateInfos.ResolutionFractionApproximation * 100.0f, ECsvCustomStatOp::Set);
+				// Keep same name as before for primary screen percentage
+				CSV_CUSTOM_STAT_GLOBAL(DynamicResolutionPercentage, DynamicResolutionStateInfos.ResolutionFractionApproximations[GDynamicPrimaryResolutionFraction] * 100.0f, ECsvCustomStatOp::Set);
+			}
+			for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
+			{
+				const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+				if (Budget == GDynamicPrimaryResolutionFraction)
+				{
+					continue;
+				}
+
+				float Value = DynamicResolutionStateInfos.ResolutionFractionApproximations[Budget] * 100.0f;
+				const char* NameChar = Budget.GetAnsiName();
+
+				TRACE_CSV_PROFILER_INLINE_STAT(NameChar, CSV_CATEGORY_INDEX_GLOBAL);
+				FCsvProfiler::RecordCustomStat(NameChar, CSV_CATEGORY_INDEX_GLOBAL, Value, ECsvCustomStatOp::Set);
 			}
 			#endif
 		}

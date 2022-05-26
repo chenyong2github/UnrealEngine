@@ -18,6 +18,7 @@
 #include "DebugViewModeHelpers.h"
 #include "RendererInterface.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
+#include "DynamicRenderScaling.h"
 
 class FSceneView;
 class FSceneViewFamily;
@@ -1552,18 +1553,18 @@ public:
 	}
 #endif
 
-protected:
 	/** 
 	 * Method to know the maximum value that can be returned by GetPrimaryResolutionFraction_RenderThread().
 	 * Can be called on game or rendering thread. This should return >= 1 if screen percentage show flag is disabled.
 	 */
-	virtual float GetPrimaryResolutionFractionUpperBound() const = 0;
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const = 0;
 
+protected:
 	/**
 	 * Setup view family's view's screen percentage on rendering thread.
 	 * This should leave ResolutionFraction == 1 if screen percentage show flag is disabled.
 	 */
-	virtual float GetPrimaryResolutionFraction_RenderThread() const = 0;
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractions_RenderThread() const = 0;
 
 	/** Create a new screen percentage interface for a new view family. */
 	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ViewFamily) const = 0;
@@ -1854,26 +1855,6 @@ public:
 	bool SupportsScreenPercentage() const;
 
 	FORCEINLINE bool AllowTranslucencyAfterDOF() const { return bAllowTranslucencyAfterDOF; }
-
-	/* Returns the maximum PrimaryResolutionFraction. */
-	FORCEINLINE float GetPrimaryResolutionFractionUpperBound() const
-	{
-		check(ScreenPercentageInterface != nullptr);
-		float PrimaryUpperBoundFraction = ScreenPercentageInterface->GetPrimaryResolutionFractionUpperBound();
-
-		checkf(ISceneViewFamilyScreenPercentage::IsValidResolutionFraction(PrimaryUpperBoundFraction),
-			TEXT("ISceneViewFamilyScreenPercentage::GetPrimaryResolutionFractionUpperBound()")
-			TEXT(" should return a valide value."));
-
-		if (!EngineShowFlags.ScreenPercentage)
-		{
-			checkf(PrimaryUpperBoundFraction >= 1.0f,
-				TEXT("ISceneViewFamilyScreenPercentage::GetPrimaryResolutionFractionUpperBound()")
-				TEXT(" should return >= 1 if screen percentage show flag is off."));
-		}
-
-		return PrimaryUpperBoundFraction;
-	}
 
 	FORCEINLINE const ISceneViewFamilyScreenPercentage* GetScreenPercentageInterface() const
 	{

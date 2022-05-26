@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-Renderer.cpp: Renderer module implementation.
-=============================================================================*/
-
 #include "DynamicResolutionProxy.h"
 #include "DynamicResolutionState.h"
 
@@ -15,18 +11,19 @@ Renderer.cpp: Renderer module implementation.
 #include "RHICommandList.h"
 #include "DynamicRHI.h"
 #include "UnrealEngine.h"
+#include "RenderGraphEvent.h"
 
 
 static TAutoConsoleVariable<float> CVarDynamicResMinSP(
 	TEXT("r.DynamicRes.MinScreenPercentage"),
-	50,
-	TEXT("Minimal screen percentage."),
+	DynamicRenderScaling::FractionToPercentage(DynamicRenderScaling::FHeuristicSettings::kDefaultMinResolutionFraction),
+	TEXT("Minimal primary screen percentage."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
 static TAutoConsoleVariable<float> CVarDynamicResMaxSP(
 	TEXT("r.DynamicRes.MaxScreenPercentage"),
-	100,
-	TEXT("Maximal screen percentage."),
+	DynamicRenderScaling::FractionToPercentage(DynamicRenderScaling::FHeuristicSettings::kDefaultMaxResolutionFraction),
+	TEXT("Maximal primary screen percentage."),
 	ECVF_Default);
 
 // TODO: Seriously need a centralized engine perf manager.
@@ -44,23 +41,10 @@ static TAutoConsoleVariable<float> CVarTargetedGPUHeadRoomPercentage(
 	TEXT("Targeted GPU headroom (in percent from r.DynamicRes.FrameTimeBudget)."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
-static TAutoConsoleVariable<float> CVarCPUTimeHeadRoom(
-	TEXT("r.DynamicRes.CPUTimeHeadRoom"),
-	1,
-	TEXT("Head room for the threads compared GPU time to avoid keep getting resolution fraction ")
-	TEXT("shrinking down when CPU bound (in milliseconds)."),
-	ECVF_RenderThreadSafe | ECVF_Default);
-
 static TAutoConsoleVariable<int32> CVarHistorySize(
 	TEXT("r.DynamicRes.HistorySize"),
 	16,
 	TEXT("Number of frames keept in the history."),
-	ECVF_RenderThreadSafe | ECVF_Default);
-
-static TAutoConsoleVariable<float> CVarOutlierThreshold(
-	TEXT("r.DynamicRes.OutlierThreshold"),
-	0.0f,
-	TEXT("Ignore frame timing that have Game thread or render thread X time more than frame budget."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
 static TAutoConsoleVariable<float> CVarFrameWeightExponent(
@@ -78,13 +62,13 @@ static TAutoConsoleVariable<int32> CVarFrameChangePeriod(
 
 static TAutoConsoleVariable<float> CVarIncreaseAmortizationFactor(
 	TEXT("r.DynamicRes.IncreaseAmortizationBlendFactor"),
-	0.9f,
+	DynamicRenderScaling::FHeuristicSettings::kDefaultIncreaseAmortizationFactor,
 	TEXT("Amortization blend factor when scale resolution back up to reduce resolution fraction oscillations."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
 static TAutoConsoleVariable<float> CVarChangeThreshold(
 	TEXT("r.DynamicRes.ChangePercentageThreshold"),
-	2.0f,
+	DynamicRenderScaling::FractionToPercentage(DynamicRenderScaling::FHeuristicSettings::kDefaultChangeThreshold),
 	TEXT("Minimal increase percentage threshold to alow when changing resolution."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
@@ -101,11 +85,29 @@ static TAutoConsoleVariable<int32> CVarTimingMeasureModel(
 	TEXT(" 0: Same as stat unit (default);\n 1: Timestamp queries."),
 	ECVF_RenderThreadSafe | ECVF_Default);
 
-static TAutoConsoleVariable<float> CVarCPUBoundScreenPercentage(
-	TEXT("r.DynamicRes.CPUBoundScreenPercentage"),
-	100,
-	TEXT("Screen percentage to converge to when CPU bound. This can be used when GPU and CPU share same memory."),
-	ECVF_RenderThreadSafe | ECVF_Default);
+
+DynamicRenderScaling::FHeuristicSettings GetPrimaryDynamicResolutionSettings()
+{
+	DynamicRenderScaling::FHeuristicSettings BudgetSetting;
+	BudgetSetting.Model = DynamicRenderScaling::EHeuristicModel::Quadratic;
+	BudgetSetting.MinResolutionFraction      = DynamicRenderScaling::GetPercentageCVarToFraction(CVarDynamicResMinSP);
+	BudgetSetting.MaxResolutionFraction      = DynamicRenderScaling::GetPercentageCVarToFraction(CVarDynamicResMaxSP);
+	// BudgetSetting.BudgetMs depends on the cost of other buckets.
+	BudgetSetting.ChangeThreshold            = DynamicRenderScaling::GetPercentageCVarToFraction(CVarChangeThreshold);
+	BudgetSetting.IncreaseAmortizationFactor = CVarIncreaseAmortizationFactor.GetValueOnRenderThread();
+
+	// CVarTargetedGPUHeadRoomPercentage is taken into account on the entire frame instead.
+	BudgetSetting.TargetedHeadRoom = 0.0f;
+	return BudgetSetting;
+}
+
+DynamicRenderScaling::FBudget GDynamicPrimaryResolutionFraction(TEXT("DynamicPrimaryResolution"), &GetPrimaryDynamicResolutionSettings);
+
+
+static float TimeStampQueryResultToMiliSeconds(uint64 TimestampResult)
+{
+	return float(TimestampResult) / 1000.0f;
+}
 
 
 FDynamicResolutionHeuristicProxy::FDynamicResolutionHeuristicProxy()
@@ -133,10 +135,11 @@ void FDynamicResolutionHeuristicProxy::ResetInternal()
 {
 	PreviousFrameIndex = -1;
 	HistorySize = 0;
+	BudgetHistorySizes.SetAll(0);
 	History.Reset();
 
 	NumberOfFramesSinceScreenPercentageChange = 0;
-	CurrentFrameResolutionFraction = 1.0f;
+	CurrentFrameResolutionFractions.SetAll(1.0f);
 
 	// Ignore previous frame timings.
 	IgnoreFrameRemainingCount = 1;
@@ -160,18 +163,27 @@ uint64 FDynamicResolutionHeuristicProxy::CreateNewPreviousFrameTimings_RenderThr
 	{
 		int32 NewHistoryEntryIndex = (PreviousFrameIndex + 1) % History.Num();
 		History[NewHistoryEntryIndex] = FrameHistoryEntry();
-		History[NewHistoryEntryIndex].ResolutionFraction = CurrentFrameResolutionFraction;
+		History[NewHistoryEntryIndex].ResolutionFractions = CurrentFrameResolutionFractions;
 		History[NewHistoryEntryIndex].GameThreadTimeMs = GameThreadTimeMs;
 		History[NewHistoryEntryIndex].RenderThreadTimeMs = RenderThreadTimeMs;
 		PreviousFrameIndex = NewHistoryEntryIndex;
 		HistorySize = FMath::Min(HistorySize + 1, History.Num());
+
+		for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
+		{
+			const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+			BudgetHistorySizes[Budget] = FMath::Min(BudgetHistorySizes[Budget] + 1, History.Num());
+		}
 	}
 
 	return ++FrameCounter;
 }
 
 void FDynamicResolutionHeuristicProxy::CommitPreviousFrameGPUTimings_RenderThread(
-	uint64 HistoryFrameId, float TotalFrameGPUBusyTimeMs, float DynamicResolutionGPUBusyTimeMs, bool bGPUTimingsHaveCPUBubbles)
+	uint64 HistoryFrameId,
+	float TotalFrameGPUBusyTimeMs,
+	float DynamicResolutionGPUBusyTimeMs,
+	const DynamicRenderScaling::TMap<float>& BudgetTimingMs)
 {
 	check(TotalFrameGPUBusyTimeMs >= 0.0f);
 	check(DynamicResolutionGPUBusyTimeMs >= 0.0f);
@@ -190,235 +202,334 @@ void FDynamicResolutionHeuristicProxy::CommitPreviousFrameGPUTimings_RenderThrea
 
 	History[EntryId].TotalFrameGPUBusyTimeMs = TotalFrameGPUBusyTimeMs;
 	History[EntryId].GlobalDynamicResolutionTimeMs = DynamicResolutionGPUBusyTimeMs;
-	History[EntryId].bGPUTimingsHaveCPUBubbles = bGPUTimingsHaveCPUBubbles;
+	History[EntryId].BudgetTimingMs = BudgetTimingMs;
 }
 
 void FDynamicResolutionHeuristicProxy::RefreshCurentFrameResolutionFraction_RenderThread()
 {
+	// Compute new frame resolution fractions only if have an history to work with.
+	if (HistorySize == 0)
+	{
+		return;
+	}
+
 	// GPU time budget per frame=.
 	const float FrameTimeBudgetMs = CVarFrameTimeBudget.GetValueOnRenderThread();
 
 	// Targeted GPU time, lower than budget to diggest noise.
 	const float TargetedGPUBusyTimeMs = FrameTimeBudgetMs * (1.0f - CVarTargetedGPUHeadRoomPercentage.GetValueOnRenderThread() / 100.0f);
 
-	// Resolution fraction to downscale to when CPU bound.
-	const float CPUBoundResolutionFraction = CVarCPUBoundScreenPercentage.GetValueOnRenderThread() / 100.0f;
-
-	// New ResolutionFraction to use for this frame.
-	float NewFrameResolutionFraction = CurrentFrameResolutionFraction;
-
-	// Whether there is a GPU over budget panic.
-	bool bGPUOverbugetPanic = false;
-
-	// Compute NewFrameResolutionFraction if have an history to work with.
-	if (HistorySize > 0)
+	const float FrameWeightExponent = CVarFrameWeightExponent.GetValueOnRenderThread();
+	const int32 MaxConsecutiveOverbudgetGPUFrameCount = FMath::Max(CVarMaxConsecutiveOverbudgetGPUFrameCount.GetValueOnRenderThread(), 2);
+	
+	// Find the first frame that have data.
+	int32 StartFrameId = 0;
 	{
-		const float FrameWeightExponent = CVarFrameWeightExponent.GetValueOnRenderThread();
-		const float RenderThreadHeadRoomFromGPUMs = CVarCPUTimeHeadRoom.GetValueOnRenderThread();
-		const int32 MaxConsecutiveOverbudgetGPUFrameCount = FMath::Max(CVarMaxConsecutiveOverbudgetGPUFrameCount.GetValueOnRenderThread(), 2);
-		
-		const float OutLierTimeThreshold = FrameTimeBudgetMs * CVarOutlierThreshold.GetValueOnRenderThread();
-
-		NewFrameResolutionFraction = 0.0f;
-
-		// Total weight of NewFrameResolutionFraction.
-		float TotalWeight = 0.0f;
-		
-		// Frame weight.
-		float Weight = 1.0f;
-
-		// Number of consecutive frames that have over budget GPU.
-		int32 ConsecutiveOverbudgetGPUFramCount = 0;
-
-		// Whether should continue browsing the frame history.
-		bool bCaryOnBrowsingFrameHistory = true;
-
-		// Number of frame browsed.
-		int32 FrameCount = 0;
-		int32 BrowsingFrameId = 0;
-		for (; BrowsingFrameId < HistorySize && bCaryOnBrowsingFrameHistory; BrowsingFrameId++)
+		for (; StartFrameId < HistorySize; StartFrameId++)
 		{
-			const FrameHistoryEntry& NextFrameEntry = GetPreviousFrameEntry(BrowsingFrameId - 1);
-			const FrameHistoryEntry& FrameEntry = GetPreviousFrameEntry(BrowsingFrameId + 0);
-			const FrameHistoryEntry& PreviousFrameEntry = GetPreviousFrameEntry(BrowsingFrameId + 1);
+			const FrameHistoryEntry& FrameEntry = GetPreviousFrameEntry(StartFrameId);
 
 			// Ignores frames that does not have any GPU timing yet. 
 			if (FrameEntry.TotalFrameGPUBusyTimeMs < 0)
 			{
 				continue;
 			}
-
-			// Compute the maximum thread time between game and render thread for this <i>th frame.
-			// We add a head room for render thread to detect when the GPU could be starving.
-			const float MaxThreadTimeMs = FMath::Max(
-				FrameEntry.RenderThreadTimeMs + (FrameEntry.bGPUTimingsHaveCPUBubbles ? RenderThreadHeadRoomFromGPUMs : 0),
-				FrameEntry.GameThreadTimeMs);
-
-			// Whether bound by game thread.
-			const bool bIsGameThreadBound = FrameEntry.GameThreadTimeMs > FrameTimeBudgetMs;
-
-			// Whether bound by render thread.
-			const bool bIsRenderThreadBound = (FrameEntry.RenderThreadTimeMs + (FrameEntry.bGPUTimingsHaveCPUBubbles ? RenderThreadHeadRoomFromGPUMs : 0)) > TargetedGPUBusyTimeMs;
-
-			// Whether the frame is CPU bound.
-			const bool bIsCPUBound = bIsGameThreadBound || bIsRenderThreadBound;
-			
-			// Whether the render thread might create bubbles in GPU timings.
-			const bool bMayHaveGPUBubbles = FrameEntry.bGPUTimingsHaveCPUBubbles && bIsRenderThreadBound;
-
-			// Whether GPU is over budget, when not CPU bound.
-			const bool bHasOverbudgetGPU = !bIsCPUBound && FrameEntry.TotalFrameGPUBusyTimeMs > FrameTimeBudgetMs;
-
-			// Whether this is possibly an outlier compared to previous and next frame.
-			// Normally should look for out lier compared to previous and next frames timings, however
-			// only interested in detected them if they are over budget, when cruising at targeted
-			// GPU busy time.
-			const bool bIsGPUOutlier =
-				bHasOverbudgetGPU &&
-				ConsecutiveOverbudgetGPUFramCount == 0 &&
-				OutLierTimeThreshold > 0.0f &&
-				FrameEntry.TotalFrameGPUBusyTimeMs > OutLierTimeThreshold &&
-				(!NextFrameEntry.HasGPUTimings() || (
-					NextFrameEntry.TotalFrameGPUBusyTimeMs < OutLierTimeThreshold &&
-					NextFrameEntry.GameThreadTimeMs < OutLierTimeThreshold &&
-					NextFrameEntry.RenderThreadTimeMs < OutLierTimeThreshold)) &&
-				(!PreviousFrameEntry.HasGPUTimings() || (
-					PreviousFrameEntry.TotalFrameGPUBusyTimeMs < OutLierTimeThreshold &&
-					PreviousFrameEntry.GameThreadTimeMs < OutLierTimeThreshold &&
-					PreviousFrameEntry.RenderThreadTimeMs < OutLierTimeThreshold));
-
-			// Look if this is multiple consecutive GPU over budget frames.
-			if (bHasOverbudgetGPU)
+			else
 			{
-				ConsecutiveOverbudgetGPUFramCount++;
-				check(ConsecutiveOverbudgetGPUFramCount <= MaxConsecutiveOverbudgetGPUFrameCount);
+				break;
+			}
+		}
+	}
 
-				// Max number of over budget frames where reached.
-				if (ConsecutiveOverbudgetGPUFramCount == MaxConsecutiveOverbudgetGPUFrameCount)
+	// Not enough data to work with.
+	if (HistorySize - StartFrameId <= MaxConsecutiveOverbudgetGPUFrameCount)
+	{
+		return;
+	}
+
+	check(StartFrameId + MaxConsecutiveOverbudgetGPUFrameCount < HistorySize);
+
+	// Look whether all the last MaxConsecutiveOverbudgetGPUFrameCount frames are over budget.
+	bool bGPUFrameOverbudgetPanic = true;
+	for (int32 BrowsingFrameId = StartFrameId; BrowsingFrameId < StartFrameId + MaxConsecutiveOverbudgetGPUFrameCount; BrowsingFrameId++)
+	{
+		const FrameHistoryEntry& FrameEntry = GetPreviousFrameEntry(BrowsingFrameId);
+		bGPUFrameOverbudgetPanic &= (FrameEntry.TotalFrameGPUBusyTimeMs > FrameTimeBudgetMs);
+	}
+
+	// Whether a cruising resolution change can happen.
+	bool bCanChangeResolution = NumberOfFramesSinceScreenPercentageChange >= CVarFrameChangePeriod.GetValueOnRenderThread();
+
+	// Array to know how much a frame is overbudget
+	//TArray<float, TInlineAllocator<256>> TotalBudgetOverBudgetSavings;
+	//TotalBudgetOverBudgetSavings.SetNumZeroed(MaxFrameId);
+
+	// Function to detect whether the history size is big enough for detecting an overbudget
+	auto HasNotEnoughDataForOverBudgetDetection = [&](int32 InHistorySize)
+	{
+		return (InHistorySize - StartFrameId) <= MaxConsecutiveOverbudgetGPUFrameCount;
+	};
+
+	// Function to know whether a bucket is overbudget.
+	auto IsBudgetOverBudget = [&](const DynamicRenderScaling::FBudget& Budget, const DynamicRenderScaling::FHeuristicSettings& BudgetSetting)
+	{
+		check(BudgetSetting.IsEnabled());
+
+		if (HasNotEnoughDataForOverBudgetDetection(BudgetHistorySizes[Budget]))
+		{
+			// Not enough data to work with.
+			return false;
+		}
+
+		bool bBudgetIsOverBudget = true;
+
+		for (int32 BrowsingFrameId = StartFrameId; BrowsingFrameId < StartFrameId + MaxConsecutiveOverbudgetGPUFrameCount; BrowsingFrameId++)
+		{
+			const FrameHistoryEntry& FrameEntry = GetPreviousFrameEntry(BrowsingFrameId);
+
+			float bOverBudget = FrameEntry.BudgetTimingMs[Budget] - BudgetSetting.BudgetMs;
+			bBudgetIsOverBudget &= bOverBudget > 0.0f;
+		}
+
+		return bBudgetIsOverBudget;
+	};
+
+	// Compute
+	auto ComputeMaxFrameId = [&](const DynamicRenderScaling::FBudget& Budget, bool bBudgetIsOverBudget)
+	{
+		int32 MaxFrameId = BudgetHistorySizes[Budget];
+		
+		if (bGPUFrameOverbudgetPanic || bBudgetIsOverBudget)
+		{
+			MaxFrameId = FMath::Min(MaxFrameId, StartFrameId + MaxConsecutiveOverbudgetGPUFrameCount);
+		}
+
+		check(MaxFrameId <= BudgetHistorySizes[Budget]);
+		check(MaxFrameId <= HistorySize);
+		return MaxFrameId;
+	};
+
+	DynamicRenderScaling::TMap<float> NewResolutionFractions;
+	bool bCommitResolutionChange = false;
+
+	// Execute heuristic on the bucket.
+	auto ComputeNewResolutionFraction = [&](const DynamicRenderScaling::FBudget& Budget, const DynamicRenderScaling::FHeuristicSettings& BudgetSetting, bool bBudgetIsOverBudget)
+	{
+		check(BudgetSetting.IsEnabled());
+
+		float NewResolutionFraction = CurrentFrameResolutionFractions[Budget];
+		if (!HasNotEnoughDataForOverBudgetDetection(BudgetHistorySizes[Budget]))
+		{
+			float CurrentResolutionFraction = CurrentFrameResolutionFractions[Budget];
+			if (BudgetSetting.bModelScalesWithPrimaryScreenPercentage)
+			{
+				CurrentResolutionFraction *= CurrentFrameResolutionFractions[GDynamicPrimaryResolutionFraction];
+			}
+
+			int32 MaxFrameId = ComputeMaxFrameId(Budget, bBudgetIsOverBudget);
+
+			// Find out a new resolution fraction based on whether this bucket is overbudget.
+			float MostRecentResolutionFractionScale = 1.0f;
+			float SuggestedResolutionFraction = 0.0f;
+			float SuggestedResolutionFractionWeight = 0.0f;
+			float Weight = 1.0f;
+			for (int32 BrowsingFrameId = StartFrameId; BrowsingFrameId < MaxFrameId; BrowsingFrameId++)
+			{
+				const FrameHistoryEntry& FrameEntry = GetPreviousFrameEntry(BrowsingFrameId);
+				float TimingMs = FrameEntry.BudgetTimingMs[Budget];
+
+				float ResolutionFraction = FrameEntry.ResolutionFractions[Budget];
+				if (BudgetSetting.bModelScalesWithPrimaryScreenPercentage)
 				{
-					// We ignore frames in history that happen before consecutive GPU overbudget frames.
-					bCaryOnBrowsingFrameHistory = false;
+					ResolutionFraction *= FrameEntry.ResolutionFractions[GDynamicPrimaryResolutionFraction];
+				}
 
-					ensureMsgf(!bIsGPUOutlier, TEXT("Does not make any sens to have ConsecutiveOverbudgetGPUFramCount >= 2 if this frame is detected as being an outlier."));
+				// Removing the savings from other bucket
+				//if (Budget != EDynamicResolutionTimingBudget::PrimaryScreenPercentage)
+				//{
+				//	TimingMs -= TotalBudgetOverBudgetSavings[BrowsingFrameId];
+				//}
+
+				// Estimate how much a resolution fraction should be changed.
+				float ResolutionFractionFactor = BudgetSetting.EstimateResolutionFactor(TimingMs);
+
+				// Don't increase the resolution if frame overbudget.
+				if (bGPUFrameOverbudgetPanic && ResolutionFractionFactor > 1.0f)
+				{
+					ResolutionFractionFactor = 1.0f;
+				}
+
+				float AdjustedResolutionFraction = ResolutionFractionFactor * ResolutionFraction;
+
+				// Track how much saving can be done in a bucket to max out PrimaryScreenPercentage
+				//if (Budget != EDynamicResolutionTimingBudget::PrimaryScreenPercentage)
+				//{
+				//	float EstimatedSavings = (
+				//		FrameEntry.BudgetTimingMs[Budget] *
+				//		(1.0f - BudgetSetting.EstimateTimeFactor(FrameEntry.ResolutionFractions[Budget], AdjustedResolutionFraction)));
+				//
+				//	TotalBudgetOverBudgetSavings[BrowsingFrameId] += EstimatedSavings;
+				//}
+
+				SuggestedResolutionFraction += AdjustedResolutionFraction * Weight;
+				SuggestedResolutionFractionWeight += Weight;
+				Weight *= FrameWeightExponent;
+
+				if (BrowsingFrameId == StartFrameId && BudgetSetting.bModelScalesWithPrimaryScreenPercentage)
+				{
+					MostRecentResolutionFractionScale = FrameEntry.ResolutionFractions[GDynamicPrimaryResolutionFraction];
 				}
 			}
-			else
-			{
-				ConsecutiveOverbudgetGPUFramCount = 0;
-			}
 
-			// Ignore if an outlier.
-			if (bIsGPUOutlier)
-			{
-				continue;
-			}
+			NewResolutionFraction = BudgetSetting.CorrectNewResolutionFraction(
+				CurrentResolutionFraction,
+				SuggestedResolutionFraction / SuggestedResolutionFractionWeight,
+				MostRecentResolutionFractionScale);
 
-			float SuggestedResolutionFraction = 1.0f;
+			NewResolutionFraction /= MostRecentResolutionFractionScale;
 
-			// If have reliable GPU times, or guess there is not GPU bubbles -> estimate the suggested resolution fraction that could have been used.
-			if (!FrameEntry.bGPUTimingsHaveCPUBubbles ||
-				(FrameEntry.bGPUTimingsHaveCPUBubbles && !bIsCPUBound && !bMayHaveGPUBubbles))
+			bool bTakeNewResolutionFraction = (
+				BudgetSetting.DoesResolutionChangeEnough(CurrentResolutionFraction, NewResolutionFraction, bCanChangeResolution) ||
+				bBudgetIsOverBudget);
+
+			if (bTakeNewResolutionFraction)
 			{
-				// This assumes GPU busy time is directly proportional to ResolutionFraction^2, but in practice
-				// this is more A * ResolutionFraction^2 + B with B >= 0 non constant unknown cost such as unscaled
-				// post processing, vertex fetching & processing, occlusion queries, shadow maps rendering...
-				//
-				// This assumption means we may drop ResolutionFraction lower than needed, or be slower to increase
-				// resolution.
-				//
-				// TODO: If we have RHI guarantee of frame timing association, we could make an estimation of B
-				// At resolution change that happen every N frames, amortized over time and scaled down as the
-				// standard variation of the GPU timing over non resolution changing frames increases.
-				SuggestedResolutionFraction = (
-					FMath::Sqrt(TargetedGPUBusyTimeMs / FrameEntry.TotalFrameGPUBusyTimeMs)
-					* FrameEntry.ResolutionFraction);
-			}
-			else if (FrameEntry.ResolutionFraction > CPUBoundResolutionFraction)
-			{
-				// When CPU bound, we no longer want to downscale, or drop resolution if CPU and GPU are sharing same memory.
-				SuggestedResolutionFraction = CPUBoundResolutionFraction;
+				bCommitResolutionChange = true;
 			}
 			else
 			{
-				// Unable to know reliably the GPU time so don't try to make any prediction to avoid issues such
-				// as resolution keep shrinking because GPU time is slightly more than render thread time, or
-				// increasing because GPU time slightly lower than frame time.
-				SuggestedResolutionFraction = FrameEntry.ResolutionFraction;
+				NewResolutionFraction = CurrentFrameResolutionFractions[Budget];
 			}
+		}
 
-			NewFrameResolutionFraction += SuggestedResolutionFraction * Weight;
-			TotalWeight += Weight;
-			FrameCount++;
+		return NewResolutionFraction;
+	};
 
+	// Estimate the new cost of the bucket.
+	auto EstimateBudgetCost = [&](const DynamicRenderScaling::FBudget& Budget, bool bBudgetIsOverBudget)
+	{
+		const DynamicRenderScaling::FHeuristicSettings& BudgetSetting = Budget.GetSettings();
+		check(BudgetSetting.IsEnabled());
+
+		int32 MaxFrameId = ComputeMaxFrameId(Budget, bBudgetIsOverBudget);
+
+		float CurrentResolutionFraction = CurrentFrameResolutionFractions[Budget];
+		float NewResolutionFraction = NewResolutionFractions[Budget];
+
+		ensure(MaxFrameId != StartFrameId);
+
+		float BudgetPredictedCost = 0.0;
+		float BudgetPredictedCostWeight = 0.0;
+		float Weight = 1.0f;
+		for (int32 BrowsingFrameId = StartFrameId; BrowsingFrameId < MaxFrameId; BrowsingFrameId++)
+		{
+			const FrameHistoryEntry& FrameEntry = GetPreviousFrameEntry(BrowsingFrameId);
+			float EstimatedCost = (
+				FrameEntry.BudgetTimingMs[Budget] *
+				BudgetSetting.EstimateTimeFactor(CurrentResolutionFraction, NewResolutionFraction));
+
+			BudgetPredictedCost += EstimatedCost * Weight;
+			BudgetPredictedCostWeight += Weight;
 			Weight *= FrameWeightExponent;
 		}
 
-		NewFrameResolutionFraction /= TotalWeight;
+		return BudgetPredictedCost / BudgetPredictedCostWeight;
+	};
 
-		// If immediate previous frames where over budget, react immediately.
-		bGPUOverbugetPanic = FrameCount > 0 && ConsecutiveOverbudgetGPUFramCount == FrameCount;
+	// Iterate through bucket and adjust them.
+	float TotalStaticBudgetPredictedCost = 0.0f;
+	float TotalPrimaryScreenPercentageDynamicBudgetPredictedCost = 0.0f;
+	for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
+	{
+		const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+		const DynamicRenderScaling::FHeuristicSettings& HeuristicSettings = Budget.GetSettings();
 
-		// If over budget, reset history size to 0 so that this frame really behave as a first frame after an history reset.
-		if (bGPUOverbugetPanic)
+		// Primary screen percentage is done last.
+		if (Budget == GDynamicPrimaryResolutionFraction)
 		{
-			HistorySize = 0;
+			continue;
 		}
-		// If not immediately over budget, refine the new resolution fraction.
+
+		// Skip if the bucket is not enabled.
+		if (HeuristicSettings.IsEnabled())
+		{
+			bool bBudgetIsOverBudget = IsBudgetOverBudget(Budget, HeuristicSettings);
+
+			NewResolutionFractions[Budget] = ComputeNewResolutionFraction(Budget, HeuristicSettings, bBudgetIsOverBudget);
+
+			float BudgetCost = EstimateBudgetCost(Budget, bBudgetIsOverBudget);
+			if (HeuristicSettings.bModelScalesWithPrimaryScreenPercentage)
+			{
+				TotalPrimaryScreenPercentageDynamicBudgetPredictedCost += BudgetCost;
+			}
+			else
+			{
+				TotalStaticBudgetPredictedCost += BudgetCost;
+			}
+
+			// Reset the size of the history for the bucket when it is over budget.
+			if (bBudgetIsOverBudget)
+			{
+				BudgetHistorySizes[Budget] = 0;
+			}
+		}
 		else
 		{
-			// If scaling the resolution, look if this is above a threshold compared to current res.
-			if (CVarChangeThreshold.GetValueOnRenderThread())
-			{
-				float IncreaseResolutionFractionThreshold = CurrentFrameResolutionFraction * (1.0f + CVarChangeThreshold.GetValueOnRenderThread() / 100.0f);
-
-				float DecreaseResolutionFractionThreshold = CurrentFrameResolutionFraction * (1.0f - CVarChangeThreshold.GetValueOnRenderThread() / 100.0f);
-
-				if (NewFrameResolutionFraction > CurrentFrameResolutionFraction && NewFrameResolutionFraction < IncreaseResolutionFractionThreshold)
-				{
-					NewFrameResolutionFraction = CurrentFrameResolutionFraction;
-				}
-			}
-
-			// If scaling the resolution up, amortize to avoid oscillations.
-			if (NewFrameResolutionFraction > CurrentFrameResolutionFraction)
-			{
-				NewFrameResolutionFraction = FMath::Lerp(
-					CurrentFrameResolutionFraction,
-					NewFrameResolutionFraction,
-					CVarIncreaseAmortizationFactor.GetValueOnRenderThread());
-			}
+			NewResolutionFractions[Budget] = 1.0f;
+			continue;
 		}
-
-		// Clamp resolution fraction.
-		NewFrameResolutionFraction = FMath::Clamp(
-			NewFrameResolutionFraction,
-			CVarDynamicResMinSP.GetValueOnRenderThread() / 100.0f,
-			GetResolutionFractionUpperBound());
 	}
 
-	// Update the current frame's resolution fraction.
+	// Takes care of primary screen percentage to finally fit the frame within budget
 	{
-		// CVarChangeThreshold avoids very small changes.
-		bool bWouldBeWorthChangingRes = CurrentFrameResolutionFraction != NewFrameResolutionFraction;
+		const DynamicRenderScaling::FBudget& Budget = GDynamicPrimaryResolutionFraction;
 
-		// We do not change resolution too often to avoid interferences with temporal sub pixel in TAA upsample.
-		if ((bWouldBeWorthChangingRes && 
-			NumberOfFramesSinceScreenPercentageChange >= CVarFrameChangePeriod.GetValueOnRenderThread()) ||
-			bGPUOverbugetPanic)
-		{
-			NumberOfFramesSinceScreenPercentageChange = 0;
-			CurrentFrameResolutionFraction = NewFrameResolutionFraction;
-		}
-		else
-		{
-			NumberOfFramesSinceScreenPercentageChange++;
-		}
+		// Set the budget of the budget.
+		DynamicRenderScaling::FHeuristicSettings HeuristicSettings = Budget.GetSettings();
+		HeuristicSettings.BudgetMs = FMath::Max(TargetedGPUBusyTimeMs - TotalStaticBudgetPredictedCost, 0.5f);
+		check(HeuristicSettings.IsEnabled());
+
+		bool bBudgetIsOverBudget = IsBudgetOverBudget(Budget, HeuristicSettings);
+
+		NewResolutionFractions[Budget] = ComputeNewResolutionFraction(Budget, HeuristicSettings, bBudgetIsOverBudget);
+	}
+
+	// Commit the new resolution fractions.
+	if (bCommitResolutionChange)
+	{
+		NumberOfFramesSinceScreenPercentageChange = 0;
+		CurrentFrameResolutionFractions = NewResolutionFractions;
+	}
+	else
+	{
+		NumberOfFramesSinceScreenPercentageChange++;
 	}
 }
 
-float FDynamicResolutionHeuristicProxy::GetResolutionFractionUpperBound() const
+// static
+DynamicRenderScaling::TMap<float> FDynamicResolutionHeuristicProxy::GetResolutionFractionUpperBounds()
 {
-	return CVarDynamicResMaxSP.GetValueOnAnyThread() / 100.0f;
+	DynamicRenderScaling::TMap<float> MaxResolutionFractions;
+	for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
+	{
+		const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+		MaxResolutionFractions[Budget] = Budget.GetSettings().MaxResolutionFraction;
+	}
+	return MaxResolutionFractions;
+}
+
+
+/** Returns the view fraction that should be used for current frame. */
+DynamicRenderScaling::TMap<float> FDynamicResolutionHeuristicProxy::QueryCurentFrameResolutionFractions_Internal() const
+{
+	DynamicRenderScaling::TMap<float> MaxResolutionFractions = GetResolutionFractionUpperBounds();
+	DynamicRenderScaling::TMap<float> ResolutionFractions = CurrentFrameResolutionFractions;
+	for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
+	{
+		const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+		ResolutionFractions[Budget] = FMath::Min(ResolutionFractions[Budget], MaxResolutionFractions[Budget]);
+	}
+	return ResolutionFractions;
 }
 
 void FDynamicResolutionHeuristicProxy::ResizeHistoryIfNeeded()
@@ -445,59 +556,6 @@ void FDynamicResolutionHeuristicProxy::ResizeHistoryIfNeeded()
 	HistorySize = NewHistorySize;
 	PreviousFrameIndex = NewPreviousFrameIndex;
 }
-
-
-/**
- * Engine's default dynamic resolution driver for view families.
- */
-class FDefaultDynamicResolutionDriver : public ISceneViewFamilyScreenPercentage
-{
-public:
-
-	FDefaultDynamicResolutionDriver(const FDynamicResolutionHeuristicProxy* InProxy, const FSceneViewFamily& InViewFamily)
-		: Proxy(InProxy)
-		, ViewFamily(InViewFamily)
-	{
-		check(IsInGameThread());
-	}
-
-	virtual float GetPrimaryResolutionFractionUpperBound() const override
-	{
-		if (!ViewFamily.EngineShowFlags.ScreenPercentage)
-		{
-			return 1.0f;
-		}
-
-		return Proxy->GetResolutionFractionUpperBound();
-	}
-
-	virtual float GetPrimaryResolutionFraction_RenderThread() const override
-	{
-		check(IsInRenderingThread());
-
-		if (!ViewFamily.EngineShowFlags.ScreenPercentage)
-		{
-			return 1.0f;
-		}
-
-		return Proxy->QueryCurentFrameResolutionFraction_RenderThread();
-	}
-
-	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override
-	{
-		check(IsInGameThread());
-
-		return new FDefaultDynamicResolutionDriver(Proxy, ForkedViewFamily);
-	}
-
-private:
-	// Dynamic resolution proxy to use.
-	const FDynamicResolutionHeuristicProxy* Proxy;
-
-	// View family to take care of.
-	const FSceneViewFamily& ViewFamily;
-
-};
 
 
 /**
@@ -538,6 +596,22 @@ public:
 	{
 		check(IsInRenderingThread());
 
+		if (DynamicRenderScaling::IsSupported())
+		{
+			DynamicRenderScaling::UpdateHeuristicsSettings();
+
+			DynamicRenderScaling::TMap<bool> bIsBudgetEnabled;
+			bIsBudgetEnabled.SetAll(false);
+
+			for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
+			{
+				const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+				bIsBudgetEnabled[Budget] = Budget.GetSettings().IsEnabled();
+			}
+
+			DynamicRenderScaling::BeginFrame(bIsBudgetEnabled);
+		}
+
 		// Query render thread time Ms.
 		float PrevRenderThreadTimeMs = FPlatformTime::ToMilliseconds(GRenderThreadTime);
 
@@ -568,16 +642,26 @@ public:
 		else
 		{
 			// If RHI does not support GPU busy time queries, fall back to what stat unit does.
-			// Multi-GPU support : should be updated to use GPUIndex for AFR.
+			ensure(GRHISupportsFrameCyclesBubblesRemoval);
 			float PrevFrameGPUTimeMs = FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles());
 
 			uint64 HistoryEntryId = Heuristic.CreateNewPreviousFrameTimings_RenderThread(
 				PrevGameThreadTimeMs, PrevRenderThreadTimeMs);
 
+			const DynamicRenderScaling::TMap<uint64>& LattestTimings = DynamicRenderScaling::GetLastestTimings();
+			DynamicRenderScaling::TMap<float> BudgetTimingMs;
+			for (TLinkedList<DynamicRenderScaling::FBudget*>::TIterator BudgetIt(DynamicRenderScaling::FBudget::GetGlobalList()); BudgetIt; BudgetIt.Next())
+			{
+				const DynamicRenderScaling::FBudget& Budget = **BudgetIt;
+				BudgetTimingMs[Budget] = TimeStampQueryResultToMiliSeconds(LattestTimings[Budget]);
+			}
+			BudgetTimingMs[GDynamicPrimaryResolutionFraction] = PrevFrameGPUTimeMs;
+
+
 			Heuristic.CommitPreviousFrameGPUTimings_RenderThread(HistoryEntryId,
 				/* TotalFrameGPUBusyTimeMs = */ PrevFrameGPUTimeMs,
 				/* DynamicResolutionGPUBusyTimeMs = */ PrevFrameGPUTimeMs,
-				/* bGPUTimingsHaveCPUBubbles = */ !GRHISupportsFrameCyclesBubblesRemoval);
+				/* BudgetTimingMs = */ BudgetTimingMs);
 
 			Heuristic.RefreshCurentFrameResolutionFraction_RenderThread();
 
@@ -617,6 +701,8 @@ public:
 		{
 			CurrentFrameInFlightIndex = -1;
 			bUseTimeQueriesThisFrame = false;
+
+			DynamicRenderScaling::EndFrame();
 		}
 	}
 
@@ -682,6 +768,7 @@ private:
 	void HandLandedQueriesToHeuristic(bool bWait)
 	{
 		check(IsInRenderingThread());
+		check(GRHISupportsGPUTimestampBubblesRemoval || bWait);
 
 		bool ShouldRefreshHeuristic = false;
 
@@ -738,8 +825,8 @@ private:
 			{
 				Heuristic.CommitPreviousFrameGPUTimings_RenderThread(
 					InFlightFrame.HeuristicHistoryEntry,
-					/* TotalFrameGPUBusyTimeMs = */ float(EndFrameResult - BeginFrameResult) / 1000.0f,
-					/* DynamicResolutionGPUBusyTimeMs = */ float(EndDynamicResolutionResult - BeginDynamicResolutionResult) / 1000.0f,
+					/* TotalFrameGPUBusyTimeMs = */ TimeStampQueryResultToMiliSeconds(EndFrameResult - BeginFrameResult),
+					/* DynamicResolutionGPUBusyTimeMs = */ TimeStampQueryResultToMiliSeconds(EndDynamicResolutionResult - BeginDynamicResolutionResult),
 					/* bGPUTimingsHaveCPUBubbles = */ !GRHISupportsGPUTimestampBubblesRemoval);
 
 				// Reset this in-flight frame queries to be reused.
@@ -777,6 +864,61 @@ private:
 			CurrentFrameInFlightIndex = InFlightFrames.Add(InFlightFrameQueries());
 		}
 	}
+};
+
+
+/**
+ * Engine's default dynamic resolution driver for view families.
+ */
+class FDefaultDynamicResolutionDriver : public ISceneViewFamilyScreenPercentage
+{
+public:
+
+	FDefaultDynamicResolutionDriver(FDefaultDynamicResolutionStateProxy* InProxy, const FSceneViewFamily& InViewFamily)
+		: Proxy(InProxy)
+		, ViewFamily(InViewFamily)
+	{
+		check(IsInGameThread());
+	}
+
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const override
+	{
+		DynamicRenderScaling::TMap<float> UpperBounds = Proxy->Heuristic.GetResolutionFractionUpperBounds();
+		if (!ViewFamily.EngineShowFlags.ScreenPercentage)
+		{
+			UpperBounds[GDynamicPrimaryResolutionFraction] = 1.0f;
+		}
+
+		return UpperBounds;
+	}
+
+	virtual ISceneViewFamilyScreenPercentage* Fork_GameThread(const class FSceneViewFamily& ForkedViewFamily) const override
+	{
+		check(IsInGameThread());
+
+		return new FDefaultDynamicResolutionDriver(Proxy, ForkedViewFamily);
+	}
+
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractions_RenderThread() const override
+	{
+		check(IsInRenderingThread());
+
+		DynamicRenderScaling::TMap<float> ResolutionFractions = Proxy->Heuristic.QueryCurentFrameResolutionFractions();
+		if (!ViewFamily.EngineShowFlags.ScreenPercentage)
+		{
+			ResolutionFractions[GDynamicPrimaryResolutionFraction] = 1.0f;
+		}
+
+		return ResolutionFractions;
+	}
+
+private:
+	// Dynamic resolution proxy to use.
+	FDefaultDynamicResolutionStateProxy* Proxy;
+
+	// View family to take care of.
+	const FSceneViewFamily& ViewFamily;
+
 };
 
 
@@ -846,16 +988,16 @@ public:
 		return bIsEnabled;
 	}
 
-	virtual float GetResolutionFractionApproximation() const override
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsApproximation() const override
 	{
 		check(IsInGameThread());
-		return Proxy->Heuristic.GetResolutionFractionApproximation_GameThread();
+		return Proxy->Heuristic.GetResolutionFractionsApproximation_GameThread();
 	}
 
-	virtual float GetResolutionFractionUpperBound() const override
+	virtual DynamicRenderScaling::TMap<float> GetResolutionFractionsUpperBound() const override
 	{
 		check(IsInGameThread());
-		return Proxy->Heuristic.GetResolutionFractionUpperBound();
+		return Proxy->Heuristic.GetResolutionFractionUpperBounds();
 	}
 
 	virtual void ProcessEvent(EDynamicResolutionStateEvent Event) override
@@ -910,7 +1052,7 @@ public:
 
 		if (bIsEnabled)
 		{
-			ViewFamily.SetScreenPercentageInterface(new FDefaultDynamicResolutionDriver(&Proxy->Heuristic, ViewFamily));
+			ViewFamily.SetScreenPercentageInterface(new FDefaultDynamicResolutionDriver(Proxy, ViewFamily));
 		}
 	}
 
