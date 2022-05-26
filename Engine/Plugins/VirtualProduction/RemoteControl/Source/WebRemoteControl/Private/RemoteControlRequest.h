@@ -789,7 +789,7 @@ struct FRCWebSocketTransactionStartBody : public FRCRequest
 	 * The ID that will be used to refer to the transaction in future messages.
 	 */
 	UPROPERTY()
-	int32 TransactionId;
+	int32 TransactionId = -1;
 };
 
 
@@ -815,5 +815,5 @@ struct FRCWebSocketTransactionEndBody : public FRCRequest
 	 * The ID of the transaction. If this doesn't match the current editor transaction, it won't be ended.
 	 */
 	UPROPERTY()
-	int32 TransactionId;
+	int32 TransactionId = -1;
 };

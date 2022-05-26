@@ -468,7 +468,7 @@ struct FRCTransactionEndedEvent
 	 * The client-specific ID of the transaction that was ended.
 	 */
 	UPROPERTY()
-	int32 TransactionId;
+	int32 TransactionId = -1;
 
 	/**
 	 * The highest sequence number received from the receiving client at the time that the transaction ended.
