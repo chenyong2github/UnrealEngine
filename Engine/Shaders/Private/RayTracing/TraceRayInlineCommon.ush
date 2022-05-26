@@ -44,13 +44,13 @@ void TraceRayInlineAccumulateStatistics()
 struct FTraceRayInlineResult
 {
 	float HitT;
-	float2 Barycentrics;
+	float2 Barycentrics; // Only valid if bIsProcedural is false
 	uint InstanceIndex;
 	uint InstanceID;
 	uint InstanceContributionToHitGroupIndex;
 	uint GeometryIndex;
 	uint PrimitiveIndex;
-	bool bIsFrontFace;
+	bool bIsFrontFace; // Only valid if bIsProcedural is false
 
 	uint Bookmark[2];
 
@@ -62,6 +62,9 @@ struct FTraceRayInlineResult
 
 	// Can be false only if PLATFORM_SUPPORTS_INLINE_RAY_TRACING_MAX_ITERATIONS is 1
 	bool bIsCompleted;
+
+	// Can only be true if ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE is 1
+	bool bIsProcedural;
 
 	// Only valid if shader was compiled with ENABLE_TRACE_RAY_INLINE_TRAVERSAL_STATISTICS
 	FTraceRayInlineTraversalStatistics TraversalStatistics;
@@ -79,7 +82,32 @@ struct FTraceRayInlineContext
 
 	// Only used if shader was compiled with ENABLE_TRACE_RAY_INLINE_PROCEDURAL_PRIMITIVE
 	bool bProcedural;
-	float NaniteCutError;
+};
+
+struct FTraceRayInlineProceduralIntersectionParameters
+{
+	uint InstanceIndex;
+	uint InstanceID;
+	uint InstanceContributionToHitGroupIndex;
+	uint GeometryIndex;
+	uint PrimitiveIndex;
+};
+
+// Default callback structure for use with TraceRayInline.
+// If custom functions are needed the new structure should derive from this structure.
+struct FDefaultTraceRayInlineCallback
+{	
+	// Returning true means to accept the hit and false means to continue search (default accept)
+	bool OnAnyHit(float3 ObjectRayOrigin, float3 ObjectRayDirection, FTraceRayInlineResult Hit)
+	{ 
+		return true; 
+	}
+
+	// Returning true means accept the procedural hit and false means to skip it (default skip)
+	bool OnProceduralPrimitive(float3 ObjectRayOrigin, float3 ObjectRayDirection, float RayTMin, inout float RayTCurrent, FTraceRayInlineProceduralIntersectionParameters ProceduralIntersectionParameters)
+	{
+		return false;
+	}
 };
 
 FTraceRayInlineContext CreateTraceRayInlineContext()
@@ -87,6 +115,5 @@ FTraceRayInlineContext CreateTraceRayInlineContext()
 	FTraceRayInlineContext Context;
 	Context.bProcedural = false;
 	Context.MaxIterations = 0xFFFFFFFF;
-	Context.NaniteCutError = 0.0f;
 	return Context;
 }
