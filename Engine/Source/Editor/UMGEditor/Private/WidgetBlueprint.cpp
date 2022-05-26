@@ -593,7 +593,7 @@ void UWidgetBlueprint::ReplaceDeprecatedNodes()
 		// However, UMG property bindings are a special case: the BP functions that bind to the native delegate must agree on their underlying types.
 		// Specifically, bindings used with float properties *must* use the PC_Float type as the return value in a BP function.
 		// In order to correct this behavior, we need to:
-		// * Iterate throught the property bindings.
+		// * Iterate through the property bindings.
 		// * Find the corresponding delegate signature.
 		// * Find the function graph that matches the binding.
 		// * Find the result node.
@@ -614,9 +614,18 @@ void UWidgetBlueprint::ReplaceDeprecatedNodes()
 
 					if (BindableProperty)
 					{
-						auto GraphMatchesBindingPredicate = [&Binding](const UEdGraph* Graph) {
+						FName FunctionName = Binding.FunctionName;
+
+						if (!Binding.SourcePath.IsEmpty())
+						{
+							check(Binding.SourcePath.Segments.Num() > 0);
+							const FEditorPropertyPathSegment& LastSegment = Binding.SourcePath.Segments[Binding.SourcePath.Segments.Num() - 1];
+							FunctionName = LastSegment.GetMemberName();
+						}
+
+						auto GraphMatchesBindingPredicate = [FunctionName](const UEdGraph* Graph) {
 							check(Graph);
-							return (Binding.FunctionName == Graph->GetFName());
+							return (FunctionName == Graph->GetFName());
 						};
 
 						if (UEdGraph** GraphEntry = Graphs.FindByPredicate(GraphMatchesBindingPredicate))
