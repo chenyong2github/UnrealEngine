@@ -15,7 +15,7 @@ bool UFloatBinding::IsSupportedDestination(FProperty* Property) const
 
 bool UFloatBinding::IsSupportedSource(FProperty* Property) const
 {
-	return IsConcreteTypeCompatibleWithReflectedType<float>(Property);
+	return IsConcreteTypeCompatibleWithReflectedType<float>(Property) || IsConcreteTypeCompatibleWithReflectedType<double>(Property);
 }
 
 float UFloatBinding::GetValue() const
@@ -24,14 +24,40 @@ float UFloatBinding::GetValue() const
 
 	if ( UObject* Source = SourceObject.Get() )
 	{
-		float Value = 0;
-		if ( SourcePath.GetValue<float>(Source, Value) )
+		// Since we can bind to either a float or double, we need to perform a narrowing conversion where necessary.
+		// If this isn't a property, then we're assuming that a function is used to extract the float value.
+
+		float FloatValue = 0.0f;
+
+		SourcePath.Resolve(Source);
+		if (FProperty* Property = SourcePath.GetFProperty())
 		{
-			return Value;
+			double DoubleValue = 0.0;
+			if (Property->IsA<FFloatProperty>() && SourcePath.GetValue<float>(Source, FloatValue))
+			{
+				return FloatValue;
+			}
+			else if (Property->IsA<FDoubleProperty>() && SourcePath.GetValue<double>(Source, DoubleValue))
+			{
+				FloatValue = static_cast<float>(DoubleValue);
+				return FloatValue;
+			}
+			else
+			{
+				checkf(false, TEXT("Unexpected property type: '%s'! Float bindings must use either a float or double property."), *Property->GetCPPType());
+			}
+		}
+		else
+		{
+			check(SourcePath.GetCachedFunction());
+			if (SourcePath.GetValue<float>(Source, FloatValue))
+			{
+				return FloatValue;
+			}
 		}
 	}
 
-	return 0;
+	return 0.0f;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -115,15 +115,15 @@ namespace PropertyPathHelpersInternal
 					}
 				}
 			}
-				else
-				{
+			else
+			{
 				// If it's the final segment, use the resolver to get the value.
 				if (bFinalSegment)
 				{
 					return InResolver.Resolve(static_cast<ContainerType*>(InContainer), InPropertyPath);
 				}
-			else
-			{
+				else
+				{
 					// If it's not the final segment, but still a function, we're going to treat it as an Object* getter.
 					// in the hopes that it leads to another object that we can resolve the next segment on.  These
 					// getter functions must be very simple.
@@ -134,7 +134,7 @@ namespace PropertyPathHelpersInternal
 
 					FCachedPropertyPath TempPath(Segment);
 					if (GetterResolver.Resolve(InContainer, TempPath))
-				{
+					{
 						if (CurrentObject)
 						{
 							InPropertyPath.SetCanSafelyUsedCachedAddress(false);
