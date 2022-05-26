@@ -1665,7 +1665,7 @@ void SSkeletonTree::CreateBlendProfileMenu(UToolMenu* InMenu)
 			}
 
 			{
-				FToolMenuSection& NewSection = InMenu->AddSection(TEXT("BlendProfileNew"), LOCTEXT("BlendProfiles", "New"));
+				FToolMenuSection& NewSection = InMenu->AddSection(TEXT("BlendProfileNew"), LOCTEXT("NewBlendProfiles", "New"));
 				NewSection.AddMenuEntry(Actions.CreateTimeBlendProfile);
 				NewSection.AddMenuEntry(Actions.CreateWeightBlendProfile);
 				NewSection.AddMenuEntry(Actions.CreateBlendMask);

@@ -400,7 +400,7 @@ void UPCGEditorGraphNodeBase::GetPinHoverText(const UEdGraphPin& Pin, FString& H
 	}
 	else
 	{
-		HoverTextOut = FText::Format(LOCTEXT("PinHoverToolTipFull", "Type: {0}\nSubtype: {1}"),
+		HoverTextOut = FText::Format(LOCTEXT("PinHoverToolTipPartial", "Type: {0}\nSubtype: {1}"),
 			DataTypeText,
 			DataSubtypeText).ToString();
 	}

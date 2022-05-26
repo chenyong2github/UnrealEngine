@@ -641,7 +641,7 @@ FNiagaraPlatformSetEnabledState FNiagaraPlatformSet::IsEnabled(const UDeviceProf
 									}
 									else
 									{
-										OutDetails->ReasonsForDisabled.Emplace(FText::Format(LOCTEXT("PlatformSetDPDisabledFmt", "{0} is disabled."), FText::FromString(CurrProfile->GetName())));
+										OutDetails->ReasonsForDisabled.Emplace(FText::Format(LOCTEXT("PlatformSetDPDisabledFmt2", "{0} is disabled."), FText::FromString(CurrProfile->GetName())));
 									}
 								}
 								else
@@ -652,7 +652,7 @@ FNiagaraPlatformSetEnabledState FNiagaraPlatformSet::IsEnabled(const UDeviceProf
 									}
 									else
 									{
-										OutDetails->ReasonsForDisabled.Emplace(FText::Format(LOCTEXT("PlatformSetParentDPDisabledFmt", "{0} is Disabled."), FText::FromString(CurrProfile->GetName())));
+										OutDetails->ReasonsForDisabled.Emplace(FText::Format(LOCTEXT("PlatformSetParentDPDisabledFmt2", "{0} is Disabled."), FText::FromString(CurrProfile->GetName())));
 									}
 								}
 							}
@@ -741,7 +741,7 @@ FNiagaraPlatformSetEnabledState FNiagaraPlatformSet::IsEnabled(const UDeviceProf
 			}
 			if (bCanBeActiveDisabled)
 			{
-				FText ReasonTest = FText::Format(LOCTEXT("CVarConditionDisabledFmt", "{0} is disabled due to a condition on CVar {1}"), FText::FromString(Profile->GetName()), FText::FromName(CVarCondition.CVarName));
+				FText ReasonTest = FText::Format(LOCTEXT("CVarConditionDisabledFmt2", "{0} is disabled due to a condition on CVar {1}"), FText::FromString(Profile->GetName()), FText::FromName(CVarCondition.CVarName));
 				OutDetails->ReasonsForDisabled.Emplace(ReasonTest);
 			}
 		}

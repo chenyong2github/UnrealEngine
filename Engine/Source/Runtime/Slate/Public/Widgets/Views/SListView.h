@@ -1610,7 +1610,7 @@ public:
 				SNew(STableRow<ItemType>, SharedThis(this))
 				.Content()
 				[
-					SNew(STextBlock).Text(NSLOCTEXT("SListView", "BrokenUIMessage", "OnGeneratePinnedRow() not assigned."))
+					SNew(STextBlock).Text(NSLOCTEXT("SListView", "OnGeneratePinnedRowNotAssignedMessage", "OnGeneratePinnedRow() not assigned."))
 				];
 
 			return NewListItemWidget;
@@ -1638,7 +1638,7 @@ public:
 				SNew( STableRow<ItemType>, SharedThis(this) )
 				.Content()
 				[
-					SNew(STextBlock) .Text( NSLOCTEXT("SListView", "BrokenUIMessage", "OnGenerateWidget() not assigned.") )
+					SNew(STextBlock) .Text( NSLOCTEXT("SListView", "OnGenerateWidgetNotAssignedMessage", "OnGenerateWidget() not assigned.") )
 				];
 
 			return NewListItemWidget;

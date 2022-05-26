@@ -164,7 +164,7 @@ void FLandscapeEditorDetailCustomization_MiscTools::CustomizeDetails(IDetailLayo
 			+ SHorizontalBox::Slot()
 			[
 				SNew(SButton)
-				.ToolTipText(LOCTEXT("Spline.ControlPoints.All.Tooltip", "Selects all landscape spline segments in the map."))
+				.ToolTipText(LOCTEXT("Spline.Segments.All.Tooltip", "Selects all landscape spline segments in the map."))
 				.Text(LOCTEXT("Spline.Segments", "Segments"))
 				.HAlign(HAlign_Center)
 				.OnClicked_Static(&FLandscapeEditorDetailCustomization_MiscTools::OnSelectAllSegmentsButtonClicked)

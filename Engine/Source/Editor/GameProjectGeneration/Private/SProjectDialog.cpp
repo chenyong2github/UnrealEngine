@@ -2044,7 +2044,7 @@ void SProjectDialog::UpdateProjectFileValidity()
 					}
 					else
 					{
-						LastGlobalValidityErrorText = FText::Format(LOCTEXT("NoCompilerFoundProjectDialog", "Your IDE {0} is missing or incorrectly configured, please consider using {1}"),
+						LastGlobalValidityErrorText = FText::Format(LOCTEXT("MissingIDEProjectDialog", "Your IDE {0} is missing or incorrectly configured, please consider using {1}"),
 			FSourceCodeNavigation::GetSelectedSourceCodeIDE(), FSourceCodeNavigation::GetSuggestedSourceCodeIDE());
 					}
 				}

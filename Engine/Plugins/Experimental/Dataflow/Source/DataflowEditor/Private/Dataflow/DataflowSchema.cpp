@@ -87,11 +87,11 @@ const FPinConnectionResponse UDataflowSchema::CanCreateConnection(const UEdGraph
 		}
 	}
 	TArray<FText> NoConnectionResponse = {
-		LOCTEXT("PinErrorSameNode", "Nope"), 
-		LOCTEXT("PinErrorSameNode", "Sorry :("),
-		LOCTEXT("PinErrorSameNode", "Not gonna work."),
-		LOCTEXT("PinErrorSameNode", "Still no!"),
-		LOCTEXT("PinErrorSameNode", "Try again?"),
+		LOCTEXT("PinErrorSameNode_Nope", "Nope"),
+		LOCTEXT("PinErrorSameNode_Sorry", "Sorry :("),
+		LOCTEXT("PinErrorSameNode_NotGonnaWork", "Not gonna work."),
+		LOCTEXT("PinErrorSameNode_StillNo", "Still no!"),
+		LOCTEXT("PinErrorSameNode_TryAgain", "Try again?"),
 	};
 	return FPinConnectionResponse(CONNECT_RESPONSE_DISALLOW, NoConnectionResponse[FMath::RandRange(0, NoConnectionResponse.Num()-1)]);
 }

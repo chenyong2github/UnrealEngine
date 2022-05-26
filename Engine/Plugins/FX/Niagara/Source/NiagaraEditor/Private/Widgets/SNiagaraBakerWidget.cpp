@@ -653,7 +653,7 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeViewOptionsMenu()
 				FMakeRotatorBox::FGetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCurrentCameraRotation),
 				FMakeRotatorBox::FSetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCurrentCameraRotation)
 			),
-			LOCTEXT("CameraLocation", "Camera Rotation")
+			LOCTEXT("CameraRotation", "Camera Rotation")
 		);
 
 		if ( ViewModel->IsCurrentCameraPerspective() )

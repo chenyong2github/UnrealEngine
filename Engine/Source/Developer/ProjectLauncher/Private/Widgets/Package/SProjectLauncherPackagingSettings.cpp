@@ -185,8 +185,8 @@ void SProjectLauncherPackagingSettings::Construct(const FArguments& InArgs, cons
 										.IsEnabled(this, &SProjectLauncherPackagingSettings::IsReferenceBlockDbEditable)
 										.OnTextCommitted(this, &SProjectLauncherPackagingSettings::OnRefBlockDbFileNameTextCommitted)
 										.OnTextChanged(this, &SProjectLauncherPackagingSettings::OnRefBlockDbFileNameTextChanged)
-										.ToolTipText(LOCTEXT("RefBlockDbFileNameToolTip", "The path to a global.utoc in a directory of previously released iostore containers."))
-										.HintText(LOCTEXT("RefBlockDbFileNameHint", "<path/to/global.utoc>"))
+										.ToolTipText(LOCTEXT("RefBlockDbUtocFileNameToolTip", "The path to a global.utoc in a directory of previously released iostore containers."))
+										.HintText(LOCTEXT("RefBlockDbUtocFileNameHint", "<path/to/global.utoc>"))
 									]
 
 								+ SHorizontalBox::Slot()
@@ -199,7 +199,7 @@ void SProjectLauncherPackagingSettings::Construct(const FArguments& InArgs, cons
 										.ContentPadding(FMargin(6.0, 2.0))
 										.IsEnabled(this, &SProjectLauncherPackagingSettings::IsReferenceBlockDbEditable)
 										.Text(LOCTEXT("BrowseButtonText", "Browse..."))
-										.ToolTipText(LOCTEXT("BrowseForRefDbButtonToolTip", "Browse for the global.utoc file from a previously staged/released game."))
+										.ToolTipText(LOCTEXT("BrowseForRefDbUtocFilenameButtonToolTip", "Browse for the global.utoc file from a previously staged/released game."))
 										.OnClicked(this, &SProjectLauncherPackagingSettings::HandleRefBlockDbBrowseButtonClicked)
 									]
 							] // end reference container line
@@ -219,8 +219,8 @@ void SProjectLauncherPackagingSettings::Construct(const FArguments& InArgs, cons
 									.IsEnabled(this, &SProjectLauncherPackagingSettings::IsReferenceBlockDbEditable)
 									.OnTextCommitted(this, &SProjectLauncherPackagingSettings::OnRefBlockCryptoFileNameTextCommitted)
 									.OnTextChanged(this, &SProjectLauncherPackagingSettings::OnRefBlockCryptoFileNameTextChanged)
-									.ToolTipText(LOCTEXT("RefBlockDbFileNameToolTip", "The path to a crypto.json to decrypt the reference block containers, if needed."))
-									.HintText(LOCTEXT("RefBlockDbFileNameHint", "<path/to/crypto.json, optional>"))
+									.ToolTipText(LOCTEXT("RefBlockDbCryptoFileNameToolTip", "The path to a crypto.json to decrypt the reference block containers, if needed."))
+									.HintText(LOCTEXT("RefBlockDbCryptoFileNameHint", "<path/to/crypto.json, optional>"))
 								]
 
 								+ SHorizontalBox::Slot()
@@ -233,7 +233,7 @@ void SProjectLauncherPackagingSettings::Construct(const FArguments& InArgs, cons
 										.ContentPadding(FMargin(6.0, 2.0))
 										.IsEnabled(this, &SProjectLauncherPackagingSettings::IsReferenceBlockDbEditable)
 										.Text(LOCTEXT("BrowseButtonText", "Browse..."))
-										.ToolTipText(LOCTEXT("BrowseForRefDbButtonToolTip", "Browse for the crypto.json file to decrypt the reference containers, if needed."))
+										.ToolTipText(LOCTEXT("BrowseForRefDbCryptoFilenameButtonToolTip", "Browse for the crypto.json file to decrypt the reference containers, if needed."))
 										.OnClicked(this, &SProjectLauncherPackagingSettings::HandleRefBlockCryptoBrowseButtonClicked)
 									]
 							] // end reference container crypto keys line

@@ -572,7 +572,7 @@ void FIKRetargetEditorController::HandleImportPose()
 					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
-					.Text(LOCTEXT("ImportButtonLabel", "Import New Retarget Pose"))
+					.Text(LOCTEXT("ImportNewRetargetPoseButtonLabel", "Import New Retarget Pose"))
 					.OnClicked(this, &FIKRetargetEditorController::ImportRetargetPose)
 				]
 				
@@ -675,7 +675,7 @@ void FIKRetargetEditorController::HandleImportPoseFromSequence()
 
 	// create pop-up window for user to select animation sequence asset to import as a retarget pose]
 	ImportPoseFromSequenceWindow = SNew(SWindow)
-	.Title(LOCTEXT("ImportRetargetPose", "Import Retarget Pose from Sequence Asset"))
+	.Title(LOCTEXT("ImportRetargetPoseFromSequenceAsset", "Import Retarget Pose from Sequence Asset"))
 	.ClientSize(FVector2D(500, 600))
 	.SupportsMinimize(false) .SupportsMaximize(false)
 	[
@@ -767,7 +767,7 @@ void FIKRetargetEditorController::HandleImportPoseFromSequence()
 					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
 					.HAlign(HAlign_Center)
 					.VAlign(VAlign_Center)
-					.Text(LOCTEXT("ImportButtonLabel", "Import As Retarget Pose"))
+					.Text(LOCTEXT("ImportAsRetargetPoseButtonLabel", "Import As Retarget Pose"))
 					.OnClicked(this, &FIKRetargetEditorController::OnImportPoseFromSequence)
 				]
 				

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIModelViewModel.h"
 
@@ -181,7 +181,7 @@ void FWebAPIModelViewModel::Initialize()
 	TArray<FText> TooltipArgs;
 	if(Model->Name.HasTypeInfo() && Model->Name.TypeInfo.LoadSynchronous()->bIsNested)
 	{
-		TooltipArgs.Emplace(LOCTEXT("ModelTooltip_Header", "Model (Nested)").ToUpper());
+		TooltipArgs.Emplace(LOCTEXT("NestedModelTooltip_Header", "Model (Nested)").ToUpper());
 	}
 	else
 	{

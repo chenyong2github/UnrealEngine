@@ -1088,7 +1088,7 @@ void FDisplayClusterLaunchEditorModule::AddConsoleVariablesEditorAssetsToToolbar
 					{
 						const FText ConsoleVariablesAssetName = FText::FromName(Asset.AssetName);
 						const FText ConsoleVariablesAssetTooltip =
-							FText::Format(LOCTEXT("SelectConsoleVariablesAssetFormat","Select Console Variables Asset '{0}'"), ConsoleVariablesAssetName);
+							FText::Format(LOCTEXT("SelectConsoleVariablesAssetFormatLong","Select Console Variables Asset '{0}'"), ConsoleVariablesAssetName);
 						NewMenuBuilder.AddMenuEntry(
 							ConsoleVariablesAssetName,
 							ConsoleVariablesAssetTooltip,

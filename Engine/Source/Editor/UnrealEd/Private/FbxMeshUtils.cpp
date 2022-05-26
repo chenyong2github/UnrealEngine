@@ -119,7 +119,7 @@ namespace FbxMeshUtils
 							{
 								// Notification of success
 								FNotificationInfo NotificationInfo(FText::GetEmpty());
-								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "LODImportSuccessful", "Static mesh LOD {0} imported successfully!"), FText::AsNumber(LODLevel));
+								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "StaticMeshLODImportSuccessful", "Static mesh LOD {0} imported successfully!"), FText::AsNumber(LODLevel));
 								NotificationInfo.ExpireDuration = 5.0f;
 								FSlateNotificationManager::Get().AddNotification(NotificationInfo);
 							}
@@ -127,7 +127,7 @@ namespace FbxMeshUtils
 							{
 								// Notification of failure
 								FNotificationInfo NotificationInfo(FText::GetEmpty());
-								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "LODImportFail", "Failed to import static mesh LOD {0}!"), FText::AsNumber(LODLevel));
+								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "StaticMeshLODImportFail", "Failed to import static mesh LOD {0}!"), FText::AsNumber(LODLevel));
 								NotificationInfo.ExpireDuration = 5.0f;
 								FSlateNotificationManager::Get().AddNotification(NotificationInfo);
 							}
@@ -322,7 +322,7 @@ namespace FbxMeshUtils
 							{
 								// Notification of failure
 								FNotificationInfo NotificationInfo(FText::GetEmpty());
-								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "LODImportFail", "Failed to import mesh for LOD {0}!"), FText::AsNumber(LODLevel));
+								NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "MeshLODImportFail", "Failed to import mesh for LOD {0}!"), FText::AsNumber(LODLevel));
 								NotificationInfo.ExpireDuration = 5.0f;
 								FSlateNotificationManager::Get().AddNotification(NotificationInfo);
 							}
@@ -629,7 +629,7 @@ namespace FbxMeshUtils
 					ReapplyClothing();
 					// Notification of failure
 					FNotificationInfo NotificationInfo(FText::GetEmpty());
-					NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "LODImportFail", "Failed to import mesh for LOD {0}!"), FText::AsNumber(SelectedLOD));
+					NotificationInfo.Text = FText::Format(NSLOCTEXT("UnrealEd", "MeshLODImportFail2", "Failed to import mesh for LOD {0}!"), FText::AsNumber(SelectedLOD));
 					NotificationInfo.ExpireDuration = 5.0f;
 					FSlateNotificationManager::Get().AddNotification(NotificationInfo);
 				}

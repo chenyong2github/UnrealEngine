@@ -99,9 +99,9 @@ TSharedRef<SWidget> SDeleteActivityDependenciesDialog::CreateBody(const FGuid& I
 					const bool bWillBeDeleted = ActivitiesToDelete[ActivityID];
 					if (bWillBeDeleted)
 					{
-						return LOCTEXT("DeleteActivity.CheckBox.TooltipEnabled", "This is a possible dependency.\nWill be deleted.");
+						return LOCTEXT("DeleteActivity.CheckBox.TooltipEnabled.Deleted", "This is a possible dependency.\nWill be deleted.");
 					}
-					return LOCTEXT("DeleteActivity.CheckBox.TooltipEnabled", "This is a possible dependency.\nWill not be deleted.");
+					return LOCTEXT("DeleteActivity.CheckBox.TooltipEnabled.NotDeleted", "This is a possible dependency.\nWill not be deleted.");
 				});
 		});
 }

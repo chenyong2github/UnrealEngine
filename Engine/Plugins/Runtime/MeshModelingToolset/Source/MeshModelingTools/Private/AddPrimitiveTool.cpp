@@ -170,7 +170,7 @@ void UAddPrimitiveTool::SetState(EState NewState)
 		Gizmo->ReinitializeGizmoTransform(PreviewMesh->GetTransform());
 
 		GetToolManager()->DisplayMessage(
-			LOCTEXT("OnStartAddPrimitiveTool", "Alter shape settings in the detail panel or modify placement with gizmo, then accept the tool."),
+			LOCTEXT("OnStartAddPrimitiveTool2", "Alter shape settings in the detail panel or modify placement with gizmo, then accept the tool."),
 			EToolMessageLevel::UserNotification);
 	}
 }

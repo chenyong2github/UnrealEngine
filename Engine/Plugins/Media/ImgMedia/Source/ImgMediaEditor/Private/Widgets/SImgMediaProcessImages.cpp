@@ -76,7 +76,7 @@ void SImgMediaProcessImages::Construct(const FArguments& InArgs)
 						SAssignNew(StartButton, SButton)
 							.OnClicked(this, &SImgMediaProcessImages::OnProcessImagesClicked)
 							.Text(LOCTEXT("StartProcessImages", "Process Images"))
-							.ToolTipText(LOCTEXT("ProcesssImagesButtonToolTip", "Start processing images."))
+							.ToolTipText(LOCTEXT("StartProcesssImagesButtonToolTip", "Start processing images."))
 					]
 
 				+ SHorizontalBox::Slot()
@@ -85,7 +85,7 @@ void SImgMediaProcessImages::Construct(const FArguments& InArgs)
 						SAssignNew(CancelButton, SButton)
 							.OnClicked(this, &SImgMediaProcessImages::OnCancelClicked)
 							.Text(LOCTEXT("CancelProcessImages", "Cancel"))
-							.ToolTipText(LOCTEXT("ProcesssImagesButtonToolTip", "Cancel processing images."))
+							.ToolTipText(LOCTEXT("CancelProcesssImagesButtonToolTip", "Cancel processing images."))
 					]
 			]
 	];
@@ -933,7 +933,7 @@ void SImgMediaProcessImages::HandleProcessing()
 				if (ConfirmNotification.IsValid())
 				{
 					ConfirmNotification->SetText(
-						FText::Format(LOCTEXT("ImgMediaCompleted", "ImgMedia Completed {0}"),
+						FText::Format(LOCTEXT("ImgMediaCompleted2", "ImgMedia Completed {0}"),
 							FText::AsNumber(CurrentFrameIndex)));
 				}
 

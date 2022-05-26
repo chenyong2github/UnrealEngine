@@ -408,7 +408,7 @@ namespace UE::PoseSearch
 		check(Args.GetTabId() == FDatabaseEditorTabs::AssetDetailsID);
 
 		return SNew(SDockTab)
-			.Label(LOCTEXT("AssetDetails_Title", "Database Details"))
+			.Label(LOCTEXT("Database_Details_Title", "Database Details"))
 			[
 				EditingAssetWidget.ToSharedRef()
 			];
@@ -460,7 +460,7 @@ namespace UE::PoseSearch
 		}
 
 		return SNew(SDockTab)
-			.Label(LOCTEXT("AssetDetails_Title", "Selection Details"))
+			.Label(LOCTEXT("SelectionDetails_Title", "Selection Details"))
 			[
 				SNew(SScrollBox)
 				+SScrollBox::Slot()

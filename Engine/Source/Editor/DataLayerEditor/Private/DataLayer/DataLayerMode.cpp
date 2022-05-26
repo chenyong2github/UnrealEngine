@@ -1077,7 +1077,7 @@ void FDataLayerMode::RegisterContextMenu()
 						Section.AddMenuEntry("ImportDataLayers", LOCTEXT("ImportDataLayers", "Import Data Layer(s)"), FText(), FSlateIcon(),
 							FUIAction(FExecuteAction::CreateLambda([this, DataLayerAssetsToImport, CreateNewDataLayer]()
 								{
-									const FScopedTransaction Transaction(LOCTEXT("ImportDataLayers", "Import Data Layers"));
+									const FScopedTransaction Transaction(LOCTEXT("ImportDataLayersTransaction", "Import Data Layers"));
 									CreateNewDataLayer(nullptr, DataLayerAssetsToImport);
 								})));
 					}

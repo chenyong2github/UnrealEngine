@@ -39,7 +39,7 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkel
 	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(InRigAsset, SkeletalMesh))
 	{
 		InRigAsset->Log.LogError(FText::Format(
-			LOCTEXT("NoSkeleton", "Trying to initialize IKRig, '{0}' with a Skeleton that is missing required bones. See prior warnings."),
+			LOCTEXT("SkeletonMissingRequiredBones", "Trying to initialize IKRig, '{0}' with a Skeleton that is missing required bones. See prior warnings."),
 			FText::FromString(InRigAsset->GetName())));
 		return;
 	}
@@ -183,7 +183,7 @@ bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRi
 				bAllParentsValid = false;
 
 				InRigAsset->Log.LogError(FText::Format(
-			LOCTEXT("MissingParent", "IK Rig is running on a skeleton with a required bone, '{0}', that expected to have a valid parent. The expected parent was, '{1}'."),
+			LOCTEXT("InvalidParent", "IK Rig is running on a skeleton with a required bone, '{0}', that expected to have a valid parent. The expected parent was, '{1}'."),
 				FText::FromName(RequiredBone),
 				FText::FromName(AssetParentName)));
 				
@@ -195,7 +195,7 @@ bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRi
 			{
 				// we only warn about this, because it may be nice not to have the exact same hierarchy
 				InRigAsset->Log.LogWarning(FText::Format(
-				LOCTEXT("MissingParent", "IK Rig is running on a skeleton with a required bone, '{0}', that has a different parent '{1}'. The expected parent was, '{2}'."),
+				LOCTEXT("UnexpectedParent", "IK Rig is running on a skeleton with a required bone, '{0}', that has a different parent '{1}'. The expected parent was, '{2}'."),
 				FText::FromName(RequiredBone),
 				FText::FromName(InputParentName),
 				FText::FromName(AssetParentName)));

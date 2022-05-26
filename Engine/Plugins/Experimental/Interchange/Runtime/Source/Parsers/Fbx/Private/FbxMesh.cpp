@@ -1114,7 +1114,7 @@ bool FMeshPayloadContext::FetchPayloadToFile(FFbxParser& Parser, const FString& 
 	{
 		UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 		Message->InterchangeKey = FFbxHelper::GetMeshUniqueID(Mesh);
-		Message->Text = LOCTEXT("FBXSceneNull", "Cannot fetch FBX mesh payload because the FBX scene is null.");
+		Message->Text = LOCTEXT("FBXSceneNull_Mesh", "Cannot fetch FBX mesh payload because the FBX scene is null.");
 		return false;
 	}
 

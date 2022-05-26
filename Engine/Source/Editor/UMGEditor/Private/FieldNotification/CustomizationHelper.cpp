@@ -218,3 +218,4 @@ UK2Node_FunctionEntry* FCustomizationHelper::FindFunctionEntry(UObject* Object) 
 
 
 } //namespace
+#undef LOCTEXT_NAMESPACE

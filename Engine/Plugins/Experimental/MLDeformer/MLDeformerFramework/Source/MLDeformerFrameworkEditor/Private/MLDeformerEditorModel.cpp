@@ -752,7 +752,7 @@ namespace UE::MLDeformer
 				Result = FText::Format(LOCTEXT("TargetMeshMismatch", "Number of vertices in target mesh has changed from {0} to {1} vertices since this ML Deformer Asset was saved! {2}"),
 					InputInfo->GetNumTargetMeshVertices(),
 					Model->NumTargetMeshVerts,
-					IsTrained() ? LOCTEXT("BaseMeshMismatchNN", "Model needs to be retrained!") : FText());
+					IsTrained() ? LOCTEXT("BaseMeshMismatchModel", "Model needs to be retrained!") : FText());
 			}
 		}
 

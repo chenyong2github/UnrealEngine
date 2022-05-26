@@ -573,7 +573,7 @@ namespace UE::Interchange::Private
 		{
 			UInterchangeResultError_Generic* Message = Parser.AddMessage<UInterchangeResultError_Generic>();
 			Message->InterchangeKey = FFbxHelper::GetFbxNodeHierarchyName(Node);
-			Message->Text = LOCTEXT("FBXSceneNull", "Cannot fetch FBX animation transform payload because the FBX scene is null.");
+			Message->Text = LOCTEXT("FBXSceneNull_Animation", "Cannot fetch FBX animation transform payload because the FBX scene is null.");
 			return false;
 		}
 

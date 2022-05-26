@@ -3710,18 +3710,18 @@ FText UEdGraphSchema_K2::GetCategoryText(FName Category, FName SubCategory, bool
 		{
 		case EBlueprintRealDisplayMode::Real:
 			CategoryDescriptions[PC_Real] = LOCTEXT("RealCategory_DisplayAsReal", "Real");
-			CategoryDescriptions[PC_Float] = LOCTEXT("RealCategory_DisplayAsReal", "Real (single-precision)");
-			CategoryDescriptions[PC_Double] = LOCTEXT("RealCategory_DisplayAsReal", "Real (double-precision)");
+			CategoryDescriptions[PC_Float] = LOCTEXT("RealCategory_DisplayAsReal_SinglePrecision", "Real (single-precision)");
+			CategoryDescriptions[PC_Double] = LOCTEXT("RealCategory_DisplayAsReal_DoublePrecision", "Real (double-precision)");
 			break;
 		case EBlueprintRealDisplayMode::Float:
 			CategoryDescriptions[PC_Real] = LOCTEXT("RealCategory_DisplayAsFloat", "Float");
-			CategoryDescriptions[PC_Float] = LOCTEXT("RealCategory_DisplayAsFloat", "Float (single-precision)");
-			CategoryDescriptions[PC_Double] = LOCTEXT("RealCategory_DisplayAsFloat", "Float (double-precision)");
+			CategoryDescriptions[PC_Float] = LOCTEXT("RealCategory_DisplayAsFloat_SinglePrecision", "Float (single-precision)");
+			CategoryDescriptions[PC_Double] = LOCTEXT("RealCategory_DisplayAsFloat_DoublePrecision", "Float (double-precision)");
 			break;
 		case EBlueprintRealDisplayMode::Number:
 			CategoryDescriptions[PC_Real] = LOCTEXT("RealCategory_DisplayAsNumber", "Number");
-			CategoryDescriptions[PC_Float] = LOCTEXT("RealCategory_DisplayAsNumber", "Number (single-precision)");
-			CategoryDescriptions[PC_Double] = LOCTEXT("RealCategory_DisplayAsNumber", "Number (double-precision)");
+			CategoryDescriptions[PC_Float] = LOCTEXT("RealCategory_DisplayAsNumber_SinglePrecision", "Number (single-precision)");
+			CategoryDescriptions[PC_Double] = LOCTEXT("RealCategory_DisplayAsNumber_DoublePrecision", "Number (double-precision)");
 			break;
 		default:
 			check(false);

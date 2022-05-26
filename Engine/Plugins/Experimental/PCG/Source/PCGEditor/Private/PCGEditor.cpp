@@ -262,7 +262,7 @@ void FPCGEditor::DeleteSelectedNodes()
 
 		bool bChanged = false;
 		{
-			const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorPaste", "PCG Editor: Delete"), nullptr);
+			const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorDeleteTransactionMessage", "PCG Editor: Delete"), nullptr);
 			PCGEditorGraph->Modify();
 
 			for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
@@ -379,7 +379,7 @@ void FPCGEditor::PasteNodesHere(const FVector2D& Location)
 		return;
 	}
 
-	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorPaste", "PCG Editor: Paste"), nullptr);
+	const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorPasteTransactionMessage", "PCG Editor: Paste"), nullptr);
 	PCGEditorGraph->Modify();
 
 	// Clear the selection set (newly pasted stuff will be selected)

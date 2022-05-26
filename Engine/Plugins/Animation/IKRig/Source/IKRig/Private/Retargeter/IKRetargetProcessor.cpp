@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Retargeter/IKRetargetProcessor.h"
 
@@ -1428,7 +1428,7 @@ bool UIKRetargetProcessor::InitializeIKRig(UObject* Outer, const USkeletalMesh* 
 		if (!IKRigProcessor->GetGoalContainer().FindGoalByName(ChainPair.IKGoalName))
 		{
 			RetargeterAsset->Log.LogError( FText::Format(
-			LOCTEXT("CountNotFindRootBone", "IK Retargeter has target bone chain, {0} that references an IK Goal, {1} that is not present in any of the solvers in the IK Rig asset."),
+			LOCTEXT("TargetIKBoneNotInSolver", "IK Retargeter has target bone chain, {0} that references an IK Goal, {1} that is not present in any of the solvers in the IK Rig asset."),
 			FText::FromName(ChainPair.TargetBoneChainName), FText::FromName(ChainPair.IKGoalName)));
 			return false;
 		}

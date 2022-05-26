@@ -2446,7 +2446,7 @@ FTraceFilterByBuildConfig::FTraceFilterByBuildConfig()
 
 FTraceFilterByBuildTarget::FTraceFilterByBuildTarget()
 {
-	ToggleAllActionTooltip = LOCTEXT("FilterByBuildConfig_ToggleAll_Tooltip", "Shows or hides traces for all build targets.");
+	ToggleAllActionTooltip = LOCTEXT("FilterByBuildTarget_ToggleAll_Tooltip", "Shows or hides traces for all build targets.");
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

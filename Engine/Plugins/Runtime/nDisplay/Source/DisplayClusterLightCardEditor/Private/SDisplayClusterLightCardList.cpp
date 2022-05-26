@@ -501,7 +501,7 @@ void SDisplayClusterLightCardList::AddExistingLightCard()
 	GEditor->EditorAddModalWindow(PickerWindow.ToSharedRef());
 	if (bFinished && SelectedActorPtr.IsValid())
 	{
-		FScopedTransaction Transaction(LOCTEXT("AddExistingLightCard", "Add Existing Light Card"));
+		FScopedTransaction Transaction(LOCTEXT("AddExistingLightCardTransactionMessage", "Add Existing Light Card"));
 		AddLightCardToActor(SelectedActorPtr.Get());
 	}
 

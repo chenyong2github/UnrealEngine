@@ -243,4 +243,4 @@ bool FDMXMVRUnzip::InitializeFromFileInternal(const FString& FilePathAndName)
 	return InitializeFromDataInternal(NewData.GetData(), NewData.Num());
 }
 
-#undef LOCTEXT_NAMESPACE
+

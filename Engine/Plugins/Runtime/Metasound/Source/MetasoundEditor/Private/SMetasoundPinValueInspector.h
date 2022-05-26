@@ -118,4 +118,4 @@ namespace Metasound
 		};
 	} // namespace Editor
 } // namespace Metasound
-#undef LOCTEXT_NAMESPACE
+

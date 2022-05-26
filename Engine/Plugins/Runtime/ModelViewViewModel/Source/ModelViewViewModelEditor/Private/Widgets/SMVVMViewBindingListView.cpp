@@ -819,7 +819,7 @@ void SMVVMViewBindingListView::Construct(const FArguments& InArgs, TSharedPtr<SM
 			.DefaultLabel(LOCTEXT("Widget", "Widget"))
 			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::WidgetPropertyColumnName)
 			.FillWidth(0.125f)
-			.DefaultLabel(LOCTEXT("Widget", "Widget Property"))
+			.DefaultLabel(LOCTEXT("WidgetProperty", "Widget Property"))
 			+ SHeaderRow::Column(SMVVMViewBindingListEntryRow::UpdateColumnName)
 			.FillWidth(0.05f)
 			.DefaultLabel(LOCTEXT("Update", "Update"))

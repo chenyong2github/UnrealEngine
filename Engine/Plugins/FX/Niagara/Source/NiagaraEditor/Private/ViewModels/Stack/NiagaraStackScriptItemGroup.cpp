@@ -996,7 +996,7 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 	if (DropRequest.DropOptions != UNiagaraStackEntry::EDropOptions::Overview)
 	{
 		// Only allow dropping in the overview stacks.
-		return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("AssetCantDropOnStack", "Scripts can only be dropped into the overview."));
+		return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("ScriptCantDropOnStack", "Scripts can only be dropped into the overview."));
 	}
 	UNiagaraScript* Script = DragDropOp->Script.Get();
 	if (Script)

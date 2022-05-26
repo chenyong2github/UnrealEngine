@@ -321,7 +321,7 @@ void UNiagaraNodeWithDynamicPins::GetNodeContextMenuActions(UToolMenu* Menu, UGr
 				Section.AddMenuEntry(
 				"MoveDynamicPinUp",
 				MoveUpLabel,
-				LOCTEXT("MoveDynamicPinToolTipUp", "Move this pin and any connections one slot up."),
+				LOCTEXT("MoveDynamicPinToolTipUpSlot", "Move this pin and any connections one slot up."),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateUObject(const_cast<UNiagaraNodeWithDynamicPins*>(this), &UNiagaraNodeWithDynamicPins::MoveDynamicPinFromMenu, const_cast<UEdGraphPin*>(Context->Pin), -1)));
 			}

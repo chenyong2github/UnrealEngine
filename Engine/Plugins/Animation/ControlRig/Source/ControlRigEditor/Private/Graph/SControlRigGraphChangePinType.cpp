@@ -366,7 +366,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 						.Text(GetBindingText(Type))
 						.ColorAndOpacity(FLinearColor::White * (bIsFilteredOut ? 0.5f : 1.f))
 						.ToolTipText(bIsFilteredOut ? LOCTEXT("WildcardAvailableTypeTooltip","Will break connections if resolved to this type.") :
-							LOCTEXT("WildcardAvailableTypeTooltip", "Available filtered type"))
+							LOCTEXT("WildcardAvailableFilterTypeTooltip", "Available filtered type"))
 					]);
 		}
 	}

@@ -50,10 +50,10 @@ FText UInterchangeResultTextureWarning_TextureFileDoNotExist::GetText() const
 
 	if (MaterialName.IsEmpty())
 	{
-		return FText::Format(LOCTEXT("TextureFileDoNotExist", "Cannot open texture file '{TextureName}'."), Args);
+		return FText::Format(LOCTEXT("TextureFileCannotBeOpened", "Cannot open texture file '{TextureName}'."), Args);
 	}
 	
-	return FText::Format(LOCTEXT("TextureFileDoNotExist", "Cannot open texture file '{TextureName}' when importing material '{MaterialName}'."), Args);
+	return FText::Format(LOCTEXT("CannotOpenTextureFileOnImport", "Cannot open texture file '{TextureName}' when importing material '{MaterialName}'."), Args);
 }
 
 

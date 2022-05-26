@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIOperationResponseViewModel.h"
 
@@ -52,7 +52,7 @@ void FWebAPIOperationResponseViewModel::Initialize()
 	}
 	else
 	{
-		CachedLabel = LOCTEXT("ResponseLabel", "Response Code: Default");
+		CachedLabel = LOCTEXT("ResponseLabel_Default", "Response Code: Default");
 	}
 
 	// Check if response is empty, but has description

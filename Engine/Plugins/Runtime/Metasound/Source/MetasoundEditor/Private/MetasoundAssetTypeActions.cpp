@@ -316,11 +316,11 @@ namespace Metasound
 				FText Format;
 				if (IsPlaying(Path))
 				{
-					Format = LOCTEXT("PreviewMetaSoundFromIconToolTip", "Stop Previewing {0}");
+					Format = LOCTEXT("StopPreviewMetaSoundFromIconToolTip", "Stop Previewing {0}");
 				}
 				else
 				{
-					Format = LOCTEXT("PreviewMetaSoundFromIconToolTip", "Preview {0}");
+					Format = LOCTEXT("PreviewMetaSoundFromIconToolTip_Editor", "Preview {0}");
 				}
 
 				FName TypeName = UMetaSoundSource::StaticClass()->GetFName();

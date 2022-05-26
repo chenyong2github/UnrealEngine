@@ -273,8 +273,8 @@ namespace UE::PoseSearch
 			EUserInterfaceActionType::Button);
 
 		AddOptions.AddMenuEntry(
-			LOCTEXT("AddBlendSpace", "Add Blend Space"),
-			LOCTEXT("AddBlendSpaceTooltip", "Add new blend space to this group"),
+			LOCTEXT("AddBlendSpaceOption", "Add Blend Space"),
+			LOCTEXT("AddBlendSpaceOptionTooltip", "Add new blend space to this group"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetListItem::OnAddBlendSpace)),
 			NAME_None,
@@ -699,16 +699,16 @@ namespace UE::PoseSearch
 
 		AddOptions.BeginSection("AddOptions", LOCTEXT("AssetAddOptions", "Assets"));
 		AddOptions.AddMenuEntry(
-			LOCTEXT("AddSequence", "Sequence"),
-			LOCTEXT("AddSequenceTooltip", "Add new sequence to the default group"),
+			LOCTEXT("AddSequenceOption", "Sequence"),
+			LOCTEXT("AddSequenceOptionTooltip", "Add new sequence to the default group"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddSequence, true)),
 			NAME_None,
 			EUserInterfaceActionType::Button);
 
 		AddOptions.AddMenuEntry(
-			LOCTEXT("AddBlendSpace", "Blend Space"),
-			LOCTEXT("AddBlendSpaceTooltip", "Add new blend space to the default group"),
+			LOCTEXT("BlendSpaceOption", "Blend Space"),
+			LOCTEXT("AddBlendSpaceToDefaultGroupTooltip", "Add new blend space to the default group"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddBlendSpace, true)),
 			NAME_None,
@@ -717,8 +717,8 @@ namespace UE::PoseSearch
 
 		AddOptions.BeginSection("AddOptions", LOCTEXT("GroupAddOptions", "Groups"));
 		AddOptions.AddMenuEntry(
-			LOCTEXT("AddBlendSpace", "Group"),
-			LOCTEXT("AddBlendSpaceTooltip", "Add new group"),
+			LOCTEXT("GroupLabel", "Group"),
+			LOCTEXT("AddNewGroupTooltip", "Add new group"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SDatabaseAssetTree::OnAddGroup, true)),
 			NAME_None,
@@ -776,7 +776,7 @@ namespace UE::PoseSearch
 
 	void SDatabaseAssetTree::OnAddBlendSpace(bool bFinalizeChanges)
 	{
-		FScopedTransaction Transaction(LOCTEXT("AddBlendSpace", "Add Blend Space"));
+		FScopedTransaction Transaction(LOCTEXT("AddBlendSpaceTransaction", "Add Blend Space"));
 
 		EditorViewModel.Pin()->AddBlendSpaceToDatabase(nullptr, INDEX_NONE);
 

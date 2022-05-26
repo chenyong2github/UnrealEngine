@@ -349,13 +349,13 @@ bool UMVVMView::RegisterLibraryBinding(const FMVVMViewClass_CompiledBinding& Bin
 	if (ClassExtension->GetBindingLibrary().EvaluateFieldPath(GetUserWidget(), Binding.GetBinding().GetSourceFieldPath()).HasError())
 	{
 		UE::MVVM::FMessageLog Log(GetUserWidget());
-		Log.Warning(FText::Format(LOCTEXT("RegisterBindingInvalidDestination", "Can't register binding '{0}'. The source was not evaluated."), FText::FromString(Binding.ToString())));
+		Log.Warning(FText::Format(LOCTEXT("RegisterBindingSourceNotEvaluated", "Can't register binding '{0}'. The source was not evaluated."), FText::FromString(Binding.ToString())));
 		return false;
 	}
 	if (ClassExtension->GetBindingLibrary().EvaluateFieldPath(GetUserWidget(), Binding.GetBinding().GetDestinationFieldPath()).HasError())
 	{
 		UE::MVVM::FMessageLog Log(GetUserWidget());
-		Log.Warning(FText::Format(LOCTEXT("RegisterBindingInvalidDestination", "Can't register binding '{0}'. The destination was not evaluated."), FText::FromString(Binding.ToString())));
+		Log.Warning(FText::Format(LOCTEXT("RegisterBindingInvalidDestination2", "Can't register binding '{0}'. The destination was not evaluated."), FText::FromString(Binding.ToString())));
 		return false;
 	}
 

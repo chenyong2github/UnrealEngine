@@ -257,7 +257,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		.Content()
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("EditModeLabel", "Edit"))
+			.Text(LOCTEXT("EditLabel", "Edit"))
 		]
 	);
 
@@ -508,7 +508,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("EditModeLabel", "Edit Mode : "))
+					.Text(LOCTEXT("EditModeLabel_Editor", "Edit Mode : "))
 				]
 				+ SHorizontalBox::Slot()
 				.AutoWidth()

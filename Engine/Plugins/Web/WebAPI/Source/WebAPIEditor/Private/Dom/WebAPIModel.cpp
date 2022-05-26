@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dom/WebAPIModel.h"
 
@@ -135,7 +135,7 @@ EDataValidationResult UWebAPIModel::IsDataValid(TArray<FText>& ValidationErrors)
 
 	if(Name.ToString(true).IsEmpty())
 	{
-		ValidationErrors.Add(LOCTEXT("Missing_Name", "Model missing name"));
+		ValidationErrors.Add(LOCTEXT("Missing_Model_Name", "Model missing name"));
 		ValidationResult = EDataValidationResult::Invalid;
 	}
 

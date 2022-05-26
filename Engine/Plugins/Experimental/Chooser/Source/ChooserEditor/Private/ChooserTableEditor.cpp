@@ -442,7 +442,7 @@ public:
 									.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 									.ButtonContent()
 									[
-										SNew(STextBlock).Text(LOCTEXT("Add", "+ Add Row"))
+										SNew(STextBlock).Text(LOCTEXT("AddRow", "+ Add Row"))
 									];
 
 				CreateRowComboButton->SetOnGetMenuContent(FOnGetContent::CreateLambda([this, CreateRowComboButton]()
@@ -661,7 +661,7 @@ TSharedRef<SDockTab> FChooserTableEditor::SpawnTableTab( const FSpawnTabArgs& Ar
 	.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 	.ButtonContent()
 	[
-		SNew(STextBlock).Text(LOCTEXT("Add", "+ Add Column"))
+		SNew(STextBlock).Text(LOCTEXT("AddColumn", "+ Add Column"))
 	];
 
 
@@ -907,7 +907,7 @@ TSharedRef<SWidget> CreateAssetWidget(UObject* Object)
 		{
 			if (DIAsset->Asset == nullptr)
 			{
-				return LOCTEXT("null", "[No Asset]");
+				return LOCTEXT("NoAsset", "[No Asset]");
 			}
 			else
 			{
@@ -936,7 +936,7 @@ TSharedRef<SWidget> CreateEvaluateChooserWidget(UObject* Object)
 		{
 			if (EvaluateChooser->Chooser == nullptr)
 			{
-				return LOCTEXT("null", "[No Chooser]");
+				return LOCTEXT("NoChooser", "[No Chooser]");
 			}
 			else
 			{
@@ -956,7 +956,7 @@ void ConvertToText_Asset(const UObject* Object, FText& OutText)
 	const UDataInterface_Object_Asset* AssetInterface = Cast<UDataInterface_Object_Asset>(Object);
 	if (AssetInterface->Asset == nullptr)
 	{
-		OutText = LOCTEXT("null", "[No Chooser]");
+		OutText = LOCTEXT("NoChooser", "[No Chooser]");
 	}
 	else
 	{
@@ -969,7 +969,7 @@ void ConvertToText_EvaluateChooser(const UObject* Object, FText& OutText)
 	const UDataInterface_EvaluateChooser* EvaluateChooser = Cast<UDataInterface_EvaluateChooser>(Object);
 	if (EvaluateChooser->Chooser == nullptr)
 	{
-		OutText = LOCTEXT("null", "[No Chooser]");
+		OutText = LOCTEXT("NoChooser", "[No Chooser]");
 	}
 	else
 	{

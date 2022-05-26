@@ -169,7 +169,7 @@ void UK2Node_HttpRequest::ExpandNode(FKismetCompilerContext& CompilerContext, UE
 	else if (GetBodyPin())
 	{
 		CompilerContext.MessageLog.Error(
-			*LOCTEXT("Error", "Node @@ Attempted to supply a input body pin that was not a string or struct.").
+			*LOCTEXT("Error_InputPinNotStringOrStruct", "Node @@ Attempted to supply a input body pin that was not a string or struct.").
 			ToString(), this);
 		BreakAllNodeLinks();
 	}
@@ -255,7 +255,7 @@ void UK2Node_HttpRequest::ExpandNode(FKismetCompilerContext& CompilerContext, UE
 	else
 	{
 		CompilerContext.MessageLog.Error(
-			*LOCTEXT("Error", "Node @@ Attempted to deserialize the Result Body into a @@. The supported types are String and Struct").
+			*LOCTEXT("Error_DeserializeIntoUnsupportedType", "Node @@ Attempted to deserialize the Result Body into a @@. The supported types are String and Struct").
 			ToString(), this, *CachedOutputBodyPinType.PinCategory.ToString());
 		BreakAllNodeLinks();
 	}
@@ -306,7 +306,7 @@ bool UK2Node_HttpRequest::IsConnectionDisallowed(
 			return false;
 		}
 
-		OutReason = LOCTEXT("HttpRequest_InvalidArgumentType", "Output Body may only be a string or struct").ToString();
+		OutReason = LOCTEXT("HttpRequest_InvalidArgumentType_Output", "Output Body may only be a string or struct").ToString();
 		return true;
 	}
 	
@@ -322,7 +322,7 @@ bool UK2Node_HttpRequest::IsConnectionDisallowed(
 
 		if (!bIsValidType)
 		{
-			OutReason = LOCTEXT("HttpRequest_InvalidArgumentType", "Input Body may only be a string or struct").ToString();
+			OutReason = LOCTEXT("HttpRequest_InvalidArgumentType_Input", "Input Body may only be a string or struct").ToString();
 			return true;
 		}
 	}

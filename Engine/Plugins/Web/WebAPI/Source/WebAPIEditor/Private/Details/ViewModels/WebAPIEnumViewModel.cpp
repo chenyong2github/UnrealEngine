@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIEnumViewModel.h"
 
@@ -83,7 +83,7 @@ void FWebAPIEnumViewModel::Initialize()
 
 	if(Enum->Name.HasTypeInfo() && Enum->Name.TypeInfo->bIsNested)
 	{
-		TooltipArgs.Emplace(LOCTEXT("EnumTooltip_Header", "Enum (Nested)").ToUpper());
+		TooltipArgs.Emplace(LOCTEXT("NestedEnumTooltip_Header", "Enum (Nested)").ToUpper());
 		TooltipArgs.Emplace(FText::Format(LOCTEXT("EnumTooltip_MemberName", "MemberName: {0}"), FText::FromString(Enum->Name.TypeInfo->ToMemberName())));
 	}
 	else

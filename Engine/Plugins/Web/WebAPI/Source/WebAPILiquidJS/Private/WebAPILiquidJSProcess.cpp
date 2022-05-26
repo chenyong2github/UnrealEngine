@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPILiquidJSProcess.h"
 
@@ -260,7 +260,7 @@ uint32 FWebAPILiquidJSProcess::Run()
 	{
 		TaskNotification->SetComplete(
 			ErrorTitle,
-			LOCTEXT("WebAPILiquidJS_LaunchFailed", "WebApp exited"),
+			LOCTEXT("WebAPILiquidJS_Exited", "WebApp exited"),
 			false
 		);
 	}
