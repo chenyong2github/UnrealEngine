@@ -105,39 +105,12 @@ FWorldPartitionLoadingContext::FDeferred::~FDeferred()
 		const FTransform& ContainerTransform = Container->GetInstanceTransform();
 		const FTransform* ContainerTransformPtr = ContainerTransform.Equals(FTransform::Identity) ? nullptr : &ContainerTransform;
 
-		if (ContainerOp.Registrations.Num())
+		auto CreateActorList = [](TArray<AActor*>& ActorList, const TArray<FWorldPartitionActorDesc*>& SourceList) -> ULevel*
 		{
-			TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
-
-			TArray<AActor*> ActorList;
-			ActorList.Reserve(ContainerOp.Registrations.Num());
+			ActorList.Empty(SourceList.Num());
 
 			ULevel* Level = nullptr;
-			for (FWorldPartitionActorDesc* ActorDesc : ContainerOp.Registrations)
-			{
-				if (AActor* Actor = ActorDesc->GetActor())
-				{
-					ActorList.Add(Actor);
-
-					ULevel* ActorLevel = Actor->GetLevel();
-					check(!Level || (Level == ActorLevel));
-					Level = ActorLevel;
-				}
-			}
-			
-			if (Level)
-			{
-				Level->AddLoadedActors(ActorList, ContainerTransformPtr);
-			}
-		}
-
-		if (ContainerOp.Unregistrations.Num())
-		{
-			TArray<AActor*> ActorList;
-			ActorList.Reserve(ContainerOp.Registrations.Num());
-
-			ULevel* Level = nullptr;
-			for (FWorldPartitionActorDesc* ActorDesc : ContainerOp.Unregistrations)
+			for (FWorldPartitionActorDesc* ActorDesc : SourceList)
 			{
 				// When cleaning up worlds, actors are already marked as garbage at this point, so no need to remove them from the world
 				if (AActor* Actor = ActorDesc->GetActor(); IsValid(Actor))
@@ -149,8 +122,25 @@ FWorldPartitionLoadingContext::FDeferred::~FDeferred()
 					Level = ActorLevel;
 				}
 			}
-			
-			if (Level)
+
+			return Level;
+		};
+
+		if (ContainerOp.Registrations.Num())
+		{
+			TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
+
+			TArray<AActor*> ActorList;
+			if (ULevel* Level = CreateActorList(ActorList, ContainerOp.Registrations))
+			{
+				Level->AddLoadedActors(ActorList, ContainerTransformPtr);
+			}
+		}
+
+		if (ContainerOp.Unregistrations.Num())
+		{
+			TArray<AActor*> ActorList;
+			if (ULevel* Level = CreateActorList(ActorList, ContainerOp.Unregistrations))
 			{
 				Level->RemoveLoadedActors(ActorList, ContainerTransformPtr);
 			}
@@ -165,6 +155,8 @@ FWorldPartitionLoadingContext::FDeferred::~FDeferred()
 
 void FWorldPartitionLoadingContext::FDeferred::RegisterActor(FWorldPartitionActorDesc* ActorDesc)
 {
+	TGuardValue<bool> IsEditorLoadingPackageGuard(GIsEditorLoadingPackage, true);
+
 	check(ActorDesc);
 
 	UActorDescContainer* Container = ActorDesc->GetContainer();
