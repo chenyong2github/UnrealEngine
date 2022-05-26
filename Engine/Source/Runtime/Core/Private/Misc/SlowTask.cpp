@@ -202,7 +202,7 @@ void FSlowTask::MakeDialog(bool bShowCancelButton, bool bAllowInPIE)
 
 bool FSlowTask::ShouldCancel() const
 {
-	if (bEnabled)
+	if (bEnabled && bCreatedDialog)
 	{
 		check(IsInGameThread()); // FSlowTask is only meant to be used on the main thread currently
 
