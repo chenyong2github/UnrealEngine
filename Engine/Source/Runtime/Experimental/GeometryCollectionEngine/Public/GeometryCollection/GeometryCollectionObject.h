@@ -533,6 +533,12 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
 	float MinimumMassClamp;
 
+	/**
+	* whether to import collision from the source asset
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collisions")
+	bool bImportCollisionFromSource;
+	
 #if WITH_EDITORONLY_DATA
 	/**
 	 * Number of particles on the triangulated surface to use for collisions.

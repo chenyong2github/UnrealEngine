@@ -424,115 +424,9 @@ namespace ChaosInterface
 	}
 
 #if WITH_CHAOS
-	bool CalculateMassPropertiesOfImplicitType(
-		Chaos::FMassProperties& OutMassProperties,
-		const Chaos::FRigidTransform3& WorldTransform,
-		const Chaos::FImplicitObject* ImplicitObject,
-		Chaos::FReal InDensityKGPerCM)
-	{
-		using namespace Chaos;
-
-		if (ImplicitObject)
-		{
-			// Hack to handle Transformed and Scaled<ImplicitObjectTriangleMesh> until CastHelper can properly support transformed
-			// Commenting this out temporarily as it breaks vehicles
-			/*	if (Chaos::IsScaled(ImplicitObject->GetType(true)) && Chaos::GetInnerType(ImplicitObject->GetType(true)) & Chaos::ImplicitObjectType::TriangleMesh)
-				{
-					OutMassProperties.Volume = 0.f;
-					OutMassProperties.Mass = FLT_MAX;
-					OutMassProperties.InertiaTensor = FMatrix33(0, 0, 0);
-					OutMassProperties.CenterOfMass = FVector(0);
-					OutMassProperties.RotationOfMass = Chaos::FRotation3::FromIdentity();
-					return false;
-				}
-				else if (ImplicitObject->GetType(true) & Chaos::ImplicitObjectType::TriangleMesh)
-				{
-					OutMassProperties.Volume = 0.f;
-					OutMassProperties.Mass = FLT_MAX;
-					OutMassProperties.InertiaTensor = FMatrix33(0, 0, 0);
-					OutMassProperties.CenterOfMass = FVector(0);
-					OutMassProperties.RotationOfMass = Chaos::FRotation3::FromIdentity();
-					return false;
-				}
-			else*/
-
-			Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
-				{
-					OutMassProperties.Volume = Object.GetVolume();
-					OutMassProperties.Mass = OutMassProperties.Volume * InDensityKGPerCM;
-					OutMassProperties.InertiaTensor = Object.GetInertiaTensor(OutMassProperties.Mass);
-					OutMassProperties.CenterOfMass = LocalTM.TransformPosition(Object.GetCenterOfMass());
-					OutMassProperties.RotationOfMass = LocalTM.GetRotation() * Object.GetRotationOfMass();
-				});
-		}
-
-		// If the implicit is null, or it is scaled to zero it will have zero volume, mass or inertia
-		return (OutMassProperties.Mass > 0);
-	}
-
-	void CalculateMassPropertiesFromShapeCollectionImp(
-		Chaos::FMassProperties& OutProperties, 
-		int32 InNumShapes, 
-		Chaos::FReal InDensityKGPerCM,
-		const TArray<bool>& bContributesToMass,
-		TFunction<Chaos::FPerShapeData* (int32 ShapeIndex)> GetShapeDelegate)
-	{
-		Chaos::FReal TotalMass = 0;
-		Chaos::FReal TotalVolume = 0;
-		Chaos::FVec3 TotalCenterOfMass(0);
-		TArray< Chaos::FMassProperties > MassPropertiesList;
-		for (int32 ShapeIndex = 0; ShapeIndex < InNumShapes; ++ShapeIndex)
-		{
-			const Chaos::FPerShapeData* Shape = GetShapeDelegate(ShapeIndex);
-
-			const bool bHassMass = (ShapeIndex < bContributesToMass.Num()) ? bContributesToMass[ShapeIndex] : true;
-			if (bHassMass)
-			{
-				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
-				{
-					Chaos::FMassProperties MassProperties;
-					if (CalculateMassPropertiesOfImplicitType(MassProperties, FTransform::Identity, ImplicitObject, InDensityKGPerCM))
-					{
-						MassPropertiesList.Add(MassProperties);
-						TotalMass += MassProperties.Mass;
-						TotalVolume += MassProperties.Volume;
-						TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
-					}
-				}
-			}
-		}
-
-		Chaos::FMatrix33 Tensor;
-
-		// If no shapes contribute to mass, or they are scaled to zero, we may end up with zero mass here
-		if ((TotalMass > 0.f) && (MassPropertiesList.Num() > 0))
-		{
-			TotalCenterOfMass /= TotalMass;
-
-			Chaos::FMassProperties CombinedMassProperties = Chaos::CombineWorldSpace(MassPropertiesList);
-			ensure(CombinedMassProperties.RotationOfMass.IsIdentity());
-			Tensor = CombinedMassProperties.InertiaTensor;
-		}
-		else
-		{
-			// @todo(chaos): We should support shape-less particles as long as their mass an inertia are set directly
-			// For now hard-code a 50cm sphere with density 1g/cc
-			Tensor = Chaos::FMatrix33(5.24e5f, 5.24e5f, 5.24e5f);
-			TotalMass = 523.0f;
-			TotalVolume = 523000;
-		}
-
-		OutProperties.InertiaTensor = Tensor;
-		OutProperties.Mass = TotalMass;
-		OutProperties.Volume = TotalVolume;
-		OutProperties.CenterOfMass = TotalCenterOfMass;
-		OutProperties.RotationOfMass = Chaos::FRotation3::Identity;
-	}
-
-
 	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
 	{
-		CalculateMassPropertiesFromShapeCollectionImp(
+		Chaos::CalculateMassPropertiesFromShapeCollection(
 			OutProperties,
 			InShapes.Num(),
 			InDensityKGPerCM,
@@ -543,7 +437,7 @@ namespace ChaosInterface
 
 	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const Chaos::FShapesArray& InShapes, const TArray<bool>& bContributesToMass, float InDensityKGPerCM)
 	{
-		CalculateMassPropertiesFromShapeCollectionImp(
+		Chaos::CalculateMassPropertiesFromShapeCollection(
 			OutProperties,
 			InShapes.Num(),
 			InDensityKGPerCM,

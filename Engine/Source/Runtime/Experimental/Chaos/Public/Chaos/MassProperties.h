@@ -12,6 +12,9 @@
 namespace Chaos
 {
 	class FTriangleMesh;
+	class FPerShapeData;
+	class FImplicitObject;
+	class FImplicitObjectUnion;
 
 	template<class T, int d>
 	class TParticles;
@@ -70,6 +73,27 @@ namespace Chaos
 	// @see Combine()
 	FMassProperties CHAOS_API CombineWorldSpace(const TArray<FMassProperties>& MPArray);
 
+	// Calculate the mass properties from a union
+	bool CHAOS_API CalculateMassPropertiesOfImplicitUnion(
+	Chaos::FMassProperties& OutMassProperties,
+	const Chaos::FRigidTransform3& WorldTransform,
+	const Chaos::FImplicitObjectUnion& ImplicitUnion,
+	Chaos::FReal InDensityKGPerCM);
+	
+	// Calculate the mass properties from a specific implicit
+	bool CHAOS_API CalculateMassPropertiesOfImplicitType(
+		FMassProperties& OutMassProperties,
+		const FRigidTransform3& WorldTransform,
+		const FImplicitObject* ImplicitObject,
+		Chaos::FReal InDensityKGPerCM);
+	
+	// Calculate the mass properties from a list of shapes
+	void CHAOS_API CalculateMassPropertiesFromShapeCollection(
+		FMassProperties& OutProperties, 
+		int32 InNumShapes, 
+		FReal InDensityKGPerCM,
+		const TArray<bool>& bContributesToMass,
+		TFunction<FPerShapeData* (int32 ShapeIndex)> GetShapeDelegate);
 
 	template <typename T, int d>
 	using TMassProperties UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FMassProperties instead") = FMassProperties;

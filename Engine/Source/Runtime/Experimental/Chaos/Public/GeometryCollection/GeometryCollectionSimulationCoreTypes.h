@@ -99,6 +99,7 @@ struct FSharedSimulationParameters
 	, MinimumInertiaTensorDiagonalClamp(UE_SMALL_NUMBER)	// todo : Expose to users with better initial values
 	, MaximumInertiaTensorDiagonalClamp(1e20f)				// todo : Expose to users with better initial values
 	, MaximumCollisionParticleCount(60)
+	, bUseImportedCollisionImplicits(false)
 	{
 		SizeSpecificData.AddDefaulted();
 	}
@@ -119,7 +120,8 @@ struct FSharedSimulationParameters
 		, float InMaximumInertiaTensorDiagonalClamp
 		, float InCollisionParticlesFraction
 		, int32 InMaximumCollisionParticleCount
-		, float InCollisionMarginFraction)
+		, float InCollisionMarginFraction
+		, bool InUseImportedCollisionImplicits )
 	: bMassAsDensity(InMassAsDensity)
 	, Mass(InMass)
 	, MinimumMassClamp(InMinimumMassClamp)
@@ -129,6 +131,7 @@ struct FSharedSimulationParameters
 	, MinimumInertiaTensorDiagonalClamp(InMinimumInertiaTensorDiagonalClamp)
 	, MaximumInertiaTensorDiagonalClamp(InMaximumInertiaTensorDiagonalClamp)
 	, MaximumCollisionParticleCount(InMaximumCollisionParticleCount)
+	, bUseImportedCollisionImplicits(InUseImportedCollisionImplicits)
 	{
 		SizeSpecificData.AddDefaulted();
 		if (ensure(SizeSpecificData.Num() && SizeSpecificData[0].CollisionShapesData.Num()))
@@ -160,6 +163,7 @@ struct FSharedSimulationParameters
 	TArray<FSharedSimulationSizeSpecificData> SizeSpecificData;
 	TArray<int32> RemoveOnFractureIndices;
 	int32 MaximumCollisionParticleCount;
+	bool bUseImportedCollisionImplicits;
 };
 
 struct FSimulationParameters

@@ -18,6 +18,7 @@
 #include "GeometryCollection/GeometryCollectionFactory.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollectionProxyData.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "Logging/LogMacros.h"
 #include "Materials/Material.h"
@@ -25,6 +26,7 @@
 #include "MeshDescription.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
+#include "Physics/Experimental/ChaosInterfaceUtils.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(UGeometryCollectionConversionLogging, Log, All);
@@ -247,6 +249,48 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 		Transform[TransformIndex1] = StaticMeshTransform;
 		Transform[TransformIndex1].SetScale3D(FVector(1.f, 1.f, 1.f));
 
+		// collisions
+		if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
+		{
+			TArray<TUniquePtr<Chaos::FImplicitObject>> Geoms;
+			Chaos::FShapesArray Shapes;
+
+			FGeometryAddParams CreateGeometryParams;
+			CreateGeometryParams.bDoubleSided = false;
+			CreateGeometryParams.CollisionData.CollisionFlags.bEnableQueryCollision = true;
+			CreateGeometryParams.CollisionData.CollisionFlags.bEnableSimCollisionComplex = false; // no support for trimesh in destruction
+			CreateGeometryParams.CollisionData.CollisionFlags.bEnableSimCollisionSimple = true;
+			CreateGeometryParams.CollisionTraceType = ECollisionTraceFlag::CTF_UseSimpleAsComplex;
+			CreateGeometryParams.Scale = Scale;
+			CreateGeometryParams.LocalTransform = Chaos::FRigidTransform3::Identity;
+			CreateGeometryParams.WorldTransform = Chaos::FRigidTransform3::Identity;
+			CreateGeometryParams.Geometry = &BodySetup->AggGeom;
+#if PHYSICS_INTERFACE_PHYSX
+			AddParams.TriMeshes = TArrayView<PxTriangleMesh*>(BodySetup->TriMeshes);
+#endif
+#if WITH_CHAOS
+			CreateGeometryParams.ChaosTriMeshes = MakeArrayView(BodySetup->ChaosTriMeshes);
+#endif
+
+			// todo(chaos) : this currently also create the shape array which is unnecessary ,this could be optimized by having a common function to create only the implicits 
+			ChaosInterface::CreateGeometry(CreateGeometryParams, Geoms, Shapes);
+
+			using FCollisionType = FGeometryDynamicCollection::FSharedImplicit;
+			TManagedArray<FCollisionType>& ExternaCollisions = GeometryCollection->AddAttribute<FCollisionType>("ExternalCollisions", FGeometryCollection::TransformGroup);
+			if (Geoms.Num() == 0)
+			{
+				ExternaCollisions[TransformIndex1] = nullptr;
+			}
+			else if (Geoms.Num() == 1)
+			{
+				ExternaCollisions[TransformIndex1] = TSharedPtr<Chaos::FImplicitObject>(Geoms[0].Release());  
+			}
+			else
+			{
+				ExternaCollisions[TransformIndex1] = MakeShared<Chaos::FImplicitObjectUnion>(MoveTemp(Geoms)); 
+			}
+		}
+		
 		// Bone Hierarchy - Added at root with no common parent
 		TManagedArray<int32>& Parent = GeometryCollection->Parent;
 		TManagedArray<int32>& SimulationType = GeometryCollection->SimulationType;
@@ -598,7 +642,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 	UMaterialInterface* BoneSelectedMaterial = LoadObject<UMaterialInterface>(nullptr, UGeometryCollection::GetSelectedMaterialPath(), nullptr, LOAD_None, nullptr);
 	GeometryCollectionObject->Materials.Remove(BoneSelectedMaterial);
 	Materials.Remove(BoneSelectedMaterial);
-
+	
 	AppendStaticMesh(StaticMesh, Materials, StaticMeshTransform, GeometryCollectionObject, ReindexMaterials);
 }
 
@@ -843,15 +887,49 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 	}
 }
 
+struct FGeometryCollectionAsset
+{
+	UPackage* Package = nullptr;
+	UGeometryCollection* GeometryCollection = nullptr;
+
+	bool IsCreated() const
+	{
+		return (Package != nullptr && GeometryCollection != nullptr);
+	}
+	
+	void Create()
+	{
+		if (ensure(!IsCreated()))
+		{
+			FGeometryCollectionAsset NewAsset;
+			Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
+			const auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
+			GeometryCollection = static_cast<UGeometryCollection*>(
+				GeometryCollectionFactory->FactoryCreateNew(UGeometryCollection::StaticClass(),
+					NewAsset.Package,
+					FName("GeometryCollectionAsset"),
+					RF_Standalone | RF_Public,
+					nullptr,
+					GWarn));
+		}
+	}
+
+	void Finalize() const 
+	{
+		if (ensure(IsCreated()))
+		{
+			FAssetRegistryModule::AssetCreated(GeometryCollection);
+			GeometryCollection->MarkPackageDirty();
+			Package->SetDirtyFlag(true);
+		}
+	}
+};
+
 void FGeometryCollectionConversion::CreateGeometryCollectionCommand(UWorld * World)
 {
-	UPackage* Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
-	auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
-	UGeometryCollection* GeometryCollection = static_cast<UGeometryCollection*>(
-		GeometryCollectionFactory->FactoryCreateNew(UGeometryCollection::StaticClass(), Package,
-			FName("GeometryCollectionAsset"), RF_Standalone | RF_Public, NULL, GWarn));
-	FAssetRegistryModule::AssetCreated(GeometryCollection);
-	Package->SetDirtyFlag(true);
+	FGeometryCollectionAsset GeometryCollectionAsset;
+	GeometryCollectionAsset.Create();
+	GeometryCollectionAsset.Finalize();
 }
 
 void FGeometryCollectionConversion::CreateFromSelectedActorsCommand(UWorld * World)
@@ -863,8 +941,7 @@ void FGeometryCollectionConversion::CreateFromSelectedActorsCommand(UWorld * Wor
 		return;
 	}
 
-	UPackage* Package = nullptr;
-	UGeometryCollection* GeometryCollection = nullptr;
+	FGeometryCollectionAsset GeometryCollectionAsset; 
 	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
 	{
 		if (AActor* Actor = Cast<AActor>(*Iter))
@@ -877,24 +954,15 @@ void FGeometryCollectionConversion::CreateFromSelectedActorsCommand(UWorld * Wor
 				{
 					if (StaticMeshComponents[Index]->GetStaticMesh())
 					{
-						if (!Package || !GeometryCollection)
+						if (!GeometryCollectionAsset.IsCreated())
 						{
-							Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
-							auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
-							GeometryCollection = static_cast<UGeometryCollection*>(
-								GeometryCollectionFactory->FactoryCreateNew(
-									UGeometryCollection::StaticClass(),
-									Package,
-									FName("GeometryCollectionAsset"),
-									RF_Standalone | RF_Public,
-									NULL,
-									GWarn));
+							GeometryCollectionAsset.Create();
 						}
 						FGeometryCollectionConversion::AppendStaticMesh(
 							StaticMeshComponents[Index]->GetStaticMesh(),
 							StaticMeshComponents[Index],
 							Actor->GetTransform(),
-							GeometryCollection);
+							GeometryCollectionAsset.GeometryCollection);
 					}
 				}
 			}
@@ -907,46 +975,33 @@ void FGeometryCollectionConversion::CreateFromSelectedActorsCommand(UWorld * Wor
 				{
 					if (SkeletalMeshComponents[Index]->SkeletalMesh)
 					{
-						if (!Package || !GeometryCollection)
+						if (!GeometryCollectionAsset.IsCreated())
 						{
-							Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
-							auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
-							GeometryCollection = static_cast<UGeometryCollection*>(
-								GeometryCollectionFactory->FactoryCreateNew(
-									UGeometryCollection::StaticClass(),
-									Package,
-									FName("GeometryCollectionAsset"),
-									RF_Standalone | RF_Public,
-									NULL,
-									GWarn));
+							GeometryCollectionAsset.Create();
 						}
 						FGeometryCollectionConversion::AppendSkeletalMesh(
 							SkeletalMeshComponents[Index]->SkeletalMesh,
 							SkeletalMeshComponents[Index],
 							Actor->GetTransform(),
-							GeometryCollection);
+							GeometryCollectionAsset.GeometryCollection);
 					}
 				}
 			}
 		}
 	}
 
-	if(GeometryCollection != nullptr)
+	if(GeometryCollectionAsset.IsCreated())
 	{
-		GeometryCollectionAlgo::PrepareForSimulation(GeometryCollection->GetGeometryCollection().Get());
-
-		FAssetRegistryModule::AssetCreated(GeometryCollection);
-		GeometryCollection->MarkPackageDirty();
-		Package->SetDirtyFlag(true);
+		GeometryCollectionAlgo::PrepareForSimulation(GeometryCollectionAsset.GeometryCollection->GetGeometryCollection().Get());
+		GeometryCollectionAsset.Finalize();
 	}
 }
 
 void FGeometryCollectionConversion::CreateFromSelectedAssetsCommand(UWorld * World)
 {
 	//UE_LOG(UGeometryCollectionConversionLogging, Log, TEXT("FGeometryCollectionConversion::CreateCommand()"));
-	UPackage* Package = nullptr;
-	UGeometryCollection* GeometryCollection = nullptr;
-
+	FGeometryCollectionAsset GeometryCollectionAsset;
+	
 	TArray<FAssetData> SelectedAssets;
 	GEditor->GetContentBrowserSelections(SelectedAssets);
 	for (const FAssetData& AssetData : SelectedAssets)
@@ -954,55 +1009,34 @@ void FGeometryCollectionConversion::CreateFromSelectedAssetsCommand(UWorld * Wor
 		if (AssetData.GetAsset()->IsA<UStaticMesh>())
 		{
 			UE_LOG(UGeometryCollectionConversionLogging, Log, TEXT("Static Mesh Content Browser : %s"), *AssetData.GetClass()->GetName());
-			if (!Package || !GeometryCollection)
+			if (!GeometryCollectionAsset.IsCreated())
 			{
-				Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
-				auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
-				GeometryCollection = static_cast<UGeometryCollection*>(
-					GeometryCollectionFactory->FactoryCreateNew(
-						UGeometryCollection::StaticClass(), 
-						Package,
-						FName("GeometryCollectionAsset"), 
-						RF_Standalone | RF_Public, 
-						NULL, 
-						GWarn));
+				GeometryCollectionAsset.Create();
 			}
 			FGeometryCollectionConversion::AppendStaticMesh(
 				static_cast<const UStaticMesh*>(AssetData.GetAsset()),
 				nullptr,
 				FTransform(), 
-				GeometryCollection);
+				GeometryCollectionAsset.GeometryCollection);
 		}
 		else if (AssetData.GetAsset()->IsA<USkeletalMesh>())
 		{
 			UE_LOG(UGeometryCollectionConversionLogging, Log, TEXT("Skeletal Mesh Content Browser : %s"), *AssetData.GetClass()->GetName());
-			if (!Package || !GeometryCollection)
+			if (!GeometryCollectionAsset.IsCreated())
 			{
-				Package = CreatePackage(TEXT("/Game/GeometryCollectionAsset"));
-				auto GeometryCollectionFactory = NewObject<UGeometryCollectionFactory>();
-				GeometryCollection = static_cast<UGeometryCollection*>(
-					GeometryCollectionFactory->FactoryCreateNew(
-						UGeometryCollection::StaticClass(), 
-						Package,
-						FName("GeometryCollectionAsset"), 
-						RF_Standalone | RF_Public, 
-						NULL, 
-						GWarn));
+				GeometryCollectionAsset.Create();
 			}
 			FGeometryCollectionConversion::AppendSkeletalMesh(
 				static_cast<const USkeletalMesh *>(AssetData.GetAsset()), 
 				nullptr,
 				FTransform(),
-				GeometryCollection);
+				GeometryCollectionAsset.GeometryCollection);
 		}
 	}
 
-	if(GeometryCollection != nullptr)
+	if(GeometryCollectionAsset.IsCreated())
 	{
-		GeometryCollectionAlgo::PrepareForSimulation(GeometryCollection->GetGeometryCollection().Get());
-
-		FAssetRegistryModule::AssetCreated(GeometryCollection);
-		GeometryCollection->MarkPackageDirty();
-		Package->SetDirtyFlag(true);
+		GeometryCollectionAlgo::PrepareForSimulation(GeometryCollectionAsset.GeometryCollection->GetGeometryCollection().Get());
+		GeometryCollectionAsset.Finalize();
 	}
 }

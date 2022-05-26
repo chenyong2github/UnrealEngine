@@ -402,7 +402,7 @@ namespace Chaos
 		// ignore unions for now as we don't yet support deep copy of it
 		// on the GT they are only used by clusters that aggregate their children shapes ( see GeometryCollectionPhysicsProxy.cpp )
 		// by failing artificially this condition thmake sure we create a FImplicitObjectUnionClustered for this particle 
-		if (ProxyGeometry && ProxyGeometry->GetType() != ImplicitObjectType::Union)
+		if (ProxyGeometry)
 		{
 			const FVector Scale = Parameters.Scale;
 			auto DeepCopyImplicit = [&Scale](const TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>& ImplicitToCopy) -> TUniquePtr<Chaos::FImplicitObject>

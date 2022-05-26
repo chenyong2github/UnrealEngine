@@ -33,6 +33,11 @@ class CHAOS_API FImplicitObjectUnion : public FImplicitObject
 		return ImplicitObjectType::Union;
 	}
 
+	virtual TUniquePtr<FImplicitObject> Copy() const;
+	virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override;
+	virtual TUniquePtr<FImplicitObject> DeepCopy() const;
+	virtual TUniquePtr<FImplicitObject> DeepCopyWithScale(const FVec3& Scale) const override;
+	
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const override
 	{
 		FReal Phi = TNumericLimits<FReal>::Max();

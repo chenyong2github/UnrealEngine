@@ -152,7 +152,50 @@ void FImplicitObjectUnion::CacheAllImplicitObjects()
 		}
 	}
 }
+TUniquePtr<FImplicitObject> FImplicitObjectUnion::Copy() const
+{
+	TArray<TUniquePtr<FImplicitObject>> CopyOfObjects;
+	CopyOfObjects.Reserve(MObjects.Num());
+	for (const TUniquePtr<FImplicitObject>& Object: MObjects)
+	{
+		CopyOfObjects.Emplace(Object->Copy());
+	}
+	return MakeUnique<FImplicitObjectUnion>(MoveTemp(CopyOfObjects));
+}
 
+TUniquePtr<FImplicitObject> FImplicitObjectUnion::CopyWithScale(const FVec3& Scale) const
+{
+	TArray<TUniquePtr<FImplicitObject>> CopyOfObjects;
+	CopyOfObjects.Reserve(MObjects.Num());
+	for (const TUniquePtr<FImplicitObject>& Object: MObjects)
+	{
+		CopyOfObjects.Emplace(Object->CopyWithScale(Scale));
+	}
+	return MakeUnique<FImplicitObjectUnion>(MoveTemp(CopyOfObjects));
+}
+
+TUniquePtr<FImplicitObject> FImplicitObjectUnion::DeepCopy() const
+{
+	TArray<TUniquePtr<FImplicitObject>> CopyOfObjects;
+	CopyOfObjects.Reserve(MObjects.Num());
+	for (const TUniquePtr<FImplicitObject>& Object: MObjects)
+	{
+		CopyOfObjects.Emplace(Object->DeepCopy());
+	}
+	return MakeUnique<FImplicitObjectUnion>(MoveTemp(CopyOfObjects));
+}
+
+TUniquePtr<FImplicitObject> FImplicitObjectUnion::DeepCopyWithScale(const FVec3& Scale) const
+{
+	TArray<TUniquePtr<FImplicitObject>> CopyOfObjects;
+	CopyOfObjects.Reserve(MObjects.Num());
+	for (const TUniquePtr<FImplicitObject>& Object: MObjects)
+	{
+		CopyOfObjects.Emplace(Object->DeepCopyWithScale(Scale));
+	}
+	return MakeUnique<FImplicitObjectUnion>(MoveTemp(CopyOfObjects));
+}
+	
 void FImplicitObjectUnion::Serialize(FChaosArchive& Ar)
 {
 	Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);

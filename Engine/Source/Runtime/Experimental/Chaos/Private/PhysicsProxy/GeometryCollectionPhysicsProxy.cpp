@@ -2143,17 +2143,24 @@ static const FSharedSimulationSizeSpecificData& GetSizeSpecificData(const TArray
 	return SizeSpecificData[SizeSpecificIdx];
 }
 
-static void GenerateInnerAndOuterRadiiIfNeeded(FGeometryCollection& RestCollection, const int32 GeometryIndex)
+// compute inner and outer radii from geometry in parallel if the attribute value as not been set
+static void GenerateInnerAndOuterRadiiIfNeeded(FGeometryCollection& RestCollection)
 {
-	if (RestCollection.InnerRadius[GeometryIndex] == 0.0f || RestCollection.OuterRadius[GeometryIndex] == 0.0f)
+	const int32 NumGeometries = RestCollection.NumElements(FGeometryCollection::GeometryGroup);
+	const TManagedArray<FVector3f>& Vertices = RestCollection.Vertex;
+
+	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
 	{
-		GeometryCollection::ComputeInnerAndOuterRadiiFromGeometryVertices(
-			RestCollection.Vertex,
-			RestCollection.VertexStart[GeometryIndex],
-			RestCollection.VertexCount[GeometryIndex],
-			RestCollection.InnerRadius[GeometryIndex],
-			RestCollection.OuterRadius[GeometryIndex]);
-	}	
+		if (RestCollection.InnerRadius[GeometryIndex] == 0.0f || RestCollection.OuterRadius[GeometryIndex] == 0.0f)
+		{
+			GeometryCollection::ComputeInnerAndOuterRadiiFromGeometryVertices(
+				Vertices,
+				RestCollection.VertexStart[GeometryIndex],
+				RestCollection.VertexCount[GeometryIndex],
+				RestCollection.InnerRadius[GeometryIndex],
+				RestCollection.OuterRadius[GeometryIndex]);
+		}
+	});
 }
 
 static FGeometryDynamicCollection::FSharedImplicit CreateImplicitGeometry(
@@ -2375,22 +2382,20 @@ static void ComputeMassPropertyFromMesh(
 		bOutIsTooSmallGeometry
 		);
 
-	// now compute unit inertia ( assuming mass of 1 it will be scaled later by the real mass
-	constexpr Chaos::FReal UnitMass = 1000;
-	ensure (OutMassProperties.Volume > UE_SMALL_NUMBER);
-	const Chaos::FReal Density = UnitMass / OutMassProperties.Volume;
+	// now compute unit inertia ( assuming density of 1 )
+	constexpr Chaos::FReal UnitDensityKGPerCM = 1;
 	const bool bUseBoundingBoxInertia = (UncorrectedVolume == 0);  
 	if (bUseBoundingBoxInertia)
 	{
 		OutMassProperties.CenterOfMass = BoundingBox[GeometryIndex].GetCenter();
-		Chaos::CalculateInertiaAndRotationOfMass(BoundingBox[GeometryIndex], Density, OutMassProperties.InertiaTensor, OutMassProperties.RotationOfMass);
+		Chaos::CalculateInertiaAndRotationOfMass(BoundingBox[GeometryIndex], UnitDensityKGPerCM, OutMassProperties.InertiaTensor, OutMassProperties.RotationOfMass);
 	}
 	else
 	{
 		const FVector3f CenterOfMass{ OutMassProperties.CenterOfMass };
 		Chaos::PMatrix<float,3,3> InertiaTensor;
 		Chaos::TRotation<float,3> RotationOfMass;
-		CalculateInertiaAndRotationOfMass(Vertex.GetConstArray(), TriMesh->GetSurfaceElements(), (float)Density, CenterOfMass, InertiaTensor, RotationOfMass);
+		CalculateInertiaAndRotationOfMass(Vertex.GetConstArray(), TriMesh->GetSurfaceElements(), (float)UnitDensityKGPerCM, CenterOfMass, InertiaTensor, RotationOfMass);
 		OutMassProperties.CenterOfMass = CenterOfMass;
 		OutMassProperties.InertiaTensor = InertiaTensor;
 		OutMassProperties.RotationOfMass = RotationOfMass;
@@ -2404,6 +2409,74 @@ static void ComputeMassPropertyFromMesh(
 	}
 }
 
+// compute mass properties and trimesh in parallel
+// ( non-simulatable particles will not compute the it  ) 
+// also return if the geometry mesh is too small 
+static void ComputeMassPropertiesAndTriMeshes(
+	const FGeometryCollection& RestCollection,
+	const FSharedSimulationParameters& SharedParams,
+	TArray<TUniquePtr<Chaos::FTriangleMesh>>& OutTriangleMeshesArray,
+	TArray<Chaos::FMassProperties>& MassPropertiesArray,
+	TArray<bool>& IsTooSmallGeometryArray
+	)
+{
+	using FImplicitGeom = FGeometryDynamicCollection::FSharedImplicit;
+	
+	const int32 NumGeometries = RestCollection.NumElements(FGeometryCollection::GeometryGroup);
+	const TManagedArray<int32>& TransformIndex = RestCollection.TransformIndex;
+	const TManagedArray<bool>& CollectionSimulatableParticles = RestCollection.GetAttribute<bool>(FGeometryCollection::SimulatableParticlesAttribute, FTransformCollection::TransformGroup);
+	const TManagedArray<FImplicitGeom>* ExternaCollisions = RestCollection.FindAttribute<FImplicitGeom>("ExternalCollisions", FGeometryCollection::TransformGroup);
+	const TManagedArray<int32>& SimulationType = RestCollection.SimulationType;
+
+	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
+	{
+		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
+		if (CollectionSimulatableParticles[TransformGroupIndex])
+		{
+			// todo compute mesh here and pass it on 
+			ComputeMassPropertyFromMesh(GeometryIndex, RestCollection, SharedParams, OutTriangleMeshesArray[GeometryIndex], MassPropertiesArray[GeometryIndex], IsTooSmallGeometryArray[GeometryIndex]);
+			// todo : needs to be a better decision as we are still computing the inertia above to replace it ?( see comment above )
+			if (SharedParams.bUseImportedCollisionImplicits && ExternaCollisions && (*ExternaCollisions)[TransformGroupIndex])
+			{
+				constexpr Chaos::FReal UnitDensityKGPerCM = 1;
+				Chaos::CalculateMassPropertiesOfImplicitType(MassPropertiesArray[GeometryIndex], Chaos::FRigidTransform3::Identity, (*ExternaCollisions)[TransformGroupIndex].Get(), UnitDensityKGPerCM);
+				IsTooSmallGeometryArray[GeometryIndex] = false;
+			}
+		}
+
+	});
+}
+
+static TUniquePtr<Chaos::FImplicitObject> MakeTransformImplicitObject(const Chaos::FImplicitObject& ImplicitObject, const Chaos::FRigidTransform3& Transform)
+{
+	TUniquePtr<Chaos::FImplicitObject> ResultObject;
+	
+	// we cannot really put a transform on top a union, so we need to transform each member
+	if (ImplicitObject.IsUnderlyingUnion())
+	{
+		 TArray<TUniquePtr<Chaos::FImplicitObject>> TransformedObjects;
+		const Chaos::FImplicitObjectUnion& Union = static_cast<const Chaos::FImplicitObjectUnion&>(ImplicitObject);
+		for (const TUniquePtr<Chaos::FImplicitObject>& Object: Union.GetObjects())
+		{
+			TransformedObjects.Add(MakeTransformImplicitObject(*Object, Transform));
+		}
+		ResultObject = MakeUnique<Chaos::FImplicitObjectUnion>(MoveTemp(TransformedObjects));
+	}
+	else if (ImplicitObject.GetType() == Chaos::ImplicitObjectType::Transformed)
+	{
+		const Chaos::TImplicitObjectTransformed<Chaos::FReal,3>& TransformObject = static_cast<const Chaos::TImplicitObjectTransformed<Chaos::FReal,3>&>(ImplicitObject);
+		// we deep copy at this point as the transform is going to be handled at this level
+		TUniquePtr<Chaos::FImplicitObject> TransformedObjectCopy =  TransformObject.GetTransformedObject()->DeepCopy();
+		ResultObject = MakeUnique<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>(MoveTemp(TransformedObjectCopy),  TransformObject.GetTransform() * Transform);
+	}
+	else
+	{
+		// we deep copy at this point as the transform is going to be handled at this level
+		TUniquePtr<Chaos::FImplicitObject> TransformedObjectCopy =  ImplicitObject.DeepCopy();
+		ResultObject = MakeUnique<Chaos::TImplicitObjectTransformed<Chaos::FReal,3>>(MoveTemp(TransformedObjectCopy), Transform);
+	}
+	return ResultObject;
+}
 
 /** 
 	NOTE - Making any changes to data stored on the rest collection below MUST be accompanied
@@ -2424,11 +2497,6 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 		return;
 	}
 
-	//TArray<TArray<TArray<int32>>> BoundaryVertexIndices;
-	//GeometryCollectionAlgo::FindOpenBoundaries(&RestCollection, 1e-2, BoundaryVertexIndices);
-	//GeometryCollectionAlgo::TriangulateBoundaries(&RestCollection, BoundaryVertexIndices);
-	//RestCollection.ReindexMaterials();
-
 	using namespace Chaos;
 
 	// TransformGroup
@@ -2443,9 +2511,6 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 	RestCollection.RemoveAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 	TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& CollectionImplicits = RestCollection.AddAttribute<FGeometryDynamicCollection::FSharedImplicit>(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
-
-	//TManagedArray<TSet<int32>>* TransformToConvexIndices = RestCollection.FindAttribute<TSet<int32>>("TransformToConvexIndices", FTransformCollection::TransformGroup);
-	//TManagedArray<TUniquePtr<Chaos::FConvex>>* ConvexGeometry = RestCollection.FindAttribute<TUniquePtr<Chaos::FConvex>>("ConvexHull", "Convex");
 
 	bool bUseRelativeSize = RestCollection.HasAttribute(TEXT("Size"), FTransformCollection::TransformGroup);
 	if (!bUseRelativeSize)
@@ -2489,18 +2554,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TArray<TUniquePtr<FTriangleMesh>> TriangleMeshesArray;	//use to union trimeshes in cluster case
 	TriangleMeshesArray.AddDefaulted(NumTransforms);
 
-	// FParticles MassSpaceParticles;
-	// MassSpaceParticles.AddParticles(Vertex.Num());
-	// for (int32 Idx = 0; Idx < Vertex.Num(); ++Idx)
-	// {
-	// 	MassSpaceParticles.X(Idx) = Vertex[Idx];	//mass space computation done later down
-	// }
-
 	TArray<FMassProperties> MassPropertiesArray;
 	MassPropertiesArray.AddUninitialized(NumGeometries);
-
-	//TArray<FVector::FReal> UncorrectedVolume;
-	//UncorrectedVolume.Init(0, NumGeometries);
 
 	// The geometry group has a set of transform indices that maps a geometry index
 	// to a transform index, but only in the case where there is a 1-to-1 mapping 
@@ -2513,20 +2568,15 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TArray<bool> IsTooSmallGeometryArray;
 	IsTooSmallGeometryArray.Init(false, NumGeometries);
 
-	// compute mass properties in parallel
-	ParallelFor(NumGeometries, [&](int32 GeometryIndex)
-	{
-		// @chaos(todo): is that really needed? 
-		GenerateInnerAndOuterRadiiIfNeeded(RestCollection, GeometryIndex);
+	GenerateInnerAndOuterRadiiIfNeeded(RestCollection);
 
-		const int32 TransformGroupIndex = TransformIndex[GeometryIndex];
+	for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; TransformGroupIndex++)
+	{
 		CollectionSimulatableParticles[TransformGroupIndex] = (SimulationType[TransformGroupIndex] > FGeometryCollection::ESimulationTypes::FST_None);
-		
-		if (CollectionSimulatableParticles[TransformGroupIndex])
-		{
-			ComputeMassPropertyFromMesh(GeometryIndex, RestCollection, SharedParams, TriangleMeshesArray[GeometryIndex], MassPropertiesArray[GeometryIndex], IsTooSmallGeometryArray[GeometryIndex]);
-		}
-	});
+	}
+	
+	// compute mass properties in parallel
+	ComputeMassPropertiesAndTriMeshes(RestCollection, SharedParams, TriangleMeshesArray, MassPropertiesArray, IsTooSmallGeometryArray);
 	
 	// compute total volume and whether we need to skip small geometry ( can't use parallelfors )
 	bool bSkippedSmallGeometry = false;
@@ -2552,6 +2602,9 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	{
 		UE_LOG(LogChaos, Warning, TEXT("Some geometry is too small to be simulated and has been skipped."));
 	}
+
+	using FImplicitGeomSharePtr = FGeometryDynamicCollection::FSharedImplicit;
+	const TManagedArray<FImplicitGeomSharePtr>* ExternaCollisions = RestCollection.FindAttribute<FImplicitGeomSharePtr>("ExternalCollisions", FGeometryCollection::TransformGroup);
 	
 	// User provides us with total mass or density.
 	// Density must be the same for individual parts and the total. Density_i = Density = Mass_i / Volume_i
@@ -2591,8 +2644,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			const FReal Density_i = Mass_i / Volume_i;
 			CollectionMass[TransformGroupIndex] = (FRealSingle)Mass_i;
 
-			// scale the mass properties inertia tensor by the mass
-			MassPropertiesArray[GeometryIndex].InertiaTensor *= Mass_i / 1000.0;
+			// scale the mass properties inertia tensor by the Density_i ( as we computedit earlier with a density of one )
+			MassPropertiesArray[GeometryIndex].InertiaTensor *= Density_i;
 			const Chaos::FMatrix33& InertiaTensor = MassPropertiesArray[GeometryIndex].InertiaTensor;
 			CollectionInertiaTensor[TransformGroupIndex] = FVector3f((float)InertiaTensor.M[0][0], (float)InertiaTensor.M[1][1], (float)InertiaTensor.M[2][2]);
 
@@ -2619,9 +2672,9 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			const TUniquePtr<Chaos::FTriangleMesh>& TriMesh = TriangleMeshesArray[GeometryIndex];
 			const FTransform& MassToLocalTransform = CollectionMassToLocal[TransformGroupIndex];
 
-			// Orient particle in the local mass space 
-			if (!MassPropertiesArray[GeometryIndex].RotationOfMass.Equals(FQuat::Identity) ||
-				!FMath::IsNearlyZero(MassPropertiesArray[GeometryIndex].CenterOfMass.SizeSquared()))
+			// Orient particle in the local mass space
+			const bool bIdentityMassTransform = MassToLocalTransform.Equals(FTransform::Identity);
+			if (!bIdentityMassTransform)
 			{
 				const int32 IdxStart = VertexStart[GeometryIndex];
 				const int32 IdxEnd = IdxStart + VertexCount[GeometryIndex];
@@ -2682,16 +2735,36 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 						ensureMsgf(false, TEXT("Simplicial is empty."));
 					}
 
-					LocalErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
-					CollectionImplicits[TransformGroupIndex] = CreateImplicitGeometry(
-						SizeSpecificData,
-						TransformGroupIndex,
-						RestCollection,
-						MassSpaceParticles,
-						*TriMesh,
-						InstanceBoundingBox,
-						InnerRadius[GeometryIndex],
-						LocalErrorReporter);
+					// tdo(chaos) : if imported is selected but no shape exists shoudl we simply ignore ? 
+					if (SharedParams.bUseImportedCollisionImplicits && ExternaCollisions && (*ExternaCollisions)[TransformGroupIndex])
+					{
+						// for now  simply copy the shared pointer as the imported geometry should not change under the hood without being recreated
+						const FImplicitGeomSharePtr ExternalCollisionImplicit = (*ExternaCollisions)[TransformGroupIndex];
+						if (!bIdentityMassTransform)
+						{
+							// since we do not set the rotation of mass and center of mass properties on the particle and have a MasstoLocal managed property on the collection instead
+							// we need to reverse transform the external shapes 
+							TUniquePtr<FImplicitObject> TransformedCollisionImplicit = MakeTransformImplicitObject(*ExternalCollisionImplicit, MassToLocalTransform.Inverse());
+							CollectionImplicits[TransformGroupIndex] = TSharedPtr<Chaos::FImplicitObject>(TransformedCollisionImplicit.Release());
+						}
+						else
+						{
+							CollectionImplicits[TransformGroupIndex] = ExternalCollisionImplicit;
+						}
+					}
+					else
+					{
+						LocalErrorReporter.SetPrefix(BaseErrorPrefix + " | Transform Index: " + FString::FromInt(TransformGroupIndex) + " of " + FString::FromInt(TransformIndex.Num()));
+						CollectionImplicits[TransformGroupIndex] = CreateImplicitGeometry(
+							SizeSpecificData,
+							TransformGroupIndex,
+							RestCollection,
+							MassSpaceParticles,
+							*TriMesh,
+							InstanceBoundingBox,
+							InnerRadius[GeometryIndex],
+							LocalErrorReporter);
+					}
 					
 					if (CollectionImplicits[TransformGroupIndex] && CollectionImplicits[TransformGroupIndex]->HasBoundingBox())
 					{
@@ -2876,18 +2949,39 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 				ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
 
-				CollectionImplicits[ClusterTransformIdx] = CreateImplicitGeometry(
-					SizeSpecificData,
-					ClusterTransformIdx,
-					RestCollection,
-					MassSpaceParticles,
-					*UnionMesh,
-					InstanceBoundingBox,
-					InstanceBoundingBox.GetExtent().GetAbsMin(), // InnerRadius
-					ErrorReporter,
-					&MaxChildBounds
-					);
+				if (SharedParams.bUseImportedCollisionImplicits && ExternaCollisions && (*ExternaCollisions)[TransformGroupIndex])
+				{
+					const FTransform& ClusterMassToLocal = CollectionMassToLocal[ClusterTransformIdx];
+					const bool bIdentityMassTransform = ClusterMassToLocal.Equals(FTransform::Identity);
 
+					// for now  simply copy the shared pointer as the imported geometry should not change under the hood without being recreated
+					const FImplicitGeomSharePtr ExternalCollisionImplicit = (*ExternaCollisions)[TransformGroupIndex];
+					if (!bIdentityMassTransform)
+					{
+						// since we do not set the rotation of mass and center of mass properties on the particle and have a MasstoLocal managed property on the collection instead
+						// we need to reverse transform the external shapes 
+						TUniquePtr<FImplicitObject> TransformedCollisionImplicit = MakeTransformImplicitObject(*ExternalCollisionImplicit, ClusterMassToLocal.Inverse());
+						CollectionImplicits[TransformGroupIndex] = TSharedPtr<Chaos::FImplicitObject>(TransformedCollisionImplicit.Release());
+					}
+					else
+					{
+						CollectionImplicits[ClusterTransformIdx] = (*ExternaCollisions)[ClusterTransformIdx];
+					}
+				}
+				else
+				{
+					CollectionImplicits[ClusterTransformIdx] = CreateImplicitGeometry(
+						SizeSpecificData,
+						ClusterTransformIdx,
+						RestCollection,
+						MassSpaceParticles,
+						*UnionMesh,
+						InstanceBoundingBox,
+						InstanceBoundingBox.GetExtent().GetAbsMin(), // InnerRadius
+						ErrorReporter,
+						&MaxChildBounds
+						);
+				}
 				// create simplicial from the implicit geometry
 				CollectionSimplicials[ClusterTransformIdx] = TUniquePtr<FSimplicial>(
 							FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get(),

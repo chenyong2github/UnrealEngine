@@ -91,6 +91,7 @@ UGeometryCollection::UGeometryCollection(const FObjectInitializer& ObjectInitial
 	, bMassAsDensity(true)
 	, Mass(2500.0f)
 	, MinimumMassClamp(0.1f)
+	, bImportCollisionFromSource(false)
 	, bRemoveOnMaxSleep(false)
 	, MaximumSleepTime(5.0, 10.0)
 	, RemovalDuration(2.5, 5.0)
@@ -347,6 +348,8 @@ void UGeometryCollection::GetSharedSimulationParams(FSharedSimulationParameters&
 		FixupRemoveOnFractureMaterials(OutParams);
 	}
 
+	OutParams.bUseImportedCollisionImplicits = bImportCollisionFromSource;
+	
 	OutParams.SizeSpecificData.Sort();	//can we do this at editor time on post edit change?
 }
 

@@ -100,19 +100,80 @@ public:
 		}
 	}
 
+	virtual TUniquePtr<FImplicitObject> Copy() const
+	{
+		if (MObject)
+		{
+			TUniquePtr<FImplicitObject> ObjectCopy(MObject->Copy());
+			return MakeUnique<TImplicitObjectTransformed<T,d>>(MoveTemp(ObjectCopy), MTransform);
+		}
+		else
+		{
+			check(false);
+			return nullptr;
+		}
+	}
+	
+	virtual TUniquePtr<FImplicitObject> CopyWithScale(const FVec3& Scale) const override
+	{
+		if(MObject)
+		{
+			//return MakeCopyWithScaleTransformed(MObjectOwner, MTransform, Scale);
+			// since we cannot have a { Scaled -- Transformed -- Shape } ( scaled can only directly reference concrete shapes )
+			// we need to scale the transform translation and set the Scaled on the shape itself like { (Adjusted)Transformed -- Scaled -- Shape }  
+			FRigidTransform3 AdjustedTransform{ MTransform };
+			AdjustedTransform.ScaleTranslation(Scale);
+
+			TUniquePtr<FImplicitObject> ScaledObject(MObject->CopyWithScale(Scale));
+			return MakeUnique<TImplicitObjectTransformed<FReal,3>>(MoveTemp(ScaledObject), AdjustedTransform);
+		}
+		else
+		{
+			check(false);
+			return nullptr;
+		}
+	}
+
+	virtual TUniquePtr<FImplicitObject> DeepCopy() const
+	{
+		if(MObject)
+		{
+			TUniquePtr<FImplicitObject> ObjectCopy(MObject->DeepCopy());
+			return MakeUnique<TImplicitObjectTransformed<T,d>>(MoveTemp(ObjectCopy), MTransform);
+		}
+		else
+		{
+			check(false);
+			return nullptr;
+		}
+	}
+
+	virtual TUniquePtr<FImplicitObject> DeepCopyWithScale(const FVec3& Scale) const override
+	{
+		if(MObject)
+		{
+			//return MakeCopyWithScaleTransformed(MObjectOwner, MTransform, Scale);
+			// since we cannot have a { Scaled -- Transformed -- Shape } ( scaled can only directly reference concrete shapes )
+			// we need to scale the transform translation and set the Scaled on the shape itself like { (Adjusted)Transformed -- Scaled -- Shape }  
+			FRigidTransform3 AdjustedTransform{ MTransform };
+			AdjustedTransform.ScaleTranslation(Scale);
+
+			TUniquePtr<FImplicitObject> ScaledObject(MObject->DeepCopyWithScale(Scale));
+			return MakeUnique<TImplicitObjectTransformed<FReal,3>>(MoveTemp(ScaledObject), AdjustedTransform);
+		}
+		else
+		{
+			check(false);
+			return nullptr;
+		}
+	}
+	
 	~TImplicitObjectTransformed() {}
 
 	static constexpr EImplicitObjectType StaticType()
 	{
 		return ImplicitObjectType::Transformed;
 	}
-
-	virtual TUniquePtr<FImplicitObject> Copy() const
-	{
-		TUniquePtr<FImplicitObject> ImplicitCopy = MObject->Copy();
-		return TUniquePtr<FImplicitObject>(new TImplicitObjectTransformed<T, d>(MoveTemp(ImplicitCopy), MTransform));
-	}
-
 
 	const FImplicitObject* GetTransformedObject() const
 	{
