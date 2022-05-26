@@ -359,6 +359,26 @@ namespace SharedPointerInternals
 		template <typename... ArgTypes>
 		explicit TIntrusiveReferenceController(ArgTypes&&... Args)
 		{
+			// If this fails to compile when trying to called MakeShared with a non-public constructor,
+			// do not make SharedPointerInternals::TIntrusiveReferenceController a friend.
+			//
+			// Instead, prefer this pattern:
+			//
+			//     class FMyType
+			//     {
+			//     private:
+			//         struct FPrivateToken { explicit FPrivateToken() = default; };
+			//
+			//     public:
+			//         // This has an equivalent access level to a private constructor,
+			//         // as only friends of FMyType will have access to FPrivateToken,
+			//         // but MakeShared can legally call it since it's public.
+			//         explicit FMyType(FPrivateToken, int32 Int, float Real, const TCHAR* String);
+			//     };
+			//
+			//     // Won't compile if the caller doesn't have access to FMyType::FPrivateToken
+			//     TSharedPtr<FMyType> Val = MakeShared<FMyType>(FMyType::FPrivateToken{}, 5, 3.14f, TEXT("Banana"));
+			//
 			new ((void*)&ObjectStorage) ObjectType(Forward<ArgTypes>(Args)...);
 		}
 
