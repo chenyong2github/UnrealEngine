@@ -251,10 +251,12 @@ public:
 	static const FName SetValueFunctionName;
 	static const FName GetValueFunctionName;
 	static const FName SampleGridFunctionName;
+	static const FName CubicSampleGridFunctionName;
 
 	static const FName SetFullGridValueFunctionName;
 	static const FName GetFullGridPreviousValueFunctionName;
 	static const FName SamplePreviousFullGridFunctionName;
+	static const FName CubicSamplePreviousFullGridFunctionName;
 
 	static const FName SetVector4ValueFunctionName;
 	static const FName SetVector3ValueFunctionName;
@@ -263,17 +265,22 @@ public:
 	static const FName SetFloatValueFunctionName;
 	static const FName GetPreviousValueAtIndexFunctionName;
 	static const FName SamplePreviousGridAtIndexFunctionName;
+	static const FName CubicSamplePreviousGridAtIndexFunctionName;
 
 	static const FName GetPreviousVector4ValueFunctionName;
 	static const FName SamplePreviousGridVector4FunctionName;
+	static const FName CubicSamplePreviousGridVector4FunctionName;
 	static const FName SetVectorValueFunctionName;
 	static const FName GetPreviousVectorValueFunctionName;
 	static const FName SamplePreviousGridVectorFunctionName;
+	static const FName CubicSamplePreviousGridVectorFunctionName;
 	static const FName SetVector2DValueFunctionName;
 	static const FName GetPreviousVector2DValueFunctionName;
 	static const FName SamplePreviousGridVector2DFunctionName;
+	static const FName CubicSamplePreviousGridVector2DFunctionName;
 	static const FName GetPreviousFloatValueFunctionName;
 	static const FName SamplePreviousGridFloatFunctionName;
+	static const FName CubicSamplePreviousGridFloatFunctionName;
 	static const FString AttributeIndicesBaseName;
 	static const FString PerAttributeDataName;
 	static const TCHAR* VectorComponentNames[];
@@ -286,6 +293,8 @@ public:
 	static const FName GetFloatAttributeIndexFunctionName;
 
 	static const FString AnonymousAttributeString;
+
+	static const TCHAR* TemplateShaderFilePath;
 
 #if WITH_EDITOR
 	virtual bool SupportsSetupAndTeardownHLSL() const { return true; }
@@ -305,7 +314,7 @@ protected:
 #if WITH_EDITORONLY_DATA
 	void WriteSetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
 	void WriteGetHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
-	void WriteSampleHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
+	void WriteSampleHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString SampleFunction, FString& OutHLSL);
 	void WriteAttributeGetIndexHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, int32 InNumChannels, FString& OutHLSL);
 
 	const TCHAR* TypeDefinitionToHLSLTypeString(const FNiagaraTypeDefinition& InDef) const;
