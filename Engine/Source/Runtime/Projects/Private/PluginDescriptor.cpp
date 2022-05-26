@@ -77,6 +77,7 @@ const FString& FPluginDescriptor::GetFileExtension()
 
 FPluginDescriptor::FPluginDescriptor()
 	: Version(0)
+	, bVersePublicApi(false)
 	, EnabledByDefault(EPluginEnabledByDefault::Unspecified)
 	, bCanContainContent(false)
 	, bCanContainVerse(false)
@@ -211,11 +212,12 @@ bool FPluginDescriptor::Read(const FJsonObject& Object, FText* OutFailReason /*=
 	}
 
 	Object.TryGetStringField(TEXT("VersePath"), VersePath);
+	Object.TryGetBoolField(TEXT("VersePublicApi"), bVersePublicApi);
 
 	bool bEnabledByDefault;
 	if(Object.TryGetBoolField(TEXT("EnabledByDefault"), bEnabledByDefault))
 	{
-		EnabledByDefault = bEnabledByDefault? EPluginEnabledByDefault::Enabled : EPluginEnabledByDefault::Disabled;
+		EnabledByDefault = bEnabledByDefault ? EPluginEnabledByDefault::Enabled : EPluginEnabledByDefault::Disabled;
 	}
 
 	Object.TryGetBoolField(TEXT("CanContainContent"), bCanContainContent);
@@ -325,6 +327,11 @@ void FPluginDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	if (!VersePath.IsEmpty())
 	{
 		JsonObject.SetStringField(TEXT("VersePath"), VersePath);
+	}
+
+	if (bVersePublicApi)
+	{
+		JsonObject.SetBoolField(TEXT("VersePublicApi"), bVersePublicApi);
 	}
 
 	if (EnabledByDefault != EPluginEnabledByDefault::Unspecified)

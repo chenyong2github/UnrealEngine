@@ -145,6 +145,11 @@ namespace UnrealBuildTool
 		public string? VersePath;
 
 		/// <summary>
+		/// If Verse code associated with this plugin is allowed to be seen by users outside of Epic
+		/// </summary>
+		public bool bVersePublicApi;
+
+		/// <summary>
 		/// Whether this plugin should be enabled by default for all projects
 		/// </summary>
 		public Nullable<bool> bEnabledByDefault;
@@ -294,6 +299,7 @@ namespace UnrealBuildTool
 			}
 
 			RawObject.TryGetStringField("VersePath", out VersePath);
+			RawObject.TryGetBoolField("VersePublicApi", out bVersePublicApi);
 
 			bool bEnabledByDefaultValue;
 			if(RawObject.TryGetBoolField("EnabledByDefault", out bEnabledByDefaultValue))
@@ -392,6 +398,10 @@ namespace UnrealBuildTool
 			if (!String.IsNullOrEmpty(VersePath))
 			{
 				Writer.WriteValue("VersePath", VersePath);
+			}
+			if (bVersePublicApi)
+			{
+				Writer.WriteValue("VersePublicApi", bVersePublicApi);
 			}
 			if (bEnabledByDefault.HasValue)
 			{

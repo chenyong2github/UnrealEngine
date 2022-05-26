@@ -84,6 +84,9 @@ struct PROJECTS_API FPluginDescriptor
 	/** The Verse path to the root of this plugin's content directory */
 	FString VersePath;
 
+	/** If Verse code associated with this plugin is allowed to be seen by users outside of Epic */
+	bool bVersePublicApi;
+
 	/** Whether this plugin should be enabled by default for all projects */
 	EPluginEnabledByDefault EnabledByDefault;
 

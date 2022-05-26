@@ -1046,6 +1046,11 @@ namespace UnrealBuildTool
 		public string? VersePath;
 
 		/// <summary>
+		/// If Verse code associated with this module is allowed to be seen by users outside of Epic
+		/// </summary>
+		public bool bVersePublicApi;
+
+		/// <summary>
 		/// Whether this module qualifies included headers from other modules relative to the root of their 'Public' folder. This reduces the number
 		/// of search paths that have to be passed to the compiler, improving performance and reducing the length of the compiler command line.
 		/// </summary>
