@@ -246,7 +246,7 @@ struct FMetasoundEditorGraphMemberDefaultObjectRef
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	TObjectPtr<UObject> Object;
+	TObjectPtr<UObject> Object = nullptr;
 };
 
 UCLASS(MinimalAPI)
