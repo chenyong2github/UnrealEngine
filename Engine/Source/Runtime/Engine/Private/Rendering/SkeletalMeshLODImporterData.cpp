@@ -533,7 +533,7 @@ void FReductionBaseSkeletalMeshBulkData::SaveReductionData(FSkeletalMeshLODModel
 
 void FReductionBaseSkeletalMeshBulkData::LoadReductionData(FSkeletalMeshLODModel& BaseLODModel, TMap<FString, TArray<FMorphTargetDelta>>& BaseLODMorphTargetData, UObject* Owner)
 {
-	check(IsInGameThread());
+	check(IsInGameThread() || IsInAsyncLoadingThread());
 
 	BaseLODMorphTargetData.Empty();
 	if (BulkData.GetElementCount() > 0)

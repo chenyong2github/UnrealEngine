@@ -301,7 +301,7 @@ void FStaticMeshSourceModel::SerializeBulkData(FArchive& Ar, UObject* Owner)
 		if (StaticMeshDescriptionBulkData == nullptr)
 		{
 			// For now, we assume that serialization will only occur on the game thread
-			ensure(IsInGameThread());
+			ensure(IsInGameThread() || IsInAsyncLoadingThread());
 			StaticMeshDescriptionBulkData = NewObject<UStaticMeshDescriptionBulkData>(Owner, NAME_None, RF_Transactional);
 		}
 	}

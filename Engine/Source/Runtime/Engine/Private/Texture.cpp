@@ -160,7 +160,7 @@ UTexture::UTexture(const FObjectInitializer& ObjectInitializer)
 
 const FTextureResource* UTexture::GetResource() const
 {
-	if (IsInParallelGameThread() || IsInGameThread() || IsInSlateThread())
+	if (IsInParallelGameThread() || IsInGameThread() || IsInSlateThread() || IsInAsyncLoadingThread())
 	{
 		return PrivateResource;
 	}
@@ -175,7 +175,7 @@ const FTextureResource* UTexture::GetResource() const
 
 FTextureResource* UTexture::GetResource()
 {
-	if (IsInParallelGameThread() || IsInGameThread() || IsInSlateThread())
+	if (IsInParallelGameThread() || IsInGameThread() || IsInSlateThread() || IsInAsyncLoadingThread())
 	{
 		return PrivateResource;
 	}
