@@ -1513,7 +1513,7 @@ public:
 			bDumpPass = WildcardFilter.IsMatch(Pass->GetEventName().GetTCHAR());
 		}
 
-		#if RDG_GPU_SCOPES
+		#if RDG_GPU_DEBUG_SCOPES
 		if (!bDumpPass)
 		{
 			const FRDGEventScope* ParentScope = Pass->GetGPUScopes().Event;
@@ -2105,7 +2105,7 @@ void FRDGBuilder::DumpResourcePassOutputs(const FRDGPass* Pass)
 	// Dump the pass informations
 	{
 		TArray<TSharedPtr<FJsonValue>> ParentEventScopeNames;
-		#if RDG_GPU_SCOPES
+		#if RDG_GPU_DEBUG_SCOPES
 		{
 			const FRDGEventScope* ParentScope = Pass->GetGPUScopes().Event;
 

@@ -398,14 +398,14 @@ inline void FRDGBuilder::RemoveUnusedBufferWarning(FRDGBufferRef Buffer)
 
 inline void FRDGBuilder::BeginEventScope(FRDGEventName&& ScopeName)
 {
-#if RDG_GPU_SCOPES
+#if RDG_GPU_DEBUG_SCOPES
 	GPUScopeStacks.BeginEventScope(MoveTemp(ScopeName), RHICmdList.GetGPUMask());
 #endif
 }
 
 inline void FRDGBuilder::EndEventScope()
 {
-#if RDG_GPU_SCOPES
+#if RDG_GPU_DEBUG_SCOPES
 	GPUScopeStacks.EndEventScope();
 #endif
 }

@@ -665,7 +665,7 @@ private:
 	EAsyncComputeBudget AsyncComputeBudgetState = EAsyncComputeBudget(~0u);
 
 	IF_RDG_CPU_SCOPES(FRDGCPUScopeStacks CPUScopeStacks);
-	IF_RDG_GPU_SCOPES(FRDGGPUScopeStacksByPipeline GPUScopeStacks);
+	FRDGGPUScopeStacksByPipeline GPUScopeStacks;
 	IF_RHI_WANT_BREADCRUMB_EVENTS(FRDGBreadcrumbState* BreadcrumbState{});
 
 	IF_RDG_ENABLE_TRACE(FRDGTrace Trace);
@@ -803,6 +803,7 @@ private:
 #endif
 
 	friend FRDGTrace;
+	friend DynamicRenderScaling::FRDGScope;
 	friend FRDGEventScopeGuard;
 	friend FRDGGPUStatScopeGuard;
 	friend FRDGAsyncComputeBudgetScopeGuard;

@@ -5,6 +5,7 @@
 #include "RenderGraphDefinitions.h"
 #include "RendererInterface.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
+#include "DynamicRenderScaling.h"
 
 /** Macros for create render graph event names and scopes.
  *
@@ -262,6 +263,99 @@ class FRDGBuilder;
 
 //////////////////////////////////////////////////////////////////////////
 //
+// GPU Timing
+//
+//////////////////////////////////////////////////////////////////////////
+
+class FRDGTimingScope final
+{
+public:
+	FRDGTimingScope(const FRDGTimingScope* InParentScope, const int32 InBudgetId)
+		: ParentScope(InParentScope)
+		, BudgetId(InBudgetId)
+	{}
+
+	const int32 GetBudgetId() const
+	{
+		return BudgetId;
+	}
+
+	const FRDGTimingScope* const ParentScope;
+	const int32 BudgetId;
+};
+
+using FRDGTimingScopeOp = TRDGScopeOp<FRDGTimingScope>;
+
+class RENDERCORE_API FRDGTimingScopeOpArray final
+{
+public:
+	FRDGTimingScopeOpArray() = default;
+	FRDGTimingScopeOpArray(ERHIPipeline Pipeline, const TRDGScopeOpArray<FRDGTimingScopeOp>& Ops);
+
+	void Execute(FRHIComputeCommandList& RHICmdList);
+
+private:
+	FRHIRenderQuery* TimestampQuery = nullptr;
+};
+
+class RENDERCORE_API FRDGTimingScopeStack final
+{
+public:
+	FRDGTimingScopeStack(FRDGAllocator& Allocator)
+		: ScopeStack(Allocator)
+	{}
+
+	inline void BeginScope(const DynamicRenderScaling::FBudget& Budget)
+	{
+		int32 BudgetId = Budget.GetBudgetId();
+		ScopeStack.BeginScope(BudgetId);
+	}
+
+	inline void EndScope()
+	{
+		ScopeStack.EndScope();
+	}
+
+	inline void ReserveOps()
+	{
+		ScopeStack.ReserveOps();
+	}
+
+	FRDGTimingScopeOpArray CompilePassPrologue(const FRDGPass* Pass);
+	
+	inline void EndExecute(FRHIComputeCommandList& RHICmdList)
+	{
+		return FRDGTimingScopeOpArray(RHICmdList.GetPipeline(), ScopeStack.EndCompile()).Execute(RHICmdList);
+	}
+
+	inline const FRDGTimingScope* GetCurrentScope() const
+	{
+		return ScopeStack.GetCurrentScope();
+	}
+
+	TRDGScopeStack<FRDGTimingScopeOp> ScopeStack;
+};
+
+namespace DynamicRenderScaling
+{
+
+class RENDERCORE_API FRDGScope final
+{
+public:
+	FRDGScope(FRDGBuilder& InGraphBuilder, const FBudget& InBudget);
+	FRDGScope(const FRDGScope&) = delete;
+	~FRDGScope();
+
+private:
+	FRDGBuilder& GraphBuilder;
+	const bool bIsEnabled;
+};
+
+} // namespace DynamicRenderScaling
+
+
+//////////////////////////////////////////////////////////////////////////
+//
 // GPU Events - Named hierarchical events emitted to external profiling tools.
 //
 //////////////////////////////////////////////////////////////////////////
@@ -294,7 +388,7 @@ private:
 #endif
 };
 
-#if RDG_GPU_SCOPES
+#if RDG_GPU_DEBUG_SCOPES
 
 class FRDGEventScope final
 {
@@ -441,11 +535,15 @@ private:
 	bool bCondition = true;
 };
 
+#endif // RDG_GPU_DEBUG_SCOPES
+
 //////////////////////////////////////////////////////////////////////////
 //
 // GPU Stats - Aggregated counters emitted to the runtime 'stat GPU' profiler.
 //
 //////////////////////////////////////////////////////////////////////////
+
+#if RDG_GPU_DEBUG_SCOPES
 
 class FRDGGPUStatScope final
 {
@@ -582,70 +680,89 @@ private:
 	FRDGBuilder& GraphBuilder;
 };
 
+#endif // RDG_GPU_DEBUG_SCOPES
+
+//////////////////////////////////////////////////////////////////////////
+//
+// General GPU scopes
+//
+//////////////////////////////////////////////////////////////////////////
+
 struct FRDGGPUScopes
 {
-	const FRDGEventScope* Event = nullptr;
-	const FRDGGPUStatScope* Stat = nullptr;
+	const FRDGTimingScope* Timing = nullptr;
+	IF_RDG_GPU_DEBUG_SCOPES(const FRDGEventScope* Event = nullptr);
+	IF_RDG_GPU_DEBUG_SCOPES(const FRDGGPUStatScope* Stat = nullptr);
 };
 
 struct FRDGGPUScopeOpArrays
 {
 	inline void Execute(FRHIComputeCommandList& RHICmdList)
 	{
-		Event.Execute(RHICmdList);
-		Stat.Execute(RHICmdList);
+		Timing.Execute(RHICmdList);
+		IF_RDG_GPU_DEBUG_SCOPES(Event.Execute(RHICmdList));
+		IF_RDG_GPU_DEBUG_SCOPES(Stat.Execute(RHICmdList));
 	}
 
-	FRDGEventScopeOpArray Event;
-	FRDGGPUStatScopeOpArray Stat;
+	FRDGTimingScopeOpArray Timing;
+	IF_RDG_GPU_DEBUG_SCOPES(FRDGEventScopeOpArray Event);
+	IF_RDG_GPU_DEBUG_SCOPES(FRDGGPUStatScopeOpArray Stat);
 };
 
 /** The complete set of scope stack implementations. */
 struct FRDGGPUScopeStacks
 {
 	FRDGGPUScopeStacks(FRDGAllocator& Allocator)
-		: Event(Allocator)
+		: Timing(Allocator)
+#if RDG_GPU_DEBUG_SCOPES
+		, Event(Allocator)
 		, Stat(Allocator)
+#endif
 	{}
 
 	inline void ReserveOps(int32 PassCount)
 	{
-		Event.ReserveOps(PassCount);
-		Stat.ReserveOps();
+		Timing.ReserveOps();
+		IF_RDG_GPU_DEBUG_SCOPES(Event.ReserveOps(PassCount));
+		IF_RDG_GPU_DEBUG_SCOPES(Stat.ReserveOps());
 	}
 
 	inline FRDGGPUScopeOpArrays CompilePassPrologue(const FRDGPass* Pass, FRHIGPUMask GPUMask)
 	{
 		FRDGGPUScopeOpArrays Result;
-		Result.Event = Event.CompilePassPrologue(Pass);
-		Result.Stat = Stat.CompilePassPrologue(Pass, GPUMask);
+		Result.Timing = Timing.CompilePassPrologue(Pass);
+		IF_RDG_GPU_DEBUG_SCOPES(Result.Event = Event.CompilePassPrologue(Pass));
+		IF_RDG_GPU_DEBUG_SCOPES(Result.Stat = Stat.CompilePassPrologue(Pass, GPUMask));
 		return MoveTemp(Result);
 	}
 
 	inline FRDGGPUScopeOpArrays CompilePassEpilogue()
 	{
 		FRDGGPUScopeOpArrays Result;
-		Result.Event = Event.CompilePassEpilogue();
-		Result.Stat = Stat.CompilePassEpilogue();
+		IF_RDG_GPU_DEBUG_SCOPES(Result.Event = Event.CompilePassEpilogue());
+		IF_RDG_GPU_DEBUG_SCOPES(Result.Stat = Stat.CompilePassEpilogue());
 		return MoveTemp(Result);
 	}
 
 	inline void EndExecute(FRHIComputeCommandList& RHICmdList)
 	{
-		Event.EndExecute(RHICmdList);
-		Stat.EndExecute(RHICmdList);
+		Timing.EndExecute(RHICmdList);
+		IF_RDG_GPU_DEBUG_SCOPES(Event.EndExecute(RHICmdList));
+		IF_RDG_GPU_DEBUG_SCOPES(Stat.EndExecute(RHICmdList));
 	}
 
 	inline FRDGGPUScopes GetCurrentScopes() const
 	{
 		FRDGGPUScopes Scopes;
-		Scopes.Event = Event.GetCurrentScope();
-		Scopes.Stat = Stat.GetCurrentScope();
+		Scopes.Timing = Timing.GetCurrentScope();
+		IF_RDG_GPU_DEBUG_SCOPES(Scopes.Event = Event.GetCurrentScope());
+		IF_RDG_GPU_DEBUG_SCOPES(Scopes.Stat = Stat.GetCurrentScope());
 		return Scopes;
 	}
 
-	FRDGEventScopeStack Event;
-	FRDGGPUStatScopeStack Stat;
+	FRDGTimingScopeStack Timing;
+	IF_RDG_GPU_DEBUG_SCOPES(FRDGEventScopeStack Event);
+	IF_RDG_GPU_DEBUG_SCOPES(FRDGGPUStatScopeStack Stat);
 };
 
 struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
@@ -655,6 +772,19 @@ struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
 		, AsyncCompute(Allocator)
 	{}
 
+	inline void BeginTimingScope(const DynamicRenderScaling::FBudget& Budget)
+	{
+		Graphics.Timing.BeginScope(Budget);
+		AsyncCompute.Timing.BeginScope(Budget);
+	}
+
+	inline void EndTimingScope()
+	{
+		Graphics.Timing.EndScope();
+		AsyncCompute.Timing.EndScope();
+	}
+
+#if RDG_GPU_DEBUG_SCOPES
 	inline void BeginEventScope(FRDGEventName&& ScopeName, FRHIGPUMask GPUMask)
 	{
 		FRDGEventName ScopeNameCopy = ScopeName;
@@ -677,6 +807,7 @@ struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
 	{
 		Graphics.Stat.EndScope();
 	}
+#endif
 
 	inline void ReserveOps(int32 PassCount)
 	{
@@ -700,8 +831,6 @@ struct RENDERCORE_API FRDGGPUScopeStacksByPipeline
 	FRDGGPUScopeStacks Graphics;
 	FRDGGPUScopeStacks AsyncCompute;
 };
-
-#endif
 
 //////////////////////////////////////////////////////////////////////////
 //

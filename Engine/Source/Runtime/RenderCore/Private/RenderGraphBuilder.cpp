@@ -539,9 +539,7 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 #if RDG_CPU_SCOPES
 	, CPUScopeStacks(Allocator)
 #endif
-#if RDG_GPU_SCOPES
 	, GPUScopeStacks(Allocator)
-#endif
 	, bParallelExecuteEnabled(IsParallelExecuteEnabled() && EnumHasAnyFlags(InFlags, ERDGBuilderFlags::AllowParallelExecute))
 #if RDG_ENABLE_DEBUG
 	, UserValidation(Allocator, bParallelExecuteEnabled)
@@ -1537,7 +1535,7 @@ void FRDGBuilder::Execute()
 
 		Compile();
 
-		IF_RDG_GPU_SCOPES(GPUScopeStacks.ReserveOps(Passes.Num()));
+		GPUScopeStacks.ReserveOps(Passes.Num());
 		IF_RDG_CPU_SCOPES(CPUScopeStacks.ReserveOps());
 
 		if (bParallelExecuteEnabled)
@@ -1841,8 +1839,8 @@ void FRDGBuilder::Execute()
 
 	IF_RDG_ENABLE_TRACE(Trace.OutputGraphEnd(*this));
 
-	IF_RDG_GPU_SCOPES(GPUScopeStacks.Graphics.EndExecute(RHICmdList));
-	IF_RDG_GPU_SCOPES(GPUScopeStacks.AsyncCompute.EndExecute(RHICmdListAsyncCompute));
+	GPUScopeStacks.Graphics.EndExecute(RHICmdList);
+	GPUScopeStacks.AsyncCompute.EndExecute(RHICmdListAsyncCompute);
 	IF_RDG_CPU_SCOPES(CPUScopeStacks.EndExecute());
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateExecuteEnd());
@@ -2026,10 +2024,8 @@ void FRDGBuilder::CompilePassOps(FRDGPass* Pass)
 	Pass->CPUScopeOps = CPUScopeStacks.CompilePassPrologue(Pass);
 #endif
 
-#if RDG_GPU_SCOPES
 	Pass->GPUScopeOpsPrologue = GPUScopeStacks.CompilePassPrologue(Pass, GPUMask);
 	Pass->GPUScopeOpsEpilogue = GPUScopeStacks.CompilePassEpilogue(Pass);
-#endif
 }
 
 void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, ERHIPipeline PassPipeline, bool bEmptyParameters)
@@ -2064,13 +2060,13 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 #endif
 
 	IF_RDG_CPU_SCOPES(Pass->CPUScopes = CPUScopeStacks.GetCurrentScopes());
-	IF_RDG_GPU_SCOPES(Pass->GPUScopes = GPUScopeStacks.GetCurrentScopes(PassPipeline));
+	Pass->GPUScopes = GPUScopeStacks.GetCurrentScopes(PassPipeline);
 
-#if RDG_GPU_SCOPES && RDG_ENABLE_TRACE
+#if RDG_GPU_DEBUG_SCOPES && RDG_ENABLE_TRACE
 	Pass->TraceEventScope = GPUScopeStacks.GetCurrentScopes(ERHIPipeline::Graphics).Event;
 #endif
 
-#if RDG_GPU_SCOPES && RDG_ENABLE_DEBUG
+#if RDG_GPU_DEBUG_SCOPES && RDG_ENABLE_DEBUG
 	if (const FRDGEventScope* Scope = Pass->GPUScopes.Event)
 	{
 		Pass->FullPathIfDebug = Scope->GetPath(Pass->Name);
@@ -2528,9 +2524,7 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdList
 
 	ExecutePassPrologue(RHICmdListPass, Pass);
 
-#if RDG_GPU_SCOPES
 	Pass->GPUScopeOpsPrologue.Execute(RHICmdListPass);
-#endif
 
 #if RDG_DUMP_RESOURCES_AT_EACH_DRAW
 	BeginPassDump(Pass);
@@ -2542,9 +2536,7 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdList
 	EndPassDump(Pass);
 #endif
 
-#if RDG_GPU_SCOPES
 	Pass->GPUScopeOpsEpilogue.Execute(RHICmdListPass);
-#endif
 
 	ExecutePassEpilogue(RHICmdListPass, Pass);
 

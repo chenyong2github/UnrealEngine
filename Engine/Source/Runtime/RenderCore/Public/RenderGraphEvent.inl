@@ -156,8 +156,6 @@ inline const TCHAR* FRDGEventName::GetTCHAR() const
 #endif
 }
 
-#if RDG_GPU_SCOPES
-
 inline const FRDGGPUScopeStacks& FRDGGPUScopeStacksByPipeline::GetScopeStacks(ERHIPipeline Pipeline) const
 {
 	switch (Pipeline)
@@ -185,5 +183,3 @@ inline FRDGGPUScopeStacks& FRDGGPUScopeStacksByPipeline::GetScopeStacks(ERHIPipe
 		return Graphics;
 	}
 }
-
-#endif

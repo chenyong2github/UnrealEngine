@@ -294,12 +294,10 @@ public:
 	}
 #endif
 
-#if RDG_GPU_SCOPES
 	FRDGGPUScopes GetGPUScopes() const
 	{
 		return GPUScopes;
 	}
-#endif
 
 #if WITH_MGPU
 	FRHIGPUMask GetGPUMask() const
@@ -491,13 +489,11 @@ protected:
 	FRDGCPUScopeOpArrays CPUScopeOps;
 #endif
 
-#if RDG_GPU_SCOPES
 	FRDGGPUScopes GPUScopes;
 	FRDGGPUScopeOpArrays GPUScopeOpsPrologue;
 	FRDGGPUScopeOpArrays GPUScopeOpsEpilogue;
-#endif
 
-#if RDG_GPU_SCOPES && RDG_ENABLE_TRACE
+#if RDG_GPU_DEBUG_SCOPES && RDG_ENABLE_TRACE
 	const FRDGEventScope* TraceEventScope = nullptr;
 #endif
 
