@@ -18,6 +18,7 @@
 #include "BoneIndices.h"
 #include "GameplayTagContainer.h"
 #include "Interfaces/Interface_BoneReferenceSkeletonProvider.h"
+#include "PoseSearch/KDTree.h"
 
 #include "PoseSearch.generated.h"
 
@@ -82,6 +83,18 @@ enum class EPoseSearchBooleanRequest : int32
 	FalseValue,
 	TrueValue,
 	Indifferent, // if this is used, there will be no cost difference between true and false results
+
+	Num UMETA(Hidden),
+	Invalid = Num UMETA(Hidden)
+};
+
+UENUM()
+enum class EPoseSearchMode : int32
+{
+	BruteForce,
+	PCAKDTree,
+	PCAKDTree_Validate,	// runs PCAKDTree and performs validation tests
+	PCAKDTree_Compare,	// compares BruteForce vs PCAKDTree
 
 	Num UMETA(Hidden),
 	Invalid = Num UMETA(Hidden)
@@ -653,6 +666,32 @@ public:
 	}
 };
 
+USTRUCT()
+struct POSESEARCH_API FGroupSearchIndex
+{
+	GENERATED_BODY()
+
+	UE::PoseSearch::FKDTree KDTree;
+
+	UPROPERTY()
+	TArray<float> PCAProjectionMatrix;
+
+	UPROPERTY()
+	TArray<float> Mean;
+
+	UPROPERTY()
+	int32 StartPoseIndex = 0;
+	
+	UPROPERTY()
+	int32 EndPoseIndex = 0;
+
+	UPROPERTY()
+	int32 GroupIndex = 0;
+
+	UPROPERTY()
+	TArray<float> Weights;
+};
+
 /**
 * A search index for animation poses. The structure of the search index is determined by its UPoseSearchSchema.
 * May represent a single animation (see UPoseSearchSequenceMetaData) or a collection (see UPoseSearchDatabase).
@@ -667,6 +706,12 @@ struct POSESEARCH_API FPoseSearchIndex
 
 	UPROPERTY()
 	TArray<float> Values;
+
+	UPROPERTY()
+	TArray<float> PCAValues;
+
+	UPROPERTY()
+	TArray<FGroupSearchIndex> Groups;
 
 	UPROPERTY()
 	TArray<FPoseSearchPoseMetadata> PoseMetadata;
@@ -939,6 +984,18 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Database")
 	TArray<FPoseSearchDatabaseBlendSpace> BlendSpaces;
 
+	UPROPERTY(EditAnywhere, Category = "Performance", meta = (ClampMin = "1", ClampMax = "64", UIMin = "1", UIMax = "64"))
+	int32 NumberOfPrincipalComponents = 4;
+
+	UPROPERTY(EditAnywhere, Category = "Performance", meta = (ClampMin = "1", ClampMax = "256", UIMin = "1", UIMax = "256"))
+	int32 KDTreeMaxLeafSize = 8;
+	
+	UPROPERTY(EditAnywhere, Category = "Performance", meta = (ClampMin = "1", ClampMax = "600", UIMin = "1", UIMax = "600"))
+	int32 KDTreeQueryNumNeighbors = 100;
+
+	UPROPERTY(EditAnywhere, Category = "Performance")
+	EPoseSearchMode PoseSearchMode = EPoseSearchMode::BruteForce;
+
 	FPoseSearchIndex* GetSearchIndex();
 	const FPoseSearchIndex* GetSearchIndex() const;
 
@@ -953,6 +1010,7 @@ public:
 	const bool IsSourceAssetLooping(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const FGameplayTagContainer* GetSourceAssetGroupTags(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const FString GetSourceAssetName(const FPoseSearchIndexAsset* SearchIndexAsset) const;
+	int32 GetNumberOfPrincipalComponents() const;
 
 public: // UObject
 	virtual void PostLoad() override;

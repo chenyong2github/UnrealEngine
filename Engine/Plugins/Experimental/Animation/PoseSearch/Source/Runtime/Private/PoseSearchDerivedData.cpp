@@ -206,6 +206,11 @@ namespace UE::PoseSearch
 			AddDbBlendSpaceToWriter(Database.BlendSpaces[i], Writer);
 		}
 
+		Writer.Update(&Database.NumberOfPrincipalComponents, sizeof(Database.NumberOfPrincipalComponents));
+		Writer.Update(&Database.KDTreeMaxLeafSize, sizeof(Database.KDTreeMaxLeafSize));
+		Writer.Update(&Database.KDTreeQueryNumNeighbors, sizeof(Database.KDTreeQueryNumNeighbors));
+		Writer.Update(&Database.PoseSearchMode, sizeof(Database.PoseSearchMode));
+
 		return Writer.Finalize();
 	}
 
@@ -373,28 +378,41 @@ namespace UE::PoseSearch
 	FArchive& operator<<(FArchive& Ar, FPoseSearchIndex& Index)
 	{
 		int32 NumValues = 0;
+		int32 NumPCAValues = 0;
 		int32 NumAssets = 0;
+		int32 NumGroups = 0;
 
 		if (Ar.IsSaving())
 		{
 			NumValues = Index.Values.Num();
+			NumPCAValues = Index.PCAValues.Num();
 			NumAssets = Index.Assets.Num();
+			NumGroups = Index.Groups.Num();
 		}
 
 		Ar << Index.NumPoses;
 		Ar << NumValues;
+		Ar << NumPCAValues;
 		Ar << NumAssets;
+		Ar << NumGroups;
 
 		if (Ar.IsLoading())
 		{
 			Index.Values.SetNumUninitialized(NumValues);
+			Index.PCAValues.SetNumUninitialized(NumPCAValues);
 			Index.PoseMetadata.SetNumUninitialized(Index.NumPoses);
 			Index.Assets.SetNumUninitialized(NumAssets);
+			Index.Groups.SetNum(NumGroups);
 		}
 
 		if (Index.Values.Num() > 0)
 		{
 			Ar.Serialize(&Index.Values[0], Index.Values.Num() * Index.Values.GetTypeSize());
+		}
+
+		if (Index.PCAValues.Num() > 0)
+		{
+			Ar.Serialize(&Index.PCAValues[0], Index.PCAValues.Num() * Index.PCAValues.GetTypeSize());
 		}
 
 		if (Index.PoseMetadata.Num() > 0)
@@ -408,6 +426,23 @@ namespace UE::PoseSearch
 		}
 
 		Ar << Index.PreprocessInfo;
+
+		for (int i = 0; i < Index.Groups.Num(); ++i)
+		{
+			FGroupSearchIndex& GroupSearchIndex = Index.Groups[i];
+			Ar << GroupSearchIndex.StartPoseIndex;
+			Ar << GroupSearchIndex.EndPoseIndex;
+			Ar << GroupSearchIndex.GroupIndex;
+			Ar << GroupSearchIndex.Weights;
+			Ar << GroupSearchIndex.Mean;
+			Ar << GroupSearchIndex.PCAProjectionMatrix;
+
+			check(GroupSearchIndex.PCAProjectionMatrix.Num() > 0 && GroupSearchIndex.Mean.Num() > 0);
+			check(GroupSearchIndex.PCAProjectionMatrix.Num() % GroupSearchIndex.Mean.Num() == 0);
+			const int NumberOfPrincipalComponents = GroupSearchIndex.PCAProjectionMatrix.Num() / GroupSearchIndex.Mean.Num();
+			float* GroupPCAValues = Index.PCAValues.GetData() + GroupSearchIndex.StartPoseIndex * NumberOfPrincipalComponents;
+			Serialize(Ar, GroupSearchIndex.KDTree, GroupPCAValues);
+		}
 
 		return Ar;
 	}
