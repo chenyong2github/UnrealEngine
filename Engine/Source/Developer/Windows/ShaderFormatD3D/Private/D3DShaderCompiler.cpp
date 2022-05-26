@@ -645,7 +645,7 @@ static bool CompileErrorsContainInternalError(ID3DBlob* Errors)
 		if (ErrorBuffer)
 		{
 			const FStringView ErrorString = ANSI_TO_TCHAR(ErrorBuffer);
-			return ErrorString.Contains(TEXT("internal error: "));
+			return ErrorString.Contains(TEXT("internal error:")) || ErrorString.Contains(TEXT("Internal Compiler Error:"));
 		}
 	}
 	return false;
