@@ -996,7 +996,7 @@ void FHlslNiagaraTranslator::BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode
 	for (const FNiagaraVariable& Variable : T::GetVariables())
 	{
 		const FString SymbolName = GetSanitizedSymbolName(Variable.GetName().ToString(), true);
-		AddUniformChunk(SymbolName, Variable, ChunkMode);
+		AddUniformChunk(SymbolName, Variable, ChunkMode, false);
 	}
 }
 
@@ -4172,7 +4172,7 @@ FString FHlslNiagaraTranslator::GeneratedConstantString(FVector4 Constant)
 	return FString::Format(TEXT("float4({0}, {1}, {2}, {3})"), Args);
 }
 
-int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagaraVariable& InVariable, ENiagaraCodeChunkMode ChunkMode)
+int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagaraVariable& InVariable, ENiagaraCodeChunkMode ChunkMode, bool AddPadding)
 {
 	const FNiagaraTypeDefinition& Type = InVariable.GetType();
 
@@ -4191,6 +4191,20 @@ int32 FHlslNiagaraTranslator::AddUniformChunk(FString SymbolName, const FNiagara
 		Chunk.SymbolName = GetSanitizedSymbolName(SymbolName);
 		Chunk.Type = Type;
 		Chunk.Original = InVariable;
+
+		if (AddPadding)
+		{
+			if (Type == FNiagaraTypeDefinition::GetVec2Def())
+			{
+				Chunk.Type = FNiagaraTypeDefinition::GetVec4Def();
+				Chunk.ComponentMask = TEXT(".xy");
+			}
+			else if (Type == FNiagaraTypeDefinition::GetVec3Def() || Type == FNiagaraTypeDefinition::GetPositionDef())
+			{
+				Chunk.Type = FNiagaraTypeDefinition::GetVec4Def();
+				Chunk.ComponentMask = TEXT(".xyz");
+			}
+		}
 
 		Chunk.Mode = ChunkMode;
 
@@ -5526,7 +5540,7 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 					CompilationOutput.ScriptData.Parameters.SetOrAdd(InVariable);
 				}
 
-				UniformChunk = AddUniformChunk(SymbolNameDefined, InVariable, ENiagaraCodeChunkMode::Uniform);
+				UniformChunk = AddUniformChunk(SymbolNameDefined, InVariable, ENiagaraCodeChunkMode::Uniform, UNiagaraScript::IsGPUScript(CompileOptions.TargetUsage));
 			}
 			else
 			{
