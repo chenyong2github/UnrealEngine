@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System;
 using System.Text.Json;
 
 namespace Horde.Build.Utilities.Slack.BlockKit
@@ -9,6 +10,11 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 	/// </summary>
 	public class TextObject
 	{
+		/// <summary>
+		/// Maximum length of a text object before truncation
+		/// </summary>
+		public const int MaxLength = 2048;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
@@ -46,8 +52,6 @@ namespace Horde.Build.Utilities.Slack.BlockKit
 		{
 			writer.WriteStartObject("text");
 			writer.WriteString("type", IsMarkdown ? "mrkdwn" : "plain_text");
-
-			const int MaxLength = 2048;
 
 			string truncatedText = Text;
 			if (truncatedText.Length > MaxLength)

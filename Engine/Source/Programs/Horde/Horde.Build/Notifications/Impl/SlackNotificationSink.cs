@@ -524,10 +524,10 @@ namespace Horde.Build.Notifications.Impl
 				if (errors.Any())
 				{
 					string errorSummary = errors.Count > MaxJobStepEvents ? $"*Errors (First {MaxJobStepEvents} shown)*" : $"*Errors*";
-					eventStrings.Add(errorSummary);
+					attachment.Blocks.Add(new SectionBlock(errorSummary));
 					foreach (ILogEventData error in errors.Take(MaxJobStepEvents))
 					{
-						eventStrings.Add($"```{error.Message}```");
+						attachment.Blocks.Add(QuoteBlock(error.Message));
 					}
 				}
 				else if (warnings.Any())
@@ -536,11 +536,10 @@ namespace Horde.Build.Notifications.Impl
 					eventStrings.Add(warningSummary);
 					foreach (ILogEventData warning in warnings.Take(MaxJobStepEvents))
 					{
-						eventStrings.Add($"```{warning.Message}```");
+						attachment.Blocks.Add(QuoteBlock(warning.Message));
 					}
 				}
 
-				attachment.Blocks.Add(new SectionBlock(String.Join("\n", eventStrings)));
 				attachment.Blocks.Add(new SectionBlock($"<{jobStepLogLink}|View Job Step Log>"));
 			}
 
@@ -960,18 +959,15 @@ namespace Horde.Build.Notifications.Impl
 						events.RemoveAll(x => x.Severity == EventSeverity.Warning);
 					}
 
-					List<string> eventStrings = new List<string>();
 					for (int idx = 0; idx < Math.Min(events.Count, 3); idx++)
 					{
 						ILogEventData data = await _logFileService.GetEventDataAsync(logFile, events[idx].LineIndex, events[idx].LineCount);
-						eventStrings.Add($"```{data.Message}```");
+						attachment.Blocks.Add(QuoteBlock(data.Message));
 					}
 					if (events.Count > 3)
 					{
-						eventStrings.Add("```...```");
+						attachment.Blocks.Add(new SectionBlock("```...```"));
 					}
-
-					attachment.Blocks.Add(new SectionBlock(String.Join("\n", eventStrings)));
 				}
 			}
 
@@ -1346,7 +1342,7 @@ namespace Horde.Build.Notifications.Impl
 			attachment.Blocks.Add(new HeaderBlock($"Config Update Failure :rip:", true));
 
 			attachment.Blocks.Add(new SectionBlock($"Horde was unable to update {fileName}"));
-			attachment.Blocks.Add(new SectionBlock($"```{errorMessage}```"));
+			attachment.Blocks.Add(QuoteBlock(errorMessage));
 			if (change != null)
 			{
 				if (author != null)
@@ -1359,7 +1355,7 @@ namespace Horde.Build.Notifications.Impl
 				}
 				if (description != null)
 				{
-					attachment.Blocks.Add(new SectionBlock($"```{description}```"));
+					attachment.Blocks.Add(QuoteBlock(description));
 				}
 			}
 
@@ -1396,7 +1392,10 @@ namespace Horde.Build.Notifications.Impl
 			attachment.Blocks.Add(new HeaderBlock($"Stream Update Failure :rip:", true));
 
 			attachment.Blocks.Add(new SectionBlock($"<!here> Horde was unable to update {file.DepotPath}"));
-			attachment.Blocks.Add(new SectionBlock($"```{file.Error}```"));
+			if (file.Error != null)
+			{
+				attachment.Blocks.Add(QuoteBlock(file.Error));
+			}
 
 			return SendMessageAsync(recipient, attachments: new[] { attachment });
 		}
@@ -1488,6 +1487,26 @@ namespace Horde.Build.Notifications.Impl
 		}
 
 		#endregion
+
+		static SectionBlock QuoteBlock(string text)
+		{
+			const int MaxLength = TextObject.MaxLength - 6;
+
+			if (text.Length > MaxLength)
+			{
+				int length = text.LastIndexOf('\n', MaxLength);
+				if (length == 0)
+				{
+					text = text.Substring(0, MaxLength - 7) + "...\n...";
+				}
+				else
+				{
+					text = text.Substring(0, length + 1) + "...";
+				}
+			}
+
+			return new SectionBlock($"```{text}```");
+		}
 
 		const int MaxJobStepEvents = 5;
 
