@@ -7,56 +7,56 @@ DEFINE_LOG_CATEGORY(LogEncoderAMF);
 
 namespace AVEncoder
 {
-    FCriticalSection    FAmfCommon::ProtectSingleton;
-    FAmfCommon          FAmfCommon::Singleton;
+	FCriticalSection FAmfCommon::ProtectSingleton;
+	FAmfCommon FAmfCommon::Singleton;
 
-    // attempt to load Amf
-    FAmfCommon &FAmfCommon::Setup()
-    {
-        FScopeLock Guard(&ProtectSingleton);
-        if (!Singleton.bWasSetUp)
-        {
-            Singleton.bWasSetUp = true;
-            Singleton.SetupAmfFunctions();
-        }
-        return Singleton;
-    }
+	// attempt to load Amf
+	FAmfCommon &FAmfCommon::Setup()
+	{
+		FScopeLock Guard(&ProtectSingleton);
+		if (!Singleton.bWasSetUp)
+		{
+			Singleton.bWasSetUp = true;
+			Singleton.SetupAmfFunctions();
+		}
+		return Singleton;
+	}
 
-    // shutdown - release loaded dll
-    void FAmfCommon::Shutdown()
-    {
-        FScopeLock Guard(&ProtectSingleton);
-        if (Singleton.bWasSetUp)
-        {
-            Singleton.bWasSetUp = false;
-            Singleton.bIsAvailable = false;
-            
-            if (Singleton.AmfContext)
-            {
-                Singleton.AmfContext->Terminate();
-                Singleton.AmfContext = nullptr;
-            }
-            
-            Singleton.AmfFactory = nullptr;
-            
-            if (Singleton.DllHandle)
-            {
-                FPlatformProcess::FreeDllHandle(Singleton.DllHandle);
-                Singleton.DllHandle = nullptr;
-            }
-        }
-    }
+	// shutdown - release loaded dll
+	void FAmfCommon::Shutdown()
+	{
+		FScopeLock Guard(&ProtectSingleton);
+		if (Singleton.bWasSetUp)
+		{
+			Singleton.bWasSetUp = false;
+			Singleton.bIsAvailable = false;
 
-    bool FAmfCommon::CreateEncoder(amf::AMFComponentPtr& outEncoder)
-    {        
+			if (Singleton.AmfContext)
+			{
+				Singleton.AmfContext->Terminate();
+				Singleton.AmfContext = nullptr;
+			}
+
+			Singleton.AmfFactory = nullptr;
+
+			if (Singleton.DllHandle)
+			{
+				FPlatformProcess::FreeDllHandle(Singleton.DllHandle);
+				Singleton.DllHandle = nullptr;
+			}
+		}
+	}
+
+	bool FAmfCommon::CreateEncoder(amf::AMFComponentPtr &outEncoder)
+	{
 		AMF_RESULT res = AmfFactory->CreateComponent(AmfContext, AMFVideoEncoderVCE_AVC, &outEncoder);
 		if (res != AMF_OK)
 		{
 			UE_LOG(LogEncoderAMF, Error, TEXT("AMF failed to create Encoder component with code: %d"), res);
 			return false;
 		}
-        return true;
-    }
+		return true;
+	}
 
 	void FAmfCommon::SetupAmfFunctions()
 	{
@@ -71,7 +71,12 @@ namespace AVEncoder
 #endif
 
 #ifdef AMF_DLL_NAMEA
+// To avoid a warning during tests we manually call dlopen on Linux as this is how we currently determine if AMF is avaliable
+#if PLATFORM_LINUX && PLATFORM_DESKTOP
+		DllHandle = dlopen( AMF_DLL_NAMEA, RTLD_LAZY | RTLD_NOLOAD | RTLD_GLOBAL );
+#else 
 		DllHandle = FPlatformProcess::GetDllHandle(TEXT(AMF_DLL_NAMEA));
+#endif
 #endif
 
 		if (DllHandle)
@@ -87,10 +92,10 @@ namespace AVEncoder
 
 			bIsAvailable = true;
 		}
-    }
+	}
 
-    bool FAmfCommon::InitializeContext(ERHIInterfaceType RHIType, const FString& RHIName, void* NativeDevice, void* NativeInstance, void* NativePhysicalDevice)
-    {
+	bool FAmfCommon::InitializeContext(ERHIInterfaceType RHIType, const FString &RHIName, void *NativeDevice, void *NativeInstance, void *NativePhysicalDevice)
+	{
 		AMF_RESULT Res = AMF_FAIL;
 
 		// Create context
@@ -132,6 +137,6 @@ namespace AVEncoder
 		}
 
 		bIsCtxInitialized = (Res == AMF_OK);
-        return bIsCtxInitialized;
-    }
+		return bIsCtxInitialized;
+	}
 }
