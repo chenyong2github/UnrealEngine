@@ -51,9 +51,7 @@ UWidget* FWidgetReference::GetPreview() const
 {
 	if ( WidgetEditor.IsValid() && TemplateHandle.IsValid() )
 	{
-		UUserWidget* PreviewRoot = WidgetEditor.Pin()->GetPreview();
-
-		if ( PreviewRoot )
+		if ( UUserWidget* PreviewRoot = WidgetEditor.Pin()->GetPreview() )
 		{
 			if ( UWidget* TemplateWidget = TemplateHandle->Widget.Get() )
 			{

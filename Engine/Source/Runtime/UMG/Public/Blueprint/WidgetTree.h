@@ -16,7 +16,7 @@
 
 /** The widget tree manages the collection of widgets in a blueprint widget. */
 UCLASS()
-class UMG_API UWidgetTree : public UObject
+class UMG_API UWidgetTree : public UObject, public INamedSlotInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -100,11 +100,21 @@ public:
 		return NewObject<WidgetT>(this, WidgetClass, WidgetName, RF_Transactional);
 	}
 
+	// INamedSlotInterface
+	//----------------------------------------------------------------------------------------
+	
+	/** Gets the names for slots that we can store widgets into. */
+	virtual void GetSlotNames(TArray<FName>& SlotNames) const override;
+
+	/** Gets the widget for a given slot by name, will return nullptr if no widget is in the slot. */
+	virtual UWidget* GetContentForSlot(FName SlotName) const override;
+
+	/** Sets the widget for a given slot by name. */
+	virtual void SetContentForSlot(FName SlotName, UWidget* Content) override;
+
+	//----------------------------------------------------------------------------------------
+
 	// UObject interface
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS // Suppress compiler warning on override of deprecated function
-	UE_DEPRECATED(5.0, "Use version that takes FObjectPreSaveContext instead.")
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
 	// End of UObject interface
@@ -113,6 +123,14 @@ public:
 	/** The root widget of the tree */
 	UPROPERTY(Instanced)
 	TObjectPtr<UWidget> RootWidget;
+
+	/**
+	 * Stores the widgets being assigned to named slots, these widgets will be slotted into the named slots of the
+	 * user widget that owns this widget tree after the user widget is constructed.  This is how we store the
+	 * template content in order to have named slot inheritance, and merging widget trees.
+	 */
+	UPROPERTY()
+	TMap<FName, TObjectPtr<UWidget>> NamedSlotBindings;
 
 protected:
 

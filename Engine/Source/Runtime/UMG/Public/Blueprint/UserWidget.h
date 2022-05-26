@@ -219,7 +219,7 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject Interface
 
-	void DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree);
+	void DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree, INamedSlotInterface* NamedSlotsToMerge);
 
 	virtual bool Initialize();
 
@@ -239,7 +239,7 @@ protected:
 	/** The function is implemented only in nativized widgets (automatically converted from BP to c++) */
 	virtual void InitializeNativeClassData() {}
 
-	void InitializeNamedSlots(bool bReparentToWidgetTree);
+	void InitializeNamedSlots();
 
 public:
 	//~ Begin UVisual interface

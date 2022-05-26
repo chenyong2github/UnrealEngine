@@ -322,6 +322,9 @@ public:
 
 	bool ArePropertyBindingsAllowed() const;
 
+	/** Gets any named slots exposed by the parent generated class that can be slotted into by the subclass. */
+	TArray<FName> GetInheritedNamedSlots() const;
+
 protected:
 	virtual void LoadModulesRequiredForCompilation() override;
 

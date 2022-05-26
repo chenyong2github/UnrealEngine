@@ -105,7 +105,7 @@ public:
 	void SetWidgetTreeArchetype(UWidgetTree* InWidgetTree);
 
 	// Walks up the hierarchy looking for a valid widget tree.
-	UWidgetBlueprintGeneratedClass* FindWidgetTreeOwningClass();
+	UWidgetBlueprintGeneratedClass* FindWidgetTreeOwningClass() const;
 
 	// Execute the callback for every FieldId defined in the BP class
 	void ForEachField(TFunctionRef<bool(::UE::FieldNotification::FFieldId FielId)> Callback) const;
@@ -131,6 +131,7 @@ public:
 	static void InitializeWidgetStatic(UUserWidget* UserWidget
 		, const UClass* InClass
 		, UWidgetTree* InWidgetTree
+		, const UClass* InWidgetTreeWidgetClass
 		, const TArrayView<UWidgetAnimation*> InAnimations
 		, const TArrayView<const FDelegateRuntimeBinding> InBindings);
 

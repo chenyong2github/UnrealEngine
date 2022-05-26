@@ -653,7 +653,10 @@ void FWidgetBlueprintEditor::SetSelectedNamedSlot(TOptional<FNamedSlotSelection>
 	SelectedNamedSlot = InSelectedNamedSlot;
 	if (InSelectedNamedSlot.IsSet())
 	{
-		SelectedWidgets.Add(InSelectedNamedSlot->NamedSlotHostWidget);
+		if (InSelectedNamedSlot->NamedSlotHostWidget.IsValid())
+		{
+			SelectedWidgets.Add(InSelectedNamedSlot->NamedSlotHostWidget);
+		}
 	}
 
 	OnSelectedWidgetsChanged.Broadcast();
@@ -1609,7 +1612,7 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 
 			// Update the widget tree directly to match the blueprint tree.  That way the preview can update
 			// without needing to do a full recompile.
-			PreviewUserWidget->DuplicateAndInitializeFromWidgetTree(LatestWidgetTree);
+			PreviewUserWidget->DuplicateAndInitializeFromWidgetTree(LatestWidgetTree, LatestWidgetTree != PreviewBlueprint->WidgetTree ? PreviewBlueprint->WidgetTree : nullptr);
 
 			// Establish the widget as being in design time before initializing (so that IsDesignTime is reliable within Initialize)
             // We have to call it to make sure that all the WidgetTree had the DesignerFlags set correctly

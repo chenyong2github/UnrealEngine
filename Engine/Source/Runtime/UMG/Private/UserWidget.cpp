@@ -125,11 +125,6 @@ bool UUserWidget::Initialize()
 		}
 
 		UWidgetBlueprintGeneratedClass* BGClass = Cast<UWidgetBlueprintGeneratedClass>(GetClass());
-		if (BGClass)
-		{
-			BGClass = GetWidgetTreeOwningClass();
-		}
-
 		// Only do this if this widget is of a blueprint class
 		if (BGClass)
 		{
@@ -148,8 +143,7 @@ bool UUserWidget::Initialize()
 		{
 			WidgetTree->SetFlags(RF_Transient);
 
-			const bool bReparentToWidgetTree = false;
-			InitializeNamedSlots(bReparentToWidgetTree);
+			InitializeNamedSlots();
 		}
 
 		if (!IsDesignTime() && PlayerContext.IsValid())
@@ -164,7 +158,7 @@ bool UUserWidget::Initialize()
 	return false;
 }
 
-void UUserWidget::InitializeNamedSlots(bool bReparentToWidgetTree)
+void UUserWidget::InitializeNamedSlots()
 {
 	for (const FNamedSlotBinding& Binding : NamedSlotBindings )
 	{
@@ -182,19 +176,13 @@ void UUserWidget::InitializeNamedSlots(bool bReparentToWidgetTree)
 				{
 					NamedSlot->ClearChildren();
 					NamedSlot->AddChild(BindingContent);
-
-					//if ( bReparentToWidgetTree )
-					//{
-					//	FName NewName = MakeUniqueObjectName(WidgetTree, BindingContent->GetClass(), BindingContent->GetFName());
-					//	BindingContent->Rename(*NewName.ToString(), WidgetTree, REN_DontCreateRedirectors | REN_DoNotDirty);
-					//}
 				}
 			}
 		}
 	}
 }
 
-void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree)
+void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree, INamedSlotInterface* NamedSlotsToMerge)
 {
 	TScopeCounter<uint32> ScopeInitializingFromWidgetTree(bInitializingFromWidgetTree);
 
@@ -221,6 +209,39 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 				InstancedSubUserWidget->Initialize();
 			}
 		});
+
+		// This block controls merging named slot content specified in a child class for the widget we're templated after.
+		if (NamedSlotsToMerge)
+		{
+			TArray<FName> SlotNames;
+			NamedSlotsToMerge->GetSlotNames(SlotNames);
+			for (FName SlotName : SlotNames)
+			{
+				// Don't insert the named slot content if the named slot is filled already.  This is a problematic
+				// scenario though, if someone inserted content, but we have class default instances, we sorta leave
+				// ourselves in a strange situation, because there are now potentially class variables that won't
+				// have an instance assigned.
+				if (!GetContentForSlot(SlotName))
+				{
+					if (UWidget* TemplateSlotContent = NamedSlotsToMerge->GetContentForSlot(SlotName))
+					{
+						FObjectInstancingGraph NamedSlotInstancingGraph;
+						// We need to add a mapping from the template's widget tree to the new widget tree, that way
+						// as we instance the widget hierarchy it's grafted onto the new widget tree.
+						NamedSlotInstancingGraph.AddNewObject(WidgetTree, TemplateSlotContent->GetTypedOuter<UWidgetTree>());
+
+						// Instance the new widget from the foreign tree, but do it in a way that grafts it onto the tree we're instancing.
+						UWidget* Content = NewObject<UWidget>(WidgetTree, TemplateSlotContent->GetClass(), TemplateSlotContent->GetFName(), RF_Transactional, TemplateSlotContent, false, &NamedSlotInstancingGraph);
+						Content->SetFlags(RF_Transient | RF_DuplicateTransient);
+
+						// Insert the newly constructed widget into the named slot that corresponds.  The above creates
+						// it as if it was always part of the widget tree, but this actually puts it into a widget's
+						// slot for the named slot.
+						SetContentForSlot(SlotName, Content);
+					}
+				}
+			}
+		}
 	}
 }
 
@@ -880,8 +901,9 @@ void UUserWidget::SetContentForSlot(FName SlotName, UWidget* Content)
 	// Dynamically insert the new widget into the hierarchy if it exists.
 	if ( WidgetTree )
 	{
-		UNamedSlot* NamedSlot = Cast<UNamedSlot>(WidgetTree->FindWidget(SlotName));
-		if ( NamedSlot )
+		ensureMsgf(!HasAnyFlags(RF_ClassDefaultObject), TEXT("The Widget CDO is not expected to ever have a valid widget tree."));
+		
+		if ( UNamedSlot* NamedSlot = Cast<UNamedSlot>(WidgetTree->FindWidget(SlotName)))
 		{
 			NamedSlot->ClearChildren();
 

@@ -179,6 +179,7 @@ void UWidgetBlueprintGeneratedClass::InitializeBindingsStatic(UUserWidget* UserW
 void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWidget
 	, const UClass* InClass
 	, UWidgetTree* InWidgetTree
+	, const UClass* InWidgetTreeWidgetClass
 	, const TArrayView<UWidgetAnimation*> InAnimations
 	, const TArrayView<const FDelegateRuntimeBinding> InBindings)
 {
@@ -194,17 +195,26 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 	UserWidget->WidgetGeneratedByClass = WidgetGeneratedByClass;
 #endif
 
-	UWidgetTree* ClonedTree = UserWidget->WidgetTree;
+	UWidgetTree* CreatedWidgetTree = UserWidget->WidgetTree;
 
 	// Normally the ClonedTree should be null - we do in the case of design time with the widget, actually
 	// clone the widget tree directly from the WidgetBlueprint so that the rebuilt preview matches the newest
 	// widget tree, without a full blueprint compile being required.  In that case, the WidgetTree on the UserWidget
 	// will have already been initialized to some value.  When that's the case, we'll avoid duplicating it from the class
 	// similar to how we use to use the DesignerWidgetTree.
-	if ( ClonedTree == nullptr )
+	if ( CreatedWidgetTree == nullptr )
 	{
-		UserWidget->DuplicateAndInitializeFromWidgetTree(InWidgetTree);
-		ClonedTree = UserWidget->WidgetTree;
+		UWidgetTree* MergeNamedSlotTree = nullptr; 
+		if (UserWidget->GetClass() != InWidgetTreeWidgetClass)
+		{
+			if (UWidgetBlueprintGeneratedClass* WidgetsActualClass = Cast<UWidgetBlueprintGeneratedClass>(UserWidget->GetClass()))
+			{
+				MergeNamedSlotTree = WidgetsActualClass->GetWidgetTreeArchetype();
+			}
+		}
+		
+		UserWidget->DuplicateAndInitializeFromWidgetTree(InWidgetTree, MergeNamedSlotTree);
+		CreatedWidgetTree = UserWidget->WidgetTree;
 	}
 
 #if !WITH_EDITOR && UE_BUILD_DEBUG
@@ -215,7 +225,7 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 	UserWidget->WidgetGeneratedBy = InClass->ClassGeneratedBy;
 #endif
 
-	if (ClonedTree)
+	if (CreatedWidgetTree)
 	{
 		UClass* WidgetBlueprintClass = UserWidget->GetClass();
 
@@ -229,7 +239,7 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 
 		BindAnimationsStatic(UserWidget, InAnimations, ObjectPropertiesMap);
 
-		ClonedTree->ForEachWidget([&](UWidget* Widget) {
+		CreatedWidgetTree->ForEachWidget([&](UWidget* Widget) {
 			// Not fatal if NULL, but shouldn't happen
 			if (!ensure(Widget != nullptr))
 			{
@@ -257,7 +267,7 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 			// Initialize Navigation Data
 			if (Widget->Navigation)
 			{
-				Widget->Navigation->ResolveRules(UserWidget, ClonedTree);
+				Widget->Navigation->ResolveRules(UserWidget, CreatedWidgetTree);
 			}
 
 #if WITH_EDITOR
@@ -307,14 +317,9 @@ void UWidgetBlueprintGeneratedClass::InitializeWidget(UUserWidget* UserWidget) c
 	TArray<UWidgetAnimation*, TMemStackAllocator<>> AllAnims;
 	TArray<FDelegateRuntimeBinding, TMemStackAllocator<>> AllBindings;
 
-	// Include current class animations.
-	AllAnims.Append(Animations);
-
-	// Include current class bindings.
-	AllBindings.Append(Bindings);
-
-	// Iterate all generated classes in the widget's parent class hierarchy and include animations and bindings found on each one.
-	UClass* SuperClass = GetSuperClass();
+	// Iterate all generated classes in the widget's parent class hierarchy and include animations and bindings
+	// found on each one.
+	UClass* SuperClass = UserWidget->GetClass();
 	while (UWidgetBlueprintGeneratedClass* WBPGC = Cast<UWidgetBlueprintGeneratedClass>(SuperClass))
 	{
 		AllAnims.Append(WBPGC->Animations);
@@ -323,7 +328,14 @@ void UWidgetBlueprintGeneratedClass::InitializeWidget(UUserWidget* UserWidget) c
 		SuperClass = SuperClass->GetSuperClass();
 	}
 
-	InitializeWidgetStatic(UserWidget, this, WidgetTree, AllAnims, AllBindings);
+	UWidgetTree* PrimaryWidgetTree = WidgetTree;
+	UWidgetBlueprintGeneratedClass* PrimaryWidgetTreeClass = FindWidgetTreeOwningClass();
+	if (PrimaryWidgetTreeClass)
+	{
+		PrimaryWidgetTree = PrimaryWidgetTreeClass->WidgetTree;
+	}
+
+	InitializeWidgetStatic(UserWidget, this, PrimaryWidgetTree, PrimaryWidgetTreeClass, AllAnims, AllBindings);
 }
 
 void UWidgetBlueprintGeneratedClass::PostLoad()
@@ -414,9 +426,9 @@ void UWidgetBlueprintGeneratedClass::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 }
 
-UWidgetBlueprintGeneratedClass* UWidgetBlueprintGeneratedClass::FindWidgetTreeOwningClass()
+UWidgetBlueprintGeneratedClass* UWidgetBlueprintGeneratedClass::FindWidgetTreeOwningClass() const
 {
-	UWidgetBlueprintGeneratedClass* RootBGClass = this;
+	UWidgetBlueprintGeneratedClass* RootBGClass = const_cast<UWidgetBlueprintGeneratedClass*>(this);
 	UWidgetBlueprintGeneratedClass* BGClass = RootBGClass;
 
 	while (BGClass)

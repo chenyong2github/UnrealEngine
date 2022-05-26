@@ -140,7 +140,7 @@ public:
 	virtual void OnSelection() override;
 
 	virtual bool DoesWidgetOverrideFlowDirection() const override;
-	virtual bool DoesWidgetOverrideNavigation() const { return false; }
+	virtual bool DoesWidgetOverrideNavigation() const override { return false; }
 
 	virtual TOptional<EItemDropZone> HandleCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone) override;
 	virtual FReply HandleAcceptDrop(FDragDropEvent const& DragDropEvent, EItemDropZone DropZone) override;
@@ -155,20 +155,17 @@ private:
 	FText RootText;
 };
 
-class FNamedSlotModel : public FHierarchyModel
+class FNamedSlotModelBase : public FHierarchyModel
 {
 public:
-	FNamedSlotModel(FWidgetReference InItem, FName InSlotName, TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
+	FNamedSlotModelBase(FName InSlotName, TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
 
-	virtual ~FNamedSlotModel() {}
+	virtual ~FNamedSlotModelBase() {}
 
-	virtual FName GetUniqueName() const override;
-
-	/* @returns the widget name to use for the tree item */
+	virtual FName GetUniqueName() const = 0;
 	virtual FText GetText() const override;
 
 	virtual const FSlateBrush* GetImage() const override;
-
 	virtual FSlateFontInfo GetFont() const override;
 
 	virtual void OnSelection() override;
@@ -177,16 +174,55 @@ public:
 	virtual FReply HandleAcceptDrop(FDragDropEvent const& DragDropEvent, EItemDropZone DropZone) override;
 
 protected:
+	virtual INamedSlotInterface* GetNamedSlotHost() const = 0;
+	virtual UWidget* GetNamedSlotHostWidget() const = 0;
+	
 	virtual void GetChildren(TArray< TSharedPtr<FHierarchyModel> >& Children) override;
 	virtual void UpdateSelection() override;
-	virtual FWidgetReference AsDraggedWidgetReference() const;
+	virtual FWidgetReference AsDraggedWidgetReference() const override;
 
-	void DoDrop(UWidget* NamedSlotHostWidget, UWidget* DroppingWidget);
+	virtual void DoDrop(INamedSlotInterface* NamedSlotHost, UWidget* DroppingWidget);
 
-private:
+protected:
+
+	FName SlotName;
+};
+
+class FNamedSlotModel : public FNamedSlotModelBase
+{
+public:
+	FNamedSlotModel(FWidgetReference InItem, FName InSlotName, TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
+
+	virtual ~FNamedSlotModel() {}
+
+	virtual FName GetUniqueName() const override;
+	virtual INamedSlotInterface* GetNamedSlotHost() const override;
+	virtual UWidget* GetNamedSlotHostWidget() const override;
+
+protected:
+	virtual void OnSelection() override;
+
+protected:
 
 	FWidgetReference Item;
-	FName SlotName;
+};
+
+class FNamedSlotModelSubclass : public FNamedSlotModelBase
+{
+public:
+	FNamedSlotModelSubclass(UWidgetBlueprint* Blueprint, FName InSlotName, TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
+
+	virtual ~FNamedSlotModelSubclass() {}
+
+	virtual FName GetUniqueName() const override;
+	virtual INamedSlotInterface* GetNamedSlotHost() const override;
+	virtual UWidget* GetNamedSlotHostWidget() const override;
+
+protected:
+	virtual void OnSelection() override;
+
+protected:
+	TWeakObjectPtr<UWidgetBlueprint> Blueprint;
 };
 
 class FHierarchyWidget : public FHierarchyModel
@@ -326,7 +362,7 @@ public:
 protected:
 	virtual void GetChildren(TArray< TSharedPtr<FHierarchyModel> >& Children) override;
 	virtual void UpdateSelection() override;
-	virtual FWidgetReference AsDraggedWidgetReference() const { return Item; }
+	virtual FWidgetReference AsDraggedWidgetReference() const override { return Item; }
 
 private:
 	FWidgetReference Item;

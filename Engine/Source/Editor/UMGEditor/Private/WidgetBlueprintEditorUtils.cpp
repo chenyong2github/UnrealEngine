@@ -1760,17 +1760,25 @@ TArray<UWidget*> FWidgetBlueprintEditorUtils::PasteWidgetsInternal(TSharedRef<FW
 			return TArray<UWidget*>();
 		}
 
-		UWidget* NamedSlotHostWidget = ParentWidgetRef.GetTemplate();
-
 		BP->WidgetTree->Modify();
 
-		if (NamedSlotHostWidget)
+		// If there's a ParentWidgetRef, then we're pasting into a named slot of a widget in the tree.
+		if (UWidget* NamedSlotHostWidget = ParentWidgetRef.GetTemplate())
 		{
 			NamedSlotHostWidget->SetFlags(RF_Transactional);
 			NamedSlotHostWidget->Modify();
 
 			INamedSlotInterface* NamedSlotInterface = Cast<INamedSlotInterface>(NamedSlotHostWidget);
 			NamedSlotInterface->SetContentForSlot(SlotName, RootPasteWidgets[0]);
+		}
+		else
+		{
+			// If there's no ParentWidgetRef then we're pasting into the exposed named slots of the widget tree.
+			// these are the slots that our parent class is exposing for use externally, but we can also override
+			// them as a subclass.
+
+			BP->WidgetTree->Modify();
+			BP->WidgetTree->SetContentForSlot(SlotName, RootPasteWidgets[0]);
 		}
 
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BP);

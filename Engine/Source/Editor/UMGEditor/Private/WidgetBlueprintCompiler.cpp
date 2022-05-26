@@ -436,6 +436,17 @@ void FWidgetBlueprintCompilerContext::SaveSubObjectsFromCleanAndSanitizeClass(FS
 	// We need to save the widget tree to survive the initial sub-object clean blitz, 
 	// otherwise they all get renamed, and it causes early loading errors.
 	SubObjectsToSave.AddObject(WidgetBP->WidgetTree);
+
+	if (UUserWidget* ClassDefaultWidgetToClean = Cast<UUserWidget>(ClassToClean->ClassDefaultObject))
+	{
+		// We need preserve any named slots that have been slotted into the CDO.  This can happen when someone subclasses
+		// from a widget with named slots.  Those named slots are exposed to the child classes widget tree as
+		// containers they can slot stuff into.  Those widgets need to survive recompile.
+		for (FNamedSlotBinding& CDONamedSlotBinding : ClassDefaultWidgetToClean->NamedSlotBindings)
+		{
+			SubObjectsToSave.AddObject(CDONamedSlotBinding.Content);
+		}
+	}
 }
 
 void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
@@ -902,6 +913,48 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 							WidgetBP, SuperBPGClass->ClassGeneratedBy);
 					}
 				}
+			}
+		}
+
+		// Do validation that as we subclass trees, we never stomp the slotted content of a parent widget.
+		// doing that is not valid, as it would invalidate variables that were set?  This check could be
+		// made more complex to only worry about cases with variables being generated, but that's a whole lot
+		// extra, so for now lets just limit it to be safe.
+		{
+			TMap<FName, UWidget*> NamedSlotContentMap;
+			// Make sure that we don't have dueling widget hierarchies
+			UWidgetBlueprintGeneratedClass* NamedSlotClass = BPGClass;
+			while (NamedSlotClass)
+			{
+				UWidgetTree* Tree = NamedSlotClass->GetWidgetTreeArchetype();
+			
+				TArray<FName> SlotNames;
+				Tree->GetSlotNames(SlotNames);
+
+				for (FName SlotName : SlotNames)
+				{
+					if (UWidget* ContentInSlot = Tree->GetContentForSlot(SlotName))
+					{
+						if (!NamedSlotContentMap.Contains(SlotName))
+						{
+							NamedSlotContentMap.Add(SlotName, ContentInSlot);
+						}
+						else
+						{
+							UClass* SubClassWithSlotFilled = ContentInSlot->GetTypedOuter<UClass>();
+							UClass* ParentClassWithSlotFilled = NamedSlotClass;
+							MessageLog.Note(
+								*FText::Format(
+									LOCTEXT("ParentAndChildBothHaveWidgetTrees", "The Named Slot '{0}' already contains @@ from the class @@ but the subclass @@ tried to slot @@ into it."),
+									FText::FromName(SlotName)
+								).ToString(),
+								ContentInSlot, ParentClassWithSlotFilled,
+								SubClassWithSlotFilled, NamedSlotContentMap.FindRef(SlotName));
+						}
+					}
+				}
+			
+				NamedSlotClass = Cast<UWidgetBlueprintGeneratedClass>(NamedSlotClass->GetSuperClass());
 			}
 		}
 	}
