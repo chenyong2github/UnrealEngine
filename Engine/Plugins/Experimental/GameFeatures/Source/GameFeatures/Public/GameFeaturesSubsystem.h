@@ -19,6 +19,7 @@ class UGameFeaturesProjectPolicies;
 class IPlugin;
 class FJsonObject;
 struct FWorldContext;
+struct FGameFeaturePluginStateRange;
 
 /** 
  * Struct that determines if game feature action state changes should be applied for cases where there are multiple worlds or contexts.
@@ -267,6 +268,10 @@ public:
 	void TerminateGameFeaturePlugin(const FString& PluginURL);
 	void TerminateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginUninstallComplete& CompleteDelegate);
 
+	/** Attempt to cancel any state change. Calls back when cancelation is complete. Any other pending callbacks will be called with a canceled error. */
+	void CancelGameFeatureStateChange(const FString& PluginURL);
+	void CancelGameFeatureStateChange(const FString& PluginURL, const FGameFeaturePluginChangeStateComplete& CompleteDelegate);
+
 	/**
 	 * If the specified plugin is known by the game feature system, returns the URL used to identify it
 	 * @return true if the plugin exists, false if it was not found
@@ -367,13 +372,17 @@ private:
 	UGameFeaturePluginStateMachine* FindOrCreateGameFeaturePluginStateMachine(const FString& PluginURL);
 
 	/** Notification that a game feature has finished loading, and whether it was successful */
-	void LoadGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result);
+	void LoadBuiltInGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result);
 
-	/** Notification that a game feature that was requested to be terminate has finished terminating, and whether it was successful. */
-	void TerminateGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate);
+	/** Sets a new destination state. Will attempt to cancel the current transition if the new destination is incompatible with the current destination */
+	void ChangeGameFeatureDestination(UGameFeaturePluginStateMachine* Machine, const FGameFeaturePluginStateRange& StateRange, FGameFeaturePluginChangeStateComplete CompleteDelegate);
 
 	/** Generic notification that calls the Complete delegate without broadcasting anything else.*/
-	void ChangeGameFeatureTargetStateComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate);
+	void ChangeGameFeatureTargetStateComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginChangeStateComplete CompleteDelegate);
+
+	void BeginTermination(UGameFeaturePluginStateMachine* Machine);
+	void FinishTermination(UGameFeaturePluginStateMachine* Machine);
+	friend class UGameFeaturePluginStateMachine;
 
 	/** Handler for when a state machine requests its dependencies. Returns false if the dependencies could not be read */
 	bool FindOrCreatePluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines);
@@ -386,6 +395,10 @@ private:
 	/** The list of all game feature plugin state machine objects */
 	UPROPERTY(Transient)
 	TMap<FString, UGameFeaturePluginStateMachine*> GameFeaturePluginStateMachines;
+
+	/** Game feature plugin state machine objects that are being terminated. Used to prevent GC until termination is complete. */
+	UPROPERTY(Transient)
+	TArray<UGameFeaturePluginStateMachine*> TerminalGameFeaturePluginStateMachines;
 
 	TMap<FString, FString> GameFeaturePluginNameToPathMap;
 

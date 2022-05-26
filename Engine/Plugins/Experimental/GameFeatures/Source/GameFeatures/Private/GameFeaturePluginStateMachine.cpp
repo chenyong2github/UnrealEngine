@@ -32,6 +32,8 @@ namespace UE::GameFeatures
 {
 	static const FString StateMachineErrorNamespace(TEXT("GameFeaturePlugin.StateMachine."));
 
+	static UE::GameFeatures::FResult CanceledResult = MakeError(StateMachineErrorNamespace + TEXT("Canceled"));
+
 	static int32 ShouldLogMountedFiles = 0;
 	static FAutoConsoleVariableRef CVarShouldLogMountedFiles(TEXT("GameFeaturePlugin.ShouldLogMountedFiles"),
 		ShouldLogMountedFiles,
@@ -566,6 +568,14 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 		GotContentStateHandle.Reset();
 
 		TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+
+		if (StateProperties.bTryCancel)
+		{
+			Result = UE::GameFeatures::CanceledResult;
+			UpdateStateMachineImmediate();
+			return;
+		}
+
 		const TArray<FName>& InstallBundles = StateProperties.ProtocolMetadata.GetSubtype<UE::GameFeatures::FInstallBundlePluginProtocolMetaData>().InstallBundles;
 
 		EInstallBundleRequestFlags InstallFlags = EInstallBundleRequestFlags::None;
@@ -628,6 +638,12 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 			{
 				Result = MakeError(UE::GameFeatures::StateMachineErrorNamespace + TEXT("BundleManager_Download_Failure_") + BundleResult.OptionalErrorCode);
 			}
+
+			if(BundleResult.Result != EInstallBundleResult::UserCancelledError)
+			{
+				TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+				BundleManager->CancelUpdateContent(PendingBundleDownloads);
+			}
 		}
 
 		if (PendingBundleDownloads.Num() > 0)
@@ -686,6 +702,15 @@ struct FGameFeaturePluginState_Downloading : public FGameFeaturePluginState
 		}
 
 		StateStatus.SetTransition(EGameFeaturePluginState::Installed);
+	}
+
+	virtual void TryCancelState() override
+	{
+		if (PendingBundleDownloads.Num() > 0)
+		{
+			TSharedPtr<IInstallBundleManager> BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+			BundleManager->CancelUpdateContent(PendingBundleDownloads);
+		}
 	}
 
 	virtual void EndState() override
@@ -1105,8 +1130,10 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 
 		if (!bRequestedDependencies)
 		{
+			UGameFeaturesSubsystem& GameFeaturesSubsystem = UGameFeaturesSubsystem::Get();
+
 			TArray<UGameFeaturePluginStateMachine*> Dependencies;
-			if (!UGameFeaturesSubsystem::Get().FindOrCreatePluginDependencyStateMachines(StateProperties.PluginInstalledFilename, Dependencies))
+			if (!GameFeaturesSubsystem.FindOrCreatePluginDependencyStateMachines(StateProperties.PluginInstalledFilename, Dependencies))
 			{
 				// Failed to query dependencies
 				StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Failed_Dependency_Query"));
@@ -1119,16 +1146,7 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 			for (UGameFeaturePluginStateMachine* Dependency : Dependencies)
 			{	
 				RemainingDependencies.Emplace(Dependency, MakeValue());
-
-				bool bSetDestination = Dependency->SetDestination(
-					FGameFeaturePluginStateRange(EGameFeaturePluginState::Registered, EGameFeaturePluginState::Active), 
-					FGameFeatureStateTransitionComplete::CreateRaw(this, &FGameFeaturePluginState_WaitingForDependencies::OnDependencyTransitionComplete));
-
-				if (!bSetDestination)
-				{
-					StateStatus.SetTransitionError(EGameFeaturePluginState::ErrorWaitingForDependencies, UE::GameFeatures::StateMachineErrorNamespace + TEXT("Failed_Dependency_Register"));
-					return;
-				}
+				TransitionDependency(Dependency);
 			}
 		}
 
@@ -1152,6 +1170,60 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 		if (RemainingDependencies.Num() == 0)
 		{
 			StateStatus.SetTransition(EGameFeaturePluginState::Registering);
+		}
+	}
+
+	FGameFeaturePluginStateRange GetDependencyStateRange() const
+	{
+		return FGameFeaturePluginStateRange(EGameFeaturePluginState::Registered, EGameFeaturePluginState::Active);
+	}
+
+	void TransitionDependency(UGameFeaturePluginStateMachine* Dependency)
+	{
+		const bool bSetDestination = Dependency->SetDestination(GetDependencyStateRange(),
+			FGameFeatureStateTransitionComplete::CreateRaw(this, &FGameFeaturePluginState_WaitingForDependencies::OnDependencyTransitionComplete));
+
+		if (!bSetDestination)
+		{
+			const bool bCancelPending = Dependency->TryCancel(
+				FGameFeatureStateTransitionCanceled::CreateRaw(this, &FGameFeaturePluginState_WaitingForDependencies::OnDependencyTransitionCanceled));
+			if (!ensure(bCancelPending))
+			{
+				OnDependencyTransitionComplete(Dependency, MakeError(TEXT("Failed_Dependency_Register")));
+			}
+		}
+	}
+
+	void OnDependencyTransitionCanceled(UGameFeaturePluginStateMachine* Dependency)
+	{
+		// Special case for terminal state since it cannot be exited, we need to make a new machine
+		if (Dependency->GetCurrentState() == EGameFeaturePluginState::Terminal)
+		{
+			UGameFeaturePluginStateMachine* NewMachine = UGameFeaturesSubsystem::Get().FindOrCreateGameFeaturePluginStateMachine(Dependency->GetPluginURL());
+			checkf(NewMachine != Dependency, TEXT("Game Feature Plugin %s should have already been removed from subsystem!"), *Dependency->GetPluginURL());
+
+			const int32 Index = RemainingDependencies.IndexOfByPredicate([Dependency](const FDepResultPair& Pair)
+				{
+					return Pair.Key == Dependency;
+				});
+
+			check(Index != INDEX_NONE);
+			FDepResultPair& FoundDep = RemainingDependencies[Index];
+			FoundDep.Key = NewMachine;
+
+			Dependency->RemovePendingTransitionCallback(this);
+			Dependency->RemovePendingCancelCallback(this);
+
+			Dependency = NewMachine;
+		}
+
+		// Now that the transition has been canceled, retry reaching the desired destination
+		const bool bSetDestination = Dependency->SetDestination(GetDependencyStateRange(),
+			FGameFeatureStateTransitionComplete::CreateRaw(this, &FGameFeaturePluginState_WaitingForDependencies::OnDependencyTransitionComplete));
+
+		if (!ensure(bSetDestination))
+		{
+			OnDependencyTransitionComplete(Dependency, MakeError(TEXT("Failed_Dependency_Register")));
 		}
 	}
 
@@ -1187,6 +1259,7 @@ struct FGameFeaturePluginState_WaitingForDependencies : public FGameFeaturePlugi
 			if (RemainingDependency)
 			{
 				RemainingDependency->RemovePendingTransitionCallback(this);
+				RemainingDependency->RemovePendingCancelCallback(this);
 			}
 		}
 
@@ -1585,9 +1658,11 @@ bool UGameFeaturePluginStateMachine::SetDestination(FGameFeaturePluginStateRange
 		return false;
 	}
 
-	// JMarcus TODO: If we aren't in a destination state and our new destination is in the opposite direction of 
-	// our current destination, cancel the current state transition (if possible)
-	// Should callback with a cancelled error
+	if (CurrentStateInfo.State == EGameFeaturePluginState::Terminal && !InDestination.Contains(EGameFeaturePluginState::Terminal))
+	{
+		// Can't tranistion away from terminal state
+		return false;
+	}
 
 	if (!IsRunning())
 	{
@@ -1631,7 +1706,7 @@ bool UGameFeaturePluginStateMachine::SetDestination(FGameFeaturePluginStateRange
 		return true;
 	}
 
-	if (TOptional<FGameFeaturePluginStateRange> NewDestination = InDestination.Intersect(InDestination))
+	if (TOptional<FGameFeaturePluginStateRange> NewDestination = StateProperties.Destination.Intersect(InDestination))
 	{
 		// The machine is already running so we can only transition to this range if it overlaps with our current range.
 		// We can satisfy both ranges in this case.
@@ -1687,6 +1762,26 @@ bool UGameFeaturePluginStateMachine::SetDestination(FGameFeaturePluginStateRange
 	return false;
 }
 
+bool UGameFeaturePluginStateMachine::TryCancel(FGameFeatureStateTransitionCanceled OnFeatureStateTransitionCanceled, FDelegateHandle* OutCallbackHandle /*= nullptr*/)
+{
+	if (!IsRunning())
+	{
+		return false;
+	}
+
+	StateProperties.bTryCancel = true;
+	FDelegateHandle CallbackHandle = StateProperties.OnTransitionCanceled.Add(MoveTemp(OnFeatureStateTransitionCanceled));
+	if(OutCallbackHandle)
+	{
+		*OutCallbackHandle = CallbackHandle;
+	}
+
+	const EGameFeaturePluginState CurrentState = GetCurrentState();
+	AllStates[CurrentState]->TryCancelState();
+
+	return true;
+}
+
 void UGameFeaturePluginStateMachine::RemovePendingTransitionCallback(FDelegateHandle InHandle)
 {
 	for (std::underlying_type<EGameFeaturePluginState>::type iState = 0;
@@ -1717,6 +1812,16 @@ void UGameFeaturePluginStateMachine::RemovePendingTransitionCallback(void* Deleg
 			}
 		}
 	}
+}
+
+void UGameFeaturePluginStateMachine::RemovePendingCancelCallback(FDelegateHandle InHandle)
+{
+	StateProperties.OnTransitionCanceled.Remove(InHandle);
+}
+
+void UGameFeaturePluginStateMachine::RemovePendingCancelCallback(void* DelegateObject)
+{
+	StateProperties.OnTransitionCanceled.RemoveAll(DelegateObject);
 }
 
 FString UGameFeaturePluginStateMachine::GetGameFeatureName() const
@@ -1828,6 +1933,30 @@ void UGameFeaturePluginStateMachine::UpdateStateMachine()
 
 	TOptional<TGuardValue<bool>> ScopeGuard(InPlace, bInUpdateStateMachine, true);
 	
+	using StateIt = std::underlying_type<EGameFeaturePluginState>::type;
+
+	auto DoCallbacks = [this](const UE::GameFeatures::FResult& Result, StateIt Begin, StateIt End)
+	{
+		for (StateIt iState = Begin; iState < End; ++iState)
+		{
+			if (FDestinationGameFeaturePluginState* DestState = AllStates[iState]->AsDestinationState())
+			{
+				// Use a local callback on the stack. If SetDestination() is called from the callback then we don't want to stomp the callback
+				// for the new state transition request.
+				// Callback from terminal state could also trigger a GC that would destroy the state machine
+				FDestinationGameFeaturePluginState::FOnDestinationStateReached LocalOnDestinationStateReached(MoveTemp(DestState->OnDestinationStateReached));
+				DestState->OnDestinationStateReached.Clear();
+
+				LocalOnDestinationStateReached.Broadcast(this, Result);
+			}
+		}
+	};
+
+	auto DoCallback = [&DoCallbacks](const UE::GameFeatures::FResult& Result, StateIt InState)
+	{
+		DoCallbacks(Result, InState, InState + 1);
+	};
+
 	bool bKeepProcessing = false;
 	int32 NumTransitions = 0;
 	const int32 MaxTransitions = 10000;
@@ -1851,40 +1980,63 @@ void UGameFeaturePluginStateMachine::UpdateStateMachine()
 			CurrentState = StateStatus.TransitionToState;
 			check(CurrentState != EGameFeaturePluginState::MAX);
 			AllStates[CurrentState]->BeginState();
-			
-			const bool bError = !StateStatus.TransitionResult.HasValue();
-			if (bError)
+
+			if (CurrentState == EGameFeaturePluginState::Terminal)
+			{
+				// Remove from gamefeature subsystem before calling back in case this GFP is reloaded on callback,
+				// but make sure we don't get destroyed from a GC during a callback
+				UGameFeaturesSubsystem::Get().BeginTermination(this);
+			}
+
+			if (StateProperties.bTryCancel && AllStates[CurrentState]->GetStateType() != EGameFeaturePluginStateType::Transition)
+			{
+				StateProperties.Destination = FGameFeaturePluginStateRange(CurrentState);
+
+				StateProperties.bTryCancel = false;
+				bKeepProcessing = false;
+
+				// Make sure bInUpdateStateMachine is not set while processing callbacks if we are at our destination
+				ScopeGuard.Reset();
+
+				// For all callbacks, return the CanceledResult
+				DoCallbacks(UE::GameFeatures::CanceledResult, 0, EGameFeaturePluginState::MAX);
+
+				// Must be called after transtition callbacks, UGameFeaturesSubsystem::ChangeGameFeatureTargetStateComplete may remove the this machine from the subsystem
+				FGameFeaturePluginStateMachineProperties::FOnTransitionCanceled LocalOnTransitionCanceled(MoveTemp(StateProperties.OnTransitionCanceled));
+				StateProperties.OnTransitionCanceled.Clear();
+				LocalOnTransitionCanceled.Broadcast(this);
+			}
+			else if (const bool bError = !StateStatus.TransitionResult.HasValue(); bError)
 			{
 				check(IsValidErrorState(CurrentState));
 				StateProperties.Destination = FGameFeaturePluginStateRange(CurrentState);
-			}
 
-			bKeepProcessing = AllStates[CurrentState]->GetStateType() == EGameFeaturePluginStateType::Transition || !StateProperties.Destination.Contains(CurrentState);
-			if (!bKeepProcessing)
-			{
+				bKeepProcessing = false;
+				
 				// Make sure bInUpdateStateMachine is not set while processing callbacks if we are at our destination
 				ScopeGuard.Reset();
+
+				// In case of an error, callback all possible callbacks
+				DoCallbacks(StateStatus.TransitionResult, 0, EGameFeaturePluginState::MAX);
+			}
+			else
+			{
+				bKeepProcessing = AllStates[CurrentState]->GetStateType() == EGameFeaturePluginStateType::Transition || !StateProperties.Destination.Contains(CurrentState);
+				if (!bKeepProcessing)
+				{
+					// Make sure bInUpdateStateMachine is not set while processing callbacks if we are at our destination
+					ScopeGuard.Reset();
+				}
+
+				DoCallback(StateStatus.TransitionResult, CurrentState);
 			}
 
-			// In case of an error, callback all possible callbacks, otherwise only for the current state
-			const FGameFeaturePluginStateRange CallbackRange = bError ? 
-				FGameFeaturePluginStateRange(EGameFeaturePluginState::Uninitialized, EGameFeaturePluginState::Active) :
-				FGameFeaturePluginStateRange(CurrentState);
-
-			for (std::underlying_type<EGameFeaturePluginState>::type iState = CallbackRange.MinState; 
-				iState <= CallbackRange.MaxState; 
-				++iState)
+			if (CurrentState == EGameFeaturePluginState::Terminal)
 			{
-				if (FDestinationGameFeaturePluginState* DestState = AllStates[iState]->AsDestinationState())
-				{
-					// Use a local callback on the stack. If SetDestination() is called from the callback then we don't want to stomp the callback
-					// for the new state transition request.
-					// Callback from terminal state could also trigger a GC that would destroy the state machine
-					FDestinationGameFeaturePluginState::FOnDestinationStateReached LocalOnDestinationStateReached(MoveTemp(DestState->OnDestinationStateReached));
-					DestState->OnDestinationStateReached.Clear();
-
-					LocalOnDestinationStateReached.Broadcast(this, StateStatus.TransitionResult);
-				}
+				check(bKeepProcessing == false);
+				// Now that callbacks are done this machine can be cleaned up
+				UGameFeaturesSubsystem::Get().FinishTermination(this);
+				MarkAsGarbage();
 			}
 		}
 

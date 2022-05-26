@@ -205,6 +205,9 @@ inline bool operator>(const FGameFeaturePluginStateRange& StateRange, EGameFeatu
 /** Notification that a state transition is complete */
 DECLARE_DELEGATE_TwoParams(FGameFeatureStateTransitionComplete, UGameFeaturePluginStateMachine* /*Machine*/, const UE::GameFeatures::FResult& /*Result*/);
 
+/** Notification that a state transition is canceled */
+DECLARE_DELEGATE_OneParam(FGameFeatureStateTransitionCanceled, UGameFeaturePluginStateMachine* /*Machine*/);
+
 /** A request for other state machine dependencies */
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FGameFeaturePluginRequestStateMachineDependencies, const FString& /*DependencyPluginURL*/, TArray<UGameFeaturePluginStateMachine*>& /*OutDependencyMachines*/);
 
@@ -239,6 +242,9 @@ struct FGameFeaturePluginStateMachineProperties
 	/** Tracks whether or not this state machine added the pluging to the plugin manager. */
 	bool bAddedPluginToManager = false;
 
+	/** Whether this state machine should attempt to cancel the current transition */
+	bool bTryCancel = false;
+
 	/** The desired state during a transition. */
 	FGameFeaturePluginStateRange Destination;
 
@@ -246,8 +252,9 @@ struct FGameFeaturePluginStateMachineProperties
 	UPROPERTY(Transient)
 	UGameFeatureData* GameFeatureData = nullptr;
 
-	/** Delegate for when a state transition request has completed. */
-	FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete;	
+	/** Callbacks for when the current state transition is cancelled */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTransitionCanceled, UGameFeaturePluginStateMachine* /*Machine*/);
+	FOnTransitionCanceled OnTransitionCanceled;
 
 	/** Delegate to request the state machine be updated. */
 	FGameFeaturePluginRequestUpdateStateMachine OnRequestUpdateStateMachine;
@@ -317,6 +324,9 @@ struct FGameFeaturePluginState
 
 	/** Process the state's logic to decide if there should be a state transition. */
 	virtual void UpdateState(FGameFeaturePluginStateStatus& StateStatus) {}
+
+	/** Attempt to cancel any pending state transition. */
+	virtual void TryCancelState() {}
 
 	/** Called when this state is no longer the active state */
 	virtual void EndState() {}
@@ -394,11 +404,20 @@ public:
 	  * Returns false and does not callback if a transition is already in progress and the destination range is not compatible with the current range. */
 	bool SetDestination(FGameFeaturePluginStateRange InDestination, FGameFeatureStateTransitionComplete OnFeatureStateTransitionComplete, FDelegateHandle* OutCallbackHandle = nullptr);
 
+	/** Cancel the current transition if possible */
+	bool TryCancel(FGameFeatureStateTransitionCanceled OnFeatureStateTransitionCanceled, FDelegateHandle* OutCallbackHandle = nullptr);
+
 	/** Remove any pending callback from SetDestination */
 	void RemovePendingTransitionCallback(FDelegateHandle InHandle);
 
 	/** Remove any pending callback from SetDestination */
 	void RemovePendingTransitionCallback(void* DelegateObject);
+
+	/** Remove any pending callback from TryCancel */
+	void RemovePendingCancelCallback(FDelegateHandle InHandle);
+
+	/** Remove any pending callback from TryCancel */
+	void RemovePendingCancelCallback(void* DelegateObject);
 
 	/** Returns the name of the game feature. Before StatusKnown, this returns the URL. */
 	FString GetGameFeatureName() const;

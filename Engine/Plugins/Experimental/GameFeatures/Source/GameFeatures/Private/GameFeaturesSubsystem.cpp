@@ -168,6 +168,48 @@ void UGameFeaturesSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 				}
 			}),
 		ECVF_Cheat);
+
+	IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("UninstallGameFeaturePlugin"),
+		TEXT("Uninstalls a game feature plugin by URL"),
+		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
+			{
+				if (Args.Num() > 0)
+				{
+					FString PluginURL;
+					if (!UGameFeaturesSubsystem::Get().GetPluginURLByName(Args[0], /*out*/ PluginURL))
+					{
+						PluginURL = Args[0];
+					}
+					UGameFeaturesSubsystem::Get().UninstallGameFeaturePlugin(PluginURL);
+				}
+				else
+				{
+					Ar.Logf(TEXT("Expected a game feature plugin URL as an argument"));
+				}
+			}),
+		ECVF_Cheat);
+
+	IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("CancelGameFeaturePlugin"),
+		TEXT("Cancel any state changes for a game feature plugin by URL"),
+		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateLambda([](const TArray<FString>& Args, UWorld*, FOutputDevice& Ar)
+			{
+				if (Args.Num() > 0)
+				{
+					FString PluginURL;
+					if (!UGameFeaturesSubsystem::Get().GetPluginURLByName(Args[0], /*out*/ PluginURL))
+					{
+						PluginURL = Args[0];
+					}
+					UGameFeaturesSubsystem::Get().CancelGameFeatureStateChange(PluginURL);
+				}
+				else
+				{
+					Ar.Logf(TEXT("Expected a game feature plugin URL as an argument"));
+				}
+			}),
+		ECVF_Cheat);
 }
 
 void UGameFeaturesSubsystem::Deinitialize()
@@ -597,14 +639,7 @@ void UGameFeaturesSubsystem::LoadGameFeaturePlugin(const FString& PluginURL, con
 		}
 	}
 
-	const bool bSetDestination = StateMachine->SetDestination(
-		FGameFeaturePluginStateRange(EGameFeaturePluginState::Loaded, EGameFeaturePluginState::Active),
-		FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
-
-	if (!bSetDestination)
-	{
-		CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
-	}
+	ChangeGameFeatureDestination(StateMachine, FGameFeaturePluginStateRange(EGameFeaturePluginState::Loaded, EGameFeaturePluginState::Active), CompleteDelegate);
 }
 
 void UGameFeaturesSubsystem::LoadAndActivateGameFeaturePlugin(const FString& PluginURL, const FGameFeaturePluginLoadComplete& CompleteDelegate)
@@ -647,10 +682,13 @@ void UGameFeaturesSubsystem::ChangeGameFeatureTargetState(const FString& PluginU
 	
 	check(StateMachine);
 
-	if (TargetPluginState > StateMachine->GetCurrentState() && !GameSpecificPolicies->IsPluginAllowed(PluginURL))
+	if (!bIsPluginAllowed)
 	{
-		CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.Plugin_Denied_By_GameSpecificPolicy")));
-		return;
+		if (TargetPluginState > StateMachine->GetCurrentState() || TargetPluginState > StateMachine->GetDestination())
+		{
+			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.Plugin_Denied_By_GameSpecificPolicy")));
+			return;
+		}
 	}
 
 	if (TargetState == EGameFeatureTargetState::Active &&
@@ -668,13 +706,7 @@ void UGameFeaturesSubsystem::ChangeGameFeatureTargetState(const FString& PluginU
 		}
 	}
 	
-	const bool bSetDestination = StateMachine->SetDestination(FGameFeaturePluginStateRange(TargetPluginState), 
-		FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
-
-	if (!bSetDestination)
-	{
-		CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
-	}
+	ChangeGameFeatureDestination(StateMachine, FGameFeaturePluginStateRange(TargetPluginState), CompleteDelegate);
 }
 
 bool UGameFeaturesSubsystem::GetGameFeaturePluginInstallPercent(const FString& PluginURL, float& Install_Percent) const
@@ -723,14 +755,7 @@ void UGameFeaturesSubsystem::DeactivateGameFeaturePlugin(const FString& PluginUR
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		const bool bSetDestination = StateMachine->SetDestination(
-			FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal, EGameFeaturePluginState::Loaded), 
-			FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
-
-		if (!bSetDestination)
-		{
-			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
-		}
+		ChangeGameFeatureDestination(StateMachine, FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal, EGameFeaturePluginState::Loaded), CompleteDelegate);
 	}
 	else
 	{
@@ -748,15 +773,7 @@ void UGameFeaturesSubsystem::UnloadGameFeaturePlugin(const FString& PluginURL, c
 	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
 		EGameFeaturePluginState TargetPluginState = bKeepRegistered ? EGameFeaturePluginState::Registered : EGameFeaturePluginState::Installed;
-
-		const bool bSetDestination = StateMachine->SetDestination(
-			FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal, TargetPluginState),
-			FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
-
-		if (!bSetDestination)
-		{
-			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
-		}
+		ChangeGameFeatureDestination(StateMachine, FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal, TargetPluginState), CompleteDelegate);
 	}
 	else
 	{
@@ -773,14 +790,7 @@ void UGameFeaturesSubsystem::UninstallGameFeaturePlugin(const FString& PluginURL
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		const bool bSetDestination = StateMachine->SetDestination(
-			FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal, EGameFeaturePluginState::StatusKnown),
-			FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, CompleteDelegate));
-
-		if (!bSetDestination)
-		{
-			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
-		}
+		ChangeGameFeatureDestination(StateMachine, FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal, EGameFeaturePluginState::StatusKnown), CompleteDelegate);
 	}
 	else
 	{
@@ -797,13 +807,31 @@ void UGameFeaturesSubsystem::TerminateGameFeaturePlugin(const FString& PluginURL
 {
 	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
 	{
-		const bool bSetDestination = StateMachine->SetDestination(
-			FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal),
-			FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::TerminateGameFeaturePluginComplete, CompleteDelegate));
+		ChangeGameFeatureDestination(StateMachine, FGameFeaturePluginStateRange(EGameFeaturePluginState::Terminal), CompleteDelegate);
+	}
+	else
+	{
+		CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeError(TEXT("GameFeaturePlugin.BadURL"))));
+	}
+}
 
-		if (!bSetDestination)
+void UGameFeaturesSubsystem::CancelGameFeatureStateChange(const FString& PluginURL)
+{
+	CancelGameFeatureStateChange(PluginURL, FGameFeaturePluginChangeStateComplete());
+}
+
+void UGameFeaturesSubsystem::CancelGameFeatureStateChange(const FString& PluginURL, const FGameFeaturePluginChangeStateComplete& CompleteDelegate)
+{
+	if (UGameFeaturePluginStateMachine* StateMachine = FindGameFeaturePluginStateMachine(PluginURL))
+	{
+		const bool bCancelPending = StateMachine->TryCancel(FGameFeatureStateTransitionCanceled::CreateWeakLambda(this, [CompleteDelegate](UGameFeaturePluginStateMachine* Machine)
 		{
-			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
+			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
+		}));
+
+		if (!bCancelPending)
+		{
+			CompleteDelegate.ExecuteIfBound(UE::GameFeatures::FResult(MakeValue()));
 		}
 	}
 	else
@@ -839,7 +867,7 @@ void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePlugin(const TSharedRef<IPlug
 
 					// If we're already at the destination or beyond, don't transition back
 					verify(StateMachine->SetDestination(FGameFeaturePluginStateRange(DestinationState, EGameFeaturePluginState::Active), 
-						FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadGameFeaturePluginComplete)));
+						FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::LoadBuiltInGameFeaturePluginComplete)));
 				}
 			}
 		}
@@ -1075,7 +1103,7 @@ UGameFeaturePluginStateMachine* UGameFeaturesSubsystem::FindOrCreateGameFeatureP
 	return NewStateMachine;
 }
 
-void UGameFeaturesSubsystem::LoadGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result)
+void UGameFeaturesSubsystem::LoadBuiltInGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result)
 {
 	check(Machine);
 	if (Result.HasValue())
@@ -1092,20 +1120,70 @@ void UGameFeaturesSubsystem::LoadGameFeaturePluginComplete(UGameFeaturePluginSta
 	}
 }
 
-void UGameFeaturesSubsystem::ChangeGameFeatureTargetStateComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate)
+void UGameFeaturesSubsystem::ChangeGameFeatureDestination(UGameFeaturePluginStateMachine* Machine, const FGameFeaturePluginStateRange& StateRange, FGameFeaturePluginChangeStateComplete CompleteDelegate)
+{
+	const bool bSetDestination = Machine->SetDestination(StateRange,
+		FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, MoveTemp(CompleteDelegate)));
+
+	if (bSetDestination)
+	{
+		UE_LOG(LogGameFeatures, Verbose, TEXT("ChangeGameFeatureDestination: Set Game Feature %s Destination State to [%s, %s]"), *Machine->GetGameFeatureName(), *UE::GameFeatures::ToString(StateRange.MinState), *UE::GameFeatures::ToString(StateRange.MaxState));
+	}
+	else
+	{
+		// Try canceling any current transition, then retry
+		auto OnCanceled = [this, StateRange, CompleteDelegate=MoveTemp(CompleteDelegate)](UGameFeaturePluginStateMachine* Machine) mutable
+		{
+			// Special case for terminal state since it cannot be exited, we need to make a new machine
+			if (Machine->GetCurrentState() == EGameFeaturePluginState::Terminal)
+			{
+				UGameFeaturePluginStateMachine* NewMachine = FindOrCreateGameFeaturePluginStateMachine(Machine->GetPluginURL());
+				checkf(NewMachine != Machine, TEXT("Game Feature Plugin %s should have already been removed from subsystem!"), *Machine->GetPluginURL());
+				Machine = NewMachine;
+			}
+
+			// Now that the transition has been canceled, retry reaching the desired destination
+			const bool bSetDestination = Machine->SetDestination(StateRange,
+				FGameFeatureStateTransitionComplete::CreateUObject(this, &ThisClass::ChangeGameFeatureTargetStateComplete, MoveTemp(CompleteDelegate)));
+
+			if (!ensure(bSetDestination))
+			{
+				UE_LOG(LogGameFeatures, Verbose, TEXT("ChangeGameFeatureDestination: Failed to set Game Feature %s Destination State to [%s, %s]"), *Machine->GetGameFeatureName(), *UE::GameFeatures::ToString(StateRange.MinState), *UE::GameFeatures::ToString(StateRange.MaxState));
+
+				CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable")));
+			}
+			else
+			{
+				UE_LOG(LogGameFeatures, Verbose, TEXT("ChangeGameFeatureDestination: OnCanceled, set Game Feature %s Destination State to [%s, %s]"), *Machine->GetGameFeatureName(), *UE::GameFeatures::ToString(StateRange.MinState), *UE::GameFeatures::ToString(StateRange.MaxState));
+			}
+		};
+
+		const bool bCancelPending = Machine->TryCancel(FGameFeatureStateTransitionCanceled::CreateWeakLambda(this, MoveTemp(OnCanceled)));
+		if (!ensure(bCancelPending))
+		{
+			UE_LOG(LogGameFeatures, Verbose, TEXT("ChangeGameFeatureDestination: Failed to cancel Game Feature %s"), *Machine->GetGameFeatureName());
+
+			CompleteDelegate.ExecuteIfBound(MakeError(TEXT("GameFeaturePlugin.StateMachine.State_Currently_Unreachable_Cancel_Failed")));
+		}
+	}
+}
+
+void UGameFeaturesSubsystem::ChangeGameFeatureTargetStateComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginChangeStateComplete CompleteDelegate)
 {
 	CompleteDelegate.ExecuteIfBound(Result);
 }
 
-void UGameFeaturesSubsystem::TerminateGameFeaturePluginComplete(UGameFeaturePluginStateMachine* Machine, const UE::GameFeatures::FResult& Result, FGameFeaturePluginUninstallComplete CompleteDelegate)
+void UGameFeaturesSubsystem::BeginTermination(UGameFeaturePluginStateMachine* Machine)
 {
-	if (Result.HasValue())
-	{
-		GameFeaturePluginStateMachines.Remove(Machine->GetPluginURL());
-		Machine->MarkAsGarbage();
-	}
+	check(IsValid(Machine));
+	check(Machine->GetCurrentState() == EGameFeaturePluginState::Terminal);
+	GameFeaturePluginStateMachines.Remove(Machine->GetPluginURL());
+	TerminalGameFeaturePluginStateMachines.Add(Machine);
+}
 
-	CompleteDelegate.ExecuteIfBound(Result);
+void UGameFeaturesSubsystem::FinishTermination(UGameFeaturePluginStateMachine* Machine)
+{
+	TerminalGameFeaturePluginStateMachines.RemoveSwap(Machine);
 }
 
 bool UGameFeaturesSubsystem::FindOrCreatePluginDependencyStateMachines(const FString& PluginFilename, TArray<UGameFeaturePluginStateMachine*>& OutDependencyMachines)
