@@ -72,8 +72,11 @@ struct FKSphereElem : public FKShapeElem
 		Center = InTransform.GetLocation();
 	}
 
-	FORCEINLINE FVector::FReal GetVolume(const FVector& Scale) const { return 1.3333f * UE_PI * FMath::Pow(Radius * Scale.GetMin(), 3); }
-	
+	UE_DEPRECATED(5.1, "Changed to GetScaledVolume to support non-uniform scales on other element types")
+	FORCEINLINE FVector::FReal GetVolume(const FVector& Scale) const { return GetScaledVolume(Scale); }
+
+	FORCEINLINE FVector::FReal GetScaledVolume(const FVector& Scale) const { return 1.3333f * UE_PI * FMath::Pow(Radius * Scale.GetAbsMin(), 3); }
+
 	ENGINE_API void DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FColor Color) const override;
 	ENGINE_API void DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const override;
 

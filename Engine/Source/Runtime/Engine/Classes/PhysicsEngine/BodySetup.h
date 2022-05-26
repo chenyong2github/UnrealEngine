@@ -375,7 +375,11 @@ public:
 	void GetGeometryDDCKey(FString& OutString) const;
 
 	/** Returns the volume of this element */
+	UE_DEPRECATED(5.1, "Use GetScaledVolume which uses the same scaling technique as the generated collision geometry")
 	ENGINE_API virtual float GetVolume(const FVector& Scale) const;
+
+	/** Returns the volume of this element givent the scale */
+	ENGINE_API virtual FVector::FReal GetScaledVolume(const FVector& Scale) const;
 
 	/** Release Physics meshes (ConvexMeshes, TriMesh & TriMeshNegX) */
 	ENGINE_API void ClearPhysicsMeshes();

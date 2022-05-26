@@ -90,7 +90,15 @@ struct FKSphylElem : public FKShapeElem
 		Center = InTransform.GetLocation();
 	}
 
-	FORCEINLINE FVector::FReal GetVolume(const FVector& Scale) const { FVector::FReal ScaledRadius = Radius * Scale.GetMin(); return UE_PI * FMath::Square(ScaledRadius) * ( 1.3333f * ScaledRadius + (Length * Scale.GetMin())); }
+	UE_DEPRECATED(5.1, "Changed to GetScaledVolume. Note that Volume calculation now includes non-uniform scale so values may have changed")
+	FORCEINLINE FVector::FReal GetVolume(const FVector& Scale) const { return GetScaledVolume(Scale); }
+	
+	FORCEINLINE FVector::FReal GetScaledVolume(const FVector& Scale3D) const 
+	{  
+		FVector::FReal ScaledRadius = GetScaledRadius(Scale3D);
+		FVector::FReal ScaledLength = GetScaledCylinderLength(Scale3D);
+		return UE_PI * FMath::Square(ScaledRadius) * (1.3333f * ScaledRadius + ScaledLength);
+	}
 
 	ENGINE_API void DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FColor Color) const override;
 	ENGINE_API void DrawElemSolid(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const override;

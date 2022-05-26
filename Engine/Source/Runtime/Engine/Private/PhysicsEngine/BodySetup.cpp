@@ -1932,28 +1932,33 @@ void FKAggregateGeom::FixupDeprecated(FArchive& Ar)
 }
 #endif
 
-float FKAggregateGeom::GetVolume(const FVector& Scale) const
+FVector::FReal FKAggregateGeom::GetVolume(const FVector& Scale) const
+{
+	return GetScaledVolume(Scale);
+}
+
+FVector::FReal FKAggregateGeom::GetScaledVolume(const FVector& Scale) const
 {
 	float Volume = 0.0f;
 
-	for ( auto SphereElemIt = SphereElems.CreateConstIterator(); SphereElemIt; ++SphereElemIt )
+	for (auto SphereElemIt = SphereElems.CreateConstIterator(); SphereElemIt; ++SphereElemIt )
 	{
-		Volume += SphereElemIt->GetVolume(Scale);
+		Volume += SphereElemIt->GetScaledVolume(Scale);
 	}
 
-	for ( auto BoxElemIt = BoxElems.CreateConstIterator(); BoxElemIt; ++BoxElemIt )
+	for (auto BoxElemIt = BoxElems.CreateConstIterator(); BoxElemIt; ++BoxElemIt )
 	{
-		Volume += BoxElemIt->GetVolume(Scale);
+		Volume += BoxElemIt->GetScaledVolume(Scale);
 	}
 
-	for ( auto SphylElemIt = SphylElems.CreateConstIterator(); SphylElemIt; ++SphylElemIt )
+	for (auto SphylElemIt = SphylElems.CreateConstIterator(); SphylElemIt; ++SphylElemIt )
 	{
-		Volume += SphylElemIt->GetVolume(Scale);
+		Volume += SphylElemIt->GetScaledVolume(Scale);
 	}
 
-	for ( auto ConvexElemIt = ConvexElems.CreateConstIterator(); ConvexElemIt; ++ConvexElemIt )
+	for (auto ConvexElemIt = ConvexElems.CreateConstIterator(); ConvexElemIt; ++ConvexElemIt )
 	{
-		Volume += ConvexElemIt->GetVolume(Scale);
+		Volume += ConvexElemIt->GetScaledVolume(Scale);
 	}
 
 	return Volume;
@@ -2086,7 +2091,12 @@ void FKConvexElem::SetMirroredConvexMesh(physx::PxConvexMesh* InMesh)
 }
 #endif
 
-float FKConvexElem::GetVolume(const FVector& Scale) const
+FVector::FReal FKConvexElem::GetVolume(const FVector& Scale) const
+{
+	return GetScaledVolume(Scale);
+}
+
+FVector::FReal FKConvexElem::GetScaledVolume(const FVector& Scale) const
 {
 	float Volume = 0.0f;
 
@@ -2122,8 +2132,10 @@ float FKConvexElem::GetVolume(const FVector& Scale) const
 		}
 	}
 #elif WITH_CHAOS
-	//TODO Support ChaosConvex.
-	CHAOS_ENSURE(false);
+	if (ChaosConvex != nullptr)
+	{
+		Volume = FMath::Abs(Scale.X * Scale.Y * Scale.Z) * ChaosConvex->GetVolume();
+	}
 #endif
 
 	return Volume;
@@ -2615,20 +2627,28 @@ float UBodySetup::CalculateMass(const UPrimitiveComponent* Component) const
 	}
 
 	// Then scale mass to avoid big differences between big and small objects.
-	const float BasicVolume = GetVolume(ComponentScale);
+	const FVector::FReal BasicVolume = GetScaledVolume(ComponentScale);
+
+	// The below TODO is probably fixed now. GetSCaledVolume handles negative scales...
 	//@TODO: Some static meshes are triggering this - disabling until content can be analyzed - ensureMsgf(BasicVolume >= 0.0f, TEXT("UBodySetup::CalculateMass(%s) - The volume of the aggregate geometry is negative"), *Component->GetReadableName());
 
-	const float BasicMass = FMath::Max<float>(BasicVolume, 0.0f) * DensityKGPerCubicUU;
+	const FVector::FReal BasicMass = FMath::Max(BasicVolume, FVector::FReal(0)) * DensityKGPerCubicUU;
 
-	const float UsePow = FMath::Clamp<float>(RaiseMassToPower, UE_KINDA_SMALL_NUMBER, 1.f);
-	const float RealMass = FMath::Pow(BasicMass, UsePow);
+	const FVector::FReal UsePow = FMath::Clamp(RaiseMassToPower, FVector::FReal(UE_KINDA_SMALL_NUMBER), FVector::FReal(1));
+	const FVector::FReal RealMass = FMath::Pow(BasicMass, UsePow);
 
-	return RealMass * MassScale;
+	return float(RealMass * MassScale);
 }
 
 float UBodySetup::GetVolume(const FVector& Scale) const
 {
-	return AggGeom.GetVolume(Scale);
+	return GetScaledVolume(Scale);
+}
+
+
+FVector::FReal UBodySetup::GetScaledVolume(const FVector& Scale) const
+{
+	return AggGeom.GetScaledVolume(Scale);
 }
 
 

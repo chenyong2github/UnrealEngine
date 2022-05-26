@@ -98,7 +98,11 @@ public:
 	ENGINE_API void BakeTransformToVerts();
 
 	/** Returns the volume of this element */
-	float GetVolume(const FVector& Scale) const;
+	UE_DEPRECATED(5.1, "Changed to GetScaledVolume. Note that Volume calculation now includes non-uniform scale so values may have changed")
+	FVector::FReal GetVolume(const FVector& Scale) const;
+
+	/** Returns the volume of this element */
+	FVector::FReal GetScaledVolume(const FVector& Scale3D) const;
 
 #if PHYSICS_INTERFACE_PHYSX
 	/** Get the PhysX convex mesh (defined in BODY space) for this element */

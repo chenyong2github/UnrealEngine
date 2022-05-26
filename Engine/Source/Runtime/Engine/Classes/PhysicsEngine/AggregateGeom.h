@@ -156,7 +156,11 @@ struct ENGINE_API FKAggregateGeom
 	void CalcBoxSphereBounds(FBoxSphereBounds& Output, const FTransform& LocalToWorld) const;
 
 	/** Returns the volume of this element */
-	float GetVolume(const FVector& Scale3D) const;
+	UE_DEPRECATED(5.1, "Changed to GetScaledVolume. Note that Volume calculation now includes non-uniform scale so values may have changed")
+	FVector::FReal GetVolume(const FVector& Scale3D) const;
+
+	/** Returns the volume of this element */
+	FVector::FReal GetScaledVolume(const FVector& Scale3D) const;
 
 	FGuid MakeDDCKey() const;
 
