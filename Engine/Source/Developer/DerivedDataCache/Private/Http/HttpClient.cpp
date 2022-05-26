@@ -2,14 +2,75 @@
 
 #include "HttpClient.h"
 
-#if WITH_HTTP_CLIENT
+#if UE_WITH_HTTP_CLIENT
 #include "Tasks/Task.h"
 
-#define UE_HTTPDDC_BACKEND_WAIT_INTERVAL 0.01f
-#define UE_HTTPDDC_BACKEND_WAIT_INTERVAL_MS ((uint32)(UE_HTTPDDC_BACKEND_WAIT_INTERVAL*1000))
+#define CURL_NO_OLDIES
+#if PLATFORM_MICROSOFT
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
+#endif
+
+#if defined(PLATFORM_CURL_INCLUDE)
+#include PLATFORM_CURL_INCLUDE
+#else
+#include "curl/curl.h"
+#endif //defined(PLATFORM_CURL_INCLUDE)
+
+#if PLATFORM_MICROSOFT
+#include "Microsoft/HideMicrosoftPlatformTypes.h"
+#endif
+
 
 namespace UE
 {
+
+namespace Http::Private
+{
+
+static constexpr uint32 WaitIntervalMs = ((uint32)(0.01f*1000));
+
+struct FHttpSharedDataInternals
+{
+	CURLSH* CurlShare;
+	CURLM* CurlMulti;
+	UE::TDepletableMpscQueue<CURL*> PendingRequestAdditions;
+	FRWLock Locks[CURL_LOCK_DATA_LAST];
+	bool WriteLocked[CURL_LOCK_DATA_LAST]{};
+};
+
+struct FHttpSharedDataStatics
+{
+	static void LockFn(CURL* Handle, curl_lock_data Data, curl_lock_access Access, void* User)
+	{
+		FHttpSharedDataInternals* SharedDataInternals = ((FHttpSharedData*)User)->Internals.Get();
+		if (Access == CURL_LOCK_ACCESS_SHARED)
+		{
+			SharedDataInternals->Locks[Data].ReadLock();
+		}
+		else
+		{
+			SharedDataInternals->Locks[Data].WriteLock();
+			SharedDataInternals->WriteLocked[Data] = true;
+		}
+	}
+
+	static void UnlockFn(CURL* Handle, curl_lock_data Data, void* User)
+	{
+		FHttpSharedDataInternals* SharedDataInternals = ((FHttpSharedData*)User)->Internals.Get();
+		if (!SharedDataInternals->WriteLocked[Data])
+		{
+			SharedDataInternals->Locks[Data].ReadUnlock();
+		}
+		else
+		{
+			SharedDataInternals->WriteLocked[Data] = false;
+			SharedDataInternals->Locks[Data].WriteUnlock();
+		}
+	}
+};
+
+}
+
 
 FString FHttpAccessToken::GetHeader()
 {
@@ -35,14 +96,15 @@ uint32 FHttpAccessToken::GetSerial() const
 FHttpSharedData::FHttpSharedData()
 : PendingRequestEvent(EEventMode::AutoReset)
 {
-	CurlShare = curl_share_init();
-	curl_share_setopt(CurlShare, CURLSHOPT_USERDATA, this);
-	curl_share_setopt(CurlShare, CURLSHOPT_LOCKFUNC, LockFn);
-	curl_share_setopt(CurlShare, CURLSHOPT_UNLOCKFUNC, UnlockFn);
-	curl_share_setopt(CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
-	curl_share_setopt(CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
-	CurlMulti = curl_multi_init();
-	curl_multi_setopt(CurlMulti, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
+	Internals = MakePimpl<Http::Private::FHttpSharedDataInternals>();
+	Internals->CurlShare = curl_share_init();
+	curl_share_setopt(Internals->CurlShare, CURLSHOPT_USERDATA, this);
+	curl_share_setopt(Internals->CurlShare, CURLSHOPT_LOCKFUNC, Http::Private::FHttpSharedDataStatics::LockFn);
+	curl_share_setopt(Internals->CurlShare, CURLSHOPT_UNLOCKFUNC, Http::Private::FHttpSharedDataStatics::UnlockFn);
+	curl_share_setopt(Internals->CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+	curl_share_setopt(Internals->CurlShare, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+	Internals->CurlMulti = curl_multi_init();
+	curl_multi_setopt(Internals->CurlMulti, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
 }
 
 FHttpSharedData::~FHttpSharedData()
@@ -53,13 +115,13 @@ FHttpSharedData::~FHttpSharedData()
 		AsyncServiceThread.Join();
 	}
 
-	curl_multi_cleanup(CurlMulti);
-	curl_share_cleanup(CurlShare);
+	curl_multi_cleanup(Internals->CurlMulti);
+	curl_share_cleanup(Internals->CurlShare);
 }
 
-void FHttpSharedData::AddRequest(CURL* Curl)
+void FHttpSharedData::AddRequest(void* Curl)
 {
-	if (PendingRequestAdditions.EnqueueAndReturnWasEmpty(Curl))
+	if (Internals->PendingRequestAdditions.EnqueueAndReturnWasEmpty(static_cast<CURL*>(Curl)))
 	{
 		PendingRequestEvent.Trigger();
 	}
@@ -70,32 +132,9 @@ void FHttpSharedData::AddRequest(CURL* Curl)
 	}
 }
 
-void FHttpSharedData::LockFn(CURL* Handle, curl_lock_data Data, curl_lock_access Access, void* User)
+void* FHttpSharedData::GetCurlShare() const
 {
-	FHttpSharedData* SharedData = (FHttpSharedData*)User;
-	if (Access == CURL_LOCK_ACCESS_SHARED)
-	{
-		SharedData->Locks[Data].ReadLock();
-	}
-	else
-	{
-		SharedData->Locks[Data].WriteLock();
-		SharedData->WriteLocked[Data] = true;
-	}
-}
-
-void FHttpSharedData::UnlockFn(CURL* Handle, curl_lock_data Data, void* User)
-{
-	FHttpSharedData* SharedData = (FHttpSharedData*)User;
-	if (!SharedData->WriteLocked[Data])
-	{
-		SharedData->Locks[Data].ReadUnlock();
-	}
-	else
-	{
-		SharedData->WriteLocked[Data] = false;
-		SharedData->Locks[Data].WriteUnlock();
-	}
+	return Internals->CurlShare;
 }
 
 void FHttpSharedData::ProcessAsyncRequests()
@@ -108,20 +147,20 @@ void FHttpSharedData::ProcessAsyncRequests()
 
 		do
 		{
-			PendingRequestAdditions.Deplete([this, &ActiveTransfers](CURL* Curl)
+			Internals->PendingRequestAdditions.Deplete([this, &ActiveTransfers](CURL* Curl)
 				{
-					curl_multi_add_handle(CurlMulti, Curl);
+					curl_multi_add_handle(Internals->CurlMulti, Curl);
 					++ActiveTransfers;
 				});
 
-			curl_multi_perform(CurlMulti, &CurrentActiveTransfers);
+			curl_multi_perform(Internals->CurlMulti, &CurrentActiveTransfers);
 
 			if (CurrentActiveTransfers == 0 || ActiveTransfers != CurrentActiveTransfers)
 			{
 				for (;;)
 				{
 					int MsgsStillInQueue = 0;	// may use that to impose some upper limit we may spend in that loop
-					CURLMsg* Message = curl_multi_info_read(CurlMulti, &MsgsStillInQueue);
+					CURLMsg* Message = curl_multi_info_read(Internals->CurlMulti, &MsgsStillInQueue);
 
 					if (!Message)
 					{
@@ -132,7 +171,7 @@ void FHttpSharedData::ProcessAsyncRequests()
 					if (Message->msg == CURLMSG_DONE)
 					{
 						CURL* CompletedHandle = Message->easy_handle;
-						curl_multi_remove_handle(CurlMulti, CompletedHandle);
+						curl_multi_remove_handle(Internals->CurlMulti, CompletedHandle);
 
 						void* PrivateData = nullptr;
 						curl_easy_getinfo(CompletedHandle, CURLINFO_PRIVATE, &PrivateData);
@@ -155,7 +194,7 @@ void FHttpSharedData::ProcessAsyncRequests()
 
 			if (CurrentActiveTransfers > 0)
 			{
-				curl_multi_wait(CurlMulti, nullptr, 0, 1, nullptr);
+				curl_multi_wait(Internals->CurlMulti, nullptr, 0, 1, nullptr);
 			}
 		}
 		while (CurrentActiveTransfers > 0);
@@ -240,7 +279,7 @@ FHttpRequest* FHttpRequestPool::WaitForFreeRequest(bool bUnboundedOverflow)
 
 		Waiters.enqueue(Waiter);
 
-		while (!Waiter->Wait(UE_HTTPDDC_BACKEND_WAIT_INTERVAL_MS))
+		while (!Waiter->Wait(Http::Private::WaitIntervalMs))
 		{
 			// While waiting, allow us to check if a race occurred and a request has been freed
 			// between the time we checked for free requests and the time we queued ourself as a Waiter.
@@ -317,4 +356,4 @@ void FHttpRequestPool::MakeRequestShared(FHttpRequest* Request, uint8 Users)
 
 } // UE
 
-#endif // WITH_HTTP_CLIENT
+#endif // UE_WITH_HTTP_CLIENT

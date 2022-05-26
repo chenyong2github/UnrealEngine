@@ -4,14 +4,6 @@
 
 #if WITH_HTTP_DDC_BACKEND
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-#include "Windows/WindowsHWrapper.h"
-#include "Windows/AllowWindowsPlatformTypes.h"
-#endif
-#include "curl/curl.h"
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
 #include "Algo/Accumulate.h"
 #include "Algo/Find.h"
 #include "Algo/Transform.h"
@@ -58,9 +50,16 @@
 
 #include "Http/HttpClient.h"
 
-#if WITH_SSL
-#include "Ssl.h"
-#include <openssl/ssl.h>
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#include "Windows/WindowsHWrapper.h"
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include "Windows/HideWindowsPlatformTypes.h"
+#else
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 #endif
 
 // Enables data request helpers that internally
@@ -899,51 +898,6 @@ private:
 TLockFreePointerListUnordered<FDataUploadHelper::FQueuedEntry, PLATFORM_CACHE_LINE_SIZE> FDataUploadHelper::QueuedPuts;
 
 #endif // WITH_DATAREQUEST_HELPER
-
-//----------------------------------------------------------------------------------------------------------
-// Certificate checking
-//----------------------------------------------------------------------------------------------------------
-
-#if WITH_SSL
-
-static int SslCertVerify(int PreverifyOk, X509_STORE_CTX* Context)
-{
-	if (PreverifyOk == 1)
-	{
-		SSL* Handle = static_cast<SSL*>(X509_STORE_CTX_get_ex_data(Context, SSL_get_ex_data_X509_STORE_CTX_idx()));
-		check(Handle);
-
-		SSL_CTX* SslContext = SSL_get_SSL_CTX(Handle);
-		check(SslContext);
-
-		FHttpRequest* Request = static_cast<FHttpRequest*>(SSL_CTX_get_app_data(SslContext));
-		check(Request);
-
-		const FString& Domain = Request->GetDomain();
-
-		if (!FSslModule::Get().GetCertificateManager().VerifySslCertificates(Context, Domain))
-		{
-			PreverifyOk = 0;
-		}
-	}
-
-	return PreverifyOk;
-}
-
-static CURLcode sslctx_function(CURL * curl, void * sslctx, void * parm)
-{
-	SSL_CTX* Context = static_cast<SSL_CTX*>(sslctx);
-	const ISslCertificateManager& CertificateManager = FSslModule::Get().GetCertificateManager();
-
-	CertificateManager.AddCertificatesToSslContext(Context);
-	SSL_CTX_set_verify(Context, SSL_CTX_get_verify_mode(Context), SslCertVerify);
-	SSL_CTX_set_app_data(Context, parm);
-
-	/* all set to go */
-	return CURLE_OK;
-}
-
-#endif //#if WITH_SSL
 
 //----------------------------------------------------------------------------------------------------------
 // Content parsing and checking
