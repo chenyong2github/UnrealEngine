@@ -231,7 +231,7 @@ void FSequencerTrailHierarchy::UpdateControlRig(const TArray<FFrameNumber> &Fram
 		FMovieSceneSequencePlaybackSettings Settings;
 		FLevelSequenceCameraSettings CameraSettings;
 		FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
-		FMovieSceneSequenceTransform RootToLocalTransform;
+		FMovieSceneSequenceTransform RootToLocalTransform = Sequencer->GetFocusedMovieSceneSequenceTransform();
 		IMovieScenePlayer* Player = Sequencer.Get();
 		ULevelSequence* LevelSequence = Cast<ULevelSequence>(Sequencer->GetFocusedMovieSceneSequence());
 
@@ -257,10 +257,12 @@ void FSequencerTrailHierarchy::UpdateControlRig(const TArray<FFrameNumber> &Fram
 					TrailControlTransforms[PairIndex].Transforms.SetNum(Frames.Num());
 					++PairIndex;
 				}
+
 				for (int32 Index = 0; Index < Frames.Num(); ++Index)
 				{
 					const FFrameNumber& FrameNumber = Frames[Index];
 					FFrameTime GlobalTime(FrameNumber);
+					GlobalTime = GlobalTime * RootToLocalTransform.InverseLinearOnly(); //player evals in root time so need to go back to it.
 
 					FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), Player->GetPlaybackStatus()).SetHasJumped(true);
 
@@ -288,7 +290,8 @@ void FSequencerTrailHierarchy::UpdateControlRig(const TArray<FFrameNumber> &Fram
 		}
 		if (Player)
 		{
-			const FFrameTime StartTime = Sequencer->GetLocalTime().Time;
+			FFrameTime StartTime = Sequencer->GetLocalTime().Time;
+			StartTime = StartTime * RootToLocalTransform.InverseLinearOnly(); //player evals in root time so need to go back to it.
 			FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(StartTime, TickResolution), Player->GetPlaybackStatus()).SetHasJumped(true);
 			Player->GetEvaluationTemplate().Evaluate(Context, *Player);
 			ControlRig->Evaluate_AnyThread();

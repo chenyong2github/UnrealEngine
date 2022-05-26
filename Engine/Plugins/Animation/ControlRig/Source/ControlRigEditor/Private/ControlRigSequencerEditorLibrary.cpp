@@ -866,7 +866,7 @@ static bool LocalGetControlRigControlValues(IMovieScenePlayer* Player, UMovieSce
 			{
 				GlobalTime = FFrameRate::TransformTime(GlobalTime, MovieScene->GetDisplayRate(), MovieScene->GetTickResolution());
 			}
-
+			GlobalTime = GlobalTime * RootToLocalTransform.InverseLinearOnly();
 			FMovieSceneContext Context = FMovieSceneContext(FMovieSceneEvaluationRange(GlobalTime, TickResolution), Player->GetPlaybackStatus()).SetHasJumped(true);
 
 			Player->GetEvaluationTemplate().Evaluate(Context, *Player);
@@ -883,7 +883,7 @@ static bool GetControlRigValues(ISequencer* Sequencer, UControlRig* ControlRig, 
 	if (Sequencer->GetFocusedMovieSceneSequence())
 	{
 		FMovieSceneSequenceIDRef Template = Sequencer->GetFocusedTemplateID();
-		FMovieSceneSequenceTransform RootToLocalTransform;
+		FMovieSceneSequenceTransform RootToLocalTransform = Sequencer->GetFocusedMovieSceneSequenceTransform();
 		bool bGood = LocalGetControlRigControlValues(Sequencer, Sequencer->GetFocusedMovieSceneSequence(), Template, RootToLocalTransform,
 			ControlRig, ControlName,TimeUnit, Frames, OutValues);
 		Sequencer->RequestEvaluate();
@@ -901,7 +901,7 @@ static bool GetControlRigValue(ISequencer* Sequencer, UControlRig* ControlRig, c
 		Frames.Add(Frame);
 		TArray<FRigControlValue> OutValues;
 		FMovieSceneSequenceIDRef Template = Sequencer->GetFocusedTemplateID();
-		FMovieSceneSequenceTransform RootToLocalTransform;
+		FMovieSceneSequenceTransform RootToLocalTransform = Sequencer->GetFocusedMovieSceneSequenceTransform();
 		bool bVal = LocalGetControlRigControlValues(Sequencer, Sequencer->GetFocusedMovieSceneSequence(), Template, RootToLocalTransform,
 			ControlRig, ControlName,TimeUnit, Frames, OutValues);
 		if (bVal)
