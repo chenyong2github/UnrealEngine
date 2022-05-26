@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#  Copyright (c) 2013-2021, Intel Corporation
+#  Copyright (c) 2013-2022, Intel Corporation
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -120,8 +120,10 @@ def checkout_LLVM(component, version_LLVM, target_dir, from_validation, verbose)
     # git: "origin/release/9.x"
     if  version_LLVM == "trunk":
         GIT_TAG="main"
+    elif  version_LLVM == "14_0":
+        GIT_TAG="llvmorg-14.0.1"
     elif  version_LLVM == "13_0":
-        GIT_TAG="llvmorg-13.0.0"
+        GIT_TAG="llvmorg-13.0.1"
     elif  version_LLVM == "12_0":
         GIT_TAG="llvmorg-12.0.1"
     elif  version_LLVM == "11_1":
@@ -338,10 +340,10 @@ def build_LLVM(version_LLVM, folder, debug, selfbuild, extra, from_validation, f
 
 
 def unsupported_llvm_targets(LLVM_VERSION):
-    prohibited_list = {"6.0":["avx512skx-i32x8", "avx512skx-i32x4", "avx512skx-i8x64", "avx512skx-i16x32"],
-                       "7.0":["avx512skx-i32x8", "avx512skx-i32x4", "avx512skx-i8x64", "avx512skx-i16x32"],
-                       "8.0":["avx512skx-i8x64", "avx512skx-i16x32"],
-                       "9.0":["avx512skx-i8x64", "avx512skx-i16x32"]
+    prohibited_list = {"6.0":["avx512skx-x8", "avx512skx-x4", "avx512skx-x64", "avx512skx-x32"],
+                       "7.0":["avx512skx-x8", "avx512skx-x4", "avx512skx-x64", "avx512skx-x32"],
+                       "8.0":["avx512skx-x64", "avx512skx-x32"],
+                       "9.0":["avx512skx-x64", "avx512skx-x32"]
                        }
     if LLVM_VERSION in prohibited_list:
         return prohibited_list[LLVM_VERSION]
@@ -382,9 +384,9 @@ def check_targets():
                  ["SSE2", "SSE4", "AVX"], "-snb", False]),
       ("AVX2",   [["avx2-i32x4", "avx2-i32x8",  "avx2-i32x16",  "avx2-i64x4", "avx2-i8x32", "avx2-i16x16"],
                  ["SSE2", "SSE4", "AVX", "AVX2"], "-hsw", False]),
-      ("KNL",    [["avx512knl-i32x16"],
+      ("KNL",    [["avx512knl-x16"],
                  ["SSE2", "SSE4", "AVX", "AVX2", "KNL"], "-knl", False]),
-      ("SKX",    [["avx512skx-i32x16", "avx512skx-i32x8", "avx512skx-i32x4", "avx512skx-i8x64", "avx512skx-i16x32"],
+      ("SKX",    [["avx512skx-x16", "avx512skx-x8", "avx512skx-x4", "avx512skx-x64", "avx512skx-x32"],
                  ["SSE2", "SSE4", "AVX", "AVX2", "SKX"], "-skx", False])
     ])
 
@@ -608,7 +610,7 @@ def validation_run(only, only_targets, reference_branch, number, update, speed_n
             archs.append("x86-64")
         if "native" in only:
             sde_targets_t = []
-        for i in ["6.0", "7.0", "8.0", "9.0", "10.0", "11.0", "12.0", "13.0", "trunk"]:
+        for i in ["6.0", "7.0", "8.0", "9.0", "10.0", "11.0", "12.0", "13.0", "14.0", "trunk"]:
             if i in only:
                 LLVM.append(i)
         if "current" in only:
@@ -814,7 +816,7 @@ def Main():
     if os.environ.get("ISPC_HOME") == None:
         alloy_error("you have no ISPC_HOME", 1)
     if options.only != "":
-        test_only_r = " 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 trunk current build stability performance x86 x86-64 x86_64 -O0 -O1 -O2 native debug nodebug "
+        test_only_r = " 6.0 7.0 8.0 9.0 10.0 11.0 12.0 13.0 14.0 trunk current build stability performance x86 x86-64 x86_64 -O0 -O1 -O2 native debug nodebug "
         test_only = options.only.split(" ")
         for iterator in test_only:
             if not (" " + iterator + " " in test_only_r):
@@ -844,7 +846,7 @@ def Main():
         generator = options.generator
     else:
         if current_OS == "Windows":
-            generator = "Visual Studio 16"
+            generator = "Visual Studio 17 2022"
         else:
             generator = "Unix Makefiles"
     try:
@@ -921,7 +923,7 @@ if __name__ == '__main__':
     "Try to build compiler with all LLVM\n\talloy.py -r --only=build\n" +
     "Performance validation run with 10 runs of each test and comparing to branch 'old'\n\talloy.py -r --only=performance --compare-with=old --number=10\n" +
     "Validation run. Update fail_db.txt with new fails\n\talloy.py -r --update-errors=F\n" +
-    "Test KNL target (requires sde)\n\talloy.py -r --only='stability' --only-targets='avx512knl-i32x16'\n")
+    "Test KNL target (requires sde)\n\talloy.py -r --only='stability' --only-targets='avx512knl-x16'\n")
 
     num_threads="%s" % multiprocessing.cpu_count()
     parser = MyParser(usage="Usage: alloy.py -r/-b [options]", epilog=examples)

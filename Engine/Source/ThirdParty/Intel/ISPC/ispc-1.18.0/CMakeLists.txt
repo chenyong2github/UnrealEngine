@@ -45,7 +45,7 @@ set(ISPC_BUILD TRUE)
 project(${PROJECT_NAME})
 
 set(X86_HOST FALSE)
-if (${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "AMD64|86")
+if (${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "amd64|AMD64|86")
     set(X86_HOST TRUE)
 endif()
 
@@ -57,6 +57,7 @@ option(ISPC_INCLUDE_EXAMPLES "Generate build targets for the ISPC examples" ON)
 option(ISPC_INCLUDE_DPCPP_EXAMPLES "Generate build targets for the ISPC/DPCPP interoperability examples" OFF)
 option(ISPC_INCLUDE_TESTS "Generate build targets for the ISPC tests." ON)
 option(ISPC_INCLUDE_BENCHMARKS "Generate build targets for the ISPC tests." OFF)
+option(ISPC_INCLUDE_RT "Generate build targets for ISPC runtime." ON)
 option(ISPC_INCLUDE_UTILS "Generate build targets for the utils." ON)
 option(ISPC_PREPARE_PACKAGE "Generate build targets for ispc package" OFF)
 option(ISPC_NO_DUMPS "Turn off functionality, which requires LLVM dump() functions" OFF)
@@ -119,19 +120,6 @@ else()
     endif()
 endif()
 
-# Get ispc version
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/ispc_version.h" ispc_ver)
-string(REGEX MATCH "ISPC_VERSION \"([0-9]*)\.([0-9]*)\.([0-9]*)([a-z]*)" _ ${ispc_ver})
-set(ISPC_VERSION_MAJOR ${CMAKE_MATCH_1})
-set(ISPC_VERSION_MINOR ${CMAKE_MATCH_2})
-set(ISPC_VERSION_PATCH ${CMAKE_MATCH_3})
-set(ISPC_VERSION_SUFFIX ${CMAKE_MATCH_4})
-if (${ISPC_VERSION_SUFFIX} MATCHES ".*dev")
-    set (REPO_TAG "main")
-else()
-    set (REPO_TAG "v${ISPC_VERSION_MAJOR}.${ISPC_VERSION_MINOR}.${ISPC_VERSION_PATCH}${ISPC_VERSION_SUFFIX}")
-endif()
-
 if (APPLE)
     # Use standard macOS SDK location if this is not specified.
     if (NOT ISPC_MACOS_SDK_PATH)
@@ -188,7 +176,6 @@ endif()
 
 # If Xe target is enabled, generate build targets for Xe examples and ISPCRT on Linux
 if (XE_ENABLED)
-    option(ISPC_INCLUDE_RT "Generate build targets for ISPC runtime." ON)
     option(ISPC_INCLUDE_XE_EXAMPLES "Generate build targets for the ISPC Xe examples" ON)
 endif()
 
@@ -228,6 +215,10 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindLLVM.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Git.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateBuiltins.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Stdlib.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Version.cmake)
+
+# Get ispc version
+get_ispc_version("${CMAKE_CURRENT_SOURCE_DIR}/common/version.h")
 
 find_package(Python3 REQUIRED)
     if (NOT Python3_Interpreter_FOUND)
@@ -280,9 +271,9 @@ if (X86_ENABLED)
         avx1-i32x8 avx1-i32x16 avx1-i64x4
         avx2-i8x32 avx2-i16x16
         avx2-i32x4 avx2-i32x8 avx2-i32x16 avx2-i64x4
-        avx512knl-i32x16
-        avx512skx-i32x16 avx512skx-i32x8 avx512skx-i32x4
-        avx512skx-i8x64 avx512skx-i16x32)
+        avx512knl-x16
+        avx512skx-x4 avx512skx-x8 avx512skx-x16
+        avx512skx-x32 avx512skx-x64)
 endif()
 if (ARM_ENABLED)
     list(APPEND ISPC_TARGETS neon-i8x16 neon-i16x8 neon-i32x4 neon-i32x8)
@@ -330,7 +321,8 @@ generate_stdlib(STDLIB_FILES ${ISPC_MASKS})
 
 add_executable(${PROJECT_NAME} ${BUILTIN_FILES} ${BUILTIN_CPP_FILES}
                ${STDLIB_FILES} ${BISON_CPP_OUTPUT} ${FLEX_OUTPUT}
-               ${CMAKE_CURRENT_SOURCE_DIR}/stdlib.ispc)
+               ${CMAKE_CURRENT_SOURCE_DIR}/stdlib.ispc
+               ${CMAKE_CURRENT_SOURCE_DIR}/common/version.rc)
 
 target_sources(${PROJECT_NAME}
     PRIVATE
@@ -372,6 +364,7 @@ target_sources(${PROJECT_NAME}
         "src/util.h"
         "src/parse.yy"
         "src/lex.ll"
+        "common/version.h"
 )
 
 if (XE_ENABLED)
@@ -446,6 +439,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
                            ${LLVM_INCLUDE_DIRS}
                            ${XE_DEPS_DIR}/include
                            ${CMAKE_CURRENT_SOURCE_DIR}/src
+                           ${CMAKE_CURRENT_SOURCE_DIR}/common
                            ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
 
 # Compile options
@@ -479,6 +473,8 @@ endif()
 # Link options
 if (WIN32)
     target_link_options(${PROJECT_NAME} PRIVATE /DYNAMICBASE)
+    # Control flow guard
+    target_link_options(${PROJECT_NAME} PRIVATE /GUARD:CF)
     if (MSVC AND NOT CMAKE_BUILD_TYPE STREQUAL "DEBUG" )
         target_link_options(${PROJECT_NAME} PUBLIC /OPT:REF /OPT:ICF)
     endif()
@@ -532,17 +528,16 @@ endif()
 if (WIN32)
     target_link_libraries(${PROJECT_NAME} version.lib shlwapi.lib odbc32.lib odbccp32.lib)
 else()
-    if (APPLE)
-        target_link_libraries(${PROJECT_NAME} pthread z curses)
+    if (ISPC_STATIC_LINK)
+        target_link_libraries(${PROJECT_NAME} pthread z.a tinfo.a curses.a)
     else()
-        if (ISPC_STATIC_LINK)
-            target_link_libraries(${PROJECT_NAME} pthread z.a tinfo.a curses.a)
-        else()
-            find_package(Curses REQUIRED)
-            find_package(ZLIB REQUIRED)
-            find_library(NCURSES_TINFO_LIBRARY tinfo)
-            target_link_libraries(${PROJECT_NAME} pthread ${ZLIB_LIBRARIES} ${NCURSES_TINFO_LIBRARY} ${CURSES_LIBRARIES})
+        find_package(Curses REQUIRED)
+        find_package(ZLIB REQUIRED)
+        if (CURSES_EXTRA_LIBRARY)
+            # this contains the tinfo library, if found
+            target_link_libraries(${PROJECT_NAME} ${CURSES_EXTRA_LIBRARY})
         endif()
+        target_link_libraries(${PROJECT_NAME} pthread ${ZLIB_LIBRARIES} ${CURSES_CURSES_LIBRARY})
     endif()
 endif()
 
@@ -650,7 +645,7 @@ if (ISPC_PREPARE_PACKAGE)
     include(ExternalProject)
     ExternalProject_Add(ispc_web
       GIT_REPOSITORY    https://github.com/ispc/ispc.github.com.git
-      GIT_TAG ${REPO_TAG}
+      GIT_TAG ${ISPC_DOC_REPO_TAG}
       PREFIX ispc_web
       SOURCE_DIR ispc_web/repo
       CONFIGURE_COMMAND cmake -E echo "Skipping configure step."

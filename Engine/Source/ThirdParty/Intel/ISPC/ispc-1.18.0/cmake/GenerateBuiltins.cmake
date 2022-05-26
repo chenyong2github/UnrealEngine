@@ -1,5 +1,5 @@
 #
-#  Copyright (c) 2018-2020, Intel Corporation
+#  Copyright (c) 2018-2022, Intel Corporation
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -53,13 +53,13 @@ list(APPEND M4_IMPLICIT_DEPENDENCIES
     builtins/builtins-cm-32.ll
     builtins/builtins-cm-64.ll
     builtins/svml.m4
-    builtins/target-avx-common.ll
-    builtins/target-avx-x2.ll
-    builtins/target-avx.ll
+    builtins/target-avx-utils.ll
+    builtins/target-avx-common-8.ll
+    builtins/target-avx-common-16.ll
     builtins/target-avx1-i64x4base.ll
     builtins/target-avx512-common-4.ll
     builtins/target-avx512-common-8.ll
-    builtins/target-avx512-common.ll
+    builtins/target-avx512-common-16.ll
     builtins/target-avx512-utils.ll
     builtins/target-neon-common.ll
     builtins/target-sse2-common.ll
@@ -235,8 +235,7 @@ function(builtin_to_cpp bit os_name arch supported_archs supported_oses resultFi
             set(includePath -isystem${ISPC_MACOS_SDK_PATH}/usr/include)
         else()
             # -isystemC:/gnuwin32/include/glibc
-            #set(includePath -isystem${ISPC_GNUWIN32_PATH}/include/glibc)
-            set(includePath -isystem${ISPC_GNUWIN32_PATH}/usr/include)
+            set(includePath -isystem${ISPC_GNUWIN32_PATH}/include/glibc)
         endif()
     elseif (APPLE)
         if (${os_name} STREQUAL "ios")

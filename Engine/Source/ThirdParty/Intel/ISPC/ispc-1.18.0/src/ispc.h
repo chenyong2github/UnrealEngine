@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2022, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -40,10 +40,6 @@
 #include "ispc_version.h"
 #include "target_enums.h"
 #include "target_registry.h"
-
-#if ISPC_LLVM_VERSION < OLDEST_SUPPORTED_LLVM || ISPC_LLVM_VERSION > LATEST_SUPPORTED_LLVM
-#error "Only LLVM 11.0 - 13.0 and 14.0 development branch are supported"
-#endif
 
 #if defined(_WIN32) || defined(_WIN64)
 #define ISPC_HOST_IS_WINDOWS
@@ -553,6 +549,16 @@ struct Opt {
         likely only useful for measuring the impact of this optimization */
     bool disableXeGatherCoalescing;
 
+    /** Minimal difference between the number of eliminated loads and
+        the number of newly created mem insts. Default value is zero:
+        assuming that gather is more dufficult due to address calculations.
+        the default value should be adjusted with some experiments. */
+    int thresholdForXeGatherCoalescing;
+
+    /** Experimental: Xe gather coalescing will generate standard
+        vectorized llvm loads instead of block ld intrinsics. */
+    bool buildLLVMLoadsOnXeGatherCoalescing;
+
     /** Enables experimental support of foreach statement inside varying CF.
         Current implementation brings performance degradation due to ineffective
         implementation of unmasked.*/
@@ -599,11 +605,11 @@ struct Globals {
 
     /** There are a number of math libraries that can be used for
         transcendentals and the like during program compilation. */
-    enum MathLib { Math_ISPC, Math_ISPCFast, Math_SVML, Math_System };
+    enum class MathLib { Math_ISPC, Math_ISPCFast, Math_SVML, Math_System };
     MathLib mathLib;
 
     /** Optimization level to be specified while creating TargetMachine. */
-    enum CodegenOptLevel { None, Aggressive };
+    enum class CodegenOptLevel { None, Aggressive };
     CodegenOptLevel codegenOptLevel;
 
     /** Records whether the ispc standard library should be made available
@@ -614,9 +620,24 @@ struct Globals {
         program source before compiling it.  (Default is true.) */
     bool runCPP;
 
+    /** When \c true, only runs the C pre-processor. (Default is false.) */
+    bool onlyCPP;
+
+    /** When \c true, suppresses errors from the C pre-processor.
+        (Default is false.) */
+    bool ignoreCPPErrors;
+
     /** When \c true, voluminous debugging output will be printed during
         ispc's execution. */
     bool debugPrint;
+
+    /** When \c true, dump AST.
+        None - don't dump AST
+        User - dump AST only for user code, but not for stdlib functions
+        All - dump AST for all the code
+    */
+    enum class ASTDumpKind { None, User, All };
+    ASTDumpKind astDump;
 
     /** When \c true, target ISA will be printed during ispc's execution. */
     bool printTarget;

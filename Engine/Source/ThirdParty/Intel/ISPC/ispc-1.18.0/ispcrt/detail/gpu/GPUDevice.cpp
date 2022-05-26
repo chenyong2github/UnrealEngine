@@ -1,4 +1,4 @@
-// Copyright 2020-2021 Intel Corporation
+// Copyright 2020-2022 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "GPUDevice.h"
@@ -197,7 +197,7 @@ struct Future : public ispcrt::base::Future {
     bool valid() override { return m_valid; }
     uint64_t time() override { return m_time; }
 
-    friend class TaskQueue;
+    friend struct TaskQueue;
 
   private:
     uint64_t m_time{0};
@@ -765,7 +765,8 @@ struct TaskQueue : public ispcrt::base::TaskQueue {
             waitEvents.push_back(ev.first->handle());
         }
         L0_SAFE_CALL(zeCommandListAppendMemoryCopy(m_cl_mem_d2h->handle(), view.hostPtr(), view.devicePtr(),
-                                                   view.numBytes(), nullptr, waitEvents.size(), waitEvents.data()));
+                                                   view.numBytes(), nullptr, (uint32_t)waitEvents.size(),
+                                                   waitEvents.data()));
 
         m_cl_mem_d2h->inc();
     }
@@ -778,6 +779,28 @@ struct TaskQueue : public ispcrt::base::TaskQueue {
                                                    view.numBytes(), copyEvent->handle(), 0, nullptr));
         m_cl_mem_h2d->inc();
         m_cl_mem_h2d->addEvent(copyEvent);
+    }
+
+    void copyMemoryView(base::MemoryView &mv_dst, base::MemoryView &mv_src, const size_t size) override {
+        auto &view_dst = (gpu::MemoryView &)mv_dst;
+        auto &view_src = (gpu::MemoryView &)mv_src;
+
+        // Create event and add it to m_cl_compute command list
+        auto event = m_ep_compute.createEvent();
+        if (event == nullptr)
+            throw std::runtime_error("Failed to create event!");
+        try {
+            L0_SAFE_CALL(zeCommandListAppendMemoryCopy(m_cl_compute->handle(), view_dst.devicePtr(), view_src.devicePtr(),
+                                                       size, event->handle(), 0, nullptr));
+            m_cl_compute->inc();
+        } catch (ispcrt::base::ispcrt_runtime_error &e) {
+            // cleanup and rethrow
+            m_ep_compute.deleteEvent(event);
+            throw e;
+        }
+        auto *future = new gpu::Future;
+        assert(future);
+        m_events_compute_list.push_back(std::make_pair(event, future));
     }
 
     ispcrt::base::Future *launch(ispcrt::base::Kernel &k, ispcrt::base::MemoryView *params, size_t dim0, size_t dim1,
@@ -794,8 +817,8 @@ struct TaskQueue : public ispcrt::base::TaskQueue {
         }
 
         std::array<uint32_t, 3> suggestedGroupSize = {0};
-        L0_SAFE_CALL(zeKernelSuggestGroupSize(kernel.handle(), dim0, dim1, dim2, &suggestedGroupSize[0],
-                                              &suggestedGroupSize[1], &suggestedGroupSize[2]));
+        L0_SAFE_CALL(zeKernelSuggestGroupSize(kernel.handle(), uint32_t(dim0), uint32_t(dim1), uint32_t(dim2),
+                                              &suggestedGroupSize[0], &suggestedGroupSize[1], &suggestedGroupSize[2]));
         // TODO: Is this needed? Didn't find info in spec on the valid values that zeKernelSuggestGroupSize will return
         suggestedGroupSize[0] = std::max(suggestedGroupSize[0], uint32_t(1));
         suggestedGroupSize[1] = std::max(suggestedGroupSize[1], uint32_t(1));
@@ -811,9 +834,9 @@ struct TaskQueue : public ispcrt::base::TaskQueue {
         if (event == nullptr)
             throw std::runtime_error("Failed to create event!");
         try {
-            L0_SAFE_CALL(zeCommandListAppendLaunchKernel(m_cl_compute->handle(), kernel.handle(), &dispatchTraits,
-                                                         event->handle(), m_cl_mem_h2d->getEventHandlers().size(),
-                                                         m_cl_mem_h2d->getEventHandlers().data()));
+            L0_SAFE_CALL(zeCommandListAppendLaunchKernel(
+                m_cl_compute->handle(), kernel.handle(), &dispatchTraits, event->handle(),
+                (uint32_t)m_cl_mem_h2d->getEventHandlers().size(), m_cl_mem_h2d->getEventHandlers().data()));
             m_cl_compute->inc();
         } catch (ispcrt::base::ispcrt_runtime_error &e) {
             // cleanup and rethrow
@@ -989,7 +1012,7 @@ static ze_driver_handle_t deviceDiscovery(bool *p_is_mock) {
 
 uint32_t deviceCount() {
     deviceDiscovery(nullptr);
-    return g_deviceList.size();
+    return (uint32_t)g_deviceList.size();
 }
 
 ISPCRTDeviceInfo deviceInfo(uint32_t deviceIdx) {
@@ -1068,5 +1091,24 @@ void *GPUDevice::platformNativeHandle() const { return m_driver; }
 void *GPUDevice::deviceNativeHandle() const { return m_device; }
 
 void *GPUDevice::contextNativeHandle() const { return m_context; }
+
+ISPCRTAllocationType GPUDevice::getMemAllocType(void* appMemory) const {
+    ze_memory_allocation_properties_t memProperties = {ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES};
+    ze_device_handle_t gpuDevice = (ze_device_handle_t)m_device;
+    L0_SAFE_CALL(zeMemGetAllocProperties((ze_context_handle_t)m_context, appMemory, &memProperties, &gpuDevice));
+    switch (memProperties.type) {
+        case ZE_MEMORY_TYPE_UNKNOWN:
+            return ISPCRT_ALLOC_TYPE_UNKNOWN;
+        case ZE_MEMORY_TYPE_HOST:
+            return ISPCRT_ALLOC_TYPE_HOST;
+        case ZE_MEMORY_TYPE_DEVICE:
+            return ISPCRT_ALLOC_TYPE_DEVICE;
+        case ZE_MEMORY_TYPE_SHARED:
+            return ISPCRT_ALLOC_TYPE_SHARED;
+        default:
+            return ISPCRT_ALLOC_TYPE_UNKNOWN;
+    }
+    return ISPCRT_ALLOC_TYPE_UNKNOWN;
+}
 
 } // namespace ispcrt

@@ -37,9 +37,7 @@
 
 #pragma once
 
-#define ISPC_VERSION_MAJOR 1
-#define ISPC_VERSION_MINOR 17
-#define ISPC_VERSION "1.17.0"
+#include "../common/version.h"
 #include <llvm/Config/llvm-config.h>
 
 #define ISPC_LLVM_VERSION (LLVM_VERSION_MAJOR * 10000 + LLVM_VERSION_MINOR * 100)
@@ -50,6 +48,7 @@
 #define ISPC_LLVM_12_0 120000
 #define ISPC_LLVM_13_0 130000
 #define ISPC_LLVM_14_0 140000
+#define ISPC_LLVM_15_0 150000
 
 #define OLDEST_SUPPORTED_LLVM ISPC_LLVM_10_0
 #define LATEST_SUPPORTED_LLVM ISPC_LLVM_14_0
@@ -64,7 +63,7 @@
     __ispc__xstr(LLVM_VERSION_MAJOR) "." __ispc__xstr(LLVM_VERSION_MINOR) "." __ispc__xstr(LLVM_VERSION_PATCH)
 
 #if ISPC_LLVM_VERSION < OLDEST_SUPPORTED_LLVM || ISPC_LLVM_VERSION > LATEST_SUPPORTED_LLVM
-#error "Unhandled LLVM version"
+#error "Only LLVM 11.0 - 14.0 are supported"
 #endif
 
 #define ISPC_VERSION_STRING                                                                                            \

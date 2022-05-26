@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019-2021, Intel Corporation
+  Copyright (c) 2019-2022, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,11 @@
 #elif defined(__linux__)
 #define ISPC_IS_LINUX
 #elif defined(__APPLE__)
-#define ISPC_IS_APPLE
+#error "L0 is not supported on macOS"
+#elif defined(__FreeBSD__)
+#error "L0 is not supported on FreeBSD"
+#else
+#error "Host OS was not detected"
 #endif
 
 #ifdef ISPC_IS_WINDOWS
@@ -692,7 +696,7 @@ int main(int argc, char *argv[]) {
 #error "Currently unsupported for Xe"
 #elif (TEST_SIG == 8)
     int groupSpaceWidth = 2;
-    int groupSpaceHeight = 8;
+    int groupSpaceHeight = 16;
     assert(N >= groupSpaceWidth * groupSpaceHeight);
     L0Launch_F_Threads(hDevice, hModule, hContext, hCommandQueue, return_data, groupSpaceWidth, groupSpaceHeight);
     L0Launch_Result_Threads(hDevice, hModule, hContext, hCommandQueue, expect_data, groupSpaceWidth, groupSpaceHeight);

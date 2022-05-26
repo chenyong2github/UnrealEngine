@@ -1,4 +1,4 @@
-// Copyright 2020-2021 Intel Corporation
+// Copyright 2020-2022 Intel Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
 #pragma once
@@ -205,6 +205,7 @@ template <typename T, AllocType AT = AllocType::Device> class Array : public Gen
     //////// Methods for all types of memory allocations ////////
 
     size_t size() const;
+    AllocType type() const;
 };
 
 // Inlined definitions //
@@ -267,6 +268,9 @@ template<AllocType alloc>
 
 template <typename T, AllocType AT>
     inline size_t Array<T,AT>::size() const { return ispcrtSize(handle()) / sizeof(T); }
+
+template <typename T, AllocType AT>
+    inline AllocType Array<T,AT>::type() const { return AT; }
 
 /////////////////////////////////////////////////////////////////////////////
 // Shared Memory Allocator //////////////////////////////////////////////////
@@ -359,6 +363,7 @@ class TaskQueue : public GenericObject<ISPCRTTaskQueue> {
 
     template <typename T, AllocType AT> void copyToDevice(const Array<T,AT> &arr) const;
     template <typename T, AllocType AT> void copyToHost(const Array<T,AT> &arr) const;
+    template <typename T, AllocType AT> void copyArray(const Array<T,AT> &arrDst, const Array<T,AT> &arrSrc, const size_t size) const;
 
     Future launch(const Kernel &k, size_t dim0) const;
     Future launch(const Kernel &k, size_t dim0, size_t dim1) const;
@@ -391,6 +396,10 @@ template <typename T, AllocType AT> inline void TaskQueue::copyToDevice(const Ar
 
 template <typename T, AllocType AT> inline void TaskQueue::copyToHost(const Array<T,AT> &arr) const {
     ispcrtCopyToHost(handle(), arr.handle());
+}
+
+template <typename T, AllocType AT> inline void TaskQueue::copyArray(const Array<T,AT> &arrDst, const Array<T,AT> &arrSrc, const size_t size) const {
+    ispcrtCopyMemoryView(handle(), arrDst.handle(), arrSrc.handle(), size * sizeof(T));
 }
 
 inline Future TaskQueue::launch(const Kernel &k, size_t dim0) const {

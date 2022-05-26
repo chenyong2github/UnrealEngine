@@ -169,11 +169,11 @@ static ISPCTarget lGetSystemISA() {
             (info2[1] & (1 << 28)) != 0 && // AVX512 CDI
             (info2[1] & (1 << 30)) != 0 && // AVX512 BW
             (info2[1] & (1 << 31)) != 0) { // AVX512 VL
-            return ISPCTarget::avx512skx_i32x16;
+            return ISPCTarget::avx512skx_x16;
         } else if ((info2[1] & (1 << 26)) != 0 && // AVX512 PF
                    (info2[1] & (1 << 27)) != 0 && // AVX512 ER
                    (info2[1] & (1 << 28)) != 0) { // AVX512 CDI
-            return ISPCTarget::avx512knl_i32x16;
+            return ISPCTarget::avx512knl_x16;
         }
         // If it's unknown AVX512 target, fall through and use AVX2
         // or whatever is available in the machine.
@@ -679,7 +679,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
 #endif
 
         case CPU_KNL:
-            m_ispc_target = ISPCTarget::avx512knl_i32x16;
+            m_ispc_target = ISPCTarget::avx512knl_x16;
             break;
 
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_12_0
@@ -689,7 +689,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         case CPU_ICX:
         case CPU_ICL:
         case CPU_SKX:
-            m_ispc_target = ISPCTarget::avx512skx_i32x16;
+            m_ispc_target = ISPCTarget::avx512skx_x16;
             break;
 
 #if ISPC_LLVM_VERSION >= ISPC_LLVM_12_0
@@ -806,7 +806,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
 #endif
 
     // Check math library
-    if (g->mathLib == Globals::Math_SVML && !ISPCTargetIsX86(m_ispc_target)) {
+    if (g->mathLib == Globals::MathLib::Math_SVML && !ISPCTargetIsX86(m_ispc_target)) {
         Error(SourcePos(), "SVML math library is supported for x86 targets only.");
         return;
     }
@@ -1008,7 +1008,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_warnFtoU32IsExpensive = true;
         CPUfromISA = CPU_Haswell;
         break;
-    case ISPCTarget::avx512knl_i32x16:
+    case ISPCTarget::avx512knl_x16:
         this->m_isa = Target::KNL_AVX512;
         this->m_nativeVectorWidth = 16;
         this->m_nativeVectorAlignment = 64;
@@ -1026,7 +1026,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_hasVecPrefetch = false;
         CPUfromISA = CPU_KNL;
         break;
-    case ISPCTarget::avx512skx_i32x4:
+    case ISPCTarget::avx512skx_x4:
         this->m_isa = Target::SKX_AVX512;
         this->m_nativeVectorWidth = 16;
         this->m_nativeVectorAlignment = 64;
@@ -1045,7 +1045,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_funcAttributes.push_back(std::make_pair("prefer-vector-width", "256"));
         this->m_funcAttributes.push_back(std::make_pair("min-legal-vector-width", "256"));
         break;
-    case ISPCTarget::avx512skx_i32x8:
+    case ISPCTarget::avx512skx_x8:
         this->m_isa = Target::SKX_AVX512;
         this->m_nativeVectorWidth = 16;
         this->m_nativeVectorAlignment = 64;
@@ -1064,7 +1064,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_funcAttributes.push_back(std::make_pair("prefer-vector-width", "256"));
         this->m_funcAttributes.push_back(std::make_pair("min-legal-vector-width", "256"));
         break;
-    case ISPCTarget::avx512skx_i32x16:
+    case ISPCTarget::avx512skx_x16:
         this->m_isa = Target::SKX_AVX512;
         this->m_nativeVectorWidth = 16;
         this->m_nativeVectorAlignment = 64;
@@ -1088,7 +1088,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
             this->m_funcAttributes.push_back(std::make_pair("min-legal-vector-width", "512"));
         }
         break;
-    case ISPCTarget::avx512skx_i8x64:
+    case ISPCTarget::avx512skx_x64:
         // This target is enabled only for LLVM 10.0 and later
         // because LLVM requires a number of fixes, which are
         // committed to LLVM 11.0 and can be applied to 10.0, but not
@@ -1109,7 +1109,7 @@ Target::Target(Arch arch, const char *cpu, ISPCTarget ispc_target, bool pic, boo
         this->m_hasVecPrefetch = false;
         CPUfromISA = CPU_SKX;
         break;
-    case ISPCTarget::avx512skx_i16x32:
+    case ISPCTarget::avx512skx_x32:
         // This target is enabled only for LLVM 10.0 and later
         // because LLVM requires a number of fixes, which are
         // committed to LLVM 11.0 and can be applied to 10.0, but not
@@ -1773,9 +1773,9 @@ const char *Target::ISAToTargetString(ISA isa) {
     case Target::AVX2:
         return "avx2-i32x8";
     case Target::KNL_AVX512:
-        return "avx512knl-i32x16";
+        return "avx512knl-x16";
     case Target::SKX_AVX512:
-        return "avx512skx-i32x16";
+        return "avx512skx-x16";
     default:
         FATAL("Unhandled target in ISAToTargetString()");
     }
@@ -1942,6 +1942,8 @@ Opt::Opt() {
     disableZMM = false;
 #ifdef ISPC_XE_ENABLED
     disableXeGatherCoalescing = false;
+    thresholdForXeGatherCoalescing = 0;
+    buildLLVMLoadsOnXeGatherCoalescing = false;
     enableForeachInsideVarying = false;
     emitXeHardwareMask = false;
     enableXeUnsafeMaskedLoad = false;
@@ -1954,12 +1956,15 @@ Opt::Opt() {
 Globals::Globals() {
     target_registry = TargetLibRegistry::getTargetLibRegistry();
 
-    mathLib = Globals::Math_ISPC;
-    codegenOptLevel = Globals::Aggressive;
+    mathLib = Globals::MathLib::Math_ISPC;
+    codegenOptLevel = Globals::CodegenOptLevel::Aggressive;
 
     includeStdlib = true;
     runCPP = true;
+    onlyCPP = false;
+    ignoreCPPErrors = false;
     debugPrint = false;
+    astDump = Globals::ASTDumpKind::None;
     dumpFile = false;
     printTarget = false;
     NoOmitFramePointer = false;
@@ -2040,7 +2045,7 @@ llvm::DINamespace *SourcePos::GetDINamespace() const {
 }
 
 void SourcePos::Print() const {
-    printf(" @ [%s:%d.%d - %d.%d] ", name, first_line, first_column, last_line, last_column);
+    printf(" <%s:%d.%d - %d.%d> ", name, first_line, first_column, last_line, last_column);
 }
 
 bool SourcePos::operator==(const SourcePos &p2) const {

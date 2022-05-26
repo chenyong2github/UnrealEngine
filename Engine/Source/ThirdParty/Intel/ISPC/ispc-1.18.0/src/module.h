@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010-2021, Intel Corporation
+  Copyright (c) 2010-2022, Intel Corporation
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -123,6 +123,7 @@ class Module {
         Deps,        /** generate dependencies */
         DevStub,     /** generate device-side offload stubs */
         HostStub,    /** generate host-side offload stubs */
+        CPPStub,     /** generate preprocessed stubs (-E mode) */
 #ifdef ISPC_XE_ENABLED
         ZEBIN, /** generate L0 binary file */
         SPIRV, /** generate spir-v file */
@@ -183,9 +184,29 @@ class Module {
 
     llvm::DICompileUnit *diCompileUnit;
 
+    /** StructType cache.  This needs to be in the context of Module, so it's reset for
+        any new Module in multi-target compilation.
+
+        We maintain a map from struct names to LLVM struct types so that we can
+        uniquely get the llvm::StructType * for a given ispc struct type.  Note
+        that we need to mangle the name a bit so that we can e.g. differentiate
+        between the uniform and varying variants of a given struct type.  This
+        is handled by lMangleStructName() below. */
+    std::map<std::string, llvm::StructType *> structTypeMap;
+
   private:
     const char *filename;
     AST *ast;
+
+    // Definition and member object capturing preprocessing stream during Module lifetime.
+    struct CPPBuffer {
+        CPPBuffer() : str{}, os{std::make_unique<llvm::raw_string_ostream>(str)} {}
+        ~CPPBuffer() = default;
+        std::string str;
+        std::unique_ptr<llvm::raw_string_ostream> os;
+    };
+
+    std::unique_ptr<CPPBuffer> bufferCPP;
 
     std::vector<std::pair<const Type *, SourcePos>> exportedTypes;
 
@@ -201,7 +222,9 @@ class Module {
                    const char *srcFilename = NULL);
     bool writeDevStub(const char *filename);
     bool writeHostStub(const char *filename);
+    bool writeCPPStub(const char *outFileName);
     bool writeObjectFileOrAssembly(OutputType outputType, const char *filename);
+    static bool writeCPPStub(Module *module, const char *outFileName);
     static bool writeObjectFileOrAssembly(llvm::TargetMachine *targetMachine, llvm::Module *module,
                                           OutputType outputType, const char *outFileName);
     static bool writeBitcode(llvm::Module *module, const char *outFileName, OutputType outputType);
@@ -210,7 +233,13 @@ class Module {
     static bool writeSPIRV(llvm::Module *module, const char *outFileName);
     static bool writeZEBin(llvm::Module *module, const char *outFileName);
 #endif
-    void execPreprocessor(const char *infilename, llvm::raw_string_ostream *ostream) const;
+
+    /** Run the preprocessor on the given file, writing to the output stream.
+        Returns the number of diagnostic errors encountered. */
+    int execPreprocessor(const char *infilename, llvm::raw_string_ostream *ostream) const;
+
+    /** Helper function to clean internal CPP buffer. **/
+    void clearCPPBuffer();
 };
 
 inline Module::OutputFlags &operator|=(Module::OutputFlags &lhs, const __underlying_type(Module::OutputFlags) rhs) {

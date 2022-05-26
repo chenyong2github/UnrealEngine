@@ -113,6 +113,7 @@ static void lPrintVersion() {
     printf("    [--dllexport]\t\t\tMake non-static functions DLL exported.  Windows target only\n");
     printf("    [--dwarf-version={2,3,4}]\t\tGenerate source-level debug information with given DWARF version "
            "(triggers -g).  Ignored for Windows target\n");
+    printf("    [-E]\t\t\t\tRun only the preprocessor\n");
     printf("    [--emit-asm]\t\t\tGenerate assembly language file as output\n");
     printf("    [--emit-llvm]\t\t\tEmit LLVM bitcode file as output\n");
     printf("    [--emit-llvm-text]\t\t\tEmit LLVM bitcode file as output in textual form\n");
@@ -134,6 +135,7 @@ static void lPrintVersion() {
     printf("    [--host-stub <filename>]\t\tEmit host-side offload stub functions to file\n");
     printf("    [-h <name>/--header-outfile=<name>]\tOutput filename for header\n");
     printf("    [-I <path>]\t\t\t\tAdd <path> to #include file search path\n");
+    printf("    [--ignore-preprocessor-errors]\tSuppress errors from the preprocessor\n");
     printf("    [--instrument]\t\t\tEmit instrumentation to gather performance data\n");
     printf("    [--math-lib=<option>]\t\tSelect math library\n");
     printf("        default\t\t\t\tUse ispc's built-in math functions\n");
@@ -208,6 +210,8 @@ static void lPrintVersion() {
 [[noreturn]] static void devUsage(int ret) {
     lPrintVersion();
     printf("\nusage (developer options): ispc\n");
+    printf("    [--ast-dump=user|all]\t\tDump AST for user code or all the code including stdlib. If no argument is "
+           "given, dump AST for user code only\n");
     printf("    [--debug]\t\t\t\tPrint information useful for debugging ispc\n");
     printf("    [--debug-llvm]\t\t\tEnable LLVM debugging information (dumps to stderr)\n");
 #ifndef ISPC_NO_DUMPS
@@ -234,6 +238,10 @@ static void lPrintVersion() {
     printf("        disable-uniform-memory-optimizations\tDisable uniform-based coherent memory access\n");
 #ifdef ISPC_XE_ENABLED
     printf("        disable-xe-gather-coalescing\t\tDisable Xe gather coalescing\n");
+    printf("        threshold-for-xe-gather-coalescing=<0>\tMinimal number of eliminated memory instructions for "
+           "Xe gather coalescing.\n");
+    printf("        build-llvm-loads-on-xe-gather-coalescing\t\tExperimental: build standard llvm loads on "
+           "Xe gather coalescing.\n");
     printf("        enable-xe-unsafe-masked-load\t\tEnable Xe unsafe masked load\n");
 #endif
     printf("    [--print-target]\t\t\tPrint target's information\n");
@@ -640,6 +648,17 @@ int main(int Argc, char *Argv[]) {
                 errorHandler.AddWarning("Overwriting --arch=%s with --arch=%s", prev_arch_str.c_str(),
                                         arch_str.c_str());
             }
+        } else if (!strcmp(argv[i], "--ast-dump")) {
+            g->astDump = Globals::ASTDumpKind::User;
+        } else if (!strncmp(argv[i], "--ast-dump=", 11)) {
+            const char *ast = argv[i] + 11;
+            if (!strcmp(ast, "user"))
+                g->astDump = Globals::ASTDumpKind::User;
+            else if (!strcmp(ast, "all"))
+                g->astDump = Globals::ASTDumpKind::All;
+            else {
+                errorHandler.AddError("Unknown --ast-dump= value \"%s\".", ast);
+            }
         } else if (!strncmp(argv[i], "--x86-asm-syntax=", 17)) {
             intelAsmSyntax = argv[i] + 17;
             if (!((std::string(intelAsmSyntax) == "intel") || (std::string(intelAsmSyntax) == "att"))) {
@@ -687,6 +706,9 @@ int main(int Argc, char *Argv[]) {
             g->noPragmaOnce = true;
         else if (!strcmp(argv[i], "-g")) {
             g->generateDebuggingSymbols = true;
+        } else if (!strcmp(argv[i], "-E")) {
+            g->onlyCPP = true;
+            ot = Module::CPPStub;
         } else if (!strcmp(argv[i], "--emit-asm"))
             ot = Module::Asm;
         else if (!strcmp(argv[i], "--emit-llvm"))
@@ -709,9 +731,11 @@ int main(int Argc, char *Argv[]) {
             } else {
                 errorHandler.AddError("No path specified after -I option.");
             }
-        } else if (!strncmp(argv[i], "-I", 2))
+        } else if (!strncmp(argv[i], "-I", 2)) {
             lParseInclude(argv[i] + 2);
-        else if (!strcmp(argv[i], "--fuzz-test"))
+        } else if (!strcmp(argv[i], "--ignore-preprocessor-errors")) {
+            g->ignoreCPPErrors = true;
+        } else if (!strcmp(argv[i], "--fuzz-test"))
             g->enableFuzzTest = true;
         else if (!strncmp(argv[i], "--fuzz-seed=", 12))
             g->fuzzTestSeed = atoi(argv[i] + 12);
@@ -747,13 +771,13 @@ int main(int Argc, char *Argv[]) {
         } else if (!strncmp(argv[i], "--math-lib=", 11)) {
             const char *lib = argv[i] + 11;
             if (!strcmp(lib, "default"))
-                g->mathLib = Globals::Math_ISPC;
+                g->mathLib = Globals::MathLib::Math_ISPC;
             else if (!strcmp(lib, "fast"))
-                g->mathLib = Globals::Math_ISPCFast;
+                g->mathLib = Globals::MathLib::Math_ISPCFast;
             else if (!strcmp(lib, "svml"))
-                g->mathLib = Globals::Math_SVML;
+                g->mathLib = Globals::MathLib::Math_SVML;
             else if (!strcmp(lib, "system"))
-                g->mathLib = Globals::Math_System;
+                g->mathLib = Globals::MathLib::Math_System;
             else {
                 errorHandler.AddError("Unknown --math-lib= option \"%s\".", lib);
             }
@@ -799,6 +823,10 @@ int main(int Argc, char *Argv[]) {
 #ifdef ISPC_XE_ENABLED
             else if (!strcmp(opt, "disable-xe-gather-coalescing"))
                 g->opt.disableXeGatherCoalescing = true;
+            else if (!strncmp(opt, "threshold-for-xe-gather-coalescing=", 37))
+                g->opt.thresholdForXeGatherCoalescing = atoi(opt + 37);
+            else if (!strcmp(opt, "build-llvm-loads-on-xe-gather-coalescing"))
+                g->opt.buildLLVMLoadsOnXeGatherCoalescing = true;
             else if (!strcmp(opt, "emit-xe-hardware-mask"))
                 g->opt.emitXeHardwareMask = true;
             else if (!strcmp(opt, "enable-xe-foreach-varying"))
@@ -1019,6 +1047,10 @@ int main(int Argc, char *Argv[]) {
         Warning(SourcePos(), "Both -M and -MMM specified on the command line. "
                              "-MMM takes precedence.");
         flags &= Module::GenerateMakeRuleForDeps;
+    }
+
+    if (g->onlyCPP && outFileName == nullptr) {
+        outFileName = "-"; // Assume stdout by default (-E mode)
     }
 
     if (outFileName == NULL && headerFileName == NULL &&

@@ -436,40 +436,15 @@ def run_test(testname, host, target):
 
         # Figure out target width
         width = -1
-        target_match = re.match('(.*-i[0-9]*x)([0-9]*)', options.target)
+        target_match = re.match('.*-(i[0-9]*)?x([0-9]*)', options.target)
         # If target does not contain width in a standard way:
         if target_match == None:
-            if re.match('(sse[0-9]*-x2)', options.target) != None:
-                width = 8
-            elif re.match('(sse[0-9]*)', options.target) != None:
-                width = 4
-            elif re.match('(avx[0-9]*-x2)', options.target) != None:
-                width = 16
-            elif re.match('(avx[0-9]*)', options.target) != None:
-                width = 8
-            elif options.target == "neon":
-                width = 4
-            elif re.search('gen9', options.target) != None:
-                width = 16
-                target_match = re.match('(gen9-x)([0-9]*)', options.target)
-                if target_match != None:
-                    width = int(target_match.group(2))
-                else:
-                    width = 16
-            elif re.search('xe', options.target) != None:
-                width = 16
-                target_match = re.match('(xe.*-x)([0-9]*)', options.target)
-                if target_match != None:
-                    width = int(target_match.group(2))
-                else:
-                    width = 16
-        else:
-            width = int(target_match.group(2))
-        if width == -1:
-            error("unable to determine target width for target %s\n" % options.target, 0)
+            error("Unable to detect the target width for target %s\nOnly canonical form of the target names is supported, depricated forms are not supported" % options.target, 0)
             return Status.Compfail
+        width = int(target_match.group(2))
+
         if match == -1:
-            error("unable to find function signature in test %s\n" % testname, 0)
+            error("Unable to find function signature in test %s\n" % testname, 0)
             return Status.Compfail
         else:
             xe_target = options.target
@@ -781,7 +756,7 @@ def verify():
               "sse4-i32x4", "sse4-i32x8", "sse4-i16x8", "sse4-i8x16",
               "avx1-i32x4", "avx1-i32x8", "avx1-i32x16", "avx1-i64x4",
               "avx2-i32x4", "avx2-i32x8", "avx2-i32x16", "avx2-i64x4",
-              "avx512knl-i32x16", "avx512skx-i32x16", "avx512skx-i32x8", "avx512skx-i32x4", "avx512skx-i8x64", "avx512skx-i16x32"]]
+              "avx512knl-x16", "avx512skx-x16", "avx512skx-x8", "avx512skx-x4", "avx512skx-x64", "avx512skx-x32"]]
     for i in range (0,len(f_lines)):
         if f_lines[i][0] == "%":
             continue
@@ -1078,7 +1053,7 @@ if __name__ == "__main__":
     parser.add_option("-f", "--ispc-flags", dest="ispc_flags", help="Additional flags for ispc (-g, -O1, ...)",
                   default="")
     parser.add_option('-t', '--target', dest='target',
-                  help=('Set compilation target. For example: sse4-i32x4, avx2-i32x8, avx512skx-i32x16, etc.'), default=default_target)
+                  help=('Set compilation target. For example: sse4-i32x4, avx2-i32x8, avx512skx-x16, etc.'), default=default_target)
     parser.add_option('-a', '--arch', dest='arch',
                   help='Set architecture (arm, aarch64, x86, x86-64, xe32, xe64)', default=default_arch)
     parser.add_option("-c", "--compiler", dest="compiler_exe", help="C/C++ compiler binary to use to run tests",
