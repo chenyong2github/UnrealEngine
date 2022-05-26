@@ -52,7 +52,7 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	UMetasoundEditorGraphBase* Graph;
+	TObjectPtr<UMetasoundEditorGraphBase> Graph;
 #endif // WITH_EDITORONLY_DATA
 
 public:

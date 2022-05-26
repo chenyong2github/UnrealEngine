@@ -88,7 +88,7 @@ private:
 	TArray<FString> AsString;
 
 	UPROPERTY()
-	TArray<UObject*> AsUObject;
+	TArray<TObjectPtr<UObject>> AsUObject;
 
 public:
 	// Returns true if the stored Type is an array type.

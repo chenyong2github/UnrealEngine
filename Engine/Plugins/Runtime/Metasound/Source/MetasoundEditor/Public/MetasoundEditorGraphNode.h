@@ -166,7 +166,7 @@ class UMetasoundEditorGraphOutputNode : public UMetasoundEditorGraphMemberNode
 
 public:
 	UPROPERTY()
-	UMetasoundEditorGraphOutput* Output;
+	TObjectPtr<UMetasoundEditorGraphOutput> Output;
 
 	virtual FMetasoundFrontendClassName GetClassName() const override;
 	virtual FGuid GetNodeID() const override;
@@ -258,7 +258,7 @@ protected:
 public:
 	// Associated graph variable.
 	UPROPERTY()
-	UMetasoundEditorGraphVariable* Variable;
+	TObjectPtr<UMetasoundEditorGraphVariable> Variable;
 
 	// Variables do not have titles to distinguish more visually from vertex types
 	virtual void CacheTitle() override { }

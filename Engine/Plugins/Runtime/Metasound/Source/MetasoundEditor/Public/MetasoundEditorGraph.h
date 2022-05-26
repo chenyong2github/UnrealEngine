@@ -172,7 +172,7 @@ public:
 protected:
 	/** Default literal value of member */
 	UPROPERTY()
-	UMetasoundEditorGraphMemberDefaultLiteral* Literal;
+	TObjectPtr<UMetasoundEditorGraphMemberDefaultLiteral> Literal;
 
 	/** Conforms literal object type to member's DataType */
 	void ConformLiteralDataType();

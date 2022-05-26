@@ -341,7 +341,9 @@ EMetasoundFrontendLiteralType UMetasoundEditorGraphMemberDefaultObject::GetLiter
 
 void UMetasoundEditorGraphMemberDefaultObject::SetFromLiteral(const FMetasoundFrontendLiteral& InLiteral)
 {
-	ensure(InLiteral.TryGet(Default.Object));
+	UObject* Object = nullptr;
+	ensure(InLiteral.TryGet(Object));
+	Default.Object = Object;
 }
 
 void UMetasoundEditorGraphMemberDefaultObject::UpdatePreviewInstance(const Metasound::FVertexName& InParameterName, TScriptInterface<IAudioParameterControllerInterface>& InParameterInterface) const
