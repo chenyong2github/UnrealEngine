@@ -8,6 +8,7 @@ using System.Reflection;
 using EpicGames.Core;
 using UnrealBuildBase;
 using Microsoft.Extensions.Logging;
+using System.Runtime.Serialization;
 
 namespace UnrealBuildTool
 {
@@ -1826,6 +1827,53 @@ namespace UnrealBuildTool
 		/// </summary>
 		[ConfigSubObject]
 		public WindowsTargetRules WindowsPlatform; // Requires 'this' parameter; initialized in constructor
+
+		/// <summary>
+		/// Create a TargetRules instance
+		/// </summary>
+		/// <param name="RulesType">Type to create</param>
+		/// <param name="TargetInfo">Target info</param>
+		/// <param name="BaseFile">Path to the file for the rules assembly</param>
+		/// <param name="PlatformFile">Path to the platform specific rules file</param>
+		/// <param name="DefaultBuildSettings"></param>
+		/// <param name="Logger">Logger for the new target rules</param>
+		/// <returns>Target instance</returns>
+		public static TargetRules Create(Type RulesType, TargetInfo TargetInfo, FileReference? BaseFile, FileReference? PlatformFile, BuildSettingsVersion? DefaultBuildSettings, ILogger Logger)
+		{
+			TargetRules Rules = (TargetRules)FormatterServices.GetUninitializedObject(RulesType);
+			if (DefaultBuildSettings.HasValue)
+			{
+				Rules.DefaultBuildSettings = DefaultBuildSettings.Value;
+			}
+
+			// The base target file name: this affects where the resulting build product is created so the platform/group is not desired in this case.
+			Rules.File = BaseFile;
+
+			// The platform/group-specific target file name
+			Rules.TargetSourceFile = PlatformFile;
+
+			// Initialize the logger
+			Rules.Logger = Logger;
+
+			// Find the constructor
+			ConstructorInfo? Constructor = RulesType.GetConstructor(new Type[] { typeof(TargetInfo) });
+			if (Constructor == null)
+			{
+				throw new BuildException("No constructor found on {0} which takes an argument of type TargetInfo.", RulesType.Name);
+			}
+
+			// Invoke the regular constructor
+			try
+			{
+				Constructor.Invoke(Rules, new object[] { TargetInfo });
+			}
+			catch (Exception Ex)
+			{
+				throw new BuildException(Ex, "Unable to instantiate instance of '{0}' object type from compiled assembly '{1}'.  Unreal Build Tool creates an instance of your module's 'Rules' object in order to find out about your module's requirements.  The CLR exception details may provide more information:  {2}", RulesType.Name, Path.GetFileNameWithoutExtension(RulesType.Assembly?.Location), Ex.ToString());
+			}
+
+			return Rules;
+		}
 
 		/// <summary>
 		/// Constructor.

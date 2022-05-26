@@ -10,6 +10,7 @@ using System.Diagnostics;
 using EpicGames.Core;
 using System.Reflection;
 using UnrealBuildBase;
+using System.Runtime.Serialization;
 
 namespace AutomationTool
 {
@@ -783,7 +784,7 @@ namespace AutomationTool
 
 					// Create an instance of this type
 					CommandUtils.LogVerbose("Creating target rules object: {0}", TargetType.Name);
-					TargetRules Rules = Activator.CreateInstance(TargetType, DummyTargetInfo) as TargetRules;
+					TargetRules Rules = TargetRules.Create(TargetType, DummyTargetInfo, null, null, null, Log.Logger);
 					CommandUtils.LogVerbose("Adding target: {0} ({1})", TargetType.Name, Rules.Type);
 
 					SingleTargetProperties TargetData = new SingleTargetProperties();

@@ -583,37 +583,9 @@ namespace UnrealBuildTool
 
 			// Create an instance of the module's rules object, and set some defaults before calling the constructor.
 			Type RulesType = PlatformRulesType ?? BaseRulesType;
-			TargetRules Rules = (TargetRules)FormatterServices.GetUninitializedObject(RulesType);
-			if (DefaultBuildSettings.HasValue)
-			{
-				Rules.DefaultBuildSettings = DefaultBuildSettings.Value;
-			}
-
-			// The base target file name: this affects where the resulting build product is created so the platform/group is not desired in this case.
-			Rules.File = TargetNameToTargetFile[TargetInfo.Name];
-
-			// The platform/group-specific target file name
-			Rules.TargetSourceFile = TargetNameToTargetFile.TryGetValue(PlatformRulesName, out FileReference? PlatformTargetFile) ? PlatformTargetFile : Rules.File;
-
-			// Initialize the logger
-			Rules.Logger = Logger;
-
-			// Find the constructor
-			ConstructorInfo? Constructor = RulesType.GetConstructor(new Type[] { typeof(TargetInfo) });
-			if(Constructor == null)
-			{
-				throw new BuildException("No constructor found on {0} which takes an argument of type TargetInfo.", RulesType.Name);
-			}
-
-			// Invoke the regular constructor
-			try
-			{
-				Constructor.Invoke(Rules, new object[] { TargetInfo });
-			}
-			catch (Exception Ex)
-			{
-				throw new BuildException(Ex, "Unable to instantiate instance of '{0}' object type from compiled assembly '{1}'.  Unreal Build Tool creates an instance of your module's 'Rules' object in order to find out about your module's requirements.  The CLR exception details may provide more information:  {2}", TypeName, Path.GetFileNameWithoutExtension(CompiledAssembly?.Location), Ex.ToString());
-			}
+			FileReference BaseFile = TargetNameToTargetFile[TargetInfo.Name];
+			FileReference PlatformFile = TargetNameToTargetFile.TryGetValue(PlatformRulesName, out FileReference? PlatformTargetFile) ? PlatformTargetFile : BaseFile;
+			TargetRules Rules = TargetRules.Create(RulesType, TargetInfo, BaseFile, PlatformFile, DefaultBuildSettings, Logger);
 
 			// Set the default overriddes for the configured target type
 			Rules.SetOverridesForTargetType();
