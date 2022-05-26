@@ -21,7 +21,7 @@ public:
 	UFUNCTION(Server, unreliable)
 	void ServerRPCBufferInput(UAsyncPhysicsData* AsyncPhysicsData);
 
-	void OnDispatchPhysicsTick(int32 PhysicsStep, int32 NumSteps);
+	void OnDispatchPhysicsTick(int32 PhysicsStep, int32 NumSteps, int32 ServerFrame);
 
 	APlayerController* GetPlayerController();
 
