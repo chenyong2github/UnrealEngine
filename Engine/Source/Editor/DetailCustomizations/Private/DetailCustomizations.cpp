@@ -753,6 +753,14 @@ void FDetailCustomizationsModule::RegisterSectionMappings()
 			Section->AddCategory("Foliage");
 		}
 	}
+
+	// Geometry Collections
+	{
+		{
+			TSharedRef<FPropertySection> Section = PropertyModule.FindOrCreateSection("GeometryCollectionComponent", "GC", LOCTEXT("GC", "GC"));
+			Section->AddCategory("ChaosPhysics");
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
