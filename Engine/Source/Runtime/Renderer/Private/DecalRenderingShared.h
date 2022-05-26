@@ -19,12 +19,12 @@ struct FTransientDecalRenderData
 {
 	const FMaterialRenderProxy* MaterialProxy;
 	const FMaterial* MaterialResource;
-	const FDeferredDecalProxy* DecalProxy;
-	FDecalBlendDesc DecalBlendDesc;
+	const FDeferredDecalProxy& Proxy;
+	FDecalBlendDesc BlendDesc;
 	float FadeAlpha;
 	float ConservativeRadius;
 
-	FTransientDecalRenderData(const FScene& InScene, const FDeferredDecalProxy* InDecalProxy, float InConservativeRadius);
+	FTransientDecalRenderData(const FScene& InScene, const FDeferredDecalProxy& InDecalProxy, float InConservativeRadius);
 };
 	
 typedef TArray<FTransientDecalRenderData, SceneRenderingAllocator> FTransientDecalRenderDataList;
@@ -38,6 +38,7 @@ namespace DecalRendering
 	float CalculateDecalFadeAlpha(float DecalFadeScreenSize, const FMatrix& ComponentToWorldMatrix, const FViewInfo& View, float FadeMultiplier);
 	FMatrix ComputeComponentToClipMatrix(const FViewInfo& View, const FMatrix& DecalComponentToWorld);
 	void SetVertexShaderOnly(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, const FViewInfo& View, const FMatrix& FrustumComponentToClip);
+	void SortDecalList(FTransientDecalRenderDataList& Decals);
 	bool BuildVisibleDecalList(const FScene& Scene, const FViewInfo& View, EDecalRenderStage DecalRenderStage, FTransientDecalRenderDataList* OutVisibleDecals);
 	void SetShader(FRHICommandList& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, uint32 StencilRef, const FViewInfo& View, const FTransientDecalRenderData& DecalData, EDecalRenderStage DecalRenderStage, const FMatrix& FrustumComponentToClip);
 };

@@ -73,7 +73,7 @@ void RenderDeferredDecalsMobile(FRHICommandListImmediate& RHICmdList, const FSce
 		for (int32 DecalIndex = 0; DecalIndex < SortedDecalCount; DecalIndex++)
 		{
 			const FTransientDecalRenderData& DecalData = SortedDecals[DecalIndex];
-			const FDeferredDecalProxy& DecalProxy = *DecalData.DecalProxy;
+			const FDeferredDecalProxy& DecalProxy = DecalData.Proxy;
 			const FMatrix ComponentToWorldMatrix = DecalProxy.ComponentTrans.ToMatrixWithScale();
 			const FMatrix FrustumComponentToClip = DecalRendering::ComputeComponentToClipMatrix(View, ComponentToWorldMatrix);
 
@@ -105,7 +105,7 @@ void RenderDeferredDecalsMobile(FRHICommandListImmediate& RHICmdList, const FSce
 					GET_STENCIL_BIT_MASK(RECEIVE_DECAL, 1), 0x00>::GetRHI();
 			}
 
-			GraphicsPSOInit.BlendState = DecalRendering::GetDecalBlendState(DecalData.DecalBlendDesc, DecalRenderStage, RenderTargetMode);
+			GraphicsPSOInit.BlendState = DecalRendering::GetDecalBlendState(DecalData.BlendDesc, DecalRenderStage, RenderTargetMode);
 
 			// Set shader params
 			DecalRendering::SetShader(RHICmdList, GraphicsPSOInit, 0, View, DecalData, DecalRenderStage, FrustumComponentToClip);

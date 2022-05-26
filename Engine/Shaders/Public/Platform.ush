@@ -172,6 +172,10 @@
 #define PLATFORM_SUPPORTS_SRV_UB_MACRO(...)
 #endif
 
+#ifndef PLATFORM_SUPPORTS_CALLABLE_SHADERS
+#define PLATFORM_SUPPORTS_CALLABLE_SHADERS 0
+#endif
+
 // Whether the platforms support official SM6 wave intrinsics
 // https://github.com/Microsoft/DirectXShaderCompiler/wiki/Wave-Intrinsics
 #ifndef PLATFORM_SUPPORTS_SM6_0_WAVE_OPERATIONS

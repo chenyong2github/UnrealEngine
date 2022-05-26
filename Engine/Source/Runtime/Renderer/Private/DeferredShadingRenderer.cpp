@@ -37,6 +37,7 @@
 #include "GPUScene.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RayTracing/RayTracingLighting.h"
+#include "RayTracing/RayTracingDecals.h"
 #include "RayTracing/RayTracingScene.h"
 #include "RayTracingDynamicGeometryCollection.h"
 #include "RayTracingSkinnedGeometry.h"
@@ -2189,6 +2190,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Prepare the scene for rendering this frame.
 	GatherRayTracingWorldInstancesForView(GraphBuilder, ReferenceView, RayTracingScene);
+
+	if (ActiveViewFamily->EngineShowFlags.PathTracing)
+	{
+		ReferenceView.RayTracingDecalUniformBuffer = CreateRayTracingDecalData(GraphBuilder, *Scene, ReferenceView, RayTracingScene.NumCallableShaderSlots);
+		RayTracingScene.NumCallableShaderSlots += Scene->Decals.Num();
+	}
 
 #endif // RHI_RAYTRACING
 

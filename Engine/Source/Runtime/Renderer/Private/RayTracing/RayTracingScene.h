@@ -86,6 +86,9 @@ public:
 	uint32 NumCallableShaderSlots = 0;
 	TArray<FRayTracingShaderCommand> CallableCommands;
 
+	// Helper array to hold references to single frame uniform buffers used in SBTs
+	TArray<FUniformBufferRHIRef> UniformBuffers;
+
 	// Geometries which still have a pending build request but are used this frame and require a force build.
 	TArray<const FRayTracingGeometry*> GeometriesToBuild;
 

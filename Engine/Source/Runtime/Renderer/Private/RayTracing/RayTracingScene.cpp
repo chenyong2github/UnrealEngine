@@ -278,6 +278,7 @@ void FRayTracingScene::Reset()
 	Instances.Reset();
 	NumCallableShaderSlots = 0;
 	CallableCommands.Reset();
+	UniformBuffers.Reset();
 	GeometriesToBuild.Reset();
 	UsedCoarseMeshStreamingHandles.Reset();
 
@@ -292,6 +293,7 @@ void FRayTracingScene::ResetAndReleaseResources()
 
 	Instances.Empty();
 	CallableCommands.Empty();
+	UniformBuffers.Empty();
 	GeometriesToBuild.Empty();
 	UsedCoarseMeshStreamingHandles.Empty();
 	RayTracingSceneBuffer = nullptr;

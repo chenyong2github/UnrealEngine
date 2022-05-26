@@ -21,15 +21,15 @@ static TAutoConsoleVariable<float> CVarDecalFadeScreenSizeMultiplier(
 	TEXT("  Smaller means decals fade less aggressively.")
 	);
 
-FTransientDecalRenderData::FTransientDecalRenderData(const FScene& InScene, const FDeferredDecalProxy* InDecalProxy, float InConservativeRadius)
-	: DecalProxy(InDecalProxy)
+FTransientDecalRenderData::FTransientDecalRenderData(const FScene& InScene, const FDeferredDecalProxy& InDecalProxy, float InConservativeRadius)
+	: Proxy(InDecalProxy)
 	, FadeAlpha(1.0f)
 	, ConservativeRadius(InConservativeRadius)
 {
-	MaterialProxy = InDecalProxy->DecalMaterial->GetRenderProxy();
+	MaterialProxy = Proxy.DecalMaterial->GetRenderProxy();
 	MaterialResource = &MaterialProxy->GetMaterialWithFallback(InScene.GetFeatureLevel(), MaterialProxy);
 	check(MaterialProxy && MaterialResource);
-	DecalBlendDesc = DecalRendering::ComputeDecalBlendDesc(InScene.GetShaderPlatform(), *MaterialResource);
+	BlendDesc = DecalRendering::ComputeDecalBlendDesc(InScene.GetShaderPlatform(), *MaterialResource);
 }
 
 /**
@@ -233,6 +233,43 @@ namespace DecalRendering
 		return FMath::Clamp(Alpha, 0.0f, 1.0f);
 	}
 
+	void SortDecalList(FTransientDecalRenderDataList& Decals)
+	{
+		// Sort by sort order to allow control over composited result
+		// Then sort decals by state to reduce render target switches
+		// Also sort by component since Sort() is not stable
+		struct FCompareFTransientDecalRenderData
+		{
+			FORCEINLINE bool operator()(const FTransientDecalRenderData& A, const FTransientDecalRenderData& B) const
+			{
+				if (B.Proxy.SortOrder != A.Proxy.SortOrder)
+				{ 
+					return A.Proxy.SortOrder < B.Proxy.SortOrder;
+				}
+				if (B.BlendDesc.bWriteNormal != A.BlendDesc.bWriteNormal)
+				{
+					// bWriteNormal here has priority because we want to render decals that output normals before those could read normals.
+					// Also this is the only flag that can trigger a change of EDecalRenderTargetMode inside a single EDecalRenderStage, and we batch according to this.
+					return B.BlendDesc.bWriteNormal < A.BlendDesc.bWriteNormal; // < so that those outputting normal are first.
+				}
+				if (B.BlendDesc.Packed != A.BlendDesc.Packed)
+				{
+					// Sorting by the FDecalBlendDesc contents will reduce blend state changes.
+					return (int32)B.BlendDesc.Packed < (int32)A.BlendDesc.Packed;
+				}
+				if (B.MaterialProxy != A.MaterialProxy)
+				{
+					// Batch decals with the same material together
+					return B.MaterialProxy < A.MaterialProxy;
+				}
+				return (PTRINT)B.Proxy.Component < (PTRINT)A.Proxy.Component;
+			}
+		};
+
+		// Sort decals by blend mode to reduce render target switches
+		Decals.Sort(FCompareFTransientDecalRenderData());
+	}
+
 	bool BuildVisibleDecalList(const FScene& Scene, const FViewInfo& View, EDecalRenderStage DecalRenderStage, FTransientDecalRenderDataList* OutVisibleDecals)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(BuildVisibleDecalList);
@@ -285,13 +322,13 @@ namespace DecalRendering
 
 			if (bIsShown)
 			{
-				FTransientDecalRenderData Data(Scene, DecalProxy, ConservativeRadius);
+				FTransientDecalRenderData Data(Scene, *DecalProxy, ConservativeRadius);
 			
-				if (IsCompatibleWithRenderStage(Data.DecalBlendDesc, DecalRenderStage))
+				if (IsCompatibleWithRenderStage(Data.BlendDesc, DecalRenderStage))
 				{
-					if (bIsPerspectiveProjection && Data.DecalProxy->FadeScreenSize != 0.0f)
+					if (bIsPerspectiveProjection && Data.Proxy.FadeScreenSize != 0.0f)
 					{
-						Data.FadeAlpha = CalculateDecalFadeAlpha(Data.DecalProxy->FadeScreenSize, ComponentToWorldMatrix, View, FadeMultiplier);
+						Data.FadeAlpha = CalculateDecalFadeAlpha(Data.Proxy.FadeScreenSize, ComponentToWorldMatrix, View, FadeMultiplier);
 					}
 
 					const bool bShouldRender = Data.FadeAlpha > 0.0f;
@@ -315,39 +352,7 @@ namespace DecalRendering
 
 		if (OutVisibleDecals->Num() > 0)
 		{
-			// Sort by sort order to allow control over composited result
-			// Then sort decals by state to reduce render target switches
-			// Also sort by component since Sort() is not stable
-			struct FCompareFTransientDecalRenderData
-			{
-				FORCEINLINE bool operator()(const FTransientDecalRenderData& A, const FTransientDecalRenderData& B) const
-				{
-					if (B.DecalProxy->SortOrder != A.DecalProxy->SortOrder)
-					{ 
-						return A.DecalProxy->SortOrder < B.DecalProxy->SortOrder;
-					}
-					if (B.DecalBlendDesc.bWriteNormal != A.DecalBlendDesc.bWriteNormal)
-					{
-						// bWriteNormal here has priority because we want to render decals that output normals before those could read normals.
-						// Also this is the only flag that can trigger a change of EDecalRenderTargetMode inside a single EDecalRenderStage, and we batch according to this.
-						return B.DecalBlendDesc.bWriteNormal < A.DecalBlendDesc.bWriteNormal; // < so that those outputting normal are first.
-					}
-					if (B.DecalBlendDesc.Packed != A.DecalBlendDesc.Packed)
-					{
-						// Sorting by the FDecalBlendDesc contents will reduce blend state changes.
-						return (int32)B.DecalBlendDesc.Packed < (int32)A.DecalBlendDesc.Packed;
-					}
-					if (B.MaterialProxy != A.MaterialProxy)
-					{
-						// Batch decals with the same material together
-						return B.MaterialProxy < A.MaterialProxy;
-					}
-					return (PTRINT)B.DecalProxy->Component < (PTRINT)A.DecalProxy->Component;
-				}
-			};
-
-			// Sort decals by blend mode to reduce render target switches
-			OutVisibleDecals->Sort(FCompareFTransientDecalRenderData());
+			SortDecalList(*OutVisibleDecals);
 
 			return true;
 		}
@@ -406,7 +411,7 @@ namespace DecalRendering
 
 		// Set pixel shader parameters.
 		{
-			PixelShader->SetParameters(RHICmdList, View, DecalData.MaterialProxy, *DecalData.DecalProxy, DecalData.FadeAlpha);
+			PixelShader->SetParameters(RHICmdList, View, DecalData.MaterialProxy, DecalData.Proxy, DecalData.FadeAlpha);
 
 			auto& PrimitivePS = PixelShader->GetUniformBufferParameter<FPrimitiveUniformShaderParameters>();
 

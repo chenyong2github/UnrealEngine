@@ -23,6 +23,7 @@ TAutoConsoleVariable<int32> CVarPathTracing(
 #include "RayTracingDefinitions.h"
 #include "PathTracingDefinitions.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
+#include "RayTracing/RayTracingDecals.h"
 #include "RenderCore/Public/GenerateMips.h"
 #include "HairStrands/HairStrandsData.h"
 #include "Modules/ModuleManager.h"
@@ -259,6 +260,16 @@ TAutoConsoleVariable<int32> CVarPathTracingLightGridVisualize(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingDecalGridVisualize(
+	TEXT("r.PathTracing.DecalGrid.Visualize"),
+	0,
+	TEXT("Enables a visualization mode of the decal grid density where red indicates the maximum decal count has been reached (default = 0)\n")
+	TEXT("0: off (default)\n")
+	TEXT("1: decal count heatmap (red - close to overflow, increase r.RayTracing.DecalGrid.MaxCount)\n")
+	TEXT("2: unique decal lists (colors are a function of which decals occupy each cell)\n"),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<int32> CVarPathTracingDenoiser(
 	TEXT("r.PathTracing.Denoiser"),
 	-1,
@@ -284,8 +295,10 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPathTracingData, )
 	SHADER_PARAMETER(uint32, EnableEmissive)
 	SHADER_PARAMETER(uint32, SamplerType)
 	SHADER_PARAMETER(uint32, VisualizeLightGrid)
+	SHADER_PARAMETER(uint32, VisualizeDecalGrid)
 	SHADER_PARAMETER(uint32, EnableAtmosphere)
 	SHADER_PARAMETER(uint32, EnableFog)
+	SHADER_PARAMETER(uint32, EnableDecals)
 	SHADER_PARAMETER(int32, MaxRaymarchSteps)
 	SHADER_PARAMETER(float, MaxPathIntensity)
 	SHADER_PARAMETER(float, MaxNormalBias)
@@ -325,11 +338,13 @@ struct FPathTracingConfig
 			PathTracingData.EnableDirectLighting != Other.PathTracingData.EnableDirectLighting ||
 			PathTracingData.EnableEmissive != Other.PathTracingData.EnableEmissive ||
 			PathTracingData.VisualizeLightGrid != Other.PathTracingData.VisualizeLightGrid ||
+			PathTracingData.VisualizeDecalGrid != Other.PathTracingData.VisualizeDecalGrid ||
 			PathTracingData.MaxPathIntensity != Other.PathTracingData.MaxPathIntensity ||
 			PathTracingData.FilterWidth != Other.PathTracingData.FilterWidth ||
 			PathTracingData.AbsorptionScale != Other.PathTracingData.AbsorptionScale ||
 			PathTracingData.EnableAtmosphere != Other.PathTracingData.EnableAtmosphere ||
 			PathTracingData.EnableFog != Other.PathTracingData.EnableFog ||
+			PathTracingData.EnableDecals != Other.PathTracingData.EnableDecals ||
 			PathTracingData.MaxRaymarchSteps != Other.PathTracingData.MaxRaymarchSteps ||
 			ViewRect != Other.ViewRect ||
 			LightShowFlags != Other.LightShowFlags ||
@@ -455,6 +470,7 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 	int32 EnableEmissive = CVarPathTracingEnableEmissive.GetValueOnRenderThread();
 	PathTracingData.EnableEmissive = EnableEmissive < 0 ? View.FinalPostProcessSettings.PathTracingEnableEmissive : EnableEmissive;
 	PathTracingData.VisualizeLightGrid = CVarPathTracingLightGridVisualize.GetValueOnRenderThread();
+	PathTracingData.VisualizeDecalGrid = CVarPathTracingDecalGridVisualize.GetValueOnRenderThread();
 	float FilterWidth = CVarPathTracingFilterWidth.GetValueOnRenderThread();
 	if (FilterWidth < 0)
 	{
@@ -477,6 +493,7 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 		ShouldRenderSkyAtmosphere(Scene, View.Family->EngineShowFlags) && 
 		View.SkyAtmosphereUniformShaderParameters &&
 		View.FinalPostProcessSettings.PathTracingEnableReferenceAtmosphere;
+
 	PathTracingData.EnableFog = ShouldRenderFog(*View.Family)
 		&& Scene->ExponentialFogs.Num() > 0
 		&& Scene->ExponentialFogs[0].bEnableVolumetricFog
@@ -484,6 +501,9 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 		&& Scene->ExponentialFogs[0].VolumetricFogExtinctionScale > 0
 		&& (Scene->ExponentialFogs[0].FogData[0].Density > 0 ||
 			Scene->ExponentialFogs[0].FogData[1].Density > 0);
+
+	PathTracingData.EnableDecals = View.Family->EngineShowFlags.Decals && Scene->Decals.Num() > 0;
+
 	PathTracingData.MaxRaymarchSteps = CVarPathTracingMaxRaymarchSteps.GetValueOnRenderThread();
 }
 
@@ -696,6 +716,9 @@ class FPathTracingRG : public FGlobalShader
 		// IES Profiles
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler) // Shared sampler for all IES profiles
+
+		// scene decals
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRayTracingDecals, DecalParameters)
 
 		// Used by multi-GPU rendering and TDR-avoidance tiling
 		SHADER_PARAMETER(FIntPoint, TilePixelOffset)
@@ -1945,6 +1968,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 						{
 							PassParameters->SceneVisibleLightCount = 0;
 						}
+
+						PassParameters->DecalParameters = View.RayTracingDecalUniformBuffer;
 
 						PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
 						PassParameters->AlbedoTexture = GraphBuilder.CreateUAV(AlbedoTexture);

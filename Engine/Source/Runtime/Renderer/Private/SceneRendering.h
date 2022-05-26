@@ -49,6 +49,7 @@ struct FILCUpdatePrimTaskData;
 class FPostprocessContext;
 struct FILCUpdatePrimTaskData;
 class FRaytracingLightDataPacked;
+class FRayTracingDecals;
 class FRayTracingLocalShaderBindingWriter;
 class FVirtualShadowMapClipmap;
 class FShadowProjectionPassParameters;
@@ -1492,6 +1493,7 @@ public:
 	FShaderResourceViewRHIRef						RayTracingSubSurfaceProfileSRV;
 
 	TRDGUniformBufferRef<FRaytracingLightDataPacked>	RayTracingLightDataUniformBuffer;
+	TRDGUniformBufferRef<FRayTracingDecals>				RayTracingDecalUniformBuffer;
 #endif // RHI_RAYTRACING
 
 	/**

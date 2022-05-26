@@ -52,6 +52,18 @@ struct FPathTracingPackedPathState {
 
 static_assert(sizeof(FPathTracingPackedPathState) == 84, "Packed Path State size should be minimized");
 
+// C++ representation of a decal for ray tracing
+struct FRayTracingDecal
+{
+	FVector3f TranslatedBoundMin;
+	uint32 Pad0;
+	FVector3f TranslatedBoundMax;
+	uint32 CallableSlotIndex;
+	// keep structure aligned
+};
+
+static_assert(sizeof(FRayTracingDecal) == 32, "Ray tracing decal structure should be aligned to 32 bytes for optimal access on the GPU");
+
 #else
 
 // HLSL side of the structs above
@@ -88,6 +100,14 @@ struct FPathTracingPackedPathState {
 	float3    RayDirection;
 	float3    PathThroughput;
 	uint2     PackedRoughnessSigma;
+};
+
+struct FRayTracingDecal
+{
+	float3 TranslatedBoundMin;
+	uint Pad0;
+	float3 TranslatedBoundMax;
+	uint CallableSlotIndex;
 };
 
 #endif

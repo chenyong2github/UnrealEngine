@@ -5,6 +5,7 @@
 #define RANDSEQ_UNROLL_SOBOL PATH_TRACER_USE_COMPACTION // unrolling sobol sampler is best when we can guarantee high occupancy
 
 #define USE_PATH_TRACING_LIGHT_GRID	1
+#define USE_RAY_TRACING_DECAL_GRID	1
 #define USE_ENERGY_CONSERVATION 1
 
 #include "../Common.ush"
@@ -14,6 +15,7 @@
 
 #include "PathTracingCommon.ush"
 #include "../RayTracing/RayTracingHitGroupCommon.ush"
+#include "../RayTracing/RayTracingDecalGrid.ush"
 
 #include "../ShadingModels.ush"
 #include "./Utilities/PathTracingRandomSequence.ush"
@@ -46,6 +48,8 @@ uint EnableDirectLighting;
 uint EnableEmissive;
 uint SamplerType;
 uint VisualizeLightGrid;
+uint VisualizeDecalGrid;
+uint EnableDecals;
 float MaxPathIntensity;
 float MaxNormalBias;
 float FilterWidth;
@@ -315,6 +319,63 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 
 		// Unpack the payload
 		FPathTracingPayload HitPayload = UnpackPathTracingPayloadMaterial(PackedPayload, PathState.Ray);
+
+#if PLATFORM_SUPPORTS_CALLABLE_SHADERS
+		if (EnableDecals)
+		{
+			float3 TranslatedWorldPos = HitPayload.TranslatedWorldPos;
+			float3 WorldNormal = HitPayload.WorldNormal;
+
+			FDecalLoopCount DecalLoopCount = DecalGridLookup(TranslatedWorldPos);
+
+			for (uint Index = 0, Num = DecalLoopCount.NumDecals; Index < Num; ++Index)
+			{
+				uint DecalId = GetDecalId(Index, DecalLoopCount);
+
+				FDecalCallableShaderParams Params;
+				Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.rgb = TranslatedWorldPos;
+				Params.WorldNormal.rgb = HitPayload.WorldNormal;
+				Params.Color = float4(HitPayload.BaseColor, 0.0f);
+				Params.Emissive = float3(0.0f, 0.0f, 0.0f);
+
+				CallShader(DecalId, Params);
+
+				const float DecalAlpha = Params.Color.a;
+
+				float DecalMetallic = Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.r;
+				if (DecalMetallic >= 0)
+				{
+					HitPayload.Metallic = lerp(HitPayload.Metallic, DecalMetallic, DecalAlpha);
+				}
+
+				float DecalSpecular = Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.g;
+				if (DecalSpecular >= 0)
+				{
+					HitPayload.Specular = lerp(HitPayload.Specular, DecalSpecular, DecalAlpha);
+				}
+
+				float3 DecalSpecularColor = ComputeF0(HitPayload.Specular, Params.Color.rgb, HitPayload.Metallic);
+				float3 DecalDiffuseColor = Params.Color.rgb - Params.Color.rgb * HitPayload.Metallic;
+
+				HitPayload.BaseColor = lerp(HitPayload.BaseColor, Params.Color.rgb, DecalAlpha);
+				HitPayload.DiffuseColor = lerp(HitPayload.DiffuseColor, DecalDiffuseColor, DecalAlpha);
+				HitPayload.SpecularColor = lerp(HitPayload.SpecularColor, DecalSpecularColor, DecalAlpha);
+
+				const float DecalRoughness = Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.b;
+				if (DecalRoughness >= 0.0f)
+				{
+					HitPayload.Roughness = lerp(HitPayload.Roughness, DecalRoughness, DecalAlpha);
+				}
+
+				HitPayload.WorldNormal = lerp(HitPayload.WorldNormal, Params.WorldNormal.rgb, DecalAlpha);
+
+				HitPayload.Radiance += Params.Emissive.rgb * DecalAlpha;
+
+				// TODO: DecalAO?
+				// TODO: Payload.Opacity?
+			}
+		}
+#endif
 
 		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ADDITIVE ||
 			HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT)
@@ -954,6 +1015,16 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 	if (VisualizeLightGrid)
 	{
 		PathState.Radiance = LightGridVisualize(LightLoopCount, VisualizeLightGrid);
+		PathState.Radiance *= abs(dot(Payload.WorldNormal, PathState.Ray.Direction));
+		PathState.Radiance /= View.PreExposure; // cancel out exposure
+		return false;
+	}
+
+	// visualize the # of decals
+	if (VisualizeDecalGrid)
+	{
+		FDecalLoopCount DecalLoopCount = DecalGridLookup(Payload.TranslatedWorldPos);
+		PathState.Radiance = DecalGridVisualize(DecalLoopCount, VisualizeDecalGrid);
 		PathState.Radiance *= abs(dot(Payload.WorldNormal, PathState.Ray.Direction));
 		PathState.Radiance /= View.PreExposure; // cancel out exposure
 		return false;

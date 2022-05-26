@@ -857,6 +857,23 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 #endif // !COMPUTESHADER
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Decal parameters
+
+#if !COMPUTESHADER
+
+struct FDecalCallableShaderParams
+{
+	// In order to reduce params size reuse input params to store output
+	// Input: TranslatedWorldPosition / Output: MetallicSpecularRoughnessAO
+	float4 TranslatedWorldPosition_MetallicSpecularRoughnessAO;
+	float4 Color;
+	float3 WorldNormal;
+	float3 Emissive;
+};
+
+#endif // !COMPUTESHADER
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Tracing util functions
 
 #if !COMPUTESHADER
