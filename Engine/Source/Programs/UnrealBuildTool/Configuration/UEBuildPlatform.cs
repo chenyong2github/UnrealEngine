@@ -512,8 +512,7 @@ namespace UnrealBuildTool
 			{
 				return ":";
 			}
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || 
-				BuildHostPlatform.Current.Platform == UnrealTargetPlatform.HoloLens)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
 				return ";";
 			}

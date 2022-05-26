@@ -916,10 +916,6 @@ namespace UnrealBuildTool
 					{
 						SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null, Logger) + ";");
 					}
-					else if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
-					{
-						SharedIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense(), null, Logger) + ";");
-					}
 				}
 				else
 				{

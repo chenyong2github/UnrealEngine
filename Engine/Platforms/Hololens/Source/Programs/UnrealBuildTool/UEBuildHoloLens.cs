@@ -158,6 +158,41 @@ namespace UnrealBuildTool
 	}
 
 	[SupportedOSPlatform("windows")]
+	class HoloLensEnvironment : VCEnvironment
+	{
+		internal HoloLensEnvironment(VCEnvironmentParameters Params, ILogger Logger)
+			: base(Params, Logger)
+		{
+		}
+
+		/// <summary>
+		/// Return the standard Visual C++ library path for the given platform in this toolchain
+		/// </summary>
+		protected override DirectoryReference GetToolChainLibsDir(UnrealTargetPlatform Platform)
+		{
+			string ArchFolder = WindowsExports.GetArchitectureSubpath(Architecture);
+
+			// Add the standard Visual C++ library paths
+			if (ToolChain.IsMSVC())
+			{
+				return DirectoryReference.Combine(ToolChainDir, "lib", ArchFolder, "store");
+			}
+			else
+			{
+				DirectoryReference LibsPath = DirectoryReference.Combine(ToolChainDir, "LIB", "store");
+
+				if (Architecture == WindowsArchitecture.x64)
+				{
+					LibsPath = DirectoryReference.Combine(LibsPath, "amd64");
+				}
+
+				return LibsPath;
+			}
+		}
+	};
+
+
+	[SupportedOSPlatform("windows")]
 	class HoloLensPlatform : WindowsPlatform
 	{
 		public static readonly Version MinimumSDKVersionRecommended = new Version(10, 0, 17763, 0);
@@ -166,6 +201,12 @@ namespace UnrealBuildTool
 		public HoloLensPlatform(MicrosoftPlatformSDK InSDK, ILogger InLogger) 
 			: base(UnrealTargetPlatform.HoloLens, InSDK, InLogger)
 		{
+		}
+
+		protected override VCEnvironment CreateVCEnvironment(TargetRules Target)
+		{
+			VCEnvironmentParameters Params = new VCEnvironmentParameters(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.WindowsPlatform.WindowsSdkVersion, null, Logger);
+			return new HoloLensEnvironment(Params, Logger);
 		}
 
 		public override void ValidateTarget(TargetRules Target)
@@ -244,6 +285,12 @@ namespace UnrealBuildTool
 			{
 				Target.WindowsPlatform.WindowsSdkVersion = Target.HoloLensPlatform.Win10SDKVersionString;
 			}
+
+			// set the correct architecture
+			if (Target.Architecture.ToLower() == "arm64")
+			{
+				Target.WindowsPlatform.Architecture = WindowsArchitecture.ARM64;
+			}			
 
 			base.ValidateTarget(Target);
 

@@ -799,11 +799,7 @@ namespace UnrealBuildTool
 		[SupportedOSPlatform("windows")]
 		public override void ValidateTarget(TargetRules Target)
 		{
-			if (Platform == UnrealTargetPlatform.HoloLens && Target.Architecture.ToLower() == "arm64")
-			{
-				Target.WindowsPlatform.Architecture = WindowsArchitecture.ARM64;
-			}
-			else if (Platform == UnrealTargetPlatform.Win64)
+			if (Platform == UnrealTargetPlatform.Win64)
 			{
 				Target.WindowsPlatform.Architecture = WindowsArchitecture.x64;
 			}

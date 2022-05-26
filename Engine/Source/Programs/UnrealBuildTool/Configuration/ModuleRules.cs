@@ -1288,20 +1288,18 @@ namespace UnrealBuildTool
 					PrivateDependencyModuleNames.Add("APEX");
 					PublicDefinitions.Add("WITH_APEX=1");
 
-// @MIXEDREALITY_CHANGE : BEGIN - Do not use Apex Cloth for HoloLens.  TODO: can we enable this in the future?
-				if (Target.Platform == UnrealTargetPlatform.HoloLens)
-				{
-					PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
-					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
-				}
-				else
-				{
-					PublicDefinitions.Add("WITH_APEX_CLOTHING=1");
-					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
-				}
-// @MIXEDREALITY_CHANGE : END
+					if (Target.Platform.ToString() == "HoloLens") //  Do not use Apex Cloth for HoloLens.  TODO: can we enable this in the future?
+					{
+						PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
+						PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
+					}
+					else
+					{
+						PublicDefinitions.Add("WITH_APEX_CLOTHING=1");
+						PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
+					}
 
-				PublicDefinitions.Add("WITH_PHYSX_COOKING=1");  // APEX currently relies on cooking even at runtime
+					PublicDefinitions.Add("WITH_PHYSX_COOKING=1");  // APEX currently relies on cooking even at runtime
 
 				}
 				else
@@ -1554,7 +1552,7 @@ namespace UnrealBuildTool
 			string? Architecture = null;
 			string Linkage = string.Empty;
 			string Toolset = string.Empty;
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				Platform = "windows";
 				Architecture = Target.WindowsPlatform.Architecture.ToString().ToLowerInvariant();

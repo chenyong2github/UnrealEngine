@@ -282,22 +282,11 @@ namespace UnrealBuildTool
 			// Add the standard Visual C++ library paths
 			if (ToolChain.IsMSVC())
 			{
-				if (Platform == UnrealTargetPlatform.HoloLens)
-				{
-					return DirectoryReference.Combine(ToolChainDir, "lib", ArchFolder, "store");
-				}
-				else
-				{
-					return DirectoryReference.Combine(ToolChainDir, "lib", ArchFolder);
-				}
+				return DirectoryReference.Combine(ToolChainDir, "lib", ArchFolder);
 			}
 			else
 			{
 				DirectoryReference LibsPath = DirectoryReference.Combine(ToolChainDir, "LIB");
-				if (Platform == UnrealTargetPlatform.HoloLens)
-				{
-					LibsPath = DirectoryReference.Combine(LibsPath, "store");
-				}
 
 				if (Architecture == WindowsArchitecture.x64)
 				{

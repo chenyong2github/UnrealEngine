@@ -4130,7 +4130,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					IsCurrentPlatform = Platform.IsInGroup(UnrealPlatformGroup.Windows) || Platform == UnrealTargetPlatform.HoloLens;
+					IsCurrentPlatform = Platform.IsInGroup(UnrealPlatformGroup.Windows);
 				}
 
 				if (IsCurrentPlatform)
