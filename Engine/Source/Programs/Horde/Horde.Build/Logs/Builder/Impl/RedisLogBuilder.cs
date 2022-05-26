@@ -153,7 +153,16 @@ namespace Horde.Build.Logs.Builder
 
 				ReadOnlyLogText subChunkText = new ReadOnlyLogText(subChunkTextValue);
 				LogSubChunkData subChunkData = new LogSubChunkData(type, offset + length - subChunkText.Data.Length, lineIndex - subChunkText.LineCount, subChunkText);
-				byte[] subChunkDataBytes = subChunkData.ToByteArray();
+
+				byte[] subChunkDataBytes;
+				try
+				{
+					subChunkDataBytes = subChunkData.ToByteArray();
+				}
+				catch (Exception ex)
+				{
+					throw new LogTextParseException($"Error while parsing sub-chunk for {logId} offset {offset}", ex);
+				}
 
 				ITransaction writeTransaction = redisDb.CreateTransaction();
 
