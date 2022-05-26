@@ -43,13 +43,19 @@ class FSequencerTrackFilter_ControlRigControls : public FSequencerTrackFilter
 public:
 
 	FSequencerTrackFilter_ControlRigControls()
+		: BindingCount(0)
 	{
 		FSequencerTrackFilter_ControlRigControlsCommands::Register();
 	}
 
 	~FSequencerTrackFilter_ControlRigControls()
 	{
-		FSequencerTrackFilter_ControlRigControlsCommands::Unregister();
+		BindingCount--;
+
+		if (BindingCount < 1)
+		{
+			FSequencerTrackFilter_ControlRigControlsCommands::Unregister();
+		}
 	}
 
 	virtual FString GetName() const override { return TEXT("ControlRigControlsFilter"); }
@@ -69,11 +75,6 @@ public:
 
 	virtual FText GetToolTipText() const override
 	{
-		if (!FSequencerTrackFilter_ControlRigControlsCommands::IsRegistered())
-		{
-			FSequencerTrackFilter_ControlRigControlsCommands::Register();
-		}
-
 		const FSequencerTrackFilter_ControlRigControlsCommands& Commands = FSequencerTrackFilter_ControlRigControlsCommands::Get();
 
 		const TSharedRef<const FInputChord> FirstActiveChord = Commands.ToggleControlRigControls->GetFirstValidChord();
@@ -89,12 +90,6 @@ public:
 
 	virtual void BindCommands(TSharedRef<FUICommandList> SequencerBindings, TSharedRef<FUICommandList> CurveEditorBindings, TWeakPtr<ISequencer> Sequencer) override
 	{
-		// See comment above
-		if (!FSequencerTrackFilter_ControlRigControlsCommands::IsRegistered())
-		{
-			FSequencerTrackFilter_ControlRigControlsCommands::Register();
-		}
-
 		const FSequencerTrackFilter_ControlRigControlsCommands& Commands = FSequencerTrackFilter_ControlRigControlsCommands::Get();
 
 		SequencerBindings->MapAction(
@@ -105,6 +100,9 @@ public:
 
 		CurveEditorBindings->MapAction(Commands.ToggleControlRigControls, *SequencerBindings->GetActionForCommand(Commands.ToggleControlRigControls));
 	}
+
+private:
+	mutable uint32 BindingCount;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -140,13 +138,19 @@ class FSequencerTrackFilter_ControlRigSelectedControls : public FSequencerTrackF
 public:
 
 	FSequencerTrackFilter_ControlRigSelectedControls()
+		: BindingCount(0)
 	{
 		FSequencerTrackFilter_ControlRigSelectedControlsCommands::Register();
 	}
 
 	~FSequencerTrackFilter_ControlRigSelectedControls()
 	{
-		FSequencerTrackFilter_ControlRigSelectedControlsCommands::Unregister();
+		BindingCount--;
+
+		if (BindingCount < 1)
+		{
+			FSequencerTrackFilter_ControlRigSelectedControlsCommands::Unregister();
+		}
 	}
 
 	virtual FString GetName() const override { return TEXT("ControlRigControlsSelectedFilter"); }
@@ -183,11 +187,6 @@ public:
 
 	virtual FText GetToolTipText() const override
 	{
-		if (!FSequencerTrackFilter_ControlRigSelectedControlsCommands::IsRegistered())
-		{
-			FSequencerTrackFilter_ControlRigSelectedControlsCommands::Register();
-		}
-
 		const FSequencerTrackFilter_ControlRigSelectedControlsCommands& Commands = FSequencerTrackFilter_ControlRigSelectedControlsCommands::Get();
 
 		const TSharedRef<const FInputChord> FirstActiveChord = Commands.ToggleControlRigSelectedControls->GetFirstValidChord();
@@ -203,12 +202,6 @@ public:
 
 	virtual void BindCommands(TSharedRef<FUICommandList> SequencerBindings, TSharedRef<FUICommandList> CurveEditorBindings, TWeakPtr<ISequencer> Sequencer) override
 	{
-		// See comment above
-		if (!FSequencerTrackFilter_ControlRigSelectedControlsCommands::IsRegistered())
-		{
-			FSequencerTrackFilter_ControlRigSelectedControlsCommands::Register();
-		}
-
 		const FSequencerTrackFilter_ControlRigSelectedControlsCommands& Commands = FSequencerTrackFilter_ControlRigSelectedControlsCommands::Get();
 
 		SequencerBindings->MapAction(
@@ -219,6 +212,9 @@ public:
 
 		CurveEditorBindings->MapAction(Commands.ToggleControlRigSelectedControls, *SequencerBindings->GetActionForCommand(Commands.ToggleControlRigSelectedControls));
 	}
+
+private:
+	mutable uint32 BindingCount;
 };
 
 /*

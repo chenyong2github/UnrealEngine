@@ -363,5 +363,8 @@ public:
 	}
 	
 	virtual void BindCommands(TSharedRef<FUICommandList> SequencerBindings, TSharedRef<FUICommandList> CurveEditorBindings, TWeakPtr<ISequencer> Sequencer) override;
+
+private:
+	mutable uint32 BindingCount;
 };
 #undef LOCTEXT_NAMESPACE

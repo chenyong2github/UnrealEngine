@@ -148,25 +148,23 @@ public:
 };
 
 FSequencerTrackFilter_Animated::FSequencerTrackFilter_Animated()
+	: BindingCount(0)
 {
 	FSequencerTrackFilter_AnimatedCommands::Register();	
 }
 
 FSequencerTrackFilter_Animated::~FSequencerTrackFilter_Animated()
 {
-	FSequencerTrackFilter_AnimatedCommands::Unregister();	
+	BindingCount--;
+
+	if (BindingCount < 1)
+	{
+		FSequencerTrackFilter_AnimatedCommands::Unregister();
+	}
 }
 
 FText FSequencerTrackFilter_Animated::GetToolTipText() const 
 { 
-	// When opening another sequence, FSequencer initializes the first sequence and then closes the previous sequence. 
-	// This causes the track filter commands to be initialized for the first sequence and then destroyed when the subsequence 
-	// sequence is opened. For now, register the commands before calling Get()
-	if (!FSequencerTrackFilter_AnimatedCommands::IsRegistered())
-	{
-		FSequencerTrackFilter_AnimatedCommands::Register();	
-	}
-
 	const FSequencerTrackFilter_AnimatedCommands& Commands = FSequencerTrackFilter_AnimatedCommands::Get();
 
 	const TSharedRef<const FInputChord> FirstActiveChord = Commands.ToggleAnimatedTracks->GetFirstValidChord();
@@ -182,12 +180,6 @@ FText FSequencerTrackFilter_Animated::GetToolTipText() const
 
 void FSequencerTrackFilter_Animated::BindCommands(TSharedRef<FUICommandList> SequencerBindings, TSharedRef<FUICommandList> CurveEditorBindings, TWeakPtr<ISequencer> Sequencer)
 {
-	// See comment above
-	if (!FSequencerTrackFilter_AnimatedCommands::IsRegistered())
-	{
-		FSequencerTrackFilter_AnimatedCommands::Register();	
-	}
-
 	const FSequencerTrackFilter_AnimatedCommands& Commands = FSequencerTrackFilter_AnimatedCommands::Get();
 
 	SequencerBindings->MapAction(
