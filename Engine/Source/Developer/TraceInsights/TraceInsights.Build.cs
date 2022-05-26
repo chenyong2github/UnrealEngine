@@ -60,6 +60,7 @@ public class TraceInsights : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"ImageCore",
 				"SlateCore",
 			}
 		);
