@@ -45,9 +45,10 @@ public:
 	 * @param Points				Points to re-order
 	 * @param ImportanceWeights		Points with a higher ImportanceWeight in their local region of space will appear earlier in the ordering
 	 * @param EarlyStop				If >= 0, stop re-ordering once we've sorted this many points; beyond this the ordering will be arbitrary
+	 * @param OffsetResFactor		Factor that controls how closely the points are allowed to space, with higher values -> more clumping allowed
 	 */
-	void ComputeUniformSpaced(TArrayView<const FVector3d> Points, TArrayView<const float> ImportanceWeights, int32 EarlyStop = -1);
-	void ComputeUniformSpaced(TArrayView<const FVector3f> Points, TArrayView<const float> ImportanceWeights, int32 EarlyStop = -1);
+	void ComputeUniformSpaced(TArrayView<const FVector3d> Points, TArrayView<const float> ImportanceWeights, int32 EarlyStop = -1, int32 OffsetResFactor = 4);
+	void ComputeUniformSpaced(TArrayView<const FVector3f> Points, TArrayView<const float> ImportanceWeights, int32 EarlyStop = -1, int32 OffsetResFactor = 4);
 
 	/**
 	 * Compute an ordering for the input points that attempts to keep points 'well spaced' / un-clumped
@@ -56,9 +57,10 @@ public:
 	 * @param ImportanceWeights			Points with a higher ImportanceWeight in their local region of space will appear earlier in the ordering
 	 * @param SecondImportanceWeights	A second set of importance weights; we may pick an additional point from each local region to also sample points by this metric
 	 * @param EarlyStop					If >= 0, stop re-ordering once we've sorted this many points; beyond this the ordering will be arbitrary
+	 * @param OffsetResFactor			Factor that controls how closely the points are allowed to space, with higher values -> more clumping allowed
 	 */
-	void ComputeUniformSpaced(TArrayView<const FVector3d> Points, TArrayView<const float> ImportanceWeights, TArrayView<const float> SecondImportanceWeights, int32 EarlyStop = -1);
-	void ComputeUniformSpaced(TArrayView<const FVector3f> Points, TArrayView<const float> ImportanceWeights, TArrayView<const float> SecondImportanceWeights, int32 EarlyStop = -1);
+	void ComputeUniformSpaced(TArrayView<const FVector3d> Points, TArrayView<const float> ImportanceWeights, TArrayView<const float> SecondImportanceWeights, int32 EarlyStop = -1, int32 OffsetResFactor = 4);
+	void ComputeUniformSpaced(TArrayView<const FVector3f> Points, TArrayView<const float> ImportanceWeights, TArrayView<const float> SecondImportanceWeights, int32 EarlyStop = -1, int32 OffsetResFactor = 4);
 
 	/**
 	 * Compute an ordering that only sorts by descending ImportanceWeights, and does not attempt to spatially distribute the points
