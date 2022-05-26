@@ -85,6 +85,12 @@ namespace UnrealBuildTool
 		[CommandLine("-PreprocessDepends")]
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bPreprocessDepends")]
 		public bool bPreprocessDepends = false;
+
+		/// <summary>
+		/// Enables runtime ray tracing support.
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/LinuxPlatform.LinuxTargetSettings")]
+		public bool bEnableRayTracing = false;
 	}
 
 	/// <summary>
@@ -142,6 +148,11 @@ namespace UnrealBuildTool
 		public bool bPreprocessDepends
 		{
 			get { return Inner.bPreprocessDepends; }
+		}
+
+		public bool bEnableRayTracing
+		{
+			get { return Inner.bEnableRayTracing; }
 		}
 
 		#pragma warning restore CS1591
@@ -510,6 +521,11 @@ namespace UnrealBuildTool
 			}
 
 			CompileEnvironment.Definitions.Add("INT64_T_TYPES_NOT_LONG_LONG=1");
+
+			if (Target.LinuxPlatform.bEnableRayTracing)
+			{
+				CompileEnvironment.Definitions.Add("RHI_RAYTRACING=1");
+			}
 
 			// link with Linux libraries.
 			LinkEnvironment.SystemLibraries.Add("pthread");

@@ -37,9 +37,9 @@ TAutoConsoleVariable<int32> GRHIAllow64bitShaderAtomicsCvar(
 
 TAutoConsoleVariable<int32> GVulkanRayTracingCVar(
 	TEXT("r.Vulkan.RayTracing"),
-	0,
-	TEXT("0: Do not enable Vulkan ray tracing extensions (default)\n")
-	TEXT("1: Enable experimental ray tracing support (for development and testing purposes)"),
+	1,
+	TEXT("0: Do not enable Vulkan ray tracing extensions\n")
+	TEXT("1: Enable experimental ray tracing support (default)"),
 	ECVF_ReadOnly
 );
 
