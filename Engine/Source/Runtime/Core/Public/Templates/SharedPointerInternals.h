@@ -359,7 +359,7 @@ namespace SharedPointerInternals
 		template <typename... ArgTypes>
 		explicit TIntrusiveReferenceController(ArgTypes&&... Args)
 		{
-			// If this fails to compile when trying to called MakeShared with a non-public constructor,
+			// If this fails to compile when trying to call MakeShared with a non-public constructor,
 			// do not make SharedPointerInternals::TIntrusiveReferenceController a friend.
 			//
 			// Instead, prefer this pattern:

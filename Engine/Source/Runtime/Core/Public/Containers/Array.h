@@ -1975,6 +1975,29 @@ public:
 	FORCEINLINE SizeType Emplace(ArgsType&&... Args)
 	{
 		const SizeType Index = AddUninitialized(1);
+
+		// If this fails to compile when trying to call Emplace with a non-public constructor,
+		// do not make TArray a friend.
+		//
+		// Instead, prefer this pattern:
+		//
+		//     class FMyType
+		//     {
+		//     private:
+		//         struct FPrivateToken { explicit FPrivateToken() = default; };
+		//
+		//     public:
+		//         // This has an equivalent access level to a private constructor,
+		//         // as only friends of FMyType will have access to FPrivateToken,
+		//         // but Emplace can legally call it since it's public.
+		//         explicit FMyType(FPrivateToken, int32 Int, float Real, const TCHAR* String);
+		//     };
+		//
+		//     TArray<FMyType> Arr:
+		//
+		//     // Won't compile if the caller doesn't have access to FMyType::FPrivateToken
+		//     Arr.Emplace(FMyType::FPrivateToken{}, 5, 3.14f, TEXT("Banana"));
+		//
 		new(GetData() + Index) ElementType(Forward<ArgsType>(Args)...);
 		return Index;
 	}
