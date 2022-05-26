@@ -1471,6 +1471,11 @@ namespace UnrealGameSync
 
 		public void UpdateAlertWindows()
 		{
+			if (!DeploymentSettings.EnableAlerts)
+			{
+				return;
+			}
+
 			HashSet<IssueData> AllIssues = new HashSet<IssueData>();
 			foreach(IssueMonitor IssueMonitor in WorkspaceIssueMonitors.Select(x => x.IssueMonitor))
 			{

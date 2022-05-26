@@ -1759,6 +1759,11 @@ namespace UnrealGameSync
 
 		void UpdateBuildFailureNotification()
 		{
+			if (!DeploymentSettings.EnableAlerts)
+			{
+				return;
+			}
+
 			// Ignore this if we're using the new build health system
 			if (GetDefaultIssueFilter() != null)
 			{

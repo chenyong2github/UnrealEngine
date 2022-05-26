@@ -59,6 +59,11 @@ namespace UnrealGameSync
 		/// </summary>
 		public static readonly string? SentryDsn = null;
 
+		/// <summary>
+		/// Whether to allow notifications about build failures
+		/// </summary>
+		public static readonly bool EnableAlerts = true;
+
 #if WITH_TELEMETRY
 		/// <summary>
 		/// Delegate used to create a new telemetry sink
