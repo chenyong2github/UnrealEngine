@@ -257,6 +257,9 @@ Saved/
 # Ignore CLion directory
 .idea/
 
+# Ignore Rider directories
+/Engine/Plugins/Developer/RiderLink
+
 # Annoying windows files
 [Dd]esktop.ini
 
