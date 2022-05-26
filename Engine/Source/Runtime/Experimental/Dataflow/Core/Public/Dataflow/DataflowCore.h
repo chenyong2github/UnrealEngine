@@ -8,3 +8,4 @@
 #include "Dataflow/DataflowNode.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowNodeParameters.h"
+#include "Dataflow/DataflowProperty.h"

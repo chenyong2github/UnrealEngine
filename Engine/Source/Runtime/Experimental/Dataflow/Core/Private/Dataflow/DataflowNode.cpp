@@ -3,6 +3,7 @@
 #include "Dataflow/DataflowNode.h"
 
 #include "Dataflow/DataflowNode.h"
+#include "Dataflow/DataflowProperty.h"
 
 namespace Dataflow
 {

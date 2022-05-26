@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowConnection.h"
-#include "Dataflow/DataflowProperty.h"
 #include "Dataflow/DataflowNodeParameters.h"
 
 namespace Dataflow
 {
+	class FProperty;
 
 	struct DATAFLOWCORE_API FNodeParameters {
 		FName Name;
