@@ -170,6 +170,8 @@ namespace EpicGames.Core
 		/// </summary>
 		public static EventId Systemic_MSBuild { get; } = new EventId(750);
 
+		public static EventId Systemic_RoboMergeGateLocked { get; } = new EventId(760);
+
 		/// <summary>
 		/// Horde error codes
 		/// </summary>

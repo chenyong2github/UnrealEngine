@@ -24,6 +24,10 @@ namespace AutomationUtils.Matchers
 				}
 				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_PdbUtil);
 			}
+			if (cursor.IsMatch(@"RoboMerge\/gates.*already locked on Commit Server by buildmachine"))
+			{
+				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.Low, LogLevel.Information, KnownLogEvents.Systemic_RoboMergeGateLocked);
+			}
 			return null;
 		}
 	}
