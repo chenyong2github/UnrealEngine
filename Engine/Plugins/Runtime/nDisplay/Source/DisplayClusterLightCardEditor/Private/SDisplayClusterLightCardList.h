@@ -54,6 +54,9 @@ public:
 	/** Refreshes the list */
 	void Refresh();
 
+	/** Spawn and add a new Light Card */
+	ADisplayClusterLightCardActor* AddNewLightCard();
+
 private:
 	void BindCommands();
 	
@@ -62,10 +65,10 @@ private:
 	 * @return True if the list has been modified
 	 */
 	bool FillLightCardList();
-
-	/** Spawn and add a new Light Card */
-	void AddNewLightCard();
 	
+	/** Handles the Add Light Card button. Spawn a new Light Card placed in the middle of the viewport. */
+	void AddNewLightCardHandler();
+
 	/** Select an existing Light Card from a menu */
 	void AddExistingLightCard();
 	

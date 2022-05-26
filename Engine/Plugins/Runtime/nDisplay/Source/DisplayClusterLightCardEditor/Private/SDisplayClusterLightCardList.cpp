@@ -256,7 +256,7 @@ void SDisplayClusterLightCardList::BindCommands()
 	
 	CommandList->MapAction(
 		Commands.AddNewLightCard,
-		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::AddNewLightCard),
+		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::AddNewLightCardHandler),
 		FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::CanAddLightCard),
 		FCanExecuteAction());
 
@@ -358,12 +358,29 @@ bool SDisplayClusterLightCardList::FillLightCardList()
 	return false;
 }
 
-void SDisplayClusterLightCardList::AddNewLightCard()
+void SDisplayClusterLightCardList::AddNewLightCardHandler()
 {
 	check(RootActor.IsValid());
-	
+
 	FScopedTransaction Transaction(LOCTEXT("AddNewLightCard", "Add New Light Card"));
-	
+
+	ADisplayClusterLightCardActor* NewLightCard = AddNewLightCard();
+
+	// When adding a new lightcard, usually the desired location is in the middle of the viewport
+	if (LightCardEditorPtr.IsValid())
+	{
+		LightCardEditorPtr.Pin()->CenterLightCardInView(*NewLightCard);
+	}
+}
+
+
+ADisplayClusterLightCardActor* SDisplayClusterLightCardList::AddNewLightCard()
+{
+	if (!RootActor.IsValid())
+	{
+		return nullptr;
+	}
+
 	const FVector SpawnLocation = RootActor->GetDefaultCamera()->GetComponentLocation();
 	FRotator SpawnRotation = RootActor->GetDefaultCamera()->GetComponentRotation();
 	SpawnRotation.Yaw -= 180.f;
@@ -375,19 +392,15 @@ void SDisplayClusterLightCardList::AddNewLightCard()
 	SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
 	SpawnParameters.OverrideLevel = RootActor->GetWorld()->GetCurrentLevel();
 	
-	ADisplayClusterLightCardActor* NewActor = CastChecked<ADisplayClusterLightCardActor>(
+	ADisplayClusterLightCardActor* NewLightCard = CastChecked<ADisplayClusterLightCardActor>(
 		RootActor->GetWorld()->SpawnActor(ADisplayClusterLightCardActor::StaticClass(),
 		&SpawnLocation, &SpawnRotation, MoveTemp(SpawnParameters)));
 
-	NewActor->SetActorLabel(NewActor->GetName());
+	NewLightCard->SetActorLabel(NewLightCard->GetName());
 
-	AddLightCardToActor(NewActor);
+	AddLightCardToActor(NewLightCard);
 
-	// When adding a new lightcard, usually the desired location is in the middle of the viewport
-	if (LightCardEditorPtr.IsValid())
-	{
-		LightCardEditorPtr.Pin()->CenterLightCardInView(*NewActor);
-	}
+	return NewLightCard;
 }
 
 void SDisplayClusterLightCardList::AddExistingLightCard()

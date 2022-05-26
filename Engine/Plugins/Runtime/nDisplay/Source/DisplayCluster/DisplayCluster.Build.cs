@@ -31,6 +31,8 @@ public class DisplayCluster : ModuleRules
 			"JsonUtilities",
 			"Networking",
 			"OpenColorIO",
+			"OpenCV",
+			"OpenCVHelper",
 			"ProceduralMeshComponent",
 			"Renderer",
 			"RenderCore",

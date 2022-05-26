@@ -56,6 +56,12 @@ public:
 					.OnGetMenuContent(this, &SDisplayClusterLightCardEditorViewportToolBar::GenerateProjectionMenu)
 				]
 				+ SHorizontalBox::Slot()
+				.Padding(3.0f, 1.0f)
+				.HAlign(HAlign_Right)
+				[
+					MakeDrawingToolBar()
+				]
+				+ SHorizontalBox::Slot()
 				.Padding( 3.0f, 1.0f )
 				.HAlign( HAlign_Right )
 				[
@@ -170,6 +176,40 @@ public:
 
 			static FName ScaleModeName = FName(TEXT("ScaleMode"));
 			ToolbarBuilder.AddToolBarButton(FEditorViewportCommands::Get().ScaleMode, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), ScaleModeName);
+
+			ToolbarBuilder.EndBlockGroup();
+		}
+
+		ToolbarBuilder.EndSection();
+
+		return ToolbarBuilder.MakeWidget();
+	}
+
+	TSharedRef<SWidget> MakeDrawingToolBar()
+	{
+		FSlimHorizontalToolBarBuilder ToolbarBuilder(EditorViewport.Pin()->GetCommandList(), FMultiBoxCustomization::None);
+
+		const FName ToolBarStyle = TEXT("EditorViewportToolBar");
+		ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
+		ToolbarBuilder.SetLabelVisibility(EVisibility::Visible);
+
+		ToolbarBuilder.SetIsFocusable(false);
+
+		ToolbarBuilder.BeginSection("Drawing");
+		{
+			ToolbarBuilder.BeginBlockGroup();
+
+			static FName DrawLightCardName = FName(TEXT("DrawLightCard"));
+			ToolbarBuilder.AddToolBarButton(
+				FDisplayClusterLightCardEditorCommands::Get().DrawLightCard,
+				NAME_None,
+				LOCTEXT("DrawLC", "Draw Light Card    "),
+				LOCTEXT("DrawLCTooltip", 
+					"Draw a new custom light card by adding polygon points clicking the left mouse button on the viewport. "
+					"End the shape with right mouse button, or abort by pressing this button again."),
+				TAttribute<FSlateIcon>(),
+				DrawLightCardName
+			);
 
 			ToolbarBuilder.EndBlockGroup();
 		}
@@ -303,6 +343,12 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 		CommandList->MapAction(
 			Commands.ResetCamera,
 			FExecuteAction::CreateSP(ViewportClient.Get(), &FDisplayClusterLightCardEditorViewportClient::ResetCamera, false));
+
+		CommandList->MapAction(
+			FDisplayClusterLightCardEditorCommands::Get().DrawLightCard,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::DrawLightCard),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsDrawingLightCard));
 	}
 }
 
@@ -323,6 +369,24 @@ bool SDisplayClusterLightCardEditorViewport::IsEditorWidgetModeSelected(FDisplay
 
 	return false;
 }
+
+void SDisplayClusterLightCardEditorViewport::DrawLightCard()
+{
+	if (!ViewportClient.IsValid())
+	{
+		return;
+	}
+
+	if (IsDrawingLightCard())
+	{
+		ViewportClient->ExitDrawingLightCardMode();
+	}
+	else
+	{
+		ViewportClient->EnterDrawingLightCardMode();
+	}
+}
+
 
 void SDisplayClusterLightCardEditorViewport::CycleEditorWidgetMode()
 {
@@ -350,5 +414,16 @@ bool SDisplayClusterLightCardEditorViewport::IsProjectionModeSelected(EDisplayCl
 
 	return false;
 }
+
+bool SDisplayClusterLightCardEditorViewport::IsDrawingLightCard() const
+{
+	if (ViewportClient.IsValid())
+	{
+		return ViewportClient->GetInputMode() == FDisplayClusterLightCardEditorViewportClient::EInputMode::DrawingLightCard;
+	}
+
+	return false;
+}
+
 
 #undef LOCTEXT_NAMESPACE

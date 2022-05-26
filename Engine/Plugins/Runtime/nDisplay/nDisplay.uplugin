@@ -149,7 +149,11 @@
 			"Enabled": true
 		},
 		{
-			"Name": "ProceduralMeshComponent",
+			"Name": "ConcertSyncClient",
+			"Enabled": true
+		},
+		{
+			"Name": "OpenCV",
 			"Enabled": true
 		},
 		{
@@ -158,10 +162,6 @@
 		},
 		{
 			"Name": "RemoteControlInterception",
-			"Enabled": true
-		},
-		{
-			"Name": "ConcertSyncClient",
 			"Enabled": true
 		},
 		{

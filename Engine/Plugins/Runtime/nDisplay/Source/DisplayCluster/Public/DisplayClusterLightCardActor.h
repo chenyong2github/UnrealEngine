@@ -17,7 +17,8 @@ enum class EDisplayClusterLightCardMask : uint8
 {
 	Circle,
 	Square,
-	UseTextureAlpha
+	UseTextureAlpha,
+	Polygon,
 };
 
 UCLASS(Blueprintable)
@@ -76,8 +77,11 @@ public:
 	/** Set positional parameters */
 	void SetPositionalParams(const PositionalParams& Params);
 
-protected:
+	/** Updates the card's material instance parameters */
 	void UpdateLightCardMaterialInstance();
+
+	/** Updates the polygon texture from the polygon points */
+	void UpdatePolygonTexture();
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
@@ -126,6 +130,14 @@ public:
 	/** Used to flag this light card as a proxy of a "real" light card. Used by the LightCard Editor */
 	UPROPERTY(Transient)
 	bool bIsProxy = false;
+
+	/** Polygon points when using this type of mask */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+	TArray<FVector2D> Polygon;
+
+	/** Used to flag this light card as a proxy of a "real" light card. Used by the LightCard Editor */
+	UPROPERTY(Transient)
+	UTexture* PolygonMask = nullptr;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")

@@ -12,36 +12,46 @@
 #include "Components/DisplayClusterScreenComponent.h"
 
 #include "AudioDevice.h"
-#include "EngineUtils.h"
-#include "EditorModes.h"
-#include "EditorModeManager.h"
-#include "PreviewScene.h"
-#include "UnrealEdGlobals.h"
-#include "ScopedTransaction.h"
-#include "SDisplayClusterLightCardEditor.h"
-#include "UnrealWidget.h"
-#include "RayTracingDebugVisualizationMenuCommands.h"
+#include "CameraController.h"
 #include "Components/DirectionalLightComponent.h"
 #include "Components/LineBatchComponent.h"
 #include "Components/PostProcessComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/PrimitiveComponent.h"
-#include "Editor/UnrealEdEngine.h"
-#include "Kismet/GameplayStatics.h"
-#include "Slate/SceneViewport.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "CustomEditorStaticScreenPercentage.h"
-#include "LegacyScreenPercentageDriver.h"
-#include "EngineModule.h"
 #include "Debug/DebugDrawService.h"
+#include "EngineUtils.h"
+#include "EditorModes.h"
+#include "Editor/UnrealEdEngine.h"
+#include "EditorModeManager.h"
+#include "EngineModule.h"
 #include "Engine/Canvas.h"
 #include "Engine/TextureRenderTarget2D.h"
-#include "CameraController.h"
 #include "ImageUtils.h"
 #include "Kismet/KismetMathLibrary.h"
-
-
+#include "Kismet/GameplayStatics.h"
+#include "LegacyScreenPercentageDriver.h"
+#include "Math/UnrealMathUtility.h"
+#include "PreviewScene.h"
+#include "RayTracingDebugVisualizationMenuCommands.h"
 #include "Renderer/Private/SceneRendering.h"
+#include "ScopedTransaction.h"
+#include "SDisplayClusterLightCardEditor.h"
+#include "Slate/SceneViewport.h"
+#include "UnrealEdGlobals.h"
+#include "UnrealWidget.h"
+#include "Widgets/Docking/SDockTab.h"
+
+
+#if WITH_OPENCV
+
+#include "OpenCVHelper.h"
+
+#include "PreOpenCVHeaders.h"
+#include "opencv2/imgproc.hpp"
+#include "PostOpenCVHeaders.h"
+
+#endif //WITH_OPENCV
 
 #define LOCTEXT_NAMESPACE "DisplayClusterLightCardEditorViewportClient"
 
@@ -313,7 +323,7 @@ FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorView
 	MeshProjectionRenderer->ActorSelectedDelegate = FDisplayClusterMeshProjectionRenderer::FSelection::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected);
 	MeshProjectionRenderer->RenderSimpleElementsDelegate = FDisplayClusterMeshProjectionRenderer::FSimpleElementPass::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::Draw);
 
-	bDraggingActor = false;
+	InputMode = EInputMode::Idle;
 	DragWidgetOffset = FVector::ZeroVector;
 	
 	EditorWidget = MakeShared<FDisplayClusterLightCardEditorWidget>();
@@ -406,12 +416,17 @@ void FDisplayClusterLightCardEditorViewportClient::Tick(float DeltaSeconds)
 
 	// EditorViewportClient sets the cursor settings based on the state of the built in FWidget, which isn't being used here, so
 	// force a software cursor if we are dragging an actor so that the correct mouse cursor shows up
-	if (bDraggingActor)
+	switch (InputMode)
 	{
+	case EInputMode::DraggingActor:
 		SetRequiredCursor(false, true);
 		SetRequiredCursorOverride(true, EMouseCursor::CardinalCross);
+		break;
 
-		ApplyRequiredCursorVisibility(true);
+	case EInputMode::DrawingLightCard:
+		SetRequiredCursor(true, false);
+		SetRequiredCursorOverride(true, EMouseCursor::Crosshairs);
+		break;
 	}
 
 	if (DesiredLookAtLocation.IsSet())
@@ -667,14 +682,51 @@ FSceneView* FDisplayClusterLightCardEditorViewportClient::CalcSceneView(FSceneVi
 bool FDisplayClusterLightCardEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event,
                                             float AmountDepressed, bool bGamepad)
 {
-	if ((Key == EKeys::MouseScrollUp || Key == EKeys::MouseScrollDown) && Event == IE_Pressed)
+	switch (InputMode)
 	{
-		const int32 Sign = Key == EKeys::MouseScrollUp ? -1 : 1;
-		const float CurrentFOV = GetProjectionModeFOV(ProjectionMode);
-		const float NewFOV = FMath::Clamp(CurrentFOV + Sign * FOVScrollIncrement, CameraController->GetConfig().MinimumAllowedFOV, CameraController->GetConfig().MaximumAllowedFOV);
+	case EInputMode::DrawingLightCard:
+		
+		if ((Key == EKeys::LeftMouseButton) && (Event == IE_Released))
+		{
+			// Add a new light card polygon point
 
-		SetProjectionModeFOV(ProjectionMode, NewFOV);
+			FIntPoint MousePos;
+			InViewport->GetMousePos(MousePos);
+
+			if (!DrawnMousePositions.Num() || (DrawnMousePositions.Last() != MousePos))
+			{
+				DrawnMousePositions.Add(MousePos);
+			}
+		}
+		else if ((Key == EKeys::RightMouseButton) && (Event == IE_Released))
+		{
+			// Create the polygon light card.
+			CreateDrawnLightCard(DrawnMousePositions);
+
+			// Reset the list of polygon points used to create the new card
+			DrawnMousePositions.Empty();
+
+			// We go back to idle input mode
+			InputMode = EInputMode::Idle;
+		}
+
+		// Returning here (and not calling Super::InputKey) locks the viewport so that the user does not inadvertently 
+		// change the perspective while in the middle of drawing a light card, as that is not currently supported
 		return true;
+
+	default:
+
+		if ((Key == EKeys::MouseScrollUp || Key == EKeys::MouseScrollDown) && (Event == IE_Pressed))
+		{
+			const int32 Sign = Key == EKeys::MouseScrollUp ? -1 : 1;
+			const float CurrentFOV = GetProjectionModeFOV(ProjectionMode);
+			const float NewFOV = FMath::Clamp(CurrentFOV + Sign * FOVScrollIncrement, CameraController->GetConfig().MinimumAllowedFOV, CameraController->GetConfig().MaximumAllowedFOV);
+
+			SetProjectionModeFOV(ProjectionMode, NewFOV);
+			return true;
+		}
+
+		break;
 	}
 
 	return FEditorViewportClient::InputKey(InViewport, ControllerId, Key, Event, AmountDepressed, bGamepad);
@@ -687,6 +739,7 @@ bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* I
 	FVector& Scale)
 {
 	bool bHandled = false;
+
 	if (FEditorViewportClient::InputWidgetDelta(InViewport, CurrentAxis, Drag, Rot, Scale))
 	{
 		bHandled = true;
@@ -719,11 +772,16 @@ bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* I
 	return bHandled;
 }
 
-void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputEventState& InInputState, bool bIsDraggingWidget,
+void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(
+	const FInputEventState& InInputState, 
+	bool bIsDraggingWidget,
 	bool bNudge)
 {
-	if (!bDraggingActor && bIsDraggingWidget && InInputState.IsLeftMouseButtonPressed() && SelectedLightCards.Num())
+	if ((InputMode == EInputMode::Idle) && bIsDraggingWidget && InInputState.IsLeftMouseButtonPressed() && SelectedLightCards.Num())
 	{
+		// Start dragging actor
+		InputMode = EInputMode::DraggingActor;
+
 		GEditor->DisableDeltaModification(true);
 		{
 			// The pivot location won't update properly and the actor will rotate / move around the original selection origin
@@ -733,8 +791,7 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputE
 		}
 
 		BeginTransaction(LOCTEXT("MoveLightCard", "Move Light Card"));
-		bDraggingActor = true;
-		
+
 		DesiredLookAtLocation.Reset();
 
 		// Compute and store the delta between the widget's origin and the place the user clicked on it,
@@ -747,6 +804,7 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputE
 			GetScene(),
 			EngineShowFlags)
 			.SetRealtimeUpdate(IsRealtime()));
+
 		FSceneView* View = CalcSceneView(&ViewFamily);
 
 		FVector Origin;
@@ -762,20 +820,229 @@ void FDisplayClusterLightCardEditorViewportClient::TrackingStarted(const FInputE
 
 void FDisplayClusterLightCardEditorViewportClient::TrackingStopped()
 {
-	bDraggingActor = false;
-	DragWidgetOffset = FVector::ZeroVector;
-	EndTransaction();
-
-	if (SelectedLightCards.Num())
+	if (InputMode == EInputMode::DraggingActor)
 	{
-		GEditor->DisableDeltaModification(false);
+		InputMode = EInputMode::Idle;
+
+		DragWidgetOffset = FVector::ZeroVector;
+		EndTransaction();
+
+		if (SelectedLightCards.Num())
+		{
+			GEditor->DisableDeltaModification(false);
+		}
 	}
-	
+
 	FEditorViewportClient::TrackingStopped();
+}
+
+void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TArray<FIntPoint>& MousePositions)
+{
+#if WITH_OPENCV
+	if (DrawnMousePositions.Num() < 3 || !Viewport)
+	{
+		return;
+	}
+
+	//
+	// Find direction of each mouse position
+	//
+
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		Viewport,
+		GetScene(),
+		EngineShowFlags
+	).SetRealtimeUpdate(IsRealtime()));
+
+	FSceneView* View = CalcSceneView(&ViewFamily);
+
+	FVector ViewOrigin;
+	TArray<FVector> MouseWorldDirections; // directions from view origin
+	MouseWorldDirections.AddUninitialized(MousePositions.Num());
+
+	for (int32 PointIdx = 0; PointIdx < MousePositions.Num(); ++PointIdx)
+	{
+		PixelToWorld(*View, MousePositions[PointIdx], ViewOrigin, MouseWorldDirections[PointIdx]);
+	}
+
+	//
+	// Find world position and normal of card using the mouse center in pixel space.
+	// 
+	// @todo A future improvement would be to find a center that doesn't make the LC bigger than it needs to, 
+	// since the pixel space center won't be the projected plane center
+
+	FVector LightCardDirection; // direction from origin to where pixel points to
+	FVector LightCardPlaneAxisX;    // Normal vector at the found enveloping surface point
+	FVector LightCardPlaneAxisY;
+	FVector LightCardPlaneAxisZ;
+	float LightCardDistance;    // Distance from origin to the found enveloping surface point
+	{
+		// Find center point in pixel space
+
+		int32 MinX = INT_MAX;
+		int32 MinY = INT_MAX;
+		int32 MaxX = INT_MIN;
+		int32 MaxY = INT_MIN;
+
+		for (const FIntPoint& Point : MousePositions)
+		{
+			MinX = FMath::Min(MinX, Point.X);
+			MinY = FMath::Min(MinY, Point.Y);
+			MaxX = FMath::Max(MaxX, Point.X);
+			MaxY = FMath::Max(MaxY, Point.Y);
+		}
+
+		FIntPoint CenterPoint((MaxX + MinX)/2, (MaxY + MinY) / 2);
+
+		PixelToWorld(*View, CenterPoint, ViewOrigin, LightCardDirection);
+
+		const FVector Position = ViewOrigin + LightCardDirection * 100.; // We fabricate a position in the right direction
+
+		FVector RelativeNormal;
+
+		// We find the normal and distance from origin
+		if (Position.Z < ViewOrigin.Z)
+		{
+			SouthNormalMap.GetNormalAndDistanceAtPosition(Position, RelativeNormal, LightCardDistance);
+		}
+		else
+		{
+			NorthNormalMap.GetNormalAndDistanceAtPosition(Position, RelativeNormal, LightCardDistance);
+		}
+
+		LightCardDistance = CalculateFinalLightCardDistance(LightCardDistance);
+
+		// Calculate light card normal from light card direction and relative normal
+
+		const FMatrix RotEffector = FRotationMatrix::MakeFromX(-RelativeNormal);
+		const FMatrix RotArm = FRotationMatrix::MakeFromX(LightCardDirection);
+		const FRotator TotalRotator = (RotEffector * RotArm).Rotator();
+
+		LightCardPlaneAxisX = TotalRotator.RotateVector(-FVector::XAxisVector); // Same as Normal
+		LightCardPlaneAxisY = TotalRotator.RotateVector(-FVector::YAxisVector);
+		LightCardPlaneAxisZ = TotalRotator.RotateVector(FVector::ZAxisVector);
+	}
+
+	const FVector LightCardLocation = ViewOrigin + LightCardDistance * LightCardDirection;
+
+	const FSphericalCoordinates LightCardCoords(LightCardLocation - ViewOrigin);
+
+	//
+	// Project mouse positions to light card plane.
+	//
+
+	// @todo A future improvement would be to find a spin that minimizes the lightcard size
+
+	TArray<FVector3d> ProjectedMousePositions;
+	ProjectedMousePositions.AddUninitialized(MouseWorldDirections.Num());
+	const FPlane LightCardPlane = FPlane(LightCardLocation, LightCardPlaneAxisX);
+
+	for (int32 PointIdx = 0; PointIdx < MouseWorldDirections.Num(); ++PointIdx)
+	{
+		// skip the point if the intersection doesn't exist, which happens when the normal and the 
+		// ray direction are perpendicular (nearly zero dot product)
+		if (FMath::IsNearlyZero(FVector::DotProduct(LightCardPlaneAxisX, MouseWorldDirections[PointIdx])))
+		{
+			continue;
+		}
+
+		ProjectedMousePositions[PointIdx] = FMath::RayPlaneIntersection(ViewOrigin, MouseWorldDirections[PointIdx], LightCardPlane);
+	}
+
+	// Convert projected mouse positions in world space to light card plane space (2d)
+
+	TArray<FVector2d> PointsInLightCardPlane;
+	PointsInLightCardPlane.AddUninitialized(ProjectedMousePositions.Num());
+
+	for (int32 PointIdx = 0; PointIdx < ProjectedMousePositions.Num(); ++PointIdx)
+	{
+		const FVector ProjMousePosLocal = ProjectedMousePositions[PointIdx] - LightCardLocation; 
+
+		PointsInLightCardPlane[PointIdx].X = -FVector::DotProduct(ProjMousePosLocal, LightCardPlaneAxisY);
+		PointsInLightCardPlane[PointIdx].Y =  FVector::DotProduct(ProjMousePosLocal, LightCardPlaneAxisZ);
+	}
+
+	// Calculate LC x/y bounds
+
+	double LightCardWidth  = 0;
+	double LightCardHeight = 0;
+
+	for (const FVector2d& Point : PointsInLightCardPlane)
+	{
+		LightCardWidth  = FMath::Max(LightCardWidth , 2 * abs(Point.X));
+		LightCardHeight = FMath::Max(LightCardHeight, 2 * abs(Point.Y));
+	}
+
+	if (FMath::IsNearlyZero(LightCardWidth) || FMath::IsNearlyZero(LightCardHeight))
+	{
+		return;
+	}
+
+	// Create lightcard
+
+	if (!LightCardEditorPtr.IsValid())
+	{
+		return;
+	}
+
+	FScopedTransaction Transaction(LOCTEXT("AddNewLightCard", "Add New Light Card"));
+
+	ADisplayClusterLightCardActor* LightCard = LightCardEditorPtr.Pin()->AddNewLightCard();
+
+	if (!LightCard)
+	{
+		return;
+	}
+
+	// Assign polygon mask
+
+	LightCard->Mask = EDisplayClusterLightCardMask::Polygon;
+
+	LightCard->Polygon.Empty(PointsInLightCardPlane.Num());
+
+	for (const FVector2d& PlanePoint : PointsInLightCardPlane)
+	{
+		LightCard->Polygon.Add(FVector2D(
+			PlanePoint.X / LightCardWidth  + 0.5,
+			PlanePoint.Y / LightCardHeight + 0.5
+		));
+	}
+
+	LightCard->UpdatePolygonTexture();
+	LightCard->UpdateLightCardMaterialInstance();
+
+	// Update scale to match the desired size
+	{
+		// The default card plane is a 100x100 square.
+		constexpr double LightCardPlaneWidth = 100;
+		constexpr double LightCardPlaneHeight = 100;
+
+		LightCard->Scale.X = LightCardWidth / LightCardPlaneWidth;
+		LightCard->Scale.Y = LightCardHeight / LightCardPlaneHeight;
+	}
+
+	// Update position
+	MoveLightCardTo(*LightCard, LightCardCoords);
+
+#endif // WITH_OPENCV
+}
+
+double FDisplayClusterLightCardEditorViewportClient::CalculateFinalLightCardDistance(double FlushDistance, double DesiredOffsetFromFlush) const
+{
+	double Distance = FMath::Min(FlushDistance, RootActorBoundingRadius) + DesiredOffsetFromFlush;
+
+	return FMath::Max(Distance, 0);
 }
 
 void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
+	// Don't select light cards while drawing a new light card
+	if (InputMode == EInputMode::DrawingLightCard)
+	{
+		FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
+		return;
+	}
+
 	UWorld* PreviewWorld = PreviewScene->GetWorld();
 	check(PreviewWorld);
 
@@ -984,6 +1251,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 				
 					LightCardProxy->SetActorLocation(LightCard->GetActorLocation() - RootActor->GetActorLocation());
 					LightCardProxy->SetActorRotation(LightCard->GetActorRotation() - RootActor->GetActorRotation());
+					LightCardProxy->PolygonMask = LightCard->PolygonMask;
 					LightCardProxy->bIsProxy = true;
 
 					// Change mesh to proxy mesh with more vertices
@@ -1193,7 +1461,7 @@ void FDisplayClusterLightCardEditorViewportClient::MoveLightCardTo(ADisplayClust
 	}
 
 	SetLightCardCoordinates(&LightCard, SphericalCoords);
-	LightCard.DistanceFromCenter = FMath::Min(DesiredDistance, RootActorBoundingRadius) + LightCardFlushOffset;
+	LightCard.DistanceFromCenter = CalculateFinalLightCardDistance(DesiredDistance);
 
 	const FRotator Rotation = FRotationMatrix::MakeFromX(-DesiredNormal).Rotator();
 
@@ -1830,6 +2098,7 @@ FDisplayClusterLightCardEditorViewportClient::FSphericalCoordinates FDisplayClus
 		GetScene(),
 		EngineShowFlags)
 		.SetRealtimeUpdate(IsRealtime()));
+
 	FSceneView* View = CalcSceneView(&ViewFamily);
 
 	FVector Origin;
@@ -2316,5 +2585,24 @@ void FDisplayClusterLightCardEditorViewportClient::ResetFOVs()
 	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::Perspective)] = 90.0f;
 	ProjectionFOVs[static_cast<int32>(EDisplayClusterMeshProjectionType::Azimuthal)] = 130.0f;
 }
+
+void FDisplayClusterLightCardEditorViewportClient::EnterDrawingLightCardMode()
+{
+	if (InputMode == EInputMode::Idle)
+	{
+		InputMode = EInputMode::DrawingLightCard;
+		SelectLightCard(nullptr);
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::ExitDrawingLightCardMode()
+{
+	if (InputMode == EInputMode::DrawingLightCard)
+	{
+		InputMode = EInputMode::Idle;
+		DrawnMousePositions.Empty();
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

@@ -20,6 +20,22 @@ class UDisplayClusterConfigurationViewport;
 /** Viewport Client for the preview viewport */
 class FDisplayClusterLightCardEditorViewportClient : public FEditorViewportClient, public TSharedFromThis<FDisplayClusterLightCardEditorViewportClient>
 {
+	using Super = FEditorViewportClient;
+
+public:
+
+	/** State machine that helps keep track of the context to which user inputs apply (e.g. mouse buttons, key presses) */
+	enum class EInputMode
+	{
+		Idle,
+
+		/** Indicates that the user is dragging an actor in the viewport */
+		DraggingActor,
+
+		/** Indicates that the user is drawing a light card in the viewport */
+		DrawingLightCard,
+	};
+
 private:
 	struct FSphericalCoordinates
 	{
@@ -171,7 +187,16 @@ public:
 
 	/** Places the given light card in the middle of the current viewport */
 	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
-	
+
+	/** Returns the current input mode */
+	EInputMode GetInputMode() { return InputMode; }
+
+	/** Requests that we enter light card drawing input mode */
+	void EnterDrawingLightCardMode();
+
+	/** Requests that we exit light card drawing input mode (and go back to idle/normal) */
+	void ExitDrawingLightCardMode();
+
 private:
 	/** Initiates a transaction. */
 	void BeginTransaction(const FText& Description);
@@ -269,6 +294,12 @@ private:
 	/** Resets the camera FOVs */
 	void ResetFOVs();
 
+	/** Creates a new light card using a polygon alpha mask as defined by the given mouse positions on the viewport */
+	void CreateDrawnLightCard(const TArray<FIntPoint>& MousePositions);
+
+	/** Calculates the final distance from the origin of a light card, given its flush distance and a desired offset */
+	double CalculateFinalLightCardDistance(double FlushDistance, double DesiredOffsetFromFlush = 0.) const;
+
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
 	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
@@ -297,9 +328,6 @@ private:
 	/** The renderer for the viewport, which can render the meshes with a variety of projection types */
 	TSharedPtr<FDisplayClusterMeshProjectionRenderer> MeshProjectionRenderer;
 	
-	/** Indicates that the user is dragging an actor in the viewport */
-	bool bDraggingActor = false;
-
 	/** The LC editor widget used to manipulate light cards */
 	TSharedPtr<FDisplayClusterLightCardEditorWidget> EditorWidget;
 
@@ -347,4 +375,10 @@ private:
 
 	/** Indicates if the normal map should be displayed to the screen */
 	bool bDisplayNormalMapVisualization = false;
+
+	/** Current input mode */
+	EInputMode InputMode = EInputMode::Idle;
+
+	/** Array of mouse positions that will be used to spawn a new light card with the shape of the drawn polygon */
+	TArray<FIntPoint> DrawnMousePositions;
 };

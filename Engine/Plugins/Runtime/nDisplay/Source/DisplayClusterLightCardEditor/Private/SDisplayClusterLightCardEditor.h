@@ -60,6 +60,9 @@ public:
 	/** Places the given light card in the middle of the viewport */
 	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
 
+	/** Spawns a new light card */
+	ADisplayClusterLightCardActor* AddNewLightCard();
+
 private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */
 	void OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor);

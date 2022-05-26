@@ -9,27 +9,29 @@ public class DisplayClusterLightCardEditor : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+
+				"AdvancedPreviewScene",
+				"AppFramework",
+				"Core",
+				"CoreUObject",
 				"DisplayCluster",
 				"DisplayClusterConfiguration",
 				"DisplayClusterOperator",
 				"DisplayClusterLightCardEditorShaders",
-				
-				"Core",
-				"CoreUObject",
+				"EditorStyle",
 				"Engine",
+				"InputCore",
+				"OpenCV",
+				"OpenCVHelper",
+				"PropertyEditor",
 				"RenderCore",
 				"Renderer",
 				"RHI",
-				"InputCore",
 				"Slate",
 				"SlateCore",
 				"UnrealEd",
-				"EditorStyle",
 				"WorkspaceMenuStructure",
-				"AdvancedPreviewScene",
 				"ToolWidgets",
-				"PropertyEditor",
-				"AppFramework"
 			});
 	}
 }

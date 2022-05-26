@@ -53,6 +53,13 @@ private:
 	void SetProjectionMode(EDisplayClusterMeshProjectionType InProjectionMode);
 	bool IsProjectionModeSelected(EDisplayClusterMeshProjectionType InProjectionMode) const;
 
+	/** Handles the Draw LC button being pressed. */
+	void DrawLightCard();
+
+	/** Returns true if we are in light card drawing mode */
+	bool IsDrawingLightCard() const;
+
+
 private:
 	/** Preview Scene - uses advanced preview settings */
 	TSharedPtr<FAdvancedPreviewScene> AdvancedPreviewScene;

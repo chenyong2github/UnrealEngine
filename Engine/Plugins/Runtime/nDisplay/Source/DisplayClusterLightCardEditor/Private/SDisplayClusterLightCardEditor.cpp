@@ -140,6 +140,12 @@ void SDisplayClusterLightCardEditor::CenterLightCardInView(ADisplayClusterLightC
 	ViewportView->GetLightCardEditorViewportClient()->CenterLightCardInView(LightCard);
 }
 
+ADisplayClusterLightCardActor* SDisplayClusterLightCardEditor::AddNewLightCard()
+{
+	check(LightCardList);
+	return LightCardList->AddNewLightCard();
+}
+
 void SDisplayClusterLightCardEditor::OnActiveRootActorChanged(ADisplayClusterRootActor* NewRootActor)
 {
 	RemoveCompileDelegates();

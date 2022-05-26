@@ -28,4 +28,6 @@ public:
 	TSharedPtr<FUICommandInfo> AddNewLightCard;
 	TSharedPtr<FUICommandInfo> AddExistingLightCard;
 	TSharedPtr<FUICommandInfo> RemoveLightCard;
+
+	TSharedPtr<FUICommandInfo> DrawLightCard;
 };
