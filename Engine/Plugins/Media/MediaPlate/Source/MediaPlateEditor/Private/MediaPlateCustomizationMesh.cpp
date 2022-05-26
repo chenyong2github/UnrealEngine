@@ -5,10 +5,10 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetUtils/CreateStaticMeshUtil.h"
 #include "DynamicMesh/DynamicMesh3.h"
-#include "Generators/SphereGenerator.h"
 #include "LevelEditorViewport.h"
 #include "MediaPlate.h"
 #include "MediaPlateComponent.h"
+#include "MediaPlateSphereGenerator.h"
 
 #define LOCTEXT_NAMESPACE "FMediaPlateCustomizationMesh"
 
@@ -95,7 +95,7 @@ void FMediaPlateCustomizationMesh::SetMesh(UStaticMeshComponent* StaticMeshCompo
 
 void FMediaPlateCustomizationMesh::GenerateSphereMesh(FDynamicMesh3* OutMesh)
 {
-	UE::Geometry::FSphereGenerator SphereGen;
+	FMediaPlateSphereGenerator SphereGen;
 	SphereGen.Radius = 50.0f;
 	SphereGen.NumTheta = 17;
 	SphereGen.NumPhi = 17;
