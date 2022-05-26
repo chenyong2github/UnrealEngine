@@ -80,7 +80,8 @@ void FWorldPartitionLoadingContext::FImmediate::RegisterActor(FWorldPartitionAct
 
 void FWorldPartitionLoadingContext::FImmediate::UnregisterActor(FWorldPartitionActorDesc* ActorDesc)
 {
-	if (AActor* Actor = ActorDesc->GetActor())
+	// When cleaning up worlds, actors are already marked as garbage at this point, so no need to remove them from the world
+	if (AActor* Actor = ActorDesc->GetActor(); IsValid(Actor))
 	{
 		UActorDescContainer* Container = ActorDesc->GetContainer();
 		check(Container);
@@ -124,9 +125,8 @@ FWorldPartitionLoadingContext::FDeferred::~FDeferred()
 				}
 			}
 			
-			if (ActorList.Num())
+			if (Level)
 			{
-				check(Level);
 				Level->AddLoadedActors(ActorList, ContainerTransformPtr);
 			}
 		}
@@ -139,7 +139,8 @@ FWorldPartitionLoadingContext::FDeferred::~FDeferred()
 			ULevel* Level = nullptr;
 			for (FWorldPartitionActorDesc* ActorDesc : ContainerOp.Unregistrations)
 			{
-				if (AActor* Actor = ActorDesc->GetActor())
+				// When cleaning up worlds, actors are already marked as garbage at this point, so no need to remove them from the world
+				if (AActor* Actor = ActorDesc->GetActor(); IsValid(Actor))
 				{
 					ActorList.Add(Actor);
 
@@ -149,9 +150,8 @@ FWorldPartitionLoadingContext::FDeferred::~FDeferred()
 				}
 			}
 			
-			if (ActorList.Num())
+			if (Level)
 			{
-				check(Level);
 				Level->RemoveLoadedActors(ActorList, ContainerTransformPtr);
 			}
 
