@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RenderGraphResources.h"
 #include "RenderGraphDefinitions.h"
 
 #if RHI_RAYTRACING
