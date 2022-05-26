@@ -40,9 +40,21 @@ FReferenceChainSearch::FGraphNode* FReferenceChainSearch::FindOrAddNode(UObject*
 	return FindOrAddNode(FGCObjectInfo::FindOrAddInfoHelper(InObjectToFindNodeFor, ObjectToInfoMap));
 }
 
-int32 FReferenceChainSearch::BuildReferenceChains(FGraphNode* TargetNode, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter, EReferenceChainSearchMode SearchMode)
+int32 FReferenceChainSearch::BuildReferenceChainsRecursive(FGraphNode* TargetNode, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode)
 {
 	int32 ProducedChainsCount = 0;
+
+	// Always create a chain for the FGCObject referencer node even if we've found another path to it, because it handles many types of references
+	if (TargetNode == GCObjReferencerNode)
+	{
+		// This is a root so we can construct a chain from this node up to the target node
+		FReferenceChain* Chain = new FReferenceChain(ChainDepth);
+		Chain->InsertNode(TargetNode);
+		ProducedChains.Add(Chain);
+		ProducedChainsCount = 1;
+		return ProducedChainsCount;
+	}
+
 	if (TargetNode->Visited != VisitCounter)
 	{
 		TargetNode->Visited = VisitCounter;
@@ -53,10 +65,10 @@ int32 FReferenceChainSearch::BuildReferenceChains(FGraphNode* TargetNode, TArray
 			for (FGraphNode* ReferencedByNode : TargetNode->ReferencedByObjects)
 			{
 				// For each of the referencers of this node, duplicate the current chain and continue processing
-				if (ReferencedByNode->Visited != VisitCounter)
+				if (ReferencedByNode->Visited != VisitCounter || ReferencedByNode == GCObjReferencerNode)
 				{
 					int32 OldChainsCount = ProducedChains.Num();
-					int32 NewChainsCount = BuildReferenceChains(ReferencedByNode, ProducedChains, ChainDepth + 1, VisitCounter, SearchMode);
+					int32 NewChainsCount = BuildReferenceChainsRecursive(ReferencedByNode, ProducedChains, ChainDepth + 1, VisitCounter, SearchMode, GCObjReferencerNode);
 					// Insert the current node to all chains produced recursively
 					for (int32 NewChainIndex = OldChainsCount; NewChainIndex < (NewChainsCount + OldChainsCount); ++NewChainIndex)
 					{
@@ -80,15 +92,15 @@ int32 FReferenceChainSearch::BuildReferenceChains(FGraphNode* TargetNode, TArray
 	return ProducedChainsCount;
 }
 
-void FReferenceChainSearch::RemoveChainsWithDuplicatedRoots(TArray<FReferenceChain*>& AllChains)
+void FReferenceChainSearch::RemoveChainsWithDuplicatedRoots(TArray<FReferenceChain*>& AllChains, FGraphNode* GCObjReferencerNode)
 {
 	// This is going to be rather slow but it depends on the number of chains which shouldn't be too bad (usually)
 	for (int32 FirstChainIndex = 0; FirstChainIndex < AllChains.Num(); ++FirstChainIndex)
 	{
-		const FGraphNode* RootNode = AllChains[FirstChainIndex]->GetRootNode();
+		const FGraphNode* RootNode = AllChains[FirstChainIndex]->GetRootNode(GCObjReferencerNode);
 		for (int32 SecondChainIndex = AllChains.Num() - 1; SecondChainIndex > FirstChainIndex; --SecondChainIndex)
 		{
-			if (AllChains[SecondChainIndex]->GetRootNode() == RootNode)
+			if (AllChains[SecondChainIndex]->GetRootNode(GCObjReferencerNode) == RootNode)
 			{
 				delete AllChains[SecondChainIndex];
 				AllChains.RemoveAt(SecondChainIndex);
@@ -97,17 +109,72 @@ void FReferenceChainSearch::RemoveChainsWithDuplicatedRoots(TArray<FReferenceCha
 	}
 }
 
-typedef TPair<FReferenceChainSearch::FGraphNode*, FReferenceChainSearch::FGraphNode*> FRootAndReferencerPair;
-
-void FReferenceChainSearch::RemoveDuplicatedChains(TArray<FReferenceChain*>& AllChains)
+void FReferenceChainSearch::RemoveDuplicateGarbageChains(TArray<FReferenceChain*>& AllChains, FGraphNode* GCObjReferencerNode)
 {
-	// We consider chains identical if the direct referencer of the target node and the root node are identical
-	TMap<FRootAndReferencerPair, FReferenceChain*> UniqueChains;
+	typedef TPair<FGraphNode*, FGraphNode*> FGarbageChainKey; 
+
+	TMap<FGarbageChainKey, FReferenceChain*> GarbageChains;
+	TArray<FReferenceChain*> NoGarbageChains;
 
 	for (int32 ChainIndex = 0; ChainIndex < AllChains.Num(); ++ChainIndex)
 	{
 		FReferenceChain* Chain = AllChains[ChainIndex];
-		FRootAndReferencerPair ChainRootAndReferencer(Chain->Nodes[1], Chain->Nodes.Last());
+		const int32 GarbageIndex = Chain->Nodes.FindLastByPredicate([](FGraphNode* Node){ return Node->ObjectInfo->IsGarbage(); });
+
+		if (GarbageIndex == INDEX_NONE)
+		{
+			NoGarbageChains.Add(Chain);
+			continue;
+		}
+
+		FGraphNode* Garbage = Chain->Nodes[GarbageIndex];
+		FGraphNode* ChainReferencer = Chain->Nodes.Last();
+		if (ChainReferencer == GCObjReferencerNode && Chain->Nodes.Num() > 2)
+		{
+			ChainReferencer = Chain->Nodes[Chain->Nodes.Num() - 2];
+		}
+
+		FGarbageChainKey Key(Garbage, ChainReferencer);
+		if (FReferenceChain* Existing = GarbageChains.FindRef(Key))
+		{
+			int32 ExistingLen = Existing->Nodes.Num() - Existing->Nodes.Find(Garbage);
+			int32 NewLen = Chain->Nodes.Num() - Chain->Nodes.Find(Garbage);
+			if (NewLen < ExistingLen)
+			{
+				GarbageChains.FindOrAdd(Key, Chain);
+			}
+		}
+		else
+		{
+			GarbageChains.Add(Key, Chain);
+		}
+	}
+	AllChains.Reset();
+	GarbageChains.GenerateValueArray(AllChains);
+	AllChains.Append(NoGarbageChains);
+}
+
+typedef TTuple<FReferenceChainSearch::FGraphNode*, FReferenceChainSearch::FGraphNode*, FReferenceChainSearch::FGraphNode*> FChainDedupKey;
+
+void FReferenceChainSearch::RemoveDuplicatedChains(TArray<FReferenceChain*>& AllChains, FGraphNode* GCObjectReferencerNode)
+{
+	// We consider chains identical if the direct referencer of the target node and the root node are identical
+	TMap<FChainDedupKey, FReferenceChain*> UniqueChains;
+	
+	for (int32 ChainIndex = 0; ChainIndex < AllChains.Num(); ++ChainIndex)
+	{
+		FReferenceChain* Chain = AllChains[ChainIndex];
+		FGraphNode* ChainRoot = Chain->Nodes[1];
+
+		// If the chain referencers is the GUObjectReferencer then go one down to find a more unique object to use for deduplication
+		FGraphNode* ChainReferencer = Chain->Nodes.Last();
+		if (ChainReferencer == GCObjectReferencerNode && Chain->Nodes.Num() > 2)
+		{
+			ChainReferencer = Chain->Nodes[Chain->Nodes.Num()-2];
+		}
+
+		FChainDedupKey ChainRootAndReferencer(Chain->TargetNode, ChainRoot, ChainReferencer);
+
 		FReferenceChain** ExistingChain = UniqueChains.Find(ChainRootAndReferencer);
 		if (ExistingChain)
 		{
@@ -130,62 +197,76 @@ void FReferenceChainSearch::RemoveDuplicatedChains(TArray<FReferenceChain*>& All
 	UniqueChains.GenerateValueArray(AllChains);
 }
 
-void FReferenceChainSearch::BuildReferenceChains(FGraphNode* TargetNode, TArray<FReferenceChain*>& Chains, EReferenceChainSearchMode SearchMode)
-{	
-	TArray<FReferenceChain*> AllChains;
-
-	// Recursively construct reference chains	
+void FReferenceChainSearch::BuildReferenceChains(TConstArrayView<FGraphNode*> TargetNodes, TArray<FReferenceChain*>& Chains, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode)
+{
 	int32 VisitCounter = 0;
-	for (FGraphNode* ReferencedByNode : TargetNode->ReferencedByObjects)
+	TArray<FReferenceChain*> AllChains;
+	for (FGraphNode* TargetNode : TargetNodes)
 	{
-		TargetNode->Visited = ++VisitCounter;
-		
-		AllChains.Reset();
-		const int32 MinChainDepth = 2; // The chain will contain at least the TargetNode and the ReferencedByNode
-		BuildReferenceChains(ReferencedByNode, AllChains, MinChainDepth, VisitCounter, SearchMode);
-		for (FReferenceChain* Chain : AllChains)
-		{
-			Chain->InsertNode(TargetNode);
-		}
+		TArray<FReferenceChain*> ThisTargetChains;
 
-		// Filter based on search mode	
-		if (!!(SearchMode & EReferenceChainSearchMode::ExternalOnly))
+		// Recursively construct reference chains
+		for (FGraphNode* ReferencedByNode : TargetNode->ReferencedByObjects)
 		{
-			for (int32 ChainIndex = AllChains.Num() - 1; ChainIndex >= 0; --ChainIndex)
+			TargetNode->Visited = ++VisitCounter;
+		
+			AllChains.Reset();
+			const int32 MinChainDepth = 2; // The chain will contain at least the TargetNode and the ReferencedByNode
+			BuildReferenceChainsRecursive(ReferencedByNode, AllChains, MinChainDepth, VisitCounter, SearchMode, GCObjReferencerNode);
+
+			for (FReferenceChain* Chain : AllChains)
 			{
-				FReferenceChain* Chain = AllChains[ChainIndex];	
-				if (!Chain->IsExternal())
+				Chain->TargetNode = TargetNode; // Store the node that created this chain in case we later truncate the chain
+				Chain->InsertNode(TargetNode);
+			}
+
+			// Filter based on search mode	
+			if (!!(SearchMode & EReferenceChainSearchMode::ExternalOnly))
+			{
+				for (int32 ChainIndex = AllChains.Num() - 1; ChainIndex >= 0; --ChainIndex)
 				{
-					// Discard the chain
-					delete Chain;
-					AllChains.RemoveAtSwap(ChainIndex);
+					FReferenceChain* Chain = AllChains[ChainIndex];	
+					if (!Chain->IsExternal())
+					{
+						// Discard the chain
+						delete Chain;
+						AllChains.RemoveAtSwap(ChainIndex);
+					}
 				}
 			}
+
+			ThisTargetChains.Append(AllChains);
 		}
 
-		Chains.Append(AllChains);
+		// Sort all chains based on the search criteria
+		if (!(SearchMode & EReferenceChainSearchMode::Longest))
+		{
+			// Sort from the shortest to the longest chain
+			ThisTargetChains.Sort([](const FReferenceChain& LHS, const FReferenceChain& RHS) { return LHS.Num() < RHS.Num(); });
+		}
+		else
+		{
+			// Sort from the longest to the shortest chain
+			ThisTargetChains.Sort([](const FReferenceChain& LHS, const FReferenceChain& RHS) { return LHS.Num() > RHS.Num(); });
+		}
+
+		if (!!(SearchMode & (EReferenceChainSearchMode::ShortestToGarbage)))
+		{
+			RemoveDuplicateGarbageChains(ThisTargetChains, GCObjReferencerNode);
+		}
+		// Remove duplicated roots per target object
+		else if (!!(SearchMode & (EReferenceChainSearchMode::Longest | EReferenceChainSearchMode::Shortest)))
+		{
+			RemoveChainsWithDuplicatedRoots(ThisTargetChains, GCObjReferencerNode);
+		}
+
+		Chains.Append(ThisTargetChains);
 	}
 
-	// Reject duplicates
-	if (!!(SearchMode & (EReferenceChainSearchMode::Longest | EReferenceChainSearchMode::Shortest)))
+	// If we didn't remove dupe-root chains, remove overall duplicated chains on the entire set of results
+	if (!(SearchMode & (EReferenceChainSearchMode::Longest | EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::ShortestToGarbage)))
 	{
-		RemoveChainsWithDuplicatedRoots(Chains);
-	}
-	else
-	{
-		RemoveDuplicatedChains(Chains);
-	}
-
-	// Sort all chains based on the search criteria
-	if (!(SearchMode & EReferenceChainSearchMode::Longest))
-	{
-		// Sort from the shortest to the longest chain
-		Chains.Sort([](const FReferenceChain& LHS, const FReferenceChain& RHS) { return LHS.Num() < RHS.Num(); });
-	}
-	else
-	{
-		// Sort from the longest to the shortest chain
-		Chains.Sort([](const FReferenceChain& LHS, const FReferenceChain& RHS) { return LHS.Num() > RHS.Num(); });
+		RemoveDuplicatedChains(Chains, GCObjReferencerNode);
 	}
 
 	// Finally, fill extended reference info for the remaining chains
@@ -195,17 +276,20 @@ void FReferenceChainSearch::BuildReferenceChains(FGraphNode* TargetNode, TArray<
 	}
 }
 
-void FReferenceChainSearch::BuildReferenceChainsForDirectReferences(FGraphNode* TargetNode, TArray<FReferenceChain*>& AllChains, EReferenceChainSearchMode SearchMode)
+void FReferenceChainSearch::BuildReferenceChainsForDirectReferences(TConstArrayView<FGraphNode*> TargetNodes, TArray<FReferenceChain*>& AllChains, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode)
 {
-	for (FGraphNode* ReferencedByNode : TargetNode->ReferencedByObjects)
+	for (FGraphNode* TargetNode : TargetNodes) 
 	{
-		if (!(SearchMode & EReferenceChainSearchMode::ExternalOnly) || !ReferencedByNode->ObjectInfo->IsIn(TargetNode->ObjectInfo))
+		for (FGraphNode* ReferencedByNode : TargetNode->ReferencedByObjects)
 		{
-			FReferenceChain* Chain = new FReferenceChain();
-			Chain->AddNode(TargetNode);
-			Chain->AddNode(ReferencedByNode);
-			Chain->FillReferenceInfo();
-			AllChains.Add(Chain);
+			if (!(SearchMode & EReferenceChainSearchMode::ExternalOnly) || !ReferencedByNode->ObjectInfo->IsIn(TargetNode->ObjectInfo))
+			{
+				FReferenceChain* Chain = new FReferenceChain();
+				Chain->AddNode(TargetNode);
+				Chain->AddNode(ReferencedByNode);
+				Chain->FillReferenceInfo();
+				AllChains.Add(Chain);
+			}
 		}
 	}
 }
@@ -471,15 +555,13 @@ bool FReferenceChainSearch::FReferenceChain::IsExternal() const
 */
 class FDirectReferenceProcessor : public FSimpleReferenceProcessorBase
 {	
-	UObject* ObjectToFindReferencesTo;
 	TSet<FReferenceChainSearch::FObjectReferenceInfo>& ReferencedObjects;
 	TMap<UObject*, FGCObjectInfo*>& ObjectToInfoMap;
 
 public:
 
-	FDirectReferenceProcessor(UObject* InObjectToFindReferencesTo, TSet<FReferenceChainSearch::FObjectReferenceInfo>& InReferencedObjects, TMap<UObject*, FGCObjectInfo*>& InObjectToInfoMap)
-		: ObjectToFindReferencesTo(InObjectToFindReferencesTo)
-		, ReferencedObjects(InReferencedObjects)
+	FDirectReferenceProcessor(TSet<FReferenceChainSearch::FObjectReferenceInfo>& InReferencedObjects, TMap<UObject*, FGCObjectInfo*>& InObjectToInfoMap)
+		: ReferencedObjects(InReferencedObjects)
 		, ObjectToInfoMap(InObjectToInfoMap)
 	{
 	}
@@ -509,6 +591,12 @@ public:
 						FString RefName;
 						if (FGCObject::GGCObjectReferencer->GetReferencerName(Object, RefName, true))
 						{
+							// In case FGCObjects misbehave and give us long strings, truncate so we can make them an FName.
+							if (RefName.Len() >= NAME_SIZE)
+							{
+								RefName.LeftInline(NAME_SIZE-1);
+							}
+
 							RefInfo.ReferencerName = FName(*RefName);
 						}
 						else if (ReferencingObject)
@@ -544,14 +632,22 @@ public:
 	}
 };
 
-FReferenceChainSearch::FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode /*= EReferenceChainSearchMode::PrintResults*/)
-	: ObjectToFindReferencesTo(InObjectToFindReferencesTo)
+FReferenceChainSearch::FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode /*= EReferenceChainSearchMode::PrintResults*/) 
+: FReferenceChainSearch(TConstArrayView<UObject*>(&InObjectToFindReferencesTo, 1), Mode)
+{
+}
+
+FReferenceChainSearch::FReferenceChainSearch(TConstArrayView<UObject*> InObjectsToFindReferencesTo, EReferenceChainSearchMode Mode /*= EReferenceChainSearchMode::PrintResults*/)
+	: ObjectsToFindReferencesTo(InObjectsToFindReferencesTo)
 	, SearchMode(Mode)
 {
 	FSlowHeartBeatScope DisableHangDetection; // This function can be very slow
 
-	check(ObjectToFindReferencesTo);
-	ObjectInfoToFindReferencesTo = FGCObjectInfo::FindOrAddInfoHelper(ObjectToFindReferencesTo, ObjectToInfoMap);
+	for( UObject* Obj : InObjectsToFindReferencesTo )
+	{
+		check(Obj);
+		ObjectInfosToFindReferencesTo.Add(FGCObjectInfo::FindOrAddInfoHelper(Obj, ObjectToInfoMap));
+	}
 
 	// First pass is to find all direct references for each object
 	FindDirectReferencesForObjects();
@@ -577,22 +673,40 @@ FReferenceChainSearch::~FReferenceChainSearch()
 
 void FReferenceChainSearch::PerformSearch()
 {
-	FGraphNode* ObjectNodeToFindReferencesTo = FindOrAddNode(ObjectToFindReferencesTo);
-	check(ObjectNodeToFindReferencesTo);
+	TArray<FGraphNode*> GraphNodesToFind;
+	GraphNodesToFind.Reserve(ObjectsToFindReferencesTo.Num());
+	for (UObject* Obj : ObjectsToFindReferencesTo)
+	{
+		FGraphNode* ObjectNodeToFindReferencesTo = FindOrAddNode(Obj);
+		check(ObjectNodeToFindReferencesTo);
+		GraphNodesToFind.Add(ObjectNodeToFindReferencesTo);
+	}
+
+	FGraphNode* GCObjectReferencerGraphNode = nullptr;
+	if (FGCObject::GGCObjectReferencer)
+	{
+		FGCObjectInfo* ObjectInfo = FGCObjectInfo::FindOrAddInfoHelper(FGCObject::GGCObjectReferencer, ObjectToInfoMap);
+		GCObjectReferencerGraphNode = AllNodes.FindRef(ObjectInfo);
+	}
 
 	// Now it's time to build the reference chain from all of the objects that reference the object to find references to
 	if (!(SearchMode & EReferenceChainSearchMode::Direct))
 	{		
-		BuildReferenceChains(ObjectNodeToFindReferencesTo, ReferenceChains, SearchMode);
+		BuildReferenceChains(GraphNodesToFind, ReferenceChains, SearchMode, GCObjectReferencerGraphNode);
 	}
 	else
 	{
-		BuildReferenceChainsForDirectReferences(ObjectNodeToFindReferencesTo, ReferenceChains, SearchMode);
+		BuildReferenceChainsForDirectReferences(GraphNodesToFind, ReferenceChains, SearchMode, GCObjectReferencerGraphNode);
 	}
 }
 
 #if ENABLE_GC_HISTORY
 void FReferenceChainSearch::PerformSearchFromGCSnapshot(UObject* InObjectToFindReferencesTo, FGCSnapshot& InSnapshot)
+{
+	PerformSearchFromGCSnapshot(TConstArrayView<UObject*>(&InObjectToFindReferencesTo, 1), InSnapshot);
+}
+
+void FReferenceChainSearch::PerformSearchFromGCSnapshot(TConstArrayView<UObject*> InObjectsToFindReferencesTo, FGCSnapshot& InSnapshot)
 {
 	FSlowHeartBeatScope DisableHangDetection; // This function can be very slow
 
@@ -601,8 +715,12 @@ void FReferenceChainSearch::PerformSearchFromGCSnapshot(UObject* InObjectToFindR
 	// Temporarily move the generated object info structs. We don't want to copy everything to minimize memory usage and save a few ms
 	ObjectToInfoMap = MoveTemp(InSnapshot.ObjectToInfoMap);
 
-	ObjectToFindReferencesTo = InObjectToFindReferencesTo;
-	ObjectInfoToFindReferencesTo = FGCObjectInfo::FindOrAddInfoHelper(ObjectToFindReferencesTo, ObjectToInfoMap);
+	ObjectsToFindReferencesTo = InObjectsToFindReferencesTo;
+	ObjectInfosToFindReferencesTo.Reset();
+	for (UObject* Obj : InObjectsToFindReferencesTo)
+	{
+		ObjectInfosToFindReferencesTo.Add(FGCObjectInfo::FindOrAddInfoHelper(Obj, ObjectToInfoMap));
+	}
 	FGCObjectInfo* GCObjectReferencerInfo = FGCObjectInfo::FindOrAddInfoHelper(FGCObject::GGCObjectReferencer, ObjectToInfoMap);
 
 	// We can avoid copying object infos but we need to regenerate direct reference infos
@@ -642,7 +760,7 @@ void FReferenceChainSearch::PerformSearchFromGCSnapshot(UObject* InObjectToFindR
 void FReferenceChainSearch::FindDirectReferencesForObjects()
 {
 	TSet<FObjectReferenceInfo> ReferencedObjects;
-	FDirectReferenceProcessor Processor(ObjectToFindReferencesTo, ReferencedObjects, ObjectToInfoMap);
+	FDirectReferenceProcessor Processor(ReferencedObjects, ObjectToInfoMap);
 	TFastReferenceCollector<
 		FDirectReferenceProcessor, 
 		FDirectReferenceCollector, 
@@ -674,54 +792,76 @@ void FReferenceChainSearch::FindDirectReferencesForObjects()
 	}
 }
 
-void FReferenceChainSearch::PrintResults(bool bDumpAllChains /*= false*/) const
+int32 FReferenceChainSearch::PrintResults(bool bDumpAllChains /*= false*/, UObject* TargetObject /*= nullptr*/) const
 {
-	PrintResults([](FCallbackParams& Params) { return true; }, bDumpAllChains);
+	return PrintResults([](FCallbackParams& Params) { return true; }, bDumpAllChains, TargetObject);
 }
 
-void FReferenceChainSearch::PrintResults(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, bool bDumpAllChains /*= false*/) const
+int32 FReferenceChainSearch::PrintResults(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, bool bDumpAllChains /*= false*/, UObject* TargetObject /*= nullptr*/) const
 {
-	if (ReferenceChains.Num())
+	FSlowHeartBeatScope DisableHangDetection; // This function can be very slow
+
+	const int32 MaxChainsToPrint = 100;
+	int32 NumPrintedChains = 0;
+
+	for (FReferenceChain* Chain : ReferenceChains)
 	{
-		FSlowHeartBeatScope DisableHangDetection; // This function can be very slow
-
-		const int32 MaxChainsToPrint = 100;
-		int32 NumPrintedChains = 0;
-
-		for (FReferenceChain* Chain : ReferenceChains)
+		if (TargetObject != nullptr && Chain->TargetNode->ObjectInfo->TryResolveObject() != TargetObject)
 		{
-			if (bDumpAllChains || NumPrintedChains < MaxChainsToPrint)
-			{
-				DumpChain(Chain, ReferenceCallback, *GLog);
-				NumPrintedChains++;
-			}
-			else
-			{
-				UE_LOG(LogReferenceChain, Log, TEXT("Referenced by %d more reference chain(s)."), ReferenceChains.Num() - NumPrintedChains);
-				break;
-			}
+			continue;
+		}
+
+		if (bDumpAllChains || NumPrintedChains < MaxChainsToPrint)
+		{
+			DumpChain(Chain, ReferenceCallback, *GLog);
+			NumPrintedChains++;
+		}
+		else
+		{
+			UE_LOG(LogReferenceChain, Log, TEXT("Referenced by %d more reference chain(s)."), ReferenceChains.Num() - NumPrintedChains);
+			break;
 		}
 	}
-	else
+
+	if(NumPrintedChains == 0)
 	{
-		check(ObjectInfoToFindReferencesTo);
-		UE_LOG(LogReferenceChain, Log, TEXT("%s%s is not currently reachable."),
-			*GetObjectFlags(ObjectInfoToFindReferencesTo),
-			*ObjectInfoToFindReferencesTo->GetFullName()
-		);
+		if (TargetObject)
+		{
+			FGCObjectInfo ObjInfo(TargetObject);
+			UE_LOG(LogReferenceChain, Log, TEXT("%s%s is not currently reachable."),
+				*GetObjectFlags(&ObjInfo),
+				*ObjInfo.GetFullName()
+			);
+		}
+		else
+		{
+			UE_LOG(LogReferenceChain, Log, TEXT("No target objects are currently reachable."));
+		}
 	}
+
+	return NumPrintedChains;
 }
 
-FString FReferenceChainSearch::GetRootPath() const
+FString FReferenceChainSearch::GetRootPath(UObject* TargetObject /*= nullptr*/) const
 {
-	return GetRootPath([](FCallbackParams& Params) { return true; });
+	return GetRootPath([](FCallbackParams& Params) { return true; }, TargetObject);
 }
 
-FString FReferenceChainSearch::GetRootPath(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback) const
+FString FReferenceChainSearch::GetRootPath(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, UObject* TargetObject /*= nullptr*/) const
 {
+	FReferenceChain* Chain = nullptr;
 	if (ReferenceChains.Num())
 	{
-		FReferenceChain* Chain = ReferenceChains[0];
+		Chain = ReferenceChains[0];
+		if( TargetObject )
+		{
+			int32 Index = ReferenceChains.IndexOfByPredicate([=](const FReferenceChain* Chain){return Chain->TargetNode->ObjectInfo->TryResolveObject() == TargetObject; });
+			Chain = Index != INDEX_NONE ? ReferenceChains[Index] : nullptr;
+		}
+	}
+	
+	if (Chain)
+	{
 		FStringOutputDevice OutString;
 		OutString.SetAutoEmitLineTerminator(true);
 		DumpChain(Chain, ReferenceCallback, OutString);
@@ -729,10 +869,18 @@ FString FReferenceChainSearch::GetRootPath(TFunctionRef<bool(FCallbackParams& Pa
 	}
 	else
 	{
-		return FString::Printf(TEXT("%s%s is not currently reachable."),
-			*GetObjectFlags(ObjectInfoToFindReferencesTo),
-			*ObjectInfoToFindReferencesTo->GetFullName()
-		);
+		if (TargetObject)
+		{
+			FGCObjectInfo ObjectInfo(TargetObject);
+			return FString::Printf(TEXT("%s%s is not currently reachable."),
+				*GetObjectFlags(&ObjectInfo),
+				*ObjectInfo.GetFullName()
+			);
+		}
+		else
+		{
+			return TEXT("No target objects are currently reachable.");
+		}
 	}
 }
 

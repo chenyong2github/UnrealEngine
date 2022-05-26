@@ -15214,6 +15214,7 @@ void UEngine::VerifyLoadMapWorldCleanup()
 	TRACE_CPUPROFILER_EVENT_SCOPE(VerifyLoadMapWorldCleanup);
 	// All worlds at this point should be the CurrentWorld of some context, preview worlds, or streaming level
 	// worlds that are owned by the CurrentWorld of some context.
+	TArray<UObject*> LeakedWorlds;
 	for( TObjectIterator<UWorld> It; It; ++It )
 	{
 		UWorld* World = *It;
@@ -15222,18 +15223,29 @@ void UEngine::VerifyLoadMapWorldCleanup()
 		{
 			if ((World->PersistentLevel == nullptr || !WorldHasValidContext(World->PersistentLevel->OwningWorld)) && !IsWorldDuplicate(World))
 			{
-				UE_LOG(LogLoad, Error, TEXT("Previously active world %s not cleaned up by garbage collection!"), *World->GetPathName());
-				UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded. World referenced by:"));
-
-				FindAndPrintStaleReferencesToObject(World, UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
+				LeakedWorlds.Add(World);
 			}
+		}
+	}
+
+	if (LeakedWorlds.Num())
+	{
+		UE_LOG(LogLoad, Error, TEXT("Some previously active worlds were not cleaned up by garbage collection!"));
+		UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded. Dumping reference chains:"));
+
+		FindAndPrintStaleReferencesToObjects(LeakedWorlds, UObjectBaseUtility::IsPendingKillEnabled() ? EPrintStaleReferencesOptions::Fatal : (EPrintStaleReferencesOptions::Error | EPrintStaleReferencesOptions::Ensure));
+
+		if (!UObjectBaseUtility::IsPendingKillEnabled())
+		{
+			UE_LOG(LogTemp, Fatal, TEXT("Shutting down because of world leaks."));
 		}
 	}
 }
 
-static void PrintStaleReferenceChainsAndFindReferencingObjects(UObject* ObjectToFindReferencesTo, FReferenceChainSearch& RefChainSearch, FGCObjectInfo*& OutGarbageObject, FGCObjectInfo*& OutReferencingObject)
+static bool PrintStaleReferenceChainsAndFindReferencingObjects(UObject* ObjectToFindReferencesTo, FReferenceChainSearch& RefChainSearch, FGCObjectInfo*& OutGarbageObject, FGCObjectInfo*& OutReferencingObject)
 {
-	RefChainSearch.PrintResults([&ObjectToFindReferencesTo, &OutGarbageObject, &OutReferencingObject](FReferenceChainSearch::FCallbackParams& Params)
+	UE_LOG(LogLoad, Error, TEXT("Printing reference chains leading to %s: "), *ObjectToFindReferencesTo->GetFullName());
+	return RefChainSearch.PrintResults([&ObjectToFindReferencesTo, &OutGarbageObject, &OutReferencingObject](FReferenceChainSearch::FCallbackParams& Params)
 		{
 			check(Params.Object);
 			if (!Params.Object->IsValid())
@@ -15258,7 +15270,7 @@ static void PrintStaleReferenceChainsAndFindReferencingObjects(UObject* ObjectTo
 				}
 				return true;
 			}
-		}, false);
+		}, false, ObjectToFindReferencesTo) != 0;
 }
 
 static FString GetPathToStaleObjectReferencer(UObject* ObjectToFindReferencesTo, FReferenceChainSearch& RefChainSearch)
@@ -15310,95 +15322,115 @@ void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReference
 	FindAndPrintStaleReferencesToObject(ObjectToFindReferencesTo, Options);
 }
 
-void UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, EPrintStaleReferencesOptions Options)
+FString UEngine::FindAndPrintStaleReferencesToObject(UObject* ObjectToFindReferencesTo, EPrintStaleReferencesOptions Options)
 {
-	checkf(ObjectToFindReferencesTo, TEXT("ObjectToFindReferencesTo cannot be null"));
+	return FindAndPrintStaleReferencesToObjects(TConstArrayView<UObject*>(&ObjectToFindReferencesTo, 1), Options)[0];
+}
+
+TArray<FString> UEngine::FindAndPrintStaleReferencesToObjects(TConstArrayView<UObject*> ObjectsToFindReferencesTo, EPrintStaleReferencesOptions Options)
+{
+	TArray<FString> Paths; 
+	checkf(ObjectsToFindReferencesTo.Num() > 0, TEXT("ObjectsToFindReferencesTo cannot be empty"));
+	for (UObject* Obj : ObjectsToFindReferencesTo)
+	{
+		checkf(Obj, TEXT("Object to find references to cannot be null"));
+	}
+
 	const ELogVerbosity::Type OptionsToVerbosityMapping[] = { ELogVerbosity::NoLogging, ELogVerbosity::Log, ELogVerbosity::Display, ELogVerbosity::Warning, ELogVerbosity::Error, ELogVerbosity::Fatal };
 	const int32 VerbosityIndex = int32(Options & EPrintStaleReferencesOptions::VerbosityMask);
 	checkf(VerbosityIndex < UE_ARRAY_COUNT(OptionsToVerbosityMapping), TEXT("Unsupported verbosity option provided: %d"), VerbosityIndex);
 	ELogVerbosity::Type Verbosity = OptionsToVerbosityMapping[VerbosityIndex];
 
-	UE_LOG(LogLoad, Log, TEXT("Looking for existing references to %s..."), *ObjectToFindReferencesTo->GetFullName());
-
-	bool bReferenceChainFound = false;
-	FGCObjectInfo* OutGarbageObject = nullptr;
-	FGCObjectInfo* OutReferencingObject = nullptr;
-	FReferenceChainSearch RefChainSearch(ObjectToFindReferencesTo, EReferenceChainSearchMode::Default);
-#if ENABLE_GC_HISTORY
-	FReferenceChainSearch HistorySearch(EReferenceChainSearchMode::Default); // we may not need it but it has to live in this scope so that FGCObjectInfos are being kept alive
-#endif
-
-	PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, RefChainSearch, OutGarbageObject, OutReferencingObject);
-
-	FString PathToCulprit;
-	FString GarbageErrorMessage;
-	if (RefChainSearch.GetReferenceChains().Num())
+	UE_LOG(LogLoad, Log, TEXT("Beginning reference chain search..."));
+	for (UObject* Obj : ObjectsToFindReferencesTo)
 	{
-		bReferenceChainFound = true;
-		PathToCulprit = GetPathToStaleObjectReferencer(ObjectToFindReferencesTo, RefChainSearch);
-		FString GarbageObjectName = OutGarbageObject ? OutGarbageObject->GetFullName() : ObjectToFindReferencesTo->GetFullName();
-		checkf(OutReferencingObject, TEXT("No object referencing %s found even though we have a valid reference chain"), *ObjectToFindReferencesTo->GetPathName());
-		GarbageErrorMessage = FString::Printf(TEXT("Object %s is being referenced by %s"), *GarbageObjectName, *OutReferencingObject->GetFullName());
+		UE_LOG(LogLoad, Log, TEXT(" - %s"), *Obj->GetFullName());
 	}
+
+	FReferenceChainSearch RefChainSearch(ObjectsToFindReferencesTo, EReferenceChainSearchMode::ShortestToGarbage);
 #if ENABLE_GC_HISTORY
-	else
+	FReferenceChainSearch HistorySearch(EReferenceChainSearchMode::ShortestToGarbage); // we may not need it but it has to live in this scope so that FGCObjectInfos are being kept alive
+#endif
+	
+	for (UObject* ObjectToFindReferencesTo : ObjectsToFindReferencesTo)
 	{
-		FGCSnapshot* LastGCSnapshot = FGCHistory::Get().GetLastSnapshot();
-		if (LastGCSnapshot)
+		FGCObjectInfo* OutGarbageObject = nullptr;
+		FGCObjectInfo* OutReferencingObject = nullptr;
+
+		bool bReferenceChainFound = PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, RefChainSearch, OutGarbageObject, OutReferencingObject);
+
+		FString PathToCulprit;
+		FString GarbageErrorMessage;
+		if (bReferenceChainFound)
 		{
-			UE_LOG(LogLoad, Log, TEXT("Looking for references to %s in the last GC run history..."), *ObjectToFindReferencesTo->GetFullName());
-
-			HistorySearch.PerformSearchFromGCSnapshot(ObjectToFindReferencesTo, *LastGCSnapshot);
-
-			OutGarbageObject = nullptr;
-			OutReferencingObject = nullptr;
-			PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, HistorySearch, OutGarbageObject, OutReferencingObject);
-			if (HistorySearch.GetReferenceChains().Num())
+			PathToCulprit = GetPathToStaleObjectReferencer(ObjectToFindReferencesTo, RefChainSearch);
+			FString GarbageObjectName = OutGarbageObject ? OutGarbageObject->GetFullName() : ObjectToFindReferencesTo->GetFullName();
+			checkf(OutReferencingObject, TEXT("No object referencing %s found even though we have a valid reference chain"), *ObjectToFindReferencesTo->GetPathName());
+			GarbageErrorMessage = FString::Printf(TEXT("Object %s is being referenced by %s"), *GarbageObjectName, *OutReferencingObject->GetFullName());
+		}
+#if ENABLE_GC_HISTORY
+		else
+		{
+			FGCSnapshot* LastGCSnapshot = FGCHistory::Get().GetLastSnapshot();
+			if (LastGCSnapshot)
 			{
-				bReferenceChainFound = true;
-				PathToCulprit = GetPathToStaleObjectReferencer(ObjectToFindReferencesTo, RefChainSearch);
-				FString GarbageObjectName = OutGarbageObject ? OutGarbageObject->GetFullName() : ObjectToFindReferencesTo->GetFullName();
-				checkf(OutReferencingObject, TEXT("No object referencing %s found even though we have a valid reference chain"), *ObjectToFindReferencesTo->GetPathName());
-				GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s was previously being referenced by %s"), *GarbageObjectName, *OutReferencingObject->GetFullName());
+				UE_LOG(LogLoad, Log, TEXT("Looking for references to %s in the last GC run history..."), *ObjectToFindReferencesTo->GetFullName());
+
+				HistorySearch.PerformSearchFromGCSnapshot(ObjectsToFindReferencesTo, *LastGCSnapshot);
+
+				OutGarbageObject = nullptr;
+				OutReferencingObject = nullptr;
+				bReferenceChainFound = PrintStaleReferenceChainsAndFindReferencingObjects(ObjectToFindReferencesTo, HistorySearch, OutGarbageObject, OutReferencingObject);
+				if (bReferenceChainFound)
+				{
+					bReferenceChainFound = true;
+					PathToCulprit = GetPathToStaleObjectReferencer(ObjectToFindReferencesTo, HistorySearch);
+					FString GarbageObjectName = OutGarbageObject ? OutGarbageObject->GetFullName() : ObjectToFindReferencesTo->GetFullName();
+					checkf(OutReferencingObject, TEXT("No object referencing %s found even though we have a valid reference chain"), *ObjectToFindReferencesTo->GetPathName());
+					GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s was previously being referenced by %s"), *GarbageObjectName, *OutReferencingObject->GetFullName());
+				}
 			}
 		}
-	}
 #endif // ENABLE_GC_HISTORY
 
-	if (!bReferenceChainFound)
-	{
-		if (OutGarbageObject)
+		if (!bReferenceChainFound)
 		{
-			GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s is not referenced so it may have a flag set that's preventing it from being destroyed (see log for details)"), *OutGarbageObject->GetFullName());
+			if (OutGarbageObject)
+			{
+				GarbageErrorMessage = FString::Printf(TEXT("Garbage object %s is not referenced so it may have a flag set that's preventing it from being destroyed (see log for details)"), *OutGarbageObject->GetFullName());
+				PathToCulprit = OutGarbageObject->GetFullName();
+			}
+			else
+			{
+				GarbageErrorMessage = TEXT("However it's not referenced by any object. It may have a flag set that's preventing it from being destroyed (see log for details)");
+			}
+		}
+
+		Paths.Add(PathToCulprit);
+
+		if ((Options & EPrintStaleReferencesOptions::Ensure) == EPrintStaleReferencesOptions::Ensure)
+		{
+			ensureAlwaysMsgf(false, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),
+				*ObjectToFindReferencesTo->GetFullName(),
+				*GarbageErrorMessage,
+				*PathToCulprit);
+		}
+		else if (Verbosity == ELogVerbosity::Fatal)
+		{
+			UE_LOG(LogLoad, Fatal, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),
+				*ObjectToFindReferencesTo->GetFullName(), 
+				*GarbageErrorMessage,
+				*PathToCulprit);
 		}
 		else
 		{
-			GarbageErrorMessage = TEXT("However it's not referenced by any object. It may have a flag set that's preventing it from being destroyed (see log for details)");
+			GLog->CategorizedLogf(TEXT("LogLoad"), Verbosity, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),
+				*ObjectToFindReferencesTo->GetFullName(), 
+				*GarbageErrorMessage,
+				*PathToCulprit);
 		}
 	}
-
-	if ((Options & EPrintStaleReferencesOptions::Ensure) == EPrintStaleReferencesOptions::Ensure)
-	{
-		ensureAlwaysMsgf(false, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),
-			*ObjectToFindReferencesTo->GetFullName(),
-			*GarbageErrorMessage,
-			*PathToCulprit);
-	}
-
-	if (Verbosity == ELogVerbosity::Fatal)
-	{
-		UE_LOG(LogLoad, Fatal, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),
-			*ObjectToFindReferencesTo->GetFullName(), 
-			*GarbageErrorMessage,
-			*PathToCulprit);
-	}
-	else
-	{
-		GLog->CategorizedLogf(TEXT("LogLoad"), Verbosity, TEXT("Old %s not cleaned up by GC! %s:") LINE_TERMINATOR TEXT("%s"),
-			*ObjectToFindReferencesTo->GetFullName(), 
-			*GarbageErrorMessage,
-			*PathToCulprit);
-	}
+	return Paths;
 }
 
 /*-----------------------------------------------------------------------------

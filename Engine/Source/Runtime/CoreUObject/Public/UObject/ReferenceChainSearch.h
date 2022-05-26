@@ -22,6 +22,8 @@ enum class EReferenceChainSearchMode
 	Direct = 1 << 3,
 	// Returns complete chains. (Ignoring non GC objects)
 	FullChain = 1 << 4,
+	// Returns the shortest path to a garbage object from which the target object is reachable
+	ShortestToGarbage = 1 << 5,
 
 	// Print results
 	PrintResults = 1 << 16,
@@ -159,6 +161,9 @@ public:
 	{
 		friend class FReferenceChainSearch;
 
+		/** The target nodes that caused this chain to be created. Usually this will be Nodes[0] unless the chain was truncated by request. */
+		FGraphNode* TargetNode;
+
 		/** Nodes in this reference chain. The first node is the target object and the last one is a root object */
 		TArray<FGraphNode*> Nodes;
 		/** Reference information for Nodes */
@@ -187,6 +192,15 @@ public:
 		FGraphNode* GetNode(int32 NodeIndex) const
 		{
 			return Nodes[NodeIndex];
+		}
+		FGraphNode* GetRootNode(FGraphNode* Exclude) const
+		{
+			if (Nodes.Last() == Exclude && Nodes.Num() > 2)
+			{
+				return Nodes[Nodes.Num()-2];
+			}
+
+			return Nodes.Last();
 		}
 		FGraphNode* GetRootNode() const
 		{
@@ -234,6 +248,7 @@ public:
 
 	/** Constructs a new search engine and finds references to the specified object */
 	COREUOBJECT_API explicit FReferenceChainSearch(UObject* InObjectToFindReferencesTo, EReferenceChainSearchMode Mode = EReferenceChainSearchMode::PrintResults);
+	COREUOBJECT_API explicit FReferenceChainSearch(TConstArrayView<UObject*> InObjectsToFindReferencesTo, EReferenceChainSearchMode Mode = EReferenceChainSearchMode::PrintResults);
 
 	/** Constructs a new search engine but does not find references to any objects until one of the PerformSearch*() functions is called */
 	COREUOBJECT_API explicit FReferenceChainSearch(EReferenceChainSearchMode Mode);
@@ -244,29 +259,32 @@ public:
 #if ENABLE_GC_HISTORY
 	/** Searches for references in a previous GC run snapshot temporarily acquiring its object info */
 	COREUOBJECT_API void PerformSearchFromGCSnapshot(UObject* InObjectToFindReferencesTo, FGCSnapshot& InSnapshot);
+	COREUOBJECT_API void PerformSearchFromGCSnapshot(TConstArrayView<UObject*> InObjectsToFindReferencesTo, FGCSnapshot& InSnapshot);
 #endif //ENABLE_GC_HISTORY
 
 	/**
 	 * Dumps results to log
 	 * @param bDumpAllChains - if set to false, the output will be trimmed to the first 100 reference chains
+	 * @returns The number of results printed.
 	 */
-	COREUOBJECT_API void PrintResults(bool bDumpAllChains = false) const;
+	COREUOBJECT_API int32 PrintResults(bool bDumpAllChains = false, UObject* TargetObject=nullptr) const;
 
 	/**
 	 * Dumps results to log
 	 * @param ReferenceCallback - function called when processing each reference, if true is returned the next reference will be processed otherwise printing will be aborted
 	 * @param bDumpAllChains - if set to false, the output will be trimmed to the first 100 reference chains
+	 * @returns The number of results printed.
 	 */
-	COREUOBJECT_API void PrintResults(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, bool bDumpAllChains = false) const;
+	COREUOBJECT_API int32 PrintResults(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, bool bDumpAllChains = false, UObject* TargetObject = nullptr) const;
 
 	/** Returns a string with a short report explaining the root path, will contain newlines */
-	COREUOBJECT_API FString GetRootPath() const;
+	COREUOBJECT_API FString GetRootPath(UObject* TargetObject = nullptr) const;
 
 	/** 
 	 * Returns a string with a short report explaining the root path, will contain newlines 
 	 * @param ReferenceCallback - function called when processing each reference, if true is returned the next reference will be processed otherwise printing will be aborted
 	 */
-	COREUOBJECT_API FString GetRootPath(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback) const;
+	COREUOBJECT_API FString GetRootPath(TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, UObject* TargetObject = nullptr) const;
 
 	/** Returns all reference chains */
 	COREUOBJECT_API const TArray<FReferenceChain*>& GetReferenceChains() const
@@ -276,15 +294,16 @@ public:
 
 private:
 
-	/** The object we're going to look for references to */
-	UObject* ObjectToFindReferencesTo = nullptr;
-	FGCObjectInfo* ObjectInfoToFindReferencesTo = nullptr;
+	/** The objects we're going to look for references to */
+	TArray<UObject*> ObjectsToFindReferencesTo;
+	TArray<FGCObjectInfo*> ObjectInfosToFindReferencesTo;
 
 	/** Search mode and options */
 	EReferenceChainSearchMode SearchMode = EReferenceChainSearchMode::Default;
 
-	/** All reference chain found during the search */
+	/** All reference chain found during the search, one per entry in ObjectsToFindReferencesTo */
 	TArray<FReferenceChain*> ReferenceChains;
+
 	/** All nodes created during the search */
 	TMap<FGCObjectInfo*, FGraphNode*> AllNodes;
 	/** Maps UObject pointers to object info structs */
@@ -304,18 +323,22 @@ private:
 	FGraphNode* FindOrAddNode(FGCObjectInfo* InObjectInfo);
 
 	/** Builds reference chains */
-	static int32 BuildReferenceChains(FGraphNode* TargetNode, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter, EReferenceChainSearchMode SearchMode);
+	static int32 BuildReferenceChainsRecursive(FGraphNode* TargetNodes, TArray<FReferenceChain*>& ProducedChains, int32 ChainDepth, const int32 VisitCounter, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode);
 	/** Builds reference chains */
-	static void BuildReferenceChains(FGraphNode* TargetNode, TArray<FReferenceChain*>& AllChains, EReferenceChainSearchMode SearchMode);
+	static void BuildReferenceChains(TConstArrayView<FGraphNode*> TargetNodes, TArray<FReferenceChain*>& AllChains, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode);
 	/** Builds reference chains for direct references only */
-	static void BuildReferenceChainsForDirectReferences(FGraphNode* TargetNode, TArray<FReferenceChain*>& AllChains, EReferenceChainSearchMode SearchMode);
+	static void BuildReferenceChainsForDirectReferences(TConstArrayView<FGraphNode*> TargetNodes, TArray<FReferenceChain*>& AllChains, EReferenceChainSearchMode SearchMode, FGraphNode* GCObjReferencerNode);
 	/** Leaves only chains with unique root objects */
-	static void RemoveChainsWithDuplicatedRoots(TArray<FReferenceChain*>& AllChains);
+	static void RemoveChainsWithDuplicatedRoots(TArray<FReferenceChain*>& AllChains, FGraphNode* GCObjReferencerNode);
 	/** Leaves only unique chains */
-	static void RemoveDuplicatedChains(TArray<FReferenceChain*>& AllChains);
+	static void RemoveDuplicatedChains(TArray<FReferenceChain*>& AllChains, FGraphNode* GCObjReferencerNode);
+	/** Deduplicates chains that have the same root and first garbage object encountered */
+	static void RemoveDuplicateGarbageChains(TArray<FReferenceChain*>& AllChains, FGraphNode* GCObjReferencerNode);
 
 	/** Returns a string with all flags (we care about) set on an object */
 	static FString GetObjectFlags(FGCObjectInfo* InObject);
+	static FString GetObjectFlags(EInternalObjectFlags InternalFlags, EObjectFlags Flags);
+
 	/** Dumps a reference chain to log */
 	static void DumpChain(FReferenceChainSearch::FReferenceChain* Chain, TFunctionRef<bool(FCallbackParams& Params)> ReferenceCallback, FOutputDevice& Out);
 };
