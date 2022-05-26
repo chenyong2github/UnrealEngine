@@ -1421,6 +1421,12 @@ static void CookSurroundWave(const FAudioCookInputs& Inputs,  TArray<uint8>& Out
 	const uint8* RawWaveData = (const uint8*)FutureBuffer.Get().GetData(); // Will block 
 	int32 RawDataSize = FutureBuffer.Get().GetSize();
 
+	if (!RawWaveData || RawDataSize <=0 )
+	{
+		UE_LOG(LogAudioDerivedData, Warning, TEXT("Cooking surround sound failed: %s, Failed to load virtualized bulkdata payload"), *Inputs.SoundFullName);
+		return;
+	}
+
 	// Front left channel is the master
 	static_assert(SPEAKER_FrontLeft == 0, "Front-left speaker must be first.");
 
