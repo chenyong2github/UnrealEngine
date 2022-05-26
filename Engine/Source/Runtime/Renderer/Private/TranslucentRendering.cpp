@@ -34,31 +34,29 @@ static TAutoConsoleVariable<float> CVarSeparateTranslucencyScreenPercentage(
 	TEXT("<0 is treated like 100."),
 	ECVF_Scalability | ECVF_Default);
 
-static TAutoConsoleVariable<int32> CVarSeparateTranslucencyAutoDownsample(
-	TEXT("r.SeparateTranslucencyAutoDownsample"),
-	0,
-	TEXT("Whether to automatically downsample separate translucency based on last frame's GPU time.\n")
-	TEXT("Automatic downsampling is only used when r.SeparateTranslucencyScreenPercentage is 100"),
-	ECVF_Scalability | ECVF_Default);
+static TAutoConsoleVariable<float> CVarTranslucencyMinScreenPercentage(
+	TEXT("r.Translucency.DynamicRes.MinScreenPercentage"),
+	DynamicRenderScaling::FractionToPercentage(DynamicRenderScaling::FHeuristicSettings::kDefaultMinResolutionFraction),
+	TEXT("Minimal screen percentage for translucency."),
+	ECVF_RenderThreadSafe | ECVF_Default);
 
-static TAutoConsoleVariable<float> CVarSeparateTranslucencyDurationDownsampleThreshold(
-	TEXT("r.SeparateTranslucencyDurationDownsampleThreshold"),
-	1.5f,
-	TEXT("When smoothed full-res translucency GPU duration is larger than this value (ms), the entire pass will be downsampled by a factor of 2 in each dimension."),
-	ECVF_Scalability | ECVF_Default);
+static TAutoConsoleVariable<float> CVarTranslucencyTimeBudget(
+	TEXT("r.Translucency.DynamicRes.TimeBudget"),
+	DynamicRenderScaling::FHeuristicSettings::kBudgetMsDisabled,
+	TEXT("Frame's time budget for translucency rendering in milliseconds."),
+	ECVF_RenderThreadSafe | ECVF_Default);
 
-static TAutoConsoleVariable<float> CVarSeparateTranslucencyDurationUpsampleThreshold(
-	TEXT("r.SeparateTranslucencyDurationUpsampleThreshold"),
-	.5f,
-	TEXT("When smoothed half-res translucency GPU duration is smaller than this value (ms), the entire pass will be restored to full resolution.\n")
-	TEXT("This should be around 1/4 of r.SeparateTranslucencyDurationDownsampleThreshold to avoid toggling downsampled state constantly."),
-	ECVF_Scalability | ECVF_Default);
+static TAutoConsoleVariable<float> CVarTranslucencyTargetedHeadRoomPercentage(
+	TEXT("r.Translucency.DynamicRes.TargetedHeadRoomPercentage"),
+	DynamicRenderScaling::FractionToPercentage(DynamicRenderScaling::FHeuristicSettings::kDefaultTargetedHeadRoom),
+	TEXT("Targeted GPU headroom for translucency (in percent from r.DynamicRes.DynamicRes.TimeBudget)."),
+	ECVF_RenderThreadSafe | ECVF_Default);
 
-static TAutoConsoleVariable<float> CVarSeparateTranslucencyMinDownsampleChangeTime(
-	TEXT("r.SeparateTranslucencyMinDownsampleChangeTime"),
-	1.0f,
-	TEXT("Minimum time in seconds between changes to automatic downsampling state, used to prevent rapid swapping between half and full res."),
-	ECVF_Scalability | ECVF_Default);
+static TAutoConsoleVariable<float> CVarTranslucencyChangeThreshold(
+	TEXT("r.Translucency.DynamicRes.ChangePercentageThreshold"),
+	DynamicRenderScaling::FractionToPercentage(DynamicRenderScaling::FHeuristicSettings::kDefaultChangeThreshold),
+	TEXT("Minimal increase percentage threshold to alow when changing resolution of translucency."),
+	ECVF_RenderThreadSafe | ECVF_Default);
 
 int32 GSeparateTranslucencyUpsampleMode = 1;
 static FAutoConsoleVariableRef CVarSeparateTranslucencyUpsampleMode(
@@ -78,6 +76,22 @@ static TAutoConsoleVariable<int32> CVarParallelTranslucency(
 	1,
 	TEXT("Toggles parallel translucency rendering. Parallel rendering must be enabled for this to have an effect."),
 	ECVF_RenderThreadSafe);
+
+
+DynamicRenderScaling::FHeuristicSettings GetDynamicTranslucencyResolutionSettings()
+{
+	DynamicRenderScaling::FHeuristicSettings BucketSetting;
+	BucketSetting.Model = DynamicRenderScaling::EHeuristicModel::Quadratic;
+	BucketSetting.bModelScalesWithPrimaryScreenPercentage = true;
+	BucketSetting.MinResolutionFraction = DynamicRenderScaling::GetPercentageCVarToFraction(CVarTranslucencyMinScreenPercentage);
+	BucketSetting.BudgetMs              = CVarTranslucencyTimeBudget.GetValueOnAnyThread();
+	BucketSetting.ChangeThreshold       = DynamicRenderScaling::GetPercentageCVarToFraction(CVarTranslucencyChangeThreshold);
+	BucketSetting.TargetedHeadRoom      = DynamicRenderScaling::GetPercentageCVarToFraction(CVarTranslucencyTargetedHeadRoomPercentage);
+	return BucketSetting;
+}
+
+DynamicRenderScaling::FBudget GDynamicTranslucencyResolution(TEXT("DynamicTranslucencyResolution"), &GetDynamicTranslucencyResolutionSettings);
+
 
 static const TCHAR* kTranslucencyPassName[] = {
 	TEXT("BeforeDistortion"),
@@ -204,186 +218,24 @@ static bool ShouldRenderTranslucencyScreenSpaceReflections(const FViewInfo& View
 	return true;
 }
 
-static void AddBeginTranslucencyTimerPass(FRDGBuilder& GraphBuilder, const FViewInfo& View)
+FSeparateTranslucencyDimensions UpdateSeparateTranslucencyDimensions(const FViewFamilyInfo& ActiveViewFamily)
 {
-#if STATS
-	if (View.ViewState)
+	float TranslucencyResolutionFraction = FMath::Clamp(CVarSeparateTranslucencyScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.0f, 1.0f);
+	float MaxTranslucencyResolutionFraction	= TranslucencyResolutionFraction;
+
+	if (GDynamicTranslucencyResolution.GetSettings().IsEnabled())
 	{
-		AddPass(GraphBuilder, RDG_EVENT_NAME("BeginTimer"), [&View](FRHICommandListImmediate& RHICmdList)
-		{
-			View.ViewState->TranslucencyTimer.Begin(RHICmdList);
-		});
-	}
-#endif
-}
-
-static void AddEndTranslucencyTimerPass(FRDGBuilder& GraphBuilder, const FViewInfo& View)
-{
-#if STATS
-	if (View.ViewState)
-	{
-		AddPass(GraphBuilder, RDG_EVENT_NAME("EndTimer"), [&View](FRHICommandListImmediate& RHICmdList)
-		{
-			View.ViewState->TranslucencyTimer.End(RHICmdList);
-		});
-	}
-#endif
-}
-
-static bool HasSeparateTranslucencyTimer(const FViewInfo& View)
-{
-	return View.ViewState && GSupportsTimestampRenderQueries
-#if !STATS
-		&& (CVarSeparateTranslucencyAutoDownsample.GetValueOnRenderThread() != 0)
-#endif
-		;
-}
-
-static void AddBeginSeparateTranslucencyTimerPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, ETranslucencyPass::Type TranslucencyPass)
-{
-	if (HasSeparateTranslucencyTimer(View))
-	{
-		AddPass(GraphBuilder, RDG_EVENT_NAME("BeginTimer"), [&View, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
-		{
-			switch(TranslucencyPass)
-			{
-			case ETranslucencyPass::TPT_TranslucencyAfterDOF:
-				View.ViewState->SeparateTranslucencyTimer.Begin(RHICmdList);
-				break;
-			case ETranslucencyPass::TPT_TranslucencyAfterDOFModulate:
-				View.ViewState->SeparateTranslucencyModulateTimer.Begin(RHICmdList);
-				break;
-			case ETranslucencyPass::TPT_TranslucencyAfterMotionBlur:
-				View.ViewState->PostMotionBlurTranslucencyTimer.Begin(RHICmdList);
-				break;
-			default:
-				break;
-			}
-		});
-	}
-}
-
-static void AddEndSeparateTranslucencyTimerPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, ETranslucencyPass::Type TranslucencyPass)
-{
-	if (HasSeparateTranslucencyTimer(View))
-	{
-		AddPass(GraphBuilder, RDG_EVENT_NAME("EndTimer"), [&View, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
-		{
-			switch(TranslucencyPass)
-			{
-			case ETranslucencyPass::TPT_TranslucencyAfterDOF:
-				View.ViewState->SeparateTranslucencyTimer.End(RHICmdList);
-				break;
-			case ETranslucencyPass::TPT_TranslucencyAfterDOFModulate:			
-				View.ViewState->SeparateTranslucencyModulateTimer.End(RHICmdList);
-				break;
-			case ETranslucencyPass::TPT_TranslucencyAfterMotionBlur:
-				View.ViewState->PostMotionBlurTranslucencyTimer.End(RHICmdList);
-				break;
-			default:
-				break;
-			}
-		});
-	}
-}
-
-FSeparateTranslucencyDimensions UpdateTranslucencyTimers(FRHICommandListImmediate& RHICmdList, TArrayView<const FViewInfo> Views)
-{
-	bool bAnyViewWantsDownsampledSeparateTranslucency = false;
-
-	const bool bSeparateTranslucencyAutoDownsample = CVarSeparateTranslucencyAutoDownsample.GetValueOnRenderThread() != 0;
-	const bool bStatsEnabled = STATS != 0;
-
-	if (GSupportsTimestampRenderQueries && (bSeparateTranslucencyAutoDownsample || bStatsEnabled))
-	{
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-			FSceneViewState* ViewState = View.ViewState;
-
-			if (ViewState)
-			{
-				//We always tick the separate trans timer but only need the other timer for stats
-				bool bSeparateTransTimerSuccess = ViewState->SeparateTranslucencyTimer.Tick(RHICmdList);
-				bool bSeparateTransModulateTimerSuccess = ViewState->SeparateTranslucencyModulateTimer.Tick(RHICmdList);
-
-				if (STATS)
-				{
-					ViewState->TranslucencyTimer.Tick(RHICmdList);
-					//Stats are fed the most recent available time and so are lagged a little. 
-					float MostRecentTotalTime = ViewState->TranslucencyTimer.GetTimeMS() +
-						ViewState->SeparateTranslucencyTimer.GetTimeMS() +
-						ViewState->SeparateTranslucencyModulateTimer.GetTimeMS();
-					SET_FLOAT_STAT(STAT_TranslucencyGPU, MostRecentTotalTime);
-				}
-
-				if (bSeparateTranslucencyAutoDownsample && bSeparateTransTimerSuccess)
-				{
-					float LastFrameTranslucencyDurationMS = ViewState->SeparateTranslucencyTimer.GetTimeMS() + ViewState->SeparateTranslucencyModulateTimer.GetTimeMS();
-					const bool bOriginalShouldAutoDownsampleTranslucency = ViewState->bShouldAutoDownsampleTranslucency;
-
-					if (ViewState->bShouldAutoDownsampleTranslucency)
-					{
-						ViewState->SmoothedFullResTranslucencyGPUDuration = 0;
-						const float LerpAlpha = ViewState->SmoothedHalfResTranslucencyGPUDuration == 0 ? 1.0f : .1f;
-						ViewState->SmoothedHalfResTranslucencyGPUDuration = FMath::Lerp(ViewState->SmoothedHalfResTranslucencyGPUDuration, LastFrameTranslucencyDurationMS, LerpAlpha);
-
-						// Don't re-asses switching for some time after the last switch
-						if (View.Family->Time.GetRealTimeSeconds() - ViewState->LastAutoDownsampleChangeTime > CVarSeparateTranslucencyMinDownsampleChangeTime.GetValueOnRenderThread())
-						{
-							// Downsample if the smoothed time is larger than the threshold
-							ViewState->bShouldAutoDownsampleTranslucency = ViewState->SmoothedHalfResTranslucencyGPUDuration > CVarSeparateTranslucencyDurationUpsampleThreshold.GetValueOnRenderThread();
-
-							if (!ViewState->bShouldAutoDownsampleTranslucency)
-							{
-								// Do 'log LogRenderer verbose' to get these
-								UE_LOG(LogRenderer, Verbose, TEXT("Upsample: %.1fms < %.1fms"), ViewState->SmoothedHalfResTranslucencyGPUDuration, CVarSeparateTranslucencyDurationUpsampleThreshold.GetValueOnRenderThread());
-							}
-						}
-					}
-					else
-					{
-						ViewState->SmoothedHalfResTranslucencyGPUDuration = 0;
-						const float LerpAlpha = ViewState->SmoothedFullResTranslucencyGPUDuration == 0 ? 1.0f : .1f;
-						ViewState->SmoothedFullResTranslucencyGPUDuration = FMath::Lerp(ViewState->SmoothedFullResTranslucencyGPUDuration, LastFrameTranslucencyDurationMS, LerpAlpha);
-
-						if (View.Family->Time.GetRealTimeSeconds() - ViewState->LastAutoDownsampleChangeTime > CVarSeparateTranslucencyMinDownsampleChangeTime.GetValueOnRenderThread())
-						{
-							// Downsample if the smoothed time is larger than the threshold
-							ViewState->bShouldAutoDownsampleTranslucency = ViewState->SmoothedFullResTranslucencyGPUDuration > CVarSeparateTranslucencyDurationDownsampleThreshold.GetValueOnRenderThread();
-
-							if (ViewState->bShouldAutoDownsampleTranslucency)
-							{
-								UE_LOG(LogRenderer, Verbose, TEXT("Downsample: %.1fms > %.1fms"), ViewState->SmoothedFullResTranslucencyGPUDuration, CVarSeparateTranslucencyDurationDownsampleThreshold.GetValueOnRenderThread());
-							}
-						}
-					}
-
-					if (bOriginalShouldAutoDownsampleTranslucency != ViewState->bShouldAutoDownsampleTranslucency)
-					{
-						ViewState->LastAutoDownsampleChangeTime = View.Family->Time.GetRealTimeSeconds();
-					}
-
-					bAnyViewWantsDownsampledSeparateTranslucency = bAnyViewWantsDownsampledSeparateTranslucency || ViewState->bShouldAutoDownsampleTranslucency;
-				}
-			}
-		}
+		TranslucencyResolutionFraction = ActiveViewFamily.DynamicResolutionFractions[GDynamicTranslucencyResolution];
+		MaxTranslucencyResolutionFraction = ActiveViewFamily.DynamicResolutionUpperBounds[GDynamicTranslucencyResolution];
 	}
 
-	float EffectiveScale = FMath::Clamp(CVarSeparateTranslucencyScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.0f, 1.0f);
-
-	// 'r.SeparateTranslucencyScreenPercentage' CVar wins over automatic downsampling
-	if (FMath::IsNearlyEqual(EffectiveScale, 1.0f) && bAnyViewWantsDownsampledSeparateTranslucency)
-	{
-		EffectiveScale = 0.5f;
-	}
+	UE_LOG(LogRenderer, Display, TEXT("TranslucencyResolutionFraction=%f"), TranslucencyResolutionFraction);
 
 	FSeparateTranslucencyDimensions Dimensions;
-	const FSceneTexturesConfig& Config = GetViewFamily(Views).SceneTexturesConfig;
-	Dimensions.Extent = GetScaledExtent(Config.Extent, EffectiveScale);
-	Dimensions.NumSamples = Config.NumSamples;
-	Dimensions.Scale = EffectiveScale;
+	// TODO: this should be MaxTranslucencyResolutionFraction instead of TranslucencyResolutionFraction to keep the size of render target stable, but the SvPositionToBuffer() is broken in material.
+	Dimensions.Extent = GetScaledExtent(ActiveViewFamily.SceneTexturesConfig.Extent, TranslucencyResolutionFraction);
+	Dimensions.NumSamples = ActiveViewFamily.SceneTexturesConfig.NumSamples;
+	Dimensions.Scale = TranslucencyResolutionFraction;
 	return Dimensions;
 }
 
@@ -595,6 +447,9 @@ FScreenPassTexture FTranslucencyComposition::AddPass(
 
 		SeparateTranslucencyTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackAlphaOneDummy);
 	}
+
+	RDG_GPU_STAT_SCOPE(GraphBuilder, Translucency);
+	DynamicRenderScaling::FRDGScope DynamicTranslucencyResolutionScope(GraphBuilder, GDynamicTranslucencyResolution);
 
 	const TCHAR* OpName = nullptr;
 	FRHIBlendState* BlendState = nullptr;
@@ -1355,7 +1210,6 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 	}
 
 	RDG_EVENT_SCOPE(GraphBuilder, "%s", TranslucencyPassToString(TranslucencyPass));
-	RDG_GPU_STAT_SCOPE(GraphBuilder, Translucency);
 	RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsTranslucencyWaitForTasksEnabled());
 
 	const bool bIsModulate = TranslucencyPass == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate;
@@ -1404,8 +1258,6 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 			{
 				SeparateTranslucencyDepthTexture = SharedDepthTexture;
 			}
-
-			AddBeginSeparateTranslucencyTimerPass(GraphBuilder, View, TranslucencyPass);
 
 			const ERenderTargetLoadAction SeparateTranslucencyColorLoadAction = NumProcessedViews == 0 || View.Family->bMultiGPUForkAndJoin
 				? ERenderTargetLoadAction::EClear
@@ -1484,7 +1336,6 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 				}
 			}
 
-			AddEndSeparateTranslucencyTimerPass(GraphBuilder, View, TranslucencyPass);
 			++NumProcessedViews;
 		}
 	}
@@ -1502,8 +1353,6 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-			AddBeginTranslucencyTimerPass(GraphBuilder, View);
 
 			const ERenderTargetLoadAction SceneColorLoadAction = ERenderTargetLoadAction::ELoad;
 			const FScreenPassTextureViewport Viewport(SceneTextures.Color.Target, View.ViewRect);
@@ -1532,8 +1381,6 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 			{
 				OIT::AddOITComposePass(GraphBuilder, View, OITData, SceneTextures.Color.Target);
 			}
-
-			AddEndTranslucencyTimerPass(GraphBuilder, View);
 		}
 	}
 }
@@ -1550,6 +1397,9 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 	{
 		return;
 	}
+
+	RDG_GPU_STAT_SCOPE(GraphBuilder, Translucency);
+	DynamicRenderScaling::FRDGScope DynamicTranslucencyResolutionScope(GraphBuilder, GDynamicTranslucencyResolution);
 
 	FRDGTextureRef SceneColorCopyTexture = nullptr;
 

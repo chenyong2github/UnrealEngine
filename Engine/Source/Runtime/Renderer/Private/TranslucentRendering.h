@@ -134,8 +134,8 @@ ETranslucencyView GetTranslucencyView(const FViewInfo& View);
 /** Returns the union of all translucency views to render. */
 ETranslucencyView GetTranslucencyViews(TArrayView<const FViewInfo> Views);
 
-/** Call once per frame to update GPU timers for stats and dynamic resolution scaling. */
-FSeparateTranslucencyDimensions UpdateTranslucencyTimers(FRHICommandListImmediate& RHICmdList, TArrayView<const FViewInfo> Views);
+/** Computes the translucency dimensions. */
+FSeparateTranslucencyDimensions UpdateSeparateTranslucencyDimensions(const FViewFamilyInfo& ActiveViewFamily);
 
 /** Returns whether the view family is requesting to render translucency. */
 bool ShouldRenderTranslucency(const FSceneViewFamily& ViewFamily);

@@ -5127,7 +5127,7 @@ void FDeferredShadingSceneRenderer::InitViewsAfterPrepass(FRDGBuilder& GraphBuil
 		UpdatePrimitiveIndirectLightingCacheBuffers();
 	}
 
-	SeparateTranslucencyDimensions = UpdateTranslucencyTimers(RHICmdList, Views);
+	SeparateTranslucencyDimensions = UpdateSeparateTranslucencyDimensions(*ActiveViewFamily);
 
 	SetupSceneReflectionCaptureBuffer(RHICmdList);
 

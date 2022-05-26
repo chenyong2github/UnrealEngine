@@ -506,53 +506,6 @@ private:
 extern FOcclusionRandomStream GOcclusionRandomStream;
 
 
-/**
-Helper class to time sections of the GPU work.
-Buffers multiple frames to avoid waiting on the GPU so times are a little lagged.
-*/
-class FLatentGPUTimer
-{
-	FRenderQueryPoolRHIRef TimerQueryPool;
-public:
-	static const int32 NumBufferedFrames = FOcclusionQueryHelpers::MaxBufferedOcclusionFrames + 1;
-
-	FLatentGPUTimer(FRenderQueryPoolRHIRef InTimerQueryPool, int32 InAvgSamples = 30);
-	~FLatentGPUTimer()
-	{
-		Release();
-	}
-
-	void Release();
-
-	/** Retrieves the most recently ready query results. */
-	bool Tick(FRHICommandListImmediate& RHICmdList);
-	/** Kicks off the query for the start of the rendering you're timing. */
-	void Begin(FRHICommandListImmediate& RHICmdList);
-	/** Kicks off the query for the end of the rendering you're timing. */
-	void End(FRHICommandListImmediate& RHICmdList);
-
-	/** Returns the most recent time in ms. */
-	float GetTimeMS();
-	/** Gets the average time in ms. Average is tracked over AvgSamples. */
-	float GetAverageTimeMS();
-
-private:
-
-	int32 GetQueryIndex();
-
-	//Average Tracking;
-	int32 AvgSamples;
-	TArray<float> TimeSamples;
-	float TotalTime;
-	int32 SampleIndex;
-
-	int32 QueryIndex;
-	bool QueriesInFlight[NumBufferedFrames];
-	FRHIPooledRenderQuery StartQueries[NumBufferedFrames];
-	FRHIPooledRenderQuery EndQueries[NumBufferedFrames];
-	FGraphEventRef QuerySubmittedFences[NumBufferedFrames];
-};
-
 /** HLOD tree persistent fading and visibility state */
 class FHLODVisibilityState
 {
@@ -1033,13 +986,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableCombinedTexture;
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableLayerTextures[GDF_Num];
 	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldMipTexture;
-
-	/** Timestamp queries around separate translucency, used for auto-downsampling. */
-	FRenderQueryPoolRHIRef TimerQueryPool;
-	FLatentGPUTimer TranslucencyTimer;
-	FLatentGPUTimer SeparateTranslucencyTimer;
-	FLatentGPUTimer SeparateTranslucencyModulateTimer;
-	FLatentGPUTimer PostMotionBlurTranslucencyTimer;
 
 	/** This is float since it is derived off of UWorld::RealTimeSeconds, which is relative to BeginPlay time. */
 	float LastAutoDownsampleChangeTime;
