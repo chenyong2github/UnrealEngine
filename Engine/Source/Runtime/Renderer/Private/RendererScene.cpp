@@ -769,7 +769,7 @@ void FSceneViewState::AddVirtualShadowMapCache()
 				{
 					this->ViewVirtualShadowMapCache = ViewCache;
 				});
-		}
+		} //-V773
 	}
 }
 
