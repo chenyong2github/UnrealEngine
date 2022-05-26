@@ -7,12 +7,10 @@
 #include "Misc/NotifyHook.h"
 #include "GraphEditor.h"
 
-class FEditorViewportTabContent;
 class IDetailsView;
 class FTabManager;
 class IToolkitHost;
 class UDataflow;
-class SDataflowEditorViewport;
 
 class FDataflowEditorToolkit : public FAssetEditorToolkit, public FNotifyHook, public FGCObject
 {
