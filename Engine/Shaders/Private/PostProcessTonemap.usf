@@ -736,7 +736,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	float4 SvPosition = float4((float2)DispatchThreadId + Output_ViewportMin + 0.5f, 0.0f, 1.0f);
 	float2 UV = SvPosition.xy * Output_ExtentInverse;
-	float4 InScreenPos = float4(UV*2-1,0,1);
+	float4 InScreenPos = float4(UV * float2(2, -2) - float2(1, -1), 0, 1);
 
 	if (IsComputeUVOutOfBounds(UV))
 	{
