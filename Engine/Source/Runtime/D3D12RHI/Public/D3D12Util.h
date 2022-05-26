@@ -271,8 +271,8 @@ void LogResourceBarriers(uint32 NumBarriers, D3D12_RESOURCE_BARRIER *pBarriers, 
 
 // Custom resource states
 // To Be Determined (TBD) means we need to fill out a resource barrier before the command list is executed.
-#define D3D12_RESOURCE_STATE_TBD (D3D12_RESOURCE_STATES)-1
-#define D3D12_RESOURCE_STATE_CORRUPT (D3D12_RESOURCE_STATES)-2
+#define D3D12_RESOURCE_STATE_TBD D3D12_RESOURCE_STATES(-1 ^ (1 << 31))
+#define D3D12_RESOURCE_STATE_CORRUPT D3D12_RESOURCE_STATES(-2 ^ (1 << 31))
 
 static bool IsValidD3D12ResourceState(D3D12_RESOURCE_STATES InState)
 {
@@ -298,7 +298,7 @@ public:
 private:
 	// Only used if m_AllSubresourcesSame is 1.
 	// Bits defining the state of the full resource, bits are from D3D12_RESOURCE_STATES
-	D3D12_RESOURCE_STATES m_ResourceState : 31;
+	uint32 m_ResourceState : 31;
 
 	// Set to 1 if m_ResourceState is valid.  In this case, all subresources have the same state
 	// Set to 0 if m_SubresourceState is valid.  In this case, each subresources may have a different state (or may be unknown)
