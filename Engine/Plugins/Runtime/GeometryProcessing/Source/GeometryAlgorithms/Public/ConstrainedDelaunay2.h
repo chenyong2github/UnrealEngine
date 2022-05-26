@@ -86,7 +86,7 @@ struct TConstrainedDelaunay2
 				GraphToDTVertIdxMap[Idx] = -1;
 			}
 		}
-		for (const FDynamicGraph::FEdge& Edge : Graph.Edges())
+		for (const FDynamicGraph::FEdge Edge : Graph.Edges())
 		{
 			Edges.Add(FIndex2i(GraphToDTVertIdxMap[Edge.A], GraphToDTVertIdxMap[Edge.B]));
 		}
