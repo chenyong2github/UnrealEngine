@@ -28,9 +28,13 @@ public:
 	void Initialize(ULiveLinkControllerBase* InLiveLinkController);
 
 	//~ Begin UMovieSceneHookSection interface
-	virtual void Begin(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const override;
-	virtual void End(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const override;
+	virtual void Update(IMovieScenePlayer* Player, const UE::MovieScene::FEvaluationHookParams& Params) const override;
 	//~ End UMovieSceneHookSection interface
+
+public:
+	/** If true, the Cached Lens File will be evaluated for nodal offset, and that offset will be applied to the transform of the CameraComponent */
+	UPROPERTY(EditAnywhere, Category="Camera Calibration")
+	bool bApplyNodalOffsetFromCachedLensFile = true;
 
 private:
 	/** Saved duplicate of the LensFile asset used by the recorded LiveLink Camera Controller at the time of recording */

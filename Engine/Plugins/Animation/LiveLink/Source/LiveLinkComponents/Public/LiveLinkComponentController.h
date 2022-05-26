@@ -9,6 +9,8 @@
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FLiveLinkTickDelegate, float, DeltaTime);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnControllerMapUpdatedDelegate);
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FLiveLinkControllersTicked, const ULiveLinkComponentController* const, const FLiveLinkSubjectFrameData&);
+
 class ULiveLinkControllerBase;
 
 UCLASS( ClassGroup=(LiveLink), meta=(DisplayName="LiveLink Controller", BlueprintSpawnableComponent) )
@@ -94,6 +96,9 @@ public:
 	/** Set the component to control for the LiveLink controller of the input Role */
 	void SetControlledComponent(TSubclassOf<ULiveLinkRole> InRoleClass, UActorComponent* InComponent);
 
+	/** Multicast delegate that broadcasts after LiveLink controllers have ticked with the latest frame of subject data */
+	FLiveLinkControllersTicked& OnLiveLinkControllersTicked() { return LiveLinkControllersTickedDelegate; }
+
 #if WITH_EDITOR
 	/** Used to cleanup controllers when exiting PIE */
 	void OnEndPIE(bool bIsSimulating);
@@ -129,4 +134,7 @@ protected:
 	/** Called during loading to convert old data to new scheme. */
 	void ConvertOldControllerSystem();
 #endif //WITH_EDITOR
+
+private:
+	FLiveLinkControllersTicked LiveLinkControllersTickedDelegate;
 };

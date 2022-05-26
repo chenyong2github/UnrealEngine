@@ -3,11 +3,12 @@
 #include "NodalOffsetTool.h"
 
 #include "CalibrationPointComponent.h"
+#include "Camera/CameraActor.h"
 #include "CameraCalibrationStepsController.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CameraCalibrationTypes.h"
 #include "ImageCenterTool.h"
-#include "LiveLinkCameraController.h"
+#include "LensComponent.h"
 #include "Misc/MessageDialog.h"
 #include "ScopedTransaction.h"
 #include "SNodalOffsetToolPanel.h"
@@ -229,9 +230,16 @@ void UNodalOffsetTool::OnSaveCurrentNodalOffset()
 	LensFile->AddNodalOffsetPoint(Focus, Zoom, NodalOffset);
 
 	// Force bApplyNodalOffset in the LiveLinkCameraController so that we can see the effect right away
-	if (ULiveLinkCameraController* LiveLinkCameraController = CameraCalibrationStepsController.Pin()->FindLiveLinkCameraController())
+	TInlineComponentArray<ULensComponent*> LensComponents;
+	CameraCalibrationStepsController.Pin()->GetCamera()->GetComponents(LensComponents);
+
+	for (ULensComponent* LensComponent : LensComponents)
 	{
-		LiveLinkCameraController->SetApplyNodalOffset(true);
+		if (LensFile == LensComponent->GetLensFile())
+		{
+			LensComponent->SetApplyNodalOffsetOnTick(true);
+			break;
+		}
 	}
 
 	Algo->OnSavedNodalOffset();

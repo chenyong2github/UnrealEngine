@@ -2,6 +2,7 @@
 
 #include "LiveLinkComponentController.h"
 
+#include "ILiveLinkComponentModule.h"
 #include "LiveLinkComponentPrivate.h"
 #include "LiveLinkComponentSettings.h"
 #include "LiveLinkControllerBase.h"
@@ -136,6 +137,13 @@ void ULiveLinkComponentController::OnRegister()
 	Super::OnRegister();
 
 	bIsDirty = true;
+
+	ILiveLinkComponentsModule& LiveLinkComponentsModule = FModuleManager::GetModuleChecked<ILiveLinkComponentsModule>(TEXT("LiveLinkComponents"));
+
+	if (LiveLinkComponentsModule.OnLiveLinkComponentRegistered().IsBound())
+	{
+		LiveLinkComponentsModule.OnLiveLinkComponentRegistered().Broadcast(this);
+	}
 }
 
 #if WITH_EDITOR
@@ -214,7 +222,12 @@ void ULiveLinkComponentController::TickComponent(float DeltaTime, ELevelTick Tic
 		FEditorScriptExecutionGuard ScriptGuard;
 		OnLiveLinkUpdated.Broadcast(DeltaTime);
 	}
-	
+
+	if (bHasValidData && OnLiveLinkControllersTicked().IsBound())
+	{
+		OnLiveLinkControllersTicked().Broadcast(this, SubjectData);
+	}
+
 	bIsDirty = false;
 
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);

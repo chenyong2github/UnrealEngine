@@ -3,27 +3,17 @@
 #include "LiveLinkCameraController.h"
 
 #include "Camera/CameraComponent.h"
-#include "Camera/PlayerCameraManager.h"
 #include "CameraCalibrationSubsystem.h"
 #include "CineCameraComponent.h"
 #include "Controllers/LiveLinkTransformController.h"
-#include "Engine/Engine.h"
-#include "Engine/World.h"
-#include "Features/IModularFeatures.h"
-#include "GameFramework/Actor.h"
-#include "GameFramework/PlayerController.h"
-#include "ILiveLinkClient.h"
+#include "LensComponent.h"
 #include "LensFile.h"
-#include "LiveLinkComponentController.h"
 #include "LiveLinkLog.h"
 #include "Logging/LogMacros.h"
 #include "Roles/LiveLinkCameraRole.h"
 #include "Roles/LiveLinkCameraTypes.h"
 #include "UObject/EnterpriseObjectVersion.h"
-
-#if WITH_EDITOR
-#include "Kismet2/ComponentEditorUtils.h"
-#endif
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkCameraController, Log, All);
 
@@ -239,8 +229,6 @@ void ULiveLinkCameraController::SetAttachedComponent(UActorComponent* ActorCompo
 	{	
 		// Initialize the most recent filmback and component transform to the current values of the camera to properly detect changes to this property
 		LastFilmback = CineCameraComponent->Filmback;
-		LastRotation = CineCameraComponent->GetRelativeRotation();
-		LastLocation = CineCameraComponent->GetRelativeLocation();
 
 		ULensFile* SelectedLensFile = LensFilePicker.GetLensFile();
 		if (SelectedLensFile && SelectedLensFile->IsCineCameraCompatible(CineCameraComponent) == false)
@@ -261,21 +249,6 @@ void ULiveLinkCameraController::Cleanup()
 		{
 			SubSystem->UnregisterDistortionModelHandler(CineCameraComponent, LensDistortionHandler);
 		}
-	}
-
-	if (PostActorTickHandle.IsValid())
-	{
-		FWorldDelegates::OnWorldPostActorTick.Remove(PostActorTickHandle);
-		PostActorTickHandle.Reset();
-	}
-}
-
-void ULiveLinkCameraController::OnEvaluateRegistered()
-{
-	//Hook up to PostActorTick to handle nodal offset
-	if (!PostActorTickHandle.IsValid())
-	{
-		PostActorTickHandle = FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &ULiveLinkCameraController::OnPostActorTick);
 	}
 }
 
@@ -301,26 +274,7 @@ void ULiveLinkCameraController::PostEditImport()
 
 void ULiveLinkCameraController::SetApplyNodalOffset(bool bInApplyNodalOffset)
 {
-	if (bApplyNodalOffset == bInApplyNodalOffset)
-	{
-		return;
-	}
-
-	bApplyNodalOffset = bInApplyNodalOffset;
-
-	if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
-	{
-		if (bApplyNodalOffset)
-		{
-			OriginalCameraRotation = CineCameraComponent->GetRelativeRotation();
-			OriginalCameraLocation = CineCameraComponent->GetRelativeLocation();
-		}
-		else
-		{
-			CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
-			CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
-		}
-	}
+	// The use of this function has been deprecated.
 }
 
 #if WITH_EDITOR
@@ -351,27 +305,8 @@ void ULiveLinkCameraController::PostEditChangeProperty(struct FPropertyChangedEv
 {
 	const FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkCameraController, bApplyNodalOffset))
-	{
-		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
-		{
-			if (bApplyNodalOffset)
-			{
-				OriginalCameraRotation = CineCameraComponent->GetRelativeRotation();
-				OriginalCameraLocation = CineCameraComponent->GetRelativeLocation();
-				UE_LOG(LogLiveLinkCameraController, Verbose, TEXT("Enabling Nodal offset. Cached Location is '%s' and cached rotation is '%s'")
-						, *OriginalCameraLocation.ToString()
-						, *OriginalCameraRotation.ToString());
-			}
-			else
-			{
-				CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
-				CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
-			}
-		}
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, LensFile)
-			|| PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, bUseDefaultLensFile))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, LensFile)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FLensFilePicker, bUseDefaultLensFile))
 	{
 		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
 		{
@@ -465,8 +400,8 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 					CineCameraComponent->Filmback.SensorHeight = CineCameraComponent->CurrentFocalLength / FocalLengthInfo.FxFy[1];
 
 					// Update the minimum and maximum focal length of the camera (if needed)
-					CineCameraComponent->LensSettings.MinFocalLength = FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, NewFocalLength);
-					CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, NewFocalLength);
+					CineCameraComponent->LensSettings.MinFocalLength = FMath::Max(FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, NewFocalLength), 0.01);
+					CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, NewFocalLength), 0.01);
 
 					CineCameraComponent->SetCurrentFocalLength(NewFocalLength);
 					bHasValidFocalLength = true;
@@ -476,10 +411,6 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 			//If FocalLength could not be applied and it's streamed in, use LiveLink input directly without affecting filmback
 			if (StaticData->bIsFocalLengthSupported && bHasValidFocalLength == false)
 			{
-				// Update the minimum and maximum focal length of the camera (if needed)
-				CineCameraComponent->LensSettings.MinFocalLength = FMath::Min(CineCameraComponent->LensSettings.MinFocalLength, ZoomValue);
-				CineCameraComponent->LensSettings.MaxFocalLength = FMath::Max(CineCameraComponent->LensSettings.MaxFocalLength, ZoomValue);
-
 				CineCameraComponent->SetCurrentFocalLength(ZoomValue);
 			}
 		}
@@ -528,111 +459,7 @@ void ULiveLinkCameraController::ApplyFIZ(ULensFile* LensFile, UCineCameraCompone
 
 void ULiveLinkCameraController::ApplyNodalOffset(ULensFile* SelectedLensFile, UCineCameraComponent* CineCameraComponent)
 {
-	if (CineCameraComponent)
-	{
-		const FRotator CurrentRotator = CineCameraComponent->GetRelativeRotation();
-		const FVector CurrentTranslation = CineCameraComponent->GetRelativeLocation();
-		
-		//Verify if something was set by user / programmatically and update original values
-		bool bWasTransformChanged = false;
-		if (CurrentRotator != LastRotation)
-		{
-			bWasTransformChanged = true;
-			if (CurrentRotator.Pitch != LastRotation.Pitch)
-			{
-				OriginalCameraRotation.Pitch = CurrentRotator.Pitch;
-			}
-
-			if (CurrentRotator.Yaw != LastRotation.Yaw)
-			{
-				OriginalCameraRotation.Yaw = CurrentRotator.Yaw;
-			}
-
-			if (CurrentRotator.Roll != LastRotation.Roll)
-			{
-				OriginalCameraRotation.Roll = CurrentRotator.Roll;
-			}
-		}
-
-		if (CurrentTranslation != LastLocation)
-		{
-			bWasTransformChanged = true;
-			if (CurrentTranslation.X != LastLocation.X)
-			{
-				OriginalCameraLocation.X = CurrentTranslation.X;
-			}
-			if (CurrentTranslation.Y != LastLocation.Y)
-			{
-				OriginalCameraLocation.Y = CurrentTranslation.Y;
-			}
-			if (CurrentTranslation.Z != LastLocation.Z)
-			{
-				OriginalCameraLocation.Z = CurrentTranslation.Z;
-			}
-		}
-
-		if (bApplyNodalOffset && SelectedLensFile)
-		{
-			FNodalPointOffset Offset;
-
-			SelectedLensFile->EvaluateNodalPointOffset(LensFileEvalData.Input.Focus, LensFileEvalData.Input.Zoom, Offset);
-
-			LensFileEvalData.NodalOffset.bWasApplied = true;
-
-			bWasTransformChanged |= Offset.LocationOffset != LastLocationOffset;
-			bWasTransformChanged |= Offset.RotationOffset != LastRotationOffset;
-
-			if (bWasTransformChanged)
-			{
-				CineCameraComponent->SetRelativeLocation(OriginalCameraLocation);
-				CineCameraComponent->SetRelativeRotation(OriginalCameraRotation.Quaternion());
-				CineCameraComponent->AddLocalOffset(Offset.LocationOffset);
-				CineCameraComponent->AddLocalRotation(Offset.RotationOffset);
-
-				// Update the camera manager's cache to reflect this change to nodal offset
-				const UWorld* const World = GetWorld();
-				if (World)
-				{
-					for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
-					{
-						if (APlayerController* PlayerController = Iterator->Get())
-						{
-							if (APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager)
-							{
-								if (PlayerCameraManager->GetViewTarget() == CineCameraComponent->GetOuter())
-								{
-									FMinimalViewInfo CameraViewInfo = PlayerCameraManager->GetCameraCacheView();
-
-									CameraViewInfo.Location = CineCameraComponent->GetComponentLocation();
-									CameraViewInfo.Rotation = CineCameraComponent->GetComponentRotation();
-
-									PlayerCameraManager->FillCameraCache(CameraViewInfo);
-								}
-							}
-						}
-					}
-				}
-			}
-
-			LastLocationOffset = Offset.LocationOffset;
-			LastRotationOffset = Offset.RotationOffset;
-		}
-		else
-		{
-			LastLocationOffset = FVector::ZeroVector;
-			LastRotationOffset = FQuat(0);
-		}
-
-		LastLocation = CineCameraComponent->GetRelativeLocation();
-		LastRotation = CineCameraComponent->GetRelativeRotation();
-	}
-	else 
-	{
-		LastLocation = FVector::OneVector;
-		LastRotation = FRotator::ZeroRotator;
-		LastLocationOffset = FVector::ZeroVector;
-		LastRotationOffset = FQuat(0);
-	}
+	// The use of this function has been deprecated.
 }
 
 void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData)
@@ -670,16 +497,7 @@ void ULiveLinkCameraController::ApplyDistortion(ULensFile* LensFile, UCineCamera
 
 void ULiveLinkCameraController::OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds)
 {
-	if (World == GetWorld())
-	{
-		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
-		{
-			if (ULensFile* CurrentLensFile = LensFilePicker.GetLensFile())
-			{
-				ApplyNodalOffset(CurrentLensFile, CineCameraComponent);
-			}
-		}
-	}
+	// The use of this callback by this class has been deprecated
 }
 
 void ULiveLinkCameraController::VerifyFIZWithLensFileTables(ULensFile* LensFile, const FLiveLinkCameraStaticData* StaticData) const
@@ -741,7 +559,7 @@ void ULiveLinkCameraController::VerifyFIZWithLensFileTables(ULensFile* LensFile,
 			}
 		}
 
-		//Verify distortion, image center and nodal offset tables 
+		//Verify distortion and image center tables 
 		{
 			if (StaticData->bIsFocusDistanceSupported == false)
 			{
@@ -756,12 +574,6 @@ void ULiveLinkCameraController::VerifyFIZWithLensFileTables(ULensFile* LensFile,
 				{
 					static const FName NAME_InvalidImageCenterMappingWhenNotStreamed = "LiveLinkCamera_FocusNotStreamedInvalidImageCenterMapping";
 					FLiveLinkLog::WarningOnce(NAME_InvalidImageCenterMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating ImageCenter data using subject '%s' and LensFile '%s'. Focus wasn't streamed in and more than one ImageCenter focus point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-				}
-
-				if (bApplyNodalOffset && LensFile->NodalOffsetTable.GetFocusPointNum() > 0 && LensFile->NodalOffsetTable.GetFocusPointNum() != 1)
-				{
-					static const FName NAME_InvalidNodalOffsetMappingWhenNotStreamed = "LiveLinkCamera_FocusNotStreamedInvalidNodalOffsetMapping";
-					FLiveLinkLog::WarningOnce(NAME_InvalidNodalOffsetMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating NodalOffset data using subject '%s' and LensFile '%s'. Focus wasn't streamed in and more than one NodalOffset focus point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
 				}
 
 				if (LensFile->DataMode == ELensDataMode::STMap && LensFile->STMapTable.GetFocusPointNum() > 0 && LensFile->STMapTable.GetFocusPointNum() != 1)
@@ -798,15 +610,6 @@ void ULiveLinkCameraController::VerifyFIZWithLensFileTables(ULensFile* LensFile,
 						static const FName NAME_InvalidImageCenterMappingWhenNotStreamed = "LiveLinkCamera_ZoomNotStreamedInvalidImageCenterMapping";
 						FLiveLinkLog::WarningOnce(NAME_InvalidImageCenterMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating ImageCenter data using subject '%s' and LensFile '%s'. Zoom wasn't streamed in and more than one ImageCenter zoom point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
 					}
-
-					if (bApplyNodalOffset && LensFile->NodalOffsetTable.GetFocusPointNum() > 0)
-					{
-						if (LiveLinkCameraControllerUtils::HasSingleZoomPointInvolved<FNodalOffsetFocusPoint>(LensFileEvalData.Input.Focus, LensFile->NodalOffsetTable.GetFocusPoints()) == false)
-						{
-							static const FName NAME_InvalidNodalOffsetMappingWhenNotStreamed = "LiveLinkCamera_ZoomNotStreamedInvalidNodalOffsetMapping";
-							FLiveLinkLog::WarningOnce(NAME_InvalidNodalOffsetMappingWhenNotStreamed, FakedSubjectKey, TEXT("Potential problem evaluating NodalOffset data using subject '%s' and LensFile '%s'. Zoom wasn't streamed in and more than one NodalOffset zoom point was found."), *FakedSubjectKey.SubjectName.ToString(), *LensFile->GetName());
-						}
-					}
 				}
 			}
 		}
@@ -818,8 +621,8 @@ void ULiveLinkCameraController::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
-	const int32 Version = GetLinkerCustomVersion(FEnterpriseObjectVersion::GUID);
-	if (Version < FEnterpriseObjectVersion::LiveLinkControllerSplitPerRole)
+	const int32 EnterpriseVersion = GetLinkerCustomVersion(FEnterpriseObjectVersion::GUID);
+	if (EnterpriseVersion < FEnterpriseObjectVersion::LiveLinkControllerSplitPerRole)
 	{
 		AActor* MyActor = GetOuterActor();
 		if (MyActor)
@@ -849,6 +652,69 @@ void ULiveLinkCameraController::PostLoad()
 					ComponentPicker = ComponentToControl_DEPRECATED;
 				}
 			}
+		}
+	}
+
+	const int32 UE5MainVersion = GetLinkerCustomVersion(FUE5MainStreamObjectVersion::GUID);
+	if (UE5MainVersion < FUE5MainStreamObjectVersion::LensComponentNodalOffset)
+	{
+		// LensFile evaluation for nodal offset has moved to the Lens component. In order for existing camera actors to continue functioning as before,
+		// we have to migrate some properties from the camera controller to the lens component. If the owning actor does not have already have a lens 
+		// component then we will instance a new one.
+		AActor* const CameraActor = GetOuterActor();
+		CameraActor->ConditionalPostLoad();
+		if (CameraActor->GetWorld())
+		{
+			TInlineComponentArray<ULensComponent*> LensComponents;
+			CameraActor->GetComponents(LensComponents);
+
+			// Loop through any existing lens components to find those that may already have been evaluating the same LensFile as this camera controller
+			bool bFoundMatchingLensComponent = false;
+			for (ULensComponent* LensComponent : LensComponents)
+			{
+				if (LensComponent->GetLensFile() == LensFilePicker.GetLensFile())
+				{
+					bFoundMatchingLensComponent = true;
+
+					// It is very unlikely that both the camera controller and the existing lens component were both applying nodal offset simultaneously.
+					// Therefore, it is safe to assume that if the camera controller was previously applying nodal offset, the new desired behavior would be for 
+					// the lens component to start applying it. But if the lens component was previously applying nodal offset, then there is no need to update anything.
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					if (bApplyNodalOffset_DEPRECATED)
+					{
+						LensComponent->SetApplyNodalOffsetOnTick(bApplyNodalOffset_DEPRECATED);
+					}
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				}
+			}
+
+			// If no matching existing lens components were found, create a new one and initialize it with the correct LensFile
+			if (!bFoundMatchingLensComponent)
+			{
+				if (LensFilePicker.GetLensFile())
+				{
+					ULensComponent* LensComponent = NewObject<ULensComponent>(CameraActor, MakeUniqueObjectName(this, ULensComponent::StaticClass(), TEXT("Lens")));
+					CameraActor->AddInstanceComponent(LensComponent);
+					LensComponent->RegisterComponent();
+
+					LensComponent->SetLensFile(LensFilePicker);
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
+					LensComponent->SetApplyNodalOffsetOnTick(bApplyNodalOffset_DEPRECATED);
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				}
+			}
+		}
+
+		// If this controller was previously applying nodal offset, reset the camera component's transform to its original pose
+		if (UCineCameraComponent* const CineCameraComponent = Cast<UCineCameraComponent>(GetAttachedComponent()))
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			if (bApplyNodalOffset_DEPRECATED)
+			{
+				CineCameraComponent->SetRelativeLocation(OriginalCameraLocation_DEPRECATED);
+				CineCameraComponent->SetRelativeRotation(OriginalCameraRotation_DEPRECATED.Quaternion());
+			}
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 #endif //WITH_EDITOR

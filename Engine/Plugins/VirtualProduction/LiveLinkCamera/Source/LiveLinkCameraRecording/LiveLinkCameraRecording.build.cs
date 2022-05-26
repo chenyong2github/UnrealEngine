@@ -30,8 +30,10 @@ public class LiveLinkCameraRecording : ModuleRules
 			new string[]
 			{
 				"CameraCalibrationCore",
+				"CinematicCamera",
 				"Core",
 				"CoreUObject",
+				"Engine",
 				"LevelSequence",
 				"LiveLinkCamera",
 				"LiveLinkComponents",

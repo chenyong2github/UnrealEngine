@@ -67,7 +67,6 @@ public:
 	virtual TSubclassOf<UActorComponent> GetDesiredComponentClass() const override;
 	virtual void SetAttachedComponent(UActorComponent* ActorComponent) override;
 	virtual void Cleanup() override;
-	virtual void OnEvaluateRegistered() override;
 	//~ End ULiveLinkControllerBase interface
 
 	//~ Begin UObject interface
@@ -83,20 +82,20 @@ public:
 	/** Returns a const reference to input data used to evaluate the lens file */
 	const FLensFileEvalData& GetLensFileEvalDataRef() const;
 
-	/** Enables/disables the application of the nodal offset to the camera component */
+	UE_DEPRECATED(5.1, "This function has been deprecated. Nodal Offset is now applied by the LensComponent")
 	void SetApplyNodalOffset(bool bInApplyNodalOffset);
 
 protected:
 	/** Applies FIZ data coming from LiveLink stream. Lens file is used if encoder mapping is required  */
 	void ApplyFIZ(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData);
 
-	/** Applies nodal offset from lens file for the given Focus/Zoom values of CineCamera */
+	UE_DEPRECATED(5.1, "This function has been deprecated. Nodal Offset is now applied by the LensComponent")
 	void ApplyNodalOffset(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent);
 
 	/** Update distortion state */
 	void ApplyDistortion(ULensFile* LensFile, UCineCameraComponent* CineCameraComponent, const FLiveLinkCameraStaticData* StaticData, const FLiveLinkCameraFrameData* FrameData);
 
-	/** Verify base transform and apply nodal offset on top of everything else done in tick */
+	UE_DEPRECATED(5.1, "The use of this callback by this class has been deprecated and it is no longer registered. You can register your own delegate with FWorldDelegates::OnWorldPostActorTick")
 	void OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds);
 
 	/** 
@@ -135,9 +134,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Camera Calibration")
 	FCameraFilmbackSettings CroppedFilmback;
 
-	/** Apply nodal offset from lens file if enabled */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera Calibration")
-	bool bApplyNodalOffset = true;
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer applies nodal offset.")
+	UPROPERTY()
+	bool bApplyNodalOffset_DEPRECATED = true;
+#endif //WITH_EDITORONLY_DATA
 
 	/** Whether to scale the computed overscan by the overscan percentage */
 	UPROPERTY(BlueprintReadWrite, Category = "Camera Calibration")
@@ -156,13 +157,15 @@ protected:
 	UPROPERTY(DuplicateTransient)
 	FGuid DistortionProducerID;
 
-	/** Original cinecamera component rotation that we set back on when nodal offset isn't applied anymore */
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer applies nodal offset.")
 	UPROPERTY()
-	FRotator OriginalCameraRotation;
+	FRotator OriginalCameraRotation_DEPRECATED;
 
-	/** Original cinecamera component location that we set back on when nodal offset isn't applied anymore */
+	UE_DEPRECATED(5.1, "This property has been deprecated. The LiveLink camera controller no longer applies nodal offset.")
 	UPROPERTY()
-	FVector OriginalCameraLocation;
+	FVector OriginalCameraLocation_DEPRECATED;
+#endif //WITH_EDITORONLY_DATA
 
 	/** Used to control which data from LiveLink is actually applied to camera */
 	UPROPERTY(EditAnywhere, Category = "Settings")
@@ -175,19 +178,12 @@ protected:
 #endif
 
 protected:
-
 	/** Caches the latest inputs to the LensFile evaluation */
 	FLensFileEvalData LensFileEvalData;
 
 private:
-
 	//Last values used to detect changes made by the user and update our original caches
 	FCameraFilmbackSettings LastFilmback;
-	FRotator LastRotation;
-	FVector LastLocation;
-	FVector LastLocationOffset;
-	FQuat LastRotationOffset;
-	double LastLensTableVerificationTimestamp = 0.0;
 
-	FDelegateHandle PostActorTickHandle;
+	double LastLensTableVerificationTimestamp = 0.0;
 };

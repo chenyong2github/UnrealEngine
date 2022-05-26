@@ -227,6 +227,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Remove Faces in Triangle Mesh BVH
 		RemoveTriangleMeshBVHFaces,
 
+		// Moving all nodal offset handling to Lens Component
+		LensComponentNodalOffset,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

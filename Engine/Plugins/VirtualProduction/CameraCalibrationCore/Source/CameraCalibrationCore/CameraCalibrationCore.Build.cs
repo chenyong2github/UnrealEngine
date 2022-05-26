@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
                 {
 					"LiveLinkComponents",
+					"LiveLinkInterface",
                     "Projects",
 				}
 			);
