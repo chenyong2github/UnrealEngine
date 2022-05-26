@@ -248,7 +248,7 @@ namespace UnrealGameSync
 			string TargetName = TargetFile.GetFileNameWithoutAnyExtensions();
 
 			DirectoryReference? ProjectDir = ProjectInfo.ProjectDir;
-			if (ProjectDir != null && TargetFile.IsUnderDirectory(ProjectDir))
+			if (ProjectDir != null)
 			{
 				return GetReceiptFile(ProjectDir, TargetName, Configuration);
 			}
