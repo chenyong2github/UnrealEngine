@@ -12,6 +12,15 @@
 class FLogStackTraceManager;
 class FStackTraceManager;
 class UClientUnitTest;
+enum class ELogTraceFlags : uint16;
+
+namespace UE::NUT
+{
+	class FScopedIncrementTraceIgnoreDepth;
+	class FLogHookManager;
+	class FLogTraceManager;
+	class FLogCommandManager;
+}
 
 
 // Globals
@@ -19,8 +28,22 @@ class UClientUnitTest;
 /** Provides a globally accessible trace manager, for easy access to stack trace debugging */
 extern FStackTraceManager* GTraceManager;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 /** Log hook for managing tying of log entry detection to the trace manager */
 extern FLogStackTraceManager* GLogTraceManager;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+namespace UE::NUT
+{
+	/** Generic string matching log hook, for executing code upon certain log entries */
+	extern UE::NUT::FLogHookManager* GLogHookManager;
+
+	/** Log hook for managing tying of log entry detection to the trace manager */
+	extern UE::NUT::FLogTraceManager* GLogTrace;
+
+	/** Log hook for executing console commands for certain log entries */
+	extern UE::NUT::FLogCommandManager* GLogCommandManager;
+}
 
 
 // Enable access to FStackTracker.bIsEnabled
@@ -231,6 +254,9 @@ public:
  */
 class FNUTStackTrace
 {
+	friend FStackTraceManager;
+	friend UE::NUT::FScopedIncrementTraceIgnoreDepth;
+
 public:
 	/**
 	 * Constructs the debug stack trace
@@ -284,6 +310,10 @@ protected:
 
 	/** The stack tracker associated with this debug trace */
 	FStackTracker Tracker;
+
+private:
+	/** Additional increment for the stack trace ignore depth, as set by FScopedIncrementTraceIgnoreDepth */
+	int32 IgnoreDepthOffset;
 };
 
 
@@ -302,6 +332,8 @@ protected:
  */
 class FStackTraceManager
 {
+	friend UE::NUT::FScopedIncrementTraceIgnoreDepth;
+
 public:
 	/**
 	 * Base constructor
@@ -412,7 +444,10 @@ protected:
 
 		if (ReturnVal == NULL)
 		{
-			ReturnVal = Traces.Add(TraceName, new FNUTStackTrace(TraceName));
+			FNUTStackTrace* NewTrace = new FNUTStackTrace(TraceName);
+
+			NewTrace->IgnoreDepthOffset = IgnoreDepthOffset;
+			ReturnVal = Traces.Add(TraceName, NewTrace);
 
 			if (bOutNewTrace)
 			{
@@ -426,11 +461,224 @@ protected:
 protected:
 	/** A map of active debug stack traces */
 	TMap<FString, FNUTStackTrace*> Traces;
+
+private:
+	/** Additional increment for the stack trace ignore depth, as set by FScopedIncrementTraceIgnoreDepth */
+	int32 IgnoreDepthOffset;
 };
 
 
-// @todo #JohnBDebug: The log trace stuff doesn't support the 'startenabled' and enable/disable etc. features;
-//				some stuff (like enable/disable) should be easy to add though, so do that eventually
+namespace UE::NUT
+{
+
+/**
+ * Used for adjusting the depth of ignore stack trace lines in FStackTraceManager
+ */
+class FScopedIncrementTraceIgnoreDepth final
+{
+public:
+	/**
+	 * Base constructor
+	 *
+	 * @param InManager				The stack trace manager whose ignore depth is being adjusted
+	 * @param InIgnoreIncrement		The amount by which the stack trace managers ignore deoth should be incremented
+	 */
+	FScopedIncrementTraceIgnoreDepth(FStackTraceManager* InManager, int32 InIgnoreIncrement);
+
+	~FScopedIncrementTraceIgnoreDepth();
+
+private:
+	FStackTraceManager* Manager = nullptr;
+
+	int32 IgnoreIncrement = 0;
+};
+
+/**
+ * Specifies the type of log hook (e.g. type of string matching to use)
+ */
+enum class ELogHookType : uint8
+{
+	Full			= 0x0001,	// Full string match against log line (excluding category and verbosity level)
+	Partial			= 0x0002	// Partial string match against log line
+};
+
+/** Function to call as the log hook */
+using FLogHook = TUniqueFunction<void(const TCHAR* /*Data*/, ELogVerbosity::Type /*Verbosity*/, const class FName& /*Category*/)>;
+
+/** Log hook ID, for removing later if desired */
+using FLogHookID = int32;
+
+/**
+ * Generic log hook, for calling a hook function upon detecting a specific log entry
+ */
+class FLogHookManager final : protected FOutputDevice
+{
+private:
+	struct FLogHookEntry
+	{
+		/** The log hook function to execute */
+		FLogHook HookFunc;
+
+		/**	The log string to match on */
+		FString LogMatch;
+
+		/** Flags specifying how to match against the log line */
+		ELogHookType HookType;
+
+		/** Simple ID for identifying the entry later */
+		FLogHookID HookID;
+	};
+
+public:
+	FLogHookManager() = default;
+
+	virtual ~FLogHookManager() override;
+
+	/**
+	 * Adds a log hook, with the specified matching
+	 *
+	 * @param InHookFunc	The log hook function to call upon match
+	 * @param InMatchStr	The string to use for matching against log entries
+	 * @param InHookType	The type of matching to use for the match string
+	 * @return				Returns a unique id for the newly added log hook entry, which should be used to remove it later
+	 */
+	FLogHookID AddLogHook(FLogHook&& InHookFunc, FString InMatchStr, ELogHookType InHookType=ELogHookType::Partial);
+
+	/**
+	 * Removes a log hook using its unique id
+	 *
+	 * @param InHookID		The unique id for the log hook entry
+	 */
+	void RemoveLogHook(FLogHookID InHookID);
+
+private:
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Woverloaded-virtual"
+#endif
+	/**
+	 * Detects log entries
+	 *
+	 * @param Data		The text to write
+	 * @param Verbosity	The log level verbosity for the message
+	 * @param Category	The log category for the message
+	 */
+	virtual void Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
+	void EnableLogHook();
+
+	void DisableLogHook();
+
+private:
+	/** List of active log hooks */
+	TArray<FLogHookEntry> LogHooks;
+
+	/** Incrementing log hook ID */
+	FLogHookID NextHookID = 0;
+
+	/** Guard bool for preventing recursive calls to Serialize */
+	bool bWithinLogSerialize = false;
+};
+
+/**
+ * A log hook, which watches the log for specified log entries, and ties them into the stack trace manager
+ *
+ * Most easily used through the LogTrace console command, as documented in UnitTestManager.cpp
+ */
+class FLogTraceManager final
+{
+public:
+	FLogTraceManager() = default;
+
+	~FLogTraceManager();
+
+	/**
+	 * Adds a log line for log trace tracking
+	 * NOTE: The LogLine does NOT match the category or verbosity (e.g. LogNet or Warning/Verbose) of logs
+	 * NOTE: Partial matches, will output to log when encountered, so matched logs can be identified
+	 *
+	 * @param LogLine		The line to be tracked
+	 * @param TraceFlags	Flags for the type of trace to perform
+	 */
+	void AddLogTrace(FString LogLine, ELogTraceFlags TraceFlags);
+
+	/**
+	 * Removes a log line from trace tracking
+	 *
+	 * @param LogLine	The log line that was being tracked
+	 * @param bDump		Whether or not to dump from the trace manager as well (defaults to true); cleared from trace manager either way
+	 */
+	void ClearLogTrace(FString LogLine, bool bDump=true);
+
+	/**
+	 * Clears all log tracing
+	 *
+	 * @param bDump		Whether or not to dump all cleared log trace entries
+	 */
+	void ClearAll(bool bDump=false);
+
+private:
+	void ClearHooks();
+
+private:
+	/** Active log hook ID's, for later cleanup */
+	TArray<FLogHookID> HookIDs;
+
+	/** Active log matching strings and their ID, for tracking and cleanup */
+	TMap<FString, FLogHookID> HookMap;
+};
+
+/**
+ * Log hook which executes console commands upon detecting certain log entries.
+ *
+ * Used by the LogCommand console command and commandline parameters.
+ */
+class FLogCommandManager final
+{
+public:
+	FLogCommandManager() = default;
+
+	~FLogCommandManager();
+
+	/**
+	 * Adds a new log command
+	 *
+	 * @param LogLine	The log line to do a partial match on
+	 * @param Command	The console command to execute
+	 */
+	void AddLogCommand(FString LogLine, FString Command);
+
+	/**
+	 * Removes a log command based on the log line used for matching
+	 *
+	 * @param LogLine	The log line used for matching
+	 */
+	void RemoveByLog(FString LogLine);
+
+	/**
+	 * Removes a log command based on the console command it executes
+	 */
+	void RemoveByCommand(FString Command);
+
+private:
+	void ClearHooks();
+
+
+private:
+	struct FLogCommandEntry
+	{
+		FString		LogLine;
+		FString		Command;
+		FLogHookID	HookID = INDEX_NONE;
+	};
+
+	TArray<FLogCommandEntry> LogCommands;
+};
+
+}
 
 
 /**
@@ -446,12 +694,14 @@ enum class ELogTraceFlags : uint16
 
 ENUM_CLASS_FLAGS(ELogTraceFlags);
 
+
 /**
  * A log hook, which watches the log for specified log entries, and ties them into the stack trace manager
  *
  * Most easily used through the LogTrace console command, as documented in UnitTestManager.cpp
  */
-class FLogStackTraceManager : public FOutputDevice
+class UE_DEPRECATED(5.2, "FLogStackTraceManager is deprecated, use FLogTraceManager/GLogTrace now, instead.") FLogStackTraceManager
+	: public FOutputDevice
 {
 public:
 	/**
@@ -467,16 +717,8 @@ public:
 	};
 
 public:
-	/**
-	 * Base constructor
-	 */
-	FLogStackTraceManager()
-	{
-	}
+	FLogStackTraceManager() = default;
 
-	/**
-	 * Destructor
-	 */
 	virtual ~FLogStackTraceManager() override;
 
 	/**
@@ -554,7 +796,7 @@ public:
 };
 
 
-// @todo #JohnBFeatureDebug: Continue implementing (will likely tie into the FLogStackTraceManager tracing features, so refactor/generalize that)
+// @todo #JohnBFeatureDebug: Continue implementing (will likely tie into the FLogTraceManager tracing features, so refactor/generalize that)
 #if 0
 #if !UE_BUILD_SHIPPING
 /**

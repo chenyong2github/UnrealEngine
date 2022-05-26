@@ -57,6 +57,8 @@ public:
 	 */
 	virtual void StartupModule() override
 	{
+		using namespace UE::NUT;
+
 		FNUTModuleInterface::StartupModule();
 
 		static bool bSetDelegate = false;
@@ -101,12 +103,27 @@ public:
 
 		if (FParse::Value(FCommandLine::Get(), TEXT("LogTrace="), TraceStr) && TraceStr.Len() > 0)
 		{
-			GLogTraceManager->AddLogTrace(TraceStr, ELogTraceFlags::Partial | ELogTraceFlags::DumpTrace);
+			GLogTrace->AddLogTrace(TraceStr, ELogTraceFlags::Partial | ELogTraceFlags::DumpTrace);
 		}
 
 		if (FParse::Value(FCommandLine::Get(), TEXT("LogDebug="), TraceStr) && TraceStr.Len() > 0)
 		{
-			GLogTraceManager->AddLogTrace(TraceStr, ELogTraceFlags::Partial | ELogTraceFlags::Debug);
+			GLogTrace->AddLogTrace(TraceStr, ELogTraceFlags::Partial | ELogTraceFlags::Debug);
+		}
+
+		if (FParse::Value(FCommandLine::Get(), TEXT("LogCommand="), TraceStr) && TraceStr.Len() > 0)
+		{
+			FString LogLine;
+			FString Command;
+
+			if (TraceStr.Split(TEXT("="), &LogLine, &Command))
+			{
+				GLogCommandManager->AddLogCommand(LogLine, Command);
+			}
+			else
+			{
+				UE_LOG(LogUnitTest, Warning, TEXT("LogCommand commandline parameter requires the format: -LogCommand=\"LogLine=Command\""));
+			}
 		}
 	}
 
@@ -115,6 +132,8 @@ public:
 	 */
 	virtual void ShutdownModule() override
 	{
+		using namespace UE::NUT;
+
 		// Eliminate active global variables
 		GUnitTestManager = nullptr;
 
@@ -125,12 +144,35 @@ public:
 			GTraceManager = nullptr;
 		}
 
+		if (GLogHookManager != nullptr)
+		{
+			delete GLogHookManager;
+
+			GLogHookManager = nullptr;
+		}
+
+		if (GLogTrace != nullptr)
+		{
+			delete GLogTrace;
+
+			GLogTrace = nullptr;
+		}
+
+		if (GLogCommandManager != nullptr)
+		{
+			delete GLogCommandManager;
+
+			GLogCommandManager = nullptr;
+		}
+
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (GLogTraceManager != nullptr)
 		{
 			delete GLogTraceManager;
 
 			GLogTraceManager = nullptr;
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		
 
 		FLogWidgetCommands::Unregister();

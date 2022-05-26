@@ -365,7 +365,7 @@ struct NUTUtil
 	static inline UNetDriver* GetActiveNetDriver(UWorld* InWorld)
 	{
 		UNetDriver* ReturnVal = NULL;
-		FWorldContext* WorldContext = &GEngine->GetWorldContextFromWorldChecked(InWorld); //-V595
+		FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(InWorld); //-V595
 
 		if (WorldContext != NULL && WorldContext->PendingNetGame != NULL && WorldContext->PendingNetGame->NetDriver != NULL)
 		{

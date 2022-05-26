@@ -2073,6 +2073,8 @@ void UUnitTestManager::Serialize(const TCHAR* Data, ELogVerbosity::Type Verbosit
 
 static bool UnitTestExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 {
+	using namespace UE::NUT;
+
 	bool bReturnVal = false;
 
 	if (FParse::Command(&Cmd, TEXT("UnitTest")))
@@ -2195,23 +2197,23 @@ static bool UnitTestExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	 * Usage: (NOTE: Replace 'LogLine' with the log text to be tracked)
 	 *
 	 *	- Add an exact log line to tracking (case sensitive, and must match length too):
-	 *		GEngine->Exec(NULL, TEXT("LogTrace Add LogLine"));
+	 *		GEngine->Exec(nullptr, TEXT("LogTrace Add LogLine"));
 	 *
 	 *	- Add a partial log line to tracking (case insensitive, and can match substrings):
-	 *		GEngine->Exec(NULL, TEXT("LogTrace AddPartial LogLine"));
+	 *		GEngine->Exec(nullptr, TEXT("LogTrace AddPartial LogLine"));
 	 *
 	 *	- Add a partial log line to tracking for debug breaking:
-	 *		GEngine->Exec(NULL, TEXT("LogTrace AddDebug LogLine"));
+	 *		GEngine->Exec(nullptr, TEXT("LogTrace AddDebug LogLine"));
 	 *
 	 *	- Dump accumulated log entries, for a specified log line, and clears it from tracing:
-	 *		GEngine->Exec(NULL, TEXT("LogTrace Dump LogLine"));
+	 *		GEngine->Exec(nullptr, TEXT("LogTrace Dump LogLine"));
 	 *
 	 *	- Clear the specified log line from tracing:
-	 *		GEngine->Exec(NULL, TEXT("LogTrace Clear LogLine"));
+	 *		GEngine->Exec(nullptr, TEXT("LogTrace Clear LogLine"));
 	 *
 	 *	- Clear all log lines from tracing:
-	 *		GEngine->Exec(NULL, TEXT("LogTrace ClearAll"));
-	 *		GEngine->Exec(NULL, TEXT("LogTrace ClearAll -Dump"));
+	 *		GEngine->Exec(nullptr, TEXT("LogTrace ClearAll"));
+	 *		GEngine->Exec(nullptr, TEXT("LogTrace ClearAll -Dump"));
 	 */
 	else if (FParse::Command(&Cmd, TEXT("LogTrace")))
 	{
@@ -2219,34 +2221,72 @@ static bool UnitTestExec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 
 		if (FParse::Command(&Cmd, TEXT("Add")) && (LogLine = Cmd).Len() > 0)
 		{
-			GLogTraceManager->AddLogTrace(LogLine, ELogTraceFlags::Full);
+			GLogTrace->AddLogTrace(LogLine, ELogTraceFlags::Full);
 		}
 		else if (FParse::Command(&Cmd, TEXT("AddPartial")) && (LogLine = Cmd).Len() > 0)
 		{
-			GLogTraceManager->AddLogTrace(LogLine, ELogTraceFlags::Partial);
+			GLogTrace->AddLogTrace(LogLine, ELogTraceFlags::Partial);
 		}
 		else if (FParse::Command(&Cmd, TEXT("AddDebug")) && (LogLine = Cmd).Len() > 0)
 		{
-			GLogTraceManager->AddLogTrace(LogLine, ELogTraceFlags::Partial | ELogTraceFlags::Debug);
+			GLogTrace->AddLogTrace(LogLine, ELogTraceFlags::Partial | ELogTraceFlags::Debug);
 		}
 		else if (FParse::Command(&Cmd, TEXT("Dump")) && (LogLine = Cmd).Len() > 0)
 		{
-			GLogTraceManager->ClearLogTrace(LogLine, true);
+			GLogTrace->ClearLogTrace(LogLine, true);
 		}
 		else if (FParse::Command(&Cmd, TEXT("Clear")) && (LogLine = Cmd).Len() > 0)
 		{
-			GLogTraceManager->ClearLogTrace(LogLine, false);
+			GLogTrace->ClearLogTrace(LogLine, false);
 		}
 		else if (FParse::Command(&Cmd, TEXT("ClearAll")))
 		{
 			bool bDump = FParse::Param(Cmd, TEXT("DUMP"));
 
-			GLogTraceManager->ClearAll(bDump);
+			GLogTrace->ClearAll(bDump);
 		}
 		// If LogLine is now zero-length instead of 'NotSet', that means a valid command was encountered, but no LogLine specified
 		else if (LogLine.Len() == 0)
 		{
 			Ar.Logf(TEXT("Need to specify a log line for tracing."));
+		}
+
+		bReturnVal = true;
+	}
+	/**
+	 * Special 'LogCommand' command, which triggers the specified console command every time a matching log entry is encountered.
+	 *
+	 * NOTE: Does not track the category or verbosity of log entries
+	 */
+	else if (FParse::Command(&Cmd, TEXT("LogCommand")))
+	{
+		FString Params;
+
+		if (FParse::Command(&Cmd, TEXT("Add")) && (Params = Cmd).Len() > 0)
+		{
+			FString LogLine;
+			FString Command;
+
+			if (Params.Split(TEXT("="), &LogLine, &Command))
+			{
+				GLogCommandManager->AddLogCommand(LogLine, Command);
+			}
+			else
+			{
+				Ar.Logf(TEXT("LogCommand requires the format: LogCommand LogLine=Command"));
+			}
+		}
+		else if (FParse::Command(&Cmd, TEXT("Remove")) && (Params = Cmd).Len() > 0)
+		{
+			GLogCommandManager->RemoveByLog(Params);
+		}
+		else if (FParse::Command(&Cmd, TEXT("RemoveCommand")) && (Params = Cmd).Len() > 0)
+		{
+			GLogCommandManager->RemoveByCommand(Params);
+		}
+		else if (Params.Len() == 0)
+		{
+			Ar.Logf(TEXT("Not enough parameters for command."));
 		}
 
 		bReturnVal = true;
