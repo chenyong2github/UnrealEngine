@@ -18,6 +18,9 @@
 /** Whether or not CSV stats should be enabled for the RPC DoS checks (development only - for stress testing the RPC DoS code) */
 #define RPC_DOS_DEV_STATS 0
 
+/** Tick/Packet scope correctness debugging */
+#define RPC_DOS_SCOPE_DEBUG 1
+
 
 // Typedefs
 
@@ -39,6 +42,17 @@ using FGetRPCDoSPlayerUID = TUniqueFunction<FString()>;
  * Callback usually passed in by the NetConection, for kicking the player after exceeding RPC DoS kick thresholds
  */
 using FRPCDoSKickPlayer = TUniqueFunction<void()>;
+
+
+// Globals/CVars
+
+#if RPC_DOS_SCOPE_DEBUG
+namespace UE::Net
+{
+	/** Whether or not debugging/ensures for RPC DoS Tick/Packet scopes should be enabled */
+	extern int32 GRPCDoSScopeDebugging;
+}
+#endif
 
 
 // Structs
@@ -457,7 +471,11 @@ public:
 	 * @param Update	Whether or not we are escalating or de-escalating the severity state
 	 * @param Reason	The reason for the escalation change
 	 */
-	void UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscalateReason Reason);
+	UE_DEPRECATED(5.2, "UpdateSeverity will be made private soon.")
+	void UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscalateReason Reason)
+	{
+		UpdateSeverity_Private(Update, Reason);
+	}
 
 
 	/**
@@ -474,15 +492,27 @@ public:
 	 */
 	void PreReceivedPacket(double TimeSeconds)
 	{
+		using namespace UE::Net;
+
 #if RPC_DOS_DEV_STATS
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RPCDoS_Checks);
 #endif
 
-		ReceivedPacketStartTime = TimeSeconds;
-		bPacketContainsRPC = false;
-		bReceivedPacketRPCUnique = true;
-		ReceivedPacketRPCCount = 0;
-		LightweightRPCTracking.Count = 0;
+#if RPC_DOS_SCOPE_DEBUG
+		ensure(GRPCDoSScopeDebugging == 0 || TickScopePrivate.IsActive());
+		ensure(GRPCDoSScopeDebugging == 0 || !SequentialRPCScopePrivate.IsActive());
+#endif
+
+		PacketScopePrivate.SetActive(true);
+
+		FPacketScope& PacketScope = GetPacketScope();
+
+		PacketScope.ReceivedPacketStartTime = TimeSeconds;
+
+		// Redundant call to Reset for sequential RPC scope - remove when scope debugging verifies the sequential RPC scope is never active here
+#if 1 // !RPC_DOS_SCOPE_DEBUG
+		SequentialRPCScopePrivate.Reset();
+#endif
 	}
 
 	/**
@@ -504,14 +534,26 @@ public:
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RPCDoS_Checks);
 #endif
 
-		if (bRPCTrackingEnabled)
+		if (bRPCDoSDetection && !bHitchSuspendDetection)
 		{
-			Result = CheckRPCTracking(Function, FunctionName);
-		}
+			if (!SequentialRPCScopePrivate.IsActive())
+			{
+				PreSequentialRPC();
+			}
+
+			if (bRPCTrackingEnabled)
+			{
+				FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+
+				Result = SequentialRPCScope.CheckRPCTracking(*this, Function, FunctionName);
+			}
 
 #if RPC_QUOTA_DEBUG
-		DebugReceivedRPCStartTime = FPlatformTime::Seconds();
+			FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+
+			SequentialRPCScope.DebugReceivedRPCStartTime = FPlatformTime::Seconds();
 #endif
+		}
 
 
 		return Result;
@@ -531,16 +573,26 @@ public:
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RPCDoS_Checks);
 #endif
 
-		if (UNLIKELY(ForcedRPCTracking == FunctionName && FMath::FRand() <= ForcedRPCTrackingChance))
+		if (bRPCDoSDetection && !bHitchSuspendDetection)
 		{
-			EnableForcedRPCTracking(Function, FunctionName, FPlatformTime::Seconds());
-		}
-		else
-		{
-			FLightweightRPCTracking::FLightweightRPCEntry& CurEntry = LightweightRPCTracking.RPC[LightweightRPCTracking.Count++];
+			if (!SequentialRPCScopePrivate.IsActive())
+			{
+				PreSequentialRPC();
+			}
 
-			CurEntry.Function = Function;
-			CurEntry.Name = FunctionName;
+			if (UNLIKELY(ForcedRPCTracking == FunctionName && FMath::FRand() <= ForcedRPCTrackingChance))
+			{
+				EnableForcedRPCTracking(Function, FunctionName, FPlatformTime::Seconds());
+			}
+			else
+			{
+				FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+				FLightweightRPCTracking& LightweightRPCTracking = SequentialRPCScope.LightweightRPCTracking;
+				FLightweightRPCTracking::FLightweightRPCEntry& CurEntry = LightweightRPCTracking.RPC[LightweightRPCTracking.Count++];
+
+				CurEntry.Function = Function;
+				CurEntry.Name = FunctionName;
+			}
 		}
 	}
 
@@ -554,19 +606,27 @@ public:
 #endif
 
 #if RPC_QUOTA_DEBUG
-		DebugReceivedRPCEndTime = FPlatformTime::Seconds();
-		FrameCounter.DebugAccumRPCTime += (DebugReceivedRPCEndTime - DebugReceivedRPCStartTime);
+		{
+			FPacketScope& PacketScope = GetPacketScope();
+
+			PacketScope.DebugReceivedRPCEndTime = FPlatformTime::Seconds();
+			FrameCounter.DebugAccumRPCTime += (PacketScope.DebugReceivedRPCEndTime - PacketScope.DebugReceivedRPCStartTime);
+		}
 #endif
 
 		if (bRPCDoSDetection && !bHitchSuspendDetection)
 		{
-			FrameCounter.RPCCounter++;
+			FTickScope& TickScope = GetTickScope();
+			FPacketScope& PacketScope = GetPacketScope();
+			FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+
+			TickScope.FrameCounter.RPCCounter++;
 
 			RPCIntervalCounter++;
-			ReceivedPacketRPCCount++;
-			bPacketContainsRPC = true;
+			SequentialRPCScope.ReceivedPacketRPCCount++;
+			PacketScope.bPacketContainsRPC = true;
 
-			CondCheckCountQuota();
+			TickScope.CondCheckCountQuota(*this);
 		}
 	}
 
@@ -588,16 +648,25 @@ public:
 	 */
 	void PostReceivedPacket(double TimeSeconds)
 	{
+		using namespace UE::Net;
+
 #if RPC_DOS_DEV_STATS
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RPCDoS_Checks);
 #endif
 
-		if (bPacketContainsRPC)
+		if (GetPacketScope().bPacketContainsRPC)
 		{
 			PostReceivedRPCPacket(TimeSeconds);
 		}
 
 		ReceivedPacketEndTime = TimeSeconds;
+
+		PacketScopePrivate.SetActive(false);
+
+#if RPC_DOS_SCOPE_DEBUG
+		ensure(GRPCDoSScopeDebugging == 0 || !SequentialRPCScopePrivate.IsActive());
+		ensure(GRPCDoSScopeDebugging == 0 || TickScopePrivate.IsActive());
+#endif
 	}
 
 	/**
@@ -665,6 +734,29 @@ public:
 
 private:
 	/**
+	 * Called when we begin receiving the same RPC once or multiple times sequentially.
+	 */
+	void PreSequentialRPC()
+	{
+		using namespace UE::Net;
+
+#if RPC_DOS_SCOPE_DEBUG
+		ensure(GRPCDoSScopeDebugging == 0 || TickScopePrivate.IsActive());
+		ensure(GRPCDoSScopeDebugging == 0 || PacketScopePrivate.IsActive());
+#endif
+
+		SequentialRPCScopePrivate.SetActive(true);
+	}
+
+	/**
+	 * Updates the current RPC DoS detection severity state
+	 *
+	 * @param Update	Whether or not we are escalating or de-escalating the severity state
+	 * @param Reason	The reason for the escalation change
+	 */
+	void UpdateSeverity_Private(ERPCDoSSeverityUpdate Update, ERPCDoSEscalateReason Reason);
+
+	/**
 	 * Initializes a newly active escalation state
 	 *
 	 * @param TimeSeconds	Cached/approximate timestamp, to save grabbing a new timestamp
@@ -677,9 +769,14 @@ private:
 	void CondCheckCountQuota()
 	{
 		// 64 RPC interval
-		if ((RPCIntervalCounter & 0x3F) == 0 && HasHitQuota_Count(CounterPerPeriodHistory, FrameCounter))
+		if ((RPCIntervalCounter & 0x3F) == 0)
 		{
-			UpdateSeverity(ERPCDoSSeverityUpdate::Escalate, ERPCDoSEscalateReason::CountLimit);
+			FTickScope& TickScope = GetTickScope();
+
+			if (HasHitQuota_Count(CounterPerPeriodHistory, TickScope.FrameCounter))
+			{
+				TickScope.UpdateSeverity(*this, ERPCDoSSeverityUpdate::Escalate, ERPCDoSEscalateReason::CountLimit);
+			}
 		}
 	}
 
@@ -692,11 +789,13 @@ private:
 	{
 		if (TimeSeconds > NextTimeQuotaCheck)
 		{
+			FTickScope& TickScope = GetTickScope();
+
 			NextTimeQuotaCheck = TimeSeconds + TimeQuotaCheckInterval;
 
-			if (HasHitQuota_Time(CounterPerPeriodHistory, FrameCounter))
+			if (HasHitQuota_Time(CounterPerPeriodHistory, TickScope.FrameCounter))
 			{
-				UpdateSeverity(ERPCDoSSeverityUpdate::Escalate, ERPCDoSEscalateReason::TimeLimit);
+				TickScope.UpdateSeverity(*this, ERPCDoSSeverityUpdate::Escalate, ERPCDoSEscalateReason::TimeLimit);
 			}
 		}
 	}
@@ -808,6 +907,223 @@ private:
 
 
 private:
+	/** Base class for setting code scope activity */
+	template<class T>
+	class TScopeBase
+	{
+	public:
+		/** Sets whether or not the current code scope is active */
+		inline void SetActive(bool bInVal)
+		{
+			using namespace UE::Net;
+
+#if RPC_DOS_SCOPE_DEBUG
+			ensure(GRPCDoSScopeDebugging == 0 || bScopeActive != bInVal);
+#endif
+
+			bScopeActive = bInVal;
+
+			Reset();
+		}
+
+		/** Whether or not the current code scope is active */
+		inline bool IsActive() const
+		{
+			return bScopeActive;
+		}
+
+		/** Resets the properties covered by this scope, at both the start/end of the scope */
+		inline void Reset()
+		{
+			static_cast<T*>(this)->Reset();
+		}
+
+	private:
+		/** Whether or not the current code scope is active */
+		bool bScopeActive = false;
+	};
+
+	/** Variables and functions that should only be accessible during TickDispatch */
+	class FTickScope : public TScopeBase<FTickScope>
+	{
+	public:
+		/** Wrapper for UpdateSeverity which forces FTickScope acquisition */
+		inline void UpdateSeverity(FRPCDoSDetection& This, ERPCDoSSeverityUpdate Update, ERPCDoSEscalateReason Reason)
+		{
+			This.UpdateSeverity_Private(Update, Reason);
+		}
+
+		/** Wrapper for CondCheckCountQuota which forces FTickScope acquisition */
+		inline void CondCheckCountQuota(FRPCDoSDetection& This)
+		{
+			This.CondCheckCountQuota();
+		}
+
+		/** Wrapper for CondCheckTimeQuota which forces FTickScope acquisition */
+		inline void CondCheckTimeQuota(FRPCDoSDetection& This, double TimeSeconds)
+		{
+			This.CondCheckTimeQuota(TimeSeconds);
+		}
+
+		void Reset()
+		{
+			FrameCounter.ResetRPCCounters();
+		}
+
+	public:
+		/** Per-frame RPC counting (multiple disjointed packets may be processed for same connection, during a frame) */
+		FRPCDoSCounters FrameCounter;
+	};
+
+	/** Scoped variables/functions accessible during TickDispatch */
+	FTickScope TickScopePrivate;
+
+
+	/** Gets a reference to the TickDispatch scoped variable/function accessor */
+	inline FTickScope& GetTickScope()
+	{
+		using namespace UE::Net;
+
+#if RPC_DOS_SCOPE_DEBUG
+		ensure(GRPCDoSScopeDebugging == 0 || TickScopePrivate.IsActive());
+#endif
+
+		return TickScopePrivate;
+	}
+
+
+	/** Variables and functions that should only be accessible while receiving an individual packet */
+	class FPacketScope : public TScopeBase<FPacketScope>
+	{
+	public:
+		/** Whether or not the current packet being received, contains an RPC */
+		bool bPacketContainsRPC											= false;
+
+		/** Cached free/external timestamp, for when the current received packet began processing */
+		double ReceivedPacketStartTime									= 0.0;
+
+
+	public:
+		void Reset()
+		{
+			bPacketContainsRPC = false;
+			ReceivedPacketStartTime = 0.0;
+		}
+	};
+
+	/** Scoped variables/functions accessible while receiving an individual packet */
+	FPacketScope PacketScopePrivate;
+
+
+	/** Gets a reference to the packet receive scoped variable/function accessor */
+	inline FPacketScope& GetPacketScope()
+	{
+		using namespace UE::Net;
+
+#if RPC_DOS_SCOPE_DEBUG
+		ensure(GRPCDoSScopeDebugging == 0 || PacketScopePrivate.IsActive());
+#endif
+
+		return PacketScopePrivate;
+	}
+
+	/** Variables and functions that should only be accessible while receiving the same RPC individually/sequentially */
+	class FSequentialRPCScope : public TScopeBase<FSequentialRPCScope>
+	{
+	public:
+		/** Wrapper for CondCheckCountQuota which forces FSequentialRPCScope acquisition */
+		inline void CondCheckCountQuota(FRPCDoSDetection& This)
+		{
+			This.CondCheckCountQuota();
+		}
+
+		/** Wrapper for CondCheckTimeQuota which forces FSequentialRPCScope acquisition */
+		inline void CondCheckTimeQuota(FRPCDoSDetection& This, double TimeSeconds)
+		{
+			This.CondCheckTimeQuota(TimeSeconds);
+		}
+
+		/** Wrapper for CheckRPCTracking which forces FSequentialRPCScope acquisition */
+		inline ERPCNotifyResult CheckRPCTracking(FRPCDoSDetection& This, UFunction* Function, FName FunctionName)
+		{
+			return This.CheckRPCTracking(Function, FunctionName);
+		}
+
+		/** Wrapper for FindOrAddRPCTracking which forces FSequentialRPCScope acquisition */
+		inline FRPCTrackingInfo& FindOrAddRPCTracking(FRPCDoSDetection& This, UFunction* InFunc, bool& bOutNewTracking)
+		{
+			return This.FindOrAddRPCTracking(InFunc, bOutNewTracking);
+		}
+
+		void Reset()
+		{
+			bReceivedPacketRPCUnique = true;
+			ReceivedPacketRPCCount = 0;
+			LightweightRPCTracking.Count = 0;
+			PostReceivedRPCName = NAME_None;
+			PostReceivedRPCTracking = nullptr;
+			PostReceivedRPCCounter = nullptr;
+			PostReceivedRPCBlockCount = 0;
+			LastReceivedRPCTimeCache = 0.0;
+
+#if RPC_QUOTA_DEBUG
+			DebugReceivedRPCStartTime = 0.0;
+			DebugReceivedRPCEndTime = 0.0;
+#endif
+		}
+
+	public:
+		/** Whether or not the packet only contains references to the same unique RPC (may be multiple RPC calls to same RPC) */
+		bool bReceivedPacketRPCUnique									= true;
+
+		/** Counts the number of RPC's in the current packet, for unique-RPC analytics */
+		int32 ReceivedPacketRPCCount									= 0;
+
+		/** State for lightweight tracking of RPC's */
+		FLightweightRPCTracking LightweightRPCTracking;
+
+
+		/** Temporarily caches the currently active RPC name, while processing a packet */
+		FName PostReceivedRPCName;
+
+		/** Temporarily caches the currently active RPC tracking, while processing a packet */
+		FRPCTrackingInfo* PostReceivedRPCTracking						= nullptr;
+
+		/** Temporarily caches the currently active RPC counter, while processing a packet */
+		FRPCDoSCounters* PostReceivedRPCCounter							= nullptr;
+
+		/** Temporarily caches the number of blocked RPC calls for the current RPC, while processing a packet */
+		int32 PostReceivedRPCBlockCount									= 0;
+
+		/** Temporarily caches timestamps for sequentially executed RPC's, to minimize new timestamp generation. */
+		double LastReceivedRPCTimeCache									= 0.0;
+
+#if RPC_QUOTA_DEBUG
+		/** Direct/accurate timestamp of RPC receive start time, for debugging against approximate RPC timestamps */
+		double DebugReceivedRPCStartTime								= 0.0;
+
+		/** Direct/accurate timestamp of RPC receive end time, for debugging against approximate RPC timestamps */
+		double DebugReceivedRPCEndTime									= 0.0;
+#endif
+	};
+
+	/** Scoped variables/functions accessible while receiving the same RPC individually/sequentially */
+	FSequentialRPCScope SequentialRPCScopePrivate;
+
+	/** Gets a reference to the sequential RPC scoped variable/function accessor */
+	inline FSequentialRPCScope& GetSequentialRPCScope()
+	{
+		using namespace UE::Net;
+
+#if RPC_DOS_SCOPE_DEBUG
+		ensure(GRPCDoSScopeDebugging == 0 || SequentialRPCScopePrivate.IsActive());
+#endif
+
+		return SequentialRPCScopePrivate;
+	}
+
+
+private:
 	/** Whether or not RPC DoS detection is presently enabled */
 	bool bRPCDoSDetection											= false;
 
@@ -874,9 +1190,6 @@ private:
 	double HitchSuspendDetectionStartTime							= 0.0;
 
 
-	/** Per-frame RPC counting (multiple disjointed packets may be processed for same connection, during a frame) */
-	FRPCDoSCounters FrameCounter;
-
 	/** Per-second RPC counting (approximate - may cover more than one second, in the case of expensive/long-running RPCs) */
 	FRPCDoSCounters SecondCounter;
 
@@ -896,24 +1209,11 @@ private:
 	uint8 SecondsIncrementer										= 0;
 
 
-	/** Whether or not the current packet being received, contains an RPC */
-	bool bPacketContainsRPC											= false;
-
-	/** Cached free/external timestamp, for when the current received packet began processing */
-	double ReceivedPacketStartTime									= 0.0;
-
-	/** Cached free/external timestamp, for when the last received packet finished procesing */
+	/** Cached free/external timestamp, for when the last received packet finished processing */
 	double ReceivedPacketEndTime									= 0.0;
 
-	/** Cached PreTickDispatch timestamp, to reuse for minmizing timestamp retrieval */
+	/** Cached PreTickDispatch timestamp, to reuse for minimizing timestamp retrieval */
 	double LastPreTickDispatchTime									= 0.0;
-
-	/** Whether or not the packet only contains references to the same unique RPC (may be multiple RPC calls to same RPC) */
-	bool bReceivedPacketRPCUnique									= false;
-
-	/** Counts the number of RPC's in the current packet, for unique-RPC analytics */
-	int32 ReceivedPacketRPCCount									= 0;
-
 
 	/** Unbounded RPC counter, for performing RPC checks at every 'x' intervals */
 	uint32 RPCIntervalCounter										= 0;
@@ -942,33 +1242,6 @@ private:
 
 	/** The last time RPCTracking was cleaned out */
 	double LastRPCTrackingClean										= 0.0;
-
-	/** State for lightweight tracking of RPC's */
-	FLightweightRPCTracking LightweightRPCTracking;
-
-
-	/** Temporarily caches the currently active RPC name, while processing a packet */
-	FName PostReceivedRPCName;
-
-	/** Temporarily caches the currently active RPC tracking, while processing a packet */
-	FRPCTrackingInfo* PostReceivedRPCTracking						= nullptr;
-
-	/** Temporarily caches the currently active RPC counter, while processing a packet */
-	FRPCDoSCounters* PostReceivedRPCCounter							= nullptr;
-
-	/** Temporarily caches the number of blocked RPC calls for the current RPC, while processing a packet */
-	int32 PostReceivedRPCBlockCount									= 0;
-
-	/** Temporarily caches timestamps for sequentially executed RPC's, to minimize new timestamp generation. */
-	double LastReceivedRPCTimeCache									= 0.0;
-
-#if RPC_QUOTA_DEBUG
-	/** Direct/accurate timestamp of RPC receive start time, for debugging against approximate RPC timestamps */
-	double DebugReceivedRPCStartTime								= 0.0;
-
-	/** Direct/accurate timestamp of RPC receive end time, for debugging against approximate RPC timestamps */
-	double DebugReceivedRPCEndTime									= 0.0;
-#endif
 
 
 	/** The locally cached/updated analytics variables, for the RPC DoS Detection - aggregated upon connection Close */

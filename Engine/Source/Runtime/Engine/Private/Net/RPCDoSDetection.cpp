@@ -70,6 +70,18 @@ TAutoConsoleVariable<FString> CVarRPCDoSForcedRPCTracking(
 	TEXT("and a length of time for leaving tracking enabled (disables the next tick, otherwise).")
 	TEXT("Example (50% chance for 10 seconds): net.RPCDoSForcedRPCTracking=ServerAdmin,0.5,10"));
 
+#if RPC_DOS_SCOPE_DEBUG
+namespace UE::Net
+{
+	int32 GRPCDoSScopeDebugging = 0;
+
+	FAutoConsoleVariableRef CVarRPCDoSScopeDebugging(
+		TEXT("net.RPCDoSScopeDebugging"),
+		GRPCDoSScopeDebugging,
+		TEXT("Sets whether or not debugging/ensures for RPC DoS Tick/Packet scopes should be enabled."));
+}
+#endif
+
 
 /**
  * ERPCDoSEscalateReason
@@ -488,7 +500,7 @@ void FRPCDoSDetection::InitConfig(FName NetDriverName)
 	}
 }
 
-void FRPCDoSDetection::UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscalateReason Reason)
+void FRPCDoSDetection::UpdateSeverity_Private(ERPCDoSSeverityUpdate Update, ERPCDoSEscalateReason Reason)
 {
 	bool bEscalate = Update == ERPCDoSSeverityUpdate::Escalate || Update == ERPCDoSSeverityUpdate::AutoEscalate;
 	int32 NewStateIdx = FMath::Clamp(ActiveState + (bEscalate ? 1 : -1), 0, DetectionSeverity.Num()-1);
@@ -508,6 +520,8 @@ void FRPCDoSDetection::UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscal
 		// Cache these values - Init code is too early, NotifyClose may be too late
 		CachePlayerAddress();
 		CachePlayerUID();
+
+		FTickScope& TickScope = GetTickScope();
 
 		if (bEscalate)
 		{
@@ -541,8 +555,8 @@ void FRPCDoSDetection::UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscal
 					RecalculatePeriodHistory(CurStateTimePeriods, CurPerPeriodHistory, StartIdx);
 
 					// Determine if any time period quota's for the current SecondsDelta-offset CounterPerSecHistory were breached
-					if (PrevState.HasHitQuota_Count(CurPerPeriodHistory, FrameCounter) ||
-						PrevState.HasHitQuota_Time(CurPerPeriodHistory, FrameCounter))
+					if (PrevState.HasHitQuota_Count(CurPerPeriodHistory, TickScope.FrameCounter) ||
+						PrevState.HasHitQuota_Time(CurPerPeriodHistory, TickScope.FrameCounter))
 					{
 						// The state we're transitioning down into, would have last had its cooloff reset around this time
 						LastMetEscalationConditions = CurTime - (double)SecondsDelta;
@@ -576,8 +590,8 @@ void FRPCDoSDetection::UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscal
 
 
 			// If escalating, keep escalating until the quota checks fail
-			if (bEscalate && (HasHitQuota_Count(CounterPerPeriodHistory, FrameCounter) ||
-								HasHitQuota_Time(CounterPerPeriodHistory, FrameCounter)))
+			if (bEscalate && (HasHitQuota_Count(CounterPerPeriodHistory, TickScope.FrameCounter) ||
+								HasHitQuota_Time(CounterPerPeriodHistory, TickScope.FrameCounter)))
 			{
 				NewStateIdx = FMath::Clamp(ActiveState + 1, 0, DetectionSeverity.Num()-1);
 
@@ -626,7 +640,7 @@ void FRPCDoSDetection::UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscal
 			if (ActiveState > WorstAnalyticsState && !NewState.bEscalationConfirmed)
 			{
 				NewState.bEscalationConfirmed = NewState.EscalationCount >= NewState.EscalationCountTolerance ||
-					(NewState.EscalationTimeToleranceMS != -1 && FrameCounter.AccumRPCTime >= NewState.EscalationTimeToleranceSeconds);
+					(NewState.EscalationTimeToleranceMS != -1 && TickScope.FrameCounter.AccumRPCTime >= NewState.EscalationTimeToleranceSeconds);
 
 				if (NewState.bEscalationConfirmed)
 				{
@@ -660,22 +674,30 @@ void FRPCDoSDetection::UpdateSeverity(ERPCDoSSeverityUpdate Update, ERPCDoSEscal
 						// If RPC tracking was enabled during this escalation, but lightweight RPC tracking has not been reset,
 						// that means the RPC responsible for the escalation could not be identified,
 						// and analytics should list all potential RPC's
-						if (ShouldMonitorReceivedRPC() && LightweightRPCTracking.Count > 0)
+						if (ShouldMonitorReceivedRPC() && PacketScopePrivate.IsActive())
 						{
-							for (int32 LWIdx=0; LWIdx<LightweightRPCTracking.Count; LWIdx++)
+							FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+							FLightweightRPCTracking& LightweightRPCTracking = SequentialRPCScope.LightweightRPCTracking;
+
+							if (SequentialRPCScope.LightweightRPCTracking.Count > 0)
 							{
-								UntimedRPCs.AddUnique(LightweightRPCTracking.RPC[LWIdx].Name);
-							}
-
-							UntimedRPCs.Sort(
-								[](const FName& A, const FName& B)
+								for (int32 LWIdx=0; LWIdx<LightweightRPCTracking.Count; LWIdx++)
 								{
-									return A.ToString() < B.ToString();
-								});
+									UntimedRPCs.AddUnique(LightweightRPCTracking.RPC[LWIdx].Name);
+								}
 
-							LightweightRPCTracking.Count = 0;
+								UntimedRPCs.Sort(
+									[](const FName& A, const FName& B)
+									{
+										return A.ToString() < B.ToString();
+									});
 
-							RPCGroupTime = FPlatformTime::Seconds() - ReceivedPacketStartTime;
+								LightweightRPCTracking.Count = 0;
+
+								FPacketScope& PacketScope = GetPacketScope();
+
+								RPCGroupTime = FPlatformTime::Seconds() - PacketScope.ReceivedPacketStartTime;
+							}
 						}
 
 
@@ -733,10 +755,10 @@ void FRPCDoSDetection::PreTickDispatch(double TimeSeconds)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RPCDoS_Checks);
 #endif
 
+	TickScopePrivate.SetActive(true);
+
 	if (bRPCDoSDetection)
 	{
-		FrameCounter.ResetRPCCounters();
-
 		NextTimeQuotaCheck = FMath::Max(TimeSeconds + TimeQuotaCheckInterval, NextTimeQuotaCheck);
 
 		if (HitchTimeQuotaMS > 0 && ReceivedPacketEndTime != 0.0)
@@ -762,15 +784,16 @@ void FRPCDoSDetection::PreTickDispatch(double TimeSeconds)
 
 		if (ActiveState > 0)
 		{
+			FTickScope& TickScope = GetTickScope();
 			double ActiveStateTime = TimeSeconds - LastMetEscalationConditions;
 
 			if (CooloffTime > 0 && ActiveStateTime > CooloffTime)
 			{
-				UpdateSeverity(ERPCDoSSeverityUpdate::Deescalate, ERPCDoSEscalateReason::Deescalate);
+				TickScope.UpdateSeverity(*this, ERPCDoSSeverityUpdate::Deescalate, ERPCDoSEscalateReason::Deescalate);
 			}
 			else if (AutoEscalateTime > 0 && ActiveStateTime > AutoEscalateTime)
 			{
-				UpdateSeverity(ERPCDoSSeverityUpdate::AutoEscalate, ERPCDoSEscalateReason::AutoEscalate);
+				TickScope.UpdateSeverity(*this, ERPCDoSSeverityUpdate::AutoEscalate, ERPCDoSEscalateReason::AutoEscalate);
 			}
 		}
 
@@ -844,7 +867,12 @@ void FRPCDoSDetection::PreTickDispatch(double TimeSeconds)
 void FRPCDoSDetection::PostSequentialRPC(EPostSequentialRPCType SequenceType, double TimeSeconds, FRPCDoSCounters* RPCCounter,
 											FRPCTrackingInfo* RPCTrackingInfo)
 {
-	const double StartTime = LastReceivedRPCTimeCache == 0.0 ? ReceivedPacketStartTime : LastReceivedRPCTimeCache;
+	using namespace UE::Net;
+
+	FPacketScope& PacketScope = GetPacketScope();
+	FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+	const double StartTime = SequentialRPCScope.LastReceivedRPCTimeCache == 0.0 ? PacketScope.ReceivedPacketStartTime :
+								SequentialRPCScope.LastReceivedRPCTimeCache;
 
 	RPCCounter->AccumRPCTime += (TimeSeconds - StartTime);
 
@@ -873,7 +901,7 @@ void FRPCDoSDetection::PostSequentialRPC(EPostSequentialRPCType SequenceType, do
 				{
 					const TSharedPtr<FRPCAnalytics>& CurAnalytics = RPCTrackingAnalytics[AnalyticsIdx];
 
-					if (CurAnalytics->RPCName == PostReceivedRPCName)
+					if (CurAnalytics->RPCName == SequentialRPCScope.PostReceivedRPCName)
 					{
 						RPCTrackingAnalyticsEntry = CurAnalytics;
 						break;
@@ -909,7 +937,7 @@ void FRPCDoSDetection::PostSequentialRPC(EPostSequentialRPCType SequenceType, do
 						RPCTrackingAnalyticsEntry = RPCTrackingAnalytics.Insert_GetRef(MoveTemp(NewRPCAnalytics), InsertIdx);
 
 						// Setup initial/persistent analytics values
-						RPCTrackingAnalyticsEntry->RPCName = PostReceivedRPCName;
+						RPCTrackingAnalyticsEntry->RPCName = SequentialRPCScope.PostReceivedRPCName;
 						RPCTrackingAnalyticsEntry->PlayerIP = GetPlayerAddress();
 						RPCTrackingAnalyticsEntry->PlayerUID = GetPlayerUID();
 					}
@@ -932,17 +960,17 @@ void FRPCDoSDetection::PostSequentialRPC(EPostSequentialRPCType SequenceType, do
 
 			if (RPCTrackingInfo->BlockState == ERPCBlockState::Blocked)
 			{
-				RawAnalyticsEntry->BlockedCount += PostReceivedRPCBlockCount;
+				RawAnalyticsEntry->BlockedCount += SequentialRPCScope.PostReceivedRPCBlockCount;
 			}
 
-			if (SequenceType == EPostSequentialRPCType::PostPacket && bReceivedPacketRPCUnique)
+			if (SequenceType == EPostSequentialRPCType::PostPacket && SequentialRPCScope.bReceivedPacketRPCUnique)
 			{
-				const double PacketProcessTime = TimeSeconds - ReceivedPacketStartTime;
+				const double PacketProcessTime = TimeSeconds - PacketScope.ReceivedPacketStartTime;
 
 				if (PacketProcessTime > RawAnalyticsEntry->MaxSinglePacketRPCTime)
 				{
 					RawAnalyticsEntry->MaxSinglePacketRPCTime = PacketProcessTime;
-					RawAnalyticsEntry->SinglePacketRPCCount = ReceivedPacketRPCCount;
+					RawAnalyticsEntry->SinglePacketRPCCount = SequentialRPCScope.ReceivedPacketRPCCount;
 					RawAnalyticsEntry->SinglePacketGameThreadCPU = static_cast<uint8>(FPlatformTime::GetThreadCPUTime().CPUTimePctRelative);
 				}
 			}
@@ -952,26 +980,42 @@ void FRPCDoSDetection::PostSequentialRPC(EPostSequentialRPCType SequenceType, do
 
 void FRPCDoSDetection::PostReceivedRPCPacket(double TimeSeconds)
 {
-	const double PacketProcessTime = TimeSeconds - ReceivedPacketStartTime;
+	using namespace UE::Net;
 
-	FrameCounter.AccumRPCTime += PacketProcessTime;
+	FTickScope& TickScope = GetTickScope();
+	FPacketScope& PacketScope = GetPacketScope();
+	FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+	const double PacketProcessTime = TimeSeconds - PacketScope.ReceivedPacketStartTime;
 
-	if (PostReceivedRPCCounter != nullptr)
+	TickScope.FrameCounter.AccumRPCTime += PacketProcessTime;
+
+	if (SequentialRPCScope.PostReceivedRPCCounter != nullptr)
 	{
-		PostSequentialRPC(EPostSequentialRPCType::PostPacket, TimeSeconds, PostReceivedRPCCounter, PostReceivedRPCTracking);
-
-#if RPC_QUOTA_DEBUG
-		PostReceivedRPCCounter->DebugAccumRPCTime += (DebugReceivedRPCEndTime - DebugReceivedRPCStartTime);
+#if RPC_DOS_SCOPE_DEBUG
+		// If this ensure fails, there is the potential for a crash - seen very rarely, and the Tick/Packet/SequentialRPC scoping should eliminate it
+		ensure(GRPCDoSScopeDebugging == 0 || (RPCTracking.Num() > 0 && ActiveRPCTracking.Num() > 0));
 #endif
 
-		PostReceivedRPCName = NAME_None;
-		PostReceivedRPCTracking = nullptr;
-		PostReceivedRPCCounter = nullptr;
-		PostReceivedRPCBlockCount = 0;
-		LastReceivedRPCTimeCache = 0.0;
+		if (RPCTracking.Num() > 0 && ActiveRPCTracking.Num() > 0)
+		{
+			PostSequentialRPC(EPostSequentialRPCType::PostPacket, TimeSeconds, SequentialRPCScope.PostReceivedRPCCounter,
+								SequentialRPCScope.PostReceivedRPCTracking);
+
+#if RPC_QUOTA_DEBUG
+			PostReceivedRPCCounter->DebugAccumRPCTime += (DebugReceivedRPCEndTime - DebugReceivedRPCStartTime);
+#endif
+		}
 	}
 
-	CondCheckTimeQuota(TimeSeconds);
+	TickScope.CondCheckTimeQuota(*this, TimeSeconds);
+
+#if RPC_DOS_SCOPE_DEBUG
+	ensure(GRPCDoSScopeDebugging == 0 || SequentialRPCScopePrivate.IsActive());
+	ensure(GRPCDoSScopeDebugging == 0 || PacketScopePrivate.IsActive());
+	ensure(GRPCDoSScopeDebugging == 0 || TickScopePrivate.IsActive());
+#endif
+
+	SequentialRPCScopePrivate.SetActive(false);
 }
 
 void FRPCDoSDetection::PostTickDispatch()
@@ -980,11 +1024,15 @@ void FRPCDoSDetection::PostTickDispatch()
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RPCDoS_Checks);
 #endif
 
+	FTickScope& TickScope = GetTickScope();
+	FRPCDoSCounters& FrameCounter = TickScope.FrameCounter;
+
 	if (FrameCounter.RPCCounter > 0)
 	{
 		SecondCounter.AccumulateCounter(FrameCounter);
-		FrameCounter.ResetRPCCounters();
 	}
+
+	TickScopePrivate.SetActive(false);
 }
 
 void FRPCDoSDetection::NotifyClose()
@@ -1023,7 +1071,8 @@ ERPCNotifyResult FRPCDoSDetection::CheckRPCTracking(UFunction* Function, FName F
 
 	if (!bHitchSuspendDetection)
 	{
-		FRPCTrackingInfo& Tracking = FindOrAddRPCTracking(Function, bNewTracking);
+		FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+		FRPCTrackingInfo& Tracking = SequentialRPCScope.FindOrAddRPCTracking(*this, Function, bNewTracking);
 		const uint8 OldTrackedSecondIncrement = Tracking.LastTrackedSecondIncrement;
 
 		Tracking.LastTrackedSecondIncrement = SecondsIncrementer;
@@ -1074,40 +1123,43 @@ ERPCNotifyResult FRPCDoSDetection::CheckRPCTracking(UFunction* Function, FName F
 
 		CurActiveCounter.RPCCounter++;
 
-		if (bReceivedPacketRPCUnique && PostReceivedRPCName != NAME_None && PostReceivedRPCName != FunctionName)
+		if (SequentialRPCScope.bReceivedPacketRPCUnique && SequentialRPCScope.PostReceivedRPCName != NAME_None
+			&& SequentialRPCScope.PostReceivedRPCName != FunctionName)
 		{
-			bReceivedPacketRPCUnique = false;
+			SequentialRPCScope.bReceivedPacketRPCUnique = false;
 		}
 
 
 		// To minimize timestamp generation, use the 'free' pre/post packet timestamps as much as possible,
 		// and group sequential calls to the same RPC together instead of timing for each one
-		if (PostReceivedRPCCounter == nullptr)
+		if (SequentialRPCScope.PostReceivedRPCCounter == nullptr)
 		{
-			PostReceivedRPCName = FunctionName;
-			PostReceivedRPCTracking = &Tracking;
-			PostReceivedRPCCounter = &CurActiveCounter;
+			SequentialRPCScope.PostReceivedRPCName = FunctionName;
+			SequentialRPCScope.PostReceivedRPCTracking = &Tracking;
+			SequentialRPCScope.PostReceivedRPCCounter = &CurActiveCounter;
 		}
-		else if (PostReceivedRPCCounter != &CurActiveCounter)
+		else if (SequentialRPCScope.PostReceivedRPCCounter != &CurActiveCounter)
 		{
 			const double CurTimeSeconds = FPlatformTime::Seconds();
 
-			PostSequentialRPC(EPostSequentialRPCType::MidPacket, CurTimeSeconds, PostReceivedRPCCounter, PostReceivedRPCTracking);
+			PostSequentialRPC(EPostSequentialRPCType::MidPacket, CurTimeSeconds, SequentialRPCScope.PostReceivedRPCCounter,
+								SequentialRPCScope.PostReceivedRPCTracking);
 
-			LastReceivedRPCTimeCache = CurTimeSeconds;
+			SequentialRPCScope.LastReceivedRPCTimeCache = CurTimeSeconds;
 
 #if RPC_QUOTA_DEBUG
-			PostReceivedRPCCounter->DebugAccumRPCTime += (DebugReceivedRPCEndTime - DebugReceivedRPCStartTime);
+			SequentialRPCScope.PostReceivedRPCCounter->DebugAccumRPCTime +=
+				(SequentialRPCScope.DebugReceivedRPCEndTime - SequentialRPCScope.DebugReceivedRPCStartTime);
 #endif
 
-			PostReceivedRPCName = FunctionName;
-			PostReceivedRPCTracking = &Tracking;
-			PostReceivedRPCCounter = &CurActiveCounter;
-			PostReceivedRPCBlockCount = 0;
+			SequentialRPCScope.PostReceivedRPCName = FunctionName;
+			SequentialRPCScope.PostReceivedRPCTracking = &Tracking;
+			SequentialRPCScope.PostReceivedRPCCounter = &CurActiveCounter;
+			SequentialRPCScope.PostReceivedRPCBlockCount = 0;
 		}
 
 		// When tracking is enabled, the quota's are checked every RPC call until blocked (and analytics in the PostSequential call)
-		if (!bNewTracking && PostReceivedRPCBlockCount == 0 && Tracking.BlockState != ERPCBlockState::OnAllowList)
+		if (!bNewTracking && SequentialRPCScope.PostReceivedRPCBlockCount == 0 && Tracking.BlockState != ERPCBlockState::OnAllowList)
 		{
 			auto HasHitQuota = [&Tracking](int32 TimePeriod, int32 CountPerPeriod, double SecsPerPeriod)
 				{
@@ -1127,7 +1179,7 @@ ERPCNotifyResult FRPCDoSDetection::CheckRPCTracking(UFunction* Function, FName F
 
 		if (Tracking.BlockState == ERPCBlockState::Blocked)
 		{
-			PostReceivedRPCBlockCount++;
+			SequentialRPCScope.PostReceivedRPCBlockCount++;
 
 			Result = ERPCNotifyResult::BlockRPC;
 		}
@@ -1138,7 +1190,9 @@ ERPCNotifyResult FRPCDoSDetection::CheckRPCTracking(UFunction* Function, FName F
 
 		if (TrackingPtr != nullptr && TrackingPtr->IsValid() && TrackingPtr->Get()->BlockState == ERPCBlockState::Blocked)
 		{
-			PostReceivedRPCBlockCount++;
+			FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+
+			SequentialRPCScope.PostReceivedRPCBlockCount++;
 
 			Result = ERPCNotifyResult::BlockRPC;
 		}
@@ -1183,9 +1237,12 @@ void FRPCDoSDetection::EnableRPCTracking(double TimeSeconds)
 		LastRPCTrackingClean = TimeSeconds;
 	}
 
-	// Do checks that should occur in the middle of receiving a packet (detected based on which received packet timestamps are fresh)
-	if (ReceivedPacketEndTime < ReceivedPacketStartTime)
+	// Do checks that should occur in the middle of receiving a packet
+	if (SequentialRPCScopePrivate.IsActive())
 	{
+		FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+		FLightweightRPCTracking& LightweightRPCTracking = SequentialRPCScope.LightweightRPCTracking;
+
 		// If lightweight tracking has entries, see if we can retroactively add this to full RPC tracking (only possible with single RPC)
 		// NOTE: Lightweight tracking UFunction's are valid, here.
 		bool bUniqueLightweightRPC = LightweightRPCTracking.Count > 0;
@@ -1203,17 +1260,17 @@ void FRPCDoSDetection::EnableRPCTracking(double TimeSeconds)
 		if (bUniqueLightweightRPC)
 		{
 			// Add and time the lightweight-tracked RPC, from the start of packet receive
-			CheckRPCTracking(FirstFunc, FirstFunc->GetFName());
+			SequentialRPCScope.CheckRPCTracking(*this, FirstFunc, FirstFunc->GetFName());
 		}
 		else
 		{
 			// Ensure tracking knows the packet contains more than one RPC type
-			bReceivedPacketRPCUnique = false;
+			SequentialRPCScope.bReceivedPacketRPCUnique = false;
 
 			// Very important to update the cached time for last received RPC, to avoid mistiming RPC's when tracking is enabled mid-receive
-			if (LastReceivedRPCTimeCache == 0.0)
+			if (SequentialRPCScope.LastReceivedRPCTimeCache == 0.0)
 			{
-				LastReceivedRPCTimeCache = TimeSeconds;
+				SequentialRPCScope.LastReceivedRPCTimeCache = TimeSeconds;
 			}
 		}
 	}
@@ -1226,7 +1283,9 @@ void FRPCDoSDetection::EnableForcedRPCTracking(UFunction* Function, FName Functi
 	EnableRPCTracking(TimeSeconds);
 
 	// If lightweight RPC tracking was not made up of one unique RPC, this RPC will not have been added to tracking - add it now
-	if (!bReceivedPacketRPCUnique)
+	FSequentialRPCScope& SequentialRPCScope = GetSequentialRPCScope();
+
+	if (!SequentialRPCScope.bReceivedPacketRPCUnique)
 	{
 		CheckRPCTracking(Function, FunctionName);
 	}
