@@ -871,11 +871,11 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 	// @todo A future improvement would be to find a center that doesn't make the LC bigger than it needs to, 
 	// since the pixel space center won't be the projected plane center
 
-	FVector LightCardDirection; // direction from origin to where pixel points to
-	FVector LightCardPlaneAxisX;    // Normal vector at the found enveloping surface point
+	FVector LightCardDirection;  // direction from origin to where pixel points to
+	FVector LightCardPlaneAxisX; // Normal vector at the found enveloping surface point
 	FVector LightCardPlaneAxisY;
 	FVector LightCardPlaneAxisZ;
-	float LightCardDistance;    // Distance from origin to the found enveloping surface point
+	float LightCardDistance;     // Distance from origin to the found enveloping surface point
 	{
 		// Find center point in pixel space
 
@@ -892,7 +892,7 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 			MaxY = FMath::Max(MaxY, Point.Y);
 		}
 
-		FIntPoint CenterPoint((MaxX + MinX)/2, (MaxY + MinY) / 2);
+		FIntPoint CenterPoint((MaxX + MinX) / 2, (MaxY + MinY) / 2);
 
 		PixelToWorld(*View, CenterPoint, ViewOrigin, LightCardDirection);
 
@@ -931,8 +931,6 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 	// Project mouse positions to light card plane.
 	//
 
-	// @todo A future improvement would be to find a spin that minimizes the lightcard size
-
 	TArray<FVector3d> ProjectedMousePositions;
 	ProjectedMousePositions.AddUninitialized(MouseWorldDirections.Num());
 	const FPlane LightCardPlane = FPlane(LightCardLocation, LightCardPlaneAxisX);
@@ -962,15 +960,55 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 		PointsInLightCardPlane[PointIdx].Y =  FVector::DotProduct(ProjMousePosLocal, LightCardPlaneAxisZ);
 	}
 
-	// Calculate LC x/y bounds
+	// Find the spin that minimizes the area. 
+	// For now, simply a fixed size linear search but a better optimization algorithm could be used.
 
-	double LightCardWidth  = 0;
+	double Spin = 0;
+	double LightCardWidth = 0;
 	double LightCardHeight = 0;
 
-	for (const FVector2d& Point : PointsInLightCardPlane)
 	{
-		LightCardWidth  = FMath::Max(LightCardWidth , 2 * abs(Point.X));
-		LightCardHeight = FMath::Max(LightCardHeight, 2 * abs(Point.Y));
+		double Area = DBL_MAX;
+		double constexpr SpinStepSize = 15;
+
+		for (double SpinTest = 0; SpinTest < 180; SpinTest += SpinStepSize)
+		{
+			double LightCardWidthTest = 0;
+			double LightCardHeightTest = 0;
+
+			const FRotator Rotator(0, -SpinTest, 0); // using yaw for spin for convenience
+
+			for (const FVector2d& Point : PointsInLightCardPlane)
+			{
+				FVector RotatedPoint = Rotator.RotateVector(FVector(Point.X, Point.Y, 0));
+
+				LightCardWidthTest = FMath::Max(LightCardWidthTest, 2 * abs(RotatedPoint.X));
+				LightCardHeightTest = FMath::Max(LightCardHeightTest, 2 * abs(RotatedPoint.Y));
+			}
+
+			const double AreaTest = LightCardWidthTest * LightCardHeightTest;
+
+			if (AreaTest < Area)
+			{
+				Spin = SpinTest;
+				Area = AreaTest;
+				LightCardWidth = LightCardWidthTest;
+				LightCardHeight = LightCardHeightTest;
+			}
+		}
+	}
+
+	// Update the points with the rotated ones, since we're going to spin the card.
+	{
+		const FRotator Rotator(0, -Spin, 0);
+
+		for (FVector2d& Point : PointsInLightCardPlane)
+		{
+			FVector RotatedPoint = Rotator.RotateVector(FVector(Point.X, Point.Y, 0));
+
+			Point.X = RotatedPoint.X;
+			Point.Y = RotatedPoint.Y;
+		}
 	}
 
 	if (FMath::IsNearlyZero(LightCardWidth) || FMath::IsNearlyZero(LightCardHeight))
@@ -993,6 +1031,8 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 	{
 		return;
 	}
+
+	LightCard->Spin = Spin;
 
 	// Assign polygon mask
 

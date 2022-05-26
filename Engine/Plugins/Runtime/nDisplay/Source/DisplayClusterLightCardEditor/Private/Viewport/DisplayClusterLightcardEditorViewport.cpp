@@ -2,6 +2,7 @@
 
 #include "DisplayClusterLightcardEditorViewport.h"
 
+#include "DisplayClusterLightCardEditorStyle.h"
 #include "DisplayClusterLightCardEditorViewportClient.h"
 #include "DisplayClusterLightCardEditorCommands.h"
 
@@ -191,7 +192,7 @@ public:
 
 		const FName ToolBarStyle = TEXT("EditorViewportToolBar");
 		ToolbarBuilder.SetStyle(&FAppStyle::Get(), ToolBarStyle);
-		ToolbarBuilder.SetLabelVisibility(EVisibility::Visible);
+		ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
 		ToolbarBuilder.SetIsFocusable(false);
 
@@ -207,7 +208,7 @@ public:
 				LOCTEXT("DrawLCTooltip", 
 					"Draw a new custom light card by adding polygon points clicking the left mouse button on the viewport. "
 					"End the shape with right mouse button, or abort by pressing this button again."),
-				TAttribute<FSlateIcon>(),
+				FSlateIcon(FSlateIcon(FDisplayClusterLightCardEditorStyle::Get().GetStyleSetName(), "DrawPoly")),
 				DrawLightCardName
 			);
 
