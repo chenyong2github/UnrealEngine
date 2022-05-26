@@ -22,6 +22,7 @@ namespace Horde.Build.IssueHandlers
 			".c",
 			".cc",
 			".cpp",
+			".inl",
 			".m",
 			".mm",
 			".rc",

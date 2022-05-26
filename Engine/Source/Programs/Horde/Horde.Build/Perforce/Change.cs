@@ -139,6 +139,7 @@ namespace Horde.Build.Models
 			".c",
 			".cc",
 			".cpp",
+			".inl",
 			".m",
 			".mm",
 			".rc",
