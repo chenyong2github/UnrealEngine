@@ -204,3 +204,29 @@ bool UInterchangeShaderGraphNode::SetCustomOpacityMaskClipValue(const float& Att
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(OpacityMaskClipValue, float);
 }
+
+bool UInterchangeShaderGraphNode::GetCustomIsAShaderFunction(bool& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(IsAShaderFunction, bool);
+}
+
+bool UInterchangeShaderGraphNode::SetCustomIsAShaderFunction(const bool& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(IsAShaderFunction, bool);
+}
+
+FString UInterchangeFunctionCallShaderNode::GetTypeName() const
+{
+	const FString TypeName = TEXT("FunctionCallShaderNode");
+	return TypeName;
+}
+
+bool UInterchangeFunctionCallShaderNode::GetCustomMaterialFunction(FString& AttributeValue) const
+{
+	IMPLEMENT_NODE_ATTRIBUTE_GETTER(MaterialFunction, FString);
+}
+
+bool UInterchangeFunctionCallShaderNode::SetCustomMaterialFunction(const FString& AttributeValue)
+{
+	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(MaterialFunction, FString);
+}

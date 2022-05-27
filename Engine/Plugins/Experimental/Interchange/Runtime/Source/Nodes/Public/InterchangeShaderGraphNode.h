@@ -60,7 +60,7 @@ public:
 	 * @param InterchangeNode	The Node to create the input on.
 	 * @param InputName			The name to give to the input.
 	 * @param ExpressionUid		The unique id of the node to connect to the input.
-	 * @return					true if the input connection was succesfully added to the node.
+	 * @return					true if the input connection was successfully added to the node.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
 	static bool ConnectDefaultOuputToInput(UInterchangeBaseNode* InterchangeNode, const FString& InputName, const FString& ExpressionUid);
@@ -127,7 +127,32 @@ public:
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomShaderTypeKey = UE::Interchange::FAttributeKey(TEXT("ShaderType"));
 };
- 
+
+/**
+ * A function call shader node has a named set of inputs and outputs which corresponds to the inputs and outputs of the shader function it instances.
+ */
+UCLASS(BlueprintType, Experimental)
+class INTERCHANGENODES_API UInterchangeFunctionCallShaderNode : public UInterchangeShaderNode
+{
+	GENERATED_BODY()
+
+public:
+	virtual FString GetTypeName() const override;
+
+public:
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool GetCustomMaterialFunction(FString& AttributeValue) const;
+
+	/**
+	 * Sets the unique id of the material function referenced by the function call expression.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool SetCustomMaterialFunction(const FString& AttributeValue);
+
+private:
+	const UE::Interchange::FAttributeKey Macro_CustomMaterialFunctionKey = UE::Interchange::FAttributeKey(TEXT("MaterialFunction"));
+};
+
 /**
  * A shader graph has its own set of inputs on which shader nodes can be connected to.
  */
@@ -171,7 +196,17 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
 	bool SetCustomOpacityMaskClipValue(const float& AttributeValue, bool bAddApplyDelegate = true);
 
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool GetCustomIsAShaderFunction(bool& AttributeValue) const;
+
+	/**
+	 * Sets if this shader graph should be considered as a material, false, or a material function, true.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Material")
+	bool SetCustomIsAShaderFunction(const bool& AttributeValue);
+
 private:
 	const UE::Interchange::FAttributeKey Macro_CustomTwoSidedKey = UE::Interchange::FAttributeKey(TEXT("TwoSided"));
 	const UE::Interchange::FAttributeKey Macro_CustomOpacityMaskClipValueKey = UE::Interchange::FAttributeKey(TEXT("OpacityMaskClipValue"));
+	const UE::Interchange::FAttributeKey Macro_CustomIsAShaderFunctionKey = UE::Interchange::FAttributeKey(TEXT("IsAShaderFunction"));
 };

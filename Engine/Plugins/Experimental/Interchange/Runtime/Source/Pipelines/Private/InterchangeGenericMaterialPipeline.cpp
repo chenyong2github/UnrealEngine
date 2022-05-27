@@ -98,9 +98,21 @@ void UInterchangeGenericMaterialPipeline::ExecutePreImportPipeline(UInterchangeB
 	{
 		for (const UInterchangeShaderGraphNode* ShaderGraphNode : MaterialNodes)
 		{
-			if (UInterchangeMaterialFactoryNode* MaterialFactoryNode = CreateMaterialFactoryNode(ShaderGraphNode))
+			UInterchangeBaseMaterialFactoryNode* MaterialBaseFactoryNode = nullptr;
+
+			bool bIsAShaderFunction;
+			if (ShaderGraphNode->GetCustomIsAShaderFunction(bIsAShaderFunction) && bIsAShaderFunction)
 			{
-				MaterialFactoryNode->SetEnabled(bImportUnusedMaterial);
+				MaterialBaseFactoryNode = CreateMaterialFunctionFactoryNode(ShaderGraphNode);
+			}
+			else
+			{
+				MaterialBaseFactoryNode = CreateMaterialFactoryNode(ShaderGraphNode);
+			}
+
+			if (MaterialBaseFactoryNode)
+			{
+				MaterialBaseFactoryNode->SetEnabled(bImportUnusedMaterial);
 			}
 		}
 	}
@@ -860,7 +872,7 @@ void UInterchangeGenericMaterialPipeline::HandleCommonParameters(const UIntercha
 	}
 }
 
-void UInterchangeGenericMaterialPipeline::HandleFlattenNormalNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode,
+void UInterchangeGenericMaterialPipeline::HandleFlattenNormalNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode,
 	UInterchangeMaterialExpressionFactoryNode* FlattenNormalFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes::FlattenNormal;
@@ -896,7 +908,7 @@ void UInterchangeGenericMaterialPipeline::HandleFlattenNormalNode(const UInterch
 	}
 }
 
-void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)
+void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* TextureSampleFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes::TextureSample;
 
@@ -970,7 +982,7 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 	}
 }
 
-void UInterchangeGenericMaterialPipeline::HandleTextureCoordinateNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode,
+void UInterchangeGenericMaterialPipeline::HandleTextureCoordinateNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode,
 	UInterchangeMaterialExpressionFactoryNode*& TexCoordFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Standard;
@@ -1080,7 +1092,7 @@ void UInterchangeGenericMaterialPipeline::HandleTextureCoordinateNode(const UInt
 	}
 }
 
-void UInterchangeGenericMaterialPipeline::HandleLerpNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* LerpFactoryNode)
+void UInterchangeGenericMaterialPipeline::HandleLerpNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* LerpFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Standard;
 
@@ -1123,7 +1135,7 @@ void UInterchangeGenericMaterialPipeline::HandleLerpNode(const UInterchangeShade
 	}
 }
 
-void UInterchangeGenericMaterialPipeline::HandleMaskNode(const UInterchangeShaderNode* ShaderNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* MaskFactoryNode)
+void UInterchangeGenericMaterialPipeline::HandleMaskNode(const UInterchangeShaderNode* ShaderNode, UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, UInterchangeMaterialExpressionFactoryNode* MaskFactoryNode)
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes;
 
@@ -1183,7 +1195,7 @@ void UInterchangeGenericMaterialPipeline::HandleMaskNode(const UInterchangeShade
 	}
 }
 
-UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::CreateMaterialExpressionForShaderNode(UInterchangeMaterialFactoryNode* MaterialFactoryNode,
+UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::CreateMaterialExpressionForShaderNode(UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode,
 	const UInterchangeShaderNode* ShaderNode, const FString& ParentUid)
 {
 	using namespace UE::Interchange::Materials::Standard;
@@ -1202,12 +1214,30 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 		return MaterialExpression;
 	}
 
-	MaterialExpression = NewObject<UInterchangeMaterialExpressionFactoryNode>(BaseNodeContainer);
-	MaterialExpression->InitializeNode(MaterialExpressionUid, ShaderNode->GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
-	BaseNodeContainer->AddNode(MaterialExpression);
+	if (const UInterchangeFunctionCallShaderNode* FunctionCallShaderNode = Cast<UInterchangeFunctionCallShaderNode>(ShaderNode))
+	{
+		UInterchangeMaterialFunctionCallExpressionFactoryNode* MaterialFunctionCallExpression = NewObject<UInterchangeMaterialFunctionCallExpressionFactoryNode>(BaseNodeContainer);
+		
+		FString MaterialFunctionUid;
+		if (FunctionCallShaderNode->GetCustomMaterialFunction(MaterialFunctionUid))
+		{
+			const FString MaterialFunctionFactoryNodeUid = UInterchangeMaterialFactoryNode::GetMaterialFactoryNodeUidFromMaterialNodeUid(MaterialFunctionUid);
+			MaterialFunctionCallExpression->SetCustomMaterialFunctionDependency(MaterialFunctionFactoryNodeUid);
+			MaterialFunctionCallExpression->AddFactoryDependencyUid(MaterialFunctionFactoryNodeUid);
+		}
+
+		MaterialExpression = MaterialFunctionCallExpression;
+	}
+	else
+	{
+		MaterialExpression = NewObject<UInterchangeMaterialExpressionFactoryNode>(BaseNodeContainer);
+	}
 
 	FString ShaderType;
 	ShaderNode->GetCustomShaderType(ShaderType);
+
+	MaterialExpression->InitializeNode(MaterialExpressionUid, ShaderNode->GetDisplayLabel(), EInterchangeNodeContainerType::FactoryData);
+	BaseNodeContainer->AddNode(MaterialExpression);
 
 	if (*ShaderType == Nodes::FlattenNormal::Name)
 	{
@@ -1353,7 +1383,7 @@ UInterchangeMaterialExpressionFactoryNode* UInterchangeGenericMaterialPipeline::
 	return nullptr;
 }
 
-TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UInterchangeGenericMaterialPipeline::CreateMaterialExpressionForInput(UInterchangeMaterialFactoryNode* MaterialFactoryNode, const UInterchangeShaderNode* ShaderNode, const FString& InputName, const FString& ParentUid)
+TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> UInterchangeGenericMaterialPipeline::CreateMaterialExpressionForInput(UInterchangeBaseMaterialFactoryNode* MaterialFactoryNode, const UInterchangeShaderNode* ShaderNode, const FString& InputName, const FString& ParentUid)
 {
 	// Make sure we don't create an expression for an input if it already has one
 	if (UInterchangeShaderPortsAPI::HasInput(MaterialFactoryNode, *InputName))
@@ -1403,6 +1433,13 @@ UInterchangeMaterialFactoryNode* UInterchangeGenericMaterialPipeline::CreateMate
 
 	if(HandleStandardSurfaceModel(ShaderGraphNode, MaterialFactoryNode))
 	{
+		return MaterialFactoryNode;
+	}
+
+	// Handle the case where the material will be connected through the material attributes input
+	if (HandleBxDFInput(ShaderGraphNode, MaterialFactoryNode))
+	{
+		// No need to proceed any further
 		return MaterialFactoryNode;
 	}
 
@@ -1771,4 +1808,52 @@ TVariant<FString, FLinearColor, float> UInterchangeGenericMaterialPipeline::Visi
 	}
 
 	return Result;
+}
+
+bool UInterchangeGenericMaterialPipeline::HandleBxDFInput(const UInterchangeShaderGraphNode* ShaderGraphNode, UInterchangeMaterialFactoryNode* MaterialFactoryNode)
+{
+	using namespace UE::Interchange::Materials;
+
+	if (!ShaderGraphNode || !UInterchangeShaderPortsAPI::HasInput(ShaderGraphNode, Common::Parameters::BxDF))
+	{
+		return false;
+	}
+
+	TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+		CreateMaterialExpressionForInput(MaterialFactoryNode, ShaderGraphNode, Common::Parameters::BxDF.ToString(), MaterialFactoryNode->GetUniqueID());
+	ensure(ExpressionFactoryNode.Get<0>());
+
+	if (ExpressionFactoryNode.Get<0>())
+	{
+		UInterchangeShaderPortsAPI::ConnectOuputToInput(MaterialFactoryNode, Common::Parameters::BxDF.ToString(), ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+	}
+
+	// Make sure the bUseMaterialAttributes property of the material is set to true
+	static const FName UseMaterialAttributesMemberName = GET_MEMBER_NAME_CHECKED(UMaterial, bUseMaterialAttributes);
+
+	MaterialFactoryNode->AddBooleanAttribute(UseMaterialAttributesMemberName, true);
+	MaterialFactoryNode->AddApplyAndFillDelegates<FString>(UseMaterialAttributesMemberName, UMaterialExpressionMaterialFunctionCall::StaticClass(), UseMaterialAttributesMemberName);
+
+	return true;
+}
+
+UInterchangeMaterialFunctionFactoryNode* UInterchangeGenericMaterialPipeline::CreateMaterialFunctionFactoryNode(const UInterchangeShaderGraphNode* ShaderGraphNode)
+{
+	UInterchangeMaterialFunctionFactoryNode* FactoryNode = Cast<UInterchangeMaterialFunctionFactoryNode>(CreateBaseMaterialFactoryNode(ShaderGraphNode, UInterchangeMaterialFunctionFactoryNode::StaticClass()));
+	
+	TArray<FString> InputNames;
+	UInterchangeShaderPortsAPI::GatherInputs(ShaderGraphNode, InputNames);
+
+	for (const FString& InputName : InputNames)
+	{
+		TTuple<UInterchangeMaterialExpressionFactoryNode*, FString> ExpressionFactoryNode =
+			CreateMaterialExpressionForInput(FactoryNode, ShaderGraphNode, InputName, FactoryNode->GetUniqueID());
+
+		if (ExpressionFactoryNode.Get<0>())
+		{
+			UInterchangeShaderPortsAPI::ConnectOuputToInput(FactoryNode, InputName, ExpressionFactoryNode.Get<0>()->GetUniqueID(), ExpressionFactoryNode.Get<1>());
+		}
+	}
+
+	return FactoryNode;
 }

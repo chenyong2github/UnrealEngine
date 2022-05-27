@@ -134,6 +134,7 @@ namespace Interchange
 				const FName Opacity = TEXT("Opacity"); // Type: float
 				const FName Occlusion = TEXT("Occlusion"); // Type: float
 				const FName IndexOfRefraction = TEXT("IOR"); // Type: float
+				const FName BxDF = TEXT("BxDF"); // input/output of BSDF or BRDF or BXDF or BTDF data
 			}
 		}
 

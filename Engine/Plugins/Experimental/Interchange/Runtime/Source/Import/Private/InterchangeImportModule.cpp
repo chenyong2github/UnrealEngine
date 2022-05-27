@@ -74,6 +74,7 @@ void FInterchangeImportModule::StartupModule()
 		//Register the factories
 		InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeMaterialFactory::StaticClass());
+		InterchangeManager.RegisterFactory(UInterchangeMaterialFunctionFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeSkeletonFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeSkeletalMeshFactory::StaticClass());
 		InterchangeManager.RegisterFactory(UInterchangeStaticMeshFactory::StaticClass());

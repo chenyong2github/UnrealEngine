@@ -5,6 +5,7 @@
 #if WITH_ENGINE
 
 #include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
 #include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialInterface.h"
@@ -428,4 +429,24 @@ bool UInterchangeMaterialFunctionCallExpressionFactoryNode::SetCustomMaterialFun
 {
 	IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(MaterialFunctionDependency, FString);
 	AddFactoryDependencyUid(AttributeValue);
+}
+
+FString UInterchangeMaterialFunctionFactoryNode::GetTypeName() const
+{
+	const FString TypeName = TEXT("MaterialFunctionFactoryNode");
+	return TypeName;
+}
+
+UClass* UInterchangeMaterialFunctionFactoryNode::GetObjectClass() const
+{
+#if WITH_ENGINE
+	return UMaterialFunction::StaticClass();
+#else
+	return nullptr;
+#endif
+}
+
+bool UInterchangeMaterialFunctionFactoryNode::GetInputConnection(const FString& InputName, FString& ExpressionNodeUid, FString& OutputName) const
+{
+	return UInterchangeShaderPortsAPI::GetInputConnection(this, InputName, ExpressionNodeUid, OutputName);
 }
