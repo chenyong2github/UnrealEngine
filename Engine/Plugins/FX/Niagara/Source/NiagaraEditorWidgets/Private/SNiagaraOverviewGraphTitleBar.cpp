@@ -4,6 +4,7 @@
 
 #include "NiagaraEditorWidgetsStyle.h"
 #include "NiagaraEditorSettings.h"
+#include "NiagaraEditorUtilities.h"
 #include "ViewModels/NiagaraOverviewGraphViewModel.h"
 #include "SNiagaraScalabilityPreviewSettings.h"
 #include "SNiagaraSystemEffectTypeBar.h"
@@ -109,12 +110,15 @@ void SNiagaraOverviewGraphTitleBar::OnUpdateScalabilityMode(bool bActive)
 
 FText SNiagaraOverviewGraphTitleBar::GetEmitterSubheaderText() const
 {
-	return FText::Format(LOCTEXT("EmitterSubheaderText", "Note: editing this emitter will affect {0} child emitters and systems (across all versions)!"), GetEmitterAffectedAssets());
+	int32 SearchLimit = GetDefault<UNiagaraEditorSettings>()->GetAssetStatsSearchLimit();
+	int32 AffectedAssets = GetEmitterAffectedAssets();
+	FText LimitReachedText = AffectedAssets >= SearchLimit ? LOCTEXT("EmitterSubheaderLimitReachedText", "more than ") : FText();
+	return FText::Format(LOCTEXT("EmitterSubheaderText", "Note: editing this emitter will affect {0}{1} dependent {1}|plural(one=asset,other=assets)! (across all versions)"), LimitReachedText, FText::AsNumber(AffectedAssets));
 }
 
 EVisibility SNiagaraOverviewGraphTitleBar::GetEmitterSubheaderVisibility() const
 {
-	return GetEmitterAffectedAssets() > 1 ? EVisibility::Visible : EVisibility::Collapsed;
+	return GetEmitterAffectedAssets() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FLinearColor SNiagaraOverviewGraphTitleBar::GetEmitterSubheaderColor() const
@@ -155,8 +159,9 @@ int32 SNiagaraOverviewGraphTitleBar::GetEmitterAffectedAssets() const
 	{
 		return 0;
 	}
-	
-	if (GetDefault<UNiagaraEditorSettings>()->GetDisplayAffectedAssetStats() == false)
+
+	const UNiagaraEditorSettings* EditorSettings = GetDefault<UNiagaraEditorSettings>();
+	if (EditorSettings->GetDisplayAffectedAssetStats() == false)
 	{
 		return 0;
 	}
@@ -171,42 +176,18 @@ int32 SNiagaraOverviewGraphTitleBar::GetEmitterAffectedAssets() const
 			return 0;
 		}
 
-		int32 Count = 0;
-		if (EditedAsset.IsValid())
+		EmitterAffectedAssets = FNiagaraEditorUtilities::GetReferencedAssetCount(EditedAsset, [](const FAssetData& AssetToCheck)
 		{
-			TSet<FName> SeenObjects;
-			TArray<FAssetData> AssetsToCheck;
-			AssetsToCheck.Add(EditedAsset);
-
-			// search for assets that reference this emitter
-			while (AssetsToCheck.Num() > 0)
+			if (AssetToCheck.GetClass() == UNiagaraSystem::StaticClass())
 			{
-				FAssetData AssetToCheck = AssetsToCheck[0];
-				AssetsToCheck.RemoveAtSwap(0);
-				if (SeenObjects.Contains(AssetToCheck.ObjectPath))
-				{
-					continue;
-				}
-				SeenObjects.Add(AssetToCheck.ObjectPath);
-
-				if (AssetToCheck.GetClass() == UNiagaraEmitter::StaticClass())
-				{
-					Count++;
-					TArray<FName> Referencers;
-					AssetRegistry.GetReferencers(AssetToCheck.PackageName, Referencers);
-					for (FName& Referencer : Referencers)
-					{
-						AssetRegistry.GetAssetsByPackageName(Referencer, AssetsToCheck);
-					}
-				}
-				else if (AssetToCheck.GetClass() == UNiagaraSystem::StaticClass())
-				{
-					Count++;
-				}
+				return FNiagaraEditorUtilities::ETrackAssetResult::Count;
 			}
-			Count--; // remove one for our own asset
-		}
-		EmitterAffectedAssets = Count;
+			if (AssetToCheck.GetClass() == UNiagaraEmitter::StaticClass())
+			{
+				return FNiagaraEditorUtilities::ETrackAssetResult::CountRecursive;
+			}
+			return FNiagaraEditorUtilities::ETrackAssetResult::Ignore;
+		});
 	}
 	return EmitterAffectedAssets.Get(0);
 }

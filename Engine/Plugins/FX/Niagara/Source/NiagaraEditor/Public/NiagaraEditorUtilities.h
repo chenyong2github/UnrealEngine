@@ -345,6 +345,20 @@ namespace FNiagaraEditorUtilities
 	void VisitAllNodesConnectedToInputs(UEdGraphNode* StartNode, FNodeVisitor Visitor);
 	
 	NIAGARAEDITOR_API float GetScalabilityTintAlpha(FNiagaraEmitterHandle* EmitterHandle);
+
+	NIAGARAEDITOR_API enum class ETrackAssetResult
+	{
+		// do not count this asset
+		Ignore,
+
+		// count this asset
+		Count,
+
+		// count this asset and also check assets referencing it
+		CountRecursive
+	};
+
+	NIAGARAEDITOR_API int GetReferencedAssetCount(const FAssetData& SourceAsset, TFunction<ETrackAssetResult(const FAssetData&)> Predicate);
 	
 };
 

@@ -298,6 +298,7 @@ public:
 	void SetDisplayAdvancedParameterPanelCategories(bool bInDisplayAdvancedParameterPanelCategories);
 
 	bool GetDisplayAffectedAssetStats() const;
+	int32 GetAssetStatsSearchLimit() const;
 
 	bool IsShowGridInViewport() const;
 	void SetShowGridInViewport(bool bShowGridInViewport);
@@ -369,6 +370,10 @@ private:
 	/** If true, then the emitter and script editors will show an info message how many downstream asset are affected by a change. Gathering this information for large asset graphs can delay the opening of the asset editors a bit. */
 	UPROPERTY(config, EditAnywhere, Category=Niagara)
 	bool bDisplayAffectedAssetStats = true;
+
+	/** The maximum amount of asset references that are searched before stopping. Setting this too high can lead to long load times when opening default assets (basically the same as disabling the breadth limit in the reference viewer). */
+	UPROPERTY(config, EditAnywhere, Category=Niagara, meta=(EditCondition="bDisplayAffectedAssetStats", ClampMin=1))
+	int32 AffectedAssetSearchLimit = 25;
 
 	/** Speeds used for slowing down and speeding up the playback speeds */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)

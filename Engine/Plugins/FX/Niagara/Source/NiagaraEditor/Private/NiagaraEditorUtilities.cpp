@@ -3831,6 +3831,65 @@ float FNiagaraEditorUtilities::GetScalabilityTintAlpha(FNiagaraEmitterHandle* Em
 	return EmitterHandle->GetIsEnabled() ? 1 : 0.5f;
 }
 
+int FNiagaraEditorUtilities::GetReferencedAssetCount(const FAssetData& SourceAsset,	TFunction<ETrackAssetResult(const FAssetData&)> Predicate)
+{
+	if (!SourceAsset.IsValid())
+	{
+		return 0;
+	}
+	
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	int32 SearchLimit = GetDefault<UNiagaraEditorSettings>()->GetAssetStatsSearchLimit();
+	int32 Count = 0;
+	
+	TSet<FName> SeenObjects;
+	SeenObjects.Add(SourceAsset.PackageName);
+	TArray<FName> AssetsToCheck;
+	AssetRegistry.GetReferencers(SourceAsset.PackageName, AssetsToCheck);
+	while (AssetsToCheck.Num() > 0)
+	{
+		FName AssetPath = AssetsToCheck[0];
+		AssetsToCheck.RemoveAtSwap(0);
+		if (SeenObjects.Contains(AssetPath))
+		{
+			// prevent asset loops
+			continue;
+		}
+		SeenObjects.Add(AssetPath);
+
+		if ((Count + AssetsToCheck.Num()) > SearchLimit)
+		{
+			// if we are over the search limit then just tally up the remaining references for a rough estimate
+			Count++;
+		}
+		else
+		{
+			// we should only ever get one asset per package, but the api wants to return a list
+			TArray<FAssetData> OutAssetData;
+			AssetRegistry.GetAssetsByPackageName(AssetPath, OutAssetData, true);
+			for (const FAssetData& AssetToCheck : OutAssetData)
+			{
+				ETrackAssetResult Result = Predicate(AssetToCheck);
+				if (Result == ETrackAssetResult::Count)
+				{
+					Count++;
+				}
+				else if (Result == ETrackAssetResult::CountRecursive)
+				{
+					Count++;
+					AssetRegistry.GetReferencers(AssetToCheck.PackageName, AssetsToCheck);
+				}
+				else
+				{
+					ensure(Result == ETrackAssetResult::Ignore);
+				}
+			}
+		}
+	}
+	return FMath::Max(Count, 0);
+}
+
 void FNiagaraParameterUtilities::FilterToRelevantStaticVariables(const TArray<FNiagaraVariable>& InVars, TArray<FNiagaraVariable>& OutVars, FName InOldEmitterAlias, FName InNewEmitterAlias, bool bFilterByEmitterAliasAndConvertToUnaliased)
 {
 	FNiagaraAliasContext RenameContext(ENiagaraScriptUsage::ParticleSpawnScript);

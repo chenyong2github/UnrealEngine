@@ -458,6 +458,11 @@ bool UNiagaraEditorSettings::GetDisplayAffectedAssetStats() const
 	return bDisplayAffectedAssetStats;
 }
 
+int32 UNiagaraEditorSettings::GetAssetStatsSearchLimit() const
+{
+	return AffectedAssetSearchLimit;
+}
+
 FNiagaraNewAssetDialogConfig UNiagaraEditorSettings::GetNewAssetDailogConfig(FName InDialogConfigKey) const
 {
 	const FNiagaraNewAssetDialogConfig* Config = NewAssetDialogConfigMap.Find(InDialogConfigKey);

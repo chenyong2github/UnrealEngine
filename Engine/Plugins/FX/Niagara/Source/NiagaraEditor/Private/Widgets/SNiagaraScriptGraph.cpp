@@ -680,12 +680,24 @@ TOptional<SSearchBox::FSearchResultData> SNiagaraScriptGraph::GetSearchResultDat
 
 FText SNiagaraScriptGraph::GetScriptSubheaderText() const
 {
-	return FText::Format(LOCTEXT("EmitterSubheaderText", "Note: editing this script will affect {0} dependent assets (across all versions)!"), GetScriptAffectedAssets());
+	int32 SearchLimit = GetDefault<UNiagaraEditorSettings>()->GetAssetStatsSearchLimit();
+	int32 AffectedAssets = GetScriptAffectedAssets();
+	bool bVersioned = false;
+	if (UNiagaraScriptSource* ScriptSource = ViewModel->GetScriptSource())
+	{
+		if (UNiagaraScript* Script = ScriptSource->GetTypedOuter<UNiagaraScript>())
+		{
+			bVersioned = Script->IsVersioningEnabled();
+		}
+	}
+	FText VersionText = bVersioned ? LOCTEXT("ScriptSubheaderVersionInfoText", "(across all versions)") : FText();
+	FText LimitReachedText = AffectedAssets >= SearchLimit ? LOCTEXT("ScriptSubheaderLimitReachedText", "more than ") : FText();
+	return FText::Format(LOCTEXT("ScriptSubheaderText", "Note: editing this script will affect {0}{1} dependent {1}|plural(one=asset,other=assets)! {2}"), LimitReachedText, FText::AsNumber(AffectedAssets), VersionText);
 }
 
 EVisibility SNiagaraScriptGraph::GetScriptSubheaderVisibility() const
 {
-	return bShowHeader && (GetScriptAffectedAssets() > 1) ? EVisibility::Visible : EVisibility::Collapsed;
+	return bShowHeader && (GetScriptAffectedAssets() > 0) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FLinearColor SNiagaraScriptGraph::GetScriptSubheaderColor() const
@@ -699,7 +711,8 @@ int32 SNiagaraScriptGraph::GetScriptAffectedAssets() const
 	{
 		return 0;
 	}
-	if (GetDefault<UNiagaraEditorSettings>()->GetDisplayAffectedAssetStats() == false)
+	const UNiagaraEditorSettings* EditorSettings = GetDefault<UNiagaraEditorSettings>();
+	if (EditorSettings->GetDisplayAffectedAssetStats() == false)
 	{
 		return 0;
 	}
@@ -714,42 +727,18 @@ int32 SNiagaraScriptGraph::GetScriptAffectedAssets() const
 			return 0;
 		}
 
-		int32 Count = 0;
-		if (EditedAsset.IsValid())
+		ScriptAffectedAssets = FNiagaraEditorUtilities::GetReferencedAssetCount(EditedAsset, [](const FAssetData& AssetToCheck)
 		{
-			TSet<FName> SeenObjects;
-			TArray<FAssetData> AssetsToCheck;
-			AssetsToCheck.Add(EditedAsset);
-
-			// search for assets that reference this script
-			while (AssetsToCheck.Num() > 0)
+			if (AssetToCheck.GetClass() == UNiagaraSystem::StaticClass())
 			{
-				FAssetData AssetToCheck = AssetsToCheck[0];
-				AssetsToCheck.RemoveAtSwap(0);
-				if (SeenObjects.Contains(AssetToCheck.ObjectPath))
-				{
-					continue;
-				}
-				SeenObjects.Add(AssetToCheck.ObjectPath);
-
-				if (AssetToCheck.GetClass() == UNiagaraSystem::StaticClass())
-				{
-					Count++;
-				}
-				else if (AssetToCheck.GetClass() == UNiagaraEmitter::StaticClass() || AssetToCheck.GetClass() == UNiagaraScript::StaticClass())
-				{
-					Count++;
-					TArray<FName> Referencers;
-					AssetRegistry.GetReferencers(AssetToCheck.PackageName, Referencers);
-					for (FName& Referencer : Referencers)
-					{
-						AssetRegistry.GetAssetsByPackageName(Referencer, AssetsToCheck);
-					}
-				}
+				return FNiagaraEditorUtilities::ETrackAssetResult::Count;
 			}
-			Count--; // remove one for our own asset
-		}
-		ScriptAffectedAssets = Count;
+			if (AssetToCheck.GetClass() == UNiagaraEmitter::StaticClass() || AssetToCheck.GetClass() == UNiagaraScript::StaticClass())
+			{
+				return FNiagaraEditorUtilities::ETrackAssetResult::CountRecursive;
+			}
+			return FNiagaraEditorUtilities::ETrackAssetResult::Ignore;
+		});
 	}
 	return ScriptAffectedAssets.Get(0);
 }
