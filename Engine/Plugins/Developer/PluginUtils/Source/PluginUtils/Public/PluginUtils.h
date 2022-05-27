@@ -77,6 +77,9 @@ public:
 		/** Can this plugin contain content */
 		bool bCanContainContent = false;
 
+		/** Can this plugin contain Verse */
+		bool bCanContainVerse = false;
+
 		/** Does this plugin have Source files? */
 		bool bHasModules = false;
 
@@ -85,6 +88,9 @@ public:
 		 * It will load/mount when explicitly requested and LoadingPhases will be ignored.
 		 */
 		bool bExplicitelyLoaded = false;
+
+		/** The Verse path to the root of this plugin's content directory */
+		FString VersePath;
 
 		/** Whether this plugin should be enabled/disabled by default for any project. */
 		EPluginEnabledByDefault EnabledByDefault = EPluginEnabledByDefault::Unspecified;

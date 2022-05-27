@@ -489,8 +489,10 @@ TSharedPtr<IPlugin> FPluginUtils::CreateAndLoadNewPlugin(const FString& PluginNa
 	ExCreationParams.Descriptor.Description = CreationParams.Description;
 	ExCreationParams.Descriptor.bIsBetaVersion = CreationParams.bIsBetaVersion;
 	ExCreationParams.Descriptor.bCanContainContent = CreationParams.bCanContainContent;
+	ExCreationParams.Descriptor.bCanContainVerse = CreationParams.bCanContainVerse;
 	ExCreationParams.Descriptor.EnabledByDefault = CreationParams.EnabledByDefault;
 	ExCreationParams.Descriptor.bExplicitlyLoaded = CreationParams.bExplicitelyLoaded;
+	ExCreationParams.Descriptor.VersePath = CreationParams.VersePath;
 
 	if (CreationParams.bHasModules)
 	{
