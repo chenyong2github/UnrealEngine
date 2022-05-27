@@ -17,11 +17,9 @@
 
 #include "IMfMediaSourceReaderSink.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#include "Windows/WindowsHWrapper.h"
-	#include "Windows/AllowWindowsPlatformTypes.h"
-#else
-	#include "XboxCommonAllowPlatformTypes.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/WindowsHWrapper.h"
+	#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #endif
 
 class FMediaSamples;
@@ -186,10 +184,8 @@ private:
 };
 
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#include "Windows/HideWindowsPlatformTypes.h"
-#else
-	#include "XboxCommonHidePlatformTypes.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
 
 #endif //MFMEDIA_SUPPORTED_PLATFORM

@@ -11,10 +11,8 @@
 #include "Serialization/Archive.h"
 #include "Microsoft/COMPointer.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#include "Windows/AllowWindowsPlatformTypes.h"
-#else
-	#include "XboxCommonAllowPlatformTypes.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #endif
 
 
@@ -351,10 +349,8 @@ STDMETHODIMP FMfMediaByteStream::Write(const BYTE* pb, ULONG cb, ULONG* pcbWritt
 }
 
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#include "Windows/HideWindowsPlatformTypes.h"
-#else
-	#include "XboxCommonHidePlatformTypes.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
 
 #endif //MFMEDIA_SUPPORTED_PLATFORM

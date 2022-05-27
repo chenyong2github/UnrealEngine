@@ -13,10 +13,8 @@
 #include "MfMediaByteStream.h"
 #include "MfMediaPrivate.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#include "Windows/AllowWindowsPlatformTypes.h"
-#else
-	#include "XboxCommonAllowPlatformTypes.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #endif
 
 #ifndef MFMEDIA_PLATFORM_SUPPORTS_ONLY_AAC
@@ -152,7 +150,7 @@ namespace MfMedia
 					return NULL;
 				}
 			}
-#if !PLATFORM_HOLOLENS
+#if PLATFORM_WINDOWS
 			if ((SubType == MFVideoFormat_H264) || (SubType == MFVideoFormat_H264_ES))
 			{
 				if (!FPlatformMisc::VerifyWindowsVersion(6, 1) /*Win7*/)
@@ -175,7 +173,7 @@ namespace MfMedia
 					UE_LOG(LogMfMedia, Warning, TEXT("HEVC video type requires Windows 10 or newer (your version is %s), and game must be manifested for Windows 10"), *FPlatformMisc::GetOSVersion());
 				}
 			}
-#endif // PLATFORM_HOLOLENS
+#endif // PLATFORM_WINDOWS
 
 #endif //MFMEDIA_PLATFORM_SUPPORTS_ONLY_H264
 
@@ -900,10 +898,8 @@ namespace MfMedia
 }
 
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#include "Windows/HideWindowsPlatformTypes.h"
-#else
-	#include "XboxCommonHidePlatformTypes.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
 
 #endif //MFMEDIA_SUPPORTED_PLATFORM

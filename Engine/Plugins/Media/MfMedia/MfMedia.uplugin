@@ -20,7 +20,8 @@
 			"Name" : "MfMedia",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PreLoadingScreen",
-			"PlatformAllowList" : [ "HoloLens" ]
+			"bHasExplicitPlatforms" : true,
+			"PlatformAllowList" : []
 		},
 		{
 			"Name" : "MfMediaEditor",
@@ -36,7 +37,7 @@
 			"Name" : "MfMediaFactory",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostEngineInit",
-			"PlatformAllowList" : [ "HoloLens", "Win64" ]
+			"PlatformAllowList" : [ "Win64" ]
 		}
 	]
 }

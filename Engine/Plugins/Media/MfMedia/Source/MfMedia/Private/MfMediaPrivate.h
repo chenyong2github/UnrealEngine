@@ -5,10 +5,12 @@
 #include "Logging/LogMacros.h"
 
 #if !defined(MFMEDIA_SUPPORTED_PLATFORM)
-	#define MFMEDIA_SUPPORTED_PLATFORM (PLATFORM_HOLOLENS || (PLATFORM_WINDOWS && !UE_SERVER))
+	#define MFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && !UE_SERVER)
 	#define MFMEDIA_NEED_PLATFORM_PRIVATE 0
-#else
+
+#elif !defined(MFMEDIA_NEED_PLATFORM_PRIVATE)
 	#define MFMEDIA_NEED_PLATFORM_PRIVATE 1
+
 #endif
 
 
@@ -18,10 +20,10 @@
 
 #elif MFMEDIA_SUPPORTED_PLATFORM
 	#if PLATFORM_WINDOWS
-		#include "Windows/WindowsHWrapper.h"
+		#include "Microsoft/WindowsHWrapper.h"
 	#endif
 
-	#include "Windows/AllowWindowsPlatformTypes.h"
+	#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 
 	#if PLATFORM_WINDOWS
 		#include <windows.h>
@@ -42,7 +44,7 @@
 	#include <Mfreadwrite.h>
 
 	#include "Microsoft/COMPointer.h"
-	#include "Windows/HideWindowsPlatformTypes.h"
+	#include "Microsoft/HideMicrosoftPlatformTypes.h"
 
 #elif PLATFORM_WINDOWS && !UE_SERVER
 	#pragma message("Skipping MfMedia (requires WINVER >= 0x0601, but WINVER is " PREPROCESSOR_TO_STRING(WINVER) ")")
