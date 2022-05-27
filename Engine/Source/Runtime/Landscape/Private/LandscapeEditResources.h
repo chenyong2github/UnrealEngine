@@ -70,11 +70,6 @@ struct FTexture2DResourceSubregion
 {
 	FTexture2DResourceSubregion() = default;
 
-	FTexture2DResourceSubregion(FTexture2DResource* InTexture, const FIntPoint& InSubregionOffset, const FIntPoint& InSubregionSize)
-		: Texture(InTexture)
-		, Subregion(InSubregionOffset, InSubregionOffset + InSubregionSize)
-	{}
-
 	FTexture2DResourceSubregion(FTexture2DResource* InTexture, const FIntRect& InSubregion)
 		: Texture(InTexture)
 		, Subregion(InSubregion)

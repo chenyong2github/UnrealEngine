@@ -215,9 +215,9 @@ public:
 	//~ Begin ALandscapeProxy Interface
 	LANDSCAPE_API virtual ALandscape* GetLandscapeActor() override;
 	LANDSCAPE_API virtual const ALandscape* GetLandscapeActor() const override;
-#if WITH_EDITOR
 	//~ End ALandscapeProxy Interface
 
+#if WITH_EDITOR
 	LANDSCAPE_API bool HasAllComponent(); // determine all component is in this actor
 	
 	// Include Components with overlapped vertices
@@ -249,7 +249,8 @@ public:
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual bool CanDeleteSelectedActor(FText& OutReason) const override;
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
-#endif
+#endif // WITH_EDITOR
+
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 	virtual void FinishDestroy() override;
@@ -258,15 +259,17 @@ public:
 	/** Computes & returns bounds containing all currently loaded landscape proxies (if any) or this landscape's bounds otherwise */
 	LANDSCAPE_API FBox GetLoadedBounds() const;
 
+	LANDSCAPE_API bool IsUpToDate() const;
+	LANDSCAPE_API void TickLayers(float DeltaTime);
+
+	UFUNCTION(BlueprintCallable, Category = "Landscape|Runtime")
+	LANDSCAPE_API void RenderHeightmap(const FTransform& InWorldTransform, const FBox2D& InExtents, UTextureRenderTarget2D* OutRenderTarget);
+
+	bool IsValidRenderTargetFormatHeightmap(EPixelFormat InRenderTargetFormat, bool& bOutCompressHeight);
+
 #if WITH_EDITOR
 	/** Computes & returns bounds containing all landscape proxies (if any) or this landscape's bounds otherwise. Note that in non-WP worlds this will call GetLoadedBounds(). */
 	LANDSCAPE_API FBox GetCompleteBounds() const;
-#endif
-
-	LANDSCAPE_API bool IsUpToDate() const;
-	LANDSCAPE_API void TickLayers(float DeltaTime);
-	// Layers stuff
-#if WITH_EDITOR
 	LANDSCAPE_API void RegisterLandscapeEdMode(ILandscapeEdModeInterface* InLandscapeEdMode) { LandscapeEdMode = InLandscapeEdMode; }
 	LANDSCAPE_API void UnregisterLandscapeEdMode() { LandscapeEdMode = nullptr; }
 	LANDSCAPE_API virtual bool HasLayersContent() const override;
@@ -346,6 +349,9 @@ public:
 	void RequestProxyLayersWeightmapUsageUpdate();
 	void UpdateProxyLayersWeightmapUsage();
 	void ValidateProxyLayersWeightmapUsage() const;
+
+protected:
+	FName GenerateUniqueLayerName(FName InName = NAME_None) const;
 
 private:
 	bool SupportsEditLayersLocalMerge();
@@ -431,7 +437,7 @@ private:
 	static bool IsMaterialResourceCompiled(FMaterialResource* InMaterialResource, bool bInWaitForCompilation);
 	static void ShowEditLayersResourcesNotification(const FText& InText, TWeakPtr<SNotificationItem>& NotificationItem);
 	static void HideEditLayersResourcesNotification(TWeakPtr<SNotificationItem>& InNotificationItem);
-#endif
+#endif // WITH_EDITOR
 
 public:
 
@@ -532,11 +538,6 @@ private:
 	
 	// Used in packing the material layer data contained into CombinedLayersWeightmapAllMaterialLayersResource to be set again for each component weightmap (size of the landscape)
 	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;
-#endif
-
-protected:
-#if WITH_EDITOR
-	FName GenerateUniqueLayerName(FName InName = NAME_None) const;
 #endif
 };
 

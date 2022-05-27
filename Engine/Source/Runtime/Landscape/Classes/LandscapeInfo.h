@@ -341,6 +341,18 @@ public:
 	LANDSCAPE_API void RegisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
 	LANDSCAPE_API void UnregisterCollisionComponent(ULandscapeHeightfieldCollisionComponent* Component);
 
+	/**
+	 * Retrieve the components currently loaded that overlap with a given "window" area
+	 * @param InAreaWorldTransform : transform of the requested area (at the center)
+	 * @param InAreaExtents : extents of requested area (i.e. around the center)
+	 * @param OutOverlappedComponents : loaded components that overlap this area (key = xy index of the component, value = component)
+	 * @param OutComponentIndicesBoundingRect : bounding rectangle of the overlapped components, in component index space, with
+	 *  the max being exclusive. For instance a rectangle with min=(0,0) and max=(2,1) includes components (0,0) and (1,0).
+	 * 
+	 * @return true if at least one overlapped component
+	 */
+	LANDSCAPE_API bool GetOverlappedComponents(const FTransform& InAreaWorldTransform, const FBox2D& InAreaExtents, TMap<FIntPoint, ULandscapeComponent*>& OutOverlappedComponents, FIntRect& OutComponentIndicesBoundingRect);
+
 #if WITH_EDITOR
 	LANDSCAPE_API ALandscapeSplineActor* CreateSplineActor(const FVector& Location);
 
