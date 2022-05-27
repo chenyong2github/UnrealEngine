@@ -741,10 +741,25 @@ void FWidgetBlueprintCompilerContext::FixAbandonedWidgetTree(UWidgetBlueprint* W
 
 void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 {
+	if (Class == nullptr)
+		return;
+
 	UWidgetBlueprint* WidgetBP = WidgetBlueprint();
-	UWidgetBlueprintGeneratedClass* BPGClass = CastChecked<UWidgetBlueprintGeneratedClass>(Class);
+
+	if (WidgetBP == nullptr)
+		return;
+
 	UClass* ParentClass = WidgetBP->ParentClass;
+
+	if (ParentClass == nullptr)
+		return;
+	
 	const bool bIsSkeletonOnly = CompileOptions.CompileType == EKismetCompileType::SkeletonOnly;
+
+	UWidgetBlueprintGeneratedClass* BPGClass = CastChecked<UWidgetBlueprintGeneratedClass>(Class);
+
+	if (BPGClass == nullptr)
+		return;
 
 	// Don't do a bunch of extra work on the skeleton generated class.
 	if ( !bIsSkeletonOnly )
