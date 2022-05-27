@@ -76,6 +76,9 @@ namespace AutomationTool
 				Assembly AutomationUtilsAssembly = Assembly.GetExecutingAssembly();
 				Log.EventParser.AddMatchersFromAssembly(AutomationUtilsAssembly);
 
+				Assembly UnrealBuildToolAssembly = typeof(UnrealBuildTool.BuildVersion).Assembly;
+				Log.EventParser.AddMatchersFromAssembly(UnrealBuildToolAssembly);
+
 				// Get the path to the telemetry file, if present
 				string TelemetryFile = GlobalCommandLine.TelemetryPath;
 				JsonTracer Tracer = JsonTracer.TryRegisterAsGlobalTracer();
