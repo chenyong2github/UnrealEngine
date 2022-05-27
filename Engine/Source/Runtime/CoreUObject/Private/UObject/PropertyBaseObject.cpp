@@ -181,7 +181,7 @@ void FObjectPropertyBase::AddReferencedObjects(FReferenceCollector& Collector)
 
 FString FObjectPropertyBase::GetExportPath(FTopLevelAssetPath ClassPathName, const FString& ObjectPathName)
 {
-	return FString::Printf(TEXT("%s.%s'%s'"), *ClassPathName.GetPackageName().ToString(), *ClassPathName.GetAssetName().ToString(), *ObjectPathName);
+	return FString::Printf(TEXT("%s'%s'"), *ClassPathName.GetAssetName().ToString(), *ObjectPathName);
 }
 
 FString FObjectPropertyBase::GetExportPath(const UObject* Object, const UObject* Parent /*= nullptr*/, const UObject* ExportRootScope /*= nullptr*/, const uint32 PortFlags /*= PPF_None*/)
