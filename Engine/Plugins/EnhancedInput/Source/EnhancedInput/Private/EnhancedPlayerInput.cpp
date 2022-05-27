@@ -405,12 +405,21 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 			// PERF: Lots of map lookups! Group EnhancedActionBindings by Action?
 			if (const FInputActionInstance* ActionData = FindActionInstanceData(Binding->GetAction()))
 			{
+				const ETriggerEvent BoundTriggerEvent = Binding->GetTriggerEvent();
 				// Raise appropriate delegate to report on event state
-				if (ActionData->TriggerEvent == Binding->GetTriggerEvent() ||
-					(Binding->GetTriggerEvent() == ETriggerEvent::Started && ActionData->TriggerEventInternal == ETriggerEventInternal::StartedAndTriggered))	// Triggering in a single tick should also fire the started event.
+				if (ActionData->TriggerEvent == BoundTriggerEvent ||
+					(BoundTriggerEvent == ETriggerEvent::Started && ActionData->TriggerEventInternal == ETriggerEventInternal::StartedAndTriggered))	// Triggering in a single tick should also fire the started event.
 				{
-					// Record intent to trigger
-					TriggeredDelegates.Add(Binding->Clone());
+					// Record intent to trigger started as well as triggered
+					// EmplaceAt 0 for the "Started" event it is always guaranteed to fire before Triggered
+					if (BoundTriggerEvent == ETriggerEvent::Started)
+					{
+						TriggeredDelegates.EmplaceAt(0, Binding->Clone());
+					}
+					else
+					{
+						TriggeredDelegates.Emplace(Binding->Clone());
+					}	
 				}
 			}
 		}
