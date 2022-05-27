@@ -298,7 +298,13 @@ FMalloc* FApplePlatformMemory::BaseAllocator()
 	}
 	else
 	{
+		// A temporary workaround for an iOS specific memory allocator issue causing crashes on Main.
+		// See jira UE-154181 for details. Remove once jira is fixed.
+#if PLATFORM_IOS
+		AllocatorToUse = EMemoryAllocatorToUse::Ansi;
+#else
 		AllocatorToUse = EMemoryAllocatorToUse::Binned;
+#endif
 	}
 	
 	// Force ansi malloc in some cases
