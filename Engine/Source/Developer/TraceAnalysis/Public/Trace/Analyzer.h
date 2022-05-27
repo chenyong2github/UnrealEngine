@@ -64,6 +64,10 @@ public:
 
 		/** Is this field signed (only relevant for integer types) */
 		bool IsSigned() const;
+
+		/** Gets the size in bytes for this field */
+		uint8 GetSize() const;
+
 	};
 
 	struct FEventFieldHandle
@@ -99,6 +103,12 @@ public:
 		 * @param ValueType The intended type that the field will be interpreted as */
 		template <typename ValueType>
 		FEventFieldHandle GetFieldHandle(const ANSICHAR* FieldName) const;
+
+		/** Returns a handle without specifying type. This should only be used in circumstances
+		 * where the field is treated untyped data.
+		 * @param Index Index of field.
+		 */
+		FEventFieldHandle GetFieldHandleUnchecked(uint32 Index) const;
 
 	private:
 		FEventFieldHandle GetFieldHandleImpl(const ANSICHAR*, int16&) const;
@@ -177,6 +187,13 @@ public:
 		/** Serializes the event to Cbor object.
 		 * @param Recipient of the Cbor serialization. Data is appeneded to Out. */
 		void SerializeToCbor(TArray<uint8>& Out) const;
+
+		/**
+		 * Returns the raw pointer to a field value
+		 * @param Handle Handle to field
+		 * @return Untyped pointer to field value
+		 */
+		const void* GetValueRaw(FEventFieldHandle Handle) const;
 
 		/** Returns the event's attachment. Not that this will always return an
 		 * address but if the event has no attachment then reading from that

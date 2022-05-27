@@ -510,6 +510,17 @@ const IAnalyzer::FEventFieldInfo* IAnalyzer::FEventTypeInfo::GetFieldInfo(uint32
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+IAnalyzer::FEventFieldHandle IAnalyzer::FEventTypeInfo::GetFieldHandleUnchecked(uint32 Index) const
+{
+	const auto* Inner = (const FDispatch*)this;
+	if (Index >= Inner->FieldCount)
+	{
+		return FEventFieldHandle { -1 };
+	}
+	return FEventFieldHandle {Inner->Fields[Index].Offset };
+}
+
+////////////////////////////////////////////////////////////////////////////////
 IAnalyzer::FEventFieldHandle IAnalyzer::FEventTypeInfo::GetFieldHandleImpl(
 	const ANSICHAR* FieldName,
 	int16& SizeAndType) const
@@ -586,6 +597,12 @@ bool IAnalyzer::FEventFieldInfo::IsSigned() const
 	return (Inner->Class & UE::Trace::Protocol0::Field_Signed) != 0;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+uint8 IAnalyzer::FEventFieldInfo::GetSize() const
+{
+	const auto* Inner = (const FDispatch::FField*)this;
+	return Inner->Size;
+}
 
 // {{{1 array-reader -----------------------------------------------------------
 
@@ -817,6 +834,17 @@ void IAnalyzer::FEventData::SerializeToCbor(TArray<uint8>& Out) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+const void* IAnalyzer::FEventData::GetValueRaw(FEventFieldHandle Handle) const
+{
+	const auto* Info = (const FEventDataInfo*)this;
+	if (!Handle.IsValid())
+	{
+		return nullptr;
+	}
+	return Info->Ptr + Handle.Detail;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 const uint8* IAnalyzer::FEventData::GetAttachment() const
 {
 	const auto* Info = (const FEventDataInfo*)this;
@@ -1011,10 +1039,6 @@ const FTypeRegistry::FTypeInfo* FTypeRegistry::AddVersion6(const void* TraceData
 			OutField.bArray = !!(Field.Regular.TypeInfo & Protocol0::Field_Array);
 
 			NameCursor += Field.Regular.NameSize;
-			/*if (Field.FieldType == Protocol6::EFieldFamily::Definition)
-			{
-				Builder.SetIsDefinition();
-			}*/
 		}
 		else if (Field.FieldType == EFieldFamily::Reference)
 		{
@@ -1024,7 +1048,7 @@ const FTypeRegistry::FTypeInfo* FTypeRegistry::AddVersion6(const void* TraceData
 			auto& OutField = Builder.AddField(NameCursor, Field.Reference.NameSize, TypeSize);
 			OutField.Offset = Field.Reference.Offset;
 			OutField.SizeAndType = TypeSize;
-			OutField.RefUid = uint32(Field.Reference.RefUid) /*<< EKnownEventUids::_UidShift*/;
+			OutField.RefUid = uint32(Field.Reference.RefUid);
 			OutField.Class = 0;
 			OutField.bArray = false;
 
