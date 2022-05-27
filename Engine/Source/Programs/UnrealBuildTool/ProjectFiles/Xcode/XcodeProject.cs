@@ -1001,23 +1001,15 @@ namespace UnrealBuildTool
 				// These targets are known to work so are allow-listed
 				bool IsAllowed = MacExports.TargetsAllowedForAppleSilicon.Contains(TargetName, StringComparer.OrdinalIgnoreCase);
 
-				// These target types are known to never work so are denied. This is mostly to avoid generating an arm64 editor config for 
-				// a code project that is set to be universal
-				bool IsDenied = MacExports.TargetTypesDeniedForAppleSilicon.Contains(Config.ProjectTarget!.TargetRules!.Type);
-
 				// determine the target architectures based on what's allowed/denied
 				if (IsAllowed)
 				{
 					TargetArchitectures = AllArchitectures;
 				}
-				else if (IsDenied)
-				{
-					TargetArchitectures = new[] { MacExports.IntelArchitecture };
-				}
 				else
 				{
-					// if no project file then this is an unspecified tool/program. Default to Intel for installed builds because we know all of that works. 
-					if (InProjectFile == null)
+					// if this is an unspecified tool/program, default to Intel for installed builds because we know all of that works. 
+					if (Config.ProjectTarget!.TargetRules!.Type == TargetType.Program)
 					{
 						// For misc tools we default to Intel for installed builds because we know all of that works. 
 						TargetArchitectures = Unreal.IsEngineInstalled() ? new[] { MacExports.IntelArchitecture } : AllArchitectures;
@@ -1028,36 +1020,22 @@ namespace UnrealBuildTool
 						// been denied above already.
 						TargetArchitectures = new[] { MacExports.IntelArchitecture };
 
-						// Look at the project engine config to see if it has specified a default editor target
-						FileReference EngineIniFile = FileReference.Combine(InProjectFile.Directory, "Config", "DefaultEngine.ini");
-
-						if (FileReference.Exists(EngineIniFile))
+						ConfigHierarchy EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, InProjectFile?.Directory, UnrealTargetPlatform.Mac);
+						string TargetArchitecture;
+						string Key = Config.ProjectTarget!.TargetRules!.Type == TargetType.Editor ? "EditorTargetArchitecture" : "TargetArchitecture";
+						if (EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", Key, out TargetArchitecture))
 						{
-							ConfigFile? ProjectDefaultEngineIni;
-							ConfigCache.TryReadFile(EngineIniFile, out ProjectDefaultEngineIni);
-							if (ProjectDefaultEngineIni != null)
+							if (TargetArchitecture.Equals("Universal", StringComparison.OrdinalIgnoreCase))
 							{
-								// read the MacTargetSettings where the user picks an architecture set to target
-								ConfigFileSection? Section;
-								if (ProjectDefaultEngineIni.TryGetSection("/Script/MacTargetPlatform.MacTargetSettings", out Section))
-								{
-									ConfigLine? Line;
-									if (Section.TryGetLine("TargetArchitecture", out Line))
-									{
-										if (Line.Value.IndexOf("Universal", StringComparison.OrdinalIgnoreCase) >= 0)
-										{
-											TargetArchitectures = AllArchitectures;
-										}
-										else if (Line.Value.IndexOf("Intel", StringComparison.OrdinalIgnoreCase) >= 0)
-										{
-											TargetArchitectures = new[] { MacExports.IntelArchitecture };
-										}
-										else if (Line.Value.IndexOf("Apple", StringComparison.OrdinalIgnoreCase) >= 0)
-										{
-											TargetArchitectures = new[] { MacExports.AppleArchitecture };
-										}
-									}
-								}
+								TargetArchitectures = AllArchitectures;
+							}
+							else if (TargetArchitecture.Equals("Intel", StringComparison.OrdinalIgnoreCase))
+							{
+								TargetArchitectures = new[] { MacExports.IntelArchitecture };
+							}
+							else if (TargetArchitecture.Equals("Apple", StringComparison.OrdinalIgnoreCase))
+							{
+								TargetArchitectures = new[] { MacExports.AppleArchitecture };
 							}
 						}
 					}

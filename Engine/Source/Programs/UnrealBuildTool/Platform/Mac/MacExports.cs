@@ -73,19 +73,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Returns the current list of types that currently have no chance of building for Apple Silicon regardless
-		/// of what their project says
-		/// </summary>
-		/// <returns></returns>
-		static public IEnumerable<TargetType> TargetTypesDeniedForAppleSilicon
-		{
-			get
-			{
-				return new[] { TargetType.Editor };
-			}
-		}
-
-		/// <summary>
 		/// Cached result for AppleArch check
 		/// </summary>
 		private static bool? IsRunningOnAppleArchitectureVar;

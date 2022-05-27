@@ -127,6 +127,48 @@ namespace UnrealBuildTool
 				Target.bUsePCHFiles = false;
 			}
 
+			// Mac-Arm todo - Do we need to compile in two passes so we can set this differently?
+			bool bCompilingForArm = Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0;
+			bool bCompilingMultipleArchitectures = Target.Architecture.Contains("+");
+
+			if (bCompilingForArm)
+			{
+				Target.bCompileISPC = false;
+				Target.bCompileCEF3 = false;
+				Target.DisablePlugins.AddRange(new string[]
+				{
+					// onnx:
+					"NeuralNetworkInference",
+					"MLAdapter",
+					"LegacyVertexDeltaModel",
+					"MLDeformerFramework",
+					"VertexDeltaModel",
+					"MetaHumanAnimator",
+					"MetaHumans",
+
+					// perforce:
+					"PerforceSourceControl",
+
+					// ???
+					"MDLImporter",
+					"USDImporter",
+					"USDMultiUser",
+
+					// EOSSDK
+					"EOSManager",
+					"EOSShared",
+					"EOSVoiceChat",
+					"EOSReservedHooks",
+					"OnlineServicesEOS",
+					"OnlineServicesEOSGS",
+					"OnlineSubsystemEOS",
+					"SocketSubsystemEOS",
+
+					// Melange
+					"DatasmithC4DImporter",
+				});
+			}
+
 			// Needs OS X 10.11 for Metal. The remote toolchain has not been initialized yet, so just assume it's a recent SDK.
 			if ((BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac || MacToolChain.Settings.MacOSSDKVersionFloat >= 10.11f) && Target.bCompileAgainstEngine)
 			{
@@ -156,10 +198,6 @@ namespace UnrealBuildTool
 
 			Target.bCheckSystemHeadersForModification = BuildHostPlatform.Current.Platform != UnrealTargetPlatform.Mac;
 
-			// Mac-Arm todo - Do we need to compile in two passes so we can set this differently?
-			bool bCompilingForArm = Target.Architecture.IndexOf("arm", StringComparison.OrdinalIgnoreCase) >= 0;
-			bool bCompilingMultipleArchitectures = Target.Architecture.Contains("+");
-			Target.bCompileISPC = !bCompilingForArm;
 
 			Target.bUsePCHFiles = Target.bUsePCHFiles && !bCompilingMultipleArchitectures;
 		}

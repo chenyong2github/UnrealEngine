@@ -54,7 +54,11 @@ struct packetwise_redux_traits
 /* Value to be returned when size==0 , by default let's return 0 */
 template<typename PacketType,typename Func>
 EIGEN_DEVICE_FUNC
-PacketType packetwise_redux_empty_value(const Func& ) { return pset1<PacketType>(0); }
+PacketType packetwise_redux_empty_value(const Func& )
+{
+    const typename unpacket_traits<PacketType>::type zero(0);
+    return pset1<PacketType>(zero);
+}
 
 /* For products the default is 1 */
 template<typename PacketType,typename Scalar>
