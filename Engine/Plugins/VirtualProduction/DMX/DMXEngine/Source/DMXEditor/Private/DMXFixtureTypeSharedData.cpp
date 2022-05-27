@@ -3,6 +3,7 @@
 #include "DMXFixtureTypeSharedData.h"
 
 #include "DMXEditorUtils.h"
+#include "DMXFixtureTypeSharedDataSelection.h"
 #include "DMXRuntimeUtils.h"
 #include "Library/DMXEntityFixtureType.h"
 
@@ -70,9 +71,40 @@ namespace
 	}
 }
 
+FDMXFixtureTypeSharedData::FDMXFixtureTypeSharedData(TWeakPtr<FDMXEditor> InDMXEditorPtr)
+{
+	Selection = NewObject<UDMXFixtureTypeSharedDataSelection>(GetTransientPackage(), "FixtureTypeSharedDataSelection", RF_Transactional);
+}
+
+void FDMXFixtureTypeSharedData::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(Selection);
+}
+
+void FDMXFixtureTypeSharedData::PostUndo(bool bSuccess)
+{
+	check(Selection);
+	Selection->SelectedFixtureTypes.RemoveAll([](TWeakObjectPtr<UDMXEntityFixtureType> FixtureType)
+		{
+			return !FixtureType.IsValid();
+		});
+	OnFixtureTypesSelected.Broadcast();
+}
+
+void FDMXFixtureTypeSharedData::PostRedo(bool bSuccess)
+{
+	check(Selection);
+	Selection->SelectedFixtureTypes.RemoveAll([](TWeakObjectPtr<UDMXEntityFixtureType> FixtureType)
+		{
+			return !FixtureType.IsValid();
+		});
+	OnFixtureTypesSelected.Broadcast();
+}
+
 void FDMXFixtureTypeSharedData::SelectFixtureTypes(const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& InFixtureTypes)
 {
-	if (SelectedFixtureTypes != InFixtureTypes)
+	check(Selection);
+	if (Selection->SelectedFixtureTypes != InFixtureTypes)
 	{
 		// Make a copy without duplicates
 		TArray<TWeakObjectPtr<UDMXEntityFixtureType>> UniqueFixtureTypesOnlyArray;
@@ -82,12 +114,13 @@ void FDMXFixtureTypeSharedData::SelectFixtureTypes(const TArray<TWeakObjectPtr<U
 			UniqueFixtureTypesOnlyArray.AddUnique(FixtureType);
 		}
 
-		SelectedFixtureTypes = UniqueFixtureTypesOnlyArray;
+		Selection->Modify();
+		Selection->SelectedFixtureTypes = UniqueFixtureTypesOnlyArray;
 
 		// Selected Modes and Functions turn invalid
-		SelectedModeIndices.Reset();
-		SelectedFunctionIndices.Reset();
-		bFixtureMatrixSelected = false;
+		Selection->SelectedModeIndices.Reset();
+		Selection->SelectedFunctionIndices.Reset();
+		Selection->bFixtureMatrixSelected = false;
 
 		OnFixtureTypesSelected.Broadcast();
 	}
@@ -95,13 +128,15 @@ void FDMXFixtureTypeSharedData::SelectFixtureTypes(const TArray<TWeakObjectPtr<U
 
 void FDMXFixtureTypeSharedData::SelectModes(const TArray<int32>& InModeIndices)
 {
-	if (SelectedModeIndices != InModeIndices)
+	check(Selection);
+	if (Selection->SelectedModeIndices != InModeIndices)
 	{
-		SelectedModeIndices = InModeIndices;
+		Selection->Modify();
+		Selection->SelectedModeIndices = InModeIndices;
 
 		// Selected Functions turn invalid
-		SelectedFunctionIndices.Reset();
-		bFixtureMatrixSelected = false;
+		Selection->SelectedFunctionIndices.Reset();
+		Selection->bFixtureMatrixSelected = false;
 
 		OnModesSelected.Broadcast();
 	}
@@ -109,11 +144,14 @@ void FDMXFixtureTypeSharedData::SelectModes(const TArray<int32>& InModeIndices)
 
 void FDMXFixtureTypeSharedData::SetFunctionAndMatrixSelection(const TArray<int32>& InFunctionIndices, bool bMatrixSelected)
 {
-	if (SelectedFunctionIndices != InFunctionIndices ||
-		bFixtureMatrixSelected != bMatrixSelected)
+	check(Selection);
+	if (Selection->SelectedFunctionIndices != InFunctionIndices ||
+		Selection->bFixtureMatrixSelected != bMatrixSelected)
 	{
-		SelectedFunctionIndices = InFunctionIndices;
-		bFixtureMatrixSelected = bMatrixSelected;
+		Selection->Modify();
+
+		Selection->SelectedFunctionIndices = InFunctionIndices;
+		Selection->bFixtureMatrixSelected = bMatrixSelected;
 
 		OnFunctionsSelected.Broadcast();
 		OnMatrixSelectionChanged.Broadcast();
@@ -122,17 +160,18 @@ void FDMXFixtureTypeSharedData::SetFunctionAndMatrixSelection(const TArray<int32
 
 bool FDMXFixtureTypeSharedData::CanCopyModesToClipboard() const
 {
-	if (SelectedModeIndices.Num() == 0)
+	check(Selection);
+	if (Selection->SelectedModeIndices.Num() == 0)
 	{
 		return false;
 	}
-	else if (SelectedFixtureTypes.Num() == 1)
+	else if (Selection->SelectedFixtureTypes.Num() == 1)
 	{
-		if (UDMXEntityFixtureType* FixtureType = SelectedFixtureTypes[0].Get())
+		if (UDMXEntityFixtureType* FixtureType = Selection->SelectedFixtureTypes[0].Get())
 		{
-			for (int32 ModeIndex : SelectedModeIndices)
+			for (int32 ModeIndex : Selection->SelectedModeIndices)
 			{
-				if (!FixtureType->Modes.IsValidIndex(SelectedModeIndices[0]))
+				if (!FixtureType->Modes.IsValidIndex(Selection->SelectedModeIndices[0]))
 				{
 					return false;
 				}
@@ -145,15 +184,16 @@ bool FDMXFixtureTypeSharedData::CanCopyModesToClipboard() const
 
 void FDMXFixtureTypeSharedData::CopyModesToClipboard()
 {
+	check(Selection);
 	if (ensureMsgf(CanCopyModesToClipboard(), TEXT("Cannot copy Modes to clipboard. Please test first with FDMXFixtureTypeSharedData::CanCopyModesToClipboard.")))
 	{
 		ModesClipboard.Reset();
 
-		for (TWeakObjectPtr<UDMXEntityFixtureType> WeakFixtureType : SelectedFixtureTypes)
+		for (TWeakObjectPtr<UDMXEntityFixtureType> WeakFixtureType : Selection->SelectedFixtureTypes)
 		{
 			if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
 			{
-				for (const int32 ModeIndex : SelectedModeIndices)
+				for (const int32 ModeIndex : Selection->SelectedModeIndices)
 				{
 					const FDMXFixtureMode& Mode = FixtureType->Modes[ModeIndex];
 					if (FixtureType->Modes.IsValidIndex(ModeIndex))
@@ -172,9 +212,10 @@ void FDMXFixtureTypeSharedData::CopyModesToClipboard()
 
 bool FDMXFixtureTypeSharedData::CanPasteModesFromClipboard() const
 {
-	if (SelectedFixtureTypes.Num() == 1 && ModesClipboard.Num() > 0)
+	check(Selection);
+	if (Selection->SelectedFixtureTypes.Num() == 1 && ModesClipboard.Num() > 0)
 	{
-		if (UDMXEntityFixtureType* FixtureType = SelectedFixtureTypes[0].Get())
+		if (UDMXEntityFixtureType* FixtureType = Selection->SelectedFixtureTypes[0].Get())
 		{
 			return true;
 		}
@@ -185,11 +226,12 @@ bool FDMXFixtureTypeSharedData::CanPasteModesFromClipboard() const
 
 void FDMXFixtureTypeSharedData::PasteModesFromClipboard(TArray<int32>& OutNewlyAddedModeIndices)
 {
+	check(Selection);
 	if (ensureMsgf(CanPasteModesFromClipboard(), TEXT("Cannot paste Modes from clipboard. Please test first with FDMXFixtureTypeSharedData::CanPasteModesFromClipboard.")))
 	{
-		if (SelectedFixtureTypes.Num() == 1)
+		if (Selection->SelectedFixtureTypes.Num() == 1)
 		{
-			if (UDMXEntityFixtureType* FixtureType = SelectedFixtureTypes[0].Get())
+			if (UDMXEntityFixtureType* FixtureType = Selection->SelectedFixtureTypes[0].Get())
 			{
 				const FText TransactionText = FText::Format(LOCTEXT("PasteModesTransaction", "Paste Fixture {0}|plural(one=Mode, other=Modes)"), GetSelectedModeIndices().Num());
 				const FScopedTransaction PasteModesTransaction(TransactionText);
@@ -203,13 +245,13 @@ void FDMXFixtureTypeSharedData::PasteModesFromClipboard(TArray<int32>& OutNewlyA
 
 					const int32 PasteOntoIndex = [FixtureType, &ClipboardIndex, this]()
 					{
-						if (SelectedModeIndices.IsValidIndex(ClipboardIndex))
+						if (Selection->SelectedModeIndices.IsValidIndex(ClipboardIndex))
 						{
-							return SelectedModeIndices[ClipboardIndex];
+							return Selection->SelectedModeIndices[ClipboardIndex];
 						}
-						else if (SelectedModeIndices.Num() > 0)
+						else if (Selection->SelectedModeIndices.Num() > 0)
 						{
-							return SelectedModeIndices.Last();
+							return Selection->SelectedModeIndices.Last();
 						}
 						else
 						{
@@ -254,19 +296,20 @@ void FDMXFixtureTypeSharedData::PasteModesFromClipboard(TArray<int32>& OutNewlyA
 
 bool FDMXFixtureTypeSharedData::CanCopyFunctionsToClipboard() const
 {
-	if (SelectedFunctionIndices.Num() == 0 || bFixtureMatrixSelected)
+	check(Selection);
+	if (Selection->SelectedFunctionIndices.Num() == 0 || Selection->bFixtureMatrixSelected)
 	{
 		return false;
 	}
-	else if (SelectedFixtureTypes.Num() == 1 && SelectedModeIndices.Num() == 1)
+	else if (Selection->SelectedFixtureTypes.Num() == 1 && Selection->SelectedModeIndices.Num() == 1)
 	{
-		if (UDMXEntityFixtureType* FixtureType = SelectedFixtureTypes[0].Get())
+		if (UDMXEntityFixtureType* FixtureType = Selection->SelectedFixtureTypes[0].Get())
 		{
-			if(FixtureType->Modes.IsValidIndex(SelectedModeIndices[0]))
+			if(FixtureType->Modes.IsValidIndex(Selection->SelectedModeIndices[0]))
 			{
-				const FDMXFixtureMode& Mode = FixtureType->Modes[SelectedModeIndices[0]];
+				const FDMXFixtureMode& Mode = FixtureType->Modes[Selection->SelectedModeIndices[0]];
 
-				for (const int32 FunctionIndex : SelectedFunctionIndices)
+				for (const int32 FunctionIndex : Selection->SelectedFunctionIndices)
 				{
 					if (!Mode.Functions.IsValidIndex(FunctionIndex))
 					{
@@ -282,20 +325,21 @@ bool FDMXFixtureTypeSharedData::CanCopyFunctionsToClipboard() const
 
 void FDMXFixtureTypeSharedData::CopyFunctionsToClipboard()
 {
+	check(Selection);
 	if (ensureMsgf(CanCopyFunctionsToClipboard(), TEXT("Cannot copy Functions to clipboard. Please test first with FDMXFixtureTypeSharedData::CopyFunctionsToClipboard.")))
 	{
 		FunctionsClipboard.Reset();
 
-		if (SelectedFixtureTypes.Num() == 1 && SelectedModeIndices.Num() == 1)
+		if (Selection->SelectedFixtureTypes.Num() == 1 && Selection->SelectedModeIndices.Num() == 1)
 		{
-			if (UDMXEntityFixtureType* FixtureType = SelectedFixtureTypes[0].Get())
+			if (UDMXEntityFixtureType* FixtureType = Selection->SelectedFixtureTypes[0].Get())
 			{
-				if (FixtureType->Modes.IsValidIndex(SelectedModeIndices[0]))
+				if (FixtureType->Modes.IsValidIndex(Selection->SelectedModeIndices[0]))
 				{
-					const FDMXFixtureMode& Mode = FixtureType->Modes[SelectedModeIndices[0]];
+					const FDMXFixtureMode& Mode = FixtureType->Modes[Selection->SelectedModeIndices[0]];
 
 					// Sort selected function indices by starting channel, so elements are copied in visual right order, not in order of how things were selected
-					SelectedFunctionIndices.Sort([Mode](const int32 FunctionIndexA, const int32 FunctionIndexB)
+					Selection->SelectedFunctionIndices.Sort([Mode](const int32 FunctionIndexA, const int32 FunctionIndexB)
 						{
 							if (Mode.Functions.IsValidIndex(FunctionIndexA) && Mode.Functions.IsValidIndex(FunctionIndexB))
 							{
@@ -304,7 +348,7 @@ void FDMXFixtureTypeSharedData::CopyFunctionsToClipboard()
 							return false;
 						});
 
-					for (const int32 FunctionIndex : SelectedFunctionIndices)
+					for (const int32 FunctionIndex : Selection->SelectedFunctionIndices)
 					{
 						if (Mode.Functions.IsValidIndex(FunctionIndex))
 						{
@@ -323,11 +367,12 @@ void FDMXFixtureTypeSharedData::CopyFunctionsToClipboard()
 
 bool FDMXFixtureTypeSharedData::CanPasteFunctionsFromClipboard() const
 {
-	if (SelectedFixtureTypes.Num() == 1 && SelectedModeIndices.Num() == 1 && ModesClipboard.Num() > 0)
+	check(Selection);
+	if (Selection->SelectedFixtureTypes.Num() == 1 && Selection->SelectedModeIndices.Num() == 1 && ModesClipboard.Num() > 0)
 	{
-		if (UDMXEntityFixtureType* FixtureType = SelectedFixtureTypes[0].Get())
+		if (UDMXEntityFixtureType* FixtureType = Selection->SelectedFixtureTypes[0].Get())
 		{
-			if (FixtureType->Modes.IsValidIndex(SelectedModeIndices[0]))
+			if (FixtureType->Modes.IsValidIndex(Selection->SelectedModeIndices[0]))
 			{
 				return true;
 			}
@@ -339,19 +384,20 @@ bool FDMXFixtureTypeSharedData::CanPasteFunctionsFromClipboard() const
 
 void FDMXFixtureTypeSharedData::PasteFunctionsFromClipboard(TArray<int32>& OutNewlyAddedFunctionIndices)
 {
+	check(Selection);
 	if (ensureMsgf(CanPasteFunctionsFromClipboard(), TEXT("Cannot paste Functions from clipboard. Please test first with FDMXFixtureTypeSharedData::CanPasteFunctionsFromClipboard.")))
 	{
-		if (SelectedFixtureTypes.Num() == 1 && SelectedModeIndices.Num() == 1)
+		if (Selection->SelectedFixtureTypes.Num() == 1 && Selection->SelectedModeIndices.Num() == 1)
 		{
-			if (UDMXEntityFixtureType* FixtureType = SelectedFixtureTypes[0].Get())
+			if (UDMXEntityFixtureType* FixtureType = Selection->SelectedFixtureTypes[0].Get())
 			{
-				const int32 SelectedModeIndex = SelectedModeIndices[0];
+				const int32 SelectedModeIndex = Selection->SelectedModeIndices[0];
 				if (FixtureType->Modes.IsValidIndex(SelectedModeIndex))
 				{
 					FDMXFixtureMode& Mode = FixtureType->Modes[SelectedModeIndex];
 
 					// Sort selected function indices by starting channel, so elements are pasted in visual right order, not in order of how things were selected
-					SelectedFunctionIndices.Sort([Mode](const int32 FunctionIndexA, const int32 FunctionIndexB)
+					Selection->SelectedFunctionIndices.Sort([Mode](const int32 FunctionIndexA, const int32 FunctionIndexB)
 						{
 							if (Mode.Functions.IsValidIndex(FunctionIndexA) && Mode.Functions.IsValidIndex(FunctionIndexB))
 							{
@@ -380,13 +426,13 @@ void FDMXFixtureTypeSharedData::PasteFunctionsFromClipboard(TArray<int32>& OutNe
 								// Find an index to paste onto
 								const int32 PasteOntoIndex = [Mode, ClipboardIndex, this]()
 								{
-									if (SelectedFunctionIndices.IsValidIndex(ClipboardIndex))
+									if (Selection->SelectedFunctionIndices.IsValidIndex(ClipboardIndex))
 									{
-										return SelectedFunctionIndices[ClipboardIndex];
+										return Selection->SelectedFunctionIndices[ClipboardIndex];
 									}
-									else if (SelectedFunctionIndices.Num() > 0)
+									else if (Selection->SelectedFunctionIndices.Num() > 0)
 									{
-										return SelectedFunctionIndices.Last();
+										return Selection->SelectedFunctionIndices.Last();
 									}
 									else
 									{
@@ -422,18 +468,45 @@ void FDMXFixtureTypeSharedData::PasteFunctionsFromClipboard(TArray<int32>& OutNe
 void FDMXFixtureTypeSharedData::SelectFunctions(const TArray<int32>& InFunctionIndices)
 {
 	// DEPRECATED 5.0
-	if (SelectedFunctionIndices != InFunctionIndices)
+	check(Selection);
+	if (Selection->SelectedFunctionIndices != InFunctionIndices)
 	{
-		SelectedFunctionIndices = InFunctionIndices;
+		Selection->Modify();
+		Selection->SelectedFunctionIndices = InFunctionIndices;
 		OnFunctionsSelected.Broadcast();
 	}
+}
+
+
+const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& FDMXFixtureTypeSharedData::GetSelectedFixtureTypes() const 
+{
+	check(Selection);
+	return Selection->SelectedFixtureTypes;
+}
+
+const TArray<int32>& FDMXFixtureTypeSharedData::GetSelectedModeIndices() const
+{
+	check(Selection);
+	return Selection->SelectedModeIndices;
+}
+
+const TArray<int32>& FDMXFixtureTypeSharedData::GetSelectedFunctionIndices() const
+{
+	check(Selection);
+	return Selection->SelectedFunctionIndices;
+}
+
+bool FDMXFixtureTypeSharedData::IsFixtureMatrixSelected() const
+{
+	check(Selection);
+	return Selection->bFixtureMatrixSelected;
 }
 
 bool FDMXFixtureTypeSharedData::CanAddMode() const
 {
 	// DEPRECATED 5.0
-
-	return SelectedFixtureTypes.Num() == 1;
+	check(Selection);
+	return Selection->SelectedFixtureTypes.Num() == 1;
 }
 
 void FDMXFixtureTypeSharedData::AddMode()
@@ -446,7 +519,8 @@ void FDMXFixtureTypeSharedData::AddMode()
 
 	if (ensureMsgf(bCanAddMode, TEXT("Call to FDMXFixtureTypeSharedData::AddMode when no mode can be added")))
 	{
-		for (const TWeakObjectPtr<UDMXEntityFixtureType>& FixtureType : SelectedFixtureTypes)
+		check(Selection);
+		for (const TWeakObjectPtr<UDMXEntityFixtureType>& FixtureType : Selection->SelectedFixtureTypes)
 		{
 			if (!FixtureType.IsValid())
 			{
@@ -473,8 +547,8 @@ void FDMXFixtureTypeSharedData::AddMode()
 void FDMXFixtureTypeSharedData::DuplicateModes(const TArray<int32>& ModeÎndiciesToDuplicate)
 {
 	// DEPRECATED 5.0
-
-	for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : SelectedFixtureTypes)
+	check(Selection);
+	for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : Selection->SelectedFixtureTypes)
 	{ 
 		if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
 		{
@@ -512,8 +586,8 @@ void FDMXFixtureTypeSharedData::DuplicateModes(const TArray<int32>& ModeÎndicie
 void FDMXFixtureTypeSharedData::DeleteModes(const TArray<int32>& ModeIndicesToDelete)
 {
 	// DEPRECATED 5.0
-
-	for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : SelectedFixtureTypes)
+	check(Selection);
+	for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : Selection->SelectedFixtureTypes)
 	{
 		if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
 		{
@@ -564,7 +638,8 @@ void FDMXFixtureTypeSharedData::PasteClipboardToModes(const TArray<int32>& ModeI
 			FDMXFixtureMode ModeFromClipboard;
 			if (FJsonObjectConverter::JsonObjectToUStruct(RootJsonObject.ToSharedRef(), FDMXFixtureMode::StaticStruct(), &ModeFromClipboard, 0, 0))
 			{
-				for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : SelectedFixtureTypes)
+				check(Selection);
+				for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : Selection->SelectedFixtureTypes)
 				{
 					if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
 					{
@@ -595,8 +670,8 @@ void FDMXFixtureTypeSharedData::PasteClipboardToModes(const TArray<int32>& ModeI
 bool FDMXFixtureTypeSharedData::CanAddFunction() const
 {
 	// DEPRECATED 5.0
-
-	return SelectedModeIndices.Num() == 1;
+	check(Selection);
+	return Selection->SelectedModeIndices.Num() == 1;
 }
 
 void FDMXFixtureTypeSharedData::AddFunctionToSelectedMode()
@@ -609,7 +684,8 @@ void FDMXFixtureTypeSharedData::AddFunctionToSelectedMode()
 
 	if (ensureMsgf(bCanAddFunction, TEXT("Call to FDMXFixtureTypeSharedData::AddFunctionToSelectedMode, when no function can be added")))
 	{
-		for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : SelectedFixtureTypes)
+		check(Selection);
+		for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : Selection->SelectedFixtureTypes)
 		{
 			if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
 			{
@@ -618,7 +694,7 @@ void FDMXFixtureTypeSharedData::AddFunctionToSelectedMode()
 				FixtureType->PreEditChange(UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes)));
 				FixtureType->Modify();
 
-				int32 ModeIndex = SelectedModeIndices[0]; // Implicitly valid via CanAddFunctions tested before
+				int32 ModeIndex = Selection->SelectedModeIndices[0]; // Implicitly valid via CanAddFunctions tested before
 				if (FixtureType->Modes.IsValidIndex(ModeIndex))
 				{
 					FDMXFixtureMode& Mode = FixtureType->Modes[ModeIndex];
@@ -647,12 +723,12 @@ void FDMXFixtureTypeSharedData::AddFunctionToSelectedMode()
 void FDMXFixtureTypeSharedData::DuplicateFunctions(const TArray<int32>& FunctionIndicesToDuplicate)
 {
 	// DEPRECATED 5.0
-
-	for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : SelectedFixtureTypes)
+	check(Selection);
+	for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : Selection->SelectedFixtureTypes)
 	{
 		if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
 		{
-			for (int32 ModeIndex : SelectedModeIndices)
+			for (int32 ModeIndex : Selection->SelectedModeIndices)
 			{
 				if (FixtureType->Modes.IsValidIndex(ModeIndex))
 				{
@@ -686,12 +762,12 @@ void FDMXFixtureTypeSharedData::DuplicateFunctions(const TArray<int32>& Function
 void FDMXFixtureTypeSharedData::DeleteFunctions(const TArray<int32>& FunctionIndicesToDelete)
 {
 	// DEPRECATED 5.0
-
-	for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : SelectedFixtureTypes)
+	check(Selection);
+	for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : Selection->SelectedFixtureTypes)
 	{
 		if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
 		{
-			for (int32 ModeIndex : SelectedModeIndices)
+			for (int32 ModeIndex : Selection->SelectedModeIndices)
 			{
 				if (FixtureType->Modes.IsValidIndex(ModeIndex))
 				{
@@ -761,7 +837,8 @@ void FDMXFixtureTypeSharedData::PasteClipboardToFunctions(const TArray<int32>& F
 			FDMXFixtureFunction FunctionFromClipboard;
 			if (FJsonObjectConverter::JsonObjectToUStruct(RootJsonObject.ToSharedRef(), FDMXFixtureFunction::StaticStruct(), &FunctionFromClipboard, 0, 0))
 			{
-				for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : SelectedFixtureTypes)
+				check(Selection);
+				for (const TWeakObjectPtr<UDMXEntityFixtureType>& WeakFixtureType : Selection->SelectedFixtureTypes)
 				{
 					if (UDMXEntityFixtureType* FixtureType = WeakFixtureType.Get())
 					{
@@ -770,7 +847,7 @@ void FDMXFixtureTypeSharedData::PasteClipboardToFunctions(const TArray<int32>& F
 						FixtureType->PreEditChange(UDMXEntityFixtureType::StaticClass()->FindPropertyByName(GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityFixtureType, Modes)));
 						FixtureType->Modify();
 
-						for (int32 ModeIndex : SelectedModeIndices)
+						for (int32 ModeIndex : Selection->SelectedModeIndices)
 						{
 							if (FixtureType->Modes.IsValidIndex(ModeIndex))
 							{
@@ -801,10 +878,10 @@ void FDMXFixtureTypeSharedData::PasteClipboardToFunctions(const TArray<int32>& F
 bool FDMXFixtureTypeSharedData::CanAddCellAttribute() const
 {
 	// DEPRECATED 5.0
-
+	check(Selection);
 	return 
-		SelectedFixtureTypes.Num() == 1 && 
-		SelectedModeIndices.Num() == 1;
+		Selection->SelectedFixtureTypes.Num() == 1 &&
+		Selection->SelectedModeIndices.Num() == 1;
 }
 
 void FDMXFixtureTypeSharedData::AddCellAttributeToSelectedMode()
@@ -817,12 +894,13 @@ void FDMXFixtureTypeSharedData::AddCellAttributeToSelectedMode()
 
 	if (ensureMsgf(bCanAddCellAttribute, TEXT("Call to FDMXFixtureTypeSharedData::AddCellAttributeToSelectedMode, when no Cell Attribute can be added.")))
 	{
-		if (UDMXEntityFixtureType* FixtureType = SelectedFixtureTypes[0].Get())
+		check(Selection);
+		if (UDMXEntityFixtureType* FixtureType = Selection->SelectedFixtureTypes[0].Get())
 		{
-			const int32 SelectedModeIndex = SelectedModeIndices[0];
+			const int32 SelectedModeIndex = Selection->SelectedModeIndices[0];
 			if (FixtureType->Modes.IsValidIndex(SelectedModeIndex) && FixtureType->Modes[SelectedModeIndex].bFixtureMatrixEnabled)
 			{
-				FDMXFixtureMode& Mode = FixtureType->Modes[SelectedModeIndices[0]];
+				FDMXFixtureMode& Mode = FixtureType->Modes[Selection->SelectedModeIndices[0]];
 
 				FDMXFixtureCellAttribute NewAttribute;
 				TArray<FName> AvailableAttributes = FDMXAttributeName::GetPossibleValues();

@@ -5,7 +5,9 @@
 #include "IDMXNamedType.h"
 
 #include "CoreMinimal.h"
+#include "EditorUndoClient.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 #include "JsonObjectConverter.h"
@@ -14,20 +16,34 @@ enum class EDMXFixtureSignalFormat : uint8;
 class FDMXEditor;
 class FDMXFixtureTypeSharedData;
 class UDMXEntityFixtureType;
+class UDMXFixtureTypeSharedDataSelection;
 
 class FScopedTransaction;
 
 
-/** Shared data and utilities for objects in a DMX Editor */
+/** Shared data for Fixture Types in a DMX Editor */
 class FDMXFixtureTypeSharedData
-	: public TSharedFromThis<FDMXFixtureTypeSharedData>
+	: public FGCObject
+	, public FSelfRegisteringEditorUndoClient
+	, public TSharedFromThis<FDMXFixtureTypeSharedData>
 {
 public:
-	FDMXFixtureTypeSharedData(TWeakPtr<FDMXEditor> InDMXEditorPtr)
-		: DMXEditorPtr(InDMXEditorPtr)
-	{}	
+	/** Constructor */
+	FDMXFixtureTypeSharedData(TWeakPtr<FDMXEditor> InDMXEditorPtr);
 
-public:
+	//~ Begin FGCObject
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("DMXEditor::DMXFixtureTypeSharedData");
+	}
+	//~End FGCObject
+
+	//~Begin EditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~End EditorUndoClient interface
+
 	/** Selects specified Fixture Types */
 	void SelectFixtureTypes(const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& InFixtureTypes);
 
@@ -41,10 +57,10 @@ public:
 	UE_DEPRECATED(5.0, "Deprecated in favor of SetFunctionAndMatrixSelection to avoid the unclear state where both need change, but one contains the old state while the other changed.")
 	void SelectFunctions(const TArray<int32>& InFunctionIndices);
 
-	const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& GetSelectedFixtureTypes() const { return SelectedFixtureTypes; }
-	const TArray<int32>& GetSelectedModeIndices() const { return SelectedModeIndices; }
-	const TArray<int32>& GetSelectedFunctionIndices() const { return SelectedFunctionIndices; }
-	bool IsFixtureMatrixSelected() const { return bFixtureMatrixSelected; }
+	const TArray<TWeakObjectPtr<UDMXEntityFixtureType>>& GetSelectedFixtureTypes() const;
+	const TArray<int32>& GetSelectedModeIndices() const;
+	const TArray<int32>& GetSelectedFunctionIndices() const;
+	bool IsFixtureMatrixSelected() const;
 
 	/** Returns true if selected Modes can be copied */
 	bool CanCopyModesToClipboard() const;
@@ -120,16 +136,7 @@ public:
 
 private:
 	/** The Fixture types being edited */
-	TArray<TWeakObjectPtr<UDMXEntityFixtureType>> SelectedFixtureTypes;
-
-	/** The Mode indices in the Selected Fixture Types currently being selected */
-	TArray<int32> SelectedModeIndices;
-
-	/** The Function indices in the Selected Fixture Types currently being selected  */
-	TArray<int32> SelectedFunctionIndices;
-
-	/** If true the Fixture Matrices in the currently seleccted Modes are selected */
-	bool bFixtureMatrixSelected = false;
+	UDMXFixtureTypeSharedDataSelection* Selection;
 
 	/** Cache for multi mode copy/paste*/
 	TArray<FString> ModesClipboard;

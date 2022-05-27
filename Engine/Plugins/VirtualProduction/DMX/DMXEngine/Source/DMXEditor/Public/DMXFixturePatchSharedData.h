@@ -3,23 +3,41 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorUndoClient.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/GCObject.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 class FDMXEditor;
 class FDMXFixturePatchNode;
 class SDMXEntityList;
 class UDMXEntityFixturePatch;
+class UDMXFixturePatchSharedDataSelection;
 class UDMXLibrary;
+
 
 /** Shared data for fixture patch editors */
 class FDMXFixturePatchSharedData
-	: public TSharedFromThis<FDMXFixturePatchSharedData>
+	: public FGCObject
+	, public FSelfRegisteringEditorUndoClient
+	, public TSharedFromThis<FDMXFixturePatchSharedData>
 {
 public:
-	FDMXFixturePatchSharedData(TWeakPtr<FDMXEditor> InDMXEditorPtr)
-		: DMXEditorPtr(InDMXEditorPtr)
-	{}
+	/** Constructor */
+	FDMXFixturePatchSharedData(TWeakPtr<FDMXEditor> InDMXEditorPtr);
+
+	//~ Begin FGCObject
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("DMXEditor::DMXFixturePatchSharedData");
+	}
+	//~End FGCObject
+
+	//~Begin EditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~End EditorUndoClient interface
 
 	/** Broadcast when a universe is selected by an editor */
 	FSimpleMulticastDelegate OnUniverseSelectionChanged;
@@ -46,11 +64,8 @@ public:
 	const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>>& GetSelectedFixturePatches() const;
 
 private:
-	/** The universe currently edited by editors */
-	int32 SelectedUniverse = 1;
-
-	/** Patch node currently selected or nullptr if nothing is selected */
-	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches;
+	/** The current selection */
+	UDMXFixturePatchSharedDataSelection* Selection;
 
 	/** Weak reference to the DMX editor */
 	TWeakPtr<FDMXEditor> DMXEditorPtr;
