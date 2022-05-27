@@ -2823,12 +2823,17 @@ void UNavigationSystemV1::UnregisterComponentToNavOctree(UActorComponent* Comp)
 	}
 }
 
-void UNavigationSystemV1::AddDirtyArea(const FBox& NewArea, int32 Flags, const char* SourceText)
+void UNavigationSystemV1::AddDirtyArea(const FBox& NewArea, int32 Flags, const FName& DebugReason /*= NAME_None*/)
 {
-	DefaultDirtyAreasController.AddArea(NewArea, Flags, nullptr, nullptr, SourceText);
+	DefaultDirtyAreasController.AddArea(NewArea, Flags, nullptr, nullptr, DebugReason);
 }
 
-void UNavigationSystemV1::AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flags, const char* SourceText)
+void UNavigationSystemV1::AddDirtyArea(const FBox& NewArea, int32 Flags, const TFunction<UObject*()>& ObjectProviderFunc, const FName& DebugReason /*= NAME_None*/)
+{
+	DefaultDirtyAreasController.AddArea(NewArea, Flags, ObjectProviderFunc, nullptr, DebugReason);
+}
+
+void UNavigationSystemV1::AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flags, const FName& DebugReason /*= NAME_None*/)
 { 
 	if (Flags == 0)
 	{
@@ -2837,7 +2842,7 @@ void UNavigationSystemV1::AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flag
 
 	for (int32 NewAreaIndex = 0; NewAreaIndex < NewAreas.Num(); NewAreaIndex++)
 	{
-		AddDirtyArea(NewAreas[NewAreaIndex], Flags, SourceText);
+		AddDirtyArea(NewAreas[NewAreaIndex], Flags, DebugReason);
 	}
 }
 

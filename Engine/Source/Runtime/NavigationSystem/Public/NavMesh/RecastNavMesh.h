@@ -1226,6 +1226,8 @@ public:
 	virtual bool SupportsRuntimeGeneration() const override;
 	virtual bool SupportsStreaming() const override;
 
+	bool IsWorldPartitionedDynamicNavmesh() const;
+	
 	/** When using active tiles generation, navigation is only allowed to be runtime generated on a subset of tiles.
 	 *  The subset is be defined by navinvokers or loaded world partitioned cells. */
 	bool IsUsingActiveTilesGeneration(const UNavigationSystemV1& NavSys) const;

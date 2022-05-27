@@ -20,6 +20,8 @@
 #include "NavMesh/RecastQueryFilter.h"
 #include "VisualLogger/VisualLogger.h"
 #include "WorldPartition/NavigationData/NavigationDataChunkActor.h"
+#include "Math/Color.h"
+#include "NavigationDataHandler.h"
 
 #if WITH_EDITOR
 #include "ObjectEditorUtils.h"
@@ -2316,6 +2318,28 @@ void ARecastNavMesh::OnStreamingNavDataAdded(ANavigationDataChunkActor& InActor)
 		{
 			AttachNavMeshDataChunk(*NavDataChunk);
 		}
+
+		if (IsWorldPartitionedDynamicNavmesh())
+		{
+			// Add dirtiness for preexisting elements that are not part of the base navmesh.
+			UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+			if (NavSys)
+			{
+				FNavigationOctreeFilter Filter;
+				Filter.bIncludeGeometry = true;
+				Filter.bExcludeLoadedData = true;
+			
+				TArray<FNavigationOctreeElement> NavElements;
+				NavSys->FindElementsInNavOctree(InActor.GetBounds(), Filter, NavElements);
+
+				for (const FNavigationOctreeElement& NavElement : NavElements)
+				{
+					UE_VLOG_BOX(this, LogNavigation, Verbose, NavElement.Bounds.GetBox(), FColor::Orange, TEXT(""));
+
+					NavSys->AddDirtyArea(NavElement.Bounds.GetBox(), ENavigationDirtyFlag::All, [&NavElement] { return NavElement.Data->SourceObject.Get(); }, "Streaming data added");
+				}
+			}
+		}
 	}
 }
 
@@ -2801,6 +2825,11 @@ bool ARecastNavMesh::SupportsStreaming() const
 	// Actually nothing prevents us to support streaming with dynamic generation
 	// Right now streaming in sub-level causes navmesh to build itself, so no point to stream tiles in
 	return (RuntimeGeneration != ERuntimeGenerationType::Dynamic) || bIsWorldPartitioned;
+}
+
+bool ARecastNavMesh::IsWorldPartitionedDynamicNavmesh() const
+{
+	return bIsWorldPartitioned && SupportsRuntimeGeneration();
 }
 
 FRecastNavMeshGenerator* ARecastNavMesh::CreateGeneratorInstance()

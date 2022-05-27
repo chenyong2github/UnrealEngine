@@ -143,6 +143,10 @@ bool FNavigationRelevantData::HasPerInstanceTransforms() const
 
 bool FNavigationRelevantData::IsMatchingFilter(const FNavigationRelevantDataFilter& Filter) const
 {
+	if (Filter.bExcludeLoadedData && bLoadedData)
+	{
+		return false;
+	}
 	return (Filter.bIncludeGeometry && HasGeometry()) ||
 		(Filter.bIncludeOffmeshLinks && (Modifiers.HasPotentialLinks() || Modifiers.HasLinks())) ||
 		(Filter.bIncludeAreas && Modifiers.HasAreas()) ||

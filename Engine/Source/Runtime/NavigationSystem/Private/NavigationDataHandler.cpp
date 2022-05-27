@@ -109,6 +109,13 @@ void FNavigationDataHandler::AddElementToNavOctree(const FNavigationDirtyElement
 	}
 
 	FNavigationOctreeElement GeneratedData(*ElementOwner);
+
+	// In WP dynamic mode, store if this is loaded data.
+	if (DirtyAreasController.bUseWorldPartitionedDynamicMode)
+	{
+		GeneratedData.Data->bLoadedData = DirtyElement.bIsFromVisibilityChange || FNavigationSystem::IsLevelVisibilityChanging(ElementOwner);
+	}
+	
 	const FBox ElementBounds = DirtyElement.NavInterface->GetNavigationBounds();
 
 	UObject* NavigationParent = DirtyElement.NavInterface->GetNavigationParent();
@@ -425,6 +432,13 @@ void FNavigationDataHandler::AddLevelCollisionToOctree(ULevel& Level)
 		if (!ElementId && LevelGeom && LevelGeom->Num() > 0)
 		{
 			FNavigationOctreeElement BSPElem(Level);
+			
+			// In WP dynamic mode, store if this is loaded data.
+			if (DirtyAreasController.bUseWorldPartitionedDynamicMode)
+			{
+				BSPElem.Data->bLoadedData = Level.HasVisibilityChangeRequestPending();
+			}
+			
 			FRecastNavMeshGenerator::ExportVertexSoupGeometry(*LevelGeom, *BSPElem.Data);
 
 			const FBox& Bounds = BSPElem.Data->Bounds;

@@ -21,12 +21,15 @@ struct FNavigationRelevantDataFilter
 	uint32 bIncludeAreas : 1;
 	/** pass when actor has any modifier with meta area */
 	uint32 bIncludeMetaAreas : 1;
+	/** fail if from level loading (only valid in WP dynamic mode) */
+	uint32 bExcludeLoadedData : 1;
 
 	FNavigationRelevantDataFilter() 
 		: bIncludeGeometry(false)
 		, bIncludeOffmeshLinks(false)
 		, bIncludeAreas(false)
 		, bIncludeMetaAreas(false)
+		, bExcludeLoadedData(false)
 	{}
 };
 
@@ -77,11 +80,16 @@ struct ENGINE_API FNavigationRelevantData : public TSharedFromThis<FNavigationRe
 
 	uint32 bSupportsGatheringGeometrySlices : 1;
 
+	/** From level loading (only valid in WP dynamic mode) */
+	uint32 bLoadedData : 1;
+
 	FNavigationRelevantData(UObject& Source)
 		: SourceObject(&Source)
 		, bPendingLazyGeometryGathering(false)
 		, bPendingLazyModifiersGathering(false)
 		, bPendingChildLazyModifiersGathering(false)
+		, bSupportsGatheringGeometrySlices(false)
+		, bLoadedData(false)
 	{}
 
 	FORCEINLINE bool HasGeometry() const { return VoxelData.Num() || CollisionData.Num(); }

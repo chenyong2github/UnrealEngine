@@ -73,11 +73,15 @@ void FNavigationDirtyAreasController::AddArea(const FBox& NewArea, const int32 F
 
 	if (bUseWorldPartitionedDynamicMode)
 	{
+		// Both conditions must be true to ignore dirtiness.
+		//  If it's only a visibility change and it's not in the base navmesh, it's the case created by loading a data layer (dirtiness must be applied)
+		//  If there is no visibility change, the change is not from loading/unloading a cell (dirtiness must be applied)
+		
 		// ObjectProviderFunc() is not always providing a valid object.
-		if (const bool bIsFromVisibilityChange = (DirtyElement && DirtyElement->bIsFromVisibilityChange) || FNavigationSystem::IsLevelVisibilityChanging(ObjectProviderFunc()))
+		if (const bool bIsFromVisibilityChange = (DirtyElement && DirtyElement->bIsFromVisibilityChange) || (ObjectProviderFunc && FNavigationSystem::IsLevelVisibilityChanging(ObjectProviderFunc())))
 		{
 			// If the area is from the addition or removal of objects caused by level loading/unloading and it's already in the base navmesh ignore the dirtiness.
-			if (const bool bIsIncludedInBaseNavmesh = (DirtyElement && DirtyElement->bIsInBaseNavmesh) || FNavigationSystem::IsInBaseNavmesh(ObjectProviderFunc()))
+			if (const bool bIsIncludedInBaseNavmesh = (DirtyElement && DirtyElement->bIsInBaseNavmesh) || (ObjectProviderFunc && FNavigationSystem::IsInBaseNavmesh(ObjectProviderFunc())))
 			{
 				UE_LOG(LogNavigationDirtyArea, VeryVerbose, TEXT("Ignoring dirtyness (visibility changed and in base navmesh). (object: %s from: %s)"),
 					*GetFullNameSafe(ObjectProviderFunc ? ObjectProviderFunc() : nullptr), *DebugReason.ToString());

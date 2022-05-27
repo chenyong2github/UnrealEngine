@@ -113,15 +113,6 @@ int32 GetTilesCountHelper(const dtNavMesh* DetourMesh)
 	return NumTiles;
 }
 
-namespace UE::NavMesh::Private
-{
-	// @todo: Promote to the public interface when this becomes less experimental.
-	bool IsWorldPartitionedDynamicNavmesh(const ARecastNavMesh& NavMesh)
-	{
-		return NavMesh.bIsWorldPartitioned && NavMesh.SupportsRuntimeGeneration();
-	}
-} // namespace UE::NavMesh::Private
-
 /**
  * Exports geometry to OBJ file. Can be used to verify NavMesh generation in RecastDemo app
  * @param FileName - full name of OBJ file with extension
@@ -5560,7 +5551,7 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 	case EAddGeneratedTilesTimeSlicedState::AddTiles:
 	{
 		if (DetourMesh != nullptr
-			&& (!UE::NavMesh::Private::IsWorldPartitionedDynamicNavmesh(*DestNavMesh) || IsInActiveSet(FIntPoint(TileX, TileY)))
+			&& (!DestNavMesh->IsWorldPartitionedDynamicNavmesh() || IsInActiveSet(FIntPoint(TileX, TileY)))
 			&& SyncTimeSlicedData.AddGenTilesLayerIndex != INDEX_NONE)
 		{
 			for (; SyncTimeSlicedData.AddGenTilesLayerIndex < TileGenerator.GetDirtyLayersMask().Num(); ++SyncTimeSlicedData.AddGenTilesLayerIndex)
@@ -5624,7 +5615,7 @@ TArray<uint32> FRecastNavMeshGenerator::AddGeneratedTiles(FRecastTileGenerator& 
 	const int32 FirstDirtyTileIndex = TileGenerator.GetDirtyLayersMask().Find(true);
 
 	if (DetourMesh != nullptr
-		&& (!UE::NavMesh::Private::IsWorldPartitionedDynamicNavmesh(*DestNavMesh) || IsInActiveSet(FIntPoint(TileX, TileY)))
+		&& (!DestNavMesh->IsWorldPartitionedDynamicNavmesh() || IsInActiveSet(FIntPoint(TileX, TileY)))
 		&& FirstDirtyTileIndex != INDEX_NONE)
 	{
 		TArray<FNavMeshTileData> TileLayers = TileGenerator.GetNavigationData();

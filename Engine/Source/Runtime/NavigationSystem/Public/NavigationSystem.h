@@ -763,8 +763,9 @@ public:
 	/** updates bounds of all components implementing INavRelevantInterface */
 	static void UpdateNavOctreeBounds(AActor* Actor);
 
-	void AddDirtyArea(const FBox& NewArea, int32 Flags, const char* SourceText = nullptr);
-	void AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flags, const char* SourceText = nullptr);
+	void AddDirtyArea(const FBox& NewArea, int32 Flags, const FName& DebugReason = NAME_None);
+	void AddDirtyArea(const FBox& NewArea, int32 Flags, const TFunction<UObject*()>& ObjectProviderFunc, const FName& DebugReason = NAME_None);
+	void AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flags, const FName& DebugReason = NAME_None);
 	bool HasDirtyAreasQueued() const;
 	int32 GetNumDirtyAreas() const;
 
