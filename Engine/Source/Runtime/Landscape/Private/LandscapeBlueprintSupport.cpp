@@ -127,3 +127,19 @@ float ULandscapeComponent::EditorGetPaintLayerWeightAtLocation(const FVector& In
 #endif
 	return 0.f;
 }
+
+void ALandscapeProxy::SetVirtualTextureRenderPassType(ERuntimeVirtualTextureMainPassType InType)
+{
+	if (InType != VirtualTextureRenderPassType)
+	{
+		VirtualTextureRenderPassType = InType;
+
+		for (ULandscapeComponent* Component : LandscapeComponents)
+		{
+			if (Component != nullptr)
+			{
+				Component->MarkRenderStateDirty();
+			}
+		}
+	}
+}
