@@ -592,7 +592,7 @@ namespace UnrealBuildTool
 				}
 
 				// Filter the prerequisite actions down to just the compile actions, then recompute all the actions to execute
-				PrerequisiteActions = new List<LinkedAction>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
+				PrerequisiteActions = new List<LinkedAction>(TargetActionsToExecute.Where(x => IsLiveCodingAction(x)));
 				TargetActionsToExecute = ActionGraph.GetActionsToExecute(PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries, Logger);
 
 				// Update the action graph with these new paths
@@ -800,6 +800,20 @@ namespace UnrealBuildTool
 		static bool IsBaseFileNameCharacter(char Character)
 		{
 			return Char.IsLetterOrDigit(Character) || Character == '_';
+		}
+
+		/// <summary>
+		/// Test to see if the action is an action live coding supports.  All other actions will be filtered
+		/// </summary>
+		/// <param name="Action">Action in question</param>
+		/// <returns>True if the action is a compile action for the compiler.  This filters out RC compiles.</returns>
+		static bool IsLiveCodingAction(LinkedAction Action)
+		{
+			return Action.ActionType == ActionType.Compile &&
+				(Action.CommandPath.GetFileName().Equals("cl-filter.exe", StringComparison.OrdinalIgnoreCase)
+					|| Action.CommandPath.GetFileName().Equals("cl.exe", StringComparison.OrdinalIgnoreCase)
+					|| Action.CommandPath.GetFileName().Equals("clang-cl.exe", StringComparison.OrdinalIgnoreCase)
+				);
 		}
 
 		/// <summary>
