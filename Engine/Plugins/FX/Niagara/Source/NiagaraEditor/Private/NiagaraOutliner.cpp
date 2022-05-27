@@ -4,7 +4,7 @@
 #include "NiagaraDebugger.h"
 #include "NiagaraEditorCommon.h"
 #include "NiagaraSimCache.h"
-#include "Serialization\ObjectAndNameAsStringProxyArchive.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 
 UNiagaraOutliner::UNiagaraOutliner(const FObjectInitializer& Initializer)

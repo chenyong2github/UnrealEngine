@@ -10,7 +10,7 @@
 #include "NiagaraDebugHud.h"
 #include "Containers/Ticker.h"
 #include "NiagaraSimCache.h"
-#include "Serialization\ObjectAndNameAsStringProxyArchive.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 #if WITH_NIAGARA_DEBUGGER
 
