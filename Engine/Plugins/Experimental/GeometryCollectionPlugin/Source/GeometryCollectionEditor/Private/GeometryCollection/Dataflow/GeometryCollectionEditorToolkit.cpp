@@ -3,7 +3,9 @@
 #include "GeometryCollection/Dataflow/GeometryCollectionEditorToolkit.h"
 
 #include "Dataflow/DataflowEditorActions.h"
+#include "Dataflow/DataflowEditorPlugin.h"
 #include "Dataflow/DataflowEdNode.h"
+#include "Dataflow/DataflowGraphEditor.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
 #include "Dataflow/DataflowSchema.h"
@@ -30,6 +32,7 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 {
 	Dataflow = nullptr;
 	GeometryCollection = CastChecked<UGeometryCollection>(ObjectToEdit);
+
 	if (GeometryCollection != nullptr)
 	{
 		if (GeometryCollection->Dataflow == nullptr)
@@ -40,8 +43,8 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 		Dataflow = GeometryCollection->Dataflow;
 		GeometryCollection->Dataflow->Schema = UDataflowSchema::StaticClass();
 
-		GraphEditor = CreateGraphEditorWidget(Dataflow);
 		PropertiesEditor = CreatePropertiesEditorWidget(ObjectToEdit);
+		GraphEditor = CreateGraphEditorWidget(Dataflow, PropertiesEditor);
 
 		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("GeometryCollectionDataflowEditor_Layout")
 			->AddArea
@@ -81,73 +84,22 @@ void FGeometryCollectionEditorToolkit::InitGeometryCollectionAssetEditor(const E
 	}
 }
 
-void FGeometryCollectionEditorToolkit::EvaluateNode()
-{
-	Dataflow::FGeometryCollectionContext Context(GeometryCollection, FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
-	FDataflowEditorCommands::EvaluateNodes(GetSelectedNodes(), Context);
-}
-
-void FGeometryCollectionEditorToolkit::DeleteNode()
-{
-	if (UDataflow* Graph = dynamic_cast<UDataflow*>(GraphEditor->GetCurrentGraph()))
-	{
-		FDataflowEditorCommands::DeleteNodes(Graph, GetSelectedNodes());
-	}
-}
-
-FGraphPanelSelectionSet FGeometryCollectionEditorToolkit::GetSelectedNodes() const
-{
-	if (GraphEditor.IsValid())
-	{
-		return GraphEditor->GetSelectedNodes();
-	}
-	return FGraphPanelSelectionSet();
-}
-
-void FGeometryCollectionEditorToolkit::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
-{
-	if (UDataflow* Graph = dynamic_cast<UDataflow*>(GraphEditor->GetCurrentGraph()))
-	{
-		FDataflowEditorCommands::OnSelectedNodesChanged(PropertiesEditor, Dataflow, Graph, NewSelection);
-	}
-}
-
-
-TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit)
+TSharedRef<SGraphEditor> FGeometryCollectionEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IDetailsView> InPropertiesEditor)
 {
 	ensure(DataflowToEdit);
+	using namespace Dataflow;
+	IDataflowEditorPlugin& DataflowEditorModule = FModuleManager::LoadModuleChecked<IDataflowEditorPlugin>(TEXT("DataflowEditor"));
 
-	FDataflowEditorCommands::Register();
-	FGraphEditorCommands::Register();
-
-	// No need to regenerate the commands.
-	if (!GraphEditorCommands.IsValid())
+	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [&](Dataflow::FNode* Node, Dataflow::FConnection* Out)
 	{
-		GraphEditorCommands = MakeShareable(new FUICommandList);
-		{
-			GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
-				FExecuteAction::CreateSP(this, &FGeometryCollectionEditorToolkit::DeleteNode)
-			);
-			GraphEditorCommands->MapAction(FDataflowEditorCommands::Get().EvaluateNode,
-				FExecuteAction::CreateSP(this, &FGeometryCollectionEditorToolkit::EvaluateNode)
-			);
-		}
-	}
+		float EvalTime = FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds();
+		return Node->Evaluate(FGeometryCollectionContext(GeometryCollection, EvalTime), Out);
+	};
 
-
-	FGraphAppearanceInfo AppearanceInfo;
-	AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_GeometryCollectionEditor", "Dataflow");
-
-	SGraphEditor::FGraphEditorEvents InEvents;
-	InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FGeometryCollectionEditorToolkit::OnSelectedNodesChanged);
-
-	return SNew(SGraphEditor)
-		.AdditionalCommands(GraphEditorCommands)
-		.IsEditable(true)
-		.Appearance(AppearanceInfo)
+	return SNew(SDataflowGraphEditor, GeometryCollection)
 		.GraphToEdit(DataflowToEdit)
-		.GraphEvents(InEvents)
-		.ShowGraphStateOverlay(false);
+		.DetailsView(InPropertiesEditor)
+		.EvaluateGraph(Evaluate);
 }
 
 TSharedPtr<IDetailsView> FGeometryCollectionEditorToolkit::CreatePropertiesEditorWidget(UObject* ObjectToEdit)

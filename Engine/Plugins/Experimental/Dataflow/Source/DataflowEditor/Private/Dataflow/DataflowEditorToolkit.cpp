@@ -3,6 +3,7 @@
 #include "DataflowEditorToolkit.h"
 
 #include "Dataflow/DataflowEditorActions.h"
+#include "Dataflow/DataflowGraphEditor.h"
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
@@ -19,7 +20,6 @@
 #define LOCTEXT_NAMESPACE "DataflowEditorToolkit"
 
 //DEFINE_LOG_CATEGORY_STATIC(FDataflowEditorToolkitLog, Log, All);
-
 
 const FName FDataflowEditorToolkit::GraphCanvasTabId(TEXT("DataflowEditor_GraphCanvas"));
 const FName FDataflowEditorToolkit::PropertiesTabId(TEXT("DataflowEditor_Properties"));
@@ -74,73 +74,12 @@ void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, c
 
 
 
-void FDataflowEditorToolkit::EvaluateNode()
-{
-	Dataflow::FContext Context(FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds());
-	FDataflowEditorCommands::EvaluateNodes(GetSelectedNodes(), Context);
-}
-
-void FDataflowEditorToolkit::DeleteNode()
-{
-	if (UDataflow* Graph = dynamic_cast<UDataflow*>(GraphEditor->GetCurrentGraph()))
-	{
-		FDataflowEditorCommands::DeleteNodes(Graph, GetSelectedNodes());
-	}
-}
-
-FGraphPanelSelectionSet FDataflowEditorToolkit::GetSelectedNodes() const
-{
-	if (GraphEditor.IsValid())
-	{
-		return GraphEditor->GetSelectedNodes();
-	}
-	return FGraphPanelSelectionSet();
-}
-
-void FDataflowEditorToolkit::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
-{
-	if (UDataflow* Graph = dynamic_cast<UDataflow*>(GraphEditor->GetCurrentGraph()))
-	{
-		FDataflowEditorCommands::OnSelectedNodesChanged(PropertiesEditor, Dataflow, Graph, NewSelection);
-	}
-}
-
-
 TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit)
 {
 	ensure(DataflowToEdit);
-
-	FDataflowEditorCommands::Register();
-	FGraphEditorCommands::Register();
-
-	// No need to regenerate the commands.
-	if (!GraphEditorCommands.IsValid())
-	{
-		GraphEditorCommands = MakeShareable(new FUICommandList);
-		{
-			GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
-				FExecuteAction::CreateSP(this, &FDataflowEditorToolkit::DeleteNode)
-			);
-			GraphEditorCommands->MapAction(FDataflowEditorCommands::Get().EvaluateNode,
-				FExecuteAction::CreateSP(this, &FDataflowEditorToolkit::EvaluateNode)
-			);
-		}
-	}
-
-
-	FGraphAppearanceInfo AppearanceInfo;
-	AppearanceInfo.CornerText = LOCTEXT("AppearanceCornerText_DataflowEditor", "Dataflow");
-
-	SGraphEditor::FGraphEditorEvents InEvents;
-	InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FDataflowEditorToolkit::OnSelectedNodesChanged);
-
-	return SNew(SGraphEditor)
-		.AdditionalCommands(GraphEditorCommands)
-		.IsEditable(true)
-		.Appearance(AppearanceInfo)
+	return SNew(SDataflowGraphEditor, DataflowToEdit)
 		.GraphToEdit(DataflowToEdit)
-		.GraphEvents(InEvents)
-		.ShowGraphStateOverlay(false);
+		.DetailsView(GetPropertiesEditor());
 }
 
 TSharedPtr<IDetailsView> FDataflowEditorToolkit::CreatePropertiesEditorWidget(UObject* ObjectToEdit)

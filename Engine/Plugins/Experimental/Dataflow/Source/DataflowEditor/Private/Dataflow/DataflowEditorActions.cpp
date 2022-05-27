@@ -22,8 +22,8 @@ void FDataflowEditorCommandsImpl::RegisterCommands()
 				this->AsShared(),
 				AddNode,
 				NodeName, //FName("UseCreationFormToggle"),
-				NSLOCTEXT("DataFlow", "DataflowButton", "New Dataflow Node"),
-				NSLOCTEXT("DataFlow", "NewDataflowNodeTooltip", "New Dataflow Node Tooltip"),
+				NSLOCTEXT("DataFlow1", "DataflowButton", "New Dataflow Node"),
+				NSLOCTEXT("DataFlow2", "NewDataflowNodeTooltip", "New Dataflow Node Tooltip"),
 				FSlateIcon(),
 				EUserInterfaceActionType::Button,
 				FInputChord()
@@ -50,7 +50,7 @@ void FDataflowEditorCommands::Unregister()
 
 
 
-void FDataflowEditorCommands::EvaluateNodes(const FGraphPanelSelectionSet& SelectedNodes, const Dataflow::FContext& InContext)
+void FDataflowEditorCommands::EvaluateNodes(const FGraphPanelSelectionSet& SelectedNodes, FDataflowEditorCommands::FGraphEvaluationCallback Evaluate)
 {
 	for (UObject* Ode : SelectedNodes)
 	{
@@ -64,12 +64,12 @@ void FDataflowEditorCommands::EvaluateNodes(const FGraphPanelSelectionSet& Selec
 					{
 						for (Dataflow::FConnection* NodeOutput : DataflowNode->GetOutputs())
 						{
-							DataflowNode->Evaluate(InContext, NodeOutput);
+							Evaluate(DataflowNode.Get(),NodeOutput);
 						}
 					}
 					else
 					{
-						DataflowNode->Evaluate(InContext, nullptr);
+						Evaluate(DataflowNode.Get(), nullptr);
 					}
 				}
 			}

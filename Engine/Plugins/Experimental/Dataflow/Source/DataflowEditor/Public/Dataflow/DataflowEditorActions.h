@@ -5,12 +5,22 @@
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
 #include "Styling/AppStyle.h"
-#include "Dataflow/DataflowNodeParameters.h"
+
+namespace Dataflow 
+{
+	class FConnection;
+	class FNode;
+}
 
 class IDetailsView;
+class UDataflow;
 class UDataflowEdNode;
 typedef TSet<class UObject*> FGraphPanelSelectionSet;
 
+/*
+* FDataflowEditorCommandsImpl
+* 
+*/
 class FDataflowEditorCommandsImpl : public TCommands<FDataflowEditorCommandsImpl>
 {
 public:
@@ -33,6 +43,8 @@ public:
 class DATAFLOWEDITOR_API FDataflowEditorCommands
 {
 public:
+	typedef TFunction<void(Dataflow::FNode*, Dataflow::FConnection*)> FGraphEvaluationCallback;
+
 	static void Register();
 	static void Unregister();
 
@@ -41,7 +53,7 @@ public:
 	/*
 	*  EvaluateNodes
 	*/
-	static void EvaluateNodes(const FGraphPanelSelectionSet& SelectedNodes, const Dataflow::FContext& InContext);
+	static void EvaluateNodes(const FGraphPanelSelectionSet& SelectedNodes, FGraphEvaluationCallback);
 	
 	/*
 	*  DeleteNodes

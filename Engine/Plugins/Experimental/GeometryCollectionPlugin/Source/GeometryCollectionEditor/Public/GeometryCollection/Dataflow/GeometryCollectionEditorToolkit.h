@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Dataflow/DataflowNodeParameters.h"
+#include "Dataflow/DataflowGraphEditor.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GraphEditor.h"
 #include "Toolkits/SimpleAssetEditor.h"
@@ -49,30 +50,27 @@ public:
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
 
-	// Graph Editor Operations
-	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
-	void DeleteNode();
-	void EvaluateNode();
-	FGraphPanelSelectionSet GetSelectedNodes() const;
-
 	UDataflow* GetDataflow() { return Dataflow; }
 	const UDataflow* GetDataflow() const { return Dataflow; }
 
+	UGeometryCollection* GetGeometryCollection() { return GeometryCollection; }
+	const UGeometryCollection* GetGeometryCollection() const { return GeometryCollection; }
+
+	TSharedPtr<IDetailsView> GetPropertiesEditor() { return PropertiesEditor; }
+	const TSharedPtr<IDetailsView> GetPropertiesEditor() const { return PropertiesEditor; }
+
+	TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; }
+	const TSharedPtr<SGraphEditor> GetGraphEditor() const { return GraphEditor; }
+
 private:
-
-
 	static const FName GraphCanvasTabId;
 	TSharedPtr<SGraphEditor> GraphEditor;
-	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit);
+	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit, TSharedPtr<IDetailsView> PropertiesEditor);
 
 	static const FName PropertiesTabId;
 	TSharedPtr<IDetailsView> PropertiesEditor;
 	TSharedPtr<IDetailsView> CreatePropertiesEditorWidget(UObject* ObjectToEdit);
 
-
 	UDataflow* Dataflow = nullptr;
 	UGeometryCollection* GeometryCollection = nullptr;
-
-	/** Command list for the graph editor */
-	TSharedPtr<FUICommandList> GraphEditorCommands;
 };

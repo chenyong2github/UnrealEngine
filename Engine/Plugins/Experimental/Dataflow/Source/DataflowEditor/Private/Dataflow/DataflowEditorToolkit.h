@@ -32,28 +32,26 @@ public:
 	TSharedRef<SDockTab> SpawnTab_GraphCanvas(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Properties(const FSpawnTabArgs& Args);
 
-	// Graph Editor Operations
-	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
-	void DeleteNode();
-	void EvaluateNode();
-	FGraphPanelSelectionSet GetSelectedNodes() const;
-
+	// Member Access
 	UDataflow* GetDataflow() { return Dataflow; }
 	const UDataflow* GetDataflow() const { return Dataflow; }
 
+	TSharedPtr<IDetailsView> GetPropertiesEditor() {return PropertiesEditor;}
+	const TSharedPtr<IDetailsView> GetPropertiesEditor() const { return PropertiesEditor; }
+
+	TSharedPtr<SGraphEditor> GetGraphEditor() { return GraphEditor; }
+	const TSharedPtr<SGraphEditor> GetGraphEditor() const { return GraphEditor; }
+
 private:
+
+	UDataflow* Dataflow = nullptr;
 
 	static const FName GraphCanvasTabId;
 	TSharedPtr<SGraphEditor> GraphEditor;
+	TSharedPtr<FUICommandList> GraphEditorCommands;
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget(UDataflow* ObjectToEdit);
 
 	static const FName PropertiesTabId;
 	TSharedPtr<IDetailsView> PropertiesEditor;
 	TSharedPtr<IDetailsView> CreatePropertiesEditorWidget(UObject* ObjectToEdit);
-
-
-	UDataflow* Dataflow = nullptr;
-
-	/** Command list for the graph editor */
-	TSharedPtr<FUICommandList> GraphEditorCommands;
 };
