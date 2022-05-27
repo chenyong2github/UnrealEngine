@@ -580,7 +580,11 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 							}
 
 							const FStaticShadowDepthMap* StaticShadowDepthMap = LightSceneInfo->Proxy->GetStaticShadowDepthMap();
-							const uint32 bStaticallyShadowedValue = LightSceneInfo->IsPrecomputedLightingValid() && StaticShadowDepthMap && StaticShadowDepthMap->Data && StaticShadowDepthMap->TextureRHI ? 1 : 0;
+							const uint32 bStaticallyShadowedValue = LightSceneInfo->IsPrecomputedLightingValid() 
+																	&& StaticShadowDepthMap 
+																	&& StaticShadowDepthMap->Data 
+																	&& !StaticShadowDepthMap->Data->WorldToLight.ContainsNaN()
+																	&& StaticShadowDepthMap->TextureRHI ? 1 : 0;
 							ForwardLightData->DirectionalLightUseStaticShadowing = bStaticallyShadowedValue;
 							if (bStaticallyShadowedValue)
 							{
