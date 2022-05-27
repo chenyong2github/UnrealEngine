@@ -256,8 +256,8 @@ void UDMXLibraryFromMVRFactory::InitDMXLibrary(UDMXLibrary* DMXLibrary, const TA
 				const FDMXFixtureMode* ActiveModePtr = FixturePatch->GetActiveMode();
 				return
 					FixturePatch->GetFixtureType() == FixtureType &&
-					FixturePatch->GetUniverseID() == MVRFixture.Addresses.Universe &&
-					FixturePatch->GetStartingChannel() == MVRFixture.Addresses.Address &&
+					FixturePatch->GetUniverseID() == MVRFixture.GetUniverseID() &&
+					FixturePatch->GetStartingChannel() == MVRFixture.GetStartingChannel() &&
 					ActiveModePtr && ActiveModePtr->ModeName == MVRFixture.GDTFMode;
 			});
 
@@ -286,8 +286,8 @@ void UDMXLibraryFromMVRFactory::InitDMXLibrary(UDMXLibrary* DMXLibrary, const TA
 				FDMXEntityFixturePatchConstructionParams FixturePatchConstructionParams;
 				FixturePatchConstructionParams.ActiveMode = ActiveModeIndex;
 				FixturePatchConstructionParams.FixtureTypeRef = FDMXEntityFixtureTypeRef(FixtureType);
-				FixturePatchConstructionParams.UniverseID = MVRFixture.Addresses.Universe;
-				FixturePatchConstructionParams.StartingAddress = MVRFixture.Addresses.Address;
+				FixturePatchConstructionParams.UniverseID = MVRFixture.GetUniverseID();
+				FixturePatchConstructionParams.StartingAddress = MVRFixture.GetStartingChannel();
 				FixturePatchConstructionParams.MVRFixtureUUID = MVRFixture.UUID;
 
 				UDMXEntityFixturePatch* FixturePatch = UDMXEntityFixturePatch::CreateFixturePatchInLibrary(FixturePatchConstructionParams, MVRFixture.Name);

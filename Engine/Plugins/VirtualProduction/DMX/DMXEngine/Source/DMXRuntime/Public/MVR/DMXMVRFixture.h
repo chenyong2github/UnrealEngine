@@ -148,10 +148,24 @@ public:
 
 	/** The unit number of the lighting fixture in a position. */
 	int32 UnitNumber = 0;
+	
+	/** Sets the Universe ID, in UE form */
+	FORCEINLINE void SetUniverseID(int32 UniverseID) { Addresses.Universe = UniverseID - 1; }
 
+	/** Returns the Universe ID, in UE form */
+	FORCEINLINE int32 GetUniverseID() const { return Addresses.Universe + 1; }
+
+	/** Sets the Address of the MVR Fixture */
+	FORCEINLINE void SetStartingChannel(int32 Address) { Addresses.Address = Address; }
+
+	/** Returns the Address of the MVR Fixture */
+	FORCEINLINE int32 GetStartingChannel() const { return Addresses.Address; }
+
+private:
 	/** The container for DMX Addresses for this fixture. */
 	FDMXMVRFixtureAddresses Addresses;
 
+public:
 	/** A color assigned to a fixture. If it is not defined, there is no color for the fixture. */
 	TOptional<FDMXMVRColorCIE> CIEColor;
 

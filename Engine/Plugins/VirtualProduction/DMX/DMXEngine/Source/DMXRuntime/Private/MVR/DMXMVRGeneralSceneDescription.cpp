@@ -138,8 +138,8 @@ void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(
 			MVRFixture.UnitNumber = UnitNumbersInUse.Last() + 1;
 		}
 
-		MVRFixture.Addresses.Universe = FixturePatch.GetUniverseID();
-		MVRFixture.Addresses.Address = FixturePatch.GetStartingChannel();
+		MVRFixture.SetUniverseID(FixturePatch.GetUniverseID());
+		MVRFixture.SetStartingChannel(FixturePatch.GetStartingChannel());
 
 		bool bSetGDTFSpec = false;
 		if (UDMXEntityFixtureType* FixtureType = FixturePatch.GetFixtureType())
