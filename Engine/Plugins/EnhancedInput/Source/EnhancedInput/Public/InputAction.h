@@ -20,8 +20,6 @@ class ENHANCEDINPUT_API UInputAction : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	
-	UInputAction();
 
 #if WITH_EDITOR
 	// Track actions that have had their ValueType changed to update blueprints referencing them.
