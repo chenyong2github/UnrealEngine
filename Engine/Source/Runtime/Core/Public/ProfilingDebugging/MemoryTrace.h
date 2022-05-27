@@ -66,12 +66,6 @@ CORE_API UE_TRACE_CHANNEL_EXTERN(MemAllocChannel);
 class FMalloc* MemoryTrace_Create(class FMalloc* InMalloc);
 void MemoryTrace_Initialize();
 
-#if UE_MEMORY_TRACE_LATE_INIT
-void MemoryTrace_InitializeLate();
-#else
-static void MemoryTrace_InitializeLate() {}
-#endif // UE_MEMORY_TRACE_LATE_INIT
-
 /**
  * Register a new heap specification (name). Use the returned value when marking heaps.
  * @param ParentId Heap id of parent heap.

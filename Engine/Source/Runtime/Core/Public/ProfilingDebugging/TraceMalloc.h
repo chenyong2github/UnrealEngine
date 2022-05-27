@@ -13,6 +13,7 @@ public:
 	virtual void* Realloc(void* Original, SIZE_T Count, uint32 Alignment) override;
 	virtual void Free(void* Original) override;
 
+	UE_DEPRECATED(5.1, "ShouldTrace is deprecated. Details should be internal now.")
 	static bool ShouldTrace();
 
 	virtual void OnPreFork() override

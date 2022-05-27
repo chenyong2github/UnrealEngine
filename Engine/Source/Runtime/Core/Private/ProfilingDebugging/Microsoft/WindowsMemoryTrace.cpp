@@ -7,7 +7,6 @@
 
 #if UE_MEMORY_TRACE_ENABLED
 
-#include "ProfilingDebugging/MemoryAllocationTrace.h"
 #include "Containers/StringView.h"
 #include "CoreTypes.h"
 #include "HAL/MemoryBase.h"
@@ -19,37 +18,10 @@
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #include <winternl.h>
-
 #include <intrin.h>
 
-
 ////////////////////////////////////////////////////////////////////////////////
-void 	MemoryTrace_InitTags(FMalloc*);
-
-////////////////////////////////////////////////////////////////////////////////
-template <class T>
-class alignas(alignof(T)) FUndestructed
-{
-public:
-	template <typename... ArgTypes>
-	void Construct(ArgTypes... Args)
-	{
-		::new (Buffer) T(Args...);
-		bIsConstructed = true;
-	}
-
-	bool IsConstructed() const
-	{
-		return bIsConstructed;
-	}
-
-	T* operator & ()	{ return (T*)Buffer; }
-	T* operator -> ()	{ return (T*)Buffer; }
-
-protected:
-	uint8 Buffer[sizeof(T)];
-	bool bIsConstructed;
-};
+FMalloc* MemoryTrace_CreateInternal(FMalloc*);
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FAddrPack
@@ -60,117 +32,6 @@ struct FAddrPack
 	uint64	Inner;
 };
 static_assert(sizeof(FAddrPack) == sizeof(uint64), "");
-
-
-////////////////////////////////////////////////////////////////////////////////
-static FUndestructed<FAllocationTrace> GAllocationTrace;
-static FUndestructed<FTraceMalloc> GTraceMalloc;
-
-////////////////////////////////////////////////////////////////////////////////
-class FMallocWrapper
-	: public FMalloc
-{
-public:
-							FMallocWrapper(FMalloc* InMalloc);
-
-private:
-	struct FCookie
-	{
-		uint64				Tag  : 16;
-		uint64				Bias : 8;
-		uint64				Size : 40;
-	};
-
-	static uint32			GetActualAlignment(SIZE_T Size, uint32 Alignment);
-	virtual void*			Malloc(SIZE_T Size, uint32 Alignment) override;
-	virtual void*			Realloc(void* PrevAddress, SIZE_T NewSize, uint32 Alignment) override;
-	virtual void			Free(void* Address) override;
-	virtual bool			IsInternallyThreadSafe() const override						{ return InnerMalloc->IsInternallyThreadSafe(); }
-	virtual void			UpdateStats() override										{ InnerMalloc->UpdateStats(); }
-	virtual void			GetAllocatorStats(FGenericMemoryStats& Out) override		{ InnerMalloc->GetAllocatorStats(Out); }
-	virtual void			DumpAllocatorStats(FOutputDevice& Ar) override				{ InnerMalloc->DumpAllocatorStats(Ar); }
-	virtual bool			ValidateHeap() override										{ return InnerMalloc->ValidateHeap(); }
-	virtual bool			GetAllocationSize(void* Address, SIZE_T &SizeOut) override	{ return InnerMalloc->GetAllocationSize(Address, SizeOut); }
-	virtual void			SetupTLSCachesOnCurrentThread() override					{ return InnerMalloc->SetupTLSCachesOnCurrentThread(); }
-	virtual void			OnPreFork() override										{ InnerMalloc->OnPreFork();}
-	virtual void			OnPostFork() override										{ InnerMalloc->OnPostFork(); }
-
-	FMalloc*				InnerMalloc;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-FMallocWrapper::FMallocWrapper(FMalloc* InMalloc)
-: InnerMalloc(InMalloc)
-{
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint32 FMallocWrapper::GetActualAlignment(SIZE_T Size, uint32 Alignment)
-{
-	// Defaults; if size is < 16 then alignment is 8 else 16.
-	uint32 DefaultAlignment = 8 << uint32(Size >= 16);
-	return (Alignment < DefaultAlignment) ? DefaultAlignment : Alignment;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void* FMallocWrapper::Malloc(SIZE_T Size, uint32 Alignment)
-{
-	if (Size == 0)
-	{
-		return nullptr;
-	}
-
-	uint32 ActualAlignment = GetActualAlignment(Size, Alignment);
-	void* Address = InnerMalloc->Malloc(Size, Alignment);
-
-	const uint32 Callstack = CallstackTrace_GetCurrentId();
-	GAllocationTrace->Alloc(Address, Size, ActualAlignment, Callstack);
-
-	return Address;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void* FMallocWrapper::Realloc(void* PrevAddress, SIZE_T NewSize, uint32 Alignment)
-{
-	// This simplifies things and means reallocs trace events are true reallocs
-	if (PrevAddress == nullptr)
-	{
-		return Malloc(NewSize, Alignment);
-	}
-
-	if (NewSize == 0)
-	{
-		Free(PrevAddress);
-		return nullptr;
-	}
-
-	GAllocationTrace->ReallocFree(PrevAddress);
-
-	void* RetAddress = InnerMalloc->Realloc(PrevAddress, NewSize, Alignment);
-
-	const uint32 Callstack = CallstackTrace_GetCurrentId();
-	Alignment = GetActualAlignment(NewSize, Alignment);
-	GAllocationTrace->ReallocAlloc(RetAddress, NewSize, Alignment, Callstack);
-
-	return RetAddress;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FMallocWrapper::Free(void* Address)
-{
-	if (Address == nullptr)
-	{
-		return;
-	}
-
-	GAllocationTrace->Free(Address);
-
-	void* InnerAddress = Address;
-
-	return InnerMalloc->Free(InnerAddress);
-}
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 #if defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
@@ -296,8 +157,6 @@ void* FTextSectionEditor::HookImpl(void* Target, void* HookFunction)
 	return PatchJmp - PatchSize;
 }
 
-
-
 ////////////////////////////////////////////////////////////////////////////////
 class FVirtualWinApiHooks
 {
@@ -383,9 +242,8 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAlloc(LPVOID Address, SIZE_T Size, DWORD Ty
 	// corresponding information on frees.
 	if (Ret != nullptr && (Type & MEM_RESERVE))
 	{
-		const uint32 Callstack = FTraceMalloc::ShouldTrace() ? CallstackTrace_GetCurrentId() : 0;
-		GAllocationTrace->Alloc(Ret, Size, 0, Callstack, EMemoryTraceRootHeap::SystemMemory);
-		GAllocationTrace->MarkAllocAsHeap(Ret, EMemoryTraceRootHeap::SystemMemory);
+		MemoryTrace_Alloc((uint64)Ret, Size, 0, EMemoryTraceRootHeap::SystemMemory);
+		MemoryTrace_MarkAllocAsHeap((uint64)Ret, EMemoryTraceRootHeap::SystemMemory);
 	}
 
 	return Ret;
@@ -396,7 +254,7 @@ BOOL WINAPI FVirtualWinApiHooks::VmFree(LPVOID Address, SIZE_T Size, DWORD Type)
 {
 	if (Type & MEM_RELEASE)
 	{
-		GAllocationTrace->Free(Address, EMemoryTraceRootHeap::SystemMemory);
+		MemoryTrace_Free((uint64)Address, EMemoryTraceRootHeap::SystemMemory);
 	}
 	return VmFreeOrig(Address, Size, Type);
 }
@@ -407,9 +265,8 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAllocEx(HANDLE Process, LPVOID Address, SIZ
 	LPVOID Ret = VmAllocExOrig(Process, Address, Size, Type, Protect);
 	if (Process == GetCurrentProcess() && Ret != nullptr && (Type & MEM_RESERVE))
 	{
-		const uint32 Callstack = FTraceMalloc::ShouldTrace() ? CallstackTrace_GetCurrentId() : 0;
-		GAllocationTrace->Alloc(Ret, Size, 0, Callstack);
-		GAllocationTrace->MarkAllocAsHeap(Ret, EMemoryTraceRootHeap::SystemMemory);
+		MemoryTrace_Alloc((uint64)Ret, Size, 0);
+		MemoryTrace_MarkAllocAsHeap((uint64)Ret, EMemoryTraceRootHeap::SystemMemory);
 	}
 
 	return Ret;
@@ -420,7 +277,7 @@ BOOL WINAPI FVirtualWinApiHooks::VmFreeEx(HANDLE Process, LPVOID Address, SIZE_T
 {
 	if (Process == GetCurrentProcess() && (Type & MEM_RELEASE))
 	{
-		GAllocationTrace->Free(Address, EMemoryTraceRootHeap::SystemMemory);
+		MemoryTrace_Free((uint64)Address, EMemoryTraceRootHeap::SystemMemory);
 	}
 
 	return VmFreeExOrig(Process, Address, Size, Type);
@@ -432,9 +289,8 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAlloc2(HANDLE Process, LPVOID BaseAddress, 
 	LPVOID Ret = VmAlloc2Orig(Process, BaseAddress, Size, Type, PageProtection, ExtendedParameters, ParameterCount);
 	if (Process == GetCurrentProcess() && Ret != nullptr && (Type & MEM_RESERVE))
 	{
-		const uint32 Callstack = FTraceMalloc::ShouldTrace() ? CallstackTrace_GetCurrentId() : 0;
-		GAllocationTrace->Alloc(Ret, Size, 0, Callstack);
-		GAllocationTrace->MarkAllocAsHeap(Ret, EMemoryTraceRootHeap::SystemMemory);
+		MemoryTrace_Alloc((uint64)Ret, Size, 0);
+		MemoryTrace_MarkAllocAsHeap((uint64)Ret, EMemoryTraceRootHeap::SystemMemory);
 	}
 
 	return Ret;
@@ -445,7 +301,7 @@ LPVOID WINAPI FVirtualWinApiHooks::VmAlloc2(HANDLE Process, LPVOID BaseAddress, 
 ////////////////////////////////////////////////////////////////////////////////
 FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 {
-	int32 Mode = 0;
+	bool bEnabled = false;
 	const TCHAR* CmdLine = ::GetCommandLineW();
 	if (const TCHAR* TraceArg = FCString::Strstr(CmdLine, TEXT("-trace=")))
 	{
@@ -460,7 +316,7 @@ FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 				FStringView View(Start, uint32(c - Start));
 				if (View.Equals(TEXT("memalloc"), ESearchCase::IgnoreCase) || View.Equals(TEXT("memory"), ESearchCase::IgnoreCase))
 				{
-					Mode = 2;
+					bEnabled = true;
 					break;
 				}
 
@@ -469,121 +325,18 @@ FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 		}
 	}
 
-	if (Mode > 0)
+	if (bEnabled)
 	{
-		// Some OSes (i.e. Windows) will terminate all threads except the main
-		// one as part of static deinit. However we may receive more memory
-		// trace events that would get lost as Trace's worker thread has been
-		// terminated. So flush the last remaining memory events trace needs
-		// to be updated which we will do that in response to to memory events.
-		// We'll use an atexit can to know when Trace is probably no longer
-		// getting ticked.
-		atexit([] () { GAllocationTrace->EnableTracePump(); });
-
-		GAllocationTrace.Construct();
-		GAllocationTrace->Initialize();
-
-		GTraceMalloc.Construct(InMalloc);
-
-		// Both tag and callstack tracing need to use the wrapped trace malloc
-		// so we can break out tracing memory overhead (and not cause recursive behaviour).
-		MemoryTrace_InitTags(&GTraceMalloc);
-		CallstackTrace_Create(&GTraceMalloc);
-
-#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
+		FMalloc* OutMalloc = MemoryTrace_CreateInternal(InMalloc);
+		
+	#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 		FVirtualWinApiHooks::Initialize(false);
-#endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
-
-		static FUndestructed<FMallocWrapper> SMallocWrapper;
-		SMallocWrapper.Construct(InMalloc);
-
-		return &SMallocWrapper;
+	#endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
+		
+		return OutMalloc;
 	}
 
 	return InMalloc;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryTrace_Initialize()
-{
-	// Allocators aren't completely ready in _Create() so we have an extra step
-	// where any initialisation that may allocate can go.
-	CallstackTrace_Initialize();
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
-HeapId MemoryTrace_HeapSpec(HeapId ParentId, const TCHAR* Name, EMemoryTraceHeapFlags Flags)
-{
-	if (GAllocationTrace.IsConstructed())
-	{
-		return GAllocationTrace->HeapSpec(ParentId, Name, Flags);
-	}
-	return ~0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-HeapId MemoryTrace_RootHeapSpec(const TCHAR* Name, EMemoryTraceHeapFlags Flags)
-{
-	if (GAllocationTrace.IsConstructed())
-	{
-		return GAllocationTrace->RootHeapSpec(Name, Flags);
-	}
-	return ~0;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryTrace_MarkAllocAsHeap(uint64 Address, HeapId Heap, EMemoryTraceHeapAllocationFlags Flags)
-{
-	if (GAllocationTrace.IsConstructed())
-	{
-		GAllocationTrace->MarkAllocAsHeap((void*)Address, Heap, Flags);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryTrace_UnmarkAllocAsHeap(uint64 Address, HeapId Heap)
-{
-	if (GAllocationTrace.IsConstructed())
-	{
-		GAllocationTrace->UnmarkAllocAsHeap((void*)Address, Heap);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryTrace_Alloc(uint64 Address, uint64 Size, uint32 Alignment, HeapId RootHeap /*= EMemoryTraceRootHeap::SystemMemory*/)
-{
-	if (GAllocationTrace.IsConstructed())
-	{
-		GAllocationTrace->Alloc((void*)Address, Size, Alignment, CallstackTrace_GetCurrentId(), RootHeap);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryTrace_Free(uint64 Address, HeapId RootHeap /*= EMemoryTraceRootHeap::SystemMemory*/)
-{
-	if (GAllocationTrace.IsConstructed())
-	{
-		GAllocationTrace->Free((void*)Address, RootHeap);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryTrace_ReallocFree(uint64 Address, HeapId RootHeap /*= EMemoryTraceRootHeap::SystemMemory*/)
-{
-	if (GAllocationTrace.IsConstructed())
-	{
-		GAllocationTrace->ReallocFree((void*)Address, RootHeap);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryTrace_ReallocAlloc(uint64 Address, uint64 NewSize, uint32 Alignment, HeapId RootHeap /*= EMemoryTraceRootHeap::SystemMemory*/)
-{
-	if (GAllocationTrace.IsConstructed())
-	{
-		GAllocationTrace->ReallocAlloc((void*)Address, NewSize, Alignment, CallstackTrace_GetCurrentId(), RootHeap);
-	}
 }
 
 #include "Windows/HideWindowsPlatformTypes.h"
