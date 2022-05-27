@@ -12,19 +12,42 @@
 #include "DatasmithSceneGraphBuilder.h"
 #include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
+#include "HAL/IConsoleManager.h"
 #include "IDatasmithSceneElements.h"
 
 
 DEFINE_LOG_CATEGORY(LogCADTranslator);
 
+namespace DatasmithCADTranslatorImpl
+{
+static bool bGEnableNativeIFCTranslator = false;
+FAutoConsoleVariableRef GCADTranslatorEnableNativeIFCTranslator(
+	TEXT("ds.IFC.EnableNativeTranslator"),
+	bGEnableNativeIFCTranslator,
+	TEXT("\
+Enable/disable UE native IFC translator. If native translator is disabled, TechSoft is used.\n\
+Default is disable\n"),
+	ECVF_Default);
+}
 
 void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
-	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
+	TFunction<bool()> GetCADInterfaceAvailability = []() -> bool
+	{
+		if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
+		{
+			return false;
+		}
+		return true;
+	};
+
+	static bool bIsCADInterfaceAvailable = GetCADInterfaceAvailability();
+	if (!bIsCADInterfaceAvailable)
 	{
 		OutCapabilities.bIsEnabled = false;
 		return;
 	}
+	OutCapabilities.bIsEnabled = true;
 
 #ifndef CAD_TRANSLATOR_DEBUG
 	OutCapabilities.bParallelLoadStaticMeshSupported = true;
@@ -73,6 +96,11 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("dwg"), TEXT("AutoCAD, Model files") });
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("dgn"), TEXT("MicroStation files") });
+
+	if (!DatasmithCADTranslatorImpl::bGEnableNativeIFCTranslator)
+	{
+		OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("ifc"), TEXT("IFC (Industry Foundation Classes)") });
+	}
 
 	if (CADLibrary::FImportParameters::GCADLibrary.Equals(TEXT("TechSoft")))
 	{

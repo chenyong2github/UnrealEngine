@@ -9,6 +9,7 @@
 
 #include "Algo/Count.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Logging/LogMacros.h"
@@ -61,11 +62,24 @@ void ShowLogMessages(const TArray<IFC::FLogMessage>& Errors)
 
 void FDatasmithIFCTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
-	OutCapabilities.bIsEnabled = true;
 	OutCapabilities.bParallelLoadStaticMeshSupported = true;
 
+	IConsoleVariable* CVarIfcTranslatorEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.IFC.EnableNativeTranslator"));
+	if (CVarIfcTranslatorEnabled)
+	{
+		OutCapabilities.bIsEnabled = CVarIfcTranslatorEnabled->GetBool();
+		if (!OutCapabilities.bIsEnabled)
+		{
+			return;
+		}
+	}
+	else
+	{
+		OutCapabilities.bIsEnabled = true;
+	}
+
 	TArray<FFileFormatInfo>& Formats = OutCapabilities.SupportedFileFormats;
-    Formats.Emplace(TEXT("ifc"), TEXT("IFC (Industry Foundation Classes)"));
+	Formats.Emplace(TEXT("ifc"), TEXT("IFC (Industry Foundation Classes)"));
 }
 
 bool FDatasmithIFCTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)

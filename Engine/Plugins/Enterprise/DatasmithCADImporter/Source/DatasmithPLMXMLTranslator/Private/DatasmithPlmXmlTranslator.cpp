@@ -18,16 +18,21 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogDatasmithXMLPLMTranslator, Log, All)
 
-
 void FDatasmithPlmXmlTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 #if WITH_EDITOR
 	if (GIsEditor && !GEditor->PlayWorld && !GIsPlayInEditorWorld)
 	{
-		if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
+		TFunction<bool()> GetCADInterfaceAvailability = []() -> bool
 		{
-			UE_LOG(LogDatasmithXMLPLMTranslator, Warning, TEXT("CAD Interface module is unavailable. Most of CAD formats (except to Rhino and Alias formats) cannot be imported."));
-		}
+			if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
+			{
+				UE_LOG(LogDatasmithXMLPLMTranslator, Warning, TEXT("CAD Interface module is unavailable. Most of CAD formats (except to Rhino and Alias formats) cannot be imported."));
+				return false;
+			}
+			return true;
+		};
+		static bool bIsCADInterfaceAvailable = GetCADInterfaceAvailability();
 
 		OutCapabilities.bIsEnabled = true;
 		OutCapabilities.bParallelLoadStaticMeshSupported = true;
