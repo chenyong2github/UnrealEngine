@@ -27,9 +27,6 @@ struct FDMXRuntimeMainStreamObjectVersion
 		// Update Fixture Patch to use an MVR UUID
 		DMXFixturePatchHasMVRUUID,
 
-		// Update DMX Entity Fixture Type to use the correct GDTF type instead of its base class
-		DMXFixtureTypeUsesCorrectGDTFType,
-
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
 	};

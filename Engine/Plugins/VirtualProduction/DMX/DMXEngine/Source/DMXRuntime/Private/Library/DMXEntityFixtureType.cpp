@@ -238,19 +238,27 @@ void UDMXEntityFixtureType::Serialize(FArchive& Ar)
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
+	}
+}
 
-		if (Ar.CustomVer(FDMXRuntimeMainStreamObjectVersion::GUID) < FDMXRuntimeMainStreamObjectVersion::DMXFixtureTypeUsesCorrectGDTFType)
+void UDMXEntityFixtureType::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	// Upgrade the GDTF type from the base DMXImport to the actual DMXImportGDTF type which was always used.
+	// Name the new variable 'GDTF' to make the purpose of the variable more clear, namely holding a GDTF asset.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if(DMXImport_DEPRECATED)
+	{
+		if (UDMXImportGDTF* OldGDTF = Cast<UDMXImportGDTF>(DMXImport_DEPRECATED))
 		{
-			// Upgrade the GDTF type from the base DMXImport to the actual DMXImportGDTF type which was always used.
-			// Name the new variable 'GDTF' to make the purpose of the variable more clear, namely holding a GDTF asset.
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			if (UDMXImportGDTF* OldGDTF = Cast<UDMXImportGDTF>(DMXImport))
-			{
-				GDTF = OldGDTF;
-			}
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			GDTF = OldGDTF;
+			DMXImport_DEPRECATED = nullptr;
 		}
 	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
 }
 
 #if WITH_EDITOR
