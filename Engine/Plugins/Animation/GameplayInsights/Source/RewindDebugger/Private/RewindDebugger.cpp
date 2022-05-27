@@ -7,6 +7,7 @@
 #include "IAnimationProvider.h"
 #include "IGameplayProvider.h"
 #include "Insights/IUnrealInsightsModule.h"
+#include "IGameplayInsightsModule.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTrace.h"
 #include "TraceServices/Model/Frames.h"
@@ -149,6 +150,9 @@ FRewindDebugger::FRewindDebugger()  :
 
 		return true;
 	});
+
+	IGameplayInsightsModule* GameplayInsightsModule = &FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
+	GameplayInsightsModule->StartTrace();
 }
 
 FRewindDebugger::~FRewindDebugger() 

@@ -105,7 +105,8 @@ void FNetworkPredictionInsightsModule::StartupModule()
 		{
 			LLM_SCOPE_BYNAME(TEXT("Insights/NetworkPredictionInsights"));
 			IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-			if (!UnrealInsightsModule.GetStoreClient())
+			bool bNetworkPredictionTrace = FParse::Param(FCommandLine::Get(), TEXT("NPTrace"));
+			if (!UnrealInsightsModule.GetStoreClient() && bNetworkPredictionTrace)
 			{
 #if WITH_TRACE_STORE
 				UE_LOG(LogCore, Display, TEXT("NetworkPredictionInsights module auto-connecting to internal trace server..."));

@@ -61,6 +61,10 @@ void FGameplayInsightsModule::StartupModule()
 	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
 	UnrealInsightsModule.OnMajorTabCreated().AddLambda([this](const FName& InMajorTabId, TSharedPtr<FTabManager> InTabManager)
 	{
+#if WITH_EDITOR
+		StartTrace();
+#endif
+
 		if (InMajorTabId == FInsightsManagerTabs::TimingProfilerTabId)
 		{
 			WeakTimingProfilerTabManager = InTabManager;
@@ -200,14 +204,9 @@ void FGameplayInsightsModule::StartupModule()
 #else
 				UE_LOG(LogCore, Display, TEXT("GameplayInsights module auto-connecting to local trace server..."));
 				UnrealInsightsModule.ConnectToStore(TEXT("127.0.0.1"));
-				const bool bConnected = FTraceAuxiliary::Start(
-					FTraceAuxiliary::EConnectionType::Network,
-					TEXT("127.0.0.1"),
-					nullptr);
 #endif // WITH_TRACE_STORE
 
 				UnrealInsightsModule.CreateSessionViewer(false);
-				UnrealInsightsModule.StartAnalysisForLastLiveSession();
 			}
 		});
 
@@ -417,6 +416,17 @@ bool FGameplayInsightsModule::IsObjectPropertyTraceEnabled(UObject* Object)
 #else
 	return false;
 #endif
+}
+
+void FGameplayInsightsModule::StartTrace()
+{
+	const bool bConnected = FTraceAuxiliary::Start(
+		FTraceAuxiliary::EConnectionType::Network,
+		TEXT("127.0.0.1"),
+		nullptr);
+	
+	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+	UnrealInsightsModule.StartAnalysisForLastLiveSession();
 }
 
 #endif

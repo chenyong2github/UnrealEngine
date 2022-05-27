@@ -24,5 +24,7 @@ public:
 	virtual void EnableObjectPropertyTrace(UObject* Object, bool bEnable = true) = 0;
 	// check if an Object has it's properties tracing to Insights
 	virtual bool IsObjectPropertyTraceEnabled(UObject* Object) = 0;
+	// start tracing data
+	virtual void StartTrace() = 0;
 #endif
 };
