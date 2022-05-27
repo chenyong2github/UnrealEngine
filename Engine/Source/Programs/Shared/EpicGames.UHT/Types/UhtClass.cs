@@ -1791,9 +1791,17 @@ namespace EpicGames.UHT.Types
 					}
 
 					// Validate if we are using editor only data in a class or struct definition
-					if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly) && this.ClassFlags.HasAnyFlags(EClassFlags.Optional))
+					if (this.ClassFlags.HasAnyFlags(EClassFlags.Optional))
 					{
-						property.LogError("Cannot specify an editor only property inside an optional class.");
+						if (property.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly))
+						{
+							property.LogError("Cannot specify an editor only property inside an optional class.");
+						}
+						else if (property.ContainsEditorOnlyProperties())
+						{
+							// TODO: this should technically be an error, but some code already relies on this at this time and should hence 
+							property.LogInfo("Do not specify struct property containing editor only properties inside an optional class.");
+						}
 					}
 
 					// Check for getter/setter

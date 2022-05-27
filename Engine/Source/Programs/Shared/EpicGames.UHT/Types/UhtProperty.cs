@@ -1860,6 +1860,16 @@ namespace EpicGames.UHT.Types
 			errorType = null;
 			return false;
 		}
+
+		/// <summary>
+		/// Test to see if the property contains any editor only properties.  This does not 
+		/// test to see if the property itself is editor only.  This is implemented for struct properties.
+		/// </summary>
+		/// <returns></returns>
+		public virtual bool ContainsEditorOnlyProperties()
+		{
+			return false;
+		}
 		#endregion
 
 		#region Reference support

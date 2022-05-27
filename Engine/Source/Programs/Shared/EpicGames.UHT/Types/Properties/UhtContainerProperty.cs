@@ -73,5 +73,11 @@ namespace EpicGames.UHT.Types
 		{
 			return this.ValueProperty.ScanForInstancedReferenced(deepScan);
 		}
+
+		///<inheritdoc/>
+		public override bool ContainsEditorOnlyProperties()
+		{
+			return this.ValueProperty.ContainsEditorOnlyProperties();
+		}
 	}
 }

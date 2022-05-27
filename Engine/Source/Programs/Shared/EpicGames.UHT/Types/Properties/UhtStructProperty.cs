@@ -206,6 +206,22 @@ namespace EpicGames.UHT.Types
 			return referencingProperty.Session.ValidateScriptStructOkForNet(referencingProperty, this.ScriptStruct);
 		}
 
+		///<inheritdoc/>
+		public override bool ContainsEditorOnlyProperties()
+		{
+			foreach (UhtType Child in this.ScriptStruct.Children)
+			{
+				if (Child is UhtProperty Property)
+				{
+					if (Property.PropertyFlags.HasAnyFlags(EPropertyFlags.EditorOnly) || Property.ContainsEditorOnlyProperties())
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
 		#region Structure default value sanitizers
 		[UhtStructDefaultValue(Name = "FVector")]
 		[SuppressMessage("CodeQuality", "IDE0051:Remove unused private members", Justification = "Attribute accessed method")]
