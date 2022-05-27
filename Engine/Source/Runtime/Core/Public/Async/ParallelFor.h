@@ -344,6 +344,15 @@ namespace ParallelForImpl
 		FParallelExecutor LocalExecutor(MoveTemp(Data), NumWorkers, Priority);
 		const bool bFinishedLast = LocalExecutor(true, DebugName);
 
+		// Cancel tasks that have not yet launched since they will otherwise waste time on worker threads
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(ParallelFor.Cancel);
+			for (LowLevelTasks::FTask& Task : LocalExecutor.GetData()->Tasks)
+			{
+				Task.TryCancel(LowLevelTasks::ECancellationFlags::PrelaunchCancellation);
+			}
+		}
+
 		if(!bFinishedLast)
 		{
 			const bool bPumpRenderingThread  = (Flags & EParallelForFlags::PumpRenderingThread) != EParallelForFlags::None;
@@ -360,6 +369,7 @@ namespace ParallelForImpl
 			{
 				// FinishedSignal waits here if some other thread finishes the last item
 				// Data must live on until all of the tasks are cleared which might be long after this function exits
+				TRACE_CPUPROFILER_EVENT_SCOPE(ParallelFor.Wait);
 				FinishedSignal->Wait();
 			}
 		}
