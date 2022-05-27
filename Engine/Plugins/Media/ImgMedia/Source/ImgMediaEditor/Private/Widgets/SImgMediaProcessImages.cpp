@@ -152,7 +152,7 @@ FReply SImgMediaProcessImages::OnProcessImagesClicked()
 		MediaTexture->AddToRoot();
 
 		// Create media source.
-		MediaSource = UMediaSource::SpawnMediaSourceForString(Options->SequencePath.FilePath);
+		MediaSource = UMediaSource::SpawnMediaSourceForString(Options->SequencePath.FilePath, GetTransientPackage());
 		if (MediaSource == nullptr)
 		{
 			return FReply::Handled();
