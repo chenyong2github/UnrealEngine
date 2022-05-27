@@ -59,7 +59,10 @@ void FImgMediaFilePathCustomization::CustomizeChildren(TSharedRef<IPropertyHandl
 				.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
 				.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 				.BrowseButtonToolTip(LOCTEXT("FileButtonToolTipText", "Choose a file from this computer"))
-				.BrowseDirectory(FPaths::GetPath(PickedPath))
+				.BrowseDirectory_Lambda([this]()->FString
+				{
+					return FPaths::GetPath(HandleFilePathPickerFilePath());
+				})
 				.BrowseTitle(LOCTEXT("PropertyEditorTitle", "File picker..."))
 				.FilePath(this, &FImgMediaFilePathCustomization::HandleFilePathPickerFilePath)
 				.FileTypeFilter(FileTypeFilter)
