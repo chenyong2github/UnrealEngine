@@ -181,6 +181,21 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
+	 * Multiplies this vector with another vector, using component-wise multiplication.
+	 *
+	 * @param Other The point to multiply with.
+	 * @return Reference to this point after multiplication.
+	 */
+	TIntVector3& operator*=(const TIntVector3& Other)
+	{
+		X *= Other.X;
+		Y *= Other.Y;
+		Z *= Other.Z;
+
+		return *this;
+	}
+
+	/**
 	 * Scales this point.
 	 *
 	 * @param Scale What to multiply the point by.
@@ -238,6 +253,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Z -= Other.Z;
 
 		return *this;
+	}
+
+	/**
+	 * Gets the result of component-wise multiplication of this point by another.
+	 *
+	 * @param Other The point to multiply with.
+	 * @return The result of multiplication.
+	 */
+	TIntVector3 operator*(const TIntVector3& Other) const
+	{
+		return TIntVector3(*this) *= Other;
 	}
 
 	/**
@@ -713,6 +739,22 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	/**
+	 * Multiplies this vector with another vector, using component-wise multiplication.
+	 *
+	 * @param Other The point to multiply with.
+	 * @return Reference to this point after multiplication.
+	 */
+	TIntVector4& operator*=(const TIntVector4& Other)
+	{
+		X *= Other.X;
+		Y *= Other.Y;
+		Z *= Other.Z;
+		W *= Other.W;
+
+		return *this;
+	}
+
+	/**
 	 * Scales this point.
 	 *
 	 * @param Scale What to multiply the point by.
@@ -790,6 +832,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		W = Other.W;
 
 		return *this;
+	}
+
+	/**
+	 * Gets the result of component-wise multiplication of this point by another.
+	 *
+	 * @param Other The point to multiply with.
+	 * @return The result of multiplication.
+	 */
+	TIntVector4 operator*(const TIntVector4& Other) const
+	{
+		return TIntVector4(*this) *= Other;
 	}
 
 	/**
