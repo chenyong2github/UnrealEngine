@@ -346,7 +346,7 @@ namespace FNiagaraEditorUtilities
 	
 	NIAGARAEDITOR_API float GetScalabilityTintAlpha(FNiagaraEmitterHandle* EmitterHandle);
 
-	NIAGARAEDITOR_API enum class ETrackAssetResult
+	enum class ETrackAssetResult
 	{
 		// do not count this asset
 		Ignore,
