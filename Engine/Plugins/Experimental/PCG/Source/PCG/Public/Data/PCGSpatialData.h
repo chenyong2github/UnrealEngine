@@ -60,7 +60,7 @@ public:
 	virtual float GetDensityAtPosition(const FVector& InPosition) const;
 
 	/** Discretizes the data into points */
-	UFUNCTION(BlueprintCallable, Category = SpatialData, meta = (DeprecatedFunction))
+	UFUNCTION(BlueprintCallable, Category = SpatialData, meta = (DeprecatedFunction, DeprecationMessage = "The To Point Data function is deprecated - use To Point Data With Context instead."))
 	const UPCGPointData* ToPointData() const { return ToPointData(nullptr); }
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)
@@ -99,7 +99,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Metadata)
 	UPCGMetadata* MutableMetadata() { return Metadata; }
 
-	UFUNCTION(BlueprintCallable, Category = Metadata, meta=(DeprecatedFunction))
+	UFUNCTION(BlueprintCallable, Category = Metadata, meta=(DeprecatedFunction, DeprecationMessage = "The Create Empty Metadata function is not needed anymore - it can safely be removed"))
 	UPCGMetadata* CreateEmptyMetadata();
 
 	UFUNCTION(BlueprintCallable, Category = SpatialData)

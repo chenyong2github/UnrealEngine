@@ -103,7 +103,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	bool bCanBeMultithreaded = false;
 
-	UPROPERTY(BlueprintGetter=InputLabels, Category = "Settings|Input & Output")
+	UPROPERTY(BlueprintGetter=InputLabels, Category = "Settings|Input & Output", meta = (DeprecatedProperty, DeprecatedMessage = "Input Pin Labels are deprecated - use Input Labels instead."))
 	TSet<FName> InputPinLabels_DEPRECATED;
 
 	UPROPERTY(BlueprintGetter=OutputLabels, Category = "Settings|Input & Output")
