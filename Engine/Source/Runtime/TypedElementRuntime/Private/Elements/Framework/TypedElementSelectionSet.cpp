@@ -6,9 +6,10 @@
 #include "Elements/Framework/TypedElementUtil.h"
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 
-#include "UObject/GCObjectScopeGuard.h"
+#include "Misc/ITransaction.h"
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
+#include "UObject/GCObjectScopeGuard.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Serialization/TextReferenceCollector.h"
@@ -76,7 +77,7 @@ void UTypedElementSelectionSet::PostEditUndo()
 
 bool UTypedElementSelectionSet::Modify(bool bAlwaysMarkDirty)
 {
-	if (GUndo && CanModify())
+	if (GUndo && CanModify() && !GUndo->ContainsObject(this))
 	{
 		bool bCanModify = true;
 		ElementList->ForEachElement<ITypedElementSelectionInterface>([&bCanModify](const TTypedElement<ITypedElementSelectionInterface>& InSelectionElement)
@@ -225,6 +226,7 @@ bool UTypedElementSelectionSet::SelectElements(TArrayView<const FTypedElementHan
 	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
+	ElementList->Reserve(ElementList->Num() + InElementHandles.Num());
 
 	for (const FTypedElementHandle& ElementHandle : InElementHandles)
 	{
@@ -239,6 +241,7 @@ bool UTypedElementSelectionSet::SelectElements(FTypedElementListConstRef InEleme
 	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
 
 	bool bSelectionChanged = false;
+	ElementList->Reserve(ElementList->Num() + InElementList->Num());
 
 	InElementList->ForEachElementHandle([this, &bSelectionChanged, &InSelectionOptions](const FTypedElementHandle& ElementHandle)
 	{
@@ -317,7 +320,7 @@ bool UTypedElementSelectionSet::DeselectElements(FTypedElementListConstRef InEle
 bool UTypedElementSelectionSet::ClearSelection(const FTypedElementSelectionOptions InSelectionOptions)
 {
 	FTypedElementList::FLegacySyncScopedBatch LegacySyncBatch(*ElementList, InSelectionOptions.AllowLegacyNotifications());
-
+	
 	bool bSelectionChanged = false;
 
 	// Run deselection via the selection interface where possible

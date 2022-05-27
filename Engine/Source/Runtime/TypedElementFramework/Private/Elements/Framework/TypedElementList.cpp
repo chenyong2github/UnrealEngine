@@ -360,39 +360,38 @@ bool TTypedElementList<HandleType>::RemoveElementImpl(const FTypedElementId& InE
 template<class HandleType>
 int32 TTypedElementList<HandleType>::RemoveAllElementsImpl(TFunctionRef<bool(const HandleType&)> InPredicate)
 {
-	int32 RemovedCount = 0;
-
 	if (ElementHandles.Num() > 0)
 	{
 		FLegacySyncScopedBatch LegacySyncBatch(*this);
 
 		NoteListMayChange();
 
-		for (int32 Index = ElementHandles.Num() - 1; Index >= 0; --Index)
-		{
-			if (InPredicate(ElementHandles[Index]))
+		return ElementHandles.RemoveAll([this, InPredicate](HandleType& InHandle)
 			{
-				HandleType RemovedElementHandle = MoveTemp(ElementHandles[Index]);
-				ElementCombinedIds.Remove(RemovedElementHandle.GetId().GetCombinedId());
-				ElementHandles.RemoveAt(Index, 1, /*bAllowShrinking*/false);
-
-				if constexpr (std::is_same<HandleType, FTypedElementHandle>::value)
+				if (InPredicate(InHandle))
 				{
-					ElementCounts.RemoveElement(RemovedElementHandle);
-				}
-				else
-				{
-					ElementCounts.RemoveElement(RemovedElementHandle.GetTypedElementHandle());
+					HandleType RemovedElementHandle = MoveTemp(InHandle);
+					ElementCombinedIds.Remove(RemovedElementHandle.GetId().GetCombinedId());
+
+					if constexpr (std::is_same<HandleType, FTypedElementHandle>::value)
+					{
+						ElementCounts.RemoveElement(RemovedElementHandle);
+					}
+					else
+					{
+						ElementCounts.RemoveElement(RemovedElementHandle.GetTypedElementHandle());
+					}
+
+					NoteListChanged(EChangeType::Removed, RemovedElementHandle);
+
+					return true;
 				}
 
-				NoteListChanged(EChangeType::Removed, RemovedElementHandle);
-
-				++RemovedCount;
-			}
-		}
+				return false;
+			});
 	}
 
-	return RemovedCount;
+	return 0;
 }
 
 template<class HandleType>

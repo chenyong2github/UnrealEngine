@@ -397,4 +397,9 @@ public:
 	 * @param Property	The optional list of properties that have potentially changed on the object (to avoid snapshotting the entire object).
 	 */
 	virtual void SnapshotObject( UObject* Object, TArrayView<const FProperty*> Properties ) = 0;
+
+	/**
+	 * Does the transaction know that the object is being modified.
+	 */
+	virtual bool ContainsObject(const UObject* Object) const = 0;
 };

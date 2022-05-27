@@ -641,6 +641,7 @@ public:
 	virtual void StoreUndo( UObject* Object, TUniquePtr<FChange> UndoChange ) override;
 	virtual void SetPrimaryObject(UObject* InObject) override;
 	virtual void SnapshotObject( UObject* InObject, TArrayView<const FProperty*> Properties ) override;
+	virtual bool ContainsObject(const UObject* Object) const override;
 
 	/** BeginOperation should be called when a transaction or undo/redo starts */
 	virtual void BeginOperation() override;

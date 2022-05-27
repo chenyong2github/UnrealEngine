@@ -125,15 +125,6 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 			bGeometryMode
 		};
 
-		 FTypedElementSelectionOptions ElementSelectionOption;
-
-
-		if( !bShiftDown )
-		{
-			// If the user is selecting, but isn't hold down SHIFT, remove all current selections.
-			SelectionSet->ClearSelection(ElementSelectionOption);
-		}
-
 		const int32 ViewportSizeX = LevelViewportClient->Viewport->GetSizeXY().X;
 		const int32 ViewportSizeY = LevelViewportClient->Viewport->GetSizeXY().Y;
 
@@ -147,6 +138,7 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 			Swap( Start.Y, End.Y );
 		}
 
+		TArray<FTypedElementHandle> ElementsToSelect;
 		const bool bTransparentBoxSelection = GetDefault<ULevelEditorViewportSettings>()->bTransparentBoxSelection;
 		if (bTransparentBoxSelection)
 		{
@@ -154,7 +146,7 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 			for(FActorIterator It(LevelViewportClient->GetWorld()); It; ++It)
 			{
 				AActor* Actor = *It;
-				SelectionSet->SelectElements(UE::LevelEditor::Private::GetElementsIntersectingFrustum(Actor, Frustum, LevelViewportClient, SeletionArgs), ElementSelectionOption);
+				ElementsToSelect.Append(UE::LevelEditor::Private::GetElementsIntersectingFrustum(Actor, Frustum, LevelViewportClient, SeletionArgs));
 			}
 		}
 		else
@@ -170,12 +162,12 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 
 				if (bStrictDragSelection)
 				{
-					ElementList->ForEachElement<ITypedElementWorldInterface>([bStrictDragSelection, &Frustum, &SelectionSet, &ElementSelectionOption]
+					ElementList->ForEachElement<ITypedElementWorldInterface>([bStrictDragSelection, &Frustum, &SelectionSet, &ElementsToSelect]
 						(const TTypedElement<ITypedElementWorldInterface>& InElement)
 						{
 							if (InElement.IsElementInConvexVolume(Frustum, bStrictDragSelection))
 							{
-								SelectionSet->SelectElement(SelectionSet->GetSelectionElement(InElement, ETypedElementSelectionMethod::Primary), ElementSelectionOption);
+								ElementsToSelect.Add(SelectionSet->GetSelectionElement(InElement, ETypedElementSelectionMethod::Primary));
 							}
 
 							return true;
@@ -184,9 +176,9 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 				else
 				{
 					// Grab only the selectable handles (this remove the components from the selection and select the actor instead)
-					ElementList->ForEachElementHandle([&SelectionSet, &ElementSelectionOption](const FTypedElementHandle& InHandle)
+					ElementList->ForEachElementHandle([&SelectionSet, &ElementsToSelect](const FTypedElementHandle& InHandle)
 						{
-							SelectionSet->SelectElement(SelectionSet->GetSelectionElement(InHandle, ETypedElementSelectionMethod::Primary), ElementSelectionOption);
+							ElementsToSelect.Add(SelectionSet->GetSelectionElement(InHandle, ETypedElementSelectionMethod::Primary));
 							return true;
 						});
 				}
@@ -226,14 +218,26 @@ void FDragTool_ActorFrustumSelect::EndDrag()
 					AActor* Actor = *It;
 					if (bStrictDragSelection)
 					{
-						SelectionSet->SelectElements(UE::LevelEditor::Private::GetElementsIntersectingFrustum(Actor, Frustum, LevelViewportClient, SeletionArgs), ElementSelectionOption);
+						ElementsToSelect.Append(UE::LevelEditor::Private::GetElementsIntersectingFrustum(Actor, Frustum, LevelViewportClient, SeletionArgs));
 					}
 					else
 					{
-						SelectionSet->SelectElement(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor), ElementSelectionOption);
+						ElementsToSelect.Add(UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor));
 					}
 				}
 			}
+		}
+
+		 FTypedElementSelectionOptions ElementSelectionOption;
+
+		if (!bShiftDown)
+		{
+			// If the user is selecting, but isn't hold down SHIFT, remove the previous selections.
+			SelectionSet->SetSelection(MoveTemp(ElementsToSelect), ElementSelectionOption);
+		}
+		else
+		{
+			SelectionSet->SelectElements(MoveTemp(ElementsToSelect), ElementSelectionOption);
 		}
 	}
 

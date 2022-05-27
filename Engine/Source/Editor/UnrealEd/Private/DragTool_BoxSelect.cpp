@@ -224,6 +224,8 @@ void FDragTool_ActorBoxSelect::EndDrag()
 		bool bSelectionChanged = false;
 		UWorld* IteratorWorld = GWorld;
 		const TArray<FName>& HiddenLayers = LevelViewportClient->ViewHiddenLayers;
+		TArray<FTypedElementHandle> Handles;
+
 		for( FActorIterator It(IteratorWorld); It; ++It )
 		{
 			AActor* Actor = *It;
@@ -242,16 +244,17 @@ void FDragTool_ActorBoxSelect::EndDrag()
 			// Select the actor or its child elements
 			if( bActorIsVisible )
 			{
-				TArray<FTypedElementHandle> Handles = UE::LevelEditor::Private::GetElementsIntersectingBox( Actor, SelBBox, LevelViewportClient, SeletionArgs );
-				if (bShouldSelect)
-				{
-					SelectionSet->SelectElements(Handles, ElementSelectionOption);
-				}
-				else
-				{
-					SelectionSet->DeselectElements(Handles, ElementSelectionOption);
-				}
+				Handles.Append( UE::LevelEditor::Private::GetElementsIntersectingBox( Actor, SelBBox, LevelViewportClient, SeletionArgs ) );
 			}
+		}
+
+		if (bShouldSelect)
+		{
+			SelectionSet->SelectElements( Handles, ElementSelectionOption );
+		}
+		else
+		{
+			SelectionSet->DeselectElements( Handles, ElementSelectionOption );
 		}
 
 		// Check every model to see if its BSP surfaces should be selected

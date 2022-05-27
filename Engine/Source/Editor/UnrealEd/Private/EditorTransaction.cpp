@@ -910,6 +910,23 @@ void FTransaction::SnapshotObject( UObject* InObject, TArrayView<const FProperty
 	}
 }
 
+bool FTransaction::ContainsObject(const UObject* Object) const
+{
+	FPersistentObjectRef PersistentObjectRef(const_cast<UObject*>(Object));
+	if (const FObjectRecords* ObjectRecords = ObjectRecordsMap.Find(PersistentObjectRef))
+	{
+		for (FObjectRecord* Record : ObjectRecords->Records)
+		{
+			if (Record->Object == PersistentObjectRef)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void FTransaction::BeginOperation()
 {
 	check(!OperationId.IsValid());
