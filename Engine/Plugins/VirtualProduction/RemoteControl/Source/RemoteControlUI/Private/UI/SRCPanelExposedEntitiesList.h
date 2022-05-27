@@ -59,11 +59,14 @@ public:
 
 	~SRCPanelExposedEntitiesList();
 
-	/** Get the currently selected group or exposed entity. */
-	TSharedPtr<SRCPanelTreeNode> GetSelection() const;
+	/** Get the currently selected group. */
+	TSharedPtr<SRCPanelTreeNode> GetSelectedGroup() const;
+	
+	/** Get the currently selected exposed entity. */
+	TSharedPtr<SRCPanelTreeNode> GetSelectedEntity() const;
 	
 	/** Set the currently selected group or exposed entity. */
-	void SetSelection(const TSharedPtr<SRCPanelTreeNode>& Node);
+	void SetSelection(const TSharedPtr<SRCPanelTreeNode>& Node, const bool bForceMouseClick = false);
 
 	/** Recreate everything in the panel. */
 	void Refresh();
@@ -79,6 +82,8 @@ private:
 	void OnObjectPropertyChange(UObject* InObject, FPropertyChangedEvent& InChangeEvent);
 	/** Create exposed entity widgets. */
 	void GenerateListWidgets();
+	/** Create exposed entity widgets. */
+	void GenerateListWidgets(const FRemoteControlPresetGroup& FromGroup);
 	/** Generate the groups using the preset's layout data. */
 	void RefreshGroups();
 	/** Generate row widgets for groups and exposed entities. */
@@ -91,6 +96,8 @@ private:
 	FReply OnDropOnGroup(const TSharedPtr<FDragDropOperation>& DragDropOperation, const TSharedPtr<SRCPanelTreeNode>& TargetEntity, const TSharedPtr<SRCPanelTreeNode>& DragTargetGroup);
 	/** Get the id of the group that holds a particular widget. */
 	FGuid GetGroupId(const FGuid& EntityId);
+	/** Handles creating a new group. */
+	FReply OnCreateGroup();
 	/** Handles group deletion. */
 	void OnDeleteGroup(const FGuid& GroupId);
 	/** Select actors in the current level. */
@@ -108,7 +115,7 @@ private:
 	TSharedPtr<SRCPanelGroup> FindGroupById(const FGuid& Id);
 
 	/** Handle context menu opening on a row. */
-	TSharedPtr<SWidget> OnContextMenuOpening();
+	TSharedPtr<SWidget> OnContextMenuOpening(SRCPanelTreeNode::ENodeType InType);
 
 	//~ Register and handle preset delegates.
 	void RegisterPresetDelegates();
@@ -125,10 +132,14 @@ private:
 	void OnEntitiesUpdated(URemoteControlPreset*, const TSet<FGuid>& UpdatedEntities);
 
 private:
-	/** Holds the fields list view. */
-	TSharedPtr<STreeView<TSharedPtr<SRCPanelTreeNode>>> TreeView;
+	/** Holds the Groups list view. */
+	TSharedPtr<SListView<TSharedPtr<SRCPanelTreeNode>>> GroupsListView;
+	/** Holds the Fields list view. */
+	TSharedPtr<SListView<TSharedPtr<SRCPanelTreeNode>>> FieldsListView;
 	/** Holds all the field groups. */
 	TArray<TSharedPtr<SRCPanelGroup>> FieldGroups;
+	/** Holds all the field entities. */
+	TArray<TSharedPtr<SRCPanelTreeNode>> FieldEntities;
 	/** Map of field ids to field widgets. */
 	TMap<FGuid, TSharedPtr<SRCPanelTreeNode>> FieldWidgetMap;
 	/** Whether the panel is in edit mode. */

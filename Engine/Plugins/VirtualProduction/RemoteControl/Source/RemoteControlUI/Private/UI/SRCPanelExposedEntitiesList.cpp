@@ -4,6 +4,7 @@
 
 #include "Algo/ForEach.h"
 #include "Editor.h"
+#include "EditorFontGlyphs.h"
 #include "ISettingsModule.h"
 #include "RCPanelWidgetRegistry.h"
 #include "GameFramework/Actor.h"
@@ -24,6 +25,15 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelEntitiesList"
 
+namespace FRemoteControlPresetColumns
+{
+	const FName DragDropHandle = TEXT("DragDropHandle");
+	const FName IsBound = TEXT("IsBound");
+	const FName Description = TEXT("Description");
+	const FName Value = TEXT("Value");
+	const FName Groups = TEXT("Groups");
+}
+
 void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry)
 {
 	bIsInEditMode = InArgs._EditMode;
@@ -37,14 +47,132 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 
 	ChildSlot
 	[
-		SAssignNew(TreeView, STreeView<TSharedPtr<SRCPanelTreeNode>>)
-			.TreeItemsSource(reinterpret_cast<TArray<TSharedPtr<SRCPanelTreeNode>>*>(&FieldGroups))
-			.ItemHeight(24.0f)
-			.OnGenerateRow(this, &SRCPanelExposedEntitiesList::OnGenerateRow)
-			.OnGetChildren(this, &SRCPanelExposedEntitiesList::OnGetNodeChildren)
-			.OnSelectionChanged(this, &SRCPanelExposedEntitiesList::OnSelectionChanged)
-			.OnContextMenuOpening(this, &SRCPanelExposedEntitiesList::OnContextMenuOpening)
-			.ClearSelectionOnClick(true)
+		SNew(SVerticalBox)
+		
+		+SVerticalBox::Slot()
+		.FillHeight(1.f)
+		[
+			SNew(SHorizontalBox)
+			
+			+SHorizontalBox::Slot()
+			.Padding(2.f, 4.f)
+			.FillWidth(0.25f)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
+				[
+					SAssignNew(GroupsListView, SListView<TSharedPtr<SRCPanelTreeNode>>)
+					.ItemHeight(24.f)
+					.OnGenerateRow(this, &SRCPanelExposedEntitiesList::OnGenerateRow)
+					.OnSelectionChanged(this, &SRCPanelExposedEntitiesList::OnSelectionChanged)
+					.SelectionMode(ESelectionMode::Single)
+					.ListItemsSource(reinterpret_cast<TArray<TSharedPtr<SRCPanelTreeNode>>*>(&FieldGroups))
+					.OnContextMenuOpening(this, &SRCPanelExposedEntitiesList::OnContextMenuOpening, SRCPanelTreeNode::Group)
+					.ClearSelectionOnClick(true)
+					.HeaderRow(
+						SNew(SHeaderRow)
+
+						+ SHeaderRow::Column(FRemoteControlPresetColumns::Groups)
+						.DefaultLabel(LOCTEXT("RCPresetGroupsColumnHeader", "Groups"))
+						.FillWidth(1.f)
+						.ToolTipText(LOCTEXT("NewGroupToolTip", "Create new group."))
+						[
+							SNew(SHorizontalBox)
+				
+							+SHorizontalBox::Slot()
+							.Padding(3.f)
+							.VAlign(VAlign_Center)
+							.AutoWidth()
+							[
+								SNew(STextBlock)
+								.ColorAndOpacity(FColor::White)
+								.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12.f))
+								.Text(LOCTEXT("GroupsLabel", "Groups"))
+							]
+	
+							+SHorizontalBox::Slot()
+							.Padding(3.f)
+							.VAlign(VAlign_Center)
+							.FillWidth(1.f)
+							[
+								SNew(SSpacer)
+							]
+	
+							+ SHorizontalBox::Slot()
+							.Padding(3.f)
+							.HAlign(HAlign_Center)
+							.VAlign(VAlign_Center)
+							.AutoWidth()
+							[
+								SNew(SButton)
+								.Visibility_Lambda([this]() { return bIsInEditMode.Get() ? EVisibility::Visible : EVisibility::Collapsed; })
+								.ButtonStyle(FAppStyle::Get(), "ToggleButton")
+								.ToolTipText(LOCTEXT("NewGroupToolTip", "Create new group."))
+								.OnClicked(this, &SRCPanelExposedEntitiesList::OnCreateGroup)
+								[
+									SNew(SOverlay)
+
+									+SOverlay::Slot()
+									.HAlign(HAlign_Center)
+									.VAlign(VAlign_Center)
+									[
+										SNew(STextBlock)
+										.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+										.ColorAndOpacity(FColor::White)
+										.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
+										.Text(FEditorFontGlyphs::Circle_O)
+									]
+
+									+SOverlay::Slot()
+									.HAlign(HAlign_Center)
+									.VAlign(VAlign_Center)
+									[
+										SNew(STextBlock)
+										.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+										.ColorAndOpacity(FColor::White)
+										.Font(FAppStyle::Get().GetFontStyle("FontAwesome.7"))
+										.Text(FEditorFontGlyphs::Plus)
+									]
+								]
+							]
+						]
+					)
+				]
+			]
+
+			+SHorizontalBox::Slot()
+			.Padding(2.f, 4.f)
+			.FillWidth(0.75f)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
+				[
+					SAssignNew(FieldsListView, SListView<TSharedPtr<SRCPanelTreeNode>>)
+					.ItemHeight(24.f)
+					.OnGenerateRow(this, &SRCPanelExposedEntitiesList::OnGenerateRow)
+					.OnSelectionChanged(this, &SRCPanelExposedEntitiesList::OnSelectionChanged)
+					.SelectionMode(ESelectionMode::Single)
+					.ListItemsSource(&FieldEntities)
+					.OnContextMenuOpening(this, &SRCPanelExposedEntitiesList::OnContextMenuOpening, SRCPanelTreeNode::Field)
+					.ClearSelectionOnClick(true)
+					.HeaderRow(
+						SNew(SHeaderRow)
+
+						+ SHeaderRow::Column(FRemoteControlPresetColumns::DragDropHandle)
+						.DefaultLabel(LOCTEXT("RCPresetDragDropHandleColumnHeader", ""))
+						.FixedWidth(36.0f)
+
+						+ SHeaderRow::Column(FRemoteControlPresetColumns::Description)
+						.DefaultLabel(LOCTEXT("RCPresetDescColumnHeader", "Description"))
+						.FillWidth(0.7f)
+
+						+ SHeaderRow::Column(FRemoteControlPresetColumns::Value)
+						.DefaultLabel(LOCTEXT("RCPresetValueColumnHeader", "Value"))
+						.FillWidth(0.7f)
+					)
+				]
+			]
+		]
 	];
 
 	RegisterEvents();
@@ -57,30 +185,49 @@ SRCPanelExposedEntitiesList::~SRCPanelExposedEntitiesList()
 	UnregisterEvents();
 }
 
-TSharedPtr<SRCPanelTreeNode> SRCPanelExposedEntitiesList::GetSelection() const
+TSharedPtr<SRCPanelTreeNode> SRCPanelExposedEntitiesList::GetSelectedGroup() const
 {
 	TArray<TSharedPtr<SRCPanelTreeNode>> SelectedNodes;
-	TreeView->GetSelectedItems(SelectedNodes);
+
+	GroupsListView->GetSelectedItems(SelectedNodes);
+
 	if (SelectedNodes.Num())
 	{
 		return SelectedNodes[0];
 	}
+
 	return nullptr;
 }
 
-void SRCPanelExposedEntitiesList::SetSelection(const TSharedPtr<SRCPanelTreeNode>& Node)
+TSharedPtr<SRCPanelTreeNode> SRCPanelExposedEntitiesList::GetSelectedEntity() const
+{
+	TArray<TSharedPtr<SRCPanelTreeNode>> SelectedNodes;
+
+	FieldsListView->GetSelectedItems(SelectedNodes);
+
+	if (SelectedNodes.Num())
+	{
+		return SelectedNodes[0];
+	}
+
+	return nullptr;
+}
+
+void SRCPanelExposedEntitiesList::SetSelection(const TSharedPtr<SRCPanelTreeNode>& Node, const bool bForceMouseClick)
 {
 	if (Node)
 	{
+		const ESelectInfo::Type SelectInfo = bForceMouseClick ? ESelectInfo::OnMouseClick : ESelectInfo::Direct;
+
 		if (TSharedPtr<SRCPanelTreeNode>* FoundTreeNode = FieldWidgetMap.Find(Node->GetRCId()))
 		{
-			TreeView->SetSelection(*FoundTreeNode);
+			FieldsListView->SetSelection(*FoundTreeNode, SelectInfo);
 			return;
 		}
 
 		if (TSharedPtr<SRCPanelGroup> SRCGroup = FindGroupById(Node->GetRCId()))
 		{
-			TreeView->SetSelection(SRCGroup);
+			GroupsListView->SetSelection(SRCGroup, SelectInfo);
 		}	
 	}
 }
@@ -132,22 +279,23 @@ void SRCPanelExposedEntitiesList::OnObjectPropertyChange(UObject* InObject, FPro
 		}
 	}
 
-	TreeView->RequestListRefresh();
+	GroupsListView->RequestListRefresh();
+	FieldsListView->RequestListRefresh();
 }
 
 void SRCPanelExposedEntitiesList::Refresh()
 {
 	GenerateListWidgets();
+
 	RefreshGroups();
 
-	for (const TSharedPtr<SRCPanelGroup>& Group : FieldGroups)
+	if (Preset.IsValid())
 	{
-		TreeView->SetItemExpansion(Group, true);
-	}
+		constexpr bool bForceMouseClick = true;
 
-	for (const TTuple<FGuid, TSharedPtr<SRCPanelTreeNode>>& FieldTuple : FieldWidgetMap)
-	{
-		TreeView->SetItemExpansion(FieldTuple.Value, false);
+		FRemoteControlPresetGroup& DefaultGroup = Preset->Layout.GetDefaultGroup();
+		GenerateListWidgets(DefaultGroup);
+		SetSelection(FindGroupById(DefaultGroup.Id), bForceMouseClick);
 	}
 }
 
@@ -169,6 +317,29 @@ void SRCPanelExposedEntitiesList::GenerateListWidgets()
 			FieldWidgetMap.Add(Entity->GetId(), FRemoteControlUIModule::Get().GenerateEntityWidget(Args));
 		}
 	}
+}
+
+void SRCPanelExposedEntitiesList::GenerateListWidgets(const FRemoteControlPresetGroup& FromGroup)
+{
+	FieldEntities.Reset();
+
+	if (FieldWidgetMap.IsEmpty())
+	{
+		FieldsListView->RequestListRefresh();
+
+		return;
+	}
+
+	if (Preset->Layout.IsDefaultGroup(FromGroup.Id))
+	{
+		FieldWidgetMap.GenerateValueArray(FieldEntities);
+	}
+	else if (TSharedPtr<SRCPanelGroup> SRCGroup = FindGroupById(FromGroup.Id))
+	{
+		SRCGroup->GetNodeChildren(FieldEntities);
+	}
+
+	FieldsListView->RequestListRefresh();
 }
 
 void SRCPanelExposedEntitiesList::RefreshGroups()
@@ -197,7 +368,7 @@ void SRCPanelExposedEntitiesList::RefreshGroups()
 		}
 	}
 
-	TreeView->RequestListRefresh();
+	GroupsListView->RequestListRefresh();
 }
 
 TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCPanelTreeNode> Node, const TSharedRef<STableViewBase>& OwnerTable)
@@ -228,7 +399,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 	if (Node->GetRCType() == SRCPanelTreeNode::Group)
 	{
 		return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
-			.Padding(FMargin(0.5f, 0.5f, 0.5f, 0.5f))
+			.Padding(1.f)
 			.Style(&FRemoteControlPanelStyle::Get()->GetWidgetStyle<FTableRowStyle>("RemoteControlPanel.GroupRow"))
 			[
 				NodeWidget
@@ -264,25 +435,35 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 		return;
 	}
 
-	// todo call handler on node itself
-	if (TSharedPtr<FRemoteControlField> RCField = Preset->GetExposedEntity<FRemoteControlField>(Node->GetRCId()).Pin())
+	if (Node->GetRCType() == SRCPanelTreeNode::Group)
 	{
-		TSet<UObject*> Objects = TSet<UObject*>{ RCField->GetBoundObjects() };
-
-		TArray<UObject*> OwnerActors;
-		for (UObject* Object : Objects)
+		if (FRemoteControlPresetGroup* RCGroup = Preset->Layout.GetGroup(Node->GetRCId()))
 		{
-			if (Object->IsA<AActor>())
-			{
-				OwnerActors.Add(Object);
-			}
-			else
-			{
-				OwnerActors.Add(Object->GetTypedOuter<AActor>());
-			}
+			GenerateListWidgets(*RCGroup);
 		}
+	}
+	else
+	{
+		// todo call handler on node itself
+		if (TSharedPtr<FRemoteControlField> RCField = Preset->GetExposedEntity<FRemoteControlField>(Node->GetRCId()).Pin())
+		{
+			TSet<UObject*> Objects = TSet<UObject*>{ RCField->GetBoundObjects() };
 
-		SelectActorsInlevel(OwnerActors);
+			TArray<UObject*> OwnerActors;
+			for (UObject* Object : Objects)
+			{
+				if (Object->IsA<AActor>())
+				{
+					OwnerActors.Add(Object);
+				}
+				else
+				{
+					OwnerActors.Add(Object->GetTypedOuter<AActor>());
+				}
+			}
+
+			SelectActorsInlevel(OwnerActors);
+		}
 	}
 
 	OnSelectionChangeDelegate.Broadcast(Node);
@@ -294,6 +475,12 @@ FReply SRCPanelExposedEntitiesList::OnDropOnGroup(const TSharedPtr<FDragDropOper
 
 	if (DragDropOperation->IsOfType<FExposedEntityDragDrop>())
 	{
+		if (Preset->Layout.IsDefaultGroup(DragTargetGroup->GetRCId()))
+		{
+			// We do not add fields to the default group.
+			return FReply::Unhandled();
+		}
+
 		if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = StaticCastSharedPtr<FExposedEntityDragDrop>(DragDropOperation))
 		{
 			FGuid DragOriginGroupId = GetGroupId(DragDropOp->GetId());
@@ -323,6 +510,8 @@ FReply SRCPanelExposedEntitiesList::OnDropOnGroup(const TSharedPtr<FDragDropOper
 			FScopedTransaction Transaction(LOCTEXT("MoveField", "Move exposed field"));
 			Preset->Modify();
 			Preset->Layout.SwapFields(Args);
+			constexpr bool bForceMouseClick = true;
+			SetSelection(FindGroupById(Args.TargetGroupId), bForceMouseClick);
 			return FReply::Handled();
 		}
 	}
@@ -358,6 +547,14 @@ FGuid SRCPanelExposedEntitiesList::GetGroupId(const FGuid& EntityId)
 	}
 
 	return GroupId;
+}
+
+FReply SRCPanelExposedEntitiesList::OnCreateGroup()
+{
+	FScopedTransaction Transaction(LOCTEXT("CreateGroup", "Create Group"));
+	Preset->Modify();
+	Preset->Layout.CreateGroup();
+	return FReply::Handled();
 }
 
 void SRCPanelExposedEntitiesList::OnDeleteGroup(const FGuid& GroupId)
@@ -414,9 +611,9 @@ TSharedPtr<SRCPanelGroup> SRCPanelExposedEntitiesList::FindGroupById(const FGuid
 	return TargetGroup;
 }
 
-TSharedPtr<SWidget> SRCPanelExposedEntitiesList::OnContextMenuOpening()
+TSharedPtr<SWidget> SRCPanelExposedEntitiesList::OnContextMenuOpening(SRCPanelTreeNode::ENodeType InType)
 {
-	if (TSharedPtr<SRCPanelTreeNode> SelectedNode = SRCPanelExposedEntitiesList::GetSelection())
+	if (TSharedPtr<SRCPanelTreeNode> SelectedNode = InType == SRCPanelTreeNode::Group ? SRCPanelExposedEntitiesList::GetSelectedGroup() : SRCPanelExposedEntitiesList::GetSelectedEntity())
 	{
 		return SelectedNode->GetContextMenu();
 	}
@@ -464,7 +661,8 @@ void SRCPanelExposedEntitiesList::OnEntityAdded(const FGuid& InEntityId)
 			if (TSharedPtr<SRCPanelGroup> SRCGroup = FindGroupById(GetGroupId(InEntityId)))
 			{
 				SRCGroup->GetNodes().Add(MoveTemp(Node));
-				TreeView->SetItemExpansion(SRCGroup, true);
+
+				GenerateListWidgets(*Preset->Layout.GetGroup(GetGroupId(InEntityId)));
 			}
 		}
 	};
@@ -477,8 +675,6 @@ void SRCPanelExposedEntitiesList::OnEntityAdded(const FGuid& InEntityId)
 	Args.Entity = Preset->GetExposedEntity(InEntityId).Pin();
 
 	ExposeEntity(FRemoteControlUIModule::Get().GenerateEntityWidget(Args));
-	
-	TreeView->RequestListRefresh();
 }
 
 void SRCPanelExposedEntitiesList::OnEntityRemoved(const FGuid& InGroupId, const FGuid& InEntityId)
@@ -492,7 +688,7 @@ void SRCPanelExposedEntitiesList::OnEntityRemoved(const FGuid& InGroupId, const 
 		}
 	}
 
-	if (const TSharedPtr<SRCPanelTreeNode> Node = GetSelection())
+	if (const TSharedPtr<SRCPanelTreeNode> Node = GetSelectedEntity())
 	{
 		if (Node->GetRCId() == InEntityId)
 		{
@@ -501,7 +697,8 @@ void SRCPanelExposedEntitiesList::OnEntityRemoved(const FGuid& InGroupId, const 
 	}
 
 	FieldWidgetMap.Remove(InEntityId);
-	TreeView->RequestListRefresh();
+	
+	GenerateListWidgets(*Preset->Layout.GetGroup(InGroupId));
 }
 
 void SRCPanelExposedEntitiesList::OnGroupAdded(const FRemoteControlPresetGroup& Group)
@@ -527,16 +724,16 @@ void SRCPanelExposedEntitiesList::OnGroupAdded(const FRemoteControlPresetGroup& 
 	}
 
 	FieldGroup->EnterRenameMode();
-	TreeView->SetSelection(FieldGroup);
-	TreeView->ScrollToBottom();
-	TreeView->RequestListRefresh();
+	GroupsListView->SetSelection(FieldGroup, ESelectInfo::OnMouseClick);
+	GroupsListView->ScrollToBottom();
+	GroupsListView->RequestListRefresh();
 }
 
 void SRCPanelExposedEntitiesList::OnGroupDeleted(FRemoteControlPresetGroup DeletedGroup)
 {
 	int32 Index = FieldGroups.IndexOfByPredicate([&DeletedGroup](const TSharedPtr<SRCPanelGroup>& Group) { return Group->GetRCId() == DeletedGroup.Id; });
 
-	if (TSharedPtr<SRCPanelTreeNode> Node = GetSelection())
+	if (TSharedPtr<SRCPanelTreeNode> Node = GetSelectedEntity())
 	{
 		if (DeletedGroup.GetFields().Contains(Node->GetRCId()))
 		{
@@ -547,7 +744,7 @@ void SRCPanelExposedEntitiesList::OnGroupDeleted(FRemoteControlPresetGroup Delet
 	if (Index != INDEX_NONE)
 	{
 		FieldGroups.RemoveAt(Index);
-		TreeView->RequestListRefresh();
+		GroupsListView->RequestListRefresh();
 	}
 }
 
@@ -567,7 +764,7 @@ void SRCPanelExposedEntitiesList::OnGroupOrderChanged(const TArray<FGuid>& Group
 	};
 
 	FieldGroups.Sort(SortFunc);
-	TreeView->RequestListRefresh();
+	GroupsListView->RequestListRefresh();
 }
 
 void SRCPanelExposedEntitiesList::OnGroupRenamed(const FGuid& GroupId, FName NewName)
@@ -611,7 +808,8 @@ void SRCPanelExposedEntitiesList::OnFieldOrderChanged(const FGuid& GroupId, cons
 		}
 	}
 
-	TreeView->RequestListRefresh();
+	GroupsListView->RequestListRefresh();
+	FieldsListView->RequestListRefresh();
 }
 
 void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const TSet<FGuid>& UpdatedEntities)
@@ -630,7 +828,8 @@ void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const
 	{
 		if (TSharedPtr<SRCPanelExposedEntitiesList> ListPtr = WeakListPtr.Pin())
 		{
-			ListPtr->TreeView->RequestListRefresh();
+			ListPtr->GroupsListView->RequestListRefresh();
+			ListPtr->FieldsListView->RequestListRefresh();
 		}
 	}));
 

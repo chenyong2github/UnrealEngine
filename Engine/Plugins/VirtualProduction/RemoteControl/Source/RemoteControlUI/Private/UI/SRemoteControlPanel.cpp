@@ -64,7 +64,6 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
@@ -247,6 +246,29 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 
 	BindRemoteControlCommands();
 
+	// Rebind All
+	AddToolbarWidget(SNew(SButton)
+		.Visibility_Lambda([this]() { return bShowRebindButton ? EVisibility::Visible : EVisibility::Collapsed; })
+		.OnClicked_Raw(this, &SRemoteControlPanel::OnClickRebindAllButton)
+		[
+			SNew(STextBlock)
+			.ToolTipText(LOCTEXT("RebindButtonToolTip", "Attempt to rebind all unbound entites of the preset."))
+			.Text(LOCTEXT("RebindButtonText", "Rebind All"))
+		]);
+
+	// Show Log
+	AddToolbarWidget(SNew(SCheckBox)
+		.Style(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Switch")
+		.ToolTipText(LOCTEXT("ShowLogTooltip", "Show/Hide remote control log."))
+		.IsChecked_Lambda([]() { return FRemoteControlLogger::Get().IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+		.OnCheckStateChanged(this, &SRemoteControlPanel::OnLogCheckboxToggle)
+		.Padding(4.f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("ShowLogLabel", "Log"))
+			.Justification(ETextJustify::Center)
+		]);
+
 	// Edit Mode
 	AddToolbarWidget(SNew(SCheckBox)
 		.Style(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Switch")
@@ -267,38 +289,6 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		AddToolbarWidget(Widget);
 	}
 
-	// Settings
-	AddToolbarWidget(SNew(SButton)
-		.ContentPadding(2.0f)
-		.ButtonStyle(FAppStyle::Get(), "FlatButton")
-		.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-		.OnClicked_Raw(this, &SRemoteControlPanel::OnClickSettingsButton)
-		.ToolTipText(LOCTEXT("OpenRemoteControlSettings", "Open Remote Control settings."))
-		[
-			SNew(SHorizontalBox)
-
-			+SHorizontalBox::Slot()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			.Padding(0.f, 2.f, 4.f, 2.f)
-			[
-				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("Icons.Toolbar.Settings"))
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
-
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Fill)
-			.VAlign(VAlign_Center)
-			.FillWidth(1.f)
-			.Padding(4.f, 2.f, 0.f, 2.f)
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("SettingsLabel", "Settings"))
-			]
-		]);
-
 	GenerateToolbar();
 	GenerateAuxiliaryToolbar();
 
@@ -311,7 +301,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get(), WidgetRegistry)
 		.OnEntityListUpdated_Lambda([this] ()
 		{
-			UpdateEntityDetailsView(EntityList->GetSelection());
+			UpdateEntityDetailsView(EntityList->GetSelectedEntity());
 			UpdateRebindButtonVisibility();
 			CachedExposedPropertyArgs.Reset();
 		})
@@ -385,6 +375,25 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				[
 					SNew(SImage)
 					.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
+			
+			// Settings
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(3.f, 3.f, 3.f, 3.f)
+			[
+				SNew(SButton)
+				.ContentPadding(2.0f)
+				.ButtonStyle(FAppStyle::Get(), "FlatButton")
+				.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+				.OnClicked_Raw(this, &SRemoteControlPanel::OnClickSettingsButton)
+				.ToolTipText(LOCTEXT("OpenRemoteControlSettings", "Open Remote Control settings."))
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Toolbar.Settings"))
 					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
@@ -832,12 +841,9 @@ void SRemoteControlPanel::ToggleProperty(const FRCExposesPropertyArgs& InPropert
 
 FGuid SRemoteControlPanel::GetSelectedGroup() const
 {
-	if (TSharedPtr<SRCPanelTreeNode> Node = EntityList->GetSelection())
+	if (TSharedPtr<SRCPanelTreeNode> Node = EntityList->GetSelectedGroup())
 	{
-		if (Node->GetRCType() == SRCPanelTreeNode::Group)
-		{
-			return Node->GetRCId();		
-		}
+		return Node->GetRCId();
 	}
 	return FGuid();
 }
@@ -1141,6 +1147,16 @@ void SRemoteControlPanel::BindRemoteControlCommands()
 		Commands.ToggleLogicEditor,
 		FExecuteAction::CreateLambda([this] { OnToggleLogicEditor(); }),
 		FCanExecuteAction::CreateLambda([] { return true; }));
+
+	ActionList.MapAction(
+		Commands.DeleteEntity,
+		FExecuteAction::CreateSP(this, &SRemoteControlPanel::DeleteEntity_Execute),
+		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanDeleteEntity));
+
+	ActionList.MapAction(
+		Commands.RenameEntity,
+		FExecuteAction::CreateSP(this, &SRemoteControlPanel::RenameEntity_Execute),
+		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanRenameEntity));
 }
 
 void SRemoteControlPanel::UnbindRemoteControlCommands()
@@ -1158,6 +1174,8 @@ void SRemoteControlPanel::UnbindRemoteControlCommands()
 		ActionList.UnmapAction(Commands.ToggleExposeFunctions);
 		ActionList.UnmapAction(Commands.ToggleProtocolMappings);
 		ActionList.UnmapAction(Commands.ToggleLogicEditor);
+		ActionList.UnmapAction(Commands.DeleteEntity);
+		ActionList.UnmapAction(Commands.RenameEntity);
 	}
 }
 
@@ -1396,7 +1414,7 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateEntityDetailsView()
 
 	EntityDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateStructureDetailView(MoveTemp(Args), FStructureDetailsViewArgs(), nullptr);
 
-	UpdateEntityDetailsView(EntityList->GetSelection());
+	UpdateEntityDetailsView(EntityList->GetSelectedEntity());
 	if (ensure(EntityDetailsView && EntityDetailsView->GetWidget()))
 	{
 		return EntityDetailsView->GetWidget().ToSharedRef();
@@ -1408,6 +1426,8 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateEntityDetailsView()
 void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode)
 {
 	TSharedPtr<FStructOnScope> SelectedEntityPtr;
+
+	SelectedEntity = SelectedNode;
 
 	if (SelectedNode)
 	{
@@ -1575,7 +1595,7 @@ void SRemoteControlPanel::GenerateToolbar()
 				[
 					SNew(SSeparator)
 					.SeparatorImage(FAppStyle::Get().GetBrush("Separator"))
-					.Thickness(2.f)
+					.Thickness(1.5f)
 					.Orientation(EOrientation::Orient_Vertical)
 				];
 
@@ -1606,22 +1626,6 @@ void SRemoteControlPanel::GenerateToolbar()
 		[
 			SNew(STextBlock)
 			.Text(this, &SRemoteControlPanel::HandlePresetName)
-		]
-		+ SHorizontalBox::Slot()
-		.Padding(5.f, 0.f)
-		.HAlign(HAlign_Fill)
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(SCheckBox)
-			.IsChecked_Lambda([]() { return FRemoteControlLogger::Get().IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-			.OnCheckStateChanged(this, &SRemoteControlPanel::OnLogCheckboxToggle)
-			.Padding(FMargin(5.f, 0.f))
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ShowLogLabel", "Show Log"))
-				.Justification(ETextJustify::Center)
-			]
 		]
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
@@ -1797,6 +1801,61 @@ void SRemoteControlPanel::OnToggleProtocolMappings() const
 
 void SRemoteControlPanel::OnToggleLogicEditor() const
 {
+}
+
+void SRemoteControlPanel::DeleteEntity_Execute() const
+{
+	if (SelectedEntity->GetRCType() == SRCPanelTreeNode::FieldChild) // Field Child does not contain entity ID, that is why it should not be processed
+	{
+		return;
+	}
+
+	if (SelectedEntity->GetRCType() == SRCPanelTreeNode::Group)
+	{
+		FScopedTransaction Transaction(LOCTEXT("DeleteGroup", "Delete Group"));
+		Preset->Modify();
+		Preset->Layout.DeleteGroup(SelectedEntity->GetRCId());
+	}
+	else
+	{
+		FScopedTransaction Transaction(LOCTEXT("UnexposeFunction", "Unexpose remote control entity"));
+		Preset->Modify();
+		Preset->Unexpose(SelectedEntity->GetRCId());
+	}
+
+	EntityList->Refresh();
+}
+
+bool SRemoteControlPanel::CanDeleteEntity() const
+{
+	if (SelectedEntity.IsValid() && Preset.IsValid() && bIsInEditMode)
+	{
+		// Do not allow default group to be deleted.
+		return !Preset->Layout.IsDefaultGroup(SelectedEntity->GetRCId());
+	}
+
+	return false;
+}
+
+void SRemoteControlPanel::RenameEntity_Execute() const
+{
+	if (SelectedEntity->GetRCType() == SRCPanelTreeNode::FieldChild) // Field Child does not contain entity ID, that is why it should not be processed
+	{
+		return;
+	}
+
+	SelectedEntity->EnterRenameMode();
+}
+
+bool SRemoteControlPanel::CanRenameEntity() const
+{
+	if (SelectedEntity.IsValid() && Preset.IsValid() && bIsInEditMode)
+	{
+		// Do not allow default group to be renamed.
+		return !Preset->Layout.IsDefaultGroup(SelectedEntity->GetRCId());
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE /*RemoteControlPanel*/

@@ -248,6 +248,18 @@ private:
 	void OnToggleProtocolMappings() const;
 
 	void OnToggleLogicEditor() const;
+	
+	/** Called when user attempts to delete a group/exposed entity. */
+	void DeleteEntity_Execute() const;
+
+	/** Called to test if user is able to delete a group/exposed entity. */
+	bool CanDeleteEntity() const;
+	
+	/** Called when user attempts to rename a group/exposed entity. */
+	void RenameEntity_Execute() const;
+
+	/** Called to test if user is able to rename a group/exposed entity. */
+	bool CanRenameEntity() const;
 
 private:
 	static const FName DefaultRemoteControlPanelToolBarName;
@@ -302,6 +314,8 @@ private:
 	TArray<TSharedRef<SWidget>> ToolbarWidgets;
 	/** The text box used to search for tags. */
 	TSharedPtr<SSearchBox> SearchBoxPtr;
+	/** Holds a shared pointer reference to the active entity that is selected. */
+	TSharedPtr<SRCPanelTreeNode> SelectedEntity;
 
 public:
 	static const float MinimumPanelWidth;

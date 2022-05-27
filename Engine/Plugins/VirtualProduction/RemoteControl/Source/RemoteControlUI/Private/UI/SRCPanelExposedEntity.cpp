@@ -3,6 +3,7 @@
 #include "SRCPanelExposedEntity.h"
 
 #include "ActorTreeItem.h"
+#include "Commands/RemoteControlCommands.h"
 #include "Editor.h"
 #include "EditorFontGlyphs.h"
 #include "Engine/Selection.h"
@@ -10,6 +11,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "RemoteControlBinding.h"
 #include "RemoteControlEntity.h"
 #include "RemoteControlPreset.h"
@@ -55,7 +57,18 @@ TSharedPtr<FRemoteControlEntity> SRCPanelExposedEntity::GetEntity() const
 
 TSharedPtr<SWidget> SRCPanelExposedEntity::GetContextMenu()
 {
-	FMenuBuilder MenuBuilder(true, TSharedPtr<const FUICommandList>());
+	IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
+
+	FMenuBuilder MenuBuilder(true, MainFrame.GetMainFrameCommandBindings());
+
+	MenuBuilder.BeginSection("Common");
+
+	MenuBuilder.AddMenuEntry(FRemoteControlCommands::Get().RenameEntity, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("GenericCommands.Rename")));
+	MenuBuilder.AddMenuEntry(FRemoteControlCommands::Get().DeleteEntity, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("GenericCommands.Delete")));
+
+	MenuBuilder.EndSection();
+
+	MenuBuilder.AddSeparator();
 
 	constexpr bool bNoIndent = true;
 	MenuBuilder.AddWidget(CreateUseContextCheckbox(), LOCTEXT("UseContextLabel", "Use Context"), bNoIndent);
@@ -87,6 +100,11 @@ TSharedPtr<SWidget> SRCPanelExposedEntity::GetContextMenu()
 			}));
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SRCPanelExposedEntity::EnterRenameMode()
+{
+	bNeedsRename = true;
 }
 
 void SRCPanelExposedEntity::Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbEditMode)
@@ -309,6 +327,7 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget
             .Text(FEditorFontGlyphs::Exclamation_Triangle)
 		]
 		+ SHorizontalBox::Slot()
+		.Padding(4.f, 0.f, 2.0f, 0.f)
 		.AutoWidth()
 		[
 			SAssignNew(NameTextBox, SInlineEditableTextBlock)
@@ -318,32 +337,11 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget
 			.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); })
 		];
 
-	Args.RenameButton = SNew(SButton)
-		.Visibility_Raw(this, &SRCPanelExposedEntity::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
-		.ButtonStyle(FAppStyle::Get(), "FlatButton")
-		.OnClicked_Lambda([this]() {
-			bNeedsRename = true;
-			return FReply::Handled();
-		})
-		[
-			SNew(STextBlock)
-				.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FText::FromString(FString(TEXT("\xf044"))) /*fa-edit*/)
-		];
+	Args.RenameButton = SNullWidget::NullWidget;
 
 	Args.ValueWidget = ValueWidget;
 
-	Args.UnexposeButton = SNew(SButton)
-		.Visibility_Raw(this, &SRCPanelExposedEntity::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
-		.OnPressed_Raw(this, &SRCPanelExposedEntity::HandleUnexposeEntity)
-		.ButtonStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.UnexposeButton")
-		[
-			SNew(STextBlock)
-			.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-			.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
-		];
+	Args.UnexposeButton = SNullWidget::NullWidget;
 
 	Widget->SetContent(MakeNodeWidget(Args));
 	return Widget;

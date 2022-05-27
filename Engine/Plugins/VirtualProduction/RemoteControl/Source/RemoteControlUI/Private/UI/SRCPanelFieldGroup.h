@@ -57,12 +57,14 @@ public:
 	TArray<TSharedPtr<SRCPanelTreeNode>>& GetNodes() { return Nodes; }
 
 	/** Make the group name's text box editable. */
-	void EnterRenameMode();
+	virtual void EnterRenameMode() override;
 
 	//~ SRCPanelTreeNode Interface
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const override;
+	virtual TSharedPtr<SWidget> GetContextMenu() override;
 	virtual FGuid GetRCId() const override;
 	virtual ENodeType GetRCType() const override;
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
 private:
 	//~ Handle drag/drop events
@@ -82,6 +84,8 @@ private:
 	bool OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage);
 
 	void OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo);
+
+	const FSlateBrush* HandleGroupColor() const;
 
 private:
 	/** Event called when something is dropped on this group. */

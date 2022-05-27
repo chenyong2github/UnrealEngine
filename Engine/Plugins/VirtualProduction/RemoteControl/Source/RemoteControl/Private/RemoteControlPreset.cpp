@@ -45,7 +45,7 @@ static TAutoConsoleVariable<int32> CVarRemoteControlFramesBetweenPropertyWatch(T
 namespace
 {
 	FGuid DefaultGroupId = FGuid(0x5DFBC958, 0xF3B311EA, 0x9A3F00EE, 0xFB2CA371);
-	FName NAME_DefaultLayoutGroup = FName("Default Group");
+	FName NAME_DefaultLayoutGroup = FName("All");
 	FName NAME_DefaultNewGroup = FName("New Group");
 	const FString DefaultObjectPrefix = TEXT("Default__");
 
@@ -147,6 +147,26 @@ FRemoteControlPresetGroup& FRemoteControlPresetLayout::GetDefaultGroup()
 	{
 		return CreateGroupInternal(NAME_DefaultLayoutGroup, DefaultGroupId);
 	}
+}
+
+bool FRemoteControlPresetLayout::IsDefaultGroup(FGuid GroupId) const
+{
+	return GroupId == DefaultGroupId;
+}
+
+FLinearColor FRemoteControlPresetLayout::GetTagColor(FGuid GroupId)
+{
+	if (IsDefaultGroup(GroupId))
+	{
+		return FLinearColor::Transparent;
+	}
+
+	if (FRemoteControlPresetGroup* Group = GetGroup(GroupId))
+	{
+		return Group->TagColor;
+	}
+
+	return FLinearColor::White;
 }
 
 FRemoteControlPresetGroup* FRemoteControlPresetLayout::GetGroup(FGuid GroupId)

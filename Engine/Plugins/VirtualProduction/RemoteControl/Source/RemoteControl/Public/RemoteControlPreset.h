@@ -101,6 +101,7 @@ struct REMOTECONTROL_API FRemoteControlPresetGroup
 	FRemoteControlPresetGroup(FName InName, FGuid InId)
 		: Name(InName)
 		, Id(MoveTemp(InId))
+		, TagColor(MakeSimilarSaturatedColor())
 	{}
 
 	/** Get the fields under this group. */
@@ -113,6 +114,18 @@ struct REMOTECONTROL_API FRemoteControlPresetGroup
 	{
 		return LHS.Id == RHS.Id;
 	}
+
+private:
+
+	/**
+	* Makes a random but similar saturated color.
+	*/
+	static FLinearColor MakeSimilarSaturatedColor(float InSaturationLevel = 0.5f)
+	{
+		const uint8 Hue = (uint8)(FMath::FRand() * 255.f);
+		const uint8 Saturation = (uint8)(255.f * InSaturationLevel);
+		return FLinearColor::MakeFromHSV8(Hue, Saturation, 255);
+	}
  
 public:
 	/** Name of this group. */
@@ -122,6 +135,10 @@ public:
 	/** This group's ID. */
 	UPROPERTY()
 	FGuid Id;
+
+	/* Color Tag for this group. */
+	UPROPERTY()
+	FLinearColor TagColor;
 
 private:
 	/** The list of exposed fields under this group. */
@@ -149,6 +166,12 @@ struct REMOTECONTROL_API FRemoteControlPresetLayout
 
 	/** Get or create the default group. */
 	FRemoteControlPresetGroup& GetDefaultGroup();
+
+	/** Returns true when the given group id is a default one. */
+	bool IsDefaultGroup(FGuid GroupId) const;
+	
+	/** Returns the tag color of the given group id. */
+	FLinearColor GetTagColor(FGuid GroupId);
 
 	/**
 	 * Get a group by searching by ID.

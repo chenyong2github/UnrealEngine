@@ -2,6 +2,8 @@
 
 #include "SRCPanelFieldGroup.h"
 
+#include "Commands/RemoteControlCommands.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
 #include "ScopedTransaction.h"
@@ -47,15 +49,25 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 
 	TSharedRef<SWidget> LeftColumn = 
 		SNew(SHorizontalBox)
+		// Color band
+		+ SHorizontalBox::Slot()
+		.VAlign(VAlign_Fill)
+		.HAlign(HAlign_Center)
+		.Padding(0.f, 0.f, 2.f, 0.f)
+		.AutoWidth()
+		[
+			SNew(SBorder)
+			.BorderImage(this, &SRCPanelGroup::HandleGroupColor)
+		]
 		// Drag and drop handle
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Fill)
 		.HAlign(HAlign_Center)
-		.Padding(FMargin(4.0f, 0.0f))
+		.Padding(0.f, 4.f)
 		.AutoWidth()
 		[
 			SNew(SBox)
-			.Padding(FMargin(0.0f, 2.0f) )
+			.Padding(2.f, 0.f)
 			.Visibility(this, &SRCPanelGroup::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
 			[
 				SNew(SRCPanelDragHandle<FFieldGroupDragDropOp>, Id)
@@ -64,61 +76,20 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 		]
 		+ SHorizontalBox::Slot()
 		// Group name
-		.FillWidth(1.0f)
-		.VAlign(VAlign_Fill)
-		.Padding(FMargin(0.f, 0.f, 0.f, 2.f))
+		.FillWidth(1.f)
+		.VAlign(VAlign_Center)
+		.Padding(6.f, 4.f)
 		.AutoWidth()
 		[
 			SAssignNew(NameTextBox, SInlineEditableTextBlock)
 			.ColorAndOpacity(this, &SRCPanelGroup::GetGroupNameTextColor)
-			.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
+			.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.BoldFont"))
 			.Text(FText::FromName(Name))
 			.OnTextCommitted(this, &SRCPanelGroup::OnLabelCommitted)
 			.OnVerifyTextChanged(this, &SRCPanelGroup::OnVerifyItemLabelChanged)
 			.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); })
-		]
-		+ SHorizontalBox::Slot()
-		// Rename button
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Left)
-		[
-			SNew(SButton)
-			.Visibility(this, &SRCPanelGroup::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
-			.ButtonStyle(FAppStyle::Get(), "FlatButton")
-			.OnClicked_Lambda([this] () 
-				{
-					bNeedsRename = true;
-					return FReply::Handled();	
-				})
-			[
-				SNew(STextBlock)
-				.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FText::FromString(FString(TEXT("\xf044"))) /*fa-edit*/)
-			]
 		];
 
-	TSharedRef<SWidget> RightColumn =
-		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.VAlign(VAlign_Top)
-		.HAlign(HAlign_Right)
-		.Padding(0, 2.0f)
-		.FillWidth(1.f)
-		[
-			SNew(SButton)
-			.Visibility_Raw(this, &SRCPanelGroup::GetVisibilityAccordingToEditMode, EVisibility::Hidden)
-			.OnClicked(this, &SRCPanelGroup::HandleDeleteGroup)
-			.ButtonStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.UnexposeButton")
-			[
-				SNew(STextBlock)
-				.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-				.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
-			]
-		];
-	
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -126,14 +97,18 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 		.BorderImage(this, &SRCPanelGroup::GetBorderImage)
 		.VAlign(VAlign_Fill)
 		[
-			SNew(SDropTarget)
-			.VerticalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.VerticalDash"))
-			.HorizontalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.HorizontalDash"))
-			.OnDropped_Lambda([this](const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) { return OnFieldDropGroup(InDragDropEvent.GetOperation(), nullptr); })
-			.OnAllowDrop(this, &SRCPanelGroup::OnAllowDropFromOtherGroup)
-			.OnIsRecognized(this, &SRCPanelGroup::OnAllowDropFromOtherGroup)
+			SNew(SBox)
+			.HeightOverride(32.f)
 			[
-				MakeSplitRow(LeftColumn, RightColumn)
+				SNew(SDropTarget)
+				.VerticalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.VerticalDash"))
+				.HorizontalImage(FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.HorizontalDash"))
+				.OnDropped_Lambda([this](const FGeometry& InGeometry, const FDragDropEvent& InDragDropEvent) { return OnFieldDropGroup(InDragDropEvent.GetOperation(), nullptr); })
+				.OnAllowDrop(this, &SRCPanelGroup::OnAllowDropFromOtherGroup)
+				.OnIsRecognized(this, &SRCPanelGroup::OnAllowDropFromOtherGroup)
+				[
+					LeftColumn
+				]
 			]
 		]
 	];
@@ -160,6 +135,22 @@ void SRCPanelGroup::GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChi
 	OutChildren.Append(Nodes);
 }
 
+TSharedPtr<SWidget> SRCPanelGroup::GetContextMenu()
+{
+	IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
+
+	FMenuBuilder MenuBuilder(true, MainFrame.GetMainFrameCommandBindings());
+
+	MenuBuilder.BeginSection("Common");
+
+	MenuBuilder.AddMenuEntry(FRemoteControlCommands::Get().RenameEntity, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("GenericCommands.Rename")));
+	MenuBuilder.AddMenuEntry(FRemoteControlCommands::Get().DeleteEntity, NAME_None, TAttribute<FText>(), TAttribute<FText>(), FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("GenericCommands.Delete")));
+
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
 FGuid SRCPanelGroup::GetRCId() const
 {
 	return Id;
@@ -168,6 +159,18 @@ FGuid SRCPanelGroup::GetRCId() const
 SRCPanelTreeNode::ENodeType SRCPanelGroup::GetRCType() const
 {
 	return SRCPanelTreeNode::Group;
+}
+
+FReply SRCPanelGroup::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
+{
+	check(Preset.IsValid());
+
+	if (Preset->Layout.IsDefaultGroup(Id))
+	{
+		return SCompoundWidget::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
+	}
+
+	return SRCPanelTreeNode::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
 }
 
 FReply SRCPanelGroup::OnFieldDropGroup(const FDragDropEvent& Event, TSharedPtr<SRCPanelTreeNode> TargetField)
@@ -263,6 +266,13 @@ void SRCPanelGroup::OnLabelCommitted(const FText& InLabel, ETextCommit::Type InC
 	FScopedTransaction Transaction(LOCTEXT("RenameGroup", "Rename Group"));
 	Preset->Modify();
 	Preset->Layout.RenameGroup(Id, FName(*InLabel.ToString()));
+}
+
+const FSlateBrush* SRCPanelGroup::HandleGroupColor() const
+{
+	check(Preset.IsValid());
+
+	return new FSlateColorBrush(Preset->Layout.GetTagColor(Id));
 }
 
 #undef LOCTEXT_NAMESPACE

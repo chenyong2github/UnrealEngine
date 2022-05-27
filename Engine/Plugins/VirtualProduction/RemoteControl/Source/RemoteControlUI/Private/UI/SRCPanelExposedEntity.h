@@ -26,6 +26,8 @@ struct SRCPanelExposedEntity : public SRCPanelTreeNode
 	TSharedPtr<FRemoteControlEntity> GetEntity() const;
 	virtual TSharedPtr<SWidget> GetContextMenu() override;
 	virtual FGuid GetRCId() const override final { return EntityId; }
+	/** Make the group name's text box editable. */
+	virtual void EnterRenameMode() override;
 
 protected:
 	void Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbEditMode);

@@ -50,4 +50,14 @@ public:
 	 * Holds the information about UI Command that brings up a panel which enables the RC Logical Behaviour.
 	 */
 	TSharedPtr<FUICommandInfo> ToggleLogicEditor;
+
+	/**
+	 * Holds the information about UI Command that deletes currently selected group/exposed entity.
+	 */
+	TSharedPtr< FUICommandInfo > DeleteEntity;
+
+	/**
+	 * Holds the information about UI Command that  renames selected group/exposed entity.
+	 */
+	TSharedPtr< FUICommandInfo > RenameEntity;
 };

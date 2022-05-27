@@ -41,6 +41,10 @@ struct SRCPanelTreeNode : public SCompoundWidget
 	virtual TSharedPtr<SWidget> GetContextMenu() { return nullptr; }
 	/** Set whether this widget is currently hovered when drag and dropping. */
 	virtual void SetIsHovered(bool bIsBeingHovered) {}
+	/** Make the node name's text box editable. */
+	virtual void EnterRenameMode() {};
+
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override { if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton) { EnterRenameMode(); } return SCompoundWidget::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent); };
 
 protected:
 	struct FMakeNodeWidgetArgs
