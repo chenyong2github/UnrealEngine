@@ -62,7 +62,7 @@ namespace UnrealBuildTool
 					"BenchmarkTool",
 					"BlankProgram",
 					"BuildPatchTool",
-					"ShaderCompileWorker",
+					/* "ShaderCompileWorker", // blocked on ISPCTexComp */
 					"UnrealClient",
 					"UnrealGame", 
 					"UnrealServer",
