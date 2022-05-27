@@ -4999,7 +4999,15 @@ namespace UnrealGameSync
 					if (CanSyncChange(Change.Number)
 						&& CanSyncChangeType(ChangeType, Change, Summary))
 					{
-						ChangeNumber = FindNewestGoodContentChange(Change.Number);
+						if (ChangeType.bFindNewestGoodContent)
+						{
+							ChangeNumber = FindNewestGoodContentChange(Change.Number);
+						}
+						else
+						{
+							ChangeNumber = Change.Number;
+						}
+						
 						return true;
 					}
 				}
