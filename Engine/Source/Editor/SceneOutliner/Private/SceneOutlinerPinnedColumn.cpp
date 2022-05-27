@@ -102,7 +102,7 @@ private:
 			}
 			else
 			{
-				Outliner->PinItem(TreeItem);
+				Outliner->PinItems({ TreeItem });
 			}
 		}
 		else
@@ -113,7 +113,7 @@ private:
 			}
 			else
 			{
-				Outliner->UnpinItem(TreeItem);
+				Outliner->UnpinItems({ TreeItem });
 			}
 		}
 

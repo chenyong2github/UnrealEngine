@@ -170,8 +170,8 @@ public:
 	void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 
 	// Actors pinning
-	AActor* PinActor(const FGuid& ActorGuid);
-	void UnpinActor(const FGuid& ActorGuid);
+	void PinActors(const TArray<FGuid>& ActorGuids);
+	void UnpinActors(const TArray<FGuid>& ActorGuids);
 	bool IsActorPinned(const FGuid& ActorGuid) const;
 
 	void LoadLastLoadedRegions(const TArray<FBox>& EditorLastLoadedRegions);

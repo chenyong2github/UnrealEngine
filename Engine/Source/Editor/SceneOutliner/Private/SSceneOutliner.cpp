@@ -2276,14 +2276,14 @@ FReply SSceneOutliner::OnDragOverItem(const FDragDropEvent& Event, const ISceneO
 	return Mode->OnDragOverItem(Event, Item); 
 }
 
-void SSceneOutliner::PinItem(const FSceneOutlinerTreeItemPtr& InItem)
+void SSceneOutliner::PinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems)
 {
-	Mode->PinItem(InItem);
+	Mode->PinItems(InItems);
 }
 
-void SSceneOutliner::UnpinItem(const FSceneOutlinerTreeItemPtr& InItem)
+void SSceneOutliner::UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems)
 {
-	Mode->UnpinItem(InItem);
+	Mode->UnpinItems(InItems);
 }
 
 void SSceneOutliner::PinSelectedItems()

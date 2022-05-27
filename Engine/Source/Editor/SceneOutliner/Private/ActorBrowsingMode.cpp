@@ -1748,6 +1748,38 @@ namespace ActorBrowsingModeUtils
 			}
 		}
 	}
+
+	static void RecursiveAddItemsToActorGuidList(const TArray<FSceneOutlinerTreeItemPtr>& Items, TArray<FGuid>& List)
+	{
+		for (const FSceneOutlinerTreeItemPtr& Item : Items)
+		{
+			if (const FActorDescTreeItem* const ActorDescTreeItem = Item->CastTo<FActorDescTreeItem>())
+			{
+				List.Add(ActorDescTreeItem->GetGuid());
+			}
+			else if (const FActorTreeItem* const ActorTreeItem = Item->CastTo<FActorTreeItem>())
+			{
+				if (ActorTreeItem->Actor.IsValid())
+				{
+					List.Add(ActorTreeItem->Actor->GetActorGuid());
+				}
+			}
+
+			TArray<FSceneOutlinerTreeItemPtr> ChildrenItems;
+			for (const auto& Child : Item->GetChildren())
+			{
+				if (Child.IsValid())
+				{
+					ChildrenItems.Add(Child.Pin());
+				}
+			}
+
+			if (ChildrenItems.Num())
+			{
+				RecursiveAddItemsToActorGuidList(ChildrenItems, List);
+			}
+		}
+	};
 }
 
 void FActorBrowsingMode::SelectFoldersDescendants(const TArray<FFolderTreeItem*>& FolderItems, bool bSelectImmediateChildrenOnly)
@@ -1775,94 +1807,77 @@ void FActorBrowsingMode::SelectFoldersDescendants(const TArray<FFolderTreeItem*>
 	GEditor->NoteSelectionChange();
 }
 
-void FActorBrowsingMode::PinItem(const FSceneOutlinerTreeItemPtr& InItem)
+void FActorBrowsingMode::PinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems)
 {
-	AActor* PinnedActor = nullptr;
-	if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
+	UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition();
+	if (!WorldPartition)
 	{
-		if (const FActorDescTreeItem* const ActorDescTreeItem = InItem->CastTo<FActorDescTreeItem>())
+		return;
+	}
+
+	TArray<FGuid> ActorsToPin;
+	ActorBrowsingModeUtils::RecursiveAddItemsToActorGuidList(InItems, ActorsToPin);
+
+	if (ActorsToPin.Num())
+	{
+		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
+		GEditor->SelectNone(/*bNoteSelectionChange=*/false, /*bDeselectBSPSurfs=*/true);
+
+		WorldPartition->PinActors(ActorsToPin);
+
+		AActor* LastPinnedActor = nullptr;
+		for (const FGuid& ActorGuid : ActorsToPin)
 		{
-			PinnedActor = WorldPartition->PinActor(ActorDescTreeItem->GetGuid());
-		}
-		else if (const FActorTreeItem* const ActorTreeItem = InItem->CastTo<FActorTreeItem>())
-		{
-			if (ActorTreeItem->Actor.IsValid())
+			if (FWorldPartitionHandle ActorHandle(WorldPartition, ActorGuid); ActorHandle.IsValid())
 			{
-				PinnedActor = WorldPartition->PinActor(ActorTreeItem->Actor->GetActorGuid());
+				if (AActor* PinnedActor = ActorHandle->GetActor())
+				{
+					GEditor->SelectActor(PinnedActor, /*bInSelected=*/true, /*bNotify=*/false);
+					LastPinnedActor = PinnedActor;
+				}
 			}
 		}
-	}
 
-	// Check if we need to start a batch selection
-	bool bIsBatchSelectOwner = false;
-	if (PinnedActor)
-	{
-		const bool bIsBatchSelecting = GEditor->GetSelectedActors()->IsBatchSelecting();
-		if (!bIsBatchSelecting)
-		{
-			bIsBatchSelectOwner = true;
-			GEditor->GetSelectedActors()->BeginBatchSelectOperation();
-			GEditor->SelectNone(/*bNoteSelectionChange=*/false, /*bDeselectBSPSurfs=*/true);
-			SceneOutliner->OnItemAdded(PinnedActor, SceneOutliner::ENewItemAction::ScrollIntoView);
-		}
-
-		GEditor->SelectActor(PinnedActor, /*bInSelected=*/true, /*bNotify=*/false);
-	}
-
-	// Recursively pin all children.
-	for (const auto& Child : InItem->GetChildren())
-	{
-		if (Child.IsValid())
-		{
-			PinItem(Child.Pin());
-	    }
-	}
-
-	// End batch selection if needed
-	if (bIsBatchSelectOwner)
-	{
 		GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify=*/true);
+
+		if (LastPinnedActor)
+		{
+			SceneOutliner->OnItemAdded(LastPinnedActor, SceneOutliner::ENewItemAction::ScrollIntoView);
+		}
 	}
 }
 
-void FActorBrowsingMode::UnpinItem(const FSceneOutlinerTreeItemPtr& InItem)
+void FActorBrowsingMode::UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems)
 {
-	// Check if we need to start a batch selection
-	bool bIsBatchSelectOwner = !GEditor->GetSelectedActors()->IsBatchSelecting();
-	if (bIsBatchSelectOwner)
+	UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition();
+	if (!WorldPartition)
 	{
-		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
-	}
-	
-	// Recursively unpin all children
-	for (const auto& Child : InItem->GetChildren())
-	{
-		if (Child.IsValid())
-		{
-			UnpinItem(Child.Pin());
-		}
-	}
-	
-	if (UWorldPartition* const WorldPartition = RepresentingWorld->GetWorldPartition())
-	{
-		if (const FActorDescTreeItem* const ActorDescTreeItem = InItem->CastTo<FActorDescTreeItem>())
-		{
-			WorldPartition->UnpinActor(ActorDescTreeItem->GetGuid());
-		}
-		else if (const FActorTreeItem* const ActorTreeItem = InItem->CastTo<FActorTreeItem>())
-		{
-			if (AActor* PinnedActor = ActorTreeItem->Actor.Get())
-			{
-				GEditor->SelectActor(PinnedActor, /*bInSelected=*/false, /*bNotify=*/false);
-				WorldPartition->UnpinActor(PinnedActor->GetActorGuid());
-			}
-		}
+		return;
 	}
 
-	if (bIsBatchSelectOwner)
+	TArray<FGuid> ActorsToUnpin;
+	ActorBrowsingModeUtils::RecursiveAddItemsToActorGuidList(InItems, ActorsToUnpin);
+
+	if (ActorsToUnpin.Num())
 	{
+		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
+
+		AActor* LastPinnedActor = nullptr;
+		for (const FGuid& ActorGuid : ActorsToUnpin)
+		{
+			if (FWorldPartitionHandle ActorHandle(WorldPartition, ActorGuid); ActorHandle.IsValid())
+			{
+				if (AActor* PinnedActor = ActorHandle->GetActor())
+				{
+					GEditor->SelectActor(PinnedActor, /*bInSelected=*/false, /*bNotify=*/false);
+				}
+			}
+		}
+
+		WorldPartition->UnpinActors(ActorsToUnpin);
+
 		GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify=*/true);
-	}
+	}	
 }
 
 void FActorBrowsingMode::PinSelectedItems()
@@ -1870,21 +1885,13 @@ void FActorBrowsingMode::PinSelectedItems()
 	const FSceneOutlinerItemSelection Selection = SceneOutliner->GetSelection();
 	if (Selection.Num())
 	{
-		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
-		GEditor->SelectNone(/*bNoteSelectionChange=*/false, /*bDeselectBSPSurfs=*/true);
-
-		Selection.ForEachItem([this](const FSceneOutlinerTreeItemPtr& TreeItem)
+		TArray<FSceneOutlinerTreeItemPtr> ItemsToPin;
+		Selection.ForEachItem([this, &ItemsToPin](const FSceneOutlinerTreeItemPtr& TreeItem)
 		{
-			PinItem(TreeItem);
+			ItemsToPin.Add(TreeItem);
 			return true;
 		});
-
-		GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify=*/true);
-
-		if (AActor* Actor = GEditor->GetSelectedActors()->GetTop<AActor>())
-		{
-			SceneOutliner->OnItemAdded(Actor, SceneOutliner::ENewItemAction::ScrollIntoView);
-		}
+		PinItems(ItemsToPin);
 	}
 }
 
@@ -1893,15 +1900,13 @@ void FActorBrowsingMode::UnpinSelectedItems()
 	const FSceneOutlinerItemSelection Selection = SceneOutliner->GetSelection();
 	if(Selection.Num())
 	{
-		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
-
-		Selection.ForEachItem([this](const FSceneOutlinerTreeItemPtr& TreeItem)
+		TArray<FSceneOutlinerTreeItemPtr> ItemsToUnpin;
+		Selection.ForEachItem([this, &ItemsToUnpin](const FSceneOutlinerTreeItemPtr& TreeItem)
 		{
-			UnpinItem(TreeItem);
+			ItemsToUnpin.Add(TreeItem);
 			return true;
 		});
-
-		GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify=*/true);
+		UnpinItems(ItemsToUnpin);
 	}
 }
 

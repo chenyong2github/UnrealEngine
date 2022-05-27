@@ -145,10 +145,10 @@ public:
 	/** Select all descendants of a folder. Optionally select only immediate descendants. */
 	virtual void SelectFoldersDescendants(const TArray<FFolderTreeItem*>& FolderItems, bool bSelectImmediateChildrenOnly) {}
 public:
-	/** Pins an item in the outliner */
-	virtual void PinItem(const FSceneOutlinerTreeItemPtr& InItem) {}
-	/** Unpins an item in the outliner */
-	virtual void UnpinItem(const FSceneOutlinerTreeItemPtr& InItem) {}
+	/** Pins an item list in the outliner */
+	virtual void PinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) {}
+	/** Unpins an item list in the outliner */
+	virtual void UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) {}
 	/** Pins all selected items */
 	virtual void PinSelectedItems() {}
 	/** Unpins all selected items */

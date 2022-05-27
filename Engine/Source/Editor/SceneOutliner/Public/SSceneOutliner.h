@@ -402,14 +402,14 @@ public:
 	virtual FSceneOutlinerItemSelection GetSelection() const { return FSceneOutlinerItemSelection(*OutlinerTreeView); }
 
 	/**
-	 * Pins an item in the outliner.
+	 * Pins an item list in the outliner.
 	 */
-	virtual void PinItem(const FSceneOutlinerTreeItemPtr& InItem) override;
+	virtual void PinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) override;
 
 	/**
-	 * Unpins an item in the outliner.
+	 * Unpins an item list in the outliner.
 	 */
-	virtual void UnpinItem(const FSceneOutlinerTreeItemPtr& InItem) override;
+	virtual void UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InItems) override;
 
 	/**
 	 * Pin selected items

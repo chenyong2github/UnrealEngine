@@ -216,38 +216,22 @@ class FLoaderAdapterPinnedActors: public FLoaderAdapterList
 public:
 	FLoaderAdapterPinnedActors(UWorld* InWorld)
 		: FLoaderAdapterList(InWorld)
-		, bStateChanged(false)
 	{
 		Load();
 	}
 
-	void AddActor(FWorldPartitionHandle& ActorHandle, bool bImmediate)
+	void AddActors(const TArray<FWorldPartitionHandle>& ActorHandles)
 	{
-		if (!ContainsActor(ActorHandle))
-		{
-			Actors.Add(ActorHandle);
-
-			if (bImmediate)
-			{
-				RefreshLoadedState();
-				bStateChanged = false;
-			}
-			else
-			{
-				bStateChanged = true;
-			}
-		}
+		Actors.Append(ActorHandles);
+		RefreshLoadedState();
 	}
 
-	void RemoveActor(FWorldPartitionHandle& ActorHandle)
+	void RemoveActors(const TArray<FWorldPartitionHandle>& ActorHandles)
 	{
-		if (ContainsActor(ActorHandle))
-		{
-			ActorToRemove = ActorHandle;
-			RefreshLoadedState();
-			Actors.Remove(ActorHandle);
-			ActorToRemove.Reset();
-		}
+		ActorsToRemove = TSet<FWorldPartitionHandle>(ActorHandles);
+		RefreshLoadedState();
+		Actors = Actors.Difference(ActorsToRemove);
+		ActorsToRemove.Empty();
 	}
 
 	bool ContainsActor(const FWorldPartitionHandle& ActorHandle) const
@@ -255,26 +239,16 @@ public:
 		return Actors.Contains(ActorHandle);
 	}
 
-	void Tick(float DeltaSeconds)
-	{
-		if (bStateChanged)
-		{
-			RefreshLoadedState();
-			bStateChanged = false;
-		}
-	}
-
 protected:
 	//~ Begin IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 	virtual bool ShouldActorBeLoaded(const FWorldPartitionHandle& ActorHandle) const override
 	{
-		return (ActorHandle != ActorToRemove) && PassDataLayersFilter(ActorHandle);
+		return !ActorsToRemove.Contains(ActorHandle) && PassDataLayersFilter(ActorHandle);
 	}
 	//~ End IWorldPartitionActorLoaderInterface::ILoaderAdapterList interface
 
 private:
-	bool bStateChanged;
-	FWorldPartitionHandle ActorToRemove;
+	TSet<FWorldPartitionHandle> ActorsToRemove;
 };
 #endif
 
@@ -359,7 +333,7 @@ void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
 				// If we hold the last reference to that actor, pin it to avoid unloading
 				if (PinnedActors && (ActorHandle->GetHardRefCount() == 1))
 				{
-					PinnedActors->AddActor(ActorHandle, /*bImmediate*/true);
+					PinnedActors->AddActors({ ActorHandle });
 				}
 
 				DirtyActors.Remove(ActorHandle);
@@ -1143,11 +1117,6 @@ void UWorldPartition::Tick(float DeltaSeconds)
 		EditorHash->Tick(DeltaSeconds);
 	}
 
-	if (PinnedActors)
-	{
-		PinnedActors->Tick(DeltaSeconds);
-	}
-
 	if (bForceGarbageCollection)
 	{
 		GEngine->ForceGarbageCollection(bForceGarbageCollectionPurge);
@@ -1368,29 +1337,43 @@ void UWorldPartition::AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags
 	}
 }
 
-AActor* UWorldPartition::PinActor(const FGuid& ActorGuid)
+void UWorldPartition::PinActors(const TArray<FGuid>& ActorGuids)
 {
 	if (PinnedActors)
 	{
-		FWorldPartitionHandle ActorHandle(this, ActorGuid);
-		if (ActorHandle.IsValid())
+		TArray<FWorldPartitionHandle> ActorHandles;
+		ActorHandles.Reserve(ActorGuids.Num());
+
+		for (const FGuid& ActorGuid : ActorGuids)
 		{
-			PinnedActors->AddActor(ActorHandle, /*bImmediate*/false);
-			return ActorHandle->GetActor();
-		}		
+			FWorldPartitionHandle ActorHandle(this, ActorGuid);
+			if (ActorHandle.IsValid())
+			{
+				ActorHandles.Add(ActorHandle);
+			}
+		}
+
+		PinnedActors->AddActors(ActorHandles);
 	}
-	return nullptr;
 }
 
-void UWorldPartition::UnpinActor(const FGuid& ActorGuid)
+void UWorldPartition::UnpinActors(const TArray<FGuid>& ActorGuids)
 {
 	if (PinnedActors)
 	{
-		FWorldPartitionHandle ActorHandle(this, ActorGuid);
-		if (ActorHandle.IsValid())
+		TArray<FWorldPartitionHandle> ActorHandles;
+		ActorHandles.Reserve(ActorGuids.Num());
+
+		for (const FGuid& ActorGuid : ActorGuids)
 		{
-			PinnedActors->RemoveActor(ActorHandle);
+			FWorldPartitionHandle ActorHandle(this, ActorGuid);
+			if (ActorHandle.IsValid())
+			{
+				ActorHandles.Add(ActorHandle);
+			}
 		}
+
+		PinnedActors->RemoveActors(ActorHandles);
 	}
 }
 
