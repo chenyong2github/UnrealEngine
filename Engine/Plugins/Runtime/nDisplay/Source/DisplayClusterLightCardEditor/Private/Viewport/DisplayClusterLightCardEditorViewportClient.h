@@ -300,6 +300,9 @@ private:
 	/** Calculates the final distance from the origin of a light card, given its flush distance and a desired offset */
 	double CalculateFinalLightCardDistance(double FlushDistance, double DesiredOffsetFromFlush = 0.) const;
 
+	/** Calculates the relative normal vector and world position in the specified direction from the given view origin */
+	void CalculateNormalAndPositionInDirection(const FVector& InViewOrigin, const FVector& InDirection, FVector& OutWorldLocation, FVector& OutRelativeNormal, double InDesiredDistanceFromFlush = 0.) const;
+
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
 	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
