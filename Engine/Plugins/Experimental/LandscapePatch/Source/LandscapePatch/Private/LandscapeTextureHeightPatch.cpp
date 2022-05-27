@@ -8,6 +8,7 @@
 #include "LandscapePatchLogging.h"
 #include "LandscapePatchManager.h"
 #include "RenderGraph.h" // RDG_EVENT_NAME
+#include "RHIStaticStates.h"
 #include "TextureCompiler.h"
 #include "UObject/ObjectSaveContext.h"
 
