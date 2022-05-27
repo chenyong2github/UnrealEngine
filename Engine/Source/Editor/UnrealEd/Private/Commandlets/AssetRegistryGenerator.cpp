@@ -89,11 +89,30 @@ FName GetPackageNameFromDependencyPackageName(const FName RawPackageFName)
 //////////////////////////////////////////////////////////////////////////
 // FAssetRegistryGenerator
 
+void FAssetRegistryGenerator::UpdateAssetManagerDatabase()
+{
+	InitializeUseAssetManager();
+	if (bUseAssetManager)
+	{
+		UAssetManager::Get().UpdateManagementDatabase();
+	}
+}
+
+void FAssetRegistryGenerator::InitializeUseAssetManager()
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
+	FAssignStreamingChunkDelegate& AssignStreamingChunkDelegate = FGameDelegates::Get().GetAssignStreamingChunkDelegate();
+	FGetPackageDependenciesForManifestGeneratorDelegate& GetPackageDependenciesForManifestGeneratorDelegate = FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	bUseAssetManager = UAssetManager::IsValid() && !AssignStreamingChunkDelegate.IsBound() && !GetPackageDependenciesForManifestGeneratorDelegate.IsBound();
+}
+
+bool FAssetRegistryGenerator::bUseAssetManager = true;
+
 FAssetRegistryGenerator::FAssetRegistryGenerator(const ITargetPlatform* InPlatform)
 	: AssetRegistry(FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get())
 	, TargetPlatform(InPlatform)
 	, bGenerateChunks(false)
-	, bUseAssetManager(false)
 	, HighestChunkId(0)
 	, DependencyInfo(*GetMutableDefault<UChunkDependencyInfo>())
 {
@@ -106,17 +125,7 @@ FAssetRegistryGenerator::FAssetRegistryGenerator(const ITargetPlatform* InPlatfo
 
 	DependencyQuery = bOnlyHardReferences ? UE::AssetRegistry::EDependencyQuery::Hard : UE::AssetRegistry::EDependencyQuery::NoRequirements;
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FAssignStreamingChunkDelegate& AssignStreamingChunkDelegate = FGameDelegates::Get().GetAssignStreamingChunkDelegate();
-	FGetPackageDependenciesForManifestGeneratorDelegate& GetPackageDependenciesForManifestGeneratorDelegate = FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate();
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	if (UAssetManager::IsValid() && !AssignStreamingChunkDelegate.IsBound() && !GetPackageDependenciesForManifestGeneratorDelegate.IsBound())
-	{
-		bUseAssetManager = true;
-
-		UAssetManager::Get().UpdateManagementDatabase();
-	}
-
+	InitializeUseAssetManager();
 	InitializeChunkIdPakchunkIndexMapping();
 }
 

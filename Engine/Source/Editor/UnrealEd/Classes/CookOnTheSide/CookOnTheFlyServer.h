@@ -302,6 +302,8 @@ private:
 
 	/* Initializing Platforms must be done on the tickloop thread; Platform data is read only on other threads */
 	void AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform* TargetPlatform);
+	/* Start the session for the given platform in response to the first client connection. */
+	void StartCookOnTheFlySessionFromGameThread(ITargetPlatform* TargetPlatform);
 
 	/* Callback to recalculate all ITargetPlatform* pointers when they change due to modules reloading */
 	void OnTargetPlatformsInvalidated();
@@ -514,8 +516,7 @@ public:
 	TArray<UPackage*> GetUnsolicitedPackages(const TArray<const ITargetPlatform*>& TargetPlatforms) const;
 
 	/** Execute class-specific special case cook postloads and reference discovery on a given package. */
-	void PostLoadPackageFixup(UPackage* Package, TArray<FName>* OutDiscoveredPackageNames,
-		TMap<FName, UE::Cook::FInstigator>* OutInstigators);
+	void PostLoadPackageFixup(UE::Cook::FPackageData& PackageData, UPackage* Package);
 
 	/** Tick CBTB until it finishes or needs to yield. Should only be called when in CookByTheBook Mode. */
 	uint32 TickCookByTheBook(const float TimeSlice, uint32& CookedPackageCount, ECookTickFlags TickFlags = ECookTickFlags::None, int32 InMaxNumPackagesToSave = 50);
@@ -854,11 +855,10 @@ private:
 	 *
 	 * @param BuildFilename long package name of the package to load 
 	 * @param OutPackage UPackage of the package loaded, non-null on success, may be non-null on failure if the UPackage existed but had another failure
-	 * @param OverrideFileName Filename to use instead of PackageData.GetFileName(), for e.g. generated packages
 	 * @param ReportingPackageData PackageData which caused the load, for e.g. generated packages
 	 * @return Whether LoadPackage was completely successful and the package can be cooked
 	 */
-	bool LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage, FString* LoadFromFileName = nullptr,
+	bool LoadPackageForCooking(UE::Cook::FPackageData& PackageData, UPackage*& OutPackage,
 		UE::Cook::FPackageData* ReportingPackageData = nullptr);
 
 	/** Read information about the previous cook from disk and set whether the current cook is iterative based on previous cook, config, and commandline. */
@@ -1100,8 +1100,6 @@ private:
 
 	/** Waits for the AssetRegistry to complete so that we know any missing assets are missing on disk */
 	void BlockOnAssetRegistry();
-	/** Setup necessary only once for CookOnTheFly, but that are not required until the first request. */
-	void CookOnTheFlyDeferredInitialize();
 
 	/** Construct or refresh-for-filechanges the platform-specific asset registry for the given platforms */
 	void RefreshPlatformAssetRegistries(const TArrayView<const ITargetPlatform* const>& TargetPlatforms);
@@ -1164,13 +1162,10 @@ private:
 	bool bPreloadingEnabled = false;
 	/** If enabled, we load/save TargetDomainKey hashes and use those to test whether packages have already been cooked in hybrid-iterative builds. */
 	bool bHybridIterativeEnabled = true;
-	/** Whether to explore transitive dependencies up front, or discover them as we load packages. */
-	bool bPreexploreDependenciesEnabled = true;
 	/** Test mode for the debug of hybrid iterative dependencies. */
 	bool bHybridIterativeDebug = false;
 	bool bFirstCookInThisProcessInitialized = false;
 	bool bFirstCookInThisProcess = true;
-	bool bHasDeferredInitializeCookOnTheFly = false;
 	bool bImportBehaviorCallbackInstalled = false;
 	/** Cancel has been queued and will be processed next tick */
 	bool bCancelSession = false;

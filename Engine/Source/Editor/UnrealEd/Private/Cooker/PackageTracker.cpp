@@ -131,7 +131,6 @@ namespace UE::Cook
 
 			LoadedPackages.Remove(Package);
 			NewPackages.Remove(Package);
-			PostLoadFixupPackages.Remove(Package);
 		}
 	}
 

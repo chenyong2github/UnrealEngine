@@ -315,7 +315,6 @@ private:
 	int32 NextRequest = 0;
 	bool bAllowHardDependencies = true;
 	bool bAllowSoftDependencies = true;
-	bool bPreexploreDependenciesEnabled = true;
 	bool bHybridIterativeEnabled = true;
 	bool bErrorOnEngineContentUse = false;
 	bool bPackageNamesComplete = false;

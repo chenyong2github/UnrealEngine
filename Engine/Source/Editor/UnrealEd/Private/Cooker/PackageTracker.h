@@ -187,9 +187,6 @@ namespace Cook
 		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
 		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
-		// This is the set of packages which have already had PostLoadFixup called 
-		TSet<UPackage*> PostLoadFixupPackages;
-
 		// This is a complete list of currently loaded UPackages
 		TFastPointerSet<UPackage*> LoadedPackages;
 

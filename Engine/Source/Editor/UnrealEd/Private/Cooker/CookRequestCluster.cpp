@@ -201,7 +201,6 @@ void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 		bAllowSoftDependencies = false;
 	}
 	bHybridIterativeEnabled = COTFS.bHybridIterativeEnabled;
-	bPreexploreDependenciesEnabled = COTFS.bPreexploreDependenciesEnabled;
 	if (bErrorOnEngineContentUse)
 	{
 		DLCPath = FPaths::Combine(*COTFS.GetBaseDirectoryForDLC(), TEXT("Content"));
@@ -691,7 +690,7 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 		// We always skip assetregistry soft dependencies if the cook commandline is set to skip soft references.
 		// We also need to skip them if the project has problems with editor-only robustness and has turned
 		// ExploreDependencies off
-		if (Cluster.bAllowSoftDependencies && Cluster.bPreexploreDependenciesEnabled)
+		if (Cluster.bAllowSoftDependencies)
 		{
 			Cluster.AssetRegistry.GetDependencies(PackageName, SoftDependencies, EDependencyCategory::Package,
 				DependencyQuery | EDependencyQuery::Soft);
@@ -732,7 +731,7 @@ void FRequestCluster::FGraphSearch::VisitVertex(const FVertexData& VertexData)
 					UE::SavePackageUtilities::EDLCookInfoAddIterativelySkippedPackage(PackageName);
 				}
 				HardDependencies.Append(PlatformAttachments.BuildDependencies);
-				if (Cluster.bAllowSoftDependencies && Cluster.bPreexploreDependenciesEnabled)
+				if (Cluster.bAllowSoftDependencies)
 				{
 					SoftDependencies.Append(PlatformAttachments.RuntimeOnlyDependencies);
 				}
@@ -902,19 +901,6 @@ FPackageData* FRequestCluster::FGraphSearch::FindOrAddVertex(FName PackageName, 
 	OutNewVertex->bInitialRequest = bInitialRequest;
 	OutNewVertex->bCookable = bCookable;
 	OutNewVertex->bExploreDependencies = bCookable;
-	if (bCookable && !Cluster.bPreexploreDependenciesEnabled)
-	{
-		// TODO: Editor-only packages may be loaded at editor startup, which makes them skip the request state
-		// and go straight to load and save, where they are culled and returned to idle.
-		// If we add dependencies from these startup packages, in some projects we add transitive dependency
-		// packages that are not otherwise cooked. To prevent breaking projects we are temporarily skipping the
-		// dependency search from these packages.
-		bool bInProgress = false;
-		if (FindPackage(nullptr, WriteToString<256>(PackageName).ToString()))
-		{
-			OutNewVertex->bExploreDependencies = false;
-		}
-	}
 
 	return PackageData;
 }

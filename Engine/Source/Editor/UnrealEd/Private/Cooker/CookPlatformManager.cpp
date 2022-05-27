@@ -279,13 +279,12 @@ namespace Cook
 
 		if (!HasSessionPlatform(PlatformData->TargetPlatform))
 		{
-			CookOnTheFlyServer.ExternalRequests->AddCallback([this, PlatformName, LocalCookOnTheFlyServer = &CookOnTheFlyServer]()
+			CookOnTheFlyServer.ExternalRequests->AddCallback([PlatformName, LocalCookOnTheFlyServer = &CookOnTheFlyServer]()
 				{
-					const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName.ToString());
+					ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName.ToString());
 					if (TargetPlatform)
 					{
-						AddSessionPlatform(*LocalCookOnTheFlyServer, TargetPlatform);
-						LocalCookOnTheFlyServer->bPackageFilterDirty = true;
+						LocalCookOnTheFlyServer->StartCookOnTheFlySessionFromGameThread(TargetPlatform);
 					}
 				});
 		}

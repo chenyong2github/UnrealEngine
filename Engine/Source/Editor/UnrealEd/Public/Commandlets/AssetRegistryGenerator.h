@@ -198,6 +198,12 @@ public:
 	 */
 	void UpdateAssetRegistryPackageData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult, FCookTagList&& InArchiveCookTagList);
 
+	/**
+	 * Check config to see whether chunk assignments use the AssetManager. If so, run the once-per-process construction
+	 * of ManageReferences and store them in the global AssetRegistry.
+	 */
+	static void UpdateAssetManagerDatabase();
+
 private:
 	/**
 	 * Ensures all assets in the input package are present in the registry
@@ -221,6 +227,8 @@ private:
 	 * for all packages kept from a previous cook.
 	 */
 	void UpdateKeptPackages();
+
+	static void InitializeUseAssetManager();
 
 	/** State of the asset registry that is being built for this platform */
 	FAssetRegistryState State;
@@ -254,8 +262,6 @@ private:
 	TSet<FName> PackagesContainingMaps;
 	/** Should the chunks be generated or only asset registry */
 	bool bGenerateChunks;
-	/** True if we should use the AssetManager, false to use the deprecated path */
-	bool bUseAssetManager;
 	/** Highest chunk id, being used for geneating dependency tree */
 	int32 HighestChunkId;
 	/** Array of Maps with chunks<->packages assignments */
@@ -278,6 +284,9 @@ private:
 
 	/** Mapping from chunk id to pakchunk file index. If not defined, Pakchunk index will be the same as chunk id by default */
 	TMap<int32, int32> ChunkIdPakchunkIndexMapping;
+
+	/** True if we should use the AssetManager, false to use the deprecated path */
+	static bool bUseAssetManager;
 
 	struct FReferencePair
 	{
