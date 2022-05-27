@@ -1917,8 +1917,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		GWorld = InitialWorldContext.World();
 	}
 
-	// Initialize the audio device after a world context is setup
-	InitializeAudioDeviceManager();
+	
 
 	// Make sure networking checksum has access to project version
 	const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
@@ -2027,6 +2026,9 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Connect the engine analytics provider
 	FEngineAnalytics::Initialize();
+
+	// Initialize the audio device after a world context is setup
+	InitializeAudioDeviceManager();
 
 	// Dynamically load engine runtime modules
 	{

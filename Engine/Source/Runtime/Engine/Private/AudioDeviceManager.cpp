@@ -7,6 +7,7 @@
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
 #include "Engine/World.h"
+#include "EngineAnalytics.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundWave.h"
 #include "GameFramework/GameUserSettings.h"
@@ -665,6 +666,14 @@ bool FAudioDeviceManager::LoadDefaultAudioDeviceModule()
 		IsUsingAudioMixerCvar->Set(0, ECVF_SetByConstructor);
 	}
 
+	if (FEngineAnalytics::IsAvailable())
+	{ 		
+		if (bForceNoAudioMixer)
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.ForceNoAudioMixer"));
+		}
+	}
+
 	return AudioDeviceModule != nullptr;
 }
 
@@ -856,6 +865,13 @@ bool FAudioDeviceManager::Initialize()
 				UE_LOG(LogAudio, Warning, TEXT("Audio Device Manager Initialization Failed!"));
 				delete Singleton;
 				Singleton = nullptr;
+			}
+		}
+		else
+		{
+			if (FEngineAnalytics::IsAvailable())
+			{
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AllAudioDisabled"));
 			}
 		}
 	}
