@@ -3,6 +3,7 @@
 #include "SMaterialDynamicWidgets.h"
 
 #include "PropertyCustomizationHelpers.h"
+#include "ScopedTransaction.h"
 #include "SMaterialDynamicParametersPanelWidget.h"
 #include "Components/ActorComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
