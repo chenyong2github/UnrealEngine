@@ -984,6 +984,20 @@ void USkyLightComponent::SetCubemap(UTextureCube* NewCubemap)
 	}
 }
 
+void USkyLightComponent::SetSourceCubemapAngle(float NewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& SourceCubemapAngle != NewValue)
+	{
+		SourceCubemapAngle = NewValue;
+
+		if (GetWorld())
+		{
+			GetWorld()->UpdateAllSkyCaptures();
+		}
+	}
+}
+
 void USkyLightComponent::SetCubemapBlend(UTextureCube* SourceCubemap, UTextureCube* DestinationCubemap, float InBlendFraction)
 {
 	if (AreDynamicDataChangesAllowed()

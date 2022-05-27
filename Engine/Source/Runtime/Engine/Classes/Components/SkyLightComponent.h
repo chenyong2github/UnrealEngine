@@ -246,6 +246,9 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	UFUNCTION(BlueprintCallable, Category="SkyLight")
 	void SetCubemap(UTextureCube* NewCubemap);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|SkyLight")
+	void SetSourceCubemapAngle(float NewValue);
+
 	/** 
 	 * Creates sky lighting from a blend between two cubemaps, which is only valid when SourceType is set to SpecifiedCubemap. 
 	 * This can be used to seamlessly transition sky lighting between different times of day.
