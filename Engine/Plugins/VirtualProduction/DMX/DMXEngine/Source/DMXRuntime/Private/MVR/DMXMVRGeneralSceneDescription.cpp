@@ -6,14 +6,25 @@
 #include "DMXRuntimeLog.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
+#include "Library/DMXGDTFAssetImportData.h"
 #include "Library/DMXImportGDTF.h"
 #include "Library/DMXLibrary.h"
+#include "MVR/DMXMVRAssetImportData.h"
 
 #include "XmlFile.h"
 #include "XmlNode.h"
+#include "EditorFramework/AssetImportData.h"
 #include "Misc/Paths.h"
 
 
+UDMXMVRGeneralSceneDescription::UDMXMVRGeneralSceneDescription()
+{
+#if WITH_EDITORONLY_DATA
+	MVRAssetImportData = NewObject<UDMXMVRAssetImportData>(this, TEXT("MVRAssetImportData"), RF_Public);
+#endif
+}
+
+#if WITH_EDITOR
 UDMXMVRGeneralSceneDescription* UDMXMVRGeneralSceneDescription::CreateFromXmlFile(TSharedRef<FXmlFile> GeneralSceneDescriptionXml, UObject* Outer, FName Name, EObjectFlags Flags)
 {
 	UDMXMVRGeneralSceneDescription* GeneralSceneDescription = NewObject<UDMXMVRGeneralSceneDescription>(Outer, Name, Flags);
@@ -21,7 +32,9 @@ UDMXMVRGeneralSceneDescription* UDMXMVRGeneralSceneDescription::CreateFromXmlFil
 
 	return GeneralSceneDescription;
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 UDMXMVRGeneralSceneDescription* UDMXMVRGeneralSceneDescription::CreateFromDMXLibrary(const UDMXLibrary& DMXLibrary, UObject* Outer, FName Name, EObjectFlags Flags)
 {
 	UDMXMVRGeneralSceneDescription* GeneralSceneDescription = NewObject<UDMXMVRGeneralSceneDescription>(Outer, Name, Flags);
@@ -29,6 +42,7 @@ UDMXMVRGeneralSceneDescription* UDMXMVRGeneralSceneDescription::CreateFromDMXLib
 
 	return GeneralSceneDescription;
 }
+#endif // WITH_EDITOR
 
 FDMXMVRFixture* UDMXMVRGeneralSceneDescription::FindMVRFixture(const FGuid& MVRFixtureUUID)
 {
@@ -54,6 +68,7 @@ void UDMXMVRGeneralSceneDescription::AddMVRFixture(FDMXMVRFixture& MVRFixture)
 	MVRFixtures.Add(MVRFixture);
 }
 
+#if WITH_EDITOR
 void UDMXMVRGeneralSceneDescription::WriteDMXLibraryToGeneralSceneDescription(const UDMXLibrary& DMXLibrary)
 {
 	TArray<FDMXMVRFixture> MVRFixturesInDMXLibrary;
@@ -89,6 +104,7 @@ void UDMXMVRGeneralSceneDescription::WriteDMXLibraryToGeneralSceneDescription(co
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 void UDMXMVRGeneralSceneDescription::Serialize(FArchive& Ar)
 {
@@ -97,6 +113,7 @@ void UDMXMVRGeneralSceneDescription::Serialize(FArchive& Ar)
 	Ar << MVRFixtures;
 }
 
+#if WITH_EDITOR
 void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(const UDMXEntityFixturePatch& FixturePatch)
 {
 	if (const UDMXLibrary* DMXLibrary = FixturePatch.GetParentLibrary())
@@ -127,13 +144,21 @@ void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(
 		bool bSetGDTFSpec = false;
 		if (UDMXEntityFixtureType* FixtureType = FixturePatch.GetFixtureType())
 		{
-			if (FixtureType->GDTF)
+			if (UDMXImportGDTF* GDTF = FixtureType->GDTF)
 			{
-				MVRFixture.GDTFSpec = FPaths::GetBaseFilename(FixtureType->GDTF->SourceFilename);
+				const FString SourceFilename = [GDTF]()
+				{
+					if (GDTF && GDTF->GetGDTFAssetImportData())
+					{
+						return GDTF->GetGDTFAssetImportData()->GetSourceFilePathAndName();
+					}
+					return FString();
+				}();
+				MVRFixture.GDTFSpec = FPaths::GetBaseFilename(SourceFilename);
 			}
 
 			const int32 ModeIndex = FixturePatch.GetActiveModeIndex();
-			if (ensureAlwaysMsgf(FixtureType->Modes.IsValidIndex(ModeIndex), TEXT("Trying to write Active Mode of %s to General Scene Description, but the Mode Index is invalid")))
+			if (ensureAlwaysMsgf(FixtureType->Modes.IsValidIndex(ModeIndex), TEXT("Trying to write Active Mode of to General Scene Description, but the Mode Index is invalid")))
 			{
 				MVRFixture.GDTFMode = FixtureType->Modes[ModeIndex].ModeName;
 			}
@@ -156,7 +181,9 @@ void UDMXMVRGeneralSceneDescription::WriteFixturePatchToGeneralSceneDescription(
 		}
 	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXMVRGeneralSceneDescription::ParseGeneralSceneDescriptionXml(const TSharedRef<FXmlFile>& GeneralSceneDescription)
 {
 	if (const FXmlNode* RootNode = GeneralSceneDescription->GetRootNode())
@@ -197,6 +224,7 @@ void UDMXMVRGeneralSceneDescription::ParseGeneralSceneDescriptionXml(const TShar
 		}
 	}
 }
+#endif // WITH_EDITOR
 
 TArray<int32> UDMXMVRGeneralSceneDescription::GetUnitNumbersInUse(const UDMXLibrary& DMXLibrary)
 {

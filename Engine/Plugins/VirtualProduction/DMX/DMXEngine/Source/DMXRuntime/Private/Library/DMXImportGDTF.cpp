@@ -2,6 +2,11 @@
 
 #include "Library/DMXImportGDTF.h"
 
+#include "Library/DMXGDTFAssetImportData.h"
+
+#include "EditorFramework/AssetImportData.h"
+
+
 bool UDMXImportGDTFAttributeDefinitions::FindFeature(const FString& InQuery, FDMXImportGDTFFeature& OutFeature) const
 {
     if (InQuery.IsEmpty())
@@ -142,3 +147,31 @@ TArray<FDMXImportGDTFChannelFunction> UDMXImportGDTFDMXModes::GetDMXChannelFunct
 	}
 	return MoveTemp(Channels);
 };
+
+UDMXImportGDTF::UDMXImportGDTF()
+{
+#if WITH_EDITORONLY_DATA
+	GDTFAssetImportData = NewObject<UDMXGDTFAssetImportData>(this, TEXT("GDTFAssetImportData"), RF_Public);
+#endif
+}
+
+void UDMXImportGDTF::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	if (!GDTFAssetImportData)
+	{
+		GDTFAssetImportData = NewObject<UDMXGDTFAssetImportData>(this, TEXT("GDTFAssetImportData"));
+	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (!SourceFilename_DEPRECATED.IsEmpty())
+	{
+		GDTFAssetImportData->SetSourceFile(SourceFilename_DEPRECATED);
+
+		SourceFilename_DEPRECATED.Empty();
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+}

@@ -210,13 +210,15 @@ public:
 
 	/** 
 	 * Sets the MVR General Scene Description of the Library. 
-	 * Note, this will not add any patches occur in the new General Scene Description. 
+	 * Note, this will not add any patches that occur in the new General Scene Description. 
 	 * Note, this will remove any patches that do not occur in the new General Scene Description. 
 	 */
 	void SetMVRGeneralSceneDescription(UDMXMVRGeneralSceneDescription* NewGeneralSceneDescription);
 
+#if WITH_EDITOR
 	/** Updates the General Scene Description to reflect the Library */
 	UDMXMVRGeneralSceneDescription* UpdateGeneralSceneDescription();
+#endif
 
 	/** 
 	 * Returns the General Scene Description of the Library. 

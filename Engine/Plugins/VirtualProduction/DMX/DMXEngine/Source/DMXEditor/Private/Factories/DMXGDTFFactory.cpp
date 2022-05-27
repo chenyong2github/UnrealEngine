@@ -4,15 +4,18 @@
 #include "Factories/DMXGDTFImportUI.h"
 #include "DMXEditorLog.h"
 #include "Factories/DMXGDTFImporter.h"
+#include "Library/DMXGDTFAssetImportData.h"
 #include "Library/DMXImportGDTF.h"
 
-#include "Misc/Paths.h"
 #include "Editor.h"
 #include "EditorReimportHandler.h"
 #include "AssetImportTask.h"
-#include "Misc/FeedbackContext.h"
-#include "Misc/CommandLine.h"
+#include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
+#include "Misc/CommandLine.h"
+#include "Misc/FeedbackContext.h"
+#include "Misc/Paths.h"
+
 
 const TCHAR* UDMXGDTFFactory::Extension = TEXT("gdtf");
 
@@ -99,7 +102,6 @@ UObject* UDMXGDTFFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, 
 
     GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPreImport(this, InClass, InParent, InName, Type);
 
-    UDMXImportGDTF* CreatedObject = nullptr;
     UObject* ExistingObject = nullptr;
     if (InParent != nullptr)
     {
@@ -118,7 +120,7 @@ UObject* UDMXGDTFFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, 
     ImportArgs.CurrentFilename = InFilename;
     ImportArgs.Flags = Flags;
     ImportArgs.bCancelOperation = bOperationCanceled;
-    TUniquePtr<FDMXGDTFImporter> Importer = MakeUnique<FDMXGDTFImporter>(ImportArgs);
+    const TUniquePtr<FDMXGDTFImporter> Importer = MakeUnique<FDMXGDTFImporter>(ImportArgs);
 
     // Set Import UI
     if (FParse::Param(FCommandLine::Get(), TEXT("NoDMXImportOption")))
@@ -136,38 +138,37 @@ UObject* UDMXGDTFFactory::FactoryCreateFile(UClass* InClass, UObject* InParent, 
         bShowOption = false;
     }
 
-    bool bImportError = false;
-
     if (!ImportUI->bImportXML && !ImportUI->bImportModels && !ImportUI->bImportTextures)
     {
         Warn->Log(ELogVerbosity::Error, TEXT("Nothing to Import") );
-        bImportError = true;
+		return nullptr;
     }
 
     // Try to load and parse the content
-    if ( !Importer->AttemptImportFromFile() )
+    if (!Importer->AttemptImportFromFile())
     {
-        Warn->Log(ELogVerbosity::Error, TEXT("Attempt Import") );
-        bImportError = true;
+        Warn->Log(ELogVerbosity::Error, TEXT("Failed to import GDTF") );
+		return nullptr;
     }
 
-    // Import was successful, create new file
-    if (!bImportError)
-    {
-		// Import to the Editor
-		CreatedObject = Importer->Import();
+	// Import to the Editor
+	UDMXImportGDTF* GDTF = Importer->Import();
+	if (!GDTF)
+	{
+		return nullptr;
+	}
 
-        if (CreatedObject != nullptr)
-        {
-            CreatedObject->SourceFilename = InFilename;
-        }
-		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, CreatedObject);
-    }
+	// Set Asset Import Data
+	UDMXGDTFAssetImportData* GDTFAssetImportData = GDTF->GetGDTFAssetImportData();
+	if (!ensureAlwaysMsgf(GDTFAssetImportData, TEXT("Unexpected missing Asset Import Data for newly created GDTF %s"), *GDTF->GetName()))
+	{
+		return nullptr;
+	}
+	GDTFAssetImportData->SetSourceFile(InFilename);
 
-    // We do not need importer any more
-    Importer.Reset();
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, GDTF);
 
-    return CreatedObject;
+    return GDTF;
 }
 
 bool UDMXGDTFFactory::FactoryCanImport(const FString& Filename)
@@ -184,10 +185,11 @@ bool UDMXGDTFFactory::FactoryCanImport(const FString& Filename)
 
 bool UDMXGDTFFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-	UDMXImportGDTF* GDTFReimport = Cast<UDMXImportGDTF>(Obj);
-	if (GDTFReimport)
+	UDMXImportGDTF* GDTF = Cast<UDMXImportGDTF>(Obj);
+	if (GDTF && GDTF->GetGDTFAssetImportData())
 	{
-		OutFilenames.Add(GDTFReimport->SourceFilename);
+		const FString SourceFilename = GDTF->GetGDTFAssetImportData()->GetSourceFilePathAndName();
+		OutFilenames.Add(SourceFilename);
 		return true;
 	}
 	return false;
@@ -195,34 +197,35 @@ bool UDMXGDTFFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 
 void UDMXGDTFFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
 {
-	UDMXImportGDTF* GDTFReimport = Cast<UDMXImportGDTF>(Obj);
-	if (GDTFReimport && ensure(NewReimportPaths.Num() == 1))
+	UDMXImportGDTF* GDTF = Cast<UDMXImportGDTF>(Obj);
+	if (GDTF && GDTF->GetGDTFAssetImportData() && ensure(NewReimportPaths.Num() == 1))
 	{
-        GDTFReimport->SourceFilename = NewReimportPaths[0];
+		GDTF->GetGDTFAssetImportData()->SetSourceFile(NewReimportPaths[0]);
 	}
 }
 
 EReimportResult::Type UDMXGDTFFactory::Reimport(UObject* InObject)
 {
-	UDMXImportGDTF* GDTFReimport = Cast<UDMXImportGDTF>(InObject);
+	UDMXImportGDTF* GDTF = Cast<UDMXImportGDTF>(InObject);
 
-	if (!GDTFReimport)
+	if (!GDTF || !GDTF->GetGDTFAssetImportData())
 	{
 		return EReimportResult::Failed;
 	}
 
-	if (GDTFReimport->SourceFilename.IsEmpty() || !FPaths::FileExists(GDTFReimport->SourceFilename))
+	const FString SourceFilename = GDTF->GetGDTFAssetImportData()->GetSourceFilePathAndName();
+	if (!FPaths::FileExists(SourceFilename))
 	{
 		return EReimportResult::Failed;
 	}
 
-	bool OutCanceled = false;
-	if (ImportObject(InObject->GetClass(), InObject->GetOuter(), *InObject->GetName(), RF_Public | RF_Standalone, GDTFReimport->SourceFilename, nullptr, OutCanceled))
+	bool bOutCanceled = false;
+	if (ImportObject(InObject->GetClass(), InObject->GetOuter(), *InObject->GetName(), RF_Public | RF_Standalone, SourceFilename, nullptr, bOutCanceled))
 	{
 		return EReimportResult::Succeeded;
 	}
 
-	return OutCanceled ? EReimportResult::Cancelled : EReimportResult::Failed;
+	return bOutCanceled ? EReimportResult::Cancelled : EReimportResult::Failed;
 }
 
 int32 UDMXGDTFFactory::GetPriority() const

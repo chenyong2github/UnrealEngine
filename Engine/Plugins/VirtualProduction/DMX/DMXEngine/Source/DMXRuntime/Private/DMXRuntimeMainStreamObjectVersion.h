@@ -23,9 +23,6 @@ struct FDMXRuntimeMainStreamObjectVersion
 
 		// DMX Controllers are removed from the pugin
 		DMXControllersAreRemoved,
-		
-		// Update DMX Library to contain an MVR General Scene Description
-		DMXLibraryContainsMVRGeneralSceneDescription,
 
 		// Update Fixture Patch to use an MVR UUID
 		DMXFixturePatchHasMVRUUID,

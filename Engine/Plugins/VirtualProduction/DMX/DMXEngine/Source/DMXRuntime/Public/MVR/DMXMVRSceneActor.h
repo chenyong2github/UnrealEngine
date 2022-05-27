@@ -48,13 +48,14 @@ public:
 #if WITH_EDITOR
 	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif // WITH_EDITOR
+#endif
 	//~ End AActor interface
 
 public:
+#if WITH_EDITOR
 	/** Sets the dmx library for this MVR actor. Should only be called once, further calls will have no effect and hit an ensure condition */
 	void SetDMXLibrary(UDMXLibrary* NewDMXLibrary);
-
+#endif
 	/** Returns the DMX Library of this MVR Scene Actor */
 	FORCEINLINE UDMXLibrary* GetDMXLibrary() const { return DMXLibrary; }
 
@@ -67,7 +68,7 @@ public:
 	static FName GetRelatedAcctorsPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(ADMXMVRSceneActor, RelatedActors); }
 	static FName GetGDTFToDefaultActorClassesPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(ADMXMVRSceneActor, GDTFToDefaultActorClasses); }
 	static FName GetMVRSceneRootPropertyNameChecked() { return GET_MEMBER_NAME_CHECKED(ADMXMVRSceneActor, MVRSceneRoot); }
-#endif // WITH_EDITOR
+#endif
 
 private:
 	/** Set MVR UUIDs for related Actors */
@@ -108,7 +109,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	/** The GDTFToDefaultActorClassMap cached of PreEditChange, to find changes. */
 	TArray<FDMXMVRSceneGDTFToActorClassPair> GDTFToDefaultActorClasses_PreEditChange;
-#endif // WITH_EDITORONLY_DATA
+#endif
 
 	/** The root component to which all actors are attached initially */
 	UPROPERTY(VisibleAnywhere, Category = "Actor", AdvancedDisplay, Meta = (AllowPrivateAccess = true))

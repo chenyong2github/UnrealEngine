@@ -77,6 +77,7 @@ void ADMXMVRSceneActor::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
+#if WITH_EDITOR
 	// If the actor was created as a Datasmith Element, set the library from there
 	const FString DMXLibraryPathString = UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(this, TEXT("DMXLibraryPath"));
 	if (!DMXLibraryPathString.IsEmpty() && !DMXLibrary)
@@ -90,6 +91,7 @@ void ADMXMVRSceneActor::PostRegisterAllComponents()
 	}
 
 	EnsureMVRUUIDsForRelatedActors();
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR
@@ -137,6 +139,7 @@ void ADMXMVRSceneActor::EnsureMVRUUIDsForRelatedActors()
 	}
 }
 
+#if WITH_EDITOR
 void ADMXMVRSceneActor::SetDMXLibrary(UDMXLibrary* NewDMXLibrary)
 {
 	if (!ensureAlwaysMsgf(!DMXLibrary, TEXT("Tried to set the DMXLibrary for %s, but it already has one set. Changing the library is not supported."), *GetName()))
@@ -206,6 +209,7 @@ void ADMXMVRSceneActor::SetDMXLibrary(UDMXLibrary* NewDMXLibrary)
 		SpawnMVRActor(ActorClass, FixturePatch, Transform);
 	}
 }
+#endif // WITH_EDITOR
 
 #if WITH_EDITOR
 void ADMXMVRSceneActor::OnMapChange(uint32 MapEventFlags)

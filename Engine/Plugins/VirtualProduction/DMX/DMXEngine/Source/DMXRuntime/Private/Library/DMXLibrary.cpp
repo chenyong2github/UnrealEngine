@@ -32,28 +32,15 @@ UDMXLibrary::UDMXLibrary()
 
 void UDMXLibrary::Serialize(FArchive& Ar)
 {
+#if WITH_EDITORONLY_DATA
 	if (Ar.IsSaving())
 	{
 		// Update the General Scene Description before saving it
 		UpdateGeneralSceneDescription();
 	}
+#endif
 
 	Super::Serialize(Ar);
-
-	Ar.UsingCustomVersion(FDMXRuntimeMainStreamObjectVersion::GUID);
-	if (Ar.IsLoading())
-	{
-		if (Ar.CustomVer(FDMXRuntimeMainStreamObjectVersion::GUID) < FDMXRuntimeMainStreamObjectVersion::DMXLibraryContainsMVRGeneralSceneDescription)
-		{
-			if (!GeneralSceneDescription)
-			{
-				const FName GeneralSceneDescriptionName = FName(GetName() + TEXT("_MVRGeneralSceneDescription"));
-				GeneralSceneDescription = UDMXMVRGeneralSceneDescription::CreateFromDMXLibrary(*this, this, GeneralSceneDescriptionName);
-			}
-
-			GeneralSceneDescription->WriteDMXLibraryToGeneralSceneDescription(*this);
-		}
-	}
 }
 
 void UDMXLibrary::PostInitProperties()
@@ -74,12 +61,20 @@ void UDMXLibrary::PostLoad()
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
 #if WITH_EDITOR
+		// Upgrade from controllers to ports
 		bool bNeedsUpgradeFromControllersToPorts = Entities.ContainsByPredicate([](UDMXEntity* Entity) {
 			return Cast<UDMXEntityController>(Entity) != nullptr;
 			});
 		if (bNeedsUpgradeFromControllersToPorts)
 		{
 			UpgradeFromControllersToPorts();
+		}
+
+		// Upgrade to contain an MVR General Scene Description
+		if (!GeneralSceneDescription)
+		{
+			const FName GeneralSceneDescriptionName = FName(GetName() + TEXT("_MVRGeneralSceneDescription"));
+			GeneralSceneDescription = UDMXMVRGeneralSceneDescription::CreateFromDMXLibrary(*this, this, GeneralSceneDescriptionName);
 		}
 #endif 
 		UpdatePorts();
@@ -587,6 +582,7 @@ void UDMXLibrary::SetMVRGeneralSceneDescription(UDMXMVRGeneralSceneDescription* 
 	GeneralSceneDescription = NewGeneralSceneDescription;
 }
 
+#if WITH_EDITOR
 UDMXMVRGeneralSceneDescription* UDMXLibrary::UpdateGeneralSceneDescription()
 {
 	if (ensureAlwaysMsgf(GeneralSceneDescription, TEXT("Trying to update General Scene Description of %s, but the General Scene Description is not valid."), *GetName()))
@@ -597,6 +593,7 @@ UDMXMVRGeneralSceneDescription* UDMXLibrary::UpdateGeneralSceneDescription()
 
 	return nullptr;
 }
+#endif // WITH_EDTIOR
 
 #if WITH_EDITOR
 void UDMXLibrary::UpgradeFromControllersToPorts()
