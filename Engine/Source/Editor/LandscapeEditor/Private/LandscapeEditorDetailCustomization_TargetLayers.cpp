@@ -23,6 +23,7 @@
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorObject.h"
 #include "Landscape.h"
+#include "LandscapeUtils.h"
 #include "Styling/AppStyle.h"
 #include "DetailLayoutBuilder.h"
 #include "IDetailPropertyRow.h"
@@ -1288,13 +1289,8 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerCreateClicked(
 		ULevel* Level = Target->Owner->GetLevel();
 
 		// Build default layer object name and package name
-		FName LayerObjectName = FName(*FString::Printf(TEXT("%s_LayerInfo"), *LayerName.ToString()));
-		FString Path = Level->GetOutermost()->GetName() + TEXT("_sharedassets/");
-		if (Path.StartsWith("/Temp/"))
-		{
-			Path = FString("/Game/") + Path.RightChop(FString("/Temp/").Len());
-		}
-		FString PackageName = Path + LayerObjectName.ToString();
+		FName LayerObjectName;
+		FString PackageName = UE::Landscape::GetLayerInfoObjectPackageName(Level, LayerName, LayerObjectName);
 
 		TSharedRef<SDlgPickAssetPath> NewLayerDlg =
 			SNew(SDlgPickAssetPath)

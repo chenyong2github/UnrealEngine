@@ -977,8 +977,17 @@ public:
 
 	LANDSCAPE_API static const TArray<FName>& GetLayersFromMaterial(UMaterialInterface* Material);
 	LANDSCAPE_API const TArray<FName>& GetLayersFromMaterial() const;
-	LANDSCAPE_API static ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* LayerName, ULevel* Level);
-	LANDSCAPE_API ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* LayerName);
+
+	/**
+	* Creates a new LandscapeLayerInfoObject
+	* @param	LayerName	The name of the created Layer
+	* @param	Level		The Level tied to LandscapeLayerInfoObject. The new package's location will be relative to this Level.
+	* @param	InTemplate	If set, this object will be cloned as a basis for the new LandscapeLayerInfoObject.
+	* @return a new LandscapeLayerInfoObject if created successfully.
+	*/
+	LANDSCAPE_API static ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* InLayerName, const ULevel* InLevel, const ULandscapeLayerInfoObject* InTemplate = nullptr);
+
+	LANDSCAPE_API ULandscapeLayerInfoObject* CreateLayerInfo(const TCHAR* InLayerName, const ULandscapeLayerInfoObject* InTemplate = nullptr);
 
 	// Get Landscape Material assigned to this Landscape
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;

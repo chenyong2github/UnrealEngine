@@ -5,6 +5,7 @@ LandscapeEdit.cpp: Landscape editing
 =============================================================================*/
 
 #include "LandscapeEdit.h"
+#include "AssetRegistryModule.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Misc/FeedbackContext.h"
@@ -69,6 +70,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "WorldPartition/Landscape/LandscapeActorDesc.h"
 #include "WorldPartition/Landscape/LandscapeSplineActorDesc.h"
 #include "ActorPartition/ActorPartitionSubsystem.h"
+#include "LandscapeUtils.h"
 #include "LandscapeSplineActor.h"
 #endif
 #include "Algo/Count.h"
@@ -2508,40 +2510,42 @@ const TArray<FName>& ALandscapeProxy::GetLayersFromMaterial() const
 	return GetLayersFromMaterial(LandscapeMaterial);
 }
 
-ULandscapeLayerInfoObject* ALandscapeProxy::CreateLayerInfo(const TCHAR* LayerName, ULevel* Level)
+ULandscapeLayerInfoObject* ALandscapeProxy::CreateLayerInfo(const TCHAR* InLayerName, const ULevel* InLevel, const ULandscapeLayerInfoObject* InTemplate)
 {
-	FName LayerObjectName = FName(*FString::Printf(TEXT("LayerInfoObject_%s"), LayerName));
-	FString Path = Level->GetOutermost()->GetName() + TEXT("_sharedassets/");
-	if (Path.StartsWith("/Temp/"))
+	FName LayerObjectName;
+	FString PackageName = UE::Landscape::GetLayerInfoObjectPackageName(InLevel, InLayerName, LayerObjectName);
+	UPackage* Package = CreatePackage(*PackageName);
+	ULandscapeLayerInfoObject* LayerInfo = nullptr;
+	check(Package != nullptr);
+
+	if (InTemplate != nullptr)
 	{
-		Path = FString("/Game/") + Path.RightChop(FString("/Temp/").Len());
+		LayerInfo = DuplicateObject<ULandscapeLayerInfoObject>(InTemplate, Package, LayerObjectName);
 	}
-	FString PackageName = Path + LayerObjectName.ToString();
-	FString PackageFilename;
-	int32 Suffix = 1;
-	while (FPackageName::DoesPackageExist(PackageName, &PackageFilename))
+	else
 	{
-		LayerObjectName = FName(*FString::Printf(TEXT("LayerInfoObject_%s_%d"), LayerName, Suffix));
-		PackageName = Path + LayerObjectName.ToString();
-		Suffix++;
+		LayerInfo = NewObject<ULandscapeLayerInfoObject>(Package, LayerObjectName, RF_Public | RF_Standalone | RF_Transactional);
 	}
-	UPackage* Package = CreatePackage( *PackageName);
-	ULandscapeLayerInfoObject* LayerInfo = NewObject<ULandscapeLayerInfoObject>(Package, LayerObjectName, RF_Public | RF_Standalone | RF_Transactional);
-	LayerInfo->LayerName = LayerName;
+
+	check(LayerInfo != nullptr);
+	LayerInfo->LayerName = InLayerName;
+
+	FAssetRegistryModule::AssetCreated(LayerInfo);
+	LayerInfo->MarkPackageDirty();
 
 	return LayerInfo;
 }
 
-ULandscapeLayerInfoObject* ALandscapeProxy::CreateLayerInfo(const TCHAR* LayerName)
+ULandscapeLayerInfoObject* ALandscapeProxy::CreateLayerInfo(const TCHAR* InLayerName, const ULandscapeLayerInfoObject* InTemplate)
 {
-	ULandscapeLayerInfoObject* LayerInfo = ALandscapeProxy::CreateLayerInfo(LayerName, GetLevel());
+	ULandscapeLayerInfoObject* LayerInfo = ALandscapeProxy::CreateLayerInfo(InLayerName, GetLevel(), InTemplate);
 
 	check(LayerInfo);
 
 	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
 	if (LandscapeInfo)
 	{
-		int32 Index = LandscapeInfo->GetLayerInfoIndex(LayerName, this);
+		int32 Index = LandscapeInfo->GetLayerInfoIndex(InLayerName, this);
 		if (Index == INDEX_NONE)
 		{
 			LandscapeInfo->Layers.Add(FLandscapeInfoLayerSettings(LayerInfo, this));
@@ -4202,11 +4206,17 @@ ULandscapeLayerInfoObject::ULandscapeLayerInfoObject(const FObjectInitializer& O
 	// Assign initial LayerUsageDebugColor
 	if (!IsTemplate())
 	{
-		uint8 Hash[20];
-		FString PathNameString = GetPathName();
-		FSHA1::HashBuffer(*PathNameString, PathNameString.Len() * sizeof(PathNameString[0]), Hash);
-		LayerUsageDebugColor = FLinearColor(float(Hash[0]) / 255.f, float(Hash[1]) / 255.f, float(Hash[2]) / 255.f, 1.f);
+		LayerUsageDebugColor = GenerateLayerUsageDebugColor();
 	}
+}
+
+FLinearColor ULandscapeLayerInfoObject::GenerateLayerUsageDebugColor() const
+{
+	uint8 Hash[20];
+	FString PathNameString = GetPathName();
+	FSHA1::HashBuffer(*PathNameString, PathNameString.Len() * sizeof(PathNameString[0]), Hash);
+
+	return FLinearColor(float(Hash[0]) / 255.f, float(Hash[1]) / 255.f, float(Hash[2]) / 255.f, 1.f);
 }
 
 #if WITH_EDITOR

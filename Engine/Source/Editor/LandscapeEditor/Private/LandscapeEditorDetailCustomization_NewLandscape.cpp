@@ -23,6 +23,7 @@
 #include "Landscape.h"
 #include "LandscapeConfigHelper.h"
 #include "LandscapeImportHelper.h"
+#include "LandscapeSettings.h"
 
 #include "DetailLayoutBuilder.h"
 #include "IDetailChildrenBuilder.h"
@@ -907,24 +908,43 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 
 		// Import doesn't fill in the LayerInfo for layers with no data, do that now
 		const TArray<FLandscapeImportLayer>& ImportLandscapeLayersList = UISettings->ImportLandscape_Layers;
+		const ULandscapeSettings* Settings = GetDefault<ULandscapeSettings>();
+		TSoftObjectPtr<ULandscapeLayerInfoObject> DefaultLayerInfoObject = Settings->GetDefaultLayerInfoObject();
+		const bool bIsDefaultLayerInfoObjectSet = !DefaultLayerInfoObject.IsNull();
+
 		for (int32 i = 0; i < ImportLandscapeLayersList.Num(); i++)
 		{
-			if (ImportLandscapeLayersList[i].LayerInfo != nullptr)
+			ULandscapeLayerInfoObject* LayerInfo = ImportLandscapeLayersList[i].LayerInfo;
+			FName LayerName = ImportLandscapeLayersList[i].LayerName;
+
+			// If DefaultLayerInfoObject is set and LayerInfo does not exist, we will try to create the new LayerInfo by cloning DefaultLayerInfoObject.
+			if (bIsDefaultLayerInfoObjectSet && (LayerInfo == nullptr))
+			{
+				LayerInfo = Landscape->CreateLayerInfo(*LayerName.ToString(), DefaultLayerInfoObject.LoadSynchronous());
+
+				if (LayerInfo != nullptr)
+				{
+					LayerInfo->LayerUsageDebugColor = LayerInfo->GenerateLayerUsageDebugColor();
+					LayerInfo->MarkPackageDirty();
+				}
+			}
+
+			if (LayerInfo != nullptr)
 			{
 				if (LandscapeEdMode->NewLandscapePreviewMode == ENewLandscapePreviewMode::ImportLandscape)
 				{
-					Landscape->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(ImportLandscapeLayersList[i].LayerInfo, ImportLandscapeLayersList[i].SourceFilePath));
+					Landscape->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(LayerInfo, ImportLandscapeLayersList[i].SourceFilePath));
 				}
 				else
 				{
-					Landscape->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(ImportLandscapeLayersList[i].LayerInfo));
+					Landscape->EditorLayerSettings.Add(FLandscapeEditorLayerSettings(LayerInfo));
 				}
 
 				int32 LayerInfoIndex = LandscapeInfo->GetLayerInfoIndex(ImportLandscapeLayersList[i].LayerName);
 				if (ensure(LayerInfoIndex != INDEX_NONE))
 				{
 					FLandscapeInfoLayerSettings& LayerSettings = LandscapeInfo->Layers[LayerInfoIndex];
-					LayerSettings.LayerInfoObj = ImportLandscapeLayersList[i].LayerInfo;
+					LayerSettings.LayerInfoObj = LayerInfo;
 				}
 			}
 		}

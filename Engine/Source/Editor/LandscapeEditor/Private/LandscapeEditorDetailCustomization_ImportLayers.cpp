@@ -7,6 +7,7 @@
 #include "Editor.h"
 #include "LandscapeEditorModule.h"
 #include "LandscapeEditorObject.h"
+#include "LandscapeUtils.h"
 #include "SLandscapeEditor.h"
 
 #include "IDetailChildrenBuilder.h"
@@ -328,13 +329,8 @@ void FLandscapeEditorStructCustomization_FLandscapeImportLayer::OnImportLayerCre
 	ULevel* Level = LandscapeEdMode->CurrentGizmoActor->GetWorld()->GetCurrentLevel();
 
 	// Build default layer object name and package name
-	FName LayerObjectName = FName(*FString::Printf(TEXT("%s_LayerInfo"), *LayerName.ToString()));
-	FString Path = Level->GetOutermost()->GetName() + TEXT("_sharedassets/");
-	if (Path.StartsWith("/Temp/"))
-	{
-		Path = FString("/Game/") + Path.RightChop(FString("/Temp/").Len());
-	}
-	FString PackageName = Path + LayerObjectName.ToString();
+	FName LayerObjectName;
+	FString PackageName = UE::Landscape::GetLayerInfoObjectPackageName(Level, LayerName, LayerObjectName);
 
 	TSharedRef<SDlgPickAssetPath> NewLayerDlg =
 		SNew(SDlgPickAssetPath)

@@ -7,6 +7,7 @@
 #include "LandscapeSettings.generated.h"
 
 class UMaterialInterface;
+class ULandscapeLayerInfoObject;
 
 UCLASS(config = Engine, defaultconfig, meta = (DisplayName = "Landscape"))
 class LANDSCAPE_API ULandscapeSettings : public UDeveloperSettings
@@ -28,6 +29,9 @@ public:
 	/** Returns the default landscape material that should be used when creating a new landscape. */
 	TSoftObjectPtr<UMaterialInterface> GetDefaultLandscapeMaterial() const { return DefaultLandscapeMaterial; }
 
+	/** Returns the default landscape layer info object that will be assigned to unset layers when creating a new landscape. */
+	TSoftObjectPtr<ULandscapeLayerInfoObject> GetDefaultLayerInfoObject() const { return DefaultLayerInfoObject; }
+
 public:
 	UPROPERTY(config, EditAnywhere, Category = "Layers", meta=(UIMin = "1", UIMax = "32", ClampMin = "1", ClampMax = "32", ToolTip = "This option controls the maximum editing layers that can be added to a Landscape"))
 	int32 MaxNumberOfLayers = 8;
@@ -38,6 +42,9 @@ protected:
 
 	UPROPERTY(EditAnywhere, config, Category = "Materials", meta = (ToolTip = "Default Landscape Material will be prefilled when creating a new landscape."))
 	TSoftObjectPtr<UMaterialInterface> DefaultLandscapeMaterial;
+
+	UPROPERTY(EditAnywhere, config, Category = "Layers", meta = (ToolTip = "Default Layer Info Object"))
+	TSoftObjectPtr<ULandscapeLayerInfoObject> DefaultLayerInfoObject;
 
 	UPROPERTY(transient)
 	bool bRestrictiveMode = false;

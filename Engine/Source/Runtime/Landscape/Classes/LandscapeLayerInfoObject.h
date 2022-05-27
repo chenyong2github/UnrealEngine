@@ -72,4 +72,6 @@ class ULandscapeLayerInfoObject : public UObject
 	virtual void PostLoad() override;
 	//~ End UObject Interface
 #endif
+
+	LANDSCAPE_API FLinearColor GenerateLayerUsageDebugColor() const;
 };
