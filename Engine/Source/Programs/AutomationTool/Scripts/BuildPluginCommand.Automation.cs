@@ -172,7 +172,7 @@ public sealed class BuildPlugin : BuildCommand
 			PlatformTypeMap.Add(Type.Name, Type);
 		}
 
-		var SelectedPlatform = $"BuildPlugin_{Platform.ToString}";
+		var SelectedPlatform = $"BuildPlugin_{Platform.ToString()}";
 		if (!PlatformTypeMap.ContainsKey(SelectedPlatform))
 		{
 			return null;
