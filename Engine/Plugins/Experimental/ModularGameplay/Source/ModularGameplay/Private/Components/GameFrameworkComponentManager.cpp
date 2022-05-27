@@ -6,6 +6,7 @@
 #include "Engine/GameInstance.h"
 #include "EngineUtils.h"
 #include "ModularGameplayLogs.h"
+#include "UObject/UObjectGlobals.h"
 
 #if !UE_BUILD_SHIPPING
 #include "HAL/IConsoleManager.h"
@@ -71,7 +72,7 @@ void UGameFrameworkComponentManager::DumpGameFrameworkComponentManagers()
 			UE_LOG(LogModularGameplay, Display, TEXT("    Receivers... (Num:%d)"), Manager->AllReceivers.Num());
 			for (auto SetIt = Manager->AllReceivers.CreateConstIterator(); SetIt; ++SetIt)
 			{
-				UE_LOG(LogModularGameplay, Display, TEXT("      ReceiverInstance: %s"), *GetPathNameSafe(*SetIt));
+				UE_LOG(LogModularGameplay, Display, TEXT("      ReceiverInstance: %s"), *GetPathNameSafe(SetIt->ResolveObjectPtr()));
 			}
 #endif // WITH_EDITOR
 
@@ -103,6 +104,32 @@ void UGameFrameworkComponentManager::Initialize(FSubsystemCollectionBase& Collec
 	Super::Initialize(Collection);
 
 	CurrentStateChange = INDEX_NONE;
+
+#if WITH_EDITORONLY_DATA
+	FCoreUObjectDelegates::GetPostGarbageCollect().AddUObject(this, &UGameFrameworkComponentManager::PostGC);
+#endif
+}
+
+void UGameFrameworkComponentManager::Deinitialize() 
+{
+	Super::Deinitialize();
+#if WITH_EDITORONLY_DATA
+	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
+#endif
+}
+
+void UGameFrameworkComponentManager::PostGC()
+{
+#if WITH_EDITORONLY_DATA
+	// Clear invalid receivers. 
+	for (auto It = AllReceivers.CreateIterator(); It; ++It)
+	{
+		if (It->ResolveObjectPtr() == nullptr)
+		{
+			It.RemoveCurrent();
+		}
+	}
+#endif
 }
 
 UGameFrameworkComponentManager* UGameFrameworkComponentManager::GetForActor(const AActor* Actor, bool bOnlyGameWorlds)
@@ -145,7 +172,7 @@ void UGameFrameworkComponentManager::AddReceiverInternal(AActor* Receiver)
 	checkSlow(Receiver);
 	
 #if WITH_EDITOR
-	AllReceivers.Add(Receiver);
+	AllReceivers.Add(FObjectKey(Receiver));
 #endif
 	
 	for (UClass* Class = Receiver->GetClass(); Class && Class != AActor::StaticClass(); Class = Class->GetSuperClass())

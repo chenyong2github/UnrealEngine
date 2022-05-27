@@ -82,6 +82,7 @@ public:
 	using FExtensionHandlerDelegate = FExtensionHandlerDelegateInternal;
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
 
 	/** Utility to get this manager from an actor, will return null if actor is null or not in a world */
 	static UGameFrameworkComponentManager* GetForActor(const AActor* Actor, bool bOnlyGameWorlds = true);
@@ -144,6 +145,10 @@ public:
 #endif // !UE_BUILD_SHIPPING
 
 private:
+#if WITH_EDITORONLY_DATA
+	void PostGC();
+#endif
+
 	void AddReceiverInternal(AActor* Receiver);
 	void RemoveReceiverInternal(AActor* Receiver);
 	void SendExtensionEventInternal(AActor* Receiver, const FName& EventName);
@@ -251,8 +256,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	/** Editor-only set to validate that component requests are only being added for actors that call AddReceiver and RemoveReceiver */
-	UPROPERTY(transient)
-	TSet<AActor*> AllReceivers;
+	TSet<FObjectKey> AllReceivers;
 #endif // WITH_EDITORONLY_DATA
 
 	friend struct FComponentRequestHandle;
