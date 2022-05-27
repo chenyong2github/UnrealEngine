@@ -554,10 +554,18 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InOverrideC
 			FinalChunkManifests[PakchunkIndex].Reset(new FChunkPackageSet());
 			Manifest = FinalChunkManifests[PakchunkIndex].Get();
 		}
-
+		
+		// Split the chunk into subchunks as necessary and create and register a PakListFile for each subchunk
 		int32 FilenameIndex = 0;
 		TArray<FString> ChunkFilenames;
 		Manifest->GenerateValueArray(ChunkFilenames);
+
+		// Do not create any files if the chunk is empty
+		if (ChunkFilenames.IsEmpty())
+		{
+			continue;
+		}
+
 		bool bFinishedAllFiles = false;
 		for (int32 SubChunkIndex = 0; !bFinishedAllFiles; ++SubChunkIndex)
 		{
