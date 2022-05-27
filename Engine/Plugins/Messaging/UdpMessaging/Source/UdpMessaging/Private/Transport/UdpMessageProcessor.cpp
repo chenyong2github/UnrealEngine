@@ -33,11 +33,9 @@ const int32 FUdpMessageProcessor::DeadHelloIntervals = 5;
 
 namespace UE::Private::MessageProcessor
 {
-
 FOnTransferDataUpdated& OnSegmenterUpdated()
 {
 	static FOnTransferDataUpdated OnTransferUpdated;
-
 	return OnTransferUpdated;
 }
 
@@ -1014,8 +1012,6 @@ FSentSegmentInfo FUdpMessageProcessor::SendNextSegmentForMessageId(FNodeInfo& No
 
 	NodeInfo.Statistics.TotalBytesSent += SentInfo.BytesSent;
 	NodeInfo.Statistics.IPv4AsString = NodeInfo.Endpoint.ToString();
-	NodeInfo.Statistics.PacketsInFlight = NodeInfo.InflightSegments.Num();
-	NodeInfo.Statistics.BytesInflight = NodeInfo.InflightSegments.Num() * UDP_MESSAGING_SEGMENT_SIZE;
 	return MoveTemp(SentInfo);
 }
 
@@ -1049,6 +1045,9 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo)
 
 		BytesSent += Info.BytesSent;
 	}
+	
+	NodeInfo.Statistics.PacketsInFlight = NodeInfo.InflightSegments.Num();
+	NodeInfo.Statistics.BytesInflight = NodeInfo.InflightSegments.Num() * UDP_MESSAGING_SEGMENT_SIZE;
 
 	// Requeue for the next round.
 	for (int32 RequeueMessageId : MessagesForRequeue)
