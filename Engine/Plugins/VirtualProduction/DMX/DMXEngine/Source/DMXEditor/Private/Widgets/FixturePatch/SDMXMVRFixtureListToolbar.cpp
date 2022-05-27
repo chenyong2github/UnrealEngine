@@ -328,9 +328,9 @@ void SDMXMVRFixtureListToolbar::OnAddNewMVRFixtureClicked(UDMXEntity* InSelected
 		{
 			const bool bUniverseIsSmaller = FixturePatchA.GetUniverseID() < FixturePatchB.GetUniverseID();
 			const bool bUniverseIsEqual = FixturePatchA.GetUniverseID() == FixturePatchB.GetUniverseID();
-			const bool bAddressIsSmaller = FixturePatchA.GetStartingChannel() < FixturePatchB.GetStartingChannel();
+			const bool bLastAddressIsSmaller = FixturePatchA.GetEndingChannel() < FixturePatchB.GetEndingChannel();
 			
-			return bUniverseIsSmaller || (bUniverseIsEqual && bAddressIsSmaller);
+			return bUniverseIsSmaller || (bUniverseIsEqual && bLastAddressIsSmaller);
 		});
 
 	int32 Universe = 1; 
@@ -338,7 +338,7 @@ void SDMXMVRFixtureListToolbar::OnAddNewMVRFixtureClicked(UDMXEntity* InSelected
 	if (FixturePatches.Num() > 0)
 	{
 		const int32 ChannelSpan = FixtureType->Modes.Num() > 0 ? FixtureType->Modes[0].ChannelSpan : 1;
-		if (FixturePatches.Last()->GetEndingChannel() + 1 + ChannelSpan <= DMX_MAX_ADDRESS)
+		if (FixturePatches.Last()->GetEndingChannel() + ChannelSpan > DMX_MAX_ADDRESS)
 		{
 			Universe = FixturePatches.Last()->GetUniverseID() + 1;
 			Address = 1;

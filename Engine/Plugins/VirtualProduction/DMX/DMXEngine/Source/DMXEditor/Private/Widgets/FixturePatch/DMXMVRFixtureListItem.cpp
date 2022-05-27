@@ -452,12 +452,13 @@ void FDMXMVRFixtureListItem::DuplicateFixturePatchesInternal(TWeakPtr<FDMXEditor
 
 		Address += ChannelSpan;
 	}
+
+	DMXLibrary->PostEditChange();
+
 	if (NewFixturePatches.Num() > 0)
 	{
 		FixturePatchSharedData->SelectFixturePatches(NewFixturePatches);
 	}
-
-	DMXLibrary->PostEditChange();
 }
 
 FDMXMVRFixture* FDMXMVRFixtureListItem::FindMVRFixture() const

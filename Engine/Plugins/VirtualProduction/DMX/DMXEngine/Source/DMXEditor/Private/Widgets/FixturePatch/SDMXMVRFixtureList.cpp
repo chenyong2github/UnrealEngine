@@ -76,7 +76,7 @@ private:
 			: Item(InItem)
 		{
 			Universe = Item->GetUniverse();
-			AddressRange = TRange<int32>(Item->GetAddress(), Item->GetNumChannels());
+			AddressRange = TRange<int32>(Item->GetAddress(), Item->GetAddress() + Item->GetNumChannels());
 		}
 
 		FText GetConfictsWith(const FItemPatch& Other) const
@@ -253,6 +253,16 @@ SDMXMVRFixtureList::~SDMXMVRFixtureList()
 	SaveHeaderRowSettings();
 }
 
+void SDMXMVRFixtureList::PostUndo(bool bSuccess)
+{
+	RequestListRefresh();
+}
+
+void SDMXMVRFixtureList::PostRedo(bool bSuccess)
+{
+	RequestListRefresh();
+}
+
 void SDMXMVRFixtureList::Construct(const FArguments& InArgs, TWeakPtr<FDMXEditor> InDMXEditor)
 {
 	if (!InDMXEditor.IsValid())
@@ -313,12 +323,18 @@ void SDMXMVRFixtureList::Construct(const FArguments& InArgs, TWeakPtr<FDMXEditor
 
 void SDMXMVRFixtureList::RequestListRefresh()
 {
-	GEditor->GetTimerManager()->SetTimerForNextTick(
-		FTimerDelegate::CreateLambda([this]()
-			{
-				RefreshList();
-			})
-	);
+	if (RequestListRefreshTimerHandle.IsValid())
+	{
+		return;
+	}
+
+	RequestListRefreshTimerHandle =
+		GEditor->GetTimerManager()->SetTimerForNextTick(
+			FTimerDelegate::CreateLambda([this]()
+				{
+					RefreshList();
+				})
+		);
 }
 
 void SDMXMVRFixtureList::EnterFixturePatchNameEditingMode()
@@ -357,6 +373,8 @@ void SDMXMVRFixtureList::OnSearchChanged()
 
 void SDMXMVRFixtureList::RefreshList()
 {	
+	RequestListRefreshTimerHandle.Invalidate();
+
 	SaveHeaderRowSettings();
 
 	// Clear cached data
@@ -940,6 +958,7 @@ void SDMXMVRFixtureList::OnDuplicateItems()
 	TGuardValue<bool>(bChangingDMXLibrary, true);
 
 	const TArray<TSharedPtr<FDMXMVRFixtureListItem>> SelectedItems = ListView->GetSelectedItems();
+
 	FDMXMVRFixtureListItem::DuplicateItems(WeakDMXEditor, SelectedItems);
 
 	RequestListRefresh();
@@ -958,7 +977,7 @@ void SDMXMVRFixtureList::OnDeleteItems()
 
 	const TArray<TSharedPtr<FDMXMVRFixtureListItem>> SelectedItems = ListView->GetSelectedItems();
 
-	// Make a beautiful selection invariant to ordering of the List
+	// Make a meaningful selection invariant to ordering of the List
 	TSharedPtr<FDMXMVRFixtureListItem> NewSelection;
 	for (int32 ItemIndex = 0; ItemIndex < ListSource.Num(); ItemIndex++)
 	{

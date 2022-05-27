@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorUndoClient.h"
+#include "Engine/EngineTypes.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SHeaderRow.h"
 
@@ -21,6 +23,7 @@ class SHeaderRow;
 template <typename ItemType> class SListView;
 class STableViewBase;
 
+
 /** Collumn IDs in the Fixture Patch List */
 struct FDMXMVRFixtureListCollumnIDs
 {
@@ -33,12 +36,12 @@ struct FDMXMVRFixtureListCollumnIDs
 	static const FName Patch;
 };
 
-
 using FDMXMVRFixtureListType = SListView<TSharedPtr<FDMXMVRFixtureListItem>>;
 
 /** Sortable, editable List of Fixture Patches in the library */
 class SDMXMVRFixtureList
 	: public SCompoundWidget
+	, public FSelfRegisteringEditorUndoClient
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXMVRFixtureList)
@@ -51,7 +54,12 @@ public:
 
 	/** Destructor */
 	virtual ~SDMXMVRFixtureList();
-	
+
+	//~Begin EditorUndoClient interface
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override;
+	//~End EditorUndoClient interface
+
 	/** Constructs this widget */
 	void Construct(const FArguments& InArgs, TWeakPtr<FDMXEditor> InDMXEditor);
 
@@ -138,6 +146,9 @@ private:
 
 	/** Rows of Mode widgets in the List */
 	TArray<TSharedPtr<SDMXMVRFixtureListRow>> Rows;
+
+	/** Timer handle for the Request List Refresh method */
+	FTimerHandle RequestListRefreshTimerHandle;
 
 	/** Shared Data for Fixture Patch Editors */
 	TSharedPtr<FDMXFixturePatchSharedData> FixturePatchSharedData;
