@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+class IConcertServerSession;
 class IConcertServer;
 struct FConcertSessionClientInfo;
 
@@ -34,4 +35,12 @@ CONCERT_API TArray<FConcertSessionClientInfo> GetSessionClients(IConcertServer& 
  * @return The client's info if found (it is not found if the client is not connected to any session)
  */
 CONCERT_API TOptional<FConcertSessionClientInfo> GetConnectedClientInfo(IConcertServer& Server, const FGuid& ClientEndpointId);
+
+/**
+ * Retrieves the server session object from the given connected client.
+ * @param Server The server to look on
+ * @param ClientEndpointId The client's endpoint ID
+ * @return The session the client is connected to if any
+ */
+CONCERT_API TSharedPtr<IConcertServerSession> GetLiveSessionClientConnectedTo(IConcertServer& Server, const FGuid& ClientEndpointId);
 } // namespace ConcertUtil

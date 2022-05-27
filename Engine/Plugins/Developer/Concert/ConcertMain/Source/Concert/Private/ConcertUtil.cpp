@@ -70,18 +70,37 @@ TArray<FConcertSessionClientInfo> ConcertUtil::GetSessionClients(IConcertServer&
 	return TArray<FConcertSessionClientInfo>();
 }
 
-TOptional<FConcertSessionClientInfo> ConcertUtil::GetConnectedClientInfo(IConcertServer& Server, const FGuid& ClientEndpointId)
+namespace ConcertUtil::Private
 {
-	for (const TSharedPtr<IConcertServerSession>& ServerSession : Server.GetLiveSessions())
+	static TOptional<TPair<FConcertSessionClientInfo, TSharedPtr<IConcertServerSession>>> FindByClient(IConcertServer& Server, const FGuid& ClientEndpointId)
 	{
-		for (const FConcertSessionClientInfo& ClientInfo : ServerSession->GetSessionClients())
+		for (const TSharedPtr<IConcertServerSession>& ServerSession : Server.GetLiveSessions())
 		{
-			if (ClientEndpointId == ClientInfo.ClientEndpointId)
+			for (const FConcertSessionClientInfo& ClientInfo : ServerSession->GetSessionClients())
 			{
-				return ClientInfo;
+				if (ClientEndpointId == ClientInfo.ClientEndpointId)
+				{
+					return {{ ClientInfo, ServerSession }};
+				}
 			}
 		}
-	}
 
-	return {};
+		return {};
+	}
+}
+
+TOptional<FConcertSessionClientInfo> ConcertUtil::GetConnectedClientInfo(IConcertServer& Server, const FGuid& ClientEndpointId)
+{
+	const TOptional<TPair<FConcertSessionClientInfo, TSharedPtr<IConcertServerSession>>> Result = Private::FindByClient(Server, ClientEndpointId);
+	return Result
+		? Result->Key
+		: TOptional<FConcertSessionClientInfo>();
+}
+
+TSharedPtr<IConcertServerSession> ConcertUtil::GetLiveSessionClientConnectedTo(IConcertServer& Server, const FGuid& ClientEndpointId)
+{
+	const TOptional<TPair<FConcertSessionClientInfo, TSharedPtr<IConcertServerSession>>> Result = Private::FindByClient(Server, ClientEndpointId);
+	return Result
+		? Result->Value
+		: TSharedPtr<IConcertServerSession>();
 }
