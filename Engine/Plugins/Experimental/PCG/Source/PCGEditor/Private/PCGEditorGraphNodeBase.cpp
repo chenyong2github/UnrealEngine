@@ -406,4 +406,17 @@ void UPCGEditorGraphNodeBase::GetPinHoverText(const UEdGraphPin& Pin, FString& H
 	}
 }
 
+UObject* UPCGEditorGraphNodeBase::GetJumpTargetForDoubleClick() const
+{
+	if (PCGNode)
+	{
+		if (UPCGSettings* Settings = PCGNode->DefaultSettings)
+		{
+			return Settings->GetJumpTargetForDoubleClick();
+		}
+	}
+
+	return nullptr;
+}
+
 #undef LOCTEXT_NAMESPACE

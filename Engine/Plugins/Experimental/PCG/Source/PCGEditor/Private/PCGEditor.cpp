@@ -10,6 +10,7 @@
 #include "PCGGraph.h"
 #include "SPCGEditorGraphFind.h"
 #include "SPCGEditorGraphNodePalette.h"
+#include "PCGEditorSettings.h"
 
 #include "EdGraphUtilities.h"
 #include "Editor.h"
@@ -18,6 +19,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "GraphEditor.h"
 #include "GraphEditorActions.h"
 #include "HAL/PlatformApplicationMisc.h"
@@ -28,6 +30,11 @@
 #include "ScopedTransaction.h"
 #include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "SourceCodeNavigation.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+#include "Preferences/UnrealEdOptions.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 #define LOCTEXT_NAMESPACE "PCGGraphEditor"
 
@@ -605,6 +612,7 @@ TSharedRef<SGraphEditor> FPCGEditor::CreateGraphEditorWidget()
 	SGraphEditor::FGraphEditorEvents InEvents;
 	InEvents.OnSelectionChanged = SGraphEditor::FOnSelectionChanged::CreateSP(this, &FPCGEditor::OnSelectedNodesChanged);
 	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FPCGEditor::OnNodeTitleCommitted);
+	InEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &FPCGEditor::OnNodeDoubleClicked);
 
 	return SNew(SGraphEditor)
 		.AdditionalCommands(GraphEditorCommands)
@@ -659,6 +667,58 @@ void FPCGEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type Co
 		const FScopedTransaction Transaction(*FPCGEditorCommon::ContextIdentifier, LOCTEXT("PCGEditorRenameNode", "PCG Editor: Rename Node"), nullptr);
 		NodeBeingChanged->Modify();
 		NodeBeingChanged->OnRenameNode(NewText.ToString());
+	}
+}
+
+void FPCGEditor::OnNodeDoubleClicked(UEdGraphNode* Node)
+{
+	if (Node != nullptr)
+	{
+		if (UObject* Object = Node->GetJumpTargetForDoubleClick())
+		{
+			if (UPCGSettings* PCGSettings = Cast<UPCGSettings>(Object))
+			{
+				JumpToDefinition(PCGSettings->GetClass());
+			}
+			else
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Object);
+			}
+		}
+	}
+}
+
+void FPCGEditor::JumpToDefinition(const UClass* Class) const
+{
+	if (ensure(GUnrealEd) && GUnrealEd->GetUnrealEdOptions()->IsCPPAllowed())
+	{
+		const bool bEnableNavigateToNativeNodes = GetDefault<UPCGEditorSettings>()->bEnableNavigateToNativeNodes;
+		if (bEnableNavigateToNativeNodes)
+		{
+			FSourceCodeNavigation::NavigateToClass(Class);
+		}
+		else
+		{
+			// Inform user that the node is native, give them opportunity to enable navigation to native nodes:
+			FNotificationInfo Info(LOCTEXT("NavigateToNativeDisabled", "Navigation to Native (c++) PCG Nodes Disabled"));
+			Info.ExpireDuration = 10.0f;
+			Info.CheckBoxState = bEnableNavigateToNativeNodes ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+
+			Info.CheckBoxStateChanged = FOnCheckStateChanged::CreateStatic(
+				[](ECheckBoxState NewState)
+				{
+					const FScopedTransaction Transaction(LOCTEXT("ChangeEnableNavigateToNativeNodes", "Change Enable Navigate to Native Nodes Setting"));
+
+					UPCGEditorSettings* MutableEditorSetings = GetMutableDefault<UPCGEditorSettings>();
+					MutableEditorSetings->Modify();
+					MutableEditorSetings->bEnableNavigateToNativeNodes = (NewState == ECheckBoxState::Checked) ? true : false;
+					MutableEditorSetings->SaveConfig();
+				}
+			);
+			Info.CheckBoxText = LOCTEXT("EnableNavigationToNative", "Enable Navigate to Native Nodes?");
+
+			FSlateNotificationManager::Get().AddNotification(Info);
+		}
 	}
 }
 

@@ -107,6 +107,20 @@ private:
 	/** Called when the title of a node is changed */
 	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
 
+	/**
+	 * Called when a node is double clicked
+	 *
+	 * @param Node - The Node that was clicked
+	 */
+	void OnNodeDoubleClicked(UEdGraphNode* Node);
+
+	/**
+	 * Try to jump to a given class (if allowed)
+	 *
+	 * @param Class - The Class to jump to
+	 */
+	void JumpToDefinition(const UClass* Class) const;
+
 	TSharedRef<SDockTab> SpawnTab_GraphEditor(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_PropertyDetails(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Palette(const FSpawnTabArgs& Args);

@@ -153,6 +153,7 @@ public:
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual EPCGSettingsType GetType() const override;
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const override;
+	virtual UObject* GetJumpTargetForDoubleClick() const override;
 #endif
 
 	virtual FName AdditionalTaskName() const override;

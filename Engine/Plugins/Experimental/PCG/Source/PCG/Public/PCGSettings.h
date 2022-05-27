@@ -72,6 +72,11 @@ public:
 	virtual EPCGSettingsType GetType() const { return EPCGSettingsType::Generic; }
 	/** Derived classes must implement this to communicate dependencies on external actors */
 	virtual void GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSettings) const {}
+	/** Override this class to provide an UObject to jump to in case of double click on node
+	 *  ie. returning a blueprint instance will open the given blueprint in its editor.
+	 *  By default, it will return the underlying class, to try to jump to its header in code
+     */
+	virtual UObject* GetJumpTargetForDoubleClick() const;
 #endif
 
 	/** Derived classes can implement this to expose additional name information in the logs */

@@ -25,6 +25,8 @@ UPCGEditorSettings::UPCGEditorSettings(const FObjectInitializer& ObjectInitializ
 	RenderTargetDataPinColor = FLinearColor(1.0f, 0.3f, 0.f);
 	ParamDataPinColor = FLinearColor(1.0f, 0.6f, 0.0f);
 	UnknownDataPinColor = FLinearColor(0.3f, 0.3f, 0.3f);
+
+	bEnableNavigateToNativeNodes = true;
 }
 
 FLinearColor UPCGEditorSettings::GetColor(UPCGSettings* Settings) const

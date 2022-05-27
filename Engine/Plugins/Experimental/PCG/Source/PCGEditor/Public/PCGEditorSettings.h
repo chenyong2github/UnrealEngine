@@ -87,4 +87,8 @@ public:
 	/** User-driven color overrides */
 	UPROPERTY(EditAnywhere, config, Category = Node, meta = (HideAlphaChannel))
 	TMap<TSubclassOf<UPCGSettings>, FLinearColor> OverrideNodeColorByClass;
+
+	/** Specify if we want to jump to definition in case of double click on native PCG Nodes */
+	UPROPERTY(EditAnywhere, config, Category = Workflow)
+	bool bEnableNavigateToNativeNodes;
 };

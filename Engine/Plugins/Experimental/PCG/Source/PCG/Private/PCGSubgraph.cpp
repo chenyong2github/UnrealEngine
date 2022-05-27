@@ -119,6 +119,13 @@ FName UPCGSubgraphSettings::AdditionalTaskName() const
 }
 
 #if WITH_EDITOR
+UObject* UPCGSubgraphSettings::GetJumpTargetForDoubleClick() const
+{
+	// Note that there is a const_cast done behind the scenes in Cast.
+	// And this behavior is already used in similar part of UE.
+	return Cast<UObject>(Subgraph);
+}
+
 bool UPCGSubgraphSettings::IsStructuralProperty(const FName& InPropertyName) const
 {
 	return (InPropertyName == GET_MEMBER_NAME_CHECKED(UPCGSubgraphSettings, Subgraph)) || Super::IsStructuralProperty(InPropertyName);

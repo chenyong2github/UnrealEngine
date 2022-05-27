@@ -351,6 +351,11 @@ void UPCGBlueprintSettings::GetTrackedActorTags(FPCGTagToSettingsMap& OutTagToSe
 	}
 #endif // WITH_EDITORONLY_DATA
 }
+
+UObject* UPCGBlueprintSettings::GetJumpTargetForDoubleClick() const
+{
+	return BlueprintElementType ? BlueprintElementType->ClassGeneratedBy : nullptr;
+}
 #endif // WITH_EDITOR
 
 FName UPCGBlueprintSettings::AdditionalTaskName() const

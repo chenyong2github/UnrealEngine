@@ -45,6 +45,7 @@ public:
 	virtual void PostPasteNode() override;
 	virtual FText GetTooltipText() const override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
+	virtual UObject* GetJumpTargetForDoubleClick() const override;
 	// ~End UEdGraphNode interface
 
 	UPCGNode* GetPCGNode() { return PCGNode; }

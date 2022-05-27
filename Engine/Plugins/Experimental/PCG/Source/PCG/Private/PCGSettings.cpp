@@ -43,6 +43,13 @@ uint32 UPCGSettings::GetCrc32() const
 	return Ar.Crc32(const_cast<UPCGSettings*>(this));
 }
 
+#if WITH_EDITOR
+UObject* UPCGSettings::GetJumpTargetForDoubleClick() const
+{
+	return const_cast<UObject*>(Cast<UObject>(this));
+}
+#endif // WITH_EDITOR
+
 TArray<FPCGPinProperties> UPCGSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;
