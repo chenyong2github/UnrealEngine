@@ -47,6 +47,10 @@ public:
 	UPROPERTY(EditAnywhere, Transient, Category = Processing, meta = (ClampMin = "0.0"))
 	int32 NumThreads = 0;
 
+	/** Use a player to read in the image. */
+	UPROPERTY(EditAnywhere, Transient, Category = Processing)
+	bool bUsePlayer = false;
+
 	/** Number of tiles in the X direction. If 0, then there are no tiles. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Tiles)
 	int32 NumTilesX = 0;

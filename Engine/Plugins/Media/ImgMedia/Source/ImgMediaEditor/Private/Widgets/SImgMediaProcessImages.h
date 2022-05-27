@@ -206,5 +206,7 @@ private:
 	bool bIsProcessing = false;
 	/** True if we want to cancel processing. */
 	bool bIsCancelling = false;
+	/** True if we are using a player to read in the images. */
+	bool bUsePlayer = false;
 	
 };
