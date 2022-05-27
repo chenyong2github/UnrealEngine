@@ -1869,7 +1869,7 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 			// Reorder triangle indices, triangles will be in the same order as the bounding volume in the BVH structure.
 			// And all triangles in a leaf will be contiguous in memory.
 			AddTriangles(LargeIndices, SmallIndices, MElements, LeafPayload.Payload);
-			if (ExternalFaceIndexMap.IsValid())
+			if (ExternalFaceIndexMap.IsValid() && !OldFaceIndexMap.IsEmpty())
 			{
 				ExternalFaceIndexMap->Add(OldFaceIndexMap[LeafPayload.Payload]);
 			}
@@ -1950,7 +1950,7 @@ void FTriangleMeshImplicitObject::RebuildFastBVHFromTree(const BVHType& TreeBVH)
 							// Reorder triangle indices, triangles will be in the same order as the bounding volume in the BVH structure.
 							// And all triangles in a leaf will be contiguous in memory.
 							AddTriangles(LargeIndices, SmallIndices, MElements, LeafPayload.Payload);
-							if (ExternalFaceIndexMap.IsValid())
+							if (ExternalFaceIndexMap.IsValid() && !OldFaceIndexMap.IsEmpty())
 							{
 								ExternalFaceIndexMap->Add(OldFaceIndexMap[LeafPayload.Payload]);
 							}
