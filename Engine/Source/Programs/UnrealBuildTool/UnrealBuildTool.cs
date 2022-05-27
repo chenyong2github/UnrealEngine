@@ -290,6 +290,12 @@ namespace UnrealBuildTool
 			public bool bLogFromMsBuild = false;
 
 			/// <summary>
+			/// Whether or not to suppress warnings of missing SDKs from warnings to LogEventType.Log in UEBuildPlatformSDK.cs 
+			/// </summary>
+			[CommandLine(Prefix = "-SuppressSDKWarnings", Description = "Missing SDKs error verbosity level will be reduced from warning to log")]
+			public bool bShouldSuppressSDKWarnings = false;
+
+			/// <summary>
 			/// Whether to write progress markup in a format that can be parsed by other programs
 			/// </summary>
 			[CommandLine(Prefix = "-Progress", Description = "Write progress messages in a format that can be parsed by other programs")]
@@ -479,6 +485,12 @@ namespace UnrealBuildTool
 				Log.OutputLevel = Options.LogOutputLevel;
 				Log.IncludeTimestamps = Options.bLogTimestamps;
 				Log.IncludeProgramNameWithSeverityPrefix = Options.bLogFromMsBuild;
+
+				// Reducing SDK warning events in the log to LogEventType.Log
+				if (Options.bShouldSuppressSDKWarnings)
+				{
+					UEBuildPlatformSDK.bSuppressSDKWarnings = true;
+				}
 
 				if (Options.TraceWrites != null)
 				{

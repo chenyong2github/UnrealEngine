@@ -840,6 +840,12 @@ namespace EpicGames.Core
 						}
 					}
 
+					// Reducing warnings to log to help prevent warnings locally or in Horde about SDKs we might not currently be concerned about
+					if (bSuppressSDKWarnings)
+					{
+						ErrorVerbosity = LogEventType.Log;
+					}
+
 					// always print errors to the screen
 					Log.WriteLine(ErrorVerbosity, ErrorOptions, Msg.ToString());
 				}
