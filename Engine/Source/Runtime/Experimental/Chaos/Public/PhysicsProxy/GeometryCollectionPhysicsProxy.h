@@ -248,6 +248,8 @@ public:
 	void SetInitializedForReplication() { bInitializedForReplication = true; }
 	bool GetInitializedForReplication() const { return bInitializedForReplication; }
 
+	void UpdateFilterData_External(const FCollisionFilterData& NewSimFilter, const FCollisionFilterData& NewQueryFilter);
+
 protected:
 	/**
 	* Compute damage threshold for a specific transform
@@ -319,8 +321,10 @@ private:
 	bool bInitializedForReplication = false;	//Indicates that initialization for replication has finished
 
 	TManagedArray<TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
-	FCollisionFilterData SimFilter;
-	FCollisionFilterData QueryFilter;
+
+	// These are read on both threads and should not be changed
+	const FCollisionFilterData SimFilter;
+	const FCollisionFilterData QueryFilter;
 
 	// This is a subset of the geometry group that are used in the transform hierarchy to represent geometry
 	TArray<FBox> ValidGeometryBoundingBoxes;
@@ -358,6 +362,7 @@ private:
 	// this data flows from Game thread to physics thread
 	FGeometryCollectioPerFrameData GameThreadPerFrameData;
 	bool bIsPhysicsThreadWorldTransformDirty;
+	bool bIsCollisionFilterDataDirty;
 
 	// Currently this is using triple buffers for game-physics and 
 	// physics-game thread communication, but not for any reason other than this 

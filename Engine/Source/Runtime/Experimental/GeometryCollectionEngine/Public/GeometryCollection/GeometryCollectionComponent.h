@@ -365,6 +365,7 @@ public:
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void SendRenderDynamicData_Concurrent() override;
 	FORCEINLINE void SetRenderStateDirty() { bRenderStateDirty = true; }
+	virtual void OnActorEnableCollisionChanged() override;
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
@@ -884,6 +885,8 @@ private:
 	void IncrementSleepTimer(float DeltaTime);
 	bool CalculateInnerSphere(int32 TransformIndex, FSphere& SphereOut) const;
 	void ProcessRepData();
+
+	void BuildInitialFilterData();
 
 	/** The clusters we need to replicate */
 	TUniquePtr<TSet<Chaos::FPBDRigidClusteredParticleHandle*>> ClustersToRep;

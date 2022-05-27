@@ -93,7 +93,8 @@ class FGeometryCollectioPerFrameData
 {
 public:
 	FGeometryCollectioPerFrameData()
-		: IsWorldTransformDirty(false) {}
+		: IsWorldTransformDirty(false)
+		, bIsCollisionFilterDataDirty(false) {}
 
 	const FTransform& GetWorldTransform() const { return WorldTransform; }
 
@@ -109,9 +110,30 @@ public:
 	bool GetIsWorldTransformDirty() const { return IsWorldTransformDirty; }
 	void ResetIsWorldTransformDirty() { IsWorldTransformDirty = false; }
 
+	const FCollisionFilterData& GetSimFilter() const { return SimFilter; }
+	void SetSimFilter(const FCollisionFilterData& NewSimFilter)
+	{
+		SimFilter = NewSimFilter;
+		bIsCollisionFilterDataDirty = true;
+	}
+
+	const FCollisionFilterData& GetQueryFilter() const { return QueryFilter; }
+	void SetQueryFilter(const FCollisionFilterData& NewQueryFilter)
+	{
+		QueryFilter = NewQueryFilter;
+		bIsCollisionFilterDataDirty = true;
+	}
+
+	bool GetIsCollisionFilterDataDirty() const { return bIsCollisionFilterDataDirty; }
+	void ResetIsCollisionFilterDataDirty() { bIsCollisionFilterDataDirty = false; }
+
 private:
 	FTransform WorldTransform;
 	bool IsWorldTransformDirty;
+
+	FCollisionFilterData SimFilter;
+	FCollisionFilterData QueryFilter;
+	bool bIsCollisionFilterDataDirty;
 };
 
 /**

@@ -282,6 +282,7 @@ namespace Chaos
 	UpdateGeometry(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
 		const TSet<FPBDRigidParticleHandle*>& Children,
+		const FRigidClustering::FClusterMap& ChildrenMap,
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry,
 		const FClusterCreationParameters& Parameters)
 	{
@@ -304,34 +305,6 @@ namespace Chaos
 
 		const bool bUseCollisionPoints = (ProxyGeometry || Parameters.bCopyCollisionParticles) && !Parameters.CollisionParticles;
 		bool bUseParticleImplicit = false;
-
-		// Need to extract a filter off one of the cluster children 
-		FCollisionFilterData SimFilter, QueryFilter;
-		for (FPBDRigidParticleHandle* Child : Children)
-		{
-			bool bFilterValid = false;
-			for (const TUniquePtr<FPerShapeData>& Shape : Child->ShapesArray())
-			{
-				if (Shape)
-				{
-					SimFilter = Shape->GetSimData();
-					bFilterValid = SimFilter.Word0 != 0 || SimFilter.Word1 != 0 || SimFilter.Word2 != 0 || SimFilter.Word3 != 0;
-
-					QueryFilter = Shape->GetQueryData();
-				}
-
-				if (bFilterValid)
-				{
-					break;
-				}
-			}
-
-			// Bail once we've found one
-			if (bFilterValid)
-			{
-				break;
-			}
-		}
 
 		{ // STAT_UpdateGeometry_GatherObjects
 			SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry_GatherObjects);
@@ -525,12 +498,52 @@ namespace Chaos
 			Parent->UpdateWorldSpaceState(Xf, FVec3(0));
 		}
 
-		// Set the captured filter to our new shapes
-		for (const TUniquePtr<FPerShapeData>& Shape : Parent->ShapesArray())
+		
+		// Update filter data on new shapes
+		const FRigidClustering::FRigidHandleArray& ChildrenArray = ChildrenMap[Parent];
+		UpdateClusterFilterDataFromChildren(Parent, ChildrenArray);
+	}
+	
+	void UpdateClusterFilterDataFromChildren(FPBDRigidClusteredParticleHandle* ClusterParent, const TArray<FPBDRigidParticleHandle*>& Children)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_GCUpdateFilterData);
+
+		FCollisionFilterData SelectedSimFilter, SelectedQueryFilter;
+		bool bFilterValid = false;
+		for (FPBDRigidParticleHandle* ChildHandle : Children)
 		{
-			Shape->SetSimData(SimFilter);
-			Shape->SetQueryData(QueryFilter);
+			for (const TUniquePtr<FPerShapeData>& Shape : ChildHandle->ShapesArray())
+			{
+				if (Shape)
+				{
+					SelectedSimFilter = Shape->GetSimData();
+					bFilterValid = SelectedSimFilter.Word0 != 0 || SelectedSimFilter.Word1 != 0 || SelectedSimFilter.Word2 != 0 || SelectedSimFilter.Word3 != 0;
+					SelectedQueryFilter = Shape->GetQueryData();
+
+					if (bFilterValid)
+					{
+						break;
+					}
+				}
+			}
+
+			if (bFilterValid)
+			{
+				break;
+			}
+		}
+
+		// Apply selected filters to shapes
+		if (bFilterValid)
+		{
+			const FShapesArray& ShapesArray = ClusterParent->ShapesArray();
+			for (const TUniquePtr<FPerShapeData>& Shape : ShapesArray)
+			{
+				Shape->SetQueryData(SelectedQueryFilter);
+				Shape->SetSimData(SelectedSimFilter);
+			}
 		}
 	}
+
 
 } // namespace Chaos

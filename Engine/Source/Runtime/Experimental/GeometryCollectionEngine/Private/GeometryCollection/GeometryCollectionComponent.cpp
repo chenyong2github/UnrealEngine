@@ -2176,22 +2176,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			BodyInstance.BodySetup = DummyBodySetup;
 			BodyInstance.OwnerComponent = this; // Required to make filter data include component/actor ID for ignored actors/components
 
-			FBodyCollisionFilterData FilterData;
-			FMaskFilter FilterMask = BodyInstance.GetMaskFilter();
-			BodyInstance.BuildBodyFilterData(FilterData);
-
-			InitialSimFilter = FilterData.SimFilter;
-			InitialQueryFilter = FilterData.QuerySimpleFilter;
-
-			// Enable for complex and simple (no dual representation currently like other meshes)
-			InitialQueryFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
-			InitialSimFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
-			
-			if (bNotifyCollisions)
-			{
-				InitialQueryFilter.Word3 |= EPDF_ContactNotify;
-				InitialSimFilter.Word3 |= EPDF_ContactNotify;
-			}
+			BuildInitialFilterData();
 
 			if (BodyInstance.bSimulatePhysics)
 			{
@@ -2358,6 +2343,42 @@ void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
 		{
 			DynamicCollection->MakeClean();
 		}			
+	}
+}
+
+void UGeometryCollectionComponent::OnActorEnableCollisionChanged()
+{
+	// Update filters on BI
+	BodyInstance.UpdatePhysicsFilterData();
+
+	// Update InitialSimFilter and InitialQueryFilter
+	BuildInitialFilterData();
+
+	// Update filters stored on proxy
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->UpdateFilterData_External(InitialSimFilter, InitialQueryFilter);
+	}
+
+}
+
+void UGeometryCollectionComponent::BuildInitialFilterData()
+{
+	FBodyCollisionFilterData FilterData;
+	FMaskFilter FilterMask = BodyInstance.GetMaskFilter();
+	BodyInstance.BuildBodyFilterData(FilterData);
+
+	InitialSimFilter = FilterData.SimFilter;
+	InitialQueryFilter = FilterData.QuerySimpleFilter;
+
+	// Enable for complex and simple (no dual representation currently like other meshes)
+	InitialQueryFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
+	InitialSimFilter.Word3 |= (EPDF_SimpleCollision | EPDF_ComplexCollision);
+
+	if (bNotifyCollisions)
+	{
+		InitialQueryFilter.Word3 |= EPDF_ContactNotify;
+		InitialSimFilter.Word3 |= EPDF_ContactNotify;
 	}
 }
 

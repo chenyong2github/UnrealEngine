@@ -10,6 +10,7 @@
 #include "Chaos/BVHParticles.h"
 #include "Chaos/Transform.h"
 #include "Chaos/ParallelFor.h"
+#include "Chaos/GeometryParticles.h"
 #include "Chaos/Particles.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/MassProperties.h"
@@ -371,6 +372,7 @@ FGeometryCollectionPhysicsProxy::FGeometryCollectionPhysicsProxy(
 
 	, GameThreadCollection(GameThreadCollectionIn)
 	, bIsPhysicsThreadWorldTransformDirty(false)
+	, bIsCollisionFilterDataDirty(false)
 {
 	// We rely on a guarded buffer.
 	check(BufferMode == Chaos::EMultiBufferMode::TripleGuarded);
@@ -1660,13 +1662,22 @@ void FGeometryCollectionPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSol
 		Parameters.WorldTransform = GameThreadPerFrameData.GetWorldTransform();
 		GameThreadPerFrameData.ResetIsWorldTransformDirty();
 	}
+
+	bIsCollisionFilterDataDirty = GameThreadPerFrameData.GetIsCollisionFilterDataDirty();
+	if (bIsCollisionFilterDataDirty)
+	{
+		Parameters.QueryFilterData = GameThreadPerFrameData.GetQueryFilter();
+		Parameters.SimulationFilterData = GameThreadPerFrameData.GetSimFilter();
+		GameThreadPerFrameData.ResetIsCollisionFilterDataDirty();
+	}
 }
 
 void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
 {
+	using namespace Chaos;
 	// CONTEXT: PHYSICSTHREAD
 	// because the attached actor can be dynamic, we need to update the kinematic particles properly
-	if (bIsPhysicsThreadWorldTransformDirty)
+	if (bIsPhysicsThreadWorldTransformDirty || bIsCollisionFilterDataDirty)
 	{
 		const FTransform& ActorToWorld = Parameters.WorldTransform;
 
@@ -1679,28 +1690,55 @@ void FGeometryCollectionPhysicsProxy::PushToPhysicsState()
 			Chaos::FPBDRigidClusteredParticleHandle* Handle = SolverParticleHandles[TransformGroupIndex];
 			if (Handle)
 			{
-				if (Handle->ObjectState() == Chaos::EObjectStateType::Kinematic)
+				// Must update our filters before updating an internal cluster parent
+				if (bIsCollisionFilterDataDirty)
 				{
-					// in the case of cluster union we need to find our Internal Cluster parent and update it
-					if (!InternalClusterParentUpdated)
+					const Chaos::FShapesArray& ShapesArray = Handle->ShapesArray();
+					for (const TUniquePtr<Chaos::FPerShapeData>& Shape : ShapesArray)
 					{
-						FClusterHandle* ParentHandle = Handle->Parent();
-						if (ParentHandle && ParentHandle->InternalCluster() && !ParentHandle->Disabled() && ParentHandle->ObjectState() == Chaos::EObjectStateType::Kinematic)
+						Shape->SetQueryData(Parameters.QueryFilterData);
+						Shape->SetSimData(Parameters.SimulationFilterData);
+					}
+				}
+
+				// in the case of cluster union we need to find our Internal Cluster parent and update it
+				if (!InternalClusterParentUpdated)
+				{
+					FClusterHandle* ParentHandle = Handle->Parent();
+					if (ParentHandle && ParentHandle->InternalCluster())
+					{
+						if (bIsPhysicsThreadWorldTransformDirty && Handle->ObjectState() == Chaos::EObjectStateType::Kinematic && ParentHandle->ObjectState() == Chaos::EObjectStateType::Kinematic && !ParentHandle->Disabled())
 						{
 							FTransform NewChildWorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;
 							Chaos::FRigidTransform3 ParentToChildTransform = Handle->ChildToParent().Inverse();
 							FTransform NewParentWorldTRansform = ParentToChildTransform * NewChildWorldTransform;
 							SetClusteredParticleKinematicTarget_Internal(ParentHandle, NewParentWorldTRansform);
-
-							InternalClusterParentUpdated = true;
 						}
-					}
 
-					if (!Handle->Disabled())
-					{
-						FTransform WorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;
-						SetClusteredParticleKinematicTarget_Internal(Handle, WorldTransform);
+						if (bIsCollisionFilterDataDirty)
+						{
+							if(Chaos::FPhysicsSolver* RigidSolver = GetSolver<Chaos::FPhysicsSolver>())
+							{
+								FRigidClustering& RigidClustering = RigidSolver->GetEvolution()->GetRigidClustering();
+								FRigidClustering::FRigidHandleArray* ChildArray = RigidClustering.GetChildrenMap().Find(ParentHandle);
+								if (ensure(ChildArray))
+								{
+									// If our filter changed, internal cluster parent's filter may be stale.
+									UpdateClusterFilterDataFromChildren(ParentHandle, *ChildArray);
+								}
+
+							}
+						}
+
+
+						InternalClusterParentUpdated = true;
 					}
+				}
+
+				if (bIsPhysicsThreadWorldTransformDirty && !Handle->Disabled() && Handle->ObjectState() == Chaos::EObjectStateType::Kinematic)
+				{
+					FTransform WorldTransform = PhysicsThreadCollection.MassToLocal[TransformGroupIndex] * PhysicsThreadCollection.Transform[TransformGroupIndex] * ActorToWorld;
+					SetClusteredParticleKinematicTarget_Internal(Handle, WorldTransform);
 				}
 			}
 		}
@@ -2122,6 +2160,37 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 	}
 
 	return true;
+}
+
+
+void FGeometryCollectionPhysicsProxy::UpdateFilterData_External(const FCollisionFilterData& NewSimFilter, const FCollisionFilterData& NewQueryFilter)
+{
+	SCOPE_CYCLE_COUNTER(STAT_GCUpdateFilterData);
+	check(IsInGameThread());
+
+	// SimFilter/QueryFilter members are read on both threads, these are const after initialization and are not updated here.
+
+	int32 NumTransforms = GameThreadCollection.Transform.Num();
+	for (int32 Index = 0; Index < NumTransforms; ++Index)
+	{
+		Chaos::FGeometryParticle* P = GTParticles[Index].Get();
+		const Chaos::FShapesArray& Shapes = P->ShapesArray();
+		const int32 NumShapes = Shapes.Num();
+		for (int32 ShapeIndex = 0; ShapeIndex < NumShapes; ++ShapeIndex)
+		{
+			Chaos::FPerShapeData* Shape = Shapes[ShapeIndex].Get();
+			Shape->SetSimData(NewSimFilter);
+			Shape->SetQueryData(NewQueryFilter);
+		}
+	}
+
+	GameThreadPerFrameData.SetSimFilter(NewSimFilter);
+	GameThreadPerFrameData.SetQueryFilter(NewQueryFilter);
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->AddDirtyProxy(this);
+	}
 }
 
 //==============================================================================

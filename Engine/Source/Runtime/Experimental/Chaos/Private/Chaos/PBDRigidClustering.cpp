@@ -149,7 +149,7 @@ namespace Chaos
 		FMatrix33 ClusterInertia(0);
 		UpdateClusterMassProperties(NewParticle, ChildrenSet, ClusterInertia, ForceMassOrientation);
 		UpdateKinematicProperties(NewParticle, MChildren, MEvolution);
-		UpdateGeometry(NewParticle, ChildrenSet, ProxyGeometry, Parameters);
+		UpdateGeometry(NewParticle, ChildrenSet, MChildren, ProxyGeometry, Parameters);
 		GenerateConnectionGraph(NewParticle, Parameters);
 
 		NewParticle->SetSleeping(bClusterIsAsleep);
@@ -256,7 +256,7 @@ namespace Chaos
 		UpdateClusterMassProperties(NewParticle, ChildrenSet, ClusterInertia, nullptr);
 		UpdateKinematicProperties(NewParticle, MChildren, MEvolution);
 
-		UpdateGeometry(NewParticle, ChildrenSet, nullptr, NoCleanParams);
+		UpdateGeometry(NewParticle, ChildrenSet, MChildren, nullptr, NoCleanParams);
 
 		return NewParticle;
 	}
@@ -869,7 +869,6 @@ namespace Chaos
 
 		return AllActivatedChildren;
 	}
-
 
 	DECLARE_CYCLE_STAT(TEXT("FRigidClustering::Visitor"), STAT_ClusterVisitor, STATGROUP_Chaos);
 	void FRigidClustering::Visitor(FClusterHandle Cluster, FVisitorFunction Function)
