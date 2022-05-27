@@ -34,6 +34,11 @@ namespace UnrealBuildTool
 			CommandLine.ParseArguments(Environment.GetCommandLineArgs(), this, Logger);
 		}
 
+		protected override bool UseWindowsArchitecture(UnrealTargetPlatform Platform)
+		{
+			return true;
+		}
+
 		protected override void AppendCLArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.AppendCLArguments_Global(CompileEnvironment, Arguments);

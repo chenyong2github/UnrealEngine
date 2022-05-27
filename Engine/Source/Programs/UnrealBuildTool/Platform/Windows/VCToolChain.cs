@@ -1006,7 +1006,7 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if (LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows) || LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.HoloLens))
+			if (UseWindowsArchitecture(LinkEnvironment.Platform))
 			{
 				Arguments.Add($"/MACHINE:{WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)}");
 
@@ -1167,7 +1167,7 @@ namespace UnrealBuildTool
 			//
 			//	PC
 			//
-			if (LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.Windows) || LinkEnvironment.Platform.IsInGroup(UnrealPlatformGroup.HoloLens))
+			if (UseWindowsArchitecture(LinkEnvironment.Platform))
 			{
 				Arguments.Add($"/MACHINE:{WindowsExports.GetArchitectureSubpath(Target.WindowsPlatform.Architecture)}");
 
@@ -1545,6 +1545,11 @@ namespace UnrealBuildTool
 		public virtual FileReference GetApplicationIcon(FileReference? ProjectFile)
 		{
 			return WindowsPlatform.GetWindowsApplicationIcon(ProjectFile);
+		}
+
+		protected virtual bool UseWindowsArchitecture(UnrealTargetPlatform Platform)
+		{
+			return Platform.IsInGroup(UnrealPlatformGroup.Windows);
 		}
 
 		public override CPPOutput CompileRCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, IActionGraphBuilder Graph)

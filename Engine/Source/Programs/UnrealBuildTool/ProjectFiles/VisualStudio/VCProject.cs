@@ -1821,33 +1821,10 @@ namespace UnrealBuildTool
 				{
 					TargetRules TargetRulesObject = Combination.ProjectTarget.TargetRules!;
 
-					if (Combination.Platform!.Value.IsInGroup(UnrealPlatformGroup.HoloLens)) // this logic should be moved into HoloLensProjectGenerator.GetVisualStudioUserFileStrings
-					{
-						VCUserFileContent.AppendLine("  <PropertyGroup {0}>", ConditionString);
-						if (TargetRulesObject.Type != TargetType.Game)
-						{
-							string DebugOptions = "";
-
-							if (IsForeignProject)
-							{
-								DebugOptions += UProjectPath;
-								DebugOptions += " -skipcompile";
-							}
-							else if (TargetRulesObject.Type == TargetType.Editor && ProjectName != ProjectFileGenerator.EngineProjectFileNameBase)
-							{
-								DebugOptions += ProjectName;
-							}
-
-							VCUserFileContent.AppendLine("    <LocalDebuggerCommandArguments>{0}</LocalDebuggerCommandArguments>", DebugOptions);
-						}
-						VCUserFileContent.AppendLine("    <DebuggerFlavor>{0}</DebuggerFlavor>", "AppHostLocalDebugger ");
-						VCUserFileContent.AppendLine("  </PropertyGroup>");
-					}
-
 					if (ProjGenerator != null)
 					{
 						string? ForeignUProjectPath = (IsForeignProject && !string.IsNullOrEmpty(UProjectPath)) ? UProjectPath : null;
-						VCUserFileContent.Append(ProjGenerator.GetVisualStudioUserFileStrings(Combination.Platform.Value, Configuration, ConditionString, TargetRulesObject, Combination.ProjectTarget.TargetFilePath, ProjectFilePath, ProjectName, ForeignUProjectPath));
+						VCUserFileContent.Append(ProjGenerator.GetVisualStudioUserFileStrings(Combination.Platform!.Value, Configuration, ConditionString, TargetRulesObject, Combination.ProjectTarget.TargetFilePath, ProjectFilePath, ProjectName, ForeignUProjectPath));
 					}
 				}
 			}

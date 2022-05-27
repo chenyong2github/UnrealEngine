@@ -14,6 +14,15 @@ using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildTool
 {
+	partial struct UnrealPlatformGroup
+	{
+		/// <summary>
+		/// this group was for grouping HoloLens32 and HoloLens64 into HoloLens directories but is no longer relevant
+		/// </summary>
+		[Obsolete("UnrealPlatformGroup.HoloLens is deprecated - please change the code to use ModuleName_HoloLens.build.cs etc or reference the UnrealTargetPlatform.HoloLens directly")]
+		public static UnrealPlatformGroup HoloLens = FindOrAddByName("HoloLens");
+	}
+
 	/// <summary>
 	/// HoloLens-specific target settings
 	/// </summary>
@@ -814,8 +823,10 @@ namespace UnrealBuildTool
 
 				UEBuildPlatform.RegisterBuildPlatform(new HoloLensPlatform(SDK, Logger), Logger);
 				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);
+#pragma warning disable CS0618 // Type or member is obsolete
 				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.HoloLens);
+#pragma warning restore CS0618
+				}
 			}
 		}
-	}
 }

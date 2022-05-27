@@ -524,11 +524,6 @@ namespace UnrealBuildTool
 		public static UnrealPlatformGroup Windows = FindOrAddByName("Windows");
 
 		/// <summary>
-		/// this group is just to lump HoloLens32 and HoloLens64 into HoloLens directories
-		/// </summary>
-		public static UnrealPlatformGroup HoloLens = FindOrAddByName("HoloLens");
-
-		/// <summary>
 		/// Microsoft platforms
 		/// </summary>
 		public static UnrealPlatformGroup Microsoft = FindOrAddByName("Microsoft");
