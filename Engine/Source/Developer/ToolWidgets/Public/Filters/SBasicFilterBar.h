@@ -57,10 +57,16 @@ public:
 	/** Delegate for when filters have changed */
 	DECLARE_DELEGATE( FOnFilterChanged );
 	
+	/** Delegate for when filters have changed */
+	DECLARE_DELEGATE_OneParam( FOnExtendAddFilterMenu, UToolMenu* );
+	
  	SLATE_BEGIN_ARGS( SBasicFilterBar<FilterType> ){}
 
  		/** Delegate for when filters have changed */
  		SLATE_EVENT( FOnFilterChanged, OnFilterChanged )
+
+		/** Delegate to extend the Add Filter dropdown */
+		SLATE_EVENT( FOnExtendAddFilterMenu, OnExtendAddFilterMenu )
 
 		/** Initial List of Custom Filters that will be added to the AddFilter Menu */
 		SLATE_ARGUMENT( TArray<TSharedRef<FFilterBase<FilterType>>>, CustomFilters)
@@ -70,6 +76,7 @@ public:
  	void Construct( const FArguments& InArgs )
  	{
 		OnFilterChanged = InArgs._OnFilterChanged;
+ 		OnExtendAddFilterMenu = InArgs._OnExtendAddFilterMenu;
 
  		// A subclass could be using an external filter collection (SFilterList in ContentBrowser)
  		if(!ActiveFilters)
@@ -665,7 +672,7 @@ public:
  		// else -> Already in the desired 'check' state.
  	}
 
- 	/** Returns the check box state of the specified filter (in the filter drop down). This tells whether the filter is pinned or not on the filter bar, but not if filter is active or not. @see IsFrontendFilterActive(). */
+ 	/** Returns the check box state of the specified filter (in the filter drop down). This tells whether the filter is pinned or not on the filter bar, but not if filter is active or not. @see IsFilterActive(). */
  	ECheckBoxState GetFilterCheckState(const TSharedPtr<FFilterBase<FilterType>>& InFilter) const
  	{
  		return InFilter && IsFrontendFilterInUse(InFilter.ToSharedRef()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
@@ -1049,6 +1056,8 @@ protected:
 				FExecuteAction::CreateSP(this, &SBasicFilterBar<FilterType>::OnResetFilters),
 				FCanExecuteAction::CreateLambda([this]() { return HasAnyFilters(); }))
 		);
+		
+		OnExtendAddFilterMenu.ExecuteIfBound(Menu);
 	}
 
 	/** Helper function to add all custom filters to the Add Filter Menu */
@@ -1130,6 +1139,9 @@ protected:
 
  	/** Delegate for when filters have changed */
  	FOnFilterChanged OnFilterChanged;
+
+	/** Delegate to extend the AddFilter Menu */
+	FOnExtendAddFilterMenu OnExtendAddFilterMenu;
 
 	friend struct FFrontendFilterExternalActivationHelper<FilterType>;
 };

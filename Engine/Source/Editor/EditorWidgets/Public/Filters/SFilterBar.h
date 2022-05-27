@@ -41,7 +41,8 @@ public:
 	using FOnFilterChanged = typename SBasicFilterBar<FilterType>::FOnFilterChanged;
 	using FConvertItemToAssetData = typename FAssetFilter<FilterType>::FConvertItemToAssetData;
 	using FCompareItemWithClassNames = typename FAssetFilter<FilterType>::FCompareItemWithClassNames;
-
+	using FOnExtendAddFilterMenu = typename SBasicFilterBar<FilterType>::FOnExtendAddFilterMenu;
+	
 	SLATE_BEGIN_ARGS( SFilterBar<FilterType> )
 		: _UseDefaultAssetFilters(true)
 		{
@@ -59,6 +60,9 @@ public:
 
 		/** Initial List of Custom Filters that will be added to the AddFilter Menu */
 		SLATE_ARGUMENT( TArray<TSharedRef<FFilterBase<FilterType>>>, CustomFilters)
+	
+		/** Delegate to extend the Add Filter dropdown */
+		SLATE_EVENT( FOnExtendAddFilterMenu, OnExtendAddFilterMenu )
 
 		/** Initial List of Custom Class Filters that will be added to the AddFilter Menu */
 		SLATE_ARGUMENT( TArray<TSharedRef<FCustomClassFilterData>>, CustomClassFilters)
@@ -76,6 +80,7 @@ public:
 		Args._CustomFilters = InArgs._CustomFilters;
 		Args._UseDefaultAssetFilters = InArgs._UseDefaultAssetFilters;
 		Args._CustomClassFilters = InArgs._CustomClassFilters;
+		Args._OnExtendAddFilterMenu = InArgs._OnExtendAddFilterMenu;
 		
 		SAssetFilterBar<FilterType>::Construct(Args);
 
