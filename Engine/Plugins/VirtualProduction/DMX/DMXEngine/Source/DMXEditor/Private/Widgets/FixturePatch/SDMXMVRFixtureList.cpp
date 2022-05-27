@@ -464,26 +464,52 @@ void SDMXMVRFixtureList::OnSelectionChanged(TSharedPtr<FDMXMVRFixtureListItem> I
 		return;
 	}
  
-	TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatches;
 	const TArray<TSharedPtr<FDMXMVRFixtureListItem>> SelectedItems = ListView->GetSelectedItems();
-	for (const TSharedPtr<FDMXMVRFixtureListItem>& Item : SelectedItems)
-	{
-		if (UDMXEntityFixturePatch* FixturePatch = Item->GetFixturePatch())
-		{
-			FixturePatches.AddUnique(FixturePatch);
-		}
-	}
-
-	FixturePatchSharedData->SelectFixturePatches(FixturePatches);
-
 	if (SelectedItems.Num() > 0)
 	{
-		const int32 SelectedUniverse = FixturePatchSharedData->GetSelectedUniverse();
-		const int32 UniverseOfFirstItem = SelectedItems[0]->GetUniverse();
-		if (SelectedUniverse != UniverseOfFirstItem)
+		TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatchesToSelect;
+		for (const TSharedPtr<FDMXMVRFixtureListItem>& Item : SelectedItems)
 		{
-			FixturePatchSharedData->SelectUniverse(UniverseOfFirstItem);
+			if (UDMXEntityFixturePatch* FixturePatch = Item->GetFixturePatch())
+			{
+				FixturePatchesToSelect.AddUnique(FixturePatch);
+			}
 		}
+
+		FixturePatchSharedData->SelectFixturePatches(FixturePatchesToSelect);
+
+		if (SelectedItems.Num() > 0)
+		{
+			const int32 SelectedUniverse = FixturePatchSharedData->GetSelectedUniverse();
+			const int32 UniverseOfFirstItem = SelectedItems[0]->GetUniverse();
+			if (SelectedUniverse != UniverseOfFirstItem)
+			{
+				FixturePatchSharedData->SelectUniverse(UniverseOfFirstItem);
+			}
+		}
+	}
+	else
+	{
+		// Restore selection when nothing got selected
+		const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
+		TArray<TSharedPtr<FDMXMVRFixtureListItem>> ItemsToSelect;
+		for (TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : SelectedFixturePatches)
+		{
+			if (FixturePatch.IsValid())
+			{
+				const TSharedPtr<FDMXMVRFixtureListItem>* ItemPtr = ListSource.FindByPredicate([&FixturePatch](const TSharedPtr<FDMXMVRFixtureListItem>& Item)
+					{
+						return Item->GetFixturePatch() == FixturePatch;
+					});
+				if (ItemPtr)
+				{
+					ItemsToSelect.Add(*ItemPtr);
+				}
+			}
+		}
+		ListView->ClearSelection();
+		constexpr bool bSelected = true;
+		ListView->SetItemSelection(ItemsToSelect, bSelected);
 	}
 }
 
