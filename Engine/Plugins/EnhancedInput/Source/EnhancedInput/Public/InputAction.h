@@ -20,6 +20,8 @@ class ENHANCEDINPUT_API UInputAction : public UDataAsset
 	GENERATED_BODY()
 
 public:
+	
+	UInputAction();
 
 #if WITH_EDITOR
 	// Track actions that have had their ValueType changed to update blueprints referencing them.
@@ -48,6 +50,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Action)
 	EInputActionValueType ValueType = EInputActionValueType::Boolean;
 
+	// A localized descriptor of this input action
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Description")
+	FText ActionDescription = FText::GetEmpty();
+	
 	/**
 	* Trigger qualifiers. If any trigger qualifiers exist the action will not trigger unless:
 	* At least one Explicit trigger in this list is be met.

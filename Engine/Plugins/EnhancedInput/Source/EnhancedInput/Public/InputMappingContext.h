@@ -26,7 +26,7 @@ class ENHANCEDINPUT_API UInputMappingContext : public UDataAsset
 public:
 
 	// Localized context descriptor
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Config", DisplayName = "Description")
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = "Description", DisplayName = "Description")
 	FText ContextDescription;
 
 protected:

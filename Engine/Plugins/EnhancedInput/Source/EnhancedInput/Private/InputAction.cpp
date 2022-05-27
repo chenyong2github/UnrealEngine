@@ -98,6 +98,18 @@ void FTriggerStateTracker::SetStateForNoTriggers(ETriggerState State)
 	NoTriggerState = State;
 }
 
+UInputAction::UInputAction()
+{
+	// Default to the name of this input action with the common prefix of "IA_" removed from it
+	FString DesiredName = GetNameSafe(this);
+	DesiredName.RemoveFromStart(FString(TEXT("IA_")));
+	
+	// Strip any underscores and replace them with a space as well
+	DesiredName = DesiredName.Replace(TEXT("_"), TEXT(" "));
+	
+	ActionDescription = FText::FromString(DesiredName);
+}
+
 #if WITH_EDITOR
 // Record input action property changes for later processing
 
