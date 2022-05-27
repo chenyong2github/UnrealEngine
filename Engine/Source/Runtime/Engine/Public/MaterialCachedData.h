@@ -263,4 +263,7 @@ struct FMaterialCachedExpressionData
 
 	UPROPERTY()
 	uint32 bHasSceneColor : 1;
+
+	UPROPERTY()
+	uint32 bHasRefraction : 1;
 };
