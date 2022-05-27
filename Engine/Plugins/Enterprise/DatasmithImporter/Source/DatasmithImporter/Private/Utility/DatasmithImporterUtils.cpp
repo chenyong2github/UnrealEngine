@@ -39,6 +39,7 @@
 #include "Components/SpotLightComponent.h"
 #include "Editor.h"
 #include "Engine/DirectionalLight.h"
+#include "Engine/RectLight.h"
 #include "Engine/Level.h"
 #include "Engine/Light.h"
 #include "Engine/PostProcessVolume.h"
@@ -736,6 +737,11 @@ namespace FDatasmithImporterUtilsHelper
 
 			LightActorElement = SpotLightActorElement;
 		}
+		else if(LightActor->IsA<ARectLight>())
+		{
+			// Rect light is not yet supported
+			return TSharedPtr< IDatasmithLightActorElement >();
+		}
 		else
 		{
 			TSharedPtr< IDatasmithPointLightElement > PointLightActorElement = FDatasmithSceneFactory::CreatePointLight( *LightActor->GetName() );
@@ -1035,6 +1041,11 @@ namespace FDatasmithImporterUtilsHelper
 			}
 		}
 
+		if (!ActorElement.IsValid())
+		{
+			return TSharedPtr< IDatasmithActorElement >();
+		}
+
 		// Store actor's label
 		ActorElement->SetLabel( *Actor->GetActorLabel() );
 
@@ -1068,6 +1079,11 @@ namespace FDatasmithImporterUtilsHelper
 		{
 			TSharedPtr< IDatasmithActorElement > ChildActorElement = ConvertActorToActorElement( ChildActor, SceneElement );
 
+			if (!ChildActorElement.IsValid())
+			{
+				continue;
+			}
+
 			ParentActorElement->AddChild( ChildActorElement );
 
 			TArray<AActor*> ActorsToVisit;
@@ -1084,6 +1100,11 @@ void FDatasmithImporterUtils::FillSceneElement(TSharedPtr<IDatasmithScene>& Scen
 	{
 		// Convert root actor to actor element
 		TSharedPtr< IDatasmithActorElement > RootActorElement = FDatasmithImporterUtilsHelper::ConvertActorToActorElement( RootActor, SceneElement );
+
+		if (!RootActorElement.IsValid())
+		{
+			continue;
+		}
 
 		// Add newly created actor element to scene element
 		SceneElement->AddActor( RootActorElement );
