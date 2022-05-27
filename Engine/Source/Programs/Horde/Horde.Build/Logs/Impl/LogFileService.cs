@@ -1265,7 +1265,7 @@ namespace Horde.Build.Services
 					{
 						try
 						{
-							indexes.Add(subChunkData.BuildIndex());
+							indexes.Add(subChunkData.BuildIndex(_logger));
 						}
 						catch (Exception ex)
 						{
@@ -1559,7 +1559,7 @@ namespace Horde.Build.Services
 						if (firstLine < subChunkData.LineIndex + subChunkData.LineCount)
 						{
 							// Create an index containing just this sub-chunk
-							LogIndexData index = subChunkData.BuildIndex();
+							LogIndexData index = subChunkData.BuildIndex(_logger);
 							foreach (int lineIndex in index.Search(firstLine, searchText, searchStats))
 							{
 								yield return lineIndex;

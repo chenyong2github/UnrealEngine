@@ -157,7 +157,7 @@ namespace Horde.Build.Logs.Builder
 				byte[] subChunkDataBytes;
 				try
 				{
-					subChunkDataBytes = subChunkData.ToByteArray();
+					subChunkDataBytes = subChunkData.ToByteArray(_logger);
 				}
 				catch (Exception ex)
 				{

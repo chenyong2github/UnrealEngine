@@ -7,6 +7,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Logs
 {
@@ -233,7 +234,7 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Updates the plain text representation of this chunk
 		/// </summary>
-		public void AppendPlainText(ILogText srcText, int srcLineIndex, int srcLineCount)
+		public void AppendPlainText(ILogText srcText, int srcLineIndex, int srcLineCount, ILogger logger)
 		{
 			// Convert all the lines to plain text
 			for (int idx = 0; idx < srcLineCount; idx++)
@@ -257,7 +258,8 @@ namespace Horde.Build.Logs
 				}
 				catch (Exception ex)
 				{
-					throw new LogTextParseException($"Exception while parsing log text as JSON. Line: {Encoding.UTF8.GetString(inputLine)}", ex);
+					inputLine.CopyTo(_internalData.AsSpan(Length));
+					logger.LogWarning(ex, "Exception while attempting to parse log text as JSON. Line: \"{Line}\"", Encoding.UTF8.GetString(inputLine).Trim());
 				}
 				_internalLineOffsets.Add(Length);
 			}
@@ -488,11 +490,12 @@ namespace Horde.Build.Logs
 		/// Converts a log text instance to plain text
 		/// </summary>
 		/// <param name="logText">The text to convert</param>
+		/// <param name="logger">Logger for conversion warnings</param>
 		/// <returns>The plain text instance</returns>
-		public static ILogText ToPlainText(this ILogText logText)
+		public static ILogText ToPlainText(this ILogText logText, ILogger logger)
 		{
 			LogText other = new LogText();
-			other.AppendPlainText(logText, 0, logText.LineCount);
+			other.AppendPlainText(logText, 0, logText.LineCount, logger);
 			return other;
 		}
 	}

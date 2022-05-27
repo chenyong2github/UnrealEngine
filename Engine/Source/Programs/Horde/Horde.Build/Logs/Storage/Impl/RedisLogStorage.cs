@@ -154,7 +154,7 @@ namespace Horde.Build.Logs.Storage.Impl
 				chunkData = await _inner.ReadChunkAsync(logId, offset, lineIndex);
 				if (chunkData != null)
 				{
-					await AddAsync(key, chunkData.ToByteArray());
+					await AddAsync(key, chunkData.ToByteArray(_logger));
 				}
 			}
 			return chunkData;

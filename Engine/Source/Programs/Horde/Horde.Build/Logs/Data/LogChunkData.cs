@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using EpicGames.Core;
 using Horde.Build.Api;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Logs
 {
@@ -214,26 +215,27 @@ namespace Horde.Build.Logs
 		/// Write the chunk data to a stream
 		/// </summary>
 		/// <returns>Serialized data</returns>
-		public void Write(MemoryWriter writer)
+		public void Write(MemoryWriter writer, ILogger logger)
 		{
 			writer.WriteInt32(CurrentSignature | (1 << 24));
 
 			writer.WriteInt32(SubChunks.Count);
 			foreach (LogSubChunkData subChunk in SubChunks)
 			{
-				writer.WriteLogSubChunkData(subChunk);
+				writer.WriteLogSubChunkData(subChunk, logger);
 			}
 		}
 
 		/// <summary>
 		/// Construct an object from flat memory buffer
 		/// </summary>
+		/// <param name="logger">Logger for output</param>
 		/// <returns>Log chunk data</returns>
-		public byte[] ToByteArray()
+		public byte[] ToByteArray(ILogger logger)
 		{
-			byte[] data = new byte[GetSerializedSize()];
+			byte[] data = new byte[GetSerializedSize(logger)];
 			MemoryWriter writer = new MemoryWriter(data);
-			Write(writer);
+			Write(writer, logger);
 			writer.CheckOffset(data.Length);
 			return data;
 		}
@@ -241,9 +243,9 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Determines the size of the serialized buffer
 		/// </summary>
-		public int GetSerializedSize()
+		public int GetSerializedSize(ILogger logger)
 		{
-			return sizeof(int) + (sizeof(int) + SubChunks.Sum(x => x.GetSerializedSize()));
+			return sizeof(int) + (sizeof(int) + SubChunks.Sum(x => x.GetSerializedSize(logger)));
 		}
 	}
 
@@ -268,9 +270,9 @@ namespace Horde.Build.Logs
 		/// Write the chunk data to a stream
 		/// </summary>
 		/// <returns>Serialized data</returns>
-		public static void WriteLogChunkData(this MemoryWriter writer, LogChunkData chunkData)
+		public static void WriteLogChunkData(this MemoryWriter writer, LogChunkData chunkData, ILogger logger)
 		{
-			chunkData.Write(writer);
+			chunkData.Write(writer, logger);
 		}
 	}
 }

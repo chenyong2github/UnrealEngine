@@ -96,9 +96,9 @@ namespace Horde.Build.Logs.Readers
 			_logger.LogDebug("Writing log {LogId} chunk offset {Offset} to persistent storage", logId, offset);
 
 			string path = $"{logId}/offset_{offset}";
-			byte[] data = new byte[chunkData.GetSerializedSize()];
+			byte[] data = new byte[chunkData.GetSerializedSize(_logger)];
 			MemoryWriter writer = new MemoryWriter(data);
-			writer.WriteLogChunkData(chunkData);
+			writer.WriteLogChunkData(chunkData, _logger);
 			writer.CheckOffset(data.Length);
 
 			return _storageProvider.WriteBytesAsync(path, data);

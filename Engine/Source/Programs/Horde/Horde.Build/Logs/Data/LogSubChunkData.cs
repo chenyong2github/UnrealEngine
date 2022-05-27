@@ -4,6 +4,7 @@ using System;
 using EpicGames.Core;
 using Horde.Build.Api;
 using Horde.Build.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace Horde.Build.Logs
 {
@@ -79,14 +80,14 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Index for tokens in this chunk
 		/// </summary>
-		public LogIndexData BuildIndex()
+		public LogIndexData BuildIndex(ILogger logger)
 		{
 			if(_indexInternal == null)
 			{
 				ILogText plainText = InflateText();
 				if (Type != LogType.Text)
 				{
-					plainText = plainText.ToPlainText();
+					plainText = plainText.ToPlainText(logger);
 				}
 
 				LogIndexBlock[] blocks = new LogIndexBlock[1];
@@ -181,7 +182,8 @@ namespace Horde.Build.Logs
 		/// Serializes the sub-chunk to a stream
 		/// </summary>
 		/// <param name="writer">Writer to output to</param>
-		public void Write(MemoryWriter writer)
+		/// <param name="logger">Logger for output</param>
+		public void Write(MemoryWriter writer, ILogger logger)
 		{
 			writer.WriteInt32(2); // Version placeholder
 
@@ -190,19 +192,19 @@ namespace Horde.Build.Logs
 			writer.WriteInt32(LineCount);
 
 			writer.WriteVariableLengthBytes(DeflateText().Span);
-			writer.WriteLogIndexData(BuildIndex());
+			writer.WriteLogIndexData(BuildIndex(logger));
 		}
 
 		/// <summary>
 		/// Serializes this object to a byte array
 		/// </summary>
 		/// <returns>Byte array</returns>
-		public byte[] ToByteArray()
+		public byte[] ToByteArray(ILogger logger)
 		{
-			byte[] data = new byte[GetSerializedSize()];
+			byte[] data = new byte[GetSerializedSize(logger)];
 
 			MemoryWriter writer = new MemoryWriter(data);
-			Write(writer);
+			Write(writer, logger);
 			writer.CheckOffset(data.Length);
 
 			return data;
@@ -211,9 +213,9 @@ namespace Horde.Build.Logs
 		/// <summary>
 		/// Determines the size of serialized data
 		/// </summary>
-		public int GetSerializedSize()
+		public int GetSerializedSize(ILogger logger)
 		{
-			return sizeof(int) + sizeof(int) + sizeof(int) + sizeof(int) + (sizeof(int) + DeflateText().Length) + BuildIndex().GetSerializedSize();
+			return sizeof(int) + sizeof(int) + sizeof(int) + sizeof(int) + (sizeof(int) + DeflateText().Length) + BuildIndex(logger).GetSerializedSize();
 		}
 	}
 
@@ -239,9 +241,10 @@ namespace Horde.Build.Logs
 		/// </summary>
 		/// <param name="writer">Writer to output to</param>
 		/// <param name="subChunkData">The sub-chunk data to write</param>
-		public static void WriteLogSubChunkData(this MemoryWriter writer, LogSubChunkData subChunkData)
+		/// <param name="logger">Logger for output</param>
+		public static void WriteLogSubChunkData(this MemoryWriter writer, LogSubChunkData subChunkData, ILogger logger)
 		{
-			subChunkData.Write(writer);
+			subChunkData.Write(writer, logger);
 		}
 	}
 }
