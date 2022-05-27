@@ -68,6 +68,12 @@ bool USkeletalMeshEditorData::RemoveLODImportedData(int32 LODIndex)
 void USkeletalMeshEditorData::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
+	
+	if (!Ar.IsLoading() && !Ar.IsSaving() && Ar.IsObjectReferenceCollector())
+	{
+		//There is no UObject reference in the skeletal mesh editor data
+		return;
+	}
 
 	//Serialize all LODs Raw imported source data
 	FRawSkeletalMeshBulkData::Serialize(Ar, RawSkeletalMeshBulkDatas, this);

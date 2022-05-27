@@ -793,7 +793,13 @@ void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		GeoImportVersion = ESkeletalMeshGeoImportVersions::Before_Versionning;
 		SkinningImportVersion = ESkeletalMeshSkinningImportVersions::Before_Versionning;
 	}
-	BulkData.Serialize(Ar, Owner);
+
+	// An exclusive lock is required so we can safely load/save the raw data from multiple threads
+	{
+		FWriteScopeLock ScopeLock(BulkDataLock.Get());
+		BulkData.Serialize(Ar, Owner);
+	}
+
 	Ar << Guid;
 	Ar << bGuidIsHash;
 
@@ -846,7 +852,6 @@ void FRawSkeletalMeshBulkData::LoadRawMesh(FSkeletalMeshImportData& OutMesh)
 	OutMesh.Empty();
 	if (BulkData.GetElementCount() > 0)
 	{
-#if WITH_EDITOR
 		// An exclusive lock is required so we can safely load the raw data from multiple threads
 		FWriteScopeLock ScopeLock(BulkDataLock.Get());
 
@@ -858,7 +863,6 @@ void FRawSkeletalMeshBulkData::LoadRawMesh(FSkeletalMeshImportData& OutMesh)
 			// This can't be called in -game mode because we're not allowed to load bulk data outside of EDL.
 			bHasBeenLoadedFromFileReader = BulkData.LoadBulkDataWithFileReader();
 		}
-#endif
 		// This is in a scope because the FBulkDataReader need to be destroyed in order
 		// to unlock the BulkData and allow UnloadBulkData to actually do its job.
 		{
@@ -871,7 +875,6 @@ void FRawSkeletalMeshBulkData::LoadRawMesh(FSkeletalMeshImportData& OutMesh)
 			Ar << OutMesh;
 		}
 
-#if WITH_EDITOR
 		// Throw away the bulk data allocation only in the case we can safely reload it from disk
 		// and if BulkData.LoadBulkDataWithFileReader() is allowed to work from any thread.
 		// This saves a significant amount of memory during map loading of Nanite Meshes.
@@ -879,7 +882,6 @@ void FRawSkeletalMeshBulkData::LoadRawMesh(FSkeletalMeshImportData& OutMesh)
 		{
 			verify(BulkData.UnloadBulkData());
 		}
-#endif
 	}
 }
 
@@ -893,7 +895,6 @@ void FRawSkeletalMeshBulkData::UpdateRawMeshFormat()
 
 	// An exclusive lock is required so we can safely load the raw data from multiple threads
 	FWriteScopeLock ScopeLock(BulkDataLock.Get());
-#if WITH_EDITOR
 	// This allows any thread to be able to deserialize from the RawMesh directly
 	// from disk so we can unload bulk data from memory.
 	bool bHasBeenLoadedFromFileReader = false;
@@ -902,7 +903,6 @@ void FRawSkeletalMeshBulkData::UpdateRawMeshFormat()
 		// This can't be called in -game mode because we're not allowed to load bulk data outside of EDL.
 		bHasBeenLoadedFromFileReader = BulkData.LoadBulkDataWithFileReader();
 	}
-#endif
 
 	bool bModified = false;
 	uint64 NumBytes = 0;
@@ -928,7 +928,6 @@ void FRawSkeletalMeshBulkData::UpdateRawMeshFormat()
 			0 != FMemory::Memcmp(OldBytes.GetData(), NewBytes.GetData(), NumBytes);
 	}
 
-#if WITH_EDITOR
 	// Throw away the bulk data allocation only in the case we can safely reload it from disk
 	// and if BulkData.LoadBulkDataWithFileReader() is allowed to work from any thread.
 	// This saves a significant amount of memory during map loading of Nanite Meshes.
@@ -936,7 +935,6 @@ void FRawSkeletalMeshBulkData::UpdateRawMeshFormat()
 	{
 		verify(BulkData.UnloadBulkData());
 	}
-#endif
 
 	if (bModified)
 	{

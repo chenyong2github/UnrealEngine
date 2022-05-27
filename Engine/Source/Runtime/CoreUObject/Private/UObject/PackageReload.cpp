@@ -589,6 +589,9 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 
 			// Main pass to go through and fix-up any references pointing to data from the old package to point to data from the new package
 			// todo: multi-thread this like FHotReloadModule::ReplaceReferencesToReconstructedCDOs?
+			//The FThreadSafeObjectIterator will lock the global UObject array, to avoid potential deadlock we simply build the list
+			//of the potential referencers and do the reference fix serialize outside of the FThreadSafeObjectIterator.
+			TArray<UObject*> PotentialReferencers;
 			for (FThreadSafeObjectIterator ObjIter(UObject::StaticClass(), false, RF_NoFlags, EInternalObjectFlags::Garbage); ObjIter; ++ObjIter)
 			{
 				UObject* PotentialReferencer = *ObjIter;
@@ -601,15 +604,20 @@ void ReloadPackages(const TArrayView<FReloadPackageData>& InPackagesToReload, TA
 					AsClass = PotentialReferencer->GetTypedOuter<UClass>();
 				}
 
-				if(AsClass)
+				if (AsClass)
 				{
-					if( AsClass->HasAnyClassFlags(CLASS_NewerVersionExists) || 
+					if (AsClass->HasAnyClassFlags(CLASS_NewerVersionExists) ||
 						AsClass->HasAnyFlags(RF_NewerVersionExists))
 					{
 						continue;
 					}
 				}
+				PotentialReferencers.Add(PotentialReferencer);
+			}
 
+
+			for (UObject* PotentialReferencer : PotentialReferencers)
+			{
 				FixingUpReferencesSlowTask.EnterProgressFrame(1.0f);
 
 				PackageReloadInternal::FReplaceObjectReferencesArchive ReplaceRefsArchive(PotentialReferencer, OldObjectToNewData, ExistingPackages.Refs, NewPackages.Refs);
