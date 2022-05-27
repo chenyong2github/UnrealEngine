@@ -757,6 +757,27 @@ namespace Horde.Agent.Tests
 			}
 		}
 
+		[TestMethod]
+		public void LocalizationChannelMatcher()
+		{
+			string[] lines =
+			{
+				@"LogLocTextHelper: Warning: Source/Runtime/Engine/Private/StaticMesh.cpp(5649): Text conflict from LOCTEXT macro for namespace"
+			};
+
+			{
+				List<LogEvent> logEvents = Parse(lines);
+				Assert.AreEqual(1, logEvents.Count);
+				CheckEventGroup(logEvents, 0, 1, LogLevel.Warning, KnownLogEvents.Engine_Localization);
+
+				LogEvent logEvent = logEvents[0];
+				Assert.AreEqual("LogLocTextHelper", logEvent.GetProperty("channel").ToString());
+				Assert.AreEqual("Warning", logEvent.GetProperty("severity").ToString());
+				Assert.AreEqual("Engine/Source/Runtime/Engine/Private/StaticMesh.cpp", logEvent.GetProperty<LogValue>("file")!.Properties!["relativePath"].ToString());
+				Assert.AreEqual("5649", logEvent.GetProperty("line").ToString());
+			}
+		}
+
 		static List<LogEvent> Parse(IEnumerable<string> lines)
 		{
 			return Parse(String.Join("\n", lines));

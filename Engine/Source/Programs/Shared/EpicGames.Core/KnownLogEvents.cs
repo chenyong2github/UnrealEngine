@@ -71,6 +71,11 @@ namespace EpicGames.Core
 		public static EventId Engine_AssetLog { get; } = new EventId(303);
 
 		/// <summary>
+		/// Engine: Localization commandlet output
+		/// </summary>
+		public static EventId Engine_Localization { get; } = new EventId(304);
+
+		/// <summary>
 		/// UAT error
 		/// </summary>
 		public static EventId AutomationTool { get; } = new EventId(400);

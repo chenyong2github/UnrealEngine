@@ -52,7 +52,7 @@ private:
 
 		FString ToString() const
 		{
-			return (Line == INDEX_NONE) ? File : FString::Printf(TEXT("%s:%d"), *File, Line);
+			return (Line == INDEX_NONE) ? File : FString::Printf(TEXT("%s(%d)"), *File, Line);
 		}
 
 		FString File;

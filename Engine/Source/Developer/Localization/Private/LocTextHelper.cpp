@@ -955,18 +955,18 @@ bool FLocTextHelper::AddSourceText(const FLocKey& InNamespace, const FLocItem& I
 			const FManifestContext* ConflictingContext = ExistingEntry->FindContext(InContext.Key, InContext.KeyMetadataObj);
 			const FString& ExistingEntrySourceLocation = (!ExistingEntryFileName.IsEmpty()) ? ExistingEntryFileName : ConflictingContext->SourceLocation;
 
-			UE_LOG(LogLocTextHelper, Warning, TEXT("Text conflict%s for namespace \"%s\" and key \"%s\"%s at \"%s\" and \"%s\". The conflicting sources are \"%s\"%s and \"%s\"%s."), 
+			UE_LOG(LogLocTextHelper, Warning, TEXT("%s: Text conflict%s for namespace \"%s\" and key \"%s\"%s. The conflicting sources are \"%s\"%s and \"%s\"%s."), 
+				*InContext.SourceLocation,
 				(InDescription ? *FString::Printf(TEXT(" from %s"), **InDescription) : TEXT("")),
 				*SanitizeLogOutput(InNamespace.GetString()),
 				*SanitizeLogOutput(InContext.Key.GetString()),
 				(InContext.KeyMetadataObj ? *FString::Printf(TEXT(" (meta-data \"%s\")"), *SanitizeLogOutput(FJsonInternationalizationMetaDataSerializer::MetadataToString(InContext.KeyMetadataObj))) : TEXT("")),
-				*InContext.SourceLocation,
-				*ExistingEntrySourceLocation,
 				*SanitizeLogOutput(InSource.Text),
 				(InSource.MetadataObj ? *FString::Printf(TEXT(" (meta-data \"%s\")"), *SanitizeLogOutput(FJsonInternationalizationMetaDataSerializer::MetadataToString(InSource.MetadataObj))) : TEXT("")),
 				*SanitizeLogOutput(ExistingEntry->Source.Text),
 				(ExistingEntry->Source.MetadataObj ? *FString::Printf(TEXT(" (meta-data \"%s\")"), *SanitizeLogOutput(FJsonInternationalizationMetaDataSerializer::MetadataToString(ExistingEntry->Source.MetadataObj))) : TEXT(""))
 				);
+			UE_LOG(LogLocTextHelper, Warning, TEXT("%s: See conflicting location."), *ExistingEntrySourceLocation);
 
 			ConflictTracker.AddConflict(InNamespace, InContext.Key, InContext.KeyMetadataObj, InSource, InContext.SourceLocation);
 			ConflictTracker.AddConflict(InNamespace, InContext.Key, InContext.KeyMetadataObj, ExistingEntry->Source, ExistingEntrySourceLocation);
@@ -977,12 +977,12 @@ bool FLocTextHelper::AddSourceText(const FLocKey& InNamespace, const FLocItem& I
 		bAddSuccessful = Manifest->AddSource(InNamespace, InSource, InContext);
 		if (!bAddSuccessful)
 		{
-			UE_LOG(LogLocTextHelper, Error, TEXT("Failed to add text%s for namespace \"%s\" and key \"%s\"%s from \"%s\" with source \"%s\"%s."),
+			UE_LOG(LogLocTextHelper, Error, TEXT("%s: Failed to add text%s for namespace \"%s\" and key \"%s\"%s with source \"%s\"%s."),
+				*InContext.SourceLocation,
 				(InDescription ? *FString::Printf(TEXT(" from %s"), **InDescription) : TEXT("")),
 				*InNamespace.GetString(),
 				*InContext.Key.GetString(),
 				(InContext.KeyMetadataObj ? *FString::Printf(TEXT(" (meta-data \"%s\")"), *FJsonInternationalizationMetaDataSerializer::MetadataToString(InContext.KeyMetadataObj)) : TEXT("")),
-				*InContext.SourceLocation,
 				*InSource.Text,
 				(InSource.MetadataObj ? *FString::Printf(TEXT(" (meta-data \"%s\")"), *FJsonInternationalizationMetaDataSerializer::MetadataToString(InSource.MetadataObj)) : TEXT(""))
 				);
