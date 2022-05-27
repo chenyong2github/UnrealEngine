@@ -42,7 +42,7 @@ public:
 	void		AddLocalityLinks( FGraphData* Graph, uint32 Index, idx_t Cost );
 
 	template< typename FGetCenter >
-	void		BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds3f& Bounds, FGetCenter& GetCenter );
+	void		BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds3f& Bounds, TArrayView< const int32 > GroupIndexes, FGetCenter& GetCenter );
 
 	void		Partition( FGraphData* Graph, int32 InMinPartitionSize, int32 InMaxPartitionSize );
 	void		PartitionStrict( FGraphData* Graph, int32 InMinPartitionSize, int32 InMaxPartitionSize, bool bThreaded );
@@ -80,17 +80,19 @@ FORCEINLINE void FGraphPartitioner::AddLocalityLinks( FGraphData* Graph, uint32 
 }
 
 template< typename FGetCenter >
-void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds3f& Bounds, FGetCenter& GetCenter )
+void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds3f& Bounds, TArrayView< const int32 > GroupIndexes, FGetCenter& GetCenter )
 {
 	TArray< uint32 > SortKeys;
 	SortKeys.AddUninitialized( NumElements );
 	SortedTo.AddUninitialized( NumElements );
 
-	ParallelFor( TEXT("BuildLocalityLinks.PF"), NumElements,4096,
+	const bool bElementGroups = !GroupIndexes.IsEmpty();	// Only create locality links between elements with the same group index
+
+	ParallelFor( TEXT("BuildLocalityLinks.PF"), NumElements, 4096,
 		[&]( uint32 Index )
 		{
 			FVector3f Center = GetCenter( Index );
-			FVector3f CenterLocal = ( Center - Bounds.Min ) / ( Bounds.Max - Bounds.Min );
+			FVector3f CenterLocal = ( Center - Bounds.Min ) / FVector3f( Bounds.Max - Bounds.Min ).GetMax();
 
 			uint32 Morton;
 			Morton  = FMath::MortonCode3( CenterLocal.X * 1023 );
@@ -157,11 +159,19 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 		if( RunLength < 128 )
 		{
 			uint32 IslandID = DisjointSet[ Index ];
+			int32 GroupID = bElementGroups ? GroupIndexes[ Index ] : 0;
 
 			FVector3f Center = GetCenter( Index );
 
-			uint32 ClosestIndex[3] = { ~0u, ~0u, ~0u };
-			float  ClosestDist2[3] = { MAX_flt, MAX_flt, MAX_flt };
+			const uint32 MaxLinksPerElement = 5;
+
+			uint32 ClosestIndex[MaxLinksPerElement];
+			float  ClosestDist2[MaxLinksPerElement];
+			for (int32 k = 0; k < MaxLinksPerElement; k++)
+			{
+				ClosestIndex[k] = ~0u;
+				ClosestDist2[k] = MAX_flt;
+			}
 
 			for( int Direction = 0; Direction < 2; Direction++ )
 			{
@@ -177,7 +187,8 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 
 					uint32 AdjIndex = Indexes[ Adj ];
 					uint32 AdjIslandID = DisjointSet[ AdjIndex ];
-					if( IslandID == AdjIslandID )
+					int32 AdjGroupID = bElementGroups ? GroupIndexes[AdjIndex] : 0;
+					if( IslandID == AdjIslandID || ( GroupID != AdjGroupID ) )
 					{
 						// Skip past this run
 						if( Direction )
@@ -189,7 +200,7 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 					{
 						// Add to sorted list
 						float AdjDist2 = ( Center - GetCenter( AdjIndex ) ).SizeSquared();
-						for( int k = 0; k < 3; k++ )
+						for( int k = 0; k < MaxLinksPerElement; k++ )
 						{
 							if( AdjDist2 < ClosestDist2[k] )
 							{
@@ -201,7 +212,7 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBo
 				}
 			}
 
-			for( int k = 0; k < 3; k++ )
+			for( int k = 0; k < MaxLinksPerElement; k++ )
 			{
 				if( ClosestIndex[k] != ~0u )
 				{

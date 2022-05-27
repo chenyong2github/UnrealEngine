@@ -376,7 +376,7 @@ static void ClusterTriangles(
 			Center += Verts[ Indexes[ TriIndex * 3 + 2 ] ].Position;
 			return Center * (1.0f / 3.0f);
 		};
-		Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, GetCenter );
+		Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, MaterialIndexes, GetCenter );
 
 		auto* RESTRICT Graph = Partitioner.NewGraph( NumTriangles * 3 );
 

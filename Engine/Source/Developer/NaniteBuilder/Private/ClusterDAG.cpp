@@ -207,7 +207,7 @@ void BuildDAG( TArray< FClusterGroup >& Groups, TArray< FCluster >& Clusters, ui
 			FBounds3f& Bounds = LevelClusters[ Index ].Bounds;
 			return 0.5f * ( Bounds.Min + Bounds.Max );
 		};
-		Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, GetCenter );
+		Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, TArrayView< const int32 >(), GetCenter );
 
 		auto* RESTRICT Graph = Partitioner.NewGraph( NumAdjacency );
 

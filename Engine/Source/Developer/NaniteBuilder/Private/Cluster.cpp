@@ -429,7 +429,7 @@ void FCluster::Split( FGraphPartitioner& Partitioner, const FAdjacency& Adjacenc
 		return Center * (1.0f / 3.0f);
 	};
 
-	Partitioner.BuildLocalityLinks( DisjointSet, Bounds, GetCenter );
+	Partitioner.BuildLocalityLinks( DisjointSet, Bounds, MaterialIndexes, GetCenter );
 
 	auto* RESTRICT Graph = Partitioner.NewGraph( NumTris * 3 );
 
