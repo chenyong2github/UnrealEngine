@@ -122,6 +122,10 @@ public:
 	//~ End UComputeDataInterface Interface
 
 	const FOptimusAnimAttributeDescription& AddAnimAttribute(const FString& InName, FName InBoneName, const FOptimusDataTypeRef& InDataType);
+
+	// Value containers use generated classes that not duplicated when the asset is duplicated
+	// so they have to be recreated with classes in the current asset
+	void RecreateValueContainers();
 	
 	UPROPERTY(EditAnywhere, Category = "Animation Attribute", meta = (ShowOnlyInnerProperties))
 	FOptimusAnimAttributeArray AttributeArray;

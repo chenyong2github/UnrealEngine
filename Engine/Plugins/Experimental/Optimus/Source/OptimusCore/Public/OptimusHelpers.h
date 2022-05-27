@@ -78,10 +78,9 @@ namespace Optimus
 		return TransformConverter<FMatrix44f>::Convert<FMatrix44d>(InTransform.ToMatrixWithScale());	
 	};
 
-	// Generator class should be parented to the asset object, instead of the package
-	// because the engine no longer supports multiple 'assets' per package
-	UObject* GetGeneratorClassOuter(UPackage* InPackage);
-
 	bool RenameObject(UObject* InObjectToRename, const TCHAR* InNewName, UObject* InNewOuter);
 
+	// Our generated classes are parented to the package, this is a utility function
+	// to collect them
+	TArray<UClass*> GetClassObjectsInPackage(UPackage* InPackage);
 }

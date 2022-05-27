@@ -81,8 +81,16 @@ void UOptimusNode_AnimAttributeDataInterface::PostEditChangeChainProperty(FPrope
 		ClearPins();
 	}
 }
+
 #endif
 
+void UOptimusNode_AnimAttributeDataInterface::RecreateValueContainers()
+{
+	if (UOptimusAnimAttributeDataInterface* Interface = Cast<UOptimusAnimAttributeDataInterface>(DataInterfaceData))
+	{
+		Interface->RecreateValueContainers();
+	}
+}
 
 void UOptimusNode_AnimAttributeDataInterface::UpdatePinTypes()
 {

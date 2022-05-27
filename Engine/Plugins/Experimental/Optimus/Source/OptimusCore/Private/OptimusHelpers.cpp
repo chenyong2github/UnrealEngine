@@ -72,25 +72,24 @@ void Optimus::AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TC
 	}
 }
 
-UObject* Optimus::GetGeneratorClassOuter(UPackage* InPackage)
-{
-	if (!InPackage)
-	{
-		return nullptr;
-	}
-
-	// special case handling for transient package
-	if (InPackage == GetTransientPackage())
-	{
-		return InPackage;
-	}
-	
-	UObject* AssetObject = InPackage->FindAssetInPackage();
-
-	return AssetObject;
-}
-
 bool Optimus::RenameObject(UObject* InObjectToRename, const TCHAR* InNewName, UObject* InNewOuter)
 {
 	return InObjectToRename->Rename(InNewName, InNewOuter, REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+}
+
+TArray<UClass*> Optimus::GetClassObjectsInPackage(UPackage* InPackage)
+{
+	TArray<UObject*> Objects;
+	GetObjectsWithOuter(InPackage, Objects, false);
+
+	TArray<UClass*> ClassObjects;
+	for (UObject* Object : Objects)
+	{
+		if (UClass* Class = Cast<UClass>(Object))
+		{
+			ClassObjects.Add(Class);
+		}
+	}
+
+	return ClassObjects;
 }

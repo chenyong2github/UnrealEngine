@@ -17,17 +17,15 @@ void UOptimusValueContainerGeneratorClass::Link(FArchive& Ar, bool bRelinkExisti
 
 UClass* UOptimusValueContainerGeneratorClass::GetClassForType(UPackage* InPackage, FOptimusDataTypeRef InDataType)
 {
-	UObject* ClassOuter = Optimus::GetGeneratorClassOuter(InPackage);
-	
 	const FString ClassName = TEXT("OptimusValueContainer_") + InDataType.TypeName.ToString();
 
-	// Check if the asset object already owns this class.
-	UOptimusValueContainerGeneratorClass *TypeClass = FindObject<UOptimusValueContainerGeneratorClass>(ClassOuter, *ClassName);
+	// Check if the package already owns this class.
+	UOptimusValueContainerGeneratorClass *TypeClass = FindObject<UOptimusValueContainerGeneratorClass>(InPackage, *ClassName);
 	if (!TypeClass)
 	{
 		UClass *ParentClass = UOptimusValueContainer::StaticClass();
 		// Construct a value node class for this data type
-		TypeClass = NewObject<UOptimusValueContainerGeneratorClass>(ClassOuter, *ClassName, RF_Standalone|RF_Public);
+		TypeClass = NewObject<UOptimusValueContainerGeneratorClass>(InPackage, *ClassName, RF_Standalone|RF_Public);
 		TypeClass->SetSuperStruct(ParentClass);
 		TypeClass->PropertyLink = ParentClass->PropertyLink;
 
@@ -63,16 +61,11 @@ void UOptimusValueContainer::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GetClass()->GetOuter()->IsA<UPackage>())
+	if (!GetClass()->GetOuter()->IsA<UPackage>())
 	{
-		// This class should be parented to the asset object instead of the package
-		// because the engine no longer supports multiple 'assets' per package
-		// In the past, there were assets created with this class parented to the package directly
-		if (UObject* AssetObject = Optimus::GetGeneratorClassOuter(this->GetPackage()))
-		{
-			AssetObject->Modify();
-			Optimus::RenameObject(GetClass(), nullptr, AssetObject);
-		}
+		// This class should be parented to the package instead of the asset object
+		// because the engine no longer supports asset object as UClass outer
+		Optimus::RenameObject(GetClass(), nullptr, GetPackage());
 	}
 }
 

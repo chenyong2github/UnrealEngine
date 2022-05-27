@@ -63,6 +63,12 @@ public:
 	static const FName UpdateGraphName;
 	static const TCHAR* LibraryRoot;
 
+	// Check if the duplication took place at the asset level
+	// if so, we have to recreate all constant/attribute nodes such that their class pointers
+	// don't point to classes in the source asset. This can happen because generated class
+	// in the source package/asset are not duplicated automatically to the new package/asset
+	void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+
 	UOptimusNodeGraph *GetParentGraph() const;
 	
 	FString GetGraphPath() const;

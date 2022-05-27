@@ -1470,6 +1470,20 @@ void UOptimusDeformer::PostLoad()
 	Variables->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusVariableDescription>& Value) { return Value == nullptr; });
 }
 
+void UOptimusDeformer::PostRename(UObject* OldOuter, const FName OldName)
+{
+	Super::PostRename(OldOuter, OldName);
+
+	// Whenever the asset is renamed/moved, generated classes parented to the old package
+	// are not moved to the new package automatically (see FAssetRenameManager), so we
+	// have to manually perform the move/rename, to avoid invalid reference to the old package
+	TArray<UClass*> ClassObjects = Optimus::GetClassObjectsInPackage(OldOuter->GetPackage());
+
+	for (UClass* ClassObject : ClassObjects)
+	{
+		Optimus::RenameObject(ClassObject, nullptr, GetPackage());
+	}
+}
 
 UMeshDeformerInstance* UOptimusDeformer::CreateInstance(UMeshComponent* InMeshComponent)
 {

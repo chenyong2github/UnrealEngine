@@ -188,7 +188,11 @@ public:
 	/// UObject overrides
 	void Serialize(FArchive& Ar) override;
 	void PostLoad() override;
-
+	// Whenever the asset is renamed/moved, generated classes parented to the old package
+	// are not moved to the new package automatically (see FAssetRenameManager), so we
+	// have to manually perform the move/rename, to avoid invalid reference to the old package
+	void PostRename(UObject* OldOuter, const FName OldName) override;
+	
 	// UMeshDeformer overrides
 	UMeshDeformerInstance* CreateInstance(UMeshComponent* InMeshComponent) override;
 	

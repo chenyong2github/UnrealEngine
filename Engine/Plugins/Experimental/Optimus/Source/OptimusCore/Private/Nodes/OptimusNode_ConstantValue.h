@@ -15,8 +15,14 @@ class UOptimusNode_ConstantValueGeneratorClass :
 	public UClass
 {
 	GENERATED_BODY()
-	// This class should be parented to the asset object, instead of the package
-	// because the engine no longer supports multiple 'assets' per package
+
+	// DECLARE_WITHIN(UObject) is only kept for back-compat, please don't parent the class
+	// to the asset object.
+	// This class should be parented to the package, instead of the asset object
+	// because the engine no longer asset object as UClass outer
+	// however, since in the past we have parented the class to the asset object
+	// this flag has to be kept such that we can load the old asset in the first place and
+	// re-parent it back to the package in post load
 	DECLARE_WITHIN(UObject)
 	
 public:

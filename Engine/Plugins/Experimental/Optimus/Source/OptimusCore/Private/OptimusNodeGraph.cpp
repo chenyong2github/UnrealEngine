@@ -35,6 +35,9 @@
 
 #include "DataInterfaces/OptimusDataInterfaceAnimAttribute.h"
 
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
 #define LOCTEXT_NAMESPACE "OptimusNodeGraph"
 
@@ -43,6 +46,108 @@ const FName UOptimusNodeGraph::SetupGraphName("SetupGraph");
 const FName UOptimusNodeGraph::UpdateGraphName("UpdateGraph");
 const TCHAR* UOptimusNodeGraph::LibraryRoot = TEXT("@Library");
 
+
+void UOptimusNodeGraph::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	UObject::PostDuplicate(DuplicateMode);
+
+	// Check if the duplication took place at the asset level
+	// if so, we have to recreate all constant nodes such that their class pointers
+	// don't point to classes in the source asset. This can happen because generated class
+	// in the source package/asset are not duplicated automatically to the new package/asset
+	{
+		TArray<UOptimusNode_ConstantValue*> ConstantNodesToRecreate;
+
+		for (UOptimusNode* Node : Nodes)
+		{
+			if (UOptimusNode_ConstantValue* ConstantNode = Cast<UOptimusNode_ConstantValue>(Node))
+			{
+				if (ConstantNode->GetClass()->GetPackage() != GetPackage())
+				{
+					ConstantNodesToRecreate.Add(ConstantNode);
+				}
+			}
+		}
+
+		for (UOptimusNode_ConstantValue* ConstantNode : ConstantNodesToRecreate)
+		{
+			UOptimusNode_ConstantValueGeneratorClass* CurrentNodeClass =
+				Cast<UOptimusNode_ConstantValueGeneratorClass>(ConstantNode->GetClass());
+
+			// Create the equivalent node class in current package
+			UClass* NewNodeClass =
+				UOptimusNode_ConstantValueGeneratorClass::GetClassForType(GetPackage(), CurrentNodeClass->DataType);
+			
+			// Save node data
+			TArray<uint8> NodeData;
+			{
+				FMemoryWriter NodeArchive(NodeData);
+				FObjectAndNameAsStringProxyArchive NodeProxyArchive(
+						NodeArchive, /* bInLoadIfFindFails=*/ false);
+				ConstantNode->SerializeScriptProperties(NodeProxyArchive);
+			}
+
+			// Save pin connections
+			TArray<UOptimusNodePin*> Pins = ConstantNode->GetPins();
+
+			TMap<FName, TArray<UOptimusNodePin*>> ConnectedPinsMap;
+			
+			for (UOptimusNodePin* Pin : Pins)
+			{
+				ConnectedPinsMap.Add(Pin->GetFName(), Pin->GetConnectedPins());
+			}
+
+			FName NodeName = ConstantNode->GetNodeName();
+			
+			RemoveNodeDirect(ConstantNode, false /* remove all links as well */);
+
+			auto BootstrapNodeFunc = [NodeData](UOptimusNode* InNode) -> bool
+			{
+				{
+					FMemoryReader NodeArchive(NodeData);
+					FObjectAndNameAsStringProxyArchive NodeProxyArchive(
+							NodeArchive, /* bInLoadIfFindFails=*/true);
+					InNode->SerializeScriptProperties(NodeProxyArchive);
+				}
+				
+				return true;
+			};
+			
+			UOptimusNode* NewNode = CreateNodeDirect(NewNodeClass, NodeName, BootstrapNodeFunc);
+
+			// Recover links
+			for (UOptimusNodePin* Pin : NewNode->GetPins())
+			{
+				if (TArray<UOptimusNodePin*>* ConnectedPins = ConnectedPinsMap.Find(Pin->GetFName()))
+				{
+					for (UOptimusNodePin* ConnectedPin : *ConnectedPins)
+					{
+						if (Pin->GetDirection() == EOptimusNodePinDirection::Input)
+						{
+							AddLinkDirect(ConnectedPin, Pin);
+						}
+						else if (Pin->GetDirection() == EOptimusNodePinDirection::Output)
+						{
+							AddLinkDirect(Pin, ConnectedPin);
+						}
+					}
+				}
+			}
+		}	
+	}
+
+	// Similarly, Attribute Nodes also use objects with generated class that need to be recreated
+	// if the duplication took place at the asset level
+	{
+		for (UOptimusNode* Node : Nodes)
+		{
+			if (UOptimusNode_AnimAttributeDataInterface* AttributeNode = Cast<UOptimusNode_AnimAttributeDataInterface>(Node))
+			{
+				AttributeNode->RecreateValueContainers();
+			}
+		}	
+	}
+}
 
 UOptimusNodeGraph* UOptimusNodeGraph::GetParentGraph() const
 {

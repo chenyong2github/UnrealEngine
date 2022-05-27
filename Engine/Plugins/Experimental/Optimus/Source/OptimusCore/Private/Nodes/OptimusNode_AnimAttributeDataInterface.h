@@ -22,6 +22,8 @@ public:
 	void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
+	void RecreateValueContainers();
+	
 private:
 	void UpdatePinTypes();
 	void UpdatePinNames();

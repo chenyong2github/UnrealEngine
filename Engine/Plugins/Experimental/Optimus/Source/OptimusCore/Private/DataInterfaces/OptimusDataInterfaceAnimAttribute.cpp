@@ -13,6 +13,10 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "ShaderParameterMetadataBuilder.h"
 
+#include "Serialization/MemoryReader.h"
+#include "Serialization/MemoryWriter.h"
+#include "Serialization/ObjectAndNameAsStringProxyArchive.h"
+
 static const FString PinNameDelimiter = TEXT(" - ");
 static const FString HlslIdDelimiter = TEXT("_");
 
@@ -231,6 +235,51 @@ const FOptimusAnimAttributeDescription& UOptimusAnimAttributeDataInterface::AddA
 {
 	return AttributeArray.InnerArray.AddDefaulted_GetRef()
 		.Init(this, GetUnusedAttributeName(InName), InBoneName, InDataType);
+}
+
+void UOptimusAnimAttributeDataInterface::RecreateValueContainers()
+{
+	for (int32 Index = 0; Index < AttributeArray.Num(); Index++)
+	{
+		FOptimusAnimAttributeDescription& Attribute = AttributeArray[Index];
+
+		if (!Attribute.DefaultValue)
+		{
+			continue;
+		}
+		
+		if (Attribute.DefaultValue->GetClass()->GetPackage() != GetPackage())
+		{
+			// Save container data
+			TArray<uint8> ContainerData;
+			{
+				FMemoryWriter ContainerArchive(ContainerData);
+				FObjectAndNameAsStringProxyArchive ContainerProxyArchive(
+						ContainerArchive, /* bInLoadIfFindFails=*/ false);
+				Attribute.DefaultValue->SerializeScriptProperties(ContainerProxyArchive);
+			}
+			
+			UOptimusValueContainer* NewContainer = UOptimusValueContainer::MakeValueContainer(this,Attribute.DefaultValue->GetValueType());
+
+			{
+				FMemoryReader ContainerArchive(ContainerData);
+				FObjectAndNameAsStringProxyArchive ContainerProxyArchive(
+						ContainerArchive, /* bInLoadIfFindFails=*/ true);
+				NewContainer->SerializeScriptProperties(ContainerProxyArchive);
+			}
+
+			// Load container data into the new container
+			TArray<uint8> ContainerData2;	
+			{
+				FMemoryWriter ContainerArchive(ContainerData2);
+				FObjectAndNameAsStringProxyArchive ContainerProxyArchive(
+						ContainerArchive, /* bInLoadIfFindFails=*/ false);
+				NewContainer->SerializeScriptProperties(ContainerProxyArchive);
+			}
+
+			Attribute.DefaultValue = NewContainer;
+		}
+	}
 }
 
 FString UOptimusAnimAttributeDataInterface::GetUnusedAttributeName(const FString& InName) const
