@@ -117,6 +117,7 @@
 #include "AssetTypeActions/AssetTypeActions_VectorFieldAnimated.h"
 #include "AssetTypeActions/AssetTypeActions_VectorFieldStatic.h"
 #include "AssetTypeActions/AssetTypeActions_World.h"
+#include "WorldPartition/WorldPartition.h"
 #include "SDiscoveringAssetsDialog.h"
 #include "AssetFixUpRedirectors.h"
 #include "ObjectTools.h"
@@ -985,6 +986,17 @@ bool UAssetToolsImpl::AdvancedCopyPackages(
 						MoveDialogInfo.PGN.PackageName = DestFilename;
 						const bool bShouldPromptForDestinationConflict = !bCopyOverAllDestinationOverlaps;
 						TMap<TSoftObjectPtr<UObject>, TSoftObjectPtr<UObject>> DuplicatedObjects;
+
+						// Temp fix for some codepaths that allows advanced copy of world packages. For partitioned worlds, this can only be supported for worlds with
+						// streaming disabled and this code should be removed once the callers switch to the same codepath as editor save as.
+						if (UWorld* World = Cast<UWorld>(ExistingObject))
+						{
+							if (UWorldPartition* WorldPartition = World->GetWorldPartition())
+							{
+								check(!WorldPartition->IsStreamingEnabled());
+								WorldPartition->Initialize(World, FTransform::Identity);
+							}
+						}
 
 						if (UObject* NewObject = ObjectTools::DuplicateSingleObject(ExistingObject, MoveDialogInfo.PGN, ObjectsUserRefusedToFullyLoad, bShouldPromptForDestinationConflict, &DuplicatedObjects))
 						{
