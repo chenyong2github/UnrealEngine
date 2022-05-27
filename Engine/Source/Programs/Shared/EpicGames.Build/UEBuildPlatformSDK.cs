@@ -778,6 +778,7 @@ namespace EpicGames.Core
 		#region Print SDK Info
 		private static bool bHasShownTurnkey = false;
 		private SDKStatus? SDKInfoValidity = null;
+		public static bool bSuppressSDKWarnings = false;
 
 		public virtual SDKStatus PrintSDKInfoAndReturnValidity(LogEventType Verbosity = LogEventType.Console, LogFormatOptions Options = LogFormatOptions.None,
 			LogEventType ErrorVerbosity = LogEventType.Error, LogFormatOptions ErrorOptions = LogFormatOptions.None)
