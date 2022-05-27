@@ -86,7 +86,7 @@ public:
 	/**
 	 * Tells the child FAbandonableTask to terminate itself, via the bAbort flag
 	 * passed in SetAbortSource, and then starts a TDeleterTask that waits for
-	 * completion and 
+	 * completion to delete this task.
 	 */
 	void CancelAndDelete()
 	{
@@ -130,7 +130,7 @@ public:
 	}
 
 	/** @return true if the task should stop computation */
-	bool IsAborted()
+	bool IsAborted() const
 	{
 		return (bExternalAbortFlag != nullptr) ? *bExternalAbortFlag : false;
 	}
@@ -141,6 +141,7 @@ public:
 		return &Progress;
 	}
 };
+
 
 
 } // end namespace UE::Geometry
