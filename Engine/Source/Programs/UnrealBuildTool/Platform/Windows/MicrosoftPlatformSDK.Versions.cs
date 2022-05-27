@@ -34,7 +34,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		static readonly VersionNumberRange[] PreferredVisualCppVersions = new VersionNumberRange[]
 		{
-			VersionNumberRange.Parse("14.29.30133", "14.29.30136"), // VS2019 16.11.5
+			VersionNumberRange.Parse("14.29.30133", "14.29.30145"), // VS2019 16.11.32428.217
 		};
 
 		/// <summary>

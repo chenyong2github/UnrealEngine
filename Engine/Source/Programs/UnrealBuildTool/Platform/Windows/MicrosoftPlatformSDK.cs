@@ -1273,6 +1273,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Information about a particular toolchain installation
 	/// </summary>
+	[DebuggerDisplay("{BaseDir}")]
 	internal class ToolChainInstallation
 	{
 		/// <summary>
