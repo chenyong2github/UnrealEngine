@@ -2596,10 +2596,6 @@ void FAsyncLoadingThread2::InitializeLoading()
 	FileOpenLogWrapper = (FPlatformFileOpenLog*)(FPlatformFileManager::Get().FindPlatformFile(FPlatformFileOpenLog::GetTypeName()));
 #endif
 
-#if USE_NEW_BULKDATA || WITH_IOSTORE_IN_EDITOR
-	FBulkDataBase::SetIoDispatcher(&IoDispatcher);
-#endif
-
 	UE_CLOG(!FCoreDelegates::CreatePackageStore.IsBound(), LogStreaming, Fatal, TEXT("CreatePackageStore delegate not bound when initializing package loader"));
 	PackageStore = FCoreDelegates::CreatePackageStore.Execute();
 	UE_CLOG(!PackageStore.IsValid(), LogStreaming, Fatal, TEXT("CreatePackageStore delegate returned null when initializing package loader"));
@@ -5239,10 +5235,6 @@ FAsyncLoadingThread2::~FAsyncLoadingThread2()
 	{
 		ShutdownLoading();
 	}
-
-#if USE_NEW_BULKDATA
-	FBulkDataBase::SetIoDispatcher(nullptr);
-#endif
 }
 
 void FAsyncLoadingThread2::ShutdownLoading()

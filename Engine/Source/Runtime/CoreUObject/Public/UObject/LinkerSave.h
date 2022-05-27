@@ -14,7 +14,7 @@
 
 class FIoChunkId;
 class FObjectPostSaveContext;
-struct FUntypedBulkData;
+class FBulkData;
 
 namespace UE::DerivedData { struct FCacheKey; }
 namespace UE::DerivedData { struct FValueId; }
@@ -70,7 +70,7 @@ public:
 		/** The file region type to apply to this bulk data */
 		EFileRegionType BulkDataFileRegionType;
 		/** The bulkdata */
-		FUntypedBulkData* BulkData;
+		FBulkData* BulkData;
 	};
 	TArray<FBulkDataStorageInfo> BulkDataToAppend;
 	TArray<FFileRegion> FileRegions;

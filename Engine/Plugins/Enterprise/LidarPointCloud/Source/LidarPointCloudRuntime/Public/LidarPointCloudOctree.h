@@ -272,7 +272,7 @@ private:
 	FByteBulkData BulkData;
 
 #if WITH_EDITOR
-	struct FLidarPointCloudBulkData : public FByteBulkData
+	struct FLidarPointCloudBulkData : public FUntypedBulkData
 	{
 		FLidarPointCloudOctree* Octree;
 		int32 ElementSize = 1;
@@ -280,6 +280,11 @@ private:
 		FLidarPointCloudBulkData(FLidarPointCloudOctree* Octree);
 		virtual int32 GetElementSize() const override { return ElementSize; }
 		virtual void SerializeElements(FArchive& Ar, void* Data) override { Octree->SerializeBulkData(Ar); }
+		virtual void SerializeElement(FArchive& Ar, void* Data, int64 ElementIndex) override
+		{
+			uint8* Element = static_cast<uint8*>(Data) + (ElementIndex * ElementSize); 
+			Ar.Serialize(Element, ElementSize);
+		}
 		virtual bool RequiresSingleElementSerialization(FArchive& Ar) override { return true; }
 		void Serialize(FArchive& Ar);
 	} SavingBulkData;

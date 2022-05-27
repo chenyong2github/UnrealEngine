@@ -255,13 +255,13 @@ void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context)
 
 		for (int32 Index = PendingFirstLODIdx; Index < CurrentFirstLODIdx; ++Index)
 		{
-			FBulkDataInterface::BulkDataRangeArray BulkDataArray;
+			FBulkData::BulkDataRangeArray BulkDataArray;
 			BulkDataArray.Add(&LandscapeProxy->GetStreamingLODBulkData(Index));
 
 			if (BulkDataArray[0]->GetBulkDataSize() > 0)
 			{
 				TaskSynchronization.Increment();
-				IORequests[Index] = FBulkDataInterface::CreateStreamingRequestForRange(
+				IORequests[Index] = FBulkData::CreateStreamingRequestForRange(
 					BulkDataArray,
 					bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 					&AsyncFileCallback);

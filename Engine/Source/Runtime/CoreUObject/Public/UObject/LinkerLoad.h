@@ -16,7 +16,7 @@ class FLinkerPlaceholderBase;
 class IPakFile;
 class ULinkerPlaceholderExportObject;
 struct FScopedSlowTask;
-struct FUntypedBulkData;
+class FBulkData;
 
 namespace UE{ class FPackageTrailer; }
 namespace UE::Serialization{ class FEditorBulkData; }
@@ -237,7 +237,7 @@ public:
 	struct FAsyncPackage* AsyncRoot;
 #if WITH_EDITOR
 	/** Bulk data that does not need to be loaded when the linker is loaded.												*/
-	TArray<FUntypedBulkData*> BulkDataLoaders;
+	TArray<FBulkData*> BulkDataLoaders;
 	TArray<UE::Serialization::FEditorBulkData*> EditorBulkDataLoaders;
 #endif // WITH_EDITOR
 
@@ -847,7 +847,7 @@ private:
 	 * @param	Owner		UObject owning the bulk data
 	 * @param	BulkData	Bulk data object to associate
 	 */
-	virtual void AttachBulkData(UObject* Owner, FUntypedBulkData* BulkData) override;
+	virtual void AttachBulkData(UObject* Owner, FBulkData* BulkData) override;
 	virtual void AttachBulkData(UE::Serialization::FEditorBulkData* BulkData) override;
 	/**
 	 * Detaches the passed in bulk data object from the linker.
@@ -855,7 +855,7 @@ private:
 	 * @param	BulkData	Bulk data object to detach
 	 * @param	bEnsureBulkDataIsLoaded	Whether to ensure that the bulk data is loaded before detaching
 	 */
-	virtual void DetachBulkData(FUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded) override;
+	virtual void DetachBulkData(FBulkData* BulkData, bool bEnsureBulkDataIsLoaded) override;
 	virtual void DetachBulkData(UE::Serialization::FEditorBulkData* BulkData, bool bEnsureBulkDataIsLoaded) override;
 	/**
 	 * Detaches all attached bulk  data objects.

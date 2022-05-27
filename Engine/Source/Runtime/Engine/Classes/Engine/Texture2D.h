@@ -9,7 +9,7 @@
 #include "Engine/Texture.h"
 #include "TextureResource.h"
 #include "Misc/FieldAccessor.h"
-#include "Serialization/BulkData2.h"
+#include "Serialization/BulkData.h"
 #include "Texture2D.generated.h"
 
 class FTexture2DResourceMem;

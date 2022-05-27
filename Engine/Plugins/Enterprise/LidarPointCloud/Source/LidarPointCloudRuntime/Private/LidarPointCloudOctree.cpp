@@ -2580,7 +2580,7 @@ FLidarPointCloudOctree::FLidarPointCloudBulkData::FLidarPointCloudBulkData(FLida
 void FLidarPointCloudOctree::FLidarPointCloudBulkData::Serialize(FArchive& Ar)
 {
 	ElementSize = Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData() ? INT32_MAX : 1;
-	FByteBulkData::Serialize(Ar, Octree->GetOwner());
+	FUntypedBulkData::Serialize(Ar, Octree->GetOwner());
 	ElementSize = 1;
 }
 #endif

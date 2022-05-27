@@ -3246,13 +3246,8 @@ void FLegacyLightMap1D::Serialize(FArchive& Ar)
 
 	UObject* Owner;
 
-#if !USE_NEW_BULKDATA
 	TQuantizedLightSampleBulkData<FQuantizedDirectionalLightSample> DirectionalSamples;
 	TQuantizedLightSampleBulkData<FQuantizedSimpleLightSample> SimpleSamples;
-#else
-	FUntypedBulkData2<FQuantizedDirectionalLightSample> DirectionalSamples;
-	FUntypedBulkData2<FQuantizedSimpleLightSample> SimpleSamples;
-#endif
 
 	Ar << Owner;
 

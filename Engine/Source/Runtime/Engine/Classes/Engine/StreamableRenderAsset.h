@@ -7,7 +7,7 @@
 #include "UObject/Object.h"
 #include "Misc/App.h"
 #include "Engine/TextureStreamingTypes.h"
-#include "Serialization/BulkData2.h"
+#include "Serialization/BulkData.h"
 #include "Templates/RefCounting.h"
 #include "RenderAssetUpdate.h"
 #include "Streaming/StreamableRenderResourceState.h"

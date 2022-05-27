@@ -1815,9 +1815,6 @@ void FStreamingManager::AsyncUpdate()
 	};
 	TArray<FIORequestTask> RequestTasks;
 
-	FIoDispatcher* IODispatcher = FBulkDataBase::GetIoDispatcher();
-
-	
 	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessReadback);
 	const uint32* BufferPtr = AsyncState.LatestReadbackBufferPtr;
 	const uint32 NumGPUStreamingRequests = FMath::Min(BufferPtr[0], NANITE_MAX_STREAMING_REQUESTS - 1u);	// First request is reserved for counter

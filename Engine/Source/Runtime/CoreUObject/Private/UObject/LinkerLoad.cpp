@@ -5376,7 +5376,7 @@ void FLinkerLoad::Detach()
  * @param	Owner		UObject owning the bulk data
  * @param	BulkData	Bulk data object to associate
  */
-void FLinkerLoad::AttachBulkData( UObject* Owner, FUntypedBulkData* BulkData )
+void FLinkerLoad::AttachBulkData( UObject* Owner, FBulkData* BulkData )
 {
 	check( BulkDataLoaders.Find(BulkData)==INDEX_NONE );
 	BulkDataLoaders.Add( BulkData );
@@ -5394,7 +5394,7 @@ void FLinkerLoad::AttachBulkData(UE::Serialization::FEditorBulkData* BulkData)
  * @param	BulkData	Bulk data object to detach
  * @param	bEnsureBulkDataIsLoaded	Whether to ensure that the bulk data is loaded before detaching
  */
-void FLinkerLoad::DetachBulkData( FUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded )
+void FLinkerLoad::DetachBulkData( FBulkData* BulkData, bool bEnsureBulkDataIsLoaded )
 {
 	int32 RemovedCount = BulkDataLoaders.Remove( BulkData );
 	if( RemovedCount!=1 )
@@ -5423,8 +5423,8 @@ void FLinkerLoad::DetachAllBulkData(bool bEnsureAllBulkDataIsLoaded)
 {
 	// Old style bulkdata first
 	{
-		TArray<FUntypedBulkData*> BulkDataToDetach = BulkDataLoaders;
-		for (FUntypedBulkData* BulkData : BulkDataToDetach)
+		TArray<FBulkData*> BulkDataToDetach = BulkDataLoaders;
+		for (FBulkData* BulkData : BulkDataToDetach)
 		{
 			check(BulkData != nullptr);
 			BulkData->DetachFromArchive(this, bEnsureAllBulkDataIsLoaded);

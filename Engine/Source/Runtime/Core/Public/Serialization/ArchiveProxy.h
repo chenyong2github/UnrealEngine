@@ -144,12 +144,12 @@ public:
 		InnerArchive.Seek(InPos);
 	}
 
-	virtual void AttachBulkData(UObject* Owner, FUntypedBulkData* BulkData) override
+	virtual void AttachBulkData(UObject* Owner, FBulkData* BulkData) override
 	{
 		InnerArchive.AttachBulkData(Owner, BulkData);
 	}
 
-	virtual void DetachBulkData(FUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded) override
+	virtual void DetachBulkData(FBulkData* BulkData, bool bEnsureBulkDataIsLoaded) override
 	{
 		InnerArchive.DetachBulkData(BulkData, bEnsureBulkDataIsLoaded);
 	}

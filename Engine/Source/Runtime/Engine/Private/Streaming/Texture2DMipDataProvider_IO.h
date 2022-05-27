@@ -9,7 +9,7 @@ Texture2DMipDataProvider_IO.h : Implementation of FTextureMipDataProvider using 
 #include "CoreMinimal.h"
 #include "Streaming/TextureMipDataProvider.h"
 #include "Async/AsyncFileHandle.h"
-#include "Serialization/BulkData2.h"
+#include "Serialization/BulkData.h"
 
 /**
 * FTexture2DMipDataProvider_IO implements FTextureMipAllocator using file IO (cooked content).

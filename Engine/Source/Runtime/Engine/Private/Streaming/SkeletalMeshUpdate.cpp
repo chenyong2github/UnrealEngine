@@ -462,7 +462,7 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 	{
 		SetAsyncFileCallback(Context);
 
-		FBulkDataInterface::BulkDataRangeArray BulkDataArray;
+		FBulkData::BulkDataRangeArray BulkDataArray;
 		for (int32 Index = PendingFirstLODIdx; Index < CurrentFirstLODIdx; ++Index)
 		{
 			BulkDataArray.Push(&Context.LODResourcesView[Index]->StreamingBulkData);
@@ -472,7 +472,7 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 		// but that won't do anything because the tick would not try to acquire the lock since it is already locked.
 		TaskSynchronization.Increment();
 
-		IORequest = FBulkDataInterface::CreateStreamingRequestForRange(
+		IORequest = FBulkData::CreateStreamingRequestForRange(
 			BulkDataArray,
 			bHighPrioIORequest ? AIOP_BelowNormal : AIOP_Low,
 			&AsyncFileCallback);

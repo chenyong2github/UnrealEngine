@@ -3,23 +3,23 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/SortedMap.h"
-#include "UObject/WeakObjectPtr.h"
-#include "Async/Future.h"
 #include "Async/AsyncFileHandle.h"
-#include "GenericPlatform/GenericPlatformFile.h"
+#include "BulkDataBuffer.h"
+#include "Containers/SortedMap.h"
+#include "Containers/StringView.h"
 #include "Misc/PackagePath.h"
+#include "Misc/PackageSegment.h"
 #include "Serialization/FileRegions.h"
-#include "BulkDataCommon.h"
-#include "BulkData2.h"
-#if WITH_IOSTORE_IN_EDITOR
+#include "Templates/RefCounting.h"
 #include "IO/PackageId.h"
-#endif
+#include "IO/IoDispatcher.h"
 
-#if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0 //Runtime
-	#define USE_NEW_BULKDATA 1 // Set to 1 to enable 
+#if WITH_EDITOR == 0 && WITH_EDITORONLY_DATA == 0
+	#define USE_NEW_BULKDATA UE_DEPRECATED_MACRO(5.1, "The USE_NEW_BULKDATA macro has been deprecated in favor of USE_RUNTIME_BULKDATA.") 1
+	#define USE_RUNTIME_BULKDATA 1
 #else
-	#define USE_NEW_BULKDATA 0
+	#define USE_NEW_BULKDATA UE_DEPRECATED_MACRO(5.1, "The USE_NEW_BULKDATA macro has been deprecated in favor of USE_RUNTIME_BULKDATA.") 0
+	#define USE_RUNTIME_BULKDATA 0
 #endif
 
 // Enable the following to use the more compact FBulkDataStreamingToken in places where it is implemented
@@ -28,11 +28,175 @@
 
 class IMappedFileHandle;
 class IMappedFileRegion;
-class UPackage;
 
 /*-----------------------------------------------------------------------------
-	Base version of untyped bulk data.
+	I/O filename helper(s)
 -----------------------------------------------------------------------------*/
+
+/** A loose hash value that can be created from either a filenames or a FIoChunkId */
+using FIoFilenameHash = uint32;
+const FIoFilenameHash INVALID_IO_FILENAME_HASH = 0;
+/** Helpers to create the hash from a filename. Returns IOFILENAMEHASH_NONE if and only if the filename is empty. */
+COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FString& Filename);
+/** Helpers to create the hash from a FPackagePath. Returns IOFILENAMEHASH_NONE if and only if the PackagePath is empty. */
+COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FPackagePath& Filename);
+/** Helpers to create the hash from a chunk id. Returns IOFILENAMEHASH_NONE if and only if the chunk id is invalid. */
+COREUOBJECT_API FIoFilenameHash MakeIoFilenameHash(const FIoChunkId& ChunkID);
+
+/**
+ * Represents an IO request from the BulkData streaming API.
+ *
+ * It functions pretty much the same as IAsyncReadRequest expect that it also holds
+ * the file handle as well.
+ */
+class COREUOBJECT_API IBulkDataIORequest
+{
+public:
+	virtual ~IBulkDataIORequest() {}
+
+	virtual bool PollCompletion() const = 0;
+	virtual bool WaitCompletion(float TimeLimitSeconds = 0.0f) = 0;
+
+	virtual uint8* GetReadResults() = 0;
+	virtual int64 GetSize() const = 0;
+
+	virtual void Cancel() = 0;
+};
+
+/**
+ * Flags serialized with the bulk data.
+ */
+enum EBulkDataFlags : uint32
+{
+	/** Empty flag set. */
+	BULKDATA_None = 0,
+	/**
+	 * INTERNAL SET ONLY - callers of bulkdata should not set this flag on the bulk data
+	 * It is overwritten according to global configuration by Serialize.
+	 * If set, payload is stored not inline; it is stored either at the end of the file
+	 * or in a separate file.
+	 */
+	BULKDATA_PayloadAtEndOfFile = 1 << 0,
+	/** If set, payload should be [un]compressed using ZLIB during serialization. */
+	BULKDATA_SerializeCompressedZLIB = 1 << 1,
+	/** Force usage of SerializeElement over bulk serialization. */
+	BULKDATA_ForceSingleElementSerialization = 1 << 2,
+	/** Bulk data is only used once at runtime in the game. */
+	BULKDATA_SingleUse = 1 << 3,
+	/** Bulk data won't be used and doesn't need to be loaded. */
+	BULKDATA_Unused = 1 << 5,
+	/** Forces the payload to be saved inline, regardless of its size. */
+	BULKDATA_ForceInlinePayload = 1 << 6,
+	/** Flag to check if either compression mode is specified. */
+	BULKDATA_SerializeCompressed = (BULKDATA_SerializeCompressedZLIB),
+	/** Forces the payload to be always streamed, regardless of its size. */
+	BULKDATA_ForceStreamPayload = 1 << 7,
+	/**
+	 * INTERNAL SET ONLY - callers of bulkdata should not set this flag on the bulk data
+	 * It is overwritten according to global configuration by Serialize.
+	 * If set, payload is stored in a separate file such as .ubulk.
+	 * */
+	BULKDATA_PayloadInSeperateFile = 1 << 8,
+	/** DEPRECATED: If set, payload is compressed using platform specific bit window. */
+	BULKDATA_SerializeCompressedBitWindow = 1 << 9,
+	/** There is a new default to inline unless you opt out. */
+	BULKDATA_Force_NOT_InlinePayload = 1 << 10,
+	/** This payload is optional and may not be on device. */
+	BULKDATA_OptionalPayload = 1 << 11,
+	/** This payload will be memory mapped, this requires alignment, no compression etc. */
+	BULKDATA_MemoryMappedPayload = 1 << 12,
+	/** Bulk data size is 64 bits long. */
+	BULKDATA_Size64Bit = 1 << 13,
+	/** Duplicate non-optional payload in optional bulk data. */
+	BULKDATA_DuplicateNonOptionalPayload = 1 << 14,
+	/** Indicates that an old ID is present in the data, at some point when the DDCs are flushed we can remove this. */
+	BULKDATA_BadDataVersion = 1 << 15,
+	/** BulkData did not have it's offset changed during the cook and does not need the fix up at load time */
+	BULKDATA_NoOffsetFixUp = 1 << 16,
+	/**
+	 * INTERNAL SET ONLY - callers of bulkdata should not set this flag on the bulk data
+	 * If set, payload is stored in the workspace domain version of the file.
+	 */
+	BULKDATA_WorkspaceDomainPayload = 1 << 17,
+	/**
+	 * INTERNAL SET ONLY - callers of bulkdata should not set this flag on the bulk data
+	 * If true, the BulkData can be loaded from its file at any time
+	 */
+	BULKDATA_LazyLoadable = 1 << 18,
+
+	/* Runtime only flags below this point! Note that they take the high bits in reverse order! */
+
+	/** Assigned at runtime to indicate that the BulkData should be using the IoDispatcher when loading, not filepaths. */
+	BULKDATA_UsesIoDispatcher = 1u << 31u,
+	/** Assigned at runtime to indicate that the BulkData allocation is a memory mapped region of a file and not raw data. */
+	BULKDATA_DataIsMemoryMapped = 1 << 30,
+	/** Assigned at runtime to indicate that the BulkData object has an async loading request in flight and will need to wait on it. */
+	BULKDATA_HasAsyncReadPending = 1 << 29,
+	/** Assigned at runtime to indicate that the BulkData object should be considered for discard even if it cannot load from disk. */
+	BULKDATA_AlwaysAllowDiscard = 1 << 28,
+};
+
+/**
+ * Allows FArchive to serialize EBulkDataFlags, this will not be required once EBulkDataFlags is promoted
+ * to be a enum class.
+ */
+inline FArchive& operator<<(FArchive& Ar, EBulkDataFlags& Flags)
+{
+	Ar << (uint32&)Flags;
+	return Ar;
+}
+
+/** Serialize the given Value as an int32 or int64 depending on InBulkDataFlags&BULKDATA_Size64Bit. */
+inline void SerializeBulkDataSizeInt(FArchive& Ar, int64& Value, EBulkDataFlags InBulkDataFlags)
+{
+	if (InBulkDataFlags & BULKDATA_Size64Bit)
+	{
+		Ar << Value;
+	}
+	else
+	{
+		check(!Ar.IsSaving() || (MIN_int32 <= Value && Value <= MAX_int32));
+		int32 ValueAsInt32 = static_cast<int32>(Value);
+		Ar << ValueAsInt32;
+		Value = ValueAsInt32;
+	}
+}
+
+/**
+ * Enumeration for bulk data lock status.
+ */
+enum EBulkDataLockStatus
+{
+	/** Unlocked array				*/
+	LOCKSTATUS_Unlocked = 0,
+	/** Locked read-only			*/
+	LOCKSTATUS_ReadOnlyLock = 1,
+	/** Locked read-write-realloc	*/
+	LOCKSTATUS_ReadWriteLock = 2,
+};
+
+/**
+ * Enumeration for bulk data lock behavior
+ */
+enum EBulkDataLockFlags
+{
+	LOCK_READ_ONLY = 1,
+	LOCK_READ_WRITE = 2,
+};
+
+/**
+ * Callback to use when making streaming requests
+ */
+typedef TFunction<void(bool bWasCancelled, IBulkDataIORequest*)> FBulkDataIORequestCallBack;
+
+UE_DEPRECATED(5.1, "Use CreateStreamingRequest instead")
+TUniquePtr<IBulkDataIORequest> CreateBulkDataIoDispatcherRequest(
+	const FIoChunkId& InChunkID,
+	int64 InOffsetInBulkData = 0,
+	int64 InBytesToRead = INDEX_NONE,
+	FBulkDataIORequestCallBack* InCompleteCallback = nullptr,
+	uint8* InUserSuppliedMemory = nullptr,
+	int32 InPriority = IoDispatcherPriority_Low);
 
 /**
  * @documentation @todo documentation
@@ -87,6 +251,7 @@ private:
 	IMappedFileRegion* MappedRegion;
 };
 
+UE_DEPRECATED(5.1, "Use CreateStreamingRequest instead");
 class FBulkDataIORequest : public IBulkDataIORequest
 {
 public:
@@ -112,133 +277,230 @@ private:
 	int64 Size;
 };
 
-class FBulkDataStreamingToken; // Forward declared but not implemented
+namespace UE::BulkData::Private
+{
+
+COREUOBJECT_API EPackageSegment GetPackageSegmentFromFlags(EBulkDataFlags BulkDataFlags);
+
+/**
+ * Serialized bulk meta data.
+ */
+struct FBulkMetaResource
+{
+	/** Bulk data flags. */
+	EBulkDataFlags Flags = BULKDATA_None;
+
+	/** Number of bulk data elements. */
+	int64 ElementCount = -1;
+
+	/** Size on disk, can differ from size when compressed. */
+	int64 SizeOnDisk = -1;
+	
+	/** Offset within the bulk data chunk. */
+	int64 Offset = -1;
+	
+	/** Non-optional duplicate bulk data flags. */
+	EBulkDataFlags DuplicateFlags = BULKDATA_None;
+	
+	/** Duplicate bulk data size on disk. */
+	int64 DuplicateSizeOnDisk = -1;
+
+	/** Offset within the optional bulk data chunk. */
+	int64 DuplicateOffset = -1;
+
+	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FBulkMetaResource& BulkMeta);
+};
+
+/**
+ * Bulk meta data, size, offset, flags and lock status packed in 16 bytes.
+ *
+ * Uses 5 bytes for size and offset.
+ * [0 - 4][5 - 9][  10	][    11	][12    -   15]([16   -  23])
+ * [Size][Offset][Unused][LockFlags][BulkDataFlags]([SizeOnDisk])
+ */
+class FBulkMetaData
+{
+public:
+	FBulkMetaData() = default;
+
+	inline int64 GetSize() const
+	{
+		return static_cast<int64>(ReadUInt40(Data));
+	}
+
+	inline void SetSize(int64 Size)
+	{
+		WriteUInt40(Data, uint64(Size));
+	}
+
+	int64 GetSizeOnDisk() const
+	{
+#if USE_RUNTIME_BULKDATA
+		return GetSize();
+#else
+		return static_cast<int64>(*reinterpret_cast<const int64*>(&Data[16]));
+#endif
+	}
+
+	void SetSizeOnDisk(int64 SizeOnDisk)
+	{
+#if !USE_RUNTIME_BULKDATA
+		*reinterpret_cast<int64*>(&Data[16]) = SizeOnDisk;
+#endif // !USE_RUNTIME_BULKDATA
+	}
+
+	inline int64 GetOffset() const
+	{
+		return static_cast<int64>(ReadUInt40(Data + 5));
+	}
+
+	inline void SetOffset(int64 Offset)
+	{
+		WriteUInt40(Data + 5, uint64(Offset));
+	}
+
+	EBulkDataLockStatus GetLockStatus() const
+	{
+		return static_cast<EBulkDataLockStatus>(Data[11]);
+	}
+
+	void SetLockStatus(EBulkDataLockStatus Status)
+	{
+		Data[11] = uint8(Status);
+	}
+	
+	EBulkDataFlags GetFlags() const
+	{
+		return static_cast<EBulkDataFlags>(*reinterpret_cast<const uint32*>(&Data[12]));
+	}
+
+	void SetFlags(EBulkDataFlags Flags)
+	{
+		*reinterpret_cast<uint32*>(&Data[12]) = static_cast<uint32>(Flags);
+	}
+
+	inline bool HasAnyFlags(EBulkDataFlags Flags) const
+	{
+		return (GetFlags() & Flags) != 0;
+	}
+	
+	static FBulkMetaData FromSerialized(const FBulkMetaResource& MetaResource, int64 ElementSize)
+	{
+		FBulkMetaData Meta;
+		
+		if (MetaResource.ElementCount > 0)
+		{
+			Meta.SetSize(MetaResource.ElementCount * ElementSize);
+			Meta.SetSizeOnDisk(MetaResource.SizeOnDisk);
+		}
+
+		Meta.SetOffset(MetaResource.Offset > 0 ? MetaResource.Offset : 0);
+		Meta.SetFlags(MetaResource.Flags);
+
+		return Meta;
+	}
+
+private:
+	static uint64 ReadUInt40(const uint8* Memory)
+	{
+		return static_cast<int64>(uint64(Memory[0]) | uint64(Memory[1]) << 8 | uint64(Memory[2]) << 16 | uint64(Memory[3]) << 24 | uint64(Memory[4]) << 32);
+	}
+
+	static void WriteUInt40(uint8* Memory, uint64 Value)
+	{
+		Memory[0] = uint8(Value); Memory[1] = uint8(Value >> 8); Memory[2] = uint8(Value >> 16); Memory[3] = uint8(Value >> 24); Memory[4] = uint8(Value >> 32);
+	}
+#if USE_RUNTIME_BULKDATA
+	uint8 Data[16] = {0};
+#else
+	uint8 Data[24] = {0};
+#endif // USE_RUNTIME_BULKDATA
+};
+
+/**
+ * Chunk identifier when reading non-inlined bulk data. Either
+ * a package path or a package ID depending on the package loader.
+ */
+class FBulkDataChunkId
+{
+public:
+	COREUOBJECT_API FBulkDataChunkId();
+
+	FBulkDataChunkId(const FBulkDataChunkId& Other);
+
+	FBulkDataChunkId(FBulkDataChunkId&&) = default;
+
+	COREUOBJECT_API ~FBulkDataChunkId();
+
+	FBulkDataChunkId& operator=(const FBulkDataChunkId& Other);
+
+	FBulkDataChunkId& operator=(FBulkDataChunkId&&) = default;
+	
+	bool IsValid() const { return ImplPtr.IsValid(); }
+
+	FPackageId GetPackageId() const;
+	
+	COREUOBJECT_API const FPackagePath& GetPackagePath() const;
+
+	COREUOBJECT_API FIoFilenameHash GetIoFilenameHash(EBulkDataFlags BulkDataFlags) const;
+
+	FString ToDebugString() const;
+
+	static FBulkDataChunkId FromPackagePath(const FPackagePath& PackagePath);
+
+	static FBulkDataChunkId FromPackageId(const FPackageId& PackageId);
+
+private:
+	struct FImpl;
+
+	FBulkDataChunkId(TUniquePtr<FImpl>&& InImplPtr);
+
+	TUniquePtr<FImpl> ImplPtr;
+};
+
+} // namespace UE::BulkData::Private
 
 /**
  * @documentation @todo documentation
  */
-struct COREUOBJECT_API FUntypedBulkData
+class COREUOBJECT_API FBulkData
 {
-private:
 	// This struct represents an optional allocation.
 	struct FAllocatedPtr
 	{
-		FAllocatedPtr()
-			: Ptr       (nullptr)
-			, MappedHandle(nullptr)
-			, MappedRegion(nullptr)
-			, bAllocated(false)
+		FAllocatedPtr() = default;
+		~FAllocatedPtr() = default;
+
+		inline bool IsLoaded() const
 		{
+			return Allocation.RawData != nullptr; // Doesn't matter which allocation we test
 		}
 
-		FAllocatedPtr(FAllocatedPtr&& Other)
-			: Ptr       (Other.Ptr)
-			, MappedHandle(Other.MappedHandle)
-			, MappedRegion(Other.MappedRegion)
-			, bAllocated(Other.bAllocated)
-		{
-			Other.Ptr = nullptr;
-			Other.MappedHandle = nullptr;
-			Other.MappedRegion = nullptr;
-			Other.bAllocated = false;
-		}
+		void Free(FBulkData* Owner);
 
-		FAllocatedPtr& operator=(FAllocatedPtr&& Other)
-		{
-			Swap(*this, Other);
-			Other.Deallocate();
+		void* AllocateData(FBulkData* Owner, SIZE_T SizeInBytes); 
+		void* ReallocateData(FBulkData* Owner, SIZE_T SizeInBytes);
 
-			return *this;
-		}
+		void SetData(FBulkData* Owner, void* Buffer);
+		void SetMemoryMappedData(FBulkData* Owner, IMappedFileHandle* MappedHandle, IMappedFileRegion* MappedRegion);
 
-		~FAllocatedPtr()
-		{
-			Deallocate();
-		}
+		void* GetAllocationForWrite(const FBulkData* Owner) const;
+		const void* GetAllocationReadOnly(const FBulkData* Owner) const;
 
-		void* Get() const
-		{
-			return Ptr;
-		}
+		FOwnedBulkDataPtr* StealFileMapping(FBulkData* Owner);
+		void Swap(FBulkData* Owner, void** DstBuffer);
 
-		FORCEINLINE explicit operator bool() const
-		{
-			return bAllocated;
-		}
-
-		void Reallocate(int64 Count, int32 Alignment = DEFAULT_ALIGNMENT)
-		{
-			check(!MappedHandle && !MappedRegion); // not legal for mapped bulk data
-			if (Count)
-			{
-				Ptr = FMemory::Realloc(Ptr, Count, Alignment);
-			}
-			else
-			{
-				FMemory::Free(Ptr);
-				Ptr = nullptr;
-			}
-
-			bAllocated = true;
-		}
-
-		void* ReleaseWithoutDeallocating()
-		{
-			if (MappedHandle || MappedRegion)
-			{
-				// Super scary, we returned a pointer to a mapped file but we have no guarantees that this outlives the pointer we let out into the engine
-				// @todo transfer ownership properly by making FAllocatedPtr a public thing that can be used by people to take ownership of the entire mapping. 
-			}
-			void* Result = Ptr;
-			Ptr = nullptr;
-			bAllocated = false;
-			return Result;
-		}
-
-		void Deallocate()
-		{
-			if (MappedHandle || MappedRegion)
-			{
-				UnmapFile();
-			}
-			FMemory::Free(Ptr);
-			Ptr = nullptr;
-			bAllocated = false;
-		}
-
-		COREUOBJECT_API bool MapFile(const FPackagePath& PackagePath, EPackageSegment PackageSegment, int64 Offset, int64 Size);
-		COREUOBJECT_API void UnmapFile();
-
-		FOwnedBulkDataPtr* StealFileMapping()
-		{
-			FOwnedBulkDataPtr* Result;
-			// make the proper kind of owner pointer info
-			if (MappedHandle && MappedRegion && Ptr && bAllocated)
-			{
-				Result = new FOwnedBulkDataPtr(MappedHandle, MappedRegion);
-			}
-			else
-			{
-				Result = new FOwnedBulkDataPtr(Ptr);
-			}
-
-			// no matter what, this allocated pointer is now fully owned by the caller, so we just null everything out, no deletions
-			MappedHandle = nullptr;
-			MappedRegion = nullptr;
-			Ptr = nullptr;
-			bAllocated = false;
-
-			return Result;
-		}
-		
 	private:
-		FAllocatedPtr(const FAllocatedPtr&);
-		FAllocatedPtr& operator=(const FAllocatedPtr&);
 
-		void* Ptr;
-		IMappedFileHandle* MappedHandle;
-		IMappedFileRegion* MappedRegion;
-		bool  bAllocated;
+		union FAllocation
+		{
+			/** Raw memory allocations, allocated via FMemory::Malloc/Realloc */
+			void* RawData;
+			/** Wrapper around memory mapped allocations allocated via new */
+			FOwnedBulkDataPtr* MemoryMappedData;
+		};
+
+		FAllocation Allocation{ nullptr };
 	};
 
 public:
@@ -246,7 +508,9 @@ public:
 	friend class FExportArchive;
 	friend class UE::Serialization::FEditorBulkData; // To allow access to AttachedAr
 
-	using BulkDataRangeArray = TArray<FUntypedBulkData*, TInlineAllocator<8>>;
+	using BulkDataRangeArray = TArray<FBulkData*, TInlineAllocator<8>>;
+
+	static constexpr SIZE_T MaxBulkDataSize = (1ull << 40) - 1;
 
 	/*-----------------------------------------------------------------------------
 		Constructors and operators
@@ -255,26 +519,26 @@ public:
 	/**
 	 * Constructor, initializing all member variables.
 	 */
-	FUntypedBulkData();
+	FBulkData() = default;
 
 	/**
 	 * Copy constructor. Use the common routine to perform the copy.
 	 *
 	 * @param Other the source array to copy
 	 */
-	FUntypedBulkData( const FUntypedBulkData& Other );
+	FBulkData( const FBulkData& Other );
 
 	/**
 	 * Virtual destructor, free'ing allocated memory.
 	 */
-	virtual ~FUntypedBulkData();
+	~FBulkData();
 
 	/**
 	 * Copies the source array into this one after detaching from archive.
 	 *
 	 * @param Other the source array to copy
 	 */
-	FUntypedBulkData& operator=( const FUntypedBulkData& Other );
+	FBulkData& operator=( const FBulkData& Other );
 
 	/*-----------------------------------------------------------------------------
 		Static functions.
@@ -291,20 +555,6 @@ public:
 		Accessors
 	-----------------------------------------------------------------------------*/
 
-	/**
-	 * Returns the number of elements in this bulk data array.
-	 *
-	 * @return Number of elements in this bulk data array
-	 */
-	int64 GetElementCount() const;
-	/**
-	 * Returns size in bytes of single element.
-	 *
-	 * Pure virtual that needs to be overloaded in derived classes.
-	 *
-	 * @return Size in bytes of single element
-	 */
-	virtual int32 GetElementSize() const = 0;
 	/**
 	 * Returns the size of the bulk data in bytes.
 	 *
@@ -387,7 +637,7 @@ public:
 	}
 
 	UE_DEPRECATED(4.25, "Use ::IsInSeparateFile() instead")
-	FORCEINLINE bool InSeperateFile() const { return IsInSeparateFile(); }
+	inline bool InSeperateFile() const { return IsInSeparateFile(); }
 
 	/**
 	* Returns whether this bulk data is currently stored in it's own file or not
@@ -413,7 +663,32 @@ public:
 	*/
 	bool IsUsingIODispatcher() const
 	{
-		return (BulkDataFlags & BULKDATA_UsesIoDispatcher) != 0;
+		return (GetBulkDataFlags() & BULKDATA_UsesIoDispatcher) != 0;
+	}
+
+	/**
+	 * Returns whether this bulk data is memory mapped or not.
+	 */
+	bool IsDataMemoryMapped() const
+	{
+		return (GetBulkDataFlags() & BULKDATA_DataIsMemoryMapped) != 0;
+	}
+
+	/**
+	 * Returns whether to deallocate the bulk data after lock
+	 */
+	bool IsSingleUse() const
+	{
+		return (GetBulkDataFlags() & BULKDATA_SingleUse) != 0;
+	}
+	
+	/**
+	* Returns whether this bulk data represents duplicate non-optional data or not
+	* @return true if BULKDATA_DuplicateNonOptionalPayload is set
+	*/
+	bool IsDuplicateNonOptional() const
+	{
+		return (GetBulkDataFlags() & BULKDATA_DuplicateNonOptionalPayload) != 0;
 	}
 
 	/**
@@ -439,11 +714,7 @@ public:
 	*/
 	uint32 GetBulkDataFlags() const;
 
-	/**
-	 * Sets the passed in bulk data alignment.
-	 *
-	 * @param BulkDataAlignmentToSet	Bulk data alignment to set
-	 */
+	UE_DEPRECATED(5.1, "Bulk Data will always use default alignment")
 	void SetBulkDataAlignment(uint16 BulkDataAlignmentToSet);
 
 	/**
@@ -464,18 +735,18 @@ public:
 	FString GetFilename() const { return GetPackagePath().GetLocalFullPath(GetPackageSegment()); }
 
 	/** Returns the PackagePath this bulkdata resides in */
-	const FPackagePath& GetPackagePath() const { return PackagePath; }
+	const FPackagePath& GetPackagePath() const { return BulkChunkId.GetPackagePath(); }
 
 	/** Returns which segment of its PackagePath this bulkdata resides in */
-	EPackageSegment GetPackageSegment() const { return PackageSegment; }
+	EPackageSegment GetPackageSegment() const { return UE::BulkData::Private::GetPackageSegmentFromFlags(BulkMeta.GetFlags()); }
 
 	/** 
 	 * Returns the io filename hash associated with this bulk data.
 	 *
 	 * @return Hash or INVALID_IO_FILENAME_HASH if invalid.
 	 **/
-	FIoFilenameHash GetIoFilenameHash() const { return MakeIoFilenameHash(PackagePath); }
-
+	FIoFilenameHash GetIoFilenameHash() const { return BulkChunkId.GetIoFilenameHash(BulkMeta.GetFlags()); }
+	
 	/** Returns a FIoChunkId for the bulkdata payload, this will be invalid if the bulkdata is not stored in the IoStore */
 	FIoChunkId CreateChunkId() const;
 
@@ -490,18 +761,6 @@ public:
 	 * @param bDiscardInternalCopy Whether to discard/ free the potentially internally allocated copy of the data
 	 */
 	void GetCopy( void** Dest, bool bDiscardInternalCopy = true );
-
-	/**
-	 * Returns a copy encapsulated by a FBulkDataBuffer.
-	 *
-	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
-	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
-	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
-	 *
-	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
-	 */
-	template<typename ElementType>
-	FBulkDataBuffer<ElementType> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy);
 
 	/**
 	 * Locks the bulk data and returns a pointer to it.
@@ -519,9 +778,10 @@ public:
 	/**
 	 * Change size of locked bulk data. Only valid if locked via read-write lock.
 	 *
-	 * @param InElementCount	Number of elements array should be resized to
+	 * @param ElementCount	Number of elements to allocate.
+	 * @param ElementSize	Size in bytes of the individual element.
 	 */
-	void* Realloc( int64 InElementCount );
+	void* Realloc(int64 ElementCount, int64 ElementSize);
 
 	/** 
 	 * Unlocks bulk data after which point the pointer returned by Lock no longer is valid.
@@ -531,7 +791,12 @@ public:
 	/** 
 	 * Checks if this bulk is locked
 	 */
-	bool IsLocked() const { return LockStatus != LOCKSTATUS_Unlocked; }
+	bool IsLocked() const { return BulkMeta.GetLockStatus() != LOCKSTATUS_Unlocked; }
+	
+	/** 
+	 * Checks if this bulk is unlocked
+	 */
+	bool IsUnlocked() const { return BulkMeta.GetLockStatus() == LOCKSTATUS_Unlocked; }
 
 	/**
 	 * Clears/removes any currently allocated data payload and resets element count to 0.
@@ -541,6 +806,7 @@ public:
 	 */
 	void RemoveBulkData();
 
+#if !USE_RUNTIME_BULKDATA
 	/**
 	 * Load the bulk data using a file reader. Works even when no archive is attached to the bulk data..
   	 * @return Whether the operation succeeded.
@@ -552,6 +818,7 @@ public:
 	 * @return Whether the operation is allowed.
 	 */
 	bool CanLoadBulkDataWithFileReader() const;
+#endif // USE_RUNTIME_BULKDATA
 
 	/**
 	 * Forces the bulk data to be resident in memory and detaches the archive.
@@ -589,6 +856,8 @@ public:
 		Serialization.
 	-----------------------------------------------------------------------------*/
 
+	using FSerializeBulkDataElements = TFunction<void(FArchive&, void*, int64, EBulkDataFlags)>;
+	
 	/**
 	 * Serialize function used to serialize this bulk data structure.
 	 *
@@ -598,14 +867,8 @@ public:
 	 * @param bAttemptFileMapping	If true, attempt to map this instead of loading it into malloc'ed memory
 	 * @param FileRegionType	When cooking, a hint describing the type of data, used by some platforms to improve compression ratios
 	 */
-	void Serialize( FArchive& Ar, UObject* Owner, int32 Idx=INDEX_NONE, bool bAttemptFileMapping = false, EFileRegionType FileRegionType = EFileRegionType::None );
-
-	FOwnedBulkDataPtr* StealFileMapping()
-	{
-		// @todo if non-mapped bulk data, do we need to detach this, or mimic GetCopy more than we do?
-		return BulkData.StealFileMapping();
-	}
-
+	void Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping, int32 ElementSize, EFileRegionType FileRegionType);
+	
 	/**
 	 * Serialize just the bulk data portion to/ from the passed in memory.
 	 *
@@ -613,14 +876,26 @@ public:
 	 * @param	Data				Memory to serialize either to or from
 	 * @param	InBulkDataFlags		Flags describing how the data was/shouldbe serialized
 	 */
-	void SerializeBulkData(FArchive& Ar, void* Data, EBulkDataFlags InBulkDataFlags);
+	void SerializeBulkData(FArchive& Ar, void* Data, EBulkDataFlags InBulkDataFlags)
+	{
+		SerializeBulkData(Ar, Data, GetBulkDataSize(), InBulkDataFlags);
+	}
 
 	UE_DEPRECATED(5.0, "Use the version that takes InBulkDataFlags")
-	void SerializeBulkData( FArchive& Ar, void* Data );
+	void SerializeBulkData(FArchive& Ar, void* Data)
+	{
+		SerializeBulkData(Ar, Data, static_cast<EBulkDataFlags>(GetBulkDataFlags()));
+	}
+
+	FOwnedBulkDataPtr* StealFileMapping()
+	{
+		// @todo if non-mapped bulk data, do we need to detach this, or mimic GetCopy more than we do?
+		return DataAllocation.StealFileMapping(this); 
+	}
 
 	/**
 	 * Get the CustomVersions used in the file containing the BulkData payload. If !IsInSeparateFile, this will be
-	 * the custom versions from the archive used to serialize the FBulkDataInterface, which the caller must provide.
+	 * the custom versions from the archive used to serialize the FBulkData, which the caller must provide.
 	 * Otherwise, the CustomVersions come from the separate file and this function will look them up.
 	 * 
 	 * @param InlineArchive The archive that was used to load this BulkData object
@@ -652,7 +927,7 @@ public:
 
 	/**
 	 * Create an async read request for the bulk data.
-	 * This version will load the entire data range that the FUntypedBulkData represents.
+	 * This version will load the entire data range that the FBulkData represents.
 	 *
 	 * @param Priority				Priority and flags of the request. If this includes AIOP_FLAG_PRECACHE, then memory will never be returned. The request should always be canceled and waited for, even for a precache request.
 	 * @param CompleteCallback		Called from an arbitrary thread when the request is complete. Can be nullptr, if non-null, must remain valid until it is called. It will always be called.
@@ -663,7 +938,7 @@ public:
 
 	/**
 	 * Create an async read request for the bulk data.
-	 * This version allows the user to request a subset of the data that the FUntypedBulkData represents.
+	 * This version allows the user to request a subset of the data that the FBulkData represents.
 	 *
 	 * @param OffsetInBulkData		Offset into the bulk data to start reading from.
 	 * @param BytesToRead			The number of bytes to read. If this request is AIOP_Preache, the size can be anything, even MAX_int64, otherwise the size and offset must be fully contained in the file.
@@ -701,32 +976,8 @@ public:
 
 protected:
 
-	/**
-	* Serializes all elements, a single element at a time, allowing backward compatible serialization
-	* and endian swapping to be performed.
-	*
-	* @param Ar			Archive to serialize with
-	* @param Data			Base pointer to data
-	*/
-	virtual void SerializeElements(FArchive& Ar, void* Data);
+	void SerializeBulkData(FArchive& Ar, void* Data, int64 DataSize, EBulkDataFlags InBulkDataFlags);
 
-	/**
-	 * Serializes a single element at a time, allowing backward compatible serialization
-	 * and endian swapping to be performed. Needs to be overloaded by derived classes.
-	 *
-	 * @param Ar			Archive to serialize with
-	 * @param Data			Base pointer to data
-	 * @param ElementIndex	Index of element to serialize
-	 */
-	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex ) = 0;
-
-	/**
-	 * Returns whether single element serialization is required given an archive. This e.g.
-	 * can be the case if the serialization for an element changes and the single element
-	 * serialization code handles backward compatibility.
-	 */
-	virtual bool RequiresSingleElementSerialization( FArchive& Ar );
-		
 private:
 #if WITH_EDITOR
 	/**
@@ -744,18 +995,6 @@ private:
 	-----------------------------------------------------------------------------*/
 
 	/**
-	 * Copies bulk data from passed in structure.
-	 *
-	 * @param	Other	Bulk data object to copy from.
-	 */
-	void Copy( const FUntypedBulkData& Other );
-
-	/**
-	 * Helper function initializing all member variables.
-	 */
-	void InitializeMemberVariables();
-
-	/**
 	 * Loads the bulk data if it is not already loaded.
 	 */
 	void MakeSureBulkDataIsLoaded();
@@ -768,108 +1007,97 @@ private:
 	 *
 	 * @return Whether the load succeeded
 	 */
-	bool TryLoadDataIntoMemory(void* Dest);
-
-	/** Create the async load task */
-	void AsyncLoadBulkData();
-
-	/** Starts serializing bulk data asynchronously */
-	void StartSerializingBulkData(FArchive& Ar, UObject* Owner, int32 Idx, bool bPayloadInline);
+	bool TryLoadDataIntoMemory(FIoBuffer Dest);
 
 	/** Flushes any pending async load of bulk data  and copies the data to Dest buffer*/
-	bool FlushAsyncLoading();
-
-	/** Waits until pending async load finishes */
-	void WaitForAsyncLoading();
-
-	/** Resets async loading state */
-	void ResetAsyncData();
-	
-	/** Returns true if bulk data should be loaded asynchronously */
-	bool ShouldStreamBulkData(FArchive& Ar);
+	void FlushAsyncLoading();
 
 	/** Returns if the offset needs fixing when serialized */
 	bool NeedsOffsetFixup() const;
+	
+	bool CanDiscardInternalData() const;
+	
+	/** Sets whether inline bulk data is allowed to be unloaded or not */
+	void ConditionalSetInlineAlwaysAllowDiscard(bool bPackageUsesIoStore);
+
+	/** Free allocatged data */
+	inline void* AllocateData(SIZE_T SizeInBytes) { return DataAllocation.AllocateData(this, SizeInBytes); }
+
+	/** Reallocate bulk data */
+	inline void* ReallocateData(SIZE_T SizeInBytes) { return DataAllocation.ReallocateData(this, SizeInBytes); }
+
+	/** Free bulk data */
+	inline void  FreeData() { DataAllocation.Free(this); }
+
+	/** Retrieve the internal allocation for writing */
+	inline void* GetDataBufferForWrite() const { return DataAllocation.GetAllocationForWrite(this); }
+
+	/** Retrieve the internal allocation for reading */
+	inline const void* GetDataBufferReadOnly() const { return DataAllocation.GetAllocationReadOnly(this); }
 
 	/*-----------------------------------------------------------------------------
 		Member variables.
 	-----------------------------------------------------------------------------*/
-
-	/** Serialized flags for bulk data																					*/
-	EBulkDataFlags			BulkDataFlags;
-	/** Alignment of bulk data																							*/
-	uint16					BulkDataAlignment;
-	/** Current lock status																								*/
-	uint16					LockStatus;
-	/** Number of elements in bulk data array																			*/
-	int64					ElementCount;
-	/** Offset of bulk data into file or INDEX_NONE if no association													*/
-	int64					BulkDataOffsetInFile;
-	/** Size of bulk data on disk or INDEX_NONE if no association														*/
-	int64					BulkDataSizeOnDisk;
-
-	/** Pointer to cached bulk data																						*/
-	FAllocatedPtr		BulkData;
-	/** Pointer to cached async bulk data																				*/
-	FAllocatedPtr		BulkDataAsync;
-	/** Async helper for loading bulk data on a separate thread */
-	TFuture<bool> SerializeFuture;
-
+	
+	FAllocatedPtr								DataAllocation;
+	UE::BulkData::Private::FBulkMetaData		BulkMeta;
+	UE::BulkData::Private::FBulkDataChunkId	BulkChunkId;
+	
 protected:
-	/** name of the PackagePath containing the bulkdata */
-	FPackagePath PackagePath;
-	/** Which segment of the package's data in the PackageResourceManager contains the bulkdata */
-	EPackageSegment PackageSegment;
 #if WITH_EDITOR
 	/** Archive associated with bulk data for serialization																*/
-	FArchive*			AttachedAr;
+	FArchive*					AttachedAr = nullptr;
 	/** Used to make sure the linker doesn't get garbage collected at runtime for things with attached archives			*/
-	FLinkerLoad*		Linker;
-#else
-	/** weak pointer to the linker this bulk data originally belonged to. */
-	TWeakObjectPtr<UPackage> Package;
+	FLinkerLoad*				Linker = nullptr;
 #endif // WITH_EDITOR
-#if WITH_IOSTORE_IN_EDITOR
-	/** Package ID used for creating I/O chunk IDs */
-	FPackageId			PackageId;
-#endif
+	   //
+#if !USE_RUNTIME_BULKDATA
+	/** Custom bulk data serialization hook when using FUntypedBulkData. */
+	FSerializeBulkDataElements* SerializeBulkDataElements = nullptr;
+#endif // !USE_RUNTIME_BULKDATA
 };
 
+/**
+ * Templated bulk data.
+ *
+ * A bulk data array of typed elements.
+ */
 template<typename ElementType>
-FBulkDataBuffer<ElementType> FUntypedBulkData::GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy)
+class TBulkData : public FBulkData
 {
-	const int64 MaxElementCount = GetElementCount();
+public:
 
-	check(RequestedElementCount <= MaxElementCount);
+	static_assert(TIsPODType<ElementType>::Value, "Bulk data is limited to POD types");
 
-	ElementType* Ptr = nullptr;
-	GetCopy((void**)& Ptr, bDiscardInternalCopy);
-
-	const int64 BufferSize = (RequestedElementCount > 0 ? RequestedElementCount : MaxElementCount);
-
-	return FBulkDataBuffer<ElementType>(Ptr, BufferSize);
-}
-/*-----------------------------------------------------------------------------
-	uint8 version of bulk data.
------------------------------------------------------------------------------*/
-
-struct COREUOBJECT_API FByteBulkDataOld : public FUntypedBulkData
-{
 	/**
-	 * Returns size in bytes of single element.
+	 * Element size in bytes.
 	 *
-	 * @return Size in bytes of single element
+	 * @return Returns the element size in bytes.
 	 */
-	virtual int32 GetElementSize() const;
+	int32 GetElementSize() const
+	{ 
+		return sizeof(ElementType);
+	}
 
 	/**
-	 * Serializes an element at a time allowing and dealing with endian conversion and backward compatiblity.
-	 * 
-	 * @param Ar			Archive to serialize with
-	 * @param Data			Base pointer to data
-	 * @param ElementIndex	Element index to serialize
+	 * Returns the number of elements in this bulk data array.
+	 *
+	 * @return Number of elements in this bulk data array
 	 */
-	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
+	int64 GetElementCount() const
+	{
+		return GetBulkDataSize() / sizeof(ElementType);
+	}
+
+	/**
+	 * Change size of locked bulk data. Only valid if locked via read-write lock.
+	 *
+	 * @param ElementCount	Number of elements array should be resized to
+	 */
+	ElementType* Realloc(int64 ElementCount)
+	{
+		return (ElementType*)FBulkData::Realloc(ElementCount, sizeof(ElementType));
+	}
 
 	/**
 	 * Returns a copy encapsulated by a FBulkDataBuffer.
@@ -880,132 +1108,113 @@ struct COREUOBJECT_API FByteBulkDataOld : public FUntypedBulkData
 	 *
 	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
 	 */
-	FBulkDataBuffer<uint8> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy) { return FUntypedBulkData::GetCopyAsBuffer<uint8>(RequestedElementCount, bDiscardInternalCopy); }
+	FBulkDataBuffer<ElementType> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy)
+	{ 
+		const int64 MaxElementCount = GetElementCount();
+
+		check(RequestedElementCount <= MaxElementCount);
+
+		ElementType* Ptr = nullptr;
+		GetCopy((void**)& Ptr, bDiscardInternalCopy);
+
+		const int64 BufferSize = (RequestedElementCount > 0 ? RequestedElementCount : MaxElementCount);
+
+		return FBulkDataBuffer<ElementType>(Ptr, BufferSize);
+	}
+
+	/**
+	 * Serialize function used to serialize this bulk data structure.
+	 *
+	 * @param Ar	Archive to serialize with
+	 * @param Owner	Object owning the bulk data
+	 * @param Idx	Index of bulk data item being serialized
+	 * @param bAttemptFileMapping	If true, attempt to map this instead of loading it into malloc'ed memory
+	 * @param FileRegionType	When cooking, a hint describing the type of data, used by some platforms to improve compression ratios
+	 */
+	void Serialize(FArchive& Ar, UObject* Owner, int32 Idx=INDEX_NONE, bool bAttemptFileMapping = false, EFileRegionType FileRegionType = EFileRegionType::None)
+	{
+		FBulkData::Serialize(Ar, Owner, bAttemptFileMapping, GetElementSize(), FileRegionType);
+	}
 };
 
-/*-----------------------------------------------------------------------------
-	WORD version of bulk data.
------------------------------------------------------------------------------*/
-
-struct COREUOBJECT_API FWordBulkDataOld : public FUntypedBulkData
+struct COREUOBJECT_API FUntypedBulkData : public FBulkData
 {
+	virtual ~FUntypedBulkData() = default;
+
+	/**
+	 * Returns the number of elements allocated.
+	 *
+	 * @return Number of elements
+	 */
+	int64 GetElementCount() const
+	{
+		return GetBulkDataSize() / GetElementSize();
+	}
+
 	/**
 	 * Returns size in bytes of single element.
 	 *
-	 * @return Size in bytes of single element
-	 */
-	virtual int32 GetElementSize() const;
-
-	/**
-	 * Serializes an element at a time allowing and dealing with endian conversion and backward compatiblity.
-	 * 
-	 * @param Ar			Archive to serialize with
-	 * @param Data			Base pointer to data
-	 * @param ElementIndex	Element index to serialize
-	 */
-	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
-
-	/**
-	 * Returns a copy encapsulated by a FBulkDataBuffer.
-	 *
-	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
-	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
-	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
-	 *
-	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
-	 */
-	FBulkDataBuffer<uint16> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy) { return FUntypedBulkData::GetCopyAsBuffer<uint16>(RequestedElementCount, bDiscardInternalCopy); }
-};
-
-/*-----------------------------------------------------------------------------
-	int32 version of bulk data.
------------------------------------------------------------------------------*/
-
-struct COREUOBJECT_API FIntBulkDataOld : public FUntypedBulkData
-{
-	/**
-	 * Returns size in bytes of single element.
+	 * Pure virtual that needs to be overloaded in derived classes.
 	 *
 	 * @return Size in bytes of single element
 	 */
-	virtual int32 GetElementSize() const;
-
+	virtual int32 GetElementSize() const = 0;
+	
 	/**
-	 * Serializes an element at a time allowing and dealing with endian conversion and backward compatiblity.
-	 * 
-	 * @param Ar			Archive to serialize with
-	 * @param Data			Base pointer to data
-	 * @param ElementIndex	Element index to serialize
+	 * Change size of locked bulk data. Only valid if locked via read-write lock.
+	 *
+	 * @param ElementCount	Number of elements to allocate.
 	 */
-	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
+	void* Realloc(int64 ElementCount)
+	{
+		return FBulkData::Realloc(ElementCount, GetElementSize());
+	}
 
-	/**
-	 * Returns a copy encapsulated by a FBulkDataBuffer.
-	 *
-	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
-	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
-	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
-	 *
-	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
-	 */
-	FBulkDataBuffer<int32> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy) { return FUntypedBulkData::GetCopyAsBuffer<int32>(RequestedElementCount, bDiscardInternalCopy); }
+	void Serialize(FArchive& Ar, UObject* Owner, int32 Idx=INDEX_NONE, bool bAttemptFileMapping = false, EFileRegionType FileRegionType = EFileRegionType::None)
+	{
+		FBulkData::Serialize(Ar, Owner, bAttemptFileMapping, GetElementSize(), FileRegionType);
+	}
+
+protected:
+
+	FUntypedBulkData()
+	{
+		SerializeElementsCallback = [this](FArchive& Ar, void* Data, int64 Size, EBulkDataFlags InBulkDataFlags)
+		{
+			SerializeBulkData(Ar, Data, Size, InBulkDataFlags);
+		};
+#if !USE_RUNTIME_BULKDATA
+		SerializeBulkDataElements = &SerializeElementsCallback;
+#endif // !USE_RUNTIME_BULKDATA
+	}
+
+	virtual void SerializeElements(FArchive& Ar, void* Data);
+	
+	virtual void SerializeElement(FArchive& Ar, void* Data, int64 ElementIndex) = 0;
+
+	virtual bool RequiresSingleElementSerialization(FArchive& Ar)
+	{
+		return false;
+	}
+	
+private:
+
+	void SerializeBulkData(FArchive& Ar, void* Data, int64 BulkDataSize, EBulkDataFlags InBulkDataFlags);
+
+	FSerializeBulkDataElements SerializeElementsCallback;
 };
 
-/*-----------------------------------------------------------------------------
-	float version of bulk data.
------------------------------------------------------------------------------*/
-
-struct COREUOBJECT_API FFloatBulkDataOld : public FUntypedBulkData
-{
-	/**
-	 * Returns size in bytes of single element.
-	 *
-	 * @return Size in bytes of single element
-	 */
-	virtual int32 GetElementSize() const;
-
-	/**
-	 * Serializes an element at a time allowing and dealing with endian conversion and backward compatiblity.
-	 * 
-	 * @param Ar			Archive to serialize with
-	 * @param Data			Base pointer to data
-	 * @param ElementIndex	Element index to serialize
-	 */
-	virtual void SerializeElement( FArchive& Ar, void* Data, int64 ElementIndex );
-
-	/**
-	 * Returns a copy encapsulated by a FBulkDataBuffer.
-	 *
-	 * @param RequestedElementCount If set to greater than 0, the returned FBulkDataBuffer will be limited to
-	 * this number of elements. This will give an error if larger than the actual number of elements in the BulkData object.
-	 * @param bDiscardInternalCopy If true then the BulkData object will free it's internal buffer once called.
-	 *
-	 * @return A FBulkDataBuffer that owns a copy of the BulkData, this might be a subset of the data depending on the value of RequestedSize.
-	 */
-	FBulkDataBuffer<float> GetCopyAsBuffer(int64 RequestedElementCount, bool bDiscardInternalCopy) { return FUntypedBulkData::GetCopyAsBuffer<float>(RequestedElementCount, bDiscardInternalCopy); }
-};
-
-// Switch between the old and new types based on USE_NEW_BULKDATA
-#if !USE_NEW_BULKDATA
-using FBulkDataInterface	= FUntypedBulkData;
-using FByteBulkData			= FByteBulkDataOld;
-using FWordBulkData			= FWordBulkDataOld;
-using FIntBulkData			= FIntBulkDataOld;
-using FFloatBulkData		= FFloatBulkDataOld;
-#else
-using FBulkDataInterface	= FBulkDataBase;
-using FByteBulkData			= FByteBulkData2;
-using FWordBulkData			= FWordBulkData2;
-using FIntBulkData			= FIntBulkData2;
-using FFloatBulkData		= FFloatBulkData2;
-#endif
+using FBulkDataInterface UE_DEPRECATED(5.1, "FBulkDataInterface is deprecated. Use FBulkData") = FBulkData;
+using FByteBulkData = TBulkData<uint8>;
+using FWordBulkData = TBulkData<uint16>;
+using FIntBulkData = TBulkData<int32>;
+using FFloatBulkData = TBulkData<float>;
 
 class FFormatContainer
 {
 	friend class UBodySetup;
 
 	TSortedMap<FName, FByteBulkData*, FDefaultAllocator, FNameFastLess> Formats;
-	uint32 Alignment;
 public:
 	~FFormatContainer()
 	{

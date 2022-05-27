@@ -4421,7 +4421,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		}
 		else if( FParse::Command(&Str,TEXT("BULK")) )
 		{
-			FUntypedBulkData::DumpBulkDataUsage( Ar );
+			FBulkData::DumpBulkDataUsage( Ar );
 			return true;
 		}
 		else if( FParse::Command(&Str,TEXT("LISTCONTENTREFS")) )

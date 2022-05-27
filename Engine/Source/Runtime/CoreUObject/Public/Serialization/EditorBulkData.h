@@ -13,6 +13,7 @@
 
 class FArchive;
 class UObject;
+class FBulkData;
 namespace UE::BulkDataRegistry { enum class ERegisterResult : uint8; }
 
 // When enabled it will be possible for specific editor bulkdata objects to opt out of being virtualized
@@ -116,7 +117,7 @@ public:
 	 * @param Guid		A guid associated with the bulkdata object which will be used to identify the payload.
 	 *					This MUST remain the same between sessions so that the payloads key remains consistent!
 	 */
-	void CreateFromBulkData(FUntypedBulkData& BulkData, const FGuid& Guid, UObject* Owner);
+	void CreateFromBulkData(FBulkData& BulkData, const FGuid& Guid, UObject* Owner);
 	/** Fix legacy content that created the Id from non-unique Guids. */
 	void CreateLegacyUniqueIdentifier(UObject* Owner);
 

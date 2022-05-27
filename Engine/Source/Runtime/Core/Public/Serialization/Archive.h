@@ -29,7 +29,7 @@ class FText;
 class ITargetPlatform;
 class UObject;
 class FProperty;
-struct FUntypedBulkData;
+class FBulkData;
 namespace UE::Serialization{ class FEditorBulkData; }
 struct FArchiveSerializedPropertyChain;
 template<class TEnum> class TEnumAsByte;
@@ -1649,7 +1649,7 @@ public:
 	 * @param	Owner		UObject owning the bulk data
 	 * @param	BulkData	Bulk data object to associate
 	 */
-	virtual void AttachBulkData(UObject* Owner, FUntypedBulkData* BulkData) { }
+	virtual void AttachBulkData(UObject* Owner, FBulkData* BulkData) { }
 	virtual void AttachBulkData(UE::Serialization::FEditorBulkData* BulkData) {}
 
 	/**
@@ -1658,7 +1658,7 @@ public:
 	 * @param	BulkData	Bulk data object to detach
 	 * @param	bEnsureBulkDataIsLoaded	Whether to ensure that the bulk data is loaded before detaching
 	 */
-	virtual void DetachBulkData(FUntypedBulkData* BulkData, bool bEnsureBulkDataIsLoaded) { }
+	virtual void DetachBulkData(FBulkData* BulkData, bool bEnsureBulkDataIsLoaded) { }
 	virtual void DetachBulkData(UE::Serialization::FEditorBulkData* BulkData, bool bEnsureBulkDataIsLoaded) {}
 
 	/**

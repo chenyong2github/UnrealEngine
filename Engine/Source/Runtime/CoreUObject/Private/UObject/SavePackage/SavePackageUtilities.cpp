@@ -1878,7 +1878,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 
 		// Set bulk data flags to what they were during initial serialization (they might have changed after that)
 		uint32 BulkDataFlags = BulkDataStorageInfo.BulkDataFlags;
-		FUntypedBulkData* BulkData = BulkDataStorageInfo.BulkData;
+		FBulkData* BulkData = BulkDataStorageInfo.BulkData;
 		checkf(BulkDataFlags& BULKDATA_PayloadAtEndOfFile, TEXT("Inlined BulkData data should not have been added to BulkDataToAppend"));
 
 		const bool bBulkItemIsOptional = (BulkDataFlags & BULKDATA_OptionalPayload) != 0;
@@ -1907,7 +1907,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 			SeparateArchiveAtEndOfPackage,
 		};
 		ESaveLocation SaveLocation = ESaveLocation::Invalid;
-		auto CanSaveByReference = [](FUntypedBulkData* BulkData)
+		auto CanSaveByReference = [](FBulkData* BulkData)
 		{
 			return BulkData->GetBulkDataOffsetInFile() != INDEX_NONE &&
 				// We don't support yet loading from a separate file

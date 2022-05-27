@@ -61,11 +61,6 @@ namespace BulkDataTest
 		BulkData.RemoveBulkData();
 		TEST_FALSE(TEXT("RemoveBulkData should've discarded the BulkData"), BulkData.IsBulkDataLoaded());
 
-#if USE_NEW_BULKDATA // The warning only exists for BulkData2
-		// Both the ::Lock and ::GetCopy calls should warn that we cannot load the missing data (as it will still have a valid size)
-		WARN(TEXT("Attempting to load a BulkData object that cannot be loaded from disk"));
-#endif //USE_NEW_BULKDATA
-
 		DataPtr = BulkData.Lock(LOCK_READ_WRITE);
 		BulkData.Unlock();
 
@@ -77,4 +72,4 @@ namespace BulkDataTest
 	}
 }
 
-#endif
+#endif // WITH_LOW_LEVEL_TESTS
