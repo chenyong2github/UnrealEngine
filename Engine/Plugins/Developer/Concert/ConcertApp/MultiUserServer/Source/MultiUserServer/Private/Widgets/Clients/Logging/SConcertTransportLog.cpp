@@ -10,6 +10,7 @@
 #include "SConcertTransportLogRow.h"
 #include "Settings/ConcertTransportLogSettings.h"
 #include "Settings/MultiUserServerColumnVisibilitySettings.h"
+#include "Widgets/Clients/SPromptConcertLoggingEnabled.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
@@ -23,6 +24,11 @@
 
 const FName SConcertTransportLog::FirstColumnId("AvatarColourColumnId");
 
+SConcertTransportLog::~SConcertTransportLog()
+{
+	ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().RemoveAll(this);
+}
+
 void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource)
 {
 	PagedLogList = MakeShared<FPagedFilteredConcertLogList>(MoveTemp(LogSource), InArgs._Filter);
@@ -30,35 +36,40 @@ void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConce
 	HighlightText = MakeShared<FText>();
 
 	GetClientInfoFunc = InArgs._GetClientInfo;
-
+	
 	ChildSlot
 	[
-		SNew(SBorder)
-		.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-		.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
-		.Padding(2)
+		SAssignNew(EnableLoggingPromptOverlay, SOverlay)
+
+		+SOverlay::Slot()
 		[
-			SNew(SVerticalBox)
-
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.VAlign(VAlign_Top)
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.BorderBackgroundColor(FSlateColor(FLinearColor(0.6, 0.6, 0.6)))
+			.Padding(2)
 			[
-				InArgs._Filter ? InArgs._Filter->BuildFilterWidgets() : SNullWidget::NullWidget
-			]
+				SNew(SVerticalBox)
 
-			+SVerticalBox::Slot()
-			.FillHeight(1.f)
-			.Padding(0, 5, 0, 0)
-			[
-				CreateTableView()
-			]
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.VAlign(VAlign_Top)
+				[
+					InArgs._Filter ? InArgs._Filter->BuildFilterWidgets() : SNullWidget::NullWidget
+				]
 
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SConcertTransportLogFooter, PagedLogList.ToSharedRef())
-				.ExtendViewOptions(this, &SConcertTransportLog::ExtendViewOptions)
+				+SVerticalBox::Slot()
+				.FillHeight(1.f)
+				.Padding(0, 5, 0, 0)
+				[
+					CreateTableView()
+				]
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SConcertTransportLogFooter, PagedLogList.ToSharedRef())
+					.ExtendViewOptions(this, &SConcertTransportLog::ExtendViewOptions)
+				]
 			]
 		]
 	];
@@ -69,9 +80,12 @@ void SConcertTransportLog::Construct(const FArguments& InArgs, TSharedRef<IConce
 	{
 		InArgs._Filter->GetTextSearchFilter()->OnSearchTextChanged().AddSP(this, &SConcertTransportLog::OnSearchTextChanged);
 	}
-	UMultiUserServerColumnVisibilitySettings::GetSettings()->OnTransportLogColumnVisibility().AddSP(this, &SConcertTransportLog::OnColumnVisibilitySettingsChanged);
 	
+	UMultiUserServerColumnVisibilitySettings::GetSettings()->OnTransportLogColumnVisibility().AddSP(this, &SConcertTransportLog::OnColumnVisibilitySettingsChanged);
 	UE::ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), UMultiUserServerColumnVisibilitySettings::GetSettings()->GetTransportLogColumnVisibility());
+	
+	ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().AddSP(this, &SConcertTransportLog::OnConcertLoggingEnabledChanged);
+	OnConcertLoggingEnabledChanged(ConcertTransportEvents::IsLoggingEnabled());
 }
 
 TSharedRef<SWidget> SConcertTransportLog::CreateTableView()
@@ -226,6 +240,18 @@ void SConcertTransportLog::OnColumnVisibilitySettingsChanged(const FColumnVisibi
 {
 	TGuardValue<bool> GuardValue(bIsUpdatingColumnVisibility, true);
 	UE::ConcertSharedSlate::RestoreColumnVisibilityState(HeaderRow.ToSharedRef(), ColumnSnapshot);
+}
+
+void SConcertTransportLog::OnConcertLoggingEnabledChanged(bool bNewEnabled)
+{
+	if (!bNewEnabled)
+	{
+		EnableLoggingPromptOverlay->AddSlot().AttachWidget(SAssignNew(EnableLoggingPrompt, SPromptConcertLoggingEnabled));
+	}
+	else if (EnableLoggingPrompt)
+	{
+		EnableLoggingPromptOverlay->RemoveSlot(EnableLoggingPrompt.ToSharedRef());
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -3,11 +3,21 @@
 #include "ConcertClientsTabController.h"
 
 #include "SConcertClientsTabView.h"
+#include "Logging/Source/GlobalLogSource.h"
 #include "Window/ConcertServerTabs.h"
 #include "Window/ConcertServerWindowController.h"
 #include "Widgets/Docking/SDockTab.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
+
+namespace UE::MultiUserServer
+{
+	static constexpr uint64 GlobalLogCapacity = 500000;
+}
+
+FConcertClientsTabController::FConcertClientsTabController()
+	: LogBuffer(MakeShared<FGlobalLogSource>(UE::MultiUserServer::GlobalLogCapacity))
+{}
 
 void FConcertClientsTabController::Init(const FConcertComponentInitParams& Params)
 {
@@ -21,6 +31,12 @@ void FConcertClientsTabController::Init(const FConcertComponentInitParams& Param
 	Params.MainStack->AddTab(ConcertServerTabs::GetClientsTabID(), ETabState::OpenedTab);
 }
 
+void FConcertClientsTabController::ShowConnectedClients(const FGuid& SessionId) const
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(ConcertServerTabs::GetClientsTabID());
+	ClientsView->ShowConnectedClients(SessionId);
+}
+
 TSharedRef<SDockTab> FConcertClientsTabController::SpawnClientsTab(const FSpawnTabArgs& Args, TSharedPtr<SWindow> RootWindow, TSharedRef<IConcertSyncServer> Server)
 {
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
@@ -28,7 +44,7 @@ TSharedRef<SDockTab> FConcertClientsTabController::SpawnClientsTab(const FSpawnT
 		.TabRole(MajorTab)
 		.CanEverClose(false);
 	DockTab->SetContent(
-		SNew(SConcertClientsTabView, ConcertServerTabs::GetClientsTabID(), Server)
+		SAssignNew(ClientsView, SConcertClientsTabView, ConcertServerTabs::GetClientsTabID(), Server, LogBuffer)
 			.ConstructUnderMajorTab(DockTab)
 			.ConstructUnderWindow(RootWindow)
 		);

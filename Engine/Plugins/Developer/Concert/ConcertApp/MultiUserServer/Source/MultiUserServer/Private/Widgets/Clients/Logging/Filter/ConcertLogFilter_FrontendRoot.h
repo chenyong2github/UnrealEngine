@@ -15,7 +15,9 @@ class FConcertLogFilter_FrontendRoot : public FConcertLogFilter, public TSharedF
 {
 public:
 
-	FConcertLogFilter_FrontendRoot(TSharedRef<FConcertLogTokenizer> Tokenizer, TArray<TSharedRef<FConcertFrontendLogFilter>> InCustomFilters);
+	FConcertLogFilter_FrontendRoot(TSharedRef<FConcertLogTokenizer> Tokenizer,
+		TArray<TSharedRef<FConcertFrontendLogFilter>> InCustomFilters,
+		const TArray<TSharedRef<FConcertLogFilter>>& NonVisualFilters = {});
 
 	/** Builds the widget view for all contained filters */
 	TSharedRef<SWidget> BuildFilterWidgets() const;
@@ -25,7 +27,6 @@ public:
 	//~ End IFilter Interface
 
 	FORCEINLINE const TSharedRef<FConcertFrontendLogFilter_TextSearch>& GetTextSearchFilter() const { return TextSearchFilter; }
-	FORCEINLINE const TArray<TSharedRef<FConcertFrontendLogFilter>>& GetFrontendFilters() const { return AllFrontendFilters; }
 
 private:
 
@@ -35,8 +36,8 @@ private:
 	/** AllFrontendFilters without special filters we have as propteries above, such as TextSearchFilter. */
 	TArray<TSharedRef<FConcertFrontendLogFilter>> CustomFilters;
 	
-	/** Filters that are combined using logical OR. */
-	TArray<TSharedRef<FConcertFrontendLogFilter>> AllFrontendFilters;
+	/** Filters that are combined using logical AND. */
+	TArray<TSharedRef<FConcertLogFilter>> AllFrontendFilters;
 
 	/** Builds the widgets that go under the text */
 	TSharedRef<SWidget> BuildCustomFilterListWidget() const;
@@ -46,4 +47,7 @@ namespace UE::MultiUserServer
 {
 	/** Creates a filter for the global filter log window */
 	TSharedRef<FConcertLogFilter_FrontendRoot> MakeGlobalLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer);
+
+	/** Creates a filter for a filter log window intended for a client */
+	TSharedRef<FConcertLogFilter_FrontendRoot> MakeClientLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer, const FGuid& ClientEndpointId);
 }

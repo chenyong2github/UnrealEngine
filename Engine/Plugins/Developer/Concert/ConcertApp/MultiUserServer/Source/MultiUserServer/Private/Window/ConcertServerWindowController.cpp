@@ -109,7 +109,12 @@ TSharedPtr<FConcertSessionTabBase> FConcertServerWindowController::GetOrRegister
 	
 	if (const TSharedPtr<IConcertServerSession> Session = ServerInstance->GetConcertServer()->GetLiveSession(SessionId))
 	{
-		const TSharedRef<FLiveConcertSessionTab> SessionTab = MakeShared<FLiveConcertSessionTab>(Session.ToSharedRef(), ServerInstance, RootWindow.ToSharedRef());
+		const TSharedRef<FLiveConcertSessionTab> SessionTab = MakeShared<FLiveConcertSessionTab>(
+			Session.ToSharedRef(),
+			ServerInstance,
+			RootWindow.ToSharedRef(),
+			FLiveConcertSessionTab::FShowConnectedClients::CreateSP(this, &FConcertServerWindowController::ShowConnectedClients)
+			);
 		RegisteredSessions.Add(SessionId, SessionTab);
 		return SessionTab;
 	}
@@ -154,6 +159,11 @@ void FConcertServerWindowController::OnLiveSessionDestroyed(const IConcertServer
 void FConcertServerWindowController::OnArchivedSessionDestroyed(const IConcertServer&, const FGuid& InArchivedSessionId)
 {
 	DestroySessionTab(InArchivedSessionId);
+}
+
+void FConcertServerWindowController::ShowConnectedClients(const TSharedRef<IConcertServerSession>& ServerSession)
+{
+	ClientsController->ShowConnectedClients(ServerSession->GetId());
 }
 
 void FConcertServerWindowController::OnWindowClosed(const TSharedRef<SWindow>& Window)

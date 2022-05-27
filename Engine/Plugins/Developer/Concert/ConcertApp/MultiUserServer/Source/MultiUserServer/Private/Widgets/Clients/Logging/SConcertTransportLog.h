@@ -8,7 +8,8 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-struct FColumnVisibilitySnapshot;
+class SOverlay;
+class SPromptConcertLoggingEnabled;
 class FConcertLogTokenizer;
 class FConcertLogFilter_FrontendRoot;
 class FMenuBuilder;
@@ -19,6 +20,7 @@ class SHeaderRow;
 class STableViewBase;
 template <typename ItemType> class SListView;
 
+struct FColumnVisibilitySnapshot;
 struct FConcertLogEntry;
 
 /**
@@ -37,11 +39,17 @@ public:
 		/** Used to better display client info, e.g. client name and colour */
 		SLATE_EVENT(FGetClientInfo, GetClientInfo)
 	SLATE_END_ARGS()
+	virtual ~SConcertTransportLog() override;
 
 	void Construct(const FArguments& InArgs, TSharedRef<IConcertLogSource> LogSource);
 
 private:
-
+	
+	/** Used to overlay EnableLoggingPrompt over the tabs */
+	TSharedPtr<SOverlay> EnableLoggingPromptOverlay;
+	/** Reminds the user to enable logging */
+	TSharedPtr<SPromptConcertLoggingEnabled> EnableLoggingPrompt;
+	
 	/** Sorts the log into pages whilst applying filters */
 	TSharedPtr<FPagedFilteredConcertLogList> PagedLogList;
 	/** Used by various systems to convert logs to text */
@@ -72,5 +80,7 @@ private:
 	void OnPageViewChanged(const TArray<TSharedPtr<FConcertLogEntry>>&);
 	void OnSearchTextChanged(const FText& NewSearchText);
 	void OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot);
+	
+	void OnConcertLoggingEnabledChanged(bool bNewEnabled);
 };
 

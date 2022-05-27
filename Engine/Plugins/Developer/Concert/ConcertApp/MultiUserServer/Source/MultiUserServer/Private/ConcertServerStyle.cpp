@@ -4,7 +4,9 @@
 
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IPluginManager.h"
+#include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Styling/StyleColors.h"
 
 TSharedPtr<FSlateStyleSet> FConcertServerStyle::StyleInstance = nullptr;
 
@@ -40,7 +42,7 @@ FName FConcertServerStyle::GetStyleSetName()
 }
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FConcertServerStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+#define IMAGE_PLUGIN_BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( FConcertServerStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
 #define IMAGE_PLUGIN_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush( FConcertServerStyle::InContent(RelativePath, ".svg"), __VA_ARGS__)
 
 FString FConcertServerStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
@@ -59,7 +61,8 @@ TSharedRef<FSlateStyleSet> FConcertServerStyle::Create()
 	const FVector2D Icon12x12(12.0f, 12.0f); 
 	const FVector2D Icon16x16(16.0f, 16.0f); 
 	const FVector2D Icon20x20(20.0f, 20.0f); 
-	const FVector2D Icon32x32(20.0f, 20.0f); 
+	const FVector2D Icon32x32(32.0f, 32.0f); 
+	const FVector2D Icon64x64(64.0f, 64.0f); 
 	
 	StyleSet->Set("Concert.MultiUser", new IMAGE_PLUGIN_BRUSH("Icons/icon_MultiUser_32x", Icon32x32));
 	StyleSet->Set("Concert.SessionContent.ColumnHeader", new IMAGE_PLUGIN_BRUSH_SVG("Icons/Package_16x", Icon16x16));
@@ -67,11 +70,32 @@ TSharedRef<FSlateStyleSet> FConcertServerStyle::Create()
 	StyleSet->Set("Concert.SessionContent.PackageDeleted", new IMAGE_PLUGIN_BRUSH_SVG("Icons/PackageDeleted_16x", Icon16x16));
 	StyleSet->Set("Concert.SessionContent.PackageRenamed", new IMAGE_PLUGIN_BRUSH_SVG("Icons/PackageRenamed_16x", Icon16x16));
 	StyleSet->Set("Concert.SessionContent.PackageSaved", new IMAGE_PLUGIN_BRUSH_SVG("Icons/PackageSaved_16x", Icon16x16));
+
+	// Clients tab
+	StyleSet->Set("Concert.Clients.DropShadow", new IMAGE_PLUGIN_BOX_BRUSH("ClientThumbnailDropShadow", FMargin(4.0f / 64.0f)));
+	StyleSet->Set("Concert.Clients.ThumbnailAreaHoverBackground", new FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f));
+	StyleSet->Set("Concert.Clients.ThumbnailAreaBackground", new FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f));
+	StyleSet->Set("Concert.Clients.ThumbnailTitle", new FSlateRoundedBoxBrush(FStyleColors::Recessed, 4.0f));
+	StyleSet->Set("Concert.Clients.ThumbnailFooter", new FSlateRoundedBoxBrush(FStyleColors::Panel, 0.0f));
+	StyleSet->Set("Concert.Clients.TileTableRow", FTableRowStyle()
+			.SetEvenRowBackgroundBrush(FSlateNoResource() )
+			.SetEvenRowBackgroundHoveredBrush(FSlateNoResource())
+			.SetOddRowBackgroundBrush(FSlateNoResource())
+			.SetOddRowBackgroundHoveredBrush(FSlateNoResource())
+			.SetSelectorFocusedBrush(FSlateNoResource())
+			.SetActiveBrush(FSlateNoResource())
+			.SetActiveHoveredBrush(FSlateNoResource())
+			.SetInactiveBrush(FSlateNoResource())
+			.SetInactiveHoveredBrush(FSlateNoResource())
+			.SetTextColor(FSlateColor())
+			.SetSelectedTextColor(FSlateColor())
+			);
+	StyleSet->Set("Concert.Clients.ClientNameTileFont", DEFAULT_FONT("Regular", 16));
+	
 	return StyleSet;
 }
 
-#undef TODO_IMAGE_BRUSH
-#undef EDITOR_BOX_BRUSH
-#undef EDITOR_IMAGE_BRUSH_SVG
-#undef EDITOR_IMAGE_BRUSH
+#undef IMAGE_PLUGIN_BRUSH
+#undef IMAGE_PLUGIN_BOX_BRUSH
+#undef IMAGE_PLUGIN_BRUSH_SVG
 

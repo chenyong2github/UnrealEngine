@@ -3,6 +3,7 @@
 #include "ConcertLogFilter_FrontendRoot.h"
 
 #include "ConcertFrontendLogFilter.h"
+#include "ConcertFrontendLogFilter_Client.h"
 #include "ConcertFrontendLogFilter_MessageAction.h"
 #include "ConcertFrontendLogFilter_MessageType.h"
 #include "ConcertFrontendLogFilter_TextSearch.h"
@@ -12,14 +13,20 @@
 #include "Algo/AnyOf.h"
 #include "Widgets/SBoxPanel.h"
 
-FConcertLogFilter_FrontendRoot::FConcertLogFilter_FrontendRoot(TSharedRef<FConcertLogTokenizer> Tokenizer, TArray<TSharedRef<FConcertFrontendLogFilter>> InCustomFilters)
+FConcertLogFilter_FrontendRoot::FConcertLogFilter_FrontendRoot(TSharedRef<FConcertLogTokenizer> Tokenizer, TArray<TSharedRef<FConcertFrontendLogFilter>> InCustomFilters, const TArray<TSharedRef<FConcertLogFilter>>& NonVisualFilters)
 	: TextSearchFilter(MakeShared<FConcertFrontendLogFilter_TextSearch>(MoveTemp(Tokenizer)))
 	, CustomFilters(MoveTemp(InCustomFilters))
 	, AllFrontendFilters(CustomFilters)
 {
-	AllFrontendFilters.Add(TextSearchFilter);
+	AllFrontendFilters.Reserve(CustomFilters.Num() + 1 + NonVisualFilters.Num());
 	
-	for (const TSharedRef<FConcertFrontendLogFilter>& Filter : AllFrontendFilters)
+	AllFrontendFilters.Add(TextSearchFilter);
+	for (const TSharedRef<FConcertLogFilter>& NonVisualFilter : NonVisualFilters)
+	{
+		AllFrontendFilters.Add(NonVisualFilter);
+	}
+	
+	for (const TSharedRef<FConcertLogFilter>& Filter : AllFrontendFilters)
 	{
 		Filter->OnChanged().AddLambda([this]()
 		{
@@ -51,7 +58,7 @@ bool FConcertLogFilter_FrontendRoot::PassesFilter(const FConcertLog& InItem) con
 {
 	return Algo::AllOf(
 		AllFrontendFilters,
-		[&InItem](const TSharedRef<FConcertFrontendLogFilter>& AndFilter){ return AndFilter->PassesFilter(InItem); }
+		[&InItem](const TSharedRef<FConcertLogFilter>& AndFilter){ return AndFilter->PassesFilter(InItem); }
 		);
 }
 
@@ -76,23 +83,39 @@ TSharedRef<SWidget> FConcertLogFilter_FrontendRoot::BuildCustomFilterListWidget(
 	return Box;
 }
 
-namespace UE::MultiUserServer::Private
+namespace UE::MultiUserServer
 {
-	static TArray<TSharedRef<FConcertFrontendLogFilter>> CreateCommonFilters()
+	namespace Private
 	{
-		return {
-			MakeShared<FConcertFrontendLogFilter_MessageAction>(),
-			MakeShared<FConcertFrontendLogFilter_MessageType>(),
-			MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowAfter),
-			MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowBefore)
-		};
+		static TArray<TSharedRef<FConcertFrontendLogFilter>> CreateCommonFilters()
+		{
+			return {
+				MakeShared<FConcertFrontendLogFilter_MessageAction>(),
+				MakeShared<FConcertFrontendLogFilter_MessageType>(),
+				MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowAfter),
+				MakeShared<FConcertFrontendLogFilter_Time>(ETimeFilter::AllowBefore)
+			};
+		}
 	}
-}
+	
+	TSharedRef<FConcertLogFilter_FrontendRoot> MakeGlobalLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer)
+	{
+		return MakeShared<FConcertLogFilter_FrontendRoot>(
+			MoveTemp(Tokenizer),
+			Private::CreateCommonFilters()
+			);
+	}
 
-TSharedRef<FConcertLogFilter_FrontendRoot> UE::MultiUserServer::MakeGlobalLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer)
-{
-	return MakeShared<FConcertLogFilter_FrontendRoot>(
-		MoveTemp(Tokenizer),
-		Private::CreateCommonFilters()
-		);
+	TSharedRef<FConcertLogFilter_FrontendRoot> MakeClientLogFilter(TSharedRef<FConcertLogTokenizer> Tokenizer, const FGuid& ClientEndpointId)
+	{
+		const TArray<TSharedRef<FConcertFrontendLogFilter>> CommonFilters = Private::CreateCommonFilters();
+		const TArray<TSharedRef<FConcertLogFilter>> NonVisuals = {
+			MakeShared<FConcertLogFilter_Client>(ClientEndpointId)
+		};
+		return MakeShared<FConcertLogFilter_FrontendRoot>(
+			MoveTemp(Tokenizer),
+			CommonFilters,
+			NonVisuals
+			);
+	}
 }

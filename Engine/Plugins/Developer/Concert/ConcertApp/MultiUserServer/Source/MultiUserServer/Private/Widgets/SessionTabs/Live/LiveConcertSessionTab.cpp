@@ -10,10 +10,11 @@
 
 #include "Widgets/Docking/SDockTab.h"
 
-FLiveConcertSessionTab::FLiveConcertSessionTab(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow)
+FLiveConcertSessionTab::FLiveConcertSessionTab(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow, FShowConnectedClients OnConnectedClientsClicked)
 	: FConcertSessionTabBase(InspectedSession->GetSessionInfo().SessionId, SyncServer)
 	, InspectedSession(MoveTemp(InspectedSession))
 	, ConstructUnderWindow(MoveTemp(ConstructUnderWindow))
+	, OnConnectedClientsClicked(MoveTemp(OnConnectedClientsClicked))
 	, SessionHistoryController(MakeShared<FLiveServerSessionHistoryController>(InspectedSession, SyncServer))
 	, PackageViewerController(MakeShared<FConcertSessionPackageViewerController>(InspectedSession, SyncServer))
 {}
@@ -29,7 +30,10 @@ void FLiveConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& InDoc
 	};
 	InDockTab->SetContent(
 		SNew(SConcertLiveSessionTabView, WidgetArgs, *GetTabId())
-		);
+		.OnConnectedClientsClicked_Lambda([this]()
+		{
+			OnConnectedClientsClicked.ExecuteIfBound(InspectedSession);
+		}));
 }
 
 void FLiveConcertSessionTab::OnOpenTab()

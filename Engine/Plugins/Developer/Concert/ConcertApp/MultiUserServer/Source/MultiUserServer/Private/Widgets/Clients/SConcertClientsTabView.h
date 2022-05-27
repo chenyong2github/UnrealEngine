@@ -6,14 +6,24 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SConcertTabViewWithManagerBase.h"
 
-struct FConcertClientInfo;
-class IConcertSyncServer;
+namespace UE
+{
+	namespace MultiUserServer
+	{
+		class SConcertClientBrowser;
+	}
+}
+
+class FConcertClientsTabController;
 class FConcertLogTokenizer;
 class FTabManager;
+class FGlobalLogSource;
+class IConcertSyncServer;
 class SDockTab;
 class SPromptConcertLoggingEnabled;
 class SWidget;
 class SWindow;
+struct FConcertClientInfo;
 
 /** Manages the UI logic of the Clients tab */
 class SConcertClientsTabView : public SConcertTabViewWithManagerBase
@@ -28,27 +38,36 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<SDockTab>, ConstructUnderMajorTab)
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, ConstructUnderWindow)
 	SLATE_END_ARGS()
-	virtual ~SConcertClientsTabView() override;
 
-	void Construct(const FArguments& InArgs, FName InStatusBarID, TSharedRef<IConcertSyncServer> InServer);
-
+	void Construct(const FArguments& InArgs, FName InStatusBarID, TSharedRef<IConcertSyncServer> InServer, TSharedRef<FGlobalLogSource> InLogBuffer);
+	
+	void ShowConnectedClients(const FGuid& SessionId) const;
+	void OpenGlobalLogTab() const;
+	void CloseGlobalLogTab() const;
+	void OpenClientLogTab(const FGuid& ClientEndpointId) const;
+	
+	bool IsGlobalLogOpen() const;
+	TSharedPtr<SDockTab> GetGlobalLogTab() const;
+	
 private:
 
+	/** Used to look up client info */
+	TSharedPtr<IConcertSyncServer> Server;
+	/** Buffers all logs globally */
+	TSharedPtr<FGlobalLogSource> LogBuffer;
+	/** Used by various systems to convert logs to text */
+	TSharedPtr<FConcertLogTokenizer> LogTokenizer;
+
+	TSharedPtr<UE::MultiUserServer::SConcertClientBrowser> ClientBrowser;
+	
 	/** Used to overlay EnableLoggingPrompt over the tabs */
 	TSharedPtr<SOverlay> EnableLoggingPromptOverlay;
 	/** Reminds the user to enable logging */
 	TSharedPtr<SPromptConcertLoggingEnabled> EnableLoggingPrompt;
-
-	/** Used by various systems to convert logs to text */
-	TSharedPtr<FConcertLogTokenizer> LogTokenizer;
-
-	/** Used to look up client info */
-	TSharedPtr<IConcertSyncServer> Server;
 	
 	void CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs);
 	TSharedRef<SDockTab> SpawnClientBrowserTab(const FSpawnTabArgs& InTabArgs);
 	TSharedRef<SDockTab> SpawnGlobalLogTab(const FSpawnTabArgs& InTabArgs);
 
-	TSharedRef<SWidget> SetupLoggingPromptOverlay(const TSharedRef<SWidget>& TabsWidget);
-	void OnConcertLoggingEnabledChanged(bool bNewEnabled);
+	TSharedRef<SWidget> CreateOpenGlobalLogButton() const;
 };

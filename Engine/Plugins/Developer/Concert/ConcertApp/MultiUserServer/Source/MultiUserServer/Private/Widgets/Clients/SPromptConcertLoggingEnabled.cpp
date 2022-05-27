@@ -22,7 +22,7 @@ void SPromptConcertLoggingEnabled::Construct(const FArguments& InArgs)
 		.Padding(0)
 		[
 			SNew(SBox)
-			.Padding(0.f, 0.f, 0.f, 50.f)
+			.Padding(0.f, 0.f, 0.f, 10.f)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
 			.Clipping(EWidgetClipping::ClipToBounds)

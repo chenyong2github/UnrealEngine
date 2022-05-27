@@ -44,10 +44,10 @@ public:
 
 	static const FName HistoryTabId;
 	static const FName SessionContentTabId;
-	static const FName ConnectionMonitorTabId;
 
 	SLATE_BEGIN_ARGS(SConcertLiveSessionTabView) {}
 		SLATE_NAMED_SLOT(FArguments, StatusBar)
+		SLATE_EVENT(FSimpleDelegate, OnConnectedClientsClicked)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const FRequiredWidgets& InRequiredArgs, FName StatusBarId);
@@ -58,4 +58,6 @@ private:
 	TSharedRef<SWidget> CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FRequiredWidgets& InRequiredArgs);
 	TSharedRef<SDockTab> SpawnActivityHistory(const FSpawnTabArgs& Args, TSharedRef<SSessionHistory> SessionHistory);
 	TSharedRef<SDockTab> SpawnSessionContent(const FSpawnTabArgs& Args, TSharedRef<SConcertSessionPackageViewer> PackageViewer);
+
+	TSharedRef<SWidget> CreateToolbar(const FArguments& InArgs);
 };

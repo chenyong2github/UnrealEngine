@@ -3,14 +3,16 @@
 #include "SConcertLiveSessionTabView.h"
 
 #include "Framework/Docking/TabManager.h"
-#include "Session/History/SSessionHistory.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Session/History/SSessionHistory.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/SBoxPanel.h"
 
-#define LOCTEXT_NAMESPACE "SConcertSessionInspector"
+#define LOCTEXT_NAMESPACE "MultiUserServerUI.SConcertSessionInspector"
 
 const FName SConcertLiveSessionTabView::HistoryTabId("HistoryTabId");
 const FName SConcertLiveSessionTabView::SessionContentTabId("SessionContentTabId");
-const FName SConcertLiveSessionTabView::ConnectionMonitorTabId("ConnectionMonitorTabId");
 
 void SConcertLiveSessionTabView::Construct(const FArguments& InArgs, const FRequiredWidgets& InRequiredArgs, FName StatusBarId)
 {
@@ -22,7 +24,23 @@ void SConcertLiveSessionTabView::Construct(const FArguments& InArgs, const FRequ
 		{
 			CreateTabs(InTabManager, InLayout, InRequiredArgs);
 		}))
-		.LayoutName("ConcertSessionInspector_v0.2"),
+		.OverlayTabs_Lambda([this, &InArgs](const TSharedRef<SWidget>& Tabs)
+		{
+			return SNew(SVerticalBox)
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(3.f)
+				[
+					CreateToolbar(InArgs)
+				]
+			
+				+SVerticalBox::Slot()
+				.FillHeight(1.f)
+				[
+					Tabs
+				];
+		})
+		.LayoutName("ConcertSessionInspector_v0.3"),
 		StatusBarId
 		);
 }
@@ -47,21 +65,9 @@ TSharedRef<SWidget> SConcertLiveSessionTabView::CreateTabs(const TSharedRef<FTab
 			)
 			->Split
 			(
-				FTabManager::NewSplitter()
+				FTabManager::NewStack()
 				->SetSizeCoefficient(0.5f)
-				->SetOrientation(Orient_Vertical)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.5f)
-					->AddTab(SessionContentTabId, ETabState::OpenedTab)
-				)
-				->Split
-				(
-					FTabManager::NewStack()
-					->SetSizeCoefficient(0.5f)
-					->AddTab(ConnectionMonitorTabId, ETabState::OpenedTab)
-				)
+				->AddTab(SessionContentTabId, ETabState::OpenedTab)
 			)
 	);
 
@@ -85,6 +91,45 @@ TSharedRef<SDockTab> SConcertLiveSessionTabView::SpawnSessionContent(const FSpaw
 		.TabRole(PanelTab)
 		[
 			PackageViewer
+		];
+}
+
+TSharedRef<SWidget> SConcertLiveSessionTabView::CreateToolbar(const FArguments& InArgs)
+{
+	return SNew(SHorizontalBox)
+
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+			.ToolTipText(LOCTEXT("ConnectedClientsTooltip", "Opens Clients tab and shows all clients connected to this session."))
+			.ContentPadding(FMargin(1, 0))
+			.OnClicked_Lambda([Callback = InArgs._OnConnectedClientsClicked]()
+			{
+				Callback.ExecuteIfBound();
+				return FReply::Handled();
+			})
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4.0, 0.0f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FAppStyle::Get().GetBrush("Icons.Layout"))
+				]
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(4.0, 0.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("ConnectedClients", "Connected Clients"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+			]
 		];
 }
 

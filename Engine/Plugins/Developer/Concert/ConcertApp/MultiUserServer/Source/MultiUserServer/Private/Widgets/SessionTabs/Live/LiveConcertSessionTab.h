@@ -21,7 +21,13 @@ class FLiveConcertSessionTab : public FConcertSessionTabBase
 {
 public:
 
-	FLiveConcertSessionTab(TSharedRef<IConcertServerSession> InspectedSession, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow);
+	DECLARE_DELEGATE_OneParam(FShowConnectedClients, const TSharedRef<IConcertServerSession>&);
+
+	FLiveConcertSessionTab(TSharedRef<IConcertServerSession> InspectedSession,
+		TSharedRef<IConcertSyncServer> SyncServer,
+		TAttribute<TSharedRef<SWindow>> ConstructUnderWindow,
+		FShowConnectedClients OnConnectedClientsClicked
+		);
 
 protected:
 
@@ -37,6 +43,9 @@ private:
 
 	/** Used to determine owning window during construction */
 	TAttribute<TSharedRef<SWindow>> ConstructUnderWindow;
+
+	/** Shows all connected clients for this session */
+	FShowConnectedClients OnConnectedClientsClicked;
 
 	/** Manages the session history widget */
 	const TSharedRef<FLiveServerSessionHistoryController> SessionHistoryController;

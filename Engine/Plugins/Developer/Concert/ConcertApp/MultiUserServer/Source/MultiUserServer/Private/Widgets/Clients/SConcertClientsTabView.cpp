@@ -2,31 +2,34 @@
 
 #include "SConcertClientsTabView.h"
 
+#include "ConcertClientsTabController.h"
+#include "ConcertUtil.h"
 #include "IConcertServer.h"
 #include "IConcertSyncServer.h"
 #include "Logging/Filter/ConcertLogFilter_FrontendRoot.h"
 #include "Logging/Source/GlobalLogSource.h"
 #include "Logging/Util/ConcertLogTokenizer.h"
-#include "SPromptConcertLoggingEnabled.h"
+#include "Widgets/Clients/Browser/SConcertClientBrowser.h"
+#include "Widgets/Clients/Browser/Models/ClientBrowserModel.h"
+#include "Widgets/Clients/Browser/Models/ClientNetworkStatisticsModel.h"
 #include "Widgets/Clients/Logging/SConcertTransportLog.h"
 
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
 const FName SConcertClientsTabView::ClientBrowserTabId("ClientBrowserTabId");
 const FName SConcertClientsTabView::GlobalLogTabId("GlobalLogTabId");
 
-SConcertClientsTabView::~SConcertClientsTabView()
+void SConcertClientsTabView::Construct(const FArguments& InArgs, FName InStatusBarID, TSharedRef<IConcertSyncServer> InServer, TSharedRef<FGlobalLogSource> InLogBuffer)
 {
-	ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().RemoveAll(this);
-}
-
-void SConcertClientsTabView::Construct(const FArguments& InArgs, FName InStatusBarID, TSharedRef<IConcertSyncServer> InServer)
-{
-	LogTokenizer = MakeShared<FConcertLogTokenizer>();
 	Server = MoveTemp(InServer);
+	LogBuffer = MoveTemp(InLogBuffer);
+	LogTokenizer = MakeShared<FConcertLogTokenizer>();
 	
 	SConcertTabViewWithManagerBase::Construct(
 		SConcertTabViewWithManagerBase::FArguments()
@@ -36,10 +39,74 @@ void SConcertClientsTabView::Construct(const FArguments& InArgs, FName InStatusB
 		{
 			CreateTabs(InTabManager, InLayout, InArgs);
 		}))
-		.OverlayTabs(this, &SConcertClientsTabView::SetupLoggingPromptOverlay)
 		.LayoutName("ConcertClientsTabView_v0.1"),
 		InStatusBarID
 	);
+}
+
+void SConcertClientsTabView::ShowConnectedClients(const FGuid& SessionId) const
+{
+	ClientBrowser->ShowOnlyClientsFromSession(SessionId);
+}
+
+void SConcertClientsTabView::OpenClientLogTab(const FGuid& ClientEndpointId) const
+{
+	const FName TabId = *ClientEndpointId.ToString();
+	if (const TSharedPtr<SDockTab> ExistingTab = GetTabManager()->FindExistingLiveTab(FTabId(TabId)))
+	{
+		GetTabManager()->DrawAttention(ExistingTab.ToSharedRef());
+	}
+	else if (const TOptional<FConcertSessionClientInfo> ClientInfo = ConcertUtil::GetConnectedClientInfo(*Server->GetConcertServer(), ClientEndpointId)
+		; ensure(ClientInfo))
+	{
+		const TSharedRef<SDockTab> NewTab = SNew(SDockTab)
+			.Label(FText::Format(LOCTEXT("ClientTabFmt", "{0} Log"), FText::FromString(ClientInfo->ClientInfo.DisplayName)))
+			.ToolTipText(FText::Format(LOCTEXT("ClientTabTooltipFmt", "Logs all networked requests originating or going to  client {0} (EndpointId = {1})"), FText::FromString(ClientInfo->ClientInfo.DisplayName), FText::FromString(ClientEndpointId.ToString())))
+			.TabRole(PanelTab)
+			[
+				SNew(SConcertTransportLog, LogBuffer.ToSharedRef())
+				.Filter(UE::MultiUserServer::MakeClientLogFilter(LogTokenizer.ToSharedRef(), ClientEndpointId))
+			]; 
+
+		// We need a tab to place the client tab next to
+		if (IsGlobalLogOpen())
+		{
+			const FTabManager::FLiveTabSearch Search(GlobalLogTabId);
+			GetTabManager()->InsertNewDocumentTab(TabId, Search, NewTab);
+		}
+		else
+		{
+			OpenGlobalLogTab();
+			
+			const FTabManager::FLiveTabSearch Search(GlobalLogTabId);
+			GetTabManager()->InsertNewDocumentTab(TabId, Search, NewTab);
+
+			CloseGlobalLogTab();
+		}
+	}
+}
+
+void SConcertClientsTabView::OpenGlobalLogTab() const
+{
+	GetTabManager()->TryInvokeTab(GlobalLogTabId);
+}
+
+void SConcertClientsTabView::CloseGlobalLogTab() const
+{
+	if (const TSharedPtr<SDockTab> GlobalLogTab = GetGlobalLogTab())
+	{
+		GlobalLogTab->RequestCloseTab();
+	}
+}
+
+bool SConcertClientsTabView::IsGlobalLogOpen() const
+{
+	return GetGlobalLogTab().IsValid();
+}
+
+TSharedPtr<SDockTab> SConcertClientsTabView::GetGlobalLogTab() const
+{
+	return GetTabManager()->FindExistingLiveTab(GlobalLogTabId);
 }
 
 void SConcertClientsTabView::CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs)
@@ -73,50 +140,65 @@ TSharedRef<SDockTab> SConcertClientsTabView::SpawnClientBrowserTab(const FSpawnT
 		.Label(LOCTEXT("ClientBrowserTabLabel", "Clients"))
 		.TabRole(PanelTab)
 		[
-			SNullWidget::NullWidget
+			SAssignNew(ClientBrowser, UE::MultiUserServer::SConcertClientBrowser,
+				MakeShared<UE::MultiUserServer::FClientBrowserModel>(Server->GetConcertServer()),
+				MakeShared<UE::MultiUserServer::FClientNetworkStatisticsModel>())
+			.RightOfSearch()
+			[
+				CreateOpenGlobalLogButton()
+			]
+			.OnClientDoubleClicked_Raw(this, &SConcertClientsTabView::OpenClientLogTab)
 		]; 
 }
 
 TSharedRef<SDockTab> SConcertClientsTabView::SpawnGlobalLogTab(const FSpawnTabArgs& InTabArgs)
 {
-	// TODO: Load from config file
-	constexpr size_t LogCapacity = 500000;
-	
 	return SNew(SDockTab)
 		.Label(LOCTEXT("GlobalLogTabLabel", "Global Log"))
 		.TabRole(PanelTab)
 		[
-			SNew(SConcertTransportLog, MakeShared<FGlobalLogSource>(LogCapacity))
+			SNew(SConcertTransportLog, LogBuffer.ToSharedRef())
 			.Filter(UE::MultiUserServer::MakeGlobalLogFilter(LogTokenizer.ToSharedRef()))
 		]; 
 }
 
-TSharedRef<SWidget> SConcertClientsTabView::SetupLoggingPromptOverlay(const TSharedRef<SWidget>& TabsWidget)
+TSharedRef<SWidget> SConcertClientsTabView::CreateOpenGlobalLogButton() const
 {
-	SOverlay::FOverlaySlot* MessageSlot;
-	EnableLoggingPromptOverlay =  SNew(SOverlay)
-		+SOverlay::Slot()
+	return SNew(SButton)
+		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+		.ToolTipText(LOCTEXT("OpenGlobalLogTooltip", "Opens the Global Log which logs all incoming networked messages."))
+		.ContentPadding(FMargin(1, 0))
+		.Visibility_Lambda(
+			[this]()
+			{
+				const bool bIsGlobalLogOpen = IsGlobalLogOpen();
+				return bIsGlobalLogOpen ? EVisibility::Hidden : EVisibility::Visible;
+			})
+		.OnClicked_Lambda([this]()
+		{
+			OpenGlobalLogTab();
+			return FReply::Handled();
+		})
 		[
-			TabsWidget
-		]
-		+SOverlay::Slot()
-		.Expose(MessageSlot);
-
-	MessageSlot->AttachWidget(SAssignNew(EnableLoggingPrompt, SPromptConcertLoggingEnabled));
-	ConcertTransportEvents::OnConcertTransportLoggingEnabledChangedEvent().AddSP(this, &SConcertClientsTabView::OnConcertLoggingEnabledChanged);
-	return EnableLoggingPromptOverlay.ToSharedRef();
-}
-
-void SConcertClientsTabView::OnConcertLoggingEnabledChanged(bool bNewEnabled)
-{
-	if (bNewEnabled)
-	{
-		EnableLoggingPromptOverlay->RemoveSlot(EnableLoggingPrompt.ToSharedRef());
-	}
-	else
-	{
-		EnableLoggingPromptOverlay->AddSlot().AttachWidget(SAssignNew(EnableLoggingPrompt, SPromptConcertLoggingEnabled));
-	}
+			SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.Padding(4.0, 0.0f)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FAppStyle::Get().GetBrush("Icons.Layout"))
+				]
+				+SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(4.0, 0.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("OpenGlobalLog", "Open Global Log"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				]
+		];
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -34,6 +34,10 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, FName InStatusBarId);
 
+protected:
+
+	TSharedPtr<FTabManager> GetTabManager() const { return TabManager; }
+	
 private:
 
 	/** Holds the tab manager that manages the front-end's tabs. */

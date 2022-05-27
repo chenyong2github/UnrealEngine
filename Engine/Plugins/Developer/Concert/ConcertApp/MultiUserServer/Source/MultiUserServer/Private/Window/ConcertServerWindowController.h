@@ -79,6 +79,8 @@ private:
 	void UnregisterFromSessionDestructionEvents() const;
 	void OnLiveSessionDestroyed(const IConcertServer&, TSharedRef<IConcertServerSession> InLiveSession);
 	void OnArchivedSessionDestroyed(const IConcertServer&, const FGuid& InArchivedSessionId);
+
+	void ShowConnectedClients(const TSharedRef<IConcertServerSession>& ServerSession);
 	
 	void OnWindowClosed(const TSharedRef<SWindow>& Window);
 	void SaveLayout() const;
