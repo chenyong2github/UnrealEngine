@@ -46,10 +46,15 @@ public:
 	SLATE_ARGUMENT(FGraphEditorEvents, GraphEvents)
 	SLATE_ARGUMENT(TSharedPtr<IDetailsView>, DetailsView)
 	SLATE_ARGUMENT(FDataflowEditorCommands::FGraphEvaluationCallback, EvaluateGraph)
+	SLATE_ARGUMENT(FDataflowEditorCommands::FOnDragDropEventCallback, OnDragDropEvent)
 	SLATE_END_ARGS()
 
 	// SWidget overrides
+	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	virtual FReply OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	//virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
+	//virtual void OnDragLeave(const FDragDropEvent& DragDropEvent) override;
+	// end SWidget
 
 	/** */
 	void Construct(const FArguments& InArgs, UObject* AssetOwner);
@@ -67,6 +72,7 @@ public:
 
 
 private:
+	FDataflowEditorCommands::FOnDragDropEventCallback OnDragDropEventCallback;
 	FDataflowEditorCommands::FGraphEvaluationCallback EvaluateGraphCallback;
 
 	/** The asset that ownes this dataflow graph */

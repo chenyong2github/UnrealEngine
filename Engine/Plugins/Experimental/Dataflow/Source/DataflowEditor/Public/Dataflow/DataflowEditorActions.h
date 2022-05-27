@@ -44,6 +44,7 @@ class DATAFLOWEDITOR_API FDataflowEditorCommands
 {
 public:
 	typedef TFunction<void(Dataflow::FNode*, Dataflow::FConnection*)> FGraphEvaluationCallback;
+	typedef TFunction<void(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)> FOnDragDropEventCallback;
 
 	static void Register();
 	static void Unregister();

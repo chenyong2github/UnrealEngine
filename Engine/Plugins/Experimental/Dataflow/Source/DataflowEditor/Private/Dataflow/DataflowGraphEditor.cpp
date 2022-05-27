@@ -5,7 +5,9 @@
 #include "DataflowEditorToolkit.h"
 #include "Dataflow/DataflowEngine.h"
 #include "Dataflow/DataflowSNodeFactories.h"
+#include "BoneDragDropOp.h"
 
+DEFINE_LOG_CATEGORY_STATIC(SDataflowGraphEditorLog, Log, All);
 
 #define LOCTEXT_NAMESPACE "DataflowGraphEditor"
 
@@ -17,6 +19,7 @@ void SDataflowGraphEditor::Construct(const FArguments& InArgs, UObject* InAssetO
 	DataflowAsset = Cast<UDataflow>(InArgs._GraphToEdit);
 	DetailsView = InArgs._DetailsView;
 	EvaluateGraphCallback = InArgs._EvaluateGraph;
+	OnDragDropEventCallback = InArgs._OnDragDropEvent;
 
 	FGraphAppearanceInfo AppearanceInfo;
 	AppearanceInfo.CornerText = FText::FromString("Dataflow");
@@ -86,15 +89,53 @@ void SDataflowGraphEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelec
 	}
 }
 
+FReply SDataflowGraphEditor::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+	UE_LOG(SDataflowGraphEditorLog, All, TEXT("SDataflowGraphEditor::OnDragOver"));
+	if (TSharedPtr<FBoneDragDropOp> SchemeDragDropOp = DragDropEvent.GetOperationAs<FBoneDragDropOp>())
+	{
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
+
 FReply SDataflowGraphEditor::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	//TSharedPtr<FDataprepDragDropOp> DragNodeOp = DragDropEvent.GetOperationAs<FDataprepDragDropOp>();
-	//if (TrackGraphNodePtr.IsValid() && DragNodeOp.IsValid())
-	//{
-	//	return FReply::Handled().EndDragDrop();
-	//}
-
+	if (TSharedPtr<FBoneDragDropOp> SchemeDragDropOp = DragDropEvent.GetOperationAs<FBoneDragDropOp>())
+	{
+		if (OnDragDropEventCallback)
+		{
+			UE_LOG(SDataflowGraphEditorLog, All, TEXT("SDataflowGraphEditor::OnDrop"));
+			OnDragDropEventCallback(MyGeometry,DragDropEvent);
+		}
+	}
 	return SGraphEditor::OnDrop(MyGeometry, DragDropEvent);
 }
+
+/*
+void SDataflowGraphEditor::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
+{
+
+	TSharedPtr<FGraphSchemaActionDragDropAction> SchemeDragDropOp = DragDropEvent.GetOperationAs<FGraphSchemaActionDragDropAction>();
+	{
+	//	FDataprepSchemaActionContext ActionContext;
+	//	ActionContext.DataprepActionPtr = StepData->DataprepActionPtr;
+	//	ActionContext.DataprepActionStepPtr = StepData->DataprepActionStepPtr;
+	//	ActionContext.StepIndex = StepData->StepIndex;
+	//	DataprepDragDropOp->SetHoveredDataprepActionContext(ActionContext);
+	}
+	UE_LOG(SDataflowGraphEditorLog, All, TEXT("SDataflowGraphEditor::OnDragEnter"));
+
+}
+void SDataflowGraphEditor::OnDragLeave(const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FGraphSchemaActionDragDropAction> SchemeDragDropOp = DragDropEvent.GetOperationAs<FGraphSchemaActionDragDropAction>();
+	{
+		// DataflowDragDropOp->SetHoveredDataprepActionContext(TOptional<FDataprepSchemaActionContext>());
+	}
+	UE_LOG(SDataflowGraphEditorLog, All, TEXT("SDataflowGraphEditor::OnDragLeave"));
+}
+*/
 
 #undef LOCTEXT_NAMESPACE
