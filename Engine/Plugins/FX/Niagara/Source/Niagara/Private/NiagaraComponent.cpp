@@ -3590,15 +3590,18 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOve
 		CustomDepthStencilWriteMask = Asset->bOverrideCustomDepthStencilValue ? Asset->CustomDepthStencilWriteMask : CustomDepthStencilWriteMask;
 		CustomDepthStencilValue = Asset->bOverrideCustomDepthStencilWriteMask ? Asset->CustomDepthStencilValue : CustomDepthStencilValue;
 
+		TranslucencySortPriority = Asset->bOverrideTranslucencySortPriority ? Asset->TranslucencySortPriority : TranslucencySortPriority;
+		TranslucencySortDistanceOffset = Asset->bOverrideTranslucencySortDistanceOffset ? Asset->TranslucencySortDistanceOffset : TranslucencySortDistanceOffset;
+
 		// Activate
 		if ( IsRegistered() )
 		{
-		if (bAutoActivate || bWasActive)
-		{
-			Activate();
+			if (bAutoActivate || bWasActive)
+			{
+				Activate();
+			}
 		}
 	}
-}
 }
 
 void UNiagaraComponent::SetForceSolo(bool bInForceSolo) 
