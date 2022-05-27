@@ -1,0 +1,148 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/Landscape/LandscapeCommon.ush"
+
+#if defined (__INTELLISENSE__)
+// Uncomment the appropriate define for enabling syntax highlighting with HLSL Tools for Visual Studio : 
+//#define APPLY_LANDSCAPE_PATCH 1
+//#define OFFSET_LANDSCAPE_PATCH 1
+//#define SIMPLE_TEXTURE_COPY 1
+#endif // defined (__INTELLISENSE__)
+
+#if APPLY_LANDSCAPE_PATCH
+Texture2D<float4> InSourceHeightmap;
+Texture2D<float4> InHeightPatch;
+SamplerState InHeightPatchSampler;
+float4x4 InHeightmapToPatch;
+float2 InPatchWorldDimensions;
+float InPatchBaseHeight;
+float2 InEdgeUVDeadBorder;
+float InFalloffWorldMargin;
+float InHeightScale;
+// When false, falloff is circular. When true, it is rectangular.
+uint bRectangularFalloff;
+// When true, the texture alpha channel is considered for blending (in addition to falloff, if any)
+uint bApplyPatchAlpha;
+// When true, the patch stored height is interpreted relative to landscape mid value and applied to
+// the landscape, instead of alpha blending with the landscape.
+uint bAdditiveMode;
+
+void ApplyLandscapeTextureHeightPatch(in float4 SVPos : SV_POSITION, out float2 OutColor : SV_Target0)
+{
+	static const float HALF_PI = 3.14159265f / 2;
+	static const float LANDSCAPE_MID_VALUE = 32768.0f;
+	static const float FLOAT_TOLERANCE = 0.0001;
+	
+	// We need only the 2D affine transformation that goes from landscape XY heightmap integer coordinates
+	// to patch UV coordinates.
+	float2x2 HeightmapToPatchRotateScale = (float2x2) InHeightmapToPatch;
+	float2 HeightmapToPatchTranslate = InHeightmapToPatch._m03_m13;
+	
+	float2 PatchUVCoordinates = mul(HeightmapToPatchRotateScale, SVPos.xy) + HeightmapToPatchTranslate;
+	float4 PatchSampledValue = InHeightPatch.Sample(InHeightPatchSampler, PatchUVCoordinates);
+	float PatchStoredHeight = UnpackHeight(PatchSampledValue.xy);
+	if (bAdditiveMode)
+	{
+		PatchStoredHeight -= LANDSCAPE_MID_VALUE;
+	}
+	float PatchHeight = InHeightScale * PatchStoredHeight + InPatchBaseHeight;
+	
+	int2 HeightmapCoordinates = floor(SVPos.xy);
+	float4 CurrentPackedHeight = InSourceHeightmap.Load(int3(HeightmapCoordinates, 0));
+	float CurrentHeight = UnpackHeight(CurrentPackedHeight.xy);
+	
+	// The falloff starts at the edges and goes inward, and shouldn't be higher than 1/2 of the smaller dimension, or
+	// else it extends past the center. If it does extend past the center, we'll decrease the max alpha in the center
+	// (imagine shaving off a cube with progressively flatter slopes- once you get past the center of the top, you get
+	// a progressively shorter pyramid). Maybe we shouldn't even bother dealing with this case, but it's easy enough to do.
+	float ClampedFalloffMargin = clamp(InFalloffWorldMargin, 0, min(InPatchWorldDimensions.x, InPatchWorldDimensions.y) / 2);
+	float bFalloffAlpha = InFalloffWorldMargin > 0 ? ClampedFalloffMargin / InFalloffWorldMargin : 1;
+
+	// Alpha T is a parameter that we'll pass through a cos^2 function to get the alpha (to have it be smoother). It should be 
+	// 0 at the places where there is no falloff (ie alpha is 1), and go to 1 at places where falloff is complete (and falloff is 0)
+	float AlphaT = 1;
+	
+	if (bRectangularFalloff)
+	{
+		float2 DistancesFromEdges = InPatchWorldDimensions * min(PatchUVCoordinates - InEdgeUVDeadBorder, 1 - InEdgeUVDeadBorder - PatchUVCoordinates);
+		bool bIsInsidePatch = all(DistancesFromEdges >= -FLOAT_TOLERANCE);
+		AlphaT = bIsInsidePatch ? 0 : 1;
+		
+		if (bIsInsidePatch && ClampedFalloffMargin > 0)
+		{
+			// Interpret distances as proportions of falloff margin
+			DistancesFromEdges = DistancesFromEdges / ClampedFalloffMargin;
+		
+			if (DistancesFromEdges.x > 0 && DistancesFromEdges.x < 1.0
+				&& DistancesFromEdges.y > 0 && DistancesFromEdges.y < 1.0)
+			{
+				AlphaT = min(1.0, length(float2(1, 1) - DistancesFromEdges));
+			}
+			else
+			{
+				AlphaT = 1 - min(1.0, min(DistancesFromEdges.x, DistancesFromEdges.y));
+			}
+		}
+	}
+	else
+	{
+		float OuterRadius = min(InPatchWorldDimensions.x, InPatchWorldDimensions.y) / 2;
+		float DistanceFromCenter = length(InPatchWorldDimensions * (PatchUVCoordinates - float2(0.5, 0.5)));
+		float DistanceFromOuterCircle = OuterRadius - DistanceFromCenter;
+		
+		bool bIsInsideCircle = DistanceFromOuterCircle > 0;
+		AlphaT = bIsInsideCircle ? 0 : 1;
+		if (bIsInsideCircle && ClampedFalloffMargin > 0)
+		{
+			AlphaT = 1 - DistanceFromOuterCircle / ClampedFalloffMargin;
+			AlphaT = max(0, AlphaT); // clamp to 0 so we don't go past ClampedFalloffMargin
+		}
+	}
+	
+	float Alpha = cos(AlphaT * HALF_PI);
+	Alpha = Alpha * Alpha * bFalloffAlpha;
+	
+	if (bApplyPatchAlpha)
+	{
+		Alpha *= PatchSampledValue.a;
+	}
+	
+	float NewHeight = 0;
+	if (bAdditiveMode)
+	{
+		NewHeight = CurrentHeight + Alpha * PatchHeight;
+	}
+	else
+	{
+		NewHeight = lerp(CurrentHeight, PatchHeight, Alpha);
+	}
+	
+	OutColor = PackHeight(NewHeight);
+}
+#endif // APPLY_LANDSCAPE_PATCH
+
+#if OFFSET_LANDSCAPE_PATCH
+Texture2D<float4> InHeightmap;
+float InHeightOffset;
+
+void ApplyOffsetToHeightmap(in float4 SVPos : SV_POSITION, out float2 OutColor : SV_Target0)
+{
+	float StoredHeight = UnpackHeight(InHeightmap.Load(int3(SVPos.xy, 0)));
+	OutColor = PackHeight(StoredHeight + InHeightOffset);
+}
+#endif // OFFSET_LANDSCAPE_PATCH
+
+#if SIMPLE_TEXTURE_COPY
+Texture2D<float4> InSource;
+SamplerState InSourceSampler;
+float2 InDestinationResolution;
+
+void SimpleTextureCopy(in float4 SVPos : SV_POSITION, out float2 OutColor : SV_Target0)
+{
+	float2 UV = SVPos.xy / InDestinationResolution;
+	OutColor = InSource.Sample(InSourceSampler, UV);
+}
+#endif // SIMPLE_TEXTURE_COPY

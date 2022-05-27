@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LandscapePatch.h"
+#include "LandscapePatchComponent.h"
 
 #include "EngineUtils.h"
 #include "GameFramework/Actor.h"
@@ -11,7 +11,7 @@
 #define LOCTEXT_NAMESPACE "LandscapePatch"
 
 #if WITH_EDITOR
-namespace LandscapePatchLocals
+namespace LandscapePatchComponentLocals
 {
 	ALandscapePatchManager* CreateNewPatchManagerForLandscape(ALandscape* Landscape)
 	{
@@ -49,7 +49,7 @@ ULandscapePatchComponent::ULandscapePatchComponent(const FObjectInitializer& Obj
 
 void ULandscapePatchComponent::OnComponentCreated()
 {
-	using namespace LandscapePatchLocals;
+	using namespace LandscapePatchComponentLocals;
 
 	Super::OnComponentCreated();
 		
@@ -152,25 +152,19 @@ void ULandscapePatchComponent::OnRegister()
 	// variety of changes this way, so we'll need to see if we can get rid of other invalidations.
 	// Also, we should make the invalidation conditional on whether we actually modify any relevant
 	// properties by having a virtual method that compares and updates a stored hash of them.
-	if (PatchManager.IsValid())
-	{
-		PatchManager->RequestLandscapeUpdate();
-	}
+	RequestLandscapeUpdate();
 }
 
 void ULandscapePatchComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
 
-	if (PatchManager.IsValid())
-	{
-		PatchManager->RequestLandscapeUpdate();
-	}
+	RequestLandscapeUpdate();
 }
 
 void ULandscapePatchComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-	using namespace LandscapePatchLocals;
+	using namespace LandscapePatchComponentLocals;
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -225,11 +219,26 @@ void ULandscapePatchComponent::PostEditChangeProperty(FPropertyChangedEvent& Pro
 		}
 	}
 
-	if (PatchManager.IsValid())
+	RequestLandscapeUpdate();
+}
+
+void ULandscapePatchComponent::RequestLandscapeUpdate()
+{
+	if(PatchManager.IsValid())
 	{
 		PatchManager->RequestLandscapeUpdate();
 	}
 }
+
+FTransform ULandscapePatchComponent::GetLandscapeHeightmapCoordsToWorld() const
+{
+	if (PatchManager.IsValid())
+	{
+		return PatchManager->GetHeightmapCoordsToWorld();
+	}
+	return FTransform::Identity;
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE

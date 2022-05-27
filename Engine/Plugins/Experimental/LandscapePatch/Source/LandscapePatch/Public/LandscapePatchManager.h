@@ -64,6 +64,7 @@ protected:
 	UPROPERTY()
 	TArray<TWeakObjectPtr<ULandscapePatchComponent>> PatchComponents;
 
+	UPROPERTY()
 	FTransform HeightmapCoordsToWorld;
 
 };

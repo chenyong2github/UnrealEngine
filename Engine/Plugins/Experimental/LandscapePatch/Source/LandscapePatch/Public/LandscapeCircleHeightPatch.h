@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "LandscapePatch.h"
+#include "LandscapePatchComponent.h"
 
 #include "LandscapeCircleHeightPatch.generated.h"
 

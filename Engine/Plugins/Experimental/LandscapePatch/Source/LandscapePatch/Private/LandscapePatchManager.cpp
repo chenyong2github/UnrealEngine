@@ -3,7 +3,7 @@
 #include "LandscapePatchManager.h"
 
 #include "Landscape.h"
-#include "LandscapePatch.h"
+#include "LandscapePatchComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "LandscapeDataAccess.h"
 #include "RenderGraph.h" // RDG_EVENT_NAME
@@ -38,7 +38,7 @@ void ALandscapePatchManager::Initialize_Native(const FTransform & InLandscapeTra
 	const double HEIGHTMAP_TO_OBJECT_HEIGHT_SCALE = LANDSCAPE_ZSCALE;
 	const double HEIGHTMAP_TO_OBJECT_HEIGHT_OFFSET = -LandscapeDataAccess::MidValue * LANDSCAPE_ZSCALE;
 
-	// S_p: the pixel coordinates are actually the same as xy object-space coordinates becaues one quad is 1 unit,
+	// S_p: the pixel coordinate scale is actually the same as xy object-space coordinates because one quad is 1 unit,
 	// so we only need to scale the height.
 	FVector3d PixelToObjectSpaceScale = FVector3d(
 		1,
@@ -46,10 +46,10 @@ void ALandscapePatchManager::Initialize_Native(const FTransform & InLandscapeTra
 		HEIGHTMAP_TO_OBJECT_HEIGHT_SCALE
 	);
 
-	// T_p: again, only the height needs translation
+	// T_p: the center of the pixel
 	FVector3d PixelToObjectSpaceTranslate = FVector3d(
-		0,
-		0,
+		-0.5,
+		-0.5,
 		HEIGHTMAP_TO_OBJECT_HEIGHT_OFFSET
 	);
 

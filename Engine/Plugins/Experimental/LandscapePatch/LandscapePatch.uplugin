@@ -19,6 +19,11 @@
 			"Name": "LandscapePatch",
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit"
+		},
+		{
+			"Name": "LandscapePatchEditorOnly",
+			"Type": "Editor",
+			"LoadingPhase": "PostEngineInit"
 		}
 	]
 }

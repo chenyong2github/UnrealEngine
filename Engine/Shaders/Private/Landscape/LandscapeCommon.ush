@@ -11,6 +11,10 @@ float2 PackHeight(float InHeight)
 
 float UnpackHeight(float2 InPackedHeight)
 {
-	// Convert each of the two bytes back to [0,255], then assemble
-	return float(((int) round(InPackedHeight.r * 255.0) << 8) | (int) round(InPackedHeight.g * 255.0));
+	// We used to do the inverse of PackHeight here, like this:
+	// return float(((int) round(InPackedHeight.r * 255.0) << 8) | (int) round(InPackedHeight.g * 255.0));
+	
+	// However, this isn't great if you just interpolate between packed heights because that truncates the interpolation
+	// of the higher order byte. So instead we do it by multiplication, which ends up simpler.
+	return (InPackedHeight.r * 256 + InPackedHeight.g) * 255;
 }

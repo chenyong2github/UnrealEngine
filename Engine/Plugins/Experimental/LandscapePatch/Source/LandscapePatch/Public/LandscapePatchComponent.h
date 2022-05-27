@@ -6,7 +6,7 @@
 
 #include "Components/SceneComponent.h"
 
-#include "LandscapePatch.generated.h"
+#include "LandscapePatchComponent.generated.h"
 
 class ALandscape;
 class ALandscapePatchManager;
@@ -35,6 +35,13 @@ public:
 
 // For now we keep the patches largely editor-only, since we don't yet support runtime landscape editing
 #if WITH_EDITOR
+
+	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
+	void RequestLandscapeUpdate();
+
+	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
+	FTransform GetLandscapeHeightmapCoordsToWorld() const;
+
 	// USceneComponent
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport) override;
 
