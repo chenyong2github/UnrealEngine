@@ -1093,6 +1093,12 @@ static bool StartFromCommandlineArguments(const TCHAR* CommandLine)
 	{
 		Channels = GDefaultChannels;
 	}
+#if WITH_EDITOR
+	else
+	{
+		Channels = GDefaultChannels;
+	}
+#endif
 
 	// By default, if any channels are enabled we trace to memory.
 	FTraceAuxiliary::EConnectionType Type = FTraceAuxiliary::EConnectionType::None;
