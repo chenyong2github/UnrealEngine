@@ -27,13 +27,11 @@ Default is MaxImportThreads = 0\n\
 	ECVF_Default);
 
 bool FImportParameters::bGDisableCADKernelTessellation = true;
-#ifdef ENABLE_IN_5_0_1
 FAutoConsoleVariableRef GCADTranslatorDisableCADKernelTessellation(
 	TEXT("ds.CADTranslator.DisableCADKernelTessellation"),
 	FImportParameters::bGDisableCADKernelTessellation,
 	TEXT("Disable to use CAD import library tessellator.\n"),
 	ECVF_Default);
-#endif
 
 bool FImportParameters::bGEnableCADCache = true;
 FAutoConsoleVariableRef GCADTranslatorEnableCADCache(
@@ -72,6 +70,14 @@ FAutoConsoleVariableRef GCADTranslatorStitchingTolerance(
 	FImportParameters::GStitchingTolerance,
 	TEXT("Welding threshold for Heal/Sew stitching methods in cm\n\
 Default value of StitchingTolerance is 0.001 cm\n"),
+ECVF_Default);
+
+static bool bGAliasSewByColor = false;
+FAutoConsoleVariableRef GAliasSewByColor(
+	TEXT("ds.CADTranslator.Alias.SewByColor"),
+	bGAliasSewByColor,
+	TEXT("Enable Sew action merges BReps according to their material i.e. only BReps associated with same material can be merged together.\
+Default is disable\n"),
 ECVF_Default);
 
 uint32 GetTypeHash(const FImportParameters& ImportParameters)

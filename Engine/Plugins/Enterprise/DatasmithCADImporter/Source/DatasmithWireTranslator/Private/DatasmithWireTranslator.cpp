@@ -77,7 +77,8 @@ static const FColor DefaultColor = FColor(200, 200, 200);
 
 #ifdef USE_OPENMODEL
 
-const uint64 LibAliasNext_Version = 17881307937833405;
+const uint64 LibAliasNext_Version = 0xffffffffffffffffull;
+const uint64 LibAlias2023_0_0_Version = 8162774324609149;
 const uint64 LibAlias2022_2_0_Version = 7881307937833405;
 const uint64 LibAlias2022_1_0_Version = 7881303642865885;
 const uint64 LibAlias2022_0_1_Version = 7881299347964005;
@@ -106,8 +107,12 @@ const uint64 LibAliasVersionMax = LibAlias2022_2_0_Version;
 const FString AliasVersionChar = TEXT("AliasStudio 2022.1, Model files");
 #elif defined(OPEN_MODEL_2022_2)
 const uint64 LibAliasVersionMin = LibAlias2022_2_0_Version;
-const uint64 LibAliasVersionMax = LibAliasNext_Version;
+const uint64 LibAliasVersionMax = LibAlias2023_0_0_Version;
 const FString AliasVersionChar = TEXT("AliasStudio 2022.2, Model files");
+#elif defined(OPEN_MODEL_2023_0)
+const uint64 LibAliasVersionMin = LibAlias2023_0_0_Version;
+const uint64 LibAliasVersionMax = LibAliasNext_Version;
+const FString AliasVersionChar = TEXT("AliasStudio 2023.0, Model files");
 #endif
 
 // Alias material management (to allow sew of BReps of different materials):
@@ -325,6 +330,12 @@ public:
 			TSharedRef<FAliasModelToCADKernelConverter> AliasToCADKernelConverter = MakeShared<FAliasModelToCADKernelConverter>(ImportParameters);
 			CADModelConverter = AliasToCADKernelConverter;
 			AliasBRepConverter = AliasToCADKernelConverter;
+		}
+
+		IConsoleVariable* CVarDSPlmXmlTranslatorEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.Alias.SewByColor"));
+		if (CVarDSPlmXmlTranslatorEnabled)
+		{
+			bGAliasSewByColor = CVarDSPlmXmlTranslatorEnabled->GetBool();
 		}
 	}
 
@@ -2257,7 +2268,11 @@ void FDatasmithWireTranslator::Initialize(FDatasmithTranslatorCapabilities& OutC
 #ifdef OPEN_MODEL_2020
 			if (LibAlias2020_Version < FileVersion && FileVersion < LibAlias2021_Version)
 			{
-				UE_LOG(LogDatasmithWireTranslator, Warning, TEXT(WRONG_VERSION_TEXT));
+				TFunction<bool()> DisplayMessage = []() -> bool 
+				{ 
+					UE_LOG(LogDatasmithWireTranslator, Warning, TEXT(WRONG_VERSION_TEXT)); return true; 
+				};
+				static const bool bIsDispaly = DisplayMessage();
 				OutCapabilities.bIsEnabled = false;
 				return;
 			}
