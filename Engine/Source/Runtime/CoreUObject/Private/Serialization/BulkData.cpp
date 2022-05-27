@@ -13,8 +13,6 @@
 #include "UObject/LinkerSave.h"
 #include "UObject/PackageResourceManager.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 /** Whether to track information of how bulk data is being used */
 #define TRACK_BULKDATA_USE 0
 
@@ -2232,5 +2230,3 @@ void FFormatContainer::SerializeAttemptMappedLoad(FArchive& Ar, UObject* Owner)
 		Bulk.Serialize(Ar, Owner, -1, true);
 	}
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

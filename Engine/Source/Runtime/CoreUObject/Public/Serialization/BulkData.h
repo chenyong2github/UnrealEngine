@@ -10,7 +10,6 @@
 #include "Misc/PackagePath.h"
 #include "Misc/PackageSegment.h"
 #include "Serialization/FileRegions.h"
-#include "Templates/RefCounting.h"
 #include "IO/PackageId.h"
 #include "IO/IoDispatcher.h"
 
