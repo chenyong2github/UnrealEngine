@@ -50,9 +50,23 @@ FSectionLayoutElement FSectionLayoutElement::FromGroup(const TSharedPtr<FViewMod
 	FSectionLayoutElement Tmp;
 	Tmp.Type = Group;
 
-	for (TSharedPtr<FChannelModel> Channel : InChannelRoot->GetDescendantsOfType<FChannelModel>())
+	for (TSharedPtr<FLinkedOutlinerExtension> OutlinerItemExtension: InChannelRoot->GetDescendantsOfType<FLinkedOutlinerExtension>(true /*bIncludeThis*/))
 	{
-		Tmp.WeakChannels.Add(Channel);
+		if (TViewModelPtr<IOutlinerExtension> Outliner = OutlinerItemExtension->GetLinkedOutlinerItem())
+		{
+			if (Outliner->IsFilteredOut() == false)
+			{
+				TSharedPtr<FViewModel> Model = OutlinerItemExtension->GetLinkedOutlinerItem().AsModel();
+				for (TSharedPtr<FChannelGroupModel> ChannelGroup : Model->GetDescendantsOfType<FChannelGroupModel>())
+				{
+					TArrayView<const TWeakViewModelPtr<FChannelModel>> Channels  =  ChannelGroup->GetChannels();
+					for (const TWeakViewModelPtr < FChannelModel>& Channel : Channels)
+					{
+						Tmp.WeakChannels.Add(Channel);
+					}
+				}
+			}
+		}
 	}
 	Tmp.LocalOffset = InOffset;
 	Tmp.Height = InHeight;

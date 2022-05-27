@@ -114,13 +114,15 @@ bool FAddKeyOperation::ProcessKeyArea(TSharedPtr<ITrackExtension> InTrackModel, 
 {
 	bool bKeyedAnything = false;
 	ISequencerTrackEditor* TrackEditor = InTrackModel->GetTrackEditor().Get();
-
-	constexpr bool bIncludeThis = true;
-	for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : InChannelGroupModel->GetChannels())
+	if (InChannelGroupModel->IsFilteredOut() == false)
 	{
-		if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
+		constexpr bool bIncludeThis = true;
+		for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : InChannelGroupModel->GetChannels())
 		{
-			bKeyedAnything |= ProcessKeyArea(TrackEditor, Channel->GetKeyArea());
+			if (TSharedPtr<FChannelModel> Channel = WeakChannel.Pin())
+			{
+				bKeyedAnything |= ProcessKeyArea(TrackEditor, Channel->GetKeyArea());
+			}
 		}
 	}
 

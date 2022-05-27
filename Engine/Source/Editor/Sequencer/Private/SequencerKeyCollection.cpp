@@ -17,10 +17,13 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodes(con
 	{
 		for (TViewModelPtr<const FChannelGroupModel> ChannelGroupModel : Node->GetChildrenOfType<FChannelGroupModel>())
 		{
-			for (const TSharedRef<IKeyArea>& KeyArea : ChannelGroupModel->GetAllKeyAreas())
+			if (ChannelGroupModel->IsFilteredOut() == false)
 			{
-				const UMovieSceneSection* Section = KeyArea->GetOwningSection();
-				Result.KeyAreaToSignature.Add(KeyArea, Section ? Section->GetSignature() : FGuid());
+				for (const TSharedRef<IKeyArea>& KeyArea : ChannelGroupModel->GetAllKeyAreas())
+				{
+					const UMovieSceneSection* Section = KeyArea->GetOwningSection();
+					Result.KeyAreaToSignature.Add(KeyArea, Section ? Section->GetSignature() : FGuid());
+				}
 			}
 		}
 	}
@@ -42,7 +45,10 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodesRecu
 		const bool bIncludeThis = true;
 		for (const TViewModelPtr<FChannelGroupModel>& KeyAreaNode : Node->GetDescendantsOfType<FChannelGroupModel>(bIncludeThis))
 		{
-			AllKeyAreaNodes.Add(KeyAreaNode);
+			if (KeyAreaNode->IsFilteredOut() == false)
+			{
+				AllKeyAreaNodes.Add(KeyAreaNode);
+			}
 		}
 	}
 
@@ -69,7 +75,10 @@ FSequencerKeyCollectionSignature FSequencerKeyCollectionSignature::FromNodeRecur
 	AllKeyAreaNodes.Reserve(36);
 	for (TSharedPtr<FChannelGroupModel> KeyAreaNode : InNode->GetDescendantsOfType<FChannelGroupModel>(true))
 	{
-		AllKeyAreaNodes.Add(KeyAreaNode);
+		if (KeyAreaNode->IsFilteredOut() == false)
+		{
+			AllKeyAreaNodes.Add(KeyAreaNode);
+		}
 	}
 
 	for (const TSharedPtr<FChannelGroupModel>& Node : AllKeyAreaNodes)

@@ -165,11 +165,15 @@ void FSequencerEntityWalker::VisitAnyChannels(const ISequencerEntityVisitor& Vis
 
 	if (ChannelGroup)
 	{
-		for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : ChannelGroup->GetChannels())
+		const IOutlinerExtension* OutlinerItem = ChannelGroup->CastThis<IOutlinerExtension>();
+		if (OutlinerItem->IsFilteredOut() == false)
 		{
-			if (TViewModelPtr<FChannelModel> Channel = WeakChannel.Pin())
+			for (const TWeakViewModelPtr<FChannelModel>& WeakChannel : ChannelGroup->GetChannels())
 			{
-				VisitChannel(Visitor, Channel);
+				if (TViewModelPtr<FChannelModel> Channel = WeakChannel.Pin())
+				{
+					VisitChannel(Visitor, Channel);
+				}
 			}
 		}
 	}
