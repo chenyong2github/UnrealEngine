@@ -4615,20 +4615,6 @@ void FHeaderParser::GetVarType(
 		}
 	}
 
-	// Validate if we are using editor only data in a class or struct definition
-	if (OwnerClassDef && OwnerClassDef->HasAnyClassFlags(CLASS_Optional))
-	{
-		if (VarProperty.IsEditorOnlyProperty())
-		{
-			LogError(TEXT("Cannot specify editor only property inside an optional class."));
-		}
-		else if (VarProperty.ContainsEditorOnlyProperties())
-		{
-			// TODO: this should technically be an error, but some code already relies on this at this time and should hence 
-			LogInfo(TEXT("Do not specify struct property containing editor only properties inside an optional class."));
-		}
-	}
-
 	if ( VarProperty.IsObjectOrInterface() && VarProperty.Type != CPT_SoftObjectReference && VarProperty.MetaClassDef == nullptr && (VarProperty.PropertyFlags&CPF_Config) != 0 )
 	{
 		Throwf(TEXT("Not allowed to use 'config' with object variables"));

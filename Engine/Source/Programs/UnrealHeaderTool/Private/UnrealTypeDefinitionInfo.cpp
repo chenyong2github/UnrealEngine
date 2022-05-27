@@ -2345,6 +2345,23 @@ void FUnrealClassDefinitionInfo::PostParseFinalizeInternal(EPostParseFinalizePha
 				LogError(TEXT("Class cast flags in core class '%s', is '0x%016x', should be '0x%016x'"), *GetNameCPP(), ClassCastFlags, Class->ClassCastFlags);
 			}
 		}
+
+		// Validate if we are using editor only data in a class or struct definition
+		if (HasAnyClassFlags(CLASS_Optional))
+		{
+			for (TSharedRef<FUnrealPropertyDefinitionInfo> PropertyDef : GetProperties())
+			{
+				if (PropertyDef->GetPropertyBase().IsEditorOnlyProperty())
+				{
+					PropertyDef->LogError(TEXT("Cannot specify editor only property inside an optional class."));
+				}
+				else if (PropertyDef->GetPropertyBase().ContainsEditorOnlyProperties())
+				{
+					// TODO: this should technically be an error, but some code already relies on this at this time and should hence 
+					PropertyDef->LogInfo(TEXT("Do not specify struct property containing editor only properties inside an optional class."));
+				}
+			}
+		}
 		break;
 	}
 	}
