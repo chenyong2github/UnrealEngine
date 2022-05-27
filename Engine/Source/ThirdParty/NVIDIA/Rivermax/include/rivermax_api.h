@@ -1,5 +1,5 @@
 /*
- * Copyright © 2017-2021 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
+ * Copyright © 2017-2022 NVIDIA CORPORATION & AFFILIATES. ALL RIGHTS RESERVED.
  *
  * This software product is a proprietary product of Nvidia Corporation and its affiliates
  * (the "Company") and all right, title, and interest in and to the software
@@ -43,10 +43,10 @@
 #define RMAX_MAJOR(version)   (version >> RMAX_VERSION_MAJOR_SHIFT)
 #define RMAX_MINOR(version)   (version & 0xFFFF)
 
-#define RMAX_API_MAJOR          12
-#define RMAX_API_MINOR          2
-#define RMAX_RELEASE_VERSION    10
-#define RMAX_BUILD              23
+#define RMAX_API_MAJOR          13
+#define RMAX_API_MINOR          3
+#define RMAX_RELEASE_VERSION    11
+#define RMAX_BUILD              20
 #define RMAX_API_VERSION        RMAX_VERSION(RMAX_API_MAJOR, RMAX_API_MINOR)
 
 typedef uint64_t rmax_cpu_mask_t;
@@ -194,6 +194,8 @@ typedef enum {
     RMAX_ERR_EXCEEDS_LIMIT                   =  30,
     /* not supported by Rivermax */
     RMAX_ERR_UNSUPPORTED                     =  31,
+    /* clock type not supported by the device in use */
+    RMAX_ERR_CLOCK_TYPE_NOT_SUPPORTED        =  41,
 
     /* Failure due to invalid function parameter */
     RMAX_INVALID_PARAMETER_MIX               =  50,
@@ -272,6 +274,15 @@ typedef enum rmax_out_gen_stream_init_attr {
  *            A chunk cannot start with zeros in its @ref data_size_arr.
  * @param app_hdr_size_arr same as @ref data_size_arr for application headers
  * @param chunks_num - how many chunks fits in this memory block.
+ * @param data_mkey - Memory keys representing the packet payload registered memory regions
+ *    for each redundant stream in the same order as streams listed in the SDP file.
+ *    Ignored if RMAX_OUT_BUFFER_ATTR_DATA_MKEY_IS_SET flag is not set in
+ *    buffer attributes.
+ * @param app_hdr_mkey - Memory keys representing the application headers
+ *    registered memory regions for each redundant stream in the same order as
+ *    streams listed in the SDP file. Ignored if
+ *    RMAX_OUT_BUFFER_ATTR_APP_HDR_MKEY_IS_SET flag is not set in buffer
+ *    attributes.
  *
  * Note:
  *    Rivermax supports two modes of operation:
@@ -313,7 +324,25 @@ struct rmax_mem_block {
     uint16_t      *data_size_arr;
     uint16_t      *app_hdr_size_arr;
     size_t        chunks_num;
+    rmax_mkey_id  data_mkey[RMAX_MAX_DUP_STREAMS];
+    rmax_mkey_id  app_hdr_mkey[RMAX_MAX_DUP_STREAMS];
 };
+
+/**
+ * Rivermax output buffer attributes flags.
+ * RMAX_OUT_BUFFER_ATTR_DATA_MKEY_IS_SET - when set Rivermax will skip memory
+ *      registration for data pointer and use @ref data_mkey field values from
+ *      @ref rmax_mem_block as memory key for data memory block
+ * RMAX_OUT_BUFFER_ATTR_APP_HDR_MKEY_IS_SET - when set Rivermax will skip
+ *      memory registration for application headers pointer and use @ref
+ *      app_hdr_mkey field values from @ref rmax_mem_block as memory key for
+ *      header memory block
+ */
+typedef enum rmax_out_buffer_attr_flags_t {
+    RMAX_OUT_BUFFER_ATTR_FLAG_NONE = 0x00,
+    RMAX_OUT_BUFFER_ATTR_DATA_MKEY_IS_SET = 0x01,
+    RMAX_OUT_BUFFER_ATTR_APP_HDR_MKEY_IS_SET = 0x02
+} rmax_out_buffer_attr_flags;
 
 /**
  * @param chunk_size_in_strides - size of data\app_header chunks in units of
@@ -327,6 +356,7 @@ struct rmax_mem_block {
  *     If zero application headers are ignored and only data chunks are handled
  *     by rivermax: rmax_out_get_next_chunk returns pointer only to data chunk and
  *     rmax_out_commit sends only data chunks.
+ * @attr_flags - as described in buffer attributes
  */
 struct rmax_buffer_attr {
     size_t                chunk_size_in_strides;
@@ -334,6 +364,7 @@ struct rmax_buffer_attr {
     size_t                mem_block_array_len;
     uint16_t              data_stride_size;
     uint16_t              app_hdr_stride_size;
+    rmax_out_buffer_attr_flags attr_flags;
 };
 
 /**
@@ -364,6 +395,8 @@ struct rmax_out_comp_prop {
  * @ref typical_packet_sz - stream typical packet size in Bytes (optional)
  * @ref min_packet_sz - stream minimal packet size in Bytes (optional)
  * @ref max_packet_sz - stream maximal packet size in Bytes (optional)
+ * @note For Generic API typical_packet_sz is mandatory field and
+ * min_packet_sz/max_packet_sz are reserved for future use.
  */
 struct rmax_out_rate_attr {
     uint64_t rate_bps;
@@ -504,10 +537,13 @@ struct rmax_chunk {
  * Rivermax input stream types
  * RMAX_RAW_PACKET - application gets access to full raw packet including the network headers
  * RMAX_APP_PROTOCOL_PACKET - application gets access only to L4 payload
+ * RMAX_APP_PROTOCOL_PAYLOAD - application gets access to application payload without application header
+ *                             This option is not supported currently.
  */
 typedef enum rmax_in_stream_type_t {
     RMAX_RAW_PACKET,
     RMAX_APP_PROTOCOL_PACKET,
+    RMAX_APP_PROTOCOL_PAYLOAD,
 } rmax_in_stream_type;
 
 /**
@@ -546,11 +582,15 @@ typedef enum rmax_in_comp_flags_t {
 /**
  * @param ptr [in] - memory pointer to use for the buffer, if NULL Rivermax will allocate,
  *     please use @ref rmax_in_query_buffer_size to get the size. The memory must be aligned to
- *     cache line unless RMAX_IN_BUFFER_ATTER_STREAM_RTP_SEQN_PLACEMENT_ORDER/RMAX_IN_BUFFER_ATTER_STREAM_RTP_EXT_SEQN_PLACEMENT_ORDER
+ *     cache line unless one of the following @ref rmax_in_buffer_attr_flags used:
+ *         - RMAX_IN_BUFFER_ATTER_STREAM_RTP_SEQN_PLACEMENT_ORDER
+ *         - RMAX_IN_BUFFER_ATTER_STREAM_RTP_EXT_SEQN_PLACEMENT_ORDER
  *     flags are being used in which case the memory must be aligned to page size.
  * @param min_size [in] - minimal size that will be received by input stream
  * @param max_size [in] - maximal size that will be received by input stream
  * @param stride_size [out]- offset between the beginning of one data stride to the next
+ * @param mkey [in] - Memory key representing the registered memory region if
+ *      registered by application.
  */
 
 struct rmax_in_memblock {
@@ -558,6 +598,7 @@ struct rmax_in_memblock {
    uint16_t min_size;
    uint16_t max_size;
    uint16_t stride_size;
+   rmax_mkey_id mkey;
 };
 
 /**
@@ -566,11 +607,19 @@ struct rmax_in_memblock {
  * the incoming packets according to RTP sequence number
  * RMAX_IN_BUFFER_ATTER_STREAM_RTP_EXT_SEQN_PLACEMENT_ORDER - when set input stream will
  * locate the incoming packets according to RTP extended sequence number
+ * RMAX_IN_BUFFER_ATTR_BUFFER_DATA_MKEY_IS_SET - when set Rivermax skips
+ * memory registration and use @ref mkey field from @ref
+ * rmax_in_buffer_attr.data as memory key for data memory block
+ * RMAX_IN_BUFFER_ATTR_BUFFER_APP_HDR_MKEY_IS_SET - when set Rivermax skips
+ * memory registration and use @ref mkey field from @ref
+ * rmax_in_buffer_attr.hdr as memory key for application headers memory block
  */
 typedef enum rmax_in_buffer_attr_flags_t {
     RMAX_IN_BUFFER_ATTER_FLAG_NONE = 0x00,
     RMAX_IN_BUFFER_ATTER_STREAM_RTP_SEQN_PLACEMENT_ORDER = 0x01,
     RMAX_IN_BUFFER_ATTER_STREAM_RTP_EXT_SEQN_PLACEMENT_ORDER = 0x02,
+    RMAX_IN_BUFFER_ATTR_BUFFER_DATA_MKEY_IS_SET = 0x04,
+    RMAX_IN_BUFFER_ATTR_BUFFER_APP_HDR_MKEY_IS_SET = 0x08,
 } rmax_in_buffer_attr_flags;
 
 /**
@@ -579,7 +628,7 @@ typedef enum rmax_in_buffer_attr_flags_t {
  *     by Rivermax.
  * @param data - describes payload part of an incoming packet
  * @param hdr - describes user header part of an incoming packet
- * @attr_flags - describes in buffer attributes
+ * @attr_flags - describes in buffer attributes, see @ref rmax_in_buffer_attr_flags.
  * @note In case user provides a data pointer and no hdr pointer but does provide
  * header sizes, it is assumed that the length of the data buffer is big enough to hold both the
  * user header and payload. Both sizes can be calculated by @ref rmax_in_query_buffer_size
@@ -589,7 +638,7 @@ struct rmax_in_buffer_attr {
     uint32_t                  num_of_elements;
     struct rmax_in_memblock   *data;
     struct rmax_in_memblock   *hdr;
-    rmax_in_buffer_attr_flags attr_flags;
+    uint64_t attr_flags;
 };
 
 /**
@@ -671,6 +720,16 @@ struct rmax_in_completion {
     struct rmax_in_packet_info *packet_info_arr;
 };
 
+/**
+ * Rivermax memory key flags.
+ * RMAX_MKEY_FLAG_NONE - no flag is set
+ * RMAX_MKEY_FLAG_ZERO_BASED - Memory key address space starts at 0 (zero-based)
+ */
+typedef enum rmax_memory_key_flags_t {
+    RMAX_MKEY_FLAG_NONE = 0x00,
+    RMAX_MKEY_FLAG_ZERO_BASED = 0x01
+} rmax_memory_key_flags;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -724,7 +783,7 @@ rmax_status_t rmax_init_version(unsigned api_major_version,
  *
  * @return Status code as defined by @ref rmax_status_t
  * */
-inline rmax_status_t rmax_init(struct rmax_init_config *init_config) {
+static inline rmax_status_t rmax_init(struct rmax_init_config *init_config) {
     return rmax_init_version(RMAX_API_MAJOR, RMAX_API_MINOR, init_config);
 }
 
@@ -792,12 +851,16 @@ rmax_status_t rmax_get_event_channel(rmax_stream_id id, rmax_event_channel_t *ev
 /**
  * @brief Registers memory region
  *
- * This function register virtual memory @addr with size @size with device
+ * This function registers virtual memory @addr with size @length with device
  * specified by @dev_addr.
+ *
+ * @note: @ref addr must be aligned to page size and @ref length must be a
+ * multiple of page size.
+ *
  * @param [in] addr - memory region virtual address
  * @param [in] length - memory region lengths in Bytes
- * @param [in] dev_addr - register memory for dev with dev_addr address
- * @param [out] id - ID of Memory Key that represents the registered memory region
+ * @param [in] dev_addr - register memory for dev with dev_addr network address
+ * @param [out] id - ID of memory key that represents the registered memory region
  *
  * @return Status code as defined by @ref rmax_status_t
  */
@@ -806,11 +869,33 @@ rmax_status_t rmax_register_memory(void *addr, size_t length,
                                   struct in_addr dev_addr, rmax_mkey_id *id);
 
 /**
+ * @brief Registers memory region (extended)
+ *
+ * This function registers virtual memory @addr with size @length with device
+ * specified by @dev_addr.
+ *
+ * @note: @ref addr must be aligned to page size and @ref length must be a
+ * multiple of page size.
+ *
+ * @param [in] addr - memory region virtual address
+ * @param [in] length - memory region length in Bytes
+ * @param [in] dev_addr - register memory for dev with dev_addr network address
+ * @param [in] flags - Memory key flags, see @ref rmax_memory_key_flags.
+ * @param [out] id - ID of memory key that represents the registered memory region
+ *
+ * @return Status code as defined by @ref rmax_status_t
+ */
+__export
+rmax_status_t rmax_register_memory_ex(void *addr, size_t length,
+                                  struct in_addr dev_addr, rmax_memory_key_flags flags,
+                                  rmax_mkey_id *id);
+
+/**
  * @brief Unregisters memory region
  *
  * This function unregisters memory region specified by @id from device
  * specified by @dev_addr.
- * @param [in] id - ID of Memory Key that represents the registered memory region
+ * @param [in] id - ID of memory key that represents the registered memory region
  * @param [in] dev_addr - unregister memory for dev with dev_addr address
  *
  * @return Status code as defined by @ref rmax_status_t
@@ -923,7 +1008,7 @@ rmax_status_t rmax_out_create_gen_stream(struct rmax_out_gen_stream_params *para
  */
 __export
 rmax_status_t rmax_out_modify_gen_stream_rate(rmax_stream_id stream_id,
-                                  uint64_t *new_rate);
+                                  struct rmax_out_rate_attr *new_rate);
 
 /**
  * @brief Returns number of chunks in out stream
@@ -971,6 +1056,11 @@ rmax_status_t rmax_out_destroy_stream(rmax_stream_id id);
  *   RMAX_ERR_HW_SEND_QUEUE_FULL.
  *   Application is responsible to retry in this case till it
  *   gets status != RMAX_ERR_HW_SEND_QUEUE_FULL.
+ *   - RMAX_ERR_BUSY may be returned for generic streams if @ref rmax_out_modify_gen_stream_rate
+ *   was previously called and there are still outstanding committed chunks from before the request
+ *   for rate change queued to be sent to the wire.
+ *   It is the application's responsibility to retry sending until all chunks with the previous rate
+ *   have been sent, after which RMAX_OUT_COMMIT will complete successfully.
  *   @note In dynamic mode RMAX_ERR_NO_MEMORY is returned if packet sized asked for is more then
  *   @data_stride_size.
  */
@@ -1162,9 +1252,12 @@ rmax_status_t rmax_out_skip_chunks(rmax_stream_id id, uint64_t skip);
  *     header and payload sizes.
  *     Rivermax will know to use this size if user provides a pointer in hdr_ptr or the 
  *     @ref buffer_attr when creating the session.
+ *     In case of rx_type = @ref rmax_in_stream_type.RMAX_APP_PROTOCOL_PAYLOAD, it should be
+ *     set to NULL, the return payload_size in this case will include only payload size.
  * @return status code as defined by @ref rmax_status_t
  * @note the pointer given in @ref rmax_in_create_stream must be aligned to cache line unless
- *     RMAX_IN_BUFFER_ATTER_STREAM_RTP_SEQN_PLACEMENT_ORDER/RMAX_IN_BUFFER_ATTER_STREAM_RTP_EXT_SEQN_PLACEMENT_ORDER
+ *     - RMAX_IN_BUFFER_ATTER_STREAM_RTP_SEQN_PLACEMENT_ORDER
+ *     - RMAX_IN_BUFFER_ATTER_STREAM_RTP_EXT_SEQN_PLACEMENT_ORDER
  *     flags are being used, in which case memory must be aligned to page size, see @rmax_in_buffer_attr_flags
  */
 __export
