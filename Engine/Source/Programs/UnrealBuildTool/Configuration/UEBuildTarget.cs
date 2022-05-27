@@ -786,6 +786,7 @@ namespace UnrealBuildTool
 				RulesObject.bForceUnityBuild = false;
 				RulesObject.bUsePCHFiles = false;
 				RulesObject.bDisableLinking = true;
+				RulesObject.bIgnoreBuildOutputs = true;
 			}
 
 			// If the files to compile contains headers, figure out the cpp files that include them
@@ -1441,6 +1442,13 @@ namespace UnrealBuildTool
 			{
 				DirectoryReference ForeignPluginDir = ForeignPlugin.Directory;
 				Manifest.BuildProducts.RemoveAll(x => !new FileReference(x).IsUnderDirectory(ForeignPluginDir));
+			}
+
+			// Completely ignore build outputs if requested
+			if (Rules.bIgnoreBuildOutputs)
+			{
+				Manifest.BuildProducts.Clear();
+				Manifest.DeployTargetFiles.Clear();
 			}
 
 			Manifest.BuildProducts.Sort();

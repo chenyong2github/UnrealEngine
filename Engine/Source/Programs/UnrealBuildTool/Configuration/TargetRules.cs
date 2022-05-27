@@ -1518,6 +1518,11 @@ namespace UnrealBuildTool
 		public bool bDisableLinking = false;
 
 		/// <summary>
+		/// Whether to ignore tracking build outputs for this target.
+		/// </summary>
+		public bool bIgnoreBuildOutputs = false;
+
+		/// <summary>
 		/// Indicates that this is a formal build, intended for distribution. This flag is automatically set to true when Build.version has a changelist set.
 		/// The only behavior currently bound to this flag is to compile the default resource file separately for each binary so that the OriginalFilename field is set correctly.
 		/// By default, we only compile the resource once to reduce build times.
@@ -3028,6 +3033,11 @@ namespace UnrealBuildTool
 		public bool bDisableLinking
 		{
 			get { return Inner.bDisableLinking; }
+		}
+
+		public bool bIgnoreBuildOutputs
+		{
+			get { return Inner.bIgnoreBuildOutputs; }
 		}
 
 		public bool bFormalBuild
