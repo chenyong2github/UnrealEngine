@@ -6,20 +6,16 @@
 #include "UObject/GCObject.h"
 #include "Containers/Ticker.h"
 
+class USocialUser;
+
 enum class EMemberExitedReason : uint8;
 typedef TSharedRef<const IOnlinePartyRequestToJoinInfo> IOnlinePartyRequestToJoinInfoConstRef;
 
-class FSocialUserList : public ISocialUserList, public FGCObject, public TSharedFromThis<FSocialUserList>
+class FSocialUserList : public ISocialUserList, public TSharedFromThis<FSocialUserList>
 {
 	friend class USocialToolkit;
 public:
 	static TSharedRef<FSocialUserList> CreateUserList(const USocialToolkit& InOwnerToolkit, const FSocialUserListConfig& Config);
-
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("FSocialUserList");
-	}
 
 	FOnUserAdded& OnUserAdded() const override { return OnUserAddedEvent; }
 	FOnUserRemoved& OnUserRemoved() const override { return OnUserRemovedEvent; }
@@ -27,10 +23,10 @@ public:
 
 	virtual FString GetListName() const override { return ListConfig.Name; }
 
-	void UpdateNow();
-	void SetAllowAutoUpdate(bool bIsEnabled);
-	void SetAllowSortDuringUpdate(bool bIsEnabled);
-	const TArray<USocialUser*>& GetUsers() const { return Users; }
+	virtual void UpdateNow() override;
+	virtual void SetAllowAutoUpdate(bool bIsEnabled) override;
+	virtual void SetAllowSortDuringUpdate(bool bIsEnabled) override;
+	virtual const TArray<TWeakObjectPtr<USocialUser>>& GetUsers() const override { return Users; }
 
 	bool HasPresenceFilters() const;
 
@@ -89,12 +85,8 @@ private:
 	void InitializeList();
 
 	TWeakObjectPtr<const USocialToolkit> OwnerToolkit;
-
-	UPROPERTY()
-	TArray<USocialUser*> Users;
-
-	UPROPERTY()
-	TArray<USocialUser*> PendingAdds;
+	TArray<TWeakObjectPtr<USocialUser>> Users;
+	TArray<TWeakObjectPtr<USocialUser>> PendingAdds;
 
 	TSet<TWeakObjectPtr<USocialUser>> UsersWithDirtyPresence;
 	TArray<TWeakObjectPtr<const USocialUser>> PendingRemovals;

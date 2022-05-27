@@ -89,11 +89,6 @@ void FSocialUserList::InitializeList()
 	SetAllowAutoUpdate(ListConfig.bAutoUpdate);
 }
 
-void FSocialUserList::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	Collector.AddReferencedObjects(Users);
-}
-
 void FSocialUserList::UpdateNow()
 {
 	UpdateListInternal();
@@ -129,9 +124,9 @@ void FSocialUserList::HandleOwnerToolkitReset()
 {
 	const bool bTriggerChangeEvent = Users.Num() > 0;
 
-	for (const USocialUser* User : Users)
+	for (TWeakObjectPtr<USocialUser> UserPtr : Users)
 	{
-		if (ensureMsgf(User, TEXT("Encountered a nullptr entry in FSocialUserList::Users array!")))
+		if (USocialUser* User = UserPtr.Get(); ensureMsgf(User, TEXT("Encountered a nullptr entry in FSocialUserList::Users array!")))
 		{
 			OnUserRemoved().Broadcast(*User);
 		}
@@ -486,7 +481,7 @@ struct FUserSortData
 		, CustomSortValueTertiary(InCustomSortValueTertiary) 
 	{ }
 
-	USocialUser* User;
+	USocialUser* User = nullptr;
 	EOnlinePresenceState::Type OnlineStatus;
 	bool PlayingThisGame;
 	FString DisplayName;
@@ -576,7 +571,7 @@ void FSocialUserList::UpdateListInternal()
 		bListUpdated = true;
 
 		Users.RemoveAllSwap(
-			[this] (USocialUser* User)
+			[this] (TWeakObjectPtr<USocialUser> User)
 		{
 				if (PendingRemovals.Contains(User))
 				{
@@ -596,9 +591,12 @@ void FSocialUserList::UpdateListInternal()
 		bListUpdated = true;
 		Users.Append(PendingAdds);
 
-		for (USocialUser* User : PendingAdds)
+		for (TWeakObjectPtr<USocialUser> UserPtr : PendingAdds)
 		{
-			OnUserAdded().Broadcast(*User);
+			if (USocialUser* User = UserPtr.Get(); ensure(User))
+			{
+				OnUserAdded().Broadcast(*User);
+			}
 		}
 		PendingAdds.Reset();
 	}
@@ -620,18 +618,19 @@ void FSocialUserList::UpdateListInternal()
 				TArray<FUserSortData> SortedData;
 				SortedData.Reserve(NumUsers);
 
-				Algo::Transform(Users, SortedData, [](USocialUser* const User) -> FUserSortData
+				Algo::TransformIf(Users, SortedData, 
+					[](const TWeakObjectPtr<USocialUser> UserPtr) { return UserPtr.IsValid(); }, 
+					[](const TWeakObjectPtr<USocialUser> UserPtr) -> FUserSortData
 				{
+					USocialUser* User = UserPtr.Get();
 					return FUserSortData(User, User->GetOnlineStatus(), User->IsPlayingThisGame(), User->GetDisplayName(), User->GetCustomSortValuePrimary(), User->GetCustomSortValueSecondary(), User->GetCustomSortValueTertiary());
 				});
 
 				Algo::Sort(SortedData);
 
 				// replace contents of Users from SortedData array
-				for (int Index = 0; Index < NumUsers; Index++)
-				{
-					Users[Index] = SortedData[Index].User;
-				}
+				Users.Reset(SortedData.Num());
+				Algo::Transform(SortedData, Users, [](const FUserSortData& Data){ return Data.User; });
 			}
 		}
 		else

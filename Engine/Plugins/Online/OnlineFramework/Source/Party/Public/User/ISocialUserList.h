@@ -91,7 +91,7 @@ public:
 	DECLARE_EVENT(ISocialUserList, FOnUpdateComplete)
 	virtual FOnUpdateComplete& OnUpdateComplete() const = 0;
 
-	virtual const TArray<USocialUser*>& GetUsers() const = 0;
+	virtual const TArray<TWeakObjectPtr<USocialUser>>& GetUsers() const = 0;
 	virtual FString GetListName() const = 0;
 
 	/** Trigger an update of the list immediately, regardless of auto update period */
