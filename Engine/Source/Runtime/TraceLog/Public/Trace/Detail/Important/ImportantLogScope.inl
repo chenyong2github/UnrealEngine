@@ -27,7 +27,7 @@ TRACELOG_API FNextSharedBuffer				Writer_NextSharedBuffer(FSharedBuffer*, int32,
 template <class T>
 FORCENOINLINE FImportantLogScope FImportantLogScope::Enter(uint32 ArrayDataSize)
 {
-	static_assert(uint32(T::EventFlags) & uint32(FEventInfo::Flag_MaybeHasAux), "Only important trace events with array-type fields need a size parameter to UE_TRACE_LOG()");
+	static_assert(!!(uint32(T::EventFlags) & uint32(FEventInfo::Flag_MaybeHasAux)), "Only important trace events with array-type fields need a size parameter to UE_TRACE_LOG()");
 
 	ArrayDataSize += sizeof(FAuxHeader) * T::EventProps_Meta::NumAuxFields;
 	ArrayDataSize += 1; // for AuxDataTerminal
