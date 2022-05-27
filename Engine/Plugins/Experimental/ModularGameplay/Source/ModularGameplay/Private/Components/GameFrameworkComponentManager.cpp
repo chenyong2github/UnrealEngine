@@ -118,9 +118,9 @@ void UGameFrameworkComponentManager::Deinitialize()
 #endif
 }
 
+#if WITH_EDITORONLY_DATA
 void UGameFrameworkComponentManager::PostGC()
 {
-#if WITH_EDITORONLY_DATA
 	// Clear invalid receivers. 
 	for (auto It = AllReceivers.CreateIterator(); It; ++It)
 	{
@@ -129,8 +129,8 @@ void UGameFrameworkComponentManager::PostGC()
 			It.RemoveCurrent();
 		}
 	}
-#endif
 }
+#endif
 
 UGameFrameworkComponentManager* UGameFrameworkComponentManager::GetForActor(const AActor* Actor, bool bOnlyGameWorlds)
 {
