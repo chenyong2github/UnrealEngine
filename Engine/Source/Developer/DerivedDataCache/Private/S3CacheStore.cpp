@@ -4,12 +4,12 @@
 
 #if WITH_S3_DDC_BACKEND
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#include "Windows/WindowsHWrapper.h"
-	#include "Windows/AllowWindowsPlatformTypes.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/WindowsHWrapper.h"
+	#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #endif
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	#include "Windows/HideWindowsPlatformTypes.h"
+#if PLATFORM_MICROSOFT
+	#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
 
 #include "Algo/AllOf.h"

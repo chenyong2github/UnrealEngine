@@ -51,8 +51,8 @@
 	#define SLATE_HAS_WIDGET_REFLECTOR !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && PLATFORM_DESKTOP
 #endif
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-#include "Windows/WindowsHWrapper.h"
+#if PLATFORM_MICROSOFT
+#include "Microsoft/WindowsHWrapper.h"
 #endif
 #include "Debugging/SlateDebugging.h"
 #include "Styling/StyleColors.h"

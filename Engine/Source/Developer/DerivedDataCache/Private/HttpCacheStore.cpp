@@ -50,12 +50,12 @@
 
 #include "Http/HttpClient.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-#include "Windows/WindowsHWrapper.h"
-#include "Windows/AllowWindowsPlatformTypes.h"
+#if PLATFORM_MICROSOFT
+#include "Microsoft/WindowsHWrapper.h"
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include "Windows/HideWindowsPlatformTypes.h"
+#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #else
 #include <sys/types.h>
 #include <sys/socket.h>

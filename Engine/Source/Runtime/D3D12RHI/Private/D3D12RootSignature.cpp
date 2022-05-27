@@ -17,9 +17,9 @@
 #endif
 
 #if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
-#include "Windows/AllowWindowsPlatformTypes.h"
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 #include "amd_ags.h"
-#include "Windows/HideWindowsPlatformTypes.h"
+#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
 
 // Allows to automatically bind UEDiagnosticBuffer UAV, available to all shaders.

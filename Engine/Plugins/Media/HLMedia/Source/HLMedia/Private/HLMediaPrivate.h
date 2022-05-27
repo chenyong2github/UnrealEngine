@@ -8,9 +8,9 @@
 #include "Containers/UnrealString.h"
 #include "Logging/LogMacros.h"
 
-#if (defined(PLATFORM_WINDOWS) || defined(PLATFORM_HOLOLENS))
-#include "Windows/WindowsHWrapper.h"
-#include "Windows/AllowWindowsPlatformTypes.h"
+#if PLATFORM_MICROSOFT
+#include "Microsoft/WindowsHWrapper.h"
+#include "Microsoft/AllowMicrosoftPlatformTypes.h"
 
 #if PLATFORM_DESKTOP
     #if PLATFORM_64BITS
@@ -51,8 +51,8 @@ THIRD_PARTY_INCLUDES_END
 
 #include "Microsoft/COMPointer.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-#include "Windows/HideWindowsPlatformTypes.h"
+#if PLATFORM_MICROSOFT
+#include "Microsoft/HideMicrosoftPlatformTypes.h"
 #endif
 
 // General Log

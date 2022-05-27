@@ -28,8 +28,8 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-#include "Windows/WindowsHWrapper.h"
+#if PLATFORM_MICROSOFT
+#include "Microsoft/WindowsHWrapper.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "DataprepGraphEditor"
