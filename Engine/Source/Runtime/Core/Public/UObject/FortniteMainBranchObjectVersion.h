@@ -214,6 +214,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Single-frame/key AnimDataModel patch-up
 		SingleFrameAndKeyAnimModel,
 
+		// Remapped bEvaluateWorldPositionOffset to bEvaluateWorldPositionOffsetInRayTracing
+		RemappedEvaluateWorldPositionOffsetInRayTracing,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
