@@ -202,6 +202,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bDisallowMeshPaintPerInstance = false;
 	bDisallowNanite = false;
 	bEvaluateWorldPositionOffset = false;
+	bEvaluateWorldPositionOffsetInRayTracing = false;
 	DistanceFieldIndirectShadowMinVisibility = .1f;
 	GetBodyInstance()->bAutoWeld = true;	//static mesh by default has auto welding
 

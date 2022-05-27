@@ -161,6 +161,7 @@ void FPreviewScene::AddComponent(UActorComponent* Component,const FTransform& Lo
 		if(pStaticMesh != nullptr)
 		{
 			pStaticMesh->bEvaluateWorldPositionOffset = true;
+			pStaticMesh->bEvaluateWorldPositionOffsetInRayTracing = true;
 		}
 	}
 

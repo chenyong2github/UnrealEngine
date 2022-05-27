@@ -1626,6 +1626,11 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 			Component->bEvaluateWorldPositionOffset = FoliageType->bEvaluateWorldPositionOffset;
 			bNeedsMarkRenderStateDirty = true;
 		}
+		if (Component->bEvaluateWorldPositionOffsetInRayTracing != FoliageType->bEvaluateWorldPositionOffset)
+		{
+			Component->bEvaluateWorldPositionOffsetInRayTracing = FoliageType->bEvaluateWorldPositionOffset;
+			bNeedsMarkRenderStateDirty = true;
+		}
 
 
 		if (Component->bEnableDensityScaling != FoliageType->bEnableDensityScaling)
