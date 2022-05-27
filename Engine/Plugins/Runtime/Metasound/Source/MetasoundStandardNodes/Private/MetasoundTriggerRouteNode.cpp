@@ -171,6 +171,20 @@ namespace Metasound
 		{
 			check(InputValues.Num() > 0)
 			CurrentIndex = 0;
+
+			for (uint32 i = 0; i < NumInputs; ++i)
+			{
+				InputTriggers[i]->ExecuteBlock(
+					[&](int32 StartFrame, int32 EndFrame)
+					{
+					},
+					[this, i](int32 StartFrame, int32 EndFrame)
+					{
+						CurrentIndex = i;
+					}
+				);
+			}
+
 			*OutputValue = *InputValues[CurrentIndex];
 		}
 
@@ -215,11 +229,12 @@ namespace Metasound
 					[this, i](int32 StartFrame, int32 EndFrame)
 					{
 						CurrentIndex = i;
-						*OutputValue = *InputValues[CurrentIndex];
 						OutputTrigger->TriggerFrame(StartFrame);
 					}
 				);
-			}			
+			}
+
+			*OutputValue = *InputValues[CurrentIndex];
 		}
 
 	private:
