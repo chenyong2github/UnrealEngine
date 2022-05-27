@@ -1075,17 +1075,18 @@ bool STableTreeView::ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, b
 
 	if (NodePtr->IsGroup())
 	{
-		// If a group node passes the filter, all child nodes will be shown
+		// If a group node passes the filter, all child nodes will be shown.
 		if (bIsNodeVisible)
 		{
 			MakeSubtreeVisible(NodePtr, bFilterIsEmpty);
 			return true;
 		}
 
-		NodePtr->ClearFilteredChildren();
-
 		const TArray<FBaseTreeNodePtr>& GroupChildren = NodePtr->GetChildren();
 		const int32 NumChildren = GroupChildren.Num();
+
+		NodePtr->ClearFilteredChildren(bFilterIsEmpty ? NumChildren : 0);
+
 		int32 NumVisibleChildren = 0;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
 		{
@@ -1093,6 +1094,7 @@ bool STableTreeView::ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, b
 			{
 				break;
 			}
+
 			// Add a child.
 			const FTableTreeNodePtr& ChildNodePtr = StaticCastSharedPtr<FTableTreeNode>(GroupChildren[Cx]);
 			if (ApplyHierarchicalFilterForNode(ChildNodePtr, bFilterIsEmpty))
@@ -1103,7 +1105,7 @@ bool STableTreeView::ApplyHierarchicalFilterForNode(FTableTreeNodePtr NodePtr, b
 		}
 
 		const bool bIsGroupNodeVisible = bIsNodeVisible || NumVisibleChildren > 0;
-		if (!bFilterIsEmpty && bIsGroupNodeVisible )
+		if (!bFilterIsEmpty && bIsGroupNodeVisible)
 		{
 			if (bRunInAsyncMode)
 			{
@@ -1129,10 +1131,11 @@ bool STableTreeView::ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr)
 {
 	if (NodePtr->IsGroup())
 	{
-		NodePtr->ClearFilteredChildren();
-
 		const TArray<FBaseTreeNodePtr>& GroupChildren = NodePtr->GetChildren();
 		const int32 NumChildren = GroupChildren.Num();
+
+		NodePtr->ClearFilteredChildren();
+
 		int32 NumVisibleChildren = 0;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
 		{
@@ -1140,6 +1143,7 @@ bool STableTreeView::ApplyAdvancedFiltersForNode(FTableTreeNodePtr NodePtr)
 			{
 				break;
 			}
+
 			// Add a child.
 			const FTableTreeNodePtr& ChildNodePtr = StaticCastSharedPtr<FTableTreeNode>(GroupChildren[Cx]);
 			if (ApplyAdvancedFiltersForNode(ChildNodePtr))
@@ -1178,10 +1182,11 @@ bool STableTreeView::MakeSubtreeVisible(FTableTreeNodePtr NodePtr, bool bFilterI
 	bool bPassesNonEmptyFilter = !bFilterIsEmpty && Filters->PassesAllFilters(NodePtr);
 	if (NodePtr->IsGroup())
 	{
-		NodePtr->ClearFilteredChildren();
-
 		const TArray<FBaseTreeNodePtr>& GroupChildren = NodePtr->GetChildren();
 		const int32 NumChildren = GroupChildren.Num();
+
+		NodePtr->ClearFilteredChildren(bFilterIsEmpty ? NumChildren : 0);
+
 		int32 NumVisibleChildren = 0;
 		bool bShouldExpand = false;
 		for (int32 Cx = 0; Cx < NumChildren; ++Cx)
@@ -1407,6 +1412,7 @@ void STableTreeView::ApplyGrouping()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Note: This function is also called from async thread, with CurrentAsyncOpGroupings as parameter.
 void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings)
 {
 	if (TableTreeNodes.Num() == 0)
@@ -1418,7 +1424,10 @@ void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& G
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
-	GroupNodesRec(TableTreeNodes, *Root, 0, Groupings);
+	if (Groupings.Num() > 0)
+	{
+		GroupNodesRec(TableTreeNodes, *Root, 0, Groupings);
+	}
 
 	Stopwatch.Stop();
 	const double GroupingTime = Stopwatch.GetAccumulatedTime();
@@ -1434,47 +1443,73 @@ void STableTreeView::CreateGroups(const TArray<TSharedPtr<FTreeNodeGrouping>>& G
 
 void STableTreeView::GroupNodesRec(const TArray<FTableTreeNodePtr>& Nodes, FTableTreeNode& ParentGroup, int32 GroupingDepth, const TArray<TSharedPtr<FTreeNodeGrouping>>& Groupings)
 {
-	if (bIsUpdateRunning && AsyncOperationProgress.ShouldCancelAsyncOp())
+	if (AsyncOperationProgress.ShouldCancelAsyncOp())
 	{
 		return;
 	}
 
-	if (Groupings.Num() == 0)
+	if (!ensure(GroupingDepth < Groupings.Num()))
 	{
 		return;
 	}
 
+	TSet<FBaseTreeNode*> OldGroupNodes;
+
+	// Apply current grouping recursively to the (old) group nodes.
+	for (FBaseTreeNodePtr NodePtr : Nodes)
+	{
+		if (NodePtr->IsGroup())
+		{
+			OldGroupNodes.Add(NodePtr.Get());
+
+			FTableTreeNode& Group = static_cast<FTableTreeNode&>(*NodePtr);
+
+			// Extract child nodes.
+			TArray<FTableTreeNodePtr> ChildNodes;
+			Group.SwapChildrenFast(reinterpret_cast<TArray<FBaseTreeNodePtr>&>(ChildNodes));
+
+			GroupNodesRec(ChildNodes, Group, GroupingDepth, Groupings);
+		}
+	}
+
+	ParentGroup.ClearChildren();
+
+	// Group the current list of nodes.
 	FTreeNodeGrouping& Grouping = *Groupings[GroupingDepth];
-
 	Grouping.GroupNodes(Nodes, ParentGroup, Table, AsyncOperationProgress);
 
-	for (FBaseTreeNodePtr GroupPtr : ParentGroup.GetChildren())
+	if (AsyncOperationProgress.ShouldCancelAsyncOp())
 	{
-		ensure(GroupPtr->IsGroup());
-		FTableTreeNodePtr TableTreeGroupPtr = StaticCastSharedPtr<FTableTreeNode>(GroupPtr);
-		if (!bRunInAsyncMode)
-		{
-			TreeView->SetItemExpansion(TableTreeGroupPtr, TableTreeGroupPtr->IsExpanded());
-		}
+		return;
 	}
 
 	if (GroupingDepth < Groupings.Num() - 1)
 	{
-		TArray<FTableTreeNodePtr> ChildNodes;
-
+		// Apply the next grouping recursively to the new group nodes.
 		for (FBaseTreeNodePtr GroupPtr : ParentGroup.GetChildren())
 		{
 			ensure(GroupPtr->IsGroup());
-			FTableTreeNode& Group = *StaticCastSharedPtr<FTableTreeNode>(GroupPtr);
-
-			// Make a copy of the child nodes.
-			ChildNodes.Reset();
-			for (FBaseTreeNodePtr ChildPtr : Group.GetChildren())
+			if (!OldGroupNodes.Contains(GroupPtr.Get()))
 			{
-				ChildNodes.Add(StaticCastSharedPtr<FTableTreeNode>(ChildPtr));
-			}
+				FTableTreeNode& Group = static_cast<FTableTreeNode&>(*GroupPtr);
 
-			GroupNodesRec(ChildNodes, Group, GroupingDepth + 1, Groupings);
+				// Extract child nodes.
+				TArray<FTableTreeNodePtr> ChildNodes;
+				Group.SwapChildrenFast(reinterpret_cast<TArray<FBaseTreeNodePtr>&>(ChildNodes));
+
+				GroupNodesRec(ChildNodes, Group, GroupingDepth + 1, Groupings);
+			}
+		}
+	}
+
+	if (!bRunInAsyncMode)
+	{
+		// Expand group nodes.
+		for (FBaseTreeNodePtr GroupPtr : ParentGroup.GetChildren())
+		{
+			ensure(GroupPtr->IsGroup());
+			FTableTreeNodePtr TableTreeGroupPtr = StaticCastSharedPtr<FTableTreeNode>(GroupPtr);
+			TreeView->SetItemExpansion(TableTreeGroupPtr, TableTreeGroupPtr->IsExpanded());
 		}
 	}
 }

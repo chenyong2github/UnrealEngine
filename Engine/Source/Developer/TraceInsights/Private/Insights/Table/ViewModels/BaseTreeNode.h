@@ -172,14 +172,40 @@ public:
 		GroupData->Children.Add(ChildPtr);
 	}
 
-	/** Clears children. */
-	void ClearChildren(int32 NewSize = 0)
+	void SetGroupPtrForAllChildren()
+	{
+		FBaseTreeNodeWeak ThisNode = AsShared();
+		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
+		{
+			NodePtr->GroupPtr = ThisNode;
+		}
+	}
+
+	void ResetGroupPtrForAllChildren()
 	{
 		for (FBaseTreeNodePtr& NodePtr : GroupData->Children)
 		{
 			NodePtr->GroupPtr = nullptr;
 		}
+	}
+
+	/** Clears children. */
+	FORCEINLINE_DEBUGGABLE void ClearChildren(int32 NewSize = 0)
+	{
+		ResetGroupPtrForAllChildren();
 		GroupData->Children.Reset(NewSize);
+	}
+
+	FORCEINLINE_DEBUGGABLE void SwapChildren(TArray<FBaseTreeNodePtr>& NewChildren)
+	{
+		ResetGroupPtrForAllChildren();
+		Swap(NewChildren, GroupData->Children);
+		SetGroupPtrForAllChildren();
+	}
+
+	FORCEINLINE_DEBUGGABLE void SwapChildrenFast(TArray<FBaseTreeNodePtr>& NewChildren)
+	{
+		Swap(NewChildren, GroupData->Children);
 	}
 
 	/** Adds specified child to the filtered children. */
@@ -189,9 +215,9 @@ public:
 	}
 
 	/** Clears filtered children. */
-	void ClearFilteredChildren()
+	void ClearFilteredChildren(int32 NewSize = 0)
 	{
-		GroupData->FilteredChildren.Reset();
+		GroupData->FilteredChildren.Reset(NewSize);
 	}
 
 	bool IsExpanded() const { return GroupData->bIsExpanded; }
