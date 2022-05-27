@@ -676,6 +676,11 @@ public:
 	FShapedGlyphSequenceRef ShapeUnidirectionalText( const FString& InText, const FSlateFontInfo &InFontInfo, const float InFontScale, const TextBiDi::ETextDirection InTextDirection, const ETextShapingMethod InTextShapingMethod ) const;
 	FShapedGlyphSequenceRef ShapeUnidirectionalText( const TCHAR* InText, const int32 InTextStart, const int32 InTextLen, const FSlateFontInfo &InFontInfo, const float InFontScale, const TextBiDi::ETextDirection InTextDirection, const ETextShapingMethod InTextShapingMethod ) const;
 
+	/**
+	 * Performs text shaping on the overflow glyph sequence for a given font. The overflow sequence is used to replace characters that are clipped
+	 */
+	FShapedGlyphSequenceRef ShapeOverflowEllipsisText(const FSlateFontInfo& InFontInfo, const float InFontScale);
+
 	/** 
 	 * Gets information for how to draw all non-shaped characters in the specified string. Caches characters as they are found
 	 * 
@@ -693,6 +698,7 @@ public:
 	/**
 	 * Gets the overflow glyph sequence for a given font. The overflow sequence is used to replace characters that are clipped
 	 */
+	UE_DEPRECATED(5.1, "GetOverflowEllipsisText is known to create dangling pointer. Use FShapedTextCache::FindOrAddOverflowEllipsisText.")
 	FShapedGlyphSequenceRef GetOverflowEllipsisText(const FSlateFontInfo& InFontInfo, const float InFontScale);
 
 public:
@@ -900,9 +906,6 @@ private:
 
 	/** Mapping Font keys to cached data */
 	TMap<FSlateFontKey, TUniquePtr<FCharacterList>, FDefaultSetAllocator, FSlateFontKeyFuncs<TUniquePtr<FCharacterList>>> FontToCharacterListCache;
-
-	/** Caches overflow text to display usually an ellipsis character for text elements that are clipped and request replacing clipped text with an ellipsis */
-	TMap<FSlateFontKey, FShapedGlyphSequenceRef, FDefaultSetAllocator, FSlateFontKeyFuncs<FShapedGlyphSequenceRef>> FontToOverflowGlyphSequence;
 
 	/** Mapping shaped glyphs to their cached atlas data */
 	TMap<FShapedGlyphEntryKey, TSharedRef<FShapedGlyphFontAtlasData>> ShapedGlyphToAtlasData;

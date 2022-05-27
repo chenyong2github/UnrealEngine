@@ -91,6 +91,23 @@ FShapedGlyphSequenceRef FShapedTextCache::FindOrAddShapedText(const FCachedShape
 	return ShapedText.ToSharedRef();
 }
 
+FShapedGlyphSequenceRef FShapedTextCache::FindOrAddOverflowEllipsisText(const float InScale, const FShapedTextContext& InTextContext, const FSlateFontInfo& InFontInfo)
+{
+	FCachedShapedTextKey Key = FCachedShapedTextKey(FTextRange(), InScale, InTextContext, InFontInfo);
+	FShapedGlyphSequencePtr ShapedText = FindShapedText(Key);
+	if (ShapedText)
+	{
+		return ShapedText.ToSharedRef();
+	}
+
+	const TSharedPtr<FSlateFontCache> FontCache = FontCachePtr.Pin();
+	if (FontCache.IsValid())
+	{
+		return FontCache->ShapeOverflowEllipsisText(InFontInfo, InScale);
+	}
+	return MakeShareable(new FShapedGlyphSequence());
+}
+
 void FShapedTextCache::Clear()
 {
 	CachedShapedText.Reset();

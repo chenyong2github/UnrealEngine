@@ -115,8 +115,7 @@ int32 FSlateTextRun::OnPaint(const FPaintArgs& PaintArgs, const FTextArgs& TextA
 	FTextOverflowArgs OverflowArgs;
 	if (TextArgs.OverflowPolicy == ETextOverflowPolicy::Ellipsis && TextArgs.OverflowDirection != ETextOverflowDirection::NoOverflow)
 	{
-		TSharedRef<FSlateFontCache> FontCache = FSlateApplication::Get().GetRenderer()->GetFontCache();
-		OverflowArgs.OverflowTextPtr = FontCache->GetOverflowEllipsisText(Style.Font, AllottedGeometry.GetAccumulatedLayoutTransform().GetScale());
+		OverflowArgs.OverflowTextPtr = BlockTextContext.ShapedTextCache->FindOrAddOverflowEllipsisText(AllottedGeometry.GetAccumulatedLayoutTransform().GetScale(), BlockTextContext, Style.Font);
 		OverflowArgs.OverflowDirection = TextArgs.OverflowDirection;
 		OverflowArgs.bForceEllipsisDueToClippedLine = TextArgs.bForceEllipsisDueToClippedLine;
 	}

@@ -96,6 +96,14 @@ public:
 	FShapedGlyphSequenceRef FindOrAddShapedText(const FCachedShapedTextKey& InKey, const TCHAR* InText, const TextBiDi::ETextDirection InTextDirection);
 
 	/**
+	 * Try and find an existing overflow shaped text instance, or add a new entry to the cache if one cannot be found.
+	 * The overflow sequence is used to replace characters that are clipped.
+	 *
+	 * @return The shaped text instance
+	 */
+	FShapedGlyphSequenceRef FindOrAddOverflowEllipsisText(const float InScale, const FShapedTextContext& InTextContext, const FSlateFontInfo& InFontInfo);
+
+	/**
 	 * Clear this cache
 	 */
 	void Clear();

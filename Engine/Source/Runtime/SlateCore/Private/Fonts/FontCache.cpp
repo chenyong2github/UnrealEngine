@@ -902,7 +902,6 @@ FSlateFontCache::~FSlateFontCache()
 
 	// Make sure things get destroyed in the correct order
 	FontToCharacterListCache.Empty();
-	FontToOverflowGlyphSequence.Empty();
 	ShapedGlyphToAtlasData.Empty();
 	TextShaper.Reset();
 	FontRenderer.Reset();
@@ -1142,18 +1141,12 @@ FShapedGlyphFontAtlasData FSlateFontCache::GetShapedGlyphFontAtlasData( const FS
 
 FShapedGlyphSequenceRef FSlateFontCache::GetOverflowEllipsisText(const FSlateFontInfo& InFontInfo, const float InFontScale)
 {
-	FSlateFontKey Key(InFontInfo, InFontInfo.OutlineSettings, InFontScale);
+	return ShapeOverflowEllipsisText(InFontInfo, InFontScale);
+}
 
-	FShapedGlyphSequenceRef* FoundSequence = FontToOverflowGlyphSequence.Find(Key);
-
-	if (FoundSequence)
-	{
-		return *FoundSequence;
-	}
-
-	FShapedGlyphSequenceRef NewSequence = ShapeBidirectionalText(EllipsisText.ToString(), InFontInfo, InFontScale, TextBiDi::ETextDirection::LeftToRight, GetDefaultTextShapingMethod());
-
-	return FontToOverflowGlyphSequence.Add(Key, NewSequence);
+FShapedGlyphSequenceRef FSlateFontCache::ShapeOverflowEllipsisText(const FSlateFontInfo& InFontInfo, const float InFontScale)
+{
+	return ShapeBidirectionalText(EllipsisText.ToString(), InFontInfo, InFontScale, TextBiDi::ETextDirection::LeftToRight, GetDefaultTextShapingMethod());
 }
 
 const FFontData& FSlateFontCache::GetDefaultFontData( const FSlateFontInfo& InFontInfo ) const
@@ -1337,7 +1330,6 @@ void FSlateFontCache::FlushData()
 	}
 
 	FontToCharacterListCache.Empty();
-	FontToOverflowGlyphSequence.Empty();
 
 	ShapedGlyphToAtlasData.Empty();
 }
