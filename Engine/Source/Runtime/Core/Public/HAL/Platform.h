@@ -20,9 +20,6 @@
 	#define PLATFORM_MAC_X86 0
 	#define PLATFORM_MAC_ARM64 0
 #endif
-#if !defined(PLATFORM_PS4)
-	#define PLATFORM_PS4 0
-#endif
 #if !defined(PLATFORM_IOS)
 	#define PLATFORM_IOS 0
 #endif
