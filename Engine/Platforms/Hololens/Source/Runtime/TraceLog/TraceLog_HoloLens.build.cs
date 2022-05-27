@@ -6,6 +6,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public TraceLog_HoloLens(ReadOnlyTargetRules Target) : base(Target)
 		{
+			EnableTraceByDefault(Target);
 		}
 	}
 }
