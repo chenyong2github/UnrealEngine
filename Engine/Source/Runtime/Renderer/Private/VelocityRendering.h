@@ -50,9 +50,6 @@ struct FVelocityRendering
 	/** Returns true if the velocity can be output in the BasePass. Only valid for the current platform. */
 	static bool BasePassCanOutputVelocity(ERHIFeatureLevel::Type FeatureLevel);
 
-	/** Returns true if a separate velocity pass is required (i.e. not rendered by the base pass) given the provided vertex factory settings. */
-	static bool IsSeparateVelocityPassRequiredByVertexFactory(EShaderPlatform ShaderPlatform, bool bVertexFactoryUsesStaticLighting);
-
 	/** Returns true if the velocity pass is using parallel dispatch. */
 	static bool IsParallelVelocity(EShaderPlatform ShaderPlatform);
 

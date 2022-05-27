@@ -108,14 +108,15 @@ public:
 		const bool bHasPlatformSupport = PlatformSupportsVelocityRendering(Parameters.Platform);
 
 		/**
-		 * Any material with a vertex factory incompatible with base pass velocity generation must generate
-		 * permutations for this shader. Shaders which don't fall into this set are considered "simple" enough
-		 * to swap against the default material. This massively simplifies the calculations.
+		 * If we don't use base pass velocity then we may need to generate permutations for this shader. 
+		 * We only need to compile shaders which aren't considered "simple" enough to swap against the default material. 
+		 * This massively simplifies the calculations.
 		 */
-		const bool bIsSeparateVelocityPassRequired = (bIsDefault || bIsMasked || bIsOpaqueAndTwoSided || bMayModifyMeshes) &&
-			FVelocityRendering::IsSeparateVelocityPassRequiredByVertexFactory(Parameters.Platform, Parameters.VertexFactoryType->SupportsStaticLighting());
+		const bool bIsSeparateVelocityPassRequired = 
+			!FVelocityRendering::BasePassCanOutputVelocity(Parameters.Platform) &&
+			(bIsDefault || bIsMasked || bIsOpaqueAndTwoSided || bMayModifyMeshes);
 
-		// The material may explicitly override and request that it be rendered into the velocity pass.
+		// The material may explicitly request that it be rendered into the translucent velocity pass.
 		const bool bIsSeparateVelocityPassRequiredByMaterial = Parameters.MaterialParameters.bIsTranslucencyWritingVelocity;
 
 		return bHasPlatformSupport && (bIsSeparateVelocityPassRequired || bIsSeparateVelocityPassRequiredByMaterial);
@@ -404,17 +405,6 @@ bool FVelocityRendering::BasePassCanOutputVelocity(ERHIFeatureLevel::Type Featur
 	return BasePassCanOutputVelocity(ShaderPlatform);
 }
 
-bool FVelocityRendering::IsSeparateVelocityPassRequiredByVertexFactory(EShaderPlatform ShaderPlatform, bool bVertexFactoryUsesStaticLighting)
-{
-	// A separate pass is required if the base pass can't do it.
-	const bool bBasePassVelocityNotSupported = !BasePassCanOutputVelocity(ShaderPlatform);
-
-	// Meshes with static lighting need a separate velocity pass, but only if we are using selective render target outputs.
-	const bool bVertexFactoryRequiresSeparateVelocityPass = IsUsingSelectiveBasePassOutputs(ShaderPlatform) && bVertexFactoryUsesStaticLighting;
-
-	return bBasePassVelocityNotSupported || bVertexFactoryRequiresSeparateVelocityPass;
-}
-
 bool FVelocityRendering::IsParallelVelocity(EShaderPlatform ShaderPlatform)
 {
 	return GRHICommandList.UseParallelAlgorithms() && CVarParallelVelocity.GetValueOnRenderThread()
@@ -464,19 +454,6 @@ bool FOpaqueVelocityMeshProcessor::PrimitiveCanHaveVelocity(EShaderPlatform Shad
 	}
 
 	if (!PrimitiveSceneProxy->DrawsVelocity())
-	{
-		return false;
-	}
-
-	/**
-	 * Whether the vertex factory for this primitive requires that it render in the separate velocity pass, as opposed to the base pass.
-	 * In cases where the base pass is rendering opaque velocity for a particular mesh batch, we want to filter it out from this pass,
-	 * which performs a separate draw call to render velocity.
-	 */
-	const bool bIsSeparateVelocityPassRequiredByVertexFactory =
-		FVelocityRendering::IsSeparateVelocityPassRequiredByVertexFactory(ShaderPlatform, PrimitiveSceneProxy->HasStaticLighting());
-
-	if (!bIsSeparateVelocityPassRequiredByVertexFactory)
 	{
 		return false;
 	}

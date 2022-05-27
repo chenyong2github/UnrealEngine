@@ -2375,7 +2375,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	const bool bShouldRenderVelocities = ShouldRenderVelocities();
 	const bool bBasePassCanOutputVelocity = FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel);
-	const bool bUseSelectiveBasePassOutputs = IsUsingSelectiveBasePassOutputs(ShaderPlatform);
 	const bool bHairStrandsEnable = HairStrandsBookmarkParameters.HasInstances() && Views.Num() > 0 && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, GetViewFamily(Views).GetShaderPlatform());
 
 	{
@@ -2906,18 +2905,12 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	}
 
-	// TODO: Keeping the velocities here for testing, but if that works, this pass will be remove and DDM_AllOpaqueNoVelocity will be the only option with
-	// DBuffer decals enabled.
-
-	// If bBasePassCanOutputVelocity is set, basepass fully writes the velocity buffer unless bUseSelectiveBasePassOutputs is enabled.
-	if (bShouldRenderVelocities && (!bBasePassCanOutputVelocity || bUseSelectiveBasePassOutputs) && (Scene->EarlyZPassMode != DDM_AllOpaqueNoVelocity))
+	// If we are not rendering velocities in depth or base pass then do that here.
+	if (bShouldRenderVelocities && !bBasePassCanOutputVelocity && (Scene->EarlyZPassMode != DDM_AllOpaqueNoVelocity))
 	{
-		// Render the velocities of movable objects
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_Velocity));
 		RenderVelocities(GraphBuilder, SceneTextures, EVelocityPass::Opaque, bHairStrandsEnable);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterVelocity));
-
-		// TODO: Populate velocity buffer from Nanite visibility buffer.
 	}
 
 	// Copy lighting channels out of stencil before deferred decals which overwrite those values
