@@ -564,7 +564,7 @@ namespace UnrealBuildTool
 		[CommandLine("-NoUseVerse", Value = "false")]
 		[CommandLine("-UseVerse", Value = "true")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
-		public bool bUseVerse = true;
+		public bool bUseVerse = false;
 
 		/// <summary>
 		/// Whether to compile the Chaos physics plugin.
