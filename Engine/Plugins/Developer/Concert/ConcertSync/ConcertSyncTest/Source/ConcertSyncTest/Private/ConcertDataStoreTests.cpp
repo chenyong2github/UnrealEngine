@@ -80,6 +80,7 @@ public:
 	virtual const FGuid& GetId() const override																								{ return Id; }
 	virtual const FString& GetName() const override																							{ return NotMocked<const FString&>(Name); }
 	virtual void SetName(const FString&) override																							{ return NotMocked<void>(); }
+	virtual FMessageAddress GetClientAddress(const FGuid& ClientEndpointId) const override													{ return NotMocked<FMessageAddress>(); }
 	virtual const FConcertSessionInfo& GetSessionInfo() const override																		{ return NotMocked<const FConcertSessionInfo&>(SessionInfo); }
 	virtual FString GetSessionWorkingDirectory() const override																				{ return GetTestSessionRootPath() / Id.ToString(); }
 	virtual TArray<FGuid> GetSessionClientEndpointIds() const override																		{ return NotMocked<TArray<FGuid>>(); }

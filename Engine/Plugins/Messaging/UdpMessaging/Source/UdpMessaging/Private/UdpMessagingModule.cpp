@@ -392,6 +392,11 @@ public:
 		return {};
 	}
 
+	virtual FGuid GetNodeIdFromAddress(const FMessageAddress& MessageAddress) const override
+	{
+		return MessageBridge->LookupAddress(MessageAddress);
+	}
+
 	virtual FOnTransferDataUpdated& OnTransferUpdatedFromThread() override
 	{
 		return UE::Private::MessageProcessor::OnSegmenterUpdated();

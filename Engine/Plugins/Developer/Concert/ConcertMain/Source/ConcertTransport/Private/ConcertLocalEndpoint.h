@@ -31,6 +31,7 @@ public:
 	virtual ~FConcertLocalEndpoint();
 
 	virtual const FConcertEndpointContext& GetEndpointContext() const override;
+	virtual FMessageAddress GetRemoteAddress(const FGuid& ConcertEndpointId) const override;
 
 	virtual FOnConcertRemoteEndpointConnectionChanged& OnRemoteEndpointConnectionChanged() override;
 

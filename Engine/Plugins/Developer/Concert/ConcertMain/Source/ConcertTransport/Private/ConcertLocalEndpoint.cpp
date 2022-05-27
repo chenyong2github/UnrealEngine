@@ -137,6 +137,14 @@ const FConcertEndpointContext& FConcertLocalEndpoint::GetEndpointContext() const
 	return EndpointContext;
 }
 
+FMessageAddress FConcertLocalEndpoint::GetRemoteAddress(const FGuid& ConcertEndpointId) const
+{
+	const FConcertRemoteEndpointPtr RemoteEndpoint = FindRemoteEndpoint(ConcertEndpointId);
+	return RemoteEndpoint
+		? RemoteEndpoint->GetAddress()
+		: FMessageAddress();
+}
+
 FOnConcertRemoteEndpointConnectionChanged& FConcertLocalEndpoint::OnRemoteEndpointConnectionChanged()
 {
 	return OnRemoteEndpointConnectionChangedDelegate;

@@ -39,6 +39,11 @@ public:
 		SendSessionNameChanged();
 	}
 
+	virtual FMessageAddress GetClientAddress(const FGuid& ClientEndpointId) const override
+	{
+		return ServerSessionEndpoint->GetRemoteAddress(ClientEndpointId);
+	}
+
 	void SetLastModifiedToNow()
 	{
 		SessionInfo.SetLastModifiedToNow();

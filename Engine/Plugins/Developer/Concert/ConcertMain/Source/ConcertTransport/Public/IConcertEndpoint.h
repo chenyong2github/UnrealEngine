@@ -86,6 +86,9 @@ public:
 	/** Get the context for this endpoint. */
 	virtual const FConcertEndpointContext& GetEndpointContext() const = 0;
 
+	/** Gets the remote address of a client or the server. If ConcertEndpointId is not valid, the result's IsValid return false. */
+	virtual FMessageAddress GetRemoteAddress(const FGuid& ConcertEndpointId) const = 0;
+
 	/** Callback when a remote endpoint connection changes. */
 	virtual FOnConcertRemoteEndpointConnectionChanged& OnRemoteEndpointConnectionChanged() = 0;
 

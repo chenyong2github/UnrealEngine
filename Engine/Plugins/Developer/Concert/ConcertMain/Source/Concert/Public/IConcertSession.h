@@ -247,6 +247,9 @@ public:
 	/** Rename the session. */
 	virtual void SetName(const FString& NewName) = 0;
 
+	/** Gets the client's address used by the messaging system. Can be fed into  */
+	virtual FMessageAddress GetClientAddress(const FGuid& ClientEndpointId) const = 0;
+
 	/** Callback when a server session gets ticked */
 	virtual FOnConcertServerSessionTick& OnTick() = 0;
 

@@ -8,6 +8,8 @@
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
 
+struct FMessageAddress;
+
 /** General information on transport health per Node Id. */
 struct FMessageTransportStatistics
 {
@@ -113,6 +115,11 @@ public:
 	 * Return the current network counters for the given Node endpoint
 	 */
 	virtual FMessageTransportStatistics GetLatestNetworkStatistics(FGuid NodeId) const = 0;
+
+	/**
+	 * Return the node ID corresponding to MessageAddress
+	 */
+	virtual FGuid GetNodeIdFromAddress(const FMessageAddress& MessageAddress) const = 0;
 
 	/**
 	 * Delegate invoked when any transmission statistics are updated. This delegate may get called from another thread.
