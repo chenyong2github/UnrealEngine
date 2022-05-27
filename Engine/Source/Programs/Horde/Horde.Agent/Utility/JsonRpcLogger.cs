@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -17,6 +18,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Horde.Agent.Parser
 {
+	using JsonObject = System.Text.Json.Nodes.JsonObject;
+
 	interface IJsonRpcLogSink
 	{
 		Task WriteEventsAsync(List<CreateEventRequest> events);
@@ -285,9 +288,7 @@ namespace Horde.Agent.Parser
 							AddEvent(jsonLogEvent.Data.Span, lineIndex, EventSeverity.Error, events);
 						}
 
-						int lineCount = jsonLogEvent.GetMessageLineCount();
-						WriteEvent(jsonLogEvent.Data.Span, lineCount, writer);
-
+						int lineCount = WriteEvent(jsonLogEvent.Data.Span, writer);
 						lineIndex += lineCount;
 					}
 					else
@@ -362,40 +363,120 @@ namespace Horde.Agent.Parser
 			}
 		}
 
+		static readonly string s_messagePropertyName = LogEventPropertyName.Message.ToString();
+		static readonly string s_formatPropertyName = LogEventPropertyName.Format.ToString();
+		static readonly string s_linePropertyName = LogEventPropertyName.Line.ToString();
+		static readonly string s_lineCountPropertyName = LogEventPropertyName.LineCount.ToString();
+
 		static readonly Utf8String s_newline = "\n";
-		static readonly Utf8String s_comma = ",";
+		static readonly Utf8String s_escapedNewline = "\\n";
 
-		public static void WriteEvent(ReadOnlySpan<byte> span, int lineCount, ArrayBufferWriter<byte> writer)
+		public static int WriteEvent(ReadOnlySpan<byte> logEvent, IBufferWriter<byte> writer)
 		{
-			int insertIdx = span.Length;
-			if(lineCount > 1)
+			if (logEvent.IndexOf(s_escapedNewline) == -1)
 			{
-				int endIdx = span.Length - 1;
-				while (endIdx > 0 && span[endIdx] == ' ')
-				{
-					endIdx--;
-				}
-				if(span[endIdx] == '}')
-				{
-					insertIdx = endIdx;
-				}
+				writer.Write(logEvent);
+				writer.Write(s_newline);
+				return 1;
 			}
 
-			for (int idx = 0; idx < lineCount; idx++)
+			JsonObject obj = (JsonObject)JsonNode.Parse(logEvent)!;
+
+			string format = (obj["format"] as JsonValue)?.ToString() ?? String.Empty;
+			IEnumerable<KeyValuePair<string, object?>> propertyValueList = Enumerable.Empty<KeyValuePair<string, object?>>();
+
+			// Split all the multi-line properties into separate properties
+			JsonObject? properties = obj["properties"] as JsonObject;
+			if (properties != null)
 			{
-				writer.Write(span.Slice(0, insertIdx));
-				if (insertIdx < span.Length)
+				// Get all the current property values
+				Dictionary<string, string> propertyValues = new Dictionary<string, string>(StringComparer.Ordinal);
+				foreach ((string name, JsonNode? node) in properties)
 				{
-					writer.Write(s_comma);
-					using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(writer, new JsonWriterOptions { SkipValidation = true }))
+					string value = String.Empty;
+					if (node != null)
 					{
-						jsonWriter.WriteNumber(LogEventPropertyName.Line, idx);
-						jsonWriter.WriteNumber(LogEventPropertyName.LineCount, lineCount);
+						if (node is JsonObject valueObject)
+						{
+							value = valueObject["$text"]?.ToString() ?? String.Empty;
+						}
+						else
+						{
+							value = node.ToString();
+						}
 					}
-					writer.Write(span.Slice(insertIdx));
+					propertyValues[name] = value;
 				}
-				writer.Write(s_newline);
+
+				// Split all the multi-line properties into separate things
+				int nameStart = -1;
+				for (int idx = 0; idx < format.Length; idx++)
+				{
+					if (format[idx] == '{')
+					{
+						nameStart = idx + 1;
+					}
+					else if (format[idx] == '}' && nameStart != -1)
+					{
+						string name = format.Substring(nameStart, idx - nameStart);
+						if (propertyValues.TryGetValue(name, out string? text))
+						{
+							int textLineEnd = text.IndexOf('\n', StringComparison.Ordinal);
+							if (textLineEnd != -1)
+							{
+								int lineNum = 0;
+
+								StringBuilder builder = new StringBuilder();
+								builder.Append(format, 0, nameStart - 1);
+
+								string delimiter = String.Empty;
+								for (int textLineStart = 0; textLineStart < text.Length;)
+								{
+									string newName = $"{name}${lineNum++}";
+									string newLine = text.Substring(textLineStart, textLineEnd - textLineStart);
+
+									// Insert this line
+									builder.Append($"{delimiter}{{{newName}}}");
+									properties![newName] = newLine;
+									propertyValues[newName] = newLine;
+									delimiter = "\n";
+
+									// Move to the next line
+									textLineStart = ++textLineEnd;
+									while (textLineEnd < text.Length && text[textLineEnd] != '\n')
+									{
+										textLineEnd++;
+									}
+								}
+
+								builder.Append(format, idx + 1, format.Length - (idx + 1));
+								format = builder.ToString();
+							}
+						}
+					}
+				}
+
+				// Get the enumerable property list for formatting
+				propertyValueList = propertyValues.Select(x => new KeyValuePair<string, object?>(x.Key, x.Value));
 			}
+
+			// Finally split the format string into multiple lines
+			string[] lines = format.Split('\n');
+			for (int idx = 0; idx < lines.Length; idx++)
+			{
+				obj[s_messagePropertyName] = MessageTemplate.Render(lines[idx], propertyValueList);
+				obj[s_formatPropertyName] = lines[idx];
+				obj[s_linePropertyName] = idx;
+				obj[s_lineCountPropertyName] = lines.Length;
+
+				using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(writer))
+				{
+					obj.WriteTo(jsonWriter);
+				}
+
+				writer.Write(s_newline.Span);
+			}
+			return lines.Length;
 		}
 
 		void AddEvent(ReadOnlySpan<byte> span, int lineIndex, EventSeverity severity, List<CreateEventRequest> events)
