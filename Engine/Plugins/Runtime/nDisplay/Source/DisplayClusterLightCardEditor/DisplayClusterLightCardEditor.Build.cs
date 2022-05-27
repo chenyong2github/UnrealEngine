@@ -11,6 +11,7 @@ public class DisplayClusterLightCardEditor : ModuleRules
 			new string[] {
 
 				"AdvancedPreviewScene",
+				"ApplicationCore",
 				"AppFramework",
 				"Core",
 				"CoreUObject",

@@ -14,6 +14,7 @@
 
 class ADisplayClusterRootActor;
 class SDisplayClusterLightCardEditor;
+class SDisplayClusterLightCardEditorViewport;
 class FScopedTransaction;
 class UDisplayClusterConfigurationViewport;
 
@@ -37,6 +38,8 @@ public:
 	};
 
 private:
+	DECLARE_MULTICAST_DELEGATE(FOnNextSceneRefresh);
+
 	struct FSphericalCoordinates
 	{
 	public:
@@ -121,8 +124,8 @@ private:
 	static constexpr float LightCardFlushOffset = -0.5f;
 
 public:
-	FDisplayClusterLightCardEditorViewportClient(FAdvancedPreviewScene& InPreviewScene, const TWeakPtr<SEditorViewport>& InEditorViewportWidget,
-		TWeakPtr<SDisplayClusterLightCardEditor> InLightCardEditor);
+	FDisplayClusterLightCardEditorViewportClient(FAdvancedPreviewScene& InPreviewScene,
+		const TWeakPtr<SDisplayClusterLightCardEditorViewport>& InEditorViewportWidget);
 	virtual ~FDisplayClusterLightCardEditorViewportClient() override;
 	
 	// FEditorViewportClient
@@ -144,6 +147,9 @@ public:
 	virtual ELevelViewportType GetViewportType() const override { return LVT_Perspective; }
 	// ~FEditorViewportClient
 
+	/** Returns a delegate that is invoked on the next scene refresh. The delegate is cleared afterwards */
+	FOnNextSceneRefresh& GetOnNextSceneRefresh() { return OnNextSceneRefreshDelegate; }
+
 	/**
 	 * Update the spawned preview actor from a root actor in the level
 	 * 
@@ -161,7 +167,7 @@ public:
 	void DestroyProxies(EDisplayClusterLightCardEditorProxyType ProxyType);
 	
 	/** Selects the light card proxies that correspond to the specified light cards */
-	void SelectLightCards(const TArray<AActor*>& LightCardsToSelect);
+	void SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect);
 
 	FDisplayClusterLightCardEditorWidget::EWidgetMode GetEditorWidgetMode() const { return EditorWidget->GetWidgetMode(); }
 	void SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode) { EditorWidget->SetWidgetMode(InWidgetMode); }
@@ -187,6 +193,9 @@ public:
 
 	/** Places the given light card in the middle of the current viewport */
 	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
+
+	/** Moves all selected light cards to the specified pixel position */
+	void MoveSelectedLightCardsToPixel(const FIntPoint& PixelPos);
 
 	/** Returns the current input mode */
 	EInputMode GetInputMode() { return InputMode; }
@@ -305,6 +314,7 @@ private:
 
 private:
 	TWeakPtr<FSceneViewport> SceneViewportPtr;
+	TWeakPtr<SDisplayClusterLightCardEditorViewport> LightCardEditorViewportPtr;
 	TWeakPtr<SDisplayClusterLightCardEditor> LightCardEditorPtr;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorProxy;
 	TWeakObjectPtr<ADisplayClusterRootActor> RootActorLevelInstance;
@@ -384,4 +394,7 @@ private:
 
 	/** Array of mouse positions that will be used to spawn a new light card with the shape of the drawn polygon */
 	TArray<FIntPoint> DrawnMousePositions;
+
+	/** Multicast delegate that stores callbacks to be invoked the next time the scene is refreshed */
+	FOnNextSceneRefresh OnNextSceneRefreshDelegate;
 };

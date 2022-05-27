@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Framework/Commands/Commands.h"
-#include "Styling/AppStyle.h"
+
+#include "DisplayClusterLightCardEditorStyle.h"
 
 
 class FDisplayClusterLightCardEditorCommands 
@@ -13,7 +14,9 @@ class FDisplayClusterLightCardEditorCommands
 public:
 	FDisplayClusterLightCardEditorCommands()
 		: TCommands<FDisplayClusterLightCardEditorCommands>(TEXT("DisplayClusterLightCardEditor"), 
-			NSLOCTEXT("Contexts", "DisplayClusterLightCardEditor", "Display Cluster LightCard Editor"), NAME_None, FAppStyle::GetAppStyleSetName())
+			NSLOCTEXT("Contexts", "DisplayClusterLightCardEditor", "Display Cluster LightCard Editor"),
+			NAME_None,
+			FDisplayClusterLightCardEditorStyle::Get().GetStyleSetName())
 	{ }
 
 	virtual void RegisterCommands() override;
@@ -28,6 +31,7 @@ public:
 	TSharedPtr<FUICommandInfo> AddNewLightCard;
 	TSharedPtr<FUICommandInfo> AddExistingLightCard;
 	TSharedPtr<FUICommandInfo> RemoveLightCard;
+	TSharedPtr<FUICommandInfo> PasteHere;
 
 	TSharedPtr<FUICommandInfo> DrawLightCard;
 };

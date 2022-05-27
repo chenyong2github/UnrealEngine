@@ -2,10 +2,12 @@
 
 #include "DisplayClusterLightCardEditorViewportClient.h"
 
+#include "DisplayClusterLightcardEditorViewport.h"
+#include "DisplayClusterLightCardEditorWidget.h"
+
 #include "Components/DisplayClusterPreviewComponent.h"
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterScreenComponent.h"
-#include "DisplayClusterLightCardEditorWidget.h"
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterProjectionStrings.h"
 #include "DisplayClusterRootActor.h"
@@ -311,13 +313,14 @@ UTexture2D* FDisplayClusterLightCardEditorViewportClient::FNormalMap::GenerateNo
 // FDisplayClusterLightCardEditorViewportClient
 
 FDisplayClusterLightCardEditorViewportClient::FDisplayClusterLightCardEditorViewportClient(FAdvancedPreviewScene& InPreviewScene,
-                                                           const TWeakPtr<SEditorViewport>& InEditorViewportWidget,
-                                                           TWeakPtr<SDisplayClusterLightCardEditor> InLightCardEditor) :
-	FEditorViewportClient(nullptr, &InPreviewScene, InEditorViewportWidget)
+	const TWeakPtr<SDisplayClusterLightCardEditorViewport>& InEditorViewportWidget)
+	: FEditorViewportClient(nullptr, &InPreviewScene, InEditorViewportWidget)
+	, LightCardEditorViewportPtr(InEditorViewportWidget)
 {
-	check (InLightCardEditor.IsValid());
+	check(InEditorViewportWidget.IsValid());
 	
-	LightCardEditorPtr = InLightCardEditor;
+	LightCardEditorPtr = InEditorViewportWidget.Pin()->GetLightCardEditor();
+	check(LightCardEditorPtr.IsValid())
 	
 	MeshProjectionRenderer = MakeShared<FDisplayClusterMeshProjectionRenderer>();
 	MeshProjectionRenderer->ActorSelectedDelegate = FDisplayClusterMeshProjectionRenderer::FSelection::CreateRaw(this, &FDisplayClusterLightCardEditorViewportClient::IsLightCardSelected);
@@ -1066,7 +1069,7 @@ void FDisplayClusterLightCardEditorViewportClient::CreateDrawnLightCard(const TA
 
 	FScopedTransaction Transaction(LOCTEXT("AddNewLightCard", "Add New Light Card"));
 
-	ADisplayClusterLightCardActor* LightCard = LightCardEditorPtr.Pin()->AddNewLightCard();
+	ADisplayClusterLightCardActor* LightCard = LightCardEditorPtr.Pin()->SpawnLightCard();
 
 	if (!LightCard)
 	{
@@ -1129,8 +1132,8 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 	check(PreviewWorld);
 
 	const bool bIsCtrlKeyDown = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
-
 	const bool bMultiSelect = Key == EKeys::LeftMouseButton && bIsCtrlKeyDown;
+	const bool bIsRightClickSelection = Key == EKeys::RightMouseButton && !bIsCtrlKeyDown && !Viewport->KeyState(EKeys::LeftMouseButton);
 
 	if (HitProxy)
 	{
@@ -1161,6 +1164,11 @@ void FDisplayClusterLightCardEditorViewportClient::ProcessClick(FSceneView& View
 	}
 	
 	PropagateLightCardSelection();
+
+	if (bIsRightClickSelection)
+	{
+		LightCardEditorViewportPtr.Pin()->SummonContextMenu();
+	}
 
 	FEditorViewportClient::ProcessClick(View, HitProxy, Key, Event, HitX, HitY);
 }
@@ -1242,6 +1250,9 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 		Viewport->InvalidateHitProxy();
 		bShouldCheckHitProxy = true;
 		InvalidateNormalMap();
+
+		OnNextSceneRefreshDelegate.Broadcast();
+		OnNextSceneRefreshDelegate.Clear();
 	};
 	
 	if (RootActor == nullptr)
@@ -1257,22 +1268,7 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 		// Schedule for the next tick so CDO changes get propagated first in the event of config editor skeleton
 		// regeneration & compiles. nDisplay's custom propagation may have issues if the archetype isn't correct.
 		PreviewWorld->GetTimerManager().SetTimerForNextTick([=]()
-		{
-			TSet<AActor*> LastSelectedLightCardLevelInstances;
-			for (TWeakObjectPtr<ADisplayClusterLightCardActor>& SelectedLightCard : SelectedLightCards)
-			{
-				if (SelectedLightCard.IsValid())
-				{
-					if (FLightCardProxy* FoundProxy = LightCardProxies.FindByKey(SelectedLightCard.Get()))
-					{
-						if (FoundProxy->LevelInstance.IsValid())
-						{
-							LastSelectedLightCardLevelInstances.Add(FoundProxy->LevelInstance.Get());
-						}
-					}
-				}
-			}
-			
+		{			
 			DestroyProxies(ProxyType);
 			RootActor->SubscribeToPostProcessRenderTarget(reinterpret_cast<uint8*>(this));
 			RootActorLevelInstance = RootActor;
@@ -1355,12 +1351,16 @@ void FDisplayClusterLightCardEditorViewportClient::UpdatePreviewActor(ADisplayCl
 					}
 
 					LightCardProxies.Add(FLightCardProxy(LightCard.Get(), LightCardProxy));
-					
-					if (LastSelectedLightCardLevelInstances.Contains(LightCard.Get()))
-					{
-						SelectLightCard(LightCardProxy, true);
-					}
 				}
+
+				// Update the selected light card proxies to match the currently selected light cards in the light card list
+				TArray<ADisplayClusterLightCardActor*> CurrentlySelectedLightCards;
+				if (LightCardEditorPtr.IsValid())
+				{
+					LightCardEditorPtr.Pin()->GetSelectedLightCards(CurrentlySelectedLightCards);
+				}
+
+				SelectLightCards(CurrentlySelectedLightCards);
 			}
 
 			for (const FLightCardProxy& LightCardProxy : LightCardProxies)
@@ -1434,7 +1434,7 @@ EDisplayClusterLightCardEditorProxyType ProxyType)
 	}
 }
 
-void FDisplayClusterLightCardEditorViewportClient::SelectLightCards(const TArray<AActor*>& LightCardsToSelect)
+void FDisplayClusterLightCardEditorViewportClient::SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect)
 {
 	SelectLightCard(nullptr);
 	for (AActor* LightCard : LightCardsToSelect)
@@ -1560,6 +1560,60 @@ void FDisplayClusterLightCardEditorViewportClient::CenterLightCardInView(ADispla
 	if (LightCard.bIsProxy)
 	{
 		PropagateLightCardTransform(&LightCard);
+	}
+}
+
+void FDisplayClusterLightCardEditorViewportClient::MoveSelectedLightCardsToPixel(const FIntPoint& PixelPos)
+{
+	// First, find the average position of all selected light cards
+	FSphericalCoordinates AverageCoords = FSphericalCoordinates();
+	int32 NumLightCards = 0;
+
+	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+	{
+		if (LightCard.IsValid())
+		{
+			const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
+
+			AverageCoords = AverageCoords + LightCardCoords;
+			++NumLightCards;
+		}
+	}
+
+	AverageCoords.Radius /= NumLightCards;
+	AverageCoords.Azimuth /= NumLightCards;
+	AverageCoords.Inclination /= NumLightCards;
+	AverageCoords.Conform();
+
+	// Now, find the desired coordinates based on the mouse position
+	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
+		Viewport,
+		GetScene(),
+		EngineShowFlags)
+		.SetRealtimeUpdate(IsRealtime())
+	);
+
+	FSceneView* View = CalcSceneView(&ViewFamily);
+
+	FVector Origin;
+	FVector Direction;
+	PixelToWorld(*View, PixelPos, Origin, Direction);
+ 
+	// Compute desired coordinates (radius doesn't matter here since we will use the flush constraint on the light cards after moving them)
+	const FSphericalCoordinates DesiredCoords(Direction * 100.0f);
+	const FSphericalCoordinates DeltaCoords = DesiredCoords - AverageCoords;
+
+	// Update each light card with the delta coordinates; the flush constraint is applied by MoveLightCardTo, ensuring the light card is always flush to screens
+	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& LightCard : SelectedLightCards)
+	{
+		if (LightCard.IsValid())
+		{
+			const FSphericalCoordinates LightCardCoords = GetLightCardCoordinates(LightCard.Get());
+			const FSphericalCoordinates NewCoords = LightCardCoords + DeltaCoords;
+
+			MoveLightCardTo(*LightCard.Get(), NewCoords);
+			PropagateLightCardTransform(LightCard.Get());
+		}
 	}
 }
 
@@ -1886,7 +1940,7 @@ void FDisplayClusterLightCardEditorViewportClient::SelectLightCard(ADisplayClust
 
 void FDisplayClusterLightCardEditorViewportClient::PropagateLightCardSelection()
 {
-	TArray<AActor*> SelectedLevelInstances;
+	TArray<ADisplayClusterLightCardActor*> SelectedLevelInstances;
 	for (const TWeakObjectPtr<ADisplayClusterLightCardActor>& SelectedLightCard : SelectedLightCards)
 	{
 		if (FLightCardProxy* FoundProxy = LightCardProxies.FindByKey(SelectedLightCard.Get()))

@@ -136,12 +136,10 @@ private:
 };
 
 
-void SDisplayClusterLightCardList::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor)
+void SDisplayClusterLightCardList::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<class FUICommandList> InCommandList)
 {
 	LightCardEditorPtr = InLightCardEditor;
-	OnLightCardChanged = InArgs._OnLightCardListChanged;
-	
-	BindCommands();
+	CommandList = InCommandList;
 
 	ChildSlot
 	[
@@ -214,7 +212,7 @@ void SDisplayClusterLightCardList::SetRootActor(ADisplayClusterRootActor* NewRoo
 	// Select previously selected light cards. This fixes an issue where the details panel may clear in some cases
 	// and also supports maintaining the selection of shared light cards across different root actors.
 	{
-		TArray<AActor*> LightCardActorsToSelect;
+		TArray<ADisplayClusterLightCardActor*> LightCardActorsToSelect;
 		for (const TSharedPtr<FLightCardTreeItem>& LightCard : PreviouslySelectedLightCards)
 		{
 			if (LightCard.IsValid() && LightCard->LightCardActor.IsValid())
@@ -227,7 +225,21 @@ void SDisplayClusterLightCardList::SetRootActor(ADisplayClusterRootActor* NewRoo
 	}
 }
 
-void SDisplayClusterLightCardList::SelectLightCards(const TArray<AActor*>& LightCardsToSelect)
+void SDisplayClusterLightCardList::GetSelectedLightCards(TArray<ADisplayClusterLightCardActor*>& OutSelectedLightCards)
+{
+	TArray<TSharedPtr<FLightCardTreeItem>> SelectedTreeItems;
+	LightCardTreeView->GetSelectedItems(SelectedTreeItems);
+
+	for (const TSharedPtr<FLightCardTreeItem>& SelectedItem : SelectedTreeItems)
+	{
+		if (SelectedItem.IsValid() && SelectedItem->LightCardActor.IsValid())
+		{
+			OutSelectedLightCards.Add(SelectedItem->LightCardActor.Get());
+		}
+	}
+}
+
+void SDisplayClusterLightCardList::SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect)
 {
 	LightCardTreeView->ClearSelection();
 
@@ -248,37 +260,6 @@ void SDisplayClusterLightCardList::Refresh()
 	SetRootActor(RootActor.Get());
 }
 
-void SDisplayClusterLightCardList::BindCommands()
-{
-	const FDisplayClusterLightCardEditorCommands& Commands = FDisplayClusterLightCardEditorCommands::Get();
-
-	CommandList = MakeShareable(new FUICommandList);
-	
-	CommandList->MapAction(
-		Commands.AddNewLightCard,
-		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::AddNewLightCardHandler),
-		FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::CanAddLightCard),
-		FCanExecuteAction());
-
-	CommandList->MapAction(
-		Commands.AddExistingLightCard,
-		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::AddExistingLightCard),
-		FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::CanAddLightCard),
-		FCanExecuteAction());
-	
-	CommandList->MapAction(
-		Commands.RemoveLightCard,
-		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::RemoveLightCard, false),
-		FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::CanRemoveLightCard),
-		FCanExecuteAction());
-
-	CommandList->MapAction(
-		FGenericCommands::Get().Delete,
-		FExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::RemoveLightCard, true),
-		FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardList::CanRemoveLightCard),
-		FCanExecuteAction());
-}
-
 bool SDisplayClusterLightCardList::FillLightCardList()
 {
 	TArray<TSharedPtr<FLightCardTreeItem>> OriginalTree = MoveTemp(LightCardTree);
@@ -297,10 +278,10 @@ bool SDisplayClusterLightCardList::FillLightCardList()
 
 		for (const TSoftObjectPtr<AActor>& LightCardActor : RootActorLightCards.Actors)
 		{
-			if (LightCardActor.IsValid())
+			if (LightCardActor.IsValid() && LightCardActor->IsA<ADisplayClusterLightCardActor>())
 			{
 				TSharedPtr<FLightCardTreeItem> LightCardTreeItem = MakeShared<FLightCardTreeItem>();
-				LightCardTreeItem->LightCardActor = LightCardActor.Get();
+				LightCardTreeItem->LightCardActor = CastChecked<ADisplayClusterLightCardActor>(LightCardActor.Get());
 				LightCardTree.Add(LightCardTreeItem);
 				LightCardActors.Add(LightCardTreeItem);
 			}
@@ -313,7 +294,7 @@ bool SDisplayClusterLightCardList::FillLightCardList()
 		{
 			if (UWorld* World = RootActor->GetWorld())
 			{
-				for (const TWeakObjectPtr<AActor> WeakActor : FActorRange(World))
+				for (const TWeakObjectPtr<ADisplayClusterLightCardActor> WeakActor : TActorRange<ADisplayClusterLightCardActor>(World))
 				{
 					if (WeakActor.IsValid())
 					{
@@ -358,253 +339,6 @@ bool SDisplayClusterLightCardList::FillLightCardList()
 	return false;
 }
 
-void SDisplayClusterLightCardList::AddNewLightCardHandler()
-{
-	check(RootActor.IsValid());
-
-	FScopedTransaction Transaction(LOCTEXT("AddNewLightCard", "Add New Light Card"));
-
-	ADisplayClusterLightCardActor* NewLightCard = AddNewLightCard();
-
-	// When adding a new lightcard, usually the desired location is in the middle of the viewport
-	if (LightCardEditorPtr.IsValid())
-	{
-		LightCardEditorPtr.Pin()->CenterLightCardInView(*NewLightCard);
-	}
-}
-
-
-ADisplayClusterLightCardActor* SDisplayClusterLightCardList::AddNewLightCard()
-{
-	if (!RootActor.IsValid())
-	{
-		return nullptr;
-	}
-
-	const FVector SpawnLocation = RootActor->GetDefaultCamera()->GetComponentLocation();
-	FRotator SpawnRotation = RootActor->GetDefaultCamera()->GetComponentRotation();
-	SpawnRotation.Yaw -= 180.f;
-	
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.bNoFail = true;
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-	SpawnParameters.Name = TEXT("LightCard");
-	SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Requested;
-	SpawnParameters.OverrideLevel = RootActor->GetWorld()->GetCurrentLevel();
-	
-	ADisplayClusterLightCardActor* NewLightCard = CastChecked<ADisplayClusterLightCardActor>(
-		RootActor->GetWorld()->SpawnActor(ADisplayClusterLightCardActor::StaticClass(),
-		&SpawnLocation, &SpawnRotation, MoveTemp(SpawnParameters)));
-
-	NewLightCard->SetActorLabel(NewLightCard->GetName());
-
-	AddLightCardToActor(NewLightCard);
-
-	return NewLightCard;
-}
-
-void SDisplayClusterLightCardList::AddExistingLightCard()
-{
-	TSharedPtr<SWindow> PickerWindow;
-	TWeakObjectPtr<AActor> SelectedActorPtr;
-	bool bFinished = false;
-	
-	const TSharedRef<SWidget> ActorPicker = PropertyCustomizationHelpers::MakeActorPickerWithMenu(
-		nullptr,
-		false,
-		FOnShouldFilterActor::CreateLambda([&](const AActor* const InActor) -> bool // ActorFilter
-		{
-			const bool IsAllowed = InActor != nullptr && !InActor->IsChildActor() && InActor->IsA<AActor>() &&
-				!InActor->GetClass()->HasAnyClassFlags(CLASS_Interface)	&& !InActor->IsA<ADisplayClusterRootActor>();
-			
-			return IsAllowed;
-		}),
-		FOnActorSelected::CreateLambda([&](AActor* InActor) -> void // OnSet
-		{
-			SelectedActorPtr = InActor;
-		}),
-		FSimpleDelegate::CreateLambda([&]() -> void // OnClose
-		{
-		}),
-		FSimpleDelegate::CreateLambda([&]() -> void // OnUseSelected
-		{
-			if (AActor* Selection = Cast<AActor>(GEditor->GetSelectedActors()->GetTop(AActor::StaticClass())))
-			{
-				SelectedActorPtr = Selection;
-			}
-		}));
-	
-	PickerWindow = SNew(SWindow)
-	.Title(LOCTEXT("AddExistingLightCard", "Select an existing Light Card actor"))
-	.ClientSize(FVector2D(500, 525))
-	.SupportsMinimize(false) .SupportsMaximize(false)
-	[
-		SNew(SBorder)
-		.BorderImage(FAppStyle::GetBrush("Menu.Background"))
-		[
-			SNew(SWizard)
-			.FinishButtonText(LOCTEXT("FinishAddingExistingLightCard", "Add Actor"))
-			.OnCanceled(FSimpleDelegate::CreateLambda([&]()
-			{
-				if (PickerWindow.IsValid())
-				{
-					PickerWindow->RequestDestroyWindow();
-				}
-			}))
-			.OnFinished(FSimpleDelegate::CreateLambda([&]()
-			{
-				bFinished = true;
-				if (PickerWindow.IsValid())
-				{
-					PickerWindow->RequestDestroyWindow();
-				}
-			}))
-			.CanFinish(TAttribute<bool>::CreateLambda([&]()
-			{
-				return SelectedActorPtr.IsValid();
-			}))
-			.ShowPageList(false)
-			+SWizard::Page()
-			.CanShow(true)
-			[
-				SNew(SBorder)
-				.VAlign(VAlign_Fill)
-				.BorderImage(FAppStyle::GetBrush("Menu.Background"))
-				[
-					SNew(SVerticalBox)
-					+SVerticalBox::Slot()
-					.AutoHeight()
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Fill)
-					[
-						ActorPicker
-					]
-					+SVerticalBox::Slot()
-					.AutoHeight()
-					.VAlign(VAlign_Bottom)
-					.Padding(0.f, 8.f)
-					[
-						SNew(STextBlock)
-						.TextStyle(FAppStyle::Get(), "NormalText.Important")
-						.Text_Lambda([&]
-						{
-							const FString Result = FString::Printf(TEXT("Selected Actor: %s"),
-								SelectedActorPtr.IsValid() ? *SelectedActorPtr->GetActorLabel() : TEXT(""));
-							return FText::FromString(Result);
-						})
-					]
-				]
-			]
-		]
-	];
-
-	GEditor->EditorAddModalWindow(PickerWindow.ToSharedRef());
-	if (bFinished && SelectedActorPtr.IsValid())
-	{
-		FScopedTransaction Transaction(LOCTEXT("AddExistingLightCardTransactionMessage", "Add Existing Light Card"));
-		AddLightCardToActor(SelectedActorPtr.Get());
-	}
-
-	PickerWindow.Reset();
-	SelectedActorPtr.Reset();
-}
-
-void SDisplayClusterLightCardList::AddLightCardToActor(AActor* LightCard)
-{
-	check(LightCard);
-	
-	UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
-	ConfigData->Modify();
-	FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
-
-	if (!RootActorLightCards.Actors.ContainsByPredicate([&](const TSoftObjectPtr<AActor>& Actor)
-	{
-		// Don't add if a loaded actor is already present.
-		return Actor.Get() == LightCard;
-	}))
-	{
-		const TSoftObjectPtr<AActor> LightCardSoftObject(LightCard);
-		
-		// Remove any exact paths to this actor. It's possible invalid actors are present if a light card
-		// was force deleted from a level.
-		RootActorLightCards.Actors.RemoveAll([&] (const TSoftObjectPtr<AActor>& Actor)
-		{
-			return Actor == LightCardSoftObject;
-		});
-	
-		RootActorLightCards.Actors.Add(LightCard);
-	}
-	Refresh();
-	OnLightCardChanged.ExecuteIfBound();
-}
-
-bool SDisplayClusterLightCardList::CanAddLightCard() const
-{
-	return RootActor.IsValid() && RootActor->GetWorld() != nullptr;
-}
-
-void SDisplayClusterLightCardList::RemoveLightCard(bool bDeleteLightCardActor)
-{
-	TArray<TSharedPtr<FLightCardTreeItem>> SelectedTreeItems;
-	LightCardTreeView->GetSelectedItems(SelectedTreeItems);
-
-	FScopedTransaction Transaction(LOCTEXT("RemoveLightCard", "Remove Light Card(s)"));
-
-	USelection* EdSelectionManager = GEditor->GetSelectedActors();
-	UWorld* WorldToUse = nullptr;
-	
-	if (bDeleteLightCardActor)
-	{
-		EdSelectionManager->BeginBatchSelectOperation();
-		EdSelectionManager->Modify();
-		EdSelectionManager->DeselectAll();
-	}
-	
-	for (const TSharedPtr<FLightCardTreeItem>& Item : SelectedTreeItems)
-	{
-		if (Item.IsValid() && Item->LightCardActor.IsValid())
-		{
-			if (RootActor.IsValid())
-			{
-				UDisplayClusterConfigurationData* ConfigData = RootActor->GetConfigData();
-				ConfigData->Modify();
-				
-				FDisplayClusterConfigurationICVFX_VisibilityList& RootActorLightCards = ConfigData->StageSettings.Lightcard.ShowOnlyList;
-				RootActorLightCards.Actors.RemoveAll([&](const TSoftObjectPtr<AActor>& Actor)
-				{
-					return Actor.Get() == Item->LightCardActor.Get();
-				});
-			}
-
-			if (bDeleteLightCardActor)
-			{
-				WorldToUse = Item->LightCardActor->GetWorld();
-				GEditor->SelectActor(Item->LightCardActor.Get(), /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
-			}
-		}
-	}
-
-	if (bDeleteLightCardActor)
-	{
-		EdSelectionManager->EndBatchSelectOperation();
-
-		if (WorldToUse)
-		{
-			GEditor->edactDeleteSelected(WorldToUse);
-		}
-	}
-
-	Refresh();
-	OnLightCardChanged.ExecuteIfBound();
-}
-
-bool SDisplayClusterLightCardList::CanRemoveLightCard() const
-{
-	TArray<TSharedPtr<FLightCardTreeItem>> SelectedTreeItems;
-	LightCardTreeView->GetSelectedItems(SelectedTreeItems);
-	return SelectedTreeItems.Num() > 0;
-}
-
 TSharedRef<ITableRow> SDisplayClusterLightCardList::GenerateTreeItemRow(TSharedPtr<FLightCardTreeItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(SLightCardTreeItemRow, OwnerTable, Item);
@@ -632,7 +366,7 @@ void SDisplayClusterLightCardList::OnTreeItemSelected(TSharedPtr<FLightCardTreeI
 	TArray<TSharedPtr<FLightCardTreeItem>> SelectedTreeItems;
 	LightCardTreeView->GetSelectedItems(SelectedTreeItems);
 
-	TArray<AActor*> SelectedLightCards;
+	TArray<ADisplayClusterLightCardActor*> SelectedLightCards;
 	for (const TSharedPtr<FLightCardTreeItem>& SelectedTreeItem : SelectedTreeItems)
 	{
 		if (SelectedTreeItem->LightCardActor.IsValid())
@@ -672,12 +406,19 @@ TSharedRef<SWidget> SDisplayClusterLightCardList::CreateAddNewMenuContent()
 
 TSharedPtr<SWidget> SDisplayClusterLightCardList::CreateContextMenu()
 {
-	const FDisplayClusterLightCardEditorCommands& Commands = FDisplayClusterLightCardEditorCommands::Get();
-	
 	const bool bCloseAfterSelection = true;
 	FMenuBuilder MenuBuilder(bCloseAfterSelection, CommandList, Extenders);
-	MenuBuilder.AddMenuEntry(Commands.RemoveLightCard);
-	MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().RemoveLightCard);
+
+	MenuBuilder.BeginSection("Edit", LOCTEXT("EditSection", "Edit"));
+	{
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+	}
+	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
 }

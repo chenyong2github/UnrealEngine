@@ -12,6 +12,7 @@ class FTabManager;
 class FLayoutExtender;
 class FSpawnTabArgs;
 class FToolBarBuilder;
+class FUICommandList;
 class SDockTab;
 class SDisplayClusterLightCardList;
 class SDisplayClusterLightCardEditorViewport;
@@ -52,16 +53,64 @@ public:
 	TWeakObjectPtr<ADisplayClusterRootActor> GetActiveRootActor() const { return ActiveRootActor; }
 
 	/** Selects the specified light cards in the light card list and details panel */
-	void SelectLightCards(const TArray<AActor*>& LightCardsToSelect);
+	void SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect);
+
+	/** Gets the light cards that are selected in the light card list */
+	void GetSelectedLightCards(TArray<ADisplayClusterLightCardActor*>& OutSelectedLightCards);
 
 	/** Selects the light card proxies that correspond to the specified light cards */
-	void SelectLightCardProxies(const TArray<AActor*>& LightCardsToSelect);
+	void SelectLightCardProxies(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect);
 
 	/** Places the given light card in the middle of the viewport */
 	void CenterLightCardInView(ADisplayClusterLightCardActor& LightCard);
 
-	/** Spawns a new light card */
-	ADisplayClusterLightCardActor* AddNewLightCard();
+	/** Spawns a new light card and adds it to the root actor */
+	ADisplayClusterLightCardActor* SpawnLightCard();
+
+	/** Adds a new light card to the root actor and centers it in the viewport */
+	void AddNewLightCard();
+
+	/** Select an existing Light Card from a menu */
+	void AddExistingLightCard();
+
+	/** Adds the given Light Card to the root actor */
+	void AddLightCardsToActor(TArray<ADisplayClusterLightCardActor*> LightCards);
+
+	/** If a Light Card can currently be added */
+	bool CanAddLightCard() const;
+
+	/** Copies any selected light cards to the clipboard, and then deletes them */
+	void CutLightCards();
+
+	/** Determines if there are selected light cards that can be cut */
+	bool CanCutLightCards();
+
+	/** Copies any selected light cards to the clipboard */
+	void CopyLightCards();
+
+	/** Determines if there are selected light cards that can be copied */
+	bool CanCopyLightCards() const;
+
+	/** Pastes any light cards in the clipboard to the current root actor */
+	void PasteLightCards(bool bOffsetLightCardPosition);
+
+	/** Determines if there are any light cards that can be pasted from the clipboard */
+	bool CanPasteLightCards() const;
+
+	/** Copies any selected light cards to the clipboard and then pastes them */
+	void DuplicateLightCards();
+
+	/** Determines if there are selected light cards that can be duplicated */
+	bool CanDuplicateLightCards() const;
+
+	/**
+	 * Remove the light card from the actor
+	 *@param bDeleteLightCardActor Delete the actor from the level
+	 */
+	void RemoveLightCards(bool bDeleteLightCardActor);
+
+	/** If the selected Light Card can be removed */
+	bool CanRemoveLightCards() const;
 
 private:
 	/** Raised when the active Display cluster root actor has been changed in the operator panel */
@@ -72,6 +121,9 @@ private:
 
 	/** Create the 3d viewport widget */
 	TSharedRef<SWidget> CreateViewportWidget();
+
+	/** Creates the editor's command list and binds commands to it */
+	void BindCommands();
 
 	/** Refresh all preview actors */
 	void RefreshPreviewActors(EDisplayClusterLightCardEditorProxyType ProxyType = EDisplayClusterLightCardEditorProxyType::All);
@@ -111,6 +163,12 @@ private:
 
 	/** The 3d viewport */
 	TSharedPtr<SDisplayClusterLightCardEditorViewport> ViewportView;
+
+	/** The command list for editor commands */
+	TSharedPtr<FUICommandList> CommandList;
+
+	/** Stores the mouse position when the context menu was opened */
+	TOptional<FIntPoint> CachedContextMenuMousePos;
 
 	/** A reference to the root actor that is currently being operated on */
 	TWeakObjectPtr<ADisplayClusterRootActor> ActiveRootActor;

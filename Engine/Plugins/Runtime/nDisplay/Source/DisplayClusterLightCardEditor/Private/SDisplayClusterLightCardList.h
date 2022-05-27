@@ -25,7 +25,7 @@ public:
 	
 	struct FLightCardTreeItem
 	{
-		TWeakObjectPtr<AActor> LightCardActor;
+		TWeakObjectPtr<ADisplayClusterLightCardActor> LightCardActor;
 		FName ActorLayer;
 
 		FLightCardTreeItem() :
@@ -40,16 +40,18 @@ public:
 public:
 	SLATE_BEGIN_ARGS(SDisplayClusterLightCardList)
 	{}
-	SLATE_EVENT(FOnLightCardListChanged, OnLightCardListChanged)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor);
+	void Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<class FUICommandList> InCommandList);
 
 	void SetRootActor(ADisplayClusterRootActor* NewRootActor);
 
 	const TArray<TSharedPtr<FLightCardTreeItem>>& GetLightCardActors() const { return LightCardActors; }
 
-	void SelectLightCards(const TArray<AActor*>& LightCardsToSelect);
+	/** Gets a list of light card actors that are currently selected in the list */
+	void GetSelectedLightCards(TArray<ADisplayClusterLightCardActor*>& OutSelectedLightCards);
+
+	void SelectLightCards(const TArray<ADisplayClusterLightCardActor*>& LightCardsToSelect);
 
 	/** Refreshes the list */
 	void Refresh();
@@ -58,8 +60,6 @@ public:
 	ADisplayClusterLightCardActor* AddNewLightCard();
 
 private:
-	void BindCommands();
-	
 	/**
 	 * Fill the LightCard list with available LightCards
 	 * @return True if the list has been modified
@@ -68,24 +68,6 @@ private:
 	
 	/** Handles the Add Light Card button. Spawn a new Light Card placed in the middle of the viewport. */
 	void AddNewLightCardHandler();
-
-	/** Select an existing Light Card from a menu */
-	void AddExistingLightCard();
-	
-	/** Adds the given Light Card to the root actor */
-	void AddLightCardToActor(AActor* LightCard);
-	
-	/** If a Light Card can currently be added */
-	bool CanAddLightCard() const;
-
-	/**
-	 * Remove the light card from the actor
-	 *@param bDeleteLightCardActor Delete the actor from the level
-	 */
-	void RemoveLightCard(bool bDeleteLightCardActor);
-	
-	/** If the selected Light Card can be removed */
-	bool CanRemoveLightCard() const;
 
 	TSharedRef<ITableRow> GenerateTreeItemRow(TSharedPtr<FLightCardTreeItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
 	void GetChildrenForTreeItem(TSharedPtr<FLightCardTreeItem> InItem, TArray<TSharedPtr<FLightCardTreeItem>>& OutChildren);
@@ -117,7 +99,4 @@ private:
 
 	/** Mapped commands for this list */
 	TSharedPtr<FUICommandList> CommandList;
-
-	/** When a user adds or removes a light card */
-	FOnLightCardListChanged OnLightCardChanged;
 };

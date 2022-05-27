@@ -5,8 +5,11 @@
 #include "DisplayClusterLightCardEditorStyle.h"
 #include "DisplayClusterLightCardEditorViewportClient.h"
 #include "DisplayClusterLightCardEditorCommands.h"
+#include "SDisplayClusterLightCardEditor.h"
 
 #include "EditorViewportCommands.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "SEditorViewportToolBarMenu.h"
 #include "STransformViewportToolbar.h"
 #include "Slate/SceneViewport.h"
@@ -225,7 +228,7 @@ private:
 	TWeakPtr<SDisplayClusterLightCardEditorViewport> EditorViewport;
 };
 
-void SDisplayClusterLightCardEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor)
+void SDisplayClusterLightCardEditorViewport::Construct(const FArguments& InArgs, TSharedPtr<SDisplayClusterLightCardEditor> InLightCardEditor, TSharedPtr<class FUICommandList> InCommandList)
 {
 	LightCardEditorPtr = InLightCardEditor;
 	
@@ -233,6 +236,11 @@ void SDisplayClusterLightCardEditorViewport::Construct(const FArguments& InArgs,
 	AdvancedPreviewScene->SetFloorVisibility(true);
 		
 	SEditorViewport::Construct(SEditorViewport::FArguments());
+
+	if (InCommandList.IsValid())
+	{
+		CommandList->Append(InCommandList.ToSharedRef());
+	}
 }
 
 SDisplayClusterLightCardEditorViewport::~SDisplayClusterLightCardEditorViewport()
@@ -259,6 +267,16 @@ void SDisplayClusterLightCardEditorViewport::OnFloatingButtonClicked()
 {
 }
 
+FReply SDisplayClusterLightCardEditorViewport::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	// Cache the current mouse position in case the key event invokes the paste here command
+	const FVector2D MousePos = FSlateApplication::Get().GetCursorPos();
+	const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(MousePos.X, MousePos.Y);
+	PasteHerePos = MyGeometry.AbsoluteToLocal(MousePos) * DPIScale;
+
+	return SEditorViewport::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
 void SDisplayClusterLightCardEditorViewport::SetRootActor(ADisplayClusterRootActor* NewRootActor)
 {
 	if (ViewportClient.IsValid())
@@ -267,12 +285,27 @@ void SDisplayClusterLightCardEditorViewport::SetRootActor(ADisplayClusterRootAct
 	}
 }
 
+void SDisplayClusterLightCardEditorViewport::SummonContextMenu()
+{
+	const FVector2D MousePos = FSlateApplication::Get().GetCursorPos();
+	const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(MousePos.X, MousePos.Y);
+	PasteHerePos = GetTickSpaceGeometry().AbsoluteToLocal(FSlateApplication::Get().GetCursorPos()) * DPIScale;
+
+	TSharedRef<SWidget> MenuContents = MakeContextMenu();
+	FSlateApplication::Get().PushMenu(
+		AsShared(),
+		FWidgetPath(),
+		MenuContents,
+		MousePos,
+		FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+}
+
 TSharedRef<FEditorViewportClient> SDisplayClusterLightCardEditorViewport::MakeEditorViewportClient()
 {
 	check(AdvancedPreviewScene.IsValid());
 	
 	ViewportClient = MakeShareable(new FDisplayClusterLightCardEditorViewportClient(*AdvancedPreviewScene.Get(),
-		SharedThis(this), LightCardEditorPtr));
+		SharedThis(this)));
 	return ViewportClient.ToSharedRef();
 }
 
@@ -350,7 +383,33 @@ void SDisplayClusterLightCardEditorViewport::BindCommands()
 			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::DrawLightCard),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateSP(this, &SDisplayClusterLightCardEditorViewport::IsDrawingLightCard));
+
+		CommandList->MapAction(
+			Commands.PasteHere,
+			FExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::PasteLightCardsHere),
+			FCanExecuteAction::CreateSP(this, &SDisplayClusterLightCardEditorViewport::CanPasteLightCardsHere));
 	}
+}
+
+TSharedRef<SWidget> SDisplayClusterLightCardEditorViewport::MakeContextMenu()
+{
+	const bool bInShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterMenuSelection, CommandList);
+
+	MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().RemoveLightCard);
+
+	MenuBuilder.BeginSection("Edit", LOCTEXT("EditSection", "Edit"));
+	{
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Paste);
+		MenuBuilder.AddMenuEntry(FDisplayClusterLightCardEditorCommands::Get().PasteHere);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
+		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Delete);
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
 }
 
 void SDisplayClusterLightCardEditorViewport::SetEditorWidgetMode(FDisplayClusterLightCardEditorWidget::EWidgetMode InWidgetMode)
@@ -426,5 +485,33 @@ bool SDisplayClusterLightCardEditorViewport::IsDrawingLightCard() const
 	return false;
 }
 
+void SDisplayClusterLightCardEditorViewport::PasteLightCardsHere()
+{
+	if (LightCardEditorPtr.IsValid())
+	{
+		const bool bOffsetLightCardPositions = false;
+		LightCardEditorPtr.Pin()->PasteLightCards(bOffsetLightCardPositions);
+
+		if (ViewportClient.IsValid())
+		{
+			// Perform the positioning of the pasted light cards on the next scene refresh, since the light card proxies will have not been 
+			// regenerated until then
+			ViewportClient->GetOnNextSceneRefresh().AddLambda([this]()
+			{
+				ViewportClient->MoveSelectedLightCardsToPixel(FIntPoint(PasteHerePos.X, PasteHerePos.Y));
+			});
+		}
+	}
+}
+
+bool SDisplayClusterLightCardEditorViewport::CanPasteLightCardsHere() const
+{
+	if (LightCardEditorPtr.IsValid())
+	{
+		return LightCardEditorPtr.Pin()->CanPasteLightCards();
+	}
+
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE
