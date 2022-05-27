@@ -3293,7 +3293,7 @@ void UTexture::NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnSha
 
 int64 UTexture::Blueprint_GetMemorySize() const
 {
-	return CalcTextureMemorySizeEnum(TMC_AllMips);
+	return CalcTextureMemorySizeEnum(TMC_ResidentMips);
 }
 
 #if WITH_EDITOR
