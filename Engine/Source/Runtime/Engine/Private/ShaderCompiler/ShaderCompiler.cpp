@@ -139,7 +139,8 @@ bool IsShaderJobCacheDDCEnabled()
 	// For now we only support the editor and not commandlets like the cooker.
 	if (GIsEditor && !IsRunningCommandlet())
 	{
-		return CVarJobCacheDDC.GetValueOnAnyThread();
+		// job cache itself must be enabled first
+		return GShaderCompilerJobCache && CVarJobCacheDDC.GetValueOnAnyThread();
 	}
 
 	return false;
