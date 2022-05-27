@@ -11,6 +11,8 @@ Controller class running on game clients that handles the passing of messages to
 #include "NiagaraDebuggerCommon.h"
 #include "IMessageContext.h"
 #include "Particles/ParticlePerfStatsManager.h"
+#include "NiagaraSimCache.h"
+#include "UObject/StrongObjectPtr.h"
 
 class FMessageEndpoint;
 
@@ -31,6 +33,19 @@ public:
 #endif
 
 #if WITH_NIAGARA_DEBUGGER
+
+
+struct FNiagaraSimCacheCaptureInfo
+{
+	uint32 ProcessedFrames = 0;
+	FNiagaraSystemSimCacheCaptureRequest Request;
+	TWeakObjectPtr<UNiagaraComponent> Component;
+
+	TStrongObjectPtr<UNiagaraSimCache> SimCache = nullptr;
+
+	/** Process this request. Captures data where needed. Returns true if complete. */
+	bool Process();
+};
 
 DECLARE_LOG_CATEGORY_EXTERN(LogNiagaraDebuggerClient, Log, All);
 
@@ -55,6 +70,7 @@ private:
 	void HandleDebugHUDSettingsMessage(const FNiagaraDebugHUDSettingsData& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 	void HandleRequestSimpleClientInfoMessage(const FNiagaraRequestSimpleClientInfoMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 	void HandleOutlinerSettingsMessage(const FNiagaraOutlinerCaptureSettings& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+	void HandleSimCacheCaptureRequestMessage(const FNiagaraSystemSimCacheCaptureRequest& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
 	/** Closes any currently active connection. */
 	void CloseConnection();
@@ -85,6 +101,9 @@ private:
 #if WITH_PARTICLE_PERF_STATS
 	TSharedPtr<FNiagaraOutlinerPerfListener, ESPMode::ThreadSafe> StatsListener;
 #endif
+
+	/* All currently ongoing sim cache captures. */
+	TArray<FNiagaraSimCacheCaptureInfo> SimCacheCaptures;
 };
 
 #endif

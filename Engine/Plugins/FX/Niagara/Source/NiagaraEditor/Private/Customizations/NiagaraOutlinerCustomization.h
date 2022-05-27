@@ -142,6 +142,10 @@ struct FNiagaraOutlinerTreeComponentItem : public FNiagaraOutlinerTreeItem
 
 		return Ret;
 	}
+
+	//Sim Cache Debugging Controls.
+	FReply OpenSimCache();
+	FReply CaputreSimCache();
 };
 
 struct FNiagaraOutlinerTreeEmitterItem : public FNiagaraOutlinerTreeItem

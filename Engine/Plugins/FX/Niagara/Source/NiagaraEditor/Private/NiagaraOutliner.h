@@ -4,6 +4,7 @@
 
 #include "NiagaraDebuggerCommon.h"
 #include "Misc/NotifyHook.h"
+#include "NiagaraSimCache.h"
 #include "NiagaraOutliner.generated.h"
 
 UENUM()
@@ -13,6 +14,8 @@ enum class ENiagaraOutlinerViewModes: uint8
 	State,
 	/** Outliner displays performance data for each item. */
 	Performance,
+	/** Outliner displays debugging controls for each item. */
+	Debug,
 };
 
 UENUM()
@@ -142,6 +145,9 @@ public:
 #endif
 
 	void UpdateData(const FNiagaraOutlinerData& NewData);
+	void UpdateSystemSimCache(const FNiagaraSystemSimCacheCaptureReply& Reply);
+
+	UNiagaraSimCache* FindSimCache(FName ComponentName);
 
 	const FNiagaraOutlinerWorldData* FindWorldData(const FString& WorldName);
 	const FNiagaraOutlinerSystemData* FindSystemData(const FString& WorldName, const FString& SystemName);
@@ -160,4 +166,7 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category="Outliner", Transient)
 	FNiagaraOutlinerData Data;
+
+	UPROPERTY()
+	TMap<FName, TObjectPtr<UNiagaraSimCache>> SystemSimCaches;
 };

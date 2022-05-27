@@ -57,6 +57,7 @@ public:
 	void ExecConsoleCommand(const TCHAR* Cmd, bool bRequiresWorld);
 	void UpdateDebugHUDSettings();
 	void TriggerOutlinerCapture();
+	void TriggerSimCacheCapture(FName ComponentName, int32 CaptureDelay, int32 CaptureFrames);
 
 	void RequestUpdatedClientInfo();
 
@@ -85,6 +86,9 @@ protected:
 
 	// Handles a message that updates the simple client info.
 	void UpdateSimpleClientInfo(const FNiagaraSimpleClientInfo& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+
+	// Handles an reply messages from a sim cache capture request.
+	void HandleSimCacheCaptureReply(const FNiagaraSystemSimCacheCaptureReply& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
 	/** Callback from session manager when the selected session is changed. */
 	void SessionManager_OnSessionSelectionChanged(const TSharedPtr<ISessionInfo>& Session);

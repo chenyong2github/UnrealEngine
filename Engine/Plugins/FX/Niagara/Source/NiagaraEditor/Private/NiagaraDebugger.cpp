@@ -39,7 +39,8 @@ void FNiagaraDebugger::Init()
 		.Handling<FNiagaraDebuggerAcceptConnection>(this, &FNiagaraDebugger::HandleConnectionAcceptedMessage)
 		.Handling<FNiagaraDebuggerConnectionClosed>(this, &FNiagaraDebugger::HandleConnectionClosedMessage)
 		.Handling<FNiagaraDebuggerOutlinerUpdate>(this, &FNiagaraDebugger::HandleOutlinerUpdateMessage)
-		.Handling<FNiagaraSimpleClientInfo>(this, &FNiagaraDebugger::UpdateSimpleClientInfo);
+		.Handling<FNiagaraSimpleClientInfo>(this, &FNiagaraDebugger::UpdateSimpleClientInfo)
+		.Handling<FNiagaraSystemSimCacheCaptureReply>(this, &FNiagaraDebugger::HandleSimCacheCaptureReply);
 
 #if WITH_UNREAL_TARGET_DEVELOPER_TOOLS
 	ISessionServicesModule& SessionServicesModule = FModuleManager::LoadModuleChecked<ISessionServicesModule>("SessionServices");
@@ -140,6 +141,22 @@ void FNiagaraDebugger::TriggerOutlinerCapture()
 			}
 		}
 	}
+}
+
+void FNiagaraDebugger::TriggerSimCacheCapture(FName ComponentName, int32 CaptureDelay, int32 CaptureFrames)
+{
+	auto SendCaptureRequest = [&](FNiagaraDebugger::FClientInfo& Client)
+	{
+		FNiagaraSystemSimCacheCaptureRequest* Message = FMessageEndpoint::MakeMessage<FNiagaraSystemSimCacheCaptureRequest>();
+		Message->CaptureDelayFrames = CaptureDelay;
+		Message->CaptureFrames = CaptureFrames;
+		Message->ComponentName = ComponentName;
+
+		UE_LOG(LogNiagaraDebugger, Log, TEXT("Sending request to capture sim cache for component %s. | Session: %s | Instance: %s |"), *ComponentName.ToString(), *Client.SessionId.ToString(), *Client.InstanceId.ToString());
+		MessageEndpoint->Send(Message, EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Client.Address), FTimespan::Zero(), FDateTime::MaxValue());
+	};
+
+	ForAllConnectedClients(SendCaptureRequest);
 }
 
 void FNiagaraDebugger::SessionManager_OnSessionSelectionChanged(const TSharedPtr<ISessionInfo>& Session)
@@ -323,6 +340,16 @@ void FNiagaraDebugger::UpdateSimpleClientInfo(const FNiagaraSimpleClientInfo& Me
 	UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved simple client info update. | Sender: %s "), *Context->GetSender().ToString());
 	SimpleClientInfo = Message;
 	OnSimpleClientInfoChangedDelegate.Broadcast(SimpleClientInfo);
+}
+
+void FNiagaraDebugger::HandleSimCacheCaptureReply(const FNiagaraSystemSimCacheCaptureReply& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+{
+	UE_LOG(LogNiagaraDebugger, Log, TEXT("Recieved Niagara Sim Cache Capture Reply. | Sender: %s "), *Context->GetSender().ToString());
+	
+	if (UNiagaraOutliner* Outliner = GetOutliner())
+	{
+		Outliner->UpdateSystemSimCache(Message);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

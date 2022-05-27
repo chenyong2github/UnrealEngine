@@ -334,7 +334,7 @@ namespace NiagaraOutlinerTab
  			{
 				TSharedRef<SWidget> DelayWidget = SNew(SBorder)
 				.BorderImage(FAppStyle::GetBrush("NoBorder"))
-				.Padding(FMargin(3.0, 0.0f, 3.0f, 0.0f))
+				.Padding(FMargin(6.0, 0.0f, 6.0f, 0.0f))
 				.ToolTipText(LOCTEXT("OutlinerDelayTooltip", "Number of frames to delay between a capture being triggered and it being taken.\nThis provides time to affect the scene and also defines the length of time performance data is gathered."))				
 				[
 					SNew(SEditableTextBox)
@@ -356,6 +356,34 @@ namespace NiagaraOutlinerTab
 					}))					
 				];
 				ToolbarBuilder.AddToolBarWidget(DelayWidget, LOCTEXT("OutlinerDelay", "Delay"));
+			}
+			
+ 			// Sim Cache Capture frames
+ 			{
+				TSharedRef<SWidget> FramesWidget = SNew(SBorder)
+				.BorderImage(FAppStyle::GetBrush("NoBorder"))
+				.Padding(FMargin(6.0, 0.0f, 6.0f, 0.0f))
+				.ToolTipText(LOCTEXT("OutlinerSimCacheCaptureFramesTooltip", "Number of frames to capture when capturing Sim Cache Data."))				
+				[
+					SNew(SEditableTextBox)
+					.OnTextCommitted(FOnTextCommitted::CreateLambda([Debugger](const FText& InText, ETextCommit::Type CommitInfo)
+					{
+						if (UNiagaraOutliner* Outliner = Debugger->GetOutliner())
+						{
+							LexFromString(Outliner->CaptureSettings.SimCacheCaptureFrames, *InText.ToString());
+							Outliner->OnChanged();
+						}
+					}))
+					.Text(MakeAttributeLambda([Debugger]()
+					{
+						if (UNiagaraOutliner* Outliner = Debugger->GetOutliner())
+						{
+							return FText::AsNumber(Outliner->CaptureSettings.SimCacheCaptureFrames);
+						}
+						return FText::GetEmpty();
+					}))					
+				];
+				ToolbarBuilder.AddToolBarWidget(FramesWidget, LOCTEXT("OutlinerSimCacheFrames", "Sim Cache Frames"));
 			}
 		}
 

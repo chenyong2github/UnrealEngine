@@ -10,6 +10,7 @@ All common code shared between the editor side debugger and debugger clients run
 #include "Misc/NotifyHook.h"
 #include "NiagaraTypes.h"
 #include "NiagaraCommon.h"
+#include "NiagaraSimCache.h"
 #include "NiagaraDebuggerCommon.generated.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -761,6 +762,10 @@ struct NIAGARA_API FNiagaraOutlinerCaptureSettings
 	
 	UPROPERTY(EditAnywhere, Config, Category = "Settings")
 	bool bGatherPerfData = true;
+
+	/** How many frames capture when capturing a sim cache. */
+	UPROPERTY(EditAnywhere, Config, Category = "Settings")
+	uint32 SimCacheCaptureFrames = 10;
 };
 
 /** Simple information on the connected client for use in continuous or immediate response UI elements. */
@@ -786,6 +791,39 @@ struct NIAGARA_API FNiagaraSimpleClientInfo
 	TArray<FString> Emitters;
 };
 
+/** Message sent from the debugger to a client to request a sim cache capture for a particular component. */
+USTRUCT()
+struct NIAGARA_API FNiagaraSystemSimCacheCaptureRequest
+{
+	GENERATED_BODY()
+
+	/** Name of the component we're going to capture. */
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	FName ComponentName;
+
+	/** How many frames to delay capture. */
+	UPROPERTY(EditAnywhere, Config, Category="Settings")
+	uint32 CaptureDelayFrames = 60;
+
+	/** How many frames to capture. */
+	UPROPERTY(EditAnywhere, Config, Category = "Settings")
+	uint32 CaptureFrames = 10;
+};
+
+
+/** Message sent from a debugger client to a connected debugger containing the results of a sim cache capture. */
+USTRUCT()
+struct NIAGARA_API FNiagaraSystemSimCacheCaptureReply
+{
+	GENERATED_BODY()
+
+	/** Name of the captured component. */
+	UPROPERTY()
+	FName ComponentName;
+	
+	UPROPERTY()
+	TArray<uint8> SimCacheData;
+};
 
 enum class ENiagaraDebugMessageType : uint8
 {

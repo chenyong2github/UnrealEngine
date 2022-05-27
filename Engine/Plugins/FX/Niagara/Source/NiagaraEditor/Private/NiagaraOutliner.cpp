@@ -2,6 +2,10 @@
 
 #include "NiagaraOutliner.h"
 #include "NiagaraDebugger.h"
+#include "NiagaraEditorCommon.h"
+#include "NiagaraSimCache.h"
+#include "Serialization\ObjectAndNameAsStringProxyArchive.h"
+
 
 UNiagaraOutliner::UNiagaraOutliner(const FObjectInitializer& Initializer)
 {
@@ -37,6 +41,34 @@ void UNiagaraOutliner::UpdateData(const FNiagaraOutlinerData& NewData)
 	OnChanged();
 	//TODO: Do some kind of diff on the data and collect any recently removed components etc into their own area.
 	//Possibly keep them in the UI optionally but colour/mark them as dead until the user opts to remove them or on some timed interval.
+}
+
+void UNiagaraOutliner::UpdateSystemSimCache(const FNiagaraSystemSimCacheCaptureReply& Reply)
+{
+	if (Reply.SimCacheData.Num() > 0)
+	{
+		TObjectPtr<UNiagaraSimCache>& SimCache = SystemSimCaches.FindOrAdd(Reply.ComponentName);
+		
+		SimCache = NewObject<UNiagaraSimCache>(this);
+
+		FMemoryReader ArReader(Reply.SimCacheData);
+		FObjectAndNameAsStringProxyArchive ProxyArReader(ArReader, false);
+		SimCache->Serialize(ProxyArReader);
+	}
+	else
+	{
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("Niagara Outliner recieved empty sim cache data."));
+	}
+	OnChanged();
+}
+
+UNiagaraSimCache* UNiagaraOutliner::FindSimCache(FName ComponentName)
+{
+	if (TObjectPtr<UNiagaraSimCache>* SimCachePtr = SystemSimCaches.Find(ComponentName))
+	{
+		return SimCachePtr->Get();
+	}
+	return nullptr;
 }
 
 const FNiagaraOutlinerWorldData* UNiagaraOutliner::FindWorldData(const FString& WorldName)
