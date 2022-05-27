@@ -13,12 +13,10 @@
 #include "NiagaraParameters.h"
 #include "NiagaraDataSet.h"
 #include "NiagaraScriptExecutionParameterStore.h"
-#include "NiagaraScriptHighlight.h"
 #include "NiagaraStackSection.h"
 #include "NiagaraParameterDefinitionsSubscriber.h"
 #include "NiagaraVersionedObject.h"
 #include "HAL/CriticalSection.h"
-#include "HAL/PlatformAtomics.h"
 #include "VectorVM.h"
 
 #include "NiagaraScript.generated.h"
@@ -107,6 +105,14 @@ public:
 	/** Specifies constraints related to the source script a modules provides as dependency. */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	ENiagaraModuleDependencyScriptConstraint ScriptConstraint;
+
+	// Specifies the version constraint that module providing the dependency must fulfill.
+	// Example usages:
+	// '1.2' requires the exact version 1.2 of the source script
+	// '1.2+' requires at least version 1.2, but any higher version is also ok
+	// '1.2-2.0' requires any version between 1.2 and 2.0
+	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
+	FString RequiredVersion;
 	
 	/** Detailed description of the dependency */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script, meta = (MultiLine = true))
@@ -117,6 +123,25 @@ public:
 		Type = ENiagaraModuleDependencyType::PreDependency;
 		ScriptConstraint = ENiagaraModuleDependencyScriptConstraint::SameScript;
 	}
+
+#if WITH_EDITOR
+	bool HasValidVersionDependency() const;
+	NIAGARA_API bool IsVersionAllowed(const FNiagaraAssetVersion& Version) const;
+	
+	void CheckVersionCache() const;
+#endif
+private:
+	
+	struct FResolvedVersions
+	{
+		bool bValid = false;
+		FString SourceProperty;
+		int32 MinMajorVersion = 0;
+		int32 MinMinorVersion = 0;
+		int32 MaxMajorVersion = 0;
+		int32 MaxMinorVersion = 0;
+	};
+	mutable FResolvedVersions VersionDependencyCache;
 };
 
 USTRUCT()

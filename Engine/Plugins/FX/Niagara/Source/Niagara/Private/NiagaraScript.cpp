@@ -30,7 +30,7 @@
 	#include "DerivedDataCacheInterface.h"
 	#include "Interfaces/ITargetPlatform.h"
 	#include "NiagaraSettings.h"
-
+	#include "Internationalization/Regex.h"
 
 	// This is a version string that mimics the old versioning scheme. In case of merge conflicts with DDC versions,
 	// you MUST generate a new GUID and set this new version. If you want to bump this version, generate a new guid
@@ -1749,6 +1749,64 @@ void UNiagaraScript::SaveShaderStableKeys(const class ITargetPlatform* TP)
 			{
 				Resource->SaveShaderStableKeys(EShaderPlatform::SP_NumPlatforms, SaveKeyVal);
 			}
+		}
+	}
+}
+
+bool FNiagaraModuleDependency::HasValidVersionDependency() const
+{
+	CheckVersionCache();
+	return VersionDependencyCache.bValid;
+}
+
+bool FNiagaraModuleDependency::IsVersionAllowed(const FNiagaraAssetVersion& Version) const
+{
+	if (HasValidVersionDependency())
+	{
+		FNiagaraAssetVersion MinVersion;
+		FNiagaraAssetVersion MaxVersion;
+		MinVersion.MajorVersion = VersionDependencyCache.MinMajorVersion;
+		MinVersion.MinorVersion = VersionDependencyCache.MinMinorVersion;
+		MaxVersion.MajorVersion = VersionDependencyCache.MaxMajorVersion;
+		MaxVersion.MinorVersion = VersionDependencyCache.MaxMinorVersion;
+		return Version <= MaxVersion && MinVersion <= Version;
+	}
+	return true;
+}
+
+void FNiagaraModuleDependency::CheckVersionCache() const
+{
+	if (VersionDependencyCache.SourceProperty != RequiredVersion)
+	{
+		VersionDependencyCache.SourceProperty = RequiredVersion;
+		
+		FString PatternString(TEXT("^\\s*(\\d+)\\.(\\d+)\\s*(?:(\\+)|(-)\\s*(\\d+)\\.(\\d+))?\\s*$"));
+		FRegexPattern Pattern(PatternString);
+		FRegexMatcher Matcher(Pattern, RequiredVersion);
+		if (Matcher.FindNext())
+		{
+			VersionDependencyCache.bValid = true;
+			VersionDependencyCache.MinMajorVersion = FCString::Atoi(*Matcher.GetCaptureGroup(1));
+			VersionDependencyCache.MinMinorVersion = FCString::Atoi(*Matcher.GetCaptureGroup(2));
+			if (Matcher.GetCaptureGroup(3) == "+")
+			{
+				VersionDependencyCache.MaxMajorVersion = MAX_int32;
+				VersionDependencyCache.MaxMinorVersion = MAX_int32;
+			}
+			else if (Matcher.GetCaptureGroup(4) == "-")
+			{
+				VersionDependencyCache.MaxMajorVersion = FCString::Atoi(*Matcher.GetCaptureGroup(5));
+				VersionDependencyCache.MaxMinorVersion = FCString::Atoi(*Matcher.GetCaptureGroup(6));
+			}
+			else
+			{
+				VersionDependencyCache.MaxMajorVersion = VersionDependencyCache.MinMajorVersion;
+				VersionDependencyCache.MaxMinorVersion = VersionDependencyCache.MinMinorVersion;
+			}
+		}
+		else
+		{
+			VersionDependencyCache.bValid = false;
 		}
 	}
 }
