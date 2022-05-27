@@ -264,7 +264,7 @@ static bool RemoveContainerReflection(dxc::DxcDllSupport& DxcDllHelper, TRefCoun
 	
 	// Try and remove both the PDB & Reflection Data
 	bool bPDBRemoved = bRemovePDB && SUCCEEDED(Builder->RemovePart(DXC_PART_PDB));
-	bool bReflectionDataRemoved = SUCCEEDED(Builder->RemovePart(DXC_PART_REFLECTION_DATA));
+	bool bReflectionDataRemoved = bRemovePDB && SUCCEEDED(Builder->RemovePart(DXC_PART_REFLECTION_DATA));
 	if (bPDBRemoved || bReflectionDataRemoved)
 	{
 		VERIFYHRESULT(Builder->SerializeContainer(Result.GetInitReference()));
