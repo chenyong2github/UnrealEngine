@@ -124,7 +124,7 @@ public:
 	}
 
 
-	FSimpleDelegate OnPaintingFinished()
+	FSimpleDelegate& OnPaintingFinished()
 	{
 		return OnPaintingFinishedDelegate;
 	}
