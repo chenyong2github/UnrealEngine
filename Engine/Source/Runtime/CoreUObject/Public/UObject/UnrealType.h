@@ -15,6 +15,7 @@
 #include "Serialization/MemoryImage.h"
 #include "Templates/Casts.h"
 #include "Templates/Greater.h"
+#include "Templates/IsUEnumClass.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
 #include "Templates/IsSigned.h"

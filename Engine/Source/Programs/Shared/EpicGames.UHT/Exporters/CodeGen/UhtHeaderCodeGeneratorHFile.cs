@@ -271,7 +271,6 @@ namespace EpicGames.UHT.Exporters.CodeGen
 			}
 			builder.Append("\r\n");
 
-			// Forward declare the StaticEnum<> specialization for enum classes
 			if (enumObj.CppForm == UhtEnumCppForm.EnumClass)
 			{
 				builder.Append("\r\n");
@@ -281,6 +280,11 @@ namespace EpicGames.UHT.Exporters.CodeGen
 					builder.Append(" : ").Append(enumObj.UnderlyingType.ToString());
 				}
 				builder.Append(";\r\n");
+				
+				// Add TIsUEnumClass typetraits
+				builder.Append("template<> struct TIsUEnumClass<").Append(enumObj.CppType).Append("> { enum { Value = true }; };\r\n");
+
+				// Forward declare the StaticEnum<> specialization for enum classes
 				builder.Append("template<> ").Append(this.PackageApi).Append("UEnum* StaticEnum<").Append(enumObj.CppType).Append(">();\r\n");
 				builder.Append("\r\n");
 			}

@@ -3335,7 +3335,6 @@ void FNativeClassHeaderGenerator::ExportEnum(FOutputDevice& Out, FUnrealEnumDefi
 	}
 	Out.Logf( TEXT("\r\n") );
 
-	// Forward declare the StaticEnum<> specialisation for enum classes
 	if (EnumDef.GetCppForm() == UEnum::ECppForm::EnumClass)
 	{
 		FString UnderlyingTypeString;
@@ -3361,6 +3360,11 @@ void FNativeClassHeaderGenerator::ExportEnum(FOutputDevice& Out, FUnrealEnumDefi
 
 		Out.Logf( TEXT("\r\n") );
 		Out.Logf( TEXT("enum class %s%s;\r\n"), *EnumDef.GetCppType(), *UnderlyingTypeString );
+		
+		// Add TIsUEnumClass typetraits
+		Out.Logf( TEXT("template<> struct TIsUEnumClass<%s> { enum { Value = true }; };\r\n"), *EnumDef.GetCppType());
+
+		// Forward declare the StaticEnum<> specialisation for enum classes
 		Out.Logf( TEXT("template<> %sUEnum* StaticEnum<%s>();\r\n"), *GetAPIString(), *EnumDef.GetCppType());
 		Out.Logf( TEXT("\r\n") );
 	}
