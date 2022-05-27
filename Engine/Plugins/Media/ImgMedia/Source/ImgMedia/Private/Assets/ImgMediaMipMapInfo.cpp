@@ -110,6 +110,70 @@ TArray<FIntPoint> FImgMediaTileSelection::GetVisibleCoordinates() const
 	return OutCoordinates;
 }
 
+TArray<FIntRect> FImgMediaTileSelection::GetVisibleRegions() const
+{
+	/**
+	 * This is a two-pass algorithm to batch tiles into contiguous regions, with a bias for row groupings.
+	 * First, we iterate through visible tiles, and create regions for (horizontally) contiguous tiles in each row.
+	 * Second, we create the final regions out of (vertically) contiguous row regions of matching width & position.
+	*/
+
+	TArray<TArray<FIntRect>> RowsOfRegions;
+
+	for (int32 CoordY = 0; CoordY < Dimensions.Y; ++CoordY)
+	{
+		TArray<FIntRect> RegionsPerRow;
+
+		for (int32 CoordX = 0; CoordX < Dimensions.X; ++CoordX)
+		{
+			if (Tiles[ToIndex(CoordX, CoordY, Dimensions)])
+			{
+				FIntPoint TileCoord(CoordX, CoordY);
+
+				bool bIsPreviousRowTileVisible = (CoordX > 0) ? Tiles[ToIndex(CoordX - 1, CoordY, Dimensions)] : false;
+				if (bIsPreviousRowTileVisible)
+				{
+					RegionsPerRow.Last().Include(TileCoord + 1);
+				}
+				else
+				{
+					RegionsPerRow.Emplace(TileCoord, TileCoord + 1);
+				}
+			}
+		}
+
+		if (RegionsPerRow.Num() > 0)
+		{
+			RowsOfRegions.Add(MoveTemp(RegionsPerRow));
+		}
+	}
+
+	TArray<FIntRect> FinalRegions;
+
+	for (const TArray<FIntRect>& RegionsPerRow : RowsOfRegions)
+	{
+		for (const FIntRect& Region : RegionsPerRow)
+		{
+			FIntRect* ContiguousRegion = FinalRegions.FindByPredicate([&Region](const FIntRect& BatchedRegion)
+				{
+					// Batch row regions if their width matches and if they are vertically contiguous.
+					return (Region.Min.X == BatchedRegion.Min.X) && (Region.Max.X == BatchedRegion.Max.X) && (Region.Min.Y == BatchedRegion.Max.Y);
+				});
+
+			if (ContiguousRegion != nullptr)
+			{
+				ContiguousRegion->Max.Y++;
+			}
+			else
+			{
+				FinalRegions.Add(Region);
+			}
+		}
+	}
+
+	return FinalRegions;
+}
+
 FIntRect FImgMediaTileSelection::GetVisibleRegion() const
 {
 	// We offload the region calculation to the loader workers, instead of constantly updating it during SetVisible().
