@@ -90,7 +90,7 @@ struct FSQLiteMutex
 	FCriticalSection CriticalSection;
 	int SQLiteMutexId;
 #ifdef SQLITE_DEBUG
-	TAtomic<uint32> OwnerThreadId = (uint32)INDEX_NONE;
+	TAtomic<uint32> OwnerThreadId{(uint32)INDEX_NONE};
 #endif
 };
 
