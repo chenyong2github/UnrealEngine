@@ -234,7 +234,7 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	EPoseSearchFeatureDomain Domain_DEPRECATED;
+		EPoseSearchFeatureDomain Domain_DEPRECATED = EPoseSearchFeatureDomain::Time;
 
 	UPROPERTY()
 	int32 SchemaBoneIdx_DEPRECATED = 0;
