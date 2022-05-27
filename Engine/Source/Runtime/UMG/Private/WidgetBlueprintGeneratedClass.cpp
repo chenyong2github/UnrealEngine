@@ -204,16 +204,16 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 	// similar to how we use to use the DesignerWidgetTree.
 	if ( CreatedWidgetTree == nullptr )
 	{
-		TMap<FName, UWidget*> NamedSlotContentToMerge;
-		if (const UWidgetBlueprintGeneratedClass* WidgetsActualClass = Cast<UWidgetBlueprintGeneratedClass>(UserWidget->GetClass()))
+		UWidgetTree* MergeNamedSlotTree = nullptr; 
+		if (UserWidget->GetClass() != InWidgetTreeWidgetClass)
 		{
-			WidgetsActualClass->GetNamedSlotArchetypeContent([&NamedSlotContentToMerge](FName SlotName, UWidget* Content)
+			if (UWidgetBlueprintGeneratedClass* WidgetsActualClass = Cast<UWidgetBlueprintGeneratedClass>(UserWidget->GetClass()))
 			{
-				NamedSlotContentToMerge.Add(SlotName, Content);
-			});
+				MergeNamedSlotTree = WidgetsActualClass->GetWidgetTreeArchetype();
+			}
 		}
 		
-		UserWidget->DuplicateAndInitializeFromWidgetTree(InWidgetTree, NamedSlotContentToMerge);
+		UserWidget->DuplicateAndInitializeFromWidgetTree(InWidgetTree, MergeNamedSlotTree);
 		CreatedWidgetTree = UserWidget->WidgetTree;
 	}
 
@@ -416,26 +416,6 @@ void UWidgetBlueprintGeneratedClass::SetWidgetTreeArchetype(UWidgetTree* InWidge
 	{
 		// We don't want any of these flags to carry over from the WidgetBlueprint
 		WidgetTree->ClearFlags(RF_Public | RF_ArchetypeObject | RF_DefaultSubObject | RF_Transient);
-	}
-}
-
-void UWidgetBlueprintGeneratedClass::GetNamedSlotArchetypeContent(TFunctionRef<void(FName /*SlotName*/, UWidget* /*Content*/)> Predicate) const
-{
-	for (const FName& SlotName : AllNamedSlots)
-	{
-		const UWidgetBlueprintGeneratedClass* BPGClass = this;
-		while (BPGClass)
-		{
-			UWidgetTree* Tree = BPGClass->GetWidgetTreeArchetype();
-			if (UWidget* ContentInSlot = Tree->GetContentForSlot(SlotName))
-			{
-				// Report the content in the slot, and break so we can test the next slot.
-				Predicate(SlotName, ContentInSlot);
-				break;
-			}
-
-			BPGClass = Cast<UWidgetBlueprintGeneratedClass>(BPGClass->GetSuperClass());
-		}
 	}
 }
 

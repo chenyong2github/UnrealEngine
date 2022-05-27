@@ -904,30 +904,13 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 		}
 
 		// Add all the names of the named slot widgets to the slot names structure.
-		{
-			BPGClass->AllNamedSlots.Reset();
-			UWidgetBlueprint* WidgetBPIt = WidgetBP;
-			while (WidgetBPIt)
+		BPGClass->NamedSlots.Reset();
+		WidgetBP->ForEachSourceWidget([&] (UWidget* Widget) {
+			if ( Widget && Widget->IsA<UNamedSlot>() )
 			{
-				WidgetBPIt->ForEachSourceWidget([&] (UWidget* Widget) {
-					if ( Widget && Widget->IsA<UNamedSlot>() )
-					{
-						BPGClass->AllNamedSlots.Add(Widget->GetFName());
-					}
-				});
-				
-				WidgetBPIt = Cast<UWidgetBlueprint>(WidgetBPIt->ParentClass->ClassGeneratedBy);
+				BPGClass->NamedSlots.Add(Widget->GetFName());
 			}
-
-			BPGClass->AvailableNamedSlots = BPGClass->AllNamedSlots;
-
-			// Remove any named slots from the available slots that has content for it.
-			BPGClass->GetNamedSlotArchetypeContent([BPGClass](FName SlotName, UWidget* Content)
-			{
-				// If we find content for this slot, remove it from the available set.
-				BPGClass->AvailableNamedSlots.Remove(SlotName);
-			});
-		}
+		});
 
 		// Make sure that we don't have dueling widget hierarchies
 		if (UWidgetBlueprintGeneratedClass* SuperBPGClass = Cast<UWidgetBlueprintGeneratedClass>(BPGClass->GetSuperClass()))

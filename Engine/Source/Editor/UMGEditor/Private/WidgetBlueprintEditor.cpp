@@ -1610,27 +1610,9 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 				}
 			}
 
-			TMap<FName, UWidget*> NamedSlotContentToMerge;
-			UWidgetBlueprint* WidgetBPIt = PreviewBlueprint;
-			while (WidgetBPIt)
-			{
-				TArray<FName> SlotNames;
-				WidgetBPIt->WidgetTree->GetSlotNames(SlotNames);
-
-				for(const FName SlotName : SlotNames)
-				{
-					if(UWidget* Content = WidgetBPIt->WidgetTree->GetContentForSlot(SlotName))
-					{
-						NamedSlotContentToMerge.Add(SlotName, Content);
-					}
-				}
-
-				WidgetBPIt = Cast<UWidgetBlueprint>(WidgetBPIt->GeneratedClass->GetSuperClass()->ClassGeneratedBy);
-			}
-
 			// Update the widget tree directly to match the blueprint tree.  That way the preview can update
 			// without needing to do a full recompile.
-			PreviewUserWidget->DuplicateAndInitializeFromWidgetTree(LatestWidgetTree, NamedSlotContentToMerge);
+			PreviewUserWidget->DuplicateAndInitializeFromWidgetTree(LatestWidgetTree, LatestWidgetTree != PreviewBlueprint->WidgetTree ? PreviewBlueprint->WidgetTree : nullptr);
 
 			// Establish the widget as being in design time before initializing (so that IsDesignTime is reliable within Initialize)
             // We have to call it to make sure that all the WidgetTree had the DesignerFlags set correctly

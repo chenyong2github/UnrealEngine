@@ -10,7 +10,6 @@
 
 #include "WidgetBlueprintGeneratedClass.generated.h"
 
-class UWidget;
 class UUserWidget;
 class UWidgetAnimation;
 class UWidgetBlueprintGeneratedClassExtension;
@@ -70,7 +69,7 @@ private:
 	/** A tree of the widget templates to be created */
 	UPROPERTY()
 	TObjectPtr<UWidgetTree> WidgetTree;
-	
+
 	/** The extension that are considered static to the class */
 	UPROPERTY()
 	TArray<TObjectPtr<UWidgetBlueprintGeneratedClassExtension>> Extensions;
@@ -98,25 +97,12 @@ public:
 	UPROPERTY()
 	TArray< TObjectPtr<UWidgetAnimation> > Animations;
 
-	/**
-	 * Exposed Named Slots for content.  These are slots that are accumulated from all super classes on compile.
-	 * and will exclude any named slots that are filled by a parent class.
-	 **/
 	UPROPERTY()
-	TArray<FName> AvailableNamedSlots;
-
-	/**
-	 * All named slots, even the ones that have content already filled into them by a parent class and are not
-	 * available for extension.
-	 **/
-	UPROPERTY()
-	TArray<FName> AllNamedSlots;
+	TArray< FName > NamedSlots;
 
 public:
 	UWidgetTree* GetWidgetTreeArchetype() const { return WidgetTree; }
 	void SetWidgetTreeArchetype(UWidgetTree* InWidgetTree);
-
-	void GetNamedSlotArchetypeContent(TFunctionRef<void(FName /*SlotName*/, UWidget* /*Content*/)> Predicate) const;
 
 	// Walks up the hierarchy looking for a valid widget tree.
 	UWidgetBlueprintGeneratedClass* FindWidgetTreeOwningClass() const;

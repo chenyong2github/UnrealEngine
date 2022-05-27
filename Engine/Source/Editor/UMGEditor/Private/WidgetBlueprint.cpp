@@ -751,7 +751,7 @@ bool UWidgetBlueprint::DetectSlateWidgetLeaks(TArray<FText>& ValidationErrors)
 
 	// Update the widget tree directly to match the blueprint tree.  That way the preview can update
 	// without needing to do a full recompile.
-	TempUserWidget->DuplicateAndInitializeFromWidgetTree(WidgetTree, TMap<FName, UWidget*>());
+	TempUserWidget->DuplicateAndInitializeFromWidgetTree(WidgetTree, nullptr);
 
 	// We don't want this widget doing all the normal startup and acting like it's the real deal
 	// trying to do gameplay stuff, so make sure it's in design mode.
@@ -1332,12 +1332,15 @@ bool UWidgetBlueprint::ArePropertyBindingsAllowed() const
 
 TArray<FName> UWidgetBlueprint::GetInheritedNamedSlots() const
 {
-	if (const UWidgetBlueprintGeneratedClass* GeneratedBPClass = Cast<UWidgetBlueprintGeneratedClass>(GeneratedClass->GetSuperClass()))
+	TArray<FName> SlotNames;
+	if ( UWidget* SuperClassCDO = GeneratedClass->GetSuperClass()->GetDefaultObject<UWidget>() )
 	{
-		return GeneratedBPClass->AvailableNamedSlots;
+		if ( const INamedSlotInterface* NamedSlotHost = Cast<INamedSlotInterface>(SuperClassCDO) )
+		{
+			NamedSlotHost->GetSlotNames(SlotNames);
+		}
 	}
-	
-	return TArray<FName>();
+	return SlotNames;
 }
 
 #if WITH_EDITOR

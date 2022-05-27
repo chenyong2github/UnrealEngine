@@ -182,7 +182,7 @@ void UUserWidget::InitializeNamedSlots()
 	}
 }
 
-void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree, const TMap<FName, UWidget*>& NamedSlotContentToMerge)
+void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree, INamedSlotInterface* NamedSlotsToMerge)
 {
 	TScopeCounter<uint32> ScopeInitializingFromWidgetTree(bInitializingFromWidgetTree);
 
@@ -211,29 +211,34 @@ void UUserWidget::DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree
 		});
 
 		// This block controls merging named slot content specified in a child class for the widget we're templated after.
-		for (const auto& KVP_SlotContent : NamedSlotContentToMerge)
+		if (NamedSlotsToMerge)
 		{
-			// Don't insert the named slot content if the named slot is filled already.  This is a problematic
-			// scenario though, if someone inserted content, but we have class default instances, we sorta leave
-			// ourselves in a strange situation, because there are now potentially class variables that won't
-			// have an instance assigned.
-			if (!GetContentForSlot(KVP_SlotContent.Key))
+			TArray<FName> SlotNames;
+			NamedSlotsToMerge->GetSlotNames(SlotNames);
+			for (FName SlotName : SlotNames)
 			{
-				if (UWidget* TemplateSlotContent = KVP_SlotContent.Value)
+				// Don't insert the named slot content if the named slot is filled already.  This is a problematic
+				// scenario though, if someone inserted content, but we have class default instances, we sorta leave
+				// ourselves in a strange situation, because there are now potentially class variables that won't
+				// have an instance assigned.
+				if (!GetContentForSlot(SlotName))
 				{
-					FObjectInstancingGraph NamedSlotInstancingGraph;
-					// We need to add a mapping from the template's widget tree to the new widget tree, that way
-					// as we instance the widget hierarchy it's grafted onto the new widget tree.
-					NamedSlotInstancingGraph.AddNewObject(WidgetTree, TemplateSlotContent->GetTypedOuter<UWidgetTree>());
+					if (UWidget* TemplateSlotContent = NamedSlotsToMerge->GetContentForSlot(SlotName))
+					{
+						FObjectInstancingGraph NamedSlotInstancingGraph;
+						// We need to add a mapping from the template's widget tree to the new widget tree, that way
+						// as we instance the widget hierarchy it's grafted onto the new widget tree.
+						NamedSlotInstancingGraph.AddNewObject(WidgetTree, TemplateSlotContent->GetTypedOuter<UWidgetTree>());
 
-					// Instance the new widget from the foreign tree, but do it in a way that grafts it onto the tree we're instancing.
-					UWidget* Content = NewObject<UWidget>(WidgetTree, TemplateSlotContent->GetClass(), TemplateSlotContent->GetFName(), RF_Transactional, TemplateSlotContent, false, &NamedSlotInstancingGraph);
-					Content->SetFlags(RF_Transient | RF_DuplicateTransient);
+						// Instance the new widget from the foreign tree, but do it in a way that grafts it onto the tree we're instancing.
+						UWidget* Content = NewObject<UWidget>(WidgetTree, TemplateSlotContent->GetClass(), TemplateSlotContent->GetFName(), RF_Transactional, TemplateSlotContent, false, &NamedSlotInstancingGraph);
+						Content->SetFlags(RF_Transient | RF_DuplicateTransient);
 
-					// Insert the newly constructed widget into the named slot that corresponds.  The above creates
-					// it as if it was always part of the widget tree, but this actually puts it into a widget's
-					// slot for the named slot.
-					SetContentForSlot(KVP_SlotContent.Key, Content);
+						// Insert the newly constructed widget into the named slot that corresponds.  The above creates
+						// it as if it was always part of the widget tree, but this actually puts it into a widget's
+						// slot for the named slot.
+						SetContentForSlot(SlotName, Content);
+					}
 				}
 			}
 		}
@@ -831,7 +836,7 @@ void UUserWidget::GetSlotNames(TArray<FName>& SlotNames) const
 	// Only do this if this widget is of a blueprint class
 	if (UWidgetBlueprintGeneratedClass* BGClass = GetWidgetTreeOwningClass())
 	{
-		SlotNames.Append(BGClass->AllNamedSlots);
+		SlotNames.Append(BGClass->NamedSlots);
 	}
 	else if (WidgetTree) // For non-blueprint widget blueprints we have to go through the widget tree to locate the named slots dynamically.
 	{
@@ -1936,7 +1941,7 @@ void UUserWidget::PreSave(FObjectPreSaveContext ObjectSaveContext)
 	// Remove bindings that are no longer contained in the class.
 	if ( UWidgetBlueprintGeneratedClass* BGClass = GetWidgetTreeOwningClass())
 	{
-		RemoveObsoleteBindings(BGClass->AllNamedSlots);
+		RemoveObsoleteBindings(BGClass->NamedSlots);
 	}
 
 	Super::PreSave(ObjectSaveContext);

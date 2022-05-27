@@ -219,7 +219,7 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject Interface
 
-	void DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree, const TMap<FName, UWidget*>& NamedSlotContentToMerge);
+	void DuplicateAndInitializeFromWidgetTree(UWidgetTree* InWidgetTree, INamedSlotInterface* NamedSlotsToMerge);
 
 	virtual bool Initialize();
 
