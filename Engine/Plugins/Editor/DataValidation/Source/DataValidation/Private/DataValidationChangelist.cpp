@@ -136,6 +136,13 @@ EDataValidationResult UDataValidationChangelist::IsDataValid(TArray<FText>& Vali
 			FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.Error", "{0} is missing from this changelist."), FText::FromString(GetPrettyPackageName(ExternalDependency)));
 			ValidationErrors.Add(CurrentError);
 		}
+		// Dependency is not at the latest revision
+		else if (!ExternalDependencyFileState->IsCurrent())
+		{
+			bHasChangelistErrors = true;
+			FText CurrentError = FText::Format(LOCTEXT("DataValidation.Changelist.NotLatest", "{0} is referenced but is not at the latest revision '{1}'"), FText::FromString(GetPrettyPackageName(ExternalDependency)), FText::FromString(ExternalPackageFilename));
+			ValidationErrors.Add(CurrentError);
+		}
 		// Dependency is not in source control
 		else if (ExternalDependencyFileState->CanAdd())
 		{
