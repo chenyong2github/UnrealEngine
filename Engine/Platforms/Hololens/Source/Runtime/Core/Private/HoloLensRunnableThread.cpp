@@ -5,8 +5,13 @@
 #include "HAL/ExceptionHandling.h"
 #include "Misc/FeedbackContext.h"
 #include "CoreGlobals.h"
+#include "HoloLensSystemIncludes.h"
+#include <excpt.h>
 
 DEFINE_LOG_CATEGORY_STATIC(LogThreadingWindows, Log, All);
+
+extern CORE_API int32 ReportCrash(Windows::LPEXCEPTION_POINTERS ExceptionInfo);
+
 
 
 uint32 FRunnableThreadHoloLens::GuardedRun()
