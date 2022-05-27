@@ -3,6 +3,7 @@
 #include "PlayerCore.h"
 #include "PlayerRuntimeGlobal.h"
 #include "Misc/CoreDelegates.h"
+#include "Modules/ModuleManager.h"
 
 namespace Electra
 {
@@ -92,6 +93,14 @@ namespace Electra
 		{
 			ApplicationResumeDelegate = FCoreDelegates::ApplicationHasEnteredForegroundDelegate.AddStatic(&HandleApplicationHasEnteredForeground);
 		}
+
+		// Load the modules we depend on. They may have been loaded already, but we do it explicitly here to ensure that
+		// they will not be unloaded on shutdown before this module here, otherwise there could be crashes.
+		FModuleManager::Get().LoadModule(TEXT("ElectraBase"));
+		FModuleManager::Get().LoadModule(TEXT("ElectraSamples"));
+		FModuleManager::Get().LoadModule(TEXT("ElectraHTTPStream"));
+		FModuleManager::Get().LoadModule(TEXT("ElectraSubtitles"));
+		FModuleManager::Get().LoadModule(TEXT("ElectraCDM"));
 
 		EnabledAnalyticsEvents = InConfiguration.EnabledAnalyticsEvents;
 		return(true);
