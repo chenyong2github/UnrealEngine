@@ -1085,8 +1085,7 @@ const FString& SGameplayTagWidget::GetGameplayTagsEditorStateIni()
 
 	if (Filename.Len() == 0)
 	{
-		Filename = FString::Printf(TEXT("%s%s/GameplayTagsEditorState.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()));
-		FPaths::MakeStandardFilename(Filename);
+		Filename = FConfigCacheIni::NormalizeConfigIniPath(FString::Printf(TEXT("%s%s/GameplayTagsEditorState.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName())));
 	}
 
 	return Filename;

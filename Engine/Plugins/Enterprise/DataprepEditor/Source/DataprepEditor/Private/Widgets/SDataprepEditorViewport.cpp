@@ -1282,7 +1282,7 @@ void SDataprepEditorViewport::LoadDefaultSettings()
 	FPreviewSceneProfile& DataprepViewportSettingProfile = 	DefaultSettings->Profiles[AssetViewerProfileIndex];
 
 	// Read default settings, tessellation and import, for Datasmith file producer
-	const FString DataprepEditorIni = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()), TEXT("DataprepEditor") );
+	const FString DataprepEditorIni = FConfigCacheIni::NormalizeConfigIniPath(FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()), TEXT("DataprepEditor")));
 
 	const TCHAR* ViewportSectionName = TEXT("ViewportSettings");
 	if(GConfig->DoesSectionExist( ViewportSectionName, DataprepEditorIni ))

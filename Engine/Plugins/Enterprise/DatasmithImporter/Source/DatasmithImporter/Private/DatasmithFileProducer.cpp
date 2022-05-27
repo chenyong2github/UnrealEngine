@@ -1931,7 +1931,7 @@ void FDatasmithFileProducerUtils::DeletePackagePath( const FString& PathToDelete
 void UDatasmithFileProducer::LoadDefaultSettings()
 {
 	// Read default settings, tessellation and import, for Datasmith file producer
-	const FString DatasmithImporterIni = FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()), TEXT("DatasmithImporter") );
+	const FString DatasmithImporterIni = FConfigCacheIni::NormalizeConfigIniPath(FString::Printf(TEXT("%s%s/%s.ini"), *FPaths::GeneratedConfigDir(), ANSI_TO_TCHAR(FPlatformProperties::PlatformName()), TEXT("DatasmithImporter")));
 
 	const TCHAR* TessellationSectionName = TEXT("FileProducerTessellationOptions");
 	if(GConfig->DoesSectionExist( TessellationSectionName, DatasmithImporterIni ))
