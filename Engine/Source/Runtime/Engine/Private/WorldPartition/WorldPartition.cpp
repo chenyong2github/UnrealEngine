@@ -328,14 +328,9 @@ void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
 			{
 				DirtyActors.Add(ActorHandle, Actor);
 			}
-			else
+			else if (PinnedActors)
 			{
-				// If we hold the last reference to that actor, pin it to avoid unloading
-				if (PinnedActors && (ActorHandle->GetHardRefCount() == 1))
-				{
-					PinnedActors->AddActors({ ActorHandle });
-				}
-
+				PinnedActors->AddActors({ ActorHandle });
 				DirtyActors.Remove(ActorHandle);
 			}
 		}
