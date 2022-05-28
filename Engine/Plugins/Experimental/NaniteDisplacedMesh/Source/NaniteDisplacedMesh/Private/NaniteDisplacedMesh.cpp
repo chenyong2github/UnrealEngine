@@ -223,9 +223,31 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	{
 		InputMeshData.Sections[SectionIndex].MaterialIndex = BaseMesh->GetSectionInfoMap().Get(0, SectionIndex).MaterialIndex;
 	}
+	
+	TArray< int32 > MaterialIndexes;
+	{
+		MaterialIndexes.Reserve( InputMeshData.TriangleIndices.Num() / 3 );
+
+		for (FStaticMeshSection& Section : InputMeshData.Sections)
+		{
+			if (Section.NumTriangles > 0)
+			{
+				Data->MeshSections.Add(Section);
+			}
+
+			for( uint32 i = 0; i < Section.NumTriangles; i++ )
+				MaterialIndexes.Add( Section.MaterialIndex );
+		}
+	}
 
 	// Perform displacement mapping against base mesh using supplied parameterization
-	if (!DisplaceNaniteMesh(DisplacedMesh->Parameters, NumTextureCoord, /* Modified in-place -> */ InputMeshData))
+	if (!DisplaceNaniteMesh(
+			DisplacedMesh->Parameters,
+			NumTextureCoord,
+			InputMeshData.Vertices,
+			InputMeshData.TriangleIndices,
+			MaterialIndexes )
+		)
 	{
 		UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Failed to build perform displacement mapping for Nanite displaced mesh asset."));
 		return false;
@@ -241,25 +263,22 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	//FBoxSphereBounds MeshBounds;
 	//ComputeBoundsFromVertexList(InputMeshData.Vertices, MeshBounds);
 
-	// Request a single output LOD to fetch section info.
-	TArray<Nanite::IBuilderModule::FVertexMeshData, TInlineAllocator<1>> OutputLODMeshData;
-	OutputLODMeshData.SetNum(1);
-	OutputLODMeshData[0].PercentTriangles = 1.0f; // No reduction (we're throwing this data away)
+	TArray<uint32> MeshTriangleCounts;
+	MeshTriangleCounts.Add(InputMeshData.TriangleIndices.Num() / 3);
 
 	// Pass displaced mesh over to Nanite to build the bulk data
-	if (!NaniteBuilderModule.Build(Data->Resources, InputMeshData, OutputLODMeshData, NumTextureCoord, NaniteSettings))
+	if (!NaniteBuilderModule.Build(
+			Data->Resources,
+			InputMeshData.Vertices,
+			InputMeshData.TriangleIndices,
+			MaterialIndexes,
+			MeshTriangleCounts,
+			NumTextureCoord,
+			NaniteSettings)
+		)
 	{
 		UE_LOG(LogNaniteDisplacedMesh, Error, TEXT("Failed to build Nanite for displaced mesh asset."));
 		return false;
-	}
-
-	// Copy over valid mesh sections
-	for (FStaticMeshSection& Section : OutputLODMeshData[0].Sections)
-	{
-		if (Section.NumTriangles > 0)
-		{
-			Data->MeshSections.Add(Section);
-		}
 	}
 
 	if (((IRequestOwner&)Owner).IsCanceled())
@@ -450,7 +469,7 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 {
 	FMemoryHasherBlake3 Writer;
 
-	FGuid DisplacedMeshVersionGuid(0xDDB9ED32, 0x39AE4A26, 0xA07C0A49, 0xC5C7E4F8);
+	FGuid DisplacedMeshVersionGuid(0xDDA9ED32, 0x59AE4A26, 0xA02C0A49, 0xC5CEE4F8);
 	Writer << DisplacedMeshVersionGuid;
 
 	FGuid NaniteVersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER);
@@ -465,39 +484,19 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 		Writer << StaticMeshKey;
 	}
 
-	if (IsValid(Parameters.Displacement1))
+	Writer << Parameters.DiceRate;
+
+	for( auto& DisplacementMap : Parameters.DisplacementMaps )
 	{
-		FGuid Displacement1Id = Parameters.Displacement1->Source.GetId();
-		Writer << Displacement1Id;
+		if (IsValid(DisplacementMap.Texture))
+		{
+			FGuid TextureId = DisplacementMap.Texture->Source.GetId();
+			Writer << TextureId;
+		}
+
+		Writer << DisplacementMap.Magnitude;
+		Writer << DisplacementMap.Center;
 	}
-
-	if (IsValid(Parameters.Displacement2))
-	{
-		FGuid Displacement2Id = Parameters.Displacement2->Source.GetId();
-		Writer << Displacement2Id;
-	}
-
-	if (IsValid(Parameters.Displacement3))
-	{
-		FGuid Displacement3Id = Parameters.Displacement3->Source.GetId();
-		Writer << Displacement3Id;
-	}
-
-	if (IsValid(Parameters.Displacement4))
-	{
-		FGuid Displacement4Id = Parameters.Displacement4->Source.GetId();
-		Writer << Displacement4Id;
-	}
-
-	Writer << Parameters.Magnitude1;
-	Writer << Parameters.Magnitude2;
-	Writer << Parameters.Magnitude3;
-	Writer << Parameters.Magnitude4;
-
-	Writer << Parameters.Center1;
-	Writer << Parameters.Center2;
-	Writer << Parameters.Center3;
-	Writer << Parameters.Center4;
 
 	return Writer.Finalize();
 }

@@ -47,13 +47,13 @@ UObject* UNaniteDisplacedMeshFactory::FactoryCreateNew(UClass* Class, UObject* I
 UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDisplacedMesh, const FNaniteDisplacedMeshParams& InParameters, const FString& DisplacedMeshFolder, bool bCreateTransientAsset)
 {
 	// We always need a valid base mesh for displacement, and non-zero magnitude on at least one displacement map
-	const bool bApplyDisplacement =
-		(InParameters.Magnitude1 > 0.0f && IsValid(InParameters.Displacement1)) ||
-		(InParameters.Magnitude2 > 0.0f && IsValid(InParameters.Displacement2)) ||
-		(InParameters.Magnitude3 > 0.0f && IsValid(InParameters.Displacement3)) ||
-		(InParameters.Magnitude4 > 0.0f && IsValid(InParameters.Displacement4));
+	bool bApplyDisplacement = false;
+	for( auto& DisplacementMap : InParameters.DisplacementMaps )
+	{
+		bApplyDisplacement = bApplyDisplacement || (DisplacementMap.Magnitude > 0.0f && IsValid(DisplacementMap.Texture));
+	}
 
-	if (!IsValid(InParameters.BaseMesh) || !bApplyDisplacement)
+	if (!IsValid(InParameters.BaseMesh) || !bApplyDisplacement || InParameters.DiceRate <= 0.0f)
 	{
 		return nullptr;
 	}
@@ -176,41 +176,22 @@ FGuid GetAggregatedId(const FNaniteDisplacedMeshParams& DisplacedMeshParams)
 
 	IdBuilder << NANITE_DISPLACED_MESH_ID_VERSION;
 
-	//IdBuilder << DisplacedMeshParams.RelativeError;
-
-	IdBuilder << DisplacedMeshParams.Magnitude1;
-	IdBuilder << DisplacedMeshParams.Magnitude2;
-	IdBuilder << DisplacedMeshParams.Magnitude3;
-	IdBuilder << DisplacedMeshParams.Magnitude4;
-
-	IdBuilder << DisplacedMeshParams.Center1;
-	IdBuilder << DisplacedMeshParams.Center2;
-	IdBuilder << DisplacedMeshParams.Center3;
-	IdBuilder << DisplacedMeshParams.Center4;
+	IdBuilder << DisplacedMeshParams.DiceRate;
 
 	if (IsValid(DisplacedMeshParams.BaseMesh))
 	{
 		IdBuilder << DisplacedMeshParams.BaseMesh->GetPackage()->GetPersistentGuid();
 	}
 
-	if (IsValid(DisplacedMeshParams.Displacement1))
+	for( auto& DisplacementMap : DisplacedMeshParams.DisplacementMaps )
 	{
-		IdBuilder << DisplacedMeshParams.Displacement1->GetPackage()->GetPersistentGuid();
-	}
+		if (IsValid(DisplacementMap.Texture))
+		{
+			IdBuilder << DisplacementMap.Texture->GetPackage()->GetPersistentGuid();
+		}
 
-	if (IsValid(DisplacedMeshParams.Displacement2))
-	{
-		IdBuilder << DisplacedMeshParams.Displacement2->GetPackage()->GetPersistentGuid();
-	}
-
-	if (IsValid(DisplacedMeshParams.Displacement3))
-	{
-		IdBuilder << DisplacedMeshParams.Displacement3->GetPackage()->GetPersistentGuid();
-	}
-
-	if (IsValid(DisplacedMeshParams.Displacement4))
-	{
-		IdBuilder << DisplacedMeshParams.Displacement4->GetPackage()->GetPersistentGuid();
+		IdBuilder << DisplacementMap.Magnitude;
+		IdBuilder << DisplacementMap.Center;
 	}
 
 	return IdBuilder.Build();

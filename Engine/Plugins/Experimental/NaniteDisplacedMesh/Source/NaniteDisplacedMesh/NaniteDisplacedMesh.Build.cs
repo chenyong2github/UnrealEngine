@@ -44,6 +44,7 @@ namespace UnrealBuildTool.Rules
 						"MeshUtilitiesCommon",
 						"MeshBuilderCommon",
 						"MeshBuilder",
+						"Renderer",
 					}
 				);
 

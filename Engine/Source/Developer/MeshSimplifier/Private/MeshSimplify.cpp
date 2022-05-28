@@ -249,7 +249,9 @@ void FMeshSimplifier::GatherAdjTris( const FVector3f& Position, uint32 Flag, TAr
 
 float FMeshSimplifier::EvaluateMerge( const FVector3f& Position0, const FVector3f& Position1, bool bMoveVerts )
 {
-	check( Position0 != Position1 );
+	//check( Position0 != Position1 );
+	if( Position0 == Position1 )
+		return 0.0f;
 
 	// Find unique adjacent triangles
 	TArray< uint32, TInlineAllocator<16> > AdjTris;

@@ -555,6 +555,19 @@ public:
 		return Min ( Min( A, B ), C );
 	}
 
+	template< class T > 
+	UE_NODISCARD static constexpr FORCEINLINE int32 Max3Index( const T A, const T B, const T C )
+	{
+		return ( A > B ) ? ( ( A > C ) ? 0 : 2 ) : ( ( B > C ) ? 1 : 2 );
+	}
+
+	/** Returns index of the lowest value */
+	template< class T > 
+	UE_NODISCARD static constexpr FORCEINLINE int32 Min3Index( const T A, const T B, const T C )
+	{
+		return ( A < B ) ? ( ( A < C ) ? 0 : 2 ) : ( ( B < C ) ? 1 : 2 );
+	}
+
 	/** Multiples value by itself */
 	template< class T > 
 	UE_NODISCARD static constexpr FORCEINLINE T Square( const T A )

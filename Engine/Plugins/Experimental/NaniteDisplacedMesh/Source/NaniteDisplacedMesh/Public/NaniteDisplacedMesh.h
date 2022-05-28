@@ -15,6 +15,45 @@ class UNaniteDisplacedMesh;
 class UTexture;
 
 USTRUCT(BlueprintType)
+struct FNaniteDisplacedMeshDisplacementMap
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Displacement)
+	TObjectPtr<class UTexture2D> Texture;
+
+	UPROPERTY(EditAnywhere, Category = Displacement)
+	float Magnitude;
+
+	UPROPERTY(EditAnywhere, Category = Displacement)
+	float Center;
+
+	FNaniteDisplacedMeshDisplacementMap()
+		: Texture(nullptr)
+		, Magnitude(0.0f)
+		, Center(0.0f)
+	{}
+
+	FNaniteDisplacedMeshDisplacementMap(const FNaniteDisplacedMeshDisplacementMap& Other)
+		: Texture(Other.Texture)
+		, Magnitude(Other.Magnitude)
+		, Center(Other.Center)
+	{}
+
+	bool operator==(const FNaniteDisplacedMeshDisplacementMap& Other) const
+	{
+		return Texture		== Other.Texture
+			&& Magnitude	== Other.Magnitude
+			&& Center		== Other.Center;
+	}
+
+	bool operator!=(const FNaniteDisplacedMeshDisplacementMap& Other) const
+	{
+		return !(*this == Other);
+	}
+};
+
+USTRUCT(BlueprintType)
 struct FNaniteDisplacedMeshParams
 {
 	GENERATED_BODY()
@@ -24,107 +63,40 @@ struct FNaniteDisplacedMeshParams
 	UPROPERTY(EditAnywhere, Category = Mesh)
 	TObjectPtr<class UStaticMesh> BaseMesh;
 
-	//UPROPERTY(EditAnywhere, Category = Mesh)
-	//float RelativeError;
+	UPROPERTY(EditAnywhere, Category = Mesh)
+	float DiceRate;
 
-	// Displacement 1
-
-	UPROPERTY(EditAnywhere, Category = Displacement1)
-	TObjectPtr<class UTexture2D> Displacement1;
-
-	UPROPERTY(EditAnywhere, Category = Displacement1)
-	float Magnitude1;
-
-	UPROPERTY(EditAnywhere, Category = Displacement1)
-	float Center1;
-
-	// Displacement 2
-
-	UPROPERTY(EditAnywhere, Category = Displacement2)
-	TObjectPtr<class UTexture2D> Displacement2;
-
-	UPROPERTY(EditAnywhere, Category = Displacement2)
-	float Magnitude2;
-
-	UPROPERTY(EditAnywhere, Category = Displacement2)
-	float Center2;
-
-	// Displacement 3
-
-	UPROPERTY(EditAnywhere, Category = Displacement3)
-	TObjectPtr<class UTexture2D> Displacement3;
-
-	UPROPERTY(EditAnywhere, Category = Displacement3)
-	float Magnitude3;
-
-	UPROPERTY(EditAnywhere, Category = Displacement3)
-	float Center3;
-
-	// Displacement 4
-
-	UPROPERTY(EditAnywhere, Category = Displacement4)
-	TObjectPtr<class UTexture2D> Displacement4;
-
-	UPROPERTY(EditAnywhere, Category = Displacement4)
-	float Magnitude4;
-
-	UPROPERTY(EditAnywhere, Category = Displacement4)
-	float Center4;
+	UPROPERTY(EditAnywhere, Category = Texture)
+	TArray<FNaniteDisplacedMeshDisplacementMap> DisplacementMaps;
 
 	/** Default settings. */
 	FNaniteDisplacedMeshParams()
 		: BaseMesh(nullptr)
-		//, RelativeError(0.0f)
-		, Displacement1(nullptr)
-		, Magnitude1(0.0f)
-		, Center1(0.0f)
-		, Displacement2(nullptr)
-		, Magnitude2(0.0f)
-		, Center2(0.0f)
-		, Displacement3(nullptr)
-		, Magnitude3(0.0f)
-		, Center3(0.0f)
-		, Displacement4(nullptr)
-		, Magnitude4(0.0f)
-		, Center4(0.0f)
-	{
-	}
+		, DiceRate(1.0f)
+	{}
 
 	FNaniteDisplacedMeshParams(const FNaniteDisplacedMeshParams& Other)
 		: BaseMesh(Other.BaseMesh)
-		//, RelativeError(Other.RelativeError)
-		, Displacement1(Other.Displacement1)
-		, Magnitude1(Other.Magnitude1)
-		, Center1(Other.Center1)
-		, Displacement2(Other.Displacement2)
-		, Magnitude2(Other.Magnitude2)
-		, Center2(Other.Center2)
-		, Displacement3(Other.Displacement3)
-		, Magnitude3(Other.Magnitude3)
-		, Center3(Other.Center3)
-		, Displacement4(Other.Displacement4)
-		, Magnitude4(Other.Magnitude4)
-		, Center4(Other.Center4)
-	{
-	}
+		, DiceRate(Other.DiceRate)
+	{}
 
 	/** Equality operator. */
 	bool operator==(const FNaniteDisplacedMeshParams& Other) const
 	{
-		return BaseMesh == Other.BaseMesh
-			//&& RelativeError == Other.RelativeError
-			&& Displacement1 == Other.Displacement1
-			&& Magnitude1 == Other.Magnitude1
-			&& Center1 == Other.Center1
-			&& Displacement2 == Other.Displacement2
-			&& Magnitude2 == Other.Magnitude2
-			&& Center2 == Other.Center2
-			&& Displacement3 == Other.Displacement3
-			&& Magnitude3 == Other.Magnitude3
-			&& Center3 == Other.Center3
-			&& Displacement4 == Other.Displacement4
-			&& Magnitude4 == Other.Magnitude4
-			&& Center4 == Other.Center4;
+		if( BaseMesh != Other.BaseMesh ||
+			DiceRate != Other.DiceRate ||
+			DisplacementMaps.Num() != Other.DisplacementMaps.Num() )
+		{
+			return false;
+		}
+
+		for( int32 i = 0; i < DisplacementMaps.Num(); i++ )
+		{
+			if( DisplacementMaps[i] != Other.DisplacementMaps[i] )
+				return false;
+		}
+
+		return true;
 	}
 
 	/** Inequality operator. */
