@@ -152,7 +152,7 @@ public:
 	void InitArrays(const FGeometryDynamicCollection& Other)
 	{
 		const int32 NumTransforms = Other.NumElements(FGeometryCollection::TransformGroup);
-		DisabledStates.SetNumUninitialized(NumTransforms);
+		States.SetNumUninitialized(NumTransforms);
 		GlobalTransforms.SetNumUninitialized(NumTransforms);
 		ParticleXs.SetNumUninitialized(NumTransforms);
 		ParticleRs.SetNumUninitialized(NumTransforms);
@@ -161,11 +161,19 @@ public:
 		
 		Transforms.SetNumUninitialized(NumTransforms);
 		Parent.SetNumUninitialized(NumTransforms);
-		DynamicState.SetNumUninitialized(NumTransforms);
 	}
 
+	struct FState
+	{
+		int16 DynamicState: 8; // need to fit EObjectStateTypeEnum
+		int16 DisabledState: 1;
+		int16 HasInternalClusterParent: 1;
+		int16 DynamicInternalClusterParent: 1;
+		// 6 bits left
+	};
+	
 	Chaos::FReal SolverDt;
-	TArray<bool> DisabledStates;
+	TArray<FState> States;
 	TArray<FMatrix> GlobalTransforms;
 	TArray<Chaos::FVec3> ParticleXs;
 	TArray<Chaos::FRotation3> ParticleRs;
@@ -174,7 +182,6 @@ public:
 
 	TArray<FTransform> Transforms;
 	TArray<int32> Parent;
-	TArray<int32> DynamicState;
 	
 	bool IsObjectDynamic;
 	bool IsObjectLoading;

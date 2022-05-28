@@ -98,4 +98,12 @@ namespace Chaos
 	{
 		return ::GetTypeHash(Unique.Idx);
 	}
+
+	//Used for down casting when iterating over multiple SOAs.
+	enum class EInternalClusterType : uint8
+	{
+		None,
+		KinematicOrStatic,
+		Dynamic,
+	};
 }

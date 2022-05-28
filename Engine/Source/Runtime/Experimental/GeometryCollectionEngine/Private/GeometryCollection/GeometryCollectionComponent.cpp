@@ -77,6 +77,12 @@ static bool bChaos_BoxCalcBounds_ISPC_Enabled = CHAOS_BOX_CALC_BOUNDS_ISPC_ENABL
 static FAutoConsoleVariableRef CVarChaosBoxCalcBoundsISPCEnabled(TEXT("p.Chaos.BoxCalcBounds.ISPC"), bChaos_BoxCalcBounds_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in calculating box bounds in geometry collections"));
 #endif
 
+static bool ChaosCheckIfStillForRemoval  = false;
+static FAutoConsoleVariableRef CVarChaosCheckIfStillForRemoval(TEXT("p.Chaos.CheckIfStillForRemoval"), ChaosCheckIfStillForRemoval, TEXT("if true, non moving GC ( even non sleeping ) will be considered for removal if the feature is enabled"));
+
+static float ChaosStillCheckVelocityThreshold  = 1; // 1 cm/s
+static FAutoConsoleVariableRef CVarChaosStillCheckDistanceThreshold(TEXT("p.Chaos.ChaosStillCheckVelocityThreshold"), ChaosStillCheckVelocityThreshold, TEXT("When using ChaosStillCheckVelocityThreshold, this set the velocity threshold in cm/s "));
+
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 extern FGeometryCollectionDynamicDataPool GDynamicDataPool;
@@ -1122,6 +1128,7 @@ void UGeometryCollectionComponent::InitializeComponent()
 				DynamicCollection->AddAttribute<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
 			}
 		}
+		DynamicCollection->AddAttribute<uint8>("InternalClusterParentTypeArray", FTransformCollection::TransformGroup);
 	}
 
 	AActor* Owner = GetOwner();
@@ -2034,6 +2041,18 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 				SleepTimer.Fill(0.f);
 			}
 
+			if (!DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup))
+			{
+				TManagedArray<float>& Decay = DynamicCollection->AddAttribute<float>("Decay", FGeometryCollection::TransformGroup);
+				Decay.Fill(0);
+			}
+
+			if (!DynamicCollection->HasAttribute("LastPosition", FGeometryCollection::TransformGroup))
+			{
+				TManagedArray<FVector>& LastPosition = DynamicCollection->AddAttribute<FVector>("LastPosition", FGeometryCollection::TransformGroup);
+				LastPosition.Fill(FVector::Zero());
+			}
+			
 			if (!DynamicCollection->HasAttribute("UniformScale", FGeometryCollection::TransformGroup))
 			{
 				TManagedArray<FTransform>& UniformScale = DynamicCollection->AddAttribute<FTransform>("UniformScale", FGeometryCollection::TransformGroup);
@@ -3206,37 +3225,46 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 			// Have to fully rebuild
 			if (DynamicCollection 
 				&& RestCollection->bRemoveOnMaxSleep 
-				&& DynamicCollection->HasAttribute("SleepTimer", FGeometryCollection::TransformGroup) 
 				&& DynamicCollection->HasAttribute("UniformScale", FGeometryCollection::TransformGroup)
-				&& DynamicCollection->HasAttribute("MaxSleepTime", FGeometryCollection::TransformGroup)
-				&& DynamicCollection->HasAttribute("RemovalDuration", FGeometryCollection::TransformGroup))
+				&& DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup))
 			{
-				const TManagedArray<float>& SleepTimer = DynamicCollection->GetAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
-				const TManagedArray<float>& MaxSleepTime = DynamicCollection->GetAttribute<float>("MaxSleepTime", FGeometryCollection::TransformGroup);
-				const TManagedArray<float>& RemovalDuration = DynamicCollection->GetAttribute<float>("RemovalDuration", FGeometryCollection::TransformGroup);
+				const TManagedArray<float>& Decay = DynamicCollection->GetAttribute<float>("Decay", FGeometryCollection::TransformGroup);
 				TManagedArray<FTransform>& UniformScale = DynamicCollection->ModifyAttribute<FTransform>("UniformScale", FGeometryCollection::TransformGroup);
+				const TManagedArray<FBox>& BoundingBoxes = RestCollection->GetGeometryCollection()->BoundingBox;
+				const TManagedArray<int32>& TransformToGeom = RestCollection->GetGeometryCollection()->TransformToGeometryIndex;
 
+				const FTransform InverseComponentTransform = GetComponentTransform().Inverse();
+				const FTransform ZeroScaleTransform(FQuat::Identity, FVector::Zero(), FVector(0, 0, 0));
 				for (int32 Idx = 0; Idx < GetTransformArray().Num(); ++Idx)
 				{
-					if (SleepTimer[Idx] > MaxSleepTime[Idx])
+					// only update values if the decay has changed 
+					if (Decay[Idx] > 0.f && Decay[Idx] <= 1.f)
 					{
-						float Scale = 1.0 - FMath::Min(1.0, (SleepTimer[Idx] - MaxSleepTime[Idx]) / RemovalDuration[Idx]);
-						
-						if ((Scale < 1.0) && (Scale > 0.0))
+						const float Scale = 1.0 - Decay[Idx];
+						if (Scale < UE_SMALL_NUMBER)
+						{
+							UniformScale[Idx] = ZeroScaleTransform;
+						}
+						else
 						{
 							float ShrinkRadius = 0.0f;
 							FSphere AccumulatedSphere;
+							// todo(chaos) : find a faster way to do that ( precompute the data ? )
 							if (CalculateInnerSphere(Idx, AccumulatedSphere))
 							{
 								ShrinkRadius = -AccumulatedSphere.W;
 							}
-							
-							FQuat LocalRotation = (GetComponentTransform().Inverse() * FTransform(GlobalMatrices[Idx]).Inverse()).GetRotation();
-							FTransform LocalDown(LocalRotation.RotateVector(FVector(0.f, 0.f, ShrinkRadius)));
-							FTransform ToCOM(DynamicCollection->MassToLocal[Idx].GetTranslation());
-							UniformScale[Idx] = ToCOM.Inverse() * LocalDown.Inverse() * FTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), FVector(Scale)) * LocalDown * ToCOM;
+						
+							const FQuat LocalRotation = (InverseComponentTransform * FTransform(GlobalMatrices[Idx]).Inverse()).GetRotation();
+							const FVector LocalDown = LocalRotation.RotateVector(FVector(0.f, 0.f, ShrinkRadius));
+							const FVector CenterOfMass = DynamicCollection->MassToLocal[Idx].GetTranslation();
+							const FVector ScaleCenter = LocalDown + CenterOfMass;
+							//const FTransform ToScaleCenter(ScaleCenter);
+							//const FTransform ToScaleCenterInverse(-ScaleCenter);
+							//UniformScale[Idx] = ToCOM.Inverse() * LocalDown.Inverse() * FTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), FVector(Scale)) * LocalDown * ToCOM;
+							//UniformScale[Idx] = ToScaleCenterInverse * FTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), FVector(Scale)) * ToScaleCenter;
+							UniformScale[Idx] = FTransform(FQuat::Identity, ScaleCenter * (FVector::FReal)(1.f - Scale), FVector(Scale));
 						}
-	
 					}
 				}
 				
@@ -3459,38 +3487,85 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 
 void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 {
+	if (DeltaTime <= 0)
+	{
+		return;
+	}
+	
 	// If a particle is sleeping, increment its sleep timer, otherwise reset it.
 	if (DynamicCollection && PhysicsProxy 
 		&& DynamicCollection->HasAttribute("SleepTimer", FGeometryCollection::TransformGroup) 
 		&& DynamicCollection->HasAttribute("MaxSleepTime", FGeometryCollection::TransformGroup)
-		&& DynamicCollection->HasAttribute("RemovalDuration", FGeometryCollection::TransformGroup))
+		&& DynamicCollection->HasAttribute("RemovalDuration", FGeometryCollection::TransformGroup)
+		&& DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup)
+		&& DynamicCollection->HasAttribute("LastPosition", FGeometryCollection::TransformGroup))
 	{
 		TManagedArray<float>& SleepTimer = DynamicCollection->ModifyAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
 		const TManagedArray<float>& RemovalDuration = DynamicCollection->GetAttribute<float>("RemovalDuration", FGeometryCollection::TransformGroup);
 		const TManagedArray<float>& MaxSleepTime = DynamicCollection->GetAttribute<float>("MaxSleepTime", FGeometryCollection::TransformGroup);
+		TManagedArray<float>& Decay = DynamicCollection->ModifyAttribute<float>("Decay", FGeometryCollection::TransformGroup);
+		TManagedArray<FVector>& LastPosition = DynamicCollection->ModifyAttribute<FVector>("LastPosition", FGeometryCollection::TransformGroup);
+		const TManagedArray<uint8>& InternalClusterParentType = DynamicCollection->GetAttribute<uint8>("InternalClusterParentTypeArray", FGeometryCollection::TransformGroup);
+		const TManagedArray<bool>& Active = DynamicCollection->Active;
+		const TManagedArray<int32>& Parents = DynamicCollection->Parent;
+		
 		TArray<int32> ToDisable;
+		TArray<int32> ToBreakParent;
 		for (int32 TransformIdx = 0; TransformIdx < SleepTimer.Num(); ++TransformIdx)
 		{
-			bool PreviouslyAwake = SleepTimer[TransformIdx] < MaxSleepTime[TransformIdx];
-			if (SleepTimer[TransformIdx] < (MaxSleepTime[TransformIdx] + RemovalDuration[TransformIdx]))
+			// update the sleeping timer accordingly
+			const int32 State = DynamicCollection->DynamicState[TransformIdx];
+			const bool bIsDynamicOrSleeping = (State == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping) || (State == (int)EObjectStateTypeEnum::Chaos_Object_Dynamic);
+			const bool bNoParent = Parents[TransformIdx] == INDEX_NONE;
+			const bool bHasKinematicOrStaticInternalClusterParent = (InternalClusterParentType[TransformIdx] == (uint8)Chaos::EInternalClusterType::KinematicOrStatic);
+			const bool IsRemovalActive = (MaxSleepTime[TransformIdx] >= 0) && bIsDynamicOrSleeping && bNoParent && !bHasKinematicOrStaticInternalClusterParent;
+			if (IsRemovalActive)
 			{
-				SleepTimer[TransformIdx] = (DynamicCollection->DynamicState[TransformIdx] == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping) ? SleepTimer[TransformIdx] + DeltaTime : 0.0f;
+				const FVector CurrentPosition = DynamicCollection->Transform[TransformIdx].GetTranslation();
+				const FVector::FReal InstantVelocity = (CurrentPosition-LastPosition[TransformIdx]).Size() / (FVector::FReal)DeltaTime; 
+				const bool bIsStill = ChaosCheckIfStillForRemoval && (InstantVelocity < ChaosStillCheckVelocityThreshold);
+				LastPosition[TransformIdx] = CurrentPosition;
+				
+				const bool IsSleeping = (DynamicCollection->DynamicState[TransformIdx] == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping);
+				const bool HasStartedDecaying = (Decay[TransformIdx] > 0); 
+				if (IsSleeping || bIsStill || HasStartedDecaying)
+				{
+					SleepTimer[TransformIdx] += DeltaTime;
+				}
+			
+				// update the decay and disable the particle when decay has completed 
+				const bool bZeroRemovalDuration = (RemovalDuration[TransformIdx] < UE_SMALL_NUMBER);
+				const float UpdatedDecay = bZeroRemovalDuration? 1.f: FMath::Clamp<float>((SleepTimer[TransformIdx] - MaxSleepTime[TransformIdx]) / RemovalDuration[TransformIdx], 0.f, 1.f);
+				if (UpdatedDecay != Decay[TransformIdx])
+				{
+					ensure(UpdatedDecay > Decay[TransformIdx]);
 
-				if (SleepTimer[TransformIdx] > MaxSleepTime[TransformIdx])
-				{ 
+					// if parent is internal and dynamic we need to break it before decaying 
+					if (InternalClusterParentType[TransformIdx] == (uint8)Chaos::EInternalClusterType::Dynamic)
+					{
+						ToBreakParent.AddUnique(TransformIdx);
+					}
+
 					DynamicCollection->MakeDirty();
-					if (PreviouslyAwake)
+					Decay[TransformIdx] = UpdatedDecay;
+
+					if (Decay[TransformIdx] >= 1.0f)
 					{
 						// Disable the particle if it has been asleep for the requisite time
+						Decay[TransformIdx] = 1.0f;
 						ToDisable.Add(TransformIdx);
 					}
 				}
 			}
 		}
 
+		if (ToBreakParent.Num())
+		{
+			PhysicsProxy->BreakInternalClusterParent(MoveTemp(ToBreakParent));
+		}
 		if (ToDisable.Num())
 		{
-			PhysicsProxy->DisableParticles(ToDisable);	
+			PhysicsProxy->DisableParticles(MoveTemp(ToDisable));
 		}
 	}
 }

@@ -240,7 +240,8 @@ public:
 
 	bool GetIsObjectDynamic() const { return IsObjectDynamic; }
 
-	void DisableParticles(TArray<int32>& TransformGroupIndices);
+	void DisableParticles(TArray<int32>&& TransformGroupIndices);
+	void BreakInternalClusterParent(TArray<int32>&& TransformGroupIndices);
 
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }

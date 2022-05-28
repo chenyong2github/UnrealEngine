@@ -97,7 +97,7 @@ FGeometryCollectionResults::FGeometryCollectionResults()
 void FGeometryCollectionResults::Reset()
 {
 	SolverDt = 0.0f;
-	DisabledStates.SetNum(0);
+	States.SetNum(0);
 	GlobalTransforms.SetNum(0);
 	ParticleXs.SetNum(0);
 	ParticleRs.SetNum(0);
@@ -1488,20 +1488,56 @@ void FGeometryCollectionPhysicsProxy::GetRelevantParticleHandles(
 #endif
 }
 
-void FGeometryCollectionPhysicsProxy::DisableParticles(TArray<int32>& TransformGroupIndices)
+void FGeometryCollectionPhysicsProxy::DisableParticles(TArray<int32>&& TransformGroupIndices)
 {
 	check(IsInGameThread());
 
 	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
 	{
-		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, TransformGroupIndices]()
+		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, IndicesToDisable = MoveTemp(TransformGroupIndices)]()
 			{
-				for (int32 TransformIdx : TransformGroupIndices)
+				for (int32 TransformIdx : IndicesToDisable)
 				{
 					RBDSolver->GetEvolution()->DisableParticleWithRemovalEvent(SolverParticleHandles[TransformIdx]);
 				}
 			});
 	}
+}
+
+void FGeometryCollectionPhysicsProxy::BreakInternalClusterParent(TArray<int32>&& TransformGroupIndices)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, IndicesToBreakParent = MoveTemp(TransformGroupIndices)]()
+		{
+			// could use a set but the normal usage will always have a very small amount of unique parents and the array is more cache friendly
+			TArray<Chaos::FPBDRigidClusteredParticleHandle*> ParentToBreak;
+			for (int32 TransformIdx : IndicesToBreakParent)
+			{
+				if (Chaos::FPBDRigidClusteredParticleHandle* ChildHandle = SolverParticleHandles[TransformIdx])
+				{
+					if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredParent =  ChildHandle->Parent())
+					{
+						if (ClusteredParent->InternalCluster())
+						{
+							ParentToBreak.AddUnique(ClusteredParent);
+						}
+					}
+				}
+				for (Chaos::FPBDRigidClusteredParticleHandle* ClusteredParent: ParentToBreak)
+				{
+					Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
+					if (!ClusteredParent->Disabled() && Clustering.GetChildrenMap().Contains(ClusteredParent))
+					{
+						Clustering.ReleaseClusterParticles(ClusteredParent, nullptr, true /* bForceRelease */);
+					}
+				}
+			}
+		});
+	}
+	
 }
 
 int32 FGeometryCollectionPhysicsProxy::CalculateHierarchyLevel(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex)
@@ -1905,16 +1941,18 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDR
 			TargetResults.Transforms[TransformGroupIndex] = PhysicsThreadCollection.Transform[TransformGroupIndex];
 			TargetResults.Parent[TransformGroupIndex] = PhysicsThreadCollection.Parent[TransformGroupIndex];
 
-			TargetResults.DisabledStates[TransformGroupIndex] = true;
+			TargetResults.States[TransformGroupIndex].DisabledState = true;
+			TargetResults.States[TransformGroupIndex].HasInternalClusterParent = false;
+			TargetResults.States[TransformGroupIndex].DynamicInternalClusterParent = false;
 			Chaos::FPBDRigidClusteredParticleHandle* Handle = SolverParticleHandles[TransformGroupIndex];
 			if (!Handle)
 			{
-				PhysicsThreadCollection.Active[TransformGroupIndex] = !TargetResults.DisabledStates[TransformGroupIndex];
+				PhysicsThreadCollection.Active[TransformGroupIndex] = !TargetResults.States[TransformGroupIndex].DisabledState;
 				continue;
 			}
 
 			// Dynamic state is also updated by the solver during field interaction.
-			TargetResults.DynamicState[TransformGroupIndex] = static_cast<int>(GetObjectStateFromHandle(Handle));
+			TargetResults.States[TransformGroupIndex].DynamicState = static_cast<int8>(GetObjectStateFromHandle(Handle));
 
 			// Update the transform and parent hierarchy of the active rigid bodies. Active bodies can be either
 			// rigid geometry defined from the leaf nodes of the collection, or cluster bodies that drive an entire
@@ -1948,7 +1986,9 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDR
 				PhysicsThreadCollection.Transform[TransformGroupIndex] = TargetResults.Transforms[TransformGroupIndex];
 
 				// Indicate that this object needs to be updated and the proxy is active.
-				TargetResults.DisabledStates[TransformGroupIndex] = false;
+				TargetResults.States[TransformGroupIndex].DisabledState = false;
+				TargetResults.States[TransformGroupIndex].HasInternalClusterParent = false;
+				TargetResults.States[TransformGroupIndex].DynamicInternalClusterParent = false;
 				IsObjectDynamic = true;
 
 				// If the parent of this NON DISABLED body is set to anything other than INDEX_NONE,
@@ -1994,8 +2034,8 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDR
 								PhysicsThreadCollection.Parent[TransformGroupIndex] = INDEX_NONE;
 
 								// Indicate that this object needs to be updated and the proxy is active.
-								TargetResults.DisabledStates[TransformGroupIndex] = false;
-								IsObjectDynamic                                   = true;
+								TargetResults.States[TransformGroupIndex].DisabledState = false;
+								IsObjectDynamic = true;
 							}
 							SolverClusterID[TransformGroupIndex] = Handle->ClusterIds().Id;
 						}
@@ -2020,8 +2060,10 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDR
 							PhysicsThreadCollection.Transform[TransformGroupIndex] = TargetResults.Transforms[TransformGroupIndex];
 
 							// Indicate that this object needs to be updated and the proxy is active.
-							TargetResults.DisabledStates[TransformGroupIndex] = false;
-							IsObjectDynamic                                   = true;
+							TargetResults.States[TransformGroupIndex].DisabledState = false;
+							TargetResults.States[TransformGroupIndex].HasInternalClusterParent = true;
+							TargetResults.States[TransformGroupIndex].DynamicInternalClusterParent = (ClusterParent->IsDynamic());
+							IsObjectDynamic = true;
 
 							// as we just transitioned from disabled to non disabled the update is unconditional 
 							UpdateParticleHandleTransform(*CurrentSolver, *Handle, ParticleToWorld);
@@ -2039,7 +2081,7 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDR
 				}
 			}    // end if
 
-			PhysicsThreadCollection.Active[TransformGroupIndex] = !TargetResults.DisabledStates[TransformGroupIndex];
+			PhysicsThreadCollection.Active[TransformGroupIndex] = !TargetResults.States[TransformGroupIndex].DisabledState;
 		}    // end for
 	}        // STAT_CalcParticleToWorld scope
 	
@@ -2089,6 +2131,7 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 
 	TManagedArray<FVector3f>* LinearVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>("LinearVelocity", FTransformCollection::TransformGroup);
 	TManagedArray<FVector3f>* AngularVelocities = GameThreadCollection.FindAttributeTyped<FVector3f>("AngularVelocity", FTransformCollection::TransformGroup);
+	TManagedArray<uint8>* InternalClusterParentTypeArray = GameThreadCollection.FindAttributeTyped<uint8>("InternalClusterParentTypeArray", FTransformCollection::TransformGroup);
 
 	// We should never be changing the number of entries, this would break other 
 	// attributes in the transform group.
@@ -2098,12 +2141,22 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		// first : copy the non interpolate-able values
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 		{
-			if (!TargetResults.DisabledStates[TransformGroupIndex])
+			if (!TargetResults.States[TransformGroupIndex].DisabledState)
 			{
 				GameThreadCollection.Parent[TransformGroupIndex] = TargetResults.Parent[TransformGroupIndex];
 			}
-			GameThreadCollection.DynamicState[TransformGroupIndex] = TargetResults.DynamicState[TransformGroupIndex];
-			GameThreadCollection.Active[TransformGroupIndex] = !TargetResults.DisabledStates[TransformGroupIndex];
+			GameThreadCollection.DynamicState[TransformGroupIndex] = TargetResults.States[TransformGroupIndex].DynamicState;
+			GameThreadCollection.Active[TransformGroupIndex] = !TargetResults.States[TransformGroupIndex].DisabledState;
+
+			if (InternalClusterParentTypeArray)
+			{
+				Chaos::EInternalClusterType Parenttype = Chaos::EInternalClusterType::None;
+				if (TargetResults.States[TransformGroupIndex].HasInternalClusterParent != 0)
+				{
+					Parenttype = (TargetResults.States[TransformGroupIndex].DynamicInternalClusterParent != 0)? Chaos::EInternalClusterType::Dynamic: Chaos::EInternalClusterType::KinematicOrStatic; 
+				}
+				(*InternalClusterParentTypeArray)[TransformGroupIndex] =static_cast<uint8>(Parenttype); 
+			}
 		}
 
 		// second : interpolate-able ones
@@ -2114,7 +2167,7 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 			const FGeometryCollectionResults& Next = NextPullData->Results;
 			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 			{
-				if (!TargetResults.DisabledStates[TransformGroupIndex])
+				if (!TargetResults.States[TransformGroupIndex].DisabledState)
 				{
 					Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
 					GTParticle.SetX(FMath::Lerp(Prev.ParticleXs[TransformGroupIndex], Next.ParticleXs[TransformGroupIndex], *Alpha), false);
@@ -2136,7 +2189,7 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 		{
 			for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 			{
-				if (!TargetResults.DisabledStates[TransformGroupIndex])
+				if (!TargetResults.States[TransformGroupIndex].DisabledState)
 				{
 					Chaos::FGeometryParticle& GTParticle = *GTParticles[TransformGroupIndex];
 					GTParticle.SetX(TargetResults.ParticleXs[TransformGroupIndex], false);
