@@ -193,7 +193,7 @@ InnerMain(int Argc, char** Argv)
 
 	SubSync->add_flag("--full-diff",
 					  bFullDifference,
-					  "Run the full binary differencing algorithm on local files, even if there there is a compatible local directory "
+					  "Run the full binary differencing algorithm on local files, even if there is a compatible local directory "
 					  "manifest and file timestamps/sizes match. This is an extra precaution that will handle any unexpected local file "
 					  "modifications, but it should not be needed in a common case.");
 

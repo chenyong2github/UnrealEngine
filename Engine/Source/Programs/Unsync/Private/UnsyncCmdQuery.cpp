@@ -143,11 +143,11 @@ CmdQuery(const FCmdQueryOptions& Options)
 			const FMirrorInfo& Mirror = Mirrors[I];
 
 			LogPrintf(ELogLevel::Info,
-					  L"  {\"address\":\"%hs\", \"port\":%d, \"ok\":%hs, \"ping\":\"%.4f\", \"name\":\"%hs\"}%hs\n",
+					  L"  {\"address\":\"%hs\", \"port\":%d, \"ok\":%hs, \"ping\":%d, \"name\":\"%hs\"}%hs\n",
 					  Mirror.Address.c_str(),
 					  Mirror.Port,
 					  Mirror.Ping > 0 ? "true" : "false",
-					  Mirror.Ping * 1000.0,
+					  int32(Mirror.Ping * 1000.0),
 					  Mirror.Name.c_str(),
 					  I + 1 == Mirrors.size() ? "" : ",");
 		}
