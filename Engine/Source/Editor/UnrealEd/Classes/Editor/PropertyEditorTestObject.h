@@ -621,7 +621,7 @@ class UPropertyEditorTestObject : public UObject
 	TScriptInterface<IAnimClassInterface> AnimClassInterface;
 
 	// This is an IBlendableInterface that only allows for ULightPropagationVolumeBlendable objects
-	UPROPERTY(EditAnywhere, Category=ScriptInterfaces, meta=(AllowedClasses="LightPropagationVolumeBlendable"))
+	UPROPERTY(EditAnywhere, Category=ScriptInterfaces, meta=(AllowedClasses="/Script/Engine.LightPropagationVolumeBlendable"))
 	TScriptInterface<IBlendableInterface> LightPropagationVolumeBlendable;
 
 	// Allows either an object that's derived from UTexture or IBlendableInterface, to ensure that Object Property handles know how to

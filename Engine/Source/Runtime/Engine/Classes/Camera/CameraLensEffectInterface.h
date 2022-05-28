@@ -72,7 +72,7 @@ struct FCameraLensInterfaceClassSupport
 	GENERATED_BODY()
 
 	/** The class to spawn/reference. Must implement CameraLensEffectInterface! */
-	UPROPERTY(EditAnywhere, Category="Lens Effect", meta=(MustImplement="CameraLensEffectInterface"))
+	UPROPERTY(EditAnywhere, Category="Lens Effect", meta=(MustImplement= "/Script/Engine.CameraLensEffectInterface"))
 	TSubclassOf<AActor> Class;
 };
 

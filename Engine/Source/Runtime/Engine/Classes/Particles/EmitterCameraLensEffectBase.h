@@ -54,7 +54,7 @@ public:
 	 *  If an emitter class in this array is currently playing, do not play this effect.
 	 *  Useful for preventing multiple similar or expensive camera effects from playing simultaneously.
 	 */
-	UPROPERTY(EditDefaultsOnly, Category = EmitterCameraLensEffectBase, meta = (MustImplement = "CameraLensEffectInterface"))
+	UPROPERTY(EditDefaultsOnly, Category = EmitterCameraLensEffectBase, meta = (MustImplement = "/Script/Engine.CameraLensEffectInterface"))
 	TArray<TSubclassOf<AActor>> EmittersToTreatAsSame;
 public:
 	//~ Begin AActor Interface
