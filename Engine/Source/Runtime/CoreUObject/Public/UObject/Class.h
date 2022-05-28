@@ -3655,7 +3655,12 @@ struct FStructUtils
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 	/** Looks for uninitialized script struct pointers. Returns the number found */
 	COREUOBJECT_API static int32 AttemptToFindUninitializedScriptStructMembers();
-#endif
+
+#if WITH_EDITORONLY_DATA
+	/** Looks for short type names within struct metadata. Returns the number found */
+	COREUOBJECT_API static int32 AttemptToFindShortTypeNamesInMetaData();
+#endif // WITH_EDITORONLY_DATA
+#endif // !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 };
 
 // Helper struct to test if member initialization tests work properly
