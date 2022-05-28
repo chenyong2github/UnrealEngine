@@ -97,7 +97,7 @@ struct REMOTECONTROL_API FRemoteControlPresetGroup
 	GENERATED_BODY()
 
 	FRemoteControlPresetGroup()
-		:TagColor(MakeSimilarSaturatedColor())
+		:TagColor(ForceInit)
 	{}
 
 	FRemoteControlPresetGroup(FName InName, FGuid InId)
