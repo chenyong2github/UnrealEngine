@@ -169,6 +169,7 @@ void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterM
 	BINDPARAM(Tint);
 	BINDPARAM(IntensityInfluence);
 	BINDPARAM(bUseClassification);
+	BINDPARAM(bUseClassificationAlpha);
 	BINDPARAM(ClassificationColors);
 	BINDPARAM(ClippingVolume);
 	BINDPARAM(NumClippingVolumes);
@@ -215,6 +216,7 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(Tint);
 	SETPARAM(IntensityInfluence);
 	SETPARAM(bUseClassification);
+	SETPARAM(bUseClassificationAlpha);
 	SETPARAM(ClassificationColors);
 	SETPARAM(ClippingVolume);
 	SETPARAM(NumClippingVolumes);

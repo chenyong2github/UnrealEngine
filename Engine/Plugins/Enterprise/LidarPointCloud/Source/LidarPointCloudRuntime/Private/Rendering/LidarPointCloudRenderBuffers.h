@@ -94,6 +94,7 @@ struct FLidarPointCloudBatchElementUserData
 	FVector3f Tint;
 	float IntensityInfluence;
 	int32 bUseClassification;
+	int32 bUseClassificationAlpha;
 	FVector4f ClassificationColors[32];
 	FMatrix44f ClippingVolume[16];
 	uint32 NumClippingVolumes;
@@ -145,6 +146,7 @@ public:
 	LAYOUT_FIELD(FShaderParameter, Tint);
 	LAYOUT_FIELD(FShaderParameter, IntensityInfluence);
 	LAYOUT_FIELD(FShaderParameter, bUseClassification);
+	LAYOUT_FIELD(FShaderParameter, bUseClassificationAlpha);
 	LAYOUT_FIELD(FShaderParameter, ClassificationColors);
 	LAYOUT_FIELD(FShaderParameter, ClippingVolume);
 	LAYOUT_FIELD(FShaderParameter, NumClippingVolumes);

@@ -53,6 +53,7 @@ uint bUseCircle;
 uint bUseColorOverride;
 uint bUseElevationColor;
 uint bUseClassification;
+uint bUseClassificationAlpha;
 
 float4 ClassificationColors[32];
 
@@ -355,7 +356,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 		}
 
 		Intermediates.Color = half4(Color, bUseCircle);
-		Intermediates.Alpha = lerp(1, ClassificationColor.a, bUseClassification);
+		Intermediates.Alpha = lerp(1, ClassificationColor.a, bUseClassification || bUseClassificationAlpha);
 	}
 
 	return Intermediates;

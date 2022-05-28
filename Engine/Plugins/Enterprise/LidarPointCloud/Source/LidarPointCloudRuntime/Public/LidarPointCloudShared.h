@@ -425,6 +425,8 @@ enum class ELidarPointCloudColorationMode : uint8
 	None,
 	/** Uses imported RGB / Intensity data */
 	Data,
+	/** Uses imported RGB / Intensity data combined with Alpha mask from Classification Colors */
+	DataWithClassificationAlpha,
 	/** The cloud's color will be overridden with elevation-based color */
 	Elevation,
 	/** The cloud's color will be overridden with relative position-based color */

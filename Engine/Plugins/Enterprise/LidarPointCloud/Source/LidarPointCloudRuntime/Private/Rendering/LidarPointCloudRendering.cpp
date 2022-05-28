@@ -340,7 +340,7 @@ public:
 		UserDataElement.ElevationColorBottom = FVector3f(RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : RenderData.RenderParams.ElevationColorBottom);
 		UserDataElement.ElevationColorTop = FVector3f(RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : RenderData.RenderParams.ElevationColorTop);
 		UserDataElement.bUseCircle = bUsesSprites && RenderData.RenderParams.PointShape == ELidarPointCloudSpriteShape::Circle;
-		UserDataElement.bUseColorOverride = RenderData.RenderParams.ColorSource != ELidarPointCloudColorationMode::Data;
+		UserDataElement.bUseColorOverride = RenderData.RenderParams.ColorSource != ELidarPointCloudColorationMode::Data && RenderData.RenderParams.ColorSource != ELidarPointCloudColorationMode::DataWithClassificationAlpha;
 		UserDataElement.bUseElevationColor = RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::Elevation || RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None;
 		UserDataElement.Offset = RenderData.RenderParams.Offset;
 		UserDataElement.Contrast = RenderData.RenderParams.Contrast;
@@ -350,6 +350,7 @@ public:
 		UserDataElement.IntensityInfluence = RenderData.RenderParams.IntensityInfluence;
 
 		UserDataElement.bUseClassification = RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::Classification;
+		UserDataElement.bUseClassificationAlpha = RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::DataWithClassificationAlpha;
 		UserDataElement.SetClassificationColors(RenderData.RenderParams.ClassificationColors);
 				
 		UserDataElement.NumClippingVolumes = FMath::Min(RenderData.ClippingVolumes.Num(), 16);
