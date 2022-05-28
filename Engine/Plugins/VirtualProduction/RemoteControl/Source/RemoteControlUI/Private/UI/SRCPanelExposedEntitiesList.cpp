@@ -20,6 +20,8 @@
 #include "SRCPanelFieldGroup.h"
 #include "SRCPanelExposedField.h"
 #include "UObject/Object.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 

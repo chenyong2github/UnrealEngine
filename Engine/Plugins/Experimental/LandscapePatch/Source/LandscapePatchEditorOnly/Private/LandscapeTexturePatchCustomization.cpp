@@ -5,6 +5,7 @@
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "Engine/Texture2D.h"
 #include "FileHelpers.h"
 #include "LandscapeTexturePatchBase.h"
 #include "TextureCompiler.h"

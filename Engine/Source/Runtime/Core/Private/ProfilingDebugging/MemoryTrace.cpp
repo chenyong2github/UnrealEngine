@@ -5,6 +5,9 @@
 #include "ProfilingDebugging/CallstackTrace.h"
 #include "ProfilingDebugging/TagTrace.h"
 #include "ProfilingDebugging/TraceMalloc.h"
+#include "Trace/Detail/EventNode.h"
+#include "Trace/Detail/LogScope.inl"
+#include "Trace/Detail/Important/ImportantLogScope.inl"
 #include "Trace/Trace.h"
 
 #if UE_TRACE_ENABLED
