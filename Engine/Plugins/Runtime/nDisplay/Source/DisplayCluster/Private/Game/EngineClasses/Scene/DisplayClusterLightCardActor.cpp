@@ -40,6 +40,8 @@ ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitia
 	, Mask(EDisplayClusterLightCardMask::Circle)
 	, Texture(nullptr)
 	, Color(FLinearColor(1.f, 1.f, 1.f, 1.f))
+	, Temperature(6500)
+	, Tint(0)
 	, Exposure(0.f)
 	, Opacity(1.f)
 	, Feathering(0.f)
@@ -214,6 +216,8 @@ void ADisplayClusterLightCardActor::UpdateLightCardMaterialInstance()
 		LightCardMaterialInstance->ClearParameterValues();
 
 		LightCardMaterialInstance->SetVectorParameterValue(TEXT("CardColor"), Color);
+		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Temperature"), Temperature);
+		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Tint"), Tint);
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Exposure"), Exposure);
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("EmissiveStrength"), Exposure);
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Opacity"), bIsProxy ? ProxyOpacity : Opacity);
