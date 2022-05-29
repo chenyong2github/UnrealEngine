@@ -143,13 +143,15 @@ void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent
 	}
 
 	if (PropertyChangedEvent.Property && (
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Mask) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Polygon) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Texture) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Color) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Exposure) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Opacity) ||
-		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Feathering)))
+		   PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Mask)
+		|| PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Polygon) 
+		|| PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Texture) 
+		|| PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Color)
+		|| PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Exposure)
+		|| PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Opacity)
+		|| PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Feathering)
+		|| PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, AlphaGradient)
+		))
 	{
 		UpdateLightCardMaterialInstance();
 	}
@@ -223,6 +225,11 @@ void ADisplayClusterLightCardActor::UpdateLightCardMaterialInstance()
 		LightCardMaterialInstance->SetScalarParameterValue(TEXT("Opacity"), bIsProxy ? ProxyOpacity : Opacity);
 		LightCardMaterialInstance->SetTextureParameterValue(TEXT("Texture"), Texture);
 		LightCardMaterialInstance->SetTextureParameterValue(TEXT("AlphaTexture"), PolygonMask);
+
+		LightCardMaterialInstance->SetScalarParameterValue(TEXT("AlphaGradient"), AlphaGradient.bEnableAlphaGradient);
+		LightCardMaterialInstance->SetScalarParameterValue(TEXT("AlphaGradientStartingAlpha"), AlphaGradient.StartingAlpha);
+		LightCardMaterialInstance->SetScalarParameterValue(TEXT("AlphaGradientEndingAlpha"), AlphaGradient.EndingAlpha);
+		LightCardMaterialInstance->SetScalarParameterValue(TEXT("AlphaGradientAngle"), AlphaGradient.Angle);
 
 		bool bUseMask = true; // Enable masking
 		bool bUseTextureAlpha = false; // Use the alpha channel of Texture as mask

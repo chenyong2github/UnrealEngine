@@ -21,6 +21,28 @@ enum class EDisplayClusterLightCardMask : uint8
 	Polygon,
 };
 
+USTRUCT(Blueprintable)
+struct FLightCardAlphaGradientSettings
+{
+	GENERATED_BODY()
+
+	/** Enables/disables alpha gradient effect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+	bool bEnableAlphaGradient = false;
+
+	/** Starting alpha value in the gradient */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (EditCondition = "bEnableAlphaGradient"))
+	float StartingAlpha = 0;
+
+	/** Ending alpha value in the gradient */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (EditCondition = "bEnableAlphaGradient"))
+	float EndingAlpha = 1;
+
+	/** The angle (degrees) determines the gradient direction. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (EditCondition = "bEnableAlphaGradient"))
+	float Angle = 0;
+};
+
 UCLASS(Blueprintable)
 class DISPLAYCLUSTER_API ADisplayClusterLightCardActor : public AActor
 {
@@ -128,6 +150,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (UIMin = 0, ClampMin = 0))
 	float Feathering;
+
+	/** Settings related to an alpha gradient effect */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
+	FLightCardAlphaGradientSettings AlphaGradient;
 
 	/** A flag that controls wether the light card's location and rotation are locked to its "owning" root actor */
 	UPROPERTY()
