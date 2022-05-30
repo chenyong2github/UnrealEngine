@@ -14,6 +14,7 @@
 
 class UDataLayerAsset;
 class UDataLayerInstance;
+struct FWorldPartitionFileLogger;
 
 enum class EWorldPartitionRuntimeCellVisualizeMode
 {
@@ -149,7 +150,7 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 
 	static void DirtyStreamingSourceCacheEpoch() { ++UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch; }
 
-	// IRuntimeCell Interface begin
+	// IWorldPartitionCell Interface begin
 	virtual TArray<const UDataLayerInstance*> GetDataLayerInstances() const override;
 	virtual bool ContainsDataLayer(const UDataLayerAsset* DataLayerAsset) const override;
 	virtual bool ContainsDataLayer(const UDataLayerInstance* DataLayerInstance) const override;
@@ -159,7 +160,7 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 	{
 		return Algo::AnyOf(DataLayers, [&InDataLayers](const FName& DataLayer) { return InDataLayers.Contains(DataLayer); });
 	}
-	// IRuntimeCell Interface end
+	// IWorldPartitionCell Interface end
 
 	const FVector2D& GetMinMaxZ() const { return MinMaxZ; }
 
@@ -183,6 +184,8 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 	virtual FString GetPackageNameToCreate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetPackageNameToCreate, return FString(""););
 
 	void SetIsHLOD(bool bInIsHLOD) { bIsHLOD = bInIsHLOD; }
+
+	virtual void LogStreamingGeneration(FWorldPartitionFileLogger& Logger);
 #endif
 	
 	bool GetIsHLOD() const { return bIsHLOD; }

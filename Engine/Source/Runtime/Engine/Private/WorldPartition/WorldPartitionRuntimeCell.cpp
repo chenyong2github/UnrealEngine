@@ -9,6 +9,10 @@
 #include "WorldPartition/DataLayer/DataLayersID.h"
 #include "Engine/World.h"
 
+#if WITH_EDITOR
+#include "WorldPartition/WorldPartitionFileLogger.h"
+#endif
+
 int32 UWorldPartitionRuntimeCell::StreamingSourceCacheEpoch = 0;
 
 UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer& ObjectInitializer)
@@ -72,6 +76,12 @@ void UWorldPartitionRuntimeCell::UpdateDebugName()
 		Builder += FString::Printf(TEXT("ID:%X]"), FDataLayersID(DataLayerObjects).GetHash());
 	}
 	DebugName = Builder.ToString();
+}
+
+void UWorldPartitionRuntimeCell::LogStreamingGeneration(FWorldPartitionFileLogger& Logger)
+{
+	Logger.WriteLine(FString::Printf(TEXT("Actor Count: %d"), GetActorCount()));
+	Logger.WriteLine(FString::Printf(TEXT("MinMaxZ: %s"), *GetMinMaxZ().ToString()));
 }
 
 #endif

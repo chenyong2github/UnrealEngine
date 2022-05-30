@@ -37,6 +37,7 @@
 #include "Components/LineBatchComponent.h"
 
 #if WITH_EDITOR
+#include "WorldPartition/WorldPartitionFileLogger.h"
 #include "Editor/EditorEngine.h"
 #include "CookPackageSplitter.h"
 #include "Misc/Parse.h"
@@ -850,6 +851,89 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreami
 	}
 
 	return true;
+}
+
+void UWorldPartitionRuntimeSpatialHash::LogStreamingGeneration(FWorldPartitionFileLogger& Logger)
+{
+	Super::LogStreamingGeneration(Logger);
+
+	for (FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+	{
+		Logger.WriteLine(TEXT("----------------------------------------------------------------------------------------------------------------"));
+		Logger.WriteLine(FString::Printf(TEXT("%s - Runtime Spatial Hash - Streaming Grid - %s"), *GetWorld()->GetName(), *StreamingGrid.GridName.ToString()));
+		Logger.WriteLine(TEXT("----------------------------------------------------------------------------------------------------------------"));
+		Logger.WriteLine(FString::Printf(TEXT("            Origin: %s"), *StreamingGrid.Origin.ToString()));
+		Logger.WriteLine(FString::Printf(TEXT("         Cell Size: %d"), StreamingGrid.CellSize));
+		Logger.WriteLine(FString::Printf(TEXT("      World Bounds: %s"), *StreamingGrid.WorldBounds.ToString()));
+		Logger.WriteLine(FString::Printf(TEXT("     Loading Range: %3.2f"), StreamingGrid.LoadingRange));
+		Logger.WriteLine(FString::Printf(TEXT("Block Slow Loading: %s"), StreamingGrid.bBlockOnSlowStreaming ? TEXT("Yes") : TEXT("No")));
+		Logger.WriteLine(FString::Printf(TEXT(" ClientOnlyVisible: %s"), StreamingGrid.bClientOnlyVisible ? TEXT("Yes") : TEXT("No")));
+		Logger.WriteLine(TEXT(""));
+		if (const UHLODLayer* HLODLayer = StreamingGrid.HLODLayer)
+		{
+			Logger.WriteLine(FString::Printf(TEXT("    HLOD Layer: %s"), *HLODLayer->GetName()));
+		}
+
+		{
+			struct FGridLevelStats
+			{
+				int32 CellCount;
+				int32 CellSize;
+				int32 ActorCount;
+			};
+
+			TArray<FGridLevelStats> LevelsStats;
+			int32 TotalActorCount = 0;
+			
+			{
+				int32 Level = 0;
+				for (FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
+				{
+					int32 LevelCellCount = 0;
+					int32 LevelActorCount = 0;
+					for (FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
+					{
+						LevelCellCount += LayerCell.GridCells.Num();
+						for (TObjectPtr<UWorldPartitionRuntimeSpatialHashCell>& Cell : LayerCell.GridCells)
+						{
+							LevelActorCount += Cell->GetActorCount();
+						}
+					}
+					LevelsStats.Add({ LevelCellCount, (StreamingGrid.CellSize << Level), LevelActorCount });
+					TotalActorCount += LevelActorCount;
+					++Level;
+				}
+				TotalActorCount = (TotalActorCount > 0) ? TotalActorCount : 1;
+			}
+
+			Logger.WriteLine(FString::Printf(TEXT("Grid Levels: %d"), StreamingGrid.GridLevels.Num()), true);
+			for (int Level=0; Level< LevelsStats.Num(); ++Level)
+			{
+				Logger.WriteLine(FString::Printf(TEXT("Level %2d: Cell Count %4d | Cell Size %7d | Actor Count %4d (%3.1f%%)"), Level, LevelsStats[Level].CellCount, LevelsStats[Level].CellSize, LevelsStats[Level].ActorCount, (100.f*LevelsStats[Level].ActorCount)/TotalActorCount));
+			}
+			Logger.DecrementIndentation();
+		}
+
+		{
+			Logger.WriteLine(TEXT(""));
+			int32 Level = 0;
+			for (const FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
+			{
+				Logger.WriteLine(FString::Printf(TEXT("Content of Grid Level %d"), Level++), true);
+				for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
+				{
+					for (const TObjectPtr<UWorldPartitionRuntimeSpatialHashCell>& Cell : LayerCell.GridCells)
+					{
+						Logger.WriteLine(FString::Printf(TEXT("Content of Cell %s"), *Cell->GetDebugName()), true);
+						Cell->LogStreamingGeneration(Logger);
+						Logger.DecrementIndentation();
+					}
+				}
+				Logger.DecrementIndentation();
+			}
+		}
+		Logger.WriteLine(TEXT(""));
+	}
 }
 
 FName UWorldPartitionRuntimeSpatialHash::GetCellName(UWorldPartition* WorldPartition, FName InGridName, const FIntVector& InCellGlobalCoord, const FDataLayersID& InDataLayerID)

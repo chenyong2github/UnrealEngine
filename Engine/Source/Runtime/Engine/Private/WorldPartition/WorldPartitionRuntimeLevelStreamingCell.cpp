@@ -12,6 +12,7 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
+#include "WorldPartition/WorldPartitionFileLogger.h"
 #include "Engine/LevelStreamingAlwaysLoaded.h"
 #endif
 
@@ -217,6 +218,17 @@ FString UWorldPartitionRuntimeLevelStreamingCell::GetPackageNameToCreate() const
 	const UWorldPartition* WorldPartition = GetOuterUWorldPartition();
 	UWorld* OuterWorld = WorldPartition->GetTypedOuter<UWorld>();
 	return UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(GetFName(), OuterWorld);
+}
+
+void UWorldPartitionRuntimeLevelStreamingCell::LogStreamingGeneration(FWorldPartitionFileLogger& Logger)
+{
+	Super::LogStreamingGeneration(Logger);
+
+	for (const FWorldPartitionRuntimeCellObjectMapping& Mapping : Packages)
+	{
+		Logger.WriteLine(FString::Printf(TEXT("Actor Path: %s"), *Mapping.Path.ToString()));
+		Logger.WriteLine(FString::Printf(TEXT("Actor Package: %s"), *Mapping.Package.ToString()));
+	}
 }
 
 #endif

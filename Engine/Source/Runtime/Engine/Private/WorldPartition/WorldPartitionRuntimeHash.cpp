@@ -10,6 +10,7 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/WorldPartitionFileLogger.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
@@ -35,6 +36,27 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	AlwaysLoadedActorsForPIE.Empty();
 
 	ModifiedActorDescListForPIE.Empty();
+}
+
+void UWorldPartitionRuntimeHash::LogStreamingGeneration(FWorldPartitionFileLogger& Logger)
+{
+	Logger.WriteLine(TEXT("----------------------------------------------------------------------------------------------------------------"));
+	Logger.WriteLine(FString::Printf(TEXT("%s - Persistent Level"), *GetWorld()->GetName()));
+	Logger.WriteLine(TEXT("----------------------------------------------------------------------------------------------------------------"));
+	Logger.WriteLine(FString::Printf(TEXT("Always loaded Actor Count: %d "), GetWorld()->PersistentLevel->Actors.Num()));
+	Logger.WriteLine(TEXT(""));
+}
+
+void UWorldPartitionRuntimeHash::LogStreamingGeneration()
+{
+	// For now only log for cook
+	if (IsRunningCookCommandlet())
+	{
+		const TCHAR* Suffix = TEXT("Cook");
+		const FString StateLogOutputFilename = FPaths::ProjectSavedDir() / TEXT("WorldPartition") / FString::Printf(TEXT("StreamingGeneration-RuntimeSpatialHash-%s-%s-%s.log"), Suffix, *GetWorld()->GetName(), *FDateTime::Now().ToString());
+		FWorldPartitionFileLogger Logger(StateLogOutputFilename);
+		LogStreamingGeneration(Logger);
+	}
 }
 
 void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE)
