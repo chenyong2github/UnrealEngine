@@ -347,6 +347,11 @@ namespace DatasmithRevitExporter
 			{
 				bSettingsChanged = true;
 			};
+
+			InsertionPointCombo.SelectedValueChanged += (S, E) =>
+			{
+				bSettingsChanged = true;
+			};
 		}
 
 		private void ReloadAddedGroupsList()
