@@ -1209,9 +1209,10 @@ uint32 FAutomationTestBase::ExtractAutomationTestFlags(FString InTagNotation)
 		.ParseIntoArray(OutputParts, TEXT(";"), true);
 	for (auto it = OutputParts.begin(); it != OutputParts.end(); ++it)
 	{
-		if (FStringToEAutomationTestFlagMap.Contains(*it))
+		auto Value = EAutomationTestFlags::FromString(*it);
+		if (Value != EAutomationTestFlags::None)
 		{
-			Result |= FStringToEAutomationTestFlagMap[*it];
+			Result |= Value;
 		}
 	}
 	return Result;
