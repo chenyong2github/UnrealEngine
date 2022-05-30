@@ -15,6 +15,7 @@
 #include "Engine/Blueprint.h"
 #include "ScopedTransaction.h"
 #include "UObject/UObjectIterator.h"
+#include "PCGEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphSchema"
 
@@ -219,7 +220,7 @@ void UPCGEditorGraphSchema::GetBlueprintElementActions(FGraphActionMenuBuilder& 
 	FARFilter Filter;
 	Filter.ClassNames.Add(UBlueprint::StaticClass()->GetFName());
 	Filter.bRecursiveClasses = true;
-	Filter.TagsAndValues.Add(FBlueprintTags::NativeParentClassPath, FString::Printf(TEXT("%s'%s'"), *UClass::StaticClass()->GetName(), *UPCGBlueprintElement::StaticClass()->GetPathName()));
+	Filter.TagsAndValues.Add(FBlueprintTags::NativeParentClassPath, UPCGBlueprintElement::GetParentClassName());
 
 	TArray<FAssetData> BlueprintElementAssets;
 	AssetRegistryModule.Get().GetAssets(Filter, BlueprintElementAssets);
@@ -265,6 +266,59 @@ void UPCGEditorGraphSchema::GetSubgraphElementActions(FGraphActionMenuBuilder& A
 	}
 }
 
+void UPCGEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>& Assets, const FVector2D& GraphPosition, UEdGraph* Graph) const
+{
+	FVector2D GraphPositionOffset = GraphPosition;
+	constexpr float PositionOffsetIncrementY = 50.f;
+	UEdGraphPin* NullFromPin = nullptr;
+
+	for (const FAssetData& AssetData : Assets)
+	{
+		if (const UObject* Asset = AssetData.GetAsset())
+		{
+			if (Asset->IsA<UPCGGraph>())
+			{
+				FPCGEditorGraphSchemaAction_NewSubgraphElement NewSubgraphAction;
+				NewSubgraphAction.SubgraphObjectPath = AssetData.ObjectPath;
+				NewSubgraphAction.PerformAction(Graph, NullFromPin, GraphPositionOffset);
+				GraphPositionOffset.Y += PositionOffsetIncrementY;
+			}
+			else if (PCGEditorUtils::IsAssetPCGBlueprint(AssetData))
+			{
+				const FString GeneratedClass = AssetData.GetTagValueRef<FString>(FBlueprintTags::GeneratedClassPath);
+
+				FPCGEditorGraphSchemaAction_NewBlueprintElement NewBlueprintAction;
+				NewBlueprintAction.BlueprintClassPath = FSoftClassPath(GeneratedClass);
+				NewBlueprintAction.PerformAction(Graph, NullFromPin, GraphPositionOffset);
+				GraphPositionOffset.Y += PositionOffsetIncrementY;
+			}
+		}
+	}
+}
+
+void UPCGEditorGraphSchema::GetAssetsGraphHoverMessage(const TArray<FAssetData>& Assets, const UEdGraph* /*HoverGraph*/, FString& OutTooltipText, bool& OutOkIcon) const
+{
+	for (const FAssetData& AssetData : Assets)
+	{
+		if (const UObject* Asset = AssetData.GetAsset())
+		{
+			if (Asset->IsA<UPCGGraph>() || PCGEditorUtils::IsAssetPCGBlueprint(AssetData))
+			{
+				OutOkIcon = true;
+				return;
+			}
+			else if (Asset->IsA<UBlueprint>())
+			{
+				OutTooltipText = LOCTEXT("PCGEditorDropAssetInvalidBP", "Blueprint does not derive from UPCGBlueprintElement").ToString();
+				OutOkIcon = false;
+				return;
+			}
+		}
+	}
+
+	OutTooltipText = LOCTEXT("PCGEditorDropAssetInvalid", "Can't create a node for this asset").ToString();
+	OutOkIcon = false;
+}
 
 
 FPCGEditorConnectionDrawingPolicy::FPCGEditorConnectionDrawingPolicy(int32 InBackLayerID, int32 InFrontLayerID, float InZoomFactor, const FSlateRect& InClippingRect, FSlateWindowElementList& InDrawElements, UEdGraph* InGraph)

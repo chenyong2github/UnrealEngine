@@ -88,6 +88,9 @@ public:
 	// ~Begin UObject interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// ~End UObject interface
+
+	/** Used for filtering */
+	static FString GetParentClassName();
 #endif
 
 	/** Needed to be able to call certain blueprint functions */

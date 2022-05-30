@@ -10,6 +10,7 @@
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Modules/ModuleManager.h"
 #include "SGraphActionMenu.h"
+#include "PCGEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "SPCGEditorGraphNodePalette"
 
@@ -82,11 +83,7 @@ void SPCGEditorGraphNodePalette::CollectAllActions(FGraphActionListBuilderBase& 
 
 void SPCGEditorGraphNodePalette::OnAssetChanged(const FAssetData& InAssetData)
 {
-	FString InNativeParentClassName = InAssetData.GetTagValueRef<FString>(FBlueprintTags::NativeParentClassPath);
-	FString TargetNativeParentClassName = FString::Printf(TEXT("%s'%s'"), *UClass::StaticClass()->GetName(), *UPCGBlueprintElement::StaticClass()->GetPathName());
-
-	if (InAssetData.AssetClass == UPCGGraph::StaticClass()->GetFName() ||
-		(InAssetData.AssetClass == UBlueprint::StaticClass()->GetFName() && InNativeParentClassName == TargetNativeParentClassName))
+	if (InAssetData.AssetClass == UPCGGraph::StaticClass()->GetFName() || PCGEditorUtils::IsAssetPCGBlueprint(InAssetData))
 	{
 		RefreshActionsList(true);
 	}

@@ -107,6 +107,10 @@ void UPCGBlueprintElement::OnDependencyChanged(UObject* Object, FPropertyChanged
 	OnBlueprintChangedDelegate.Broadcast(this);
 }
 
+FString UPCGBlueprintElement::GetParentClassName()
+{
+	return FString::Printf(TEXT("%s'%s'"), *UClass::StaticClass()->GetName(), *UPCGBlueprintElement::StaticClass()->GetPathName());
+}
 #endif // WITH_EDITOR
 
 FName UPCGBlueprintElement::NodeTitleOverride_Implementation() const
