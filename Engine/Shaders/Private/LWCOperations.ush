@@ -41,7 +41,7 @@ LWC_COMPARE_OP(LWCLessEqual, <=, FLWCType, FFloatType, FBoolType)
 #undef LWC_COMPARE_OP
 
 // No ddxy inside ray tracing shaders
-#if RAYHITGROUPSHADER || RAYMISSHADER || USE_FORCE_TEXTURE_MIP
+#if RAYHITGROUPSHADER || RAYMISSHADER || RAYCALLABLESHADER || USE_FORCE_TEXTURE_MIP
 FFloatType LWCDdx(FLWCType V) { return (FFloatType)0; }
 FFloatType LWCDdy(FLWCType V) { return (FFloatType)0; }
 #else

@@ -222,7 +222,7 @@ float VectorSum(float4 V) { return V.x + V.y + V.z + V.w; }
 // Using SV_ClipDistance has overhead (15% slower base pass in triangle bound test scene on PS4) so projects have to opt-in
 #define USE_GLOBAL_CLIP_PLANE (PROJECT_ALLOW_GLOBAL_CLIP_PLANE && !MATERIAL_DOMAIN_POSTPROCESS && !MATERIAL_DOMAIN_UI)
 
-#if RAYHITGROUPSHADER || RAYMISSHADER
+#if RAYHITGROUPSHADER || RAYMISSHADER || RAYCALLABLESHADER
 
 // These built-ins are not available in ray tracing
 // Define dummy versions so that ray-tracing materials will at least compile
