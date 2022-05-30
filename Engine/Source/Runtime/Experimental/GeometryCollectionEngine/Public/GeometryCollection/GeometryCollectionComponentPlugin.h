@@ -23,7 +23,7 @@ public:
 	 */
 	static inline IGeometryCollectionComponentPlugin& Get()
 	{
-		return FModuleManager::LoadModuleChecked< IGeometryCollectionComponentPlugin >( "GeometryCollectionComponentPlugin" );
+		return FModuleManager::LoadModuleChecked< IGeometryCollectionComponentPlugin >( "GeometryCollectionEngine" );
 	}
 
 	/**
@@ -33,7 +33,7 @@ public:
 	 */
 	static inline bool IsAvailable()
 	{
-		return FModuleManager::Get().IsModuleLoaded( "GeometryCollectionComponentPlugin" );
+		return FModuleManager::Get().IsModuleLoaded( "GeometryCollectionEngine" );
 	}
 };
 
