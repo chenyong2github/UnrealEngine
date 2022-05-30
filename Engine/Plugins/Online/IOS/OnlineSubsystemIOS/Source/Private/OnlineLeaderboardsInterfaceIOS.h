@@ -18,6 +18,7 @@ private:
 	NSMutableArray *UnreportedScores;
     GKPlayer *LeaderboardPlayer;
     GKLeaderboard *CachedLeaderboard;
+	bool bReadLeaderboardFinished;
     
     bool ReadLeaderboardCompletionDelegate(NSArray* players, FOnlineLeaderboardReadRef& ReadObject);
     
