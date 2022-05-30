@@ -11,25 +11,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace CompactBinaryValidationPrivate
-{
-
-template <typename T>
-static constexpr FORCEINLINE T ReadUnaligned(const void* const Memory)
-{
-#if PLATFORM_SUPPORTS_UNALIGNED_LOADS
-	return *static_cast<const T*>(Memory);
-#else
-	T Value;
-	FMemory::Memcpy(&Value, Memory, sizeof(Value));
-	return Value;
-#endif
-}
-
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /**
  * Adds the given error(s) to the error mask.
  *
@@ -112,7 +93,7 @@ static void ValidateCbFloat64(FMemoryView& View, ECbValidateMode Mode, ECbValida
 	{
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Format))
 		{
-			const uint64 RawValue = NETWORK_ORDER64(CompactBinaryValidationPrivate::ReadUnaligned<uint64>(View.GetData()));
+			const uint64 RawValue = NETWORK_ORDER64(FPlatformMemory::ReadUnaligned<uint64>(View.GetData()));
 			const double Value = reinterpret_cast<const double&>(RawValue);
 			if (Value == double(float(Value)))
 			{

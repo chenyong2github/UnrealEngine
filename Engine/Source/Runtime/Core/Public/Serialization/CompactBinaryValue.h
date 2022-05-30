@@ -11,23 +11,6 @@
 #include "Serialization/CompactBinary.h"
 #include "Serialization/VarInt.h"
 
-namespace UE::CompactBinary::Private
-{
-
-template <typename T>
-static constexpr FORCEINLINE T ReadUnaligned(const void* const Memory)
-{
-#if PLATFORM_SUPPORTS_UNALIGNED_LOADS
-	return *static_cast<const T*>(Memory);
-#else
-	T Value;
-	FMemory::Memcpy(&Value, Memory, sizeof(Value));
-	return Value;
-#endif
-}
-
-} // UE::CompactBinary::Private
-
 /**
  * A type that provides unchecked access to compact binary values.
  *
@@ -176,13 +159,13 @@ FORCEINLINE int64 FCbValue::AsIntegerNegative() const
 
 FORCEINLINE float FCbValue::AsFloat32() const
 {
-	const uint32 Value = NETWORK_ORDER32(UE::CompactBinary::Private::ReadUnaligned<uint32>(Data));
+	const uint32 Value = NETWORK_ORDER32(FPlatformMemory::ReadUnaligned<uint32>(Data));
 	return reinterpret_cast<const float&>(Value);
 }
 
 FORCEINLINE double FCbValue::AsFloat64() const
 {
-	const uint64 Value = NETWORK_ORDER64(UE::CompactBinary::Private::ReadUnaligned<uint64>(Data));
+	const uint64 Value = NETWORK_ORDER64(FPlatformMemory::ReadUnaligned<uint64>(Data));
 	return reinterpret_cast<const double&>(Value);
 }
 
@@ -209,12 +192,12 @@ FORCEINLINE FGuid FCbValue::AsUuid() const
 
 FORCEINLINE int64 FCbValue::AsDateTimeTicks() const
 {
-	return NETWORK_ORDER64(UE::CompactBinary::Private::ReadUnaligned<int64>(Data));
+	return NETWORK_ORDER64(FPlatformMemory::ReadUnaligned<int64>(Data));
 }
 
 FORCEINLINE int64 FCbValue::AsTimeSpanTicks() const
 {
-	return NETWORK_ORDER64(UE::CompactBinary::Private::ReadUnaligned<int64>(Data));
+	return NETWORK_ORDER64(FPlatformMemory::ReadUnaligned<int64>(Data));
 }
 
 FORCEINLINE FCbObjectId FCbValue::AsObjectId() const
