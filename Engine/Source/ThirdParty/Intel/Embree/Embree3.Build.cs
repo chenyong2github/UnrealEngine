@@ -23,7 +23,7 @@ public class Embree3 : ModuleRules
 			PublicDelayLoadDLLs.Add("tbb12.dll");
 			PublicDefinitions.Add("USE_EMBREE=1");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Mac)
+		else if (Target.Platform == UnrealTargetPlatform.Mac && !Target.Architecture.ToLower().Contains("arm"))
 		{
 			string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree3122/MacOSX/";
 			string LibDir = Path.Combine(SDKDir, "lib");
