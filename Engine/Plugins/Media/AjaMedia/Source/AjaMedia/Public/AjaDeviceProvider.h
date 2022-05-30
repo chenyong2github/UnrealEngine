@@ -109,6 +109,8 @@ public:
 
 	/** Auto detect sources that are currently streaming to the device */
 	void AutoDetectConfiguration(FOnConfigurationAutoDetected OnAutoDetected);
+	void EndAutoDetectConfiguration();
+
 
 public:
 	virtual FName GetFName() override;
@@ -129,5 +131,5 @@ public:
 	virtual FMediaIOOutputConfiguration GetDefaultOutputConfiguration() const override;
 
 private:
-	FAJAAutoDetectChannelCallback* AutoDetectCallback;
+	TUniquePtr<FAJAAutoDetectChannelCallback> AutoDetectCallback;
 };

@@ -103,7 +103,7 @@ void FAjaMediaSourceDetailsCustomization::OnAutoDetected(TArray<FAjaDeviceProvid
 			if (UAjaMediaSource* MediaSource = Cast<UAjaMediaSource>(EditingObject.Get()))
 			{
 				MediaSource->MediaConfiguration = Configurations[0].Configuration;
-				MediaSource->TimecodeFormat = Configurations[0].TimecodeFormat;
+				MediaSource->AutoDetectableTimecodeFormat = UE::MediaIO::ToAutoDetectableTimecodeFormat(Configurations[0].TimecodeFormat);
 			}
 		}
 	}

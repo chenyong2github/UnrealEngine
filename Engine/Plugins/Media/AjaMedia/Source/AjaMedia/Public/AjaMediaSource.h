@@ -44,10 +44,17 @@ public:
 	UPROPERTY(EditAnywhere, Category="AJA", meta=(DisplayName="Configuration"))
 	FMediaIOConfiguration MediaConfiguration;
 
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.1, "Use AutoDetectableTimecodeFormat")
 	/** Use the time code embedded in the input stream. */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="AJA")
-	EMediaIOTimecodeFormat TimecodeFormat;
+	UPROPERTY(meta=(DeprecatedProperty))
+	EMediaIOTimecodeFormat TimecodeFormat_DEPRECATED = EMediaIOTimecodeFormat::None;
+#endif
 
+	/** Use the time code embedded in the input stream. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category="AJA", meta = (DisplayName = "Timecode Format"))
+	EMediaIOAutoDetectableTimecodeFormat AutoDetectableTimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::Auto; 
+	
 	/**
 	 * Use a ring buffer to capture and transfer data.
 	 * This may decrease transfer latency but increase stability.
@@ -135,6 +142,7 @@ public:
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif //WITH_EDITOR
 
+	virtual void PostLoad() override;
 	virtual bool SupportsFormatAutoDetection() const override { return true; }
 	//~ End UObject interface
 };

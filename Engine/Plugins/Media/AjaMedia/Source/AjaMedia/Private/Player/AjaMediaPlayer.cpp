@@ -105,11 +105,19 @@ bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	{
 		return false;
 	}
-	
-	if (bAutoDetect)
+
+	const EMediaIOAutoDetectableTimecodeFormat Timecode = (EMediaIOAutoDetectableTimecodeFormat)(Options->GetMediaOption(AjaMediaOption::TimecodeFormat, (int64)EMediaIOAutoDetectableTimecodeFormat::None));
+	const bool bAutoDetectTimecode = Timecode == EMediaIOAutoDetectableTimecodeFormat::Auto;
+	const bool bAutoDetectVideoFormat = bAutoDetect;
+
+	if (!bAutoDetectTimecode)
 	{
-		AJA::AJADeviceOptions DeviceOptions(Options->GetMediaOption(AjaMediaOption::DeviceIndex, (int64)0));
-		DeviceProvider->AutoDetectConfiguration(FAjaDeviceProvider::FOnConfigurationAutoDetected::CreateRaw(this, &FAjaMediaPlayer::OnAutoDetected, Url, Options));
+		TimecodeFormat = UE::MediaIO::FromAutoDetectableTimecodeFormat(Timecode);
+	}
+	
+	if (bAutoDetectTimecode || bAutoDetectVideoFormat)
+	{
+		DeviceProvider->AutoDetectConfiguration(FAjaDeviceProvider::FOnConfigurationAutoDetected::CreateRaw(this, &FAjaMediaPlayer::OnAutoDetected, Url, Options, bAutoDetectVideoFormat, bAutoDetectTimecode));
 		return true;
 	}
 	else
@@ -670,10 +678,9 @@ bool FAjaMediaPlayer::Open_Internal(const FString& Url, const IMediaOptions* Opt
 		}
 	}
 	{
-		const EMediaIOTimecodeFormat Timecode = (EMediaIOTimecodeFormat)(Options->GetMediaOption(AjaMediaOption::TimecodeFormat, (int64)EMediaIOTimecodeFormat::None));
-		bUseFrameTimecode = Timecode != EMediaIOTimecodeFormat::None;
+		bUseFrameTimecode = TimecodeFormat != EMediaIOTimecodeFormat::None;
 		AjaOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
-		switch (Timecode)
+		switch (TimecodeFormat)
 		{
 		case EMediaIOTimecodeFormat::None:
 			AjaOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
@@ -793,7 +800,7 @@ bool FAjaMediaPlayer::Open_Internal(const FString& Url, const IMediaOptions* Opt
 	return true;
 }
 
-void FAjaMediaPlayer::OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> Configurations, FString Url, const IMediaOptions* Options)
+void FAjaMediaPlayer::OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> Configurations, FString Url, const IMediaOptions* Options, bool bAutoDetectVideoFormat, bool bAutoDetectTimecodeFormat)
 {
 	AJA::AJAInputOutputChannelOptions AjaOptions(TEXT("MediaPlayer"), Options->GetMediaOption(AjaMediaOption::PortIndex, (int64)0));
 	
@@ -801,6 +808,7 @@ void FAjaMediaPlayer::OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigur
 	{
 		FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat Format = Configurations[0];
 			
+		if (bAutoDetectVideoFormat)
 		{
 			VideoFrameRate = Format.Configuration.MediaMode.FrameRate;
 			FIntPoint Resolution = Format.Configuration.MediaMode.Resolution;
@@ -809,8 +817,14 @@ void FAjaMediaPlayer::OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigur
 			VideoTrackFormat.FrameRates = TRange<float>(VideoFrameRate.AsDecimal());
 			VideoTrackFormat.FrameRate = VideoFrameRate.AsDecimal();
 			VideoTrackFormat.TypeName = Format.Configuration.MediaMode.GetModeName().ToString();
-
+			
 			AjaOptions.VideoFormatIndex = Format.Configuration.MediaMode.DeviceModeIdentifier;
+			
+		}
+
+		if (bAutoDetectTimecodeFormat)
+		{
+			TimecodeFormat = Format.TimecodeFormat;
 		}
 
 		//Setup base sampling settings

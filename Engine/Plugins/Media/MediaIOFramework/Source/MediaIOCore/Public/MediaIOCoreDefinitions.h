@@ -54,6 +54,63 @@ enum class EMediaIOTimecodeFormat
 	VITC,
 };
 
+/**
+ * Timecode formats.
+ */
+UENUM()
+enum class EMediaIOAutoDetectableTimecodeFormat : uint8
+{
+	None = 0,
+	LTC,
+	VITC,
+	Auto = 255,
+};
+
+namespace UE::MediaIO
+{
+	static EMediaIOAutoDetectableTimecodeFormat ToAutoDetectableTimecodeFormat(EMediaIOTimecodeFormat TimecodeFormat)
+	{
+		switch (TimecodeFormat)
+		{
+		case EMediaIOTimecodeFormat::None:
+			return EMediaIOAutoDetectableTimecodeFormat::None;
+		case EMediaIOTimecodeFormat::LTC:
+			return EMediaIOAutoDetectableTimecodeFormat::LTC;
+		case EMediaIOTimecodeFormat::VITC:
+			return EMediaIOAutoDetectableTimecodeFormat::VITC;
+		default:
+			ensureMsgf(false, TEXT("Unknown timecode format encountered!"));
+			return EMediaIOAutoDetectableTimecodeFormat::None;
+		}
+	}
+
+	static EMediaIOTimecodeFormat FromAutoDetectableTimecodeFormat(EMediaIOAutoDetectableTimecodeFormat TimecodeFormat)
+	{
+		switch (TimecodeFormat)
+		{
+		case EMediaIOAutoDetectableTimecodeFormat::LTC:
+			return EMediaIOTimecodeFormat::LTC;
+		case EMediaIOAutoDetectableTimecodeFormat::VITC:
+			return EMediaIOTimecodeFormat::VITC;
+		default:
+			ensureMsgf(false, TEXT("Unknown timecode format encountered!"));
+			return EMediaIOTimecodeFormat::None;
+		}
+	}
+}
+
+USTRUCT()
+struct MEDIAIOCORE_API FMediaIOAutoDetectableTimecodeFormat_Backup
+{
+	GENERATED_BODY()
+
+	/** The timecode format if not autodetected. */
+	UPROPERTY(EditAnywhere, Category = "AJA")
+	EMediaIOTimecodeFormat TimecodeFormat = EMediaIOTimecodeFormat::None;
+	/** Whether the timecode should be autodetected. */
+	UPROPERTY(EditAnywhere, Category = "AJA")
+	bool bAutoDetect = false;
+};
 
 /**
  * SDI Input type.

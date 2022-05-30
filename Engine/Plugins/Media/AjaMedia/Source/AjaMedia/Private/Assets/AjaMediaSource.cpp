@@ -9,8 +9,7 @@
 #include "UObject/EnterpriseObjectVersion.h"
 
 UAjaMediaSource::UAjaMediaSource()
-	: TimecodeFormat(EMediaIOTimecodeFormat::None)
-	, bCaptureWithAutoCirculating(true)
+	: bCaptureWithAutoCirculating(true)
 	, bCaptureAncillary(false)
 	, MaxNumAncillaryFrameBuffer(8)
 	, bCaptureAudio(false)
@@ -101,7 +100,7 @@ int64 UAjaMediaSource::GetMediaOption(const FName& Key, int64 DefaultValue) cons
 	}
 	if (Key == AjaMediaOption::TimecodeFormat)
 	{
-		return (int64)TimecodeFormat;
+		return (int64)AutoDetectableTimecodeFormat;
 	}
 	if (Key == AjaMediaOption::MaxAncillaryFrameBuffer)
 	{
@@ -243,9 +242,9 @@ bool UAjaMediaSource::Validate() const
 		return false;
 	}
 
-	if (bUseTimeSynchronization && TimecodeFormat == EMediaIOTimecodeFormat::None)
+	if (bUseTimeSynchronization && AutoDetectableTimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::None)
 	{
-		UE_LOG(LogAjaMedia, Warning, TEXT("The MediaSource '%s' use time synchronization but doesn't enabled the timecode."), *GetName());
+		UE_LOG(LogAjaMedia, Warning, TEXT("The MediaSource '%s' uses time synchronization but hasn't enabled the timecode."), *GetName());
 		return false;
 	}
 
@@ -276,12 +275,12 @@ bool UAjaMediaSource::CanEditChange(const FProperty* InProperty) const
 
 	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UAjaMediaSource, bEncodeTimecodeInTexel))
 	{
-		return TimecodeFormat != EMediaIOTimecodeFormat::None && bCaptureVideo;
+		return AutoDetectableTimecodeFormat != EMediaIOAutoDetectableTimecodeFormat::None && bCaptureVideo;
 	}
 
 	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UTimeSynchronizableMediaSource, bUseTimeSynchronization))
 	{
-		return TimecodeFormat != EMediaIOTimecodeFormat::None;
+		return AutoDetectableTimecodeFormat != EMediaIOAutoDetectableTimecodeFormat::None;
 	}
 
 	return true;
@@ -289,9 +288,9 @@ bool UAjaMediaSource::CanEditChange(const FProperty* InProperty) const
 
 void UAjaMediaSource::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAjaMediaSource, TimecodeFormat))
+	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UAjaMediaSource, AutoDetectableTimecodeFormat))
 	{
-		if (TimecodeFormat == EMediaIOTimecodeFormat::None)
+		if (AutoDetectableTimecodeFormat == EMediaIOAutoDetectableTimecodeFormat::None)
 		{
 			bUseTimeSynchronization = false;
 			bEncodeTimecodeInTexel = false;
@@ -301,3 +300,28 @@ void UAjaMediaSource::PostEditChangeChainProperty(struct FPropertyChangedChainEv
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 }
 #endif //WITH_EDITOR
+
+void UAjaMediaSource::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	if (TimecodeFormat_DEPRECATED != EMediaIOTimecodeFormat::None)
+	{
+		switch (TimecodeFormat_DEPRECATED)
+		{
+			case EMediaIOTimecodeFormat::LTC:
+				AutoDetectableTimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::LTC;
+				break;
+			case EMediaIOTimecodeFormat::VITC:
+				AutoDetectableTimecodeFormat = EMediaIOAutoDetectableTimecodeFormat::VITC;
+				break;
+			default:
+				break;
+		}
+		TimecodeFormat_DEPRECATED = EMediaIOTimecodeFormat::None;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+}

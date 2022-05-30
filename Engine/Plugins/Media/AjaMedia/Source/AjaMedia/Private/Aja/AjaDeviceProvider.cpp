@@ -245,13 +245,11 @@ public:
 //--------------------------------------------------------------------
 FAjaDeviceProvider::FAjaDeviceProvider()
 {
-	AutoDetectCallback = nullptr;
 }
 
 
 FAjaDeviceProvider::~FAjaDeviceProvider()
 {
-	delete AutoDetectCallback;
 }
 
 FName FAjaDeviceProvider::GetProviderName()
@@ -304,9 +302,13 @@ void FAjaDeviceProvider::AutoDetectConfiguration(FOnConfigurationAutoDetected On
 
 	if (OnAutoDetected.IsBound())
 	{
-		delete AutoDetectCallback;
-		AutoDetectCallback = new FAJAAutoDetectChannelCallback(OnAutoDetected);
+		AutoDetectCallback = MakeUnique<FAJAAutoDetectChannelCallback>(OnAutoDetected);
 	}
+}
+
+void FAjaDeviceProvider::EndAutoDetectConfiguration()
+{
+	AutoDetectCallback.Reset();
 }
 
 TArray<FMediaIOConnection> FAjaDeviceProvider::GetConnections() const
