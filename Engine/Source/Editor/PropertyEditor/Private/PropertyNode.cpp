@@ -3134,7 +3134,7 @@ void FPropertyNode::DuplicateArrayEntry(FProperty* NodeProperty, FScriptArrayHel
 			UObject* CurrentObject = ObjProp->GetObjectPropertyValue(DestAddress);
 
 			// Make a deep copy
-			UObject* DuplicatedObject = DuplicateObject(CurrentObject, CurrentObject->GetOuter());
+			UObject* DuplicatedObject = DuplicateObject(CurrentObject, CurrentObject ? CurrentObject->GetOuter() : nullptr);
 			ObjProp->SetObjectPropertyValue(SrcAddress, DuplicatedObject);
 		}
 	}
