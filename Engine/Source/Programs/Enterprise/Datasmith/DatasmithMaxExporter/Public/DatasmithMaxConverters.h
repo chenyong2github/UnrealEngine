@@ -35,10 +35,13 @@ class FMeshConverted
 public:
 	TSharedPtr<IDatasmithMeshElement> DatasmithMeshElement;
 	TSet<uint16> SupportedChannels;
+	TMap<int32, int32> UVChannelsMap;
+
 	void ReleaseMeshConverted()
 	{
 		DatasmithMeshElement.Reset();
 		SupportedChannels.Reset();
+		UVChannelsMap.Reset();
 	}
 };
 

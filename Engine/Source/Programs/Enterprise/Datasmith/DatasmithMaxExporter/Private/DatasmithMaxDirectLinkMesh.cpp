@@ -566,7 +566,6 @@ bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMes
 	}
 
 	FDatasmithMesh DatasmithMesh;
-	TMap<int32, int32> UVChannelsMap;
 
 	MeshConversionParams RenderMeshParams = {
 		MeshSource.RenderMesh.GetNode(),
@@ -574,7 +573,7 @@ bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMes
 		MeshSource.bConsolidateMaterialIds
 	};
 
-	if (!GeomUtils::CreateDatasmithMeshFromMaxMesh(DatasmithMesh, RenderMeshParams, MeshConverted.SupportedChannels, UVChannelsMap))
+	if (!GeomUtils::CreateDatasmithMeshFromMaxMesh(DatasmithMesh, RenderMeshParams, MeshConverted.SupportedChannels, MeshConverted.UVChannelsMap))
 	{
 		LogWarning(FString(TEXT("Invalid object: ")) + MeshSource.Node->GetName());
 		return false;
@@ -586,7 +585,7 @@ bool ConvertMaxMeshToDatasmith(TimeValue CurrentTime, ISceneTracker& Scene, FMes
 		constexpr int32 MaxToUnrealUVOffset = -1;
 		constexpr int32 DefaultValue = -1;
 		const int32 SelectedLightmapUVChannel = DatasmithAttributes->GetLightmapUVChannel();
-		const int32* ExportedSelectedChannel = UVChannelsMap.Find(SelectedLightmapUVChannel + MaxToUnrealUVOffset);
+		const int32* ExportedSelectedChannel = MeshConverted.UVChannelsMap.Find(SelectedLightmapUVChannel + MaxToUnrealUVOffset);
 
 		if (ExportedSelectedChannel)
 		{

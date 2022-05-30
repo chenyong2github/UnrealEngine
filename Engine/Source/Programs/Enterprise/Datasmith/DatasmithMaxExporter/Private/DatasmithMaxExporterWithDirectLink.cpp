@@ -1198,6 +1198,26 @@ public:
 		return bResult;
 	}
 
+	void RemapUVChannels(const TSharedPtr<IDatasmithUEPbrMaterialElement>& MaterialElement, const FDatasmithMaxMeshExporter::FUVChannelsMap& UVChannels)
+	{
+		// Remap UV channels of all composite textures of each shaders in the material
+		for (int32 i = 0; i < MaterialElement->GetExpressionsCount(); ++i)
+		{
+			IDatasmithMaterialExpression* MaterialExpression = MaterialElement->GetExpression(i);
+
+			if ( MaterialExpression && MaterialExpression->IsSubType( EDatasmithMaterialExpressionType::TextureCoordinate ) )
+			{
+				IDatasmithMaterialExpressionTextureCoordinate& TextureCoordinate = static_cast< IDatasmithMaterialExpressionTextureCoordinate& >( *MaterialExpression );
+
+				const int32* UVChannel = UVChannels.Find( TextureCoordinate.GetCoordinateIndex() );
+				if ( UVChannel != nullptr )
+				{
+					TextureCoordinate.SetCoordinateIndex( *UVChannel );
+				}
+			}
+		}
+	}
+
 	 // returns if any change in scene was encountered and scene update completed(i.e. DirectLink Sync can be run)
 	bool UpdateInternal(FUpdateProgress::FStage& MainStage)
 	{
@@ -2423,6 +2443,57 @@ public:
 			SceneTracker.UnregisterNodeForMaterial(NodeTracker);
 		}
 		return nullptr;
+	}
+
+	// Backtrack material to the converted mesh it's used on to fix uv channel mapping(Max channel id -> Datasmith uv channel index)
+	// Max channel ids are a sparse set on a Max mesh and its id number is just an integer key. But Unreal(and Datasmith) uses a continuous array of uv sets and therefore Unreal uv ids are index into this array, ranging from 0 to NumUVChannels-1 (including lightmap uvs)
+	// 
+	// todo: simple remapping works only when all meshes using the material have their uv channels built in the same way(same set and order)
+	//   in general a situation when one material is used on two different meshes with different channel order could be handled(like duplicating material to use different channel mappings)
+	virtual void RemapConvertedMaterialUVChannels(Mtl* ActualMaterial, const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) override
+	{
+		if (!ensure(DatasmithMaterial->IsA(EDatasmithElementType::UEPbrMaterial)))
+		{
+			return;
+		}
+
+		TSet<FMaterialTracker*>* MaterialTrackers = MaterialsCollectionTracker.UsedMaterialToMaterialTracker.Find(ActualMaterial);
+
+		if (!MaterialTrackers)
+		{
+			return;
+		}
+
+		for (FMaterialTracker* MaterialTracker: *MaterialTrackers)
+		{
+			if (TSet<FNodeTracker*>* NodeTrackersPtr = MaterialsAssignedToNodes.Find(MaterialTracker))
+			{
+				for (FNodeTracker* NodeTracker: *NodeTrackersPtr)
+				{
+					if (!NodeTracker->HasConverter())
+					{
+						continue;
+					}
+							
+					if (NodeTracker->GetConverter().ConverterType == FNodeConverter::MeshNode)
+					{
+						if (FInstances* Instances = InstancesManager.GetInstancesForNodeTracker(*NodeTracker))
+						{
+							RemapUVChannels(StaticCastSharedPtr<IDatasmithUEPbrMaterialElement>(DatasmithMaterial), Instances->Converted.UVChannelsMap);
+							return;
+						}
+					}
+					else if (NodeTracker->GetConverter().ConverterType == FNodeConverter::HismNode)
+					{
+						for (FMeshConverted& MeshConverted: static_cast<FHismNodeConverter&>(NodeTracker->GetConverter()).Meshes)
+						{
+							RemapUVChannels(StaticCastSharedPtr<IDatasmithUEPbrMaterialElement>(DatasmithMaterial), MeshConverted.UVChannelsMap);
+							return;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	virtual void AddGeometryNodeInstance(FNodeTracker& NodeTracker, FMeshNodeConverter& MeshConverter, Object* Obj) override

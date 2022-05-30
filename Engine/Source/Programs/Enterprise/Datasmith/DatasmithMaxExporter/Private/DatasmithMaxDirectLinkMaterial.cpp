@@ -150,6 +150,7 @@ void FMaterialsCollectionTracker::ConvertMaterial(Mtl* Material, TSharedRef<IDat
 			SCENE_UPDATE_STAT_INC(UpdateMaterials, Converted);
 			DatasmithScene->AddMaterial(DatasmithMaterial);
 			UsedMaterialToDatasmithMaterial.Add(Material, DatasmithMaterial);
+			SceneTracker.RemapConvertedMaterialUVChannels(Material, DatasmithMaterial);
 		}
 	}
 
