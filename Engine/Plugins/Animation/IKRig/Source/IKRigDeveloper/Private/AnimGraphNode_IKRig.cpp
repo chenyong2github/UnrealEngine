@@ -431,6 +431,8 @@ void UAnimGraphNode_IKRig::CreateCustomPins(TArray<UEdGraphPin*>* InOldPins)
 
 void UAnimGraphNode_IKRig::SetPinDefaultValue(UEdGraphPin* InPin, const FName& InPropertyName)
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/IKRig"));
+	
 	// default FIKRigGoal structure 
 	static FIKRigGoal DefaultGoal;
 	static const TSharedPtr<FStructOnScope> StructOnScope =
@@ -748,6 +750,8 @@ void UAnimGraphNode_IKRig::CustomizePinData(UEdGraphPin* Pin, FName SourceProper
 
 void UAnimGraphNode_IKRig::BindPropertyChanges()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/IKRig"));
+	
 	// already bound
 	if (OnAssetPropertyChangedHandle.IsValid())
 	{

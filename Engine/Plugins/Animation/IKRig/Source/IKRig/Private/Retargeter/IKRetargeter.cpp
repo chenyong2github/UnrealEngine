@@ -129,6 +129,7 @@ void FIKRetargetPose::SortHierarchically(const FIKRigSkeleton& Skeleton)
 
 FName UIKRetargeter::GetUniqueIDAsName() const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/IKRig"));
 	static const FString IKRetargetIDPrefix("IKRetargeter_");
 	return FName(IKRetargetIDPrefix + FString::FromInt(GetUniqueID()));
 }

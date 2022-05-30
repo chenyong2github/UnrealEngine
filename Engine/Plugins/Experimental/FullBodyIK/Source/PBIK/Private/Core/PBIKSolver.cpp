@@ -412,6 +412,8 @@ void FPBIKSolver::UpdateBonesFromBodies()
 
 bool FPBIKSolver::Initialize()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/FBIK"));
+	
 	if (bReadyToSimulate)
 	{
 		return true;
@@ -683,6 +685,8 @@ PBIK::FDebugDraw* FPBIKSolver::GetDebugDraw()
 
 void FPBIKSolver::Reset()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/FBIK"));
+	
 	bReadyToSimulate = false;
 	SolverRoot = nullptr;
 	RootPin = nullptr;

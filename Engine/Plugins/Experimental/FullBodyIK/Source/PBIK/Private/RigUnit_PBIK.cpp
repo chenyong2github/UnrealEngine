@@ -6,6 +6,7 @@
 FRigUnit_PBIK_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	LLM_SCOPE_BYNAME(TEXT("Animation/FBIK"));
 
 	if (Context.State == EControlRigState::Init)
 	{

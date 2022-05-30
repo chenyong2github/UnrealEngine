@@ -311,6 +311,8 @@ USkeletalMesh* UIKRigDefinition::GetPreviewMesh() const
 
 FName UIKRigDefinition::GetUniqueIDAsName() const
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/IKRig"));
+	
 	static const FString IKRigIDPrefix("IKRig_");
 	return FName(IKRigIDPrefix + FString::FromInt(GetUniqueID()));
 }

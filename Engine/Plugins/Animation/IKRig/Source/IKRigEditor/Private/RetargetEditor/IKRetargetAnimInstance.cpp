@@ -29,5 +29,6 @@ void UIKRetargetAnimInstance::SetProcessorNeedsInitialized()
 
 FAnimInstanceProxy* UIKRetargetAnimInstance::CreateAnimInstanceProxy()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/IKRig"));
 	return new FIKRetargetAnimInstanceProxy(this, &IKRetargeterNode);
 }

@@ -15,3 +15,4 @@ public:
 };
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPBIKSolver, Warning, All);
+

@@ -5,13 +5,7 @@
 
 #define LOCTEXT_NAMESPACE "IKRigDeveloperModule"
 
-class FIKRigDeveloperModule : public IIKRigDeveloperModule
-{
-public:
-	/** IModuleInterface implementation */
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
-};
+IMPLEMENT_MODULE(FIKRigDeveloperModule, IKRigDeveloper)
 
 void FIKRigDeveloperModule::StartupModule()
 {
@@ -21,5 +15,4 @@ void FIKRigDeveloperModule::ShutdownModule()
 {
 }
 
-IMPLEMENT_MODULE(FIKRigDeveloperModule, IKRigDeveloper)
 #undef LOCTEXT_NAMESPACE

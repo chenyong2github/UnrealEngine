@@ -107,6 +107,7 @@ void CalculateRotationAxisBasedOnEffectorRotation(TArray<FFBIKLinkData>& InOutLi
 ///////////////////////////////////////////////////////////////////////////////
 FJacobianSolverBase::FJacobianSolverBase()
 {
+	LLM_SCOPE_BYNAME(TEXT("Animation/FBIK"));
 	OnCalculatePartialDerivativesDelegate = FCalculatePartialDerivativesDelegate::CreateRaw(this, &FJacobianSolverBase::ComputePartialDerivative);
 	OnCalculateTargetVectorDelegate = FCalculateTargetVectorDelegate::CreateRaw(this, &FJacobianSolverBase::ComputeTargetVector);
 }

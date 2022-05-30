@@ -5,8 +5,9 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
-class IIKRigDeveloperModule : public IModuleInterface
+class IKRIGDEVELOPER_API FIKRigDeveloperModule : public IModuleInterface
 {
 public:
+	void StartupModule() override;
+	void ShutdownModule() override;
 };
-

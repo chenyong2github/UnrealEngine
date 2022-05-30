@@ -7,6 +7,7 @@
 
 #define LOCTEXT_NAMESPACE "FIKRigModule"
 
+IMPLEMENT_MODULE(FIKRigModule, IKRig)
 
 // Unique IK Rig Object version id
 const FGuid FIKRigObjectVersion::GUID(0xF6DFBB78, 0xBB50A0E4, 0x4018B84D, 0x60CBAF23);
@@ -26,5 +27,3 @@ void FIKRigModule::ShutdownModule()
 }
 
 #undef LOCTEXT_NAMESPACE
-	
-IMPLEMENT_MODULE(FIKRigModule, IKRig)
