@@ -11,6 +11,7 @@
 
 
 class UColorCorrectRegionsSubsystem;
+class UBillboardComponent;
 
 UENUM(BlueprintType)
 enum class EColorCorrectRegionsType : uint8 
@@ -92,6 +93,14 @@ public:
 	/** Enable stenciling. */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Color Correction")
 	bool ExcludeStencil;
+
+#if WITH_EDITORONLY_DATA
+
+	/** Billboard component for this actor. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBillboardComponent> SpriteComponent;
+
+#endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 	/** Called when any of the properties are changed. */

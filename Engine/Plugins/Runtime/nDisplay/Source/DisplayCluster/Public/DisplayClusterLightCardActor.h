@@ -136,7 +136,7 @@ public:
 	EDisplayClusterLightCardMask Mask;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
-	UTexture* Texture;
+	TObjectPtr<UTexture> Texture;
 
 	/** Light card color, before any modifier is applied */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
@@ -182,7 +182,7 @@ public:
 
 	/** Used to flag this light card as a proxy of a "real" light card. Used by the LightCard Editor */
 	UPROPERTY(Transient)
-	UTexture* PolygonMask = nullptr;
+	TObjectPtr<UTexture> PolygonMask = nullptr;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Default")

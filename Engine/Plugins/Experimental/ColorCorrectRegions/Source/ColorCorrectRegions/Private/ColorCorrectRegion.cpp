@@ -2,11 +2,14 @@
 
 #include "ColorCorrectRegion.h"
 #include "ColorCorrectRegionsSubsystem.h"
-#include "Engine/Classes/Components/MeshComponent.h"
+#include "Components/BillboardComponent.h"
 #include "CoreMinimal.h"
+#include "Engine/Classes/Components/MeshComponent.h"
+#include "Engine/Texture2D.h"
 #include "UObject/ConstructorHelpers.h"
 
-AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitializer) 
+	: Super(ObjectInitializer)
 	, Type(EColorCorrectRegionsType::Sphere)
 	, Priority(0)
 	, Intensity(1.0)
@@ -20,6 +23,52 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	, ColorCorrectRegionsSubsystem(nullptr)
 {
 	PrimaryActorTick.bCanEverTick = true;
+
+	// Add a scene component as our root
+	RootComponent = ObjectInitializer.CreateDefaultSubobject<USceneComponent>(this, TEXT("Root"));
+	RootComponent->SetMobility(EComponentMobility::Movable);
+
+#if WITH_EDITOR
+
+	// Create billboard component
+
+	if (GIsEditor && !IsRunningCommandlet())
+	{
+		// Structure to hold one-time initialization
+
+		struct FConstructorStatics
+		{
+			ConstructorHelpers::FObjectFinderOptional<UTexture2D> SpriteTextureObject;
+			FName ID_ColorCorrectRegion;
+			FText NAME_ColorCorrectRegion;
+
+			FConstructorStatics()
+				: SpriteTextureObject(TEXT("/ColorCorrectRegions/Icons/S_ColorCorrectRegionIcon"))
+				, ID_ColorCorrectRegion(TEXT("Color Correct Region"))
+				, NAME_ColorCorrectRegion(NSLOCTEXT("SpriteCategory", "ColorCorrectRegion", "Color Correct Region"))
+			{
+			}
+		};
+
+		static FConstructorStatics ConstructorStatics;
+
+		SpriteComponent = ObjectInitializer.CreateEditorOnlyDefaultSubobject<UBillboardComponent>(this, TEXT("Color Correct Region Icon"));
+		
+		if (SpriteComponent)
+		{
+			SpriteComponent->Sprite = ConstructorStatics.SpriteTextureObject.Get();
+			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_ColorCorrectRegion;
+			SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_ColorCorrectRegion;
+			SpriteComponent->SetIsVisualizationComponent(true);
+			SpriteComponent->SetRelativeLocationAndRotation(FVector::ZeroVector, FRotator::ZeroRotator);
+			SpriteComponent->SetMobility(EComponentMobility::Movable);
+			SpriteComponent->bHiddenInGame = true;
+			
+			SpriteComponent->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+		}
+	}
+
+#endif // WITH_EDITOR
 }
 
 void AColorCorrectRegion::BeginPlay()
