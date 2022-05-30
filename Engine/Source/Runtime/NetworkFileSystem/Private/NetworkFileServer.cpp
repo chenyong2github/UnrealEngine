@@ -138,6 +138,10 @@ int32 FNetworkFileServer::NumConnections(void) const
 
 void FNetworkFileServer::Shutdown(void)
 {
+	if (!CookOnTheFlyServer)
+	{
+		return;
+	}
 	CookOnTheFlyServer->OnClientConnected().RemoveAll(this);
 	CookOnTheFlyServer->OnClientDisconnected().RemoveAll(this);
 	CookOnTheFlyServer->OnRequest(UE::Cook::ECookOnTheFlyMessage::NetworkPlatformFile).Unbind();

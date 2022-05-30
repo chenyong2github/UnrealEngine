@@ -183,7 +183,7 @@ bool FNetworkPlatformFile::ReceiveResponse(TArray<uint8> &Out )
 	{
 		NewPayloadEvent->Wait();
 		TOptional<TArray<uint8>> Payload = PendingPayloads.Dequeue();
-		if (!Payload.IsSet())
+		if (Payload.IsSet())
 		{
 			Out = MoveTemp(Payload.GetValue());
 			break;
