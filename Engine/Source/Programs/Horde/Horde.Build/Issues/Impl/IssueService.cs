@@ -536,7 +536,7 @@ namespace Horde.Build.Services.Impl
 			/// <returns>A new group combining both groups</returns>
 			public NewEventGroup MergeWith(NewEventGroup otherGroup)
 			{
-				NewEventGroup newGroup = new NewEventGroup(Fingerprint.MergeWith(otherGroup.Fingerprint));
+				NewEventGroup newGroup = new NewEventGroup(NewIssueFingerprint.Merge(Fingerprint, otherGroup.Fingerprint));
 				newGroup.Events.AddRange(Events);
 				newGroup.Events.AddRange(otherGroup.Events);
 				return newGroup;
@@ -617,7 +617,7 @@ namespace Horde.Build.Services.Impl
 			}
 
 			// Gets the events for this step grouped by fingerprint
-			HashSet<NewEventGroup> eventGroups = await GetEventGroupsForStepAsync(job, batch, step, node);
+			HashSet<NewEventGroup> eventGroups = await GetEventGroupsForStepAsync(job, batch, step, node, annotations);
 
 			// Try to update all the events. We may need to restart this due to optimistic transactions, so keep track of any existing spans we do not need to check against.
 			await using(IAsyncDisposable issueLock = await _issueCollection.EnterCriticalSectionAsync())
@@ -660,8 +660,9 @@ namespace Horde.Build.Services.Impl
 		/// <param name="batch">Unique id of the batch</param>
 		/// <param name="step">Unique id of the step</param>
 		/// <param name="node">The node corresponding to the step</param>
+		/// <param name="annotations">Annotations for this node</param>
 		/// <returns>Set of new events</returns>
-		async Task<HashSet<NewEventGroup>> GetEventGroupsForStepAsync(IJob job, IJobStepBatch batch, IJobStep step, INode node)
+		async Task<HashSet<NewEventGroup>> GetEventGroupsForStepAsync(IJob job, IJobStepBatch batch, IJobStep step, INode node, IReadOnlyNodeAnnotations annotations)
 		{
 			// Make sure the step has a log file
 			if (step.LogId == null)
@@ -691,7 +692,7 @@ namespace Horde.Build.Services.Impl
 				NewIssueFingerprint? fingerprint = null;
 				foreach (IIssueHandler matcher in _matchers)
 				{
-					if (matcher.TryGetFingerprint(job, node, stepEventData, out fingerprint))
+					if (matcher.TryGetFingerprint(job, node, annotations, stepEventData, out fingerprint))
 					{
 						if (fingerprint.Type != "Systemic")
 						{

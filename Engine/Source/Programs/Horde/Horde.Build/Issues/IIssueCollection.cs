@@ -17,7 +17,6 @@ namespace Horde.Build.Collections
 	using StreamId = StringId<IStream>;
 	using TemplateRefId = StringId<TemplateRef>;
 	using UserId = ObjectId<IUser>;
-	using WorkflowId = StringId<WorkflowConfig>;
 
 	/// <summary>
 	/// Fingerprint for an issue
@@ -33,13 +32,17 @@ namespace Horde.Build.Collections
 		/// <inheritdoc/>
 		public CaseInsensitiveStringSet? RejectKeys { get; set; }
 
+		/// <inheritdoc/>
+		public CaseInsensitiveStringSet? Metadata { get; set; }
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="type">The type of issue</param>
 		/// <param name="keys">Keys which uniquely identify this issue</param>
 		/// <param name="rejectKeys">Keys which should not match with this issue</param>
-		public NewIssueFingerprint(string type, IEnumerable<string> keys, IEnumerable<string>? rejectKeys)
+		/// <param name="metadata">Additional metadata added by the issue handler</param>
+		public NewIssueFingerprint(string type, IEnumerable<string> keys, IEnumerable<string>? rejectKeys, IEnumerable<string>? metadata)
 		{
 			Type = type;
 			Keys = new CaseInsensitiveStringSet(keys);
@@ -48,6 +51,10 @@ namespace Horde.Build.Collections
 			{
 				RejectKeys = new CaseInsensitiveStringSet(rejectKeys);
 			}
+			if (metadata != null && metadata.Any())
+			{
+				Metadata = new CaseInsensitiveStringSet(metadata);
+			}
 		}
 
 		/// <summary>
@@ -55,7 +62,7 @@ namespace Horde.Build.Collections
 		/// </summary>
 		/// <param name="other">The fingerprint to copy from</param>
 		public NewIssueFingerprint(IIssueFingerprint other)
-			: this(other.Type, other.Keys, other.RejectKeys)
+			: this(other.Type, other.Keys, other.RejectKeys, other.Metadata)
 		{
 		}
 
@@ -63,21 +70,19 @@ namespace Horde.Build.Collections
 		/// Merges another fingerprint into this one
 		/// </summary>
 		/// <param name="other">The other fingerprint to merge with</param>
-		public NewIssueFingerprint MergeWith(IIssueFingerprint other)
+		public void MergeWith(IIssueFingerprint other)
 		{
-			NewIssueFingerprint result = new NewIssueFingerprint(this);
-
-			result.Keys.UnionWith(other.Keys);
+			Keys.UnionWith(other.Keys);
 			if (other.RejectKeys != null)
 			{
-				if (result.RejectKeys == null)
-				{
-					result.RejectKeys = new CaseInsensitiveStringSet();
-				}
-				result.RejectKeys.UnionWith(other.RejectKeys);
+				RejectKeys ??= new CaseInsensitiveStringSet();
+				RejectKeys.UnionWith(other.RejectKeys);
 			}
-
-			return result;
+			if (other.Metadata != null)
+			{
+				Metadata ??= new CaseInsensitiveStringSet();
+				Metadata.UnionWith(other.Metadata);
+			}
 		}
 
 		/// <inheritdoc/>
@@ -90,20 +95,13 @@ namespace Horde.Build.Collections
 			{
 				return false;
 			}
-
-			if (RejectKeys == null)
+			if (!ContentsEqual(RejectKeys, otherFingerprint.RejectKeys))
 			{
-				if (otherFingerprint.RejectKeys != null && otherFingerprint.RejectKeys.Count > 0)
-				{
-					return false;
-				}
+				return false;
 			}
-			else
+			if (!ContentsEqual(Metadata, otherFingerprint.Metadata))
 			{
-				if (otherFingerprint.RejectKeys == null || !RejectKeys.SetEquals(otherFingerprint.RejectKeys))
-				{
-					return false;
-				}
+				return false;
 			}
 
 			return true;
@@ -116,18 +114,43 @@ namespace Horde.Build.Collections
 		public override int GetHashCode()
 		{
 			int result = StringComparer.Ordinal.GetHashCode(Type);
-			foreach (string key in Keys)
+			return HashCode.Combine(result, GetContentsHash(Keys), GetContentsHash(RejectKeys), GetContentsHash(Metadata));
+		}
+
+		/// <summary>
+		/// Checks if the contents of two sets are equal
+		/// </summary>
+		/// <param name="setA"></param>
+		/// <param name="setB"></param>
+		/// <returns></returns>
+		static bool ContentsEqual(CaseInsensitiveStringSet? setA, CaseInsensitiveStringSet? setB)
+		{
+			if (setA == null || setA.Count == 0)
 			{
-				result = HashCode.Combine(result, key);
+				return setB == null || setB.Count == 0;
 			}
-			if (RejectKeys != null)
+			else
 			{
-				foreach (string rejectKey in RejectKeys)
+				return setB != null && setA.SetEquals(setB);
+			}
+		}
+
+		/// <summary>
+		/// Gets the hash of the contents of a case insensitive set
+		/// </summary>
+		/// <param name="set"></param>
+		/// <returns></returns>
+		static int GetContentsHash(CaseInsensitiveStringSet? set)
+		{
+			int value = 0;
+			if (set != null)
+			{
+				foreach (string element in set)
 				{
-					result = HashCode.Combine(result, rejectKey);
+					value = HashCode.Combine(value, StringComparer.OrdinalIgnoreCase.GetHashCode(element));
 				}
 			}
-			return result;
+			return value;
 		}
 
 		/// <summary>
@@ -139,17 +162,7 @@ namespace Horde.Build.Collections
 		public static NewIssueFingerprint Merge(IIssueFingerprint a, IIssueFingerprint b)
 		{
 			NewIssueFingerprint newFingerprint = new NewIssueFingerprint(a);
-			newFingerprint.Keys.UnionWith(b.Keys);
-
-			if (b.RejectKeys != null)
-			{
-				if (newFingerprint.RejectKeys == null)
-				{
-					newFingerprint.RejectKeys = new CaseInsensitiveStringSet();
-				}
-				newFingerprint.RejectKeys.UnionWith(b.RejectKeys);
-			}
-
+			newFingerprint.MergeWith(b);
 			return newFingerprint;
 		}
 

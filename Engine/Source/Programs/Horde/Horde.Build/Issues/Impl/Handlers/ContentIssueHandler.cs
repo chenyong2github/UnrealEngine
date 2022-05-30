@@ -54,7 +54,7 @@ namespace Horde.Build.IssueHandlers.Impl
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
 			if (!IsMatchingEventId(eventData.EventId))
 			{
@@ -64,7 +64,7 @@ namespace Horde.Build.IssueHandlers.Impl
 
 			HashSet<string> newAssetNames = new HashSet<string>();
 			GetAssetNames(eventData, newAssetNames);
-			fingerprint = new NewIssueFingerprint(Type, newAssetNames, null);
+			fingerprint = new NewIssueFingerprint(Type, newAssetNames, null, null);
 			return true;
 		}
 

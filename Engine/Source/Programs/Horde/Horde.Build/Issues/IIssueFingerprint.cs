@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Horde.Build.Utilities;
 
@@ -12,7 +13,7 @@ namespace Horde.Build.Models
 	public interface IIssueFingerprint
 	{
 		/// <summary>
-		/// The type of issue
+		/// The type of issue, which defines the handler to use for it
 		/// </summary>
 		public string Type { get; }
 
@@ -25,6 +26,11 @@ namespace Horde.Build.Models
 		/// Set of keys which should trigger a negative match
 		/// </summary>
 		public CaseInsensitiveStringSet? RejectKeys { get; }
+
+		/// <summary>
+		/// Collection of additional metadata added by the handler
+		/// </summary>
+		public CaseInsensitiveStringSet? Metadata { get; }
 	}
 
 	/// <summary>
@@ -82,6 +88,26 @@ namespace Horde.Build.Models
 				return false;
 			}
 			return true;
+		}
+
+		/// <summary>
+		/// Gets all the metadata values with a given key
+		/// </summary>
+		/// <param name="fingerprint">Fingerprint to find values for</param>
+		/// <param name="key">Key name to search for</param>
+		/// <returns>All values with the given key</returns>
+		public static IEnumerable<string> GetMetadataValues(this IIssueFingerprint fingerprint, string key)
+		{
+			if (fingerprint.Metadata != null)
+			{
+				foreach (string element in fingerprint.Metadata)
+				{
+					if (element.StartsWith(key, StringComparison.OrdinalIgnoreCase) && element.Length > key.Length && element[key.Length] == '=')
+					{
+						yield return element.Substring(key.Length + 1);
+					}
+				}
+			}
 		}
 	}
 }

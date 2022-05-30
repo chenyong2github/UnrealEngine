@@ -223,6 +223,7 @@ namespace Horde.Build.Collections.Impl
 			public string Type { get; set; }
 			public CaseInsensitiveStringSet Keys { get; set; }
 			public CaseInsensitiveStringSet? RejectKeys { get; set; }
+			public CaseInsensitiveStringSet? Metadata { get; set; }
 
 			[BsonConstructor]
 			private IssueFingerprint()
@@ -236,6 +237,7 @@ namespace Horde.Build.Collections.Impl
 				Type = fingerprint.Type;
 				Keys = fingerprint.Keys;
 				RejectKeys = fingerprint.RejectKeys;
+				Metadata = fingerprint.Metadata;
 			}
 		}
 

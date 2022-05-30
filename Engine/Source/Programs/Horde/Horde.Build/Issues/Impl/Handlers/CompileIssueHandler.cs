@@ -24,6 +24,11 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// </summary>
 		const string NotePrefix = "note:";
 
+		/// <summary>
+		/// Annotation describing the compile type
+		/// </summary>
+		const string CompileTypeAnnotation = "CompileType";
+
 		/// <inheritdoc/>
 		public string Type => "Compile";
 
@@ -98,7 +103,7 @@ namespace Horde.Build.IssueHandlers.Impl
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
 			if (!IsMatchingEventId(eventData.EventId))
 			{
@@ -108,16 +113,28 @@ namespace Horde.Build.IssueHandlers.Impl
 
 			List<string> newFileNames = new List<string>();
 			GetSourceFiles(eventData, newFileNames);
-			fingerprint = new NewIssueFingerprint(Type, newFileNames, null);
+
+			string? compileType;
+			if (!annotations.TryGetValue(CompileTypeAnnotation, out compileType))
+			{
+				compileType = "Compile";
+			}
+
+			List<string> newMetadata = new List<string>();
+			newMetadata.Add($"{CompileTypeAnnotation}={compileType}");
+
+			fingerprint = new NewIssueFingerprint(Type, newFileNames, null, newMetadata);
 			return true;
 		}
 
 		/// <inheritdoc/>
 		public string GetSummary(IIssueFingerprint fingerprint, IssueSeverity severity)
 		{
-			string type = (severity == IssueSeverity.Warning) ? "Compile warnings" : "Compile errors";
+			List<string> types = fingerprint.GetMetadataValues(CompileTypeAnnotation).ToList();
+			string type = (types.Count == 1) ? types[0] : "Compile";
+			string level = (severity == IssueSeverity.Warning) ? "warnings" : "errors";
 			string list = StringUtils.FormatList(fingerprint.Keys.Where(x => !x.StartsWith(NotePrefix, StringComparison.Ordinal)).ToArray(), 2);
-			return $"{type} in {list}";
+			return $"{type} {level} in {list}";
 		}
 
 		/// <inheritdoc/>

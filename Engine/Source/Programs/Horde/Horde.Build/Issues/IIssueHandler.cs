@@ -137,10 +137,11 @@ namespace Horde.Build.IssueHandlers
 		/// </summary>
 		/// <param name="job">The job that spawned the event</param>
 		/// <param name="node">Node that was executed</param>
+		/// <param name="annotations"></param>
 		/// <param name="eventData">The event data</param>
 		/// <param name="fingerprint">Receives the fingerprint on success</param>
 		/// <returns>True if the match is successful</returns>
-		bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint);
+		bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint);
 
 		/// <summary>
 		/// Rank all the suspect changes for a given fingerprint

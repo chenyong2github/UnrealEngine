@@ -159,24 +159,28 @@ namespace Horde.Build.Tests
 			_perforce.AddChange(MainStreamName, 125, chris, "Description", new string[] { "a/g.cpp" });
 
 			List<INode> nodes = new List<INode>();
-			nodes.Add(MockNode("Update Version Files"));
-			nodes.Add(MockNode("Compile UnrealHeaderTool Win64"));
-			nodes.Add(MockNode("Compile ShooterGameEditor Win64"));
-			nodes.Add(MockNode("Cook ShooterGame Win64"));
+			nodes.Add(MockNode("Update Version Files", NodeAnnotations.Empty));
+			nodes.Add(MockNode("Compile UnrealHeaderTool Win64", NodeAnnotations.Empty));
+			nodes.Add(MockNode("Compile ShooterGameEditor Win64", NodeAnnotations.Empty));
+			nodes.Add(MockNode("Cook ShooterGame Win64", NodeAnnotations.Empty));
 
-			Mock<INodeGroup> @group = new Mock<INodeGroup>(MockBehavior.Strict);
-			@group.SetupGet(x => x.Nodes).Returns(nodes);
+			NodeAnnotations staticAnalysisAnnotations = new NodeAnnotations();
+			staticAnalysisAnnotations.Add("CompileType", "Static analysis");
+			nodes.Add(MockNode("Static Analysis Win64", staticAnalysisAnnotations));
+
+			Mock<INodeGroup> grp = new Mock<INodeGroup>(MockBehavior.Strict);
+			grp.SetupGet(x => x.Nodes).Returns(nodes);
 
 			Mock<IGraph> graphMock = new Mock<IGraph>(MockBehavior.Strict);
-			graphMock.SetupGet(x => x.Groups).Returns(new List<INodeGroup> { @group.Object });
+			graphMock.SetupGet(x => x.Groups).Returns(new List<INodeGroup> { grp.Object });
 			_graph = graphMock.Object;
 		}
 
-		public static INode MockNode(string name)
+		public static INode MockNode(string name, IReadOnlyNodeAnnotations annotations)
 		{
 			Mock<INode> node = new Mock<INode>(MockBehavior.Strict);
 			node.SetupGet(x => x.Name).Returns(name);
-			node.SetupGet(x => x.Annotations).Returns(NodeAnnotations.Empty);
+			node.SetupGet(x => x.Annotations).Returns(annotations);
 			return node.Object;
 		}
 
@@ -733,6 +737,30 @@ namespace Horde.Build.Tests
 				Assert.IsTrue(issues[0].Promoted);
 
 			}
+		}
+
+		[TestMethod]
+		public async Task CompileTypeTest()
+		{
+			string[] lines =
+			{
+				FileReference.Combine(_workspaceDir, "FOO.CPP").FullName + @"(170) : warning C6011: Dereferencing NULL pointer 'CurrentProperty'. : Lines: 159, 162, 163, 169, 170, 174, 176, 159, 162, 163, 169, 170",
+				FileReference.Combine(_workspaceDir, "foo.cpp").FullName + @"(170) : warning C6011: Dereferencing NULL pointer 'CurrentProperty'. : Lines: 159, 162, 163, 169, 170, 174, 176, 159, 162, 163, 169, 170"
+			};
+
+			IJob job = CreateJob(_mainStreamId, 120, "Compile Test", _graph);
+			await UpdateCompleteStep(job, 0, 0, JobStepOutcome.Success);
+			await UpdateCompleteStep(job, 0, 1, JobStepOutcome.Success);
+			await UpdateCompleteStep(job, 0, 2, JobStepOutcome.Success);
+			await UpdateCompleteStep(job, 0, 3, JobStepOutcome.Success);
+			await ParseEventsAsync(job, 0, 4, lines);
+			await UpdateCompleteStep(job, 0, 4, JobStepOutcome.Failure);
+
+			List<IIssue> issues = await IssueService.FindIssuesAsync();
+			Assert.AreEqual(1, issues.Count);
+
+			IIssue issue = issues[0];
+			Assert.AreEqual("Static analysis warnings in FOO.CPP", issue.Summary);
 		}
 
 		[TestMethod]

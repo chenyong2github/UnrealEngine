@@ -97,7 +97,7 @@ namespace Horde.Build.IssueHandlers.Impl
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
 			if(!IsMatchingEventId(eventData.EventId))
 			{
@@ -115,7 +115,7 @@ namespace Horde.Build.IssueHandlers.Impl
 				return false;
 			}
 
-			fingerprint = new NewIssueFingerprint(Type, keys, null);
+			fingerprint = new NewIssueFingerprint(Type, keys, null, null);
 			return true;
 		}
 

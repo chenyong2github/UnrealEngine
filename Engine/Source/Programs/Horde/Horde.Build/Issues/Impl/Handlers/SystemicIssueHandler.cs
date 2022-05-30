@@ -47,7 +47,7 @@ namespace Horde.Build.IssueHandlers.Impl
 		}
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
 			fingerprint = null;
 
@@ -63,7 +63,7 @@ namespace Horde.Build.IssueHandlers.Impl
 					{
 						if (message.Contains(systemicExitMessages[j], StringComparison.InvariantCultureIgnoreCase))
 						{
-							fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null);
+							fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null, null);
 							return true;
 						}
 					}
@@ -75,7 +75,7 @@ namespace Horde.Build.IssueHandlers.Impl
 				return false;
 			}
 
-			fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null);
+			fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null, null);
 			return true;
 		}
 

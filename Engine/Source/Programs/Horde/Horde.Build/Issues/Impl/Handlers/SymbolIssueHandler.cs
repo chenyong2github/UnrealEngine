@@ -83,7 +83,7 @@ namespace Horde.Build.IssueHandlers.Impl
 			}
 		}
 
-		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
 			if (!IsMatchingEventId(eventData.EventId))
 			{
@@ -94,7 +94,7 @@ namespace Horde.Build.IssueHandlers.Impl
 			SortedSet<string> symbolNames = new SortedSet<string>();
 			GetSymbolNames(eventData, symbolNames);
 
-			fingerprint = new NewIssueFingerprint(Type, symbolNames, null);
+			fingerprint = new NewIssueFingerprint(Type, symbolNames, null, null);
 			return true;
 		}
 	}

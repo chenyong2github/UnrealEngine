@@ -25,9 +25,9 @@ namespace Horde.Build.IssueHandlers.Impl
 		public int Priority => 0;
 
 		/// <inheritdoc/>
-		public bool TryGetFingerprint(IJob job, INode node, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
+		public bool TryGetFingerprint(IJob job, INode node, IReadOnlyNodeAnnotations annotations, ILogEventData eventData, [NotNullWhen(true)] out NewIssueFingerprint? fingerprint)
 		{
-			fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null);
+			fingerprint = new NewIssueFingerprint(Type, new[] { node.Name }, null, null);
 			return true;
 		}
 
