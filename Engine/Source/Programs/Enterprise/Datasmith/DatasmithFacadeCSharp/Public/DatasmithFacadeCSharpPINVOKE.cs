@@ -1859,6 +1859,9 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeDirectLink_UpdateScene")]
   public static extern bool FDatasmithFacadeDirectLink_UpdateScene(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeDirectLink_CloseCurrentSource")]
+  public static extern void FDatasmithFacadeDirectLink_CloseCurrentSource(global::System.Runtime.InteropServices.HandleRef jarg1);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeDirectLink_AddEndpointObserver")]
   public static extern void FDatasmithFacadeDirectLink_AddEndpointObserver(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
 

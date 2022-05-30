@@ -30,5 +30,10 @@ public:
 	bool InitializeForScene(const TSharedRef<IDatasmithScene>& Scene);
 	bool UpdateScene(const TSharedRef<IDatasmithScene>& Scene);
 
+	/**
+	 * Close the initialized DirectLink source if any.
+	 */
+	void CloseCurrentSource();
+
 	static TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe> GetEnpoint();
 };

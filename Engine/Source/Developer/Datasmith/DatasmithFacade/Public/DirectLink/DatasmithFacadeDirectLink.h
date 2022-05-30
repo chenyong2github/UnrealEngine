@@ -21,6 +21,11 @@ public:
 	bool UpdateScene(FDatasmithFacadeScene* FacadeScene);
 
 	/**
+	 * Close the initialized DirectLink source if any.
+	 */
+	void CloseCurrentSource();
+
+	/**
 	 * Register an IEndpointObserver that will be notified periodically with the last state of the swarm.
 	 * @param Observer      Object that should be notified
 	 */

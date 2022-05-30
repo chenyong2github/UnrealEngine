@@ -85,6 +85,10 @@ public class FDatasmithFacadeDirectLink : global::System.IDisposable {
     return ret;
   }
 
+  public void CloseCurrentSource() {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeDirectLink_CloseCurrentSource(swigCPtr);
+  }
+
   public void AddEndpointObserver(FDatasmithFacadeEndpointObserver Observer) {
     if (!RegisteredObservers.Contains(Observer))
     {

@@ -70,6 +70,11 @@ bool FDatasmithFacadeDirectLink::UpdateScene(FDatasmithFacadeScene* FacadeScene)
 	return false;
 }
 
+void FDatasmithFacadeDirectLink::CloseCurrentSource()
+{
+	Impl.CloseCurrentSource();
+}
+
 void FDatasmithFacadeDirectLink::AddEndpointObserver(FDatasmithFacadeEndpointObserver* Observer)
 {
 	if (Observer)

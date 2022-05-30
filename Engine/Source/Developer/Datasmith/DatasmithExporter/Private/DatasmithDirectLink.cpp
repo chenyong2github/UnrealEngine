@@ -59,6 +59,12 @@ public:
 		return true;
 	}
 
+	void CloseCurrentSource()
+	{
+		Endpoint->RemoveSource(Source);
+		CurrentScene.Reset();
+	}
+
 	TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe> GetEnpoint() const
 	{
 		return Endpoint;
@@ -96,6 +102,11 @@ bool FDatasmithDirectLink::InitializeForScene(const TSharedRef<IDatasmithScene>&
 
 bool FDatasmithDirectLink::UpdateScene(const TSharedRef<IDatasmithScene>& Scene)
 { return DirectLinkImpl->UpdateScene(Scene); }
+
+void FDatasmithDirectLink::CloseCurrentSource()
+{
+	DirectLinkImpl->CloseCurrentSource();
+}
 
 TSharedRef<DirectLink::FEndpoint, ESPMode::ThreadSafe> FDatasmithDirectLink::GetEnpoint()
 {

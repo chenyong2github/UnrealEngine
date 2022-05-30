@@ -6733,6 +6733,14 @@ SWIGEXPORT unsigned int SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_UpdateScen
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_CloseCurrentSource(void * jarg1) {
+  FDatasmithFacadeDirectLink *arg1 = (FDatasmithFacadeDirectLink *) 0 ;
+  
+  arg1 = (FDatasmithFacadeDirectLink *)jarg1; 
+  (arg1)->CloseCurrentSource();
+}
+
+
 SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeDirectLink_AddEndpointObserver(void * jarg1, void * jarg2) {
   FDatasmithFacadeDirectLink *arg1 = (FDatasmithFacadeDirectLink *) 0 ;
   FDatasmithFacadeEndpointObserver *arg2 = (FDatasmithFacadeEndpointObserver *) 0 ;
