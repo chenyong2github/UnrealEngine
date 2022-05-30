@@ -9,12 +9,13 @@
 #include "WorldPartition/WorldPartitionActorCluster.h"
 #include "WorldPartition/WorldPartitionRuntimeCellInterface.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
+#include "Misc/HierarchicalLogArchive.h"
 #include "Algo/AnyOf.h"
 #include "WorldPartitionRuntimeCell.generated.h"
 
 class UDataLayerAsset;
 class UDataLayerInstance;
-struct FWorldPartitionFileLogger;
+struct FHierarchicalLogArchive;
 
 enum class EWorldPartitionRuntimeCellVisualizeMode
 {
@@ -185,7 +186,7 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 
 	void SetIsHLOD(bool bInIsHLOD) { bIsHLOD = bInIsHLOD; }
 
-	virtual void LogStreamingGeneration(FWorldPartitionFileLogger& Logger);
+	virtual void LogStreamingGeneration(FHierarchicalLogArchive& Logger);
 #endif
 	
 	bool GetIsHLOD() const { return bIsHLOD; }

@@ -12,11 +12,12 @@
 #include "WorldPartition/WorldPartitionActorDescViewProxy.h"
 #if WITH_EDITOR
 #include "CookPackageSplitter.h"
+#include "Misc/HierarchicalLogArchive.h"
 #endif
 #include "WorldPartitionRuntimeHash.generated.h"
 
 class FActorClusterContext;
-struct FWorldPartitionFileLogger;
+struct FHierarchicalLogArchive;
 
 UENUM()
 enum class EWorldPartitionStreamingPerformance : uint8
@@ -40,12 +41,11 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, FActorClusterContext& ActorClusterContext, bool bCreateActorsOnly) { return false; }
 	virtual void DrawPreview() const {}
 
+	virtual void LogStreamingGeneration(FHierarchicalLogArchive& Logger);
+
 	// PIE/Game methods
 	void OnBeginPlay();
 	void OnEndPlay();
-
-	// GenerateStreaming Logging
-	void LogStreamingGeneration();
 #endif
 
 	class FStreamingSourceCells
@@ -80,9 +80,6 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 
 protected:
 	virtual EWorldPartitionStreamingPerformance GetStreamingPerformanceForCell(const UWorldPartitionRuntimeCell* Cell) const { return EWorldPartitionStreamingPerformance::Good; }
-#if WITH_EDITOR
-	virtual void LogStreamingGeneration(FWorldPartitionFileLogger& Logger);
-#endif
 
 private:
 #if WITH_EDITOR

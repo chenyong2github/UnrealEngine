@@ -479,82 +479,73 @@ public:
 		return FActorClusterContext(MoveTemp(ContainerInstances), InFilterActorDescViewFunc);
 	}
 
-	void DumpStateLog(const TCHAR* Suffix)
+	static TUniquePtr<FArchive> CreateDumpStateLogArchive(const TCHAR* Suffix)
 	{
 		const FString StateLogOutputFilename = FPaths::ProjectSavedDir() / TEXT("WorldPartition") / FString::Printf(TEXT("StreamingGeneration-%s-%s.log"), Suffix, *FDateTime::Now().ToString());
-		
-		if (FArchive* LogFile = IFileManager::Get().CreateFileWriter(*StateLogOutputFilename))
+		return TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*StateLogOutputFilename));
+	}
+
+	void DumpStateLog(FHierarchicalLogArchive& Ar)
+	{
+		// Build the containers tree representation
+		TMultiMap<FActorContainerID, FActorContainerID> InvertedContainersHierarchy;
+		for (auto ContainerPairIt = ContainersHierarchy.CreateIterator(); ContainerPairIt; ++ContainerPairIt)
 		{
-			auto SerializeLine = [LogFile](const FString& Line)
-			{
-				FString LineEntry(Line);
-				LineEntry += LINE_TERMINATOR;
-				LogFile->Serialize(TCHAR_TO_ANSI(*LineEntry), LineEntry.Len());
-			};
-
-			// Build the containers tree representation
-			TMultiMap<FActorContainerID, FActorContainerID> InvertedContainersHierarchy;
-			for (auto ContainerPairIt = ContainersHierarchy.CreateIterator(); ContainerPairIt; ++ContainerPairIt)
-			{
-				const FActorContainerID& ChildContainerID = ContainerPairIt.Key();
-				const FActorContainerID& ParentContainerID = ContainerPairIt.Value();				
-				InvertedContainersHierarchy.Add(ParentContainerID, ChildContainerID);
-			}
-
-			SerializeLine(TEXT("Containers:"));
-
-			auto DumpContainers = [this, &InvertedContainersHierarchy, &SerializeLine](const FActorContainerID& ContainerID)
-			{
-				auto DumpContainersRecursive = [this, &InvertedContainersHierarchy, &SerializeLine](const FActorContainerID& ContainerID, FString Prefix, auto& RecursiveFunc) -> void
-				{
-					const FContainerDescriptor& ContainerDescriptor = ContainerDescriptorsMap.FindChecked(ContainerID);
-					SerializeLine(FString::Printf(TEXT("%s[+] %s:"), *Prefix, *ContainerDescriptor.OwnerName));
-
-					Prefix += TEXT(" | ");
-
-					SerializeLine(FString::Printf(TEXT("%s           ID: 0x%016llx"), *Prefix, ContainerID.ID));
-					SerializeLine(FString::Printf(TEXT("%s       Bounds: %s"), *Prefix, *ContainerDescriptor.Bounds.ToString()));
-					SerializeLine(FString::Printf(TEXT("%s    Transform: %s"), *Prefix, *ContainerDescriptor.Transform.ToString()));
-					SerializeLine(FString::Printf(TEXT("%s    Container: %s"), *Prefix, *ContainerDescriptor.Container->GetContainerPackage().ToString()));
-
-					if (ContainerDescriptor.ActorDescViewMap.Num())
-					{
-						SerializeLine(FString::Printf(TEXT("%s ActorDescs:"), *Prefix));
-
-						TMap<FGuid, FWorldPartitionActorDescView> SortedActorDescViewMap = ContainerDescriptor.ActorDescViewMap;
-						SortedActorDescViewMap.KeySort([](const FGuid& GuidA, const FGuid& GuidB) { return GuidA < GuidB; });
-
-						for (auto ActorDescIt = SortedActorDescViewMap.CreateConstIterator(); ActorDescIt; ++ActorDescIt)
-						{
-							const FWorldPartitionActorDescView& ActorDescView = ActorDescIt.Value();
-							SerializeLine(FString::Printf(TEXT("%s     - %s"), *Prefix, *ActorDescView.ToString()));
-						}
-					}
-
-					TArray<FActorContainerID> ChildContainersIDs;
-					InvertedContainersHierarchy.MultiFind(ContainerID, ChildContainersIDs);
-					ChildContainersIDs.Sort([](const FActorContainerID& ActorContainerIDA, const FActorContainerID& ActorContainerIDB) { return ActorContainerIDA.ID < ActorContainerIDB.ID; });
-
-					if (ChildContainersIDs.Num())
-					{
-						SerializeLine(FString::Printf(TEXT("%sSubContainers:"), *Prefix));
-						
-						Prefix += TEXT("  ");
-						for (const FActorContainerID& ChildContainerID : ChildContainersIDs)
-						{
-							RecursiveFunc(ChildContainerID, Prefix, RecursiveFunc);
-						}
-					}
-				};
-
-				DumpContainersRecursive(ContainerID, TEXT("  "), DumpContainersRecursive);
-			};
-
-			DumpContainers(FActorContainerID());
-
-			LogFile->Close();
-			delete LogFile;
+			const FActorContainerID& ChildContainerID = ContainerPairIt.Key();
+			const FActorContainerID& ParentContainerID = ContainerPairIt.Value();				
+			InvertedContainersHierarchy.Add(ParentContainerID, ChildContainerID);
 		}
+
+		Ar.Printf(TEXT("Containers:"));
+
+		auto DumpContainers = [this, &InvertedContainersHierarchy, &Ar](const FActorContainerID& ContainerID)
+		{
+			auto DumpContainersRecursive = [this, &InvertedContainersHierarchy, &Ar](const FActorContainerID& ContainerID, auto& RecursiveFunc) -> void
+			{
+				const FContainerDescriptor& ContainerDescriptor = ContainerDescriptorsMap.FindChecked(ContainerID);
+				
+				{
+					FHierarchicalLogArchive::FIndentScope IndentScope = Ar.PrintfIndent(TEXT("%s:"), *ContainerDescriptor.OwnerName);
+
+					Ar.Printf(TEXT("       ID: 0x%016llx"), ContainerID.ID);
+					Ar.Printf(TEXT("   Bounds: %s"), *ContainerDescriptor.Bounds.ToString());
+					Ar.Printf(TEXT("Transform: %s"), *ContainerDescriptor.Transform.ToString());
+					Ar.Printf(TEXT("Container: %s"), *ContainerDescriptor.Container->GetContainerPackage().ToString());
+				}
+
+				if (ContainerDescriptor.ActorDescViewMap.Num())
+				{
+					FHierarchicalLogArchive::FIndentScope IndentScope = Ar.PrintfIndent(TEXT("ActorDescs:"));
+
+					TMap<FGuid, FWorldPartitionActorDescView> SortedActorDescViewMap = ContainerDescriptor.ActorDescViewMap;
+					SortedActorDescViewMap.KeySort([](const FGuid& GuidA, const FGuid& GuidB) { return GuidA < GuidB; });
+
+					for (auto ActorDescIt = SortedActorDescViewMap.CreateConstIterator(); ActorDescIt; ++ActorDescIt)
+					{
+						const FWorldPartitionActorDescView& ActorDescView = ActorDescIt.Value();
+						Ar.Printf(TEXT("%s"), *ActorDescView.ToString());
+					}
+				}
+
+				TArray<FActorContainerID> ChildContainersIDs;
+				InvertedContainersHierarchy.MultiFind(ContainerID, ChildContainersIDs);
+				ChildContainersIDs.Sort([](const FActorContainerID& ActorContainerIDA, const FActorContainerID& ActorContainerIDB) { return ActorContainerIDA.ID < ActorContainerIDB.ID; });
+
+				if (ChildContainersIDs.Num())
+				{
+					FHierarchicalLogArchive::FIndentScope IndentScope = Ar.PrintfIndent(TEXT("SubContainers:"));
+						
+					for (const FActorContainerID& ChildContainerID : ChildContainersIDs)
+					{
+						RecursiveFunc(ChildContainerID, RecursiveFunc);
+					}
+				}
+			};
+
+			DumpContainersRecursive(ContainerID, DumpContainersRecursive);
+		};
+
+		DumpContainers(FActorContainerID());
 	}
 
 private:
@@ -605,6 +596,11 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 		ErrorHandler = &MapCheckErrorHandler;
 	}
 
+	// Dump state log
+	const TCHAR* StateLogSuffix = bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : TEXT("Unknown")));
+	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(StateLogSuffix);
+	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
+
 	FActorClusterContext ActorClusterContext;
 	{
 		FWorldPartitionStreamingGenerator StreamingGenerator(ModifiedActorsDescList, ErrorHandler, IsStreamingEnabled());
@@ -612,9 +608,7 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 		// Preparation Phase
 		StreamingGenerator.PreparationPhase(this);
 
-		// Dump state log
-		const TCHAR* StateLogSuffix = bIsPIE ? TEXT("PIE") : (IsRunningGame() ? TEXT("Game") : (IsRunningCookCommandlet() ? TEXT("Cook") : TEXT("Unknown")));
-		StreamingGenerator.DumpStateLog(StateLogSuffix);
+		StreamingGenerator.DumpStateLog(HierarchicalLogAr);
 
 		// Preparation Phase :: Actor Clusters Creation
 		ActorClusterContext = StreamingGenerator.CreateActorClusters();
@@ -627,7 +621,10 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 	check(RuntimeHash);
 	if (RuntimeHash->GenerateStreaming(StreamingPolicy, ActorClusterContext, OutPackagesToGenerate))
 	{
-		RuntimeHash->LogStreamingGeneration();
+		if (IsRunningCookCommandlet())
+		{
+			RuntimeHash->LogStreamingGeneration(HierarchicalLogAr);
+		}
 
 		StreamingPolicy->PrepareActorToCellRemapping();
 		return true;
@@ -641,7 +638,10 @@ void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bo
 	FStreamingGenerationLogErrorHandler LogErrorHandler;
 	FWorldPartitionStreamingGenerator StreamingGenerator(nullptr, &LogErrorHandler, IsStreamingEnabled());
 	StreamingGenerator.PreparationPhase(this);
-	StreamingGenerator.DumpStateLog(TEXT("HLOD"));
+
+	TUniquePtr<FArchive> LogFileAr = FWorldPartitionStreamingGenerator::CreateDumpStateLogArchive(TEXT("HLOD"));
+	FHierarchicalLogArchive HierarchicalLogAr(*LogFileAr);
+	StreamingGenerator.DumpStateLog(HierarchicalLogAr);
 
 	// Preparation Phase :: Actor Clusters Creation
 	FActorClusterContext ActorClusterContext = StreamingGenerator.CreateActorClusters([](const FWorldPartitionActorDescView& ActorDescView)

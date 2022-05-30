@@ -10,7 +10,6 @@
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
-#include "WorldPartition/WorldPartitionFileLogger.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
@@ -38,25 +37,13 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	ModifiedActorDescListForPIE.Empty();
 }
 
-void UWorldPartitionRuntimeHash::LogStreamingGeneration(FWorldPartitionFileLogger& Logger)
+void UWorldPartitionRuntimeHash::LogStreamingGeneration(FHierarchicalLogArchive& Logger)
 {
-	Logger.WriteLine(TEXT("----------------------------------------------------------------------------------------------------------------"));
-	Logger.WriteLine(FString::Printf(TEXT("%s - Persistent Level"), *GetWorld()->GetName()));
-	Logger.WriteLine(TEXT("----------------------------------------------------------------------------------------------------------------"));
-	Logger.WriteLine(FString::Printf(TEXT("Always loaded Actor Count: %d "), GetWorld()->PersistentLevel->Actors.Num()));
-	Logger.WriteLine(TEXT(""));
-}
-
-void UWorldPartitionRuntimeHash::LogStreamingGeneration()
-{
-	// For now only log for cook
-	if (IsRunningCookCommandlet())
-	{
-		const TCHAR* Suffix = TEXT("Cook");
-		const FString StateLogOutputFilename = FPaths::ProjectSavedDir() / TEXT("WorldPartition") / FString::Printf(TEXT("StreamingGeneration-RuntimeSpatialHash-%s-%s-%s.log"), Suffix, *GetWorld()->GetName(), *FDateTime::Now().ToString());
-		FWorldPartitionFileLogger Logger(StateLogOutputFilename);
-		LogStreamingGeneration(Logger);
-	}
+	Logger.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
+	Logger.Printf(TEXT("%s - Persistent Level"), *GetWorld()->GetName());
+	Logger.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
+	Logger.Printf(TEXT("Always loaded Actor Count: %d "), GetWorld()->PersistentLevel->Actors.Num());
+	Logger.Printf(TEXT(""));
 }
 
 void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE)

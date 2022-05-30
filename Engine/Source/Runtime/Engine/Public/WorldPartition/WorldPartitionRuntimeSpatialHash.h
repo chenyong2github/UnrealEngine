@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
-
+#include "Misc/HierarchicalLogArchive.h"
 #include "GameFramework/Info.h"
 
 #include "WorldPartition.h"
@@ -255,7 +255,7 @@ protected:
 
 #if WITH_EDITOR
 	virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const FActorClusterContext& ActorClusterContext, TArray<FString>* OutPackagesToGenerate = nullptr) override;
-	virtual void LogStreamingGeneration(FWorldPartitionFileLogger& Logger) override;
+	virtual void LogStreamingGeneration(FHierarchicalLogArchive& Logger) override;
 #endif
 
 private:

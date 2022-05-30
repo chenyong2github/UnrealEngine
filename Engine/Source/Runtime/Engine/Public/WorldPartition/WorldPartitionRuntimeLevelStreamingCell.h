@@ -34,7 +34,7 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	//~Begin UWorldPartitionRuntimeCell Interface
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) override;
 	virtual int32 GetActorCount() const override;
-	virtual void LogStreamingGeneration(FWorldPartitionFileLogger& Logger) override;
+	virtual void LogStreamingGeneration(FHierarchicalLogArchive& Logger) override;
 	// Cook methods
 	virtual bool PrepareCellForCook(UPackage* InPackage) override;
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage) override;
