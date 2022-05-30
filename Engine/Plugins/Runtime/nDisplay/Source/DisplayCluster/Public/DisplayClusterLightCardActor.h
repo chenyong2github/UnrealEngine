@@ -106,15 +106,20 @@ public:
 	void UpdatePolygonTexture();
 
 public:
+
+	/** Radius of light card polar coordinates */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
 	double DistanceFromCenter;
 
+	/** Related to the Azimuth of light card polar coordinates */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation", meta = (UIMin = 0, ClampMin = 0, UIMax = 360, ClampMax = 360))
 	double Longitude;
 
+	/** Related to the Elevation of light card polar coordinates */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation", meta = (UIMin = -90, ClampMin = -90, UIMax = 90, ClampMax = 90))
 	double Latitude;
 
+	/** Roll rotation of light card around its plane axis */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
 	double Spin;
 
@@ -133,6 +138,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	UTexture* Texture;
 
+	/** Light card color, before any modifier is applied */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	FLinearColor Color;
 
@@ -142,12 +148,19 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (UIMin = -1, ClampMin = -1, UIMax = 1, ClampMax = 1))
 	float Tint;
 
+	/** 2^Exposure color value multiplier */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	float Exposure;
 
+	/** Linear color value multiplier */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (UIMin = 0, ClampMin = 0))
+	float Gain;
+
+	/** Linear alpha multiplier */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (UIMin = 0, ClampMin = 0, UIMax = 1, ClampMax = 1))
 	float Opacity;
 
+	/** Feathers in the alpha from the edges */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance", meta = (UIMin = 0, ClampMin = 0))
 	float Feathering;
 
