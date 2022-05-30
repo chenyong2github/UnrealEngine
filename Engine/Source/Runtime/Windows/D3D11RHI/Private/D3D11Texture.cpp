@@ -2077,7 +2077,7 @@ void FD3D11DynamicRHI::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture
 	const FRHITextureDesc& DestDesc = DestTextureRHI->GetDesc();
 
 	const uint16 SourceArraySize = SourceDesc.ArraySize * (SourceDesc.IsTextureCube() ? 6 : 1);
-	const uint16 DestArraySize   = SourceDesc.ArraySize * (DestDesc.IsTextureCube()   ? 6 : 1);
+	const uint16 DestArraySize   = DestDesc.ArraySize   * (DestDesc.IsTextureCube()   ? 6 : 1);
 
 	const bool bAllPixels =
 		SourceDesc.GetSize() == DestDesc.GetSize() && (CopyInfo.Size == FIntVector::ZeroValue || CopyInfo.Size == SourceDesc.GetSize());
