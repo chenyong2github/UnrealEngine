@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -1025,15 +1025,15 @@ namespace UnrealBuildTool
 						string Key = Config.ProjectTarget!.TargetRules!.Type == TargetType.Editor ? "EditorTargetArchitecture" : "TargetArchitecture";
 						if (EngineIni.GetString("/Script/MacTargetPlatform.MacTargetSettings", Key, out TargetArchitecture))
 						{
-							if (TargetArchitecture.Equals("Universal", StringComparison.OrdinalIgnoreCase))
+							if (TargetArchitecture.Contains("Universal", StringComparison.OrdinalIgnoreCase))
 							{
 								TargetArchitectures = AllArchitectures;
 							}
-							else if (TargetArchitecture.Equals("Intel", StringComparison.OrdinalIgnoreCase))
+							else if (TargetArchitecture.Contains("Intel", StringComparison.OrdinalIgnoreCase))
 							{
 								TargetArchitectures = new[] { MacExports.IntelArchitecture };
 							}
-							else if (TargetArchitecture.Equals("Apple", StringComparison.OrdinalIgnoreCase))
+							else if (TargetArchitecture.Contains("Apple", StringComparison.OrdinalIgnoreCase))
 							{
 								TargetArchitectures = new[] { MacExports.AppleArchitecture };
 							}
