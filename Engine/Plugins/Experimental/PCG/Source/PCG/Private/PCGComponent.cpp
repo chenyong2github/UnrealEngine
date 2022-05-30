@@ -462,6 +462,15 @@ void UPCGComponent::PostLoad()
 	SetupActorCallbacks();
 	SetupTrackingCallbacks();
 
+	if (TrackedLandscape)
+	{
+		SetupLandscapeTracking();
+	}
+	else
+	{
+		UpdateTrackedLandscape(/*bBoundsCheck=*/false);
+	}	
+
 	if (Graph)
 	{
 		Graph->OnGraphChangedDelegate.AddUObject(this, &UPCGComponent::OnGraphChanged);
@@ -477,6 +486,7 @@ void UPCGComponent::BeginDestroy()
 		Graph->OnGraphChangedDelegate.RemoveAll(this);
 	}
 
+	TeardownLandscapeTracking();
 	TeardownTrackingCallbacks();
 	TeardownActorCallbacks();
 #endif
@@ -552,6 +562,7 @@ void UPCGComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	}
 	else if (PropName == GET_MEMBER_NAME_CHECKED(UPCGComponent, InputType))
 	{
+		UpdateTrackedLandscape();
 		DirtyGenerated(/*bDirtyCachedInput=*/true);
 		Refresh();
 	}
@@ -611,6 +622,7 @@ void UPCGComponent::PostEditUndo()
 
 	SetupTrackingCallbacks();
 	RefreshTrackingData();
+	UpdateTrackedLandscape();
 	DirtyGenerated(/*bDirtyCachedInput=*/true);
 	DirtyCacheForAllTrackedTags();
 
@@ -755,11 +767,12 @@ void UPCGComponent::OnActorDeleted(AActor* InActor)
 
 void UPCGComponent::OnActorMoved(AActor* InActor)
 {
-	if (InActor == GetOwner())
+	if (InActor == GetOwner() || (InActor && InActor == TrackedLandscape))
 	{
 		// TODO: find better metrics to dirty the inputs. 
 		// TODO: this should dirty only the actor pcg data.
 		{
+			UpdateTrackedLandscape();
 			DirtyGenerated(true);
 			Refresh();
 		}
@@ -781,6 +794,85 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 		if (bDirtyAndRefresh)
 		{
 			DirtyGenerated();
+			Refresh();
+		}
+	}
+}
+
+void UPCGComponent::UpdateTrackedLandscape(bool bBoundsCheck)
+{
+	TeardownLandscapeTracking();
+	TrackedLandscape = nullptr;
+
+	if (InputType == EPCGComponentInput::Landscape)
+	{
+		if (bBoundsCheck)
+		{
+			UPCGData* ActorData = GetActorPCGData();
+			if (const UPCGSpatialData* ActorSpatialData = Cast<const UPCGSpatialData>(ActorData))
+			{
+				TrackedLandscape = PCGHelpers::GetLandscape(GetOwner()->GetWorld(), ActorSpatialData->GetBounds());
+			}
+		}
+		else
+		{
+			TrackedLandscape = PCGHelpers::GetAnyLandscape(GetOwner()->GetWorld());
+		}
+	}
+	else if (InputType == EPCGComponentInput::Actor)
+	{
+		if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(GetOwner()))
+		{
+			TrackedLandscape = Landscape;
+		}
+	}
+
+	SetupLandscapeTracking();
+}
+
+void UPCGComponent::SetupLandscapeTracking()
+{
+	if (TrackedLandscape)
+	{
+		TrackedLandscape->OnComponentDataChanged.AddUObject(this, &UPCGComponent::OnLandscapeChanged);
+	}
+}
+
+void UPCGComponent::TeardownLandscapeTracking()
+{
+	if (TrackedLandscape)
+	{
+		TrackedLandscape->OnComponentDataChanged.RemoveAll(this);
+	}
+}
+
+void UPCGComponent::OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams)
+{
+	if (Landscape == TrackedLandscape)
+	{
+		// Check if there is an overlap in the changed components vs. the current actor data
+		bool bDirtyInput = (GetOwner() == TrackedLandscape);
+
+		if (!bDirtyInput && InputType == EPCGComponentInput::Landscape)
+		{
+			UPCGData* ActorData = GetActorPCGData();
+			if (const UPCGSpatialData* ActorSpatialData = Cast<const UPCGSpatialData>(ActorData))
+			{
+				const FBox ActorBounds = ActorSpatialData->GetBounds();
+
+				ChangeParams.ForEachComponent([&bDirtyInput, &ActorBounds](const ULandscapeComponent* LandscapeComponent)
+				{
+					if(LandscapeComponent && ActorBounds.Intersect(LandscapeComponent->Bounds.GetBox()))
+					{
+						bDirtyInput = true;
+					}
+				});
+			}
+		}
+
+		if (bDirtyInput)
+		{
+			DirtyGenerated(true);
 			Refresh();
 		}
 	}
@@ -1244,7 +1336,7 @@ UPCGData* UPCGComponent::CreateInputPCGData()
 	{
 		UPCGData* ActorData = GetActorPCGData();
 
-		if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(this))
+		if (ALandscapeProxy* Landscape = Cast<ALandscapeProxy>(GetOwner()))
 		{
 			// Current actor is a landscape, we don't need to do an additional projection
 			return ActorData;

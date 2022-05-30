@@ -94,7 +94,7 @@ const UPCGPointData* UPCGLandscapeData::CreatePointData(FPCGContext* Context) co
 
 			OutPoint = FPCGPoint(FTransform(VertexLocation),
 				1.0f,
-				PCGHelpers::ComputeSeed(X, Y, (int)HeightAtVertex.GetValue()));
+				PCGHelpers::ComputeSeed(X, Y));
 			OutPoint.SetExtents(Transform.GetScale3D() / 2.0);
 
 			return true;

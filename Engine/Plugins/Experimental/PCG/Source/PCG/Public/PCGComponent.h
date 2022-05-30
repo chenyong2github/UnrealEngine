@@ -13,7 +13,8 @@ class UPCGComponent;
 class UPCGGraph;
 class UPCGManagedResource;
 class UPCGData;
-class ALandscape;
+class ALandscapeProxy;
+class FLandscapeProxyComponentDataChangedParams;
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGGraphGenerated, UPCGComponent*);
@@ -213,6 +214,16 @@ private:
 	bool bIsGenerating = false;
 	FBox LastGeneratedBoundsPriorToUndo = FBox(EForceInit::ForceInit);
 	FPCGTagToSettingsMap CachedTrackedTagsToSettings;
+
+	void SetupLandscapeTracking();
+	void TeardownLandscapeTracking();
+	void UpdateTrackedLandscape(bool bBoundsCheck = true);
+	void OnLandscapeChanged(ALandscapeProxy* Landscape, const FLandscapeProxyComponentDataChangedParams& ChangeParams);
+#endif
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	TObjectPtr<ALandscapeProxy> TrackedLandscape = nullptr;
 #endif
 
 #if WITH_EDITORONLY_DATA

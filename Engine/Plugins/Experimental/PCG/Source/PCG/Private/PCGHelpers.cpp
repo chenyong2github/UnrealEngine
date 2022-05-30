@@ -93,6 +93,18 @@ namespace PCGHelpers
 		}
 	}
 
+	ALandscape* GetAnyLandscape(UWorld* InWorld)
+	{
+		for (TObjectIterator<ALandscape> It; It; ++It)
+		{
+			if (It->GetWorld() == InWorld)
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+
 	ALandscape* GetLandscape(UWorld* InWorld, const FBox& InBounds)
 	{
 		ALandscape* Landscape = nullptr;

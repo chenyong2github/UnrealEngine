@@ -11,16 +11,12 @@ FPCGGraphCacheEntry::FPCGGraphCacheEntry(const FPCGDataCollection& InInput, cons
 	: Input(InInput)
 	, Output(InOutput)
 {
+	// Note: we don't need to root the settings since they'll be owned by the subsystem
 	Settings = InSettings ? Cast<UPCGSettings>(StaticDuplicateObject(InSettings, InOwner.Get())) : nullptr;
 	SettingsCrc32 = InSettings ? InSettings->GetCrc32() : 0;
 
 	Input.AddToRootSet(OutRootSet);
 	Output.AddToRootSet(OutRootSet);
-
-	if (Settings)
-	{
-		OutRootSet.Add(Settings);
-	}
 }
 
 bool FPCGGraphCacheEntry::Matches(const FPCGDataCollection& InInput, int32 InSettingsCrc32) const
