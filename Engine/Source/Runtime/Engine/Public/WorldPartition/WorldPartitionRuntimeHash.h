@@ -41,7 +41,7 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual bool GenerateHLOD(ISourceControlHelper* SourceControlHelper, FActorClusterContext& ActorClusterContext, bool bCreateActorsOnly) { return false; }
 	virtual void DrawPreview() const {}
 
-	virtual void LogStreamingGeneration(FHierarchicalLogArchive& Logger);
+	virtual void DumpStateLog(FHierarchicalLogArchive& Ar);
 
 	// PIE/Game methods
 	void OnBeginPlay();

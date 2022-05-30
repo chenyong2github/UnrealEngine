@@ -74,10 +74,10 @@ void UWorldPartitionRuntimeCell::UpdateDebugName()
 	DebugName = Builder.ToString();
 }
 
-void UWorldPartitionRuntimeCell::LogStreamingGeneration(FHierarchicalLogArchive& Logger)
+void UWorldPartitionRuntimeCell::DumpStateLog(FHierarchicalLogArchive& Ar)
 {
-	Logger.Printf(TEXT("Actor Count: %d"), GetActorCount());
-	Logger.Printf(TEXT("MinMaxZ: %s"), *GetMinMaxZ().ToString());
+	Ar.Printf(TEXT("Actor Count: %d"), GetActorCount());
+	Ar.Printf(TEXT("MinMaxZ: %s"), *GetMinMaxZ().ToString());
 }
 
 #endif

@@ -186,7 +186,7 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 
 	void SetIsHLOD(bool bInIsHLOD) { bIsHLOD = bInIsHLOD; }
 
-	virtual void LogStreamingGeneration(FHierarchicalLogArchive& Logger);
+	virtual void DumpStateLog(FHierarchicalLogArchive& Ar);
 #endif
 	
 	bool GetIsHLOD() const { return bIsHLOD; }

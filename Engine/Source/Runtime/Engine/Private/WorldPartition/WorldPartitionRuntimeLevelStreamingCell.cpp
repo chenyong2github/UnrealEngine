@@ -18,8 +18,7 @@
 UWorldPartitionRuntimeLevelStreamingCell::UWorldPartitionRuntimeLevelStreamingCell(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, LevelStreaming(nullptr)
-{
-}
+{}
 
 EWorldPartitionRuntimeCellState UWorldPartitionRuntimeLevelStreamingCell::GetCurrentState() const
 {
@@ -96,7 +95,6 @@ void UWorldPartitionRuntimeLevelStreamingCell::SetIsAlwaysLoaded(bool bInIsAlway
 }
 
 #if WITH_EDITOR
-
 void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, const FActorContainerID& InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer)
 {
 	check(!ActorDescView.GetActorIsEditorOnly());
@@ -219,17 +217,16 @@ FString UWorldPartitionRuntimeLevelStreamingCell::GetPackageNameToCreate() const
 	return UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(GetFName(), OuterWorld);
 }
 
-void UWorldPartitionRuntimeLevelStreamingCell::LogStreamingGeneration(FHierarchicalLogArchive& Logger)
+void UWorldPartitionRuntimeLevelStreamingCell::DumpStateLog(FHierarchicalLogArchive& Ar)
 {
-	Super::LogStreamingGeneration(Logger);
+	Super::DumpStateLog(Ar);
 
 	for (const FWorldPartitionRuntimeCellObjectMapping& Mapping : Packages)
 	{
-		Logger.Printf(TEXT("Actor Path: %s"), *Mapping.Path.ToString());
-		Logger.Printf(TEXT("Actor Package: %s"), *Mapping.Package.ToString());
+		Ar.Printf(TEXT("Actor Path: %s"), *Mapping.Path.ToString());
+		Ar.Printf(TEXT("Actor Package: %s"), *Mapping.Package.ToString());
 	}
 }
-
 #endif
 
 UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::GetOrCreateLevelStreaming() const

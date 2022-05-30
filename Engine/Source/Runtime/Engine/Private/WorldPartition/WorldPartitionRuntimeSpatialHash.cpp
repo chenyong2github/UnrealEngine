@@ -852,25 +852,25 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(UWorldPartitionStreami
 	return true;
 }
 
-void UWorldPartitionRuntimeSpatialHash::LogStreamingGeneration(FHierarchicalLogArchive& Logger)
+void UWorldPartitionRuntimeSpatialHash::DumpStateLog(FHierarchicalLogArchive& Ar)
 {
-	Super::LogStreamingGeneration(Logger);
+	Super::DumpStateLog(Ar);
 
 	for (FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 	{
-		Logger.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
-		Logger.Printf(TEXT("%s - Runtime Spatial Hash - Streaming Grid - %s"), *GetWorld()->GetName(), *StreamingGrid.GridName.ToString());
-		Logger.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
-		Logger.Printf(TEXT("            Origin: %s"), *StreamingGrid.Origin.ToString());
-		Logger.Printf(TEXT("         Cell Size: %d"), StreamingGrid.CellSize);
-		Logger.Printf(TEXT("      World Bounds: %s"), *StreamingGrid.WorldBounds.ToString());
-		Logger.Printf(TEXT("     Loading Range: %3.2f"), StreamingGrid.LoadingRange);
-		Logger.Printf(TEXT("Block Slow Loading: %s"), StreamingGrid.bBlockOnSlowStreaming ? TEXT("Yes") : TEXT("No"));
-		Logger.Printf(TEXT(" ClientOnlyVisible: %s"), StreamingGrid.bClientOnlyVisible ? TEXT("Yes") : TEXT("No"));
-		Logger.Printf(TEXT(""));
+		Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
+		Ar.Printf(TEXT("%s - Runtime Spatial Hash - Streaming Grid - %s"), *GetWorld()->GetName(), *StreamingGrid.GridName.ToString());
+		Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
+		Ar.Printf(TEXT("            Origin: %s"), *StreamingGrid.Origin.ToString());
+		Ar.Printf(TEXT("         Cell Size: %d"), StreamingGrid.CellSize);
+		Ar.Printf(TEXT("      World Bounds: %s"), *StreamingGrid.WorldBounds.ToString());
+		Ar.Printf(TEXT("     Loading Range: %3.2f"), StreamingGrid.LoadingRange);
+		Ar.Printf(TEXT("Block Slow Loading: %s"), StreamingGrid.bBlockOnSlowStreaming ? TEXT("Yes") : TEXT("No"));
+		Ar.Printf(TEXT(" ClientOnlyVisible: %s"), StreamingGrid.bClientOnlyVisible ? TEXT("Yes") : TEXT("No"));
+		Ar.Printf(TEXT(""));
 		if (const UHLODLayer* HLODLayer = StreamingGrid.HLODLayer)
 		{
-			Logger.Printf(TEXT("    HLOD Layer: %s"), *HLODLayer->GetName());
+			Ar.Printf(TEXT("    HLOD Layer: %s"), *HLODLayer->GetName());
 		}
 
 		struct FGridLevelStats
@@ -905,31 +905,31 @@ void UWorldPartitionRuntimeSpatialHash::LogStreamingGeneration(FHierarchicalLogA
 		}
 
 		{
-			FHierarchicalLogArchive::FIndentScope IndentScope = Logger.PrintfIndent(TEXT("Grid Levels: %d"), StreamingGrid.GridLevels.Num());
+			FHierarchicalLogArchive::FIndentScope IndentScope = Ar.PrintfIndent(TEXT("Grid Levels: %d"), StreamingGrid.GridLevels.Num());
 			for (int Level=0; Level<LevelsStats.Num(); ++Level)
 			{
-				Logger.Printf(TEXT("Level %2d: Cell Count %4d | Cell Size %7d | Actor Count %4d (%3.1f%%)"), Level, LevelsStats[Level].CellCount, LevelsStats[Level].CellSize, LevelsStats[Level].ActorCount, (100.f*LevelsStats[Level].ActorCount)/TotalActorCount);
+				Ar.Printf(TEXT("Level %2d: Cell Count %4d | Cell Size %7d | Actor Count %4d (%3.1f%%)"), Level, LevelsStats[Level].CellCount, LevelsStats[Level].CellSize, LevelsStats[Level].ActorCount, (100.f*LevelsStats[Level].ActorCount)/TotalActorCount);
 			}
 		}
 
 		{
-			Logger.Printf(TEXT(""));
+			Ar.Printf(TEXT(""));
 			int32 Level = 0;
 			for (const FSpatialHashStreamingGridLevel& GridLevel : StreamingGrid.GridLevels)
 			{
-				FHierarchicalLogArchive::FIndentScope LevelIndentScope = Logger.PrintfIndent(TEXT("Content of Grid Level %d"), Level++);
+				FHierarchicalLogArchive::FIndentScope LevelIndentScope = Ar.PrintfIndent(TEXT("Content of Grid Level %d"), Level++);
 
 				for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevel.LayerCells)
 				{
 					for (const TObjectPtr<UWorldPartitionRuntimeSpatialHashCell>& Cell : LayerCell.GridCells)
 					{
-						FHierarchicalLogArchive::FIndentScope CellIndentScope = Logger.PrintfIndent(TEXT("Content of Cell %s"), *Cell->GetDebugName());
-						Cell->LogStreamingGeneration(Logger);
+						FHierarchicalLogArchive::FIndentScope CellIndentScope = Ar.PrintfIndent(TEXT("Content of Cell %s"), *Cell->GetDebugName());
+						Cell->DumpStateLog(Ar);
 					}
 				}
 			}
 		}
-		Logger.Printf(TEXT(""));
+		Ar.Printf(TEXT(""));
 	}	
 }
 

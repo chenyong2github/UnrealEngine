@@ -37,13 +37,13 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 	ModifiedActorDescListForPIE.Empty();
 }
 
-void UWorldPartitionRuntimeHash::LogStreamingGeneration(FHierarchicalLogArchive& Logger)
+void UWorldPartitionRuntimeHash::DumpStateLog(FHierarchicalLogArchive& Ar)
 {
-	Logger.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
-	Logger.Printf(TEXT("%s - Persistent Level"), *GetWorld()->GetName());
-	Logger.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
-	Logger.Printf(TEXT("Always loaded Actor Count: %d "), GetWorld()->PersistentLevel->Actors.Num());
-	Logger.Printf(TEXT(""));
+	Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
+	Ar.Printf(TEXT("%s - Persistent Level"), *GetWorld()->GetName());
+	Ar.Printf(TEXT("----------------------------------------------------------------------------------------------------------------"));
+	Ar.Printf(TEXT("Always loaded Actor Count: %d "), GetWorld()->PersistentLevel->Actors.Num());
+	Ar.Printf(TEXT(""));
 }
 
 void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE)

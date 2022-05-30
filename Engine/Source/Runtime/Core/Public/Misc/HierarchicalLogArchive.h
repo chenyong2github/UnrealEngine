@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Serialization/ArchiveProxy.h"
 
-struct CORE_API FHierarchicalLogArchive : public FArchiveProxy
+struct CORE_API FHierarchicalLogArchive : private FArchiveProxy
 {
 public:
 	FHierarchicalLogArchive(FArchive& InInnerArchive);

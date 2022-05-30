@@ -623,7 +623,7 @@ bool UWorldPartition::GenerateStreaming(TArray<FString>* OutPackagesToGenerate)
 	{
 		if (IsRunningCookCommandlet())
 		{
-			RuntimeHash->LogStreamingGeneration(HierarchicalLogAr);
+			RuntimeHash->DumpStateLog(HierarchicalLogAr);
 		}
 
 		StreamingPolicy->PrepareActorToCellRemapping();

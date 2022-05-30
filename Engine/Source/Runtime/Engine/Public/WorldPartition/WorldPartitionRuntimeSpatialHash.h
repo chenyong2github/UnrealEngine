@@ -255,7 +255,7 @@ protected:
 
 #if WITH_EDITOR
 	virtual bool GenerateStreaming(class UWorldPartitionStreamingPolicy* StreamingPolicy, const FActorClusterContext& ActorClusterContext, TArray<FString>* OutPackagesToGenerate = nullptr) override;
-	virtual void LogStreamingGeneration(FHierarchicalLogArchive& Logger) override;
+	virtual void DumpStateLog(FHierarchicalLogArchive& Ar) override;
 #endif
 
 private:
