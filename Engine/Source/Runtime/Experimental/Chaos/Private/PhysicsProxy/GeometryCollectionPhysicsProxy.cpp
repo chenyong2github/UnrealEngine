@@ -221,6 +221,10 @@ void PopulateSimulatedParticle(
 
 		Handle->SetM(MassIn);
 		Handle->SetI(InertiaTensorVec);
+		const Chaos::FReal MassInv = (MassIn > 0.0f) ? 1.0f / MassIn : 0.0f;
+		const Chaos::FVec3 InertiaInv = (MassIn > 0.0f) ? Chaos::FVec3(InertiaTensorVec).Reciprocal() : Chaos::FVec3::ZeroVector;
+		Handle->SetInvM(MassInv);
+		Handle->SetInvI(InertiaInv);
 		Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic); // this step sets InvM, InvInertia, P, Q
 	}
 
@@ -827,6 +831,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 				// Mass space -> Composed parent space -> world
 				const FTransform WorldTransform = 
 					MassToLocal[TransformGroupIndex] * Transform[TransformGroupIndex] * Parameters.WorldTransform;
+
+				const Chaos::FVec3f ScaledInertia = Chaos::Utilities::ScaleInertia<float>((Chaos::FVec3f)InertiaTensor[TransformGroupIndex], (Chaos::FVec3f)(WorldScale), true);
 				
 				PopulateSimulatedParticle(
 					Handle,
@@ -836,7 +842,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 					SimFilter,
 					QueryFilter,
 					Mass[TransformGroupIndex] * MassScale,
-					InertiaTensor[TransformGroupIndex] * MassScale,
+					ScaledInertia,
 					WorldTransform,
 					static_cast<uint8>(DynamicState[TransformGroupIndex]),
 					static_cast<int16>(CollisionGroup[TransformGroupIndex]),
@@ -1237,6 +1243,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 
 	const FVector WorldScale = Parameters.WorldTransform.GetScale3D();
 	const FVector::FReal MassScale = WorldScale.X * WorldScale.Y * WorldScale.Z;
+	const Chaos::FVec3f ScaledInertia = Chaos::Utilities::ScaleInertia<float>((Chaos::FVec3f)InertiaTensor[CollectionClusterIndex], FVector3f(WorldScale), true);  
 	
 	PopulateSimulatedParticle(
 		Parent,
@@ -1246,7 +1253,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters_Internal(
 		SimFilter,
 		QueryFilter,
 		Parent->M() > 0.0 ? Parent->M() : Mass[CollectionClusterIndex] * MassScale, 
-		Parent->I() != Chaos::TVec3<Chaos::FRealSingle>(0.0) ? Parent->I() : Chaos::TVec3<Chaos::FRealSingle>(InertiaTensor[CollectionClusterIndex] * MassScale),
+		Parent->I() != Chaos::FVec3f(0.0) ? Parent->I() : ScaledInertia,
 		ParticleTM, 
 		(uint8)DynamicState[CollectionClusterIndex], 
 		0,
