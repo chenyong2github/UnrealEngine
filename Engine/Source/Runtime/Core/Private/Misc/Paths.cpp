@@ -395,11 +395,7 @@ FString FPaths::SourceConfigDir()
 
 FString FPaths::GeneratedConfigDir()
 {
-#if PLATFORM_MAC // @todo, move this to Mac FPlatformMisc.
-	return FPlatformProcess::UserPreferencesDir();
-#else
 	return FPlatformMisc::GeneratedConfigDir();
-#endif
 }
 
 FString FPaths::SandboxesDir()
