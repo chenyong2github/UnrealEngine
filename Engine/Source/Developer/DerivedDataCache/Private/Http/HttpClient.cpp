@@ -211,16 +211,10 @@ void FHttpSharedData::ProcessAsyncRequests()
 	ProcessPendingRequests();
 }
 
-FHttpRequestPool::FHttpRequestPool(FStringView InServiceUrl, FStringView InEffectiveServiceUrl, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, uint32 PoolSize, uint32 InOverflowLimit)
+FHttpRequestPool::FHttpRequestPool(const TCHAR* InServiceUrl, const TCHAR* InEffectiveServiceUrl, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, uint32 PoolSize, uint32 InOverflowLimit)
 : ActiveOverflowRequests(0)
 , OverflowLimit(InOverflowLimit)
 {
-	int32 LastSlash = 0;
-	while (InEffectiveServiceUrl.FindLastChar(TEXT('/'), /* out */ LastSlash) && (LastSlash == (InEffectiveServiceUrl.Len() - 1)))
-	{
-		InEffectiveServiceUrl.LeftChopInline(1);
-	}
-	
 	Pool.AddUninitialized(PoolSize);
 	Requests.AddUninitialized(PoolSize);
 	for (uint8 i = 0; i < Pool.Num(); ++i)

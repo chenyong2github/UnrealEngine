@@ -13,7 +13,6 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataChunk.h"
-#include "Http/HttpClient.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Optional.h"
 #include "ProfilingDebugging/CountersTrace.h"
@@ -24,11 +23,9 @@
 #include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryWriter.h"
-#include "Serialization/LargeMemoryReader.h"
-#include "Serialization/LargeMemoryWriter.h"
-#include "Templates/Function.h"
 #include "ZenBackendUtils.h"
 #include "ZenSerialization.h"
+#include "ZenServerHttp.h"
 #include "ZenStatistics.h"
 
 TRACE_DECLARE_INT_COUNTER(ZenDDC_Exist,			TEXT("ZenDDC Exist"));
@@ -150,10 +147,10 @@ private:
 		NotFound,
 		Corrupted
 	};
-	EGetResult GetZenData(FStringView Uri, TArray64<uint8>* OutData, EHttpContentType ContentType) const;
+	EGetResult GetZenData(FStringView Uri, TArray64<uint8>* OutData, Zen::EContentType ContentType) const;
 
 	// TODO: need ability to specify content type
-	FDerivedDataBackendInterface::EPutStatus PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, EHttpContentType ContentType);
+	FDerivedDataBackendInterface::EPutStatus PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, Zen::EContentType ContentType);
 	EGetResult GetZenData(const FCacheKey& Key, ECachePolicy CachePolicy, FCbPackage& OutPackage) const;
 
 	bool IsServiceReady();
@@ -164,35 +161,12 @@ private:
 
 	static bool ShouldRetryOnError(int64 ResponseCode);
 
-	using FOnRpcComplete = TUniqueFunction<void(FHttpRequest::EResult HttpResult, FHttpRequest* Request, FCbPackage& OutResponse)>;
-	static FHttpRequest::EResult ParseRpcResponse(FHttpRequest::EResult ResultFromPost, FHttpRequest& Request, FCbPackage& OutResponse);
-	static FHttpRequest::EResult PerformBlockingRpc(FHttpRequest& Request,
-		FStringView Uri,
-		FCbObject RequestObject,
-		FCbPackage &OutResponse);
-	static FHttpRequest::EResult PerformBlockingRpc(FHttpRequest& Request,
-		FStringView Uri,
-		const FCbPackage& RequestPackage,
-		FCbPackage& OutResponse);
-	static void EnqueueAsyncRpc(FHttpRequest& Request,
-		UE::DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		FCbObject RequestObject,
-		FOnRpcComplete&& OnComplete);
-	static void EnqueueAsyncRpc(FHttpRequest& Request,
-		UE::DerivedData::IRequestOwner& Owner,
-		FHttpRequestPool* Pool,
-		FStringView Uri,
-		const FCbPackage& RequestPackage,
-		FOnRpcComplete&& OnComplete);
-
 private:
 	FString Namespace;
 	FString StructuredNamespace;
 	UE::Zen::FScopeZenService ZenService;
 	mutable FDerivedDataCacheUsageStats UsageStats;
-	TUniquePtr<FHttpRequestPool> RequestPool;
+	TUniquePtr<UE::Zen::FZenHttpRequestPool> RequestPool;
 	bool bIsUsable = false;
 	uint32 FailedLoginAttempts = 0;
 	uint32 MaxAttempts = 4;
@@ -214,7 +188,7 @@ FZenCacheStore::FZenCacheStore(
 {
 	if (IsServiceReady())
 	{
-		RequestPool = MakeUnique<FHttpRequestPool>(ZenService.GetInstance().GetURL(), ZenService.GetInstance().GetURL(), nullptr, nullptr, 32);
+		RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(ZenService.GetInstance().GetURL(), 32);
 		bIsUsable = true;
 
 		// Issue a request for stats as it will be fetched asynchronously and issuing now makes them available sooner for future callers.
@@ -258,87 +232,6 @@ bool FZenCacheStore::ShouldRetryOnError(int64 ResponseCode)
 	return false;
 }
 
-FHttpRequest::EResult FZenCacheStore::ParseRpcResponse(FHttpRequest::EResult ResultFromPost, FHttpRequest& Request, FCbPackage& OutResponse)
-{
-	if (ResultFromPost != FHttpRequest::EResult::Success || !FHttpRequest::IsSuccessResponse(Request.GetResponseCode()))
-	{
-		return FHttpRequest::EResult::Failed;
-	}
-
-	const TArray64<uint8>& ResponseBuffer = Request.GetResponseBuffer();
-	if (ResponseBuffer.Num())
-	{
-		FLargeMemoryReader Ar(ResponseBuffer.GetData(), ResponseBuffer.Num());
-		if (!OutResponse.TryLoad(Ar))
-		{
-			return FHttpRequest::EResult::Failed;
-		}
-	}
-
-	return FHttpRequest::EResult::Success;
-}
-
-FHttpRequest::EResult FZenCacheStore::PerformBlockingRpc(FHttpRequest& Request,
-	FStringView Uri,
-	FCbObject RequestObject,
-	FCbPackage& OutResponse)
-{
-	return ParseRpcResponse(
-		Request.PerformBlockingPost(Uri, RequestObject.GetBuffer(), EHttpContentType::CbObject, EHttpContentType::CbPackage), Request, OutResponse);
-}
-
-FHttpRequest::EResult FZenCacheStore::PerformBlockingRpc(FHttpRequest& Request,
-	FStringView Uri,
-	const FCbPackage& RequestPackage,
-	FCbPackage& OutResponse)
-{
-	FLargeMemoryWriter PackageMemory;
-	UE::Zen::Http::SaveCbPackage(RequestPackage, PackageMemory);
-
-	return ParseRpcResponse(
-		Request.PerformBlockingPost(Uri, FCompositeBuffer(FSharedBuffer::MakeView(PackageMemory.GetView())), EHttpContentType::CbPackage, EHttpContentType::CbPackage), Request, OutResponse);
-}
-
-void FZenCacheStore::EnqueueAsyncRpc(FHttpRequest& Request,
-	UE::DerivedData::IRequestOwner& Owner,
-	FHttpRequestPool* Pool,
-	FStringView Uri,
-	FCbObject RequestObject,
-	FOnRpcComplete&& OnComplete)
-{
-	auto OnHttpRequestComplete = [OnComplete = MoveTemp(OnComplete)]
-	(FHttpRequest::EResult HttpResult, FHttpRequest* Request)
-	{
-		FCbPackage Response;
-		FHttpRequest::EResult ParsedResponseResult = ParseRpcResponse(HttpResult, *Request, Response);
-		OnComplete(ParsedResponseResult, Request, Response);
-		return FHttpRequest::ECompletionBehavior::Done;
-	};
-	Request.EnqueueAsyncPost(Owner, Pool, Uri, RequestObject.GetBuffer(), MoveTemp(OnHttpRequestComplete), EHttpContentType::CbObject, EHttpContentType::CbPackage);
-}
-
-void FZenCacheStore::EnqueueAsyncRpc(FHttpRequest& Request,
-	UE::DerivedData::IRequestOwner& Owner,
-	FHttpRequestPool* Pool,
-	FStringView Uri,
-	const FCbPackage& RequestPackage,
-	FOnRpcComplete&& OnComplete)
-{
-	auto OnHttpRequestComplete = [OnComplete = MoveTemp(OnComplete)]
-	(FHttpRequest::EResult HttpResult, FHttpRequest* Request)
-	{
-		FCbPackage Response;
-		FHttpRequest::EResult ParsedResponseResult = ParseRpcResponse(HttpResult, *Request, Response);
-		OnComplete(ParsedResponseResult, Request, Response);
-		return FHttpRequest::ECompletionBehavior::Done;
-	};
-	FLargeMemoryWriter PackageMemory;
-	UE::Zen::Http::SaveCbPackage(RequestPackage, PackageMemory);
-	uint64 PackageMemorySize = PackageMemory.TotalSize();
-	FSharedBuffer PackageSharedBuffer = FSharedBuffer::TakeOwnership(PackageMemory.ReleaseOwnership(), PackageMemorySize, FMemory::Free);
-	Request.EnqueueAsyncPost(Owner, Pool, Uri, FCompositeBuffer(PackageSharedBuffer), MoveTemp(OnHttpRequestComplete), EHttpContentType::CbPackage, EHttpContentType::CbPackage);
-}
-
 bool FZenCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::Exist);
@@ -357,13 +250,13 @@ bool FZenCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
 	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-		FHttpRequest::EResult Result = Request->PerformBlockingHead(*Uri, EHttpContentType::Binary);
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
+		Zen::FZenHttpRequest::Result Result = Request->PerformBlockingHead(*Uri, Zen::EContentType::Binary);
 		ResponseCode = Request->GetResponseCode();
 
-		if (FHttpRequest::IsSuccessResponse(ResponseCode) || ResponseCode == 404)
+		if (Zen::IsSuccessCode(ResponseCode) || ResponseCode == 404)
 		{
-			const bool bIsHit = (Result == FHttpRequest::EResult::Success && FHttpRequest::IsSuccessResponse(ResponseCode));
+			const bool bIsHit = (Result == Zen::FZenHttpRequest::Result::Success && Zen::IsSuccessCode(ResponseCode));
 
 			if (bIsHit)
 			{
@@ -398,7 +291,7 @@ bool FZenCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData
 	double StartTime = FPlatformTime::Seconds();
 
 	TArray64<uint8> ArrayBuffer;
-	EGetResult Result = GetZenData(MakeLegacyZenKey(CacheKey), &ArrayBuffer, EHttpContentType::Binary);
+	EGetResult Result = GetZenData(MakeLegacyZenKey(CacheKey), &ArrayBuffer, Zen::EContentType::Binary);
 	check(ArrayBuffer.Num() <= UINT32_MAX);
 	OutData = TArray<uint8>(MoveTemp(ArrayBuffer));
 	if (Result != EGetResult::Success)
@@ -427,16 +320,16 @@ bool FZenCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData
 }
 
 FZenCacheStore::EGetResult
-FZenCacheStore::GetZenData(FStringView Uri, TArray64<uint8>* OutData, EHttpContentType ContentType) const
+FZenCacheStore::GetZenData(FStringView Uri, TArray64<uint8>* OutData, Zen::EContentType ContentType) const
 {
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	EGetResult GetResult = EGetResult::NotFound;
 	for (uint32 Attempts = 0; Attempts < MaxAttempts; ++Attempts)
 	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		if (Request.IsValid())
 		{
-			FHttpRequest::EResult Result;
+			Zen::FZenHttpRequest::Result Result;
 			if (OutData)
 			{
 				Result = Request->PerformBlockingDownload(Uri, OutData, ContentType);
@@ -448,7 +341,7 @@ FZenCacheStore::GetZenData(FStringView Uri, TArray64<uint8>* OutData, EHttpConte
 			int64 ResponseCode = Request->GetResponseCode();
 
 			// Request was successful, make sure we got all the expected data.
-			if (FHttpRequest::IsSuccessResponse(ResponseCode))
+			if (Zen::IsSuccessCode(ResponseCode))
 			{
 				return EGetResult::Success;
 			}
@@ -479,18 +372,17 @@ FZenCacheStore::GetZenData(const FCacheKey& CacheKey, ECachePolicy CachePolicy, 
 	EGetResult GetResult = EGetResult::NotFound;
 	for (uint32 Attempts = 0; Attempts < MaxAttempts; ++Attempts)
 	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		if (Request.IsValid())
 		{
-			TArray64<uint8> PackageBytes;
-			FHttpRequest::EResult Result = Request->PerformBlockingDownload(QueryUri.ToString(), &PackageBytes, EHttpContentType::CbPackage);
+			Zen::FZenHttpRequest::Result Result = Request->PerformBlockingDownload(QueryUri.ToString(), OutPackage);
 			int64 ResponseCode = Request->GetResponseCode();
+			bool bPackageValid = Request->GetResponseFormatValid();
 
 			// Request was successful, make sure we got all the expected data.
-			if (FHttpRequest::IsSuccessResponse(ResponseCode))
+			if (Zen::IsSuccessCode(ResponseCode))
 			{
-				FLargeMemoryReader Ar(PackageBytes.GetData(), PackageBytes.Num());
-				if (OutPackage.TryLoad(Ar))
+				if (bPackageValid)
 				{
 					GetResult = EGetResult::Success;
 				}
@@ -526,11 +418,11 @@ FZenCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InD
 	}
 
 	FSharedBuffer DataBuffer = FSharedBuffer::MakeView(InData.GetData(), InData.Num());
-	return PutZenData(*MakeLegacyZenKey(CacheKey), FCompositeBuffer(DataBuffer), EHttpContentType::Binary);
+	return PutZenData(*MakeLegacyZenKey(CacheKey), FCompositeBuffer(DataBuffer), Zen::EContentType::Binary);
 }
 
 FDerivedDataBackendInterface::EPutStatus
-FZenCacheStore::PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, EHttpContentType ContentType)
+FZenCacheStore::PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, Zen::EContentType ContentType)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_Put);
 	COOK_STAT(auto Timer = UsageStats.TimePut());
@@ -541,13 +433,13 @@ FZenCacheStore::PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, EHt
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
 	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		if (Request.IsValid())
 		{
-			FHttpRequest::EResult Result = Request->PerformBlockingPut(Uri, InData, ContentType);
+			Zen::FZenHttpRequest::Result Result = Request->PerformBlockingPut(Uri, InData, ContentType);
 			ResponseCode = Request->GetResponseCode();
 
-			if (FHttpRequest::IsSuccessResponse(ResponseCode))
+			if (Zen::IsSuccessCode(ResponseCode))
 			{
 				TRACE_COUNTER_ADD(ZenDDC_BytesSent, int64(Request->GetBytesSent()));
 				COOK_STAT(Timer.AddHit(Request->GetBytesSent()));
@@ -607,13 +499,13 @@ void FZenCacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
 	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		if (Request)
 		{
-			FHttpRequest::EResult Result = Request->PerformBlockingDelete(*Uri);
+			Zen::FZenHttpRequest::Result Result = Request->PerformBlockingDelete(*Uri);
 			ResponseCode = Request->GetResponseCode();
 
-			if (FHttpRequest::IsSuccessResponse(ResponseCode))
+			if (Zen::IsSuccessCode(ResponseCode))
 			{
 				return;
 			}
@@ -788,15 +680,15 @@ void FZenCacheStore::Put(
 		BatchPackage.SetObject(BatchWriter.Save().AsObject());
 
 		FCbPackage BatchResponse;
-		FHttpRequest::EResult HttpResult = FHttpRequest::EResult::Failed;
+		Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
 
 		{
-			FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-			HttpResult = PerformBlockingRpc(*Request.Get(), TEXTVIEW("/z$/$rpc"), BatchPackage, BatchResponse);
+			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
+			HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchPackage, BatchResponse);
 		}
 
 		int32 RequestIndex = 0;
-		if (HttpResult == FHttpRequest::EResult::Success)
+		if (HttpResult == Zen::FZenHttpRequest::Result::Success)
 		{
 			const FCbObject& ResponseObj = BatchResponse.GetObject();
 			for (FCbField ResponseField : ResponseObj[ANSITEXTVIEW("Result")])
@@ -897,16 +789,16 @@ void FZenCacheStore::Get(
 		BatchRequest.EndObject();
 
 		FCbPackage BatchResponse;
-		FHttpRequest::EResult HttpResult = FHttpRequest::EResult::Failed;
+		Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
 
 		{
 			LLM_SCOPE_BYTAG(UntaggedDDCResult);
-			FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-			HttpResult = PerformBlockingRpc(*Request.Get(), TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
+			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
+			HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
 		}
 
 		int32 RequestIndex = 0;
-		if (HttpResult == FHttpRequest::EResult::Success)
+		if (HttpResult == Zen::FZenHttpRequest::Result::Success)
 		{
 			const FCbObject& ResponseObj = BatchResponse.GetObject();
 			
@@ -1025,14 +917,14 @@ void FZenCacheStore::PutValue(
 		BatchPackage.SetObject(BatchWriter.Save().AsObject());
 
 		FCbPackage BatchResponse;
-		FHttpRequest::EResult HttpResult = FHttpRequest::EResult::Failed;
+		Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
 		{
-			FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-			HttpResult = PerformBlockingRpc(*Request.Get(), TEXTVIEW("/z$/$rpc"), BatchPackage, BatchResponse);
+			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
+			HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchPackage, BatchResponse);
 		}
 
 		int32 RequestIndex = 0;
-		if (HttpResult == FHttpRequest::EResult::Success)
+		if (HttpResult == Zen::FZenHttpRequest::Result::Success)
 		{
 			const FCbObject& ResponseObj = BatchResponse.GetObject();
 			for (FCbField ResponseField : ResponseObj[ANSITEXTVIEW("Result")])
@@ -1130,16 +1022,16 @@ void FZenCacheStore::GetValue(
 			BatchRequest.EndObject();
 
 			FCbPackage BatchResponse;
-			FHttpRequest::EResult HttpResult = FHttpRequest::EResult::Failed;
+			Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
 
 			{
 				LLM_SCOPE_BYTAG(UntaggedDDCResult);
-				FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-				HttpResult = PerformBlockingRpc(*Request.Get(), TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
+				Zen::FZenScopedRequestPtr Request(RequestPool.Get());
+				HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
 			}
 
 			int32 RequestIndex = 0;
-			if (HttpResult == FHttpRequest::EResult::Success)
+			if (HttpResult == Zen::FZenHttpRequest::Result::Success)
 			{
 				const FCbObject& ResponseObj = BatchResponse.GetObject();
 
@@ -1275,16 +1167,16 @@ void FZenCacheStore::GetChunks(
 		BatchRequest.EndObject();
 
 		FCbPackage BatchResponse;
-		FHttpRequest::EResult HttpResult = FHttpRequest::EResult::Failed;
+		Zen::FZenHttpRequest::Result HttpResult = Zen::FZenHttpRequest::Result::Failed;
 
 		{
 			LLM_SCOPE_BYTAG(UntaggedDDCResult);
-			FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-			HttpResult = PerformBlockingRpc(*Request.Get(), TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
+			Zen::FZenScopedRequestPtr Request(RequestPool.Get());
+			HttpResult = Request->PerformRpc(TEXTVIEW("/z$/$rpc"), BatchRequest.Save().AsObject(), BatchResponse);
 		}
 
 		int32 RequestIndex = 0;
-		if (HttpResult == FHttpRequest::EResult::Success)
+		if (HttpResult == Zen::FZenHttpRequest::Result::Success)
 		{
 			const FCbObject& ResponseObj = BatchResponse.GetObject();
 

@@ -261,7 +261,7 @@ TIoStatusOr<uint64> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 		{
 			// Old-style with all attachments by value
 
-			UE::Zen::OpLog::SaveCbPackage(OpEntry, SerializedPackage);
+			UE::Zen::SaveCbPackage(OpEntry, SerializedPackage);
 		}
 		else
 		{
@@ -368,7 +368,7 @@ TIoStatusOr<uint64> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 
 					if (!bIsSerialized)
 					{
-						UE::Zen::OpLog::SaveCbAttachment(Attachment, Writer);
+						UE::Zen::SaveCbAttachment(Attachment, Writer);
 					}
 				}
 				else
@@ -585,7 +585,7 @@ FZenStoreHttpClient::EndBuildPass(FCbPackage OpEntry)
 	check(bAllowEdit);
 
 	FLargeMemoryWriter SerializedPackage;
-	UE::Zen::OpLog::SaveCbPackage(OpEntry, SerializedPackage);
+	UE::Zen::SaveCbPackage(OpEntry, SerializedPackage);
 
 	UE_LOG(LogZenStore, Verbose, TEXT("Package size: %lld"), SerializedPackage.TotalSize());
 

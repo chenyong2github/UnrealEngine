@@ -16,19 +16,10 @@ class FCbWriter;
 
 namespace UE::Zen {
 
-namespace OpLog
-{
 ZEN_API void SaveCbAttachment(const FCbAttachment& Attachment, FCbWriter& Writer);
 ZEN_API void SaveCbPackage(const FCbPackage& Package, FCbWriter& Writer);
 ZEN_API void SaveCbPackage(const FCbPackage& Package, FArchive& Ar);
 ZEN_API bool TryLoadCbPackage(FCbPackage& Package, FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
-}
-
-namespace Http
-{
-ZEN_API void SaveCbPackage(const FCbPackage& Package, FArchive& Ar);
-ZEN_API bool TryLoadCbPackage(FCbPackage& Package, FArchive& Ar, FCbBufferAllocator Allocator = FUniqueBuffer::Alloc);
-}
 
 } // namespace UE::Zen
 

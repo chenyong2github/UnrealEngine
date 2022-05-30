@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ZenSerialization.h"
-#include "Compression/OodleDataCompression.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinarySerialization.h"
@@ -10,11 +9,8 @@
 
 #if UE_WITH_ZEN
 
-namespace UE::Zen
-{
+namespace UE::Zen {
 
-namespace OpLog
-{
 void SaveCbAttachment(const FCbAttachment& Attachment, FCbWriter& Writer)
 {
 	if (Attachment.IsCompressedBinary())
@@ -120,186 +116,6 @@ bool TryLoadCbPackage(FCbPackage& Package, FArchive& Ar, FCbBufferAllocator Allo
 			}
 		}
 	}
-}
-}
-
-namespace Http
-{
-struct CbPackageHeader
-{
-	uint32	HeaderMagic;
-	uint32	AttachmentCount;
-	uint32	Reserved1;
-	uint32	Reserved2;
-};
-
-static const uint32 kMagic = 0xaa77aacc;
-
-struct CbAttachmentEntry
-{
-	uint64	AttachmentSize;
-	uint32	Flags;
-	FIoHash	AttachmentHash;
-
-	enum
-	{
-		IsCompressed = (1u << 0),	// Is marshaled using compressed buffer storage format
-		IsObject = (1u << 1),		// Is compact binary object
-	};
-
-};
-
-void SaveCbPackage(const FCbPackage& Package, FArchive& Ar)
-{
-	TConstArrayView<FCbAttachment> Attachments = Package.GetAttachments();
-	const FCbObject& Object = Package.GetObject();
-	FCompressedBuffer ObjectBuffer = FCompressedBuffer::Compress(Object.GetBuffer(), FOodleDataCompression::ECompressor::NotSet, FOodleDataCompression::ECompressionLevel::None);
-
-	CbPackageHeader Hdr;
-	Hdr.HeaderMagic = kMagic;
-	Hdr.AttachmentCount = Attachments.Num();
-	Hdr.Reserved1 = 0;
-	Hdr.Reserved2 = 0;
-
-	Ar.Serialize(&Hdr, sizeof Hdr);
-
-	// Root object metadata
-
-	{
-		CbAttachmentEntry Entry;
-		Entry.AttachmentHash = ObjectBuffer.GetRawHash();
-		Entry.AttachmentSize = ObjectBuffer.GetCompressedSize();
-		Entry.Flags = CbAttachmentEntry::IsObject | CbAttachmentEntry::IsCompressed;
-
-		Ar.Serialize(&Entry, sizeof Entry);
-	}
-
-	// Attachment metadata
-
-	for (const FCbAttachment& Attachment : Attachments)
-	{
-		CbAttachmentEntry Entry;
-		Entry.AttachmentHash = Attachment.GetHash();
-		Entry.Flags = 0;
-
-		if (Attachment.IsCompressedBinary())
-		{
-			Entry.AttachmentSize = Attachment.AsCompressedBinary().GetCompressedSize();
-			Entry.Flags |= CbAttachmentEntry::IsCompressed;
-		}
-		else if (Attachment.IsBinary())
-		{
-			Entry.AttachmentSize = Attachment.AsCompositeBinary().GetSize();
-		}
-		else if (Attachment.IsNull())
-		{
-			checkNoEntry();
-		}
-		else if (Attachment.IsObject())
-		{
-			Entry.AttachmentSize = Attachment.AsObject().GetSize();
-			Entry.Flags |= CbAttachmentEntry::IsObject;
-		}
-		else
-		{
-			checkNoEntry();
-		}
-
-		Ar.Serialize(&Entry, sizeof Entry);
-	}
-
-	// Root object
-
-	Ar << ObjectBuffer;
-
-	// Payloads back-to-back
-
-	for (const FCbAttachment& Attachment : Attachments)
-	{
-		if (Attachment.IsCompressedBinary())
-		{
-			FCompressedBuffer Payload = Attachment.AsCompressedBinary();
-			Ar << Payload;
-		}
-		else if (Attachment.IsBinary())
-		{
-			const FCompositeBuffer& Buffer = Attachment.AsCompositeBinary();
-			FSharedBuffer SharedBuffer = Buffer.ToShared();
-
-			Ar.Serialize((void*)SharedBuffer.GetData(), SharedBuffer.GetSize());
-		}
-		else if (Attachment.IsNull())
-		{
-			checkNoEntry();
-		}
-		else if (Attachment.IsObject())
-		{
-			checkNoEntry();
-		}
-		else
-		{
-			checkNoEntry();
-		}
-	}
-}
-
-bool TryLoadCbPackage(FCbPackage& Package, FArchive& Ar, FCbBufferAllocator Allocator)
-{
-	CbPackageHeader Hdr;
-	Ar.Serialize(&Hdr, sizeof Hdr);
-
-	if (Hdr.HeaderMagic != kMagic)
-	{
-		return false;
-	}
-
-	TArray<CbAttachmentEntry> AttachmentEntries;
-	AttachmentEntries.SetNum(Hdr.AttachmentCount + 1);
-
-	Ar.Serialize(AttachmentEntries.GetData(), (Hdr.AttachmentCount + 1) * sizeof(CbAttachmentEntry));
-
-	int Index = 0;
-
-	for (const CbAttachmentEntry& Entry : AttachmentEntries)
-	{
-		FUniqueBuffer AttachmentData = FUniqueBuffer::Alloc(Entry.AttachmentSize);
-		Ar.Serialize(AttachmentData.GetData(), AttachmentData.GetSize());
-
-		if (Entry.Flags & CbAttachmentEntry::IsCompressed)
-		{
-			FCompressedBuffer CompBuf(FCompressedBuffer::FromCompressed(AttachmentData.MoveToShared()));
-
-			if (Entry.Flags & CbAttachmentEntry::IsObject)
-			{
-				checkf(Index == 0, TEXT("Object attachments are not currently supported"));
-
-				Package.SetObject(FCbObject(CompBuf.Decompress()));
-			}
-			else
-			{
-				FCbAttachment Attachment(MoveTemp(CompBuf));
-				Package.AddAttachment(Attachment);
-			}
-		}
-		else /* not compressed */
-		{
-			if (Entry.Flags & CbAttachmentEntry::IsObject)
-			{
-				checkf(Index == 0, TEXT("Object attachments are not currently supported"));
-
-				Package.SetObject(FCbObject(AttachmentData.MoveToShared()));
-			}
-			else
-			{
-				FCbAttachment Attachment(AttachmentData.MoveToShared());
-				Package.AddAttachment(Attachment);
-			}
-		}
-
-		++Index;
-	}
-	return true;
-}
 }
 
 }
