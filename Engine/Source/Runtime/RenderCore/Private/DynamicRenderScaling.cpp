@@ -137,6 +137,8 @@ FBudget::FBudget(const TCHAR* InName, FHeuristicSettings (*InHeuristicSettingsGe
 		UE_LOG(LogRendererCore, Warning, TEXT("Consider bumping DynamicRenderScaling::TMap::kInlineAlloactedBudgets to %d."), GRDSGlobalListLinkSize);
 	}
 #endif
+
+	CachedSettings = (*HeuristicSettingsGetter)();
 }
 
 FBudget::~FBudget()

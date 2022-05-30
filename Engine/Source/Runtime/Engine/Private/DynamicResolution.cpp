@@ -94,7 +94,7 @@ DynamicRenderScaling::FHeuristicSettings GetPrimaryDynamicResolutionSettings()
 	BudgetSetting.MaxResolutionFraction      = DynamicRenderScaling::GetPercentageCVarToFraction(CVarDynamicResMaxSP);
 	// BudgetSetting.BudgetMs depends on the cost of other buckets.
 	BudgetSetting.ChangeThreshold            = DynamicRenderScaling::GetPercentageCVarToFraction(CVarChangeThreshold);
-	BudgetSetting.IncreaseAmortizationFactor = CVarIncreaseAmortizationFactor.GetValueOnRenderThread();
+	BudgetSetting.IncreaseAmortizationFactor = CVarIncreaseAmortizationFactor.GetValueOnAnyThread();
 
 	// CVarTargetedGPUHeadRoomPercentage is taken into account on the entire frame instead.
 	BudgetSetting.TargetedHeadRoom = 0.0f;
