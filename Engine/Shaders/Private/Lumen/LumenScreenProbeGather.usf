@@ -754,8 +754,11 @@ void ScreenProbeTileClassificationBuildListsCS(
 			uint2 ThreadOffset = ZOrder2D(x, log2(8));
 			uint2 TileCoordinate = GroupId * 8 + ThreadOffset;
 
-			const uint2 EffectiveViewportTileDimensions = PERMUTATION_OVERFLOW_TILE ? uint2(Strata.OverflowTileCount) : ViewportTileDimensions;
-			const bool bIsValid = all(TileCoordinate < EffectiveViewportTileDimensions);
+			#if PERMUTATION_OVERFLOW_TILE
+			const bool bIsValid = (TileCoordinate.x + TileCoordinate.y * Strata.OverflowTileCount.x) < Strata.BSDFTileCountBuffer[0];
+			#else
+			const bool bIsValid = all(TileCoordinate < ViewportTileDimensions);
+			#endif
 
 			// Translate tile into its effective location (i.e., dispatch thread -> SvPosition)
 			TileCoordinate += PERMUTATION_OVERFLOW_TILE ? Strata.OverflowTileOffset : int2(0, 0);
