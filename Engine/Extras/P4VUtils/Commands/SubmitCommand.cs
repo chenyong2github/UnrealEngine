@@ -1,5 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if DEBUG
+// When enabled the command will not actually submit the changelist, but will act like it did.
+// This is for development purposes only and so is only available in the debug config.
+//#define UE_DEBUG_DISABLE_SUBMITS
+#endif
+
 using EpicGames.Core;
 using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
@@ -13,51 +19,105 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace P4VUtils.Commands
-{
+{	
+	public static class LoggingUtils
+	{
+		/// <summary>
+		/// This extension is used to write a new line to the logger. 
+		/// log.NewLine better shows intent over log.LogInformation("")
+		/// </summary>
+		public static void NewLine(this ILogger logger)
+		{
+			logger.LogInformation("");
+		}
+	}
+
 	class SubmitAndVirtualizeCommand : Command
 	{
 		public override string Description => "Virtualize And Submit";
 
-		public override CustomToolInfo CustomTool => new CustomToolInfo("Virtualize And Submit", "$c %c") { ShowConsole = true, RefreshUI = true };
+		public override CustomToolInfo CustomTool => new CustomToolInfo("Virtualize And Submit", "$c %C") { ShowConsole = true, RefreshUI = true };
 
 		public override async Task<int> Execute(string[] args, IReadOnlyDictionary<string, string> configValues, ILogger logger)
 		{
 			// Parse command lines
 			if (args.Length < 3)
 			{
-				logger.LogError("Not enough args for command!");
+				logger.LogError("Not enough args for command, tool is now exiting");
 				return 1;
 			}
 
 			string clientSpec = args[1];
 
-			if (!int.TryParse(args[2], out int changeNumber))
+			List<int> changelistsToSubmit = new List<int>();
+
+			for (int index = 2; index < args.Length; ++index)
 			{
-				logger.LogError("'{Argument}' is not a numbered changelist", args[1]);
+				if (!int.TryParse(args[index], out int changeNumber))
+				{
+					logger.LogError("'{Argument}' is not a numbered changelist, tool is now exiting", args[index]);
+					return 1;
+				}
+
+				changelistsToSubmit.Add(changeNumber);
+			}
+
+			if (changelistsToSubmit.Count == 0)
+			{
+				logger.LogError("No changelists to submit were provided, tool is now exiting");
 				return 1;
 			}
 
-			logger.LogInformation("Attempting to virtualize and submit changelist {Change} in the workspace {Spec}", changeNumber, clientSpec);
-
 			// Connect to perforce and validate
 
-			logger.LogInformation("Connecting to perforce...");
-			
+			logger.LogInformation("Connecting to Perforce...");
+
 			// We prefer the native client to avoid the problem where different versions of p4.exe expect
 			// or return records with different formatting to each other.
 			PerforceSettings settings = new PerforceSettings(PerforceSettings.Default) { PreferNativeClient = true, ClientName = clientSpec };
 			using IPerforceConnection perforceConnection = await PerforceConnection.CreateAsync(settings, logger);
 			if (perforceConnection == null)
 			{
-				logger.LogError("Failed to connect", args[1]);
+				logger.LogError("Failed to connect to Perforce, tool is now exiting");
 				return 1;
 			}
+
+			for (int index = 0; index < changelistsToSubmit.Count; ++index)
+			{
+				logger.NewLine();
+				logger.LogInformation("========== Processing change list {Index}/{Count} ==========", index + 1, changelistsToSubmit.Count);
+
+				int changeNumber = changelistsToSubmit[index];
+				if(await ProcessChangelist(perforceConnection, changeNumber, logger) == false)
+				{
+					logger.LogError("Failed to process {Changelist}, tool is now exiting", changeNumber);
+					return 1;
+				}
+			}
+
+			logger.NewLine();
+			logger.LogInformation("========== All changelist(s) submitted successfully, tool is now exiting ==========");
+			
+			return 0;
+		}
+
+		public static async Task<bool> ProcessChangelist(IPerforceConnection perforceConnection, int changeNumber, ILogger logger)
+		{
+			if (perforceConnection == null || perforceConnection.Settings == null || perforceConnection.Settings.ClientName == null)
+			{
+				logger.LogError("Invalid Perforce connection!");
+				return false;
+			}
+
+			string clientSpec = perforceConnection.Settings.ClientName;
+
+			logger.LogInformation("Attempting to virtualize and submit changelist {Change} in the workspace {Spec}", changeNumber, clientSpec);
 
 			// First we need to find the packages in the changelist
 			string[]? localFilePaths = await FindPackagesInChangelist(perforceConnection, changeNumber, logger);
 			if (localFilePaths == null)
 			{
-				return 1;
+				return false;
 			}
 
 			if (localFilePaths.Length > 0)
@@ -69,7 +129,7 @@ namespace P4VUtils.Commands
 				if (await DoesChangelistHaveShelvedFiles(perforceConnection, changeNumber) == true)
 				{
 					logger.LogError("Changelist {Change} has shelved files and cannot be submitted", changeNumber);
-					return 1;
+					return false;
 				}
 
 				logger.LogInformation("Found {Amount} package(s) that may need virtualization", localFilePaths.Length);
@@ -89,7 +149,8 @@ namespace P4VUtils.Commands
 					string engineRoot = GetEngineRootForProject(project.Key, logger);
 					if (!String.IsNullOrEmpty(engineRoot))
 					{
-						logger.LogInformation("\nAttempting to virtualize packages in project '{Project}' via the engine installation '{Engine}'", project.Key, engineRoot);
+						logger.NewLine();
+						logger.LogInformation("Attempting to virtualize packages in project '{Project}' via the engine installation '{Engine}'", project.Key, engineRoot);
 						// @todo Many projects can share the same engine install, and technically UnrealVirtualizationTool
 						// supports the virtualization files from many projects at the same time. We could consider doing
 						// this pass per engine install rather than per project? At the very least we should only 'build'
@@ -102,7 +163,7 @@ namespace P4VUtils.Commands
 						// Check if the compilation of the tool succeeded or not
 						if (await compileResult == false)
 						{
-							return 1;
+							return false;
 						}
 
 						// Even though this will have been done while we were waiting for BuildVirtualizationTool to complete 
@@ -113,7 +174,7 @@ namespace P4VUtils.Commands
 
 						if (await RunVirtualizationTool(engineRoot, clientSpec, tempFilesPath, logger) == false)
 						{
-							return 1;
+							return false;
 						};
 
 						// @todo Make sure this always gets cleaned up when we go out of scope
@@ -122,22 +183,23 @@ namespace P4VUtils.Commands
 					else
 					{
 						logger.LogError("Failed to find engine root for project {Project}", project.Key);
-						return 1;
+						return false;
 					}
 				}
 
-				logger.LogInformation("\nAll packages have been virtualized");
+				logger.NewLine();
+				logger.LogInformation("All packages have been virtualized");
 
 				//@todo ideally we should get the tags back from UnrealVirtualizationTool
 				ChangeRecord? changeRecord = await StampChangelistDescription(perforceConnection, changeNumber, logger);
 				if (changeRecord == null)
 				{
-					return 1;
+					return false;
 				}
 
 				logger.LogInformation("Attempting to submit changelist {Number}...", changeNumber);
 
-				// Submit
+#if !UE_DEBUG_DISABLE_SUBMITS
 				if (await SubmitChangelist(perforceConnection, changeNumber, logger) == false)
 				{
 					// If the final submit failed we remove the virtualization tag, even though the changelist is technically
@@ -151,8 +213,12 @@ namespace P4VUtils.Commands
 					}
 					logger.LogInformation("Virtualization tags have been removed.");
 
-					return 1;
+					return false;
 				}
+#else
+				// Dummy pretend submit for debugging purposes, allows developer iteration without actually submitting
+				logger.LogInformation("Successfully submited changelist {Change}", changeNumber);
+#endif // !UE_DEBUG_DISABLE_SUBMITS
 			}
 			else
 			{
@@ -160,11 +226,11 @@ namespace P4VUtils.Commands
 
 				if (await SubmitChangelist(perforceConnection, changeNumber, logger) == false)
 				{
-					return 1;
+					return false;
 				}
 			}
 		
-			return 0;
+			return true;
 		}
 
 		/// <summary>
