@@ -112,6 +112,11 @@ private:
 			return *this;
 		}
 
+		void SetAll(const bool bValue)
+		{
+			Init(bValue, TStructTrackerWrapper::StructTracker.Num());
+		}
+
 		FORCEINLINE bool HasAll(const TBitArray<>& Other) const
 		{
 			FConstWordIterator ThisIterator(*this);
@@ -344,7 +349,7 @@ private:
 
 public:
 
-	static int32 CreateTypeIndex(const TUStructType& InStructType)
+	static int32 GetTypeIndex(const TUStructType& InStructType)
 	{
 #if WITH_STRUCTUTILS_DEBUG
 		ensureMsgf(InStructType.IsChildOf(GetBaseUStruct())
@@ -359,10 +364,10 @@ public:
 	static int32 GetTypeIndex()
 	{
 		static_assert(TIsDerivedFrom<T, TBaseStruct>::IsDerived, "Given struct type doesn't match the expected base struct type.");
-		static const int32 TypeIndex = CreateTypeIndex(*UE::StructUtils::GetAsUStruct<T>());
+		static const int32 TypeIndex = GetTypeIndex(*UE::StructUtils::GetAsUStruct<T>());
 		return TypeIndex;
 	}
-
+	
 	template<typename T>
 	static const TStructTypeBitSet& GetTypeBitSet()
 	{
@@ -398,6 +403,11 @@ public:
 		static_assert(TIsDerivedFrom<T, TBaseStruct>::IsDerived, "Given struct type doesn't match the expected base struct type.");
 		const int32 StructTypeIndex = GetTypeIndex<T>();
 		return StructTypesBitArray.Contains(StructTypeIndex);
+	}
+
+	void SetAll(const bool bValue = true)
+	{
+		StructTypesBitArray.SetAll(bValue);
 	}
 
 	void Add(const TUStructType& InStructType)
