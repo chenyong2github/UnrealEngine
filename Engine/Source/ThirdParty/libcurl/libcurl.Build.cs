@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class libcurl : ModuleRules
 {
@@ -11,7 +12,7 @@ public class libcurl : ModuleRules
 		PublicDefinitions.Add("WITH_LIBCURL=1");
 
 		string LinuxLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7_65_3/";
-		string WinLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/curl-7.55.1/";
+		string WinLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7.83.1/";
 		string AndroidLibCurlPath = Target.UEThirdPartySourceDirectory + "libcurl/7_75_0/";
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
@@ -46,14 +47,14 @@ public class libcurl : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicIncludePaths.Add(WinLibCurlPath + "include/" + Target.Platform.ToString() +  "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			string LibDir = WinLibCurlPath + "lib/" + Target.Platform.ToString() +  "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
-			PublicAdditionalLibraries.Add(LibDir + "libcurl_a.lib");
+			PublicSystemIncludePaths.Add(Path.Combine(WinLibCurlPath, "include"));
+			PublicAdditionalLibraries.Add(Path.Combine(WinLibCurlPath, "lib", Target.Platform.ToString(), "Release", "libcurl.lib"));
 			PublicDefinitions.Add("CURL_STATICLIB=1");
 
-			// Our build requires OpenSSL and zlib, so ensure thye're linked in
+			// Our build requires nghttp2, OpenSSL and zlib, so ensure they're linked in
 			AddEngineThirdPartyPrivateStaticDependencies(Target, new string[]
 			{
+				"nghttp2",
 				"OpenSSL",
 				"zlib"
 			});
