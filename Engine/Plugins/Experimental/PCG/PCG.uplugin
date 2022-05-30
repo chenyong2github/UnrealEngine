@@ -24,10 +24,14 @@
 		{
 			"Name": "PCGEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default"			
+			"LoadingPhase": "Default"
 		}
 
 	],
 	"Plugins": [
+		{
+			"Name": "GeometryScripting",
+			"Enabled": true
+		}
 	]
 }
