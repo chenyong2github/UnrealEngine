@@ -101,6 +101,9 @@ public:
 			UseShapeGenerator->Generate_ProjectedHulls(NewCollision->Geometry,
 				(FMeshSimpleShapeApproximation::EProjectedHullAxisMode)(int32)SweepAxis);
 			break;
+		case ECollisionGeometryType::LevelSets:
+			UseShapeGenerator->Generate_LevelSets(NewCollision->Geometry);
+			break;
 		case ECollisionGeometryType::MinVolume:
 			UseShapeGenerator->Generate_MinVolume(NewCollision->Geometry);
 			break;
@@ -220,6 +223,7 @@ void USetCollisionGeometryTool::Setup()
 	Settings->WatchProperty(Settings->bSimplifyPolygons, [this](bool) { InvalidateCompute(); });
 	Settings->WatchProperty(Settings->HullTolerance, [this](float) { InvalidateCompute(); });
 	Settings->WatchProperty(Settings->SweepAxis, [this](EProjectedHullAxis) { InvalidateCompute(); });
+	Settings->WatchProperty(Settings->LevelSetResolution, [this](int32) { InvalidateCompute(); });
 
 	if (InitialSourceMeshes.Num() == 1)
 	{
@@ -295,6 +299,7 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FPhysicsDataCollection>> USetColli
 	Op->UseShapeGenerator->ConvexDecompositionErrorTolerance = Settings->AddHullsErrorTolerance;
 	Op->UseShapeGenerator->ConvexDecompositionMinPartThickness = Settings->MinPartThickness;
 	Op->UseShapeGenerator->HullSimplifyTolerance = Settings->HullTolerance;
+	Op->UseShapeGenerator->LevelSetGridResolution = Settings->LevelSetResolution;
 
 	Op->ComputeType = Settings->GeometryType;
 	Op->bAppendToExisting = Settings->bAppendToExisting;

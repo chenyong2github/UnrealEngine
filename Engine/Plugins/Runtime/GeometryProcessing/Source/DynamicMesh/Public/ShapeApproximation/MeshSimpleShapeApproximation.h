@@ -79,6 +79,9 @@ public:
 
 	bool bUseExactComputationForBox = false;
 
+	/** Level Set Grid resolution along longest axis */
+	int32 LevelSetGridResolution = 10;
+
 	//
 	// setup/initialization
 	//
@@ -155,6 +158,8 @@ public:
 	 */
 	void Generate_ProjectedHulls(FSimpleShapeSet3d& ShapeSetOut, EProjectedHullAxisMode AxisMode);
 
+	void Generate_LevelSets(FSimpleShapeSet3d& ShapeSetOut, FProgressCancel* Progress = nullptr);
+	
 
 	/**
 	 * Fit containing axis-aligned box, oriented box, capsule, and sphere to each input mesh, and

@@ -126,6 +126,14 @@ void FPhysicsDataCollection::CopyGeometryToAggregate()
 
 		AggGeom.ConvexElems.Add(Element);
 	}
+
+	for (UE::Geometry::FLevelSetShape3d& LevelSetGeom : Geometry.LevelSets)
+	{
+		FKLevelSetElem Element;
+		UE::Geometry::GetFKElement(LevelSetGeom.GridTransform, LevelSetGeom.Grid, LevelSetGeom.CellSize, Element);
+		AggGeom.LevelSetElems.Emplace(MoveTemp(Element));
+	}
+
 }
 
 

@@ -3,6 +3,7 @@
 #include "Physics/CollisionGeometryVisualization.h"
 #include "Generators/LineSegmentGenerators.h"
 #include "Util/ColorConstants.h"
+#include "Chaos/Levelset.h"
 
 using namespace UE::Geometry;
 
@@ -13,6 +14,7 @@ void UE::PhysicsTools::InitializePreviewGeometryLines(const FPhysicsDataCollecti
 	FColor SphereColor = LineColor;
 	FColor BoxColor = LineColor;
 	FColor ConvexColor = LineColor;
+	FColor LevelSetColor = LineColor;
 	FColor CapsuleColor = LineColor;
 	int32 OverrideColorIdx = 0;
 
@@ -141,7 +143,42 @@ void UE::PhysicsTools::InitializePreviewGeometryLines(const FPhysicsDataCollecti
 			}
 		});
 	}
+	
+	// for Level Sets draw the grid cells where phi < 0
+	for (int32 Index = 0; Index < AggGeom.LevelSetElems.Num(); Index++)
+	{
+		PreviewGeom->CreateOrUpdateLineSet(FString::Printf(TEXT("Level Set %d"), Index), 1, [&](int32 UnusedIndex, TArray<FRenderableLine>& LinesOut)
+		{
+			const FColor Color = GetNextColor(LevelSetColor);
+			const FKLevelSetElem& LevelSet = AggGeom.LevelSetElems[Index];
+			
+			FTransform ElemTransform = LevelSet.GetTransform();
+			ElemTransform.ScaleTranslation(PhysicsData.ExternalScale3D);
+			ElemTransform.MultiplyScale3D(PhysicsData.ExternalScale3D);
 
+			auto GenerateBoxSegmentsFromFBox = [&](const FBox& Box)
+			{
+				const FVector3d Center = Box.GetCenter();
+				const FVector3d HalfDimensions = 0.5 * (Box.Max - Box.Min);
+
+				UE::Geometry::GenerateBoxSegments<double>(HalfDimensions, Center, FVector3d::UnitX(), FVector3d::UnitY(), FVector3d::UnitZ(), ElemTransform,
+					[&](const FVector3d& A, const FVector3d& B) { LinesOut.Add(FRenderableLine((FVector)A, (FVector)B, Color, LineThickness, DepthBias)); });
+			};
+
+			const FBox TotalGridBox = LevelSet.UntransformedAABB();
+			GenerateBoxSegmentsFromFBox(TotalGridBox);
+
+			TArray<FBox> CellBoxes;
+			const double Threshold = UE_KINDA_SMALL_NUMBER;		// allow slightly greater than zero for visualization purposes
+			LevelSet.GetInteriorGridCells(CellBoxes, Threshold);
+
+			for (const FBox& CellBox : CellBoxes)
+			{
+				GenerateBoxSegmentsFromFBox(CellBox);
+			}
+
+		});
+	}
 
 	// Unclear whether we actually use these in the Engine, for UBodySetup? Does not appear to be supported by UxX import system,
 	// and online documentation suggests they may only be supported for cloth?

@@ -6,6 +6,7 @@
 
 #include "MathUtil.h"
 #include "VectorTypes.h"
+#include "IntVectorTypes.h"
 
 namespace UE
 {
@@ -47,6 +48,16 @@ public:
 			  GridOrigin.Z + CellSize * Dimensions.Z });
 	}
 
+	FVector3i Cell(const FVector3d& Pt) const
+	{
+		// compute integer coordinates
+		FVector3i CellCoords;
+		CellCoords.X = (int)((Pt.X - GridOrigin.X) / CellSize);
+		CellCoords.Y = (int)((Pt.Y - GridOrigin.Y) / CellSize);
+		CellCoords.Z = (int)((Pt.Z - GridOrigin.Z) / CellSize);
+
+		return CellCoords;
+	}
 
 	double Value(const FVector3d& Pt) const
 	{

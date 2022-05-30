@@ -55,6 +55,10 @@ static void FilterContained(const FSimpleShapeSet3d& Geometry, const FSphereShap
 			{
 				bContained = UE::Geometry::IsInside(Sphere.Sphere, Geometry.Convexes[ElemIdx].Mesh.VerticesItr());
 			}
+			else if (Elements[j].Type == ESimpleShapeType::LevelSet)
+			{
+				bContained = UE::Geometry::IsInside(Sphere.Sphere, Geometry.LevelSets[ElemIdx].GetGridBox());
+			}
 			else
 			{
 				ensure(false);		// not implemented yet?
@@ -96,6 +100,10 @@ static void FilterContained(const FSimpleShapeSet3d& Geometry, const UE::Geometr
 			{
 				bContained = UE::Geometry::IsInside(Capsule.Capsule, Geometry.Convexes[ElemIdx].Mesh.VerticesItr());
 			}
+			else if (Elements[j].Type == ESimpleShapeType::LevelSet)
+			{
+				bContained = UE::Geometry::IsInside(Capsule.Capsule, Geometry.LevelSets[ElemIdx].GetGridBox());
+			}
 			else
 			{
 				ensure(false);
@@ -136,6 +144,10 @@ static void FilterContained(const FSimpleShapeSet3d& Geometry, const FBoxShape3d
 			else if (Elements[j].Type == ESimpleShapeType::Convex)
 			{
 				bContained = UE::Geometry::IsInside(Box.Box, Geometry.Convexes[ElemIdx].Mesh.VerticesItr());
+			}
+			else if (Elements[j].Type == ESimpleShapeType::LevelSet)
+			{
+				bContained = UE::Geometry::IsInside(Box.Box, Geometry.LevelSets[ElemIdx].GetGridBox());
 			}
 			else
 			{
@@ -187,6 +199,10 @@ static void FilterContained(const FSimpleShapeSet3d& Geometry, const FConvexShap
 			{
 				bContained = UE::Geometry::IsInsideHull<double>(Planes, Geometry.Convexes[ElemIdx].Mesh.VerticesItr());
 			}
+			else if (Elements[j].Type == ESimpleShapeType::LevelSet)
+			{
+				bContained = UE::Geometry::IsInsideHull<double>(Planes, Geometry.LevelSets[ElemIdx].GetGridBox());
+			}
 			else
 			{
 				ensure(false);
@@ -200,6 +216,53 @@ static void FilterContained(const FSimpleShapeSet3d& Geometry, const FConvexShap
 	}
 }
 
+
+static void FilterContained(const FSimpleShapeSet3d& Geometry, FLevelSetShape3d& LevelSetShape, const TArray<FSimpleShapeElementKey>& Elements, int32 k, TArray<bool>& RemovedInOut)
+{
+	FOrientedBox3d GridBox = LevelSetShape.GetGridBox();
+
+	int32 N = Elements.Num();
+	for (int32 j = k + 1; j < N; ++j)
+	{
+		if (RemovedInOut[j] == false)
+		{
+			// TODO: use the full GridTransform, not just translation. JIRA UE-155269
+			TTriLinearGridInterpolant<FDenseGrid3f> GridInterp(&LevelSetShape.Grid, LevelSetShape.GridTransform.GetTranslation(), LevelSetShape.CellSize, LevelSetShape.Grid.GetDimensions());
+
+			bool bContained = false;
+			int32 ElemIdx = Elements[j].Index;
+			if (Elements[j].Type == ESimpleShapeType::Sphere)
+			{
+				bContained = UE::Geometry::IsInside(GridInterp, Geometry.Spheres[ElemIdx].Sphere);
+			}
+			else if (Elements[j].Type == ESimpleShapeType::Box)
+			{
+				bContained = UE::Geometry::IsInside(GridInterp, Geometry.Boxes[ElemIdx].Box);
+			}
+			else if (Elements[j].Type == ESimpleShapeType::Capsule)
+			{
+				bContained = UE::Geometry::IsInside(GridInterp, Geometry.Capsules[ElemIdx].Capsule);
+			}
+			else if (Elements[j].Type == ESimpleShapeType::Convex)
+			{
+				bContained = UE::Geometry::IsInside<double>(GridInterp, Geometry.Convexes[ElemIdx].Mesh.VerticesItr());
+			}
+			else if (Elements[j].Type == ESimpleShapeType::LevelSet)
+			{
+				bContained = UE::Geometry::IsInside(GridInterp, Geometry.LevelSets[ElemIdx].GetGridBox());
+			}
+			else
+			{
+				ensure(false);
+			}
+
+			if (bContained)
+			{
+				RemovedInOut[j] = true;
+			}
+		}
+	}
+}
 
 
 static void GetElementsList(FSimpleShapeSet3d& GeometrySet, TArray<FSimpleShapeElementKey>& Elements)
@@ -221,6 +284,11 @@ static void GetElementsList(FSimpleShapeSet3d& GeometrySet, TArray<FSimpleShapeE
 		FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(GeometrySet.Convexes[k].Mesh);
 		Elements.Add(FSimpleShapeElementKey(ESimpleShapeType::Convex, k, VolArea.X));
 	}
+	for (int32 k = 0; k < GeometrySet.LevelSets.Num(); ++k)
+	{
+		Elements.Add(FSimpleShapeElementKey(ESimpleShapeType::LevelSet, k, GeometrySet.LevelSets[k].GetGridBox().Volume()));
+	}
+
 }
 
 static void GetElementsSortedByDecreasing(FSimpleShapeSet3d& GeometrySet, TArray<FSimpleShapeElementKey>& Elements)
@@ -264,6 +332,11 @@ void FSimpleShapeSet3d::RemoveContainedGeometry()
 		{
 			FilterContained(*this, Convexes[ElemIdx], Elements, k, Removed);
 		}
+		else if (ElemType == ESimpleShapeType::LevelSet)
+		{
+			// Pass in zero here instead of k because we don't currently have a good volume value for level set objects
+			FilterContained(*this, LevelSets[ElemIdx], Elements, 0, Removed);
+		}
 		else
 		{
 			ensure(false);
@@ -294,6 +367,9 @@ void FSimpleShapeSet3d::RemoveContainedGeometry()
 			case ESimpleShapeType::Convex:
 				NewSet.Convexes.Add(Convexes[ElemIdx]);		// todo movetemp here...
 				break;
+			case ESimpleShapeType::LevelSet:
+				NewSet.LevelSets.Add(LevelSets[ElemIdx]);		// todo movetemp here...
+				break;
 			}
 		}
 	}
@@ -303,6 +379,7 @@ void FSimpleShapeSet3d::RemoveContainedGeometry()
 	Boxes = MoveTemp(NewSet.Boxes);
 	Capsules = MoveTemp(NewSet.Capsules);
 	Convexes = MoveTemp(NewSet.Convexes);
+	LevelSets = MoveTemp(NewSet.LevelSets);
 }
 
 
@@ -338,6 +415,12 @@ static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, c
 	CapsuleShape.Capsule.Radius *= RadiusScale;
 }
 
+static void TransformLevelSetShape(UE::Geometry::FLevelSetShape3d& LevelSetShape, const FTransform3d& Transform)
+{
+	const FTransform3d Sub(-0.5 * LevelSetShape.CellSize * FVector3d::One());
+	const FTransform3d Add(0.5 * LevelSetShape.CellSize * FVector3d::One());
+	LevelSetShape.GridTransform = LevelSetShape.GridTransform * Sub * Transform * Add;
+}
 
 
 
@@ -386,7 +469,20 @@ static void TransformCapsuleShape(UE::Geometry::FCapsuleShape3d& CapsuleShape, c
 	CapsuleShape.Capsule.Radius *= RadiusScale;
 }
 
+static void TransformLevelSetShape(UE::Geometry::FLevelSetShape3d& LevelSetShape, const TArray<FTransform3d>& TransformSequence)
+{
+	const FTransform3d Sub(-0.5 * LevelSetShape.CellSize * FVector3d::One());
+	const FTransform3d Add(0.5 * LevelSetShape.CellSize * FVector3d::One());
 
+	LevelSetShape.GridTransform = LevelSetShape.GridTransform * Sub;
+
+	for (const FTransform3d& XForm : TransformSequence)
+	{
+		LevelSetShape.GridTransform = LevelSetShape.GridTransform * XForm;
+	}
+
+	LevelSetShape.GridTransform = LevelSetShape.GridTransform * Add;
+}
 
 
 void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet)
@@ -410,6 +506,12 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet)
 	for (const FConvexShape3d& ConvexShape : OtherShapeSet.Convexes)
 	{
 		Convexes.Add(ConvexShape);
+	}
+
+	LevelSets.Reserve(LevelSets.Num() + OtherShapeSet.LevelSets.Num());
+	for (const FLevelSetShape3d& LevelSetShape : OtherShapeSet.LevelSets)
+	{
+		LevelSets.Add(LevelSetShape);
 	}
 }
 
@@ -439,6 +541,13 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const FTr
 	{
 		Convexes.Add(ConvexShape);
 		MeshTransforms::ApplyTransform(Convexes.Last().Mesh, Transform);
+	}
+
+	LevelSets.Reserve(LevelSets.Num() + OtherShapeSet.LevelSets.Num());
+	for (const FLevelSetShape3d& LevelSetShape : OtherShapeSet.LevelSets)
+	{
+		LevelSets.Add(LevelSetShape);
+		TransformLevelSetShape(LevelSets.Last(), Transform);
 	}
 }
 
@@ -473,6 +582,13 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const TAr
 			MeshTransforms::ApplyTransform(Convexes.Last().Mesh, XForm);
 		}
 	}
+
+	LevelSets.Reserve(LevelSets.Num() + OtherShapeSet.LevelSets.Num());
+	for (const FLevelSetShape3d& LevelSetShape : OtherShapeSet.LevelSets)
+	{
+		LevelSets.Add(LevelSetShape);
+		TransformLevelSetShape(LevelSets.Last(), TransformSequence);
+	}
 }
 
 
@@ -506,6 +622,9 @@ void FSimpleShapeSet3d::FilterByVolume(int32 MaximumCount)
 		case ESimpleShapeType::Convex:
 			NewSet.Convexes.Add(Convexes[ElemIdx]);		// todo movetemp here...
 			break;
+		case ESimpleShapeType::LevelSet:
+			NewSet.LevelSets.Add(LevelSets[ElemIdx]);		// todo movetemp here...
+			break;
 		}
 	}
 
@@ -513,6 +632,7 @@ void FSimpleShapeSet3d::FilterByVolume(int32 MaximumCount)
 	Boxes = MoveTemp(NewSet.Boxes);
 	Capsules = MoveTemp(NewSet.Capsules);
 	Convexes = MoveTemp(NewSet.Convexes);
+	LevelSets = MoveTemp(NewSet.LevelSets);
 }
 
 
@@ -537,5 +657,10 @@ void FSimpleShapeSet3d::ApplyTransform(const FTransform3d& Transform)
 	for (FConvexShape3d& ConvexShape : Convexes)
 	{
 		MeshTransforms::ApplyTransform(ConvexShape.Mesh, Transform);
+	}
+
+	for (FLevelSetShape3d& LevelSetShape : LevelSets)
+	{
+		TransformLevelSetShape(LevelSetShape, Transform);
 	}
 }

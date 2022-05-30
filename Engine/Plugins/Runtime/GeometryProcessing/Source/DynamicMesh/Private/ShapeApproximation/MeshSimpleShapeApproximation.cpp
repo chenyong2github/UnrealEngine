@@ -8,12 +8,14 @@
 #include "FitCapsule3.h"
 #include "CompGeom/ConvexDecomposition3.h"
 //#include "DynamicMesh/DynamicMeshAABBTree3.h"
-
+#include "Implicit/SweepingMeshSDF.h"
 #include "ShapeApproximation/ShapeDetection3.h"
 #include "MeshQueries.h"
 #include "Operations/MeshConvexHull.h"
 #include "Operations/MeshProjectionHull.h"
 #include "Util/ProgressCancel.h"
+
+#define LOCTEXT_NAMESPACE "MeshSimpleShapeApproximation"
 
 using namespace UE::Geometry;
 
@@ -410,7 +412,49 @@ void FMeshSimpleShapeApproximation::Generate_ProjectedHulls(FSimpleShapeSet3d& S
 }
 
 
+void FMeshSimpleShapeApproximation::Generate_LevelSets(FSimpleShapeSet3d& ShapeSetOut, FProgressCancel* Progress)
+{
+	FCriticalSection GeometryLock;
+	ParallelFor(SourceMeshes.Num(), [&](int32 MeshIndex)
+	{
+		if (GetDetectedSimpleShape(SourceMeshCaches[MeshIndex], ShapeSetOut, GeometryLock))
+		{
+			return;
+		}
 
+		const FAxisAlignedBox3d Bounds = SourceMeshes[MeshIndex]->GetBounds();
+		const double CellSize = Bounds.MaxDim() / LevelSetGridResolution;
+
+		TMeshAABBTree3<FDynamicMesh3> Spatial(SourceMeshes[MeshIndex]);
+
+		TSweepingMeshSDF<FDynamicMesh3> SDF;
+		SDF.Mesh = SourceMeshes[MeshIndex];
+		SDF.Spatial = &Spatial;
+		SDF.ComputeMode = TSweepingMeshSDF<FDynamicMesh3>::EComputeModes::NarrowBand_SpatialFloodFill;
+		SDF.CellSize = CellSize;
+		SDF.NarrowBandMaxDistance = 2.0 * CellSize;
+		SDF.ExactBandWidth = FMath::CeilToInt(SDF.NarrowBandMaxDistance / CellSize);
+		SDF.ExpandBounds = 2.0 * CellSize * FVector3d::One();
+
+		if (SDF.Compute(Bounds))
+		{
+			FLevelSetShape3d NewLevelSet;
+			NewLevelSet.GridTransform = FTransform((FVector3d)SDF.GridOrigin);
+			NewLevelSet.Grid = MoveTemp(SDF.Grid);
+			NewLevelSet.CellSize = SDF.CellSize;
+
+			GeometryLock.Lock();
+			ShapeSetOut.LevelSets.Add(MoveTemp(NewLevelSet));
+			GeometryLock.Unlock();
+		}
+		else if (Progress)
+		{
+			GeometryLock.Lock();
+			Progress->AddWarning(LOCTEXT("Generate_LevelSets_Failed", "Generating a new Level Set failed"), FProgressCancel::EMessageLevel::UserWarning);
+			GeometryLock.Unlock();
+		}
+	});
+}
 
 void FMeshSimpleShapeApproximation::Generate_MinVolume(FSimpleShapeSet3d& ShapeSetOut)
 {
@@ -466,3 +510,5 @@ void FMeshSimpleShapeApproximation::Generate_MinVolume(FSimpleShapeSet3d& ShapeS
 		}
 	});
 }
+
+#undef LOCTEXT_NAMESPACE

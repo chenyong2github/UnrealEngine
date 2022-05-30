@@ -174,5 +174,6 @@ private:
 		SphylElems = Other.SphylElems;
 		ConvexElems = Other.ConvexElems;
 		TaperedCapsuleElems = Other.TaperedCapsuleElems;
+		LevelSetElems = Other.LevelSetElems;
 	}
 };

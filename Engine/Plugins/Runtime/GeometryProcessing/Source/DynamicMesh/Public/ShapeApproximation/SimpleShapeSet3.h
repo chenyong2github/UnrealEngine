@@ -9,6 +9,7 @@
 #include "CapsuleTypes.h"
 #include "SphereTypes.h"
 #include "DynamicMesh/DynamicMesh3.h"
+#include "Spatial/DenseGrid3.h"
 #include "TransformTypes.h"
 
 
@@ -24,7 +25,8 @@ enum class ESimpleShapeType
 	Sphere = 2,
 	Box = 4,
 	Capsule = 8,
-	Convex = 16
+	Convex = 16,
+	LevelSet = 32
 };
 ENUM_CLASS_FLAGS(ESimpleShapeType);
 
@@ -106,6 +108,42 @@ struct DYNAMICMESH_API FConvexShape3d
 	ESimpleShapeType GetShapeType() const { return ESimpleShapeType::Convex; }
 };
 
+/**
+ * FLevelSetShape is a 3D signed distance function sampled on a regular grid
+ */
+
+struct DYNAMICMESH_API FLevelSetShape3d
+{
+	FTransform3d GridTransform;
+	FDenseGrid3f Grid;
+	float CellSize;
+
+	FLevelSetShape3d() = default;
+
+	FLevelSetShape3d(const FTransform3d& GridTransform, const FDenseGrid3f& Grid, float CellSize) :
+		GridTransform(GridTransform),
+		Grid(Grid),
+		CellSize(CellSize)
+	{
+	}
+
+	FLevelSetShape3d(FTransform3d&& GridTransform, FDenseGrid3f&& Grid, float CellSize) :
+		GridTransform(MoveTemp(GridTransform)),
+		Grid(MoveTemp(Grid)),
+		CellSize(CellSize)
+	{
+	}
+
+	ESimpleShapeType GetShapeType() const { return ESimpleShapeType::LevelSet; }
+
+	FOrientedBox3d GetGridBox() const
+	{
+		const FVector3d BoxExtents = FVector3d(0.5 * CellSize * Grid.GetDimensions());
+		const FFrame3d BoxFrame(GridTransform.GetTranslation(), GridTransform.GetRotation());
+		return FOrientedBox3d(BoxFrame, BoxExtents);
+	}
+};
+
 
 /**
  * FSimpleShapeSet stores a set of simple geometry shapes useful for things like collision detection/etc.
@@ -117,9 +155,10 @@ struct DYNAMICMESH_API FSimpleShapeSet3d
 	TArray<FBoxShape3d> Boxes;
 	TArray<UE::Geometry::FCapsuleShape3d> Capsules;
 	TArray<FConvexShape3d> Convexes;
+	TArray<FLevelSetShape3d> LevelSets;
 
 	/** @return total number of elements in all sets */
-	int32 TotalElementsNum() const { return Spheres.Num() + Boxes.Num() + Capsules.Num() + Convexes.Num(); }
+	int32 TotalElementsNum() const { return Spheres.Num() + Boxes.Num() + Capsules.Num() + Convexes.Num() + LevelSets.Num(); }
 
 	/**
 	 * Append elements of another shape set

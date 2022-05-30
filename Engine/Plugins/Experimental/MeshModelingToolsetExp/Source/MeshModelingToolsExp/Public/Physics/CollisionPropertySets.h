@@ -89,6 +89,14 @@ struct MESHMODELINGTOOLSEXP_API FPhysicsConvexData
 	FKShapeElem Element;
 };
 
+USTRUCT()
+struct MESHMODELINGTOOLSEXP_API FPhysicsLevelSetData
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = LevelSet)
+	FKShapeElem Element;
+};
 
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UPhysicsObjectToolPropertySet : public UInteractiveToolPropertySet
@@ -112,6 +120,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = PhysicsData)
 	TArray<FPhysicsConvexData> Convexes;
+
+	UPROPERTY(VisibleAnywhere, Category = PhysicsData)
+	TArray<FPhysicsLevelSetData> LevelSets;
 
 	void Reset();
 };

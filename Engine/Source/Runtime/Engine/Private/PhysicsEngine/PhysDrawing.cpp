@@ -928,10 +928,11 @@ void FKLevelSetElem::DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTra
 	TArray<FBox> Boxes;
 
 	// Bounding box
-	Boxes.Add(CalcAABB(FTransform::Identity, FVector::OneVector));
+	Boxes.Add(UntransformedAABB());
 
 	// Cells with negative Phi values
-	GetInteriorGridCells(Boxes);
+	const double Threshold = UE_KINDA_SMALL_NUMBER;		// allow slightly greater than zero for visualization purposes
+	GetInteriorGridCells(Boxes, UE_KINDA_SMALL_NUMBER);
 
 	for (const FBox& Box : Boxes)
 	{

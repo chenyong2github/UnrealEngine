@@ -57,6 +57,13 @@ void UE::PhysicsTools::InitializePhysicsToolObjectPropertySet(const FPhysicsData
 		ConvexData.Element = Convex;
 		PropSet->Convexes.Add(ConvexData);
 	}
+
+	for (const FKLevelSetElem& LevelSet: AggGeom.LevelSetElems)
+	{
+		FPhysicsLevelSetData LevelSetData;
+		LevelSetData.Element = LevelSet;
+		PropSet->LevelSets.Add(LevelSetData);
+	}
 }
 
 
@@ -68,4 +75,5 @@ void UPhysicsObjectToolPropertySet::Reset()
 	Boxes.Reset();
 	Capsules.Reset();
 	Convexes.Reset();
+	LevelSets.Reset();
 }

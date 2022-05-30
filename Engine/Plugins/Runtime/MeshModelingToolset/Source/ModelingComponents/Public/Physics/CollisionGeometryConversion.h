@@ -10,7 +10,7 @@
 #include "SphereTypes.h"
 #include "DynamicMesh/DynamicMesh3.h"
 #include "ShapeApproximation/SimpleShapeSet3.h"
-
+#include "Spatial/DenseGrid3.h"
 #include "PhysicsEngine/AggregateGeom.h"
 
 
@@ -70,7 +70,34 @@ namespace UE
 			ConvexInOut.UpdateElemBox();
 		}
 
+		/**
+		* Create FKLevelSet from the given grid information
+		*/
+		inline void GetFKElement(const FTransform3d& GridTransform, const FDenseGrid3f& Grid, float CellSize, FKLevelSetElem& LevelSetOut)
+		{
+			const FVector3i InGridDims = Grid.GetDimensions();
+			const FIntVector OutGridDims(InGridDims[0], InGridDims[1], InGridDims[2]);
 
+			TArray<double> OutGridValues;
+			OutGridValues.Init(0.0, OutGridDims[0] * OutGridDims[1] * OutGridDims[2]);
+
+			for (int I = 0; I < OutGridDims[0]; ++I)
+			{
+				for (int J = 0; J < OutGridDims[1]; ++J)
+				{
+					for (int K = 0; K < OutGridDims[2]; ++K)
+					{
+						const int InBufferIndex = I + InGridDims[0] * (J + InGridDims[1] * K);
+						const int OutBufferIndex = K + OutGridDims[2] * (J + OutGridDims[1] * I);
+						OutGridValues[OutBufferIndex] = Grid[InBufferIndex];
+					}
+				}
+			}
+
+			FTransform3d ChaosTransform = GridTransform;
+			ChaosTransform.AddToTranslation(-0.5 * CellSize * FVector::One());
+			LevelSetOut.BuildLevelSet(ChaosTransform, OutGridValues, OutGridDims, CellSize);
+		}
 
 
 		/**
@@ -130,6 +157,41 @@ namespace UE
 			GetShape(ConvexElem, ConvexShapeOut.Mesh);
 		}
 
+		/**
+		* Convert FKLevelSetElem to FLevelSetShape3d
+		*/
+		inline void GetShape(const FKLevelSetElem& LevelSetElem, FLevelSetShape3d& LevelSetShapeOut)
+		{
+			FTransform InGridTransform;
+			TArray<double> InGridValues;
+			FIntVector GridDims;
+			float InGridCellSize;
+
+			LevelSetElem.GetLevelSetData(InGridTransform, InGridValues, GridDims, InGridCellSize);
+
+			if (!ensure(InGridValues.Num() == GridDims[0] * GridDims[1] * GridDims[2]))
+			{
+				return;
+			}
+
+			LevelSetShapeOut.GridTransform = InGridTransform;
+			LevelSetShapeOut.GridTransform.AddToTranslation(0.5 * InGridCellSize * FVector::One());
+			LevelSetShapeOut.CellSize = InGridCellSize;
+			LevelSetShapeOut.Grid.Resize(GridDims[0], GridDims[1], GridDims[2]);
+
+			for (int I = 0; I < GridDims[0]; ++I)
+			{
+				for (int J = 0; J < GridDims[1]; ++J)
+				{
+					for (int K = 0; K < GridDims[2]; ++K)
+					{
+						const int InBufferIndex = K + GridDims[2] * (J + GridDims[1] * I);
+						const int OutBufferIndex = I + GridDims[0] * (J + GridDims[1] * K);
+						LevelSetShapeOut.Grid[OutBufferIndex] = InGridValues[InBufferIndex];
+					}
+				}
+			}
+		}
 
 		/**
 		 * Convert FKAggregateGeom to FSimpleShapeSet3d
@@ -163,6 +225,14 @@ namespace UE
 				GetShape(ConvexElem, ConvexShape);
 				ShapeSetOut.Convexes.Add(ConvexShape);
 			}
+
+			for (const FKLevelSetElem& LevelSetElem : AggGeom.LevelSetElems)
+			{
+				FLevelSetShape3d LevelSetShape;
+				GetShape(LevelSetElem, LevelSetShape);
+				ShapeSetOut.LevelSets.Add(LevelSetShape);
+			}
+
 		}
 
 

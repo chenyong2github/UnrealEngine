@@ -57,6 +57,7 @@ enum class ECollisionGeometryType
 	Capsules = 4,
 	ConvexHulls = 5,
 	SweptHulls = 6,
+	LevelSets = 7,
 	MinVolume = 10,
 
 	None = 11
@@ -148,6 +149,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = SweptHulls, meta = (UIMin = "0", UIMax = "10", ClampMin = "0", ClampMax = "100000",
 		EditConditionHides, EditCondition = "GeometryType == ECollisionGeometryType::SweptHulls"))
 	EProjectedHullAxis SweepAxis = EProjectedHullAxis::SmallestVolume;
+
+	// Level Set settings
+
+	/** Level set grid resolution along longest grid axis */
+	UPROPERTY(EditAnywhere, Category = LevelSets, meta = (UIMin = "3", UIMax = "100", ClampMin = "3", ClampMax = "1000",
+		EditConditionHides, EditCondition = "GeometryType == ECollisionGeometryType::LevelSets"))
+	int32 LevelSetResolution = 10;
 
 	UPROPERTY(EditAnywhere, Category = OutputOptions)
 	bool bAppendToExisting = false;

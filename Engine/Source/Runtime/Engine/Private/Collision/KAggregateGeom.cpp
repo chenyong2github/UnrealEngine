@@ -524,19 +524,55 @@ FBox FKLevelSetElem::CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) 
 	return Box;
 }
 
-void FKLevelSetElem::BuildLevelSet(const FVector& GridOrigin, const TArray<double>& GridValues, const FIntVector& GridDims, float GridCellSize)
+FBox FKLevelSetElem::UntransformedAABB() const
 {
-	const Chaos::FVec3 Min = GridOrigin;
-	const Chaos::FVec3 Max = GridOrigin + Chaos::FVec3(GridCellSize * (FVector)GridDims);
+	FBox Box;
+
+	if (LevelSet.IsValid())
+	{
+		Box = FBox(LevelSet->BoundingBox().Min(), LevelSet->BoundingBox().Max());
+		return Box;
+	}
+
+	return Box;
+}
+
+void FKLevelSetElem::BuildLevelSet(const FTransform& GridTransform, const TArray<double>& GridValues, const FIntVector& GridDims, float GridCellSize)
+{
+	const Chaos::FVec3 Min(0, 0, 0);
+	const Chaos::FVec3 Max = Min + Chaos::FVec3(GridCellSize * (FVector)GridDims);
 	const Chaos::TVec3<int32> ChaosDim(GridDims[0], GridDims[1], GridDims[2]);
 	
 	Chaos::TUniformGrid<Chaos::FReal, 3> ChaosGrid(Min, Max, ChaosDim);
 	Chaos::TArrayND<Chaos::FReal, 3> Phi( Chaos::TVec3<int32>(GridDims[0], GridDims[1], GridDims[2]), GridValues );
 
 	LevelSet = TSharedPtr<Chaos::FLevelSet>(new Chaos::FLevelSet(MoveTemp(ChaosGrid), MoveTemp(Phi), 0));
+
+	Transform = GridTransform;
 }
 
-void FKLevelSetElem::GetInteriorGridCells( TArray<FBox>& CellBoxes ) const
+void FKLevelSetElem::GetLevelSetData(FTransform& OutGridTransform, TArray<double>& OutGridValues, FIntVector& OutGridDims, float& OutGridCellSize) const
+{
+	if (!ensure(LevelSet.IsValid()))
+	{
+		return;
+	}
+	const Chaos::TUniformGrid<Chaos::FReal, 3>& ChaosGrid = LevelSet->GetGrid();
+
+	OutGridTransform = Transform;
+	OutGridDims = FIntVector(ChaosGrid.Counts()[1], ChaosGrid.Counts()[0], ChaosGrid.Counts()[2]);
+
+	OutGridCellSize = ChaosGrid.Dx()[0];
+
+	OutGridValues.Init(0.0, LevelSet->GetPhiArray().Num());
+	for (int32 Index = 0; Index < ChaosGrid.GetNumCells(); ++Index)
+	{
+		OutGridValues[Index] = LevelSet->GetPhiArray()[Index];
+	}
+}
+
+
+void FKLevelSetElem::GetInteriorGridCells( TArray<FBox>& CellBoxes, double InteriorThreshold) const
 {
 	if (LevelSet.IsValid())
 	{
@@ -550,7 +586,7 @@ void FKLevelSetElem::GetInteriorGridCells( TArray<FBox>& CellBoxes ) const
 				{
 					const double Value = LevelSet->GetPhiArray()(i, j, k);
 
-					if (Value <= 0.0)
+					if (Value <= InteriorThreshold)
 					{
 						const FVector3d CellMin = Grid.MinCorner() + Grid.Dx() * FVector3d(i, j, k);
 						const FVector3d CellMax = CellMin + Grid.Dx() * FVector3d(1, 1, 1);
