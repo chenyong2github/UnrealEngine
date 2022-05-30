@@ -572,6 +572,8 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 					TShaderRef<FVolumetricLightmapPathTracingRGS> RayGenShader = GlobalShaderMap->GetShader<FVolumetricLightmapPathTracingRGS>(PermutationVector);
 
 					FVolumetricLightmapPathTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVolumetricLightmapPathTracingRGS::FParameters>();
+					CA_ASSUME(PassParameters);
+
 					PassParameters->FrameNumber = FrameNumber / NumFramesOneRound;
 					PassParameters->VolumeMin = (FVector3f)VolumeMin; // LWC_TODO: precision loss
 					PassParameters->VolumeSize = (FVector3f)VolumeSize; // LWC_TODO: precision loss

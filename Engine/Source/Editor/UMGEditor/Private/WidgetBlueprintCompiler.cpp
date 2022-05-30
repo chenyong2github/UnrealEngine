@@ -1068,6 +1068,7 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 
 	if (!bIsSkeletonOnly)
 	{
+		CA_ASSUME(BPGClass);
 		if (UUserWidget* UserWidget = Cast<UUserWidget>(BPGClass->GetDefaultObject()))
 		{
 			BPGClass->InitializeFieldNotification(UserWidget);
