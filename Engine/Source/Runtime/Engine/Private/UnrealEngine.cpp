@@ -2920,6 +2920,10 @@ static void LoadTimecodeProvider(UEngine* Engine)
 #endif
 		Engine->SetTimecodeProvider(NewTimecodeProvider);
 	}
+	else
+	{
+		Engine->SetTimecodeProvider(nullptr);
+	}
 }
 
 /**
