@@ -20,8 +20,8 @@
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/Thread.h"
+#include "Memory/CompositeBuffer.h"
 #include "Memory/MemoryView.h"
-#include "Memory/SharedBuffer.h"
 #include "Templates/PimplPtr.h"
 #include "Templates/SharedPointer.h"
 #include <atomic>
@@ -37,6 +37,55 @@ namespace UE
 {
 
 class FHttpRequestPool;
+
+enum class EHttpContentType : int16
+{
+	// Negative integers reserved for future custom string content types
+	UnspecifiedContentType = 0,
+	AnyContentType,
+	Binary,
+	Text,
+	JSON,
+	CbObject,
+	CbPackage,
+	YAML,
+	CbPackageOffer,
+	CompressedBinary,
+	FormUrlEncoded,
+	Count
+};
+
+inline FStringView GetHttpMimeType(EHttpContentType Type)
+{
+	switch (Type)
+	{
+		case EHttpContentType::UnspecifiedContentType:
+			checkNoEntry();
+			return FStringView();
+		case EHttpContentType::AnyContentType:
+			return TEXTVIEW("*/*");
+		case EHttpContentType::Binary:
+			return TEXTVIEW("application/octet-stream");
+		case EHttpContentType::Text:
+			return TEXTVIEW("text/plain");
+		case EHttpContentType::JSON:
+			return TEXTVIEW("application/json");
+		case EHttpContentType::CbObject:
+			return TEXTVIEW("application/x-ue-cb");
+		case EHttpContentType::CbPackage:
+			return TEXTVIEW("application/x-ue-cbpkg");
+		case EHttpContentType::YAML:
+			return TEXTVIEW("text/yaml");
+		case EHttpContentType::CbPackageOffer:
+			return TEXTVIEW("application/x-ue-offer");
+		case EHttpContentType::CompressedBinary:
+			return TEXTVIEW("application/x-ue-comp");
+		case EHttpContentType::FormUrlEncoded:
+			return TEXTVIEW("application/x-www-form-urlencoded");
+		default:
+			return TEXTVIEW("unknown");
+	}
+}
 
 /**
  * Encapsulation for access token shared by all requests.
@@ -86,26 +135,11 @@ private:
 class FHttpRequest
 {
 public:
-	/**
-	 * Supported request verbs
-	 */
-	enum RequestVerb
-	{
-		Get,
-		Put,
-		PutCompactBinary,
-		PutCompressedBlob,
-		Post,
-		PostCompactBinary,
-		PostJson,
-		Delete,
-		Head
-	};
 
 	/**
 	 * Convenience result type interpreted from HTTP response code.
 	 */
-	enum Result
+	enum class EResult
 	{
 		Success,
 		Failed,
@@ -118,11 +152,23 @@ public:
 		Retry
 	};
 
+	/**
+	 * Supported request verbs
+	 */
+	enum class ERequestVerb
+	{
+		Get,
+		Put,
+		Post,
+		Delete,
+		Head
+	};
+
 	using FResultCode = int;
 
-	using FOnHttpRequestComplete = TUniqueFunction<ECompletionBehavior(Result HttpResult, FHttpRequest* Request)>;
+	using FOnHttpRequestComplete = TUniqueFunction<ECompletionBehavior(EResult HttpResult, FHttpRequest* Request)>;
 
-	FHttpRequest(const TCHAR* InDomain, const TCHAR* InEffectiveDomain, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, bool bInLogErrors);
+	FHttpRequest(FStringView InDomain, FStringView InEffectiveDomain, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, bool bInLogErrors);
 	~FHttpRequest();
 
 	/**
@@ -180,11 +226,30 @@ public:
 	 * @param Buffer Data to upload
 	 * @return Result of the request
 	 */
-	template<RequestVerb V>
-	Result PerformBlockingUpload(const TCHAR* Uri, TArrayView<const uint8> Buffer, TConstArrayView<long> ExpectedErrorCodes = {});
-	
-	template<RequestVerb V>
-	void EnqueueAsyncUpload(UE::DerivedData::IRequestOwner& Owner, FHttpRequestPool* Pool, const TCHAR* Uri, FSharedBuffer Buffer, FOnHttpRequestComplete&& OnComplete, TConstArrayView<long> ExpectedErrorCodes = {});
+	EResult PerformBlockingPut(FStringView Uri,
+		FCompositeBuffer Buffer,
+		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
+		TConstArrayView<long> ExpectedErrorCodes = {});
+	EResult PerformBlockingPost(FStringView Uri,
+		FCompositeBuffer Buffer,
+		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
+		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		TConstArrayView<long> ExpectedErrorCodes = {});
+	void EnqueueAsyncPut(UE::DerivedData::IRequestOwner& Owner,
+		FHttpRequestPool* Pool,
+		FStringView Uri,
+		FCompositeBuffer Buffer,
+		FOnHttpRequestComplete&& OnComplete,
+		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
+		TConstArrayView<long> ExpectedErrorCodes = {});
+	void EnqueueAsyncPost(UE::DerivedData::IRequestOwner& Owner,
+		FHttpRequestPool* Pool,
+		FStringView Uri,
+		FCompositeBuffer Buffer,
+		FOnHttpRequestComplete&& OnComplete,
+		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
+		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		TConstArrayView<long> ExpectedErrorCodes = {});
 
 	/**
 	 * Download an url into a buffer using the request.
@@ -193,25 +258,43 @@ public:
 	 * be stored in an internal buffer and accessed GetResponse* methods.
 	 * @return Result of the request
 	 */
-	Result PerformBlockingDownload(const TCHAR* Uri, TArray<uint8>* Buffer, TConstArrayView<long> ExpectedErrorCodes = {400});
-
-	void EnqueueAsyncDownload(UE::DerivedData::IRequestOwner& Owner, FHttpRequestPool* Pool, const TCHAR* Uri, FOnHttpRequestComplete&& OnComplete, TConstArrayView<long> ExpectedErrorCodes = {400});
+	EResult PerformBlockingDownload(FStringView Uri,
+		TArray64<uint8>* Buffer,
+		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		TConstArrayView<long> ExpectedErrorCodes = {400});
+	void EnqueueAsyncDownload(UE::DerivedData::IRequestOwner& Owner,
+		FHttpRequestPool* Pool,
+		FStringView Uri,
+		FOnHttpRequestComplete&& OnComplete,
+		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		TConstArrayView<long> ExpectedErrorCodes = {400});
 
 	/**
 	 * Query an url using the request. Queries can use either "Head" or "Delete" verbs.
 	 * @param Uri Url to use.
 	 * @return Result of the request
 	 */
-	template<RequestVerb V>
-	Result PerformBlockingQuery(const TCHAR* Uri, TConstArrayView<long> ExpectedErrorCodes = {400});
-
-	template<RequestVerb V>
-	void EnqueueAsyncQuery(UE::DerivedData::IRequestOwner& Owner, FHttpRequestPool* Pool, const TCHAR* Uri, FOnHttpRequestComplete&& OnComplete, TConstArrayView<long> ExpectedErrorCodes = {400});
+	EResult PerformBlockingHead(FStringView Uri,
+		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		TConstArrayView<long> ExpectedErrorCodes = {400});
+	EResult PerformBlockingDelete(FStringView Uri,
+		TConstArrayView<long> ExpectedErrorCodes = {400});
+	void EnqueueAsyncHead(UE::DerivedData::IRequestOwner& Owner,
+		FHttpRequestPool* Pool,
+		FStringView Uri,
+		FOnHttpRequestComplete&& OnComplete,
+		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		TConstArrayView<long> ExpectedErrorCodes = {400});
+	void EnqueueAsyncDelete(UE::DerivedData::IRequestOwner& Owner,
+		FHttpRequestPool* Pool,
+		FStringView Uri,
+		FOnHttpRequestComplete&& OnComplete,
+		TConstArrayView<long> ExpectedErrorCodes = {400});
 
 	/**
 	 * Set a header to send with the request.
 	 */
-	void SetHeader(const TCHAR* Header, const TCHAR* Value);
+	void AddHeader(FStringView Header, FStringView Value);
 
 	/**
 	 * Attempts to find the header from the response. Returns false if header is not present.
@@ -222,7 +305,7 @@ public:
 	 * Returns the response buffer. Note that is the request is performed
 	 * with an external buffer as target buffer this string will be empty.
 	 */
-	const TArray<uint8>& GetResponseBuffer() const
+	const TArray64<uint8>& GetResponseBuffer() const
 	{
 		return ResponseBuffer;
 	}
@@ -286,19 +369,19 @@ private:
 	size_t Attempts;
 	bool bLogErrors;
 
-	FSharedBuffer ReadSharedBuffer;
-	FMemoryView ReadDataView;
-	TArray<uint8>* WriteDataBufferPtr;
-	TArray<uint8>* WriteHeaderBufferPtr;
+	FCompositeBuffer ReadCompositeBuffer;
+	TArray64<uint8>* WriteDataBufferPtr;
+	TArray64<uint8>* WriteHeaderBufferPtr;
 	
-	TArray<uint8> ResponseHeader;
-	TArray<uint8> ResponseBuffer;
+	TArray64<uint8> ResponseHeader;
+	TArray64<uint8> ResponseBuffer;
 	TArray<FString> Headers;
 	FString Domain;
 	FString EffectiveDomain;
 	FHttpAccessToken* AuthorizationToken;
 
-	curl_slist* PrepareToIssueRequest(const TCHAR* Uri, uint64 ContentLength);
+	void AddContentTypeHeader(FStringView Header, EHttpContentType Type);
+	curl_slist* PrepareToIssueRequest(FStringView Uri, ERequestVerb Verb, uint64 ContentLength);
 
 	/**
 	 * Performs the request, blocking until finished.
@@ -308,13 +391,13 @@ private:
 	 * @param ExpectedErrorCodes An array of expected return codes outside of the success range that should NOT be logged as an abnormal/exceptional outcome.
 	 * If unset the response body will be stored in the request.
 	 */
-	Result PerformBlocking(const TCHAR* Uri, RequestVerb Verb, uint64 ContentLength, TConstArrayView<long> ExpectedErrorCodes);
+	EResult PerformBlocking(FStringView Uri, ERequestVerb Verb, uint64 ContentLength, TConstArrayView<long> ExpectedErrorCodes);
 
-	void EnqueueAsync(UE::DerivedData::IRequestOwner& Owner, FHttpRequestPool* Pool, const TCHAR* Uri, RequestVerb Verb, uint64 ContentLength, FOnHttpRequestComplete&& OnComplete, TConstArrayView<long> ExpectedErrorCodes);
+	void EnqueueAsync(UE::DerivedData::IRequestOwner& Owner, FHttpRequestPool* Pool, FStringView Uri, ERequestVerb Verb, uint64 ContentLength, FOnHttpRequestComplete&& OnComplete, TConstArrayView<long> ExpectedErrorCodes);
 
-	void LogResult(FResultCode Result, const TCHAR* Uri, RequestVerb Verb, TConstArrayView<long> ExpectedErrorCodes) const;
+	void LogResult(FResultCode EResult, FStringView Uri, ERequestVerb Verb, TConstArrayView<long> ExpectedErrorCodes) const;
 
-	FString GetAnsiBufferAsString(const TArray<uint8>& Buffer) const
+	FString GetAnsiBufferAsString(const TArray64<uint8>& Buffer) const
 	{
 		// Content is NOT null-terminated; we need to specify lengths here
 		FUTF8ToTCHAR TCHARData(reinterpret_cast<const ANSICHAR*>(Buffer.GetData()), Buffer.Num());
@@ -322,35 +405,6 @@ private:
 	}
 
 };
-
-#define UE_HTTP_FOREACH_UPLOAD_VERB(op) \
-	op(FHttpRequest::Put); \
-	op(FHttpRequest::PutCompactBinary); \
-	op(FHttpRequest::PutCompressedBlob); \
-	op(FHttpRequest::Post); \
-	op(FHttpRequest::PostCompactBinary); \
-	op(FHttpRequest::PostJson);
-
-#define UE_HTTP_FOREACH_QUERY_VERB(op) \
-	op(FHttpRequest::Head) \
-	op(FHttpRequest::Delete)
-
-#define UE_HTTP_DECLARE_EXTERN_TEMPLATE(Verb) extern template FHttpRequest::Result FHttpRequest::PerformBlockingUpload<Verb>(const TCHAR* Uri, TArrayView<const uint8> Buffer, TConstArrayView<long> ExpectedErrorCodes);
-UE_HTTP_FOREACH_UPLOAD_VERB(UE_HTTP_DECLARE_EXTERN_TEMPLATE)
-#undef UE_HTTP_DECLARE_EXTERN_TEMPLATE
-
-#define UE_HTTP_DECLARE_EXTERN_TEMPLATE(Verb) extern template void FHttpRequest::EnqueueAsyncUpload<Verb>(UE::DerivedData::IRequestOwner& Owner, FHttpRequestPool* Pool, const TCHAR* Uri, FSharedBuffer Buffer, FOnHttpRequestComplete&& OnComplete, TConstArrayView<long> ExpectedErrorCodes);
-UE_HTTP_FOREACH_UPLOAD_VERB(UE_HTTP_DECLARE_EXTERN_TEMPLATE)
-#undef UE_HTTP_DECLARE_EXTERN_TEMPLATE
-
-
-#define UE_HTTP_DECLARE_EXTERN_TEMPLATE(Verb) extern template FHttpRequest::Result FHttpRequest::PerformBlockingQuery<Verb>(const TCHAR* Uri, TConstArrayView<long> ExpectedErrorCodes);
-UE_HTTP_FOREACH_QUERY_VERB(UE_HTTP_DECLARE_EXTERN_TEMPLATE)
-#undef UE_HTTP_DECLARE_EXTERN_TEMPLATE
-
-#define UE_HTTP_DECLARE_EXTERN_TEMPLATE(Verb) extern template void FHttpRequest::EnqueueAsyncQuery<Verb>(UE::DerivedData::IRequestOwner& Owner, FHttpRequestPool* Pool, const TCHAR* Uri, FOnHttpRequestComplete&& OnComplete, TConstArrayView<long> ExpectedErrorCodes);
-UE_HTTP_FOREACH_QUERY_VERB(UE_HTTP_DECLARE_EXTERN_TEMPLATE)
-#undef UE_HTTP_DECLARE_EXTERN_TEMPLATE
 
 
 /**
@@ -360,7 +414,7 @@ UE_HTTP_FOREACH_QUERY_VERB(UE_HTTP_DECLARE_EXTERN_TEMPLATE)
 class FHttpRequestPool
 {
 public:
-	FHttpRequestPool(const TCHAR* InServiceUrl, const TCHAR* InEffectiveServiceUrl, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, uint32 PoolSize, uint32 InOverflowLimit = 0);
+	FHttpRequestPool(FStringView InServiceUrl, FStringView InEffectiveServiceUrl, FHttpAccessToken* InAuthorizationToken, FHttpSharedData* InSharedData, uint32 PoolSize, uint32 InOverflowLimit = 0);
 	~FHttpRequestPool();
 
 	/**
@@ -442,7 +496,7 @@ private:
 		FHttpAccessToken* AccessToken;
 		FHttpSharedData* SharedData;
 
-		FInitData(const TCHAR* InServiceUrl, const TCHAR* InEffectiveServiceUrl, FHttpAccessToken* InAccessToken, FHttpSharedData* InSharedData)
+		FInitData(FStringView InServiceUrl, FStringView InEffectiveServiceUrl, FHttpAccessToken* InAccessToken, FHttpSharedData* InSharedData)
 		: ServiceUrl(InServiceUrl)
 		, EffectiveServiceUrl(InEffectiveServiceUrl)
 		, AccessToken(InAccessToken)
@@ -479,6 +533,8 @@ public:
 	{
 		return Request != nullptr;
 	}
+
+	inline explicit operator bool() const { return IsValid(); }
 
 	FHttpRequest* Get() const
 	{
