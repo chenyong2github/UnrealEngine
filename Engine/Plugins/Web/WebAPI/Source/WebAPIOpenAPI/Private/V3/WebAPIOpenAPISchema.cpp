@@ -3,7 +3,6 @@
 #include "V3/WebAPIOpenAPISchema.h"
 
 #include "WebAPIJsonUtilities.h"
-#include "WebAPIJsonUtilities.inl"
 #include "Dom/JsonObject.h"
 
 namespace UE::WebAPI::OpenAPI::V3
@@ -94,10 +93,10 @@ namespace UE::WebAPI::OpenAPI::V3
 		return bSetAField;
 	}
 
+	// @todo: parse header object
 	bool FHeaderObject::FromJson(const TSharedRef<FJsonObject>& InJson)
 	{
-		const bool bSetAField = false;
-		// @todo
+		const bool bSetAField = Super::FromJson(InJson);
 		return bSetAField;
 	}
 
@@ -253,8 +252,6 @@ namespace UE::WebAPI::OpenAPI::V3
 		bSetAField |= Json::TryGetField(InJson, TEXT("writeOnly"), bWriteOnly);
 		bSetAField |= Json::TryGetField(InJson, TEXT("xml"), Xml);
 		bSetAField |= Json::TryGetField(InJson, TEXT("externalDocs"), ExternalDocs);
-		// bSetAField |= Json::TryGetField(InJson, TEXT("example"), Example);
-
 		bSetAField |= Json::TryGetField(InJson, TEXT("properties"), Properties);
 		
 		return bSetAField;

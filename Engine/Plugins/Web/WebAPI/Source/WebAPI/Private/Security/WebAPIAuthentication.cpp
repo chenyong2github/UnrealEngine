@@ -23,22 +23,20 @@ bool FWebAPIOAuthSchemeHandler::HandleHttpRequest(TSharedPtr<IHttpRequest> InReq
 {
 	check(InSettings);
 
-	// @todo: cache!
-	UWebAPIOAuthSettings* OAuthSettings = nullptr;
-	InSettings->AuthenticationSettings.FindItemByClass<UWebAPIOAuthSettings>(&OAuthSettings);	
-	check(OAuthSettings);
+	const UWebAPIOAuthSettings* AuthSettings = GetAuthSettings(InSettings);	
+	check(AuthSettings);
 
-	if(!ensureMsgf(OAuthSettings->IsValid(), TEXT("Authentication settings are missing one or more required properties.")))
+	if(!ensureMsgf(AuthSettings->IsValid(), TEXT("Authentication settings are missing one or more required properties.")))
 	{
 		return false;
 	}
 
-	if(OAuthSettings->AccessToken.IsEmpty())
+	if(AuthSettings->AccessToken.IsEmpty())
 	{
 		return false;
 	}
 
-	InRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("%s %s"), *OAuthSettings->TokenType, *OAuthSettings->AccessToken));
+	InRequest->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("%s %s"), *AuthSettings->TokenType, *AuthSettings->AccessToken));
 
 	return true;
 }
@@ -47,27 +45,25 @@ bool FWebAPIOAuthSchemeHandler::HandleHttpResponse(EHttpResponseCodes::Type InRe
 {
 	check(InSettings);
 
-	// @todo: cache!
-	UWebAPIOAuthSettings* OAuthSettings = nullptr;
-	InSettings->AuthenticationSettings.FindItemByClass<UWebAPIOAuthSettings>(&OAuthSettings);	
-	check(OAuthSettings);
+	UWebAPIOAuthSettings* AuthSettings = GetAuthSettings(InSettings);	
+	check(AuthSettings);
 	
-	if(!ensureMsgf(OAuthSettings->IsValid(), TEXT("Authentication settings are missing one or more required properties.")))
+	if(!ensureMsgf(AuthSettings->IsValid(), TEXT("Authentication settings are missing one or more required properties.")))
 	{
 		return false;
 	}
 
-	GEngine->GetEngineSubsystem<UWebAPISubsystem>()->MakeHttpRequest(TEXT("POST"), [&, OAuthSettings](const TSharedPtr<IHttpRequest>& InRequest)
+	GEngine->GetEngineSubsystem<UWebAPISubsystem>()->MakeHttpRequest(TEXT("POST"), [&, AuthSettings](const TSharedPtr<IHttpRequest>& InRequest)
 	{
 		//Microsoft login rest URL
 		FStringFormatNamedArguments UrlArgs;
-		UrlArgs.Add(TEXT("TenantId"), OAuthSettings->TenantId);
-		const FString Url = FString::Format(*OAuthSettings->AuthenticationServer, UrlArgs);
+		UrlArgs.Add(TEXT("TenantId"), AuthSettings->TenantId);
+		const FString Url = FString::Format(*AuthSettings->AuthenticationServer, UrlArgs);
 
 		// @todo: move!
 		FString StringPayload = "grant_type=client_credentials";
-		StringPayload.Append("&client_id=" + OAuthSettings->ClientId);
-		StringPayload.Append("&client_secret=" + OAuthSettings->ClientSecret);
+		StringPayload.Append("&client_id=" + AuthSettings->ClientId);
+		StringPayload.Append("&client_secret=" + AuthSettings->ClientSecret);
 		StringPayload.Append("&resource=https://digitaltwins.azure.net");
 
 		InRequest->SetURL(Url);
@@ -93,7 +89,7 @@ bool FWebAPIOAuthSchemeHandler::HandleHttpResponse(EHttpResponseCodes::Type InRe
 			InRequest->SetHeader(Header.Key, Header.Value);
 		}
 	})
-	.Next([this, OAuthSettings](const TTuple<FHttpResponsePtr, bool>& InResponse)
+	.Next([this, AuthSettings](const TTuple<FHttpResponsePtr, bool>& InResponse)
 	{
 		// Request failed
 		if(!InResponse.Get<bool>())
@@ -121,10 +117,10 @@ bool FWebAPIOAuthSchemeHandler::HandleHttpResponse(EHttpResponseCodes::Type InRe
 					const int32 UnixTimeExpire = JsonObject->GetNumberField("expires_on");
 
 					UE_LOG(LogWebAPI, Display, TEXT("Generate token Response success"));
-					OAuthSettings->TokenType = JsonObject->GetStringField("token_type");
-					OAuthSettings->AccessToken = JsonObject->GetStringField("access_token");
-					OAuthSettings->ExpiresOn =  FDateTime::FromUnixTimestamp(UnixTimeExpire);
-					OAuthSettings->SaveConfig();
+					AuthSettings->TokenType = JsonObject->GetStringField("token_type");
+					AuthSettings->AccessToken = JsonObject->GetStringField("access_token");
+					AuthSettings->ExpiresOn =  FDateTime::FromUnixTimestamp(UnixTimeExpire);
+					AuthSettings->SaveConfig();
 					bSuccess = true;
 				}
 				else
@@ -146,7 +142,7 @@ bool FWebAPIOAuthSchemeHandler::HandleHttpResponse(EHttpResponseCodes::Type InRe
 			Message = "Response is null";
 		}
 
-		// @todo:
+		// @todo: request retry
 		//Redo all the requests that arrived while fetching new token
 		/*
 		if (bUpdatingToken && bSuccess)
@@ -160,4 +156,18 @@ bool FWebAPIOAuthSchemeHandler::HandleHttpResponse(EHttpResponseCodes::Type InRe
 	});
 
 	return true;
+}
+
+UWebAPIOAuthSettings* FWebAPIOAuthSchemeHandler::GetAuthSettings(const UWebAPIDeveloperSettings* InSettings)
+{
+	if(!CachedAuthSettings.IsValid() && InSettings)
+	{
+		UWebAPIOAuthSettings* OAuthSettings = nullptr;
+		InSettings->AuthenticationSettings.FindItemByClass<UWebAPIOAuthSettings>(&OAuthSettings);
+		check(OAuthSettings);
+
+		CachedAuthSettings = OAuthSettings;	
+	}
+	
+	return CachedAuthSettings.IsValid() ? CachedAuthSettings.Get() : nullptr;
 }

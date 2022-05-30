@@ -1,5 +1,4 @@
-﻿{
-  "servers": [
+﻿[
     {
       "url": "https://{username}.gigantic-server.com:{port}/{basePath}",
       "description": "The production API server",
@@ -21,4 +20,3 @@
       }
     }
   ]
-}

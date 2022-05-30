@@ -6,15 +6,16 @@
 
 #include "WebAPIEditorUtilities.h"
 
-using namespace UE::WebAPI;
-
 BEGIN_DEFINE_SPEC(FWebAPIEditorUtilitiesSpec,
 	TEXT("Plugin.WebAPI.Editor.Utilities"),
 	EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter | EAutomationTestFlags::ApplicationContextMask)
+
 END_DEFINE_SPEC(FWebAPIEditorUtilitiesSpec)
 
 void FWebAPIEditorUtilitiesSpec::Define()
 {
+	using namespace UE::WebAPI;
+	
 	Describe(TEXT("ToPascalCase"), [this]
 	{
 		It(TEXT("Strips leading illegal tokens"), [this]

@@ -62,4 +62,7 @@ public:
 
 	/** Returns the static type registry to retrieve metadata for built-in types. */
 	virtual UWebAPIStaticTypeRegistry* GetStaticTypeRegistry() const = 0;
+
+	DECLARE_EVENT_OneParam(FUVEditorModule, FOnRegisterLayoutExtensions, FLayoutExtender&);
+	virtual FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() = 0;
 };

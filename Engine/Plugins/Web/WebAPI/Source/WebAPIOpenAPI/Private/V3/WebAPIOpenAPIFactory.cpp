@@ -38,13 +38,9 @@ TFuture<bool> UWebAPIOpenAPIFactory::ImportWebAPI(UWebAPIDefinition* InDefinitio
 	ImportData->FileContents = InFileContents;
 
 	// Parse spec
-	// @todo: move call to ConvertToWebAPISchema outside of Factory implementation (to provide Pre and Post extensibility)
 	return Provider->ConvertToWebAPISchema(InDefinition)
 	.Next([](EWebAPIConversionResult bInConversionResult)
 	{
-		// @todo: UI notification
-		//InDefinition->SetWebAPISchema(InWebAPISchema);
-
 		return bInConversionResult == EWebAPIConversionResult::Succeeded;
 	});
 }

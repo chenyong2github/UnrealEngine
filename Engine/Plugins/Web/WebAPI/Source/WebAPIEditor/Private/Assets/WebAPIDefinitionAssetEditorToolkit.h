@@ -90,8 +90,7 @@ protected:
 	
 	/** Code View. */
 	TSharedPtr<class SWebAPICodeView> CodeView;
-	
-	// @todo: implement so users can save layouts
+
 	/** Extender for adding to the default layout for this asset editor */
 	TSharedPtr<FLayoutExtender> LayoutExtender;
 

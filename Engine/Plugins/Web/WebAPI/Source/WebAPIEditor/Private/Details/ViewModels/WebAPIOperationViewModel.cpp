@@ -112,24 +112,6 @@ void FWebAPIOperationViewModel::Initialize()
 		return Lhs->GetLabel().ToString() < Rhs->GetLabel().ToString();
 	});
 
-	// @todo:
-	/*
-	const TArray<TObjectPtr<UWebAPIOperationParameter>> Parameters = Operation->Parameters;
-	TArray<FString> ParameterLabels;
-	Algo::Transform(Parameters, ParameterLabels, [&](const TObjectPtr<UWebAPIOperationParameter>& InParameter)
-	{
-		return FString::Printf(TEXT("%s: %s"), *InParameter->Name.ToString(), *InParameter->Type.ToString());
-	});
-	*/
-
-	/*
-	const FWebAPINameVariant Name = Operation->Name;
-	CachedLabel = FText::Format(LOCTEXT("OperationLabel", "{0}({1}): {2}"),
-		FText::FromString(Name.ToString()),
-		FText::FromString(FString::Join(ParameterLabels, TEXT(", "))),
-		FText::FromString(TEXT("void")));
-		*/
-
 	const FString Name = Operation->Name.GetDisplayName();
 	CachedLabel = FText::Format(LOCTEXT("OperationLabel", "{0}"),
 		FText::FromString(Name));

@@ -20,7 +20,6 @@ TFuture<EWebAPIConversionResult> FWebAPIOpenAPIProvider::ConvertToWebAPISchema(c
 	
 	if(!InDefinition.IsValid())
 	{
-		// @todo: log
 		return FailedWithErrorsResult;
 	}
 
@@ -33,8 +32,6 @@ TFuture<EWebAPIConversionResult> FWebAPIOpenAPIProvider::ConvertToWebAPISchema(c
 	TSharedPtr<FJsonObject> JsonObject;
 	if(!FJsonSerializer::Deserialize(TJsonReaderFactory<TCHAR>::Create(AssetData->FileContents), JsonObject))
 	{
-		MessageLog->LogError(FText::FromString(TEXT("Couldn't deserialize file contents as Json.")), FWebAPIOpenAPIProvider::LogName);
-		//UE_LOG(LogWebAPIOpenAPI, Error, TEXT("Couldn't deserialize file contents as Json"));
 		return FailedWithErrorsResult;
 	}
 

@@ -395,15 +395,10 @@ namespace UE
 						JsonObject->SetNumberField(TEXT("responseCode"), InCodeGenObject->ResponseCode);
 						JsonObject->SetStringField(TEXT("message"), InCodeGenObject->Message);
 
-						// @todo remove if
-						if(InCodeGenObject->Base.IsValid())
-						{
 						checkf(InCodeGenObject->Base.IsValid(), TEXT("OperationResponse should have a base type set."));
 
-
-							const TSharedPtr<FJsonObject> BaseJson = ToJson(InCodeGenObject->Base);
-							JsonObject->SetObjectField(TEXT("base"), BaseJson);
-						}
+						const TSharedPtr<FJsonObject> BaseJson = ToJson(InCodeGenObject->Base);
+						JsonObject->SetObjectField(TEXT("base"), BaseJson);
 
 						return JsonObject;
 					}
@@ -711,9 +706,6 @@ TFuture<bool> UWebAPILiquidJSCodeGenerator::IsAvailable()
 		{
 			if(!bHasRetried.load(std::memory_order_relaxed))
 			{
-				// @todo: what's this? can I use it for retry system?
-				// Request->OnRequestWillRetry()
-
 				// Try starting
 				bool bRetryResult = FModuleManager::Get().GetModulePtr<FWebAPILiquidJSModule>(TEXT("WebAPILiquidJS"))->TryStartWebApp();
 				bHasRetried.store(true, std::memory_order_relaxed);

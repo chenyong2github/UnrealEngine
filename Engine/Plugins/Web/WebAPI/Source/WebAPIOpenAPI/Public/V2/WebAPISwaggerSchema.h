@@ -33,9 +33,9 @@ namespace UE
 				class FItems
 				{
 				public:
-					FString Type; // will map to EJson enum, if it's string AND enum is set, it's an enum id'd by name
+					FString Type; // will map to EJson enum, if it's string AND enum is set, it's an enum by name
 					TOptional<FString> Format;
-					TOptional<TSharedPtr<FItems>> Items; // @todo: how is this handled without inf recursion?
+					TOptional<TSharedPtr<FItems>> Items;
 					TOptional<FString> CollectionFormat; // csv, ssv, tsv, pipes
 					TOptional<FString> Default;
 					TOptional<float> Maximum;
@@ -47,7 +47,7 @@ namespace UE
 					TOptional<FString> Pattern;
 					TOptional<int32> MaxItems;
 					TOptional<int32> MinItems;
-					TOptional<bool> bUniqueItems; // @todo: array should be a Set
+					TOptional<bool> bUniqueItems; // Array should be a Set (of unique values)
 					TOptional<TArray<FString>> Enum; // All possible values
 					TOptional<int32> MultipleOf;
 
@@ -95,7 +95,7 @@ namespace UE
 					TOptional<FString> Pattern;					
 					TOptional<int32> MinItems;
 					TOptional<int32> MaxItems;
-					TOptional<bool> bUniqueItems; // @todo: array should be a Set
+					TOptional<bool> bUniqueItems; // Array should be a Set (of unique values)
 					TOptional<TArray<FString>> Enum; // All possible values
 					TOptional<Json::TJsonReference<FSchema>> Items; // Item type (if this is an array)
 
@@ -161,7 +161,7 @@ namespace UE
 					TOptional<FString> Pattern;
 					TOptional<int32> MaxItems;
 					TOptional<int32> MinItems;
-					TOptional<bool> bUniqueItems; // @todo: array should be a Set
+					TOptional<bool> bUniqueItems; // Array should be a Set (of unique values)
 					TOptional<TArray<FString>> Enum;
 					TOptional<int32> MultipleOf;
 
@@ -172,7 +172,7 @@ namespace UE
 				class FExample : public TMap<FString, FString>
 				{
 				public:
-					// @todo: key is mime-type
+					// Key is mime-type
 					bool FromJson(const TSharedRef<FJsonObject>& InJson);
 				};
 
@@ -254,9 +254,9 @@ namespace UE
 					TSharedPtr<FInfo> Info;
 					TOptional<FString> Host;
 					TOptional<FString> BasePath;
-					TOptional<TArray<FString>> Schemes; // @todo: use enum
-					TOptional<TArray<FString>> Consumes; // @todo: mime types
-					TOptional<TArray<FString>> Produces; // @todo: mimetypes
+					TOptional<TArray<FString>> Schemes;
+					TOptional<TArray<FString>> Consumes; // mimetypes
+					TOptional<TArray<FString>> Produces; // mimetypes
 					TMap<FString, TSharedPtr<FPath>> Paths;
 					TOptional<TMap<FString, TSharedPtr<FSchema>>> Definitions;
 					TOptional<TMap<FString, TSharedPtr<FParameter>>> Parameters;
@@ -313,8 +313,8 @@ namespace UE
 					TOptional<FString> Description;
 					TOptional<TSharedPtr<FExternalDocumentation>> ExternalDocs;
 					TOptional<FString> OperationId;
-					TOptional<TArray<FString>> Consumes; // @todo: mimetypes
-					TOptional<TArray<FString>> Produces; // @todo: mimetypes
+					TOptional<TArray<FString>> Consumes; // mimetypes
+					TOptional<TArray<FString>> Produces; // mimetypes
 					TOptional<TArray<Json::TJsonReference<FParameter>>> Parameters;
 					TMap<FString, TSharedPtr<FResponse>>  Responses;
 					TArray<FString> Schemes; //  ('http' | 'https' | 'ws' | 'wss')[];

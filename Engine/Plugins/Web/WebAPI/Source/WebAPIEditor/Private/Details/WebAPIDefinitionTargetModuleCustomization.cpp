@@ -78,7 +78,6 @@ void FWebAPIDefinitionTargetModuleCustomization::OnAddModule()
 
 bool FWebAPIDefinitionTargetModuleCustomization::CanAddModule() const
 {
-	// @todo: will this ever be false? if not, remove
 	return true;
 }
 

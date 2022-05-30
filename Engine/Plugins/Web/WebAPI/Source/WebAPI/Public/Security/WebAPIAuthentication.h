@@ -9,6 +9,8 @@
 
 #include "WebAPIAuthentication.generated.h"
 
+class UWebAPIOAuthSettings;
+
 // @note: Each will have user supplied settings, and custom handling of auth requests
 
 /**
@@ -38,7 +40,7 @@ public:
 	
 	/**  */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Security")
-	FString TenantId; // API key? @note: this is specific to Azure services! move!
+	FString TenantId; // API key? @todo: this is specific to Azure services! move!
 
 	/** Public client identifier. */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Security")
@@ -85,4 +87,9 @@ class WEBAPI_API FWebAPIOAuthSchemeHandler
 public:
 	virtual bool HandleHttpRequest(TSharedPtr<IHttpRequest> InRequest, UWebAPIDeveloperSettings* InSettings) override;
 	virtual bool HandleHttpResponse(EHttpResponseCodes::Type InResponseCode, TSharedPtr<IHttpResponse> InResponse, bool bInWasSuccessful, UWebAPIDeveloperSettings* InSettings) override;
+
+private:
+	UWebAPIOAuthSettings* GetAuthSettings(const UWebAPIDeveloperSettings* InSettings);
+	
+	TWeakObjectPtr<UWebAPIOAuthSettings> CachedAuthSettings;
 };

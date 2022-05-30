@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "WebAPIJsonUtilities.h"
+#include "WebAPIEditorLog.h"
+#include "Templates/IsUEnumClass.h"
+#include "UObject/Class.h"
+#include "UObject/ReflectedTypeAccessors.h"
 
 namespace UE::Json
 {
@@ -24,60 +27,116 @@ namespace UE::Json
 	// Enum
 	template <typename EnumType>
 	typename TEnableIf<TIsEnumClass<EnumType>::Value, bool>::Type
-	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, EnumType& OutValue, const TMap<FString, EnumType>& InNameToValue)
+	TryGet(
+		const TSharedPtr<FJsonValue>& InJsonValue,
+		EnumType& OutValue,
+		const TMap<FString, EnumType>& InNameToValue)
 	{
-		// Try int first
-		uint8 IntValue;
-		bool bResult = InJsonValue->TryGetNumber(IntValue);
-		if(bResult)
-		{
-			OutValue = StaticCast<EnumType>(IntValue);	
-		}
-		else
-		{
-			if(InNameToValue.IsEmpty())
-			{
-				UE_LOG(LogWebAPIEditor, Error, TEXT("Tried to convert enum from string, but no lookup was provided."));
-				return bResult;  
-			}
+		bool bResult = false;
 
-			FString StrValue;
-			bResult = InJsonValue->TryGetString(StrValue);
+		// Try bool first - TryGetNumber converts "false" to 0, etc. which is undesired for an enum
+		if(InJsonValue->Type != EJson::Boolean)
+		{
+			// Try int only if bool conversion failed
+			uint8 IntValue;
+			bResult = InJsonValue->TryGetNumber(IntValue);
 			if(bResult)
 			{
-				if(const EnumType* NameToValue = InNameToValue.Find(StrValue))
+				OutValue = StaticCast<EnumType>(IntValue);	
+			}
+			else
+			{
+				static const UEnum* TypeEnum = nullptr;
+
+				if constexpr (TIsUEnumClass<EnumType>::Value)
 				{
-					OutValue = *NameToValue;
+					TypeEnum = StaticEnum<EnumType>();
+				}
+				
+				if(!TypeEnum && InNameToValue.IsEmpty())
+				{
+					// UE_LOG(LogWebAPIEditor, Error, TEXT("Tried to convert enum from string, but no lookup was provided."));
+					return bResult;
+				}
+
+				FString StrValue;
+				bResult = InJsonValue->TryGetString(StrValue);
+				if(bResult)
+				{
+					if(TypeEnum)
+					{
+						if(int64 EnumValue = TypeEnum->GetValueByNameString(StrValue);
+							EnumValue != INDEX_NONE)
+						{
+							OutValue = StaticCast<EnumType>(EnumValue);
+						}
+					}
+					else if(const EnumType* NameToValue = InNameToValue.Find(StrValue))
+					{
+						OutValue = *NameToValue;
+					}
+					else
+					{
+						// Got a valid string, but it wasn't in the NameToValue map
+						bResult = false;
+					}
 				}
 			}
-		}			
+		}
 		return bResult;
 	}
 
 	template <typename EnumType>
 	constexpr typename TEnableIf<TIsEnumClass<EnumType>::Value, bool>::Type
-	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, EnumType& OutValue, const TMap<FString, EnumType>& InNameToValue)
+	TryGetField(
+		const TSharedPtr<FJsonObject>& InJsonObject,
+		const FString& InFieldName,
+		EnumType& OutValue,
+		const TMap<FString, EnumType>& InNameToValue)
 	{
 		if(const TSharedPtr<FJsonValue> JsonField = InJsonObject->TryGetField(InFieldName))
 		{
-			return TryGet(JsonField, OutValue.Get(), InNameToValue);
+			return TryGet(JsonField, OutValue, InNameToValue);
 		}
 		return false;
 	}
 
 	// String
-	template <typename ValueType>
-	constexpr typename TEnableIf<TypeTraits::TIsStringLike<ValueType>::Value, bool>::Type
-	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue)
+	template <>
+	inline bool TryGet<FString>(const TSharedPtr<FJsonValue>& InJsonValue, FString& OutValue)
 	{
 		return InJsonValue->TryGetString(OutValue);
 	}
 
-	template <typename ValueType>
-	constexpr typename TEnableIf<TypeTraits::TIsStringLike<ValueType>::Value, bool>::Type
-	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ValueType& OutValue)
+	template <>
+	inline bool TryGetField<FString>(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, FString& OutValue)
 	{
 		return InJsonObject->TryGetStringField(InFieldName, OutValue);
+	}
+
+	// Text
+	template <>
+	inline bool TryGet<FText>(const TSharedPtr<FJsonValue>& InJsonValue, FText& OutValue)
+	{
+		FString StrValue;
+		if(InJsonValue->TryGetString(StrValue))
+		{
+			OutValue = FText::FromString(StrValue);
+			return true;
+		}
+		return false;
+	}
+
+	template <>
+	inline bool TryGetField<FText>(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, FText& OutValue)
+	{
+		FString StrValue;
+		if(InJsonObject->TryGetStringField(InFieldName, StrValue))
+		{
+			OutValue = FText::FromString(StrValue);
+			return true;
+		}
+		return false;
 	}
 
 	// Bool
@@ -161,13 +220,33 @@ namespace UE::Json
 		return false;
 	}
 
+	template <typename MapType>
+	typename TEnableIf<TIsTMap<MapType>::Value, bool>::Type
+	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, MapType& OutValues)
+	{
+		using KeyType = typename MapType::KeyType;
+		using ValueType = typename MapType::ValueType;
+
+		return TryGet<KeyType, ValueType>(InJsonValue, OutValues);
+	}
+
+	template <typename MapType>
+	constexpr typename TEnableIf<TIsTMap<MapType>::Value, bool>::Type
+	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, MapType& OutValues)
+	{
+		using KeyType = typename MapType::KeyType;
+		using ValueType = typename MapType::ValueType;
+
+		return TryGetField<KeyType, ValueType>(InJsonObject, InFieldName, OutValues);
+	}
+
 	// Optional
 	template <typename ValueType>
 	constexpr typename TEnableIf<!TIsEnumClass<ValueType>::Value, bool>::Type
 	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, TOptional<ValueType>& OutValue)
 	{
 		ValueType Value;
-		if(TryGet<TDecay<ValueType>>(InJsonValue, Value))
+		if(TryGet<ValueType>(InJsonValue, Value))
 		{
 			OutValue = Value;
 			return true;
@@ -181,12 +260,12 @@ namespace UE::Json
 	{
 		if(const TSharedPtr<FJsonValue> JsonField = InJsonObject->TryGetField(InFieldName))
 		{
+			// Field found, so initialize TOptional
 			if(!OutValue.IsSet())
 			{
 				OutValue = ValueType{};
 			}
-				
-			return TryGet(JsonField, OutValue.GetValue());
+			return TryGet(JsonField, OutValue);
 		}
 		return true;
 	}
@@ -255,6 +334,9 @@ namespace UE::Json
 	template <typename ValueType>
 	typename TEnableIf<
 		TAnd<
+			TNot<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>>,
+			TNot<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>>,
+			TNot<TIsTMap<ValueType>>,
 			TNot<TIsTArray<ValueType>>,
 			TNot<TypeTraits::TIsStringLike<ValueType>>,
 			TNot<TIsPODType<ValueType>>,
@@ -265,10 +347,12 @@ namespace UE::Json
 		return false;
 	}
 
-	// TIsTMap<ContainerType>,
 	template <typename ValueType>
 	typename TEnableIf<
 		TAnd<
+			TNot<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>>,
+			TNot<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>>,
+			TNot<TIsTMap<ValueType>>,
 			TNot<TIsTArray<ValueType>>,
 			TNot<TypeTraits::TIsStringLike<ValueType>>,
 			TNot<TIsPODType<ValueType>>,
@@ -323,10 +407,29 @@ namespace UE::Json
 		return false;
 	}
 
+	template <typename ValueType>
+	typename TEnableIf<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>::Value, bool>::Type
+	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue)
+	{
+		return TryGet<typename ValueType::ElementType>(InJsonValue, OutValue);
+	}
+
+	template <typename ValueType>
+	typename TEnableIf<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>::Value, bool>::Type
+	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ValueType& OutValue)
+	{
+		return TryGet<typename ValueType::ElementType>(InJsonObject, InFieldName, OutValue);
+	}
+
 	// SharedPtr
 	template <typename ValueType>
 	bool TryGet(const TSharedPtr<FJsonValue>& InJsonValue,	TSharedPtr<ValueType>& OutValue)
 	{
+		if(InJsonValue->IsNull())
+		{
+			return true;
+		}
+		
 		// Initialize if invalid
 		if(!OutValue.IsValid())
 		{
@@ -344,6 +447,20 @@ namespace UE::Json
 			return TryGet<ValueType>(JsonField, OutValue);
 		}
 		return false;
+	}
+
+	template <typename ValueType>
+	typename TEnableIf<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>::Value, bool>::Type
+	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue)
+	{
+		return TryGet<typename ValueType::ElementType>(InJsonValue, OutValue);
+	}
+
+	template <typename ValueType>
+	typename TEnableIf<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>::Value, bool>::Type
+	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ValueType& OutValue)
+	{
+		return TryGet<typename ValueType::ElementType>(InJsonObject, InFieldName, OutValue);
 	}
 
 	// SharedRef
@@ -445,17 +562,38 @@ namespace UE::Json
 		return false;
 	}
 
-	// Variant
-	template <typename ... ValueTypes>
-	bool TryGet(const TSharedPtr<FJsonValue>& InJsonValue, TVariant<ValueTypes...>& OutValue)
+	template <size_t TypeIndex = 0, typename ...ValueTypes>
+	bool TryParse(const TSharedPtr<FJsonValue>& InJsonValue, TVariant<ValueTypes...>& OutValue)
 	{
-		FVariantValueVisitor Visitor(InJsonValue);
+		using VariantType = TVariant<ValueTypes...>;
+		if constexpr (TypeIndex < TVariantSize<VariantType>::Value)
+		{
+			using ValueType = typename TNthTypeFromParameterPack<TypeIndex, ValueTypes...>::Type;
+			ValueType Value;
+			if (UE::Json::TryGet(InJsonValue, Value))
+			{
+				OutValue.template Set<ValueType>(MoveTemp(Value));
+				return true;
+			}
 
-		// @todo: asked Stefan Boberg about this, only ever tests a single type
-		return Visit(Visitor, OutValue);
+			return TryParse<TypeIndex + 1, ValueTypes...>(InJsonValue, OutValue);
+		}
+
+		return false;
 	}
 
-	template <typename ... ValueTypes>
+	// Variant
+	template <typename... ValueTypes>
+	bool TryGet(const TSharedPtr<FJsonValue>& InJsonValue, TVariant<ValueTypes...>& OutValue)
+	{
+		if(TryParse<0, ValueTypes...>(InJsonValue, OutValue))
+		{
+			return true;
+		}
+		return false;
+	}
+
+	template <typename... ValueTypes>
 	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TVariant<ValueTypes...>& OutValue)
 	{
 		if(const TSharedPtr<FJsonValue> JsonField = InJsonObject->TryGetField(InFieldName))

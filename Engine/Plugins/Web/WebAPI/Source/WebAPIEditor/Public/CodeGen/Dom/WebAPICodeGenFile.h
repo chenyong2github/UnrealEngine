@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "WebAPICodeGenBase.h"
-#include "Dom/WebAPISchema.h"
 
 class UWebAPIProperty;
 class UWebAPIModel;

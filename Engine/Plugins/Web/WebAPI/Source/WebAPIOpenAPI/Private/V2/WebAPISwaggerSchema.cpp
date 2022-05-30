@@ -3,29 +3,17 @@
 #include "V2/WebAPISwaggerSchema.h"
 
 #include "WebAPIJsonUtilities.h"
-#include "WebAPIJsonUtilities.inl"
 #include "Algo/ForEach.h"
 #include "Dom/JsonObject.h"
 
 namespace UE::WebAPI::OpenAPI::V2
 {
-	static TMap<FString, EJson> EJson_NameToValue = {
-		{TEXT("None"), EJson::None},
-		{TEXT("Null"), EJson::Null},
-		{TEXT("String"), EJson::String},
-		{TEXT("Boolean"), EJson::Boolean},
-		{TEXT("Number"), EJson::Number},
-		{TEXT("Integer"), EJson::Number},
-		{TEXT("Array"), EJson::Array},
-		{TEXT("Object"), EJson::Object},
-	};
-
 	bool FItems::FromJson(const TSharedRef<FJsonObject>& InJson)
 	{
 		bool bSetAField = false;
 		bSetAField |= Json::TryGetField(InJson, TEXT("type"), Type);
 		bSetAField |= Json::TryGetField(InJson, TEXT("format"), Format);
-		//bSetAField |= Json::TryGetField(InJson, TEXT("items"), Items); // @todo: fix recursion
+		bSetAField |= Json::TryGetField(InJson, TEXT("items"), Items);
 		bSetAField |= Json::TryGetField(InJson, TEXT("collectionFormat"), CollectionFormat);
 		bSetAField |= Json::TryGetField(InJson, TEXT("default"), Default);
 		bSetAField |= Json::TryGetField(InJson, TEXT("maximum"), Maximum);
@@ -138,7 +126,6 @@ namespace UE::WebAPI::OpenAPI::V2
 
 	bool FExample::FromJson(const TSharedRef<FJsonObject>& InJson)
 	{
-		// @todo: implement
 		const bool bSetAField = false;
 		return bSetAField;
 	}
@@ -155,7 +142,6 @@ namespace UE::WebAPI::OpenAPI::V2
 
 	bool FScopes::FromJson(const TSharedRef<FJsonObject>& InJson)
 	{
-		// @todo: implement
 		const bool bSetAField = false;
 		return bSetAField;
 	}
@@ -307,7 +293,7 @@ namespace UE::WebAPI::OpenAPI::V2
 		bSetAField |= Json::TryGetField(InJson, TEXT("produces"), Produces);
 		bSetAField |= Json::TryGetField(InJson, TEXT("parameters"), Parameters);
 		bSetAField |= Json::TryGetField(InJson, TEXT("responses"), Responses);
-		bSetAField |= Json::TryGetField(InJson, TEXT("schemes"), Schemes); // @todo
+		bSetAField |= Json::TryGetField(InJson, TEXT("schemes"), Schemes);
 		bSetAField |= Json::TryGetField(InJson, TEXT("security"), Security);
 		return bSetAField;
 	}

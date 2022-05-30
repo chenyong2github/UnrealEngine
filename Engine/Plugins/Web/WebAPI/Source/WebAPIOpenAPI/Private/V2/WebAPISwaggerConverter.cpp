@@ -17,9 +17,6 @@
 #include "Dom/WebAPITypeRegistry.h"
 #include "V2/WebAPISwaggerSchema.h"
 
-// @todo: remove
-PRAGMA_DISABLE_OPTIMIZATION
-
 #define LOCTEXT_NAMESPACE "WebAPISwaggerConverter"
 
 #define SET_OPTIONAL(SrcProperty, DstProperty)			\
@@ -114,7 +111,6 @@ namespace UE::WebAPI::Swagger
 			{TEXT("Object"), StaticTypeRegistry->Object},
 		};
 
-		// https://github.com/OpenAPITools/openapi-generator/blob/5d68bd6a03f0c48e838b4fe3b98b7e30858c0373/modules/openapi-generator/src/main/java/org/openapitools/codegen/languages/CppUE4ClientCodegen.java
 		// OpenAPI type to UE type (Prefix, Name)
 		static TMap<FString, TObjectPtr<UWebAPITypeInfo>> TypeMap =
 		{
@@ -178,7 +174,6 @@ namespace UE::WebAPI::Swagger
 				// Duplicate it with the provided definition name 
 				if (!InDefinitionName.IsEmpty())
 				{
-					// @todo: what if it's an enum? how do you know at this point if it's an enum or struct?
 					// Allow prefix to be set later depending on this?
 					Result = OutputSchema->TypeRegistry->GetOrMakeGeneratedType(EWebAPISchemaType::Model,
 						InDefinitionName,
@@ -187,10 +182,9 @@ namespace UE::WebAPI::Swagger
 					Result->Prefix = TEXT("F");
 					ensure(!Result->Name.IsEmpty());
 				}
-				// otherwise duplicate it as an unnamed/partially resolved type 
 				else
 				{
-					// @todo: prevent!
+					checkNoEntry();
 					Result = Result->Duplicate(OutputSchema->TypeRegistry);
 				}
 			}
@@ -251,12 +245,10 @@ namespace UE::WebAPI::Swagger
 		const TObjectPtr<UWebAPIStaticTypeRegistry> StaticTypeRegistry = IWebAPIEditorModuleInterface::Get().GetStaticTypeRegistry();
 
 		FString DefinitionName = InDefinitionName;
-		TObjectPtr<UWebAPITypeInfo> Result;
-		
-		TSharedPtr<UE::WebAPI::OpenAPI::V2::FSchema> ItemSchema = nullptr;
+
 		if(InSchema->Items.IsSet())
 		{
-			ItemSchema = ResolveReference(InSchema->Items.GetValue(), DefinitionName);
+			const TSharedPtr<UE::WebAPI::OpenAPI::V2::FSchema> ItemSchema = ResolveReference(InSchema->Items.GetValue(), DefinitionName);
 			if(!InSchema->Items->GetPath().IsEmpty())
 			{
 				DefinitionName = InSchema->Items->GetLastPathSegment();						
@@ -264,7 +256,10 @@ namespace UE::WebAPI::Swagger
 			return ResolveType(ItemSchema, DefinitionName);
 		}
 
-		Result = ResolveType(InSchema->Type.Get(InJsonType.IsEmpty() ? TEXT("object") : InJsonType), InSchema->Format.Get(TEXT("")),	DefinitionName);
+		TObjectPtr<UWebAPITypeInfo> Result = ResolveType(
+			InSchema->Type.Get(InJsonType.IsEmpty() ? TEXT("object") : InJsonType),
+			InSchema->Format.Get(TEXT("")),
+			DefinitionName);
 		if (InSchema->Enum.IsSet() && !InSchema->Enum.GetValue().IsEmpty())
 		{
 			if(const TObjectPtr<UWebAPITypeInfo>* FoundGeneratedType = OutputSchema->TypeRegistry->FindGeneratedType(EWebAPISchemaType::Model, NameTransformer(DefinitionName)))
@@ -302,8 +297,6 @@ namespace UE::WebAPI::Swagger
 					Args.Add(TEXT("DefinitionName"), FText::FromString(DefinitionName));
 					MessageLog->LogInfo(FText::Format(LOCTEXT("CannotResolveType", "ResolveType (object) failed to find a matching type for definition \"{DefinitionName}\", creating a new one."), Args), FWebAPISwaggerProvider::LogName);
 
-					// @bug: where is the model created for this?
-					// @todo: should this always be of type model, vs parameter?
 					Result = OutputSchema->TypeRegistry->GetOrMakeGeneratedType(
 						EWebAPISchemaType::Model,
 						NameTransformer(DefinitionName),
@@ -573,8 +566,6 @@ namespace UE::WebAPI::Swagger
 		return true;
 	}
 
-
-	
 	bool FWebAPISwaggerSchemaConverter::ConvertOperationParameter(
 		const FWebAPINameVariant& InParameterName,
 		const TSharedPtr<OpenAPI::V2::FParameter>& InParameter,
@@ -616,13 +607,6 @@ namespace UE::WebAPI::Swagger
 		if (!ConvertModelBase(InParameter, ModelBase))
 		{
 			return false;
-		}
-
-		if(!OutParameter->Type.TypeInfo->bIsBuiltinType)
-		{
-			// @todo: make generated type here
-			auto x = OutParameter->Type;
-			// ConvertEnum(InParameter)
 		}
 
 		OutParameter->Name = FWebAPINameInfo(InParameterName.ToString(true), InParameterName.GetJsonName(), OutParameter->Type);
@@ -673,8 +657,6 @@ namespace UE::WebAPI::Swagger
 		OutParameter->Description = InParameter->Description.Get(TEXT(""));
 		OutParameter->bIsRequired = InParameter->bRequired.Get(false);
 		OutParameter->BindToTypeInfo();
-		
-		// PatchProperty({}, InParameterName, InParameter, InDefinitionName, OutParameter);
 
 		return true;
 	}
@@ -766,7 +748,6 @@ namespace UE::WebAPI::Swagger
 				ModelTypeName.TypeInfo->Prefix = TEXT("F");
 				ModelTypeName.TypeInfo->SetNested(ParameterTypeName);
 
-				//const TObjectPtr<UWebAPIModel>& Model = OutputSchema->AddModel<UWebAPIModel>(ModelTypeName.HasTypeInfo() ? ModelTypeName.TypeInfo.Get() : nullptr);
 				PatchModel(InSrcParameter, {}, DstParameter);
 
 				const FText LogMessage = FText::FormatNamed(
@@ -778,40 +759,8 @@ namespace UE::WebAPI::Swagger
 				
 				DstParameter->Name.TypeInfo->JsonName = ParameterTypeName.GetJsonName();
 				DstParameter->Name.TypeInfo->JsonType = UWebAPIStaticTypeRegistry::ToFromJsonType;
-
-				// DstParameter->Type = Model->Name;
-				//					DstParameter->Type.TypeInfo->Model = DstParameter;
 			}
 		}
-
-
-		/**
-		const TObjectPtr<UWebAPIModel> Model = Cast<UWebAPIModel>(DstParameter);
-		if (!PatchModel(InSrcParameter, ParameterTypeName, Model))
-		{
-			return nullptr;
-		}
-
-		
-		if (!SrcParameterSchema.GetPath().IsEmpty())
-		{
-			SrcParameterDefinitionName = SrcParameterSchema.GetLastPathSegment();
-		}
-
-		if (SrcParameterSchema.IsSet() && SrcParameterSchema->Items.IsSet() && !SrcParameterSchema->Items->GetPath().IsEmpty())
-		{
-			SrcParameterDefinitionName = SrcParameterSchema->Items->GetLastPathSegment();
-		}
-
-		if (SrcParameterSchema.IsSet())
-		{
-			DstParameter->Type = ResolveType(SrcParameterSchema.GetShared(), NameTransformer(*ParameterName));
-		}
-		else
-		{
-			DstParameter->Type = ResolveType(InSrcParameter, NameTransformer(*ParameterName));
-		}
-		*/
 
 		// Special case for "body" parameters
 		if (InSrcParameter->In == TEXT("body"))
@@ -826,43 +775,14 @@ namespace UE::WebAPI::Swagger
 
 		DstParameter->BindToTypeInfo();
 
-		//DstParameter->Name = FWebAPINameInfo(NameTransformer(DstParameter->Name), DstParameter->Name.GetJsonName(), DstParameter->Type);
 		DstParameter->Description = InSrcParameter->Description.Get(TEXT(""));
 		DstParameter->bIsRequired = InSrcParameter->bRequired.Get(false);
-		
-		/*
-		if(!DstParameter->Type.TypeInfo->bIsBuiltinType)
-		{
-			if(DstParameter->Type.TypeInfo->IsEnum())
-			{
-				ConvertEnum(InSrcParameter);						
-			}
-			else
-			{
-				unimplemented();						
-			}
-		}
-		*/
-
-		/**
-		// Special case - if the name is "body", set as Body property and not Parameter
-		if (InSrcParameter->Name.Equals(TEXT("body"), ESearchCase::IgnoreCase) && !SrcParameterDefinitionName.IsEmpty())
-		{
-			// Check for existing definition
-			if (const TObjectPtr<UWebAPITypeInfo>* FoundGeneratedType = OutputSchema->TypeRegistry->FindGeneratedType(EWebAPISchemaType::Model, SrcParameterDefinitionName))
-			{
-				DstParameter->Model = Cast<UWebAPIModel>((*FoundGeneratedType)->Model.LoadSynchronous());
-				return DstParameter;
-			}
-		}
-		*/
-
+	
 		return DstParameter;
 	}
 
 	bool FWebAPISwaggerSchemaConverter::ConvertRequest(const FWebAPITypeNameVariant& InOperationName, const TSharedPtr<OpenAPI::V2::FOperation>& InOperation, const TObjectPtr<UWebAPIOperationRequest>& OutRequest)
 	{
-		// const FWebAPITypeNameVariant RequestTypeName = OutputSchema->TypeRegistry->AddUnnamedType(IWebAPIEditorModuleInterface::Get().GetStaticTypeRegistry()->Object);
 		const FWebAPITypeNameVariant RequestTypeName = OutputSchema->TypeRegistry->GetOrMakeGeneratedType(
 			EWebAPISchemaType::Model,
 			ProviderSettings.MakeRequestTypeName(InOperationName),
@@ -970,63 +890,6 @@ namespace UE::WebAPI::Swagger
 				SrcResponseSchema.GetShared(),
 				SrcPropertyDefinitionName,
 				DstProperty);
-
-			/*
-			//OutResponse->bIsArray = IsArray(InSrcParameter);
-			if (!DstProperty->Type.HasTypeInfo())
-			{
-				DstProperty->Type = ResolveType(SrcResponseSchema->Type.Get(TEXT("object")),
-					SrcResponseSchema->Format.Get(TEXT("")),
-					SrcPropertyDefinitionName,
-					SrcResponseSchema.GetShared());
-			}
-
-			
-			if(SrcPropertyDefinitionName.IsEmpty())
-			{
-				SrcPropertyDefinitionName = ProviderSettings.MakeNestedPropertyTypeName(InOperationName, PropertyName);
-			}
-
-			const FString Type = InResponse->Schema->Get()->Type.Get(TEXT("object"));
-
-			const TObjectPtr<UWebAPIModel> Model = OutResponse;
-			if (!PatchModel(SrcResponseSchema.GetShared(), ResponseTypeName, Model))
-			{
-				return false;
-			}
-
-			// Don't use ParameterTypeName->Name, it might have a Parameter specific pre/postfix.
-			FString SrcResponseDefinitionName = ResponseTypeName.ToString(true);
-
-			// Will get schema or create if it doesn't exist (but will be empty)
-			const TSharedPtr<OpenAPI::V2::FSchema> SrcParameterSchema = ResolveReference(InResponse->Schema.Get({}), SrcResponseDefinitionName, false);
-
-			const FString PropertyName = Type == TEXT("array") ? ProviderSettings.GetDefaultArrayPropertyName() : ProviderSettings.GetDefaultPropertyName();
-			// FString DefinitionName = ProviderSettings.MakeNestedPropertyTypeName(DefinitionName, PropertyName);
-			
-			const TObjectPtr<UWebAPIProperty>& DstProperty = OutResponse->Properties.Add_GetRef(NewObject<UWebAPIProperty>(OutResponse));
-			PatchProperty(OutResponse->Name,
-				PropertyName,
-				SrcParameterSchema,
-				SrcResponseDefinitionName,
-				DstProperty);
-			
-
-			if (Type == TEXT("array"))
-			{
-
-			}
-			*/
-			// @todo: Account for single item = single property, ie. type=array, items=SomeDef would be TArray<FSomeDef> Items
-		}
-
-		if (InResponse->Headers.IsSet())
-		{
-			for (const TPair<FString, TSharedPtr<OpenAPI::V2::FHeader>>& SrcHeader : InResponse->Headers.GetValue())
-			{
-				FString Key = SrcHeader.Key; // @todo: what is this?
-				// SrcHeader.Value-> // @todo: this describes return object
-			}
 		}
 
 		OutResponse->BindToTypeInfo();
@@ -1098,7 +961,6 @@ namespace UE::WebAPI::Swagger
 				// If "Default", resolves to 0, and means all other unhandled codes (similar to default in switch statement)
 				const uint32 Code = FCString::Atoi(*SrcResponse.Key);
 				const TObjectPtr<UWebAPIOperationResponse> DstResponse = DstOperation->Responses.Add_GetRef(NewObject<UWebAPIOperationResponse>(DstOperation));
-				// OutOperation->AddResponse() @todo
 				ConvertResponse(DstOperation->Name, Code, SrcResponse.Value, DstResponse);
 
 				// If success response (code 200), had no resolved properties but the operation says it returns something, then add that something as a property
@@ -1216,10 +1078,6 @@ namespace UE::WebAPI::Swagger
 			{
 				const FString& Name = Item.Key;
 				const TSharedPtr<OpenAPI::V2::FSecurityScheme>& SecuritySchema = Item.Value;
-
-				// @todo: WebAPI security primitive
-				// TObjectPtr<UWebAPIModel> Model = OutSchema->Client->Models.Add_GetRef(NewObject<UWebAPIModel>(OutSchema));
-				// PatchModel(Name, Schema.Get(), Model);
 			}
 
 			return true;
@@ -1341,13 +1199,6 @@ namespace UE::WebAPI::Swagger
 						Operation->Rename(*OperationObjectName.ToString(), Operation->GetOuter());
 
 						Operation->BindToTypeInfo();
-
-						// Verb->Parameters
-						// Verb->Responses
-						// Verb->Schemes
-						// Verb->Consumes ie. "application/json"
-						// Verb->Produces ie. "application/json"
-						// Verb->Security
 					}
 				}
 			}
@@ -1360,6 +1211,3 @@ namespace UE::WebAPI::Swagger
 #undef SET_OPTIONAL
 
 #undef LOCTEXT_NAMESPACE
-
-// @todo: remove
-PRAGMA_ENABLE_OPTIMIZATION

@@ -18,9 +18,6 @@
 #include "V3/WebAPIOpenAPIProvider.h"
 #include "V3/WebAPIOpenAPISchema.h"
 
-// @todo: remove
-PRAGMA_DISABLE_OPTIMIZATION
-
 #define LOCTEXT_NAMESPACE "WebAPIOpenAPIConverter"
 
 #define SET_OPTIONAL(SrcProperty, DstProperty)			\
@@ -97,7 +94,7 @@ namespace UE::WebAPI::OpenAPI
 		bSuccessfullyConverted &= InputSchema->Components.IsValid()
 								  ? ConvertModels(InputSchema->Components->Schemas, OutputSchema.Get())
 								  : true;
-		//bSuccessfullyConverted &= ConvertParameters(InputSchema->Components.Parameters, OutputSchema.Get());
+		
 		bSuccessfullyConverted &= ConvertPaths(InputSchema->Paths, OutputSchema.Get());
 
 		return bSuccessfullyConverted;
@@ -111,8 +108,7 @@ namespace UE::WebAPI::OpenAPI
 	TObjectPtr<UWebAPITypeInfo> FWebAPIOpenAPISchemaConverter::ResolveMappedType(const FString& InType)
 	{
 		const TObjectPtr<UWebAPIStaticTypeRegistry> StaticTypeRegistry = IWebAPIEditorModuleInterface::Get().GetStaticTypeRegistry();
-
-		// https://github.com/OpenAPITools/openapi-generator/blob/5d68bd6a03f0c48e838b4fe3b98b7e30858c0373/modules/openapi-generator/src/main/java/org/openapitools/codegen/languages/CppUE4ClientCodegen.java
+		
 		// OpenAPI type to UE type (Prefix, Name)
 		static TMap<FString, TObjectPtr<UWebAPITypeInfo>> TypeMap =
 		{
@@ -220,19 +216,18 @@ namespace UE::WebAPI::OpenAPI
 				// Duplicate it with the provided definition name 
 				if (!InDefinitionName.IsEmpty())
 				{
-					// @todo: what if it's an enum? how do you know at this point if it's an enum or struct?
 					// Allow prefix to be set later depending on this?
-					Result = OutputSchema->TypeRegistry->GetOrMakeGeneratedType(EWebAPISchemaType::Model,
+					Result = OutputSchema->TypeRegistry->GetOrMakeGeneratedType(
+						EWebAPISchemaType::Model,
 						InDefinitionName,
 						InDefinitionName,
 						Result);
 					Result->Prefix = TEXT("F");
 					ensure(!Result->Name.IsEmpty());
 				}
-				// otherwise duplicate it as an unnamed/partially resolved type 
 				else
 				{
-					// @todo: prevent!
+					checkNoEntry();
 					Result = Result->Duplicate(OutputSchema->TypeRegistry);
 				}
 			}
@@ -299,8 +294,6 @@ namespace UE::WebAPI::OpenAPI
 		return InProperty->Name;
 	}
 
-
-
 	bool FWebAPIOpenAPISchemaConverter::ConvertProperty(const FWebAPITypeNameVariant& InModelName, const FWebAPINameVariant& InPropertyName, const FWebAPITypeNameVariant& InPropertyTypeName, const TObjectPtr<UWebAPIProperty>& OutProperty)
 	{
 		OutProperty->Type = InPropertyTypeName;
@@ -332,43 +325,18 @@ namespace UE::WebAPI::OpenAPI
 		};
 
 		OutParameter->Storage = InToStorage[InParameter->In];
-		
+
 		if (ParameterSchema.IsValid())
 		{
 			OutParameter->Type = ResolveType(ParameterSchema, InDefinitionName);
 		}
-		else
-		{
-			// @todo:
-			// OutParameter->Type = ResolveType(InParameter, InDefinitionName, GetDefaultJsonTypeForStorage(OutParameter->Storage));
-		}
-
+		
 		OutParameter->bIsArray = IsArray(InParameter);
-		if (!OutParameter->Type.HasTypeInfo())
-		{
-			if(InParameter->Schema.IsSet())
-			{
-				// @todo
-				/* 
-				OutParameter->Type = ResolveType(InParameter->Schema->Get(GetDefaultJsonTypeForStorage(OutParameter->Storage)),
-					TEXT(""), //InParameter->Format.Get(TEXT("")),
-					InDefinitionName,
-					ParameterSchema.GetShared());
-					*/
-			}
-		}
 
 		const TObjectPtr<UWebAPIModelBase> ModelBase = Cast<UWebAPIModelBase>(OutParameter);
 		if (!ConvertModelBase(InParameter, ModelBase))
 		{
 			return false;
-		}
-
-		if(!OutParameter->Type.TypeInfo->bIsBuiltinType)
-		{
-			// @todo: make generated type here
-			auto x = OutParameter->Type;
-			// ConvertEnum(InParameter)
 		}
 
 		OutParameter->Name = FWebAPINameInfo(InParameterName.ToString(true), InParameterName.GetJsonName(), OutParameter->Type);
@@ -419,8 +387,6 @@ namespace UE::WebAPI::OpenAPI
 		OutParameter->Description = InParameter->Description.Get(TEXT(""));
 		OutParameter->bIsRequired = InParameter->bRequired.Get(false);
 		OutParameter->BindToTypeInfo();
-		
-		// ConvertProperty({}, InParameterName, InParameter, InDefinitionName, OutParameter);
 
 		return true;
 	}
@@ -471,18 +437,7 @@ namespace UE::WebAPI::OpenAPI
 		};
 
 		DstParameter->Storage = InToStorage[InSrcParameter->In];
-
 		DstParameter->bIsArray = IsArray(InSrcParameter);
-		if (!DstParameter->Type.HasTypeInfo())
-		{
-			// @todo:
-			/*
-			DstParameter->Type = ResolveType(InSrcParameter->Type.Get(GetDefaultJsonTypeForStorage(DstParameter->Storage)),
-				InSrcParameter->Format.Get(TEXT("")),
-				SrcParameterDefinitionName,
-				SrcParameterSchema);
-				*/
-		}
 
 		const TObjectPtr<UWebAPIModel> Model = Cast<UWebAPIModel>(DstParameter);
 		if (!ConvertModel(InSrcParameter, ParameterTypeName, Model))
@@ -541,40 +496,8 @@ namespace UE::WebAPI::OpenAPI
 				
 				DstParameter->Name.TypeInfo->JsonName = ParameterTypeName.GetJsonName();
 				DstParameter->Name.TypeInfo->JsonType = UWebAPIStaticTypeRegistry::ToFromJsonType;
-
-				// DstParameter->Type = Model->Name;
-				//					DstParameter->Type.TypeInfo->Model = DstParameter;
 			}
 		}
-
-
-		/**
-		const TObjectPtr<UWebAPIModel> Model = Cast<UWebAPIModel>(DstParameter);
-		if (!ConvertModel(InSrcParameter, ParameterTypeName, Model))
-		{
-			return nullptr;
-		}
-
-		
-		if (!SrcParameterSchema.GetPath().IsEmpty())
-		{
-			SrcParameterDefinitionName = SrcParameterSchema.GetLastPathSegment();
-		}
-
-		if (SrcParameterSchema.IsSet() && SrcParameterSchema->Items.IsSet() && !SrcParameterSchema->Items->GetPath().IsEmpty())
-		{
-			SrcParameterDefinitionName = SrcParameterSchema->Items->GetLastPathSegment();
-		}
-
-		if (SrcParameterSchema.IsSet())
-		{
-			DstParameter->Type = ResolveType(SrcParameterSchema.GetShared(), NameTransformer(*ParameterName));
-		}
-		else
-		{
-			DstParameter->Type = ResolveType(InSrcParameter, NameTransformer(*ParameterName));
-		}
-		*/
 
 		// Special case for "body" parameters
 		if (InSrcParameter->In == TEXT("body"))
@@ -592,40 +515,12 @@ namespace UE::WebAPI::OpenAPI
 		//DstParameter->Name = FWebAPINameInfo(NameTransformer(DstParameter->Name), DstParameter->Name.GetJsonName(), DstParameter->Type);
 		DstParameter->Description = InSrcParameter->Description.Get(TEXT(""));
 		DstParameter->bIsRequired = InSrcParameter->bRequired.Get(false);
-		
-		/*
-		if(!DstParameter->Type.TypeInfo->bIsBuiltinType)
-		{
-			if(DstParameter->Type.TypeInfo->IsEnum())
-			{
-				ConvertEnum(InSrcParameter);						
-			}
-			else
-			{
-				unimplemented();						
-			}
-		}
-		*/
-
-		/**
-		// Special case - if the name is "body", set as Body property and not Parameter
-		if (InSrcParameter->Name.Equals(TEXT("body"), ESearchCase::IgnoreCase) && !SrcParameterDefinitionName.IsEmpty())
-		{
-			// Check for existing definition
-			if (const TObjectPtr<UWebAPITypeInfo>* FoundGeneratedType = OutputSchema->TypeRegistry->FindGeneratedType(EWebAPISchemaType::Model, SrcParameterDefinitionName))
-			{
-				DstParameter->Model = Cast<UWebAPIModel>((*FoundGeneratedType)->Model.LoadSynchronous());
-				return DstParameter;
-			}
-		}
-		*/
-
+	
 		return DstParameter;
 	}
 
 	bool FWebAPIOpenAPISchemaConverter::ConvertRequest(const FWebAPITypeNameVariant& InOperationName, const TSharedPtr<OpenAPI::V3::FOperationObject>& InOperation, const TObjectPtr<UWebAPIOperationRequest>& OutRequest)
 	{
-		// const FWebAPITypeNameVariant RequestTypeName = OutputSchema->TypeRegistry->AddUnnamedType(IWebAPIEditorModuleInterface::Get().GetStaticTypeRegistry()->Object);
 		const FWebAPITypeNameVariant RequestTypeName = OutputSchema->TypeRegistry->GetOrMakeGeneratedType(
 			EWebAPISchemaType::Model,
 			ProviderSettings.MakeRequestTypeName(InOperationName),
@@ -690,8 +585,7 @@ namespace UE::WebAPI::OpenAPI
 				{
 					FString MediaTypeDefinitionName;
 					TSharedPtr<OpenAPI::V3::FSchemaObject> MediaTypeSchema = ResolveReference(MediaType->Schema, MediaTypeDefinitionName);
-
-					// @todo: what if it's an array of $ref? TypeInfo doesn't specify whether it's an array or not - check spec
+					
 					const TObjectPtr<UWebAPIOperationParameter> DstParameter = OutRequest->Parameters.Add_GetRef(NewObject<UWebAPIOperationParameter>(OutRequest));
 					DstParameter->Type = ResolveType(MediaTypeSchema, MediaTypeDefinitionName);
 					check(DstParameter->Type.IsValid());
@@ -758,54 +652,6 @@ namespace UE::WebAPI::OpenAPI
 					SrcResponseSchema,
 					SrcPropertyDefinitionName,
 					DstProperty);
-
-				/*
-				//OutResponse->bIsArray = IsArray(InSrcParameter);
-				if (!DstProperty->Type.HasTypeInfo())
-				{
-					DstProperty->Type = ResolveType(SrcResponseSchema->Type.Get(TEXT("object")),
-						SrcResponseSchema->Format.Get(TEXT("")),
-						SrcPropertyDefinitionName,
-						SrcResponseSchema.GetShared());
-				}
-
-				
-				if(SrcPropertyDefinitionName.IsEmpty())
-				{
-					SrcPropertyDefinitionName = ProviderSettings.MakeNestedPropertyTypeName(InOperationName, PropertyName);
-				}
-
-				const FString Type = InResponse->Schema->Get()->Type.Get(TEXT("object"));
-
-				const TObjectPtr<UWebAPIModel> Model = OutResponse;
-				if (!ConvertModel(SrcResponseSchema.GetShared(), ResponseTypeName, Model))
-				{
-					return false;
-				}
-
-				// Don't use ParameterTypeName->Name, it might have a Parameter specific pre/postfix.
-				FString SrcResponseDefinitionName = ResponseTypeName.ToString(true);
-
-				// Will get schema or create if it doesn't exist (but will be empty)
-				const TSharedPtr<OpenAPI::V3::FSchemaObject> SrcParameterSchema = ResolveReference(InResponse->Schema.Get({}), SrcResponseDefinitionName, false);
-
-				const FString PropertyName = Type == TEXT("array") ? ProviderSettings.GetDefaultArrayPropertyName() : ProviderSettings.GetDefaultPropertyName();
-				// FString DefinitionName = ProviderSettings.MakeNestedPropertyTypeName(DefinitionName, PropertyName);
-				
-				const TObjectPtr<UWebAPIProperty>& DstProperty = OutResponse->Properties.Add_GetRef(NewObject<UWebAPIProperty>(OutResponse));
-				ConvertProperty(OutResponse->Name,
-					PropertyName,
-					SrcParameterSchema,
-					SrcResponseDefinitionName,
-					DstProperty);
-				
-
-				if (Type == TEXT("array"))
-				{
-
-				}
-				*/
-				// @todo: Account for single item = single property, ie. type=array, items=SomeDef would be TArray<FSomeDef> Items 
 			}
 		}
 
@@ -813,8 +659,8 @@ namespace UE::WebAPI::OpenAPI
 		{
 			for (const TPair<FString, Json::TJsonReference<OpenAPI::V3::FHeaderObject>>& SrcHeader : InResponse->Headers.GetValue())
 			{
-				FString Key = SrcHeader.Key; // @todo: what is this?
-				// SrcHeader.Value-> // @todo: this describes return object
+				FString Key = SrcHeader.Key;
+				Json::TJsonReference<OpenAPI::V3::FHeaderObject> Value = SrcHeader.Value; // @todo: handle, maybe as raw string
 			}
 		}
 
@@ -825,7 +671,6 @@ namespace UE::WebAPI::OpenAPI
 
 	TObjectPtr<UWebAPIOperation> FWebAPIOpenAPISchemaConverter::ConvertOperation(const FString& InPath, const FString& InVerb, const TSharedPtr<OpenAPI::V3::FOperationObject>& InSrcOperation, const FWebAPITypeNameVariant& InOperationTypeName)
 	{
-		
 		FString OperationName = InSrcOperation->OperationId.Get(InSrcOperation->Summary.Get(TEXT("")));
 		if(OperationName.IsEmpty())
 		{
@@ -870,7 +715,7 @@ namespace UE::WebAPI::OpenAPI
 
 		// A spec can have no tags, so ensure there's a default
 		const FString FirstTag = ProviderSettings.ToPascalCase(InSrcOperation->Tags.Get({TEXT("Default")})[0]);
-		TObjectPtr<UWebAPIService>* Service = OutputSchema->Services.Find(FirstTag);
+		const TObjectPtr<UWebAPIService>* Service = OutputSchema->Services.Find(FirstTag);
 		checkf(Service, TEXT("An operation must belong to a service!"));
 
 		const TObjectPtr<UWebAPIOperation> DstOperation = (*Service)->Operations.Add_GetRef(NewObject<UWebAPIOperation>(*Service));
@@ -887,19 +732,6 @@ namespace UE::WebAPI::OpenAPI
 
 		ConvertRequest(DstOperation->Name, InSrcOperation, DstOperation->Request);
 
-		// @todo:
-		/*
-		if (InSrcOperation->Consumes.IsSet())
-		{
-			DstOperation->RequestContentTypes.Append(InSrcOperation->Consumes.GetValue());
-		}
-
-		if (InSrcOperation->Produces.IsSet())
-		{
-			DstOperation->ResponseContentTypes.Append(InSrcOperation->Produces.GetValue());
-		}
-		*/
-
 		if (ensure(!InSrcOperation->Responses.IsEmpty()))
 		{
 			for (const TPair<FString, Json::TJsonReference<OpenAPI::V3::FResponseObject>>& SrcResponse : InSrcOperation->Responses)
@@ -907,7 +739,6 @@ namespace UE::WebAPI::OpenAPI
 				// If "Default", resolves to 0, and means all other unhandled codes (similar to default in switch statement)
 				const uint32 Code = FCString::Atoi(*SrcResponse.Key);
 				const TObjectPtr<UWebAPIOperationResponse> DstResponse = DstOperation->Responses.Add_GetRef(NewObject<UWebAPIOperationResponse>(DstOperation));
-				// OutOperation->AddResponse() @todo
 				ConvertResponse(DstOperation->Name, Code, ResolveReference(SrcResponse.Value), DstResponse);
 
 				// If success response (code 200), had no resolved properties but the operation says it returns something, then add that something as a property
@@ -982,17 +813,14 @@ namespace UE::WebAPI::OpenAPI
 			if (const TObjectPtr<UWebAPIModel>& Model = Cast<UWebAPIModel>(ModelBase))
 			{
 				Model->BindToTypeInfo();
-				// Model->Name.TypeInfo->Model = Model;
 			}
 			else if (const TObjectPtr<UWebAPIEnum>& Enum = Cast<UWebAPIEnum>(ModelBase))
 			{
 				Enum->BindToTypeInfo();
-				// Enum->Name.TypeInfo->Model = Enum;
 			}
 			else if (const TObjectPtr<UWebAPIParameter>& ParameterModel = Cast<UWebAPIParameter>(ModelBase))
 			{
 				ParameterModel->BindToTypeInfo();
-				// ParameterModel->Type.TypeInfo->Model = ParameterModel;
 			}
 		}
 
@@ -1056,7 +884,7 @@ namespace UE::WebAPI::OpenAPI
 				}
 				else if(SecurityScheme->Type == TEXT("oauth2"))
 				{
-					// @todo:
+					// @todo: handle oauth2 conversion
 					FString FlowName = SecurityScheme->Flows.IsValid() ? TEXT("") : TEXT("");
 					V3::FOAuthFlowsObject Flow = (SecurityScheme->Flows.Get())[0];
 
@@ -1072,8 +900,6 @@ namespace UE::WebAPI::OpenAPI
 					{
 						// flow = FlowName
 					}
-
-					
 				}
 
 				// @todo: WebAPI security primitive
@@ -1146,19 +972,6 @@ namespace UE::WebAPI::OpenAPI
 				}
 
 				TSharedPtr<OpenAPI::V3::FOperationObject> SrcOperation = VerbOperationPair.Value;
-				if(SrcOperation->RequestBody.IsSet())
-				{
-					FString ParameterDefinitionName;
-					// @todo:
-					/*
-					TSharedPtr<V3::FRequestBodyObject> Parameter = ResolveReference(SrcOperation->RequestBody.GetShared(), ParameterDefinitionName);
-					if(!Parameter->Content.IsEmpty())
-					{
-						auto Content = Parameter->Content;
-							
-					}
-					*/
-				}
 
 				TArray<FString> Tags;
 				if (SrcOperation.IsValid() && SrcOperation->Tags.IsSet())
@@ -1217,19 +1030,7 @@ namespace UE::WebAPI::OpenAPI
 					Operation->Rename(*OperationObjectName.ToString(), Operation->GetOuter());
 
 					Operation->BindToTypeInfo();
-
-					// Verb->Parameters
-					// Verb->Responses
-					// Verb->Schemes
-					// Verb->Consumes ie. "application/json"
-					// Verb->Produces ie. "application/json"
-					// Verb->Security							
 				}
-				// @todo:
-				// ConvertParameters(Operation)
-
-				// @todo:
-				//ConvertResponses()
 			}
 		}
 		return true;
@@ -1240,6 +1041,3 @@ namespace UE::WebAPI::OpenAPI
 #undef SET_OPTIONAL
 
 #undef LOCTEXT_NAMESPACE
-
-// @todo: remove
-PRAGMA_ENABLE_OPTIMIZATION

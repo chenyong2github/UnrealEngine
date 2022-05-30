@@ -3,5 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Logging/LogMacros.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogWebAPIEditor, Log, All);
+WEBAPIEDITOR_API DECLARE_LOG_CATEGORY_EXTERN(LogWebAPIEditor, Log, All);

@@ -107,8 +107,6 @@ namespace UE::WebAPI::OpenAPI
 					Args.Add(TEXT("DefinitionName"), FText::FromString(DefinitionName));
 					MessageLog->LogInfo(FText::Format(LOCTEXT("CannotResolveType", "ResolveType (object) failed to find a matching type for definition \"{DefinitionName}\", creating a new one."), Args), FWebAPIOpenAPIProvider::LogName);
 
-					// @bug: where is the model created for this?
-					// @todo: should this always be of type model, vs parameter?
 					Result = OutputSchema->TypeRegistry->GetOrMakeGeneratedType(
 						EWebAPISchemaType::Model,
 						NameTransformer(DefinitionName),
@@ -219,7 +217,7 @@ namespace UE::WebAPI::OpenAPI
 		return nullptr;
 	}
 
-		template <typename ObjectType>
+	template <typename ObjectType>
 	TSharedPtr<ObjectType> FWebAPIOpenAPISchemaConverter::ResolveReference(const Json::TJsonReference<ObjectType>& InJsonReference, FString& OutDefinitionName, bool bInCheck)
 	{
 		if (InJsonReference.IsSet())
@@ -276,26 +274,7 @@ namespace UE::WebAPI::OpenAPI
 														const TObjectPtr<ModelType>& OutModel)
 	{
 		static_assert(TIsDerivedFrom<SchemaType, OpenAPI::V3::FSchemaObjectBase>::Value, "Type is not derived from OpenAPI::V3::FSchemaObjectBase.");
-/*
-		OutModel->Description = InSchema->Description.Get(TEXT(""));
 
-		SET_OPTIONAL(InSchema->bRequired, OutModel->bIsRequired)
-		
-		SET_OPTIONAL_FLAGGED(InSchema->Minimum, OutModel->MinimumValue, OutModel->bUseMinimumValue);
-		SET_OPTIONAL_FLAGGED(InSchema->Maximum, OutModel->MaximumValue, OutModel->bUseMaximumValue);
-
-		if(!OutModel->bUseMinimumValue)
-		{
-			SET_OPTIONAL_FLAGGED(InSchema->MinLength, OutModel->MinimumValue, OutModel->bUseMinimumValue);
-		}
-
-		if(!OutModel->bUseMaximumValue)
-		{
-			SET_OPTIONAL_FLAGGED(InSchema->MaxLength, OutModel->MaximumValue, OutModel->bUseMaximumValue);					
-		}
-		
-		SET_OPTIONAL_FLAGGED(InSchema->Pattern, OutModel->Pattern, OutModel->bUsePattern);
-		*/
 		return true;
 	}
 

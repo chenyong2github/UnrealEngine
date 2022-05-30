@@ -69,18 +69,6 @@ void UWebAPIOperationRequest::Visit(TFunctionRef<void(IWebAPISchemaObjectInterfa
 	}
 }
 
-/*
-void UWebAPIOperationParameters::Visit(TFunctionRef<void(IWebAPISchemaObjectInterface*&)> InVisitor)
-{
-	IWebAPISchemaObjectInterface::Visit(InVisitor);
-
-	for(const TObjectPtr<UWebAPIOperationParameter>& Parameter : Parameters)
-	{
-		Parameter->Visit(InVisitor);		
-	}
-}
-*/
-
 UWebAPIOperation::UWebAPIOperation()
 {
 	Request = CreateDefaultSubobject<UWebAPIOperationRequest>(TEXT("Request"));
@@ -101,8 +89,6 @@ void UWebAPIOperation::Visit(TFunctionRef<void(IWebAPISchemaObjectInterface*&)> 
 	IWebAPISchemaObjectInterface::Visit(InVisitor);
 	
 	Request->Visit(InVisitor);
-	TArray<int32> A;
-	int32& B = A.Emplace_GetRef();
 	for(const TObjectPtr<UWebAPIOperationResponse>& Response : Responses)
 	{
 		Response->Visit(InVisitor);		
@@ -114,7 +100,7 @@ void UWebAPIOperation::Visit(TFunctionRef<void(IWebAPISchemaObjectInterface*&)> 
 	}
 }
 
-void UWebAPIOperation::BindToTypeInfo() const
+void UWebAPIOperation::BindToTypeInfo()
 {
 	check(Name.HasTypeInfo());
 

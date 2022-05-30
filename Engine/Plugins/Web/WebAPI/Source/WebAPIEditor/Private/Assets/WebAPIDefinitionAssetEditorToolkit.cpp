@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPIDefinitionAssetEditorToolkit.h"
 
@@ -17,9 +17,9 @@
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Modules/ModuleManager.h"
+#include "Styling/AppStyle.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Styling/AppStyle.h"
 
 #define LOCTEXT_NAMESPACE "WebAPIDefinitionAssetEditorToolkit"
 
@@ -35,6 +35,7 @@ const FName FWebAPIDefinitionAssetEditorToolkit::CodeTabID(TEXT("WebAPIDefinitio
 FWebAPIDefinitionAssetEditorToolkit::FWebAPIDefinitionAssetEditorToolkit()
 	: Definition(nullptr)
 {
+	LayoutExtender = MakeShared<FLayoutExtender>();
 }
 
 FWebAPIDefinitionAssetEditorToolkit::~FWebAPIDefinitionAssetEditorToolkit()
@@ -88,6 +89,9 @@ void FWebAPIDefinitionAssetEditorToolkit::Initialize(const EToolkitMode::Type In
 	AddToolbarExtender(ToolbarExtender);
 	
 	RegenerateMenusAndToolbars();
+
+	WebAPIEditorModule.OnRegisterLayoutExtensions().Broadcast(*LayoutExtender);
+	StandaloneDefaultLayout->ProcessExtensions(*LayoutExtender);
 
 	// Support undo/redo
 	GEditor->RegisterForUndo(this);

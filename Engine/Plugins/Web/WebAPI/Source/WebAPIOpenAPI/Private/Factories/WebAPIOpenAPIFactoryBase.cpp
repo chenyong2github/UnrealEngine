@@ -12,17 +12,6 @@ UWebAPIOpenAPIFactoryBase::UWebAPIOpenAPIFactoryBase()
 	Formats.Add(TEXT("json;JavaScript Object Notation"));
 }
 
-TFuture<bool> UWebAPIOpenAPIFactoryBase::ImportWebAPI(UWebAPIDefinition* InDefinition, const FString& InFileName, const FString& InFileContents)
-{
-	// @todo: modify definition here
-	// write raw spec contents
-	// parse spec
-
-	// @todo: return false if json couldn't be parsed
-
-	return MakeFulfilledPromise<bool>(false).GetFuture();
-}
-
 bool UWebAPIOpenAPIFactoryBase::IsValidFileExtension(const FString& InFileExtension) const
 {
 	return InFileExtension.Equals(JsonFileType.ToString(), ESearchCase::IgnoreCase);

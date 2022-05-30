@@ -3,12 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "WebAPIEditorLog.h"
 #include "Algo/AnyOf.h"
 #include "Dom/JsonObject.h"
 #include "Dom/JsonValue.h"
 #include "Misc/TVariant.h"
-#include "Misc/Variant.h"
 
 namespace UE::Json
 {
@@ -263,18 +261,6 @@ namespace UE::Json
 		/** Underling object pointer. */
 		TSharedPtr<ObjectType> Object;
 	};
-		
-	// @note: ideal changes to Json (engine module)
-	// - Support TVariant (same field name, different types)
-	// - Support TOptional for Get* and TryGet*
-
-	// @todo: somehow account for TOptional or not in same call or minimal overload?
-
-	// template <typename ValueType>
-	// void As(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue)
-	// {
-	// 	unimplemented();
-	// }
 
 	// Numeric
 	template <typename ValueType>
@@ -353,6 +339,14 @@ namespace UE::Json
 	template <typename KeyType, typename ValueType>
 	constexpr typename TEnableIf<TypeTraits::TIsStringLike<KeyType>::Value, bool>::Type // Key must be string
 	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TMap<KeyType, ValueType>& OutValues); // Key must be string
+
+	template <typename MapType>
+	typename TEnableIf<TIsTMap<MapType>::Value, bool>::Type
+	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, MapType& OutValues);
+
+	template <typename MapType>
+	constexpr typename TEnableIf<TIsTMap<MapType>::Value, bool>::Type
+	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, MapType& OutValues); // Key must be string
 	
 	// Object (with FromJson)
 	template <typename ValueType>
@@ -383,6 +377,21 @@ namespace UE::Json
 	template <typename ValueType>
 	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TUniqueObj<ValueType>& OutValue);
 
+	// TJsonReference
+	template <typename ValueType>
+	bool TryGet(const TSharedPtr<FJsonValue>& InJsonValue, TJsonReference<ValueType>& OutValue);
+
+	template <typename ValueType>
+	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TJsonReference<ValueType>& OutValue);
+
+	template <typename ValueType>
+	typename TEnableIf<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>::Value, bool>::Type
+	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue);
+
+	template <typename ValueType>
+	typename TEnableIf<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>::Value, bool>::Type
+	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ValueType& OutValue);
+
 	// Object (with FromJson)
 	template <typename ValueType>
 	typename TEnableIf<
@@ -402,6 +411,9 @@ namespace UE::Json
 	template <typename ValueType>
 	typename TEnableIf<
 		TAnd<
+			TNot<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>>,
+			TNot<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>>,
+			TNot<TIsTMap<ValueType>>,
 			TNot<TIsTArray<ValueType>>,
 			TNot<TypeTraits::TIsStringLike<ValueType>>,
 			TNot<TIsPODType<ValueType>>,
@@ -412,6 +424,9 @@ namespace UE::Json
 	template <typename ValueType>
 	typename TEnableIf<
 		TAnd<
+			TNot<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>>,
+			TNot<TIsSame<ValueType, TJsonReference<typename ValueType::ElementType>>>,
+			TNot<TIsTMap<ValueType>>,
 			TNot<TIsTArray<ValueType>>,
 			TNot<TypeTraits::TIsStringLike<ValueType>>,
 			TNot<TIsPODType<ValueType>>,
@@ -425,19 +440,20 @@ namespace UE::Json
 	template <typename ValueType>
 	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TUniqueObj<ValueType>& OutValue);
 
-	// TJsonReference
-	template <typename ValueType>
-	bool TryGet(const TSharedPtr<FJsonValue>& InJsonValue, TJsonReference<ValueType>& OutValue);
-
-	template <typename ValueType>
-	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TJsonReference<ValueType>& OutValue);
-
 	// SharedPtr
 	template <typename ValueType>
 	bool TryGet(const TSharedPtr<FJsonValue>& InJsonValue, TSharedPtr<ValueType>& OutValue);
 
 	template <typename ValueType>
 	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TSharedPtr<ValueType>& OutValue);
+
+	template <typename ValueType>
+	typename TEnableIf<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>::Value, bool>::Type
+	TryGet(const TSharedPtr<FJsonValue>& InJsonValue, ValueType& OutValue);
+
+	template <typename ValueType>
+	typename TEnableIf<TIsSame<ValueType, TSharedPtr<typename ValueType::ElementType>>::Value, bool>::Type
+	TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, ValueType& OutValue);
 
 	// SharedRef
 	template <typename ValueType>
@@ -496,26 +512,16 @@ namespace UE::Json
 		template <typename ValueType>
 		bool operator()(ValueType& OutValue)
 		{
-			RunCount++;
-			if(bFoundMatch)
-			{
-				return bFoundMatch;
-			}
-
 			ValueType TempValue;
 			if(UE::Json::TryGet(JsonValue, TempValue))
 			{
 				OutValue = MoveTemp(TempValue);
-				bFoundMatch = true;
 				return true;
 			}
 
 			return false;
 		}
 
-		// @todo: for debug, remove
-		uint32 RunCount = 0;
-		bool bFoundMatch = false;
 		const TSharedPtr<FJsonValue> JsonValue;
 	};
 
@@ -530,21 +536,14 @@ namespace UE::Json
 		template <typename ValueType>
 		bool operator()(ValueType& OutValue)
 		{
-			if(bFoundMatch)
-			{
-				return bFoundMatch;
-			}
-				
 			if(UE::Json::TryGetField(JsonObject, FieldName, OutValue))
 			{
-				bFoundMatch = true;
 				return true;
 			}
 
 			return false;
 		}
 
-		bool bFoundMatch = false;
 		const TSharedPtr<FJsonObject> JsonObject;
 		const FString FieldName;
 	};
@@ -555,3 +554,5 @@ namespace UE::Json
 	template <typename... ValueTypes>
 	bool TryGetField(const TSharedPtr<FJsonObject>& InJsonObject, const FString& InFieldName, TVariant<ValueTypes...>& OutValue);
 }
+
+#include "WebAPIJsonUtilities.inl"

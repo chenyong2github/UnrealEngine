@@ -56,6 +56,8 @@ public:
     /** Returns the static type registry to retrieve metadata for built-in types. */
     virtual UWebAPIStaticTypeRegistry* GetStaticTypeRegistry() const override;
 
+	virtual FOnRegisterLayoutExtensions& OnRegisterLayoutExtensions() override { return RegisterLayoutExtensions; }
+
 public:
     /** App identifier string */
     static const FName AppIdentifier;
@@ -67,7 +69,6 @@ private:
     EAssetTypeCategories::Type AssetCategory = EAssetTypeCategories::Misc;
     TWeakPtr<FWebAPIDefinitionAssetEditorToolkit> AssetEditorToolkit;
     TArray<TSharedPtr<class IAssetTypeActions>> Actions;
-	
 
     TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
     TSharedPtr<FExtensibilityManager> ToolBarExtensibilityManager;
@@ -76,4 +77,6 @@ private:
     FOnWebAPIProvidersChanged ProvidersChangedDelegate;
 
     TMap<FName, TScriptInterface<IWebAPICodeGeneratorInterface>> CodeGenerators;
+
+	FOnRegisterLayoutExtensions	RegisterLayoutExtensions;
 };

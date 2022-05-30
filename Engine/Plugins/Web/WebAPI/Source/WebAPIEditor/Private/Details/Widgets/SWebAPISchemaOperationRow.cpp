@@ -21,7 +21,7 @@ void SWebAPISchemaOperationRow::Construct(const FArguments& InArgs, const TShare
 		[
 			SNew(SBorder)
 			.BorderBackgroundColor(FLinearColor(0,0,0,0))
-			// @todo: this prevents selection highlight
+			// @todo: this prevents selection highlight, check slack correspondence
 			//.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(4)
 			[

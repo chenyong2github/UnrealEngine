@@ -181,33 +181,10 @@ namespace UE::WebAPI::Swagger
 						const FString& SrcPropertyName = NamePropertyPair.Key;
 						FString SrcPropertyDefinitionName = ProviderSettings.MakeNestedPropertyTypeName(*ModelTypeName.ToString(true), SrcPropertyName);
 						TSharedPtr<OpenAPI::V2::FSchema> SrcPropertyValue = ResolveReference(NamePropertyPair.Value, SrcPropertyDefinitionName);
-						/*
-						if (!SrcPropertyValue.IsSet())
-						{
-							if (TSharedPtr<OpenAPI::V2::FSchema> ResolvedSchema = ResolveReference(SrcPropertyValue, SrcPropertyDefinitionName))
-							{
-								SrcPropertyDefinitionName = SrcPropertyValue.GetLastPathSegment();
-								SrcPropertyValue.Set(ResolvedSchema);
-							}
-						}
-
-						if (!SrcPropertyValue.GetPath().IsEmpty())
-						{
-							SrcPropertyDefinitionName = SrcPropertyValue.GetLastPathSegment();
-						}
-
-						if (SrcPropertyValue.IsSet()
-							&& SrcPropertyValue->Items.IsSet()
-							&& !SrcPropertyValue->Items->GetPath().IsEmpty())
-						{
-							SrcPropertyDefinitionName = SrcPropertyValue->Items->GetLastPathSegment();
-						}
-						*/
 
 						if (SrcPropertyValue)
 						{
-							TObjectPtr<UWebAPIProperty>& DstProperty = Model->Properties.Add_GetRef(
-								NewObject<UWebAPIProperty>(Model));
+							TObjectPtr<UWebAPIProperty>& DstProperty = Model->Properties.Add_GetRef(NewObject<UWebAPIProperty>(Model));
 							PatchProperty(Model->Name,
 								FWebAPINameInfo(NameTransformer(SrcPropertyName), SrcPropertyName, ModelTypeName),
 								SrcPropertyValue,

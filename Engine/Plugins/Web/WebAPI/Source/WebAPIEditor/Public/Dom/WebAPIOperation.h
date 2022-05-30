@@ -185,12 +185,14 @@ public:
 	//~ Begin IWebAPISchemaObjectInterface Interface.
 	virtual void SetNamespace(const FString& InNamespace) override;
 	virtual void Visit(TFunctionRef<void(IWebAPISchemaObjectInterface*&)> InVisitor) override;
-	void BindToTypeInfo() const;
 #if WITH_EDITOR
 	virtual void SetCodeText(const FString& InCodeText) override;
 	virtual void AppendCodeText(const FString& InCodeText) override;
 #endif
 	//~ End IWebAPISchemaObjectInterface Interface.
+
+	/** Associates this model with it's own TypeInfo. */
+	virtual void BindToTypeInfo();
 
 #if WITH_EDITOR
 	/** 

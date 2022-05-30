@@ -17,7 +17,9 @@ class WEBAPIOPENAPI_API UWebAPIOpenAPIFactoryBase
 public:
 	UWebAPIOpenAPIFactoryBase();
 
-	virtual TFuture<bool> ImportWebAPI(UWebAPIDefinition* InDefinition, const FString& InFileName, const FString& InFileContents) override;
+	virtual TFuture<bool> ImportWebAPI(UWebAPIDefinition* InDefinition, const FString& InFileName, const FString& InFileContents) override
+	PURE_VIRTUAL(UWebAPIOpenAPIFactoryBase::ImportWebAPI, return MakeFulfilledPromise<bool>(false).GetFuture();)
+	
 	virtual bool IsValidFileExtension(const FString& InFileExtension) const override;
 
 protected:

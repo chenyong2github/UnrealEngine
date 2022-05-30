@@ -90,32 +90,8 @@ namespace UE
 					TOptional<TMap<FString, Json::TJsonReference<FExampleObject>>> Examples;
 
 					TOptional<TMap<FString, TSharedPtr<FMediaTypeObject>>> Content; // only one item
-					// @todo: style values
-			
+
 					// MAY be extended with Specification Extensions
-
-					const FString& GetStyle()
-					{
-						if(Style.IsSet())
-						{
-							return Style.GetValue();
-						}
-
-						static TMap<FString, FString> DefaultStylesForIn = {
-							{ TEXT("query"), TEXT("form") },
-							{ TEXT("path"), TEXT("simple") },
-							{ TEXT("header"), TEXT("simple") },
-							{ TEXT("cookie"), TEXT("form") },
-						};
-
-						if(const FString* FoundStyle = DefaultStylesForIn.Find(In))
-						{
-							return *FoundStyle;
-						}
-
-						static FString Empty;
-						return Empty;
-					}
 
 					bool FromJson(const TSharedRef<FJsonObject>& InJson);
 				};
@@ -146,7 +122,7 @@ namespace UE
 					TOptional<FString> Pattern;
 					TOptional<int32> MinItems;
 					TOptional<int32> MaxItems;
-					TOptional<bool> bUniqueItems; // @todo: array should be a Set
+					TOptional<bool> bUniqueItems; // Array should be a Set
 					TOptional<int32> MinProperties;
 					TOptional<int32> MaxProperties;
 					TOptional<TArray<FString>> Enum; // All possible values

@@ -3,6 +3,7 @@
 #include "Dom/WebAPITypeRegistry.h"
 
 #include "GraphEditorSettings.h"
+#include "WebAPIEditorLog.h"
 #include "Algo/Copy.h"
 #include "Serialization/JsonTypes.h"
 
@@ -178,10 +179,8 @@ TObjectPtr<UWebAPITypeInfo> UWebAPITypeRegistry::GetOrMakeGeneratedType(
 	TypeInfo->DeclarationType = InDeclarationType;
 	TypeInfo->SetName(InName);
 
-	// @todo: remove
-	UE_LOG(LogTemp, Display, TEXT("New Type Path: %s"), *TypeInfo->GetPathName());
-
 #if WITH_WEBAPI_DEBUG
+	UE_LOG(LogWebAPIEditor, Display, TEXT("New Type Path: %s"), *TypeInfo->GetPathName());
 	TypeInfo->DebugString += TEXT(">Created in GetOrMakeGeneratedType");
 #endif
 
@@ -206,8 +205,9 @@ TObjectPtr<UWebAPITypeInfo> UWebAPITypeRegistry::GetOrMakeGeneratedType(
 {
 	ensureAlways(!InName.IsEmpty());
 
-	// @todo: remove
-	UE_LOG(LogTemp, Display, TEXT("Template Type Path: %s"), *InTemplateTypeInfo->GetPathName());	
+#if WITH_WEBAPI_DEBUG
+	UE_LOG(LogWebAPIEditor, Display, TEXT("Template Type Path: %s"), *InTemplateTypeInfo->GetPathName());	
+#endif
 	
 	if(const TObjectPtr<UWebAPITypeInfo>* FoundType = FindGeneratedType(InSchemaType, InName))
 	{
@@ -217,9 +217,10 @@ TObjectPtr<UWebAPITypeInfo> UWebAPITypeRegistry::GetOrMakeGeneratedType(
 	const FName TypeName = UE::WebAPI::MakeTypeInfoName(this, InSchemaType, InName);
 	GeneratedTypes.Emplace(DuplicateObject(InTemplateTypeInfo.Get(), this, TypeName));
 	const TObjectPtr<UWebAPITypeInfo>& TypeInfo = GeneratedTypes.Last();
-	
-	// @todo: remove
-	UE_LOG(LogTemp, Display, TEXT("Duplicate Type Path: %s"), *TypeInfo->GetPathName());
+
+#if WITH_WEBAPI_DEBUG
+	UE_LOG(LogWebAPIEditor, Display, TEXT("Duplicate Type Path: %s"), *TypeInfo->GetPathName());
+#endif
 
 	TypeInfo->Name = InName;
 	TypeInfo->SchemaType = InSchemaType;
@@ -283,11 +284,6 @@ bool UWebAPITypeRegistry::CheckAllNamed() const
 	TArray<TObjectPtr<UWebAPITypeInfo>> UnnamedTypes;
 	if(!CheckAllNamed(UnnamedTypes))
 	{
-		// @todo: what's this garbage?
-	// 	const FText LogMessage = FText::FormatNamed(
-	// LOCTEXT("HasUnnamed", "{Num} unnamed types found in the TypeRegistry."),
-	// 	TEXT("Num"), UnnamedTypes.Num());
-	// 	FWebAPIMessageLog::Get().LogError(LogMessage, UWebAPITypeRegistry::LogName);
 		return false;
 	}
 
@@ -333,8 +329,9 @@ FName UE::WebAPI::MakeTypeInfoName(UObject* InOuter, const EWebAPISchemaType& In
 		Result = MakeUniqueObjectName(InOuter, UWebAPITypeInfo::StaticClass(), FName(FString::Format(TEXT("{ClassName}_{SchemaType}_{TypeName}_"), NameArgs)));
 	}
 
-	// @todo: remove
-	UE_LOG(LogTemp, Display, TEXT("MakeTypeName: %s"), *Result.ToString());
+#if WITH_WEBAPI_DEBUG
+	UE_LOG(LogWebAPIEditor, Display, TEXT("MakeTypeName: %s"), *Result.ToString());
+#endif
 	
 	return Result;
 }
