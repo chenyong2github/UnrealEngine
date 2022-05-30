@@ -11,11 +11,11 @@ uint2 ViewportResolution;
 uint FrameIndex;
 uint FrameThreshold;
 
-StructuredBuffer<FPackedShaderPrintItem> ValuesBuffer;
-StructuredBuffer<FPackedShaderPrintItem> SymbolsBuffer;
+StructuredBuffer<uint> ValuesBuffer;
+StructuredBuffer<uint> SymbolsBuffer;
 
-RWStructuredBuffer<FPackedShaderPrintItem> RWValuesBuffer;
-RWStructuredBuffer<FPackedShaderPrintItem> RWSymbolsBuffer;
+RWStructuredBuffer<uint> RWValuesBuffer;
+RWStructuredBuffer<uint> RWSymbolsBuffer;
 RWStructuredBuffer<uint> RWStateBuffer;
 
 RWBuffer<uint> RWIndirectDispatchArgsBuffer;
@@ -30,16 +30,9 @@ RWBuffer<uint> RWIndirectDrawArgsBuffer;
 [numthreads(1, 1, 1)]
 void InitValueBufferCS()
 {
-	// Clear .Value in the first buffer element which is (ab)used as the buffer counter
-	// Clear .Type in the first buffer element which is (ab)used as the ShaderPrintFilterOneThread() atomic value
-
 	// Symbol/print Counter
-	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].ScreenPos16bits = 0;
-	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value = 0;
-	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].TypeAndColor = 0;
-	RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Metadata = 0;
+	ClearCounters(RWValuesBuffer);
 }
-
 
 // --------------------------------------------------------------------------
 // Fill the indirect params buffer ready for the value->symbol compute pass
@@ -48,16 +41,14 @@ void InitValueBufferCS()
 [numthreads(1, 1, 1)]
 void BuildIndirectDispatchArgsCS()
 {
-	uint ValueCount = min(ShaderPrintData.MaxValueCount, uint(ValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value));
+	uint ValueCount = min(ShaderPrintData.MaxValueCount, ValuesBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL]);
 
 	RWIndirectDispatchArgsBuffer[0] = (ValueCount + 63)/64;
 	RWIndirectDispatchArgsBuffer[1] = 1;
 	RWIndirectDispatchArgsBuffer[2] = 1;
 
-	// Clear .Value in the first buffer element which is (ab)used as the buffer counter
-	RWSymbolsBuffer[SHADER_PRINT_COUNT_OFFSET].Value = 0;
+	ClearCounters(RWSymbolsBuffer);
 }
-
 
 // --------------------------------------------------------------------------
 // Read the values buffer and convert to the symbols buffer
@@ -73,7 +64,7 @@ void AddSymbol(inout float2 ScreenPos, in int Symbol, in float3 Color, uint Type
 	{
 		// Buffer counter is stored in first element .Value
 		int IndexToStore = 0;
-		InterlockedAdd(RWSymbolsBuffer[SHADER_PRINT_COUNT_OFFSET].Value, 1, IndexToStore);
+		InterlockedAdd(RWSymbolsBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL], 1, IndexToStore);
 	
 		// Prevent writing off the buffer
 		// Note that counter still increases so need to clamp when reading it in later passes
@@ -82,8 +73,7 @@ void AddSymbol(inout float2 ScreenPos, in int Symbol, in float3 Color, uint Type
 			return;
 		}
 
-		// Because counter is in first element, read/writes need to be offset by 1
-		RWSymbolsBuffer[IndexToStore + SHADER_PRINT_VALUE_OFFSET] = PackShaderPrintItem(Item);
+		WriteSymbol(IndexToStore, Item, RWSymbolsBuffer);
 	}
 
 	ScreenPos.x += ShaderPrintData.FontSpacing.x;
@@ -213,13 +203,13 @@ void AddHexSymbols(inout float2 ScreenPos, uint Value, in float3 Color)
 [numthreads(64, 1, 1)]
 void BuildSymbolBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	uint ValueCount = min(ShaderPrintData.MaxValueCount, uint(ValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value));
+	uint ValueCount = min(ShaderPrintData.MaxValueCount, ValuesBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL]);
 	if (DispatchThreadId.x >= ValueCount)
 	{
 		return;
 	}
-
-	FShaderPrintItem Value = UnpackShaderPrintItem(ValuesBuffer[DispatchThreadId.x + SHADER_PRINT_VALUE_OFFSET]);
+	
+	FShaderPrintItem Value = ReadSymbol(DispatchThreadId.x, ValuesBuffer);
 	
 	if (Value.Type == SHADER_PRINT_TYPE_SYMBOL)
 		AddSymbol(Value.ScreenPos, Value.Value, Value.Color);
@@ -281,7 +271,7 @@ void CompactStateBufferCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 [numthreads(1, 1, 1)]
 void BuildIndirectDrawArgsCS()
 {
-	uint SymbolCount = min(ShaderPrintData.MaxSymbolCount, uint(SymbolsBuffer[SHADER_PRINT_COUNT_OFFSET].Value));
+	uint SymbolCount = min(ShaderPrintData.MaxSymbolCount, SymbolsBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL]);
 
 	RWIndirectDrawArgsBuffer[0] = 6;
 	RWIndirectDrawArgsBuffer[1] = SymbolCount * 2; // Main glyph + drop shadow
@@ -308,7 +298,7 @@ void DrawSymbolsVS(
 	float2 DropShadowOffset = bDropShadow ? ShaderPrintData.FontSize.xy * float2(0.2f, -0.2f) : 0;
 
 	InstanceId = InstanceId >> 1;
-	FShaderPrintItem Symbol = UnpackShaderPrintItem(SymbolsBuffer[InstanceId + SHADER_PRINT_VALUE_OFFSET]);
+	FShaderPrintItem Symbol = ReadSymbol(InstanceId, SymbolsBuffer);
 	OutType = Symbol.Type;
 	OutValue = Symbol.Value;
 	OutColor = Symbol.Color;

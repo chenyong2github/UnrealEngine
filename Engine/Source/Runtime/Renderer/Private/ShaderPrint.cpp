@@ -86,30 +86,7 @@ namespace ShaderPrint
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	// Struct & Functions
-	
-	// Structure used by shader buffers to store values and symbols
-	struct FPackedShaderPrintItem
-	{
-		uint32 ScreenPos16bits;
-		int32  Value;
-		uint32 TypeAndColor;
-		uint32 Metadata;
-	};
 
-	// Empty buffer for binding when ShaderPrint is disabled
-	class FEmptyBuffer : public FBufferWithRDG
-	{
-	public:
-		void InitRHI() override
-		{
-			Buffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderPrintItem), 1), TEXT("ShaderPrint.EmptyValueBuffer"));
-		}
-	};
-
-	FBufferWithRDG* GEmptyBuffer = new TGlobalResource<FEmptyBuffer>();
-
-	// Get value buffer size
-	// Note that if the ShaderPrint system is disabled we still want to bind a minimal buffer
 	static uint32 GetMaxValueCount()
 	{
 		uint32 MaxValueCount = FMath::Max(CVarMaxCharacterCount.GetValueOnRenderThread() + int32(GCharacterRequestCount), 0);
@@ -135,9 +112,10 @@ namespace ShaderPrint
 	}
 
 	// Returns the number of uints used for counters, a line element, and a triangle elements
-	static uint32 GetCountersUintSize()       { return 4;  }
+	static uint32 GetCountersUintSize()       { return 4; }
 	static uint32 GetPackedLineUintSize()     { return 8; }
 	static uint32 GetPackedTriangleUintSize() { return 12; }
+	static uint32 GetPackedSymbolUintSize()   { return 4; }
 
 	// Get symbol buffer size
 	// This is some multiple of the value buffer size to allow for maximum value->symbol expansion
@@ -155,6 +133,18 @@ namespace ShaderPrint
 	{
 		return CVarDrawLock.GetValueOnRenderThread() > 0;
 	}
+
+	// Empty buffer for binding when ShaderPrint is disabled
+	class FEmptyBuffer : public FBufferWithRDG
+	{
+	public:
+		void InitRHI() override
+		{
+			Buffer = AllocatePooledBuffer(FRDGBufferDesc::CreateStructuredDesc(4, GetCountersUintSize()), TEXT("ShaderPrint.EmptyValueBuffer"));
+		}
+	};
+
+	FBufferWithRDG* GEmptyBuffer = new TGlobalResource<FEmptyBuffer>();
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////
 	// Uniform buffer
@@ -279,7 +269,7 @@ namespace ShaderPrint
 		SHADER_USE_PARAMETER_STRUCT(FShaderInitValueBufferCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FPackedShaderPrintItem>, RWValuesBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWValuesBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
@@ -299,8 +289,8 @@ namespace ShaderPrint
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedShaderPrintItem>, ValuesBuffer)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FPackedShaderPrintItem>, RWSymbolsBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ValuesBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWSymbolsBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectDispatchArgsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -344,8 +334,8 @@ namespace ShaderPrint
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER(uint32, FrameIndex)
 			SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedShaderPrintItem>, ValuesBuffer)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FPackedShaderPrintItem>, RWSymbolsBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ValuesBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWSymbolsBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWStateBuffer)
 			RDG_BUFFER_ACCESS(IndirectDispatchArgsBuffer, ERHIAccess::IndirectArgs)
 		END_SHADER_PARAMETER_STRUCT()
@@ -367,7 +357,7 @@ namespace ShaderPrint
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedShaderPrintItem>, SymbolsBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, SymbolsBuffer)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectDrawArgsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -394,7 +384,7 @@ namespace ShaderPrint
 			RENDER_TARGET_BINDING_SLOTS()
 			SHADER_PARAMETER_STRUCT_REF(FShaderPrintCommonParameters, Common)
 			SHADER_PARAMETER_TEXTURE(Texture2D, MiniFontTexture)
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedShaderPrintItem>, SymbolsBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, SymbolsBuffer)
 			RDG_BUFFER_ACCESS(IndirectDrawArgsBuffer, ERHIAccess::IndirectArgs)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -608,8 +598,8 @@ namespace ShaderPrint
 		// Characters/Widgets
 		{
 			// Initialize output buffer and store in the view info
-			// Values buffer contains Count + 1 elements. The first element is only used as a counter.
-			ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderPrintItem), InSetup.MaxValueCount + 1), TEXT("ShaderPrint.ValueBuffer"));
+			const uint32 UintElementCount = GetCountersUintSize() + GetPackedSymbolUintSize() * InSetup.MaxValueCount;
+			ShaderPrintData.ShaderPrintValueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, UintElementCount), TEXT("ShaderPrint.ValueBuffer"));
 
 			// State buffer is retrieved from the view state, or created if it does not exist
 			if (InViewState != nullptr)
@@ -620,7 +610,7 @@ namespace ShaderPrint
 				}
 				else
 				{
-					ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), (3 * InSetup.MaxStateCount) + 1), TEXT("ShaderPrint.StateBuffer"));
+					ShaderPrintData.ShaderPrintStateBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, (3 * InSetup.MaxStateCount) + 1), TEXT("ShaderPrint.StateBuffer"));
 					AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(ShaderPrintData.ShaderPrintStateBuffer, PF_R32_UINT), 0u);
 					InViewState->ShaderPrintStateData.StateBuffer = GraphBuilder.ConvertToExternalBuffer(ShaderPrintData.ShaderPrintStateBuffer);
 				}
@@ -735,8 +725,8 @@ namespace ShaderPrint
 		FScreenPassTexture OutputTexture)
 	{
 		// Initialize graph managed resources
-		// Symbols buffer contains Count + 1 elements. The first element is only used as a counter.
-		FRDGBufferRef SymbolBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderPrintItem), GetMaxSymbolCount() + 1), TEXT("ShaderPrint.SymbolBuffer"));
+		const uint32 UintElementCount = GetCountersUintSize() + GetPackedSymbolUintSize() * GetMaxSymbolCount();
+		FRDGBufferRef SymbolBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4, UintElementCount), TEXT("ShaderPrint.SymbolBuffer"));
 		FRDGBufferRef IndirectDispatchArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), TEXT("ShaderPrint.IndirectDispatchArgs"));
 		FRDGBufferRef IndirectDrawArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("ShaderPrint.IndirectDrawArgs"));
 

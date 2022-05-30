@@ -100,44 +100,46 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-// Uniforms and structures
-
-struct FShaderPrintItem
-{
-	float2 ScreenPos; // Position in normalized coordinates
-	int Value;        // Cast to value or symbol
-	int Type;         // SHADER_PRINT_TYPE_* defines how to read Value
-	float3 Color;	  // Color 
-	uint Metadata;	  // Metadata (used for widget to store extra state data
-};
-
-// Needs to match C++ code in ShaderPrint.cpp
-struct FPackedShaderPrintItem
-{
-	uint ScreenPos16bits; // Position in normalized coordinates
-	int Value;            // Cast to value or symbol
-	uint TypeAndColor;    //
-	uint Metadata;	      //
-};
-
-StructuredBuffer<uint> ShaderPrint_StateBuffer;
-RWStructuredBuffer<FPackedShaderPrintItem> ShaderPrint_RWValuesBuffer;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 // Input types
 
 // Content of FShaderPrintItem.Type defines what to cast FShaderPrintItem.Value as
-#define SHADER_PRINT_TYPE_SYMBOL 0
-#define SHADER_PRINT_TYPE_FLOAT  1
-#define SHADER_PRINT_TYPE_INT    2
-#define SHADER_PRINT_TYPE_UINT   3
-#define SHADER_PRINT_TYPE_HEX    4
 
-#define SHADER_PRINT_TYPE_SLIDER 5
-#define SHADER_PRINT_TYPE_CHECK  6
+// Type of primitives
+#define SHADER_PRINT_TYPE_SYMBOL   0
+#define SHADER_PRINT_TYPE_FLOAT    1
+#define SHADER_PRINT_TYPE_INT      2
+#define SHADER_PRINT_TYPE_UINT     3
+#define SHADER_PRINT_TYPE_HEX      4
+#define SHADER_PRINT_TYPE_SLIDER   5
+#define SHADER_PRINT_TYPE_CHECK    6
+// Type of primitives (to be merged with the list above once all buffer are merged)
+#define SHADER_PRINT_TYPE_LINE     0
+#define SHADER_PRINT_TYPE_TRIANGLE 1
 
-#define SHADER_PRINT_COUNT_OFFSET 0
-#define SHADER_PRINT_VALUE_OFFSET 1
+// Size of packed data, in uint
+#define SHADER_PRINT_UINT_COUNT_SYMBOL   4
+#define SHADER_PRINT_UINT_COUNT_LINE     8
+#define SHADER_PRINT_UINT_COUNT_TRIANGLE 12
+
+// Counter offset
+#define SHADER_PRINT_COUNTER_OFFSET_LINE     0
+#define SHADER_PRINT_COUNTER_OFFSET_TRIANGLE 1
+#define SHADER_PRINT_COUNTER_OFFSET_SYMBOL   2
+#define SHADER_PRINT_COUNTER_OFFSET_FREE     3
+#define SHADER_PRINT_COUNTER_COUNT           4
+
+uint GetSymbolOffset(uint InIndex)				{ return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_SYMBOL * InIndex; }
+uint GetPrimitiveLineOffset(uint InIndex)		{ return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_LINE * InIndex; }
+uint GetPrimitiveTriangleOffset(uint InIndex)	{ return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_LINE * ShaderPrintData.MaxLineCount + SHADER_PRINT_UINT_COUNT_TRIANGLE * InIndex; }
+
+void ClearCounters(RWStructuredBuffer<uint> InRWBuffer)
+{
+	// Symbol/print Counter
+	InRWBuffer[SHADER_PRINT_COUNTER_OFFSET_LINE] = 0;
+	InRWBuffer[SHADER_PRINT_COUNTER_OFFSET_TRIANGLE] = 0;
+	InRWBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL] = 0;
+	InRWBuffer[SHADER_PRINT_COUNTER_OFFSET_FREE] = 0;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // State 
@@ -151,6 +153,27 @@ RWStructuredBuffer<FPackedShaderPrintItem> ShaderPrint_RWValuesBuffer;
 
 #define SHADER_PRINT_STATE_INVALID_INDEX 0xFF
 #define SHADER_PRINT_STATE_HASH_MASK 0xFFFFFF
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Output structures
+
+StructuredBuffer<uint> ShaderPrint_StateBuffer;
+
+// Symbols
+//  ----------------------------------------------------------------------------------------------
+// ||  Line    | Triangle |  Symbol |  Empty  ||  Symb0  |  Symb1  |  Symb2  |  Symb3  |  ...  ...
+// || Counter  | Counter  | Counter | Counter ||         |         |         |         |  ...  ...
+// || (1uint)  | (1uint)  | (1uint) | (1uint) || (4uint) | (4uint) | (4uint) | (4uint) |  ...  ...
+//  ----------------------------------------------------------------------------------------------
+RWStructuredBuffer<uint> ShaderPrint_RWValuesBuffer;
+
+// Primitive buffer layout
+//  ------------------------------------------------------------------------------------------------------------------------------------------------
+// ||  Line    | Triangle |  Empty  |  Empty  ||  Line0  |  Line1  |  Line2  |  Line3  |  ...  | Triangle0 | Triangle1 | Triangle2 | Triangle3 | ...
+// || Counter  | Counter  | Counter | Counter ||         |         |         |         |  ...  |           |           |           |           | ...
+// || (1uint)  | (1uint)  | (1uint) | (1uint) || (8uint) | (8uint) | (8uint) | (8uint) |  ...  | (12uint)  | (12uint)  | (12uint)  | (12uint)  | ...
+//  ------------------------------------------------------------------------------------------------------------------------------------------------
+RWStructuredBuffer<uint> ShaderPrint_RWPrimitivesBuffer;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Font Color
@@ -213,6 +236,24 @@ FFontColor GetDefaultFontColor()							{ FFontColor Out; Out.Color = float3(1,1,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Util pack/unpac functions
 
+struct FShaderPrintItem
+{
+	float2 ScreenPos; // Position in normalized coordinates
+	int Value;        // Cast to value or symbol
+	int Type;         // SHADER_PRINT_TYPE_* defines how to read Value
+	float3 Color;	  // Color 
+	uint Metadata;	  // Metadata (used for widget to store extra state data
+};
+
+// Needs to match C++ code in ShaderPrint.cpp
+struct FPackedShaderPrintItem
+{
+	uint ScreenPos16bits; // Position in normalized coordinates
+	uint Value;           // Cast to value or symbol
+	uint TypeAndColor;    //
+	uint Metadata;	      //
+};
+
 FPackedShaderPrintItem PackShaderPrintItem(FShaderPrintItem In)
 {
 	const uint3 Color8bits = saturate(In.Color) * 0xFF;
@@ -220,7 +261,7 @@ FPackedShaderPrintItem PackShaderPrintItem(FShaderPrintItem In)
 
 	FPackedShaderPrintItem Out;
 	Out.ScreenPos16bits = ScreenPos16bit.x | (ScreenPos16bit.y<<16);
-	Out.Value = In.Value;
+	Out.Value = asuint(In.Value);
 	Out.TypeAndColor = (Color8bits.z << 24) | (Color8bits.y << 16) | (Color8bits.x << 8) | (In.Type & 0xFF);
 	Out.Metadata = In.Metadata;
 	return Out;
@@ -232,13 +273,37 @@ FShaderPrintItem UnpackShaderPrintItem(FPackedShaderPrintItem In)
 
 	FShaderPrintItem Out;
 	Out.ScreenPos = f16tof32(ScreenPos16bits);
-	Out.Value	  = In.Value;
+	Out.Value	  = asint(In.Value);
 	Out.Type	  = (In.TypeAndColor) & 0xFF;
 	Out.Color.x   = float((In.TypeAndColor >>  8) & 0xFF) / 255.f;
 	Out.Color.y   = float((In.TypeAndColor >> 16) & 0xFF) / 255.f;
 	Out.Color.z   = float((In.TypeAndColor >> 24) & 0xFF) / 255.f;
 	Out.Metadata  = In.Metadata;
 	return Out;
+}
+
+void WriteSymbol(uint Offset, FShaderPrintItem In, RWStructuredBuffer<uint> InRWBuffer)
+{
+	const uint Offset4 = GetSymbolOffset(Offset);
+
+	const FPackedShaderPrintItem Packed = PackShaderPrintItem(In);
+	InRWBuffer[Offset4 + 0] = Packed.ScreenPos16bits;
+	InRWBuffer[Offset4 + 1] = Packed.Value;
+	InRWBuffer[Offset4 + 2] = Packed.TypeAndColor;
+	InRWBuffer[Offset4 + 3] = Packed.Metadata;
+}
+
+FShaderPrintItem ReadSymbol(uint Offset, StructuredBuffer<uint> InBuffer)
+{
+	const uint Offset4 = GetSymbolOffset(Offset);
+
+	FPackedShaderPrintItem Packed = (FPackedShaderPrintItem)0;
+	Packed.ScreenPos16bits	= InBuffer[Offset4 + 0];
+	Packed.Value			= InBuffer[Offset4 + 1];
+	Packed.TypeAndColor		= InBuffer[Offset4 + 2];
+	Packed.Metadata			= InBuffer[Offset4 + 3];
+
+	return UnpackShaderPrintItem(Packed);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -291,7 +356,7 @@ void ShaderPrint_Internal(in FShaderPrintItem Item)
 
 	// Buffer counter is stored in first element .Value
 	int IndexToStore = 0;
-	InterlockedAdd(ShaderPrint_RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value, 1, IndexToStore);
+	InterlockedAdd(ShaderPrint_RWValuesBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL], 1, IndexToStore);
 
 	// Prevent writing off the buffer
 	// Note that counter still increases so need clamp when reading it in later passes
@@ -300,8 +365,7 @@ void ShaderPrint_Internal(in FShaderPrintItem Item)
 		return;
 	}
 
-	// Because counter is in first element, read/writes need to be offset by 1
-	ShaderPrint_RWValuesBuffer[IndexToStore + SHADER_PRINT_VALUE_OFFSET] = PackShaderPrintItem(Item);
+	WriteSymbol(IndexToStore, Item, ShaderPrint_RWValuesBuffer);
 }
 
 void ShaderPrint_Internal(in float2 ScreenPos, in int Value, in FFontColor FontColor, in uint Metadata, in int Type)
@@ -369,7 +433,7 @@ float2 ShaderPrintText_Internal(bool bIsActive, float2 InPos, FShaderPrintText I
 		// Prevent writing off the buffer
 		// Note that counter still increases so need clamp when reading it in later passes
 		int IndexToStore = 0;
-		InterlockedAdd(ShaderPrint_RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].Value, Count, IndexToStore);
+		InterlockedAdd(ShaderPrint_RWValuesBuffer[SHADER_PRINT_COUNTER_OFFSET_SYMBOL], Count, IndexToStore);
 		if (uint(IndexToStore + Count) < ShaderPrintData.MaxValueCount)
 		{
 			for (uint i = Begin; i < End; ++i)
@@ -381,7 +445,7 @@ float2 ShaderPrintText_Internal(bool bIsActive, float2 InPos, FShaderPrintText I
 				Item.Color = InColor.Color;
 				Item.Metadata = 0u;
 
-				ShaderPrint_RWValuesBuffer[IndexToStore + SHADER_PRINT_VALUE_OFFSET] = PackShaderPrintItem(Item);
+				WriteSymbol(IndexToStore, Item, ShaderPrint_RWValuesBuffer);
 
 				++IndexToStore;
 				InPos.x += ShaderPrintData.FontSpacing.x;
@@ -554,10 +618,7 @@ void ShaderPrintFilter(bool bFilter)
 
 void ShaderPrintFilterOneThread()
 {
-	// Atomic flag is stored in first element .Type Value
-	uint PrevValue;
-	InterlockedCompareExchange(ShaderPrint_RWValuesBuffer[SHADER_PRINT_COUNT_OFFSET].TypeAndColor, 0, 1, PrevValue);
-	ShaderPrintFilter(PrevValue == 0);
+	// Deprecated
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -718,32 +779,6 @@ float AddSlider(inout FShaderPrintContext InContext, FShaderPrintText InTextEntr
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Primitives types
-
-// Type of primitives
-#define SHADER_PRINT_TYPE_LINE 0
-#define SHADER_PRINT_TYPE_TRIANGLE 1
-
-// Size of packed data, in uint
-#define SHADER_PRINT_UINT_COUNT_LINE 8
-#define SHADER_PRINT_UINT_COUNT_TRIANGLE 12
-
-// Counter offset
-#define SHADER_PRINT_COUNTER_OFFSET_LINE 0
-#define SHADER_PRINT_COUNTER_OFFSET_TRIANGLE 1
-#define SHADER_PRINT_COUNTER_OFFSET_FREE0 2
-#define SHADER_PRINT_COUNTER_OFFSET_FREE1 3
-#define SHADER_PRINT_COUNTER_COUNT 4
-
-// Primitive buffer layout
-//  ------------------------------------------------------------------------------------------------------------------------------------------------
-// ||  Line    | Triangle |  Empty  |  Empty  ||  Line0  |  Line1  |  Line2  |  Line3  |  ...  | Triangle0 | Triangle1 | Triangle2 | Triangle3 | ...
-// || Counter  | Counter  | Counter | Counter ||         |         |         |         |  ...  |           |           |           |           | ...
-// || (1uint)  | (1uint)  | (1uint) | (1uint) || (8uint) | (8uint) | (8uint) | (8uint) |  ...  | (12uint)  | (12uint)  | (12uint)  | (12uint)  | ...
-//  ------------------------------------------------------------------------------------------------------------------------------------------------
-RWStructuredBuffer<uint> ShaderPrint_RWPrimitivesBuffer;
-
-uint GetPrimitiveLineOffset    (uint InIndex) { return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_LINE * InIndex; }
-uint GetPrimitiveTriangleOffset(uint InIndex) { return SHADER_PRINT_COUNTER_COUNT + SHADER_PRINT_UINT_COUNT_LINE * ShaderPrintData.MaxLineCount + SHADER_PRINT_UINT_COUNT_TRIANGLE * InIndex; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Triangle-based Primitives (Triangle, Point, ...)

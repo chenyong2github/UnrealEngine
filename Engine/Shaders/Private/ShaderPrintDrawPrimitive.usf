@@ -114,10 +114,7 @@ RWStructuredBuffer<uint> RWElementBuffer;
 [numthreads(1, 1, 1)]
 void ShaderDrawDebugClearCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
-	RWElementBuffer[0] = 0; // Only element which really need to be cleared
-	RWElementBuffer[1] = 0;
-	RWElementBuffer[2] = 0;
-	RWElementBuffer[3] = 0;
+	ClearCounters(RWElementBuffer);
 }
 #endif
 
