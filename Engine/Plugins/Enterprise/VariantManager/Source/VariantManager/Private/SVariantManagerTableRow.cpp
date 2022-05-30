@@ -24,11 +24,13 @@ void SVariantManagerTableRow::Construct(const FArguments& InArgs, const TSharedR
 
 	STableRow::Construct(
 		STableRow::FArguments()
-			.OnDragDetected(this, &SVariantManagerTableRow::DragDetected)
-			.OnCanAcceptDrop(this, &SVariantManagerTableRow::CanAcceptDrop)
-			.OnAcceptDrop(this, &SVariantManagerTableRow::AcceptDrop)
-			.OnDragLeave(this, &SVariantManagerTableRow::DragLeave)
-			.ShowSelection(bIsSelectable),
+		.Padding(0)
+		.Style(InNode->GetRowStyle())
+		.OnDragDetected(this, &SVariantManagerTableRow::DragDetected)
+		.OnCanAcceptDrop(this, &SVariantManagerTableRow::CanAcceptDrop)
+		.OnAcceptDrop(this, &SVariantManagerTableRow::AcceptDrop)
+		.OnDragLeave(this, &SVariantManagerTableRow::DragLeave)
+		.ShowSelection(bIsSelectable),
 		OwnerTableView);
 
 	SetRowContent(InNode->GetCustomOutlinerContent(SharedThis(this)));

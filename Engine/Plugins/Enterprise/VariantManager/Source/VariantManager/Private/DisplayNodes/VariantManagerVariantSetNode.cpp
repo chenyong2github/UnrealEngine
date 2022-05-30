@@ -30,6 +30,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Input/DragAndDrop.h"
 #include "ScopedTransaction.h"
+#include "Styling/StyleColors.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SButton.h"
@@ -44,13 +45,24 @@ FVariantManagerVariantSetNode::FVariantManagerVariantSetNode( UVariantSet& InVar
 {
 	ExpandedBackgroundBrush = FAppStyle::GetBrush("Sequencer.AnimationOutliner.TopLevelBorder_Expanded");
 	CollapsedBackgroundBrush = FAppStyle::GetBrush("Sequencer.AnimationOutliner.TopLevelBorder_Collapsed");
+	RowStyle = FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SimpleTableView.Row");
+	RowStyle
+		.SetEvenRowBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Header, 2.f, FStyleColors::Transparent, 1.f))
+		.SetOddRowBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Header, 2.f, FStyleColors::Transparent, 1.f))
+		.SetEvenRowBackgroundHoveredBrush(FSlateRoundedBoxBrush(FStyleColors::SelectHover, 2.f))
+		.SetOddRowBackgroundHoveredBrush(FSlateRoundedBoxBrush(FStyleColors::SelectHover, 2.f));
 
 	bExpanded = InVariantSet.IsExpanded();
 }
 
+const FTableRowStyle* FVariantManagerVariantSetNode::GetRowStyle() const
+{
+	return &RowStyle;
+}
+
 TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow)
 {
-	FSlateFontInfo NodeFont = FAppStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont");
+	FSlateFontInfo NodeFont = FAppStyle::GetFontStyle("BoldFont");
 
 	EditableLabel = SNew(SInlineEditableTextBlock)
 		.IsReadOnly(this, &FVariantManagerDisplayNode::IsReadOnly)
@@ -74,18 +86,16 @@ TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSha
 
 	return
 	SNew( SBorder )
-	.BorderImage( FAppStyle::GetBrush( "WhiteBrush" ) )
-	.BorderBackgroundColor( FVariantManagerStyle::Get()->GetColor("VariantManager.Panels.LightBackgroundColor") )
-	.Padding( FMargin( 0.0f, bIsFirstRowOfTree ? 0.0f : FVariantManagerStyle::Get()->GetFloat( "VariantManager.Spacings.BorderThickness" ), 0.0f, 0.0f ) )
+	.BorderImage(nullptr)
+	.Padding( FMargin( 0.0f, bIsFirstRowOfTree ? 0.0f : FVariantManagerStyle::Get().GetFloat( "VariantManager.Spacings.BorderThickness" ), 0.0f, 0.0f ) )
 	[
 		SNew(SBox)
 		.HeightOverride(78)
 		[
 			SNew(SBorder)
+			.BorderImage(nullptr)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Fill)
-			.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
-			.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
 			.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
 			[
 				SNew(SHorizontalBox)
@@ -96,7 +106,7 @@ TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSha
 				.MaxWidth(24.0f)
 				.AutoWidth()
 				[
-					SNew(SExpanderArrow, InTableRow).IndentAmount( FVariantManagerStyle::Get()->GetFloat( "VariantManager.Spacings.IndentAmount" ) )
+					SNew(SExpanderArrow, InTableRow).IndentAmount( FVariantManagerStyle::Get().GetFloat( "VariantManager.Spacings.IndentAmount" ) )
 				]
 
 				+ SHorizontalBox::Slot()
@@ -124,8 +134,7 @@ TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSha
 				.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
 				[
 					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "NoBorder")
-					.ToolTipText(LOCTEXT("AddVariantToolTip", "Add a new variant"))
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 					.OnClicked_Lambda([this]
 					{
 						TSharedPtr<FVariantManager> VariantManagerPtr = GetVariantManager().Pin();
@@ -141,13 +150,12 @@ TSharedRef<SWidget> FVariantManagerVariantSetNode::GetCustomOutlinerContent(TSha
 
 						return FReply::Handled();
 					})
-					.ContentPadding(FMargin(2.0f, 1.0f))
-					.Content()
+					.ContentPadding(FMargin(1, 0))
+					.ToolTipText(LOCTEXT("AddVariantToolTip", "Add a new variant"))
 					[
-						SNew(STextBlock)
-						.TextStyle(FAppStyle::Get(), "NormalText.Important")
-						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(FEditorFontGlyphs::Plus)
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]
 			]
@@ -726,22 +734,6 @@ void FVariantManagerVariantSetNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 UVariantSet& FVariantManagerVariantSetNode::GetVariantSet() const
 {
 	return VariantSet;
-}
-
-FSlateColor FVariantManagerVariantSetNode::GetNodeBackgroundTint() const
-{
-	if (IsSelected())
-	{
-		return FAppStyle::GetSlateColor("SelectionColor_Pressed");
-	}
-	else if (IsHovered())
-	{
-		return FLinearColor(FColor(52, 52, 52, 255));
-	}
-	else
-	{
-		return FLinearColor(FColor(48, 48, 48, 255));
-	}
 }
 
 const FSlateBrush* FVariantManagerVariantSetNode::GetNodeBorderImage() const

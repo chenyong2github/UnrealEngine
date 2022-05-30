@@ -22,6 +22,7 @@ public:
 	FVariantManagerVariantSetNode( UVariantSet& InVariantSet, TSharedPtr<FVariantManagerDisplayNode> InParentNode, TWeakPtr<FVariantManagerNodeTree> InParentTree );
 
 	// FVariantManagerDisplayNode interface
+	virtual const FTableRowStyle* GetRowStyle() const override;
 	virtual EVariantManagerNodeType GetType() const override;
 	virtual bool IsReadOnly() const override;
 	virtual FText GetDisplayName() const override;
@@ -32,7 +33,6 @@ public:
 	virtual TOptional<EItemDropZone> CanDrop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone) const override;
 	virtual void Drop(const FDragDropEvent& DragDropEvent, EItemDropZone ItemDropZone) override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
-	virtual FSlateColor GetNodeBackgroundTint() const override;
 	virtual const FSlateBrush* GetNodeBorderImage() const override;
 	virtual TSharedRef<SWidget> GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow) override;
 	TSharedRef<SWidget> GetThumbnailWidget();
@@ -45,6 +45,8 @@ private:
 
 	/** The movie scene folder data which this node represents. */
 	UVariantSet& VariantSet;
+
+	FTableRowStyle RowStyle;
 
 	/** Different brushes so that the edges look good when expanded and collapsed */
 	const FSlateBrush* ExpandedBackgroundBrush;

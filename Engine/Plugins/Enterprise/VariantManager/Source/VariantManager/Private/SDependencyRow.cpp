@@ -9,6 +9,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #include "LevelVariantSets.h"
 #include "SVariantManager.h"
@@ -19,12 +20,16 @@
 
 #define LOCTEXT_NAMESPACE "SDependencyRow"
 
-void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, FColumnSizeData& InDependenciesColumnData, FVariantDependencyModelPtr InDependencyModel, bool bInteractionEnabled)
-{
-	STableRow<FVariantDependencyModelPtr>::ConstructInternal(STableRow::FArguments(), InOwnerTableView);
+const FName SDependencyRow::VisibilityColumn("Visibility");
+const FName SDependencyRow::VariantSetColumn("VariantSet");
+const FName SDependencyRow::VariantColumn("Variant");
 
+void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, FVariantDependencyModelPtr InDependencyModel, bool bInteractionEnabled)
+{
 	if (InDependencyModel.IsValid())
 	{
+		bIsDivider = InDependencyModel->bIsDivider;
+		bIsDependent = InDependencyModel->bIsDependent;
 		ParentVariantPtr = InDependencyModel->ParentVariant;
 		Dependency = InDependencyModel->Dependency;
 	}
@@ -37,138 +42,138 @@ void SDependencyRow::Construct(const FArguments& InArgs, const TSharedRef<STable
 	RebuildVariantSetOptions();
 	RebuildVariantOptions();
 
-	ChildSlot
-	[
-		SNew(SBox)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Fill)
-		.HeightOverride(26)
-		[
-			SNew(SSplitter)
-			.Orientation(Orient_Horizontal)
+	SMultiColumnTableRow<FVariantDependencyModelPtr>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+}
 
-			+ SSplitter::Slot()
-			.Value( InDependenciesColumnData.LeftColumnWidth )
-			.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewWidth)
-			{
-				//This has to be bound or the splitter will take it upon itself to determine the size
-				//We do nothing here because it is handled by the column size data
-			}))
-			[
-				SNew(SBox)
+TSharedRef<SWidget> SDependencyRow::GenerateWidgetForColumn(const FName& InColumnName)
+{
+	if (bIsDivider)
+	{
+		if (InColumnName == VariantSetColumn || InColumnName == VariantColumn)
+		{
+			return SNew(SBox)
+				.Padding(0, 15, 0, 15)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(1)
+					[	
+						SNew(SSeparator)
+						.Orientation(EOrientation::Orient_Horizontal)
+						.Thickness(1)
+						.SeparatorImage(FAppStyle::GetBrush("WhiteBrush"))
+					]
+				];
+		}
+	}
+	else if (ParentVariantPtr.IsValid())
+	{
+		if (InColumnName == VisibilityColumn)
+		{
+			return SNew(SBox)
+				.HeightOverride(21)
+				.WidthOverride(21)
+				[
+					SNew(SButton)
+					.IsFocusable(false)
+					.ToolTipText(LOCTEXT("ToggleDependency", "Enable or disable this dependency"))
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+					.ContentPadding(0.0f)
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.Visibility_Raw(this, &SDependencyRow::OnGetEyeIconVisibility)
+					.OnClicked(this, &SDependencyRow::OnEnableRowToggled)
+					[
+						SNew(SImage)
+						.Image_Lambda([this]()
+						{
+							if (Dependency && Dependency->bEnabled)
+							{
+								return FAppStyle::GetBrush("Level.VisibleIcon16x");
+							}
+							return FAppStyle::GetBrush("Level.NotVisibleIcon16x");
+						})
+					]
+				];
+		}
+		else if (InColumnName == VariantSetColumn)
+		{
+			return SNew(SBox)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Fill)
 				.HeightOverride(21)
 				[
-					SNew(SComboBox<TSharedPtr<FText>>)
-					.OptionsSource(&VariantSetOptions)
-					.IsEnabled(bInteractionEnabled)
-					.OnGenerateWidget_Lambda([](TSharedPtr<FText> Item)
-					{
-						return SNew(STextBlock).Text(*Item);
-					})
-					.Content()
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(0.7f)
 					[
-						SNew(STextBlock)
-						.Text(this, bInteractionEnabled ? &SDependencyRow::GetSelectedVariantSetOption : &SDependencyRow::GetDependentVariantSetText)
-					]
-					.OnSelectionChanged(this, &SDependencyRow::OnSelectedVariantSetChanged)
-				]
-			]
-
-			+ SSplitter::Slot()
-			.Value( InDependenciesColumnData.MiddleColumnWidth )
-			.OnSlotResized( InDependenciesColumnData.OnFirstSplitterChanged )
-			[
-				SNew(SBox)
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Fill)
-				.HeightOverride(21)
-				[
-					SNew(SComboBox<TSharedPtr<FText>>)
-					.OptionsSource(&VariantOptions)
-					.IsEnabled(bInteractionEnabled)
-					.OnGenerateWidget_Lambda([](TSharedPtr<FText> Item)
-					{
-						return SNew(STextBlock).Text(*Item);
-					})
-					.Content()
-					[
-						SNew(STextBlock)
-						.Text(this, bInteractionEnabled ? &SDependencyRow::GetSelectedVariantOption : &SDependencyRow::GetDependentVariantText)
-					]
-					.OnSelectionChanged(this, &SDependencyRow::OnSelectedVariantChanged)
-				]
-			]
-
-			+ SSplitter::Slot()
-			.Value( InDependenciesColumnData.RightColumnWidth )
-			.OnSlotResized( InDependenciesColumnData.OnSecondSplitterChanged )
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Fill)
-				.Padding(FMargin(1.0f, 0.0f, 3.0f, 0.0))
-				.AutoWidth()
-				[
-					SNew(SBox)
-					.HeightOverride(21)
-					.WidthOverride(21)
-					[
-						SNew(SButton)
-						.IsFocusable(false)
-						.ToolTipText(LOCTEXT("DeleteDependency", "Delete this dependency"))
-						.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
-						.ContentPadding(0.0f)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.Visibility(bInteractionEnabled ? EVisibility::Visible : EVisibility::Hidden)
-						.OnClicked(this, &SDependencyRow::OnDeleteRowClicked)
+						SNew(SComboBox<TSharedPtr<FText>>)
+						.ComboBoxStyle(&FAppStyle::Get().GetWidgetStyle<FComboBoxStyle>(TEXT("SimpleComboBox")))
+						.OptionsSource(&VariantSetOptions)
+						.OnGenerateWidget_Lambda([](TSharedPtr<FText> Item)
+						{
+							return SNew(STextBlock).Text(*Item);
+						})
+						.Content()
 						[
 							SNew(STextBlock)
-							.TextStyle(FAppStyle::Get(), "NormalText.Important")
-							.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-							.Text(FEditorFontGlyphs::Trash)
+							.Text(this, bIsDependent ? &SDependencyRow::GetDependentVariantSetText : &SDependencyRow::GetSelectedVariantSetOption)
 						]
+						.OnSelectionChanged(this, &SDependencyRow::OnSelectedVariantSetChanged)
 					]
-				]
 
-				+ SHorizontalBox::Slot()
-				.Padding(FMargin(0.0f, 0.0f, 3.0f, 0.0))
+					+ SHorizontalBox::Slot()
+					.FillWidth(0.3f)
+					[
+						SNew(SSpacer)
+					]
+				];
+		}
+		else
+		{ 
+			return SNew(SBox)
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Fill)
-				.AutoWidth()
+				.HeightOverride(21)
 				[
-					SNew(SBox)
-					.HeightOverride(21)
-					.WidthOverride(21)
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.FillWidth(0.7f)
 					[
-						SNew(SButton)
-						.IsFocusable(false)
-						.ToolTipText(LOCTEXT("ToggleDependency", "Enable or disable this dependency"))
-						.ButtonStyle( FAppStyle::Get(), "HoverHintOnly" )
-						.ContentPadding(0.0f)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.Visibility(bInteractionEnabled ? EVisibility::Visible : EVisibility::Hidden)
-						.OnClicked(this, &SDependencyRow::OnEnableRowToggled)
+						SNew(SComboBox<TSharedPtr<FText>>)
+						.ComboBoxStyle(&FAppStyle::Get().GetWidgetStyle<FComboBoxStyle>(TEXT("SimpleComboBox")))
+						.OptionsSource(&VariantOptions)
+						.OnGenerateWidget_Lambda([](TSharedPtr<FText> Item)
+						{
+							return SNew(STextBlock).Text(*Item);
+						})
+						.Content()
 						[
-							SNew(SImage)
-							.Image_Lambda([this]()
-							{
-								if(Dependency && Dependency->bEnabled)
-								{
-									return FAppStyle::GetBrush("Level.VisibleIcon16x");
-								}
-								return FAppStyle::GetBrush("Level.NotVisibleIcon16x");
-							})
+							SNew(STextBlock)
+							.Text(this, bIsDependent ? &SDependencyRow::GetDependentVariantText  : &SDependencyRow::GetSelectedVariantOption)
 						]
+						.OnSelectionChanged(this, &SDependencyRow::OnSelectedVariantChanged)
 					]
-				]
-			]
-		]
-	];
+					+ SHorizontalBox::Slot()
+					.FillWidth(0.3f)
+					[
+						SNew(SSpacer)
+					]
+				];
+		}
+	}
+
+	return SNew(SBox);
+}
+
+EVisibility SDependencyRow::OnGetEyeIconVisibility() const
+{
+	if (bIsDependent)
+	{
+		return EVisibility::Collapsed;
+	}
+	return (Dependency && !Dependency->bEnabled) || IsHovered() || IsSelected() ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 void SDependencyRow::OnSelectedVariantSetChanged(TSharedPtr<FText> NewItem, ESelectInfo::Type SelectType)
@@ -380,35 +385,6 @@ void SDependencyRow::RebuildVariantOptions()
 
 		VariantOptions.Add(MakeShared<FText>(Variant->GetDisplayText()));
 	}
-}
-
-FReply SDependencyRow::OnDeleteRowClicked()
-{
-	UVariant* ParentVariant = ParentVariantPtr.Get();
-	if (Dependency && ParentVariant)
-	{
-		int32 DependencyIndex = INDEX_NONE;
-		for (int32 Index = 0; Index < ParentVariant->GetNumDependencies(); ++Index)
-		{
-			if (&ParentVariant->GetDependency(Index) == Dependency)
-			{
-				DependencyIndex = Index;
-				break;
-			}
-		}
-
-		if (DependencyIndex != INDEX_NONE)
-		{
-			FScopedTransaction Transaction(FText::Format(
-				LOCTEXT("DeleteDependencyTransaction", "Delete a dependency from variant '{0}'"),
-				ParentVariant->GetDisplayText()
-			));
-
-			ParentVariant->DeleteDependency(DependencyIndex);
-		}
-	}
-
-	return FReply::Handled();
 }
 
 FReply SDependencyRow::OnEnableRowToggled()

@@ -29,8 +29,6 @@ public:
 	{
 		FVariantManagerEditorCommands::Register();
 
-		FVariantManagerStyle::Initialize();
-
 		FLevelEditorModule& LevelEditorModule = FModuleManager::LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
 		// Register a delegate to detect whenever we should open an editor for a LevelVariantSets asset, and relay the
@@ -64,8 +62,6 @@ public:
 
 		FVariantManagerUtils::UnregisterForHotReload();
 
-		FVariantManagerStyle::Shutdown();
-
 		FVariantManagerEditorCommands::Unregister();
 	}
 
@@ -89,12 +85,12 @@ public:
 			UnregisterTabSpawner( TabManager );
 		}
 
-		const FSlateIcon LayersIcon( FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Layers" );
+		const FName VariantManagerStyleSetName = FVariantManagerStyle::Get().GetStyleSetName();
 
 		TabManager->RegisterTabSpawner( FLevelVariantSetsEditorToolkit::GetVariantManagerTabID(), FOnSpawnTab::CreateStatic( &FVariantManagerModule::HandleTabManagerSpawnTab ) )
 			.SetDisplayName( LOCTEXT("VariantManagerMainTab", "Variant Manager") )
 			.SetGroup( WorkspaceMenu::GetMenuStructure().GetLevelEditorCategory() )
-			.SetIcon( LayersIcon );
+			.SetIcon( FSlateIcon(VariantManagerStyleSetName, "VariantManager.Icon") );
 	}
 
 	static void UnregisterTabSpawner( const TSharedPtr< FTabManager >& TabManager )

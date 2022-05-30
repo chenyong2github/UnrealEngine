@@ -8,91 +8,54 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
+#include "Styling/SlateStyleMacros.h"
 
-#define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FVariantManagerStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
-#define BOX_BRUSH(RelativePath, ...) FSlateBoxBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
-#define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
-
-FString FVariantManagerStyle::InContent(const FString& RelativePath, const ANSICHAR* Extension)
+FVariantManagerStyle::FVariantManagerStyle() : FSlateStyleSet("VariantManagerEditorStyle")
 {
-	static FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("VariantManager"))->GetContentDir();
-	return (ContentDir / RelativePath) + Extension;
-}
+	SetContentRoot(IPluginManager::Get().FindPlugin(TEXT("VariantManager"))->GetContentDir());
 
-TSharedPtr< FSlateStyleSet > FVariantManagerStyle::StyleSet = nullptr;
-TSharedPtr< class ISlateStyle > FVariantManagerStyle::Get() { return StyleSet; }
-
-FName FVariantManagerStyle::GetStyleSetName()
-{
-	static FName PaperStyleName(TEXT("VariantManager"));
-	return PaperStyleName;
-}
-
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-void FVariantManagerStyle::Initialize()
-{
 	// Const icon sizes
 	const FVector2D Icon8x8(8.0f, 8.0f);
 	const FVector2D Icon16x16(16.0f, 16.0f);
 	const FVector2D Icon20x20(20.0f, 20.0f);
 	const FVector2D Icon40x40(40.0f, 40.0f);
 
-	// Only register once
-	if (StyleSet.IsValid())
-	{
-		return;
-	}
+	/** Color used for the background of the entire variant manager as well as the spacer border */
+	Set( "VariantManager.Panels.LightBackgroundColor", FLinearColor( FColor( 96, 96, 96, 255 ) ) );
 
-	StyleSet = MakeShareable(new FSlateStyleSet(GetStyleSetName()));
-	StyleSet->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
-	StyleSet->SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
+	/** Color used as background for variant nodes, and background of properties and dependencies panels */
+	Set( "VariantManager.Panels.ContentBackgroundColor", FLinearColor( FColor( 62, 62, 62, 255 ) ) );
 
-	{
-		/** Color used for the background of the entire variant manager as well as the spacer border */
-		StyleSet->Set( "VariantManager.Panels.LightBackgroundColor", FLinearColor( FColor( 96, 96, 96, 255 ) ) );
+	/** Color used for background of variant set nodes and panel headers, like Properties or Dependencies headers */
+	Set( "VariantManager.Panels.HeaderBackgroundColor", FLinearColor( FColor( 48, 48, 48, 255 ) ) );
 
-		/** Color used as background for variant nodes, and background of properties and dependencies panels */
-		StyleSet->Set( "VariantManager.Panels.ContentBackgroundColor", FLinearColor( FColor( 62, 62, 62, 255 ) ) );
+	/** Thickness of the light border around the entire variant manager tab and between items */
+	Set( "VariantManager.Spacings.BorderThickness", 4.0f );
 
-		/** Color used for background of variant set nodes and panel headers, like Properties or Dependencies headers */
-		StyleSet->Set( "VariantManager.Panels.HeaderBackgroundColor", FLinearColor( FColor( 48, 48, 48, 255 ) ) );
+	/** The amount to indent child nodes of the layout tree */
+	Set( "VariantManager.Spacings.IndentAmount", 10.0f );
 
-		/** Thickness of the light border around the entire variant manager tab and between items */
-		StyleSet->Set( "VariantManager.Spacings.BorderThickness", 4.0f );
+	Set( "VariantManager.Icon", new IMAGE_BRUSH_SVG("VariantManager", Icon16x16) );
 
-		/** The amount to indent child nodes of the layout tree */
-		StyleSet->Set( "VariantManager.Spacings.IndentAmount", 10.0f );
+	/** Style used for the auto-capture button */
+	const FCheckBoxStyle AutoCaptureButtonStyle = FCheckBoxStyle()
+		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
+		.SetUncheckedImage(IMAGE_BRUSH("AutoCapture", Icon20x20))
+		.SetUncheckedHoveredImage(IMAGE_BRUSH("AutoCapture", Icon20x20, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+		.SetUncheckedPressedImage(IMAGE_BRUSH("AutoCapture", Icon20x20, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+		.SetCheckedImage(IMAGE_BRUSH("AutoCaptureChecked", Icon20x20))
+		.SetCheckedHoveredImage(IMAGE_BRUSH("AutoCaptureChecked", Icon20x20, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+		.SetCheckedPressedImage(IMAGE_BRUSH("AutoCaptureChecked", Icon20x20, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)));
+	Set("VariantManager.AutoCapture", AutoCaptureButtonStyle);
 
-		/** Style used for the auto-capture button */
-		const FCheckBoxStyle Style = FCheckBoxStyle()
-			.SetCheckBoxType( ESlateCheckBoxType::ToggleButton )
-			.SetUncheckedImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Record_24x_OFF", 0.0f, FSlateColor( FLinearColor::Gray ) ) )
-			.SetUncheckedHoveredImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Record_24x_OFF", 0.0f, FSlateColor( FLinearColor::White ) ) )
-			.SetUncheckedPressedImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Record_24x_OFF", 0.0f, FSlateColor( FLinearColor(0.75f, 0.75f, 0.75f) ) ) )
-			.SetCheckedImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Recording_24x", 0.0f, FSlateColor( FLinearColor::Gray ) ) )
-			.SetCheckedHoveredImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Recording_24x", 0.0f, FSlateColor( FLinearColor::White ) ) )
-			.SetCheckedPressedImage( BOX_BRUSH( "/Sequencer/Transport_Bar/Recording_24x", 0.0f, FSlateColor( FLinearColor( 0.75f, 0.75f, 0.75f ) ) ) );
-		StyleSet->Set( "AutoCaptureCheckbox", Style );
-	}
+	const FCheckBoxStyle RadioButtonStyle = FCheckBoxStyle()
+		.SetUncheckedImage(IMAGE_BRUSH("VariantUnchecked", Icon16x16))
+		.SetUncheckedHoveredImage(IMAGE_BRUSH("VariantUnchecked", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+		.SetUncheckedPressedImage(IMAGE_BRUSH("VariantUnchecked", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+		.SetCheckedImage(IMAGE_BRUSH("VariantChecked", Icon16x16))
+		.SetCheckedHoveredImage(IMAGE_BRUSH("VariantChecked", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+		.SetCheckedPressedImage(IMAGE_BRUSH("VariantChecked", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)));
+	Set("VariantManager.VariantRadioButton", RadioButtonStyle);
 
-	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
-};
-
-END_SLATE_FUNCTION_BUILD_OPTIMIZATION
-
-#undef IMAGE_PLUGIN_BRUSH
-#undef IMAGE_BRUSH
-#undef BOX_BRUSH
-#undef DEFAULT_FONT
-
-void FVariantManagerStyle::Shutdown()
-{
-	if (StyleSet.IsValid())
-	{
-		FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet.Get());
-		ensure(StyleSet.IsUnique());
-		StyleSet.Reset();
-	}
+	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }

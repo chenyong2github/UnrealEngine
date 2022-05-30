@@ -579,7 +579,6 @@ TSharedRef<SWidget> FVariantManagerActorNode::GetCustomOutlinerContent(TSharedPt
 		SNew(SBorder)
 		.VAlign(VAlign_Center)
 		.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
-		.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
 		.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
 		[
 			SNew(SBox)

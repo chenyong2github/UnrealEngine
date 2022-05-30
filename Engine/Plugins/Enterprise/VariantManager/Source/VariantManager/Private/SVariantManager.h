@@ -35,25 +35,21 @@ using FVariantDependencyModelPtr = TSharedPtr<FVariantDependencyModel>;
 // Convenience struct to save/load how the user configured the main splitters
 struct FSplitterValues
 {
+	float PropertyNameColumn = 0.5f;
+	float PropertyValueColumn = 0.5f;
 	float VariantColumn = 0.25f;
-	float ActorColumn = 0.25f;
-	float PropertyNameColumn = 0.25f;
-	float DependenciesVariantSetsColumn = 0.33f;
-	float DependenciesVariantColumn = 0.33f;
 
 	FSplitterValues(){};
 	FSplitterValues(FString& InSerialized);
 	FString ToString();
 };
 
-struct FColumnSizeData
+struct FVariantManagerPropertiesColumnSizeData
 {
-	TAttribute<float> LeftColumnWidth;
-	TAttribute<float> MiddleColumnWidth;
-	TAttribute<float> RightColumnWidth;
-	// There are three columns, but only two splitters
-	SSplitter::FOnSlotResized OnFirstSplitterChanged;
-	SSplitter::FOnSlotResized OnSecondSplitterChanged;
+	TAttribute<float> NameColumnWidth;
+	TAttribute<float> ValueColumnWidth;
+	SSplitter::FOnSlotResized OnSplitterNameColumnChanged;
+	SSplitter::FOnSlotResized OnSplitterValueColumnChanged;
 };
 
 class SVariantManager
@@ -170,13 +166,10 @@ public:
 	void SortDisplayNodes(TArray<TSharedRef<FVariantManagerDisplayNode>>& DisplayNodes);
 
 	TSharedRef<SWidget> MakeAddButton();
-	FColumnSizeData& GetPropertiesColumnSizeData()
+
+	FVariantManagerPropertiesColumnSizeData& GetPropertiesColumnSizeData()
 	{
 		return PropertiesColumnSizeData;
-	}
-	FColumnSizeData& GetDependenciesColumnSizeData()
-	{
-		return DependenciesColumnSizeData;
 	}
 
 	TSharedRef<ITableRow> MakeCapturedPropertyRow(TSharedPtr<FVariantManagerPropertyNode> Item, const TSharedRef<STableViewBase>& OwnerTable);
@@ -214,19 +207,11 @@ public:
 	FReply OnSummonAddActorMenu();
 	FReply OnAddDependencyClicked();
 
+	FReply OnDeleteSelectedDependencies();
+
 	// Callbacks for property ColumnSizeData
-	float OnGetPropertiesActorColumnWidth() const { return 1.0f - PropertiesNameColumnWidth - PropertiesValueColumnWidth; }
 	float OnGetPropertiesNameColumnWidth() const { return PropertiesNameColumnWidth; }
 	float OnGetPropertiesValueColumnWidth() const { return PropertiesValueColumnWidth; }
-	void OnSetPropertiesNameColumnWidth( float InWidth ) { PropertiesNameColumnWidth = InWidth; }
-	void OnSetPropertiesValueColumnWidth( float InWidth ) { PropertiesValueColumnWidth = InWidth; }
-
-	// Callbacks for dependencies ColumnSizeData
-	float OnGetDependenciesVariantSetColumnWidth() const { return 1.0f - DependenciesVariantColumnWidth - DependenciesControlColumnWidth; }
-	float OnGetDependenciesVariantColumnWidth() const { return DependenciesVariantColumnWidth; }
-	float OnGetDependenciesControlColumnWidth() const { return DependenciesControlColumnWidth; }
-	void OnSetDependenciesVariantColumnWidth( float InWidth ) { DependenciesVariantColumnWidth = InWidth; }
-	void OnSetDependenciesControlColumnWidth( float InWidth ) { DependenciesControlColumnWidth = InWidth; }
 
 	void OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event);
 	void OnObjectPropertyChanged(UObject* Object, struct FPropertyChangedEvent& Event);
@@ -267,9 +252,6 @@ private:
 	TSharedPtr<SListView<FVariantDependencyModelPtr>> DependenciesList;
 	TArray<FVariantDependencyModelPtr> DisplayedDependencies;
 
-	TSharedPtr<SListView<FVariantDependencyModelPtr>> DependentsList;
-	TArray<FVariantDependencyModelPtr> DisplayedDependents;
-
 	// We use paths here to avoid having to check if the bindings are resolved
 	TSet<FString> CachedSelectedActorPaths;
 	TSet<FString> CachedDisplayedActorPaths;
@@ -285,13 +267,9 @@ private:
 
 	bool bAutoCaptureProperties = false;
 
-	FColumnSizeData PropertiesColumnSizeData;
+	FVariantManagerPropertiesColumnSizeData PropertiesColumnSizeData;
 	float PropertiesNameColumnWidth;
 	float PropertiesValueColumnWidth;
-
-	FColumnSizeData DependenciesColumnSizeData;
-	float DependenciesVariantColumnWidth;
-	float DependenciesControlColumnWidth;
 
 	FSplitterValues SplitterValues;
 
@@ -328,4 +306,7 @@ private:
 	TArray<SVariantManager::FCachedPropertyPath> CachedPropertyPathStack;
 
 	bool bRespondToEditorSelectionEvents = true;
+
+	const FTableColumnHeaderStyle* HeaderStyle = nullptr;
+	const FSplitterStyle* SplitterStyle = nullptr;
 };

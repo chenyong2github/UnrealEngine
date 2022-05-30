@@ -20,7 +20,12 @@ FVariantManagerDisplayNode::FVariantManagerDisplayNode(TSharedPtr<FVariantManage
 	, bExpanded( false )
 	, bSelected( false )
 {
-	BackgroundBrush = FAppStyle::GetBrush("Sequencer.AnimationOutliner.DefaultBorder");
+	BackgroundBrush = nullptr;
+}
+
+const FTableRowStyle* FVariantManagerDisplayNode::GetRowStyle() const
+{
+	return &FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("SimpleTableView.Row");
 }
 
 FSlateColor FVariantManagerDisplayNode::GetDisplayNameColor() const
@@ -54,8 +59,6 @@ TSharedRef<SWidget> FVariantManagerDisplayNode::GetCustomOutlinerContent(TShared
 		SNew(SBorder)
 		.VAlign(VAlign_Fill)
 		.HAlign(HAlign_Fill)
-		.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
-		.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
 	];
 }
 
@@ -82,22 +85,6 @@ FText FVariantManagerDisplayNode::GetIconToolTipText() const
 const FSlateBrush* FVariantManagerDisplayNode::GetNodeBorderImage() const
 {
 	return BackgroundBrush;
-}
-
-FSlateColor FVariantManagerDisplayNode::GetNodeBackgroundTint() const
-{
-	if (IsSelected())
-	{
-		return FAppStyle::GetSlateColor("SelectionColor_Pressed");
-	}
-	else if (IsHovered())
-	{
-		return FLinearColor(FColor(72, 72, 72, 255));
-	}
-	else
-	{
-		return FLinearColor(FColor(62, 62, 62, 255));
-	}
 }
 
 void FVariantManagerDisplayNode::BuildContextMenu(FMenuBuilder& MenuBuilder)

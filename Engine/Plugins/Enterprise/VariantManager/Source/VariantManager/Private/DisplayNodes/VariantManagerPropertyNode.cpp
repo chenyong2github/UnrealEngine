@@ -64,11 +64,6 @@ const FSlateBrush* FVariantManagerPropertyNode::GetIconOverlayBrush() const
 	return nullptr;
 }
 
-FSlateColor FVariantManagerPropertyNode::GetNodeBackgroundTint() const
-{
-	return FLinearColor(FColor(62, 62, 62, 255));
-}
-
 FText FVariantManagerPropertyNode::GetIconToolTipText() const
 {
 	return FText();
@@ -372,16 +367,15 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 
 TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow)
 {
-	// Using this syncs all splitters between property nodes and also the header
+	// Using this syncs all splitters between property nodes
 	TSharedPtr<SVariantManager> VariantManagerWidget = GetVariantManager().Pin()->GetVariantManagerWidget();
-	FColumnSizeData& ColumnSizeData = VariantManagerWidget->GetPropertiesColumnSizeData();
+	FVariantManagerPropertiesColumnSizeData& ColumnSizeData = VariantManagerWidget->GetPropertiesColumnSizeData();
 
 	return SNew(SBox)
 	[
 		SNew(SBorder)
 		.VAlign(VAlign_Center)
 		.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
-		.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
 		.Padding(FMargin(2.0f, 0.0f, 2.0f, 0.0f))
 		[
 			SNew(SSplitter)
@@ -391,8 +385,8 @@ TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TShare
 			.Orientation(Orient_Horizontal)
 
 			+ SSplitter::Slot()
-			.Value(ColumnSizeData.MiddleColumnWidth)
-			.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewWidth) {}))
+			.Value(ColumnSizeData.NameColumnWidth)
+			.OnSlotResized(ColumnSizeData.OnSplitterNameColumnChanged)
 			[
 				SNew(SBox)
 				.VAlign(VAlign_Center)
@@ -412,8 +406,8 @@ TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TShare
 			]
 
 			+ SSplitter::Slot()
-			.Value(ColumnSizeData.MiddleColumnWidth)
-			.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewWidth) {}))
+			.Value(ColumnSizeData.ValueColumnWidth)
+			.OnSlotResized(ColumnSizeData.OnSplitterValueColumnChanged)
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
@@ -428,7 +422,7 @@ TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TShare
 				+SHorizontalBox::Slot()
 				.Padding( FMargin(0.0f, 0.0f, 3.0f, 0.0) )
 				.AutoWidth()
-				.VAlign( VAlign_Top )
+				.VAlign( VAlign_Center )
 				[
 					SNew(SBox)
 					[
@@ -456,7 +450,7 @@ TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TShare
 				+SHorizontalBox::Slot()
 				.Padding( FMargin(0.0f, 0.0f, 3.0f, 0.0) )
 				.AutoWidth()
-				.VAlign( VAlign_Top )
+				.VAlign(VAlign_Center)
 				[
 					SNew(SBox)
 					[

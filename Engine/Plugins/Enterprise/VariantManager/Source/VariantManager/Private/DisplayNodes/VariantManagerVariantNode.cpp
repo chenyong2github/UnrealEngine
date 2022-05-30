@@ -9,6 +9,7 @@
 #include "VariantManagerEditorCommands.h"
 #include "VariantManagerNodeTree.h"
 #include "VariantManagerSelection.h"
+#include "VariantManagerStyle.h"
 #include "VariantObjectBinding.h"
 #include "VariantSet.h"
 
@@ -63,15 +64,12 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetCustomOutlinerContent(TShared
 		.ToolTipText(this, &FVariantManagerDisplayNode::GetDisplayNameToolTipText)
 		.Clipping(EWidgetClipping::ClipToBounds);
 
-
 	RadioButton = SNew(SCheckBox)
 		.HAlign(HAlign_Right)
 		.Padding(FMargin(0))
-		.Style(FAppStyle::Get(), "Menu.RadioButton")
-		.ForegroundColor(FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f)))
+		.Style(FVariantManagerStyle::Get(), "VariantManager.VariantRadioButton")
 		.ToolTipText(LOCTEXT("ActivateVariantRadioToolTip", "Activate the variant"))
 		.IsChecked(FVariantManagerVariantNode::IsRadioButtonChecked())
-		.Visibility_Lambda([&](){return RadioButton->IsChecked() ? EVisibility::HitTestInvisible : EVisibility::Visible; }) // So we can't unclick it
 		.OnCheckStateChanged(this, &FVariantManagerVariantNode::OnRadioButtonStateChanged);
 
 	return
@@ -81,11 +79,19 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetCustomOutlinerContent(TShared
 		SNew(SBorder)
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Fill)
-		.BorderImage(this, &FVariantManagerDisplayNode::GetNodeBorderImage)
-		.BorderBackgroundColor(this, &FVariantManagerDisplayNode::GetNodeBackgroundTint)
+		.BorderImage(nullptr)
 		.Padding(FMargin(26.0f, 0.0f, 2.0f, 0.0f))
 		[
 			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
+			[
+				RadioButton.ToSharedRef()
+			]
 
 			+ SHorizontalBox::Slot()
 			.Padding(FMargin(4.f, 0.f, 4.f, 0.f))
@@ -102,15 +108,6 @@ TSharedRef<SWidget> FVariantManagerVariantNode::GetCustomOutlinerContent(TShared
 			.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
 			[
 				EditableLabel.ToSharedRef()
-			]
-
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			.AutoWidth()
-			.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
-			[
-				RadioButton.ToSharedRef()
 			]
 		]
 	];

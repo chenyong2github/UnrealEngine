@@ -36,6 +36,7 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"ToolMenus",
+					"ToolWidgets",
 					"VariantManagerContentEditor",
 					"WorkspaceMenuStructure",
 				}

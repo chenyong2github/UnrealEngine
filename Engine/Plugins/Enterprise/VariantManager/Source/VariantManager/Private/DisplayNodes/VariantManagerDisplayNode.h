@@ -62,6 +62,7 @@ public:
 		return FText();
 	}
 
+	virtual const FTableRowStyle* GetRowStyle() const;
 	virtual FSlateColor GetDisplayNameColor() const;
 	virtual FText GetDisplayNameToolTipText() const;
 	virtual void SetDisplayName(const FText& NewDisplayName) {}
@@ -85,7 +86,6 @@ public:
 	virtual FSlateColor GetIconColor() const;
 	virtual FText GetIconToolTipText() const;
 	virtual const FSlateBrush* GetNodeBorderImage() const;
-	virtual FSlateColor GetNodeBackgroundTint() const;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder);
 
 	uint32 GetNumChildren() const

@@ -5,20 +5,21 @@
 #include "CoreMinimal.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateStyle.h"
+#include "Styling/SlateStyleRegistry.h"
 
-class FVariantManagerStyle
+class FVariantManagerStyle final : public FSlateStyleSet
 {
 public:
-	static void Initialize();
-	static void Shutdown();
+	FVariantManagerStyle();
 
-	static TSharedPtr< class ISlateStyle > Get();
+	~FVariantManagerStyle()
+	{
+		FSlateStyleRegistry::UnRegisterSlateStyle(*this);
+	}
 
-	static FName GetStyleSetName();
-
-private:
-	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);
-
-private:
-	static TSharedPtr< class FSlateStyleSet > StyleSet;
+	static FVariantManagerStyle& Get()
+	{
+		static FVariantManagerStyle Inst;
+		return Inst;
+	}
 };

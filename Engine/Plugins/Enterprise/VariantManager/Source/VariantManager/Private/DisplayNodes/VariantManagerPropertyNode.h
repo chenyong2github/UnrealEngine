@@ -34,7 +34,6 @@ public:
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 	virtual FText GetDisplayNameToolTipText() const override;
 	virtual const FSlateBrush* GetIconOverlayBrush() const override;
-	virtual FSlateColor GetNodeBackgroundTint() const override;
 	virtual FText GetIconToolTipText() const override;
 	virtual EVariantManagerNodeType GetType() const override;
 	virtual bool IsReadOnly() const override;
