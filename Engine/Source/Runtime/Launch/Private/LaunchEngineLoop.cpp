@@ -1387,7 +1387,26 @@ static void UpdateCoreCsvStats_BeginFrame()
 			for (FString Cmd : FrameCommands)
 			{
 				CSV_EVENT_GLOBAL(TEXT("CsvExecCommand : %s"), *Cmd);
-				GEngine->Exec(GWorld, *Cmd);
+
+				// Try to execute on the local player
+				bool bExecuted = false;
+				for (FConstPlayerControllerIterator Iterator = GWorld->GetPlayerControllerIterator(); Iterator; ++Iterator)
+				{
+					APlayerController* PlayerController = Iterator->Get();
+					if (PlayerController)
+					{
+						if (ULocalPlayer* LocalPlayer = Cast<ULocalPlayer>(PlayerController->Player))
+						{
+							LocalPlayer->Exec(GWorld, *Cmd, *GLog);
+							bExecuted = true;
+						}
+					}
+				}
+				if (!bExecuted)
+				{
+					// Fallback to GEngine exec
+					GEngine->Exec(GWorld, *Cmd);
+				}
 			}
 		}
 #endif // CSV_PROFILER_ALLOW_DEBUG_FEATURES
