@@ -676,6 +676,7 @@ private:
 				Result = Status;
 			}
 			Request->Callback(Result);
+			Request->Callback = {};
 		}
 		if (Batch)
 		{
