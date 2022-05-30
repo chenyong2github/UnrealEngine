@@ -328,9 +328,14 @@ void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
 			{
 				DirtyActors.Add(ActorHandle, Actor);
 			}
-			else if (PinnedActors)
+			else if (ActorHandle->GetHardRefCount())
 			{
-				PinnedActors->AddActors({ ActorHandle });
+				// If we hold the last reference to that actor, pin it to avoid unloading
+				if (PinnedActors && (ActorHandle->GetHardRefCount() == 1))
+				{
+					PinnedActors->AddActors({ ActorHandle });
+				}
+
 				DirtyActors.Remove(ActorHandle);
 			}
 		}
@@ -1101,7 +1106,7 @@ void UWorldPartition::AddReferencedObjects(UObject* InThis, FReferenceCollector&
 		UWorldPartition* This = CastChecked<UWorldPartition>(InThis);
 	
 		Collector.AllowEliminatingReferences(false);
-		for (auto [ActorReference, Actor] : This->DirtyActors)
+		for (auto& [ActorReference, Actor] : This->DirtyActors)
 		{
 			Collector.AddReferencedObject(Actor);
 		}
