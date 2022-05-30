@@ -2653,7 +2653,14 @@ void ALandscape::RenderHeightmap(const FTransform& InRenderAreaWorldTransform, c
 #if WITH_EDITOR
 FBox ALandscape::GetCompleteBounds() const
 {
-	return GetLandscapeInfo()->GetCompleteBounds();
+	if (ensure(GetLandscapeInfo()))
+	{
+		return GetLandscapeInfo()->GetCompleteBounds();
+	}
+	else
+	{
+		return FBox(EForceInit::ForceInit);
+	}
 }
 
 void ALandscapeProxy::OnFeatureLevelChanged(ERHIFeatureLevel::Type NewFeatureLevel)
@@ -4910,8 +4917,12 @@ void ALandscapeProxy::UpdatePhysicalMaterialTasks(bool bInShouldMarkDirty)
 }
 #endif
 
-template<class ContainerType>
-void InvalidateGeneratedComponentDataImpl(const ContainerType& Components, bool bInvalidateLightingCache)
+void ALandscapeProxy::InvalidateGeneratedComponentData(bool bInvalidateLightingCache)
+{
+	InvalidateGeneratedComponentData(LandscapeComponents, bInvalidateLightingCache);
+}
+
+void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
 	TMap<ALandscapeProxy*, TSet<ULandscapeComponent*>> ByProxy;
 	for (auto Iter = Components.CreateConstIterator(); Iter; ++Iter)
@@ -4928,22 +4939,17 @@ void InvalidateGeneratedComponentDataImpl(const ContainerType& Components, bool 
 	for (auto Iter = ByProxy.CreateConstIterator(); Iter; ++Iter)
 	{
 		Iter.Key()->FlushGrassComponents(&Iter.Value());
+
+#if WITH_EDITOR
+		FLandscapeProxyComponentDataChangedParams ChangeParams(Iter.Value());
+		Iter.Key()->OnComponentDataChanged.Broadcast(Iter.Key(), ChangeParams);
+#endif
 	}
-}
-
-void ALandscapeProxy::InvalidateGeneratedComponentData(bool bInvalidateLightingCache)
-{
-	InvalidateGeneratedComponentDataImpl(LandscapeComponents, bInvalidateLightingCache);
-}
-
-void ALandscapeProxy::InvalidateGeneratedComponentData(const TArray<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
-{
-	InvalidateGeneratedComponentDataImpl(Components, bInvalidateLightingCache);
 }
 
 void ALandscapeProxy::InvalidateGeneratedComponentData(const TSet<ULandscapeComponent*>& Components, bool bInvalidateLightingCache)
 {
-	InvalidateGeneratedComponentDataImpl(Components, bInvalidateLightingCache);
+	InvalidateGeneratedComponentData(Components.Array(), bInvalidateLightingCache);
 }
 
 ULandscapeLODStreamingProxy::ULandscapeLODStreamingProxy(const FObjectInitializer& ObjectInitializer)
@@ -5102,5 +5108,20 @@ void ULandscapeLODStreamingProxy::InitResourceStateForMobileStreaming()
 	// Set bHasPendingInitHint so that HasPendingRenderResourceInitialization() gets called.
 	CachedSRRState.bHasPendingInitHint = true;
 }
+
+#if WITH_EDITOR
+FLandscapeProxyComponentDataChangedParams::FLandscapeProxyComponentDataChangedParams(const TSet<ULandscapeComponent*>& InComponents)
+	: Components(InComponents.Array())
+{
+}
+
+void FLandscapeProxyComponentDataChangedParams::ForEachComponent(TFunctionRef<void(const ULandscapeComponent*)> Func) const
+{
+	for (ULandscapeComponent* Component : Components)
+	{
+		Func(Component);
+	}
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE

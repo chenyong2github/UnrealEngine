@@ -42,11 +42,14 @@ class UTexture2D;
 class FLandscapeEditLayerReadback;
 struct FAsyncGrassBuilder;
 struct FLandscapeInfoLayerSettings;
+class FLandscapeProxyComponentDataChangedParams;
 struct FMeshDescription;
 enum class ENavDataGatheringMode : uint8;
 
 #if WITH_EDITOR
 LANDSCAPE_API extern bool GLandscapeEditModeActive;
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnLandscapeProxyComponentDataChanged, ALandscapeProxy*, const FLandscapeProxyComponentDataChangedParams&);
 #endif // WITH_EDITOR
 
 
@@ -746,6 +749,10 @@ public:
 	TMap<FString, UMaterialInstanceConstant*> MaterialInstanceConstantMap;
 #endif
 
+#if WITH_EDITOR
+	FOnLandscapeProxyComponentDataChanged OnComponentDataChanged;
+#endif
+
 	// Blueprint functions
 
 	/** Change the Level of Detail distance factor */
@@ -1235,6 +1242,20 @@ public:
 private:
 	UWorld* World;
 	int32 OudatedPhysicalMaterialComponentsCount;
+};
+
+/**
+* Helper class to store proxy changes information 
+*/
+class LANDSCAPE_API FLandscapeProxyComponentDataChangedParams
+{
+public:
+	FLandscapeProxyComponentDataChangedParams(const TSet<ULandscapeComponent*>& InComponents);
+	void ForEachComponent(TFunctionRef<void(const ULandscapeComponent*)> Func) const;
+	const TArray<ULandscapeComponent*>& GetComponents() const { return Components; }
+
+private:
+	TArray<ULandscapeComponent*> Components;
 };
 
 DEFINE_ACTORDESC_TYPE(ALandscapeProxy, FLandscapeActorDesc);
