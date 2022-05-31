@@ -40,7 +40,7 @@ namespace UE::PoseSearch
 		{
 			if (UPoseSearchDatabase* PoseSearchDb = Cast<UPoseSearchDatabase>(*ObjIt))
 			{
-				TSharedRef<FDatabaseEditorToolkit> NewEditor(new FDatabaseEditorToolkit());
+				TSharedRef<FDatabaseEditor> NewEditor(new FDatabaseEditor());
 				NewEditor->InitAssetEditor(Mode, EditWithinLevelEditor, PoseSearchDb);
 			}
 		}

@@ -43,11 +43,11 @@ namespace UE::PoseSearch
 	const FName FDatabaseEditorTabs::AssetTreeViewID(TEXT("PoseSearchDatabaseEditorAssetTreeViewTabID"));
 	const FName FDatabaseEditorTabs::SelectionDetailsID(TEXT("PoseSearchDatabaseEditorSelectionDetailsID"));
 
-	FDatabaseEditorToolkit::FDatabaseEditorToolkit()
+	FDatabaseEditor::FDatabaseEditor()
 	{
 	}
 
-	FDatabaseEditorToolkit::~FDatabaseEditorToolkit()
+	FDatabaseEditor::~FDatabaseEditor()
 	{
 		UPoseSearchDatabase* DatabaseAsset = ViewModel->GetPoseSearchDatabase();
 		if (IsValid(DatabaseAsset))
@@ -57,57 +57,57 @@ namespace UE::PoseSearch
 		}
 	}
 
-	const UPoseSearchDatabase* FDatabaseEditorToolkit::GetPoseSearchDatabase() const
+	const UPoseSearchDatabase* FDatabaseEditor::GetPoseSearchDatabase() const
 	{
 		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
 	}
 
-	UPoseSearchDatabase* FDatabaseEditorToolkit::GetPoseSearchDatabase()
+	UPoseSearchDatabase* FDatabaseEditor::GetPoseSearchDatabase()
 	{
 		return ViewModel.IsValid() ? ViewModel->GetPoseSearchDatabase() : nullptr;
 	}
 
-	void FDatabaseEditorToolkit::BuildSearchIndex()
+	void FDatabaseEditor::BuildSearchIndex()
 	{
 		ViewModel->BuildSearchIndex();
 	}
 
-	void FDatabaseEditorToolkit::PreviewBackwardEnd()
+	void FDatabaseEditor::PreviewBackwardEnd()
 	{
 		ViewModel->PreviewBackwardEnd();
 	}
 
-	void FDatabaseEditorToolkit::PreviewBackwardStep()
+	void FDatabaseEditor::PreviewBackwardStep()
 	{
 		ViewModel->PreviewBackwardStep();
 	}
 
-	void FDatabaseEditorToolkit::PreviewBackward()
+	void FDatabaseEditor::PreviewBackward()
 	{
 		ViewModel->PreviewBackward();
 	}
 
-	void FDatabaseEditorToolkit::PreviewPause()
+	void FDatabaseEditor::PreviewPause()
 	{
 		ViewModel->PreviewPause();
 	}
 
-	void FDatabaseEditorToolkit::PreviewForward()
+	void FDatabaseEditor::PreviewForward()
 	{
 		ViewModel->PreviewForward();
 	}
 
-	void FDatabaseEditorToolkit::PreviewForwardStep()
+	void FDatabaseEditor::PreviewForwardStep()
 	{
 		ViewModel->PreviewForwardStep();
 	}
 
-	void FDatabaseEditorToolkit::PreviewForwardEnd()
+	void FDatabaseEditor::PreviewForwardEnd()
 	{
 		ViewModel->PreviewForwardEnd();
 	}
 
-	void FDatabaseEditorToolkit::InitAssetEditor(
+	void FDatabaseEditor::InitAssetEditor(
 		const EToolkitMode::Type Mode,
 		const TSharedPtr<IToolkitHost>& InitToolkitHost,
 		UPoseSearchDatabase* DatabaseAsset)
@@ -124,7 +124,7 @@ namespace UE::PoseSearch
 					.AllowAudioPlayback(true)
 					.ShouldSimulatePhysics(true)
 					.ForceUseMovementComponentInNonGameWorld(true),
-					StaticCastSharedRef<FDatabaseEditorToolkit>(AsShared())));
+					StaticCastSharedRef<FDatabaseEditor>(AsShared())));
 
 			//Temporary fix for missing attached assets - MDW (Copied from FPersonaToolkit::CreatePreviewScene)
 			PreviewScene->GetWorld()->GetWorldSettings()->SetIsTemporarilyHiddenInEditor(false);
@@ -136,7 +136,7 @@ namespace UE::PoseSearch
 
 		// Create viewport widget
 		FDatabasePreviewRequiredArgs PreviewArgs(
-			StaticCastSharedRef<FDatabaseEditorToolkit>(AsShared()),
+			StaticCastSharedRef<FDatabaseEditor>(AsShared()),
 			PreviewScene.ToSharedRef());
 		PreviewWidget = SNew(SDatabasePreview, PreviewArgs)
 			.SliderScrubTime_Lambda([this]() { return ViewModel->GetPlayTime(); })
@@ -148,19 +148,19 @@ namespace UE::PoseSearch
 			{
 				ViewModel->SetPlayTime(NewScrubPosition, !bScrubbing);
 			})
-			.OnBackwardEnd_Raw(this, &FDatabaseEditorToolkit::PreviewBackwardEnd)
-			.OnBackwardStep_Raw(this, &FDatabaseEditorToolkit::PreviewBackwardStep)
-			.OnBackward_Raw(this, &FDatabaseEditorToolkit::PreviewBackward)
-			.OnPause_Raw(this, &FDatabaseEditorToolkit::PreviewPause)
-			.OnForward_Raw(this, &FDatabaseEditorToolkit::PreviewForward)
-			.OnForwardStep_Raw(this, &FDatabaseEditorToolkit::PreviewForwardStep)
-			.OnForwardEnd_Raw(this, &FDatabaseEditorToolkit::PreviewForwardEnd);
+			.OnBackwardEnd_Raw(this, &FDatabaseEditor::PreviewBackwardEnd)
+			.OnBackwardStep_Raw(this, &FDatabaseEditor::PreviewBackwardStep)
+			.OnBackward_Raw(this, &FDatabaseEditor::PreviewBackward)
+			.OnPause_Raw(this, &FDatabaseEditor::PreviewPause)
+			.OnForward_Raw(this, &FDatabaseEditor::PreviewForward)
+			.OnForwardStep_Raw(this, &FDatabaseEditor::PreviewForwardStep)
+			.OnForwardEnd_Raw(this, &FDatabaseEditor::PreviewForwardEnd);
 
 		AssetTreeWidget = SNew(SDatabaseAssetTree, ViewModel.ToSharedRef());
 		AssetTreeWidget->RegisterOnSelectionChanged(
 			SDatabaseAssetTree::FOnSelectionChanged::CreateSP(
 				this,
-				&FDatabaseEditorToolkit::OnAssetTreeSelectionChanged));
+				&FDatabaseEditor::OnAssetTreeSelectionChanged));
 		if (IsValid(DatabaseAsset))
 		{
 			DatabaseAsset->RegisterOnAssetChange(
@@ -201,7 +201,7 @@ namespace UE::PoseSearch
 			SelectionWidget->SetObject(nullptr);
 			SelectionWidget->OnFinishedChangingProperties().AddSP(
 				this,
-				&FDatabaseEditorToolkit::OnFinishedChangingSelectionProperties);
+				&FDatabaseEditor::OnFinishedChangingSelectionProperties);
 		}
 
 		// Define Editor Layout
@@ -274,17 +274,17 @@ namespace UE::PoseSearch
 		RegenerateMenusAndToolbars();
 	}
 
-	void FDatabaseEditorToolkit::BindCommands()
+	void FDatabaseEditor::BindCommands()
 	{
 		const FDatabaseEditorCommands& Commands = FDatabaseEditorCommands::Get();
 
 		ToolkitCommands->MapAction(
 			Commands.BuildSearchIndex,
-			FExecuteAction::CreateSP(this, &FDatabaseEditorToolkit::BuildSearchIndex),
+			FExecuteAction::CreateSP(this, &FDatabaseEditor::BuildSearchIndex),
 			EUIActionRepeatMode::RepeatDisabled);
 	}
 
-	void FDatabaseEditorToolkit::ExtendToolbar()
+	void FDatabaseEditor::ExtendToolbar()
 	{
 		TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
 
@@ -294,10 +294,10 @@ namespace UE::PoseSearch
 			"Asset",
 			EExtensionHook::After,
 			GetToolkitCommands(),
-			FToolBarExtensionDelegate::CreateSP(this, &FDatabaseEditorToolkit::FillToolbar));
+			FToolBarExtensionDelegate::CreateSP(this, &FDatabaseEditor::FillToolbar));
 	}
 
-	void FDatabaseEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
+	void FDatabaseEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	{
 		ToolbarBuilder.AddToolBarButton(
 			FDatabaseEditorCommands::Get().BuildSearchIndex,
@@ -307,7 +307,7 @@ namespace UE::PoseSearch
 			FSlateIcon());
 	}
 
-	void FDatabaseEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
+	void FDatabaseEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 	{
 		WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(
 			LOCTEXT("WorkspaceMenu_PoseSearchDbEditor", "Pose Search Database Editor"));
@@ -317,41 +317,41 @@ namespace UE::PoseSearch
 
 		InTabManager->RegisterTabSpawner(
 			FDatabaseEditorTabs::ViewportID,
-			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_Viewport))
+			FOnSpawnTab::CreateSP(this, &FDatabaseEditor::SpawnTab_Viewport))
 			.SetDisplayName(LOCTEXT("ViewportTab", "Viewport"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 
 		InTabManager->RegisterTabSpawner(
 			FDatabaseEditorTabs::AssetDetailsID,
-			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_AssetDetails))
+			FOnSpawnTab::CreateSP(this, &FDatabaseEditor::SpawnTab_AssetDetails))
 			.SetDisplayName(LOCTEXT("DatabaseDetailsTab", "Database Details"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 		InTabManager->RegisterTabSpawner(
 			FDatabaseEditorTabs::PreviewSettingsID,
-			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_PreviewSettings))
+			FOnSpawnTab::CreateSP(this, &FDatabaseEditor::SpawnTab_PreviewSettings))
 			.SetDisplayName(LOCTEXT("PreviewSceneSettingsTab", "Preview Scene Settings"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
 		InTabManager->RegisterTabSpawner(
 			FDatabaseEditorTabs::AssetTreeViewID,
-			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_AssetTreeView))
+			FOnSpawnTab::CreateSP(this, &FDatabaseEditor::SpawnTab_AssetTreeView))
 			.SetDisplayName(LOCTEXT("TreeViewTab", "Tree View"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 
 		InTabManager->RegisterTabSpawner(
 			FDatabaseEditorTabs::SelectionDetailsID,
-			FOnSpawnTab::CreateSP(this, &FDatabaseEditorToolkit::SpawnTab_SelectionDetails))
+			FOnSpawnTab::CreateSP(this, &FDatabaseEditor::SpawnTab_SelectionDetails))
 			.SetDisplayName(LOCTEXT("SelectionDetailsTab", "Selection Details"))
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 	}
 
-	void FDatabaseEditorToolkit::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
+	void FDatabaseEditor::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 	{
 		FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
@@ -362,34 +362,34 @@ namespace UE::PoseSearch
 		InTabManager->UnregisterTabSpawner(FDatabaseEditorTabs::SelectionDetailsID);
 	}
 
-	FName FDatabaseEditorToolkit::GetToolkitFName() const
+	FName FDatabaseEditor::GetToolkitFName() const
 	{
 		return FName("PoseSearchDatabaseEditor");
 	}
 
-	FText FDatabaseEditorToolkit::GetBaseToolkitName() const
+	FText FDatabaseEditor::GetBaseToolkitName() const
 	{
 		return LOCTEXT("PoseSearchDatabaseEditorAppLabel", "Pose Search Database Editor");
 	}
 
-	FText FDatabaseEditorToolkit::GetToolkitName() const
+	FText FDatabaseEditor::GetToolkitName() const
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("AssetName"), FText::FromString(GetPoseSearchDatabase()->GetName()));
 		return FText::Format(LOCTEXT("PoseSearchDatabaseEditorToolkitName", "{AssetName}"), Args);
 	}
 
-	FLinearColor FDatabaseEditorToolkit::GetWorldCentricTabColorScale() const
+	FLinearColor FDatabaseEditor::GetWorldCentricTabColorScale() const
 	{
 		return FLinearColor::White;
 	}
 
-	FString FDatabaseEditorToolkit::GetWorldCentricTabPrefix() const
+	FString FDatabaseEditor::GetWorldCentricTabPrefix() const
 	{
 		return TEXT("PoseSearchDatabaseEditor");
 	}
 
-	TSharedRef<SDockTab> FDatabaseEditorToolkit::SpawnTab_Viewport(const FSpawnTabArgs& Args)
+	TSharedRef<SDockTab> FDatabaseEditor::SpawnTab_Viewport(const FSpawnTabArgs& Args)
 	{
 		check(Args.GetTabId() == FDatabaseEditorTabs::ViewportID);
 
@@ -403,7 +403,7 @@ namespace UE::PoseSearch
 		return SpawnedTab;
 	}
 
-	TSharedRef<SDockTab> FDatabaseEditorToolkit::SpawnTab_AssetDetails(const FSpawnTabArgs& Args)
+	TSharedRef<SDockTab> FDatabaseEditor::SpawnTab_AssetDetails(const FSpawnTabArgs& Args)
 	{
 		check(Args.GetTabId() == FDatabaseEditorTabs::AssetDetailsID);
 
@@ -414,7 +414,7 @@ namespace UE::PoseSearch
 			];
 	}
 
-	TSharedRef<SDockTab> FDatabaseEditorToolkit::SpawnTab_PreviewSettings(const FSpawnTabArgs& Args)
+	TSharedRef<SDockTab> FDatabaseEditor::SpawnTab_PreviewSettings(const FSpawnTabArgs& Args)
 	{
 		check(Args.GetTabId() == FDatabaseEditorTabs::PreviewSettingsID);
 
@@ -432,7 +432,7 @@ namespace UE::PoseSearch
 		return SpawnedTab;
 	}
 
-	TSharedRef<SDockTab> FDatabaseEditorToolkit::SpawnTab_AssetTreeView(const FSpawnTabArgs& Args)
+	TSharedRef<SDockTab> FDatabaseEditor::SpawnTab_AssetTreeView(const FSpawnTabArgs& Args)
 	{
 		check(Args.GetTabId() == FDatabaseEditorTabs::AssetTreeViewID);
 
@@ -443,7 +443,7 @@ namespace UE::PoseSearch
 			];
 	}
 
-	TSharedRef<SDockTab> FDatabaseEditorToolkit::SpawnTab_SelectionDetails(const FSpawnTabArgs& Args)
+	TSharedRef<SDockTab> FDatabaseEditor::SpawnTab_SelectionDetails(const FSpawnTabArgs& Args)
 	{
 		check(Args.GetTabId() == FDatabaseEditorTabs::SelectionDetailsID);
 
@@ -470,12 +470,12 @@ namespace UE::PoseSearch
 			];
 	}
 
-	void FDatabaseEditorToolkit::OnFinishedChangingSelectionProperties(const FPropertyChangedEvent& PropertyChangedEvent)
+	void FDatabaseEditor::OnFinishedChangingSelectionProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 	{
 		ViewModel->BuildSearchIndex();
 	}
 
-	void FDatabaseEditorToolkit::OnAssetTreeSelectionChanged(
+	void FDatabaseEditor::OnAssetTreeSelectionChanged(
 		const TArrayView<TSharedPtr<FDatabaseAssetTreeNode>>& SelectedItems,
 		ESelectInfo::Type SelectionType)
 	{

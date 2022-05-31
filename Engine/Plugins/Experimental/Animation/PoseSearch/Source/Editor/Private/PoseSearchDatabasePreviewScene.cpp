@@ -14,9 +14,9 @@ namespace UE::PoseSearch
 {
 	FDatabasePreviewScene::FDatabasePreviewScene(
 		ConstructionValues CVs,
-		const TSharedRef<FDatabaseEditorToolkit>& EditorToolkit)
+		const TSharedRef<FDatabaseEditor>& Editor)
 		: FAdvancedPreviewScene(CVs)
-		, EditorToolkitPtr(EditorToolkit)
+		, EditorPtr(Editor)
 	{
 		// Disable killing actors outside of the world
 		AWorldSettings* WorldSettings = GetWorld()->GetWorldSettings(true);
@@ -57,7 +57,7 @@ namespace UE::PoseSearch
 			GetWorld()->Tick(LEVELTICK_All, InDeltaTime);
 		}
 
-		const FDatabaseViewModel* ViewModel = GetEditorToolkit()->GetViewModel();
+		const FDatabaseViewModel* ViewModel = GetEditor()->GetViewModel();
 		if (ViewModel->GetPoseSearchDatabase()->IsValidForSearch() &&
 			ViewModel->IsPoseFeaturesDrawMode(EFeaturesDrawMode::All))
 		{

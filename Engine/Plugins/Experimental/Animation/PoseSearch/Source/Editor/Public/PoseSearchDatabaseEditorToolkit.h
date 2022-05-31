@@ -17,12 +17,12 @@ namespace UE::PoseSearch
 	class FDatabasePreviewScene;
 	class FDatabaseViewModel;
 
-	class FDatabaseEditorToolkit : public FAssetEditorToolkit, public FNotifyHook
+	class FDatabaseEditor : public FAssetEditorToolkit, public FNotifyHook
 	{
 	public:
 
-		FDatabaseEditorToolkit();
-		virtual ~FDatabaseEditorToolkit();
+		FDatabaseEditor();
+		virtual ~FDatabaseEditor();
 
 		void InitAssetEditor(
 			const EToolkitMode::Type Mode,

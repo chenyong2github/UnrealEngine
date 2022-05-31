@@ -10,7 +10,7 @@ namespace UE::PoseSearch
 {
 	class FDatabasePreviewScene;
 	class SDatabaseViewport;
-	class FDatabaseEditorToolkit;
+	class FDatabaseEditor;
 
 	class FDatabaseViewportClient : public FEditorViewportClient
 	{
@@ -19,7 +19,7 @@ namespace UE::PoseSearch
 		FDatabaseViewportClient(
 			const TSharedRef<FDatabasePreviewScene>& InPreviewScene,
 			const TSharedRef<SDatabaseViewport>& InViewport,
-			const TSharedRef<FDatabaseEditorToolkit>& InAssetEditorToolkit);
+			const TSharedRef<FDatabaseEditor>& InAssetEditor);
 		virtual ~FDatabaseViewportClient() {}
 
 		// ~FEditorViewportClient interface
@@ -34,9 +34,9 @@ namespace UE::PoseSearch
 			return PreviewScenePtr.Pin().ToSharedRef();
 		}
 
-		TSharedRef<FDatabaseEditorToolkit> GetAssetEditorToolkit() const
+		TSharedRef<FDatabaseEditor> GetAssetEditor() const
 		{
-			return AssetEditorToolkitPtr.Pin().ToSharedRef();
+			return AssetEditorPtr.Pin().ToSharedRef();
 		}
 
 	private:
@@ -44,7 +44,7 @@ namespace UE::PoseSearch
 		/** Preview scene we are viewing */
 		TWeakPtr<FDatabasePreviewScene> PreviewScenePtr;
 
-		/** Asset editor toolkit we are embedded in */
-		TWeakPtr<FDatabaseEditorToolkit> AssetEditorToolkitPtr;
+		/** Asset editor we are embedded in */
+		TWeakPtr<FDatabaseEditor> AssetEditorPtr;
 	};
 }

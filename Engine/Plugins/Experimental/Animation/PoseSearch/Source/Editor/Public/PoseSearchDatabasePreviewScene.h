@@ -7,7 +7,7 @@
 
 namespace UE::PoseSearch
 {
-	class FDatabaseEditorToolkit;
+	class FDatabaseEditor;
 
 	class FDatabasePreviewScene : public FAdvancedPreviewScene
 	{
@@ -15,20 +15,20 @@ namespace UE::PoseSearch
 
 		FDatabasePreviewScene(
 			ConstructionValues CVs,
-			const TSharedRef<FDatabaseEditorToolkit>& EditorToolkit);
+			const TSharedRef<FDatabaseEditor>& Editor);
 		~FDatabasePreviewScene() {}
 
 		virtual void Tick(float InDeltaTime) override;
 
-		TSharedRef<FDatabaseEditorToolkit> GetEditorToolkit() const
+		TSharedRef<FDatabaseEditor> GetEditor() const
 		{
-			return EditorToolkitPtr.Pin().ToSharedRef();
+			return EditorPtr.Pin().ToSharedRef();
 		}
 
 	private:
 
-		/** The asset editor toolkit we are embedded in */
-		TWeakPtr<FDatabaseEditorToolkit> EditorToolkitPtr;
+		/** The asset editor we are embedded in */
+		TWeakPtr<FDatabaseEditor> EditorPtr;
 	};
 }
 

@@ -11,20 +11,20 @@ namespace UE::PoseSearch
 {
 	class FDatabasePreviewScene;
 	class FDatabaseViewportClient;
-	class FDatabaseEditorToolkit;
+	class FDatabaseEditor;
 	class SPoseSearchDatabaseViewportToolBar;
 
 	struct FDatabasePreviewRequiredArgs
 	{
 		FDatabasePreviewRequiredArgs(
-			const TSharedRef<FDatabaseEditorToolkit>& InAssetEditorToolkit,
+			const TSharedRef<FDatabaseEditor>& InAssetEditor,
 			const TSharedRef<FDatabasePreviewScene>& InPreviewScene)
-			: AssetEditorToolkit(InAssetEditorToolkit)
+			: AssetEditor(InAssetEditor)
 			, PreviewScene(InPreviewScene)
 		{
 		}
 
-		TSharedRef<FDatabaseEditorToolkit> AssetEditorToolkit;
+		TSharedRef<FDatabaseEditor> AssetEditor;
 
 		TSharedRef<FDatabasePreviewScene> PreviewScene;
 	};
@@ -61,8 +61,8 @@ namespace UE::PoseSearch
 		/** The preview scene that we are viewing */
 		TWeakPtr<FDatabasePreviewScene> PreviewScenePtr;
 
-		/** Asset editor toolkit we are embedded in */
-		TWeakPtr<FDatabaseEditorToolkit> AssetEditorToolkitPtr;
+		/** Asset editor we are embedded in */
+		TWeakPtr<FDatabaseEditor> AssetEditorPtr;
 	};
 
 	class SDatabasePreview : public SCompoundWidget

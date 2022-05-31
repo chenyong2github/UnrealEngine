@@ -13,10 +13,10 @@ namespace UE::PoseSearch
 	FDatabaseViewportClient::FDatabaseViewportClient(
 		const TSharedRef<FDatabasePreviewScene>& InPreviewScene,
 		const TSharedRef<SDatabaseViewport>& InViewport,
-		const TSharedRef<FDatabaseEditorToolkit>& InAssetEditorToolkit)
+		const TSharedRef<FDatabaseEditor>& InAssetEditor)
 		: FEditorViewportClient(nullptr, &InPreviewScene.Get(), StaticCastSharedRef<SEditorViewport>(InViewport))
 		, PreviewScenePtr(InPreviewScene)
-		, AssetEditorToolkitPtr(InAssetEditorToolkit)
+		, AssetEditorPtr(InAssetEditor)
 	{
 		Widget->SetUsesEditorModeTools(ModeTools.Get());
 		StaticCastSharedPtr<FAssetEditorModeManager>(ModeTools)->SetPreviewScene(&InPreviewScene.Get());

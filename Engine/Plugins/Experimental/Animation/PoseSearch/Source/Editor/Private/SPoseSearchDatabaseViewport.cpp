@@ -17,7 +17,7 @@ namespace UE::PoseSearch
 		const FDatabasePreviewRequiredArgs& InRequiredArgs)
 	{
 		PreviewScenePtr = InRequiredArgs.PreviewScene;
-		AssetEditorToolkitPtr = InRequiredArgs.AssetEditorToolkit;
+		AssetEditorPtr = InRequiredArgs.AssetEditor;
 
 		SEditorViewport::Construct(
 			SEditorViewport::FArguments()
@@ -33,7 +33,7 @@ namespace UE::PoseSearch
 		const FDatabaseEditorCommands& Commands = FDatabaseEditorCommands::Get();
 
 		TSharedRef<FDatabaseViewModel> ViewModelRef =
-			AssetEditorToolkitPtr.Pin()->GetViewModelSharedPtr().ToSharedRef();
+			AssetEditorPtr.Pin()->GetViewModelSharedPtr().ToSharedRef();
 
 		CommandList->MapAction(
 			Commands.ShowPoseFeaturesNone,
@@ -101,7 +101,7 @@ namespace UE::PoseSearch
 		ViewportClient = MakeShared<FDatabaseViewportClient>(
 			PreviewScenePtr.Pin().ToSharedRef(),
 			SharedThis(this),
-			AssetEditorToolkitPtr.Pin().ToSharedRef());
+			AssetEditorPtr.Pin().ToSharedRef());
 		ViewportClient->ViewportType = LVT_Perspective;
 		ViewportClient->bSetListenerPosition = false;
 		ViewportClient->SetViewLocation(EditorViewportDefs::DefaultPerspectiveViewLocation);

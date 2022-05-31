@@ -28,7 +28,7 @@ namespace UE::PoseSearch
 			static_cast<FDatabaseViewportClient*>(ViewportClient);
 		if (!ViewModel && PoseSearchDbViewportClient)
 		{
-			ViewModel = PoseSearchDbViewportClient->GetAssetEditorToolkit()->GetViewModel();
+			ViewModel = PoseSearchDbViewportClient->GetAssetEditor()->GetViewModel();
 		}
 
 		if (ViewModel)
