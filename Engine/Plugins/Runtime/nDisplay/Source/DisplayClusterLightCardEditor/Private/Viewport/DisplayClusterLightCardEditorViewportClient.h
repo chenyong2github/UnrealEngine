@@ -120,9 +120,6 @@ private:
 		uint32 SizeY = 0;
 	};
 
-	/** The amount to offset a light card's DistanceFromCenter when making it flush with a screen */
-	static constexpr float LightCardFlushOffset = -0.5f;
-
 public:
 	FDisplayClusterLightCardEditorViewportClient(FAdvancedPreviewScene& InPreviewScene,
 		const TWeakPtr<SDisplayClusterLightCardEditorViewport>& InEditorViewportWidget);
@@ -184,10 +181,11 @@ public:
 	/** Resets the camera to the initial rotation / position */
 	void ResetCamera(bool bLocationOnly = false);
 
-	/** Moves specified card to desired coordinates 
+	/** Moves specified card to desired coordinates. Actual radius will be based on flush constraint and LightCard's RadialOffset.
 	 *
 	 * @param LightCard The light card that we are moving
-	 * @param SphericalCoords specifies desired location of light card in spherical coordinates with respect to view origin
+	 * @param SphericalCoords specifies desired location of light card in spherical coordinates with respect to view origin.
+	 * 
 	*/
 	void MoveLightCardTo(ADisplayClusterLightCardActor& LightCard, const FSphericalCoordinates& SphericalCoords) const;
 

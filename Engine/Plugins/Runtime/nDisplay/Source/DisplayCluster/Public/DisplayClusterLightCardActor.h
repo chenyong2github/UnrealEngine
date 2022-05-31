@@ -58,6 +58,7 @@ public:
 		double Spin;
 		double Pitch;
 		double Yaw;
+		double RadialOffset;
 	};
 
 public:
@@ -107,7 +108,7 @@ public:
 
 public:
 
-	/** Radius of light card polar coordinates */
+	/** Radius of light card polar coordinates. Does not include the effect of RadialOffset */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
 	double DistanceFromCenter;
 
@@ -131,6 +132,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
 	FVector2D Scale;
+
+	/** Used by the flush constraint to offset the location of the light card form the wall */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Orientation")
+	double RadialOffset;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Appearance")
 	EDisplayClusterLightCardMask Mask;

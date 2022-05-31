@@ -37,6 +37,7 @@ ADisplayClusterLightCardActor::ADisplayClusterLightCardActor(const FObjectInitia
 	, Pitch(0.f)
 	, Yaw(0.f)
 	, Scale(FVector2D(1.f))
+	, RadialOffset(-0.5)
 	, Mask(EDisplayClusterLightCardMask::Circle)
 	, Texture(nullptr)
 	, Color(FLinearColor(1.f, 1.f, 1.f, 1.f))
@@ -131,6 +132,7 @@ void ADisplayClusterLightCardActor::PostEditChangeProperty(FPropertyChangedEvent
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Longitude) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Latitude) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Spin) ||
+		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, RadialOffset) ||
 		PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADisplayClusterLightCardActor, Scale)))
 	{
 		UpdateLightCardTransform();
@@ -201,7 +203,7 @@ FBox ADisplayClusterLightCardActor::GetLightCardBounds(bool bLocalSpace) const
 
 void ADisplayClusterLightCardActor::UpdateLightCardTransform()
 {
-	MainSpringArmComponent->TargetArmLength = DistanceFromCenter;
+	MainSpringArmComponent->TargetArmLength = DistanceFromCenter + RadialOffset;
 	MainSpringArmComponent->SetRelativeRotation(FRotator(-Latitude, Longitude, 0.0));
 
 	FRotator LightCardOrientation = FRotator(-Pitch, Yaw, Spin);
@@ -371,6 +373,7 @@ ADisplayClusterLightCardActor::PositionalParams ADisplayClusterLightCardActor::G
 	Params.Pitch = Pitch;
 	Params.Spin = Spin;
 	Params.Yaw = Yaw;
+	Params.RadialOffset = RadialOffset;
 
 	return Params;
 }
@@ -383,4 +386,5 @@ void ADisplayClusterLightCardActor::SetPositionalParams(const PositionalParams& 
 	Pitch = Params.Pitch;
 	Spin = Params.Spin;
 	Yaw = Params.Yaw;
+	RadialOffset = Params.RadialOffset;
 }
