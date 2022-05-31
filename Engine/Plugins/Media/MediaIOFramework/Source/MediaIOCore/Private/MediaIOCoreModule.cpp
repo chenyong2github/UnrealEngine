@@ -40,6 +40,11 @@ public:
 		return nullptr;
 	}
 
+	virtual TConstArrayView<IMediaIOCoreDeviceProvider*> GetDeviceProviders() const override
+	{
+		return DeviceProviders;
+	}
+
 private:
 	TArray<IMediaIOCoreDeviceProvider*> DeviceProviders;
 };

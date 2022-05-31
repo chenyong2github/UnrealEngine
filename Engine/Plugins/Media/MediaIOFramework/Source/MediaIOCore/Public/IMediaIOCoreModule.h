@@ -21,4 +21,5 @@ public:
 	virtual void RegisterDeviceProvider(IMediaIOCoreDeviceProvider* InProvider) = 0;
 	virtual void UnregisterDeviceProvider(IMediaIOCoreDeviceProvider* InProvider) = 0;
 	virtual IMediaIOCoreDeviceProvider* GetDeviceProvider(FName InProviderName) = 0;
+	virtual TConstArrayView<IMediaIOCoreDeviceProvider*> GetDeviceProviders() const = 0;
 };
