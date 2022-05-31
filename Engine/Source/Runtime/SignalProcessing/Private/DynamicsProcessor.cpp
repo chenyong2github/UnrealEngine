@@ -385,7 +385,6 @@ namespace Audio
 		{
 			DetectorOuts[Channel] = EnvFollower[Channel].ProcessSample(DetectorGain * KeyIn[Channel]);
 		}
-		ArrayClampInPlace(DetectorOuts, 0.f, 1.f);
 
 		switch (LinkMode)
 		{
