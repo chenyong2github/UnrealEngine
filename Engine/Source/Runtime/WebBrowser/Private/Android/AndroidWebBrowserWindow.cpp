@@ -38,7 +38,7 @@ FAndroidWebBrowserWindow::FAndroidWebBrowserWindow(FString InUrl, TOptional<FStr
 
 FAndroidWebBrowserWindow::~FAndroidWebBrowserWindow()
 {
-	CloseBrowser(true);
+	CloseBrowser(true, false);
 }
 
 void FAndroidWebBrowserWindow::LoadURL(FString NewURL)
@@ -160,6 +160,11 @@ bool FAndroidWebBrowserWindow::GetSupportsMouseWheel() const
 }
 
 FReply FAndroidWebBrowserWindow::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup)
+{
+	return FReply::Unhandled();
+}
+
+FReply FAndroidWebBrowserWindow::OnTouchGesture(const FGeometry& MyGeometry, const FPointerEvent& GestureEvent, bool bIsPopup)
 {
 	return FReply::Unhandled();
 }

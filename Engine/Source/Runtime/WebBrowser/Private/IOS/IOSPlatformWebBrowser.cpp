@@ -830,7 +830,7 @@ FWebBrowserWindow::FWebBrowserWindow(FString InUrl, TOptional<FString> InContent
 
 FWebBrowserWindow::~FWebBrowserWindow()
 {
-	CloseBrowser(true);
+	CloseBrowser(true, false);
 }
 
 void FWebBrowserWindow::LoadURL(FString NewURL)
@@ -956,6 +956,12 @@ FReply FWebBrowserWindow::OnMouseWheel(const FGeometry& MyGeometry, const FPoint
 {
 	return FReply::Unhandled();
 }
+
+FReply FWebBrowserWindow::OnTouchGesture(const FGeometry& MyGeometry, const FPointerEvent& GestureEvent, bool bIsPopup)
+{
+	return FReply::Unhandled();
+}
+
 
 void FWebBrowserWindow::OnFocus(bool SetFocus, bool bIsPopup)
 {
