@@ -16,6 +16,7 @@ class ULevelInstanceEditorObject;
 class ULevelStreamingLevelInstance;
 class ULevelStreamingLevelInstanceEditor;
 class UWorldPartitionSubsystem;
+class UActorDescContainer;
 class UBlueprint;
 
 /**
@@ -29,6 +30,10 @@ class ENGINE_API ULevelInstanceSubsystem : public UWorldSubsystem
 public:
 	ULevelInstanceSubsystem();
 	virtual ~ULevelInstanceSubsystem();
+
+	//~ Begin UObject Interface
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	//~ End UObject Interface
 		
 	//~ Begin USubsystem Interface.
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -103,6 +108,10 @@ public:
 	TArray<AActor*> GetParentLevelInstanceActors(const ULevel* Level) const;
 	FString PrefixWithParentLevelInstanceActorLabels(const FString& ActorLabel, const ULevel* Level) const;
 
+	UActorDescContainer* RegisterContainer(FName PackageName) { return ActorDescContainerInstanceManager.RegisterContainer(PackageName, GetWorld()); }
+	void UnregisterContainer(UActorDescContainer* Container) { ActorDescContainerInstanceManager.UnregisterContainer(Container); }
+	FBox GetContainerBounds(FName PackageName) const { return ActorDescContainerInstanceManager.GetContainerBounds(PackageName); }
+
 	static bool CheckForLoop(const ILevelInstanceInterface* LevelInstance, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo = nullptr, const ILevelInstanceInterface** LoopStart = nullptr);
 	static bool CheckForLoop(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, TArray<TPair<FText, TSoftObjectPtr<UWorld>>>* LoopInfo = nullptr, const ILevelInstanceInterface** LoopStart = nullptr);
 	static bool CanUseWorldAsset(const ILevelInstanceInterface* LevelInstance, TSoftObjectPtr<UWorld> WorldAsset, FString* OutReason);
@@ -131,7 +140,7 @@ private:
 
 	static bool ShouldIgnoreDirtyPackage(UPackage* DirtyPackage, const UWorld* EditingWorld);
 
-	class FLevelInstanceEdit : public FGCObject
+	class FLevelInstanceEdit
 	{
 	public:
 		TObjectPtr<ULevelStreamingLevelInstanceEditor> LevelStreaming;
@@ -143,8 +152,7 @@ private:
 		UWorld* GetEditWorld() const;
 		FLevelInstanceID GetLevelInstanceID() const;
 
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-		virtual FString GetReferencerName() const override;
+		void AddReferencedObjects(FReferenceCollector& Collector);
 
 		void GetPackagesToSave(TArray<UPackage*>& OutPackagesToSave) const;
 		bool CanDiscard(FText* OutReason = nullptr) const;
@@ -172,6 +180,41 @@ private:
 	};
 	
 	void RemoveLevelsFromWorld(const TArray<ULevel*>& Levels, bool bResetTrans = true);
+
+	class FActorDescContainerInstanceManager
+	{
+		friend class ULevelInstanceSubsystem;
+
+		struct FActorDescContainerInstance
+		{
+			FActorDescContainerInstance()
+			: Container(nullptr)
+			, RefCount(0)
+			, Bounds(ForceInit)
+			{}
+
+			void AddReferencedObjects(FReferenceCollector& Collector);
+			void UpdateBounds();
+
+			UActorDescContainer* Container;
+			uint32 RefCount;
+			FBox Bounds;
+		};
+
+		void AddReferencedObjects(FReferenceCollector& Collector);
+
+	public:
+		UActorDescContainer* RegisterContainer(FName PackageName, UWorld* InWorld);
+		void UnregisterContainer(UActorDescContainer* Container);
+
+		FBox GetContainerBounds(FName PackageName) const;
+
+	private:
+		void OnLevelInstanceActorCommitted(ILevelInstanceInterface* LevelInstance);
+
+		TMap<FName, FActorDescContainerInstance> ActorDescContainers;
+	};
+private:
 #endif
 	friend ULevelStreamingLevelInstance;
 	friend ULevelStreamingLevelInstanceEditor;
@@ -199,5 +242,7 @@ private:
 	TUniquePtr<FLevelInstanceEdit> LevelInstanceEdit;
 
 	TMap<FLevelInstanceID, int32> ChildEdits;
+
+	FActorDescContainerInstanceManager ActorDescContainerInstanceManager;
 #endif
 };

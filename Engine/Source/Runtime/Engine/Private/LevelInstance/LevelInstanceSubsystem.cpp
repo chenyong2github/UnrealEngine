@@ -61,13 +61,23 @@ ULevelInstanceSubsystem::ULevelInstanceSubsystem()
 	, bIsCreatingLevelInstance(false)
 	, bIsCommittingLevelInstance(false)
 #endif
-{
-
-}
+{}
 
 ULevelInstanceSubsystem::~ULevelInstanceSubsystem()
-{
+{}
 
+void ULevelInstanceSubsystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+{
+	ULevelInstanceSubsystem* This = CastChecked<ULevelInstanceSubsystem>(InThis);
+
+#if WITH_EDITORONLY_DATA
+	if (This->LevelInstanceEdit)
+	{
+		This->LevelInstanceEdit->AddReferencedObjects(Collector);
+	}
+
+	This->ActorDescContainerInstanceManager.AddReferencedObjects(Collector);
+#endif
 }
 
 void ULevelInstanceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -618,7 +628,18 @@ bool ULevelInstanceSubsystem::GetLevelInstanceBounds(const ILevelInstanceInterfa
 	}
 	else if(LevelInstance->IsWorldAssetValid())
 	{
-		return GetLevelInstanceBoundsFromPackage(CastChecked<AActor>(LevelInstance)->GetActorTransform(), FName(*LevelInstance->GetWorldAssetPackage()), OutBounds);
+		//@todo_ow: can't find a way to trigger this codepath, maybe deadcode?
+		FString LevelPackage = LevelInstance->GetWorldAssetPackage();
+
+		if (FBox ContainerBounds = ActorDescContainerInstanceManager.GetContainerBounds(*LevelPackage); ContainerBounds.IsValid)
+		{
+			FTransform LevelInstancePivotOffsetTransform = FTransform(ULevel::GetLevelInstancePivotOffsetFromPackage(*LevelPackage));
+			FTransform LevelTransform = LevelInstancePivotOffsetTransform * CastChecked<AActor>(LevelInstance)->GetActorTransform();
+			OutBounds = ContainerBounds.TransformBy(LevelTransform);
+			return true;
+		}
+
+		return GetLevelInstanceBoundsFromPackage(CastChecked<AActor>(LevelInstance)->GetActorTransform(), *LevelInstance->GetWorldAssetPackage(), OutBounds);
 	}
 
 	return false;
@@ -1314,11 +1335,83 @@ void ULevelInstanceSubsystem::RemoveLevelsFromWorld(const TArray<ULevel*>& InLev
 	}
 }
 
+void ULevelInstanceSubsystem::FActorDescContainerInstanceManager::FActorDescContainerInstance::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	Collector.AddReferencedObject(Container);
+}
+
+void ULevelInstanceSubsystem::FActorDescContainerInstanceManager::FActorDescContainerInstance::UpdateBounds()
+{
+	Bounds.Init();
+	for (FActorDescList::TIterator<> ActorDescIt(Container); ActorDescIt; ++ActorDescIt)
+	{
+		Bounds += ActorDescIt->GetBounds();
+	}
+}
+
+void ULevelInstanceSubsystem::FActorDescContainerInstanceManager::AddReferencedObjects(FReferenceCollector& Collector)
+{
+	for (auto& [Name, ContainerInstance] : ActorDescContainers)
+	{
+		ContainerInstance.AddReferencedObjects(Collector);
+	}
+}
+
+UActorDescContainer* ULevelInstanceSubsystem::FActorDescContainerInstanceManager::RegisterContainer(FName PackageName, UWorld* InWorld)
+{
+	FActorDescContainerInstance* ExistingContainerInstance = &ActorDescContainers.FindOrAdd(PackageName);
+	UActorDescContainer* ActorDescContainer = ExistingContainerInstance->Container;
+	
+	if (ExistingContainerInstance->RefCount++ == 0)
+	{
+		ActorDescContainer = NewObject<UActorDescContainer>(GetTransientPackage());
+		ExistingContainerInstance->Container = ActorDescContainer;
+		
+		// This will potentially invalidate ExistingContainerInstance due to ActorDescContainers reallocation
+		ActorDescContainer->Initialize(InWorld, PackageName);
+			
+		ExistingContainerInstance = &ActorDescContainers.FindChecked(PackageName);
+		ExistingContainerInstance->UpdateBounds();
+	}
+
+	check(ActorDescContainer->GetWorld() == InWorld);
+	return ActorDescContainer;
+}
+
+void ULevelInstanceSubsystem::FActorDescContainerInstanceManager::UnregisterContainer(UActorDescContainer* Container)
+{
+	FName PackageName = Container->GetContainerPackage();
+	FActorDescContainerInstance& ExistingContainerInstance = ActorDescContainers.FindChecked(PackageName);
+
+	if (--ExistingContainerInstance.RefCount == 0)
+	{
+		ExistingContainerInstance.Container->Uninitialize();
+		ActorDescContainers.FindAndRemoveChecked(PackageName);
+	}
+}
+
+FBox ULevelInstanceSubsystem::FActorDescContainerInstanceManager::GetContainerBounds(FName PackageName) const
+{
+	if (const FActorDescContainerInstance* ActorDescContainerInstance = ActorDescContainers.Find(PackageName))
+	{
+		return ActorDescContainerInstance->Bounds;
+	}
+	return FBox(ForceInit);
+}
+
+void ULevelInstanceSubsystem::FActorDescContainerInstanceManager::OnLevelInstanceActorCommitted(ILevelInstanceInterface* LevelInstance)
+{
+	const FName PackageName = *LevelInstance->GetWorldAssetPackage();
+	if (FActorDescContainerInstance* ActorDescContainerInstance = ActorDescContainers.Find(PackageName))
+	{
+		ActorDescContainerInstance->UpdateBounds();
+	}
+}
+
 ULevelInstanceSubsystem::FLevelsToRemoveScope::FLevelsToRemoveScope(ULevelInstanceSubsystem* InOwner)
 	: Owner(InOwner)
 	, bIsBeingDestroyed(false)
-{
-}
+{}
 
 ULevelInstanceSubsystem::FLevelsToRemoveScope::~FLevelsToRemoveScope()
 {
@@ -1493,11 +1586,6 @@ void ULevelInstanceSubsystem::FLevelInstanceEdit::AddReferencedObjects(FReferenc
 {
 	Collector.AddReferencedObject(EditorObject);
 	Collector.AddReferencedObject(LevelStreaming);
-}
-
-FString ULevelInstanceSubsystem::FLevelInstanceEdit::GetReferencerName() const
-{
-	return TEXT("FLevelInstanceEdit");
 }
 
 bool ULevelInstanceSubsystem::FLevelInstanceEdit::CanDiscard(FText* OutReason) const
@@ -1889,6 +1977,8 @@ bool ULevelInstanceSubsystem::CommitLevelInstanceInternal(TUniquePtr<FLevelInsta
 
 	// Notify (Actor might get destroyed by this call if its a packed bp)
 	LevelInstance->OnCommit(bChangesCommitted);
+
+	ActorDescContainerInstanceManager.OnLevelInstanceActorCommitted(LevelInstance);
 
 	// Update pointer since BP Compilation might have invalidated LevelInstance
 	LevelInstance = GetLevelInstance(LevelInstanceID);
