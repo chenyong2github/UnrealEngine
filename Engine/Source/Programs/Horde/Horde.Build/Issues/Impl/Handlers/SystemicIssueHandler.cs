@@ -26,19 +26,16 @@ namespace Horde.Build.IssueHandlers.Impl
 		/// <summary>
 		///  Known systemic errors
 		/// </summary>
-		static readonly HashSet<EventId?> s_knownSystemic = new HashSet<EventId?> {  KnownLogEvents.Systemic, KnownLogEvents.Systemic_Xge, KnownLogEvents.Systemic_Xge_Standalone, 
-																		KnownLogEvents.Systemic_Xge_ServiceNotRunning, KnownLogEvents.Systemic_Xge_BuildFailed, 
-																		KnownLogEvents.Systemic_SlowDDC, KnownLogEvents.Systemic_Horde, KnownLogEvents.Systemic_Horde_ArtifactUpload,
-																		KnownLogEvents.Horde, KnownLogEvents.Horde_InvalidPreflight};
+		static readonly HashSet<EventId> s_knownSystemic = new HashSet<EventId> { KnownLogEvents.Horde, KnownLogEvents.Horde_InvalidPreflight };
 
 		/// <summary>
 		/// Determines if the given event id matches
 		/// </summary>
 		/// <param name="eventId">The event id to compare</param>
 		/// <returns>True if the given event id matches</returns>
-		public static bool IsMatchingEventId(EventId? eventId)
+		public static bool IsMatchingEventId(EventId eventId)
 		{
-			return s_knownSystemic.Contains(eventId);
+			return s_knownSystemic.Contains(eventId) || (eventId.Id >= KnownLogEvents.Systemic.Id && eventId.Id <= KnownLogEvents.Systemic_Max.Id);
 		}
 
 		/// <inheritdoc/>
@@ -70,7 +67,7 @@ namespace Horde.Build.IssueHandlers.Impl
 				}
 			}
 
-			if (!IsMatchingEventId(eventData.EventId))
+			if (eventData.EventId == null || !IsMatchingEventId(eventData.EventId.Value))
 			{				
 				return false;
 			}

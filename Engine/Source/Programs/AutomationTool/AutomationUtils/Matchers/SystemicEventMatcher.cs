@@ -36,6 +36,11 @@ namespace AutomationUtils.Matchers
 			{
 				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.Low, LogLevel.Information, KnownLogEvents.Systemic_RoboMergeGateLocked);
 			}
+			if (cursor.Contains("LogXGEController: Warning: XGEControlWorker.exe does not exist"))
+			{
+				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.High, LogLevel.Information, KnownLogEvents.Systemic_MissingXgeControlWorker);
+			}
+
 			return null;
 		}
 	}

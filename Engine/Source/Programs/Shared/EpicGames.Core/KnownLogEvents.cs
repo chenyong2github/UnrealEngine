@@ -185,7 +185,20 @@ namespace EpicGames.Core
 		/// </summary>
 		public static EventId Systemic_MSBuild { get; } = new EventId(750);
 
+		/// <summary>
+		/// Robomerge gate is locked
+		/// </summary>
 		public static EventId Systemic_RoboMergeGateLocked { get; } = new EventId(760);
+
+		/// <summary>
+		/// XGEControlWorker is missing
+		/// </summary>
+		public static EventId Systemic_MissingXgeControlWorker { get; } = new EventId(761);
+
+		/// <summary>
+		/// Maximum code for systemic events. Add new events in the 700-799 range.
+		/// </summary>
+		public static EventId Systemic_Max { get; } = new EventId(799);
 
 		/// <summary>
 		/// Horde error codes
