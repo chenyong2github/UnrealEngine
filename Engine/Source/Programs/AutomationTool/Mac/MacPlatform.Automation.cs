@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,6 +47,20 @@ public class MacPlatform : Platform
 		}		
 	}
 
+	public override DeviceInfo[] GetDevices()
+	{
+		List<DeviceInfo> Devices = new List<DeviceInfo>();
+
+		if (HostPlatform.Current.HostEditorPlatform == TargetPlatformType)
+		{
+			DeviceInfo LocalMachine = new DeviceInfo(TargetPlatformType, Environment.MachineName, Environment.MachineName,
+				Environment.OSVersion.Version.ToString(), "Computer", true, true);
+
+			Devices.Add(LocalMachine);
+		}
+
+		return Devices.ToArray();
+	}
 
 	public override string GetCookPlatform(bool bDedicatedServer, bool bIsClientOnly)
 	{
