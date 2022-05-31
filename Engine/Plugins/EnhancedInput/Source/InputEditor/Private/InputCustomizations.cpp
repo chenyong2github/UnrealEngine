@@ -87,6 +87,8 @@ void FEnhancedActionMappingCustomization::RemoveMappingButton_OnClick() const
 //////////////////////////////////////////////////////////
 // FEnhancedInputDeveloperSettingsCustomization
 
+TSet<FName> FEnhancedInputDeveloperSettingsCustomization::ExcludedAssetNames;
+
 FEnhancedInputDeveloperSettingsCustomization::~FEnhancedInputDeveloperSettingsCustomization()
 {
 	// Unregister settings panel listeners
@@ -111,6 +113,7 @@ void FEnhancedInputDeveloperSettingsCustomization::CustomizeDetails(IDetailLayou
 
 	TArray<UObject*> ModifierCDOs = GatherClassDetailsCDOs(UInputModifier::StaticClass());
 	TArray<UObject*> TriggerCDOs = GatherClassDetailsCDOs(UInputTrigger::StaticClass());
+	ExcludedAssetNames.Reset();
 	
 	// Add The modifier/trigger defaults that are generated via CDO to the details builder
 	CustomizeCDOValues(DetailBuilder, ModifierCategoryName, ModifierCDOs);
@@ -195,7 +198,7 @@ TArray<UObject*> FEnhancedInputDeveloperSettingsCustomization::GatherClassDetail
 	for (FAssetData& Asset : BlueprintAssetData)
 	{
 		FAssetDataTagMapSharedView::FFindTagResult Result = Asset.TagsAndValues.FindTag(TEXT("NativeParentClass"));
-		if (Result.IsSet())
+		if (Result.IsSet() && !ExcludedAssetNames.Contains(Asset.AssetName))
 		{
 			const FString ClassObjectPath = FPackageName::ExportTextPathToObjectPath(Result.GetValue());
 			const FString ClassName = FPackageName::ObjectPathToObjectName(ClassObjectPath);
@@ -237,7 +240,7 @@ TArray<UObject*> FEnhancedInputDeveloperSettingsCustomization::GatherClassDetail
 	return CDOs;
 }
 
-void FEnhancedInputDeveloperSettingsCustomization::RebuildDetailsViewForAsset(const FAssetData& AssetData)
+void FEnhancedInputDeveloperSettingsCustomization::RebuildDetailsViewForAsset(const FAssetData& AssetData, const bool bIsAssetBeingRemoved)
 {
 	// If the asset was a blueprint...
 	if (AssetData.AssetClass == UBlueprint::StaticClass()->GetFName())
@@ -253,6 +256,11 @@ void FEnhancedInputDeveloperSettingsCustomization::RebuildDetailsViewForAsset(co
 			{
 				if (ParentClass == UInputModifier::StaticClass() || ParentClass == UInputTrigger::StaticClass())
 				{
+					if (bIsAssetBeingRemoved)
+					{
+						ExcludedAssetNames.Add(AssetData.AssetName);
+					}
+					
 					if (IDetailLayoutBuilder* DetailBuilder = CachedDetailBuilder.Pin().Get())
 					{
 						DetailBuilder->ForceRefreshDetails();

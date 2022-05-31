@@ -70,12 +70,12 @@ private:
 	 * This will rebuild the Modifier and Trigger CDO views to make sure that
 	 * any newly added Blueprint
 	 */
-	void RebuildDetailsViewForAsset(const FAssetData& AssetData);
+	void RebuildDetailsViewForAsset(const FAssetData& AssetData, const bool bIsAssetBeingRemoved);
 
 	/** Callbacks that are triggered from the Asset Registry. */
-	void OnAssetAdded(const FAssetData& AssetData) { RebuildDetailsViewForAsset(AssetData); }
-	void OnAssetRemoved(const FAssetData& AssetData) { RebuildDetailsViewForAsset(AssetData); }
-	void OnAssetRenamed(const FAssetData& AssetData, const FString&) { RebuildDetailsViewForAsset(AssetData); }
+	void OnAssetAdded(const FAssetData& AssetData) { RebuildDetailsViewForAsset(AssetData, false); }
+	void OnAssetRemoved(const FAssetData& AssetData) { RebuildDetailsViewForAsset(AssetData, true); }
+	void OnAssetRenamed(const FAssetData& AssetData, const FString&) { RebuildDetailsViewForAsset(AssetData, false); }
 	
 	/**
 	 * Create a new category on the DetailBuilder and add each object in the given array as an external reference.
@@ -88,4 +88,11 @@ private:
 
 	// Cached details builder so that we can rebuild the details when a new BP asset is added
 	TWeakPtr<IDetailLayoutBuilder> CachedDetailBuilder;
+
+	/**
+	 * Populated by RebuildDetailsViewForAsset so that we can exclude any blueprint classes
+	 * that have been removed from the asset registry but are still loaded in memory.
+	 * This is reset when CustomizeCDOValues is called
+	 */
+	static TSet<FName> ExcludedAssetNames;
 };
