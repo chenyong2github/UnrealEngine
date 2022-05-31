@@ -87,63 +87,59 @@ protected:
 //
 
 
-USTRUCT()
-struct FMaterialProxySettingsRC
+UCLASS()
+class MESHMODELINGTOOLSEXP_API URenderCaptureProperties : public UInteractiveToolPropertySet
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
-	// Size of generated BaseColor map
-	UPROPERTY(Category = Material, EditAnywhere, meta=(ClampMin="1", UIMin="1"))
-	int32 TextureSize;
+public:
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, DisplayName="Render Capture Resolution", meta = (ClampMin = "1", UIMin= "1"))
+	EBakeTextureResolution Resolution = EBakeTextureResolution::Resolution512;
 
 	// Whether to generate a texture for the World Normal property
-	UPROPERTY(Category = Material, EditAnywhere)
-	uint8 bNormalMap:1;
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere)
+	bool bNormalMap = true;
 
 	// Whether to generate a texture for the Metallic property
-	UPROPERTY(Category = Material, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
-	uint8 bMetallicMap:1;
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
+	bool bMetallicMap = true;
 
 	// Whether to generate a texture for the Roughness property
-	UPROPERTY(Category = Material, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
-	uint8 bRoughnessMap:1;
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
+	bool bRoughnessMap = true;
 
 	// Whether to generate a texture for the Specular property
-	UPROPERTY(Category = Material, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
-	uint8 bSpecularMap:1;
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, meta=(EditCondition="bPackedMRSMap == false"))
+	bool bSpecularMap = true;
 	
 	// Whether to generate a packed texture with Metallic, Roughness and Specular properties
-	UPROPERTY(Category = Material, EditAnywhere)
-	uint8 bPackedMRSMap:1;
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, DisplayName="Packed MRS Map")
+	bool bPackedMRSMap = true;
 
 	// Whether to generate a texture for the Emissive property
-	UPROPERTY(Category = Material, EditAnywhere)
-	uint8 bEmissiveMap:1;
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere)
+	bool bEmissiveMap = true;
 
-	FMaterialProxySettingsRC()
-		: TextureSize(512)
-		, bNormalMap(true)
-		, bMetallicMap(true)
-		, bRoughnessMap(true)
-		, bSpecularMap(true)
-		, bPackedMRSMap(true)
-		, bEmissiveMap(true)
-	{
-	}
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, AdvancedDisplay, DisplayName="Field of View", meta = (ClampMin = "5.0", ClampMax = "160.0"))
+	float CaptureFieldOfView = 30.0f;
 
-	bool operator == (const FMaterialProxySettingsRC& Other) const
+	UPROPERTY(Category = RenderCaptureOptions, EditAnywhere, AdvancedDisplay, meta = (ClampMin = "0.001", ClampMax = "1000.0"))
+	float NearPlaneDist = 1.0f;
+
+	bool operator==(const URenderCaptureProperties& Other) const
 	{
-		// @Incomplete use the uproperty compare thing
-		return TextureSize == Other.TextureSize
+		return Resolution == Other.Resolution
 			&& bNormalMap == Other.bNormalMap
 			&& bMetallicMap == Other.bMetallicMap
 			&& bRoughnessMap == Other.bRoughnessMap
 			&& bSpecularMap == Other.bSpecularMap
 			&& bPackedMRSMap == Other.bPackedMRSMap
-			&& bEmissiveMap == Other.bEmissiveMap;
+			&& bEmissiveMap == Other.bEmissiveMap
+			&& CaptureFieldOfView == Other.CaptureFieldOfView
+			&& NearPlaneDist == Other.NearPlaneDist;
 	}
 
-	bool operator != (const FMaterialProxySettingsRC& Other) const
+	bool operator != (const URenderCaptureProperties& Other) const
 	{
 		return !(*this == Other);
 	}
@@ -168,27 +164,13 @@ public:
 	UPROPERTY(meta = (TransientToolProperty))
 	TArray<FString> MapPreviewNamesList;
 
-	//
-	// Material Baking Settings
-	//
-
 	/** Number of samples per pixel */
-	UPROPERTY(EditAnywhere, Category = MaterialSettings)
+	UPROPERTY(EditAnywhere, Category = BakeOutput)
 	EBakeTextureSamplesPerPixel SamplesPerPixel = EBakeTextureSamplesPerPixel::Sample1;
 
-	/** If Value is zero, use MaterialSettings resolution, otherwise override the render capture resolution */
-	UPROPERTY(EditAnywhere, Category = MaterialSettings, meta = (ClampMin = "0"))
-	int32 RenderCaptureResolution = 512;
-
-	/** Material generation settings */
-	UPROPERTY(EditAnywhere, Category = MaterialSettings)
-	FMaterialProxySettingsRC MaterialSettings; // TODO make a separate struct and make it work like the baking tool (pick texture widgets etc)
-
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MaterialSettings, meta = (ClampMin = "5.0", ClampMax = "160.0"))
-	float CaptureFieldOfView = 30.0f;
-
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = MaterialSettings, meta = (ClampMin = "0.001", ClampMax = "1000.0"))
-	float NearPlaneDist = 1.0f;
+	/* Size of generated textures */
+	UPROPERTY(EditAnywhere, Category = BakeOutput, DisplayName="Results Resolution", meta=(ClampMin="1", UIMin="1"))
+	EBakeTextureResolution TextureSize = EBakeTextureResolution::Resolution512;
 };
 
 
@@ -249,6 +231,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UBakeRenderCaptureToolProperties> Settings;
+
+	UPROPERTY()
+	TObjectPtr<URenderCaptureProperties> RenderCaptureProperties;
 
 	UPROPERTY()
 	TObjectPtr<UBakeRenderCaptureInputToolProperties> InputMeshSettings;
@@ -326,7 +311,8 @@ protected:
 
 	// If the user cancels a scene capture before the computation completes then the settings which changed to invoke
 	// the capture are reverted to these values
-	TObjectPtr<UBakeRenderCaptureToolProperties> ComputedSettings;
+	UPROPERTY()
+	TObjectPtr<URenderCaptureProperties> ComputedRenderCaptureProperties;
 
 	// Analytics
 	virtual FString GetAnalyticsEventName() const override
