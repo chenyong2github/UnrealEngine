@@ -2193,6 +2193,10 @@ void UStruct::TagSubobjects(EObjectFlags NewFlags)
 #if USTRUCT_FAST_ISCHILDOF_COMPARE_WITH_OUTERWALK || USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_OUTERWALK
 bool UStruct::IsChildOf( const UStruct* SomeBase ) const
 {
+	// If you're looking at this check it is due to calling IsChildOf with a this nullptr. *MAKE* sure you do not call this function
+	// with a this nullptr. It is undefined behavior, and some compilers, clang13 have started to optimize out this == nullptr checks.
+	check(this);
+
 	if (SomeBase == nullptr)
 	{
 		return false;
