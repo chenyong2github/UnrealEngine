@@ -1351,7 +1351,7 @@ void AddMemberToPackedUB(const std::string& FrequencyPrefix,
 			Name += Buff;
 		}
 
-		for (uint32_t i = 0; i < type.traits.numeric.matrix.row_count; ++i)
+		for (uint32_t i = 0; i < type.traits.numeric.matrix.column_count; ++i)
 		{
 			if (i > 0)
 			{
@@ -1365,7 +1365,7 @@ void AddMemberToPackedUB(const std::string& FrequencyPrefix,
 			std::string Buff = "[" + OffsetString + " + " + std::to_string(i) + "]";
 			Name += Buff;
 
-			switch (type.traits.numeric.matrix.column_count)
+			switch (type.traits.numeric.matrix.row_count)
 			{
 			case 0:
 			case 1:
