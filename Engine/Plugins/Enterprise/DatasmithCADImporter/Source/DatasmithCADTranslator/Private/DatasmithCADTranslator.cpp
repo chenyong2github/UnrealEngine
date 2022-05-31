@@ -129,12 +129,12 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	CADLibrary::FFileDescriptor FileDescriptor(*FPaths::ConvertRelativePathToFull(GetSource().GetSourceFile()));
 
 	UE_LOG(LogCADTranslator, Display, TEXT("CAD translation [%s]."), *FileDescriptor.GetSourcePath());
-	UE_LOG(LogCADTranslator, Display, TEXT(" - Parsing Library:     %s"), *CADLibrary::FImportParameters::GCADLibrary);
-	UE_LOG(LogCADTranslator, Display, TEXT(" - Tesselation Library: %s")
+	UE_LOG(LogCADTranslator, Display, TEXT(" - Parsing Library:      %s"), *CADLibrary::FImportParameters::GCADLibrary);
+	UE_LOG(LogCADTranslator, Display, TEXT(" - Tessellation Library: %s")
 		, CADLibrary::FImportParameters::bGDisableCADKernelTessellation ? *CADLibrary::FImportParameters::GCADLibrary : TEXT("CADKernel"));
-	UE_LOG(LogCADTranslator, Display, TEXT(" - Cache mode:          %s")
+	UE_LOG(LogCADTranslator, Display, TEXT(" - Cache mode:           %s")
 		, CADLibrary::FImportParameters::bGEnableCADCache ? (CADLibrary::FImportParameters::bGOverwriteCache ? TEXT("Override") : TEXT("Enabled")) : TEXT("Disabled"));
-	UE_LOG(LogCADTranslator, Display, TEXT(" - Processing:          %s")
+	UE_LOG(LogCADTranslator, Display, TEXT(" - Processing:           %s")
 		, CADLibrary::FImportParameters::bGEnableCADCache ? (CADLibrary::GMaxImportThreads == 1 ? TEXT("Sequencial") : TEXT("Parallel")) : TEXT("Sequencial"));
 
 	ImportParameters.SetTesselationParameters(TesselationOptions.ChordTolerance, TesselationOptions.MaxEdgeLength, TesselationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique)TesselationOptions.StitchingTechnique);

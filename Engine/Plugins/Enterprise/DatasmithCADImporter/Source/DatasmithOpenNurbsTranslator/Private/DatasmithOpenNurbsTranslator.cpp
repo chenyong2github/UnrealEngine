@@ -3273,6 +3273,26 @@ bool FDatasmithOpenNurbsTranslator::LoadScene(TSharedRef<IDatasmithScene> OutSce
 		return false;
 	}
 
+	{
+		FString TesselationLibrary;
+		if (OpenNurbsOptions.Geometry == EDatasmithOpenNurbsBrepTessellatedSource::UseRenderMeshes)
+		{
+			TesselationLibrary = TEXT("Rhino");
+		}
+		else if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
+		{
+			TesselationLibrary = *CADLibrary::FImportParameters::GCADLibrary;
+		}
+		else
+		{
+			TesselationLibrary = TEXT("CADKernel");
+		}
+
+		UE_LOG(LogDatasmithOpenNurbsTranslator, Display, TEXT("CAD translation [%s]."), *Filename);
+		UE_LOG(LogDatasmithOpenNurbsTranslator, Display, TEXT(" - Parsing Library:      %s"), TEXT("OpenNurbs"));
+		UE_LOG(LogDatasmithOpenNurbsTranslator, Display, TEXT(" - Tessellation Library: %s"), *TesselationLibrary);
+	}
+
 	Translator = MakeShared<FOpenNurbsTranslatorImpl>(GetSource().GetSceneName(), OutScene, FPaths::GetPath(Filename), nullptr);
 	if (!Translator)
 	{
