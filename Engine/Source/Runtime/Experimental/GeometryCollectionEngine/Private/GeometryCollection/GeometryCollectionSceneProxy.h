@@ -249,6 +249,7 @@ class FGeometryCollectionSceneProxy final : public FPrimitiveSceneProxy
 	TMap<int32, int32> SubSectionHitProxyIndexMap;
 	// @todo FractureTools - Reconcile with SubSectionHitProxies.  Currently subsection hit proxies dont work for per-vertex submission
 	TArray<TRefCountPtr<HGeometryCollectionBone>> PerBoneHitProxies;
+	FColor WholeObjectHitProxyColor = FColor(EForceInit::ForceInit);
 	bool bUsesSubSections;
 #endif
 

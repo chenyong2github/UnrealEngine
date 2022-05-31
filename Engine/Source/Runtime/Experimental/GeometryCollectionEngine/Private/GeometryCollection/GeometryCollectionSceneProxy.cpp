@@ -508,7 +508,6 @@ void FGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollec
 
 	if (GetRequiredVertexCount())
 	{
-		FColor WholeObjectHitProxyColor = GetPrimitiveSceneInfo()->DefaultDynamicHitProxyId.GetColor();
 		ParallelFor(Vertices.Num(), [&](int32 i)
 		{
 			const FDynamicMeshVertex& Vertex = Vertices[i];
@@ -1191,6 +1190,7 @@ HHitProxy* FGeometryCollectionSceneProxy::CreateHitProxies(UPrimitiveComponent* 
 	// In order to be able to click on static meshes when they're batched up, we need to have catch all default
 	// hit proxy to return.
 	HHitProxy* DefaultHitProxy = FPrimitiveSceneProxy::CreateHitProxies(Component, OutHitProxies);
+	WholeObjectHitProxyColor = DefaultHitProxy->Id.GetColor();
 
 	// @todo FractureTools - Reconcile with subsection hit proxies.  Subsection is a draw call per hit proxy but is not suitable per-vertex as written
 	if (bEnableBoneSelection)
