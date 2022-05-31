@@ -4,8 +4,9 @@
 
 namespace Dataflow
 {
-	FEngineContext::FEngineContext(UDataflow* InGraph, float InTime)
-			: FContext(InTime)
-			, Graph(InGraph) 
+	FEngineContext::FEngineContext(UObject* InOwner, UDataflow* InGraph, float InTime, FName InType)
+			: FContext(InTime, InType)
+			, Owner(InOwner)
+			, Graph(InGraph)
 		{}
 }

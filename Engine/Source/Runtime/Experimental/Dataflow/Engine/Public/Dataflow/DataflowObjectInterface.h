@@ -13,7 +13,9 @@ namespace Dataflow
 	class DATAFLOWENGINE_API FEngineContext : public FContext
 	{
 	public:
-		FEngineContext(UDataflow* InGraph, float InTime);
+		FEngineContext(UObject* Owner, UDataflow* InGraph, float InTime, FName InType=FName("Unknown"));
+
+		UObject* Owner = nullptr;
 		UDataflow* Graph = nullptr;
 	};
 }

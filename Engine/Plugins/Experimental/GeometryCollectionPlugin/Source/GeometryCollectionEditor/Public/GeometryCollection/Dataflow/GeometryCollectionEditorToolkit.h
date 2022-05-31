@@ -15,20 +15,6 @@ class FTabManager;
 class IToolkitHost;
 class UDataflow;
 
-namespace Dataflow
-{
-	class GEOMETRYCOLLECTIONEDITOR_API FGeometryCollectionContext : public FContext
-	{
-	public:
-		UGeometryCollection* Asset;
-
-		FGeometryCollectionContext(UGeometryCollection* InAsset, float InTime)
-			: FContext(InTime)
-			, Asset(InAsset)
-		{}
-
-	};
-}
 
 class FGeometryCollectionEditorToolkit : public FAssetEditorToolkit, public FNotifyHook, public FGCObject
 {

@@ -11,13 +11,26 @@ namespace Dataflow
 	class DATAFLOWCORE_API FContext
 	{
 	public:
-		FContext(float InTime) : Timestamp(InTime) {}
+		FContext(float InTime, FName InType = FName("Unknown"))
+		: Timestamp(InTime) 
+		, Type(InType){}
 
 		float Timestamp = 0.f;
+		FName Type = FName("Unknown");
 
 		uint32 GetTypeHash() const
 		{
 			return ::GetTypeHash(Timestamp);
+		}
+
+		template<class T>
+		const T* AsType(FName InType) const
+		{
+			if (Type.IsEqual(InType))
+			{
+				return (T*)this;
+			}
+			return nullptr;
 		}
 	};
 

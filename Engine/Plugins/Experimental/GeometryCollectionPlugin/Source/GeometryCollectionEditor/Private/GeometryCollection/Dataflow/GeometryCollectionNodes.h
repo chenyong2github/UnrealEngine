@@ -35,13 +35,15 @@ namespace Dataflow
 		{
 			if (Output.Get() == Out)
 			{
-				const FGeometryCollectionContext* EngineContext = (const FGeometryCollectionContext*)(&Context);
-				if (UGeometryCollection* CollectionAsset = EngineContext->Asset)
+				if (const FEngineContext* EngineContext = Context.AsType<FEngineContext>(FName("UGeometryCollection")))
 				{
-					if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = CollectionAsset->GetGeometryCollection())
+					if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
 					{
-						FManagedArrayCollection* NewCollection = AssetCollection->NewCopy<FManagedArrayCollection>();
-						Output->SetValue(FManagedArrayCollectionSharedPtr(NewCollection), Context);
+						if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = CollectionAsset->GetGeometryCollection())
+						{
+							FManagedArrayCollection* NewCollection = AssetCollection->NewCopy<FManagedArrayCollection>();
+							Output->SetValue(FManagedArrayCollectionSharedPtr(NewCollection), Context);
+						}
 					}
 				}
 			}
@@ -101,14 +103,16 @@ namespace Dataflow
 
 		virtual void Evaluate(const FContext& Context, FConnection* Out) const override
 		{
-			if (Out==nullptr)
+			if (Out == nullptr)
 			{
 				DataType Collection = Input->GetValue(Context);
-				const FGeometryCollectionContext* EngineContext = (FGeometryCollectionContext*)(&Context);
-				if (UGeometryCollection* CollectionAsset = EngineContext->Asset)
+				if (const FEngineContext* EngineContext = Context.AsType<FEngineContext>(FName("UGeometryCollection")))
 				{
-					TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> NewCollection(Collection->NewCopy<FGeometryCollection>());
-					CollectionAsset->SetGeometryCollection(NewCollection);
+					if (UGeometryCollection* CollectionAsset = Cast<UGeometryCollection>(EngineContext->Owner))
+					{
+						TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> NewCollection(Collection->NewCopy<FGeometryCollection>());
+						CollectionAsset->SetGeometryCollection(NewCollection);
+					}
 				}
 			}
 		}
