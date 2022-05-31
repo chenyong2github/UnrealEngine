@@ -106,6 +106,11 @@ namespace EpicGames.Core
 		public static EventId AutomationTool_PerforceCase { get; } = new EventId(405);
 
 		/// <summary>
+		/// UAT: Unacceptable words
+		/// </summary>
+		public static EventId AutomationTool_UnacceptableWords { get; } = new EventId(406);
+
+		/// <summary>
 		/// MSBuild: Generic error
 		/// </summary>
 		public static EventId MSBuild { get; } = new EventId(500);
