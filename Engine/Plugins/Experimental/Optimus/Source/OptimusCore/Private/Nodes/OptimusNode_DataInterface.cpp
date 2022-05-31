@@ -106,6 +106,17 @@ void UOptimusNode_DataInterface::ConstructNode()
 }
 
 
+void UOptimusNode_DataInterface::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	// Currently duplication doesn't set the correct outer so fix here.
+	// We can remove this when duplication handles the outer correctly.
+	if (ensure(DataInterfaceData))
+	{
+		DataInterfaceData->Rename(nullptr, GetOuter());
+	}
+}
+
+
 void UOptimusNode_DataInterface::CreatePinsFromDataInterface(
 	UOptimusComputeDataInterface* InDataInterface
 	)

@@ -38,6 +38,7 @@ public:
 protected:
 	void PostLoad() override;
 	void ConstructNode() override;
+	void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 
 private:
 	void CreatePinsFromDataInterface(UOptimusComputeDataInterface *InDataInterface);
