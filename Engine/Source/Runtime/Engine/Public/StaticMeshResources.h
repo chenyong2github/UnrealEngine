@@ -874,7 +874,8 @@ public:
 		uint8 InDepthPriorityGroup, 
 		bool bUseSelectionOutline,
 		bool bAllowPreCulledIndices,
-		FMeshBatch& OutMeshBatch) const;
+		FMeshBatch& OutMeshBatch,
+		bool bSecondaryMeshBatch = false) const;
 
 	virtual int32 CollectOccluderElements(class FOccluderElementsCollector& Collector) const override;
 
@@ -984,6 +985,7 @@ protected:
 			/** Default constructor. */
 			FSectionInfo()
 				: Material(NULL)
+				, SecondaryMaterial(NULL)
 #if WITH_EDITOR
 				, bSelected(false)
 				, HitProxy(NULL)
@@ -994,6 +996,7 @@ protected:
 
 			/** The material with which to render this section. */
 			UMaterialInterface* Material;
+			UMaterialInterface* SecondaryMaterial;
 
 #if WITH_EDITOR
 			/** True if this section should be rendered as selected (editor only). */

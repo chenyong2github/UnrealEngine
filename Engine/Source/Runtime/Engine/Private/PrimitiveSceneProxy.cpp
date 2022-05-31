@@ -873,8 +873,7 @@ bool FPrimitiveSceneProxy::VerifyUsedMaterial(const FMaterialRenderProxy* Materi
 			&& MaterialInterface != UMaterial::GetDefaultMaterial(MD_Surface))
 		{
 			// Shader compiling uses GetUsedMaterials to detect which components need their scene proxy recreated, so we can only render with materials present in that list
-			ensureMsgf(false, TEXT("PrimitiveComponent tried to render with Material %s, which was not present in the component's GetUsedMaterials results\n    Owner: %s, Resource: %s"), *MaterialInterface->GetName(), *GetOwnerName().ToString(), *GetResourceName().ToString());
-			return false;
+			UE_LOG(LogMaterial, Warning, TEXT("PrimitiveComponent tried to render with Material %s (Can ignore if it used as a secondary material), which was not present in the component's GetUsedMaterials results\n    Owner: %s, Resource: %s"), *MaterialInterface->GetName(), *GetOwnerName().ToString(), *GetResourceName().ToString());
 		}
 	}
 #endif
