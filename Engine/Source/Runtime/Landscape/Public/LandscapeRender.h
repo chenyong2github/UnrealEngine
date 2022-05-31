@@ -627,9 +627,6 @@ public:
 	// Also being reused by GPULightmass currently to save mem
 	static TMap<uint32, FLandscapeSharedBuffers*> SharedBuffersMap;
 
-	float GetComponentMaxExtend() const { return ComponentMaxExtend; }
-	int32 GetComponentSizeQuads() const { return ComponentSizeQuads; }
-
 protected:
 	int8						MaxLOD;		// Maximum LOD level, user override possible
 	int8						NumWeightmapLayerAllocations;

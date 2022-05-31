@@ -17,7 +17,6 @@
 #include "WaterZoneActor.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "SceneViewExtension.h"
-#include "LandscapeRender.h"
 
 static int32 RenderCaptureNextWaterInfoDraws = 0;
 static FAutoConsoleVariableRef CVarRenderCaptureNextWaterInfoDraws(
@@ -35,7 +34,6 @@ struct FUpdateWaterInfoParams
 	FRenderTarget* RenderTarget;
 	FTexture* OutputTexture;
 
-	FVector2D WaterZoneExtents;
 	FVector2f WaterHeightExtents;
 	float GroundZMin;
 	float CaptureZ;
@@ -293,66 +291,10 @@ static void SetWaterBodiesWithinWaterInfoPass(FSceneRenderer* SceneRenderer, boo
 	}
 }
 
-static void SetOptimalLandscapeLODOverrides(const FUpdateWaterInfoParams& Params)
-{
-	// In order to prevent overdrawing the landscape components, we compute the lowest-detailed LOD level which satisfies the pixel coverage of the Water Info texture
-	// and force it on all landscape components. This override is set different per Landscape actor in case there are multiple under the same water zone.
-	//
-	// Ex: If the WaterInfoTexture only has 1 pixel per 100 units, and the highest landscape LOD has 1 vertex per 20 units, we don't need to use the maximum landscape LOD
-	// and can force a lower level of detail (in this case LOD2) while still satisfying the resolution of the water info texture.
-
-	const double MinWaterInfoTextureExtent = (double)FMath::Min(Params.OutputTexture->GetSizeX(), Params.OutputTexture->GetSizeY());
-	const double MaxWaterZoneExtent = FMath::Max(Params.WaterZoneExtents.X, Params.WaterZoneExtents.Y);
-	const double WaterInfoUnitsPerPixel =  MaxWaterZoneExtent / MinWaterInfoTextureExtent;
-
-	for (TPair<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*>& Pair : LandscapeRenderSystems)
-	{
-		int32 OptimalLODLevel = -1;
-		// All components within the same landscape (and thus its render system) should have the same number of quads and the same extent.
-		// therefore we can simply find the first component and compute its optimal LOD level.
-		for (FLandscapeComponentSceneProxy* LandscapeComponentProxy : Pair.Value->SceneProxies)
-		{
-			if (LandscapeComponentProxy != nullptr)
-			{
-				// LandscapeComponent Max Extend represents the half-extent of the landscape component. Multiply by two to get the actual size.
-				const double LandscapeComponentFullExtent = 2.0 * LandscapeComponentProxy->GetComponentMaxExtend();
-				const double LandscapeComponentUnitsPerVertex = LandscapeComponentFullExtent / (double)(LandscapeComponentProxy->GetComponentSizeQuads() + 1);
-
-				// Derived from:
-				// LandscapeComponentUnitsPerVertex * 2 ^ (LODLevel) <= WaterInfoUnitsPerPixel
-				OptimalLODLevel = FMath::FloorLog2(WaterInfoUnitsPerPixel / LandscapeComponentUnitsPerVertex);
-
-				break;
-			}
-		}
-
-		// There should always be at least one valid component proxy and the optimal LOD level should never be negative.
-		check(OptimalLODLevel >= 0);
-
-		for (FLandscapeRenderSystem::LODSettingsComponent& LODSettings : Pair.Value->SectionLODSettings)
-		{
-			LODSettings.ForcedLOD = OptimalLODLevel;
-		}
-	}
-}
-
-static void ResetLandscapeLODOverrides()
-{
-	for (TPair<FLandscapeNeighborInfo::FLandscapeKey, FLandscapeRenderSystem*>& Pair : LandscapeRenderSystems)
-	{
-		for (FLandscapeRenderSystem::LODSettingsComponent& LODSettings : Pair.Value->SectionLODSettings)
-		{
-			LODSettings.ForcedLOD = -1;
-		}
-	}
-}
-
 static void UpdateWaterInfoRendering_RenderThread(
 	FRHICommandListImmediate& RHICmdList,
 	const FUpdateWaterInfoParams& Params)
 {
-	SetOptimalLandscapeLODOverrides(Params);
-
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	FRenderTarget* RenderTarget = Params.RenderTarget;
@@ -473,8 +415,6 @@ static void UpdateWaterInfoRendering_RenderThread(
 	}
 
 	RHICmdList.Transition(FRHITransitionInfo(Params.OutputTexture->TextureRHI, ERHIAccess::RTV, ERHIAccess::SRVMask));
-
-	ResetLandscapeLODOverrides();
 }
 
 static FEngineShowFlags GetWaterInfoBaseShowFlags()
@@ -512,6 +452,7 @@ static FSceneRenderer* CreateWaterInfoDepthRenderer(
 		.SetRealtimeUpdate(false)
 		.SetResolveScene(false));
 	DepthViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_DeviceDepth;
+	DepthViewFamily.LandscapeLODOverride = Context.LandscapeLODOverride;
 
 	// Setup the view family
 	FSceneViewInitOptions DepthViewInitOptions;
@@ -591,6 +532,7 @@ static FSceneRenderer* CreateWaterInfoColorRenderer(
 		.SetRealtimeUpdate(false)
 		.SetResolveScene(false));
 	ColorViewFamily.SceneCaptureSource = ESceneCaptureSource::SCS_SceneColorSceneDepth;
+	ColorViewFamily.LandscapeLODOverride = Context.LandscapeLODOverride;
 
 	FSceneViewInitOptions ColorViewInitOptions;
 	ColorViewInitOptions.SetViewRectangle(FIntRect(0, 0, RenderTargetSize.X, RenderTargetSize.Y));
@@ -698,7 +640,6 @@ void UpdateWaterInfoRendering(
 	Params.WaterHeightExtents = Context.ZoneToRender->GetWaterHeightExtents();
 	Params.GroundZMin = Context.ZoneToRender->GetGroundZMin();
 	Params.VelocityBlurRadius = Context.ZoneToRender->GetVelocityBlurRadius();
-	Params.WaterZoneExtents = Context.ZoneToRender->GetZoneExtent();
 
 	ENQUEUE_RENDER_COMMAND(WaterInfoCommand)(
 	[Params, ZoneName = Context.ZoneToRender->GetActorNameOrLabel()](FRHICommandListImmediate& RHICmdList)
