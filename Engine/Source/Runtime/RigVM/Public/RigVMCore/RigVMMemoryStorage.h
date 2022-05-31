@@ -209,8 +209,16 @@ class RIGVM_API URigVMMemoryStorageGeneratorClass :
 	public UClass
 {
 	GENERATED_BODY()
-	DECLARE_WITHIN(UObject);
-	
+
+	// DECLARE_WITHIN(UObject) is only kept for back-compat, please don't parent the class
+	// to the asset object.
+	// This class should be parented to the package, instead of the asset object
+	// because the engine no longer supports asset object as UClass outer
+	// Given in the past we have parented the class to the asset object,
+	// this flag has to be kept such that we can load the old asset in the first place and
+	// re-parent it back to the package in post load
+	DECLARE_WITHIN(UObject)
+
 public:
 
 	// Default constructor

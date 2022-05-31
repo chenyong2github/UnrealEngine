@@ -248,6 +248,9 @@ public:
 
 	// UObject interface
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void PostRename(UObject* OldOuter, const FName OldName) override;
+	/** Called during cooking. Must return all objects that will be Preload()ed when this is serialized at load time. */
+	void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 
 	// IRigVMClientHost interface
 	virtual FRigVMClient* GetRigVMClient() override;
@@ -617,10 +620,12 @@ private:
 	// ControlRigBP, once end-loaded, will inform other ControlRig-Dependent systems that ControlRig instances are ready.
 	void BroadcastControlRigPackageDone();
 
-	// Previously some memory classes were parented to the package
-	// which violated the "single asset per package" rule
+	// Previously some memory classes were parented to the asset object
+	// however it is no longer supported since classes are now identified 
+	// with only package name + class name, see FTopLevelAssetPath
 	// this function removes those deprecated class.
-	// new classes should be created by RecompileVM and parented to the asset object
+	// new classes should be created by RecompileVM and parented to the Package
+	// during PostLoad
 	void RemoveDeprecatedVMMemoryClass() const;
 #endif
 
