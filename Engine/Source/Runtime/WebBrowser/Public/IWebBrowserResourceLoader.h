@@ -5,4 +5,4 @@
 #include "CoreMinimal.h"
 
 typedef TMap<FString, FString> FContextRequestHeaders;
-DECLARE_DELEGATE_ThreeParams(FOnBeforeContextResourceLoadDelegate, FString /*Url*/, FString /*ResourceType*/, FContextRequestHeaders& /*AdditionalHeaders*/);
+DECLARE_DELEGATE_FourParams(FOnBeforeContextResourceLoadDelegate, FString /*Url*/, FString /*ResourceType*/, FContextRequestHeaders& /*AdditionalHeaders*/, const bool /*AllowUserCredentials*/);

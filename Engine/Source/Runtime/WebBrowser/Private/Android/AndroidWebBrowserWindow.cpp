@@ -279,7 +279,7 @@ void FAndroidWebBrowserWindow::ExecuteJavascript(const FString& Script)
 	BrowserWidget->ExecuteJavascript(Script);
 }
 
-void FAndroidWebBrowserWindow::CloseBrowser(bool bForce)
+void FAndroidWebBrowserWindow::CloseBrowser(bool bForce, bool bBlockTillClosed /* ignored */)
 {
 	BrowserWidget->Close();
 }

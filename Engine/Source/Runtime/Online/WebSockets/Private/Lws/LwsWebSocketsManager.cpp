@@ -227,13 +227,8 @@ uint32 FLwsWebSocketsManager::Run()
 {
 	while (!ExitRequest.GetValue())
 	{
-		double BeginTime = FPlatformTime::Seconds();
+		// tick blocks in the lws_service() call until needed
 		Tick();
-		double EndTime = FPlatformTime::Seconds();
-
-		double TotalTime = EndTime - BeginTime;
-		double SleepTime = FMath::Max(ThreadTargetFrameTimeInSeconds - TotalTime, ThreadMinimumSleepTimeInSeconds);
-		FPlatformProcess::SleepNoStats(SleepTime);
 	}
 
 	return 0;
@@ -385,7 +380,7 @@ void FLwsWebSocketsManager::Tick()
 	}
 	if (LwsContext)
 	{
-		lws_service(LwsContext, 0);
+		lws_service(LwsContext, MAX_int32);
 	}
 	for (FLwsWebSocket* Socket : SocketsDestroyedDuringService)
 	{
@@ -411,6 +406,13 @@ void FLwsWebSocketsManager::StartProcessingWebSocket(FLwsWebSocket* Socket)
 {
 	Sockets.Emplace(Socket->AsShared());
 	SocketsToStart.Enqueue(Socket);
+	WakeService();
+}
+
+void FLwsWebSocketsManager::WakeService()
+{
+	// Safe to call from other threads
+	lws_cancel_service(LwsContext);
 }
 
 bool FLwsWebSocketsManager::GameThreadTick(float DeltaTime)

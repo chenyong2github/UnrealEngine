@@ -16,17 +16,17 @@ public class CEF3 : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			CEFVersion = "84.1.6+gc551bc2+chromium-84.0.4147.38";
+			CEFVersion = "90.6.7+g19ba721+chromium-90.0.4430.212";
 			CEFPlatform = "windows64";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			CEFVersion = "84.4.0+g304e015+chromium-84.0.4147.105";
+			CEFVersion = "90.6.7+g19ba721+chromium-90.0.4430.212";
 			CEFPlatform = "macosx64";
 		}
 		else if(Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			CEFVersion = "84.4.1+gfdc7504+chromium-84.0.4147.105";
+			CEFVersion = "93.1.7+g9117d6a+chromium-93.0.4577.42";
 			CEFPlatform = "linux64";
 		}
 
@@ -61,7 +61,6 @@ public class CEF3 : ModuleRules
 				List<string> Dlls = new List<string>();
 
 				Dlls.Add("chrome_elf.dll");
-				Dlls.Add("d3dcompiler_43.dll");
 				Dlls.Add("d3dcompiler_47.dll");
 				Dlls.Add("libcef.dll");
 				Dlls.Add("libEGL.dll");

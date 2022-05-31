@@ -210,7 +210,7 @@ void FNativeWebBrowserProxy::ExecuteJavascript(const FString& Script)
 	FEmbeddedDelegates::GetEmbeddedToNativeParamsDelegateForSubsystem(TEXT("webview")).Broadcast(CallHelper);
 }
 
-void FNativeWebBrowserProxy::CloseBrowser(bool bForce)
+void FNativeWebBrowserProxy::CloseBrowser(bool bForce, bool bBlockTillClosed /* ignored */)
 {
 }
 

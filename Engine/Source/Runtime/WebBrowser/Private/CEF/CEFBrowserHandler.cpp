@@ -5,7 +5,7 @@
 
 #if WITH_CEF3
 
-//#define DEBUG_ONBEFORELOAD // Debug print beforebrowse steps, used in CEFBrowserHandler.h so define early 
+//#define DEBUG_ONBEFORELOAD // Debug print beforebrowse steps
 
 #include "WebBrowserModule.h"
 #include "CEFBrowserClosureTask.h"
@@ -21,14 +21,32 @@
 
 #define LOCTEXT_NAMESPACE "WebBrowserHandler"
 
+#ifdef DEBUG_ONBEFORELOAD
+// Debug helper function to track URL loads
+void LogCEFLoad(const FString &Msg, CefRefPtr<CefRequest> Request)
+{
+	auto url = Request->GetURL();
+	auto type = Request->GetResourceType();
+	if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR || type == CefRequest::ResourceType::RT_SUB_RESOURCE|| type == CefRequest::ResourceType::RT_SUB_FRAME)
+	{
+		GLog->Logf(ELogVerbosity::Display, TEXT("%s :%s type:%s"), *Msg, url.c_str(), *ResourceTypeToString(type));
+	}
+}
+
+#define LOG_CEF_LOAD(MSG) LogCEFLoad(#MSG, Request)
+#else
+#define LOG_CEF_LOAD(MSG)
+#endif
 
 // Used to force returning custom content instead of performing a request.
 const FString CustomContentMethod(TEXT("X-GET-CUSTOM-CONTENT"));
 
-FCEFBrowserHandler::FCEFBrowserHandler(bool InUseTransparency, const TArray<FString>& InAltRetryDomains)
+FCEFBrowserHandler::FCEFBrowserHandler(bool InUseTransparency, bool InInterceptLoadRequests, const TArray<FString>& InAltRetryDomains, const TArray<FString>& InAuthorizationHeaderWhitelistURLS)
 : bUseTransparency(InUseTransparency), 
 bAllowAllCookies(false),
-AltRetryDomains(InAltRetryDomains)
+bInterceptLoadRequests(InInterceptLoadRequests),
+AltRetryDomains(InAltRetryDomains),
+AuthorizationHeaderWhitelistURLS(InAuthorizationHeaderWhitelistURLS)
 {
 	// should we forcefully allow all cookies to be set rather than filtering a couple store side ones
 	bAllowAllCookies = FParse::Param(FCommandLine::Get(), TEXT("CefAllowAllCookies"));
@@ -185,7 +203,7 @@ bool FCEFBrowserHandler::OnBeforePopup( CefRefPtr<CefBrowser> Browser,
 		cef_color_t B = CefColorGetB(OutSettings.background_color);
 		OutSettings.background_color = CefColorSetARGB(Alpha, R, G, B);
 
-		CefRefPtr<FCEFBrowserHandler> NewHandler(new FCEFBrowserHandler(shouldUseTransparency));
+		CefRefPtr<FCEFBrowserHandler> NewHandler(new FCEFBrowserHandler(shouldUseTransparency, true /*InterceptLoadRequests*/));
 		NewHandler->ParentHandler = this;
 		NewHandler->SetPopupFeatures(NewBrowserPopupFeatures);
 		OutClient = NewHandler;
@@ -275,11 +293,17 @@ void FCEFBrowserHandler::OnLoadingStateChange(CefRefPtr<CefBrowser> Browser, boo
 
 bool FCEFBrowserHandler::GetRootScreenRect(CefRefPtr<CefBrowser> Browser, CefRect& Rect)
 {
-	FDisplayMetrics DisplayMetrics;
-	FSlateApplication::Get().GetDisplayMetrics(DisplayMetrics);
-	Rect.width = DisplayMetrics.PrimaryDisplayWidth;
-	Rect.height = DisplayMetrics.PrimaryDisplayHeight;
-	return true;
+	if (CefCurrentlyOn(TID_UI))
+	{
+		// CEF may call this off the main gamethread which slate requires, so double check here
+		FDisplayMetrics DisplayMetrics;
+		FSlateApplication::Get().GetDisplayMetrics(DisplayMetrics);
+		Rect.width = DisplayMetrics.PrimaryDisplayWidth;
+		Rect.height = DisplayMetrics.PrimaryDisplayHeight;
+		return true;
+	}
+	
+	return false;
 }
 
 void FCEFBrowserHandler::GetViewRect(CefRefPtr<CefBrowser> Browser, CefRect& Rect)
@@ -325,15 +349,15 @@ void FCEFBrowserHandler::OnAcceleratedPaint(CefRefPtr<CefBrowser> Browser,
 	}
 }
 
-void FCEFBrowserHandler::OnCursorChange(CefRefPtr<CefBrowser> Browser, CefCursorHandle Cursor, CefRenderHandler::CursorType Type, const CefCursorInfo& CustomCursorInfo)
+bool FCEFBrowserHandler::OnCursorChange(CefRefPtr<CefBrowser> Browser, CefCursorHandle Cursor, cef_cursor_type_t Type, const CefCursorInfo& CustomCursorInfo)
 {
 	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
 
 	if (BrowserWindow.IsValid())
 	{
-		BrowserWindow->OnCursorChange(Cursor, Type, CustomCursorInfo);
+		return BrowserWindow->OnCursorChange(Cursor, Type, CustomCursorInfo);
 	}
-
+	return false;
 }
 
 void FCEFBrowserHandler::OnPopupShow(CefRefPtr<CefBrowser> Browser, bool bShow)
@@ -393,6 +417,14 @@ void FCEFBrowserHandler::OnImeCompositionRangeChanged(
 
 CefResourceRequestHandler::ReturnValue FCEFBrowserHandler::OnBeforeResourceLoad(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefRequest> Request, CefRefPtr<CefRequestCallback> Callback)
 {
+	if (Request->IsReadOnly())
+	{
+		LOG_CEF_LOAD("FCEFBrowserHandler::OnBeforeResourceLoad - readonly");
+
+		// we can't alter this request so just allow it through
+		return RV_CONTINUE;
+	}
+
 	// Current thread is IO thread. We need to invoke BrowserWindow->GetResourceContent on the UI (aka Game) thread:
 	CefPostTask(TID_UI, new FCEFBrowserClosureTask(this, [=]()
 	{
@@ -410,19 +442,14 @@ CefResourceRequestHandler::ReturnValue FCEFBrowserHandler::OnBeforeResourceLoad(
 			HeaderMap.insert(std::pair<CefString, CefString>(TCHAR_TO_WCHAR(*LanguageHeaderText), TCHAR_TO_WCHAR(*LocaleCode)));
 		}
 		
-#ifdef DEBUG_ONBEFORELOAD
-		auto url = Request->GetURL();
-		auto type = Request->GetResourceType();
-		if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR)
-		{
-			GLog->Logf(ELogVerbosity::Display, TEXT("FCEFBrowserHandler::OnBeforeResourceLoad :%s"), url.c_str());
-		}
-#endif
+		LOG_CEF_LOAD("FCEFBrowserHandler::OnBeforeResourceLoad");
 
 		if (BeforeResourceLoadDelegate.IsBound())
 		{
+			// Allow appending the Authorization header if this was NOT  a RT_XHR type of page load
+			bool bAllowCredentials = URLRequestAllowsCredentials(WCHAR_TO_TCHAR(Request->GetURL().ToWString().c_str()));
 			FRequestHeaders AdditionalHeaders;
-			BeforeResourceLoadDelegate.Execute(Request->GetURL(), Request->GetResourceType(), AdditionalHeaders);
+			BeforeResourceLoadDelegate.Execute(Request->GetURL(), Request->GetResourceType(), AdditionalHeaders, bAllowCredentials);
 
 			for (auto Iter = AdditionalHeaders.CreateConstIterator(); Iter; ++Iter)
 			{
@@ -482,12 +509,40 @@ void FCEFBrowserHandler::OnResourceLoadComplete(
 	URLRequestStatus Status,
 	int64 Received_content_length)
 {
+	LOG_CEF_LOAD("FCEFBrowserHandler::OnResourceLoadComplete");
+
 	// Current thread is IO thread. We need to invoke our delegates on the UI (aka Game) thread:
 	CefPostTask(TID_UI, new FCEFBrowserClosureTask(this, [=]()
 	{
-		ResourceLoadCompleteDelegate.ExecuteIfBound(Request->GetURL(), Request->GetResourceType(), Status, Received_content_length);
+		auto resType = Request->GetResourceType();
+		const FString URL = WCHAR_TO_TCHAR(Request->GetURL().ToWString().c_str());
+		if (MainFrameLoadTypes.Contains(URL))
+		{
+			// CEF has a bug where it confuses a MAIN_FRAME load for a XHR one, so fix it up here if we detect it.
+			resType = CefRequest::ResourceType::RT_MAIN_FRAME;
+		}
+		ResourceLoadCompleteDelegate.ExecuteIfBound(Request->GetURL(), resType, Status, Received_content_length);
+
+		// this load is done, clear the request from our map
+		MainFrameLoadTypes.Remove(URL);
 	}));
 }
+
+void FCEFBrowserHandler::OnResourceRedirect(CefRefPtr<CefBrowser> browser,
+	CefRefPtr<CefFrame> Frame,
+	CefRefPtr<CefRequest> Request,
+	CefRefPtr<CefResponse> Response,
+	CefString& new_url) 
+{
+	LOG_CEF_LOAD("FCEFBrowserHandler::OnResourceRedirect");
+	// Current thread is IO thread. We need to invoke our delegates on the UI (aka Game) thread:
+	CefPostTask(TID_UI, new FCEFBrowserClosureTask(this, [=]()
+	{
+		// this load is effectively done, clear the request from our map
+		MainFrameLoadTypes.Remove(WCHAR_TO_TCHAR(Request->GetURL().ToWString().c_str()));
+	}));
+}
+
 
 void FCEFBrowserHandler::OnRenderProcessTerminated(CefRefPtr<CefBrowser> Browser, TerminationStatus Status)
 {
@@ -504,18 +559,20 @@ bool FCEFBrowserHandler::OnBeforeBrowse(CefRefPtr<CefBrowser> Browser,
 	bool user_gesture, 
 	bool IsRedirect)
 {
+	CefRequest::ResourceType RequestType = Request->GetResourceType();
+	// We only want to append Authorization headers to main frame and similar requests
+	// BUGBUG - in theory we want to support XHR requests that have the access-control-allow-credentials header but CEF doesn't give us preflight details here
+	if (RequestType == CefRequest::ResourceType::RT_MAIN_FRAME || RequestType == CefRequest::ResourceType::RT_SUB_FRAME || RequestType == CefRequest::ResourceType::RT_SUB_RESOURCE)
+	{
+		// record that we saw this URL request as a main frame load
+		MainFrameLoadTypes.Add(WCHAR_TO_TCHAR(Request->GetURL().ToWString().c_str()), RequestType);
+	}
+
 	// Current thread: UI thread
 	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
 	if (BrowserWindow.IsValid())
 	{
-#ifdef DEBUG_ONBEFORELOAD
-		auto url = Request->GetURL();
-		auto type = Request->GetResourceType();
-		if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR)
-		{
-			GLog->Logf(ELogVerbosity::Display, TEXT("FCEFBrowserHandler::OnBeforeBrowse :%s"), url.c_str());
-		}
-#endif
+		LOG_CEF_LOAD("FCEFBrowserHandler::OnBeforeBrowse");
 		if(BrowserWindow->OnBeforeBrowse(Browser, Frame, Request, user_gesture, IsRedirect))
 		{
 			return true;
@@ -552,35 +609,65 @@ CefRefPtr<CefResourceHandler> FCEFBrowserHandler::GetResourceHandler( CefRefPtr<
 	return nullptr;
 }
 
-CefRefPtr<CefResourceRequestHandler> FCEFBrowserHandler::GetResourceRequestHandler( CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
-	CefRefPtr<CefRequest> request, bool is_navigation, bool is_download, const CefString& request_initiator, bool& disable_default_handling) 
+CefRefPtr<CefResourceRequestHandler> FCEFBrowserHandler::GetResourceRequestHandler( CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame,
+	CefRefPtr<CefRequest> Request, bool is_navigation, bool is_download, const CefString& request_initiator, bool& disable_default_handling) 
 {
-#ifdef DEBUG_ONBEFORELOAD
-	auto url = request->GetURL();
-	auto type = request->GetResourceType();
-	if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR)
-	{
-		GLog->Logf(ELogVerbosity::Display, TEXT("FCEFBrowserHandler::GetResourceRequestHandler :%s"), url.c_str());
-	}
-#endif
-	return this;
+	LOG_CEF_LOAD("FCEFBrowserHandler::GetResourceRequestHandler");
+	if (bInterceptLoadRequests)
+		return this;
+	return nullptr;
 }
 
 void FCEFBrowserHandler::SetBrowserWindow(TSharedPtr<FCEFWebBrowserWindow> InBrowserWindow)
 {
 	BrowserWindowPtr = InBrowserWindow;
+
+	if (InBrowserWindow.IsValid())
+	{
+		// Register any JS bindings that are setup in the new browser. In theory there should be 0 here as we are still being created.
+		CefRefPtr<CefProcessMessage> SetValueMessage = CefProcessMessage::Create(TCHAR_TO_WCHAR(TEXT("CEF::STARTUP")));
+		CefRefPtr<CefListValue> MessageArguments = SetValueMessage->GetArgumentList();
+		CefRefPtr<CefDictionaryValue> Bindings = InBrowserWindow->GetProcessInfo();
+		if (Bindings.get())
+		{
+			MessageArguments->SetDictionary(0, Bindings);
+		}
+		InBrowserWindow->GetCefBrowser()->GetMainFrame()->SendProcessMessage(PID_RENDERER, SetValueMessage);
+	}
 }
 
 bool FCEFBrowserHandler::OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser,
-	CefRefPtr<CefFrame> frame,
+	CefRefPtr<CefFrame> Frame,
 	CefProcessId SourceProcess,
 	CefRefPtr<CefProcessMessage> Message)
 {
 	bool Retval = false;
+	FString MessageName = WCHAR_TO_TCHAR(Message->GetName().ToWString().c_str());
 	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
 	if (BrowserWindow.IsValid())
 	{
-		Retval = BrowserWindow->OnProcessMessageReceived(Browser, frame, SourceProcess, Message);
+		if (MessageName.StartsWith(TEXT("CEF::BROWSERCREATED")))
+		{
+			// Register any JS bindings that are setup in the new browser. In theory there should be 0 here as we are still being created.
+			CefRefPtr<CefProcessMessage> SetValueMessage = CefProcessMessage::Create(TCHAR_TO_WCHAR(TEXT("CEF::STARTUP")));
+			CefRefPtr<CefListValue> MessageArguments = SetValueMessage->GetArgumentList();
+			CefRefPtr<CefDictionaryValue> Bindings = BrowserWindow->GetProcessInfo();
+			if (Bindings.get())
+			{
+				MessageArguments->SetDictionary(0, Bindings);
+			}
+			// CEF has a race condition for newly constructed browser objects, we may route this to the wrong renderer if we send right away
+			// so just PostTake to send this message next frame
+			CefPostTask(TID_UI, new FCEFBrowserClosureTask(this, [=]()
+				{
+					Frame->SendProcessMessage(PID_RENDERER, SetValueMessage);
+				}));
+
+		}
+		else
+		{
+			Retval = BrowserWindow->OnProcessMessageReceived(Browser, Frame, SourceProcess, Message);
+		}
 	}
 	return Retval;
 }
@@ -745,6 +832,28 @@ void FCEFBrowserHandler::OnDraggableRegionsChanged(CefRefPtr<CefBrowser> Browser
 	}
 }
 
+CefRefPtr<CefCookieAccessFilter> FCEFBrowserHandler::GetCookieAccessFilter(
+	CefRefPtr<CefBrowser> Browser,
+	CefRefPtr<CefFrame> Frame,
+	CefRefPtr<CefRequest> Request)
+{
+	FString Url = WCHAR_TO_TCHAR(Request->GetURL().ToWString().c_str());
+	TArray<FString> UrlParts;
+	if (Url.ParseIntoArray(UrlParts, TEXT("/"), true) >= 2)
+	{
+		if (UrlParts[1].Contains(TEXT(".epicgames.com")) || UrlParts[1].Contains(TEXT(".epicgames.net")))
+		{
+			// We only support custom cookie alteration for the epicgames domains right now. 
+			// There are limitations/bugs in CEF when the cookie filtering it on making it fail to pass cookies for some requests, so 
+			// we want to limit the scope of the filtering. See https://jira.it.epicgames.com/browse/DISTRO-1847 as an example of a bug
+			// caused by filtering
+			return this;
+		}
+	}
+
+	return nullptr;
+}
+
 bool FCEFBrowserHandler::CanSaveCookie(CefRefPtr<CefBrowser> browser,
 	CefRefPtr<CefFrame> frame,
 	CefRefPtr<CefRequest> request,
@@ -761,6 +870,46 @@ bool FCEFBrowserHandler::CanSaveCookie(CefRefPtr<CefBrowser> browser,
 		return false;
 	return true;
 }
+
+bool FCEFBrowserHandler::CanSendCookie(CefRefPtr<CefBrowser> Browser,
+	CefRefPtr<CefFrame> Frame,
+	CefRefPtr<CefRequest> Request,
+	const CefCookie& Cookie)
+{
+	if (bAllowAllCookies)
+	{
+		return true;
+	}
+
+	FString RequestURL(WCHAR_TO_TCHAR(Request->GetURL().ToWString().c_str()));
+	FString ReffererURL(WCHAR_TO_TCHAR(Request->GetReferrerURL().ToWString().c_str()));
+	if (ReffererURL.Contains("marketplace-website-node-launcher-") && RequestURL.Contains("graphql.epicgames.com"))
+	{
+		// requests from the marketplace UE4 page to graphql can exceed the header size limits so manually prune this large cookie here
+		if (CefString(&Cookie.name).ToString() == "ecma")
+			return false;
+	}
+	return true;
+}
+
+
+bool FCEFBrowserHandler::URLRequestAllowsCredentials(const FString& URL) const
+{
+	// if we inserted this URL into our map then we want to allow credentials for it
+	if (MainFrameLoadTypes.Find(URL) != nullptr)
+		return true;
+
+	// check the explicit whitelist also
+	for (const FString& AuthorizationHeaderWhitelistURL : AuthorizationHeaderWhitelistURLS)
+	{
+		if (URL.Contains(AuthorizationHeaderWhitelistURL))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 
 #undef LOCTEXT_NAMESPACE
 

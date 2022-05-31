@@ -51,8 +51,9 @@ public class EpicWebHelperTarget : TargetRules
 		// Disable logging, as the sub processes are spawned often and logging will just slow them down
 		GlobalDefinitions.Add("ALLOW_LOG_FILE=0");
 
-		// Epic Games Launcher needs to run on OS X 10.9, so CEFSubProcess needs this as well
+		// Enable OSX 10.11 support (CEF3 requires 10.11+ on macOS)
 		bEnableOSX109Support = true;
+		//ForceOSXMinVersion = "10.11";
 
 		// Already a manifest specified through resource file
 		WindowsPlatform.ManifestFile = null;

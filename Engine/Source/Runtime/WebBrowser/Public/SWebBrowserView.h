@@ -49,6 +49,7 @@ public:
 		: _InitialURL(TEXT("https://www.google.com"))
 		, _ShowErrorMessage(true)
 		, _SupportsTransparency(false)
+		, _InterceptLoadRequests(true)
 		, _SupportsThumbMouseButtonNavigation(true)
 		, _BackgroundColor(255,255,255,255)
 		, _BrowserFrameRate(24)
@@ -72,6 +73,9 @@ public:
 
 		/** Should this browser window support transparency. */
 		SLATE_ARGUMENT(bool, SupportsTransparency)
+
+		/** Should this browser window intercept resource loading requests. If false the BrowserContext will instead. Defaults to True. */
+		SLATE_ARGUMENT(bool, InterceptLoadRequests)
 
 		/** Whether to allow forward and back navigation via the mouse thumb buttons. */
 		SLATE_ARGUMENT(bool, SupportsThumbMouseButtonNavigation)
@@ -272,6 +276,11 @@ public:
 	/** Update the underlying browser widget to match the KB focus in slate.
 		This is used to work around a CEF bug that loses focus state on navigations*/
 	void SetBrowserKeyboardFocus();
+
+	/** Close the underlying browser object before we destruct this view. 
+	    This will block until that object is fully destroyed.
+		Calling this is optional, CEF has object lifetime requirements that mean on shutdown you must destroy browsers before exit.*/
+	void CloseBrowser();
 
 private:
 

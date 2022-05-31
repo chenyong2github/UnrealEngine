@@ -49,6 +49,7 @@ private:
 
 			FCreateBrowserWindowSettings WindowSettings;
 			WindowSettings.bUseTransparency = true;
+			WindowSettings.bInterceptLoadRequests = true;
 			WindowSettings.bShowErrorMessage = false;
 			Browser = IWebBrowserModule::Get().GetSingleton()->CreateBrowserWindow(WindowSettings);
 

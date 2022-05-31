@@ -25,6 +25,7 @@ public:
 		FString InitialURL,
 		bool bUseTransparency,
 		bool bThumbMouseButtonNavigation,
+		bool InterceptLoadRequests = true,
 		TOptional<FString> ContentsToLoad = TOptional<FString>(),
 		bool ShowErrorMessage = true,
 		FColor BackgroundColor = FColor(255, 255, 255, 255)) = 0;
@@ -58,6 +59,7 @@ struct WEBBROWSER_API FCreateBrowserWindowSettings
 		: OSWindowHandle(nullptr)
 		, InitialURL()
 		, bUseTransparency(false)
+		, bInterceptLoadRequests(true)
 		, bThumbMouseButtonNavigation(false)
 		, ContentsToLoad()
 		, bShowErrorMessage(true)
@@ -70,6 +72,7 @@ struct WEBBROWSER_API FCreateBrowserWindowSettings
 	void* OSWindowHandle;
 	FString InitialURL;
 	bool bUseTransparency;
+	bool bInterceptLoadRequests;
 	bool bThumbMouseButtonNavigation;
 	TOptional<FString> ContentsToLoad;
 	bool bShowErrorMessage;

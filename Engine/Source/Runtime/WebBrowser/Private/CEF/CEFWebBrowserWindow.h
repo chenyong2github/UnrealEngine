@@ -139,6 +139,7 @@ public:
 	virtual void SetSupportsMouseWheel(bool bValue) override;
 	virtual bool GetSupportsMouseWheel() const override;
 	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup) override;
+	virtual FReply OnTouchGesture(const FGeometry& MyGeometry, const FPointerEvent& GestureEvent, bool bIsPopup) override;
 	virtual void OnFocus(bool SetFocus, bool bIsPopup) override;
 	virtual void OnCaptureLost() override;
 	virtual bool CanGoBack() const override;
@@ -149,7 +150,7 @@ public:
 	virtual void Reload() override;
 	virtual void StopLoad() override;
 	virtual void ExecuteJavascript(const FString& Script) override;
-	virtual void CloseBrowser(bool bForce) override;
+	virtual void CloseBrowser(bool bForce, bool bBlockTillClosed) override;
 	virtual void BindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true) override;
 	virtual void UnbindUObject(const FString& Name, UObject* Object = nullptr, bool bIsPermanent = true) override;
 	virtual void BindInputMethodSystem(ITextInputMethodSystem* TextInputMethodSystem) override;
@@ -372,7 +373,7 @@ private:
 	 *
 	 * @param Cursor Handle to CEF mouse cursor.
 	 */
-	void OnCursorChange(CefCursorHandle Cursor, CefRenderHandler::CursorType Type, const CefCursorInfo& CustomCursorInfo);
+	bool OnCursorChange(CefCursorHandle Cursor, cef_cursor_type_t Type, const CefCursorInfo& CustomCursorInfo);
 
 	/**
 	 * Called when a message was received from the renderer process.
@@ -396,7 +397,7 @@ private:
 	 */
 	bool OnBeforeBrowse(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefRequest> Request, bool user_gesture, bool bIsRedirect);
 
-	void HandleOnBeforeResourceLoad(const CefString& URL, CefRequest::ResourceType Type, FRequestHeaders& AdditionalHeaders);
+	void HandleOnBeforeResourceLoad(const CefString& URL, CefRequest::ResourceType Type, FRequestHeaders& AdditionalHeaders, const bool AllowUserCredentials);
 	void HandleOnResourceLoadComplete(const CefString& URL, CefRequest::ResourceType Type, CefResourceRequestHandler::URLRequestStatus Status, int64 ContentLength);
 	void HandleOnConsoleMessage(CefRefPtr<CefBrowser> Browser, cef_log_severity_t Level, const CefString& Message, const CefString& Source, int Line);
 
@@ -545,6 +546,11 @@ public:
 	 */
 	CefRefPtr<CefDictionaryValue> GetProcessInfo();
 
+	/**
+	* Return true if this URL will support adding an Authorization header to it
+	*/
+	bool URLRequestAllowsCredentials(const FString& URL) const { return WebBrowserHandler->URLRequestAllowsCredentials(URL); }
+
 private:
 
 	/** @return the currently valid renderer, if available */
@@ -583,6 +589,12 @@ private:
 	/** Used to let us correctly render the web texture for the accelerated render path */
 	TOptional<FSlateRenderTransform> GetWebBrowserRenderTransform() const;
 
+	bool IsInDirectHwndMode() const;
+
+#if PLATFORM_WINDOWS
+	/** manually load cursor icons from the CEF3 dll if needed, working around a CEF3 bug */
+	bool LoadCustomCEF3Cursor(cef_cursor_type_t Type);
+#endif
 private:
 
 	/** Current state of the document being loaded. */
@@ -759,6 +771,10 @@ private:
 
 	TWeakPtr<SWindow> ParentWindow;
 	FCEFWebBrowserWindowRHIHelper* RHIRenderHelper;
+	
+#if PLATFORM_WINDOWS
+	bool bInDirectHwndMode;
+#endif
 };
 
 typedef FCEFWebBrowserWindow FWebBrowserWindow;

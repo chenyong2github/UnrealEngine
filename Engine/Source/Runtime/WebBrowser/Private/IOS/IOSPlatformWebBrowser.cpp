@@ -1072,7 +1072,7 @@ void FWebBrowserWindow::ExecuteJavascript(const FString& Script)
 	BrowserWidget->ExecuteJavascript(Script);
 }
 
-void FWebBrowserWindow::CloseBrowser(bool bForce)
+void FWebBrowserWindow::CloseBrowser(bool bForce, bool bBlockTillClosed /* ignored */)
 {
 	BrowserWidget->Close();
 }

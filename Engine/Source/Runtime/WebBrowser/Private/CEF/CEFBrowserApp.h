@@ -24,13 +24,6 @@ public:
 	 */
 	FCEFBrowserApp();
 
-	/** A delegate this is invoked when an existing browser requests creation of a new browser window. */
-	DECLARE_DELEGATE_OneParam(FOnRenderProcessThreadCreated, CefRefPtr<CefListValue> /*ExtraInfo*/);
-	virtual FOnRenderProcessThreadCreated& OnRenderProcessThreadCreated()
-	{
-		return RenderProcessThreadCreatedDelegate;
-	}
-
 	/** Used to pump the CEF message loop whenever OnScheduleMessagePumpWork is triggered */
 	bool TickMessagePump(float DeltaTime, bool bForce);
 
@@ -40,10 +33,7 @@ private:
 	virtual void OnBeforeCommandLineProcessing(const CefString& ProcessType, CefRefPtr< CefCommandLine > CommandLine) override;
 	// CefBrowserProcessHandler methods:
 	virtual void OnBeforeChildProcessLaunch(CefRefPtr<CefCommandLine> CommandLine) override;
-	virtual void OnRenderProcessThreadCreated(CefRefPtr<CefListValue> ExtraInfo) override;
 	virtual void OnScheduleMessagePumpWork(int64 delay_ms) override;
-
-	FOnRenderProcessThreadCreated RenderProcessThreadCreatedDelegate;
 
 	// Include the default reference counting implementation.
 	IMPLEMENT_REFCOUNTING(FCEFBrowserApp);

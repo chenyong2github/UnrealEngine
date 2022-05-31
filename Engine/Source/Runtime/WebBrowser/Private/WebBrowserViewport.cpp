@@ -95,6 +95,11 @@ FReply FWebBrowserViewport::OnMouseWheel(const FGeometry& MyGeometry, const FPoi
 	return WebBrowserWindow->OnMouseWheel(MyGeometry, MouseEvent, bIsPopup);
 }
 
+FReply FWebBrowserViewport::OnTouchGesture( const FGeometry& MyGeometry, const FPointerEvent& GestureEvent )
+{
+	return WebBrowserWindow->OnTouchGesture(MyGeometry, GestureEvent, bIsPopup);
+}
+
 FReply FWebBrowserViewport::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
 	FReply Reply = WebBrowserWindow->OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent, bIsPopup);

@@ -13,7 +13,7 @@
 
 FString ResourceTypeToString(const CefRequest::ResourceType& Type);
 
-
+class FWebBrowserSingleton;
 
 /**
  * Implements CEF Request handling for when a browser window is still being constructed
@@ -25,7 +25,7 @@ class FCEFResourceContextHandler :
 public:
 
 	/** Default constructor. */
-	FCEFResourceContextHandler();
+	FCEFResourceContextHandler(FWebBrowserSingleton *InOwningSingleton);
 
 public:
 
@@ -54,9 +54,11 @@ public:
 	}
 
 private:
-
 	/** Delegate for handling resource load requests */
 	FOnBeforeContextResourceLoadDelegate BeforeResourceLoadDelegate;
+
+	/** Singleton that owns this context handler, so we can lookup browser objects from it */
+	FWebBrowserSingleton* OwningSingleton;
 
 	// Include the default reference counting implementation.
 	IMPLEMENT_REFCOUNTING(FCEFResourceContextHandler);

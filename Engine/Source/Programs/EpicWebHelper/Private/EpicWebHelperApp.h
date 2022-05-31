@@ -34,9 +34,9 @@ private:
 
 	virtual void OnContextReleased( CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefV8Context> Context ) override;
 
-	virtual bool OnProcessMessageReceived( CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> frame, CefProcessId SourceProcess, CefRefPtr<CefProcessMessage> Message ) override;
+	virtual bool OnProcessMessageReceived( CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefProcessId SourceProcess, CefRefPtr<CefProcessMessage> Message ) override;
 
-	virtual void OnRenderThreadCreated( CefRefPtr<CefListValue> ExtraInfo ) override;
+	virtual void OnBrowserCreated(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefDictionaryValue> ExtraInfo) override;
 
 #if !PLATFORM_LINUX
 	virtual void OnFocusedNodeChanged(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefDOMNode> Node) override;
@@ -44,6 +44,9 @@ private:
 
 	// Handles remote scripting messages from the frontend process
 	FEpicWebHelperRemoteScripting RemoteScripting;
+
+	// Stores the browser ID and flag for any browser so we can track if we have told the main process about it
+	TMap<int32, bool> PendingBrowserCreated;
 
 	// Include the default reference counting implementation.
 	IMPLEMENT_REFCOUNTING(FEpicWebHelperApp);

@@ -108,6 +108,7 @@ void SWebBrowserView::Construct(const FArguments& InArgs, const TSharedPtr<IWebB
 			FCreateBrowserWindowSettings Settings;
 			Settings.InitialURL = InArgs._InitialURL;
 			Settings.bUseTransparency = InArgs._SupportsTransparency;
+			Settings.bInterceptLoadRequests = InArgs._InterceptLoadRequests;
 			Settings.bThumbMouseButtonNavigation = InArgs._SupportsThumbMouseButtonNavigation;
 			Settings.ContentsToLoad = InArgs._ContentsToLoad;
 			Settings.bShowErrorMessage = InArgs._ShowErrorMessage;
@@ -461,6 +462,10 @@ void SWebBrowserView::HandleUrlChanged( FString NewUrl )
 	OnUrlChanged.ExecuteIfBound(AddressBarUrl);
 }
 
+void SWebBrowserView::CloseBrowser()
+{
+	BrowserWindow->CloseBrowser(true /*force*/, true /*block until closed*/);
+}
 void SWebBrowserView::HandleToolTip(FString ToolTipText)
 {
 	if(ToolTipText.IsEmpty())

@@ -63,7 +63,7 @@ public:
 	virtual void Reload() override;
 	virtual void StopLoad() override;
 	virtual void ExecuteJavascript(const FString& Script) override;
-	virtual void CloseBrowser(bool bForce) override;
+	virtual void CloseBrowser(bool bForce, bool bBlockTillClosed) override;
 	virtual void BindUObject(const FString& Name, UObject* Object, bool bIsPermanent = true) override;
 	virtual void UnbindUObject(const FString& Name, UObject* Object = nullptr, bool bIsPermanent = true) override;
 	virtual int GetLoadError() override;

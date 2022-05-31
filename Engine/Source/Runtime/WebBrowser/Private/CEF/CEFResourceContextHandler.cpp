@@ -5,14 +5,15 @@
 
 #if WITH_CEF3
 
-//#define DEBUG_ONBEFORELOAD // Debug print beforebrowse steps, used in CEFBrowserHandler.h so define early 
+//#define DEBUG_ONBEFORELOAD // Debug print beforebrowse steps
 
 #include "CEFBrowserClosureTask.h"
 #include "WebBrowserSingleton.h"
 
 #define LOCTEXT_NAMESPACE "WebBrowserHandler"
 
-FCEFResourceContextHandler::FCEFResourceContextHandler()
+FCEFResourceContextHandler::FCEFResourceContextHandler(FWebBrowserSingleton * InOwningSingleton) :
+	OwningSingleton(InOwningSingleton)
 { }
 
 
@@ -107,13 +108,18 @@ CefResourceRequestHandler::ReturnValue FCEFResourceContextHandler::OnBeforeResou
 #ifdef DEBUG_ONBEFORELOAD
 	auto url = Request->GetURL();
 	auto type = Request->GetResourceType();
-	if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR)
+	auto method = Request->GetMethod();
+	if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR || type == CefRequest::ResourceType::RT_SUB_RESOURCE)
 	{
-		GLog->Logf(ELogVerbosity::Display, TEXT("FCEFBrowserHandler::OnBeforeResourceLoad :%s"), url.c_str());
+		GLog->Logf(ELogVerbosity::Display, TEXT("FCEFResourceContextHandler::OnBeforeResourceLoad :%s type:%s method:%s"), url.c_str(), *ResourceTypeToString(type), method.c_str());
 	}
 #endif
 
-
+	if (Request->IsReadOnly())
+	{
+		// we can't alter this request so just allow it through
+		return RV_CONTINUE;
+	}
 
 	// Current thread is IO thread. We need to invoke BrowserWindow->GetResourceContent on the UI (aka Game) thread:
 	CefPostTask(TID_UI, new FCEFBrowserClosureTask(this, [=]()
@@ -132,8 +138,13 @@ CefResourceRequestHandler::ReturnValue FCEFResourceContextHandler::OnBeforeResou
 			HeaderMap.insert(std::pair<CefString, CefString>(TCHAR_TO_WCHAR(*LanguageHeaderText), TCHAR_TO_WCHAR(*LocaleCode)));
 		}
 
+		bool bAllowCredentials = false;
+		if (OwningSingleton != nullptr)
+		{
+			bAllowCredentials = OwningSingleton->URLRequestAllowsCredentials(WCHAR_TO_TCHAR(Request->GetURL().ToWString().c_str()));
+		}
 		FContextRequestHeaders AdditionalHeaders;
-		BeforeResourceLoadDelegate.ExecuteIfBound(WCHAR_TO_TCHAR(Request->GetURL().ToWString().c_str()), ResourceTypeToString(Request->GetResourceType()), AdditionalHeaders);
+		BeforeResourceLoadDelegate.ExecuteIfBound(WCHAR_TO_TCHAR(Request->GetURL().ToWString().c_str()), ResourceTypeToString(Request->GetResourceType()), AdditionalHeaders, bAllowCredentials);
 
 		for (auto Iter = AdditionalHeaders.CreateConstIterator(); Iter; ++Iter)
 		{
@@ -159,9 +170,9 @@ CefRefPtr<CefResourceRequestHandler> FCEFResourceContextHandler::GetResourceRequ
 #ifdef DEBUG_ONBEFORELOAD
 	auto url = request->GetURL();
 	auto type = request->GetResourceType();
-	if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR)
+	if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR || type == CefRequest::ResourceType::RT_SUB_RESOURCE)
 	{
-		GLog->Logf(ELogVerbosity::Display, TEXT("FCEFBrowserHandler::GetResourceRequestHandler :%s"), url.c_str());
+		GLog->Logf(ELogVerbosity::Display, TEXT("FCEFResourceContextHandler::GetResourceRequestHandler :%s type:%s"), url.c_str(), *ResourceTypeToString(type));
 	}
 #endif
 	return this;

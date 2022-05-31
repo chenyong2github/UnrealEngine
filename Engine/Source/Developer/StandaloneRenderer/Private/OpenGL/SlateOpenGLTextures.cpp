@@ -62,16 +62,13 @@ void FSlateOpenGLTexture::Init( void* TextureHandle )
 	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	mach_port_t port = (mach_port_t)(uintptr_t)(TextureHandle);
-	IOSurfaceRef LastHandle = IOSurfaceLookupFromMachPort(port);
+	IOSurfaceRef LastHandle = (IOSurfaceRef)TextureHandle;
 	
 	CGLContextObj cglContext = CGLGetCurrentContext();
 	
 	SizeX = IOSurfaceGetWidth(LastHandle);
 	SizeY = IOSurfaceGetHeight(LastHandle);
 	
-	CFRelease(LastHandle);
-
 	bHasPendingResize = false;
 	UnlockGLContext([NSOpenGLContext currentContext]);
 #else
@@ -162,8 +159,7 @@ void FSlateOpenGLTexture::UpdateTextureThreadSafeWithKeyedTextureHandle(void* Te
 	//glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	CHECK_GL_ERRORS;
 
-	mach_port_t port = (mach_port_t)(uintptr_t)(TextureHandle);
-	IOSurfaceRef LastHandle = IOSurfaceLookupFromMachPort(port);
+	IOSurfaceRef LastHandle = (IOSurfaceRef)TextureHandle;
 	if (LastHandle != nullptr)
 	{
 		//IOSurfaceUnlock(LastHandle, 0, NULL);
@@ -185,8 +181,6 @@ void FSlateOpenGLTexture::UpdateTextureThreadSafeWithKeyedTextureHandle(void* Te
 												   SurfaceWidth, SurfaceHeight, GL_BGRA,
 													GL_UNSIGNED_INT_8_8_8_8_REV, LastHandle, 0);
 		checkf( cglError == kCGLNoError, TEXT("CGL error: 0x%x"), cglError );
-
-		CFRelease(LastHandle);
 	}
 
 	glActiveTexture(GL_TEXTURE0);

@@ -11,6 +11,20 @@ FEpicWebHelperApp::FEpicWebHelperApp()
 
 void FEpicWebHelperApp::OnContextCreated( CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefV8Context> Context )
 {
+	// Check if we have told the main browser process about this new browser
+	if (PendingBrowserCreated[Browser->GetIdentifier()] == true)
+	{
+		int BrowserID = Browser->GetIdentifier();
+		PendingBrowserCreated[BrowserID] = false;
+
+		// tell the main process we have a new browser. This can happen if you navigate between top level sites in a browser (i.e store -> paypal)
+		CefRefPtr<CefProcessMessage> Message = CefProcessMessage::Create("CEF::BROWSERCREATED");
+		CefRefPtr<CefListValue> MessageArguments = Message->GetArgumentList();
+		MessageArguments->SetInt(0, BrowserID);
+
+		Frame->SendProcessMessage(PID_BROWSER, Message);
+	}
+
 	RemoteScripting.OnContextCreated(Browser, Frame, Context);
 }
 
@@ -19,7 +33,19 @@ void FEpicWebHelperApp::OnContextReleased( CefRefPtr<CefBrowser> Browser, CefRef
 	RemoteScripting.OnContextReleased(Browser, Frame, Context);
 }
 
-bool FEpicWebHelperApp::OnProcessMessageReceived( CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> frame, CefProcessId SourceProcess, CefRefPtr<CefProcessMessage> Message )
+void FEpicWebHelperApp::OnBrowserCreated(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefDictionaryValue> ExtraInfo)
+{
+	if (Browser.get() == nullptr )
+	{
+		return;
+	}
+	// record this create but don't send an IPC message here as Browser->GetMainFrame() can still be nullptr at this point
+	PendingBrowserCreated.Add(Browser->GetIdentifier(), true);
+
+}
+
+
+bool FEpicWebHelperApp::OnProcessMessageReceived( CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefProcessId SourceProcess, CefRefPtr<CefProcessMessage> Message )
 {
 	bool Result = false;
 	FString MessageName = WCHAR_TO_TCHAR(Message->GetName().ToWString().c_str());
@@ -27,26 +53,35 @@ bool FEpicWebHelperApp::OnProcessMessageReceived( CefRefPtr<CefBrowser> Browser,
 	{
 		Result = RemoteScripting.OnProcessMessageReceived(Browser, SourceProcess, Message);
 	}
+	else if (MessageName.StartsWith(TEXT("CEF::STARTUP")))
+	{
+		CefRefPtr<CefListValue> MessageArguments = Message->GetArgumentList();
+		for (size_t I = 0; I < MessageArguments->GetSize(); I++)
+		{
+			if (MessageArguments->GetType(I) == VTYPE_DICTIONARY)
+			{
+				CefRefPtr<CefDictionaryValue> Info = MessageArguments->GetDictionary(I);
+				if (Info->GetType("browser") == VTYPE_INT)
+				{
+					int32 BrowserID = Info->GetInt("browser");
+
+					CefRefPtr<CefDictionaryValue> Bindings = Info->GetDictionary("bindings");
+					RemoteScripting.InitPermanentBindings(BrowserID, Bindings);
+
+					// register the new permanent bindings we got. Note this may happen multiple times for a single browser
+					if (Frame->GetV8Context().get() != nullptr && Bindings->GetSize() > 0)
+					{
+						CefRefPtr<CefV8Context> Context = Frame->GetV8Context();
+						RemoteScripting.OnContextCreated(Browser, Frame, Context);
+					}
+				}
+			}
+		}
+	}
 
 	return Result;
 }
 
-void FEpicWebHelperApp::OnRenderThreadCreated( CefRefPtr<CefListValue> ExtraInfo )
-{
-	for(size_t I=0; I<ExtraInfo->GetSize(); I++)
-	{
-		if (ExtraInfo->GetType(I) == VTYPE_DICTIONARY)
-		{
-			CefRefPtr<CefDictionaryValue> Info = ExtraInfo->GetDictionary(I);
-			if ( Info->GetType("browser") == VTYPE_INT)
-			{
-				int32 BrowserID = Info->GetInt("browser");
-				CefRefPtr<CefDictionaryValue> Bindings = Info->GetDictionary("bindings");
-				RemoteScripting.InitPermanentBindings(BrowserID, Bindings);
-			}
-		}
-	}
-}
 
 #if !PLATFORM_LINUX
 void FEpicWebHelperApp::OnFocusedNodeChanged(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefDOMNode> Node)

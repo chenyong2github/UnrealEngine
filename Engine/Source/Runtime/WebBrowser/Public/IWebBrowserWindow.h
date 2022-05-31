@@ -217,6 +217,17 @@ public:
 	virtual FReply OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup) = 0;
 
 	/**
+	 * Called when a touch gesture is performed.
+	 *
+	 * @param MyGeometry The Geometry of the browser
+	 * @param GestureEvent Information about the input event
+	 * @param bIsPopup True if the coordinates are relative to a popup menu window, otherwise false.
+	 *
+	 * @return FReply::Handled() if the mouse event was handled, FReply::Unhandled() oterwise
+	 */
+	virtual FReply OnTouchGesture(const FGeometry& MyGeometry, const FPointerEvent& GestureEvent, bool bIsPopup) = 0;
+
+	/**
 	 * The system asks each widget under the mouse to provide a cursor. This event is bubbled.
 	 * 
 	 * @return FCursorReply::Unhandled() if the event is not handled; return FCursorReply::Cursor() otherwise.
@@ -267,8 +278,9 @@ public:
 	 * Close this window so that it can no longer be used.
 	 *
 	 * @param bForce Designates whether the web browser close should be forced.
+	 * @param bBlockTillClosed Don't return until this browser object is fully closed.
 	 */
-	virtual void CloseBrowser(bool bForce) = 0;
+	virtual void CloseBrowser(bool bForce, bool bBlockTillClosed = false) = 0;
 
 	/** 
 	 * Expose a UObject instance to the browser runtime.
@@ -355,7 +367,7 @@ public:
 
 	/** A delegate that is invoked before the browser loads a resource. Its primary purpose is to inject headers into the request. */
 	typedef TMap<FString, FString> FRequestHeaders;
-	DECLARE_DELEGATE_ThreeParams(FOnBeforeResourceLoadDelegate, FString /*Url*/, FString /*ResourceType*/, FRequestHeaders& /*AdditionalHeaders*/);
+	DECLARE_DELEGATE_FourParams(FOnBeforeResourceLoadDelegate, FString /*Url*/, FString /*ResourceType*/, FRequestHeaders& /*AdditionalHeaders*/, const bool /*AllowUserCredentials*/);
 	virtual FOnBeforeResourceLoadDelegate& OnBeforeResourceLoad() = 0;
 
 	/** A delegate that is invoked on completion of browser resource loads. Its primary purpose is to allow response to failures. */

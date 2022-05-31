@@ -3,6 +3,10 @@
 
 #if WITH_CEF3
 
+#ifndef OVERRIDE
+#	define OVERRIDE override
+#endif //OVERRIDE
+
 #if PLATFORM_WINDOWS
 #	include "Windows/WindowsHWrapper.h"
 #	include "Windows/AllowWindowsPlatformTypes.h"
@@ -27,6 +31,8 @@ THIRD_PARTY_INCLUDES_START
 #		include "include/cef_resource_request_handler.h"
 #		include "include/cef_request_context_handler.h"
 #		include "include/cef_jsdialog_handler.h"
+#		include "include/cef_scheme.h"
+#		include "include/cef_origin_whitelist.h"
 #		include "include/internal/cef_ptr.h"
 
 #	pragma pop_macro("OVERRIDE")
