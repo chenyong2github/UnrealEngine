@@ -182,18 +182,22 @@ FVulkanDevice::FVulkanDevice(FVulkanDynamicRHI* InRHI, VkPhysicalDevice InGpu)
 	FMemory::Memzero(FormatProperties);
 	FMemory::Memzero(PixelFormatComponentMapping);
 
-#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	ZeroVulkanStruct(GpuIdProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES_KHR);
+	ZeroVulkanStruct(GpuSubgroupProps, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES);
 	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
 		VkPhysicalDeviceProperties2KHR PhysicalDeviceProperties2;
 		ZeroVulkanStruct(PhysicalDeviceProperties2, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR);
 		PhysicalDeviceProperties2.pNext = &GpuIdProps;
+		if (UE_VK_API_VERSION >= VK_API_VERSION_1_1)
+		{
+			// Only consider wave ops on platforms creating a Vulkan 1.1 instance (or greater)
+			GpuIdProps.pNext = &GpuSubgroupProps;
+		}
 		VulkanRHI::vkGetPhysicalDeviceProperties2KHR(Gpu, &PhysicalDeviceProperties2);
 		GpuProps = PhysicalDeviceProperties2.properties;
 	}
 	else
-#endif
 	{
 		VulkanRHI::vkGetPhysicalDeviceProperties(Gpu, &GpuProps);
 	}
@@ -959,7 +963,6 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 	FVulkanDeviceExtensionArray UEExtensions = FVulkanDeviceExtension::GetUESupportedDeviceExtensions(this);
 	TArray<const ANSICHAR*> DeviceLayers = FVulkanDevice::SetupDeviceLayers(Gpu, UEExtensions);
 
-#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	if (RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2)
 	{
 		// Query advanced features
@@ -1012,7 +1015,6 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 			}
 		}
 	}
-#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 	UE_LOG(LogVulkanRHI, Display, TEXT("Using Device %d: Geometry %d BufferAtomic64 %d ImageAtomic64 %d"), DeviceIndex, PhysicalFeatures.geometryShader, OptionalDeviceExtensions.HasKHRShaderAtomicInt64, OptionalDeviceExtensions.HasImageAtomicInt64);
 

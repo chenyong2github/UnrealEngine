@@ -269,11 +269,16 @@ public:
 		return GpuProps.limits;
 	}
 
-#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	inline const VkPhysicalDeviceIDPropertiesKHR& GetDeviceIdProperties() const
 	{
 		check(RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2);
 		return GpuIdProps;
+	}
+
+	inline const VkPhysicalDeviceSubgroupProperties& GetDeviceSubgroupProperties() const
+	{
+		check(RHI->GetOptionalExtensions().HasKHRGetPhysicalDeviceProperties2);
+		return GpuSubgroupProps;
 	}
 
 #if VULKAN_RHI_RAYTRACING
@@ -286,7 +291,6 @@ public:
 	void InitializeRayTracing();
 	void CleanUpRayTracing();
 #endif // VULKAN_RHI_RAYTRACING
-#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 #if VULKAN_SUPPORTS_VALIDATION_CACHE
 	inline VkValidationCacheEXT GetValidationCache() const
@@ -518,14 +522,13 @@ private:
 	TArray<VkPhysicalDeviceFragmentShadingRateKHR> FragmentShadingRates;
 #endif
 
-#if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 	VkPhysicalDeviceIDPropertiesKHR GpuIdProps;
+	VkPhysicalDeviceSubgroupProperties GpuSubgroupProps;
 
 #if VULKAN_RHI_RAYTRACING
 	FRayTracingProperties RayTracingProperties;
 	FVulkanBasicRaytracingPipeline* BasicRayTracingPipeline = nullptr;
 #endif // VULKAN_RHI_RAYTRACING
-#endif // VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
 
 	VkPhysicalDeviceFeatures PhysicalFeatures;
 
