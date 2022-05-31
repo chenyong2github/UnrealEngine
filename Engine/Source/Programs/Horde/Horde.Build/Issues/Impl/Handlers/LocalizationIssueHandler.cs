@@ -51,9 +51,12 @@ namespace Horde.Build.IssueHandlers.Impl
 				string? relativePath;
 				if (line.Data.TryGetNestedProperty("properties.file.relativePath", out relativePath) || line.Data.TryGetNestedProperty("properties.file", out relativePath))
 				{
-					int endIdx = relativePath.LastIndexOfAny(new char[] { '/', '\\' }) + 1;
-					string fileName = relativePath.Substring(endIdx);
-					sourceFiles.Add(fileName);
+					if (!relativePath.EndsWith(".manifest", StringComparison.OrdinalIgnoreCase))
+					{
+						int endIdx = relativePath.LastIndexOfAny(new char[] { '/', '\\' }) + 1;
+						string fileName = relativePath.Substring(endIdx);
+						sourceFiles.Add(fileName);
+					}
 				}
 			}
 		}
