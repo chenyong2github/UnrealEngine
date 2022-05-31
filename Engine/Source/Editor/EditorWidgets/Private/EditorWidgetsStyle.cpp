@@ -24,7 +24,7 @@ void FEditorWidgetsStyle::Initialize()
 
 	const FEditableTextBoxStyle& NormalEditableTextBoxStyle = FAppStyle::GetWidgetStyle<FEditableTextBoxStyle>("NormalEditableTextBox");
 
-	const FTextBlockStyle NormalText = FTextBlockStyle(FAppStyle::GetWidgetStyle<FTextBlockStyle>("TextEditor.NormalText"))
+	const FTextBlockStyle NormalText = FTextBlockStyle()
 		.SetColorAndOpacity(NormalEditableTextBoxStyle.ForegroundColor)
 		.SetHighlightColor(NormalEditableTextBoxStyle.FocusedForegroundColor)
 		.SetFont(NormalEditableTextBoxStyle.Font)
