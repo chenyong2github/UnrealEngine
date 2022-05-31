@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/RigVMClient.h"
+#include "Misc/ITransaction.h"
 #if WITH_EDITOR
 #include "ScopedTransaction.h"
 #endif

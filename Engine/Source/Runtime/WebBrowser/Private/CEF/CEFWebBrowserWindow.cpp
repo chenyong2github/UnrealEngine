@@ -7,6 +7,7 @@
 #include "Textures/SlateUpdatableTexture.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/CommandLine.h"
+#include "Misc/ConfigCacheIni.h"
 #include "WebBrowserLog.h"
 
 #if WITH_CEF3

@@ -7,6 +7,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "Styling/AppStyle.h"
 #include "NiagaraEditorStyle.h"
+#include "Framework/Application/SlateApplication.h"
 
 /** Called to force the item selector to refresh */
 DECLARE_DELEGATE(FRefreshItemSelectorDelegate);
