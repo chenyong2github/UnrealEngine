@@ -34,6 +34,8 @@
 #include "/Engine/Private/LightmapCommon.ush"
 #include "/Engine/Private/Lumen/LumenHardwareRayTracingPayloadCommon.ush"
 
+#define MATERIAL_STRATA_PRECOMPUTED_LIGHTING 0
+#include "/Engine/Private/Strata/StrataExport.ush"
 
 /** Computes sky diffuse lighting, including precomputed shadowing. */
 void GetSkyLighting(
@@ -247,6 +249,7 @@ void GetMaterialPayload(
 	const float Dither = 0.5f;
 	float3 EmissiveLuminance = 0.0f;
 	bool bStrataSubsurfaceEnable = false;
+	const float3 WorldBentNormal0 = GetWorldBentNormalZero(MaterialParameters);
 	FStrataData StrataData = PixelMaterialInputs.FrontMaterial;
 
 	// Initialise a Strata header with normal in registers
@@ -276,6 +279,7 @@ void GetMaterialPayload(
 		StrataAddressing,
 		StrataPixelHeader, StrataData, 
 		CamVector, 
+		WorldBentNormal0,
 		bStrataSubsurfaceEnable, 
 		EmissiveLuminance,
 		SSSData, TopLayerData, OpaqueRoughRefractionData

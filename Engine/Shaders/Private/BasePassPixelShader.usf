@@ -200,6 +200,9 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 #include "ForwardLightingCommon.ush"
 #endif
 
+#if STRATA_OPAQUE_DEFERRED
+#include "/Engine/Private/Strata/StrataExport.ush"
+#endif
 #if STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING || (MATERIAL_STRATA_PRECOMPUTED_LIGHTING && STRATA_OPAQUE_DEFERRED)
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #endif
@@ -818,19 +821,6 @@ float DotSpecularSG( float Roughness, float3 N, float3 V, FSphericalGaussian Lig
 
 		return Evaluate( ConvolvedNDF, H );
 	}
-#endif
-}
-
-float3 GetWorldBentNormalZero(in FMaterialPixelParameters MaterialParameters)
-{
-#if NUM_MATERIAL_OUTPUTS_GETBENTNORMAL > 0
-	#if MATERIAL_TANGENTSPACENORMAL
-		return normalize(TransformTangentVectorToWorld(MaterialParameters.TangentToWorld, GetBentNormal0(MaterialParameters)));
-	#else
-		return GetBentNormal0(MaterialParameters);
-	#endif
-#else
-	return MaterialParameters.WorldNormal;
 #endif
 }
 

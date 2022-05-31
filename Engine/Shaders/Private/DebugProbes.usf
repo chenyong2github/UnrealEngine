@@ -7,6 +7,9 @@
 #define STRATA_INLINE_SHADING 1
 #include "Strata/Strata.ush"
 
+#define MATERIAL_STRATA_PRECOMPUTED_LIGHTING 0
+#include "Strata/StrataExport.ush"
+
 #include "DeferredShadingCommon.ush"
 #include "VelocityCommon.ush"
 
