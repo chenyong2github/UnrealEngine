@@ -56,6 +56,8 @@ namespace UnrealBuildToolTests
 					@"          ]",
 					@"  C:\Horde/Fortnite Game/Source/FortniteGame/Private/FortVehicleManager.cpp(78): note: Types pointed to are unrelated; conversion requires reinterpret_cast, C-style cast or function-style cast",
 					@"  C:\Horde\Sync\Engine\Source\Runtime\Core\Public\Delegates/DelegateSignatureImpl.inl(871): note: see declaration of 'TBaseMulticastDelegate&lt;void,FChaosScene *&gt;::AddUObject'",
+					@"",
+					@"Error executing d:\build\AutoSDK\Sync\HostWin64\Win64\VS2019\14.29.30145\bin\HostX64\x64\cl.exe (tool returned code: 2)",
 				};
 
 				List<LogEvent> logEvents = Parse(String.Join("\n", lines));

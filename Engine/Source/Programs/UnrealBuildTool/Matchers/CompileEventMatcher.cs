@@ -45,6 +45,7 @@ namespace UnrealBuildTool.Matchers
 			@"(?<severity>error|warning)";
 
 		static readonly Regex s_preludePattern = new Regex("^\\s*(?:In (member )?function|In file included from)");
+		static readonly Regex s_blankLinePattern = new Regex(@"^\s*$");
 		static readonly Regex s_errorWarningPattern = new Regex("error|warning");
 		static readonly Regex s_clangDiagnosticPattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:");
 
@@ -138,6 +139,7 @@ namespace UnrealBuildTool.Matchers
 		}
 
 		static readonly Regex s_msvcPattern = new Regex($"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:");
+		static readonly Regex s_msvcNotePattern = new Regex($"^\\s*{FilePattern}(?:{VisualCppLocationPattern})?\\s*: note:");
 		static readonly Regex s_projectPattern = new Regex(@"\[(?<project>[^[\]]+)]\s*$");
 
 		bool TryMatchVisualCppEvent(LogEventBuilder builder, [NotNullWhen(true)] out LogEventMatch? outEvent)
@@ -191,10 +193,20 @@ namespace UnrealBuildTool.Matchers
 			builder.TryAnnotate(match.Groups["column"], LogEventMarkup.ColumnNumber);
 
 			string indent = ExtractIndent(builder.Current.CurrentLine ?? String.Empty);
+			string nextIndent = indent + " ";
 
-			while (builder.Current.TryMatch(1, new Regex($"^(?:{indent} |{indent}\\s*{FilePattern}(?:{VisualCppLocationPattern})?\\s*: note:| *$)"), out match))
+			for(; ;)
 			{
-				builder.MoveNext();
+				int offset = 1;
+				while (builder.Current.IsMatch(offset, s_blankLinePattern) || builder.Current.StartsWith(offset, nextIndent))
+				{
+					offset++;
+				}
+				if (!builder.Current.StartsWith(offset, indent) || !builder.Current.TryMatch(offset, s_msvcNotePattern, out match))
+				{
+					break;
+				}
+				builder.MoveNext(offset);
 
 				Group group = match.Groups["file"];
 				if (group.Success)
