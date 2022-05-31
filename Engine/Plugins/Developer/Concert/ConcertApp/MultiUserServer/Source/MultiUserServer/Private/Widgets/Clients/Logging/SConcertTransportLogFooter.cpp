@@ -111,12 +111,8 @@ void SConcertTransportLogFooter::Construct(const FArguments& InArgs, TSharedRef<
 		.VAlign(VAlign_Center)
 		[
 			SNew(SComboButton)
-				.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
-				.ForegroundColor(FLinearColor::White)
-				.ContentPadding(0)
 				.OnGetMenuContent(this, &SConcertTransportLogFooter::MakeViewOptionsMenuWidget, InArgs._ExtendViewOptions)
 				.HasDownArrow(true)
-				.ContentPadding(FMargin(1, 0))
 				.ButtonContent()
 				[
 					SNew(SHorizontalBox)

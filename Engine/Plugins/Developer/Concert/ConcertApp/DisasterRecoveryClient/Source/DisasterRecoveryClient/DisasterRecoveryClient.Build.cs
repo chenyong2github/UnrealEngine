@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
 					"Serialization",
 					"Slate",
 					"SlateCore",
+					"ToolWidgets",
 				}
 			);
 

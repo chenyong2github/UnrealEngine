@@ -7485,30 +7485,7 @@ void FStarshipEditorStyle::FStyle::SetupStatusBarStyle()
 {
 	Set("StatusBar.ContentBrowserUp", new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-up", Icon16x16));
 	Set("StatusBar.ContentBrowserDown", new CORE_IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16));
-	Set("StatusBar.DrawerShadow", new BOX_BRUSH("Starship/StatusBar/drawer-shadow-bottom", FMargin(10/64.0f, 20/64.f, 10/64.f, 0), FLinearColor(0,0,0,1)));
-	Set("StatusBar.DrawerBackground", new FSlateRoundedBoxBrush(FStyleColors::Panel, 5.0f));
 
-	Set("StatusBar.Background", new FSlateColorBrush(FStyleColors::Panel));
-	Set("StatusBar.ProgressOverlay", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 2.0f, FStyleColors::Panel, 1.0f, FVector2D(20, 8)));
-
-	Set("StatusBar.HelpIcon", new CORE_IMAGE_BRUSH_SVG("Starship/Common/help", Icon16x16, FStyleColors::Foreground));
-
-	FToolBarStyle StatusBarToolBarStyle = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("SlimToolBar");
-
-	StatusBarToolBarStyle.SetBackground(FSlateNoResource());
-	StatusBarToolBarStyle.SetLabelPadding(FMargin(5, 5, 0, 5));
-	StatusBarToolBarStyle.SetIconSize(Icon16x16);
-	StatusBarToolBarStyle.SetBackgroundPadding(FMargin(4.f, 4.f, 0.f, 4.f));
-
-	Set("StatusBarToolBar", StatusBarToolBarStyle);
-
-	Set("StatusBar.Message.MessageText",
-		FTextBlockStyle(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
-		.SetColorAndOpacity(FStyleColors::Foreground));
-
-	Set("StatusBar.Message.HintText",
-		FTextBlockStyle(FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
-		.SetColorAndOpacity(FStyleColors::Primary));
 }
 
 void FStarshipEditorStyle::FStyle::SetupColorPickerStyle()

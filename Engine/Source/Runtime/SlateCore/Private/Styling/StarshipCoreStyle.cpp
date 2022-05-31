@@ -1752,7 +1752,30 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 	Style->Set("StatusBar.StatusBarButton", StatusBarButton);
 	Style->Set("StatusBar.StatusBarComboButton", StatusBarComboButton);
 	Style->Set("StatusBar.Height", 32.0f);
+	Style->Set("StatusBar.DrawerShadow", new BOX_BRUSH("Starship/StatusBar/drawer-shadow-bottom", FMargin(10 / 64.0f, 20 / 64.f, 10 / 64.f, 0), FLinearColor(0, 0, 0, 1)));
+	Style->Set("StatusBar.DrawerBackground", new FSlateRoundedBoxBrush(FStyleColors::Panel, 5.0f));
 
+	Style->Set("StatusBar.Background", new FSlateColorBrush(FStyleColors::Panel));
+	Style->Set("StatusBar.ProgressOverlay", new FSlateRoundedBoxBrush(FStyleColors::Transparent, 2.0f, FStyleColors::Panel, 1.0f, FVector2D(20, 8)));
+
+	Style->Set("StatusBar.HelpIcon", new IMAGE_BRUSH_SVG("Starship/Common/help", Icon16x16, FStyleColors::Foreground));
+
+	FToolBarStyle StatusBarToolBarStyle = Style->GetWidgetStyle<FToolBarStyle>("SlimToolBar");
+
+	StatusBarToolBarStyle.SetBackground(FSlateNoResource());
+	StatusBarToolBarStyle.SetLabelPadding(FMargin(5, 5, 0, 5));
+	StatusBarToolBarStyle.SetIconSize(Icon16x16);
+	StatusBarToolBarStyle.SetBackgroundPadding(FMargin(4.f, 4.f, 0.f, 4.f));
+
+	Style->Set("StatusBarToolBar", StatusBarToolBarStyle);
+
+	Style->Set("StatusBar.Message.MessageText",
+		FTextBlockStyle(Style->GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		.SetColorAndOpacity(FStyleColors::Foreground));
+
+	Style->Set("StatusBar.Message.HintText",
+		FTextBlockStyle(Style->GetWidgetStyle<FTextBlockStyle>("NormalText"))
+		.SetColorAndOpacity(FStyleColors::Primary));
 	// Create the regular border brush with all corners rounded and variants with certain corners squared.
 	{
 		const float CornerRadius = 5.0f;

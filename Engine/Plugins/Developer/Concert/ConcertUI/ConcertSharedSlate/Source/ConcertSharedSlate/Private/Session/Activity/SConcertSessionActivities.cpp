@@ -891,12 +891,8 @@ TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeDisplayedActivityCount
 TSharedRef<SWidget> FConcertSessionActivitiesOptions::MakeViewOptionsWidget(TOptional<FExtendContextMenu> ExtendMenu)
 {
 	return SNew(SComboButton)
-	.ComboButtonStyle(FAppStyle::Get(), "GenericFilters.ComboButtonStyle")
-	.ForegroundColor(FLinearColor::White)
-	.ContentPadding(0)
 	.OnGetMenuContent(this, &FConcertSessionActivitiesOptions::MakeMenuWidget, MoveTemp(ExtendMenu))
 	.HasDownArrow(true)
-	.ContentPadding(FMargin(1, 0))
 	.ButtonContent()
 	[
 		SNew(SHorizontalBox)

@@ -26,6 +26,8 @@
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
+#include "SPositiveActionButton.h"
+#include "SNegativeActionButton.h"
 
 #define LOCTEXT_NAMESPACE "SDisasterRecoveryHub"
 
@@ -253,37 +255,21 @@ void SDisasterRecoveryHub::Construct(const FArguments& InArgs, const TSharedPtr<
 
 				+SUniformGridPanel::Slot(0, 0)
 				[
-					SNew(SButton)
-					.ForegroundColor(FLinearColor::White)
-					.ButtonStyle(FAppStyle::Get(), TEXT("FlatButton.Success"))
+					SNew(SPositiveActionButton)
+					.Icon(FAppStyle::Get().GetBrush("Icons.Refresh"))
 					.ToolTipText(this, &SDisasterRecoveryHub::GetRecoverAllButtonTooltip)
 					.OnClicked(this, &SDisasterRecoveryHub::OnRecoverAllButtonClicked)
-					.HAlign(HAlign_Center)
-					.ContentPadding(FMargin(14, 3))
 					.IsEnabled(this, &SDisasterRecoveryHub::IsRecoverAllButtonEnabled)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("RecoverAll", "Recover All"))
-						.Font( FAppStyle::Get().GetFontStyle("BoldFont"))
-						.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
-					]
+					.Text(LOCTEXT("RecoverAll", "Recover All"))
 				]
 
 				+SUniformGridPanel::Slot(1, 0)
 				[
-					SNew(SButton)
-					.ForegroundColor(FLinearColor::White)
-					.ButtonStyle(FAppStyle::Get(), TEXT("FlatButton.Danger"))
+					SNew(SNegativeActionButton)
+					.Icon(FAppStyle::Get().GetBrush("Icons.Delete"))
 					.ToolTipText(LOCTEXT("CancelRecoveryTooltip", "Discard any recoverable data for your assets and continue with their last saved state"))
 					.OnClicked(this, &SDisasterRecoveryHub::OnCancelButtonClicked)
-					.HAlign(HAlign_Center)
-					.ContentPadding(FMargin(14, 3))
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("Cancel", "Cancel"))
-						.Font(FAppStyle::Get().GetFontStyle("BoldFont"))
-						.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
-					]
+					.Text(LOCTEXT("Discard", "Discard"))
 				]
 			]
 		]
