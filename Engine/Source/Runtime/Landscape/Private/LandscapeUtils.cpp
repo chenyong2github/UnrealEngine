@@ -5,7 +5,8 @@
 #include "Engine/Level.h"
 
 #if WITH_EDITOR
-# include "EditorDirectories.h"
+#include "EditorDirectories.h"
+#include "ObjectTools.h"
 #endif
 
 namespace UE::Landscape
@@ -45,13 +46,12 @@ FString GetLayerInfoObjectPackageName(const ULevel* InLevel, const FName& InLaye
 	FString SharedAssetsPath = GetSharedAssetsPath(InLevel);
 	int32 Suffix = 1;
 
-	OutLayerObjectName = FName(*FString::Printf(TEXT("%s_LayerInfo"), *InLayerName.ToString()));
+	OutLayerObjectName = FName(*FString::Printf(TEXT("%s_LayerInfo"), *ObjectTools::SanitizeInvalidChars(*InLayerName.ToString(), INVALID_LONGPACKAGE_CHARACTERS)));
 	FPackageName::TryConvertFilenameToLongPackageName(SharedAssetsPath / OutLayerObjectName.ToString(), PackageName);
 
 	while (FPackageName::DoesPackageExist(PackageName, &PackageFilename))
 	{
-		OutLayerObjectName = FName(*FString::Printf(TEXT("%s_LayerInfo_%d"), *InLayerName.ToString(), Suffix));
-
+		OutLayerObjectName = FName(*FString::Printf(TEXT("%s_LayerInfo_%d"), *ObjectTools::SanitizeInvalidChars(*InLayerName.ToString(), INVALID_LONGPACKAGE_CHARACTERS), Suffix));
 		if (!FPackageName::TryConvertFilenameToLongPackageName(SharedAssetsPath / OutLayerObjectName.ToString(), PackageName))
 		{
 			break;
