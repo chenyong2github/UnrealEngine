@@ -817,6 +817,8 @@ struct RIGVM_API FRigVMByteCodeEntry
 
 	UPROPERTY()
 	int32 InstructionIndex;
+
+	FString GetSanitizedName() const;
 };
 
 /**

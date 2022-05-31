@@ -194,6 +194,14 @@ void FRigVMInstructionArray::Empty()
 
 TArray<int32> FRigVMByteCode::EmptyInstructionIndices;
 
+FString FRigVMByteCodeEntry::GetSanitizedName() const
+{
+	FString SanitizedName = Name.ToString();
+	SanitizedName.ReplaceInline(TEXT(" "), TEXT("_"));
+	SanitizedName.TrimStartAndEndInline();
+	return SanitizedName;
+}
+
 FRigVMByteCode::FRigVMByteCode()
 	: NumInstructions(0)
 	, bByteCodeIsAligned(false)

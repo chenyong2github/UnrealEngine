@@ -1256,14 +1256,27 @@ void UControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEve
 {
 	if (VM)
 	{
-		// sanity check the validity of the VM to ensure stability.
-		if(!IsValidLowLevel() ||
-			!VM->IsValidLowLevel() ||
-			!VM->GetLiteralMemory()->IsValidLowLevel() ||
-			!VM->GetWorkMemory()->IsValidLowLevel())
+		static constexpr TCHAR InvalidatedVMFormat[] = TEXT("%s: Invalidated VM - aborting execution.");
+		if(VM->IsNativized())
 		{
-			UE_LOG(LogControlRig, Warning, TEXT("%s: Invalidated VM - aborting execution."), *GetClass()->GetName());
-			return;
+			if(!IsValidLowLevel() ||
+				!VM->IsValidLowLevel())
+			{
+				UE_LOG(LogControlRig, Warning, InvalidatedVMFormat, *GetClass()->GetName());
+				return;
+			}
+		}
+		else
+		{
+			// sanity check the validity of the VM to ensure stability.
+			if(!IsValidLowLevel() ||
+				!VM->IsValidLowLevel() ||
+				!VM->GetLiteralMemory()->IsValidLowLevel() ||
+				!VM->GetWorkMemory()->IsValidLowLevel())
+			{
+				UE_LOG(LogControlRig, Warning, InvalidatedVMFormat, *GetClass()->GetName());
+				return;
+			}
 		}
 		
 #if UE_CONTROLRIG_PROFILE_EXECUTE_UNITS_NUM

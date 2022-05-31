@@ -30,7 +30,8 @@ public:
 	virtual void ClearMemory() override { return; }
 	virtual const FRigVMInstructionArray& GetInstructions() override;
 	virtual bool ContainsEntry(const FName& InEntryName) const override { return GetEntryNames().Contains(InEntryName); }
-	virtual TArray<FName> GetEntryNames() const override { return TArray<FName>(); }
+	virtual int32 FindEntry(const FName& InEntryName) const override { return GetEntryNames().Find(InEntryName); }
+	virtual const TArray<FName>& GetEntryNames() const override { static const TArray<FName> EmptyEntries; return EmptyEntries; }
 	
 protected:
 
@@ -111,7 +112,10 @@ protected:
 
 	FORCEINLINE void BroadcastExecutionReachedExit()
 	{
-		ExecutionReachedExit().Broadcast(Context.PublicData.GetEventName());
+		if(EntriesBeingExecuted.Num() == 1)
+		{
+			ExecutionReachedExit().Broadcast(Context.PublicData.GetEventName());
+		}
 	}
 
 	template<typename T>

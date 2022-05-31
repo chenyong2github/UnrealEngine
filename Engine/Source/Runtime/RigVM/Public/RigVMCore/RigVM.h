@@ -249,8 +249,14 @@ public:
 	// Returns true if this VM's bytecode contains a given entry
 	virtual bool ContainsEntry(const FName& InEntryName) const;
 
+	// Returns the index of an entry
+	virtual int32 FindEntry(const FName& InEntryName) const;
+
 	// Returns a list of all valid entry names for this VM's bytecode
-	virtual TArray<FName> GetEntryNames() const;
+	virtual const TArray<FName>& GetEntryNames() const;
+
+	// returns false if an entry can not be executed
+	bool CanExecuteEntry(const FName& InEntryName) const;
 
 #if WITH_EDITOR
 	
@@ -653,8 +659,6 @@ private:
 	UPROPERTY(transient)
 	uint32 NumExecutions;
 
-	bool bHitErrorDuringExecution;
-
 #if WITH_EDITOR
 	FRigVMDebugInfo* DebugInfo;
 	TSharedPtr<FRigVMBreakpoint> HaltedAtBreakpoint;
@@ -745,7 +749,32 @@ private:
 	TMap<FRigVMOperand, TArray<FRigVMOperand>> OperandToDebugRegisters;
 
 	int32 ExecutingThreadId;
+	
+protected:
+
+	struct FEntryExecuteGuard
+	{
+	public:
+		FEntryExecuteGuard(TArray<int32>& InOutStack, int32 InEntryIndex)
+		: Stack(InOutStack)
+		{
+			Stack.Push(InEntryIndex);
+		}
+
+		~FEntryExecuteGuard()
+		{
+			Stack.Pop();
+		}
+	private:
+
+		TArray<int32>& Stack;
+	};
+	
 	TArray<int32> EntriesBeingExecuted;
+	
+private:
+	
+	mutable TArray<FName> EntryNames;
 
 	UPROPERTY(transient)
 	TObjectPtr<URigVM> DeferredVMToCopy;

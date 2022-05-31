@@ -72,7 +72,6 @@ URigVM::URigVM()
 	, DebugMemoryStorageObject(nullptr)
 	, ByteCodePtr(&ByteCodeStorage)
 	, NumExecutions(0)
-	, bHitErrorDuringExecution(false)
 #if WITH_EDITOR
 	, DebugInfo(nullptr)
 	, HaltedAtBreakpoint(nullptr)
@@ -845,10 +844,16 @@ bool URigVM::ContainsEntry(const FName& InEntryName) const
 	return ByteCode.FindEntryIndex(InEntryName) != INDEX_NONE;
 }
 
-TArray<FName> URigVM::GetEntryNames() const
+int32 URigVM::FindEntry(const FName& InEntryName) const
 {
-	TArray<FName> EntryNames;
+	const FRigVMByteCode& ByteCode = GetByteCode();
+	return ByteCode.FindEntryIndex(InEntryName);
+}
 
+const TArray<FName>& URigVM::GetEntryNames() const
+{
+	EntryNames.Reset();
+	
 	const FRigVMByteCode& ByteCode = GetByteCode();
 	for (int32 EntryIndex = 0; EntryIndex < ByteCode.NumEntries(); EntryIndex++)
 	{
@@ -856,6 +861,33 @@ TArray<FName> URigVM::GetEntryNames() const
 	}
 
 	return EntryNames;
+}
+
+bool URigVM::CanExecuteEntry(const FName& InEntryName) const
+{
+	const int32 EntryIndex = FindEntry(InEntryName);
+	if(EntryIndex == INDEX_NONE)
+	{
+		static constexpr TCHAR MissingEntry[] = TEXT("Entry('%s') cannot be found.");
+		Context.PublicData.Logf(EMessageSeverity::Error, MissingEntry, *InEntryName.ToString());
+		return false;
+	}
+	
+	if(EntriesBeingExecuted.Contains(EntryIndex))
+	{
+		TArray<FString> EntryNamesBeingExecuted;
+		for(const int32 EntryBeingExecuted : EntriesBeingExecuted)
+		{
+			EntryNamesBeingExecuted.Add(GetEntryNames()[EntryBeingExecuted].ToString());
+		}
+		EntryNamesBeingExecuted.Add(InEntryName.ToString());
+
+		static constexpr TCHAR RecursiveEntry[] = TEXT("Entry('%s') is being invoked recursively (%s).");
+		Context.PublicData.Logf(EMessageSeverity::Error, RecursiveEntry, *InEntryName.ToString(), *FString::Join(EntryNamesBeingExecuted, TEXT(" -> ")));
+		return false;
+	}
+
+	return true;
 }
 
 #if WITH_EDITOR
@@ -1592,8 +1624,6 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	const bool bIsRootEntry = EntriesBeingExecuted.IsEmpty(); 
 	if(bIsRootEntry)
 	{
-		bHitErrorDuringExecution = false;
-		
 		if (ExecutingThreadId != INDEX_NONE)
 		{
 			ensureMsgf(ExecutingThreadId == FPlatformTLS::GetCurrentThreadId(), TEXT("RigVM::Execute from multiple threads (%d and %d)"), ExecutingThreadId, (int32)FPlatformTLS::GetCurrentThreadId());
@@ -1660,6 +1690,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 		ClearDebugMemory();
 	}
 
+	int32 EntryIndexToPush = INDEX_NONE;
 	if (!InEntryName.IsNone())
 	{
 		int32 EntryIndex = ByteCode.FindEntryIndex(InEntryName);
@@ -1667,8 +1698,9 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 		{
 			return false;
 		}
+		
 		SetInstructionIndex((uint16)ByteCode.GetEntry(EntryIndex).InstructionIndex);
-		EntriesBeingExecuted.Push(EntryIndex);
+		EntryIndexToPush = EntryIndex;
 
 		if(bIsRootEntry)
 		{
@@ -1677,23 +1709,20 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	}
 	else
 	{
-		int32 FirstEntryIndex = INDEX_NONE;
 		for(int32 EntryIndex = 0; EntryIndex < ByteCode.NumEntries(); EntryIndex++)
 		{
 			if(ByteCode.GetEntry(EntryIndex).InstructionIndex == 0)
 			{
-				FirstEntryIndex = EntryIndex;
+				EntryIndexToPush = EntryIndex;
 				break;
 			}
 		}
 		
-		EntriesBeingExecuted.Push(FirstEntryIndex);
-
 		if(bIsRootEntry)
 		{
-			if(ByteCode.Entries.IsValidIndex(FirstEntryIndex))
+			if(ByteCode.Entries.IsValidIndex(EntryIndexToPush))
 			{
-				Context.PublicData.EventName = ByteCode.GetEntry(FirstEntryIndex).Name;
+				Context.PublicData.EventName = ByteCode.GetEntry(EntryIndexToPush).Name;
 			}
 			else
 			{
@@ -1701,6 +1730,8 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 			}
 		}
 	}
+
+	FEntryExecuteGuard EntryExecuteGuard(EntriesBeingExecuted, EntryIndexToPush);
 
 #if WITH_EDITOR
 	if (DebugInfo && bIsRootEntry)
@@ -1725,18 +1756,11 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 
 	while (Instructions.IsValidIndex(Context.PublicData.InstructionIndex))
 	{
-		if(bHitErrorDuringExecution)
-		{
-			EntriesBeingExecuted.Pop();
-			return false;
-		}
-		
 #if WITH_EDITOR
 		if (DebugInfo && ShouldHaltAtInstruction(InEntryName, Context.PublicData.InstructionIndex))
 		{
 			// we'll recursively exit all invoked
 			// entries here.
-			EntriesBeingExecuted.Pop();
 			return true;
 		}
 
@@ -2004,7 +2028,6 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 					}
 #endif
 				}
-				EntriesBeingExecuted.Pop();
 				return true;
 			}
 			case ERigVMOpCode::BeginBlock:
@@ -2563,38 +2586,24 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 			case ERigVMOpCode::InvokeEntry:
 			{
 				const FRigVMInvokeEntryOp& Op = ByteCode.GetOpAt<FRigVMInvokeEntryOp>(Instruction);
-				const int32 EntryIndex = ByteCode.FindEntryIndex(Op.EntryName);
 
-				if(EntryIndex == INDEX_NONE)
+				if(!CanExecuteEntry(Op.EntryName))
 				{
-					static constexpr TCHAR MissingEntry[] = TEXT("Entry('%s') cannot be found.");
-					Context.PublicData.Logf(EMessageSeverity::Error, MissingEntry, *Op.EntryName.ToString());
-					bHitErrorDuringExecution = true;
-				}
-				else if(EntriesBeingExecuted.Contains(EntryIndex)) // avoid cycles
-				{
-					TArray<FString> EntryNames;
-					for(int32 EntryBeingExecuted : EntriesBeingExecuted)
-					{
-						EntryNames.Add(ByteCode.GetEntry(EntryBeingExecuted).Name.ToString());
-					}
-					EntryNames.Add(Op.EntryName.ToString());
-
-					static constexpr TCHAR RecursiveEntry[] = TEXT("Entry('%s') is being invoked recursively (%s).");
-					Context.PublicData.Logf(EMessageSeverity::Error, RecursiveEntry, *Op.EntryName.ToString(), *FString::Join(EntryNames, TEXT(" -> ")));
-					bHitErrorDuringExecution = true;
+					return false;
 				}
 				else
 				{
 					// this will restore the public data after invoking the entry
 					TGuardValue<FRigVMExecuteContext> PublicDataGuard(Context.PublicData, Context.PublicData);
-					Execute(Memory, AdditionalArguments, Op.EntryName);
+					if(!Execute(Memory, AdditionalArguments, Op.EntryName))
+					{
+						return false;
+					}
 
 #if WITH_EDITOR
 					// if we are halted at a break point we need to exit here
 					if (DebugInfo && ShouldHaltAtInstruction(InEntryName, Context.PublicData.InstructionIndex))
 					{
-						EntriesBeingExecuted.Pop();
 						return true;
 					}
 #endif
@@ -2606,7 +2615,6 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 			case ERigVMOpCode::Invalid:
 			{
 				ensure(false);
-				EntriesBeingExecuted.Pop();
 				return false;
 			}
 		}
@@ -2643,7 +2651,6 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	}
 #endif
 
-	EntriesBeingExecuted.Pop();
 	return true;
 }
 

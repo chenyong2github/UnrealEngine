@@ -58,7 +58,7 @@ private:
 
 	struct FOperationGroup
 	{
-		FName Entry;
+		FString Entry;
 		int32 First;
 		int32 Last;
 		int32 Depth;
@@ -68,7 +68,7 @@ private:
 		TArray<FOpaqueArgument> OpaqueArguments;
 
 		FOperationGroup()
-			: Entry(NAME_None)
+			: Entry()
 			, First(INDEX_NONE)
 			, Last(INDEX_NONE)
 			, Depth(INDEX_NONE)
