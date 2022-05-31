@@ -41,7 +41,9 @@ void FSubtitleDecoderPlugins::CollectSupportedDecoderPlugins()
 	if (!bIsValidList)
 	{
 		// Get the list of all the registered modular features implementing a subtitle decoder.
+		IModularFeatures::Get().LockModularFeatureList();
 		TArray<IElectraSubtitleModularFeature*> PluginImplementations = IModularFeatures::Get().GetModularFeatureImplementations<IElectraSubtitleModularFeature>(IElectraSubtitlesModule::GetModularFeatureName());
+		IModularFeatures::Get().UnlockModularFeatureList();
 		for(auto &Plugin : PluginImplementations)
 		{
 			if (!Plugin)
