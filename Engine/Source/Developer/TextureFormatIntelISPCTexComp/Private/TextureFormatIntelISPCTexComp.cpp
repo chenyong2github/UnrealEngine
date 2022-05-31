@@ -42,7 +42,7 @@ class FIntelISPCTexCompTextureBuildFunction final : public FTextureBuildFunction
 };
 
 // increment this if you change anything that will affect compression in this file
-#define BASE_ISPC_DX11_FORMAT_VERSION 4
+#define BASE_ISPC_DX11_FORMAT_VERSION 5
 
 // For debugging intermediate image results by saving them out as files.
 #define DEBUG_SAVE_INTERMEDIATE_IMAGES 0
@@ -792,33 +792,6 @@ public:
 		InOutImage.SizeY = AlignedSizeY;
 	}
 
-	/**
-	Remove Float16 values, which aren't correctly handled by the ISPCTextureCompressor.
-	https://docs.microsoft.com/en-us/windows/desktop/direct3d11/bc6h-format
-	*/
-	static void SanitizeFloat16ForBC6H(FImage& InOutImage)
-	{
-		check(InOutImage.Format == ERawImageFormat::RGBA16F);
-
-		const int64 TexelNum = InOutImage.RawData.Num() / sizeof(FFloat16);
-		FFloat16* Data = reinterpret_cast<FFloat16*>(&InOutImage.RawData[0]);
-		for (int64 TexelIndex = 0; TexelIndex < TexelNum; ++TexelIndex)
-		{
-			// Flush negative values to 0, as those aren't supported by BC6H_UF16.
-			FFloat16& F16Value = Data[TexelIndex];
-
-			if ( F16Value.IsNegative() )
-			{
-				F16Value.Encoded = 0;
-			}
-			// @todo Oodle : should also clamp +Inf to max non-inf value? -> yes, like Oodle Texture does
-			//	  maybe also set A to 1.f to match BC6 ?
-
-			//	 note that behavior of the basic F32->F16 conversion was changed,
-			//	 it used to clamp to max val if out of range, now stores inf
-		}
-	}
-
 	virtual EPixelFormat GetPixelFormatForImage(const FTextureBuildSettings& BuildSettings, const struct FImage& Image, bool bImageHasAlphaChannel) const override
 	{
 		return GetPixelFormatForBuildSettings(BuildSettings);
@@ -872,7 +845,7 @@ public:
 			FImage Image;
 			InImage.CopyTo(Image, ERawImageFormat::RGBA16F, EGammaSpace::Linear);
 
-			SanitizeFloat16ForBC6H(Image);
+			FImageCore::SanitizeFloat16AndSetAlphaOpaqueForBC6H(Image);
 
 			bc6h_enc_settings settings;
 			GetProfile_bc6h_basic(&settings);

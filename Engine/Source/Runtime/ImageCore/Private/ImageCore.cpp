@@ -1240,3 +1240,24 @@ IMAGECORE_API FLinearColor ERawImageFormat::GetOnePixelLinear(const void * Pixel
 		return FLinearColor();
 	}
 }
+
+
+void FImageCore::SanitizeFloat16AndSetAlphaOpaqueForBC6H(const FImageView & InOutImage)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(Texture.SanitizeFloat16AndSetAlphaOpaqueForBC6H);
+	check(InOutImage.Format == ERawImageFormat::RGBA16F);
+
+	const int64 TexelNum = InOutImage.GetNumPixels();
+	FFloat16Color* Data = reinterpret_cast<FFloat16Color*>(InOutImage.RawData);
+
+	// @todo Oodle : parallel for ?
+	for (int64 TexelIndex = 0; TexelIndex < TexelNum; ++TexelIndex)
+	{
+		FFloat16Color& F16Color = Data[TexelIndex];
+
+		F16Color.R = F16Color.R.GetClampedNonNegativeAndFinite();
+		F16Color.G = F16Color.G.GetClampedNonNegativeAndFinite();
+		F16Color.B = F16Color.B.GetClampedNonNegativeAndFinite();
+		F16Color.A.SetOne();
+	}
+}

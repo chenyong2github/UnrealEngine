@@ -574,6 +574,16 @@ IMAGECORE_API void CopyImageRGBABGRA(const FImageView & SrcImage,const FImageVie
 */
 IMAGECORE_API void TransposeImageRGBABGRA(const FImageView & Image);
 
+
+/**
+* Clamp Float16 colors which aren't encodable in the BC6H format
+* RGB is clamped to non-negative and finite
+* A is set to 1.0
+*
+* @param  InOutImage is modified.  Must be RGBA16F. (the FImageView is const but what it points at is not)
+*/
+IMAGECORE_API void SanitizeFloat16AndSetAlphaOpaqueForBC6H(const FImageView & InOutImage);
+
 };
 
 

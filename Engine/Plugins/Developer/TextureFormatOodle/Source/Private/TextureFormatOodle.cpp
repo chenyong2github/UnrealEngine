@@ -1117,6 +1117,7 @@ public:
 			Gamma = EGammaSpace::Linear;
 
 			// TFO just passes the F32 to Oodle
+			// FImageCore::SanitizeFloat16AndSetAlphaOpaqueForBC6H is not needed here
 			// Oodle will convert the F32 to F16 and also clamp in [0,F16_max] (no negatives, no +inf)
 		}
 		else if ((OodleBCN == OodleTex_BC4U || OodleBCN == OodleTex_BC5U) &&

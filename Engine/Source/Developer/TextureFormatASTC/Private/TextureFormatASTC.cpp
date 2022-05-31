@@ -48,7 +48,7 @@ static FAutoConsoleVariableRef CVarASTCCompressor(
 #endif
 
 // increment this if you change anything that will affect compression in this file
-#define BASE_ASTC_FORMAT_VERSION 40
+#define BASE_ASTC_FORMAT_VERSION 41
 
 #define MAX_QUALITY_BY_SIZE 4
 #define MAX_QUALITY_BY_SPEED 3
@@ -599,6 +599,11 @@ public:
 		if (bHDRImage)
 		{
 			CompressionParameters = FString::Printf(TEXT("%s"), *QualityString );
+			
+			// ASTC can encode floats that BC6H can't
+			//  but still clamp as if we were BC6H, so that the same output is made
+			// (eg. ASTC can encode A but BC6 can't; we stuff 1 in A here)
+			FImageCore::SanitizeFloat16AndSetAlphaOpaqueForBC6H(Image);
 		}
 		else if ( BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGB ||
 			BuildSettings.TextureFormatName == GTextureFormatNameASTC_RGBA || 

@@ -68,9 +68,24 @@ public:
 
 	/** Convert from Fp32 to Fp16, truncating low bits. 
 	(backward-compatible conversion; was used by Set() previously)
-	Clamps values out of range to [-MaxFloat,MaxFloat] */
+	Clamps values out of range to [-MaxF16Float,MaxF16Float] */
 	void SetTruncate(float FP32Value);
 
+	/** Set to 0.0 **/
+	void SetZero()
+	{
+		Encoded = 0;
+	}
+	
+	/** Set to 1.0 **/
+	void SetOne()
+	{
+		Encoded = 0x3c00;
+	}
+
+	/** Return float clamp in [0,MaxF16Float] , no negatives or infinites or nans returned **/
+	FFloat16 GetClampedNonNegativeAndFinite() const;
+	
 	/** Convert from Fp16 to Fp32. */
 	float GetFloat() const;
 
@@ -216,4 +231,19 @@ FORCEINLINE void FFloat16::SetTruncate(float FP32Value)
 	}
 
 	Encoded = FP16.Encoded;
+}
+
+/** Return float clamp in [0,MaxF16Float] , no negatives or infinites or nans returned **/
+FORCEINLINE FFloat16 FFloat16::GetClampedNonNegativeAndFinite() const
+{
+	FFloat16 ReturnValue;
+	
+	if ( Encoded < 0x7c00 ) // normal and non-negative, just pass through
+		ReturnValue.Encoded = Encoded;
+	else if ( Encoded == 0x7c00 ) // infinity turns into largest normal
+		ReturnValue.Encoded = 0x7bff;
+	else // NaNs or anything negative turns into 0
+		ReturnValue.Encoded = 0;
+
+	return ReturnValue;
 }
