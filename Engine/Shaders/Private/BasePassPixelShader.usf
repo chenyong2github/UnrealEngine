@@ -1507,9 +1507,21 @@ void FPixelShaderInOut_MainPS(
 				#endif
 
 				#if FORWARD_SHADING || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+
+					float3 DirectionalLightAtmosphereTransmittance = 1.0f;
+					const uint LightIndex = 0;
+					if (ResolvedView.AtmosphereLightDiscCosHalfApexAngle_PPTrans[LightIndex].y > 0.0f)
+					{
+						// Only when using forward shading, we can evaluate per pixel atmosphere transmittance.
+						const float3 PlanetCenterToTranslatedWorldPos = (LWCToFloat(LWCAdd(MaterialParameters.AbsoluteWorldPosition, ResolvedView.PreViewTranslation)) - ResolvedView.SkyPlanetTranslatedWorldCenterAndViewHeight.xyz) * CM_TO_SKY_UNIT;
+						DirectionalLightAtmosphereTransmittance = GetAtmosphereTransmittance(
+							PlanetCenterToTranslatedWorldPos, ResolvedView.AtmosphereLightDirection[LightIndex].xyz, ResolvedView.SkyAtmosphereBottomRadiusKm, ResolvedView.SkyAtmosphereTopRadiusKm,
+							View.TransmittanceLutTexture, View.TransmittanceLutTextureSampler);
+					}
+
 					FDeferredLightingSplit ForwardDirectLighting = GetForwardDirectLightingSplit(
 						GridIndex, MaterialParameters.WorldPosition_CamRelative, MaterialParameters.CameraVector, GBuffer, NearestResolvedDepthScreenUV, MaterialParameters.PrimitiveId, EyeIndex, Dither, 
-						DirectionalLightCloudShadow, DirectionalLightShadow,
+						DirectionalLightCloudShadow, DirectionalLightAtmosphereTransmittance, DirectionalLightShadow,
 						bSeparateWaterMainDirLightLuminance, SeparatedWaterMainDirLightLuminance);
 					
 					#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT

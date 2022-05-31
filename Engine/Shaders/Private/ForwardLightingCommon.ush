@@ -120,7 +120,7 @@ float GetIndirectOcclusion(float2 ScreenUV, bool bHasDynamicIndirectShadowCaster
 
 FDeferredLightingSplit GetForwardDirectLightingSplit(
 	uint GridIndex, float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, 
-	float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow,
+	float InDirectionalLightCloudShadow, float3 InDirectionalLightAtmosphereTransmittance, inout float OutDirectionalLightShadow,
 	bool bSeparateMainDirLightLuminance, inout float3 SeparatedMainDirLightLuminance)
 {
 	float3 WorldPosition = TranslatedWorldPosition - LWCHackToFloat(PrimaryView.PreViewTranslation);
@@ -213,6 +213,8 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 			NewLighting.DiffuseLighting *= InDirectionalLightCloudShadow;
 			NewLighting.SpecularLighting *= InDirectionalLightCloudShadow;
 		#endif
+			NewLighting.DiffuseLighting.rgb *= InDirectionalLightAtmosphereTransmittance;
+			NewLighting.SpecularLighting.rgb *= InDirectionalLightAtmosphereTransmittance;
 
 			if (bSeparateMainDirLightLuminance)
 			{
@@ -304,18 +306,6 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 	}
 
 	return DirectLighting;
-}
-
-float3 GetForwardDirectLighting(uint GridIndex, float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBufferData, float2 ScreenUV, uint PrimitiveId, uint EyeIndex, float Dither, float InDirectionalLightCloudShadow, inout float OutDirectionalLightShadow)
-{
-	bool bSeparateMainDirLightLuminance = false;
-	float3 SeparatedMainDirLightLuminance = 0.0f;
-	FDeferredLightingSplit Ret = GetForwardDirectLightingSplit(
-		GridIndex, TranslatedWorldPosition, CameraVector, GBufferData, ScreenUV, PrimitiveId, EyeIndex, Dither, 
-		InDirectionalLightCloudShadow, OutDirectionalLightShadow,
-		bSeparateMainDirLightLuminance, SeparatedMainDirLightLuminance);
-
-	return Ret.DiffuseLighting.rgb + Ret.SpecularLighting.rgb;
 }
 
 float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 TranslatedWorldPosition, float SceneDepth, float3 WorldNormal, uint EyeIndex, float InDirectionalLightCloudShadow)
