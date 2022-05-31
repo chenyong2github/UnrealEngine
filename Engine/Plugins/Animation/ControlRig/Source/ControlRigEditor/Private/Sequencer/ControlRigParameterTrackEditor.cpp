@@ -2389,7 +2389,8 @@ void FControlRigParameterTrackEditor::HandleControlSelected(UControlRig* Subject
 			SetUpEditModeIfNeeded(Subject);
 
 			//Force refresh later, not now
-			bSkipNextSelectionFromTimer = bIsSelectingIndirectControl && ControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationControl;
+			bSkipNextSelectionFromTimer = bSkipNextSelectionFromTimer ||
+				(bIsSelectingIndirectControl && ControlElement->Settings.AnimationType == ERigControlAnimationType::AnimationControl);
 			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::RefreshTree);
 		}
 	}
