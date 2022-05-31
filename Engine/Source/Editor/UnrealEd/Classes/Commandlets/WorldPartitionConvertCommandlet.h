@@ -12,7 +12,7 @@
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "WorldPartitionConvertCommandlet.generated.h"
 
-UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionConvertCommandlet, Display, All);
+UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionConvertCommandlet, Log, All);
 
 class ULevelStreaming;
 class UWorldPartition;
