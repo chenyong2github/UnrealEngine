@@ -107,8 +107,7 @@ public class Engine : ModuleRules
 				"AudioExtensions",
 				"DeveloperSettings",
 				"AudioLinkCore",
-				"CookOnTheFly",
-				"Zen"
+				"CookOnTheFly"
 			}
 		);
 
@@ -167,6 +166,7 @@ public class Engine : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"RawMesh",
+					"Zen"
 				}
 			);
 		}

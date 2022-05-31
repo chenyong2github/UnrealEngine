@@ -20,8 +20,11 @@
 #include "HAL/PlatformProcess.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheUsageStats.h"
-#include "ZenServerInterface.h"
 #include "Virtualization/VirtualizationSystem.h"
+
+#if WITH_EDITOR
+#include "ZenServerInterface.h"
+#endif
 
 bool FStudioAnalytics::bInitialized = false;
 volatile double FStudioAnalytics::TimeEstimation = 0;
