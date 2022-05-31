@@ -42,6 +42,12 @@
 #define STRATA_INLINE_SHADING 0
 #endif
 
+// This is used to evaluate some precomputed lighting data while we pack out Strata material.
+// It is also used to remove reference to unwanted resourced when not needed.
+#ifndef MATERIAL_STRATA_PRECOMPUTED_LIGHTING
+#define MATERIAL_STRATA_PRECOMPUTED_LIGHTING 0
+#endif
+
 #ifndef STRATA_DEFERRED_SHADING
 #define STRATA_DEFERRED_SHADING (STRATA_INLINE_SHADING == 0)
 #endif 
@@ -3130,6 +3136,15 @@ void StrataUpdateTree(
 
 uint PackStrataHeader(uint BSDFCount, FStrataPixelHeader In);
 
+#if MATERIAL_STRATA_PRECOMPUTED_LIGHTING
+FStrataBSDFForPrecomputedLighting StrataPrepareBSDFForPrecomputedLighting(
+	in FStrataIntegrationSettings Settings,
+	in FStrataPixelHeader StrataPixelHeader,
+	in FStrataBSDF CurrentBSDF,
+	in float3 V,
+	in float3 WorldBentNormal0);
+#endif
+
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
 void PackStrataOut(
 	inout FRWStrataMaterialContainer StrataBuffer,
@@ -3142,14 +3157,24 @@ void PackStrataOut(
 	FStrataPixelHeader StrataPixelHeader,
 	FStrataData Strata,
 	float3 V,
+	float3 WorldBentNormal0,
 	inout bool bStrataSubsurfaceEnable,
 	inout float3 EmissiveColor,
 	inout FStrataSubsurfaceData SSSData,
 	inout FStrataTopLayerData TopLayerData,
-	inout FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData)
+	inout FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData
+#if MATERIAL_STRATA_PRECOMPUTED_LIGHTING
+	,
+	inout FStrataPrecomputedLightingData IndirectLightingData
+#endif
+)
 {
 	// This only exists with inline shading and when we are going to write out BSDFs (UpdateAllXXX functions needs to be defined)
 #if STRATA_INLINE_SHADING && STRATA_CLAMPED_BSDF_COUNT > 0
+
+#if MATERIAL_STRATA_PRECOMPUTED_LIGHTING
+	IndirectLightingData = (FStrataPrecomputedLightingData)0;
+#endif 
 
 	bStrataSubsurfaceEnable = false;
 	EmissiveColor = 0.0f;
@@ -3514,6 +3539,17 @@ void PackStrataOut(
 						break;
 						}
 					}
+
+					// Convert BSDF to data ready to evaluate precomputed lighting
+					#if MATERIAL_STRATA_PRECOMPUTED_LIGHTING
+					IndirectLightingData.BSDFs[IndirectLightingData.BSDFCount++] = StrataPrepareBSDFForPrecomputedLighting(
+						Settings,
+						StrataPixelHeader,
+						BSDF,
+						V,
+						WorldBentNormal0);
+					#endif
+
 
 					// Stop writing if above budget.
 					BSDFCount++;

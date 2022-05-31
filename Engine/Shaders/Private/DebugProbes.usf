@@ -278,7 +278,8 @@ void MainPS(
 		SetCastContactShadow(StrataPixelHeader, 0);
 
 		uint SharedLocalBasisIndex = 0;
-		StrataPixelHeader.SharedLocalBases.Normals[SharedLocalBasisIndex] = normalize(Normal);
+		const float3 NormalizedNormal = normalize(Normal);
+		StrataPixelHeader.SharedLocalBases.Normals[SharedLocalBasisIndex] = NormalizedNormal;
 		StrataPixelHeader.SharedLocalBases.Count = 1;
 
 		FStrataPixelFootprint PixelFootprint = (FStrataPixelFootprint)0;
@@ -329,7 +330,7 @@ void MainPS(
 			Dither,
 			Settings,
 			StrataAddressing,
-			StrataPixelHeader, StrataData, -RayDir, bStrataSubsurfaceEnable, EmissiveLuminance,
+			StrataPixelHeader, StrataData, -RayDir, NormalizedNormal, bStrataSubsurfaceEnable, EmissiveLuminance,
 			SSSData, TopLayerData, OpaqueRoughRefractionData);
 
 		// Write out MRTs. Note: this only works for deferred with basepassvelocity off

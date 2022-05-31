@@ -10,13 +10,13 @@
 // Forward declarations
 void GetVolumeLightingNonDirectional(float4 AmbientLightingVector, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting);
 void GetVolumeLightingDirectional(float4 AmbientLightingVector, float3 DirectionalLightingVector, float3 WorldNormal, float3 DiffuseColor, inout float3 InterpolatedLighting, out float4 VolumeLighting);
-float3 GetBentNormalZero(in FMaterialPixelParameters MaterialParameters);
+
+float3 GetWorldBentNormalZero(in FMaterialPixelParameters MaterialParameters);
 
 FShadingOcclusion ApplyBentNormal(
 	in float3 CameraVector,
 	in float3 WorldNormal,
-	in float3x3 TangentToWorld,
-	in float3 BentNormal0,
+	in float3 WorldBentNormal0,
 	in float Roughness,
 	in float MaterialAO);
 
@@ -160,7 +160,7 @@ float3 StrataForwardLighting(
 
 				// Compute the bent normal from the BSDF normal
 				const float Roughness = StrataGetBSDFRoughness(CurrentBSDF);
-				const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, StrataBSDFContext.N, MaterialParameters.TangentToWorld, GetBentNormalZero(MaterialParameters), Roughness,  StrataGetAO(StrataPixelHeader));
+				const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, StrataBSDFContext.N, GetWorldBentNormalZero(MaterialParameters), Roughness,  StrataGetAO(StrataPixelHeader));
 
 				float IndirectOcclusion = 1.0f;
 				float IndirectIrradiance = 0.0f; 
