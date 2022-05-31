@@ -107,4 +107,33 @@ namespace Dataflow
 			];
 	}
 
+	//
+	// FName
+	//
+	template<> inline
+		void PropertyWidgetFactory<FName>(
+			IDetailLayoutBuilder& InDetailBuilder,
+			TSharedPtr<IPropertyHandle> PropertyHandle,
+			TSharedPtr<Dataflow::FNode> InNode,
+			TProperty<FName>* InProperty)
+	{
+		InDetailBuilder.AddCustomRowToCategory(PropertyHandle, FText::FromString("PropertyHandel<FName>"))
+			.NameContent()[
+				SNew(STextBlock).Font(IDetailLayoutBuilder::GetDetailFont())
+					.Text(FText::FromName(InProperty->GetName()))
+			].ValueContent()[
+				SNew(SEditableTextBox)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.Text_Lambda([InNode, InProperty]()
+						{
+							return FText::FromString(InProperty->GetValue().ToString());
+						})
+					.OnTextCommitted_Lambda([InNode, InProperty](const FText& InText, ETextCommit::Type TextCommitType)
+						{
+							InProperty->SetValue(FName(InText.ToString()));
+						})
+
+			];
+	}
+
 }

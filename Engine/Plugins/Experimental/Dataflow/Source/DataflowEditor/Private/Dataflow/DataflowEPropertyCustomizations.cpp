@@ -56,6 +56,9 @@ void FDataflowSEditorCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 					case Dataflow::FProperty::EType::STRING:
 						Dataflow::PropertyWidgetFactory<FString>(DetailBuilder, PropertyHandle, Node, (Dataflow::TProperty<FString>*)Property);
 						break;
+					case Dataflow::FProperty::EType::NAME:
+						Dataflow::PropertyWidgetFactory<FName>(DetailBuilder, PropertyHandle, Node, (Dataflow::TProperty<FName>*)Property);
+						break;
 					default:
 						ensureMsgf(true,TEXT("Missing slate property convert."));
 					}
