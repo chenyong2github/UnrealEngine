@@ -186,20 +186,26 @@ void FMainFrameCommands::RegisterCommands()
 	UI_COMMAND(DocumentationHome, "Documentation Home", "Authoritative, in-depth technical resources for using Unreal Engine", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(DocumentationHome, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::DocumentationHome));
 
-	UI_COMMAND(VisitOnlineLearning, "Online Learning", "Learn Unreal Engine for free with easy-to-follow video courses and guided learning paths", EUserInterfaceActionType::Button, FInputChord());
-	ActionList->MapAction(VisitOnlineLearning, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitOnlineLearning));
-
 	UI_COMMAND(BrowseAPIReference, "C++ API Reference", "Classes, functions, and other elements that make up the C++ API", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(BrowseAPIReference, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::BrowseAPIReference));
 
 	UI_COMMAND(BrowseCVars, "Console Variables", "Reference companion for console variables and commands", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(BrowseCVars, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::BrowseCVars));
 
+	UI_COMMAND(VisitCommunityHome, "Dev Community", "Join the worldwide community of Unreal developers and explore all the resources it has to offer", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(VisitCommunityHome, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitCommunityHome));
+
+	UI_COMMAND(VisitOnlineLearning, "Learning Library", "Learn Unreal Engine for free with easy-to-follow video courses and guided learning paths", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(VisitOnlineLearning, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitOnlineLearning));
+
 	UI_COMMAND(VisitForums, "Forums", "View announcements and engage in discussions with other developers", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(VisitForums, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitForums));
 
 	UI_COMMAND(VisitSearchForAnswersPage, "Q&A", "Search for answers, ask questions, and share your knowledge with other developers", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(VisitSearchForAnswersPage, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitSearchForAnswersPage));
+
+	UI_COMMAND(VisitCommunitySnippets, "Snippets", "Access and share ready-to-use code blocks and scripts", EUserInterfaceActionType::Button, FInputChord());
+	ActionList->MapAction(VisitCommunitySnippets, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitCommunitySnippets));
 
 	UI_COMMAND(VisitSupportWebSite, "Support", "Options for personalized technical support", EUserInterfaceActionType::Button, FInputChord());
 	ActionList->MapAction(VisitSupportWebSite, FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::VisitSupportWebSite));
@@ -666,10 +672,28 @@ void FMainFrameActionCallbacks::BrowseCVars()
 	GEditor->Exec(GEditor->GetEditorWorldContext().World(), TEXT("help"));
 }
 
+void FMainFrameActionCallbacks::VisitCommunityHome()
+{
+	FString URL;
+	if (FUnrealEdMisc::Get().GetURL(TEXT("CommunityHomeURL"), URL))
+	{
+		FPlatformProcess::LaunchURL(*URL, NULL, NULL);
+	}
+}
+
 void FMainFrameActionCallbacks::VisitForums()
 {
 	FString URL;
 	if (FUnrealEdMisc::Get().GetURL(TEXT("ForumsURL"), URL))
+	{
+		FPlatformProcess::LaunchURL(*URL, NULL, NULL);
+	}
+}
+
+void FMainFrameActionCallbacks::VisitCommunitySnippets()
+{
+	FString URL;
+	if (FUnrealEdMisc::Get().GetURL(TEXT("SnippetsURL"), URL))
 	{
 		FPlatformProcess::LaunchURL(*URL, NULL, NULL);
 	}

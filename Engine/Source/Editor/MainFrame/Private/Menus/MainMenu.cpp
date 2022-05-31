@@ -270,9 +270,11 @@ void FMainMenu::RegisterHelpMenu()
 
 	FToolMenuSection& CommunitySection = Menu->AddSection("Community", NSLOCTEXT("MainHelpMenu", "CommunitySection", "Community"));
 	{
+		CommunitySection.AddMenuEntry(FMainFrameCommands::Get().VisitCommunityHome);
 		CommunitySection.AddMenuEntry(FMainFrameCommands::Get().VisitOnlineLearning);
 		CommunitySection.AddMenuEntry(FMainFrameCommands::Get().VisitForums);
 		CommunitySection.AddMenuEntry(FMainFrameCommands::Get().VisitSearchForAnswersPage);
+		CommunitySection.AddMenuEntry(FMainFrameCommands::Get().VisitCommunitySnippets);
 	}
 
 	FToolMenuSection& BugReportingSection = Menu->AddSection("Support", NSLOCTEXT("MainHelpMenu", "SupportSection", "Support"));

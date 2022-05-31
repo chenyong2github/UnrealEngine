@@ -53,11 +53,13 @@ public:
 	TSharedPtr< FUICommandInfo > OpenMarketplace;
 
 	TSharedPtr< FUICommandInfo > DocumentationHome;
-	TSharedPtr< FUICommandInfo > VisitOnlineLearning;
 	TSharedPtr< FUICommandInfo > BrowseAPIReference;
 	TSharedPtr< FUICommandInfo > BrowseCVars;
+	TSharedPtr< FUICommandInfo > VisitCommunityHome;
+	TSharedPtr< FUICommandInfo > VisitOnlineLearning;
 	TSharedPtr< FUICommandInfo > VisitForums;
 	TSharedPtr< FUICommandInfo > VisitSearchForAnswersPage;
+	TSharedPtr< FUICommandInfo > VisitCommunitySnippets;
 	TSharedPtr< FUICommandInfo > ReportABug;
 	TSharedPtr< FUICommandInfo > OpenIssueTracker;
 	TSharedPtr< FUICommandInfo > VisitSupportWebSite;
@@ -149,9 +151,6 @@ public:
 	/** Opens the issue tracker page */
 	static void OpenIssueTracker();
 
-	/** Visits the "search for answers" page on UDN */
-	static void VisitSearchForAnswersPage();
-
 	/** Visits the UDN support web site */
 	static void VisitSupportWebSite();
 
@@ -161,16 +160,26 @@ public:
 	/** Opens the documentation home page*/
 	static void DocumentationHome();
 
-	/** Visits The Unreal Online Learning page*/
-	static void VisitOnlineLearning();
-
 	/** Opens the API documentation site */
 	static void BrowseAPIReference();
 
 	/** Creates an HTML file to browse the console variables and commands */
 	static void BrowseCVars();
 
+	/** Visits the home page of the Epic Games Dev Community web site */
+	static void VisitCommunityHome();
+
+	/** Visits the Learning Library on the Epic Games Dev Community web site */
+	static void VisitOnlineLearning();
+
+	/** Visits the Unreal Engine community forums */
 	static void VisitForums();
+
+	/** Visits the Q&A section of the Unreal Engine community forums */
+	static void VisitSearchForAnswersPage();
+
+	/** Visits the Snippets Repository on the Epic Games Dev Community web site */
+	static void VisitCommunitySnippets();
 
 	static void AboutUnrealEd_Execute();
 
