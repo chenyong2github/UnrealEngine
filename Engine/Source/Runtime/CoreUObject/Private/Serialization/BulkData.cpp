@@ -1519,10 +1519,6 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 			{
 				SetBulkDataFlagsOn(LocalBulkDataFlags, BULKDATA_Size64Bit);
 			}
-			else
-			{
-				ClearBulkDataFlagsOn(LocalBulkDataFlags, BULKDATA_Size64Bit);
-			}
 			// Remove single element serialization requirement before saving out bulk data flags.
 			ClearBulkDataFlagsOn(LocalBulkDataFlags, BULKDATA_ForceSingleElementSerialization);
 
