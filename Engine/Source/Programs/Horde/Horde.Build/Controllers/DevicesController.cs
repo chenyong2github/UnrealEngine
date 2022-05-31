@@ -726,22 +726,22 @@ namespace Horde.Build.Controllers
 
 			List<DeviceRequestData> requestedDevices = new List<DeviceRequestData>();
 
-			HashSet<string> legacyPerfSpecs = new HashSet<string> { "Unspecified", "Minimum", "Recommended", "High" };
-
 			List<string> perfSpecs = new List<string>();
 
 			foreach (string deviceType in request.DeviceTypes)
 			{
 
 				string platformName = deviceType;
-				string? constraint = null;
+				string perfSpecName = "Unspecified";
 
 				if (deviceType.Contains(':', StringComparison.Ordinal))
 				{
 					string[] tokens = deviceType.Split(":");
 					platformName = tokens[0];
-					constraint = tokens[1];
+					perfSpecName = tokens[1];
 				}
+
+				perfSpecs.Add(perfSpecName);
 
 				DevicePlatformId platformId;
 
@@ -768,55 +768,24 @@ namespace Horde.Build.Controllers
 				List<string> includeModels = new List<string>();
 				List<string> excludeModels = new List<string>();
 
-				if (constraint == null)
+				if (perfSpecName == "High")
 				{
-					perfSpecs.Add("Unspecified");
+					string? model = null;
+					if (mapV1.PerfSpecHighMap.TryGetValue(platformId, out model))
+					{
+						includeModels.Add(model);
+					}
 				}
-				else if (legacyPerfSpecs.Contains(constraint))
+
+				if (perfSpecName == "Minimum" || perfSpecName == "Recommended")
 				{
-					perfSpecs.Add(constraint);
-
-					if (constraint == "High")
+					string? model = null;
+					if (mapV1.PerfSpecHighMap.TryGetValue(platformId, out model))
 					{
-						string? model = null;
-						if (mapV1.PerfSpecHighMap.TryGetValue(platformId, out model))
-						{
-							includeModels.Add(model);
-						}
+						excludeModels.Add(model);
 					}
-					else if (constraint == "Minimum" || constraint == "Recommended")
-					{
-						string? model = null;
-						if (mapV1.PerfSpecHighMap.TryGetValue(platformId, out model))
-						{
-							excludeModels.Add(model);
-						}
-					}					
 				}
-				else
-				{
-					string? model = platform.Models?.FirstOrDefault(x => x == constraint);
-					if (model == null)
-					{
-						return NotFound($"Platform {platform.Id} has no model {model}");
-					}
 
-					string modelPerfSpec = "Minimum";
-					string? specModel = null;
-
-					if (mapV1.PerfSpecHighMap.TryGetValue(platform.Id, out specModel))
-					{
-						if (model == specModel)
-						{
-							modelPerfSpec = "High";
-						}
-					}
-
-					perfSpecs.Add(modelPerfSpec);
-
-					includeModels.Add(constraint);
-				}
-								
 				requestedDevices.Add(new DeviceRequestData(platformId, platformName, includeModels, excludeModels));
 			}
 
@@ -834,7 +803,6 @@ namespace Horde.Build.Controllers
 			response.Guid = reservation.LegacyGuid;
 			response.DeviceNames = devices.Select(x => x.Name).ToArray();
 			response.DevicePerfSpecs = perfSpecs.ToArray();
-			response.DeviceModels = devices.Select(x => x.ModelId ?? "Base").ToArray();
 			response.HostName = request.Hostname;
 			response.StartDateTime = reservation.CreateTimeUtc.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
 			response.Duration = $"{request.Duration}";
@@ -957,8 +925,8 @@ namespace Horde.Build.Controllers
 			response.AvailableStartTime = "00:00:00";
 			response.AvailableEndTime = "00:00:00";
 			response.Enabled = true;
-			response.Model = device.ModelId ?? "Base";
 			response.DeviceData = "";
+
 			response.PerfSpec = "Minimum";
 
 			if (device.ModelId != null)
