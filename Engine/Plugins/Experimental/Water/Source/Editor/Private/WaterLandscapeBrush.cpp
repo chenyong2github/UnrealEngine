@@ -604,6 +604,22 @@ void AWaterLandscapeBrush::UpdateActorIcon()
 	}
 }
 
+bool AWaterLandscapeBrush::CanEditChange(const FProperty* InProperty) const
+{
+	if (!Super::CanEditChange(InProperty))
+	{
+		return false;
+	}
+
+	// Weightmap layers are automatically populated by the list of IWaterBrushActorInterface affecting this brush :
+	if (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(AWaterLandscapeBrush, AffectedWeightmapLayers))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 #endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

@@ -96,6 +96,8 @@ public:
 	virtual void CheckForErrors() override;
 	
 	void UpdateActorIcon();
+
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
