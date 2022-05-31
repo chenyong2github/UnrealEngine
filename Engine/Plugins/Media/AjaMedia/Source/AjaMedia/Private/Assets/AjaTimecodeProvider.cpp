@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AjaTimecodeProvider.h"
-#include "AjaMediaPrivate.h"
-#include "AJA.h"
 
+#include "AJA.h"
+#include "AjaDeviceProvider.h"
+#include "AjaMediaPrivate.h"
 #include "Misc/App.h"
 #include "UObject/VirtualProductionObjectVersion.h"
 
@@ -43,6 +44,7 @@ UAjaTimecodeProvider::UAjaTimecodeProvider(const FObjectInitializer& ObjectIniti
 #endif
 	, State(ETimecodeProviderSynchronizationState::Closed)
 {
+	DeviceProvider = MakePimpl<FAjaDeviceProvider>();
 }
 
 bool UAjaTimecodeProvider::FetchTimecode(FQualifiedFrameTime& OutFrameTime)
@@ -93,93 +95,23 @@ bool UAjaTimecodeProvider::Initialize(class UEngine* InEngine)
 		return false;
 	}
 
-	FString FailureReason;
-	if ((bUseDedicatedPin && !LTCConfiguration.IsValid()) || (!bUseDedicatedPin && !VideoConfiguration.IsValid()))
+	if (bAutoDetectTimecode)
 	{
-		State = ETimecodeProviderSynchronizationState::Error;
-		UE_LOG(LogAjaMedia, Warning, TEXT("The TimecodeProvider '%s' configuration is invalid."), *GetName());
-		return false;
-	}
-
-	check(SyncCallback == nullptr);
-	SyncCallback = new FAJACallback(this);
-
-	const int32 DeviceIndex = bUseDedicatedPin ? LTCConfiguration.Device.DeviceIdentifier : VideoConfiguration.MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
-	AJA::AJADeviceOptions DeviceOptions(DeviceIndex);
-
-	AJA::AJATimecodeChannelOptions Options(*GetName());
-	Options.CallbackInterface = SyncCallback;
-	Options.bUseDedicatedPin = bUseDedicatedPin;
-
-	if (bUseDedicatedPin)
-	{
-		Options.bReadTimecodeFromReferenceIn = bUseReferenceIn;
-		Options.LTCSourceIndex = LTCConfiguration.LtcIndex;
-		Options.LTCFrameRateNumerator = LTCConfiguration.LtcFrameRate.Numerator;
-		Options.LTCFrameRateDenominator = LTCConfiguration.LtcFrameRate.Denominator;
+		DeviceProvider->AutoDetectConfiguration(FAjaDeviceProvider::FOnConfigurationAutoDetected::CreateUObject(this, &UAjaTimecodeProvider::OnConfigurationAutoDetected, InEngine));
+		return true;
 	}
 	else
 	{
-		Options.bReadTimecodeFromReferenceIn = false;
-		Options.LTCSourceIndex = 0;
-
-		Options.ChannelIndex = VideoConfiguration.MediaConfiguration.MediaConnection.PortIdentifier;
-		Options.VideoFormatIndex = VideoConfiguration.MediaConfiguration.MediaMode.DeviceModeIdentifier;
-
-		Options.TransportType = AJA::ETransportType::TT_SdiSingle;
+		FString FailureReason;
+		if ((bUseDedicatedPin && !LTCConfiguration.IsValid()) || (!bUseDedicatedPin && !VideoConfiguration.IsValid()))
 		{
-			const EMediaIOTransportType TransportType = VideoConfiguration.MediaConfiguration.MediaConnection.TransportType;
-			const EMediaIOQuadLinkTransportType QuadTransportType = VideoConfiguration.MediaConfiguration.MediaConnection.QuadTransportType;
-			switch (TransportType)
-			{
-			case EMediaIOTransportType::SingleLink:
-				Options.TransportType = AJA::ETransportType::TT_SdiSingle;
-				break;
-			case EMediaIOTransportType::DualLink:
-				Options.TransportType = AJA::ETransportType::TT_SdiDual;
-				break;
-			case EMediaIOTransportType::QuadLink:
-				Options.TransportType = QuadTransportType == EMediaIOQuadLinkTransportType::SquareDivision ? AJA::ETransportType::TT_SdiQuadSQ : AJA::ETransportType::TT_SdiQuadTSI;
-				break;
-			case EMediaIOTransportType::HDMI:
-				Options.TransportType = AJA::ETransportType::TT_Hdmi;
-				break;
-			}
-		}
-
-		Options.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
-		switch (VideoConfiguration.TimecodeFormat)
-		{
-		case EMediaIOTimecodeFormat::None:
-			Options.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
-			break;
-		case EMediaIOTimecodeFormat::LTC:
-			Options.TimecodeFormat = AJA::ETimecodeFormat::TCF_LTC;
-			break;
-		case EMediaIOTimecodeFormat::VITC:
-			Options.TimecodeFormat = AJA::ETimecodeFormat::TCF_VITC1;
-			break;
-		default:
-			break;
+			State = ETimecodeProviderSynchronizationState::Error;
+			UE_LOG(LogAjaMedia, Warning, TEXT("The TimecodeProvider '%s' configuration is invalid."), *GetName());
+			return false;
 		}
 	}
 
-	check(TimecodeChannel == nullptr);
-	TimecodeChannel = new AJA::AJATimecodeChannel();
-
-	if (!TimecodeChannel->Initialize(DeviceOptions, Options))
-	{
-		State = ETimecodeProviderSynchronizationState::Error;
-		ReleaseResources();
-		return false;
-	}
-
-#if WITH_EDITORONLY_DATA
-	InitializedEngine = InEngine;
-#endif
-
-	State = ETimecodeProviderSynchronizationState::Synchronizing;
-	return true;
+	return Initialize_Internal(InEngine, AJA::AJATimecodeChannelOptions(*GetName()));
 }
 
 void UAjaTimecodeProvider::Shutdown(class UEngine* InEngine)
@@ -223,6 +155,11 @@ void UAjaTimecodeProvider::ReleaseResources()
 		delete SyncCallback;
 		SyncCallback = nullptr;
 	}
+
+	if (DeviceProvider)
+	{
+		DeviceProvider->EndAutoDetectConfiguration();
+	}
 }
 
 ETickableTickType UAjaTimecodeProvider::GetTickableTickType() const
@@ -257,6 +194,116 @@ void UAjaTimecodeProvider::Tick(float DeltaTime)
 		}
 	}
 #endif
+}
+
+void UAjaTimecodeProvider::OnConfigurationAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> InConfigurations, class UEngine* InEngine)
+{
+	AJA::AJATimecodeChannelOptions Options(*GetName());
+
+	if (InConfigurations.Num())
+	{
+		FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat Format = InConfigurations[0];
+
+		VideoConfiguration.MediaConfiguration = Format.Configuration;
+		VideoConfiguration.TimecodeFormat = Format.TimecodeFormat;
+	}
+	else
+	{
+		UE_LOG(LogAjaMedia, Warning, TEXT("No configuration was detected for TimecodeProvider '%s'"), *GetName());
+		ReleaseResources();
+		return;
+	}
+
+	Initialize_Internal(InEngine, Options);
+}
+
+bool UAjaTimecodeProvider::Initialize_Internal(class UEngine* InEngine, AJA::AJATimecodeChannelOptions InOptions)
+{
+	check(SyncCallback == nullptr);
+	SyncCallback = new FAJACallback(this);
+
+	const int32 DeviceIndex = bUseDedicatedPin ? LTCConfiguration.Device.DeviceIdentifier : VideoConfiguration.MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
+	if (DeviceIndex == -1)
+	{ 
+		State = ETimecodeProviderSynchronizationState::Error;
+		ReleaseResources();
+		return false;
+	}
+
+	AJA::AJADeviceOptions DeviceOptions(DeviceIndex);
+
+	InOptions.CallbackInterface = SyncCallback;
+	InOptions.bUseDedicatedPin = bUseDedicatedPin;
+
+	if (bUseDedicatedPin)
+	{
+		InOptions.bReadTimecodeFromReferenceIn = bUseReferenceIn;
+		InOptions.LTCSourceIndex = LTCConfiguration.LtcIndex;
+		InOptions.LTCFrameRateNumerator = LTCConfiguration.LtcFrameRate.Numerator;
+		InOptions.LTCFrameRateDenominator = LTCConfiguration.LtcFrameRate.Denominator;
+	}
+	else
+	{
+		InOptions.bReadTimecodeFromReferenceIn = false;
+		InOptions.LTCSourceIndex = 0;
+
+		InOptions.ChannelIndex = VideoConfiguration.MediaConfiguration.MediaConnection.PortIdentifier;
+		InOptions.VideoFormatIndex = VideoConfiguration.MediaConfiguration.MediaMode.DeviceModeIdentifier;
+
+		InOptions.TransportType = AJA::ETransportType::TT_SdiSingle;
+		{
+			const EMediaIOTransportType TransportType = VideoConfiguration.MediaConfiguration.MediaConnection.TransportType;
+			const EMediaIOQuadLinkTransportType QuadTransportType = VideoConfiguration.MediaConfiguration.MediaConnection.QuadTransportType;
+			switch (TransportType)
+			{
+			case EMediaIOTransportType::SingleLink:
+				InOptions.TransportType = AJA::ETransportType::TT_SdiSingle;
+				break;
+			case EMediaIOTransportType::DualLink:
+				InOptions.TransportType = AJA::ETransportType::TT_SdiDual;
+				break;
+			case EMediaIOTransportType::QuadLink:
+				InOptions.TransportType = QuadTransportType == EMediaIOQuadLinkTransportType::SquareDivision ? AJA::ETransportType::TT_SdiQuadSQ : AJA::ETransportType::TT_SdiQuadTSI;
+				break;
+			case EMediaIOTransportType::HDMI:
+				InOptions.TransportType = AJA::ETransportType::TT_Hdmi;
+				break;
+			}
+		}
+
+		InOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
+		switch (VideoConfiguration.TimecodeFormat)
+		{
+		case EMediaIOTimecodeFormat::None:
+			InOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
+			break;
+		case EMediaIOTimecodeFormat::LTC:
+			InOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_LTC;
+			break;
+		case EMediaIOTimecodeFormat::VITC:
+			InOptions.TimecodeFormat = AJA::ETimecodeFormat::TCF_VITC1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	check(TimecodeChannel == nullptr);
+	TimecodeChannel = new AJA::AJATimecodeChannel();
+
+	if (!TimecodeChannel->Initialize(DeviceOptions, InOptions))
+	{
+		State = ETimecodeProviderSynchronizationState::Error;
+		ReleaseResources();
+		return false;
+	}
+
+#if WITH_EDITORONLY_DATA
+	InitializedEngine = InEngine;
+#endif
+
+	State = ETimecodeProviderSynchronizationState::Synchronizing;
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -13,6 +13,7 @@
 namespace AJA
 {
 	class AJATimecodeChannel;
+	struct AJATimecodeChannelOptions;
 }
 
 class UEngine;
@@ -50,6 +51,8 @@ private:
 	friend FAJACallback;
 
 	void ReleaseResources();
+	bool Initialize_Internal(class UEngine* InEngine, AJA::AJATimecodeChannelOptions InOptions);
+	void OnConfigurationAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> InConfigurations, class UEngine* InEngine);
 
 public:
 
@@ -77,6 +80,9 @@ public:
 	UPROPERTY(EditAnywhere, Category="Timecode", meta=(EditCondition="!bUseDedicatedPin"))
 	FAjaMediaTimecodeConfiguration VideoConfiguration;
 
+	UPROPERTY()
+	bool bAutoDetectTimecode = true;
+
 private:
 	/** AJA channel associated with reading LTC timecode */
 	AJA::AJATimecodeChannel* TimecodeChannel;
@@ -93,4 +99,6 @@ private:
 
 	/** The current SynchronizationState of the TimecodeProvider*/
 	ETimecodeProviderSynchronizationState State;
+
+	TPimplPtr<class FAjaDeviceProvider> DeviceProvider;
 };

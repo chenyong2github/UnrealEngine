@@ -186,6 +186,11 @@ FReply FMediaIOConfigurationCustomization::OnButtonClicked() const
 
 bool FMediaIOConfigurationCustomization::ShowAdvancedColumns(FName ColumnName, const TArray<FMediaIOConfiguration>& UniquePermutationsForThisColumn) const
 {
+	if (!CustomizedSources.Num())
+	{
+		return true;
+	}
+
 	bool bAutoDetectInput = true;
 
 	for (const TWeakObjectPtr<UTimeSynchronizableMediaSource>& WeakMediaSource : CustomizedSources)

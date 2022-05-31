@@ -21,7 +21,11 @@ private:
 
 	void OnSelectionChanged(FAjaMediaTimecodeConfiguration SelectedItem);
 	FReply OnButtonClicked() const;
+	ECheckBoxState GetEnforceCheckboxState() const;
+	void SetEnforceCheckboxState(ECheckBoxState CheckboxState);
+	bool ShowAdvancedColumns(FName ColumnName, const TArray<FAjaMediaTimecodeConfiguration>& UniquePermutationsForThisColumn) const;
 
+private:
 	TWeakPtr<SWidget> PermutationSelector;
 	FAjaMediaTimecodeConfiguration SelectedConfiguration;
 };
