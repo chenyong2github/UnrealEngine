@@ -122,6 +122,12 @@ const FConfigContext::FPerPlatformDirs& FConfigContext::GetPerPlatformDirs(const
 
 bool FConfigContext::Load(const TCHAR* InBaseIniName, FString& OutFinalFilename)
 {
+	// for single file loads, just return early of the file doesn't exist
+	if (!bIsHierarchicalConfig && !DoesConfigFileExistWrapper(InBaseIniName, IniCacheSet))
+	{
+		return false;
+	}
+
 	if (bCacheOnNextLoad || BaseIniName != InBaseIniName)
 	{
 		ResetBaseIni(InBaseIniName);
@@ -292,8 +298,17 @@ bool FConfigContext::PerformLoad()
 	// if bIsBaseIniName is false, that means the .ini is a ready-to-go .ini file, and just needs to be loaded into the FConfigFile
 	if (!bIsHierarchicalConfig)
 	{
-		// generate path to the .ini file (not a Default ini, IniName is the complete name of the file, without path)
-		DestIniFilename = FString::Printf(TEXT("%s/%s.ini"), *ProjectConfigDir, *BaseIniName);
+		// if the ini name passed in already is a full path, just use it
+		if (BaseIniName.EndsWith(TEXT(".ini")))
+		{
+			DestIniFilename = BaseIniName;
+			BaseIniName = FPaths::GetBaseFilename(BaseIniName);
+		}
+		else
+		{
+			// generate path to the .ini file (not a Default ini, IniName is the complete name of the file, without path)
+			DestIniFilename = FString::Printf(TEXT("%s/%s.ini"), *ProjectConfigDir, *BaseIniName);
+		}
 
 		// load the .ini file straight up
 		LoadAnIniFile(*DestIniFilename, *ConfigFile);

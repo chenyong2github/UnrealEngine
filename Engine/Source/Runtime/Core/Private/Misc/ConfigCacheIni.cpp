@@ -3573,8 +3573,7 @@ void FConfigCacheIni::InitializeConfigSystem()
 	if (!FParse::Param(FCommandLine::Get(), TEXT("textconfig")) &&
 		FConfigCacheIni::CreateGConfigFromSaved(nullptr))
 	{
-		FConfigContext Context = FConfigContext::ReadIntoGConfig();
-		Context.bForceReload = true;
+		FConfigContext Context = FConfigContext::ForceReloadIntoGConfig();
 		// Force reload GameUserSettings because they may be saved to disk on consoles/similar platforms
 		// So the safest thing to do is to re-read the file after binary configs load.
 		Context.Load(TEXT("GameUserSettings"), GGameUserSettingsIni);

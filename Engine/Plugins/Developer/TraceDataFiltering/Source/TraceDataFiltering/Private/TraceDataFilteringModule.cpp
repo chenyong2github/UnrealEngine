@@ -14,6 +14,7 @@
 #include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 
 #include "TraceServices/ModuleService.h"
 #include "TraceServices/AnalysisService.h"
@@ -35,7 +36,7 @@ void FTraceFilteringModule::StartupModule()
 
 	FEventFilterStyle::Initialize();
 
-	FConfigCacheIni::LoadGlobalIniFile(TraceFiltersIni, TEXT("TraceDataFilters"));
+	FConfigContext::ReadIntoGConfig().Load(TEXT("TraceDataFilters"), TraceFiltersIni);
 
 #if WITH_EDITOR
 	const FSlateIcon TabIcon(FEventFilterStyle::GetStyleSetName(), "EventFilter.TabIcon");

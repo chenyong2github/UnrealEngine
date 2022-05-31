@@ -5,6 +5,7 @@
 #include "Misc/Paths.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/CommandLine.h"
 #include "HAL/IConsoleManager.h"
@@ -38,8 +39,7 @@ void URuntimeOptionsBase::InitializeRuntimeOptions()
 		ensureAlwaysMsgf(NumNonAbstractVersions == 1, TEXT("Error in %s hierarchy; properties should only be introduced in leaf non-abstract subclasses of URuntimeOptionsBase"), *GetClass()->GetName());
 
 		// Load the .ini file if it hasn't already been loaded
-		FString RuntimeOptionsIniName;
-		FConfigCacheIni::LoadGlobalIniFile(/*out*/ RuntimeOptionsIniName, *GetClass()->ClassConfigName.ToString(), nullptr);
+		FConfigContext::ReadIntoGConfig().Load(*GetClass()->ClassConfigName.ToString());
 	
 		// Apply command line overrides and expose properties as console variables
 		ApplyCommandlineOverrides();

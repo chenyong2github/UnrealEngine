@@ -268,8 +268,6 @@ public:
 
 				// Reload off disk
 				GConfig->LoadFile(TagList->ConfigFileName);
-				//FString DestFileName;
-				//FConfigCacheIni::LoadGlobalIniFile(DestFileName, *FString::Printf(TEXT("Tags/%s"), *Source->SourceName.ToString()), nullptr, true);
 
 				// Explicitly remove user tags section
 				GConfig->EmptySection(TEXT("UserTags"), TagList->ConfigFileName);

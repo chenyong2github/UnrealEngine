@@ -7,6 +7,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 #include "Misc/App.h"
 
 // Globals
@@ -368,7 +369,7 @@ void FRemoteConfig::FinishRead(const TCHAR* Filename)
 		FString DestFileName(Filename);
 		GRemoteConfigIOManager.GetReadData(Filename, *IOInfo);
 		IOInfo->bWasProcessed = true;
-		FConfigCacheIni::LoadGlobalIniFile(DestFileName, IOInfo->DefaultIniFile);
+		FConfigContext::ReadIntoGConfig().Load(IOInfo->DefaultIniFile,DestFileName);
 	}
 }
 
