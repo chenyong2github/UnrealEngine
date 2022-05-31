@@ -6,22 +6,87 @@
 
 // This is used to evaluate some precomputed lighting data while we pack out Strata material.
 // It is also used to remove reference to unwanted resourced when not needed.
-#ifndef MATERIAL_STRATA_PRECOMPUTED_LIGHTING
-#error MATERIAL_STRATA_PRECOMPUTED_LIGHTING must be defined from Strata.ush before including StrataExport.ush
+#ifndef MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
+#error MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING must be defined before including StrataExport.ush
 #endif
 
 #ifndef STRATA_USES_RESOURCE_MATERIALCONTAINER
 #define STRATA_USES_RESOURCE_MATERIALCONTAINER must be defined from Strata.ush before including StrataExport.ush
 #endif
 
-#if MATERIAL_STRATA_PRECOMPUTED_LIGHTING
+#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
+
+// Forward declaration
+FShadingOcclusion ApplyBentNormal(
+	in float3 CameraVector,
+	in float3 WorldNormal,
+	in float3 WorldBentNormal0,
+	in float Roughness,
+	in float MaterialAO);
+
+
+#if STRATA_CLAMPED_BSDF_COUNT <= 0
+	#define STRATA_BSDF_COUNT_FOR_PRECOMPUTED 1
+#else
+	#define STRATA_BSDF_COUNT_FOR_PRECOMPUTED STRATA_CLAMPED_BSDF_COUNT
+#endif
+
+struct FStrataBSDFForPrecomputedLighting
+{
+	float3 DiffuseNormal;// STRATA_TODO test packed on a uint4 as R11G11B10
+	float3 DiffuseColor;
+	float3 DiffuseColorForIndirect;
+	float3 SubsurfaceColorForIndirect;
+	FShadingOcclusion ShadingOcclusion;
+};
+
+struct FStrataPrecomputedLightingData
+{
+	uint BSDFCount;
+	FStrataBSDFForPrecomputedLighting BSDFs[STRATA_BSDF_COUNT_FOR_PRECOMPUTED];
+};
+
 FStrataBSDFForPrecomputedLighting StrataPrepareBSDFForPrecomputedLighting(
 	in FStrataIntegrationSettings Settings,
 	in FStrataPixelHeader StrataPixelHeader,
 	in FStrataBSDF CurrentBSDF,
 	in float3 V,
-	in float3 WorldBentNormal0);
-#endif
+	in float3 WorldBentNormal0)
+{
+	FStrataBSDFForPrecomputedLighting BSDFForPrecomputedLighting = (FStrataBSDFForPrecomputedLighting)0;
+
+	FStrataAddressing NullStrataAddressing = (FStrataAddressing)0;
+	FStrataBSDFContext StrataBSDFContext = StrataCreateBSDFContext(StrataPixelHeader, CurrentBSDF, NullStrataAddressing, V);
+
+	// Update a context specific for environment lighting
+	FStrataBSDFContext EnvBSDFContext = StrataBSDFContext;
+	EnvBSDFContext.N = BSDFForPrecomputedLighting.ShadingOcclusion.BentNormal;
+	StrataUpdateBSDFContext(EnvBSDFContext, EnvBSDFContext.L);
+
+	// Evaluate the bent normal
+	BSDFForPrecomputedLighting.ShadingOcclusion = ApplyBentNormal(
+		V,
+		EnvBSDFContext.N,
+		WorldBentNormal0,
+		StrataGetBSDFRoughness(CurrentBSDF),
+		StrataPixelHeader.IrradianceAO.MaterialAO);
+
+	// For diffuse, we specify a perpendicular to the surface light direction for the transmittance to light to not be view dependent.
+	float DiffuseEnvLightingNoL = 1.0f;
+	float3 LuminanceWeightFinal = LuminanceWeight(DiffuseEnvLightingNoL, CurrentBSDF);
+
+	// And evaluate diffuse parameters
+	const bool bEnableSpecular = false;
+	FStrataEnvLightResult StrataEnvLight = StrataEvaluateForEnvLight(EnvBSDFContext, bEnableSpecular, Settings);
+	BSDFForPrecomputedLighting.DiffuseNormal = StrataEnvLight.DiffuseNormal;
+	BSDFForPrecomputedLighting.DiffuseColor = StrataEnvLight.DiffuseColor * LuminanceWeightFinal;
+	BSDFForPrecomputedLighting.DiffuseColorForIndirect = StrataEnvLight.DiffuseWeight * LuminanceWeightFinal;
+	BSDFForPrecomputedLighting.SubsurfaceColorForIndirect = StrataEnvLight.DiffuseBackFaceWeight * LuminanceWeightFinal;
+
+	return BSDFForPrecomputedLighting;
+}
+
+#endif // MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 
 // If this is changed, please update the compiler side material size evaluation in StrataMaterial.cpp
 void PackStrataOut(
@@ -41,7 +106,7 @@ void PackStrataOut(
 	inout FStrataSubsurfaceData SSSData,
 	inout FStrataTopLayerData TopLayerData,
 	inout FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData
-#if MATERIAL_STRATA_PRECOMPUTED_LIGHTING
+#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 	,
 	inout FStrataPrecomputedLightingData IndirectLightingData
 #endif
@@ -50,7 +115,7 @@ void PackStrataOut(
 	// This only exists with inline shading and when we are going to write out BSDFs (UpdateAllXXX functions needs to be defined)
 #if STRATA_INLINE_SHADING && STRATA_CLAMPED_BSDF_COUNT > 0
 
-#if MATERIAL_STRATA_PRECOMPUTED_LIGHTING
+#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 	IndirectLightingData = (FStrataPrecomputedLightingData)0;
 #endif 
 
@@ -419,7 +484,7 @@ void PackStrataOut(
 					}
 
 					// Convert BSDF to data ready to evaluate precomputed lighting
-					#if MATERIAL_STRATA_PRECOMPUTED_LIGHTING
+					#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
 					IndirectLightingData.BSDFs[IndirectLightingData.BSDFCount++] = StrataPrepareBSDFForPrecomputedLighting(
 						Settings,
 						StrataPixelHeader,

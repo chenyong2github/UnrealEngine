@@ -42,12 +42,6 @@
 #define STRATA_INLINE_SHADING 0
 #endif
 
-// This is used to evaluate some precomputed lighting data while we pack out Strata material.
-// It is also used to remove reference to unwanted resourced when not needed.
-#ifndef MATERIAL_STRATA_PRECOMPUTED_LIGHTING
-#define MATERIAL_STRATA_PRECOMPUTED_LIGHTING 0
-#endif
-
 #ifndef STRATA_DEFERRED_SHADING
 #define STRATA_DEFERRED_SHADING (STRATA_INLINE_SHADING == 0)
 #endif 

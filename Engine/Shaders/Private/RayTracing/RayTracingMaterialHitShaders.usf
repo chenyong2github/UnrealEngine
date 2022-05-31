@@ -34,7 +34,7 @@
 #include "/Engine/Private/LightmapCommon.ush"
 #include "/Engine/Private/Lumen/LumenHardwareRayTracingPayloadCommon.ush"
 
-#define MATERIAL_STRATA_PRECOMPUTED_LIGHTING 0
+#define MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING 0
 #include "/Engine/Private/Strata/StrataExport.ush"
 
 /** Computes sky diffuse lighting, including precomputed shadowing. */
