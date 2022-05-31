@@ -720,6 +720,9 @@ public:
 	const TSharedPtr<FNiagaraGraphCachedDataBase, ESPMode::ThreadSafe>& GetCachedTraversalData() const;
 	void InvalidateCachedData();
 	void GraphSourceChanged();
+
+	/** Resets internal data leaving it in a state which would have minimal cost to exist in headless builds (servers) */
+	void ResetToEmptySystem();
 #endif
 
 private:
@@ -750,9 +753,6 @@ private:
 	/** Helper for filling in attribute datasets per emitter. */
 	void InitEmitterDataSetCompiledData(FNiagaraDataSetCompiledData& DataSetToInit, const FNiagaraEmitterHandle& InAssociatedEmitterHandle);
 	void PrepareRapidIterationParametersForCompilation();
-
-	/** Resets internal data leaving it in a state which would have minimal cost to exist in headless builds (servers) */
-	void ResetToEmptySystem();
 #endif
 
 	void ResolveScalabilitySettings();

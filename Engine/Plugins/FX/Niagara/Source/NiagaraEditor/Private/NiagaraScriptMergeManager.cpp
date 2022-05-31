@@ -1349,9 +1349,11 @@ void FNiagaraScriptMergeManager::UpdateModuleVersions(const FVersionedNiagaraEmi
 	}
 	
 	// the python update script needs a view model, so we need to create a temporary system here to instantiate the view models
-	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
+	UNiagaraSystem* System = nullptr;
 	if (ChangedVersionOtherModules.Num() > 0)
 	{
+		TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
+
 		if (!FSlateApplication::IsInitialized())
 		{
 			// it's possible that during the cook process we don't have slate initialized, but we need it set up for the view model
@@ -1359,7 +1361,7 @@ void FNiagaraScriptMergeManager::UpdateModuleVersions(const FVersionedNiagaraEmi
 			TSharedRef<FSlateRenderer> SlateRenderer = FModuleManager::Get().LoadModuleChecked<ISlateNullRendererModule>("SlateNullRenderer").CreateSlateNullRenderer();
 			FSlateApplication::Get().InitializeRenderer(SlateRenderer);
 		}
-		UNiagaraSystem* System = NewObject<UNiagaraSystem>(GetTransientPackage(), NAME_None, RF_Transient | RF_Standalone);
+		System = NewObject<UNiagaraSystem>(GetTransientPackage(), NAME_None, RF_Transient | RF_Standalone);
 		UNiagaraSystemFactoryNew::InitializeSystem(System, true);
 		SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
 		FNiagaraSystemViewModelOptions SystemOptions;
@@ -1372,49 +1374,56 @@ void FNiagaraScriptMergeManager::UpdateModuleVersions(const FVersionedNiagaraEmi
 		SystemViewModel->Initialize(*System, SystemOptions);
 		SystemViewModel->GetEditorData().SetOwningSystemIsPlaceholder(true, *System);
 		SystemViewModel->AddEmitter(Instance);
+
+		// apply version changes
+		for (int i = 0; i < ChangedVersionOtherModules.Num(); i++)
+		{
+			TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseModule = ChangedVersionBaseModules[i];
+			TSharedRef<FNiagaraStackFunctionMergeAdapter> ChangedModule = ChangedVersionOtherModules[i];
+			FGuid NewScriptVersion = BaseModule->GetFunctionCallNode()->SelectedScriptVersion;
+
+			// search for the stack item of the module node we are merging
+			UNiagaraStackModuleItem* ModuleItem = nullptr;
+			UNiagaraStackViewModel* EmitterStackViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterStackViewModel();
+			TArray<UNiagaraStackEntry*> EntriesToCheck;
+			EmitterStackViewModel->GetRootEntry()->GetUnfilteredChildren(EntriesToCheck);
+			while (EntriesToCheck.Num() > 0)
+			{
+				UNiagaraStackEntry* Entry = EntriesToCheck.Pop();
+				UNiagaraStackModuleItem* ModuleItemToCheck = Cast<UNiagaraStackModuleItem>(Entry);
+				if (ModuleItemToCheck && ModuleItemToCheck->GetModuleNode().NodeGuid == ChangedModule->GetFunctionCallNode()->NodeGuid)
+				{
+					ModuleItem = ModuleItemToCheck;
+					break;
+				}
+				Entry->GetUnfilteredChildren(EntriesToCheck);
+			}
+		
+			FNiagaraScriptVersionUpgradeContext UpgradeContext;
+			UpgradeContext.ConstantResolver = FCompileConstantResolver(Instance, FNiagaraStackGraphUtilities::GetOutputNodeUsage(*ChangedModule->GetFunctionCallNode()));
+			if (ModuleItem)
+			{
+				UpgradeContext.CreateClipboardCallback = [ModuleItem](UNiagaraClipboardContent* ClipboardContent)
+				{
+					ModuleItem->RefreshChildren();
+					ModuleItem->Copy(ClipboardContent);
+					if (ClipboardContent->Functions.Num() > 0)
+					{
+						ClipboardContent->FunctionInputs = ClipboardContent->Functions[0]->Inputs;
+						ClipboardContent->Functions.Empty();
+					}
+				};
+				UpgradeContext.ApplyClipboardCallback = [ModuleItem](UNiagaraClipboardContent* ClipboardContent, FText& OutWarning) { ModuleItem->Paste(ClipboardContent, OutWarning); };
+			}
+			ChangedModule->GetFunctionCallNode()->ChangeScriptVersion(NewScriptVersion, UpgradeContext, true);
+		}
 	}
 
-	// apply version changes
-	for (int i = 0; i < ChangedVersionOtherModules.Num(); i++)
+	// now that we're done with our transient System we need to reset it so that if it does get pulled in (via TObjectIterator as an example)
+	// it won't conflict with legitimate systems holding onto the supplied emitter
+	if (System)
 	{
-		TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseModule = ChangedVersionBaseModules[i];
-		TSharedRef<FNiagaraStackFunctionMergeAdapter> ChangedModule = ChangedVersionOtherModules[i];
-		FGuid NewScriptVersion = BaseModule->GetFunctionCallNode()->SelectedScriptVersion;
-
-		// search for the stack item of the module node we are merging
-		UNiagaraStackModuleItem* ModuleItem = nullptr;
-		UNiagaraStackViewModel* EmitterStackViewModel = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterStackViewModel();
-		TArray<UNiagaraStackEntry*> EntriesToCheck;
-		EmitterStackViewModel->GetRootEntry()->GetUnfilteredChildren(EntriesToCheck);
-		while (EntriesToCheck.Num() > 0)
-		{
-			UNiagaraStackEntry* Entry = EntriesToCheck.Pop();
-			UNiagaraStackModuleItem* ModuleItemToCheck = Cast<UNiagaraStackModuleItem>(Entry);
-			if (ModuleItemToCheck && ModuleItemToCheck->GetModuleNode().NodeGuid == ChangedModule->GetFunctionCallNode()->NodeGuid)
-			{
-				ModuleItem = ModuleItemToCheck;
-				break;
-			}
-			Entry->GetUnfilteredChildren(EntriesToCheck);
-		}
-		
-		FNiagaraScriptVersionUpgradeContext UpgradeContext;
-		UpgradeContext.ConstantResolver = FCompileConstantResolver(Instance, FNiagaraStackGraphUtilities::GetOutputNodeUsage(*ChangedModule->GetFunctionCallNode()));
-		if (ModuleItem)
-		{
-			UpgradeContext.CreateClipboardCallback = [ModuleItem](UNiagaraClipboardContent* ClipboardContent)
-			{
-				ModuleItem->RefreshChildren();
-				ModuleItem->Copy(ClipboardContent);
-				if (ClipboardContent->Functions.Num() > 0)
-				{
-					ClipboardContent->FunctionInputs = ClipboardContent->Functions[0]->Inputs;
-					ClipboardContent->Functions.Empty();
-				}
-			};
-			UpgradeContext.ApplyClipboardCallback = [ModuleItem](UNiagaraClipboardContent* ClipboardContent, FText& OutWarning) { ModuleItem->Paste(ClipboardContent, OutWarning); };
-		}
-		ChangedModule->GetFunctionCallNode()->ChangeScriptVersion(NewScriptVersion, UpgradeContext, true);
+		System->ResetToEmptySystem();
 	}
 }
 

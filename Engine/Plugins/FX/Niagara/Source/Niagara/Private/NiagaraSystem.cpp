@@ -3215,6 +3215,10 @@ void UNiagaraSystem::InitSystemCompiledData()
 
 void UNiagaraSystem::ResetToEmptySystem()
 {
+	// in order to handle resetting transient systems that can be created (FNiagaraScriptMergeManager::UpdateModuleVersions) we make sure
+	// to mark the system as having been fully loaded to bypass any future work that might be done (generating compile requests)
+	bFullyLoaded = true;
+
 	EffectType = nullptr;
 	EmitterHandles.Empty();
 	ParameterCollectionOverrides.Empty();
