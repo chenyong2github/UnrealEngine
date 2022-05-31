@@ -20,7 +20,7 @@ namespace UE::DataInterfaceGraphEditor
 }
 
 UCLASS(Optional, MinimalAPI)
-class UDataInterfaceGraph_EditorData : public UObject, public IRigVMGraphHost, public IRigVMControllerHost
+class UDataInterfaceGraph_EditorData : public UObject, public IRigVMClientHost
 {
 	GENERATED_BODY()
 
@@ -33,17 +33,18 @@ class UDataInterfaceGraph_EditorData : public UObject, public IRigVMGraphHost, p
 	friend struct FDataInterfaceGraphSchemaAction_RigUnit;
 
 	// UObject interface
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual bool IsEditorOnly() const override { return true; }
 	
-	// IRigVMGraphHost interface
-	virtual URigVMGraph* GetRigVMGraph(const UObject* InEditorObject) const override;
-
-	// IRigVMControllerHost interface
-	virtual URigVMController* GetRigVMController(const URigVMGraph* InRigVMGraph) const override;
-	virtual URigVMController* GetRigVMController(const UObject* InEditorObject) const override;
-	virtual URigVMController* GetOrCreateRigVMController(URigVMGraph* InRigVMGraph) override;
-	virtual URigVMController* GetOrCreateRigVMController(const UObject* InEditorObject) override;
+	// IRigVMClientHost interface
+	virtual FRigVMClient* GetRigVMClient() override;
+	virtual const FRigVMClient* GetRigVMClient() const override;
+	virtual void HandleRigVMGraphAdded(const FRigVMClient* InClient, const FString& InNodePath) override;
+	virtual void HandleRigVMGraphRemoved(const FRigVMClient* InClient, const FString& InNodePath) override {}
+	virtual void HandleRigVMGraphRenamed(const FRigVMClient* InClient, const FString& InOldNodePath, const FString& InNewNodePath) override {}
+	virtual void HandleConfigureRigVMController(const FRigVMClient* InClient, URigVMController* InControllerToConfigure) override;
+	virtual UObject* GetEditorObjectForRigVMGraph(URigVMGraph* InVMGraph) const override;
 
 	DATAINTERFACEGRAPHUNCOOKEDONLY_API void Initialize(bool bRecompileVM);
 
@@ -55,7 +56,7 @@ class UDataInterfaceGraph_EditorData : public UObject, public IRigVMGraphHost, p
 	
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
-	URigVMGraph* GetVMGraphForEdGraph(const UEdGraph* InGraph) const;
+	DATAINTERFACEGRAPHUNCOOKEDONLY_API URigVMGraph* GetVMGraphForEdGraph(const UEdGraph* InGraph) const;
 
 	void CreateEdGraphForCollapseNode(URigVMCollapseNode* InNode);
 	
@@ -67,12 +68,15 @@ class UDataInterfaceGraph_EditorData : public UObject, public IRigVMGraphHost, p
 	
 	UPROPERTY()
 	TObjectPtr<UDataInterfaceGraph_EdGraph> FunctionLibraryEdGraph;
+
+	UPROPERTY()
+	FRigVMClient RigVMClient;
+
+	UPROPERTY()
+	TObjectPtr<URigVMGraph> RigVMGraph_DEPRECATED;
 	
 	UPROPERTY()
-	TObjectPtr<URigVMGraph> RigVMGraph;
-	
-	UPROPERTY()
-	TObjectPtr<URigVMFunctionLibrary> RigVMFunctionLibrary;
+	TObjectPtr<URigVMFunctionLibrary> RigVMFunctionLibrary_DEPRECATED;
 
 	UPROPERTY()
 	TObjectPtr<URigVMLibraryNode> EntryPoint;

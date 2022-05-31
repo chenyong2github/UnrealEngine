@@ -178,9 +178,9 @@ FReply FRigVMCompileSettingsDetails::OnCopyASTClicked()
 {
 	if (BlueprintBeingCustomized)
 	{
-		if (BlueprintBeingCustomized->GetModel())
+		if (BlueprintBeingCustomized->GetDefaultModel())
 		{
-			FString DotContent = BlueprintBeingCustomized->GetModel()->GetRuntimeAST()->DumpDot();
+			FString DotContent = BlueprintBeingCustomized->GetDefaultModel()->GetRuntimeAST()->DumpDot();
 			FPlatformApplicationMisc::ClipboardCopy(*DotContent);
 		}
 	}
@@ -191,7 +191,7 @@ FReply FRigVMCompileSettingsDetails::OnCopyByteCodeClicked()
 {
 	if (BlueprintBeingCustomized)
 	{
-		if (BlueprintBeingCustomized->GetModel())
+		if (BlueprintBeingCustomized->GetDefaultModel())
 		{
 			if(UControlRig* ControlRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
 			{
@@ -241,7 +241,7 @@ FReply FRigVMCompileSettingsDetails::OnCopyGeneratedCodeClicked()
 					}
 					
 					FRigVMCodeGenerator CodeGenerator(ClassName,
-						TEXT("TestModule"), BlueprintBeingCustomized->GetModel(), CDO->GetVM(), BlueprintBeingCustomized->PinToOperandMap);
+						TEXT("TestModule"), BlueprintBeingCustomized->GetDefaultModel(), CDO->GetVM(), BlueprintBeingCustomized->PinToOperandMap);
 					const FString Content = CodeGenerator.DumpHeader() + TEXT("\r\n\r\n") + CodeGenerator.DumpSource();
 					FPlatformApplicationMisc::ClipboardCopy(*Content);
 				}

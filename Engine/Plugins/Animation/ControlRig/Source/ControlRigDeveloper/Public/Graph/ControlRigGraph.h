@@ -21,12 +21,17 @@ struct FRigCurveContainer;
 DECLARE_MULTICAST_DELEGATE_OneParam(FControlRigGraphNodeClicked, UControlRigGraphNode*);
 
 UCLASS()
-class CONTROLRIGDEVELOPER_API UControlRigGraph : public UEdGraph
+class CONTROLRIGDEVELOPER_API UControlRigGraph : public UEdGraph, public IRigVMEditorSideObject
 {
 	GENERATED_BODY()
 
 public:
 	UControlRigGraph();
+
+	/** IRigVMEditorSideObject interface */
+	virtual FRigVMClient* GetRigVMClient() const override;
+	virtual FString GetRigVMNodePath() const override;
+	virtual void HandleRigVMGraphRenamed(const FString& InOldNodePath, const FString& InNewNodePath) override;
 
 	/** Set up this graph */
 	void Initialize(UControlRigBlueprint* InBlueprint);
@@ -69,8 +74,10 @@ public:
 	UEdGraphNode* FindNodeForModelNodeName(const FName& InModelNodeName, const bool bCacheIfRequired = true);
 
 	UControlRigBlueprint* GetBlueprint() const;
-	virtual URigVMGraph* GetModel() const;
-	virtual URigVMController* GetController() const;
+	URigVMGraph* GetModel() const;
+	URigVMController* GetController() const;
+	bool IsRootGraph() const { return GetRootGraph() == this; }
+	const UControlRigGraph* GetRootGraph() const;
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 

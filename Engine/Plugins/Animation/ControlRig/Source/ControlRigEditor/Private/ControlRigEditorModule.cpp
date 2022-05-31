@@ -2518,7 +2518,7 @@ void FControlRigEditorModule::PostChange(const UUserDefinedStruct* Changed,
 				if (Pin->GetGraph() == RigBlueprint->GetLocalFunctionLibrary())
 				{
 					TArray< TSoftObjectPtr<URigVMFunctionReferenceNode> > References;
-					References = RigBlueprint->FunctionLibrary->GetReferencesForFunction(Pin->GetNode()->GetFName());
+					References = RigBlueprint->RigVMClient.GetOrCreateFunctionLibrary(false)->GetReferencesForFunction(Pin->GetNode()->GetFName());
 					
 					for (const TSoftObjectPtr<URigVMFunctionReferenceNode>& Reference : References)
 					{

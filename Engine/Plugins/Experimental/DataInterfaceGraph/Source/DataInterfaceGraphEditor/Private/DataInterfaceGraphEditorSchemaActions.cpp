@@ -19,7 +19,7 @@ UEdGraphNode* FDataInterfaceGraphSchemaAction_RigUnit::PerformAction(UEdGraph* P
 	if (EditorData != nullptr && EdGraph != nullptr)
 	{
 		FName Name = UE::DataInterfaceGraphEditor::FUtils::ValidateName(EditorData, StructTemplate->GetFName().ToString());
-		URigVMController* Controller = EditorData->GetRigVMController(ParentGraph);
+		URigVMController* Controller = EditorData->GetRigVMClient()->GetController(ParentGraph);
 
 		Controller->OpenUndoBracket(FString::Printf(TEXT("Add '%s' Node"), *Name.ToString()));
 

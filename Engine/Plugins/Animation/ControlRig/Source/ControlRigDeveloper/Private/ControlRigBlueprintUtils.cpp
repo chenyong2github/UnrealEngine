@@ -98,7 +98,7 @@ void FControlRigBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
 
 	if(UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(InBlueprint))
 	{
-		if (RigBlueprint->GetModel() == nullptr)
+		if (RigBlueprint->GetDefaultModel() == nullptr)
 		{
 			return;
 		}

@@ -93,12 +93,6 @@ DECLARE_DELEGATE_OneParam(FRigVMController_RequestJumpToHyperlinkDelegate, const
 DECLARE_DELEGATE_OneParam(FRigVMController_ConfigureWorkflowOptionsDelegate, URigVMUserWorkflowOptions* InOutOptions);
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FRigVMController_CheckPinComatibilityDelegate, URigVMPin*, URigVMPin*);
 
-UINTERFACE()
-class RIGVMDEVELOPER_API URigVMControllerHost : public UInterface
-{
-	GENERATED_BODY()
-};
-
 USTRUCT(BlueprintType)
 struct RIGVMDEVELOPER_API FRigStructScope
 {
@@ -133,25 +127,6 @@ protected:
 
 	const UScriptStruct* ScriptStruct;
 	const uint8* Memory;
-};
-
-// Interface that allows an object to host a rig VM controller. Used by graph edting code to interact with the controller.
-class RIGVMDEVELOPER_API IRigVMControllerHost
-{
-	GENERATED_BODY()
-
-public:
-	// Get an existing Rig VM controller corresponding to a URigVMGraph  
-	virtual URigVMController* GetRigVMController(const URigVMGraph* InRigVMGraph) const = 0;
-	
-	// Get an existing Rig VM controller corresponding to the supplied editor object that represents it (usually a UEdGraph) 
-	virtual URigVMController* GetRigVMController(const UObject* InEditorObject) const = 0;
-
-	// Get or create Rig VM controller corresponding to a URigVMGraph
-	virtual URigVMController* GetOrCreateRigVMController(URigVMGraph* InRigVMGraph) = 0;
-	
-	// Get or create a Rig VM controller corresponding to the supplied editor object that represents it (usually a UEdGraph) 
-	virtual URigVMController* GetOrCreateRigVMController(const UObject* InEditorObject) = 0;
 };
 
 /**

@@ -27,6 +27,7 @@
 #include "RigVMModel/RigVMVariableDescription.h"
 #include "RigVMCore/RigVMUnknownType.h"
 #include "Kismet2/Kismet2NameValidators.h"
+#include "Algo/Count.h"
 
 #if WITH_EDITOR
 #include "ControlRigEditor/Private/Editor/SControlRigFunctionLocalizationWidget.h"
@@ -573,10 +574,10 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 
 	UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 
-	IRigVMControllerHost* ControllerHost = PinA->GetOwningNode()->GetImplementingOuter<IRigVMControllerHost>();
-	if (ControllerHost != nullptr)
+	IRigVMClientHost* Host = PinA->GetOwningNode()->GetImplementingOuter<IRigVMClientHost>();
+	if (Host != nullptr)
 	{
-		if (URigVMController* Controller = ControllerHost->GetOrCreateRigVMController(PinA->GetOwningNode()->GetGraph()))
+		if (URigVMController* Controller = Host->GetRigVMClient()->GetOrCreateController(PinA->GetOwningNode()->GetGraph()))
 		{
 			ERigVMPinDirection UserLinkDirection = ERigVMPinDirection::Output;
 			if (PinA->Direction == EGPD_Input)
@@ -1212,28 +1213,72 @@ void UControlRigGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /
 
 	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)&Graph))
 	{
-		TArray<FString> NodePathParts;
-		if (URigVMNode::SplitNodePath(RigGraph->ModelNodePath, NodePathParts))
+		if(URigVMGraph* Model = RigGraph->GetModel())
 		{
-			DisplayInfo.DisplayName = FText::FromString(NodePathParts.Last());
-			DisplayInfo.PlainName = DisplayInfo.DisplayName;
-
-			static const FText LocalFunctionText = FText::FromString(TEXT("A local function.")); 
-			DisplayInfo.Tooltip = LocalFunctionText;
-
-			// if this is a riggraph within a collapse node - let's use that for the tooltip
-			if(URigVMGraph* Model = RigGraph->GetModel())
+			TArray<FString> NodePathParts;
+			if (URigVMNode::SplitNodePath(RigGraph->ModelNodePath, NodePathParts))
 			{
+				if(NodePathParts.Num() > 1)
+				{
+					DisplayInfo.DisplayName = FText::FromString(NodePathParts.Last());
+					DisplayInfo.PlainName = DisplayInfo.DisplayName;
+
+					static const FText LocalFunctionText = FText::FromString(TEXT("A local function.")); 
+					DisplayInfo.Tooltip = LocalFunctionText;
+				}
+
+				// if this is a riggraph within a collapse node - let's use that for the tooltip
 				if(URigVMCollapseNode* CollapseNode = Model->GetTypedOuter<URigVMCollapseNode>())
 				{
 					DisplayInfo.Tooltip = CollapseNode->GetToolTipText();
 				}
 			}
-		}
-		else
-		{
-			static const FText MainGraphText = FText::FromString(TEXT("The main graph for the Control Rig."));
-			DisplayInfo.Tooltip = MainGraphText;
+
+			if(Model->IsRootGraph())
+			{
+				// let's see if there is only one event
+				FString EventName;
+				if(Algo::CountIf(Model->GetNodes(), [&EventName](const URigVMNode* NodeToCount) -> bool
+				{
+					if(NodeToCount->IsEvent())
+					{
+						if(EventName.IsEmpty())
+						{
+							if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(NodeToCount))
+							{
+								if(UnitNode->GetScriptStruct())
+								{
+									EventName = UnitNode->GetScriptStruct()->GetDisplayNameText().ToString();
+								}
+							}
+						}
+						return true;
+					}
+					return false;
+				}) == 1)
+				{
+					static constexpr TCHAR EventGraphNameFormat[] = TEXT("%s Graph");
+					const FString DesiredGraphName = FString::Printf(EventGraphNameFormat, *EventName);
+					DisplayInfo.DisplayName = FText::FromString(DesiredGraphName);
+					DisplayInfo.PlainName = DisplayInfo.DisplayName;
+				}
+				else
+				{
+					static const FText MainGraphText = FText::FromString(TEXT("A top level graph for the rig."));
+					DisplayInfo.Tooltip = MainGraphText;
+
+					if(!NodePathParts.IsEmpty())
+					{
+						static constexpr TCHAR NodePathSuffix[] = TEXT("::");
+						FString NodePath = NodePathParts[0];
+						NodePath.RemoveFromEnd(NodePathSuffix);
+						NodePath.RemoveFromStart(UControlRigBlueprint::RigVMModelPrefix);
+						NodePath.TrimStartAndEndInline();
+						DisplayInfo.DisplayName = FText::FromString(NodePath);
+						DisplayInfo.PlainName = DisplayInfo.DisplayName;
+					}
+				}
+			}
 		}
 	}
 }
@@ -1294,6 +1339,43 @@ FText UControlRigGraphSchema::GetGraphCategory(const UEdGraph* InGraph) const
 	return FText();
 }
 
+EGraphType UControlRigGraphSchema::GetGraphType(const UEdGraph* TestEdGraph) const
+{
+	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)TestEdGraph))
+	{
+		if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(RigGraph)))
+		{
+			if (URigVMGraph* Model = RigGraph->GetModel())
+			{
+				if(Model->IsRootGraph())
+				{
+					if(Model->IsA<URigVMFunctionLibrary>())
+					{
+						return EGraphType::GT_Function;
+					}
+					else
+					{
+						return EGraphType::GT_Ubergraph;
+					}
+				}
+				else if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Model->GetOuter()))
+				{
+					if(LibraryNode->GetGraph()->IsA<URigVMFunctionLibrary>())
+					{
+						return EGraphType::GT_Function;
+					}
+					else
+					{
+						// collapse nodes show up as uber graphs
+						return EGraphType::GT_Ubergraph;
+					}
+				}
+			}
+		}
+	}
+	return Super::GetGraphType(TestEdGraph);
+}
+
 FReply UControlRigGraphSchema::TrySetGraphCategory(const UEdGraph* InGraph, const FText& InCategory)
 {
 	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>((UEdGraph*)InGraph))
@@ -1326,7 +1408,12 @@ bool UControlRigGraphSchema::TryDeleteGraph(UEdGraph* GraphToDelete) const
 		{
 			if (URigVMGraph* Model = RigBlueprint->GetModel(GraphToDelete))
 			{
-				if (URigVMCollapseNode* LibraryNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
+				if(Model->IsRootGraph())
+				{
+					RigBlueprint->RemoveModel(Model->GetNodePath());
+					return true;
+				}
+				else if (URigVMCollapseNode* LibraryNode = Cast<URigVMCollapseNode>(Model->GetOuter()))
 				{
 					if (URigVMController* Controller = RigBlueprint->GetOrCreateController(LibraryNode->GetGraph()))
 					{
@@ -1399,7 +1486,12 @@ bool UControlRigGraphSchema::TryRenameGraph(UEdGraph* GraphToRename, const FName
 		{
 			if (URigVMGraph* Model = RigGraph->GetModel())
 			{
-				if (URigVMGraph* RootModel = Model->GetRootGraph())
+				if(Model->IsRootGraph())
+				{
+					const FString NewName = FString::Printf(TEXT("%s %s"), RigBlueprint->RigVMModelPrefix, *InNewName.ToString()); 
+					RigBlueprint->RenameGraph(Model->GetNodePath(), *NewName);
+				}
+				else if (URigVMGraph* RootModel = Model->GetRootGraph())
 				{
 					URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(RootModel->FindNode(RigGraph->ModelNodePath));
 					if (LibraryNode)

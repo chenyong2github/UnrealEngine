@@ -97,6 +97,8 @@ public:
 
 	FORCEINLINE TArray<UObject*> GetStack() const { return Stack; }
 
+	FRigVMCallstack GetCallStackUpTo(int32 InIndex) const;
+
 private:
 
 	FORCEINLINE uint32 GetEntryTypeHash(int32 Index) const

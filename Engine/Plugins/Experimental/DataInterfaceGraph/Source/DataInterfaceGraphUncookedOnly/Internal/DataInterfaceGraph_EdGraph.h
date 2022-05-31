@@ -21,8 +21,7 @@ class UDataInterfaceGraph_EdGraph : public UControlRigGraph
 	friend class UDataInterfaceGraph_EditorData;
 
 	// UControlRigGraph interface
-	virtual URigVMGraph* GetModel() const override;
-	virtual URigVMController* GetController() const override;
+	virtual FRigVMClient* GetRigVMClient() const override;
 	
 	void Initialize(UDataInterfaceGraph_EditorData* InEditorData);
 };

@@ -709,7 +709,7 @@ void FRigVMParserASTSettings::Report(EMessageSeverity::Type InSeverity, UObject*
 
 const TArray<FRigVMASTProxy> FRigVMParserAST::EmptyProxyArray;
 
-FRigVMParserAST::FRigVMParserAST(URigVMGraph* InGraph, URigVMController* InController, const FRigVMParserASTSettings& InSettings, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData)
+FRigVMParserAST::FRigVMParserAST(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const FRigVMParserASTSettings& InSettings, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -718,8 +718,10 @@ FRigVMParserAST::FRigVMParserAST(URigVMGraph* InGraph, URigVMController* InContr
 	LastCycleCheckExpr = nullptr;
 	LinksToSkip = InSettings.LinksToSkip;
 
+	check(!InGraphs.IsEmpty());
+
 	// construct the inlined nodes and links information
-	Inline(InGraph);
+	Inline(InGraphs);
 
 	for (const FRigVMASTProxy& NodeProxy : NodeProxies)
 	{
@@ -769,11 +771,11 @@ FRigVMParserAST::FRigVMParserAST(URigVMGraph* InGraph, URigVMController* InContr
 	while (bContinueToFoldConstantBranches)
 	{
 		bContinueToFoldConstantBranches = false;
-		if (FoldConstantValuesToLiterals(InGraph, InController, InExternalVariables, InRigVMUserData))
+		if (FoldConstantValuesToLiterals(InGraphs, InController, InExternalVariables, InRigVMUserData))
 		{
 			bContinueToFoldConstantBranches = true;
 		}
-		if (FoldUnreachableBranches(InGraph))
+		if (FoldUnreachableBranches(InGraphs))
 		{
 			bContinueToFoldConstantBranches = true;
 		}
@@ -792,8 +794,10 @@ FRigVMParserAST::FRigVMParserAST(URigVMGraph* InGraph, URigVMController* InContr
 	}
 }
 
-FRigVMParserAST::FRigVMParserAST(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>& InNodesToCompute)
+FRigVMParserAST::FRigVMParserAST(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMASTProxy>& InNodesToCompute)
 {
+	check(!InGraphs.IsEmpty());
+
 	LastCycleCheckExpr = nullptr;
 
 	FRigVMBlockExprAST* Block = MakeExpr<FRigVMBlockExprAST>(FRigVMExprAST::EType::Block, FRigVMASTProxy());
@@ -802,7 +806,7 @@ FRigVMParserAST::FRigVMParserAST(URigVMGraph* InGraph, const TArray<FRigVMASTPro
 
 	NodeProxies = InNodesToCompute;
 	
-	Inline(InGraph, InNodesToCompute);
+	Inline(InGraphs, InNodesToCompute);
 
 	for (const FRigVMASTProxy& NodeProxy : NodeProxies)
 	{
@@ -1635,8 +1639,7 @@ void FRigVMParserAST::FoldAssignments()
 
 	RemoveExpressions(ExpressionsToRemove);
 }
-
-bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMController* InController, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData)
+bool FRigVMParserAST::FoldConstantValuesToLiterals(TArray<URigVMGraph*> InGraphs, URigVMController* InController, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -1777,7 +1780,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 	// we now know the node we need to run.
 	// let's build an temporary AST which has only those nodes
-	TSharedPtr<FRigVMParserAST> TempAST = MakeShareable(new FRigVMParserAST(InGraph, NodesToCompute));
+	TSharedPtr<FRigVMParserAST> TempAST = MakeShareable(new FRigVMParserAST(InGraphs, NodesToCompute));
 
 	// share the pin overrides with the constant folding AST to ensure
 	// the complete view of default values across function references is available
@@ -1786,7 +1789,8 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 
 	// build the VM to run this AST
 	TMap<FString, FRigVMOperand> Operands;
-	URigVM* TempVM = NewObject<URigVM>(InGraph);
+	check(!InGraphs.IsEmpty());
+	URigVM* TempVM = NewObject<URigVM>(InGraphs[0]);
 	
 	URigVMCompiler* TempCompiler = NewObject<URigVMCompiler>(GetTransientPackage());
 	TempCompiler->Settings.SetupNodeInstructionIndex = false;
@@ -1794,7 +1798,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 	TempCompiler->Settings.EnablePinWatches = false;
 	TempCompiler->Settings.ASTSettings = FRigVMParserASTSettings::Fast();
 
-	TempCompiler->Compile(InGraph, InController, TempVM, InExternalVariables, InRigVMUserData, &Operands, TempAST);
+	TempCompiler->Compile(InGraphs, InController, TempVM, InExternalVariables, InRigVMUserData, &Operands, TempAST);
 
 	TArray<URigVMMemoryStorage*> Memory;
 	Memory.Add(TempVM->GetWorkMemory());
@@ -1972,7 +1976,7 @@ bool FRigVMParserAST::FoldConstantValuesToLiterals(URigVMGraph* InGraph, URigVMC
 	return ExpressionsToRemove.Num() > 0;
 }
 
-bool FRigVMParserAST::FoldUnreachableBranches(URigVMGraph* InGraph)
+bool FRigVMParserAST::FoldUnreachableBranches(TArray<URigVMGraph*> InGraphs)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
@@ -2795,17 +2799,20 @@ const FRigVMASTLinkDescription& FRigVMParserAST::GetLink(int32 InLinkIndex) cons
 	return Links[InLinkIndex];
 }
 
-void FRigVMParserAST::Inline(URigVMGraph* InGraph)
+void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs)
 {
 	TArray<FRigVMASTProxy> LocalNodeProxies;
-	for (URigVMNode* LocalNode : InGraph->GetNodes())
+	for(URigVMGraph* Graph : InGraphs)
 	{
-		LocalNodeProxies.Add(FRigVMASTProxy::MakeFromUObject(LocalNode));
+		for (URigVMNode* LocalNode : Graph->GetNodes())
+		{
+			LocalNodeProxies.Add(FRigVMASTProxy::MakeFromUObject(LocalNode));
+		}
 	}
-	Inline(InGraph, LocalNodeProxies);
+	Inline(InGraphs, LocalNodeProxies);
 }
 
-void FRigVMParserAST::Inline(URigVMGraph* InGraph, const TArray<FRigVMASTProxy>& InNodeProxies)
+void FRigVMParserAST::Inline(TArray<URigVMGraph*> InGraphs, const TArray<FRigVMASTProxy>& InNodeProxies)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 

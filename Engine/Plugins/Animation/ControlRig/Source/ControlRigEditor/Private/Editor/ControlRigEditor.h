@@ -143,6 +143,8 @@ public:
 
 	virtual void PostTransaction(bool bSuccess, const FTransaction* Transaction, bool bIsRedo);
 
+	virtual void JumpToHyperlink(const UObject* ObjectReference, bool bRequestRename = false) override;
+
 	void EnsureValidRigElementsInDetailPanel();
 
 	virtual void OnStartWatchingPin();
@@ -436,6 +438,7 @@ protected:
 	virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 	/** delegate for changing property */
 	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
+	void OnPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
 	void OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperObject* InWrapperObject, const FString& InPropertyPath, FPropertyChangedChainEvent& InPropertyChangedChainEvent);
 	void OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, UControlRigBlueprint* InTargetBlueprint, bool bForce);
 	FRigVMController_BulkEditResult OnRequestBulkEditDialog(UControlRigBlueprint* InBlueprint, URigVMController* InController, URigVMLibraryNode* InFunction, ERigVMControllerBulkEditType InEditType);
@@ -500,6 +503,8 @@ protected:
 
 	TArray<TStrongObjectPtr<UDetailsViewWrapperObject>> WrapperObjects;
 	TWeakObjectPtr<AStaticMeshActor> WeakGroundActorPtr;
+
+	FDelegateHandle PropertyChangedHandle;
 	
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;

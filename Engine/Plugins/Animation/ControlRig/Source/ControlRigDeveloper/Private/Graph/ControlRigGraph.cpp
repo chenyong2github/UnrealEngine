@@ -35,6 +35,71 @@ UControlRigGraph::UControlRigGraph()
 	bIsFunctionDefinition = false;
 }
 
+FRigVMClient* UControlRigGraph::GetRigVMClient() const
+{
+	if (const IRigVMClientHost* Host = GetImplementingOuter<IRigVMClientHost>())
+	{
+		return (FRigVMClient*)Host->GetRigVMClient();
+	}
+	return nullptr;
+}
+
+FString UControlRigGraph::GetRigVMNodePath() const
+{
+	return ModelNodePath;
+}
+
+void UControlRigGraph::HandleRigVMGraphRenamed(const FString& InOldNodePath, const FString& InNewNodePath)
+{
+	static constexpr TCHAR NodePathPrefixFormat[] = TEXT("%s|");
+	const FString OldPrefix = FString::Printf(NodePathPrefixFormat, *InOldNodePath); 
+	const FString NewPrefix = FString::Printf(NodePathPrefixFormat, *InNewNodePath);
+	
+	if(ModelNodePath == InOldNodePath)
+	{
+		Modify();
+		ModelNodePath = InNewNodePath;
+
+		FString GraphName;
+		if(!ModelNodePath.Split(TEXT("|"), nullptr, &GraphName, ESearchCase::CaseSensitive, ESearchDir::FromEnd))
+		{
+			GraphName = ModelNodePath;
+		}
+		GraphName.RemoveFromEnd(TEXT("::"));
+		GraphName.RemoveFromStart(UControlRigBlueprint::RigVMModelPrefix);
+		GraphName.TrimStartAndEndInline();
+
+		if(GraphName.IsEmpty())
+		{
+			GraphName = UControlRigGraphSchema::GraphName_ControlRig.ToString(); 
+		}
+		GraphName = FRigVMClient::GetUniqueName(GetOuter(), *GraphName).ToString();
+
+		Rename(*GraphName, nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
+	}
+	else if(ModelNodePath.StartsWith(OldPrefix))
+	{
+		Modify();
+		ModelNodePath = NewPrefix + ModelNodePath.RightChop(OldPrefix.Len() - 1);
+	}
+	else
+	{
+		return;
+	}
+
+	for(UEdGraphNode* Node : Nodes)
+	{
+		if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+		{
+			if(RigNode->ModelNodePath.StartsWith(OldPrefix))
+			{
+				RigNode->Modify();
+				RigNode->ModelNodePath = NewPrefix + RigNode->ModelNodePath.RightChop(OldPrefix.Len() - 1);
+			}
+		}
+	}
+}
+
 void UControlRigGraph::Initialize(UControlRigBlueprint* InBlueprint)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
@@ -911,20 +976,29 @@ UControlRigBlueprint* UControlRigGraph::GetBlueprint() const
 
 URigVMGraph* UControlRigGraph::GetModel() const
 {
-	if (const IRigVMGraphHost* GraphHost = GetImplementingOuter<IRigVMGraphHost>())
+	if (FRigVMClient* Client = GetRigVMClient())
 	{
-		return GraphHost->GetRigVMGraph(this);
+		return Client->GetModel(this);
 	}
 	return nullptr;
 }
 
 URigVMController* UControlRigGraph::GetController() const
 {
-	if (IRigVMControllerHost* ControllerHost = GetImplementingOuter<IRigVMControllerHost>())
+	if (FRigVMClient* Client = GetRigVMClient())
 	{
-		return ControllerHost->GetOrCreateRigVMController(this);
+		return Client->GetOrCreateController(this);
 	}
 	return nullptr;
+}
+
+const UControlRigGraph* UControlRigGraph::GetRootGraph() const
+{
+	if(const UControlRigGraph* ParentGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return ParentGraph->GetRootGraph();
+	}
+	return this;
 }
 
 void UControlRigGraph::RemoveNode(UEdGraphNode* InNode)
@@ -947,6 +1021,8 @@ void UControlRigGraph::RemoveNode(UEdGraphNode* InNode)
 	}
 	InNode->Rename(*DeletedName, nullptr, REN_ForceNoResetLoaders | REN_DontCreateRedirectors);	
 	Super::RemoveNode(InNode);
+
+	NotifyGraphChanged(FEdGraphEditAction(EEdGraphActionType::GRAPHACTION_RemoveNode, this, InNode, false));
 }
 
 URigVMController* UControlRigGraph::GetTemplateController()

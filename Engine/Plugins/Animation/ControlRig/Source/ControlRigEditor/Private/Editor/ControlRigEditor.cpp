@@ -229,6 +229,11 @@ FControlRigEditor::~FControlRigEditor()
 
 	ControlRigEditorClosedDelegate.Broadcast(this, RigBlueprint);
 
+	if(PropertyChangedHandle.IsValid())
+	{
+		FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(PropertyChangedHandle);
+	}
+
 	if (RigBlueprint)
 	{
 		// clear editor related data from the debugged control rig instance 
@@ -415,17 +420,14 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		bool bBroughtGraphToFront = false;
 		for(UEdGraph* Graph : ControlRigBlueprints[0]->UbergraphPages)
 		{
-			if (Graph->GetFName().IsEqual(UControlRigGraphSchema::GraphName_ControlRig))
+			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
 			{
 				if (!bBroughtGraphToFront)
 				{
 					OpenGraphAndBringToFront(Graph, false);
 					bBroughtGraphToFront = true;
 				}
-			}
 
-			if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
-			{
 				RigGraph->OnGraphNodeClicked.AddSP(this, &FControlRigEditor::OnGraphNodeClicked);
 				ActiveTabNodePath = RigGraph->ModelNodePath;
 			}
@@ -433,7 +435,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 	}
 
 	{
-		if (URigVMGraph* Model = InControlRigBlueprint->GetModel())
+		if (URigVMGraph* Model = InControlRigBlueprint->GetDefaultModel())
 		{
 			if (Model->GetNodes().Num() == 0)
 			{
@@ -578,6 +580,8 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 				return FControlRigGraphMathTypeDetails::MakeInstance();
 			}));
 	}
+
+	PropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &FControlRigEditor::OnPropertyChanged);
 }
 
 void FControlRigEditor::InitFunctionReferences()
@@ -2135,7 +2139,10 @@ void FControlRigEditor::InitToolMenuContext(FToolMenuContext& MenuContext)
 			if (GraphNodeContext->Node)
 			{
 				Model = RigBlueprint->GetModel(GraphNodeContext->Graph);
-				Node = Model->FindNodeByName(GraphNodeContext->Node->GetFName());
+				if(Model)
+				{
+					Node = Model->FindNodeByName(GraphNodeContext->Node->GetFName());
+				}
 			}
 		
 			if (GraphNodeContext->Pin && Node)
@@ -2522,6 +2529,17 @@ void FControlRigEditor::PostTransaction(bool bSuccess, const FTransaction* Trans
 	}
 }
 
+void FControlRigEditor::JumpToHyperlink(const UObject* ObjectReference, bool bRequestRename)
+{
+	if(const UControlRigGraph* Graph = Cast<UControlRigGraph>(ObjectReference))
+	{
+		OpenGraphAndBringToFront((UEdGraph*)Graph, true);
+		return;
+	}
+	
+	IControlRigEditor::JumpToHyperlink(ObjectReference, bRequestRename);
+}
+
 void FControlRigEditor::EnsureValidRigElementsInDetailPanel()
 {
 	UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
@@ -2655,23 +2673,35 @@ void FControlRigEditor::CreateDefaultTabContents(const TArray<UBlueprint*>& InBl
 
 void FControlRigEditor::NewDocument_OnClicked(ECreatedDocumentType GraphType)
 {
-	if (GraphType != FBlueprintEditor::CGT_NewFunctionGraph)
+	if (GraphType == FBlueprintEditor::CGT_NewFunctionGraph)
 	{
-		return;
-	}
-
-	if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
-	{
-		if (URigVMController* Controller = Blueprint->GetOrCreateController(Blueprint->GetLocalFunctionLibrary()))
+		if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
 		{
-			if (URigVMLibraryNode* FunctionNode = Controller->AddFunctionToLibrary(TEXT("New Function"), true, FVector2D::ZeroVector, true, true))
+			if (URigVMController* Controller = Blueprint->GetOrCreateController(Blueprint->GetLocalFunctionLibrary()))
 			{
-				if (UEdGraph* NewGraph = Blueprint->GetEdGraph(FunctionNode->GetContainedGraph()))
+				if (const URigVMLibraryNode* FunctionNode = Controller->AddFunctionToLibrary(TEXT("New Function"), true, FVector2D::ZeroVector, true, true))
+				{
+					if (const UEdGraph* NewGraph = Blueprint->GetEdGraph(FunctionNode->GetContainedGraph()))
+					{
+						OpenDocument(NewGraph, FDocumentTracker::OpenNewDocument);
+						RenameNewlyAddedAction(FunctionNode->GetFName());
+					}
+
+				}
+			}
+		}
+	}
+	else if(GraphType == FBlueprintEditor::CGT_NewEventGraph)
+	{
+		if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
+		{
+			if(URigVMGraph* Model = Blueprint->AddModel(UControlRigGraphSchema::GraphName_ControlRig.ToString()))
+			{
+				if (const UEdGraph* NewGraph = Blueprint->GetEdGraph(Model))
 				{
 					OpenDocument(NewGraph, FDocumentTracker::OpenNewDocument);
-					RenameNewlyAddedAction(FunctionNode->GetFName());
+					RenameNewlyAddedAction(NewGraph->GetFName());
 				}
-
 			}
 		}
 	}
@@ -4412,23 +4442,38 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 
 	if (ControlRigBP)
 	{
-		if (PropertyChangedEvent.MemberProperty->GetNameCPP() == TEXT("VMCompileSettings"))
+		if (PropertyChangedEvent.MemberProperty->GetNameCPP() == GET_MEMBER_NAME_STRING_CHECKED(UControlRigBlueprint, VMCompileSettings))
 		{
 			ControlRigBP->RecompileVM();
 			return;
 		}
 
-		if (PropertyChangedEvent.MemberProperty->GetNameCPP() == TEXT("VMRuntimeSettings"))
+		if (PropertyChangedEvent.MemberProperty->GetNameCPP() == GET_MEMBER_NAME_STRING_CHECKED(UControlRigBlueprint, VMRuntimeSettings))
 		{
 			ControlRigBP->VMRuntimeSettings.Validate();
 			ControlRigBP->PropagateRuntimeSettingsFromBPToInstances();
 			return;
 		}
 
-		if (PropertyChangedEvent.MemberProperty->GetNameCPP() == TEXT("DrawContainer"))
+		if (PropertyChangedEvent.MemberProperty->GetNameCPP() == GET_MEMBER_NAME_STRING_CHECKED(UControlRigBlueprint, DrawContainer))
 		{
 			ControlRigBP->PropagateDrawInstructionsFromBPToInstances();
 			return;
+		}
+	}
+}
+
+void FControlRigEditor::OnPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent)
+{
+	UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint();
+
+	if (ControlRigBP && InObject == ControlRigBP)
+	{
+		// if the models have changed - we may need to close a document
+		if(InEvent.MemberProperty == ControlRigBP->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, RigVMClient)) ||
+			InEvent.MemberProperty == ControlRigBP->GetClass()->FindPropertyByName(GET_MEMBER_NAME_CHECKED(UControlRigBlueprint, UbergraphPages)))
+		{
+			DocumentManager->CleanInvalidTabs();
 		}
 	}
 }
@@ -4458,19 +4503,20 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 				return;
 			}
 
-			const FString PoseString = TEXT("Pose->");
-			const FString OffsetString = TEXT("Offset->");
-			const FString ShapeString = TEXT("Shape->");
-			const FString SettingsString = TEXT("Settings->");
+			static constexpr TCHAR PropertyChainElementFormat[] = TEXT("%s->");
+			static const FString PoseString = FString::Printf(PropertyChainElementFormat, GET_MEMBER_NAME_STRING_CHECKED(FRigTransformElement, Pose));
+			static const FString OffsetString = FString::Printf(PropertyChainElementFormat, GET_MEMBER_NAME_STRING_CHECKED(FRigControlElement, Offset));
+			static const FString ShapeString = FString::Printf(PropertyChainElementFormat, GET_MEMBER_NAME_STRING_CHECKED(FRigControlElement, Shape));
+			static const FString SettingsString = FString::Printf(PropertyChainElementFormat, GET_MEMBER_NAME_STRING_CHECKED(FRigControlElement, Settings));
 
 			struct Local
 			{
 				static ERigTransformType::Type GetTransformTypeFromPath(FString& PropertyPath)
 				{
-					const FString InitialString = TEXT("Initial->");
-					const FString CurrentString = TEXT("Current->");
-					const FString GlobalString = TEXT("Global->");
-					const FString LocalString = TEXT("Local->");
+					static const FString InitialString = FString::Printf(PropertyChainElementFormat, GET_MEMBER_NAME_STRING_CHECKED(FRigCurrentAndInitialTransform, Initial));
+					static const FString CurrentString = FString::Printf(PropertyChainElementFormat, GET_MEMBER_NAME_STRING_CHECKED(FRigCurrentAndInitialTransform, Current));
+					static const FString GlobalString = FString::Printf(PropertyChainElementFormat, GET_MEMBER_NAME_STRING_CHECKED(FRigLocalAndGlobalTransform, Global));
+					static const FString LocalString = FString::Printf(PropertyChainElementFormat, GET_MEMBER_NAME_STRING_CHECKED(FRigLocalAndGlobalTransform, Local));
 
 					ERigTransformType::Type TransformType = ERigTransformType::CurrentLocal;
 
@@ -4670,7 +4716,7 @@ void FControlRigEditor::OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFun
 		return;
 	}
 	
-	if(URigVMController* TargetController = InTargetBlueprint->GetController(InTargetBlueprint->GetModel()))
+	if(URigVMController* TargetController = InTargetBlueprint->GetController(InTargetBlueprint->GetDefaultModel()))
 	{
 		if(URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(InFunction->GetOuter()))
 		{
@@ -5992,7 +6038,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 		FRigControlValue ControlValue = Hierarchy->GetControlValue(ControlElement, ERigControlValueType::Current);
 
 		const FString PinPath = UControlRig::GetPinNameFromTransientControl(ControlElement->GetKey());
-		if (URigVMPin* Pin = Blueprint->Model->FindPin(PinPath))
+		if (URigVMPin* Pin = Blueprint->GetRigVMClient()->FindPin(PinPath))
 		{
 			FString NewDefaultValue;
 			switch (ControlElement->Settings.ControlType)
@@ -6423,7 +6469,7 @@ URigVMController* FControlRigEditor::GetFocusedController() const
 	{
 		return nullptr;
 	}
-	return Blueprint->GetController(GetFocusedModel());
+	return Blueprint->GetOrCreateController(GetFocusedModel());
 }
 
 TSharedPtr<SGraphEditor> FControlRigEditor::GetGraphEditor(UEdGraph* InEdGraph) const

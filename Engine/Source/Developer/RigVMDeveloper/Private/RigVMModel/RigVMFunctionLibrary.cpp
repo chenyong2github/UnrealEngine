@@ -12,7 +12,8 @@ URigVMFunctionLibrary::URigVMFunctionLibrary()
 
 FString URigVMFunctionLibrary::GetNodePath() const
 {
-	return FString::Printf(TEXT("FunctionLibrary::%s"), *Super::GetNodePath());
+	static constexpr TCHAR FunctionLibraryNodePath[] = TEXT("FunctionLibrary::");
+	return FunctionLibraryNodePath;
 }
 
 URigVMFunctionLibrary* URigVMFunctionLibrary::GetDefaultFunctionLibrary() const

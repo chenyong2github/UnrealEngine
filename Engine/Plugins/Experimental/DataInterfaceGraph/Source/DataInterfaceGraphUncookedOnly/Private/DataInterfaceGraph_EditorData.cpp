@@ -15,12 +15,13 @@
 
 UDataInterfaceGraph_EditorData::UDataInterfaceGraph_EditorData(const FObjectInitializer& ObjectInitializer)
 {
-	RigVMGraph = ObjectInitializer.CreateDefaultSubobject<URigVMGraph>(this, TEXT("RigVMGraph"));
-	RigVMFunctionLibrary = ObjectInitializer.CreateDefaultSubobject<URigVMFunctionLibrary>(this, TEXT("RigVMFunctionLibrary"));
-	RigVMGraph->SetDefaultFunctionLibrary(RigVMFunctionLibrary);
-
-	RigVMGraph->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
-	RigVMFunctionLibrary->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
+	RigVMClient.Reset();
+	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(UDataInterfaceGraph_EditorData, RigVMClient));
+	{
+		TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
+		RigVMClient.AddModel(TEXT("RigVMGraph"), false);
+		RigVMClient.GetOrCreateFunctionLibrary(false);
+	}
 	
 	auto MakeEdGraph = [this, &ObjectInitializer](FName InName) -> UDataInterfaceGraph_EdGraph*
 	{
@@ -39,19 +40,41 @@ UDataInterfaceGraph_EditorData::UDataInterfaceGraph_EditorData(const FObjectInit
 	FunctionLibraryEdGraph = MakeEdGraph(TEXT("RigVMFunctionLibraryEdGraph"));
 }
 
+void UDataInterfaceGraph_EditorData::Serialize(FArchive& Ar)
+{
+	RigVMClient.SetOuterClientHost(this, GET_MEMBER_NAME_CHECKED(UDataInterfaceGraph_EditorData, RigVMClient));
+
+	UObject::Serialize(Ar);
+
+	if(Ar.IsLoading())
+	{
+		if(Ar.IsLoading())
+		{
+			if(RigVMGraph_DEPRECATED || RigVMFunctionLibrary_DEPRECATED)
+			{
+				TGuardValue<bool> DisableClientNotifs(RigVMClient.bSuspendNotifications, true);
+				RigVMClient.SetFromDeprecatedData(RigVMGraph_DEPRECATED, RigVMFunctionLibrary_DEPRECATED);
+			}
+		}
+	}
+}
+
 void UDataInterfaceGraph_EditorData::Initialize(bool bRecompileVM)
 {
 	UDataInterfaceGraph* DataInterfaceGraph = GetTypedOuter<UDataInterfaceGraph>();
-	
-	if (Controllers.Num() == 0)
+
+	if (RigVMClient.GetController(0) == nullptr)
 	{
-		GetOrCreateRigVMController(RigVMGraph);
+		check(RigVMClient.Num() == 1);
+		check(RigVMClient.GetFunctionLibrary());
+		
+		RigVMClient.GetOrCreateController(RigVMClient.GetDefaultModel());
+		RigVMClient.GetOrCreateController(RigVMClient.GetFunctionLibrary());
 
 		// Init function library controllers
-		GetOrCreateRigVMController(RigVMFunctionLibrary);
-		for(URigVMLibraryNode* LibraryNode : RigVMFunctionLibrary->GetFunctions())
+		for(URigVMLibraryNode* LibraryNode : RigVMClient.GetFunctionLibrary()->GetFunctions())
 		{
-			GetOrCreateRigVMController(LibraryNode->GetContainedGraph());
+			RigVMClient.GetOrCreateController(LibraryNode->GetContainedGraph());
 		}
 		
 		if(bRecompileVM)
@@ -60,9 +83,6 @@ void UDataInterfaceGraph_EditorData::Initialize(bool bRecompileVM)
 		}
 	}
 
-	RigVMGraph->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
-	RigVMFunctionLibrary->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
-	
 	RootGraph->Initialize(this);
 	FunctionLibraryEdGraph->Initialize(this);
 	if(EntryPointGraph)
@@ -76,6 +96,123 @@ void UDataInterfaceGraph_EditorData::PostLoad()
 	Super::PostLoad();
 	
 	Initialize(/*bRecompileVM*/false);
+}
+
+FRigVMClient* UDataInterfaceGraph_EditorData::GetRigVMClient()
+{
+	return &RigVMClient;
+}
+
+const FRigVMClient* UDataInterfaceGraph_EditorData::GetRigVMClient() const
+{
+	return &RigVMClient;
+}
+
+void UDataInterfaceGraph_EditorData::HandleRigVMGraphAdded(const FRigVMClient* InClient, const FString& InNodePath)
+{
+	if(URigVMGraph* RigVMGraph = InClient->GetModel(InNodePath))
+	{
+		RigVMGraph->SetExecuteContextStruct(FRigVMExecuteContext::StaticStruct());
+	}
+}
+
+void UDataInterfaceGraph_EditorData::HandleConfigureRigVMController(const FRigVMClient* InClient,
+                                                                    URigVMController* InControllerToConfigure)
+{
+	InControllerToConfigure->OnModified().AddUObject(this, &UDataInterfaceGraph_EditorData::HandleModifiedEvent);
+
+	InControllerToConfigure->UnfoldStructDelegate.BindLambda([](const UStruct* InStruct) -> bool
+	{
+		if (InStruct == TBaseStructure<FQuat>::Get())
+		{
+			return false;
+		}
+		if (InStruct == FRuntimeFloatCurve::StaticStruct())
+		{
+			return false;
+		}
+		if (InStruct == FRigPose::StaticStruct())
+		{
+			return false;
+		}
+		return true;
+	});
+
+	TWeakObjectPtr<UDataInterfaceGraph_EditorData> WeakThis(this);
+
+	// this delegate is used by the controller to determine variable validity
+	// during a bind process. the controller itself doesn't own the variables,
+	// so we need a delegate to request them from the owning blueprint
+	InControllerToConfigure->GetExternalVariablesDelegate.BindLambda([](URigVMGraph* InGraph) -> TArray<FRigVMExternalVariable>
+	{
+		if (InGraph)
+		{
+			if(UDataInterfaceGraph_EditorData* EditorData = InGraph->GetTypedOuter<UDataInterfaceGraph_EditorData>())
+			{
+				if (UDataInterfaceGraph* Graph = EditorData->GetTypedOuter<UDataInterfaceGraph>())
+				{
+					return Graph->GetRigVMExternalVariables();
+				}
+			}
+		}
+		return TArray<FRigVMExternalVariable>();
+	});
+
+	// this delegate is used by the controller to retrieve the current bytecode of the VM
+	InControllerToConfigure->GetCurrentByteCodeDelegate.BindLambda([WeakThis]() -> const FRigVMByteCode*
+	{
+		if (WeakThis.IsValid())
+		{
+			if(UDataInterfaceGraph* Graph = WeakThis->GetTypedOuter<UDataInterfaceGraph>())
+			{
+				if (Graph->RigVM)
+				{
+					return &Graph->RigVM->GetByteCode();
+				}
+			}
+		}
+		return nullptr;
+
+	});
+
+	InControllerToConfigure->IsFunctionAvailableDelegate.BindLambda([](URigVMLibraryNode* InFunction) -> bool
+	{
+		return true;	// @TODO: should only allow main entry point function here
+	});
+
+	InControllerToConfigure->IsDependencyCyclicDelegate.BindLambda([](UObject* InDependentObject, UObject* InDependencyObject) -> bool
+	{
+		return false;
+	});
+
+#if WITH_EDITOR
+	InControllerToConfigure->SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable, FString)>::CreateLambda(
+		[](FRigVMExternalVariable InVariableToCreate, FString InDefaultValue) -> FName
+		{
+			return NAME_None;
+		}
+	));
+#endif
+
+}
+
+UObject* UDataInterfaceGraph_EditorData::GetEditorObjectForRigVMGraph(URigVMGraph* InVMGraph) const
+{
+	if(InVMGraph)
+	{
+		TArray<UDataInterfaceGraph_EdGraph*> AllGraphs = {RootGraph, EntryPointGraph, FunctionLibraryEdGraph};
+		for(UDataInterfaceGraph_EdGraph* EdGraph : AllGraphs)
+		{
+			if(EdGraph)
+			{
+				if(EdGraph->ModelNodePath == InVMGraph->GetNodePath())
+				{
+					return EdGraph;
+				}
+			}
+		}
+	}
+	return nullptr;
 }
 
 void UDataInterfaceGraph_EditorData::RecompileVM()
@@ -136,16 +273,11 @@ void UDataInterfaceGraph_EditorData::HandleModifiedEvent(ERigVMGraphNotifType In
 	}
 }
 
-URigVMGraph* UDataInterfaceGraph_EditorData::GetRigVMGraph(const UObject* InEditorObject) const
-{
-	return GetVMGraphForEdGraph(CastChecked<UEdGraph>(InEditorObject));
-}
-
 URigVMGraph* UDataInterfaceGraph_EditorData::GetVMGraphForEdGraph(const UEdGraph* InGraph) const
 {
 	if (InGraph == RootGraph)
 	{
-		return RigVMGraph;
+		return RigVMClient.GetDefaultModel();
 	}
 	else
 	{
@@ -154,7 +286,7 @@ URigVMGraph* UDataInterfaceGraph_EditorData::GetVMGraphForEdGraph(const UEdGraph
 
 		if (Graph->bIsFunctionDefinition)
 		{
-			if (URigVMLibraryNode* LibraryNode = RigVMFunctionLibrary->FindFunction(*Graph->ModelNodePath))
+			if (URigVMLibraryNode* LibraryNode = RigVMClient.GetFunctionLibrary()->FindFunction(*Graph->ModelNodePath))
 			{
 				return LibraryNode->GetContainedGraph();
 			}
@@ -162,115 +294,6 @@ URigVMGraph* UDataInterfaceGraph_EditorData::GetVMGraphForEdGraph(const UEdGraph
 	}
 
 	return nullptr;
-}
-
-URigVMController* UDataInterfaceGraph_EditorData::GetRigVMController(const URigVMGraph* InRigVMGraph) const
-{
-	TObjectPtr<URigVMController> const* ControllerPtr = Controllers.Find(InRigVMGraph);
-	if (ControllerPtr)
-	{
-		return *ControllerPtr;
-	}
-	return nullptr;
-}
-
-URigVMController* UDataInterfaceGraph_EditorData::GetRigVMController(const UObject* InEditorObject) const
-{
-	return GetRigVMController(GetVMGraphForEdGraph(CastChecked<UEdGraph>(InEditorObject)));
-}
-
-URigVMController* UDataInterfaceGraph_EditorData::GetOrCreateRigVMController(URigVMGraph* InRigVMGraph)
-{
-	if (URigVMController* ExistingController = GetRigVMController(InRigVMGraph))
-	{
-		return ExistingController;
-	}
-
-	URigVMController* Controller = NewObject<URigVMController>(this);
-	Controller->SetGraph(InRigVMGraph);
-	Controller->OnModified().AddUObject(this, &UDataInterfaceGraph_EditorData::HandleModifiedEvent);
-
-	Controller->UnfoldStructDelegate.BindLambda([](const UStruct* InStruct) -> bool
-	{
-		if (InStruct == TBaseStructure<FQuat>::Get())
-		{
-			return false;
-		}
-		if (InStruct == FRuntimeFloatCurve::StaticStruct())
-		{
-			return false;
-		}
-		if (InStruct == FRigPose::StaticStruct())
-		{
-			return false;
-		}
-		return true;
-	});
-
-	TWeakObjectPtr<UDataInterfaceGraph_EditorData> WeakThis(this);
-
-	// this delegate is used by the controller to determine variable validity
-	// during a bind process. the controller itself doesn't own the variables,
-	// so we need a delegate to request them from the owning blueprint
-	Controller->GetExternalVariablesDelegate.BindLambda([](URigVMGraph* InGraph) -> TArray<FRigVMExternalVariable>
-	{
-		if (InGraph)
-		{
-			if(UDataInterfaceGraph_EditorData* EditorData = InGraph->GetTypedOuter<UDataInterfaceGraph_EditorData>())
-			{
-				if (UDataInterfaceGraph* Graph = EditorData->GetTypedOuter<UDataInterfaceGraph>())
-				{
-					return Graph->GetRigVMExternalVariables();
-				}
-			}
-		}
-		return TArray<FRigVMExternalVariable>();
-	});
-
-	// this delegate is used by the controller to retrieve the current bytecode of the VM
-	Controller->GetCurrentByteCodeDelegate.BindLambda([WeakThis]() -> const FRigVMByteCode*
-	{
-		if (WeakThis.IsValid())
-		{
-			if(UDataInterfaceGraph* Graph = WeakThis->GetTypedOuter<UDataInterfaceGraph>())
-			{
-				if (Graph->RigVM)
-				{
-					return &Graph->RigVM->GetByteCode();
-				}
-			}
-		}
-		return nullptr;
-
-	});
-
-	Controller->IsFunctionAvailableDelegate.BindLambda([](URigVMLibraryNode* InFunction) -> bool
-	{
-		return true;	// @TODO: should only allow main entry point function here
-	});
-
-	Controller->IsDependencyCyclicDelegate.BindLambda([](UObject* InDependentObject, UObject* InDependencyObject) -> bool
-	{
-		return false;
-	});
-
-#if WITH_EDITOR
-	Controller->SetupDefaultUnitNodeDelegates(TDelegate<FName(FRigVMExternalVariable, FString)>::CreateLambda(
-		[](FRigVMExternalVariable InVariableToCreate, FString InDefaultValue) -> FName
-		{
-			return NAME_None;
-		}
-	));
-#endif
-
-	Controller->RemoveStaleNodes();
-	Controllers.Add(InRigVMGraph, Controller);
-	return Controller;
-}
-
-URigVMController* UDataInterfaceGraph_EditorData::GetOrCreateRigVMController(const UObject* InEditorObject)
-{
-	return GetOrCreateRigVMController(GetVMGraphForEdGraph(CastChecked<UEdGraph>(InEditorObject)));
 }
 
 void UDataInterfaceGraph_EditorData::CreateEdGraphForCollapseNode(URigVMCollapseNode* InNode)
@@ -293,7 +316,7 @@ void UDataInterfaceGraph_EditorData::CreateEdGraphForCollapseNode(URigVMCollapse
 				EntryPointGraph = RigFunctionGraph;
 				RigFunctionGraph->Initialize(this);
 
-				GetOrCreateRigVMController(ContainedGraph)->ResendAllNotifications();
+				RigVMClient.GetOrCreateController(ContainedGraph)->ResendAllNotifications();
 			}
 		}
 	}

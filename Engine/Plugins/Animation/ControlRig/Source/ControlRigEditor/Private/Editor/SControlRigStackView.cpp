@@ -442,10 +442,12 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 	if (InVM)
 	{
 		UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
-		URigVMGraph* RootGraph = Blueprint->GetModel();
 
 		const FRigVMInstructionArray Instructions = InVM->GetInstructions();
 		const FRigVMByteCode& ByteCode = InVM->GetByteCode();
+
+		TArray<URigVMGraph*> RootGraphs;
+		RootGraphs.AddZeroed(Instructions.Num());
 
 		const bool bUseSimpleLabels = !CVarControlRigExecutionStackDetailedLabels.GetValueOnAnyThread();
 		if(bUseSimpleLabels)
@@ -459,6 +461,7 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 				if(Node)
 				{
 					DisplayName = Node->GetName();
+					RootGraphs[InstructionIndex] = Node->GetRootGraph();
 					
 					// only unit nodes among all nodes has StaticExecute() that generates actual instructions
 					if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
@@ -638,7 +641,7 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 		TMap<FString, FString> OperandFormatMap;
 		for (int32 InstructionIndex = 0; InstructionIndex < Instructions.Num(); InstructionIndex++)
 		{
-			const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(ByteCode.GetCallPathForInstruction(InstructionIndex), RootGraph);
+			const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(ByteCode.GetCallPathForInstruction(InstructionIndex), RootGraphs[InstructionIndex]);
 			if(URigVMNode* Node = Proxy.GetSubject<URigVMNode>())
 			{
 				FString DisplayName = Node->GetName();
@@ -692,7 +695,7 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 		for (int32 InstructionIndex = 0; InstructionIndex < Labels.Num(); InstructionIndex++)
 		{
 			FString Label = Labels[InstructionIndex];
-			const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(ByteCode.GetCallPathForInstruction(InstructionIndex), RootGraph);
+			const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(ByteCode.GetCallPathForInstruction(InstructionIndex), RootGraphs[InstructionIndex]);
 
 			if(URigVMNode* Node = Proxy.GetSubject<URigVMNode>())
 			{

@@ -12,20 +12,11 @@ void UDataInterfaceGraph_EdGraph::Initialize(UDataInterfaceGraph_EditorData* InE
 	InEditorData->VMCompiledEvent.AddUObject(this, &UDataInterfaceGraph_EdGraph::HandleVMCompiledEvent);
 }
 
-URigVMGraph* UDataInterfaceGraph_EdGraph::GetModel() const
+FRigVMClient* UDataInterfaceGraph_EdGraph::GetRigVMClient() const
 {
 	if (const UDataInterfaceGraph_EditorData* EditorData = GetTypedOuter<UDataInterfaceGraph_EditorData>())
 	{
-		return EditorData->GetRigVMGraph(this);
-	}
-	return nullptr;
-}
-
-URigVMController* UDataInterfaceGraph_EdGraph::GetController() const
-{
-	if (const UDataInterfaceGraph_EditorData* EditorData = GetTypedOuter<UDataInterfaceGraph_EditorData>())
-	{
-		return EditorData->GetRigVMController(this);
+		return (FRigVMClient*)EditorData->GetRigVMClient();
 	}
 	return nullptr;
 }

@@ -34,18 +34,18 @@ UObject* UDataInterfaceGraphFactory::FactoryCreateNew(UClass* Class, UObject* In
 	EditorData->Initialize(/*bRecompileVM*/false);
 
 	// Add initial execution unit
-	URigVMController* RootController = EditorData->GetRigVMController(EditorData->RootGraph);
+	URigVMController* RootController = EditorData->GetRigVMClient()->GetController(EditorData->RootGraph);
 	URigVMUnitNode* MainEntryPointNode = RootController->AddUnitNode(FRigUnit_DataInterfaceBeginExecution::StaticStruct(), FRigUnit::GetMethodName(), FVector2D(-400.0f, 0.0f), FString(), false);
 	URigVMPin* BeginExecutePin = MainEntryPointNode->FindPin(GET_MEMBER_NAME_STRING_CHECKED(FRigUnit_DataInterfaceBeginExecution, ExecuteContext));
 	check(BeginExecutePin);
 	check(BeginExecutePin->GetDirection() == ERigVMPinDirection::Output);
 	
 	// Add function to function lib
-	URigVMController* FunctionLibraryController = EditorData->GetRigVMController(EditorData->RigVMFunctionLibrary);
+	URigVMController* FunctionLibraryController = EditorData->GetRigVMClient()->GetController(EditorData->GetRigVMClient()->GetFunctionLibrary());
 	EditorData->EntryPoint = FunctionLibraryController->AddFunctionToLibrary(UE::DataInterfaceGraph::EntryPointName, true, FVector2D::ZeroVector, false, false);
 	
 	// Add exposed pin for result to function
-	URigVMController* EntryPointController = EditorData->GetOrCreateRigVMController(EditorData->EntryPointGraph);
+	URigVMController* EntryPointController = EditorData->GetRigVMClient()->GetOrCreateController(EditorData->EntryPointGraph);
 	
 	// TODO: using float for now, but needs to be user-driven
 	{

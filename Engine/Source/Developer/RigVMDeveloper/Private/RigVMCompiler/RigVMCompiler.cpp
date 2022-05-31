@@ -129,17 +129,27 @@ URigVMCompiler::URigVMCompiler()
 {
 }
 
-bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InController, URigVM* OutVM, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InAST)
+bool URigVMCompiler::Compile(TArray<URigVMGraph*> InGraphs, URigVMController* InController, URigVM* OutVM, const TArray<FRigVMExternalVariable>& InExternalVariables, const TArray<FRigVMUserDataArray>& InRigVMUserData, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InAST)
 {
-	if (InGraph == nullptr)
+	if (InGraphs.IsEmpty() || InGraphs.Contains(nullptr))
 	{
 		ReportError(TEXT("Provided graph is nullptr."));
 		return false;
 	}
+	
 	if (OutVM == nullptr)
 	{
 		ReportError(TEXT("Provided vm is nullptr."));
 		return false;
+	}
+
+	for(int32 Index = 1; Index < InGraphs.Num(); Index++)
+	{
+		if(InGraphs[0]->GetOuter() != InGraphs[Index]->GetOuter())
+		{
+			ReportError(TEXT("Provided graphs don't share a common outer / package."));
+			return false;
+		}
 	}
 
 	if(OutVM->GetClass()->IsChildOf(URigVMNativized::StaticClass()))
@@ -170,7 +180,7 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	// traverse all graphs and try to clear out orphan pins
 	// also check on function references with unmapped variables
 	TArray<URigVMGraph*> VisitedGraphs;
-	VisitedGraphs.Add(InGraph);
+	VisitedGraphs.Append(InGraphs);
 
 	bool bEncounteredGraphError = false;
 	for(int32 GraphIndex=0; GraphIndex<VisitedGraphs.Num(); GraphIndex++)
@@ -343,8 +353,11 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 	WorkData.AST = InAST;
 	if (!WorkData.AST.IsValid())
 	{
-		WorkData.AST = MakeShareable(new FRigVMParserAST(InGraph, InController, Settings.ASTSettings, InExternalVariables, UserData));
-		InGraph->RuntimeAST = WorkData.AST;
+		WorkData.AST = MakeShareable(new FRigVMParserAST(InGraphs, InController, Settings.ASTSettings, InExternalVariables, UserData));
+		for(URigVMGraph* Graph : InGraphs)
+		{
+			Graph->RuntimeAST = WorkData.AST;
+		}
 #if UE_BUILD_DEBUG
 		//UE_LOG(LogRigVMDeveloper, Display, TEXT("%s"), *AST->DumpDot());
 #endif
@@ -373,7 +386,7 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 #if WITH_EDITOR
 	// If in editor, make sure we visit all the graphs to initialize local variables
 	// in case the user wants to edit default values
-	URigVMFunctionLibrary* FunctionLibrary = InGraph->GetDefaultFunctionLibrary();
+	URigVMFunctionLibrary* FunctionLibrary = InGraphs[0]->GetDefaultFunctionLibrary();
 	if (FunctionLibrary)
 	{
 		for (URigVMLibraryNode* LibraryNode : FunctionLibrary->GetFunctions())
@@ -387,7 +400,7 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 
 			for (FRigVMGraphVariableDescription& Variable : LibraryNode->GetContainedGraph()->LocalVariables)
 			{
-				FString Path = FString::Printf(TEXT("LocalVariableDefault::%s|%s::Const"), *LibraryNode->GetFName().ToString(), *Variable.Name.ToString());
+				FString Path = FString::Printf(TEXT("LocalVariableDefault::%s|%s::Const"), *LibraryNode->GetContainedGraph()->GetGraphName(), *Variable.Name.ToString());
 				FRigVMOperand Operand = WorkData.AddProperty(ERigVMMemoryType::Literal, *Path, Variable.CPPType, Variable.CPPTypeObject, Variable.DefaultValue);
 				WorkData.PinPathToOperand->Add(Path, Operand);
 
@@ -499,7 +512,7 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 
 	for(ERigVMMemoryType MemoryType : MemoryTypes)
 	{
-		UPackage* Package = InGraph->GetOutermost();
+		UPackage* Package = InGraphs[0]->GetOutermost();
 
 		TArray<FRigVMPropertyDescription>* Properties = WorkData.PropertyDescriptions.Find(MemoryType);
 		if(Properties == nullptr)
@@ -1906,7 +1919,8 @@ void URigVMCompiler::InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigV
 					{
 						for (FRigVMGraphVariableDescription Variable : Node->GetContainedGraph()->LocalVariables)
 						{
-							FString TargetPath = FString::Printf(TEXT("LocalVariable::%s|%s"), *Node->GetNodePath(), *Variable.Name.ToString());
+							const FRigVMCallstack LocalCallstack = Callstack.GetCallStackUpTo(SubjectIndex);
+							FString TargetPath = FString::Printf(TEXT("LocalVariable::%s|%s"), *LocalCallstack.GetCallPath(), *Variable.Name.ToString());
 							FString SourcePath = FString::Printf(TEXT("LocalVariableDefault::%s|%s::Const"), *Node->GetContainedGraph()->GetGraphName(), *Variable.Name.ToString());
 							FRigVMOperand* TargetPtr = WorkData.PinPathToOperand->Find(TargetPath);
 							FRigVMOperand* SourcePtr = WorkData.PinPathToOperand->Find(SourcePath);
@@ -2020,14 +2034,13 @@ FString URigVMCompiler::GetPinHashImpl(const URigVMPin* InPin, const FRigVMVarEx
 
 							if(URigVMLibraryNode* LibraryNode = ParentProxy.GetSubject<URigVMLibraryNode>())
 							{
-								// Local variables for non-root graphs are in the format "LocalVariable::PathToGraph|VariableName"
-								const FString GraphPath = ParentProxy.GetCallstack().GetCallPath(true);
-								return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *GraphPath, *VariableName.ToString(), *Suffix);
+								break;
 							}
 						}
 
-						// Local variables for root graphs are in the format "LocalVariable::VariableName"
-						return FString::Printf(TEXT("%sLocalVariable::%s%s"), *Prefix, *VariableName.ToString(), *Suffix);
+						// Local variables for root / non-root graphs are in the format "LocalVariable::PathToGraph|VariableName"
+						const FString GraphPath = ParentProxy.GetCallstack().GetCallPath(true);
+						return FString::Printf(TEXT("%sLocalVariable::%s|%s%s"), *Prefix, *GraphPath, *VariableName.ToString(), *Suffix);
 					}
 				}
 			}

@@ -73,7 +73,7 @@ URigVMGraph* UControlRigBlueprintEditorLibrary::GetModel(UControlRigBlueprint* I
 	{
 		return nullptr;
 	}
-	return InRigBlueprint->GetModel();
+	return InRigBlueprint->GetDefaultModel();
 }
 
 URigVMController* UControlRigBlueprintEditorLibrary::GetController(UControlRigBlueprint* InRigBlueprint)

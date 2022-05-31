@@ -15,7 +15,7 @@
 #include "ControlRigGizmoLibrary.h"
 #include "RigVMCore/RigVM.h"
 #include "RigVMCore/RigVMStatistics.h"
-#include "RigVMModel/RigVMController.h"
+#include "RigVMModel/RigVMClient.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "ControlRigValidationPass.h"
 #include "Drawing/ControlRigDrawContainer.h"
@@ -196,7 +196,7 @@ struct CONTROLRIGDEVELOPER_API FControlRigPythonSettings
 };
 
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
-class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider, public IRigVMGraphHost, public IRigVMControllerHost
+class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider, public IRigVMClientHost
 {
 	GENERATED_UCLASS_BODY()
 
@@ -240,7 +240,7 @@ public:
 	virtual bool SupportsFunctions() const override { return true; }
 	virtual bool SupportsMacros() const override { return false; }
 	virtual bool SupportsDelegates() const override { return false; }
-	virtual bool SupportsEventGraphs() const override { return false; }
+	virtual bool SupportsEventGraphs() const override { return true; }
 	virtual bool SupportsAnimLayers() const override { return false; }
 	virtual bool ExportGraphToText(UEdGraph* InEdGraph, FString& OutText) override;
 	virtual bool TryImportGraphFromText(const FString& InClipboardText, UEdGraph** OutGraphPtr = nullptr) override;
@@ -249,15 +249,15 @@ public:
 	// UObject interface
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
-	// IRigVMGraphHost interface
-	virtual URigVMGraph* GetRigVMGraph(const UObject* InEditorObject) const override { return GetModel(CastChecked<UEdGraph>(InEditorObject)); }
+	// IRigVMClientHost interface
+	virtual FRigVMClient* GetRigVMClient() override;
+	virtual const FRigVMClient* GetRigVMClient() const override;
+	virtual UObject* GetEditorObjectForRigVMGraph(URigVMGraph* InVMGraph) const override;
+	virtual void HandleRigVMGraphAdded(const FRigVMClient* InClient, const FString& InNodePath) override;
+	virtual void HandleRigVMGraphRemoved(const FRigVMClient* InClient, const FString& InNodePath) override;
+	virtual void HandleRigVMGraphRenamed(const FRigVMClient* InClient, const FString& InOldNodePath, const FString& InNewNodePath) override;
+	virtual void HandleConfigureRigVMController(const FRigVMClient* InClient, URigVMController* InControllerToConfigure) override;
 
-	// IRigVMControllerHost interface
-	virtual URigVMController* GetRigVMController(const URigVMGraph* InRigVMGraph) const override { return GetController(InRigVMGraph); }
-	virtual URigVMController* GetRigVMController(const UObject* InEditorObject) const override { return GetController(CastChecked<UEdGraph>(InEditorObject)); }
-	virtual URigVMController* GetOrCreateRigVMController(URigVMGraph* InRigVMGraph) override { return GetOrCreateController(InRigVMGraph); }
-	virtual URigVMController* GetOrCreateRigVMController(const UObject* InEditorObject) override { return GetOrCreateController(CastChecked<UEdGraph>(InEditorObject)); }
-	
 	FOnRequestInspectObject& OnRequestInspectObject() { return OnRequestInspectObjectEvent; }
 	void RequestInspectObject(const TArray<UObject*>& InObjects) { OnRequestInspectObjectEvent.Broadcast(InObjects); }
 
@@ -298,10 +298,19 @@ public:
 	URigVMGraph* GetModel(const FString& InNodePath) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	URigVMGraph* GetDefaultModel() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	TArray<URigVMGraph*> GetAllModels() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	URigVMFunctionLibrary* GetLocalFunctionLibrary() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	URigVMGraph* AddModel(FString InName = TEXT("Rig Graph"), bool bSetupUndoRedo = true, bool bPrintPythonCommand = true);
+
+	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
+	bool RemoveModel(FString InName = TEXT("Rig Graph"), bool bSetupUndoRedo = true, bool bPrintPythonCommand = true);
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	URigVMController* GetController(const URigVMGraph* InGraph = nullptr) const;
@@ -364,11 +373,14 @@ public:
 
 protected:
 
-	UPROPERTY(BlueprintReadOnly, Category = "VM")
-	TObjectPtr<URigVMGraph> Model;
+	UPROPERTY()
+	TObjectPtr<URigVMGraph> Model_DEPRECATED;
 
-	UPROPERTY(BlueprintReadOnly, Category = "VM")
-	TObjectPtr<URigVMFunctionLibrary> FunctionLibrary;
+	UPROPERTY()
+	TObjectPtr<URigVMFunctionLibrary> FunctionLibrary_DEPRECATED;
+
+	UPROPERTY()
+	FRigVMClient RigVMClient;
 
 	/** Asset searchable information about exposed public functions on this rig */
 	UPROPERTY(AssetRegistrySearchable)
@@ -377,10 +389,6 @@ protected:
 	/** Asset searchable information function references in this rig */
 	UPROPERTY(AssetRegistrySearchable)
 	TArray<FRigVMReferenceNodeData> FunctionReferenceNodeData;
-
-	// Related URigVMGraph path and controller
-	UPROPERTY(BlueprintReadOnly, transient, Category = "VM")
-	TMap<FSoftObjectPath, TObjectPtr<URigVMController>> Controllers;
 
 #if WITH_EDITORONLY_DATA
 
@@ -685,6 +693,10 @@ private:
 
 #endif
 
+	UEdGraph* CreateEdGraph(URigVMGraph* InModel, bool bForce = false);
+	bool RemoveEdGraph(URigVMGraph* InModel);
+	void DestroyObject(UObject* InObject);
+	void RenameGraph(const FString& InNodePath, const FName& InNewName);
 	void CreateEdGraphForCollapseNodeIfNeeded(URigVMCollapseNode* InNode, bool bForce = false);
 	bool RemoveEdGraphForCollapseNode(URigVMCollapseNode* InNode, bool bNotify = false);
 	void HandleReportFromCompiler(EMessageSeverity::Type InSeverity, UObject* InSubject, const FString& InMessage);
@@ -734,9 +746,12 @@ public:
 
 #endif
 
+	static constexpr TCHAR RigVMModelPrefix[] = TEXT("RigVMModel");
+
 private:
 	bool bDirtyDuringLoad;
 	bool bErrorsDuringCompilation;
+	bool bSuspendPythonMessagesForRigVMClient;
 
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;
@@ -754,6 +769,7 @@ private:
 	friend class FControlRigEditorModule;
 	friend class UControlRigComponent;
 	friend struct FControlRigGraphSchemaAction_PromoteToVariable;
+	friend class UControlRigGraphSchema;
 };
 
 class CONTROLRIGDEVELOPER_API FControlRigBlueprintVMCompileScope

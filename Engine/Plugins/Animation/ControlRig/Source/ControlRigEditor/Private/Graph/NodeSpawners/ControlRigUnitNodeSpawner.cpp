@@ -120,6 +120,32 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 		bool const bIsUserFacingNode = !bIsTemplateNode;
 
 		FName Name = bIsTemplateNode ? *StructTemplate->GetStructCPPName() : FControlRigBlueprintUtils::ValidateName(RigBlueprint, StructTemplate->GetFName().ToString());
+
+		// events can only exist once across all uber graphs
+		if(bIsUserFacingNode)
+		{
+			FStructOnScope StructScope(StructTemplate);
+			const FRigVMStruct* StructInstance = (const FRigVMStruct*)StructScope.GetStructMemory();
+			const FName EventName = StructInstance->GetEventName();
+			if(!EventName.IsNone())
+			{
+				const TArray<URigVMGraph*> Models = RigBlueprint->GetAllModels();
+				for(URigVMGraph* Model : Models)
+				{
+					if(Model->IsRootGraph() && !Model->IsA<URigVMFunctionLibrary>())
+					{
+						for(const URigVMNode* Node : Model->GetNodes())
+						{
+							if(Node->GetEventName() == EventName)
+							{
+								RigBlueprint->OnRequestJumpToHyperlink().Execute(Node);
+								return nullptr;
+							}
+						}
+					}
+				}
+			}
+		}
 		
 		URigVMController* Controller = bIsTemplateNode ? RigGraph->GetTemplateController() : RigBlueprint->GetController(ParentGraph);
 

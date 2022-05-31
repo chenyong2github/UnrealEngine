@@ -13,11 +13,19 @@ FString FRigVMCallstack::GetCallPath(bool bIncludeLast) const
 	{
 		if (URigVMNode* Node = Cast<URigVMNode>(Entry))
 		{
-			Segments.Add(Node->GetName());
+			if(Node->GetGraph()->IsRootGraph())
+			{
+				Segments.Add(Node->GetNodePath(true));
+			}
+			else
+			{
+				Segments.Add(Node->GetName());
+			}
 		}
 		else if (URigVMPin* Pin = Cast<URigVMPin>(Entry))
 		{
-			Segments.Add(Pin->GetPinPath());
+			const bool bUseNodePath = Pin->GetGraph()->IsRootGraph();
+			Segments.Add(Pin->GetPinPath(bUseNodePath));
 		}
 	}
 
@@ -62,6 +70,19 @@ const UObject* FRigVMCallstack::operator[](int32 InIndex) const
 bool FRigVMCallstack::Contains(const UObject* InEntry) const
 {
 	return Stack.Contains(InEntry);
+}
+
+FRigVMCallstack FRigVMCallstack::GetCallStackUpTo(int32 InIndex) const
+{
+	if(!ensure(Stack.IsValidIndex(InIndex)))
+	{
+		return FRigVMCallstack();
+	}
+	
+	FRigVMCallstack Partial;
+	Partial.Stack = Stack;
+	Partial.Stack.SetNum(InIndex + 1);
+	return Partial;
 }
 
 FRigVMASTProxy FRigVMASTProxy::MakeFromUObject(UObject* InSubject)
@@ -133,7 +154,14 @@ FRigVMASTProxy FRigVMASTProxy::MakeFromCallPath(const FString& InCallPath, UObje
 
 		if(URigVMGraph* Graph = Cast<URigVMGraph>(ParentObject))
 		{
-			if(URigVMNode* FoundNode = Graph->FindNodeByName(*Left))
+			if(Graph->IsRootGraph() && Left.EndsWith(TEXT("::")))
+			{
+				if(Left != Graph->GetNodePath())
+				{
+					return FRigVMASTProxy();
+				}
+			}
+			else if(URigVMNode* FoundNode = Graph->FindNodeByName(*Left))
 			{
 				Proxy.Callstack.Stack.Push(FoundNode);
 				ParentObject = FoundNode;

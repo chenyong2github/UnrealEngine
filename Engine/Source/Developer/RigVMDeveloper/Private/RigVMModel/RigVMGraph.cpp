@@ -110,7 +110,9 @@ FString URigVMGraph::GetNodePath() const
 	{
 		return CollapseNode->GetNodePath(true /* recursive */);
 	}
-	return FString();
+
+	static constexpr TCHAR NodePathFormat[] = TEXT("%s::");
+	return FString::Printf(NodePathFormat, *GetName());
 }
 
 FString URigVMGraph::GetGraphName() const
@@ -119,7 +121,7 @@ FString URigVMGraph::GetGraphName() const
 	{
 		return CollapseNode->GetNodePath(false /* recursive */);
 	}
-	return FString();
+	return GetName();
 }
 
 URigVMNode* URigVMGraph::FindNodeByName(const FName& InNodeName) const
@@ -147,15 +149,13 @@ URigVMNode* URigVMGraph::FindNode(const FString& InNodePath) const
 	}
 
 	FString Path = InNodePath;
-	if (Path.StartsWith(TEXT("FunctionLibrary::|")))
+
+	if(IsRootGraph())
 	{
-		if (GetRootGraph()->IsA<URigVMFunctionLibrary>())
+		const FString MyNodePath = GetNodePath();
+		if(Path.StartsWith(MyNodePath))
 		{
-			Path.RightChopInline(18);
-		}
-		else
-		{
-			return nullptr;
+			Path.RightChopInline(MyNodePath.Len() + 1);
 		}
 	}
 
@@ -372,7 +372,7 @@ TSharedPtr<FRigVMParserAST> URigVMGraph::GetDiagnosticsAST(bool bForceRefresh, T
 	{
 		FRigVMParserASTSettings Settings = FRigVMParserASTSettings::Fast();
 		Settings.LinksToSkip = InLinksToSkip;
-		DiagnosticsAST = MakeShareable(new FRigVMParserAST(this, nullptr, Settings));
+		DiagnosticsAST = MakeShareable(new FRigVMParserAST({this}, nullptr, Settings));
 	}
 	return DiagnosticsAST;
 }
@@ -381,7 +381,7 @@ TSharedPtr<FRigVMParserAST> URigVMGraph::GetRuntimeAST(const FRigVMParserASTSett
 {
 	if (RuntimeAST == nullptr || bForceRefresh)
 	{
-		RuntimeAST = MakeShareable(new FRigVMParserAST(this, nullptr, InSettings));
+		RuntimeAST = MakeShareable(new FRigVMParserAST({this}, nullptr, InSettings));
 	}
 	return RuntimeAST;
 }

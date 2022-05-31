@@ -145,12 +145,12 @@ UEdGraph* FGraphEditor::GetFocusedGraph() const
 URigVMGraph* FGraphEditor::GetFocusedVMGraph() const
 {
 	UDataInterfaceGraph_EdGraph* EdGraph = Cast<UDataInterfaceGraph_EdGraph>(GetFocusedGraph());
-	return DataInterfaceGraph_EditorData->GetRigVMGraph(EdGraph);
+	return DataInterfaceGraph_EditorData->GetVMGraphForEdGraph(EdGraph);
 }
 
 URigVMController* FGraphEditor::GetFocusedVMController() const
 {
-	return DataInterfaceGraph_EditorData->GetRigVMController(GetFocusedVMGraph());
+	return DataInterfaceGraph_EditorData->GetRigVMClient()->GetController(GetFocusedVMGraph());
 }
 
 TSharedRef<SGraphEditor> FGraphEditor::CreateGraphEditorWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph)
