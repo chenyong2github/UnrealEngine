@@ -203,6 +203,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bDisallowNanite = false;
 	bEvaluateWorldPositionOffset = false;
 	bEvaluateWorldPositionOffsetInRayTracing = false;
+	bInitialEvaluateWorldPositionOffset = false;
 	DistanceFieldIndirectShadowMinVisibility = .1f;
 	GetBodyInstance()->bAutoWeld = true;	//static mesh by default has auto welding
 
@@ -735,6 +736,13 @@ void UStaticMeshComponent::OnRegister()
 void UStaticMeshComponent::OnUnregister()
 {
 	Super::OnUnregister();
+}
+
+void UStaticMeshComponent::BeginPlay()
+{
+	bInitialEvaluateWorldPositionOffset = bEvaluateWorldPositionOffset;
+
+	Super::BeginPlay();
 }
 
 bool UStaticMeshComponent::RequiresGameThreadEndOfFrameRecreate() const

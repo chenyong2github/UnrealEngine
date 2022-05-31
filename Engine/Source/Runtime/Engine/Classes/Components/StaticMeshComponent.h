@@ -244,6 +244,12 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = RayTracing)
 	uint8 bEvaluateWorldPositionOffsetInRayTracing : 1;
 
+protected:
+	/** Initial value of bEvaluateWorldPositionOffset when BeginPlay() was called. Can be useful if we want to reset to initial state. */
+	uint8 bInitialEvaluateWorldPositionOffset : 1;
+
+public:
+
 #if WITH_EDITORONLY_DATA
 	/** The section currently selected in the Editor. Used for highlighting */
 	UPROPERTY(transient)
@@ -441,6 +447,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|LOD")
 	void SetEvaluateWorldPositionOffset(bool NewValue);
 
+	/** Get the initial value of bEvaluateWorldPositionOffset. This is the value when BeginPlay() was last called. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering|LOD")
+	bool GetInitialEvaluateWorldPositionOffset() { return bInitialEvaluateWorldPositionOffset; }
+
 	/** 
 	 * Get Local bounds
 	 */
@@ -517,6 +527,7 @@ public:
 protected: 
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
+	virtual void BeginPlay() override;
 	virtual bool RequiresGameThreadEndOfFrameRecreate() const override;
 	virtual void CreateRenderState_Concurrent(FRegisterComponentContext* Context) override;
 	virtual void OnCreatePhysicsState() override;
