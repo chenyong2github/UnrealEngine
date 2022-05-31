@@ -48,6 +48,8 @@ namespace UnrealBuildTool.Matchers
 		static readonly Regex s_blankLinePattern = new Regex(@"^\s*$");
 		static readonly Regex s_errorWarningPattern = new Regex("error|warning");
 		static readonly Regex s_clangDiagnosticPattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:");
+		static readonly Regex s_clangNotePattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*note:");
+		static readonly Regex s_clangMarkerPattern = new Regex(@"^\s*\^$");
 
 		static readonly string[] s_invalidExtensions =
 		{
@@ -117,11 +119,18 @@ namespace UnrealBuildTool.Matchers
 					builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 					builder.TryAnnotate(match.Groups["column"], LogEventMarkup.ColumnNumber);
 
-					string indent = ExtractIndent(input[0]!);
-
-					Regex notePattern = new Regex($"^(?:{indent} |{indent}\\s*{FilePattern}\\s*{ClangLocationPattern}\\s*note:| *$)");
-					while (builder.Current.TryMatch(1, notePattern, out match))
+					for (; ; )
 					{
+						if (builder.Current.IsMatch(2, s_clangMarkerPattern))
+						{
+							builder.MoveNext(2);
+						}
+
+						if(!builder.Next.TryMatch(s_clangNotePattern, out match))
+						{
+							break;
+						}
+
 						builder.MoveNext();
 
 						Group fileGroup = match.Groups["file"];
