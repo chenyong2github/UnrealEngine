@@ -12,6 +12,7 @@
 #include "IPlatformFileSandboxWrapper.h"
 #include "Misc/EnumClassFlags.h"
 #include "Templates/Function.h"
+#include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "TickableEditorObject.h"
 #include "UObject/Object.h"
@@ -154,15 +155,57 @@ class UNREALED_API UCookOnTheFlyServer : public UObject, public FTickableEditorO
 
 private:
 	using FPollFunction = TUniqueFunction<void(UE::Cook::FTickStackData&)>;
-	struct FPollable
+	/**
+	 * Wrapper around a function for cooker tasks that need to be ticked on a schedule.
+	 * Includes data to support calling it on a schedule or triggering it manually.
+	 */
+	struct FPollable : public FRefCountBase
 	{
-		FPollable(float InPeriodSeconds, float InPeriodIdleSeconds, FPollFunction&& InFunction);
+	public:
+		enum EManualTrigger {};
+		FPollable(const TCHAR* InDebugName, float InPeriodSeconds, float InPeriodIdleSeconds, FPollFunction&& InFunction);
+		FPollable(const TCHAR* InDebugName, EManualTrigger, FPollFunction&& InFunction);
 
+	public:
+		/** Trigger the pollable to execute on the next PumpPollables */
+		void Trigger(UCookOnTheFlyServer& COTFS);
+		/**
+		 * Run the pollable's callback function now. Note this means running it outside of its normal location which is not valid for all pollables.
+		 * PumpPollables is not thread safe, so this must be called on the scheduler thread.
+		 */
+		void RunNow(UCookOnTheFlyServer& COTFS);
+
+		/** Run the pollable's callback function, from PumpPollables. Calculate the new time and store it in the output. */
+		void RunDuringPump(UE::Cook::FTickStackData& StackData, double& OutNewCurrentTime, double& OutNextTimeSeconds);
+
+	public:
+		const TCHAR* DebugName = TEXT("");
 		FPollFunction PollFunction;
-		double NextTimeSeconds = 0.;
+		/** Time when this should be next called, if the cooker is idle. (See also NextTimeSeconds). */
 		double NextTimeIdleSeconds = 0.;
 		float PeriodSeconds = 60.f;
 		float PeriodIdleSeconds = 5.f;
+	};
+	/** A key/value pair for storing Pollables in a priority queue, keyed by next call time. */
+	struct FPollableQueueKey
+	{
+	public:
+		FPollableQueueKey() = default;
+		explicit FPollableQueueKey(FPollable* InPollable);
+		explicit FPollableQueueKey(const TRefCountPtr<FPollable>& InPollable);
+		explicit FPollableQueueKey(TRefCountPtr<FPollable>&& InPollable);
+		bool operator<(const FPollableQueueKey& Other) const
+		{
+			return NextTimeSeconds < Other.NextTimeSeconds;
+		}
+
+	public:
+		TRefCountPtr<FPollable> Pollable;
+		/**
+		 * Time when the pollable be next called, if the cooker is not idle. Stored here rather than
+		 * on the FPollable to support fast access in the queue.
+		 */
+		double NextTimeSeconds = 0.;
 	};
 
 	//////////////////////////////////////////////////////////////////////////
@@ -385,8 +428,8 @@ private:
 	void InitializePollables();
 	void PumpPollables(UE::Cook::FTickStackData& StackData, bool bIsIdle);
 	void PollFlushRenderingCommands();
-	TOptional<FPollable> CreatePollableLLM();
-	TOptional<FPollable> CreatePollableTriggerGC();
+	TRefCountPtr<FPollable> CreatePollableLLM();
+	TRefCountPtr<FPollable> CreatePollableTriggerGC();
 	void PollPackagesPerGC(UE::Cook::FTickStackData& StackData);
 	void WaitForAsync(UE::Cook::FTickStackData& StackData);
 
@@ -1195,12 +1238,10 @@ private:
 	/** Helper struct for running cooking in diagnostic modes */
 	TUniquePtr<FDiffModeCookServerUtils> DiffModeHelper;
 
-	TArray<FPollable> Pollables;
+	TArray<FPollableQueueKey> Pollables;
+	FCriticalSection PollablesLock;
 	double PollNextTimeSeconds = 0.;
 	double PollNextTimeIdleSeconds = 0.;
-	int32 PollStartIndex = 0;
-	float PumpPollablesTimeSlice = 0.f;
-	float PumpPollablesMinPeriod = 0.f;
 	uint32 CookedPackageCountSinceLastGC = 0;
 	float WaitForAsyncSleepSeconds = 0.0f;
 	friend UE::Cook::FPackageData;
