@@ -148,6 +148,12 @@ class MultiUserApplication:
             if self.concert_ignore_cl:
                 cmdline += " -ConcertIgnore"
 
+            if CONFIG.MUSERVER_WORKING_DIR.get_value():
+                cmdline += f' -ConcertWorkingDir="{CONFIG.MUSERVER_WORKING_DIR.get_value()}"'
+
+            if CONFIG.MUSERVER_ARCHIVE_DIR.get_value():
+                cmdline += f' -ConcertSavedDir="{CONFIG.MUSERVER_ARCHIVE_DIR.get_value()}"'
+
             if CONFIG.MUSERVER_CLEAN_HISTORY.get_value():
                 cmdline += " -ConcertClean"
 

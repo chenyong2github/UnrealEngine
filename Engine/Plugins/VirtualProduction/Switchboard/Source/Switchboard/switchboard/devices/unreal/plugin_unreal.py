@@ -1131,6 +1131,9 @@ class DeviceUnreal(Device):
 
                 puuid_dependency = self._build_mu_server(
                     puuid_dependency=puuid_dependency)
+ 
+                puuid_dependency = self._build_mu_slate_server(
+                    puuid_dependency=puuid_dependency)
 
             # TODO: Build listener
             # - Handle the running listener's exe being locked
@@ -1165,6 +1168,12 @@ class DeviceUnreal(Device):
         return self._queue_build(
             'mu_server', ubt_args=ubt_args, puuid_dependency=puuid_dependency)
 
+    def _build_mu_slate_server(self, puuid_dependency: Optional[uuid.UUID] = None):
+        ubt_args = (f'UnrealMultiUserSlateServer {self.target_platform} '
+                    'Development -Progress')
+        return self._queue_build(
+            'mu_slate_server', ubt_args=ubt_args, puuid_dependency=puuid_dependency)
+    
     def _build_listener(self, puuid_dependency: Optional[uuid.UUID] = None):
         ubt_args = (f'SwitchboardListener {self.target_platform} '
                     'Development -Progress')
