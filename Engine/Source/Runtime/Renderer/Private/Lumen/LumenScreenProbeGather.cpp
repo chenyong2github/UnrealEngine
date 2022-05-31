@@ -15,6 +15,7 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "ScreenSpaceDenoise.h"
 #include "HairStrands/HairStrandsEnvironment.h"
+#include "ShaderPrint.h"
 #include "Strata/Strata.h"
 
 extern FLumenGatherCvarState GLumenGatherCvars;
@@ -289,6 +290,14 @@ FAutoConsoleVariableRef GVarLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular(
 	TEXT("r.Lumen.ScreenProbeGather.MaxRoughnessToEvaluateRoughSpecular"),
 	GLumenScreenProbeMaxRoughnessToEvaluateRoughSpecular,
 	TEXT("Maximum roughness value to evaluate rough specular in Screen Probe Gather.  Lower values reduce GPU cost of integration, but also lose rough specular."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenScreenProbeTileDebugMode = 0;
+FAutoConsoleVariableRef GVarLumenScreenProbeTileDebugMode(
+	TEXT("r.Lumen.ScreenProbeGather.TileDebugMode"),
+	GLumenScreenProbeTileDebugMode,
+	TEXT("Display Lumen screen probe tile classification."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -1039,6 +1048,78 @@ class FGenerateCompressedGBuffer : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FGenerateCompressedGBuffer, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "GenerateCompressedGBuffer", SF_Compute);
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FLumenScreenProbeStrataDebugPass : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FLumenScreenProbeStrataDebugPass)
+	SHADER_USE_PARAMETER_STRUCT(FLumenScreenProbeStrataDebugPass, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, ViewportIntegrateTileDimensions)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrint)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FStrataGlobalUniformParameters, Strata)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, IntegrateTileData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, IntegrateIndirectArgs)
+	END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 8;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+		OutEnvironment.SetDefine(TEXT("SHADER_MATERIAL_DEBUG"), 1); 
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FLumenScreenProbeStrataDebugPass, "/Engine/Private/Lumen/LumenScreenProbeGather.usf", "ScreenProbeDebugMain", SF_Compute);
+
+void AddLumenScreenProbeDebugPass(
+	FRDGBuilder& GraphBuilder, 
+	FViewInfo& View,
+	const FIntPoint& ViewportIntegrateTileDimensions,
+	const FIntPoint& ViewportIntegrateTileDimensionsWithOverflow,
+	FRDGBufferRef IntegrateTileData,
+	FRDGBufferRef IntegrateIndirectArgs)
+{
+	if (!ShaderPrint::IsEnabled(View))
+	{
+		ShaderPrint::SetEnabled(true);
+	}
+
+	ShaderPrint::RequestSpaceForCharacters(1024);
+	ShaderPrint::RequestSpaceForLines(1024);
+	ShaderPrint::RequestSpaceForTriangles(ViewportIntegrateTileDimensionsWithOverflow.X * ViewportIntegrateTileDimensionsWithOverflow.Y * 2);
+
+	FLumenScreenProbeStrataDebugPass::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenScreenProbeStrataDebugPass::FParameters>();
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
+	PassParameters->ViewportIntegrateTileDimensions = ViewportIntegrateTileDimensions;
+	PassParameters->IntegrateTileData = GraphBuilder.CreateSRV(IntegrateTileData);
+	PassParameters->IntegrateIndirectArgs = GraphBuilder.CreateSRV(IntegrateIndirectArgs, PF_R32_UINT);
+	ShaderPrint::SetParameters(GraphBuilder, View, PassParameters->ShaderPrint);
+
+	FLumenScreenProbeStrataDebugPass::FPermutationDomain PermutationVector;
+	auto ComputeShader = View.ShaderMap->GetShader<FLumenScreenProbeStrataDebugPass>(PermutationVector);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("ScreenProbeDebug"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(ViewportIntegrateTileDimensions.X, ViewportIntegrateTileDimensions.Y, 1));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 const TCHAR* GetClassificationModeString(EScreenProbeIntegrateTileClassification Mode)
 {
@@ -1247,6 +1328,12 @@ void InterpolateAndIntegrate(
 			{
 				ScreenProbeIntegrate(true);
 			}
+		}
+
+		// Debug pass
+		if (GLumenScreenProbeTileDebugMode > 0)
+		{
+			AddLumenScreenProbeDebugPass(GraphBuilder, View, ViewportIntegrateTileDimensions, TileClassificationBufferDimensions, IntegrateTileData, IntegrateIndirectArgs);
 		}
 	}
 	else
