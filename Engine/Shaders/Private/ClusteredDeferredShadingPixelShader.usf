@@ -56,6 +56,9 @@
 	#define USE_PASS_PER_SHADING_MODEL (COMPILER_DXC == 1 || COMPILER_PSSL == 1 || COMPILER_METAL == 1)
 #endif
 
+// Temporary work around for shader compilation issue
+#define SUPPORT_STRATA_LIGHTING (COMPILER_DXC == 1 || COMPILER_PSSL == 1 || COMPILER_METAL == 1)
+
 // Extracts out the simple lights into their own loop that is executed first, independently of shading model.
 #define ENABLE_SEPARATE_SIMPLE_LIGHT_LOOP 0
 
@@ -379,7 +382,10 @@ float4 GetLightGridLocalLighting(
 		GetShadowTerms(SceneDepth, PrecomputedShadowFactors, FakeShadingModelID, FakeContactShadowOpacity, LightData, TranslatedWorldPosition, L, LightAttenuation, Dither, ShadowTerms);
 
 		const float LightMask = 1;
-		FStrataDeferredLighting StrataLighting = StrataDeferredLighting(
+
+		FStrataDeferredLighting StrataLighting = (FStrataDeferredLighting)0;
+	#if SUPPORT_STRATA_LIGHTING
+		StrataLighting = StrataDeferredLighting(
 			LightData,
 			V,
 			L,
@@ -389,6 +395,7 @@ float4 GetLightGridLocalLighting(
 			Strata.MaterialTextureArray,
 			StrataAddressing,
 			StrataPixelHeader);
+	#endif
 
 		DirectLighting += StrataLighting.SceneColor;
 	#if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED

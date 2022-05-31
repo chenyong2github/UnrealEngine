@@ -208,8 +208,6 @@ float GetSSSCheckerboadSpecularScale(uint2 PixelPos, bool bNeedsSeparateLightAcc
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Lumen diffuse evaluation for strata material.
 
-// STRATA_TODO: add tile permutation for reducing VGPR pressures
-
 #if STRATA_ENABLED
 FStrataDeferredLighting StrataLumenLighting(
 	uint2 PixelPos,
@@ -226,8 +224,7 @@ FStrataDeferredLighting StrataLumenLighting(
 	const uint2 LocalTileCoord = PixelPos - Tile0Coord * STRATA_TILE_SIZE;
 	const FStrataBSDFTile Tile0 = UnpackBSDFTile(Strata.BSDFTileTexture[Tile0Coord]);
 
-	uint BSDFIndex = 0;
-	Strata_for(; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+	Strata_for(uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
 	{
 		const uint2 TileCoord = GetTilePositionFlatten(Tile0, Tile0Coord, BSDFIndex);
 		const uint2 InCoord   = TileCoord * STRATA_TILE_SIZE + LocalTileCoord;

@@ -82,6 +82,8 @@
 #define STRATA_SINGLEPATH 0
 #endif
 
+#define STRATA_COMPLEXPATH (!STRATA_FASTPATH && !STRATA_SINGLEPATH)
+
 // When converting legacy materials to Strata, we need to override transmittance/coverage to be independent from the material and directly linked to opacity
 #define STRATA_LEGACY_PREMULT_ALPHA_OVERRIDE (STRATA_USES_CONVERSION_FROM_LEGACY && MATERIALBLENDING_ALPHACOMPOSITE)
 
@@ -3157,8 +3159,8 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 	Out.State		= HEADER_GETCOMMONSTATES(PackedHeader);	// Unpack state and AO data at the same time 
 	Out.BSDFCount   = HEADER_GETBSDFCOUNT(PackedHeader);
 
-	const bool bIsSimpleMaterial = (PackedHeader & HEADER_MASK_ISSIMPLEMATERIAL) > 0 || STRATA_FASTPATH;
-	const bool bIsSingleMaterial = (PackedHeader & HEADER_MASK_ISSINGLEMATERIAL) > 0 || STRATA_SINGLEPATH;
+	const bool bIsSimpleMaterial = (PackedHeader & HEADER_MASK_ISSIMPLEMATERIAL) > 0;
+	const bool bIsSingleMaterial = (PackedHeader & HEADER_MASK_ISSINGLEMATERIAL) > 0;
 
 	// Use simple or single layout for decoding data
 	BRANCH
@@ -3178,7 +3180,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 			HEADER_SETSHADINGMODELS(Out.State, ShadingModels);
 		}
 
-	#if STRATA_DEFERRED_SHADING
+	  #if STRATA_DEFERRED_SHADING
 		Out.StrataBuffer = StrataBuffer;
 		Out.SharedLocalBasesTypes_PackedHeader = PackedHeader;
 		Out.SharedLocalBasesIndexOffset = 0; // Unused
@@ -3187,6 +3189,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 		StrataAddressing.ReadBytes += 4;
 	  #endif
 	}
+	#if STRATA_COMPLEXPATH
 	else
 	{
 		uint SharedLocalBasesCount = HEADER_GETSHAREDLOCALBASESCOUNT(PackedHeader);
@@ -3207,6 +3210,7 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 		StrataAddressing.ReadBytes += SharedLocalBasesCount * STRATA_PACKED_SHAREDLOCALBASIS_STRIDE_BYTES;
 	#endif
 	}
+	#endif // STRATA_COMPLEXPATH
 
 	return Out;
 }

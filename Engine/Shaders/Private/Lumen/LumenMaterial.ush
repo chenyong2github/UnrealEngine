@@ -229,7 +229,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.TangentBasis	= (float3x3)0;
 
 	// STRATA_TODO: For now, use only the last BSDF (arbitrary)
-	Strata_for(uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+	Strata_for(uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
 	{
 		float3 NullV				= float3(0, 0, 1);
 		FStrataBSDF BSDF			= UnpackStrataBSDF(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);

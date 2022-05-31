@@ -57,7 +57,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 	uint NumCulledReflectionCaptures = 0;
 #endif
 
-	Strata_for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+	Strata_for (uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
 	{
 		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
 

@@ -44,15 +44,15 @@
 // 
 // This allows to write a loop over all BSDFs as follow and support permutations
 //
-// Strata_for(uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+// Strata_for(uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
 // {
 //		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);
 //		...
 // }
 #if STRATA_FASTPATH == 0 && STRATA_SINGLEPATH == 0
-	#define Strata_for(X) for(X)
+	#define Strata_for(X,Y,Z) for(X;Y;Z)
 #else
-	#define Strata_for(X) 
+	#define Strata_for(X,Y,Z) X; if(Y)
 #endif
 
 #if STRATA_FASTPATH

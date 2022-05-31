@@ -48,7 +48,7 @@ FStrataDeferredLighting StrataDeferredLighting(
 
 	FRectTexture RectTexture = InitRectTexture(LightData);
 
-	Strata_for (uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+	Strata_for (uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
 	{
 		// Unpack BSDF data
 		FStrataBSDF BSDF = UnpackStrataBSDF(MaterialBuffer, StrataAddressing, StrataPixelHeader);

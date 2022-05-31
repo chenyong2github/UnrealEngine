@@ -513,7 +513,7 @@ float3 GetDirectionalAlbedo(inout FPackedMaterialClosestHitPayload PackedPayload
 	FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(0, 0, 0);
 	FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(PackedPayload.StrataData, StrataAddressing, PackedPayload.StrataData);
 
-	Strata_for(uint BSDFIndex = 0; BSDFIndex < StrataPixelHeader.BSDFCount; ++BSDFIndex)
+	Strata_for(uint BSDFIndex = 0, BSDFIndex < StrataPixelHeader.BSDFCount, ++BSDFIndex)
 	{
 		FStrataBSDF BSDF = UnpackStrataBSDF(PackedPayload.StrataData, StrataAddressing, StrataPixelHeader);
 
