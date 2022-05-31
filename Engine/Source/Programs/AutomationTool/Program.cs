@@ -367,6 +367,17 @@ namespace AutomationToolDriver
 			Assembly UnrealBuildToolAssembly = typeof(UnrealBuildTool.BuildVersion).Assembly;
 			Log.EventParser.AddMatchersFromAssembly(UnrealBuildToolAssembly);
 
+			// when running frmo RunUAT.sh (Mac/Linux) we need to install a Ctrl-C handler, or hitting Ctrl-C from a terminal
+			// can leave dotnet process in a zombie state (some order of process destruction is failing)
+			// by putting this in, the Ctrl-C may not be handled immediately, but it shouldn't leave a zombie process
+			if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+			{
+				Console.CancelKeyPress += delegate
+				{
+					Console.WriteLine("Dying....");
+				};
+			}
+
 			// Enter the main program section
 			ExitCode ReturnCode = ExitCode.Success;
 			try
