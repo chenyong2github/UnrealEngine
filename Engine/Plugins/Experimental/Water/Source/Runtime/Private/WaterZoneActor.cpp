@@ -280,18 +280,18 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		GroundZMin = TNumericLimits<float>::Max();
 		float GroundZMax = TNumericLimits<float>::Lowest();
 
-		int32 LandscapeLODOverride = 0;
 		TArray<TWeakObjectPtr<AActor>> GroundActors;
 		for (ALandscapeProxy* LandscapeProxy : TActorRange<ALandscapeProxy>(World))
 		{
+			if (LandscapeProxy->LandscapeComponents.Num() == 0)
+			{
+				continue; // Skip empty landscape proxies
+			}
+
 			const FBox LandscapeBox = LandscapeProxy->GetComponentsBoundingBox();
 			GroundZMin = FMath::Min(GroundZMin, LandscapeBox.Min.Z);
 			GroundZMax = FMath::Max(GroundZMax, LandscapeBox.Max.Z);
 			GroundActors.Add(LandscapeProxy);
-
-			// Target mip 64x64 for a capture
-			int32 LOD64x64 = FMath::CeilLogTwo(LandscapeProxy->SubsectionSizeQuads + 1) - 6;
-			LandscapeLODOverride = FMath::Max(LandscapeLODOverride, LOD64x64);
 		}
 
 		const ETextureRenderTargetFormat Format = bHalfPrecisionTexture ? ETextureRenderTargetFormat::RTF_RGBA16f : RTF_RGBA32f;
@@ -303,7 +303,6 @@ bool AWaterZone::UpdateWaterInfoTexture()
 		Context.GroundActors = MoveTemp(GroundActors);
 		Context.CaptureZ = FMath::Max(WaterZMax, GroundZMax) + CaptureZOffset;
 		Context.TextureRenderTarget = WaterInfoTexture;
-		Context.LandscapeLODOverride = LandscapeLODOverride;
 
 		if (UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(World))
 		{
