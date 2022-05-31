@@ -326,7 +326,7 @@ void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
 		{
 			if (Package->IsDirty())
 			{
-				DirtyActors.Add(ActorHandle, Actor);
+				DirtyActors.Add(ActorHandle.ToReference(), Actor);
 			}
 			else if (ActorHandle->GetHardRefCount())
 			{
@@ -336,7 +336,7 @@ void UWorldPartition::OnPackageDirtyStateChanged(UPackage* Package)
 					PinnedActors->AddActors({ ActorHandle });
 				}
 
-				DirtyActors.Remove(ActorHandle);
+				DirtyActors.Remove(ActorHandle.ToReference());
 			}
 		}
 	}

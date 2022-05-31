@@ -229,7 +229,7 @@ void IWorldPartitionActorLoaderInterface::ILoaderAdapter::AddReferenceToActor(FW
 	{
 		if (!ReferenceMap.Contains(Handle->GetGuid()))
 		{
-			ReferenceMap.Emplace(Handle->GetGuid(), Handle);
+			ReferenceMap.Emplace(Handle->GetGuid(), Handle.ToReference());
 			
 			for (const FGuid& ReferencedActorGuid : ActorHandle->GetReferences())
 			{

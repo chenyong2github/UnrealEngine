@@ -64,13 +64,13 @@ namespace WorldPartitionTests
 
 		// Conversions
 		{
-			FWorldPartitionHandle HandleToReference = Reference;
+			FWorldPartitionHandle HandleToReference = Reference.ToHandle();
 			TestTrue(TEXT("Handle/Reference equality"), HandleToReference == Reference);
 			TestTrue(TEXT("Reference/Handle equality"), Reference == HandleToReference);
 			TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 1);
 			TestTrue(TEXT("Reference hard refcount"), Reference->GetHardRefCount() == 1);
 
-			FWorldPartitionReference ReferenceToHandle = Handle;
+			FWorldPartitionReference ReferenceToHandle = Handle.ToReference();
 			TestTrue(TEXT("Handle/Reference equality"), ReferenceToHandle == Handle);
 			TestTrue(TEXT("Handle/Reference equality"), Handle == ReferenceToHandle);
 			TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 1);
@@ -85,7 +85,7 @@ namespace WorldPartitionTests
 		// inplace new test
 		{
 			uint8 Buffer[sizeof(FWorldPartitionHandle)];
-			FWorldPartitionHandle* HandlePtr = new (Buffer) FWorldPartitionHandle(Reference);
+			FWorldPartitionHandle* HandlePtr = new (Buffer) FWorldPartitionHandle(Reference.ToHandle());
 
 			TestTrue(TEXT("Handle array soft refcount"), Reference->GetSoftRefCount() == 1);
 			TestTrue(TEXT("Handle array hard refcount"), Reference->GetHardRefCount() == 1);
@@ -104,7 +104,7 @@ namespace WorldPartitionTests
 			TestTrue(TEXT("Handle array soft refcount"), Handle->GetSoftRefCount() == 2);
 			TestTrue(TEXT("Handle array hard refcount"), Handle->GetHardRefCount() == 0);
 
-			FWorldPartitionReference ReferenceToHandle = Handle;
+			FWorldPartitionReference ReferenceToHandle = Handle.ToReference();
 			TestTrue(TEXT("Handle/Reference equality"), ReferenceToHandle == Handle);
 			TestTrue(TEXT("Handle/Reference equality"), Handle == ReferenceToHandle);
 			TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 2);
@@ -113,7 +113,7 @@ namespace WorldPartitionTests
 			TestTrue(TEXT("Handle array contains handle"), HandleList.Contains(Handle));
 			TestTrue(TEXT("Handle array contains reference"), HandleList.Contains(ReferenceToHandle));
 
-			HandleList.Add(Reference);
+			HandleList.Add(Reference.ToHandle());
 			
 			TestTrue(TEXT("Handle array contains reference"), HandleList.Contains(Reference));
 			TestTrue(TEXT("Handle array soft refcount"), Reference->GetSoftRefCount() == 1);
@@ -123,7 +123,7 @@ namespace WorldPartitionTests
 			TestTrue(TEXT("Handle array soft refcount"), Handle->GetSoftRefCount() == 1);
 			TestTrue(TEXT("Handle array hard refcount"), Handle->GetHardRefCount() == 1);
 
-			HandleList.Remove(Reference);
+			HandleList.Remove(Reference.ToHandle());
 			TestTrue(TEXT("Handle array soft refcount"), Reference->GetSoftRefCount() == 0);
 			TestTrue(TEXT("Handle array hard refcount"), Reference->GetHardRefCount() == 1);
 		}
@@ -141,17 +141,17 @@ namespace WorldPartitionTests
 			TestTrue(TEXT("Handle set soft refcount"), Handle->GetSoftRefCount() == 2);
 			TestTrue(TEXT("Handle set hard refcount"), Handle->GetHardRefCount() == 0);
 
-			FWorldPartitionReference ReferenceToHandle = Handle;
+			FWorldPartitionReference ReferenceToHandle = Handle.ToReference();
 			TestTrue(TEXT("Handle/Reference equality"), ReferenceToHandle == Handle);
 			TestTrue(TEXT("Handle/Reference equality"), Handle == ReferenceToHandle);
 			TestTrue(TEXT("Handle soft refcount"), Handle->GetSoftRefCount() == 2);
 			TestTrue(TEXT("Handle hard refcount"), Handle->GetHardRefCount() == 1);
 
 			TestTrue(TEXT("Handle set contains handle"), HandleSet.Contains(Handle));
-			TestTrue(TEXT("Handle set contains reference"), HandleSet.Contains(ReferenceToHandle));
+			TestTrue(TEXT("Handle set contains reference"), HandleSet.Contains(ReferenceToHandle.ToHandle()));
 
-			HandleSet.Add(Reference);
-			TestTrue(TEXT("Handle set contains reference"), HandleSet.Contains(Reference));
+			HandleSet.Add(Reference.ToHandle());
+			TestTrue(TEXT("Handle set contains reference"), HandleSet.Contains(Reference.ToHandle()));
 
 			TestTrue(TEXT("Reference soft refcount"), Reference->GetSoftRefCount() == 1);
 			TestTrue(TEXT("Reference hard refcount"), Reference->GetHardRefCount() == 1);

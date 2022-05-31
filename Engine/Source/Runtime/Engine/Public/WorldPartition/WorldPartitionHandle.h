@@ -9,13 +9,8 @@
 #if WITH_EDITOR
 class UActorDescContainer;
 class FWorldPartitionActorDesc;
-
-struct ENGINE_API FWorldPartitionHandleUtils
-{
-	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid);
-	static UActorDescContainer* GetActorDescContainer(TUniquePtr<FWorldPartitionActorDesc>* ActorDesc);
-	static bool IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc);
-};
+struct FWorldPartitionHandleImpl;
+struct FWorldPartitionReferenceImpl;
 
 class ENGINE_API FWorldPartitionLoadingContext
 {
@@ -86,7 +81,7 @@ public:
 	{}
 
 	FORCEINLINE TWorldPartitionHandle(TUniquePtr<FWorldPartitionActorDesc>* InActorDesc)
-		: Container(FWorldPartitionHandleUtils::GetActorDescContainer(InActorDesc))
+		: Container(Impl::GetActorDescContainer(InActorDesc))
 		, ActorDesc(InActorDesc)
 	{
 		if (IsValid())
@@ -97,7 +92,7 @@ public:
 
 	FORCEINLINE TWorldPartitionHandle(UActorDescContainer* Container, const FGuid& ActorGuid)
 		: Container(Container)
-		, ActorDesc(FWorldPartitionHandleUtils::GetActorDesc(Container, ActorGuid))
+		, ActorDesc(Impl::GetActorDesc(Container, ActorGuid))
 	{
 		if (IsValid())
 		{
@@ -119,12 +114,14 @@ public:
 		*this = MoveTemp(Other);
 	}
 
-	// Conversions
-	template <typename T>
-	FORCEINLINE TWorldPartitionHandle<Impl>(const TWorldPartitionHandle<T>& Other)
-		: ActorDesc(nullptr)
+	FORCEINLINE TWorldPartitionHandle<FWorldPartitionHandleImpl> ToHandle() const
 	{
-		*this = Other;
+		return Impl::ToHandle(*this);
+	}
+
+	FORCEINLINE TWorldPartitionHandle<FWorldPartitionReferenceImpl> ToReference() const
+	{
+		return Impl::ToReference(*this);
 	}
 
 	template <typename T>
@@ -242,7 +239,7 @@ public:
 
 	FORCEINLINE bool IsLoaded() const
 	{
-		return IsValid() && FWorldPartitionHandleUtils::IsActorDescLoaded(ActorDesc->Get());
+		return IsValid() && Impl::IsActorDescLoaded(ActorDesc->Get());
 	}
 
 	FORCEINLINE FWorldPartitionActorDesc* Get() const
@@ -299,16 +296,25 @@ public:
 	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc;
 };
 
-struct ENGINE_API FWorldPartitionHandleImpl
+struct ENGINE_API FWorldPartitionImplBase
 {
-	static void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
-	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
+	static TUniquePtr<FWorldPartitionActorDesc>* GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid);
+	static UActorDescContainer* GetActorDescContainer(TUniquePtr<FWorldPartitionActorDesc>* ActorDesc);
+	static bool IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc);
 };
 
-struct ENGINE_API FWorldPartitionReferenceImpl
+struct ENGINE_API FWorldPartitionHandleImpl : FWorldPartitionImplBase
 {
 	static void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
 	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
+	static TWorldPartitionHandle<FWorldPartitionReferenceImpl> ToReference(const TWorldPartitionHandle<FWorldPartitionHandleImpl>& Source);
+};
+
+struct ENGINE_API FWorldPartitionReferenceImpl : FWorldPartitionImplBase
+{
+	static void IncRefCount(FWorldPartitionActorDesc* ActorDesc);
+	static void DecRefCount(FWorldPartitionActorDesc* ActorDesc);
+	static TWorldPartitionHandle<FWorldPartitionHandleImpl> ToHandle(const TWorldPartitionHandle<FWorldPartitionReferenceImpl>& Source);
 };
 
 /**
@@ -331,13 +337,20 @@ typedef TWorldPartitionHandle<FWorldPartitionReferenceImpl> FWorldPartitionRefer
  */
 struct FWorldPartitionHandlePinRefScope
 {
-	FWorldPartitionHandlePinRefScope(const FWorldPartitionHandle& Handle)
+	FWorldPartitionHandlePinRefScope(const FWorldPartitionHandle& InHandle)
 	{
-		if (Handle.IsLoaded())
+		if (InHandle.IsLoaded())
 		{
-			Reference = Handle;
+			Reference = InHandle;
 		}
 	}
+
+	FWorldPartitionHandlePinRefScope(const FWorldPartitionReference& InReference)
+	{
+		Reference = InReference;
+	}
+
+private:
 	FWorldPartitionReference Reference;
 };
 #endif

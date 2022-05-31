@@ -141,7 +141,7 @@ TArray<AWorldPartitionHLOD*> FWorldPartitionHLODUtilities::CreateHLODActors(FHLO
 		FWorldPartitionHandle HLODActorHandle;
 		if (InCreationContext.HLODActorDescs.RemoveAndCopyValue(CellHash, HLODActorHandle))
 		{
-			InCreationContext.ActorReferences.Add(HLODActorHandle);
+			InCreationContext.ActorReferences.Add(HLODActorHandle.ToReference());
 			HLODActor = CastChecked<AWorldPartitionHLOD>(HLODActorHandle->GetActor());
 		}
 

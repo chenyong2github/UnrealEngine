@@ -9,7 +9,7 @@
 class ENGINE_API FActorDescList
 {
 #if WITH_EDITOR
-	friend struct FWorldPartitionHandleUtils;
+	friend struct FWorldPartitionImplBase;
 
 public:
 	FActorDescList() {}

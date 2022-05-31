@@ -6,9 +6,9 @@
 
 #if WITH_EDITOR
 /**
-* FWorldPartitionHandleUtils
+* FWorldPartitionImplBase
 */
-TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleUtils::GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid)
+TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionImplBase::GetActorDesc(UActorDescContainer* Container, const FGuid& ActorGuid)
 {
 	if (TUniquePtr<FWorldPartitionActorDesc>** ActorDescPtr = Container->ActorsByGuid.Find(ActorGuid))
 	{
@@ -18,12 +18,12 @@ TUniquePtr<FWorldPartitionActorDesc>* FWorldPartitionHandleUtils::GetActorDesc(U
 	return nullptr;
 }
 
-UActorDescContainer* FWorldPartitionHandleUtils::GetActorDescContainer(TUniquePtr<FWorldPartitionActorDesc>* ActorDesc)
+UActorDescContainer* FWorldPartitionImplBase::GetActorDescContainer(TUniquePtr<FWorldPartitionActorDesc>* ActorDesc)
 {
 	return ActorDesc ? ActorDesc->Get()->GetContainer() : nullptr;
 }
 
-bool FWorldPartitionHandleUtils::IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc)
+bool FWorldPartitionImplBase::IsActorDescLoaded(FWorldPartitionActorDesc* ActorDesc)
 {
 	return ActorDesc->IsLoaded();
 }
@@ -100,7 +100,7 @@ void FWorldPartitionLoadingContext::FImmediate::UnregisterActor(FWorldPartitionA
 */
 FWorldPartitionLoadingContext::FDeferred::~FDeferred()
 {
-	for (auto [Container, ContainerOp] : ContainerOps)
+	for (auto& [Container, ContainerOp] : ContainerOps)
 	{
 		const FTransform& ContainerTransform = Container->GetInstanceTransform();
 		const FTransform* ContainerTransformPtr = ContainerTransform.Equals(FTransform::Identity) ? nullptr : &ContainerTransform;
@@ -192,6 +192,13 @@ void FWorldPartitionHandleImpl::DecRefCount(FWorldPartitionActorDesc* ActorDesc)
 	ActorDesc->DecSoftRefCount();
 }
 
+TWorldPartitionHandle<FWorldPartitionReferenceImpl> FWorldPartitionHandleImpl::ToReference(const TWorldPartitionHandle<FWorldPartitionHandleImpl>& Source)
+{
+	TWorldPartitionHandle<FWorldPartitionReferenceImpl> Result;
+	Result = Source;
+	return Result;
+}
+
 /**
 * FWorldPartitionReferenceImpl
 */
@@ -209,5 +216,12 @@ void FWorldPartitionReferenceImpl::DecRefCount(FWorldPartitionActorDesc* ActorDe
 	{
 		FWorldPartitionLoadingContext::UnloadAndUnregisterActor(ActorDesc);
 	}
+}
+
+TWorldPartitionHandle<FWorldPartitionHandleImpl> FWorldPartitionReferenceImpl::ToHandle(const TWorldPartitionHandle<FWorldPartitionReferenceImpl>& Source)
+{
+	TWorldPartitionHandle<FWorldPartitionHandleImpl> Result;
+	Result = Source;
+	return Result;
 }
 #endif
