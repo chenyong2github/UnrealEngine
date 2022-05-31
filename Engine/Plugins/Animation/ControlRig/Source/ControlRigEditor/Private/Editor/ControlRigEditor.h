@@ -39,14 +39,14 @@ enum class EControlRigEditorEventQueue : uint8
 	/** Setup Event */
 	Setup,
 
-	/** Update Event */
-	Update,
+	/** Forwards Solve Event */
+	ForwardsSolve,
 
-	/** Inverse Event */
-	Inverse,
+	/** Backwards Solve Event */
+	BackwardsSolve,
 
-	/** Inverse -> Update */
-	InverseAndUpdate,
+	/** Backwards Solve Event -> Forwards Solve Event */
+	BackwardsAndForwardsSolve,
 
 	/** MAX - invalid */
 	Max UMETA(Hidden),

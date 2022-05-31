@@ -33,14 +33,14 @@ public:
 	/** Enable the setup mode for the rig */
 	TSharedPtr< FUICommandInfo > SetupEvent;
 
-	/** Run the normal update graph */
-	TSharedPtr< FUICommandInfo > UpdateEvent;
+	/** Run the forwards solve graph */
+	TSharedPtr< FUICommandInfo > ForwardsSolveEvent;
 
-	/** Run the inverse graph */
-	TSharedPtr< FUICommandInfo > InverseEvent;
+	/** Run the backwards solve graph */
+	TSharedPtr< FUICommandInfo > BackwardsSolveEvent;
 
-	/** Run the inverse graph followed by the update graph */
-	TSharedPtr< FUICommandInfo > InverseAndUpdateEvent;
+	/** Run the backwards solve graph followed by the forwards solve graph */
+	TSharedPtr< FUICommandInfo > BackwardsAndForwardsSolveEvent;
 
 	/** Toggle between Release and Debug execution mode */
 	TSharedPtr< FUICommandInfo > ToggleExecutionMode;

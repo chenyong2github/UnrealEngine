@@ -1597,6 +1597,25 @@ void UControlRig::PostLoad()
 		VMSnapshotBeforeExecution->SetFlags(VMSnapshotBeforeExecution->GetFlags() | RF_Transient);
 	}
 #endif
+
+	FRigInfluenceMapPerEvent NewInfluences;
+	for(int32 MapIndex = 0; MapIndex < Influences.Num(); MapIndex++)
+	{
+		FRigInfluenceMap Map = Influences[MapIndex];
+		FName EventName = Map.GetEventName();
+
+		if(EventName == TEXT("Update"))
+		{
+			EventName = FRigUnit_BeginExecution::EventName;
+		}
+		else if(EventName == TEXT("Inverse"))
+		{
+			EventName = FRigUnit_InverseExecution::EventName;
+		}
+		
+		NewInfluences.FindOrAdd(EventName).Merge(Map, true);
+	}
+	Influences = NewInfluences;
 }
 
 TArray<FRigControlElement*> UControlRig::AvailableControls() const

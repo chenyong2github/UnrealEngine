@@ -1791,12 +1791,12 @@ bool UControlRigComponent::EnsureCalledOutsideOfBracket(const TCHAR* InCallingFu
 		{
 			if (InCallingFunctionName)
 			{
-				ReportError(FString::Printf(TEXT("%s cannot be called during the UpdateEvent - use ConstructionScript instead."), InCallingFunctionName));
+				ReportError(FString::Printf(TEXT("%s cannot be called during the ForwardsSolveEvent - use ConstructionScript instead."), InCallingFunctionName));
 				return false;
 			}
 			else
 			{
-				ReportError(FString::Printf(TEXT("Cannot be called during the UpdateEvent - use ConstructionScript instead."), InCallingFunctionName));
+				ReportError(FString::Printf(TEXT("Cannot be called during the ForwardsSolveEvent - use ConstructionScript instead."), InCallingFunctionName));
 				return false;
 			}
 		}

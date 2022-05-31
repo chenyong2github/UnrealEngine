@@ -3,7 +3,7 @@
 #include "RigUnit_BeginExecution.h"
 #include "Units/RigUnitContext.h"
 
-FName FRigUnit_BeginExecution::EventName = TEXT("Update");
+FName FRigUnit_BeginExecution::EventName = TEXT("Forwards Solve");
 
 FRigUnit_BeginExecution_Execute()
 {

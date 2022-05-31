@@ -156,6 +156,8 @@ public:
 
 protected:
 
+	bool Merge(const FRigInfluenceMap& Other, bool bIgnoreEventName);
+
 	UPROPERTY()
 	FName EventName;
 
@@ -166,6 +168,7 @@ protected:
 	TMap<FRigElementKey, int32> KeyToIndex;
 
 	friend struct FRigInfluenceMapPerEvent;
+	friend class UControlRig;
 };
 
 USTRUCT(BlueprintType)

@@ -3,7 +3,7 @@
 #include "RigUnit_InverseExecution.h"
 #include "Units/RigUnitContext.h"
 
-FName FRigUnit_InverseExecution::EventName = TEXT("Inverse");
+FName FRigUnit_InverseExecution::EventName = TEXT("Backwards Solve");
 
 FRigUnit_InverseExecution_Execute()
 {

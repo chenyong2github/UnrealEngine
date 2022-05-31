@@ -106,10 +106,9 @@ public:
 				FContentRootBracket Bracket(this, EngineEditorSlateDir);
 				Set("ControlRig.SetupMode", new IMAGE_BRUSH_SVG("Starship/Common/Adjust", Icon40x40));
 				Set("ControlRig.SetupMode.Small", new IMAGE_BRUSH_SVG("Starship/Common/Adjust", Icon20x20));
-				Set("ControlRig.UpdateEvent", new IMAGE_BRUSH("Icons/diff_next_40x", Icon40x40));
-				Set("ControlRig.InverseEvent", new IMAGE_BRUSH("Icons/diff_prev_40x", Icon40x40));
-				Set("ControlRig.UpdateAndInverse", new IMAGE_BRUSH("Icons/Loop_40x", Icon40x40));
-				Set("ControlRig.InverseAndUpdate", new IMAGE_BRUSH("Icons/Loop_40x", Icon40x40));
+				Set("ControlRig.ForwardsSolveEvent", new IMAGE_BRUSH("Icons/diff_next_40x", Icon40x40));
+				Set("ControlRig.BackwardsSolveEvent", new IMAGE_BRUSH("Icons/diff_prev_40x", Icon40x40));
+				Set("ControlRig.BackwardsAndForwardsSolveEvent", new IMAGE_BRUSH("Icons/Loop_40x", Icon40x40));
 			}
 
 			Set("ControlRig.Bug.Dot", new IMAGE_BRUSH("Slate/ControlRig_BugDot_32x", Icon16x16));
