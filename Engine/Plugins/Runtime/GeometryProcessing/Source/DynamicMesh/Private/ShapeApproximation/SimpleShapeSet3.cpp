@@ -219,37 +219,34 @@ static void FilterContained(const FSimpleShapeSet3d& Geometry, const FConvexShap
 
 static void FilterContained(const FSimpleShapeSet3d& Geometry, FLevelSetShape3d& LevelSetShape, const TArray<FSimpleShapeElementKey>& Elements, int32 k, TArray<bool>& RemovedInOut)
 {
-	FOrientedBox3d GridBox = LevelSetShape.GetGridBox();
+	TTriLinearGridInterpolant<FDenseGrid3f> GridInterp(&LevelSetShape.Grid, FVector3d::ZeroVector, LevelSetShape.CellSize, LevelSetShape.Grid.GetDimensions());
 
 	int32 N = Elements.Num();
 	for (int32 j = k + 1; j < N; ++j)
 	{
 		if (RemovedInOut[j] == false)
 		{
-			// TODO: use the full GridTransform, not just translation. JIRA UE-155269
-			TTriLinearGridInterpolant<FDenseGrid3f> GridInterp(&LevelSetShape.Grid, LevelSetShape.GridTransform.GetTranslation(), LevelSetShape.CellSize, LevelSetShape.Grid.GetDimensions());
-
 			bool bContained = false;
 			int32 ElemIdx = Elements[j].Index;
 			if (Elements[j].Type == ESimpleShapeType::Sphere)
 			{
-				bContained = UE::Geometry::IsInside(GridInterp, Geometry.Spheres[ElemIdx].Sphere);
+				bContained = UE::Geometry::IsInside(GridInterp, LevelSetShape.GridTransform, Geometry.Spheres[ElemIdx].Sphere);
 			}
 			else if (Elements[j].Type == ESimpleShapeType::Box)
 			{
-				bContained = UE::Geometry::IsInside(GridInterp, Geometry.Boxes[ElemIdx].Box);
+				bContained = UE::Geometry::IsInside(GridInterp, LevelSetShape.GridTransform, Geometry.Boxes[ElemIdx].Box);
 			}
 			else if (Elements[j].Type == ESimpleShapeType::Capsule)
 			{
-				bContained = UE::Geometry::IsInside(GridInterp, Geometry.Capsules[ElemIdx].Capsule);
+				bContained = UE::Geometry::IsInside(GridInterp, LevelSetShape.GridTransform, Geometry.Capsules[ElemIdx].Capsule);
 			}
 			else if (Elements[j].Type == ESimpleShapeType::Convex)
 			{
-				bContained = UE::Geometry::IsInside<double>(GridInterp, Geometry.Convexes[ElemIdx].Mesh.VerticesItr());
+				bContained = UE::Geometry::IsInside<double>(GridInterp, LevelSetShape.GridTransform, Geometry.Convexes[ElemIdx].Mesh.VerticesItr());
 			}
 			else if (Elements[j].Type == ESimpleShapeType::LevelSet)
 			{
-				bContained = UE::Geometry::IsInside(GridInterp, Geometry.LevelSets[ElemIdx].GetGridBox());
+				bContained = UE::Geometry::IsInside(GridInterp, LevelSetShape.GridTransform, Geometry.LevelSets[ElemIdx].GetGridBox());
 			}
 			else
 			{
