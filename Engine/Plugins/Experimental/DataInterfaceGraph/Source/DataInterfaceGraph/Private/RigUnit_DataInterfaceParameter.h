@@ -55,6 +55,10 @@ struct FDataInterfaceParameter
 {
 	GENERATED_BODY()
 
+	FDataInterfaceParameter()
+	: Name(NAME_None)
+	{}
+
 	UPROPERTY(EditAnywhere, Category = "Data Interface")
 	FName Name;
 };
@@ -63,6 +67,11 @@ USTRUCT(BlueprintType)
 struct FDataInterfaceParameter_Float
 {
 	GENERATED_BODY()
+	
+	FDataInterfaceParameter_Float()
+		: Name(NAME_None)
+		, Value(0.f)
+	{}
 
 	UPROPERTY(EditAnywhere, Category = "Data Interface")
 	FName Name;
@@ -76,6 +85,11 @@ struct FDataInterfaceParameter_Int
 {
 	GENERATED_BODY()
 
+	FDataInterfaceParameter_Int()
+		: Name(NAME_None)
+		, Value(0)
+	{}
+
 	UPROPERTY(EditAnywhere, Category = "Data Interface")
 	FName Name;
 
@@ -88,6 +102,11 @@ struct FDataInterfaceParameter_Bool
 {
 	GENERATED_BODY()
 
+	FDataInterfaceParameter_Bool()
+		: Name(NAME_None)
+		, bValue(false)
+	{}
+
 	UPROPERTY(EditAnywhere, Category = "Data Interface")
 	FName Name;
 
@@ -99,6 +118,11 @@ USTRUCT(BlueprintType)
 struct FDataInterfaceParameters1
 {
 	GENERATED_BODY()
+
+	FDataInterfaceParameters1()
+		: Param0()
+		, FloatParam(0.f)
+	{}
 
 	UPROPERTY(EditAnywhere, Category = "Data Interface")
 	FDataInterfaceParameter_Int Param0;
@@ -170,6 +194,12 @@ USTRUCT(meta=(DisplayName="Float Operator"))
 struct FRigUnit_FloatOperator : public FRigUnit
 {
 	GENERATED_BODY()
+	
+	FRigUnit_FloatOperator()
+		: ParamA(0.f)
+		, ParamB(0.f)
+		, Result(0.f)
+	{}
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;

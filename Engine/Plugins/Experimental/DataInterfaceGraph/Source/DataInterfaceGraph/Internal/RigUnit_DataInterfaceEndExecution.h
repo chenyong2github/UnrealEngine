@@ -35,6 +35,10 @@ struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution_Bool : public F
 {
 	GENERATED_BODY()
 	
+	FRigUnit_DataInterfaceEndExecution_Bool()
+		: Result(false)
+	{}
+	
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 	
@@ -47,7 +51,11 @@ USTRUCT(meta=(DisplayName="End Execute Data Interface Float"))
 struct DATAINTERFACEGRAPH_API FRigUnit_DataInterfaceEndExecution_Float : public FRigUnit_DataInterfaceEndExecution
 {
 	GENERATED_BODY()
-	
+
+	FRigUnit_DataInterfaceEndExecution_Float()
+	: Result(0.f)
+	{}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
