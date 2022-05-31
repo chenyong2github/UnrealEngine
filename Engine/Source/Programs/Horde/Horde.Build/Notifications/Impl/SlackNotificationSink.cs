@@ -1134,7 +1134,7 @@ namespace Horde.Build.Notifications.Impl
 				return user.Login;
 			}
 
-			if (!_environment.IsProduction() && allowMentions)
+			if (!_environment.IsProduction() || !allowMentions)
 			{
 				return $"{user.Name} [{slackUserId}]";
 			}
