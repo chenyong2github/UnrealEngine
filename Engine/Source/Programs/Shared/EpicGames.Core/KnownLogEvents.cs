@@ -101,6 +101,11 @@ namespace EpicGames.Core
 		public static EventId AutomationTool_MissingCopyright { get; } = new EventId(404);
 
 		/// <summary>
+		/// UAT: Mismatched Perforce case
+		/// </summary>
+		public static EventId AutomationTool_PerforceCase { get; } = new EventId(405);
+
+		/// <summary>
 		/// MSBuild: Generic error
 		/// </summary>
 		public static EventId MSBuild { get; } = new EventId(500);

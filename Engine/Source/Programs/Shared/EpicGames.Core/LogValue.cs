@@ -24,6 +24,7 @@ namespace EpicGames.Core
 		public static readonly Utf8String ErrorCode = "ErrorCode";
 		public static readonly Utf8String ToolName = "ToolName";
 		public static readonly Utf8String ScreenshotTest = "ScreenshotTest";
+		public static readonly Utf8String DepotPath = "DepotPath";
 	}
 
 	/// <summary>
