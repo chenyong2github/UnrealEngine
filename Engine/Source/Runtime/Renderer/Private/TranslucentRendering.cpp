@@ -19,6 +19,8 @@
 #include "PixelShaderUtils.h"
 #include "OIT/OIT.h"
 #include "OIT/OITParameters.h"
+#include "DynamicResolutionState.h"
+#include "TemporalAA.h"
 
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQueryFence Wait"), STAT_TranslucencyTimestampQueryFence_Wait, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQuery Wait"), STAT_TranslucencyTimestampQuery_Wait, STATGROUP_SceneRendering);
@@ -32,6 +34,13 @@ static TAutoConsoleVariable<float> CVarSeparateTranslucencyScreenPercentage(
 	TEXT("Render separate translucency at this percentage of the full resolution.\n")
 	TEXT("in percent, >0 and <=100, larger numbers are possible (supersampling).")
 	TEXT("<0 is treated like 100."),
+	ECVF_Scalability | ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarTranslucencyScreenPercentageBasis(
+	TEXT("r.Translucency.ScreenPercentage.Basis"), 0,
+	TEXT("Basis of the translucency's screen percentage (Experimental).\n")
+	TEXT(" 0: Uses the primary view's resolution (notably scaling with r.ScreenPercentage and r.DynamicRes.*)\n")
+	TEXT(" 1: Uses the secondary view's resolution (temporal upscale's output resolution)"),
 	ECVF_Scalability | ECVF_Default);
 
 static TAutoConsoleVariable<float> CVarTranslucencyMinScreenPercentage(
@@ -82,7 +91,7 @@ DynamicRenderScaling::FHeuristicSettings GetDynamicTranslucencyResolutionSetting
 {
 	DynamicRenderScaling::FHeuristicSettings BucketSetting;
 	BucketSetting.Model = DynamicRenderScaling::EHeuristicModel::Quadratic;
-	BucketSetting.bModelScalesWithPrimaryScreenPercentage = true;
+	BucketSetting.bModelScalesWithPrimaryScreenPercentage = CVarTranslucencyScreenPercentageBasis.GetValueOnAnyThread() != 1;
 	BucketSetting.MinResolutionFraction = DynamicRenderScaling::GetPercentageCVarToFraction(CVarTranslucencyMinScreenPercentage);
 	BucketSetting.BudgetMs              = CVarTranslucencyTimeBudget.GetValueOnAnyThread();
 	BucketSetting.ChangeThreshold       = DynamicRenderScaling::GetPercentageCVarToFraction(CVarTranslucencyChangeThreshold);
@@ -227,6 +236,12 @@ FSeparateTranslucencyDimensions UpdateSeparateTranslucencyDimensions(const FView
 	{
 		TranslucencyResolutionFraction = ActiveViewFamily.DynamicResolutionFractions[GDynamicTranslucencyResolution];
 		MaxTranslucencyResolutionFraction = ActiveViewFamily.DynamicResolutionUpperBounds[GDynamicTranslucencyResolution];
+	}
+
+	if (CVarTranslucencyScreenPercentageBasis.GetValueOnRenderThread() == 1)
+	{
+		TranslucencyResolutionFraction /= ActiveViewFamily.DynamicResolutionFractions[GDynamicPrimaryResolutionFraction];
+		MaxTranslucencyResolutionFraction /= ActiveViewFamily.DynamicResolutionUpperBounds[GDynamicPrimaryResolutionFraction];
 	}
 
 	FSeparateTranslucencyDimensions Dimensions;
@@ -1207,7 +1222,6 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 		return;
 	}
 
-	RDG_EVENT_SCOPE(GraphBuilder, "%s", TranslucencyPassToString(TranslucencyPass));
 	RDG_WAIT_FOR_TASKS_CONDITIONAL(GraphBuilder, IsTranslucencyWaitForTasksEnabled());
 
 	const bool bIsModulate = TranslucencyPass == ETranslucencyPass::TPT_TranslucencyAfterDOFModulate;
@@ -1413,7 +1427,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 
 	// Create a shared depth texture at the correct resolution.
 	FRDGTextureMSAA SharedDepthTexture;
-	const bool bIsScalingTranslucency = SeparateTranslucencyDimensions.Scale < 1.0f;
+	const bool bIsScalingTranslucency = SeparateTranslucencyDimensions.Scale != 1.0f;
 	if (bIsScalingTranslucency)
 	{
 		const FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
@@ -1510,7 +1524,7 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(
 		}
 
 		FTranslucencyPassResources& TranslucencyPassResources = OutTranslucencyResourceMap->Get(ViewIndex, ETranslucencyPass::TPT_TranslucencyAfterDOF);
-		if (SharedUpscaledPostDOFTranslucencyColor && TranslucencyPassResources.IsValid() && TranslucencyPassResources.ViewRect.Size() != View.ViewRect.Size())
+		if (SharedUpscaledPostDOFTranslucencyColor && TranslucencyPassResources.IsValid() && TranslucencyPassResources.ViewRect.Size() != View.ViewRect.Size() && ITemporalUpscaler::GetMainTAAPassConfig(View) != EMainTAAPassConfig::TSR)
 		{
 			FTranslucencyComposition TranslucencyComposition;
 			TranslucencyComposition.Operation = FTranslucencyComposition::EOperation::UpscaleOnly;
