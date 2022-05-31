@@ -14,13 +14,14 @@ namespace AutomationUtils.Matchers
 	/// </summary>
 	class ContentEventMatcher : ILogEventMatcher
 	{
-		const string Pattern = 
-			@"^\s*" + 
+		static readonly Regex s_pattern = new Regex(
+			@"^\s*" +
+			@"(?:\[[\d\.\-: ]+\])*" +
 			@"(?<channel>[a-zA-Z0-9]+):\s+" + 
 			@"(?<severity>Error:|Warning:)\s+" + 
 			@"(?:\[AssetLog\] )?" + 
 			@"(?<asset>(?:[a-zA-Z]:)?[^:]+(?:.uasset|.umap)):\s*" + 
-			@"(?<message>.*)";
+			@"(?<message>.*)");
 
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor input)
@@ -29,8 +30,8 @@ namespace AutomationUtils.Matchers
 			// produce many false positives, making them very slow to execute.
 			if (input.IsMatch("Error:|Warning:"))
 			{
-				Match? match;
-				if(input.TryMatch(Pattern, out match))
+				Match? match = s_pattern.Match(input.CurrentLine!);
+				if (match.Success)
 				{
 					LogEventBuilder builder = new LogEventBuilder(input);
 

@@ -13,8 +13,9 @@ namespace AutomationUtils.Matchers
 	/// </summary>
 	class LocalizationEventMatcher : ILogEventMatcher
 	{
-		readonly Regex s_pattern = new Regex(
+		static readonly Regex s_pattern = new Regex(
 			@"^(\s*)" +
+			@"(?:\[[\d\.\-: ]+\])*" +
 			@"(?<channel>LogLocTextHelper|LogGatherTextFromSourceCommandlet):\s*" +
 			@"(?<severity>Error|Warning|Display):\s+" +
 			@"(?<file>([a-zA-Z]:)?[^:/\\]*[/\\][^:]+[^\)])" +

@@ -762,7 +762,7 @@ namespace Horde.Agent.Tests
 		{
 			string[] lines =
 			{
-				@"LogLocTextHelper: Warning: Source/Runtime/Engine/Private/StaticMesh.cpp(5649): Text conflict from LOCTEXT macro for namespace"
+				@"[2022.05.31-04.25.40:235][  0]LogGatherTextFromSourceCommandlet: Warning: Plugins/Enterprise/VariantManager/Source/VariantManager/Private/SVariantManager.cpp(3717): LOCTEXT macro has an empty identifier and cannot be gathered."
 			};
 
 			{
@@ -771,10 +771,10 @@ namespace Horde.Agent.Tests
 				CheckEventGroup(logEvents, 0, 1, LogLevel.Warning, KnownLogEvents.Engine_Localization);
 
 				LogEvent logEvent = logEvents[0];
-				Assert.AreEqual("LogLocTextHelper", logEvent.GetProperty("channel").ToString());
+				Assert.AreEqual("LogGatherTextFromSourceCommandlet", logEvent.GetProperty("channel").ToString());
 				Assert.AreEqual("Warning", logEvent.GetProperty("severity").ToString());
-				Assert.AreEqual("Engine/Source/Runtime/Engine/Private/StaticMesh.cpp", logEvent.GetProperty<LogValue>("file")!.Properties!["relativePath"].ToString());
-				Assert.AreEqual("5649", logEvent.GetProperty("line").ToString());
+				Assert.AreEqual("Engine/Plugins/Enterprise/VariantManager/Source/VariantManager/Private/SVariantManager.cpp", logEvent.GetProperty<LogValue>("file")!.Properties!["relativePath"].ToString());
+				Assert.AreEqual("3717", logEvent.GetProperty("line").ToString());
 			}
 		}
 

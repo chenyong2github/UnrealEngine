@@ -13,11 +13,18 @@ namespace AutomationUtils.Matchers
 	/// </summary>
 	class LogChannelEventMatcher : ILogEventMatcher
 	{
+		readonly static Regex s_pattern = new Regex(
+			@"^(\s*)" +
+			@"(?:\[[\d\.\-: ]+\])*" +
+			@"(?<channel>[a-zA-Z_][a-zA-Z0-9_]*):\s*" +
+			@"(?<severity>Error|Warning|Display): "
+		);
+
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor input)
 		{
-			Match? match;
-			if(input.TryMatch(@"^(\s*)(?<channel>[a-zA-Z_][a-zA-Z0-9_]*):\s*(?<severity>Error|Warning|Display): ", out match))
+			Match? match = s_pattern.Match(input.CurrentLine!);
+			if (match.Success)
 			{
 				LogEventBuilder builder = new LogEventBuilder(input);
 				builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
