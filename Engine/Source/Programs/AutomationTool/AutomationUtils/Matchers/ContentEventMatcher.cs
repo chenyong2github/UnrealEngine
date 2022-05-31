@@ -14,6 +14,8 @@ namespace AutomationUtils.Matchers
 	/// </summary>
 	class ContentEventMatcher : ILogEventMatcher
 	{
+		static readonly Regex s_errorWarningPattern = new Regex("Error:|Warning:");
+
 		static readonly Regex s_pattern = new Regex(
 			@"^\s*" +
 			@"(?:\[[\d\.\-: ]+\])*" +
@@ -28,7 +30,7 @@ namespace AutomationUtils.Matchers
 		{
 			// Do the match in two phases so we can early out if the strings "error" or "warning" are not present. The patterns before these strings can
 			// produce many false positives, making them very slow to execute.
-			if (input.IsMatch("Error:|Warning:"))
+			if (input.IsMatch(s_errorWarningPattern))
 			{
 				Match? match = s_pattern.Match(input.CurrentLine!);
 				if (match.Success)

@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 #nullable enable
 
@@ -12,24 +13,15 @@ namespace AutomationUtils.Matchers
 	/// </summary>
 	class ExitCodeEventMatcher : ILogEventMatcher
 	{
+		static readonly Regex s_pattern = new Regex(
+			@"Editor terminated with exit code [1-9]|AutomationTool exiting with ExitCode=[1-9]|BUILD FAILED|(Error executing.+)(tool returned code)(.+)");
+
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			int numLines = 0;
 			for (; ; )
 			{
-				if (cursor.IsMatch(numLines, "Editor terminated with exit code [1-9]"))
-				{
-					numLines++;
-				}
-				else if (cursor.IsMatch(numLines, "AutomationTool exiting with ExitCode=[1-9]"))
-				{
-					numLines++;
-				}
-				else if (cursor.IsMatch(numLines, "BUILD FAILED"))
-				{
-					numLines++;
-				}
-				else if (cursor.IsMatch(numLines, "(Error executing.+)(tool returned code)(.+)"))
+				if (cursor.IsMatch(numLines, s_pattern))
 				{
 					numLines++;
 				}

@@ -14,15 +14,24 @@ namespace AutomationUtils.Matchers
 	/// </summary>
 	class GenericEventMatcher : ILogEventMatcher
 	{
+		static readonly Regex s_fatalPattern = new Regex(
+			@"^\s*(FATAL|fatal error):");
+
+		static readonly Regex s_warningErrorPattern = new Regex(
+			@"(?<!\w)(?i)(WARNING|ERROR) ?(\([^)]+\)|\[[^\]]+\])?: ");
+
+		static readonly Regex s_errorPattern = new Regex(
+			@"[Ee]rror [A-Z]\d+\s:");
+
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			Match? match;
-			if (cursor.TryMatch(@"^\s*(FATAL|fatal error):", out _))
+			if (cursor.TryMatch(s_fatalPattern, out _))
 			{
 				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.Low, LogLevel.Error, KnownLogEvents.Generic);
 			}
-			if (cursor.TryMatch(@"(?<!\w)(?i)(WARNING|ERROR) ?(\([^)]+\)|\[[^\]]+\])?: ", out match))
+			if (cursor.TryMatch(s_warningErrorPattern, out match))
 			{
 				// Careful to match the first WARNING or ERROR in the line here.
 				LogLevel level = LogLevel.Error;
@@ -31,28 +40,18 @@ namespace AutomationUtils.Matchers
 					level = LogLevel.Warning;
 				}
 
-				LogEventBuilder builder = new LogEventBuilder(cursor);
-				while (builder.Current.IsMatch(1, String.Format(@"^({0} | *$)", ExtractIndent(cursor[0]!))))
+				LogEventBuilder builder = new LogEventBuilder(cursor.Hanging());
+				while (builder.Next.CurrentLine != null)
 				{
 					builder.MoveNext();
 				}
 				return builder.ToMatch(LogEventPriority.Lowest, level, KnownLogEvents.Generic);
 			}
-			if (cursor.IsMatch(@"[Ee]rror [A-Z]\d+\s:"))
+			if (cursor.IsMatch(s_errorPattern))
 			{
 				return new LogEventBuilder(cursor).ToMatch(LogEventPriority.Lowest, LogLevel.Error, KnownLogEvents.Generic);
 			}
 			return null;
-		}
-
-		static string ExtractIndent(string line)
-		{
-			int length = 0;
-			while (length < line.Length && line[length] == ' ')
-			{
-				length++;
-			}
-			return new string(' ', length);
 		}
 	}
 }

@@ -11,21 +11,29 @@ namespace UnrealBuildTool.Matchers
 	/// </summary>
 	class MicrosoftEventMatcher : ILogEventMatcher
 	{
+		static readonly Regex s_warningCodePattern = new Regex(
+			@"(?<severity>(?:error|warning)) " +
+			@"(?<code>[a-zA-Z]+[0-9]+)\s*:");
+
+		static readonly Regex s_fileOrToolPattern = new Regex(@"^\s*(.*[^\s])\s*:");
+
+		static readonly Regex s_fileLinePattern = new Regex(@"^\s*(?<file>.*)\((?<line>\d+)(?:, (?<column>\d+))?\)\s*:$");
+
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			// filename(line# [, column#]) | toolname} : [ any text ] {error | warning} code+number:localizable string [ any text ]
 
 			Match? match;
-			if (cursor.TryMatch(@"(?<severity>(?:error|warning)) (?<code>[a-zA-Z]+[0-9]+)\s*:", out match))
+			if (cursor.TryMatch(s_warningCodePattern, out match))
 			{
 				string prefix = cursor.CurrentLine!.Substring(0, match.Index);
 
-				Match fileOrToolMatch = Regex.Match(prefix, @"^\s*(.*[^\s])\s*:");
+				Match fileOrToolMatch = s_fileOrToolPattern.Match(prefix);
 				if (fileOrToolMatch.Success)
 				{
 					LogEventBuilder builder = new LogEventBuilder(cursor);
 
-					Match fileMatch = Regex.Match(fileOrToolMatch.Value, @"^\s*(?<file>.*)\((?<line>\d+)(?:, (?<column>\d+))?\)\s*:$");
+					Match fileMatch = s_fileLinePattern.Match(fileOrToolMatch.Value);
 					if (fileMatch.Success)
 					{
 						builder.AnnotateSourceFile(fileMatch.Groups["file"], null);

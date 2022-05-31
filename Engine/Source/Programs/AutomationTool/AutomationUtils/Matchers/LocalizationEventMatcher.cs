@@ -22,24 +22,23 @@ namespace AutomationUtils.Matchers
 			@"(?:\((?<line>\d+)\))?" +
 			@":");
 
+		static readonly Regex s_indentPattern = new Regex(@"^\s+");
+
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor input)
 		{
 			Match? match = s_pattern.Match(input.CurrentLine!);
 			if (match.Success)
 			{
-				LogEventBuilder builder = new LogEventBuilder(input);
+				LogEventBuilder builder = new LogEventBuilder(input.Hanging());
 				builder.Annotate(match.Groups["channel"], LogEventMarkup.Channel);
 				builder.Annotate(match.Groups["severity"], LogEventMarkup.Severity);
 				builder.AnnotateSourceFile(match.Groups["file"], "Engine");
 				builder.Annotate(match.Groups["line"], LogEventMarkup.LineNumber);
 
-				if (builder.Next.TryMatch(@"^\s+", out Match? indent))
+				while (builder.Next.CurrentLine != null)
 				{
-					while (builder.Next.IsMatch($"^{indent.Value}"))
-					{
-						builder.MoveNext();
-					}
+					builder.MoveNext();
 				}
 
 				LogLevel level = match.Groups["severity"].Value switch

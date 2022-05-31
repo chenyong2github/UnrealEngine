@@ -12,16 +12,28 @@ namespace UnrealBuildTool.Matchers
 	/// </summary>
 	class LinkEventMatcher : ILogEventMatcher
 	{
+		static readonly Regex s_undefinedReferencePattern = new Regex(
+			@": undefined reference to |undefined symbol|^\s*(ld|ld.lld|(.*clang)):|^[^:]*[^a-zA-Z][a-z]?ld: |^\s*>>>");
+
+		static readonly Regex s_undefinedSymbolsForArchPattern = new Regex(
+			@"^(\s*)Undefined symbols for architecture");
+
+		static readonly Regex s_ldClangPattern = new Regex(
+			@"^\s*(ld|clang):");
+
+		static readonly Regex s_microsoftErrorPattern = new Regex(
+			@"error (?<code>LNK\d+):");
+
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
 			int lineCount = 0;
 			bool isError = false;
 			bool isWarning = false;
-			while (cursor.IsMatch(lineCount, @": undefined reference to |undefined symbol|^\s*(ld|ld.lld|(.*clang)):|^[^:]*[^a-zA-Z][a-z]?ld: |^\s*>>>"))
+			while (cursor.IsMatch(lineCount, s_undefinedReferencePattern))
 			{
-				isError |= cursor.IsMatch("error:");
-				isWarning |= cursor.IsMatch("warning:");
+				isError |= cursor.Contains("error:");
+				isWarning |= cursor.Contains("warning:");
 				lineCount++;
 			}
 			if (lineCount > 0)
@@ -36,15 +48,15 @@ namespace UnrealBuildTool.Matchers
 				}
 				for (; ; )
 				{
-					if (builder.Next.IsMatch("ld:"))
+					if (builder.Next.Contains("ld:"))
 					{
 						break;
 					}
-					else if (builder.Next.IsMatch("error:"))
+					else if (builder.Next.Contains("error:"))
 					{
 						isError = true;
 					}
-					else if (builder.Next.IsMatch("warning:"))
+					else if (builder.Next.Contains("warning:"))
 					{
 						isWarning = true;
 					}
@@ -63,34 +75,34 @@ namespace UnrealBuildTool.Matchers
 			}
 
 			Match? match;
-			if (cursor.TryMatch(@"^(\s*)Undefined symbols for architecture", out match))
+			if (cursor.TryMatch(s_undefinedSymbolsForArchPattern, out match))
 			{
 				LogEventBuilder builder = new LogEventBuilder(cursor);
 				AddSymbolMarkupForLine(builder);
 
 				string prefix = $"^(?<prefix>{match.Groups[1].Value}\\s+)";
-				while (builder.Next.TryMatch(prefix + @"""(?<symbol>[^""]+)""", out match))
+				while (builder.Next.TryMatch(new Regex(prefix + @"""(?<symbol>[^""]+)"""), out match))
 				{
 					string nextPrefix = $"^{match.Groups["prefix"].Value}\\s+";
 
 					builder.MoveNext();
 					builder.AnnotateSymbol(match.Groups["symbol"]);
 
-					while(builder.Next.TryMatch(nextPrefix + "(?<symbol>[^ ].*) in ", out match))
+					while(builder.Next.TryMatch(new Regex(nextPrefix + "(?<symbol>[^ ].*) in "), out match))
 					{
 						builder.MoveNext();
 						builder.AnnotateSymbol(match.Groups["symbol"]);
 					}
 				}
 
-				while (builder.Next.IsMatch(@"^\s*(ld|clang):"))
+				while (builder.Next.IsMatch(s_ldClangPattern))
 				{
 					builder.MoveNext();
 				}
 
 				return builder.ToMatch(LogEventPriority.Normal, LogLevel.Error, KnownLogEvents.Linker_UndefinedSymbol);
 			}
-			if (cursor.TryMatch(@"error (?<code>LNK\d+):", out match))
+			if (cursor.TryMatch(s_microsoftErrorPattern, out match))
 			{
 				LogEventBuilder builder = new LogEventBuilder(cursor);
 				AddSymbolMarkupForLine(builder);

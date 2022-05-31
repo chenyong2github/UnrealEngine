@@ -44,6 +44,10 @@ namespace UnrealBuildTool.Matchers
 		const string ClangSeverity =
 			@"(?<severity>error|warning)";
 
+		static readonly Regex s_preludePattern = new Regex("^\\s*(?:In (member )?function|In file included from)");
+		static readonly Regex s_errorWarningPattern = new Regex("error|warning");
+		static readonly Regex s_clangDiagnosticPattern = new Regex($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:");
+
 		static readonly string[] s_invalidExtensions =
 		{
 			".obj",
@@ -58,14 +62,14 @@ namespace UnrealBuildTool.Matchers
 		{
 			// Match the prelude to any error
 			int maxOffset = 0;
-			while (input.IsMatch(maxOffset, "^\\s*(?:In (member )?function|In file included from)"))
+			while (input.IsMatch(maxOffset, s_preludePattern))
 			{
 				maxOffset++;
 			}
 
 			// Do the match in two phases so we can early out if the strings "error" or "warning" are not present. The patterns before these strings can
 			// produce many false positives, making them very slow to execute.
-			if (input.IsMatch(maxOffset, "error|warning"))
+			if (input.IsMatch(maxOffset, s_errorWarningPattern))
 			{
 				LogEventBuilder builder = new LogEventBuilder(input, maxOffset + 1);
 
@@ -103,7 +107,7 @@ namespace UnrealBuildTool.Matchers
 
 				// Try to match a Clang diagnostic
 				Match? match;
-				if (builder.Current.TryMatch($"^\\s*{FilePattern}\\s*{ClangLocationPattern}:\\s*{ClangSeverity}\\s*:", out match) && IsSourceFile(match))
+				if (builder.Current.TryMatch(s_clangDiagnosticPattern, out match) && IsSourceFile(match))
 				{
 					LogLevel level = GetLogLevelFromSeverity(match);
 
@@ -114,7 +118,8 @@ namespace UnrealBuildTool.Matchers
 
 					string indent = ExtractIndent(input[0]!);
 
-					while (builder.Current.TryMatch(1, $"^(?:{indent} |{indent}\\s*{FilePattern}\\s*{ClangLocationPattern}\\s*note:| *$)", out match))
+					Regex notePattern = new Regex($"^(?:{indent} |{indent}\\s*{FilePattern}\\s*{ClangLocationPattern}\\s*note:| *$)");
+					while (builder.Current.TryMatch(1, notePattern, out match))
 					{
 						builder.MoveNext();
 
@@ -132,10 +137,13 @@ namespace UnrealBuildTool.Matchers
 			return null;
 		}
 
+		static readonly Regex s_msvcPattern = new Regex($"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:");
+		static readonly Regex s_projectPattern = new Regex(@"\[(?<project>[^[\]]+)]\s*$");
+
 		bool TryMatchVisualCppEvent(LogEventBuilder builder, [NotNullWhen(true)] out LogEventMatch? outEvent)
 		{
 			Match? match;
-			if(!builder.Current.TryMatch($"^\\s*(?:ERROR: |WARNING: )?{FilePattern}(?:{VisualCppLocationPattern})? ?:\\s+{VisualCppSeverity}:", out match) || !IsSourceFile(match))
+			if(!builder.Current.TryMatch(s_msvcPattern, out match) || !IsSourceFile(match))
 			{
 				outEvent = null;
 				return false;
@@ -154,7 +162,7 @@ namespace UnrealBuildTool.Matchers
 				if (codeGroup.Value.StartsWith("CS", StringComparison.Ordinal))
 				{
 					Match? projectMatch;
-					if (builder.Current.TryMatch(@"\[(?<project>[^[\]]+)]\s*$", out projectMatch))
+					if (builder.Current.TryMatch(s_projectPattern, out projectMatch))
 					{
 						builder.AnnotateSourceFile(projectMatch.Groups[1], "");
 						sourceFileBaseDir = GetPlatformAgnosticDirectoryName(projectMatch.Groups[1].Value) ?? sourceFileBaseDir;
@@ -169,7 +177,7 @@ namespace UnrealBuildTool.Matchers
 					}
 
 					Match? projectMatch;
-					if (builder.Current.TryMatch(@"\[(?<file>[^[\]]+)]\s*$", out projectMatch))
+					if (builder.Current.TryMatch(s_projectPattern, out projectMatch))
 					{
 						builder.AnnotateSourceFile(projectMatch.Groups[1], "");
 						outEvent = builder.ToMatch(LogEventPriority.High, level, KnownLogEvents.MSBuild);
@@ -184,7 +192,7 @@ namespace UnrealBuildTool.Matchers
 
 			string indent = ExtractIndent(builder.Current.CurrentLine ?? String.Empty);
 
-			while (builder.Current.TryMatch(1, $"^(?:{indent} |{indent}\\s*{FilePattern}(?:{VisualCppLocationPattern})?\\s*: note:| *$)", out match))
+			while (builder.Current.TryMatch(1, new Regex($"^(?:{indent} |{indent}\\s*{FilePattern}(?:{VisualCppLocationPattern})?\\s*: note:| *$)"), out match))
 			{
 				builder.MoveNext();
 
@@ -197,7 +205,7 @@ namespace UnrealBuildTool.Matchers
 				}
 			}
 
-			string pattern = $"^{indent} |: note:";
+			Regex pattern = new Regex($"^{indent} |: note:");
 			while (builder.Current.IsMatch(1, pattern))
 			{
 				builder.MoveNext();

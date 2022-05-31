@@ -30,11 +30,14 @@ namespace AutomationUtils.Matchers
 		const string LinePattern =
 			@"(?<line>\d+)";
 
+		static readonly Regex s_pattern = new Regex($"^\\s*{SeverityPattern}: {FilePattern}(?:\\({LinePattern}\\))?: ");
+		static readonly Regex s_copyright = new Regex("copyright");
+
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor input)
 		{
 			Match? match;
-			if (input.TryMatch($"^\\s*{SeverityPattern}: {FilePattern}(?:\\({LinePattern}\\))?: ", out match))
+			if (input.TryMatch(s_pattern, out match))
 			{
 				LogLevel level = GetLogLevelFromSeverity(match);
 
@@ -45,7 +48,7 @@ namespace AutomationUtils.Matchers
 				builder.TryAnnotate(match.Groups["line"], LogEventMarkup.LineNumber);
 
 				EventId eventId;
-				if (input.IsMatch("copyright"))
+				if (input.IsMatch(s_copyright))
 				{
 					eventId = KnownLogEvents.AutomationTool_MissingCopyright;
 				}

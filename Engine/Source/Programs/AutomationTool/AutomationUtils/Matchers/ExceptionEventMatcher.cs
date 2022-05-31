@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 
 #nullable enable
 
@@ -12,13 +13,16 @@ namespace AutomationUtils.Matchers
 	/// </summary>
 	class ExceptionEventMatcher : ILogEventMatcher
 	{
+		static readonly Regex s_pattern = new Regex(@"^\s*Unhandled Exception: ");
+		static readonly Regex s_atPattern = new Regex(@"^\s*at ");
+
 		/// <inheritdoc/>
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			if (cursor.IsMatch(@"^\s*Unhandled Exception: "))
+			if (cursor.IsMatch(s_pattern))
 			{
 				LogEventBuilder builder = new LogEventBuilder(cursor);
-				while(builder.Current.IsMatch(1, @"^\s*at "))
+				while(builder.Current.IsMatch(1, s_atPattern))
 				{
 					builder.MoveNext();
 				}

@@ -13,23 +13,25 @@ namespace AutomationUtils.Matchers
 	/// </summary>
 	class CrashEventMatcher : ILogEventMatcher
 	{
+		static readonly Regex s_exitCodePattern = new Regex(@"ExitCode=(3|139|255)(?!\d)");
+
 		public LogEventMatch? Match(ILogCursor cursor)
 		{
-			if (cursor.IsMatch("begin: stack for UAT"))
+			if (cursor.Contains("begin: stack for UAT"))
 			{
 				for (int maxOffset = 1; maxOffset < 100; maxOffset++)
 				{
-					if (cursor.IsMatch(maxOffset, "end: stack for UAT"))
+					if (cursor.Contains(maxOffset, "end: stack for UAT"))
 					{
 						LogEventBuilder builder = new LogEventBuilder(cursor, lineCount: maxOffset + 1);
 						return builder.ToMatch(LogEventPriority.BelowNormal, GetLogLevel(cursor), KnownLogEvents.Engine_Crash);
 					}
 				}
 			}
-			if (cursor.IsMatch("AutomationTool: Stack:"))
+			if (cursor.Contains("AutomationTool: Stack:"))
 			{
 				LogEventBuilder builder = new LogEventBuilder(cursor);
-				while (builder.Current.IsMatch(1, "AutomationTool: Stack:"))
+				while (builder.Current.Contains(1, "AutomationTool: Stack:"))
 				{
 					builder.MoveNext();
 				}
@@ -37,7 +39,7 @@ namespace AutomationUtils.Matchers
 			}
 
 			Match? match;
-			if (cursor.TryMatch(@"ExitCode=(3|139|255)(?!\d)", out match))
+			if (cursor.TryMatch(s_exitCodePattern, out match))
 			{
 				LogEventBuilder builder = new LogEventBuilder(cursor);
 				builder.Annotate("exitCode", match.Groups[1]);
@@ -46,13 +48,16 @@ namespace AutomationUtils.Matchers
 			return null;
 		}
 
+		static readonly Regex s_errorPattern = new Regex("[Ee]rror:");
+		static readonly Regex s_warningPattern = new Regex("[Ww]arning:");
+
 		static LogLevel GetLogLevel(ILogCursor cursor)
 		{
-			if(cursor.IsMatch(0, "[Ee]rror:"))
+			if(cursor.IsMatch(0, s_errorPattern))
 			{
 				return LogLevel.Error;
 			}
-			else if(cursor.IsMatch(0, "[Ww]arning:"))
+			else if(cursor.IsMatch(0, s_warningPattern))
 			{
 				return LogLevel.Warning;
 			}

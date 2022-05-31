@@ -778,6 +778,36 @@ namespace Horde.Agent.Tests
 			}
 		}
 
+		[TestMethod]
+		public void HangingIndentMatcher()
+		{
+			string[] lines =
+			{
+				@"first line",
+				@"first line in multi-line message",
+				@"  this is a hanging indent",
+				@"   this is also hanging",
+				@"this is a separate item",
+			};
+
+			LogBuffer buffer = new LogBuffer(10);
+			buffer.AddLines(lines);
+
+			Assert.AreEqual(buffer.Hanging()[0], "first line");
+			Assert.AreEqual(buffer.Hanging()[1], null);
+			buffer.MoveNext();
+
+			Assert.AreEqual(buffer.Hanging()[0], "first line in multi-line message");
+			Assert.AreEqual(buffer.Hanging()[1], "  this is a hanging indent");
+			Assert.AreEqual(buffer.Hanging()[2], "   this is also hanging");
+			Assert.AreEqual(buffer.Hanging()[3], null);
+			buffer.Advance(3);
+
+			Assert.AreEqual(buffer.Hanging()[0], "this is a separate item");
+			Assert.AreEqual(buffer.Hanging()[1], null);
+			buffer.MoveNext();
+		}
+
 		static List<LogEvent> Parse(IEnumerable<string> lines)
 		{
 			return Parse(String.Join("\n", lines));
