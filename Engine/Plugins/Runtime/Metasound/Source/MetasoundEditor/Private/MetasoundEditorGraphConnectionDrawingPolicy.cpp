@@ -10,11 +10,16 @@
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorSettings.h"
+#include "MetasoundTrace.h"
 #include "Misc/App.h"
 #include "Templates/Function.h"
 
+#define METASOUND_EDITOR_DEBUG_CONNECTIONS 0
 
-#define METASOUND_DRAW_CONNECTION_DEBUG_DATA 0
+#if METASOUND_EDITOR_DEBUG_CONNECTIONS
+#include "HAL/IConsoleManager.h"
+#endif // METASOUND_EDITOR_DEBUG_CONNECTIONS
+
 
 namespace Metasound
 {
@@ -22,7 +27,11 @@ namespace Metasound
 	{
 		namespace DrawingPolicyPrivate
 		{
-#if METASOUND_DRAW_CONNECTION_DEBUG_DATA
+			static float EnvelopeConnectionSpeedCVar = 1.0f;
+			static float EnvelopeConnectionSpacingCVar = 3.0f;
+			static int32 EnvelopeConnectionMaxPointsPerConnection = 1024;
+
+#if METASOUND_EDITOR_DEBUG_CONNECTIONS
 			// Draw the bounding box for debugging
 			void DrawDebugConnection(FSlateWindowElementList& InDrawElementsList, uint32 InLayerId, const FDrawConnectionData& InDrawConnectionData)
 			{
@@ -43,7 +52,28 @@ namespace Metasound
 				DrawSpaceLine(BR, BL, BoundsWireColor);
 				DrawSpaceLine(BL, TL, BoundsWireColor);
 			}
-#endif // METASOUND_DRAW_CONNECTION_DEBUG_DATA
+
+			FAutoConsoleVariableRef CVarMetaSoundEditorAudioConnectSpeed(
+				TEXT("au.MetaSounds.Editor.EnvelopeConnection.Speed"),
+				DrawingPolicyPrivate::EnvelopeConnectionSpeedCVar,
+				TEXT("Speed of lines drawn in audio connections in the MetaSoundEditor.\n")
+				TEXT("Default: 1.0f"),
+				ECVF_Default);
+
+			FAutoConsoleVariableRef CVarMetaSoundEditorAudioConnectSpacing(
+				TEXT("au.MetaSounds.Editor.EnvelopeConnection.Spacing"),
+				DrawingPolicyPrivate::EnvelopeConnectionSpacingCVar,
+				TEXT("Spacing of lines drawn in audio connections in the MetaSoundEditor.\n")
+				TEXT("Default: 3.0f"),
+				ECVF_Default);
+
+			FAutoConsoleVariableRef CVarEnvelopeConnectionMaxPointsPerConnection(
+				TEXT("au.MetaSounds.Editor.EnvelopeConnection.MaxPointsPerConnection"),
+				DrawingPolicyPrivate::EnvelopeConnectionMaxPointsPerConnection,
+				TEXT("Max number of draw points per connection for animated connections.\n")
+				TEXT("Default: 1024"),
+				ECVF_Default);
+#endif // METASOUND_EDITOR_DEBUG_CONNECTIONS
 
 			template<typename TAnalyzerType>
 			bool DetermineWiringStyle_Envelope(TSharedPtr<FEditor> MetasoundEditor, UEdGraphPin* OutputPin, UEdGraphPin* InputPin, FConnectionParams& OutParams)
@@ -154,7 +184,6 @@ namespace Metasound
 				InDrawingPolicy.DrawAnimatedSpline(InnerSplineData);
 			}
 		} // namespace DrawingPolicyPrivate
-
 
 		FDrawConnectionData::FDrawConnectionData(const FVector2D& InStart, const FVector2D& InEnd, const FVector2D& InSplineTangent, const FConnectionParams& InParams, const UGraphEditorSettings& InSettings, const FVector2D& InMousePosition)
 			: P0(InStart)
@@ -268,9 +297,10 @@ namespace Metasound
 			if (const UMetasoundEditorSettings* MetasoundSettings = GetDefault<UMetasoundEditorSettings>())
 			{
 				bAnimateConnections = MetasoundSettings->bAnimateConnections;
-				ActiveAnalyzerWireThickness = MetasoundSettings->ActiveAnalyzerWireThickness;
-				ActiveAnalyzerWireSignalScalarMin = MetasoundSettings->ActiveAnalyzerWireSignalScalarMin;
-				ActiveAnalyzerWireSignalScalarMax = MetasoundSettings->ActiveAnalyzerWireSignalScalarMax;
+				ActiveAnalyzerNumericWireThickness = MetasoundSettings->ActiveAnalyzerNumericWireThickness;
+				ActiveAnalyzerEnvelopeWireThickness = MetasoundSettings->ActiveAnalyzerEnvelopeWireThickness;
+				ActiveAnalyzerWireScalarMin = MetasoundSettings->ActiveAnalyzerWireScalarMin;
+				ActiveAnalyzerWireScalarMax = MetasoundSettings->ActiveAnalyzerWireScalarMax;
 			}
 
 			if (GraphObj)
@@ -283,7 +313,7 @@ namespace Metasound
 		{
 			if (OutParams.bDrawBubbles)
 			{
-				OutParams.WireThickness = FMath::Lerp(InactiveWireThickness * ActiveAnalyzerWireSignalScalarMin, ActiveAnalyzerWireThickness * ActiveAnalyzerWireSignalScalarMax, OutParams.WireThickness);
+				OutParams.WireThickness = FMath::Lerp(InactiveWireThickness * ActiveAnalyzerWireScalarMin, ActiveAnalyzerEnvelopeWireThickness * ActiveAnalyzerWireScalarMax, OutParams.WireThickness);
 			}
 			else
 			{
@@ -370,7 +400,7 @@ namespace Metasound
 
 					if (bEdgeStyleValid && EditorPtr->IsPlaying())
 					{
-						OutParams.WireThickness = ActiveAnalyzerWireThickness;
+						OutParams.WireThickness = ActiveAnalyzerNumericWireThickness;
 					}
 					else
 					{
@@ -386,6 +416,8 @@ namespace Metasound
 
 		void FGraphConnectionDrawingPolicy::DrawConnection(int32 LayerId, const FVector2D& Start, const FVector2D& End, const FConnectionParams& Params)
 		{
+			METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(FGraphConnectionDrawingPolicy::DrawConnection);
+
 			using namespace Frontend;
 
 			TSharedPtr<FEditor> EditorPtr = MetasoundEditor.Pin();
@@ -404,28 +436,32 @@ namespace Metasound
 			const FDrawConnectionData ConnectionData(Start, End, FGraphConnectionDrawingPolicy::ComputeSplineTangent(Start, End), Params, *Settings, LocalMousePosition);
 			if (Settings->bTreatSplinesLikePins)
 			{
-#if METASOUND_DRAW_CONNECTION_DEBUG_DATA
+#if METASOUND_EDITOR_DEBUG_CONNECTIONS
 				DrawingPolicyPrivate::DrawDebugConnection(DrawElementsList, ArrowLayerID, ConnectionData);
-#endif // METASOUND_DRAW_CONNECTION_DEBUG_DATA
+#endif // METASOUND_EDITOR_DEBUG_CONNECTIONS
 
 				ConnectionData.UpdateSplineOverlap(SplineOverlapResult);
 			}
 
 			if (ConnectionData.OutputHandle->IsValid() && MetasoundEditor.IsValid())
 			{
-				if (ConnectionData.OutputHandle->GetDataType() == GetMetasoundDataTypeName<float>())
+				const FName DataType = ConnectionData.OutputHandle->GetDataType();
+				if (DataType == GetMetasoundDataTypeName<float>())
 				{
 					DrawingPolicyPrivate::DrawConnectionSpline_Numeric<float>(*this, LayerId, ConnectionData, 0.0f);
 				}
-				else if (ConnectionData.OutputHandle->GetDataType() == GetMetasoundDataTypeName<int32>())
+				else if (DataType == GetMetasoundDataTypeName<int32>())
 				{
 					DrawingPolicyPrivate::DrawConnectionSpline_Numeric<int32>(*this, LayerId, ConnectionData, 0);
 				}
-				else if (ConnectionData.OutputHandle->GetDataType() == GetMetasoundDataTypeName<bool>())
+				else if (DataType == GetMetasoundDataTypeName<bool>())
 				{
 					DrawingPolicyPrivate::DrawConnectionSpline_Numeric<bool>(*this, LayerId, ConnectionData, 0);
 				}
-				else
+				// AudioBuffers & Triggers do not require drawing connection splines because they draw envelopes,
+				// which trace the same path
+				else if (DataType != GetMetasoundDataTypeName<FAudioBuffer>()
+					&& DataType != GetMetasoundDataTypeName<FTrigger>())
 				{
 					DrawConnectionSpline(LayerId, ConnectionData);
 				}
@@ -446,17 +482,18 @@ namespace Metasound
 				{
 					const float AppTime = FPlatformTime::Seconds() - GStartTime;
 					FDrawConnectionSignalData SignalParams = { AppTime, LayerId, SplineReparamTable, SplineLength, ConnectionData };
-					if (SignalParams.ConnectionData.OutputHandle->GetDataType() == GetMetasoundDataTypeName<FAudioBuffer>())
+					const FName DataType = SignalParams.ConnectionData.OutputHandle->GetDataType();
+					if (DataType == GetMetasoundDataTypeName<FAudioBuffer>())
 					{
-						SignalParams.SpacingFactor = 2.f;
-						SignalParams.SpeedFactor = 256.f;
+						SignalParams.SpacingFactor = DrawingPolicyPrivate::EnvelopeConnectionSpacingCVar;
+						SignalParams.SpeedFactor = DrawingPolicyPrivate::EnvelopeConnectionSpeedCVar;
 						const FName AnalyzerName = Frontend::FVertexAnalyzerEnvelopeFollower::GetAnalyzerName();
 						DrawConnectionSignal_Envelope(SignalParams, AnalyzerName);
 					}
-					else if (SignalParams.ConnectionData.OutputHandle->GetDataType() == GetMetasoundDataTypeName<FTrigger>())
+					else if (DataType == GetMetasoundDataTypeName<FTrigger>())
 					{
-						SignalParams.SpacingFactor = 2.f;
-						SignalParams.SpeedFactor = 64.f;
+						SignalParams.SpacingFactor = DrawingPolicyPrivate::EnvelopeConnectionSpacingCVar;
+						SignalParams.SpeedFactor = DrawingPolicyPrivate::EnvelopeConnectionSpeedCVar;
 						const FName AnalyzerName = Frontend::FVertexAnalyzerTriggerDensity::GetAnalyzerName();
 						DrawConnectionSignal_Envelope(SignalParams, AnalyzerName);
 					}
@@ -557,14 +594,14 @@ namespace Metasound
 				return;
 			}
 
-			const float BubbleSpacing = InParams.SpacingFactor * ZoomFactor;
-			float BubbleSpeed = InParams.SpeedFactor * ZoomFactor;
-			const FVector2D BubbleSize = BubbleImage->ImageSize * ZoomFactor * 0.2f * InParams.ConnectionData.Params.WireThickness;
-			const float BubbleOffset = FMath::Fmod(InParams.AppTime * BubbleSpeed, BubbleSpacing);
-			const int32 NumBubbles = FMath::CeilToInt(InParams.SplineLength / BubbleSpacing);
+			const float PointSpacing = FMath::Max(1.0f, InParams.SpacingFactor * ZoomFactor);
+			float PointSpeed = InParams.SpeedFactor * ZoomFactor;
+			const float PointSize = ZoomFactor * InParams.ConnectionData.Params.WireThickness;
+			const float PointOffset = FMath::Fmod(InParams.AppTime * PointSpeed, PointSpacing);
+			const int32 NumPoints = FMath::Min(FMath::CeilToInt(InParams.SplineLength / PointSpacing), DrawingPolicyPrivate::EnvelopeConnectionMaxPointsPerConnection);
 
-			TArray<FVector2D> ScaledBubbles;
-			ScaledBubbles.Init(BubbleSize, NumBubbles);
+			TArray<float> EnvMagnitudes;
+			EnvMagnitudes.Init(PointSize, NumPoints);
 			if (const UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(InParams.ConnectionData.OutputPin->GetOwningNode()))
 			{
 				if (const UEdGraph* Graph = Node->GetGraph())
@@ -575,52 +612,90 @@ namespace Metasound
 						const FGuid NodeId = OutputHandle->GetOwningNodeID();
 						FName OutputName = OutputHandle->GetName();
 
-						TArray<float> Values;
+						// Only set to max as multiple edges can exist and each may have a different window size.
+						FGraphConnectionManager& ConnectionManager = Editor->GetConnectionManager();
+						if (const FFloatMovingWindow* Window = ConnectionManager.GetValueWindow(NodeId, OutputName, InAnalyzerName))
 						{
-							// Only set to max as multiple edges can exist and each may have a different window size.
-							FGraphConnectionManager& ConnectionManager = Editor->GetConnectionManager();
-							if (const FFloatMovingWindow* Window = ConnectionManager.GetValueWindow(NodeId, OutputName, InAnalyzerName))
+							if (NumPoints > Window->Num())
 							{
-								if (NumBubbles > Window->Num())
-								{
-									ConnectionManager.TrackValue(NodeId, OutputName, InAnalyzerName, NumBubbles);
-								}
-								Values = Window->ToArray();
-								Values.SetNum(NumBubbles);
-								for (int32 i = 0; i < Values.Num(); ++i)
-								{
-									const float ClampedScalar = FMath::Clamp(Values[i], 0.0f, 1.0f) * ActiveAnalyzerWireSignalScalarMax;
-									ScaledBubbles[i].X *= ClampedScalar;
-									ScaledBubbles[i].Y *= ClampedScalar;
-								}
+								ConnectionManager.TrackValue(NodeId, OutputName, InAnalyzerName, NumPoints);
 							}
-							else
+
+							for (int32 i = 0; i < EnvMagnitudes.Num(); ++i)
 							{
-								ConnectionManager.TrackValue(NodeId, OutputName, InAnalyzerName, NumBubbles);
+								const float ClampedScalar = FMath::Clamp(Window->GetValueWrapped(i), 0.0f, 1.0f) * ActiveAnalyzerWireScalarMax;
+								EnvMagnitudes[i] *= ClampedScalar;
 							}
+						}
+						else
+						{
+							ConnectionManager.TrackValue(NodeId, OutputName, InAnalyzerName, NumPoints);
 						}
 					}
 				}
 			}
 
-			for (int32 i = 0; i < ScaledBubbles.Num(); ++i)
+			TArray<FVector2f> PointsUp;
+			TArray<FVector2f> PointsDown;
+			FVector2D LastPointPos = FVector2D::Zero();
+			FVector2D LastTangent = FVector2D::Zero();
+
+			auto AddPoint = [&](const float EnvMagnitude, const float Distance)
 			{
-				const float Distance = (i * BubbleSpacing) + BubbleOffset;
+				const float Alpha = InParams.SplineReparamTable.Eval(Distance, 0.f);
+				FVector2D PointPos = FMath::CubicInterp(InParams.ConnectionData.P0, InParams.ConnectionData.P0Tangent, InParams.ConnectionData.P1, InParams.ConnectionData.P1Tangent, Alpha);
+
+				LastTangent = FVector2D(PointPos.X - LastPointPos.X, PointPos.Y - LastPointPos.Y);
+				const FVector2D Normal = FVector2D(LastTangent.Y, -1.0f * LastTangent.X).GetSafeNormal();
+				LastPointPos = PointPos;
+
+				const float HalfEnvMagnitude = EnvMagnitude * 0.5f;
+				const FVector2f Top = { static_cast<float>(PointPos.X - (Normal.X * HalfEnvMagnitude)), static_cast<float>(PointPos.Y - (Normal.Y * HalfEnvMagnitude)) };
+				const FVector2f Bottom = { static_cast<float>(PointPos.X + (Normal.X * HalfEnvMagnitude)), static_cast<float>(PointPos.Y + (Normal.Y * HalfEnvMagnitude)) };
+
+				if (Top.Equals(Bottom))
+				{
+					PointsUp.Add(Top);
+					PointsDown.Add(Bottom);
+				}
+				else
+				{
+					PointsUp.Add(Top);
+					PointsUp.Add(Bottom);
+					PointsDown.Add(Bottom);
+					PointsDown.Add(Top);
+				}
+			};
+
+			for (int32 i = 0; i < EnvMagnitudes.Num(); ++i)
+			{
+				const float Distance = (i * PointSpacing) + PointOffset;
 				if (Distance < InParams.SplineLength)
 				{
-					const float Alpha = InParams.SplineReparamTable.Eval(Distance, 0.f);
-					FVector2D BubblePos = FMath::CubicInterp(InParams.ConnectionData.P0, InParams.ConnectionData.P0Tangent, InParams.ConnectionData.P1, InParams.ConnectionData.P1Tangent, Alpha);
-					BubblePos -= (ScaledBubbles[i] * 0.5f);
-
-					FSlateDrawElement::MakeBox(
-						DrawElementsList,
-						InParams.LayerId,
-						FPaintGeometry(BubblePos, ScaledBubbles[i], ZoomFactor),
-						BubbleImage,
-						ESlateDrawEffect::None,
-						InParams.ConnectionData.Params.WireColor
-					);
+					AddPoint(EnvMagnitudes[i], Distance);
 				}
+			}
+
+			bool bDrawRemainingSpline = false;
+			const float TermDistance = (EnvMagnitudes.Num() * PointSpacing) + PointOffset;
+			if (TermDistance < InParams.SplineLength)
+			{
+				AddPoint(0.0f, TermDistance);
+				bDrawRemainingSpline = true;
+			}
+			else
+			{
+				AddPoint(0.0f, InParams.SplineLength);
+			}
+
+			FSlateDrawElement::MakeLines(DrawElementsList, InParams.LayerId, FPaintGeometry(), PointsUp, ESlateDrawEffect::None, InParams.ConnectionData.Params.WireColor, true, InParams.ConnectionData.Params.WireThickness);
+			FSlateDrawElement::MakeLines(DrawElementsList, InParams.LayerId, FPaintGeometry(), PointsDown, ESlateDrawEffect::None, InParams.ConnectionData.Params.WireColor, true, InParams.ConnectionData.Params.WireThickness);
+			if (bDrawRemainingSpline)
+			{
+				FDrawConnectionData FinalData = InParams.ConnectionData;
+				FinalData.P0 = LastPointPos;
+				FinalData.P0Tangent = LastTangent;
+				DrawSpline(InParams.ConnectionData);
 			}
 		}
 

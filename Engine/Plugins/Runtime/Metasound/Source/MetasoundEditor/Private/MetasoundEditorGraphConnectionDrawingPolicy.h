@@ -30,10 +30,10 @@ namespace Metasound
 
 		struct FDrawConnectionData
 		{
-			const FVector2D P0;
-			const FVector2D P0Tangent;
-			const FVector2D P1;
-			const FVector2D P1Tangent;
+			FVector2D P0;
+			FVector2D P0Tangent;
+			FVector2D P1;
+			FVector2D P1Tangent;
 
 			FConnectionParams Params;
 
@@ -104,9 +104,10 @@ namespace Metasound
 
 			bool bAnimateConnections = false;
 			float ActiveWireThickness = 1.0f;
-			float ActiveAnalyzerWireThickness = 1.0f;
-			float ActiveAnalyzerWireSignalScalarMin = 1.0f;
-			float ActiveAnalyzerWireSignalScalarMax = 1.0f;
+			float ActiveAnalyzerEnvelopeWireThickness = 1.0f;
+			float ActiveAnalyzerNumericWireThickness = 1.0f;
+			float ActiveAnalyzerWireScalarMin = 1.0f;
+			float ActiveAnalyzerWireScalarMax = 1.0f;
 
 			float InactiveWireThickness = 1.0f;
 

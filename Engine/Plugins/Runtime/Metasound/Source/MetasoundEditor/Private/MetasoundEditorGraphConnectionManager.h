@@ -68,30 +68,12 @@ namespace Metasound
 				}
 			}
 
-			TArray<float> ToArray() const
+			float GetValueWrapped(int32 Index) const
 			{
-				TArray<float> Values;
+				check(!Data.IsEmpty());
 
-				if (!Data.IsEmpty())
-				{
-					check(WriteIndex >= 0);
-					check(WriteIndex < Data.Num());
-
-					const int32 ReadIndex = (WriteIndex + 1) % Data.Num();
-					if (ReadIndex > WriteIndex)
-					{
-						Values.SetNumUninitialized(Data.Num());
-						const int32 Offset = Data.Num() - ReadIndex;
-						FMemory::Memcpy(Values.GetData(), Data.GetData() + ReadIndex, sizeof(float) * Offset);
-						FMemory::Memcpy(Values.GetData() + Offset, Data.GetData(), sizeof(float) * ReadIndex);
-					}
-					else
-					{
-						Values = Data;
-					}
-				}
-
-				return Values;
+				const int32 WrappedIndex = (WriteIndex + Index) % Data.Num();
+				return Data[WrappedIndex];
 			}
 		};
 

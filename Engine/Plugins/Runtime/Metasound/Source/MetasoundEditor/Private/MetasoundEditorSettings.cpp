@@ -29,7 +29,8 @@ UMetasoundEditorSettings::UMetasoundEditorSettings(const FObjectInitializer& Obj
 	VariableNodeTitleColor = FLinearColor(0.211f, 0.513f, 0.035f);				// copper
 
 	bAnimateConnections = false;
-	ActiveAnalyzerWireThickness = 8.0f;
-	ActiveAnalyzerWireSignalScalarMin = 1.0f;
-	ActiveAnalyzerWireSignalScalarMax = 1.0f;
+	ActiveAnalyzerNumericWireThickness = 5.0f;
+	ActiveAnalyzerEnvelopeWireThickness = 1.0f;
+	ActiveAnalyzerWireScalarMin = 1.0f;
+	ActiveAnalyzerWireScalarMax = 4.5f;
 }

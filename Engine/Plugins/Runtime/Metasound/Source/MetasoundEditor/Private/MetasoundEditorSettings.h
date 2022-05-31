@@ -104,17 +104,21 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (DisplayName = "Animate Connections (Experimental)"))
 	bool bAnimateConnections;
 
-	/** Thickness of default analyzer wire thickness when connection analyzer is active. */
-	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 8, ClampMin = 1))
-	float ActiveAnalyzerWireThickness;
+	/** Thickness of default envelope analyzer wire thickness when connection analyzer is active. */
+	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 2, ClampMin = 1))
+	float ActiveAnalyzerEnvelopeWireThickness;
+
+	/** Thickness of default numeric analyzer wire thickness when connection analyzer is active. */
+	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 10, ClampMin = 1))
+	float ActiveAnalyzerNumericWireThickness;
 
 	/** Minimum height scalar of wire signal analyzers (ex. audio, triggers). */
-	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 3, ClampMin = 1))
-	float ActiveAnalyzerWireSignalScalarMin;
+	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 5, ClampMin = 1))
+	float ActiveAnalyzerWireScalarMin;
 
 	/** Maximum height scalar of wire signal analyzers (ex. audio, triggers). */
-	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 3, ClampMin = 1))
-	float ActiveAnalyzerWireSignalScalarMax;
+	UPROPERTY(EditAnywhere, config, Category = GraphAnimation, meta = (EditCondition = "bAnimateConnections", UIMin = 1, UIMax = 5, ClampMin = 1))
+	float ActiveAnalyzerWireScalarMax;
 
 	/** Determines which details view to show in Metasounds Editor */
 	UPROPERTY(Transient)
