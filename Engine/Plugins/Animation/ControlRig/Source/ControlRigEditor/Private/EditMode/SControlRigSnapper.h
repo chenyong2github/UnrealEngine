@@ -11,6 +11,7 @@
 #include "Tools/ControlRigSnapper.h"
 #include "Misc/FrameNumber.h"
 #include "IDetailsView.h"
+#include "MovieSceneSequenceID.h"
 
 class UControlRig;
 class ISequencer;
@@ -22,9 +23,7 @@ class SControlRigSnapper : public SCompoundWidget
 	SLATE_BEGIN_ARGS(SControlRigSnapper) {}
 
 	SLATE_END_ARGS()
-	~SControlRigSnapper()
-	{
-	}
+	~SControlRigSnapper();
 
 	void Construct(const FArguments& InArgs);
 
@@ -39,6 +38,7 @@ private:
 	void ActorParentPicked(FActorForWorldTransforms Selection);
 	void ActorParentSocketPicked(const FName SocketName, FActorForWorldTransforms Selection);
 	void ActorParentComponentPicked(FName ComponentName, FActorForWorldTransforms Selection);
+	void OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID);
 
 	FReply OnActorToSnapClicked();
 	FReply OnParentToSnapToClicked();

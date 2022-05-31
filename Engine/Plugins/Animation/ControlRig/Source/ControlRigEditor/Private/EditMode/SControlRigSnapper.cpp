@@ -367,7 +367,28 @@ void SControlRigSnapper::Construct(const FArguments& InArgs)
 				]
 			]
 		];
+
+	TWeakPtr<ISequencer> Sequencer = Snapper.GetSequencer();
+	if (Sequencer.IsValid())
+	{
+		Sequencer.Pin()->OnActivateSequence().AddRaw(this, &SControlRigSnapper::OnActivateSequenceChanged);
+	}
 }
+
+SControlRigSnapper::~SControlRigSnapper()
+{
+	TWeakPtr<ISequencer> Sequencer = Snapper.GetSequencer();
+	if (Sequencer.IsValid())
+	{
+		Sequencer.Pin()->OnActivateSequence().RemoveAll(this);
+	}
+}
+
+void SControlRigSnapper::OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID)
+{
+	ClearActors();
+}
+
 
 FReply SControlRigSnapper::OnActorToSnapClicked()
 {
