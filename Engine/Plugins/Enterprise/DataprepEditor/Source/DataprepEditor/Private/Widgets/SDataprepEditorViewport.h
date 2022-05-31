@@ -48,7 +48,7 @@ public:
 
 #ifdef VIEWPORT_EXPERIMENTAL
 	FPrototypeOrientedBox MeshProperties;
-	bool bShoudlBeInstanced;
+	bool bShouldBeInstanced;
 #endif
 
 protected:

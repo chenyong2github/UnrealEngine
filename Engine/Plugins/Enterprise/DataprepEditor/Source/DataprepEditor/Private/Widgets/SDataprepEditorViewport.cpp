@@ -522,7 +522,7 @@ void SDataprepEditorViewport::UpdateScene()
 				{
 					if(UCustomStaticMeshComponent* PreviewMeshComponent = Cast<UCustomStaticMeshComponent>(PreviewMeshComponentPtr.Get()))
 					{
-						PreviewMeshComponent->bShoudlBeInstanced = ShouldBeInstanced.Contains(PreviewMeshComponent->GetStaticMesh());
+						PreviewMeshComponent->bShouldBeInstanced = ShouldBeInstanced.Contains(PreviewMeshComponent->GetStaticMesh());
 						PreviewMeshComponent->MeshProperties = MeshPropertiesMap[PreviewMeshComponent->GetStaticMesh()];
 					}
 				}
@@ -1450,7 +1450,7 @@ void FDataprepEditorViewportClient::Draw(const FSceneView* View, FPrimitiveDrawI
 
 				for(int32 Index = 0; Index < 24; Index += 2)
 				{
-					PDI->DrawLine( Positions[Indices[Index + 0]], Positions[Indices[Index + 1]], MeshComponent->bShoudlBeInstanced ? FColor( 255, 0, 0 ) : FColor( 255, 255, 0 ), SDPG_World );
+					PDI->DrawLine( Positions[Indices[Index + 0]], Positions[Indices[Index + 1]], MeshComponent->bShouldBeInstanced ? FColor( 255, 0, 0 ) : FColor( 255, 255, 0 ), SDPG_World );
 				}
 
 				FVector TransformedCenter = Transform.TransformPosition(Box.Center);
