@@ -5,6 +5,7 @@
 #include "AssetTypeCategories.h"
 #include "UObject/NoExportTypes.h"
 #include "Elements/PCGExecuteBlueprint.h"
+#include "Engine/Blueprint.h"
 
 bool PCGEditorUtils::IsAssetPCGBlueprint(const FAssetData& InAssetData)
 {
