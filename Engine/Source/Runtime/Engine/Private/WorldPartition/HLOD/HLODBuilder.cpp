@@ -51,7 +51,7 @@ static TArray<UActorComponent*> GatherHLODRelevantComponents(const TArray<AActor
 
 	for (AActor* Actor : InSourceActors)
 	{
-		if (!Actor->IsHLODRelevant())
+		if (!Actor || !Actor->IsHLODRelevant())
 		{
 			continue;
 		}
