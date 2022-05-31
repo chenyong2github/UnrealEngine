@@ -25,6 +25,8 @@ struct STATETREEMODULE_API FStateTreeCustomVersion
 		GlobalEvaluators,
 		// Moved instance data to arrays.
 		InstanceDataArrays,
+		// Added index types.
+		IndexTypes,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
@@ -44,7 +46,7 @@ private:
 struct FStateTreeMemoryUsage
 {
 	FStateTreeMemoryUsage() = default;
-	FStateTreeMemoryUsage(const FString InName, const FStateTreeHandle InHandle = FStateTreeHandle::Invalid)
+	FStateTreeMemoryUsage(const FString InName, const FStateTreeStateHandle InHandle = FStateTreeStateHandle::Invalid)
 		: Name(InName)
 		, Handle(InHandle)
 	{
@@ -54,7 +56,7 @@ struct FStateTreeMemoryUsage
 	void AddUsage(const UObject* Object);
 
 	FString Name;
-	FStateTreeHandle Handle;
+	FStateTreeStateHandle Handle;
 	int32 NodeCount = 0;
 	int32 EstimatedMemoryUsage = 0;
 	int32 ChildNodeCount = 0;
@@ -178,7 +180,7 @@ private:
 
 	/** Data view index of the tree Parameters */
 	UPROPERTY()
-	int32 ParametersDataViewIndex = INDEX_NONE;
+	FStateTreeIndex8 ParametersDataViewIndex = FStateTreeIndex8::Invalid;
 
 	/** Index of first evaluator in Nodes. */
 	UPROPERTY()

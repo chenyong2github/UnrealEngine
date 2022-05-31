@@ -11,10 +11,8 @@ void FStateTreePropertyBindings::Reset()
 	SourceStructs.Reset();
 	CopyBatches.Reset();
 	PropertyBindings.Reset();
-	PropertyPaths.Reset();
 	PropertySegments.Reset();
 	PropertyCopies.Reset();
-	PropertyAccesses.Reset();
 	PropertyIndirections.Reset();
 	bBindingsResolved = false;
 }
@@ -23,7 +21,6 @@ bool FStateTreePropertyBindings::ResolvePaths()
 {
 	PropertyIndirections.Reset();
 	PropertyCopies.SetNum(PropertyBindings.Num());
-	PropertyAccesses.SetNum(PropertyPaths.Num());
 
 	bBindingsResolved = true;
 
@@ -36,12 +33,10 @@ bool FStateTreePropertyBindings::ResolvePaths()
 			const FStateTreePropertyBinding& Binding = PropertyBindings[i];
 			FStateTreePropCopy& Copy = PropertyCopies[i];
 
-			Copy.SourceAccessIndex = Binding.SourcePathIndex;
-			Copy.TargetAccessIndex = Binding.TargetPathIndex;
 			Copy.SourceStructIndex = Binding.SourceStructIndex;
 			Copy.Type = Binding.CopyType;
 
-			const UStruct* SourceStruct = SourceStructs[Binding.SourceStructIndex].Struct;
+			const UStruct* SourceStruct = SourceStructs[Binding.SourceStructIndex.Get()].Struct;
 			const UStruct* TargetStruct = Batch.TargetStruct.Struct;
 			if (!SourceStruct || !TargetStruct)
 			{
@@ -53,8 +48,8 @@ bool FStateTreePropertyBindings::ResolvePaths()
 
 			// Resolve paths and validate the copy. Stops on first failure.
 			bool bSuccess = true;
-			bSuccess = bSuccess && ResolvePath(SourceStruct, PropertyPaths[Binding.SourcePathIndex], PropertyAccesses[Copy.SourceAccessIndex]);
-			bSuccess = bSuccess && ResolvePath(TargetStruct, PropertyPaths[Binding.TargetPathIndex], PropertyAccesses[Copy.TargetAccessIndex]);
+			bSuccess = bSuccess && ResolvePath(SourceStruct, Binding.SourcePath, Copy.SourceIndirection, Copy.SourceLeafProperty);
+			bSuccess = bSuccess && ResolvePath(TargetStruct, Binding.TargetPath, Copy.TargetIndirection, Copy.TargetLeafProperty);
 			bSuccess = bSuccess && ValidateCopy(Copy);
 			if (!bSuccess)
 			{
@@ -68,51 +63,51 @@ bool FStateTreePropertyBindings::ResolvePaths()
 	return bResult;
 }
 
-bool FStateTreePropertyBindings::ResolvePath(const UStruct* Struct, const FStateTreePropertyPath& Path, FStateTreePropertyAccess& OutAccess)
+bool FStateTreePropertyBindings::ResolvePath(const UStruct* Struct, const FStateTreePropertySegment& FirstPathSegment, FStateTreePropertyIndirection& OutFirstIndirection, const FProperty*& OutLeafProperty)
 {
 	if (!Struct)
 	{
-		UE_LOG(LogStateTree, Error, TEXT("%s: '%s' Invalid source struct."), ANSI_TO_TCHAR(__FUNCTION__), *GetPathAsString(Path));
+		UE_LOG(LogStateTree, Error, TEXT("%s: '%s' Invalid source struct."), ANSI_TO_TCHAR(__FUNCTION__), *GetPathAsString(FirstPathSegment));
 		return false;
 	}
 
 	const UStruct* CurrentStruct = Struct;
-	FProperty* LeafProperty = nullptr;
-	const int32 IndirectionsBegin = PropertyIndirections.Num();
+	const FProperty* LeafProperty = nullptr;
+	TArray<FStateTreePropertyIndirection, TInlineAllocator<16>> TempIndirections;
+	const FStateTreePropertySegment* Segment = &FirstPathSegment;
 
-	for (int32 i = Path.SegmentsBegin; i < Path.SegmentsEnd; i++)
+	while (Segment != nullptr)
 	{
-		const FStateTreePropertySegment& Segment = PropertySegments[i];
-		FStateTreePropertyIndirection& Indirection = PropertyIndirections.AddDefaulted_GetRef();
+		FStateTreePropertyIndirection& Indirection = TempIndirections.AddDefaulted_GetRef();
 
-		const bool bFinalSegment = i == (Path.SegmentsEnd - 1);
+		const bool bFinalSegment = Segment->NextIndex.IsValid() == false;;
 
 		if (!ensure(CurrentStruct))
 		{
-			UE_LOG(LogStateTree, Error, TEXT("%s: '%s' Invalid struct."), ANSI_TO_TCHAR(__FUNCTION__), *GetPathAsString(Path, i, TEXT("<"), TEXT(">")));
+			UE_LOG(LogStateTree, Error, TEXT("%s: '%s' Invalid struct."), ANSI_TO_TCHAR(__FUNCTION__), *GetPathAsString(FirstPathSegment, Segment, TEXT("<"), TEXT(">")));
 			return false;
 		}
-		FProperty* Property = CurrentStruct->FindPropertyByName(Segment.Name);
+		FProperty* Property = CurrentStruct->FindPropertyByName(Segment->Name);
 		if (!Property)
 		{
 			// TODO: use core redirects to fix up the name.
 			UE_LOG(LogStateTree, Error, TEXT("%s: Malformed path '%s', could not to find property '%s%s.%s'."),
-				ANSI_TO_TCHAR(__FUNCTION__), *GetPathAsString(Path, i, TEXT("<"), TEXT(">")),
-				CurrentStruct->GetPrefixCPP(), *CurrentStruct->GetName(), *Segment.Name.ToString());
+				ANSI_TO_TCHAR(__FUNCTION__), *GetPathAsString(FirstPathSegment, Segment, TEXT("<"), TEXT(">")),
+				CurrentStruct->GetPrefixCPP(), *CurrentStruct->GetName(), *Segment->Name.ToString());
 			return false;
 		}
-		Indirection.ArrayIndex = Segment.ArrayIndex == INDEX_NONE ? 0 : Segment.ArrayIndex;
-		Indirection.Type = Segment.Type;
-		Indirection.Offset = Property->GetOffset_ForInternal() + Property->ElementSize * Indirection.ArrayIndex;
+		Indirection.ArrayIndex = FStateTreeIndex16(Segment->ArrayIndex.IsValid() ? Segment->ArrayIndex.Get() : 0);
+		Indirection.Type = Segment->Type;
+		Indirection.Offset = Property->GetOffset_ForInternal() + Property->ElementSize * Indirection.ArrayIndex.Get();
 
 		// Check to see if it is an array access first.
-		if (FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+		if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
 		{
-			if (FStructProperty* ArrayOfStructsProperty = CastField<FStructProperty>(ArrayProperty->Inner))
+			if (const FStructProperty* ArrayOfStructsProperty = CastField<FStructProperty>(ArrayProperty->Inner))
 			{
 				CurrentStruct = ArrayOfStructsProperty->Struct;
 			}
-			else if (FObjectPropertyBase* ArrayOfObjectsProperty = CastField<FObjectPropertyBase>(ArrayProperty->Inner))
+			else if (const FObjectPropertyBase* ArrayOfObjectsProperty = CastField<FObjectPropertyBase>(ArrayProperty->Inner))
 			{
 				CurrentStruct = ArrayOfObjectsProperty->PropertyClass;
 			}
@@ -124,67 +119,77 @@ bool FStateTreePropertyBindings::ResolvePath(const UStruct* Struct, const FState
 			CurrentStruct = nullptr;
 		}
 		// Check to see if this is a simple structure (eg. not an array of structures)
-		else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		else if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
 		{
 			CurrentStruct = StructProperty->Struct;
 		}
 		// Check to see if this is a simple object (eg. not an array of objects)
-		else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+		else if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
 		{
 			CurrentStruct = ObjectProperty->PropertyClass;
 		}
 		// Check to see if this is a simple weak object property (eg. not an array of weak objects).
-		else if (FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(Property))
+		else if (const FWeakObjectProperty* WeakObjectProperty = CastField<FWeakObjectProperty>(Property))
 		{
 			CurrentStruct = WeakObjectProperty->PropertyClass;
 		}
 		// Check to see if this is a simple soft object property (eg. not an array of soft objects).
-		else if (FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
+		else if (const FSoftObjectProperty* SoftObjectProperty = CastField<FSoftObjectProperty>(Property))
 		{
 			CurrentStruct = SoftObjectProperty->PropertyClass;
 		}
 		else
 		{
 			UE_LOG(LogStateTree, Error, TEXT("%s: Unsupported segment %s in path '%s'."),
-			    ANSI_TO_TCHAR(__FUNCTION__), *Property->GetCPPType(), *GetPathAsString(Path, i, TEXT("<"), TEXT(">")));
+			    ANSI_TO_TCHAR(__FUNCTION__), *Property->GetCPPType(), *GetPathAsString(FirstPathSegment, Segment, TEXT("<"), TEXT(">")));
 		}
 
 		if (bFinalSegment)
 		{
 			LeafProperty = Property;
 		}
+
+		Segment = Segment->NextIndex.IsValid() ? &PropertySegments[Segment->NextIndex.Get()] : nullptr;
 	}
 
-	int32 IndirectionsEnd = PropertyIndirections.Num();
-
 	// Collapse adjacent offset indirections
-	for (int32 i = IndirectionsBegin; i < IndirectionsEnd; i++)
+	for (int32 Index = 0; Index < TempIndirections.Num(); Index++)
 	{
-		FStateTreePropertyIndirection& Indirection = PropertyIndirections[i];
-		if (Indirection.Type == EStateTreePropertyAccessType::Offset && (i + 1) < IndirectionsEnd)
+		FStateTreePropertyIndirection& Indirection = TempIndirections[Index];
+		if (Indirection.Type == EStateTreePropertyAccessType::Offset && (Index + 1) < TempIndirections.Num())
 		{
-			FStateTreePropertyIndirection& NextIndirection = PropertyIndirections[i + 1];
+			const FStateTreePropertyIndirection& NextIndirection = TempIndirections[Index + 1];
 			if (NextIndirection.Type == EStateTreePropertyAccessType::Offset)
 			{
 				Indirection.Offset += NextIndirection.Offset;
-				PropertyIndirections.RemoveAt(i + 1);
-				i--;
-				IndirectionsEnd--;
+				TempIndirections.RemoveAt(Index + 1);
+				Index--;
 			}
 		}
 	}
 
-	OutAccess.IndirectionsBegin = IndirectionsBegin;
-	OutAccess.IndirectionsEnd = IndirectionsEnd;
-	OutAccess.LeafProperty = LeafProperty;
+	check(TempIndirections.Num() > 0);
+
+	// Store indirections
+	OutFirstIndirection = TempIndirections[0];
+	FStateTreePropertyIndirection* PrevIndirection = &OutFirstIndirection;
+	for (int32 Index = 1; Index < TempIndirections.Num(); Index++)
+	{
+		const int32 IndirectionIndex = PropertyIndirections.Num();
+		FStateTreePropertyIndirection& NewIndirection = PropertyIndirections.Add_GetRef(TempIndirections[Index]);
+		PrevIndirection->NextIndex = FStateTreeIndex16(IndirectionIndex);
+		PrevIndirection = &NewIndirection;
+	}
+	
+	OutLeafProperty = LeafProperty;
 
 	return true;
 }
 
 bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 {
-	const FProperty* SourceProperty = PropertyAccesses[Copy.SourceAccessIndex].LeafProperty;
-	const FProperty* TargetProperty = PropertyAccesses[Copy.TargetAccessIndex].LeafProperty;
+	const FProperty* SourceProperty = Copy.SourceLeafProperty;
+	const FProperty* TargetProperty = Copy.TargetLeafProperty;
 
 	if (!TargetProperty)
 	{
@@ -212,7 +217,7 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 	switch (Copy.Type)
 	{
 	case EStateTreePropertyCopyType::CopyPlain:
-		Copy.CopySize = PropertyAccesses[Copy.SourceAccessIndex].LeafProperty->ElementSize * PropertyAccesses[Copy.SourceAccessIndex].LeafProperty->ArrayDim;
+		Copy.CopySize = SourceProperty->ElementSize * SourceProperty->ArrayDim;
 		bResult = (SourceProperty->PropertyFlags & CPF_IsPlainOldData) != 0 && (TargetProperty->PropertyFlags & CPF_IsPlainOldData) != 0;
 		break;
 	case EStateTreePropertyCopyType::CopyComplex:
@@ -300,51 +305,52 @@ bool FStateTreePropertyBindings::ValidateCopy(FStateTreePropCopy& Copy) const
 	return bResult;
 }
 
-uint8* FStateTreePropertyBindings::GetAddress(FStateTreeDataView InStructView, const FStateTreePropertyAccess& InAccess) const
+uint8* FStateTreePropertyBindings::GetAddress(FStateTreeDataView InStructView, const FStateTreePropertyIndirection& FirstIndirection, const FProperty* LeafProperty) const
 {
 	uint8* Address = InStructView.GetMutableMemory();
 	if (Address == nullptr)
 	{
 		return nullptr;
 	}
-	
-	for (int32 i = InAccess.IndirectionsBegin; Address != nullptr && i < InAccess.IndirectionsEnd; i++)
+
+	const FStateTreePropertyIndirection* Indirection = &FirstIndirection;
+
+	while (Indirection != nullptr && Address != nullptr)
 	{
-		const FStateTreePropertyIndirection& Indirection = PropertyIndirections[i];
-		switch (Indirection.Type)
+		switch (Indirection->Type)
 		{
 		case EStateTreePropertyAccessType::Offset:
 		{
-			Address = Address + Indirection.Offset;
+			Address = Address + Indirection->Offset;
 			break;
 		}
 		case EStateTreePropertyAccessType::Object:
 		{
-			UObject* Object = *reinterpret_cast<UObject**>(Address + Indirection.Offset);
+			UObject* Object = *reinterpret_cast<UObject**>(Address + Indirection->Offset);
 			Address = reinterpret_cast<uint8*>(Object);
 			break;
 		}
 		case EStateTreePropertyAccessType::WeakObject:
 		{
-			TWeakObjectPtr<UObject>& WeakObjectPtr = *reinterpret_cast<TWeakObjectPtr<UObject>*>(Address + Indirection.Offset);
+			TWeakObjectPtr<UObject>& WeakObjectPtr = *reinterpret_cast<TWeakObjectPtr<UObject>*>(Address + Indirection->Offset);
 			UObject* Object = WeakObjectPtr.Get();
 			Address = reinterpret_cast<uint8*>(Object);
 			break;
 		}
 		case EStateTreePropertyAccessType::SoftObject:
 		{
-			FSoftObjectPtr& SoftObjectPtr = *reinterpret_cast<FSoftObjectPtr*>(Address + Indirection.Offset);
+			FSoftObjectPtr& SoftObjectPtr = *reinterpret_cast<FSoftObjectPtr*>(Address + Indirection->Offset);
 			UObject* Object = SoftObjectPtr.Get();
 			Address = reinterpret_cast<uint8*>(Object);
 			break;
 		}
 		case EStateTreePropertyAccessType::IndexArray:
 		{
-			check(Indirection.ArrayProperty);
-			FScriptArrayHelper Helper(Indirection.ArrayProperty, Address + Indirection.Offset);
-			if (Helper.IsValidIndex(Indirection.ArrayIndex))
+			check(Indirection->ArrayProperty);
+			FScriptArrayHelper Helper(Indirection->ArrayProperty, Address + Indirection->Offset);
+			if (Helper.IsValidIndex(Indirection->ArrayIndex.Get()))
 			{
-				Address = reinterpret_cast<uint8*>(Helper.GetRawPtr(Indirection.ArrayIndex));
+				Address = reinterpret_cast<uint8*>(Helper.GetRawPtr(Indirection->ArrayIndex.Get()));
 			}
 			else
 			{
@@ -354,18 +360,20 @@ uint8* FStateTreePropertyBindings::GetAddress(FStateTreeDataView InStructView, c
 		}
 		default:
 			ensureMsgf(false, TEXT("FStateTreePropertyBindings::GetAddress: Unhandled indirection type %s for '%s'"),
-				*StaticEnum<EStateTreePropertyAccessType>()->GetValueAsString(Indirection.Type), *InAccess.LeafProperty->GetNameCPP());
+				*StaticEnum<EStateTreePropertyAccessType>()->GetValueAsString(Indirection->Type), *LeafProperty->GetNameCPP());
 		}
+
+		Indirection = Indirection->NextIndex.IsValid() ? &PropertyIndirections[Indirection->NextIndex.Get()] : nullptr;
 	}
 
 	return Address;
 }
 
-void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, const FProperty* SourceProperty, const uint8* SourceAddress, const FProperty* TargetProperty, uint8* TargetAddress) const
+void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, const uint8* SourceAddress, uint8* TargetAddress) const
 {
 	// Source property can be null
 	check(SourceAddress);
-	check(TargetProperty);
+	check(Copy.TargetLeafProperty);
 	check(TargetAddress);
 
 	switch (Copy.Type)
@@ -374,34 +382,34 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, con
 		FMemory::Memcpy(TargetAddress, SourceAddress, Copy.CopySize);
 		break;
 	case EStateTreePropertyCopyType::CopyComplex:
-		TargetProperty->CopyCompleteValue(TargetAddress, SourceAddress);
+		Copy.TargetLeafProperty->CopyCompleteValue(TargetAddress, SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::CopyBool:
-		static_cast<const FBoolProperty*>(TargetProperty)->SetPropertyValue(TargetAddress, static_cast<const FBoolProperty*>(SourceProperty)->GetPropertyValue(SourceAddress));
+		static_cast<const FBoolProperty*>(Copy.TargetLeafProperty)->SetPropertyValue(TargetAddress, static_cast<const FBoolProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress));
 		break;
 	case EStateTreePropertyCopyType::CopyStruct:
 		// If SourceProperty == nullptr (pointing to the struct source directly), the GetAddress() did the right thing and is pointing the the beginning of the struct. 
-		static_cast<const FStructProperty*>(TargetProperty)->Struct->CopyScriptStruct(TargetAddress, SourceAddress);
+		static_cast<const FStructProperty*>(Copy.TargetLeafProperty)->Struct->CopyScriptStruct(TargetAddress, SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::CopyObject:
-		if (SourceProperty == nullptr)
+		if (Copy.SourceLeafProperty == nullptr)
 		{
 			// Source is pointing at object directly.
-			static_cast<const FObjectPropertyBase*>(TargetProperty)->SetObjectPropertyValue(TargetAddress, (UObject*)SourceAddress);
+			static_cast<const FObjectPropertyBase*>(Copy.TargetLeafProperty)->SetObjectPropertyValue(TargetAddress, (UObject*)SourceAddress);
 		}
 		else
 		{
-			static_cast<const FObjectPropertyBase*>(TargetProperty)->SetObjectPropertyValue(TargetAddress, static_cast<const FObjectPropertyBase*>(SourceProperty)->GetObjectPropertyValue(SourceAddress));
+			static_cast<const FObjectPropertyBase*>(Copy.TargetLeafProperty)->SetObjectPropertyValue(TargetAddress, static_cast<const FObjectPropertyBase*>(Copy.SourceLeafProperty)->GetObjectPropertyValue(SourceAddress));
 		}
 		break;
 	case EStateTreePropertyCopyType::CopyName:
-		static_cast<const FNameProperty*>(TargetProperty)->SetPropertyValue(TargetAddress, static_cast<const FNameProperty*>(SourceProperty)->GetPropertyValue(SourceAddress));
+		static_cast<const FNameProperty*>(Copy.TargetLeafProperty)->SetPropertyValue(TargetAddress, static_cast<const FNameProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress));
 		break;
 	case EStateTreePropertyCopyType::CopyFixedArray:
 	{
 		// Copy into fixed sized array (EditFixedSize). Resizable arrays are copied as Complex, and regular fixed sizes arrays via the regular copies (dim specifies array size).
-		const FArrayProperty* SourceArrayProperty = static_cast<const FArrayProperty*>(SourceProperty);
-		const FArrayProperty* TargetArrayProperty = static_cast<const FArrayProperty*>(TargetProperty);
+		const FArrayProperty* SourceArrayProperty = static_cast<const FArrayProperty*>(Copy.SourceLeafProperty);
+		const FArrayProperty* TargetArrayProperty = static_cast<const FArrayProperty*>(Copy.TargetLeafProperty);
 		FScriptArrayHelper SourceArrayHelper(SourceArrayProperty, SourceAddress);
 		FScriptArrayHelper TargetArrayHelper(TargetArrayProperty, TargetAddress);
 			
@@ -413,22 +421,22 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, con
 		break;
 	}
 	case EStateTreePropertyCopyType::PromoteBoolToByte:
-		*reinterpret_cast<uint8*>(TargetAddress) = (uint8)static_cast<const FBoolProperty*>(SourceProperty)->GetPropertyValue(SourceAddress);
+		*reinterpret_cast<uint8*>(TargetAddress) = (uint8)static_cast<const FBoolProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::PromoteBoolToInt32:
-		*reinterpret_cast<int32*>(TargetAddress) = (int32)static_cast<const FBoolProperty*>(SourceProperty)->GetPropertyValue(SourceAddress);
+		*reinterpret_cast<int32*>(TargetAddress) = (int32)static_cast<const FBoolProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::PromoteBoolToUInt32:
-		*reinterpret_cast<uint32*>(TargetAddress) = (uint32)static_cast<const FBoolProperty*>(SourceProperty)->GetPropertyValue(SourceAddress);
+		*reinterpret_cast<uint32*>(TargetAddress) = (uint32)static_cast<const FBoolProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::PromoteBoolToInt64:
-		*reinterpret_cast<int64*>(TargetAddress) = (int64)static_cast<const FBoolProperty*>(SourceProperty)->GetPropertyValue(SourceAddress);
+		*reinterpret_cast<int64*>(TargetAddress) = (int64)static_cast<const FBoolProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::PromoteBoolToFloat:
-		*reinterpret_cast<float*>(TargetAddress) = (float)static_cast<const FBoolProperty*>(SourceProperty)->GetPropertyValue(SourceAddress);
+		*reinterpret_cast<float*>(TargetAddress) = (float)static_cast<const FBoolProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::PromoteBoolToDouble:
-		*reinterpret_cast<double*>(TargetAddress) = (double)static_cast<const FBoolProperty*>(SourceProperty)->GetPropertyValue(SourceAddress);
+		*reinterpret_cast<double*>(TargetAddress) = (double)static_cast<const FBoolProperty*>(Copy.SourceLeafProperty)->GetPropertyValue(SourceAddress);
 		break;
 	case EStateTreePropertyCopyType::PromoteByteToInt32:
 		*reinterpret_cast<int32*>(TargetAddress) = (int32)*reinterpret_cast<const uint8*>(SourceAddress);
@@ -468,12 +476,12 @@ void FStateTreePropertyBindings::PerformCopy(const FStateTreePropCopy& Copy, con
 		break;
 	default:
 		ensureMsgf(false, TEXT("FStateTreePropertyBindings::PerformCopy: Unhandled copy type %s between '%s' and '%s'"),
-			*StaticEnum<EStateTreePropertyCopyType>()->GetValueAsString(Copy.Type), *SourceProperty->GetNameCPP(), *TargetProperty->GetNameCPP());
+			*StaticEnum<EStateTreePropertyCopyType>()->GetValueAsString(Copy.Type), *Copy.SourceLeafProperty->GetNameCPP(), *Copy.TargetLeafProperty->GetNameCPP());
 		break;
 	}
 }
 
-bool FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> SourceStructViews, const int32 TargetBatchIndex, FStateTreeDataView TargetStructView) const
+bool FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> SourceStructViews, const FStateTreeIndex16 TargetBatchIndex, FStateTreeDataView TargetStructView) const
 {
 	// This is made ensure so that the programmers have the change to catch it (it's usually programming error not to call ResolvePaths(), and it wont spam log for others.
 	if (!ensureMsgf(bBindingsResolved, TEXT("Bindings must be resolved successfully before copying. See ResolvePaths()")))
@@ -481,13 +489,13 @@ bool FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> Sour
 		return false;
 	}
 
-	if (TargetBatchIndex == INDEX_NONE)
+	if (TargetBatchIndex.IsValid() == false)
 	{
 		return false;
 	}
 
-	check(CopyBatches.IsValidIndex(TargetBatchIndex));
-	const FStateTreePropCopyBatch& Batch = CopyBatches[TargetBatchIndex];
+	check(CopyBatches.IsValidIndex(TargetBatchIndex.Get()));
+	const FStateTreePropCopyBatch& Batch = CopyBatches[TargetBatchIndex.Get()];
 
 	check(TargetStructView.IsValid());
 	check(TargetStructView.GetStruct() == Batch.TargetStruct.Struct);
@@ -503,19 +511,17 @@ bool FStateTreePropertyBindings::CopyTo(TConstArrayView<FStateTreeDataView> Sour
 			continue;
 		}
 		
-		const FStateTreeDataView SourceStructView = SourceStructViews[Copy.SourceStructIndex];
+		const FStateTreeDataView SourceStructView = SourceStructViews[Copy.SourceStructIndex.Get()];
 		if (SourceStructView.IsValid())
 		{
-			check(SourceStructView.GetStruct() == SourceStructs[Copy.SourceStructIndex].Struct || (SourceStructView.GetStruct() && SourceStructView.GetStruct()->IsChildOf(SourceStructs[Copy.SourceStructIndex].Struct)));
+			check(SourceStructView.GetStruct() == SourceStructs[Copy.SourceStructIndex.Get()].Struct
+				|| (SourceStructView.GetStruct() && SourceStructView.GetStruct()->IsChildOf(SourceStructs[Copy.SourceStructIndex.Get()].Struct)));
 				
-			const FStateTreePropertyAccess& SourceAccess = PropertyAccesses[Copy.SourceAccessIndex];
-			const FStateTreePropertyAccess& TargetAccess = PropertyAccesses[Copy.TargetAccessIndex];
-			
-			const uint8* SourceAddress = GetAddress(SourceStructView, SourceAccess);
-			uint8* TargetAddress = GetAddress(TargetStructView, TargetAccess);
+			const uint8* SourceAddress = GetAddress(SourceStructView, Copy.SourceIndirection, Copy.SourceLeafProperty);
+			uint8* TargetAddress = GetAddress(TargetStructView, Copy.TargetIndirection, Copy.TargetLeafProperty);
 			
 			check (SourceAddress != nullptr && TargetAddress != nullptr);
-			PerformCopy(Copy, SourceAccess.LeafProperty, SourceAddress, TargetAccess.LeafProperty, TargetAddress);
+			PerformCopy(Copy, SourceAddress, TargetAddress);
 		}
 		else
 		{
@@ -549,84 +555,96 @@ void FStateTreePropertyBindings::DebugPrintInternalLayout(FString& OutString) co
 	}
 
 	/** Array of property bindings, resolved into arrays of copies before use. */
-	OutString += FString::Printf(TEXT("\nPropertyBindings (%d)\n  [ %-8s | %-8s | %-10s | %-50s ]\n"), PropertyBindings.Num(),
-	TEXT("Src Path"), TEXT("Tgt Path"), TEXT("Src Struct"), TEXT("Copy Type"));
+	OutString += FString::Printf(TEXT("\nPropertyBindings (%d)\n  [ %-20s | %-4s | %-4s | %-10s | %-20s | %-4s | %-7s | %-20s | %-7s | %-20s ]\n"),
+		PropertyBindings.Num(),
+		TEXT("Source Name"), TEXT("Arr#"), TEXT("Next"), TEXT("Access"),
+		TEXT("Target Name"), TEXT("Arr#"), TEXT("Next"), TEXT("Access"),
+		TEXT("Struct#"), TEXT("Copy Type"));
 	for (const FStateTreePropertyBinding& PropertyBinding : PropertyBindings)
 	{
-		OutString += FString::Printf(TEXT("  | %8d | %8d | %10d | %-50s |\n"),
-									 PropertyBinding.SourcePathIndex, PropertyBinding.TargetPathIndex, PropertyBinding.SourceStructIndex,
-									 *StaticEnum<EStateTreePropertyCopyType>()->GetValueAsString(PropertyBinding.CopyType));
-	}
-
-	/** Array of property bindings, indexed by property paths. */
-	OutString += FString::Printf(TEXT("\nPropertyPaths (%d)\n  [ %-4s [%3s:%3s[ |\n"), PropertyPaths.Num(),
-		TEXT("Seg."), TEXT("Beg"), TEXT("End"));
-	for (const FStateTreePropertyPath& PropertyPath : PropertyPaths)
-	{
-		OutString += FString::Printf(TEXT("  | %4s [%3d:%-3d[ |\n"), TEXT(""), PropertyPath.SegmentsBegin, PropertyPath.SegmentsEnd);
+		OutString += FString::Printf(TEXT("  | %-20s | %4d | %4d | %-10s | %-20s | %4d | %4d | %-10s | %7d | %-20s | \n"),
+									 *PropertyBinding.SourcePath.Name.ToString(),
+									 PropertyBinding.SourcePath.ArrayIndex.Get(),
+									 PropertyBinding.SourcePath.NextIndex.Get(),
+									 *UEnum::GetDisplayValueAsText(PropertyBinding.TargetPath.Type).ToString(),
+									 *PropertyBinding.TargetPath.Name.ToString(),
+									 PropertyBinding.TargetPath.ArrayIndex.Get(),
+									 PropertyBinding.TargetPath.NextIndex.Get(),
+									 *UEnum::GetDisplayValueAsText(PropertyBinding.TargetPath.Type).ToString(),
+									 PropertyBinding.SourceStructIndex.Get(),
+									 *UEnum::GetValueAsString(PropertyBinding.CopyType));
 	}
 
 	/** Array of property segments, indexed by property paths. */
-	OutString += FString::Printf(TEXT("\nPropertySegments (%d)\n  [ %-20s | %3s | %-40s ]\n"), PropertySegments.Num(),
-		TEXT("Name"), TEXT("Idx"), TEXT("Access Type"));
+	OutString += FString::Printf(TEXT("\nPropertySegments (%d)\n  [ %-20s | %4s | %4s | %-10s ]\n"), PropertySegments.Num(),
+		TEXT("Name"), TEXT("Arr#"), TEXT("Next"), TEXT("Access"));
 	for (const FStateTreePropertySegment& PropertySegment : PropertySegments)
 	{
-		OutString += FString::Printf(TEXT("  | %-20s | %3d | %-40s |\n"),
+		OutString += FString::Printf(TEXT("  | %-20s | %4d | %4d | %-10s |\n"),
 									 *PropertySegment.Name.ToString(),
-									 PropertySegment.ArrayIndex, *StaticEnum<EStateTreePropertyAccessType>()->GetValueAsString(PropertySegment.Type));
+									 PropertySegment.ArrayIndex.Get(),
+									 PropertySegment.NextIndex.Get(),
+									 *UEnum::GetDisplayValueAsText(PropertySegment.Type).ToString());
 	}
 
 	/** Array of property copies */
-	OutString += FString::Printf(TEXT("\nPropertyCopies (%d)\n  [ %-7s | %-7s | %-7s | %-50s | %-4s ]\n"), PropertyCopies.Num(),
-		TEXT("Src Idx"), TEXT("Tgt Idx"), TEXT("Struct"), TEXT("Copy Type"), TEXT("Size"));
+	OutString += FString::Printf(TEXT("\nPropertyCopies (%d)\n  [ %-7s | %-4s | %-4s | %-10s | %-7s | %-4s | %-4s | %-10s | %-7s | %-20s | %-4s ]\n"), PropertyCopies.Num(),
+		TEXT("Src Idx"), TEXT("Off."), TEXT("Next"), TEXT("Type"),
+		TEXT("Tgt Idx"), TEXT("Off."), TEXT("Next"), TEXT("Type"),
+		TEXT("Struct"), TEXT("Copy Type"), TEXT("Size"));
 	for (const FStateTreePropCopy& PropertyCopy : PropertyCopies)
 	{
-		OutString += FString::Printf(TEXT("  | %7d | %7d | %7d | %-50s | %4d |\n"),
-					PropertyCopy.SourceAccessIndex, PropertyCopy.TargetAccessIndex, PropertyCopy.SourceStructIndex,
-					*StaticEnum<EStateTreePropertyCopyType>()->GetValueAsString(PropertyCopy.Type),
+		OutString += FString::Printf(TEXT("  | %7d | %4d | %4d | %-10s | %7d | %4d | %4d | %-10s | %7d | %-20s | %4d |\n"),
+					PropertyCopy.SourceIndirection.ArrayIndex.Get(),
+					PropertyCopy.SourceIndirection.Offset,
+					PropertyCopy.SourceIndirection.NextIndex.Get(),
+					*UEnum::GetDisplayValueAsText(PropertyCopy.SourceIndirection.Type).ToString(),
+					PropertyCopy.TargetIndirection.ArrayIndex.Get(),
+					PropertyCopy.TargetIndirection.Offset,
+					PropertyCopy.TargetIndirection.NextIndex.Get(),
+					*UEnum::GetDisplayValueAsText(PropertyCopy.TargetIndirection.Type).ToString(),
+					PropertyCopy.SourceStructIndex.Get(),
+					*UEnum::GetDisplayValueAsText(PropertyCopy.Type).ToString(),
 					PropertyCopy.CopySize);
 	}
 
-	/** Array of property accesses, indexed by copies*/
-	OutString += FString::Printf(TEXT("\nPropertyAccesses (%d)\n  [ %-8s [%-4s:%-4s [ |\n"), PropertyAccesses.Num(),
-		TEXT("Indirect"), TEXT("Beg"), TEXT("End"));
-	for (const FStateTreePropertyAccess& PropertyAccess : PropertyAccesses)
-	{
-		OutString += FString::Printf(TEXT("  | %8s [%4d:%-4d [ |\n"), TEXT(""), PropertyAccess.IndirectionsBegin, PropertyAccess.IndirectionsEnd);
-	}
-
 	/** Array of property indirections, indexed by accesses*/
-	OutString += FString::Printf(TEXT("\nPropertyIndirections (%d)\n  [ %-4s | %-4s | %-40s ] \n"), PropertyIndirections.Num(),
-		TEXT("Idx"), TEXT("Off."), TEXT("Access Type"));
+	OutString += FString::Printf(TEXT("\nPropertyIndirections (%d)\n  [ %-4s | %-4s | %-4s | %-10s ] \n"), PropertyIndirections.Num(),
+		TEXT("Idx"), TEXT("Off."), TEXT("Next"), TEXT("Access Type"));
 	for (const FStateTreePropertyIndirection& PropertyIndirection : PropertyIndirections)
 	{
-		OutString += FString::Printf(TEXT("  | %4d | %4d | %-40s |\n"),
-					PropertyIndirection.ArrayIndex, PropertyIndirection.Offset,*StaticEnum<EStateTreePropertyAccessType>()->GetValueAsString(PropertyIndirection.Type));
+		OutString += FString::Printf(TEXT("  | %4d | %4d | %4d | %-10s |\n"),
+					PropertyIndirection.ArrayIndex.Get(),
+					PropertyIndirection.Offset,
+					PropertyIndirection.NextIndex.Get(),
+					*UEnum::GetDisplayValueAsText(PropertyIndirection.Type).ToString());
 	}
 }
 
-FString FStateTreePropertyBindings::GetPathAsString(const FStateTreePropertyPath& Path, const int32 HighlightedSegment, const TCHAR* HighlightPrefix, const TCHAR* HighlightPostfix)
+FString FStateTreePropertyBindings::GetPathAsString(const FStateTreePropertySegment& FirstPathSegment, const FStateTreePropertySegment* HighlightedSegment, const TCHAR* HighlightPrefix, const TCHAR* HighlightPostfix)
 {
 	FString Result;
-	for (int32 i = Path.SegmentsBegin; i < Path.SegmentsEnd; i++)
+	const FStateTreePropertySegment* Segment = &FirstPathSegment;
+	while (Segment != nullptr)
 	{
-		const FStateTreePropertySegment& Segment = PropertySegments[i];
-		if (i > 0)
+		if (!Result.IsEmpty())
 		{
 			Result += TEXT(".");
 		}
 		
-		if (i == HighlightedSegment && HighlightPrefix)
+		if (Segment == HighlightedSegment && HighlightPrefix)
 		{
 			Result += HighlightPrefix;
 		}
 
-		Result += Segment.Name.ToString();
+		Result += Segment->Name.ToString();
 
-		if (i == HighlightedSegment && HighlightPostfix)
+		if (Segment == HighlightedSegment && HighlightPostfix)
 		{
 			Result += HighlightPostfix;
 		}
+
+		Segment = Segment->NextIndex.IsValid() ? &PropertySegments[Segment->NextIndex.Get()] : nullptr;
 	}
 	return Result;
 }

@@ -78,9 +78,9 @@ struct FStateTreeLinker
 		{
 			Index = ExternalDataDescs.Add(Desc);
 			check(FStateTreeExternalDataHandle::IsValidIndex(Index + ExternalDataBaseIndex));
-			ExternalDataDescs[Index].Handle.DataViewIndex = (uint8)(Index + ExternalDataBaseIndex);
+			ExternalDataDescs[Index].Handle.DataViewIndex = FStateTreeIndex8(Index + ExternalDataBaseIndex);
 		}
-		Handle.DataViewIndex = (uint8)(Index + ExternalDataBaseIndex);
+		Handle.DataViewIndex = FStateTreeIndex8(Index + ExternalDataBaseIndex);
 	}
 	/**
 	 * Links reference to a property in instance data.
@@ -117,10 +117,10 @@ protected:
 			return;
 		}
 
-		check(CurrentInstanceIndex < MAX_uint8);
+		check(FStateTreeIndex8::IsValidIndex(CurrentInstanceIndex));
 		check(Property->GetOffset_ForInternal() < MAX_uint16);
 		
-		Handle.DataViewIndex = (uint8)CurrentInstanceIndex;
+		Handle.DataViewIndex = FStateTreeIndex8(CurrentInstanceIndex);
 		Handle.Type = EStateTreePropertyIndirection::Offset;
 		Handle.PropertyOffset = (uint16)Property->GetOffset_ForInternal();
 	}

@@ -37,15 +37,15 @@ struct STATETREEMODULE_API FStateTreeNodeBase
 
 	/** Property binding copy batch handle. */
 	UPROPERTY()
-	FStateTreeHandle BindingsBatch = FStateTreeHandle::Invalid;
+	FStateTreeIndex16 BindingsBatch = FStateTreeIndex16::Invalid;
 
 	/** The runtime data's data view index in the StateTreeExecutionContext, and source struct index in property binding. */
 	UPROPERTY()
-	uint16 DataViewIndex = 0;
+	FStateTreeIndex16 DataViewIndex = FStateTreeIndex16::Invalid;
 
 	/** Index in runtime instance storage. */
 	UPROPERTY()
-	uint16 InstanceIndex = 0;
+	FStateTreeIndex16 InstanceIndex = FStateTreeIndex16::Invalid;
 
 	/** True if the instance is an UObject. */
 	UPROPERTY()

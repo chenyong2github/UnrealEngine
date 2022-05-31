@@ -4,6 +4,7 @@
 #include "PropertyPathHelpers.h"
 #include "StateTreeTypes.h"
 #include "StateTreePropertyBindings.h"
+#include "StateTreeCompiler.h"
 
 bool FStateTreePropertyBindingCompiler::Init(FStateTreePropertyBindings& InPropertyBindings, FStateTreeCompilerLog& InLog)
 {
@@ -21,8 +22,11 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 	OutBatchIndex = INDEX_NONE;
 
 	StoreSourceStructs();
+
+	TArray<FStateTreePropertySegment> SourceSegments;
+	TArray<FStateTreePropertySegment> TargetSegments;
 	
-	int32 BindingsBegin = PropertyBindings->PropertyBindings.Num();
+	const int32 BindingsBegin = PropertyBindings->PropertyBindings.Num();
 
 	for (const FStateTreeEditorPropertyBinding& EditorBinding : EditorPropertyBindings)
 	{
@@ -46,9 +50,13 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 
 		FStateTreePropertyBinding& NewBinding = PropertyBindings->PropertyBindings.AddDefaulted_GetRef();
 
+		SourceSegments.Reset();
+		TargetSegments.Reset();
+
 		// Resolve paths
-		FResolvedPathResult SourceResult;
-		if (!ResolvePropertyPath(TargetStruct, SourceStruct, EditorBinding.SourcePath, SourceResult))
+		const FProperty* SourceLeafProperty = nullptr;
+		int32 SourceLeafArrayIndex = INDEX_NONE;
+		if (!ResolvePropertyPath(SourceStruct, EditorBinding.SourcePath, SourceSegments, SourceLeafProperty, SourceLeafArrayIndex, Log, &TargetStruct))
 		{
 			Log->Reportf(EMessageSeverity::Error, TargetStruct,
 				TEXT("Could not resolve path to '%s:%s'."),
@@ -57,8 +65,9 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 		}
 
 		// Destination container is set to 0, it is assumed to be passed in when doing the batch copy.
-		FResolvedPathResult TargetResult;
-		if (!ResolvePropertyPath(TargetStruct, TargetStruct, EditorBinding.TargetPath, TargetResult))
+		const FProperty* TargetLeafProperty = nullptr;
+		int32 TargetLeafArrayIndex = INDEX_NONE;
+		if (!ResolvePropertyPath(TargetStruct, EditorBinding.TargetPath, TargetSegments, TargetLeafProperty, TargetLeafArrayIndex, Log, &TargetStruct))
 		{
 			Log->Reportf(EMessageSeverity::Error, TargetStruct,
 				TEXT("Could not resolve path to '%s:%s'."),
@@ -66,11 +75,45 @@ bool FStateTreePropertyBindingCompiler::CompileBatch(const FStateTreeBindableStr
 			return false;
 		}
 
-		NewBinding.SourcePathIndex = SourceResult.PathIndex;
-		NewBinding.TargetPathIndex = TargetResult.PathIndex;
-		NewBinding.SourceStructIndex = SourceStructIdx;
-		NewBinding.CopyType = GetCopyType(SourceStruct.Struct, SourceResult.LeafProperty, SourceResult.LeafArrayIndex,
-			TargetStruct.Struct, TargetResult.LeafProperty, TargetResult.LeafArrayIndex);
+		auto StorePropertyPath = [this, &TargetStruct](FStateTreePropertySegment& FirstPathSegment, TArray<FStateTreePropertySegment>& Segments) -> bool
+		{
+			check(Segments.Num() > 0);
+			FirstPathSegment = Segments[0];
+			FStateTreePropertySegment* PrevSegment = &FirstPathSegment; 
+			for (int32 Index = 1; Index < Segments.Num(); Index++)
+			{
+				const int32 SegmentIndex = PropertyBindings->PropertySegments.Num();
+				FStateTreePropertySegment& NewSegment = PropertyBindings->PropertySegments.Add_GetRef(Segments[Index]);
+
+				if (const auto Validation = UE::StateTree::Compiler::IsValidIndex16(SegmentIndex); Validation.DidFail())
+				{
+					Validation.Log(*Log, TEXT("SegmentIndex"), TargetStruct);
+					return false;
+				}
+				PrevSegment->NextIndex = FStateTreeIndex16(SegmentIndex);
+				PrevSegment = &NewSegment;
+			}
+			return true;
+		};
+
+		if (!StorePropertyPath(NewBinding.SourcePath, SourceSegments))
+		{
+			return false;
+		}
+		if (!StorePropertyPath(NewBinding.TargetPath, TargetSegments))
+		{
+			return false;
+		}
+
+		if (const auto Validation = UE::StateTree::Compiler::IsValidIndex16(SourceStructIdx); Validation.DidFail())
+		{
+			Validation.Log(*Log, TEXT("SourceStructIdx"), TargetStruct);
+			return false;
+		}
+		NewBinding.SourceStructIndex = FStateTreeIndex16(SourceStructIdx);
+		
+		NewBinding.CopyType = GetCopyType(SourceStruct.Struct, SourceLeafProperty, SourceLeafArrayIndex,
+			TargetStruct.Struct, TargetLeafProperty, TargetLeafArrayIndex);
 
 		if (NewBinding.CopyType == EStateTreePropertyCopyType::None)
 		{
@@ -112,7 +155,7 @@ int32 FStateTreePropertyBindingCompiler::GetSourceStructIndexByID(const FGuid& I
 }
 
 EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(const UStruct* SourceStruct, const FProperty* SourceProperty, const int32 SourceArrayIndex,
-																		  const UStruct* TargetStruct, const FProperty* TargetProperty, const int32 TargetArrayIndex)
+																		  const UStruct* TargetStruct, const FProperty* TargetProperty, const int32 TargetArrayIndex) const
 {
 	if (SourceProperty == nullptr)
 	{
@@ -297,20 +340,6 @@ EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(const 
 	return EStateTreePropertyCopyType::None;
 }
 
-bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBindableStructDesc& InOwnerStructDesc, const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath, FResolvedPathResult& OutResult)
-{
-	const int32 PathIndex = PropertyBindings->PropertyPaths.Num();
-	FStateTreePropertyPath& Path = PropertyBindings->PropertyPaths.AddDefaulted_GetRef();
-	Path.SegmentsBegin = PropertyBindings->PropertySegments.Num();
-
-	const bool bResult = ResolvePropertyPath(InStructDesc, InPath, PropertyBindings->PropertySegments, OutResult.LeafProperty, OutResult.LeafArrayIndex, Log, &InOwnerStructDesc);
-
-	Path.SegmentsEnd = PropertyBindings->PropertySegments.Num();
-	OutResult.PathIndex = PathIndex;
-
-	return bResult;
-}
-
 bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath,
 															TArray<FStateTreePropertySegment>& OutSegments, const FProperty*& OutLeafProperty, int32& OutLeafArrayIndex,
 															FStateTreeCompilerLog* InLog, const FStateTreeBindableStructDesc* InLogContextStruct)
@@ -379,9 +408,18 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 			break;
 		}
 
+		if (const auto Validation = UE::StateTree::Compiler::IsValidIndex16(ArrayIndex); Validation.DidFail())
+		{
+			if (InLog != nullptr)
+			{
+				Validation.Log(*InLog, TEXT("ArrayIndex"), InStructDesc);
+			}
+			return false;
+		}
+
 		FStateTreePropertySegment& Segment = OutSegments.AddDefaulted_GetRef();
 		Segment.Name = PropertyName;
-		Segment.ArrayIndex = ArrayIndex;
+		Segment.ArrayIndex = FStateTreeIndex16(ArrayIndex);
 
 		// Check to see if it is an array access first
 		const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property);
@@ -403,7 +441,7 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 				{
 					// Object arrays need an object dereference adding if non-leaf
 					FStateTreePropertySegment& ExtraSegment = OutSegments.AddDefaulted_GetRef();
-					ExtraSegment.ArrayIndex = 0;
+					ExtraSegment.ArrayIndex = FStateTreeIndex16(0);
 					ExtraSegment.Type = EStateTreePropertyAccessType::Object;
 					const FProperty* InnerProperty = ArrayProperty->Inner;
 					if (const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InnerProperty))
@@ -423,7 +461,7 @@ bool FStateTreePropertyBindingCompiler::ResolvePropertyPath(const FStateTreeBind
 			else
 			{
 				Segment.Type = EStateTreePropertyAccessType::IndexArray;
-				Segment.ArrayIndex = ArrayIndex;
+				Segment.ArrayIndex = FStateTreeIndex16(ArrayIndex);
 				CurrentStruct = nullptr;
 			}
 		}

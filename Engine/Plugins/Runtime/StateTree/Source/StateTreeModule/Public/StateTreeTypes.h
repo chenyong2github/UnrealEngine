@@ -89,29 +89,27 @@ enum class EStateTreeTransitionEvent : uint8
 };
 ENUM_CLASS_FLAGS(EStateTreeTransitionEvent)
 
-/**
- * Handle that is used to refer compact state tree data.
- */
+/** Handle to a StateTree state */
 USTRUCT(BlueprintType)
-struct STATETREEMODULE_API FStateTreeHandle
+struct STATETREEMODULE_API FStateTreeStateHandle
 {
 	GENERATED_BODY()
 
-	static const uint16 InvalidIndex = uint16(-1);		// Index value indicating invalid item.
-	static const uint16 SucceededIndex = uint16(-2);	// Index value indicating a Succeeded item.
-	static const uint16 FailedIndex = uint16(-3);		// Index value indicating a Failed item.
+	static constexpr uint16 InvalidIndex = uint16(-1);		// Index value indicating invalid item.
+	static constexpr uint16 SucceededIndex = uint16(-2);	// Index value indicating a Succeeded item.
+	static constexpr uint16 FailedIndex = uint16(-3);		// Index value indicating a Failed item.
 	
-	static const FStateTreeHandle Invalid;
-	static const FStateTreeHandle Succeeded;
-	static const FStateTreeHandle Failed;
+	static const FStateTreeStateHandle Invalid;
+	static const FStateTreeStateHandle Succeeded;
+	static const FStateTreeStateHandle Failed;
 
-	FStateTreeHandle() = default;
-	explicit FStateTreeHandle(uint16 InIndex) : Index(InIndex) {}
+	FStateTreeStateHandle() = default;
+	explicit FStateTreeStateHandle(uint16 InIndex) : Index(InIndex) {}
 
 	bool IsValid() const { return Index != InvalidIndex; }
 
-	bool operator==(const FStateTreeHandle& RHS) const { return Index == RHS.Index; }
-	bool operator!=(const FStateTreeHandle& RHS) const { return Index != RHS.Index; }
+	bool operator==(const FStateTreeStateHandle& RHS) const { return Index == RHS.Index; }
+	bool operator!=(const FStateTreeStateHandle& RHS) const { return Index != RHS.Index; }
 
 	FString Describe() const
 	{
@@ -128,6 +126,86 @@ struct STATETREEMODULE_API FStateTreeHandle
 	uint16 Index = InvalidIndex;
 };
 
+/** uint16 index that can be invalid. */
+USTRUCT(BlueprintType)
+struct STATETREEMODULE_API FStateTreeIndex16
+{
+	GENERATED_BODY()
+
+	static constexpr uint16 InvalidValue = MAX_uint16;
+	static const FStateTreeIndex16 Invalid;
+
+	/** @return true if the given index can be represented by the type. */
+	static bool IsValidIndex(const int32 Index)
+	{
+		return Index >= 0 && Index < (int32)MAX_uint16;
+	}
+
+	FStateTreeIndex16() = default;
+	
+	explicit FStateTreeIndex16(const int32 InIndex)
+	{
+		check(InIndex == INDEX_NONE || IsValidIndex(InIndex));
+		Value = InIndex == INDEX_NONE ? InvalidValue : (uint16)InIndex;
+	}
+
+	/** @retrun value of the index. */
+	uint16 Get() const { return Value; }
+	
+	/** @return the index value as int32, mapping invalid value to INDEX_NONE. */
+	int32 AsInt32() const { return Value == InvalidValue ? INDEX_NONE : Value; }
+
+	/** @return true if the index is valid. */
+	bool IsValid() const { return Value != InvalidValue; }
+
+	bool operator==(const FStateTreeIndex16& RHS) const { return Value == RHS.Value; }
+	bool operator!=(const FStateTreeIndex16& RHS) const { return Value != RHS.Value; }
+
+protected:
+	UPROPERTY()
+	uint16 Value = InvalidValue;
+};
+	
+
+USTRUCT(BlueprintType)
+struct STATETREEMODULE_API FStateTreeIndex8
+{
+	GENERATED_BODY()
+
+	static constexpr uint8 InvalidValue = MAX_uint8;
+	static const FStateTreeIndex8 Invalid;
+	
+	/** @return true if the given index can be represented by the type. */
+	static bool IsValidIndex(const int32 Index)
+	{
+		return Index >= 0 && Index < (int32)MAX_uint8;
+	}
+	
+	FStateTreeIndex8() = default;
+	
+	explicit FStateTreeIndex8(const int32 InIndex)
+	{
+		check(InIndex == INDEX_NONE || IsValidIndex(InIndex));
+		Value = InIndex == INDEX_NONE ? InvalidValue : (uint8)InIndex;
+	}
+
+	/** @retrun value of the index. */
+	uint8 Get() const { return Value; }
+
+	/** @return the index value as int32, mapping invalid value to INDEX_NONE. */
+	int32 AsInt32() const { return Value == InvalidValue ? INDEX_NONE : Value; }
+	
+	/** @return true if the index is valid. */
+	bool IsValid() const { return Value != InvalidValue; }
+
+	bool operator==(const FStateTreeIndex8& RHS) const { return Value == RHS.Value; }
+	bool operator!=(const FStateTreeIndex8& RHS) const { return Value != RHS.Value; }
+
+protected:
+	UPROPERTY()
+	uint8 Value = InvalidValue;
+};
+
 
 /**
  * Describes an array of active states in a State Tree.
@@ -141,7 +219,7 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 
 	FStateTreeActiveStates() = default;
 	
-	explicit FStateTreeActiveStates(const FStateTreeHandle StateHandle)
+	explicit FStateTreeActiveStates(const FStateTreeStateHandle StateHandle)
 	{
 		Push(StateHandle);
 	}
@@ -153,7 +231,7 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 	}
 
 	/** Pushes new state at the back of the array and returns true if there was enough space. */
-	bool Push(const FStateTreeHandle StateHandle)
+	bool Push(const FStateTreeStateHandle StateHandle)
 	{
 		if ((NumStates + 1) > MaxStates)
 		{
@@ -166,7 +244,7 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 	}
 
 	/** Pushes new state at the front of the array and returns true if there was enough space. */
-	bool PushFront(const FStateTreeHandle StateHandle)
+	bool PushFront(const FStateTreeStateHandle StateHandle)
 	{
 		if ((NumStates + 1) > MaxStates)
 		{
@@ -184,14 +262,14 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 	}
 
 	/** Pops a state from the back of the array and returns the popped value, or invalid handle if the array was empty. */
-	FStateTreeHandle Pop()
+	FStateTreeStateHandle Pop()
 	{
 		if (NumStates == 0)
 		{
-			return FStateTreeHandle::Invalid;			
+			return FStateTreeStateHandle::Invalid;			
 		}
 
-		const FStateTreeHandle Ret = States[NumStates - 1];
+		const FStateTreeStateHandle Ret = States[NumStates - 1];
 		NumStates--;
 		return Ret;
 	}
@@ -204,16 +282,16 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 		{
 			for (int32 Index = NumStates; Index < NewNum; Index++)
 			{
-				States[Index] = FStateTreeHandle::Invalid;
+				States[Index] = FStateTreeStateHandle::Invalid;
 			}
 		}
 		NumStates = NewNum;
 	}
 
 	/** Returns true of the array contains specified state. */
-	bool Contains(const FStateTreeHandle StateHandle) const
+	bool Contains(const FStateTreeStateHandle StateHandle) const
 	{
-		for (const FStateTreeHandle& Handle : *this)
+		for (const FStateTreeStateHandle& Handle : *this)
 		{
 			if (Handle == StateHandle)
 			{
@@ -224,7 +302,7 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 	}
 
 	/** Returns index of a state, searching in reverse order. */
-	int32 IndexOfReverse(const FStateTreeHandle StateHandle) const
+	int32 IndexOfReverse(const FStateTreeStateHandle StateHandle) const
 	{
 		for (int32 Index = (int32)NumStates - 1; Index >= 0; Index--)
 		{
@@ -235,7 +313,7 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 	}
 	
 	/** Returns last state in the array, or invalid state if the array is empty. */
-	FStateTreeHandle Last() const { return NumStates > 0 ? States[NumStates - 1] : FStateTreeHandle::Invalid; }
+	FStateTreeStateHandle Last() const { return NumStates > 0 ? States[NumStates - 1] : FStateTreeStateHandle::Invalid; }
 	
 	/** Returns number of states in the array. */
 	int32 Num() const { return NumStates; }
@@ -247,37 +325,37 @@ struct STATETREEMODULE_API FStateTreeActiveStates
 	bool IsEmpty() const { return NumStates == 0; } 
 
 	/** Returns a specified state in the array. */
-	FORCEINLINE FStateTreeHandle operator[](const int32 Index) const
+	FORCEINLINE FStateTreeStateHandle operator[](const int32 Index) const
 	{
 		check(Index >= 0 && Index < (int32)NumStates);
 		return States[Index];
 	}
 
 	/** Returns mutable reference to a specified state in the array. */
-	FORCEINLINE FStateTreeHandle& operator[](const int32 Index)
+	FORCEINLINE FStateTreeStateHandle& operator[](const int32 Index)
 	{
 		check(Index >= 0 && Index < (int32)NumStates);
 		return States[Index];
 	}
 
-	/** Returns a specified state in the array, or FStateTreeHandle::Invalid if Index is out of array bounds. */
-	FStateTreeHandle GetStateSafe(const int32 Index) const
+	/** Returns a specified state in the array, or FStateTreeStateHandle::Invalid if Index is out of array bounds. */
+	FStateTreeStateHandle GetStateSafe(const int32 Index) const
 	{
-		return (Index >= 0 && Index < (int32)NumStates) ? States[Index] : FStateTreeHandle::Invalid;
+		return (Index >= 0 && Index < (int32)NumStates) ? States[Index] : FStateTreeStateHandle::Invalid;
 	}
 
 	/**
 	 * DO NOT USE DIRECTLY
 	 * STL-like iterators to enable range-based for loop support.
 	 */
-	FORCEINLINE FStateTreeHandle* begin() { return &States[0]; }
-	FORCEINLINE FStateTreeHandle* end  () { return &States[0] + Num(); }
-	FORCEINLINE const FStateTreeHandle* begin() const { return &States[0]; }
-	FORCEINLINE const FStateTreeHandle* end  () const { return &States[0] + Num(); }
+	FORCEINLINE FStateTreeStateHandle* begin() { return &States[0]; }
+	FORCEINLINE FStateTreeStateHandle* end  () { return &States[0] + Num(); }
+	FORCEINLINE const FStateTreeStateHandle* begin() const { return &States[0]; }
+	FORCEINLINE const FStateTreeStateHandle* end  () const { return &States[0] + Num(); }
 
 
 	UPROPERTY(EditDefaultsOnly, Category = Default)
-	FStateTreeHandle States[MaxStates];
+	FStateTreeStateHandle States[MaxStates];
 
 	UPROPERTY(EditDefaultsOnly, Category = Default)
 	uint8 NumStates = 0;
@@ -305,7 +383,7 @@ struct STATETREEMODULE_API FStateTreeTransitionResult
 
 	/** Transition target state */
 	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
-	FStateTreeHandle TargetState = FStateTreeHandle::Invalid;
+	FStateTreeStateHandle TargetState = FStateTreeStateHandle::Invalid;
 
 	/** States selected as result of the transition. */
 	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
@@ -313,7 +391,7 @@ struct STATETREEMODULE_API FStateTreeTransitionResult
 
 	/** The current state being executed. On enter/exit callbacks this is the state of the task or evaluator. */
 	UPROPERTY(EditDefaultsOnly, Category = Default, BlueprintReadOnly)
-	FStateTreeHandle CurrentState = FStateTreeHandle::Invalid;
+	FStateTreeStateHandle CurrentState = FStateTreeStateHandle::Invalid;
 };
 
 
@@ -328,7 +406,7 @@ struct STATETREEMODULE_API FCompactStateTransition
 	UPROPERTY()
 	uint16 ConditionsBegin = 0;							// Index to first condition to test
 	UPROPERTY()
-	FStateTreeHandle State = FStateTreeHandle::Invalid;	// Target state of the transition
+	FStateTreeStateHandle State = FStateTreeStateHandle::Invalid;	// Target state of the transition
 	UPROPERTY()
 	EStateTreeTransitionType Type = EStateTreeTransitionType::NotSet;	// Type of the transition.
 	UPROPERTY()
@@ -357,10 +435,10 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	FName Name;											// Name of the State
 
 	UPROPERTY()
-	FStateTreeHandle LinkedState = FStateTreeHandle::Invalid;	// Linked state 
+	FStateTreeStateHandle LinkedState = FStateTreeStateHandle::Invalid;	// Linked state 
 
 	UPROPERTY()
-	FStateTreeHandle Parent = FStateTreeHandle::Invalid;		// Parent state
+	FStateTreeStateHandle Parent = FStateTreeStateHandle::Invalid;		// Parent state
 	UPROPERTY()
 	uint16 ChildrenBegin = 0;							// Index to first child state
 	UPROPERTY()
@@ -374,9 +452,9 @@ struct STATETREEMODULE_API FCompactStateTreeState
 	uint16 TasksBegin = 0;								// Index to first task
 
 	UPROPERTY()
-	uint16 ParameterInstanceIndex = MAX_uint16;			// Index to state instance data
+	FStateTreeIndex16 ParameterInstanceIndex = FStateTreeIndex16::Invalid;	// Index to state instance data
 	UPROPERTY()
-	uint16 ParameterDataViewIndex = MAX_uint16;			// Data view index of the input parameters
+	FStateTreeIndex16 ParameterDataViewIndex = FStateTreeIndex16::Invalid;	// Data view index of the input parameters
 
 	UPROPERTY()
 	uint8 EnterConditionsNum = 0;						// Number of enter conditions
@@ -394,7 +472,7 @@ struct STATETREEMODULE_API FCompactStateTreeParameters
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FStateTreeHandle BindingsBatch = FStateTreeHandle::Invalid;
+	FStateTreeIndex16 BindingsBatch = FStateTreeIndex16::Invalid;
 
 	UPROPERTY()
 	FInstancedPropertyBag Parameters;
@@ -429,14 +507,12 @@ struct STATETREEMODULE_API FStateTreeExternalDataHandle
 	GENERATED_BODY()
 
 	static const FStateTreeExternalDataHandle Invalid;
-	static constexpr uint8 IndexNone = MAX_uint8;
-
-	static bool IsValidIndex(const int32 Index) { return Index >= 0 && Index < (int32)IndexNone; }
-
-	bool IsValid() const { return DataViewIndex != IndexNone; }
+	
+	static bool IsValidIndex(const int32 Index) { return FStateTreeIndex8::IsValidIndex(Index); }
+	bool IsValid() const { return DataViewIndex.IsValid(); }
 
 	UPROPERTY()
-	uint8 DataViewIndex = IndexNone;
+	FStateTreeIndex8 DataViewIndex = FStateTreeIndex8::Invalid;
 };
 
 /**
@@ -494,14 +570,10 @@ struct STATETREEMODULE_API FStateTreeInstanceDataPropertyHandle
 {
 	GENERATED_BODY()
 
-	static constexpr uint8 IndexNone = MAX_uint8;
-
-	static bool IsValidIndex(const int32 Index) { return Index >= 0 && Index < (int32)IndexNone; }
-
-	bool IsValid() const { return DataViewIndex != IndexNone; }
+	bool IsValid() const { return DataViewIndex.IsValid(); }
 
 	uint16 PropertyOffset = 0;
-	uint8 DataViewIndex = IndexNone;
+	FStateTreeIndex8 DataViewIndex = FStateTreeIndex8::Invalid;
 	EStateTreePropertyIndirection Type = EStateTreePropertyIndirection::Offset;
 };
 

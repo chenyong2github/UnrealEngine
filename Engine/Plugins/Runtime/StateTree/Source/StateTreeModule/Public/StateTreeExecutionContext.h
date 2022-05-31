@@ -20,13 +20,13 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 	FStateTreeActiveStates ActiveStates;
 
 	/** Index of the first task struct in the currently initialized instance data. */
-	uint16 FirstTaskStructIndex = 0;
+	FStateTreeIndex16 FirstTaskStructIndex = FStateTreeIndex16::Invalid;
 	
 	/** Index of the first task object in the currently initialized instance data. */
-	uint16 FirstTaskObjectIndex = 0;
+	FStateTreeIndex16 FirstTaskObjectIndex = FStateTreeIndex16::Invalid;
 
 	/** The index of the task that failed during enter state. Exit state uses it to call ExitState() symmetrically. */
-	uint16 EnterStateFailedTaskIndex = MAX_uint16;
+	FStateTreeIndex16 EnterStateFailedTaskIndex = FStateTreeIndex16::Invalid;
 
 	/** Result of last tick */
 	EStateTreeRunStatus LastTickStatus = EStateTreeRunStatus::Failed;
@@ -35,7 +35,7 @@ struct STATETREEMODULE_API FStateTreeExecutionState
 	EStateTreeRunStatus TreeRunStatus = EStateTreeRunStatus::Unset;
 
 	/** Delayed transition handle, if exists */
-	int16 GatedTransitionIndex = INDEX_NONE;
+	FStateTreeIndex16 GatedTransitionIndex = FStateTreeIndex16::Invalid;
 
 	/** Number of times a new state has been changed. */
 	uint16 StateChangeCount = 0;
@@ -101,7 +101,7 @@ public:
 	EStateTreeRunStatus Tick(const float DeltaTime, FStateTreeInstanceData* ExternalInstanceData = nullptr);
 
 	/** @return Pointer to a State or null if state not found */ 
-	const FCompactStateTreeState* GetStateFromHandle(const FStateTreeHandle StateHandle) const
+	const FCompactStateTreeState* GetStateFromHandle(const FStateTreeStateHandle StateHandle) const
 	{
 		return (StateTree && StateTree->States.IsValidIndex(StateHandle.Index)) ? &StateTree->States[StateHandle.Index] : nullptr;
 	}
@@ -127,7 +127,7 @@ public:
 		bool bResult = true;
 		for (const FStateTreeExternalDataDesc& DataDesc : StateTree->ExternalDataDescs)
 		{
-			const FStateTreeDataView& DataView = DataViews[DataDesc.Handle.DataViewIndex];
+			const FStateTreeDataView& DataView = DataViews[DataDesc.Handle.DataViewIndex.Get()];
 			
 			if (DataDesc.Requirement == EStateTreeExternalDataRequirement::Required)
 			{
@@ -151,7 +151,7 @@ public:
 
 		for (const FStateTreeExternalDataDesc& DataDesc : StateTree->GetNamedExternalDataDescs())
 		{
-			const FStateTreeDataView& DataView = DataViews[DataDesc.Handle.DataViewIndex];
+			const FStateTreeDataView& DataView = DataViews[DataDesc.Handle.DataViewIndex.Get()];
 
 			// Items must have valid pointer of the expected type.  
 			if (!DataView.IsValid() || !DataView.GetStruct()->IsChildOf(DataDesc.Struct))
@@ -176,7 +176,7 @@ public:
 	{
 		check(StateTree);
 		check(Handle.IsValid());
-		DataViews[Handle.DataViewIndex] = DataView;
+		DataViews[Handle.DataViewIndex.Get()] = DataView;
 	}
 
 	/**
@@ -189,8 +189,8 @@ public:
 	{
 		check(StateTree);
 		check(Handle.IsValid());
-		checkSlow(StateTree->ExternalDataDescs[Handle.DataViewIndex - StateTree->ExternalDataBaseIndex].Requirement != EStateTreeExternalDataRequirement::Optional); // Optionals should query pointer instead.
-		return DataViews[Handle.DataViewIndex].template GetMutable<typename T::DataType>();
+		checkSlow(StateTree->ExternalDataDescs[Handle.DataViewIndex.Get() - StateTree->ExternalDataBaseIndex].Requirement != EStateTreeExternalDataRequirement::Optional); // Optionals should query pointer instead.
+		return DataViews[Handle.DataViewIndex.Get()].template GetMutable<typename T::DataType>();
 	}
 
 	/**
@@ -202,7 +202,7 @@ public:
 	typename T::DataType* GetExternalDataPtr(const T Handle) const
 	{
 		check(StateTree);
-		return Handle.IsValid() ? DataViews[Handle.DataViewIndex].template GetMutablePtr<typename T::DataType>() : nullptr;
+		return Handle.IsValid() ? DataViews[Handle.DataViewIndex.Get()].template GetMutablePtr<typename T::DataType>() : nullptr;
 	}
 
 	FStateTreeDataView GetExternalDataView(const FStateTreeExternalDataHandle Handle)
@@ -210,7 +210,7 @@ public:
 		check(StateTree);
 		if (Handle.IsValid())
 		{
-			return DataViews[Handle.DataViewIndex];
+			return DataViews[Handle.DataViewIndex.Get()];
 		}
 		return FStateTreeDataView();
 	}
@@ -225,7 +225,7 @@ public:
 	{
 		check(StateTree);
 		check(Handle.IsValid());
-		return *(typename T::DataType*)(DataViews[Handle.DataViewIndex].GetMemory() + Handle.PropertyOffset);
+		return *(typename T::DataType*)(DataViews[Handle.DataViewIndex.Get()].GetMemory() + Handle.PropertyOffset);
 	}
 
 	/**
@@ -237,7 +237,7 @@ public:
 	typename T::DataType* GetInstanceDataPtr(const T Handle) const
 	{
 		check(StateTree);
-		return Handle.IsValid() ? (typename T::DataType*)(DataViews[Handle.DataViewIndex].GetMemory() + Handle.PropertyOffset) : nullptr;
+		return Handle.IsValid() ? (typename T::DataType*)(DataViews[Handle.DataViewIndex.Get()].GetMemory() + Handle.PropertyOffset) : nullptr;
 	}
 
 	/**
@@ -246,12 +246,12 @@ public:
 	 * @return Pointer to an instance object based.
 	 */
 	template <typename T>
-	T* GetInstanceObjectInternal(const int32 DataViewIndex) const
+	T* GetInstanceObjectInternal(const FStateTreeIndex16 DataViewIndex) const
 	{
-		const UStruct* Struct = DataViews[DataViewIndex].GetStruct();
+		const UStruct* Struct = DataViews[DataViewIndex.Get()].GetStruct();
 		if (Struct != nullptr && Struct->IsChildOf<T>())
 		{
-			return DataViews[DataViewIndex].template GetMutablePtr<T>();
+			return DataViews[DataViewIndex.Get()].template GetMutablePtr<T>();
 		}
 		return nullptr;
 	}
@@ -344,12 +344,12 @@ protected:
 	 * @param OutNewActiveStates Active states that got selected.
 	 * @return True if succeeded to select new active states.
 	 */
-	bool SelectState(FStateTreeInstanceData& InstanceData, const FStateTreeHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
+	bool SelectState(FStateTreeInstanceData& InstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
 
 	/**
 	 * Used internally to do the recursive part of the SelectState().
 	 */
-	bool SelectStateInternal(FStateTreeInstanceData& InstanceData, const FStateTreeHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
+	bool SelectStateInternal(FStateTreeInstanceData& InstanceData, const FStateTreeStateHandle NextState, FStateTreeActiveStates& OutNewActiveStates);
 
 	/** @return Mutable storage based on storage settings. */
 	FStateTreeInstanceData& SelectMutableInstanceData(FStateTreeInstanceData* ExternalInstanceData)
@@ -387,7 +387,7 @@ protected:
 	FString GetStateStatusString(const FStateTreeExecutionState& ExecState) const;
 
 	/** @return String describing state name for logging and debug. */
-	FString GetSafeStateName(const FStateTreeHandle State) const;
+	FString GetSafeStateName(const FStateTreeStateHandle State) const;
 
 	/** @return String describing full path of an activate state for logging and debug. */
 	FString DebugGetStatePath(const FStateTreeActiveStates& ActiveStates, int32 ActiveStateIndex) const;

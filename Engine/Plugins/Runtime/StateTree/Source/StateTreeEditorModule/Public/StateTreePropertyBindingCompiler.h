@@ -85,20 +85,12 @@ protected:
 
 	void StoreSourceStructs();
 
+	EStateTreePropertyCopyType GetCopyType(const UStruct* SourceStruct, const FProperty* SourceProperty, const int32 SourceArrayIndex, const UStruct* TargetStruct, const FProperty* TargetProperty, const int32 TargetArrayIndex) const;
+
 	UPROPERTY()
 	TArray<FStateTreeBindableStructDesc> SourceStructs;
 
 	FStateTreePropertyBindings* PropertyBindings = nullptr;
 
 	FStateTreeCompilerLog* Log = nullptr;
-	
-	struct FResolvedPathResult
-	{
-		int32 PathIndex = INDEX_NONE;
-		const FProperty* LeafProperty = nullptr;
-		int32 LeafArrayIndex = INDEX_NONE;
-	};
-
-	EStateTreePropertyCopyType GetCopyType(const UStruct* SourceStruct, const FProperty* SourceProperty, const int32 SourceArrayIndex, const UStruct* TargetStruct, const FProperty* TargetProperty, const int32 TargetArrayIndex);
-	[[nodiscard]] bool ResolvePropertyPath(const FStateTreeBindableStructDesc& InOwnerStructDesc, const FStateTreeBindableStructDesc& InStructDesc, const FStateTreeEditorPropertyPath& InPath, FResolvedPathResult& OutResult);
 };

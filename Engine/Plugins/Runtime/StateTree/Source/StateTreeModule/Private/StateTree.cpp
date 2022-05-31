@@ -28,7 +28,7 @@ void UStateTree::ResetCompiled()
 	PropertyBindings.Reset();
 	Parameters.Reset();
 
-	ParametersDataViewIndex = INDEX_NONE;
+	ParametersDataViewIndex = FStateTreeIndex8::Invalid;
 	
 	EvaluatorsBegin = 0;
 	EvaluatorsNum = 0;
@@ -51,9 +51,11 @@ void UStateTree::PostLoad()
 
 	const int32 CurrentVersion = GetLinkerCustomVersion(FStateTreeCustomVersion::GUID);
 
-	if (CurrentVersion < FStateTreeCustomVersion::InstanceDataArrays)
+	if (CurrentVersion < FStateTreeCustomVersion::LatestVersion)
 	{
-		ResetLinked();
+#if WITH_EDITOR
+		ResetCompiled();
+#endif
 		UE_LOG(LogStateTree, Error, TEXT("%s: StateTree compiled data in older format. Please recompile the StateTree asset."), *GetName());
 		return;
 	}
@@ -105,42 +107,42 @@ bool UStateTree::Link()
 	const TArrayView<FStateTreeBindableStructDesc> SourceStructs = PropertyBindings.GetSourceStructs();
 	const TArrayView<FStateTreePropCopyBatch> CopyBatches = PropertyBindings.GetCopyBatches();
 
-	if (SourceStructs.IsValidIndex(ParametersDataViewIndex))
+	if (ParametersDataViewIndex.IsValid() && SourceStructs.IsValidIndex(ParametersDataViewIndex.Get()))
 	{
-		SourceStructs[ParametersDataViewIndex].Struct = Parameters.GetPropertyBagStruct();
+		SourceStructs[ParametersDataViewIndex.Get()].Struct = Parameters.GetPropertyBagStruct();
 	}
 	
 	for (const FCompactStateTreeState& State : States)
 	{
 		if (State.Type == EStateTreeStateType::Subtree)
 		{
-			if (State.ParameterInstanceIndex == MAX_uint16
-				|| State.ParameterDataViewIndex == MAX_uint16)
+			if (State.ParameterInstanceIndex.IsValid() == false
+				|| State.ParameterDataViewIndex.IsValid() == false)
 			{
 				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
 				return false;
 			}
 
 			// Subtree is a bind source, update bag struct.
-			const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex).GetMutable<FCompactStateTreeParameters>();
-			FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex];
+			const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
+			FStateTreeBindableStructDesc& Desc = SourceStructs[State.ParameterDataViewIndex.Get()];
 			Desc.Struct = Params.Parameters.GetPropertyBagStruct();
 		}
 		else if (State.Type == EStateTreeStateType::Linked && State.LinkedState.IsValid())
 		{
 			const FCompactStateTreeState& LinkedState = States[State.LinkedState.Index];
 
-			if (State.ParameterInstanceIndex == MAX_uint16
-				|| LinkedState.ParameterInstanceIndex == MAX_uint16)
+			if (State.ParameterInstanceIndex.IsValid() == false
+				|| LinkedState.ParameterInstanceIndex.IsValid() == false)
 			{
 				UE_LOG(LogStateTree, Error, TEXT("%s: Data for state '%s' is malformed. Please recompile the StateTree asset."), *GetName(), *State.Name.ToString());
 				return false;
 			}
 
-			const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex).GetMutable<FCompactStateTreeParameters>();
+			const FCompactStateTreeParameters& Params = DefaultInstanceData.GetMutableStruct(State.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
 
 			// Check that the bag in linked state matches.
-			const FCompactStateTreeParameters& LinkedStateParams = DefaultInstanceData.GetMutableStruct(LinkedState.ParameterInstanceIndex).GetMutable<FCompactStateTreeParameters>();
+			const FCompactStateTreeParameters& LinkedStateParams = DefaultInstanceData.GetMutableStruct(LinkedState.ParameterInstanceIndex.Get()).GetMutable<FCompactStateTreeParameters>();
 
 			if (LinkedStateParams.Parameters.GetPropertyBagStruct() != Params.Parameters.GetPropertyBagStruct())
 			{
@@ -148,7 +150,7 @@ bool UStateTree::Link()
 				return false;
 			}
 
-			FStateTreePropCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Index];
+			FStateTreePropCopyBatch& Batch = CopyBatches[Params.BindingsBatch.Get()];
 			Batch.TargetStruct.Struct = Params.Parameters.GetPropertyBagStruct();
 		}
 	}
@@ -168,7 +170,7 @@ bool UStateTree::Link()
 		const FStructView Node = Nodes[Index];
 		if (FStateTreeNodeBase* NodePtr = Node.GetMutablePtr<FStateTreeNodeBase>())
 		{
-			Linker.SetCurrentInstanceDataType(NodePtr->GetInstanceDataType(), NodePtr->DataViewIndex);
+			Linker.SetCurrentInstanceDataType(NodePtr->GetInstanceDataType(), NodePtr->DataViewIndex.Get());
 			const bool bLinkSucceeded = NodePtr->Link(Linker);
 			if (!bLinkSucceeded || Linker.GetStatus() == EStateTreeLinkerStatus::Failed)
 			{
@@ -222,9 +224,9 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 	const int32 EvalMemUsageIndex = MemoryUsages.Emplace(TEXT("Evaluators"));
 	const int32 SharedMemUsageIndex = MemoryUsages.Emplace(TEXT("Shared Data"));
 
-	auto GetRootStateHandle = [this](const FStateTreeHandle InState) -> FStateTreeHandle
+	auto GetRootStateHandle = [this](const FStateTreeStateHandle InState) -> FStateTreeStateHandle
 	{
-		FStateTreeHandle Result = InState;
+		FStateTreeStateHandle Result = InState;
 		while (Result.IsValid() && States[Result.Index].Parent.IsValid())
 		{
 			Result = States[Result.Index].Parent;
@@ -232,7 +234,7 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 		return Result;		
 	};
 
-	auto GetUsageIndexForState = [&MemoryUsages, this](const FStateTreeHandle InStateHandle) -> int32
+	auto GetUsageIndexForState = [&MemoryUsages, this](const FStateTreeStateHandle InStateHandle) -> int32
 	{
 		check(InStateHandle.IsValid());
 		
@@ -249,9 +251,9 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 
 	for (int32 Index = 0; Index < States.Num(); Index++)
 	{
-		const FStateTreeHandle StateHandle((uint16)Index);
+		const FStateTreeStateHandle StateHandle((uint16)Index);
 		const FCompactStateTreeState& CompactState = States[Index];
-		const FStateTreeHandle ParentHandle = GetRootStateHandle(StateHandle);
+		const FStateTreeStateHandle ParentHandle = GetRootStateHandle(StateHandle);
 		const int32 ParentUsageIndex = GetUsageIndexForState(ParentHandle);
 		FStateTreeMemoryUsage& MemUsage = MemoryUsages[ParentUsageIndex];
 
@@ -263,7 +265,7 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 			StateLinks.Emplace(ParentUsageIndex, LinkedUsageIndex);
 
 			MemUsage.NodeCount++;
-			MemUsage.AddUsage(DefaultInstanceData.GetStruct(CompactState.ParameterInstanceIndex));
+			MemUsage.AddUsage(DefaultInstanceData.GetStruct(CompactState.ParameterInstanceIndex.Get()));
 		}
 		
 		for (int32 TaskIndex = CompactState.TasksBegin; TaskIndex < (CompactState.TasksBegin + CompactState.TasksNum); TaskIndex++)
@@ -272,12 +274,12 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 			if (Task.bInstanceIsObject == false)
 			{
 				MemUsage.NodeCount++;
-				MemUsage.AddUsage(DefaultInstanceData.GetStruct(Task.InstanceIndex));
+				MemUsage.AddUsage(DefaultInstanceData.GetStruct(Task.InstanceIndex.Get()));
 			}
 			else
 			{
 				MemUsage.NodeCount++;
-				MemUsage.AddUsage(DefaultInstanceData.GetMutableObject(Task.InstanceIndex));
+				MemUsage.AddUsage(DefaultInstanceData.GetMutableObject(Task.InstanceIndex.Get()));
 			}
 		}
 	}
@@ -302,11 +304,11 @@ TArray<FStateTreeMemoryUsage> UStateTree::CalculateEstimatedMemoryUsage() const
 		const FStateTreeEvaluatorBase& Eval = Nodes[EvalIndex].Get<FStateTreeEvaluatorBase>();
 		if (Eval.bInstanceIsObject == false)
 		{
-			EvalMemUsage.AddUsage(DefaultInstanceData.GetMutableStruct(Eval.InstanceIndex));
+			EvalMemUsage.AddUsage(DefaultInstanceData.GetMutableStruct(Eval.InstanceIndex.Get()));
 		}
 		else
 		{
-			EvalMemUsage.AddUsage(DefaultInstanceData.GetMutableObject(Eval.InstanceIndex));
+			EvalMemUsage.AddUsage(DefaultInstanceData.GetMutableObject(Eval.InstanceIndex.Get()));
 		}
 	}
 
