@@ -612,6 +612,12 @@ namespace Horde.Build.Api
 		public string[] DevicePerfSpecs { get; set; } = null!;
 
 		/// <summary>
+		/// The corresponding perf specs of the reserved devices
+		/// </summary>
+		[Required]
+		public string[] DeviceModels { get; set; } = null!;
+
+		/// <summary>
 		/// The host name of the machine making the reservation
 		/// </summary>
 		[Required]
@@ -674,6 +680,12 @@ namespace Horde.Build.Api
 		/// </summary>
 		[Required]
 		public string PerfSpec { get; set; } = null!;
+
+		/// <summary>
+		/// The device model information
+		/// </summary>
+		[Required]
+		public string Model { get; set; } = null!;
 
 		/// <summary>
 		/// The available start time which is parsed client side
