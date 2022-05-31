@@ -163,7 +163,7 @@ void FMemoryCacheStore::Disable()
 void FMemoryCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
 	OutNode = {!bCanBeDisabled ? TEXT("Memory") : TEXT("Boot"), TEXT(""), /*bIsLocal*/ true};
-	OutNode.Stats.Add(TEXT(""), UsageStats);
+	OutNode.UsageStats.Add(TEXT(""), UsageStats);
 }
 
 bool FMemoryCacheStore::LegacyDebugOptions(FBackendDebugOptions& InOptions)

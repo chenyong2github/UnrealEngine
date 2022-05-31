@@ -88,39 +88,47 @@ namespace UE::DerivedData::CookStats
 			const TSharedRef<const FDerivedDataCacheStatsNode>* ZenLocalNode = Nodes.FindByPredicate([](TSharedRef<const FDerivedDataCacheStatsNode> Node) { return Node->GetCacheType() == TEXT("Zen") && Node->IsLocal(); });
 			const TSharedRef<const FDerivedDataCacheStatsNode>* ZenRemoteNode = Nodes.FindByPredicate([](TSharedRef<const FDerivedDataCacheStatsNode> Node) { return (Node->GetCacheType() == TEXT("Zen") || Node->GetCacheType() == TEXT("Horde")) && !Node->IsLocal(); });
 
-			const FDerivedDataCacheUsageStats& RootStats = RootNode->Stats.CreateConstIterator().Value();
+			const FDerivedDataCacheUsageStats& RootStats = RootNode->UsageStats.CreateConstIterator().Value();
 			const int64 TotalGetHits = RootStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
 			const int64 TotalGetMisses = RootStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Miss, FCookStats::CallStats::EStatType::Counter);
 			const int64 TotalGets = TotalGetHits + TotalGetMisses;
 
 			int64 LocalHits = 0;
+			FDerivedDataCacheSpeedStats LocalSpeedStats;
 			if (LocalNode)
 			{
-				const FDerivedDataCacheUsageStats& Stats = (*LocalNode)->Stats.CreateConstIterator().Value();
-				LocalHits += Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				const FDerivedDataCacheUsageStats& UsageStats = (*LocalNode)->UsageStats.CreateConstIterator().Value();
+				LocalHits += UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				LocalSpeedStats = (*LocalNode)->SpeedStats;
 			}
 			if (ZenLocalNode)
 			{
-				const FDerivedDataCacheUsageStats& Stats = (*ZenLocalNode)->Stats.CreateConstIterator().Value();
-				LocalHits += Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				const FDerivedDataCacheUsageStats& UsageStats = (*ZenLocalNode)->UsageStats.CreateConstIterator().Value();
+				LocalHits += UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				LocalSpeedStats = (*ZenLocalNode)->SpeedStats;
 			}
 			int64 SharedHits = 0;
+			FDerivedDataCacheSpeedStats SharedSpeedStats;
 			if (SharedNode)
 			{
 				// The shared DDC is only queried if the local one misses (or there isn't one). So it's hit rate is technically 
-				const FDerivedDataCacheUsageStats& Stats = (*SharedNode)->Stats.CreateConstIterator().Value();
-				SharedHits += Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				const FDerivedDataCacheUsageStats& UsageStats = (*SharedNode)->UsageStats.CreateConstIterator().Value();
+				SharedHits += UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				SharedSpeedStats = (*SharedNode)->SpeedStats;
 			}
 			if (ZenRemoteNode)
 			{
-				const FDerivedDataCacheUsageStats& Stats = (*ZenRemoteNode)->Stats.CreateConstIterator().Value();
-				SharedHits += Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				const FDerivedDataCacheUsageStats& UsageStats = (*ZenRemoteNode)->UsageStats.CreateConstIterator().Value();
+				SharedHits += UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				SharedSpeedStats = (*ZenRemoteNode)->SpeedStats;
 			}
 			int64 CloudHits = 0;
+			FDerivedDataCacheSpeedStats CloudSpeedStats;
 			if (CloudNode)
 			{
-				const FDerivedDataCacheUsageStats& Stats = (*CloudNode)->Stats.CreateConstIterator().Value();
-				CloudHits += Stats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				const FDerivedDataCacheUsageStats& UsageStats = (*CloudNode)->UsageStats.CreateConstIterator().Value();
+				CloudHits += UsageStats.GetStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+				CloudSpeedStats = (*CloudNode)->SpeedStats;
 			}
 
 			const int64 TotalPutHits = RootStats.PutStats.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
@@ -144,8 +152,17 @@ namespace UE::DerivedData::CookStats
 				TEXT("TotalPutHits"), TotalPutHits,
 				TEXT("TotalPuts"), TotalPuts,
 				TEXT("TotalPutHitPct"), SafeDivide(TotalPutHits, TotalPuts),
-				TEXT("PutMissPct"), SafeDivide(TotalPutMisses, TotalPuts)
-				));
+				TEXT("PutMissPct"), SafeDivide(TotalPutMisses, TotalPuts),
+				TEXT("LocalLatency"), LocalSpeedStats.LatencyMS,
+				TEXT("LocalReadSpeed"), LocalSpeedStats.ReadSpeedMBs,
+				TEXT("LocalWriteSpeed"), LocalSpeedStats.WriteSpeedMBs,
+				TEXT("SharedLatency"), SharedSpeedStats.LatencyMS,
+				TEXT("SharedReadSpeed"), SharedSpeedStats.ReadSpeedMBs,
+				TEXT("SharedWriteSpeed"), SharedSpeedStats.WriteSpeedMBs,
+				TEXT("CloudLatency"), CloudSpeedStats.LatencyMS,
+				TEXT("CloudReadSpeed"), CloudSpeedStats.ReadSpeedMBs,
+				TEXT("CloudWriteSpeed"), CloudSpeedStats.WriteSpeedMBs
+			));
 		}
 	}
 

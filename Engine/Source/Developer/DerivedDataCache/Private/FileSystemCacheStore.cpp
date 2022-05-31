@@ -783,7 +783,7 @@ public:
 	FString GetName() const final { return CachePath; }
 	bool IsWritable() const final { return !bReadOnly && !bDisabled; }
 	ESpeedClass GetSpeedClass() const final { return SpeedClass; }
-
+	
 	bool CachedDataProbablyExists(const TCHAR* CacheKey) final;
 	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& Data) final;
 	EPutStatus PutCachedData(const TCHAR* CacheKey, TConstArrayView<uint8> Data, bool bPutEvenIfExists) final;
@@ -915,6 +915,9 @@ private:
 
 	FDerivedDataCacheUsageStats UsageStats;
 
+	/** Speed stats */
+	FDerivedDataCacheSpeedStats SpeedStats;
+
 	TUniquePtr<FFileSystemCacheStoreMaintainer> Maintainer;
 };
 
@@ -963,10 +966,7 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 	}
 
 	// check latency and speed. Read values should always be valid
-	double ReadSpeedMBs = 0.0;
-	double WriteSpeedMBs = 0.0;
-	double SeekTimeMS = 0.0;
-
+	
 	/* Speeds faster than this are considered local*/
 	const float ConsiderFastAtMS = 10;
 	/* Speeds faster than this are ok. Everything else is slow. This value can be overridden in the ini file */
@@ -977,35 +977,35 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 	bool SkipSpeedTest = !WITH_EDITOR || FParse::Param(FCommandLine::Get(), TEXT("DDCSkipSpeedTest"));
 	if (SkipSpeedTest)
 	{
-		ReadSpeedMBs = 999;
-		WriteSpeedMBs = 999;
-		SeekTimeMS = 0;
+		SpeedStats.ReadSpeedMBs = 999;
+		SpeedStats.WriteSpeedMBs = 999;
+		SpeedStats.LatencyMS = 0;
 		UE_LOG(LogDerivedDataCache, Log, TEXT("Skipping speed test to %s. Assuming local performance"), *CachePath);
 	}
 
-	if (!SkipSpeedTest && !RunSpeedTest(ConsiderSlowAtMS * 2, SeekTimeMS, ReadSpeedMBs, WriteSpeedMBs))
+	if (!SkipSpeedTest && !RunSpeedTest(ConsiderSlowAtMS * 2, SpeedStats.LatencyMS, SpeedStats.ReadSpeedMBs, SpeedStats.WriteSpeedMBs))
 	{
 		bDisabled = true;
 		UE_LOG(LogDerivedDataCache, Warning, TEXT("No read or write access to %s"), *CachePath);
 	}
 	else
 	{
-		bool bReadTestPassed = ReadSpeedMBs > 0.0;
-		bool bWriteTestPassed = WriteSpeedMBs > 0.0;
+		bool bReadTestPassed = SpeedStats.ReadSpeedMBs > 0.0;
+		bool bWriteTestPassed = SpeedStats.WriteSpeedMBs > 0.0;
 
 		// if we failed writes mark this as read only
 		bReadOnly = bReadOnly || !bWriteTestPassed;
 
 		// classify and report on these times
-		if (SeekTimeMS < 1)
+		if (SpeedStats.LatencyMS < 1)
 		{
 			SpeedClass = ESpeedClass::Local;
 		}
-		else if (SeekTimeMS <= ConsiderFastAtMS)
+		else if (SpeedStats.LatencyMS <= ConsiderFastAtMS)
 		{
 			SpeedClass = ESpeedClass::Fast;
 		}
-		else if (SeekTimeMS >= ConsiderSlowAtMS)
+		else if (SpeedStats.LatencyMS >= ConsiderSlowAtMS)
 		{
 			SpeedClass = ESpeedClass::Slow;
 		}
@@ -1017,7 +1017,7 @@ FFileSystemCacheStore::FFileSystemCacheStore(
 		UE_LOG(LogDerivedDataCache, Display,
 			TEXT("Performance to %s: Latency=%.02fms. RandomReadSpeed=%.02fMBs, RandomWriteSpeed=%.02fMBs. ")
 			TEXT("Assigned SpeedClass '%s'"),
-			*CachePath, SeekTimeMS, ReadSpeedMBs, WriteSpeedMBs, LexToString(SpeedClass));
+			*CachePath, SpeedStats.LatencyMS, SpeedStats.ReadSpeedMBs, SpeedStats.WriteSpeedMBs, LexToString(SpeedClass));
 
 		if (SpeedClass <= FDerivedDataBackendInterface::ESpeedClass::Slow && !bReadOnly)
 		{
@@ -1302,11 +1302,6 @@ bool FFileSystemCacheStore::RunSpeedTest(
 		AsyncTask(ENamedThreads::AnyThread, [CustomPath]() {
 			IFileManager::Get().DeleteDirectory(*CustomPath, false, true);
 		});
-
-		// check latency and speed. Read values should always be valid
-		const double ReadSpeedMBs = (bReadTestPassed ? (TotalDataRead / TotalReadTime) : 0) / (1024 * 1024);
-		const double WriteSpeedMBs = (bWriteTestPassed ? (TotalDataWritten / TotalWriteTime) : 0) / (1024 * 1024);
-		const double SeekTimeMS = (TotalSeekTime / TestFileEntries.Num()) * 1000;
 	}
 
 	const double TotalTestTime = FPlatformTime::Seconds() - StatStartTime;
@@ -1577,7 +1572,8 @@ TSharedRef<FDerivedDataCacheStatsNode> FFileSystemCacheStore::GatherUsageStats()
 {
 	TSharedRef<FDerivedDataCacheStatsNode> Usage =
 		MakeShared<FDerivedDataCacheStatsNode>(TEXT("File System"), *CachePath, SpeedClass == ESpeedClass::Local);
-	Usage->Stats.Add(TEXT(""), UsageStats);
+	Usage->UsageStats.Add(TEXT(""), UsageStats);
+	Usage->SpeedStats = SpeedStats;
 	return Usage;
 }
 

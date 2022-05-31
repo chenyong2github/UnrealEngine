@@ -3272,10 +3272,10 @@ void FHttpCacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
 
 TSharedRef<FDerivedDataCacheStatsNode> FHttpCacheStore::GatherUsageStats() const
 {
-	TSharedRef<FDerivedDataCacheStatsNode> Usage =
+	TSharedRef<FDerivedDataCacheStatsNode> StatsNode =
 		MakeShared<FDerivedDataCacheStatsNode>(TEXT("Horde Storage"), FString::Printf(TEXT("%s (%s)"), *Domain, *Namespace), /*bIsLocal*/ false);
-	Usage->Stats.Add(TEXT(""), UsageStats);
-	return Usage;
+	StatsNode->UsageStats.Add(TEXT(""), UsageStats);
+	return StatsNode;
 }
 
 void FHttpCacheStore::Put(

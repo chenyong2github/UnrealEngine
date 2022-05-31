@@ -683,10 +683,10 @@ bool IPakFileCacheStore::SortAndCopy(const FString &InputFilename, const FString
 
 TSharedRef<FDerivedDataCacheStatsNode> FPakFileCacheStore::GatherUsageStats() const
 {
-	TSharedRef<FDerivedDataCacheStatsNode> Usage =
+	TSharedRef<FDerivedDataCacheStatsNode> StatsNode =
 		MakeShared<FDerivedDataCacheStatsNode>(TEXT("PakFile"), CachePath, /*bIsLocal*/ true);
-	Usage->Stats.Add(TEXT(""), UsageStats);
-	return Usage;
+	StatsNode->UsageStats.Add(TEXT(""), UsageStats);
+	return StatsNode;
 }
 
 bool FPakFileCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)

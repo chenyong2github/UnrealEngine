@@ -609,7 +609,7 @@ TSharedRef<SWidget> SDerivedDataCacheStatisticsDialog::GetGridPanel()
 
 		FDerivedDataCacheUsageStats Stats;
 
-		for (const auto& KVP : Node->Stats)
+		for (const auto& KVP : Node->UsageStats)
 		{
 			Stats.Combine(KVP.Value);
 		}

@@ -45,7 +45,7 @@ double FDerivedDataInformation::GetCacheActivitySizeBytes(bool bGet, bool bLocal
 			continue;
 		}
 
-		for (const auto& KVP : Usage->Stats)
+		for (const auto& KVP : Usage->UsageStats)
 		{
 			const FDerivedDataCacheUsageStats& Stats = KVP.Value;
 
@@ -77,7 +77,7 @@ double FDerivedDataInformation::GetCacheActivityTimeSeconds(bool bGet, bool bLoc
 			continue;
 		}
 
-		for (const auto& KVP : Usage->Stats)
+		for (const auto& KVP : Usage->UsageStats)
 		{
 			const FDerivedDataCacheUsageStats& Stats = KVP.Value;
 

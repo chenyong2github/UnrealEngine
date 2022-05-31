@@ -1126,10 +1126,10 @@ void FS3CacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
 
 TSharedRef<FDerivedDataCacheStatsNode> FS3CacheStore::GatherUsageStats() const
 {
-	TSharedRef<FDerivedDataCacheStatsNode> Usage =
+	TSharedRef<FDerivedDataCacheStatsNode> StatsNode =
 		MakeShared<FDerivedDataCacheStatsNode>(TEXT("S3"), BaseUrl, /*bIsLocal*/ false);
-	Usage->Stats.Add(TEXT(""), UsageStats);
-	return Usage;
+	StatsNode->UsageStats.Add(TEXT(""), UsageStats);
+	return StatsNode;
 }
 
 FString FS3CacheStore::GetName() const

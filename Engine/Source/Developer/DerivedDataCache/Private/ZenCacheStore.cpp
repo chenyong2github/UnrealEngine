@@ -564,7 +564,7 @@ TSharedRef<FDerivedDataCacheStatsNode> FZenCacheStore::GatherUsageStats() const
 
 	TSharedRef<FDerivedDataCacheStatsNode> LocalNode =
 		MakeShared<FDerivedDataCacheStatsNode>(TEXT("Zen"), ZenService.GetInstance().GetURL(), /*bIsLocal*/ true);
-	LocalNode->Stats.Add(TEXT(""), LocalStats);
+	LocalNode->UsageStats.Add(TEXT(""), LocalStats);
 
 	if (ZenStats.UpstreamStats.EndPointStats.IsEmpty())
 	{
@@ -573,7 +573,7 @@ TSharedRef<FDerivedDataCacheStatsNode> FZenCacheStore::GatherUsageStats() const
 
 	TSharedRef<FDerivedDataCacheStatsNode> RemoteNode =
 		MakeShared<FDerivedDataCacheStatsNode>(ZenStats.UpstreamStats.EndPointStats[0].Name, ZenStats.UpstreamStats.EndPointStats[0].Url, /*bIsLocal*/ false);
-	RemoteNode->Stats.Add(TEXT(""), RemoteStats);
+	RemoteNode->UsageStats.Add(TEXT(""), RemoteStats);
 
 	TSharedRef<FDerivedDataCacheStatsNode> GroupNode =
 		MakeShared<FDerivedDataCacheStatsNode>(TEXT("Zen Group"), TEXT(""), /*bIsLocal*/ true);
