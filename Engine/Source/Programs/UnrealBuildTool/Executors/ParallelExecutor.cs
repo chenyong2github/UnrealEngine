@@ -400,7 +400,7 @@ namespace UnrealBuildTool
 
 				s_previousLineLength = message.Length;
 
-				Logger.LogInformation("{Message}", message);
+				Log.TraceInformation("{0}", message); // Need to send this through registered event parser; using old logger
 				foreach (string Line in LogLines.Skip(Action.bShouldOutputStatusDescription ? 0 : 1))
 				{
 					// suppress library creation messages when writing compact output
@@ -409,7 +409,7 @@ namespace UnrealBuildTool
 						continue;
 					}
 
-					Logger.LogInformation("{Message}", Line);
+					Log.TraceInformation("{0}", Line);
 
 					// Prevent overwriting of logged lines
 					s_previousLineLength = -1;

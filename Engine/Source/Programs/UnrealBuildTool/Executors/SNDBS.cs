@@ -297,7 +297,7 @@ namespace UnrealBuildTool
 						// Suppress redundant tool output of status we already printed (e.g., msvc cl prints compile unit name always)
 						if (!Text.Equals(CurrentStatus))
 						{
-							Logger.LogInformation("{Output}", Text);
+							Log.TraceInformation("{0}", Text);
 						}
 					}
 				};

@@ -763,7 +763,7 @@ namespace UnrealBuildTool
 							ProgressText = string.Empty;
 							return;
 						}
-						Logger.LogInformation("{Status}", Text);
+						Log.TraceInformation("{0}", Text); // Using old log function to pick up registered event parsers
 					}
 				};
 
