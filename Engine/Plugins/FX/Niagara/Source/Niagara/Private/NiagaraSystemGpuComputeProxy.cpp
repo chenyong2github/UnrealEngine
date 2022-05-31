@@ -129,6 +129,19 @@ void FNiagaraSystemGpuComputeProxy::RemoveFromRenderThread(FNiagaraGpuComputeDis
 	);
 }
 
+void FNiagaraSystemGpuComputeProxy::ClearTicksFromRenderThread(FNiagaraGpuComputeDispatchInterface* ComputeDispatchInterface)
+{
+	check(IsInGameThread());
+	check(DebugOwnerComputeDispatchInterface == ComputeDispatchInterface);
+
+	ENQUEUE_RENDER_COMMAND(ClearTicksFromProxy)(
+		[=](FRHICommandListImmediate& RHICmdList)
+		{
+			ReleaseTicks(ComputeDispatchInterface->GetGPUInstanceCounterManager());
+		}
+	);
+}
+
 void FNiagaraSystemGpuComputeProxy::QueueTick(const FNiagaraGPUSystemTick& Tick)
 {
 	check(IsInRenderingThread());

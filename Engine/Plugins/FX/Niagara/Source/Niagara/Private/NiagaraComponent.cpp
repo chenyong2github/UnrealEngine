@@ -698,12 +698,6 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 		INC_DWORD_STAT_BY(STAT_TotalNiagaraSystemInstances, 1);
 		INC_DWORD_STAT_BY(STAT_TotalNiagaraSystemInstancesSolo, 1);
 
-		// If the interfaces have changed in a meaningful way, we need to potentially rebind and update the values.
-		if (OverrideParameters.GetInterfacesDirty())
-		{
-			SystemInstanceController->Reset(FNiagaraSystemInstance::EResetMode::ReInit);
-		}
-
 		// If we have a sim cache attached then use that
 		if ( SimCache != nullptr )
 		{

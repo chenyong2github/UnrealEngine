@@ -1428,8 +1428,14 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 	// Make sure the owner has flushed it's parameters before we initialize data interfaces
 	InstanceParameters.Tick();
 
-	//-TODO: Validate that any queued ticks have been executed
+	// Destroy data interface data
+	// Note: This invalidates any ticks pending on the render thread
 	DestroyDataInterfaceInstanceData();
+
+	if (SystemGpuComputeProxy)
+	{
+		SystemGpuComputeProxy->ClearTicksFromRenderThread(GetComputeDispatchInterface());
+	}
 
 	PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Spawn].Reset();
 	PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Update].Reset();
@@ -2344,6 +2350,13 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 
 	if (IsComplete())
 	{
+		return;
+	}
+
+	// If the interfaces have changed in a meaningful way, we need to potentially rebind and update the values.
+	if (OverrideParameters->GetInterfacesDirty())
+	{
+		Reset(EResetMode::ReInit);
 		return;
 	}
 
