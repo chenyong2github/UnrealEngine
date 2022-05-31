@@ -113,6 +113,11 @@ public:
 	 */
 	void UnregisterWithMediaTextureTracker();
 
+#if WITH_EDITOR
+	/** Propagate visible calculation changes to the tracker/player objects, optionally restarting playback if needed. */
+	void OnVisibleMipsTilesCalculationsChange();
+#endif
+
 private:
 	/** Name for our media component. */
 	static FLazyName MediaComponentName;

@@ -174,6 +174,25 @@ bool UMediaPlateComponent::PlayMediaSource(UMediaSource* InMediaSource)
 
 #if WITH_EDITOR
 
+void UMediaPlateComponent::OnVisibleMipsTilesCalculationsChange()
+{
+	if (MediaTextureTrackerObject != nullptr)
+	{
+		MediaTextureTrackerObject->VisibleMipsTilesCalculations = VisibleMipsTilesCalculations;
+
+		// Propagate the change by restarting the player if it is currently playing.
+		TObjectPtr<UMediaPlayer> MediaPlayer = GetMediaPlayer();
+		if (MediaPlayer != nullptr)
+		{
+			if (MediaPlayer->IsPlaying())
+			{
+				MediaPlayer->Close();
+				Play();
+			}
+		}
+	}
+}
+
 void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	// Has bEnableAudiio changed?
@@ -212,10 +231,7 @@ void UMediaPlateComponent::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ThisClass, VisibleMipsTilesCalculations))
 	{
-		if (MediaTextureTrackerObject != nullptr)
-		{
-			MediaTextureTrackerObject->VisibleMipsTilesCalculations = VisibleMipsTilesCalculations;
-		}
+		OnVisibleMipsTilesCalculationsChange();
 	}
 }
 

@@ -433,6 +433,7 @@ void FMediaPlateCustomization::SetMeshMode(EMediaTextureVisibleMipsTiles InMode)
 			{
 				// Update the setting in the media plate.
 				MediaPlate->VisibleMipsTilesCalculations = MeshMode;
+				MediaPlate->OnVisibleMipsTilesCalculationsChange();
 
 				// Set the appropriate mesh.
 				if (MeshMode == EMediaTextureVisibleMipsTiles::Plane)
