@@ -7816,6 +7816,22 @@ void UStaticMesh::RemoveSocket(UStaticMeshSocket* Socket)
 	Sockets.Remove(Socket);
 }
 
+TArray<UStaticMeshSocket*> UStaticMesh::GetSocketsByTag(const FString& InSocketTag) const
+{
+	TArray<UStaticMeshSocket*> FoundSockets;
+
+	for (int32 i = 0; i < Sockets.Num(); ++i)
+	{
+		UStaticMeshSocket* Socket = Sockets[i];
+		if (Socket && Socket->Tag == InSocketTag)
+		{
+			FoundSockets.Add(Socket);
+		}
+	}
+
+	return FoundSockets;
+}
+
 ENGINE_API int32 UStaticMesh::GetDefaultMinLOD() const
 {
 	if (IsMinLodQualityLevelEnable())

@@ -1860,6 +1860,12 @@ public:
 	ENGINE_API void RemoveSocket(UStaticMeshSocket* Socket);
 
 	/**
+	 * Returns a list of sockets with the provided tag.
+	 */
+	UFUNCTION(BlueprintPure, Category = "StaticMesh")
+	ENGINE_API TArray<UStaticMeshSocket*> GetSocketsByTag(const FString& InSocketTag) const;
+
+	/**
 	 * Returns vertex color data by position.
 	 * For matching to reimported meshes that may have changed or copying vertex paint data from mesh to mesh.
 	 *
