@@ -313,7 +313,7 @@ void FWorldPartitionEditorModule::RunCommandletAsExternalProcess(const FString& 
 	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::GetProjectFilePath() : FApp::GetProjectName();
 
 	FString Arguments;
-	Arguments += ProjectPath;
+	Arguments += TEXT("\"") + ProjectPath + TEXT('"');
 	Arguments += TEXT(" -BaseDir=\"") + FString(FPlatformProcess::BaseDir()) + TEXT('"');
 	Arguments += TEXT(" -Unattended");
 	Arguments += TEXT(" ") + InCommandletArgs;
