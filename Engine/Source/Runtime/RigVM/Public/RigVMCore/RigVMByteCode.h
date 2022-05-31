@@ -115,6 +115,7 @@ enum class ERigVMOpCode : uint8
 	ArrayDifference, // returns a new array containing elements only found in one array (ternary op, in array, in array, out result)
 	ArrayIntersection, // returns a new array containing elements found in both of the input arrays (ternary op, in array, in array, out result)
 	ArrayReverse, // returns the reverse of the input array (unary op, in out array)
+	InvokeEntry, // invokes an entry from the entry list
 	Invalid,
 	FirstArrayOpCode = ArrayReset,
 	LastArrayOpCode = ArrayReverse,
@@ -701,6 +702,37 @@ struct RIGVM_API FRigVMChangeTypeOp : public FRigVMUnaryOp
 	}
 };
 
+// invoke another entry
+USTRUCT()
+struct RIGVM_API FRigVMInvokeEntryOp : public FRigVMBaseOp
+{
+	GENERATED_USTRUCT_BODY()
+
+	FRigVMInvokeEntryOp()
+		: FRigVMBaseOp(ERigVMOpCode::InvokeEntry)
+		, EntryName(NAME_None)
+	{}
+
+	FRigVMInvokeEntryOp(FName InEntryName)
+		: FRigVMBaseOp(ERigVMOpCode::InvokeEntry)
+		, EntryName(InEntryName)
+	{}
+
+	FName EntryName;
+
+	friend FORCEINLINE uint32 GetTypeHash(const FRigVMInvokeEntryOp& Op)
+	{
+		return HashCombine(GetTypeHash((const FRigVMBaseOp&)Op), GetTypeHash(Op.EntryName));
+	}
+
+	void Serialize(FArchive& Ar);
+	FORCEINLINE friend FArchive& operator<<(FArchive& Ar, FRigVMInvokeEntryOp& P)
+	{
+		P.Serialize(Ar);
+		return Ar;
+	}
+};
+
 /**
  * The FRigVMInstruction represents
  * a single instruction within the VM.
@@ -937,6 +969,9 @@ public:
 	// adds an array reverse operator
 	uint64 AddArrayReverseOp(FRigVMOperand InArrayArg);
 
+	// adds an invoke entry operator
+	uint64 AddInvokeEntryOp(const FName& InEntryName);
+
 	// returns an instruction array for iterating over all operators
 	FORCEINLINE FRigVMInstructionArray GetInstructions() const
 	{
@@ -1150,5 +1185,6 @@ private:
 
 	friend class URigVMCompiler;
 	friend class FRigVMByteCodeTest;
+	friend class FRigVMInvokeEntryTest;
 	friend class URigVM;
 };

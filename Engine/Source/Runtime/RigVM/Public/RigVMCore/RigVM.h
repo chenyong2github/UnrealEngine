@@ -653,6 +653,8 @@ private:
 	UPROPERTY(transient)
 	uint32 NumExecutions;
 
+	bool bHitErrorDuringExecution;
+
 #if WITH_EDITOR
 	FRigVMDebugInfo* DebugInfo;
 	TSharedPtr<FRigVMBreakpoint> HaltedAtBreakpoint;
@@ -743,6 +745,7 @@ private:
 	TMap<FRigVMOperand, TArray<FRigVMOperand>> OperandToDebugRegisters;
 
 	int32 ExecutingThreadId;
+	TArray<int32> EntriesBeingExecuted;
 
 	UPROPERTY(transient)
 	TObjectPtr<URigVM> DeferredVMToCopy;

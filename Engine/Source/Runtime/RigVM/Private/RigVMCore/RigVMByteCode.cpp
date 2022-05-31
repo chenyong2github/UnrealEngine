@@ -117,6 +117,21 @@ void FRigVMChangeTypeOp::Serialize(FArchive& Ar)
 	ensure(false);
 }
 
+void FRigVMInvokeEntryOp::Serialize(FArchive& Ar)
+{
+	if(Ar.IsLoading())
+	{
+		FString EntryNameString;
+		Ar << EntryNameString;
+		EntryName = *EntryNameString;
+	}
+	else
+	{
+		FString EntryNameString = EntryName.ToString();
+		Ar << EntryNameString;
+	}
+}
+
 FRigVMInstructionArray::FRigVMInstructionArray()
 {
 }
@@ -400,6 +415,12 @@ void FRigVMByteCode::Save(FArchive& Ar) const
 				// so all we need is the previously saved OpCode.
 				break;
 			}
+			case ERigVMOpCode::InvokeEntry:
+			{
+				FRigVMInvokeEntryOp Op = GetOpAt<FRigVMInvokeEntryOp>(Instruction.ByteCodeIndex);
+				Ar << Op;
+				break;
+			}
 			default:
 			{
 				ensure(false);
@@ -622,6 +643,13 @@ void FRigVMByteCode::Load(FArchive& Ar)
 			case ERigVMOpCode::EndBlock:
 			{
 				AddEndBlockOp();
+				break;
+			}
+			case ERigVMOpCode::InvokeEntry:
+			{
+				FRigVMInvokeEntryOp Op;
+				Ar << Op;
+				AddOp<FRigVMInvokeEntryOp>(Op);
 				break;
 			}
 			default:
@@ -860,6 +888,10 @@ uint32 FRigVMByteCode::GetOperatorHash(const FRigVMInstruction& InInstruction) c
 		{
 			return GetTypeHash(GetOpAt<FRigVMBaseOp>(InInstruction));
 		}
+		case ERigVMOpCode::InvokeEntry:
+		{
+			return GetTypeHash(GetOpAt<FRigVMInvokeEntryOp>(InInstruction));
+		}
 		case ERigVMOpCode::Invalid:
 		{
 			ensure(false);
@@ -1062,6 +1094,10 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeOper
 		case ERigVMOpCode::EndBlock:
 		{
 			return (uint64)sizeof(FRigVMBaseOp);
+		}
+		case ERigVMOpCode::InvokeEntry:
+		{
+			return (uint64)sizeof(FRigVMInvokeEntryOp);
 		}
 		case ERigVMOpCode::Invalid:
 		{
@@ -1415,6 +1451,12 @@ FString FRigVMByteCode::DumpToText() const
 				Line += FString::Printf(TEXT(", ArgF %s"), *ArgF);
 				break;
 			}
+			case ERigVMOpCode::InvokeEntry:
+			{
+				const FRigVMInvokeEntryOp& Op = GetOpAt<FRigVMInvokeEntryOp>(Instruction.ByteCodeIndex);
+				Line += FString::Printf(TEXT(", Entry '%s'"), *Op.EntryName.ToString());
+				break;
+			}
 			case ERigVMOpCode::Invalid:
 			{
 				ensure(false);
@@ -1526,6 +1568,11 @@ uint64 FRigVMByteCode::AddArrayIntersectionOp(FRigVMOperand InArrayArg, FRigVMOp
 uint64 FRigVMByteCode::AddArrayReverseOp(FRigVMOperand InArrayArg)
 {
 	return AddOp(FRigVMUnaryOp(ERigVMOpCode::ArrayReverse, InArrayArg));
+}
+
+uint64 FRigVMByteCode::AddInvokeEntryOp(const FName& InEntryName)
+{
+	return AddOp(FRigVMInvokeEntryOp(InEntryName));
 }
 
 FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InInstruction) const
@@ -1829,6 +1876,11 @@ uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
 		case ERigVMOpCode::EndBlock:
 		{
 			static const uint64 Alignment = FRigVMBaseOp::StaticStruct()->GetCppStructOps()->GetAlignment();
+			return Alignment;
+		}
+		case ERigVMOpCode::InvokeEntry:
+		{
+			static const uint64 Alignment = FRigVMInvokeEntryOp::StaticStruct()->GetCppStructOps()->GetAlignment();
 			return Alignment;
 		}
 		case ERigVMOpCode::Invalid:
