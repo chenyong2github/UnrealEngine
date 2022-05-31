@@ -124,6 +124,7 @@ namespace EpicGames.Core
 			{
 				if (type.IsClass && typeof(ILogEventMatcher).IsAssignableFrom(type))
 				{
+					_logger.LogDebug("Adding event matcher: {Type}", type.Name);
 					ILogEventMatcher matcher = (ILogEventMatcher)Activator.CreateInstance(type)!;
 					Matchers.Add(matcher);
 				}

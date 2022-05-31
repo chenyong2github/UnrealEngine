@@ -492,6 +492,10 @@ namespace UnrealBuildTool
 					UEBuildPlatformSDK.bSuppressSDKWarnings = true;
 				}
 
+				// Always start capturing logs as early as possible to later copy to a log file if the ToolMode desires it (we have to start capturing before we get the ToolModeOptions below)
+				StartupTraceListener StartupTrace = new StartupTraceListener();
+				Log.AddTraceListener(StartupTrace);
+
 				if (Options.TraceWrites != null)
 				{
 					Logger.LogInformation("All attempts to write to \"{TraceWrites}\" via WriteFileIfChanged() will be logged", Options.TraceWrites);
@@ -500,10 +504,6 @@ namespace UnrealBuildTool
 
 				// Add all the default event matchers from the UBT assembly
 				Log.EventParser.AddMatchersFromAssembly(Assembly.GetExecutingAssembly());
-
-				// Always start capturing logs as early as possible to later copy to a log file if the ToolMode desires it (we have to start capturing before we get the ToolModeOptions below)
-				StartupTraceListener StartupTrace = new StartupTraceListener();
-				Log.AddTraceListener(StartupTrace);
 
 				// Configure the progress writer
 				ProgressWriter.bWriteMarkup = Options.bWriteProgressMarkup;
