@@ -34,6 +34,7 @@
 #include "Materials/MaterialFunctionInstance.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialParameterCollection.h"
+#include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "LandscapeGrassType.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
 #include "Curves/CurveLinearColor.h"
@@ -51,6 +52,7 @@ void FMaterialCachedExpressionData::Reset()
 	QualityLevelsUsed.AddDefaulted(EMaterialQualityLevel::Num);
 	bHasRuntimeVirtualTextureOutput = false;
 	bHasSceneColor = false;
+	bHasRefraction = false;
 }
 
 static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& Entry, const FHashedName& HashedName, const FHashedMaterialParameterInfo& ParameterInfo)
@@ -587,6 +589,21 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 		else if (Expression->IsA(UMaterialExpressionSceneColor::StaticClass()))
 		{
 			bHasSceneColor = true;
+		}
+		else if (UMaterialExpressionSetMaterialAttributes* SetAttributeExpression = Cast<UMaterialExpressionSetMaterialAttributes>(Expression))
+		{
+			if (SetAttributeExpression)
+			{
+				for (int32 Index = 0; Index < SetAttributeExpression->Inputs.Num(); Index++)
+				{
+					FExpressionInput& Input = SetAttributeExpression->Inputs[Index];
+					FName InputName = SetAttributeExpression->GetInputName(Index);
+					if (InputName == TEXT("Refraction"))
+					{
+						bHasRefraction = true;
+					}
+				}
+			}
 		}
 		else if (Context.bUpdateFunctionExpressions)
 		{

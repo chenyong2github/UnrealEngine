@@ -4051,6 +4051,8 @@ void UMaterialInstance::UpdateCachedLayerParameters()
 
 	if (bCachedDataValid)
 	{
+		bUsesDistortion = CachedExpressionData.bHasRefraction;
+
 		CachedLayerParameters = MoveTemp(CachedExpressionData.Parameters);
 		CachedReferencedTextures = MoveTemp(CachedExpressionData.ReferencedTextures);
 	}

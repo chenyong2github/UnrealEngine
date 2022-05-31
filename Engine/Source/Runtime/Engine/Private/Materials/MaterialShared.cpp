@@ -1365,7 +1365,11 @@ bool FMaterialResource::AllowNegativeEmissiveColor() const
 	return Material->bAllowNegativeEmissiveColor;
 }
 
-bool FMaterialResource::IsDistorted() const { return Material->bUsesDistortion && IsTranslucentBlendMode(GetBlendMode()); }
+bool FMaterialResource::IsDistorted() const
+{
+	return (MaterialInstance ? MaterialInstance->bUsesDistortion : Material->bUsesDistortion) && IsTranslucentBlendMode(GetBlendMode());
+}
+
 float FMaterialResource::GetTranslucencyDirectionalLightingIntensity() const { return Material->TranslucencyDirectionalLightingIntensity; }
 float FMaterialResource::GetTranslucentShadowDensityScale() const { return Material->TranslucentShadowDensityScale; }
 float FMaterialResource::GetTranslucentSelfShadowDensityScale() const { return Material->TranslucentSelfShadowDensityScale; }

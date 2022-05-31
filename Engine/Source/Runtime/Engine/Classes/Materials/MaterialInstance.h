@@ -359,6 +359,9 @@ class UMaterialInstance : public UMaterialInterface
 	uint8 bCastDynamicShadowAsMasked : 1;
 	uint8 bIsShadingModelFromMaterialExpression : 1;
 
+	UPROPERTY()
+	uint8 bUsesDistortion : 1;
+
 	TEnumAsByte<EBlendMode> BlendMode;
 
 	//Cached copies of the base property overrides or the value from the parent to avoid traversing the parent chain for each access.
