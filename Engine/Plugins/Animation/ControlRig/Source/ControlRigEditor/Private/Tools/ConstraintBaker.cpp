@@ -21,7 +21,10 @@
 namespace
 {
 	
-UMovieScene3DTransformSection* GetTransformSection(const TSharedPtr<ISequencer>& InSequencer, AActor* InActor)
+UMovieScene3DTransformSection* GetTransformSection(
+	const TSharedPtr<ISequencer>& InSequencer,
+	AActor* InActor,
+	const FTransform& InTransform0)
 {
 	if (!InSequencer || !InSequencer->GetFocusedMovieSceneSequence())
 	{
@@ -34,7 +37,7 @@ UMovieScene3DTransformSection* GetTransformSection(const TSharedPtr<ISequencer>&
 		return nullptr;
 	}
 	
-	return FBakingHelper::GetTransformSection(InSequencer.Get(), Guid);
+	return FBakingHelper::GetTransformSection(InSequencer.Get(), Guid, InTransform0);
 }
 
 void BakeComponent(
@@ -44,6 +47,8 @@ void BakeComponent(
 	const TArray<FTransform>& InTransforms,
 	const EMovieSceneTransformChannel& InChannels)
 {
+	ensure(InTransforms.Num());
+	
 	if (!InComponentHandle->IsValid())
 	{
 		return;
@@ -53,7 +58,7 @@ void BakeComponent(
 	{
 		return;
 	}
-	const UMovieScene3DTransformSection* TransformSection = GetTransformSection(InSequencer, Actor);
+	const UMovieScene3DTransformSection* TransformSection = GetTransformSection(InSequencer, Actor, InTransforms[0]);
 	if (!TransformSection)
 	{
 		return;
@@ -126,9 +131,19 @@ void FConstraintBaker::DoIt(UTickableTransformConstraint* InConstraint)
 	TArray<FFrameNumber> Frames;
 	FBakingHelper::CalculateFramesBetween(MovieScene, StartFrame, EndFrame, Frames);
 
+	if (Frames.IsEmpty())
+	{
+		return;
+	}
+
 	// compute transforms
 	TArray<FTransform> Transforms;
 	GetChildTransforms(Sequencer, *InConstraint, Frames, true, Transforms);
+	
+	if (Frames.Num() != Transforms.Num())
+	{
+		return;
+	}
 
 	// bake to channel curves
 	const EMovieSceneTransformChannel Channels = GetChannelsToKey(InConstraint);

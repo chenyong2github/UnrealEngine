@@ -33,7 +33,8 @@ struct FBakingHelper
 	/** Returns the transform section for that guid. */
 	static UMovieScene3DTransformSection* GetTransformSection(
 		const ISequencer* InSequencer,
-		const FGuid& InGuid);
+		const FGuid& InGuid,
+		const FTransform& InDefaultTransform = FTransform::Identity);
 
 	/** Adds transform keys to the section based on the channels filters. */
 	static bool AddTransformKeys(

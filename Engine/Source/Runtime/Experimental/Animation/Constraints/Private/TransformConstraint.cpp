@@ -22,6 +22,28 @@ FName UTickableTransformConstraint::GetLabel() const
 {
 	return ParentTRSHandle->IsValid() ? ParentTRSHandle->GetName() : NAME_None;
 }
+
+void UTickableTransformConstraint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableTransformConstraint, bMaintainOffset))
+	{
+		Evaluate();
+		return;
+	}
+
+	if (const FProperty* MemberProperty = PropertyChangedEvent.MemberProperty)
+	{
+		static const FString OffsetStr("Offset");
+		if (MemberProperty->GetFName().ToString().Contains(OffsetStr) )
+		{
+			Evaluate();
+		}
+	}
+}
+
 #endif
 
 void UTickableTransformConstraint::Setup()
@@ -137,15 +159,20 @@ FConstraintTickFunction::ConstraintFunction UTickableTranslationConstraint::GetF
 {
 	return [this]()
 	{
+		if (!Active)
+		{
+			return;
+		}
+		
 		const float ClampedWeight = FMath::Clamp<float>(Weight, 0.f, 1.f);
 		if (ClampedWeight < KINDA_SMALL_NUMBER)
 		{
 			return;
 		}
 
-		const FTransform ParentTransform = GetParentGlobalTransform();
+		const FVector ParentTranslation = GetParentGlobalTransform().GetLocation();
 		FTransform Transform = GetChildGlobalTransform();
-		FVector NewTranslation = ParentTransform.GetLocation() + OffsetTranslation;
+		FVector NewTranslation = bMaintainOffset ? ParentTranslation + OffsetTranslation : ParentTranslation;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 		{
 			NewTranslation = FMath::Lerp<FVector>(Transform.GetLocation(), NewTranslation, ClampedWeight);
@@ -182,16 +209,21 @@ FConstraintTickFunction::ConstraintFunction UTickableRotationConstraint::GetFunc
 {
 	return [this]()
 	{
+		if (!Active)
+		{
+			return;
+		}
+		
 		const float ClampedWeight = FMath::Clamp<float>(Weight, 0.f, 1.f);
 		if (ClampedWeight < KINDA_SMALL_NUMBER)
 		{
 			return;
 		}
 		
-		const FTransform ParentTransform = GetParentGlobalTransform();
+		const FQuat ParentRotation = GetParentGlobalTransform().GetRotation();
 		FTransform Transform = GetChildGlobalTransform();
 
-		FQuat NewRotation = ParentTransform.GetRotation() * OffsetRotation;
+		FQuat NewRotation = bMaintainOffset ? ParentRotation * OffsetRotation : ParentRotation;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 		{
 			NewRotation = FQuat::Slerp(Transform.GetRotation(), NewRotation, ClampedWeight);
@@ -231,15 +263,20 @@ FConstraintTickFunction::ConstraintFunction UTickableScaleConstraint::GetFunctio
 {
 	return [this]()
 	{
+		if (!Active)
+		{
+			return;
+		}
+		
 		const float ClampedWeight = FMath::Clamp<float>(Weight, 0.f, 1.f);
 		if (ClampedWeight < KINDA_SMALL_NUMBER)
 		{
 			return;
 		}
 		
-		const FTransform ParentTransform = GetParentGlobalTransform();
+		const FVector ParentScale = GetParentGlobalTransform().GetScale3D();
 		FTransform Transform = GetChildGlobalTransform();
-		FVector NewScale = ParentTransform.GetScale3D() * OffsetScale;
+		FVector NewScale = bMaintainOffset ? ParentScale * OffsetScale : ParentScale;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 		{
 			NewScale = FMath::Lerp<FVector>(Transform.GetScale3D(), NewScale, ClampedWeight);
@@ -275,6 +312,11 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 {
 	return [this]()
 	{
+		if (!Active)
+		{
+			return;
+		}
+		
 		const float ClampedWeight = FMath::Clamp<float>(Weight, 0.f, 1.f);
 		if (ClampedWeight < KINDA_SMALL_NUMBER)
 		{
@@ -283,7 +325,7 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 		
 		const FTransform ParentTransform = ParentTRSHandle->GetGlobalTransform();
 
-		FTransform TargetTransform = OffsetTransform * ParentTransform;
+		FTransform TargetTransform = bMaintainOffset ? OffsetTransform * ParentTransform : ParentTransform;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 		{
 			const  FTransform Transform = GetChildGlobalTransform();
@@ -318,6 +360,11 @@ FConstraintTickFunction::ConstraintFunction UTickableLookAtConstraint::GetFuncti
 	// @todo handle weight here
 	return [this]()
 	{
+		if (!Active)
+		{
+			return;
+		}
+		
 		const FTransform ParentTransform = GetParentGlobalTransform();
 		const FTransform ChildTransform = GetChildGlobalTransform();
 		

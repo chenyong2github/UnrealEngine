@@ -82,6 +82,10 @@ protected:
 public:
 	/** @todo document */
 	virtual FName GetLabel() const override;
+
+	// UObject interface
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	// End of UObject interface
 #endif
 };
 

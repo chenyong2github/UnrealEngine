@@ -56,7 +56,10 @@ void FBakingHelper::CalculateFramesBetween(
 	}
 }
 
-UMovieScene3DTransformSection* FBakingHelper::GetTransformSection(const ISequencer* InSequencer, const FGuid& InGuid)
+UMovieScene3DTransformSection* FBakingHelper::GetTransformSection(
+	const ISequencer* InSequencer,
+	const FGuid& InGuid,
+	const FTransform& InDefaultTransform)
 {
 	if (!InSequencer || !InSequencer->GetFocusedMovieSceneSequence())
 	{
@@ -90,6 +93,22 @@ UMovieScene3DTransformSection* FBakingHelper::GetTransformSection(const ISequenc
 	if (bSectionAdded)
 	{
 		TransformSection->SetRange(TRange<FFrameNumber>::All());
+
+		const FVector Location0 = InDefaultTransform.GetLocation();
+		const FRotator Rotation0 = InDefaultTransform.GetRotation().Rotator();
+		const FVector Scale3D0 = InDefaultTransform.GetScale3D();
+
+		const TArrayView<FMovieSceneDoubleChannel*> Channels =
+			TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+		Channels[0]->SetDefault(Location0.X);
+		Channels[1]->SetDefault(Location0.Y);
+		Channels[2]->SetDefault(Location0.Z);
+		Channels[3]->SetDefault(Rotation0.Roll);
+		Channels[4]->SetDefault(Rotation0.Pitch);
+		Channels[5]->SetDefault(Rotation0.Yaw);
+		Channels[6]->SetDefault(Scale3D0.X);
+		Channels[7]->SetDefault(Scale3D0.Y);
+		Channels[8]->SetDefault(Scale3D0.Z);
 	}
 	
 	return TransformSection;
@@ -161,6 +180,22 @@ bool FBakingHelper::AddTransformKeys(
 	const TArrayView<FMovieSceneDoubleChannel*> Channels =
 		InTransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 
+	// set default
+	const FTransform& LocalTransform0 = InLocalTransforms[0];
+	const FVector Location0 = LocalTransform0.GetLocation();
+	const FRotator Rotation0 = LocalTransform0.GetRotation().Rotator();
+	const FVector Scale3D0 = LocalTransform0.GetScale3D();
+	
+	for (int32 ChannelIndex = 0; ChannelIndex < 9; ChannelIndex++)
+	{
+		if (!Channels[ChannelIndex]->GetDefault().IsSet())
+		{
+			const double Value = GetValue(ChannelIndex, Location0, Rotation0, Scale3D0);
+			Channels[ChannelIndex]->SetDefault(Value);
+		}
+	}
+
+	// add keys
 	for (int32 Index = 0; Index < Frames.Num(); ++Index)
 	{
 		const FFrameNumber& Frame = Frames[Index];
@@ -172,16 +207,7 @@ bool FBakingHelper::AddTransformKeys(
 
 		for (const int32 ChannelIndex: ChannelsIndexToKey)
 		{
-			// get value
 			const double Value = GetValue(ChannelIndex, Location, Rotation, Scale3D);
-
-			// set default
-			if (Index == 0 && !Channels[ChannelIndex]->GetDefault().IsSet())
-			{
-				Channels[ChannelIndex]->SetDefault(Value);
-			}
-			
-			// add key
 			TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[ChannelIndex]->GetData();
 			MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Value);
 		}
