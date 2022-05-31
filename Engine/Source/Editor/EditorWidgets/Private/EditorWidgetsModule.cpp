@@ -1,13 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EditorWidgetsModule.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "SObjectNameEditableTextBox.h"
+
+#include "EditorWidgetsStyle.h"
+#include "ITransportControl.h"
 #include "ObjectNameEditSinkRegistry.h"
 #include "SAssetDiscoveryIndicator.h"
-#include "ITransportControl.h"
+#include "SObjectNameEditableTextBox.h"
 #include "STransportControl.h"
+#include "Modules/ModuleManager.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 
 IMPLEMENT_MODULE( FEditorWidgetsModule, EditorWidgets );
 
@@ -15,12 +17,16 @@ const FName FEditorWidgetsModule::EditorWidgetsAppIdentifier( TEXT( "EditorWidge
 
 void FEditorWidgetsModule::StartupModule()
 {
+	FEditorWidgetsStyle::Initialize();
+	
 	ObjectNameEditSinkRegistry = MakeShared<UE::EditorWidgets::FObjectNameEditSinkRegistry>();
 }
 
 void FEditorWidgetsModule::ShutdownModule()
 {
 	ObjectNameEditSinkRegistry.Reset();
+
+	FEditorWidgetsStyle::Shutdown();
 }
 
 TSharedRef<IObjectNameEditableTextBox> FEditorWidgetsModule::CreateObjectNameEditableTextBox(const TArray<TWeakObjectPtr<UObject>>& Objects)

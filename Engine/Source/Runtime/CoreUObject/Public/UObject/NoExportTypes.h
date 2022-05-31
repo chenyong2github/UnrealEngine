@@ -2645,8 +2645,8 @@ struct FFilePath
 	GENERATED_BODY()
 
 	/**
-		* The path to the file.
-		*/
+	* The path to the file.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = FilePath)
 	FString FilePath;
 };
@@ -2658,15 +2658,25 @@ struct FDirectoryPath
 	GENERATED_BODY()
 
 	/**
-		* The path to the directory.
-		*/
+	* The path to the directory.
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Path)
 	FString Path;
 };
 
+/** Structure for templated strings that are displayed in the editor with a allowed args. */
+USTRUCT(noexport, BlueprintType)
+struct FTemplateString
+{
+	GENERATED_BODY()
 
+	/**
+	* The format string.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Template)
+	FString Template;
+};
 
 /// @endcond
 
 #endif
-
