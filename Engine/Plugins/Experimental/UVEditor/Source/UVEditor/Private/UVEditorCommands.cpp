@@ -37,7 +37,7 @@ void FUVEditorCommands::RegisterCommands()
 	// once selection is pulled out to mode-level.
 	UI_COMMAND(SewAction, "Sew", "Sew edges highlighted in red to edges highlighted in green", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(SplitAction, "Split",
-	           "Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie vertices.",
+	           "Given an edge selection, split those edges. Given a vertex selection, split any selected bowtie vertices. Given a triangle selection, split along selection boundaries.",
 	           EUserInterfaceActionType::Button, FInputChord());
 
 	// These allow us to link up to pressed keys
