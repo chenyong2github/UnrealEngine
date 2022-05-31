@@ -2,6 +2,7 @@
 #include "AudioModulationEditor.h"
 
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "AssetTypeActions/AssetTypeActions_SoundControlBus.h"
 #include "AssetTypeActions/AssetTypeActions_SoundControlBusMix.h"
 #include "AssetTypeActions/AssetTypeActions_SoundModulationGenerator.h"
@@ -12,7 +13,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
-#include "AssetRegistry/IAssetRegistry.h"
+#include "IAudioModulation.h"
 #include "ICurveEditorModule.h"
 #include "Internationalization/Internationalization.h"
 #include "Layouts/SoundControlBusMixStageLayout.h"
@@ -20,6 +21,7 @@
 #include "Layouts/SoundModulationParameterSettingsLayout.h"
 #include "Layouts/SoundModulationTransformLayout.h"
 #include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
 #include "Sound/SoundBase.h"
 #include "SoundModulationParameter.h"
 #include "SoundModulationTransform.h"
@@ -27,8 +29,13 @@
 #include "Textures/SlateIcon.h"
 #include "UObject/UObjectIterator.h"
 
+#if WITH_AUDIOMODULATION_METASOUND_SUPPORT
+#include "MetasoundDataReference.h"
+#include "MetasoundEditorModule.h"
+#endif // WITH_AUDIOMODULATION_METASOUND_SUPPORT
 
 DEFINE_LOG_CATEGORY(LogAudioModulationEditor);
+
 
 namespace AudioModulationEditor
 {
@@ -110,6 +117,18 @@ void FAudioModulationEditorModule::StartupModule()
 	));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
+
+#if WITH_AUDIOMODULATION_METASOUND_SUPPORT
+	{
+		using namespace Metasound;
+		using namespace Metasound::Editor;
+		IMetasoundEditorModule& MetaSoundEditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
+		MetaSoundEditorModule.RegisterPinType("Modulator");
+		MetaSoundEditorModule.RegisterPinType(CreateArrayTypeNameFromElementTypeName("Modulator"));
+		MetaSoundEditorModule.RegisterPinType("ModulationParameter");
+		MetaSoundEditorModule.RegisterPinType(CreateArrayTypeNameFromElementTypeName("ModulationParameter"));
+	}
+#endif // WITH_AUDIOMODULATION_METASOUND_SUPPORT
 
 	// All parameters are required to always be loaded in editor to enable them to be referenced via object
 	// metadata and custom layouts, even if they are not referenced by runtime uobjects/systems directly
