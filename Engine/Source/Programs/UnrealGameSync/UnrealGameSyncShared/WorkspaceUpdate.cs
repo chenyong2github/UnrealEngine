@@ -1404,7 +1404,7 @@ namespace UnrealGameSync
 			string? ParsedLine = ProgressTextWriter.ParseLine(Line, Progress);
 			if (ParsedLine != null)
 			{
-				Logger.LogInformation("{Prefix}{Message}", Prefix, Line);
+				Logger.LogInformation("{Prefix}{Message}", Prefix, ParsedLine);
 			}
 		}
 
