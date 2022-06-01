@@ -204,12 +204,32 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(PathTracingMaterialCHS,
 	else
 #endif
 
-#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	if (Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 	{
-		Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
+		const float3 ScatteringCoeff = max(0.0f, LWCToFloat(GetSingleLayerWaterMaterialOutput0(MaterialParameters)));
+		const float3 AbsorptionCoeff = max(0.0f, LWCToFloat(GetSingleLayerWaterMaterialOutput1(MaterialParameters)));
+		const float PhaseG = clamp(LWCToFloat(GetSingleLayerWaterMaterialOutput2(MaterialParameters)), -1.0f, 1.0f);
+
+		const float3 WaterExtinction = ScatteringCoeff + AbsorptionCoeff;
+		const float3 WaterAlbedo = ScatteringCoeff / WaterExtinction;
+
+		Payload.BaseColor.xyz = WaterAlbedo;
+		Payload.CustomData.xyz = WaterExtinction;
+		Payload.CustomData.w = PhaseG;
+
+		Payload.Ior = DielectricF0ToIor(DielectricSpecularToF0(Specular));
+		Payload.BlendingMode = RAY_TRACING_BLEND_MODE_TRANSLUCENT;
 	}
 	else
+#endif
+
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+		if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+		{
+			Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
+		}
+		else
 #endif
 
 #if MATERIAL_SHADINGMODEL_HAIR

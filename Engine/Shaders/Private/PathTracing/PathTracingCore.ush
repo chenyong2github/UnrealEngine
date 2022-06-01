@@ -1198,6 +1198,22 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 		}
 	}
 
+	if (Payload.ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
+	{
+		float3 LocalSigmaT = max(Payload.CustomData.xyz, 1e-8f);
+		if (Payload.IsFrontFace())
+		{
+			// entering
+			PathState.SigmaT += LocalSigmaT;
+		}
+		else
+		{
+			// exiting
+			PathState.SigmaT -= LocalSigmaT;
+			PathState.SigmaT = max(PathState.SigmaT, 0);
+		}
+	}
+
 	// If we are using Material sampling for lights
 	if (MISMode != 1 && bDoLightLoop)
 	{

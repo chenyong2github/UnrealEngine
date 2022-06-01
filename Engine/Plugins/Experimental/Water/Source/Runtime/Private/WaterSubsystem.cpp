@@ -666,7 +666,7 @@ void UWaterSubsystem::ComputeUnderwaterPostProcess(FVector ViewLocation, FSceneV
 
 	SceneView->UnderwaterDepth = CachedDepthUnderwater;
 
-	if (!bUnderwaterForPostProcess || !IsUnderwaterPostProcessEnabled())
+	if (!bUnderwaterForPostProcess || !IsUnderwaterPostProcessEnabled() || SceneView->Family->EngineShowFlags.PathTracing)
 	{
 		UnderwaterPostProcessVolume.PostProcessProperties.bIsEnabled = false;
 		UnderwaterPostProcessVolume.PostProcessProperties.Settings = nullptr;
