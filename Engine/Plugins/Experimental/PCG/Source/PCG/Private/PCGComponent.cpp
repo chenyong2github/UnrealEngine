@@ -462,7 +462,7 @@ void UPCGComponent::PostLoad()
 	SetupActorCallbacks();
 	SetupTrackingCallbacks();
 
-	if (TrackedLandscape)
+	if (TrackedLandscape.IsValid())
 	{
 		SetupLandscapeTracking();
 	}
@@ -832,7 +832,7 @@ void UPCGComponent::UpdateTrackedLandscape(bool bBoundsCheck)
 
 void UPCGComponent::SetupLandscapeTracking()
 {
-	if (TrackedLandscape)
+	if (TrackedLandscape.IsValid())
 	{
 		TrackedLandscape->OnComponentDataChanged.AddUObject(this, &UPCGComponent::OnLandscapeChanged);
 	}
@@ -840,7 +840,7 @@ void UPCGComponent::SetupLandscapeTracking()
 
 void UPCGComponent::TeardownLandscapeTracking()
 {
-	if (TrackedLandscape)
+	if (TrackedLandscape.IsValid())
 	{
 		TrackedLandscape->OnComponentDataChanged.RemoveAll(this);
 	}

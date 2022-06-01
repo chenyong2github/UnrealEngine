@@ -223,7 +223,7 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TObjectPtr<ALandscapeProxy> TrackedLandscape = nullptr;
+	TWeakObjectPtr<ALandscapeProxy> TrackedLandscape = nullptr;
 #endif
 
 #if WITH_EDITORONLY_DATA
