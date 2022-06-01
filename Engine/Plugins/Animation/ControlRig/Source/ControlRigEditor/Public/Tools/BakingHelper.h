@@ -4,6 +4,7 @@
 
 #include "Misc/FrameNumber.h"
 #include "Templates/SharedPointer.h"
+#include "Math/Transform.h"
 
 class UMovieScene3DTransformSection;
 class AActor;
