@@ -35,7 +35,6 @@ public:
 	FName GetHLODLayer() const;
 	const TArray<FName>& GetDataLayers() const;
 	const TArray<FName>& GetRuntimeDataLayers() const;
-	void ResolveRuntimeDataLayers(const UActorDescContainer* InContainer = nullptr);
 	FName GetActorPackage() const;
 	FName GetActorPath() const;
 	FName GetActorLabel() const;
@@ -58,6 +57,9 @@ public:
 
 	bool IsResaveNeeded() const;
 
+	void ResolveRuntimeDataLayers(const UActorDescContainer* InContainer = nullptr);
+	void ResolveRuntimeReferences(const UActorDescContainer* InContainer);
+
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{
 		return GetGuid() == Other.GetGuid();
@@ -74,5 +76,6 @@ protected:
 	bool bInvalidDataLayers;
 	bool bInvalidRuntimeGrid;
 	TOptional<TArray<FName>> RuntimeDataLayers;
+	TOptional<TArray<FGuid>> RuntimeReferences;
 };
 #endif

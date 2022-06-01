@@ -63,6 +63,8 @@ class FWorldPartitionStreamingGenerator
 				ActorDescView.ResolveRuntimeDataLayers(InContainer);
 			}
 
+			ActorDescView.ResolveRuntimeReferences(InContainer);
+
 			OutActorDescViewMap.Emplace(ActorGuid, ActorDescView);
 		};
 		
@@ -368,7 +370,7 @@ class FWorldPartitionStreamingGenerator
 							}
 							// Do not increment NbErrorsDetected since it won't be fixed and thus will always occur
 						}
-					}				
+					}
 				}		
 
 				NbValidationPasses++;

@@ -132,7 +132,7 @@ FBox FWorldPartitionActorDescView::GetBounds() const
 
 const TArray<FGuid>& FWorldPartitionActorDescView::GetReferences() const
 {
-	return ActorDesc->GetReferences();
+	return RuntimeReferences.IsSet() ? RuntimeReferences.GetValue() : ActorDesc->GetReferences();
 }
 
 FString FWorldPartitionActorDescView::ToString() const
@@ -165,7 +165,7 @@ void FWorldPartitionActorDescView::SetForcedNonSpatiallyLoaded()
 	if (!bIsForcedNonSpatiallyLoaded)
 	{
 		bIsForcedNonSpatiallyLoaded = true;
-		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' forced to be non-spatially loaded"), *GetActorLabel().ToString());
+		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' forced to be non-spatially loaded"), *GetActorLabelOrName().ToString());
 	}
 }
 
@@ -179,7 +179,7 @@ void FWorldPartitionActorDescView::SetInvalidDataLayers()
 	if (!bInvalidDataLayers)
 	{
 		bInvalidDataLayers = true;
-		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' data layers invalidated"), *GetActorLabel().ToString());
+		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' data layers invalidated"), *GetActorLabelOrName().ToString());
 	}
 }
 
@@ -188,4 +188,22 @@ bool FWorldPartitionActorDescView::IsResaveNeeded() const
 	return ActorDesc->IsResaveNeeded();
 }
 
+void FWorldPartitionActorDescView::ResolveRuntimeReferences(const UActorDescContainer* InContainer)
+{
+	RuntimeReferences.Emplace();
+	for (const FGuid& ReferenceGuid : ActorDesc->GetReferences())
+	{
+		if (const FWorldPartitionActorDesc* ReferenceDesc = InContainer->GetActorDesc(ReferenceGuid))
+		{
+			if (ReferenceDesc->IsLoaded() ? !ReferenceDesc->GetActor()->IsEditorOnly() : !ReferenceDesc->GetActorIsEditorOnly())
+			{
+				RuntimeReferences->Add(ReferenceGuid);
+			}
+			else
+			{
+				UE_LOG(LogWorldPartition, Verbose, TEXT("Actor reference '%s' from '%s' filtered-out (editor-only)"), *ReferenceDesc->GetActorLabelOrName().ToString(), *GetActorLabelOrName().ToString());
+			}
+		}
+	}
+}
 #endif
