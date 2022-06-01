@@ -505,26 +505,24 @@ void FMainMenu::RegisterToolsMenu()
 		const bool bTranslationPicker = GetDefault<UEditorExperimentalSettings>()->bEnableTranslationPicker;
 
 		// Make sure at least one is enabled before creating the section
-		if ( bTranslationPicker)
+
+		FToolMenuSection& ExperimentalSection = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"));
 		{
-			FToolMenuSection& ExperimentalSection = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"));
+			// Translation Picker
+			if (bTranslationPicker)
 			{
-				// Translation Picker
-				if (bTranslationPicker)
-				{
-					ExperimentalSection.AddMenuEntry(
-						"TranslationPicker",
-						LOCTEXT("TranslationPickerMenuItem", "Translation Picker"),
-						LOCTEXT("TranslationPickerMenuItemToolTip", "Launch the Translation Picker to Modify Editor Translations"),
-						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateLambda(
-							[]()
-							{
-								FModuleManager::Get().LoadModuleChecked("TranslationEditor");
-								ITranslationEditor::OpenTranslationPicker();
-							}))
-					);
-				}
+				ExperimentalSection.AddMenuEntry(
+					"TranslationPicker",
+					LOCTEXT("TranslationPickerMenuItem", "Translation Picker"),
+					LOCTEXT("TranslationPickerMenuItemToolTip", "Launch the Translation Picker to Modify Editor Translations"),
+					FSlateIcon(),
+					FUIAction(FExecuteAction::CreateLambda(
+						[]()
+						{
+							FModuleManager::Get().LoadModuleChecked("TranslationEditor");
+							ITranslationEditor::OpenTranslationPicker();
+						}))
+				);
 			}
 		}
 	}

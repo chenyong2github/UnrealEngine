@@ -278,42 +278,6 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 			ActionsEntry.InsertPosition = FToolMenuInsert("Help", EToolMenuInsertType::Before);
 		}
 
-
-		static void ExtendToolsMenu()
-		{
-			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("LevelEditor.MainMenu.Tools", "MainFrame.MainMenu.Tools");
-
-			// Experimental section
-			{
-				// This is a temporary home for the spawners of experimental features that must be explicitly enabled.
-				// When the feature becomes permanent and need not check a flag, register a nomad spawner for it in the proper WorkspaceMenu category
-				const bool bTranslationPicker = GetDefault<UEditorExperimentalSettings>()->bEnableTranslationPicker;
-
-				// Make sure at least one is enabled before creating the section
-				if (bTranslationPicker)
-				{
-					FToolMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"));
-					{
-						// Translation Picker
-						if (bTranslationPicker)
-						{
-							Section.AddMenuEntry(
-								"TranslationPicker",
-								LOCTEXT("TranslationPickerMenuItem", "Translation Picker"),
-								LOCTEXT("TranslationPickerMenuItemToolTip", "Launch the Translation Picker to Modify Editor Translations"),
-								FSlateIcon(),
-								FUIAction(FExecuteAction::CreateLambda(
-									[]()
-									{
-										FModuleManager::Get().LoadModuleChecked("TranslationEditor");
-										ITranslationEditor::OpenTranslationPicker();
-									}))
-							);
-						}
-					}
-				}
-			}
-		}
 	};
 
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -335,9 +299,6 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 
 	// Extend the Help menu
 	Local::ExtendHelpMenu();
-
-	// Extend the Tools menu
-	Local::ExtendToolsMenu();
 
 	// Extend the Build menu
 	RegisterBuildMenu();
