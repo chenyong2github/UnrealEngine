@@ -801,7 +801,7 @@ public:
 		return ProfileInstance.AngularDrive.IsVelocityDriveEnabled();
 	}
 	
-	/** Set the angular drive's angular velocity target*/
+	/** Set the angular drive's angular velocity target (in revolutions per second)*/
 	void SetAngularVelocityTarget(const FVector& InVelTarget);
 
 	/** Get the angular drive's angular velocity target*/

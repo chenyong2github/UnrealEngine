@@ -132,7 +132,7 @@ struct ENGINE_API FAngularDriveConstraint
 	UPROPERTY(EditAnywhere, Category = AngularMotor)
 	FRotator OrientationTarget;
 
-	/** Target angular velocity relative to the body reference frame. */
+	/** Target angular velocity relative to the body reference frame in revolutions per second. */
 	UPROPERTY(EditAnywhere, Category = AngularMotor)
 	FVector AngularVelocityTarget;
 
