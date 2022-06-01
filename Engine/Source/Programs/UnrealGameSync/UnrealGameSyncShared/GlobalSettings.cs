@@ -71,6 +71,8 @@ namespace UnrealGameSync
 				ConfigFile = FileReference.Combine(UserSettings.GetConfigDir(Settings.RootDir), $"project_{ProjectInfo.LocalFileName.GetFileNameWithoutExtension()}.json");
 			}
 
+			UserSettings.CreateConfigDir(ConfigFile.Directory);
+
 			UserProjectSettings? ProjectSettings;
 			if (!UserProjectSettings.TryLoad(ConfigFile, out ProjectSettings))
 			{

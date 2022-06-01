@@ -379,6 +379,7 @@ namespace UnrealGameSync
 		{
 			lock (SyncRoot)
 			{
+				UserSettings.CreateConfigDir(ConfigFile.Directory);
 				Utility.SaveJson(ConfigFile, this);
 				LastModifiedTimeUtc = FileReference.GetLastWriteTimeUtc(ConfigFile).Ticks;
 			}
@@ -502,6 +503,7 @@ namespace UnrealGameSync
 		{
 			lock (SyncRoot)
 			{
+				UserSettings.CreateConfigDir(ConfigFile.Directory);
 				Utility.SaveJson(ConfigFile, this);
 			}
 		}
@@ -938,7 +940,11 @@ namespace UnrealGameSync
 		public static DirectoryReference GetConfigDir(DirectoryReference WorkspaceDir)
 		{
 			DirectoryReference ConfigDir = DirectoryReference.Combine(WorkspaceDir, ".ugs");
+			return ConfigDir;
+		}
 
+		public static void CreateConfigDir(DirectoryReference ConfigDir)
+		{
 			DirectoryInfo ConfigDirInfo = ConfigDir.ToDirectoryInfo();
 			if (!ConfigDirInfo.Exists)
 			{
@@ -948,8 +954,6 @@ namespace UnrealGameSync
 					ConfigDirInfo.Attributes = FileAttributes.Directory | FileAttributes.Hidden;
 				}
 			}
-
-			return ConfigDir;
 		}
 
 		protected override void ImportWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath, UserWorkspaceState CurrentWorkspace)
