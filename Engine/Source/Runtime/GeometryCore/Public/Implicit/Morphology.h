@@ -8,7 +8,7 @@
 
 #include "Spatial/MeshAABBTree3.h"
 
-#include "Implicit/SweepingMeshSDF.h"
+#include "Implicit/SparseNarrowBandMeshSDF.h"
 #include "Implicit/GridInterpolant.h"
 #include "Implicit/ImplicitFunctions.h"
 
@@ -131,15 +131,21 @@ public:
 	}
 
 protected:
+
+	template<typename MeshType>
+	using TMeshSDF = TSparseNarrowBandMeshSDF<MeshType>; 
+
 	void ComputeFirstPass(double UnsignedOffset, double SignedOffset)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_FirstPass);
 
-		TSweepingMeshSDF<TriangleMeshType> ComputedSDF;
+		typedef TMeshSDF<TriangleMeshType>   MeshSDFType;
+
+		MeshSDFType ComputedSDF;
 		ComputedSDF.Mesh = Source;
 
 		ComputedSDF.Spatial = SourceSpatial;
-		ComputedSDF.ComputeMode = TSweepingMeshSDF<TriangleMeshType>::EComputeModes::NarrowBand_SpatialFloodFill;
+		ComputedSDF.ComputeMode = MeshSDFType::EComputeModes::NarrowBand_SpatialFloodFill;
 
 
 		ComputedSDF.CellSize = GridCellSize;
@@ -152,7 +158,7 @@ protected:
 		if (!ComputedSDF.ShouldUseSpatial(ComputedSDF.ExactBandWidth, ComputedSDF.CellSize, AvgEdgeLen))
 		{
 			ComputedSDF.Spatial = nullptr;
-			ComputedSDF.ComputeMode = TSweepingMeshSDF<TriangleMeshType>::EComputeModes::NarrowBandOnly;
+			ComputedSDF.ComputeMode = MeshSDFType::EComputeModes::NarrowBandOnly;
 		}
 
 		{
@@ -160,7 +166,7 @@ protected:
 			ComputedSDF.Compute(SourceSpatial->GetBoundingBox());
 		}
 
-		TTriLinearGridInterpolant<TSweepingMeshSDF<TriangleMeshType>> Interpolant = ComputedSDF.MakeInterpolant();
+		TTriLinearGridInterpolant<MeshSDFType> Interpolant = ComputedSDF.MakeInterpolant();
 
 		MarchingCubes.IsoValue = SignedOffset;
 		MarchingCubes.Bounds = SourceSpatial->GetBoundingBox();
@@ -198,6 +204,8 @@ protected:
 	void ComputeSecondPass(double UnsignedOffset, double SignedOffset)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_SecondPass);
+		
+		typedef TMeshSDF<TIndexVectorMeshArrayAdapter<FIndex3i, double, FVector3d>>   MeshSDFType;
 
 		if (MarchingCubes.Triangles.Num() == 0)
 		{
@@ -208,7 +216,7 @@ protected:
 		TIndexVectorMeshArrayAdapter<FIndex3i, double, FVector3d> MCAdapter(&MarchingCubes.Vertices, &MarchingCubes.Triangles);
 		TMeshAABBTree3<TIndexVectorMeshArrayAdapter<FIndex3i, double, FVector3d>> SecondSpatial(&MCAdapter, false);
 
-		TSweepingMeshSDF<TIndexVectorMeshArrayAdapter<FIndex3i, double, FVector3d>> SecondSDF;
+		MeshSDFType SecondSDF;
 		SecondSDF.Mesh = &MCAdapter;
 		SecondSDF.CellSize = GridCellSize;
 		SecondSDF.Spatial = nullptr;
@@ -224,12 +232,12 @@ protected:
 			TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_SecondPass_BuildSpatial);
 			SecondSpatial.Build();
 			SecondSDF.Spatial = &SecondSpatial;
-			SecondSDF.ComputeMode = TSweepingMeshSDF<TIndexVectorMeshArrayAdapter<FIndex3i, double, FVector3d>>::EComputeModes::NarrowBand_SpatialFloodFill;
+			SecondSDF.ComputeMode = MeshSDFType::EComputeModes::NarrowBand_SpatialFloodFill;
 			Bounds = SecondSpatial.GetBoundingBox(); // Use the tighter bounds from the AABB tree since we have it
 		}
 		else
 		{
-			SecondSDF.ComputeMode = TSweepingMeshSDF<TIndexVectorMeshArrayAdapter<FIndex3i, double, FVector3d>>::EComputeModes::NarrowBandOnly;
+			SecondSDF.ComputeMode = MeshSDFType::EComputeModes::NarrowBandOnly;
 		}
 
 
@@ -242,7 +250,7 @@ protected:
 			TRACE_CPUPROFILER_EVENT_SCOPE(Geometry_Morphology_SecondPass_ComputeSDF);
 			SecondSDF.Compute(Bounds);
 		}
-		TTriLinearGridInterpolant<TSweepingMeshSDF<TIndexVectorMeshArrayAdapter<FIndex3i, double, FVector3d>>> Interpolant = SecondSDF.MakeInterpolant();
+		TTriLinearGridInterpolant<MeshSDFType> Interpolant = SecondSDF.MakeInterpolant();
 
 		MarchingCubes.Reset();
 		MarchingCubes.IsoValue = SignedOffset;

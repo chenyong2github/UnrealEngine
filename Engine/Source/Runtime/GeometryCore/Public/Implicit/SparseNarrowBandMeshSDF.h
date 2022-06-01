@@ -1178,13 +1178,13 @@ private:
 			const int32 NumBlocks = AtomicGrid3i.Blocks.Num();
 			ParallelFor(NumBlocks, [&IntersectionCountGrid, &AtomicGrid3i](const int32 blockid)
 			{
-				TUniquePtr<FAtomicGrid3i::BlockAtomicData>& AtomicBlockPtr = AtomicGrid3i.Blocks[blockid];
+				TUniquePtr<typename FAtomicGrid3i::BlockAtomicData>& AtomicBlockPtr = AtomicGrid3i.Blocks[blockid];
 				
 				if (AtomicBlockPtr.IsValid())
 				{
 					FVector3i BlockIJK = AtomicGrid3i.BlockIndexToBlockIJK(blockid);
 					FBlockedGrid3i::BlockData3Type& BlockData = IntersectionCountGrid.TouchBlockData(BlockIJK);	
-					const FAtomicGrid3i::BlockAtomicData& AtomicBlockData = *AtomicBlockPtr;
+					const typename FAtomicGrid3i::BlockAtomicData& AtomicBlockData = *AtomicBlockPtr;
 
 					for (int32 j = 0; j < FBlockedGrid3i::BlockElemCount; ++j)
 					{
