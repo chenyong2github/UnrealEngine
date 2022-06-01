@@ -20,6 +20,6 @@ public:
 	 * Platform specific settings for Enhanced Input.
 	 * @see UEnhancedInputPlatformSettings
 	 */
-	UPROPERTY(EditAnywhere, Category = "Input")
+	UPROPERTY(EditAnywhere, Category = "Enhanced Input")
 	FPerPlatformSettings PlatformSettings;
 };
