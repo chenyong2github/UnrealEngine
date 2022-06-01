@@ -58,7 +58,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		return nullptr;
 	}
 
-	if (IsValid(ExistingDisplacedMesh))
+	if (IsValid(ExistingDisplacedMesh) && (bCreateTransientAsset || (!ExistingDisplacedMesh->HasAnyFlags(RF_Transient) && ExistingDisplacedMesh->HasAnyFlags(RF_Public))))
 	{
 		// Make sure the referenced displaced mesh asset matches the provided combination
 		// Note: This is a faster test than generating Ids for LHS and RHS and comparing (this check will occur frequently)
@@ -134,6 +134,8 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 			nullptr
 			);
 
+		// We want the garbage collector to be able to clean the temp assets when they are no longer referred
+		TempNaniteDisplacedMesh->ClearFlags(RF_Standalone);
 		TempNaniteDisplacedMesh->bIsEditable = false;
 		TempNaniteDisplacedMesh->Parameters = InParameters;
 		return TempNaniteDisplacedMesh;
