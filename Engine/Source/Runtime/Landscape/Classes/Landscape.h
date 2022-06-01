@@ -385,7 +385,7 @@ private:
 	bool PrepareLayersTextureResources(bool bInWaitForStreaming);
 	bool PrepareLayersTextureResources(const TArray<FLandscapeLayer>& InLayers, bool bInWaitForStreaming);
 	bool PrepareLayersBrushResources(bool bInWaitForStreaming);
-	void InvalidateRVTForTextures(const TSet<TWeakObjectPtr<UTexture2D>>& InTextures);
+	void InvalidateRVTForTextures(const TSet<UTexture2D*>& InTextures);
 	void PrepareLayersHeightmapsLocalMergeRenderThreadData(const FUpdateLayersContentContext& InUpdateLayersContentContext, const FEditLayersHeightmapMergeParams& InMergeParams, EditLayersHeightmapLocalMerge_RenderThread::FMergeInfo& OutRenderThreadData);
 	void PrepareLayersWeightmapsLocalMergeRenderThreadData(const FUpdateLayersContentContext& InUpdateLayersContentContext, const FEditLayersWeightmapMergeParams& InMergeParams, EditLayersWeightmapLocalMerge_RenderThread::FMergeInfo& OutRenderThreadData);
 
@@ -480,7 +480,7 @@ public:
 
 	/** List of textures that are not fully streamed in yet (updated every frame to track textures that have finished streaming in) */
 	UPROPERTY(Transient, DuplicateTransient, TextExportTransient)	
-	TSet<TWeakObjectPtr<UTexture2D>> TrackedStreamingInTextures;
+	TArray<TWeakObjectPtr<UTexture2D>> TrackedStreamingInTextures;
 
 private:
 	FLandscapeBlueprintBrushChangedDelegate LandscapeBlueprintBrushChangedDelegate;
