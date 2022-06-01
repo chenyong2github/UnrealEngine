@@ -153,9 +153,9 @@ void FViewportInfo::RecreateDepthBuffer_RenderThread()
 		if (CVarMemorylessDepthStencil.GetValueOnAnyThread() != 0)
 		{
 			// Use Memoryless target, expecting that DepthStencil content is intermediate and can't be preserved between renderpasses
-			TargetableTextureFlags |= TexCreate_Memoryless;
+			TargetableTextureFlags|= TexCreate_Memoryless;
 		}
-
+		
 		const FRHITextureCreateDesc Desc =
 			FRHITextureCreateDesc::Create2D(TEXT("SlateViewportDepthStencil"))
 			.SetExtent(Width, Height)
@@ -876,21 +876,21 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			{
 				// Composition buffers
 				{
-					ETextureCreateFlags BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
-					FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
-						GetSlateRecommendedColorFormat(),
-						FClearValueBinding::Transparent,
-						BaseFlags,
-						TexCreate_ShaderResource | TexCreate_RenderTargetable,
-						false,
-						1,
-						true,
-						true));
+				ETextureCreateFlags BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
+				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
+					GetSlateRecommendedColorFormat(),
+					FClearValueBinding::Transparent,
+					BaseFlags,
+					TexCreate_ShaderResource | TexCreate_RenderTargetable,
+					false,
+					1,
+					true,
+					true));
 
-					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.UITargetRT, TEXT("UITargetRT"));
+				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.UITargetRT, TEXT("UITargetRT"));
 
-					Desc.Format = BackBuffer->GetFormat();
-					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.HDRSourceRT, TEXT("HDRSourceRT"));
+				Desc.Format = BackBuffer->GetFormat();
+				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.HDRSourceRT, TEXT("HDRSourceRT"));
 				}
 
 				// LUT
@@ -931,7 +931,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 				else
 #endif
 				{
-    				// Grab HDR backbuffer
+				// Grab HDR backbuffer
 					TransitionAndCopyTexture(RHICmdList, FinalBuffer, ViewportInfo.HDRSourceRT->GetRHI(), {});
 				}
 
@@ -972,15 +972,15 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			RenderSlateBatch(BackBuffer, bClear, bHdrTarget, ViewportInfo, ViewMatrix, BatchData, RHICmdList, ViewportWidth, ViewportHeight, DrawCommandParams, RenderingPolicy, PostProcessBuffer);
 
 			if (bCompositeUI)
-			{
+					{
 				FSlateBatchData& BatchDataHDR = WindowElementList.GetBatchDataHDR();
 				bool bHasBatches = BatchDataHDR.GetRenderBatches().Num() > 0;
-				if (bHasBatches)
-				{
+						if (bHasBatches)
+						{
 					RenderingPolicy->BuildRenderingBuffers(RHICmdList, BatchDataHDR);
 					FTexture2DRHIRef UITargetHDRRTRHI(ViewportInfo.HDRSourceRT->GetRHI());
 					RenderSlateBatch(UITargetHDRRTRHI, /*bClear*/ false, /*bIsHDR*/ true, ViewportInfo, ViewMatrix, BatchDataHDR, RHICmdList, ViewportWidth, ViewportHeight, DrawCommandParams, RenderingPolicy, PostProcessBuffer);
-				}
+			}
 
 				SCOPED_DRAW_EVENT(RHICmdList, SlateUI_Composition);
 

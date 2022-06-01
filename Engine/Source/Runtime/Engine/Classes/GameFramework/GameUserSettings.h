@@ -562,6 +562,8 @@ protected:
 
 	void UpdateResolutionQuality();
 
+	void EnableHDRDisplayOutputInternal(bool bEnable, int32 DisplayNits, bool FromUserSettings);
+
 private:
 
 	UPROPERTY(BlueprintAssignable, meta = (AllowPrivateAccess = "true"))
