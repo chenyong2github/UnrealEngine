@@ -132,6 +132,14 @@ public:
 	virtual void Parse(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker) override;
 	virtual void ConvertToDatasmith(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker) override;
 	virtual void RemoveFromTracked(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker) override;
+
+	void ApplyIesProfile(const TCHAR* InIesFilePath);
+	const TCHAR* GetIesProfile();
+	bool IsIesProfileValid();
+
+private:
+	FString IesFilePath;
+
 };
 
 class FCameraNodeConverter: public FNodeConverter

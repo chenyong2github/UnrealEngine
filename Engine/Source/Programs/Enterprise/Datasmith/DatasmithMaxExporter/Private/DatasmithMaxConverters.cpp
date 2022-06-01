@@ -14,6 +14,9 @@
 #include "DatasmithMaxLogger.h"
 #include "DatasmithMaxHelper.h"
 
+#include "HAL/PlatformFilemanager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+
 namespace  DatasmithMaxDirectLink
 {
 
@@ -92,7 +95,7 @@ void FLightNodeConverter::ConvertToDatasmith(ISceneTracker& SceneTracker, FNodeT
 		}
 		else
 		{
-			if ( !FDatasmithMaxSceneExporter::ParseLight(NodeTracker.Node, LightElement.ToSharedRef(), SceneTracker.GetDatasmithSceneRef()) )
+			if ( !FDatasmithMaxSceneExporter::ParseLight(*this, NodeTracker.Node, LightElement.ToSharedRef(), SceneTracker.GetDatasmithSceneRef()) )
 			{
 				return;
 			}
@@ -133,10 +136,37 @@ void FLightNodeConverter::ConvertToDatasmith(ISceneTracker& SceneTracker, FNodeT
 		NodeTracker.Validity.NarrowValidityToInterval(ValidityInterval);
 	}
 
+	if (IsIesProfileValid())
+	{
+		if (const TCHAR* TexturePath = SceneTracker.AcquireIesTexture(IesFilePath))
+		{
+			LightElement->SetIesTexturePathName(TexturePath);
+		}
+		else
+		{
+			LightElement->SetUseIes(false);  // Force disable Ies if ies profile not found
+		}
+	}
 }
 
 void FLightNodeConverter::RemoveFromTracked(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker)
 {
+	SceneTracker.ReleaseIesTexture(IesFilePath);
+}
+
+void FLightNodeConverter::ApplyIesProfile(const TCHAR* InIesFilePath)
+{
+	IesFilePath = InIesFilePath;
+}
+
+const TCHAR* FLightNodeConverter::GetIesProfile()
+{
+	return *IesFilePath;
+}
+
+bool FLightNodeConverter::IsIesProfileValid()
+{
+	return FPlatformFileManager::Get().GetPlatformFile().FileExists(*IesFilePath);
 }
 
 void FMeshNodeConverter::Parse(ISceneTracker& SceneTracker, FNodeTracker& NodeTracker)

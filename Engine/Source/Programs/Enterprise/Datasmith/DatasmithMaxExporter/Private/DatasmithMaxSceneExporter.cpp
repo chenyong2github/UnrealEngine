@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "DatasmithMaxSceneExporter.h"
 
+#include "DatasmithMaxDirectLink.h"
+#include "DatasmithMaxConverters.h"
+
 #include "DatasmithMaxAttributes.h"
 #include "DatasmithMaxCameraExporter.h"
 #include "DatasmithMaxExporterDefines.h"
@@ -11,6 +14,7 @@
 #include "DatasmithSceneExporter.h"
 #include "DatasmithSceneFactory.h"
 #include "VRayLights.h"
+
 
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
@@ -942,7 +946,7 @@ bool FDatasmithMaxSceneExporter::ParseTransformAnimation(INode* Node, TSharedRef
 	return true;
 }
 
-bool FDatasmithMaxSceneExporter::ParseLight(INode* Node, TSharedRef< IDatasmithLightActorElement > LightElement, TSharedRef< IDatasmithScene > DatasmithScene)
+bool FDatasmithMaxSceneExporter::ParseLight(DatasmithMaxDirectLink::FLightNodeConverter& Converter, INode* Node, TSharedRef< IDatasmithLightActorElement > LightElement, TSharedRef< IDatasmithScene > DatasmithScene)
 {
 	EMaxLightClass LightClass = FDatasmithMaxSceneParser::GetLightClass(Node);
 	if (LightClass == EMaxLightClass::Unknown)
@@ -976,7 +980,7 @@ bool FDatasmithMaxSceneExporter::ParseLight(INode* Node, TSharedRef< IDatasmithL
 	{
 		TSharedRef< IDatasmithPointLightElement > PointLightElement = StaticCastSharedRef< IDatasmithPointLightElement >( LightElement );
 
-		ParsePhotometricLight( *Light, PointLightElement, DatasmithScene );
+		ParsePhotometricLight(Converter, *Light, PointLightElement, DatasmithScene );
 	}
 	else if ( LightClass == EMaxLightClass::VRayLight && LightElement->IsA( EDatasmithElementType::AreaLight ) )
 	{
@@ -994,29 +998,25 @@ bool FDatasmithMaxSceneExporter::ParseLight(INode* Node, TSharedRef< IDatasmithL
 	{
 		TSharedRef< IDatasmithPointLightElement > PointLightElement = StaticCastSharedRef< IDatasmithPointLightElement >( LightElement );
 
-		ParseVRayLightIES( *Light, PointLightElement, DatasmithScene );
+		ParseVRayLightIES( Converter,  *Light, PointLightElement, DatasmithScene );
 	}
 	else if ( LightClass == EMaxLightClass::CoronaLight && LightElement->IsA( EDatasmithElementType::AreaLight ) )
 	{
 		TSharedRef< IDatasmithAreaLightElement > AreaLightElement = StaticCastSharedRef< IDatasmithAreaLightElement >( LightElement );
 
-		ParseCoronaLight( *Light, AreaLightElement, DatasmithScene );
+		ParseCoronaLight( Converter, *Light, AreaLightElement, DatasmithScene );
 	}
 	else
 	{
-		ParseLightParameters( LightClass, *Light, LightElement, DatasmithScene );
+		ParseLightParameters( Converter, LightClass, *Light, LightElement, DatasmithScene );
 	}
-
-	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 	if ( LightElement->GetUseIes() )
 	{
-		if ( !PlatformFile.FileExists( LightElement->GetIesFile() ) )
+		if ( !Converter.IsIesProfileValid() )
 		{
 			LightElement->SetUseIes( false );
-
-			FString Error = FString("IES light definition \"") + FPaths::GetCleanFilename( LightElement->GetIesFile() ) + FString("\" cannot be found");
-			DatasmithMaxLogger::Get().AddMissingAssetError(*Error);
+			DatasmithMaxDirectLink::LogWarning(FString::Printf(TEXT("IES light definition \"%s\" cannot be found for light \"%s\""), *FPaths::GetCleanFilename(Converter.GetIesProfile()), LightElement->GetName()));
 		}
 	}
 
@@ -1093,7 +1093,7 @@ bool FDatasmithMaxSceneExporter::ParseLightObject(LightObject& Light, TSharedRef
 	return true;
 }
 
-bool FDatasmithMaxSceneExporter::ParseCoronaLight(LightObject& Light, TSharedRef< IDatasmithAreaLightElement > AreaLightElement, TSharedRef< IDatasmithScene > DatasmithScene)
+bool FDatasmithMaxSceneExporter::ParseCoronaLight(DatasmithMaxDirectLink::FLightNodeConverter& Converter, LightObject& Light, TSharedRef< IDatasmithAreaLightElement > AreaLightElement, TSharedRef< IDatasmithScene > DatasmithScene)
 {
 	enum class ECoronaIntensityUnits
 	{
@@ -1168,7 +1168,7 @@ bool FDatasmithMaxSceneExporter::ParseCoronaLight(LightObject& Light, TSharedRef
 			}
 			else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("iesfile")) == 0 )
 			{
-				AreaLightElement->SetIesFile( *GetActualPath( ParamBlock2->GetStr( ParamDefinition.ID, GetCOREInterface()->GetTime() ) ) );
+				Converter.ApplyIesProfile(*GetActualPath( ParamBlock2->GetStr( ParamDefinition.ID, GetCOREInterface()->GetTime() ) ));
 			}
 			else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("colorMode")) == 0 )
 			{
@@ -1239,15 +1239,17 @@ bool FDatasmithMaxSceneExporter::ParseCoronaLight(LightObject& Light, TSharedRef
 
 	if ( AreaLightElement->GetUseIes() )
 	{
+
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
-		if (PlatformFile.FileExists(AreaLightElement->GetIesFile()))
+		if (Converter.IsIesProfileValid())
 		{
 			AreaLightElement->SetLightType(EDatasmithAreaLightType::Point);
 		}
 		else
 		{
 			AreaLightElement->SetUseIes( false );
+			DatasmithMaxDirectLink::LogWarning(FString::Printf(TEXT("IES light definition \"%s\" cannot be found for light \"%s\""), *FPaths::GetCleanFilename(Converter.GetIesProfile()), AreaLightElement->GetName()));
 		}
 	}
 
@@ -1359,7 +1361,7 @@ bool FDatasmithMaxSceneExporter::ParseCoronaLight(LightObject& Light, TSharedRef
 	return true;
 }
 
-bool FDatasmithMaxSceneExporter::ParsePhotometricLight(LightObject& Light, TSharedRef< IDatasmithPointLightElement > PointLightElement, TSharedRef< IDatasmithScene > DatasmithScene)
+bool FDatasmithMaxSceneExporter::ParsePhotometricLight(DatasmithMaxDirectLink::FLightNodeConverter& Converter, LightObject& Light, TSharedRef< IDatasmithPointLightElement > PointLightElement, TSharedRef< IDatasmithScene > DatasmithScene)
 {
 	LightscapeLight& PhotometricLight = static_cast< LightscapeLight& >( Light );
 
@@ -1415,8 +1417,13 @@ bool FDatasmithMaxSceneExporter::ParsePhotometricLight(LightObject& Light, TShar
 		PointLightElement->SetColor( FLinearColor( RGBFilter.x, RGBFilter.y, RGBFilter.z ) );
 	}
 
-	PointLightElement->SetIesFile( PhotometricLight.GetFullWebFileName() );
-	PointLightElement->SetUseIes( PhotometricLight.GetDistribution() == LightscapeLight::WEB_DIST );
+	bool bUseIes = PhotometricLight.GetDistribution() == LightscapeLight::WEB_DIST;
+
+	PointLightElement->SetUseIes( bUseIes );
+	if (bUseIes)
+	{
+		Converter.ApplyIesProfile(PhotometricLight.GetFullWebFileName());
+	}
 	PointLightElement->SetUseIesBrightness( false );
 
 	FQuat IesRotateX = FQuat( FVector::RightVector, FMath::DegreesToRadians( -PhotometricLight.GetWebRotateX() ) );
@@ -1758,7 +1765,7 @@ bool FDatasmithMaxSceneExporter::ParseVRayLightPortal(LightObject& Light, TShare
 	return true;
 }
 
-bool FDatasmithMaxSceneExporter::ParseVRayLightIES(LightObject& Light, TSharedRef< IDatasmithPointLightElement > PointLightElement, TSharedRef< IDatasmithScene > DatasmithScene)
+bool FDatasmithMaxSceneExporter::ParseVRayLightIES(DatasmithMaxDirectLink::FLightNodeConverter& Converter, LightObject& Light, TSharedRef< IDatasmithPointLightElement > PointLightElement, TSharedRef< IDatasmithScene > DatasmithScene)
 {
 	PointLightElement->SetUseIes( true );
 	PointLightElement->SetUseIesBrightness( false ); // Vray IES lights have their own intensity
@@ -1802,7 +1809,7 @@ bool FDatasmithMaxSceneExporter::ParseVRayLightIES(LightObject& Light, TSharedRe
 			}
 			else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("ies_file")) == 0 )
 			{
-				PointLightElement->SetIesFile( *GetActualPath( ParamBlock2->GetStr( ParamDefinition.ID, GetCOREInterface()->GetTime() ) ) );
+				Converter.ApplyIesProfile( *GetActualPath( ParamBlock2->GetStr( ParamDefinition.ID, GetCOREInterface()->GetTime() ) ) );
 			}
 			else if ( FCString::Stricmp(ParamDefinition.int_name, TEXT("rotation_X")) == 0 )
 			{
@@ -1915,7 +1922,7 @@ bool FDatasmithMaxSceneExporter::ParseVRayLightIES(LightObject& Light, TSharedRe
 	return true;
 }
 
-bool FDatasmithMaxSceneExporter::ParseLightParameters(EMaxLightClass LightClass, LightObject& Light, TSharedRef< IDatasmithLightActorElement > LightElement, TSharedRef< IDatasmithScene > DatasmithScene)
+bool FDatasmithMaxSceneExporter::ParseLightParameters(DatasmithMaxDirectLink::FLightNodeConverter& Converter, EMaxLightClass LightClass, LightObject& Light, TSharedRef< IDatasmithLightActorElement > LightElement, TSharedRef< IDatasmithScene > DatasmithScene)
 {
 	const int NumParamBlocks = Light.NumParamBlocks();
 
@@ -2006,7 +2013,7 @@ bool FDatasmithMaxSceneExporter::ParseLightParameters(EMaxLightClass LightClass,
 				if (FCString::Stricmp(ParamDefinition.int_name, TEXT("webfile")) == 0 || FCString::Stricmp(ParamDefinition.int_name, TEXT("IesFile")) == 0 || 
 					FCString::Stricmp(ParamDefinition.int_name, TEXT("ies_file")) == 0 || FCString::Stricmp(ParamDefinition.int_name, TEXT("filename")) == 0)
 				{
-					LightElement->SetIesFile( *GetActualPath(ParamBlock2->GetStr(ParamDefinition.ID, GetCOREInterface()->GetTime())) );
+					Converter.ApplyIesProfile( *GetActualPath(ParamBlock2->GetStr(ParamDefinition.ID, GetCOREInterface()->GetTime())) );
 				}
 			}
 
@@ -2122,47 +2129,6 @@ bool FDatasmithMaxSceneExporter::ExportActor(TSharedRef< IDatasmithScene > Datas
 	DatasmithScene->AddActor(ActorElement);
 
 	return ParseActor(Node, ActorElement, UnitMultiplier, DatasmithScene);
-}
-
-bool FDatasmithMaxSceneExporter::WriteXMLLightActor(TSharedRef< IDatasmithScene > DatasmithScene, INode* Parent, INode* Node, const TCHAR* Name, float UnitMultiplier)
-{
-	if ( !Node )
-	{
-		return false;
-	}
-
-	// weird behavior of 3dsmax it returns the head assembly as Instance of the sun
-	ObjectState ObjState = Node->EvalWorldState(0);
-
-	if (ObjState.obj == nullptr || ObjState.obj->SuperClassID() != LIGHT_CLASS_ID)
-	{
-		return false;
-	}
-
-	TSharedPtr< IDatasmithLightActorElement > LightElement = CreateLightElementForNode( Node, Name );
-
-	if ( !LightElement.IsValid() )
-	{
-		if (FDatasmithMaxSceneParser::GetLightClass(Node) == EMaxLightClass::SkyEquivalent)
-		{
-			DatasmithScene->SetUsePhysicalSky(true);
-		}
-		else
-		{
-			DatasmithMaxLogger::Get().AddUnsupportedLight(Node);
-		}
-		return false;
-	}
-
-	ParseActor(Node, LightElement.ToSharedRef(), UnitMultiplier, DatasmithScene);
-
-	if ( !ParseLight(Parent, LightElement.ToSharedRef(), DatasmithScene) )
-	{
-		return false;
-	}
-	
-	DatasmithScene->AddActor( LightElement );
-	return true;
 }
 
 bool FDatasmithMaxSceneExporter::ExportCameraActor(TSharedRef< IDatasmithScene > DatasmithScene, INode* Parent, INodeTab Instances, int InstanceIndex, const TCHAR* Name, float UnitMultiplier)

@@ -394,7 +394,6 @@ public:
 	virtual void NodeXRefMerged(INode* Node) = 0;
 	virtual void RemapConvertedMaterialUVChannels(Mtl* ActualMaterial, const TSharedPtr<IDatasmithBaseMaterialElement>& DatasmithMaterial) = 0;
 
-
 	// Sync/Update
 	FSyncPoint CurrentSyncPoint;
 
@@ -403,6 +402,9 @@ public:
 	virtual void ConvertGeometryNodeToDatasmith(FNodeTracker& NodeTracker, FMeshNodeConverter& MeshConverter) = 0;
 
 	virtual void UnregisterNodeForMaterial(FNodeTracker& NodeTracker) = 0;
+
+	virtual const TCHAR* AcquireIesTexture(const FString& IesFilePath) = 0;
+	virtual void ReleaseIesTexture(const FString& IesFilePath) = 0;
 
 	virtual TSharedRef<IDatasmithScene> GetDatasmithSceneRef() = 0;
 

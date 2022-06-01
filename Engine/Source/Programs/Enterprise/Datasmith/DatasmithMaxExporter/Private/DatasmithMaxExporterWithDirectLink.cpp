@@ -20,7 +20,6 @@
 #include "DatasmithMaxExporterUtils.h"
 
 #include "Modules/ModuleManager.h"
-#include "HAL/PlatformFilemanager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Paths.h"
 
@@ -546,8 +545,6 @@ public:
 	TSet<INode*> NodesPrepared;
 };
 
-
-
 struct FExportOptions
 {
 	bool bSelectedOnly = false;
@@ -935,6 +932,91 @@ public:
 	};
 #endif
 
+class FIesTexturesCollection: FNoncopyable
+{
+public:
+
+	struct FTextureIesConverted
+	{
+		FTextureIesConverted(const TSharedPtr<IDatasmithTextureElement>& InTextureElement)
+			: TextureElement(InTextureElement)
+			, UsageCount(0)
+		{
+		}
+
+		TSharedPtr<IDatasmithTextureElement> TextureElement;
+		int32 UsageCount;
+	};
+
+	FIesTexturesCollection(ISceneTracker& InSceneTracker): SceneTracker(InSceneTracker)
+	{
+	}
+
+	// Cache Ies textures by their path's base name
+	FString GetIesTextureKey(const FString& IesFilePath)
+	{
+		return FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(IesFilePath));
+	}
+
+	const TCHAR* AcquireIesTexture(const FString& IesFilePath)
+	{
+		if (IesFilePath.IsEmpty())
+		{
+			return nullptr;
+		}
+
+		FTextureIesConverted& Texture = GetOrCreateIesTexture(IesFilePath);
+		Texture.UsageCount++;
+		return Texture.TextureElement->GetName();
+	}
+
+	FTextureIesConverted& GetOrCreateIesTexture(const FString& IesFilePath)
+	{
+		FString Name = GetIesTextureKey(IesFilePath);
+
+		if (FTextureIesConverted* TexturePtr = TexturesIes.Find(Name))
+		{
+			return *TexturePtr;
+		}
+
+		TSharedRef<IDatasmithTextureElement> TextureElement = FDatasmithSceneFactory::CreateTexture(*(Name + FString("_Ies")));
+
+		TextureElement->SetTextureMode(EDatasmithTextureMode::Ies);
+		TextureElement->SetLabel(*Name);
+		TextureElement->SetFile(*IesFilePath);
+
+		SceneTracker.GetDatasmithSceneRef()->AddTexture(TextureElement);
+
+		return TexturesIes.Emplace(Name, TextureElement);
+	}
+
+	void ReleaseIesTexture(const FString& IesFilePath)
+	{
+		FString BaseName = GetIesTextureKey(IesFilePath);
+
+		if(!TexturesIes.Contains(BaseName))
+		{
+			return;
+		}
+
+		FTextureIesConverted& Texture = TexturesIes[BaseName];
+		Texture.UsageCount--;
+		if (!Texture.UsageCount)
+		{
+			SceneTracker.RemoveTexture(Texture.TextureElement);
+			TexturesIes.Remove(BaseName);
+		}
+	}
+
+	void Reset()
+	{
+		TexturesIes.Reset();
+	}
+
+	ISceneTracker& SceneTracker;
+
+	TMap<FString, FTextureIesConverted> TexturesIes;
+};
 
 
 // Holds states of entities for syncronization and handles change events
@@ -945,7 +1027,9 @@ public:
 		: Options(InOptions)
 		, ExportedScene(InExportedScene)
 		, NotificationsHandler(InNotificationsHandler)
-		, MaterialsCollectionTracker(*this) {}
+		, MaterialsCollectionTracker(*this)
+		, IesTextures(*this)
+	{}
 
 	virtual TSharedRef<IDatasmithScene> GetDatasmithSceneRef() override
 	{
@@ -2417,6 +2501,16 @@ public:
 		NodeTracker.MaterialTrackers.Reset();
 	}
 
+	virtual const TCHAR* AcquireIesTexture(const FString& IesFilePath) override
+	{
+		return IesTextures.AcquireIesTexture(IesFilePath);
+	}
+
+	virtual void ReleaseIesTexture(const FString& IesFilePath) override
+	{
+		return IesTextures.ReleaseIesTexture(IesFilePath);
+	}
+
 	static Mtl* UpdateGeometryNodeMaterial(FSceneTracker& SceneTracker, FInstances& Instances, FNodeTracker& NodeTracker)
 	{
 		if (Instances.HasMesh())
@@ -3005,6 +3099,8 @@ public:
 
 		InvalidatedNodeTrackers.Reset();
 		InvalidatedInstances.Reset();
+
+		IesTextures.Reset();
 	}
 
 	///////////////////////////////////////////////
@@ -3027,6 +3123,8 @@ public:
 
 	FMaterialsCollectionTracker MaterialsCollectionTracker;
 	TMap<FMaterialTracker*, TSet<FNodeTracker*>> MaterialsAssignedToNodes;
+
+	FIesTexturesCollection IesTextures;
 
 	TMap<FNodeTracker*, TSharedPtr<IDatasmithMetaDataElement>> NodeDatasmithMetadata; // All scene nodes
 
