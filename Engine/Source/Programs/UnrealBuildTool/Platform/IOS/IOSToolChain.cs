@@ -214,11 +214,6 @@ namespace UnrealBuildTool
 		{
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
 
-			if (RuntimePlatform.IsWindows)
-			{
-				Arguments.Add("-fdiagnostics-format=msvc");
-			}
-
 			// Optionally enable exception handling (off by default since it generates extra code needed to propagate exceptions)
 			if (CompileEnvironment.bEnableExceptions)
 			{
