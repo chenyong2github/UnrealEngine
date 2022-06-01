@@ -246,7 +246,7 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 		Comp->DeactivateImmediate();
 	}
 
-	if (bIsActive || bOnlyActive == false)
+	if (bIsActive || (bOnlyActive == false && Comp->bAutoActivate))
 	{
 		if (bReInit)
 		{
