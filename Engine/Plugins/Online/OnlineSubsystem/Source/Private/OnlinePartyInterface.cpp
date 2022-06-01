@@ -425,30 +425,6 @@ const TCHAR* ToString(const ESendPartyInvitationCompletionResult Value)
 	return TEXT("Unknown");
 }
 
-const TCHAR* ToString(const ECancelPartyInvitationCompletionResult Value)
-{
-	switch (Value)
-	{
-	case ECancelPartyInvitationCompletionResult::InviteNotFound:
-	{
-		return TEXT("InviteNotFound");
-	}
-	case ECancelPartyInvitationCompletionResult::InvalidParty:
-	{
-		return TEXT("InvalidParty");
-	}
-	case ECancelPartyInvitationCompletionResult::UnknownInternalFailure:
-	{
-		return TEXT("UnknownInternalFailure");
-	}
-	case ECancelPartyInvitationCompletionResult::Succeeded:
-	{
-		return TEXT("Succeeded");
-	}
-	}
-	return TEXT("Unknown");
-}
-
 const TCHAR* ToString(const EJoinPartyCompletionResult Value)
 {
 	switch (Value)
