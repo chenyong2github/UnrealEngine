@@ -6,7 +6,7 @@
 #include "Behaviour/RCBehaviourBlueprintNode.h"
 #include "Kismet2/KismetEditorUtilities.h"
 
-#define LOCTEXT_NAMESPACE "LevelSnapshotFilterFactory"
+#define LOCTEXT_NAMESPACE "RCBehaviourNodeFactory"
 
 URCBehaviourNodeFactory::URCBehaviourNodeFactory()
 {
