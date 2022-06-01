@@ -10,21 +10,10 @@ namespace ClothingSimulationFactoryConsoleVariables
 {
 	TAutoConsoleVariable<FString> CVarDefaultClothingSimulationFactoryClass(
 		TEXT("p.Cloth.DefaultClothingSimulationFactoryClass"),
-#if WITH_CHAOS_CLOTHING
 		TEXT("ChaosClothingSimulationFactory"),  // Chaos is the default provider when Chaos Cloth is enabled
-#elif WITH_APEX_CLOTHING
-		TEXT("ClothingSimulationFactoryNv"),  // otherwise it's nv cloth
-#else
-		TEXT(""),  // otherwise it's none
-#endif
 		TEXT("The class name of the default clothing simulation factory.\n")
 		TEXT("Known providers are:\n")
-#if WITH_CHAOS_CLOTHING
 		TEXT("ChaosClothingSimulationFactory\n")
-#endif
-#if WITH_APEX_CLOTHING
-		TEXT("ClothingSimulationFactoryNv\n")
-#endif
 		, ECVF_Cheat);
 }
 

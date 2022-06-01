@@ -197,8 +197,6 @@ enum ELinearConstraintMotion
     If(QueryIgnoreMask & ShapeFilter != 0) filter out */
 typedef uint8 FMaskFilter;
 
-#if WITH_CHAOS
-
 namespace Chaos
 {
 	class FBVHParticles;
@@ -432,9 +430,7 @@ public:
 	static void SetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference,float InMaxDepenetrationVelocity);
 
 	static FVector GetWorldVelocityAtPoint_AssumesLocked(const FPhysicsActorHandle& InActorReference,const FVector& InPoint);
-#if WITH_CHAOS
 	static FVector GetWorldVelocityAtPoint_AssumesLocked(const Chaos::FRigidBodyHandle_Internal* InActorReference, const FVector& InPoint);
-#endif
 
 	static FTransform GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 	static FTransform GetComTransformLocal_AssumesLocked(const FPhysicsActorHandle& InActorReference);
@@ -544,36 +540,3 @@ public:
 	static void SetIsQueryShape(const FPhysicsShapeHandle& InShape,bool bIsQueryShape);
 	static void SetLocalTransform(const FPhysicsShapeHandle& InShape,const FTransform& NewLocalTransform);
 };
-
-#elif WITH_ENGINE //temp physx code to make moving code out of Engine easier
-
-/**
- * Wrapper for internal PhysX materials
- */
-
-
-namespace physx
-{
-class PxMaterial;
-}
-
-struct PHYSICSCORE_API FPhysicsMaterialHandle_PhysX
-{
-	FPhysicsMaterialHandle_PhysX() : Material(nullptr) {}
-	explicit FPhysicsMaterialHandle_PhysX(physx::PxMaterial* InMaterial) : Material(InMaterial) {}
-
-	bool IsValid() const { return Material != nullptr; }
-
-	physx::PxMaterial* Material;
-};
-
-class FChaosEngineInterface
-{
-public:
-	static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial);
-	static void UpdateMaterial(FPhysicsMaterialHandle_PhysX& InHandle,UPhysicalMaterial* InMaterial);
-	static void ReleaseMaterial(FPhysicsMaterialHandle_PhysX& InHandle);
-	static void SetUserData(FPhysicsMaterialHandle_PhysX& InHandle,void* InUserData);
-};
-
-#endif

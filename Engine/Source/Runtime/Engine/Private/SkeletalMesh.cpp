@@ -72,10 +72,6 @@
 #include "MeshUtilities.h"
 #include "Engine/SkeletalMeshEditorData.h"
 
-#if WITH_APEX_CLOTHING
-#include "ApexClothingUtils.h"
-#endif
-
 #include "IMeshReductionManagerModule.h"
 #include "SkeletalMeshReductionSettings.h"
 #include "Engine/RendererSettings.h"
@@ -86,10 +82,6 @@
 #include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
-
-#if WITH_APEX
-#include "PhysXIncludes.h"
-#endif// #if WITH_APEX
 
 #include "EditorFramework/AssetImportData.h"
 #include "Engine/SkeletalMeshSocket.h"
@@ -160,78 +152,6 @@ static FAutoConsoleVariableRef CVarSkeletalMeshMinLodQualityLevel(
 	TEXT("The quality level for the Min stripping LOD. \n"),
 	FConsoleVariableDelegate::CreateStatic(&USkeletalMesh::OnLodStrippingQualityLevelChanged),
 	ECVF_Scalability);
-	
-#if WITH_APEX_CLOTHING
-/*-----------------------------------------------------------------------------
-	utility functions for apex clothing 
------------------------------------------------------------------------------*/
-
-static apex::ClothingAsset* LoadApexClothingAssetFromBlob(const TArray<uint8>& Buffer)
-{
-	// Wrap this blob with the APEX read stream class
-	physx::PxFileBuf* Stream = GApexSDK->createMemoryReadStream( Buffer.GetData(), Buffer.Num() );
-	// Create an NvParameterized serializer
-	NvParameterized::Serializer* Serializer = GApexSDK->createSerializer(NvParameterized::Serializer::NST_BINARY);
-	// Deserialize into a DeserializedData buffer
-	NvParameterized::Serializer::DeserializedData DeserializedData;
-	Serializer->deserialize( *Stream, DeserializedData );
-	apex::Asset* ApexAsset = NULL;
-	if( DeserializedData.size() > 0 )
-	{
-		// The DeserializedData has something in it, so create an APEX asset from it
-		ApexAsset = GApexSDK->createAsset( DeserializedData[0], NULL);
-		// Make sure it's a Clothing asset
-		if (ApexAsset 
-			&& ApexAsset->getObjTypeID() != GApexModuleClothing->getModuleID()
-			)
-		{
-			GPhysCommandHandler->DeferredRelease(ApexAsset);
-			ApexAsset = NULL;
-		}
-	}
-
-	apex::ClothingAsset* ApexClothingAsset = static_cast<apex::ClothingAsset*>(ApexAsset);
-	// Release our temporary objects
-	Serializer->release();
-	GApexSDK->releaseMemoryReadStream( *Stream );
-
-	return ApexClothingAsset;
-}
-
-static bool SaveApexClothingAssetToBlob(const apex::ClothingAsset *InAsset, TArray<uint8>& OutBuffer)
-{
-	bool bResult = false;
-	uint32 Size = 0;
-	// Get the NvParameterized data for our Clothing asset
-	if( InAsset != NULL )
-	{
-		// Create an APEX write stream
-		physx::PxFileBuf* Stream = GApexSDK->createMemoryWriteStream();
-		// Create an NvParameterized serializer
-		NvParameterized::Serializer* Serializer = GApexSDK->createSerializer(NvParameterized::Serializer::NST_BINARY);
-
-		const NvParameterized::Interface* AssetParameterized = InAsset->getAssetNvParameterized();
-		if( AssetParameterized != NULL )
-		{
-			// Serialize the data into the stream
-			Serializer->serialize( *Stream, &AssetParameterized, 1 );
-			// Read the stream data into our buffer for UE serialzation
-			Size = Stream->getFileLength();
-			OutBuffer.AddUninitialized( Size );
-			Stream->read( OutBuffer.GetData(), Size );
-			bResult = true;
-		}
-
-		// Release our temporary objects
-		Serializer->release();
-		Stream->release();
-	}
-
-	return bResult;
-}
-
-#endif//#if WITH_APEX_CLOTHING
-
 
 /*-----------------------------------------------------------------------------
 FGPUSkinVertexBase
@@ -324,7 +244,7 @@ void FreeSkeletalMeshBuffersSinkCallback()
 
 FArchive& operator<<(FArchive& Ar, FClothingAssetData_Legacy& A)
 {
-	// Serialization to load and save ApexClothingAsset
+	// Serialization to load and skip legacy clothing assets
 	if( Ar.IsLoading() )
 	{
 		uint32 AssetSize;
@@ -336,25 +256,11 @@ FArchive& operator<<(FArchive& Ar, FClothingAssetData_Legacy& A)
 			TArray<uint8> Buffer;
 			Buffer.AddUninitialized( AssetSize );
 			Ar.Serialize( Buffer.GetData(), AssetSize );
-#if WITH_APEX_CLOTHING
-			A.ApexClothingAsset = LoadApexClothingAssetFromBlob(Buffer);
-#endif //#if WITH_APEX_CLOTHING
 		}
 	}
 	else
 	if( Ar.IsSaving() )
 	{
-#if WITH_APEX_CLOTHING
-		if (A.ApexClothingAsset)
-		{
-			TArray<uint8> Buffer;
-			SaveApexClothingAssetToBlob(A.ApexClothingAsset, Buffer);
-			uint32 AssetSize = Buffer.Num();
-			Ar << AssetSize;
-			Ar.Serialize(Buffer.GetData(), AssetSize);
-		}
-		else
-#endif// #if WITH_APEX_CLOTHING
 		{
 			uint32 AssetSize = 0;
 			Ar << AssetSize;
@@ -1596,20 +1502,6 @@ void USkeletalMesh::BeginDestroy()
 		GetSkeleton()->RemoveLinkup(this);
 	}
 
-#if WITH_EDITORONLY_DATA
-#if WITH_APEX_CLOTHING
-	// release clothing assets
-	for (FClothingAssetData_Legacy& Data : ClothingAssets_DEPRECATED)
-	{
-		if (Data.ApexClothingAsset)
-		{
-			GPhysCommandHandler->DeferredRelease(Data.ApexClothingAsset);
-			Data.ApexClothingAsset = nullptr;
-		}
-	}
-#endif // #if WITH_APEX_CLOTHING
-#endif // WITH_EDITORONLY_DATA
-
 	// Release the mesh's render resources now if no pending streaming op.
 	if (!HasPendingInitOrStreaming())
 	{
@@ -2347,109 +2239,6 @@ void USkeletalMesh::CalculateRequiredBones(FSkeletalMeshLODModel& LODModel, cons
 
 	LODModel.RequiredBones.Shrink();	
 }
-
-#if WITH_APEX_CLOTHING
-
-void USkeletalMesh::UpgradeOldClothingAssets()
-{
-	// Can only do an old-> new clothing asset upgrade in the editor.
-	// And only if APEX clothing is available to upgrade from
-	if (ClothingAssets_DEPRECATED.Num() > 0)
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::UpgradeOldClothingAssets);
-
-		const bool bCallPostEditChange = false;
-		const bool bReregisterComponents = false;
-		FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(this, bCallPostEditChange, bReregisterComponents);
-		// Upgrade the old deprecated clothing assets in to new clothing assets
-		TMap<int32, TArray<int32>> OldLodMappings; // Map asset index to multiple lod indices
-		TMap<int32, TArray<int32>> OldSectionMappings; // Map asset index to a section per LOD
-		for (int32 AssetIdx = 0; AssetIdx < ClothingAssets_DEPRECATED.Num(); ++AssetIdx)
-		{
-			FClothingAssetData_Legacy& OldAssetData = ClothingAssets_DEPRECATED[AssetIdx];
-
-			OldLodMappings.Add(AssetIdx);
-			OldSectionMappings.Add(AssetIdx);
-
-			if (ImportedModel.IsValid())
-			{
-				int32 FoundLod = INDEX_NONE;
-				int32 FoundSection = INDEX_NONE;
-				for (int32 LodIdx = 0; LodIdx < GetImportedModel()->LODModels.Num(); ++LodIdx)
-				{
-					FSkeletalMeshLODModel& LodModel = GetImportedModel()->LODModels[LodIdx];
-
-					for (int32 SecIdx = 0; SecIdx < LodModel.Sections.Num(); ++SecIdx)
-					{
-						FSkelMeshSection& Section = LodModel.Sections[SecIdx];
-
-						if (Section.CorrespondClothSectionIndex_DEPRECATED != INDEX_NONE && Section.bLegacyClothingSection_DEPRECATED)
-						{
-							FSkelMeshSection& ClothSection = LodModel.Sections[Section.CorrespondClothSectionIndex_DEPRECATED];
-
-							if (ClothSection.CorrespondClothAssetIndex == AssetIdx)
-							{
-								FoundSection = SecIdx;
-								break;
-							}
-						}
-					}
-
-					if (FoundSection != INDEX_NONE)
-					{
-						OldLodMappings[AssetIdx].Add(LodIdx);
-						OldSectionMappings[AssetIdx].Add(FoundSection);
-
-						// Reset for next LOD
-						FoundSection = INDEX_NONE;
-					}
-				}
-			}
-
-			FClothingSystemEditorInterfaceModule& ClothingEditorModule = FModuleManager::Get().LoadModuleChecked<FClothingSystemEditorInterfaceModule>(TEXT("ClothingSystemEditorInterface"));
-			UClothingAssetFactoryBase* Factory = ClothingEditorModule.GetClothingAssetFactory();
-			if (Factory)
-			{
-				UClothingAssetBase* NewAsset = Factory->CreateFromApexAsset(OldAssetData.ApexClothingAsset, this, *FPaths::GetBaseFilename(OldAssetData.ApexFileName));
-				check(NewAsset);
-
-				// Pull the path across so reimports work as expected
-				NewAsset->ImportedFilePath = OldAssetData.ApexFileName;
-
-				GetMeshClothingAssets().Add(NewAsset);
-			}
-		}
-
-		// Go back over the old assets and remove them from the skeletal mesh so the indices are preserved while
-		// calculating the LOD and section mappings above.
-		for (int32 AssetIdx = ClothingAssets_DEPRECATED.Num() - 1; AssetIdx >= 0; --AssetIdx)
-		{
-			ApexClothingUtils::RemoveAssetFromSkeletalMesh(this, AssetIdx, false);
-		}
-
-		check(OldLodMappings.Num() == OldSectionMappings.Num());
-
-		for (int32 NewAssetIdx = 0; NewAssetIdx < GetMeshClothingAssets().Num(); ++NewAssetIdx)
-		{
-			UClothingAssetBase* CurrAsset = GetMeshClothingAssets()[NewAssetIdx];
-
-			for (int32 MappedLodIdx = 0; MappedLodIdx < OldLodMappings[NewAssetIdx].Num(); ++MappedLodIdx)
-			{
-				const int32 MappedLod = OldLodMappings[NewAssetIdx][MappedLodIdx];
-				const int32 MappedSection = OldSectionMappings[NewAssetIdx][MappedLodIdx];
-
-				// Previously Clothing LODs were required to match skeletal mesh LODs, which is why we pass
-				// MappedLod for both the mesh and clothing LODs here when doing an upgrade to the new
-				// system. This restriction is now lifted and any mapping can be selected in Persona
-				CurrAsset->BindToSkeletalMesh(this, MappedLod, MappedSection, MappedLod);
-			}
-		}
-
-		UE_LOG(LogSkeletalMesh, Warning, TEXT("Legacy clothing asset '%s' was upgraded - please resave this asset."), *GetName());
-	}
-}
-
-#endif // WITH_APEX_CLOTHING
 
 void USkeletalMesh::RemoveLegacyClothingSections()
 {
@@ -3497,10 +3286,6 @@ void USkeletalMesh::ExecutePostLoadInternal(FSkeletalMeshPostLoadContext& Contex
 
 	if (!GetOutermost()->bIsCookedForEditor)
 	{
-#if WITH_APEX_CLOTHING
-		UpgradeOldClothingAssets();
-#endif // WITH_APEX_CLOTHING
-
 		RemoveLegacyClothingSections();
 
 		UpdateGenerateUpToData();

@@ -19,8 +19,6 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "Containers/StringConv.h"
 
-#if WITH_CHAOS
-
 namespace NetworkPredictionPhysicsCvars
 {
 	NETSIM_DEVCVAR_SHIPCONST_INT(FullPrecision, 1, "np.Physics.FullPrecision", "Replicatre physics state with full precision. Not to be toggled during gameplay.");
@@ -161,8 +159,6 @@ private:
 	}
 };
 
-#endif // WITH_CHAOS
-
 // ------------------------------------------------------------------------------------------------------
 // Generic model def for physics actors with no backing simulation
 // ------------------------------------------------------------------------------------------------------
@@ -170,10 +166,7 @@ struct NETWORKPREDICTION_API FGenericPhysicsModelDef : FNetworkPredictionModelDe
 {
 	NP_MODEL_BODY();
 
-#if WITH_CHAOS
-
 	using PhysicsState = FNetworkPredictionPhysicsState;
-#endif // WITH_CHAOS
 	using Driver = UPrimitiveComponent;
 
 	static const TCHAR* GetName() { return TEXT("Generic Physics Actor"); }

@@ -18,20 +18,10 @@
 class UPhysicalMaterial;
 struct FNavigableGeometryExport;
 
-#if WITH_PHYSX
-namespace physx
-{
-	class PxMaterial;
-	class PxTriangleMesh;
-}
-#elif WITH_CHAOS
 namespace Chaos
 {
 	class FTriangleMeshImplicitObject;
 }
-#endif
-
-
 
 UCLASS()
 class ULandscapeMeshCollisionComponent : public ULandscapeHeightfieldCollisionComponent
@@ -53,22 +43,11 @@ public:
 	{
 		FGuid Guid;
 
-#if WITH_PHYSX
-		/** List of PxMaterials used on this landscape */
-		TArray<physx::PxMaterial*>	UsedPhysicalMaterialArray;
-		physx::PxTriangleMesh*		RBTriangleMesh;
-#if WITH_EDITORONLY_DATA
-		physx::PxTriangleMesh*		RBTriangleMeshEd; // Used only by landscape editor, does not have holes in it
-#endif	//WITH_EDITORONLY_DATA
-#endif	//WITH_PHYSX
-
-#if WITH_CHAOS
 		TArray<Chaos::FMaterialHandle> UsedChaosMaterials;
 		TUniquePtr<Chaos::FTriangleMeshImplicitObject> Trimesh;
 #if WITH_EDITORONLY_DATA
 		TUniquePtr<Chaos::FTriangleMeshImplicitObject> EditorTrimesh;
 #endif // WITH_EDITORONLY_DATA
-#endif // WITH_CHAOS
 
 		FTriMeshGeometryRef();
 		FTriMeshGeometryRef(FGuid& InGuid);

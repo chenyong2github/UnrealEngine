@@ -43,6 +43,10 @@ struct FCompactPose;
 
 enum class EClothingTeleportMode : uint8;
 
+#ifndef WITH_CLOTH_COLLISION_DETECTION
+#define WITH_CLOTH_COLLISION_DETECTION 1
+#endif
+
 DECLARE_MULTICAST_DELEGATE(FOnSkelMeshPhysicsCreatedMultiCast);
 typedef FOnSkelMeshPhysicsCreatedMultiCast::FDelegate FOnSkelMeshPhysicsCreated;
 
@@ -54,13 +58,6 @@ typedef FOnSkelMeshTeleportedMultiCast::FDelegate FOnSkelMeshTeleported;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnBoneTransformsFinalized);  // Deprecated, use FOnBoneTransformsFinalizedMultiCast instead
 
 DECLARE_MULTICAST_DELEGATE(FOnBoneTransformsFinalizedMultiCast);
-
-#if PHYSICS_INTERFACE_PHYSX
-namespace physx
-{
-	class PxAggregate;
-}
-#endif
 
 UENUM()
 enum class EAnimCurveType : uint8 
@@ -632,10 +629,6 @@ public:
 
 	/** Indicates that this SkeletalMeshComponent has deferred kinematic bone updates until next physics sim if not INDEX_NONE. */
 	int32 DeferredKinematicUpdateIndex;
-#if PHYSICS_INTERFACE_PHYSX
-	/** Indicates that this SkeletalMeshComponent has deferred kinematic bone updates until next physics sim.  */
-	uint8 bDeferredKinematicUpdate:1;
-#endif
 
 private:
 	/** Disable rigid body animation nodes and play original animation without simulation */

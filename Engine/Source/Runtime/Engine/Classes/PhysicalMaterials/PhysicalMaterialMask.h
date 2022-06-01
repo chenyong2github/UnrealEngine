@@ -9,9 +9,7 @@
 #include "Engine/Texture.h"
 #include "EngineDefines.h"
 #include "PhysicsSettingsEnums.h"
-#if WITH_CHAOS
 #include "Physics/PhysicsInterfaceCore.h"
-#endif
 #include "PhysicalMaterialMask.generated.h"
 
 struct FPropertyChangedEvent;
@@ -74,12 +72,10 @@ public:
 	void DumpMaskData();
 #endif // WITH_EDITOR
 
-#if WITH_CHAOS
 	TUniquePtr<FPhysicsMaterialMaskHandle> MaterialMaskHandle;
 
 	/** Get the physics-interface derived version of this material */
 	FPhysicsMaterialMaskHandle& GetPhysicsMaterialMask();
-#endif
 
 	// Helper method to generate mask data used at runtime based on mask texture
 	void GenerateMaskData(TArray<uint32>& OutMaskData, int32& OutSizeX, int32& OutSizeY) const;

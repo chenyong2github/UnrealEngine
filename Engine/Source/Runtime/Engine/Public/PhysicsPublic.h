@@ -59,70 +59,8 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("FetchAndStart Time (all)"), STAT_TotalPhysicsTim
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Cloth Actor Count"), STAT_NumCloths, STATGROUP_Physics, ENGINE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Simulated Cloth Verts"), STAT_NumClothVerts, STATGROUP_Physics, ENGINE_API);
 
-#define WITH_PHYSX_VEHICLES WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-
 /** Pointer to PhysX Command Handler */
 extern ENGINE_API class FPhysCommandHandler* GPhysCommandHandler;
-
-#if PHYSICS_INTERFACE_PHYSX
-
-namespace physx
-{
-	class PxScene;
-	class PxConvexMesh;
-	class PxTriangleMesh;
-	class PxCooking;
-	class PxPhysics;
-	class PxVec3;
-	class PxJoint;
-	class PxMat44;
-	class PxCpuDispatcher;
-	class PxSimulationEventCallback;
-	struct PxActiveTransform;
-	class PxActor;
-	class PxRigidActor;
-}
-
-#if WITH_APEX
-namespace nvidia
-{
-	namespace apex
-	{
-		class DestructibleAsset;
-		class Scene;
-		struct DamageEventReportData;
-		class ApexSDK;
-		class ModuleDestructible;
-		class DestructibleActor;
-		class ModuleClothing;
-		class Module;
-		class ClothingActor;
-		class ClothingAsset;
-		class ApexInterface;
-	}
-}
-#endif // WITH_APEX
-
-struct FConstraintInstance;
-struct FContactModifyCallback;
-struct FCCDContactModifyCallback;
-struct FPhysXMbpBroadphaseCallback;
-class UPhysicsAsset;
-
-using namespace physx;
-#if WITH_APEX
-using namespace nvidia;
-#endif	//WITH_APEX
-
-/** Pointer to PhysX cooking object */
-extern ENGINE_API PxCooking*			GPhysXCooking;
-
-namespace NvParameterized
-{
-	class Interface;
-}
-
-#endif // WITH_PHYSX
 
 /** Information about a specific object involved in a rigid body collision */
 struct ENGINE_API FRigidBodyCollisionInfo
@@ -203,40 +141,14 @@ public:
 	void ENGINE_API Flush();
 	bool ENGINE_API HasPendingCommands();
 
-#if WITH_APEX
-	/** enqueues a command to release destructible actor once apex has finished simulating */
-	void ENGINE_API DeferredRelease(apex::ApexInterface* ApexInterface);
-#endif
-
-#if PHYSICS_INTERFACE_PHYSX
-	void ENGINE_API DeferredRelease(physx::PxScene * PScene);
-	void ENGINE_API DeferredDeleteSimEventCallback(physx::PxSimulationEventCallback* SimEventCallback);
-	void ENGINE_API DeferredDeleteContactModifyCallback(FContactModifyCallback* ContactModifyCallback);
-	void ENGINE_API DeferredDeleteCCDContactModifyCallback(FCCDContactModifyCallback* CCDContactModifyCallback);
-	void ENGINE_API DeferredDeleteMbpBroadphaseCallback(FPhysXMbpBroadphaseCallback* MbpCallback);
-	void ENGINE_API DeferredDeleteCPUDispathcer(physx::PxCpuDispatcher * CPUDispatcher);
-#endif
-	
 private:
 
 	/** Command to execute when physics simulation is done */
 	struct FPhysPendingCommand
 	{
-		union
-		{
-#if WITH_APEX
-			apex::ApexInterface * ApexInterface;
-			apex::DestructibleActor * DestructibleActor;
-#endif
-#if PHYSICS_INTERFACE_PHYSX
-			physx::PxScene* PScene;
-			physx::PxCpuDispatcher* CPUDispatcher;
-			physx::PxSimulationEventCallback* SimEventCallback;
-			FContactModifyCallback* ContactModifyCallback;
-			FCCDContactModifyCallback* CCDContactModifyCallback;
-			FPhysXMbpBroadphaseCallback* MbpCallback;
-#endif
-		} Pointer;
+		//union
+		//{
+		//} Pointer;
 
 		PhysCommand::Type CommandType;
 	};
@@ -269,16 +181,6 @@ FORCEINLINE bool PhysSingleThreadedMode()
 	}
 	return false;
 }
-
-#if PHYSICS_INTERFACE_PHYSX
-/** Struct used for passing info to the PhysX shader */
-
-struct FPhysSceneShaderInfo
-{
-	FPhysScene * PhysScene;
-};
-
-#endif
 
 // Only used for legacy serialization (ver < VER_UE4_REMOVE_PHYS_SCALED_GEOM_CACHES)
 class FKCachedConvexDataElement
@@ -331,15 +233,11 @@ public:
 	bool HasValidGeometry();
 };
 
-
-
 ENGINE_API bool	InitGamePhys();
 ENGINE_API void	TermGamePhys();
 
 /** Perform any deferred cleanup of resources (GPhysXPendingKillConvex etc) */
 ENGINE_API void DeferredPhysResourceCleanup();
-
-
 
 
 FTransform FindBodyTransform(AActor* Actor, FName BoneName);

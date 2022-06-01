@@ -36,11 +36,7 @@ namespace NavCollisionCookStats
 }
 #endif
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-static const FName NAVCOLLISION_FORMAT = TEXT("NavCollision_X");
-#elif WITH_CHAOS
 static const FName NAVCOLLISION_FORMAT = TEXT("NavCollision_Chaos");
-#endif
 
 class FNavCollisionDataReader
 {

@@ -20,12 +20,9 @@
 #include "DrawDebugHelpers.h"
 #include "Net/Core/PushModel/PushModel.h"
 #include "Interfaces/Interface_ActorSubobject.h"
-
-#if WITH_CHAOS
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "PBDRigidsSolver.h"
 #include "ChaosSolversModule.h"
-#endif
 
 /*-----------------------------------------------------------------------------
 	AActor networking implementation.
@@ -364,7 +361,7 @@ void AActor::GatherCurrentMovement()
 		if (RootPrimComp && RootPrimComp->IsSimulatingPhysics())
 		{
 			bool bFoundInCache = false;
-#if WITH_CHAOS
+
 			UWorld* World = GetWorld();
 			if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(World->GetPhysicsScene()))
 			{
@@ -374,7 +371,7 @@ void AActor::GatherCurrentMovement()
 					bFoundInCache = true;
 				}
 			}
-#endif
+
 			if (!bFoundInCache)
 			{
 				// fallback to GT data

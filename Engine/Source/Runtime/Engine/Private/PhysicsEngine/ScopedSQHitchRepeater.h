@@ -11,10 +11,6 @@
 #include "CollisionQueryFilterCallback.h"
 #include "WorldCollision.h"
 
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXInterfaceWrapper.h"
-#endif
-
 #if DETECT_SQ_HITCHES
 struct FSQHitchRepeaterCVars
 {

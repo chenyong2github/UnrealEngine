@@ -260,7 +260,6 @@ void UChaosGameplayEventDispatcher::DispatchPendingWakeNotifies()
 
 void UChaosGameplayEventDispatcher::RegisterChaosEvents()
 {
-#if WITH_CHAOS
 	if (FPhysScene* Scene = GetWorld()->GetPhysicsScene())
 	{
 		if (Chaos::FPhysicsSolver* Solver = Scene->GetSolver())
@@ -272,13 +271,10 @@ void UChaosGameplayEventDispatcher::RegisterChaosEvents()
 			EventManager->RegisterHandler<Chaos::FRemovalEventData>(Chaos::EEventType::Removal, this, &UChaosGameplayEventDispatcher::HandleRemovalEvents);
 		}
 	}
-
-#endif
 }
 
 void UChaosGameplayEventDispatcher::UnregisterChaosEvents()
 {
-#if WITH_CHAOS
 	if (GetWorld())
 	{
 		if (FPhysScene* Scene = GetWorld()->GetPhysicsScene())
@@ -293,14 +289,11 @@ void UChaosGameplayEventDispatcher::UnregisterChaosEvents()
 			}
 		}
 	}
-#endif
 }
 
 void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
 {
 	SCOPE_CYCLE_COUNTER(STAT_DispatchCollisionEvents);
-
-#if INCLUDE_CHAOS
 
 	FPhysScene_Chaos& Scene = *(GetWorld()->GetPhysicsScene());
 
@@ -436,8 +429,6 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 
 	// Tell the world and actors about the collisions
 	DispatchPendingCollisionNotifies();
-
-#endif
 }
 
 void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingEventData& Event)
@@ -485,7 +476,6 @@ void UChaosGameplayEventDispatcher::HandleBreakingEvents(const Chaos::FBreakingE
 
 void UChaosGameplayEventDispatcher::HandleSleepingEvents(const Chaos::FSleepingEventData& SleepingData)
 {
-#if WITH_CHAOS
 	FPhysScene& Scene = *(GetWorld()->GetPhysicsScene());
 
 	const Chaos::FSleepingDataArray& SleepingArray = SleepingData.SleepingData;
@@ -506,7 +496,6 @@ void UChaosGameplayEventDispatcher::HandleSleepingEvents(const Chaos::FSleepingE
 	}
 
 	DispatchPendingWakeNotifies();
-#endif
 }
 
 void UChaosGameplayEventDispatcher::AddPendingSleepingNotify(FBodyInstance* BodyInstance, ESleepEvent SleepEventType)

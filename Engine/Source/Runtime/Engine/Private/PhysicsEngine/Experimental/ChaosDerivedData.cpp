@@ -2,8 +2,6 @@
 
 #include "ChaosDerivedData.h"
 
-#if WITH_CHAOS
-
 #include "CoreMinimal.h"
 #include "Chaos/Core.h"
 #include "Chaos/CollisionConvexMesh.h"
@@ -131,5 +129,3 @@ FChaosDerivedDataCooker::FChaosDerivedDataCooker(UBodySetup* InSetup, FName InFo
 }
 
 
-#endif
- 

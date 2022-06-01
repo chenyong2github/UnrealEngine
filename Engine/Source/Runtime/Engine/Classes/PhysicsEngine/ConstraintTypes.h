@@ -9,13 +9,6 @@
 #include "Chaos/ChaosEngineInterface.h"
 #include "ConstraintTypes.generated.h"
 
-#if WITH_PHYSX
-namespace physx
-{
-	class PxD6Joint;
-}
-#endif // WITH_PHYSX
-
 USTRUCT()
 struct ENGINE_API FConstraintBaseParams
 {

@@ -228,17 +228,6 @@ struct FSkeletalMeshAsyncBuildTask : public FAsyncTask<FSkeletalMeshAsyncBuildWo
 
 #endif // #if WITH_EDITOR
 
-#if WITH_APEX_CLOTHING
-
-namespace nvidia
-{
-	namespace apex
-	{
-		class ClothingAsset;
-	}
-}
-#endif
-
 UENUM()
 enum class ESkinCacheUsage : uint8
 {
@@ -620,15 +609,8 @@ struct FClothingAssetData_Legacy
 	UPROPERTY()
 	FClothPhysicsProperties_Legacy PhysicsProperties;
 
-#if WITH_APEX_CLOTHING
-	nvidia::apex::ClothingAsset* ApexClothingAsset;
-#endif// #if WITH_APEX_CLOTHING
-
 	FClothingAssetData_Legacy()
 		: bClothPropertiesChanged(false), PhysicsProperties()
-#if WITH_APEX_CLOTHING
-		, ApexClothingAsset(nullptr)
-#endif// #if WITH_APEX_CLOTHING
 	{
 	}
 
@@ -2438,15 +2420,6 @@ public:
 		PostProcessAnimBlueprint = InPostProcessAnimBlueprint;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
-
-#if WITH_EDITOR && WITH_APEX_CLOTHING
-	/** 
-	 * Take clothing assets that were imported using APEX files before we moved away from the APEX simulation
-	 * framework and upgrade them to UClothingAssets. This will bind the new assets to the mesh so the
-	 * clothing remains working as before.
-	 */
-	void UpgradeOldClothingAssets();
-#endif //WITH_EDITOR && WITH_APEX_CLOTHING
 
 #if WITH_EDITOR
 	/** If the given section of the specified LOD has a clothing asset, unbind it's data and remove it from the asset array */

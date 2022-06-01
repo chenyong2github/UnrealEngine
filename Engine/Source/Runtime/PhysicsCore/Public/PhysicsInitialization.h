@@ -12,12 +12,6 @@ namespace PhysDLLHelper
 	 */
 	PHYSICSCORE_API bool LoadPhysXModules(bool bLoadCooking);
 
-
-#if WITH_APEX
-	PHYSICSCORE_API void* LoadAPEXModule(const FString& Path);
-	PHYSICSCORE_API void UnloadAPEXModule(void* Handle);
-#endif
-
 	/**
 	 *	Unload the required modules for PhysX
 	 */

@@ -161,7 +161,6 @@ void UBuoyancyComponent::Update(float DeltaTime)
 		}
 	}
 
-#if WITH_CHAOS
 	if (CurAsyncInput)
 	{
 		if (const FBodyInstance* BodyInstance = SimulatingComponent->GetBodyInstance())
@@ -191,7 +190,6 @@ void UBuoyancyComponent::Update(float DeltaTime)
 			BuoyancyInputState->SmoothedWorldTimeSeconds = GetWorld()->GetTimeSeconds();
 		}
 	}
-#endif
 
 	if (!IsUsingAsyncPath())
 	{
@@ -906,7 +904,6 @@ void UBuoyancyComponent::GameThread_ProcessIntermediateAsyncOutput(const FBuoyan
 
 bool UBuoyancyComponent::IsUsingAsyncPath() const
 {
-#if WITH_CHAOS
 	bool bAsyncSolver = false;
 	if (UWorld* World = GetWorld())
 	{
@@ -919,8 +916,6 @@ bool UBuoyancyComponent::IsUsingAsyncPath() const
 		}
 	}
 	return bAsyncSolver && bUseAsyncPath && (CVarWaterBuoyancyUseAsyncPath.GetValueOnAnyThread() > 0);
-#endif
-	return false;
 }
 
 TUniquePtr<FBuoyancyComponentAsyncAux> UBuoyancyComponent::CreateAsyncAux() const

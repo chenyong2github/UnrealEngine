@@ -5,18 +5,9 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
-#if WITH_CHAOS
 #include "Chaos/MassProperties.h"
 #include "Chaos/Utilities.h"
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
-#endif
-
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXPublic.h"
-#include "PhysicsEngine/PhysXSupport.h"
-#endif
-
-//PRAGMA_DISABLE_OPTIMIZATION
 
 namespace BodyUtils
 {
@@ -47,7 +38,6 @@ namespace BodyUtils
 		return DensityKGPerCubicUU;
 	}
 
-#if WITH_CHAOS
 	Chaos::FMassProperties ApplyMassPropertiesModifiers(const FBodyInstance* OwningBodyInstance, Chaos::FMassProperties MassProps, const FTransform& MassModifierTransform, const bool bInertaScaleIncludeMass)
 	{
 		float OldMass = MassProps.Mass;
@@ -121,52 +111,4 @@ namespace BodyUtils
 		// Apply the BodyInstance's mass and inertia modifiers
 		return ApplyMassPropertiesModifiers(OwningBodyInstance, MassProps, MassModifierTransform, bInertaScaleIncludeMass);
 	}
-
-
-#elif PHYSICS_INTERFACE_PHYSX
-
-	/** Computes and adds the mass properties (inertia, com, etc...) based on the mass settings of the body instance. */
-	PxMassProperties ComputeMassProperties(const FBodyInstance* OwningBodyInstance, TArray<FPhysicsShapeHandle> Shapes, const FTransform& MassModifierTransform, const bool bUnused)
-	{
-		// physical material - nothing can weigh less than hydrogen (0.09 kg/m^3)
-		float DensityKGPerCubicUU = 1.0f;
-		float RaiseMassToPower = 0.75f;
-		if (UPhysicalMaterial* PhysMat = OwningBodyInstance->GetSimplePhysicalMaterial())
-		{
-			DensityKGPerCubicUU = FMath::Max(KgPerM3ToKgPerCm3(0.09f), gPerCm3ToKgPerCm3(PhysMat->Density));
-			RaiseMassToPower = PhysMat->RaiseMassToPower;
-		}
-
-		PxMassProperties MassProps;
-		FPhysicsInterface::CalculateMassPropertiesFromShapeCollection(MassProps, Shapes, DensityKGPerCubicUU);
-
-		float OldMass = MassProps.mass;
-		float NewMass = 0.f;
-
-		if (OwningBodyInstance->bOverrideMass == false)
-		{
-			float UsePow = FMath::Clamp<float>(RaiseMassToPower, KINDA_SMALL_NUMBER, 1.f);
-			NewMass = FMath::Pow(OldMass, UsePow);
-
-			// Apply user-defined mass scaling.
-			NewMass = FMath::Max(OwningBodyInstance->MassScale * NewMass, 0.001f);	//min weight of 1g
-		}
-		else
-		{
-			NewMass = FMath::Max(OwningBodyInstance->GetMassOverride(), 0.001f);	//min weight of 1g
-		}
-
-		check(NewMass > 0.f);
-
-		float MassRatio = NewMass / OldMass;
-
-		PxMassProperties FinalMassProps = MassProps * MassRatio;
-
-		FinalMassProps.centerOfMass += U2PVector(MassModifierTransform.TransformVector(OwningBodyInstance->COMNudge));
-		FinalMassProps.inertiaTensor = PxMassProperties::scaleInertia(FinalMassProps.inertiaTensor, PxQuat(PxIdentity), U2PVector(OwningBodyInstance->InertiaTensorScale));
-
-		return FinalMassProps;
-	}
-#endif
-
 }

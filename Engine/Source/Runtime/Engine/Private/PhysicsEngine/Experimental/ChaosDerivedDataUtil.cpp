@@ -23,6 +23,7 @@ namespace Chaos
 
 	void CleanTrimesh(TArray<FVector3f>& InOutVertices, TArray<int32>& InOutIndices, TArray<int32>* OutOptFaceRemap, TArray<int32>* OutOptVertexRemap)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STATQ_CleanTrimesh);
 		TArray<FVector3f> LocalSourceVerts = InOutVertices;
 		TArray<int32> LocalSourceIndices = InOutIndices;
 		
@@ -56,15 +57,18 @@ namespace Chaos
 		};
 
 		int32 NumBadTris = 0;
-		for(int32 SrcTriIndex = 0; SrcTriIndex < NumSourceTriangles; ++SrcTriIndex)
 		{
-			const int32 A = InOutIndices[SrcTriIndex * 3];
-			const int32 B = InOutIndices[SrcTriIndex * 3 + 1];
-			const int32 C = InOutIndices[SrcTriIndex * 3 + 2];
-
-			if(!ValidateTrianglesPre(A, B, C))
+			QUICK_SCOPE_CYCLE_COUNTER(STATQ_Validate);
+			for(int32 SrcTriIndex = 0; SrcTriIndex < NumSourceTriangles; ++SrcTriIndex)
 			{
-				++NumBadTris;
+				const int32 A = InOutIndices[SrcTriIndex * 3];
+				const int32 B = InOutIndices[SrcTriIndex * 3 + 1];
+				const int32 C = InOutIndices[SrcTriIndex * 3 + 2];
+
+				if(!ValidateTrianglesPre(A, B, C))
+				{
+					++NumBadTris;
+				}
 			}
 		}
 		UE_CLOG(NumBadTris > 0, LogChaos, Warning, TEXT("Input trimesh contains %d bad triangles."), NumBadTris);
@@ -81,31 +85,34 @@ namespace Chaos
 		TAABBTree<int32, TAABBTreeLeafArray<int32>> Accel(WrapperVerts);
 		TSet<int32> NonUnique;
 
-		for(int32 SourceVertIndex = 0; SourceVertIndex < NumSourceVerts; ++SourceVertIndex)
 		{
-			if (NonUnique.Contains(SourceVertIndex))
+			QUICK_SCOPE_CYCLE_COUNTER(STATQ_FindDuplicates);
+			for(int32 SourceVertIndex = 0; SourceVertIndex < NumSourceVerts; ++SourceVertIndex)
 			{
-				continue;
-			}
-
-			const FVector3f& SourceVert = LocalSourceVerts[SourceVertIndex];
-
-			TArray<int32> Duplicates = Accel.FindAllIntersections(FAABB3(SourceVert - WeldThresholdSq, SourceVert + WeldThresholdSq));
-			ensure(Duplicates.Num() > 0);	//Should always find at least original vert
-
-			//first index is always considered unique
-			LocalUniqueVerts.Add(SourceVert);
-			LocalUniqueToSourceIndices.Add(SourceVertIndex);
-			LocalVertexRemap[SourceVertIndex] = LocalUniqueVerts.Num() - 1;
-
-
-			for (int32 Idx : Duplicates)
-			{
-				if (Idx != SourceVertIndex)
+				if(NonUnique.Contains(SourceVertIndex))
 				{
-					ensure(Idx > SourceVertIndex);	//shouldn't be here if a smaller idx already found these duplicates
-					NonUnique.Add(Idx);
-					LocalVertexRemap[Idx] = LocalVertexRemap[SourceVertIndex];
+					continue;
+				}
+
+				const FVector3f& SourceVert = LocalSourceVerts[SourceVertIndex];
+
+				TArray<int32> Duplicates = Accel.FindAllIntersections(FAABB3(SourceVert - WeldThresholdSq, SourceVert + WeldThresholdSq));
+				ensure(Duplicates.Num() > 0);	//Should always find at least original vert
+
+				//first index is always considered unique
+				LocalUniqueVerts.Add(SourceVert);
+				LocalUniqueToSourceIndices.Add(SourceVertIndex);
+				LocalVertexRemap[SourceVertIndex] = LocalUniqueVerts.Num() - 1;
+
+
+				for(int32 Idx : Duplicates)
+				{
+					if(Idx != SourceVertIndex)
+					{
+						ensure(Idx > SourceVertIndex);	//shouldn't be here if a smaller idx already found these duplicates
+						NonUnique.Add(Idx);
+						LocalVertexRemap[Idx] = LocalVertexRemap[SourceVertIndex];
+					}
 				}
 			}
 		}
@@ -130,40 +137,43 @@ namespace Chaos
 		TArray<int32> LocalTriangleRemap;
 		LocalTriangleRemap.Reserve(NumSourceTriangles);
 
-		for(int32 OriginalTriIndex = 0; OriginalTriIndex < NumSourceTriangles; ++OriginalTriIndex)
 		{
-			const int32 OrigAIndex = LocalSourceIndices[OriginalTriIndex * 3];
-			const int32 OrigBIndex = LocalSourceIndices[OriginalTriIndex * 3 + 1];
-			const int32 OrigCIndex = LocalSourceIndices[OriginalTriIndex * 3 + 2];
-
-			const int32 RemappedAIndex = LocalVertexRemap[OrigAIndex];
-			const int32 RemappedBIndex = LocalVertexRemap[OrigBIndex];
-			const int32 RemappedCIndex = LocalVertexRemap[OrigCIndex];
-
-			const FVector3f& A = LocalUniqueVerts[RemappedAIndex];
-			const FVector3f& B = LocalUniqueVerts[RemappedBIndex];
-			const FVector3f& C = LocalUniqueVerts[RemappedCIndex];
-
-			// Only consider triangles that are actually valid for collision
-			// #BG Consider being able to fix small triangles by collapsing them if we hit this a lot
-			const bool bValidIndices = ValidateTriangleIndices(RemappedAIndex, RemappedBIndex, RemappedCIndex);
-			const bool bValidArea = ValidateTriangleArea(A, B, C);
-			if(bValidIndices && bValidArea)
+			QUICK_SCOPE_CYCLE_COUNTER(STATQ_Remap);
+			for(int32 OriginalTriIndex = 0; OriginalTriIndex < NumSourceTriangles; ++OriginalTriIndex)
 			{
-				LocalUniqueIndices.Add(RemappedAIndex);
-				LocalUniqueIndices.Add(RemappedBIndex);
-				LocalUniqueIndices.Add(RemappedCIndex);
-				LocalTriangleRemap.Add(OriginalTriIndex);
-			}
-			else
-			{
-				if(!bValidIndices)
+				const int32 OrigAIndex = LocalSourceIndices[OriginalTriIndex * 3];
+				const int32 OrigBIndex = LocalSourceIndices[OriginalTriIndex * 3 + 1];
+				const int32 OrigCIndex = LocalSourceIndices[OriginalTriIndex * 3 + 2];
+
+				const int32 RemappedAIndex = LocalVertexRemap[OrigAIndex];
+				const int32 RemappedBIndex = LocalVertexRemap[OrigBIndex];
+				const int32 RemappedCIndex = LocalVertexRemap[OrigCIndex];
+
+				const FVector3f& A = LocalUniqueVerts[RemappedAIndex];
+				const FVector3f& B = LocalUniqueVerts[RemappedBIndex];
+				const FVector3f& C = LocalUniqueVerts[RemappedCIndex];
+
+				// Only consider triangles that are actually valid for collision
+				// #BG Consider being able to fix small triangles by collapsing them if we hit this a lot
+				const bool bValidIndices = ValidateTriangleIndices(RemappedAIndex, RemappedBIndex, RemappedCIndex);
+				const bool bValidArea = ValidateTriangleArea(A, B, C);
+				if(bValidIndices && bValidArea)
 				{
-					++NumDiscardedTriangles_Welded;
+					LocalUniqueIndices.Add(RemappedAIndex);
+					LocalUniqueIndices.Add(RemappedBIndex);
+					LocalUniqueIndices.Add(RemappedCIndex);
+					LocalTriangleRemap.Add(OriginalTriIndex);
 				}
-				else if(!bValidArea)
+				else
 				{
-					++NumDiscardedTriangles_Area;
+					if(!bValidIndices)
+					{
+						++NumDiscardedTriangles_Welded;
+					}
+					else if(!bValidArea)
+					{
+						++NumDiscardedTriangles_Area;
+					}
 				}
 			}
 		}

@@ -28,7 +28,6 @@ ABuoyancyManager* ABuoyancyManager::Get(const UObject* WorldContextObject)
 
 void ABuoyancyManager::OnCreatePhysics(UActorComponent* Component)
 {
-#if WITH_CHAOS
 	if (AActor* OwningActor = Component->GetOwner())
 	{
 		if (UBuoyancyComponent* BuoyancyComp = OwningActor->FindComponentByClass<UBuoyancyComponent>())
@@ -39,12 +38,10 @@ void ABuoyancyManager::OnCreatePhysics(UActorComponent* Component)
 			}
 		}
 	}
-#endif
 }
 
 void ABuoyancyManager::OnDestroyPhysics(UActorComponent* Component)
 {
-#if WITH_CHAOS
 	if (AActor* OwningActor = Component->GetOwner())
 	{
 		if (UBuoyancyComponent* BuoyancyComp = OwningActor->FindComponentByClass<UBuoyancyComponent>())
@@ -70,7 +67,6 @@ void ABuoyancyManager::OnDestroyPhysics(UActorComponent* Component)
 			}
 		}
 	}
-#endif
 }
 
 void ABuoyancyManager::ClearAsyncInputs(UBuoyancyComponent* Component)
@@ -221,7 +217,6 @@ void ABuoyancyManager::Update(FPhysScene* PhysScene, float DeltaTime)
 
 void ABuoyancyManager::InitializeAsyncAux(UBuoyancyComponent* Component)
 {
-#if WITH_CHAOS
 	UPrimitiveComponent* SimulatingComponent = Component->GetSimulatingComponent();
 	if (!SimulatingComponent)
 	{
@@ -243,7 +238,6 @@ void ABuoyancyManager::InitializeAsyncAux(UBuoyancyComponent* Component)
 			}
 		}
 	}
-#endif
 }
 
 void ABuoyancyManager::BeginPlay()
@@ -256,10 +250,7 @@ void ABuoyancyManager::BeginPlay()
 		if (FPhysScene* PhysScene = World->GetPhysicsScene())
 		{
 			OnPhysScenePreTickHandle = PhysScene->OnPhysScenePreTick.AddUObject(this, &ABuoyancyManager::Update);
-#if WITH_CHAOS
-			OnPhysScenePreTickHandle = PhysScene->OnPhysScenePreTick.AddUObject(this, &ABuoyancyManager::Update);
 			AsyncCallback = PhysScene->GetSolver()->CreateAndRegisterSimCallbackObject_External<FBuoyancyManagerAsyncCallback>();
-#endif
 		}
 	}
 
@@ -281,14 +272,13 @@ void ABuoyancyManager::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		if (FPhysScene* PhysScene = World->GetPhysicsScene())
 		{
 			PhysScene->OnPhysScenePreTick.Remove(OnPhysScenePreTickHandle);
-#if WITH_CHAOS
+
 			if (AsyncCallback)
 			{
 				PhysScene->GetSolver()->UnregisterAndFreeSimCallbackObject_External(AsyncCallback);
 				PhysScene->OnPhysScenePreTick.Remove(OnPhysScenePreTickHandle);
 				AsyncCallback = nullptr;
 			}
-#endif
 		}
 	}
 }

@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_CHAOS
-
 #include "Physics/Experimental/PhysInterface_Chaos.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Physics/Experimental/ChaosInterfaceUtils.h"
@@ -45,14 +43,6 @@
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
-
-#if PHYSICS_INTERFACE_PHYSX
-#include "geometry/PxConvexMesh.h"
-#include "geometry/PxTriangleMesh.h"
-#include "foundation/PxVec3.h"
-#include "extensions/PxMassProperties.h"
-#include "Containers/ArrayView.h"
-#endif
 
 DEFINE_STAT(STAT_TotalPhysicsTime);
 DEFINE_STAT(STAT_NumCloths);
@@ -848,7 +838,6 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 	Chaos::FShapesArray Shapes;
 	ChaosInterface::CreateGeometry(InParams, Geoms, Shapes);
 
-#if WITH_CHAOS
 	if (InActor && Geoms.Num())
 	{
 		for (TUniquePtr<Chaos::FPerShapeData>& Shape : Shapes)
@@ -889,7 +878,6 @@ void FPhysInterface_Chaos::AddGeometry(FPhysicsActorHandle& InActor, const FGeom
 			InActor->GetGameThreadAPI().SetShapesArray(MoveTemp(Shapes));
 		}
 	}
-#endif
 }
 
 void FPhysInterface_Chaos::SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*> InMaterials)
@@ -1348,6 +1336,4 @@ void FPhysInterface_Chaos::CalculateMassPropertiesFromShapeCollection(Chaos::FMa
 {
 	ChaosInterface::CalculateMassPropertiesFromShapeCollection(OutProperties,InShapes,InDensityKGPerCM);
 }
-
-#endif
 

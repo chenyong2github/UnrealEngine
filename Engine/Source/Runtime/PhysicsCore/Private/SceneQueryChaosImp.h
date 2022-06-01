@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if WITH_CHAOS
-
 inline bool LowLevelRaycastImp(const FVector& Start, const FVector& Dir, float DeltaMag, const Chaos::FImplicitObject& Shape, const FTransform ActorTM, EHitFlags OutputFlags, FHitRaycast& Hit)
 {
 	//TODO_SQ_IMPLEMENTATION
@@ -21,4 +19,3 @@ inline bool LowLevelOverlapImp(const FTransform& GeomPose, const FPhysicsGeometr
 	//TODO_SQ_IMPLEMENTATION
 	return false;
 }
-#endif // WITH_CHAOS

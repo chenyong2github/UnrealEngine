@@ -40,13 +40,6 @@ FText UAnimGraphNode_RigidBody::GetNodeTitle(ENodeTitleType::Type TitleType) con
 
 void UAnimGraphNode_RigidBody::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {
-#if !WITH_CHAOS
-	if(Node.bEnableWorldGeometry && Node.SimulationSpace != ESimulationSpace::WorldSpace)
-	{
-		MessageLog.Error(*LOCTEXT("AnimGraphNode_CompileError", "@@ - uses world collision without world space simulation. This is not supported").ToString());
-	}
-#endif
-	
 	Super::ValidateAnimNodeDuringCompilation(ForSkeleton, MessageLog);
 }
 

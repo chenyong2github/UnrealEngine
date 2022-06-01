@@ -11,29 +11,6 @@ extern TAutoConsoleVariable<float> CVarConstraintLinearStiffnessScale;
 extern TAutoConsoleVariable<float> CVarConstraintAngularDampingScale;
 extern TAutoConsoleVariable<float> CVarConstraintAngularStiffnessScale;
 
-#if PHYSICS_INTERFACE_PHYSX
-
-enum class ESoftLimitTypeHelper
-{
-	Linear,
-	Angular
-};
-
-/** Util for setting soft limit params */
-template <ESoftLimitTypeHelper Type>
-void SetSoftLimitParams_AssumesLocked(PxJointLimitParameters* PLimit, bool bSoft, float Spring, float Damping)
-{
-	if(bSoft)
-	{
-		const float SpringCoeff = Type == ESoftLimitTypeHelper::Angular ? CVarConstraintAngularStiffnessScale.GetValueOnGameThread() : CVarConstraintLinearStiffnessScale.GetValueOnGameThread();
-		const float DampingCoeff = Type == ESoftLimitTypeHelper::Angular ? CVarConstraintAngularDampingScale.GetValueOnGameThread() : CVarConstraintLinearDampingScale.GetValueOnGameThread();
-		PLimit->stiffness = Spring * SpringCoeff;
-		PLimit->damping = Damping * DampingCoeff;
-	}
-}
-
-#endif //WITH_PHYSX
-
 /** Util for setting linear movement for an axis */
 void SetLinearMovement_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, ELinearConstraintMotion Motion, bool bLockLimitSize, bool bSkipSoftLimit)
 {

@@ -14,7 +14,6 @@ DEFINE_LOG_CATEGORY(LogChaosClothEditor);
 
 void FChaosClothEditorModule::StartupModule()
 {
-#if WITH_CHAOS
 	IModularFeatures::Get().RegisterModularFeature(FClothingSystemEditorInterfaceModule::ExtenderFeatureName, &ChaosEditorExtender);
 
 	// Register type customizations
@@ -24,12 +23,10 @@ void FChaosClothEditorModule::StartupModule()
 		// Register weight map property type.
 		PropertyModule->RegisterCustomPropertyTypeLayout("ChaosClothWeightedValue", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FChaosClothWeightedValueCustomization::MakeInstance));
 	}
-#endif
 }
 
 void FChaosClothEditorModule::ShutdownModule()
 {
-#if WITH_CHAOS
 	IModularFeatures::Get().RegisterModularFeature(FClothingSystemEditorInterfaceModule::ExtenderFeatureName, &ChaosEditorExtender);
 
 	// Unregister type customizations
@@ -38,5 +35,4 @@ void FChaosClothEditorModule::ShutdownModule()
 	{
 		PropertyModule->UnregisterCustomPropertyTypeLayout("ChaosClothWeightedValue");
 	}
-#endif
 }

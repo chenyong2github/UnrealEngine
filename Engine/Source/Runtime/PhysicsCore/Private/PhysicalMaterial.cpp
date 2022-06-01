@@ -7,10 +7,7 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicalMaterials/PhysicalMaterialPropertyBase.h"
 #include "UObject/UObjectIterator.h"
-
-#if WITH_CHAOS
-	#include "Chaos/PhysicalMaterials.h"
-#endif
+#include "Chaos/PhysicalMaterials.h"
 
 UDEPRECATED_PhysicalMaterialPropertyBase::UDEPRECATED_PhysicalMaterialPropertyBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

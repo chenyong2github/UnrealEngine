@@ -22,8 +22,4 @@ public:
 
 private:
 
-#if WITH_NVCLOTH
-	FSimulationEditorExtenderNv NvEditorExtender;
-#endif
-
 };

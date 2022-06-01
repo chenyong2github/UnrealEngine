@@ -474,15 +474,6 @@ void FAssetTypeActions_SkeletalMesh::GetActions(const TArray<UObject*>& InObject
 		false,
 		FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.LOD")
 		);
-	
-#if WITH_APEX_CLOTHING
-	Section.AddMenuEntry(
-		"ImportClothing_Entry",
-		LOCTEXT("ImportClothing_Entry", "Import Clothing Asset..."),
-		LOCTEXT("ImportClothing_ToolTip", "Import a clothing asset from a supported file on disk into this skeletal mesh."),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_SkeletalMesh::ExecuteImportClothing, Meshes)));
-#endif  // #if WITH_APEX_CLOTHING
 
 	// skeleton menu
 	Section.AddSubMenu(
@@ -853,21 +844,6 @@ void FAssetTypeActions_SkeletalMesh::ExecuteImportMeshLOD(UObject* Mesh, int32 L
 		FbxMeshUtils::ImportMeshLODDialog(Mesh, LOD);
 	}
 }
-
-#if WITH_APEX_CLOTHING
-void FAssetTypeActions_SkeletalMesh::ExecuteImportClothing(TArray<TWeakObjectPtr<USkeletalMesh>> Objects)
-{
-	if(Objects.Num() > 0)
-	{
-		USkeletalMesh* TargetMesh = Objects[0].Get();
-
-		if(TargetMesh)
-		{
-			ApexClothingUtils::PromptAndImportClothing(TargetMesh);
-		}
-	}
-}
-#endif  // #if WITH_APEX_CLOTHING
 
 void FAssetTypeActions_SkeletalMesh::FillSkeletonMenu(FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<USkeletalMesh>> Meshes) const
 {

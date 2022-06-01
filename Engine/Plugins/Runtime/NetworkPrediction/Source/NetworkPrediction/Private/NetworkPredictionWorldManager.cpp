@@ -580,7 +580,7 @@ void UNetworkPredictionWorldManager::SetUsingPhysics()
 	{
 		npCheckSlow(Physics.Solver == nullptr);
 		Physics.bUsingPhysics = true;
-#if WITH_CHAOS
+
 		Physics.Module = FChaosSolversModule::GetModule();
 		Physics.Solver = GetWorld()->GetPhysicsScene()->GetSolver();
 
@@ -602,7 +602,6 @@ void UNetworkPredictionWorldManager::SetUsingPhysics()
 			GEngine->bUseFixedFrameRate = true;
 			GEngine->FixedFrameRate = Settings.FixedTickFrameRate;
 		}
-#endif // WITH_CHAOS
 	}
 }
 

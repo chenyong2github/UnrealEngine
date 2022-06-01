@@ -4,7 +4,6 @@
 
 #include "ProfilingDebugging/ScopedTimers.h"
 
-#if WITH_PHYSX
 #include "Chaos/PBDRigidsEvolutionGBF.h"
 #include "PhysicsCore/Public/PhysicsInterfaceUtilsCore.h"
 #include "PhysTestSerializer.h"
@@ -28,19 +27,6 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 	{
 	case FSQCapture::ESQType::Raycast:
 	{
-#if PHYSICS_INTERFACE_PHYSX
-		if (bHasPhysX)
-		{
-			for (double i = 0; i < NumIterations; ++i)
-			{
-				auto PxHitBuffer = MakeUnique<PhysXInterface::FDynamicHitBuffer<PxRaycastHit>>();
-				uint32 StartTime = FPlatformTime::Cycles();
-				Serializer.GetPhysXData()->raycast(U2PVector(CapturedSQ.StartPoint), U2PVector(CapturedSQ.Dir), CapturedSQ.DeltaMag, *PxHitBuffer, U2PHitFlags(CapturedSQ.OutputFlags.HitFlags), CapturedSQ.QueryFilterData, CapturedSQ.FilterCallback.Get());
-				PhysXSum += FPlatformTime::Cycles() - StartTime;
-			}
-		}
-#endif
-
 		ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>* Accelerator = nullptr;
 		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
@@ -55,19 +41,6 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 	}
 	case FSQCapture::ESQType::Sweep:
 	{
-#if PHYSICS_INTERFACE_PHYSX
-		if (bHasPhysX)
-		{
-			for (double i = 0; i < NumIterations; ++i)
-			{
-				auto PxHitBuffer = MakeUnique<PhysXInterface::FDynamicHitBuffer<PxSweepHit>>();
-				uint32 StartTime = FPlatformTime::Cycles();
-				Serializer.GetPhysXData()->sweep(CapturedSQ.PhysXGeometry.any(), U2PTransform(CapturedSQ.StartTM), U2PVector(CapturedSQ.Dir), CapturedSQ.DeltaMag, *PxHitBuffer, U2PHitFlags(CapturedSQ.OutputFlags.HitFlags), CapturedSQ.QueryFilterData, CapturedSQ.FilterCallback.Get());
-				PhysXSum += FPlatformTime::Cycles() - StartTime;
-			}
-		}
-#endif
-
 		ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>* Accelerator = nullptr;
 		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
@@ -82,19 +55,6 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 	}
 	case FSQCapture::ESQType::Overlap:
 	{
-#if PHYSICS_INTERFACE_PHYSX
-		if (bHasPhysX)
-		{
-			for (double i = 0; i < NumIterations; ++i)
-			{
-				auto PxHitBuffer = MakeUnique<PhysXInterface::FDynamicHitBuffer<PxOverlapHit>>();
-				uint32 StartTime = FPlatformTime::Cycles();
-				Serializer.GetPhysXData()->overlap(CapturedSQ.PhysXGeometry.any(), U2PTransform(CapturedSQ.StartTM), *PxHitBuffer, CapturedSQ.QueryFilterData, CapturedSQ.FilterCallback.Get());
-				PhysXSum += FPlatformTime::Cycles() - StartTime;
-			}
-		}
-#endif
-
 		ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>* Accelerator = nullptr;
 		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
@@ -248,8 +208,6 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 
 #endif
 
-#if INCLUDE_CHAOS
-
 bool SQValidityHelper(FPhysTestSerializer& Serializer)
 {
 	using namespace Chaos;
@@ -316,5 +274,4 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 	return bTestPassed;
 }
 
-#endif
-#endif
+

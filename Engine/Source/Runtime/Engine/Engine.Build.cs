@@ -369,11 +369,6 @@ public class Engine : ModuleRules
 
 		SetupModulePhysicsSupport(Target);
 
-		if (Target.bCompilePhysX && (Target.bBuildEditor || Target.bCompileAPEX))
-		{
-			DynamicallyLoadedModuleNames.Add("PhysXCooking");
-		}
-
 		// Engine public headers need to know about some types (enums etc.)
 		PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");
 		PublicDependencyModuleNames.Add("ClothingSystemRuntimeInterface");

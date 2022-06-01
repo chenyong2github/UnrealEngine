@@ -21,9 +21,7 @@
 #include "KAggregateGeom.ispc.generated.h"
 #endif
 
-#if WITH_CHAOS
 #include "Chaos/ImplicitObject.h"
-#endif
 
 
 #define MIN_HULL_VERT_DISTANCE		(0.1f)
@@ -440,26 +438,6 @@ FBox FKConvexElem::CalcAABB(const FTransform& BoneTM, const FVector& Scale3D) co
 
 void FKConvexElem::GetPlanes(TArray<FPlane>& Planes) const
 {
-#if PHYSICS_INTERFACE_PHYSX
-	if (ConvexMesh != nullptr)
-	{
-		Planes.Empty();
-
-		PxU32 NumPolys = ConvexMesh->getNbPolygons();
-		for (PxU32 PolyIndex = 0; PolyIndex < NumPolys; PolyIndex++)
-		{
-			PxHullPolygon Data;
-			bool bStatus = ConvexMesh->getPolygonData(PolyIndex, Data);
-			check(bStatus);
-
-			// Convert to UE type
-			FPlane Plane(Data.mPlane[0], Data.mPlane[1], Data.mPlane[2], -Data.mPlane[3]);
-
-			// Add to output array
-			Planes.Add(Plane);
-		}
-	}
-#elif WITH_CHAOS
 	using FChaosPlane = Chaos::TPlaneConcrete<Chaos::FReal, 3>;
 	if(Chaos::FConvex* RawConvex = ChaosConvex.Get())
 	{
@@ -471,7 +449,6 @@ void FKConvexElem::GetPlanes(TArray<FPlane>& Planes) const
 			Planes.Add({Plane.X(), Plane.Normal()});
 		}
 	}
-#endif
 }
 
 ///////////////////////////////////////
@@ -752,13 +729,11 @@ static void AddEdgeIfNotPresent(TArray<int32>& Edges, int32 Edge0, int32 Edge1)
 
 void FKConvexElem::UpdateElemBox()
 {
-#if WITH_CHAOS
 	// Fixup indices in case an operation has invalidated them
 	{
 		IndexData.Reset();
 		ComputeChaosConvexIndices();
 	}
-#endif
 
 	ElemBox.Init();
 	for(int32 j=0; j<VertexData.Num(); j++)
@@ -987,14 +962,9 @@ FArchive& operator<<(FArchive& Ar,FKConvexElem& Elem)
 		// Initialize the TArray members
 		FMemory::Memzero(&Elem.VertexData, sizeof(Elem.VertexData));
 		FMemory::Memzero(&Elem.ElemBox, sizeof(Elem.ElemBox));
-#if PHYSICS_INTERFACE_PHYSX
-		Elem.ConvexMesh = NULL;
-		Elem.ConvexMeshNegX = NULL;
-#endif
-#if WITH_CHAOS
 		Elem.ChaosConvex.Reset();
-#endif
 	}
+
 	return Ar;
 }
 

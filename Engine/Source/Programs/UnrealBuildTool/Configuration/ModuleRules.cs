@@ -1222,163 +1222,48 @@ namespace UnrealBuildTool
 		/// </summary>
 		public void SetupModulePhysicsSupport(ReadOnlyTargetRules Target)
 		{
-			PublicDependencyModuleNames.Add("PhysicsCore");
+			PublicIncludePathModuleNames.AddRange(
+					new string[] {
+					"Chaos",
+					}
+				);
 
-			bool bUseNonPhysXInterface = Target.bUseChaos == true;
 			PublicDependencyModuleNames.AddRange(
 				new string[] {
+					"PhysicsCore",
 					"Chaos",
-				}
+					}
 				);
-			// 
-			if (Target.bCompileChaos == true || Target.bUseChaos == true)
-            {
-                PublicDefinitions.Add("INCLUDE_CHAOS=1");
-			}
-            else
-            {
-                PublicDefinitions.Add("INCLUDE_CHAOS=0");
-            }
-            // definitions used outside of PhysX/APEX need to be set here, not in PhysX.Build.cs or APEX.Build.cs, 
-            // since we need to make sure we always set it, even to 0 (because these are Private dependencies, the
-            // defines inside their Build.cs files won't leak out)
-            if (Target.bCompilePhysX == true && Target.bCompileChaos == false && Target.bUseChaos == false)
+
+			PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
+
+			if(!bTreatAsEngineModule)
 			{
-				PrivateDependencyModuleNames.Add("PhysX");
+				// Non-engine modules may still be relying on appropriate definitions for physics.
+				// Nothing in engine should use these anymore as they were all deprecated and 
+				// assumed to be in the following configuration from 5.1
+
+				Func<string, string, string, string> GetDeprecatedPhysicsMacro = (string Macro, string Value, string Version) =>
+				{
+					return Macro + "=UE_DEPRECATED_MACRO(" + Version + ", \"" + Macro + " is deprecated and should always be considered " + Value + ".\") " + Value;
+				};
+
+				PublicDefinitions.AddRange(
+					new string[]{
+						GetDeprecatedPhysicsMacro("INCLUDE_CHAOS", "1", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_CHAOS", "1", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_CHAOS_CLOTHING", "1", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_CHAOS_NEEDS_TO_BE_FIXED", "1", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_PHYSX", "1", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_PHYSX_COOKING", "0", "5.1"),
+						GetDeprecatedPhysicsMacro("PHYSICS_INTERFACE_PHYSX", "0", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_APEX", "0", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_APEX_CLOTHING", "0", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_NVCLOTH", "0", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_IMMEDIATE_PHYSX", "0", "5.1"),
+						GetDeprecatedPhysicsMacro("WITH_CUSTOM_SQ_STRUCTURE", "0", "5.1")
+					});
 			}
-
-			if(Target.bCompileChaos || Target.bUseChaos || Target.bCompilePhysX)
-			{
-				PublicDefinitions.Add("WITH_PHYSX=1");
-			}
-			else
-			{
-				PublicDefinitions.Add("WITH_PHYSX=0");
-			}
-
-			if(!bUseNonPhysXInterface)
-			{
-				// Disable non-physx interfaces
-				PublicDefinitions.Add("WITH_CHAOS=0");
-				PublicDefinitions.Add("WITH_CHAOS_CLOTHING=0");
-
-				// 
-				// WITH_CHAOS_NEEDS_TO_BE_FIXED
-				//
-				// Anything wrapped in this define needs to be fixed
-				// in one of the build targets. This define was added
-				// to help identify complier failures between the
-				// the three build targets( UseChaos, PhysX, WithChaos )
-				// This defaults to off , and will be enabled for bUseChaos. 
-				// This define should be removed when all the references 
-				// have been fixed across the different builds. 
-				//
-				PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=0");
-
-				if (Target.bCompilePhysX)
-				{
-					PublicDefinitions.Add("PHYSICS_INTERFACE_PHYSX=1");
-				}
-				else
-				{
-					PublicDefinitions.Add("PHYSICS_INTERFACE_PHYSX=0");
-				}
-
-				if (Target.bCompileAPEX == true)
-				{
-					if (!Target.bCompilePhysX)
-					{
-						throw new BuildException("APEX is enabled, without PhysX. This is not supported!");
-					}
-					PrivateDependencyModuleNames.Add("APEX");
-					PublicDefinitions.Add("WITH_APEX=1");
-
-					if (Target.Platform.ToString() == "HoloLens") //  Do not use Apex Cloth for HoloLens.  TODO: can we enable this in the future?
-					{
-						PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
-						PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
-					}
-					else
-					{
-						PublicDefinitions.Add("WITH_APEX_CLOTHING=1");
-						PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
-					}
-
-					PublicDefinitions.Add("WITH_PHYSX_COOKING=1");  // APEX currently relies on cooking even at runtime
-
-				}
-				else
-				{
-					PublicDefinitions.Add("WITH_APEX=0");
-					PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
-					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
-					PublicDefinitions.Add(string.Format("WITH_PHYSX_COOKING={0}", Target.Type == TargetType.Editor && Target.bCompilePhysX ? 1 : 0));  // without APEX, we only need cooking in editor builds
-				}
-
-				if (Target.bCompileNvCloth == true)
-				{
-					if (!Target.bCompilePhysX)
-					{
-						throw new BuildException("NvCloth is enabled, without PhysX. This is not supported!");
-					}
-
-					PrivateDependencyModuleNames.Add("NvCloth");
-					PublicDefinitions.Add("WITH_NVCLOTH=1");
-
-				}
-				else
-				{
-					PublicDefinitions.Add("WITH_NVCLOTH=0");
-				}
-			}
-			else
-			{
-				// Disable apex/cloth/physx interface
-				PublicDefinitions.Add("PHYSICS_INTERFACE_PHYSX=0");
-				PublicDefinitions.Add("WITH_APEX=0");
-				PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
-				PublicDefinitions.Add(string.Format("WITH_PHYSX_COOKING={0}", Target.Type == TargetType.Editor && Target.bCompilePhysX ? 1 : 0));  // without APEX, we only need cooking in editor builds
-				PublicDefinitions.Add("WITH_NVCLOTH=0");
-
-				if(Target.bUseChaos)
-				{
-					PublicDefinitions.Add("WITH_CHAOS=1");
-					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=1");
-					PublicDefinitions.Add("WITH_CHAOS_CLOTHING=1");
-					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
-					
-					PublicIncludePathModuleNames.AddRange(
-						new string[] {
-						"Chaos",
-						}
-					);
-
-					PublicDependencyModuleNames.AddRange(
-						new string[] {
-						"Chaos",
-						}
-					);
-				}
-				else
-				{
-					PublicDefinitions.Add("WITH_CHAOS=0");
-					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=0");
-					PublicDefinitions.Add("WITH_CHAOS_CLOTHING=0");
-					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
-				}
-			}
-
-			if(Target.bCustomSceneQueryStructure)
-			{
-				PublicDefinitions.Add("WITH_CUSTOM_SQ_STRUCTURE=1");
-			}
-			else
-			{
-				PublicDefinitions.Add("WITH_CUSTOM_SQ_STRUCTURE=0");
-			}
-
-			// Unused interface
-			PublicDefinitions.Add("WITH_IMMEDIATE_PHYSX=0");
 		}
 
 		/// <summary>

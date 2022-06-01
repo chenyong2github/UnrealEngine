@@ -1621,12 +1621,7 @@ void FCascade::Tick(float DeltaTime)
 		World->SetupPhysicsTickFunctions(DeltaTime);
 		PhysScene->StartFrame();
 		PhysScene->WaitPhysScenes();
-
-#if WITH_CHAOS
 		PhysScene->EndFrame();
-#else
-		PhysScene->EndFrame(NULL);
-#endif
 	}
 
 	// If a vector field module is selected, update the preview visualization.

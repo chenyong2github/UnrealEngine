@@ -513,7 +513,6 @@ public:
 
 	bool IsTurnTableSpeedSelected(int32 SpeedIndex) const;
 
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	/** 
 	 * clothing show options 
 	*/
@@ -535,8 +534,6 @@ private:
 	/** Show all sections which means the original state */
 	void OnSetSectionsDisplayMode(ESectionDisplayMode DisplayMode);
 	bool IsSectionsDisplayMode(ESectionDisplayMode DisplayMode) const;
-
-#endif // #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 private:
 	/** Weak pointer back to the preview scene we are viewing */

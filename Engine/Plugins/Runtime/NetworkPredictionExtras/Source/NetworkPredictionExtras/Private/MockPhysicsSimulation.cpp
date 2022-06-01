@@ -19,8 +19,6 @@
 #include "NetworkPredictionCues.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
-#if WITH_CHAOS
-
 NETSIMCUE_REGISTER(FMockPhysicsJumpCue, TEXT("MockPhysicsJumpCue"));
 NETSIMCUE_REGISTER(FMockPhysicsChargeCue, TEXT("FMockPhysicsChargeCue"));
 
@@ -140,5 +138,3 @@ void FMockPhysicsSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 		}
 	}
 }
-
-#endif // WITH_CHAOS

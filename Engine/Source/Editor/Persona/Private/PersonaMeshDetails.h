@@ -788,14 +788,6 @@ private:
 	/* Make uniform grid widget for Apex details */
 	TSharedRef<SUniformGridPanel> MakeClothingDetailsWidget(int32 AssetIndex) const;
 
-#if WITH_APEX_CLOTHING
-	/* Opens dialog to add a new clothing asset */
-	FReply OnOpenClothingFileClicked(IDetailLayoutBuilder* DetailLayout);
-
-	/* Reimports a clothing asset */ 
-	FReply OnReimportApexFileClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout);
-#endif
-
 	/* Removes a clothing asset */ 
 	FReply OnRemoveClothingAssetClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout);
 

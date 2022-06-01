@@ -22,12 +22,7 @@ struct FActorCreationParams
 		, bStartAwake(true)
 		, DebugName(nullptr)
 	{}
-
-#if WITH_CHAOS
 	FChaosScene* Scene;
-#else
-	FPhysScene* Scene;
-#endif
 	FTransform InitialTM;
 	bool bStatic;
 	bool bQueryOnly;
@@ -164,9 +159,7 @@ static bool CalcMeshNegScaleCompensation(const FVector& InScale3D, FTransform& O
 // TODO: Fixup types, these are more or less the PhysX types renamed as a temporary solution.
 // Probably should move to different header as well.
 
-#if !PHYSICS_INTERFACE_PHYSX
 const uint32 AggregateMaxSize = 128;
-#endif
 
 class UPhysicalMaterial;
 class UPrimitiveComponent;
@@ -217,14 +210,8 @@ public:
 	static bool IsGarbage(void* UserData){ return ((FChaosUserData*)UserData)->Type < EChaosUserDataType::Invalid || ((FChaosUserData*)UserData)->Type > EChaosUserDataType::CustomPayload; }
 };
 
-#if PHYSICS_INTERFACE_PHYSX
-using FUserData = FPhysxUserData;
-using FPhysicsQueryFlag = physx::PxQueryFlag;
-#else
 using FUserData = FChaosUserData;
 using FPhysicsQueryFlag = FChaosQueryFlag;
-#endif
-
 
 template <> FORCEINLINE FBodyInstance* FChaosUserData::Get(void* UserData)			{ if (!UserData || ((FChaosUserData*)UserData)->Type != EChaosUserDataType::BodyInstance) { return nullptr; } return (FBodyInstance*)((FChaosUserData*)UserData)->Payload; }
 template <> FORCEINLINE UPhysicalMaterial* FChaosUserData::Get(void* UserData)		{ if (!UserData || ((FChaosUserData*)UserData)->Type != EChaosUserDataType::PhysicalMaterial) { return nullptr; } return (UPhysicalMaterial*)((FChaosUserData*)UserData)->Payload; }

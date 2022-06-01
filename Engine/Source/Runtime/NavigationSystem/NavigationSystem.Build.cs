@@ -44,15 +44,12 @@ namespace UnrealBuildTool.Rules
 
             SetupModulePhysicsSupport(Target);
 
-			if (Target.bCompileChaos || Target.bUseChaos)
-            {
-                PublicDependencyModuleNames.AddRange(
-                    new string[] {
-						"Chaos",
-                        "GeometryCollectionEngine",
-                    }
-					);
-            }
+            PublicDependencyModuleNames.AddRange(
+                new string[] {
+					"Chaos",
+                    "GeometryCollectionEngine",
+                }
+			);
 
             if (Target.bCompileRecast)
             {

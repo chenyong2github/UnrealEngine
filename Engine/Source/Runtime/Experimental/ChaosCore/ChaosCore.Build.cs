@@ -17,15 +17,6 @@ namespace UnrealBuildTool.Rules
 
             PublicDefinitions.Add("COMPILE_WITHOUT_UNREAL_SUPPORT=0");
 
-            if (Target.bCompileChaos == true || Target.bUseChaos == true)
-            {
-                PublicDefinitions.Add("INCLUDE_CHAOS=1");
-            }
-            else
-            {
-                PublicDefinitions.Add("INCLUDE_CHAOS=0");
-            }
-
             if (Target.bUseChaosChecked == true)
             {
                 PublicDefinitions.Add("CHAOS_CHECKED=1");

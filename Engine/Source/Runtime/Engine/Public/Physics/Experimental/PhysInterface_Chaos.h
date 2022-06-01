@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if WITH_CHAOS
-
 #include "ChaosInterfaceWrapper.h"
 #include "Engine/Engine.h"
 #include "Chaos/Declares.h"
@@ -182,4 +180,3 @@ ENGINE_API bool FGenericPhysicsInterface::GeomSweepMulti(const UWorld* World, co
 template<>
 ENGINE_API bool FGenericPhysicsInterface::GeomOverlapMulti(const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams);
 
-#endif

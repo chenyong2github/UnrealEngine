@@ -31,13 +31,10 @@ public class AnimGraphRuntime : ModuleRules
                 "Eigen"
                 );
 
-        if (Target.bCompileChaos || Target.bUseChaos)
-        {
-            PublicDependencyModuleNames.AddRange(
-                new string[] {
-					"GeometryCollectionEngine",
-                }
-            );
-        }
+        PublicDependencyModuleNames.AddRange(
+            new string[] {
+				"GeometryCollectionEngine",
+            }
+        );
     }
 }

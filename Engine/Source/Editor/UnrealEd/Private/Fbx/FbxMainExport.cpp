@@ -96,17 +96,11 @@
 #include "MovieSceneTimeHelpers.h"
 #include "DynamicMeshBuilder.h"
 
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXPublic.h"
-#include "geometry/PxConvexMesh.h"
-#include "PhysicsEngine/BodySetup.h"
-#endif // WITH_PHYSX
-
-#if WITH_CHAOS
 #include "Chaos/Core.h"
 #include "Chaos/Particles.h"
 #include "Chaos/Plane.h"
-#endif
+#include "ChaosCheck.h"
+#include "Chaos/Convex.h"
 
 #include "Exporters/FbxExportOption.h"
 #include "FbxExportOptionsWindow.h"
@@ -114,11 +108,6 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "UObject/MetaData.h"
-
-#if WITH_CHAOS
-#include "ChaosCheck.h"
-#include "Chaos/Convex.h"
-#endif
 
 namespace UnFbx
 {
@@ -3659,8 +3648,6 @@ void DetermineVertsToWeld(TArray<int32>& VertRemap, TArray<int32>& UniqueVerts, 
 	}
 }
 
-#if (WITH_PHYSX && PHYSICS_INTERFACE_PHYSX) || WITH_CHAOS
-
 class FCollisionFbxExporter
 {
 public:
@@ -3827,11 +3814,7 @@ public:
 private:
 	uint32 GetConvexVerticeNumber(const FKConvexElem &ConvexElem)
 	{
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		return ConvexElem.GetConvexMesh() != nullptr ? ConvexElem.GetConvexMesh()->getNbVertices() : 0;
-#elif WITH_CHAOS
 		return ConvexElem.VertexData.Num();
-#endif
 	}
 
 	uint32 GetBoxVerticeNumber() { return 24; }
@@ -3842,20 +3825,6 @@ private:
 
 	void AddConvexVertex(const FKConvexElem &ConvexElem)
 	{
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		const physx::PxConvexMesh* ConvexMesh = ConvexElem.GetConvexMesh();
-		if (ConvexMesh == nullptr)
-		{
-			return;
-		}
-		const PxVec3 *VertexArray = ConvexMesh->getVertices();
-		for (uint32 PosIndex = 0; PosIndex < ConvexMesh->getNbVertices(); ++PosIndex)
-		{
-			FVector Position = P2UVector(VertexArray[PosIndex]);
-			ControlPoints[CurrentVertexOffset + PosIndex] = FbxVector4(Position.X, -Position.Y, Position.Z);
-		}
-		CurrentVertexOffset += ConvexMesh->getNbVertices();
-#elif WITH_CHAOS
 		const TArray<FVector>& VertexArray = ConvexElem.VertexData;
 		for (int32 PosIndex = 0; PosIndex < VertexArray.Num(); ++PosIndex)
 		{
@@ -3863,36 +3832,10 @@ private:
 			ControlPoints[CurrentVertexOffset + PosIndex] = FbxVector4(Position.X, -Position.Y, Position.Z);
 		}
 		CurrentVertexOffset += VertexArray.Num();
-#endif
 	}
 
 	void AddConvexNormals(const FKConvexElem &ConvexElem)
 	{
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		const physx::PxConvexMesh* ConvexMesh = ConvexElem.GetConvexMesh();
-		if (ConvexMesh == nullptr)
-		{
-			return;
-		}
-		const PxU8* PIndexBuffer = ConvexMesh->getIndexBuffer();
-		int32 PolygonNumber = ConvexMesh->getNbPolygons();
-		for (int32 PolyIndex = 0; PolyIndex < PolygonNumber; ++PolyIndex)
-		{
-			PxHullPolygon PolyData;
-			if (!ConvexMesh->getPolygonData(PolyIndex, PolyData))
-			{
-				continue;
-			}
-			const PxVec3 PPlaneNormal(PolyData.mPlane[0], PolyData.mPlane[1], PolyData.mPlane[2]);
-			FVector Normal = P2UVector(PPlaneNormal.getNormalized());
-			FbxVector4 FbxNormal = FbxVector4(Normal.X, -Normal.Y, Normal.Z);
-			// add vertices 
-			for (PxU32 j = 0; j < PolyData.mNbVerts; ++j)
-			{
-				LayerElementNormal->GetDirectArray().Add(FbxNormal);
-			}
-		}
-#elif WITH_CHAOS
 		const auto& ConvexMesh = ConvexElem.GetChaosConvexMesh();
 		if (!ConvexMesh.IsValid())
 		{
@@ -3909,38 +3852,10 @@ private:
 				LayerElementNormal->GetDirectArray().Add(FbxNormal);
 			}
 		}
-#endif
 	}
 
 	void AddConvexPolygon(const FKConvexElem &ConvexElem)
 	{
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		const physx::PxConvexMesh* ConvexMesh = ConvexElem.GetConvexMesh();
-		if (ConvexMesh == nullptr)
-		{
-			return;
-		}
-		const PxU8* PIndexBuffer = ConvexMesh->getIndexBuffer();
-		int32 PolygonNumber = ConvexMesh->getNbPolygons();
-		for (int32 PolyIndex = 0; PolyIndex < PolygonNumber; ++PolyIndex)
-		{
-			PxHullPolygon PolyData;
-			if (!ConvexMesh->getPolygonData(PolyIndex, PolyData))
-			{
-				continue;
-			}
-			Mesh->BeginPolygon(ActualMatIndex);
-			const PxU8* PolyIndices = PIndexBuffer + PolyData.mIndexBase;
-			// add vertices 
-			for (PxU32 j = 0; j < PolyData.mNbVerts; ++j)
-			{
-				const uint32 VertIndex = CurrentVertexOffset + PolyIndices[j];
-				Mesh->AddPolygon(VertIndex);
-			}
-			Mesh->EndPolygon();
-		}
-		CurrentVertexOffset += ConvexMesh->getNbVertices();
-#elif WITH_CHAOS
 		const auto& ConvexMesh = ConvexElem.GetChaosConvexMesh();
 		if (!ConvexMesh.IsValid())
 		{
@@ -3962,7 +3877,6 @@ private:
 		}
 
 		CurrentVertexOffset += ConvexElem.VertexData.Num();
-#endif
 	}
 
 	void AddBoxVertex(const FKBoxElem &BoxElem)
@@ -4397,7 +4311,7 @@ FbxNode* FFbxExporter::ExportCollisionMesh(const UStaticMesh* StaticMesh, const 
 	FbxActor->SetNodeAttribute(CollisionMesh);
 	return FbxActor;
 }
-#endif //WITH_PHYSX
+
 
 void FFbxExporter::ExportObjectMetadata(const UObject* ObjectToExport, FbxNode* Node)
 {
@@ -4787,13 +4701,10 @@ FbxNode* FFbxExporter::ExportStaticMeshToFbx(const UStaticMesh* StaticMesh, int3
 		}
 	}
 
-#if (WITH_PHYSX && PHYSICS_INTERFACE_PHYSX) || WITH_CHAOS
 	if ((ExportLOD == 0 || ExportLOD == -1) && GetExportOptions()->Collision)
 	{
 		ExportCollisionMesh(StaticMesh, MeshName, FbxActor);
 	}
-#endif
-
 
 	//Set the original meshes in case it was already existing
 	FbxActor->SetNodeAttribute(Mesh);

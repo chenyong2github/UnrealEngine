@@ -17,13 +17,9 @@
 #include "UObject/GarbageCollection.h"
 
 #if WITH_RECAST
-#if WITH_PHYSX
-	#include "PhysXPublic.h"
-#endif
-#if WITH_CHAOS
-	#include "Chaos/HeightField.h"
-	#include "Chaos/TriangleMeshImplicitObject.h"
-#endif
+
+#include "Chaos/HeightField.h"
+#include "Chaos/TriangleMeshImplicitObject.h"
 #include "NavMesh/PImplRecastNavMesh.h"
 
 // recast includes
@@ -233,19 +229,10 @@ struct FRecastGeometryExport : public FNavigableGeometryExport
 	TNavStatArray<int32> IndexBuffer;
 	FWalkableSlopeOverride SlopeOverride;
 
-#if PHYSICS_INTERFACE_PHYSX
-	virtual void ExportPxTriMesh16Bit(physx::PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld) override;
-	virtual void ExportPxTriMesh32Bit(physx::PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld) override;
-	virtual void ExportPxConvexMesh(physx::PxConvexMesh const * const ConvexMesh, const FTransform& LocalToWorld) override;
-	virtual void ExportPxHeightField(physx::PxHeightField const * const HeightField, const FTransform& LocalToWorld) override;
-	virtual void ExportPxHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldSamples, const int32 NumRows, const int32 NumCols, const FTransform& LocalToWorld, const FBox& SliceBox) override;
-#endif // PHYSICS_INTERFACE_PHYSX
-#if WITH_CHAOS
 	virtual void ExportChaosTriMesh(const Chaos::FTriangleMeshImplicitObject* const TriMesh, const FTransform& LocalToWorld) override;
 	virtual void ExportChaosConvexMesh(const FKConvexElem* const Convex, const FTransform& LocalToWorld) override;
 	virtual void ExportChaosHeightField(const Chaos::FHeightField* const Heightfield, const FTransform& LocalToWorld) override;
 	virtual void ExportChaosHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldSamples, const int32 NumRows, const int32 NumCols, const FTransform& LocalToWorld, const FBox& SliceBox) override;
-#endif
 	virtual void ExportCustomMesh(const FVector* InVertices, int32 NumVerts, const int32* InIndices, int32 NumIndices, const FTransform& LocalToWorld) override;
 	virtual void ExportRigidBodySetup(UBodySetup& BodySetup, const FTransform& LocalToWorld) override;
 	virtual void AddNavModifiers(const FCompositeNavModifier& Modifiers) override;
@@ -356,308 +343,6 @@ static void StoreCollisionCache(FRecastGeometryExport& GeomExport)
 	FMemory::Memcpy(RawMemory + HeaderSize + CoordsSize, GeomExport.IndexBuffer.GetData(), IndicesSize);
 }
 
-#if PHYSICS_INTERFACE_PHYSX
-/** exports PxConvexMesh as trimesh */
-void ExportPxConvexMesh(PxConvexMesh const * const ConvexMesh, const FTransform& LocalToWorld,
-						TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
-						FBox& UnrealBounds)
-{
-	// after FKConvexElem::AddCachedSolidConvexGeom
-	if(ConvexMesh == NULL)
-	{
-		return;
-	}
-
-	int32 StartVertOffset = VertexBuffer.Num() / 3;
-	const bool bNegX = LocalToWorld.GetDeterminant() < 0;
-
-	// get PhysX data
-	const PxVec3* PVertices = ConvexMesh->getVertices();
-	const PxU8* PIndexBuffer = ConvexMesh->getIndexBuffer();
-	const PxU32 NbPolygons = ConvexMesh->getNbPolygons();
-
-#if SHOW_NAV_EXPORT_PREVIEW
-	UWorld* DebugWorld = FindEditorWorld();
-#endif // SHOW_NAV_EXPORT_PREVIEW
-
-	for(PxU32 i = 0; i < NbPolygons; ++i)
-	{
-		PxHullPolygon Data;
-		bool bStatus = ConvexMesh->getPolygonData(i, Data);
-		check(bStatus);
-
-		const PxU8* indices = PIndexBuffer + Data.mIndexBase;
-		
-		// add vertices 
-		for(PxU32 j = 0; j < Data.mNbVerts; ++j)
-		{
-			const int32 VertIndex = indices[j];
-			const FVector UnrealCoords = LocalToWorld.TransformPosition( P2UVector(PVertices[VertIndex]) );
-			UnrealBounds += UnrealCoords;
-
-			VertexBuffer.Add(UnrealCoords.X);
-			VertexBuffer.Add(UnrealCoords.Y);
-			VertexBuffer.Add(UnrealCoords.Z);
-		}
-
-		// Add indices
-		const PxU32 nbTris = Data.mNbVerts - 2;
-		for(PxU32 j = 0; j < nbTris; ++j)
-		{
-			IndexBuffer.Add(StartVertOffset + 0 );
-			IndexBuffer.Add(StartVertOffset + j + 2);
-			IndexBuffer.Add(StartVertOffset + j + 1);
-
-#if SHOW_NAV_EXPORT_PREVIEW
-			if (DebugWorld)
-			{
-				FVector V0(VertexBuffer[(StartVertOffset + 0) * 3+0], VertexBuffer[(StartVertOffset + 0) * 3+1], VertexBuffer[(StartVertOffset + 0) * 3+2]);
-				FVector V1(VertexBuffer[(StartVertOffset + j + 2) * 3+0], VertexBuffer[(StartVertOffset + j + 2) * 3+1], VertexBuffer[(StartVertOffset + j + 2) * 3+2]);
-				FVector V2(VertexBuffer[(StartVertOffset + j + 1) * 3+0], VertexBuffer[(StartVertOffset + j + 1) * 3+1], VertexBuffer[(StartVertOffset + j + 1) * 3+2]);
-
-				DrawDebugLine(DebugWorld, V0, V1, bNegX ? FColor::Red : FColor::Blue, true);
-				DrawDebugLine(DebugWorld, V1, V2, bNegX ? FColor::Red : FColor::Blue, true);
-				DrawDebugLine(DebugWorld, V2, V0, bNegX ? FColor::Red : FColor::Blue, true);
-			}
-#endif // SHOW_NAV_EXPORT_PREVIEW
-		}
-
-		StartVertOffset += Data.mNbVerts;
-	}
-}
-
-template<typename TIndicesType> 
-FORCEINLINE_DEBUGGABLE void ExportPxTriMesh(PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld,
-											TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
-											FBox& UnrealBounds)
-{
-	if (TriMesh == NULL)
-	{
-		return;
-	}
-
-	int32 VertOffset = VertexBuffer.Num() / 3;
-	const PxVec3* PVerts = TriMesh->getVertices();
-	const PxU32 NumTris = TriMesh->getNbTriangles();
-
-	const TIndicesType* Indices = (TIndicesType*)TriMesh->getTriangles();;
-		
-	VertexBuffer.Reserve(VertexBuffer.Num() + NumTris*3);
-	IndexBuffer.Reserve(IndexBuffer.Num() + NumTris*3);
-	const bool bFlipCullMode = (LocalToWorld.GetDeterminant() < 0.f);
-	const int32 IndexOrder[3] = { bFlipCullMode ? 0 : 2, 1, bFlipCullMode ? 2 : 0 };
-
-#if SHOW_NAV_EXPORT_PREVIEW
-	UWorld* DebugWorld = FindEditorWorld();
-#endif // SHOW_NAV_EXPORT_PREVIEW
-
-	for(PxU32 TriIdx = 0; TriIdx < NumTris; ++TriIdx)
-	{
-		for (int32 i = 0; i < 3; i++)
-		{
-			const FVector UnrealCoords = LocalToWorld.TransformPosition(P2UVector(PVerts[Indices[i]]));
-			UnrealBounds += UnrealCoords;
-
-			VertexBuffer.Add(UnrealCoords.X);
-			VertexBuffer.Add(UnrealCoords.Y);
-			VertexBuffer.Add(UnrealCoords.Z);
-		}
-		Indices += 3;
-
-		IndexBuffer.Add(VertOffset + IndexOrder[0]);
-		IndexBuffer.Add(VertOffset + IndexOrder[1]);
-		IndexBuffer.Add(VertOffset + IndexOrder[2]);
-
-#if SHOW_NAV_EXPORT_PREVIEW
-		if (DebugWorld)
-		{
-			FVector V0(VertexBuffer[(VertOffset + IndexOrder[0]) * 3+0], VertexBuffer[(VertOffset + IndexOrder[0]) * 3+1], VertexBuffer[(VertOffset + IndexOrder[0]) * 3+2]);
-			FVector V1(VertexBuffer[(VertOffset + IndexOrder[1]) * 3+0], VertexBuffer[(VertOffset + IndexOrder[1]) * 3+1], VertexBuffer[(VertOffset + IndexOrder[1]) * 3+2]);
-			FVector V2(VertexBuffer[(VertOffset + IndexOrder[2]) * 3+0], VertexBuffer[(VertOffset + IndexOrder[2]) * 3+1], VertexBuffer[(VertOffset + IndexOrder[2]) * 3+2]);
-
-			DrawDebugLine(DebugWorld, V0, V1, bFlipCullMode ? FColor::Red : FColor::Blue, true);
-			DrawDebugLine(DebugWorld, V1, V2, bFlipCullMode ? FColor::Red : FColor::Blue, true);
-			DrawDebugLine(DebugWorld, V2, V0, bFlipCullMode ? FColor::Red : FColor::Blue, true);
-		}
-#endif // SHOW_NAV_EXPORT_PREVIEW
-
-		VertOffset += 3;
-	}
-}
-
-void ExportPxHeightField(PxHeightField const * const HeightField, const FTransform& LocalToWorld
-	, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
-	, FBox& UnrealBounds)
-{
-	if (HeightField == NULL)
-	{
-		return;
-	}
-
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportPxHeightField);
-
-	const int32 NumRows = HeightField->getNbRows();
-	const int32 NumCols = HeightField->getNbColumns();
-	const int32 VertexCount = NumRows * NumCols;
-
-	// Unfortunately we have to use PxHeightField::saveCells instead PxHeightField::getHeight here 
-	// because current PxHeightField interface does not provide an access to a triangle material index by HF 2D coordinates
-	// PxHeightField::getTriangleMaterialIndex uses some internal adressing which does not match HF 2D coordinates
-	TArray<PxHeightFieldSample> HFSamples;
-	HFSamples.SetNumUninitialized(VertexCount);
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportPxHeightField_saveCells);
-		HeightField->saveCells(HFSamples.GetData(), VertexCount*HFSamples.GetTypeSize());
-	}
-
-	//
-	const int32 VertOffset = VertexBuffer.Num() / 3;
-	const int32 NumQuads = (NumRows - 1)*(NumCols - 1);
-
-	VertexBuffer.Reserve(VertexBuffer.Num() + VertexCount * 3);
-	IndexBuffer.Reserve(IndexBuffer.Num() + NumQuads * 6);
-
-	const bool bMirrored = (LocalToWorld.GetDeterminant() < 0.f);
-
-	for (int32 Y = 0; Y < NumRows; Y++)
-	{
-		for (int32 X = 0; X < NumCols; X++)
-		{
-			const int32 SampleIdx = (bMirrored ? X : (NumCols - X - 1))*NumCols + Y;
-
-			const PxHeightFieldSample& Sample = HFSamples[SampleIdx];
-			const FVector UnrealCoords = LocalToWorld.TransformPosition(FVector(X, Y, Sample.height));
-			UnrealBounds += UnrealCoords;
-
-			VertexBuffer.Add(UnrealCoords.X);
-			VertexBuffer.Add(UnrealCoords.Y);
-			VertexBuffer.Add(UnrealCoords.Z);
-		}
-	}
-
-	for (int32 Y = 0; Y < NumRows - 1; Y++)
-	{
-		for (int32 X = 0; X < NumCols - 1; X++)
-		{
-			const int32 SampleIdx = (bMirrored ? X : (NumCols - X - 1 - 1))*NumCols + Y;
-			const PxHeightFieldSample& Sample = HFSamples[SampleIdx];
-			const bool bIsHole = (Sample.materialIndex0 == PxHeightFieldMaterial::eHOLE);
-			if (bIsHole)
-			{
-				continue;
-			}
-
-			const int32 I00 = X + 0 + (Y + 0)*NumCols;
-			int32 I01 = X + 0 + (Y + 1)*NumCols;
-			int32 I10 = X + 1 + (Y + 0)*NumCols;
-			const int32 I11 = X + 1 + (Y + 1)*NumCols;
-
-			if (bMirrored)
-			{
-				Swap(I01, I10);
-			}
-
-			IndexBuffer.Add(VertOffset + I00);
-			IndexBuffer.Add(VertOffset + I11);
-			IndexBuffer.Add(VertOffset + I10);
-
-			IndexBuffer.Add(VertOffset + I00);
-			IndexBuffer.Add(VertOffset + I01);
-			IndexBuffer.Add(VertOffset + I11);
-		}
-	}
-}
-
-void ExportPxHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldSamples, const int32 NumRows, const int32 NumCols, const FTransform& LocalToWorld
-	, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, const FBox& SliceBox
-	, FBox& UnrealBounds)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_NavMesh_ExportPxHeightFieldSlice);
-
-#if PHYSICS_INTERFACE_PHYSX
-	static const uint32 SizeOfPx = sizeof(physx::PxI16);
-	static const uint32 SizeOfHeight = PrefetchedHeightfieldSamples.Heights.GetTypeSize();
-	ensure(SizeOfPx == SizeOfHeight);
-#endif // PHYSICS_INTERFACE_PHYSX
-
-	// calculate the actual start and number of columns we want
-	const FBox LocalBox = SliceBox.TransformBy(LocalToWorld.Inverse());
-	const bool bMirrored = (LocalToWorld.GetDeterminant() < 0.f);
-
-	const int32 MinX = FMath::Clamp(FMath::FloorToInt(LocalBox.Min.X) - 1, 0, NumCols);
-	const int32 MinY = FMath::Clamp(FMath::FloorToInt(LocalBox.Min.Y) - 1, 0, NumRows);
-	const int32 MaxX = FMath::Clamp(FMath::CeilToInt(LocalBox.Max.X) + 1, 0, NumCols);
-	const int32 MaxY = FMath::Clamp(FMath::CeilToInt(LocalBox.Max.Y) + 1, 0, NumRows);
-	const int32 SizeX = MaxX - MinX;
-	const int32 SizeY = MaxY - MinY;
-
-	if (SizeX <= 0 || SizeY <= 0)
-	{
-		// slice is outside bounds, skip
-		return;
-	}
-
-	const int32 VertOffset = VertexBuffer.Num() / 3;
-	const int32 NumVerts = SizeX * SizeY;
-	const int32 NumQuads = (SizeX - 1) * (SizeY - 1);
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastGeometryExport_AllocatingMemory);
-		VertexBuffer.Reserve(VertexBuffer.Num() + NumVerts * 3);
-		IndexBuffer.Reserve(IndexBuffer.Num() + NumQuads * 3 * 2);
-	}
-
-	for (int32 IdxY = 0; IdxY < SizeY; IdxY++)
-	{
-		for (int32 IdxX = 0; IdxX < SizeX; IdxX++)
-		{
-			const int32 CoordX = IdxX + MinX;
-			const int32 CoordY = IdxY + MinY;
-			const int32 SampleIdx = ((bMirrored ? CoordX : (NumCols - CoordX - 1)) * NumCols) + CoordY;
-
-			const FVector UnrealCoords = LocalToWorld.TransformPosition(FVector(CoordX, CoordY, PrefetchedHeightfieldSamples.Heights[SampleIdx]));
-			VertexBuffer.Add(UnrealCoords.X);
-			VertexBuffer.Add(UnrealCoords.Y);
-			VertexBuffer.Add(UnrealCoords.Z);
-		}
-	}
-
-	for (int32 IdxY = 0; IdxY < SizeY - 1; IdxY++)
-	{
-		for (int32 IdxX = 0; IdxX < SizeX - 1; IdxX++)
-		{
-			const int32 CoordX = IdxX + MinX;
-			const int32 CoordY = IdxY + MinY;
-			const int32 SampleIdx = ((bMirrored ? CoordX : (NumCols - CoordX - 1)) * NumCols) + CoordY;
-
-			const bool bIsHole = PrefetchedHeightfieldSamples.Holes[SampleIdx];
-			if (bIsHole)
-			{
-				continue;
-			}
-
-			const int32 I00 = (IdxX + 0) + (IdxY + 0) * SizeX;
-			int32 I01 = (IdxX + 0) + (IdxY + 1) * SizeX;
-			int32 I10 = (IdxX + 1) + (IdxY + 0) * SizeX;
-			const int32 I11 = (IdxX + 1) + (IdxY + 1) * SizeX;
-			if (bMirrored)
-			{
-				Swap(I01, I10);
-			}
-
-			IndexBuffer.Add(VertOffset + I00);
-			IndexBuffer.Add(VertOffset + I11);
-			IndexBuffer.Add(VertOffset + I10);
-
-			IndexBuffer.Add(VertOffset + I00);
-			IndexBuffer.Add(VertOffset + I01);
-			IndexBuffer.Add(VertOffset + I11);
-		}
-	}
-}
-
-#endif // WITH_PHYSX
-
-#if WITH_CHAOS
 void ExportChaosTriMesh(const Chaos::FTriangleMeshImplicitObject* const TriMesh, const FTransform& LocalToWorld
 	, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer
 	, FBox& UnrealBounds)
@@ -960,7 +645,7 @@ void ExportChaosHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightf
 		}
 	}
 }
-#endif
+
 
 void ExportCustomMesh(const FVector* InVertices, int32 NumVerts, const int32* InIndices, int32 NumIndices, const FTransform& LocalToWorld,
 					  TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer, FBox& UnrealBounds)
@@ -1057,25 +742,11 @@ FORCEINLINE_DEBUGGABLE void ExportRigidBodyConvexElements(UBodySetup& BodySetup,
 		// Store index of first vertex in shape buffer
 		ShapeBuffer.Add(VertexBuffer.Num() / 3);
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		// Get verts/triangles from this hull.
-		if (!ConvexElem->GetConvexMesh() && ConvexElem->GetMirroredConvexMesh())
-		{
-			// If there is only a NegX mesh (e.g. a mirrored volume), use it
-			ExportPxConvexMesh(ConvexElem->GetMirroredConvexMesh(), NegXScale * LocalToWorld, VertexBuffer, IndexBuffer, UnrealBounds);
-		}
-		else
-		{
-			// Otherwise use the regular mesh in the case that both exist
-			ExportPxConvexMesh(ConvexElem->GetConvexMesh(), LocalToWorld, VertexBuffer, IndexBuffer, UnrealBounds);
-		}
-#elif WITH_CHAOS
 		if (ConvexElem->GetChaosConvexMesh())
 		{
 			// TODO use ConvexElem->GetTransform?() transform?
 			ExportChaosConvexMesh(ConvexElem, LocalToWorld, VertexBuffer, IndexBuffer, UnrealBounds);
 		}
-#endif
 	}
 }
 
@@ -1084,25 +755,11 @@ FORCEINLINE_DEBUGGABLE void ExportRigidBodyTriMesh(UBodySetup& BodySetup, TNavSt
 {
 	if (BodySetup.GetCollisionTraceFlag() == CTF_UseComplexAsSimple)
 	{
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		for (PxTriangleMesh* TriMesh : BodySetup.TriMeshes)
-		{
-			if (TriMesh->getTriangleMeshFlags() & PxTriangleMeshFlag::e16_BIT_INDICES)
-			{
-				ExportPxTriMesh<PxU16>(TriMesh, LocalToWorld, VertexBuffer, IndexBuffer, UnrealBounds);
-			}
-			else
-			{
-				ExportPxTriMesh<PxU32>(TriMesh, LocalToWorld, VertexBuffer, IndexBuffer, UnrealBounds);
-			}
-		}
-#elif WITH_CHAOS
 		for(const auto& TriMesh : BodySetup.ChaosTriMeshes)
 		{
 			ExportChaosTriMesh(TriMesh.Get(), LocalToWorld, VertexBuffer, IndexBuffer, UnrealBounds);
 		}
-#endif
-}
+	}
 }
 
 void ExportRigidBodyBoxElements(const FKAggregateGeom& AggGeom, TNavStatArray<FVector::FReal>& VertexBuffer, TNavStatArray<int32>& IndexBuffer,
@@ -1434,34 +1091,6 @@ void ExportVertexSoup(const TArray<FVector>& VertexSoup, TNavStatArray<FVector::
 
 } // namespace RecastGeometryExport
 
-#if PHYSICS_INTERFACE_PHYSX
-void FRecastGeometryExport::ExportPxTriMesh16Bit(physx::PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld)
-{
-	RecastGeometryExport::ExportPxTriMesh<PxU16>(TriMesh, LocalToWorld, VertexBuffer, IndexBuffer, Data->Bounds);
-}
-
-void FRecastGeometryExport::ExportPxTriMesh32Bit(physx::PxTriangleMesh const * const TriMesh, const FTransform& LocalToWorld)
-{
-	RecastGeometryExport::ExportPxTriMesh<PxU32>(TriMesh, LocalToWorld, VertexBuffer, IndexBuffer, Data->Bounds);
-}
-
-void FRecastGeometryExport::ExportPxConvexMesh(physx::PxConvexMesh const * const ConvexMesh, const FTransform& LocalToWorld)
-{
-	RecastGeometryExport::ExportPxConvexMesh(ConvexMesh, LocalToWorld, VertexBuffer, IndexBuffer, Data->Bounds);
-}
-
-void FRecastGeometryExport::ExportPxHeightField(physx::PxHeightField const * const HeightField, const FTransform& LocalToWorld)
-{
-	RecastGeometryExport::ExportPxHeightField(HeightField, LocalToWorld, VertexBuffer, IndexBuffer, Data->Bounds);
-}
-
-void FRecastGeometryExport::ExportPxHeightFieldSlice(const FNavHeightfieldSamples& PrefetchedHeightfieldSamples, const int32 NumRows, const int32 NumCols, const FTransform& LocalToWorld, const FBox& SliceBox)
-{
-	RecastGeometryExport::ExportPxHeightFieldSlice(PrefetchedHeightfieldSamples, NumRows, NumCols, LocalToWorld, VertexBuffer, IndexBuffer, SliceBox, Data->Bounds);
-}
-#endif // WITH_PHYSX
-
-#if WITH_CHAOS
 void FRecastGeometryExport::ExportChaosTriMesh(const Chaos::FTriangleMeshImplicitObject* const TriMesh, const FTransform& LocalToWorld)
 {
 	RecastGeometryExport::ExportChaosTriMesh(TriMesh, LocalToWorld, VertexBuffer, IndexBuffer, Data->Bounds);
@@ -1481,7 +1110,6 @@ void FRecastGeometryExport::ExportChaosHeightFieldSlice(const FNavHeightfieldSam
 {
 	RecastGeometryExport::ExportChaosHeightFieldSlice(PrefetchedHeightfieldSamples, NumRows, NumCols, LocalToWorld, VertexBuffer, IndexBuffer, SliceBox, Data->Bounds);
 }
-#endif
 
 void FRecastGeometryExport::ExportCustomMesh(const FVector* InVertices, int32 NumVerts, const int32* InIndices, int32 NumIndices, const FTransform& LocalToWorld)
 {

@@ -240,40 +240,5 @@ namespace GeometryCollectionTest {
 		PhysicalMaterial->DisabledAngularThreshold = 0;
 	}
 
-	/*
-	FGeometryCollectionPhysicsProxy* RigidBodySetup(
-		TUniquePtr<Chaos::FChaosPhysicsMaterial> &PhysicalMaterial,
-		TSharedPtr<FGeometryCollection>& RestCollection,
-		TSharedPtr<FGeometryDynamicCollection>& DynamicCollection,
-		FInitFunc CustomFunc
-	)
-	{
-#if INCLUDE_CHAOS
-		auto InitFunc = [&RestCollection, &DynamicCollection, &PhysicalMaterial, &CustomFunc](FSimulationParameters& InParams)
-		{
-			InParams.RestCollection = RestCollection.Get();
-			InParams.DynamicCollection = DynamicCollection.Get();
-			InParams.PhysicalMaterial = MakeSerializable(PhysicalMaterial);
-			InParams.Shared.SizeSpecificData[0].CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
-
-			if (CustomFunc != nullptr)
-			{
-				CustomFunc(InParams);
-			}
-
-			InParams.Simulating = true;
-			Chaos::FErrorReporter ErrorReporter;
-			BuildSimulationData(ErrorReporter, *RestCollection, InParams.Shared);
-		};
-
-		FGeometryCollectionPhysicsProxy* PhysObject = new FGeometryCollectionPhysicsProxy(nullptr, DynamicCollection.Get(), InitFunc, nullptr, nullptr);;
-		PhysObject->Initialize();
-		return PhysObject;
-#else
-		return nullptr;
-#endif
-	}
-	*/
-
 } // end namespace GeometryCollectionTest
 

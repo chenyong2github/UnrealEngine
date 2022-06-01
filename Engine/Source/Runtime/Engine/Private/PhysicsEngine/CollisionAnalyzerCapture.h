@@ -29,12 +29,7 @@ inline static void ConvertGeometryCollection(const FPhysicsGeometryCollection& G
 		{
 			OutQueryShape = ECAQueryShape::Capsule;
 			const auto& CapsuleGeom = GeomCollection.GetCapsuleGeometry();
-#if PHYSICS_INTERFACE_PHYSX
-			OutDims = FVector(CapsuleGeom.radius, CapsuleGeom.radius, CapsuleGeom.halfHeight + CapsuleGeom.radius);
-			InOutRot = ConvertToUECapsuleRot(InOutRot);
-#else
 			OutDims = FVector(CapsuleGeom.GetRadius(), CapsuleGeom.GetRadius(), CapsuleGeom.GetHeight() * 0.5f + CapsuleGeom.GetRadius());
-#endif
 			break;
 		}
 
@@ -42,11 +37,7 @@ inline static void ConvertGeometryCollection(const FPhysicsGeometryCollection& G
 		{
 			OutQueryShape = ECAQueryShape::Sphere;
 			const auto& SphereGeom = GeomCollection.GetSphereGeometry();
-#if PHYSICS_INTERFACE_PHYSX
-			OutDims = FVector(SphereGeom.radius);
-#else
 			OutDims = FVector(SphereGeom.GetRadius());
-#endif
 			break;
 		}
 
@@ -54,11 +45,7 @@ inline static void ConvertGeometryCollection(const FPhysicsGeometryCollection& G
 		{
 			OutQueryShape = ECAQueryShape::Box;
 			const auto& BoxGeom = GeomCollection.GetBoxGeometry();
-#if PHYSICS_INTERFACE_PHYSX
-			OutDims = P2UVector(BoxGeom.halfExtents);
-#else
 			OutDims = FVector(BoxGeom.Extents() * 0.5f);
-#endif
 			break;
 		}
 

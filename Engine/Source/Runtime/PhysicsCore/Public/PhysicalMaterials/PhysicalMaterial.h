@@ -11,13 +11,6 @@
 
 struct FPropertyChangedEvent;
 
-#if PHYSICS_INTERFACE_PHYSX
-namespace physx
-{
-	class PxMaterial;
-}
-#endif
-
 /**
  * Physical materials are used to define the response of a physical object when interacting dynamically with the world.
  */

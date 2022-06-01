@@ -7,8 +7,6 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "PhysicsEngine/BodySetup.h"
 
-#if WITH_CHAOS
-
 struct FTriMeshCollisionData;
 
 namespace Chaos
@@ -47,4 +45,3 @@ namespace Chaos
 		FCookBodySetupInfo CookInfo;
 	};
 }
-#endif

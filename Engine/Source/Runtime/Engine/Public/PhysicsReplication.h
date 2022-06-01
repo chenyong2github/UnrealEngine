@@ -11,9 +11,7 @@
 #include "Engine/ReplicatedState.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
-#if WITH_CHAOS
 #include "Chaos/Particles.h"
-#endif
 
 namespace Chaos
 {
@@ -61,7 +59,6 @@ struct FReplicatedPhysicsTarget
 #endif
 };
 
-#if WITH_CHAOS
 struct ErrorCorrectionData
 {
 	float LinearVelocityCoefficient;
@@ -82,7 +79,6 @@ struct FAsyncPhysicsDesiredState
 	bool bShouldSleep;
 	int32 ServerFrame;
 };
-#endif
 
 struct FBodyInstance;
 struct FRigidBodyErrorCorrection;
@@ -129,20 +125,16 @@ private:
 	/** Get the ping from  */
 	float GetOwnerPing(const AActor* const Owner, const FReplicatedPhysicsTarget& Target) const;
 
-#if WITH_CHAOS
 	static void ApplyAsyncDesiredState(float DeltaSeconds, const FAsyncPhysicsRepCallbackData* Input);
-#endif
 
 private:
 	TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget> ComponentToTargets;
 	FPhysScene* PhysScene;
 
-#if WITH_CHAOS
 	FPhysicsReplicationAsyncCallback* AsyncCallback;
 	
 	void PrepareAsyncData_External(const FRigidBodyErrorCorrection& ErrorCorrection);	//prepare async data for writing. Call on external thread (i.e. game thread)
 	FAsyncPhysicsRepCallbackData* CurAsyncData;	//async data being written into before we push into callback
 	friend FPhysicsReplicationAsyncCallback;
-#endif
 
 };

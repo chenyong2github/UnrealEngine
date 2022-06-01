@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if WITH_CHAOS
-
 #include "SimulationEditorExtender.h"
 #include "Containers/BitArray.h"
 
@@ -33,5 +31,3 @@ namespace Chaos
 		TBitArray<> Flags;
 	};
 }
-
-#endif

@@ -86,8 +86,6 @@ static FAutoConsoleVariableRef CVarDefaultUseSubObjectReplicationList(
 	GDefaultUseSubObjectReplicationList,
 	TEXT("Do actors and actorcomponents replicate subobjects using the registration method by default."));
 
-
-#if WITH_CHAOS
 // Allows for CreatePhysicsState to be deferred, to batch work and parallelize.
 int32 GEnableDeferredPhysicsCreation = 0;
 FAutoConsoleVariableRef CVarEnableDeferredPhysicsCreation(
@@ -95,9 +93,6 @@ FAutoConsoleVariableRef CVarEnableDeferredPhysicsCreation(
 	GEnableDeferredPhysicsCreation,
 	TEXT("Enables/Disables deferred physics creation.")
 );
-#else
-int32 GEnableDeferredPhysicsCreation = 0;
-#endif
 
 void FRegisterComponentContext::Process()
 {
@@ -1230,7 +1225,6 @@ void UActorComponent::RegisterAllComponentTickFunctions(bool bRegister)
 
 void UActorComponent::RegisterAsyncPhysicsTickEnabled(bool bRegister)
 {
-#if WITH_CHAOS
 	if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(WorldPrivate->GetPhysicsScene()))
 	{
 		if (bRegister)
@@ -1242,12 +1236,10 @@ void UActorComponent::RegisterAsyncPhysicsTickEnabled(bool bRegister)
 			Scene->UnregisterAsyncPhysicsTickComponent(this);
 		}
 	}
-#endif
 }
 
 void UActorComponent::SetAsyncPhysicsTickEnabled(bool bEnable)
 {
-#if WITH_CHAOS
 	// Components don't have async physics functions until they are registered with the world
 	if(bRegistered)
 	{
@@ -1255,7 +1247,6 @@ void UActorComponent::SetAsyncPhysicsTickEnabled(bool bEnable)
 	}
 	
 	bAsyncPhysicsTickEnabled = bEnable;
-#endif
 }
 
 void UActorComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -1599,11 +1590,7 @@ void UActorComponent::OnDestroyPhysicsState()
 
 void UActorComponent::CreatePhysicsState(bool bAllowDeferral)
 {
-#if WITH_CHAOS
 	LLM_SCOPE(ELLMTag::Chaos);
-#else
-	LLM_SCOPE(ELLMTag::PhysX);
-#endif
 
 	SCOPE_CYCLE_COUNTER(STAT_ComponentCreatePhysicsState);
 
@@ -1632,11 +1619,7 @@ void UActorComponent::CreatePhysicsState(bool bAllowDeferral)
 
 		if (ShouldDefer)
 		{
-#if WITH_CHAOS
 			WorldPrivate->GetPhysicsScene()->DeferPhysicsStateCreation(Primitive);
-#else
-			check(false);
-#endif
 		}
 		else
 		{
@@ -1671,16 +1654,12 @@ void UActorComponent::DestroyPhysicsState()
 	}
 	else if(GEnableDeferredPhysicsCreation)
 	{
-#if WITH_CHAOS
 		UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(this);
 		if (PrimitiveComponent && PrimitiveComponent->DeferredCreatePhysicsStateScene != nullptr)
 		{
 			// We had to cache this scene because World ptr is null as we have unregistered already.
 			PrimitiveComponent->DeferredCreatePhysicsStateScene->RemoveDeferredPhysicsStateCreation(PrimitiveComponent);
 		}
-#else
-		check(false);
-#endif
 	}
 }
 

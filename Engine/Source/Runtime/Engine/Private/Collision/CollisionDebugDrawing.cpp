@@ -202,55 +202,6 @@ ENGINE_API void DrawCapsuleOverlap(const UWorld* InWorld,const FVector& Pos, con
 	}
 }
 
-#if PHYSICS_INTERFACE_PHYSX
-
-
-void DrawGeomOverlaps(const UWorld* InWorld, const PxGeometry& PGeom, const PxTransform& PGeomPose, TArray<struct FOverlapResult>& Overlaps, float Lifetime)
-{
-	FVector Pos = P2UVector(PGeomPose.p);
-	FQuat Rot = P2UQuat(PGeomPose.q);
-
-	if (PGeom.getType() == PxGeometryType::eBOX)
-	{
-		const PxBoxGeometry * Box = (PxBoxGeometry*)&PGeom;
-		DrawBoxOverlap(InWorld, Pos, P2UVector(Box->halfExtents), Rot, Overlaps, Lifetime);		
-	}
-	else if (PGeom.getType() == PxGeometryType::eSPHERE)
-	{
-		const PxSphereGeometry * Sphere = (PxSphereGeometry*)&PGeom;
-		DrawSphereOverlap(InWorld, Pos, Sphere->radius, Overlaps, Lifetime);		
-	}
-	else if (PGeom.getType() == PxGeometryType::eCAPSULE)
-	{
-		const PxCapsuleGeometry * Capsule = (PxCapsuleGeometry*)&PGeom;
-		// Convert here from PhysX to unreal definition of capsule height
-		DrawCapsuleOverlap(InWorld, Pos, Capsule->halfHeight + Capsule->radius, Capsule->radius, ConvertToUECapsuleRot(PGeomPose.q), Overlaps, Lifetime);		
-	}
-}
-
-void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& End, const PxGeometry& PGeom, const PxQuat& PGeomRot, const TArray<FHitResult>& Hits, float Lifetime)
-{
-	if (PGeom.getType() == PxGeometryType::eBOX)
-	{
-		const PxBoxGeometry * Box = (PxBoxGeometry*)&PGeom;
-		DrawBoxSweeps(InWorld, Start, End, P2UVector(Box->halfExtents), P2UQuat(PGeomRot), Hits, Lifetime);		
-	}
-	else if (PGeom.getType() == PxGeometryType::eSPHERE)
-	{
-		const PxSphereGeometry * Sphere = (PxSphereGeometry *)&PGeom;
-		DrawSphereSweeps(InWorld, Start, End, Sphere->radius, Hits, Lifetime);
-	}
-	else if (PGeom.getType() == PxGeometryType::eCAPSULE)
-	{
-		const PxCapsuleGeometry * Capsule = (PxCapsuleGeometry*)&PGeom;
-		// Convert here from PhysX to unreal definition of capsule height
-		DrawCapsuleSweeps(InWorld, Start, End, Capsule->halfHeight + Capsule->radius, Capsule->radius, ConvertToUECapsuleRot(PGeomRot), Hits, Lifetime);		
-	}
-}
-
-
-#endif // WITH_PHYSX
-
 void DrawGeomOverlaps(const UWorld* InWorld, const Chaos::FImplicitObject& Geom, const FTransform& GeomPose, TArray<struct FOverlapResult>& Overlaps, float Lifetime)
 {
 	using namespace Chaos;

@@ -224,7 +224,6 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 	bWaitForParallelClothTask = false;
 	bNotifySyncComponentToRBPhysics = false;
 
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	ClothMaxDistanceScale = 1.0f;
 	bResetAfterTeleport = true;
 	TeleportDistanceThreshold = 300.0f;
@@ -240,8 +239,6 @@ USkeletalMeshComponent::USkeletalMeshComponent(const FObjectInitializer& ObjectI
 
 	bBindClothToMasterComponent = false;
 	bClothingSimulationSuspended = false;
-	
-#endif//#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 #if WITH_EDITORONLY_DATA
 	DefaultPlayRate_DEPRECATED = 1.0f;
@@ -591,7 +588,6 @@ void USkeletalMeshComponent::OnRegister()
 		SetComponentTickEnabled(false);
 	}
 
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	// If no simulation factory is currently set, set it to the default factory
 	if (!ClothingSimulationFactory)
 	{
@@ -675,7 +671,6 @@ void USkeletalMeshComponent::OnRegister()
 	}
 
 	RecreateClothingActors();
-#endif  // #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 }
 
 void USkeletalMeshComponent::OnUnregister()
@@ -958,12 +953,8 @@ bool USkeletalMeshComponent::InitializeAnimScriptInstance(bool bForceReinit, boo
 
 bool USkeletalMeshComponent::IsWindEnabled() const
 {
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	// Wind is enabled in game worlds
 	return GetWorld() && GetWorld()->IsGameWorld();
-#else
-	return false;
-#endif
 }
 
 void USkeletalMeshComponent::ClearAnimScriptInstance()
@@ -2904,9 +2895,7 @@ FBoxSphereBounds USkeletalMeshComponent::CalcBounds(const FTransform& LocalToWor
 			NewBounds = NewBounds + FBoxSphereBounds(ComponentLocation, FVector(1.0f), 1.0f);
 		}
 
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 		AddClothingBounds(NewBounds, CachedBoundsTransform);
-#endif// #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 		CachedWorldOrLocalSpaceBounds = NewBounds;
 		bCachedLocalBoundsUpToDate = bCacheLocalSpaceBounds;
@@ -2975,9 +2964,7 @@ void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRe
 		
 		InitAnim(bReinitPose);
 
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 		RecreateClothingActors();
-#endif
 	}
 
 	// Mark cached material parameter names dirty

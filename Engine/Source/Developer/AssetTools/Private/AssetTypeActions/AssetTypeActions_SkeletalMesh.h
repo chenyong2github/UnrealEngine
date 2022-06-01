@@ -55,11 +55,6 @@ private:
 	/** Handler for skeletal mesh import */
 	static void ExecuteImportMeshLOD(class UObject* Mesh, int32 LOD);
 
-#if WITH_APEX_CLOTHING
-	/** Handler to import clothing to a mesh */
-	void ExecuteImportClothing(TArray<TWeakObjectPtr<USkeletalMesh>> Objects);
-#endif
-
 	// Helper functions
 private:
 	/** Assigns a skeleton to the mesh */

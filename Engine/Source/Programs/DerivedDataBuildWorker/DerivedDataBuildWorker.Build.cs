@@ -23,8 +23,6 @@ public abstract class DerivedDataBuildWorkerTarget : TargetRules
 		bCompileNavmeshSegmentLinks		= false;
 		bCompileRecast					= false;
 		bCompileICU 					= false;
-		bCompileChaos					= false;
-		bUseChaos						= false;
 		bWithLiveCoding					= false;
 		bBuildDeveloperTools			= false;
 		bUseMallocProfiler				= false;

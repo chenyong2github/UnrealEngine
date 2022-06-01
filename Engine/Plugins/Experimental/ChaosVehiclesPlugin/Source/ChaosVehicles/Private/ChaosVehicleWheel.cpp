@@ -120,19 +120,6 @@ void UChaosVehicleWheel::Init( UChaosWheeledVehicleMovementComponent* InVehicleS
 	VehicleComponent = InVehicleSim;
 	WheelIndex = InWheelIndex;
 
-//#if WITH_PHYSX_VEHICLES
-//	WheelShape = NULL;
-//
-//	FChaosVehicleManager* VehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(VehicleSim->GetWorld()->GetPhysicsScene());
-//	SCOPED_SCENE_READ_LOCK(VehicleManager->GetScene());
-//
-//	const int32 WheelShapeIdx = VehicleSim->PVehicle->mWheelsSimData.getWheelShapeMapping( WheelIndex );
-//	check(WheelShapeIdx >= 0);
-//
-//	VehicleSim->PVehicle->getRigidDynamicActor()->getShapes( &WheelShape, 1, WheelShapeIdx );
-//	check(WheelShape);
-//#endif // WITH_PHYSX
-
 	Location = GetPhysicsLocation();
 	OldLocation = Location;
 }

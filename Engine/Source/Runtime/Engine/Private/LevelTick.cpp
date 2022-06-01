@@ -1662,14 +1662,6 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 
 		FWorldDelegates::OnWorldPostActorTick.Broadcast(this, TickType, DeltaSeconds);
 
-#if PHYSICS_INTERFACE_PHYSX
-		if ( PhysicsScene != nullptr )
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(GPhysCommandHandler);
-			GPhysCommandHandler->Flush();
-		}
-#endif // WITH_PHYSX
-		
 		// All tick is done, execute async trace
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FinishAsyncTrace);

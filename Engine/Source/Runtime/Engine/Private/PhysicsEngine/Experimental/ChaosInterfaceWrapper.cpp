@@ -21,7 +21,6 @@ namespace ChaosInterface
 		return UserData ? FChaosUserData::Get<UPhysicalMaterial>(UserData) : nullptr;
 	}
 
-#if WITH_CHAOS
 	FScopedSceneReadLock::FScopedSceneReadLock(FPhysScene_Chaos& SceneIn)
 		: Solver(SceneIn.GetSolver())
 	{
@@ -38,5 +37,4 @@ namespace ChaosInterface
 			Solver->GetExternalDataLock_External().ReadUnlock();
 		}
 	}
-#endif
 }

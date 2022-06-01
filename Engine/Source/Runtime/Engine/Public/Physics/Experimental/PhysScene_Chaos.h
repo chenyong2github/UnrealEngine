@@ -2,7 +2,6 @@
 
 #pragma once
 
-#if WITH_CHAOS
 #include "CoreMinimal.h"
 #include "Tickable.h"
 #include "Physics/PhysScene.h"
@@ -99,19 +98,11 @@ public:
 
 	using Super = FChaosScene;
 	
-#if !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	FPhysScene_Chaos(AActor* InSolverActor
-#if CHAOS_DEBUG_NAME
-	, const FName& DebugName=NAME_None
-#endif
-);
-#else
 	FPhysScene_Chaos(AActor* InSolverActor=nullptr
 #if CHAOS_DEBUG_NAME
 	, const FName& DebugName=NAME_None
 #endif
 );
-#endif
 
 	virtual ~FPhysScene_Chaos();
 
@@ -208,9 +199,7 @@ public:
 
 	static bool SupportsOriginShifting();
 	void ApplyWorldOffset(FVector InOffset);
-#if WITH_CHAOS
 	virtual float OnStartFrame(float InDeltaTime) override;
-#endif
 
 	bool HandleExecCommands(const TCHAR* Cmd, FOutputDevice* Ar);
 	void ListAwakeRigidBodies(bool bIncludeKinematic);
@@ -296,9 +285,7 @@ private:
 	bool IsOwningWorldEditor() const;
 #endif
 
-#if WITH_CHAOS
 	virtual void OnSyncBodies(Chaos::FPhysicsSolverBase* Solver) override;
-#endif
 
 	void EnableAsyncPhysicsTickCallback();
 
@@ -369,9 +356,7 @@ private:
 	/** The SolverActor that spawned and owns this scene */
 	TWeakObjectPtr<AActor> SolverActor;
 
-#if WITH_CHAOS
 	Chaos::FReal LastEventDispatchTime;
-#endif 
 	class FAsyncPhysicsTickCallback* AsyncPhysicsTickCallback = nullptr;
 
 #if WITH_EDITOR
@@ -388,4 +373,3 @@ private:
 	friend struct FScopedSceneLock_Chaos;
 };
 
-#endif

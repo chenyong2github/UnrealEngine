@@ -11,7 +11,6 @@
 
 FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhysXMaterial;
 
-#if WITH_CHAOS
 #include "ChaosInterfaceWrapperCore.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/Sphere.h"
@@ -671,14 +670,12 @@ FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const FPhys
 	return FVector(0);
 }
 
-#if WITH_CHAOS
 FVector FChaosEngineInterface::GetWorldVelocityAtPoint_AssumesLocked(const Chaos::FRigidBodyHandle_Internal* Body_Internal, const FVector& InPoint)
 {
 	const Chaos::FVec3 COM = Body_Internal->CanTreatAsRigid() ? Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Body_Internal) : (Chaos::FVec3)Chaos::FParticleUtilitiesGT::GetActorWorldTransform(Body_Internal).GetTranslation();
 	const Chaos::FVec3 Diff = InPoint - COM;
 	return Body_Internal->V() - Chaos::FVec3::CrossProduct(Diff, Body_Internal->W());
 }
-#endif
 
 FTransform FChaosEngineInterface::GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
@@ -1806,61 +1803,3 @@ void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActor
 	FChaosScene* Scene = GetCurrentScene(InActorReference);
 	Scene->UpdateActorInAccelerationStructure(InActorReference);
 }
-
-#elif WITH_ENGINE //temp physx code to make moving out of engine easier
-
-#include "PhysXSupportCore.h"
-
-FPhysicsMaterialHandle FChaosEngineInterface::CreateMaterial(const UPhysicalMaterial* InMaterial)
-{
-	check(GPhysXSDK);
-
-	FPhysicsMaterialHandle_PhysX NewRef;
-
-	const float Friction = InMaterial->Friction;
-	const float Restitution = InMaterial->Restitution;
-
-	NewRef.Material = GPhysXSDK->createMaterial(Friction,Friction,Restitution);
-
-	return NewRef;
-}
-
-void FChaosEngineInterface::ReleaseMaterial(FPhysicsMaterialHandle_PhysX& InHandle)
-{
-	if(InHandle.IsValid())
-	{
-		InHandle.Material->userData = nullptr;
-		GPhysXPendingKillMaterial.Add(InHandle.Material);
-		InHandle.Material = nullptr;
-	}
-}
-
-void FChaosEngineInterface::UpdateMaterial(FPhysicsMaterialHandle_PhysX& InHandle,UPhysicalMaterial* InMaterial)
-{
-	if(InHandle.IsValid())
-	{
-		PxMaterial* PMaterial = InHandle.Material;
-
-		PMaterial->setStaticFriction(InMaterial->Friction);
-		PMaterial->setDynamicFriction(InMaterial->Friction);
-		PMaterial->setRestitution(InMaterial->Restitution);
-
-		const uint32 UseFrictionCombineMode = (InMaterial->bOverrideFrictionCombineMode ? InMaterial->FrictionCombineMode.GetValue() : UPhysicsSettingsCore::Get()->FrictionCombineMode.GetValue());
-		PMaterial->setFrictionCombineMode(static_cast<physx::PxCombineMode::Enum>(UseFrictionCombineMode));
-
-		const uint32 UseRestitutionCombineMode = (InMaterial->bOverrideRestitutionCombineMode ? InMaterial->RestitutionCombineMode.GetValue() : UPhysicsSettingsCore::Get()->RestitutionCombineMode.GetValue());
-		PMaterial->setRestitutionCombineMode(static_cast<physx::PxCombineMode::Enum>(UseRestitutionCombineMode));
-
-		FPhysicsDelegatesCore::OnUpdatePhysXMaterial.Broadcast(InMaterial);
-	}
-}
-
-void FChaosEngineInterface::SetUserData(FPhysicsMaterialHandle_PhysX& InHandle,void* InUserData)
-{
-	if(InHandle.IsValid())
-	{
-		InHandle.Material->userData = InUserData;
-	}
-}
-
-#endif

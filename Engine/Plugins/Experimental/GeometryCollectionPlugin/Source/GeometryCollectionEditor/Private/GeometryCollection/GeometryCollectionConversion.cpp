@@ -265,12 +265,7 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 			CreateGeometryParams.LocalTransform = Chaos::FRigidTransform3::Identity;
 			CreateGeometryParams.WorldTransform = Chaos::FRigidTransform3::Identity;
 			CreateGeometryParams.Geometry = &BodySetup->AggGeom;
-#if PHYSICS_INTERFACE_PHYSX
-			AddParams.TriMeshes = TArrayView<PxTriangleMesh*>(BodySetup->TriMeshes);
-#endif
-#if WITH_CHAOS
 			CreateGeometryParams.ChaosTriMeshes = MakeArrayView(BodySetup->ChaosTriMeshes);
-#endif
 
 			// todo(chaos) : this currently also create the shape array which is unnecessary ,this could be optimized by having a common function to create only the implicits 
 			ChaosInterface::CreateGeometry(CreateGeometryParams, Geoms, Shapes);

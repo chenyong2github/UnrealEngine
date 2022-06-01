@@ -29,10 +29,6 @@
 
 #include "ObjectTools.h"
 
-#if WITH_APEX_CLOTHING
-	#include "ApexClothingUtils.h"
-#endif // #if WITH_APEX_CLOTHING
-
 #include "ComponentReregisterContext.h"
 #include "IMeshReductionManagerModule.h"
 #include "Animation/SkinWeightProfile.h"

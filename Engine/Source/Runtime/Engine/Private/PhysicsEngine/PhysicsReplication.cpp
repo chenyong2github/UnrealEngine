@@ -20,16 +20,10 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/DemoNetDriver.h"
 
-#if WITH_CHAOS
 #include "Chaos/ChaosMarshallingManager.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PBDRigidsSolver.h"
 #include "Chaos/PBDRigidsEvolutionGBF.h"
-#endif
-
-#if WITH_PHYSX
-#include "PhysXPublic.h"
-#endif 
 
 namespace CharacterMovementCVars
 {
@@ -98,7 +92,6 @@ namespace PhysicsReplicationCVars
 #endif
 }
 
-#if WITH_CHAOS
 struct FAsyncPhysicsRepCallbackData : public Chaos::FSimCallbackInput
 {
 	TArray<FAsyncPhysicsDesiredState> Buffer;
@@ -117,7 +110,6 @@ class FPhysicsReplicationAsyncCallback final : public Chaos::TSimCallbackObject<
 		FPhysicsReplication::ApplyAsyncDesiredState(GetDeltaTime_Internal(), GetConsumerInput_Internal());
 	}
 };
-#endif
 
 void ComputeDeltas(const FVector& CurrentPos, const FQuat& CurrentQuat, const FVector& TargetPos, const FQuat& TargetQuat, FVector& OutLinDiff, float& OutLinDiffSize,
 	FVector& OutAngDiffAxis, float& OutAngDiff, float& OutAngDiffSize)
@@ -133,7 +125,6 @@ void ComputeDeltas(const FVector& CurrentPos, const FQuat& CurrentQuat, const FV
 
 FPhysicsReplication::~FPhysicsReplication()
 {
-#if WITH_CHAOS
 	if (AsyncCallback)
 	{
 		if (auto* Solver = PhysScene->GetSolver())
@@ -141,7 +132,6 @@ FPhysicsReplication::~FPhysicsReplication()
 			Solver->UnregisterAndFreeSimCallbackObject_External(AsyncCallback);
 		}
 	}
-#endif
 }
 
 bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance* BI, FReplicatedPhysicsTarget& PhysicsTarget, const FRigidBodyErrorCorrection& ErrorCorrection, const float InPingSecondsOneWay, int32 LocalFrame, int32 NumPredictedFrames)
@@ -397,9 +387,7 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 		else
 		{
 			// Small enough error to interpolate
-#if WITH_CHAOS
 			if (AsyncCallback == nullptr)	//sync case
-#endif
 			{
 				const FVector NewLinVel = FVector(NewState.LinVel) + (LinDiff * LinearVelocityCoefficient * DeltaSeconds);
 				const FVector NewAngVel = FVector(NewState.AngVel) + (AngDiffAxis * AngDiff * AngularVelocityCoefficient * DeltaSeconds);
@@ -411,7 +399,6 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 				BI->SetLinearVelocity(NewLinVel, false);
 				BI->SetAngularVelocityInRadians(FMath::DegreesToRadians(NewAngVel), false);
 			}
-#if WITH_CHAOS
 			else
 			{
 				//If async is used, enqueue for callback
@@ -428,7 +415,6 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 			}
 
 
-#endif
 		}
 
 		// Should we show the async part?
@@ -450,8 +436,6 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 	}
 
 	/////// SLEEP UPDATE ///////
-
-#if WITH_CHAOS
 	if (bShouldSleep)
 	{
 		// In the async case, we apply sleep state in ApplyAsyncDesiredState
@@ -460,7 +444,6 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 			BI->PutInstanceToSleep();
 		}
 	}
-#endif
 
 	PhysicsTarget.PrevPosTarget = TargetPos;
 	PhysicsTarget.PrevPos = FVector(CurrentState.Position);
@@ -524,6 +507,8 @@ float FPhysicsReplication::GetOwnerPing(const AActor* const Owner, const FReplic
 
 void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimitiveComponent>, FReplicatedPhysicsTarget>& ComponentsToTargets)
 {
+	using namespace Chaos;
+
 	int32 LocalFrameOffset = 0;		// LocalFrame = ServerFrame + LocalFrameOffset;
 	int32 NumPredictedFrames = 0;	// How many frames "ahead" of the server we are predicting. That is, how many frames are in flight between us and the server.
 
@@ -544,13 +529,10 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 	}
 
 	const FRigidBodyErrorCorrection& PhysicErrorCorrection = UPhysicsSettings::Get()->PhysicErrorCorrection;
-#if WITH_CHAOS
-	using namespace Chaos;
 	if(AsyncCallback)
 	{
 		PrepareAsyncData_External(PhysicErrorCorrection);
 	}
-#endif
 
 	// Get the ping between this PC & the server
 	const float LocalPing = GetLocalPing();
@@ -608,9 +590,7 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 		}
 	}
 
-#if WITH_CHAOS
 	CurAsyncData = nullptr;
-#endif
 }
 
 void FPhysicsReplication::Tick(float DeltaSeconds)
@@ -621,7 +601,6 @@ void FPhysicsReplication::Tick(float DeltaSeconds)
 FPhysicsReplication::FPhysicsReplication(FPhysScene* InPhysicsScene)
 : PhysScene(InPhysicsScene)
 {
-#if WITH_CHAOS
 	using namespace Chaos;
 	CurAsyncData = nullptr;
 	AsyncCallback = nullptr;
@@ -629,10 +608,7 @@ FPhysicsReplication::FPhysicsReplication(FPhysScene* InPhysicsScene)
 	{
 		AsyncCallback = Solver->CreateAndRegisterSimCallbackObject_External<FPhysicsReplicationAsyncCallback>();
 	}
-#endif
 }
-
-#if WITH_CHAOS
 
 void FPhysicsReplication::PrepareAsyncData_External(const FRigidBodyErrorCorrection& ErrorCorrection)
 {
@@ -719,7 +695,6 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 		}
 	}
 }
-#endif
 
 void FPhysicsReplication::SetReplicatedTarget(UPrimitiveComponent* Component, FName BoneName, const FRigidBodyState& ReplicatedTarget, int32 ServerFrame)
 {

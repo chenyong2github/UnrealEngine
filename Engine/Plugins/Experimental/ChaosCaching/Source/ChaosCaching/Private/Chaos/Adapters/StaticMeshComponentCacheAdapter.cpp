@@ -59,14 +59,11 @@ namespace Chaos
 
 	void FStaticMeshCacheAdapter::Record_PostSolve(UPrimitiveComponent* InComponent, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const
 	{
-#if WITH_CHAOS
-
 		UStaticMeshComponent* MeshComp = CastChecked<UStaticMeshComponent>(InComponent);
 
 		FSingleParticlePhysicsProxy* PhysProxy = MeshComp->BodyInstance.ActorHandle;
 
 		RecordToCacheInternal(PhysProxy, InRootTransform, OutFrame, InTime);
-#endif // WITH_CHAOS
 	}
 
 	void PlayFromCacheInternal(FSingleParticlePhysicsProxy* InProxy, UChaosCache* InCache, FPlaybackTickRecord& TickRecord, TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids) 
@@ -103,14 +100,11 @@ namespace Chaos
 
 	void FStaticMeshCacheAdapter::Playback_PreSolve(UPrimitiveComponent* InComponent, UChaosCache* InCache, Chaos::FReal InTime, FPlaybackTickRecord& TickRecord, TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids) const
 	{
-#if WITH_CHAOS
-
 		UStaticMeshComponent* MeshComp = CastChecked<UStaticMeshComponent>(InComponent);
 
 		FSingleParticlePhysicsProxy* PhysProxy = MeshComp->BodyInstance.ActorHandle;
 
 		PlayFromCacheInternal(PhysProxy, InCache, TickRecord, OutUpdatedRigids);
-#endif // WITH_CHAOS
 	}
 
 	FGuid FStaticMeshCacheAdapter::GetGuid() const
@@ -129,8 +123,6 @@ namespace Chaos
 
 	Chaos::FPhysicsSolver* FStaticMeshCacheAdapter::GetComponentSolver(UPrimitiveComponent* InComponent) const
 	{
-#if WITH_CHAOS
-
 		if(InComponent && InComponent->GetWorld())
 		{
 			UWorld* ComponentWorld = InComponent->GetWorld();
@@ -140,7 +132,6 @@ namespace Chaos
 				return WorldScene->GetSolver();
 			}
 		}
-#endif // WITH_CHAOS
 
 		return nullptr;
 	}
@@ -179,14 +170,10 @@ namespace Chaos
 	{
 		EnsureIsInGameThreadContext();
 
-
-#if WITH_CHAOS
-
 		if(Cast<UStaticMeshComponent>(InComponent) && InComponent->GetBodyInstance() && InComponent->GetBodyInstance()->ActorHandle)
 		{
 			FPhysInterface_Chaos::SetIsKinematic_AssumesLocked(InComponent->GetBodyInstance()->ActorHandle, true);
 		}
-#endif // WITH_CHAOS
 
 		return true;
 	}

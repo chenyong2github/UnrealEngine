@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_CHAOS
 #include "Physics/Experimental/PhysScene_Chaos.h"
-
 
 #include "CoreMinimal.h"
 #include "GameDelegates.h"
@@ -405,9 +403,7 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	)
 	, PhysicsReplication(nullptr)
 	, SolverActor(InSolverActor)
-#if WITH_CHAOS
 	, LastEventDispatchTime(Chaos::FReal(-1))
-#endif
 #if WITH_EDITOR
 	, SingleStepCounter(0)
 #endif
@@ -415,7 +411,6 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	, bIsWorldPaused(false)
 #endif
 {
-#if WITH_CHAOS
 	LLM_SCOPE(ELLMTag::ChaosScene);
 
 	PhysicsProxyToComponentMap.Reset();
@@ -441,13 +436,10 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 	PhysicsReplication = PhysicsReplicationFactory.IsValid() ? PhysicsReplicationFactory->Create(this) : new FPhysicsReplication(this);
 
 	FPhysicsDelegates::OnPhysSceneInit.Broadcast(this);
-#endif
 }
 
 FPhysScene_Chaos::~FPhysScene_Chaos()
 {
-#if WITH_CHAOS
-
 	if (AsyncPhysicsTickCallback)
 	{
 		SceneSolver->UnregisterAndFreeSimCallbackObject_External(AsyncPhysicsTickCallback);
@@ -466,7 +458,6 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 	{
 		delete PhysicsReplication;
 	}
-#endif
 
 #if CHAOS_WITH_PAUSABLE_SOLVER
 	if (SyncCaller)
@@ -476,7 +467,7 @@ FPhysScene_Chaos::~FPhysScene_Chaos()
 #endif
 }
 
-#if WITH_EDITOR && WITH_CHAOS
+#if WITH_EDITOR
 bool FPhysScene_Chaos::IsOwningWorldEditor() const
 {
 	const UWorld* WorldPtr = GetOwningWorld();
@@ -629,7 +620,6 @@ void FPhysScene_Chaos::RemoveObject(Chaos::FSingleParticlePhysicsProxy* InObject
 
 void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 {
-#if WITH_CHAOS
 	Chaos::FPhysicsSolver* Solver = InObject->GetSolver<Chaos::FPhysicsSolver>();
 
 	for (TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>& GTParticleUnique : InObject->GetExternalParticles())
@@ -648,7 +638,6 @@ void FPhysScene_Chaos::RemoveObject(FGeometryCollectionPhysicsProxy* InObject)
 	}
 
 	RemoveFromComponentMaps(InObject);
-#endif
 }
 
 FPhysicsReplication* FPhysScene_Chaos::GetPhysicsReplication()
@@ -711,7 +700,6 @@ FCollisionNotifyInfo& FPhysScene_Chaos::GetPendingCollisionForContactPair(const 
 
 void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& Event)
 {
-#if WITH_CHAOS
 	ContactPairToPendingNotifyMap.Reset();
 
 	TMap<IPhysicsProxyBase*, TArray<int32>> const& PhysicsProxyToCollisionIndicesMap = Event.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap;
@@ -796,7 +784,6 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 
 	// Tell the world and actors about the collisions
 	DispatchPendingCollisionNotifies();
-#endif
 }
 
 void FPhysScene_Chaos::DispatchPendingCollisionNotifies()
@@ -905,8 +892,6 @@ void FPhysScene_Chaos::RemoveFromComponentMaps(IPhysicsProxyBase* InObject)
 
 	PhysicsProxyToComponentMap.Remove(InObject);
 }
-
-#if WITH_CHAOS
 
 void FPhysScene_Chaos::OnWorldBeginPlay()
 {
@@ -1890,5 +1875,3 @@ void FPhysScene_Chaos::UnregisterAsyncPhysicsTickActor(AActor* Actor)
 
 TSharedPtr<IPhysicsReplicationFactory> FPhysScene_Chaos::PhysicsReplicationFactory;
 
-#endif // WITH_CHAOS
-#endif

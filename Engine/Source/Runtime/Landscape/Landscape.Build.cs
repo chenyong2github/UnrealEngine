@@ -39,10 +39,6 @@ public class Landscape : ModuleRules
 		);
 
 		SetupModulePhysicsSupport(Target);
-		if (Target.bCompilePhysX && Target.bBuildEditor)
-		{
-			DynamicallyLoadedModuleNames.Add("PhysXCooking");
-		}
 
 		if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
 		{

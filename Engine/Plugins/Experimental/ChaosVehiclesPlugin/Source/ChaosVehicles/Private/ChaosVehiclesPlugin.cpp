@@ -16,14 +16,11 @@ IMPLEMENT_MODULE( IChaosVehiclesPlugin, ChaosVehicles )
 
 void IChaosVehiclesPlugin::PhysSceneInit(FPhysScene* PhysScene)
 {
-#if WITH_CHAOS
 	new FChaosVehicleManager(PhysScene);
-#endif
 }
 
 void IChaosVehiclesPlugin::PhysSceneTerm(FPhysScene* PhysScene)
 {
-#if WITH_CHAOS
 	FChaosVehicleManager* VehicleManager = FChaosVehicleManager::GetVehicleManagerFromScene(PhysScene);
 	if (VehicleManager != nullptr)
 	{
@@ -31,11 +28,7 @@ void IChaosVehiclesPlugin::PhysSceneTerm(FPhysScene* PhysScene)
 		delete VehicleManager;
 		VehicleManager = nullptr;
 	}
-#endif // WITH_CHAOS
 }
-
-
-
 
 void IChaosVehiclesPlugin::StartupModule()
 {

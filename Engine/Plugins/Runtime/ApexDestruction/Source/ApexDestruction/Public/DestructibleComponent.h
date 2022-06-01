@@ -17,14 +17,6 @@ struct FBodyInstance;
 struct FCollisionShape;
 struct FNavigableGeometryExport;
 
-#if WITH_PHYSX
-namespace physx
-{
-	class PxRigidDynamic;
-	class PxRigidActor;
-}
-#endif // WITH_PHYSX 
-
 /** Delegate for notification when fracture occurs */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FComponentFractureSignature, const FVector &, HitPoint, const FVector &, HitDirection);
 
@@ -193,19 +185,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	/** Collision response used for chunks */
 	FCollisionResponse LargeChunkCollisionResponse;
 	FCollisionResponse SmallChunkCollisionResponse;
-#if WITH_PHYSX
-	/** User data wrapper for this component passed to physx */
-	FPhysxUserData PhysxUserData;
-
-	void SetCollisionResponseForShape(physx::PxShape* Shape, int32 ChunkIdx);
-	void SetCollisionResponseForActor(physx::PxRigidDynamic* Actor, int32 ChunkIdx, const FCollisionResponseContainer* ResponseOverride = NULL);
-
-
-public:
-	/** User data wrapper for the chunks passed to physx */
-	TArray<FPhysxUserData> PhysxChunkUserData;
-	bool IsChunkLarge(physx::PxRigidActor* ChunkActor) const;
-#endif
 
 private:
 	/** Cached values for computing contact offsets */

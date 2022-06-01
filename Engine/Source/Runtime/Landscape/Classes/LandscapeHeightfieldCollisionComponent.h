@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -26,16 +25,8 @@ struct FNavigableGeometryExport;
 
 namespace Chaos
 {
-class FHeightField;
+	class FHeightField;
 }
-
-#if WITH_PHYSX
-namespace physx
-{
-	class PxMaterial;
-	class PxHeightField;
-}
-#endif // WITH_PHYSX
 
 UCLASS(MinimalAPI, Within=LandscapeProxy)
 class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
@@ -92,24 +83,13 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	{
 		FGuid Guid;
 
-#if WITH_PHYSX
-		/** List of PxMaterials used on this landscape */
-		TArray<physx::PxMaterial*> UsedPhysicalMaterialArray;
-		physx::PxHeightField* RBHeightfield = nullptr;
-		physx::PxHeightField* RBHeightfieldSimple = nullptr;
-#if WITH_EDITORONLY_DATA
-		physx::PxHeightField* RBHeightfieldEd = nullptr; // Used only by landscape editor, does not have holes in it
-#endif	//WITH_EDITORONLY_DATA
-#endif	//WITH_PHYSX
-
-#if WITH_CHAOS
 		TArray<Chaos::FMaterialHandle> UsedChaosMaterials;
 		TUniquePtr<Chaos::FHeightField> Heightfield;
 	    TUniquePtr<Chaos::FHeightField> HeightfieldSimple;
+
 #if WITH_EDITORONLY_DATA
 		TUniquePtr<Chaos::FHeightField> EditorHeightfield;
 #endif // WITH_EDITORONLY_DATA
-#endif // WITH_CHAOS
 
 		FHeightfieldGeometryRef(FGuid& InGuid);
 

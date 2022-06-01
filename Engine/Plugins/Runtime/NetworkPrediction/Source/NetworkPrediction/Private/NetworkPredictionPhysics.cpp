@@ -6,8 +6,6 @@
 #include "Components/PrimitiveComponent.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
-#if WITH_CHAOS
-
 // -------------------------------------------------------------------------------------------------------------------------
 //	Interpolation related functions. These require calls to the UPrimitiveComponent and cannot be implemented via FBodyInstance
 //
@@ -174,4 +172,3 @@ void FNetworkPredictionPhysicsState::ToString(FBodyInstance* BodyInstance, FAnsi
 		Builder.Append("Null BodyInstance\n");
 	}
 }
-#endif // WITH_CHAOS

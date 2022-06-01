@@ -12,7 +12,7 @@
 #include "AnimationEditorPreviewScene.h"
 
 #ifndef CHAOS_SIMULATION_DETAIL_VIEW_FACTORY_SELECTOR  // TODO: Decide whether to keep the detail view cloth selector after nvcloth has been removed
-#define CHAOS_SIMULATION_DETAIL_VIEW_FACTORY_SELECTOR WITH_CHAOS
+	#define CHAOS_SIMULATION_DETAIL_VIEW_FACTORY_SELECTOR 1
 #endif
 
 struct FAssetData;

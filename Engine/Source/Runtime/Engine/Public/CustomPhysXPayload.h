@@ -5,8 +5,6 @@
 #include "EngineDefines.h"
 #include "Components/PrimitiveComponent.h"
 
-#if WITH_PHYSX
-
 namespace physx
 {
 	class PxRigidActor;
@@ -55,4 +53,3 @@ struct FCustomPhysXPayload
 	FCustomPhysXSyncActors* CustomSyncActors;
 };
 
-#endif // WITH_PHYSICS

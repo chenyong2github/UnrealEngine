@@ -32,11 +32,6 @@
 #include "InterchangeProjectSettings.h"
 #include "Settings/EditorExperimentalSettings.h"
 
-#if WITH_APEX_CLOTHING
-	#include "ApexClothingUtils.h"
-#endif // #if WITH_APEX_CLOTHING
-
-
 #include "Misc/FbxErrors.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"

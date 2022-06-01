@@ -7,19 +7,14 @@
 #include "PhysicsInterfaceDeclares.h"
 #include "BodySetupEnums.h"
 #include "PhysicsInterfaceTypesCore.h"
-
-#if WITH_CHAOS
 #include "Chaos/Serializable.h"
 
 namespace Chaos
 {
 	class FImplicitObjectUnion;
-
 	class FImplicitObject;
-
 	class FTriangleMeshImplicitObject;
 }
-#endif
 
 class UPhysicalMaterialMask;
 class UMaterialInterface;
@@ -34,12 +29,6 @@ class UMaterialInterface;
 #endif
 
 struct FKAggregateGeom;
-
-namespace physx
-{
-	class PxShape;
-	class PxTriangleMesh;
-}
 
 struct FPhysicalMaterialMaskParams
 {
@@ -58,17 +47,9 @@ struct FGeometryAddParams
 	FVector Scale;
 	UPhysicalMaterial* SimpleMaterial;
 	TArrayView<UPhysicalMaterial*> ComplexMaterials;
-#if WITH_CHAOS
 	TArrayView<FPhysicalMaterialMaskParams> ComplexMaterialMasks;
-#endif
 	FTransform LocalTransform;
 	FTransform WorldTransform;
 	FKAggregateGeom* Geometry;
-	// FPhysicsInterfaceTriMesh - Per implementation
-#if WITH_PHYSX
-	TArrayView<physx::PxTriangleMesh*> TriMeshes;
-#endif
-#if WITH_CHAOS
 	TArrayView<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> ChaosTriMeshes;
-#endif
 };

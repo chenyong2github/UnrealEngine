@@ -20,12 +20,10 @@ namespace ChaosInterface
 	 */
 	void ENGINE_API CreateGeometry(const FGeometryAddParams& InParams, TArray<TUniquePtr<Chaos::FImplicitObject>>& OutGeoms, Chaos::FShapesArray& OutShapes);
 
-#if WITH_CHAOS
 	/**
 	 * Generate the mass properties for a set of shapes in the space of the shapes' owner. 
 	 * Rotation will be built into the inertia matrix (it may not be diagonal) and RotationOfMass will be identity.
 	*/
 	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM);
 	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const Chaos::FShapesArray& InShapes, const TArray<bool>& bContributesToMass, float InDensityKGPerCM);
-#endif
 }

@@ -738,15 +738,6 @@ namespace UnrealBuildTool
 
 		public override void ResetTarget(TargetRules Target)
 		{
-			// we currently don't have any simulator libs for PhysX
-			if (Target.Architecture == "-simulator")
-			{
-				Target.bCompilePhysX = false;
-			}
-
-			Target.bCompileAPEX = false;
-			Target.bCompileNvCloth = false;
-
 			Target.bDeployAfterCompile = true;
 
 			Target.IOSPlatform.ProjectSettings = ((IOSPlatform)GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);

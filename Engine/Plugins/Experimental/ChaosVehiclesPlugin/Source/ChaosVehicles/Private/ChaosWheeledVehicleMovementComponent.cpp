@@ -583,7 +583,6 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 
 		if (!GWheeledVehicleDebugParams.DisableConstraintSuspension)
 		{
-#if WITH_CHAOS
 			if (WheelIdx < ConstraintHandles.Num())
 			{
 				FPhysicsConstraintHandle& ConstraintHandle = ConstraintHandles[WheelIdx];
@@ -602,7 +601,6 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 					}
 				}
 			}
-#endif // WITH_CHAOS
 		}
 
 		if (PWheel.InContact())
@@ -1138,7 +1136,6 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 						{
 							FPhysicsCommand::ExecuteWrite(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Chassis)
 								{
-#if WITH_CHAOS
 									const FVector LocalWheel = GetWheelRestingPosition(WheelSetup);
 									FPhysicsConstraintHandle ConstraintHandle = FPhysicsInterface::CreateSuspension(Chassis, LocalWheel);
 
@@ -1158,7 +1155,6 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 											Constraint->SetAxis(-Wheel->SuspensionAxis);
 										}
 									}
-#endif // WITH_CHAOS
 								});
 						}
 					}
@@ -1633,7 +1629,6 @@ void UChaosWheeledVehicleMovementComponent::Update(float DeltaTime)
 {
 	UChaosVehicleMovementComponent::Update(DeltaTime);
 
-#if WITH_CHAOS
 	if (CurAsyncInput)
 	{
 		if (const FBodyInstance* BodyInstance = GetBodyInstance())
@@ -1654,7 +1649,6 @@ void UChaosWheeledVehicleMovementComponent::Update(float DeltaTime)
 			}
 		}
 	}
-#endif
 }
 
 

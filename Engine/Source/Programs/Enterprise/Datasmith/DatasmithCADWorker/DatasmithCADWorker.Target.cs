@@ -34,9 +34,6 @@ public class DatasmithCADWorkerTarget : TargetRules
 
 		bLegalToDistributeBinary = true;
 
-		bCompilePhysX = false;
-		bCompileAPEX = false;
-		bCompileNvCloth = false;
 		bCompileICU = false;
 		bCompileCEF3 = false;
 

@@ -12,13 +12,6 @@
 class FPrimitiveDrawInterface;
 class USkeletalMeshComponent;
 
-#if PHYSICS_INTERFACE_PHYSX
-namespace physx
-{
-	class PxRigidDynamic;
-}
-#endif
-
 /** Stores info on the type of motor that will be used for a given bone */
 USTRUCT(BlueprintType)
 struct ENGINE_API FPhysicalAnimationData
@@ -129,11 +122,7 @@ private:
 	struct FPhysicalAnimationInstanceData
 	{
 		struct FConstraintInstance* ConstraintInstance;
-#if WITH_CHAOS
 		FPhysicsActorHandle TargetActor;
-#else
-		physx::PxRigidDynamic* TargetActor;
-#endif
 	};
 
 	/** constraints used to apply the drive data */

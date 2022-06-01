@@ -4,20 +4,8 @@
 
 #include "Math/BoxSphereBounds.h"
 
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXInterfaceWrapperCore.h"	//todo remove physx specific include once refactor is done
-#elif WITH_CHAOS
 #include "ChaosInterfaceWrapperCore.h"
-#endif
-
 #include "ChaosSQTypes.h"
-
-#if WITH_PHYSX
-namespace physx
-{
-	class PxScene;
-}
-#endif
 
 namespace Chaos
 {
@@ -60,7 +48,6 @@ private:
 };
 
 // An interface to the scene query accelerator that allows us to run queries against either PhysX or Chaos
-// when compiling WITH_PHYSX.
 // This was used in the 2019 GDC demos and is now broken. To make it work again, we would need to implement
 // the FChaosSQAcceleratorAdapter below to use its internal SQ accelerator and convert the inputs and outputs
 // from/to PhysX types.
@@ -87,44 +74,3 @@ public:
 private:
 	TArray<ISQAccelerator*> Accelerators;
 };
-
-#if WITH_PHYSX
-// A Chaos Query Accelerator with a PhysX API
-// TODO: Not implemented - required to make GDC 2019 demos work again.
-class PHYSICSCORE_API FChaosSQAcceleratorAdapter : public ISQAccelerator
-{
-public:
-
-	FChaosSQAcceleratorAdapter(const Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>& InSpatialAcceleration);
-	virtual ~FChaosSQAcceleratorAdapter() {};
-
-	virtual void Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const override;
-	virtual void Sweep(const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const override;
-	virtual void Overlap(const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const override;
-
-private:
-	FChaosSQAccelerator ChaosSQAccelerator;
-};
-#endif
-
-
-#if WITH_PHYSX && !WITH_CHAOS
-class PHYSICSCORE_API FPhysXSQAccelerator : public ISQAccelerator
-{
-public:
-
-	FPhysXSQAccelerator();
-	FPhysXSQAccelerator(physx::PxScene* InScene);
-	virtual ~FPhysXSQAccelerator() {};
-
-	virtual void Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const override;
-	virtual void Sweep(const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const override;
-	virtual void Overlap(const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const override;
-
-	void SetScene(physx::PxScene* InScene);
-
-private:
-	physx::PxScene* Scene;
-
-};
-#endif

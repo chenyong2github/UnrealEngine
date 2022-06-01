@@ -196,29 +196,23 @@ void FConstraintInstance::UpdatePlasticity()
 
 void FConstraintInstance::UpdateContactTransferScale()
 {
-#if WITH_CHAOS
 	FPhysicsInterface::ExecuteOnUnbrokenConstraintReadWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& InConstraint)
 		{
 			ProfileInstance.UpdateContactTransferScale_AssumesLocked(InConstraint);
 		});
-#endif
 }
 
 void FConstraintProfileProperties::UpdatePlasticity_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const
 {
-#if WITH_CHAOS
 	const float LinearPlasticityLimit = bLinearPlasticity ? LinearPlasticityThreshold : FLT_MAX;
 	const float AngularPlasticityLimit = bAngularPlasticity ? FMath::DegreesToRadians(AngularPlasticityThreshold) : UE_MAX_FLT;
 
 	FPhysicsInterface::SetPlasticityLimits_AssumesLocked(InConstraintRef, LinearPlasticityLimit, AngularPlasticityLimit, LinearPlasticityType);
-#endif
 }
 
 void FConstraintProfileProperties::UpdateContactTransferScale_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const
 {
-#if WITH_CHAOS
 	FPhysicsInterface::SetContactTransferScale_AssumesLocked(InConstraintRef, ContactTransferScale);
-#endif
 }
 
 void FConstraintInstance::UpdateDriveTarget()
@@ -238,9 +232,7 @@ FConstraintInstanceBase::FConstraintInstanceBase()
 void FConstraintInstanceBase::Reset()
 {
 	ConstraintIndex = 0;
-#if WITH_CHAOS
 	ConstraintHandle.Reset();
-#endif
 	PhysScene = nullptr;
 }
 
@@ -421,11 +413,7 @@ bool GetActorRefs(FBodyInstance* Body1, FBodyInstance* Body2, FPhysicsActorHandl
 
 bool FConstraintInstance::CreateJoint_AssumesLocked(const FPhysicsActorHandle& InActorRef1, const FPhysicsActorHandle& InActorRef2)
 {
-#if WITH_CHAOS
 	LLM_SCOPE(ELLMTag::ChaosConstraint);
-#else
-	LLM_SCOPE(ELLMTag::PhysX);
-#endif
 
 	FTransform Local1 = GetRefFrame(EConstraintFrame::Frame1);
 	if(FPhysicsInterface::IsValid(InActorRef1))
@@ -465,12 +453,8 @@ void FConstraintProfileProperties::UpdateConstraintFlags_AssumesLocked(const FPh
 #endif
 
 	FPhysicsInterface::SetCollisionEnabled(InConstraintRef, !bDisableCollision);
-#if WITH_CHAOS
 	FPhysicsInterface::SetProjectionEnabled_AssumesLocked(InConstraintRef, bEnableProjection, ProjectionLinearAlpha, ProjectionAngularAlpha, ProjectionLinearTolerance, ProjectionAngularTolerance);
 	FPhysicsInterface::SetShockPropagationEnabled_AssumesLocked(InConstraintRef, bEnableShockPropagation, ShockPropagationAlpha);
-#else
-	FPhysicsInterface::SetProjectionEnabled_AssumesLocked(InConstraintRef, bEnableProjection, ProjectionLinearTolerance, ProjectionAngularTolerance);
-#endif
 	FPhysicsInterface::SetParentDominates_AssumesLocked(InConstraintRef, bParentDominates);
 }
 
@@ -495,12 +479,10 @@ void FConstraintInstance::InitConstraint(FBodyInstance* Body1, FBodyInstance* Bo
 			return;
 		}
 
-#if WITH_CHAOS
 		if (!bAllowKinematicKinematicConstraints && (!FPhysicsInterface::IsValid(Actor1) || FPhysicsInterface::IsKinematic(Actor1)) && (!FPhysicsInterface::IsValid(Actor2) || FPhysicsInterface::IsKinematic(Actor2)))
 		{
 			return;
 		}
-#endif
 
 		FPhysicsCommand::ExecuteWrite(Actor1, Actor2, [&](const FPhysicsActorHandle& ActorA, const FPhysicsActorHandle& ActorB)
 		{
@@ -641,9 +623,7 @@ void FConstraintInstance::CopyConstraintPhysicalPropertiesFrom(const FConstraint
 
 	// Recover internal data we'd like to keep - i.e. bone indices, etc.
 	ConstraintIndex = OldInstance.ConstraintIndex;
-#if WITH_PHYSX
 	ConstraintHandle = OldInstance.ConstraintHandle;
-#endif	//WITH_PHYSX
 	JointName = OldInstance.JointName;
 	ConstraintBone1 = OldInstance.ConstraintBone1;
 	ConstraintBone2 = OldInstance.ConstraintBone2;
@@ -1015,12 +995,10 @@ void FConstraintInstance::SetAngularDOFLimitScale(float InSwing1LimitScale, floa
 void FConstraintInstance::SetLinearLimitSize(float NewLimitSize)
 {
 	//TODO: Is this supposed to be scaling the linear limit? The code just sets it directly.
-#if WITH_PHYSX
 	FPhysicsInterface::ExecuteOnUnbrokenConstraintReadWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& InUnbrokenConstraint)
 	{
 		FPhysicsInterface::SetLinearLimit(ConstraintHandle, NewLimitSize);
 	});
-#endif
 }
 
 bool FConstraintInstance::Serialize(FArchive& Ar)
@@ -1198,62 +1176,37 @@ void FConstraintInstance::SetProjectionParams(bool bEnableProjection, float Proj
 
 	FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
 		{
-#if WITH_CHAOS
 			const float LinearAlpha = bEnableProjection ? ProjectionLinearAlpha : 0.0f;
 			const float AngularAlpha = bEnableProjection ? ProjectionAngularAlpha : 0.0f;
 			const float TeleportDistance = bEnableProjection ? ProjectionLinearTolerance : -1.0f;
 			const float TeleportAngle = bEnableProjection ? ProjectionAngularTolerance : -1.0f;
 			FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, bEnableProjection, LinearAlpha, AngularAlpha, TeleportDistance, TeleportAngle);
-#else
-			if (bEnableProjection)
-			{
-				FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, true, ProjectionLinearTolerance, ProjectionAngularTolerance);
-			}
-			else
-			{
-				FPhysicsInterface::SetProjectionEnabled_AssumesLocked(Constraint, false);
-			}
-#endif
 		});
 }
 
 float FConstraintInstance::GetShockPropagationAlpha() const
 {
-#if WITH_CHAOS
 	return ProfileInstance.ShockPropagationAlpha;
-#else
-	return 0;
-#endif
 }
 
 void FConstraintInstance::SetShockPropagationParams(bool bEnableShockPropagation, float ShockPropagationAlpha)
 {
-#if WITH_CHAOS
 	ProfileInstance.bEnableShockPropagation = bEnableShockPropagation;
 	ProfileInstance.ShockPropagationAlpha = ShockPropagationAlpha;
 	FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& Constraint)
 		{
 			FPhysicsInterface::SetShockPropagationEnabled_AssumesLocked(Constraint, bEnableShockPropagation, ShockPropagationAlpha);
 		});
-#endif
 }
 
 void FConstraintInstance::EnableProjection()
 {
-#if WITH_CHAOS
 	SetProjectionParams(true, ProfileInstance.ProjectionLinearAlpha, ProfileInstance.ProjectionAngularAlpha, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
-#else
-	SetProjectionParams(true, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
-#endif
 }
 
 void FConstraintInstance::DisableProjection()
 {
-#if WITH_CHAOS
 	SetProjectionParams(false, ProfileInstance.ProjectionLinearAlpha, ProfileInstance.ProjectionAngularAlpha, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
-#else
-	SetProjectionParams(false, ProfileInstance.ProjectionLinearTolerance, ProfileInstance.ProjectionAngularTolerance);
-#endif
 }
 
 void FConstraintInstance::EnableParentDominates()

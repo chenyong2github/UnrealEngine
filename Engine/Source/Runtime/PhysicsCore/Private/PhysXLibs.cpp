@@ -10,8 +10,6 @@
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 
-#if WITH_PHYSX 
-
 // PhysX library imports
 namespace PhysDLLHelper
 {
@@ -25,13 +23,6 @@ namespace PhysDLLHelper
 	void* PxPvdSDKHandle = nullptr;
 	void* PhysX3CookingHandle = nullptr;
 	void* nvToolsExtHandle = nullptr;
-	#if WITH_APEX
-		void* APEXFrameworkHandle = nullptr;
-		void* APEX_LegacyHandle = nullptr;
-		#if WITH_APEX_CLOTHING
-			void* APEX_ClothingHandle = nullptr;
-		#endif  //WITH_APEX_CLOTHING
-	#endif	//WITH_APEX
 #endif
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
@@ -166,19 +157,6 @@ void* LoadPhysicsLibrary(const FString& PathEnd)
 	return Handle;
 }
 
-#if WITH_APEX
-PHYSICSCORE_API void* LoadAPEXModule(const FString& Path)
-{
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-	return LoadPhysicsLibrary(RootAPEXPath + Path + APEXSuffix);
-#elif PLATFORM_MAC
-	const FString APEX_HandleLibName = FString::Printf(TEXT("%slib%s%s"), *PhysXBinariesRoot, *Path, *APEXSuffix);
-	return LoadPhysicsLibrary(APEX_HandleLibName);
-#endif
-	return nullptr;
-}
-#endif
-
 /**
  *	Load the required modules for PhysX
  */
@@ -202,15 +180,6 @@ PHYSICSCORE_API bool LoadPhysXModules(bool bLoadCookingModule)
 		PhysX3CookingHandle = LoadPhysicsLibrary(RootPhysXPath + "PhysX3Cooking" + PhysXSuffix);
 	}
 
-	#if WITH_APEX
-		APEXFrameworkHandle = LoadPhysicsLibrary(RootAPEXPath + "APEXFramework" + APEXSuffix);
-		#if WITH_APEX_LEGACY
-			APEX_LegacyHandle = LoadPhysicsLibrary(RootAPEXPath + "APEX_Legacy" + APEXSuffix);
-		#endif //WITH_APEX_LEGACY
-		#if WITH_APEX_CLOTHING
-			APEX_ClothingHandle = LoadPhysicsLibrary(RootAPEXPath + "APEX_Clothing" + APEXSuffix);
-		#endif //WITH_APEX_CLOTHING
-	#endif	//WITH_APEX
 #elif PLATFORM_MAC
 	const FString PxFoundationLibName = FString::Printf(TEXT("%slibPxFoundation%s"), *PhysXBinariesRoot, *PhysXSuffix);
 	PxFoundationHandle = LoadPhysicsLibrary(PxFoundationLibName);
@@ -229,19 +198,6 @@ PHYSICSCORE_API bool LoadPhysXModules(bool bLoadCookingModule)
 		const FString PhysX3CookinLibName = FString::Printf(TEXT("%slibPhysX3Cooking%s"), *PhysXBinariesRoot, *PhysXSuffix);
 		PhysX3CookingHandle = LoadPhysicsLibrary(PhysX3CookinLibName);
 	}
-
-	#if WITH_APEX
-		const FString APEXFrameworkLibName = FString::Printf(TEXT("%slibAPEXFramework%s"), *PhysXBinariesRoot, *APEXSuffix);
-		APEXFrameworkHandle = LoadPhysicsLibrary(APEXFrameworkLibName);
-		#if WITH_APEX_LEGACY
-			const FString APEX_LegacyHandleLibName = FString::Printf(TEXT("%slibAPEX_Legacy%s"), *PhysXBinariesRoot, *APEXSuffix);
-			APEX_LegacyHandle = LoadPhysicsLibrary(APEX_LegacyHandleLibName);
-		#endif //WITH_APEX_LEGACY
-		#if WITH_APEX_CLOTHING
-			const FString APEX_ClothingHandleLibName = FString::Printf(TEXT("%slibAPEX_Clothing%s"), *PhysXBinariesRoot, *APEXSuffix);
-			APEX_ClothingHandle = LoadPhysicsLibrary(APEX_ClothingHandleLibName);
-		#endif //WITH_APEX_CLOTHING
-	#endif	//WITH_APEX
 #endif	//PLATFORM_WINDOWS
 
 	bool bSucceeded = true;
@@ -257,15 +213,6 @@ PHYSICSCORE_API bool LoadPhysXModules(bool bLoadCookingModule)
 	// Cooking module if present
 	bSucceeded = bSucceeded && (!bLoadCookingModule || PhysX3CookingHandle);
 	// Apex if present
-#if WITH_APEX
-	bSucceeded = bSucceeded && APEXFrameworkHandle;
-#if WITH_APEX_LEGACY
-	bSucceeded = bSucceeded && APEX_LegacyHandle;
-#endif //WITH_APEX_LEGACY
-#if WITH_APEX_CLOTHING
-	bSucceeded = bSucceeded && APEX_ClothingHandle;
-#endif // WITH_APEX_CLOTHING
-#endif // WITH_APEX
 #endif // PLATFORM_WINDOWS || PLATFORM_MAC
 
 	return bSucceeded;
@@ -285,26 +232,6 @@ PHYSICSCORE_API void UnloadPhysXModules()
 	}
 	FPlatformProcess::FreeDllHandle(PhysX3CommonHandle);
 	FPlatformProcess::FreeDllHandle(PxFoundationHandle);
-	#if WITH_APEX
-		FPlatformProcess::FreeDllHandle(APEXFrameworkHandle);
-		FPlatformProcess::FreeDllHandle(APEX_LegacyHandle);
-		#if WITH_APEX_CLOTHING
-			FPlatformProcess::FreeDllHandle(APEX_ClothingHandle);
-		#endif //WITH_APEX_CLOTHING
-	#endif	//WITH_APEX
 #endif
 }
-
-#if WITH_APEX
-PHYSICSCORE_API void UnloadAPEXModule(void* Handle)
-{
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || PLATFORM_MAC
-	if(Handle)
-	{
-		FPlatformProcess::FreeDllHandle(Handle);
-	}
-#endif
 }
-#endif
-}
-#endif // WITH_PHYSX

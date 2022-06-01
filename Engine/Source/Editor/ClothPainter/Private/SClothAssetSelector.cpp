@@ -148,14 +148,6 @@ public:
 			FExecuteAction::CreateSP(this, &SAssetListRow::DeleteAsset)
 		);
 
-#if WITH_APEX_CLOTHING
-		UICommandList->MapAction(
-			Commands.ReimportAsset,
-			FExecuteAction::CreateSP(this, &SAssetListRow::ReimportAsset),
-			FCanExecuteAction::CreateSP(this, &SAssetListRow::CanReimportAsset)
-		);
-#endif
-
 		UICommandList->MapAction(
 			Commands.RebuildAssetParams,
 			FExecuteAction::CreateSP(this, &SAssetListRow::RebuildLODParameters),
@@ -184,9 +176,6 @@ public:
 			Builder.BeginSection(NAME_None, LOCTEXT("AssetActions_SectionName", "Actions"));
 			{
 				Builder.AddMenuEntry(FGenericCommands::Get().Delete);
-#if WITH_APEX_CLOTHING
-				Builder.AddMenuEntry(Commands.ReimportAsset);
-#endif
 				Builder.AddMenuEntry(Commands.RebuildAssetParams);
 
 				for (const TPair<FName, TSharedPtr<FUICommandInfo>>& CommandId : Commands.ExportAssets)
@@ -260,62 +249,6 @@ private:
 			}
 		}
 	}
-
-#if WITH_APEX_CLOTHING
-	void ReimportAsset()
-	{
-		if(UClothingAssetCommon* Asset = Item->ClothingAsset.Get())
-		{
-			if(USkeletalMesh* SkelMesh = Cast<USkeletalMesh>(Asset->GetOuter()))
-			{
-				FString ReimportPath = Asset->ImportedFilePath;
-
-				if(ReimportPath.IsEmpty())
-				{
-					const FText MessageText = LOCTEXT("Warning_NoReimportPath", "There is no reimport path available for this asset, it was likely created in the Editor. Would you like to select a file and overwrite this asset?");
-					EAppReturnType::Type MessageReturn = FMessageDialog::Open(EAppMsgType::YesNo, MessageText);
-
-					if(MessageReturn == EAppReturnType::Yes)
-					{
-						ReimportPath = ApexClothingUtils::PromptForClothingFile();
-					}
-				}
-
-				if(ReimportPath.IsEmpty())
-				{
-					return;
-				}
-
-				// Retry if the file isn't there
-				if(!FPaths::FileExists(ReimportPath))
-				{
-					const FText MessageText = LOCTEXT("Warning_NoFileFound", "Could not find an asset to reimport, select a new file on disk?");
-					EAppReturnType::Type MessageReturn = FMessageDialog::Open(EAppMsgType::YesNo, MessageText);
-
-					if(MessageReturn == EAppReturnType::Yes)
-					{
-						ReimportPath = ApexClothingUtils::PromptForClothingFile();
-					}
-				}
-
-				FClothingSystemEditorInterfaceModule& ClothingEditorInterface = FModuleManager::Get().LoadModuleChecked<FClothingSystemEditorInterfaceModule>("ClothingSystemEditorInterface");
-				UClothingAssetFactoryBase* Factory = ClothingEditorInterface.GetClothingAssetFactory();
-
-				if(Factory && Factory->CanImport(ReimportPath))
-				{
-					Factory->Reimport(ReimportPath, SkelMesh, Asset);
-
-					OnInvalidateList.ExecuteIfBound();
-				}
-			}
-		}
-	}
-
-	bool CanReimportAsset() const
-	{
-		return Item.IsValid() && !Item->ClothingAsset->ImportedFilePath.IsEmpty();
-	}
-#endif  // #if WITH_APEX_CLOTHING
 
 	// Using LOD0 of an asset, rebuild the other LOD masks by mapping the LOD0 parameters onto their meshes
 	void RebuildLODParameters()
@@ -789,42 +722,6 @@ void SClothAssetSelector::Construct(const FArguments& InArgs, USkeletalMesh* InM
 					.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 					.Font(FAppStyle::Get().GetFontStyle("PropertyWindow.BoldFont"))
 				]
-#if WITH_APEX_CLOTHING
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.HAlign(HAlign_Right)
-				.Padding(0.0f, 0.0f, 4.0f, 0.0f)
-				[
-					SNew(SButton)
-					.OnClicked(this, &SClothAssetSelector::OnImportApexFileClicked)
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SHorizontalBox)
-
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						.Padding(FMargin(0, 1))
-						[
-							SNew(SImage)
-							.Image(FAppStyle::GetBrush("Plus"))
-						]
-
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						.Padding(FMargin(2, 0, 0, 0))
-						[
-							SNew(STextBlock)
-							.Font(IDetailLayoutBuilder::GetDetailFontBold())
-							.Text(LOCTEXT("NewAssetButtonText", "Import APEX file"))
-							.Visibility(this, &SClothAssetSelector::GetAssetHeaderButtonTextVisibility)
-						]
-					]
-				]
-#endif  // #if WITH_APEX_CLOTHING
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.VAlign(VAlign_Center)
@@ -1196,21 +1093,6 @@ void SClothAssetSelector::PostUndo(bool bSuccess)
 {
 	OnRefresh();
 }
-
-#if WITH_APEX_CLOTHING
-FReply SClothAssetSelector::OnImportApexFileClicked()
-{
-	if(Mesh)
-	{
-		ApexClothingUtils::PromptAndImportClothing(Mesh);
-		OnRefresh();
-
-		return FReply::Handled();
-	}
-
-	return FReply::Unhandled();
-}
-#endif  // #if WITH_APEX_CLOTHING
 
 void SClothAssetSelector::OnCopyClothingAssetSelected(const FAssetData& AssetData)
 {

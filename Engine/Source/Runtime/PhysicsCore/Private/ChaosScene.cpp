@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_CHAOS
-
 #include "Chaos/ChaosScene.h"
 
 #include "Async/AsyncWork.h"
@@ -183,13 +181,9 @@ void FChaosScene::Flush()
 
 void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle Actor)
 {
-#if WITH_CHAOS
 	using namespace Chaos;
 	RemoveActorFromAccelerationStructureImp(Actor->GetParticle_LowLevel());
-#endif
 }
-
-#if WITH_CHAOS
 
 void FChaosScene::RemoveActorFromAccelerationStructureImp(Chaos::FGeometryParticle* Particle)
 {
@@ -201,12 +195,9 @@ void FChaosScene::RemoveActorFromAccelerationStructureImp(Chaos::FGeometryPartic
 		GetSpacialAcceleration()->RemoveElementFrom(AccelerationHandle, Particle->SpatialIdx());
 	}
 }
-#endif
-
 
 void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor)
 {
-#if WITH_CHAOS
 	using namespace Chaos;
 
 	if(GetSpacialAcceleration())
@@ -233,12 +224,10 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 
 		GetSolver()->UpdateParticleInAccelerationStructure_External(Actor->GetParticle_LowLevel(),/*bDelete=*/false);
 	}
-#endif
 }
 
 void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors)
 {
-#if WITH_CHAOS
 	using namespace Chaos;
 
 	if(GetSpacialAcceleration())
@@ -279,12 +268,10 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 			}
 		}
 	}
-#endif
 }
 
 void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles,const bool bImmediate)
 {
-#if WITH_CHAOS
 	TRACE_CPUPROFILER_EVENT_SCOPE(FChaosScene::AddActorsToScene_AssumesLocked)
 
 	Chaos::FPhysicsSolver* Solver = GetSolver();
@@ -311,7 +298,6 @@ void FChaosScene::AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& In
 			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds, Body_External.SpatialIdx());
 		}
 	}
-#endif
 }
 
 void FChaosSceneSimCallback::OnPreSimulate_Internal()
@@ -329,7 +315,6 @@ void FChaosScene::SetGravity(const Chaos::FVec3& Acceleration)
 
 void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 0.0f*/,float InMinPhysicsDeltaTime /*= 0.0f*/,float InMaxPhysicsDeltaTime /*= 0.0f*/,float InMaxSubstepDeltaTime /*= 0.0f*/,int32 InMaxSubsteps,bool bSubstepping)
 {
-#if WITH_CHAOS
 	using namespace Chaos;
 	SetGravity(*NewGrav);
 
@@ -358,12 +343,10 @@ void FChaosScene::SetUpForFrame(const FVector* NewGrav,float InDeltaSeconds /*= 
 		}
 		Solver->SetMinDeltaTime_External(InMinPhysicsDeltaTime);
 	}
-#endif
 }
 
 void FChaosScene::StartFrame()
 {
-#if WITH_CHAOS
 	using namespace Chaos;
 
 	SCOPE_CYCLE_COUNTER(STAT_Scene_StartFrame);
@@ -390,7 +373,6 @@ void FChaosScene::StartFrame()
 		CompletionEvents.Add(Solver->AdvanceAndDispatch_External(UseDeltaTime));
 	}
 
-#endif
 }
 
 void FChaosScene::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
@@ -434,11 +416,9 @@ bool FChaosScene::IsCompletionEventComplete() const
 template <typename TSolver>
 void FChaosScene::SyncBodies(TSolver* Solver)
 {
-#if WITH_CHAOS
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"),STAT_SyncBodies,STATGROUP_Physics);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(SyncBodies);
 	OnSyncBodies(Solver);
-#endif
 }
 
 // Accumulate all the AABBTree stats
@@ -470,7 +450,6 @@ void GetAABBTreeStats(Chaos::ISpatialAccelerationCollection<Chaos::FAcceleration
 
 void FChaosScene::EndFrame()
 {
-#if WITH_CHAOS
 	using namespace Chaos;
 	using SpatialAccelerationCollection = ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>;
 
@@ -550,7 +529,6 @@ void FChaosScene::EndFrame()
 	}
 
 	OnPhysScenePostTick.Broadcast(this);
-#endif
 }
 
 void FChaosScene::WaitPhysScenes()
@@ -566,5 +544,3 @@ FGraphEventArray FChaosScene::GetCompletionEvents()
 {
 	return CompletionEvents;
 }
-
-#endif

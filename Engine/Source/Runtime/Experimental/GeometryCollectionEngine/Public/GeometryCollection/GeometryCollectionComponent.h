@@ -847,10 +847,8 @@ private:
 	TArray<FManagedArrayBase**> CopyOnWriteAttributeList;
 
 	// Temporary dummies to interface with Physx expectations of the SQ syatem
-#if WITH_PHYSX
 	friend class FGeometryCollectionSQAccelerator;
 	FBodyInstance DummyBodyInstance;
-#endif
 
 	// Temporary storage for body setup in order to initialise a dummy body instance
 	UPROPERTY(Transient)

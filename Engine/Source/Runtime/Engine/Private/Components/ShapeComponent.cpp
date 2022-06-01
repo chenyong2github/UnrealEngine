@@ -9,10 +9,6 @@
 #include "PhysicsEngine/SphylElem.h"
 #include "PhysicsEngine/BodySetup.h"
 
-#if WITH_PHYSX
-	#include "PhysXPublic.h"
-#endif // WITH_PHYSX
-
 // Custom serialization version
 struct FShapeComponentCustomVersion
 {

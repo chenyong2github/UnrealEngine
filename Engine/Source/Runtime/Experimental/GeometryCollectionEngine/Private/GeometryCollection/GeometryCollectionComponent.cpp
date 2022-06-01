@@ -136,26 +136,6 @@ int32 GetClusterLevel(const FTransformCollection* Collection, int32 TransformGro
 	return Level;
 }
 
-#if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-FGeometryCollectionSQAccelerator GlobalGeomCollectionAccelerator;	//todo(ocohen): proper lifetime management needed
-
-void HackRegisterGeomAccelerator(UGeometryCollectionComponent& Component)
-{
-#if TODO_REIMPLEMENT_SCENEQUERY_CROSSENGINE
-	if (UWorld* World = Component.GetWorld())
-	{
-		if (FPhysScene* PhysScene = World->GetPhysicsScene())
-		{
-			if (FSQAcceleratorUnion* SQAccelerationUnion = PhysScene->GetSQAcceleratorUnion())
-			{
-				SQAccelerationUnion->AddSQAccelerator(&GlobalGeomCollectionAccelerator);
-			}
-		}
-	}
-#endif
-}
-#endif
-
 bool FGeometryCollectionRepData::Identical(const FGeometryCollectionRepData* Other, uint32 PortFlags) const
 {
 	return Other && (Version == Other->Version);
@@ -313,7 +293,6 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 
 Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCollectionComponent)
 {
-#if INCLUDE_CHAOS
 	if(GeometryCollectionComponent.ChaosSolverActor)
 	{
 		return GeometryCollectionComponent.ChaosSolverActor->GetSolver();
@@ -325,16 +304,12 @@ Chaos::FPhysicsSolver* GetSolver(const UGeometryCollectionComponent& GeometryCol
 			return Scene->GetSolver();
 		}
 	}
-#endif
 	return nullptr;
 }
 
 void UGeometryCollectionComponent::BeginPlay()
 {
 	Super::BeginPlay();
-#if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	HackRegisterGeomAccelerator(*this);
-#endif
 
 #if WITH_EDITOR
 	if (RestCollection != nullptr)
@@ -1232,7 +1207,6 @@ void UGeometryCollectionComponent::RegisterForEvents()
 {
 	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions || bNotifyRemovals)
 	{
-#if INCLUDE_CHAOS
 		Chaos::FPhysicsSolver* Solver = GetWorld()->GetPhysicsScene()->GetSolver();
 		if (Solver)
 		{
@@ -1268,7 +1242,6 @@ void UGeometryCollectionComponent::RegisterForEvents()
 
 			}
 		}
-#endif
 	}
 }
 
@@ -1901,12 +1874,10 @@ void UGeometryCollectionComponent::OnUpdateTransform(EUpdateTransformFlags Updat
 {
 	Super::OnUpdateTransform(UpdateTransformFlags, Teleport);
 
-#if WITH_CHAOS
 	if (PhysicsProxy)
 	{
 		PhysicsProxy->SetWorldTransform(GetComponentTransform());
 	}
-#endif
 }
 
 void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
@@ -1931,7 +1902,6 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 	}
 #endif
 
-#if WITH_CHAOS
 	//if (bRenderStateDirty && DynamicCollection)	//todo: always send for now
 	if (RestCollection)
 	{
@@ -1971,7 +1941,6 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 			}
 		}
 	}
-#endif
 }
 
 void UGeometryCollectionComponent::AsyncPhysicsTickComponent(float DeltaTime, float SimTime)
@@ -1991,12 +1960,8 @@ void UGeometryCollectionComponent::AsyncPhysicsTickComponent(float DeltaTime, fl
 
 void UGeometryCollectionComponent::OnRegister()
 {
-#if WITH_CHAOS
 	//UE_LOG(UGCC_LOG, Log, TEXT("GeometryCollectionComponent[%p]::OnRegister()[%p]"), this,RestCollection );
 	ResetDynamicCollection();
-
-
-#endif // WITH_CHAOS
 
 	SetIsReplicated(bEnableReplication);
 
@@ -2099,24 +2064,10 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 
 void UGeometryCollectionComponent::OnCreatePhysicsState()
 {
-/*#if WITH_PHYSX
-	DummyBodySetup = NewObject<UBodySetup>(this, UBodySetup::StaticClass());
-	DummyBodySetup->AggGeom.BoxElems.Add(FKBoxElem(1.0f));
-	DummyBodyInstance.InitBody(DummyBodySetup, GetComponentToWorld(), this, nullptr);
-	DummyBodyInstance.bNotifyRigidBodyCollision = BodyInstance.bNotifyRigidBodyCollision;
-#endif
-*/
 	// Skip the chain - don't care about body instance setup
 	UActorComponent::OnCreatePhysicsState();
 	if (!BodyInstance.bSimulatePhysics) IsObjectLoading = false; // just mark as loaded if we are simulating.
 
-/*#if WITH_PHYSX
-	DummyBodyInstance.SetCollisionEnabled(ECollisionEnabled::QueryOnly);
-	DummyBodyInstance.SetResponseToAllChannels(ECR_Block);
-#endif
-*/
-
-#if WITH_CHAOS
 	// Static mesh uses an init framework that goes through FBodyInstance.  We
 	// do the same thing, but through the geometry collection proxy and lambdas
 	// defined below.  FBodyInstance doesn't work for geometry collections 
@@ -2204,19 +2155,10 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 			
 		}
 	}
-
-#if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	if (PhysicsProxy)
-	{
-		GlobalGeomCollectionAccelerator.AddComponent(this);
-	}
-#endif
-#endif // WITH_CHAOS
 }
 
 void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 {
-#if WITH_CHAOS
 	FSimulationParameters SimulationParameters;
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2274,24 +2216,16 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 
 	RegisterForEvents();
 	SetAsyncPhysicsTickEnabled(GetIsReplicated());
-#endif
 }
 
 void UGeometryCollectionComponent::OnDestroyPhysicsState()
 {
 	UActorComponent::OnDestroyPhysicsState();
 
-#if WITH_CHAOS
-#if WITH_PHYSX && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-	GlobalGeomCollectionAccelerator.RemoveComponent(this);
-#endif
-
-#if WITH_PHYSX
 	if(DummyBodyInstance.IsValidBodyInstance())
 	{
 		DummyBodyInstance.TermBody();
 	}
-#endif
 
 	if(PhysicsProxy)
 	{
@@ -2302,7 +2236,6 @@ void UGeometryCollectionComponent::OnDestroyPhysicsState()
 		// Discard the pointer (cleanup happens through the scene or dedicated thread)
 		PhysicsProxy = nullptr;
 	}
-#endif
 }
 
 void UGeometryCollectionComponent::SendRenderDynamicData_Concurrent()
@@ -3147,22 +3080,18 @@ FPhysScene_Chaos* UGeometryCollectionComponent::GetInnerChaosScene() const
 	}
 	else
 	{
-#if INCLUDE_CHAOS
 		if (ensure(GetOwner()) && ensure(GetOwner()->GetWorld()))
 		{
 			return GetOwner()->GetWorld()->GetPhysicsScene();
 		}
+
 		check(GWorld);
 		return GWorld->GetPhysicsScene();
-#else
-		return nullptr;
-#endif
 	}
 }
 
 AChaosSolverActor* UGeometryCollectionComponent::GetPhysicsSolverActor() const
 {
-#if WITH_CHAOS
 	if (ChaosSolverActor)
 	{
 		return ChaosSolverActor;
@@ -3173,7 +3102,6 @@ AChaosSolverActor* UGeometryCollectionComponent::GetPhysicsSolverActor() const
 		return Scene ? Cast<AChaosSolverActor>(Scene->GetSolverActor()) : nullptr;
 	}
 
-#endif
 	return nullptr;
 }
 

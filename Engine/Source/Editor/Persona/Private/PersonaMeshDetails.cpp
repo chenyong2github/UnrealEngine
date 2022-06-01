@@ -45,12 +45,6 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "EditorFramework/AssetImportData.h"
-
-#if WITH_APEX_CLOTHING
-	#include "ApexClothingUtils.h"
-	#include "ApexClothingOptionWindow.h"
-#endif // #if WITH_APEX_CLOTHING
-
 #include "ClothingAsset.h"
 
 #include "LODUtilities.h"
@@ -2582,10 +2576,7 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 	{
 		const int32 SkelMeshLODCount = SkelMesh->GetLODNum();
 
-
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 		ClothComboBoxes.Reset();
-#endif
 
 		//Create material list panel to let users control the materials array
 		{
@@ -5010,8 +5001,6 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 		}
 	}
 
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
-
 	UpdateClothingEntries();
 
 	ClothComboBoxes.AddDefaulted();
@@ -5051,7 +5040,6 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 			]
 		]
 	];
-#endif// #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 
 	SectionWidget->AddSlot()
 	.AutoHeight()
@@ -6048,31 +6036,6 @@ void FPersonaMeshDetails::CustomizeClothingProperties(IDetailLayoutBuilder& Deta
 
 		ClothingFilesCategory.AddCustomBuilder(ClothingAssetsPropertyBuilder, false);
 	}
-
-#if WITH_APEX_CLOTHING
-	// Button to add a new clothing file
-	ClothingFilesCategory.AddCustomRow( LOCTEXT("AddAPEXClothingFileFilterString", "Add APEX clothing file"))
-	[
-		SNew(SHorizontalBox)
-		 
-		+SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(SButton)
-			.OnClicked(this, &FPersonaMeshDetails::OnOpenClothingFileClicked, &DetailLayout)
-			.ToolTip(IDocumentation::Get()->CreateToolTip(
-				LOCTEXT("AddClothingButtonTooltip", "Select a new APEX clothing file and add it to the skeletal mesh."),
-				NULL,
-				TEXT("Shared/Editors/Persona"),
-				TEXT("AddClothing")))
-			[
-				SNew(STextBlock)
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-				.Text(LOCTEXT("AddAPEXClothingFile", "Add APEX clothing file..."))
-			]
-		]
-	];
-#endif
 }
 
 //
@@ -6088,30 +6051,6 @@ void FPersonaMeshDetails::OnGenerateElementForClothingAsset( TSharedRef<IPropert
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.FillWidth(1)
-
-#if WITH_APEX_CLOTHING
-		// re-import button
-		+ SHorizontalBox::Slot()
-		.VAlign( VAlign_Center )
-		.Padding(2)
-		.AutoWidth()
-		[
-			SNew( SButton )
-			.Text( LOCTEXT("ReimportButtonLabel", "Reimport") )
-			.OnClicked(this, &FPersonaMeshDetails::OnReimportApexFileClicked, ElementIndex, DetailLayout)
-			.IsFocusable( false )
-			.ContentPadding(0)
-			.ForegroundColor( FSlateColor::UseForeground() )
-			.ButtonColorAndOpacity(FLinearColor(1.0f,1.0f,1.0f,0.0f))
-			.ToolTipText(LOCTEXT("ReimportApexFileTip", "Reimport this APEX asset"))
-			[ 
-				SNew( SImage )
-				.Image( FAppStyle::GetBrush("Persona.ReimportAsset") )
-				.ColorAndOpacity( FSlateColor::UseForeground() )
-			]
-		]
-#endif  // #if WITH_APEX_CLOTHING
-
 		// remove button
 		+ SHorizontalBox::Slot()
 		.VAlign( VAlign_Center )
@@ -6323,64 +6262,6 @@ TSharedRef<SUniformGridPanel> FPersonaMeshDetails::MakeClothingDetailsWidget(int
 	return Grid;
 }
 
-#if WITH_APEX_CLOTHING
-FReply FPersonaMeshDetails::OnReimportApexFileClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout)
-{
-	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
-
-	check(SkelMesh && SkelMesh->GetMeshClothingAssets().IsValidIndex(AssetIndex));
-
-	UClothingAssetBase* AssetToReimport = SkelMesh->GetMeshClothingAssets()[AssetIndex];
-	check(AssetToReimport);
-
-	FString ReimportPath = AssetToReimport->ImportedFilePath;
-
-	if(ReimportPath.IsEmpty())
-	{
-		const FText MessageText = LOCTEXT("Warning_NoReimportPath", "There is no reimport path available for this asset, it was likely created in the Editor. Would you like to select a file and overwrite this asset?");
-		EAppReturnType::Type MessageReturn = FMessageDialog::Open(EAppMsgType::YesNo, MessageText);
-
-		if(MessageReturn == EAppReturnType::Yes)
-		{
-			ReimportPath = ApexClothingUtils::PromptForClothingFile();
-		}
-	}
-
-	if(ReimportPath.IsEmpty())
-	{
-		return FReply::Handled();
-	}
-
-	// Retry if the file isn't there
-	if(!FPaths::FileExists(ReimportPath))
-	{
-		const FText MessageText = LOCTEXT("Warning_NoFileFound", "Could not find an asset to reimport, select a new file on disk?");
-		EAppReturnType::Type MessageReturn = FMessageDialog::Open(EAppMsgType::YesNo, MessageText);
-
-		if(MessageReturn == EAppReturnType::Yes)
-		{
-			ReimportPath = ApexClothingUtils::PromptForClothingFile();
-		}
-	}
-
-	FClothingSystemEditorInterfaceModule& ClothingEditorInterface = FModuleManager::Get().LoadModuleChecked<FClothingSystemEditorInterfaceModule>("ClothingSystemEditorInterface");
-	UClothingAssetFactoryBase* Factory = ClothingEditorInterface.GetClothingAssetFactory();
-
-	if(Factory && Factory->CanImport(ReimportPath))
-	{
-		Factory->Reimport(ReimportPath, SkelMesh, AssetToReimport);
-
-		UpdateClothingEntries();
-		RefreshClothingComboBoxes();
-
-		// Force layout to refresh
-		RefreshMeshDetailLayout();
-	}
-
-	return FReply::Handled();
-}
-#endif
-
 FReply FPersonaMeshDetails::OnRemoveClothingAssetClicked(int32 AssetIndex, IDetailLayoutBuilder* DetailLayout)
 {
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
@@ -6426,23 +6307,6 @@ FReply FPersonaMeshDetails::OnRemoveClothingAssetClicked(int32 AssetIndex, IDeta
 	
 	return FReply::Handled();
 }
-
-#if WITH_APEX_CLOTHING
-FReply FPersonaMeshDetails::OnOpenClothingFileClicked(IDetailLayoutBuilder* DetailLayout)
-{
-	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
-
-	if(SkelMesh)
-	{
-		ApexClothingUtils::PromptAndImportClothing(SkelMesh);
-		
-		UpdateClothingEntries();
-		RefreshClothingComboBoxes();
-	}
-
-	return FReply::Handled();
-}
-#endif
 
 void FPersonaMeshDetails::UpdateClothingEntries()
 {

@@ -1650,9 +1650,7 @@ void FPhysicsAssetEditorSharedData::PasteBodiesAndConstraintsFromClipboard(int32
 
 								TargetConstraintTemplate->DefaultInstance.JointName = ConstraintUniqueName;
 								TargetConstraintTemplate->DefaultInstance.ConstraintIndex = ConstraintIndex;
-	#if WITH_PHYSX
 								TargetConstraintTemplate->DefaultInstance.ConstraintHandle = ExistingInstance.ConstraintHandle;
-	#endif	//WITH_PHYSX
 								TargetConstraintTemplate->UpdateProfileInstance();
 								++OutNumPastedConstraints;
 							}

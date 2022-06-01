@@ -949,12 +949,7 @@ void FMeshMergeHelpers::ExtractPhysicsGeometry(UBodySetup* InBodySetup, const FT
 	OutAggGeom.RenderInfo = nullptr;
 	for (FKConvexElem& Elem : OutAggGeom.ConvexElems)
 	{
-#if PHYSICS_INTERFACE_PHYSX
-		Elem.SetConvexMesh(nullptr);
-		Elem.SetMirroredConvexMesh(nullptr);
-#elif WITH_CHAOS
 		Elem.ResetChaosConvexMesh();
-#endif
 	}
 
 	// Transform geometry to world space

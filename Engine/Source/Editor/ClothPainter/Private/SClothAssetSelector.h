@@ -62,10 +62,6 @@ public:
 
 protected:
 
-#if WITH_APEX_CLOTHING
-	FReply OnImportApexFileClicked();
-#endif
-
 	/* Copies clothing setup from source SkelMesh */
 	void OnCopyClothingAssetSelected(const FAssetData& AssetData);
 

@@ -588,8 +588,6 @@ namespace Chaos
 
 	Chaos::FPhysicsSolver* FGeometryCollectionCacheAdapter::GetComponentSolver(UPrimitiveComponent* InComponent) const
 	{
-#if WITH_CHAOS
-
 		// If the observed component is a Geometry Collection using a non-default Chaos solver..
 		if (UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(InComponent))
 		{
@@ -610,7 +608,6 @@ namespace Chaos
 			}
 		}
 
-#endif // WITH_CHAOS
 
 		return nullptr;
 	}

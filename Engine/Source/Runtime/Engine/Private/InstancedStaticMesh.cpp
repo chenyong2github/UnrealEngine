@@ -2459,11 +2459,9 @@ void UInstancedStaticMeshComponent::InitInstanceBody(int32 InstanceIdx, FBodyIns
 	// make sure we never enable bSimulatePhysics for ISMComps
 	InstanceBodyInstance->bSimulatePhysics = false;
 
-#if WITH_PHYSX
 	// Create physics body instance.
 	InstanceBodyInstance->bAutoWeld = false;	//We don't support this for instanced meshes.
 	InstanceBodyInstance->InitBody(BodySetup, InstanceTransform, this, GetWorld()->GetPhysicsScene(), nullptr);
-#endif //WITH_PHYSX
 }
 
 void UInstancedStaticMeshComponent::CreateAllInstanceBodies()
@@ -3378,7 +3376,7 @@ void UInstancedStaticMeshComponent::UpdateInstanceBodyTransform(int32 InstanceIn
 	check(bPhysicsStateCreated);
 
 	FBodyInstance*& InstanceBodyInstance = InstanceBodies[InstanceIndex];
-#if WITH_PHYSX
+
 	if (WorldSpaceInstanceTransform.GetScale3D().IsNearlyZero())
 	{
 		if (InstanceBodyInstance)
@@ -3404,7 +3402,6 @@ void UInstancedStaticMeshComponent::UpdateInstanceBodyTransform(int32 InstanceIn
 			InitInstanceBody(InstanceIndex, InstanceBodyInstance);
 		}
 	}
-#endif //WITH_PHYSX
 }
 
 bool UInstancedStaticMeshComponent::UpdateInstanceTransform(int32 InstanceIndex, const FTransform& NewInstanceTransform, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)

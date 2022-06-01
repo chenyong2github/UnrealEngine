@@ -7,29 +7,22 @@
 #include "PhysicsPublic.h"
 #include "Physics/PhysicsInterfaceCore.h"
 
-#if PHYSICS_INTERFACE_PHYSX
-	#include "PhysXPublic.h"
-#elif WITH_CHAOS
-	#include "Chaos/ParticleHandle.h"
-	#include "Chaos/KinematicGeometryParticles.h"
-	#include "Chaos/PBDJointConstraintTypes.h"
-	#include "Chaos/PBDJointConstraintData.h"
-	#include "Chaos/Sphere.h"
-	#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
-#endif
-
+#include "Chaos/ParticleHandle.h"
+#include "Chaos/KinematicGeometryParticles.h"
+#include "Chaos/PBDJointConstraintTypes.h"
+#include "Chaos/PBDJointConstraintData.h"
+#include "Chaos/Sphere.h"
+#include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "ChaosCheck.h"
 
 UPhysicsHandleComponent::UPhysicsHandleComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if WITH_CHAOS
 	, bPendingConstraint(false)
 	, PhysicsUserData(&ConstraintInstance)
 	, GrabbedHandle(nullptr)
 	, KinematicHandle(nullptr)
 	, ConstraintLocalPosition(FVector::ZeroVector)
 	, ConstraintLocalRotation(FRotator::ZeroRotator)
-#endif
 {
 	bAutoActivate = true;
 	PrimaryComponentTick.bCanEverTick = true;
@@ -50,30 +43,6 @@ void UPhysicsHandleComponent::OnUnregister()
 	{
 		ReleaseComponent();
 	}
-
-#if PHYSICS_INTERFACE_PHYSX
-	if(HandleData)
-	{
-		check(KinActorData);
-
-		// use correct scene
-		PxScene* PScene = HandleData->getScene();
-		if(PScene)
-		{
-			PScene->lockWrite();
-
-			// destroy joint
-			HandleData->release();
-			HandleData = NULL;
-
-			// Destroy temporary actor.
-			KinActorData->release();
-			KinActorData = NULL;
-
-			PScene->unlockWrite();
-		}
-	}
-#endif // WITH_PHYSX
 
 	Super::OnUnregister();
 }
@@ -137,80 +106,6 @@ void UPhysicsHandleComponent::GrabComponentImp(UPrimitiveComponent* InComponent,
 		return;
 	}
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-
-	FPhysicsCommand::ExecuteWrite(BodyInstance->ActorHandle, [&](const FPhysicsActorHandle& Actor)
-	{
-		if(PxRigidActor* PActor = FPhysicsInterface::GetPxRigidActor_AssumesLocked(Actor))
-		{
-			PxScene* Scene = PActor->getScene();
-
-			// Get transform of actor we are grabbing
-			PxVec3 KinLocation = U2PVector(Location);
-			PxQuat KinOrientation = U2PQuat(Rotation.Quaternion());
-			PxTransform GrabbedActorPose = PActor->getGlobalPose();
-			PxTransform KinPose(KinLocation, KinOrientation);
-
-			// set target and current, so we don't need another "Tick" call to have it right
-			TargetTransform = CurrentTransform = P2UTransform(KinPose);
-
-			// If we don't already have a handle - make one now.
-			if(!HandleData)
-			{
-				// Create kinematic actor we are going to create joint with. This will be moved around with calls to SetLocation/SetRotation.
-				PxRigidDynamic* KinActor = Scene->getPhysics().createRigidDynamic(KinPose);
-				KinActor->setRigidBodyFlag(PxRigidBodyFlag::eKINEMATIC, true);
-				KinActor->setMass(1.0f);
-				KinActor->setMassSpaceInertiaTensor(PxVec3(1.0f, 1.0f, 1.0f));
-
-				// No bodyinstance
-				KinActor->userData = NULL;
-
-				// Add to Scene
-				Scene->addActor(*KinActor);
-
-				// Save reference to the kinematic actor.
-				KinActorData = KinActor;
-
-				// Create the joint
-				PxD6Joint* NewJoint = PxD6JointCreate(Scene->getPhysics(), KinActor, PxTransform(PxIdentity), PActor, GrabbedActorPose.transformInv(KinPose));
-
-				if(!NewJoint)
-				{
-					HandleData = 0;
-				}
-				else
-				{
-					// No constraint instance
-					NewJoint->userData = NULL;
-					HandleData = NewJoint;
-
-					// Remember the scene index that the handle joint/actor are in.
-					FPhysScene* RBScene = FPhysxUserData::Get<FPhysScene>(Scene->userData);
-
-					// Setting up the joint
-
-					PxD6Motion::Enum const LocationMotionType = bSoftLinearConstraint ? PxD6Motion::eFREE : PxD6Motion::eLOCKED;
-					PxD6Motion::Enum const RotationMotionType = (bSoftAngularConstraint || !bInConstrainRotation) ? PxD6Motion::eFREE : PxD6Motion::eLOCKED;
-
-					NewJoint->setMotion(PxD6Axis::eX, LocationMotionType);
-					NewJoint->setMotion(PxD6Axis::eY, LocationMotionType);
-					NewJoint->setMotion(PxD6Axis::eZ, LocationMotionType);
-					NewJoint->setDrivePosition(PxTransform(PxVec3(0, 0, 0)));
-
-					NewJoint->setMotion(PxD6Axis::eTWIST, RotationMotionType);
-					NewJoint->setMotion(PxD6Axis::eSWING1, RotationMotionType);
-					NewJoint->setMotion(PxD6Axis::eSWING2, RotationMotionType);
-
-					bRotationConstrained = bInConstrainRotation;
-
-					UpdateDriveSettings();
-				}
-			}
-		}
-	});
-	
-#elif WITH_CHAOS
 	// simulatable bodies should have handles.
 	FPhysicsActorHandle& InHandle = BodyInstance->GetPhysicsActorHandle();
 	if (!InHandle)
@@ -251,108 +146,54 @@ void UPhysicsHandleComponent::GrabComponentImp(UPrimitiveComponent* InComponent,
 
 	bRotationConstrained = bInConstrainRotation;
 	GrabbedHandle = InHandle; 
-#endif
-
 	GrabbedComponent = InComponent;
 	GrabbedBoneName = InBoneName;
 }
 
 void UPhysicsHandleComponent::UpdateDriveSettings()
 {
-#if PHYSICS_INTERFACE_PHYSX
-	if(HandleData != nullptr)
-	{
-		if (bSoftLinearConstraint)
-		{
-		HandleData->setDrive(PxD6Drive::eX, PxD6JointDrive(LinearStiffness, LinearDamping, PX_MAX_F32, PxD6JointDriveFlag::eACCELERATION));
-		HandleData->setDrive(PxD6Drive::eY, PxD6JointDrive(LinearStiffness, LinearDamping, PX_MAX_F32, PxD6JointDriveFlag::eACCELERATION));
-		HandleData->setDrive(PxD6Drive::eZ, PxD6JointDrive(LinearStiffness, LinearDamping, PX_MAX_F32, PxD6JointDriveFlag::eACCELERATION));
-		}
-
-		if (bSoftAngularConstraint && bRotationConstrained)
-		{
-			HandleData->setDrive(PxD6Drive::eSLERP, PxD6JointDrive(AngularStiffness, AngularDamping, PX_MAX_F32, PxD6JointDriveFlag::eACCELERATION));
-
-			//NewJoint->setDrive(PxD6Drive::eTWIST, PxD6JointDrive(AngularStiffness, AngularDamping, PX_MAX_F32, PxD6JointDriveFlag::eACCELERATION));
-			//NewJoint->setDrive(PxD6Drive::eSWING, PxD6JointDrive(AngularStiffness, AngularDamping, PX_MAX_F32, PxD6JointDriveFlag::eACCELERATION));
-		}
-	}
-#elif WITH_CHAOS
-
 	if (ConstraintHandle.IsValid() && ConstraintHandle.Constraint->IsType(Chaos::EConstraintType::JointConstraintType))
 	{
 		FPhysicsCommand::ExecuteWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& InConstraintHandle)
+		{
+			if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(ConstraintHandle.Constraint))
 			{
-				if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(ConstraintHandle.Constraint))
+				Chaos::EJointMotionType LocationMotionType = bSoftLinearConstraint ? Chaos::EJointMotionType::Free : Chaos::EJointMotionType::Locked;
+				Chaos::EJointMotionType RotationMotionType = (bSoftAngularConstraint || !bRotationConstrained) ? Chaos::EJointMotionType::Free : Chaos::EJointMotionType::Locked;
+
+				Constraint->SetCollisionEnabled(false);
+				Constraint->SetLinearVelocityDriveEnabled(Chaos::TVec3<bool>(LocationMotionType != Chaos::EJointMotionType::Locked));
+				Constraint->SetLinearPositionDriveEnabled(Chaos::TVec3<bool>(LocationMotionType != Chaos::EJointMotionType::Locked));
+				Constraint->SetLinearMotionTypesX(LocationMotionType);
+				Constraint->SetLinearMotionTypesY(LocationMotionType);
+				Constraint->SetLinearMotionTypesZ(LocationMotionType);
+
+				Constraint->SetAngularSLerpPositionDriveEnabled(bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked);
+				Constraint->SetAngularSLerpVelocityDriveEnabled(bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked);
+				Constraint->SetAngularMotionTypesX(RotationMotionType);
+				Constraint->SetAngularMotionTypesY(RotationMotionType);
+				Constraint->SetAngularMotionTypesZ(RotationMotionType);
+				FTransform GrabConstraintLocalTransform(ConstraintLocalRotation, ConstraintLocalPosition);
+				Constraint->SetJointTransforms({ FTransform::Identity , GrabConstraintLocalTransform });
+
+				if (LocationMotionType != Chaos::EJointMotionType::Locked)
 				{
-					Chaos::EJointMotionType LocationMotionType = bSoftLinearConstraint ? Chaos::EJointMotionType::Free : Chaos::EJointMotionType::Locked;
-					Chaos::EJointMotionType RotationMotionType = (bSoftAngularConstraint || !bRotationConstrained) ? Chaos::EJointMotionType::Free : Chaos::EJointMotionType::Locked;
-
-					Constraint->SetCollisionEnabled(false);
-					Constraint->SetLinearVelocityDriveEnabled(Chaos::TVec3<bool>(LocationMotionType != Chaos::EJointMotionType::Locked));
-					Constraint->SetLinearPositionDriveEnabled(Chaos::TVec3<bool>(LocationMotionType != Chaos::EJointMotionType::Locked));
-					Constraint->SetLinearMotionTypesX(LocationMotionType);
-					Constraint->SetLinearMotionTypesY(LocationMotionType);
-					Constraint->SetLinearMotionTypesZ(LocationMotionType);
-
-					Constraint->SetAngularSLerpPositionDriveEnabled(bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked);
-					Constraint->SetAngularSLerpVelocityDriveEnabled(bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked);
-					Constraint->SetAngularMotionTypesX(RotationMotionType);
-					Constraint->SetAngularMotionTypesY(RotationMotionType);
-					Constraint->SetAngularMotionTypesZ(RotationMotionType);
-					FTransform GrabConstraintLocalTransform(ConstraintLocalRotation, ConstraintLocalPosition);
-					Constraint->SetJointTransforms({ FTransform::Identity , GrabConstraintLocalTransform });
-
-					if (LocationMotionType != Chaos::EJointMotionType::Locked)
-					{
-						Constraint->SetLinearDriveStiffness(LinearStiffness);
-						Constraint->SetLinearDriveDamping(LinearDamping);
-					}
-
-					if (bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked)
-					{
-						Constraint->SetAngularDriveStiffness(AngularStiffness);
-						Constraint->SetAngularDriveDamping(AngularDamping);
-					}
+					Constraint->SetLinearDriveStiffness(LinearStiffness);
+					Constraint->SetLinearDriveDamping(LinearDamping);
 				}
-			});
+
+				if (bRotationConstrained && RotationMotionType != Chaos::EJointMotionType::Locked)
+				{
+					Constraint->SetAngularDriveStiffness(AngularStiffness);
+					Constraint->SetAngularDriveDamping(AngularDamping);
+				}
+			}
+		});
 	}
-#endif // WITH_PHYSX
 }
 
 void UPhysicsHandleComponent::ReleaseComponent()
 {
-#if PHYSICS_INTERFACE_PHYSX
-	if(GrabbedComponent)
-	{
-		if(HandleData)
-		{
-			check(KinActorData);
-
-			// use correct scene
-			PxScene* PScene = HandleData->getScene();
-			if(PScene)
-			{
-				SCOPED_SCENE_WRITE_LOCK(PScene);
-				// Destroy joint.
-				HandleData->release();
-				
-				// Destroy temporary actor.
-				KinActorData->release();
-				
-			}
-			KinActorData = NULL;
-			HandleData = NULL;
-		}
-
-		bRotationConstrained = false;
-
-		GrabbedComponent->WakeRigidBody(GrabbedBoneName);
-
-		GrabbedComponent = NULL;
-		GrabbedBoneName = NAME_None;
-	}
-#elif WITH_CHAOS
 	if (ConstraintHandle.IsValid())
 	{
 		FPhysicsInterface::ReleaseConstraint(ConstraintHandle);
@@ -372,8 +213,6 @@ void UPhysicsHandleComponent::ReleaseComponent()
 	}
 
 	ConstraintInstance.Reset();
-
-#endif
 }
 
 UPrimitiveComponent* UPhysicsHandleComponent::GetGrabbedComponent() const
@@ -399,54 +238,6 @@ void UPhysicsHandleComponent::SetTargetLocationAndRotation(FVector NewLocation, 
 
 void UPhysicsHandleComponent::UpdateHandleTransform(const FTransform& NewTransform)
 {
-#if PHYSICS_INTERFACE_PHYSX
-	if (!KinActorData)
-	{
-		return;
-	}
-
-	bool bChangedPosition = true;
-	bool bChangedRotation = true;
-
-	PxRigidDynamic* KinActor = KinActorData;
-	PxScene* PScene = KinActor->getScene();
-	SCOPED_SCENE_WRITE_LOCK(PScene);
-
-	// Check if the new location is worthy of change
-	PxVec3 PNewLocation = U2PVector(NewTransform.GetTranslation());
-	PxVec3 PCurrentLocation = KinActor->getGlobalPose().p;
-	if((PNewLocation - PCurrentLocation).magnitudeSquared() <= 0.01f*0.01f)
-	{
-		PNewLocation = PCurrentLocation;
-		bChangedPosition = false;
-	}
-
-	// Check if the new rotation is worthy of change
-	PxQuat PNewOrientation = U2PQuat(NewTransform.GetRotation());
-	PxQuat PCurrentOrientation = KinActor->getGlobalPose().q;
-	if((FMath::Abs(PNewOrientation.dot(PCurrentOrientation)) > (1.f - SMALL_NUMBER)))
-	{
-		PNewOrientation = PCurrentOrientation;
-		bChangedRotation = false;
-	}
-
-	// Don't call moveKinematic if it hasn't changed - that will stop bodies from going to sleep.
-	if (bChangedPosition || bChangedRotation)
-	{
-		KinActor->setKinematicTarget(PxTransform(PNewLocation, PNewOrientation));
-
-		//LOC_MOD
-		//PxD6Joint* Joint = (PxD6Joint*) HandleData;
-		//if(Joint)// && (PNewLocation - PCurrentLocation).magnitudeSquared() > 0.01f*0.01f)
-		//{
-		//	PxRigidActor* Actor0, *Actor1;
-		//	Joint->getActors(Actor0, Actor1);
-		//	//Joint->setDrivePosition(PxTransform(Actor0->getGlobalPose().transformInv(PNewLocation)));
-		//	Joint->setDrivePosition(PxTransform::createIdentity());
-		//	//Joint->setDriveVelocity(PxVec3(0), PxVec3(0));
-		//}
-	}
-#elif WITH_CHAOS
 	if (!CurrentTransform.Equals(PreviousTransform))
 	{
 		FPhysicsCommand::ExecuteWrite(KinematicHandle, [&](const FPhysicsActorHandle& InKinematicHandle)
@@ -457,15 +248,12 @@ void UPhysicsHandleComponent::UpdateHandleTransform(const FTransform& NewTransfo
 
 		PreviousTransform = CurrentTransform;
 	}
-#endif
 }
 
 void UPhysicsHandleComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-
-#if WITH_CHAOS
 	if (bPendingConstraint)
 	{
 		if (!ConstraintHandle.IsValid())
@@ -475,7 +263,6 @@ void UPhysicsHandleComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 
 	if (ConstraintHandle.IsValid())
 	{
-#endif
 		if (bInterpolateTarget)
 		{
 			const float Alpha = FMath::Clamp(DeltaTime * InterpolationSpeed, 0.f, 1.f);
@@ -491,7 +278,6 @@ void UPhysicsHandleComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 		}
 
 		UpdateHandleTransform(CurrentTransform);
-#if WITH_CHAOS
 	}
 	else if (KinematicHandle && GrabbedHandle)
 	{
@@ -511,7 +297,6 @@ void UPhysicsHandleComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 		}
 		bPendingConstraint = true;
 	}
-#endif
 }
 
 void UPhysicsHandleComponent::GetTargetLocationAndRotation(FVector& OutLocation, FRotator& OutRotation) const 

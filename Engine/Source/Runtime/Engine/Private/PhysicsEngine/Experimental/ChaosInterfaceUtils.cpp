@@ -25,10 +25,6 @@
 #include "PhysicsEngine/SphereElem.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXIncludes.h"
-#endif
-
 #define FORCE_ANALYTICS 0
 #define CREATE_STRAIGHT_CAPSULE_GEOMETRY_FOR_TAPERED_CAPSULES
 
@@ -46,103 +42,6 @@ namespace ChaosInterface
 	{
 		check(false);
 	}
-
-#if PHYSICS_INTERFACE_PHYSX
-
-	template<>
-	TArray<Chaos::TVec3<int32>> GetMeshElements(const physx::PxConvexMesh* PhysXMesh)
-	{
-		TArray<Chaos::TVec3<int32>> CollisionMeshElements;
-#if !WITH_CHAOS_NEEDS_TO_BE_FIXED
-		int32 offset = 0;
-		int32 NbPolygons = static_cast<int32>(PhysXMesh->getNbPolygons());
-		for (int32 i = 0; i < NbPolygons; i++)
-		{
-			physx::PxHullPolygon Poly;
-			bool status = PhysXMesh->getPolygonData(i, Poly);
-			const auto Indices = PhysXMesh->getIndexBuffer() + Poly.mIndexBase;
-
-			for (int32 j = 2; j < static_cast<int32>(Poly.mNbVerts); j++)
-			{
-				CollisionMeshElements.Add(Chaos::TVec3<int32>(Indices[offset], Indices[offset + j], Indices[offset + j - 1]));
-			}
-		}
-#endif
-		return CollisionMeshElements;
-	}
-
-	template<>
-	TArray<Chaos::TVec3<int32>> GetMeshElements(const physx::PxTriangleMesh* PhysXMesh)
-	{
-		TArray<Chaos::TVec3<int32>> CollisionMeshElements;
-		const auto MeshFlags = PhysXMesh->getTriangleMeshFlags();
-		for (int32 j = 0; j < static_cast<int32>(PhysXMesh->getNbTriangles()); ++j)
-		{
-			if (MeshFlags | physx::PxTriangleMeshFlag::e16_BIT_INDICES)
-			{
-				const physx::PxU16* Indices = reinterpret_cast<const physx::PxU16*>(PhysXMesh->getTriangles());
-				CollisionMeshElements.Add(Chaos::TVec3<int32>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
-			}
-			else
-			{
-				const physx::PxU32* Indices = reinterpret_cast<const physx::PxU32*>(PhysXMesh->getTriangles());
-				CollisionMeshElements.Add(Chaos::TVec3<int32>(Indices[3 * j], Indices[3 * j + 1], Indices[3 * j + 2]));
-			}
-		}
-		return CollisionMeshElements;
-	}
-
-	template<class PHYSX_MESH>
-	TUniquePtr<Chaos::FImplicitObject> ConvertPhysXMeshToLevelset(const PHYSX_MESH* PhysXMesh, const FVector& Scale)
-	{
-#if WITH_CHAOS && !WITH_CHAOS_NEEDS_TO_BE_FIXED
-		TArray<Chaos::TVec3<int32>> CollisionMeshElements = GetMeshElements(PhysXMesh);
-		Chaos::FParticles CollisionMeshParticles;
-		CollisionMeshParticles.AddParticles(PhysXMesh->getNbVertices());
-		for (uint32 j = 0; j < CollisionMeshParticles.Size(); ++j)
-		{
-			const auto& Vertex = PhysXMesh->getVertices()[j];
-			CollisionMeshParticles.X(j) = Scale * Chaos::FVec3(Vertex.x, Vertex.y, Vertex.z);
-		}
-		Chaos::FAABB3 BoundingBox(CollisionMeshParticles.X(0), CollisionMeshParticles.X(0));
-		for (uint32 j = 1; j < CollisionMeshParticles.Size(); ++j)
-		{
-			BoundingBox.GrowToInclude(CollisionMeshParticles.X(j));
-		}
-#if FORCE_ANALYTICS
-		return TUniquePtr<Chaos::FImplicitObject>(new Chaos::TBox<FReal, 3>(BoundingBox));
-#else
-		int32 MaxAxisSize = 10;
-		int32 MaxAxis;
-		const auto Extents = BoundingBox.Extents();
-		if (Extents[0] > Extents[1] && Extents[0] > Extents[2])
-		{
-			MaxAxis = 0;
-		}
-		else if (Extents[1] > Extents[2])
-		{
-			MaxAxis = 1;
-		}
-		else
-		{
-			MaxAxis = 2;
-		}
-		Chaos::TVec3<int32> Counts(MaxAxisSize * Extents[0] / Extents[MaxAxis], MaxAxisSize * Extents[1] / Extents[MaxAxis], MaxAxisSize * Extents[2] / Extents[MaxAxis]);
-		Counts[0] = Counts[0] < 1 ? 1 : Counts[0];
-		Counts[1] = Counts[1] < 1 ? 1 : Counts[1];
-		Counts[2] = Counts[2] < 1 ? 1 : Counts[2];
-		Chaos::TUniformGrid<float, 3> Grid(BoundingBox.Min(), BoundingBox.Max(), Counts, 1);
-		Chaos::FTriangleMesh CollisionMesh(MoveTemp(CollisionMeshElements));
-		return TUniquePtr<Chaos::FImplicitObject>(new Chaos::FLevelSet(Grid, CollisionMeshParticles, CollisionMesh));
-#endif
-
-#else
-		return TUniquePtr<Chaos::FImplicitObject>();
-#endif // !WITH_CHAOS_NEEDS_TO_BE_FIXED
-
-	}
-
-#endif
 
 	Chaos::EChaosCollisionTraceFlag ConvertCollisionTraceFlag(ECollisionTraceFlag Flag)
 	{
@@ -186,17 +85,12 @@ namespace ChaosInterface
 			CollisionMarginMax = Chaos_Collision_MarginMax;
 		}
 
-#if WITH_CHAOS
 		// Complex as simple should not create simple geometry, unless there is no complex geometry.  Otherwise both get queried against.
 		bool bMakeSimpleGeometry = (CollisionTraceType != CTF_UseComplexAsSimple) || (InParams.ChaosTriMeshes.Num() == 0);
 
 		// The reverse is true for Simple as Complex.
 		const int32 SimpleShapeCount = InParams.Geometry->SphereElems.Num() + InParams.Geometry->BoxElems.Num() + InParams.Geometry->ConvexElems.Num() + InParams.Geometry->SphylElems.Num();
 		bool bMakeComplexGeometry = (CollisionTraceType != CTF_UseSimpleAsComplex) || (SimpleShapeCount == 0);
-#else
-		bool bMakeSimpleGeometry = true;
-		bool bMakeComplexGeometry = true;
-#endif
 
 		ensure(bMakeComplexGeometry || bMakeSimpleGeometry);
 
@@ -346,7 +240,7 @@ namespace ChaosInterface
 				}
 			}
 #endif
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
+
 			for (uint32 i = 0; i < static_cast<uint32>(InParams.Geometry->ConvexElems.Num()); ++i)
 			{
 				const FKConvexElem& CollisionBody = InParams.Geometry->ConvexElems[i];
@@ -409,21 +303,9 @@ namespace ChaosInterface
 				Shapes.Emplace(MoveTemp(NewShape));
 				Geoms.Add(MoveTemp(Implicit));
 			}
-#endif
 		}
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		for (const auto& PhysXMesh : InParams.TriMeshes)
-		{
-			auto Implicit = ConvertPhysXMeshToLevelset(PhysXMesh, Scale);
-			auto NewShape = NewShapeHelper(MakeSerializable(Implicit), Shapes.Num(), nullptr, ECollisionEnabled::QueryAndPhysics, true);
-			Shapes.Emplace(MoveTemp(NewShape));
-			Geoms.Add(MoveTemp(Implicit));
-
-		}
-#endif
 	}
 
-#if WITH_CHAOS
 	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
 	{
 		Chaos::CalculateMassPropertiesFromShapeCollection(
@@ -446,6 +328,6 @@ namespace ChaosInterface
 		);
 	}
 
-#endif // WITH_CHAOS
+
 
 }

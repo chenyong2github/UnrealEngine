@@ -273,7 +273,6 @@ namespace UnrealBuildTool
 			Target.WindowsPlatform.bStrictConformanceMode = false;
 
 			Target.bDeployAfterCompile = true;
-			Target.bCompileNvCloth = false;      // requires CUDA
 
 			// Disable Simplygon support if compiling against the NULL RHI.
 			if (Target.GlobalDefinitions.Contains("USE_NULL_RHI=1"))

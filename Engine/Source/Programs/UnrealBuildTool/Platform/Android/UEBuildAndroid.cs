@@ -150,10 +150,6 @@ namespace UnrealBuildTool
 
 		public override void ValidateTarget(TargetRules Target)
 		{
-			Target.bCompilePhysX = true;
-			Target.bCompileAPEX = false;
-			Target.bCompileNvCloth = false;
-
 			Target.bCompileRecast = true;
 			Target.bCompileISPC = false;
 		}

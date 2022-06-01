@@ -5,10 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "PhysicsEngine/ShapeElem.h"
-
-#if WITH_CHAOS
 #include "Chaos/Serializable.h"
-#endif
 
 #include "ConvexElem.generated.h"
 
@@ -51,17 +48,7 @@ private:
 	UPROPERTY()
 	FTransform Transform;
 
-#if PHYSICS_INTERFACE_PHYSX
-	/** Convex mesh for this body, created from cooked data in CreatePhysicsMeshes */
-	physx::PxConvexMesh*   ConvexMesh;
-
-	/** Convex mesh for this body, flipped across X, created from cooked data in CreatePhysicsMeshes */
-	physx::PxConvexMesh*   ConvexMeshNegX;
-#endif
-
-#if WITH_CHAOS
 	TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe> ChaosConvex;
-#endif
 
 public:
 
@@ -104,21 +91,6 @@ public:
 	/** Returns the volume of this element */
 	FVector::FReal GetScaledVolume(const FVector& Scale3D) const;
 
-#if PHYSICS_INTERFACE_PHYSX
-	/** Get the PhysX convex mesh (defined in BODY space) for this element */
-	ENGINE_API physx::PxConvexMesh* GetConvexMesh() const;
-
-	/** Set the PhysX convex mesh to use for this element */
-	ENGINE_API void SetConvexMesh(physx::PxConvexMesh* InMesh);
-
-	/** Get the PhysX convex mesh (defined in BODY space) for this element */
-	ENGINE_API physx::PxConvexMesh* GetMirroredConvexMesh() const;
-
-	/** Set the PhysX convex mesh to use for this element */
-	ENGINE_API void SetMirroredConvexMesh(physx::PxConvexMesh* InMesh);
-#endif
-
-#if WITH_CHAOS
 	ENGINE_API const auto& GetChaosConvexMesh() const
 	{
 		return ChaosConvex;
@@ -131,7 +103,6 @@ public:
 	ENGINE_API void ComputeChaosConvexIndices(bool bForceCompute = false);
 
 	ENGINE_API TArray<int32> GetChaosConvexIndices() const;
-#endif
 
 	/** Get current transform applied to convex mesh vertices */
 	FTransform GetTransform() const

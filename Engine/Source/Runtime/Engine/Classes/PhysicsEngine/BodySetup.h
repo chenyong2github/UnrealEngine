@@ -26,23 +26,6 @@ enum class EPhysXMeshCookFlags : uint8;
 
 DECLARE_DELEGATE_OneParam(FOnAsyncPhysicsCookFinished, bool);
 
-#if PHYSICS_INTERFACE_PHYSX
-namespace physx
-{
-	class PxTriangleMesh;
-	class PxRigidActor;
-	class PxTransform;
-	class PxSphereGeometry;
-	class PxBoxGeometry;
-	class PxCapsuleGeometry;
-	class PxConvexMeshGeometry;
-	class PxConvexMesh;
-	class PxTriangleMesh;
-	class PxTriangleMeshGeometry;
-}
-#endif
-
-#if WITH_CHAOS
 namespace Chaos
 {
 	class FImplicitObject;
@@ -52,8 +35,6 @@ namespace Chaos
 
 template<typename T, int d>
 class FChaosDerivedDataReader;
-
-#endif
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("PhysX Cooking"), STAT_PhysXCooking, STATGROUP_Physics, );
 
@@ -91,13 +72,11 @@ struct ENGINE_API FCookBodySetupInfo
 	/** Trimesh data for cooking */
 	FTriMeshCollisionData TriangleMeshDesc;
 
-#if WITH_PHYSX
 	/** Trimesh cook flags */
 	EPhysXMeshCookFlags TriMeshCookFlags;
 
 	/** Convex cook flags */
 	EPhysXMeshCookFlags ConvexCookFlags;
-#endif // WITH_PHYSX
 
 	/** Vertices of NonMirroredConvex hulls */
 	TArray<TArray<FVector>> NonMirroredConvexVertices;
@@ -246,17 +225,10 @@ private:
 	FFormatContainer CookedFormatDataRuntimeOnlyOptimization;
 #endif
 
-#if WITH_PHYSX
-	/** Get cook flags for 'runtime only' cooked physics data */
-	EPhysXMeshCookFlags GetRuntimeOnlyCookOptimizationFlags() const;
-#endif 
-
 public:
 
-#if WITH_CHAOS
 	//FBodySetupTriMeshes* TriMeshWrapper;
 	TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>> ChaosTriMeshes;
-#endif
 
 	/** Additional UV info, if available. Used for determining UV for a line trace impact. */
 	FBodySetupUVInfo UVInfo;
@@ -275,18 +247,12 @@ public:
 	UPROPERTY()
 	FVector BuildScale3D;
 
-#if PHYSICS_INTERFACE_PHYSX
 	/** References the current async cook helper. Used to be able to abort a cook task */
-	using FAsyncCookHelper = FPhysXCookHelper;
-#elif WITH_CHAOS
 	using FAsyncCookHelper = Chaos::FCookHelper;
-#endif
 	FAsyncCookHelper* CurrentCookHelper;
 
-#if WITH_CHAOS
 	// Will contain deserialized data from the serialization function that can be used at PostLoad time.
 	TUniquePtr<FChaosDerivedDataReader<float, 3>> ChaosDerivedDataReader;
-#endif
 
 public:
 	//~ Begin UObject Interface.
@@ -327,16 +293,7 @@ public:
 private:
 	FByteBulkData* GetCookedFormatData();
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-	bool ProcessFormatData_PhysX(FByteBulkData* FormatData);
-	bool RuntimeCookPhysics_PhysX();
-
 	// #TODO MRMesh for some reason needs to be able to call this - that case needs fixed to correctly use the create meshes flow
-	friend class UMRMeshComponent;
-	/** Finish creating the physics meshes and update the body setup data with cooked data */
-	ENGINE_API void FinishCreatingPhysicsMeshes_PhysX(const TArray<physx::PxConvexMesh*>& ConvexMeshes, const TArray<physx::PxConvexMesh*>& ConvexMeshesNegX, const TArray<physx::PxTriangleMesh*>& TriMeshes);
-	// TODO: ProcessFormatData_Chaos is calling ProcessFormatData_Chaos directly - it's better if CreatePhysicsMeshes can be used but that code path requires WITH_EDITOR
-#elif WITH_CHAOS
 	friend class UMRMeshComponent;
 	bool ProcessFormatData_Chaos(FByteBulkData* FormatData);
 	bool ProcessFormatData_Chaos(FChaosDerivedDataReader<float, 3>& Reader);
@@ -347,7 +304,6 @@ private:
 										   TArray<TSharedPtr<Chaos::FTriangleMeshImplicitObject, ESPMode::ThreadSafe>>& InTrimeshImplicits,
 										   FBodySetupUVInfo& InUvInfo,
 										   TArray<int32>& InFaceRemap);
-#endif
 
 	/** 
 	 * Finalize game thread data before calling back user's delegate 

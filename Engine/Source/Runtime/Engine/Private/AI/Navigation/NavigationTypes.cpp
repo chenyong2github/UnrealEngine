@@ -293,9 +293,6 @@ bool FNavAgentSelector::Serialize(FArchive& Ar)
 //----------------------------------------------------------------------//
 FNavHeightfieldSamples::FNavHeightfieldSamples()
 {
-#if WITH_PHYSX
-	//static_assert(sizeof(physx::PxI16) == sizeof(Heights.GetTypeSize()), "FNavHeightfieldSamples::Heights' type needs to be kept in sync with physx::PxI16");
-#endif // WITH_PHYSX
 }
 
 void FNavHeightfieldSamples::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)

@@ -24,10 +24,8 @@ public:
 	FChaosVehicleManager(FPhysScene* PhysScene);
 	~FChaosVehicleManager();
 
-#if WITH_CHAOS
 	/** Get Physics Scene */
 	FPhysScene_Chaos& GetScene() const { return Scene; }
-#endif
 
 	/**
 	 * Register a Physics vehicle for processing
@@ -62,12 +60,10 @@ private:
 	/** Map of physics scenes to corresponding vehicle manager */
 	static TMap<FPhysScene*, FChaosVehicleManager*> SceneToVehicleManagerMap;
 
-#if WITH_CHAOS
 	// The physics scene we belong to
 	FPhysScene_Chaos& Scene;
 
 	static bool GInitialized;
-#endif
 
 	// All instanced vehicles
 	TArray<TWeakObjectPtr<UChaosVehicleMovementComponent>> Vehicles;

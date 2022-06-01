@@ -35,7 +35,6 @@ void FPhysicsAssetEditorAnimInstanceProxy::Initialize(UAnimInstance* InAnimInsta
 	FAnimPreviewInstanceProxy::Initialize(InAnimInstance);
 	ConstructNodes();
 
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 	UPhysicsAsset* PhysicsAsset = InAnimInstance->GetSkelMeshComponent()->GetPhysicsAsset();
 	if (PhysicsAsset != nullptr)
 	{
@@ -44,7 +43,6 @@ void FPhysicsAssetEditorAnimInstanceProxy::Initialize(UAnimInstance* InAnimInsta
 	}
 
 	FloorActor = nullptr;
-#endif
 }
 
 void FPhysicsAssetEditorAnimInstanceProxy::ConstructNodes()
@@ -80,7 +78,6 @@ void FPhysicsAssetEditorAnimInstanceProxy::UpdateAnimationNode(const FAnimationU
 
 bool FPhysicsAssetEditorAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Output, FAnimNode_Base* InRootNode)
 {
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 	ImmediatePhysics::FSimulation* Simulation = RagdollNode.GetSimulation();
 	if (Simulation != nullptr)
 	{
@@ -101,7 +98,6 @@ bool FPhysicsAssetEditorAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Outpu
 			SolverIterations.CollisionPushOutIterations
 		);
 	}
-#endif
 
 	if (CurrentAsset != nullptr)
 	{
@@ -126,7 +122,6 @@ void FPhysicsAssetEditorAnimInstanceProxy::AddImpulseAtLocation(FVector Impulse,
 
 void FPhysicsAssetEditorAnimInstanceProxy::Grab(FName InBoneName, const FVector& Location, const FRotator& Rotation, bool bRotationConstrained)
 {
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 	ImmediatePhysics::FSimulation* Simulation = RagdollNode.GetSimulation();
 
 	if (TargetActor != nullptr)
@@ -152,12 +147,10 @@ void FPhysicsAssetEditorAnimInstanceProxy::Grab(FName InBoneName, const FVector&
 
 		HandleJoint = Simulation->CreateJoint(nullptr, TargetActor, HandleActor);
 	}
-#endif
 }
 
 void FPhysicsAssetEditorAnimInstanceProxy::Ungrab()
 {
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 	if (TargetActor != nullptr)
 	{
 		ImmediatePhysics::FSimulation* Simulation = RagdollNode.GetSimulation();
@@ -167,33 +160,27 @@ void FPhysicsAssetEditorAnimInstanceProxy::Ungrab()
 		HandleActor = nullptr;
 		HandleJoint = nullptr;
 	}
-#endif
 }
 
 void FPhysicsAssetEditorAnimInstanceProxy::UpdateHandleTransform(const FTransform& NewTransform)
 {
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 	if (HandleActor != nullptr)
 	{
 		HandleActor->SetKinematicTarget(NewTransform);
 	}
-#endif
 }
 
 void FPhysicsAssetEditorAnimInstanceProxy::UpdateDriveSettings(bool bLinearSoft, float LinearStiffness, float LinearDamping)
 {
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 	using namespace Chaos;
 	if (HandleJoint != nullptr)
 	{
 		HandleJoint->SetSoftLinearSettings(bLinearSoft, LinearStiffness, LinearDamping);
 	}
-#endif
 }
 
 void FPhysicsAssetEditorAnimInstanceProxy::CreateSimulationFloor(FBodyInstance* FloorBodyInstance, const FTransform& Transform)
 {
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 	using namespace Chaos;
 
 	DestroySimulationFloor();
@@ -207,12 +194,10 @@ void FPhysicsAssetEditorAnimInstanceProxy::CreateSimulationFloor(FBodyInstance* 
 			Simulation->AddToCollidingPairs(FloorActor);
 		}
 	}
-#endif
 }
 
 void FPhysicsAssetEditorAnimInstanceProxy::DestroySimulationFloor()
 {
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 	using namespace Chaos;
 	ImmediatePhysics::FSimulation* Simulation = RagdollNode.GetSimulation();
 	if ((Simulation != nullptr) && (FloorActor != nullptr))
@@ -220,6 +205,5 @@ void FPhysicsAssetEditorAnimInstanceProxy::DestroySimulationFloor()
 		Simulation->DestroyActor(FloorActor);
 		FloorActor = nullptr;
 	}
-#endif
 }
 

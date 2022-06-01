@@ -84,7 +84,6 @@ void UOceanCollisionComponent::UpdateBodySetup(const TArray<FKConvexElem>& Conve
 
 	CachedBodySetup->CreatePhysicsMeshes();
 
-#if WITH_CHAOS
 	//
 	// GROSS HACK to work around the issue above that CreatePhysicsMeshes() doesn't currently work at Runtime.
 	// The "cook" for a FKConvexElem just creates and caches a Chaos::FConvex instance, and the restore from cooked
@@ -105,7 +104,6 @@ void UOceanCollisionComponent::UpdateBodySetup(const TArray<FKConvexElem>& Conve
 
 		Elem.SetChaosConvexMesh(MoveTemp(ChaosConvex));
 	}
-#endif
 
 	RecreatePhysicsState();
 

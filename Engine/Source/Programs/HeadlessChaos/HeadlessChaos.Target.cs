@@ -22,14 +22,6 @@ public class HeadlessChaosTarget : TestTargetRules
 
 		GlobalDefinitions.Add("CHAOS_SERIALIZE_OUT=1");
 
-		// Force enable Chaos as the physics engine for this project as this
-		// is a Chaos unit test framework - it doesn't build with PhysX enabled
-		bUseChaos = true;
-		bCompileChaos = true;
-		bCompilePhysX = false;
-		bCompileAPEX = false;
-		bCompileNvCloth = false;
-
 		// our gtest does not have debug crt libs
 		bDebugBuildsActuallyUseDebugCRT = false;
 	}

@@ -25,11 +25,6 @@
 #include "DesktopPlatformModule.h"
 #include "Interfaces/ITurnkeySupportModule.h"
 
-#if PHYSICS_INTERFACE_PHYSX
-#include "IPhysXCooking.h"
-#include "IPhysXCookingModule.h"
-#endif // PHYSICS_INTERFACE_PHYSX
-
 DEFINE_LOG_CATEGORY_STATIC(LogTargetPlatformManager, Log, All);
 
 // AutoSDKs needs the extra DDPI info
@@ -682,59 +677,11 @@ public:
 		static bool bInitialized = false;
 		static TArray<const IPhysXCooking*> Results;
 
-#if PHYSICS_INTERFACE_PHYSX
-		if (!bInitialized || bForceCacheUpdate)
-		{
-			bInitialized = true;
-			Results.Empty(Results.Num());
-			
-			TArray<FName> Modules;
-			FModuleManager::Get().FindModules(TEXT("PhysXCooking*"), Modules);
-			
-			if (!Modules.Num())
-			{
-				UE_LOG(LogTargetPlatformManager, Error, TEXT("No target PhysX formats found!"));
-			}
-
-			for (int32 Index = 0; Index < Modules.Num(); Index++)
-			{
-				IPhysXCookingModule* Module = FModuleManager::LoadModulePtr<IPhysXCookingModule>(Modules[Index]);
-				if (Module)
-				{
-					IPhysXCooking* Format = Module->GetPhysXCooking();
-					if (Format != nullptr)
-					{
-						Results.Add(Format);
-					}
-				}
-			}
-		}
-#endif // PHYSICS_INTERFACE_PHYSX
-
 		return Results;
 	}
 
 	virtual const IPhysXCooking* FindPhysXCooking(FName Name) override
 	{
-#if PHYSICS_INTERFACE_PHYSX 
-		const TArray<const IPhysXCooking*>& PhysXCooking = GetPhysXCooking();
-
-		for (int32 Index = 0; Index < PhysXCooking.Num(); Index++)
-		{
-			TArray<FName> Formats;
-
-			PhysXCooking[Index]->GetSupportedFormats(Formats);
-		
-			for (int32 FormatIndex = 0; FormatIndex < Formats.Num(); FormatIndex++)
-			{
-				if (Formats[FormatIndex] == Name)
-				{
-					return PhysXCooking[Index];
-				}
-			}
-		}
-#endif // PHYSICS_INTERFACE_PHYSX
-
 		return nullptr;
 	}
 

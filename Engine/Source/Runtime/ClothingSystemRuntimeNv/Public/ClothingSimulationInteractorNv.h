@@ -12,6 +12,7 @@ class FClothingSimulationContextNv;
 // Command signature for handling synced command buffer
 DECLARE_DELEGATE_TwoParams(NvInteractorCommand, FClothingSimulationNv*, FClothingSimulationContextNv*)
 
+class UE_DEPRECATED(5.1, "NvCloth is no longer a supported clothing simlation provider, prefer the Chaos simulation moving forward.") UClothingSimulationInteractorNv;
 UCLASS(BlueprintType)
 class CLOTHINGSYSTEMRUNTIMENV_API UClothingSimulationInteractorNv : public UClothingSimulationInteractor
 {
@@ -43,7 +44,4 @@ protected:
 	virtual UClothingInteractor* CreateClothingInteractor() override { return nullptr; }
 
 private:
-
-	// Command queue processed when we hit a sync
-	TArray<NvInteractorCommand> Commands;
 };

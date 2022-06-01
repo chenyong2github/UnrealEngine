@@ -14,9 +14,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceBasePropertyOverrides.h"
 #include "Misc/App.h"
-#if WITH_CHAOS
 #include "Physics/PhysicsInterfaceCore.h"
-#endif
 #include "MaterialInstance.generated.h"
 
 class ITargetPlatform;

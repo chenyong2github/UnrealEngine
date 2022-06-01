@@ -74,9 +74,7 @@
 	#include "IMediaModule.h"
 #endif
 
-#if WITH_CHAOS
 #include "ChaosSolversModule.h"
-#endif
 
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);

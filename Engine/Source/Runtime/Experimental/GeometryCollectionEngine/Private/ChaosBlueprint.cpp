@@ -413,50 +413,42 @@ void UChaosDestructionListener::SortRemovalEvents(TArray<FChaosRemovalEventData>
 
 void UChaosDestructionListener::RegisterChaosEvents(FPhysScene* Scene)
 {
-#if WITH_CHAOS
 	Chaos::FPhysicsSolver* Solver = Scene->GetSolver();
 	Chaos::FEventManager* EventManager = Solver->GetEventManager();
 	EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosDestructionListener::HandleCollisionEvents);
 	EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosDestructionListener::HandleBreakingEvents);
 	EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UChaosDestructionListener::HandleTrailingEvents);
 	EventManager->RegisterHandler<Chaos::FRemovalEventData>(Chaos::EEventType::Removal, this, &UChaosDestructionListener::HandleRemovalEvents);
-#endif
 }
 
 void UChaosDestructionListener::UnregisterChaosEvents(FPhysScene* Scene)
 {
-#if WITH_CHAOS
 	Chaos::FPhysicsSolver* Solver = Scene->GetSolver();
 	Chaos::FEventManager* EventManager = Solver->GetEventManager();
 	EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Removal, this);
-#endif
 }
 
 void UChaosDestructionListener::RegisterChaosEvents(TSharedPtr<FPhysScene_Chaos> Scene)
 {
-#if WITH_CHAOS
 	Chaos::FPhysicsSolver* Solver = Scene->GetSolver();
 	Chaos::FEventManager* EventManager = Solver->GetEventManager();
 	EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosDestructionListener::HandleCollisionEvents);
 	EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosDestructionListener::HandleBreakingEvents);
 	EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UChaosDestructionListener::HandleTrailingEvents);
 	EventManager->RegisterHandler<Chaos::FRemovalEventData>(Chaos::EEventType::Removal, this, &UChaosDestructionListener::HandleRemovalEvents);
-#endif
 }
 
 void UChaosDestructionListener::UnregisterChaosEvents(TSharedPtr<FPhysScene_Chaos> Scene)
 {
-#if WITH_CHAOS
 	Chaos::FPhysicsSolver* Solver = Scene->GetSolver();
 	Chaos::FEventManager* EventManager = Solver->GetEventManager();
 	EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Removal, this);
-#endif
 }
 
 

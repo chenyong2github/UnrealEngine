@@ -11,13 +11,6 @@ class UActorComponent;
 class UFoliageType;
 struct FProceduralFoliageInstance;
 
-#if WITH_PHYSX
-namespace physx
-{
-	class PxRigidActor;
-}
-#endif
-
 UENUM(BlueprintType)
 namespace ESimulationOverlap
 {

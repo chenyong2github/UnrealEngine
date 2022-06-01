@@ -138,10 +138,7 @@
 #include "ObjectTrace.h"
 #include "ReplaySubsystem.h"
 #include "Net/NetPing.h"
-
-#if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
-#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorld, Log, All);
 DEFINE_LOG_CATEGORY(LogSpawn);
@@ -1014,13 +1011,11 @@ void UWorld::BeginDestroy()
 		}
 	}
 
-#if WITH_CHAOS
 	if (PhysicsScene != nullptr)
 	{
 		// Tell PhysicsScene to stop kicking off async work so we can cleanup after pending work is complete.
 		PhysicsScene->BeginDestroy();
 	}
-#endif
 
 	if (Scene)
 	{
@@ -1044,12 +1039,10 @@ void UWorld::ReleasePhysicsScene()
 		delete PhysicsScene;
 		PhysicsScene = NULL;
 
-#if WITH_PHYSX
 		if (GPhysCommandHandler)
 		{
 			GPhysCommandHandler->Flush();
 		}
-#endif // WITH_PHYSX
 	}
 }
 
@@ -1136,8 +1129,6 @@ void UWorld::FinishDestroy()
 
 bool UWorld::IsReadyForFinishDestroy()
 {
-#if WITH_CHAOS
-
 	// In single threaded, task will never complete unless we wait on it, allow FinishDestroy so we can wait on task, otherwise this will hang GC.
 	// In multi threaded, we cannot wait in FinishDestroy, as this may schedule another task that is unsafe during GC.
 	const bool bIsSingleThreadEnvironment = FPlatformProcess::SupportsMultithreading() == false;
@@ -1151,7 +1142,6 @@ bool UWorld::IsReadyForFinishDestroy()
 			}
 		}
 	}
-#endif
 
 	return Super::IsReadyForFinishDestroy();
 }
@@ -1176,9 +1166,6 @@ void UWorld::PostLoad()
 #if WITH_EDITOR
 	RepairWorldSettings();
 	RepairStreamingLevels();
-#endif
-#if INCLUDE_CHAOS
-	//RepairChaosActors();
 #endif
 
 	for (auto It = StreamingLevels.CreateIterator(); It; ++It)
@@ -1471,7 +1458,6 @@ UAISystemBase* UWorld::CreateAISystem()
 	return AISystem; 
 }
 
-#if INCLUDE_CHAOS
 void UWorld::RepairChaosActors()
 {
 	if (!PhysicsScene_Chaos)
@@ -1540,7 +1526,6 @@ void UWorld::RepairChaosActors()
 	// make the current scene the default scene
 	DefaultPhysicsScene_Chaos = PhysicsScene_Chaos;
 }
-#endif
 
 void UWorld::RepairStreamingLevels()
 {
@@ -1827,10 +1812,6 @@ void UWorld::InitWorld(const InitializationValues IVS)
 	RepairWorldSettings();
 	RepairStreamingLevels();
 #endif
-#if INCLUDE_CHAOS
-	//RepairChaosActors();
-#endif
-
 
 	// initialize DefaultPhysicsVolume for the world
 	// Spawned on demand by this function.
@@ -2003,16 +1984,6 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS, bool bInSkipInit
 		
 		UWorldPartition::CreateOrRepairWorldPartition(WorldSettings);
 	}
-#endif
-
-#if INCLUDE_CHAOS
-	/*FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
-	check(ChaosModule);
-	FActorSpawnParameters ChaosSpawnInfo;
-	ChaosSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	ChaosSpawnInfo.Name = TEXT("DefaultChaosActor");
-	SpawnActor(ChaosModule->GetSolverActorClass(), nullptr, nullptr, ChaosSpawnInfo);
-	check(PhysicsScene_Chaos);*/
 #endif
 
 	if (!bInSkipInitWorld)
@@ -4927,12 +4898,10 @@ void UWorld::BeginPlay()
 
 	OnWorldBeginPlay.Broadcast();
 
-#if WITH_CHAOS
 	if(PhysicsScene)
 	{
 		PhysicsScene->OnWorldBeginPlay();
 	}
-#endif
 }
 
 bool UWorld::IsNavigationRebuilt() const
@@ -4972,9 +4941,7 @@ void UWorld::CleanupWorldInternal(bool bSessionEnded, bool bCleanupResources, bo
 	if(FPhysScene* CurrPhysicsScene = GetPhysicsScene())
 	{
 		CurrPhysicsScene->WaitPhysScenes();
-#if WITH_CHAOS
 		CurrPhysicsScene->OnWorldEndPlay();
-#endif
 	}
 
 	FWorldDelegates::OnWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
@@ -5404,16 +5371,13 @@ bool UWorld::AreActorsInitialized() const
 
 void UWorld::CreatePhysicsScene(const AWorldSettings* Settings)
 {
-#if WITH_CHAOS && CHAOS_DEBUG_NAME
+#if CHAOS_DEBUG_NAME
 	const FName PhysicsName = IsNetMode(NM_DedicatedServer) ? TEXT("ServerPhysics") : TEXT("ClientPhysics");
 	FPhysScene* NewScene = new FPhysScene(nullptr, PhysicsName);
 #else
-#if PHYSICS_INTERFACE_PHYSX
-	FPhysScene* NewScene = new FPhysScene(Settings);
-#else
 	FPhysScene* NewScene = new FPhysScene(nullptr);
 #endif
-#endif
+
 	SetPhysicsScene(NewScene);
 }
 

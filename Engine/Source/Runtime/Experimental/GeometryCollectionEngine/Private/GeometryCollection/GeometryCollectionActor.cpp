@@ -57,11 +57,7 @@ void AGeometryCollectionActor::Tick(float DeltaTime)
 
 const Chaos::FPhysicsSolver* GetSolver(const AGeometryCollectionActor& GeomCollectionActor)
 {
-#if INCLUDE_CHAOS
 	return GeomCollectionActor.GetGeometryCollectionComponent()->ChaosSolverActor != nullptr ? GeomCollectionActor.GetGeometryCollectionComponent()->ChaosSolverActor->GetSolver() : GeomCollectionActor.GetWorld()->PhysicsScene_Chaos->GetSolver();
-#else
-	return nullptr;
-#endif
 }
 
 

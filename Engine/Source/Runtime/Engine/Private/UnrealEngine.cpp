@@ -237,10 +237,6 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Streaming/StreamingManagerTexture.h"
 #endif
 
-#if WITH_PHYSX
-#include "PhysXPublic.h"
-#endif
-
 #include "HAL/FileManagerGeneric.h"
 #include "UObject/UObjectThreadContext.h"
 #include "UObject/ReferenceChainSearch.h"
@@ -6270,18 +6266,10 @@ bool UEngine::HandleListStaticMeshesCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 		int32 VertexCountCollision = 0;
 		if(Mesh->GetBodySetup())
 		{
-#if PHYSICS_INTERFACE_PHYSX
-			// Count PhysX trimesh mem usage
-			for (physx::PxTriangleMesh* TriMesh : Mesh->GetBodySetup()->TriMeshes)
-			{
-				VertexCountCollision += TriMesh->getNbVertices();
-			}
-#elif WITH_CHAOS
 			for (auto& TriMesh : Mesh->GetBodySetup()->ChaosTriMeshes)
 			{
 				VertexCountCollision += TriMesh->Particles().Size();
 			}
-#endif
 		}
 
 		FString Name = Mesh->GetFullName();
@@ -6589,18 +6577,10 @@ bool UEngine::HandleListSkeletalMeshesCommand(const TCHAR* Cmd, FOutputDevice& A
 		const USkeletalMesh* MeshConst = Mesh;
 		if (MeshConst->GetBodySetup())
 		{
-#if PHYSICS_INTERFACE_PHYSX
-			// Count PhysX trimesh mem usage
-			for (physx::PxTriangleMesh* TriMesh : MeshConst->GetBodySetup()->TriMeshes)
-			{
-				VertexCountCollision += TriMesh->getNbVertices();
-			}
-#elif WITH_CHAOS
 			for (auto& TriMesh : MeshConst->GetBodySetup()->ChaosTriMeshes)
 			{
 				VertexCountCollision += TriMesh->Particles().Size();
 			}
-#endif
 		}
 
 		FString Name = Mesh->GetFullName();

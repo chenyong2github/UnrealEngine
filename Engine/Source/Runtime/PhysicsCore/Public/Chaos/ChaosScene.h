@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if WITH_CHAOS
-
 #include "CoreMinimal.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/GCObject.h"
@@ -114,9 +112,7 @@ public:
 
 	void AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles,const bool bImmediate=true);
 	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle Actor);
-#if WITH_CHAOS
 	void RemoveActorFromAccelerationStructureImp(Chaos::FGeometryParticle* Particle);
-#endif
 	void UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsActorHandle>& Actors);
 	void UpdateActorInAccelerationStructure(const FPhysicsActorHandle& Actor);
 
@@ -194,5 +190,3 @@ private:
 
 	FChaosSceneSimCallback* SimCallback;
 };
-
-#endif

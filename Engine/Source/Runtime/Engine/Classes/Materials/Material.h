@@ -17,9 +17,7 @@
 #include "Materials/MaterialLayersFunctions.h"
 #include "Templates/UniquePtr.h"
 #include "Shader/ShaderTypes.h"
-#if WITH_CHAOS
 #include "Physics/PhysicsInterfaceCore.h"
-#endif
 #include "Material.generated.h"
 
 class ITargetPlatform;

@@ -29,10 +29,7 @@
 
 #endif
 
-#if WITH_CHAOS
 #include "Chaos/PhysicalMaterials.h"
-#endif
-
 
 DEFINE_LOG_CATEGORY_STATIC(LogPhysicalMaterialMask, Log, All);
 
@@ -109,12 +106,10 @@ UPhysicalMaterialMask::~UPhysicalMaterialMask() = default;
 
 void UPhysicalMaterialMask::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-#if WITH_CHAOS
 	if (MaterialMaskHandle && MaterialMaskHandle->IsValid())
 	{
 		FPhysicsInterface::UpdateMaterialMask(*MaterialMaskHandle, this);
 	}
-#endif
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
@@ -147,12 +142,11 @@ void UPhysicalMaterialMask::PostLoad()
 
 void UPhysicalMaterialMask::FinishDestroy()
 {
-#if WITH_CHAOS
 	if(MaterialMaskHandle)
 	{
 		FPhysicsInterface::ReleaseMaterialMask(*MaterialMaskHandle);
 	}
-#endif
+
 	Super::FinishDestroy();
 }
 
@@ -239,8 +233,6 @@ void UPhysicalMaterialMask::DumpMaskData()
 
 #endif // WITH_EDITOR
 
-#if	WITH_CHAOS
-
 FPhysicsMaterialMaskHandle& UPhysicalMaterialMask::GetPhysicsMaterialMask()
 {
 	if(!MaterialMaskHandle)
@@ -259,8 +251,6 @@ FPhysicsMaterialMaskHandle& UPhysicalMaterialMask::GetPhysicsMaterialMask()
 
 	return *MaterialMaskHandle;
 }
-
-#endif
 
 // This template generates mask data from the texture mask, converting colors to mask ids.
 template<typename PixelDataType, int32 RIdx, int32 GIdx, int32 BIdx, int32 AIdx> class MaskDataGenerator

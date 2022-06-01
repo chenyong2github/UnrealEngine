@@ -2,8 +2,6 @@
 
 #pragma once
 
-#if WITH_CHAOS
-
 #include "CoreMinimal.h"
 #include "DerivedDataPluginInterface.h"
 #include "UObject/GCObject.h"
@@ -68,4 +66,3 @@ private:
 };
 
 
-#endif

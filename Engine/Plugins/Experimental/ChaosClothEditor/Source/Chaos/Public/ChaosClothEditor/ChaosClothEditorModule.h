@@ -13,7 +13,5 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-#if WITH_CHAOS
 	Chaos::FSimulationEditorExtender ChaosEditorExtender;
-#endif
 };

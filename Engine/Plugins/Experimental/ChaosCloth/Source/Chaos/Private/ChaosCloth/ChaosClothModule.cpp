@@ -15,24 +15,17 @@ class FChaosClothModule : public IChaosClothModuleInterface, public IClothingSim
     virtual void StartupModule() override
     {
         check(GConfig);
-#if WITH_CHAOS
 		IModularFeatures::Get().RegisterModularFeature(IClothingSimulationFactoryClassProvider::FeatureName, this);
-#endif
     }
 
     virtual void ShutdownModule() override
     {
-#if WITH_CHAOS
 		IModularFeatures::Get().UnregisterModularFeature(IClothingSimulationFactoryClassProvider::FeatureName, this);
-#endif
     }
 
 	TSubclassOf<UClothingSimulationFactory> GetClothingSimulationFactoryClass() const override
 	{
-#if WITH_CHAOS
 		return UChaosClothingSimulationFactory::StaticClass();
-#endif
-		return nullptr;
 	}
 };
 

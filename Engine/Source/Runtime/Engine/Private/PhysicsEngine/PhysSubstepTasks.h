@@ -7,59 +7,10 @@
 #include "HAL/ThreadSafeBool.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "PhysicsEngine/BodyInstance.h"
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysicsEngine/PhysXSupport.h"
-#endif
 
 struct FSimulationScratchBuffer;
 
 void FinishSceneStat();
-
-//This is only here for now while we transition into substepping
-#if PHYSICS_INTERFACE_PHYSX
-class PhysXCompletionTask : public PxLightCpuTask
-{
-	FGraphEventRef EventToFire;
-
-	// Scratch memory for call to PxScene::simulate. This is owned by the FPhysScene that spawned this
-	// task and is guaranteed to remain valid till FPhysScene destruction - can be nullptr if size
-	// was set to zero or a buffer isn't required for this scene
-	FSimulationScratchBuffer* ScratchBuffer;
-
-public:
-	PhysXCompletionTask()
-		: ScratchBuffer(nullptr)
-	{}
-
-	PhysXCompletionTask(FGraphEventRef& InEventToFire, PxTaskManager* InTaskManager, FSimulationScratchBuffer* InScratchBuffer = nullptr)
-		: EventToFire(InEventToFire)
-		, ScratchBuffer(InScratchBuffer)
-	{
-		setContinuation(*InTaskManager, NULL);
-	}
-	virtual void run()
-	{
-	}
-	virtual void release()
-	{
-		PxLightCpuTask::release();
-		FinishSceneStat();
-		if (EventToFire.GetReference())
-		{
-			EventToFire->DispatchSubsequents();
-		}
-		delete this;
-	}
-	virtual const char *getName() const
-	{
-		return "CompleteSimulate";
-	}
-
-	uint8* GetScratchBufferData();
-	int32 GetScratchBufferSize();
-};
-#endif	//#if WITH_PHYSX
-
 
 /** Hold information about kinematic target */
 struct FKinematicTarget
@@ -148,22 +99,10 @@ struct FPhysTarget
 	
 };
 
-#if PHYSICS_INTERFACE_PHYSX
-#if WITH_APEX
-typedef apex::Scene PxApexScene;	//helper typedef so we don't have to use as many ifdefs
-#else
-typedef PxScene PxApexScene;
-#endif
-#endif
-
 /** Holds information used for substepping a scene */
 class FPhysSubstepTask
 {
 public:
-#if PHYSICS_INTERFACE_PHYSX
-	FPhysSubstepTask(PxApexScene * GivenScene, FPhysScene* InPhysScene);
-#endif
-
 	void SetKinematicTarget_AssumesLocked(FBodyInstance* Body, const FTransform& TM);
 	bool GetKinematicTarget_AssumesLocked(const FBodyInstance* Body, FTransform& OutTM) const;
 	void AddCustomPhysics_AssumesLocked(FBodyInstance* Body, const FCalculateCustomPhysics& CalculateCustomPhysics);
@@ -183,9 +122,6 @@ public:
 
 	void SubstepSimulationStart();
 	void SubstepSimulationEnd(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent);
-#if PHYSICS_INTERFACE_PHYSX
-	void StepSimulation(PhysXCompletionTask * Task);
-#endif
 		
 private:
 
@@ -214,9 +150,4 @@ private:
 	FGraphEventRef CompletionEvent;
 
 	FPhysScene* PhysScene;
-
-#if PHYSICS_INTERFACE_PHYSX
-	PxApexScene * PAScene;
-#endif
-
 };

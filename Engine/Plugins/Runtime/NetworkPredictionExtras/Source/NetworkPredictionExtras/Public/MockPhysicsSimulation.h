@@ -162,8 +162,6 @@ struct FMockPhysicsChargeCue
 	}
 };
 
-#if WITH_CHAOS
-
 struct FMockPhysicsCueSet
 {
 	template<typename TDispatchTable>
@@ -173,5 +171,3 @@ struct FMockPhysicsCueSet
 		DispatchTable.template RegisterType<FMockPhysicsChargeCue>();
 	}
 };
-
-#endif // WITH_CHAOS

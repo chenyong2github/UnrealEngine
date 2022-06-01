@@ -29,20 +29,7 @@
 #include "Chaos/Convex.h"
 #include "Chaos/Levelset.h"
 
-#include "PhysXCookHelper.h"
-
-#if PHYSICS_INTERFACE_PHYSX
-	#include "PhysXPublic.h"
-	#include "PhysicsEngine/PhysXSupport.h"
-#endif // WITH_PHYSX
-
 #include "Modules/ModuleManager.h"
-
-#if PHYSICS_INTERFACE_PHYSX
-	#include "IPhysXCookingModule.h"
-	#include "IPhysXCooking.h"
-	#include "PhysicsEngine/PhysDerivedData.h"
-#endif
 
 #include "Physics/PhysicsInterfaceUtils.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
@@ -50,13 +37,10 @@
 #include "UObject/AnimPhysObjectVersion.h"
 
 #include "Chaos/TriangleMeshImplicitObject.h"
-
-#if WITH_CHAOS
-	#include "Experimental/ChaosDerivedData.h"
-	#include "Physics/Experimental/ChaosDerivedDataReader.h"
-	#include "Chaos/CollisionConvexMesh.h"
-	#include "Experimental/ChaosCooking.h"
-#endif
+#include "Experimental/ChaosDerivedData.h"
+#include "Physics/Experimental/ChaosDerivedDataReader.h"
+#include "Chaos/CollisionConvexMesh.h"
+#include "Experimental/ChaosCooking.h"
 
 /** Enable to verify that the cooked data matches the source data as we cook it */
 #define VERIFY_COOKED_PHYS_DATA 0
@@ -65,10 +49,6 @@
 
 
 FCookBodySetupInfo::FCookBodySetupInfo() :
-#if PHYSICS_INTERFACE_PHYSX
-	TriMeshCookFlags(EPhysXMeshCookFlags::Default) ,
-	ConvexCookFlags(EPhysXMeshCookFlags::Default) ,
-#endif // WITH_PHYSX
 	bCookNonMirroredConvex(false),
 	bCookMirroredConvex(false),
 	bConvexDeformableMesh(false),
@@ -100,24 +80,10 @@ namespace PhysXBodySetupCookStats
 
 DEFINE_STAT(STAT_PhysXCooking);
 
-#if WITH_PHYSX
-
 bool IsRuntimeCookingEnabled()
 {
-#if PHYSICS_INTERFACE_PHYSX
-	return FModuleManager::LoadModulePtr<IPhysXCookingModule>("RuntimePhysXCooking") != nullptr;
-#else
 	return false;
-#endif
 }
-#endif //WITH_PHYSX
-
-#if PHYSICS_INTERFACE_PHYSX
-	// Quaternion that converts Sphyls from UE space to PhysX space (negate Y, swap X & Z)
-	// This is equivalent to a 180 degree rotation around the normalized (1, 0, 1) axis
-	const physx::PxQuat U2PSphylBasis( PI, PxVec3( 1.0f / FMath::Sqrt( 2.0f ), 0.0f, 1.0f / FMath::Sqrt( 2.0f ) ) );
-	const FQuat U2PSphylBasis_UE(FVector(1.0f / FMath::Sqrt(2.0f), 0.0f, 1.0f / FMath::Sqrt(2.0f)), PI);
-#endif // WITH_PHYSX
 
 // CVars
 ENGINE_API TAutoConsoleVariable<float> CVarContactOffsetFactor(
@@ -173,9 +139,7 @@ UBodySetup::UBodySetup(const FObjectInitializer& ObjectInitializer)
 	SetFlags(RF_Transactional);
 	bSharedCookedData = false;
 	CookedFormatDataOverride = nullptr;
-#if PHYSICS_INTERFACE_PHYSX
 	CurrentCookHelper = nullptr;
-#endif
 }
 
 void UBodySetup::CopyBodyPropertiesFrom(const UBodySetup* FromSetup)
@@ -186,12 +150,7 @@ void UBodySetup::CopyBodyPropertiesFrom(const UBodySetup* FromSetup)
 	for (int32 i = 0; i < AggGeom.ConvexElems.Num(); i++)
 	{
 		FKConvexElem& ConvexElem = AggGeom.ConvexElems[i];
-#if PHYSICS_INTERFACE_PHYSX
-		ConvexElem.SetConvexMesh(nullptr);
-		ConvexElem.SetMirroredConvexMesh(nullptr);
-#elif WITH_CHAOS
 		ConvexElem.ResetChaosConvexMesh();
-#endif
 	}
 
 	DefaultInstance.CopyBodyInstancePropertiesFrom(&FromSetup->DefaultInstance);
@@ -216,12 +175,7 @@ void UBodySetup::AddCollisionFrom(const FKAggregateGeom& FromAggGeom)
 	for (int32 i = FirstNewConvexIdx; i < AggGeom.ConvexElems.Num(); i++)
 	{
 		FKConvexElem& ConvexElem = AggGeom.ConvexElems[i];
-#if PHYSICS_INTERFACE_PHYSX
-		ConvexElem.SetConvexMesh(nullptr);
-		ConvexElem.SetMirroredConvexMesh(nullptr);
-#elif WITH_CHAOS
 		ConvexElem.ResetChaosConvexMesh();
-#endif
 	}
 
 	AggGeom.LevelSetElems.Append(FromAggGeom.LevelSetElems);
@@ -286,12 +240,6 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 			// Get cook flags to use
 			OutCookInfo.ConvexCookFlags = InCookFlags;
 			OutCookInfo.bConvexDeformableMesh = GetOuter()->IsA(USplineMeshComponent::StaticClass());
-#if PHYSICS_INTERFACE_PHYSX
-			if (OutCookInfo.bConvexDeformableMesh)
-			{
-				OutCookInfo.ConvexCookFlags |= EPhysXMeshCookFlags::DeformableMesh;
-			}
-#endif
 		}
 	}
 	else
@@ -327,22 +275,6 @@ void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlag
 
 			// Set up cooking flags
 			EPhysXMeshCookFlags CookFlags = InCookFlags;
-#if PHYSICS_INTERFACE_PHYSX
-			if (TriangleMeshDesc.bDeformableMesh)
-			{
-				CookFlags |= EPhysXMeshCookFlags::DeformableMesh;
-			}
-
-			if (TriangleMeshDesc.bFastCook)
-			{
-				CookFlags |= EPhysXMeshCookFlags::FastCook;
-			}
-
-			if (TriangleMeshDesc.bDisableActiveEdgePrecompute)
-			{
-				CookFlags |= EPhysXMeshCookFlags::DisableActiveEdgePrecompute;
-			}
-#endif
 			OutCookInfo.TriMeshCookFlags = CookFlags;
 
 			OutCookInfo.bSupportFaceRemap = bSupportUVsAndFaceRemap;
@@ -445,7 +377,6 @@ void UBodySetup::CreatePhysicsMeshes()
 	bool bClearMeshes = true;
 	bool bSkipProcessFormatData = false;
 
-#if WITH_CHAOS
 	// If the data already has been deserialized from the async loading thread, use that.
 	if (ChaosDerivedDataReader.IsValid())
 	{
@@ -453,27 +384,18 @@ void UBodySetup::CreatePhysicsMeshes()
 		ChaosDerivedDataReader.Reset();
 		bSkipProcessFormatData = true;
 	}
-#endif
 
 	if (!bSkipProcessFormatData)
 	{
 		if (FByteBulkData* FormatData = GetCookedFormatData())
 		{
-#if WITH_PHYSX  && PHYSICS_INTERFACE_PHYSX
-			bClearMeshes = !ProcessFormatData_PhysX(FormatData);
-#elif WITH_CHAOS
 			bClearMeshes = !ProcessFormatData_Chaos(FormatData);
-#endif
 		}
 		else
 		{
 			if (IsRuntime(this))
 			{
-#if WITH_PHYSX  && PHYSICS_INTERFACE_PHYSX
-				bClearMeshes = !RuntimeCookPhysics_PhysX();
-#elif WITH_CHAOS
 				bClearMeshes = !RuntimeCookPhysics_Chaos();
-#endif
 			}
 		}
 	}
@@ -491,7 +413,6 @@ void UBodySetup::CreatePhysicsMeshes()
 		}
 	}
 
-#if WITH_CHAOS
 	// For drawing of convex elements we require an index buffer, previously we could
 	// get this from a PxConvexMesh but Chaos doesn't maintain that data. Instead now
 	// it is a part of the element rather than the physics geometry, if we load in an
@@ -501,8 +422,6 @@ void UBodySetup::CreatePhysicsMeshes()
 	{
 		Convex.ComputeChaosConvexIndices();
 	}
-#endif
-
 
 	if(bClearMeshes)
 	{
@@ -513,118 +432,6 @@ void UBodySetup::CreatePhysicsMeshes()
 
 }
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-bool UBodySetup::RuntimeCookPhysics_PhysX()
-{
-	FPhysXCookHelper CookHelper(GetPhysXCookingModule());
-
-	GetCookInfo(CookHelper.CookInfo, GetRuntimeOnlyCookOptimizationFlags());
-	if(CookHelper.HasSomethingToCook(CookHelper.CookInfo))
-	{
-		if(!IsRuntimeCookingEnabled())
-		{
-			UE_LOG(LogPhysics, Error, TEXT("Attempting to build physics data for %s at runtime, but runtime cooking is disabled (see the RuntimePhysXCooking plugin)."), *GetPathName());
-		}
-		else
-		{
-			if(CookHelper.CreatePhysicsMeshes_Concurrent())
-			{
-				FinishCreatingPhysicsMeshes_PhysX(CookHelper.OutNonMirroredConvexMeshes, CookHelper.OutMirroredConvexMeshes, CookHelper.OutTriangleMeshes);
-				bFailedToCreatePhysicsMeshes = false;
-				return true;
-			}
-			else
-			{
-				bFailedToCreatePhysicsMeshes = true;
-			}
-		}
-	}			
-	return false;
-}
-
-bool UBodySetup::ProcessFormatData_PhysX(FByteBulkData* FormatData)
-{
-	if(FormatData->IsLocked())
-	{
-		// seems it's being already processed
-		return false;
-	}
-
-	FPhysXCookingDataReader CookedDataReader(*FormatData, &UVInfo);
-
-	if(GetCollisionTraceFlag() != CTF_UseComplexAsSimple)
-	{
-		bool bNeedsCooking = bGenerateNonMirroredCollision && CookedDataReader.ConvexMeshes.Num() != AggGeom.ConvexElems.Num();
-		bNeedsCooking = bNeedsCooking || (bGenerateMirroredCollision && CookedDataReader.ConvexMeshesNegX.Num() != AggGeom.ConvexElems.Num());
-		if(bNeedsCooking)	//Because of bugs it's possible to save with out of sync cooked data. In editor we want to fixup this data
-		{
-			InvalidatePhysicsData();
-			CreatePhysicsMeshes();
-			return false;
-		}
-	}
-
-	FinishCreatingPhysicsMeshes_PhysX(CookedDataReader.ConvexMeshes, CookedDataReader.ConvexMeshesNegX, CookedDataReader.TriMeshes);
-	return true;
-}
-
-void UBodySetup::FinishCreatingPhysicsMeshes_PhysX(const TArray<PxConvexMesh*>& ConvexMeshes, const TArray<PxConvexMesh*>& ConvexMeshesNegX, const TArray<PxTriangleMesh*>& CookedTriMeshes)
-{
-	ClearPhysicsMeshes();
-
-	FPhysxSharedData::LockAccess();
-
-	const FString FullName = GetFullName();
-	if (GetCollisionTraceFlag() != CTF_UseComplexAsSimple)
-	{
-		ensure(!bGenerateNonMirroredCollision || ConvexMeshes.Num() == 0 || ConvexMeshes.Num() == AggGeom.ConvexElems.Num());
-		ensure(!bGenerateMirroredCollision || ConvexMeshesNegX.Num() == 0 || ConvexMeshesNegX.Num() == AggGeom.ConvexElems.Num());
-
-		//If the cooked data no longer has convex meshes, make sure to empty AggGeom.ConvexElems - otherwise we leave NULLS which cause issues, and we also read past the end of CookedDataReader.ConvexMeshes
-		if ((bGenerateNonMirroredCollision && ConvexMeshes.Num() == 0) || (bGenerateMirroredCollision && ConvexMeshesNegX.Num() == 0))
-		{
-			AggGeom.ConvexElems.Empty();
-		}
-
-		for (int32 ElementIndex = 0; ElementIndex < AggGeom.ConvexElems.Num(); ElementIndex++)
-		{
-			FKConvexElem& ConvexElem = AggGeom.ConvexElems[ElementIndex];
-
-			if (bGenerateNonMirroredCollision)
-			{
-				ConvexElem.SetConvexMesh(ConvexMeshes[ElementIndex]);
-				FPhysxSharedData::Get().Add(ConvexElem.GetConvexMesh(), FullName);
-			}
-
-			if (bGenerateMirroredCollision)
-			{
-				ConvexElem.SetMirroredConvexMesh(ConvexMeshesNegX[ElementIndex]);
-				FPhysxSharedData::Get().Add(ConvexElem.GetMirroredConvexMesh(), FullName);
-			}
-		}
-	}
-
-	for (PxTriangleMesh* TriMesh : CookedTriMeshes)
-	{
-		if(TriMesh)
-		{
-			TriMeshes.Add(TriMesh);
-			FPhysxSharedData::Get().Add(TriMesh, FullName);
-		}
-	}
-
-	FPhysxSharedData::UnlockAccess();
-
-	// Clear the cooked data
-	if (!GIsEditor && !bSharedCookedData)
-	{
-		CookedFormatData.FlushData();
-	}
-
-	bCreatedPhysicsMeshes = true;
-}
-#endif //WITH_PHYSX
-
 void UBodySetup::CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished OnAsyncPhysicsCookFinished)
 {
 	check(IsInGameThread());
@@ -632,41 +439,6 @@ void UBodySetup::CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished OnAsyncPhy
 	// Don't start another cook cycle if one's already in progress
 	check(CurrentCookHelper == nullptr);
 
-	// Only perform this check for PhysX as the cooking module is optional
-#if WITH_PHYSX_COOKING && PHYSICS_INTERFACE_PHYSX
-	if (IsRuntime(this) && !IsRuntimeCookingEnabled())
-	{
-		UE_LOG(LogPhysics, Error, TEXT("Attempting to build physics data for %s at runtime, but runtime cooking is disabled (see the RuntimePhysXCooking plugin)."), *GetPathName());
-		FinishCreatePhysicsMeshesAsync(nullptr, OnAsyncPhysicsCookFinished);
-		return;
-	}
-#endif
-
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-	if(IPhysXCookingModule* PhysXCookingModule = GetPhysXCookingModule())
-	{
-		FPhysXCookHelper* AsyncPhysicsCookHelper = new FPhysXCookHelper(PhysXCookingModule);
-		GetCookInfo(AsyncPhysicsCookHelper->CookInfo, GetRuntimeOnlyCookOptimizationFlags());	//TODO: pass in different flags?
-
-		if(AsyncPhysicsCookHelper->HasSomethingToCook(AsyncPhysicsCookHelper->CookInfo))
-		{
-			FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(FSimpleDelegateGraphTask::FDelegate::CreateRaw(AsyncPhysicsCookHelper, &FPhysXCookHelper::CreatePhysicsMeshesAsync_Concurrent,
-				/*FinishDelegate=*/FSimpleDelegateGraphTask::FDelegate::CreateUObject(this, &UBodySetup::FinishCreatePhysicsMeshesAsync, AsyncPhysicsCookHelper, OnAsyncPhysicsCookFinished)),
-				GET_STATID(STAT_PhysXCooking), nullptr, ENamedThreads::AnyThread);
-
-			CurrentCookHelper = AsyncPhysicsCookHelper;
-		}
-		else
-		{
-			delete AsyncPhysicsCookHelper;
-			FinishCreatePhysicsMeshesAsync(nullptr, OnAsyncPhysicsCookFinished);
-		}
-	}
-	else
-	{
-		FinishCreatePhysicsMeshesAsync(nullptr, OnAsyncPhysicsCookFinished);
-	}
-#else
 	FAsyncCookHelper* NewCookHelper = new FAsyncCookHelper(this);
 	if(NewCookHelper->HasWork())
 	{
@@ -680,17 +452,11 @@ void UBodySetup::CreatePhysicsMeshesAsync(FOnAsyncPhysicsCookFinished OnAsyncPhy
 		delete NewCookHelper;
 		FinishCreatePhysicsMeshesAsync(nullptr, OnAsyncPhysicsCookFinished);
 	}
-#endif // WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 }
 
 void UBodySetup::AbortPhysicsMeshAsyncCreation()
 {
-#if PHYSICS_INTERFACE_PHYSX
-	if (CurrentCookHelper)
-	{
-		CurrentCookHelper->Abort();
-	}
-#endif
+	// TODO Chaos - support async cook abort
 }
 
 void UBodySetup::FinishCreatePhysicsMeshesAsync(FAsyncCookHelper* AsyncPhysicsCookHelper, FOnAsyncPhysicsCookFinished OnAsyncPhysicsCookFinished)
@@ -704,15 +470,10 @@ void UBodySetup::FinishCreatePhysicsMeshesAsync(FAsyncCookHelper* AsyncPhysicsCo
 
 	if(AsyncPhysicsCookHelper)
 	{
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		FinishCreatingPhysicsMeshes_PhysX(AsyncPhysicsCookHelper->OutNonMirroredConvexMeshes, AsyncPhysicsCookHelper->OutMirroredConvexMeshes, AsyncPhysicsCookHelper->OutTriangleMeshes);
-		UVInfo = AsyncPhysicsCookHelper->OutUVInfo;
-#elif WITH_CHAOS
 		FinishCreatingPhysicsMeshes_Chaos(*AsyncPhysicsCookHelper);
 		UVInfo = AsyncPhysicsCookHelper->UVInfo;
-#endif // WITH_PHYSX
-		delete AsyncPhysicsCookHelper;
 
+		delete AsyncPhysicsCookHelper;
 	}
 	else
 	{
@@ -723,7 +484,6 @@ void UBodySetup::FinishCreatePhysicsMeshesAsync(FAsyncCookHelper* AsyncPhysicsCo
 	OnAsyncPhysicsCookFinished.ExecuteIfBound(bSuccess);
 }
 
-#if WITH_CHAOS
 bool UBodySetup::ProcessFormatData_Chaos(FChaosDerivedDataReader<float, 3>& Reader)
 {
 	FinishCreatingPhysicsMeshes_Chaos(Reader);
@@ -830,13 +590,11 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(TArray<TSharedPtr<Chaos::FCon
 	}
 #endif
 
-#if WITH_CHAOS
 	// Force trimesh collisions off
 	for(auto& TriMesh : ChaosTriMeshes)
 	{
 		TriMesh->SetDoCollide(false);
 	}
-#endif
 
 	// Clear the cooked data
 	if(!GIsEditor && !bSharedCookedData)
@@ -847,57 +605,17 @@ void UBodySetup::FinishCreatingPhysicsMeshes_Chaos(TArray<TSharedPtr<Chaos::FCon
 	bCreatedPhysicsMeshes = true;
 }
 
-#endif
 
 void UBodySetup::ClearPhysicsMeshes()
 {
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-
-	FPhysxSharedData::LockAccess();
-
-	for(int32 i=0; i<AggGeom.ConvexElems.Num(); i++)
-	{
-		FKConvexElem* ConvexElem = &(AggGeom.ConvexElems[i]);
-
-		if(ConvexElem->GetConvexMesh() != nullptr)
-		{
-			// put in list for deferred release
-			GPhysXPendingKillConvex.Add(ConvexElem->GetConvexMesh());
-			FPhysxSharedData::Get().Remove(ConvexElem->GetConvexMesh());
-			ConvexElem->SetConvexMesh(nullptr);
-		}
-
-		if(ConvexElem->GetMirroredConvexMesh() != nullptr)
-		{
-			// put in list for deferred release
-			GPhysXPendingKillConvex.Add(ConvexElem->GetMirroredConvexMesh());
-			FPhysxSharedData::Get().Remove(ConvexElem->GetMirroredConvexMesh());
-			ConvexElem->SetMirroredConvexMesh(nullptr);
-		}
-	}
-
-	for(int32 ElementIndex = 0; ElementIndex < TriMeshes.Num(); ++ElementIndex)
-	{
-		GPhysXPendingKillTriMesh.Add(TriMeshes[ElementIndex]);
-		FPhysxSharedData::Get().Remove(TriMeshes[ElementIndex]);
-		TriMeshes[ElementIndex] = NULL;
-	}
-
-	FPhysxSharedData::UnlockAccess();
-
-	TriMeshes.Empty();
-
-#elif WITH_CHAOS
 	for (int32 i = 0; i < AggGeom.ConvexElems.Num(); i++)
 	{
 		FKConvexElem* ConvexElem = &(AggGeom.ConvexElems[i]);
 		ConvexElem->ResetChaosConvexMesh();
 	}
 	ChaosTriMeshes.Reset();
-#endif // WITH_PHYSX
 
 	bCreatedPhysicsMeshes = false;
-
 
 	// Also clear render info
 	AggGeom.FreeRenderInfo();
@@ -939,19 +657,12 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 	AddParams.Scale = Scale3D;
 	AddParams.SimpleMaterial = SimpleMaterial;
 	AddParams.ComplexMaterials = TArrayView<UPhysicalMaterial*>(ComplexMaterials);
-#if WITH_CHAOS
 	AddParams.ComplexMaterialMasks = TArrayView<FPhysicalMaterialMaskParams>(ComplexMaterialMasks);
-#endif
 	AddParams.LocalTransform = RelativeTM;
 	AddParams.WorldTransform = OwningInstance->GetUnrealWorldTransform();
 	AddParams.Geometry = &AggGeom;
-#if PHYSICS_INTERFACE_PHYSX
-	AddParams.TriMeshes = TArrayView<PxTriangleMesh*>(TriMeshes);
-#endif
-
-#if WITH_CHAOS
 	AddParams.ChaosTriMeshes = MakeArrayView(ChaosTriMeshes);
-#endif
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AddGeomToSolver);
 		FPhysicsInterface::AddGeometry(OwningInstance->ActorHandle, AddParams, NewShapes);
@@ -1141,7 +852,7 @@ void UBodySetup::Serialize(FArchive& Ar)
 	AggGeom.FixupDeprecated( Ar );
 #endif
 
-#if WITH_CHAOS && WITH_EDITOR
+#if WITH_EDITOR
 
 	if (Ar.IsLoading())
 	{
@@ -1165,9 +876,9 @@ void UBodySetup::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::LevelsetSerializationSupportForBodySetup
 		&& Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) < FFortniteReleaseBranchCustomObjectVersion::DisableLevelset_v14_10)
 	{
-		TArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> ChaosImplicitObjects;
-#if WITH_CHAOS
 		using namespace Chaos;
+
+		TArray<TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe>> ChaosImplicitObjects;
 		FChaosArchive ChaosAr(Ar);
 
 		int32 NumImplicits = 0;
@@ -1209,16 +920,8 @@ void UBodySetup::Serialize(FArchive& Ar)
 			}
 		}
 		*/
-#else
-		if(Ar.IsLoading())
-		{
-			int32 DummyCount;
-			Ar << DummyCount;
-		}
-#endif
 	}
 
-#if WITH_CHAOS
 	if (bCooked && Ar.IsLoading())
 	{
 		// Deserialize bulk inline data inside the serialize function to benefit from async loading thread when possible.
@@ -1227,7 +930,6 @@ void UBodySetup::Serialize(FArchive& Ar)
 			ChaosDerivedDataReader = MakeUnique<FChaosDerivedDataReader<float, 3>>(FormatData);
 		}
 	}
-#endif
 }
 
 void UBodySetup::PostLoad()
@@ -1298,42 +1000,18 @@ void UBodySetup::PostLoad()
 		}
 	}
 
-	// make sure that we load the physX data while the linker's loader is still open
-#if PHYSICS_INTERFACE_PHYSX
-	CreatePhysicsMeshes();
-#elif WITH_CHAOS
 	// If Deferring physics creation, skip so we can call CreatePhysicsMeshes in parallel.
 	if (GEnableDeferredPhysicsCreation == false)
 	{
 		CreatePhysicsMeshes();
 	}
-#endif
-
-
 }
 
 void UBodySetup::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateTriMeshVertices);
-#if PHYSICS_INTERFACE_PHYSX
-	if (TriMeshes.Num())
-	{
-		check(TriMeshes[0] != nullptr);
-		PxU32 PNumVerts = TriMeshes[0]->getNbVertices(); // Get num of verts we expect
-		PxVec3 * PNewPositions = TriMeshes[0]->getVerticesForModification();	//we only update the first trimesh. We assume this per poly case is not updating welded trimeshes
 
-		int32 NumToCopy = FMath::Min<int32>(PNumVerts, NewPositions.Num()); // Make sure we don't write off end of array provided
-		for (int32 i = 0; i < NumToCopy; ++i)
-		{
-			PNewPositions[i] = U2PVector(NewPositions[i]);
-		}
-
-		TriMeshes[0]->refitBVH();
-	}
-#elif WITH_CHAOS
 	ensure(false);
-
-#endif
 }
 
 template <bool bPositionAndNormal, bool bUseConvexShapes>
@@ -1485,18 +1163,6 @@ bool UBodySetup::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetP
 void UBodySetup::ClearCachedCookedPlatformData( const ITargetPlatform* TargetPlatform )
 {
 	CookedFormatDataRuntimeOnlyOptimization.FlushData();
-}
-#endif
-
-#if PHYSICS_INTERFACE_PHYSX
-EPhysXMeshCookFlags UBodySetup::GetRuntimeOnlyCookOptimizationFlags() const
-{
-	EPhysXMeshCookFlags RuntimeCookFlags = EPhysXMeshCookFlags::Default;
-	if(UPhysicsSettings::Get()->bSuppressFaceRemapTable)
-	{
-		RuntimeCookFlags |= EPhysXMeshCookFlags::SuppressFaceRemapTable;
-	}
-	return RuntimeCookFlags;
 }
 #endif
 
@@ -1681,19 +1347,11 @@ FByteBulkData* UBodySetup::GetCookedData(FName Format, bool bRuntimeOnlyOptimize
 			return nullptr;
 		}
 
-#if PHYSICS_INTERFACE_PHYSX
-		const bool bEligibleForRuntimeOptimization = UseCookedData == &CookedFormatDataRuntimeOnlyOptimization;
-		const EPhysXMeshCookFlags CookingFlags = bEligibleForRuntimeOptimization ? GetRuntimeOnlyCookOptimizationFlags() : EPhysXMeshCookFlags::Default;
-		FDerivedDataPhysXCooker* PhysicsDerivedCooker = new FDerivedDataPhysXCooker(Format, CookingFlags, this, bIsRuntime);
-#elif WITH_CHAOS 
 		// We do not want a FGCObject to be created to prevent garbage collection of our own UBodySetup*
 		// because the scope and lifetime is well defined and FGCObject can't be created on other threads
 		// during garbage collection, which would prevent this function from being run asynchronously.
 		const bool bUseRefHolder = false;
 		FChaosDerivedDataCooker* PhysicsDerivedCooker = new FChaosDerivedDataCooker(this, Format, bUseRefHolder);
-#else
-		static_assert(false, "No cooker defined for this physics interface");
-#endif
 
 		GetDDCBuiltData(Result, *PhysicsDerivedCooker, this, bIsRuntime);
 	}
@@ -1841,32 +1499,6 @@ void UBodySetup::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {
 	Super::GetResourceSizeEx(CumulativeResourceSize);
 
-#if PHYSICS_INTERFACE_PHYSX
-	// Count PhysX trimesh mem usage
-	for(PxTriangleMesh* TriMesh : TriMeshes)
-	{
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetPhysxObjectSize(TriMesh, NULL));
-	}
-
-	// Count PhysX convex mem usage
-	for(int ConvIdx=0; ConvIdx<AggGeom.ConvexElems.Num(); ConvIdx++)
-	{
-		FKConvexElem& ConvexElem = AggGeom.ConvexElems[ConvIdx];
-
-		if(ConvexElem.GetConvexMesh() != NULL)
-		{
-			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetPhysxObjectSize(ConvexElem.GetConvexMesh(), NULL));
-		}
-
-		if(ConvexElem.GetMirroredConvexMesh() != NULL)
-		{
-			CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetPhysxObjectSize(ConvexElem.GetMirroredConvexMesh(), NULL));
-		}
-	}
-
-#endif // WITH_PHYSX
-
-#if WITH_CHAOS
 	// Cooked mesh data is flushed after mesh creation if not sharing and not in editor, account through rough serilization estimates.
 	if (!GIsEditor && !bSharedCookedData)
 	{
@@ -1898,7 +1530,6 @@ void UBodySetup::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 			}
 		}
 	}
-#endif
 
 	if (CookedFormatData.Contains(FPlatformProperties::GetPhysicsFormat()))
 	{
@@ -2010,17 +1641,9 @@ FKConvexElem::FKConvexElem()
 	: FKShapeElem(EAggCollisionShape::Convex)
 	, ElemBox(ForceInit)
 	, Transform(FTransform::Identity)
-#if PHYSICS_INTERFACE_PHYSX
-	, ConvexMesh(NULL)
-	, ConvexMeshNegX(NULL)
-#endif
 {}
 
 FKConvexElem::FKConvexElem(const FKConvexElem& Other)
-#if PHYSICS_INTERFACE_PHYSX
-	: ConvexMesh(nullptr)
-	, ConvexMeshNegX(nullptr)
-#endif
 {
 	CloneElem(Other);
 }
@@ -2032,15 +1655,8 @@ FKConvexElem::~FKConvexElem()
 
 const FKConvexElem& FKConvexElem::operator=(const FKConvexElem& Other)
 {
-#if PHYSICS_INTERFACE_PHYSX
-	ensureMsgf(ConvexMesh == nullptr, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
-	ensureMsgf(ConvexMeshNegX == nullptr, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
-	ConvexMesh = nullptr;
-	ConvexMeshNegX = nullptr;
-#elif WITH_CHAOS
 	ensureMsgf(!ChaosConvex, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
 	ResetChaosConvexMesh();
-#endif
 	CloneElem(Other);
 	return *this;
 }
@@ -2069,27 +1685,6 @@ float SignedVolumeOfTriangle(const FVector3f& p1, const FVector3f& p2, const FVe
 {
 	return FVector3f::DotProduct(p1, FVector3f::CrossProduct(p2, p3)) / 6.0f;
 }
-#if PHYSICS_INTERFACE_PHYSX
-physx::PxConvexMesh* FKConvexElem::GetConvexMesh() const
-{
-	return ConvexMesh;
-}
-
-void FKConvexElem::SetConvexMesh(physx::PxConvexMesh* InMesh)
-{
-	ConvexMesh = InMesh;
-}
-
-physx::PxConvexMesh* FKConvexElem::GetMirroredConvexMesh() const
-{
-	return ConvexMeshNegX;
-}
-
-void FKConvexElem::SetMirroredConvexMesh(physx::PxConvexMesh* InMesh)
-{
-	ConvexMeshNegX = InMesh;
-}
-#endif
 
 FVector::FReal FKConvexElem::GetVolume(const FVector& Scale) const
 {
@@ -2100,48 +1695,13 @@ FVector::FReal FKConvexElem::GetScaledVolume(const FVector& Scale) const
 {
 	float Volume = 0.0f;
 
-#if PHYSICS_INTERFACE_PHYSX
-	if (ConvexMesh != NULL)
-	{
-		// Preparation for convex mesh scaling implemented in another changelist
-		FTransform ScaleTransform = FTransform(FQuat::Identity, FVector::ZeroVector, Scale);
-
-		int32 NumPolys = ConvexMesh->getNbPolygons();
-		PxHullPolygon PolyData;
-
-		const PxVec3* Vertices = ConvexMesh->getVertices();
-		const PxU8* Indices = ConvexMesh->getIndexBuffer();
-
-		for (int32 PolyIdx = 0; PolyIdx < NumPolys; ++PolyIdx)
-		{
-			if (ConvexMesh->getPolygonData(PolyIdx, PolyData))
-			{
-				for (int32 VertIdx = 2; VertIdx < PolyData.mNbVerts; ++ VertIdx)
-				{
-					// Grab triangle indices that we hit
-					int32 I0 = Indices[PolyData.mIndexBase + 0];
-					int32 I1 = Indices[PolyData.mIndexBase + (VertIdx - 1)];
-					int32 I2 = Indices[PolyData.mIndexBase + VertIdx];
-
-
-					Volume += SignedVolumeOfTriangle(ScaleTransform.TransformPosition(P2UVector(Vertices[I0])), 
-						ScaleTransform.TransformPosition(P2UVector(Vertices[I1])), 
-						ScaleTransform.TransformPosition(P2UVector(Vertices[I2])));
-				}
-			}
-		}
-	}
-#elif WITH_CHAOS
 	if (ChaosConvex != nullptr)
 	{
 		Volume = FMath::Abs(Scale.X * Scale.Y * Scale.Z) * ChaosConvex->GetVolume();
 	}
-#endif
 
 	return Volume;
 }
-
-#if WITH_CHAOS
 
 void FKConvexElem::SetChaosConvexMesh(TSharedPtr<Chaos::FConvex, ESPMode::ThreadSafe>&& InChaosConvex)
 {
@@ -2194,7 +1754,6 @@ TArray<int32> FKConvexElem::GetChaosConvexIndices() const
 
 	return ResultIndexData;
 }
-#endif
 
 #if WITH_EDITORONLY_DATA
 void FKSphereElem::FixupDeprecated( FArchive& Ar )

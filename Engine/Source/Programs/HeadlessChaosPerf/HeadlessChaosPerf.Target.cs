@@ -29,13 +29,5 @@ public class HeadlessChaosPerfTarget : TargetRules
 
 		GlobalDefinitions.Add("CHAOS_SERIALIZE_OUT=1");
 		GlobalDefinitions.Add("CSV_PROFILER=1");
-
-		// Force enable Chaos as the physics engine for this project as this
-		// is a Chaos test - it will not build with PhysX enabled
-		bUseChaos = true;
-		bCompileChaos = true;
-		bCompilePhysX = false;
-		bCompileAPEX = false;
-		bCompileNvCloth = false;
 	}
 }

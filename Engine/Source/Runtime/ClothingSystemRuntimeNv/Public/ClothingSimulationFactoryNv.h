@@ -3,11 +3,12 @@
 #pragma once
 
 #include "ClothingSimulationFactory.h"
+#include "Misc/CoreMiscDefines.h"
 
 #include "ClothingSimulationFactoryNv.generated.h"
 
 UCLASS()
-class CLOTHINGSYSTEMRUNTIMENV_API UClothingSimulationFactoryNv final : public UClothingSimulationFactory
+class UE_DEPRECATED(5.1, "NvCloth simulation is no longer supported, UChaosClothingSimulationFactory should be used going forward.") CLOTHINGSYSTEMRUNTIMENV_API UClothingSimulationFactoryNv final : public UClothingSimulationFactory
 {
 	GENERATED_BODY()
 public:

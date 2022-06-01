@@ -14,10 +14,7 @@
 #include "PhysicsReplication.h"
 #include "Physics/PhysicsInterfaceCore.h"
 #include "UObject/UObjectThreadContext.h"
-
-#if WITH_CHAOS
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
-#endif
 
 //////////////// PRIMITIVECOMPONENT ///////////////
 
@@ -46,9 +43,7 @@ void UPrimitiveComponent::SetRigidBodyReplicatedTarget(FRigidBodyState& UpdatedS
 				if (BI && BI->IsValidBodyInstance())
 				{
 					PhysicsReplication->SetReplicatedTarget(this, BoneName, UpdatedState, ServerFrame);
-#if WITH_CHAOS
 					BI->GetPhysicsActorHandle();// ->GetGameThreadAPI().SetParticleID(Chaos::FParticleID{ ServerPhysicsHandle, INDEX_NONE });
-#endif
 				}
 			}
 		}

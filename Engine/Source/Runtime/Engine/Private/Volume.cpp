@@ -75,7 +75,7 @@ bool AVolume::EncompassesPoint(FVector Point, float SphereRadius/*=0.f*/, float*
 {
 	if (GetBrushComponent())
 	{
-#if WITH_PHYSX
+#if 1
 		FVector ClosestPoint;
 		float DistanceSqr;
 

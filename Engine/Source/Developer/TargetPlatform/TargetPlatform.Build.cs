@@ -89,10 +89,5 @@ public class TargetPlatform : ModuleRules
 				}
 			}
 		}
-
-		if (Target.bBuildDeveloperTools == true && Target.bBuildRequiresCookedData && Target.bCompileAgainstEngine && Target.bCompilePhysX)
-		{
-			DynamicallyLoadedModuleNames.Add("PhysXCooking");
-		}
 	}
 }

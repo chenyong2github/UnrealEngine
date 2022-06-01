@@ -14,10 +14,6 @@
 #include "PhysicsEngine/ScopedSQHitchRepeater.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXInterfaceWrapper.h"
-#endif
-
 #include "Collision/CollisionDebugDrawing.h"
 
 float DebugLineLifetime = 2.f;
@@ -164,7 +160,7 @@ struct TSQTraits
 	{
 		FQueryFilterData QueryFilterData = MakeQueryFilterData(FilterData, QueryFlags, Params);
 		FQueryDebugParams DebugParams;
-#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && WITH_CHAOS
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 		DebugParams.bDebugQuery = Params.bDebugQuery;
 #endif
 		LowLevelRaycast(Scene, StartTM.GetLocation(), Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, FilterData, QueryFilterData, QueryCallback, DebugParams);	//todo(ocohen): namespace?
@@ -176,7 +172,7 @@ struct TSQTraits
 	{
 		FQueryFilterData QueryFilterData = MakeQueryFilterData(FilterData, QueryFlags, Params);
 		FQueryDebugParams DebugParams;
-#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && WITH_CHAOS
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 		DebugParams.bDebugQuery = Params.bDebugQuery;
 #endif
 		LowLevelSweep(Scene, *GeomInputs.GetGeometry(), StartTM, Dir, DeltaMag, HitBuffer, OutputFlags, QueryFlags, FilterData, QueryFilterData, QueryCallback, DebugParams);	//todo(ocohen): namespace?
@@ -202,11 +198,7 @@ struct TSQTraits
 		}
 		else
 		{
-#if PHYSICS_INTERFACE_PHYSX
-			DrawGeomSweeps(World, Start, End, *PGeom, U2PQuat(*PGeomRot), Hits, DebugLineLifetime);
-#else
 			DrawGeomSweeps(World, Start, End, *PGeom, *PGeomRot, Hits, DebugLineLifetime);
-#endif
 		}
 	}
 
@@ -597,7 +589,7 @@ bool GeomOverlapMultiImp(const UWorld* World, const FPhysicsGeometry& Geom, cons
 		FDynamicHitBuffer<TOverlapHit> OverlapBuffer;
 
 		FQueryDebugParams DebugParams;
-#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING) && WITH_CHAOS
+#if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 		DebugParams.bDebugQuery = Params.bDebugQuery;
 #endif
 
@@ -627,13 +619,6 @@ bool GeomOverlapMultiImp(const UWorld* World, const FPhysicsGeometry& Geom, cons
 				{
 					bHaveBlockingHit = ConvertOverlapResults(NumHits, OverlapBuffer.GetHits(), Filter, OutOverlaps);
 				}
-
-#if (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) && !WITH_CHAOS)
-				if(World->DebugDrawSceneQueries(Params.TraceTag))
-				{
-					DrawGeomOverlaps(World, Geom, U2PTransform(GeomPose), OutOverlaps, DebugLineLifetime);
-				}
-#endif //!(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			}
 
 		});

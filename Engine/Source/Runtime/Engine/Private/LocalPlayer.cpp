@@ -1460,7 +1460,6 @@ bool ULocalPlayer::Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 
 		return true;
 	}
-#if WITH_PHYSX
 	// This will list all awake rigid bodies
 	else if( FParse::Command(&Cmd,TEXT("LISTAWAKEBODIES")) )
 	{
@@ -1471,7 +1470,6 @@ bool ULocalPlayer::Exec(UWorld* InWorld, const TCHAR* Cmd,FOutputDevice& Ar)
 	{
 		return HandleListSimBodiesCommand( Cmd, Ar );
 	}
-#endif
 	else if( FParse::Command(&Cmd, TEXT("MOVECOMPTIMES")) )
 	{
 		return HandleMoveComponentTimesCommand( Cmd, Ar );

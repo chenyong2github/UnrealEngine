@@ -7,8 +7,6 @@
 #include "Chaos/Convex.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 
-#if WITH_CHAOS
-
 int32 EnableMeshClean = 1;
 FAutoConsoleVariableRef CVarEnableMeshClean(TEXT("p.EnableMeshClean"), EnableMeshClean, TEXT("Enable/Disable mesh cleanup during cook."));
 
@@ -380,5 +378,3 @@ namespace Chaos
 		return CookInfo.bCookTriMesh || CookInfo.bCookNonMirroredConvex || CookInfo.bCookMirroredConvex;
 	}
 }
-
-#endif

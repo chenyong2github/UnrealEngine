@@ -17,10 +17,7 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "PhysicsPublic.h"
-#if PHYSICS_INTERFACE_PHYSX
-#include "IPhysXCooking.h"
-#include "PhysXCookHelper.h"
-#endif
+
 #include "Misc/RuntimeErrors.h"
 #include "Engine/Engine.h"
 #include "UObject/UObjectThreadContext.h"
@@ -28,9 +25,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInstanceDynamic.h"
 
-#if WITH_CHAOS
-	#include "Experimental/ChaosDerivedData.h"
-#endif
+#include "Experimental/ChaosDerivedData.h"
 
 // See ISpatialAcceleration.h, the header is not included to avoid having a dependency on Chaos
 #ifndef CHAOS_SERIALIZE_OUT
@@ -38,7 +33,7 @@
 #endif
 
 // When using the Chaos code path, we're using a private class FChaosDerivedDataCooker which is not exported
-#define SUPPORTS_PHYSICS_COOKING WITH_PHYSX && (PHYSICS_INTERFACE_PHYSX || (WITH_CHAOS && CHAOS_SERIALIZE_OUT && IS_MONOLITHIC))
+#define SUPPORTS_PHYSICS_COOKING (CHAOS_SERIALIZE_OUT && IS_MONOLITHIC)
 
 DECLARE_CYCLE_STAT(TEXT("MrMesh SetCollisionProfileName"), STAT_MrMesh_SetCollisionProfileName, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Update Collision"), STAT_UpdateCollision, STATGROUP_MRMESH);

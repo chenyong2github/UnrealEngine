@@ -6,9 +6,7 @@
 #include "PhysicsInterfaceWrapperShared.h"
 #include "PhysicsInterfaceTypesCore.h"
 
-#if WITH_PHYSX
 #include "PhysXPublicCore.h"
-#endif
 
 class UPhysicalMaterial;
 
@@ -27,11 +25,7 @@ struct FDummyPhysActor {};
 template<typename DummyT>
 struct FDummyCallback {};
 
-#if PHYSICS_INTERFACE_PHYSX
-using FQueryFilterData = PxQueryFilterData;
-#elif WITH_CHAOS
 using FQueryFilterData = FChaosQueryFilterData;
-#endif
 
 /** We use this struct so that if no conversion is needed in another API, we can avoid the copy (if we think that's critical) */
 struct FPhysicsRaycastInputAdapater
@@ -74,7 +68,6 @@ struct FPhysicsOverlapInputAdapater
 	FTransform GeomPose;
 };
 
-#if WITH_CHAOS
 /** This is used to add debug data to scene query visitors in non-shipping builds */
 struct FQueryDebugParams
 {
@@ -93,7 +86,6 @@ struct FQueryDebugParams
 	constexpr bool IsExternalQuery() const { return true; }
 #endif
 };
-#endif
 
 extern PHYSICSCORE_API FCollisionFilterData GetQueryFilterData(const Chaos::FPerShapeData& Shape);
 extern PHYSICSCORE_API FCollisionFilterData GetSimulationFilterData(const Chaos::FPerShapeData& Shape);
@@ -262,6 +254,4 @@ bool GetHasBlock(const FSQHitBuffer<HitType>& Callback)
 
 } // namespace ChaosInterface
 
-#if WITH_CHAOS && (!defined(PHYSICS_INTERFACE_PHYSX) || !PHYSICS_INTERFACE_PHYSX)
 using namespace ChaosInterface;
-#endif

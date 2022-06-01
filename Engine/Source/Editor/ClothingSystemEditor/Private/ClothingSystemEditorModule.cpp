@@ -19,19 +19,11 @@ FClothingSystemEditorModule::FClothingSystemEditorModule()
 void FClothingSystemEditorModule::StartupModule()
 {
 	IModularFeatures::Get().RegisterModularFeature(IClothingAssetFactoryProvider::FeatureName, this);
-
-#if WITH_NVCLOTH
-	IModularFeatures::Get().RegisterModularFeature(FClothingSystemEditorInterfaceModule::ExtenderFeatureName, &NvEditorExtender);
-#endif
 }
 
 void FClothingSystemEditorModule::ShutdownModule()
 {
 	IModularFeatures::Get().UnregisterModularFeature(IClothingAssetFactoryProvider::FeatureName, this);
-
-#if WITH_NVCLOTH
-	IModularFeatures::Get().UnregisterModularFeature(FClothingSystemEditorInterfaceModule::ExtenderFeatureName, &NvEditorExtender);
-#endif
 }
 
 UClothingAssetFactoryBase* FClothingSystemEditorModule::GetFactory()

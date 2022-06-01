@@ -33,21 +33,10 @@
 #include "Logging/MessageLog.h"
 #include "CollisionDebugDrawingPublic.h"
 
-#if WITH_PHYSX
-	#include "SceneManagement.h"
-	#include "PhysXPublic.h"
-	#include "PhysicsEngine/PhysXSupport.h"
-#endif
+#include "SceneManagement.h"
+#include "PhysXPublic.h"
+#include "PhysicsEngine/PhysXSupport.h"
 
-#if WITH_APEX
-
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
-	// for cloth morph target	
-	#include "Animation/MorphTarget.h"
-
-#endif// #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
-
-#endif//#if WITH_APEX
 #include "PhysicsEngine/ConstraintInstance.h"
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/BodySetup.h"
@@ -58,7 +47,6 @@
 #include "SimulationEditorExtender.h"
 #endif
 
-#if !PHYSICS_INTERFACE_PHYSX && WITH_CHAOS  // For cloth environmental collision
 #include "Chaos/Capsule.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Box.h"
@@ -67,7 +55,6 @@
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/ImplicitObjectTransformed.h"
-#endif  // #if !PHYSICS_INTERFACE_PHYSX && WITH_CHAOS
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshComponentPhysics"
 
@@ -579,7 +566,6 @@ void USkeletalMeshComponent::OnPlasticDeformationWrapper(int32 ConstraintIndex)
 
 void USkeletalMeshComponent::InitCollisionRelationships()
 {
-#if WITH_CHAOS
 	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
 	{
 		int32 NumDisabledCollisions = PhysicsAsset->CollisionDisableTable.Num();
@@ -627,12 +613,10 @@ void USkeletalMeshComponent::InitCollisionRelationships()
 				});
 		}
 	}
-#endif
 }
 
 void USkeletalMeshComponent::TermCollisionRelationships()
 {
-#if WITH_CHAOS
 	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
 	{
 		int32 NumDisabledCollisions = PhysicsAsset->CollisionDisableTable.Num();
@@ -658,8 +642,6 @@ void USkeletalMeshComponent::TermCollisionRelationships()
 			});
 		}
 	}
-#endif
-
 }
 
 
@@ -734,9 +716,6 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 	}
 
 	// Set up the map from skelmeshcomp ID to collision disable table
-#if !WITH_CHAOS
-	PhysScene->DeferredAddCollisionDisableTable(GetUniqueID(), &PhysicsAsset->CollisionDisableTable);
-#endif
 	int32 NumShapes = 0;
 	const int32 NumBodies = PhysicsAsset->SkeletalBodySetups.Num();
 	for (int32 BodyIndex = 0; BodyIndex < NumBodies; ++BodyIndex)
@@ -764,13 +743,11 @@ void USkeletalMeshComponent::InitArticulated(FPhysScene* PhysScene)
 	InitCollisionRelationships();
 
 	// Update Flag
-#if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 	PrevRootBoneMatrix = GetBoneMatrix(0); // save the root bone transform
 
 	// pre-compute cloth teleport thresholds for performance
 	ComputeTeleportDistanceThresholdInRadians();
 	ComputeTeleportRotationThresholdInRadians();
-#endif // #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
 }
 
 TAutoConsoleVariable<int32> CVarEnableRagdollPhysics(TEXT("p.RagdollPhysics"), 1, TEXT("If 1, ragdoll physics will be used. Otherwise just root body is simulated"));
@@ -1011,17 +988,7 @@ void USkeletalMeshComponent::TermArticulated()
 {
 	ResetRootBodyIndex();
 
-#if WITH_CHAOS
 	TermCollisionRelationships();
-#else
-	uint32 SkelMeshCompID = GetUniqueID();
-	UWorld* MyWorld = GetWorld();
-	FPhysScene* PhysScene = (MyWorld ? MyWorld->GetPhysicsScene() : nullptr);
-	if (PhysScene)
-	{
-		PhysScene->DeferredRemoveCollisionDisableTable(SkelMeshCompID);
-	}
-#endif
 
 	FPhysicsCommand::ExecuteWrite(this, [&]()
 	{
@@ -1559,7 +1526,6 @@ void USkeletalMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 				}
 			}
 
-#if WITH_CHAOS
 			if(GEnableKinematicDeferralStartPhysicsCondition)
 			{
 				if (World && (World->TickGroup == ETickingGroup::TG_StartPhysics))
@@ -1567,7 +1533,6 @@ void USkeletalMeshComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTrans
 					AllowDeferral = EAllowKinematicDeferral::AllowDeferral;
 				}
 			}
-#endif
 		}
 
 		UpdateKinematicBonesToAnim(GetComponentSpaceTransforms(), Teleport, false, AllowDeferral);
@@ -3117,142 +3082,6 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 						return;
 					}
 
-#if PHYSICS_INTERFACE_PHYSX
-					// Matrices required to transform shapes into sim space (component space)
-					// Transform of external component and matrix describing external component -> this component
-					FTransform Transform = Component->GetComponentTransform();
-					FMatrix TransformMatrix = Transform.ToMatrixWithScale();
-					FMatrix ComponentToClothMatrix = TransformMatrix * GetComponentTransform().ToMatrixWithScale().Inverse();
-
-					for(FPhysicsShapeHandle& Shape : AllShapes)
-					{
-						ECollisionShapeType GeoType = FPhysicsInterface::GetShapeType(Shape);
-						FPhysicsGeometryCollection GeoCollection = FPhysicsInterface::GetGeometryCollection(Shape);
-
-						// Pose of the shape in actor space
-						FMatrix ShapeLocalPose = FPhysicsInterface::GetLocalTransform(Shape).ToMatrixWithScale();
-
-						switch(GeoType)
-						{
-							default:
-							break;
-
-							case ECollisionShapeType::Sphere:
-							{
-								PxSphereGeometry& SphereGeo = GeoCollection.GetSphereGeometry();
-
-								NewCollisionData.Spheres.AddDefaulted();
-								FClothCollisionPrim_Sphere& NewSphere = NewCollisionData.Spheres.Last();
-
-								NewSphere.BoneIndex = INDEX_NONE; // No bone, just local space
-								NewSphere.LocalPosition = ComponentToClothMatrix.TransformPosition(ShapeLocalPose.GetOrigin());
-								NewSphere.Radius = SphereGeo.radius;
-							}
-							break;
-
-							case ECollisionShapeType::Capsule:
-							{
-								PxCapsuleGeometry& CapGeo = GeoCollection.GetCapsuleGeometry();
-
-								const int32 BaseSphereIndex = NewCollisionData.Spheres.Num();
-
-								NewCollisionData.Spheres.AddDefaulted(2);
-								FClothCollisionPrim_Sphere& Sphere0 = NewCollisionData.Spheres.Last(1);
-								FClothCollisionPrim_Sphere& Sphere1 = NewCollisionData.Spheres.Last(0);
-
-								NewCollisionData.SphereConnections.AddDefaulted();
-								FClothCollisionPrim_SphereConnection& Connection = NewCollisionData.SphereConnections.Last();
-
-								FVector ZAxis = ComponentToClothMatrix.TransformVector(ShapeLocalPose.GetUnitAxis(EAxis::X));
-
-								Sphere0.BoneIndex = INDEX_NONE;
-								Sphere0.LocalPosition = ComponentToClothMatrix.TransformPosition(ShapeLocalPose.GetOrigin()) + CapGeo.halfHeight * ZAxis;
-								Sphere0.Radius = CapGeo.radius;
-
-								Sphere1.BoneIndex = INDEX_NONE;
-								Sphere1.LocalPosition = ComponentToClothMatrix.TransformPosition(ShapeLocalPose.GetOrigin()) - CapGeo.halfHeight * ZAxis;
-								Sphere1.Radius = CapGeo.radius;
-
-								Connection.SphereIndices[0] = BaseSphereIndex;
-								Connection.SphereIndices[1] = BaseSphereIndex + 1;
-							}
-							break;
-
-							case ECollisionShapeType::Box:
-							{
-								PxBoxGeometry& BoxGeo = GeoCollection.GetBoxGeometry();
-
-								// We're building the box in local space, so to get to the cloth transform
-								// we need to go through local -> actor -> world -> cloth
-								FMatrix FullTransformMatrix = ShapeLocalPose * ComponentToClothMatrix;
-
-								NewCollisionData.Convexes.AddDefaulted();
-								FClothCollisionPrim_Convex& Convex = NewCollisionData.Convexes.Last();
-								Convex.Faces.SetNum(6);
-
-								// we need to inflate the hull to get nicer collisions (only particles collide)
-								BoxGeo.halfExtents += PxVec3(EnvironmentCollisionConfig.Thickness);
-				
-								FPlane UPlane1(1, 0, 0, BoxGeo.halfExtents.x);
-								UPlane1 = UPlane1.TransformBy(FullTransformMatrix);
-								Convex.Faces[0].Plane = UPlane1;
-
-								FPlane UPlane2(-1, 0, 0, BoxGeo.halfExtents.x);
-								UPlane2 = UPlane2.TransformBy(FullTransformMatrix);
-								Convex.Faces[1].Plane = UPlane2;
-
-								FPlane UPlane3(0, 1, 0, BoxGeo.halfExtents.y);
-								UPlane3 = UPlane3.TransformBy(FullTransformMatrix);
-								Convex.Faces[2].Plane = UPlane3;
-
-								FPlane UPlane4(0, -1, 0, BoxGeo.halfExtents.y);
-								UPlane4 = UPlane4.TransformBy(FullTransformMatrix);
-								Convex.Faces[3].Plane = UPlane4;
-
-								FPlane UPlane5(0, 0, 1, BoxGeo.halfExtents.z);
-								UPlane5 = UPlane5.TransformBy(FullTransformMatrix);
-								Convex.Faces[4].Plane = UPlane5;
-
-								FPlane UPlane6(0, 0, -1, BoxGeo.halfExtents.z);
-								UPlane6 = UPlane6.TransformBy(FullTransformMatrix);
-								Convex.Faces[5].Plane = UPlane6;
-
-								Convex.BoneIndex = INDEX_NONE;
-							}
-							break;
-
-							case ECollisionShapeType::Convex:
-							{
-								PxConvexMeshGeometry& MeshGeo = GeoCollection.GetConvexGeometry();
-
-								if(MeshGeo.convexMesh)
-								{
-									NewCollisionData.Convexes.AddDefaulted();
-									FClothCollisionPrim_Convex& NewConvex = NewCollisionData.Convexes.Last();
-
-									FMatrix FullTransformMatrix = ShapeLocalPose * ComponentToClothMatrix;
-
-									uint32 NumPolys = MeshGeo.convexMesh->getNbPolygons();
-									NewConvex.Faces.SetNum(NumPolys);
-
-									PxHullPolygon HullData;
-									for(uint32 PolyIndex = 0; PolyIndex < NumPolys; ++PolyIndex)
-									{
-										MeshGeo.convexMesh->getPolygonData(PolyIndex, HullData);
-										PxPlane PPlane(HullData.mPlane[0], HullData.mPlane[1], HullData.mPlane[2], HullData.mPlane[3]);
-										FPlane UPlane = P2UPlane(PPlane);
-										UPlane = UPlane.TransformBy(FullTransformMatrix);
-										
-										UPlane.W += EnvironmentCollisionConfig.Thickness;
-
-										NewConvex.Faces[PolyIndex].Plane = UPlane;
-									}
-								}	
-							}
-							break;
-						}
-					}
-#elif WITH_CHAOS
 					using namespace Chaos;
 
 					const FReal Thickness = (FReal)EnvironmentCollisionConfig.Thickness;
@@ -3499,9 +3328,6 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 							break;
 						}
 					}
-#else
-					static_assert(false, "A physics engine interface must be defined to build");
-#endif
 					bSuccessfulRead = true;
 				});
 			}

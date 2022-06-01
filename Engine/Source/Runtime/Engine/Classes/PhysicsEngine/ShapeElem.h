@@ -100,10 +100,8 @@ struct FKShapeElem
 	/** Set whether this shape will contribute to the mass of the body */
 	ENGINE_API void SetContributeToMass(bool bInContributeToMass) { bContributeToMass = bInContributeToMass; }
 
-#if WITH_CHAOS
 	/** Set whether this shape should be considered for query or sim collision */
 	ENGINE_API void SetCollisionEnabled(ECollisionEnabled::Type InCollisionEnabled) { CollisionEnabled = InCollisionEnabled; }
-#endif
 
 	/** Get whether this shape should be considered for query or sim collision */
 	ENGINE_API ECollisionEnabled::Type GetCollisionEnabled() const { return CollisionEnabled; }

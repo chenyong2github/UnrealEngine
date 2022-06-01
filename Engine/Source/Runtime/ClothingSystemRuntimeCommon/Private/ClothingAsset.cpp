@@ -979,14 +979,6 @@ void UClothingAssetCommon::CalculateReferenceBoneIndex()
 	// Starts at root
 	ReferenceBoneIndex = 0;
 
-#if WITH_APEX_CLOTHING
-	const TSubclassOf<class UClothingSimulationFactory> ClothingSimulationFactory = UClothingSimulationFactory::GetDefaultClothingSimulationFactoryClass();
-	if (ClothingSimulationFactory->GetName() == TEXT("ClothingSimulationFactoryNv"))
-	{
-		return;
-	}
-#endif
-
 	// Find the root bone for this clothing asset (common bone for all used bones)
 	typedef TArray<int32> BoneIndexArray;
 

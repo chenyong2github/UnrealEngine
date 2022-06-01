@@ -186,7 +186,6 @@ void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-#if WITH_CHAOS
 	for (FSolverData& SolverData : Solvers)
 	{
 		Chaos::FEventManager* EventManager = SolverData.Solver->GetEventManager();
@@ -199,7 +198,6 @@ void UNiagaraDataInterfaceChaosDestruction::BeginDestroy()
 	}
 
 	Solvers.Reset();
-#endif
 }
 
 #if WITH_EDITOR
@@ -438,7 +436,6 @@ int32 UNiagaraDataInterfaceChaosDestruction::PerInstanceDataSize()const
 	return sizeof(FNDIChaosDestruction_InstanceData);
 }
 
-#if INCLUDE_CHAOS
 void UNiagaraDataInterfaceChaosDestruction::RegisterWithSolverEventManager(Chaos::FPhysicsSolver* Solver)
 {
 	Chaos::FEventManager* EventManager = Solver->GetEventManager();
@@ -452,7 +449,7 @@ void UNiagaraDataInterfaceChaosDestruction::RegisterWithSolverEventManager(Chaos
 		EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UNiagaraDataInterfaceChaosDestruction::HandleTrailingEvents);
 	}
 }
-#endif
+
 
 bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
 {
@@ -468,7 +465,6 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 		// If there is no SolverActor specified need to grab the WorldSolver
 		if(ChaosSolverActorSet.Num() == 0)
 		{
-#if INCLUDE_CHAOS
 			if(SystemInstance)
 			{
 				if(UWorld* World = SystemInstance->GetWorld())
@@ -482,7 +478,6 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 					RegisterWithSolverEventManager(SolverData.Solver);
 				}
 			}
-#endif
 		}
 		//else
 		{
@@ -499,9 +494,7 @@ bool UNiagaraDataInterfaceChaosDestruction::InitPerInstanceData(void* PerInstanc
 						SolverData.PhysScene = SolverActor->GetPhysicsScene().Get();
 						SolverData.Solver = Solver;
 
-#if INCLUDE_CHAOS
 						RegisterWithSolverEventManager(Solver);
-#endif
 					}
 				}
 			}
@@ -756,7 +749,7 @@ void UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents(const Chaos::F
 
 		UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
 		UMaterialInterface* Material = nullptr;
-#if INCLUDE_CHAOS
+
 		for (auto& Solver : Solvers)
 		{
 			if (Solver.PhysScene)
@@ -806,7 +799,6 @@ void UNiagaraDataInterfaceChaosDestruction::HandleCollisionEvents(const Chaos::F
 				CopyData.PhysicalMaterialName2 = FName();
 			}
 		}
-#endif
 
 		CopyData.BoundingboxVolume = 1000000.f;
 		CopyData.BoundingboxExtentMin = 100.f;
@@ -1345,7 +1337,7 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 
 			UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
 			UMaterialInterface* Material = nullptr;
-#if INCLUDE_CHAOS
+
 			for (auto& Solver : Solvers)
 			{
 				if (Solver.PhysScene)
@@ -1373,7 +1365,6 @@ void UNiagaraDataInterfaceChaosDestruction::HandleBreakingEvents(const Chaos::FB
 				// Save GeometryCollectionComponent for trailing
 				GeometryCollectionComponentsFromBreaking.Add(GeometryCollectionComponent);
 			}
-#endif
 		}
 		else
 		{

@@ -12,10 +12,8 @@ struct FConstraintInstance;
 
 // FILTER DATA
 
-/** Utility for creating a PhysX PxFilterData for performing a query (trace) against the scene */
+/** Utility for creating a filter data object for performing a query (trace) against the scene */
 FCollisionFilterData CreateQueryFilterData(const uint8 MyChannel, const bool bTraceComplex, const FCollisionResponseContainer& InCollisionResponseContainer, const struct FCollisionQueryParams& QueryParam, const struct FCollisionObjectQueryParams & ObjectParam, const bool bMultitrace);
-
-#if WITH_PHYSX
 
 struct FConstraintBrokenDelegateData
 {
@@ -29,8 +27,6 @@ struct FConstraintBrokenDelegateData
 	FOnConstraintBroken OnConstraintBrokenDelegate;
 	int32 ConstraintIndex;
 };
-
-#endif // WITH_PHYSX
 
 class FPhysicsReplication;
 

@@ -50,27 +50,6 @@ public:
 
 private:
 
-#if WITH_APEX_CLOTHING
-
-	struct FApexVertData
-	{
-		uint16 BoneIndices[MAX_TOTAL_INFLUENCES];
-	};
-
-	// Convert from APEX to UE coodinate system
-	nvidia::apex::ClothingAsset* ConvertApexAssetCoordSystem(nvidia::apex::ClothingAsset* InAsset);
-
-	// Convert APEX UV direction to UE UV direction
-	void FlipAuthoringUvs(NvParameterized::Interface* InRenderMeshAuthoringInterface, bool bFlipU, bool bFlipV);
-
-	// Extraction methods for pulling the required data from an APEX asset and
-	// pushing it to a UClothingAssetCommon
-	void ExtractLodPhysicalData(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset& InApexAsset, int32 InLodIdx, FClothLODDataCommon& InLodData, TArray<FApexVertData>& OutApexVertData);
-	void ExtractBoneData(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset& InApexAsset);
-	void ExtractSphereCollisions(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset& InApexAsset, int32 InLodIdx, FClothLODDataCommon& InLodData);
-	void ExtractMaterialParameters(UClothingAssetCommon* NewAsset, nvidia::apex::ClothingAsset& InApexAsset);
-#endif
-
 	// Utility methods for skeletal mesh extraction //////////////////////////
 
 	/** Handles internal import of LODs */

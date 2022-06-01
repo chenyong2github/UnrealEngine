@@ -572,6 +572,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoCompileChaos", Value = "false")]
 		[CommandLine("-CompileChaos", Value = "true")]
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bCompileChaos = true;
 
 		/// <summary>
@@ -580,6 +581,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		[CommandLine("-NoUseChaos", Value = "false")]
 		[CommandLine("-UseChaos", Value = "true")]
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bUseChaos = true;
 
 		/// <summary>
@@ -598,12 +600,14 @@ namespace UnrealBuildTool
 		/// Whether scene query acceleration is done by UE. The physx scene query structure is still created, but we do not use it.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[Obsolete("Deprecated in UE5.1 - No longer used in engine.")]
 		public bool bCustomSceneQueryStructure = false;
 
 		/// <summary>
 		/// Whether to include PhysX support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bCompilePhysX = false;
 
 		/// <summary>
@@ -611,12 +615,14 @@ namespace UnrealBuildTool
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bCompileApex")]
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bCompileAPEX = false;
 
 		/// <summary>
 		/// Whether to include NvCloth.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bCompileNvCloth = false;
 
 		/// <summary>
@@ -2435,11 +2441,13 @@ namespace UnrealBuildTool
 			get { return Inner.bUseVerse; }
 		}
 
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bCompileChaos
 		{
 			get { return Inner.bCompileChaos; }
 		}
 
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bUseChaos
 		{
 			get { return Inner.bUseChaos; }
@@ -2455,21 +2463,25 @@ namespace UnrealBuildTool
 			get { return Inner.bUseChaosChecked; }
 		}
 
+		[Obsolete("Deprecated in UE5.1 - No longer used in engine.")]
 		public bool bCustomSceneQueryStructure
 		{
 			get { return Inner.bCustomSceneQueryStructure; }
 		}
 
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bCompilePhysX
 		{
 			get { return Inner.bCompilePhysX; }
 		}
 
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bCompileAPEX
 		{
 			get { return Inner.bCompileAPEX; }
 		}
 
+		[Obsolete("Deprecated in UE5.1 - No longer used as Chaos is always enabled.")]
 		public bool bCompileNvCloth
 		{
 			get { return Inner.bCompileNvCloth; }

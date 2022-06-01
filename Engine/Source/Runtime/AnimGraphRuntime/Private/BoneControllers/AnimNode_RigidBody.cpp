@@ -505,18 +505,8 @@ void FAnimNode_RigidBody::RunPhysicsSimulation(float DeltaSeconds, const FVector
 
 	const int32 MaxSteps = RBAN_MaxSubSteps;
 	const float MaxDeltaSeconds = 1.f / 30.f;
-#if !WITH_CHAOS
-	const int32 NumSteps = FMath::Clamp(FMath::CeilToInt(DeltaSeconds / MaxDeltaSeconds), 1, MaxSteps);
-	const float StepDeltaTime = DeltaSeconds / float(NumSteps);
-	for (int32 Step = 1; Step <= NumSteps; Step++)
-	{
-		// We call the _AssumesLocked version here without a lock as the simulation is local to this node and we know
-		// we're not going to alter anything while this is running.
-		PhysicsSimulation->Simulate_AssumesLocked(StepDeltaTime, SimSpaceGravity);
-	}
-#else
+
 	PhysicsSimulation->Simulate_AssumesLocked(DeltaSeconds, MaxDeltaSeconds, MaxSteps, SimSpaceGravity);
-#endif
 }
 
 void FAnimNode_RigidBody::FlushDeferredSimulationTask()
@@ -813,7 +803,6 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 			UpdateWorldForces(CompWorldSpaceTM, BaseBoneTM, DeltaSeconds);
 			SimSpaceGravity = WorldVectorToSpaceNoScale(SimulationSpace, WorldSpaceGravity, CompWorldSpaceTM, BaseBoneTM);
 
-#if WITH_CHAOS
 			FSimSpaceSettings* UseSimSpaceSettings = &SimSpaceSettings;
 			if (bRBAN_SimSpace_EnableOverride)
 			{
@@ -866,20 +855,17 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				SolverIterations.SolverPushOutIterations,
 				SolverIterations.JointPushOutIterations,
 				SolverIterations.CollisionPushOutIterations);
-#endif
 
 			if (!bUseDeferredSimulationTask)
 			{
 				RunPhysicsSimulation(DeltaSeconds, SimSpaceGravity);
 			}
 
-#if WITH_CHAOS
 			// Draw here even if the simulation is deferred since we want the shapes drawn relative to the current transform
 			if (bRBAN_DebugDraw)
 			{
 				PhysicsSimulation->DebugDraw();
 			}
-#endif
 		}
 		
 		//write back to animation system
@@ -1078,7 +1064,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		TArray<FConstraintInstance*> HighLevelConstraintInstances;
 
 		// Chaos relies on the initial pose to set up constraint positions
-		bool bCreateBodiesInRefPose = (WITH_CHAOS != 0);
+		constexpr bool bCreateBodiesInRefPose = true;
 		SkeletalMeshComp->InstantiatePhysicsAssetRefPose(
 			*UsePhysicsAsset, 
 			SimulationSpace == ESimulationSpace::WorldSpace ? SkeletalMeshComp->GetComponentToWorld().GetScale3D() : FVector(1.f), 
@@ -1148,9 +1134,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 						IgnoreCollisionActors.Add(NewBodyHandle);
 					}
 
-#if WITH_CHAOS
 					NewBodyHandle->SetName(BodySetup->BoneName);
-#endif
 				}
 			}
 		}
@@ -1282,7 +1266,6 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 
 		CollectClothColliderObjects(SkeletalMeshComp);
 
-#if WITH_CHAOS
 		SolverSettings = UsePhysicsAsset->SolverSettings;
 		PhysicsSimulation->SetSolverSettings(
 			SolverSettings.FixedTimeStep,
@@ -1300,7 +1283,6 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 			SolverIterations.SolverPushOutIterations,
 			SolverIterations.JointPushOutIterations,
 			SolverIterations.CollisionPushOutIterations);
-#endif
 	}
 }
 
@@ -1484,7 +1466,7 @@ void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 	APawn* PawnOwner = InAnimInstance->TryGetPawnOwner();
 	UPawnMovementComponent* MovementComp = PawnOwner ? PawnOwner->GetMovementComponent() : nullptr;
 
-#if WITH_EDITOR && WITH_CHAOS
+#if WITH_EDITOR
 	if (bEnableWorldGeometry && SimulationSpace != ESimulationSpace::WorldSpace && SKC && SKC->GetRelativeScale3D() != FVector(1.f, 1.f, 1.f))
 	{
 		FMessageLog("PIE").Warning(FText::Format(LOCTEXT("WorldCollisionComponentSpace", "Trying to use world collision without world space simulation for scaled ''{0}''. This is not supported, please change SimulationSpace to WorldSpace"),
@@ -1584,11 +1566,6 @@ void FAnimNode_RigidBody::CollectClothColliderObjects(const USkeletalMeshCompone
 {
 	if (bUseExternalClothCollision && bRBAN_IncludeClothColliders && SkeletalMeshComp && PhysicsSimulation)
 	{
-		// @todo(ccaulfield): is there an engine-independent way to do this?
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		SCOPED_SCENE_READ_LOCK(PhysScene ? PhysScene->GetPxScene() : nullptr);
-#endif
-
 		const TArray<FClothCollisionSource>& SkeletalMeshClothCollisionSources = SkeletalMeshComp->GetClothCollisionSources();
 		
 		for (const FClothCollisionSource& ClothCollisionSource : SkeletalMeshClothCollisionSources)
@@ -1605,18 +1582,10 @@ void FAnimNode_RigidBody::CollectClothColliderObjects(const USkeletalMeshCompone
 				{
 					FBodyInstance* const BodyInstance = BodyInstances[BodyInstanceIndex];
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-					// Not sure why this happens, adding check to fix crash in CheckRBN engine test.
-					if (BodyInstance.BodySetup != nullptr)
-					{
-						ImmediatePhysics::FActorHandle* const ActorHandle = PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::StaticActor, BodyInstance, BodyInstance->GetUnrealWorldTransform());
-						ClothColliders.Add(FClothCollider(ActorHandle, SourceComponent, BodyInstance->InstanceBoneIndex));
-					}
-#elif WITH_CHAOS
 					ImmediatePhysics::FActorHandle* const ActorHandle = PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::KinematicActor, BodyInstance, BodyInstance->GetUnrealWorldTransform());
 					PhysicsSimulation->AddToCollidingPairs(ActorHandle); // <-allow collision between this actor and all dynamic actors.
 					ClothColliders.Add(FClothCollider(ActorHandle, SourceComponent, BodyInstance->InstanceBoneIndex));
-#endif
+
 					// Terminate the instance.
 					if (BodyInstance->IsValidBodyInstance())
 					{
@@ -1670,11 +1639,6 @@ void FAnimNode_RigidBody::CollectWorldObjects()
 		TArray<FOverlapResult> Overlaps;
 		UnsafeWorld->OverlapMultiByChannel(Overlaps, CachedBounds.Center, FQuat::Identity, OverlapChannel, FCollisionShape::MakeSphere(CachedBounds.W), QueryParams, FCollisionResponseParams(ECR_Overlap));
 
-		// @todo(ccaulfield): is there an engine-independent way to do this?
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-		SCOPED_SCENE_READ_LOCK(PhysScene ? PhysScene->GetPxScene() : nullptr); //TODO: expose this part to the anim node
-#endif
-
 		for (const FOverlapResult& Overlap : Overlaps)
 		{
 			if (UPrimitiveComponent* OverlapComp = Overlap.GetComponent())
@@ -1687,14 +1651,6 @@ void FAnimNode_RigidBody::CollectWorldObjects()
 				}
 				else
 				{
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-					ComponentsInSim.Add(OverlapComp);
-					// Not sure why this happens, adding check to fix crash in CheckRBN engine test.
-					if (OverlapComp->BodyInstance.BodySetup != nullptr)
-					{
-						PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::StaticActor, &OverlapComp->BodyInstance, OverlapComp->BodyInstance.GetUnrealWorldTransform());
-					}
-#elif WITH_CHAOS
 					// New object - add it to the sim
 					const bool bIsSelf = (UnsafeOwner == OverlapComp->GetOwner());
 					if (!bIsSelf)
@@ -1704,7 +1660,6 @@ void FAnimNode_RigidBody::CollectWorldObjects()
 						PhysicsSimulation->AddToCollidingPairs(ActorHandle);
 						ComponentsInSim.Add(OverlapComp, FWorldObject(ActorHandle, ComponentsInSimTick));
 					}
-#endif
 				}
 			}
 		}
@@ -1714,7 +1669,6 @@ void FAnimNode_RigidBody::CollectWorldObjects()
 // Flag invalid objects for purging
 void FAnimNode_RigidBody::ExpireWorldObjects()
 {
-#if WITH_CHAOS
 	// Invalidate deleted and expired world objects
 	TArray<const UPrimitiveComponent*> PrunedEntries;
 	for (auto& WorldEntry : ComponentsInSim)
@@ -1736,12 +1690,10 @@ void FAnimNode_RigidBody::ExpireWorldObjects()
 			WorldObject.bExpired = true;
 		}
 	}
-#endif
 }
 
 void FAnimNode_RigidBody::PurgeExpiredWorldObjects()
 {
-#if WITH_CHAOS
 	// Destroy expired simulated objects
 	TArray<const UPrimitiveComponent*> PurgedEntries;
 	for (auto& WorldEntry : ComponentsInSim)
@@ -1762,7 +1714,6 @@ void FAnimNode_RigidBody::PurgeExpiredWorldObjects()
 	{
 		ComponentsInSim.Remove(PurgedEntry);
 	}
-#endif
 }
 
 // Update the transforms of the world objects we added to the sim. This is required
@@ -1771,7 +1722,7 @@ void FAnimNode_RigidBody::PurgeExpiredWorldObjects()
 void FAnimNode_RigidBody::UpdateWorldObjects(const FTransform& SpaceTransform)
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/RigidBody")); 
-#if WITH_CHAOS
+
 	if (SimulationSpace != ESimulationSpace::WorldSpace)
 	{
 		for (const auto& WorldEntry : ComponentsInSim)
@@ -1793,7 +1744,6 @@ void FAnimNode_RigidBody::UpdateWorldObjects(const FTransform& SpaceTransform)
 			}
 		}
 	}
-#endif
 }
 
 void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& RequiredBones) 
@@ -1897,11 +1847,7 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 
 		if (PhysicsSimulation)
 		{
-#if WITH_CHAOS
 			PhysicsSimulation->SetNumActiveBodies(NumSimulatedBodies, SimulatedBodyIndices);
-#else
-			PhysicsSimulation->SetNumActiveBodies(NumSimulatedBodies);
-#endif
 		}
 
 		// We're switching to a new LOD, this invalidates our captured poses.
@@ -1912,7 +1858,6 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 
 void FAnimNode_RigidBody::AddImpulseAtLocation(FVector Impulse, FVector Location, FName BoneName)
 {
-#if WITH_CHAOS
 	// Find the body. This is currently only used in the editor and will need optimizing if used in game
 	for (int32 BodyIndex = 0; BodyIndex < Bodies.Num(); ++BodyIndex)
 	{
@@ -1922,7 +1867,6 @@ void FAnimNode_RigidBody::AddImpulseAtLocation(FVector Impulse, FVector Location
 			Body->AddImpulseAtLocation(Impulse, Location);
 		}
 	}
-#endif
 }
 
 void FAnimNode_RigidBody::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy, const UAnimInstance* InAnimInstance)

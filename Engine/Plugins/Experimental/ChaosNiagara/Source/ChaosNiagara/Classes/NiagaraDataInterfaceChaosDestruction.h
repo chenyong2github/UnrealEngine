@@ -686,9 +686,8 @@ public:
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 protected:
-#if INCLUDE_CHAOS
+
 	void RegisterWithSolverEventManager(Chaos::FPhysicsSolver* Solver);
-#endif
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	void ResetInstData(FNDIChaosDestruction_InstanceData* InstData);

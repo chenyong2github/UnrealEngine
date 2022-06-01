@@ -6,13 +6,6 @@
 #include "EngineDefines.h"
 #include "ConstraintDrives.generated.h"
 
-#if WITH_PHYSX
-namespace physx
-{
-	class PxD6Joint;
-}
-#endif // WITH_PHYSX
-
 UENUM()
 namespace EAngularDriveMode
 {
@@ -53,10 +46,8 @@ struct ENGINE_API FConstraintDrive
 
 	FConstraintDrive();
 
-#if WITH_PHYSX
 	/** Updates physx drive with properties from unreal */
-	void UpdatePhysXDrive_AssumesLocked(physx::PxD6Joint* Joint, int DriveType, bool bDriveEnabled) const;
-#endif
+	//void UpdatePhysXDrive_AssumesLocked(physx::PxD6Joint* Joint, int DriveType, bool bDriveEnabled) const;
 
 private:
 	friend struct FConstraintInstance;
@@ -176,10 +167,8 @@ struct ENGINE_API FAngularDriveConstraint
 		
 	}
 
-#if WITH_PHYSX
 	/** Updates physx drive with properties from unreal */
-	void UpdatePhysXAngularDrive_AssumesLocked(physx::PxD6Joint* Joint) const;
-#endif	// WITH_PHYSX
+	//void UpdatePhysXAngularDrive_AssumesLocked(physx::PxD6Joint* Joint) const;
 
 private:
 	friend struct FConstraintInstance;

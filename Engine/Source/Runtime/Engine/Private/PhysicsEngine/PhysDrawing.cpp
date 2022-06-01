@@ -677,58 +677,6 @@ void FKTaperedCapsuleElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTr
 
 void FKConvexElem::DrawElemWire(FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FColor Color) const
 {
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-
-	PxConvexMesh* Mesh = ConvexMesh;
-
-	if(Mesh)
-	{
-		// Draw each triangle that makes up the convex hull
-		PxU32 NbVerts = Mesh->getNbVertices();
-		const PxVec3* Vertices = Mesh->getVertices();
-		
-		// ElemTM is element transform, but geometry is stored in body space, so we need to remove body->element transform
-		FTransform RenderTM = Transform.GetRelativeTransformReverse(ElemTM);
-
-		TArray<FVector> TransformedVerts;
-		TransformedVerts.AddUninitialized(NbVerts);
-		for(PxU32 i=0; i<NbVerts; i++)
-		{
-			TransformedVerts[i] = RenderTM.TransformPosition(P2UVector(Vertices[i]) * Scale);
-		}
-						
-		const PxU8* PIndexBuffer = Mesh->getIndexBuffer();
-		PxU32 NbPolygons = Mesh->getNbPolygons();
-
-		for(PxU32 i=0;i<NbPolygons;i++)
-		{
-			PxHullPolygon Data;
-			bool bStatus = Mesh->getPolygonData(i, Data);
-			check(bStatus);
-
-			const PxU8* PIndices = PIndexBuffer + Data.mIndexBase;
-		
-			for(PxU16 j=0;j<Data.mNbVerts;j++)
-			{
-				// Get the verts that make up this line.
-				int32 I0 = PIndices[j];
-				int32 I1 = (j == Data.mNbVerts - 1) ? PIndices[0] : PIndices[j + 1];
-
-				// Loop back last and first vertices
-				if(j==Data.mNbVerts - 1)
-				{
-					I1 = PIndices[0];
-				}
-
-				PDI->DrawLine( TransformedVerts[I0], TransformedVerts[I1], Color, SDPG_World );
-			}
-		}
-	}
-	else
-	{
-		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::DrawElemWire : No ConvexMesh, so unable to draw."));
-	}
-#elif WITH_CHAOS
 	const int32 NumIndices = IndexData.Num();
 	if(NumIndices > 0 && ensure(NumIndices % 3 == 0))
 	{
@@ -759,12 +707,10 @@ void FKConvexElem::DrawElemWire(FPrimitiveDrawInterface* PDI, const FTransform& 
 	{
 		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::DrawElemWire : No ConvexMesh, so unable to draw."));
 	}
-#endif // WITH_PHYSX
 }
 
 void FKConvexElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FMaterialRenderProxy* MaterialRenderProxy) const
 {
-#if WITH_CHAOS
 	const int32 NumIndices = IndexData.Num();
 	if (NumIndices > 0 && ensure(NumIndices % 3 == 0))
 	{
@@ -798,91 +744,10 @@ void FKConvexElem::DrawElemSolid(FPrimitiveDrawInterface* PDI, const FTransform&
 	{
 		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::DrawElemSolid : No ConvexMesh, so unable to draw."));
 	}
-#endif
 }
 
 void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBuffer, TArray<uint32>& IndexBuffer, const FColor VertexColor) const
 {
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-	// We always want to generate 'non-mirrored geometry', so if all we have is flipped, we have to un-flip it in this function
-	bool bIsMirrored = false;
-	const PxConvexMesh* ConvexMeshToUse = nullptr; 
-	if (ConvexMesh != nullptr)
-	{
-		ConvexMeshToUse = ConvexMesh;
-	}
-	else if (ConvexMeshNegX != nullptr)
-	{
-		ConvexMeshToUse = ConvexMeshNegX;
-		bIsMirrored = true;
-	}
-
-	if(ConvexMeshToUse)
-	{
-		int32 StartVertOffset = VertexBuffer.Num();
-
-		// get PhysX data
-		const PxVec3* PVertices = ConvexMeshToUse->getVertices();
-		const PxU8* PIndexBuffer = ConvexMeshToUse->getIndexBuffer();
-		PxU32 NbPolygons = ConvexMeshToUse->getNbPolygons();
-
-		FVector Scale3D = bIsMirrored ? FVector(-1, 1, 1) : FVector(1, 1, 1);
-
-		for(PxU32 i=0;i<NbPolygons;i++)
-		{
-			PxHullPolygon Data;
-			bool bStatus = ConvexMeshToUse->getPolygonData(i, Data);
-			check(bStatus);
-
-			const PxU8* indices = PIndexBuffer + Data.mIndexBase;
-
-			// create tangents from the first and second vertices of each polygon
-			const FVector TangentX = P2UVector(PVertices[indices[1]]-PVertices[indices[0]]).GetSafeNormal();
-			const FVector TangentZ = FVector(Data.mPlane[0], Data.mPlane[1], Data.mPlane[2]).GetSafeNormal();
-			const FVector TangentY = (TangentX ^ TangentZ).GetSafeNormal();
-
-			// add vertices 
-			for(PxU32 j=0;j<Data.mNbVerts;j++)
-			{
-				int32 VertIndex = indices[j];
-
-				FDynamicMeshVertex Vert1;
-				Vert1.Position = P2UVector(PVertices[VertIndex]) * Scale3D;
-				Vert1.Color = VertexColor;
-				Vert1.SetTangents(
-					TangentX,
-					TangentY,
-					TangentZ
-					);
-				VertexBuffer.Add(Vert1);
-			}
-
-			// Add indices
-			PxU32 nbTris = Data.mNbVerts - 2;
-			for(PxU32 j=0;j<nbTris;j++)
-			{
-				IndexBuffer.Add(StartVertOffset+0);
-
-				if (bIsMirrored)
-				{
-					IndexBuffer.Add(StartVertOffset + j + 1);
-					IndexBuffer.Add(StartVertOffset + j + 2);
-				}
-				else
-				{
-					IndexBuffer.Add(StartVertOffset + j + 2);
-					IndexBuffer.Add(StartVertOffset + j + 1);
-				}
-			}
-
-			StartVertOffset += Data.mNbVerts;
-		}
-	}
-	else
-	{
-		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::AddCachedSolidConvexGeom : No ConvexMesh, so unable to draw."));
-	}
-#elif WITH_CHAOS
 	const int32 NumIndices = IndexData.Num();
 	if(NumIndices > 0 && ensure(NumIndices % 3 == 0))
 	{
@@ -916,7 +781,6 @@ void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBu
 	{
 		UE_LOG(LogPhysics, Log, TEXT("FKConvexElem::AddCachedSolidConvexGeom : No ConvexMesh, so unable to draw."));
 	}
-#endif // WITH_PHYSX
 }
 
 /////////////////////////////////////////////////////////////////////////////////////

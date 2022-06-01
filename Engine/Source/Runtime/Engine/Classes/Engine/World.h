@@ -1542,13 +1542,12 @@ private:
 	FPhysScene*									PhysicsScene;
 	// Note that this should be merged with PhysScene going forward but is needed for now.
 public:
-#if INCLUDE_CHAOS
+
 	/** Current global physics scene. */
 	TSharedPtr<FPhysScene_Chaos> PhysicsScene_Chaos;
 
 	/** Default global physics scene. */
 	TSharedPtr<FPhysScene_Chaos> DefaultPhysicsScene_Chaos;
-#endif
 
 	/** Physics Field component. */
 	UPROPERTY(Transient)
@@ -1604,10 +1603,8 @@ private:
 	/** Utility function to cleanup streaming levels that point to invalid level packages */
 	void RepairStreamingLevels();
 
-#if INCLUDE_CHAOS
 	/** Utility function that is used to ensure that a World has the correct ChaosActor */
 	void RepairChaosActors();
-#endif
 
 #if WITH_EDITOR
 	/** Utility function to make sure there is a valid default builder brush */

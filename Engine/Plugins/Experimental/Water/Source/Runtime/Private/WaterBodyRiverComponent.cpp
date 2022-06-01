@@ -12,11 +12,9 @@
 #include "Engine/StaticMesh.h"
 #include "Algo/Transform.h"
 
-#if WITH_CHAOS
 // for working around Chaos issue
 #include "Chaos/Particles.h"
 #include "Chaos/Convex.h"
-#endif
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
@@ -501,7 +499,6 @@ void UWaterBodyRiverComponent::UpdateSplineMesh(USplineMeshComponent* MeshComp, 
 
 		MeshComp->UpdateMesh();
 
-#if WITH_CHAOS
 		//
 		// GROSS HACK to work around the issue above that CreatePhysicsMeshes() doesn't currently work at Runtime.
 		// The "cook" for a FKConvexElem just creates and caches a Chaos::FConvex instance, and the restore from cooked
@@ -527,7 +524,6 @@ void UWaterBodyRiverComponent::UpdateSplineMesh(USplineMeshComponent* MeshComp, 
 
 			MeshComp->RecreatePhysicsState();
 		}
-#endif
 	}
 }
 

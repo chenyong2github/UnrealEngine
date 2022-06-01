@@ -48,10 +48,7 @@ void UMockPhysicsGrenadeComponent::InitializeNetworkPredictionProxy()
 {
 	npCheckSlow(this->UpdatedPrimitive);
 	
-	// FIXME: this can't compile without WITH_CHAOS
-#if WITH_CHAOS
 	NetworkPredictionProxy.Init<FMockPhysicsGrenadeModelDef>(GetWorld(), GetReplicationProxies(), this, this);
-#endif
 }
 
 void UMockPhysicsGrenadeComponent::InitializeSimulationState(void* Sync, FMockPhysicsGrenadeAuxState* Aux)

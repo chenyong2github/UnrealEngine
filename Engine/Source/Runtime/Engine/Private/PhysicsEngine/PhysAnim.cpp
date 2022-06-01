@@ -19,9 +19,6 @@
 #include "PhysicsPublic.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Physics/PhysicsInterfaceCore.h"
-#if WITH_PHYSX
-	#include "PhysXPublic.h"
-#endif // WITH_PHYSX
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 
@@ -568,7 +565,6 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 #endif
 			const int32 NumComponentSpaceTransforms = GetNumComponentSpaceTransforms();
 			const int32 NumBodies = Bodies.Num();
-#if WITH_PHYSX
 
 			// Lock the scenes we need (flags set in InitArticulated)
 			FPhysicsCommand::ExecuteWrite(this, [&]()
@@ -674,9 +670,6 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 					}
 				}
 			});
-
-#endif // WITH_PHYSX
-
 		}
 	}
 	else

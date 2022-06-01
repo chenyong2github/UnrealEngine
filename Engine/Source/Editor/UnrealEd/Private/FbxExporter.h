@@ -325,10 +325,8 @@ private:
 	void ExportAnimTrack( IAnimTrackAdapter& AnimTrackAdapter, AActor* Actor, USkeletalMeshComponent* SkeletalMeshComponent, float SamplingRate );
 
 	void ExportModel(UModel* Model, FbxNode* Node, const char* Name);
-	
-#if (WITH_PHYSX && PHYSICS_INTERFACE_PHYSX) || WITH_CHAOS
+
 	FbxNode* ExportCollisionMesh(const UStaticMesh* StaticMesh, const TCHAR* MeshName, FbxNode* ParentActor);
-#endif
 
 	/**
 	 * Exports a static mesh

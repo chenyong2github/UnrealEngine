@@ -442,19 +442,11 @@ void FPhysicsAssetEditor::PostRedo( bool bSuccess )
 		{
 			FKConvexElem& Element = Body->AggGeom.ConvexElems[ElemIdx];
 
-#if PHYSICS_INTERFACE_PHYSX
-			if (Element.GetConvexMesh() == NULL)
-			{
-				bRecreate = true;
-				break;
-			}
-#elif WITH_CHAOS
 			if (Element.GetChaosConvexMesh() == NULL)
 			{
 				bRecreate = true;
 				break;
 			}
-#endif
 		}
 
 		if (bRecreate)
@@ -1370,14 +1362,13 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 				InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.DisableCollisionAll );
 				InSubMenuBuilder.EndSection();
 
-#if WITH_CHAOS
 				InSubMenuBuilder.BeginSection("CollisionFilteringHeader", LOCTEXT("CollisionFilteringHeader", "CollisionFiltering"));
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveQueryAndPhysics);
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveQueryOnly);
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitivePhysicsOnly);
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveNoCollision);
 				InSubMenuBuilder.EndSection();
-#endif
+
 				InSubMenuBuilder.BeginSection("MassHeader", LOCTEXT("MassHeader", "Mass"));
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveContributeToMass);
 				InSubMenuBuilder.EndSection();

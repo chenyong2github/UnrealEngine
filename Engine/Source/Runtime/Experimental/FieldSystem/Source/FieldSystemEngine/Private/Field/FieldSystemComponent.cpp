@@ -55,7 +55,6 @@ TSet<FPhysScene_Chaos*> UFieldSystemComponent::GetPhysicsScenes() const
 	}
 	else
 	{
-#if INCLUDE_CHAOS
 		if (ensure(GetOwner()) && ensure(GetOwner()->GetWorld()))
 		{
 			Scenes.Add(GetOwner()->GetWorld()->GetPhysicsScene());
@@ -65,7 +64,6 @@ TSet<FPhysScene_Chaos*> UFieldSystemComponent::GetPhysicsScenes() const
 			check(GWorld);
 			Scenes.Add(GWorld->GetPhysicsScene());
 		}
-#endif
 	}
 	return Scenes;
 }

@@ -1598,13 +1598,12 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_DeferredUpdateBodies);
-#if WITH_CHAOS
+
 		FPhysScene* PhysScene = OwningWorld->GetPhysicsScene();
 		if (PhysScene)
 		{
 			PhysScene->ProcessDeferredCreatePhysicsState();
 		}
-#endif
 	}
 }
 

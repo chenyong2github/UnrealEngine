@@ -1219,7 +1219,6 @@ void AActor::RegisterAllActorTickFunctions(bool bRegister, bool bDoComponents)
 			}
 		}
 
-#if WITH_CHAOS
 		if (bAsyncPhysicsTickEnabled)
 		{
 			if (FPhysScene_Chaos* Scene = static_cast<FPhysScene_Chaos*>(GetWorld()->GetPhysicsScene()))
@@ -1234,7 +1233,6 @@ void AActor::RegisterAllActorTickFunctions(bool bRegister, bool bDoComponents)
 				}
 			}
 		}
-#endif
 	}
 }
 

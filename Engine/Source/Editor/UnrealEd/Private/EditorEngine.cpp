@@ -245,10 +245,7 @@
 #include "DerivedDataBuildRemoteExecutor.h"
 #include "DerivedDataBuildWorkers.h"
 #include "AssetCompilingManager.h"
-
-#if WITH_CHAOS
 #include "ChaosSolversModule.h"
-#endif
 
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
@@ -4300,13 +4297,6 @@ void UEditorEngine::CleanupPhysicsSceneThatWasInitializedForSave(UWorld* World, 
 	}
 
 	World->SetPhysicsScene(nullptr);
-
-#if PHYSICS_INTERFACE_PHYSX
-	if (GPhysCommandHandler)
-	{
-		GPhysCommandHandler->Flush();
-	}
-#endif // PHYSICS_INTERFACE_PHYSX
 
 	// Update components again in case it was a world without a physics scene but did have rendered components.
 	World->UpdateWorldComponents(true, true);

@@ -33,26 +33,4 @@ public:
 
 private:
 
-#if WITH_NVCLOTH
-	nv::cloth::Factory* ClothFactory;
-	nv::cloth::ClothMeshQuadifier* Quadifier;
-
-	void DelayLoadNvCloth();
-	void ShutdownNvClothLibs();
-
-#if PLATFORM_WINDOWS || PLATFORM_MAC
-	void* NvClothHandle;
-#endif
-
-#if PLATFORM_WINDOWS
-	void DelayLoadNvCloth_Windows();
-	void ShutdownNvCloth_Windows();
-#endif
-
-#if PLATFORM_MAC
-	void DelayLoadNvCloth_Mac();
-	void ShutdownNvCloth_Mac();
-#endif
-
-#endif
 };

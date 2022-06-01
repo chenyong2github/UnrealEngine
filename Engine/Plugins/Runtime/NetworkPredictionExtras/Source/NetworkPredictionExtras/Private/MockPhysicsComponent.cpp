@@ -28,12 +28,10 @@ public:
 
 	NP_MODEL_BODY();
 
-#if WITH_CHAOS
 	using Simulation = FMockPhysicsSimulation;
 	using StateTypes = MockPhysicsStateTypes;
 	using Driver = UMockPhysicsComponent;
 	using PhysicsState = FNetworkPredictionPhysicsState;
-#endif // WITH_CHAOS
 
 	static const TCHAR* GetName() { return TEXT("MockPhysics"); }
 	static constexpr int32 GetSortPriority() { return (int32)ENetworkPredictionSortPriority::Physics+1; }
@@ -45,10 +43,8 @@ NP_MODEL_REGISTER(FMockPhysicsModelDef);
 //	UMockPhysicsComponent
 // ----------------------------------------------------------------------------------------------------------
 
-#if WITH_CHAOS
 // UMockPhysicsComponent implements the FMockPhysicsCueSet
 NETSIMCUESET_REGISTER(UMockPhysicsComponent, FMockPhysicsCueSet);
-#endif // WITH_CHAOS
 
 UMockPhysicsComponent::UMockPhysicsComponent()
 {
@@ -57,7 +53,6 @@ UMockPhysicsComponent::UMockPhysicsComponent()
 
 void UMockPhysicsComponent::InitializeNetworkPredictionProxy()
 {
-#if WITH_CHAOS
 	// We need valid UpdatedPrimitive and PhysicsHandle to register
 	// This code does not handle any "not ready yet" cases
 	if (npEnsure(UpdatedPrimitive))
@@ -69,7 +64,6 @@ void UMockPhysicsComponent::InitializeNetworkPredictionProxy()
 		ActiveSimulation->PrimitiveComponent = UpdatedPrimitive;
 		NetworkPredictionProxy.Init<FMockPhysicsModelDef>(GetWorld(), GetReplicationProxies(), ActiveSimulation, this);
 	}
-#endif
 }
 
 void UMockPhysicsComponent::ProduceInput(const int32 DeltaTimeMS, FMockPhysicsInputCmd* Cmd)

@@ -12,14 +12,10 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXInterfaceWrapper.h"
-#include "Collision/CollisionConversionsPhysx.h"
-#elif WITH_CHAOS
 #include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #include "Physics/Experimental/PhysInterface_Chaos.h"
 #include "Chaos/ParticleHandle.h"
-#endif
+
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
 #include "GameFramework/LightWeightInstanceManager.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
@@ -94,17 +90,13 @@ static FVector FindSimpleOpposingNormal(const FHitLocation& Hit, const FVector& 
 
 /**
  * Util to find the normal of the face that we hit. Will use faceIndex from the hit if possible.
- * @param PHit - incoming hit from PhysX
+ * @param PHit - incoming hit from Physics
  * @param TraceDirectionDenorm - direction of sweep test (not normalized)
  * @param InNormal - default value in case no new normal is computed.
  * @return New normal we compute for geometry.
  */
-#if WITH_CHAOS
 template <typename THitLocation>
 static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const THitLocation& Hit, const FVector& TraceDirectionDenorm, const FVector InNormal)
-#else
-static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const FHitLocation& Hit, const FVector& TraceDirectionDenorm, const FVector InNormal)
-#endif
 {
 	// TODO: can we support other shapes here as well?
 	if (QueryGeomType == ECollisionShapeType::Capsule || QueryGeomType == ECollisionShapeType::Sphere)
@@ -112,26 +104,11 @@ static FVector FindGeomOpposingNormal(ECollisionShapeType QueryGeomType, const F
 		const FPhysicsShape* Shape = GetShape(Hit);
 		if (Shape)
 		{
-#if WITH_CHAOS
 			const FTransform ActorTM(Hit.Actor->R(), Hit.Actor->X());
 			const FVector LocalInNormal = ActorTM.InverseTransformVectorNoScale(InNormal);
 			const FVector LocalTraceDirectionDenorm = ActorTM.InverseTransformVectorNoScale(TraceDirectionDenorm);
 			const FVector LocalNormal = Shape->GetGeometry()->FindGeometryOpposingNormal(LocalTraceDirectionDenorm, Hit.FaceIndex, LocalInNormal);
 			return ActorTM.TransformVectorNoScale(LocalNormal);
-#else
-			ECollisionShapeType GeomType = GetGeometryType(*Shape);
-			switch (GeomType)
-			{
-			case ECollisionShapeType::Sphere:
-			case ECollisionShapeType::Capsule:			return FindSimpleOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
-			case ECollisionShapeType::Box:				return FindBoxOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
-			case ECollisionShapeType::Convex:		return FindConvexMeshOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
-			case ECollisionShapeType::Heightfield:		return FindHeightFieldOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
-			case ECollisionShapeType::Trimesh:	return FindTriMeshOpposingNormal(Hit, TraceDirectionDenorm, InNormal);
-			default: break;
-			}
-
-#endif
 		}
 	}
 
@@ -143,11 +120,9 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 {
 	SCOPE_CYCLE_COUNTER(STAT_CollisionSetHitResultFromShapeAndFaceIndex);
 
-#if WITH_CHAOS
-		const int32 ShapeIndex = Shape.GetShapeIndex();
-		CHAOS_CHECK(ShapeIndex < (int32)TNumericLimits<uint8>::Max()); // I could just write < 256, but this makes it more clear *why*
-		OutResult.ElementIndex = (uint8)ShapeIndex;
-#endif
+	const int32 ShapeIndex = Shape.GetShapeIndex();
+	CHAOS_CHECK(ShapeIndex < (int32)TNumericLimits<uint8>::Max()); // I could just write < 256, but this makes it more clear *why*
+	OutResult.ElementIndex = (uint8)ShapeIndex;
 	
 	UPrimitiveComponent* OwningComponent = nullptr;
 	if(const FBodyInstance* BodyInst = GetUserData(Actor))
@@ -164,28 +139,8 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 
 		OwningComponent = BodyInst->OwnerComponent.Get();
 	}
-#if PHYSICS_INTERFACE_PHYSX
-	else if(const FCustomPhysXPayload* CustomPayload = GetUserData<FCustomPhysXPayload>(Shape))	//todo(ocohen): wrap with PHYSX
-	{
-		//Custom payload case
-		OwningComponent = CustomPayload->GetOwningComponent().Get();
-		if(OwningComponent && OwningComponent->bMultiBodyOverlap)
-		{
-			OutResult.Item = CustomPayload->GetItemIndex();
-			OutResult.BoneName = CustomPayload->GetBoneName();
-		}
-		else
-		{
-			OutResult.Item = INDEX_NONE;
-			OutResult.BoneName = NAME_None;
-		
-		}
-		
-	}
-#endif
 	else
 	{
-#if WITH_CHAOS
 		// Currently geom collections are registered with a primitive component user data, but maybe custom should be adapted
 		// to be more general so we can support leaf identification #BGTODO
 		void* UserData = Actor.UserData();
@@ -198,7 +153,6 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 			OutResult.BoneName = NAME_None;
 		}
 		else
-#endif
 		{
 			ensureMsgf(false, TEXT("SetHitResultFromShapeAndFaceIndex hit shape with invalid userData"));
 		}
@@ -222,18 +176,10 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 
 		if (bReturnPhysMat)
 		{
-#if WITH_CHAOS
 			if (const FPhysicsMaterial* PhysicsMaterial = GetMaterialFromInternalFaceIndexAndHitLocation(Shape, Actor, FaceIndex, HitLocation))
 			{
 				OutResult.PhysMaterial = GetUserData(*PhysicsMaterial);
 			}
-#else
-			if (const FPhysicsMaterial* PhysicsMaterial = GetMaterialFromInternalFaceIndex(Shape, Actor, FaceIndex))
-			{
-				OutResult.PhysMaterial = GetUserData(*PhysicsMaterial);
-			}
-
-#endif
 		}
 	}
 
@@ -264,7 +210,6 @@ const FPhysicsShape* GetGTShape<false>(const FPhysicsShape* PTShape, const FPhys
 	return nullptr;
 }
 
-#if WITH_CHAOS
 const FPhysicsActor* GetGTActor(const Chaos::FGeometryParticleHandle* PTActor)
 {
 	//TODO: need to pass in context so that in PT we always return null
@@ -273,7 +218,6 @@ const FPhysicsActor* GetGTActor(const Chaos::FGeometryParticleHandle* PTActor)
 	auto Proxy = static_cast<const Chaos::FSingleParticlePhysicsProxy*>(PTActor->PhysicsProxy());
 	return Proxy->GetParticle_LowLevel();
 }
-#endif
 
 template <typename THitLocation>
 EConvertQueryResult ConvertQueryImpactHitImp(const UWorld* World, const THitLocation& Hit, FHitResult& OutResult, float CheckLength, const FCollisionFilterData& QueryFilter, const FVector& StartLoc, const FVector& EndLoc, const FPhysicsGeometry* Geom, const FTransform& QueryTM, bool bReturnFaceIndex, bool bReturnPhysMat)
@@ -644,21 +588,8 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
 			OutOverlap.ItemIndex = OwnerComponent->bMultiBodyOverlap ? BodyInst->InstanceBodyIndex : INDEX_NONE;
 		}
 	}
-#if PHYSICS_INTERFACE_PHYSX
-	else if(const FCustomPhysXPayload* CustomPayload = GetUserData<FCustomPhysXPayload>(Shape))
-	{
-		TWeakObjectPtr<UPrimitiveComponent> OwnerComponent = CustomPayload->GetOwningComponent();
-		if (UPrimitiveComponent* OwnerComponentRaw = OwnerComponent.Get())
-		{
-			OutOverlap.Component = OwnerComponent; // Copying weak pointer is faster than assigning raw pointer.
-			OutOverlap.OverlapObjectHandle = FActorInstanceHandle(OutOverlap.Component->GetOwner());
-			OutOverlap.ItemIndex = OwnerComponent->bMultiBodyOverlap ? CustomPayload->GetItemIndex() : INDEX_NONE;
-		}
-	}
-#endif
 	else
 	{
-#if WITH_CHAOS
 		// Currently geom collections are registered with a primitive component user data, but maybe custom should be adapted
 		// to be more general so we can support leaf identification #BGTODO
 		void* UserData = Actor.UserData();
@@ -671,7 +602,6 @@ void ConvertQueryOverlap(const FPhysicsShape& Shape, const FPhysicsActor& Actor,
 			OutOverlap.ItemIndex = INDEX_NONE;
 		}
 		else
-#endif
 		{
 			ensureMsgf(false, TEXT("ConvertQueryOverlap called with bad payload type"));
 		}

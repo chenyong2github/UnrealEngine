@@ -1,5 +1,4 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-#if WITH_CHAOS
 
 #include "ChaosClothEditor/ChaosSimulationEditorExtender.h"
 
@@ -214,5 +213,3 @@ void FSimulationEditorExtender::ShowClothSections(USkeletalMeshComponent* MeshCo
 }  // End namespace Chaos
 
 #undef LOCTEXT_NAMESPACE
-
-#endif  // #if WITH_CHAOS

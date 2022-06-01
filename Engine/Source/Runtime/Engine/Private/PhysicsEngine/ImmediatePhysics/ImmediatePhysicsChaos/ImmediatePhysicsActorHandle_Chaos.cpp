@@ -53,7 +53,6 @@ namespace ImmediatePhysics_Chaos
 		return true;
 	}
 
-#if WITH_CHAOS
 	TUniquePtr<Chaos::FImplicitObject> CloneGeometry(const Chaos::FImplicitObject* Geom, TArray<TUniquePtr<Chaos::FPerShapeData>>& OutShapes)
 	{
 		using namespace Chaos;
@@ -88,12 +87,10 @@ namespace ImmediatePhysics_Chaos
 
 		return nullptr;
 	}
-#endif
 
 	// Intended for use with Tri Mesh and Heightfields when cloning world simulation objects into the immediate scene
 	bool CloneGeometry(FBodyInstance* BodyInstance, EActorType ActorType, const FVector& Scale, FReal& OutMass, Chaos::FVec3& OutInertia, Chaos::FRigidTransform3& OutCoMTransform, TUniquePtr<Chaos::FImplicitObject>& OutGeom, TArray<TUniquePtr<Chaos::FPerShapeData>>& OutShapes)
 	{
-#if WITH_CHAOS
 		// We should only get non-simulated objects through this path, but you never know...
 		if ((BodyInstance != nullptr) && !BodyInstance->bSimulatePhysics && BodyInstance->ActorHandle)
 		{
@@ -106,7 +103,6 @@ namespace ImmediatePhysics_Chaos
 				return true;
 			}
 		}
-#endif
 
 		return CreateDefaultGeometry(Scale, OutMass, OutInertia, OutCoMTransform, OutGeom, OutShapes);
 	}
@@ -152,12 +148,7 @@ namespace ImmediatePhysics_Chaos
 #endif
 		AddParams.WorldTransform = BodyInstance->GetUnrealWorldTransform();
 		AddParams.Geometry = &BodySetup->AggGeom;
-#if PHYSICS_INTERFACE_PHYSX
-		AddParams.TriMeshes = TArrayView<PxTriangleMesh*>(BodySetup->TriMeshes);
-#endif
-#if WITH_CHAOS
 		AddParams.ChaosTriMeshes = MakeArrayView(BodySetup->ChaosTriMeshes);
-#endif
 
 		TArray<TUniquePtr<FImplicitObject>> Geoms;
 		FShapesArray Shapes;
@@ -168,7 +159,6 @@ namespace ImmediatePhysics_Chaos
 			return false;
 		}
 
-#if WITH_CHAOS && !PHYSICS_INTERFACE_PHYSX
 		if (ActorType == EActorType::DynamicActor)
 		{
 			// Whether each shape contributes to mass
@@ -191,11 +181,6 @@ namespace ImmediatePhysics_Chaos
 			OutInertia = MassProperties.InertiaTensor.GetDiagonal();
 			OutCoMTransform = FTransform(MassProperties.RotationOfMass, MassProperties.CenterOfMass);
 		}
-#else
-		OutMass = BodyInstance->GetBodyMass();
-		OutInertia = BodyInstance->GetBodyInertiaTensor();
-		OutCoMTransform = BodyInstance->GetMassSpaceLocal();
-#endif
 
 		// If we have multiple root shapes, wrap them in a union
 		if (Geoms.Num() == 1)

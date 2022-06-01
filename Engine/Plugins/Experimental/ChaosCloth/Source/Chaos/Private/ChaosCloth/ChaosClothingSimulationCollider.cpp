@@ -20,13 +20,6 @@
 #include "HAL/PlatformMath.h"
 #include "Containers/ArrayView.h"
 #include "Containers/BitArray.h"
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXIncludes.h"
-#endif
-
-#if PHYSICS_INTERFACE_PHYSX
-#include "PhysXPublic.h"
-#endif
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Update Collider"), STAT_ChaosClothingSimulationColliderUpdate, STATGROUP_ChaosCloth);
 
@@ -529,7 +522,6 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				}
 			}
 
-#if WITH_CHAOS  // Only the Chaos build has access to the ChaosConvex property of the FKConvexElem structure
 			// Add convexes
 			for (const FKConvexElem& ConvexElem : AggGeom.ConvexElems)
 			{
@@ -570,7 +562,6 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				// Add extracted collision data
 				ClothCollisionData.Convexes.Add(Convex);
 			}
-#endif  // #if WITH_CHAOS
 
 			for (const FKLevelSetElem& LevelSetElem : AggGeom.LevelSetElems)
 			{

@@ -39,10 +39,4 @@ public:
 	/** Collision Type for this body. This eventually changes response to collision to others **/
 	UPROPERTY(EditAnywhere,Category=Collision)
 	TEnumAsByte<enum EBodyCollisionResponse::Type> CollisionReponse;
-
-	
-#if PHYSICS_INTERFACE_PHYSX
-	/** Physics triangle mesh, created from cooked data in CreatePhysicsMeshes */
-	TArray<physx::PxTriangleMesh*> TriMeshes;
-#endif
 };

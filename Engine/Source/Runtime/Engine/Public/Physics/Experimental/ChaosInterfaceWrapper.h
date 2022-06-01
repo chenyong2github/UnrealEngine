@@ -23,7 +23,6 @@ namespace ChaosInterface
 {
 
 // Needed by low level SQ calls.
-#if WITH_CHAOS
 struct FScopedSceneReadLock
 {
 	FScopedSceneReadLock(FPhysScene_Chaos& SceneIn);
@@ -31,22 +30,14 @@ struct FScopedSceneReadLock
 
 	Chaos::FPBDRigidsSolver* Solver;
 };
-#endif
 
 inline FQueryFilterData MakeQueryFilterData(const FCollisionFilterData& FilterData, EQueryFlags QueryFlags, const FCollisionQueryParams& Params)
 {
-#if PHYSICS_INTERFACE_PHYSX
-	return PxQueryFilterData(U2PFilterData(FilterData), U2PQueryFlags(QueryFlags));
-#else
 	return FChaosQueryFilterData(U2CFilterData(FilterData), U2CQueryFlags(QueryFlags));
-#endif
 }
 
 FBodyInstance* GetUserData(const Chaos::FGeometryParticle& Actor);
-
-#if WITH_CHAOS
 UPhysicalMaterial* GetUserData(const Chaos::FChaosPhysicsMaterial& Material);
-#endif
 
 }
 
