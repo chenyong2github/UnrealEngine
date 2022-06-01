@@ -95,12 +95,12 @@ void ReloadConfigs(FConfigFile& PluginConfig)
 			const FString ClassName = SectionName.Mid(PerObjConfigDelimIdx + 1);
 
 			// Try to find the class specified by the per-object config
-			UClass* ObjClass = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+			UClass* ObjClass = UClass::TryFindTypeSlow<UClass>(*ClassName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
 			if (ObjClass)
 			{
 				// Now try to actually find the object it's referencing specifically and update it
 				// @note: Choosing not to warn on not finding it for now, as Fortnite has transient uses instantiated at run-time (might not be constructed yet)
-				UObject* PerObjConfigObj = StaticFindObject(ObjClass, ANY_PACKAGE, *ObjectName, true);
+				UObject* PerObjConfigObj = StaticFindFirstObject(ObjClass, *ObjectName, EFindFirstObjectOptions::ExactClass, ELogVerbosity::Warning, TEXT("UGameFeatureData::ReloadConfigs"));
 				if (PerObjConfigObj)
 				{
 					// Intentionally using LoadConfig instead of ReloadConfig, since we do not want to call modify/preeditchange/posteditchange on the objects changed when GIsEditor
@@ -119,7 +119,7 @@ void ReloadConfigs(FConfigFile& PluginConfig)
 			// Find the affected class and push updates to all instances of it, including children
 			// @note:	Intentionally not using the propagation flags inherent in ReloadConfig to handle this, as it utilizes a naive complete object iterator
 			//			and tanks performance pretty badly
-			UClass* ObjClass = FindObjectSafe<UClass>(ANY_PACKAGE, *SectionName, true);
+			UClass* ObjClass = FindFirstObject<UClass>(*SectionName, EFindFirstObjectOptions::ExactClass | EFindFirstObjectOptions::EnsureIfAmbiguous | EFindFirstObjectOptions::NativeFirst);
 			if (ObjClass)
 			{
 				TArray<UObject*> FoundObjects;
