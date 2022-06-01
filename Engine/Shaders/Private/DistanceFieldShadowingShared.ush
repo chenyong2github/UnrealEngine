@@ -61,7 +61,7 @@ void GetHeightfieldShadowTileCulledData(float3 TranslatedWorldPosition, out uint
 #define MAX_INTERSECTING_OBJECTS 1024
 groupshared uint IntersectingObjectIndices[MAX_INTERSECTING_OBJECTS * 2];
 
-float TwoSidedMeshDistanceBias;
+float TwoSidedMeshDistanceBiasScale;
 
 float ShadowRayTraceThroughCulledObjects(
 	float3 TranslatedWorldRayStart, 
@@ -118,7 +118,6 @@ float ShadowRayTraceThroughCulledObjects(
 			float WorldToVolumeScale = 1.0f / max3(DFObjectData.VolumeToWorldScale.x, DFObjectData.VolumeToWorldScale.y, DFObjectData.VolumeToWorldScale.z);
 			float VolumeMinSphereRadius = MinSphereRadius * WorldToVolumeScale;
 			float VolumeMaxSphereRadius = MaxSphereRadius * WorldToVolumeScale;
-			float VolumeTwoSidedMeshDistanceBias = TwoSidedMeshDistanceBias * WorldToVolumeScale;
 			float SelfShadowScale = 1.0f / max(DFObjectData.SelfShadowBias * WorldToVolumeScale, .0001f);
 
 			// Expand the intersection box by the radius of the cone at the distance of the object along the cone
@@ -132,6 +131,10 @@ float ShadowRayTraceThroughCulledObjects(
 			{
 				FDFAssetData DFAssetData = LoadDFAssetDataHighestResolution(DFObjectData.AssetIndex);
 
+				const uint NumMips = LoadDFAssetData(DFObjectData.AssetIndex, 0).NumMips;
+				const float ExpandSurfaceDistance = DFObjectData.VolumeSurfaceBias * exp2(DF_MAX_NUM_MIPS - NumMips) * (DFObjectData.bMostlyTwoSided ? TwoSidedMeshDistanceBiasScale : 1);
+				const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
+				
 				float MaxEncodedDistance = DFAssetData.DistanceFieldToVolumeScaleBias.x + DFAssetData.DistanceFieldToVolumeScaleBias.y;
 
 				if (DFObjectData.bMostlyTwoSided)
@@ -162,18 +165,11 @@ float ShadowRayTraceThroughCulledObjects(
 					float3 ClampedSamplePosition = clamp(SampleVolumePosition, -DFObjectData.VolumePositionExtent, DFObjectData.VolumePositionExtent);
 					float DistanceToClamped = length(ClampedSamplePosition - SampleVolumePosition);
 					float DistanceField = SampleSparseMeshSignedDistanceField(ClampedSamplePosition, DFAssetData) + DistanceToClamped;
-					
-					FLATTEN
-					if (DFObjectData.bMostlyTwoSided)
-					{
-						DistanceField -= VolumeTwoSidedMeshDistanceBias;
-					}
-					else if (bExpandSurface)
+
+					if (bExpandSurface || DFObjectData.bMostlyTwoSided)
 					{
 						// Expand the surface to find thin features, but only away from the start of the trace where it won't introduce incorrect self-occlusion
 						// This still causes incorrect self-occlusion at grazing angles
-						const float ExpandSurfaceDistance = DFObjectData.VolumeSurfaceBias;
-						const float ExpandSurfaceFalloff = 2.0f * ExpandSurfaceDistance;
 						const float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate(SampleRayTime / ExpandSurfaceFalloff);
 						DistanceField -= ExpandSurfaceAmount;
 					}

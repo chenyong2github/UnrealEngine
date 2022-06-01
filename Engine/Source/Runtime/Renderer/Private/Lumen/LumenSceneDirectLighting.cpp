@@ -670,7 +670,7 @@ class FLumenSceneDirectLightingTraceDistanceFieldShadowsCS : public FGlobalShade
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlasParameters)
 		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToShadow)
-		SHADER_PARAMETER(float, TwoSidedMeshDistanceBias)
+		SHADER_PARAMETER(float, TwoSidedMeshDistanceBiasScale)
 		SHADER_PARAMETER(float, StepFactor)
 		SHADER_PARAMETER(float, TanLightSourceAngle)
 		SHADER_PARAMETER(float, MaxTraceDistance)
@@ -1203,8 +1203,8 @@ void TraceDistanceFieldShadows(
 
 		PassParameters->DistanceFieldAtlasParameters = DistanceFieldAtlasParameters;
 		PassParameters->TranslatedWorldToShadow = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToMeshSDFShadowValue);
-		extern float GTwoSidedMeshDistanceBias;
-		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
+		extern float GDFShadowTwoSidedMeshDistanceBiasScale;
+		PassParameters->TwoSidedMeshDistanceBiasScale = GDFShadowTwoSidedMeshDistanceBiasScale;
 
 		PassParameters->TanLightSourceAngle = FMath::Tan(Light.LightSceneInfo->Proxy->GetLightSourceAngle());
 		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance(View);

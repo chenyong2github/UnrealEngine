@@ -71,11 +71,11 @@ FAutoConsoleVariableRef CVarShadowCullTileWorldSize(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GTwoSidedMeshDistanceBias = 4;
-FAutoConsoleVariableRef CVarTwoSidedMeshDistanceBias(
-	TEXT("r.DFTwoSidedMeshDistanceBias"),
-	GTwoSidedMeshDistanceBias,
-	TEXT("World space amount to expand distance field representations of two sided meshes.  This is useful to get tree shadows to match up with standard shadow mapping."),
+float GDFShadowTwoSidedMeshDistanceBiasScale = 0.25f;
+FAutoConsoleVariableRef CVarShadowTwoSidedMeshDistanceBiasScale(
+	TEXT("r.DFShadow.TwoSidedMeshDistanceBiasScale"),
+	GDFShadowTwoSidedMeshDistanceBiasScale,
+	TEXT("Scale applied to distance bias when calculating distance field shadows of two sided meshes. This is useful to get tree shadows to match up with standard shadow mapping."),
 	ECVF_RenderThreadSafe
 	);
 
@@ -279,7 +279,7 @@ class FDistanceFieldShadowingCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldAtlasParameters, DistanceFieldAtlasParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FHeightFieldAtlasParameters, HeightFieldAtlasParameters)
 		SHADER_PARAMETER(FMatrix44f, TranslatedWorldToShadow)
-		SHADER_PARAMETER(float, TwoSidedMeshDistanceBias)
+		SHADER_PARAMETER(float, TwoSidedMeshDistanceBiasScale)
 		SHADER_PARAMETER(float, MinDepth)
 		SHADER_PARAMETER(float, MaxDepth)
 		SHADER_PARAMETER(uint32, DownsampleFactor)
@@ -805,7 +805,7 @@ void RayTraceShadows(
 		PassParameters->DistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(GraphBuilder, DistanceFieldSceneData);
 		PassParameters->HeightFieldAtlasParameters = HeightFieldAtlasParameters;
 		PassParameters->TranslatedWorldToShadow = FMatrix44f(FTranslationMatrix(ProjectedShadowInfo->PreShadowTranslation - View.ViewMatrices.GetPreViewTranslation()) * FMatrix(ProjectedShadowInfo->TranslatedWorldToClipInnerMatrix));
-		PassParameters->TwoSidedMeshDistanceBias = GTwoSidedMeshDistanceBias;
+		PassParameters->TwoSidedMeshDistanceBiasScale = GDFShadowTwoSidedMeshDistanceBiasScale;
 		PassParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 		if (ProjectedShadowInfo->bDirectionalLight)
