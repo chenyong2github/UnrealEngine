@@ -22,7 +22,8 @@ public class CEF3 : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			CEFVersion = "90.6.7+g19ba721+chromium-90.0.4430.212";
-			CEFPlatform = "macosx64";
+			// the wrapper.la that is in macosarm64 is universal, so we always point to this one for the lib
+			CEFPlatform = "macosarm64";
 		}
 		else if(Target.Platform == UnrealTargetPlatform.Linux)
 		{
@@ -91,7 +92,11 @@ public class CEF3 : ModuleRules
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				string WrapperPath = LibraryPath + "/libcef_dll_wrapper.a";
-                string FrameworkPath = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework.framework";
+				
+				// we have separate frameworks for x86 and arm64 because they are so large, some single-architecture builds don't want
+				// to pay the cost of both of them (ideally we would make this universal, and then remove the unused architectures during staging)
+				string FrameworkPathX86 = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework x86.framework";
+				string FrameworkPathArm64 = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework arm64.framework";
 
 				PublicAdditionalLibraries.Add(WrapperPath);
 
@@ -104,11 +109,23 @@ public class CEF3 : ModuleRules
 					}
 				}
 
-				// Add contents of framework directory as runtime dependencies
-				foreach (string FilePath in Directory.EnumerateFiles(FrameworkPath, "*", SearchOption.AllDirectories))
+				if (Target.Architecture.ToLower().Contains("arm64"))
 				{
-					RuntimeDependencies.Add(FilePath);
+					// Add contents of framework directory as runtime dependencies
+					foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathArm64, "*", SearchOption.AllDirectories))
+					{
+						RuntimeDependencies.Add(FilePath);
+					}
 				}
+				if (Target.Architecture.ToLower().Contains("x86"))
+				{
+					// Add contents of framework directory as runtime dependencies
+					foreach (string FilePath in Directory.EnumerateFiles(FrameworkPathX86, "*", SearchOption.AllDirectories))
+					{
+						RuntimeDependencies.Add(FilePath);
+					}
+				}
+
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Linux)
 			{
