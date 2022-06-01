@@ -43,11 +43,6 @@ public:
 	 */
 	void StartProcessingWebSocket(FLwsWebSocket* Socket);
 
-	/**
-	 * Trigger/Wake up the websocket thread to process new requests
-	 */
-	void WakeService();
-
 	// IWebSocketsManager
 	virtual void InitWebSockets(TArrayView<const FString> Protocols) override;
 	virtual void ShutdownWebSockets() override;

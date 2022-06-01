@@ -158,8 +158,6 @@ void FLwsWebSocket::Close(int32 Code, const FString& Reason)
 void FLwsWebSocket::Send(const void* Data, SIZE_T Size, bool bIsBinary)
 {
 	SendQueue.Enqueue(new FLwsSendBuffer(static_cast<const uint8*>(Data), Size, bIsBinary));
-	FLwsWebSocketsManager& WebSocketsManager = FLwsWebSocketsManager::Get();
-	WebSocketsManager.WakeService();
 }
 
 void FLwsWebSocket::Send(const FString& Data)
