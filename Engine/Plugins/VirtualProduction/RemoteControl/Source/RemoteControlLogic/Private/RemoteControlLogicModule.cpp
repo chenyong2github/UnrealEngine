@@ -27,12 +27,12 @@ private:
 	void OnPostInitPropertiesRemoteControlPreset(URemoteControlPreset* InPreset) const
 	{
 		// Create a new controller for preset if that does not exists
-		if (InPreset && InPreset->ControllerContainer.IsNull())
+		if (InPreset && !InPreset->IsControllerContainerValid())
 		{
 			URCControllerContainer* ControllerContainer = NewObject<URCControllerContainer>(InPreset);
 			ControllerContainer->PresetWeakPtr = InPreset;
 
-			InPreset->ControllerContainer = ControllerContainer;
+			InPreset->SetControllerContainer(ControllerContainer);
 		}
 	}
 };

@@ -34,6 +34,12 @@ class SSearchBox;
 class STextBlock;
 class URemoteControlPreset;
 
+class URCController;
+class URCBehaviour;
+class URCAction;
+class FRCControllerModel;
+class FRCBehaviourModel;
+
 
 DECLARE_DELEGATE_TwoParams(FOnEditModeChange, TSharedPtr<SRemoteControlPanel> /* Panel */, bool /* bEditModeChange */);
 
@@ -49,6 +55,17 @@ class SRemoteControlPanel : public SCompoundWidget, public FSelfRegisteringEdito
 	SLATE_END_ARGS()
 
 public:
+	// Remote Control Logic Delegates
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnControllerAdded, const FName& /* InPropertyName */);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnControllerSelectionChanged, TSharedPtr<FRCControllerModel> /* InControllerItem */);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBehaviourAdded, URCBehaviour* /* InBehaviour */);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnBehaviourSelectionChanged, TSharedPtr<FRCBehaviourModel> /* InBehaviourItem */);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnActionAdded, URCAction* /* InAction */);
+
+	DECLARE_MULTICAST_DELEGATE(FOnEmptyControllers);
+	DECLARE_MULTICAST_DELEGATE(FOnEmptyBehaviours);
+	DECLARE_MULTICAST_DELEGATE(FOnEmptyActions);
+	
 	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TSharedPtr<IToolkitHost> InToolkitHost);
 	~SRemoteControlPanel();
 
@@ -250,7 +267,7 @@ private:
 	void OnToggleLogicEditor() const;
 	
 	/** Called when user attempts to delete a group/exposed entity. */
-	void DeleteEntity_Execute() const;
+	void DeleteEntity_Execute();
 
 	/** Called to test if user is able to delete a group/exposed entity. */
 	bool CanDeleteEntity() const;
@@ -317,6 +334,35 @@ private:
 	/** Holds a shared pointer reference to the active entity that is selected. */
 	TSharedPtr<SRCPanelTreeNode> SelectedEntity;
 
+	// ~ Remote Control Logic Panels ~
+
+	/** Controller panel UI widget for Remote Control Logic*/
+	TSharedPtr<class SRCControllerPanel> ControllerPanel;
+
+	/** Behaviour panel UI widget for Remote Control Logic*/
+	TSharedPtr<class SRCBehaviourPanel> BehaviourPanel;
+
+	/** Action panel UI widget for Remote Control Logic*/
+	TSharedPtr<class SRCActionPanel> ActionPanel;
+
+
 public:
 	static const float MinimumPanelWidth;
+
+	/** Tab Manager used to handle spawning of Controller and Exposed Property tabs*/
+	TSharedPtr<FGlobalTabmanager> TabManager;
+
+public:
+	// Global Delegates for Remote Control Logic
+	FOnControllerAdded OnControllerAdded;	
+	FOnBehaviourAdded OnBehaviourAdded;
+	FOnActionAdded OnActionAdded;
+	FOnControllerSelectionChanged OnControllerSelectionChanged;
+	FOnBehaviourSelectionChanged OnBehaviourSelectionChanged;
+	FOnEmptyControllers OnEmptyControllers;
+	FOnEmptyBehaviours OnEmptyBehaviours;
+	FOnEmptyActions OnEmptyActions;
+
+private:
+	TSharedPtr<class SRCLogicPanelBase> GetActiveLogicPanel() const;
 };

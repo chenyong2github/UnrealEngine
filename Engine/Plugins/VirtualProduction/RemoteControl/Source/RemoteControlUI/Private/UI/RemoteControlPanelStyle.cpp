@@ -11,6 +11,7 @@
 
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush(FRemoteControlPanelStyle::InContent(RelativePath, ".png" ), __VA_ARGS__)
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+#define IMAGE_BRUSH_SVG( RelativePath, ... ) FSlateVectorImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 #define BOX_BRUSH(RelativePath, ...) FSlateBoxBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 #define CORE_BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush(StyleSet->RootToCoreContentDir(RelativePath, TEXT(".png") ), __VA_ARGS__)
 #define BOX_PLUGIN_BRUSH( RelativePath, ... ) FSlateBoxBrush(FRemoteControlPanelStyle::InContent( RelativePath, ".png" ), __VA_ARGS__)
@@ -28,6 +29,7 @@ void FRemoteControlPanelStyle::Initialize()
 	const FVector2D Icon8x8(8.0f, 8.0f);
 	const FVector2D Icon16x16(16.0f, 16.0f);
 	const FVector2D Icon20x20(20.0f, 20.0f);
+	const FVector2D Icon32x32(32.f);
 	const FVector2D Icon28x14(28.0f, 14.0f);
 	const FVector2D Icon64x64(64.0f, 64.0f);
 
@@ -121,7 +123,13 @@ void FRemoteControlPanelStyle::Initialize()
 			.SetPadding(FMargin(1, 1, 1, 1));
 
 		StyleSet->Set("RemoteControlPanel.Switch", SwitchStyle);
-	}
+	} 
+
+	// Remote Control Logic UI
+	StyleSet->Set("RemoteControlPanel.Behaviours.Title", FCoreStyle::GetDefaultFontStyle("Regular", 12));
+	StyleSet->Set("RemoteControlPanel.Behaviours.BehaviourDescription", FCoreStyle::GetDefaultFontStyle("Regular", 10));
+	StyleSet->Set("RemoteControlPanel.Behaviours.CustomBlueprint", new IMAGE_BRUSH_SVG("Starship/MainToolbar/blueprints", Icon20x20));
+	StyleSet->Set("RemoteControlPanel.Actions.ValuePanelHeader", FCoreStyle::GetDefaultFontStyle("Bold", 12));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 }
@@ -155,6 +163,7 @@ FString FRemoteControlPanelStyle::InContent(const FString& RelativePath, const A
 
 #undef IMAGE_PLUGIN_BRUSH
 #undef IMAGE_BRUSH
+#undef IMAGE_BRUSH_SVG
 #undef BOX_BRUSH
 #undef BOX_PLUGIN_BRUSH
 #undef DEFAULT_FONT

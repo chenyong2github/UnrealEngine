@@ -2,11 +2,14 @@
 
 #include "SRemoteControlPanel.h"
 
+#include "Action/SRCActionPanel.h"
 #include "ActorEditorUtils.h"
 #include "AssetRegistry/AssetRegistryModule.h"
+#include "Behaviour/SRCBehaviourPanel.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
 #include "Commands/RemoteControlCommands.h"
+#include "Controller/SRCControllerPanel.h"
 #include "Editor.h"
 #include "Editor/EditorPerformanceSettings.h"
 #include "EditorFontGlyphs.h"
@@ -52,6 +55,8 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Toolkits/IToolkitHost.h"
 #include "ToolMenus.h"
+#include "UI/BaseLogicUI/RCLogicModeBase.h"
+#include "UI/BaseLogicUI/SRCLogicPanelListBase.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SLayeredImage.h"
@@ -70,6 +75,8 @@
 const FName SRemoteControlPanel::DefaultRemoteControlPanelToolBarName("RemoteControlPanel.DefaultToolBar");
 const FName SRemoteControlPanel::AuxiliaryRemoteControlPanelToolBarName("RemoteControlPanel.AuxiliaryToolBar");
 const float SRemoteControlPanel::MinimumPanelWidth = 640.f;
+
+static TAutoConsoleVariable<bool> CVarRemoteControlEnableLogicUI(TEXT("RemoteControl.EnableLogicUI"), false, TEXT("Toggles visibility of Remote Control Logic User Interface (part of the Remote Control Preset asset)"));
 
 namespace RemoteControlPanelUtils
 {
@@ -323,8 +330,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			return 1.0f - Settings->TreeBindingSplitRatio;
 		}));
 
-	ChildSlot
-	[
+	TSharedRef<SWidget> ExposedPropertyPanel =
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
 		.Padding(3.f)
@@ -656,8 +662,91 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		.Padding(FMargin(5.f, 8.f, 5.f, 5.f))
 		[
 			CreateCPUThrottleWarning()
-		]
+		];
+
+	TabManager = FGlobalTabmanager::New();
+	const TSharedPtr<FTabManager::FStack> ControlPanelStackManager = FTabManager::NewStack();
+	const constexpr TCHAR* ExposedPropertyTabName = TEXT("Expose Property Tab");
+	const constexpr TCHAR* ControllerTabName = TEXT("Controller Tab");
+	const FOnSpawnTab OnExposedPropertySpawnTab = FOnSpawnTab::CreateLambda([ExposedPropertyPanel] (const FSpawnTabArgs&)
+	{
+		return SNew(SDockTab)
+		[
+			ExposedPropertyPanel
+		];
+	});
+	const FOnSpawnTab OnControllerSpawnTab = FOnSpawnTab::CreateLambda([this] (const FSpawnTabArgs&)
+	{
+		return SNew(SDockTab)
+		[
+			SAssignNew(ControllerPanel, SRCControllerPanel, SharedThis(this))
+		];
+	});
+	const FCanSpawnTab CanSpawnPanelTab = FCanSpawnTab::CreateLambda([this](const FSpawnTabArgs& InArgs)
+	{
+		return true;
+	});
+	if (!TabManager->HasTabSpawner(ExposedPropertyTabName))
+	{
+		TabManager->RegisterTabSpawner(ExposedPropertyTabName, OnExposedPropertySpawnTab, CanSpawnPanelTab);
+	}
+	if (!TabManager->HasTabSpawner(ControllerTabName))
+	{
+		TabManager->RegisterTabSpawner(ControllerTabName, OnControllerSpawnTab, CanSpawnPanelTab);
+	}
+	
+	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("RemoteControlPanelLayout1.0") 
+	->AddArea
+	(
+		FTabManager::NewPrimaryArea()
+		->SetOrientation(Orient_Vertical)
+		->Split
+		(
+			FTabManager::NewStack()
+			->SetSizeCoefficient(0.5f)
+			->AddTab(ControllerTabName, ETabState::OpenedTab)
+		)
+		->Split
+		(
+			FTabManager::NewStack()
+			->SetSizeCoefficient(0.5f)
+			->AddTab(ExposedPropertyTabName, ETabState::OpenedTab)
+		)
+	);
+		
+	// Make 3 Columns with Exposed Properties + Controllers / Behaviours / Actions
+	TSharedRef<SSplitter> SplitterBox = SNew(SSplitter)
+	.Orientation(Orient_Horizontal)
+	+ SSplitter::Slot()
+	.Value(0.33)
+	[
+		TabManager->RestoreFrom(Layout, nullptr).ToSharedRef()
+	]
+	+ SSplitter::Slot()
+	.Value(0.33)
+	[
+		SAssignNew(BehaviourPanel, SRCBehaviourPanel, SharedThis(this))
+	]
+	+ SSplitter::Slot()
+	.Value(0.33)
+	[
+		SAssignNew(ActionPanel, SRCActionPanel, SharedThis(this))
 	];
+
+	if (CVarRemoteControlEnableLogicUI.GetValueOnAnyThread())
+	{
+		ChildSlot
+		[
+			SplitterBox
+		];
+	}
+	else
+	{
+		ChildSlot
+			[
+				ExposedPropertyPanel
+			];
+	}
 
 	RegisterEvents();
 	CacheLevelClasses();
@@ -1803,8 +1892,41 @@ void SRemoteControlPanel::OnToggleLogicEditor() const
 {
 }
 
-void SRemoteControlPanel::DeleteEntity_Execute() const
+TSharedPtr<class SRCLogicPanelBase> SRemoteControlPanel::GetActiveLogicPanel() const
 {
+	if (ControllerPanel->IsListFocused())
+	{
+		return ControllerPanel;
+	}
+	else if (BehaviourPanel->IsListFocused())
+	{
+		return BehaviourPanel;
+	}
+	else if (ActionPanel->IsListFocused())
+	{
+		return ActionPanel;
+	}
+	
+	return nullptr;
+}
+
+void SRemoteControlPanel::DeleteEntity_Execute()
+{
+	// Currently used  as common entry point of Delete UI command for both RC Entity and Logic Items.
+	// This could potentially be moved out if the Logic panels are moved to a separate tab.
+	
+	// ~ Delete Logic Item ~
+	// 
+	// If the user focus is currently active on a Logic panel then route the Delete command to it and return.
+	if (TSharedPtr<class SRCLogicPanelBase> ActivePanel = GetActiveLogicPanel())
+	{
+		ActivePanel->DeleteSelectedPanelItem();
+
+		return; // handled
+	}
+
+	// ~ Delete Entity ~
+
 	if (SelectedEntity->GetRCType() == SRCPanelTreeNode::FieldChild) // Field Child does not contain entity ID, that is why it should not be processed
 	{
 		return;
@@ -1828,6 +1950,11 @@ void SRemoteControlPanel::DeleteEntity_Execute() const
 
 bool SRemoteControlPanel::CanDeleteEntity() const
 {
+	if (TSharedPtr<class SRCLogicPanelBase> ActivePanel = GetActiveLogicPanel())
+	{
+		return true; // User has focus on a logic panel
+	}
+
 	if (SelectedEntity.IsValid() && Preset.IsValid() && bIsInEditMode)
 	{
 		// Do not allow default group to be deleted.

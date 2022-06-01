@@ -12,11 +12,11 @@
 
 #include "RemoteControlPreset.generated.h"
 
-class URCVirtualPropertyContainerBase;
 class AActor;
 class IStructSerializerBackend;
 class IStructDeserializerBackend;
 enum class EPackageReloadPhase : uint8;
+enum class EPropertyBagPropertyType : uint8;
 struct FPropertyChangedEvent;
 struct FRCFieldPathInfo;
 struct FRemoteControlActor;
@@ -24,6 +24,9 @@ struct FRemoteControlPresetLayout;
 class FTransactionObjectEvent;
 class FRemoteControlPresetRebindingManager;
 class UBlueprint;
+class URCVirtualPropertyBase;
+class URCVirtualPropertyContainerBase;
+class URCVirtualPropertyInContainer;
 class URemoteControlExposeRegistry;
 class URemoteControlBinding;
 class URemoteControlPreset;
@@ -837,11 +840,49 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Remote Control Preset")
 	TArray<URemoteControlBinding*> Bindings;
 
+	/** ~~~Virtual Property Wrapper Functions ~~~
+	* 
+	* The goal is to hide the Controller Container and provide a simple interface for Controller access to UI and Web.
+	*/
+
+	/** Fetches a virtual property by specified name. */
+	URCVirtualPropertyBase* GetVirtualProperty(const FName& InPropertyName) const;
+
+	/** Adds a Virtual Property (Controller) to the Remote Control Preset */
+	URCVirtualPropertyInContainer* AddVirtualProperty(TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr, const FName InPropertyName = NAME_None);
+
+	/** Removes a given Virtual Property (by Name) from the Remote Control preset */
+	bool RemoveVirtualProperty(const FName& InPropertyName);
+
+	/** Removes all virtual properties held by this Remote Control preset*/
+	void ResetVirtualProperties();
+
+	/** Returns the number of Virtual Properties contained in this Remote Control preset*/
+	int32 GetNumVirtualProperties() const;
+
+	/** Returns the Struct On Scope of the Controller Container (value ptr of the virtual properties)*
+	* Currently used by the UI class SRCControllerPanelList for user value entry via the RC Controllers panel*/
+	TSharedPtr<FStructOnScope> GetControllerContainerStructOnScope();
+
+	/** Sets the Controller Container (holds all Virtual Properties) */
+	void SetControllerContainer(URCVirtualPropertyContainerBase* InControllerContainer);
+
+	/** Checks whether the Controller Container (which holds all Virtual Properties) is currently valid*/
+	bool IsControllerContainerValid()
+	{
+		return ControllerContainer != nullptr;
+	}
+
+#if WITH_EDITOR
+	/** Called when a virtual property is modified. This call is routed to the Controller for evaluating associated Logic & Behaviours*/
+	void OnModifyVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent);
+#endif
+
+private:
 	/** Holds virtual controllers properties, behaviours and actions */
 	UPROPERTY(Instanced)
 	TObjectPtr<URCVirtualPropertyContainerBase> ControllerContainer;
 
-private:
 	/** Generate a unique alias for this target. */
 	FName GenerateAliasForObjects(const TArray<UObject*>& Objects);
 	

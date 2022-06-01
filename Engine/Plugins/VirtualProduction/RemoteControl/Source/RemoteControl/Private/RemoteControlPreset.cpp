@@ -11,6 +11,7 @@
 #include "HAL/IConsoleManager.h"
 #include "IRemoteControlModule.h"
 #include "RCVirtualPropertyContainer.h"
+#include "RCVirtualProperty.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/ITransaction.h"
 #include "Misc/Optional.h"
@@ -779,6 +780,87 @@ FName URemoteControlPreset::GenerateUniqueLabel(const FName InDesiredName) const
 {
 	return Registry->GenerateUniqueLabel(InDesiredName);
 }
+
+URCVirtualPropertyBase* URemoteControlPreset::GetVirtualProperty(const FName& InPropertyName) const
+{
+	if (!ensure(ControllerContainer))
+	{
+		return nullptr;
+	}
+
+	return ControllerContainer->GetVirtualProperty(InPropertyName);
+}
+
+URCVirtualPropertyInContainer* URemoteControlPreset::AddVirtualProperty(TSubclassOf<URCVirtualPropertyInContainer> InPropertyClass, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject /*= nullptr*/, const FName InPropertyName /*= NAME_None*/)
+{
+	if (!ensure(ControllerContainer))
+	{
+		return nullptr;
+	}
+
+	// New Property Name
+	FName NewPropertyName = InPropertyName;
+	if (NewPropertyName.IsNone())
+	{
+		NewPropertyName = URCVirtualPropertyContainerBase::GenerateUniquePropertyName(TEXT(""), InValueType, ControllerContainer);
+	}	
+
+	return ControllerContainer->AddProperty(NewPropertyName, InPropertyClass, InValueType, InValueTypeObject);
+}
+
+bool URemoteControlPreset::RemoveVirtualProperty(const FName& InPropertyName)
+{
+	if (ensure(ControllerContainer))
+	{
+		return ControllerContainer->RemoveProperty(InPropertyName);
+	}
+
+	return false;
+	
+}
+
+void URemoteControlPreset::ResetVirtualProperties()
+{
+	if (ensure(ControllerContainer))
+	{
+		return ControllerContainer->Reset();
+	}
+}
+
+int32 URemoteControlPreset::GetNumVirtualProperties() const
+{
+	if (ensure(ControllerContainer))
+	{
+		return ControllerContainer->GetNumVirtualProperties();
+	}
+
+	return 0;
+}
+
+TSharedPtr<FStructOnScope> URemoteControlPreset::GetControllerContainerStructOnScope()
+{
+	if (ensure(ControllerContainer))
+	{
+		return ControllerContainer->CreateStructOnScope();
+	}
+
+	return nullptr;
+}
+
+void URemoteControlPreset::SetControllerContainer(URCVirtualPropertyContainerBase* InControllerContainer)
+{
+	ControllerContainer = InControllerContainer;
+}
+
+#if WITH_EDITOR
+void URemoteControlPreset::OnModifyVirtualProperty(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (ensure(ControllerContainer))
+	{
+		ControllerContainer->OnModifyPropertyValue(PropertyChangedEvent);
+	}	
+}
+#endif
 
 TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* Object, FRCFieldPathInfo FieldPath, FRemoteControlPresetExposeArgs Args)
 {

@@ -182,15 +182,15 @@ FName URCVirtualPropertyContainerBase::GenerateUniquePropertyName(const FName& I
 	};
 
 	const UEnum* Enum = FindObjectChecked<UEnum>(nullptr, TEXT("/Script/StructUtils.EPropertyBagPropertyType"));
-	const FName DefaultName = Enum->GetValueAsName(InValueType);
+	FString DefaultName = Enum->GetValueAsName(InValueType).ToString();	
+	DefaultName.RemoveFromStart("EPropertyBagPropertyType::");
 	
 	int32 Index = 0;
-	const FString InitialName = InPropertyName.IsNone() ? DefaultName.ToString() : InPropertyName.ToString();
+	const FString InitialName = InPropertyName.IsNone() ? DefaultName : InPropertyName.ToString();
 	FString FinalName = InitialName;
-
 	
+	// Recursively search for an available name by incrementing suffix till we find one.
 	const FPropertyBagPropertyDesc* PropertyDesc = InContainer->Bag.FindPropertyDescByName(*FinalName);
-
 	while (PropertyDesc)
 	{
 		++Index;
