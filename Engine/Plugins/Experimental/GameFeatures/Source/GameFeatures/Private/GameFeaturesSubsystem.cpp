@@ -311,7 +311,7 @@ void UGameFeaturesSubsystem::UnloadGameFeatureData(const UGameFeatureData* GameF
 	LocalAssetManager.UnloadPrimaryAsset(GameFeatureToUnload->GetPrimaryAssetId());
 }
 
-void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd, const FString& PluginName)
+void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd, const FString& PluginName, TArray<FName>& OutNewPrimaryAssetTypes)
 {
 	check(GameFeatureToAdd);
 	FString PluginRootPath = TEXT("/") + PluginName + TEXT("/");
@@ -340,6 +340,8 @@ void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData
 
 		if (!bAlreadyExisted)
 		{
+			OutNewPrimaryAssetTypes.Add(TypeInfo.PrimaryAssetType);
+
 			// If we did not previously scan anything for a primary asset type that is in our config, try to reuse the cook rules from the config instead of the one in the gamefeaturedata, which should not be modifying cook rules
 			const FPrimaryAssetTypeInfo* ConfigTypeInfo = LocalAssetManager.GetSettings().PrimaryAssetTypesToScan.FindByPredicate([&TypeInfo](const FPrimaryAssetTypeInfo& PATI) -> bool { return PATI.PrimaryAssetType == TypeInfo.PrimaryAssetType; });
 			if (ConfigTypeInfo)
@@ -356,9 +358,32 @@ void UGameFeaturesSubsystem::AddGameFeatureToAssetManager(const UGameFeatureData
 	LocalAssetManager.PopBulkScanning();
 }
 
-void UGameFeaturesSubsystem::RemoveGameFeatureFromAssetManager(const UGameFeatureData* GameFeatureToRemove)
+void UGameFeaturesSubsystem::RemoveGameFeatureFromAssetManager(const UGameFeatureData* GameFeatureToRemove, const FString& PluginName, const TArray<FName>& AddedPrimaryAssetTypes)
 {
-	/** NOT IMPLEMENTED - STUB */
+	check(GameFeatureToRemove);
+	UAssetManager& LocalAssetManager = UAssetManager::Get();
+
+	for (FPrimaryAssetTypeInfo TypeInfo : GameFeatureToRemove->GetPrimaryAssetTypesToScan())
+	{
+		if (AddedPrimaryAssetTypes.Contains(TypeInfo.PrimaryAssetType))
+		{
+			LocalAssetManager.RemovePrimaryAssetType(TypeInfo.PrimaryAssetType);
+			continue;
+		}
+
+		for (FDirectoryPath& Path : TypeInfo.Directories)
+		{
+			Path.Path = TEXT("/") + PluginName + TEXT("/") + Path.Path;
+		}
+
+		// This function also fills out runtime data on the copy
+		if (!LocalAssetManager.ShouldScanPrimaryAssetType(TypeInfo))
+		{
+			continue;
+		}
+
+		LocalAssetManager.RemoveScanPathsForPrimaryAssets(TypeInfo.PrimaryAssetType, TypeInfo.AssetScanPaths, TypeInfo.AssetBaseClassLoaded, TypeInfo.bHasBlueprintClasses, TypeInfo.bIsEditorOnly);
+	}
 }
 
 void UGameFeaturesSubsystem::AddObserver(UObject* Observer)
@@ -464,7 +489,6 @@ void UGameFeaturesSubsystem::OnGameFeatureStatusKnown(const FString& PluginName,
 void UGameFeaturesSubsystem::OnGameFeatureRegistering(const UGameFeatureData* GameFeatureData, const FString& PluginName, const FString& PluginURL)
 {
 	check(GameFeatureData);
-	AddGameFeatureToAssetManager(GameFeatureData, PluginName);
 
 	for (UObject* Observer : Observers)
 	{
@@ -549,8 +573,6 @@ void UGameFeaturesSubsystem::OnGameFeatureDeactivating(const UGameFeatureData* G
 			Action->OnGameFeatureDeactivating(Context);
 		}
 	}
-
-	RemoveGameFeatureFromAssetManager(GameFeatureData);
 }
 
 const UGameFeatureData* UGameFeaturesSubsystem::GetDataForStateMachine(UGameFeaturePluginStateMachine* GFSM) const

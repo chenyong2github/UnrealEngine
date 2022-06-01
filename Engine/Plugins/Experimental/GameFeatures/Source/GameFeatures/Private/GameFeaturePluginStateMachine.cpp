@@ -834,6 +834,8 @@ struct FGameFeaturePluginState_Unmounting : public FGameFeaturePluginState
 		{
 			// The asset registry listens to FPackageName::OnContentPathDismounted() and 
 			// will automatically cleanup the asset registry state we added for this plugin.
+			// This will also cause any assets we added to the asset manager to be removed.
+			// Scan paths added to the asset manager should have already been cleaned up.
 			FText FailureReason;
 			if (!IPluginManager::Get().UnmountExplicitlyLoadedPlugin(StateProperties.PluginName, &FailureReason))
 			{
@@ -1296,6 +1298,10 @@ struct FGameFeaturePluginState_Unregistering : public FGameFeaturePluginState
 		if (StateProperties.GameFeatureData)
 		{
 			UGameFeaturesSubsystem::Get().OnGameFeatureUnregistering(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.PluginURL);
+
+			UGameFeaturesSubsystem::Get().RemoveGameFeatureFromAssetManager(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.AddedPrimaryAssetTypes);
+			StateProperties.AddedPrimaryAssetTypes.Empty();
+
 			UGameFeaturesSubsystem::Get().UnloadGameFeatureData(StateProperties.GameFeatureData);
 		}
 
@@ -1359,6 +1365,9 @@ struct FGameFeaturePluginState_Registering : public FGameFeaturePluginState
 		{
 			StateProperties.GameFeatureData->InitializeBasePluginIniFile(StateProperties.PluginInstalledFilename);
 			StateStatus.SetTransition(EGameFeaturePluginState::Registered);
+
+			check(StateProperties.AddedPrimaryAssetTypes.Num() == 0);
+			UGameFeaturesSubsystem::Get().AddGameFeatureToAssetManager(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.AddedPrimaryAssetTypes);
 
 			UGameFeaturesSubsystem::Get().OnGameFeatureRegistering(StateProperties.GameFeatureData, StateProperties.PluginName, StateProperties.PluginURL);
 		}

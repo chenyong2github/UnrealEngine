@@ -97,10 +97,14 @@ public:
 
 	/** Single path wrapper */
 	virtual int32 ScanPathForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const FString& Path, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly = false, bool bForceSynchronousScan = true);
-	
+
 	/** Call before many calls to ScanPaths to improve load performance. Match each call with PopBulkScanning(). */
 	void PushBulkScanning();
 	void PopBulkScanning();
+
+	virtual void RemoveScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const TArray<FString>& Paths, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly = false);
+
+	virtual void RemovePrimaryAssetType(FPrimaryAssetType PrimaryAssetType);
 
 protected:
 	/** Should only be called from PushBulkScanning() and override */
@@ -668,6 +672,9 @@ protected:
 
 	/** When asset is renamed */
 	virtual void OnAssetRenamed(const FAssetData& NewData, const FString& OldPath);
+
+	/** When an asset is removed */
+	virtual void OnAssetRemoved(const FAssetData& Data);
 
 	/** Try to remove an old asset identifier when it has been deleted/renamed */
 	virtual void RemovePrimaryAssetId(const FPrimaryAssetId& PrimaryAssetId);

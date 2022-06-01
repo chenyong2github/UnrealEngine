@@ -351,9 +351,9 @@ private:
 	void OnAssetManagerCreated();
 
 	/** Scans for assets specified in the game feature data */
-	static void AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd, const FString& PluginName);
+	static void AddGameFeatureToAssetManager(const UGameFeatureData* GameFeatureToAdd, const FString& PluginName, TArray<FName>& OutNewPrimaryAssetTypes);
 
-	static void RemoveGameFeatureFromAssetManager(const UGameFeatureData* GameFeatureToRemove);
+	static void RemoveGameFeatureFromAssetManager(const UGameFeatureData* GameFeatureToRemove, const FString& PluginName, const TArray<FName>& AddedPrimaryAssetTypes);
 
 private:
 	const UGameFeatureData* GetDataForStateMachine(UGameFeaturePluginStateMachine* GFSM) const;

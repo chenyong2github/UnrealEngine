@@ -294,6 +294,7 @@ void UAssetManager::PostInitProperties()
 			AssetRegistry.OnInMemoryAssetCreated().AddUObject(this, &UAssetManager::OnInMemoryAssetCreated);
 			AssetRegistry.OnInMemoryAssetDeleted().AddUObject(this, &UAssetManager::OnInMemoryAssetDeleted);
 			AssetRegistry.OnAssetRenamed().AddUObject(this, &UAssetManager::OnAssetRenamed);
+			AssetRegistry.OnAssetRemoved().AddUObject(this, &UAssetManager::OnAssetRemoved);
 		}
 
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UAssetManager::PreBeginPIE);
@@ -810,12 +811,13 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 {
 	LLM_SCOPE_BYTAG(AssetManager);
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetManager::ScanPathsForPrimaryAssets)
-	TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetType);
 
 	if (bIsEditorOnly && !GIsEditor)
 	{
 		return 0;
 	}
+
+	TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetType);
 
 	check(BaseClass);
 
@@ -936,6 +938,55 @@ void UAssetManager::PopBulkScanning()
 	{
 		StopBulkScanning();
 	}
+}
+
+void UAssetManager::RemoveScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const TArray<FString>& Paths, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly /*= false*/)
+{
+	if (bIsEditorOnly && !GIsEditor)
+	{
+		return;
+	}
+
+	TSharedRef<FPrimaryAssetTypeData>* FoundType = AssetTypeMap.Find(PrimaryAssetType);
+
+	check(BaseClass);
+
+	if (!FoundType)
+	{
+		return;
+	}
+
+	FPrimaryAssetTypeData& TypeData = FoundType->Get();
+
+	// Make sure types match
+	if (!ensureMsgf(TypeData.Info.AssetBaseClassLoaded == BaseClass && TypeData.Info.bHasBlueprintClasses == bHasBlueprintClasses && TypeData.Info.bIsEditorOnly == bIsEditorOnly, TEXT("UAssetManager::RemoveScanPathsForPrimaryAssets TypeData parameters did not match for type '%s'"), *TypeData.Info.PrimaryAssetType.ToString()))
+	{
+		return;
+	}
+
+	TArray<FString> RemovedPaths;
+	RemovedPaths.Reserve(Paths.Num());
+	for (const FString& Path : Paths)
+	{
+		if (TypeData.Info.AssetScanPaths.Remove(Path))
+		{
+			RemovedPaths.Add(Path);
+		}
+
+		TypeData.DeferredAssetScanPaths.Remove(Path);
+	}
+
+	// Expand paths so we can record them for later
+	ExpandVirtualPaths(RemovedPaths);
+	for (const FString& Path : RemovedPaths)
+	{
+		TypeData.RealAssetScanPaths.Remove(Path);
+	}
+}
+
+void UAssetManager::RemovePrimaryAssetType(FPrimaryAssetType PrimaryAssetType)
+{
+	AssetTypeMap.Remove(PrimaryAssetType);
 }
 
 void UAssetManager::StartBulkScanning()
@@ -4401,6 +4452,23 @@ void UAssetManager::OnAssetRenamed(const FAssetData& NewData, const FString& Old
 	UObject *NewObject = NewData.GetAsset();
 
 	OnInMemoryAssetCreated(NewObject);
+}
+
+void UAssetManager::OnAssetRemoved(const FAssetData& Data)
+{
+	// This could be much more efficient if UAssetManager broadcast one large event instead of all these tiny updates, see UAssetRegistryImpl::Broadcast
+
+	FPrimaryAssetId PrimaryAssetId = GetPrimaryAssetIdForPath(Data.ObjectPath);
+
+	// This may be a blueprint, try with _C
+	if (!PrimaryAssetId.IsValid())
+	{
+		PrimaryAssetId = GetPrimaryAssetIdForPath(FName(FNameBuilder(Data.ObjectPath).Append(TEXT("_C")).ToView(), FNAME_Find));
+	}
+
+	CachedAssetBundles.Remove(PrimaryAssetId);
+
+	RemovePrimaryAssetId(PrimaryAssetId);
 }
 
 void UAssetManager::RemovePrimaryAssetId(const FPrimaryAssetId& PrimaryAssetId)

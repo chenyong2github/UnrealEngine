@@ -130,9 +130,10 @@ public:
 	bool bIsEditorOnly;
 
 #if WITH_EDITOR
+	const TArray<FDirectoryPath>& GetDirectories() const { return Directories; }
 	TArray<FDirectoryPath>& GetDirectories() { return Directories; }
 
-	TArray<FSoftObjectPath>& GetSpecificAssets() { return SpecificAssets; }
+	const TArray<FSoftObjectPath>& GetSpecificAssets() const { return SpecificAssets; }
 #endif //if WITH_EDITOR
 
 private:

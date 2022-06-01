@@ -239,7 +239,9 @@ struct FGameFeaturePluginStateMachineProperties
 	/** Meta data parsed from the URL for a specific protocol. */
 	TUnion<UE::GameFeatures::FInstallBundlePluginProtocolMetaData> ProtocolMetadata;
 
-	/** Tracks whether or not this state machine added the pluging to the plugin manager. */
+	TArray<FName> AddedPrimaryAssetTypes;
+
+	/** Tracks whether or not this state machine added the plugin to the plugin manager. */
 	bool bAddedPluginToManager = false;
 
 	/** Whether this state machine should attempt to cancel the current transition */
