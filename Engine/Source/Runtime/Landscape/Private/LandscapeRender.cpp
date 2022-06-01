@@ -669,6 +669,7 @@ FLandscapeRenderSystem::FLandscapeRenderSystem()
 	: Min(MAX_int32, MAX_int32)
 	, Size(EForceInit::ForceInitToZero)
 	, ReferenceCount(0)
+	, ForcedLODOverride(-1)
 {
 	SectionLODBiases.SetAllowCPUAccess(true);
 
@@ -1013,6 +1014,12 @@ void FLandscapeSceneViewExtension::EndFrame_RenderThread()
 	LandscapeLODDataBuffer = FBufferRHIRef();
 	LandscapeIndirectionBuffer = FBufferRHIRef();
 }
+
+const TMap<uint32, FLandscapeRenderSystem*>& FLandscapeSceneViewExtension::GetLandscapeRenderSystems() const
+{
+	return LandscapeRenderSystems;
+}
+
 
 //
 // FLandscapeVisibilityHelper
@@ -4026,7 +4033,10 @@ float FLandscapeComponentSceneProxy::ComputeLODForView(const FSceneView& InView)
 
 	float LODScale = ViewLODDistanceFactor * CVarStaticMeshLODDistanceScale.GetValueOnRenderThread();
 
-	int32 ForcedLODLevel = LODSettings.ForcedLOD;
+	FLandscapeRenderSystem* LandscapeRenderSystem = LandscapeRenderSystems.FindChecked(LandscapeKey);
+
+	// Prefer the RenderSystem's ForcedLODOverride if set over any per-component LOD override
+	int32 ForcedLODLevel = LandscapeRenderSystem->ForcedLODOverride >= 0 ? LandscapeRenderSystem->ForcedLODOverride : LODSettings.ForcedLOD;
 	ForcedLODLevel = ViewLODOverride >= 0 ? ViewLODOverride : ForcedLODLevel;
 	const int32 DrawCollisionLODOverride = GetDrawCollisionLodOverride(ViewEngineShowFlagCollisionPawn, ViewEngineShowFlagCollisionVisibility, LODSettings.DrawCollisionPawnLOD, LODSettings.DrawCollisionVisibilityLOD);
 	ForcedLODLevel = DrawCollisionLODOverride >= 0 ? DrawCollisionLODOverride : ForcedLODLevel;
@@ -4067,6 +4077,13 @@ float FLandscapeComponentSceneProxy::ComputeLODBias() const
 	//XYOffsetmapTexture ? ((FTexture2DResource*)XYOffsetmapTexture->Resource)->GetCurrentFirstMip() : 0.0f);
 
 	return ComputedLODBias;
+}
+
+double FLandscapeComponentSceneProxy::ComputeSectionResolution() const
+{
+	// LandscapeComponent Max Extend represents the half-extent of the landscape component. Multiply by two to get the actual size.
+	const double ComponentFullExtent = 2.0 * ComponentMaxExtend;
+	return ComponentFullExtent / (double)(ComponentSizeVerts);
 }
 
 //

@@ -361,10 +361,13 @@ public:
 	virtual float ComputeLODBias() const = 0;
 	virtual int32 GetSectionPriority() const { return INDEX_NONE; }
 
+	/** Computes the worldspace units per vertex of the landscape section. */
+	virtual double ComputeSectionResolution() const { return -1.0; }
+
 public:
-	uint32		LandscapeKey;
-	FIntPoint				ComponentBase;
-	bool					bRegistered;
+	uint32 LandscapeKey;
+	FIntPoint ComponentBase;
+	bool bRegistered;
 };
 
 struct FLandscapeRenderSystem
@@ -422,6 +425,9 @@ struct FLandscapeRenderSystem
 	FUniformBufferRHIRef SectionLODUniformBuffer;
 
 	TMap<FViewKey, TResourceArray<float>> CachedSectionLODValues;
+
+	/** Forced LOD level which overrides the ForcedLOD level of all the sections under this LandscapeRenderSystem. */
+	int8 ForcedLODOverride;
 
 	FLandscapeRenderSystem();
 	~FLandscapeRenderSystem();
@@ -487,6 +493,7 @@ public:
 	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override;
 	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override;
 
+	LANDSCAPE_API const TMap<uint32, FLandscapeRenderSystem*>& GetLandscapeRenderSystems() const;
 private:
 	FBufferRHIRef LandscapeLODDataBuffer;
 	FBufferRHIRef LandscapeIndirectionBuffer;
@@ -809,9 +816,10 @@ public:
 	virtual bool IsRayTracingRelevant() const override { return true; }
 #endif
 
-	// FLandscapeSceneInfo interface
+	// FLandscapeSectionInfo interface
 	virtual float ComputeLODForView(const FSceneView& InView) const override;
 	virtual float ComputeLODBias() const override;
+	virtual double ComputeSectionResolution() const override;
 };
 
 class FLandscapeDebugMaterialRenderProxy : public FMaterialRenderProxy

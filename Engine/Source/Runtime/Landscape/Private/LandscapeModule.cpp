@@ -23,13 +23,14 @@
 // Register the custom version with core
 FCustomVersionRegistration GRegisterLandscapeCustomVersion(FLandscapeCustomVersion::GUID, FLandscapeCustomVersion::LatestVersion, TEXT("Landscape"));
 
-class FLandscapeModule : public IModuleInterface
+class FLandscapeModule : public ILandscapeModule
 {
 public:
 	/** IModuleInterface implementation */
 	void StartupModule() override;
 	void ShutdownModule() override;
 
+	virtual TSharedPtr<FLandscapeSceneViewExtension, ESPMode::ThreadSafe> GetLandscapeSceneViewExtension() const override { return SceneViewExtension; }
 private:
 	void OnPostEngineInit();
 	void OnEnginePreExit();
