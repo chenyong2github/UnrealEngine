@@ -1438,6 +1438,8 @@ public:
 
 		return false;
 	}
+
+	ENGINE_API void UpdateTransientExpressionData();
 #endif // WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR

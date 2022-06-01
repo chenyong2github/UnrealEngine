@@ -2277,11 +2277,17 @@ bool UMaterialInstance::GetMaterialLayers(FMaterialLayersFunctions& OutLayers, T
 		OutLayers.GetRuntime() = StaticParametersRuntime.MaterialLayers;
 #if WITH_EDITORONLY_DATA
 		const UMaterialInstanceEditorOnlyData* EditorOnly = GetEditorOnlyData();
-		if (EditorOnly)
+
+		// cooked materials can strip out material layer information
+		if (EditorOnly && EditorOnly->StaticParameters.MaterialLayers.LayerStates.Num() != 0)
 		{
 			OutLayers.EditorOnly = EditorOnly->StaticParameters.MaterialLayers;
+			OutLayers.Validate();
 		}
-		OutLayers.Validate();
+		else
+		{
+			return false;
+		}
 #endif // WITH_EDITORONLY_DATA
 		return true;
 	}
