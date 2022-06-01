@@ -52,23 +52,11 @@ ILegacyCacheStore* CreateCacheStoreHierarchy(ICacheStoreOwner*& OutOwner, IMemor
 ILegacyCacheStore* CreateCacheStoreThrottle(ILegacyCacheStore* InnerCache, uint32 LatencyMS, uint32 MaxBytesPerSecond);
 ILegacyCacheStore* CreateCacheStoreVerify(ILegacyCacheStore* InnerCache, bool bPutOnError);
 ILegacyCacheStore* CreateFileSystemCacheStore(const TCHAR* CacheDirectory, const TCHAR* Params, const TCHAR* AccessLogFileName, ECacheStoreFlags& OutFlags);
-ILegacyCacheStore* CreateHttpCacheStore(
-	const TCHAR* NodeName,
-	const TCHAR* ServiceUrl,
-	bool bResolveHostCanonicalName,
-	const TCHAR* Namespace,
-	const TCHAR* StructuredNamespace,
-	const TCHAR* OAuthProvider,
-	const TCHAR* OAuthClientId,
-	const TCHAR* OAuthData, 
-	const TCHAR* OAuthScope,
-	const FDerivedDataBackendInterface::ESpeedClass* ForceSpeedClass,
-	EBackendLegacyMode LegacyMode,
-	bool bReadOnly);
+TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateHttpCacheStore(const TCHAR* NodeName, const TCHAR* Config);
 IMemoryCacheStore* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize, bool bCanBeDisabled);
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Filename, bool bWriting, bool bCompressed);
 ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
-ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace);
+TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config);
 
 /**
  * This class is used to create a singleton that represents the derived data cache hierarchy and all of the wrappers necessary
@@ -138,8 +126,8 @@ public:
 					ParsedNodes.Empty();
 					DestroyCreatedBackends();
 					UE_LOG(LogDerivedDataCache, Warning,
-						TEXT("Unable to create cache graph using the requested graph settings (%s). "),
-						TEXT("Reverting to the default graph."), *GraphName);
+						TEXT("Unable to create cache graph using the requested graph settings (%s). "
+						"Reverting to the default graph."), *GraphName);
 				}
 			}
 
@@ -318,11 +306,11 @@ public:
 				}
 				else if (NodeType == TEXT("Http"))
 				{
-					ParsedNode = ParseHttpCache(*NodeName, *Entry, IniFilename, IniSection);
+					ParsedNode = CreateHttpCacheStore(*NodeName, *Entry);
 				}
 				else if (NodeType == TEXT("Zen"))
 				{
-					ParsedNode = MakeTuple(ParseZenCache(*NodeName, *Entry), ECacheStoreFlags::Local | ECacheStoreFlags::Remote | ECacheStoreFlags::Query | ECacheStoreFlags::Store);
+					ParsedNode = CreateZenCacheStore(*NodeName, *Entry);
 				}
 				
 				if (ParsedNode.Key)
@@ -796,237 +784,6 @@ public:
 		}
 
 		UE_LOG(LogDerivedDataCache, Log, TEXT("S3 backend is not supported on the current platform."));
-		return nullptr;
-	}
-
-	void ParseHttpCacheParams(
-		const TCHAR* NodeName,
-		const TCHAR* Entry,
-		const FString& IniFilename,
-		const TCHAR* IniSection,
-		FString& Host,
-		bool& bResolveHostCanonicalName,
-		FString& Namespace,
-		FString& StructuredNamespace,
-		FString& OAuthProvider,
-		FString& OAuthClientId,
-		FString& OAuthSecret,
-		FString& OAuthScope,
-		EBackendLegacyMode& LegacyMode,
-		bool& bReadOnly)
-	{
-		FString ServerId;
-		if (FParse::Value(Entry, TEXT("ServerID="), ServerId))
-		{
-			FString ServerEntry;
-			const TCHAR* ServerSection = TEXT("HordeStorageServers");
-			if (GConfig->GetString(ServerSection, *ServerId, ServerEntry, IniFilename))
-			{
-				ParseHttpCacheParams(NodeName, *ServerEntry, IniFilename, IniSection, Host, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, OAuthScope, LegacyMode, bReadOnly);
-			}
-			else
-			{
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s is using ServerID=%s which was not found in [%s]"), NodeName, *ServerId, ServerSection);
-			}
-		}
-
-		FParse::Value(Entry, TEXT("Host="), Host);
-
-		FString EnvHostOverride;
-		if (FParse::Value(Entry, TEXT("EnvHostOverride="), EnvHostOverride))
-		{
-			FString HostEnv = FPlatformMisc::GetEnvironmentVariable(*EnvHostOverride);
-			if (!HostEnv.IsEmpty())
-			{
-				Host = HostEnv;
-				UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s found environment variable for Host %s=%s"), NodeName, *EnvHostOverride, *Host);
-			}
-		}
-
-		FString CommandLineOverride;
-		if (FParse::Value(Entry, TEXT("CommandLineHostOverride="), CommandLineOverride))
-		{
-			if (FParse::Value(FCommandLine::Get(), *(CommandLineOverride + TEXT("=")), Host))
-			{
-				UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s found command line override for Host %s=%s"), NodeName, *CommandLineOverride, *Host);
-			}
-		}
-
-		FParse::Bool(Entry, TEXT("ResolveHostCanonicalName="), bResolveHostCanonicalName);
-		FParse::Value(Entry, TEXT("Namespace="), Namespace);
-		FParse::Value(Entry, TEXT("StructuredNamespace="), StructuredNamespace);
-		FParse::Value(Entry, TEXT("OAuthProvider="), OAuthProvider);
-		
-		FString CommandLineOAuthProvidorOverride;
-		if (FParse::Value(Entry, TEXT("CommandLineOAuthProviderOverride="), CommandLineOAuthProvidorOverride))
-		{
-			if (FParse::Value(FCommandLine::Get(), *(CommandLineOAuthProvidorOverride + TEXT("=")), OAuthProvider))
-			{
-				UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s found command line override for OAuthProvider %s=%s"), NodeName, *CommandLineOAuthProvidorOverride, *OAuthProvider);
-			}
-		}
-		
-		FParse::Value(Entry, TEXT("OAuthClientId="), OAuthClientId);
-		FParse::Value(Entry, TEXT("OAuthSecret="), OAuthSecret);
-		
-		FString CommandLineOAuthSecretOverride;
-		if (FParse::Value(Entry, TEXT("CommandLineOAuthSecretOverride="), CommandLineOAuthSecretOverride))
-		{
-			if (FParse::Value(FCommandLine::Get(), *(CommandLineOAuthSecretOverride + TEXT("=")), OAuthSecret))
-			{
-				UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s found command line override for OAuthSecret %s=%s"), NodeName, *CommandLineOAuthSecretOverride, *OAuthSecret);
-			}
-		}
-		
-		FParse::Value(Entry, TEXT("OAuthScope="), OAuthScope);
-		
-		FParse::Bool(Entry, TEXT("ReadOnly="), bReadOnly);
-
-		if (FString LegacyModeString; FParse::Value(Entry, TEXT("LegacyMode="), LegacyModeString))
-		{
-			if (!TryLexFromString(LegacyMode, LegacyModeString))
-			{
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Ignoring unrecognized legacy mode '%s'"), NodeName, *LegacyModeString);
-			}
-		}
-	}
-
-	/**
-	 * Creates a HTTP data cache interface.
-	 */
-	FParsedNode ParseHttpCache(
-		const TCHAR* NodeName,
-		const TCHAR* Entry,
-		const FString& IniFilename,
-		const TCHAR* IniSection)
-	{
-		FString Host;
-		bool bResolveHostCanonicalName = true;
-		FString Namespace;
-		FString StructuredNamespace;
-		FString OAuthProvider;
-		FString OAuthClientId;
-		FString OAuthSecret;
-		FString OAuthScope;
-		EBackendLegacyMode LegacyMode = EBackendLegacyMode::ValueOnly;
-		bool bReadOnly = false;
-
-		ParseHttpCacheParams(NodeName, Entry, IniFilename, IniSection, Host, bResolveHostCanonicalName, Namespace, StructuredNamespace, OAuthProvider, OAuthClientId, OAuthSecret, OAuthScope, LegacyMode, bReadOnly);
-
-		if (Host.IsEmpty())
-		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'Host'"), NodeName);
-			return MakeTuple(nullptr, ECacheStoreFlags::None);
-		}
-
-		if (Host == TEXT("None"))
-		{
-			UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s is disabled because Host is set to 'None'"), NodeName);
-			return MakeTuple(nullptr, ECacheStoreFlags::None);
-		}
-
-		if (Namespace.IsEmpty())
-		{
-			Namespace = FApp::GetProjectName();
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'Namespace', falling back to '%s'"), NodeName, *Namespace);
-		}
-
-		if (StructuredNamespace.IsEmpty())
-		{
-			StructuredNamespace = Namespace;
-		}
-
-		if (OAuthProvider.IsEmpty())
-		{
-			UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthProvider'"), NodeName);
-			return MakeTuple(nullptr, ECacheStoreFlags::None);
-		}
-
-		// No need for OAuth client id and secret if using a local provider.
-		if (!OAuthProvider.StartsWith(TEXT("http://localhost")))
-		{
-			if (OAuthClientId.IsEmpty())
-			{
-				UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthClientId'"), NodeName);
-				return MakeTuple(nullptr, ECacheStoreFlags::None);
-			}
-
-			if (OAuthSecret.IsEmpty())
-			{
-				UE_LOG(LogDerivedDataCache, Error, TEXT("Node %s does not specify 'OAuthSecret'"), NodeName);
-				return MakeTuple(nullptr, ECacheStoreFlags::None);
-			}
-		}
-
-		if (OAuthScope.IsEmpty())
-		{
-			OAuthScope = TEXT("cache_access");
-		}
-		
-		FDerivedDataBackendInterface::ESpeedClass ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Unknown;
-		FString ForceSpeedClassValue;
-		if (FParse::Value(FCommandLine::Get(), TEXT("HttpForceSpeedClass="), ForceSpeedClassValue))
-		{
-			if (ForceSpeedClassValue == TEXT("Slow"))
-			{
-				ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Slow;
-			}
-			else if (ForceSpeedClassValue == TEXT("Ok"))
-			{
-				ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Ok;
-			}
-			else if (ForceSpeedClassValue == TEXT("Fast"))
-			{
-				ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Fast;
-			}
-			else if (ForceSpeedClassValue == TEXT("Local"))
-			{
-				ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Local;
-			}
-			else
-			{
-				UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s found unknown speed class override HttpForceSpeedClass=%s"), NodeName, *ForceSpeedClassValue);
-			}
-		}
-
-		if (ForceSpeedClass != FDerivedDataBackendInterface::ESpeedClass::Unknown)
-		{
-			UE_LOG(LogDerivedDataCache, Log, TEXT("Node %s found speed class override ForceSpeedClass=%s"), NodeName, *ForceSpeedClassValue);
-		}
-
-		return MakeTuple(CreateHttpCacheStore(
-			NodeName, *Host, bResolveHostCanonicalName, *Namespace, *StructuredNamespace, *OAuthProvider, *OAuthClientId, *OAuthSecret, *OAuthScope,
-			ForceSpeedClass == FDerivedDataBackendInterface::ESpeedClass::Unknown ? nullptr : &ForceSpeedClass, LegacyMode, bReadOnly),
-			ECacheStoreFlags::Remote | ECacheStoreFlags::Query | (bReadOnly ? ECacheStoreFlags::None : ECacheStoreFlags::Store));
-	}
-
-	/**
-	 * Creates a Zen structured data cache interface
-	 */
-	ILegacyCacheStore* ParseZenCache(const TCHAR* NodeName, const TCHAR* Entry)
-	{
-		FString ServiceUrl;
-		FParse::Value(Entry, TEXT("Host="), ServiceUrl);
-
-		FString Namespace;
-		if (!FParse::Value(Entry, TEXT("Namespace="), Namespace))
-		{
-			Namespace = FApp::GetProjectName();
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'Namespace', falling back to '%s'"), NodeName, *Namespace);
-		}
-		FString StructuredNamespace;
-		if (!FParse::Value(Entry, TEXT("StructuredNamespace="), StructuredNamespace))
-		{
-			StructuredNamespace = Namespace;
-			UE_LOG(LogDerivedDataCache, Warning, TEXT("Node %s does not specify 'StructuredNamespace', falling back using Namespace option: '%s'"), NodeName, *StructuredNamespace);
-		}
-
-		if (ILegacyCacheStore* Backend = CreateZenCacheStore(NodeName, *ServiceUrl, *Namespace, *StructuredNamespace))
-		{
-			return Backend;
-		}
-		
-		UE_LOG(LogDerivedDataCache, Warning, TEXT("Zen backend is not yet supported in the current build configuration."));
 		return nullptr;
 	}
 

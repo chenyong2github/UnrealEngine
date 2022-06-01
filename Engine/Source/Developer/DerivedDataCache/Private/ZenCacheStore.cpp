@@ -1,24 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DerivedDataBackendInterface.h"
 #include "ZenServerInterface.h"
 
 #if UE_WITH_ZEN
 
 #include "BatchView.h"
-#include "Containers/Set.h"
-#include "Containers/StringFwd.h"
-#include "Containers/StringFwd.h"
+#include "DerivedDataBackendInterface.h"
 #include "DerivedDataCachePrivate.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataChunk.h"
+#include "DerivedDataLegacyCacheStore.h"
 #include "Http/HttpClient.h"
+#include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/Optional.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
-#include "Serialization/BufferArchive.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinarySerialization.h"
@@ -31,8 +29,6 @@
 #include "ZenSerialization.h"
 #include "ZenStatistics.h"
 
-TRACE_DECLARE_INT_COUNTER(ZenDDC_Exist,			TEXT("ZenDDC Exist"));
-TRACE_DECLARE_INT_COUNTER(ZenDDC_ExistHit,		TEXT("ZenDDC Exist Hit"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_Get,			TEXT("ZenDDC Get"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_GetHit,		TEXT("ZenDDC Get Hit"));
 TRACE_DECLARE_INT_COUNTER(ZenDDC_Put,			TEXT("ZenDDC Put"));
@@ -72,97 +68,60 @@ void ForEachBatch(const int32 BatchSize, const int32 TotalCount, T&& Fn)
 /**
  * Backend for a HTTP based caching service (Zen)
  */
-class FZenCacheStore final : public FDerivedDataBackendInterface
+class FZenCacheStore final : public ILegacyCacheStore
 {
 public:
 	
 	/**
-	 * Creates the backend, checks health status and attempts to acquire an access token.
+	 * Creates the cache store client, checks health status and attempts to acquire an access token.
 	 *
 	 * @param ServiceUrl	Base url to the service including schema.
 	 * @param Namespace		Namespace to use.
 	 */
 	FZenCacheStore(const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace);
 
-	~FZenCacheStore();
+	inline FString GetName() const { return ZenService.GetInstance().GetURL(); }
 
 	/**
-	 * Checks is backend is usable (reachable and accessible).
+	 * Checks if cache service is usable (reachable and accessible).
 	 * @return true if usable
 	 */
-	bool IsUsable() const { return bIsUsable; }
-
-	virtual bool IsWritable() const override;
-	virtual ESpeedClass GetSpeedClass() const override;
-	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
-
-	/**
-	 * Synchronous attempt to make sure the cached data will be available as optimally as possible.
-	 *
-	 * @param	CacheKeys	Alphanumeric+underscore keys of the cache items
-	 * @return				true if the data will probably be found in a fast backend on a future request.
-	 */
-	virtual TBitArray<> TryToPrefetch(TConstArrayView<FString> CacheKeys) override;
-
-	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
-	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
-	virtual EPutStatus PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
-
-	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
-	
-	virtual FString GetName() const override;
-	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
-	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
-
-	virtual EBackendLegacyMode GetLegacyMode() const override { return EBackendLegacyMode::ValueOnly; }
+	inline bool IsUsable() const { return bIsUsable; }
 
 	// ICacheStore
 
-	virtual void Put(
+	void Put(
 		TConstArrayView<FCachePutRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCachePutComplete&& OnComplete = FOnCachePutComplete()) override;
+		FOnCachePutComplete&& OnComplete = FOnCachePutComplete()) final;
 
-	virtual void Get(
+	void Get(
 		TConstArrayView<FCacheGetRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetComplete&& OnComplete) override;
+		FOnCacheGetComplete&& OnComplete) final;
 
-	virtual void PutValue(
+	void PutValue(
 		TConstArrayView<FCachePutValueRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCachePutValueComplete&& OnComplete = FOnCachePutValueComplete()) override;
+		FOnCachePutValueComplete&& OnComplete = FOnCachePutValueComplete()) final;
 
-	virtual void GetValue(
+	void GetValue(
 		TConstArrayView<FCacheGetValueRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetValueComplete&& OnComplete = FOnCacheGetValueComplete()) override;
+		FOnCacheGetValueComplete&& OnComplete = FOnCacheGetValueComplete()) final;
 
-	virtual void GetChunks(
+	void GetChunks(
 		TConstArrayView<FCacheGetChunkRequest> Requests,
 		IRequestOwner& Owner,
-		FOnCacheGetChunkComplete&& OnComplete) override;
+		FOnCacheGetChunkComplete&& OnComplete) final;
+
+	// ILegacyCacheStore
+
+	void LegacyStats(FDerivedDataCacheStatsNode& OutNode) final;
+	bool LegacyDebugOptions(FBackendDebugOptions& Options) final;
 
 private:
-	enum class EGetResult
-	{
-		Success,
-		NotFound,
-		Corrupted
-	};
-	EGetResult GetZenData(FStringView Uri, TArray64<uint8>* OutData, EHttpContentType ContentType) const;
-
-	// TODO: need ability to specify content type
-	FDerivedDataBackendInterface::EPutStatus PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, EHttpContentType ContentType);
-	EGetResult GetZenData(const FCacheKey& Key, ECachePolicy CachePolicy, FCbPackage& OutPackage) const;
-
 	bool IsServiceReady();
-	FString MakeLegacyZenKey(const TCHAR* CacheKey);
-	static void AppendZenUri(const FCacheKey& CacheKey, FStringBuilderBase& Out);
-	static void AppendZenUri(const FCacheKey& CacheKey, const FValueId& Id, FStringBuilderBase& Out);
-	static void AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Out);
-
-	static bool ShouldRetryOnError(int64 ResponseCode);
 
 	using FOnRpcComplete = TUniqueFunction<void(FHttpRequest::EResult HttpResult, FHttpRequest* Request, FCbPackage& OutResponse)>;
 	static FHttpRequest::EResult ParseRpcResponse(FHttpRequest::EResult ResultFromPost, FHttpRequest& Request, FCbPackage& OutResponse);
@@ -194,8 +153,6 @@ private:
 	mutable FDerivedDataCacheUsageStats UsageStats;
 	TUniquePtr<FHttpRequestPool> RequestPool;
 	bool bIsUsable = false;
-	uint32 FailedLoginAttempts = 0;
-	uint32 MaxAttempts = 4;
 	int32 BatchPutMaxBytes = 1024*1024;
 	int32 CacheRecordBatchSize = 8;
 	int32 CacheChunksBatchSize = 8;
@@ -227,35 +184,9 @@ FZenCacheStore::FZenCacheStore(
 	GConfig->GetInt(TEXT("Zen"), TEXT("CacheChunksBatchSize"), CacheChunksBatchSize, GEngineIni);
 }
 
-FZenCacheStore::~FZenCacheStore()
-{
-}
-
-FString FZenCacheStore::GetName() const
-{
-	return ZenService.GetInstance().GetURL();
-}
-
 bool FZenCacheStore::IsServiceReady()
 {
 	return ZenService.GetInstance().IsServiceReady();
-}
-
-bool FZenCacheStore::ShouldRetryOnError(int64 ResponseCode)
-{
-	// Access token might have expired, request a new token and try again.
-	if (ResponseCode == 401)
-	{
-		return true;
-	}
-
-	// Too many requests, make a new attempt
-	if (ResponseCode == 429)
-	{
-		return true;
-	}
-
-	return false;
 }
 
 FHttpRequest::EResult FZenCacheStore::ParseRpcResponse(FHttpRequest::EResult ResultFromPost, FHttpRequest& Request, FCbPackage& OutResponse)
@@ -339,307 +270,7 @@ void FZenCacheStore::EnqueueAsyncRpc(FHttpRequest& Request,
 	Request.EnqueueAsyncPost(Owner, Pool, Uri, FCompositeBuffer(PackageSharedBuffer), MoveTemp(OnHttpRequestComplete), EHttpContentType::CbPackage, EHttpContentType::CbPackage);
 }
 
-bool FZenCacheStore::CachedDataProbablyExists(const TCHAR* CacheKey)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::Exist);
-	TRACE_COUNTER_ADD(ZenDDC_Exist, int64(1));
-	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
-
-	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
-	{
-		return false;
-	}
-	
-	FString Uri = MakeLegacyZenKey(CacheKey);
-	int64 ResponseCode = 0; 
-	uint32 Attempts = 0;
-
-	// Retry request until we get an accepted response or exhaust allowed number of attempts.
-	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
-	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-		FHttpRequest::EResult Result = Request->PerformBlockingHead(*Uri, EHttpContentType::Binary);
-		ResponseCode = Request->GetResponseCode();
-
-		if (FHttpRequest::IsSuccessResponse(ResponseCode) || ResponseCode == 404)
-		{
-			const bool bIsHit = (Result == FHttpRequest::EResult::Success && FHttpRequest::IsSuccessResponse(ResponseCode));
-
-			if (bIsHit)
-			{
-				TRACE_COUNTER_ADD(ZenDDC_ExistHit, int64(1));
-				COOK_STAT(Timer.AddHit(0));
-			}
-			return bIsHit;
-		}
-
-		if (!ShouldRetryOnError(ResponseCode))
-		{
-			return false;
-		}
-
-		ResponseCode = 0;
-	}
-
-	return false;
-}
-
-bool FZenCacheStore::GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::GetCachedData);
-	TRACE_COUNTER_ADD(ZenDDC_Get, int64(1));
-	COOK_STAT(auto Timer = UsageStats.TimeGet());
-
-	if (DebugOptions.ShouldSimulateGetMiss(CacheKey))
-	{
-		return false;
-	}
-
-	double StartTime = FPlatformTime::Seconds();
-
-	TArray64<uint8> ArrayBuffer;
-	EGetResult Result = GetZenData(MakeLegacyZenKey(CacheKey), &ArrayBuffer, EHttpContentType::Binary);
-	check(ArrayBuffer.Num() <= UINT32_MAX);
-	OutData = TArray<uint8>(MoveTemp(ArrayBuffer));
-	if (Result != EGetResult::Success)
-	{
-		switch (Result)
-		{
-		default:
-			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache miss on %s"), *GetName(), CacheKey);
-			break;
-		case EGetResult::Corrupted:
-			UE_LOG(LogDerivedDataCache, Warning,
-				TEXT("Checksum from server on %s did not match recieved data. Discarding cached result."), CacheKey);
-			break;
-		}
-		return false;
-	}
-
-	TRACE_COUNTER_ADD(ZenDDC_GetHit, int64(1));
-	TRACE_COUNTER_ADD(ZenDDC_BytesReceived, int64(OutData.Num()));
-	COOK_STAT(Timer.AddHit(OutData.Num()));
-	double ReadDuration = FPlatformTime::Seconds() - StartTime;
-	double ReadSpeed = (OutData.Num() / ReadDuration) / (1024.0 * 1024.0);
-	UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Cache hit on %s (%d bytes, %.02f secs, %.2fMB/s)"),
-		*GetName(), CacheKey, OutData.Num(), ReadDuration, ReadSpeed);
-	return true;
-}
-
-FZenCacheStore::EGetResult
-FZenCacheStore::GetZenData(FStringView Uri, TArray64<uint8>* OutData, EHttpContentType ContentType) const
-{
-	// Retry request until we get an accepted response or exhaust allowed number of attempts.
-	EGetResult GetResult = EGetResult::NotFound;
-	for (uint32 Attempts = 0; Attempts < MaxAttempts; ++Attempts)
-	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-		if (Request.IsValid())
-		{
-			FHttpRequest::EResult Result;
-			if (OutData)
-			{
-				Result = Request->PerformBlockingDownload(Uri, OutData, ContentType);
-			}
-			else
-			{
-				Result = Request->PerformBlockingHead(Uri, ContentType);
-			}
-			int64 ResponseCode = Request->GetResponseCode();
-
-			// Request was successful, make sure we got all the expected data.
-			if (FHttpRequest::IsSuccessResponse(ResponseCode))
-			{
-				return EGetResult::Success;
-			}
-
-			if (!ShouldRetryOnError(ResponseCode))
-			{
-				break;
-			}
-		}
-	}
-
-	if (OutData)
-	{
-		OutData->Reset();
-	}
-
-	return GetResult;
-}
-
-FZenCacheStore::EGetResult
-FZenCacheStore::GetZenData(const FCacheKey& CacheKey, ECachePolicy CachePolicy, FCbPackage& OutPackage) const
-{
-	TStringBuilder<256> QueryUri;
-	AppendZenUri(CacheKey, QueryUri);
-	AppendPolicyQueryString(CachePolicy, QueryUri);
-
-	// Retry request until we get an accepted response or exhaust allowed number of attempts.
-	EGetResult GetResult = EGetResult::NotFound;
-	for (uint32 Attempts = 0; Attempts < MaxAttempts; ++Attempts)
-	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-		if (Request.IsValid())
-		{
-			TArray64<uint8> PackageBytes;
-			FHttpRequest::EResult Result = Request->PerformBlockingDownload(QueryUri.ToString(), &PackageBytes, EHttpContentType::CbPackage);
-			int64 ResponseCode = Request->GetResponseCode();
-
-			// Request was successful, make sure we got all the expected data.
-			if (FHttpRequest::IsSuccessResponse(ResponseCode))
-			{
-				FLargeMemoryReader Ar(PackageBytes.GetData(), PackageBytes.Num());
-				if (OutPackage.TryLoad(Ar))
-				{
-					GetResult = EGetResult::Success;
-				}
-				else
-				{
-					GetResult = EGetResult::Corrupted;
-				}
-				break;
-			}
-
-			if (!ShouldRetryOnError(ResponseCode))
-			{
-				break;
-			}
-		}
-	}
-
-	if (GetResult != EGetResult::Success)
-	{
-		OutPackage.Reset();
-	}
-	return GetResult;
-}
-
-FDerivedDataBackendInterface::EPutStatus
-FZenCacheStore::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC::PutCachedData);
-
-	if (DebugOptions.ShouldSimulatePutMiss(CacheKey))
-	{
-		return EPutStatus::NotCached;
-	}
-
-	FSharedBuffer DataBuffer = FSharedBuffer::MakeView(InData.GetData(), InData.Num());
-	return PutZenData(*MakeLegacyZenKey(CacheKey), FCompositeBuffer(DataBuffer), EHttpContentType::Binary);
-}
-
-FDerivedDataBackendInterface::EPutStatus
-FZenCacheStore::PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, EHttpContentType ContentType)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_Put);
-	COOK_STAT(auto Timer = UsageStats.TimePut());
-
-	int64 ResponseCode = 0; 
-	uint32 Attempts = 0;
-
-	// Retry request until we get an accepted response or exhaust allowed number of attempts.
-	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
-	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-		if (Request.IsValid())
-		{
-			FHttpRequest::EResult Result = Request->PerformBlockingPut(Uri, InData, ContentType);
-			ResponseCode = Request->GetResponseCode();
-
-			if (FHttpRequest::IsSuccessResponse(ResponseCode))
-			{
-				TRACE_COUNTER_ADD(ZenDDC_BytesSent, int64(Request->GetBytesSent()));
-				COOK_STAT(Timer.AddHit(Request->GetBytesSent()));
-				return EPutStatus::Cached;
-			}
-
-			if (!ShouldRetryOnError(ResponseCode))
-			{
-				return EPutStatus::NotCached;
-			}
-
-			ResponseCode = 0;
-		}
-	}
-
-	return EPutStatus::NotCached;
-}
-
-FString FZenCacheStore::MakeLegacyZenKey(const TCHAR* CacheKey)
-{
-	FIoHash KeyHash = FIoHash::HashBuffer(CacheKey, FCString::Strlen(CacheKey) * sizeof(TCHAR));
-	if (Namespace == "ue4.ddc")
-	{
-		// TODO: DE:20220525 Remove once we have deployed shared instances with namespace support
-		return FString::Printf(TEXT("/z$/legacy/%s"), *LexToString(KeyHash));
-	}
-	return FString::Printf(TEXT("/z$/%s/legacy/%s"), *Namespace, *LexToString(KeyHash));
-}
-
-void FZenCacheStore::AppendZenUri(const FCacheKey& CacheKey, FStringBuilderBase& Out)
-{
-	Out << TEXT("/z$/") << CacheKey.Bucket << TEXT('/') << CacheKey.Hash;
-}
-
-void FZenCacheStore::AppendZenUri(const FCacheKey& CacheKey, const FValueId& Id, FStringBuilderBase& Out)
-{
-	AppendZenUri(CacheKey, Out);
-	Out << TEXT('/') << Id;
-}
-
-void FZenCacheStore::AppendPolicyQueryString(ECachePolicy Policy, FStringBuilderBase& Uri)
-{
-	if (Policy != ECachePolicy::Default)
-	{
-		Uri << TEXT("?Policy=") << Policy;
-	}
-}
-
-void FZenCacheStore::RemoveCachedData(const TCHAR* CacheKey, bool bTransient)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_Remove);
-	FString Uri = MakeLegacyZenKey(CacheKey);
-
-	int64 ResponseCode = 0; 
-	uint32 Attempts = 0;
-
-	// Retry request until we get an accepted response or exhaust allowed number of attempts.
-	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
-	{
-		FScopedHttpPoolRequestPtr Request(RequestPool.Get());
-		if (Request)
-		{
-			FHttpRequest::EResult Result = Request->PerformBlockingDelete(*Uri);
-			ResponseCode = Request->GetResponseCode();
-
-			if (FHttpRequest::IsSuccessResponse(ResponseCode))
-			{
-				return;
-			}
-
-			if (!ShouldRetryOnError(ResponseCode))
-			{
-				return;
-			}
-
-			ResponseCode = 0;
-		}
-	}
-}
-
-bool FZenCacheStore::IsWritable() const 
-{
-	return true;
-}
-
-FDerivedDataBackendInterface::ESpeedClass 
-FZenCacheStore::GetSpeedClass() const
-{
-	return ESpeedClass::Fast;
-}
-
-TSharedRef<FDerivedDataCacheStatsNode> FZenCacheStore::GatherUsageStats() const
+void FZenCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
 {
 	Zen::FZenStats ZenStats;
 
@@ -670,37 +301,27 @@ TSharedRef<FDerivedDataCacheStatsNode> FZenCacheStore::GatherUsageStats() const
 	RemoteStats.PutStats.Accumulate(EHitOrMiss::Hit, ECacheStatType::Bytes, RemotePutSize, /*bIsInGameThread*/ false);
 #endif
 
+	if (ZenStats.UpstreamStats.EndPointStats.IsEmpty())
+	{
+		OutNode = {TEXT("Zen"), ZenService.GetInstance().GetURL(), /*bIsLocal*/ true};
+		OutNode.UsageStats.Add(TEXT(""), LocalStats);
+		return;
+	}
+
 	TSharedRef<FDerivedDataCacheStatsNode> LocalNode =
 		MakeShared<FDerivedDataCacheStatsNode>(TEXT("Zen"), ZenService.GetInstance().GetURL(), /*bIsLocal*/ true);
 	LocalNode->UsageStats.Add(TEXT(""), LocalStats);
-
-	if (ZenStats.UpstreamStats.EndPointStats.IsEmpty())
-	{
-		return LocalNode;
-	}
 
 	TSharedRef<FDerivedDataCacheStatsNode> RemoteNode =
 		MakeShared<FDerivedDataCacheStatsNode>(ZenStats.UpstreamStats.EndPointStats[0].Name, ZenStats.UpstreamStats.EndPointStats[0].Url, /*bIsLocal*/ false);
 	RemoteNode->UsageStats.Add(TEXT(""), RemoteStats);
 
-	TSharedRef<FDerivedDataCacheStatsNode> GroupNode =
-		MakeShared<FDerivedDataCacheStatsNode>(TEXT("Zen Group"), TEXT(""), /*bIsLocal*/ true);
-	GroupNode->Children.Add(LocalNode);
-	GroupNode->Children.Add(RemoteNode);
-	return GroupNode;
+	OutNode = {TEXT("Zen Group"), TEXT(""), /*bIsLocal*/ true};
+	OutNode.Children.Add(LocalNode);
+	OutNode.Children.Add(RemoteNode);
 }
 
-TBitArray<> FZenCacheStore::TryToPrefetch(TConstArrayView<FString> CacheKeys)
-{
-	return CachedDataProbablyExistsBatch(CacheKeys);
-}
-
-bool FZenCacheStore::WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData)
-{
-	return true;
-}
-
-bool FZenCacheStore::ApplyDebugOptions(FBackendDebugOptions& InOptions)
+bool FZenCacheStore::LegacyDebugOptions(FBackendDebugOptions& InOptions)
 {
 	DebugOptions = InOptions;
 	return true;
@@ -1348,16 +969,33 @@ void FZenCacheStore::GetChunks(
 	TRACE_COUNTER_SUBTRACT(ZenDDC_ChunkRequestCount, int64(Requests.Num()));
 }
 
-ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace)
+TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config)
 {
-	FZenCacheStore* Backend = new FZenCacheStore(ServiceUrl, Namespace, StructuredNamespace);
-	if (Backend->IsUsable())
+	FString ServiceUrl;
+	FParse::Value(Config, TEXT("Host="), ServiceUrl);
+
+	FString Namespace;
+	if (!FParse::Value(Config, TEXT("Namespace="), Namespace))
 	{
-		return Backend;
+		Namespace = FApp::GetProjectName();
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Missing required parameter 'Namespace', falling back to '%s'"), NodeName, *Namespace);
 	}
-	UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *Backend->GetName());
-	delete Backend;
-	return nullptr;
+
+	FString StructuredNamespace;
+	if (!FParse::Value(Config, TEXT("StructuredNamespace="), StructuredNamespace))
+	{
+		StructuredNamespace = Namespace;
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Missing required parameter 'StructuredNamespace', falling back to Namespace: '%s'"), NodeName, *StructuredNamespace);
+	}
+
+	TUniquePtr<FZenCacheStore> Backend = MakeUnique<FZenCacheStore>(*ServiceUrl, *Namespace, *StructuredNamespace);
+	if (!Backend->IsUsable())
+	{
+		UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Failed to contact the service (%s), will not use it."), NodeName, *Backend->GetName());
+		Backend.Reset();
+	}
+
+	return MakeTuple(Backend.Release(), ECacheStoreFlags::Local | ECacheStoreFlags::Remote | ECacheStoreFlags::Query | ECacheStoreFlags::Store);
 }
 
 } // namespace UE::DerivedData
@@ -1367,9 +1005,10 @@ ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Servi
 namespace UE::DerivedData
 {
 
-ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace)
+TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config)
 {
-	return nullptr;
+	UE_LOG(LogDerivedDataCache, Warning, TEXT("%s: Zen cache is not yet supported in the current build configuration."), NodeName);
+	return MakeTuple(nullptr, ECacheStoreFlags::None);
 }
 
 } // UE::DerivedData

@@ -38,7 +38,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogHttpDerivedDataBackendTests, Log, All);
 namespace UE::DerivedData
 {
 
-FDerivedDataBackendInterface* GetAnyHttpCacheStore(
+ILegacyCacheStore* GetAnyHttpCacheStore(
 	FString& OutDomain,
 	FString& OutOAuthProvider,
 	FString& OutOAuthClientId,
@@ -47,7 +47,7 @@ FDerivedDataBackendInterface* GetAnyHttpCacheStore(
 	FString& OutNamespace,
 	FString& OutStructuredNamespace);
 
-ILegacyCacheStore* CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* ServiceUrl, const TCHAR* Namespace, const TCHAR* StructuredNamespace);
+TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config);
 
 class FHttpCacheStoreTestBase : public FAutomationTestBase
 {
@@ -59,7 +59,7 @@ public:
 
 	bool CheckPrequisites() const
 	{
-		if (FDerivedDataBackendInterface* Backend = GetTestBackend())
+		if (ILegacyCacheStore* Backend = GetTestBackend())
 		{
 			return true;
 		}
@@ -155,9 +155,9 @@ protected:
 		FPlatformProcess::ReturnSynchEventToPool(LastEvent);
 	}
 
-	static FDerivedDataBackendInterface* GetTestBackend()
+	static ILegacyCacheStore* GetTestBackend()
 	{
-		static FDerivedDataBackendInterface* CachedBackend = GetAnyHttpCacheStore(
+		static ILegacyCacheStore* CachedBackend = GetAnyHttpCacheStore(
 			TestDomain, TestOAuthProvider, TestOAuthClientId, TestOAuthSecret, TestOAuthScope, TestNamespace, TestStructuredNamespace);
 		return CachedBackend;
 	}
@@ -492,29 +492,6 @@ protected:
 	static inline FString TestStructuredNamespace;
 };
 
-// Helper function to create a number of dummy cache keys for testing
-TArray<FString> CreateTestCacheKeys(FDerivedDataBackendInterface* InTestBackend, uint32 InNumKeys)
-{
-	TArray<FString> Keys;
-	TArray<uint8> KeyContents;
-	KeyContents.Add(42);
-
-	FSHA1 HashState;
-	HashState.Update(KeyContents.GetData(), KeyContents.Num());
-	HashState.Final();
-	uint8 Hash[FSHA1::DigestSize];
-	HashState.GetHash(Hash);
-	const FString HashString = BytesToHex(Hash, FSHA1::DigestSize);
-
-	for (uint32 KeyIndex = 0; KeyIndex < InNumKeys; ++KeyIndex)
-	{
-		FString NewKey = FString::Printf(TEXT("__AutoTest_Dummy_%u__%s"), KeyIndex, *HashString);
-		Keys.Add(NewKey);
-		InTestBackend->PutCachedData(*NewKey, KeyContents, false);
-	}
-	return Keys;
-}
-
 TArray<FCacheRecord> CreateTestCacheRecords(ICacheStore* InTestBackend, uint32 InNumKeys, uint32 InNumValues, FCbObject MetaContents = FCbObject(), const char* BucketName = nullptr)
 {
 	using namespace UE::DerivedData;
@@ -620,84 +597,12 @@ TArray<FValue> CreateTestCacheValues(ICacheStore* InTestBackend, uint32 InNumVal
 	return Values;
 }
 
-IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FConcurrentCachedDataProbablyExistsBatch, TEXT(".FConcurrentCachedDataProbablyExistsBatch"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-bool FConcurrentCachedDataProbablyExistsBatch::RunTest(const FString& Parameters)
-{
-	FDerivedDataBackendInterface* TestBackend = GetTestBackend();
-
-	const int32 ThreadCount = 64;
-	const double Duration = 10;
-	const uint32 KeysInBatch = 4;
-
-	TArray<FString> Keys = CreateTestCacheKeys(TestBackend, KeysInBatch);
-
-	std::atomic<uint32> MismatchedResults = 0;
-
-	ConcurrentTestWithStats(
-		[&]()
-		{
-			TConstArrayView<FString> BatchView = MakeArrayView(Keys.GetData(), KeysInBatch);
-			TBitArray<> Result = TestBackend->CachedDataProbablyExistsBatch(BatchView);
-			if (Result.CountSetBits() != BatchView.Num())
-			{
-				MismatchedResults.fetch_add(BatchView.Num() - Result.CountSetBits(), std::memory_order_relaxed);
-			}
-		},
-		ThreadCount,
-		Duration
-	);
-
-	TestEqual(TEXT("Concurrent calls to CachedDataProbablyExistsBatch for a batch of keys that were put are not reliably found"), MismatchedResults, 0);
-
-	return true;
-}
-
-// This test validate that batch requests wont mismatch head and get request for the same keys in the same batch
-IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(FConcurrentExistsAndGetForSameKeyBatch, TEXT(".FConcurrentExistsAndGetForSameKeyBatch"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
-bool FConcurrentExistsAndGetForSameKeyBatch::RunTest(const FString& Parameters)
-{
-	FDerivedDataBackendInterface* TestBackend = GetTestBackend();
-
-	const int32 ParallelTasks = 32;
-	const uint32 Iterations = 20;
-	const uint32 KeysInBatch = 4;
-
-	TArray<FString> Keys = CreateTestCacheKeys(TestBackend, KeysInBatch);
-	// Add some non valid keys by just using guids
-	for (int32 Index = 0; Index < KeysInBatch; ++Index)
-	{
-		Keys.Add(FGuid::NewGuid().ToString());
-	}
-	
-	ParallelFor(ParallelTasks,
-		[&](int32 TaskIndex)
-		{
-			for (uint32 Iteration = 0; Iteration < Iterations; ++Iteration)
-			{
-				for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
-				{
-					if ((Iteration % 2) ^ (KeyIndex % 2))
-					{
-						TestBackend->CachedDataProbablyExists(*Keys[KeyIndex]);
-					}
-					else
-					{
-						TArray<uint8> OutData;
-						TestBackend->GetCachedData(*Keys[KeyIndex], OutData);
-					}
-				}
-			}
-		}
-	);
-	return true;
-}
-
 // Tests basic functionality for structured cache operations
 IMPLEMENT_HTTPDERIVEDDATA_AUTOMATION_TEST(CacheStore, TEXT(".CacheStore"), EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
 bool CacheStore::RunTest(const FString& Parameters)
 {
 	using namespace UE::DerivedData;
-	FDerivedDataBackendInterface* TestBackend = GetTestBackend();
+	ILegacyCacheStore* TestBackend = GetTestBackend();
 
 #if UE_WITH_ZEN
 	using namespace UE::Zen;
@@ -756,10 +661,12 @@ bool CacheStore::RunTest(const FString& Parameters)
 	ZenTestSiblingAutoLaunchSettings.bLimitProcessLifetime = true;
 
 	FScopeZenService ScopeZenSiblingService(MoveTemp(ZenTestServiceSiblingSettings));
-	TUniquePtr<ILegacyCacheStore> ZenIntermediarySiblingBackend(CreateZenCacheStore(TEXT("TestSibling"), ScopeZenSiblingService.GetInstance().GetURL(), *TestNamespace, *TestNamespace));
+	TUniquePtr<ILegacyCacheStore> ZenIntermediarySiblingBackend(CreateZenCacheStore(TEXT("TestSibling"),
+		*FString::Printf(TEXT("Host=%s, Namespace=%s, StructuredNamespace=%s"), ScopeZenSiblingService.GetInstance().GetURL(), *TestNamespace, *TestNamespace)).Key);
 
 	FScopeZenService ScopeZenService(MoveTemp(ZenTestServiceSettings));
-	TUniquePtr<ILegacyCacheStore> ZenIntermediaryBackend(CreateZenCacheStore(TEXT("Test"), ScopeZenService.GetInstance().GetURL(), *TestNamespace, *TestNamespace));
+	TUniquePtr<ILegacyCacheStore> ZenIntermediaryBackend(CreateZenCacheStore(TEXT("Test"),
+		*FString::Printf(TEXT("Host=%s, Namespace=%s, StructuredNamespace=%s"), ScopeZenService.GetInstance().GetURL(), *TestNamespace, *TestNamespace)).Key);
 	auto WaitForZenPushToUpstream = [](ILegacyCacheStore* ZenBackend, TConstArrayView<FCacheRecord> Records)
 	{
 		// TODO: Expecting a legitimate means to wait for zen to finish pushing records to its upstream in the future
