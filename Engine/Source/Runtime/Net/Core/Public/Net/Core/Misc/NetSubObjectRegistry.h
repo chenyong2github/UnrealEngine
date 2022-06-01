@@ -7,6 +7,11 @@
 
 class UActorComponent;
 
+namespace UE::Net
+{
+	class FSubObjectRegistryGetter;
+}
+
 namespace UE::Net 
 {
 

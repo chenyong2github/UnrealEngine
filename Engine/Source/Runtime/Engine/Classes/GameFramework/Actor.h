@@ -3670,7 +3670,7 @@ public:
 private:
 	/** Collection of SubObjects that get replicated when this actor gets replicated. */
 	UE::Net::FSubObjectRegistry ReplicatedSubObjects;
-	friend class FSubObjectGetter;
+	friend class UE::Net::FSubObjectRegistryGetter;
 
 	/** Array of replicated components and the list of replicated subobjects they own. Replaces the deprecated ReplicatedCompoments array. */
 	TArray<UE::Net::FReplicatedComponentInfo> ReplicatedComponentsInfo;
