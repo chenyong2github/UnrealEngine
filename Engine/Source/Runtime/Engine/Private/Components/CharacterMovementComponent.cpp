@@ -1591,43 +1591,6 @@ void UCharacterMovementComponent::SimulatedTick(float DeltaSeconds)
 	SCOPE_CYCLE_COUNTER(STAT_CharacterMovementSimulated);
 	checkSlow(CharacterOwner != nullptr);
 
-	if (GetWorld()->IsPlayingReplay())
-	{
-		const FVector OldLocation = UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector::ZeroVector;
-		const FVector OldVelocity = Velocity;
-
-		// Interpolate between appropriate samples
-		{
-			SCOPE_CYCLE_COUNTER( STAT_CharacterMovementSmoothClientPosition );
-			SmoothClientPosition( DeltaSeconds );
-		}
-
-		// Update replicated movement mode
-		ApplyNetworkMovementMode( GetCharacterOwner()->GetReplicatedMovementMode() );
-
-		UpdateComponentVelocity();
-		bJustTeleported = false;
-
-		if (CharacterOwner)
-		{
-			CharacterOwner->RootMotionRepMoves.Empty();
-			CurrentRootMotion.Clear();
-			CharacterOwner->SavedRootMotion.Clear();
-		}
-
-		// Note: we do not call the Super implementation, that runs prediction.
-		// We do still need to call these though
-		OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
-		CallMovementUpdateDelegate(DeltaSeconds, OldLocation, OldVelocity);
-
-		LastUpdateLocation = UpdatedComponent ? UpdatedComponent->GetComponentLocation() : FVector::ZeroVector;
-		LastUpdateRotation = UpdatedComponent ? UpdatedComponent->GetComponentQuat() : FQuat::Identity;
-		LastUpdateVelocity = Velocity;
-
-		//TickCharacterPose( DeltaSeconds );
-		return;
-	}
-
 	// If we are playing a RootMotion AnimMontage.
 	if (CharacterOwner->IsPlayingNetworkedRootMotionMontage())
 	{

@@ -1164,12 +1164,6 @@ void ACharacter::OnRep_ReplicatedBasedMovement()
 
 void ACharacter::OnRep_ReplicatedMovement()
 {
-	if (GetWorld()->IsPlayingReplay())
-	{
-		Super::OnRep_ReplicatedMovement();
-		return;
-	}
-
 	// Skip standard position correction if we are playing root motion, OnRep_RootMotion will handle it.
 	if (!IsPlayingNetworkedRootMotionMontage()) // animation root motion
 	{
