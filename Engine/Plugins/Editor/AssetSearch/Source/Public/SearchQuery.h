@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeLock.h"
+#include "UObject/TopLevelAssetPath.h"
 
 struct FSearchRecord
 {

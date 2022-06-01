@@ -10,6 +10,7 @@
 #include "UObject/Package.h"
 #include "Templates/Casts.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/UnrealType.h"
 
 /*-----------------------------------------------------------------------------
 	UObjectRedirector

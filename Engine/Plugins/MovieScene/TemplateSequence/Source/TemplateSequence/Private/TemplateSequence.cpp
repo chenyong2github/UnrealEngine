@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TemplateSequence.h"
+#include "AssetRegistry/AssetData.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Components/ActorComponent.h"
