@@ -275,7 +275,7 @@ namespace FixedTagPrivate
 	static FAssetRegistryExportPath ConvertLegacyPath(const FLegacyAssetRegistryExportPath& Path)
 	{
 		FAssetRegistryExportPath Out;
-		Out.ClassPath = FAssetData::TryConvertShortClassNameToPathName(Path.Class);
+		Out.ClassPath = FAssetData::TryConvertShortClassNameToPathName(Path.Class, ELogVerbosity::NoLogging);
 		Out.Object = Path.Object;
 		Out.Package = Path.Package;
 		return Out;

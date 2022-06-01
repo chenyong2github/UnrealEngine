@@ -242,7 +242,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Ar << PackageFlags;
 }
 
-FTopLevelAssetPath FAssetData::TryConvertShortClassNameToPathName(FName InClassName)
+FTopLevelAssetPath FAssetData::TryConvertShortClassNameToPathName(FName InClassName, ELogVerbosity::Type FailureMessageVerbosity /*= ELogVerbosity::Warning*/)
 {
 	FTopLevelAssetPath ClassPath;
 	if (!InClassName.IsNone())
@@ -266,7 +266,12 @@ FTopLevelAssetPath FAssetData::TryConvertShortClassNameToPathName(FName InClassN
 			{
 				// Fallback to a fake name but at least the class name will be preserved
 				ClassPath = FTopLevelAssetPath(TEXT("/Unknown"), InClassName);
-				UE_LOG(LogAssetData, Warning, TEXT("Failed to convert deprecated short class name \"%s\" to path name. Using \"%s\""), *InClassName.ToString(), *ClassPath.ToString());
+#if !NO_LOGGING
+				if (FailureMessageVerbosity != ELogVerbosity::NoLogging)
+				{
+					FMsg::Logf(__FILE__, __LINE__, LogAssetData.GetCategoryName(), FailureMessageVerbosity, TEXT("Failed to convert deprecated short class name \"%s\" to path name. Using \"%s\""), *InClassName.ToString(), *ClassPath.ToString());
+				}
+#endif
 			}
 		}
 	}

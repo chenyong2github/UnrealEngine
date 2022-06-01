@@ -554,7 +554,7 @@ private:
 
 public:
 	/** Helper function that tries to convert short class name to path name */
-	COREUOBJECT_API static FTopLevelAssetPath TryConvertShortClassNameToPathName(FName InClassName);
+	COREUOBJECT_API static FTopLevelAssetPath TryConvertShortClassNameToPathName(FName InClassName, ELogVerbosity::Type FailureMessageVerbosity = ELogVerbosity::Warning);
 };
 
 ENUM_CLASS_FLAGS(FAssetData::ECreationFlags);
