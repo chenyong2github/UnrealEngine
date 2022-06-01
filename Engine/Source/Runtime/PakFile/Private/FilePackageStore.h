@@ -13,17 +13,19 @@ struct FFilePackageStoreEntry;
 /*
  * File/container based package store.
  */
-class FFilePackageStore
-	: public FPackageStoreBase
+class FFilePackageStoreBackend
+	: public IPackageStoreBackend
 {
 public:
-	FFilePackageStore();
-	virtual ~FFilePackageStore();
+	FFilePackageStoreBackend();
+	virtual ~FFilePackageStoreBackend();
 
-	virtual void Initialize() override;
-	virtual void Lock() override;
-	virtual void Unlock() override;
-	virtual bool DoesPackageExist(FPackageId PackageId) override;
+	virtual void OnMounted(TSharedRef<const FPackageStoreBackendContext>) override
+	{
+	}
+
+	virtual void BeginRead() override;
+	virtual void EndRead() override;
 	virtual EPackageStoreEntryStatus GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry) override;
 	virtual bool GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId) override;
 
@@ -71,5 +73,4 @@ private:
 	TMap<FPackageId, const FFilePackageStoreEntry*> OptionalSegmentStoreEntriesMap;
 #endif //if WITH_EDITOR
 
-	static thread_local int32 LockedOnThreadCount;
 };

@@ -307,20 +307,16 @@ void FStorageServerPlatformFile::InitializeAfterProjectFilePath()
 			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
 			TSharedRef<FStorageServerIoDispatcherBackend> IoDispatcherBackend = MakeShared<FStorageServerIoDispatcherBackend>(*Connection.Get());
 			IoDispatcher.Mount(IoDispatcherBackend);
-
-			FCoreDelegates::CreatePackageStore.BindLambda([this]() -> TSharedPtr<IPackageStore>
-			{
 #if WITH_COTF
-				if (CookOnTheFlyServerConnection)
-				{
-					return MakeShared<FCookOnTheFlyPackageStore>(*CookOnTheFlyServerConnection.Get());
-				}
-				else
+			if (CookOnTheFlyServerConnection)
+			{
+				FPackageStore::Get().Mount(MakeShared<FCookOnTheFlyPackageStoreBackend>(*CookOnTheFlyServerConnection.Get()));
+			}
+			else
 #endif
-				{
-					return MakeShared<FStorageServerPackageStore>(*Connection.Get());
-				}
-			});
+			{
+				FPackageStore::Get().Mount(MakeShared<FStorageServerPackageStoreBackend>(*Connection.Get()));
+			}
 		}
 		else
 		{

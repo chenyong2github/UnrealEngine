@@ -9,6 +9,7 @@ public class StorageServerClient : ModuleRules
         PublicDependencyModuleNames.AddRange(
             new string[] {
                 "Core",
+                "CoreUObject",
                 "Sockets",
 				"CookOnTheFly"
             }

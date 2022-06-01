@@ -116,3 +116,83 @@ FPackageStoreEntryResource FPackageStoreEntryResource::FromCbObject(const FCbObj
 
 	return Entry;
 }
+
+thread_local int32 FPackageStore::ThreadReadCount = 0;
+
+FPackageStoreReadScope::FPackageStoreReadScope(FPackageStore& InPackageStore)
+	: PackageStore(InPackageStore)
+{
+	if (!PackageStore.ThreadReadCount)
+	{
+		for (const TSharedRef<IPackageStoreBackend>& Backend : PackageStore.Backends)
+		{
+			Backend->BeginRead();
+		}
+	}
+	++PackageStore.ThreadReadCount;
+}
+
+FPackageStoreReadScope::~FPackageStoreReadScope()
+{
+	check(PackageStore.ThreadReadCount > 0);
+	if (--PackageStore.ThreadReadCount == 0)
+	{
+		for (const TSharedRef<IPackageStoreBackend>& Backend : PackageStore.Backends)
+		{
+			Backend->EndRead();
+		}
+	}
+}
+
+FPackageStore::FPackageStore()
+	: BackendContext(MakeShared<FPackageStoreBackendContext>())
+{
+	
+}
+
+FPackageStore& FPackageStore::Get()
+{
+	static FPackageStore Instance;
+	return Instance;
+}
+
+
+void FPackageStore::Mount(TSharedRef<IPackageStoreBackend> Backend)
+{
+	check(IsInGameThread());
+	Backends.Add(Backend);
+	Backend->OnMounted(BackendContext);
+}
+
+EPackageStoreEntryStatus FPackageStore::GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry)
+{
+	check(ThreadReadCount);
+	for (const TSharedRef<IPackageStoreBackend>& Backend : Backends)
+	{
+		EPackageStoreEntryStatus Status = Backend->GetPackageStoreEntry(PackageId, OutPackageStoreEntry);
+		if (Status >= EPackageStoreEntryStatus::Pending)
+		{
+			return Status;
+		}
+	}
+	return EPackageStoreEntryStatus::Missing;
+}
+
+bool FPackageStore::GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId)
+{
+	check(ThreadReadCount);
+	for (const TSharedRef<IPackageStoreBackend>& Backend : Backends)
+	{
+		if (Backend->GetPackageRedirectInfo(PackageId, OutSourcePackageName, OutRedirectedToPackageId))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+FPackageStoreBackendContext::FPendingEntriesAddedEvent& FPackageStore::OnPendingEntriesAdded()
+{
+	return BackendContext->PendingEntriesAdded;
+}
+

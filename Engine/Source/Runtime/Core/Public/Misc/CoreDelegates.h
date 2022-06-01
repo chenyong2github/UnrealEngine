@@ -644,8 +644,12 @@ public:
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnLogVerbosityChanged, const FLogCategoryName& /* CategoryName */, ELogVerbosity::Type /* OldVerbosity */, ELogVerbosity::Type /* NewVerbosity */);
 	static FOnLogVerbosityChanged OnLogVerbosityChanged;
 
+	UE_DEPRECATED(5.1, "Use FPackageStore::Mount() instead")
 	DECLARE_DELEGATE_RetVal(TSharedPtr<class IPackageStore>, FCreatePackageStore);
+	UE_DEPRECATED(5.1, "Use FPackageStore::Mount() instead")
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	static FCreatePackageStore CreatePackageStore;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Called immediately before the parent process will start responding to signals to fork
 	static FSimpleMulticastDelegate OnParentBeginFork;

@@ -1656,26 +1656,36 @@ FPackageName::EPackageLocationFilter FPackageName::DoesPackageExistEx(const FPac
 
 	if (((uint8)Filter & (uint8)EPackageLocationFilter::IoDispatcher))
 	{
+		bool bFoundInIoDispatcher = false;
 		if (DoesPackageExistOverrideDelegate.IsBound())
 		{
 			if (DoesPackageExistOverrideDelegate.Execute(PackagePath.GetPackageFName()))
 			{
-				if (OutPackagePath)
-				{
-					*OutPackagePath = PackagePath;
-					if (OutPackagePath->GetHeaderExtension() == EPackageExtension::Unspecified)
-					{
-						OutPackagePath->SetHeaderExtension(EPackageExtension::EmptyString);
-					}
-				}
+				bFoundInIoDispatcher = true;
+			}
+		}
+		else if (FIoDispatcher::IsInitialized())
+		{
+			bFoundInIoDispatcher = FIoDispatcher::Get().DoesChunkExist(CreatePackageDataChunkId(FPackageId::FromName(PackagePath.GetPackageFName())));
+		}
 
-				Result = EPackageLocationFilter((uint8)Result | (uint8)EPackageLocationFilter::IoDispatcher);
-
-				// if we just want to find any existence, then we are done
-				if (Filter == EPackageLocationFilter::Any)
+		if (bFoundInIoDispatcher)
+		{
+			if (OutPackagePath)
+			{
+				*OutPackagePath = PackagePath;
+				if (OutPackagePath->GetHeaderExtension() == EPackageExtension::Unspecified)
 				{
-					return Result;
+					OutPackagePath->SetHeaderExtension(EPackageExtension::EmptyString);
 				}
+			}
+
+			Result = EPackageLocationFilter((uint8)Result | (uint8)EPackageLocationFilter::IoDispatcher);
+
+			// if we just want to find any existence, then we are done
+			if (Filter == EPackageLocationFilter::Any)
+			{
+				return Result;
 			}
 		}
 	}

@@ -9,8 +9,8 @@
 #include "IO/PackageStore.h"
 #include "CookOnTheFly.h"
 
-class FCookOnTheFlyPackageStore final
-	: public FPackageStoreBase
+class FCookOnTheFlyPackageStoreBackend final
+	: public IPackageStoreBackend
 {
 public:
 	struct FEntryInfo
@@ -25,21 +25,22 @@ public:
 		TAtomic<uint32> Failed{ 0 };
 	};
 
-	FCookOnTheFlyPackageStore(UE::Cook::ICookOnTheFlyServerConnection& InCookOnTheFlyServerConnection);
+	FCookOnTheFlyPackageStoreBackend(UE::Cook::ICookOnTheFlyServerConnection& InCookOnTheFlyServerConnection);
 
-	virtual void Initialize() override
+	virtual void OnMounted(TSharedRef<const FPackageStoreBackendContext> InContext) override
+	{
+		Context = InContext;
+	}
+
+	virtual void BeginRead() override
 	{
 	}
 
-	virtual void Lock() override
+	virtual void EndRead() override
 	{
 	}
 
-	virtual void Unlock() override
-	{
-	}
-
-	virtual bool DoesPackageExist(FPackageId PackageId) override;
+	virtual bool DoesPackageExist(FPackageId PackageId);
 	virtual EPackageStoreEntryStatus GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry) override;
 	
 	virtual bool GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId) override
@@ -54,6 +55,7 @@ private:
 	void CheckActivity();
 
 	UE::Cook::ICookOnTheFlyServerConnection& CookOnTheFlyServerConnection;
+	TSharedPtr<const FPackageStoreBackendContext> Context;
 	FCriticalSection CriticalSection;
 	TMap<FPackageId, FEntryInfo> PackageIdToEntryInfo;
 	TChunkedArray<FPackageStoreEntryResource> PackageEntries;

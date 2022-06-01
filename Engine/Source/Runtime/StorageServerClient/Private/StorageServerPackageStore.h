@@ -9,26 +9,25 @@
 class FStorageServerConnection;
 struct FFilePackageStoreEntry;
 
-class FStorageServerPackageStore
-	: public FPackageStoreBase
+class FStorageServerPackageStoreBackend
+	: public IPackageStoreBackend
 {
 public:
-	FStorageServerPackageStore(FStorageServerConnection& Connection);
-	virtual ~FStorageServerPackageStore() = default;
+	FStorageServerPackageStoreBackend(FStorageServerConnection& Connection);
+	virtual ~FStorageServerPackageStoreBackend() = default;
 
-	virtual void Initialize() override
+	virtual void OnMounted(TSharedRef<const FPackageStoreBackendContext> Context) override
 	{
 	}
 
-	virtual void Lock() override
+	virtual void BeginRead() override
 	{
 	}
 
-	virtual void Unlock() override
+	virtual void EndRead() override
 	{
 	}
 
-	virtual bool DoesPackageExist(FPackageId PackageId) override;
 	virtual EPackageStoreEntryStatus GetPackageStoreEntry(FPackageId PackageIde, FPackageStoreEntry& OutPackageStoreEntry) override;
 	
 	virtual bool GetPackageRedirectInfo(FPackageId PackageId, FName& OutSourcePackageName, FPackageId& OutRedirectedToPackageId) override

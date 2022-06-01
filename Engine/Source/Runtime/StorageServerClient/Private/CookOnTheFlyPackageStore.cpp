@@ -9,13 +9,14 @@
 #include "Serialization/MemoryReader.h"
 #include "CookOnTheFlyMessages.h"
 #include "CookOnTheFly.h"
+#include "Misc/PackageName.h"
 
-FCookOnTheFlyPackageStore::FCookOnTheFlyPackageStore(UE::Cook::ICookOnTheFlyServerConnection& InCookOnTheFlyServerConnection)
+FCookOnTheFlyPackageStoreBackend::FCookOnTheFlyPackageStoreBackend(UE::Cook::ICookOnTheFlyServerConnection& InCookOnTheFlyServerConnection)
 	: CookOnTheFlyServerConnection(InCookOnTheFlyServerConnection)
 {
 	// Index zero is invalid
 	PackageEntries.Add();
-	CookOnTheFlyServerConnection.OnMessage().AddRaw(this, &FCookOnTheFlyPackageStore::OnCookOnTheFlyMessage);
+	CookOnTheFlyServerConnection.OnMessage().AddRaw(this, &FCookOnTheFlyPackageStoreBackend::OnCookOnTheFlyMessage);
 
 	using namespace UE::Cook;
 	using namespace UE::ZenCookOnTheFly::Messaging;
@@ -39,16 +40,21 @@ FCookOnTheFlyPackageStore::FCookOnTheFlyPackageStore(UE::Cook::ICookOnTheFlyServ
 	{
 		UE_LOG(LogCookOnTheFly, Warning, TEXT("Failed to send 'GetCookedPackages' request"));
 	}
+
+	FPackageName::DoesPackageExistOverride().BindLambda([this](FName PackageName)
+	{
+		return DoesPackageExist(FPackageId::FromName(PackageName));
+	});
 }
 
-bool FCookOnTheFlyPackageStore::DoesPackageExist(FPackageId PackageId)
+bool FCookOnTheFlyPackageStoreBackend::DoesPackageExist(FPackageId PackageId)
 {
 	FScopeLock _(&CriticalSection);
 	FEntryInfo EntryInfo = PackageIdToEntryInfo.FindRef(PackageId);
 	return EntryInfo.Status != EPackageStoreEntryStatus::Missing;
 }
 
-EPackageStoreEntryStatus FCookOnTheFlyPackageStore::GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry)
+EPackageStoreEntryStatus FCookOnTheFlyPackageStoreBackend::GetPackageStoreEntry(FPackageId PackageId, FPackageStoreEntry& OutPackageStoreEntry)
 {
 	using namespace UE::Cook;
 	using namespace UE::ZenCookOnTheFly::Messaging;
@@ -120,7 +126,7 @@ EPackageStoreEntryStatus FCookOnTheFlyPackageStore::GetPackageStoreEntry(FPackag
 	}
 }
 
-EPackageStoreEntryStatus FCookOnTheFlyPackageStore::CreatePackageStoreEntry(const FEntryInfo& EntryInfo, FPackageStoreEntry& OutPackageStoreEntry)
+EPackageStoreEntryStatus FCookOnTheFlyPackageStoreBackend::CreatePackageStoreEntry(const FEntryInfo& EntryInfo, FPackageStoreEntry& OutPackageStoreEntry)
 {
 	if (EntryInfo.Status == EPackageStoreEntryStatus::Ok)
 	{
@@ -135,7 +141,7 @@ EPackageStoreEntryStatus FCookOnTheFlyPackageStore::CreatePackageStoreEntry(cons
 	}
 }
 
-void FCookOnTheFlyPackageStore::AddPackages(TArray<FPackageStoreEntryResource> Entries, TArray<FPackageId> FailedPackageIds)
+void FCookOnTheFlyPackageStoreBackend::AddPackages(TArray<FPackageStoreEntryResource> Entries, TArray<FPackageId> FailedPackageIds)
 {
 	FScopeLock _(&CriticalSection);
 		
@@ -167,7 +173,7 @@ void FCookOnTheFlyPackageStore::AddPackages(TArray<FPackageStoreEntryResource> E
 	}
 }
 
-void FCookOnTheFlyPackageStore::OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message)
+void FCookOnTheFlyPackageStoreBackend::OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message)
 {
 	using namespace UE::ZenCookOnTheFly::Messaging;
 
@@ -183,7 +189,10 @@ void FCookOnTheFlyPackageStore::OnCookOnTheFlyMessage(const UE::Cook::FCookOnThe
 
 			AddPackages(MoveTemp(PackagesCookedMessage.CookedPackages), MoveTemp(PackagesCookedMessage.FailedPackages));
 
-			PendingEntriesAdded.Broadcast();
+			if (Context)
+			{
+				Context->PendingEntriesAdded.Broadcast();
+			}
 
 			break;
 		}
@@ -195,7 +204,7 @@ void FCookOnTheFlyPackageStore::OnCookOnTheFlyMessage(const UE::Cook::FCookOnThe
 	LastServerActivtyTime = FPlatformTime::Seconds();
 }
 
-void FCookOnTheFlyPackageStore::CheckActivity()
+void FCookOnTheFlyPackageStoreBackend::CheckActivity()
 {
 	const double TimeSinceLastClientActivity = FPlatformTime::Seconds() - LastClientActivtyTime;
 	const double TimeSinceLastServerActivity = FPlatformTime::Seconds() - LastServerActivtyTime;

@@ -22,7 +22,7 @@
 class FChunkCacheWorker;
 class IAsyncReadFileHandle;
 class FFileIoStore;
-class FFilePackageStore;
+class FFilePackageStoreBackend;
 struct FIoContainerHeader;
 
 PAKFILE_API DECLARE_LOG_CATEGORY_EXTERN(LogPakFile, Log, All);
@@ -2037,7 +2037,7 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	/** The filename for the gameusersettings ini file, used for excluding ini files, but not gameusersettings */
 	FString GameUserSettingsIniFilename;
 	TSharedPtr<FFileIoStore> IoDispatcherFileBackend;
-	TSharedPtr<FFilePackageStore> FilePackageStore;
+	TSharedPtr<FFilePackageStoreBackend> PackageStoreBackend;
 
 	FTSTicker::FDelegateHandle RetireReadersHandle;
 

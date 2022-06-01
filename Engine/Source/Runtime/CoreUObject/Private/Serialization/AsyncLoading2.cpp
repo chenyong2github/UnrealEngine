@@ -759,17 +759,13 @@ private:
 	// Packages in active loading or completely loaded packages, with Desc.DiskPackageName as key.
 	// Does not track temp packages with custom UPackage names, since they are never imorted by other packages.
 	TMap<FPackageId, FLoadedPackageRef> Packages;
-	IPackageStore* PackageStore = nullptr;
+	FPackageStore& PackageStore;
 
 public:
-	FLoadedPackageStore()
+	FLoadedPackageStore(FPackageStore& InPackageStore)
+		: PackageStore(InPackageStore)
 	{
 		Packages.Reserve(32768);
-	}
-
-	void Initialize(IPackageStore& InPackageStore)
-	{
-		PackageStore = &InPackageStore;
 	}
 
 	int32 NumTracked() const
@@ -1687,7 +1683,7 @@ struct FAsyncPackage2
 	/** Creates GC clusters from loaded objects */
 	EAsyncPackageState::Type CreateClusters(FAsyncLoadingThreadState2& ThreadState);
 
-	void ImportPackagesRecursive(FIoBatch& IoBatch, IPackageStore& PackageStore);
+	void ImportPackagesRecursive(FIoBatch& IoBatch, FPackageStore& PackageStore);
 	void StartLoading(FIoBatch& IoBatch);
 
 #if WITH_IOSTORE_IN_EDITOR
@@ -1696,7 +1692,7 @@ struct FAsyncPackage2
 
 private:
 
-	void ImportPackagesRecursiveInner(FIoBatch& IoBatch, IPackageStore& PackageStore, const TArrayView<const FPackageId>& ImportedPackageIds, int32& ImportedPackageIndex);
+	void ImportPackagesRecursiveInner(FIoBatch& IoBatch, FPackageStore& PackageStore, const TArrayView<const FPackageId>& ImportedPackageIds, int32& ImportedPackageIndex);
 
 	uint8 PackageNodesMemory[EEventLoadNode2::Package_NumPhases * sizeof(FEventLoadNode2)];
 	/** Basic information associated with this package */
@@ -2091,7 +2087,7 @@ private:
 
 	IAsyncPackageLoader* UncookedPackageLoader;
 
-	TSharedPtr<IPackageStore> PackageStore;
+	FPackageStore& PackageStore;
 	FLoadedPackageStore LoadedPackageStore;
 	FGlobalImportStore GlobalImportStore;
 	TSpscQueue<FPackageRequest> PackageRequestQueue;
@@ -2596,25 +2592,11 @@ void FAsyncLoadingThread2::InitializeLoading()
 	FileOpenLogWrapper = (FPlatformFileOpenLog*)(FPlatformFileManager::Get().FindPlatformFile(FPlatformFileOpenLog::GetTypeName()));
 #endif
 
-	UE_CLOG(!FCoreDelegates::CreatePackageStore.IsBound(), LogStreaming, Fatal, TEXT("CreatePackageStore delegate not bound when initializing package loader"));
-	PackageStore = FCoreDelegates::CreatePackageStore.Execute();
-	UE_CLOG(!PackageStore.IsValid(), LogStreaming, Fatal, TEXT("CreatePackageStore delegate returned null when initializing package loader"));
-	PackageStore->Initialize();
-	PackageStore->OnPendingEntriesAdded().AddLambda([this]()
+	PackageStore.OnPendingEntriesAdded().AddLambda([this]()
 	{
 		AltZenaphore.NotifyOne();
 	});
 	
-	FPackageName::DoesPackageExistOverride().BindLambda([this](FName PackageName)
-	{
-		LazyInitializeFromLoadPackage();
-		
-		PackageStore->Lock();
-		bool bExists = PackageStore->DoesPackageExist(FPackageId::FromName(PackageName));
-		PackageStore->Unlock();
-		return bExists;
-	});
-
 	AsyncThreadReady.Increment();
 
 	UE_LOG(LogStreaming, Display, TEXT("AsyncLoading2 - Initialized"));
@@ -2678,16 +2660,16 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 
 	FIoBatch IoBatch = IoDispatcher.NewBatch();
 
-	PackageStore->Lock();
+	FPackageStoreReadScope _(PackageStore);
 
 	for (auto It = PendingPackages.CreateIterator(); It; ++It)
 	{
 		FAsyncPackage2* PendingPackage = *It;
 		FPackageStoreEntry PackageEntry;
-		if (EPackageStoreEntryStatus::Ok == PackageStore->GetPackageStoreEntry(PendingPackage->Desc.PackageIdToLoad, PackageEntry))
+		if (EPackageStoreEntryStatus::Ok == PackageStore.GetPackageStoreEntry(PendingPackage->Desc.PackageIdToLoad, PackageEntry))
 		{
 			InitializeAsyncPackageFromPackageStore(PendingPackage, PackageEntry);
-			PendingPackage->ImportPackagesRecursive(IoBatch, *PackageStore.Get());
+			PendingPackage->ImportPackagesRecursive(IoBatch, PackageStore);
 			PendingPackage->StartLoading(IoBatch);
 			It.RemoveCurrent();
 		}
@@ -2725,7 +2707,7 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 			{
 				FName SourcePackageName;
 				FPackageId RedirectedToPackageId;
-				if (PackageStore->GetPackageRedirectInfo(PackageIdToLoad, SourcePackageName, RedirectedToPackageId))
+				if (PackageStore.GetPackageRedirectInfo(PackageIdToLoad, SourcePackageName, RedirectedToPackageId))
 				{
 					PackageIdToLoad = RedirectedToPackageId;
 					Request.PackagePath.Empty(); // We no longer know the path but it will be set again when serializing the package summary
@@ -2750,7 +2732,7 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 			}
 
 			FPackageStoreEntry PackageEntry;
-			EPackageStoreEntryStatus PackageStatus = PackageStore->GetPackageStoreEntry(PackageIdToLoad, PackageEntry);
+			EPackageStoreEntryStatus PackageStatus = PackageStore.GetPackageStoreEntry(PackageIdToLoad, PackageEntry);
 			if (PackageStatus == EPackageStoreEntryStatus::Missing)
 			{
 				// While there is an active load request for (InName=/Temp/PackageABC_abc, InPackageToLoadFrom=/Game/PackageABC), then allow these requests too:
@@ -2759,7 +2741,7 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 				if (Package)
 				{
 					PackageIdToLoad = Package->Desc.PackageIdToLoad;
-					PackageStatus = PackageStore->GetPackageStoreEntry(PackageIdToLoad, PackageEntry);
+					PackageStatus = PackageStore.GetPackageStoreEntry(PackageIdToLoad, PackageEntry);
 				}
 			}
 			FAsyncPackageDesc2 PackageDesc = FAsyncPackageDesc2::FromPackageRequest(Request.RequestId, Request.Priority, UPackageName, PackageIdToLoad, MoveTemp(Request.PackagePath), !Request.CustomName.IsNone());
@@ -2788,7 +2770,7 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 						InitializeAsyncPackageFromPackageStore(Package, PackageEntry);
 						{
 							TRACE_CPUPROFILER_EVENT_SCOPE(ImportPackages);
-							Package->ImportPackagesRecursive(IoBatch, *PackageStore.Get());
+							Package->ImportPackagesRecursive(IoBatch, PackageStore);
 						}
 						Package->StartLoading(IoBatch);
 					}
@@ -2814,8 +2796,6 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 			break;
 		}
 	}
-
-	PackageStore->Unlock();
 
 	IoBatch.Issue();
 	
@@ -3308,7 +3288,7 @@ void FGlobalImportStore::FindAllScriptObjects()
 		ScriptObjects.Num(), (float)ScriptObjects.GetAllocatedSize() / 1024.f);
 }
 
-void FAsyncPackage2::ImportPackagesRecursiveInner(FIoBatch& IoBatch, IPackageStore& PackageStore, const TArrayView<const FPackageId>& ImportedPackageIds, int32& ImportedPackageIndex)
+void FAsyncPackage2::ImportPackagesRecursiveInner(FIoBatch& IoBatch, FPackageStore& PackageStore, const TArrayView<const FPackageId>& ImportedPackageIds, int32& ImportedPackageIndex)
 {
 	for (const FPackageId& ImportedPackageId : ImportedPackageIds)
 	{
@@ -3460,7 +3440,7 @@ void FAsyncPackage2::ImportPackagesRecursiveInner(FIoBatch& IoBatch, IPackageSto
 	}
 }
 
-void FAsyncPackage2::ImportPackagesRecursive(FIoBatch& IoBatch, IPackageStore& PackageStore)
+void FAsyncPackage2::ImportPackagesRecursive(FIoBatch& IoBatch, FPackageStore& PackageStore)
 {
 	if (AsyncPackageLoadingState >= EAsyncPackageLoadingState2::ImportPackages)
 	{
@@ -5194,6 +5174,8 @@ FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher, IAsync
 	: Thread(nullptr)
 	, IoDispatcher(InIoDispatcher)
 	, UncookedPackageLoader(InUncookedPackageLoader)
+	, PackageStore(FPackageStore::Get())
+	, LoadedPackageStore(PackageStore)
 {
 #if !WITH_IOSTORE_IN_EDITOR
 	IsEventDrivenLoaderEnabled(); // make sure the one time init inside runs
@@ -5326,8 +5308,6 @@ void FAsyncLoadingThread2::LazyInitializeFromLoadPackage()
 	{
 		GlobalImportStore.Initialize(IoDispatcher);
 	}
-
-	LoadedPackageStore.Initialize(*PackageStore.Get());
 }
 
 void FAsyncLoadingThread2::FinalizeInitialLoad()
