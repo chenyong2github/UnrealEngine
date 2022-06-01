@@ -1736,7 +1736,7 @@ public:
 	ENGINE_API bool HasValidRenderData(bool bCheckLODForVerts = true, int32 LODIndex = INDEX_NONE) const;
 
 	/**
-	 * Returns true if thee mesh has valid Nanite render data.
+	 * Returns true if the mesh has valid Nanite render data.
 	 */
 	ENGINE_API bool HasValidNaniteData() const;
 

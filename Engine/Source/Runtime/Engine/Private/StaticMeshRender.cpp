@@ -2416,7 +2416,7 @@ FPrimitiveSceneProxy* UStaticMeshComponent::CreateSceneProxy()
 	}
 
 	// If we didn't get a proxy, but Nanite was enabled on the asset when it was built, evaluate proxy creation
-	if (GetStaticMesh()->HasValidNaniteData())
+	if (HasValidNaniteData())
 	{
 		const bool bAllowProxyRender = GNaniteProxyRenderMode == 0
 	#if WITH_EDITORONLY_DATA

@@ -1647,7 +1647,7 @@ bool UStaticMeshComponent::ShouldCreateNaniteProxy() const
 	const bool bAllowNanite = true;
 #endif
 
-	return bAllowNanite && UseNanite(GetScene()->GetShaderPlatform()) && GetStaticMesh()->GetRenderData()->NaniteResources.PageStreamingStates.Num();
+	return bAllowNanite && UseNanite(GetScene()->GetShaderPlatform()) && HasValidNaniteData();
 }
 
 void UStaticMeshComponent::ReleaseResources()
@@ -2154,12 +2154,22 @@ bool UStaticMeshComponent::SetStaticMesh(UStaticMesh* NewMesh)
 
 const Nanite::FResources* UStaticMeshComponent::GetNaniteResources() const
 {
-	if (GetStaticMesh() && GetStaticMesh()->GetRenderData())
+	if (OnGetNaniteResources().IsBound())
+	{
+		return OnGetNaniteResources().Execute();
+	}
+	else if (GetStaticMesh() && GetStaticMesh()->GetRenderData())
 	{
 		return &GetStaticMesh()->GetRenderData()->NaniteResources;
 	}
 
 	return nullptr;
+}
+
+bool UStaticMeshComponent::HasValidNaniteData() const
+{
+	const Nanite::FResources* NaniteResources = GetNaniteResources();
+	return NaniteResources ? NaniteResources->PageStreamingStates.Num() > 0 : false;
 }
 
 void UStaticMeshComponent::SetForcedLodModel(int32 NewForcedLodModel)

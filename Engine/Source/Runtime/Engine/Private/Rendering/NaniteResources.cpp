@@ -515,15 +515,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	checkSlow(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
 	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 	
-	if (Component->OnGetNaniteResources().IsBound())
-	{
-		Resources = Component->OnGetNaniteResources().Execute();
-	}
-	else
-	{
-		Resources = Component->GetNaniteResources();
-	}
-	
+	Resources = Component->GetNaniteResources();
+
 	// This should always be valid.
 	check(Resources && Resources->PageStreamingStates.Num() > 0);
 

@@ -434,6 +434,11 @@ public:
 
 	virtual const Nanite::FResources* GetNaniteResources() const;
 
+	/**
+	 * Returns true if the component has valid Nanite render data.
+	 */
+	virtual bool HasValidNaniteData() const;
+
 	UFUNCTION(BlueprintCallable, Category="Rendering|LOD")
 	void SetForcedLodModel(int32 NewForcedLodModel);
 
@@ -792,6 +797,7 @@ public:
 	/** Called during scene proxy creation to get the Nanite resource data */
 	DECLARE_DELEGATE_RetVal(const Nanite::FResources*, FOnGetNaniteResources);
 	virtual FOnGetNaniteResources& OnGetNaniteResources() { return OnGetNaniteResourcesEvent; }
+	virtual const FOnGetNaniteResources& OnGetNaniteResources() const { return OnGetNaniteResourcesEvent; }
 
 #if WITH_EDITOR
 	/** Called when the static mesh changes  */
