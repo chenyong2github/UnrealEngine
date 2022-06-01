@@ -324,6 +324,7 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		, Velocity(0.f)
 		, DebugColor(ForceInit)
 		, TargetGrid(NAME_None)
+		, bReplay(false)
 	{}
 
 	FWorldPartitionStreamingSource(FName InName, const FVector& InLocation, const FRotator& InRotation, EStreamingSourceTargetState InTargetState, bool bInBlockOnSlowLoading, EStreamingSourcePriority InPriority, float InVelocity = 0.f)
@@ -336,6 +337,7 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		, Velocity(InVelocity)
 		, DebugColor(ForceInit)
 		, TargetGrid(NAME_None)
+		, bReplay(false)
 	{}
 
 	FColor GetDebugColor() const
@@ -380,6 +382,9 @@ struct ENGINE_API FWorldPartitionStreamingSource
 
 	/** Source internal shapes. When none are provided, a sphere is automatically used. It's radius is equal to grid's loading range and center equals source's location. */
 	TArray<FStreamingSourceShape> Shapes;
+
+	/** If true, this streaming source is from a replay recording */
+	bool bReplay;
 
 	/** Returns a box encapsulating all shapes. */
 	FORCEINLINE FBox CalcBounds(float InGridLoadingRange, FName InGridName, const FSoftObjectPath& InGridHLODLayer, bool bCalcIn2D = false) const

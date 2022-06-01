@@ -11,6 +11,12 @@
 #include "Engine/DemoNetDriver.h"
 #include "ReplaySubsystem.h"
 
+static int32 GUseReplayStreamingSources = 1;
+static FAutoConsoleVariableRef CVarUseReplayStreamingSources(
+	TEXT("wp.Runtime.UseReplayStreamingSources"),
+	GUseReplayStreamingSources,
+	TEXT("Set to 1 to use the recorded streaming sources when playing replay."));
+
 FArchive& operator<<(FArchive& Ar, FWorldPartitionReplayStreamingSource& StreamingSource)
 {
 	Ar << StreamingSource.Location;
@@ -52,9 +58,14 @@ FArchive& operator<<(FArchive& Ar, FWorldPartitionReplaySample& ReplaySample)
 		for (int32 i = 0; i < ReplaySample.StreamingSources.Num(); ++i)
 		{
 			int32 NameIndex = ReplaySample.StreamingSourceNameIndices[i];
-			if (ensure(ReplaySample.Replay->StreamingSourceNames.IsValidIndex(NameIndex)))
+			// @todo_ow: It sometimes happens at start of replay that StreamingSourceNames haven't been replicated yet. need to investigate.
+			if (ReplaySample.Replay->StreamingSourceNames.IsValidIndex(NameIndex))
 			{
 				ReplaySample.StreamingSources[i].Name = ReplaySample.Replay->StreamingSourceNames[NameIndex];
+			}
+			else
+			{
+				ReplaySample.StreamingSources[i].Name = FName(FString::Printf(TEXT("Source {%i}"), NameIndex));
 			}
 		}
 	}
@@ -151,6 +162,11 @@ void AWorldPartitionReplay::PreReplication(IRepChangedPropertyTracker& ChangedPr
 
 bool AWorldPartitionReplay::GetReplayStreamingSources(TArray<FWorldPartitionStreamingSource>& OutStreamingSources)
 {
+	if (!GUseReplayStreamingSources)
+	{
+		return false;
+	}
+
 	UWorld* World = GetWorld();
 	UDemoNetDriver* DemoNetDriver = World->GetDemoNetDriver();
 	if (DemoNetDriver && DemoNetDriver->IsPlaying())
@@ -197,8 +213,8 @@ bool AWorldPartitionReplay::GetReplayStreamingSources(TArray<FWorldPartitionStre
 					int32 SourceIndex2 = ReplaySample2.StreamingSources.IndexOfByPredicate([&](const FWorldPartitionStreamingSource& StreamingSource) { return StreamingSource.Name == ReplaySample1.StreamingSources[SourceIndex].Name; });
 					if (SourceIndex2 != INDEX_NONE)
 					{
-						const FWorldPartitionStreamingSource& Source1 = ReplaySample1.StreamingSources[SourceIndex];
-						const FWorldPartitionStreamingSource& Source2 = ReplaySample2.StreamingSources[SourceIndex2];
+						const FWorldPartitionReplayStreamingSource& Source1 = ReplaySample1.StreamingSources[SourceIndex];
+						const FWorldPartitionReplayStreamingSource& Source2 = ReplaySample2.StreamingSources[SourceIndex2];
 						
 						const float EPSILON = UE_SMALL_NUMBER;
 						const float Delta = ReplaySample2.TimeSeconds - ReplaySample1.TimeSeconds;
@@ -207,7 +223,7 @@ bool AWorldPartitionReplay::GetReplayStreamingSources(TArray<FWorldPartitionStre
 						const FVector Location = FMath::Lerp(Source1.Location, Source2.Location, LerpPercent);
 						const FQuat Rotation = FQuat::FastLerp(FQuat(Source1.Rotation), FQuat(Source2.Rotation), LerpPercent).GetNormalized();
 						const float Velocity = FMath::Lerp(Source1.Velocity, Source2.Velocity, LerpPercent);
-						OutStreamingSources.Add(FWorldPartitionStreamingSource(Source1.Name, Location, Rotation.Rotator(), Source1.TargetState, Source1.bBlockOnSlowLoading, Source1.Priority, Velocity));
+						OutStreamingSources.Add(FWorldPartitionReplayStreamingSource(Source1.Name, Location, Rotation.Rotator(), Source1.TargetState, Source1.bBlockOnSlowLoading, Source1.Priority, Velocity));
 					}
 					else
 					{
