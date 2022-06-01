@@ -211,7 +211,7 @@ namespace UnrealGameSync
 
 		public static async Task<int> ExecuteProcessAsync(string FileName, string? WorkingDir, string CommandLine, Action<string> OutputLine, CancellationToken CancellationToken)
 		{
-			using (ManagedProcess NewProcess = new ManagedProcess(null, FileName, CommandLine, WorkingDir, null, ProcessPriorityClass.Normal))
+			using (ManagedProcess NewProcess = new ManagedProcess(null, FileName, CommandLine, WorkingDir, null, null, ProcessPriorityClass.Normal))
 			{
 				for (; ; )
 				{
