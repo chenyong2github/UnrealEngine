@@ -604,7 +604,7 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 
 void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 {
-	static const bool bNaniteEnabled = UseNanite(ShaderPlatform);
+	const bool bNaniteEnabled = UseNanite(ShaderPlatform);
 
 	Scene->UpdateAllPrimitiveSceneInfos(GraphBuilder);
 
