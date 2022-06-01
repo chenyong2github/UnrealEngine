@@ -127,7 +127,7 @@ FDistanceFieldAsyncQueue* GDistanceFieldAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for distance field data, must be changed when modifying the generation code or data format
-#define DISTANCEFIELD_DERIVEDDATA_VER TEXT("CB37D8F6-5ED7-476E-BDFB-A0319D4099DC")
+#define DISTANCEFIELD_DERIVEDDATA_VER TEXT("23A632E6-DB31-4A5B-B43D-17D98C6E946C")
 
 FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 {
@@ -151,25 +151,42 @@ FString BuildDistanceFieldDerivedDataKey(const FString& InMeshKey)
 
 void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDerivedDataKey, const ITargetPlatform* TargetPlatform, UStaticMesh* Mesh, FStaticMeshRenderData& RenderData, UStaticMesh* GenerateSource, float DistanceFieldResolutionScale, bool bGenerateDistanceFieldAsIfTwoSided)
 {
-	FString DistanceFieldKey = BuildDistanceFieldDerivedDataKey(InStaticMeshDerivedDataKey);
+	const TArray<FStaticMaterial>& StaticMaterials = Mesh->GetStaticMaterials();
+
+	TArray<FSignedDistanceFieldBuildMaterialData> BuildMaterialData;
+	BuildMaterialData.SetNum(StaticMaterials.Num());
+
 	const FMeshSectionInfoMap& SectionInfoMap = Mesh->GetSectionInfoMap();
+	const uint32 LODIndex = 0;
 
-	for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
+	for (int32 SectionIndex = 0; SectionIndex < SectionInfoMap.GetSectionNumber(LODIndex); SectionIndex++)
 	{
-		FSignedDistanceFieldBuildMaterialData MaterialData;
-		// Default material blend mode
-		MaterialData.BlendMode = BLEND_Opaque;
-		MaterialData.bTwoSided = false;
-		MaterialData.bAffectDistanceFieldLighting = SectionInfoMap.IsValidSection(0, MaterialIndex) ? SectionInfoMap.Get(0, MaterialIndex).bAffectDistanceFieldLighting : true;
+		const FMeshSectionInfo& Section = SectionInfoMap.Get(LODIndex, SectionIndex);
 
-		UMaterialInterface* MaterialInterface = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface;
+		if (!BuildMaterialData.IsValidIndex(Section.MaterialIndex))
+		{
+			continue;
+		}
+
+		FSignedDistanceFieldBuildMaterialData& MaterialData = BuildMaterialData[Section.MaterialIndex];
+		MaterialData.bAffectDistanceFieldLighting = Section.bAffectDistanceFieldLighting;
+
+		UMaterialInterface* MaterialInterface = StaticMaterials[Section.MaterialIndex].MaterialInterface;
 		if (MaterialInterface)
 		{
 			MaterialData.BlendMode = MaterialInterface->GetBlendMode();
 			MaterialData.bTwoSided = MaterialInterface->IsTwoSided();
 		}
+	}
 
-		DistanceFieldKey += FString::Printf(TEXT("_M%u_%u_%u"), (uint32)MaterialData.BlendMode, MaterialData.bTwoSided ? 1 : 0, MaterialData.bAffectDistanceFieldLighting ? 1 : 0);
+	FString DistanceFieldKey = BuildDistanceFieldDerivedDataKey(InStaticMeshDerivedDataKey);
+
+	for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
+	{
+		DistanceFieldKey += FString::Printf(TEXT("_M%u_%u_%u"), 
+			(uint32)BuildMaterialData[MaterialIndex].BlendMode,
+			BuildMaterialData[MaterialIndex].bTwoSided ? 1 : 0,
+			BuildMaterialData[MaterialIndex].bAffectDistanceFieldLighting ? 1 : 0);
 	}
 
 	TArray<uint8> DerivedData;
@@ -185,11 +202,12 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 	}
 	else if (GDistanceFieldAsyncQueue)
 	{
+		check(Mesh && GenerateSource);
+
 		// We don't actually build the resource until later, so only track the cycles used here.
 		COOK_STAT(Timer.TrackCyclesOnly());
 		FAsyncDistanceFieldTask* NewTask = new FAsyncDistanceFieldTask;
 		NewTask->DDCKey = DistanceFieldKey;
-		check(Mesh && GenerateSource);
 		NewTask->TargetPlatform = TargetPlatform;
 		NewTask->StaticMesh = Mesh;
 		NewTask->GenerateSource = GenerateSource;
@@ -198,23 +216,7 @@ void FDistanceFieldVolumeData::CacheDerivedData(const FString& InStaticMeshDeriv
 		NewTask->GeneratedVolumeData = new FDistanceFieldVolumeData();
 		NewTask->GeneratedVolumeData->AssetName = Mesh->GetFName();
 		NewTask->GeneratedVolumeData->bAsyncBuilding = true;
-
-		for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
-		{
-			FSignedDistanceFieldBuildMaterialData MaterialData;
-			// Default material blend mode
-			MaterialData.BlendMode = BLEND_Opaque;
-			MaterialData.bTwoSided = false;
-			MaterialData.bAffectDistanceFieldLighting = SectionInfoMap.IsValidSection(0, MaterialIndex) ? SectionInfoMap.Get(0, MaterialIndex).bAffectDistanceFieldLighting : true;
-
-			if (Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface)
-			{
-				MaterialData.BlendMode = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->GetBlendMode();
-				MaterialData.bTwoSided = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->IsTwoSided();
-			}
-
-			NewTask->MaterialBlendModes.Add(MaterialData);
-		}
+		NewTask->MaterialBlendModes = MoveTemp(BuildMaterialData);
 
 		// Nanite overrides source static mesh with a coarse representation. Need to load original data before we build the mesh SDF.
 		if (Mesh->NaniteSettings.bEnabled)

@@ -138,7 +138,7 @@ FCardRepresentationAsyncQueue* GCardRepresentationAsyncQueue = NULL;
 #if WITH_EDITOR
 
 // DDC key for card representation data, must be changed when modifying the generation code or data format
-#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("3F7067D7-0552-4C66-BBC5-F2589BDB798A")
+#define CARDREPRESENTATION_DERIVEDDATA_VER TEXT("3F695875-02C1-459D-8923-222B68165285")
 
 FString BuildCardRepresentationDerivedDataKey(const FString& InMeshKey, int32 MaxLumenMeshCards)
 {
@@ -205,34 +205,41 @@ void FCardRepresentationData::CacheDerivedData(const FString& InDDCKey, const IT
 	}
 	else
 	{
+		check(Mesh && GenerateSource);
+
 		// We don't actually build the resource until later, so only track the cycles used here.
 		COOK_STAT(Timer.TrackCyclesOnly());
 		FAsyncCardRepresentationTask* NewTask = new FAsyncCardRepresentationTask;
 		NewTask->DDCKey = InDDCKey;
-		check(Mesh && GenerateSource);
 		NewTask->StaticMesh = Mesh;
 		NewTask->GenerateSource = GenerateSource;
 		NewTask->GeneratedCardRepresentation = new FCardRepresentationData();
 		NewTask->MaxLumenMeshCards = MaxLumenMeshCards;
 		NewTask->bGenerateDistanceFieldAsIfTwoSided = bGenerateDistanceFieldAsIfTwoSided;
+		NewTask->MaterialBlendModes.SetNum(Mesh->GetStaticMaterials().Num());
 
+		const TArray<FStaticMaterial>& StaticMaterials = Mesh->GetStaticMaterials();
 		const FMeshSectionInfoMap& SectionInfoMap = Mesh->GetSectionInfoMap();
+		const uint32 LODIndex = 0;
 
-		for (int32 MaterialIndex = 0; MaterialIndex < Mesh->GetStaticMaterials().Num(); MaterialIndex++)
+		for (int32 SectionIndex = 0; SectionIndex < SectionInfoMap.GetSectionNumber(LODIndex); SectionIndex++)
 		{
-			FSignedDistanceFieldBuildMaterialData MaterialData;
-			// Default material blend mode
-			MaterialData.BlendMode = BLEND_Opaque;
-			MaterialData.bTwoSided = false;
-			MaterialData.bAffectDistanceFieldLighting = SectionInfoMap.IsValidSection(0, MaterialIndex) ? SectionInfoMap.Get(0, MaterialIndex).bAffectDistanceFieldLighting : true;
+			const FMeshSectionInfo& Section = SectionInfoMap.Get(LODIndex, SectionIndex);
 
-			if (Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface)
+			if (!NewTask->MaterialBlendModes.IsValidIndex(Section.MaterialIndex))
 			{
-				MaterialData.BlendMode = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->GetBlendMode();
-				MaterialData.bTwoSided = Mesh->GetStaticMaterials()[MaterialIndex].MaterialInterface->IsTwoSided();
+				continue;
 			}
 
-			NewTask->MaterialBlendModes.Add(MaterialData);
+			FSignedDistanceFieldBuildMaterialData& MaterialData = NewTask->MaterialBlendModes[Section.MaterialIndex];
+			MaterialData.bAffectDistanceFieldLighting = Section.bAffectDistanceFieldLighting;
+
+			UMaterialInterface* MaterialInterface = StaticMaterials[Section.MaterialIndex].MaterialInterface;
+			if (MaterialInterface)
+			{
+				MaterialData.BlendMode = MaterialInterface->GetBlendMode();
+				MaterialData.bTwoSided = MaterialInterface->IsTwoSided();
+			}
 		}
 
 		// Nanite overrides source static mesh with a coarse representation. Need to load original data before we build the mesh SDF.
