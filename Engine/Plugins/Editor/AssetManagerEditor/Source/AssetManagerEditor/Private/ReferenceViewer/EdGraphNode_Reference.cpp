@@ -292,4 +292,14 @@ bool UEdGraphNode_Reference::IsCollapsed() const
 	return bIsCollapsed;
 }
 
+void UEdGraphNode_Reference::SetIsFiltered(bool bInFiltered)
+{
+	bIsFiltered = bInFiltered;	
+}
+
+bool UEdGraphNode_Reference::GetIsFiltered() const
+{
+	return bIsFiltered;
+}
+
 #undef LOCTEXT_NAMESPACE
