@@ -99,7 +99,7 @@ struct FDeferredSignedObjectChangeHandler : UE::MovieScene::IDeferredSignedObjec
 			break;
 
 		case ETransactionStateEventType::TransactionCanceled:
-		case ETransactionStateEventType::TransactionFinalized:
+		case ETransactionStateEventType::PreTransactionFinalized:
 		case ETransactionStateEventType::UndoRedoFinalized:
 			DeferTransactionChanges.Reset();
 			break;
