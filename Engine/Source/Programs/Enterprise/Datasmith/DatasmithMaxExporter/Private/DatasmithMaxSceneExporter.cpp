@@ -399,7 +399,7 @@ TSharedRef< IDatasmithActorElement > FDatasmithMaxSceneExporter::ExportHierarchi
 		FVector InstancePos, InstanceScale;
 		FQuat InstanceRotation;
 		MaxToUnrealCoordinates((*Instances)[0], InstancePos, InstanceRotation, InstanceScale, UnitMultiplier);
-		FTransform WithInstance(WithoutInstance * FTransform(InstanceRotation, InstancePos, InstanceScale));
+		FTransform WithInstance(FTransform(InstanceRotation, InstancePos, InstanceScale) * WithoutInstance);
 
 		MeshActor->SetTranslation(WithInstance.GetLocation());
 		MeshActor->SetScale(WithInstance.GetScale3D());
