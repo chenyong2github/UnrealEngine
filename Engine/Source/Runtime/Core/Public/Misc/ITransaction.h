@@ -20,6 +20,8 @@ enum class ETransactionStateEventType : uint8
 	TransactionStarted,
 	/** A transaction was canceled. */
 	TransactionCanceled,
+	/** A transaction is about to be finalized. It is still safe to temporarily open new transactions within the scope of this event. */
+	PreTransactionFinalized,
 	/** A transaction was finalized. */
 	TransactionFinalized,
 
