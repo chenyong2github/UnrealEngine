@@ -8,6 +8,7 @@
 #include "Misc/Paths.h"
 #include "AssetRegistry/AssetData.h"
 #include "AssetThumbnail.h"
+#include "AssetToolsModule.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserFileDataSource"
 
@@ -636,6 +637,13 @@ bool IsValidName(const bool bIsDirectory, const bool bCheckUniqueName, const FSt
 	if (!FName::IsValidXName(InNewName, INVALID_OBJECTNAME_CHARACTERS INVALID_LONGPACKAGE_CHARACTERS, OutErrorMsg))
 	{
 		// Return false to indicate that the user should enter a new name
+		return false;
+	}
+
+	// Check custom filter set by external module
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (!AssetToolsModule.Get().IsNameAllowed(InNewName, OutErrorMsg))
+	{
 		return false;
 	}
 

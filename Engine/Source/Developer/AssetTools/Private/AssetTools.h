@@ -132,6 +132,9 @@ public:
 	virtual TSharedRef<FPathPermissionList>& GetWritableFolderPermissionList() override;
 	virtual bool AllPassWritableFolderFilter(const TArray<FString>& InPaths) const override;
 	virtual void NotifyBlockedByWritableFolderFilter() const;
+	virtual bool IsNameAllowed(const FString& Name, FText* OutErrorMessage = nullptr) const override;
+	virtual void RegisterIsNameAllowedDelegate(const FName OwnerName, FIsNameAllowed Delegate) override;
+	virtual void UnregisterIsNameAllowedDelegate(const FName OwnerName) override;
 	
 	virtual void SyncBrowserToAssets(const TArray<UObject*>& AssetsToSync) override;
 	virtual void SyncBrowserToAssets(const TArray<FAssetData>& AssetsToSync) override;
@@ -231,6 +234,8 @@ private:
 	TArray<FString> SubContentDenyListPaths;
 
 	bool CreateAssetsAsExternallyReferenceable;
+
+	TMap<FName, FIsNameAllowed> IsNameAllowedDelegates;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

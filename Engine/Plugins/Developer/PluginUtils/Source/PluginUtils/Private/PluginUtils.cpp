@@ -1090,55 +1090,56 @@ bool FPluginUtils::IsValidPluginName(const FString& PluginName, FText* FailReaso
 	static const FText PluginTerm = LOCTEXT("PluginTerm", "Plugin");
 	const FText& PluginTermToUse = PluginTermReplacement ? *PluginTermReplacement : PluginTerm;
 
-	bool bIsNameValid = true;
-
 	// Cannot be empty
 	if (PluginName.IsEmpty())
 	{
-		bIsNameValid = false;
 		if (FailReason)
 		{
 			*FailReason = FText::Format(LOCTEXT("PluginNameIsEmpty", "{0} name cannot be empty"), PluginTermToUse);
 		}
+		return false;
 	}
 
 	// Must begin with an alphabetic character
-	if (bIsNameValid && !FChar::IsAlpha(PluginName[0]))
+	if (!FChar::IsAlpha(PluginName[0]))
 	{
-		bIsNameValid = false;
 		if (FailReason)
 		{
 			*FailReason = FText::Format(LOCTEXT("PluginNameMustBeginWithAlphabetic", "{0} name must begin with an alphabetic character"), PluginTermToUse);
 		}
+		return false;
 	}
 
 	// Only allow alphanumeric characters and underscore in the name
-	if (bIsNameValid)
+	FString IllegalCharacters;
+	for (int32 CharIdx = 0; CharIdx < PluginName.Len(); ++CharIdx)
 	{
-		FString IllegalCharacters;
-		for (int32 CharIdx = 0; CharIdx < PluginName.Len(); ++CharIdx)
+		const FString& Char = PluginName.Mid(CharIdx, 1);
+		if (!FChar::IsAlnum(Char[0]) && Char != TEXT("_") && Char != TEXT("-"))
 		{
-			const FString& Char = PluginName.Mid(CharIdx, 1);
-			if (!FChar::IsAlnum(Char[0]) && Char != TEXT("_") && Char != TEXT("-"))
+			if (!IllegalCharacters.Contains(Char))
 			{
-				if (!IllegalCharacters.Contains(Char))
-				{
-					IllegalCharacters += Char;
-				}
-			}
-		}
-		
-		if (IllegalCharacters.Len() > 0)
-		{
-			bIsNameValid = false;
-			if (FailReason)
-			{
-				*FailReason = FText::Format(LOCTEXT("PluginNameContainsIllegalCharacters", "{0} name cannot contain characters such as \"{1}\""), PluginTermToUse, FText::FromString(IllegalCharacters));
+				IllegalCharacters += Char;
 			}
 		}
 	}
 
-	return bIsNameValid;
+	if (IllegalCharacters.Len() > 0)
+	{
+		if (FailReason)
+		{
+			*FailReason = FText::Format(LOCTEXT("PluginNameContainsIllegalCharacters", "{0} name cannot contain characters such as \"{1}\""), PluginTermToUse, FText::FromString(IllegalCharacters));
+		}
+		return false;
+	}
+
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (!AssetToolsModule.Get().IsNameAllowed(PluginName, FailReason))
+	{
+		return false;
+	}
+
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -1041,6 +1041,13 @@ bool AssetViewUtils::IsValidFolderName(const FString& FolderName, FText& Reason)
 			return false;
 		}
 	}
+
+	// Check custom filter set by external module
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (!AssetToolsModule.Get().IsNameAllowed(FolderName, &Reason))
+	{
+		return false;
+	}
 	
 	return FFileHelper::IsFilenameValidForSaving( FolderName, Reason );
 }
@@ -1312,6 +1319,13 @@ bool AssetViewUtils::IsValidObjectPathForCreate(const FString& ObjectPath, const
 			// Return false to indicate that the user should enter a new name
 			return false;
 		}
+	}
+
+	// Check custom filter set by external module
+	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");
+	if (!AssetToolsModule.Get().IsNameAllowed(ObjectName, &OutErrorMessage))
+	{
+		return false;
 	}
 
 	return true;

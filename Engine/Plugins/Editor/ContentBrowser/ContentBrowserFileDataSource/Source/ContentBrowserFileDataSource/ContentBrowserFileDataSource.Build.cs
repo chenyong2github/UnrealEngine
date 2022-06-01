@@ -20,6 +20,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"EditorFramework",
+					"AssetTools",
 					"UnrealEd",
 					"ToolMenus",
 					"Slate",

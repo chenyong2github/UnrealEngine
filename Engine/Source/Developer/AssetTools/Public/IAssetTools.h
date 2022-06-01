@@ -108,6 +108,7 @@ struct FAssetRenameData
 
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FAssetPostRenameEvent, const TArray<FAssetRenameData>&);
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FIsNameAllowed, const FString& /*Name*/, FText* /*OutErrorMessage*/);
 
 
 struct FAdvancedAssetCategory
@@ -485,6 +486,13 @@ public:
 
 	/** Returns true if all in list pass writable folder filter */
 	virtual bool AllPassWritableFolderFilter(const TArray<FString>& InPaths) const = 0;
+
+	/** Returns true if IsNameAllowedDelegate is not set, or if the name passes the filter function*/
+	virtual bool IsNameAllowed(const FString& Name, FText* OutErrorMessage = nullptr) const = 0;
+	/** Allows setting of a global name filter that is applied to folders, assets, plugins, etc. */
+	virtual void RegisterIsNameAllowedDelegate(const FName OwnerName, FIsNameAllowed Delegate) = 0;
+	/** Remove a previously-set global name filter */
+	virtual void UnregisterIsNameAllowedDelegate(const FName OwnerName) = 0;
 
 	/** Show notification that writable folder filter blocked an action */
 	virtual void NotifyBlockedByWritableFolderFilter() const = 0;

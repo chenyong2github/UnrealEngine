@@ -4219,4 +4219,26 @@ void UAssetToolsImpl::NotifyBlockedByWritableFolderFilter() const
 	FSlateNotificationManager::Get().AddNotification(FNotificationInfo(LOCTEXT("NotifyBlockedByWritableFolderFilter", "Folder is locked")));
 }
 
+bool UAssetToolsImpl::IsNameAllowed(const FString& Name, FText* OutErrorMessage) const
+{
+	for (const TPair<FName, FIsNameAllowed>& DelegatePair : IsNameAllowedDelegates)
+	{
+		if (!DelegatePair.Value.Execute(Name, OutErrorMessage))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+void UAssetToolsImpl::RegisterIsNameAllowedDelegate(const FName OwnerName, FIsNameAllowed Delegate)
+{
+	IsNameAllowedDelegates.Add(OwnerName, Delegate);
+}
+
+void UAssetToolsImpl::UnregisterIsNameAllowedDelegate(const FName OwnerName)
+{
+	IsNameAllowedDelegates.Remove(OwnerName);
+}
+
 #undef LOCTEXT_NAMESPACE
