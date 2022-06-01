@@ -13,7 +13,7 @@ import { VersionReader } from '../common/version';
 import { branchesRequests, RoboServer } from './roboserver';
 import { Session } from './session';
 
-const tlsKeyFilename = 'rm-2021-05.key'
+const tlsKeyFilename = 'rm-2022-05.key'
 
 // Begin by intializing our logger and version reader
 const watchdogStartupLogger = new ContextualLogger('Watchdog Startup')
