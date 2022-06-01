@@ -104,22 +104,24 @@ class FTaskMgr::FThread
 // Constructor
 FTaskMgr::FTaskMgr()
 	: bTerminate(false)
-	, bTreadingEnabled(true)
+	// Temporarily disabling multi-threading to fix UE-127453 for 5.0
+	// #ue_archicad : Must revisit multi-threading to find proper solution for UE-127453 
+	, bThreadingEnabled(false)
 	, NbTaskWaiting(0)
 	, CV(AccessControl)
 {
-	if (bTreadingEnabled)
+	if (bThreadingEnabled)
 	{
 		// One thread by processor
 		unsigned nbProcessors = GS::System::GetNumberOfActiveProcessors();
 		if (nbProcessors == 0)
 		{
-			nbProcessors = 1;
+			bThreadingEnabled = false;
 		}
-		Treads.resize(nbProcessors);
+		Threads.resize(nbProcessors);
 		for (unsigned i = 0; i < nbProcessors; i++)
 		{
-			Treads[i].reset(new FThread(this, GS::UniString::Printf("Datasmith Exporter Task #%d", i)));
+			Threads[i].reset(new FThread(this, GS::UniString::Printf("Datasmith Exporter Task #%d", i)));
 		}
 	}
 }
@@ -133,10 +135,10 @@ FTaskMgr::~FTaskMgr()
 	}
 	CV.NotifyAll();
 
-	size_t nbThreads = Treads.size();
+	size_t nbThreads = Threads.size();
 	for (size_t i = 0; i < nbThreads; i++)
 	{
-		Treads[i]->Join();
+		Threads[i]->Join();
 	}
 
 	// Delete all not processed task. This happen when Join has'n been called on the thread manager
@@ -151,7 +153,7 @@ FTaskMgr::~FTaskMgr()
 // Add task
 void FTaskMgr::AddTask(FTask* InTask, ERunMode inMode)
 {
-	if (bTreadingEnabled && inMode == kSchedule)
+	if (bThreadingEnabled && inMode == kSchedule)
 	{
 		GS::Guard< GS::Lock > lck(AccessControl);
 		if (bTerminate)
@@ -172,7 +174,7 @@ void FTaskMgr::AddTask(FTask* InTask, ERunMode inMode)
 void FTaskMgr::Join(FProgression* inProgression)
 {
 	GS::Guard< GS::Lock > lck(AccessControl);
-	while (!TaskQueue.empty() || NbTaskWaiting != Treads.size())
+	while (!TaskQueue.empty() || NbTaskWaiting != Threads.size())
 	{
 		CV.NotifyAll();
 		CV.Wait(10, true, nullptr);

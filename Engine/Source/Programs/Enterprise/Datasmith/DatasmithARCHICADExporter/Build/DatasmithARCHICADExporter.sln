@@ -9,6 +9,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DatasmithARCHICAD24Exporter
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DatasmithARCHICAD25Exporter", "VSProj25\DatasmithARCHICAD25Exporter.vcxproj", "{F0AD06C2-7FEB-4968-AD94-7650969CFDDF}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Visualizers", "Visualizers", "{1CCEC849-CC72-4C59-8C36-2F7C38706D4C}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\..\..\..\..\Extras\VisualStudioDebugging\Unreal.natvis = ..\..\..\..\..\..\Extras\VisualStudioDebugging\Unreal.natvis
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

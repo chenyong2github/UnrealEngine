@@ -12,6 +12,7 @@
 #include "Delegates/Delegate.h"
 #include "Framework/Application/SWindowTitleBar.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/FileManager.h"
 #include "HAL/Platform.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
@@ -60,21 +61,43 @@ namespace DirectLinkUIUtils
 
 FDirectLinkUI::FDirectLinkUI()
 {
-	FString ConfigPath = DirectLinkUIUtils::GetConfigPath();
-	FString DirectLinkCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue( false );
-	FString DirectLinkDefaultCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue( true );
+	const FString ConfigPath = DirectLinkUIUtils::GetConfigPath();
+	const FString DirectLinkCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue( false );
+	const FString DirectLinkDefaultCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue( true );
 
 	FScopeLock Lock( &CriticalSectionCacheDirectory );
-	if ( !GConfig->GetString( *DirectLinkDefaultCacheSectionAndValue, *DirectLinkDefaultCacheSectionAndValue, DefaultDirectLinkCacheDirectory, ConfigPath ) )
+
+	// Verify and get default cache directory
+	GConfig->GetString(*DirectLinkDefaultCacheSectionAndValue, *DirectLinkDefaultCacheSectionAndValue, DefaultDirectLinkCacheDirectory, ConfigPath);
+
+	if (DefaultDirectLinkCacheDirectory.IsEmpty() || !FPaths::DirectoryExists(DefaultDirectLinkCacheDirectory))
 	{
-		DefaultDirectLinkCacheDirectory = FPaths::Combine( FPlatformProcess::UserTempDir(), TEXT("DLExporter") );
-		SaveCacheDirectory( DefaultDirectLinkCacheDirectory, true );
+		if (DefaultDirectLinkCacheDirectory.IsEmpty() || !IFileManager::Get().MakeDirectory(*DefaultDirectLinkCacheDirectory, true))
+		{
+			DefaultDirectLinkCacheDirectory = FPaths::Combine(FPlatformProcess::UserTempDir(), TEXT("DLExporter"));
+			if (!FPaths::DirectoryExists(DefaultDirectLinkCacheDirectory))
+			{
+				ensure(IFileManager::Get().MakeDirectory(*DefaultDirectLinkCacheDirectory, true));
+			}
+		}
+
 	}
-	if ( !GConfig->GetString( *DirectLinkCacheSectionAndValue, *DirectLinkCacheSectionAndValue, DirectLinkCacheDirectory, ConfigPath ) )
+
+	GConfig->SetString(*DirectLinkDefaultCacheSectionAndValue, *DirectLinkDefaultCacheSectionAndValue, *DefaultDirectLinkCacheDirectory, ConfigPath);
+
+	// Verify and get current cache directory
+	GConfig->GetString(*DirectLinkCacheSectionAndValue, *DirectLinkCacheSectionAndValue, DirectLinkCacheDirectory, ConfigPath);
+
+	if (DirectLinkCacheDirectory.IsEmpty() || !FPaths::DirectoryExists(DirectLinkCacheDirectory))
 	{
-		DirectLinkCacheDirectory = DefaultDirectLinkCacheDirectory;
-		SaveCacheDirectory( DirectLinkCacheDirectory, false );
+		if (DirectLinkCacheDirectory.IsEmpty() || !IFileManager::Get().MakeDirectory(*DirectLinkCacheDirectory, true))
+		{
+			DirectLinkCacheDirectory = DefaultDirectLinkCacheDirectory;
+		}
+
 	}
+
+	GConfig->SetString(*DirectLinkCacheSectionAndValue, *DirectLinkCacheSectionAndValue, *DirectLinkCacheDirectory, ConfigPath);
 }
 
 void FDirectLinkUI::OpenDirectLinkStreamWindow()

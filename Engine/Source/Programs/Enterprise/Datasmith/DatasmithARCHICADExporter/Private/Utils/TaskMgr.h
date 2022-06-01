@@ -31,14 +31,14 @@ class FTaskMgr
 	// Destructor
 	~FTaskMgr();
 
-	// Task can be added for schedule or run immediatly in the current thread).
+	// Task can be added for schedule or run immediately in the current thread).
 	enum ERunMode
 	{
 		kSchedule,
 		kRunNow
 	};
 
-	// Add task (if inRunNow, the task is run immediatly in current thread)
+	// Add task (if inRunNow, the task is run immediately in current thread)
 	void AddTask(FTask* InTask, ERunMode InMode = kSchedule);
 
 	// Wait until all task have been processed
@@ -46,8 +46,8 @@ class FTaskMgr
 
 	bool EnableThreading(bool InEnable)
 	{
-		bool tmp = bTreadingEnabled;
-		bTreadingEnabled = InEnable;
+		bool tmp = bThreadingEnabled;
+		bThreadingEnabled = InEnable;
 		return tmp;
 	}
 
@@ -62,8 +62,8 @@ class FTaskMgr
 	// Class that implement CTaskMgr thread
 	class FThread;
 
-	// Threads used (≈ nomber of cpu)
-	std::vector< std::unique_ptr< FThread > > Treads;
+	// Threads used (≈ number of cpu)
+	std::vector< std::unique_ptr< FThread > > Threads;
 
 	// Fifo tasks queue
 	std::queue< FTask* > TaskQueue;
@@ -81,7 +81,7 @@ class FTaskMgr
 	volatile int NbTaskWaiting;
 
 	// False: tasks to run in main threads, true: Task run in thread
-	bool bTreadingEnabled;
+	bool bThreadingEnabled;
 };
 
 END_NAMESPACE_UE_AC
