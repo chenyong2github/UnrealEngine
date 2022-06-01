@@ -661,8 +661,12 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 		int32 LoadedNodes = 0;
 		for (TPair<FLidarPointCloudOctree*, TArray<FLidarPointCloudOctreeNode*>>& OctreeStreamingData : OctreeStreamingMap)
 		{
-			OctreeStreamingData.Key->StreamNodes(OctreeStreamingData.Value, CurrentTime);
-			LoadedNodes += OctreeStreamingData.Key->GetNumNodesInUse();
+			FScopeTryLock OctreeLock(&OctreeStreamingData.Key->DataLock);
+			if (OctreeLock.IsLocked())
+			{
+				OctreeStreamingData.Key->StreamNodes(OctreeStreamingData.Value, CurrentTime);
+				LoadedNodes += OctreeStreamingData.Key->GetNumNodesInUse();
+			}
 		}
 
 		SET_DWORD_STAT(STAT_LoadedNodes, LoadedNodes);

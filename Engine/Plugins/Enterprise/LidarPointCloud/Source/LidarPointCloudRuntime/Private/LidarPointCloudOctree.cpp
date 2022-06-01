@@ -865,6 +865,7 @@ FLidarPointCloudOctree::FLidarPointCloudOctree(ULidarPointCloud* Owner)
 
 FLidarPointCloudOctree::~FLidarPointCloudOctree()
 {
+	FScopeLock Lock(&DataLock);
 	Empty(true);
 }
 
