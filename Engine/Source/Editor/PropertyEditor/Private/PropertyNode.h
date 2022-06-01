@@ -454,6 +454,11 @@ public:
 	bool IsEditConst() const;
 
 	/**
+	 * Returns whether this window's property should not be serialized (determined by the CPF_SkipSerialization flag).
+	 */
+	bool ShouldSkipSerialization() const;
+
+	/**
 	 * Gets the full name of this node
 	 * @param PathPlusIndex - return value with full path of node
 	 * @param bWithArrayIndex - If True, adds an array index (where appropriate)

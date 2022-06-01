@@ -420,7 +420,7 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 			// If the values before and after setting the property differ, mark the object dirty.
 			if (FCString::Strcmp(*PreviousValue, *ValueAfterImport) != 0)
 			{
-				if (CurObject)
+				if (CurObject && !InPropertyNode->ShouldSkipSerialization())
 				{
 					CurObject->MarkPackageDirty();
 				}

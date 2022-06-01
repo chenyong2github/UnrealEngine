@@ -1025,6 +1025,11 @@ bool FPropertyNode::IsEditConst() const
 	return bIsEditConst;
 }
 
+bool FPropertyNode::ShouldSkipSerialization() const
+{
+	return Property != nullptr && Property->HasAnyPropertyFlags(CPF_SkipSerialization);
+}
+
 bool FPropertyNode::HasEditCondition() const 
 { 
 	return EditConditionExpression.IsValid();
