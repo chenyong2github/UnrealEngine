@@ -7,6 +7,7 @@
 struct FAssetData;
 class IAssetRegistry;
 class FLocalizationSCC;
+struct FTopLevelAssetPath;
 
 struct FLocalizedAssetSCCUtil
 {

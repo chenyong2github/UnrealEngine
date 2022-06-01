@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Engine/DataTable.h"
+#include "AssetRegistry/AssetData.h"
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #include "Internationalization/StabilizeLocalizationKeys.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
