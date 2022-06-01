@@ -47,6 +47,25 @@ MLDEFORMER_GRAPH_IMPLEMENT_BASICS(
 	TEXT("#include \"/Plugin/MLDeformerFramework/Private/MLDeformerGraphDataInterface.ush\"\n"),
 	TEXT("ML Deformer"))
 
+UMLDeformerComponent* UMLDeformerGraphDataProvider::GetDeformerComponent() const
+{
+	UMLDeformerComponent* DeformerComponent = nullptr;
+	if (ComponentTag != NAME_None)
+	{
+		TArray<UActorComponent*> Components = SkeletalMeshComponent->GetOwner()->GetComponentsByTag(UMLDeformerComponent::StaticClass(), ComponentTag);
+		if (Components.Num())
+		{
+			DeformerComponent = Cast<UMLDeformerComponent>(Components[0]);
+		}
+	}
+	else
+	{
+		DeformerComponent = SkeletalMeshComponent->GetOwner()->FindComponentByClass<UMLDeformerComponent>();
+	}
+	
+	return DeformerComponent;
+}
+
 bool UMLDeformerGraphDataProvider::IsValid() const
 {
 	if (SkeletalMeshComponent == nullptr || SkeletalMeshComponent->MeshObject == nullptr)
@@ -54,7 +73,7 @@ bool UMLDeformerGraphDataProvider::IsValid() const
 		return false;
 	}
 	
-	UMLDeformerComponent* DeformerComponent = SkeletalMeshComponent->GetOwner()->FindComponentByClass<UMLDeformerComponent>();
+	UMLDeformerComponent* DeformerComponent = GetDeformerComponent();
 	if (DeformerComponent == nullptr || DeformerComponent->GetDeformerAsset() == nullptr)
 	{
 		return false;
