@@ -156,7 +156,7 @@ bool FUdpDeserializedMessageDetails::DeserializeV10(FUdpDeserializedMessage& Des
 		MessageReader << MessageType;
 
 		// @todo gmp: cache message types for faster lookup
-		DeserializedMessage.TypeInfo = UClass::TryFindTypeSlowSafe<UScriptStruct>(MessageType.ToString());
+		DeserializedMessage.TypeInfo = FindFirstObjectSafe<UScriptStruct>(*MessageType.ToString(), EFindFirstObjectOptions::EnsureIfAmbiguous);
 
 		if (!DeserializedMessage.TypeInfo.IsValid(false, true))
 		{
@@ -242,7 +242,7 @@ bool FUdpDeserializedMessageDetails::DeserializeV11_15(FUdpDeserializedMessage& 
 		MessageReader << MessageType;
 
 		// @todo gmp: cache message types for faster lookup
-		DeserializedMessage.TypeInfo = UClass::TryFindTypeSlowSafe<UScriptStruct>(MessageType.ToString());
+		DeserializedMessage.TypeInfo = FindFirstObjectSafe<UScriptStruct>(*MessageType.ToString(), EFindFirstObjectOptions::EnsureIfAmbiguous);
 
 		if (!DeserializedMessage.TypeInfo.IsValid(false, true))
 		{
