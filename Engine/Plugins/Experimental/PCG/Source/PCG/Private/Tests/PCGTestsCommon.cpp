@@ -27,7 +27,22 @@ namespace PCGTestsCommon
 	UPCGPointData* CreatePointData()
 	{
 		UPCGPointData* SinglePointData = CreateEmptyPointData();
+
+		check(SinglePointData);
+
 		SinglePointData->GetMutablePoints().Emplace();
+
+		return SinglePointData;
+	}
+
+	UPCGPointData* CreatePointData(const FVector& InLocation)
+	{
+		UPCGPointData* SinglePointData = CreatePointData();
+
+		check(SinglePointData);
+		check(SinglePointData->GetMutablePoints().Num() == 1);
+
+		SinglePointData->GetMutablePoints()[0].Transform.SetLocation(InLocation);
 
 		return SinglePointData;
 	}
@@ -114,6 +129,12 @@ namespace PCGTestsCommon
 		}
 
 		return Data;
+	}
+
+	bool PointsAreIdentical(const FPCGPoint& FirstPoint, const FPCGPoint& SecondPoint)
+	{
+		// TODO: should do a full point comparison, not only on a positional basis
+		return (FirstPoint.Transform.GetLocation() - SecondPoint.Transform.GetLocation()).SquaredLength() < KINDA_SMALL_NUMBER;
 	}
 }
 

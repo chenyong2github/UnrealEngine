@@ -12,9 +12,8 @@ bool FPCGIntersectionDataBasicTest::RunTest(const FString& Parameters)
 	UPCGPointData* InsidePoint = PCGTestsCommon::CreatePointData();
 	check(InsidePoint->GetPoints().Num() == 1);
 
-	UPCGPointData* OutsidePoint = PCGTestsCommon::CreatePointData();
+	UPCGPointData* OutsidePoint = PCGTestsCommon::CreatePointData(FVector::OneVector * 10000);
 	check(OutsidePoint->GetPoints().Num() == 1);
-	OutsidePoint->GetMutablePoints()[0].Transform.SetLocation(FVector::OneVector * 10000);
 
 	UPCGVolumeData* Volume = PCGTestsCommon::CreateVolumeData(FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector * 100));
 
@@ -43,8 +42,7 @@ bool FPCGIntersectionDataBasicTest::RunTest(const FString& Parameters)
 
 		FPCGPoint SampledPoint;
 		TestTrue("Successful point sampling", Intersection->SamplePoint(Point.Transform, Point.GetLocalBounds(), SampledPoint, nullptr));
-		// TODO: should do a full point comparison, not only on a positional basis
-		TestTrue("Correct sampled point", (Point.Transform.GetLocation() - SampledPoint.Transform.GetLocation()).SquaredLength() < KINDA_SMALL_NUMBER);
+		TestTrue("Correct sampled point", PCGTestsCommon::PointsAreIdentical(Point, SampledPoint));
 
 		// Validate create point data
 		const UPCGPointData* OutputPointData = Intersection->ToPointData(nullptr);
@@ -55,7 +53,7 @@ bool FPCGIntersectionDataBasicTest::RunTest(const FString& Parameters)
 			TestTrue("Valid number of points in ToPoint", OutputPointData->GetPoints().Num() == 1);
 			if (OutputPointData->GetPoints().Num() == 1)
 			{
-				TestTrue("Correct point in ToPoint", (Point.Transform.GetLocation() - OutputPointData->GetPoints()[0].Transform.GetLocation()).SquaredLength() < KINDA_SMALL_NUMBER);
+				TestTrue("Correct point in ToPoint", PCGTestsCommon::PointsAreIdentical(Point, OutputPointData->GetPoints()[0]));
 			}
 		}
 	};
@@ -80,7 +78,7 @@ bool FPCGIntersectionDataBasicTest::RunTest(const FString& Parameters)
 		const FPCGPoint& Point = OutsidePoint->GetPoints()[0];
 
 		FPCGPoint SampledPoint;
-		TestTrue("Unsucessful point sampling", !Intersection->SamplePoint(Point.Transform, Point.GetLocalBounds(), SampledPoint, nullptr));
+		TestTrue("Unsuccessful point sampling", !Intersection->SamplePoint(Point.Transform, Point.GetLocalBounds(), SampledPoint, nullptr));
 
 		// Validate empty point data
 		const UPCGPointData* OutputPointData = Intersection->ToPointData(nullptr);

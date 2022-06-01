@@ -4,6 +4,7 @@
 
 #include "Misc/AutomationTest.h"
 #include "Tests/AutomationCommon.h"
+#include "PCGPoint.h"
 
 class AActor;
 class UPCGPointData;
@@ -23,11 +24,17 @@ namespace PCGTestsCommon
 	UPCGPointData* CreateEmptyPointData();
 	UPCGParamData* CreateEmptyParamData();
 
+	/** Creates a PointData with a single point at the origin */
 	UPCGPointData* CreatePointData();
+	/** Creates a PointData with a single point at the provided location */
+	UPCGPointData* CreatePointData(const FVector& InLocation);
+
 	UPCGPolyLineData* CreatePolyLineData();
 	UPCGSurfaceData* CreateSurfaceData();
 	UPCGVolumeData* CreateVolumeData(const FBox& InBounds = FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector * 100));
 	UPCGPrimitiveData* CreatePrimitiveData();
+
+	bool PointsAreIdentical(const FPCGPoint& FirstPoint, const FPCGPoint& SecondPoint);
 }
 
 class FPCGTestBaseClass : public FAutomationTestBase
