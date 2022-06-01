@@ -98,6 +98,7 @@ FEOSVoiceChatUser::FEOSVoiceChatUser(FEOSVoiceChat& InEOSVoiceChat)
 
 FEOSVoiceChatUser::~FEOSVoiceChatUser()
 {
+	ClearLoginSession();
 }
 
 #pragma region IVoiceChatUser
@@ -1004,7 +1005,7 @@ bool FEOSVoiceChatUser::RemoveLobbyRoom(const FString& LobbyId)
 		if (ensure(ChannelSession))
 		{
 			ChannelSession->JoinState = EChannelJoinState::NotJoined;
-			UnbindChannelCallbacks(*ChannelSession);
+
 			OnVoiceChatChannelExitedDelegate.Broadcast(ChannelSession->ChannelName, FVoiceChatResult::CreateSuccess());
 
 			LoginSession.LobbyIdToChannelName.Remove(ChannelSession->LobbyId);
@@ -1052,11 +1053,6 @@ void FEOSVoiceChatUser::SetHardwareAECEnabled(bool bEnabled)
 {
 	AudioInputOptions.bPlatformAEC = bEnabled;
 	ApplyAudioInputOptions();
-}
-
-FEOSVoiceChatUserWeakPtr FEOSVoiceChatUser::CreateWeakThis()
-{
-	return FEOSVoiceChatUserWeakPtr(AsShared());
 }
 
 bool FEOSVoiceChatUser::IsInitialized()
@@ -1122,7 +1118,11 @@ const FEOSVoiceChatUser::FChannelSession& FEOSVoiceChatUser::GetChannelSession(c
 
 void FEOSVoiceChatUser::RemoveChannelSession(const FString& ChannelName)
 {
-	LoginSession.ChannelSessions.Remove(ChannelName);
+	if (FChannelSession* ChannelSession = LoginSession.ChannelSessions.Find(ChannelName))
+	{
+		UnbindChannelCallbacks(*ChannelSession);
+		LoginSession.ChannelSessions.Remove(ChannelName);
+	}
 }
 
 void FEOSVoiceChatUser::ApplyAudioInputOptions()
@@ -1565,6 +1565,10 @@ void FEOSVoiceChatUser::LogoutInternal(const FOnVoiceChatLogoutCompleteDelegate&
 
 void FEOSVoiceChatUser::ClearLoginSession()
 {
+	for (TPair<FString, FChannelSession> Pair : LoginSession.ChannelSessions)
+	{
+		RemoveChannelSession(Pair.Key);
+	}
 	LoginSession = FLoginSession();
 }
 
@@ -1622,8 +1626,6 @@ void FEOSVoiceChatUser::OnJoinRoom(const EOS_RTC_JoinRoomCallbackInfo* CallbackI
 			else
 			{
 				EOSVOICECHATUSER_LOG(Warning, TEXT("OnJoinRoom ChannelName=[%s] Result=[%s]"), *ChannelName, *LexToString(Result));
-
-				UnbindChannelCallbacks(*ChannelSession);
 
 				ChannelSession->JoinState = EChannelJoinState::NotJoined;
 
@@ -1690,7 +1692,6 @@ void FEOSVoiceChatUser::OnLeaveRoom(const EOS_RTC_LeaveRoomCallbackInfo* Callbac
 		if (Result.IsSuccess())
 		{
 			ChannelSession->JoinState = EChannelJoinState::NotJoined;
-			UnbindChannelCallbacks(*ChannelSession);
 		}
 		else
 		{
@@ -1907,7 +1908,6 @@ void FEOSVoiceChatUser::OnChannelDisconnected(const EOS_RTC_DisconnectedCallback
 		else
 		{
 			ChannelSession->JoinState = EChannelJoinState::NotJoined;
-			UnbindChannelCallbacks(*ChannelSession);
 					
 			OnVoiceChatChannelExitedDelegate.Broadcast(ChannelName, Result);
 

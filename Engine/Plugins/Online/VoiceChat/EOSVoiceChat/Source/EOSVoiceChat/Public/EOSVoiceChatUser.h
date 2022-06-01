@@ -317,7 +317,6 @@ protected:
 	void RtcRegisterUser(const FString& UserId);
 	void RtcUnregisterUser(const FString& UserId);
 	void SetHardwareAECEnabled(bool bEnabled);
-	FEOSVoiceChatUserWeakPtr CreateWeakThis();
     
 	// EOS operation callbacks
 	static void EOS_CALL OnJoinRoomStatic(const EOS_RTC_JoinRoomCallbackInfo* CallbackInfo);

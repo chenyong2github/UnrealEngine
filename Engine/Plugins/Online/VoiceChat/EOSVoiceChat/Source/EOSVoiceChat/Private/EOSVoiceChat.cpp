@@ -409,7 +409,7 @@ void FEOSVoiceChat::ReleaseUser(IVoiceChatUser* User)
 			&& User->IsLoggedIn())
 		{
 			UE_LOG(LogEOSVoiceChat, Log, TEXT("ReleaseUser User=[%p] Logging out"), User);
-			User->Logout(FOnVoiceChatLogoutCompleteDelegate::CreateLambda([this, WeakThis = CreateWeakThis(), User](const FString& PlayerName, const FVoiceChatResult& Result)
+			User->Logout(FOnVoiceChatLogoutCompleteDelegate::CreateLambda([this, WeakThis = AsWeak(), User](const FString& PlayerName, const FVoiceChatResult& Result)
 			{
 				CHECKPIN();
 
@@ -1214,11 +1214,6 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 IEOSPlatformHandlePtr FEOSVoiceChat::EOSPlatformCreate(EOS_Platform_Options& PlatformOptions)
 {
 	return SDKManager.CreatePlatform(PlatformOptions);
-}
-
-FEOSVoiceChatWeakPtr FEOSVoiceChat::CreateWeakThis()
-{
-	return FEOSVoiceChatWeakPtr(AsShared());
 }
 
 const TCHAR* LexToString(FEOSVoiceChat::EConnectionState State)

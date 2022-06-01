@@ -50,10 +50,8 @@ class IEOSSDKManager;
 using IEOSPlatformHandlePtr = TSharedPtr<class IEOSPlatformHandle, ESPMode::ThreadSafe>;
 
 typedef TSharedPtr<class FEOSVoiceChat, ESPMode::ThreadSafe> FEOSVoiceChatPtr;
-typedef TWeakPtr<class FEOSVoiceChat, ESPMode::ThreadSafe> FEOSVoiceChatWeakPtr;
 typedef TSharedPtr<class FEOSVoiceChatUser, ESPMode::ThreadSafe> FEOSVoiceChatUserPtr;
 typedef TSharedRef<class FEOSVoiceChatUser, ESPMode::ThreadSafe> FEOSVoiceChatUserRef;
-typedef TWeakPtr<class FEOSVoiceChatUser, ESPMode::ThreadSafe> FEOSVoiceChatUserWeakPtr;
 
 class FEOSVoiceChat : public TSharedFromThis<FEOSVoiceChat, ESPMode::ThreadSafe>, public IVoiceChat
 {
@@ -229,8 +227,6 @@ protected:
 
 	static int64 StaticInstanceIdCount;
 	int64 InstanceId = StaticInstanceIdCount++;
-
-	FEOSVoiceChatWeakPtr CreateWeakThis();
 
 	friend const TCHAR* LexToString(FEOSVoiceChat::EConnectionState State);
 };
