@@ -116,6 +116,8 @@ TArray<FName> FDataLayerUtils::ResolvedDataLayerInstanceNames(const FWorldPartit
 // For performance reasons, this function assumes that InActorDesc's DataLayerInstanceNames was already resolved.
 TArray<FName> FDataLayerUtils::ResolveRuntimeDataLayerInstanceNames(const FWorldPartitionActorDesc* InActorDesc, const UActorDescContainer* InContainer, bool* bOutIsResultValid)
 {
+	check(InContainer);
+
 	bool bLocalIsSuccess = false;
 	bool& bIsSuccess = bOutIsResultValid ? *bOutIsResultValid : bLocalIsSuccess;
 	bIsSuccess = false;
@@ -127,34 +129,30 @@ TArray<FName> FDataLayerUtils::ResolveRuntimeDataLayerInstanceNames(const FWorld
 		return Result;
 	}
 
-	const UActorDescContainer* Container = InContainer ? InContainer : InActorDesc->GetContainer();
-	if (Container)
+	UWorld* World = InContainer->GetWorld();
+	const UDataLayerSubsystem* DataLayerSubsystem = World ? World->GetSubsystem<UDataLayerSubsystem>() : nullptr;
+	if (DataLayerSubsystem && DataLayerSubsystem->CanResolveDataLayers())
 	{
-		UWorld* World = Container->GetWorld();
-		const UDataLayerSubsystem* DataLayerSubsystem = World ? World->GetSubsystem<UDataLayerSubsystem>() : nullptr;
-		if (DataLayerSubsystem && DataLayerSubsystem->CanResolveDataLayers())
+		bIsSuccess = true;
+		for (FName DataLayerInstanceName : InActorDesc->GetDataLayerInstanceNames())
 		{
-			bIsSuccess = true;
-			for (FName DataLayerInstanceName : InActorDesc->GetDataLayerInstanceNames())
+			const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName);
+			if (DataLayerInstance && DataLayerInstance->IsRuntime())
 			{
-				const UDataLayerInstance* DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceName);
-				if (DataLayerInstance && DataLayerInstance->IsRuntime())
-				{
-					Result.Add(DataLayerInstanceName);
-				}
+				Result.Add(DataLayerInstanceName);
 			}
 		}
-		// Fallback on FWorldDataLayersActorDesc
-		else if (FWorldDataLayersActorDesc* WorldDataLayersActorDesc = FDataLayerUtils::GetWorldDataLayersActorDesc(Container))
+	}
+	// Fallback on FWorldDataLayersActorDesc
+	else if (FWorldDataLayersActorDesc* WorldDataLayersActorDesc = FDataLayerUtils::GetWorldDataLayersActorDesc(InContainer))
+	{
+		bIsSuccess = true;
+		for (FName DataLayerInstanceName : InActorDesc->GetDataLayerInstanceNames())
 		{
-			bIsSuccess = true;
-			for (FName DataLayerInstanceName : InActorDesc->GetDataLayerInstanceNames())
+			const FDataLayerInstanceDesc* DataLayerInstanceDesc = WorldDataLayersActorDesc->GetDataLayerInstanceFromInstanceName(DataLayerInstanceName);
+			if (DataLayerInstanceDesc && (DataLayerInstanceDesc->GetDataLayerType() == EDataLayerType::Runtime))
 			{
-				const FDataLayerInstanceDesc* DataLayerInstanceDesc = WorldDataLayersActorDesc->GetDataLayerInstanceFromInstanceName(DataLayerInstanceName);
-				if (DataLayerInstanceDesc && (DataLayerInstanceDesc->GetDataLayerType() == EDataLayerType::Runtime))
-				{
-					Result.Add(DataLayerInstanceName);
-				}
+				Result.Add(DataLayerInstanceName);
 			}
 		}
 	}

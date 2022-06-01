@@ -57,7 +57,7 @@ public:
 
 	bool IsResaveNeeded() const;
 
-	void ResolveRuntimeDataLayers(const UActorDescContainer* InContainer = nullptr);
+	void ResolveRuntimeDataLayers(const UActorDescContainer* InContainer);
 	void ResolveRuntimeReferences(const UActorDescContainer* InContainer);
 
 	bool operator==(const FWorldPartitionActorDescView& Other) const

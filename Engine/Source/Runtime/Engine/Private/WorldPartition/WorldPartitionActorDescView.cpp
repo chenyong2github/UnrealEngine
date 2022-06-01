@@ -17,11 +17,8 @@ FWorldPartitionActorDescView::FWorldPartitionActorDescView(const FWorldPartition
 	, bIsForcedNonSpatiallyLoaded(false)
 	, bInvalidDataLayers(false)
 	, bInvalidRuntimeGrid(false)
-{
-	ResolveRuntimeDataLayers();
-}
+{}
 
-//The only case where we need to call ResolveRuntimeDataLayers and pass a Container is for the "unsaved actors" case of FWorldPartitionStreamingGenerator
 void FWorldPartitionActorDescView::ResolveRuntimeDataLayers(const UActorDescContainer* InContainer)
 {
 	bool bSuccess = true;
