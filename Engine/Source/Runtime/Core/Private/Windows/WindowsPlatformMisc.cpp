@@ -681,6 +681,19 @@ void FWindowsPlatformMisc::SetGracefulTerminationHandler()
 #endif // !UE_BUILD_SHIPPING && PLATFORM_CPU_X86_FAMILY
 }
 
+static ECrashHandlingType GCrashHandlingType; /* = ECrashHandlingType::Default */
+
+ECrashHandlingType FWindowsPlatformMisc::GetCrashHandlingType()
+{
+	return GCrashHandlingType;
+}
+
+ECrashHandlingType FWindowsPlatformMisc::SetCrashHandlingType(ECrashHandlingType Type)
+{
+	GCrashHandlingType = Type;
+	return GCrashHandlingType;
+}
+
 int32 FWindowsPlatformMisc::GetMaxPathLength()
 {
 	struct FLongPathsEnabled

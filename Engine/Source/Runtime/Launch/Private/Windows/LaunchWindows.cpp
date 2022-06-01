@@ -147,7 +147,7 @@ LAUNCH_API int32 GuardedMainWrapper( const TCHAR* CmdLine )
 			ErrorLevel = GuardedMain( CmdLine );
 		}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-		__except( ReportCrash( GetExceptionInformation() ), EXCEPTION_CONTINUE_SEARCH )
+		__except( FPlatformMisc::GetCrashHandlingType() == ECrashHandlingType::Default ? (ReportCrash( GetExceptionInformation()), EXCEPTION_CONTINUE_SEARCH) : EXCEPTION_CONTINUE_SEARCH )
 		{
 			// Deliberately do nothing but avoid warning C6322: Empty _except block.
 			(void)0;

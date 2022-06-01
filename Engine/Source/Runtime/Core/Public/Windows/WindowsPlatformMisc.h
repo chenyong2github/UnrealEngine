@@ -47,6 +47,8 @@ struct CORE_API FWindowsPlatformMisc
 	static void PlatformPreInit();
 	static void PlatformInit();
 	static void SetGracefulTerminationHandler();
+	static ECrashHandlingType GetCrashHandlingType();
+	static ECrashHandlingType SetCrashHandlingType(ECrashHandlingType);
 	static int32 GetMaxPathLength();
 
 	UE_DEPRECATED(4.21, "void FPlatformMisc::GetEnvironmentVariable(Name, Result, Length) is deprecated. Use FString FPlatformMisc::GetEnvironmentVariable(Name) instead.")

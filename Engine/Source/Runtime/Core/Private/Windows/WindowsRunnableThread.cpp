@@ -79,7 +79,7 @@ uint32 FRunnableThreadWin::GuardedRun()
 			ExitCode = Run();
 		}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-		__except (ReportCrash( GetExceptionInformation() ))
+		__except (FPlatformMisc::GetCrashHandlingType() == ECrashHandlingType::Default ? ReportCrash(GetExceptionInformation()) : EXCEPTION_CONTINUE_SEARCH)
 		{
 			__try
 			{

@@ -55,6 +55,15 @@ enum class EBuildConfiguration : uint8
 };
 
 /**
+ * Controls behaviour for built in crash handling
+ */
+enum class ECrashHandlingType : uint8
+{
+	Default,	/* UE default handling */
+	Disabled,	/* UE doesn't handle crashes on main thread, general workers, rendering thread. */
+};
+
+/**
  * Returns the string representation of the specified EBuildConfiguration value.
  *
  * @param Configuration The string to get the EBuildConfiguration for.
@@ -522,6 +531,17 @@ struct CORE_API FGenericPlatformMisc
 	 */
 	static void SetCrashHandler(void (* CrashHandler)(const FGenericCrashContext& Context)) { }
 
+	/**
+	 * Gets the current crash handling type.
+	 */
+	static ECrashHandlingType GetCrashHandlingType() { return ECrashHandlingType::Default; }
+	
+	/**
+	 * Sets the type of crash handling done by the engine. Returns the new crash handling type. If disabling crash
+	 * handling make sure an alternative is active since threads that crash will just disappear.
+	 */
+	static ECrashHandlingType SetCrashHandlingType(ECrashHandlingType Type) { return ECrashHandlingType::Default; }
+	
 	/**
 	 * Retrieve a environment variable from the system
 	 *

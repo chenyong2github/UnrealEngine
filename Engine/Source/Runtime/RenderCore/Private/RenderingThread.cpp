@@ -526,7 +526,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				RenderingThreadMain( TaskGraphBoundSyncEvent );
 			}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
-			__except(FlushRHILogsAndReportCrash(GetExceptionInformation()))
+			__except (FPlatformMisc::GetCrashHandlingType() == ECrashHandlingType::Default ?
+							FlushRHILogsAndReportCrash(GetExceptionInformation()) : 
+							EXCEPTION_CONTINUE_SEARCH)
 			{
 #if !NO_LOGGING
 				// Dump the error and flush the log. This is the same logging behavior as FWindowsErrorOutputDevice::HandleError which is called in GuardedMain's caller's __except
