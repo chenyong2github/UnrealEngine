@@ -42,7 +42,7 @@ class FCEFBrowserHandler
 public:
 
 	/** Default constructor. */
-	FCEFBrowserHandler(bool InUseTransparency, bool InInterceptLoadRequests, const TArray<FString>& AltRetryDomains = TArray<FString>(), const TArray<FString>& AuthorizationHeaderWhitelistURLS = TArray<FString>());
+	FCEFBrowserHandler(bool InUseTransparency, bool InInterceptLoadRequests, const TArray<FString>& AltRetryDomains = TArray<FString>(), const TArray<FString>& AuthorizationHeaderAllowListURLS = TArray<FString>());
 
 public:
 
@@ -362,7 +362,7 @@ private:
 	uint32 AltRetryDomainIdx = 0;
 
 	/** Domains we allow sending an authorization header too even if the request doesn't otherwise indicate support */
-	TArray<FString> AuthorizationHeaderWhitelistURLS;
+	TArray<FString> AuthorizationHeaderAllowListURLS;
 
 	/** Keep track of URLs we see being loaded and the type of load it is*/
 	TMap<FString, CefRequest::ResourceType> MainFrameLoadTypes;

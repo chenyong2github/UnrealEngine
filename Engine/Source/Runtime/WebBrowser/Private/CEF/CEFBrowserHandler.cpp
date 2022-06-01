@@ -41,12 +41,12 @@ void LogCEFLoad(const FString &Msg, CefRefPtr<CefRequest> Request)
 // Used to force returning custom content instead of performing a request.
 const FString CustomContentMethod(TEXT("X-GET-CUSTOM-CONTENT"));
 
-FCEFBrowserHandler::FCEFBrowserHandler(bool InUseTransparency, bool InInterceptLoadRequests, const TArray<FString>& InAltRetryDomains, const TArray<FString>& InAuthorizationHeaderWhitelistURLS)
+FCEFBrowserHandler::FCEFBrowserHandler(bool InUseTransparency, bool InInterceptLoadRequests, const TArray<FString>& InAltRetryDomains, const TArray<FString>& InAuthorizationHeaderAllowListURLS)
 : bUseTransparency(InUseTransparency), 
 bAllowAllCookies(false),
 bInterceptLoadRequests(InInterceptLoadRequests),
 AltRetryDomains(InAltRetryDomains),
-AuthorizationHeaderWhitelistURLS(InAuthorizationHeaderWhitelistURLS)
+AuthorizationHeaderAllowListURLS(InAuthorizationHeaderAllowListURLS)
 {
 	// should we forcefully allow all cookies to be set rather than filtering a couple store side ones
 	bAllowAllCookies = FParse::Param(FCommandLine::Get(), TEXT("CefAllowAllCookies"));
@@ -899,10 +899,10 @@ bool FCEFBrowserHandler::URLRequestAllowsCredentials(const FString& URL) const
 	if (MainFrameLoadTypes.Find(URL) != nullptr)
 		return true;
 
-	// check the explicit whitelist also
-	for (const FString& AuthorizationHeaderWhitelistURL : AuthorizationHeaderWhitelistURLS)
+	// check the explicit allowlist also
+	for (const FString& AuthorizationHeaderAllowListURL : AuthorizationHeaderAllowListURLS)
 	{
-		if (URL.Contains(AuthorizationHeaderWhitelistURL))
+		if (URL.Contains(AuthorizationHeaderAllowListURL))
 		{
 			return true;
 		}

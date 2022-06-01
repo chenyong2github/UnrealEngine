@@ -552,11 +552,11 @@ TSharedPtr<IWebBrowserWindow> FWebBrowserSingleton::CreateBrowserWindow(const FC
 			BrowserSettings.windowless_frame_rate = BrowserFrameRate;
 		}
 
-		TArray<FString> AuthorizationHeaderWhitelistURLS;
-		GConfig->GetArray(TEXT("Browser"), TEXT("AuthorizationHeaderWhitelistURLS"), AuthorizationHeaderWhitelistURLS, GEngineIni);
+		TArray<FString> AuthorizationHeaderAllowListURLS;
+		GConfig->GetArray(TEXT("Browser"), TEXT("AuthorizationHeaderAllowListURLS"), AuthorizationHeaderAllowListURLS, GEngineIni);
 
 		// WebBrowserHandler implements browser-level callbacks.
-		CefRefPtr<FCEFBrowserHandler> NewHandler(new FCEFBrowserHandler(WindowSettings.bUseTransparency, WindowSettings.bInterceptLoadRequests ,WindowSettings.AltRetryDomains, AuthorizationHeaderWhitelistURLS));
+		CefRefPtr<FCEFBrowserHandler> NewHandler(new FCEFBrowserHandler(WindowSettings.bUseTransparency, WindowSettings.bInterceptLoadRequests ,WindowSettings.AltRetryDomains, AuthorizationHeaderAllowListURLS));
 
 		CefRefPtr<CefRequestContext> RequestContext = nullptr;
 		if (WindowSettings.Context.IsSet())
