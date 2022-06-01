@@ -471,6 +471,11 @@ class UClass* UGameplayStatics::GetObjectClass(const UObject* Object)
 	return Object ? Object->GetClass() : nullptr;
 }
 
+bool UGameplayStatics::ObjectIsA(const UObject* Object, TSubclassOf<UObject> ObjectClass)
+{
+	return (Object && ObjectClass) ? Object->IsA(ObjectClass) : false;
+}
+
 float UGameplayStatics::GetGlobalTimeDilation(const UObject* WorldContextObject)
 {
 	UWorld* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);

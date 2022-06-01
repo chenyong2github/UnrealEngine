@@ -336,6 +336,13 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	static class UClass *GetObjectClass(const UObject *Object);
 
 	/**
+	 * Returns whether or not the object passed in is of (or inherits from) the class type.
+	 * @return True if the object is of (or inherits from) the class type.
+	 */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IsA"), Category = "Utilities")
+	static bool ObjectIsA(const UObject* Object, TSubclassOf<UObject> ObjectClass);
+
+	/**
 	 * Gets the current global time dilation.
 	 * @return Current time dilation.
 	 */
