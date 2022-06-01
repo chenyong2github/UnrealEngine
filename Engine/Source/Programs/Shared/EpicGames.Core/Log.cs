@@ -1337,7 +1337,7 @@ namespace EpicGames.Core
 					numCommonChars++;
 				}
 
-				if (!AllowStatusUpdates && numCommonChars < _statusText.Length)
+				if (!AllowStatusUpdates && numCommonChars < _statusText.Length && _statusText.Length > 0)
 				{
 					// Prevent writing backspace characters if the console doesn't support it
 					Console.WriteLine();
