@@ -1720,7 +1720,8 @@ namespace UnrealGameSync
 				}
 				foreach (string TamperedFile in TamperedFiles)
 				{
-					if (Context.ClobberFiles[TamperedFile])
+					bool bShouldClobber = (Context.Options & WorkspaceUpdateOptions.Clobber) != 0 || Context.ClobberFiles[TamperedFile];
+					if (bShouldClobber)
 					{
 						List<PerforceResponse<SyncRecord>> Response = await Perforce.TrySyncAsync(SyncOptions.Force, -1, TamperedFile, CancellationToken).ToListAsync();
 						if (!Response.Succeeded())
