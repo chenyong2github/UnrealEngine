@@ -23,7 +23,9 @@ bool FMVVMBindPropertiesDetailView::IsSupported(const FOnGenerateGlobalRowExtens
 		return false;
 	}
 
-	if (!InArgs.PropertyHandle->GetOuterBaseClass()->IsChildOf(UWidget::StaticClass()))
+	// only display for UWidgets
+	const UClass* OuterBaseClass = InArgs.PropertyHandle->GetOuterBaseClass();
+	if (OuterBaseClass == nullptr || !OuterBaseClass->IsChildOf(UWidget::StaticClass()))
 	{
 		return false;
 	}
