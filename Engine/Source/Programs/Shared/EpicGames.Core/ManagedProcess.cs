@@ -1108,7 +1108,7 @@ namespace EpicGames.Core
 				}
 
 				// Read more data into the buffer
-				int numBytesRead = await ReadAsync(_buffer, _bufferPos, _buffer.Length - _bufferPos, cancellationToken);
+				int numBytesRead = await ReadAsync(_buffer, _bufferLen, _buffer.Length - _bufferLen, cancellationToken);
 				if (numBytesRead == 0)
 				{
 					string? line = null;
