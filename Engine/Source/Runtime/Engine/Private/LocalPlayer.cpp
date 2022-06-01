@@ -1721,12 +1721,7 @@ void ULocalPlayer::AddReferencedObjects(UObject* InThis, FReferenceCollector& Co
 
 bool ULocalPlayer::IsPrimaryPlayer() const
 {
-	if (UWorld* World = GetWorld())
-	{
-		ULocalPlayer* const PrimaryPlayer = GetOuterUEngine()->GetFirstGamePlayer(World);
-		return (this == PrimaryPlayer);
-	}
-	return false;
+	return GetLocalPlayerIndex() == 0;
 }
 
 void ULocalPlayer::CleanupViewState()
