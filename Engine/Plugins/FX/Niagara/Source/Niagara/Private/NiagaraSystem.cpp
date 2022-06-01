@@ -359,8 +359,10 @@ void UNiagaraSystem::UpdateSystemAfterLoad()
 	bFullyLoaded = true;
 
 #if WITH_EDITORONLY_DATA
-	if (SystemSpawnScript && !GetOutermost()->bIsCookedForEditor)
+	if (SystemSpawnScript && SystemUpdateScript && !GetOutermost()->bIsCookedForEditor)
 	{
+		SystemSpawnScript->ConditionalPostLoad();
+		SystemUpdateScript->ConditionalPostLoad();
 		ensure(SystemSpawnScript->GetLatestSource() != nullptr);
 		ensure(SystemSpawnScript->GetLatestSource() == SystemUpdateScript->GetLatestSource());
 		SystemSpawnScript->GetLatestSource()->OnChanged().AddUObject(this, &UNiagaraSystem::GraphSourceChanged);
