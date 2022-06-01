@@ -429,8 +429,17 @@ namespace P4VUtils
 			}
 
 
-			// so we don't need to run SetupDotnet.sh every time we run a tool, point to the executing dotnet, assuming it will be usable later
-			FileReference DotNetLocation = new FileReference(Environment.ProcessPath!);
+			FileReference DotNetLocation;
+			if (OperatingSystem.IsWindows())
+			{
+				DotNetLocation = FileReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.ProgramFiles)!, "dotnet", "dotnet.exe");
+			}
+			else
+			{
+				// so we don't need to run SetupDotnet.sh every time we run a tool, point to the executing dotnet, assuming it will be usable later
+				DotNetLocation = new FileReference(Environment.ProcessPath!);
+			}
+
 			FileReference AssemblyLocation = new FileReference(Assembly.GetExecutingAssembly().GetOriginalLocation());
 
 			XmlElement? Root = Document.SelectSingleNode("CustomToolDefList") as XmlElement;
