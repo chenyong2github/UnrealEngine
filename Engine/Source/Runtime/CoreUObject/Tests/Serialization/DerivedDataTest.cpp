@@ -237,6 +237,7 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		CHECK(Response.GetSize(Requests[5]) == HalfSize);
 	}
 
+#if !PLATFORM_MAC
 	SECTION("CacheValue")
 	{
 		constexpr uint64 HalfSize = 4 * 1024;
@@ -306,6 +307,7 @@ TEST_CASE("CoreUObject::Serialization::DerivedData", "[CoreUObject][Serializatio
 		CHECK(Response.GetSize(Requests[4]) == HalfSize);
 		CHECK(Response.GetSize(Requests[5]) == HalfSize);
 	}
+#endif // !PLATFORM_MAC
 #endif // WITH_EDITORONLY_DATA
 }
 
