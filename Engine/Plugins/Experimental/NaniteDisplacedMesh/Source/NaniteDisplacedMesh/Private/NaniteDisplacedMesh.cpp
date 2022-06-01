@@ -436,6 +436,8 @@ void UNaniteDisplacedMesh::PostEditChangeProperty(FPropertyChangedEvent& Propert
 	// Synchronously build the new data. This calls InitResources.
 	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 	CacheDerivedData(RunningPlatform);
+
+	NotifyOnRebuild();
 }
 
 void UNaniteDisplacedMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
@@ -463,6 +465,21 @@ void UNaniteDisplacedMesh::ClearAllCachedCookedPlatformData()
 	CacheTasksByKeyHash.Empty();
 	DataByPlatformKeyHash.Empty();
 	Super::ClearAllCachedCookedPlatformData();
+}
+
+void UNaniteDisplacedMesh::RegisterOnRebuild(const FOnRebuild& Delegate)
+{
+	OnRebuild.Add(Delegate);
+}
+
+void UNaniteDisplacedMesh::UnregisterOnRebuild(void* Unregister)
+{
+	OnRebuild.RemoveAll(Unregister);
+}
+
+void UNaniteDisplacedMesh::NotifyOnRebuild()
+{
+	OnRebuild.Broadcast();
 }
 
 FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* TargetPlatform)

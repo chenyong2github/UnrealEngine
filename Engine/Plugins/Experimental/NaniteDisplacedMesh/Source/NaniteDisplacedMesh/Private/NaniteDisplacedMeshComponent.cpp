@@ -6,6 +6,21 @@
 UNaniteDisplacedMeshComponent::UNaniteDisplacedMeshComponent(const FObjectInitializer& Init)
 : Super(Init)
 {
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		BindCallback();
+	}
+#endif
+}
+
+void UNaniteDisplacedMeshComponent::BeginDestroy()
+{
+#if WITH_EDITOR
+	UnbindCallback();
+#endif
+
+	Super::BeginDestroy();
 }
 
 void UNaniteDisplacedMeshComponent::OnRegister()
@@ -43,14 +58,63 @@ FPrimitiveSceneProxy* UNaniteDisplacedMeshComponent::CreateSceneProxy()
 
 #if WITH_EDITOR
 
+static const FName NAME_DisplacedMesh = GET_MEMBER_NAME_CHECKED(UNaniteDisplacedMeshComponent, DisplacedMesh);
+
+void UNaniteDisplacedMeshComponent::PreEditChange(FProperty* PropertyAboutToChange)
+{
+	if (GIsEditor)
+	{
+		const FName PropertyName = PropertyAboutToChange ? PropertyAboutToChange->GetFName() : NAME_None;
+		if (PropertyName == NAME_DisplacedMesh)
+		{
+			UnbindCallback();
+		}
+	}
+
+	Super::PreEditChange(PropertyAboutToChange);
+}
+
 void UNaniteDisplacedMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (GIsEditor)
+	{
+		const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+		
+		if (PropertyName == NAME_DisplacedMesh)
+		{
+			BindCallback();
+		}
+	}
 }
 
 void UNaniteDisplacedMeshComponent::PostEditUndo()
 {
 	Super::PostEditUndo();
+}
+
+void UNaniteDisplacedMeshComponent::OnRebuild()
+{
+	MarkRenderStateDirty();
+}
+
+void UNaniteDisplacedMeshComponent::UnbindCallback()
+{
+	if (DisplacedMesh)
+	{
+		DisplacedMesh->UnregisterOnRebuild(this);
+	}
+}
+
+void UNaniteDisplacedMeshComponent::BindCallback()
+{
+	if (DisplacedMesh)
+	{
+		DisplacedMesh->RegisterOnRebuild(
+			UNaniteDisplacedMesh::FOnRebuild::CreateUObject(this, &UNaniteDisplacedMeshComponent::OnRebuild)
+		);
+	}
 }
 
 #endif

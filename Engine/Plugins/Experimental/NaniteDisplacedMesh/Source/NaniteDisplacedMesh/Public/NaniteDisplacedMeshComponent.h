@@ -20,6 +20,7 @@ class NANITEDISPLACEDMESH_API UNaniteDisplacedMeshComponent : public UStaticMesh
 
 public:
 	UNaniteDisplacedMeshComponent(const FObjectInitializer& Init);
+	virtual void BeginDestroy() override;
 
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	virtual void OnRegister() override;
@@ -29,11 +30,18 @@ public:
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 
 #if WITH_EDITOR
+	virtual void PreEditChange(FProperty* PropertyAboutToChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
+
+	void OnRebuild();
 #endif
 
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Displacement)
 	TObjectPtr<class UNaniteDisplacedMesh> DisplacedMesh;
+
+private:
+	void UnbindCallback();
+	void BindCallback();
 };

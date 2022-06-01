@@ -192,6 +192,17 @@ private:
 	FIoHash DataKeyHash;
 	TMap<FIoHash, TUniquePtr<FNaniteData>> DataByPlatformKeyHash;
 	TMap<FIoHash, TPimplPtr<FNaniteBuildAsyncCacheTask>> CacheTasksByKeyHash;
+
+	DECLARE_MULTICAST_DELEGATE(FOnNaniteDisplacedMeshRebuild);
+	FOnNaniteDisplacedMeshRebuild OnRebuild;
+#endif
+
+public:
+#if WITH_EDITOR
+	typedef FOnNaniteDisplacedMeshRebuild::FDelegate FOnRebuild;
+	void RegisterOnRebuild(const FOnRebuild& Delegate);
+	void UnregisterOnRebuild(void* Unregister);
+	void NotifyOnRebuild();
 #endif
 };
 
