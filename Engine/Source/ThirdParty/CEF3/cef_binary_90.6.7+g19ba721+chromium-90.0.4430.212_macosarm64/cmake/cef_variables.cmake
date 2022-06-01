@@ -331,6 +331,10 @@ if(OS_MAC)
     set(CMAKE_OSX_ARCHITECTURES "x86_64")
   elseif(PROJECT_ARCH STREQUAL "arm64")
     set(CMAKE_OSX_ARCHITECTURES "arm64")
+  # EPIC MOD START - Support Universal binary generation
+  elseif(PROJECT_ARCH STREQUAL "arm64;x86_64")
+    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64")
+  # EPIC MOD END - Support Universal binary generation
   else()
     set(CMAKE_OSX_ARCHITECTURES "i386")
   endif()
