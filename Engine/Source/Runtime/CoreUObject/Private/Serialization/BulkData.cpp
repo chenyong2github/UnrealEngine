@@ -1305,7 +1305,6 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 				Ar << ElementCount;
 
 				BulkMeta.SetSize(ElementCount * ElementSize);
-				BulkMeta.SetSizeOnDisk(BulkMeta.GetSize());
 
 				// Allocate bulk data.
 				void* DataBuffer = ReallocateData(GetBulkDataSize());
@@ -1364,7 +1363,7 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 #if !USE_RUNTIME_BULKDATA
 			check(MetaResource.ElementCount <= 0 || BulkMeta.GetSizeOnDisk() == MetaResource.SizeOnDisk);
 #endif
-			check(MetaResource.Offset <= 0 || BulkMeta.GetOffset() == MetaResource.Offset);
+			check(BulkMeta.GetOffset() == MetaResource.Offset);
 			check(BulkMeta.GetFlags() == MetaResource.Flags);
 
 			if (GIsEditor)
@@ -1946,7 +1945,9 @@ bool FBulkData::TryLoadDataIntoMemory(FIoBuffer Dest)
 #if WITH_EDITOR
 	// BulkDatas in the same package share AttachedAr that they get from the LinkerLoad of the package.
 	// To make calls to those BulkDatas threadsafe, we need to not use AttachedAr when called multithreaded.
-	if (IsInGameThread())
+	// Also don't use the attached archive when loading from the editor domain and the bulk data is referenced
+	// from the original .uasset file
+	if (IsInGameThread() && IsInExternalResource() == false)
 	{
 		if (FArchive* Ar = AttachedAr)
 		{
