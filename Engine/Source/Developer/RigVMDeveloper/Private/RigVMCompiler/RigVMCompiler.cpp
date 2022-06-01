@@ -681,6 +681,11 @@ void URigVMCompiler::TraverseExpression(const FRigVMExprAST* InExpr, FRigVMCompi
 			TraverseArray(InExpr->To<FRigVMArrayExprAST>(), WorkData);
 			break;
 		}
+		case FRigVMExprAST::EType::InvokeEntry:
+		{
+			TraverseInvokeEntry(InExpr->To<FRigVMInvokeEntryExprAST>(), WorkData);
+			break;
+		}
 		default:
 		{
 			ensure(false);
@@ -723,7 +728,6 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 	}
 	else
 	{
-		// todo: define the entry in the VM
 		TArray<FRigVMOperand> Operands;
 		for (FRigVMExprAST* ChildExpr : *InExpr)
 		{
@@ -1735,9 +1739,27 @@ void URigVMCompiler::TraverseArray(const FRigVMArrayExprAST* InExpr, FRigVMCompi
 	}
 }
 
+void URigVMCompiler::TraverseInvokeEntry(const FRigVMInvokeEntryExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
+{
+	URigVMInvokeEntryNode* InvokeEntryNode = Cast<URigVMInvokeEntryNode>(InExpr->GetNode());
+	if(!ValidateNode(InvokeEntryNode))
+	{
+		return;
+	}
+
+	if (WorkData.bSetupMemory)
+	{
+		return;
+	}
+	else
+	{
+		WorkData.VM->GetByteCode().AddInvokeEntryOp(InvokeEntryNode->GetEntryName());
+	}
+}
+
 void URigVMCompiler::AddCopyOperator(const FRigVMCopyOp& InOp, const FRigVMAssignExprAST* InAssignExpr,
-	const FRigVMVarExprAST* InSourceExpr, const FRigVMVarExprAST* InTargetExpr,  FRigVMCompilerWorkData& WorkData,
-	bool bDelayCopyOperations)
+                                     const FRigVMVarExprAST* InSourceExpr, const FRigVMVarExprAST* InTargetExpr,  FRigVMCompilerWorkData& WorkData,
+                                     bool bDelayCopyOperations)
 {
 	if(bDelayCopyOperations)
 	{

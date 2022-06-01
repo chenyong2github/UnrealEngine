@@ -1807,3 +1807,30 @@ public:
 	UPROPERTY()
 	bool bFromFunctionToCollapseNode;
 };
+
+/**
+ * An action adding an invoke entry node to the graph.
+ */
+USTRUCT()
+struct FRigVMAddInvokeEntryNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddInvokeEntryNodeAction();
+	FRigVMAddInvokeEntryNodeAction(URigVMInvokeEntryNode* InNode);
+	virtual ~FRigVMAddInvokeEntryNodeAction() {};
+	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMAddInvokeEntryNodeAction::StaticStruct(); }
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FName EntryName;
+	
+	UPROPERTY()
+	FVector2D Position;
+
+	UPROPERTY()
+	FString NodePath;
+};

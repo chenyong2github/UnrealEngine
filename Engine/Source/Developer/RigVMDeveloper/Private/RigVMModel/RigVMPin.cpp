@@ -20,6 +20,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
+#include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 
 #if WITH_EDITOR
 #include "UObject/CoreRedirects.h"
@@ -1216,6 +1217,13 @@ bool URigVMPin::ShowInDetailsPanelOnly() const
 					}
 				}
 			}
+		}
+	}
+	else if(URigVMInvokeEntryNode* InvokeEntryNode = Cast<URigVMInvokeEntryNode>(GetNode()))
+	{
+		if(GetName() == URigVMInvokeEntryNode::EntryName)
+		{
+			return true;
 		}
 	}
 #endif

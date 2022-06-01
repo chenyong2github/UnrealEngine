@@ -14,6 +14,7 @@
 class FRigVMParserAST;
 class FRigVMBlockExprAST;
 class FRigVMEntryExprAST;
+class FRigVMInvokeEntryExprAST;
 class FRigVMCallExternExprAST;
 class FRigVMNoOpExprAST;
 class FRigVMVarExprAST;
@@ -79,6 +80,7 @@ public:
 	{
 		Block,
 		Entry,
+		InvokeEntry,
 		CallExtern,
 		NoOp,
 		Var,
@@ -311,6 +313,17 @@ FORCEINLINE const FRigVMEntryExprAST* FRigVMExprAST::To() const
 {
 	ensure(IsA(EType::Entry));
 	return (const FRigVMEntryExprAST*)this;
+}
+
+// specialized cast for type checking
+// for a InvokeEntry / FRigVMInvokeEntryExprAST expression
+// will raise if types are not compatible
+// @return this expression cast to FRigVMInvokeEntryExprAST
+template<>
+FORCEINLINE const FRigVMInvokeEntryExprAST* FRigVMExprAST::To() const
+{
+	ensure(IsA(EType::InvokeEntry));
+	return (const FRigVMInvokeEntryExprAST*)this;
 }
 
 // specialized cast for type checking
@@ -584,6 +597,46 @@ protected:
 	// default constructor (protected so that only parser can access it)
 	FRigVMEntryExprAST(const FRigVMASTProxy& InNodeProxy)
 		: FRigVMNodeExprAST(EType::Entry, InNodeProxy)
+	{}
+
+private:
+
+	friend class FRigVMParserAST;
+};
+
+/*
+ * An abstract syntax tree entry expression represents an invocation
+ * of an entry point.
+ */
+class RIGVMDEVELOPER_API FRigVMInvokeEntryExprAST : public FRigVMNodeExprAST
+{
+public:
+
+	// virtual destructor
+	virtual ~FRigVMInvokeEntryExprAST() {}
+
+	// disable copy constructor
+	FRigVMInvokeEntryExprAST(const FRigVMInvokeEntryExprAST&) = delete;
+
+	// overload of the type checking mechanism
+	virtual bool IsA(EType InType) const override
+	{
+		if(FRigVMNodeExprAST::IsA(InType))
+		{
+			return true;
+		}
+		return InType == EType::InvokeEntry;
+	};
+
+	// returns the name of the entry / event
+	// @return the name of the entry / event
+	FName GetEventName() const;
+
+protected:
+
+	// default constructor (protected so that only parser can access it)
+	FRigVMInvokeEntryExprAST(const FRigVMASTProxy& InNodeProxy)
+		: FRigVMNodeExprAST(EType::InvokeEntry, InNodeProxy)
 	{}
 
 private:

@@ -14,6 +14,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMArrayNode.h"
+#include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMModel/RigVMController.h"
 #include "RigVMCore/RigVMExecuteContext.h"
@@ -975,6 +976,10 @@ FRigVMExprAST* FRigVMParserAST::CreateExpressionForNode(const FRigVMASTProxy& In
 		else if (InNodeProxy.IsA<URigVMArrayNode>())
 		{
 			NodeExpr = MakeExpr<FRigVMArrayExprAST>(InNodeProxy);
+		}
+		else if (InNodeProxy.IsA<URigVMInvokeEntryNode>())
+		{
+			NodeExpr = MakeExpr<FRigVMInvokeEntryExprAST>(InNodeProxy);
 		}
 		else
 		{

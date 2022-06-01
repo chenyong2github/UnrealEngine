@@ -654,6 +654,15 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 					*ContainedGraphName));
 		}
 	}
+	else if (const URigVMInvokeEntryNode* InvokeEntryNode = Cast<URigVMInvokeEntryNode>(Node))
+	{
+		// add_invoke_entry_node(entry_name, position=[0.0, 0.0], node_name='', undo=True)
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_invoke_entry_node('%s', %s, '%s')"),
+						*GraphName,
+						*InvokeEntryNode->GetEntryName().ToString(),
+						*RigVMPythonUtils::Vector2DToPythonString(EnumNode->GetPosition()),
+						*NodeName));
+	}
 	else if (Node->IsA<URigVMFunctionEntryNode>() || Node->IsA<URigVMFunctionReturnNode>())
 	{
 		
@@ -12559,6 +12568,80 @@ URigVMArrayNode* URigVMController::AddArrayNodeFromObjectPath(ERigVMOpCode InOpC
 	}
 
 	return AddArrayNode(InOpCode, InCPPType, CPPTypeObject, InPosition, InNodeName, bSetupUndoRedo, bPrintPythonCommand);
+}
+
+URigVMInvokeEntryNode* URigVMController::AddInvokeEntryNode(const FName& InEntryName, const FVector2D& InPosition,
+	const FString& InNodeName, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if (!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if (!bIsTransacting && !IsGraphEditable())
+	{
+		return nullptr;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	if (Graph->IsA<URigVMFunctionLibrary>())
+	{
+		ReportError(TEXT("Cannot add invoke entry nodes to function library graphs."));
+		return nullptr;
+	}
+
+	FString Name = GetValidNodeName(InNodeName.IsEmpty() ? FString(TEXT("InvokeEntryNode")) : InNodeName);
+	URigVMInvokeEntryNode* Node = NewObject<URigVMInvokeEntryNode>(Graph, *Name);
+	Node->Position = InPosition;
+
+	UScriptStruct* ExecuteContextStruct = Graph->GetExecuteContextStruct();
+	URigVMPin* ExecutePin = NewObject<URigVMPin>(Node, FRigVMStruct::ExecuteContextName);
+	ExecutePin->CPPType = ExecuteContextStruct->GetStructCPPName();
+	ExecutePin->CPPTypeObject = ExecuteContextStruct;
+	ExecutePin->CPPTypeObjectPath = *ExecutePin->CPPTypeObject->GetPathName();
+	ExecutePin->Direction = ERigVMPinDirection::IO;
+	AddNodePin(Node, ExecutePin);
+
+	URigVMPin* EntryNamePin = NewObject<URigVMPin>(Node, *URigVMInvokeEntryNode::EntryName);
+	EntryNamePin->CPPType = RigVMTypeUtils::FNameType;
+	EntryNamePin->Direction = ERigVMPinDirection::Input;
+	EntryNamePin->bIsConstant = true;
+	EntryNamePin->DefaultValue = InEntryName.ToString();
+	EntryNamePin->CustomWidgetName = TEXT("EntryName");
+	AddNodePin(Node, EntryNamePin);
+
+	Graph->Nodes.Add(Node);
+
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
+
+	FRigVMControllerCompileBracketScope CompileScope(this);
+
+	Notify(ERigVMGraphNotifType::NodeAdded, Node);
+	Notify(ERigVMGraphNotifType::VariableAdded, Node);
+
+	if (bSetupUndoRedo)
+	{
+		FRigVMAddInvokeEntryNodeAction Action(Node);
+		Action.Title = FString::Printf(TEXT("Add Invoke %s Entry"), *InEntryName.ToString());
+		ActionStack->AddAction(Action);
+	}
+
+	if (bPrintPythonCommand)
+	{
+		TArray<FString> Commands = GetAddNodePythonCommands(Node);
+		for (const FString& Command : Commands)
+		{
+			RigVMPythonUtils::Print(GetGraphOuterName(), 
+								FString::Printf(TEXT("%s"), *Command));
+		}
+	}
+
+	return Node;
 }
 
 void URigVMController::ForEveryPinRecursively(URigVMPin* InPin, TFunction<void(URigVMPin*)> OnEachPinFunction)

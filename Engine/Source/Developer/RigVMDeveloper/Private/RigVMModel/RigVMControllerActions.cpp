@@ -736,7 +736,7 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	else if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMAddVariableNodeAction(VariableNode), InController);
-		URigVMPin* ValuePin = VariableNode->FindPin(TEXT("Value"));
+		URigVMPin* ValuePin = VariableNode->GetValuePin();
 		InverseAction.AddAction(FRigVMSetPinDefaultValueAction(ValuePin, ValuePin->GetDefaultValue()), InController);
 	}
 	else if (URigVMCommentNode* CommentNode = Cast<URigVMCommentNode>(InNode))
@@ -782,6 +782,12 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 	else if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMImportNodeFromTextAction(LibraryNode, InController), InController);
+	}
+	else if (URigVMInvokeEntryNode* InvokeEntryNode = Cast<URigVMInvokeEntryNode>(InNode))
+	{
+		InverseAction.AddAction(FRigVMAddInvokeEntryNodeAction(InvokeEntryNode), InController);
+		URigVMPin* EntryNamePin = InvokeEntryNode->GetEntryNamePin();
+		InverseAction.AddAction(FRigVMSetPinDefaultValueAction(EntryNamePin, EntryNamePin->GetDefaultValue()), InController);
 	}
 	else if (InNode->IsA<URigVMFunctionEntryNode>() || InNode->IsA<URigVMFunctionReturnNode>())
 	{
@@ -2221,4 +2227,38 @@ bool FRigVMPromoteNodeAction::Redo(URigVMController* InController)
 	}
 	const FName FunctionRefNodeName = InController->PromoteCollapseNodeToFunctionReferenceNode(*LibraryNodePath, false, false);
 	return FunctionRefNodeName.ToString() == LibraryNodePath;
+}
+
+FRigVMAddInvokeEntryNodeAction::FRigVMAddInvokeEntryNodeAction()
+	: EntryName(NAME_None)
+	, Position(FVector2D::ZeroVector)
+	, NodePath()
+{
+}
+
+FRigVMAddInvokeEntryNodeAction::FRigVMAddInvokeEntryNodeAction(URigVMInvokeEntryNode* InNode)
+	: EntryName(InNode->GetEntryName())
+	, Position(InNode->GetPosition())
+	, NodePath(InNode->GetNodePath())
+{
+}
+
+bool FRigVMAddInvokeEntryNodeAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RemoveNodeByName(*NodePath, false);
+}
+
+bool FRigVMAddInvokeEntryNodeAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	if (URigVMInvokeEntryNode* Node = InController->AddInvokeEntryNode(EntryName, Position, NodePath, false))
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
 }
