@@ -414,11 +414,6 @@ void AWaterLandscapeBrush::BlueprintWaterBodyChanged_Implementation(AActor* Acto
 	BlueprintWaterBodyChanged_Native(Actor);
 }
 
-void AWaterLandscapeBrush::SetWaterBodyCache(AWaterBody* WaterBody, UObject* InCache)
-{
-	SetActorCache(WaterBody, InCache);
-}
-
 void AWaterLandscapeBrush::SetActorCache(AActor* InActor, UObject* InCache)
 {
 	if (!InCache)
@@ -431,11 +426,6 @@ void AWaterLandscapeBrush::SetActorCache(AActor* InActor, UObject* InCache)
 }
 
 
-UObject* AWaterLandscapeBrush::GetWaterBodyCache(AWaterBody* WaterBody, TSubclassOf<UObject> CacheClass) const
-{
-	return GetActorCache(WaterBody, CacheClass);
-}
-
 UObject* AWaterLandscapeBrush::GetActorCache(AActor* InActor, TSubclassOf<UObject> CacheClass) const
 {
 	UObject* const* ValuePtr = Cache.Find(TWeakObjectPtr<AActor>(InActor));
@@ -444,11 +434,6 @@ UObject* AWaterLandscapeBrush::GetActorCache(AActor* InActor, TSubclassOf<UObjec
 		return *ValuePtr;
 	}
 	return nullptr;
-}
-
-void AWaterLandscapeBrush::ClearWaterBodyCache(AWaterBody* WaterBody)
-{
-	ClearActorCache(WaterBody);
 }
 
 void AWaterLandscapeBrush::ClearActorCache(AActor* InActor)

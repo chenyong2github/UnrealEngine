@@ -33,7 +33,7 @@ protected:
 
 	virtual const TCHAR* GetWaterSpriteTextureName() const override;
 
-	virtual bool IsIconVisible() const override { return false; }
+	virtual bool IsIconVisible() const override;
 #endif // WITH_EDITOR
 
 protected:

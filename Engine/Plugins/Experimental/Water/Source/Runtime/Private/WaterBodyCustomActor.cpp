@@ -37,13 +37,6 @@ void AWaterBodyCustom::PostLoad()
 #endif // WITH_EDITORONLY_DATA
 }
 
-#if WITH_EDITOR
-bool AWaterBodyCustom::IsIconVisible() const
-{
-	return (WaterBodyComponent->GetWaterMeshOverride() == nullptr);
-}
-#endif // WITH_EDITOR
-
 // ----------------------------------------------------------------------------------
 
 UDEPRECATED_CustomMeshGenerator::UDEPRECATED_CustomMeshGenerator(const FObjectInitializer& ObjectInitializer)

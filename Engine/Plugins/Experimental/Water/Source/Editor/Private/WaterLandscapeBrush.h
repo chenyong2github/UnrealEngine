@@ -46,14 +46,17 @@ public:
 	void BlueprintWaterBodyChanged(AActor* Actor);
 	virtual void BlueprintWaterBodyChanged_Native(AActor* Actor) {}
 
+	UE_DEPRECATED(4.27, "Use SetActorCache instead")
 	UFUNCTION(BlueprintCallable, Category = "Cache", meta = (DeprecatedFunction, DeprecationMessage="Use SetActorCache instead"))
-	void SetWaterBodyCache(AWaterBody* WaterBody, UObject* Cache);
+	void SetWaterBodyCache(AWaterBody* WaterBody, UObject* InCache) {}
 	
+	UE_DEPRECATED(4.27, "Use GetActorCache instead")
 	UFUNCTION(BlueprintCallable, Category = "Cache", meta = (DeterminesOutputType = "CacheClass", DeprecatedFunction, DeprecationMessage = "Use GetActorCache instead"))
-	UObject* GetWaterBodyCache(AWaterBody* WaterBody, TSubclassOf<UObject> CacheClass) const;
+	UObject* GetWaterBodyCache(AWaterBody* WaterBody, TSubclassOf<UObject> CacheClass) const { return nullptr; }
 
+	UE_DEPRECATED(4.27, "Use ClearActorCache instead")
 	UFUNCTION(BlueprintCallable, Category = "Cache", meta = (DeprecatedFunction, DeprecationMessage = "Use ClearActorCache instead"))
-	void ClearWaterBodyCache(AWaterBody* WaterBody);
+	void ClearWaterBodyCache(AWaterBody* WaterBody) {}
 
 	UFUNCTION(BlueprintCallable, Category = "Cache")
 	void SetActorCache(AActor* InActor, UObject* InCache);

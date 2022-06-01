@@ -19,13 +19,6 @@ struct WATER_API FWaterIconHelper
 	{
 		return EnsureSpriteComponentCreated_Internal(Actor, ActorType::StaticClass(), InIconTextureName);
 	}
-	
-	template <typename ActorType>
-	UE_DEPRECATED(4.27, "void EnsureSpriteComponentCreated(Actor, InIconTextureName, InDisplayName) is deprecated. Use EnsureSpriteComponentCreated(Actor, InIconTextureName) instead.")
-	static UBillboardComponent* EnsureSpriteComponentCreated(ActorType* Actor, const TCHAR* InIconTextureName, const FText& InDisplayName)
-	{
-		return EnsureSpriteComponentCreated_Internal(Actor, ActorType::StaticClass(), InIconTextureName);
-	}
 
 	/** Updates the texture/scale/position of the actor's billboard component, if any */
 	static void UpdateSpriteComponent(AActor* Actor, UTexture2D* InTexture);

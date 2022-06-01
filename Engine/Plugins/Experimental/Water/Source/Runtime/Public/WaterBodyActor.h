@@ -136,158 +136,50 @@ protected:
 
 public:
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual bool HasWaves() const final { return WaterBodyComponent->HasWaves(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual bool IsWaveSupported() const final { return WaterBodyComponent->IsWaveSupported(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const final { return WaterBodyComponent->GetCollisionComponents(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual FVector GetCollisionExtents() const final { return WaterBodyComponent->GetCollisionExtents(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual void SetHeightOffset(float InHeightOffset) final { WaterBodyComponent->SetHeightOffset(InHeightOffset); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual float GetHeightOffset() const final { return WaterBodyComponent->GetHeightOffset(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	void SetWaterMeshOverride(UStaticMesh* InMesh) { WaterBodyComponent->SetWaterMeshOverride(InMesh); }
-
 	UFUNCTION(BlueprintCallable, Category = Rendering, meta = (DeprecatedFunction))
 	virtual UMaterialInstanceDynamic* GetRiverToLakeTransitionMaterialInstance() final { return WaterBodyComponent->GetRiverToLakeTransitionMaterialInstance(); }
 
+	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	UFUNCTION(BlueprintCallable, Category = Rendering, meta = (DeprecatedFunction))
 	virtual UMaterialInstanceDynamic* GetRiverToOceanTransitionMaterialInstance() final { return WaterBodyComponent->GetRiverToOceanTransitionMaterialInstance(); }
 
+	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	UFUNCTION(BlueprintCallable, Category = Rendering, meta = (DeprecatedFunction))
 	void SetWaterMaterial(UMaterialInterface* InMaterial) { WaterBodyComponent->SetWaterMaterial(InMaterial); }
 
+	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	UFUNCTION(BlueprintCallable, Category = Rendering, meta = (DeprecatedFunction))
 	UMaterialInstanceDynamic* GetWaterMaterialInstance() { return WaterBodyComponent->GetWaterMaterialInstance(); }
 
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	void SetUnderwaterPostProcessMaterial(UMaterialInterface* InMaterial) { WaterBodyComponent->SetUnderwaterPostProcessMaterial(InMaterial); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	bool ShouldGenerateWaterMeshTile() const { return WaterBodyComponent->ShouldGenerateWaterMeshTile(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	FVector GetWaterNavCollisionOffset() const { return WaterBodyComponent->GetWaterNavCollisionOffset(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	int32 GetOverlapMaterialPriority() const { return WaterBodyComponent->OverlapMaterialPriority; }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	float GetChannelDepth() const { return WaterBodyComponent->CurveSettings.ChannelDepth; }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	void AddExclusionVolume(AWaterBodyExclusionVolume* InExclusionVolume) { WaterBodyComponent->AddExclusionVolume(InExclusionVolume); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	void RemoveExclusionVolume(AWaterBodyExclusionVolume* InExclusionVolume) { WaterBodyComponent->RemoveExclusionVolume(InExclusionVolume); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	FPostProcessVolumeProperties GetPostProcessProperties() const { return WaterBodyComponent->GetPostProcessProperties(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual FWaterBodyQueryResult QueryWaterInfoClosestToWorldLocation(const FVector& InWorldLocation, EWaterBodyQueryFlags InQueryFlags, const TOptional<float>& InSplineInputKey = TOptional<float>()) const
-	{
-		return WaterBodyComponent->QueryWaterInfoClosestToWorldLocation(InWorldLocation, InQueryFlags, InSplineInputKey);
-	}
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	float FindInputKeyClosestToWorldLocation(const FVector& WorldLocation) const { return WaterBodyComponent->FindInputKeyClosestToWorldLocation(WorldLocation); }
-
 	UFUNCTION(BlueprintCallable, Category = WaterBody, meta = (DeprecatedFunction))
 	virtual float GetWaterVelocityAtSplineInputKey(float InKey) const { return WaterBodyComponent->GetWaterVelocityAtSplineInputKey(InKey); }
-	
+
+	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	UFUNCTION(BlueprintCallable, Category = WaterBody, meta = (DeprecatedFunction))
 	virtual FVector GetWaterVelocityVectorAtSplineInputKey(float InKey) const { return WaterBodyComponent->GetWaterVelocityVectorAtSplineInputKey(InKey); }
-	
+
+	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	UFUNCTION(BlueprintCallable, Category = WaterBody, meta = (DeprecatedFunction))
 	virtual float GetAudioIntensityAtSplineInputKey(float InKey) const { return WaterBodyComponent->GetAudioIntensityAtSplineInputKey(InKey); }
 
+	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	UFUNCTION(BlueprintCallable, Category = Water, meta = (DeprecatedFunction))
 	TArray<AWaterBodyIsland*> GetIslands() const { return WaterBodyComponent->GetIslands(); }
 
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	bool ContainsIsland(TLazyObjectPtr<AWaterBodyIsland> Island) const { return WaterBodyComponent->ContainsIsland(Island); }
-
 	UFUNCTION(BlueprintCallable, Category = Water, meta = (DeprecatedFunction))
 	TArray<AWaterBodyExclusionVolume*> GetExclusionVolumes() const { return WaterBodyComponent->GetExclusionVolumes(); }
 
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	bool ContainsExclusionVolume(TLazyObjectPtr<AWaterBodyExclusionVolume> InExclusionVolume) const { return WaterBodyComponent->ContainsExclusionVolume(InExclusionVolume); }
-
 	UFUNCTION(BlueprintCallable, Category=Water, meta = (DeprecatedFunction))
 	void OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged = false) { return WaterBodyComponent->OnWaterBodyChanged(bShapeOrPositionChanged, bWeightmapSettingsChanged); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	bool GetWaveInfoAtPosition(const FVector& InPosition, float InWaterDepth, bool bInSimpleWaves, FWaveInfo& InOutWaveInfo) const
-	{
-		return WaterBodyComponent->GetWaveInfoAtPosition(InPosition, InWaterDepth, bInSimpleWaves, InOutWaveInfo);
-	}
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual void SetDynamicParametersOnMID(UMaterialInstanceDynamic* InMID) final { WaterBodyComponent->SetDynamicParametersOnMID(InMID); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	bool IsWorldLocationInExclusionVolume(const FVector& InWorldLocation) const { return WaterBodyComponent->IsWorldLocationInExclusionVolume(InWorldLocation); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual void UpdateMaterialInstances() final {}
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual float GetWaveReferenceTime() const final { return WaterBodyComponent->GetWaveReferenceTime(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual ALandscapeProxy* FindLandscape() const final { return WaterBodyComponent->FindLandscape(); }
 
 #if WITH_EDITOR
 	UE_DEPRECATED(5.1, "Moved to WaterBodyComponent")
 	virtual bool IsIconVisible() const { return WaterBodyComponent->IsIconVisible(); }
 #endif // WITH_EDITOR
-
 protected:
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual bool IsBodyDynamic() const { return WaterBodyComponent->IsBodyDynamic(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual bool IsFlatSurface() const { return WaterBodyComponent->IsFlatSurface(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual bool IsWaterSplineClosedLoop() const final { return WaterBodyComponent->IsWaterSplineClosedLoop(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual bool IsHeightOffsetSupported() const final { return WaterBodyComponent->IsHeightOffsetSupported(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual void BeginUpdateWaterBody() final {}
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual void UpdateWaterBody(bool bWithExclusionVolumes) final { WaterBodyComponent->UpdateWaterBody(bWithExclusionVolumes); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual float GetConstantSurfaceZ() const final { return WaterBodyComponent->GetConstantSurfaceZ(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual float GetConstantDepth() const final { return WaterBodyComponent->GetConstantDepth(); };
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual void GetSurfaceMinMaxZ(float& OutMinZ, float& OutMaxZ) const final { return WaterBodyComponent->GetSurfaceMinMaxZ(OutMinZ, OutMaxZ); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual float GetWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime, FVector& OutNormal) const final { return WaterBodyComponent->GetWaveHeightAtPosition(InPosition, InWaterDepth, InTime, OutNormal); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual float GetSimpleWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime) const final { return WaterBodyComponent->GetSimpleWaveHeightAtPosition(InPosition, InWaterDepth, InTime); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual float GetWaveAttenuationFactor(const FVector& InPosition, float InWaterDepth) const final { return WaterBodyComponent->GetWaveAttenuationFactor(InPosition, InWaterDepth); }
-
 	friend class UWaterBodyComponent;
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -361,5 +253,5 @@ protected:
 
 	UPROPERTY()
 	float ShapeDilation_DEPRECATED = 4096.0f;
-#endif
+#endif // WITH_EDITORONLY_DATA
 };

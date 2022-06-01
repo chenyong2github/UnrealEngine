@@ -6,17 +6,6 @@
 #include "NiagaraDataInterfaceWater.h"
 #include "WaterModule.h"
 
-void UNiagaraWaterFunctionLibrary::SetWaterBody(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, AWaterBody* WaterBody)
-{
-	if (!WaterBody)
-	{
-		UE_LOG(LogWater, Warning, TEXT("WaterBody in \"Set Water Body Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
-		return;
-	}
-
-	SetWaterBodyComponent(NiagaraSystem, OverrideName, WaterBody->GetWaterBodyComponent());
-}
-
 void UNiagaraWaterFunctionLibrary::SetWaterBodyComponent(UNiagaraComponent* NiagaraSystem, const FString& OverrideName, UWaterBodyComponent* WaterBodyComponent)
 {
 	if (!NiagaraSystem)

@@ -131,9 +131,15 @@ TArray<TSharedRef<FTokenizedMessage>> UWaterBodyCustomComponent::CheckWaterBodyS
 
 	return StatusMessages;
 }
+
 const TCHAR* UWaterBodyCustomComponent::GetWaterSpriteTextureName() const
 {
 	return TEXT("/Water/Icons/WaterBodyCustomSprite");
+}
+
+bool UWaterBodyCustomComponent::IsIconVisible() const
+{
+	return (GetWaterMeshOverride() == nullptr);
 }
 #endif // WITH_EDITOR
 

@@ -30,10 +30,6 @@ class WATER_API AWaterBodyCustom : public AWaterBody
 protected:
 	virtual void PostLoad() override;
 
-#if WITH_EDITOR
-	virtual bool IsIconVisible() const override;
-#endif
-
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(NonPIEDuplicateTransient)
 	UDEPRECATED_CustomMeshGenerator* CustomGenerator_DEPRECATED;
