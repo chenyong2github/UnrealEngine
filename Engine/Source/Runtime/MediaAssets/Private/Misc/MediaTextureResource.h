@@ -166,7 +166,7 @@ protected:
 	/**
 	 * Create/update output render target as needed
 	 */
-	void CreateOutputRenderTarget(const FIntPoint & InDim, EPixelFormat InPixelFormat, bool bInSRGB, const FLinearColor & InClearColor, uint8 InNumMips);
+	void CreateOutputRenderTarget(const FIntPoint & InDim, EPixelFormat InPixelFormat, bool bInSRGB, const FLinearColor & InClearColor, uint8 InNumMips, bool bNeedsUAVSupport);
 
 	/**
 	 * Caches next available sample from queue in MediaTexture owner to keep single consumer access

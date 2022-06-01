@@ -16,8 +16,9 @@ public:
 	enum EConverterInfoFlags
 	{
 		ConverterInfoFlags_Default = 0,
-		ConverterInfoFlags_WillCreateOutputTexture = 1 << 0,
-		ConverterInfoFlags_PreprocessOnly = 1 << 1,
+		ConverterInfoFlags_WillCreateOutputTexture	= 1 << 0,
+		ConverterInfoFlags_PreprocessOnly			= 1 << 1,
+		ConverterInfoFlags_NeedUAVOutputTexture		= 1 << 2,
 	};
 
 	struct FConversionHints
