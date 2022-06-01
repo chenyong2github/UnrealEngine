@@ -131,14 +131,7 @@ bool UAssetPlacementEdMode::IsSelectionAllowed(AActor* InActor, bool bInSelectio
 	}
 
 	// Otherwise, need to be in selection tool for selection to be allowed
-	if (!bIsInSelectionTool)
-	{
-		return false;
-	}
-
-	// And we need to have a valid palette item.
-	FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor);
-	return SettingsObjectAsPlacementSettings->DoesActivePaletteSupportElement(ActorHandle);
+	return bIsInSelectionTool;
 }
 
 void UAssetPlacementEdMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
