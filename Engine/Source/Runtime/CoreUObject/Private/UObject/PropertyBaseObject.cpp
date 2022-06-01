@@ -487,7 +487,7 @@ UObject* FObjectPropertyBase::FindImportedObject( const FProperty* Property, UOb
 		{
 			// RobM: We should delete this path
 			// match any object of the correct class who shares the same name regardless of package path
-			Result = StaticFindFirstObject(ObjectClass, Text, EFindFirstObjectOptions::EnsureIfAmbiguous);
+			Result = StaticFindFirstObject(ObjectClass, Text, EFindFirstObjectOptions::None, ELogVerbosity::Warning, TEXT("FindImportedObject"));
 			// disallow class default subobjects here while importing defaults
 			if (Result != nullptr && (PortFlags & PPF_ParsingDefaultProperties) && Result->IsTemplate(RF_ClassDefaultObject))
 			{
