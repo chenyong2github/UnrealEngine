@@ -43,6 +43,16 @@ void AAudioGameplayVolume::SetEnabled(bool bEnable)
 	}
 }
 
+void AAudioGameplayVolume::OnListenerEnter_Implementation()
+{
+	OnListenerEnterEvent.Broadcast();
+}
+
+void AAudioGameplayVolume::OnListenerExit_Implementation()
+{
+	OnListenerExitEvent.Broadcast();
+}
+
 #if WITH_EDITOR
 void AAudioGameplayVolume::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {

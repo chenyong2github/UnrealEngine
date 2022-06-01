@@ -5,6 +5,9 @@
 #include "GameFramework/Volume.h"
 #include "AudioGameplayVolume.generated.h"
 
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAudioGameplayVolumeEvent);
+
 // Forward Declarations 
 class UAudioGameplayVolumeProxyComponent;
 class UAudioGameplayVolumeSubsystem;
@@ -41,12 +44,18 @@ public:
 	void SetEnabled(bool bEnable);
 
 	/** Blueprint event for listener enter */
-	UFUNCTION(BlueprintImplementableEvent, Category = Events)
+	UFUNCTION(BlueprintNativeEvent, Category = Events)
 	void OnListenerEnter();
 
 	/** Blueprint event for listener exit */
-	UFUNCTION(BlueprintImplementableEvent, Category = Events)
+	UFUNCTION(BlueprintNativeEvent, Category = Events)
 	void OnListenerExit();
+
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FAudioGameplayVolumeEvent OnListenerEnterEvent;
+
+	UPROPERTY(BlueprintAssignable, Category = Events)
+	FAudioGameplayVolumeEvent OnListenerExitEvent;
 
 	//~ Begin UObject Interface
 #if WITH_EDITOR
