@@ -487,6 +487,15 @@ namespace UnrealGameSync
 			}
 		}
 
+		public void SetLastSyncState(WorkspaceUpdateResult Result, WorkspaceUpdateContext Context, string StatusMessage)
+		{
+			LastSyncChangeNumber = Context.ChangeNumber;
+			LastSyncResult = Result;
+			LastSyncResultMessage = StatusMessage;
+			LastSyncTime = DateTime.UtcNow;
+			LastSyncDurationSeconds = (int)(LastSyncTime.Value - Context.StartTime).TotalSeconds;
+		}
+
 		static object SyncRoot = new object();
 
 		public void Save()

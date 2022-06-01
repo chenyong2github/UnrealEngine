@@ -651,6 +651,9 @@ namespace UnrealGameSyncCmd
 				{
 					Logger.LogError("{Message} (Result: {Result})", Message, Result);
 				}
+
+				State.SetLastSyncState(Result, UpdateContext, Message);
+				State.Save();
 			}
 		}
 

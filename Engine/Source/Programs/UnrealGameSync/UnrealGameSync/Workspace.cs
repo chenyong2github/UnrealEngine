@@ -149,11 +149,7 @@ namespace UnrealGameSync
 			{
 				WorkspaceUpdateContext Context = Update.Context;
 
-				State.LastSyncChangeNumber = Context.ChangeNumber;
-				State.LastSyncResult = Result;
-				State.LastSyncResultMessage = StatusMessage;
-				State.LastSyncTime = DateTime.UtcNow;
-				State.LastSyncDurationSeconds = (int)(State.LastSyncTime.Value - Context.StartTime).TotalSeconds;
+				State.SetLastSyncState(Result, Context, StatusMessage);
 				State.Save();
 
 				OnUpdateComplete?.Invoke(Context, Result, StatusMessage);
