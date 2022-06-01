@@ -80,6 +80,8 @@ public:
 	FORCEINLINE void SetRenderingEnabled(bool bInEnabled) { bRenderingEnabled = bInEnabled; }
 	FORCEINLINE bool HasAnyMotionBlurEnabled() const { return bAnyMotionBlurEnabled; }
 
+	FORCEINLINE int32 GetNumRenderers() const { return RendererDrawOrder.Num(); }
+
 	FVector3f LWCRenderTile = FVector3f::ZeroVector;
 private:
 	/** Emitter Renderers in the order they appear in the emitters. To be accessed by the GameThread */

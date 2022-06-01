@@ -226,6 +226,7 @@ void FNiagaraSceneProxy::ReleaseRenderThreadResources()
 	{
 		CustomUB.Value.ReleaseResource();
 	}
+	CustomUniformBuffers.Empty();
 }
 
 // FPrimitiveSceneProxy interface.
@@ -248,6 +249,10 @@ void FNiagaraSceneProxy::OnTransformChanged()
 	{
 		CustomUB.Value.ReleaseResource();
 	}
+
+	const int32 ExpectedRendererCount = RenderData ? RenderData->GetNumRenderers() : 0;
+	const int32 CurrentUBCount = CustomUniformBuffers.Num();
+	CustomUniformBuffers.Empty(FMath::Min(ExpectedRendererCount, CurrentUBCount));
 }
 
 FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* View) const
