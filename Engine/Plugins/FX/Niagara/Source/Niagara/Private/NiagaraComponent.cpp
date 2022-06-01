@@ -2029,14 +2029,12 @@ bool UNiagaraComponent::ResolveOwnerAllowsScalability(bool bRegister)
 		}
 		else
 		{
-			if (!IsActive() && bIsCulledByScalability)
+			if (bIsCulledByScalability)
 			{
 				ActivateInternal(false, true);
 			}
-			else
-			{
-				UnregisterWithScalabilityManager();
-			}
+
+			UnregisterWithScalabilityManager();
 		}
 	}
 	return bOwnerAllowsScalabiltiy;
