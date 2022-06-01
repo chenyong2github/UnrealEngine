@@ -8,7 +8,10 @@
 #include "Stats/Stats2.h"
 
 DECLARE_CYCLE_STAT(TEXT("PropertyConditions PostGarbageCollect"), STAT_PropertyConditions_PostGarbageCollect, STATGROUP_Net);
-	
+
+namespace UE::Net::Private
+{
+
 FNetPropertyConditionManager::FNetPropertyConditionManager()
 {
 	PostGarbageCollectHandle = FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FNetPropertyConditionManager::PostGarbageCollect);
@@ -104,3 +107,5 @@ void FNetPropertyConditionManager::LogMemory(FOutputDevice& Ar)
 
 	Ar.Logf(TEXT("  Property Condition Memory: %u"), CountBytes);
 }
+
+}; // UE::Net::Private

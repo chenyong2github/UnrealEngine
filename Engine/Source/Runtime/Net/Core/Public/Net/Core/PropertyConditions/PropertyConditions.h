@@ -8,6 +8,9 @@
 
 class FRepChangedPropertyTracker;
 
+namespace UE::Net::Private
+{
+
 class NETCORE_API FNetPropertyConditionManager
 {
 public:
@@ -31,3 +34,5 @@ private:
 
 	TMap<FObjectKey, TSharedPtr<FRepChangedPropertyTracker>> PropertyTrackerMap;
 };
+
+}; // UE::Net::Private

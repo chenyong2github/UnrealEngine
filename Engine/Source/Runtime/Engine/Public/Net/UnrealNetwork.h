@@ -302,16 +302,16 @@ static FProperty* GetReplicatedProperty(const UClass* CallingClass, const UClass
 	OutActiveState.SetActiveState((uint16)c::ENetFields_Private::v, active); \
 }
 
-#define SET_REPCUSTOMCONDITION_ACTIVE_FAST(c,v,active) \
+#define DOREPCUSTOMCONDITION_SETACTIVE_FAST(c,v,active) \
 { \
-	FNetPropertyConditionManager::Get().SetPropertyActive(this, (uint16)c::ENetFields_Private::v, active); \
+	UE::Net::Private::FNetPropertyConditionManager::Get().SetPropertyActive(this, (uint16)c::ENetFields_Private::v, active); \
 }
 
-#define SET_REPCUSTOMCONDITION_ACTIVE_FAST_STATIC_ARRAY(c,v,active) \
+#define DOREPCUSTOMCONDITION_SETACTIVE_FAST_STATIC_ARRAY(c,v,active) \
 { \
 	for (int32 i = 0; i < (int32)c::EArrayDims_Private::v; ++i) \
 	{ \
-		FNetPropertyConditionManager::Get().SetPropertyActive(this, (uint16)c::ENetFields_Private::v##_STATIC_ARRAY + i, active); \
+		UE::Net::Private::FNetPropertyConditionManager::Get().SetPropertyActive(this, (uint16)c::ENetFields_Private::v##_STATIC_ARRAY + i, active); \
 	} \
 }
 

@@ -3225,7 +3225,7 @@ bool UNetDriver::HandlePushModelMemCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 
 bool UNetDriver::HandlePropertyConditionsMemCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
-	FNetPropertyConditionManager::Get().LogMemory(Ar);
+	UE::Net::Private::FNetPropertyConditionManager::Get().LogMemory(Ar);
 	return true;
 }
 #endif // !UE_BUILD_SHIPPING
@@ -3481,7 +3481,7 @@ void UNetDriver::NotifyActorDestroyed( AActor* ThisActor, bool IsSeamlessTravel 
 
 void UNetDriver::NotifySubObjectDestroyed(UObject* SubObject)
 {
-	FNetPropertyConditionManager::Get().NotifyObjectDestroyed(SubObject);
+	UE::Net::Private::FNetPropertyConditionManager::Get().NotifyObjectDestroyed(SubObject);
 }
 
 void UNetDriver::RemoveNetworkActor(AActor* Actor)
@@ -6061,12 +6061,12 @@ TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropert
 {
 	check(IsServer() || MaySendProperties());
 
-	return FNetPropertyConditionManager::Get().FindOrCreatePropertyTracker(Obj);
+	return UE::Net::Private::FNetPropertyConditionManager::Get().FindOrCreatePropertyTracker(Obj);
 }
 
 TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindRepChangedPropertyTracker(UObject* Obj)
 {
-	return FNetPropertyConditionManager::Get().FindPropertyTracker(Obj);
+	return UE::Net::Private::FNetPropertyConditionManager::Get().FindPropertyTracker(Obj);
 }
 
 TSharedPtr<FRepLayout> UNetDriver::GetObjectClassRepLayout( UClass * Class )
