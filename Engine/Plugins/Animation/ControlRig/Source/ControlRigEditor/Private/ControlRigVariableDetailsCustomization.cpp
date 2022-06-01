@@ -22,7 +22,7 @@ TSharedPtr<IDetailCustomization> FControlRigVariableDetailsCustomization::MakeIn
 	{
 		if (UBlueprint* Blueprint = Cast<UBlueprint>((*Objects)[0]))
 		{
-			if (Blueprint->ParentClass->IsChildOf(UControlRig::StaticClass()))
+			if (Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(UControlRig::StaticClass()))
 			{
 				return MakeShareable(new FControlRigVariableDetailsCustomization(InBlueprintEditor, Blueprint));
 			}

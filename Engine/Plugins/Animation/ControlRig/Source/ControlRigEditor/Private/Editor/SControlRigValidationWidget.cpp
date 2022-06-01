@@ -116,7 +116,8 @@ void SControlRigValidationWidget::Construct(const FArguments& InArgs, UControlRi
 	ClassItems.Reset();
 	for (TObjectIterator<UClass> ClassIterator; ClassIterator; ++ClassIterator)
 	{
-		if (ClassIterator->IsChildOf(UControlRigValidationPass::StaticClass()) && !ClassIterator->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+		const bool bIsValidationPassChild = (*ClassIterator) && ClassIterator->IsChildOf(UControlRigValidationPass::StaticClass());
+		if (bIsValidationPassChild && !ClassIterator->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
 		{
 			ClassItems.Add(MakeShared<FControlRigValidationPassItem>(*ClassIterator));
 		}

@@ -166,7 +166,7 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 
 			for (USCS_Node* Node : ActorBlueprintNodes)
 			{
-				if (Node->ComponentClass->IsChildOf(USkeletalMeshComponent::StaticClass()))
+				if (Node->ComponentClass && Node->ComponentClass->IsChildOf(USkeletalMeshComponent::StaticClass()))
 				{
 					if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Node->GetActualComponentTemplate(ActorBlueprintGeneratedClass)))
 					{
@@ -546,7 +546,14 @@ TSharedRef<ISequencerSection> FControlRigParameterTrackEditor::MakeSectionInterf
 
 void FControlRigParameterTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
-	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) || ObjectClass->IsChildOf(AActor::StaticClass()) || ObjectClass->IsChildOf(UChildActorComponent::StaticClass()))
+	if(!ObjectClass)
+	{
+		return;
+	}
+	
+	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) ||
+		ObjectClass->IsChildOf(AActor::StaticClass()) ||
+		ObjectClass->IsChildOf(UChildActorComponent::StaticClass()))
 	{
 		const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
 		UObject* BoundObject = nullptr;
@@ -674,15 +681,18 @@ public:
 	}
 	bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
 	{
-		const bool bChildOfObjectClass = InClass->IsChildOf(UControlRig::StaticClass());
-		const bool bMatchesFlags = !InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract);
-		const bool bNotNative = !InClass->IsNative();
-
-		if (bChildOfObjectClass && bMatchesFlags && bNotNative)
+		if(InClass)
 		{
-			FAssetData AssetData(InClass);
-			return MatchesFilter(AssetData);
+			const bool bChildOfObjectClass = InClass->IsChildOf(UControlRig::StaticClass());
+			const bool bMatchesFlags = !InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract);
+			const bool bNotNative = !InClass->IsNative();
 
+			if (bChildOfObjectClass && bMatchesFlags && bNotNative)
+			{
+				FAssetData AssetData(InClass);
+				return MatchesFilter(AssetData);
+
+			}
 		}
 		return false;
 	}
@@ -1135,7 +1145,14 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 
 void FControlRigParameterTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
-	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) || ObjectClass->IsChildOf(AActor::StaticClass()) || ObjectClass->IsChildOf(UChildActorComponent::StaticClass()))
+	if(!ObjectClass)
+	{
+		return;
+	}
+	
+	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) ||
+		ObjectClass->IsChildOf(AActor::StaticClass()) ||
+		ObjectClass->IsChildOf(UChildActorComponent::StaticClass()))
 	{
 		const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
 		UObject* BoundObject = nullptr;
@@ -2189,7 +2206,8 @@ bool FControlRigParameterTrackEditor::MatchesContext(const FTransactionContext& 
 		UObject* Object = TransactionObjectPair.Key;
 		while (Object != nullptr)
 		{
-			if (Object->GetClass()->IsChildOf(UMovieSceneControlRigParameterSection::StaticClass()))
+			const UClass* ObjectClass = Object->GetClass();
+			if (ObjectClass && ObjectClass->IsChildOf(UMovieSceneControlRigParameterSection::StaticClass()))
 			{
 				UMovieSceneControlRigParameterSection* Section = Cast< UMovieSceneControlRigParameterSection>(Object);
 				if (Section)

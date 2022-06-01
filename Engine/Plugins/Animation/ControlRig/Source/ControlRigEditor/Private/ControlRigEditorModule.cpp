@@ -524,15 +524,17 @@ TSharedRef< SWidget > FControlRigEditorModule::GenerateAnimationMenu(TWeakPtr<IA
 									}
 									bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs) override
 									{
-										const bool bChildOfObjectClass = InClass->IsChildOf(UControlRig::StaticClass());
-										const bool bMatchesFlags = !InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract);
-										const bool bNotNative = !InClass->IsNative();
-
-										if (bChildOfObjectClass && bMatchesFlags && bNotNative)
+										if (InClass)
 										{
-											FAssetData AssetData(InClass);
-											return MatchesFilter(AssetData);
+											const bool bChildOfObjectClass = InClass->IsChildOf(UControlRig::StaticClass());
+											const bool bMatchesFlags = !InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_HideDropDown | CLASS_Deprecated | CLASS_Abstract);
+											const bool bNotNative = !InClass->IsNative();
 
+											if (bChildOfObjectClass && bMatchesFlags && bNotNative)
+											{
+												FAssetData AssetData(InClass);
+												return MatchesFilter(AssetData);
+											}
 										}
 										return false;
 									}
@@ -1020,7 +1022,7 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 	for(const FRigVMFunction& Function : FRigVMRegistry::Get().GetFunctions())
 	{
 		UScriptStruct* Struct = Function.Struct;
-		if (!Struct->IsChildOf(FRigUnit::StaticStruct()))
+		if (Struct == nullptr || !Struct->IsChildOf(FRigUnit::StaticStruct()))
 		{
 			continue;
 		}

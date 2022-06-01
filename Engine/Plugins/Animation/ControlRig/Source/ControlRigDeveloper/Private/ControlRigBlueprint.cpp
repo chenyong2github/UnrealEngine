@@ -3038,7 +3038,8 @@ void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UCont
 							// check the material + mesh pins for deprecated control nodes
 							if (URigVMUnitNode* ModelUnitNode = Cast<URigVMUnitNode>(ModelNode))
 							{
-								if (ModelUnitNode->GetScriptStruct()->IsChildOf(FRigUnit_Control::StaticStruct()))
+								const UScriptStruct* ScriptStruct = ModelUnitNode->GetScriptStruct();
+								if (ScriptStruct && ScriptStruct->IsChildOf(FRigUnit_Control::StaticStruct()))
 								{
 									if (Pin->GetName().EndsWith(TEXT(".StaticMesh")) || Pin->GetName().EndsWith(TEXT(".Materials")))
 									{

@@ -31,7 +31,8 @@ public:
 	
 	bool IsChildOf(const UStruct* InStruct) const
 	{
-		return GetWrappedStruct()->IsChildOf(InStruct);
+		const UScriptStruct* WrappedStruct = GetWrappedStruct();
+		return WrappedStruct && WrappedStruct->IsChildOf(InStruct);
 	}
 
 	template<typename T>

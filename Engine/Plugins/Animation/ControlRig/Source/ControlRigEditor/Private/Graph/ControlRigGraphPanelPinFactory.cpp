@@ -104,7 +104,8 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 
 			if (InPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 			{
-				if (Cast<UStruct>(InPin->PinType.PinSubCategoryObject)->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+				const UStruct* Struct = Cast<UStruct>(InPin->PinType.PinSubCategoryObject);
+				if (Struct && Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 				{
 					return SNew(SGraphPinExec, InPin);
 				}

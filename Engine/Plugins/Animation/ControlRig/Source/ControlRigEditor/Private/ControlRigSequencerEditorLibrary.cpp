@@ -149,7 +149,7 @@ static void AcquireSkeletonAndSkelMeshCompFromObject(UObject* BoundObject, USkel
 
 			for (USCS_Node* Node : ActorBlueprintNodes)
 			{
-				if (Node->ComponentClass->IsChildOf(USkeletalMeshComponent::StaticClass()))
+				if (Node->ComponentClass && Node->ComponentClass->IsChildOf(USkeletalMeshComponent::StaticClass()))
 				{
 					USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(Node->GetActualComponentTemplate(ActorBlueprintGeneratedClass));
 					if (SkeletalMeshComp)
