@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DerivedDataLegacyCacheStore.h"
+
 #if WITH_HTTP_DDC_BACKEND
 
 #include "Compression/CompressedBuffer.h"
@@ -10,7 +12,6 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataChunk.h"
-#include "DerivedDataLegacyCacheStore.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValue.h"
 #include "Dom/JsonObject.h"

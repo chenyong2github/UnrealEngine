@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ZenServerInterface.h"
+#include "DerivedDataLegacyCacheStore.h"
 
 #if UE_WITH_ZEN
 
@@ -10,7 +11,6 @@
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataChunk.h"
-#include "DerivedDataLegacyCacheStore.h"
 #include "Http/HttpClient.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
