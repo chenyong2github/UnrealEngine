@@ -200,6 +200,7 @@ struct FSimulationParameters
 		, bGenerateRemovalsData(false)
 		, RemoveOnFractureEnabled(false)
 		, EnableGravity(true)
+		, UseInertiaConditioning(true)
 		, SimulationFilterData()
 		, QueryFilterData()
 		, UserData(nullptr)
@@ -240,6 +241,7 @@ struct FSimulationParameters
 		, Shared(Other.Shared)
 		, RemoveOnFractureEnabled(Other.RemoveOnFractureEnabled)
 		, EnableGravity(Other.EnableGravity)
+		, UseInertiaConditioning(Other.UseInertiaConditioning)
 		, SimulationFilterData(Other.SimulationFilterData)
 		, QueryFilterData(Other.QueryFilterData)
 		, UserData(Other.UserData)
@@ -303,6 +305,7 @@ struct FSimulationParameters
 	bool RemoveOnFractureEnabled;
 	
 	bool EnableGravity;
+	bool UseInertiaConditioning;
 
 	FCollisionFilterData SimulationFilterData;
 	FCollisionFilterData QueryFilterData;

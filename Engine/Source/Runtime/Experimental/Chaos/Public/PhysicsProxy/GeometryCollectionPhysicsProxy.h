@@ -277,6 +277,7 @@ protected:
 		const Chaos::FUniqueIdx* ExistingIndex);
 
 	void SetGravityEnabled(const Chaos::FPBDRigidsSolver& RigidsSolver, bool bEnabled);
+	void EnableInertiaConditioning(const Chaos::FPBDRigidsSolver& RigidsSolver, bool bEnabled);
 	void SetSleepingState(const Chaos::FPBDRigidsSolver& RigidsSolver);
 	void DirtyAllParticles(const Chaos::FPBDRigidsSolver& RigidsSolver);
 	

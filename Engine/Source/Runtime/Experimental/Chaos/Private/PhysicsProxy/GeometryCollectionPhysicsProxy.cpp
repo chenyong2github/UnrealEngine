@@ -756,6 +756,18 @@ void FGeometryCollectionPhysicsProxy::SetGravityEnabled(const Chaos::FPBDRigidsS
 	}
 }
 
+void FGeometryCollectionPhysicsProxy::EnableInertiaConditioning(const Chaos::FPBDRigidsSolver& RigidsSolver, bool bEnabled)
+{
+	Chaos::FPerParticleGravity& GravityForces = RigidsSolver.GetEvolution()->GetGravityForces();
+	for (int32 HandleIdx = 0; HandleIdx < SolverParticleHandles.Num(); ++HandleIdx)
+	{
+		if (Chaos::TPBDRigidParticleHandle<Chaos::FReal, 3>* Handle = SolverParticleHandles[HandleIdx])
+		{
+			Handle->SetInertiaConditioningEnabled(bEnabled);
+		}
+	}
+}
+
 void FGeometryCollectionPhysicsProxy::SetSleepingState(const Chaos::FPBDRigidsSolver& RigidsSolver)
 {
 	for (FClusterHandle* Handle: SolverParticleHandles)
@@ -1111,6 +1123,8 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver
 		{
 			SetSleepingState(*RigidsSolver);
 		}
+
+		EnableInertiaConditioning(*RigidsSolver, Parameters.UseInertiaConditioning);
 
 		// call DirtyParticle to make sure the acceleration structure is up to date with all the changes happening here
 		DirtyAllParticles(*RigidsSolver);
