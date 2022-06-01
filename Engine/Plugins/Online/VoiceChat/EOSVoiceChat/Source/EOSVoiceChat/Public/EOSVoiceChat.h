@@ -14,8 +14,6 @@
 #include "eos_rtc_audio_types.h"
 #include "eos_lobby_types.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogEOSVoiceChat, Log, All);
-
 EOSVOICECHAT_API FVoiceChatResult ResultFromEOSResult(const EOS_EResult EosResult);
 
 EOSVOICECHAT_API const TCHAR* LexToString(EOS_ERTCAudioInputStatus Status);
@@ -45,6 +43,7 @@ public:
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnVoiceChatDataReceivedDelegate, const FString& /* ChannelName */, const FString& /* PlayerName */, TArrayView<const uint8> /* Buffer */);
 
+class FEOSAudioDevicePool;
 class FEOSVoiceChatUser;
 class IEOSSDKManager;
 using IEOSPlatformHandlePtr = TSharedPtr<class IEOSPlatformHandle, ESPMode::ThreadSafe>;
@@ -168,6 +167,8 @@ protected:
 
 	struct FInitSession
 	{
+		FInitSession();
+
 		EInitializationState State = EInitializationState::Uninitialized;
 
 		TArray<FOnVoiceChatUninitializeCompleteDelegate> UninitializeCompleteDelegates;
@@ -178,10 +179,7 @@ protected:
 
 		EOS_NotificationId OnAudioDevicesChangedNotificationId = EOS_INVALID_NOTIFICATIONID;
 
-		int32 DefaultInputDeviceInfoIdx = -1;
-		int32 DefaultOutputDeviceInfoIdx = -1;
-		TArray<FVoiceChatDeviceInfo> CachedInputDeviceInfos;
-		TArray<FVoiceChatDeviceInfo> CachedOutputDeviceInfos;
+		TUniquePtr<FEOSAudioDevicePool> EosAudioDevicePool;
 	};
 	FInitSession InitSession;
 
@@ -190,9 +188,6 @@ protected:
 	void UnbindInitCallbacks();
 	static void EOS_CALL OnAudioDevicesChangedStatic(const EOS_RTCAudio_AudioDevicesChangedCallbackInfo* CallbackInfo);
 	void OnAudioDevicesChanged();
-
-	TArray<FVoiceChatDeviceInfo> GetRtcInputDeviceInfos(int32& OutDefaultDeviceIdx) const;
-	TArray<FVoiceChatDeviceInfo> GetRtcOutputDeviceInfos(int32& OutDefaultDeviceIdx) const;
 
 	// The current state of the connection.
 	enum class EConnectionState

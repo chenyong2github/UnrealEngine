@@ -12,9 +12,11 @@
 #include "Stats/Stats.h"
 
 #include "EOSShared.h"
+#include "EOSVoiceChatLog.h"
 #include "EOSVoiceChatErrors.h"
 #include "EOSVoiceChatModule.h"
 #include "EOSVoiceChatUser.h"
+#include "EOSAudioDevicePool.h"
 #include "IEOSSDKManager.h"
 #include "VoiceChatErrors.h"
 #include "VoiceChatResult.h"
@@ -931,105 +933,17 @@ void FEOSVoiceChat::OnAudioDevicesChangedStatic(const EOS_RTCAudio_AudioDevicesC
 
 void FEOSVoiceChat::OnAudioDevicesChanged()
 {
-	InitSession.CachedInputDeviceInfos = GetRtcInputDeviceInfos(InitSession.DefaultInputDeviceInfoIdx);
-	InitSession.CachedOutputDeviceInfos = GetRtcOutputDeviceInfos(InitSession.DefaultOutputDeviceInfoIdx);
-
-	UE_LOG(LogEOSVoiceChat, Verbose, TEXT("OnAudioDevicesChanged InputDeviceInfos=[%s] DefaultInputDeviceInfoIdx=%d"), *FString::JoinBy(InitSession.CachedInputDeviceInfos, TEXT(", "), &FVoiceChatDeviceInfo::ToDebugString), InitSession.DefaultInputDeviceInfoIdx);
-	UE_LOG(LogEOSVoiceChat, Verbose, TEXT("OnAudioDevicesChanged OutputDeviceInfos=[%s] DefaultOutputDeviceInfoIdx=%d"), *FString::JoinBy(InitSession.CachedOutputDeviceInfos, TEXT(", "), &FVoiceChatDeviceInfo::ToDebugString), InitSession.DefaultOutputDeviceInfoIdx);
-
-	OnVoiceChatAvailableAudioDevicesChangedDelegate.Broadcast();
-}
-
-TArray<FVoiceChatDeviceInfo> FEOSVoiceChat::GetRtcInputDeviceInfos(int32& OutDefaultDeviceIdx) const
-{
-	OutDefaultDeviceIdx = -1;
-	TArray<FVoiceChatDeviceInfo> InputDeviceInfos;
-	EOS_HRTCAudio RTCAudioHandle = EOS_RTC_GetAudioInterface(InitSession.EosRtcInterface);
-
-	EOS_RTCAudio_GetAudioInputDevicesCountOptions CountOptions = {};
-	CountOptions.ApiVersion = EOS_RTCAUDIO_GETAUDIOINPUTDEVICESCOUNT_API_LATEST;
- 	static_assert(EOS_RTCAUDIO_GETAUDIOINPUTDEVICESCOUNT_API_LATEST == 1, "EOS_RTCAudio_GetAudioInputDevicesCountOptions updated, check new fields");
-
-	uint32_t Count = EOS_RTCAudio_GetAudioInputDevicesCount(RTCAudioHandle, &CountOptions);
-
-	for (uint32_t Index = 0; Index < Count; Index++)
+	InitSession.EosAudioDevicePool->RefreshAudioDevices(FEOSAudioDevicePool::FOnAudioDevicePoolRefreshAudioDevicesCompleteDelegate::CreateLambda([WeakThis = AsWeak()](const FVoiceChatResult& Result) -> void
 	{
-		EOS_RTCAudio_GetAudioInputDeviceByIndexOptions GetByIndexOptions = {};
-		GetByIndexOptions.ApiVersion = EOS_RTCAUDIO_GETAUDIOINPUTDEVICEBYINDEX_API_LATEST;
-		static_assert(EOS_RTCAUDIO_GETAUDIOINPUTDEVICEBYINDEX_API_LATEST == 1, "EOS_RTCAudio_GetAudioInputDeviceByIndexOptions updated, check new fields");
-		GetByIndexOptions.DeviceInfoIndex = Index;
-		if (const EOS_RTCAudio_AudioInputDeviceInfo* DeviceInfo = EOS_RTCAudio_GetAudioInputDeviceByIndex(RTCAudioHandle, &GetByIndexOptions))
+		CHECKPIN();
+
+		if (!Result.IsSuccess())
 		{
-			FString DeviceName = UTF8_TO_TCHAR(DeviceInfo->DeviceName);
-			if (DeviceName != TEXT("Default Device"))
-			{
-				FVoiceChatDeviceInfo& InputDeviceInfo = InputDeviceInfos.Emplace_GetRef();
-				InputDeviceInfo.DisplayName = MoveTemp(DeviceName);
-				InputDeviceInfo.Id = UTF8_TO_TCHAR(DeviceInfo->DeviceId);
-				if (DeviceInfo->bDefaultDevice)
-				{
-					OutDefaultDeviceIdx = InputDeviceInfos.Num() - 1;
-				}
-			}
+			UE_LOG(LogEOSVoiceChat, Warning, TEXT("OnAudioDevicesChanged RefreshAudioDevicesCompletionDelegate failed, Result=[%s]"), *LexToString(Result));
 		}
-		else
-		{
-			UE_LOG(LogEOSVoiceChat, Warning, TEXT("EOS_RTCAudio_GetAudioInputDeviceByIndex failed: DevicesInfo=nullptr"));
-		}
-	}
 
-	if (Count == 0)
-	{
-		UE_LOG(LogEOSVoiceChat, Warning, TEXT("EOS_RTCAudio_GetAudioInputDevicesCount failed: DevicesCount=0"));
-	}
-
-	return InputDeviceInfos;
-}
-
-TArray<FVoiceChatDeviceInfo> FEOSVoiceChat::GetRtcOutputDeviceInfos(int32& OutDefaultDeviceIdx) const
-{
-	OutDefaultDeviceIdx = -1;
-	TArray<FVoiceChatDeviceInfo> OutputDeviceInfos;
-	EOS_HRTCAudio RTCAudioHandle = EOS_RTC_GetAudioInterface(InitSession.EosRtcInterface);
-
-	EOS_RTCAudio_GetAudioOutputDevicesCountOptions CountOptions = {};
-	CountOptions.ApiVersion = EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICESCOUNT_API_LATEST;
-	static_assert(EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICESCOUNT_API_LATEST == 1, "EOS_RTCAudio_GetAudioOutputDevicesCountOptions updated, check new fields");
-
-	uint32_t Count = EOS_RTCAudio_GetAudioOutputDevicesCount(RTCAudioHandle, &CountOptions);
-
-	for (uint32_t Index = 0; Index < Count; Index++)
-	{
-		EOS_RTCAudio_GetAudioOutputDeviceByIndexOptions GetByIndexOptions = {};
-		GetByIndexOptions.ApiVersion = EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICEBYINDEX_API_LATEST;
-		static_assert(EOS_RTCAUDIO_GETAUDIOOUTPUTDEVICEBYINDEX_API_LATEST == 1, "EOS_RTCAudio_GetAudioOutputDeviceByIndexOptions updated, check new fields");
-		GetByIndexOptions.DeviceInfoIndex = Index;
-		if (const EOS_RTCAudio_AudioOutputDeviceInfo* DeviceInfo = EOS_RTCAudio_GetAudioOutputDeviceByIndex(RTCAudioHandle, &GetByIndexOptions))
-		{
-			FString DeviceName = UTF8_TO_TCHAR(DeviceInfo->DeviceName);
-			if (DeviceName != TEXT("Default Device"))
-			{
-				FVoiceChatDeviceInfo& InputDeviceInfo = OutputDeviceInfos.Emplace_GetRef();
-				InputDeviceInfo.DisplayName = MoveTemp(DeviceName);
-				InputDeviceInfo.Id = UTF8_TO_TCHAR(DeviceInfo->DeviceId);
-				if (DeviceInfo->bDefaultDevice)
-				{
-					OutDefaultDeviceIdx = OutputDeviceInfos.Num() - 1;
-				}
-			}
-		}
-		else
-		{
-			UE_LOG(LogEOSVoiceChat, Warning, TEXT("EOS_RTCAudio_GetAudioOutputDeviceByIndex failed: DevicesInfo=nullptr"));
-		}
-	}
-
-	if (Count == 0)
-	{
-		UE_LOG(LogEOSVoiceChat, Warning, TEXT("EOS_RTCAudio_GetAudioOutputDevicesCount failed: DevicesCount=0"));
-	}
-
-	return OutputDeviceInfos;
+		StrongThis->OnVoiceChatAvailableAudioDevicesChangedDelegate.Broadcast();
+	}));
 }
 
 FEOSVoiceChatUser& FEOSVoiceChat::GetVoiceChatUser()
@@ -1209,6 +1123,11 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 #undef EOS_EXEC_LOG
 
 	return false;
+}
+
+FEOSVoiceChat::FInitSession::FInitSession()
+	: EosAudioDevicePool{ MakeUnique<FEOSAudioDevicePool>(EosRtcInterface) }
+{
 }
 
 IEOSPlatformHandlePtr FEOSVoiceChat::EOSPlatformCreate(EOS_Platform_Options& PlatformOptions)

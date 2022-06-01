@@ -14,6 +14,7 @@
 #include "EOSVoiceChatModule.h"
 #include "EOSVoiceChatTypes.h"
 #include "VoiceChatErrors.h"
+#include "EOSAudioDevicePool.h"
 
 #include "eos_common.h"
 #include "eos_lobby.h"
@@ -221,12 +222,12 @@ bool FEOSVoiceChatUser::GetAudioOutputDeviceMuted() const
 
 TArray<FVoiceChatDeviceInfo> FEOSVoiceChatUser::GetAvailableInputDeviceInfos() const
 {
-	return EOSVoiceChat.InitSession.CachedInputDeviceInfos;
+	return EOSVoiceChat.InitSession.EosAudioDevicePool->GetCachedInputDeviceInfos();
 }
 
 TArray<FVoiceChatDeviceInfo> FEOSVoiceChatUser::GetAvailableOutputDeviceInfos() const
 {
-	return EOSVoiceChat.InitSession.CachedOutputDeviceInfos;
+	return EOSVoiceChat.InitSession.EosAudioDevicePool->GetCachedOutputDeviceInfos();
 }
 
 void FEOSVoiceChatUser::SetInputDeviceId(const FString& InputDeviceId)
@@ -305,9 +306,9 @@ FVoiceChatDeviceInfo FEOSVoiceChatUser::GetDefaultInputDeviceInfo() const
 {
 	FVoiceChatDeviceInfo DefaultDeviceInfo;
 
-	if (EOSVoiceChat.InitSession.CachedInputDeviceInfos.IsValidIndex(EOSVoiceChat.InitSession.DefaultInputDeviceInfoIdx))
+	if (EOSVoiceChat.InitSession.EosAudioDevicePool->GetCachedInputDeviceInfos().IsValidIndex(EOSVoiceChat.InitSession.EosAudioDevicePool->GetDefaultInputDeviceInfoIdx()))
 	{
-		DefaultDeviceInfo = EOSVoiceChat.InitSession.CachedInputDeviceInfos[EOSVoiceChat.InitSession.DefaultInputDeviceInfoIdx];
+		DefaultDeviceInfo = EOSVoiceChat.InitSession.EosAudioDevicePool->GetCachedInputDeviceInfos()[EOSVoiceChat.InitSession.EosAudioDevicePool->GetDefaultInputDeviceInfoIdx()];
 	}
 
 	return DefaultDeviceInfo;
@@ -317,9 +318,9 @@ FVoiceChatDeviceInfo FEOSVoiceChatUser::GetDefaultOutputDeviceInfo() const
 {
 	FVoiceChatDeviceInfo DefaultDeviceInfo;
 
-	if (EOSVoiceChat.InitSession.CachedOutputDeviceInfos.IsValidIndex(EOSVoiceChat.InitSession.DefaultOutputDeviceInfoIdx))
+	if (EOSVoiceChat.InitSession.EosAudioDevicePool->GetCachedOutputDeviceInfos().IsValidIndex(EOSVoiceChat.InitSession.EosAudioDevicePool->GetDefaultOutputDeviceInfoIdx()))
 	{
-		DefaultDeviceInfo = EOSVoiceChat.InitSession.CachedOutputDeviceInfos[EOSVoiceChat.InitSession.DefaultOutputDeviceInfoIdx];
+		DefaultDeviceInfo = EOSVoiceChat.InitSession.EosAudioDevicePool->GetCachedOutputDeviceInfos()[EOSVoiceChat.InitSession.EosAudioDevicePool->GetDefaultOutputDeviceInfoIdx()];
 	}
 	 
 	return DefaultDeviceInfo;

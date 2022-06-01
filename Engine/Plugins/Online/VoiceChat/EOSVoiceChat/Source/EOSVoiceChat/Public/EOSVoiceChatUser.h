@@ -3,22 +3,13 @@
 #pragma once
 
 #include "EOSVoiceChat.h"
+#include "EOSVoiceChatLog.h"
 
 #if WITH_EOS_RTC
 
 #include "eos_rtc_types.h"
 #include "eos_rtc_audio_types.h"
 #include "eos_types.h"
-
-#define EOSVOICECHATUSER_LOG(EOSVoiceChatLogLevel, EOSVoiceChatFormatStr, ...) \
-{ \
-	UE_LOG(LogEOSVoiceChat, EOSVoiceChatLogLevel, TEXT("[%p] ") EOSVoiceChatFormatStr, (void*)this, ##__VA_ARGS__); \
-}
-
-#define EOSVOICECHATUSER_CLOG(Condition, EOSVoiceChatLogLevel, EOSVoiceChatFormatStr, ...) \
-{ \
-	UE_CLOG(Condition, LogEOSVoiceChat, EOSVoiceChatLogLevel, TEXT("[%p] ") EOSVoiceChatFormatStr, (void*)this, ##__VA_ARGS__); \
-}
 
 class EOSVOICECHAT_API FEOSVoiceChatUser : public TSharedFromThis<FEOSVoiceChatUser, ESPMode::ThreadSafe>, public IVoiceChatUser
 {
