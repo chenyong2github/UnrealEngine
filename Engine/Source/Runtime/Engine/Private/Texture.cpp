@@ -376,101 +376,104 @@ void UTexture::ValidateSettingsAfterImportOrEdit(bool * pRequiresNotifyMaterials
 		
 #if WITH_EDITORONLY_DATA
 
-	if ( MipGenSettings == TMGS_LeaveExistingMips && PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
+	if (Source.IsValid()) // we can have an empty source if the last source in a texture2d array is removed via the editor.
 	{
-		// power of 2 pads not allowed with LeaveExistingMips
-		UE_LOG(LogTexture, Display, TEXT("Power of 2 padding cannot be used with LeaveExistingMips, disabled. (%s)"), *GetName());
-
-		PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
-	}
-
-	// IsPowerOfTwo only checks XY :
-	bool bIsPowerOfTwo = Source.IsPowerOfTwo();
-	if ( ! FMath::IsPowerOfTwo(Source.GetVolumeSizeZ()) )
-	{
-		bIsPowerOfTwo = false;
-	}
-	if ( PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
-	{
-		bIsPowerOfTwo = true;
-	}
-
-	if ( ! bIsPowerOfTwo )
-	{
-		// streaming only supports power of 2 mips
-		// due to failure to compensate for the GPU row pitch
-		// it only works for mips that naturally have the required 256 pitch
-		// so mip levels >= 256 and power of 2 only
-		// (this used to be in Texture2D.cpp)
-		// this could be fixed and then streaming nonpow2 could be allowed
-		// see WarnRequiresTightPackedMip
-		NeverStream = true;	
-	}
-	
-	int32 MaxDimension = FMath::Max( Source.GetSizeX() , Source.GetSizeY() );
-	bool bLargeTextureMustBeVT = MaxDimension > GetMaximumDimensionOfNonVT();
-
-	if ( bLargeTextureMustBeVT && ! VirtualTextureStreaming && MaxTextureSize == 0 )
-	{
-		static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
-		check( CVarVirtualTexturesEnabled != nullptr );
-
-		if ( CVarVirtualTexturesEnabled->GetValueOnAnyThread() )
+		if ( MipGenSettings == TMGS_LeaveExistingMips && PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
 		{
-			if ( GetTextureClass() == ETextureClass::TwoD )
+			// power of 2 pads not allowed with LeaveExistingMips
+			UE_LOG(LogTexture, Display, TEXT("Power of 2 padding cannot be used with LeaveExistingMips, disabled. (%s)"), *GetName());
+
+			PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
+		}
+
+		// IsPowerOfTwo only checks XY :
+		bool bIsPowerOfTwo = Source.IsPowerOfTwo();
+		if ( ! FMath::IsPowerOfTwo(Source.GetVolumeSizeZ()) )
+		{
+			bIsPowerOfTwo = false;
+		}
+		if ( PowerOfTwoMode != ETexturePowerOfTwoSetting::None )
+		{
+			bIsPowerOfTwo = true;
+		}
+
+		if ( ! bIsPowerOfTwo )
+		{
+			// streaming only supports power of 2 mips
+			// due to failure to compensate for the GPU row pitch
+			// it only works for mips that naturally have the required 256 pitch
+			// so mip levels >= 256 and power of 2 only
+			// (this used to be in Texture2D.cpp)
+			// this could be fixed and then streaming nonpow2 could be allowed
+			// see WarnRequiresTightPackedMip
+			NeverStream = true;	
+		}
+	
+		int32 MaxDimension = FMath::Max( Source.GetSizeX() , Source.GetSizeY() );
+		bool bLargeTextureMustBeVT = MaxDimension > GetMaximumDimensionOfNonVT();
+
+		if ( bLargeTextureMustBeVT && ! VirtualTextureStreaming && MaxTextureSize == 0 )
+		{
+			static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
+			check( CVarVirtualTexturesEnabled != nullptr );
+
+			if ( CVarVirtualTexturesEnabled->GetValueOnAnyThread() )
 			{
-				UE_LOG(LogTexture, Display, TEXT("Large Texture %s Dimension=%d changed to VT"), *GetName(),MaxDimension);
-				VirtualTextureStreaming = true;
-				bRequiresNotifyMaterials = true;
+				if ( GetTextureClass() == ETextureClass::TwoD )
+				{
+					UE_LOG(LogTexture, Display, TEXT("Large Texture %s Dimension=%d changed to VT"), *GetName(),MaxDimension);
+					VirtualTextureStreaming = true;
+					bRequiresNotifyMaterials = true;
+				}
+				else
+				{
+					UE_LOG(LogTexture, Warning, TEXT("Large Texture %s Dimension=%d needs to be VT but is not 2d, changing MaxTextureSize"), *GetName(),MaxDimension);
+				
+					// GetMaximumDimension is the max size for this texture type on the current RHI
+					MaxTextureSize = GetMaximumDimension();
+				}
 			}
 			else
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Large Texture %s Dimension=%d needs to be VT but is not 2d, changing MaxTextureSize"), *GetName(),MaxDimension);
-				
+				UE_LOG(LogTexture, Warning, TEXT("Large Texture %s Dimension=%d must be VT but VirtualTextures are disabled, changing MaxTextureSize"), *GetName(),MaxDimension);
+
 				// GetMaximumDimension is the max size for this texture type on the current RHI
 				MaxTextureSize = GetMaximumDimension();
 			}
 		}
-		else
-		{
-			UE_LOG(LogTexture, Warning, TEXT("Large Texture %s Dimension=%d must be VT but VirtualTextures are disabled, changing MaxTextureSize"), *GetName(),MaxDimension);
-
-			// GetMaximumDimension is the max size for this texture type on the current RHI
-			MaxTextureSize = GetMaximumDimension();
-		}
-	}
 	
-	if (VirtualTextureStreaming)
-	{
-		if (!bIsPowerOfTwo)
+		if (VirtualTextureStreaming)
 		{
-			if ( bLargeTextureMustBeVT )
+			if (!bIsPowerOfTwo)
 			{
-				UE_LOG(LogTexture, Warning, TEXT("Large VT \"%s\", must be padded to power-of-2 for VT support (%dx%d)"), *GetName(), Source.GetSizeX(),Source.GetSizeY());
-				// VT nonpow2 will fail to build
-				// force it into a state that will succeed? or just let it fail?
-				// you can either pad to pow2 or set MaxTextureSize and turn off VT
-				//PowerOfTwoMode = ETexturePowerOfTwoSetting::PadToPowerOfTwo;
+				if ( bLargeTextureMustBeVT )
+				{
+					UE_LOG(LogTexture, Warning, TEXT("Large VT \"%s\", must be padded to power-of-2 for VT support (%dx%d)"), *GetName(), Source.GetSizeX(),Source.GetSizeY());
+					// VT nonpow2 will fail to build
+					// force it into a state that will succeed? or just let it fail?
+					// you can either pad to pow2 or set MaxTextureSize and turn off VT
+					//PowerOfTwoMode = ETexturePowerOfTwoSetting::PadToPowerOfTwo;
+				}
+				else
+				{
+					UE_LOG(LogTexture, Warning, TEXT("VirtualTextureStreaming not supported for \"%s\", texture size is not a power-of-2"), *GetName());
+					VirtualTextureStreaming = false;
+					bRequiresNotifyMaterials = true;
+				}
 			}
-			else
+		}
+
+		// Make sure settings are correct for LUT textures.
+		if(LODGroup == TEXTUREGROUP_ColorLookupTable)
+		{
+			if ( MipGenSettings != TMGS_NoMipmaps || SRGB != false )
 			{
-				UE_LOG(LogTexture, Warning, TEXT("VirtualTextureStreaming not supported for \"%s\", texture size is not a power-of-2"), *GetName());
-				VirtualTextureStreaming = false;
+				MipGenSettings = TMGS_NoMipmaps;
+				SRGB = false;
 				bRequiresNotifyMaterials = true;
 			}
 		}
-	}
-
-	// Make sure settings are correct for LUT textures.
-	if(LODGroup == TEXTUREGROUP_ColorLookupTable)
-	{
-		if ( MipGenSettings != TMGS_NoMipmaps || SRGB != false )
-		{
-			MipGenSettings = TMGS_NoMipmaps;
-			SRGB = false;
-			bRequiresNotifyMaterials = true;
-		}
-	}
+	} // end if valid source
 #endif // #if WITH_EDITORONLY_DATA
 
 	// check TC_ CompressionSettings that should have SRGB off

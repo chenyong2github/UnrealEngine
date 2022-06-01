@@ -92,7 +92,8 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 	}
 	else
 	{
-		Source.Init(0, 0, 0, 0, TSF_Invalid, nullptr);
+		Source = FTextureSource();
+		Source.SetOwner(this);
 		SourceLightingGuid.Invalidate();
 
 		if (PlatformData)

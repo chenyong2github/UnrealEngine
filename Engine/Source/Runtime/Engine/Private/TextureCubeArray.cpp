@@ -511,7 +511,8 @@ ENGINE_API void UTextureCubeArray::InvadiateTextureSource()
 		PlatformData = NULL;
 	}
 
-	Source.Init(0, 0, 0, 0, TSF_Invalid, nullptr);
+	Source = FTextureSource();
+	Source.SetOwner(this);
 	UpdateResource();
 }
 #endif
