@@ -448,7 +448,7 @@ void AWaterBody::DeprecateData()
 		WaterBodyComponent->PhysicalMaterial = PhysicalMaterial_DEPRECATED;
 		WaterBodyComponent->TargetWaveMaskDepth = TargetWaveMaskDepth_DEPRECATED;
 		WaterBodyComponent->MaxWaveHeightOffset = MaxWaveHeightOffset_DEPRECATED;
-		WaterBodyComponent->bFillCollisionUnderWaterBodiesForNavmesh = bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED;
+		WaterBodyComponent->bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED = bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED;
 		WaterBodyComponent->UnderwaterPostProcessSettings = UnderwaterPostProcessSettings_DEPRECATED;
 		WaterBodyComponent->CurveSettings = CurveSettings_DEPRECATED;
 		WaterBodyComponent->SetWaterMaterial(WaterMaterial_DEPRECATED);
@@ -456,17 +456,20 @@ void AWaterBody::DeprecateData()
 		WaterBodyComponent->WaterHeightmapSettings = WaterHeightmapSettings_DEPRECATED;
 		WaterBodyComponent->LayerWeightmapSettings = LayerWeightmapSettings_DEPRECATED;
 		WaterBodyComponent->bAffectsLandscape = bAffectsLandscape_DEPRECATED;
-		WaterBodyComponent->bGenerateCollisions = bGenerateCollisions_DEPRECATED;
+		WaterBodyComponent->bGenerateCollisions_DEPRECATED = bGenerateCollisions_DEPRECATED;
 		WaterBodyComponent->WaterMeshOverride = WaterMeshOverride_DEPRECATED;
 		WaterBodyComponent->OverlapMaterialPriority = OverlapMaterialPriority_DEPRECATED;
-		WaterBodyComponent->CollisionProfileName = CollisionProfileName_DEPRECATED;
+		WaterBodyComponent->CollisionProfileName_DEPRECATED = CollisionProfileName_DEPRECATED;
 		WaterBodyComponent->WaterMID = WaterMID_DEPRECATED;
 		WaterBodyComponent->UnderwaterPostProcessMID = UnderwaterPostProcessMID_DEPRECATED;
 		WaterBodyComponent->Islands = Islands_DEPRECATED;
 		WaterBodyComponent->ExclusionVolumes = ExclusionVolumes_DEPRECATED;
-		WaterBodyComponent->bCanAffectNavigation = bCanAffectNavigation_DEPRECATED;
+		WaterBodyComponent->bCanAffectNavigation_DEPRECATED = bCanAffectNavigation_DEPRECATED;
 		WaterBodyComponent->WaterNavAreaClass = WaterNavAreaClass_DEPRECATED;
 		WaterBodyComponent->ShapeDilation = ShapeDilation_DEPRECATED;
+
+		// Some deprecated data on the actor were also later deprecated on the component (e.g. bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED), make sure it runs its own deprecation operations on it : 
+		WaterBodyComponent->DeprecateData();
 	}
 #endif // WITH_EDITORONLY_DATA
 }

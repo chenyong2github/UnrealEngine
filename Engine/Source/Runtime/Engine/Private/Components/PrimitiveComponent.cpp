@@ -3651,8 +3651,14 @@ void UPrimitiveComponent::SetGenerateOverlapEvents(bool bInGenerateOverlapEvents
 	if (bGenerateOverlapEvents != bInGenerateOverlapEvents)
 	{
 		bGenerateOverlapEvents = bInGenerateOverlapEvents;
-		ClearSkipUpdateOverlaps();
+
+		OnGenerateOverlapEventsChanged();
 	}
+}
+
+void UPrimitiveComponent::OnGenerateOverlapEventsChanged()
+{
+	ClearSkipUpdateOverlaps();
 }
 
 void UPrimitiveComponent::SetLightingChannels(bool bChannel0, bool bChannel1, bool bChannel2)

@@ -2478,6 +2478,9 @@ protected:
 	/** Called when the BodyInstance ResponseToChannels, CollisionEnabled or bNotifyRigidBodyCollision changes, in case subclasses want to use that information. */
 	virtual void OnComponentCollisionSettingsChanged(bool bUpdateOverlaps=true);
 
+	/** Called when bGenerateOverlapEvents changes, in case subclasses want to use that information. */
+	virtual void OnGenerateOverlapEventsChanged();
+
 	/** Ends all current component overlaps. Generally used when destroying this component or when it can no longer generate overlaps. */
 	void ClearComponentOverlaps(bool bDoNotifies, bool bSkipNotifySelf);
 

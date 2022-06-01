@@ -29,10 +29,10 @@ UWaterBodyLakeComponent::UWaterBodyLakeComponent(const FObjectInitializer& Objec
 	check(!IsHeightOffsetSupported());
 }
 
-TArray<UPrimitiveComponent*> UWaterBodyLakeComponent::GetCollisionComponents() const
+TArray<UPrimitiveComponent*> UWaterBodyLakeComponent::GetCollisionComponents(bool bInOnlyEnabledComponents) const
 {
 	TArray<UPrimitiveComponent*> Result;
-	if (LakeCollision != nullptr)
+	if ((LakeCollision != nullptr) && (!bInOnlyEnabledComponents || (LakeCollision->GetCollisionEnabled() != ECollisionEnabled::NoCollision)))
 	{
 		Result.Add(LakeCollision);
 	}
@@ -184,7 +184,7 @@ void UWaterBodyLakeComponent::OnUpdateBody(bool bWithExclusionVolumes)
 		LakeMeshComp->RegisterComponent();
 	}
 
-	if (bGenerateCollisions)
+	if (GetCollisionEnabled() != ECollisionEnabled::NoCollision)
 	{
 		if (!LakeCollision)
 		{
@@ -236,11 +236,10 @@ void UWaterBodyLakeComponent::OnUpdateBody(bool bWithExclusionVolumes)
 
 		if (LakeCollision)
 		{
-			check(bGenerateCollisions);
-			LakeCollision->bFillCollisionUnderneathForNavmesh = bFillCollisionUnderWaterBodiesForNavmesh;
+			check(GetCollisionEnabled () != ECollisionEnabled::NoCollision);
 			LakeCollision->SetMobility(Mobility);
-			LakeCollision->SetCollisionProfileName(GetCollisionProfileName());
-			LakeCollision->SetGenerateOverlapEvents(true);
+			CopySharedCollisionSettingsToComponent(LakeCollision);
+			CopySharedNavigationSettingsToComponent(LakeCollision);
 
 			const float Depth = GetChannelDepth() / 2;
 			FVector LakeCollisionExtent = FVector(SplineExtent.X, SplineExtent.Y, 0.f) / GetComponentScale();

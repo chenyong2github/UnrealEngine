@@ -16,6 +16,7 @@
 #include "ConstrainedDelaunay2.h"
 #include "Operations/InsetMeshRegion.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
+#include "Algo/Transform.h"
 
 #if WITH_EDITOR
 #include "WaterIconHelper.h"
@@ -35,20 +36,19 @@ UWaterBodyOceanComponent::UWaterBodyOceanComponent(const FObjectInitializer& Obj
 	check(IsHeightOffsetSupported());
 }
 
-TArray<UPrimitiveComponent*> UWaterBodyOceanComponent::GetCollisionComponents() const
+TArray<UPrimitiveComponent*> UWaterBodyOceanComponent::GetCollisionComponents(bool bInOnlyEnabledComponents) const
 {
 	TArray<UPrimitiveComponent*> Result;
 	Result.Reserve(CollisionBoxes.Num() + CollisionHullSets.Num());
 
-	for (UOceanBoxCollisionComponent* Comp : CollisionBoxes)
-	{
-		Result.Add(Comp);
-	}
+	Algo::TransformIf(CollisionBoxes, Result,
+		[bInOnlyEnabledComponents](UOceanBoxCollisionComponent* Comp) { return ((Comp != nullptr) && (!bInOnlyEnabledComponents || (Comp->GetCollisionEnabled() != ECollisionEnabled::NoCollision))); },
+		[](UOceanBoxCollisionComponent* Comp) { return Comp; });
 
-	for (UOceanCollisionComponent* Comp : CollisionHullSets)
-	{
-		Result.Add(Comp);
-	}
+	Algo::TransformIf(CollisionHullSets, Result,
+		[bInOnlyEnabledComponents](UOceanCollisionComponent* Comp) { return ((Comp != nullptr) && (!bInOnlyEnabledComponents || (Comp->GetCollisionEnabled() != ECollisionEnabled::NoCollision))); },
+		[](UOceanCollisionComponent* Comp) { return Comp; });
+
 	return Result;
 }
 
@@ -255,7 +255,7 @@ void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	AActor* OwnerActor = GetOwner();
 	check(OwnerActor);
 
-	if (bGenerateCollisions)
+	if (GetCollisionEnabled() != ECollisionEnabled::NoCollision)
 	{
 		FVector OceanCollisionExtents = GetCollisionExtents();
 		OceanCollisionExtents.Z += CollisionHeightOffset / 2;
@@ -316,9 +316,8 @@ void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)
 			BoxComponent->bDrawOnlyIfSelected = true;
 			BoxComponent->SetRelativeLocation(FVector::ZeroVector);
 
-			BoxComponent->bFillCollisionUnderneathForNavmesh = bFillCollisionUnderWaterBodiesForNavmesh;
-			BoxComponent->SetCollisionProfileName(GetCollisionProfileName());
-			BoxComponent->SetGenerateOverlapEvents(true);
+			CopySharedCollisionSettingsToComponent(BoxComponent);
+			CopySharedNavigationSettingsToComponent(BoxComponent);
 
 			FVector RelativePosition = Box.Origin;			// boxes are calculated in space of actor
 			BoxComponent->SetRelativeLocation(RelativePosition);
@@ -353,9 +352,8 @@ void UWaterBodyOceanComponent::OnUpdateBody(bool bWithExclusionVolumes)
 			CollisionComponent->SetNetAddressable(); // it's deterministically named so it's addressable over network (needed for collision)
 			CollisionComponent->SetRelativeLocation(FVector::ZeroVector);
 
-			CollisionComponent->bFillCollisionUnderneathForNavmesh = bFillCollisionUnderWaterBodiesForNavmesh;
-			CollisionComponent->SetCollisionProfileName(GetCollisionProfileName());
-			CollisionComponent->SetGenerateOverlapEvents(true);
+			CopySharedCollisionSettingsToComponent(CollisionComponent);
+			CopySharedNavigationSettingsToComponent(CollisionComponent);
 
 			CollisionComponent->InitializeFromConvexElements(ConvexSet);
 		}

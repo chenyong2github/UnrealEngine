@@ -25,10 +25,10 @@ UWaterBodyCustomComponent::UWaterBodyCustomComponent(const FObjectInitializer& O
 	check(!IsHeightOffsetSupported());
 }
 
-TArray<UPrimitiveComponent*> UWaterBodyCustomComponent::GetCollisionComponents() const
+TArray<UPrimitiveComponent*> UWaterBodyCustomComponent::GetCollisionComponents(bool bInOnlyEnabledComponents) const
 {
 	TArray<UPrimitiveComponent*> Result;
-	if ((MeshComp != nullptr) && (MeshComp->GetCollisionEnabled() != ECollisionEnabled::NoCollision))
+	if ((MeshComp != nullptr) && (!bInOnlyEnabledComponents || (MeshComp->GetCollisionEnabled() != ECollisionEnabled::NoCollision)))
 	{
 		Result.Add(MeshComp);
 	}
@@ -70,13 +70,6 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 		MeshComp = NewObject<UStaticMeshComponent>(OwnerActor, TEXT("CustomMeshComponent"), RF_Transactional);
 		MeshComp->SetNetAddressable(); // it's deterministically named so it's addressable over network (needed for collision)
 		MeshComp->SetupAttachment(this);
-		MeshComp->SetCollisionProfileName(GetCollisionProfileName());
-		// In the case of custom meshes, the static mesh component acts as both collision and visual component so we simply disable collision on it: 
-		MeshComp->SetGenerateOverlapEvents(bGenerateCollisions);
-		if (!bGenerateCollisions)
-		{
-			MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		}
 		MeshComp->RegisterComponent();
 	}
 
@@ -86,11 +79,7 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	// Make no assumptions for custom meshes.  Add all components with collision to the list of collision components
 	for (UPrimitiveComponent* Comp : PrimitiveComponents)
 	{
-		if (bGenerateCollisions && (Comp->GetCollisionEnabled() != ECollisionEnabled::NoCollision))
-		{
-			// Use value of bFillCollisionUnderWaterBodiesForNavmesh for all components with collisions.
-			Comp->bFillCollisionUnderneathForNavmesh = bFillCollisionUnderWaterBodiesForNavmesh;
-		}
+		CopySharedNavigationSettingsToComponent(Comp);
 
 		Comp->SetMobility(Mobility);
 	}
@@ -99,6 +88,8 @@ void UWaterBodyCustomComponent::OnUpdateBody(bool bWithExclusionVolumes)
 	MeshComp->SetStaticMesh(GetWaterMeshOverride());
 	MeshComp->SetMaterial(0, WaterMID);
 	MeshComp->SetCastShadow(false);
+	CopySharedCollisionSettingsToComponent(MeshComp);
+	CopySharedNavigationSettingsToComponent(MeshComp);
 	MeshComp->MarkRenderStateDirty();
 }
 

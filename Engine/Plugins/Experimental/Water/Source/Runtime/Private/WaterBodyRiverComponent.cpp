@@ -34,11 +34,15 @@ UWaterBodyRiverComponent::UWaterBodyRiverComponent(const FObjectInitializer& Obj
 }
 
 
-TArray<UPrimitiveComponent*> UWaterBodyRiverComponent::GetCollisionComponents() const
+TArray<UPrimitiveComponent*> UWaterBodyRiverComponent::GetCollisionComponents(bool bInOnlyEnabledComponents) const
 {
 	TArray<UPrimitiveComponent*> Result;
 	Result.Reserve(SplineMeshComponents.Num());
-	Algo::TransformIf(SplineMeshComponents, Result, [](USplineMeshComponent* SplineComp) { return ((SplineComp != nullptr) && (SplineComp->GetCollisionEnabled() != ECollisionEnabled::NoCollision)); }, [](USplineMeshComponent* SplineComp) { return SplineComp; });
+
+	Algo::TransformIf(SplineMeshComponents, Result, 
+		[bInOnlyEnabledComponents](USplineMeshComponent* SplineComp) { return ((SplineComp != nullptr) && (!bInOnlyEnabledComponents || (SplineComp->GetCollisionEnabled() != ECollisionEnabled::NoCollision))); }, 
+		[](USplineMeshComponent* SplineComp) { return SplineComp; });
+
 	return Result;
 }
 
@@ -46,7 +50,11 @@ TArray<UPrimitiveComponent*> UWaterBodyRiverComponent::GetStandardRenderableComp
 {
 	TArray<UPrimitiveComponent*> Result;
 	Result.Reserve(SplineMeshComponents.Num());
-	Algo::TransformIf(SplineMeshComponents, Result, [](USplineMeshComponent* SplineComp) { return (SplineComp != nullptr); }, [](USplineMeshComponent* SplineComp) { return SplineComp; });
+
+	Algo::TransformIf(SplineMeshComponents, Result, 
+		[](USplineMeshComponent* SplineComp) { return (SplineComp != nullptr); }, 
+		[](USplineMeshComponent* SplineComp) { return SplineComp; });
+
 	return Result;
 }
 
@@ -465,16 +473,10 @@ void UWaterBodyRiverComponent::UpdateSplineMesh(USplineMeshComponent* MeshComp, 
 		check(StaticMesh != nullptr);
 		MeshComp->SetStaticMesh(StaticMesh);
 		MeshComp->SetMaterial(0, GetWaterMaterialInstance());
-		MeshComp->SetCollisionProfileName(GetCollisionProfileName());
-		// In the case of rivers, the USplineMeshComponent acts as both collision and visual component so we simply disable collision on them : 
-		MeshComp->SetGenerateOverlapEvents(bGenerateCollisions);
-		if (!bGenerateCollisions)
-		{
-			MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		}
-		MeshComp->SetCastShadow(false);
 
-		MeshComp->bFillCollisionUnderneathForNavmesh = bGenerateCollisions && bFillCollisionUnderWaterBodiesForNavmesh;
+		CopySharedCollisionSettingsToComponent(MeshComp);
+		CopySharedNavigationSettingsToComponent(MeshComp);
+		MeshComp->SetCastShadow(false);
 
 		const bool bUpdateMesh = false;
 		const FVector StartScale = WaterSpline->GetScaleAtSplinePoint(StartSplinePointIndex);

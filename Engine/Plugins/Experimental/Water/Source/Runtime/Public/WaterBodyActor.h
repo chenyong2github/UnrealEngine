@@ -265,9 +265,6 @@ protected:
 	virtual bool IsHeightOffsetSupported() const final { return WaterBodyComponent->IsHeightOffsetSupported(); }
 
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
-	virtual bool CanAffectNavigation() const final { return WaterBodyComponent->CanAffectNavigation(); }
-
-	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")
 	virtual void BeginUpdateWaterBody() final {}
 
 	UE_DEPRECATED(4.27, "Moved to WaterBodyComponent")

@@ -2,6 +2,7 @@
 
 
 #include "WaterBodyComponent.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
 #include "Landscape.h"
@@ -79,17 +80,24 @@ UWaterBodyComponent::UWaterBodyComponent(const FObjectInitializer& ObjectInitial
 {
 	bAffectsLandscape = true;
 
-	CollisionProfileName = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName();
+	SetCollisionProfileName(GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName());
 
 	WaterMID = nullptr;
 	WaterInfoMID = nullptr;
 
 	TargetWaveMaskDepth = 2048.f;
 
-	bCanAffectNavigation = false;
-	bFillCollisionUnderWaterBodiesForNavmesh = false;
+	bFillCollisionUnderneathForNavmesh = false;
+	bCanEverAffectNavigation = false;
 
 	WaterInfoMaterial = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterInfoMaterial();
+
+#if WITH_EDITORONLY_DATA
+	// Maintain the old default values for deprecated members so delta serialization is still correct when we deprecate them in PostLoad
+	bCanAffectNavigation_DEPRECATED = false;
+	bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED = false;
+	CollisionProfileName_DEPRECATED = GetDefault<UWaterRuntimeSettings>()->GetDefaultWaterCollisionProfileName();
+#endif // WITH_EDITORONLY_DATA
 }
 
 void UWaterBodyComponent::OnVisibilityChanged()
@@ -1018,10 +1026,9 @@ void UWaterBodyComponent::RegisterOnChangeWaterSplineMetadata(UWaterSplineMetada
 
 void UWaterBodyComponent::GetNavigationData(struct FNavigationRelevantData& Data) const
 {
-	if (CanAffectNavigation())
+	if (IsNavigationRelevant())
 	{
-		const TSubclassOf<UNavAreaBase> UseAreaClass = GetNavAreaClass();
-		TArray<UPrimitiveComponent*> LocalCollisionComponents = GetCollisionComponents();
+		TArray<UPrimitiveComponent*> LocalCollisionComponents = GetCollisionComponents(/*bInOnlyEnabledComponents = */true);
 		for (int32 CompIdx = 0; CompIdx < LocalCollisionComponents.Num(); CompIdx++)
 		{
 			UPrimitiveComponent* PrimComp = LocalCollisionComponents[CompIdx];
@@ -1056,41 +1063,26 @@ FBox UWaterBodyComponent::GetNavigationBounds() const
 
 bool UWaterBodyComponent::IsNavigationRelevant() const
 {
-	return CanAffectNavigation() && (GetCollisionComponents().Num() > 0);
+	return Super::IsNavigationRelevant() && (GetCollisionComponents().Num() > 0);
+}
+
+void UWaterBodyComponent::ApplyCollisionSettings()
+{
+	// Transfer the collision settings of the water body component to all of its child collision components 
+	TArray<UPrimitiveComponent*> CollisionComponents = GetCollisionComponents(/*bInOnlyEnabledComponents = */false);
+	for (UPrimitiveComponent* CollisionComponent : CollisionComponents)
+	{
+		CopySharedCollisionSettingsToComponent(CollisionComponent);
+	}
 }
 
 void UWaterBodyComponent::ApplyNavigationSettings()
 {
-	AActor* Owner = GetOwner();
-	if (Owner)
+	// Transfer the navigation settings of the water body component to all of its child collision components 
+	const TArray<UPrimitiveComponent*> CollisionComponents = GetCollisionComponents(/*bInOnlyEnabledComponents = */false);
+	for (UPrimitiveComponent* CollisionComponent : CollisionComponents)
 	{
-		const bool bCanAffectNav = CanAffectNavigation();
-
-		// Make sure the engine's bCanEverAffectionNavigation matches the component's one.
-		SetCanEverAffectNavigation(bCanAffectNav);
-
-		// @todo_water: change this
-		TInlineComponentArray<UActorComponent*> Components;
-		Owner->GetComponents(Components);
-
-		const TArray<UPrimitiveComponent*> LocalCollisionComponents = GetCollisionComponents();
-		for (UActorComponent* ActorComp : Components)
-		{
-			UPrimitiveComponent* PrimComp = Cast<UPrimitiveComponent>(ActorComp);
-			if (PrimComp == this)
-			{
-				continue;
-			}
-			if (!PrimComp || LocalCollisionComponents.Find(PrimComp) == INDEX_NONE)
-			{
-				ActorComp->SetCanEverAffectNavigation(false);
-			}
-			else
-			{
-				PrimComp->SetCustomNavigableGeometry(bCanAffectNav ? EHasCustomNavigableGeometry::EvenIfNotCollidable : EHasCustomNavigableGeometry::No);
-				PrimComp->SetCanEverAffectNavigation(bCanAffectNav);
-			}
-		}
+		CopySharedNavigationSettingsToComponent(CollisionComponent);
 	}
 }
 
@@ -1150,6 +1142,8 @@ void UWaterBodyComponent::UpdateAll(bool bShapeOrPositionChanged)
 		// Finally, generate the body once again, this time with the updated list of exclusion volumes
 		UpdateWaterBody(/*bWithExclusionVolumes*/true);
 
+		ApplyCollisionSettings();
+
 		ApplyNavigationSettings();
 
 		if (bShapeOrPositionChanged)
@@ -1205,6 +1199,7 @@ void UWaterBodyComponent::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 }
 
 void UWaterBodyComponent::PostLoad()
@@ -1217,11 +1212,34 @@ void UWaterBodyComponent::PostLoad()
 	{
 		WaterMeshOverride = nullptr;
 	}
-#endif
+#endif // WITH_EDITORONLY_DATA
+
+	DeprecateData();
 
 #if WITH_EDITOR
 	RegisterOnUpdateWavesData(GetWaterWaves(), /* bRegister = */true);
-#endif
+#endif // WITH_EDITOR
+}
+
+void UWaterBodyComponent::DeprecateData()
+{
+#if WITH_EDITORONLY_DATA
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyComponentCollisionSettingsRefactor)
+	{
+		// Deprecate the old collision / navigation data and update it on all sub-components :
+		SetCollisionProfileName(CollisionProfileName_DEPRECATED);
+		SetGenerateOverlapEvents(bGenerateCollisions_DEPRECATED);
+		// Transfer info to sub-components :
+		ApplyCollisionSettings();
+
+		bool bCanAffectNav = bGenerateCollisions_DEPRECATED && bCanAffectNavigation_DEPRECATED;
+		SetCustomNavigableGeometry(bCanAffectNav ? EHasCustomNavigableGeometry::EvenIfNotCollidable : EHasCustomNavigableGeometry::No);
+		SetCanEverAffectNavigation(bCanAffectNav);
+		bFillCollisionUnderneathForNavmesh = bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED;
+		// Transfer info to sub-components :
+		ApplyNavigationSettings();
+	}
+#endif // WITH_EDITORONLY_DATA
 }
 
 void UWaterBodyComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
@@ -1247,6 +1265,27 @@ bool UWaterBodyComponent::MoveComponentImpl(const FVector& Delta, const FQuat& N
 	CorrectedRotation.Y = 0.f;
 
 	return Super::MoveComponentImpl(Delta, CorrectedRotation, bSweep, Hit, MoveFlags, Teleport);
+}
+
+void UWaterBodyComponent::OnComponentCollisionSettingsChanged(bool bUpdateOverlaps)
+{
+	if (IsRegistered() && !IsTemplate())			// not for CDOs
+	{
+		Super::OnComponentCollisionSettingsChanged(bUpdateOverlaps);
+
+		// Transfer all settings leading to OnComponentCollisionSettingsChanged to be called to the sub-components handling collisions:
+		ApplyCollisionSettings();
+	}
+}
+
+void UWaterBodyComponent::OnGenerateOverlapEventsChanged()
+{
+	if (IsRegistered() && !IsTemplate())			// not for CDOs
+	{
+		Super::OnGenerateOverlapEventsChanged();
+
+		ApplyCollisionSettings();
+	}
 }
 
 bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* InMID)
@@ -1383,6 +1422,22 @@ bool UWaterBodyComponent::GetWaveInfoAtPosition(const FVector& InPosition, float
 float UWaterBodyComponent::GetMaxWaveHeight() const
 {
 	return (HasWaves() ? GetWaterWaves()->GetMaxWaveHeight() : 0.0f) + MaxWaveHeightOffset;
+}
+
+void UWaterBodyComponent::CopySharedCollisionSettingsToComponent(UPrimitiveComponent * InComponent)
+{
+	InComponent->SetCollisionEnabled(GetCollisionEnabled());
+	InComponent->SetNotifyRigidBodyCollision(BodyInstance.bNotifyRigidBodyCollision);
+	InComponent->SetCollisionResponseToChannels(BodyInstance.GetResponseToChannels());
+	InComponent->SetCollisionProfileName(GetCollisionProfileName(), /*bUpdateOverlaps=*/ true);
+	InComponent->SetGenerateOverlapEvents(GetGenerateOverlapEvents());
+}
+
+void UWaterBodyComponent::CopySharedNavigationSettingsToComponent(UPrimitiveComponent * InComponent)
+{
+	InComponent->SetCanEverAffectNavigation(CanEverAffectNavigation());
+	InComponent->SetCustomNavigableGeometry(HasCustomNavigableGeometry());
+	InComponent->bFillCollisionUnderneathForNavmesh = GetCollisionEnabled() != ECollisionEnabled::NoCollision && bFillCollisionUnderneathForNavmesh;
 }
 
 float UWaterBodyComponent::GetWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime, FVector& OutNormal) const

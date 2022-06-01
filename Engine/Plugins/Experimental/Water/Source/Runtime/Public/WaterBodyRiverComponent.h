@@ -19,7 +19,7 @@ class WATER_API UWaterBodyRiverComponent : public UWaterBodyComponent
 public:
 	/** UWaterBodyComponent Interface */
 	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::River; }
-	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
+	virtual TArray<UPrimitiveComponent*> GetCollisionComponents(bool bInOnlyEnabledComponents = true) const override;
 	virtual TArray<UPrimitiveComponent*> GetStandardRenderableComponents() const override;
 	virtual UMaterialInstanceDynamic* GetRiverToLakeTransitionMaterialInstance() override;
 	virtual UMaterialInstanceDynamic* GetRiverToOceanTransitionMaterialInstance() override;

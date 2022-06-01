@@ -20,7 +20,7 @@ class WATER_API UWaterBodyOceanComponent : public UWaterBodyComponent
 public:
 	/** UWaterBodyComponent Interface */
 	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Ocean; }
-	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
+	virtual TArray<UPrimitiveComponent*> GetCollisionComponents(bool bInOnlyEnabledComponents = true) const override;
 	virtual FVector GetCollisionExtents() const override { return CollisionExtents; }
 	virtual void SetHeightOffset(float InHeightOffset) override;
 	virtual float GetHeightOffset() const override { return HeightOffset; }

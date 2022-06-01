@@ -112,7 +112,7 @@ public:
 	
 	/** Returns body's collision components */
 	UFUNCTION(BlueprintCallable, Category = Collision)
-	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const { return TArray<UPrimitiveComponent*>(); }
+	virtual TArray<UPrimitiveComponent*> GetCollisionComponents(bool bInOnlyEnabledComponents = true) const { return TArray<UPrimitiveComponent*>(); }
 
 	/** Retrieves the list of primitive components that this water body uses when not being rendered by the water mesh (e.g. the static mesh component used when WaterMeshOverride is specified) */
 	UFUNCTION(BlueprintCallable, Category = Rendering)
@@ -160,9 +160,6 @@ public:
 	/** Returns the unique id of this water body for accessing data in GPU buffers */
 	int32 GetWaterBodyIndex() const { return WaterBodyIndex; }
 	
-	/** Returns collision profile name */
-	FName GetCollisionProfileName() const { return CollisionProfileName; }
-
 	/** Returns water mesh override */
 	UStaticMesh* GetWaterMeshOverride() const { return WaterMeshOverride; }
 
@@ -326,6 +323,9 @@ public:
 
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials, bool bGetDebugMaterials) const override;
+	
+	/** Set the navigation area class */
+	void SetNavAreaClass(TSubclassOf<UNavAreaBase> NewWaterNavAreaClass) { WaterNavAreaClass = NewWaterNavAreaClass; }
 protected:
 	//~ Begin USceneComponent Interface.
 	virtual void OnVisibilityChanged();
@@ -341,8 +341,8 @@ protected:
 	/** Returns whether the body support a height offset */
 	virtual bool IsHeightOffsetSupported() const;
 
-	/** Returns whether the body affects navigation */
-	virtual bool CanAffectNavigation() const { return bGenerateCollisions && bCanAffectNavigation; }
+	UE_DEPRECATED(5.1, "Please use CanEverAffectNavigation() instead.")
+	virtual bool CanAffectNavigation() const { return false; }
 
 	/** Called every time UpdateAll is called on WaterBody (prior to UpdateWaterBody) */
 	virtual void BeginUpdateWaterBody();
@@ -357,6 +357,9 @@ protected:
 
 	/** Returns navigation area class */
 	TSubclassOf<UNavAreaBase> GetNavAreaClass() const { return WaterNavAreaClass; }
+
+	void CopySharedCollisionSettingsToComponent(UPrimitiveComponent* InComponent);
+	void CopySharedNavigationSettingsToComponent(UPrimitiveComponent* InComponent);
 
 protected:
 	/** Computes the raw wave perturbation of the water height/normal */
@@ -393,13 +396,17 @@ protected:
 	void CreateOrUpdateWaterInfoMID();
 	void PrepareCurrentPostProcessSettings();
 	void ApplyNavigationSettings();
+	void ApplyCollisionSettings();
 	void RequestGPUWaveDataUpdate();
 	EObjectFlags GetTransientMIDFlags() const; 
+	void DeprecateData();
 
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual bool MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit = NULL, EMoveComponentFlags MoveFlags = MOVECOMP_NoFlags, ETeleportType Teleport = ETeleportType::None) override;
+	virtual void OnComponentCollisionSettingsChanged(bool bUpdateOverlaps) override;
+	virtual void OnGenerateOverlapEventsChanged() override;
 
 #if WITH_EDITOR
 	virtual void PreEditUndo() override;
@@ -448,10 +455,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = Wave)
 	float MaxWaveHeightOffset = 0.0f;
 
-	/** Prevent navmesh generation under the water geometry */
-	UPROPERTY(EditAnywhere, Category = Navigation, meta = (EditCondition = "bGenerateCollisions"))
-	bool bFillCollisionUnderWaterBodiesForNavmesh;
-
 	/** Post process settings to apply when the camera goes underwater (only available when bGenerateCollisions is true because collisions are needed to detect if it's under water).
 	Note: Underwater post process material is setup using UnderwaterPostProcessMaterial. */
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadWrite, meta = (EditCondition = "bGenerateCollisions && UnderwaterPostProcessMaterial != nullptr", DisplayAfter = "UnderwaterPostProcessMaterial"))
@@ -489,10 +492,6 @@ public:
 	UPROPERTY(Category = Terrain, EditAnywhere, BlueprintReadWrite)
 	bool bAffectsLandscape;
 
-	/** If true, one or more collision components associated with this water will be generated. Otherwise, this water body will only affect visuals. */
-	UPROPERTY(Category = Collision, EditAnywhere, BlueprintReadOnly)
-	bool bGenerateCollisions = true;
-
 protected:
 
 	/** Unique Id for accessing (wave, ... ) data in GPU buffers */
@@ -505,9 +504,6 @@ protected:
 	/** Higher number is higher priority. If two water bodies overlap and they don't have a transition material specified, this will be used to determine which water body to use the material from. Valid range is -8192 to 8191 */
 	UPROPERTY(Category = Rendering, EditAnywhere, BlueprintReadOnly, meta = (ClampMin = "-8192", ClampMax = "8191"))
 	int32 OverlapMaterialPriority = 0;
-
-	UPROPERTY(Category = Collision, EditAnywhere, BlueprintReadOnly, meta = (EditCondition = "bGenerateCollisions"))
-	FName CollisionProfileName;
 
 	UPROPERTY(Transient)
 	UWaterSplineMetadata* WaterSplineMetadata;
@@ -534,9 +530,6 @@ protected:
 	UPROPERTY(Transient)
 	FPostProcessSettings CurrentPostProcessSettings;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (EditCondition = "bGenerateCollisions"))
-	bool bCanAffectNavigation;
-
 	// The navigation area class that will be generated on nav mesh
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (EditCondition = "bCanAffectNavigation && bGenerateCollisions"))
 	TSubclassOf<UNavAreaBase> WaterNavAreaClass;
@@ -550,6 +543,18 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
+	bool bFillCollisionUnderWaterBodiesForNavmesh_DEPRECATED;
+
+	UPROPERTY()
+	FName CollisionProfileName_DEPRECATED;
+
+	UPROPERTY()
+	bool bGenerateCollisions_DEPRECATED = true;
+
+	UPROPERTY()
+	bool bCanAffectNavigation_DEPRECATED;
+
+	UPROPERTY()
 	bool bOverrideWaterMesh_DEPRECATED;
-#endif
+#endif // WITH_EDITORONLY_DATA
 };

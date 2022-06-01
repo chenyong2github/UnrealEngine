@@ -217,6 +217,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Remapped bEvaluateWorldPositionOffset to bEvaluateWorldPositionOffsetInRayTracing
 		RemappedEvaluateWorldPositionOffsetInRayTracing,
 
+		// Water body collision settings are now those of the base UPrimitiveComponent, rather than duplicated in UWaterBodyComponent
+		WaterBodyComponentCollisionSettingsRefactor,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

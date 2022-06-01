@@ -18,7 +18,7 @@ class WATER_API UWaterBodyCustomComponent : public UWaterBodyComponent
 public:
 	/** AWaterBody Interface */
 	virtual EWaterBodyType GetWaterBodyType() const override { return EWaterBodyType::Transition; }
-	virtual TArray<UPrimitiveComponent*> GetCollisionComponents() const override;
+	virtual TArray<UPrimitiveComponent*> GetCollisionComponents(bool bInOnlyEnabledComponents = true) const override;
 	virtual TArray<UPrimitiveComponent*> GetStandardRenderableComponents() const override;
 
 protected:
