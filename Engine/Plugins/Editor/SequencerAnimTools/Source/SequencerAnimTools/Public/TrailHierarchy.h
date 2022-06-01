@@ -52,8 +52,8 @@ class ITrailHierarchyRenderer
 {
 public:
 	virtual ~ITrailHierarchyRenderer() {}
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) = 0;
-	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) = 0;
+	virtual void Render(const FSceneView* View, FPrimitiveDrawInterface* PDI) = 0;
+	virtual void DrawHUD(const FSceneView* View, FCanvas* Canvas) = 0;
 };
 
 class FTrailHierarchyRenderer : public ITrailHierarchyRenderer
@@ -63,8 +63,8 @@ public:
 		: OwningHierarchy(InOwningHierarchy)
 	{}
 
-	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
-	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
+	virtual void Render(const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
+	virtual void DrawHUD(const FSceneView* View, FCanvas* Canvas) override;
 
 private:
 	class FTrailHierarchy* OwningHierarchy;

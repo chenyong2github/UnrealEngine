@@ -11,6 +11,7 @@
 #include "EditorModeManager.h"
 #include "Tools/MotionTrailOptions.h"
 #include "Widgets/Input/SButton.h"
+#include "CanvasTypes.h"
 
 #define LOCTEXT_NAMESPACE "MotionTrailEditorMode"
 
@@ -22,7 +23,7 @@ namespace SequencerAnimTools
 IMPLEMENT_HIT_PROXY(HBaseTrailProxy, HHitProxy);
 IMPLEMENT_HIT_PROXY(HMotionTrailProxy, HBaseTrailProxy);
 
-void FTrailHierarchyRenderer::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
+void FTrailHierarchyRenderer::Render(const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
 	const FDateTime RenderStartTime = FDateTime::Now();
 	
@@ -39,7 +40,7 @@ void FTrailHierarchyRenderer::Render(const FSceneView* View, FViewport* Viewport
 		{
 			FDisplayContext DisplayContext = {
 				GuidTrailPair.Key,
-				FTrailScreenSpaceTransform(View, Viewport),
+				FTrailScreenSpaceTransform(View),
 				UMotionTrailToolOptions::GetTrailOptions()->SecondsPerMark,
 				OwningHierarchy->GetViewRange(),
 				OwningHierarchy->GetSecondsPerSegment()
@@ -71,7 +72,7 @@ void FTrailHierarchyRenderer::Render(const FSceneView* View, FViewport* Viewport
 					}
 				}
 			}
-			GuidTrailPair.Value->Render(GuidTrailPair.Key,View,Viewport,PDI);
+			GuidTrailPair.Value->Render(GuidTrailPair.Key,View,PDI);
 
 		}
 		else
@@ -88,14 +89,14 @@ void FTrailHierarchyRenderer::Render(const FSceneView* View, FViewport* Viewport
 	OwningHierarchy->GetTimingStats().Add("FTrailHierarchyRenderer::Render", RenderTimespan);
 }
 
-void FTrailHierarchyRenderer::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
+void FTrailHierarchyRenderer::DrawHUD(const FSceneView* View, FCanvas* Canvas)
 {
 
 	if (UMotionTrailToolOptions::GetTrailOptions()->bShowMarks == false)
 	{
 		for (const TPair<FGuid, TUniquePtr<FTrail>>& GuidTrailPair : OwningHierarchy->GetAllTrails())
 		{
-			GuidTrailPair.Value->DrawHUD( ViewportClient, Viewport, View, Canvas);
+			GuidTrailPair.Value->DrawHUD( View, Canvas);
 		}
 		return;
 	}	
@@ -113,7 +114,7 @@ void FTrailHierarchyRenderer::DrawHUD(FEditorViewportClient* ViewportClient, FVi
 		{
 			FDisplayContext DisplayContext = {
 				GuidTrailPair.Key,
-				FTrailScreenSpaceTransform(View, Viewport, ViewportClient->GetDPIScale()),
+				FTrailScreenSpaceTransform(View, Canvas->GetDPIScale()),
 				SecondsPerMark,
 				OwningHierarchy->GetViewRange(),
 				OwningHierarchy->GetSecondsPerSegment()
@@ -132,7 +133,7 @@ void FTrailHierarchyRenderer::DrawHUD(FEditorViewportClient* ViewportClient, FVi
 				Canvas->DrawItem(LineItem);
 			}
 		}
-		GuidTrailPair.Value->DrawHUD(ViewportClient, Viewport, View, Canvas);
+		GuidTrailPair.Value->DrawHUD(View, Canvas);
 
 	}
 

@@ -213,8 +213,8 @@ public:
 	{}
 	~FMotionTraiMovieScenelKeyTool() {};
 
-	void Render(const FGuid& Guid, const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
-	void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas);
+	void Render(const FGuid& Guid, const FSceneView* View, FPrimitiveDrawInterface* PDI);
+	void DrawHUD(const FSceneView* View, FCanvas* Canvas);
 
 	bool HandleClick(const FGuid& Guid, FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, FInputClick Click);
 	void StartDragging() {};

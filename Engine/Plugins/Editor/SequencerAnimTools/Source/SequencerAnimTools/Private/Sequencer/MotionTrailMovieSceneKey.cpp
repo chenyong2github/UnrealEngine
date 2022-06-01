@@ -13,6 +13,7 @@
 #include "Tools/MotionTrailOptions.h"
 #include "CanvasItem.h"
 #include "ISequencer.h"
+#include "CanvasTypes.h"
 
 namespace UE
 {
@@ -36,7 +37,7 @@ struct HMotionTrailMovieSceneKeyProxy : public HBaseTrailProxy
 };
 IMPLEMENT_HIT_PROXY(HMotionTrailMovieSceneKeyProxy, HBaseTrailProxy);
 
-void FMotionTraiMovieScenelKeyTool::Render(const FGuid& Guid, const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
+void FMotionTraiMovieScenelKeyTool::Render(const FGuid& Guid, const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
 	const bool bIsVisible = (UMotionTrailToolOptions::GetTrailOptions()->bShowKeys);
 
@@ -68,7 +69,7 @@ void FMotionTraiMovieScenelKeyTool::Render(const FGuid& Guid, const FSceneView* 
 	}
 }
 
-void FMotionTraiMovieScenelKeyTool::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
+void FMotionTraiMovieScenelKeyTool::DrawHUD(const FSceneView* View, FCanvas* Canvas)
 {
 	const bool bIsVisible = (UMotionTrailToolOptions::GetTrailOptions()->bShowKeys && UMotionTrailToolOptions::GetTrailOptions()->bShowFrameNumber);
 	if (!bIsVisible)
@@ -90,7 +91,7 @@ void FMotionTraiMovieScenelKeyTool::DrawHUD(FEditorViewportClient* ViewportClien
 			FVector2D PixelLocation;
 			if (View->WorldToPixel(FrameKeyPair.Value->Transform.GetLocation(), PixelLocation))
 			{
-				PixelLocation /= ViewportClient->GetDPIScale();
+				PixelLocation /= Canvas->GetDPIScale();
 
 				int32 FrameNumber = FFrameRate::TransformTime(FFrameTime(FrameKeyPair.Value->FrameNumber), TickResolution, DisplayRate).RoundToFrame().Value;
 				FCanvasTextItem TextItem(PixelLocation, FText::FromString(FString::FromInt(FrameNumber)), GEngine->GetMediumFont(), KeyColor);

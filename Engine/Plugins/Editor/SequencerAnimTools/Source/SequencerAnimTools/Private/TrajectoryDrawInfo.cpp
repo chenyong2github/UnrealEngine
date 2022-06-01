@@ -11,12 +11,12 @@ namespace SequencerAnimTools
 
 TOptional<FVector2D> FTrailScreenSpaceTransform::ProjectPoint(const FVector& Point) const
 {
-	const FPlane Projection = View->Project(Point);
-	if (Projection.W > 0.0f)
+
+	FVector2D PixelLocation;
+	if (View->WorldToPixel(Point, PixelLocation))
 	{
-		const float XPos = HalfScreenSize.X + (HalfScreenSize.X * Projection.X * 1.0f);
-		const float YPos = HalfScreenSize.Y + (HalfScreenSize.Y * Projection.Y * -1.0f);
-		return FVector2D(XPos, YPos);
+		PixelLocation /= DPIScale;
+		return PixelLocation;
 	}
 
 	return TOptional<FVector2D>();

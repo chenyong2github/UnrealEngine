@@ -25,16 +25,16 @@ class FTrajectoryCache;
 class FTrailScreenSpaceTransform
 {
 public:
-	FTrailScreenSpaceTransform(const FSceneView* InView, FViewport* InViewport, const float InDPIScale = 1.0f)
+	FTrailScreenSpaceTransform(const FSceneView* InView,  const float InDPIScale = 1.0f)
 		: View(InView)
-		, HalfScreenSize((InViewport->GetSizeXY().X / InDPIScale) * 0.5, (InViewport->GetSizeXY().Y / InDPIScale) * 0.5)
+		, DPIScale(InDPIScale)
 	{}
 
 	TOptional<FVector2D> ProjectPoint(const FVector& Point) const;
 
 private:
 	const FSceneView* View;
-	FVector2D HalfScreenSize;
+	const float DPIScale;
 };
 
 struct FDisplayContext

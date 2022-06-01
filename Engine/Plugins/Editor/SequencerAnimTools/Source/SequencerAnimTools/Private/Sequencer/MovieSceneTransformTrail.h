@@ -27,8 +27,8 @@ public:
 	virtual ETrailCacheState UpdateTrail(const FSceneContext& InSceneContext) override;
 	virtual FTrajectoryCache* GetTrajectoryTransforms() override { return TrajectoryCache.Get(); }
 	virtual TRange<double> GetEffectiveRange() const override { return CachedEffectiveRange; }
-	virtual void Render(const FGuid& Guid, const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
-	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
+	virtual void Render(const FGuid& Guid, const FSceneView* View,  FPrimitiveDrawInterface* PDI) override;
+	virtual void DrawHUD(const FSceneView* View, FCanvas* Canvas) override;
 
 	virtual bool HandleClick(const FGuid& Guid, FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, FInputClick Click) override;
 	virtual bool IsAnythingSelected() const override;

@@ -159,14 +159,14 @@ ETrailCacheState FMovieSceneTransformTrail::UpdateTrail(const FSceneContext& InS
 	return CacheState;
 }
 
-void FMovieSceneTransformTrail::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
+void FMovieSceneTransformTrail::DrawHUD(const FSceneView* View, FCanvas* Canvas)
 {
-	KeyTool->DrawHUD(ViewportClient, Viewport, View, Canvas);
+	KeyTool->DrawHUD(View, Canvas);
 }
 
-void FMovieSceneTransformTrail::Render(const FGuid& Guid, const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
+void FMovieSceneTransformTrail::Render(const FGuid& Guid, const FSceneView* View, FPrimitiveDrawInterface* PDI)
 {
-	KeyTool->Render(Guid, View, Viewport, PDI);
+	KeyTool->Render(Guid, View, PDI);
 }
 
 bool FMovieSceneTransformTrail::HandleAltClick(FEditorViewportClient* InViewportClient, HMotionTrailProxy* Proxy, FInputClick Click)

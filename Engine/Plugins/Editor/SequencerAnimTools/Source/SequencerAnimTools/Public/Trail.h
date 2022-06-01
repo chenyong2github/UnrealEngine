@@ -95,8 +95,8 @@ public:
 	virtual FTrajectoryCache* GetTrajectoryTransforms() = 0;
 
 	//Additional Render/HitTest event handling for specific trails, usually let default renderer handle it
-	virtual void Render(const FGuid& Guid, const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) {};
-	virtual void DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) {};
+	virtual void Render(const FGuid& Guid, const FSceneView* View, FPrimitiveDrawInterface* PDI) {};
+	virtual void DrawHUD(const FSceneView* View, FCanvas* Canvas) {};
 	virtual bool HandleClick(const FGuid& Guid, FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, FInputClick Click) { return false; }
 	virtual bool IsAnythingSelected() const { return false; }
 	virtual bool IsAnythingSelected(FVector& OutVectorPosition)const { return false;}
