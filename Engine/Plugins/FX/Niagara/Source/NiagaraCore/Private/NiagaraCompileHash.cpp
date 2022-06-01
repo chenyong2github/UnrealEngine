@@ -3,7 +3,6 @@
 #include "NiagaraCompileHash.h"
 #include "Misc/SecureHash.h"
 
-
 bool FNiagaraCompileHash::operator==(const FSHAHash& Other) const
 {
 	if (DataHash.Num() != HashSize)
