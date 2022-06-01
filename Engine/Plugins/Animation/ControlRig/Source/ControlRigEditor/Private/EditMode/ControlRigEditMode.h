@@ -80,7 +80,7 @@ private:
 	FDelegateHandle OnBoneTransformsFinalizedHandle;
 };
 
-class FControlRigEditMode : public IPersonaEditMode
+class CONTROLRIGEDITOR_API FControlRigEditMode : public IPersonaEditMode
 {
 public:
 	static FName ModeName;
