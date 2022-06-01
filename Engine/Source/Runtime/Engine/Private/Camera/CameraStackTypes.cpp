@@ -8,7 +8,7 @@ static TAutoConsoleVariable<bool> CVarUseLegacyMaintainYFOV(
 	TEXT("r.UseLegacyMaintainYFOVViewMatrix"),
 	false,
 	TEXT("Whether to use the old way to compute perspective view matrices when the aspect ratio constraint is vertical"),
-	ECVF_Cheat
+	ECVF_Default
 );
 
 //////////////////////////////////////////////////////////////////////////
