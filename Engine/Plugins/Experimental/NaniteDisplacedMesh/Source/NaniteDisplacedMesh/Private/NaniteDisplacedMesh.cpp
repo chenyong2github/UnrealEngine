@@ -486,7 +486,7 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 {
 	FMemoryHasherBlake3 Writer;
 
-	FGuid DisplacedMeshVersionGuid(0xDDA9ED32, 0x59AE4A26, 0xA02C0A49, 0xC5CEE4F8);
+	FGuid DisplacedMeshVersionGuid(0xDDA2ED11, 0x35AE4A11, 0xB02D0B33, 0xE7CFF4F8);
 	Writer << DisplacedMeshVersionGuid;
 
 	FGuid NaniteVersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER);

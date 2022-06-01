@@ -113,17 +113,6 @@ public:
 // TODO This could be user provided
 void DisplacementShader( FStaticMeshBuildVertex& Vertex, TArrayView< FDisplacementMap > DisplacementMaps )
 {
-	FLinearColor Color = Vertex.Color.ReinterpretAsLinear();
-				
-	FVector3f DisplacementVector(
-		Color.R * 2.0f - 1.0f,
-		Color.G * 2.0f - 1.0f,
-		Color.B * 2.0f - 1.0f );
-
-	// FIXME Lerping will denormalize. This isn't reliable.
-	float DisplaceLength = DisplacementVector.Length();
-	DisplacementVector *= DisplaceLength > 0.5f ? 1.0f / DisplaceLength : 0.0f;
-
 	//float SideUVOffsetLength = 1.0f - FMath::Min( DisplaceLength, 1.0f );
 	//float SideMask = FMath::Floor( DisplaceLength );
 
@@ -132,8 +121,10 @@ void DisplacementShader( FStaticMeshBuildVertex& Vertex, TArrayView< FDisplaceme
 	if( DisplacementIndex < DisplacementMaps.Num() )
 		Displacement = DisplacementMaps[ DisplacementIndex ].Sample( Vertex.UVs[0] );
 
+	Vertex.TangentX.Normalize();
 	Vertex.TangentZ.Normalize();
-	Vertex.Position += DisplacementVector * Displacement;
+
+	Vertex.Position += Vertex.TangentX * Displacement;
 }
 
 FORCEINLINE uint32 HashPosition( const FVector3f& Position )
@@ -429,6 +420,57 @@ bool DisplaceNaniteMesh(
 	TArray< int32 >& MaterialIndexes
 )
 {
+	// TODO: Make the mesh prepare and displacement logic extensible, and not hardcoded within this plugin
+
+	// START - MESH PREPARE
+
+	TArray<uint32> VertSamples;
+	VertSamples.SetNumZeroed(Verts.Num());
+
+	ParallelFor(TEXT("Nanite.Displace.Guide"), Verts.Num(), 1024,
+	[&](int32 VertIndex)
+	{
+		FStaticMeshBuildVertex& TargetVert = Verts[VertIndex];
+
+		TargetVert.TangentX = FVector3f::ZeroVector;
+
+		for (int32 GuideVertIndex = 0; GuideVertIndex < Verts.Num(); ++GuideVertIndex)
+		{
+			const FStaticMeshBuildVertex& GuideVert = Verts[GuideVertIndex];
+
+			if (GuideVert.UVs[1].Y >= 0.0f)
+			{
+				continue;
+			}
+
+			FVector3f GuideVertPos = GuideVert.Position;
+
+			// Matches the geoscript prototype (TODO: Remove)
+			const bool bApplyTolerance = true;
+			if (bApplyTolerance)
+			{
+			    float Tolerance = 0.01f;
+			    GuideVertPos /= Tolerance;
+			    GuideVertPos.X = float(FMath::CeilToInt(GuideVertPos.X)) * Tolerance;
+			    GuideVertPos.Y = float(FMath::CeilToInt(GuideVertPos.Y)) * Tolerance;
+			    GuideVertPos.Z = float(FMath::CeilToInt(GuideVertPos.Z)) * Tolerance;
+			}
+
+			if (FVector3f::Distance(TargetVert.Position, GuideVertPos) < 0.1f)
+			{
+				++VertSamples[VertIndex];
+				TargetVert.TangentX += GuideVert.TangentZ;
+			}
+		}
+
+		if (VertSamples[VertIndex] > 0)
+		{
+			TargetVert.TangentX /= VertSamples[VertIndex];
+			TargetVert.TangentX.Normalize();
+		}
+	});
+	// END - MESH PREPARE
+
 	Tessellate( Verts, Indexes, MaterialIndexes, Parameters.DiceRate );
 
 	TArray< FDisplacementMap > DisplacementMaps;
