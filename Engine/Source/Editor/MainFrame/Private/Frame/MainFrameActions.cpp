@@ -464,7 +464,7 @@ void FMainFrameActionCallbacks::ZipUpProject()
 	if (DesktopPlatform != NULL)
 	{
 		bOpened = DesktopPlatform->SaveFileDialog(
-			NULL,
+			FSlateApplication::Get().FindBestParentWindowHandleForDialogs(nullptr),
 			NSLOCTEXT("UnrealEd", "ZipUpProject", "Zip file location").ToString(),
 			FPaths::ProjectDir(),
 			FApp::GetProjectName(),
