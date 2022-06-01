@@ -160,6 +160,16 @@ public:
 	}
 
 	/**
+	 * Get the mipmap info object used by this loader, if any.
+	 *
+	 * @return The mipmap info object.
+	 */
+	const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& GetMipMapInfo() const
+	{
+		return MipMapInfo;
+	}
+
+	/**
 	 * Get the width and height of the image sequence.
 	 *
 	 * The dimensions of the image sequence are determined by reading the attributes

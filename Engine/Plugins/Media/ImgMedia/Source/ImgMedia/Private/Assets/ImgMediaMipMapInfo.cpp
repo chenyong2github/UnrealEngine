@@ -692,6 +692,24 @@ void FImgMediaMipMapInfo::AddObjectsUsingThisMediaTexture(UMediaTexture* InMedia
 	}
 }
 
+void FImgMediaMipMapInfo::RemoveObjectsUsingThisMediaTexture(UMediaTexture* InMediaTexture)
+{
+	// Get objects using this texture.
+	FMediaTextureTracker& TextureTracker = FMediaTextureTracker::Get();
+	const TArray<TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe>>* ObjectInfos = TextureTracker.GetObjects(InMediaTexture);
+	if (ObjectInfos != nullptr)
+	{
+		for (TWeakPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> ObjectInfoPtr : *ObjectInfos)
+		{
+			TSharedPtr<FMediaTextureTrackerObject, ESPMode::ThreadSafe> ObjectInfo = ObjectInfoPtr.Pin();
+			if (ObjectInfo.IsValid())
+			{
+				RemoveObject(ObjectInfo->Object.Get());
+			}
+		}
+	}
+}
+
 void FImgMediaMipMapInfo::ClearAllObjects()
 {
 	for (FImgMediaMipMapObjectInfo* Info : Objects)

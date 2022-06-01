@@ -36,6 +36,38 @@ DECLARE_CYCLE_STAT(TEXT("ImgMedia Player TickInput"), STAT_ImgMedia_PlayerTickIn
 
 const FTimespan HackDeltaTimeOffset(1);
 
+namespace {
+	/** Convenience function to process all media textures corresponding the specified player. */
+	void ApplyToPlayerMediaTextures(FImgMediaPlayer* InPlayer, TFunctionRef<void(UMediaTexture*)> TextureCallbackFn)
+	{
+		TArray<UMediaTexture*> PlayerTextures;
+
+		FMediaTextureTracker& TextureTracker = FMediaTextureTracker::Get();
+
+		// Look through all the media textures we know about.
+		for (TWeakObjectPtr<UMediaTexture> TexturePtr : TextureTracker.GetTextures())
+		{
+			UMediaTexture* Texture = TexturePtr.Get();
+			if (Texture != nullptr)
+			{
+				// Does this match the player?
+				UMediaPlayer* MediaPlayer = Texture->GetMediaPlayer();
+				if (MediaPlayer != nullptr)
+				{
+					TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> Player = MediaPlayer->GetPlayerFacade()->GetPlayer();
+					if (Player.IsValid())
+					{
+						if (Player.Get() == InPlayer)
+						{
+							TextureCallbackFn(Texture);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 
 /* FImgMediaPlayer structors
  *****************************************************************************/
@@ -75,6 +107,17 @@ void FImgMediaPlayer::Close()
 	if (!Loader.IsValid())
 	{
 		return;
+	}
+
+	{
+		const TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe>& MipMapInfo = Loader->GetMipMapInfo();
+		if (MipMapInfo.IsValid())
+		{
+			ApplyToPlayerMediaTextures(this, [&MipMapInfo](UMediaTexture* Texture)
+				{
+					MipMapInfo->RemoveObjectsUsingThisMediaTexture(Texture);
+				});
+		}
 	}
 
 	Scheduler->UnregisterLoader(Loader.ToSharedRef());
@@ -204,32 +247,10 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 			MipMapInfo = StaticCastSharedPtr<FImgMediaMipMapInfo, IMediaOptions::FDataContainer, ESPMode::ThreadSafe>(DataContainer);
 			if (MipMapInfo.IsValid())
 			{
-				// Tell mipmipinfo about our media textures.
-				MipMapInfo->ClearAllObjects();
-
-				FMediaTextureTracker& TextureTracker = FMediaTextureTracker::Get();
-
-				// Look through all the media textures we know about.
-				for (TWeakObjectPtr<UMediaTexture> TexturePtr : TextureTracker.GetTextures())
-				{
-					UMediaTexture* Texture = TexturePtr.Get();
-					if (Texture != nullptr)
+				ApplyToPlayerMediaTextures(this, [&MipMapInfo](UMediaTexture* Texture)
 					{
-						// Does this match the player?
-						UMediaPlayer* MediaPlayer = Texture->GetMediaPlayer();
-						if (MediaPlayer != nullptr)
-						{
-							TSharedPtr<IMediaPlayer, ESPMode::ThreadSafe> Player = MediaPlayer->GetPlayerFacade()->GetPlayer();
-							if (Player.IsValid())
-							{
-								if (Player.Get() == this)
-								{
-									MipMapInfo->AddObjectsUsingThisMediaTexture(Texture);
-								}
-							}
-						}
-					}
-				}
+						MipMapInfo->AddObjectsUsingThisMediaTexture(Texture);
+					});
 			}
 		}
 	}

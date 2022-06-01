@@ -222,11 +222,18 @@ public:
 	void RemoveObject(AActor* InActor);
 
 	/**
-	 * All the objets that are using this media texture will be used in our mip map calculations.
+	 * All the objects that are using this media texture will be used in our mip map calculations.
 	 *
 	 * @param InMediaTexture Media texture to get objects from.
 	 */
 	void AddObjectsUsingThisMediaTexture(UMediaTexture* InMediaTexture);
+
+	/**
+	 * Remove objects that are using this media texture from our mip map calculations.
+	 *
+	 * @param InMediaTexture Media texture to get objects from.
+	 */
+	void RemoveObjectsUsingThisMediaTexture(UMediaTexture* InMediaTexture);
 
 	/**
 	 * Remove all objects from consideration.
