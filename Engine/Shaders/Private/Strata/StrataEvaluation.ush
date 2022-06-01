@@ -548,9 +548,10 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 
 			// Simple port of the legacy code to ensure we can reproduce the look first
 			#if STRATA_FASTPATH==0
-			const bool bIsThin = BSDF_GETISTHIN(BSDFContext.BSDF);
-			if (BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_WRAP || bIsThin)
+			if (BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_WRAP)
 			{
+				const bool bIsThin = BSDF_GETISTHIN(BSDFContext.BSDF);
+
 				const float3 SlabDiffuseColor = bIsThin ? DiffuseColor : float3(1, 1, 1);
 				const float TransmittanceNoL = 1.0f;
 				const FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(SlabDiffuseColor, SLAB_SSSMFP(BSDFContext.BSDF));
@@ -1072,7 +1073,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 
 			#if STRATA_FASTPATH==0
 			BRANCH
-			if (BSDF_GETISTHIN(BSDFContext.BSDF) || BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_WRAP)
+			if (BSDF_GETSSSTYPE(BSDFContext.BSDF) == SSS_TYPE_WRAP)
 			{
 				FParticipatingMedia PM = StrataSlabCreateParticipatingMedia(DiffuseColor, SLAB_SSSMFP(BSDFContext.BSDF));
 

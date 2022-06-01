@@ -356,7 +356,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	{
 		// Set a thickness that will enabled the thin lighting model (corresponding to the legacy two-sided lighting model)
 		const float Thickness = STRATA_LAYER_ISTHIN_THICKNESS_THRESHOLD_CM - 1e-5f;
-		const float3 MFP = TransmittanceToMeanFreePath(SubSurfaceColor /*TransmittanceColor*/, Thickness * CENTIMETER_TO_METER) * METER_TO_CENTIMETER;
+		const float3 MFPInCm = TransmittanceToMeanFreePath(SubSurfaceColor /*TransmittanceColor*/, Thickness * CENTIMETER_TO_METER) * METER_TO_CENTIMETER;
 
 		Top.BaseColor = BaseColor;
 		Top.Specular = Specular;
@@ -364,9 +364,11 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 		Top.Roughness = Roughness;
 		Top.Anisotropy = Anisotropy;
 		Top.SSSProfileID = 0.f;
-		Top.SSSMFP = MFP;
-		Top.SSSMFPScale = 1.f;
+		Top.SSSMFP = max(1e-05f, MFPInCm); // Ensure the MFP is not null to force the material as have SSS
+		Top.SSSMFPScale = 1.0f;
+		Top.SSSPhaseAniso = 1.0f - Opacity; // Opaque-Thick: isotropic phase function, Thin: forward phase scattering function
 		Top.Emissive = Emissive;
+		Top.UseSSSDiffusion = false;
 		Top.Thickness = Thickness;
 
 		// Take in account the legacy opacity weighting for translucent material
