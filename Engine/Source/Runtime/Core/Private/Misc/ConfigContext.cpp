@@ -123,7 +123,8 @@ const FConfigContext::FPerPlatformDirs& FConfigContext::GetPerPlatformDirs(const
 bool FConfigContext::Load(const TCHAR* InBaseIniName, FString& OutFinalFilename)
 {
 	// for single file loads, just return early of the file doesn't exist
-	if (!bIsHierarchicalConfig && !DoesConfigFileExistWrapper(InBaseIniName, IniCacheSet))
+	const bool bBaseIniNameIsFullInIFilePath = FString(InBaseIniName).EndsWith(TEXT(".ini"));
+	if (!bIsHierarchicalConfig && bBaseIniNameIsFullInIFilePath && !DoesConfigFileExistWrapper(InBaseIniName, IniCacheSet))
 	{
 		return false;
 	}
