@@ -198,9 +198,9 @@ void SImgMediaProcessImages::ProcessAllImages()
 	TRACE_CPUPROFILER_EVENT_SCOPE(SImgMediaProcessImages::ProcessAllImages);
 
 	bool bUseCustomFormat = Options->bUseCustomFormat;
-	int32 InTileWidth = Options->TileSizeX;
-	int32 InTileHeight = Options->TileSizeY;
-	int32 TileBorder = Options->TileBorder;
+	int32 InTileWidth = Options->bEnableTiling ? Options->TileSizeX : 0;
+	int32 InTileHeight = Options->bEnableTiling ? Options->TileSizeY : 0;
+	int32 TileBorder = Options->bEnableTiling ? Options->TileBorder : 0;
 	bool bEnableMips = Options->bEnableMipMapping;
 
 	// Create output directory.
@@ -910,9 +910,9 @@ void SImgMediaProcessImages::HandleProcessing()
 					int32 Height = RenderTarget->GetSurfaceHeight();
 					int32 BitDepth = 16;
 					bool bUseCustomFormat = Options->bUseCustomFormat;
-					int32 InTileWidth = Options->TileSizeX;
-					int32 InTileHeight = Options->TileSizeY;
-					int32 TileBorder = Options->TileBorder;
+					int32 InTileWidth = Options->bEnableTiling ? Options->TileSizeX : 0;
+					int32 InTileHeight = Options->bEnableTiling ? Options->TileSizeY : 0;
+					int32 TileBorder = Options->bEnableTiling ? Options->TileBorder : 0;
 					bool bEnableMips = Options->bEnableMipMapping;
 					bool bHasAlphaChannel = false;
 					FString OutPath = Options->OutputPath.Path;

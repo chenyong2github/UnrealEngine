@@ -30,17 +30,21 @@ public:
 	/** If checked, then enable mip mapping. */
 	UPROPERTY(EditAnywhere, Category = Sequence)
 	bool bEnableMipMapping;
+
+	/** If checked, then enable tiling. */
+	UPROPERTY(EditAnywhere, Category = Tiles)
+	bool bEnableTiling;
 	
 	/** Width of a tile in pixels. If 0, then do not make tiles. */
-	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (ClampMin = "0.0"))
-	int32 TileSizeX = 0;
+	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (EditCondition = "bEnableTiling", ClampMin = "0.0"))
+	int32 TileSizeX = 256;
 
 	/** Height of a tile in pixels. If 0, then do not make tiles. */
-	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (ClampMin = "0.0"))
-	int32 TileSizeY = 0;
+	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (EditCondition = "bEnableTiling", ClampMin = "0.0"))
+	int32 TileSizeY = 256;
 
 	/** Number of pixels to duplicate along each tile border. */
-	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (ClampMin = "0.0"))
+	UPROPERTY(EditAnywhere, Transient, Category = Tiles, meta = (EditCondition = "bEnableTiling", ClampMin = "0.0"))
 	int32 TileBorder = 0;
 
 	/** Number of threads to use when processing. If 0 then this number is set automatically. */
