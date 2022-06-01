@@ -342,7 +342,7 @@ namespace Horde.Agent.Parser
 		public static int WriteEvent(JsonLogEvent jsonLogEvent, IBufferWriter<byte> writer)
 		{
 			ReadOnlySpan<byte> span = jsonLogEvent.Data.Span;
-			if (jsonLogEvent.LineCount > 0 || span.IndexOf(s_escapedNewline) == -1)
+			if (jsonLogEvent.LineCount > 1 || span.IndexOf(s_escapedNewline) == -1)
 			{
 				writer.Write(span);
 				writer.Write(s_newline);
