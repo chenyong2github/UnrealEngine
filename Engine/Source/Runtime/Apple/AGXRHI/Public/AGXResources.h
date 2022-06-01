@@ -251,8 +251,6 @@ public:
 		ReadbackRequestedAndComplete 	= ReadbackRequested | ReadbackFenceComplete
 	};
 
-	uint32 BufferLocks;
-
 	// how much memory is allocated for this texture
 	uint64 TotalTextureSize;
 	
