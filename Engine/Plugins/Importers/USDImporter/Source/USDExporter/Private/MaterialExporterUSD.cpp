@@ -4,6 +4,7 @@
 
 #include "MaterialExporterUSDOptions.h"
 #include "UnrealUSDWrapper.h"
+#include "USDClassesModule.h"
 #include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
 #include "USDMemory.h"
@@ -16,13 +17,53 @@
 #include "UsdWrappers/UsdStage.h"
 
 #include "AssetExportTask.h"
+#include "EngineAnalytics.h"
 #include "HAL/FileManager.h"
 #include "IMaterialBakingModule.h"
 #include "MaterialOptions.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectGlobals.h"
-#include "Misc/Paths.h"
+
+namespace UE
+{
+	namespace MaterialExporterUSD
+	{
+		namespace Private
+		{
+			void SendAnalytics( const UMaterialInterface& Material, const FUsdMaterialBakingOptions& Options, bool bAutomated, double ElapsedSeconds, double NumberOfFrames, const FString& Extension )
+			{
+				if ( FEngineAnalytics::IsAvailable() )
+				{
+					FString ClassName = Material.GetClass()->GetName();
+
+					TArray<FAnalyticsEventAttribute> EventAttributes;
+
+					EventAttributes.Emplace( TEXT( "AssetType" ), ClassName );
+
+					FString BakedPropertiesString;
+					{
+						const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
+						for ( const FPropertyEntry& PropertyEntry : Options.Properties )
+						{
+							FString PropertyString = PropertyEnum->GetNameByValue( PropertyEntry.Property ).ToString();
+							PropertyString.RemoveFromStart( TEXT( "MP_" ) );
+							BakedPropertiesString += PropertyString + TEXT( ", " );
+						}
+
+						BakedPropertiesString.RemoveFromEnd( TEXT( ", " ) );
+					}
+
+					EventAttributes.Emplace( TEXT( "BakedProperties" ), BakedPropertiesString );
+					EventAttributes.Emplace( TEXT( "DefaultTextureSize" ), Options.DefaultTextureSize.ToString() );
+
+					IUsdClassesModule::SendAnalytics( MoveTemp( EventAttributes ), FString::Printf( TEXT( "Export.%s" ), *ClassName ), bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
+				}
+			}
+		}
+	}
+}
 
 UMaterialExporterUsd::UMaterialExporterUsd()
 {
@@ -82,6 +123,8 @@ bool UMaterialExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, FAr
 bool UMaterialExporterUsd::ExportMaterial( const UMaterialInterface& Material, const FUsdMaterialBakingOptions& Options, const FFilePath& FilePath )
 {
 #if USE_USD_SDK
+	double StartTime = FPlatformTime::Cycles64();
+
 	UE::FUsdStage UsdStage = UnrealUSDWrapper::NewStage( *FilePath.FilePath );
 	if ( !UsdStage )
 	{
@@ -109,6 +152,16 @@ bool UMaterialExporterUsd::ExportMaterial( const UMaterialInterface& Material, c
 	);
 
 	UsdStage.GetRootLayer().Save();
+
+	// Analytics
+	{
+		bool bAutomated = false;  // TODO: Can't properly fetch this yet as it would change the function signature
+		double ElapsedSeconds = FPlatformTime::ToSeconds64( FPlatformTime::Cycles64() - StartTime );
+		FString Extension = FPaths::GetExtension( FilePath.FilePath );
+		double NumberOfFrames = 1 + UsdStage.GetEndTimeCode() - UsdStage.GetStartTimeCode();
+
+		UE::MaterialExporterUSD::Private::SendAnalytics( Material, Options, bAutomated, ElapsedSeconds, NumberOfFrames, Extension );
+	}
 
 	return true;
 #else

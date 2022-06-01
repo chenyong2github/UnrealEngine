@@ -43,11 +43,37 @@ namespace UE
 
 					if ( Options )
 					{
+						EventAttributes.Emplace( TEXT( "MetersPerUnit" ), LexToString( Options->StageOptions.MetersPerUnit ) );
+						EventAttributes.Emplace( TEXT( "UpAxis" ), Options->StageOptions.UpAxis == EUsdUpAxis::YAxis ? TEXT( "Y" ) : TEXT( "Z" ) );
+
 						EventAttributes.Emplace( TEXT( "ExportPreviewMesh" ), LexToString( Options->bExportPreviewMesh ) );
 						if ( Options->bExportPreviewMesh )
 						{
 							EventAttributes.Emplace( TEXT( "UsePayload" ), LexToString( Options->PreviewMeshOptions.bUsePayload ) );
-							EventAttributes.Emplace( TEXT( "PayloadFormat" ), Options->PreviewMeshOptions.PayloadFormat );
+							if ( Options->PreviewMeshOptions.bUsePayload )
+							{
+								EventAttributes.Emplace( TEXT( "PayloadFormat" ), Options->PreviewMeshOptions.PayloadFormat );
+							}
+							EventAttributes.Emplace( TEXT( "BakeMaterials" ), Options->PreviewMeshOptions.bBakeMaterials );
+							if ( Options->PreviewMeshOptions.bBakeMaterials )
+							{
+								FString BakedPropertiesString;
+								{
+									const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
+									for ( const FPropertyEntry& PropertyEntry : Options->PreviewMeshOptions.MaterialBakingOptions.Properties )
+									{
+										FString PropertyString = PropertyEnum->GetNameByValue( PropertyEntry.Property ).ToString();
+										PropertyString.RemoveFromStart( TEXT( "MP_" ) );
+										BakedPropertiesString += PropertyString + TEXT( ", " );
+									}
+
+									BakedPropertiesString.RemoveFromEnd( TEXT( ", " ) );
+								}
+
+								EventAttributes.Emplace( TEXT( "RemoveUnrealMaterials" ), Options->PreviewMeshOptions.bRemoveUnrealMaterials );
+								EventAttributes.Emplace( TEXT( "BakedProperties" ), BakedPropertiesString );
+								EventAttributes.Emplace( TEXT( "DefaultTextureSize" ), Options->PreviewMeshOptions.MaterialBakingOptions.DefaultTextureSize.ToString() );
+							}
 							EventAttributes.Emplace( TEXT( "LowestMeshLOD" ), LexToString( Options->PreviewMeshOptions.LowestMeshLOD ) );
 							EventAttributes.Emplace( TEXT( "HighestMeshLOD" ), LexToString( Options->PreviewMeshOptions.HighestMeshLOD ) );
 						}

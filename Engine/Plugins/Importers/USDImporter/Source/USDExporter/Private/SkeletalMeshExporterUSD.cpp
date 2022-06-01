@@ -43,8 +43,33 @@ namespace UE
 
 					if ( Options )
 					{
+						EventAttributes.Emplace( TEXT( "MetersPerUnit" ), LexToString( Options->StageOptions.MetersPerUnit ) );
+						EventAttributes.Emplace( TEXT( "UpAxis" ), Options->StageOptions.UpAxis == EUsdUpAxis::YAxis ? TEXT( "Y" ) : TEXT( "Z" ) );
 						EventAttributes.Emplace( TEXT( "UsePayload" ), LexToString( Options->MeshAssetOptions.bUsePayload ) );
-						EventAttributes.Emplace( TEXT( "PayloadFormat" ), Options->MeshAssetOptions.PayloadFormat );
+						if ( Options->MeshAssetOptions.bUsePayload )
+						{
+							EventAttributes.Emplace( TEXT( "PayloadFormat" ), Options->MeshAssetOptions.PayloadFormat );
+						}
+						EventAttributes.Emplace( TEXT( "BakeMaterials" ), Options->MeshAssetOptions.bBakeMaterials );
+						if ( Options->MeshAssetOptions.bBakeMaterials )
+						{
+							FString BakedPropertiesString;
+							{
+								const UEnum* PropertyEnum = StaticEnum<EMaterialProperty>();
+								for ( const FPropertyEntry& PropertyEntry : Options->MeshAssetOptions.MaterialBakingOptions.Properties )
+								{
+									FString PropertyString = PropertyEnum->GetNameByValue( PropertyEntry.Property ).ToString();
+									PropertyString.RemoveFromStart( TEXT( "MP_" ) );
+									BakedPropertiesString += PropertyString + TEXT( ", " );
+								}
+
+								BakedPropertiesString.RemoveFromEnd( TEXT( ", " ) );
+							}
+
+							EventAttributes.Emplace( TEXT( "RemoveUnrealMaterials" ), Options->MeshAssetOptions.bRemoveUnrealMaterials );
+							EventAttributes.Emplace( TEXT( "BakedProperties" ), BakedPropertiesString );
+							EventAttributes.Emplace( TEXT( "DefaultTextureSize" ), Options->MeshAssetOptions.MaterialBakingOptions.DefaultTextureSize.ToString() );
+						}
 						EventAttributes.Emplace( TEXT( "LowestMeshLOD" ), LexToString( Options->MeshAssetOptions.LowestMeshLOD ) );
 						EventAttributes.Emplace( TEXT( "HighestMeshLOD" ), LexToString( Options->MeshAssetOptions.HighestMeshLOD ) );
 					}
