@@ -2822,6 +2822,26 @@ public:
 	 */
 	static bool TryFixShortClassNameExportPath(FString& InOutExportPathToFix, ELogVerbosity::Type AmbiguousMessageVerbosity = ELogVerbosity::NoLogging, const TCHAR* AmbiguousClassMessage = nullptr);
 
+	/**
+	 * Returns the ObjectName portion of a ClassPath name: "/Path/To.Object" is converted to "Object". 
+	 * Returns the full string if it is already a ShortTypeName.
+	 */
+	static FString ConvertPathNameToShortTypeName(FStringView InClassPathOrShortTypeName);
+
+	/**
+	 * Takes a FullName (from e.g. AssetData.GetFullName or UObject.GetFullName) in either ShortTypeFullName or PathFullName form
+	 * ShortTypeFullName: "ClassObjectName /PackagePath/PackageShortName.ObjectName:SubObjectName"
+	 * PathFullName: "/ClassPath/ClassPackage.ClassObjectName /PackagePath/PackageShortName.ObjectName:SubObjectName"
+	 * Converts it to ShortTypeFullName if not already in that format and returns it
+	 */
+	static FString ConvertFullNameToShortTypeFullName(FStringView InFullName);
+
+	/**
+	 * Returns whether the given stringview is in ShortTypeName form: No directory separators "/" or object separators ".", SUBOBJECT_DELIMITER
+	 * Returns true for empty string.
+	 */
+	static bool IsShortTypeName(FStringView ClassPathOrShortTypeName);
+
 #if WITH_EDITOR
 	/** Provides access to C++ type info. */
 	const ICppClassTypeInfo* GetCppTypeInfo() const

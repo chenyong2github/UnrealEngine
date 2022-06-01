@@ -4960,56 +4960,92 @@ namespace ThumbnailTools
 		return true;
 	}
 
-
-
-	/** Searches for an object's thumbnail in memory and returns it if found */
-	FObjectThumbnail* FindCachedThumbnailInPackage( UPackage* InPackage, const FName InObjectFullName )
+	namespace Private
 	{
-		FObjectThumbnail* FoundThumbnail = NULL;
-
-		// We're expecting this to be an outermost package!
-		check( InPackage->GetOutermost() == InPackage );
-
-		// Does the package have any thumbnails?
-		if( InPackage->HasThumbnailMap() )
+		FObjectThumbnail* FindCachedThumbnailInPackage(UPackage* InPackage, const FName InObjectShortClassFullName)
 		{
-			// @todo thumbnails: Backwards compat
-			FThumbnailMap& PackageThumbnailMap = InPackage->AccessThumbnailMap();
-			FoundThumbnail = PackageThumbnailMap.Find( InObjectFullName );
-		}
+			FObjectThumbnail* FoundThumbnail = NULL;
 
-		return FoundThumbnail;
-	}
+			// We're expecting this to be an outermost package!
+			check(InPackage->GetOutermost() == InPackage);
 
-
-
-	/** Searches for an object's thumbnail in memory and returns it if found */
-	FObjectThumbnail* FindCachedThumbnailInPackage( const FString& InPackageFileName, const FName InObjectFullName )
-	{
-		FObjectThumbnail* FoundThumbnail = nullptr;
-
-		FString PackageName = InPackageFileName;
-		if (FPackageName::TryConvertFilenameToLongPackageName(PackageName, PackageName))
-		{
-			if (PackageName == TEXT("None"))
+			// Does the package have any thumbnails?
+			if (InPackage->HasThumbnailMap())
 			{
-				UE_LOG(LogUObjectGlobals, Warning, TEXT("Attempted to FindCachedThumbnailInPackage named 'None' - PackageName: %s InPackageFileName: %s"), *PackageName, *InPackageFileName);
-				return nullptr;
+				// @todo thumbnails: Backwards compat
+				FThumbnailMap& PackageThumbnailMap = InPackage->AccessThumbnailMap();
+				FoundThumbnail = PackageThumbnailMap.Find(InObjectShortClassFullName);
 			}
 
-			// First check to see if the package is already in memory.  If it is, some or all of the thumbnails
-			// may already be loaded and ready.
-			UObject* PackageOuter = nullptr;
-			UPackage* Package = FindPackage(PackageOuter, *PackageName);
-			if (Package != nullptr)
-			{
-				FoundThumbnail = FindCachedThumbnailInPackage(Package, InObjectFullName);
-			}
+			return FoundThumbnail;
 		}
-		return FoundThumbnail;
+	}
+	/** Searches for an object's thumbnail in memory and returns it if found */
+	FObjectThumbnail* FindCachedThumbnailInPackage(UPackage* InPackage, FName InObjectFullName)
+	{
+		return Private::FindCachedThumbnailInPackage(InPackage,
+			FName(*UClass::ConvertFullNameToShortTypeFullName(WriteToString<256>(InObjectFullName).ToView())));
+	}
+	/** Searches for an object's thumbnail in memory and returns it if found */
+	FObjectThumbnail* FindCachedThumbnailInPackage(UPackage* InPackage, FStringView InObjectFullName)
+	{
+		return Private::FindCachedThumbnailInPackage(InPackage,
+			FName(*UClass::ConvertFullNameToShortTypeFullName(InObjectFullName)));
+	}
+	/** Searches for an object's thumbnail in memory and returns it if found */
+	FObjectThumbnail* FindCachedThumbnailInPackage(UPackage* InPackage, const TCHAR* InObjectFullName)
+	{
+		return Private::FindCachedThumbnailInPackage(InPackage,
+			FName(*UClass::ConvertFullNameToShortTypeFullName(InObjectFullName)));
 	}
 
+	namespace Private
+	{
+		/** Searches for an object's thumbnail in memory and returns it if found */
+		FObjectThumbnail* FindCachedThumbnailInPackage(const FString& InPackageFileName, const FName InObjectShortClassFullName)
+		{
+			FObjectThumbnail* FoundThumbnail = nullptr;
 
+			FString PackageName = InPackageFileName;
+			if (FPackageName::TryConvertFilenameToLongPackageName(PackageName, PackageName))
+			{
+				if (PackageName == TEXT("None"))
+				{
+					UE_LOG(LogUObjectGlobals, Warning, TEXT("Attempted to FindCachedThumbnailInPackage named 'None' - PackageName: %s InPackageFileName: %s"), *PackageName, *InPackageFileName);
+					return nullptr;
+				}
+
+				// First check to see if the package is already in memory.  If it is, some or all of the thumbnails
+				// may already be loaded and ready.
+				UObject* PackageOuter = nullptr;
+				UPackage* Package = FindPackage(PackageOuter, *PackageName);
+				if (Package != nullptr)
+				{
+					FoundThumbnail = Private::FindCachedThumbnailInPackage(Package, InObjectShortClassFullName);
+				}
+			}
+			return FoundThumbnail;
+		}
+	}
+
+	/** Searches for an object's thumbnail in memory and returns it if found */
+	FObjectThumbnail* FindCachedThumbnailInPackage(const FString& InPackageFileName, FName InObjectFullName)
+	{
+		return Private::FindCachedThumbnailInPackage(InPackageFileName,
+			FName(*UClass::ConvertFullNameToShortTypeFullName(WriteToString<256>(InObjectFullName).ToView())));
+	}
+	/** Searches for an object's thumbnail in memory and returns it if found */
+	FObjectThumbnail* FindCachedThumbnailInPackage(const FString& InPackageFileName, FStringView InObjectFullName)
+	{
+		return Private::FindCachedThumbnailInPackage(InPackageFileName,
+			FName(*UClass::ConvertFullNameToShortTypeFullName(InObjectFullName)));
+	}
+	/** Searches for an object's thumbnail in memory and returns it if found */
+	FObjectThumbnail* FindCachedThumbnailInPackage(const FString& InPackageFileName, const TCHAR* InObjectFullName)
+	{
+		return Private::FindCachedThumbnailInPackage(InPackageFileName,
+			FName(*UClass::ConvertFullNameToShortTypeFullName(InObjectFullName)));
+	}
 
 	/** Searches for an object's thumbnail in memory and returns it if found */
 	const FObjectThumbnail* FindCachedThumbnail( const FString& InFullName )
@@ -5023,7 +5059,7 @@ namespace ThumbnailTools
 			return nullptr;
 		}
 
-		return FindCachedThumbnailInPackage( PackageFileName, FName( *InFullName ) );
+		return FindCachedThumbnailInPackage( PackageFileName, *InFullName );
 	}
 
 
@@ -5032,7 +5068,7 @@ namespace ThumbnailTools
 	FObjectThumbnail* GetThumbnailForObject( UObject* InObject )
 	{
 		UPackage* ObjectPackage = InObject->GetOutermost();
-		return FindCachedThumbnailInPackage( ObjectPackage, FName( *InObject->GetFullName() ) );
+		return FindCachedThumbnailInPackage( ObjectPackage, *InObject->GetFullName() );
 	}
 
 
@@ -5083,8 +5119,8 @@ namespace ThumbnailTools
 			for( int32 CurThumbnailIndex = 0; CurThumbnailIndex < ThumbnailCount; ++CurThumbnailIndex )
 			{
 				bool bHaveValidClassName = false;
-				FString ObjectClassName;
-				*FileReader << ObjectClassName;
+				FString ObjectShortClassName;
+				*FileReader << ObjectShortClassName;
 
 				// Object path
 				FString ObjectPathWithoutPackageName;
@@ -5093,7 +5129,7 @@ namespace ThumbnailTools
 				FString ObjectPath;
 
 				// handle UPackage thumbnails differently from usual assets
-				if (ObjectClassName == UPackage::StaticClass()->GetName())
+				if (ObjectShortClassName == UPackage::StaticClass()->GetName())
 				{
 					ObjectPath = ObjectPathWithoutPackageName;
 				}
@@ -5103,7 +5139,7 @@ namespace ThumbnailTools
 				}
 
 				// If the thumbnail was stored with a missing class name ("???") when we'll catch that here
-				if( ObjectClassName.Len() > 0 && ObjectClassName != TEXT( "???" ) )
+				if(ObjectShortClassName.Len() > 0 && ObjectShortClassName != TEXT( "???" ) )
 				{
 					bHaveValidClassName = true;
 				}
@@ -5129,7 +5165,8 @@ namespace ThumbnailTools
 							// Great, we found a path that matches -- we just need to add that class name
 							const int32 FirstSpaceIndex = CurObjectFullName.Find( TEXT( " " ) );
 							check( FirstSpaceIndex != -1 );
-							ObjectClassName = CurObjectFullName.Left( FirstSpaceIndex );
+							ObjectShortClassName = CurObjectFullName.Left( FirstSpaceIndex );
+							ObjectShortClassName = UClass::ConvertPathNameToShortTypeName(ObjectShortClassName);
 
 							// We have a useful class name now!
 							bHaveValidClassName = true;
@@ -5152,7 +5189,7 @@ namespace ThumbnailTools
 				if( bHaveValidClassName )
 				{
 					// Create a full name string with the object's class and fully qualified path
-					const FString ObjectFullName( ObjectClassName + TEXT( " " ) + ObjectPath );
+					const FString ObjectFullName(ObjectShortClassName + TEXT( " " ) + ObjectPath);
 
 
 					// Add to our map
@@ -5170,11 +5207,12 @@ namespace ThumbnailTools
 		// @todo CB: Should sort the thumbnails to load by file offset to reduce seeks [reviewed; pre-qa release]
 		for ( TSet<FName>::TConstIterator It(InObjectFullNames); It; ++It )
 		{
-			const FName& CurObjectFullName = *It;
+			FName CurObjectFullName = *It;
+			FName CurObjectShortClassFullName = FName(*UClass::ConvertFullNameToShortTypeFullName(WriteToString<256>(CurObjectFullName).ToView()));
 
 			// Do we have this thumbnail in the file?
 			// @todo thumbnails: Backwards compat
-			const int32* pFileOffset = ObjectNameToFileOffsetMap.Find(CurObjectFullName);
+			const int32* pFileOffset = ObjectNameToFileOffsetMap.Find(CurObjectShortClassFullName);
 			if ( pFileOffset != NULL )
 			{
 				// Seek to the location in the file with the image data

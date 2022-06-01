@@ -55,6 +55,7 @@
 #include "UObject/TopLevelAssetPath.h"
 #include "AssetRegistry/AssetData.h"
 #include "HAL/PlatformStackWalk.h"
+#include "String/Find.h"
 
 // This flag enables some expensive class tree validation that is meant to catch mutations of 
 // the class tree outside of SetSuperStruct. It has been disabled because loading blueprints 
@@ -6094,6 +6095,62 @@ bool UClass::TryFixShortClassNameExportPath(FString& InOutExportPathToFix, ELogV
 	}
 	return false;
 }
+
+FString UClass::ConvertPathNameToShortTypeName(FStringView InPathName)
+{
+	return FString(FPackageName::ObjectPathToObjectName(InPathName));
+}
+
+FString UClass::ConvertFullNameToShortTypeFullName(FStringView InFullName)
+{
+	FStringView ClassPath, PackageName, ObjectName, SubObjectName;
+	FPackageName::SplitFullObjectPath(InFullName, ClassPath, PackageName, ObjectName, SubObjectName);
+	if (ClassPath.IsEmpty() || PackageName.IsEmpty())
+	{
+		// Not a valid FullName, return it untransformed
+		return FString(InFullName);
+	}
+	FStringView ClassObjectName = FPackageName::ObjectPathToObjectName(ClassPath);
+	if (ClassObjectName.Len() == ClassPath.Len())
+	{
+		// Already a ShortTypeFullName, return it untransformed
+		return FString(InFullName);
+	}
+
+	FString Result;
+	Result.Reserve(InFullName.Len());
+	Result += ClassObjectName;
+	Result += TEXT(" ");
+	Result += PackageName;
+	if (ObjectName.Len())
+	{
+		Result += TEXT(".");
+		Result += ObjectName;
+		if (SubObjectName.Len())
+		{
+			Result += SUBOBJECT_DELIMITER;
+			Result += SubObjectName;
+		}
+	}
+	return Result;
+}
+
+bool UClass::IsShortTypeName(FStringView InClassPath)
+{
+	if (InClassPath.Len() == 0)
+	{
+		// Arbitrary
+		return true;
+	}
+	// If it starts with '/' it is definitely not a ShortTypeName
+	// If it doesn't start with '/', most of the time it is a ShortTypeName because this function is usually called on either PathNames or ShortTypeNames
+	if (InClassPath[0] == '/')
+	{
+		return false;
+	}
+	return UE::String::FindFirstOfAnyChar(InClassPath, TEXT("./\\" SUBOBJECT_DELIMITER)) == INDEX_NONE;
+}
+
 
 #if WITH_EDITOR || HACK_HEADER_GENERATOR
 void UClass::GetHideFunctions(TArray<FString>& OutHideFunctions) const
