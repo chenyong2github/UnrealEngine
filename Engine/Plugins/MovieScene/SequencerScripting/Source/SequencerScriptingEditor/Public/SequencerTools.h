@@ -147,6 +147,17 @@ public:
 	static bool ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence, UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOption, const FSequencerBindingProxy& Binding, bool bCreateLink);
 
 	/*
+	 * Links a LevelSequence's SkeletalMesh binding to an existing anim sequence.
+	 *
+	 * @InSequence Sequence to link from
+	 * @AnimSequence The AnimSequence to link to.
+	 * @ExportOption The export options that should be used when baking the LevelSequence.
+	 * @InBinding Binding that has a skelmesh component on it
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
+	static bool LinkAnimSequence(ULevelSequence* Sequence, UAnimSequence* AnimSequence, const UAnimSeqExportOption* ExportOptions, const FSequencerBindingProxy& Binding);
+
+	/*
 	 * Get the link to the level sequence if it exists on this anim sequence
 	 *
 	 * @InAnimSequence AnimSequence to get links from
