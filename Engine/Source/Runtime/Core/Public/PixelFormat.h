@@ -205,3 +205,8 @@ ENUM_CLASS_FLAGS(EPixelFormatChannelFlags);
 // should be updated to take an EPixelFormat instead, but in the interim this allows fixing
 // type conversion warnings
 #define UE_PIXELFORMAT_TO_UINT8(argument) static_cast<uint8>(argument)
+
+FORCEINLINE bool IsHDR(EPixelFormat PixelFormat)
+{
+	return PixelFormat == PF_FloatRGBA || PixelFormat == PF_BC6H || PixelFormat == PF_R16F || PixelFormat == PF_R32_FLOAT || PixelFormat == PF_A32B32G32R32F;
+}

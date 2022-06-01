@@ -2295,7 +2295,7 @@ bool FTextureEditorToolkit::HandleTextureBorderActionIsChecked( ) const
 
 EVisibility FTextureEditorToolkit::HandleExposureBiasWidgetVisibility() const
 {
-	if ((Texture != nullptr) && (Texture->CompressionSettings == TC_HDR || Texture->CompressionSettings == TC_HDR_Compressed))
+	if (Texture && Texture->GetRunningPlatformData() && IsHDR((*Texture->GetRunningPlatformData())->PixelFormat))
 	{
 		return EVisibility::Visible;
 	}
