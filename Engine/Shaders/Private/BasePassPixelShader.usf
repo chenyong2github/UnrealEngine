@@ -844,29 +844,6 @@ FShadingOcclusion ApplyBentNormal(
 
 #if STRATA_ENABLED
 
-#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
-float3 StrataGetBSDFPrecomputedLighting(
-	in FStrataBSDFForPrecomputedLighting BSDFForPrecomputedLighting,
-	in FMaterialPixelParameters MaterialParameters,
-	in FVertexFactoryInterpolantsVSToPS Interpolants,
-	in FBasePassInterpolantsVSToPS BasePassInterpolants,
-	in VTPageTableResult LightmapVTPageTableResult,
-	in float3 VolumetricLightmapBrickTextureUVs)
-{
-	float3 DiffuseLighting = 0.0f;
-	float3 SubsurfaceLighting = 0.0f;
-	float  IndirectIrrad1iance = 0.0f;
-	const bool bEvaluateBackface = any(BSDFForPrecomputedLighting.SubsurfaceColorForIndirect > 0.0);	// With Strata we have no other way to know before if backface lighting will be needed
-	GetPrecomputedIndirectLightingAndSkyLight(MaterialParameters, Interpolants, BasePassInterpolants, LightmapVTPageTableResult, bEvaluateBackface, BSDFForPrecomputedLighting.DiffuseNormal, VolumetricLightmapBrickTextureUVs,
-		DiffuseLighting, SubsurfaceLighting, IndirectIrrad1iance);
-
-	float3 OutLuminance = (DiffuseLighting * BSDFForPrecomputedLighting.DiffuseColorForIndirect + SubsurfaceLighting * BSDFForPrecomputedLighting.SubsurfaceColorForIndirect)
-		* AOMultiBounce(BSDFForPrecomputedLighting.DiffuseColor, BSDFForPrecomputedLighting.ShadingOcclusion.DiffOcclusion); // STRATA_TODO This should only be applied on the aggregated diffuse colors, not each contribution independently. But we also need to account for DiffOcclusion which looks normal dependent
-
-	return OutLuminance;
-}
-#endif
-
 uint GetDiffuseIndirectSampleOcclusion(FSharedLocalBases SharedLocalBases, float3 V, float2 SvPosition, float MaterialAO)
 {
 	uint DiffuseIndirectSampleOcclusion = 0;
@@ -1757,9 +1734,6 @@ void FPixelShaderInOut_MainPS(
 		uint2 PixelPos = uint2(In.SvPosition.xy);
 		const float3 WorldBentNormal0 = GetWorldBentNormalZero(MaterialParameters);
 
-	#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
-		FStrataPrecomputedLightingData PrecomputedLightingData = (FStrataPrecomputedLightingData)0;
-	#endif
 		FStrataSubsurfaceData SSSData = (FStrataSubsurfaceData)0;
 		FStrataTopLayerData TopLayerData = (FStrataTopLayerData)0;
 		FStrataOpaqueRoughRefractionData OpaqueRoughRefractionData = (FStrataOpaqueRoughRefractionData)0;
@@ -1781,23 +1755,13 @@ void FPixelShaderInOut_MainPS(
 			StrataPixelHeader, StrataData, MaterialParameters.CameraVector, WorldBentNormal0, bStrataSubsurfaceEnable, EmissiveLuminance,
 			SSSData, TopLayerData, OpaqueRoughRefractionData
 	#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
-			, PrecomputedLightingData
+			,MaterialParameters
+			,Interpolants
+			,BasePassInterpolants
+			,LightmapVTPageTableResult
+			,VolumetricLightmapBrickTextureUVs
 	#endif
 		);
-
-		float3 PreComputedLightingLuminance = 0.0f;
-	#if MATERIAL_STRATA_OPAQUE_PRECOMPUTED_LIGHTING
-		for (uint i = 0; i < PrecomputedLightingData.BSDFCount; ++i)
-		{
-			PreComputedLightingLuminance += StrataGetBSDFPrecomputedLighting(
-				PrecomputedLightingData.BSDFs[i],
-				MaterialParameters,
-				Interpolants,
-				BasePassInterpolants,
-				LightmapVTPageTableResult,
-				VolumetricLightmapBrickTextureUVs);
-		}
-	#endif
 
 		// Write out MRT data
 	#if STRATA_BASE_PASS_MRT_OUTPUT_COUNT != 2
@@ -1835,7 +1799,7 @@ void FPixelShaderInOut_MainPS(
 		Color = lerp(Color, TopLayerData.BaseColor, View.UnlitViewmodeMask);
 	#endif
 
-		Color += EmissiveLuminance + PreComputedLightingLuminance;
+		Color += EmissiveLuminance;
 	}
 
 #endif // STRATA_OPAQUE_DEFERRED
