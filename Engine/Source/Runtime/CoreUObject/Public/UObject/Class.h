@@ -2526,10 +2526,10 @@ public:
 	}
 
 	/** Calls the c++ class's AppendToClassSchema static function */
-	void CallAppendToClassSchema(FBlake3& Hasher) const
+	void CallAppendToClassSchema(FAppendToClassSchemaContext& Context) const
 	{
 		check(CppClassStaticFunctions.GetAppendToClassSchema());
-		CppClassStaticFunctions.GetAppendToClassSchema()(Hasher);
+		CppClassStaticFunctions.GetAppendToClassSchema()(Context);
 	}
 #endif
 

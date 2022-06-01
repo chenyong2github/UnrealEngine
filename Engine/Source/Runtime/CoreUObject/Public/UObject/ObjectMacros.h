@@ -10,9 +10,9 @@
 #include "Misc/EnumClassFlags.h"
 #include "UObject/Script.h"
 
-class FBlake3;
 class FObjectInitializer;
 class FReferenceCollector;
+struct FAppendToClassSchemaContext;
 struct FFrame;
 struct FClassReloadVersionInfo;
 
@@ -1878,7 +1878,7 @@ public:
 	typedef void (*AddReferencedObjectsType)	(UObject* ThisObject, FReferenceCollector& Ar);
 #if WITH_EDITORONLY_DATA
 	typedef void (*DeclareCustomVersionsType)   (FArchive& Ar, const UClass* SpecificSubclass);
-	typedef void (*AppendToClassSchemaType)   (FBlake3& Hasher);
+	typedef void (*AppendToClassSchemaType)   (FAppendToClassSchemaContext& Context);
 #endif
 	// UObjectCppClassStaticFunctions: Extend this list of types with the type of your new static function.
 

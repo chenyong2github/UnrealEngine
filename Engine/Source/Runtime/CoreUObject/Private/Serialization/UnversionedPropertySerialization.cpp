@@ -319,7 +319,8 @@ struct FUnversionedStructSchema
 		const UClass* StructAsClass = Cast<const UClass>(Struct);
 		if (StructAsClass)
 		{
-			StructAsClass->CallAppendToClassSchema(HashBuilder);
+			FAppendToClassSchemaContext Context(&HashBuilder);
+			StructAsClass->CallAppendToClassSchema(Context);
 		}
 		Schema->SchemaHash = HashBuilder.Finalize();
 #endif
@@ -977,4 +978,11 @@ COREUOBJECT_API void DumpClassSchemas(const TCHAR* Str, FOutputDevice& Ar)
 	}
 #endif
 }
+
+void FAppendToClassSchemaContext::Update(const void* Data, uint64 Size)
+{
+	FBlake3& Blake3Hasher = *(reinterpret_cast<FBlake3*>(Hasher));
+	Blake3Hasher.Update(Data, Size);
+}
+
 #endif

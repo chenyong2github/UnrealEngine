@@ -1576,7 +1576,7 @@ void UObject::DeclareCustomVersions(FArchive& Ar, const UClass* SpecificSubclass
 	}
 }
 
-void UObject::AppendToClassSchema(FBlake3& Hasher)
+void UObject::AppendToClassSchema(FAppendToClassSchemaContext& Context)
 {
 }
 #endif

@@ -40,7 +40,6 @@
 #include "ImageCoreUtils.h"
 #include "ImageUtils.h"
 #include "Algo/Unique.h"
-#include "Hash/Blake3.h"
 
 #if WITH_EDITOR
 #include "DerivedDataBuildVersion.h"
@@ -886,13 +885,13 @@ void UTexture::Serialize(FArchive& Ar)
 }
 
 #if WITH_EDITORONLY_DATA
-void UTexture::AppendToClassSchema(FBlake3& Hasher)
+void UTexture::AppendToClassSchema(FAppendToClassSchemaContext& Context)
 {
-	Super::AppendToClassSchema(Hasher);
+	Super::AppendToClassSchema(Context);
 
 	// IsEnableLegacyAlphaCoverageThresholdScaling affects upgrades executed in Serialize, so include it in the ClassSchema
 	uint8 LegacyScalingBool = IsEnableLegacyAlphaCoverageThresholdScaling();
-	Hasher.Update(&LegacyScalingBool, sizeof(LegacyScalingBool));
+	Context.Update(&LegacyScalingBool, sizeof(LegacyScalingBool));
 }
 #endif
 

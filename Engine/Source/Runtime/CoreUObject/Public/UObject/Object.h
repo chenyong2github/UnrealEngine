@@ -15,7 +15,6 @@
 #include "UObject/PrimaryAssetId.h"
 
 struct FAssetData;
-class FBlake3;
 class FConfigCacheIni;
 class FCustomPropertyConditionState;
 class FEditPropertyChain;
@@ -26,6 +25,7 @@ class FObjectPreSaveRootContext;
 class ITargetPlatform;
 class ITransactionObjectAnnotation;
 class FTransactionObjectEvent;
+struct FAppendToClassSchemaContext;
 struct FFrame;
 struct FObjectInstancingGraph;
 struct FPropertyChangedChainEvent;
@@ -378,7 +378,7 @@ public:
 	 * values that determine how version upgraded are conducted. Can also append a unique guid when necessary to
 	 * invalidate previous results because serialization changed and no custom version was udpated.
 	 */
-	static void AppendToClassSchema(FBlake3& Hasher);
+	static void AppendToClassSchema(FAppendToClassSchemaContext& Context);
 #endif
 
 	/** After a critical error, perform any mission-critical cleanup, such as restoring the video mode orreleasing hardware resources. */
@@ -1695,6 +1695,21 @@ struct FInternalUObjectBaseUtilityIsValidFlagsChecker
 		return !Test->HasAnyFlags(RF_InternalPendingKill | RF_InternalGarbage);
 	}
 };
+
+#if WITH_EDITORONLY_DATA
+struct FAppendToClassSchemaContext
+{
+public:
+	explicit FAppendToClassSchemaContext(void* InHasher) // Type is void* to mask the implementation detail
+		:Hasher(InHasher)
+	{
+	}
+	COREUOBJECT_API void Update(const void* Data, uint64 Size);
+
+private:
+	void* Hasher; // Type is void* to mask the implementation detail
+};
+#endif
 
 /**
 * Test validity of object
