@@ -482,7 +482,10 @@ namespace UE
 			{
 				FScopedUsdAllocs UsdAllocs;
 
-				const bool bIsNormalInput = ( ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Normal3f || ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Normal3fArray );
+				const bool bIsNormalInput = ( ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Normal3f
+					|| ShadeInput.GetTypeName() == pxr::SdfValueTypeNames->Normal3fArray
+					|| ShadeInput.GetBaseName() == UnrealIdentifiers::Normal
+				);
 
 				pxr::UsdShadeConnectableAPI Source;
 				pxr::TfToken SourceName;
