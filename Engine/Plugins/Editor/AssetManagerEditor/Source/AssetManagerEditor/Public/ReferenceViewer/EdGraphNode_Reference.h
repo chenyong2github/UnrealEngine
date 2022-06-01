@@ -44,6 +44,13 @@ class ASSETMANAGEREDITOR_API UEdGraphNode_Reference : public UEdGraphNode
 	bool IsPackage() const;
 	bool IsCollapsed() const;
 	bool IsADuplicate() const { return bIsADuplicate; }
+
+	// Nodes that are filtered out still may still show because they
+	// are between nodes that pass the filter and the root.  This "filtered"
+	// bool allows us to render these in-between nodes differently
+	void SetIsFiltered(bool bInFiltered);
+	bool GetIsFiltered() const;
+
 	FAssetData GetAssetData() const;
 
 	UEdGraphPin* GetDependencyPin();
@@ -64,6 +71,7 @@ private:
 	bool bIsPrimaryAsset;
 	bool bIsCollapsed;
 	bool bIsADuplicate;
+	bool bIsFiltered;
 
 	FAssetData CachedAssetData;
 	FLinearColor AssetTypeColor;

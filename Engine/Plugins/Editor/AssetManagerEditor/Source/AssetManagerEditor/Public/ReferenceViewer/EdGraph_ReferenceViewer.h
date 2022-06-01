@@ -8,6 +8,7 @@
 #include "AssetManagerEditorModule.h"
 #include "EdGraph/EdGraph.h"
 #include "Misc/AssetRegistryInterface.h"
+#include "Misc/FilterCollection.h"
 #include "EdGraph_ReferenceViewer.generated.h"
 
 class FAssetThumbnailPool;
@@ -19,7 +20,7 @@ enum class EDependencyPinCategory;
 /*
 *  Holds asset information for building reference graph
 */ 
-struct ReferenceNodeInfo
+struct FReferenceNodeInfo
 {
 	FAssetIdentifier AssetId;
 
@@ -36,7 +37,7 @@ struct ReferenceNodeInfo
 
 	int32 OverflowCount;
 
-	ReferenceNodeInfo(const FAssetIdentifier& InAssetId, bool InbReferencers);
+	FReferenceNodeInfo(const FAssetIdentifier& InAssetId, bool InbReferencers);
 
 	bool IsFirstParent(const FAssetIdentifier& InParentId) const;
 
@@ -49,6 +50,9 @@ struct ReferenceNodeInfo
 
 	// how many nodes worth of children require vertical spacing 
 	int32 ChildProvisionSize;
+
+	// Whether or not this nodeinfo passed the current filters 
+	bool PassedFilters;
 
 };
 
@@ -78,25 +82,29 @@ public:
 	/** Force the graph to rebuild */
 	class UEdGraphNode_Reference* RebuildGraph();
 
+	/** Refilters the nodes, more efficient that a full rebuild.  This function is preferred when the assets, reference types or depth hasn't changed, meaning the NodeInfos didn't change, just 
+	 * the presentation or filtering */
+	class UEdGraphNode_Reference* RefilterGraph();
+
 	using FIsPackageNamePassingFilterCallback = TFunction<bool(FName)>;
 	void SetIsPackageNamePassingFilterCallback(const TOptional<FIsPackageNamePassingFilterCallback>& InIsPackageNamePassingFilterCallback) { IsPackageNamePassingFilterCallback = InIsPackageNamePassingFilterCallback; }
 
 	FName GetCurrentCollectionFilter() const;
 	void SetCurrentCollectionFilter(FName NewFilter);
 
-	/* Temporary variable that allows reverting to deprecated layout methods */
-	bool GetUseNodeInfos() const { return bUseNodeInfos; }
-	void SetUseNodeInfos(bool InbUseNodeInfos) { bUseNodeInfos= InbUseNodeInfos; }
+	/* Delegate type to notify when the assets or NodeInfos have changed as opposed to when the filters changed */
+	FSimpleMulticastDelegate& OnAssetsChanged() { return OnAssetsChangedDelegate; }
+
+	/* Not to be confused with the above Content Browser Collection name, this is a TFiltercollection, a list of active filters */
+	void SetCurrentFilterCollection(TSharedPtr< TFilterCollection<FReferenceNodeInfo&> > NewFilterCollection);
+
+	/* Returns a set of unique asset types as UClass* */
+	const TSet<FName>& GetAssetTypes() const { return CurrentClasses; }
 
 private:
 	void SetReferenceViewer(TSharedPtr<SReferenceViewer> InViewer);
 	UEdGraphNode_Reference* ConstructNodes(const TArray<FAssetIdentifier>& GraphRootIdentifiers, const FIntPoint& GraphRootOrigin);
-	// RecursivelyGatherSizes is now deprecated, use RecursivelyPopulateNodeInfos with RecursivelyCreateNodes
-	int32 RecursivelyGatherSizes(bool bReferencers, const TArray<FAssetIdentifier>& Identifiers, const TSet<FName>& AllowedPackageNames, int32 CurrentDepth, int32 MaxDepth, TSet<FAssetIdentifier>& VisitedNames, TMap<FAssetIdentifier, int32>& OutNodeSizes) const;
-	void GatherAssetData(const TSet<FName>& AllPackageNames, TMap<FName, FAssetData>& OutPackageToAssetDataMap) const;
 
-	// RecursivelyConstructNodes is now deprecated, use RecursivelyPopulateNodeInfos with RecursivelyCreateNodes
-	class UEdGraphNode_Reference* RecursivelyConstructNodes(bool bReferencers, UEdGraphNode_Reference* RootNode, const TArray<FAssetIdentifier>& Identifiers, const FIntPoint& NodeLoc, const TMap<FAssetIdentifier, int32>& NodeSizes, const TMap<FName, FAssetData>& PackagesToAssetDataMap, const TSet<FName>& AllowedPackageNames, int32 CurrentDepth, int32 MaxDepth, TSet<FAssetIdentifier>& VisitedNames);
 
 	bool ExceedsMaxSearchDepth(int32 Depth, int32 MaxDepth) const;
 	bool ExceedsMaxSearchBreadth(int32 Breadth) const;
@@ -105,7 +113,13 @@ private:
 	UEdGraphNode_Reference* CreateReferenceNode();
 
 	/* Generates a NodeInfo structure then used to generate and layout the graph nodes */
-	void RecursivelyPopulateNodeInfos(bool bReferencers, const FAssetIdentifier& AssetId, TMap<FAssetIdentifier, ReferenceNodeInfo>& NodeInfos, int32 CurrentDepth, int32 MaxDepth);
+	void RecursivelyPopulateNodeInfos(bool bReferencers, const FAssetIdentifier& AssetId, TMap<FAssetIdentifier, FReferenceNodeInfo>& NodeInfos, int32 CurrentDepth, int32 MaxDepth);
+
+	/* Marks up the NodeInfos with updated filter information and provision sizes */
+	void RecursivelyFilterNodeInfos(const FAssetIdentifier& InAssetId, TMap<FAssetIdentifier, FReferenceNodeInfo>& NodeInfos, int32 CurrentDepth, int32 MaxDepth);
+
+	/* Searches for the AssetData for the list of packages derived from the AssetReferences  */
+	void GatherAssetData(const TSet<FName>& AllPackageNames, TMap<FName, FAssetData>& OutPackageToAssetDataMap) const;
 
 	/* Uses the NodeInfos map to generate and layout the graph nodes */
 	UEdGraphNode_Reference* RecursivelyCreateNodes(
@@ -114,7 +128,7 @@ private:
 		const FIntPoint& InNodeLoc, 
 		const FAssetIdentifier& InParentId, 
 		UEdGraphNode_Reference* InParentNode, 
-		TMap<FAssetIdentifier, ReferenceNodeInfo>& InNodeInfos, 
+		TMap<FAssetIdentifier, FReferenceNodeInfo>& InNodeInfos, 
 		int32 InCurrentDepth, 
 		int32 InMaxDepth, 
 		bool bIsRoot = false
@@ -144,17 +158,28 @@ private:
 	/** Current collection filter. NAME_None for no filter */
 	FName CurrentCollectionFilter;
 
+	/** A set of the unique class types referenced */
+	TSet<FName> CurrentClasses;
 
 	/* This is a convenience toggle to switch between the old & new methods for computing & displaying the graph */
 	bool bUseNodeInfos;
+
+	/* Cached Reference Information used to quickly refilter */
+	TMap<FAssetIdentifier, FReferenceNodeInfo> ReferencerNodeInfos;
+	TMap<FAssetIdentifier, FReferenceNodeInfo> DependencyNodeInfos;
 
 	TOptional<FIsPackageNamePassingFilterCallback> IsPackageNamePassingFilterCallback;
 
 	/** List of packages the current collection filter allows */
 	TSet<FName> CurrentCollectionPackages;
 
+	/** Current filter collection */
+	TSharedPtr< TFilterCollection<FReferenceNodeInfo & > > FilterCollection;
 
 	UReferenceViewerSettings* Settings;
+
+	/* A delegate to notify when the underlying assets changed (usually through a root or depth change) */
+	FSimpleMulticastDelegate OnAssetsChangedDelegate;
 
 	friend SReferenceViewer;
 };

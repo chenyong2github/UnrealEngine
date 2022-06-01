@@ -10,6 +10,27 @@
 /**
  *  Project based Reference Viewer Saved Settings 
  */
+USTRUCT()
+struct FilterState
+{
+	GENERATED_BODY();
+
+	FilterState()
+	: FilterName(NAME_None)
+	, bIsEnabled(false)
+	{}
+
+	FilterState(FName InFilterName, bool InState)
+	: FilterName(InFilterName)
+	, bIsEnabled(InState)
+	{}
+
+	UPROPERTY()
+	FName FilterName;
+
+	UPROPERTY()
+	bool bIsEnabled;
+};
 
 UCLASS(config=EditorPerProjectUserSettings)
 class UReferenceViewerSettings : public UObject
@@ -70,6 +91,16 @@ public:
 
 	bool IsShowPath() const;
 	void SetShowPathEnabled(bool newEnabled);
+
+	bool GetFiltersEnabled() const;
+	void SetFiltersEnabled(bool newEnabled);
+
+	bool AutoUpdateFilters() const;
+	void SetAutoUpdateFilters(bool newEnabled);
+
+	const TArray<FilterState>& GetUserFilters() const;
+	void SetUserFilters(TArray<FilterState>& InFilters);
+
 
 private:
 	/* Whether to limit the search depth for Referencers & Dependencies */
@@ -144,4 +175,15 @@ private:
 	UPROPERTY(config)
 	bool bIsShowPath;
 
+	/* This turns on/off any filtering done though the SFilterBar */
+	UPROPERTY(config)
+	bool bFiltersEnabled;
+
+	/* When true, the filters bar auto updates based on the node types, otherwise user filters will be used */
+	UPROPERTY(config)
+	bool bAutoUpdateFilters;
+
+	/* The list of filters the user has built up */
+	UPROPERTY(config)
+	TArray<FilterState> UserFilters;
 };

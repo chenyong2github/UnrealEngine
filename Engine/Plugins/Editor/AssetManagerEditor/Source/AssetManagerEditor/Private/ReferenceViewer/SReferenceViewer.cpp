@@ -21,8 +21,8 @@
 #include "SSimpleComboButton.h"
 
 #include "Styling/AppStyle.h"
+#include "ReferenceViewerStyle.h"
 #include "Engine/Selection.h"
-#include "ReferenceViewer/EdGraph_ReferenceViewer.h"
 #include "ReferenceViewer/EdGraphNode_Reference.h"
 #include "ReferenceViewer/ReferenceViewerSchema.h"
 #include "AssetRegistry/AssetRegistryModule.h"
@@ -42,12 +42,6 @@
 #include "ObjectTools.h"
 
 #define LOCTEXT_NAMESPACE "ReferenceViewer"
-
-static bool GShowToggleDeprecatedReferenceViewerLayout = false;
-static FAutoConsoleCommand CVarShowToggleDeprecatedReferenceViewerLayout(
-	TEXT("ReferenceViewer.ShowToggleDeprecatedLayout"),
-	TEXT("Displays the toggle allowing the user to toggle back to the former layout algorithm."),
-	FConsoleCommandDelegate::CreateLambda([] { GShowToggleDeprecatedReferenceViewerLayout = !GShowToggleDeprecatedReferenceViewerLayout; }));
 
 bool IsPackageNamePassingFilter(FName InPackageName, const TArray<FString>& InSearchWords)
 {
@@ -97,6 +91,7 @@ SReferenceViewer::~SReferenceViewer()
 
 void SReferenceViewer::Construct(const FArguments& InArgs)
 {
+	bRebuildingFilters = false;
 	Settings = GetMutableDefault<UReferenceViewerSettings>();
 
 	// Create an action list and register commands
@@ -111,6 +106,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 	GraphObj->Schema = UReferenceViewerSchema::StaticClass();
 	GraphObj->AddToRoot();
 	GraphObj->SetReferenceViewer(StaticCastSharedRef<SReferenceViewer>(AsShared()));
+	GraphObj->OnAssetsChanged().AddSP(this, &SReferenceViewer::OnUpdateFilterBar);
 
 	SGraphEditor::FGraphEditorEvents GraphEvents;
 	GraphEvents.OnNodeDoubleClicked = FSingleNodeEvent::CreateSP(this, &SReferenceViewer::OnNodeDoubleClicked);
@@ -143,6 +139,26 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 	bShowCompactMode = true;
 	bDirtyResults = false;
 
+	SAssignNew(FilterWidget, SReferenceViewerFilterBar)
+		.Visibility_Lambda([this]() { return !Settings->GetFiltersEnabled() ? EVisibility::Collapsed : EVisibility::Visible; })
+		.OnConvertItemToAssetData_Lambda([this] (FReferenceNodeInfo& InNodeInfo, FAssetData& OutAssetData) -> bool { 
+			OutAssetData = InNodeInfo.AssetData; 
+			return true; 
+		})
+		.UseDefaultAssetFilters(true)
+		.OnFilterChanged_Lambda([this] { 
+			if (!bRebuildingFilters && GraphObj)
+			{
+				GraphObj->SetCurrentFilterCollection(FilterWidget->GetAllActiveFilters());
+				GraphObj->RefilterGraph();
+				FilterWidget->SaveSettings(FString(), FString(), FString());
+			}
+		})
+	;
+
+	TSharedPtr<SWidget> FilterCombo = FilterWidget->MakeAddFilterButton(FilterWidget.ToSharedRef());
+	FilterCombo->SetVisibility(TAttribute<EVisibility>::CreateLambda([this]() { return !Settings->GetFiltersEnabled() ? EVisibility::Collapsed : EVisibility::Visible; }));
+
 	ChildSlot
 	[
 
@@ -154,75 +170,21 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 		[
 			SNew(SBorder)
 			.BorderImage(FAppStyle::GetBrush("Brushes.Panel"))
-			.Padding(FMargin(12, 6, 12, 6))
 			[
 				SNew(SHorizontalBox)
 
-
-				// Refresh Button
 				+SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding(4, 0)
 				[
-					SNew(SSimpleButton)
-					.ToolTipText(LOCTEXT("RefreshTooltip", "Refresh current view"))
-					.OnClicked(this, &SReferenceViewer::RefreshClicked)
-					.Icon(FAppStyle::GetBrush("Icons.Refresh"))
-				]
-
-
-				// History Back Button
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4, 0)
-				[
-					SNew(SButton)
-					.ToolTipText( this, &SReferenceViewer::GetHistoryBackTooltip )
-					.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
-					.ForegroundColor(FSlateColor::UseStyle())
-					.OnClicked(this, &SReferenceViewer::BackClicked)
-					.IsEnabled(this, &SReferenceViewer::IsBackEnabled)
-					[
-						SNew(SImage)
-						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FAppStyle::GetBrush("Icons.ArrowLeft"))
-						.DesiredSizeOverride(FVector2D(20.0f, 20.0f))
-					]
-				]
-
-				// History Forward Button
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4, 0)
-				[
-					SNew(SButton)
-					.ToolTipText( this, &SReferenceViewer::GetHistoryForwardTooltip )
-					.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
-					.ForegroundColor(FSlateColor::UseStyle())
-					.OnClicked(this, &SReferenceViewer::ForwardClicked)
-					.IsEnabled(this, &SReferenceViewer::IsForwardEnabled)
-					[
-						SNew(SImage)
-						.ColorAndOpacity(FSlateColor::UseForeground())
-						.Image(FAppStyle::GetBrush("Icons.ArrowRight"))
-						.DesiredSizeOverride(FVector2D(20.0f, 20.0f))
-					]
-				]
-
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(4, 0)
-				[
-					SNew(SSimpleComboButton)
-					.OnGetMenuContent(this, &SReferenceViewer::GetShowMenuContent)
-					.Icon(FAppStyle::GetBrush("Icons.Visibility"))
-					.HasDownArrow(true)
+					MakeToolBar()
 				]
 
 				// Path
 				+SHorizontalBox::Slot()
-				.Padding(4, 0)
+				.Padding(0, 0)
 				.FillWidth(1.f)
+				.VAlign(VAlign_Center)
 				[
 					SNew(SBorder)
 					.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
@@ -236,14 +198,13 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 						.Style(FAppStyle::Get(), "ReferenceViewer.PathText")
 					]
 				]
-
-			
 			]
 		]
 
 		// Graph
 		+SVerticalBox::Slot()
 		.FillHeight(1.f)
+		.HAlign(HAlign_Fill)
 		[
 			SNew(SOverlay)
 
@@ -253,10 +214,15 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			]
 
 			+SOverlay::Slot()
-			.HAlign(HAlign_Left)
 			.VAlign(VAlign_Top)
+			.HAlign(HAlign_Left)
 			.Padding(8)
 			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+
 				SNew(SBorder)
 				.BorderImage( FAppStyle::GetBrush("ToolPanel.GroupBorder") )
 				[
@@ -404,6 +370,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 
 						+SHorizontalBox::Slot()
 						.VAlign(VAlign_Center)
+						.FillWidth(1.0)
 						.Padding(2.f)
 						[
 							SNew(STextBlock)
@@ -442,39 +409,21 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 						]
 					]
 
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SHorizontalBox)
-						.Visibility_Lambda([]() { return (GShowToggleDeprecatedReferenceViewerLayout ? EVisibility::Visible : EVisibility::Collapsed); })
+				]
+				] // SHorizontalBox::Slot()
 
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.Padding(2.f)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("UseOldLayoutMechanism", "Use Deprecated Layout"))
-						]
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Top)
+				[
+					FilterCombo.ToSharedRef()
+				]
 
-						+SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(2.f)
-						[
-							SNew(SCheckBox)
-							.OnCheckStateChanged_Lambda( [this] (ECheckBoxState NewState) { 
-								if (GraphObj) 
-								{ 	
-									GraphObj->SetUseNodeInfos(NewState != ECheckBoxState::Checked); 
-									RebuildGraph();} 
-								} 
-							)
-							.IsChecked_Lambda([this] () 
-							{
-								return (GraphObj && GraphObj->GetUseNodeInfos()) ? ECheckBoxState::Unchecked: ECheckBoxState::Checked;
-							})
-						]
-					]
+				+SHorizontalBox::Slot()
+				.FillWidth(1.0)
+				.VAlign(VAlign_Top)
+				[
+					FilterWidget.ToSharedRef()
 				]
 			]
 
@@ -620,27 +569,21 @@ bool SReferenceViewer::IsForwardEnabled() const
 	return HistoryManager.CanGoForward();
 }
 
-FReply SReferenceViewer::BackClicked()
+void SReferenceViewer::BackClicked()
 {
 	HistoryManager.GoBack();
-
-	return FReply::Handled();
 }
 
-FReply SReferenceViewer::ForwardClicked()
+void SReferenceViewer::ForwardClicked()
 {
 	HistoryManager.GoForward();
-
-	return FReply::Handled();
 }
 
-FReply SReferenceViewer::RefreshClicked()
+void SReferenceViewer::RefreshClicked()
 {
 	RebuildGraph();
 	TriggerZoomToFit(0, 0);
 	RegisterActiveTimer(0.1f, FWidgetActiveTimerDelegate::CreateSP(this, &SReferenceViewer::TriggerZoomToFit));
-
-	return FReply::Handled();
 }
 
 void SReferenceViewer::GraphNavigateHistoryBack()
@@ -780,6 +723,38 @@ void SReferenceViewer::OnUpdateHistoryData(FReferenceViewerHistoryData& HistoryD
 	}
 }
 
+void SReferenceViewer::OnUpdateFilterBar()
+{
+	bRebuildingFilters = true; 
+
+	if (GraphObj)
+	{
+		const TSet<FName> AllClasses = GraphObj->GetAssetTypes();
+		if (Settings->AutoUpdateFilters())
+		{
+			FilterWidget->RemoveAllFilters();
+			for (FName AssetClass : AllClasses)
+			{
+				if (FilterWidget->DoesAssetTypeFilterExist(AssetClass))
+				{
+					FilterWidget->SetAssetTypeFilterCheckState(AssetClass, ECheckBoxState::Checked);
+				}
+			}
+
+			GraphObj->SetCurrentFilterCollection(FilterWidget->GetAllActiveFilters());
+		}
+
+		else
+		{
+			FString EmptyString;
+			FilterWidget->LoadSettings(EmptyString, EmptyString, EmptyString);
+			GraphObj->SetCurrentFilterCollection(FilterWidget->GetAllActiveFilters());
+		}
+	}
+
+	bRebuildingFilters = false;
+}
+
 void SReferenceViewer::OnSearchDepthEnabledChanged( ECheckBoxState NewState )
 {
 	Settings->SetSearchDepthLimitEnabled(NewState == ECheckBoxState::Checked);
@@ -816,7 +791,10 @@ void SReferenceViewer::OnSearchReferencerDepthCommitted(int32 NewValue)
 void SReferenceViewer::OnSearchBreadthEnabledChanged( ECheckBoxState NewState )
 {
 	Settings->SetSearchBreadthLimitEnabled(NewState == ECheckBoxState::Checked);
-	RebuildGraph();
+	if (GraphObj)
+	{
+		GraphObj->RefilterGraph();
+	}
 }
 
 ECheckBoxState SReferenceViewer::IsSearchBreadthEnabledChecked() const
@@ -1000,7 +978,10 @@ bool SReferenceViewer::IsCompactModeChecked() const
 void SReferenceViewer::OnShowDuplicatesChanged()
 {
 	Settings->SetShowDuplicatesEnabled(!Settings->IsShowDuplicates());
-	RebuildGraph();
+	if (GraphObj)
+	{
+		GraphObj->RefilterGraph();
+	}
 }
 
 bool SReferenceViewer::IsShowDuplicatesChecked() const
@@ -1011,7 +992,10 @@ bool SReferenceViewer::IsShowDuplicatesChecked() const
 void SReferenceViewer::OnShowEditorOnlyReferencesChanged()
 {
 	Settings->SetShowEditorOnlyReferencesEnabled(!Settings->IsShowEditorOnlyReferences());
-	RebuildGraph();
+	if (GraphObj)
+	{
+		GraphObj->RebuildGraph();
+	}
 }
 
 bool SReferenceViewer::IsShowEditorOnlyReferencesChecked() const
@@ -1069,7 +1053,10 @@ int32 SReferenceViewer::GetSearchBreadthCount() const
 void SReferenceViewer::OnSearchBreadthCommitted(int32 NewValue)
 {
 	Settings->SetSearchBreadthLimit(NewValue);
-	RebuildGraph();
+	if (GraphObj)
+	{
+		GraphObj->RefilterGraph();
+	}
 }
 
 void SReferenceViewer::RegisterActions()
@@ -1279,11 +1266,38 @@ void SReferenceViewer::RegisterActions()
 		FAssetManagerEditorCommands::Get().ShowCommentPath,
 		FExecuteAction::CreateLambda([this] { 
 			Settings->SetShowPathEnabled(!Settings->IsShowPath());
-			RebuildGraph();
+			if (GraphObj)
+			{
+				GraphObj->RefilterGraph();
+			}
 		}),
 		FCanExecuteAction(),	
 		FIsActionChecked::CreateLambda([this] {return Settings->IsShowPath();}));
 
+	ReferenceViewerActions->MapAction(
+		FAssetManagerEditorCommands::Get().Filters,
+		FExecuteAction::CreateLambda([this] { 
+			Settings->SetFiltersEnabled(!Settings->GetFiltersEnabled());
+			if (GraphObj)
+			{
+				GraphObj->RefilterGraph();
+			}
+		}),
+		FCanExecuteAction(),	
+		FIsActionChecked::CreateLambda([this] {return Settings->GetFiltersEnabled();}));
+
+	ReferenceViewerActions->MapAction(
+		FAssetManagerEditorCommands::Get().AutoFilters,
+		FExecuteAction::CreateLambda([this] { 
+			Settings->SetAutoUpdateFilters(!Settings->AutoUpdateFilters());
+			if (GraphObj)
+			{
+				OnUpdateFilterBar();
+				GraphObj->RefilterGraph();
+			}
+		}),
+		FCanExecuteAction::CreateLambda([this] {return Settings->GetFiltersEnabled();}),
+		FIsActionChecked::CreateLambda([this] {return Settings->AutoUpdateFilters();}));
 
 	ReferenceViewerActions->MapAction(
 		FAssetManagerEditorCommands::Get().CopyPaths,
@@ -1863,6 +1877,77 @@ TSharedRef<SWidget> SReferenceViewer::GetShowMenuContent()
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SReferenceViewer::MakeToolBar()
+{
+
+	FToolBarBuilder ToolBarBuilder(ReferenceViewerActions, FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
+	ToolBarBuilder.SetStyle(&FReferenceViewerStyle::Get(), "AssetEditorToolbar");
+	ToolBarBuilder.BeginSection("Test");
+
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(FExecuteAction::CreateSP(this, &SReferenceViewer::RefreshClicked)),
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.Refresh"));
+
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SReferenceViewer::BackClicked),
+			FCanExecuteAction::CreateSP(this, &SReferenceViewer::IsBackEnabled)
+		),
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>::CreateSP(this, &SReferenceViewer::GetHistoryBackTooltip),
+		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.ArrowLeft"));
+
+
+	ToolBarBuilder.AddToolBarButton(
+		FUIAction(
+			FExecuteAction::CreateSP(this, &SReferenceViewer::ForwardClicked),
+			FCanExecuteAction::CreateSP(this, &SReferenceViewer::IsForwardEnabled)
+		),
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>::CreateSP(this, &SReferenceViewer::GetHistoryForwardTooltip),
+		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.ArrowRight"));
+
+	ToolBarBuilder.AddSeparator();
+
+	ToolBarBuilder.AddComboButton( 
+		FUIAction(),
+		FOnGetContent::CreateSP(this, &SReferenceViewer::GetShowMenuContent),
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.Visibility"),
+		/*bInSimpleComboBox*/ false);
+
+	ToolBarBuilder.AddToolBarButton(FAssetManagerEditorCommands::Get().ShowDuplicates,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.Duplicate"));
+
+	ToolBarBuilder.AddSeparator();
+
+	ToolBarBuilder.AddToolBarButton(FAssetManagerEditorCommands::Get().Filters,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.Filters"));
+
+	ToolBarBuilder.AddToolBarButton(FAssetManagerEditorCommands::Get().AutoFilters,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FReferenceViewerStyle::Get().GetStyleSetName(), "Icons.AutoFilters"));
+
+	ToolBarBuilder.EndSection();
+
+
+	return ToolBarBuilder.MakeWidget();
 }
 
 #undef LOCTEXT_NAMESPACE

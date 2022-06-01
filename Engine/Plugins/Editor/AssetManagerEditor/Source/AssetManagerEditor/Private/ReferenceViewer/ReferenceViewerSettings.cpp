@@ -200,3 +200,35 @@ void UReferenceViewerSettings::SetShowPathEnabled(bool bEnabled)
 	SaveConfig();
 }
 
+bool UReferenceViewerSettings::GetFiltersEnabled() const
+{
+	return bFiltersEnabled;
+}
+
+void UReferenceViewerSettings::SetFiltersEnabled(bool newEnabled)
+{
+	bFiltersEnabled = newEnabled;
+	SaveConfig();
+}
+
+bool UReferenceViewerSettings::AutoUpdateFilters() const
+{
+	return bAutoUpdateFilters;
+}
+
+void UReferenceViewerSettings::SetAutoUpdateFilters(bool bEnabled)
+{
+	bAutoUpdateFilters = bEnabled;
+	SaveConfig();
+}
+
+const TArray<FilterState>& UReferenceViewerSettings::GetUserFilters() const
+{
+	return UserFilters;	
+}
+
+void UReferenceViewerSettings::SetUserFilters(TArray<FilterState>& InFilters)
+{
+	UserFilters = InFilters;
+	SaveConfig();
+}

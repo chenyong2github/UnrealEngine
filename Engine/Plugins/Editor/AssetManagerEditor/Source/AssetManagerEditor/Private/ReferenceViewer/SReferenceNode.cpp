@@ -75,6 +75,9 @@ void SReferenceNode::UpdateGraphNode()
 	TSharedRef<SWidget> ThumbnailWidget = SNullWidget::NullWidget;
 	UEdGraphNode_Reference* RefGraphNode = CastChecked<UEdGraphNode_Reference>(GraphNode);
 	bool bIsADuplicate = RefGraphNode->IsADuplicate();
+
+	FLinearColor OpacityColor = RefGraphNode->GetIsFiltered() ? FLinearColor(1.0, 1.0, 1.0, 0.4) : FLinearColor::White;
+	
 	if ( AssetThumbnail.IsValid() )
 	{
 
@@ -101,6 +104,7 @@ void SReferenceNode::UpdateGraphNode()
 		.AutoHeight()
 		[
 			SNew(SBorder)
+			.ColorAndOpacity(OpacityColor)
 			.BorderImage( FReferenceViewerStyle::Get().GetBrush( "Graph.Node.BodyBackground" ) )
 			.Padding(0)
 			[
@@ -169,7 +173,7 @@ void SReferenceNode::UpdateGraphNode()
 						.AutoWidth()
 						.HAlign(HAlign_Right)
 						.VAlign(VAlign_Bottom)
-						.Padding(FMargin(0.f, 0.f, 0.f, 1.f))
+						.Padding(FMargin(4.f, 0.f, 0.f, 1.f))
 						[
 							SNew(SImage)
 							.Visibility(bIsADuplicate ? EVisibility::Visible : EVisibility::Hidden)

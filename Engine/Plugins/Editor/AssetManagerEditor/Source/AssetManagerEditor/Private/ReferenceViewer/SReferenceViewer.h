@@ -15,9 +15,10 @@
 #include "AssetManagerEditorModule.h"
 #include "Containers/ArrayView.h"
 #include "ReferenceViewer/ReferenceViewerSettings.h"
+#include "ReferenceViewer/EdGraph_ReferenceViewer.h"
+#include "ReferenceViewer/SReferenceViewerFilterBar.h"
 
 class UEdGraph;
-class UEdGraph_ReferenceViewer;
 
 /**
  * 
@@ -70,13 +71,13 @@ private:
 	bool IsForwardEnabled() const;
 
 	/** Handler for clicking the history back button */
-	FReply BackClicked();
+	void BackClicked();
 
 	/** Handler for clicking the history forward button */
-	FReply ForwardClicked();
+	void ForwardClicked();
 
 	/** Refresh the current view */
-	FReply RefreshClicked();
+	void RefreshClicked();
 
 	/** Handler for when the graph panel tells us to go back in history (like using the mouse thumb button) */
 	void GraphNavigateHistoryBack();
@@ -105,6 +106,8 @@ private:
 	void OnApplyHistoryData(const FReferenceViewerHistoryData& History);
 
 	void OnUpdateHistoryData(FReferenceViewerHistoryData& HistoryData) const;
+
+	void OnUpdateFilterBar();
 	
 	void OnSearchDepthEnabledChanged( ECheckBoxState NewState );
 	ECheckBoxState IsSearchDepthEnabledChecked() const;
@@ -192,6 +195,9 @@ private:
 	EActiveTimerReturnType TriggerZoomToFit(double InCurrentTime, float InDeltaTime);
 private:
 
+	TSharedRef<SWidget> MakeToolBar();
+
+
 	/** The manager that keeps track of history data for this browser */
 	FReferenceViewerHistoryManager HistoryManager;
 
@@ -202,6 +208,8 @@ private:
 	TSharedPtr<SWidget> ReferencerCountBox;
 	TSharedPtr<SWidget> DependencyCountBox;
 	TSharedPtr<SWidget> BreadthLimitBox;
+
+	TSharedPtr< SReferenceViewerFilterBar > FilterWidget;
 
 	UEdGraph_ReferenceViewer* GraphObj;
 
@@ -242,6 +250,9 @@ private:
 	bool bDirtyResults;
 	/** Whether to visually show to the user the option of "Compact Mode" */
 	bool bShowCompactMode;
+
+	/** A recursion check so as to avoid the rebuild of the graph if we are currently rebuilding the filters */
+	bool bRebuildingFilters;
 
 	/** Handle to know if dirty */
 	FDelegateHandle AssetRefreshHandle;

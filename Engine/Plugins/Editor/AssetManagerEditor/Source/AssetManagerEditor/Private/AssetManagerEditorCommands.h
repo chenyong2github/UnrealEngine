@@ -88,6 +88,12 @@ public:
 	// Toggles Path Comment 
 	TSharedPtr<FUICommandInfo> ShowCommentPath;
 
+	// Toggles FilterBar Filters On/Off
+	TSharedPtr<FUICommandInfo> Filters;
+
+	// Toggles if Asset Type Filters are Auto Populated & Updated
+	TSharedPtr<FUICommandInfo> AutoFilters;
+
 	// Copies the selected Asset Paths to the Clipboard
 	TSharedPtr<FUICommandInfo> CopyPaths;
 
