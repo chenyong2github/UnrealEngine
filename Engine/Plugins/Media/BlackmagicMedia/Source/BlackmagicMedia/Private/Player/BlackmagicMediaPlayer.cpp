@@ -184,11 +184,23 @@ namespace BlackmagicMediaPlayerHelpers
 				}
 				if (bReceivedValidFrame || CurrentTime - LastHasFrameTime > TimeAllowedToConnect)
 				{
-					UE_LOG(LogBlackmagicMedia, Error, TEXT("There is no video input for '%s'."), *MediaPlayer->GetUrl());
-					MediaState = EMediaState::Error;
+					if (!MediaPlayer->bAutoDetect)
+					{
+						UE_LOG(LogBlackmagicMedia, Error, TEXT("There is no video input for '%s'."), *MediaPlayer->GetUrl());
+						MediaState = EMediaState::Error;
+					}
+					else
+					{
+						MediaState = EMediaState::Paused;
+					}
 				}
 				return;
 			}
+			else if (MediaState == EMediaState::Paused)
+			{
+				MediaState = EMediaState::Playing;
+			}
+
 			bReceivedValidFrame = bReceivedValidFrame || InFrameInfo.bHasInputSource;
 
 			FTimespan DecodedTime = FTimespan::FromSeconds(MediaPlayer->GetPlatformSeconds());
@@ -381,8 +393,11 @@ namespace BlackmagicMediaPlayerHelpers
 
 		virtual void OnFrameFormatChanged(const BlackmagicDesign::FFormatInfo& NewFormat) override
 		{
-			UE_LOG(LogBlackmagicMedia, Error, TEXT("The video format changed for '%s'."), MediaPlayer ? *MediaPlayer->GetUrl() : TEXT("<Invalid>"));
-			MediaState = EMediaState::Error;
+			if (!MediaPlayer->bAutoDetect)
+			{
+				UE_LOG(LogBlackmagicMedia, Error, TEXT("The video format changed for '%s'."), MediaPlayer ? *MediaPlayer->GetUrl() : TEXT("<Invalid>"));
+				MediaState = EMediaState::Error;
+			}
 		}
 
 		virtual void OnInterlacedOddFieldEvent() override
@@ -502,6 +517,7 @@ bool FBlackmagicMediaPlayer::Open(const FString& Url, const IMediaOptions* Optio
 	EventCallback = new BlackmagicMediaPlayerHelpers::FBlackmagicMediaPlayerEventCallback(this, ChannelInfo);
 
 	BlackmagicDesign::FInputChannelOptions ChannelOptions;
+	ChannelOptions.bAutoDetect = bAutoDetect;
 	ChannelOptions.CallbackPriority = 10;
 	ChannelOptions.bReadVideo = Options->GetMediaOption(BlackmagicMediaOption::CaptureVideo, true);
 	ChannelOptions.FormatInfo.DisplayMode = Options->GetMediaOption(BlackmagicMediaOption::BlackmagicVideoFormat, (int64)BlackmagicMediaOption::DefaultVideoFormat);

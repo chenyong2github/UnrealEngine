@@ -181,6 +181,7 @@ namespace BlackmagicDesign
 		int32_t NumberOfAudioChannel;
 
 		bool bUseTheDedicatedLTCInput;
+		bool bAutoDetect;
 	};
 
 	/* FOutputChannelOptions definition
@@ -333,7 +334,6 @@ namespace BlackmagicDesign
 		void* RHITexture = nullptr;
 		void* RHIResourceMemory = nullptr; // Vulkan only
 	};
-	
 
 	/* BlackmagicDeviceScanner definition
 	*****************************************************************************/

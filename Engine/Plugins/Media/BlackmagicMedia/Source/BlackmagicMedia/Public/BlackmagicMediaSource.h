@@ -100,6 +100,9 @@ public:
 	bool bEncodeTimecodeInTexel;
 
 public:
+	//~ UTimeSynchronizableMediaSource Interface
+	virtual bool SupportsFormatAutoDetection() const { return true; }
+
 	//~ IMediaOptions interface
 
 	virtual bool GetMediaOption(const FName& Key, bool DefaultValue) const override;
