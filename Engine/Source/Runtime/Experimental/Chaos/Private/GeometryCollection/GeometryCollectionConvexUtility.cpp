@@ -1265,7 +1265,9 @@ void FGeometryCollectionConvexUtility::RemoveConvexHulls(FGeometryCollection* Ge
 		if (ConvexIndices.Num())
 		{
 			ConvexIndices.Sort();
-			GeometryCollection->RemoveElements("Convex", ConvexIndices);
+			FManagedArrayCollection::FProcessingParameters Params;
+			Params.bDoValidation = false; // for perf reasons
+			GeometryCollection->RemoveElements("Convex", ConvexIndices, Params);
 		}
 	}
 }
