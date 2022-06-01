@@ -41,6 +41,7 @@ namespace UnrealBuildTool.Rules
                     "AudioMixer",
 	                "AudioMixerCore",
 					"GPUTextureTransfer",
+					"ImageWrapper",
                     "RenderCore",
 					"Renderer",
                     "SignalProcessing", 

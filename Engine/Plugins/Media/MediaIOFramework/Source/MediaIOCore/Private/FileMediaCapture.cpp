@@ -3,8 +3,10 @@
 #include "FileMediaCapture.h"
 
 #include "FileMediaOutput.h"
+#include "IImageWrapperModule.h"
 #include "ImageWriteQueue.h"
 #include "ImageWriteTask.h"
+#include "MediaIOCoreModule.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
@@ -74,9 +76,16 @@ void UFileMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& 
 		return;
 	}
 
+	IImageWrapperModule* ImageModulePtr = FModuleManager::Get().GetModulePtr<IImageWrapperModule>("ImageWrapper");
+	if (ImageModulePtr == nullptr)
+	{
+		SetState(EMediaCaptureState::Error);
+		return;
+	}
+
 	TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
 	ImageTask->Format = ImageFormat;
-	ImageTask->Filename = FString::Printf(TEXT("%s%05d"), *BaseFilePathName, InBaseData.SourceFrameNumber);
+	ImageTask->Filename = FString::Printf(TEXT("%s%05d.%s"), *BaseFilePathName, InBaseData.SourceFrameNumber, ImageModulePtr->GetExtension(ImageFormat));
 	ImageTask->bOverwriteFile = bOverwriteFile;
 	ImageTask->CompressionQuality = CompressionQuality;
 	ImageTask->OnCompleted = OnCompleteWrapper;
@@ -85,7 +94,12 @@ void UFileMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& 
 	if (PixelFormat == PF_B8G8R8A8)
 	{
 		// We only support tightly packed rows without padding
-		check((BytesPerRow == 0) || (BytesPerRow == (Width * 4)));
+		if ((BytesPerRow != 0) && (BytesPerRow != (Width * 4)))
+		{
+			UE_LOG(LogMediaIOCore, Error, TEXT("File media capture only supports tightly packed rows. Expected stride: %d. Received stride: %d. It might also mean that output resolution is too small."), Width * 4, BytesPerRow);
+			SetState(EMediaCaptureState::Error);
+			return;
+		}
 
 		TUniquePtr<TImagePixelData<FColor>> PixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint(Width, Height),
 			TArray<FColor, FDefaultAllocator64>(reinterpret_cast<FColor*>(InBuffer), Width * Height));
@@ -94,7 +108,12 @@ void UFileMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& 
 	else if (PixelFormat == PF_FloatRGBA)
 	{
 		// We only support tightly packed rows without padding
-		check((BytesPerRow == 0) || (BytesPerRow == (Width * 16)));
+		if ((BytesPerRow != 0) && (BytesPerRow != (Width * 8)))
+		{
+			UE_LOG(LogMediaIOCore, Error, TEXT("File media capture only supports tightly packed rows. Expected stride: %d. Received stride: %d. It might also mean that output resolution is too small."), Width * 8, BytesPerRow);
+			SetState(EMediaCaptureState::Error);
+			return;
+		}
 
 		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(Width, Height), 
 			TArray<FFloat16Color, FDefaultAllocator64>(reinterpret_cast<FFloat16Color*>(InBuffer), Width * Height));
