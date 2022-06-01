@@ -164,7 +164,8 @@ public:
 			&& OutlineSize == Other.OutlineSize
 			&& OutlineSeparateFillAlpha == Other.OutlineSeparateFillAlpha
 			&& FontScale == Other.FontScale
-			&& GlyphIndex == Other.GlyphIndex;
+			&& GlyphIndex == Other.GlyphIndex
+			&& FontSkew == Other.FontSkew;
 	}
 
 	FORCEINLINE bool operator!=(const FShapedGlyphEntryKey& Other) const
@@ -192,6 +193,8 @@ private:
 	uint32 GlyphIndex;
 	/** Cached hash value used for map lookups */
 	uint32 KeyHash;
+	/** The skew transform amount for the rendered font */
+	float FontSkew;
 };
 
 /** Information for rendering a shaped text sequence */

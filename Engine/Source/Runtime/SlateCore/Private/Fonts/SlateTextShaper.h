@@ -17,12 +17,13 @@ class IBreakIterator;
 class FShapedGlyphFaceData
 {
 public:
-	FShapedGlyphFaceData(TWeakPtr<FFreeTypeFace> InFontFace, const uint32 InGlyphFlags, const int32 InFontSize, const float InFontScale)
+	FShapedGlyphFaceData(TWeakPtr<FFreeTypeFace> InFontFace, const uint32 InGlyphFlags, const int32 InFontSize, const float InFontScale, const float InFontSkew)
 		: FontFace(MoveTemp(InFontFace))
 		, GlyphFlags(InGlyphFlags)
 		, FontSize(InFontSize)
 		, FontScale(InFontScale)
 		, BitmapRenderScale(1.0f)
+		, FontSkew(InFontSkew)
 	{
 #if WITH_FREETYPE
 		if (TSharedPtr<FFreeTypeFace> FontFacePin = FontFace.Pin())
@@ -42,6 +43,8 @@ public:
 	float FontScale;
 	/** Any additional scale that should be applied when rendering this glyph */
 	float BitmapRenderScale;
+	/** The skew transform amount for the rendered font */
+	float FontSkew;
 };
 
 

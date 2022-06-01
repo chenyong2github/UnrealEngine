@@ -164,6 +164,10 @@ struct SLATECORE_API FSlateFontInfo
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules, meta=(ClampMin=-1000, ClampMax=10000))
 	int32 LetterSpacing = 0;
 
+	/** A skew amount to apply to the text. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SlateStyleRules)
+	float SkewAmount = 0.0f;
+
 	/** The font fallback level. Runtime only, don't set on shared FSlateFontInfo, as it may change the font elsewhere (make a copy). */
 	EFontFallback FontFallback;
 
@@ -246,7 +250,8 @@ public:
 			&& OutlineSettings.IsIdenticalToForCaching(Other.OutlineSettings)
 			&& CompositeFont == Other.CompositeFont
 			&& TypefaceFontName == Other.TypefaceFontName
-			&& Size == Other.Size;
+			&& Size == Other.Size
+			&& SkewAmount == Other.SkewAmount;
 	}
 
 	inline bool IsIdenticalTo(const FSlateFontInfo& Other) const
@@ -257,7 +262,8 @@ public:
 			&& CompositeFont == Other.CompositeFont
 			&& TypefaceFontName == Other.TypefaceFontName
 			&& Size == Other.Size
-			&& LetterSpacing == Other.LetterSpacing;
+			&& LetterSpacing == Other.LetterSpacing
+			&& SkewAmount == Other.SkewAmount;
 	}
 
 	inline bool operator==(const FSlateFontInfo& Other) const
@@ -296,6 +302,7 @@ public:
 		Hash = HashCombine(Hash, GetTypeHash(FontInfo.CompositeFont));
 		Hash = HashCombine(Hash, GetTypeHash(FontInfo.TypefaceFontName));
 		Hash = HashCombine(Hash, GetTypeHash(FontInfo.Size));
+		Hash = HashCombine(Hash, GetTypeHash(FontInfo.SkewAmount));
 		return Hash;
 	}
 
