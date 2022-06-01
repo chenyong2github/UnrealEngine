@@ -14,6 +14,11 @@ class ENGINE_API AWorldPartitionMiniMap : public AInfo
 {
 	GENERATED_BODY()
 
+private:
+#if WITH_EDITOR
+	virtual bool ActorTypeSupportsDataLayer() const final { return false; }
+#endif
+
 public:
 	AWorldPartitionMiniMap(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
@@ -23,7 +28,6 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool IsLockLocation() const { return true; }
 	virtual bool IsUserManaged() const final { return false; }
-	virtual bool SupportsDataLayer() const final { return false; }
 	virtual void CheckForErrors() override;
 #endif
 

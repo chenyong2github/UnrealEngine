@@ -13,6 +13,10 @@ class ENGINE_API AWindDirectionalSource : public AInfo
 	GENERATED_UCLASS_BODY()
 
 private:
+#if WITH_EDITOR
+	virtual bool ActorTypeSupportsDataLayer() const override { return true; }
+#endif
+
 	UPROPERTY(Category = WindDirectionalSource, VisibleAnywhere, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class UWindDirectionalSourceComponent> Component;
 
@@ -24,10 +28,6 @@ private:
 public:
 	/** Returns Component subobject **/
 	class UWindDirectionalSourceComponent* GetComponent() const { return Component; }
-
-#if WITH_EDITOR
-	virtual bool SupportsDataLayer() const override { return true; }
-#endif
 
 #if WITH_EDITORONLY_DATA
 	/** Returns ArrowComponent subobject **/

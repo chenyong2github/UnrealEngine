@@ -5960,7 +5960,7 @@ TArray<const UDataLayerInstance*> AActor::GetDataLayerInstancesInternal(bool bUs
 	}
 
 #if WITH_EDITOR
-	if (SupportsDataLayer() && IsValidForDataLayer())
+	if (SupportsDataLayer())
 	{
 		TArray<const UDataLayerInstance*> DataLayerInstances;
 		ULevel* OuterLevel = bUseLevelContext ? GetLevel() : nullptr;

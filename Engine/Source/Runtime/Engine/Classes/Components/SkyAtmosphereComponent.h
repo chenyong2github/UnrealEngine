@@ -273,6 +273,9 @@ class ASkyAtmosphere : public AInfo
 	GENERATED_UCLASS_BODY()
 
 private:
+#if WITH_EDITOR
+	virtual bool ActorTypeSupportsDataLayer() const override { return true; }
+#endif
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Atmosphere, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class USkyAtmosphereComponent> SkyAtmosphereComponent;
@@ -284,9 +287,6 @@ private:
 #endif
 
 public:
-#if WITH_EDITOR
-	virtual bool SupportsDataLayer() const override { return true; }
-#endif
 
 	/** Returns SkyAtmosphereComponent subobject */
 	ENGINE_API USkyAtmosphereComponent* GetComponent() const { return SkyAtmosphereComponent; }

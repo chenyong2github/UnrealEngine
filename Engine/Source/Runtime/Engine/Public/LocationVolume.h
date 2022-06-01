@@ -30,7 +30,6 @@ public:
 #if WITH_EDITOR
 	virtual void PostRegisterAllComponents();
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
-	virtual bool SupportsDataLayer() const override { return false; }
 	//~ End AActor Interface
 
 	//~ Begin IWorldPartitionActorLoaderInterface interface
@@ -51,6 +50,7 @@ public:
 
 #if WITH_EDITOR
 private:
+	virtual bool ActorTypeSupportsDataLayer() const override { return false; }
 	FLoaderAdapterActor* WorldPartitionActorLoader;
 #endif
 };

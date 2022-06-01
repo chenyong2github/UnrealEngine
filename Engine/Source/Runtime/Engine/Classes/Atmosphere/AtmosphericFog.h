@@ -18,6 +18,10 @@ class UE_DEPRECATED(4.26, "Please use the SkyAtmosphere actor instead.") AAtmosp
 	GENERATED_UCLASS_BODY()
 
 private:
+#if WITH_EDITOR
+	virtual bool ActorTypeSupportsDataLayer() const override { return true; }
+#endif
+
 	/** Main fog component */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Atmosphere, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class UAtmosphericFogComponent> AtmosphericFogComponent;
@@ -29,11 +33,6 @@ private:
 #endif
 
 public:
-
-#if WITH_EDITOR
-	virtual bool SupportsDataLayer() const override { return true; }
-#endif
-
 	/** Returns AtmosphericFogComponent subobject **/
 	ENGINE_API class UAtmosphericFogComponent* GetAtmosphericFogComponent() { return AtmosphericFogComponent; }
 

@@ -21,6 +21,11 @@ class AInfo : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
+private:
+#if WITH_EDITOR
+	virtual bool ActorTypeSupportsDataLayer() const override { return false; }
+#endif
+
 #if WITH_EDITORONLY_DATA
 private:
 	/** Billboard Component displayed in editor */
@@ -34,7 +39,6 @@ public:
 
 #if WITH_EDITOR
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
-	virtual bool SupportsDataLayer() const override { return false; }
 #endif
 
 public:

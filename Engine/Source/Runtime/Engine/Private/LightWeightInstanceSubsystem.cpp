@@ -120,7 +120,7 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 	return nullptr;
 }
 
-ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* Layer, UWorld* World)
+ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeightInstanceManager(UClass* ActorClass, const UDataLayerInstance* DataLayer, UWorld* World)
 {
 	if (ActorClass == nullptr || World == nullptr)
 	{
@@ -133,7 +133,7 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 		if (InstanceManager->GetRepresentedClass() == ActorClass)
 		{
 #if WITH_EDITOR
-			if (!Layer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(Layer)))
+			if (!DataLayer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(DataLayer)))
 #endif // WITH_EDITOR
 			{
 				return InstanceManager;
@@ -158,12 +158,12 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 	NewInstanceManager->SetRepresentedClass(ActorClass);
 
 #if WITH_EDITOR
-	// Add the new manager to the layer
-	if (Layer)
+	// Add the new manager to the DataLayer
+	if (DataLayer)
 	{
-		ensure(NewInstanceManager->IsValidForDataLayer());
+		ensure(NewInstanceManager->SupportsDataLayer());
 
-		NewInstanceManager->AddDataLayer(Layer);
+		NewInstanceManager->AddDataLayer(DataLayer);
 	}
 #endif // WITH_EDITOR
 

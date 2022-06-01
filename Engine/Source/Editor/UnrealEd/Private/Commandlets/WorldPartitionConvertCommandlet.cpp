@@ -1054,7 +1054,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 					}
 
 					// Convert Layers into DataLayers with DynamicallyLoaded flag disabled
-					if (Actor->IsValidForDataLayer())
+					if (Actor->SupportsDataLayer())
 					{
 						for (FName Layer : Actor->Layers)
 						{

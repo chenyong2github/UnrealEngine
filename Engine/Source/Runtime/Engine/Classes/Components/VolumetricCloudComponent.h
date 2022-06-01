@@ -204,9 +204,8 @@ private:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Atmosphere, meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<class UVolumetricCloudComponent> VolumetricCloudComponent;
 
-public:
 #if WITH_EDITOR
-	virtual bool SupportsDataLayer() const override { return true; }
+	virtual bool ActorTypeSupportsDataLayer() const override { return true; }
 #endif
 
 };

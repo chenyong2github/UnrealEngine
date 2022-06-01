@@ -13,12 +13,16 @@ class ENGINE_API ADEPRECATED_WorldPartitionVolume : public AVolume
 {
 	GENERATED_UCLASS_BODY()
 
+private:
+#if WITH_EDITOR
+	virtual bool ActorTypeSupportsDataLayer() const override { return false; }
+#endif
+
 public:
 	//~ Begin AActor Interface
 	virtual bool IsEditorOnly() const override { return true; }
 #if WITH_EDITOR
 	virtual bool CanChangeIsSpatiallyLoadedFlag() const override { return false; }
-	virtual bool SupportsDataLayer() const override { return false; }
 #endif
 	//~ End AActor Interface
 };
