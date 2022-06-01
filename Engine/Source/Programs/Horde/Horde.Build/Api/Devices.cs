@@ -173,9 +173,9 @@ namespace Horde.Build.Api
 		{
 			Id = id;
 			Name = name;
-            PoolType = poolType;
+			PoolType = poolType;
 			WriteAccess = writeAccess;
-        }
+		}
 	}
 
 	// Devices 
@@ -248,22 +248,22 @@ namespace Horde.Build.Api
 		/// <summary>
 		/// The job id which utilized device
 		/// </summary>
-		public string? JobId { get; set;}
+		public string? JobId { get; set; }
 
 		/// <summary>
 		/// The job's step id
 		/// </summary>
-		public string? StepId { get; set;}
+		public string? StepId { get; set; }
 
 		/// <summary>
 		/// The time device was reserved
 		/// </summary>
-		public DateTime ReservationStartUtc { get; set;}
+		public DateTime ReservationStartUtc { get; set; }
 
 		/// <summary>
 		/// The time device was freed
 		/// </summary>
-		public DateTime? ReservationFinishUtc { get; set;}
+		public DateTime? ReservationFinishUtc { get; set; }
 
 		/// <summary>
 		/// Constructor
@@ -351,7 +351,7 @@ namespace Horde.Build.Api
 		/// <summary>
 		///  Device Utilization data
 		/// </summary>
-		public List<GetDeviceUtilizationResponse>? Utilization { get; set;}
+		public List<GetDeviceUtilizationResponse>? Utilization { get; set; }
 
 		/// <summary>
 		/// Device response constructor
@@ -365,14 +365,14 @@ namespace Horde.Build.Api
 			Enabled = enabled;
 			Address = address;
 			ModelId = modelId;
-            ModifiedByUser = modifiedByUser;
-            Notes = notes;
+			ModifiedByUser = modifiedByUser;
+			Notes = notes;
 			ProblemTime = problemTime;
 			MaintenanceTime = maintenanceTime;
 			Utilization = utilization?.Select(u => new GetDeviceUtilizationResponse(u)).ToList();
-            CheckedOutByUserId = checkedOutByUser;
-            CheckOutTime = checkOutTime;
-        }
+			CheckedOutByUserId = checkedOutByUser;
+			CheckOutTime = checkOutTime;
+		}
 	}
 
 	/// <summary>
@@ -427,10 +427,10 @@ namespace Horde.Build.Api
 	public class CheckoutDeviceRequest
 	{
 		/// <summary>
-        /// Whether to checkout or in the device
-        /// </summary>
-        public bool Checkout { get; set; }
-    }
+		/// Whether to checkout or in the device
+		/// </summary>
+		public bool Checkout { get; set; }
+	}
 
 	/// <summary>
 	/// Device reservation request object
@@ -612,6 +612,12 @@ namespace Horde.Build.Api
 		public string[] DevicePerfSpecs { get; set; } = null!;
 
 		/// <summary>
+		/// The corresponding perf specs of the reserved devices
+		/// </summary>
+		[Required]
+		public string[] DeviceModels { get; set; } = null!;
+
+		/// <summary>
 		/// The host name of the machine making the reservation
 		/// </summary>
 		[Required]
@@ -674,6 +680,12 @@ namespace Horde.Build.Api
 		/// </summary>
 		[Required]
 		public string PerfSpec { get; set; } = null!;
+
+		/// <summary>
+		/// The device model information
+		/// </summary>
+		[Required]
+		public string Model { get; set; } = null!;
 
 		/// <summary>
 		/// The available start time which is parsed client side
