@@ -823,7 +823,7 @@ void SImgMediaProcessImages::TileData(uint8* SourceData, TArray64<uint8>& DestAr
 			int32 ThisDestTileHeight = DestTileHeight;
 			if ((TileY + 1) * TileHeight > SourceHeight)
 			{
-				ThisDestTileHeight -= SourceHeight - TileY * TileHeight;
+				ThisDestTileHeight = SourceHeight - TileY * TileHeight;
 			}
 
 			// Loop over each row in the tile.
