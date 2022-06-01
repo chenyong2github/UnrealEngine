@@ -533,10 +533,26 @@ public:
 	/** Return the game mode subclass to use for a given map, options, and portal. By default return passed in one */
 	virtual TSubclassOf<AGameModeBase> OverrideGameModeClass(TSubclassOf<AGameModeBase> GameModeClass, const FString& MapName, const FString& Options, const FString& Portal) const;
 
+
+	/**
+	 * Game instance has an opportunity to modify the level name before the client starts travel
+	 */
+	virtual void ModifyClientTravelLevelURL(FString& LevelName)
+	{
+	}
+
 	/** return true to delay an otherwise ready-to-join PendingNetGame performing LoadMap() and finishing up
 	 * useful to wait for content downloads, etc
 	 */
 	virtual bool DelayPendingNetGameTravel()
+	{
+		return false;
+	}
+
+	/**
+	 * return true to delay player controller spawn (sending NMT_Join)
+	 */
+	virtual bool DelayCompletionOfPendingNetGameTravel()
 	{
 		return false;
 	}

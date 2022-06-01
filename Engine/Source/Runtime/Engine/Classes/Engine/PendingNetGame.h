@@ -73,6 +73,9 @@ public:
 	/** @todo document */
 	bool					bSentJoinRequest;
 
+	/** set when we call LoadMapCompleted */
+	bool					bLoadedMapSuccessfully;
+
 	/** @todo document */
 	FString					ConnectionError;
 
@@ -123,5 +126,8 @@ public:
 	void InitPeerListen();
 
 	/** Called by the engine after it calls LoadMap for this PendingNetGame. */
-	virtual void LoadMapCompleted(UEngine* Engine, FWorldContext& Context, bool bLoadedMapSuccessfully, const FString& LoadMapError);
+	virtual bool LoadMapCompleted(UEngine* Engine, FWorldContext& Context, bool bLoadedMapSuccessfully, const FString& LoadMapError);
+
+	/** Called by the engine after loadmapCompleted and the GameInstance has finished delaying */
+	virtual void TravelCompleted(UEngine* Engine, FWorldContext& Context);
 };

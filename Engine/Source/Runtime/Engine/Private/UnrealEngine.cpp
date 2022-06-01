@@ -13976,14 +13976,14 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 			BroadcastNetworkFailure(NULL, Context.PendingNetGame->NetDriver, ENetworkFailure::PendingConnectionFailure, Context.PendingNetGame->ConnectionError);
 			CancelPending(Context);
 		}
-		else if (Context.PendingNetGame && Context.PendingNetGame->bSuccessfullyConnected && !Context.PendingNetGame->bSentJoinRequest && (Context.OwningGameInstance == NULL || !Context.OwningGameInstance->DelayPendingNetGameTravel()))
+		else if (Context.PendingNetGame && Context.PendingNetGame->bSuccessfullyConnected && !Context.PendingNetGame->bSentJoinRequest && !Context.PendingNetGame->bLoadedMapSuccessfully && (Context.OwningGameInstance == NULL || !Context.OwningGameInstance->DelayPendingNetGameTravel()))
 		{
 			if (!MakeSureMapNameIsValid(Context.PendingNetGame->URL.Map))
 			{
 				BrowseToDefaultMap(Context);
 				BroadcastTravelFailure(Context.World(), ETravelFailure::PackageMissing, Context.PendingNetGame->URL.Map);
 			}
-			else
+			else if (!Context.PendingNetGame->bLoadedMapSuccessfully)
 			{
 				// Attempt to load the map.
 				FString Error;
@@ -13992,10 +13992,11 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 
 				if (Context.PendingNetGame != nullptr)
 				{
-					Context.PendingNetGame->LoadMapCompleted(this, Context, bLoadedMapSuccessfully, Error);
-
-					// Kill the pending level.
-					Context.PendingNetGame = nullptr;
+					if (!Context.PendingNetGame->LoadMapCompleted(this, Context, bLoadedMapSuccessfully, Error))
+					{
+						BrowseToDefaultMap(Context);
+						BroadcastTravelFailure(Context.World(), ETravelFailure::TravelFailure, Error);
+					}
 				}
 				else
 				{
@@ -14003,6 +14004,12 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 					BroadcastTravelFailure(Context.World(), ETravelFailure::TravelFailure, Error);
 				}
 			}
+		}
+		
+		if (Context.PendingNetGame && Context.PendingNetGame->bLoadedMapSuccessfully && (Context.OwningGameInstance == NULL || !Context.OwningGameInstance->DelayCompletionOfPendingNetGameTravel()))
+		{
+			Context.PendingNetGame->TravelCompleted(this, Context);
+			Context.PendingNetGame = nullptr;
 		}
 	}
 	else if (TransitionType == ETransitionType::WaitingToConnect)

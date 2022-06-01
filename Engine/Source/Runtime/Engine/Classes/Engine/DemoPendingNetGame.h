@@ -19,5 +19,5 @@ class UDemoPendingNetGame
 	// UPendingNetGame interface.
 	virtual void Tick( float DeltaTime ) override;
 	virtual void SendJoin() override;
-	virtual void LoadMapCompleted(UEngine* Engine, FWorldContext& Context, bool bLoadedMapSuccessfully, const FString& LoadMapError) override;
+	virtual bool LoadMapCompleted(UEngine* Engine, FWorldContext& Context, bool bLoadedMapSuccessfully, const FString& LoadMapError) override;
 };

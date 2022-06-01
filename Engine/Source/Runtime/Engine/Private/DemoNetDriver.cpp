@@ -5378,8 +5378,9 @@ void UDemoPendingNetGame::SendJoin()
 	// Don't send a join request to a replay
 }
 
-void UDemoPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Context, bool bLoadedMapSuccessfully, const FString& LoadMapError)
+bool UDemoPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Context, bool bInLoadedMapSuccessfully, const FString& LoadMapError)
 {
+	bLoadedMapSuccessfully = bInLoadedMapSuccessfully;
 	UDemoNetDriver* TheDriver = GetDemoNetDriver();
 
 	// If we have a demo pending net game we should have a demo net driver
@@ -5406,8 +5407,10 @@ void UDemoPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Conte
 		{
 			Context.OwningGameInstance->HandleDemoPlaybackFailure(EDemoPlayFailure::LoadMap, FString(TEXT("LoadMap failed")));
 		}
-		return;
+		// we already handled the error so don't need the TickPendingNetGame to handle it 
+		return true;
 	}
+	return true;
 }
 
 void UDemoNetDriver::Serialize(FArchive& Ar)

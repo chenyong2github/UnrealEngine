@@ -22,6 +22,7 @@ void UPendingNetGame::Initialize(const FURL& InURL)
 	URL = InURL;
 	bSuccessfullyConnected = false;
 	bSentJoinRequest = false;
+	bLoadedMapSuccessfully = false;
 }
 
 UPendingNetGame::UPendingNetGame(const FObjectInitializer& ObjectInitializer)
@@ -138,26 +139,27 @@ void UPendingNetGame::AddReferencedObjects(UObject* InThis, FReferenceCollector&
 	Super::AddReferencedObjects( This, Collector );
 }
 
-void UPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Context, bool bLoadedMapSuccessfully, const FString& LoadMapError)
+bool UPendingNetGame::LoadMapCompleted(UEngine* Engine, FWorldContext& Context, bool bInLoadedMapSuccessfully, const FString& LoadMapError)
 {
+	bLoadedMapSuccessfully = bInLoadedMapSuccessfully;
 	if (!bLoadedMapSuccessfully || LoadMapError != TEXT(""))
 	{
-		// we can't guarantee the current World is in a valid state, so travel to the default map
-		Engine->BrowseToDefaultMap(Context);
-		Engine->BroadcastTravelFailure(Context.World(), ETravelFailure::LoadMapFailure, LoadMapError);
-		check(Context.World() != NULL);
+		// this is handled in the TickWorldTravel
+		return false;
 	}
-	else
-	{
-		// Show connecting message, cause precaching to occur.
-		Engine->TransitionType = ETransitionType::Connecting;
+	return true;
+}
 
-		Engine->RedrawViewports(false);
+void UPendingNetGame::TravelCompleted(UEngine* Engine, FWorldContext& Context)
+{
+	// Show connecting message, cause precaching to occur.
+	Engine->TransitionType = ETransitionType::Connecting;
 
-		// Send join.
-		Context.PendingNetGame->SendJoin();
-		Context.PendingNetGame->NetDriver = NULL;
-	}
+	Engine->RedrawViewports(false);
+
+	// Send join.
+	Context.PendingNetGame->SendJoin();
+	Context.PendingNetGame->NetDriver = NULL;
 }
 
 EAcceptConnection::Type UPendingNetGame::NotifyAcceptingConnection()
