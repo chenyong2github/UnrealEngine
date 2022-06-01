@@ -184,36 +184,6 @@ namespace Horde.Agent.Parser
 			}
 		}
 
-		static int GetEventLineCount(ReadOnlySpan<byte> line)
-		{
-			Utf8JsonReader reader = new Utf8JsonReader(line);
-			if(!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
-			{
-				return 0;
-			}
-
-			int lineCount = 1;
-			while(reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
-			{
-				ReadOnlySpan<byte> propertyName = reader.ValueSpan;
-				if (!reader.Read())
-				{
-					break;
-				}
-				else if(propertyName.SequenceEqual(LogEventPropertyName.Line) && reader.TryGetInt32(out int lineIndex) && lineIndex > 0)
-				{
-					return 0;
-				}
-				else if(propertyName.SequenceEqual(LogEventPropertyName.LineCount) && reader.TryGetInt32(out int lineCountValue))
-				{
-					lineCount = lineCountValue;
-				}
-				reader.Skip();
-			}
-
-			return lineCount;
-		}
-
 		/// <summary>
 		/// Stops the log writer's background task
 		/// </summary>
@@ -275,17 +245,18 @@ namespace Horde.Agent.Parser
 					JsonLogEvent jsonLogEvent;
 					if (_dataChannel.Reader.TryRead(out jsonLogEvent))
 					{
-						int lineCount = WriteEvent(jsonLogEvent.Data.Span, writer);
-
-						if (jsonLogEvent.Level == LogLevel.Warning && ++numWarnings <= MaxWarnings)
+						int lineCount = WriteEvent(jsonLogEvent, writer);
+						if (jsonLogEvent.LineIndex == 0)
 						{
-							AddEvent(jsonLogEvent.Data.Span, lineIndex, lineCount, EventSeverity.Warning, events);
+							if (jsonLogEvent.Level == LogLevel.Warning && ++numWarnings <= MaxWarnings)
+							{
+								AddEvent(jsonLogEvent.Data.Span, lineIndex, lineCount, EventSeverity.Warning, events);
+							}
+							else if ((jsonLogEvent.Level == LogLevel.Error || jsonLogEvent.Level == LogLevel.Critical) && ++numErrors <= MaxErrors)
+							{
+								AddEvent(jsonLogEvent.Data.Span, lineIndex, lineCount, EventSeverity.Error, events);
+							}
 						}
-						else if ((jsonLogEvent.Level == LogLevel.Error || jsonLogEvent.Level == LogLevel.Critical) && ++numErrors <= MaxErrors)
-						{
-							AddEvent(jsonLogEvent.Data.Span, lineIndex, lineCount, EventSeverity.Error, events);
-						}
-
 						lineIndex += lineCount;
 					}
 					else
@@ -368,16 +339,17 @@ namespace Horde.Agent.Parser
 		static readonly Utf8String s_newline = "\n";
 		static readonly Utf8String s_escapedNewline = "\\n";
 
-		public static int WriteEvent(ReadOnlySpan<byte> logEvent, IBufferWriter<byte> writer)
+		public static int WriteEvent(JsonLogEvent jsonLogEvent, IBufferWriter<byte> writer)
 		{
-			if (logEvent.IndexOf(s_escapedNewline) == -1)
+			ReadOnlySpan<byte> span = jsonLogEvent.Data.Span;
+			if (jsonLogEvent.LineCount > 0 || span.IndexOf(s_escapedNewline) == -1)
 			{
-				writer.Write(logEvent);
+				writer.Write(span);
 				writer.Write(s_newline);
-				return 1;
+				return jsonLogEvent.LineCount;
 			}
 
-			JsonObject obj = (JsonObject)JsonNode.Parse(logEvent)!;
+			JsonObject obj = (JsonObject)JsonNode.Parse(span)!;
 
 			string format = (obj["format"] as JsonValue)?.ToString() ?? String.Empty;
 			IEnumerable<KeyValuePair<string, object?>> propertyValueList = Enumerable.Empty<KeyValuePair<string, object?>>();

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,16 @@ namespace EpicGames.Core
 		public EventId EventId { get; }
 
 		/// <summary>
+		/// Index of this line
+		/// </summary>
+		public int LineIndex { get; }
+
+		/// <summary>
+		/// Number of lines in a multi-line message
+		/// </summary>
+		public int LineCount { get; }
+
+		/// <summary>
 		/// The utf-8 encoded JSON event
 		/// </summary>
 		public ReadOnlyMemory<byte> Data { get; }
@@ -30,10 +41,12 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public JsonLogEvent(LogLevel level, EventId eventId, ReadOnlyMemory<byte> data)
+		public JsonLogEvent(LogLevel level, EventId eventId, int lineIndex, int lineCount, ReadOnlyMemory<byte> data)
 		{
 			Level = level;
 			EventId = eventId;
+			LineIndex = lineIndex;
+			LineCount = lineCount;
 			Data = data;
 		}
 
@@ -54,7 +67,22 @@ namespace EpicGames.Core
 				logEvent = LogEvent.FromState(logLevel, eventId, state, exception, formatter);
 			}
 
-			return new JsonLogEvent(logLevel, eventId, logEvent.ToJsonBytes());
+			return new JsonLogEvent(logLevel, eventId, 0, 1, logEvent.ToJsonBytes());
+		}
+
+		/// <summary>
+		/// Parse an event from the given data
+		/// </summary>
+		/// <param name="data"></param>
+		/// <returns></returns>
+		public static JsonLogEvent Parse(ReadOnlyMemory<byte> data)
+		{
+			JsonLogEvent logEvent;
+			if (!TryParse(data, out logEvent))
+			{
+				throw new InvalidOperationException("Cannot parse string");
+			}
+			return logEvent;
 		}
 
 		/// <summary>
@@ -69,6 +97,8 @@ namespace EpicGames.Core
 			{
 				LogLevel level = LogLevel.None;
 				int eventId = 0;
+				int lineIndex = 0;
+				int lineCount = 1;
 
 				Utf8JsonReader reader = new Utf8JsonReader(data.Span);
 				if (reader.Read() && reader.TokenType == JsonTokenType.StartObject)
@@ -88,13 +118,21 @@ namespace EpicGames.Core
 						{
 							eventId = reader.GetInt32();
 						}
+						else if (propertyName.SequenceEqual(LogEventPropertyName.Line) && reader.TokenType == JsonTokenType.Number)
+						{
+							reader.TryGetInt32(out lineIndex);
+						}
+						else if (propertyName.SequenceEqual(LogEventPropertyName.LineCount) && reader.TokenType == JsonTokenType.Number)
+						{
+							reader.TryGetInt32(out lineCount);
+						}
 						reader.Skip();
 					}
 				}
 
 				if (reader.TokenType == JsonTokenType.EndObject && level != LogLevel.None && reader.BytesConsumed == data.Length)
 				{
-					logEvent = new JsonLogEvent(level, new EventId(eventId), data.ToArray());
+					logEvent = new JsonLogEvent(level, new EventId(eventId), lineIndex, lineCount, data.ToArray());
 					return true;
 				}
 			}

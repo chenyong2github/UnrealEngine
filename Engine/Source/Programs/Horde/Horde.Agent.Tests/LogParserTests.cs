@@ -80,8 +80,10 @@ namespace Horde.Agent.Tests
 
 		static string[] SplitMultiLineMessage(string message)
 		{
+			JsonLogEvent jsonLogEvent;
+			Assert.IsTrue(JsonLogEvent.TryParse(Encoding.UTF8.GetBytes(message), out jsonLogEvent));
 			ArrayBufferWriter<byte> writer = new ArrayBufferWriter<byte>();
-			int count = JsonRpcLogger.WriteEvent(Encoding.UTF8.GetBytes(message), writer);
+			int count = JsonRpcLogger.WriteEvent(jsonLogEvent, writer);
 			string[] result = Encoding.UTF8.GetString(writer.WrittenSpan).Split('\n', StringSplitOptions.RemoveEmptyEntries);
 			Assert.AreEqual(count, result.Length);
 			return result;

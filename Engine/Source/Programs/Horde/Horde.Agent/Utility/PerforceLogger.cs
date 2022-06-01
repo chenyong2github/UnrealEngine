@@ -67,7 +67,7 @@ namespace Horde.Agent.Utility
 		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception?, string> formatter)
 		{
 			JsonLogEvent logEvent = JsonLogEvent.FromLoggerState(logLevel, eventId, state, exception, formatter);
-			logEvent = new JsonLogEvent(logLevel, eventId, Annotate(logEvent.Data));
+			logEvent = new JsonLogEvent(logLevel, eventId, logEvent.LineIndex, logEvent.LineCount, Annotate(logEvent.Data));
 			_inner.Log(logLevel, eventId, logEvent, null, JsonLogEvent.Format);
 		}
 
