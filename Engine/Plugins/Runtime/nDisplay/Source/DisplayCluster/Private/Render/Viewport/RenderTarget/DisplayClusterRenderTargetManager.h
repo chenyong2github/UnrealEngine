@@ -8,13 +8,14 @@ class FViewport;
 class FDisplayClusterViewport;
 class FDisplayClusterRenderFrame;
 class FDisplayClusterRenderTargetResourcesPool;
+class FDisplayClusterViewportManagerProxy;
 
 struct FDisplayClusterRenderFrameSettings;
 
 class FDisplayClusterRenderTargetManager
 {
 public:
-	FDisplayClusterRenderTargetManager();
+	FDisplayClusterRenderTargetManager(FDisplayClusterViewportManagerProxy* InViewportManagerProxy);
 	~FDisplayClusterRenderTargetManager();
 
 public:

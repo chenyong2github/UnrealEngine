@@ -101,6 +101,9 @@ public:
 	// ~IDisplayClusterViewportProxy
 	///////////////////////////////
 
+	// Release internal resource refs
+	void HandleResourceDelete_RenderThread(class FDisplayClusterViewportResource* InDeletedResourcePtr);
+
 	void PostResolveViewport_RenderThread(FRHICommandListImmediate& RHICmdList) const;
 
 #if WITH_EDITOR

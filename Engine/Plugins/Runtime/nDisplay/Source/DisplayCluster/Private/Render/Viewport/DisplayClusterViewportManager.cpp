@@ -58,10 +58,13 @@ FDisplayClusterViewportManager::FDisplayClusterViewportManager()
 	Configuration      = MakeUnique<FDisplayClusterViewportConfiguration>(*this);
 	RenderFrameManager = MakeUnique<FDisplayClusterRenderFrameManager>();
 
-	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>();
+	ViewportManagerProxy = new FDisplayClusterViewportManagerProxy();
+
+	RenderTargetManager = MakeShared<FDisplayClusterRenderTargetManager, ESPMode::ThreadSafe>(ViewportManagerProxy);
 	PostProcessManager  = MakeShared<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe>(*this);
 
-	ViewportManagerProxy = new FDisplayClusterViewportManagerProxy(*this);
+	// initialize proxy
+	ViewportManagerProxy->Initialize(*this);
 
 	// Always reset RTT when root actor re-created
 	ResetSceneRenderTargetSize();

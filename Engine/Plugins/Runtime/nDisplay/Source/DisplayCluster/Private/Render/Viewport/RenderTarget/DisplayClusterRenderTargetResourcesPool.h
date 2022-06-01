@@ -5,12 +5,13 @@
 #include "CoreMinimal.h"
 #include "DisplayClusterRenderTargetResource.h"
 
+class FDisplayClusterViewportManagerProxy;
 struct FDisplayClusterRenderFrameSettings;
 
 class FDisplayClusterRenderTargetResourcesPool
 {
 public:
-	FDisplayClusterRenderTargetResourcesPool();
+	FDisplayClusterRenderTargetResourcesPool(FDisplayClusterViewportManagerProxy* InViewportManagerProxy);
 	~FDisplayClusterRenderTargetResourcesPool();
 
 public:
@@ -40,4 +41,6 @@ private:
 	// Viewport render resources
 	TArray<FDisplayClusterViewportRenderTargetResource*> RenderTargetResources;
 	TArray<FDisplayClusterViewportTextureResource*>      TextureResources;
+
+	FDisplayClusterViewportManagerProxy* ViewportManagerProxy = nullptr;
 };

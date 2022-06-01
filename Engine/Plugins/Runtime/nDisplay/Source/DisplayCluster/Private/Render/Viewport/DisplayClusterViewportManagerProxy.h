@@ -22,7 +22,7 @@ class FDisplayClusterViewportManagerProxy
 	: public IDisplayClusterViewportManagerProxy
 {
 public:
-	FDisplayClusterViewportManagerProxy(FDisplayClusterViewportManager& InViewportManager);
+	FDisplayClusterViewportManagerProxy();
 	virtual ~FDisplayClusterViewportManagerProxy();
 
 public:
@@ -47,6 +47,9 @@ public:
 	virtual bool ResolveFrameTargetToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, const uint32 InContextNum, const int32 DestArrayIndex, FRHITexture2D* DestTexture, FVector2D WindowSize) const override;
 
 	// internal use only
+	void DeleteResource_RenderThread(FDisplayClusterViewportResource* InDeletedResourcePtr);
+	void Initialize(FDisplayClusterViewportManager& InViewportManager);
+
 	const FDisplayClusterRenderFrameSettings& GetRenderFrameSettings_RenderThread() const
 	{
 		check(IsInRenderingThread());

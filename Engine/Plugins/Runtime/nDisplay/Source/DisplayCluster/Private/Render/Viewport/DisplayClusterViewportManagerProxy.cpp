@@ -54,12 +54,8 @@ static TAutoConsoleVariable<int32> CVarClearFrameRTTEnabled(
 ///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewportManagerProxy
 ///////////////////////////////////////////////////////////////////////////////////////
-
-FDisplayClusterViewportManagerProxy::FDisplayClusterViewportManagerProxy(FDisplayClusterViewportManager& InViewportManager)
-{
-	RenderTargetManager = InViewportManager.RenderTargetManager;
-	PostProcessManager = InViewportManager.PostProcessManager;
-}
+FDisplayClusterViewportManagerProxy::FDisplayClusterViewportManagerProxy()
+{ }
 
 FDisplayClusterViewportManagerProxy::~FDisplayClusterViewportManagerProxy()
 {
@@ -74,6 +70,30 @@ FDisplayClusterViewportManagerProxy::~FDisplayClusterViewportManagerProxy()
 
 	ViewportProxies.Empty();
 	ImplUpdateClusterNodeViewportProxies();
+}
+
+void FDisplayClusterViewportManagerProxy::Initialize(FDisplayClusterViewportManager& InViewportManager)
+{
+	RenderTargetManager = InViewportManager.RenderTargetManager;
+	PostProcessManager = InViewportManager.PostProcessManager;
+}
+
+void FDisplayClusterViewportManagerProxy::DeleteResource_RenderThread(FDisplayClusterViewportResource* InDeletedResourcePtr)
+{
+	if (InDeletedResourcePtr)
+	{
+		// Handle resource refs must be removed from all viewports
+		for (FDisplayClusterViewportProxy* ViewportProxyIt : ViewportProxies)
+		{
+			if (ViewportProxyIt)
+			{
+				ViewportProxyIt->HandleResourceDelete_RenderThread(InDeletedResourcePtr);
+			}
+		}
+
+		InDeletedResourcePtr->ReleaseResource();
+		delete InDeletedResourcePtr;
+	}
 }
 
 void FDisplayClusterViewportManagerProxy::ImplUpdateClusterNodeViewportProxies()

@@ -48,9 +48,9 @@ using namespace DisplayClusterRenderTargetManager;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// FDisplayClusterRenderTargetManager
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterRenderTargetManager::FDisplayClusterRenderTargetManager()
+FDisplayClusterRenderTargetManager::FDisplayClusterRenderTargetManager(FDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
-	ResourcesPool = MakeUnique<FDisplayClusterRenderTargetResourcesPool>();
+	ResourcesPool = MakeUnique<FDisplayClusterRenderTargetResourcesPool>(InViewportManagerProxy);
 }
 
 FDisplayClusterRenderTargetManager::~FDisplayClusterRenderTargetManager()
