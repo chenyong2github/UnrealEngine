@@ -130,9 +130,6 @@ private:
 	/** Handler for when lighting has been rebuilt and kept */
 	void HandleLightingBuildKept();
 
-	/** Handler for when the map changed or was rebuilt */
-	void HandleMapChanged(uint32 MapChangeFlags);
-
 	/** Handler for when the current level changes */
 	void HandleNewCurrentLevel();
 

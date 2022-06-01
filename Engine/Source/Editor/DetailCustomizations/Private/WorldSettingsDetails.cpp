@@ -263,7 +263,6 @@ FLightmapCustomNodeBuilder::FLightmapCustomNodeBuilder(const TSharedPtr<FAssetTh
 FLightmapCustomNodeBuilder::~FLightmapCustomNodeBuilder()
 {
 	FEditorDelegates::OnLightingBuildKept.RemoveAll(this);
-	FEditorDelegates::MapChange.RemoveAll(this);
 	FEditorDelegates::NewCurrentLevel.RemoveAll(this);
 }
 
@@ -273,7 +272,6 @@ void FLightmapCustomNodeBuilder::SetOnRebuildChildren(FSimpleDelegate InOnRegene
 	OnRegenerateChildren = InOnRegenerateChildren;
 
 	FEditorDelegates::OnLightingBuildKept.AddSP(this, &FLightmapCustomNodeBuilder::HandleLightingBuildKept);
-	FEditorDelegates::MapChange.AddSP(this, &FLightmapCustomNodeBuilder::HandleMapChanged);
 	FEditorDelegates::NewCurrentLevel.AddSP(this, &FLightmapCustomNodeBuilder::HandleNewCurrentLevel);
 }
 
@@ -322,13 +320,6 @@ void FLightmapCustomNodeBuilder::HandleLightingBuildKept()
 {
 	OnRegenerateChildren.ExecuteIfBound();
 }
-
-
-void FLightmapCustomNodeBuilder::HandleMapChanged(uint32 MapChangeFlags)
-{
-	OnRegenerateChildren.ExecuteIfBound();
-}
-
 
 void FLightmapCustomNodeBuilder::HandleNewCurrentLevel()
 {
