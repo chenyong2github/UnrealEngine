@@ -536,6 +536,11 @@ public:
 		return FIndexIterator(StructTypesBitArray, bValueToCheck);
 	}
 
+	int32 CountStoredTypes() const
+	{
+		return StructTypesBitArray.CountSetBits();
+	}
+
 	static int32 GetMaxNum() 
 	{		
 		return TStructTrackerWrapper::StructTracker.Num();
@@ -599,6 +604,11 @@ public:
 				OutFNames.Add(TStructTrackerWrapper::StructTracker.DebugGetStructTypeName(Index));
 			}
 		}
+	}
+
+	static FName DebugGetStructTypeName(const int32 StructTypeIndex)
+	{
+		return TStructTrackerWrapper::StructTracker.DebugGetStructTypeName(StructTypeIndex);
 	}
 
 	static TConstArrayView<TWeakObjectPtr<const TUStructType>> DebugGetAllStructTypes()
