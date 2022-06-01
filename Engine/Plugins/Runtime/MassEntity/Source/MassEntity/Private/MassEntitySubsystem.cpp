@@ -49,7 +49,7 @@ void UMassEntitySubsystem::GetResourceSizeEx(FResourceSizeEx& CumulativeResource
 
 	const SIZE_T MyExtraSize = Entities.GetAllocatedSize() + 
 		EntityFreeIndexList.GetAllocatedSize() +
-		DeferredCommandBuffer->GetAllocatedSize() +
+		(DeferredCommandBuffer != nullptr ? DeferredCommandBuffer->GetAllocatedSize() : 0) +
 		FragmentHashToArchetypeMap.GetAllocatedSize() +
 		FragmentTypeToArchetypeMap.GetAllocatedSize();
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(MyExtraSize);
