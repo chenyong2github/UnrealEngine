@@ -6,13 +6,12 @@
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
+#include "Styling/SlateStyleMacros.h"
 
 namespace UE
 {
 namespace SlateInsights
 {
-
-#define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 
 class FSlateInsightsStyle final : public FSlateStyleSet
 {
@@ -24,7 +23,7 @@ public:
 		SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
 		SetCoreContentRoot(FPaths::EngineContentDir() / TEXT("Slate"));
 
-		Set("SlateProfiler.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", FVector2D(16.0f, 16.0f)));
+		Set("SlateProfiler.Icon.Small", new CORE_IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", FVector2D(16.0f, 16.0f)));
 
 		Set("SlateGraph.Color.WidgetCount", FLinearColor(FColorList::Aquamarine));
 		Set("SlateGraph.Color.TickCount", FLinearColor(FColorList::BronzeII));

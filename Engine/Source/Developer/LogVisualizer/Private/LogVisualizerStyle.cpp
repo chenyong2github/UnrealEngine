@@ -10,6 +10,7 @@
 
 // This is to fix the issue that SlateStyleMacros like IMAGE_BRUSH look for RootToContentDir but StyleSet->RootToContentDir is how this style is set up
 #define RootToContentDir Style.RootToContentDir
+#define RootToCoreContentDir Style.RootToCoreContentDir
 
 TSharedPtr< FSlateStyleSet > FLogVisualizerStyle::StyleInstance = nullptr;
 
@@ -66,8 +67,8 @@ TSharedRef< FSlateStyleSet > FLogVisualizerStyle::Create()
 		Style.Set("LogVisualizerApp.TabIcon", new IMAGE_BRUSH_SVG("Starship/Common/VisualLogger", Icon16x16));
 		
 		Style.Set("LogVisualizer.LogBar.Background", new BOX_BRUSH("Common/ProgressBar_Background", FMargin(5.f / 12.f)));
-		Style.Set("LogVisualizer.LogBar.Selected", new BOX_BRUSH("Common/TaskGraph_Selected", FMargin(5.f / 12.f)));
-		Style.Set("LogVisualizer.LogBar.EntryDefault", new BOX_BRUSH("Common/TaskGraph_Mono", FMargin(5.f / 12.f)));
+		Style.Set("LogVisualizer.LogBar.Selected", new CORE_BOX_BRUSH("Common/TaskGraph_Selected", FMargin(5.f / 12.f)));
+		Style.Set("LogVisualizer.LogBar.EntryDefault", new CORE_BOX_BRUSH("Common/TaskGraph_Mono", FMargin(5.f / 12.f)));
 		Style.Set("LogVisualizer.LogBar.TimeMark", new BOX_BRUSH("Icons/LV_BarMark", FMargin(5.f / 12.f)));
 
 		//Style.Set("ToolPanel.GroupBorder", FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"));
@@ -150,7 +151,7 @@ TSharedRef< FSlateStyleSet > FLogVisualizerStyle::Create()
 
 	// Filters
 	{
-		Style.Set("Filters.FilterIcon", new IMAGE_BRUSH("Icons/Profiler/Profiler_Filter_Events_16x", Icon16x16));
+		Style.Set("Filters.FilterIcon", new CORE_IMAGE_BRUSH("Icons/Profiler/Profiler_Filter_Events_16x", Icon16x16));
 		Style.Set("Filters.Style", FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ToolbarComboButton"));
 		Style.Set("ContentBrowser.FilterButtonBorder", new BOX_BRUSH("Common/RoundedSelection_16x", FMargin(4.0f / 16.0f)));
 		//FSlateBrush *FilterButtonBorder = FAppStyle::Get().GetBrush("ToolbarComboButton");
