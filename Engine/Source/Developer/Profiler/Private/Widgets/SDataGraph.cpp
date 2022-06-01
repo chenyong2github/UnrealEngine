@@ -25,6 +25,7 @@
 #include "ProfilerManager.h"
 #include "Widgets/StatDragDropOp.h"
 #include "../ProfilerStyle.h"
+#include "SSimpleButton.h"
 
 #define LOCTEXT_NAMESPACE "SDataGraph"
 
@@ -68,7 +69,6 @@ public:
 		OnGetMouseFrameIndex = InArgs._OnGetMouseFrameIndex;
 
 		const FSlateColor TextColor( TrackedStat->GraphColor );
-		const FName CloseButtonStyle = TEXT("Docking.MajorTab.CloseButton");
 		FFormatNamedArguments Args;
 		Args.Add( TEXT("StatName"), FText::FromString( TrackedStat->GraphDataSource->GetStatName() ) );
 		const FText ToolTipText = FText::Format( LOCTEXT("DataGraphSummary_CloseButton_TT", "Click to stop tracking '{StatName}' stat"), Args );
@@ -84,15 +84,10 @@ public:
 			.VAlign(VAlign_Center)
 			.Padding( 1.0f )
 			[
-				SNew(SButton)
-				.ButtonStyle( FAppStyle::Get(), CloseButtonStyle )
+				SNew(SSimpleButton)
+				.Icon(FAppStyle::GetBrush("Icons.Stop"))
 				.OnClicked( this, &SDataGraphSummary::CloseButton_OnClicked )
-				.ContentPadding( 0 )
 				.ToolTipText( ToolTipText )
-				[
-					SNew(SSpacer)
-					.Size( FAppStyle::GetBrush(CloseButtonStyle, ".Normal" )->ImageSize )
-				]
 			]
 
 			// Stat group name.

@@ -1263,11 +1263,6 @@ void FSlateEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Session Browser tab
 	{
-		Set("SessionBrowser.SessionLocked", new IMAGE_BRUSH( "Icons/icon_locked_highlight_16px", Icon16x16 ) );
-		Set("SessionBrowser.StatusRunning", new IMAGE_BRUSH( "Icons/icon_status_green_16x", Icon16x16 ) );
-		Set("SessionBrowser.StatusTimedOut", new IMAGE_BRUSH( "Icons/icon_status_grey_16x", Icon16x16 ) );
-		Set("SessionBrowser.Terminate", new IMAGE_BRUSH( "Icons/icon_DevicePowerOff_40x", Icon20x20 ) );
-
 		Set("SessionBrowser.Terminate.Font", FTextBlockStyle(NormalText)
 			.SetFont(DEFAULT_FONT( "Bold", 12))
 			.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f))

@@ -412,6 +412,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		Style->Set("ToolPanel.LightGroupBorder", new BOX_BRUSH("Common/LightGroupBorder", FMargin(4.0f / 16.0f)));
 
 		Style->Set("Debug.Border", new BOX_BRUSH("Common/DebugBorder", 4.0f / 16.0f));
+		Style->Set("PlainBorder", new BORDER_BRUSH("Common/PlainBorder", 2.f / 8.f));
 	}
 
 	// Popup text

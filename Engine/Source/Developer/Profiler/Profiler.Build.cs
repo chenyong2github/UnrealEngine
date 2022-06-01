@@ -23,7 +23,6 @@ public class Profiler : ModuleRules
 				"RHI",
 				"RenderCore",
 				"Slate",
-                
 				"ProfilerClient",
 				"DesktopPlatform",
 			}
@@ -41,6 +40,7 @@ public class Profiler : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"SlateCore",
+				"ToolWidgets"
 			}
 		);
 

@@ -331,8 +331,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 
 
-	Set("PlainBorder", new BORDER_BRUSH("Common/PlainBorder", 2.f / 8.f));
-
 	Set( "WideDash.Horizontal", new CORE_IMAGE_BRUSH("Starship/Common/Dash_Horizontal", FVector2D(10, 1), FLinearColor::White, ESlateBrushTileType::Horizontal));
 	Set( "WideDash.Vertical", new CORE_IMAGE_BRUSH("Starship/Common/Dash_Vertical", FVector2D(1, 10), FLinearColor::White, ESlateBrushTileType::Vertical));
 
@@ -967,11 +965,6 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 
 	// Session Browser tab
 	{
-		Set("SessionBrowser.SessionLocked", new IMAGE_BRUSH( "Icons/icon_locked_highlight_16px", Icon16x16 ) );
-		Set("SessionBrowser.StatusRunning", new IMAGE_BRUSH( "Icons/icon_status_green_16x", Icon16x16 ) );
-		Set("SessionBrowser.StatusTimedOut", new IMAGE_BRUSH( "Icons/icon_status_grey_16x", Icon16x16 ) );
-		Set("SessionBrowser.Terminate", new IMAGE_BRUSH( "Icons/icon_DevicePowerOff_40x", Icon20x20 ) );
-
 		Set("SessionBrowser.Terminate.Font", FTextBlockStyle(NormalText)
 			.SetFont(DEFAULT_FONT( "Bold", 12))
 			.SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f))
@@ -2998,42 +2991,6 @@ void FStarshipEditorStyle::FStyle::SetupProfilerStyle()
 		Set( "Profiler.Tab.GraphView", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_Graph_View_Tab_16x", Icon16x16 ) );
 		Set( "Profiler.Tab.EventGraph", new CORE_IMAGE_BRUSH( "Icons/Profiler/profiler_OpenEventGraph_32x", Icon16x16 ) );
 		Set( "Profiler.Tab.FiltersAndPresets", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_Filter_Presets_Tab_16x", Icon16x16 ) );
-
-		Set( "ProfilerCommand.ProfilerManager_Load", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_Load_Profiler_40x", Icon40x40 ) );
-		Set( "ProfilerCommand.ProfilerManager_Load.Small", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_Load_Profiler_40x", Icon20x20 ) );
-
-		Set("ProfilerCommand.ProfilerManager_LoadMultiple", new CORE_IMAGE_BRUSH("Icons/Profiler/Profiler_LoadMultiple_Profiler_40x", Icon40x40));
-		Set("ProfilerCommand.ProfilerManager_LoadMultiple.Small", new CORE_IMAGE_BRUSH("Icons/Profiler/Profiler_LoadMultiple_Profiler_40x", Icon20x20));
-
-		Set( "ProfilerCommand.ProfilerManager_Save", new IMAGE_BRUSH_SVG("Starship/Common/save", Icon16x16));
-		Set("ProfilerCommand.ProfilerManager_Save.Small", new IMAGE_BRUSH_SVG("Starship/Common/save", Icon16x16));
-		
-		Set( "ProfilerCommand.ProfilerManager_ToggleLivePreview", new CORE_IMAGE_BRUSH( "Automation/RefreshTests", Icon40x40) );
-		Set( "ProfilerCommand.ProfilerManager_ToggleLivePreview.Small", new CORE_IMAGE_BRUSH( "Automation/RefreshTests", Icon20x20) );
-
-		Set( "ProfilerCommand.StatsProfiler", new CORE_IMAGE_BRUSH( "Icons/Profiler/profiler_stats_40x", Icon40x40 ) );
-		Set( "ProfilerCommand.StatsProfiler.Small", new CORE_IMAGE_BRUSH( "Icons/Profiler/profiler_stats_40x", Icon20x20 ) );
-
-		Set( "ProfilerCommand.MemoryProfiler", new CORE_IMAGE_BRUSH( "Icons/Profiler/profiler_mem_40x", Icon40x40 ) );
-		Set( "ProfilerCommand.MemoryProfiler.Small", new CORE_IMAGE_BRUSH( "Icons/Profiler/profiler_mem_40x", Icon20x20 ) );
-
-		Set( "ProfilerCommand.FPSChart", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_FPS_Chart_40x", Icon40x40 ) );
-		Set( "ProfilerCommand.FPSChart.Small", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_FPS_Chart_40x", Icon20x20 ) );
-
-		Set( "ProfilerCommand.OpenSettings", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_Settings_40x", Icon40x40 ) );
-		Set( "ProfilerCommand.OpenSettings.Small", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_Settings_40x", Icon20x20 ) );
-
-		Set( "ProfilerCommand.ToggleDataPreview", new CORE_IMAGE_BRUSH( "Icons/Profiler/profiler_sync_40x", Icon40x40 ) );
-		Set( "ProfilerCommand.ToggleDataPreview.Small", new CORE_IMAGE_BRUSH( "Icons/Profiler/profiler_sync_40x", Icon20x20 ) );
-
-		Set( "ProfilerCommand.ToggleDataCapture", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_Data_Capture_40x", Icon40x40 ) );
-		Set( "ProfilerCommand.ToggleDataCapture.Small", new CORE_IMAGE_BRUSH( "Icons/Profiler/Profiler_Data_Capture_40x", Icon20x20 ) );
-
-		Set( "ProfilerCommand.ToggleDataCapture.Checked", new IMAGE_BRUSH( "Icons/icon_stop_40x", Icon40x40 ) );
-		Set( "ProfilerCommand.ToggleDataCapture.Checked.Small", new IMAGE_BRUSH( "Icons/icon_stop_40x", Icon20x20 ) );
-
-		Set( "ProfilerCommand.ToggleShowDataGraph", new CORE_IMAGE_BRUSH( "Icons/Profiler/profiler_ShowGraphData_32x", Icon32x32 ) );
-		Set( "ProfilerCommand.OpenEventGraph", new CORE_IMAGE_BRUSH( "Icons/Profiler/profiler_OpenEventGraph_32x", Icon16x16 ) );
 
 		// Generic
 		Set( "Profiler.LineGraphArea", new CORE_IMAGE_BRUSH( "Old/White", Icon16x16, FLinearColor(1.0f,1.0f,1.0f,0.25f) ) );

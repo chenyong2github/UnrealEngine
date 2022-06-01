@@ -22,6 +22,7 @@
 #include "Models/SessionBrowserTreeItems.h"
 #include "Widgets/Images/SImage.h"
 #include "PlatformInfo.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SSessionBrowserTreeRow"
 
@@ -154,7 +155,8 @@ public:
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(this, &SSessionBrowserTreeInstanceRow::HandleStatusImage)
+				.Image(FAppStyle::GetBrush("Icons.FilledCircle"))
+				.ColorAndOpacity(this, &SSessionBrowserTreeInstanceRow::HandleStatusImageColor)
 			];
 		}
 		else if (ColumnName == "Type")
@@ -187,7 +189,7 @@ private:
 
 		if (InstanceInfo.IsValid() && !InstanceInfo->IsAuthorized())
 		{
-			return FAppStyle::GetBrush("SessionBrowser.SessionLocked");
+			return FAppStyle::GetBrush("Icons.Lock");
 		}
 
 		return nullptr;
@@ -264,7 +266,7 @@ private:
 	}
 
 	/** Callback for getting the image of the Status icon. */
-	const FSlateBrush* HandleStatusImage() const
+	FSlateColor HandleStatusImageColor() const
 	{
 		TSharedPtr<ISessionInstanceInfo> InstanceInfo = Item->GetInstanceInfo();
 
@@ -272,13 +274,13 @@ private:
 		{
 			if (FDateTime::UtcNow() - InstanceInfo->GetLastUpdateTime() < FTimespan::FromSeconds(10.0))
 			{
-				return FAppStyle::GetBrush("SessionBrowser.StatusRunning");
+				return FStyleColors::AccentGreen;
 			}
 
-			return FAppStyle::GetBrush("SessionBrowser.StatusTimedOut");
+			return FStyleColors::Warning;
 		}
 
-		return nullptr;
+		return FStyleColors::Error;
 	}
 
 	/** Callback for getting the foreground text color. */
