@@ -24,7 +24,7 @@ public:
 	 *
 	 * @return				A IDatasmithMeshElement that refers to the exported file
 	 */
-	TSharedPtr< IDatasmithMeshElement > ExportToUObject( const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat=false );
+	TSharedPtr< IDatasmithMeshElement > ExportToUObject( const TCHAR* Filepath, const TCHAR* Filename, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat=true );
 
 	/**
 	 * Exports a FDatasmithMesh as a UObject and link it to the given IDatasmithMeshElementElement.
@@ -37,7 +37,7 @@ public:
 	 *
 	 * @return				True if export was successful.
 	 */
-	bool ExportToUObject( TSharedPtr< IDatasmithMeshElement >& MeshElement, const TCHAR* Filepath, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat=false );
+	bool ExportToUObject( TSharedPtr< IDatasmithMeshElement >& MeshElement, const TCHAR* Filepath, FDatasmithMesh& Mesh, FDatasmithMesh* CollisionMesh, EDSExportLightmapUV LightmapUV, bool NewFormat=true );
 
 	/**
 	 * @return The error that happened during the last export, if any

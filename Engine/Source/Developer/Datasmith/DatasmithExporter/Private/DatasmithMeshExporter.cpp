@@ -297,6 +297,7 @@ TSharedPtr< IDatasmithMeshElement > FDatasmithMeshExporter::ExportToUObject(cons
 	}
 	else
 	{
+		ensureMsgf(false, TEXT("Old serialization used for mesh %s. It is no longer supported."), *FullPath);
 		LegacyImpl->DoExport( ExportedMeshElement, ExportOptions );
 	}
 
@@ -315,6 +316,7 @@ bool FDatasmithMeshExporter::ExportToUObject( TSharedPtr< IDatasmithMeshElement 
 	}
 	else
 	{
+		ensureMsgf(false, TEXT("Old serialization used for mesh %s. It is no longer supported."), MeshElement->GetName());
 		return LegacyImpl->DoExport( MeshElement, ExportOptions );
 	}
 }
