@@ -64,7 +64,7 @@ struct MASSCOMMON_API FMassInt16Real
 	
 	void Set(const float InValue)
 	{
-		Value = (int16)FMath::Clamp(FMath::RoundToInt(InValue), -(int32)MAX_int16, (int32)MAX_int16);
+		Value = (int16)FMath::Clamp(FMath::RoundToInt32(InValue), -(int32)MAX_int16, (int32)MAX_int16);
 	}
 
 	float Get() const
@@ -101,7 +101,7 @@ struct MASSCOMMON_API FMassInt16Real10
 	
 	void Set(const float InValue)
 	{
-		Value = (int16)FMath::Clamp(FMath::RoundToInt(InValue * Scale), -(int32)MAX_int16, (int32)MAX_int16);
+		Value = (int16)FMath::Clamp(FMath::RoundToInt32(InValue * Scale), -(int32)MAX_int16, (int32)MAX_int16);
 	}
 
 	float Get() const
@@ -138,9 +138,9 @@ struct MASSCOMMON_API FMassSnorm8Vector
 	
 	void Set(const FVector& InVector)
 	{
-		X = (int8)FMath::Clamp(FMath::RoundToInt(InVector.X * Scale), -(int32)MAX_int8, (int32)MAX_int8);
-		Y = (int8)FMath::Clamp(FMath::RoundToInt(InVector.Y * Scale), -(int32)MAX_int8, (int32)MAX_int8);
-		Z = (int8)FMath::Clamp(FMath::RoundToInt(InVector.Z * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+		X = (int8)FMath::Clamp(FMath::RoundToInt32(InVector.X * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+		Y = (int8)FMath::Clamp(FMath::RoundToInt32(InVector.Y * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+		Z = (int8)FMath::Clamp(FMath::RoundToInt32(InVector.Z * Scale), -(int32)MAX_int8, (int32)MAX_int8);
 	}
 
 	FVector Get() const
@@ -181,8 +181,8 @@ struct MASSCOMMON_API FMassSnorm8Vector2D
 
 	void Set(const FVector2D& InVector)
 	{
-		X = (int8)FMath::Clamp(FMath::RoundToInt(InVector.X * Scale), -(int32)MAX_int8, (int32)MAX_int8);
-		Y = (int8)FMath::Clamp(FMath::RoundToInt(InVector.Y * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+		X = (int8)FMath::Clamp(FMath::RoundToInt32(InVector.X * Scale), -(int32)MAX_int8, (int32)MAX_int8);
+		Y = (int8)FMath::Clamp(FMath::RoundToInt32(InVector.Y * Scale), -(int32)MAX_int8, (int32)MAX_int8);
 	}
 
 	FVector2D Get() const
@@ -220,7 +220,7 @@ struct MASSCOMMON_API FMassUnorm8Real
 
 	void Set(const float InValue)
 	{
-		Value = (int8)FMath::Clamp(FMath::RoundToInt(InValue * Scale), 0, (int32)MAX_uint8);
+		Value = (int8)FMath::Clamp(FMath::RoundToInt32(InValue * Scale), 0, (int32)MAX_uint8);
 	}
 
 	float Get() const
@@ -247,9 +247,9 @@ struct MASSCOMMON_API FMassInt16Vector
 	
 	void Set(const FVector& InVector)
 	{
-		X = (int16)FMath::Clamp(FMath::RoundToInt(InVector.X), -(int32)MAX_int16, (int32)MAX_int16);
-		Y = (int16)FMath::Clamp(FMath::RoundToInt(InVector.Y), -(int32)MAX_int16, (int32)MAX_int16);
-		Z = (int16)FMath::Clamp(FMath::RoundToInt(InVector.Z), -(int32)MAX_int16, (int32)MAX_int16);
+		X = (int16)FMath::Clamp(FMath::RoundToInt32(InVector.X), -(int32)MAX_int16, (int32)MAX_int16);
+		Y = (int16)FMath::Clamp(FMath::RoundToInt32(InVector.Y), -(int32)MAX_int16, (int32)MAX_int16);
+		Z = (int16)FMath::Clamp(FMath::RoundToInt32(InVector.Z), -(int32)MAX_int16, (int32)MAX_int16);
 	}
 
 	FVector Get() const
@@ -286,8 +286,8 @@ struct MASSCOMMON_API FMassInt16Vector2D
 	
 	void Set(const FVector2D& InVector)
 	{
-		X = (int16)FMath::Clamp(FMath::RoundToInt(InVector.X), -(int32)MAX_int16, (int32)MAX_int16);
-		Y = (int16)FMath::Clamp(FMath::RoundToInt(InVector.Y), -(int32)MAX_int16, (int32)MAX_int16);
+		X = (int16)FMath::Clamp(FMath::RoundToInt32(InVector.X), -(int32)MAX_int16, (int32)MAX_int16);
+		Y = (int16)FMath::Clamp(FMath::RoundToInt32(InVector.Y), -(int32)MAX_int16, (int32)MAX_int16);
 	}
 
 	FVector2D Get() const

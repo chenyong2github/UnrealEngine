@@ -832,7 +832,7 @@ namespace ImmediatePhysics_Chaos
 		FReal StepTime = UpdateStepTime(DeltaTime, MaxStepTime);
 
 		// Calculate number of steps to run
-		int32 NumSteps = FMath::Clamp(FMath::RoundToInt(DeltaTime / StepTime), 1, MaxSubSteps);
+		int32 NumSteps = FMath::Clamp(FMath::RoundToInt32(DeltaTime / StepTime), 1, MaxSubSteps);
 
 		// TEMP: overrides
 		{

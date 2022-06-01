@@ -496,10 +496,10 @@ void FImageUtils::ImageResize(int32 SrcWidth, int32 SrcHeight, const TArrayView<
 						PixelCount++;
 					}
 				}
-				uint8 FinalR = FMath::Clamp(FMath::TruncToInt(StepColor.X / (float)PixelCount), 0, 255);
-				uint8 FinalG = FMath::Clamp(FMath::TruncToInt(StepColor.Y / (float)PixelCount), 0, 255);
-				uint8 FinalB = FMath::Clamp(FMath::TruncToInt(StepColor.Z / (float)PixelCount), 0, 255);
-				uint8 FinalA = FMath::Clamp(FMath::TruncToInt(StepColor.W / (float)PixelCount), 0, 255);
+				uint8 FinalR = FMath::Clamp(FMath::TruncToInt32(StepColor.X / (float)PixelCount), 0, 255);
+				uint8 FinalG = FMath::Clamp(FMath::TruncToInt32(StepColor.Y / (float)PixelCount), 0, 255);
+				uint8 FinalB = FMath::Clamp(FMath::TruncToInt32(StepColor.Z / (float)PixelCount), 0, 255);
+				uint8 FinalA = FMath::Clamp(FMath::TruncToInt32(StepColor.W / (float)PixelCount), 0, 255);
 				FinalColor = FColor(FinalR, FinalG, FinalB, FinalA);
 			}
 

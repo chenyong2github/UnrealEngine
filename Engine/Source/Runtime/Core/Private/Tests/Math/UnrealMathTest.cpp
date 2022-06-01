@@ -3077,8 +3077,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	}
 
 
-	// Float function compilation with various types. Set this define to 1 to verify that warnings are generated for all code within MATHTEST_CHECK_INVALID_FLOAT_VARIANTS blocks.
-#define MATHTEST_CHECK_INVALID_FLOAT_VARIANTS 0
+	// Float function compilation with various types. Set this define to 1 to verify that warnings are generated for all code within MATHTEST_CHECK_INVALID_OVERLOAD_VARIANTS blocks.
+#define MATHTEST_CHECK_INVALID_OVERLOAD_VARIANTS 0
 	{
 		float F = 1.f, TestFloat;
 		double D = 1.0, TestDouble;
@@ -3090,7 +3090,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		TestFloat = FMath::Fmod(F, I);
 		TestFloat = FMath::Fmod(I, F);
 
-#if MATHTEST_CHECK_INVALID_FLOAT_VARIANTS
+#if MATHTEST_CHECK_INVALID_OVERLOAD_VARIANTS
 		// Expected to generate warnings
 		TestFloat = FMath::Fmod(F, D);
 		TestFloat = FMath::Fmod(D, F);
@@ -3110,12 +3110,12 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		TestDouble = FMath::Fmod(I, F);
 		TestDouble = FMath::Fmod(I, D);
 
-#if MATHTEST_CHECK_INVALID_FLOAT_VARIANTS
+#if MATHTEST_CHECK_INVALID_OVERLOAD_VARIANTS
 		// Expected to generate warnings
 		TestDouble = FMath::Fmod(I, I); // Should be warned to be deprecated
 #endif
 
-#if MATHTEST_CHECK_INVALID_FLOAT_VARIANTS
+#if MATHTEST_CHECK_INVALID_OVERLOAD_VARIANTS
 		// Expected to generate warnings
 		int TestInt;
 		TestInt = FMath::Fmod(F, F);
@@ -3138,7 +3138,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 		TestDouble = FMath::TruncToDouble(I); // not currently a warning
 
-#if MATHTEST_CHECK_INVALID_FLOAT_VARIANTS
+#if MATHTEST_CHECK_INVALID_OVERLOAD_VARIANTS
 		// Expected to generate errors
 		TestFloat = FMath::TruncToFloat(I);
 		TestFloat = FMath::TruncToFloat(D);
@@ -3185,6 +3185,9 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		F = FMath::Clamp(F1, I1, F2);
 		D = FMath::Clamp(F1, D2, I3);
 
+		D = FMath::Max(F1, D1);
+		D = FMath::Min(D1, F1);
+
 		CheckPassing(FMath::Clamp( 1, 0, 2) == 1);
 		CheckPassing(FMath::Clamp(-1, 0, 2) == 0);
 		CheckPassing(FMath::Clamp( 3, 0, 2) == 2);
@@ -3192,13 +3195,15 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		U1 = 0; U2 = 2;
 		CheckPassing(FMath::Clamp<int32>(-1, U1, U2) == 0);
 
-#if MATHTEST_CHECK_INVALID_FLOAT_VARIANTS
+#if MATHTEST_CHECK_INVALID_OVERLOAD_VARIANTS
 		// Expected to generate errors (ambiguous arguments)
 		U = FMath::Clamp(U1, I1, U3);
 		// Expected to generate errors (double->float truncation)
 		F = FMath::Clamp(F1, F2, D3);
 		F = FMath::Clamp(F1, D2, F3);
 		F = FMath::Clamp(D1, D2, F3);
+		F = FMath::Max(F1, D1);
+		F = FMath::Min(D1, F1);
 		// Expected to generate errors (float->int truncation)
 		I = FMath::Clamp(I1, F2, I3);
 #endif
@@ -3212,9 +3217,33 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		U1 = uint32(-1);
 		CheckPassing(FMath::Min<int32>(0, U1) == -1);
 
+		// Mix float/int types
+		F = FMath::Max(Big1, F1);
+		F = FMath::Max(F1, I1);
+		D = FMath::Min(Big1, D1);
+		D = FMath::Min(D1, I1);
+
 		// Test compilation mixing int32/int64 types
-		//Big3 = FMath::Max(Big1, I2);
-		//Big3 = FMath::Max(I1, Big2);
+		static_assert(TIsSame< decltype(FMath::Max(Big1, I1)), decltype(Big1) >::Value);
+		static_assert(TIsSame< decltype(FMath::Min(I1, Big1)), decltype(Big1) >::Value);
+		Big3 = FMath::Max(Big1, I1);
+		Big3 = FMath::Min(Big1, I1);
+
+		static_assert(TIsSame< decltype(FMath::Max(I1, Big2)), decltype(Big1) >::Value);
+		static_assert(TIsSame< decltype(FMath::Min(Big2, I1)), decltype(Big1) >::Value);
+		Big3 = FMath::Max(I1, Big2);
+		Big3 = FMath::Min(I1, Big2);
+
+		Big3 = FMath::Clamp(Big1, I1, I2);
+
+#if MATHTEST_CHECK_INVALID_OVERLOAD_VARIANTS
+		// Expected to generate errors (no overload for mixing signed/unsigned types).
+		Big3 = FMath::Max(U1, I1);
+		Big3 = FMath::Min(I1, U1);
+		// Expected to generate errors or warnings (truncation / loss of data)
+		Big3 = FMath::Clamp(I1, Big1, I2);
+		I = FMath::Clamp<int32>(Big1, I1, I2);
+#endif
 	}
 
 	// Sin, Cos, Tan tests

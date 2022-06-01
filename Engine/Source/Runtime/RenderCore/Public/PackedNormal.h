@@ -263,26 +263,26 @@ struct FPackedRGB10A2N
 
 FORCEINLINE void FPackedRGB10A2N::operator=(const FVector3f& InVector)
 {
-	Vector.X = FMath::Clamp(FMath::TruncToInt(InVector.X * 511.5f + 511.5f), 0, 1023);
-	Vector.Y = FMath::Clamp(FMath::TruncToInt(InVector.Y * 511.5f + 511.5f), 0, 1023);
-	Vector.Z = FMath::Clamp(FMath::TruncToInt(InVector.Z * 511.5f + 511.5f), 0, 1023);
+	Vector.X = FMath::Clamp(FMath::TruncToInt32(InVector.X * 511.5f + 511.5f), 0, 1023);
+	Vector.Y = FMath::Clamp(FMath::TruncToInt32(InVector.Y * 511.5f + 511.5f), 0, 1023);
+	Vector.Z = FMath::Clamp(FMath::TruncToInt32(InVector.Z * 511.5f + 511.5f), 0, 1023);
 	Vector.W = 3;
 }
 
 FORCEINLINE void FPackedRGB10A2N::operator=(const FVector3d& InVector)
 {
-	Vector.X = FMath::Clamp(FMath::TruncToInt(InVector.X * 511.5f + 511.5f), 0, 1023);
-	Vector.Y = FMath::Clamp(FMath::TruncToInt(InVector.Y * 511.5f + 511.5f), 0, 1023);
-	Vector.Z = FMath::Clamp(FMath::TruncToInt(InVector.Z * 511.5f + 511.5f), 0, 1023);
+	Vector.X = FMath::Clamp(FMath::TruncToInt32(InVector.X * 511.5f + 511.5f), 0, 1023);
+	Vector.Y = FMath::Clamp(FMath::TruncToInt32(InVector.Y * 511.5f + 511.5f), 0, 1023);
+	Vector.Z = FMath::Clamp(FMath::TruncToInt32(InVector.Z * 511.5f + 511.5f), 0, 1023);
 	Vector.W = 3;
 }
 
 FORCEINLINE void FPackedRGB10A2N::operator=(const FVector4f& InVector)
 {
-	Vector.X = FMath::Clamp(FMath::TruncToInt(InVector.X * 511.5f + 511.5f), 0, 1023);
-	Vector.Y = FMath::Clamp(FMath::TruncToInt(InVector.Y * 511.5f + 511.5f), 0, 1023);
-	Vector.Z = FMath::Clamp(FMath::TruncToInt(InVector.Z * 511.5f + 511.5f), 0, 1023);
-	Vector.W = FMath::Clamp(FMath::TruncToInt(InVector.W * 1.5f   + 1.5f),   0, 3);
+	Vector.X = FMath::Clamp(FMath::TruncToInt32(InVector.X * 511.5f + 511.5f), 0, 1023);
+	Vector.Y = FMath::Clamp(FMath::TruncToInt32(InVector.Y * 511.5f + 511.5f), 0, 1023);
+	Vector.Z = FMath::Clamp(FMath::TruncToInt32(InVector.Z * 511.5f + 511.5f), 0, 1023);
+	Vector.W = FMath::Clamp(FMath::TruncToInt32(InVector.W * 1.5f   + 1.5f),   0, 3);
 }
 
 FORCEINLINE bool FPackedRGB10A2N::operator==(const FPackedRGB10A2N& B) const
@@ -360,37 +360,37 @@ DECLARE_INTRINSIC_TYPE_LAYOUT(FPackedRGBA16N);
 FORCEINLINE void FPackedRGBA16N::operator=(const FVector3f& InVector)
 {
 	const float Scale = MAX_int16;
-	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int16, MAX_int16);
-	Y = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int16, MAX_int16);
-	Z = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int16, MAX_int16);
+	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.X * Scale), MIN_int16, MAX_int16);
+	Y = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Y * Scale), MIN_int16, MAX_int16);
+	Z = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Z * Scale), MIN_int16, MAX_int16);
 	W = MAX_int16;
 }
 
 FORCEINLINE void FPackedRGBA16N::operator=(const FVector3d& InVector)
 {
 	const float Scale = MAX_int16;
-	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int16, MAX_int16);
-	Y = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int16, MAX_int16);
-	Z = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int16, MAX_int16);
+	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.X * Scale), MIN_int16, MAX_int16);
+	Y = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Y * Scale), MIN_int16, MAX_int16);
+	Z = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Z * Scale), MIN_int16, MAX_int16);
 	W = MAX_int16;
 }
 
 FORCEINLINE void FPackedRGBA16N::operator=(const FVector4f& InVector)
 {
 	const float Scale = MAX_int16;
-	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int16, MAX_int16);
-	Y = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int16, MAX_int16);
-	Z = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int16, MAX_int16);
-	W = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.W * Scale), MIN_int16, MAX_int16);
+	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.X * Scale), MIN_int16, MAX_int16);
+	Y = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Y * Scale), MIN_int16, MAX_int16);
+	Z = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Z * Scale), MIN_int16, MAX_int16);
+	W = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.W * Scale), MIN_int16, MAX_int16);
 }
 
 FORCEINLINE void FPackedRGBA16N::operator=(const FVector4d& InVector)
 {
 	const float Scale = MAX_int16;
-	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.X * Scale), MIN_int16, MAX_int16);
-	Y = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Y * Scale), MIN_int16, MAX_int16);
-	Z = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.Z * Scale), MIN_int16, MAX_int16);
-	W = (int16)FMath::Clamp<int32>(FMath::RoundToInt(InVector.W * Scale), MIN_int16, MAX_int16);
+	X = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.X * Scale), MIN_int16, MAX_int16);
+	Y = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Y * Scale), MIN_int16, MAX_int16);
+	Z = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.Z * Scale), MIN_int16, MAX_int16);
+	W = (int16)FMath::Clamp<int32>(FMath::RoundToInt32(InVector.W * Scale), MIN_int16, MAX_int16);
 }
 
 FORCEINLINE bool FPackedRGBA16N::operator==(const FPackedRGBA16N& B) const

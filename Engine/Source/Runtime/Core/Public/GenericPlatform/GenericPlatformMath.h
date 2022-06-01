@@ -219,7 +219,7 @@ struct FGenericPlatformMath
 	}
 
 	static CONSTEXPR FORCEINLINE int32 TruncToInt(float F) { return TruncToInt32(F); }
-	static CONSTEXPR FORCEINLINE int32 TruncToInt(double F) { return TruncToInt32(F); }
+	static CONSTEXPR FORCEINLINE int64 TruncToInt(double F) { return TruncToInt64(F); }
 
 	/**
 	 * Converts a float to an integer value with truncation towards zero.
@@ -273,7 +273,7 @@ struct FGenericPlatformMath
 	}
 
 	static FORCEINLINE int32 FloorToInt(float F) { return FloorToInt32(F); }
-	static FORCEINLINE int32 FloorToInt(double F) { return FloorToInt32(F); }
+	static FORCEINLINE int64 FloorToInt(double F) { return FloorToInt64(F); }
 	
 	
 	/**
@@ -322,7 +322,7 @@ struct FGenericPlatformMath
 	}
 	
 	static FORCEINLINE int32 RoundToInt(float F) { return RoundToInt32(F); }
-	static FORCEINLINE int32 RoundToInt(double F) { return RoundToInt32(F); }
+	static FORCEINLINE int64 RoundToInt(double F) { return RoundToInt64(F); }
 
 	/**
 	* Converts a float to the nearest integer. Rounds up when the fraction is .5
@@ -376,7 +376,7 @@ struct FGenericPlatformMath
 	}
 
 	static FORCEINLINE int32 CeilToInt(float F) { return CeilToInt32(F); }
-	static FORCEINLINE int32 CeilToInt(double F) { return CeilToInt32(F); }
+	static FORCEINLINE int64 CeilToInt(double F) { return CeilToInt64(F); }
 
 	/**
 	* Converts a float to the nearest greater or equal integer.
@@ -528,6 +528,7 @@ struct FGenericPlatformMath
 
 	static FORCEINLINE float Sin( float Value ) { return sinf(Value); }
 	static FORCEINLINE double Sin( double Value ) { return sin(Value); }
+	RESOLVE_FLOAT_AMBIGUITY(Sin);
 
 	static FORCEINLINE float Asin( float Value ) { return asinf( (Value<-1.f) ? -1.f : ((Value<1.f) ? Value : 1.f) ); }
 	static FORCEINLINE double Asin( double Value ) { return asin( (Value<-1.0) ? -1.0 : ((Value<1.0) ? Value : 1.0) ); }
@@ -943,10 +944,12 @@ struct FGenericPlatformMath
 	}
 
 	// Allow mixing of float types to promote to highest precision type
-	static CONSTEXPR FORCEINLINE double Max(const double A, const float B) { return Max<double>(A, B); }
-	static CONSTEXPR FORCEINLINE double Max(const float A, const double B) { return Max<double>(A, B); }
-	static CONSTEXPR FORCEINLINE double Min(const double A, const float B) { return Min<double>(A, B); }
-	static CONSTEXPR FORCEINLINE double Min(const float A, const double B) { return Min<double>(A, B); }
+	MIX_FLOATS_2_ARGS(Max);
+	MIX_FLOATS_2_ARGS(Min);
+
+	// Allow mixing of signed integral types.
+	MIX_SIGNED_INTS_2_ARGS_CONSTEXPR(Max);
+	MIX_SIGNED_INTS_2_ARGS_CONSTEXPR(Min);
 
 	/**
 	* Min of Array

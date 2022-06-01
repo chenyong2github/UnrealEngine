@@ -244,7 +244,7 @@ int32 UKismetMathLibrary::FMod(float Dividend, float Divisor, float& Remainder)
 	if (Divisor != 0.f)
 	{
 		const float Quotient = Dividend / Divisor;
-		Result = (Quotient < 0.f ? -1 : 1) * FMath::FloorToInt(FMath::Abs(Quotient));
+		Result = (Quotient < 0.f ? -1 : 1) * FMath::FloorToInt32(FMath::Abs(Quotient));
 		Remainder = FMath::Fmod(Dividend, Divisor);
 	}
 	else
@@ -264,7 +264,7 @@ int32 UKismetMathLibrary::FMod(double Dividend, double Divisor, double& Remainde
 	if (Divisor != 0.f)
 	{
 		const double Quotient = Dividend / Divisor;
-		Result = (Quotient < 0.f ? -1 : 1) * FMath::FloorToInt(FMath::Abs(Quotient));
+		Result = (Quotient < 0.f ? -1 : 1) * FMath::FloorToInt32(FMath::Abs(Quotient));
 		Remainder = FMath::Fmod(Dividend, Divisor);
 	}
 	else

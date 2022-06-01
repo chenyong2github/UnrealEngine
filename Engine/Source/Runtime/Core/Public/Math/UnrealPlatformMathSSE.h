@@ -274,13 +274,13 @@ struct TUnrealPlatformMathSSEBase : public Base
 	//
 
 	static FORCEINLINE int32 TruncToInt(float F) { return TruncToInt32(F); }
-	static FORCEINLINE int32 TruncToInt(double F) { return TruncToInt32(F); }
+	static FORCEINLINE int64 TruncToInt(double F) { return TruncToInt64(F); }
 	static FORCEINLINE int32 FloorToInt(float F) { return FloorToInt32(F); }
-	static FORCEINLINE int32 FloorToInt(double F) { return FloorToInt32(F); }
+	static FORCEINLINE int64 FloorToInt(double F) { return FloorToInt64(F); }
 	static FORCEINLINE int32 RoundToInt(float F) { return RoundToInt32(F); }
-	static FORCEINLINE int32 RoundToInt(double F) { return RoundToInt32(F); }
+	static FORCEINLINE int64 RoundToInt(double F) { return RoundToInt64(F); }
 	static FORCEINLINE int32 CeilToInt(float F) { return CeilToInt32(F); }
-	static FORCEINLINE int32 CeilToInt(double F) { return CeilToInt32(F); }
+	static FORCEINLINE int64 CeilToInt(double F) { return CeilToInt64(F); }
 
 
 	template<typename T>
