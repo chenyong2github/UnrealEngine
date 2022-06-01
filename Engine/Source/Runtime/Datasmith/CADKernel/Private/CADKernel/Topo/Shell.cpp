@@ -371,7 +371,9 @@ int32 FShell::Orient()
 
 	TFunction<FBBoxWithNormal(const double)> GetSubshellBoundingBox = [&](const double ApproximationFactor) -> FBBoxWithNormal
 	{
+#ifdef DEBUG_GET_SHELL_BBOX
 		F3DDebugSession _(TEXT("GetShellBoundingBox"));
+#endif
 
 		FBBoxWithNormal BBox;
 

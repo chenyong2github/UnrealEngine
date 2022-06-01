@@ -1035,9 +1035,18 @@ void DisplayMesh(const FFaceMesh& Mesh)
 	const TArray<int32>& VertexIndices = Mesh.VerticesGlobalIndex;
 	for (int32 Index = 0; Index < TriangleIndices.Num();)
 	{
-		Points[0] = *NodeIdToCoordinates[VertexIndices[TriangleIndices[Index++]]];
-		Points[1] = *NodeIdToCoordinates[VertexIndices[TriangleIndices[Index++]]];
-		Points[2] = *NodeIdToCoordinates[VertexIndices[TriangleIndices[Index++]]];
+		const FPoint** P0 = NodeIdToCoordinates.Find(VertexIndices[TriangleIndices[Index++]]);
+		const FPoint** P1 = NodeIdToCoordinates.Find(VertexIndices[TriangleIndices[Index++]]);
+		const FPoint** P2 = NodeIdToCoordinates.Find(VertexIndices[TriangleIndices[Index++]]);
+
+		if (!P0 || !P1 || !P2)
+		{
+			continue;
+		}
+
+		Points[0] = **P0;
+		Points[1] = **P1;
+		Points[2] = **P2;
 		DrawElement(2, Points, EVisuProperty::Element);
 		DrawSegment(Points[0], Points[1], EVisuProperty::EdgeMesh);
 		DrawSegment(Points[1], Points[2], EVisuProperty::EdgeMesh);
@@ -1050,8 +1059,13 @@ void DisplayMesh(const FFaceMesh& Mesh)
 
 	for (const int32& Index : VertexIndices)
 	{
+		const FPoint** PointPtr = NodeIdToCoordinates.Find(Index);
+		if (!PointPtr)
+		{
+			continue;
+		}
 		F3DDebugSegment GraphicSegment(Index);
-		DrawPoint(*NodeIdToCoordinates[Index], EVisuProperty::NodeMesh);
+		DrawPoint(**PointPtr, EVisuProperty::NodeMesh);
 	}
 
 	bool test = FSystem::Get().GetVisu()->GetParameters()->bDisplayNormals;
@@ -1061,11 +1075,17 @@ void DisplayMesh(const FFaceMesh& Mesh)
 		const TArray<FVector>& Normals = Mesh.Normals;
 		for (int32 Index = 0; Index < VertexIndices.Num(); ++Index)
 		{
+			const FPoint** PointPtr = NodeIdToCoordinates.Find(VertexIndices[Index]);
+			if (!PointPtr)
+			{
+				continue;
+			}
+
 			F3DDebugSegment GraphicSegment(Index);
 			FVector Normal = Normals[Index];
 			Normal.Normalize();
 			Normal *= NormalLength;
-			DrawSegment(*NodeIdToCoordinates[VertexIndices[Index]], *NodeIdToCoordinates[VertexIndices[Index]] + Normal, EVisuProperty::EdgeMesh);
+			DrawSegment(**PointPtr, **PointPtr + Normal, EVisuProperty::EdgeMesh);
 		}
 	}
 #endif

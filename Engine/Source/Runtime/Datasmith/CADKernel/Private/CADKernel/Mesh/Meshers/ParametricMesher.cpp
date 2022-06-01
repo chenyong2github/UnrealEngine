@@ -156,6 +156,11 @@ void FParametricMesher::ApplyFaceCriteria(FTopologicalFace& Face)
 	}
 
 	FCriteriaGrid Grid(Face);
+	if (Face.IsDeleted())
+	{
+		return;
+	}
+
 	Grid.ApplyCriteria(GetMeshModel().GetCriteria());
 
 	Face.ChooseFinalDeltaUs();
@@ -200,8 +205,10 @@ void FParametricMesher::Mesh(FTopologicalFace& Face)
 	bDisplay = (Face.GetId() == FaceToDebug);
 #endif
 
-	ensureCADKernel(!Face.IsDeleted());
-	ensureCADKernel(!Face.IsMeshed());
+	if (Face.IsDeleted() || Face.IsMeshed())
+	{
+		return;
+	}
 
 	FMessage::Printf(EVerboseLevel::Debug, TEXT("Meshing of surface %d\n"), Face.GetId());
 
@@ -659,6 +666,7 @@ void FParametricMesher::Mesh(FTopologicalEdge& InEdge, const FTopologicalFace& F
 		{
 			FinalEdgeCuttingPointCoordinates.Emplace(CuttingPoint.Coordinate, ECoordinateType::OtherCoordinate);
 		}
+		InEdge.GetLinkActiveEdge()->SetMeshed();
 	}
 	else
 	{
@@ -1145,20 +1153,19 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 			if (CandidateFacesForMesh.Num())
 			{
 				int32 MaxMeshedSideNum = CandidateFacesForMesh[0]->MeshedSideNum();
-				for (int32 Index = 0; Index < CandidateFacesForMesh.Num(); ++Index)
-				{
-					if (CandidateFacesForMesh[Index]->IsMeshed())
-					{
-						CandidateFacesForMesh.RemoveAt(Index);
-						--Index;
-					}
-				}
 
 				// next face with side well meshed are preferred
 				int32 Index = 0;
 				for (; Index < CandidateFacesForMesh.Num(); ++Index)
 				{
 					FTopologicalFace* CandidateSurface = CandidateFacesForMesh[Index];
+					if (CandidateSurface->IsMeshed())
+					{
+						CandidateFacesForMesh.RemoveAt(Index);
+						--Index;
+						continue;
+					}
+
 					if (CandidateSurface->MeshedSideNum() < MaxMeshedSideNum)
 					{
 						break;
@@ -1177,6 +1184,13 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 					for (; Index < CandidateFacesForMesh.Num(); ++Index)
 					{
 						FTopologicalFace* CandidateSurface = CandidateFacesForMesh[Index];
+						if (CandidateSurface->IsMeshed())
+						{
+							CandidateFacesForMesh.RemoveAt(Index);
+							--Index;
+							continue;
+						}
+
 						if (CandidateMeshedSideRatio < CandidateSurface->MeshedSideRatio())
 						{
 							CandidateMeshedSideRatio = CandidateSurface->MeshedSideRatio();
@@ -1195,6 +1209,13 @@ void FParametricMesher::MeshSurfaceByFront(TArray<FCostToFace>& QuadTrimmedSurfa
 			for (int32 Index = 0; Index < SecondChoiceOfCandidateFacesForMesh.Num(); ++Index)
 			{
 				FTopologicalFace* CandidateSurface = SecondChoiceOfCandidateFacesForMesh[Index];
+				if (CandidateSurface->IsMeshed())
+				{
+					SecondChoiceOfCandidateFacesForMesh.RemoveAt(Index);
+					--Index;
+					continue;
+				}
+
 				if (CandidateMeshedSideRatio < CandidateSurface->MeshedSideRatio())
 				{
 					CandidateMeshedSideRatio = CandidateSurface->MeshedSideRatio();

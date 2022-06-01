@@ -61,6 +61,8 @@ void FTopologicalFace::UpdateBBox(int32 IsoCount, const double ApproximationFact
 	const FSurface& Surface = GetCarrierSurface().Get();
 	FIsoCurve3DSamplerOnChord Sampler(Surface, SAG, Polyline);
 
+	IsoCount++;
+
 	TFunction <void(const EIso)> UpdateBBoxWithIsos = [&](const EIso IsoType)
 	{
 		const FLinearBoundary& Bounds = GetBoundary().Get(IsoType);
@@ -68,7 +70,6 @@ void FTopologicalFace::UpdateBBox(int32 IsoCount, const double ApproximationFact
 		EIso Other = IsoType == EIso::IsoU ? EIso::IsoV : EIso::IsoU;
 
 		double Coordinate = Bounds.Min;
-		IsoCount++;
 		const double Step = (Bounds.Max - Bounds.Min) / IsoCount;
 
 		for (int32 iIso = 1; iIso < IsoCount; iIso++)
@@ -82,7 +83,7 @@ void FTopologicalFace::UpdateBBox(int32 IsoCount, const double ApproximationFact
 			int32 IntersectionCount = Intersections.Num();
 			if (IntersectionCount == 0)
 			{
-				return;
+				continue;
 			}
 
 			FLinearBoundary CurveBounds(Intersections[0], Intersections.Last());
@@ -90,11 +91,6 @@ void FTopologicalFace::UpdateBBox(int32 IsoCount, const double ApproximationFact
 			Polyline.Empty();
 			Sampler.Set(IsoType, Coordinate, CurveBounds);
 			Sampler.Sample();
-
-			if (IntersectionCount == 0)
-			{
-				continue;
-			}
 
 			if (IntersectionCount % 2 != 0)
 			{
@@ -110,6 +106,11 @@ void FTopologicalFace::UpdateBBox(int32 IsoCount, const double ApproximationFact
 
 				Intersections.Pop();
 				IntersectionCount--;
+			}
+
+			if (IntersectionCount == 0)
+			{
+				continue;
 			}
 
 			for (int32 ISection = 0; ISection < IntersectionCount; ISection += 2)

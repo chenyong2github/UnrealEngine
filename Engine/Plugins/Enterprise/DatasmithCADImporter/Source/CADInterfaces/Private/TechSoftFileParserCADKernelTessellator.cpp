@@ -304,10 +304,6 @@ A3DStatus FTechSoftFileParserCADKernelTessellator::AdaptBRepModel()
 	{
 		// Add warning about error during the adaptation
 		CADFileData.AddWarningMessages(FString::Printf(TEXT("File %s had %d error during BRep adaptation step."), *CADFileData.GetCADFileDescription().GetFileName(), ErrorCount));
-		if (Errors != nullptr)
-		{
-			delete[] Errors;
-		}
 	}
 	else if (Ret != A3D_SUCCESS)
 	{

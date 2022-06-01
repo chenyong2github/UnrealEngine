@@ -49,6 +49,18 @@ FCriteriaGrid::FCriteriaGrid(FTopologicalFace& InSurface)
 	, CoordinateGrid(InSurface.GetCrossingPointCoordinates())
 {
 	Face.Presample();
+
+	const FCoordinateGrid& FaceGrid = Face.GetCrossingPointCoordinates();
+
+	// If the size of the grid is very huge for a pre-sample step means that the surface is very poorly build
+	// Canceled the face meshing is preferred than waiting a too long time for a dirty result.
+	constexpr int32 MaxGrid = 1000000;
+	if (FaceGrid[EIso::IsoU].Num() * FaceGrid[EIso::IsoV].Num() > MaxGrid)
+	{
+		Face.SetDeleted();
+		return;
+	}
+
 	Face.InitDeltaUs();
 	Init();
 #ifdef DISPLAY_CRITERIA_GRID

@@ -4,7 +4,6 @@
 
 #ifdef USE_TECHSOFT_SDK
 
-#include "CADEnum.h"
 #include "CADFileReport.h"
 
 #include "CADKernel/Geo/GeoEnum.h"
@@ -47,25 +46,14 @@ class FUVReparameterization
 private:
 	double Scale[2] = { 1., 1. };
 	double Offset[2] = { 0., 0. };
+	bool bSwapUV = false;
 	bool bNeedApply = false;
+	bool bNeedSwapOrientation = false;
 
 public:
-	static const FUVReparameterization Identity;
 
-	FUVReparameterization(const double InUScale = 1., const double InUOffset = 0., const double InVScale = 1., const double InVOffset = 0.)
+	FUVReparameterization()
 	{
-		SetCoef(InUScale, InUOffset, InVScale, InVOffset);
-		SetNeedApply();
-	}
-
-	void SetScale(const double InUScale, const double InVScale)
-	{
-		Scale[CADKernel::EIso::IsoU] = InUScale;
-		Scale[CADKernel::EIso::IsoV] = InVScale;
-		Offset[CADKernel::EIso::IsoU] = 0.;
-		Offset[CADKernel::EIso::IsoV] = 0.;
-
-		SetNeedApply();
 	}
 
 	void SetCoef(const double InUScale, const double InUOffset, const double InVScale, const double InVOffset)
@@ -77,9 +65,24 @@ public:
 		SetNeedApply();
 	}
 
-	bool NeedApply() const
+	bool GetNeedApply() const
 	{
 		return bNeedApply;
+	}
+
+	bool GetSwapUV() const
+	{
+		return bSwapUV;
+	}
+
+	bool GetNeedSwapOrientation() const
+	{
+		return bNeedSwapOrientation != bSwapUV;
+	}
+
+	void SetNeedSwapOrientation()
+	{
+		bNeedSwapOrientation = true;
 	}
 
 	void SetNeedApply()
@@ -94,8 +97,12 @@ public:
 		}
 	}
 
-	void ScaleTransform(double InUScale, double InVScale)
+	void ScaleUVTransform(double InUScale, double InVScale)
 	{
+		if (bSwapUV)
+		{
+			Swap(InUScale, InVScale);
+		}
 		Scale[CADKernel::EIso::IsoU] *= InUScale;
 		Scale[CADKernel::EIso::IsoV] *= InVScale;
 		Offset[CADKernel::EIso::IsoU] *= InUScale;
@@ -103,23 +110,53 @@ public:
 		SetNeedApply();
 	}
 
+	void Process(TArray<CADKernel::FPoint>& Poles) const
+	{
+		if(bNeedApply)
+		{
+			for (CADKernel::FPoint& Point : Poles)
+			{
+				Apply(Point);
+			}
+		}
+		if (bSwapUV)
+		{
+			for (CADKernel::FPoint& Point : Poles)
+			{
+				GetSwapUV(Point);
+			}
+		}
+	}
+
+	void AddUVTransform(A3DUVParameterizationData& Transform)
+	{
+		bSwapUV = (bool) Transform.m_bSwapUV;
+
+		Scale[0] = Scale[0] * Transform.m_dUCoeffA;
+		Scale[1] = Scale[1] * Transform.m_dVCoeffA;
+		Offset[0] = Offset[0] * Transform.m_dUCoeffA + Transform.m_dUCoeffB;
+		Offset[1] = Offset[1] * Transform.m_dVCoeffA + Transform.m_dVCoeffB;
+		SetNeedApply();
+	}
+
+	void Apply(CADKernel::FPoint2D& Point) const
+	{
+		Point.U = Scale[CADKernel::EIso::IsoU] * Point.U + Offset[CADKernel::EIso::IsoU];
+		Point.V = Scale[CADKernel::EIso::IsoV] * Point.V + Offset[CADKernel::EIso::IsoV];
+	}
+
+private:
 	void Apply(CADKernel::FPoint& Point) const
 	{
 		Point.X = Scale[CADKernel::EIso::IsoU] * Point.X + Offset[CADKernel::EIso::IsoU];
 		Point.Y = Scale[CADKernel::EIso::IsoV] * Point.Y + Offset[CADKernel::EIso::IsoV];
 	}
 
-	void AddUVTransform(A3DUVParameterizationData& Transform, bool bSwapUV = false)
+	void GetSwapUV(CADKernel::FPoint& Point) const
 	{
-		int32 UIndex = bSwapUV ? 1 : 0;
-		int32 VIndex = bSwapUV ? 0 : 1;
-
-		Scale[UIndex] = Scale[UIndex] * Transform.m_dUCoeffA;
-		Scale[VIndex] = Scale[VIndex] * Transform.m_dVCoeffA;
-		Offset[UIndex] = Offset[UIndex] * Transform.m_dUCoeffA + Transform.m_dUCoeffB;
-		Offset[VIndex] = Offset[VIndex] * Transform.m_dVCoeffA + Transform.m_dVCoeffB;
-		SetNeedApply();
+		Swap(Point.X, Point.Y);
 	}
+
 };
 } // ns TechSoftUtils
 
@@ -154,7 +191,7 @@ private:
 
 	void TraverseConnex(const A3DTopoConnex* A3DConnex, TSharedRef<CADKernel::FBody>& Body);
 	void TraverseShell(const A3DTopoShell* A3DShell, TSharedRef<CADKernel::FBody>& Body);
-	void AddFace(const A3DTopoFace* A3DFace, CADKernel::EOrientation Orientation, TSharedRef<CADKernel::FShell>& Body);
+	void AddFace(const A3DTopoFace* A3DFace, CADKernel::EOrientation Orientation, TSharedRef<CADKernel::FShell>& Body, uint32 Index);
 
 	TSharedPtr<CADKernel::FTopologicalLoop> AddLoop(const A3DTopoLoop* A3DLoop, const TSharedRef<CADKernel::FSurface>& Surface, const TechSoftUtils::FUVReparameterization& UVReparameterization, const bool bIsExternalLoop);
 	TSharedPtr<CADKernel::FTopologicalEdge> AddEdge(const A3DTopoCoEdge* A3DCoedge, const TSharedRef<CADKernel::FSurface>& Surface, const TechSoftUtils::FUVReparameterization& UVReparameterization, CADKernel::EOrientation& OutOrientation);
@@ -185,7 +222,7 @@ private:
 
 	TSharedPtr<CADKernel::FRestrictionCurve> AddRestrictionCurve(const A3DCrvBase* A3DCurve, const TSharedRef<CADKernel::FSurface>& Surface);
 
-	TSharedPtr<CADKernel::FCurve> AddCurve(const A3DCrvBase* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization = TechSoftUtils::FUVReparameterization::Identity);
+	TSharedPtr<CADKernel::FCurve> AddCurve(const A3DCrvBase* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
 
 	TSharedPtr<CADKernel::FCurve> AddCurveCircle(const A3DCrvCircle* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
 	TSharedPtr<CADKernel::FCurve> AddCurveComposite(const A3DCrvComposite* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);

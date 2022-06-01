@@ -50,10 +50,6 @@ FIsoTriangulator::FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMe
 		bDisplay = true;
 	}
 
-#ifdef DEBUG_BOWYERWATSON
-	bool FBowyerWatsonTriangulator::bDisplay = false;
-#endif
-
 #endif
 }
 
@@ -1873,34 +1869,34 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 	}
 
 	// Function used in FindBestTriangle
-	TFunction<void(FIsoNode*, FIsoNode*, FIsoSegment*)> BuildSegmentIfNeeded = [&](FIsoNode* NodeA, FIsoNode* NodeB, FIsoSegment* ABSegment)
+	TFunction<bool(FIsoNode*, FIsoNode*, FIsoSegment*)> BuildSegmentIfNeeded = [&](FIsoNode* NodeA, FIsoNode* NodeB, FIsoSegment* ABSegment) -> bool
 	{
 		if (ABSegment)
 		{
 			if (&ABSegment->GetFirstNode() == NodeA)
 			{
-#ifdef ADD_TRIANGLE_2D
 				if (ABSegment->HasTriangleOnLeft())
 				{
+#ifdef ADD_TRIANGLE_2D
 					F3DDebugSession _(FString::Printf(TEXT("Segment")));
 					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *NodeA, *NodeB, 0, EVisuProperty::YellowCurve);
 					Wait();
-				}
 #endif
-				ensureCADKernel(!ABSegment->HasTriangleOnLeft());
+					return false;
+				}
 				ABSegment->SetHasTriangleOnLeft();
 			}
 			else
 			{
-#ifdef ADD_TRIANGLE_2D
 				if (ABSegment->HasTriangleOnRight())
 				{
+#ifdef ADD_TRIANGLE_2D
 					F3DDebugSession _(FString::Printf(TEXT("Segment")));
 					Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *NodeA, *NodeB, 0, EVisuProperty::YellowCurve);
 					Wait();
-				}
 #endif
-				ensureCADKernel(!ABSegment->HasTriangleOnRight());
+					return false;
+				}
 				ABSegment->SetHasTriangleOnRight();
 			}
 		}
@@ -1913,6 +1909,7 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 			NewSegment.SetHasTriangleOnLeft();
 			SegmentStack.Add(&NewSegment);
 		}
+		return true;
 	};
 
 	const SlopMethod GetSlopAtStartNode = ClockwiseSlop;
@@ -2144,8 +2141,14 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 				Segment->SetHasTriangleOnLeft();
 			}
 
-			BuildSegmentIfNeeded(&StartNode, CandidatNode, StartToCandiatSegment);
-			BuildSegmentIfNeeded(CandidatNode, &EndNode, EndToCandiatSegment);
+			if (!BuildSegmentIfNeeded(&StartNode, CandidatNode, StartToCandiatSegment))
+			{
+				return;
+			}
+			if (!BuildSegmentIfNeeded(CandidatNode, &EndNode, EndToCandiatSegment))
+			{
+				return;
+			}
 			Mesh->AddTriangle(EndNode.GetFaceIndex(), StartNode.GetFaceIndex(), CandidatNode->GetFaceIndex());
 
 #ifdef ADD_TRIANGLE_2D
@@ -2694,17 +2697,6 @@ void FIsoTriangulator::TriangulateInnerNodes()
 #endif
 }
 
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-//
-//
-//                                                                            NOT YET REVIEWED
-//
-//
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
-// =========================================================================================================================================================================================================
 //#define DEBUG_CONNECT_CELL_SUB_LOOPS_BY_NEIGHBORHOOD
 void FIsoTriangulator::ConnectCellSubLoopsByNeighborhood(FCell& Cell)
 {
@@ -2712,12 +2704,13 @@ void FIsoTriangulator::ConnectCellSubLoopsByNeighborhood(FCell& Cell)
 
 	int32 LoopCount = Cell.SubLoops.Num();
 
-	TArray<FPoint2D> LoopBarycenters;
+	TArray<TPair<int32,FPoint2D>> LoopBarycenters;
 	LoopBarycenters.Reserve(LoopCount + 4);
 
+	int32 LoopIndex = -1;
 	for (const TArray<FLoopNode*>& Nodes : Cell.SubLoops)
 	{
-		FPoint2D& BaryCenter = LoopBarycenters.Emplace_GetRef(FPoint2D::ZeroPoint);
+		++LoopIndex;
 
 		// the external loop is not processed 
 		if (Nodes[0]->GetLoopIndex() == 0)
@@ -2725,6 +2718,8 @@ void FIsoTriangulator::ConnectCellSubLoopsByNeighborhood(FCell& Cell)
 			continue;
 		}
 
+		TPair<int32, FPoint2D>& BaryCenterObj = LoopBarycenters.Emplace_GetRef(LoopIndex, FPoint2D::ZeroPoint);
+		FPoint2D& BaryCenter = BaryCenterObj.Value;
 		for (const FLoopNode* Node : Nodes)
 		{
 			BaryCenter += Node->Get2DPoint(EGridSpace::UniformScaled, Grid);
@@ -2777,7 +2772,7 @@ void FIsoTriangulator::ConnectCellSubLoopsByNeighborhood(FCell& Cell)
 		FBowyerWatsonTriangulator::bDisplay = bDisplay;
 #endif
 		FBowyerWatsonTriangulator Triangulator(LoopBarycenters, EdgeVertexIndices);
-		Triangulator.Triangulate(Cell.bHasOuterLoop);
+		Triangulator.Triangulate();
 		Triangulator.GetOuterVertices(Cell.BorderLoopIndices);
 	}
 

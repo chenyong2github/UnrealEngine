@@ -65,7 +65,7 @@ namespace CADKernel
 			Tolerance2DU /= ComputeScaleAlongAxis(Point2DU, Matrix, Origin);
 			Tolerance2DV /= ComputeScaleAlongAxis(Point2DV, Matrix, Origin);
 
-			MinToleranceIso.Set(Tolerance2DU, Tolerance2DV);
+			MinToleranceIso.Set(FMath::Abs(Tolerance2DU), FMath::Abs(Tolerance2DV));
 		}
 		
 	public:

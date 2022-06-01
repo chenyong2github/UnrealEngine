@@ -182,8 +182,17 @@ void FSurfacicPolyline::ComputeIntersectionsWithIsos(const FLinearBoundary& InBo
 
 			if ((IsoCoordinate > UMin) && (IsoCoordinate < UMax))
 			{
-				double LocalCoord = (IsoCoordinate - Points2D[Index][TypeIso]) / (Points2D[Index + 1][TypeIso] - Points2D[Index][TypeIso]);
-				double EdgeCoord = PolylineTools::LinearInterpolation(Coordinates, Index, LocalCoord);
+				double EdgeCoord = 0.;
+				const double Delta = (Points2D[Index + 1][TypeIso] - Points2D[Index][TypeIso]);
+				if (FMath::IsNearlyZero(Delta))
+				{
+					EdgeCoord = Coordinates[Index];
+				}
+				else
+				{
+					const double LocalCoord = (IsoCoordinate - Points2D[Index][TypeIso]) / Delta;
+					EdgeCoord = PolylineTools::LinearInterpolation(Coordinates, Index, LocalCoord);
+				}
 
 #ifdef DEBUG_COMPUTEINTERSECTIONSWITHISOS
 				::DisplayPoint(Points2D[Index + 1], EVisuProperty::RedPoint);

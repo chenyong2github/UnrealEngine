@@ -20,8 +20,6 @@ void FModelMeshAnalyzer::BuildMesh()
 {
 	ModelMesh.GetNodeCoordinates(NodeCoordinates);
 
-	int32 LastVertexIndex = 0;
-
 	int32 TriangleCount = 0;
 	for (const TSharedPtr<FFaceMesh>& FaceMesh : ModelMesh.GetFaceMeshes())
 	{
@@ -60,9 +58,9 @@ void FModelMeshAnalyzer::BuildMesh()
 		for (int32 Index = 0; Index < FaceMesh->TrianglesVerticesIndex.Num(); Index += 3)
 		{
 			uint32 Vertices[3];
-			Vertices[0] = VerticesGlobalIndex[TrianglesVerticesIndex[Index + 0]] + LastVertexIndex;
-			Vertices[1] = VerticesGlobalIndex[TrianglesVerticesIndex[Index + 1]] + LastVertexIndex;
-			Vertices[2] = VerticesGlobalIndex[TrianglesVerticesIndex[Index + 2]] + LastVertexIndex;
+			Vertices[0] = VerticesGlobalIndex[TrianglesVerticesIndex[Index + 0]];
+			Vertices[1] = VerticesGlobalIndex[TrianglesVerticesIndex[Index + 1]];
+			Vertices[2] = VerticesGlobalIndex[TrianglesVerticesIndex[Index + 2]];
 
 			Analyzer::FEdge* TriangleEdges[3];
 			TriangleEdges[0] = FindOrBuildEdge(Vertices[0], Vertices[1]);
@@ -93,8 +91,6 @@ void FModelMeshAnalyzer::BuildMesh()
 			VertexToEdges[Edge.VertexIndices[1]].Add(&Edge);
 		}
 	}
-
-	LastVertexIndex += NodeCoordinates.Num();
 }
 
 void FModelMeshAnalyzer::ComputeBorderCount(int32& OutBorderCount, int32& OutNonManifoldCount) const

@@ -40,7 +40,6 @@ void FTopologicalVertex::RemoveConnectedEdge(FTopologicalEdge& Edge)
 			return;
 		}
 	}
-	ensureCADKernel(false);
 }
 
 bool FTopologicalVertex::IsBorderVertex()

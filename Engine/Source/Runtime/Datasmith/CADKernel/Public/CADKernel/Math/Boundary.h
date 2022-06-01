@@ -164,6 +164,12 @@ namespace CADKernel
 
 		void TrimAt(const FLinearBoundary& MaxBound)
 		{
+			if (Max < MaxBound.Min || Min > MaxBound.Max)
+			{
+				*this = MaxBound;
+				return;
+			}
+
 			Min = FMath::Max(Min, MaxBound.Min);
 			Max = FMath::Min(Max, MaxBound.Max);
 		}

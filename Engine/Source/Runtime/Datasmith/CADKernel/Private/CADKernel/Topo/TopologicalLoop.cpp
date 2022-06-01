@@ -356,26 +356,18 @@ bool FTopologicalLoop::Orient()
 			double ReferenceSlop = 0;
 			if (FMath::IsNearlyEqual(LoopSampling[Index].U, UMin))
 			{
-				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].V, VMin));
-				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].V, VMax));
 				ReferenceSlop = 6;
 			}
 			else if (FMath::IsNearlyEqual(LoopSampling[Index].U, UMax))
 			{
-				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].V, VMin));
-				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].V, VMax));
 				ReferenceSlop = 2;
 			}
 			else if (FMath::IsNearlyEqual(LoopSampling[Index].V, VMin))
 			{
-				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].U, UMin));
-				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].U, UMax));
 				ReferenceSlop = 0;
 			}
 			else if (FMath::IsNearlyEqual(LoopSampling[Index].V, VMax))
 			{
-				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].U, UMin));
-				ensureCADKernel(!FMath::IsNearlyEqual(LoopSampling[Index].U, UMax));
 				ReferenceSlop = 4;
 			}
 
@@ -793,10 +785,12 @@ void FTopologicalLoop::RemoveDegeneratedEdges()
 		FPoint2D& NearEdgeExtremity = (bPrevious == (NearOrientedEdge.Direction == EOrientation::Front)) ? NearEdgeExtremities[1].Point2D : NearEdgeExtremities[0].Point2D;
 		FPoint2D& DegeneratedEdgeExtremity = (bPrevious == (DegeneratedOrientedEdge.Direction == EOrientation::Front)) ? DegeneratedEdgeExtremities[0].Point2D : DegeneratedEdgeExtremities[1].Point2D;
 		FPoint2D& OtherDegeneratedEdgeExtremity = (bPrevious == (DegeneratedOrientedEdge.Direction == EOrientation::Front)) ? DegeneratedEdgeExtremities[1].Point2D : DegeneratedEdgeExtremities[0].Point2D;
-		double Distance = NearEdgeExtremity.Distance(DegeneratedEdgeExtremity);
 
-		double Slop = FMath::Abs(TransformIntoOrientedSlope(ComputePositiveSlope(FPoint2D::ZeroPoint, DegeneratedEdgeTangent, NearEdgeTangent)));
-		if (Slop > 3.5 && Distance < 0.01)
+		double Slop = ComputeUnorientedSlope(FPoint2D::ZeroPoint, DegeneratedEdgeTangent, NearEdgeTangent);
+		constexpr double FlatSlop = 3.9; // ~175 deg. 
+		// a degenerated edge has to be really tangent with its neighbor edge to be merge with it
+		// otherwise it could distort the neighbor edge.
+		if (Slop > FlatSlop)
 		{
 			NearOrientedEdge.Entity->ExtendTo((bPrevious == (NearOrientedEdge.Direction != EOrientation::Front)), OtherDegeneratedEdgeExtremity, OtherDegeneratedEdgeVertex);
 			DegeneratedEdge->Delete();
@@ -850,40 +844,42 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 		PreviousExtremity = PreviousExtremities[0];
 	}
 
+	const FSurfacicTolerance& Tolerance2D = Surface->GetIsoTolerances();
+	const FSurfacicTolerance LargeGapTolerance2D = Tolerance2D * 3.;
+	const FSurfacicTolerance SmallGapTolerance2D = Tolerance2D * 0.1;
 	for (int32 Index = 0; Index < Edges.Num(); ++Index)
 	{
 		FOrientedEdge OrientedEdge = Edges[Index];
 		FSurfacicCurvePointWithTolerance EdgeExtremities[2];
 		OrientedEdge.Entity->GetExtremities(EdgeExtremities);
 
-		int32 ExtremityIndex = OrientedEdge.Direction == EOrientation::Front ? 0 : 1;
-		double SquareGap3D = EdgeExtremities[ExtremityIndex].Point.SquareDistance(PreviousExtremity.Point);
+		const int32 ExtremityIndex = OrientedEdge.Direction == EOrientation::Front ? 0 : 1;
+		const double SquareGap3D = EdgeExtremities[ExtremityIndex].Point.SquareDistance(PreviousExtremity.Point);
 
 		TSharedRef<FTopologicalVertex> PreviousEdgeEndVertex = PreviousEdge.Direction == EOrientation::Front ? PreviousEdge.Entity->GetEndVertex() : PreviousEdge.Entity->GetStartVertex();
 		TSharedRef<FTopologicalVertex> EdgeStartVertex = OrientedEdge.Direction == EOrientation::Front ? OrientedEdge.Entity->GetStartVertex() : OrientedEdge.Entity->GetEndVertex();
 
-		FPoint2D Gap2D = EdgeExtremities[ExtremityIndex].Point2D - PreviousExtremity.Point2D;
-		FSurfacicTolerance Tolerance2D = Max(EdgeExtremities[ExtremityIndex].Tolerance, PreviousExtremity.Tolerance);
-
+		const FPoint2D Gap2D = EdgeExtremities[ExtremityIndex].Point2D - PreviousExtremity.Point2D;
 		if (SquareGap3D > SquareTolerance3D)
 		{
 			FMessage::Printf(Log, TEXT("Loop %d Gap 3D : %f\n"), Id, sqrt(SquareGap3D));
-			FPoint PreviousTangent = PreviousEdge.Entity->GetTangentAt(*PreviousEdgeEndVertex);
-			FPoint EdgeTangent = OrientedEdge.Entity->GetTangentAt(*EdgeStartVertex);
+			const FPoint PreviousTangent = PreviousEdge.Entity->GetTangentAt(*PreviousEdgeEndVertex);
+			const FPoint EdgeTangent = OrientedEdge.Entity->GetTangentAt(*EdgeStartVertex);
 
 			FPoint Gap = EdgeExtremities[ExtremityIndex].Point - PreviousExtremity.Point;
 
 			double CosAngle = Gap.ComputeCosinus(EdgeTangent);
-			if (CosAngle > 0.9)
+			constexpr double CosTangentLimit = 0.9; // ~25 deg : 25 deg is not big angle between the extremity curve tangent and the missing segment to close the gap.  
+			if (CosAngle > CosTangentLimit) 
 			{
 				OrientedEdge.Entity->ExtendTo(OrientedEdge.Direction == EOrientation::Front, PreviousExtremity.Point2D, PreviousEdgeEndVertex);
 			}
 			else
 			{
 				CosAngle = Gap.ComputeCosinus(PreviousTangent);
-				if (CosAngle < -0.9)
+				if (CosAngle < -CosTangentLimit) // ~25 deg
 				{
-					PreviousEdge.Entity->ExtendTo(PreviousEdge.Direction == EOrientation::Front, EdgeExtremities[ExtremityIndex].Point2D, EdgeStartVertex);
+					PreviousEdge.Entity->ExtendTo(PreviousEdge.Direction == EOrientation::Back, EdgeExtremities[ExtremityIndex].Point2D, EdgeStartVertex);
 				}
 				else
 				{
@@ -903,27 +899,47 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 				}
 			}
 		}
-		else if (FMath::Abs(Gap2D.U) > Tolerance2D.U || FMath::Abs(Gap2D.V) > Tolerance2D.V)
+		else if (FMath::Abs(Gap2D.U) > LargeGapTolerance2D.U || FMath::Abs(Gap2D.V) > LargeGapTolerance2D.V)
 		{
+			// if the gap is not so large and the extremity of on edge is tangent to the gap segment then we extend the edge to close the gap
+			FMessage::Printf(Debug, TEXT("Loop %d Gap 2D : [%f, %f] vs Tol2D [%f, %f]\n"), Id, FMath::Abs(Gap2D.U), FMath::Abs(Gap2D.V), Tolerance2D.U, Tolerance2D.V);
+
+			// If the gap in 2d is big e.g. side of a degenerated patch => build an edge
+			TSharedPtr<FTopologicalEdge> Edge = FTopologicalEdge::Make(Surface, PreviousExtremity.Point2D, PreviousEdgeEndVertex, EdgeExtremities[ExtremityIndex].Point2D, EdgeStartVertex);
+			if (Edge.IsValid())
+			{
+				Edges.EmplaceAt(Index, Edge, EOrientation::Front);
+				Edge->SetLoop(*this);
+
+				PreviousEdgeEndVertex->Link(*EdgeStartVertex);
+				++Index;
+			}
+		}
+		else if (FMath::Abs(Gap2D.U) > SmallGapTolerance2D.U || FMath::Abs(Gap2D.V) > SmallGapTolerance2D.V)
+		{
+			// if the gap is not so large and the extremity of on edge is tangent to the gap segment then we extend the edge to close the gap
 			FMessage::Printf(Log, TEXT("Loop %d Gap 2D : [%f, %f] vs Tol2D [%f, %f]\n"), Id, FMath::Abs(Gap2D.U), FMath::Abs(Gap2D.V), Tolerance2D.U, Tolerance2D.V);
 
-			FPoint2D PreviousTangent = PreviousEdge.Entity->GetTangent2DAt(*PreviousEdgeEndVertex);
-			FPoint2D EdgeTangent = OrientedEdge.Entity->GetTangent2DAt(*EdgeStartVertex);
+			const FPoint2D PreviousTangent = PreviousEdge.Entity->GetTangent2DAt(*PreviousEdgeEndVertex);
+			const FPoint2D EdgeTangent = OrientedEdge.Entity->GetTangent2DAt(*EdgeStartVertex);
 
 			double CosAngle = Gap2D.ComputeCosinus(EdgeTangent);
-			if (CosAngle > 0.9)
+			constexpr double CosFlatTangent = 0.98;  // ~10 deg: In 2D, the distortion due to the parametric space, degenerated area and else imposes to be more careful before extending a curve.
+			if (CosAngle > CosFlatTangent)
 			{
 				OrientedEdge.Entity->ExtendTo(OrientedEdge.Direction == EOrientation::Front, PreviousExtremity.Point2D, PreviousEdgeEndVertex);
 			}
 			else
 			{
 				CosAngle = Gap2D.ComputeCosinus(PreviousTangent);
-				if (CosAngle < -0.9)
+				if (CosAngle < -CosFlatTangent)
 				{
-					PreviousEdge.Entity->ExtendTo(PreviousEdge.Direction == EOrientation::Front, EdgeExtremities[ExtremityIndex].Point2D, EdgeStartVertex);
+					PreviousEdge.Entity->ExtendTo(PreviousEdge.Direction == EOrientation::Back, EdgeExtremities[ExtremityIndex].Point2D, EdgeStartVertex);
 				}
 				else
 				{
+					// if the gap is not so large and the extremity of on edge is tangent to the gap segment then we extend the edge to close the gap
+					FMessage::Printf(Log, TEXT("Add degenerated edges for small 2d gap\n"));
 					TSharedPtr<FTopologicalEdge> Edge = FTopologicalEdge::Make(Surface, PreviousExtremity.Point2D, PreviousEdgeEndVertex, EdgeExtremities[ExtremityIndex].Point2D, EdgeStartVertex);
 					if (Edge.IsValid())
 					{
@@ -932,7 +948,6 @@ void FTopologicalLoop::EnsureLogicalClosing(const double Tolerance3D)
 
 						PreviousEdgeEndVertex->Link(*EdgeStartVertex);
 						++Index;
-
 					}
 				}
 			}
