@@ -48,6 +48,8 @@ public:
 	/** FRHICustomPresent */
 	virtual bool Present(int32& InOutSyncInterval) override;
 
+	virtual bool Support10BitSwapchain() const { return false; }
+
 protected:
 	uint64 AdapterLuid;
 

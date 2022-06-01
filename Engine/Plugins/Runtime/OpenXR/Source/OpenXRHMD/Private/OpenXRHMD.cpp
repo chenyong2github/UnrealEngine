@@ -1755,8 +1755,9 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 
 
 	// Temporary workaround to swapchain formats - OpenXR doesn't support 10-bit sRGB swapchains, so prefer 8-bit sRGB instead.
-	if (Format == PF_A2B10G10R10)
+	if (Format == PF_A2B10G10R10 && !RenderBridge->Support10BitSwapchain())
 	{
+		UE_LOG(LogHMD, Warning, TEXT("Requesting 10 bit swapchain, but not supported: fall back to 8bpc"));
 		Format = PF_R8G8B8A8;
 	}
 
@@ -1880,7 +1881,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	auto CreateSwapchain = [this](FRHITexture2D* Texture, ETextureCreateFlags Flags)
 	{
 		return RenderBridge->CreateSwapchain(Session,
-			PF_B8G8R8A8,
+			IStereoRenderTargetManager::GetStereoLayerPixelFormat(),
 			Texture->GetSizeX(),
 			Texture->GetSizeY(),
 			1,

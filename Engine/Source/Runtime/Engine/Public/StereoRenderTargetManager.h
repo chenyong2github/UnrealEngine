@@ -83,4 +83,6 @@ public:
 	 * @return				true, if texture was allocated; false, if the default texture allocation should be used.
 	 */
 	virtual bool AllocateShadingRateTexture(uint32 Index, uint32 RenderSizeX, uint32 RenderSizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTexture, FIntPoint& OutTextureSize) { return false; }
+
+	static EPixelFormat GetStereoLayerPixelFormat() { return PF_B8G8R8A8; }
 };
