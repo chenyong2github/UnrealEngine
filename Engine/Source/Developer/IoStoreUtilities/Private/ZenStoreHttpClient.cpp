@@ -10,7 +10,7 @@
 #include "Misc/CommandLine.h"
 #include "HAL/FileManager.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_UNIX || PLATFORM_MAC
+#if PLATFORM_DESKTOP
 
 #include "Async/Async.h"
 #include "HAL/PlatformFileManager.h"
