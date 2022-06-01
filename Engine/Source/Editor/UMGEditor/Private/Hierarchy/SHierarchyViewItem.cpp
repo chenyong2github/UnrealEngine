@@ -709,7 +709,7 @@ void FHierarchyRoot::GetChildren(TArray< TSharedPtr<FHierarchyModel> >& Children
 	}
 
 	// Grab any exposed named slots from the super classes CDO.  These slots can have content slotted into them by this subclass.
-	for ( const FName& SlotName : Blueprint->GetInheritedNamedSlots() )
+	for ( const FName& SlotName : Blueprint->GetInheritedAvailableNamedSlots() )
 	{
 		TSharedPtr<FNamedSlotModelSubclass> ChildItem = MakeShareable(new FNamedSlotModelSubclass(Blueprint, SlotName, BPEd));
 		Children.Add(ChildItem);
@@ -775,13 +775,13 @@ TOptional<EItemDropZone> FHierarchyRoot::HandleCanAcceptDrop(const FDragDropEven
 		}
 	}
 
-	bool bIsDrop = false;
+	const bool bIsDrop = false;
 	return bIsFreeFromCircularReferences ? ProcessHierarchyDragDrop(DragDropEvent, DropZone, bIsDrop, BlueprintEditor.Pin(), FWidgetReference()) : TOptional<EItemDropZone>();
 }
 
 FReply FHierarchyRoot::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, EItemDropZone DropZone)
 {
-	bool bIsDrop = true;
+	const bool bIsDrop = true;
 	TOptional<EItemDropZone> Zone = ProcessHierarchyDragDrop(DragDropEvent, DropZone, bIsDrop, BlueprintEditor.Pin(), FWidgetReference());
 	if (Zone.IsSet())
 	{
@@ -993,14 +993,21 @@ FReply FNamedSlotModelBase::HandleAcceptDrop(FDragDropEvent const& DragDropEvent
 		UWidget* DroppingWidget = HierarchyDragDropOp->DraggedWidgets[0].Widget.GetTemplate();
 
 		// We don't know if this widget is being removed from a named slot and RemoveFromParent is not enough to take care of this
-		UWidget* SourceNamedSlotHostWidget = FWidgetBlueprintEditorUtils::FindNamedSlotHostWidgetForContent(DroppingWidget, Blueprint->WidgetTree);
-		if (SourceNamedSlotHostWidget != nullptr)
+		if (UWidget* SourceNamedSlotHostWidget = FWidgetBlueprintEditorUtils::FindNamedSlotHostWidgetForContent(DroppingWidget, Blueprint->WidgetTree))
 		{
 			if (TScriptInterface<INamedSlotInterface> SourceNamedSlotHost = TScriptInterface<INamedSlotInterface>(SourceNamedSlotHostWidget))
 			{
 				SourceNamedSlotHostWidget->SetFlags(RF_Transactional);
 				SourceNamedSlotHostWidget->Modify();
 				FWidgetBlueprintEditorUtils::RemoveNamedSlotHostContent(DroppingWidget, SourceNamedSlotHost);
+			}
+		}
+		else
+		{
+			FName SourceSlotName = Blueprint->WidgetTree->FindSlotForContent(DroppingWidget);
+			if (SourceSlotName != NAME_None)
+			{
+				Blueprint->WidgetTree->SetContentForSlot(SourceSlotName, nullptr);
 			}
 		}
 

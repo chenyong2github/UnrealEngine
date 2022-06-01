@@ -10,6 +10,11 @@ UNamedSlotInterface::UNamedSlotInterface(const FObjectInitializer& ObjectInitial
 
 bool INamedSlotInterface::ContainsContent(UWidget* Content) const
 {
+	return FindSlotForContent(Content) != NAME_None;
+}
+
+FName INamedSlotInterface::FindSlotForContent(UWidget* Content) const
+{
 	TArray<FName> SlotNames;
 	GetSlotNames(SlotNames);
 
@@ -17,11 +22,11 @@ bool INamedSlotInterface::ContainsContent(UWidget* Content) const
 	{
 		if ( GetContentForSlot(SlotName) == Content )
 		{
-			return true;
+			return SlotName;
 		}
 	}
 
-	return false;
+	return NAME_None;
 }
 
 void INamedSlotInterface::ReleaseNamedSlotSlateResources(bool bReleaseChildren)

@@ -37,6 +37,9 @@ public:
 	/** Determines if any slot holds the given widget. */
 	bool ContainsContent(UWidget* Content) const;
 
+	/** Determines if any slot holds the given widget and the name of that slot. */
+	FName FindSlotForContent(UWidget* Content) const;
+
 	/** Releases named slot related resources. */
 	void ReleaseNamedSlotSlateResources(bool bReleaseChildren);
 
