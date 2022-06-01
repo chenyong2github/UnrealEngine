@@ -508,6 +508,8 @@ namespace UnrealGameSync
 				Task notifyTask = Task.CompletedTask;
 				foreach (IReadOnlyList<int> QueryChangeNumberBatch in QueryChangeNumbers.OrderByDescending(x => x).Batch(10))
 				{
+					CancellationToken.ThrowIfCancellationRequested();
+
 					// Skip this stuff if the user wants us to query for more changes
 					if (PendingMaxChanges != CurrentMaxChanges)
 					{
