@@ -183,17 +183,39 @@ class FWorldPartitionStreamingGenerator
 	void ValidateActorDescriptorViews()
 	{
 		// Validate data layers
-		auto IsReferenceDataLayersValid = [](const FWorldPartitionActorDescView& ActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
+		auto IsReferenceGridPlacementValid = [](const FWorldPartitionActorDescView& RefererActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
 		{
-			if (ActorDescView.GetRuntimeDataLayers().Num() == ReferenceActorDescView.GetRuntimeDataLayers().Num())
+			const bool bIsActorDescSpatiallyLoaded = RefererActorDescView.GetIsSpatiallyLoaded();
+			const bool bIsActorDescRefSpatiallyLoaded = ReferenceActorDescView.GetIsSpatiallyLoaded();
+
+			// The only case we support right now is spatially loaded actors referencing non-spatially loaded actors, when target is not in data layers.
+			// For this to work with data layers, we need to implement dependency logic support in the content cooker splitter.
+			if (bIsActorDescSpatiallyLoaded && !bIsActorDescRefSpatiallyLoaded && ReferenceActorDescView.GetDataLayers().IsEmpty())
 			{
-				const TSet<FName> ActorDescDataLayers(ActorDescView.GetRuntimeDataLayers());
+				return true;
+			}
+
+			return bIsActorDescSpatiallyLoaded == bIsActorDescRefSpatiallyLoaded;
+		};
+
+		// Validate grid placement
+		auto IsReferenceDataLayersValid = [](const FWorldPartitionActorDescView& RefererActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
+		{
+			if (RefererActorDescView.GetRuntimeDataLayers().Num() == ReferenceActorDescView.GetRuntimeDataLayers().Num())
+			{
+				const TSet<FName> RefererActorDescDataLayers(RefererActorDescView.GetRuntimeDataLayers());
 				const TSet<FName> ReferenceActorDescDataLayers(ReferenceActorDescView.GetRuntimeDataLayers());
 
-				return ActorDescDataLayers.Includes(ReferenceActorDescDataLayers);
+				return RefererActorDescDataLayers.Includes(ReferenceActorDescDataLayers);
 			}
 
 			return false;
+		};
+
+		// Validate runtime grid
+		auto IsReferenceRuntimeGridValid = [](const FWorldPartitionActorDescView& RefererActorDescView, const FWorldPartitionActorDescView& ReferenceActorDescView)
+		{
+			return RefererActorDescView.GetRuntimeGrid() == ReferenceActorDescView.GetRuntimeGrid();
 		};
 
 		for (auto It = ContainerDescriptorsMap.CreateIterator(); It; ++It)
@@ -313,10 +335,7 @@ class FWorldPartitionStreamingGenerator
 						if (ReferenceActorDescView)
 						{
 							// Validate grid placement
-							const bool bIsActorDescSpatiallyLoaded = RefererActorDescView->GetIsSpatiallyLoaded();
-							const bool bIsActorDescRefSpatiallyLoaded = ReferenceActorDescView->GetIsSpatiallyLoaded();
-
-							if (bIsActorDescSpatiallyLoaded != bIsActorDescRefSpatiallyLoaded)
+							if (!IsReferenceGridPlacementValid(*RefererActorDescView, *ReferenceActorDescView))
 							{
 								if (!NbValidationPasses)
 								{
@@ -346,7 +365,7 @@ class FWorldPartitionStreamingGenerator
 								}
 							}
 
-							if (ReferenceActorDescView->GetRuntimeGrid() != RefererActorDescView->GetRuntimeGrid())
+							if (!IsReferenceRuntimeGridValid(*RefererActorDescView, *ReferenceActorDescView))
 							{
 								if (!NbValidationPasses)
 								{

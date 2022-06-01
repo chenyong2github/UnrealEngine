@@ -131,6 +131,12 @@ void CreateActorCluster(const FWorldPartitionActorDescView& ActorDescView, TMap<
 	{
 		if (const FWorldPartitionActorDescView* ReferenceActorDescView = ActorDescViewMap.Find(ReferenceGuid))
 		{
+			// Ignore references from spatially loaded actors to non-spatially loaded ones (at this point, they are in the same data layers).
+			if (ActorDescView.GetIsSpatiallyLoaded() && !ReferenceActorDescView->GetIsSpatiallyLoaded())
+			{
+				continue;
+			}
+
 			FActorCluster* ReferenceCluster = ActorToActorCluster.FindRef(ReferenceGuid);
 			if (ReferenceCluster)
 			{
