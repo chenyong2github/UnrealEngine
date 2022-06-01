@@ -500,6 +500,9 @@ void Process::FlushInstructionCache(Handle handle, void* address, size_t size)
 Process::Environment Process::CreateEnvironment(Handle handle)
 {
 	const void* processEnvironment = nullptr;
+	// EPIC BEGIN MOD
+	SIZE_T processEnvironmentSize = 0;
+	// EPIC END MOD
 
 	const bool isWow64 = IsWoW64(handle);
 	if (!isWow64)
@@ -513,6 +516,9 @@ Process::Environment Process::CreateEnvironment(Handle handle)
 		const WindowsInternals::RTL_USER_PROCESS_PARAMETERS parameters = ReadProcessMemory<WindowsInternals::RTL_USER_PROCESS_PARAMETERS>(handle, peb.ProcessParameters);
 
 		processEnvironment = parameters.Environment;
+		// EPIC BEGIN MOD
+		processEnvironmentSize = parameters.EnvironmentSize;
+		// EPIC END MOD
 	}
 	else
 	{
@@ -525,6 +531,9 @@ Process::Environment Process::CreateEnvironment(Handle handle)
 		const WindowsInternals::RTL_USER_PROCESS_PARAMETERS32 parameters32 = ReadProcessMemory<WindowsInternals::RTL_USER_PROCESS_PARAMETERS32>(handle, pointer::FromInteger<const void*>(peb32.ProcessParameters32));
 
 		processEnvironment = pointer::FromInteger<const void*>(parameters32.Environment);
+		// EPIC BEGIN MOD
+		processEnvironmentSize = parameters32.EnvironmentSize;
+		// EPIC END MOD
 	}
 
 	if (!processEnvironment)
@@ -532,19 +541,9 @@ Process::Environment Process::CreateEnvironment(Handle handle)
 		return Environment { 0u, nullptr };
 	}
 
-	// query the size of the page(s) the environment is stored in
-	::MEMORY_BASIC_INFORMATION memoryInfo = {};
-	const SIZE_T bytesInBuffer = ::VirtualQueryEx(+handle, processEnvironment, &memoryInfo, sizeof(::MEMORY_BASIC_INFORMATION));
-	if (bytesInBuffer == 0u)
-	{
-		// operation failed, bail out
-		return Environment { 0u, nullptr };
-	}
-
-	Environment environment = {};
-	environment.size = memoryInfo.RegionSize - (reinterpret_cast<uintptr_t>(processEnvironment) - reinterpret_cast<uintptr_t>(memoryInfo.BaseAddress));
-	environment.data = ::malloc(environment.size);
-
+	// EPIC BEGIN MOD
+	Environment environment = { processEnvironmentSize, ::malloc(processEnvironmentSize) };
+	// EPIC END MOD
 	ReadProcessMemory(handle, processEnvironment, environment.data, environment.size);
 
 	return environment;

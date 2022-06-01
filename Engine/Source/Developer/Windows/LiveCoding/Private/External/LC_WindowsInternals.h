@@ -63,6 +63,29 @@ namespace WindowsInternals
 		PWSTR Buffer;
 	};
 
+	// BEGIN EPIC MOD
+	struct NT_UNICODE_STRING32
+	{
+		USHORT Length;
+		USHORT MaximumLength;
+		ULONG Buffer;
+	};
+
+	struct NT_ANSI_STRING
+	{
+		USHORT Length;
+		USHORT MaximumLength;
+		PSTR Buffer;
+	};
+
+	struct NT_ANSI_STRING32
+	{
+		USHORT Length;
+		USHORT MaximumLength;
+		ULONG Buffer;
+	};
+	// END EPIC MOD
+
 	// https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/process.htm
 	// found in <winternl.h>
 	struct NT_SYSTEM_PROCESS_INFORMATION
@@ -111,6 +134,24 @@ namespace WindowsInternals
 		ProcessWow64Information = 26
 	};
 
+	// BEGIN EPIC MOD
+	struct RLT_DRIVE_LETTER_CURDIR
+	{
+		WORD Flags;
+		WORD Length;
+		ULONG TimeStemp;
+		NT_ANSI_STRING DosPath;
+	};
+
+	struct RLT_DRIVE_LETTER_CURDIR32
+	{
+		WORD Flags;
+		WORD Length;
+		ULONG TimeStemp;
+		NT_ANSI_STRING32 DosPath;
+	};
+	// END EPIC MOD
+
 	// https://docs.microsoft.com/en-us/windows/desktop/api/winternl/ns-winternl-_rtl_user_process_parameters
 	// https://www.nirsoft.net/kernel_struct/vista/RTL_USER_PROCESS_PARAMETERS.html
 	// found in <winternl.h>
@@ -121,6 +162,12 @@ namespace WindowsInternals
 		NT_UNICODE_STRING ImagePathName;
 		NT_UNICODE_STRING CommandLine;
 		PWSTR Environment;
+		// EPIC BEGIN MOD
+		ULONG Reserved3[9];
+		NT_UNICODE_STRING Reserved4[4];
+		RLT_DRIVE_LETTER_CURDIR CurrentDirectories[32];
+		ULONG EnvironmentSize;
+		// EPIC END MOD
 	};
 
 	// similar to RTL_USER_PROCESS_PARAMETERS, altered to behave as a struct containing 32-bit pointers in a 64-bit environment
@@ -128,6 +175,12 @@ namespace WindowsInternals
 	{
 		char Reserved[72];
 		ULONG Environment;
+		// EPIC BEGIN MOD
+		ULONG Reserved3[9];
+		NT_UNICODE_STRING32 Reserved4[4];
+		RLT_DRIVE_LETTER_CURDIR32 CurrentDirectories[32];
+		ULONG EnvironmentSize;
+		// EPIC END MOD
 	};
 
 	// https://www.geoffchappell.com/studies/windows/win32/ntdll/structs/ldr_data_table_entry.htm
