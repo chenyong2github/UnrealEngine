@@ -1219,13 +1219,6 @@ bool URigVMPin::ShowInDetailsPanelOnly() const
 			}
 		}
 	}
-	else if(URigVMInvokeEntryNode* InvokeEntryNode = Cast<URigVMInvokeEntryNode>(GetNode()))
-	{
-		if(GetName() == URigVMInvokeEntryNode::EntryName)
-		{
-			return true;
-		}
-	}
 #endif
 	return false;
 }

@@ -322,6 +322,23 @@ URigVMFunctionLibrary* FRigVMClient::GetOrCreateFunctionLibrary(bool bSetupUndoR
 	return NewFunctionLibrary;
 }
 
+TArray<FName> FRigVMClient::GetEntryNames() const
+{
+	TArray<FName> EntryNames;
+	for(const URigVMGraph* Model : Models)
+	{
+		for(const URigVMNode* Node : Model->GetNodes())
+		{
+			const FName EntryName = Node->GetEventName();
+			if(!EntryName.IsNone())
+			{
+				EntryNames.Add(EntryName);
+			}
+		}
+	}
+	return EntryNames;
+}
+
 bool FRigVMClient::RemoveModel(const FString& InNodePathOrName, bool bSetupUndoRedo)
 {
 	if(URigVMGraph* Model = GetModel(InNodePathOrName))

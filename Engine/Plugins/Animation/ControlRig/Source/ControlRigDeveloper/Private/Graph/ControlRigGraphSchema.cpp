@@ -1240,7 +1240,7 @@ void UControlRigGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph, /
 				FString EventName;
 				if(Algo::CountIf(Model->GetNodes(), [&EventName](const URigVMNode* NodeToCount) -> bool
 				{
-					if(NodeToCount->IsEvent())
+					if(NodeToCount->IsEvent() && NodeToCount->CanOnlyExistOnce())
 					{
 						if(EventName.IsEmpty())
 						{

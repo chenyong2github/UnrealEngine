@@ -103,6 +103,7 @@ public:
 	URigVMController* GetOrCreateController(const UObject* InEditorSideObject);
 	URigVMFunctionLibrary* GetFunctionLibrary() const { return FunctionLibrary; }
 	URigVMFunctionLibrary* GetOrCreateFunctionLibrary(bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr);
+	TArray<FName> GetEntryNames() const;
 
 	URigVMGraph* AddModel(const FName& InName, bool bSetupUndoRedo, const FObjectInitializer* ObjectInitializer = nullptr);
 	void AddModel(URigVMGraph* InModel, bool bCreateController);

@@ -64,13 +64,24 @@ bool URigVMUnitNode::IsDefinedAsVarying() const
 
 FName URigVMUnitNode::GetEventName() const
 {
-	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
+	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(false);
 	if (StructOnScope.IsValid())
 	{
 		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
 		return StructMemory->GetEventName();
 	}
-	return NAME_None;
+	return Super::GetEventName();
+}
+
+bool URigVMUnitNode::CanOnlyExistOnce() const
+{
+	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(false);
+	if (StructOnScope.IsValid())
+	{
+		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
+		return StructMemory->CanOnlyExistOnce();
+	}
+	return Super::CanOnlyExistOnce();
 }
 
 FText URigVMUnitNode::GetToolTipTextForPin(const URigVMPin* InPin) const

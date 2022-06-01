@@ -221,6 +221,7 @@ struct RIGVM_API FRigVMStruct
 	virtual ~FRigVMStruct() {}
 	virtual FString ProcessPinLabelForInjection(const FString& InLabel) const { return InLabel; }
 	virtual FName GetEventName() const { return NAME_None; }
+	virtual bool CanOnlyExistOnce() const { return false; }
 
 public:
 

@@ -17,6 +17,11 @@
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
 #include "ControlRig.h"
 #include "Settings/ControlRigSettings.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_InverseExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_PrepareForExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_InteractionExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_UserDefinedEvent.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -63,7 +68,52 @@ UControlRigUnitNodeSpawner* UControlRigUnitNodeSpawner::CreateFromStruct(UScript
 	}
 
 	// @TODO: should use details customization-like extensibility system to provide editor only data like this
-	MenuSignature.Icon = FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.RigUnit"));
+	FStructOnScope StructScope(InStruct);
+	const FRigVMStruct* StructInstance = (const FRigVMStruct*)StructScope.GetStructMemory();
+	if(StructInstance->GetEventName().IsNone())
+	{
+		if(InStruct->HasMetaDataHierarchical(FRigVMStruct::IconMetaName))
+		{
+			FString IconPath;
+			const int32 NumOfIconPathNames = 4;
+			
+			FName IconPathNames[NumOfIconPathNames] = {
+				NAME_None, // StyleSetName
+				NAME_None, // StyleName
+				NAME_None, // SmallStyleName
+				NAME_None  // StatusOverlayStyleName
+			};
+
+			InStruct->GetStringMetaDataHierarchical(FRigVMStruct::IconMetaName, &IconPath);
+
+			int32 NameIndex = 0;
+
+			while (!IconPath.IsEmpty() && NameIndex < NumOfIconPathNames)
+			{
+				FString Left;
+				FString Right;
+
+				if (!IconPath.Split(TEXT("|"), &Left, &Right))
+				{
+					Left = IconPath;
+				}
+
+				IconPathNames[NameIndex] = FName(*Left);
+
+				NameIndex++;
+				IconPath = Right;
+			}
+			MenuSignature.Icon = FSlateIcon(IconPathNames[0], IconPathNames[1], IconPathNames[2], IconPathNames[3]);
+		}
+		else
+		{
+			MenuSignature.Icon = FSlateIcon(TEXT("ControlRigEditorStyle"), TEXT("ControlRig.RigUnit"));
+		}
+	}
+	else
+	{
+		MenuSignature.Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.Event_16x");
+	}
 
 	return NodeSpawner;
 }
@@ -121,25 +171,30 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 
 		FName Name = bIsTemplateNode ? *StructTemplate->GetStructCPPName() : FControlRigBlueprintUtils::ValidateName(RigBlueprint, StructTemplate->GetFName().ToString());
 
+		FStructOnScope StructScope(StructTemplate);
+		const FRigVMStruct* StructInstance = (const FRigVMStruct*)StructScope.GetStructMemory();
+		const FName EventName = StructInstance->GetEventName();
+
 		// events can only exist once across all uber graphs
 		if(bIsUserFacingNode)
 		{
-			FStructOnScope StructScope(StructTemplate);
-			const FRigVMStruct* StructInstance = (const FRigVMStruct*)StructScope.GetStructMemory();
-			const FName EventName = StructInstance->GetEventName();
 			if(!EventName.IsNone())
 			{
-				const TArray<URigVMGraph*> Models = RigBlueprint->GetAllModels();
-				for(URigVMGraph* Model : Models)
+				if(StructInstance->CanOnlyExistOnce() &&
+					(StructTemplate != FRigUnit_UserDefinedEvent::StaticStruct()))
 				{
-					if(Model->IsRootGraph() && !Model->IsA<URigVMFunctionLibrary>())
+					const TArray<URigVMGraph*> Models = RigBlueprint->GetAllModels();
+					for(URigVMGraph* Model : Models)
 					{
-						for(const URigVMNode* Node : Model->GetNodes())
+						if(Model->IsRootGraph() && !Model->IsA<URigVMFunctionLibrary>())
 						{
-							if(Node->GetEventName() == EventName)
+							for(const URigVMNode* Node : Model->GetNodes())
 							{
-								RigBlueprint->OnRequestJumpToHyperlink().Execute(Node);
-								return nullptr;
+								if(Node->GetEventName() == EventName)
+								{
+									RigBlueprint->OnRequestJumpToHyperlink().Execute(Node);
+									return nullptr;
+								}
 							}
 						}
 					}
@@ -164,6 +219,40 @@ UControlRigGraphNode* UControlRigUnitNodeSpawner::SpawnNode(UEdGraph* ParentGrap
 
 			if (NewNode && bIsUserFacingNode)
 			{
+				if(StructTemplate == FRigUnit_UserDefinedEvent::StaticStruct())
+				{
+					// ensure uniqueness for the event name
+					TArray<FName> ExistingEventNames = {
+						FRigUnit_BeginExecution::EventName,
+						FRigUnit_InverseExecution::EventName,
+						FRigUnit_PrepareForExecution::EventName,
+						FRigUnit_InteractionExecution::EventName
+					};
+
+					const TArray<URigVMGraph*> Models = RigBlueprint->GetAllModels();
+					for(URigVMGraph* Model : Models)
+					{
+						for(const URigVMNode* Node : Model->GetNodes())
+						{
+							if(Node != ModelNode)
+							{
+								const FName ExistingEventName = Node->GetEventName();
+								if(!ExistingEventName.IsNone())
+								{
+									ExistingEventNames.AddUnique(ExistingEventName);
+								}
+							}
+						}
+					}
+
+					FName SafeEventName = URigVMController::GetUniqueName(EventName, [ExistingEventNames](const FName& NameToCheck) -> bool
+					{
+						return !ExistingEventNames.Contains(NameToCheck);
+					}, false, true);
+
+					Controller->SetPinDefaultValue(ModelNode->FindPin(TEXT("EventName"))->GetPinPath(), SafeEventName.ToString(), false, true, false, true);
+				}
+
 				Controller->ClearNodeSelection(true);
 				Controller->SelectNode(ModelNode, true, true);
 

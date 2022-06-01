@@ -56,6 +56,7 @@
 #include "Graph/NodeSpawners/ControlRigEnumNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigFunctionRefNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigArrayNodeSpawner.h"
+#include "Graph/NodeSpawners/ControlRigInvokeEntryNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Graph/ControlRigGraphNode.h"
@@ -1159,8 +1160,7 @@ void FControlRigEditorModule::GetInstanceActions(UControlRigBlueprint* CRB, FBlu
 	{
 		if (UControlRig* CDO = Cast<UControlRig>(GeneratedClass->GetDefaultObject()))
 		{
-			static const FString CategoryDelimiter(TEXT("|"));
-			FText NodeCategory = LOCTEXT("Variables", "Variables");
+			static const FText NodeCategory = LOCTEXT("Variables", "Variables");
 
 			TArray<FRigVMExternalVariable> ExternalVariables = CDO->GetExternalVariables();
 			for (const FRigVMExternalVariable& ExternalVariable : ExternalVariables)
@@ -1184,8 +1184,7 @@ void FControlRigEditorModule::GetInstanceActions(UControlRigBlueprint* CRB, FBlu
 				ActionRegistrar.AddBlueprintAction(GeneratedClass, NodeSpawner);
 			}
 
-			static const FString CategoryDelimiter(TEXT("|"));
-			FText NodeCategory = LOCTEXT("LocalVariables", "Local Variables");
+			static const FText NodeCategory = LOCTEXT("LocalVariables", "Local Variables");
 			for (URigVMLibraryNode* Function : Functions)
 			{
 				for (const FRigVMGraphVariableDescription& LocalVariable : Function->GetContainedGraph()->GetLocalVariables())
@@ -1204,13 +1203,28 @@ void FControlRigEditorModule::GetInstanceActions(UControlRigBlueprint* CRB, FBlu
 		{
 			if (Graph->GetEntryNode())
 			{
-				FText NodeCategory = LOCTEXT("InputArguments", "Input Arguments");
+				static const FText NodeCategory = LOCTEXT("InputArguments", "Input Arguments");
 				for (const FRigVMGraphVariableDescription& InputArgument : Graph->GetInputArguments())
 				{
 					FText MenuDesc = FText::FromName(InputArgument.Name);
 					FText ToolTip = FText::FromString(FString::Printf(TEXT("Get the value of input %s"), *InputArgument.Name.ToString()));
 					ActionRegistrar.AddBlueprintAction(GeneratedClass, UControlRigVariableNodeSpawner::CreateFromLocalVariable(CRB, Graph, InputArgument, true, MenuDesc, NodeCategory, ToolTip));
 				}			
+			}
+		}
+
+		const TArray<FName> EntryNames = CRB->GetRigVMClient()->GetEntryNames();
+		if(!EntryNames.IsEmpty())
+		{
+			static const FText NodeCategory = LOCTEXT("Events", "Events");
+			for (const FName& EntryName : EntryNames)
+			{
+				static constexpr TCHAR EventStr[] = TEXT("Event");
+				static const FString EventSuffix = FString::Printf(TEXT(" %s"), EventStr);
+				FString Suffix = EntryName.ToString().EndsWith(EventStr) ? FString() : EventSuffix;
+				FText MenuDesc = FText::FromString(FString::Printf(TEXT("Run %s%s"), *EntryName.ToString(), *Suffix));
+				FText ToolTip = FText::FromString(FString::Printf(TEXT("Runs the %s%s"), *EntryName.ToString(), *Suffix));
+				ActionRegistrar.AddBlueprintAction(GeneratedClass, UControlRigInvokeEntryNodeSpawner::CreateForEntry(CRB, EntryName, MenuDesc, NodeCategory, ToolTip));
 			}
 		}
 	}

@@ -25,11 +25,13 @@
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "ControlRigDeveloper.h"
 #include "ControlRigObjectVersion.h"
+#include "GraphEditAction.h"
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/Nodes/RigVMCollapseNode.h"
+#include "RigVMModel/Nodes/RigVMInvokeEntryNode.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -778,6 +780,7 @@ bool UControlRigGraphNode::ShowPaletteIconOnNode() const
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
 		return ModelNode->IsEvent() ||
+			ModelNode->IsA<URigVMInvokeEntryNode>() ||
 			ModelNode->IsA<URigVMFunctionEntryNode>() ||
 			ModelNode->IsA<URigVMFunctionReturnNode>() ||
 			ModelNode->IsA<URigVMFunctionReferenceNode>() ||
@@ -801,7 +804,7 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
-		if (ModelNode->IsEvent())
+		if (ModelNode->IsEvent() || ModelNode->IsA<URigVMInvokeEntryNode>())
 		{
 			return EventIcon;
 		}

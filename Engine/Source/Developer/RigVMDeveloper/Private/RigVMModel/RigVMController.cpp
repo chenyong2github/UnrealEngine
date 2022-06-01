@@ -660,7 +660,7 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').add_invoke_entry_node('%s', %s, '%s')"),
 						*GraphName,
 						*InvokeEntryNode->GetEntryName().ToString(),
-						*RigVMPythonUtils::Vector2DToPythonString(EnumNode->GetPosition()),
+						*RigVMPythonUtils::Vector2DToPythonString(InvokeEntryNode->GetPosition()),
 						*NodeName));
 	}
 	else if (Node->IsA<URigVMFunctionEntryNode>() || Node->IsA<URigVMFunctionReturnNode>())
@@ -835,14 +835,17 @@ URigVMUnitNode* URigVMController::AddUnitNode(UScriptStruct* InScriptStruct, con
 			return nullptr;
 		}
 
-		// don't allow several event nodes in the main graph
-		TObjectPtr<URigVMNode> EventNode = FindEventNode(InScriptStruct);
-		if (EventNode != nullptr)
+		if(StructMemory->CanOnlyExistOnce())
 		{
-			const FString ErrorMessage = FString::Printf(TEXT("Rig Graph can only contain one single %s node."),
-															*InScriptStruct->GetDisplayNameText().ToString());
-			ReportAndNotifyError(ErrorMessage);
-			return Cast<URigVMUnitNode>(EventNode);
+			// don't allow several event nodes in the main graph
+			TObjectPtr<URigVMNode> EventNode = FindEventNode(InScriptStruct);
+			if (EventNode != nullptr)
+			{
+				const FString ErrorMessage = FString::Printf(TEXT("Rig Graph can only contain one single %s node."),
+																*InScriptStruct->GetDisplayNameText().ToString());
+				ReportAndNotifyError(ErrorMessage);
+				return Cast<URigVMUnitNode>(EventNode);
+			}
 		}
 	}
 	

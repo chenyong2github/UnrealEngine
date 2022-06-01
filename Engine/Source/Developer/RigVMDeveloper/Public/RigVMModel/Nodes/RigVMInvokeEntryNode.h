@@ -27,7 +27,7 @@ public:
 	FName GetEntryName() const;
 
 	// Override of node title
-	virtual FLinearColor GetNodeColor() const override { return FLinearColor::Blue; }
+	virtual FLinearColor GetNodeColor() const override { return FLinearColor::Red; }
 	virtual bool IsDefinedAsVarying() const override { return true; }
 
 private:

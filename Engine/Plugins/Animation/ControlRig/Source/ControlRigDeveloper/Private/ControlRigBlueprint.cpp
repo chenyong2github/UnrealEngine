@@ -3433,7 +3433,7 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 							// decide if this graph should be renameable
 							const int32 NumberOfEvents = Algo::CountIf(RigVMNode->GetGraph()->GetNodes(), [](const URigVMNode* NodeToCount) -> bool
 							{
-								return NodeToCount->IsEvent();
+								return NodeToCount->IsEvent() && NodeToCount->CanOnlyExistOnce();
 							});
 							EdGraph->bAllowRenaming = NumberOfEvents != 1;
 						}

@@ -281,6 +281,7 @@ private:
 	friend struct FRigUnit_InverseExecution;
 	friend struct FRigUnit_PrepareForExecution;
 	friend struct FRigUnit_InteractionExecution;
+	friend struct FRigUnit_UserDefinedEvent;
 	friend struct FEngineTestRigVM_Begin;
 	friend struct FEngineTestRigVM_Setup; 
 };

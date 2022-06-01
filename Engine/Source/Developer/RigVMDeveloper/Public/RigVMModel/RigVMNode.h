@@ -153,6 +153,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	virtual FName GetEventName() const;
 
+	// Returns true if this node can only exist once in a graph
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+	virtual bool CanOnlyExistOnce() const;
+
 	// Returns true if the node has any input pins
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	virtual bool HasInputPin(bool bIncludeIO = true) const;

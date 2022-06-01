@@ -308,12 +308,17 @@ bool URigVMNode::HasWildCardPin() const
 
 bool URigVMNode::IsEvent() const
 {
-	return IsMutable() && !HasInputPin(true /* include io */) && !GetEventName().IsNone();
+	return IsMutable() && !GetEventName().IsNone();
 }
 
 FName URigVMNode::GetEventName() const
 {
 	return NAME_None;
+}
+
+bool URigVMNode::CanOnlyExistOnce() const
+{
+	return false;
 }
 
 bool URigVMNode::HasInputPin(bool bIncludeIO) const

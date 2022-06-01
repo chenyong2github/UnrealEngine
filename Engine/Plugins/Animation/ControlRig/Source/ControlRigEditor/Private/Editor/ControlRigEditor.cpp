@@ -2820,6 +2820,15 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 						}
 					}
 				}
+
+				if(const URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(RootPin->GetNode()))
+				{
+					if(UnitNode->IsEvent())
+					{
+						FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprintObj());
+						CacheNameLists();
+					}
+				}
 			}
 	
 			break;
@@ -2851,6 +2860,20 @@ void FControlRigEditor::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, UR
 			else if(URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(InSubject))
 			{
 				ClearDetailObject();
+			}
+				
+			// fall through next case since we want to refresh the name lists
+			// both for removing or adding an event
+		}
+		case ERigVMGraphNotifType::NodeAdded:
+		{
+			if(URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InSubject))
+			{
+				if(UnitNode->IsEvent())
+				{
+					FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprintObj());
+					CacheNameLists();
+				}
 			}
 			break;
 		}
@@ -4695,6 +4718,12 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 		URigVMNode* Node = CastChecked<URigVMNode>(InWrapperObject->GetOuter());
 
 		FString DefaultValue = FRigVMStruct::ExportToFullyQualifiedText(TargetProperty, FirstPropertyStorage);
+
+		if(TargetProperty->IsA<FStrProperty>() || TargetProperty->IsA<FNameProperty>())
+		{
+			DefaultValue.TrimCharInline(TEXT('\"'), nullptr);
+		}
+		
 		URigVMController* Controller = GetControlRigBlueprint()->GetController(Node->GetGraph());
 
 		if (!DefaultValue.IsEmpty())

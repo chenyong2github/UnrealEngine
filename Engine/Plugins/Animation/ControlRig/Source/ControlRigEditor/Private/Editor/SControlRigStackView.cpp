@@ -478,6 +478,15 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 						{
 							DisplayName = FString::Printf(TEXT("%s %s"), *UnitNode->GetNodeTitle(), *MenuDescSuffixMetadata);
 						}
+
+						if(UnitNode->IsEvent())
+						{
+							DisplayName = Node->GetEventName().ToString();
+							if(!DisplayName.EndsWith(TEXT("Event")))
+							{
+								DisplayName += TEXT(" Event");
+							}
+						}
 	#endif
 					}
 				}
@@ -607,6 +616,12 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 						{
 							Label = OpCodeText.ToString();
 						}
+						break;
+					}
+					case ERigVMOpCode::InvokeEntry:
+					{
+						const FRigVMInvokeEntryOp& Op = ByteCode.GetOpAt<FRigVMInvokeEntryOp>(Instructions[InstructionIndex]);
+						Label = FString::Printf(TEXT("Run %s Event"), *Op.EntryName.ToString());
 						break;
 					}
 					case ERigVMOpCode::Exit:

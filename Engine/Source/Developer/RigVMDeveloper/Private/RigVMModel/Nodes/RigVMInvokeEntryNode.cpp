@@ -12,7 +12,7 @@ URigVMInvokeEntryNode::URigVMInvokeEntryNode()
 
 FString URigVMInvokeEntryNode::GetNodeTitle() const
 {
-	return FString::Printf(TEXT("Invoke %s"), *GetEntryName().ToString());
+	return FString::Printf(TEXT("Run %s"), *GetEntryName().ToString());
 }
 
 FName URigVMInvokeEntryNode::GetEntryName() const

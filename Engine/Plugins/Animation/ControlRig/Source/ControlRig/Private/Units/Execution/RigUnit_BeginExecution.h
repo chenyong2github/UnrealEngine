@@ -18,6 +18,7 @@ struct CONTROLRIG_API FRigUnit_BeginExecution : public FRigUnit
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	virtual FName GetEventName() const override { return EventName; }
+	virtual bool CanOnlyExistOnce() const override { return true; }
 
 	// The execution result
 	UPROPERTY(EditAnywhere, Transient, DisplayName = "Execute", Category = "BeginExecution", meta = (Output))

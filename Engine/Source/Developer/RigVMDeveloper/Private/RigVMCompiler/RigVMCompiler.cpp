@@ -1753,7 +1753,14 @@ void URigVMCompiler::TraverseInvokeEntry(const FRigVMInvokeEntryExprAST* InExpr,
 	}
 	else
 	{
+		const int32 InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions();
 		WorkData.VM->GetByteCode().AddInvokeEntryOp(InvokeEntryNode->GetEntryName());
+
+		if (Settings.SetupNodeInstructionIndex)
+		{
+			const FRigVMCallstack Callstack = InExpr->GetProxy().GetSibling(InvokeEntryNode).GetCallstack();
+			WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+		}
 	}
 }
 

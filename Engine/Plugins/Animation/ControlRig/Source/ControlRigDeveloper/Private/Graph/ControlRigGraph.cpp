@@ -187,6 +187,18 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 		LastHierarchyTopologyVersion = InHierarchy->GetTopologyVersion();
 	}
 	CacheNameList<FControlRigDrawContainer>(*DrawContainer, DrawingNameList);
+
+	EntryNameList.Reset();
+	EntryNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
+
+	if(const UControlRigBlueprint* Blueprint = GetBlueprint())
+	{
+		const TArray<FName> EntryNames = Blueprint->GetRigVMClient()->GetEntryNames();
+		for (const FName& EntryName : EntryNames)
+		{
+			EntryNameList.Add(MakeShared<FString>(EntryName.ToString()));
+		}
+	}
 }
 
 const TArray<TSharedPtr<FString>>* UControlRigGraph::GetElementNameList(ERigElementType InElementType) const
@@ -271,6 +283,15 @@ const TArray<TSharedPtr<FString>>* UControlRigGraph::GetDrawingNameList(URigVMPi
 		return OuterGraph->GetDrawingNameList(InPin);
 	}
 	return &DrawingNameList;
+}
+
+const TArray<TSharedPtr<FString>>* UControlRigGraph::GetEntryNameList(URigVMPin* InPin) const
+{
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetEntryNameList(InPin);
+	}
+	return &EntryNameList;
 }
 
 void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
@@ -647,6 +668,10 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 					UEdGraphPin* RigNodePin = RigNode->FindPin(ModelPin->GetPinPath());
 					if (RigNodePin == nullptr)
 					{
+						if(ModelPin->GetNode()->IsEvent())
+						{
+							RigNode->InvalidateNodeTitle();
+						}
 						break;
 					}
 

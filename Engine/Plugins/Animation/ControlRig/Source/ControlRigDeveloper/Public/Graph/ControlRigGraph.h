@@ -67,6 +67,7 @@ public:
 	const TArray<TSharedPtr<FString>>* GetElementNameList(URigVMPin* InPin = nullptr) const;
 	const TArray<TSharedPtr<FString>> GetSelectedElementsNameList() const;
 	const TArray<TSharedPtr<FString>>* GetDrawingNameList(URigVMPin* InPin = nullptr) const;
+	const TArray<TSharedPtr<FString>>* GetEntryNameList(URigVMPin* InPin = nullptr) const;
 
 	bool bSuspendModelNotifications;
 	bool bIsTemporaryGraphForCopyPaste;
@@ -134,6 +135,7 @@ private:
 
 	TMap<ERigElementType, TArray<TSharedPtr<FString>>> ElementNameLists;
 	TArray<TSharedPtr<FString>> DrawingNameList;
+	TArray<TSharedPtr<FString>> EntryNameList;
 	int32 LastHierarchyTopologyVersion;
 
 	bool bIsSelecting;
@@ -173,6 +175,7 @@ private:
 	friend class UControlRigEnumNodeSpawner;
 	friend class UControlRigFunctionRefNodeSpawner;
 	friend class UControlRigArrayNodeSpawner;
+	friend class UControlRigInvokeEntryNodeSpawner;
 
 #endif
 	friend class UControlRigGraphNode;
