@@ -62,10 +62,8 @@ void FWorldPartitionHelpers::ForEachActorDesc(UWorldPartition* WorldPartition, T
 
 namespace WorldPartitionHelpers
 {
-	void LoadReferences(UWorldPartition* WorldPartition, const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& InOutActorReferences)
+	void LoadReferencesInternal(UWorldPartition* WorldPartition, const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& InOutActorReferences)
 	{
-		FWorldPartitionLoadingContext::FDeferred LoadingContext;
-
 		if (InOutActorReferences.Contains(ActorGuid))
 		{
 			return;
@@ -77,11 +75,17 @@ namespace WorldPartitionHelpers
 
 			for (FGuid ReferenceGuid : ActorDesc->GetReferences())
 			{
-				LoadReferences(WorldPartition, ReferenceGuid, InOutActorReferences);
+				LoadReferencesInternal(WorldPartition, ReferenceGuid, InOutActorReferences);
 			}
 
 			InOutActorReferences[ActorGuid] = FWorldPartitionReference(WorldPartition, ActorGuid);
 		}
+	}
+
+	void LoadReferences(UWorldPartition* WorldPartition, const FGuid& ActorGuid, TMap<FGuid, FWorldPartitionReference>& InOutActorReferences)
+	{
+		FWorldPartitionLoadingContext::FDeferred LoadingContext;
+		LoadReferencesInternal(WorldPartition, ActorGuid, InOutActorReferences);
 	}
 }
 
