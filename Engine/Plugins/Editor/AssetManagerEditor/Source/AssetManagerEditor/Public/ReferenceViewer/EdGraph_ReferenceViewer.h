@@ -99,7 +99,7 @@ public:
 	void SetCurrentFilterCollection(TSharedPtr< TFilterCollection<FReferenceNodeInfo&> > NewFilterCollection);
 
 	/* Returns a set of unique asset types as UClass* */
-	const TSet<FName>& GetAssetTypes() const { return CurrentClasses; }
+	const TSet<FTopLevelAssetPath>& GetAssetTypes() const { return CurrentClasses; }
 
 private:
 	void SetReferenceViewer(TSharedPtr<SReferenceViewer> InViewer);
@@ -159,7 +159,7 @@ private:
 	FName CurrentCollectionFilter;
 
 	/** A set of the unique class types referenced */
-	TSet<FName> CurrentClasses;
+	TSet<FTopLevelAssetPath> CurrentClasses;
 
 	/* This is a convenience toggle to switch between the old & new methods for computing & displaying the graph */
 	bool bUseNodeInfos;

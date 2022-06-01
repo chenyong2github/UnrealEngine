@@ -233,13 +233,13 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::ConstructNodes(const TArray<FA
 		GatherAssetData(AllPackageNames, PackagesToAssetDataMap);
 
 		// Store the AssetData in the NodeInfos and collect Asset Type UClasses to populate the filters
-		TSet<FName> AllClasses;
+		TSet<FTopLevelAssetPath> AllClasses;
 		for (TPair<FAssetIdentifier, FReferenceNodeInfo>&  InfoPair : NewReferenceNodeInfos)
 		{
 			InfoPair.Value.AssetData = PackagesToAssetDataMap.FindRef(InfoPair.Key.PackageName);
 			if (InfoPair.Value.AssetData.IsValid())
 			{
-				AllClasses.Add(InfoPair.Value.AssetData.AssetClass);
+				AllClasses.Add(InfoPair.Value.AssetData.AssetClassPath);
 			}
 		}
 
@@ -248,7 +248,7 @@ UEdGraphNode_Reference* UEdGraph_ReferenceViewer::ConstructNodes(const TArray<FA
 			InfoPair.Value.AssetData = PackagesToAssetDataMap.FindRef(InfoPair.Key.PackageName);
 			if (InfoPair.Value.AssetData.IsValid())
 			{
-				AllClasses.Add(InfoPair.Value.AssetData.AssetClass);
+				AllClasses.Add(InfoPair.Value.AssetData.AssetClassPath);
 			}
 		}
 

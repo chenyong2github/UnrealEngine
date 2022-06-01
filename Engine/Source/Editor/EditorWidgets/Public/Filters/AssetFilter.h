@@ -18,7 +18,7 @@ class FAssetFilter : public FFilterBase<FilterType>
 public:
 
 	/* A delegate that the user can use to specify how to compare their Filter Item to a list of Asset Types represented as FNames */
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FCompareItemWithClassNames, FilterType /* InItem */, const TSet<FName>& /* InClassNames */);
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FCompareItemWithClassNames, FilterType /* InItem */, const TSet<FTopLevelAssetPath>& /* InClassNames */);
 
 	/* A delegate that the user can use to specify how to convert their Filter Item into an FAssetData
 	 * @return: true if the Filter Item was successfully converted, false if not (the current item will not be tested for asset filters if so)
@@ -110,7 +110,7 @@ public:
 		// If not, try to use the comparison function
 		else if(OnCompareItem.IsBound())
 		{
-			return OnCompareItem.Execute(InItem, CompiledBackendFilter.ClassNames);
+			return OnCompareItem.Execute(InItem, CompiledBackendFilter.ClassPaths);
 		}
 
 		return false;

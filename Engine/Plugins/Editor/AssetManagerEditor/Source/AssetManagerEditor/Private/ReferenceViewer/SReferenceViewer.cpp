@@ -729,12 +729,14 @@ void SReferenceViewer::OnUpdateFilterBar()
 
 	if (GraphObj)
 	{
-		const TSet<FName> AllClasses = GraphObj->GetAssetTypes();
+		const TSet<FTopLevelAssetPath> AllClasses = GraphObj->GetAssetTypes();
 		if (Settings->AutoUpdateFilters())
 		{
 			FilterWidget->RemoveAllFilters();
-			for (FName AssetClass : AllClasses)
+			for (const FTopLevelAssetPath& AssetClassPath : AllClasses)
 			{
+				// @todo make DoesAssetTypeFilterExist/SetAssetTypeFilterCheckState use FTopLevelAssetPath
+				const FName AssetClass = FName(*AssetClassPath.ToString());
 				if (FilterWidget->DoesAssetTypeFilterExist(AssetClass))
 				{
 					FilterWidget->SetAssetTypeFilterCheckState(AssetClass, ECheckBoxState::Checked);
